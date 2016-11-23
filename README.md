@@ -14,8 +14,8 @@ $ python main.py --env=cheetah --algo=ddpg --name=my_amazing_experiment
 
 `example.py` gives a minimal example of how to write a script that launches experiments.
 
-### Creating your own policy/critic
-See `policies/nn_policy.py`. You only need to implement
+## Creating your own policy/critic
+To create a policy, you need to create a class that subclasses ``NNPolicy`` and implements
 
 ```
 def create_network(self):
@@ -28,33 +28,9 @@ def create_network(self):
     raise NotImplementedError
 ```
 
-For example, to create a simple policy that just sums its observations:
+and similarly for creating your own critic. See `policies/nn_policy.py` and `qfunctions/nn_qfunction.py` for detail.
 
-```
-class SumPolicy(NNPolicy):
-    def create_network(self):
-        W_obs = weight_variable((self.observation_dim, 1),
-                                initializer=tf.constant_initializer(1.))
-        return tf.matmul(self.observations_placeholder, W_obs)
-```
+For an example on creating your own policy, see the `SumPolicy` class in `policies/nn_policy.py`.
+For an example on creating your own critic, see the `SumCritic` class in `qfunctions/nn_qfunction.py`.
 
-For implementing a critic, see `qfunctions/nn_qfunction.py`. Another simple critic that simply sums its input is:
-```
-class SumCritic(NNCritic):
-    """Just output the sum of the inputs. This is used to debug."""
-
-    def create_network(self, action_input):
-        with tf.variable_scope("actions_layer") as _:
-            W_actions = weight_variable(
-                (self.action_dim, 1),
-                initializer=tf.constant_initializer(1.),
-                reuse_variables=True)
-        with tf.variable_scope("observation_layer") as _:
-            W_obs = weight_variable(
-                (self.observation_dim, 1),
-                initializer=tf.constant_initializer(1.),
-                reuse_variables=True)
-
-        return (tf.matmul(action_input, W_actions) +
-                tf.matmul(self.observations_placeholder, W_obs))
-```
+## Notes on relation to rllab
