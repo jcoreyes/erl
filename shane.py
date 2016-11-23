@@ -34,7 +34,6 @@ def main():
         hidden_sizes=(100, 100),
         hidden_nonlinearity=tf.nn.relu,
         output_nonlinearity=tf.nn.tanh,
-        bn=False,
     )
     qf = ContinuousMLPQFunction(
         name="qf",
