@@ -8,6 +8,7 @@ import numpy as np
 import tensorflow as tf
 from misc.rllab_util import split_paths
 
+from sandbox.rocky.tf.samplers.batch_sampler import BatchSampler
 from misc.simple_replay_pool import SimpleReplayPool
 from rllab.algos.base import RLAlgorithm
 from rllab.misc import logger
@@ -29,19 +30,19 @@ class DDPG(RLAlgorithm):
             exploration_strategy,
             policy,
             qf,
-            batch_size=32,
-            n_epochs=200,
+            batch_size=64,
+            n_epochs=10000,
             epoch_length=1000,
             min_pool_size=10000,
             replay_pool_size=1000000,
             discount=0.99,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
-            soft_target_tau=1e-3,
-            max_path_length=250,
-            eval_samples=1000,
+            soft_target_tau=1e-2,
+            max_path_length=1000,
+            eval_samples=10000,
             scale_reward=1.,
-            Q_weight_decay=1e-2,
+            Q_weight_decay=0.,
     ):
         """
         :param env: Environment
@@ -65,7 +66,7 @@ class DDPG(RLAlgorithm):
         """
         assert min_pool_size >= 2
         self.env = env
-        self.actor = policy
+        self.policy = policy
         self.critic = qf
         self.exploration_strategy = exploration_strategy
         self.replay_pool_size = replay_pool_size
@@ -75,7 +76,7 @@ class DDPG(RLAlgorithm):
         self.min_pool_size = min_pool_size
         self.discount = discount
         self.critic_learning_rate = qf_learning_rate
-        self.actor_learning_rate = policy_learning_rate
+        self.policy_learning_rate = policy_learning_rate
         self.tau = soft_target_tau
         self.max_path_length = max_path_length
         self.n_eval_samples = eval_samples
@@ -94,19 +95,33 @@ class DDPG(RLAlgorithm):
         with self.sess.as_default():
             self._init_tensorflow_ops()
         self.es_path_returns = []
+        self.sampler = BatchSampler(self)
+        self.scope = None
+
+    def start_worker(self):
+        self.sampler.start_worker()
+
+    def shutdown_worker(self):
+        self.sampler.shutdown_worker()
+
+    def obtain_samples(self, itr):
+        return self.sampler.obtain_samples(itr)
+
+    def process_samples(self, itr, paths):
+        return self.sampler.process_samples(itr, paths)
 
     def _init_tensorflow_ops(self):
         # Initialize variables for get_copy to work
         self.sess.run(tf.initialize_all_variables())
-        self.target_actor = self.actor.get_copy(
-            scope_name=TARGET_PREFIX + self.actor.scope_name,
+        self.target_actor = self.policy.get_copy(
+            scope_name=TARGET_PREFIX + self.policy.scope_name,
         )
         self.target_critic = self.critic.get_copy(
             scope_name=TARGET_PREFIX + self.critic.scope_name,
             action_input=self.target_actor.output
         )
         self.critic.sess = self.sess
-        self.actor.sess = self.sess
+        self.policy.sess = self.sess
         self.target_critic.sess = self.sess
         self.target_actor.sess = self.sess
         self._init_critic_ops()
@@ -142,16 +157,16 @@ class DDPG(RLAlgorithm):
         # as input the output of the actor. See Equation (6) of "Deterministic
         # Policy Gradient Algorithms" ICML 2014.
         self.critic_with_action_input = self.critic.get_weight_tied_copy(
-            self.actor.output)
+            self.policy.output)
         self.actor_surrogate_loss = - tf.reduce_mean(
             self.critic_with_action_input.output)
         self.train_actor_op = tf.train.AdamOptimizer(
-            self.actor_learning_rate).minimize(
+            self.policy_learning_rate).minimize(
             self.actor_surrogate_loss,
-            var_list=self.actor.get_params_internal())
+            var_list=self.policy.get_params_internal())
 
     def _init_target_ops(self):
-        actor_vars = self.actor.get_params_internal()
+        actor_vars = self.policy.get_params_internal()
         critic_vars = self.critic.get_params_internal()
         target_actor_vars = self.target_actor.get_params_internal()
         target_critic_vars = self.target_critic.get_params_internal()
@@ -165,14 +180,14 @@ class DDPG(RLAlgorithm):
             tf.assign(target, (self.tau * src + (1 - self.tau) * target))
             for target, src in zip(target_critic_vars, critic_vars)]
 
-    def start_worker(self):
-        parallel_sampler.populate_task(self.env, self.actor)
+    # def start_worker(self):
+    #     parallel_sampler.populate_task(self.env, self.actor)
 
     @overrides
     def train(self):
         with self.sess.as_default():
             self.target_critic.set_param_values(self.critic.get_param_values())
-            self.target_actor.set_param_values(self.actor.get_param_values())
+            self.target_actor.set_param_values(self.policy.get_param_values())
             self.start_worker()
 
             observation = self.env.reset()
@@ -187,7 +202,7 @@ class DDPG(RLAlgorithm):
                 for _ in range(self.epoch_length):
                     action = self.exploration_strategy.get_action(itr,
                                                                   observation,
-                                                                  self.actor)
+                                                                  self.policy)
                     next_ob, raw_reward, terminal, _ = self.env.step(action)
                     reward = raw_reward * self.reward_scale
                     path_length += 1
@@ -227,8 +242,9 @@ class DDPG(RLAlgorithm):
                     logger.save_itr_params(epoch, params)
                 logger.dump_tabular(with_prefix=False)
                 logger.pop_prefix()
-            self.env.terminate()
-            return self.last_statistics
+        self.env.terminate()
+        self.shutdown_worker()
+        return self.last_statistics
 
     def do_training(self):
         minibatch = self.pool.random_batch(self.batch_size)
@@ -274,16 +290,17 @@ class DDPG(RLAlgorithm):
     def _actor_feed_dict(self, obs):
         return {
             self.critic_with_action_input.observations_placeholder: obs,
-            self.actor.observations_placeholder: obs,
+            self.policy.observations_placeholder: obs,
         }
 
     def evaluate(self, epoch):
         logger.log("Collecting samples for evaluation")
-        paths = parallel_sampler.sample_paths(
-            policy_params=self.actor.get_param_values(),
-            max_samples=self.n_eval_samples,
-            max_path_length=self.max_path_length,
-        )
+        # paths = parallel_sampler.sample_paths(
+        #     policy_params=self.actor.get_param_values(),
+        #     max_samples=self.n_eval_samples,
+        #     max_path_length=self.max_path_length,
+        # )
+        paths = self.obtain_samples(epoch)
         rewards, terminals, obs, actions, next_obs = split_paths(paths)
         feed_dict = self._update_feed_dict(rewards, terminals, obs, actions,
                                            next_obs)
@@ -301,7 +318,7 @@ class DDPG(RLAlgorithm):
             [
                 self.actor_surrogate_loss,
                 self.critic_loss,
-                self.actor.output,
+                self.policy.output,
                 self.target_actor.output,
                 self.critic.output,
                 self.target_critic.output,
@@ -362,6 +379,6 @@ class DDPG(RLAlgorithm):
         return dict(
             env=self.env,
             epoch=epoch,
-            policy=self.actor,
+            policy=self.policy,
             es=self.exploration_strategy,
         )

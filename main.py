@@ -216,7 +216,7 @@ def run_experiment(algorithm, exp_prefix, seed, variant):
     print(variant)
     run_experiment_lite(
         algorithm.train(),
-        n_parallel=1,
+        n_parallel=2,
         snapshot_mode="last",
         exp_prefix=exp_prefix,
         variant=variant,
