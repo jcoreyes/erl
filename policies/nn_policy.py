@@ -28,6 +28,12 @@ class NNPolicy(NeuralNetwork, Policy):
                              {self.observations_placeholder: [observation]}), {}
 
     def create_network(self):
+        """
+        Use self.observations_placeholder to create an output. (To be
+        refactored soon so that the input is passed in.)
+
+        :return: TensorFlow tensor.
+        """
         raise NotImplementedError
 
 
