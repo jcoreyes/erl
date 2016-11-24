@@ -32,9 +32,8 @@ class OnlineAlgorithm(RLAlgorithm):
             discount=0.99,
             soft_target_tau=1e-2,
             max_path_length=1000,
-            eval_samples=1000,
+            eval_samples=10000,
             scale_reward=1.,
-            Q_weight_decay=0.,
     ):
         """
         :param env: Environment
@@ -50,7 +49,6 @@ class OnlineAlgorithm(RLAlgorithm):
         :param max_path_length: Maximum path length
         :param eval_samples: Number of time steps to take for evaluation.
         :param scale_reward: How much to multiply the rewards by.
-        :param Q_weight_decay: How much to decay the weights for Q
         :return:
         """
         assert min_pool_size >= 2
@@ -66,8 +64,7 @@ class OnlineAlgorithm(RLAlgorithm):
         self.tau = soft_target_tau
         self.max_path_length = max_path_length
         self.n_eval_samples = eval_samples
-        self.reward_scale = scale_reward
-        self.Q_weight_decay = Q_weight_decay
+        self.scale_reward = scale_reward
 
         self.observation_dim = self.env.observation_space.flat_dim
         self.action_dim = self.env.action_space.flat_dim
@@ -86,22 +83,14 @@ class OnlineAlgorithm(RLAlgorithm):
             self._init_tensorflow_ops()
         self.es_path_returns = []
 
-    @abc.abstractmethod
-    def _init_tensorflow_ops(self):
-        return
-
-    def start_worker(self):
+    def _start_worker(self):
         parallel_sampler.populate_task(self.env, self.policy)
-
-    @abc.abstractmethod
-    def _init_training(self):
-        return
 
     @overrides
     def train(self):
         with self.sess.as_default():
             self._init_training()
-            self.start_worker()
+            self._start_worker()
 
             observation = self.env.reset()
             self.exploration_strategy.reset()
@@ -117,7 +106,7 @@ class OnlineAlgorithm(RLAlgorithm):
                                                                   observation,
                                                                   self.policy)
                     next_ob, raw_reward, terminal, _ = self.env.step(action)
-                    reward = raw_reward * self.reward_scale
+                    reward = raw_reward * self.scale_reward
                     path_length += 1
                     path_return += reward
 
@@ -141,14 +130,15 @@ class OnlineAlgorithm(RLAlgorithm):
                         observation = next_ob
 
                     if self.pool.size >= self.min_pool_size:
-                        self.do_training()
+                        self._do_training()
                     itr += 1
 
                 logger.log("Training finished. Time: {0}".format(time.time() -
                                                                  start_time))
                 if self.pool.size >= self.min_pool_size:
                     start_time = time.time()
-                    self.evaluate(epoch)
+                    self.evaluate(epoch, self.es_path_returns)
+                    self.es_path_returns = []
                     params = self.get_epoch_snapshot(epoch)
                     logger.log(
                         "Eval time: {0}".format(time.time() - start_time))
@@ -158,14 +148,7 @@ class OnlineAlgorithm(RLAlgorithm):
             self.env.terminate()
             return self.last_statistics
 
-    @abc.abstractmethod
-    def get_training_ops(self):
-        """
-        :return: List of ops to perform when training
-        """
-        return
-
-    def do_training(self):
+    def _do_training(self):
         minibatch = self.pool.random_batch(self.batch_size)
         sampled_obs = minibatch['observations']
         sampled_terminals = minibatch['terminals']
@@ -178,7 +161,39 @@ class OnlineAlgorithm(RLAlgorithm):
                                            sampled_obs,
                                            sampled_actions,
                                            sampled_next_obs)
-        self.sess.run(self.get_training_ops(), feed_dict=feed_dict)
+        self.sess.run(self._get_training_ops(), feed_dict=feed_dict)
+
+    def get_epoch_snapshot(self, epoch):
+        return dict(
+            env=self.env,
+            epoch=epoch,
+            policy=self.policy,
+            es=self.exploration_strategy,
+        )
+
+    @abc.abstractmethod
+    def _init_tensorflow_ops(self):
+        """
+        Method to be called in the initialization of the class. After this
+        method is called, the train() method should work.
+        :return: None
+        """
+        return
+
+    @abc.abstractmethod
+    def _init_training(self):
+        """
+        Method to be called at the start of training.
+        :return: None
+        """
+        return
+
+    @abc.abstractmethod
+    def _get_training_ops(self):
+        """
+        :return: List of ops to perform when training
+        """
+        return
 
     @abc.abstractmethod
     def _update_feed_dict(self, rewards, terminals, obs, actions, next_obs):
@@ -188,20 +203,13 @@ class OnlineAlgorithm(RLAlgorithm):
         return
 
     @abc.abstractmethod
-    def evaluate(self, epoch):
+    def evaluate(self, epoch, es_path_returns):
         """
         Perform evaluation for this algorithm.
 
         It's recommended
         :param epoch: The epoch number.
+        :param es_path_returns: List of path returns from explorations strategy
         :return: Dictionary of statistics.
         """
         return
-
-    def get_epoch_snapshot(self, epoch):
-        return dict(
-            env=self.env,
-            epoch=epoch,
-            policy=self.policy,
-            es=self.exploration_strategy,
-        )
