@@ -34,6 +34,7 @@ class OnlineAlgorithm(RLAlgorithm):
             max_path_length=1000,
             eval_samples=10000,
             scale_reward=1.,
+            render=False,
     ):
         """
         :param env: Environment
@@ -49,6 +50,7 @@ class OnlineAlgorithm(RLAlgorithm):
         :param max_path_length: Maximum path length
         :param eval_samples: Number of time steps to take for evaluation.
         :param scale_reward: How much to multiply the rewards by.
+        :param render: Boolean. If True, render the environment.
         :return:
         """
         assert min_pool_size >= 2
@@ -65,6 +67,7 @@ class OnlineAlgorithm(RLAlgorithm):
         self.max_path_length = max_path_length
         self.n_eval_samples = eval_samples
         self.scale_reward = scale_reward
+        self.render = render
 
         self.observation_dim = self.env.observation_space.flat_dim
         self.action_dim = self.env.action_space.flat_dim
@@ -105,6 +108,8 @@ class OnlineAlgorithm(RLAlgorithm):
                     action = self.exploration_strategy.get_action(itr,
                                                                   observation,
                                                                   self.policy)
+                    if self.render:
+                        self.env.render()
                     next_ob, raw_reward, terminal, _ = self.env.step(action)
                     reward = raw_reward * self.scale_reward
                     path_length += 1

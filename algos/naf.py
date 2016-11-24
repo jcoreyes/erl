@@ -1,17 +1,14 @@
 """
 :author: Vitchyr Pong
 """
-import time
 from collections import OrderedDict
 
 import numpy as np
 import tensorflow as tf
 
 from algos.online_algorithm import OnlineAlgorithm
+from misc.data_processing import create_stats_ordered_dict
 from misc.rllab_util import split_paths
-
-from misc.simple_replay_pool import SimpleReplayPool
-from rllab.algos.base import RLAlgorithm
 from rllab.misc import logger
 from rllab.misc import special
 from rllab.misc.overrides import overrides
@@ -161,35 +158,17 @@ class NAF(OnlineAlgorithm):
             ('ActorMeanOutput', np.mean(policy_output)),
             ('ActorStdOutput', np.std(policy_output)),
             ('CriticLoss', qf_loss),
-            ('CriticMeanOutput', np.mean(qf_output)),
-            ('CriticStdOutput', np.std(qf_output)),
-            ('CriticMaxOutput', np.max(qf_output)),
-            ('CriticMinOutput', np.min(qf_output)),
-            ('TargetMeanCriticOutput', np.mean(target_vf_output)),
-            ('TargetStdCriticOutput', np.std(target_vf_output)),
-            ('TargetMaxCriticOutput', np.max(target_vf_output)),
-            ('TargetMinCriticOutput', np.min(target_vf_output)),
-            ('YsMean', np.mean(ys)),
-            ('YsStd', np.std(ys)),
-            ('YsMax', np.max(ys)),
-            ('YsMin', np.min(ys)),
             ('AverageDiscountedReturn', average_discounted_return),
-            ('AverageReturn', np.mean(returns)),
-            ('StdReturn', np.std(returns)),
-            ('MaxReturn', np.max(returns)),
-            ('MinReturn', np.std(returns)),
-            ('AverageRewards', np.mean(rewards)),
-            ('StdRewards', np.std(rewards)),
-            ('MaxRewards', np.max(rewards)),
-            ('MinRewards', np.std(rewards)),
         ])
+        last_statistics.update(create_stats_ordered_dict('Ys', ys))
+        last_statistics.update(create_stats_ordered_dict('QfOutput', qf_output))
+        last_statistics.update(create_stats_ordered_dict('TargetVfOutput',
+                                                         target_vf_output))
+        last_statistics.update(create_stats_ordered_dict('Rewards', rewards))
+        last_statistics.update(create_stats_ordered_dict('returns', returns))
         if len(es_path_returns) > 0:
-            last_statistics.update([
-                ('TrainingAverageReturn', np.mean(es_path_returns)),
-                ('TrainingStdReturn', np.std(es_path_returns)),
-                ('TrainingMaxReturn', np.max(es_path_returns)),
-                ('TrainingMinReturn', np.min(es_path_returns)),
-            ])
+            last_statistics.update(create_stats_ordered_dict('TrainingReturns',
+                                                             es_path_returns))
         for key, value in last_statistics.items():
             logger.record_tabular(key, value)
 

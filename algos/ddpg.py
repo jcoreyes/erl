@@ -8,6 +8,7 @@ import numpy as np
 import tensorflow as tf
 
 from algos.online_algorithm import OnlineAlgorithm
+from misc.data_processing import create_stats_ordered_dict
 from misc.rllab_util import split_paths
 
 from misc.simple_replay_pool import SimpleReplayPool
@@ -177,12 +178,12 @@ class DDPG(OnlineAlgorithm):
 
         # Compute statistics
         (
-            actor_loss,
-            critic_loss,
-            actor_outputs,
-            target_actor_outputs,
-            critic_outputs,
-            target_critic_outputs,
+            policy_loss,
+            qf_loss,
+            policy_outputs,
+            target_policy_outputs,
+            qf_outputs,
+            target_qf_outputs,
             ys,
         ) = self.sess.run(
             [
@@ -205,41 +206,24 @@ class DDPG(OnlineAlgorithm):
         # Log statistics
         last_statistics = OrderedDict([
             ('Epoch', epoch),
-            ('ActorSurrogateLoss', actor_loss),
-            ('ActorMeanOutput', np.mean(actor_outputs)),
-            ('ActorStdOutput', np.std(actor_outputs)),
-            ('TargetActorMeanOutput', np.mean(target_actor_outputs)),
-            ('TargetActorStdOutput', np.std(target_actor_outputs)),
-            ('CriticLoss', critic_loss),
-            ('CriticMeanOutput', np.mean(critic_outputs)),
-            ('CriticStdOutput', np.std(critic_outputs)),
-            ('CriticMaxOutput', np.max(critic_outputs)),
-            ('CriticMinOutput', np.min(critic_outputs)),
-            ('TargetMeanCriticOutput', np.mean(target_critic_outputs)),
-            ('TargetStdCriticOutput', np.std(target_critic_outputs)),
-            ('TargetMaxCriticOutput', np.max(target_critic_outputs)),
-            ('TargetMinCriticOutput', np.min(target_critic_outputs)),
-            ('YsMean', np.mean(ys)),
-            ('YsStd', np.std(ys)),
-            ('YsMax', np.max(ys)),
-            ('YsMin', np.min(ys)),
+            ('PolicySurrogateLoss', policy_loss),
+            ('PolicyMeanOutput', np.mean(policy_outputs)),
+            ('PolicyStdOutput', np.std(policy_outputs)),
+            ('TargetPolicyMeanOutput', np.mean(target_policy_outputs)),
+            ('TargetPolicyStdOutput', np.std(target_policy_outputs)),
+            ('CriticLoss', qf_loss),
             ('AverageDiscountedReturn', average_discounted_return),
-            ('AverageReturn', np.mean(returns)),
-            ('StdReturn', np.std(returns)),
-            ('MaxReturn', np.max(returns)),
-            ('MinReturn', np.std(returns)),
-            ('AverageRewards', np.mean(rewards)),
-            ('StdRewards', np.std(rewards)),
-            ('MaxRewards', np.max(rewards)),
-            ('MinRewards', np.std(rewards)),
         ])
+        last_statistics.update(create_stats_ordered_dict('Ys', ys))
+        last_statistics.update(create_stats_ordered_dict('QfOutput',
+                                                         qf_outputs))
+        last_statistics.update(create_stats_ordered_dict('TargetQfOutput',
+                                                         target_qf_outputs))
+        last_statistics.update(create_stats_ordered_dict('Rewards', rewards))
+        last_statistics.update(create_stats_ordered_dict('returns', returns))
         if len(es_path_returns) > 0:
-            last_statistics.update([
-                ('TrainingAverageReturn', np.mean(es_path_returns)),
-                ('TrainingStdReturn', np.std(es_path_returns)),
-                ('TrainingMaxReturn', np.max(es_path_returns)),
-                ('TrainingMinReturn', np.min(es_path_returns)),
-            ])
+            last_statistics.update(create_stats_ordered_dict('TrainingReturns',
+                                                             es_path_returns))
         for key, value in last_statistics.items():
             logger.record_tabular(key, value)
 

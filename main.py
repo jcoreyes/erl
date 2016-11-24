@@ -5,6 +5,7 @@ import tensorflow as tf
 
 from algos.ddpg import DDPG as MyDDPG
 from algos.naf import NAF
+from algos.noop_algo import NoOpAlgo
 from misc import hyperparameter as hp
 from policies.nn_policy import FeedForwardPolicy
 from qfunctions.nn_qfunction import FeedForwardCritic
@@ -16,8 +17,8 @@ from rllab.envs.normalized_env import normalize
 from rllab.exploration_strategies.ou_strategy import OUStrategy
 from rllab.exploration_strategies.gaussian_strategy import GaussianStrategy
 from rllab.misc.instrument import stub, run_experiment_lite
+from rllab.policies.uniform_control_policy import UniformControlPolicy
 from sandbox.rocky.tf.algos.ddpg import DDPG as ShaneDDPG
-from sandbox.rocky.tf.envs.base import TfEnv
 from sandbox.rocky.tf.policies.deterministic_mlp_policy import \
     DeterministicMLPPolicy
 from sandbox.rocky.tf.q_functions.continuous_mlp_q_function import \
@@ -44,7 +45,8 @@ NUM_SEEDS_PER_CONFIG = 2
 NUM_HYPERPARAMETER_CONFIGS = 50
 
 
-def get_env_settings(env_name):
+def get_env_settings(args):
+    env_name = args.env
     if env_name == 'cart':
         env = CartpoleEnv()
         name = "Cartpole"
@@ -63,7 +65,8 @@ def get_env_settings(env_name):
     )
 
 
-def get_algo_settings(algo_name):
+def get_algo_settings(args):
+    algo_name = args.algo
     if algo_name == 'ddpg':
         sweeper = hp.HyperparameterSweeper([
             hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
@@ -72,7 +75,6 @@ def get_algo_settings(algo_name):
         ])
         params = get_my_ddpg_params()
         test_function = test_my_ddpg
-        es_class = OUStrategy
     elif algo_name == 'naf':
         sweeper = hp.HyperparameterSweeper([
             hp.LogFloatParam("qf_learning_rate", 1e-4, 1e-2),
@@ -80,15 +82,19 @@ def get_algo_settings(algo_name):
         ])
         params = get_my_naf_params()
         test_function = test_my_naf
-        es_class = GaussianStrategy
+    elif algo_name == 'random':
+        sweeper = hp.HyperparameterSweeper()
+        params = {}
+        test_function = test_random_ddpg
+
     else:
         raise Exception("Algo name not recognized: " + algo_name)
 
+    params['render'] = args.render
     return {
         'sweeper': sweeper,
         'algo_params': params,
         'test_function': test_function,
-        'exploration_strategy_class': es_class,
     }
 
 
@@ -204,7 +210,6 @@ def test_shane_ddpg(env, exp_prefix, env_name, seed=1, **new_ddpg_params):
     ddpg_params = dict(get_ddpg_params(), **new_ddpg_params)
     es = GaussianStrategy(env.spec)
 
-
     policy_params = dict(
         hidden_sizes=(100, 100),
         hidden_nonlinearity=tf.nn.relu,
@@ -243,6 +248,19 @@ def test_shane_ddpg(env, exp_prefix, env_name, seed=1, **new_ddpg_params):
     run_experiment(algorithm, exp_prefix, seed, variant=variant)
 
 
+def test_random_ddpg(env, exp_prefix, env_name, seed=1, **algo_params):
+    es = OUStrategy(env)
+    policy = UniformControlPolicy(env_spec=env.spec)
+    algorithm = NoOpAlgo(
+        env,
+        policy,
+        es,
+        **algo_params)
+    variant = {'Version': 'Random', 'Environment': env_name}
+
+    run_experiment(algorithm, exp_prefix, seed, variant=variant)
+
+
 def run_experiment(algorithm, exp_prefix, seed, variant):
     variant['seed'] = str(seed)
     print("variant=")
@@ -272,14 +290,17 @@ def sweep(exp_prefix, env_settings, algo_settings):
             test_function(env, exp_prefix, env_name, seed=seed + 1,
                           **params)
 
+
 def main():
     env_choices = ['cheetah', 'cart', 'point']
-    algo_choices = ['ddpg', 'naf', 'shane-ddpg']
+    algo_choices = ['ddpg', 'naf', 'shane-ddpg', 'random']
     parser = argparse.ArgumentParser()
     parser.add_argument("--benchmark", action='store_true',
                         help="Run benchmarks.")
     parser.add_argument("--sweep", action='store_true',
                         help="Sweep hyperparameters for my DDPG.")
+    parser.add_argument("--render", action='store_true',
+                        help="Render the environment.")
     parser.add_argument("--env", default='cart',
                         help="Test algo on 'cart' or 'cheetah'.",
                         choices=env_choices)
@@ -295,8 +316,8 @@ def main():
 
     stub(globals())
 
-    algo_settings = get_algo_settings(args.algo)
-    env_settings = get_env_settings(args.env)
+    algo_settings = get_algo_settings(args)
+    env_settings = get_env_settings(args)
     if args.sweep:
         sweep(args.name, env_settings, algo_settings)
     else:
