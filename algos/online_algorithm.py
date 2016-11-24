@@ -1,40 +1,35 @@
 """
 :author: Vitchyr Pong
 """
+import abc
 import time
-from collections import OrderedDict
 
 import numpy as np
 import tensorflow as tf
-from misc.rllab_util import split_paths
 
 from misc.simple_replay_pool import SimpleReplayPool
 from rllab.algos.base import RLAlgorithm
 from rllab.misc import logger
-from rllab.misc import special
 from rllab.misc.overrides import overrides
 from rllab.sampler import parallel_sampler
 
-TARGET_PREFIX = "target_vf_of_"
 
-
-class NAF(RLAlgorithm):
+class OnlineAlgorithm(RLAlgorithm):
     """
-    Continuous Q-learning with Normalized Advantage Function
+    Online learning algorithm.
     """
 
     def __init__(
             self,
             env,
+            policy,
             exploration_strategy,
-            qf,
             batch_size=64,
             n_epochs=1000,
             epoch_length=1000,
             min_pool_size=10000,
             replay_pool_size=1000000,
             discount=0.99,
-            qf_learning_rate=1e-3,
             soft_target_tau=1e-2,
             max_path_length=1000,
             eval_samples=1000,
@@ -44,14 +39,13 @@ class NAF(RLAlgorithm):
         """
         :param env: Environment
         :param exploration_strategy: ExplorationStrategy
-        :param qf: QFunctions that is Serializable
+        :param policy: A Policy
         :param replay_pool_size: Size of the replay pool
         :param batch_size: Minibatch size for training
         :param n_epochs: Number of epoch
         :param epoch_length: Number of time steps per epoch
         :param min_pool_size: Minimum size of the pool to start training.
         :param discount: Discount factor for the MDP
-        :param qf_learning_rate: Learning rate of the qf
         :param soft_target_tau: Moving average rate. 1 = update immediately
         :param max_path_length: Maximum path length
         :param eval_samples: Number of time steps to take for evaluation.
@@ -61,7 +55,7 @@ class NAF(RLAlgorithm):
         """
         assert min_pool_size >= 2
         self.env = env
-        self.qf = qf
+        self.policy = policy
         self.exploration_strategy = exploration_strategy
         self.replay_pool_size = replay_pool_size
         self.batch_size = batch_size
@@ -69,7 +63,6 @@ class NAF(RLAlgorithm):
         self.epoch_length = epoch_length
         self.min_pool_size = min_pool_size
         self.discount = discount
-        self.qf_learning_rate = qf_learning_rate
         self.tau = soft_target_tau
         self.max_path_length = max_path_length
         self.n_eval_samples = eval_samples
@@ -84,10 +77,6 @@ class NAF(RLAlgorithm):
         self.terminals_placeholder = tf.placeholder(tf.float32,
                                                     shape=[None, 1],
                                                     name='terminals')
-        self.next_obs_placeholder = tf.placeholder(
-            tf.float32,
-            shape=[None, self.observation_dim],
-            name='next_obs')
         self.pool = SimpleReplayPool(self.replay_pool_size,
                                      self.observation_dim,
                                      self.action_dim)
@@ -97,58 +86,21 @@ class NAF(RLAlgorithm):
             self._init_tensorflow_ops()
         self.es_path_returns = []
 
+    @abc.abstractmethod
     def _init_tensorflow_ops(self):
-        self.sess.run(tf.initialize_all_variables())
-        self.policy = self.qf.get_implicit_policy()
-        self.target_vf = self.qf.get_implicit_value_function().get_copy(
-            scope_name=TARGET_PREFIX + self.qf.scope_name,
-            action_input=self.next_obs_placeholder,
-        )
-        self.qf.sess = self.sess
-        self.target_vf.sess = self.sess
-        self._init_qf_ops()
-        self._init_target_ops()
-        self.sess.run(tf.initialize_all_variables())
-
-    def _init_qf_ops(self):
-        self.ys = (
-            self.rewards_placeholder +
-            (1. - self.terminals_placeholder) *
-            self.discount * self.target_vf.output)
-        self.qf_loss = tf.reduce_mean(
-            tf.square(
-                tf.sub(self.ys, self.qf.output)))
-        self.Q_weights_norm = tf.reduce_sum(
-            tf.pack(
-                [tf.nn.l2_loss(v)
-                 for v in
-                 self.qf.get_params_internal(only_regularizable=True)]
-            ),
-            name='weights_norm'
-        )
-        self.qf_total_loss = (
-            self.qf_loss + self.Q_weight_decay * self.Q_weights_norm)
-        self.train_qf_op = tf.train.AdamOptimizer(
-            self.qf_learning_rate).minimize(
-            self.qf_total_loss,
-            var_list=self.qf.get_params_internal())
-
-    def _init_target_ops(self):
-        vf_vars = self.qf.vf.get_params_internal()
-        target_vf_vars = self.target_vf.get_params_internal()
-        assert len(vf_vars) == len(target_vf_vars)
-
-        self.update_target_vf_op = [
-            tf.assign(target, (self.tau * src + (1 - self.tau) * target))
-            for target, src in zip(target_vf_vars, vf_vars)]
+        return
 
     def start_worker(self):
         parallel_sampler.populate_task(self.env, self.policy)
 
+    @abc.abstractmethod
+    def _init_training(self):
+        return
+
     @overrides
     def train(self):
         with self.sess.as_default():
-            self.target_vf.set_param_values(self.qf.vf.get_param_values())
+            self._init_training()
             self.start_worker()
 
             observation = self.env.reset()
@@ -206,6 +158,13 @@ class NAF(RLAlgorithm):
             self.env.terminate()
             return self.last_statistics
 
+    @abc.abstractmethod
+    def get_training_ops(self):
+        """
+        :return: List of ops to perform when training
+        """
+        return
+
     def do_training(self):
         minibatch = self.pool.random_batch(self.batch_size)
         sampled_obs = minibatch['observations']
@@ -219,95 +178,25 @@ class NAF(RLAlgorithm):
                                            sampled_obs,
                                            sampled_actions,
                                            sampled_next_obs)
-        self.sess.run(
-            [
-                self.train_qf_op,
-                self.update_target_vf_op,
-            ],
-            feed_dict=feed_dict)
+        self.sess.run(self.get_training_ops(), feed_dict=feed_dict)
 
+    @abc.abstractmethod
     def _update_feed_dict(self, rewards, terminals, obs, actions, next_obs):
-        return {
-            self.rewards_placeholder: np.expand_dims(rewards, axis=1),
-            self.terminals_placeholder: np.expand_dims(terminals, axis=1),
-            self.qf.observation_input: obs,
-            self.qf.action_input: actions,
-            self.next_obs_placeholder: next_obs,
-        }
+        """
+        :return: feed_dict needed for the ops returned by get_training_ops.
+        """
+        return
 
+    @abc.abstractmethod
     def evaluate(self, epoch):
-        logger.log("Collecting samples for evaluation")
-        paths = parallel_sampler.sample_paths(
-            policy_params=self.policy.get_param_values(),
-            max_samples=self.n_eval_samples,
-            max_path_length=self.max_path_length,
-        )
-        rewards, terminals, obs, actions, next_obs = split_paths(paths)
-        feed_dict = self._update_feed_dict(rewards, terminals, obs, actions,
-                                           next_obs)
+        """
+        Perform evaluation for this algorithm.
 
-        # Compute statistics
-        (
-            qf_loss,
-            policy_output,
-            qf_output,
-            target_vf_output,
-            ys,
-        ) = self.sess.run(
-            [
-                self.qf_loss,
-                self.policy.output,
-                self.qf.output,
-                self.target_vf.output,
-                self.ys,
-            ],
-            feed_dict=feed_dict)
-        average_discounted_return = np.mean(
-            [special.discount_return(path["rewards"], self.discount)
-             for path in paths]
-        )
-        returns = [sum(path["rewards"]) for path in paths]
-        rewards = np.hstack([path["rewards"] for path in paths])
-
-        # Log statistics
-        self.last_statistics = OrderedDict([
-            ('Epoch', epoch),
-            ('ActorMeanOutput', np.mean(policy_output)),
-            ('ActorStdOutput', np.std(policy_output)),
-            ('CriticLoss', qf_loss),
-            ('CriticMeanOutput', np.mean(qf_output)),
-            ('CriticStdOutput', np.std(qf_output)),
-            ('CriticMaxOutput', np.max(qf_output)),
-            ('CriticMinOutput', np.min(qf_output)),
-            ('TargetMeanCriticOutput', np.mean(target_vf_output)),
-            ('TargetStdCriticOutput', np.std(target_vf_output)),
-            ('TargetMaxCriticOutput', np.max(target_vf_output)),
-            ('TargetMinCriticOutput', np.min(target_vf_output)),
-            ('YsMean', np.mean(ys)),
-            ('YsStd', np.std(ys)),
-            ('YsMax', np.max(ys)),
-            ('YsMin', np.min(ys)),
-            ('AverageDiscountedReturn', average_discounted_return),
-            ('AverageReturn', np.mean(returns)),
-            ('StdReturn', np.std(returns)),
-            ('MaxReturn', np.max(returns)),
-            ('MinReturn', np.std(returns)),
-            ('AverageRewards', np.mean(rewards)),
-            ('StdRewards', np.std(rewards)),
-            ('MaxRewards', np.max(rewards)),
-            ('MinRewards', np.std(rewards)),
-        ])
-        if len(self.es_path_returns) > 0:
-            self.last_statistics.update([
-                ('TrainingAverageReturn', np.mean(self.es_path_returns)),
-                ('TrainingStdReturn', np.std(self.es_path_returns)),
-                ('TrainingMaxReturn', np.max(self.es_path_returns)),
-                ('TrainingMinReturn', np.min(self.es_path_returns)),
-            ])
-        for key, value in self.last_statistics.items():
-            logger.record_tabular(key, value)
-
-        self.es_path_returns = []
+        It's recommended
+        :param epoch: The epoch number.
+        :return: Dictionary of statistics.
+        """
+        return
 
     def get_epoch_snapshot(self, epoch):
         return dict(
