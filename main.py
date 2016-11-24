@@ -12,9 +12,9 @@ from qfunctions.optimizable_qfunction import QuadraticNAF
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 from rllab.exploration_strategies.ou_strategy import OUStrategy
+from rllab.exploration_strategies.gaussian_strategy import GaussianStrategy
 from rllab.misc.instrument import stub, run_experiment_lite
 from sandbox.rocky.tf.algos.ddpg import DDPG as ShaneDDPG
-from sandbox.rocky.tf.envs.base import TfEnv
 from sandbox.rocky.tf.policies.deterministic_mlp_policy import \
     DeterministicMLPPolicy
 from sandbox.rocky.tf.q_functions.continuous_mlp_q_function import \
@@ -41,21 +41,49 @@ NUM_SEEDS_PER_CONFIG = 2
 NUM_HYPERPARAMETER_CONFIGS = 50
 
 
-# Need to do this for serialization to work. Note sure why
-def envs_and_names():
-    return [
-        # (MountainCarEnv(), "MountainCar"),
-        # (CartpoleEnv(), "Cartpole"),
-        # (CartpoleSwingupEnv(), "CartpoleSwingup"),
-        # (normalize(GymEnv("Pendulum-v0")), "Pendulum-v0"),
-        # (InvertedDoublePendulumEnv(), "Inverted_Double_Pendulum"),
-        # (AntEnv(), "Ant"),
-        (HalfCheetahEnv(), "Half_Cheetah"),
-    ]
+def get_env_settings(env_name):
+    if env_name == 'cart':
+        env = CartpoleEnv()
+        name = "Cartpole"
+    elif env_name == 'cheetah':
+        env = HalfCheetahEnv()
+        name = "HalfCheetah"
+    else:
+        raise Exception("Unknown env: {0}".format(env_name))
+
+    return dict(
+        env=env,
+        name=name,
+    )
 
 
-def get_exploration_strategy(env):
-    return OUStrategy(env_spec=env.spec)
+def get_algo_settings(algo_name):
+    if algo_name == 'ddpg':
+        sweeper = hp.HyperparameterSweeper([
+            hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
+            hp.LogFloatParam("scale_reward", 10.0, 0.01),
+            hp.LogFloatParam("Q_weight_decay", 1e-7, 1e-1),
+        ])
+        params = get_my_ddpg_params()
+        test_function = test_my_ddpg
+        es_class = OUStrategy
+    elif algo_name == 'naf':
+        sweeper = hp.HyperparameterSweeper([
+            hp.LogFloatParam("qf_learning_rate", 1e-4, 1e-2),
+            hp.LogFloatParam("scale_reward", 10.0, 0.01),
+        ])
+        params = get_my_naf_params()
+        test_function = test_my_naf
+        es_class = GaussianStrategy
+    else:
+        raise Exception("Algo name not recognized: " + algo_name)
+
+    return {
+        'sweeper': sweeper,
+        'algo_params': params,
+        'test_function': test_function,
+        'exploration_strategy_class': es_class,
+    }
 
 
 def get_ddpg_params():
@@ -98,9 +126,8 @@ def get_my_naf_params():
     )
 
 
-def test_my_ddpg(env, exp_prefix, env_name, seed=1, **new_ddpg_params):
-    es = get_exploration_strategy(env)
-    ddpg_params = dict(get_my_ddpg_params(), **new_ddpg_params)
+def test_my_ddpg(env, exp_prefix, env_name, seed=1, **ddpg_params):
+    es = OUStrategy(env_spec=env.spec)
     qf_params = dict(
         embedded_hidden_sizes=(100,),
         observation_hidden_sizes=(100,),
@@ -148,9 +175,8 @@ def test_my_ddpg(env, exp_prefix, env_name, seed=1, **new_ddpg_params):
     run_experiment(algorithm, exp_prefix, seed, variant)
 
 
-def test_my_naf(env, exp_prefix, env_name, seed=1, **new_naf_params):
-    naf_params = dict(get_my_naf_params(), **new_naf_params)
-    es = get_exploration_strategy(env)
+def test_my_naf(env, exp_prefix, env_name, seed=1, **naf_params):
+    es = GaussianStrategy(env)
     qf = QuadraticNAF(
         "qf",
         env.spec,
@@ -170,8 +196,9 @@ def test_my_naf(env, exp_prefix, env_name, seed=1, **new_naf_params):
 
 def test_shane_ddpg(env, exp_prefix, env_name, seed=1, **new_ddpg_params):
     ddpg_params = dict(get_ddpg_params(), **new_ddpg_params)
-    env = TfEnv(env)
-    es = get_exploration_strategy(env)
+    es = GaussianStrategy(env.spec)
+
+
     policy_params = dict(
         hidden_sizes=(100, 100),
         hidden_nonlinearity=tf.nn.relu,
@@ -224,44 +251,20 @@ def run_experiment(algorithm, exp_prefix, seed, variant):
     )
 
 
-def sweep(exp_prefix, algo_settings):
+def sweep(exp_prefix, env_settings, algo_settings):
     sweeper = algo_settings['sweeper']
     test_function = algo_settings['test_function']
-    for env, name in envs_and_names():
-        tf_env = TfEnv(env)
-        for i in range(NUM_HYPERPARAMETER_CONFIGS):
-            for seed in range(NUM_SEEDS_PER_CONFIG):
-                params = sweeper.generate_random_hyperparameters()
-                params['n_epochs'] = SWEEP_N_EPOCHS
-                params['min_pool_size'] = SWEEP_MIN_POOL_SIZE
-                test_function(tf_env, exp_prefix, name, seed=seed + 1, **params)
-
-
-def get_algo_settings(algo_name):
-    if algo_name == 'ddpg':
-        sweeper = hp.HyperparameterSweeper([
-            hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
-            hp.LogFloatParam("scale_reward", 10.0, 0.01),
-            hp.LogFloatParam("Q_weight_decay", 1e-7, 1e-1),
-        ])
-        params = get_my_ddpg_params()
-        test_function = test_my_ddpg
-    elif algo_name == 'naf':
-        sweeper = hp.HyperparameterSweeper([
-            hp.LogFloatParam("qf_learning_rate", 1e-4, 1e-2),
-            hp.LogFloatParam("scale_reward", 10.0, 0.01),
-        ])
-        params = get_my_ddpg_params()
-        test_function = test_my_naf
-    else:
-        raise Exception("Algo name not recognized: " + algo_name)
-
-    return {
-        'sweeper': sweeper,
-        'params': params,
-        'test_function': test_function,
-    }
-
+    default_params = algo_settings['algo_params']
+    env = env_settings['env']
+    env_name = env_settings['name']
+    for i in range(NUM_HYPERPARAMETER_CONFIGS):
+        for seed in range(NUM_SEEDS_PER_CONFIG):
+            params = dict(default_params,
+                          **sweeper.generate_random_hyperparameters())
+            params['n_epochs'] = SWEEP_N_EPOCHS
+            params['min_pool_size'] = SWEEP_MIN_POOL_SIZE
+            test_function(env, exp_prefix, env_name, seed=seed + 1,
+                          **params)
 
 def main():
     env_choices = ['cheetah', 'cart']
@@ -287,30 +290,16 @@ def main():
     stub(globals())
 
     algo_settings = get_algo_settings(args.algo)
-    if args.benchmark:
-        benchmark(args.name)
-    elif args.sweep:
-        sweep(args.name, algo_settings)
+    env_settings = get_env_settings(args.env)
+    if args.sweep:
+        sweep(args.name, env_settings, algo_settings)
     else:
-        if args.env == 'cart':
-            env = CartpoleEnv()
-            name = "CartpoleTest"
-        elif args.env == 'cheetah':
-            env = HalfCheetahEnv()
-            name = "HalfCheetahTest"
-        else:
-            raise Exception("Unknown env: {0}".format(args.env))
         test_function = algo_settings['test_function']
-        test_function(env, args.name, name, seed=args.seed)
+        algo_params = algo_settings['algo_params']
+        env = env_settings['env']
+        env_name = env_settings['name']
+        test_function(env, args.name, env_name, seed=args.seed, **algo_params)
 
 
 if __name__ == "__main__":
     main()
-
-
-def benchmark(exp_prefix):
-    for env, name in envs_and_names():
-        tf_env = TfEnv(env)
-        for i in range(NUM_SEEDS_PER_CONFIG):
-            test_shane_ddpg(tf_env, exp_prefix, name, i)
-            test_my_ddpg(tf_env, exp_prefix, name, i)
