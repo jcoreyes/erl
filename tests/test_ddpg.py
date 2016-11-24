@@ -51,11 +51,11 @@ class TestDDPG(unittest.TestCase):
             qfunctions.nn_qfunction.SumCritic('qf', 4, 1),
             n_epochs=0,
         )
-        target_critic = algo.target_critic
-        target_actor = algo.target_actor
-        critic = algo.critic
+        target_critic = algo.target_qf
+        target_actor = algo.target_policy
+        critic = algo.qf
         critic_copy = algo.critic_with_action_input
-        actor = algo.actor
+        actor = algo.policy
 
         # Make sure they're different to start
         random_values = [np.random.rand(*values.shape)
@@ -84,10 +84,10 @@ class TestDDPG(unittest.TestCase):
             n_epochs=0,
             soft_target_tau=tau,
         )
-        target_critic = algo.target_critic
-        target_actor = algo.target_actor
-        critic = algo.critic
-        actor = algo.actor
+        target_critic = algo.target_qf
+        target_actor = algo.target_policy
+        critic = algo.qf
+        actor = algo.policy
 
         algo.train()
 
@@ -120,10 +120,10 @@ class TestDDPG(unittest.TestCase):
             n_epochs=0,
             soft_target_tau=tau,
         )
-        target_critic = algo.target_critic
-        target_actor = algo.target_actor
-        critic = algo.critic
-        actor = algo.actor
+        target_critic = algo.target_qf
+        target_actor = algo.target_policy
+        critic = algo.qf
+        actor = algo.policy
 
         random_values = [np.random.rand(*values.shape)
                          for values in critic.get_param_values()]
@@ -148,10 +148,10 @@ class TestDDPG(unittest.TestCase):
             n_epochs=0,
             soft_target_tau=tau,
         )
-        target_critic = algo.target_critic
-        target_actor = algo.target_actor
-        critic = algo.critic
-        actor = algo.actor
+        target_critic = algo.target_qf
+        target_actor = algo.target_policy
+        critic = algo.qf
+        actor = algo.policy
 
         random_values = [np.random.rand(*values.shape)
                          for values in critic.get_param_values()]
@@ -188,7 +188,7 @@ class TestDDPG(unittest.TestCase):
         )
         obs = np.array([[1., 1., 1., 1.]])
         actions = np.array([[-0.5]])
-        for critic in [algo.critic, algo.target_critic]:
+        for critic in [algo.qf, algo.target_qf]:
             feed_dict = {
                 critic.actions_placeholder: actions,
                 critic.observations_placeholder: obs,
@@ -209,7 +209,7 @@ class TestDDPG(unittest.TestCase):
             eval_samples=0,  # Ignore eval. Just do this to remove warnings.
         )
         obs = np.array([[1., 1., 1., 1.]])
-        for actor in [algo.actor, algo.target_actor]:
+        for actor in [algo.policy, algo.target_policy]:
             feed_dict = {
                 actor.observations_placeholder: obs,
             }
@@ -422,11 +422,11 @@ class TestDDPG(unittest.TestCase):
                                            obs,
                                            actions,
                                            next_obs)
-        grads = tf.gradients(algo.critic_loss, algo.critic.get_params_internal())
+        grads = tf.gradients(algo.critic_loss, algo.qf.get_params_internal())
         # critic_grads = algo.sess.run(
         #         tf.gradients(algo.critic.output, algo.critic.get_vars()))
         expected = [-13. * np.ones_like(v)
-                    for v in algo.critic.get_param_values()]
+                    for v in algo.qf.get_param_values()]
         actual = algo.sess.run(grads, feed_dict=feed_dict)
         actual_flat = np.vstack(actual).flatten()
         self.assertTrue(
@@ -515,10 +515,10 @@ class TestDDPG(unittest.TestCase):
         feed_dict = algo._actor_feed_dict(obs)
         loss_grad_ops = tf.gradients(
                 algo.actor_surrogate_loss,
-                algo.actor.get_params_internal())
+                algo.policy.get_params_internal())
         actual_loss_grads = algo.sess.run(loss_grad_ops, feed_dict=feed_dict)
         actual_loss_grads_flat = np.vstack(actual_loss_grads).flatten()
-        expected = [-1 * np.ones_like(v) for v in algo.actor.get_param_values()]
+        expected = [-1 * np.ones_like(v) for v in algo.policy.get_param_values()]
         self.assertTrue(
             are_np_array_lists_equal(actual_loss_grads_flat, expected)
         )
@@ -546,7 +546,7 @@ class TestDDPG(unittest.TestCase):
         feed_dict = algo._actor_feed_dict(obs)
         loss_grad_ops = tf.gradients(
                 algo.actor_surrogate_loss,
-                algo.actor.get_params_internal())
+                algo.policy.get_params_internal())
         actual_loss_grads = algo.sess.run(loss_grad_ops, feed_dict=feed_dict)
         expected = [np.array([[-1.], [-45.], [-1.], [-2.]])]
         self.assertTrue(
@@ -564,7 +564,7 @@ class TestDDPG(unittest.TestCase):
             eval_samples=10,  # Ignore eval. Just do this to remove warnings.
             min_pool_size=2,
         )
-        critic = algo.critic
+        critic = algo.qf
         critic_copy = algo.critic_with_action_input
         old_params = critic.get_param_values()
         self.assertParamsEqual(critic_copy, critic)
@@ -586,12 +586,12 @@ class TestDDPG(unittest.TestCase):
             discount=discount,
         )
 
-        old_critic_values = algo.critic.get_param_values()
+        old_critic_values = algo.qf.get_param_values()
         old_critic_copy_values = (
             algo.critic_with_action_input.get_param_values())
-        old_actor_values = algo.actor.get_param_values()
-        old_target_critic_values = algo.target_critic.get_param_values()
-        old_target_actor_values = algo.target_actor.get_param_values()
+        old_actor_values = algo.policy.get_param_values()
+        old_target_critic_values = algo.target_qf.get_param_values()
+        old_target_actor_values = algo.target_policy.get_param_values()
 
         rewards = np.array([3.])
         terminals = np.array([0.])
@@ -602,12 +602,12 @@ class TestDDPG(unittest.TestCase):
                                            next_obs)
         algo.sess.run(algo.train_critic_op, feed_dict=feed_dict)
 
-        new_critic_values = algo.critic.get_param_values()
+        new_critic_values = algo.qf.get_param_values()
         new_critic_copy_values = (
             algo.critic_with_action_input.get_param_values())
-        new_actor_values = algo.actor.get_param_values()
-        new_target_critic_values = algo.target_critic.get_param_values()
-        new_target_actor_values = algo.target_actor.get_param_values()
+        new_actor_values = algo.policy.get_param_values()
+        new_target_critic_values = algo.target_qf.get_param_values()
+        new_target_actor_values = algo.target_policy.get_param_values()
 
         self.assertTrue(are_np_array_lists_equal(
             old_actor_values,
@@ -629,7 +629,7 @@ class TestDDPG(unittest.TestCase):
             old_target_critic_values,
             new_target_critic_values
         ))
-        self.assertParamsEqual(algo.critic_with_action_input, algo.critic)
+        self.assertParamsEqual(algo.critic_with_action_input, algo.qf)
 
     def test_only_actor_values_change(self):
         discount = 0.5
@@ -643,23 +643,23 @@ class TestDDPG(unittest.TestCase):
             eval_samples=0,  # Ignore eval. Just do this to remove warnings.
             discount=discount,
         )
-        old_critic_values = algo.critic.get_param_values()
+        old_critic_values = algo.qf.get_param_values()
         old_critic_copy_values = (
             algo.critic_with_action_input.get_param_values())
-        old_actor_values = algo.actor.get_param_values()
-        old_target_critic_values = algo.target_critic.get_param_values()
-        old_target_actor_values = algo.target_actor.get_param_values()
+        old_actor_values = algo.policy.get_param_values()
+        old_target_critic_values = algo.target_qf.get_param_values()
+        old_target_actor_values = algo.target_policy.get_param_values()
 
         obs = np.array([[1., 1., 1., 1.]])
         feed_dict = algo._actor_feed_dict(obs)
         algo.sess.run(algo.train_actor_op, feed_dict=feed_dict)
 
-        new_critic_values = algo.critic.get_param_values()
+        new_critic_values = algo.qf.get_param_values()
         new_critic_copy_values = (
             algo.critic_with_action_input.get_param_values())
-        new_actor_values = algo.actor.get_param_values()
-        new_target_critic_values = algo.target_critic.get_param_values()
-        new_target_actor_values = algo.target_actor.get_param_values()
+        new_actor_values = algo.policy.get_param_values()
+        new_target_critic_values = algo.target_qf.get_param_values()
+        new_target_actor_values = algo.target_policy.get_param_values()
 
         self.assertFalse(are_np_array_lists_equal(
             old_actor_values,
