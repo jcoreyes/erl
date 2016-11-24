@@ -28,18 +28,18 @@ class NAF(RLAlgorithm):
             env,
             exploration_strategy,
             qf,
-            batch_size=32,
-            n_epochs=200,
+            batch_size=64,
+            n_epochs=1000,
             epoch_length=1000,
             min_pool_size=10000,
             replay_pool_size=1000000,
             discount=0.99,
             qf_learning_rate=1e-3,
-            soft_target_tau=1e-3,
-            max_path_length=250,
+            soft_target_tau=1e-2,
+            max_path_length=1000,
             eval_samples=1000,
             scale_reward=1.,
-            Q_weight_decay=1e-2,
+            Q_weight_decay=0.,
     ):
         """
         :param env: Environment
