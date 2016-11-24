@@ -10,26 +10,29 @@ from policies.nn_policy import FeedForwardPolicy
 from qfunctions.nn_qfunction import FeedForwardCritic
 from qfunctions.optimizable_qfunction import QuadraticNAF
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
+from rllab.envs.gym_env import GymEnv
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
+from rllab.envs.normalized_env import normalize
 from rllab.exploration_strategies.ou_strategy import OUStrategy
 from rllab.exploration_strategies.gaussian_strategy import GaussianStrategy
 from rllab.misc.instrument import stub, run_experiment_lite
 from sandbox.rocky.tf.algos.ddpg import DDPG as ShaneDDPG
+from sandbox.rocky.tf.envs.base import TfEnv
 from sandbox.rocky.tf.policies.deterministic_mlp_policy import \
     DeterministicMLPPolicy
 from sandbox.rocky.tf.q_functions.continuous_mlp_q_function import \
     ContinuousMLPQFunction
 
 BATCH_SIZE = 64
-N_EPOCHS = 10000
-EPOCH_LENGTH = 5000
-EVAL_SAMPLES = 10000
+N_EPOCHS = 10
+EPOCH_LENGTH = 50
+EVAL_SAMPLES = 10
 DISCOUNT = 0.99
 CRITIC_LEARNING_RATE = 1e-3
 ACTOR_LEARNING_RATE = 1e-4
 SOFT_TARGET_TAU = 0.01
 REPLAY_POOL_SIZE = 1000000
-MIN_POOL_SIZE = 10000
+MIN_POOL_SIZE = 10
 SCALE_REWARD = 1.0
 Q_WEIGHT_DECAY = 0.0
 MAX_PATH_LENGTH = 1000
@@ -48,6 +51,9 @@ def get_env_settings(env_name):
     elif env_name == 'cheetah':
         env = HalfCheetahEnv()
         name = "HalfCheetah"
+    elif env_name == 'point':
+        env = normalize(GymEnv("Pointmass-v1", record_video=False))
+        name = "Pointmass"
     else:
         raise Exception("Unknown env: {0}".format(env_name))
 
@@ -267,7 +273,7 @@ def sweep(exp_prefix, env_settings, algo_settings):
                           **params)
 
 def main():
-    env_choices = ['cheetah', 'cart']
+    env_choices = ['cheetah', 'cart', 'point']
     algo_choices = ['ddpg', 'naf', 'shane-ddpg']
     parser = argparse.ArgumentParser()
     parser.add_argument("--benchmark", action='store_true',
