@@ -34,7 +34,7 @@ class NAF(OnlineAlgorithm):
         """
         :param env: Environment
         :param exploration_strategy: ExplorationStrategy
-        :param naf: A NormalizedAdvantageFunction
+        :param naf: A NAFQFunction
         :param qf_learning_rate: Learning rate of the qf
         :param Q_weight_decay: How much to decay the weights for Q
         :return:

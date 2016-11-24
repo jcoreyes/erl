@@ -9,7 +9,7 @@ from algos.noop_algo import NoOpAlgo
 from misc import hyperparameter as hp
 from policies.nn_policy import FeedForwardPolicy
 from qfunctions.nn_qfunction import FeedForwardCritic
-from qfunctions.optimizable_qfunction import QuadraticNAF
+from qfunctions.quadratic_naf_qfunction import QuadraticNAF
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.envs.gym_env import GymEnv
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv

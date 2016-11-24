@@ -142,8 +142,9 @@ class OnlineAlgorithm(RLAlgorithm):
                                                                  start_time))
                 if self.pool.size >= self.min_pool_size:
                     start_time = time.time()
-                    self.evaluate(epoch, self.es_path_returns)
-                    self.es_path_returns = []
+                    if self.n_eval_samples > 0:
+                        self.evaluate(epoch, self.es_path_returns)
+                        self.es_path_returns = []
                     params = self.get_epoch_snapshot(epoch)
                     logger.log(
                         "Eval time: {0}".format(time.time() - start_time))

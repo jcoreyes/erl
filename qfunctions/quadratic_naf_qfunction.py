@@ -1,38 +1,13 @@
-import abc
 import tensorflow as tf
+
 from policies.nn_policy import FeedForwardPolicy
-from predictors.state_action_network import StateActionNetwork
-from vfunction.mlp_vfunction import MlpStateNetwork
+from qfunctions.naf_qfunction import NAFQFunction
 from qfunctions.quadratic_qf import QuadraticQF
 from rllab.core.serializable import Serializable
+from vfunction.mlp_vfunction import MlpStateNetwork
 
 
-class SeparableQFunction(object):
-    """
-    A Q-function that's split up into
-
-    Q(state, action) = A(state, action) + V(state)
-    """
-    @abc.abstractmethod
-    def get_implicit_value_function(self):
-        return
-
-    @abc.abstractmethod
-    def get_implicit_advantage_function(self):
-        return
-
-
-class NormalizedAdvantageFunction(object):
-    """
-    A Q-function that implicitly has a policy.
-    """
-    @abc.abstractmethod
-    def get_implicit_policy(self):
-        return
-
-
-class QuadraticNAF(StateActionNetwork, NormalizedAdvantageFunction,
-                   SeparableQFunction):
+class QuadraticNAF(NAFQFunction):
     def __init__(
             self,
             scope_name,

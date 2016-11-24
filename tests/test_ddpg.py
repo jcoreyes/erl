@@ -7,41 +7,18 @@ import policies.nn_policy
 import qfunctions.nn_qfunction
 from algos.ddpg import DDPG
 from misc.testing_utils import are_np_arrays_equal, are_np_array_lists_equal
+from misc.tf_test_case import TFTestCase
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.exploration_strategies.ou_strategy import OUStrategy
 from sandbox.rocky.tf.envs.base import TfEnv
 
 
-class TestDDPG(unittest.TestCase):
+class TestDDPG(TFTestCase):
 
     def setUp(self):
+        super().setUp()
         self.env = TfEnv(CartpoleEnv())
         self.es = OUStrategy(env_spec=self.env.spec)
-        tf.reset_default_graph()
-        self.sess = tf.get_default_session() or tf.Session()
-        self.sess_context = self.sess.as_default()
-        self.sess_context.__enter__()
-
-    def tearDown(self):
-        self.sess_context.__exit__(None, None, None)
-        self.sess.close()
-
-    def assertParamsEqual(self, network1, network2):
-        self.assertTrue(are_np_array_lists_equal(
-            network1.get_param_values(),
-            network2.get_param_values(),
-        ))
-
-    def assertParamsNotEqual(self, network1, network2):
-        self.assertFalse(are_np_array_lists_equal(
-            network1.get_param_values(),
-            network2.get_param_values(),
-        ))
-
-    def assertNpEqual(self, np_arr1, np_arr2):
-        self.assertTrue(
-            are_np_arrays_equal(np_arr1, np_arr2),
-            "Numpy arrays not equal")
 
     def test_target_params_copied(self):
         algo = DDPG(
