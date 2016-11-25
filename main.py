@@ -5,57 +5,108 @@ import tensorflow as tf
 
 from algos.ddpg import DDPG as MyDDPG
 from algos.naf import NAF
+from algos.noop_algo import NoOpAlgo
 from misc import hyperparameter as hp
 from policies.nn_policy import FeedForwardPolicy
 from qfunctions.nn_qfunction import FeedForwardCritic
-from qfunctions.optimizable_qfunction import QuadraticNAF
+from qfunctions.quadratic_naf_qfunction import QuadraticNAF
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
+from rllab.envs.gym_env import GymEnv
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
+from rllab.envs.normalized_env import normalize
 from rllab.exploration_strategies.ou_strategy import OUStrategy
+from rllab.exploration_strategies.gaussian_strategy import GaussianStrategy
 from rllab.misc.instrument import stub, run_experiment_lite
+from rllab.policies.uniform_control_policy import UniformControlPolicy
 from sandbox.rocky.tf.algos.ddpg import DDPG as ShaneDDPG
-from sandbox.rocky.tf.envs.base import TfEnv
 from sandbox.rocky.tf.policies.deterministic_mlp_policy import \
     DeterministicMLPPolicy
 from sandbox.rocky.tf.q_functions.continuous_mlp_q_function import \
     ContinuousMLPQFunction
 
 BATCH_SIZE = 64
-N_EPOCHS = 10000
-EPOCH_LENGTH = 5000
+N_EPOCHS = 1000
+EPOCH_LENGTH = 1000
 EVAL_SAMPLES = 10000
 DISCOUNT = 0.99
 CRITIC_LEARNING_RATE = 1e-3
 ACTOR_LEARNING_RATE = 1e-4
 SOFT_TARGET_TAU = 0.01
 REPLAY_POOL_SIZE = 1000000
-MIN_POOL_SIZE = 10000
+MIN_POOL_SIZE = 1000
 SCALE_REWARD = 1.0
 Q_WEIGHT_DECAY = 0.0
 MAX_PATH_LENGTH = 1000
 
+# Sweep settings
 SWEEP_N_EPOCHS = 50
 SWEEP_MIN_POOL_SIZE = BATCH_SIZE
+
+# Fast settings
+FAST_N_EPOCHS = 10
+FAST_EPOCH_LENGTH = 50
+FAST_EVAL_SAMPLES = 10
+FAST_MIN_POOL_SIZE = 2
 
 NUM_SEEDS_PER_CONFIG = 2
 NUM_HYPERPARAMETER_CONFIGS = 50
 
 
-# Need to do this for serialization to work. Note sure why
-def envs_and_names():
-    return [
-        # (MountainCarEnv(), "MountainCar"),
-        # (CartpoleEnv(), "Cartpole"),
-        # (CartpoleSwingupEnv(), "CartpoleSwingup"),
-        # (normalize(GymEnv("Pendulum-v0")), "Pendulum-v0"),
-        # (InvertedDoublePendulumEnv(), "Inverted_Double_Pendulum"),
-        # (AntEnv(), "Ant"),
-        (HalfCheetahEnv(), "Half_Cheetah"),
-    ]
+def get_env_settings(args):
+    env_name = args.env
+    if env_name == 'cart':
+        env = CartpoleEnv()
+        name = "Cartpole"
+    elif env_name == 'cheetah':
+        env = HalfCheetahEnv()
+        name = "HalfCheetah"
+    elif env_name == 'point':
+        env = normalize(GymEnv("Pointmass-v1", record_video=False,
+                               log_dir='/tmp/gym-test',  # Ignore gym log.
+                               record_log=False))
+        name = "Pointmass"
+    else:
+        raise Exception("Unknown env: {0}".format(env_name))
+
+    return dict(
+        env=env,
+        name=name,
+    )
 
 
-def get_exploration_strategy(env):
-    return OUStrategy(env_spec=env.spec)
+def get_algo_settings(args):
+    algo_name = args.algo
+    if algo_name == 'ddpg':
+        sweeper = hp.HyperparameterSweeper([
+            hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
+            hp.LogFloatParam("scale_reward", 10.0, 0.01),
+            hp.LogFloatParam("Q_weight_decay", 1e-7, 1e-1),
+        ])
+        params = get_my_ddpg_params()
+        test_function = test_my_ddpg
+    elif algo_name == 'naf':
+        sweeper = hp.HyperparameterSweeper([
+            hp.LogFloatParam("qf_learning_rate", 1e-4, 1e-2),
+            hp.LogFloatParam("scale_reward", 10.0, 0.01),
+            hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
+            hp.LinearIntParam("n_updates_per_time_step", 1, 5),
+        ])
+        params = get_my_naf_params()
+        test_function = test_my_naf
+    elif algo_name == 'random':
+        sweeper = hp.HyperparameterSweeper()
+        params = {}
+        test_function = test_random_ddpg
+
+    else:
+        raise Exception("Algo name not recognized: " + algo_name)
+
+    params['render'] = args.render
+    return {
+        'sweeper': sweeper,
+        'algo_params': params,
+        'test_function': test_function,
+    }
 
 
 def get_ddpg_params():
@@ -94,13 +145,13 @@ def get_my_naf_params():
         min_pool_size=MIN_POOL_SIZE,
         scale_reward=SCALE_REWARD,
         max_path_length=MAX_PATH_LENGTH,
-        Q_weight_decay=Q_WEIGHT_DECAY
+        Q_weight_decay=Q_WEIGHT_DECAY,
+        n_updates_per_time_step=5,
     )
 
 
-def test_my_ddpg(env, exp_prefix, env_name, seed=1, **new_ddpg_params):
-    es = get_exploration_strategy(env)
-    ddpg_params = dict(get_my_ddpg_params(), **new_ddpg_params)
+def test_my_ddpg(env, exp_prefix, env_name, seed=1, **ddpg_params):
+    es = OUStrategy(env_spec=env.spec)
     qf_params = dict(
         embedded_hidden_sizes=(100,),
         observation_hidden_sizes=(100,),
@@ -148,9 +199,8 @@ def test_my_ddpg(env, exp_prefix, env_name, seed=1, **new_ddpg_params):
     run_experiment(algorithm, exp_prefix, seed, variant)
 
 
-def test_my_naf(env, exp_prefix, env_name, seed=1, **new_naf_params):
-    naf_params = dict(get_my_naf_params(), **new_naf_params)
-    es = get_exploration_strategy(env)
+def test_my_naf(env, exp_prefix, env_name, seed=1, **naf_params):
+    es = GaussianStrategy(env)
     qf = QuadraticNAF(
         "qf",
         env.spec,
@@ -170,8 +220,8 @@ def test_my_naf(env, exp_prefix, env_name, seed=1, **new_naf_params):
 
 def test_shane_ddpg(env, exp_prefix, env_name, seed=1, **new_ddpg_params):
     ddpg_params = dict(get_ddpg_params(), **new_ddpg_params)
-    env = TfEnv(env)
-    es = get_exploration_strategy(env)
+    es = GaussianStrategy(env.spec)
+
     policy_params = dict(
         hidden_sizes=(100, 100),
         hidden_nonlinearity=tf.nn.relu,
@@ -210,6 +260,19 @@ def test_shane_ddpg(env, exp_prefix, env_name, seed=1, **new_ddpg_params):
     run_experiment(algorithm, exp_prefix, seed, variant=variant)
 
 
+def test_random_ddpg(env, exp_prefix, env_name, seed=1, **algo_params):
+    es = OUStrategy(env)
+    policy = UniformControlPolicy(env_spec=env.spec)
+    algorithm = NoOpAlgo(
+        env,
+        policy,
+        es,
+        **algo_params)
+    variant = {'Version': 'Random', 'Environment': env_name}
+
+    run_experiment(algorithm, exp_prefix, seed, variant=variant)
+
+
 def run_experiment(algorithm, exp_prefix, seed, variant):
     variant['seed'] = str(seed)
     print("variant=")
@@ -224,58 +287,37 @@ def run_experiment(algorithm, exp_prefix, seed, variant):
     )
 
 
-def sweep(exp_prefix, algo_settings):
+def sweep(exp_prefix, env_settings, algo_settings):
     sweeper = algo_settings['sweeper']
     test_function = algo_settings['test_function']
-    for env, name in envs_and_names():
-        tf_env = TfEnv(env)
-        for i in range(NUM_HYPERPARAMETER_CONFIGS):
-            for seed in range(NUM_SEEDS_PER_CONFIG):
-                params = sweeper.generate_random_hyperparameters()
-                params['n_epochs'] = SWEEP_N_EPOCHS
-                params['min_pool_size'] = SWEEP_MIN_POOL_SIZE
-                test_function(tf_env, exp_prefix, name, seed=seed + 1, **params)
-
-
-def get_algo_settings(algo_name):
-    if algo_name == 'ddpg':
-        sweeper = hp.HyperparameterSweeper([
-            hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
-            hp.LogFloatParam("scale_reward", 10.0, 0.01),
-            hp.LogFloatParam("Q_weight_decay", 1e-7, 1e-1),
-        ])
-        params = get_my_ddpg_params()
-        test_function = test_my_ddpg
-    elif algo_name == 'naf':
-        sweeper = hp.HyperparameterSweeper([
-            hp.LogFloatParam("qf_learning_rate", 1e-4, 1e-2),
-            hp.LogFloatParam("scale_reward", 10.0, 0.01),
-        ])
-        params = get_my_ddpg_params()
-        test_function = test_my_naf
-    else:
-        raise Exception("Algo name not recognized: " + algo_name)
-
-    return {
-        'sweeper': sweeper,
-        'params': params,
-        'test_function': test_function,
-    }
+    default_params = algo_settings['algo_params']
+    env = env_settings['env']
+    env_name = env_settings['name']
+    for i in range(NUM_HYPERPARAMETER_CONFIGS):
+        for seed in range(NUM_SEEDS_PER_CONFIG):
+            params = dict(default_params,
+                          **sweeper.generate_random_hyperparameters())
+            test_function(env, exp_prefix, env_name, seed=seed + 1,
+                          **params)
 
 
 def main():
-    env_choices = ['cheetah', 'cart']
-    algo_choices = ['ddpg', 'naf', 'shane-ddpg']
+    env_choices = ['cheetah', 'cart', 'point']
+    algo_choices = ['ddpg', 'naf', 'shane-ddpg', 'random']
     parser = argparse.ArgumentParser()
     parser.add_argument("--benchmark", action='store_true',
                         help="Run benchmarks.")
     parser.add_argument("--sweep", action='store_true',
                         help="Sweep hyperparameters for my DDPG.")
+    parser.add_argument("--render", action='store_true',
+                        help="Render the environment.")
     parser.add_argument("--env", default='cart',
                         help="Test algo on 'cart' or 'cheetah'.",
                         choices=env_choices)
     parser.add_argument("--name", default='default',
                         help='Experiment prefix')
+    parser.add_argument("--fast", action='store_true',
+                        help='Run a quick experiment. Intended for debugging. Trumps sweep settings')
     parser.add_argument("--algo", default='ddpg',
                         help='Algo',
                         choices=algo_choices)
@@ -284,33 +326,34 @@ def main():
                         help='Seed')
     args = parser.parse_args()
 
+    if args.sweep:
+        global N_EPOCHS, MIN_POOL_SIZE
+        N_EPOCHS = SWEEP_N_EPOCHS
+        MIN_POOL_SIZE = SWEEP_MIN_POOL_SIZE
+    if args.fast:
+        global N_EPOCHS, EPOCH_LENGTH, EVAL_SAMPLES, MIN_POOL_SIZE
+        N_EPOCHS = FAST_N_EPOCHS
+        EPOCH_LENGTH = FAST_EPOCH_LENGTH
+        EVAL_SAMPLES = FAST_EVAL_SAMPLES
+        MIN_POOL_SIZE = FAST_MIN_POOL_SIZE
+
+    else:
+        if args.render:
+            print("WARNING: Algorithm will be slow because render is on.")
+
     stub(globals())
 
-    algo_settings = get_algo_settings(args.algo)
-    if args.benchmark:
-        benchmark(args.name)
-    elif args.sweep:
-        sweep(args.name, algo_settings)
+    algo_settings = get_algo_settings(args)
+    env_settings = get_env_settings(args)
+    if args.sweep:
+        sweep(args.name, env_settings, algo_settings)
     else:
-        if args.env == 'cart':
-            env = CartpoleEnv()
-            name = "CartpoleTest"
-        elif args.env == 'cheetah':
-            env = HalfCheetahEnv()
-            name = "HalfCheetahTest"
-        else:
-            raise Exception("Unknown env: {0}".format(args.env))
         test_function = algo_settings['test_function']
-        test_function(env, args.name, name, seed=args.seed)
+        algo_params = algo_settings['algo_params']
+        env = env_settings['env']
+        env_name = env_settings['name']
+        test_function(env, args.name, env_name, seed=args.seed, **algo_params)
 
 
 if __name__ == "__main__":
     main()
-
-
-def benchmark(exp_prefix):
-    for env, name in envs_and_names():
-        tf_env = TfEnv(env)
-        for i in range(NUM_SEEDS_PER_CONFIG):
-            test_shane_ddpg(tf_env, exp_prefix, name, i)
-            test_my_ddpg(tf_env, exp_prefix, name, i)

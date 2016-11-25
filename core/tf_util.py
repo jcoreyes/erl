@@ -190,18 +190,38 @@ def he_uniform_initializer():
         elif len(shape) > 2:
             fan_in = np.prod(shape[1:])
         delta = np.sqrt(1.0 / fan_in)
-        return tf.random_uniform(shape, minval=-delta, maxval=delta, **kwargs)
+        # TODO(vpong): refactor this common piece of code (e.g. move this to a
+        # decorator)
+        # tf.get_variable puts "partition_info" as another kwargs, which is
+        # unfortunately not supported by tf.random_uniform
+        acceptable_keys = ["seed", "name"]
+        acceptable_kwargs = {
+            key: kwargs[key]
+            for key in kwargs
+            if key in acceptable_keys
+            }
+        return tf.random_uniform(shape, minval=-delta, maxval=delta,
+                                 **acceptable_kwargs)
 
     return _initializer
 
 
-def xavier_uniform_initializer(shape, **kwargs):
-    if len(shape) == 2:
-        n_inputs, n_outputs = shape
-    else:
-        receptive_field_size = np.prod(shape[:2])
-        n_inputs = shape[-2] * receptive_field_size
-        n_outputs = shape[-1] * receptive_field_size
-    init_range = math.sqrt(6.0 / (n_inputs + n_outputs))
-    return tf.random_uniform(shape, minval=-init_range, maxval=init_range,
-                             **kwargs)
+def xavier_uniform_initializer():
+    def _initializer(shape, **kwargs):
+        if len(shape) == 2:
+            n_inputs, n_outputs = shape
+        else:
+            receptive_field_size = np.prod(shape[:2])
+            n_inputs = shape[-2] * receptive_field_size
+            n_outputs = shape[-1] * receptive_field_size
+        init_range = math.sqrt(6.0 / (n_inputs + n_outputs))
+        acceptable_keys = ["seed", "name"]
+        acceptable_kwargs = {
+            key: kwargs[key]
+            for key in kwargs
+            if key in acceptable_keys
+            }
+        return tf.random_uniform(shape, minval=-init_range, maxval=init_range,
+                                 **acceptable_kwargs)
+
+    return _initializer

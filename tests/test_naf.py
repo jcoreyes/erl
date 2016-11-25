@@ -5,7 +5,7 @@ import numpy as np
 from algos.naf import NAF
 from misc.testing_utils import are_np_array_lists_equal
 from misc.tf_test_case import TFTestCase
-from qfunctions.optimizable_qfunction import QuadraticNAF
+from qfunctions.quadratic_naf_qfunction import QuadraticNAF
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.exploration_strategies.ou_strategy import OUStrategy
 from sandbox.rocky.tf.envs.base import TfEnv
@@ -17,18 +17,6 @@ class TestNAF(TFTestCase):
         super().setUp()
         self.env = TfEnv(CartpoleEnv())
         self.es = OUStrategy(env_spec=self.env.spec)
-
-    def assertParamsEqual(self, network1, network2):
-        self.assertTrue(are_np_array_lists_equal(
-            network1.get_param_values(),
-            network2.get_param_values(),
-        ))
-
-    def assertParamsNotEqual(self, network1, network2):
-        self.assertFalse(are_np_array_lists_equal(
-            network1.get_param_values(),
-            network2.get_param_values(),
-        ))
 
     def test_target_params_copied(self):
         algo = NAF(
@@ -115,6 +103,76 @@ class TestNAF(TFTestCase):
         self.assertParamsNotEqual(target_vf, vf)
         algo.sess.run(algo.update_target_vf_op)
         self.assertParamsNotEqual(target_vf, vf)
+
+    def test_policy_params_updated(self):
+        tau = 0.2
+        algo = NAF(
+            self.env,
+            self.es,
+            QuadraticNAF('qf', self.env.spec),
+            n_epochs=1,
+            epoch_length=3,
+            soft_target_tau=tau,
+            min_pool_size=2,
+            eval_samples=0,
+        )
+        policy = algo.policy
+        old_policy_values = policy.get_param_values()
+        algo.train()
+        new_policy_values = policy.get_param_values()
+
+        self.assertNpArraysNotEqual(old_policy_values, new_policy_values)
+
+class TestNormalizedAdvantageFunction(TFTestCase):
+    """
+    Test Q function used for NAF algorithm.
+    """
+    def setUp(self):
+        super().setUp()
+        self.env = TfEnv(CartpoleEnv())
+        self.es = OUStrategy(env_spec=self.env.spec)
+
+    def test_policy_params_are_in_q_params(self):
+        algo = NAF(
+            self.env,
+            self.es,
+            QuadraticNAF('qf', self.env.spec),
+            n_epochs=0,
+        )
+        policy = algo.policy
+        qf = algo.qf
+
+        qf_params = qf.get_params_internal()
+        for param in policy.get_params_internal():
+            self.assertTrue(param in qf_params)
+
+    def test_vf_params_are_in_q_params(self):
+        algo = NAF(
+            self.env,
+            self.es,
+            QuadraticNAF('qf', self.env.spec),
+            n_epochs=0,
+        )
+        vf = algo.qf.get_implicit_value_function()
+        qf = algo.qf
+
+        qf_params = qf.get_params_internal()
+        for param in vf.get_params_internal():
+            self.assertTrue(param in qf_params)
+
+    def test_target_vf_params_are_not_in_q_params(self):
+        algo = NAF(
+            self.env,
+            self.es,
+            QuadraticNAF('qf', self.env.spec),
+            n_epochs=0,
+        )
+        target_vf = algo.target_vf
+        qf = algo.qf
+
+        qf_params = qf.get_params_internal()
+        for param in target_vf.get_params_internal():
+            self.assertFalse(param in qf_params)
 
 if __name__ == '__main__':
     unittest.main()

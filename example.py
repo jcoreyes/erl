@@ -36,7 +36,7 @@ def main():
         n_parallel=1,
         snapshot_mode="last",
         exp_prefix="ddpg-half-cheetah",
-        seed=1,
+        seed=2,
     )
 
 if __name__ == "__main__":

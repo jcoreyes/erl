@@ -53,6 +53,16 @@ class LinearFloatParam(Hyperparameter):
         return random.random() * self._delta + self._min
 
 
+class LinearIntParam(Hyperparameter):
+    def __init__(self, name, min_value, max_value):
+        super(LinearIntParam, self).__init__(name)
+        self._min = min_value
+        self._max = max_value
+
+    def generate_next_value(self):
+        return random.randint(self._min, self._max)
+
+
 class FixedParam(Hyperparameter):
     def __init__(self, name, value):
         super(FixedParam, self).__init__(name)
