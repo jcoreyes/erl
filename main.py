@@ -38,8 +38,15 @@ SCALE_REWARD = 1.0
 Q_WEIGHT_DECAY = 0.0
 MAX_PATH_LENGTH = 1000
 
+# Sweep settings
 SWEEP_N_EPOCHS = 50
 SWEEP_MIN_POOL_SIZE = BATCH_SIZE
+
+# Fast settings
+FAST_N_EPOCHS = 10
+FAST_EPOCH_LENGTH = 50
+FAST_EVAL_SAMPLES = 10
+FAST_MIN_POOL_SIZE = 2
 
 NUM_SEEDS_PER_CONFIG = 2
 NUM_HYPERPARAMETER_CONFIGS = 50
@@ -54,7 +61,9 @@ def get_env_settings(args):
         env = HalfCheetahEnv()
         name = "HalfCheetah"
     elif env_name == 'point':
-        env = normalize(GymEnv("Pointmass-v1", record_video=False))
+        env = normalize(GymEnv("Pointmass-v1", record_video=False,
+                               log_dir='/tmp/gym-test',  # Ignore gym log.
+                               record_log=False))
         name = "Pointmass"
     else:
         raise Exception("Unknown env: {0}".format(env_name))
@@ -285,8 +294,6 @@ def sweep(exp_prefix, env_settings, algo_settings):
         for seed in range(NUM_SEEDS_PER_CONFIG):
             params = dict(default_params,
                           **sweeper.generate_random_hyperparameters())
-            params['n_epochs'] = SWEEP_N_EPOCHS
-            params['min_pool_size'] = SWEEP_MIN_POOL_SIZE
             test_function(env, exp_prefix, env_name, seed=seed + 1,
                           **params)
 
@@ -307,7 +314,7 @@ def main():
     parser.add_argument("--name", default='default',
                         help='Experiment prefix')
     parser.add_argument("--fast", action='store_true',
-                        help='Run a quick experiment. Intended for debugging')
+                        help='Run a quick experiment. Intended for debugging. Trumps sweep settings')
     parser.add_argument("--algo", default='ddpg',
                         help='Algo',
                         choices=algo_choices)
@@ -316,12 +323,16 @@ def main():
                         help='Seed')
     args = parser.parse_args()
 
+    if args.sweep:
+        N_EPOCHS = SWEEP_N_EPOCHS
+        MIN_POOL_SIZE = SWEEP_MIN_POOL_SIZE
     if args.fast:
         global N_EPOCHS, EPOCH_LENGTH, EVAL_SAMPLES, MIN_POOL_SIZE
-        N_EPOCHS = 10
-        EPOCH_LENGTH = 50
-        EVAL_SAMPLES = 10
-        MIN_POOL_SIZE = 2
+        N_EPOCHS = FAST_N_EPOCHS
+        EPOCH_LENGTH = FAST_EPOCH_LENGTH
+        EVAL_SAMPLES = FAST_EVAL_SAMPLES
+        MIN_POOL_SIZE = FAST_MIN_POOL_SIZE
+
     else:
         if args.render:
             print("WARNING: Algorithm will be slow because render is on.")
