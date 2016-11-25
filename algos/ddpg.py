@@ -219,7 +219,7 @@ class DDPG(OnlineAlgorithm):
         last_statistics.update(create_stats_ordered_dict('TargetQfOutput',
                                                          target_qf_outputs))
         last_statistics.update(create_stats_ordered_dict('Rewards', rewards))
-        last_statistics.update(create_stats_ordered_dict('returns', returns))
+        last_statistics.update(create_stats_ordered_dict('Returns', returns))
         if len(es_path_returns) > 0:
             last_statistics.update(create_stats_ordered_dict('TrainingReturns',
                                                              es_path_returns))

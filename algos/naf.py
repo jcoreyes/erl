@@ -145,7 +145,7 @@ class NAF(OnlineAlgorithm):
                 self.ys,
             ],
             feed_dict=feed_dict)
-        discounted_return = [
+        discounted_returns = [
             special.discount_return(path["rewards"], self.discount)
             for path in paths]
         returns = [sum(path["rewards"]) for path in paths]
@@ -165,7 +165,7 @@ class NAF(OnlineAlgorithm):
         last_statistics.update(create_stats_ordered_dict('Rewards', rewards))
         last_statistics.update(create_stats_ordered_dict('Returns', returns))
         last_statistics.update(create_stats_ordered_dict('DiscountedReturns',
-                                                         discounted_return))
+                                                         discounted_returns))
         if len(es_path_returns) > 0:
             last_statistics.update(create_stats_ordered_dict('TrainingReturns',
                                                              es_path_returns))
