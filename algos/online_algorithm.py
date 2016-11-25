@@ -2,6 +2,7 @@
 :author: Vitchyr Pong
 """
 import abc
+import pickle
 import time
 
 import numpy as np
@@ -35,6 +36,7 @@ class OnlineAlgorithm(RLAlgorithm):
             eval_samples=10000,
             scale_reward=1.,
             render=False,
+            n_updates_per_time_step=1,
     ):
         """
         :param env: Environment
@@ -51,6 +53,7 @@ class OnlineAlgorithm(RLAlgorithm):
         :param eval_samples: Number of time steps to take for evaluation.
         :param scale_reward: How much to multiply the rewards by.
         :param render: Boolean. If True, render the environment.
+        :param n_updates_per_time_step: How many SGD steps to take per time step.
         :return:
         """
         assert min_pool_size >= 2
@@ -68,6 +71,7 @@ class OnlineAlgorithm(RLAlgorithm):
         self.n_eval_samples = eval_samples
         self.scale_reward = scale_reward
         self.render = render
+        self.n_updates_per_time_step = n_updates_per_time_step
 
         self.observation_dim = self.env.observation_space.flat_dim
         self.action_dim = self.env.action_space.flat_dim
@@ -87,7 +91,8 @@ class OnlineAlgorithm(RLAlgorithm):
         self.es_path_returns = []
 
     def _start_worker(self):
-        parallel_sampler.populate_task(self.env, self.policy)
+        env_copy = pickle.loads(pickle.dumps(self.env))
+        parallel_sampler.populate_task(env_copy, self.policy)
 
     @overrides
     def train(self):
@@ -135,7 +140,8 @@ class OnlineAlgorithm(RLAlgorithm):
                         observation = next_ob
 
                     if self.pool.size >= self.min_pool_size:
-                        self._do_training()
+                        for _ in range(self.n_updates_per_time_step):
+                            self._do_training()
                     itr += 1
 
                 logger.log("Training finished. Time: {0}".format(time.time() -

@@ -190,7 +190,16 @@ def he_uniform_initializer():
         elif len(shape) > 2:
             fan_in = np.prod(shape[1:])
         delta = np.sqrt(1.0 / fan_in)
-        return tf.random_uniform(shape, minval=-delta, maxval=delta, **kwargs)
+        # tf.get_variable puts "partition_info" as another kwargs, which is
+        # unfortunately not supported by tf.random_uniform
+        acceptable_keys = ["seed", "name"]
+        acceptable_kwargs = {
+            key: kwargs[key]
+            for key in kwargs
+            if key in acceptable_keys
+            }
+        return tf.random_uniform(shape, minval=-delta, maxval=delta,
+                                 **acceptable_kwargs)
 
     return _initializer
 

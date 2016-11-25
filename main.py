@@ -88,6 +88,8 @@ def get_algo_settings(args):
         sweeper = hp.HyperparameterSweeper([
             hp.LogFloatParam("qf_learning_rate", 1e-4, 1e-2),
             hp.LogFloatParam("scale_reward", 10.0, 0.01),
+            hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
+            hp.LinearIntParam("n_updates_per_time_step", 1, 5),
         ])
         params = get_my_naf_params()
         test_function = test_my_naf
@@ -143,7 +145,8 @@ def get_my_naf_params():
         min_pool_size=MIN_POOL_SIZE,
         scale_reward=SCALE_REWARD,
         max_path_length=MAX_PATH_LENGTH,
-        Q_weight_decay=Q_WEIGHT_DECAY
+        Q_weight_decay=Q_WEIGHT_DECAY,
+        n_updates_per_time_step=5,
     )
 
 
@@ -324,6 +327,7 @@ def main():
     args = parser.parse_args()
 
     if args.sweep:
+        global N_EPOCHS, MIN_POOL_SIZE
         N_EPOCHS = SWEEP_N_EPOCHS
         MIN_POOL_SIZE = SWEEP_MIN_POOL_SIZE
     if args.fast:

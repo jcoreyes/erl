@@ -41,15 +41,16 @@ class QuadraticQF(StateActionNetwork):
             hidden_nonlinearity=tf.nn.relu,
             output_nonlinearity=tf.identity,
             )
+        # L_shape = batch:dimA:dimA
         L = tf_util.vec2lower_triangle(L_params.output, self.action_dim)
 
-        # P_matrix = tf.matmul(
-        #     L_lower_triangle_matrix,
-        #     L_lower_triangle_matrix,
-        #     transpose_b=True,
-        # )
         delta = self.action_input - self.policy.output
-        h1 = tf.expand_dims(delta, 1)
-        h1 = tf.batch_matmul(h1, L)  # batch:1:dimA
-        h1 = tf.squeeze(h1, [1])  # batch:dimA
-        return -tf.constant(0.5) * tf.reduce_sum(h1 * h1, 1)  # batch
+        h1 = tf.expand_dims(delta, 1)  # h1_shape = batch:1:dimA
+        h1 = tf.batch_matmul(h1, L)    # h1_shape = batch:1:dimA
+        h1 = tf.batch_matmul(
+            h1,
+            h1,
+            adj_y=True,  # Compute h1 * h1^T
+        )                              # h1_shape = batch:1:1
+        h1 = tf.squeeze(h1, [1])       # h1_shape = batch:1
+        return -0.5 * h1
