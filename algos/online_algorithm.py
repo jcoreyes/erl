@@ -27,7 +27,7 @@ class OnlineAlgorithm(RLAlgorithm):
             exploration_strategy,
             batch_size=64,
             n_epochs=1000,
-            epoch_length=1000,
+            epoch_length=10000,
             min_pool_size=10000,
             replay_pool_size=1000000,
             discount=0.99,
