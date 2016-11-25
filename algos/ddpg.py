@@ -11,7 +11,6 @@ from algos.online_algorithm import OnlineAlgorithm
 from misc.data_processing import create_stats_ordered_dict
 from misc.rllab_util import split_paths
 
-from misc.simple_replay_pool import SimpleReplayPool
 from rllab.misc import logger
 from rllab.misc import special
 from rllab.misc.overrides import overrides

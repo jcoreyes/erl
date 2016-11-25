@@ -145,27 +145,27 @@ class NAF(OnlineAlgorithm):
                 self.ys,
             ],
             feed_dict=feed_dict)
-        average_discounted_return = np.mean(
-            [special.discount_return(path["rewards"], self.discount)
-             for path in paths]
-        )
+        discounted_return = [
+            special.discount_return(path["rewards"], self.discount)
+            for path in paths]
         returns = [sum(path["rewards"]) for path in paths]
         rewards = np.hstack([path["rewards"] for path in paths])
 
         # Log statistics
         last_statistics = OrderedDict([
             ('Epoch', epoch),
-            ('ActorMeanOutput', np.mean(policy_output)),
-            ('ActorStdOutput', np.std(policy_output)),
             ('CriticLoss', qf_loss),
-            ('AverageDiscountedReturn', average_discounted_return),
         ])
         last_statistics.update(create_stats_ordered_dict('Ys', ys))
+        last_statistics.update(create_stats_ordered_dict('PolicyOutput',
+                                                         policy_output))
         last_statistics.update(create_stats_ordered_dict('QfOutput', qf_output))
         last_statistics.update(create_stats_ordered_dict('TargetVfOutput',
                                                          target_vf_output))
         last_statistics.update(create_stats_ordered_dict('Rewards', rewards))
-        last_statistics.update(create_stats_ordered_dict('returns', returns))
+        last_statistics.update(create_stats_ordered_dict('Returns', returns))
+        last_statistics.update(create_stats_ordered_dict('DiscountedReturns',
+                                                         discounted_return))
         if len(es_path_returns) > 0:
             last_statistics.update(create_stats_ordered_dict('TrainingReturns',
                                                              es_path_returns))

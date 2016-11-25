@@ -25,15 +25,15 @@ from sandbox.rocky.tf.q_functions.continuous_mlp_q_function import \
     ContinuousMLPQFunction
 
 BATCH_SIZE = 64
-N_EPOCHS = 10
-EPOCH_LENGTH = 50
-EVAL_SAMPLES = 10
+N_EPOCHS = 1000
+EPOCH_LENGTH = 1000
+EVAL_SAMPLES = 10000
 DISCOUNT = 0.99
 CRITIC_LEARNING_RATE = 1e-3
 ACTOR_LEARNING_RATE = 1e-4
 SOFT_TARGET_TAU = 0.01
 REPLAY_POOL_SIZE = 1000000
-MIN_POOL_SIZE = 10
+MIN_POOL_SIZE = 1000
 SCALE_REWARD = 1.0
 Q_WEIGHT_DECAY = 0.0
 MAX_PATH_LENGTH = 1000
@@ -306,6 +306,8 @@ def main():
                         choices=env_choices)
     parser.add_argument("--name", default='default',
                         help='Experiment prefix')
+    parser.add_argument("--fast", action='store_true',
+                        help='Run a quick experiment. Intended for debugging')
     parser.add_argument("--algo", default='ddpg',
                         help='Algo',
                         choices=algo_choices)
@@ -313,6 +315,16 @@ def main():
                         type=int,
                         help='Seed')
     args = parser.parse_args()
+
+    if args.fast:
+        global N_EPOCHS, EPOCH_LENGTH, EVAL_SAMPLES, MIN_POOL_SIZE
+        N_EPOCHS = 10
+        EPOCH_LENGTH = 50
+        EVAL_SAMPLES = 10
+        MIN_POOL_SIZE = 2
+    else:
+        if args.render:
+            print("WARNING: Algorithm will be slow because render is on.")
 
     stub(globals())
 
