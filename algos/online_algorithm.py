@@ -12,7 +12,7 @@ from misc.simple_replay_pool import SimpleReplayPool
 from rllab.algos.base import RLAlgorithm
 from rllab.misc import logger
 from rllab.misc.overrides import overrides
-from rllab.sampler import parallel_sampler
+from sandbox.rocky.tf.samplers.batch_sampler import BatchSampler
 
 
 class OnlineAlgorithm(RLAlgorithm):
@@ -57,7 +57,10 @@ class OnlineAlgorithm(RLAlgorithm):
         :return:
         """
         assert min_pool_size >= 2
-        self.env = env
+        # Have two separate env's to make sure that the training and eval
+        # envs don't affect one another.
+        self.training_env = env
+        self.env = pickle.loads(pickle.dumps(self.training_env))
         self.policy = policy
         self.exploration_strategy = exploration_strategy
         self.replay_pool_size = replay_pool_size
@@ -73,8 +76,8 @@ class OnlineAlgorithm(RLAlgorithm):
         self.render = render
         self.n_updates_per_time_step = n_updates_per_time_step
 
-        self.observation_dim = self.env.observation_space.flat_dim
-        self.action_dim = self.env.action_space.flat_dim
+        self.observation_dim = self.training_env.observation_space.flat_dim
+        self.action_dim = self.training_env.action_space.flat_dim
         self.rewards_placeholder = tf.placeholder(tf.float32,
                                                   shape=[None, 1],
                                                   name='rewards')
@@ -89,12 +92,16 @@ class OnlineAlgorithm(RLAlgorithm):
         with self.sess.as_default():
             self._init_tensorflow_ops()
         self.es_path_returns = []
-        self.scope = None  # For batch sampler
-        self.whole_paths = True
+
+        self.eval_sampler = BatchSampler(self)
+        self.scope = None  # Necessary for BatchSampler
+        self.whole_paths = True  # Also for BatchSampler
 
     def _start_worker(self):
-        env_copy = pickle.loads(pickle.dumps(self.env))
-        parallel_sampler.populate_task(env_copy, self.policy)
+        self.eval_sampler.start_worker()
+
+    def _shutdown_worker(self):
+        self.eval_sampler.shutdown_worker()
 
     @overrides
     def train(self):
@@ -102,7 +109,7 @@ class OnlineAlgorithm(RLAlgorithm):
             self._init_training()
             self._start_worker()
 
-            observation = self.env.reset()
+            observation = self.training_env.reset()
             self.exploration_strategy.reset()
             itr = 0
             path_length = 0
@@ -116,8 +123,8 @@ class OnlineAlgorithm(RLAlgorithm):
                                                                   observation,
                                                                   self.policy)
                     if self.render:
-                        self.env.render()
-                    next_ob, raw_reward, terminal, _ = self.env.step(action)
+                        self.training_env.render()
+                    next_ob, raw_reward, terminal, _ = self.training_env.step(action)
                     reward = raw_reward * self.scale_reward
                     path_length += 1
                     path_return += reward
@@ -133,7 +140,7 @@ class OnlineAlgorithm(RLAlgorithm):
                                              np.zeros_like(reward),
                                              np.zeros_like(terminal),
                                              True)
-                        observation = self.env.reset()
+                        observation = self.training_env.reset()
                         self.exploration_strategy.reset()
                         self.es_path_returns.append(path_return)
                         path_length = 0
@@ -159,7 +166,8 @@ class OnlineAlgorithm(RLAlgorithm):
                     logger.save_itr_params(epoch, params)
                 logger.dump_tabular(with_prefix=False)
                 logger.pop_prefix()
-            self.env.terminate()
+            self.training_env.terminate()
+            self._shutdown_worker()
             return self.last_statistics
 
     def _do_training(self):
@@ -179,7 +187,7 @@ class OnlineAlgorithm(RLAlgorithm):
 
     def get_epoch_snapshot(self, epoch):
         return dict(
-            env=self.env,
+            env=self.training_env,
             epoch=epoch,
             policy=self.policy,
             es=self.exploration_strategy,

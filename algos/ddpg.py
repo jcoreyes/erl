@@ -10,7 +10,6 @@ from algos.online_algorithm import OnlineAlgorithm
 from misc.data_processing import create_stats_ordered_dict
 from misc.rllab_util import split_paths
 
-from sandbox.rocky.tf.samplers.batch_sampler import BatchSampler
 from rllab.misc import logger
 from rllab.misc import special
 from rllab.misc.overrides import overrides
@@ -48,21 +47,8 @@ class DDPG(OnlineAlgorithm):
         self.qf_learning_rate = qf_learning_rate
         self.policy_learning_rate = policy_learning_rate
         self.Q_weight_decay = Q_weight_decay
-        self.sampler = BatchSampler(self)
 
         super().__init__(env, policy, exploration_strategy, **kwargs)
-
-    def start_worker(self):
-        self.sampler.start_worker()
-
-    def shutdown_worker(self):
-        self.sampler.shutdown_worker()
-
-    def obtain_samples(self, itr):
-        return self.sampler.obtain_samples(itr)
-
-    def process_samples(self, itr, paths):
-        return self.sampler.process_samples(itr, paths)
 
     @overrides
     def _init_tensorflow_ops(self):
@@ -178,12 +164,10 @@ class DDPG(OnlineAlgorithm):
     @overrides
     def evaluate(self, epoch, es_path_returns):
         logger.log("Collecting samples for evaluation")
-        # paths = parallel_sampler.sample_paths(
-        #     policy_params=self.policy.get_param_values(),
-        #     max_samples=self.n_eval_samples,
-        #     max_path_length=self.max_path_length,
-        # )
-        paths = self.obtain_samples(epoch)
+        paths = self.eval_sampler.obtain_samples(
+            itr=epoch,
+            batch_size=self.n_eval_samples,
+        )
         rewards, terminals, obs, actions, next_obs = split_paths(paths)
         feed_dict = self._update_feed_dict(rewards, terminals, obs, actions,
                                            next_obs)
