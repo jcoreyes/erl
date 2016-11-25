@@ -215,15 +215,13 @@ def xavier_uniform_initializer():
             n_inputs = shape[-2] * receptive_field_size
             n_outputs = shape[-1] * receptive_field_size
         init_range = math.sqrt(6.0 / (n_inputs + n_outputs))
-        # tf.get_variable puts "partition_info" as another kwargs, which is
-        # unfortunately not supported by tf.random_uniform
         acceptable_keys = ["seed", "name"]
         acceptable_kwargs = {
             key: kwargs[key]
             for key in kwargs
             if key in acceptable_keys
             }
-        return tf.random_uniform(shape, minval=-delta, maxval=delta,
+        return tf.random_uniform(shape, minval=-init_range, maxval=init_range,
                                  **acceptable_kwargs)
 
     return _initializer
