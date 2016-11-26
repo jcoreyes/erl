@@ -56,7 +56,7 @@ class NAF(OnlineAlgorithm):
             name='next_obs')
         self.target_vf = self.qf.get_implicit_value_function().get_copy(
             scope_name=TARGET_PREFIX + self.qf.scope_name,
-            action_input=self.next_obs_placeholder,
+            observation_input=self.next_obs_placeholder,
         )
         self.qf.sess = self.sess
         self.target_vf.sess = self.sess
