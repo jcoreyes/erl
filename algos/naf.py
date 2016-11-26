@@ -26,7 +26,7 @@ class NAF(OnlineAlgorithm):
             self,
             env,
             exploration_strategy,
-            naf,
+            naf_qfunction,
             qf_learning_rate=1e-3,
             Q_weight_decay=0.,
             **kwargs
@@ -34,12 +34,12 @@ class NAF(OnlineAlgorithm):
         """
         :param env: Environment
         :param exploration_strategy: ExplorationStrategy
-        :param naf: A NAFQFunction
+        :param naf_qfunction: A NAFQFunction
         :param qf_learning_rate: Learning rate of the qf
         :param Q_weight_decay: How much to decay the weights for Q
         :return:
         """
-        self.qf = naf
+        self.qf = naf_qfunction
         self.qf_learning_rate = qf_learning_rate
         self.Q_weight_decay = Q_weight_decay
 
@@ -56,7 +56,7 @@ class NAF(OnlineAlgorithm):
             name='next_obs')
         self.target_vf = self.qf.get_implicit_value_function().get_copy(
             scope_name=TARGET_PREFIX + self.qf.scope_name,
-            action_input=self.next_obs_placeholder,
+            observation_input=self.next_obs_placeholder,
         )
         self.qf.sess = self.sess
         self.target_vf.sess = self.sess

@@ -1,32 +1,40 @@
 import tensorflow as tf
 
+from misc.rllab_util import get_action_dim, get_observation_dim
 from policies.nn_policy import FeedForwardPolicy
 from qfunctions.naf_qfunction import NAFQFunction
 from qfunctions.quadratic_qf import QuadraticQF
-from rllab.core.serializable import Serializable
+from rllab.misc.overrides import overrides
 from vfunction.mlp_vfunction import MlpStateNetwork
+from rllab.core.serializable import Serializable
 
 
 class QuadraticNAF(NAFQFunction):
     def __init__(
             self,
             scope_name,
-            env_spec,
+            observation_input=None,
             **kwargs
     ):
         Serializable.quick_init(self, locals())
-        super(QuadraticNAF, self).__init__(
-            scope_name,
-            env_spec,
-            1,
+        observation_dim = get_observation_dim(**kwargs)
+        observation_placeholder = tf.placeholder(tf.float32,
+                                                 shape=[None, observation_dim])
+        super(NAFQFunction, self).__init__(
+            scope_name=scope_name,
+            output_dim=1,
+            observation_input=observation_placeholder,
             **kwargs
         )
 
-    def _create_network(self):
+    @overrides
+    def _create_network(self, observation_input, action_input):
+        vf_output_dim = 1
         self.policy = FeedForwardPolicy(
-            "mu",
-            self.observation_dim,
-            self.action_dim,
+            scope_name="mu",
+            action_dim=self.action_dim,
+            observation_dim=self.observation_dim,
+            observation_input=observation_input,
             observation_hidden_sizes=(200, 200),
             hidden_W_init=None,
             hidden_b_init=None,
@@ -34,15 +42,13 @@ class QuadraticNAF(NAFQFunction):
             output_b_init=None,
             hidden_nonlinearity=tf.nn.relu,
             output_nonlinearity=tf.nn.tanh,
-            )
-        # TODO(vpong): fix this hack
-        self.observation_input = self.policy.observations_placeholder
-        vf_output_dim = 1
+        )
         self.vf = MlpStateNetwork(
-            "V_function",
-            self.env_spec,
-            vf_output_dim,
-            observation_input=self.observation_input,
+            scope_name="V_function",
+            output_dim=vf_output_dim,
+            action_dim=self.action_dim,
+            observation_dim=self.observation_dim,
+            observation_input=observation_input,
             observation_hidden_sizes=(200, 200),
             hidden_W_init=None,
             hidden_b_init=None,
@@ -53,11 +59,12 @@ class QuadraticNAF(NAFQFunction):
         )
         af_output_dim = 1
         self.af = QuadraticQF(
-            "advantage_function",
-            self.env_spec,
-            af_output_dim,
-            self.action_input,
-            self.observation_input,
+            scope_name="advantage_function",
+            output_dim=af_output_dim,
+            action_input=action_input,
+            observation_input=observation_input,
+            action_dim=self.action_dim,
+            observation_dim=self.observation_dim,
             policy=self.policy,
         )
         return self.vf.output + self.af.output
@@ -70,4 +77,3 @@ class QuadraticNAF(NAFQFunction):
 
     def get_implicit_advantage_function(self):
         return self.af
-

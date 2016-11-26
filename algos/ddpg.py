@@ -56,6 +56,7 @@ class DDPG(OnlineAlgorithm):
     def _init_tensorflow_ops(self):
         # Initialize variables for get_copy to work
         self.sess.run(tf.initialize_all_variables())
+        print(TARGET_PREFIX + self.policy.scope_name)
         self.target_policy = self.policy.get_copy(
             scope_name=TARGET_PREFIX + self.policy.scope_name,
         )

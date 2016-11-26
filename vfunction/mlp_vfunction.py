@@ -10,7 +10,6 @@ class MlpStateNetwork(StateNetwork):
     def __init__(
             self,
             scope_name,
-            env_spec,
             output_dim,
             observation_hidden_sizes=(100, 100),
             hidden_W_init=None,
@@ -32,14 +31,13 @@ class MlpStateNetwork(StateNetwork):
         self.hidden_nonlinearity = hidden_nonlinearity
         self.output_nonlinearity = output_nonlinearity
         super(MlpStateNetwork, self).__init__(
-            scope_name,
-            env_spec,
-            output_dim,
+            scope_name=scope_name,
+            output_dim=output_dim,
             **kwargs)
 
-    def _create_network(self):
+    def _create_network(self, observation_input):
         hidden_output = tf_util.mlp(
-            self.observation_input,
+            observation_input,
             self.observation_dim,
             self.observation_hidden_sizes,
             self.hidden_nonlinearity,

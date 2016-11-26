@@ -1,25 +1,20 @@
-import unittest
-
 import numpy as np
 import tensorflow as tf
 
-import qfunctions.nn_qfunction
+from misc.tf_test_case import TFTestCase
+from qfunctions.nn_qfunction import FeedForwardCritic
 
 
-class TestFeedForwardCritic(unittest.TestCase):
-    def setUp(self):
-        tf.reset_default_graph()
-        self.sess = tf.Session()
-        self.sess.__enter__()
-
-    def tearDown(self):
-        self.sess.__exit__(None, None, None)
-
+class TestFeedForwardCritic(TFTestCase):
     def test_copy(self):
         action_dim = 5
         obs_dim = 7
-        critic1 = qfunctions.nn_qfunction.FeedForwardCritic("1", obs_dim, action_dim)
-        critic2 = qfunctions.nn_qfunction.FeedForwardCritic("2", obs_dim, action_dim)
+        critic1 = FeedForwardCritic(scope_name="qf_a",
+                                    observation_dim=obs_dim,
+                                    action_dim=action_dim)
+        critic2 = FeedForwardCritic(scope_name="qf_b",
+                                    observation_dim=obs_dim,
+                                    action_dim=action_dim)
         critic1.sess = self.sess
         critic2.sess = self.sess
 
@@ -27,12 +22,12 @@ class TestFeedForwardCritic(unittest.TestCase):
         o = np.random.rand(1, obs_dim)
 
         feed_1 = {
-            critic1.actions_placeholder: a,
-            critic1.observations_placeholder: o,
+            critic1.action_input: a,
+            critic1.observation_input: o,
         }
         feed_2 = {
-            critic2.actions_placeholder: a,
-            critic2.observations_placeholder: o,
+            critic2.action_input: a,
+            critic2.observation_input: o,
         }
 
         self.sess.run(tf.initialize_all_variables())
@@ -49,14 +44,16 @@ class TestFeedForwardCritic(unittest.TestCase):
     def test_output_len(self):
         action_dim = 5
         obs_dim = 7
-        critic = qfunctions.nn_qfunction.FeedForwardCritic("1", obs_dim, action_dim)
+        critic = FeedForwardCritic(scope_name="1",
+                                   observation_dim=obs_dim,
+                                   action_dim=action_dim)
         critic.sess = self.sess
 
         a = np.random.rand(1, action_dim)
         o = np.random.rand(1, obs_dim)
         feed = {
-            critic.actions_placeholder: a,
-            critic.observations_placeholder: o,
+            critic.action_input: a,
+            critic.observation_input: o,
         }
 
         self.sess.run(tf.initialize_all_variables())
