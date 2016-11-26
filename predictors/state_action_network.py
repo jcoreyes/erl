@@ -11,7 +11,7 @@ class StateActionNetwork(NeuralNetwork):
 
     def __init__(
             self,
-            scope_name,
+            name_or_scope,
             output_dim,
             env_spec=None,
             action_dim=None,
@@ -35,7 +35,7 @@ class StateActionNetwork(NeuralNetwork):
             self.action_dim = action_dim
             self.observation_dim = observation_dim
 
-        with tf.variable_scope(scope_name, reuse=reuse) as variable_scope:
+        with tf.variable_scope(name_or_scope, reuse=reuse) as variable_scope:
             if self.action_input is None:
                 self.action_input = tf.placeholder(
                     tf.float32,
@@ -53,17 +53,37 @@ class StateActionNetwork(NeuralNetwork):
             self.variable_scope = variable_scope
 
     def get_weight_tied_copy(self, observation_input=None, action_input=None):
+        """
+        Return a weight-tied copy of the network. Optionally replace the
+        observation input to the network for the returned network.
+
+        :param action_input: A tensor or placeholder. If not set,
+        the action input to the returned network is the same as this network's
+        action input.
+        :param observation_input: A tensor or placeholder. If not set,
+        the observation input to the returned network is the same as this
+        network's observation input.
+        :return: StateNetwork copy with weights tied to this StateNetwork.
+        """
+        if observation_input is None:
+            observation_input = self.observation_input
+        if action_input is None:
+            action_input = self.action_input
+        ps = self.get_params_internal()
         return self.get_copy(
-            scope_name=self.scope_name,
+            name_or_scope=self.variable_scope,
             observation_input=observation_input,
             action_input=action_input,
             reuse=True,
         )
 
-    @property
-    def output(self):
-        return self._output
-
     @abc.abstractmethod
     def _create_network(self, observation_input, action_input):
+        """
+        Create a network whose inputs are observation_input and action_input.
+
+        :param action_input: A tensor/placeholder.
+        :param observation_input: A tensor/placeholder.
+        :return: A tensor.
+        """
         return

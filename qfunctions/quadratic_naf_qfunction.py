@@ -1,18 +1,18 @@
 import tensorflow as tf
 
-from misc.rllab_util import get_action_dim, get_observation_dim
+from misc.rllab_util import get_observation_dim
 from policies.nn_policy import FeedForwardPolicy
+from predictors.mlp_state_network import MlpStateNetwork
 from qfunctions.naf_qfunction import NAFQFunction
 from qfunctions.quadratic_qf import QuadraticQF
-from rllab.misc.overrides import overrides
-from vfunction.mlp_vfunction import MlpStateNetwork
 from rllab.core.serializable import Serializable
+from rllab.misc.overrides import overrides
 
 
 class QuadraticNAF(NAFQFunction):
     def __init__(
             self,
-            scope_name,
+            name_or_scope,
             observation_input=None,
             **kwargs
     ):
@@ -21,8 +21,7 @@ class QuadraticNAF(NAFQFunction):
         observation_placeholder = tf.placeholder(tf.float32,
                                                  shape=[None, observation_dim])
         super(NAFQFunction, self).__init__(
-            scope_name=scope_name,
-            output_dim=1,
+            name_or_scope=name_or_scope,
             observation_input=observation_placeholder,
             **kwargs
         )
@@ -30,7 +29,7 @@ class QuadraticNAF(NAFQFunction):
     @overrides
     def _create_network(self, observation_input, action_input):
         self.policy = FeedForwardPolicy(
-            scope_name="mu",
+            name_or_scope="mu",
             action_dim=self.action_dim,
             observation_dim=self.observation_dim,
             observation_input=observation_input,
@@ -43,7 +42,8 @@ class QuadraticNAF(NAFQFunction):
             output_nonlinearity=tf.nn.tanh,
         )
         self.vf = MlpStateNetwork(
-            scope_name="V_function",
+            name_or_scope="V_function",
+            output_dim=1,
             action_dim=self.action_dim,
             observation_dim=self.observation_dim,
             observation_input=observation_input,
@@ -56,7 +56,7 @@ class QuadraticNAF(NAFQFunction):
             output_nonlinearity=tf.identity,
         )
         self.af = QuadraticQF(
-            scope_name="advantage_function",
+            name_or_scope="advantage_function",
             action_input=action_input,
             observation_input=observation_input,
             action_dim=self.action_dim,

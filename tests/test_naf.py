@@ -20,7 +20,7 @@ class TestNAF(TFTestCase):
         algo = NAF(
             self.env,
             self.es,
-            QuadraticNAF(scope_name='qf', env_spec=self.env.spec),
+            QuadraticNAF(name_or_scope='qf', env_spec=self.env.spec),
             n_epochs=0,
         )
         target_vf = algo.target_vf
@@ -41,7 +41,7 @@ class TestNAF(TFTestCase):
         algo = NAF(
             self.env,
             self.es,
-            QuadraticNAF(scope_name='qf', env_spec=self.env.spec),
+            QuadraticNAF(name_or_scope='qf', env_spec=self.env.spec),
             n_epochs=0,
             soft_target_tau=tau,
         )
@@ -67,7 +67,7 @@ class TestNAF(TFTestCase):
         algo = NAF(
             self.env,
             self.es,
-            QuadraticNAF(scope_name='qf', env_spec=self.env.spec),
+            QuadraticNAF(name_or_scope='qf', env_spec=self.env.spec),
             n_epochs=0,
             soft_target_tau=tau,
         )
@@ -87,7 +87,7 @@ class TestNAF(TFTestCase):
         algo = NAF(
             self.env,
             self.es,
-            QuadraticNAF(scope_name='qf', env_spec=self.env.spec),
+            QuadraticNAF(name_or_scope='qf', env_spec=self.env.spec),
             n_epochs=0,
             soft_target_tau=tau,
         )
@@ -107,7 +107,7 @@ class TestNAF(TFTestCase):
         algo = NAF(
             self.env,
             self.es,
-            QuadraticNAF(scope_name='qf', env_spec=self.env.spec),
+            QuadraticNAF(name_or_scope='qf', env_spec=self.env.spec),
             n_epochs=1,
             epoch_length=3,
             soft_target_tau=tau,
@@ -136,7 +136,7 @@ class TestNormalizedAdvantageFunction(TFTestCase):
         algo = NAF(
             self.env,
             self.es,
-            QuadraticNAF(scope_name='qf', env_spec=self.env.spec),
+            QuadraticNAF(name_or_scope='qf', env_spec=self.env.spec),
             n_epochs=0,
         )
         policy = algo.policy
@@ -151,7 +151,7 @@ class TestNormalizedAdvantageFunction(TFTestCase):
         algo = NAF(
             self.env,
             self.es,
-            QuadraticNAF(scope_name='qf', env_spec=self.env.spec),
+            QuadraticNAF(name_or_scope='qf', env_spec=self.env.spec),
             n_epochs=0,
         )
         vf = algo.qf.get_implicit_value_function()
@@ -165,7 +165,7 @@ class TestNormalizedAdvantageFunction(TFTestCase):
         algo = NAF(
             self.env,
             self.es,
-            QuadraticNAF(scope_name='qf', env_spec=self.env.spec),
+            QuadraticNAF(name_or_scope='qf', env_spec=self.env.spec),
             n_epochs=0,
         )
         target_vf = algo.target_vf

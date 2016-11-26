@@ -1,15 +1,15 @@
 import tensorflow as tf
+
 from core import tf_util
-from predictors.state_action_network import StateActionNetwork
-from vfunction.mlp_vfunction import MlpStateNetwork
+from predictors.mlp_state_network import MlpStateNetwork
+from qfunctions.nn_qfunction import NNQFunction
 from rllab.core.serializable import Serializable
 
 
-class QuadraticQF(StateActionNetwork):
+class QuadraticQF(NNQFunction):
     def __init__(
             self,
-            scope_name,
-            output_dim,
+            name_or_scope,
             policy,
             reuse=False,
             **kwargs
@@ -17,14 +17,13 @@ class QuadraticQF(StateActionNetwork):
         Serializable.quick_init(self, locals())
         self.policy = policy
         super(QuadraticQF, self).__init__(
-            scope_name=scope_name,
-            output_dim=output_dim,
+            name_or_scope=name_or_scope,
             **kwargs
         )
 
     def _create_network(self, observation_input, action_input):
         L_params = MlpStateNetwork(
-            scope_name="L",
+            name_or_scope="L",
             output_dim=self.action_dim * self.action_dim,
             observation_dim=self.observation_dim,
             observation_input=observation_input,

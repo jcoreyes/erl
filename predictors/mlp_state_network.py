@@ -9,7 +9,7 @@ from rllab.core.serializable import Serializable
 class MlpStateNetwork(StateNetwork):
     def __init__(
             self,
-            scope_name,
+            name_or_scope,
             output_dim,
             observation_hidden_sizes=(100, 100),
             hidden_W_init=None,
@@ -30,10 +30,9 @@ class MlpStateNetwork(StateNetwork):
             -3e-3, 3e-3)
         self.hidden_nonlinearity = hidden_nonlinearity
         self.output_nonlinearity = output_nonlinearity
-        super(MlpStateNetwork, self).__init__(
-            scope_name=scope_name,
-            output_dim=output_dim,
-            **kwargs)
+        super(MlpStateNetwork, self).__init__(name_or_scope=name_or_scope,
+                                              output_dim=output_dim,
+                                              **kwargs)
 
     def _create_network(self, observation_input):
         hidden_output = tf_util.mlp(

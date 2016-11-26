@@ -7,16 +7,16 @@ from rllab.core.serializable import Serializable
 class NNQFunction(StateActionNetwork):
     def __init__(
             self,
-            scope_name,
+            name_or_scope,
             **kwargs
     ):
         Serializable.quick_init(self, locals())
-        super().__init__(scope_name=scope_name, output_dim=1, **kwargs)
+        super().__init__(name_or_scope=name_or_scope, output_dim=1, **kwargs)
 
 class FeedForwardCritic(NNQFunction):
     def __init__(
             self,
-            scope_name,
+            name_or_scope,
             hidden_W_init=None,
             hidden_b_init=None,
             output_W_init=None,
@@ -36,7 +36,7 @@ class FeedForwardCritic(NNQFunction):
         self.embedded_hidden_sizes = embedded_hidden_sizes
         self.observation_hidden_sizes = observation_hidden_sizes
         self.hidden_nonlinearity = hidden_nonlinearity
-        super().__init__(scope_name=scope_name, **kwargs)
+        super().__init__(name_or_scope=name_or_scope, **kwargs)
 
     def _create_network(self, observation_input, action_input):
         with tf.variable_scope("observation_mlp") as _:

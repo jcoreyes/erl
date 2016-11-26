@@ -9,10 +9,10 @@ class TestFeedForwardCritic(TFTestCase):
     def test_copy(self):
         action_dim = 5
         obs_dim = 7
-        critic1 = FeedForwardCritic(scope_name="qf_a",
+        critic1 = FeedForwardCritic(name_or_scope="qf_a",
                                     observation_dim=obs_dim,
                                     action_dim=action_dim)
-        critic2 = FeedForwardCritic(scope_name="qf_b",
+        critic2 = FeedForwardCritic(name_or_scope="qf_b",
                                     observation_dim=obs_dim,
                                     action_dim=action_dim)
         critic1.sess = self.sess
@@ -44,7 +44,7 @@ class TestFeedForwardCritic(TFTestCase):
     def test_output_len(self):
         action_dim = 5
         obs_dim = 7
-        critic = FeedForwardCritic(scope_name="1",
+        critic = FeedForwardCritic(name_or_scope="1",
                                    observation_dim=obs_dim,
                                    action_dim=action_dim)
         critic.sess = self.sess

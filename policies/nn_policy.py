@@ -12,12 +12,12 @@ from rllab.policies.base import Policy
 class NNPolicy(StateNetwork, Policy):
     def __init__(
             self,
-            scope_name,
+            name_or_scope,
             **kwargs
     ):
         Serializable.quick_init(self, locals())
         action_dim = get_action_dim(**kwargs)
-        super(NNPolicy, self).__init__(scope_name=scope_name,
+        super(NNPolicy, self).__init__(name_or_scope=name_or_scope,
                                        output_dim=action_dim,
                                        **kwargs)
 
@@ -33,7 +33,7 @@ class NNPolicy(StateNetwork, Policy):
 class FeedForwardPolicy(NNPolicy):
     def __init__(
             self,
-            scope_name,
+            name_or_scope,
             observation_hidden_sizes=(100, 100),
             hidden_W_init=None,
             hidden_b_init=None,
@@ -53,7 +53,7 @@ class FeedForwardPolicy(NNPolicy):
             -3e-3, 3e-3)
         self.hidden_nonlinearity = hidden_nonlinearity
         self.output_nonlinearity = output_nonlinearity
-        super(FeedForwardPolicy, self).__init__(scope_name=scope_name,
+        super(FeedForwardPolicy, self).__init__(name_or_scope=name_or_scope,
                                                 **kwargs)
 
     def _create_network(self, observation_input):

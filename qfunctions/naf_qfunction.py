@@ -1,10 +1,10 @@
 import abc
-from predictors.state_action_network import StateActionNetwork
+from qfunctions.nn_qfunction import NNQFunction
 from qfunctions.optimizable_q_function import OptimizableQFunction
 from qfunctions.separable_q_function import SeparableQFunction
 
 
-class NAFQFunction(StateActionNetwork,
+class NAFQFunction(NNQFunction,
                    OptimizableQFunction,
                    SeparableQFunction):
     @abc.abstractmethod

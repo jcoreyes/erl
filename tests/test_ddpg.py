@@ -18,9 +18,10 @@ class TestDDPG(TFTestCase):
         super().setUp()
         self.env = TfEnv(CartpoleEnv())
         self.es = OUStrategy(env_spec=self.env.spec)
-        self.sum_policy = SumPolicy(scope_name='policies', observation_dim=4,
+        self.sum_policy = SumPolicy(name_or_scope='policies',
+                                    observation_dim=4,
                                     action_dim=1)
-        self.sum_critic = SumCritic(scope_name='policies',
+        self.sum_critic = SumCritic(name_or_scope='qf',
                                     observation_dim=4,
                                     action_dim=1)
 
@@ -173,8 +174,8 @@ class TestDDPG(TFTestCase):
         actions = np.array([[-0.5]])
         for critic in [algo.qf, algo.target_qf]:
             feed_dict = {
-                critic.actions_placeholder: actions,
-                critic.observations_placeholder: obs,
+                critic.action_input: actions,
+                critic.observation_input: obs,
             }
             self.assertEqual(
                 np.sum(obs) + actions,
@@ -194,7 +195,7 @@ class TestDDPG(TFTestCase):
         obs = np.array([[1., 1., 1., 1.]])
         for actor in [algo.policy, algo.target_policy]:
             feed_dict = {
-                actor.observations_placeholder: obs,
+                actor.observation_input: obs,
             }
             self.assertEqual(
                 np.sum(obs),

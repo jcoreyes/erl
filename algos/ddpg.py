@@ -56,12 +56,11 @@ class DDPG(OnlineAlgorithm):
     def _init_tensorflow_ops(self):
         # Initialize variables for get_copy to work
         self.sess.run(tf.initialize_all_variables())
-        print(TARGET_PREFIX + self.policy.scope_name)
         self.target_policy = self.policy.get_copy(
-            scope_name=TARGET_PREFIX + self.policy.scope_name,
+            name_or_scope=TARGET_PREFIX + self.policy.scope_name,
         )
         self.target_qf = self.qf.get_copy(
-            scope_name=TARGET_PREFIX + self.qf.scope_name,
+            name_or_scope=TARGET_PREFIX + self.qf.scope_name,
             action_input=self.target_policy.output
         )
         self.qf.sess = self.sess
@@ -101,7 +100,7 @@ class DDPG(OnlineAlgorithm):
         # as input the output of the actor. See Equation (6) of "Deterministic
         # Policy Gradient Algorithms" ICML 2014.
         self.critic_with_action_input = self.qf.get_weight_tied_copy(
-            self.policy.output)
+            action_input=self.policy.output)
         self.actor_surrogate_loss = - tf.reduce_mean(
             self.critic_with_action_input.output)
         self.train_actor_op = tf.train.AdamOptimizer(
@@ -152,16 +151,16 @@ class DDPG(OnlineAlgorithm):
         return {
             self.rewards_placeholder: np.expand_dims(rewards, axis=1),
             self.terminals_placeholder: np.expand_dims(terminals, axis=1),
-            self.qf.observations_placeholder: obs,
-            self.qf.actions_placeholder: actions,
-            self.target_qf.observations_placeholder: next_obs,
-            self.target_policy.observations_placeholder: next_obs,
+            self.qf.observation_input: obs,
+            self.qf.action_input: actions,
+            self.target_qf.observation_input: next_obs,
+            self.target_policy.observation_input: next_obs,
         }
 
     def _actor_feed_dict(self, obs):
         return {
-            self.critic_with_action_input.observations_placeholder: obs,
-            self.policy.observations_placeholder: obs,
+            self.critic_with_action_input.observation_input: obs,
+            self.policy.observation_input: obs,
         }
 
     @overrides
