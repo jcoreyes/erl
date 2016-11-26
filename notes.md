@@ -1,6 +1,8 @@
 # TODOs
  - TODO's in code
  - make a better interface than main.py. Maybe have a seperate flag parser file
+ - make FeedForward* subclass State/ActionNetwork
+ - Make the network init stuff its own class/namedtuple
 
 # Works
 critic LR: 1.079e-5

@@ -28,28 +28,28 @@ class TestDDPG(TFTestCase):
             qfunctions.nn_qfunction.SumCritic('qf', 4, 1),
             n_epochs=0,
         )
-        target_critic = algo.target_qf
-        target_actor = algo.target_policy
-        critic = algo.qf
-        critic_copy = algo.critic_with_action_input
-        actor = algo.policy
+        target_qf = algo.target_qf
+        target_policy = algo.target_policy
+        qf = algo.qf
+        qf_copy = algo.qf_with_action_input
+        policy = algo.policy
 
         # Make sure they're different to start
         random_values = [np.random.rand(*values.shape)
-                         for values in critic.get_param_values()]
-        critic.set_param_values(random_values)
+                         for values in qf.get_param_values()]
+        qf.set_param_values(random_values)
         random_values = [np.random.rand(*values.shape)
-                         for values in actor.get_param_values()]
-        actor.set_param_values(random_values)
+                         for values in policy.get_param_values()]
+        policy.set_param_values(random_values)
 
-        self.assertParamsNotEqual(target_critic, critic)
-        self.assertParamsNotEqual(target_actor, actor)
-        self.assertParamsEqual(critic_copy, critic)
+        self.assertParamsNotEqual(target_qf, qf)
+        self.assertParamsNotEqual(target_policy, policy)
+        self.assertParamsEqual(qf_copy, qf)
 
         algo.train()
-        self.assertParamsEqual(target_critic, critic)
-        self.assertParamsEqual(target_actor, actor)
-        self.assertParamsEqual(critic_copy, critic)
+        self.assertParamsEqual(target_qf, qf)
+        self.assertParamsEqual(target_policy, policy)
+        self.assertParamsEqual(qf_copy, qf)
 
     def test_target_params_update(self):
         tau = 0.2
@@ -61,21 +61,21 @@ class TestDDPG(TFTestCase):
             n_epochs=0,
             soft_target_tau=tau,
         )
-        target_critic = algo.target_qf
-        target_actor = algo.target_policy
-        critic = algo.qf
-        actor = algo.policy
+        target_qf = algo.target_qf
+        target_policy = algo.target_policy
+        qf = algo.qf
+        policy = algo.policy
 
         algo.train()
 
-        orig_tc_vals = target_critic.get_param_values()
-        orig_ta_vals = target_actor.get_param_values()
-        orig_c_vals = critic.get_param_values()
-        orig_a_vals = actor.get_param_values()
-        algo.sess.run(algo.update_target_actor_op)
-        algo.sess.run(algo.update_target_critic_op)
-        new_tc_vals = target_critic.get_param_values()
-        new_ta_vals = target_actor.get_param_values()
+        orig_tc_vals = target_qf.get_param_values()
+        orig_ta_vals = target_policy.get_param_values()
+        orig_c_vals = qf.get_param_values()
+        orig_a_vals = policy.get_param_values()
+        algo.sess.run(algo.update_target_policy_op)
+        algo.sess.run(algo.update_target_qf_op)
+        new_tc_vals = target_qf.get_param_values()
+        new_ta_vals = target_policy.get_param_values()
 
         for orig_tc_val, orig_c_val, new_tc_val in zip(
                 orig_tc_vals, orig_c_vals, new_tc_vals):
@@ -97,23 +97,23 @@ class TestDDPG(TFTestCase):
             n_epochs=0,
             soft_target_tau=tau,
         )
-        target_critic = algo.target_qf
-        target_actor = algo.target_policy
-        critic = algo.qf
-        actor = algo.policy
+        target_qf = algo.target_qf
+        target_policy = algo.target_policy
+        qf = algo.qf
+        policy = algo.policy
 
         random_values = [np.random.rand(*values.shape)
-                         for values in critic.get_param_values()]
-        critic.set_param_values(random_values)
+                         for values in qf.get_param_values()]
+        qf.set_param_values(random_values)
         random_values = [np.random.rand(*values.shape)
-                         for values in actor.get_param_values()]
-        actor.set_param_values(random_values)
-        self.assertParamsNotEqual(target_critic, critic)
-        self.assertParamsNotEqual(target_actor, actor)
-        algo.sess.run(algo.update_target_actor_op)
-        algo.sess.run(algo.update_target_critic_op)
-        self.assertParamsEqual(target_critic, critic)
-        self.assertParamsEqual(target_actor, actor)
+                         for values in policy.get_param_values()]
+        policy.set_param_values(random_values)
+        self.assertParamsNotEqual(target_qf, qf)
+        self.assertParamsNotEqual(target_policy, policy)
+        algo.sess.run(algo.update_target_policy_op)
+        algo.sess.run(algo.update_target_qf_op)
+        self.assertParamsEqual(target_qf, qf)
+        self.assertParamsEqual(target_policy, policy)
 
     def test_target_params_no_update(self):
         tau = 0
@@ -125,35 +125,35 @@ class TestDDPG(TFTestCase):
             n_epochs=0,
             soft_target_tau=tau,
         )
-        target_critic = algo.target_qf
-        target_actor = algo.target_policy
-        critic = algo.qf
-        actor = algo.policy
+        target_qf = algo.target_qf
+        target_policy = algo.target_policy
+        qf = algo.qf
+        policy = algo.policy
 
         random_values = [np.random.rand(*values.shape)
-                         for values in critic.get_param_values()]
-        critic.set_param_values(random_values)
+                         for values in qf.get_param_values()]
+        qf.set_param_values(random_values)
         random_values = [np.random.rand(*values.shape)
-                         for values in actor.get_param_values()]
-        actor.set_param_values(random_values)
-        old_target_critic_values = target_critic.get_param_values()
-        old_target_actor_values = target_actor.get_param_values()
-        self.assertParamsNotEqual(target_critic, critic)
-        self.assertParamsNotEqual(target_actor, actor)
-        algo.sess.run(algo.update_target_actor_op)
-        algo.sess.run(algo.update_target_critic_op)
+                         for values in policy.get_param_values()]
+        policy.set_param_values(random_values)
+        old_target_qf_values = target_qf.get_param_values()
+        old_target_policy_values = target_policy.get_param_values()
+        self.assertParamsNotEqual(target_qf, qf)
+        self.assertParamsNotEqual(target_policy, policy)
+        algo.sess.run(algo.update_target_policy_op)
+        algo.sess.run(algo.update_target_qf_op)
         self.assertTrue(are_np_array_lists_equal(
-            old_target_critic_values,
-            target_critic.get_param_values()
+            old_target_qf_values,
+            target_qf.get_param_values()
         ))
         self.assertTrue(are_np_array_lists_equal(
-            old_target_actor_values,
-            target_actor.get_param_values()
+            old_target_policy_values,
+            target_policy.get_param_values()
         ))
-        self.assertParamsNotEqual(target_critic, critic)
-        self.assertParamsNotEqual(target_actor, actor)
+        self.assertParamsNotEqual(target_qf, qf)
+        self.assertParamsNotEqual(target_policy, policy)
 
-    def test_sum_critic(self):
+    def test_sum_qf(self):
         algo = DDPG(
             self.env,
             self.es,
@@ -165,14 +165,14 @@ class TestDDPG(TFTestCase):
         )
         obs = np.array([[1., 1., 1., 1.]])
         actions = np.array([[-0.5]])
-        for critic in [algo.qf, algo.target_qf]:
+        for qf in [algo.qf, algo.target_qf]:
             feed_dict = {
-                critic.actions_placeholder: actions,
-                critic.observations_placeholder: obs,
+                qf.actions_placeholder: actions,
+                qf.observations_placeholder: obs,
             }
             self.assertEqual(
                 np.sum(obs) + actions,
-                algo.sess.run(critic.output, feed_dict=feed_dict)
+                algo.sess.run(qf.output, feed_dict=feed_dict)
             )
 
     def test_sum_policy(self):
@@ -186,16 +186,16 @@ class TestDDPG(TFTestCase):
             eval_samples=0,  # Ignore eval. Just do this to remove warnings.
         )
         obs = np.array([[1., 1., 1., 1.]])
-        for actor in [algo.policy, algo.target_policy]:
+        for policy in [algo.policy, algo.target_policy]:
             feed_dict = {
-                actor.observations_placeholder: obs,
+                policy.observations_placeholder: obs,
             }
             self.assertEqual(
                 np.sum(obs),
-                algo.sess.run(actor.output, feed_dict=feed_dict)
+                algo.sess.run(policy.output, feed_dict=feed_dict)
             )
 
-    def test_critic_targets(self):
+    def test_qf_targets(self):
         discount = 0.5
         algo = DDPG(
             self.env,
@@ -214,15 +214,15 @@ class TestDDPG(TFTestCase):
         actions = np.array([[-0.5], [-0.5]])
         next_obs = np.array([[1., 1., 1., 1.], [1., 1., 1., 1.]])
 
-        # target = reward + discount * target_critic(next_obs,
-        #                                            target_actor(next_obs))
+        # target = reward + discount * target_qf(next_obs,
+        #                                            target_policy(next_obs))
         # target1 = 3 + 0.5 * Q([1,1,1,1], u([1,1,1,1]))
         #         = 3 + 0.5 * Q([1,1,1,1], 4)
         #         = 3 + 0.5 * 8
         #         = 7
         # target2 = 8
 
-        feed_dict = algo._critic_feed_dict(rewards,
+        feed_dict = algo._qf_feed_dict(rewards,
                                            terminals,
                                            obs,
                                            actions,
@@ -232,7 +232,7 @@ class TestDDPG(TFTestCase):
             algo.sess.run(algo.ys, feed_dict=feed_dict)
         )
 
-    def test_critic_targets2(self):
+    def test_qf_targets2(self):
         discount = 0.5
         algo = DDPG(
             self.env,
@@ -251,13 +251,13 @@ class TestDDPG(TFTestCase):
         actions = np.array([[2.]])
         next_obs = np.array([[2., 2., 2., 2.]])
 
-        # target = reward + discount * target_critic(next_obs,
-        #                                            target_actor(next_obs))
+        # target = reward + discount * target_qf(next_obs,
+        #                                            target_policy(next_obs))
         # target = 3.5 + 0.5 * Q([2,2,2,2], u([2,2,2,2]))
         #        = 3.5 + 0.5 * Q([2,2,2,2], 8)
         #        = 3.5 + 0.5 * 16
         #        = 11.5
-        feed_dict = algo._critic_feed_dict(rewards,
+        feed_dict = algo._qf_feed_dict(rewards,
                                            terminals,
                                            obs,
                                            actions,
@@ -267,7 +267,7 @@ class TestDDPG(TFTestCase):
             algo.sess.run(algo.ys, feed_dict=feed_dict)
         )
 
-    def test_critic_loss(self):
+    def test_qf_loss(self):
         discount = 0.5
         algo = DDPG(
             self.env,
@@ -286,25 +286,25 @@ class TestDDPG(TFTestCase):
         actions = np.array([[-0.5]])
         next_obs = np.array([[1., 1., 1., 1.]])
 
-        # target = reward + discount * target_critic(next_obs,
-        #                                            target_actor(next_obs))
+        # target = reward + discount * target_qf(next_obs,
+        #                                            target_policy(next_obs))
         # target = 3 + 0.5 * Q([1,1,1,1], u([1,1,1,1]))
         #        = 3 + 0.5 * Q([1,1,1,1], 4)
         #        = 3 + 0.5 * 8
         #        = 7
         #
-        # loss = (target - critic(obs, action))^2
-        # loss = (target - critic([1,1,1,1], -0.5))^2
+        # loss = (target - qf(obs, action))^2
+        # loss = (target - qf([1,1,1,1], -0.5))^2
         #      = (target - 3.5)^2
         #      = (7 - 3.5)^2
         #      = (3.5)^2
         #      = 12.25
-        feed_dict = algo._critic_feed_dict(rewards,
+        feed_dict = algo._qf_feed_dict(rewards,
                                            terminals,
                                            obs,
                                            actions,
                                            next_obs)
-        actual = algo.sess.run(algo.critic_loss, feed_dict=feed_dict)
+        actual = algo.sess.run(algo.qf_loss, feed_dict=feed_dict)
         self.assertEqual(
             12.25,
             actual
@@ -314,7 +314,7 @@ class TestDDPG(TFTestCase):
             type(actual)
         )
 
-    def test_critic_loss2(self):
+    def test_qf_loss2(self):
         discount = 0.5
         algo = DDPG(
             self.env,
@@ -333,25 +333,25 @@ class TestDDPG(TFTestCase):
         actions = np.array([[2.]])
         next_obs = np.array([[2., 2., 2., 2.]])
 
-        # target = reward + discount * target_critic(next_obs,
-        #                                            target_actor(next_obs))
+        # target = reward + discount * target_qf(next_obs,
+        #                                            target_policy(next_obs))
         # target = 3.5 + 0.5 * Q([2,2,2,2], u([2,2,2,2]))
         #        = 3.5 + 0.5 * Q([2,2,2,2], 8)
         #        = 3.5 + 0.5 * 16
         #        = 11.5
         #
-        # loss = (target - critic(obs, action))^2
-        #      = (target - critic([1,1,1,1], 2))^2
+        # loss = (target - qf(obs, action))^2
+        #      = (target - qf([1,1,1,1], 2))^2
         #      = (target - 6)^2
         #      = (11.5 - 6)^2
         #      = (5.5)^2
         #      = 30.25
-        feed_dict = algo._critic_feed_dict(rewards,
+        feed_dict = algo._qf_feed_dict(rewards,
                                            terminals,
                                            obs,
                                            actions,
                                            next_obs)
-        actual = algo.sess.run(algo.critic_loss, feed_dict=feed_dict)
+        actual = algo.sess.run(algo.qf_loss, feed_dict=feed_dict)
         self.assertEqual(
             30.25,
             actual
@@ -361,7 +361,7 @@ class TestDDPG(TFTestCase):
             type(actual)
         )
 
-    def test_critic_gradient(self):
+    def test_qf_gradient(self):
         discount = 0.5
         algo = DDPG(
             self.env,
@@ -380,28 +380,28 @@ class TestDDPG(TFTestCase):
         actions = np.array([[1.]])
         next_obs = np.array([[2., 2., 2., 2.]])
 
-        # target = reward + discount * target_critic(next_obs,
-        #                                            target_actor(next_obs))
+        # target = reward + discount * target_qf(next_obs,
+        #                                            target_policy(next_obs))
         # target = 3.5 + 0.5 * Q([2,2,2,2], u([2,2,2,2]))
         #        = 3.5 + 0.5 * Q([2,2,2,2], 8)
         #        = 3.5 + 0.5 * 16
         #        = 11.5
         #
-        # dloss/dtheta = - 2 ( y - critic(obs, action)) *
-        #                   d/dtheta (critic(obs, action))
-        # dloss/dtheta = - 2 ( y - critic([1,1,1,1], 1)) *
-        #                   d/dtheta (critic(obs, action))
+        # dloss/dtheta = - 2 ( y - qf(obs, action)) *
+        #                   d/dtheta (qf(obs, action))
+        # dloss/dtheta = - 2 ( y - qf([1,1,1,1], 1)) *
+        #                   d/dtheta (qf(obs, action))
         # dloss/dtheta = - 2 ( 11.5 - 5) *
-        #                   d/dtheta (critic(obs, action))
-        # dloss/dtheta = - 13 * d/dtheta (critic(obs, action))
-        feed_dict = algo._critic_feed_dict(rewards,
+        #                   d/dtheta (qf(obs, action))
+        # dloss/dtheta = - 13 * d/dtheta (qf(obs, action))
+        feed_dict = algo._qf_feed_dict(rewards,
                                            terminals,
                                            obs,
                                            actions,
                                            next_obs)
-        grads = tf.gradients(algo.critic_loss, algo.qf.get_params_internal())
-        # critic_grads = algo.sess.run(
-        #         tf.gradients(algo.critic.output, algo.critic.get_vars()))
+        grads = tf.gradients(algo.qf_loss, algo.qf.get_params_internal())
+        # qf_grads = algo.sess.run(
+        #         tf.gradients(algo.qf.output, algo.qf.get_vars()))
         expected = [-13. * np.ones_like(v)
                     for v in algo.qf.get_param_values()]
         actual = algo.sess.run(grads, feed_dict=feed_dict)
@@ -410,7 +410,7 @@ class TestDDPG(TFTestCase):
             are_np_array_lists_equal(expected, actual_flat),
             "Numpy arrays not equal")
 
-    def test_actor_surrogate_loss(self):
+    def test_policy_surrogate_loss(self):
         discount = 0.5
         algo = DDPG(
             self.env,
@@ -432,15 +432,15 @@ class TestDDPG(TFTestCase):
         #      = -1/2 * {Q([1,1,1,1], 4)) + Q([10,10,10,-10], 20))}
         #      = -1/2 * (8 + 40)
         #      = -24
-        feed_dict = algo._actor_feed_dict(obs)
-        actual = algo.sess.run(algo.actor_surrogate_loss, feed_dict=feed_dict)
+        feed_dict = algo._policy_feed_dict(obs)
+        actual = algo.sess.run(algo.policy_surrogate_loss, feed_dict=feed_dict)
         self.assertEqual(actual, -24.)
         self.assertEqual(
             np.float32,
             type(actual)
         )
 
-    def test_actor_surrogate_loss2(self):
+    def test_policy_surrogate_loss2(self):
         discount = 0.5
         algo = DDPG(
             self.env,
@@ -462,15 +462,15 @@ class TestDDPG(TFTestCase):
         #      = -1/2 * {Q([0,1,1,-11], -9)) + Q([5,10,10,-10], 15))}
         #      = -1/2 * (-18 + 30)
         #      = -6
-        feed_dict = algo._actor_feed_dict(obs)
-        actual = algo.sess.run(algo.actor_surrogate_loss, feed_dict=feed_dict)
+        feed_dict = algo._policy_feed_dict(obs)
+        actual = algo.sess.run(algo.policy_surrogate_loss, feed_dict=feed_dict)
         self.assertEqual(actual, -6.)
         self.assertEqual(
             np.float32,
             type(actual)
         )
 
-    def test_actor_gradient(self):
+    def test_policy_gradient(self):
         discount = 0.5
         algo = DDPG(
             self.env,
@@ -489,9 +489,9 @@ class TestDDPG(TFTestCase):
         # grad = -1/N sum_{i=0}^N * dQ/da * da/dtheta
         #      = -1/2 sum_{i=0}^1 * 1 * [1,1,1,1]
         #      = - [1,1,1,1]
-        feed_dict = algo._actor_feed_dict(obs)
+        feed_dict = algo._policy_feed_dict(obs)
         loss_grad_ops = tf.gradients(
-                algo.actor_surrogate_loss,
+                algo.policy_surrogate_loss,
                 algo.policy.get_params_internal())
         actual_loss_grads = algo.sess.run(loss_grad_ops, feed_dict=feed_dict)
         actual_loss_grads_flat = np.vstack(actual_loss_grads).flatten()
@@ -500,7 +500,7 @@ class TestDDPG(TFTestCase):
             are_np_array_lists_equal(actual_loss_grads_flat, expected)
         )
 
-    def test_actor_gradient2(self):
+    def test_policy_gradient2(self):
         discount = 0.5
         algo = DDPG(
             self.env,
@@ -520,9 +520,9 @@ class TestDDPG(TFTestCase):
         #      = -1/2 * 1 * [1,-10,1,2]
         #         + -1/2 * 1 * [1,100,1,2]
         #      = - [1., 45., 1., 2.]
-        feed_dict = algo._actor_feed_dict(obs)
+        feed_dict = algo._policy_feed_dict(obs)
         loss_grad_ops = tf.gradients(
-                algo.actor_surrogate_loss,
+                algo.policy_surrogate_loss,
                 algo.policy.get_params_internal())
         actual_loss_grads = algo.sess.run(loss_grad_ops, feed_dict=feed_dict)
         expected = [np.array([[-1.], [-45.], [-1.], [-2.]])]
@@ -530,7 +530,7 @@ class TestDDPG(TFTestCase):
             are_np_array_lists_equal(actual_loss_grads, expected)
         )
 
-    def test_critic_copy_values_are_same(self):
+    def test_qf_copy_values_are_same(self):
         algo = DDPG(
             self.env,
             self.es,
@@ -541,16 +541,16 @@ class TestDDPG(TFTestCase):
             eval_samples=10,  # Ignore eval. Just do this to remove warnings.
             min_pool_size=2,
         )
-        critic = algo.qf
-        critic_copy = algo.critic_with_action_input
-        old_params = critic.get_param_values()
-        self.assertParamsEqual(critic_copy, critic)
+        qf = algo.qf
+        qf_copy = algo.qf_with_action_input
+        old_params = qf.get_param_values()
+        self.assertParamsEqual(qf_copy, qf)
         algo.train()
-        self.assertParamsEqual(critic_copy, critic)
+        self.assertParamsEqual(qf_copy, qf)
         self.assertFalse(are_np_array_lists_equal(old_params,
-                                                  critic.get_param_values()))
+                                                  qf.get_param_values()))
 
-    def test_only_critic_values_change(self):
+    def test_only_qf_values_change(self):
         discount = 0.5
         algo = DDPG(
             self.env,
@@ -563,52 +563,52 @@ class TestDDPG(TFTestCase):
             discount=discount,
         )
 
-        old_critic_values = algo.qf.get_param_values()
-        old_critic_copy_values = (
-            algo.critic_with_action_input.get_param_values())
-        old_actor_values = algo.policy.get_param_values()
-        old_target_critic_values = algo.target_qf.get_param_values()
-        old_target_actor_values = algo.target_policy.get_param_values()
+        old_qf_values = algo.qf.get_param_values()
+        old_qf_copy_values = (
+            algo.qf_with_action_input.get_param_values())
+        old_policy_values = algo.policy.get_param_values()
+        old_target_qf_values = algo.target_qf.get_param_values()
+        old_target_policy_values = algo.target_policy.get_param_values()
 
         rewards = np.array([3.])
         terminals = np.array([0.])
         obs = np.array([[1., 1., 1., 1.]])
         actions = np.array([[-0.5]])
         next_obs = np.array([[1., 1., 1., 1.]])
-        feed_dict = algo._critic_feed_dict(rewards, terminals, obs, actions,
+        feed_dict = algo._qf_feed_dict(rewards, terminals, obs, actions,
                                            next_obs)
-        algo.sess.run(algo.train_critic_op, feed_dict=feed_dict)
+        algo.sess.run(algo.train_qf_op, feed_dict=feed_dict)
 
-        new_critic_values = algo.qf.get_param_values()
-        new_critic_copy_values = (
-            algo.critic_with_action_input.get_param_values())
-        new_actor_values = algo.policy.get_param_values()
-        new_target_critic_values = algo.target_qf.get_param_values()
-        new_target_actor_values = algo.target_policy.get_param_values()
+        new_qf_values = algo.qf.get_param_values()
+        new_qf_copy_values = (
+            algo.qf_with_action_input.get_param_values())
+        new_policy_values = algo.policy.get_param_values()
+        new_target_qf_values = algo.target_qf.get_param_values()
+        new_target_policy_values = algo.target_policy.get_param_values()
 
         self.assertTrue(are_np_array_lists_equal(
-            old_actor_values,
-            new_actor_values
+            old_policy_values,
+            new_policy_values
         ))
         self.assertFalse(are_np_array_lists_equal(
-            old_critic_values,
-            new_critic_values
+            old_qf_values,
+            new_qf_values
         ))
         self.assertFalse(are_np_array_lists_equal(
-            old_critic_copy_values,
-            new_critic_copy_values
+            old_qf_copy_values,
+            new_qf_copy_values
         ))
         self.assertTrue(are_np_array_lists_equal(
-            old_target_actor_values,
-            new_target_actor_values
+            old_target_policy_values,
+            new_target_policy_values
         ))
         self.assertTrue(are_np_array_lists_equal(
-            old_target_critic_values,
-            new_target_critic_values
+            old_target_qf_values,
+            new_target_qf_values
         ))
-        self.assertParamsEqual(algo.critic_with_action_input, algo.qf)
+        self.assertParamsEqual(algo.qf_with_action_input, algo.qf)
 
-    def test_only_actor_values_change(self):
+    def test_only_policy_values_change(self):
         discount = 0.5
         algo = DDPG(
             self.env,
@@ -620,43 +620,43 @@ class TestDDPG(TFTestCase):
             eval_samples=0,  # Ignore eval. Just do this to remove warnings.
             discount=discount,
         )
-        old_critic_values = algo.qf.get_param_values()
-        old_critic_copy_values = (
-            algo.critic_with_action_input.get_param_values())
-        old_actor_values = algo.policy.get_param_values()
-        old_target_critic_values = algo.target_qf.get_param_values()
-        old_target_actor_values = algo.target_policy.get_param_values()
+        old_qf_values = algo.qf.get_param_values()
+        old_qf_copy_values = (
+            algo.qf_with_action_input.get_param_values())
+        old_policy_values = algo.policy.get_param_values()
+        old_target_qf_values = algo.target_qf.get_param_values()
+        old_target_policy_values = algo.target_policy.get_param_values()
 
         obs = np.array([[1., 1., 1., 1.]])
-        feed_dict = algo._actor_feed_dict(obs)
-        algo.sess.run(algo.train_actor_op, feed_dict=feed_dict)
+        feed_dict = algo._policy_feed_dict(obs)
+        algo.sess.run(algo.train_policy_op, feed_dict=feed_dict)
 
-        new_critic_values = algo.qf.get_param_values()
-        new_critic_copy_values = (
-            algo.critic_with_action_input.get_param_values())
-        new_actor_values = algo.policy.get_param_values()
-        new_target_critic_values = algo.target_qf.get_param_values()
-        new_target_actor_values = algo.target_policy.get_param_values()
+        new_qf_values = algo.qf.get_param_values()
+        new_qf_copy_values = (
+            algo.qf_with_action_input.get_param_values())
+        new_policy_values = algo.policy.get_param_values()
+        new_target_qf_values = algo.target_qf.get_param_values()
+        new_target_policy_values = algo.target_policy.get_param_values()
 
         self.assertFalse(are_np_array_lists_equal(
-            old_actor_values,
-            new_actor_values
+            old_policy_values,
+            new_policy_values
         ))
         self.assertTrue(are_np_array_lists_equal(
-            old_critic_values,
-            new_critic_values
+            old_qf_values,
+            new_qf_values
         ))
         self.assertTrue(are_np_array_lists_equal(
-            old_critic_copy_values,
-            new_critic_copy_values
+            old_qf_copy_values,
+            new_qf_copy_values
         ))
         self.assertTrue(are_np_array_lists_equal(
-            old_target_actor_values,
-            new_target_actor_values
+            old_target_policy_values,
+            new_target_policy_values
         ))
         self.assertTrue(are_np_array_lists_equal(
-            old_target_critic_values,
-            new_target_critic_values
+            old_target_qf_values,
+            new_target_qf_values
         ))
 
 if __name__ == '__main__':
