@@ -26,7 +26,7 @@ from sandbox.rocky.tf.q_functions.continuous_mlp_q_function import \
 
 BATCH_SIZE = 64
 N_EPOCHS = 1000
-EPOCH_LENGTH = 1000
+EPOCH_LENGTH = 10000
 EVAL_SAMPLES = 10000
 DISCOUNT = 0.99
 CRITIC_LEARNING_RATE = 1e-3
