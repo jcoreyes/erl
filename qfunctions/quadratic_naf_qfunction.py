@@ -44,7 +44,6 @@ class QuadraticNAF(NAFQFunction):
         self.vf = MlpStateNetwork(
             name_or_scope="V_function",
             output_dim=1,
-            action_dim=self.action_dim,
             observation_dim=self.observation_dim,
             observation_input=observation_input,
             observation_hidden_sizes=(200, 200),

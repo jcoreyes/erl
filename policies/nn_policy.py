@@ -17,9 +17,13 @@ class NNPolicy(StateNetwork, Policy):
     ):
         Serializable.quick_init(self, locals())
         action_dim = get_action_dim(**kwargs)
+        # Copy dict to not affect kwargs, which is used by Serialization
+        new_kwargs = dict(**kwargs)
+        if "action_dim" in new_kwargs:
+            new_kwargs.pop("action_dim")
         super(NNPolicy, self).__init__(name_or_scope=name_or_scope,
                                        output_dim=action_dim,
-                                       **kwargs)
+                                       **new_kwargs)
 
     def get_action(self, observation):
         return self.sess.run(self.output,

@@ -14,23 +14,22 @@ class StateNetwork(NeuralNetwork):
             name_or_scope,
             output_dim,
             env_spec=None,
-            action_dim=None,
             observation_dim=None,
             observation_input=None,
             reuse=False,
-            variable_scope=None,
             **kwargs):
         """
+        Create a state network.
 
-        :param name_or_scope:
-        :param output_dim:
-        :param env_spec:
-        :param action_dim:
-        :param observation_dim:
-        :param observation_input:
-        :param reuse:
-        :param variable_scope:
-        :param kwargs:
+        :param name_or_scope: a string or VariableScope
+        :param output_dim: int, output dimension of this network
+        :param env_spec: env spec for an Environment
+        :param action_dim: int, action dimension
+        :param observation_dim: int, observation dimension
+        :param observation_input: tf.Tensor, observation input. If None,
+        a placeholder of shape [None, observation dim] will be made
+        :param reuse: boolean, reuse variables when creating network?
+        :param kwargs: kwargs to be passed to super
         """
         Serializable.quick_init(self, locals())
         self.output_dim = output_dim
@@ -51,18 +50,16 @@ class StateNetwork(NeuralNetwork):
             self._output = self._create_network(self.observation_input)
             self.variable_scope = variable_scope
 
-    def get_weight_tied_copy(self, observation_input=None):
+    def get_weight_tied_copy(self, observation_input):
         """
-        Return a weight-tied copy of the network. Optionally replace the
-        observation input to the network for the returned network.
+        Return a weight-tied copy of the network, with the observation input
+        replaced.
 
-        :param observation_input: A tensor or placeholder. If not set,
+        :param observation_input: A tensorflow Tensor. If not set,
         the observation input to the returned network is the same as this
         network's observation input.
         :return: StateNetwork copy with weights tied to this StateNetwork.
         """
-        if observation_input is None:
-            observation_input = self.observation_input
         return self.get_copy(
             name_or_scope=self.variable_scope,
             observation_input=observation_input,

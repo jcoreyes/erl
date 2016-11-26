@@ -21,6 +21,20 @@ class StateActionNetwork(NeuralNetwork):
             reuse=False,
             **kwargs
     ):
+        """
+        Create a state-action network.
+
+        :param name_or_scope: a string or VariableScope
+        :param output_dim: int, output dimension of this network
+        :param env_spec: env spec for an Environment
+            :param action_dim: int, action dimension
+        :param observation_input: tf.Tensor, observation input. If None,
+        a placeholder of shape [None, observation dim] will be made
+        :param action_input: tf.Tensor, observation input. If None,
+        a placeholder of shape [None, action dim] will be made
+        :param reuse: boolean, reuse variables when creating network?
+        :param kwargs: kwargs to be passed to super
+        """
         Serializable.quick_init(self, locals())
         self.output_dim = output_dim
         self.reuse = reuse
@@ -54,22 +68,22 @@ class StateActionNetwork(NeuralNetwork):
 
     def get_weight_tied_copy(self, observation_input=None, action_input=None):
         """
-        Return a weight-tied copy of the network. Optionally replace the
-        observation input to the network for the returned network.
+        Return a weight-tied copy of the network. Replace the action or
+        observation to the network for the returned network.
 
-        :param action_input: A tensor or placeholder. If not set,
+        :param action_input: A tensorflow Tensor. If not set,
         the action input to the returned network is the same as this network's
         action input.
-        :param observation_input: A tensor or placeholder. If not set,
+        :param observation_input: A tensorflow Tensor. If not set,
         the observation input to the returned network is the same as this
         network's observation input.
         :return: StateNetwork copy with weights tied to this StateNetwork.
         """
+        assert (observation_input is not None or action_input is not None)
         if observation_input is None:
             observation_input = self.observation_input
         if action_input is None:
             action_input = self.action_input
-        ps = self.get_params_internal()
         return self.get_copy(
             name_or_scope=self.variable_scope,
             observation_input=observation_input,
