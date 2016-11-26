@@ -53,9 +53,7 @@ class FeedForwardPolicy(NNPolicy):
             -3e-3, 3e-3)
         self.hidden_nonlinearity = hidden_nonlinearity
         self.output_nonlinearity = output_nonlinearity
-        action_dim = get_action_dim(**kwargs)
         super(FeedForwardPolicy, self).__init__(scope_name=scope_name,
-                                                output_dim=action_dim,
                                                 **kwargs)
 
     def _create_network(self, observation_input):

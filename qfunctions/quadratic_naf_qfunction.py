@@ -29,7 +29,6 @@ class QuadraticNAF(NAFQFunction):
 
     @overrides
     def _create_network(self, observation_input, action_input):
-        vf_output_dim = 1
         self.policy = FeedForwardPolicy(
             scope_name="mu",
             action_dim=self.action_dim,
@@ -45,7 +44,6 @@ class QuadraticNAF(NAFQFunction):
         )
         self.vf = MlpStateNetwork(
             scope_name="V_function",
-            output_dim=vf_output_dim,
             action_dim=self.action_dim,
             observation_dim=self.observation_dim,
             observation_input=observation_input,
@@ -57,10 +55,8 @@ class QuadraticNAF(NAFQFunction):
             hidden_nonlinearity=tf.nn.relu,
             output_nonlinearity=tf.identity,
         )
-        af_output_dim = 1
         self.af = QuadraticQF(
             scope_name="advantage_function",
-            output_dim=af_output_dim,
             action_input=action_input,
             observation_input=observation_input,
             action_dim=self.action_dim,
