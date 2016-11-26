@@ -171,15 +171,13 @@ def test_my_ddpg(env, exp_prefix, env_name, seed=1, **ddpg_params):
         output_nonlinearity=tf.nn.tanh,
     )
     qf = FeedForwardCritic(
-        "critic",
-        env.observation_space.flat_dim,
-        env.action_space.flat_dim,
+        name_or_scope="critic",
+        env_spec=env.spec,
         **qf_params
     )
     policy = FeedForwardPolicy(
-        "actor",
-        env.observation_space.flat_dim,
-        env.action_space.flat_dim,
+        name_or_scope="actor",
+        env_spec=env.spec,
         **policy_params
     )
     algorithm = MyDDPG(
@@ -202,8 +200,8 @@ def test_my_ddpg(env, exp_prefix, env_name, seed=1, **ddpg_params):
 def test_my_naf(env, exp_prefix, env_name, seed=1, **naf_params):
     es = GaussianStrategy(env)
     qf = QuadraticNAF(
-        "qf",
-        env.spec,
+        name_or_scope="qf",
+        env_spec=env.spec,
     )
     algorithm = NAF(
         env,
