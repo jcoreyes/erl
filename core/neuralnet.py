@@ -7,7 +7,7 @@ from sandbox.rocky.tf.core.parameterized import Parameterized
 
 class NeuralNetwork(Parameterized, Serializable):
     def __init__(self, scope_name, **kwargs):
-        super().__init__()
+        super().__init__(**kwargs)
         Serializable.quick_init(self, locals())
         self.scope_name = scope_name
         self._output = None
