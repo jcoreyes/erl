@@ -48,12 +48,6 @@ class FeedForwardPolicy(NNPolicy):
             output_nonlinearity=tf.nn.tanh,
             **kwargs
     ):
-        # locals_ = locals()
-        # # Don't serialize tf.Tensors (because we can't)
-        # locals_['kwargs']['observation_input'] = None
-        # print("locals_=")
-        # print(locals_)
-        # Serializable.quick_init(self, locals_)
         Serializable.quick_init(self, locals())
         self.observation_hidden_sizes = observation_hidden_sizes
         self.hidden_W_init = hidden_W_init or he_uniform_initializer()
