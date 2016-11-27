@@ -32,7 +32,7 @@ class QuadraticNAF(NAFQFunction):
             name_or_scope="mu",
             action_dim=self.action_dim,
             observation_dim=self.observation_dim,
-            observation_input=observation_input,
+            observation_input=None,
             observation_hidden_sizes=(200, 200),
             hidden_W_init=None,
             hidden_b_init=None,
@@ -41,6 +41,9 @@ class QuadraticNAF(NAFQFunction):
             hidden_nonlinearity=tf.nn.relu,
             output_nonlinearity=tf.nn.tanh,
         )
+        # TODO(vpong): fix this. Needed for serialization to work
+        self.observation_input = self.policy.observation_input
+        observation_input = self.observation_input
         self.vf = MlpStateNetwork(
             name_or_scope="V_function",
             output_dim=1,
