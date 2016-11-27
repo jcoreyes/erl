@@ -39,11 +39,11 @@ class ConvexNAFAlgorithm(NAF):
             itr=epoch,
             batch_size=self.n_eval_samples,
         )
+        self.env.log_diagnostics(paths)
         rewards, terminals, obs, actions, next_obs = split_paths(paths)
         feed_dict = self._update_feed_dict(rewards, terminals, obs, actions,
                                            next_obs)
 
-        policy_output = [self.policy.get_action(o)[0] for o in obs]
         # Compute statistics
         (
             qf_loss,
@@ -70,8 +70,6 @@ class ConvexNAFAlgorithm(NAF):
             ('CriticLoss', qf_loss),
         ])
         last_statistics.update(create_stats_ordered_dict('Ys', ys))
-        last_statistics.update(create_stats_ordered_dict('PolicyOutput',
-                                                         policy_output))
         last_statistics.update(create_stats_ordered_dict('QfOutput', qf_output))
         last_statistics.update(create_stats_ordered_dict('TargetVfOutput',
                                                          target_vf_output))
@@ -79,6 +77,9 @@ class ConvexNAFAlgorithm(NAF):
         last_statistics.update(create_stats_ordered_dict('Returns', returns))
         last_statistics.update(create_stats_ordered_dict('DiscountedReturns',
                                                          discounted_returns))
+        policy_output = [self.policy.get_action(o)[0] for o in obs]
+        last_statistics.update(create_stats_ordered_dict('PolicyOutput',
+                                                         policy_output))
         if len(es_path_returns) > 0:
             last_statistics.update(create_stats_ordered_dict('TrainingReturns',
                                                              es_path_returns))
