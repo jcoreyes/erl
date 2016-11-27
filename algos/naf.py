@@ -12,7 +12,6 @@ from misc.rllab_util import split_paths
 from rllab.misc import logger
 from rllab.misc import special
 from rllab.misc.overrides import overrides
-from rllab.sampler import parallel_sampler
 
 TARGET_PREFIX = "target_vf_of_"
 
@@ -43,13 +42,15 @@ class NAF(OnlineAlgorithm):
         self.qf_learning_rate = qf_learning_rate
         self.Q_weight_decay = Q_weight_decay
 
-        policy = self.qf.get_implicit_policy()
-        super().__init__(env, policy, exploration_strategy, **kwargs)
+        super().__init__(
+            env,
+            policy=None,
+            exploration_strategy=exploration_strategy,
+            **kwargs)
 
     @overrides
     def _init_tensorflow_ops(self):
         self.sess.run(tf.initialize_all_variables())
-        self.policy = self.qf.get_implicit_policy()
         self.next_obs_placeholder = tf.placeholder(
             tf.float32,
             shape=[None, self.observation_dim],
@@ -59,6 +60,7 @@ class NAF(OnlineAlgorithm):
             observation_input=self.next_obs_placeholder,
         )
         self.qf.sess = self.sess
+        self.policy = self.qf.get_implicit_policy()
         self.target_vf.sess = self.sess
         self._init_qf_ops()
         self._init_target_ops()
@@ -120,10 +122,9 @@ class NAF(OnlineAlgorithm):
     @overrides
     def evaluate(self, epoch, es_path_returns):
         logger.log("Collecting samples for evaluation")
-        paths = parallel_sampler.sample_paths(
-            policy_params=self.policy.get_param_values(),
-            max_samples=self.n_eval_samples,
-            max_path_length=self.max_path_length,
+        paths = self.eval_sampler.obtain_samples(
+            itr=epoch,
+            batch_size=self.n_eval_samples,
         )
         rewards, terminals, obs, actions, next_obs = split_paths(paths)
         feed_dict = self._update_feed_dict(rewards, terminals, obs, actions,

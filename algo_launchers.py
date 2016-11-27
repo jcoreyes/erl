@@ -1,9 +1,11 @@
 import tensorflow as tf
 
+from algos.convex_naf import ConvexNAFAlgorithm
 from algos.ddpg import DDPG as MyDDPG
 from algos.naf import NAF
 from algos.noop_algo import NoOpAlgo
 from policies.nn_policy import FeedForwardPolicy
+from qfunctions.convex_naf_qfunction import ConvexNAF
 from qfunctions.nn_qfunction import FeedForwardCritic
 from qfunctions.quadratic_naf_qfunction import QuadraticNAF
 from rllab.exploration_strategies.gaussian_strategy import GaussianStrategy
@@ -82,6 +84,24 @@ def test_my_naf(env, exp_prefix, env_name, seed=1, **naf_params):
     variant['Algo'] = 'NAF'
     run_experiment(algorithm, exp_prefix, seed, variant)
 
+
+def test_convex_naf(env, exp_prefix, env_name, seed=1, **naf_params):
+    es = GaussianStrategy(env)
+    qf = ConvexNAF(
+        name_or_scope="qf",
+        env_spec=env.spec,
+    )
+    algorithm = ConvexNAFAlgorithm(
+        env,
+        es,
+        qf,
+        **naf_params
+    )
+    variant = naf_params
+    variant['Version'] = 'Mine'
+    variant['Environment'] = env_name
+    variant['Algo'] = 'ConvexNAF'
+    run_experiment(algorithm, exp_prefix, seed, variant)
 
 def test_shane_ddpg(env, exp_prefix, env_name, seed=1, **new_ddpg_params):
     ddpg_params = dict(get_ddpg_params(), **new_ddpg_params)

@@ -1,10 +1,14 @@
-import itertools
+from collections import namedtuple
 import math
 import numpy as np
 import tensorflow as tf
 
 WEIGHT_DEFAULT_NAME = "weights"
 BIAS_DEFAULT_NAME = "bias"
+
+
+# TODO(vpong): Use this namedtuple when possible
+MlpConfig = namedtuple('MlpConfig', ['W_init', 'b_init', 'nonlinearity'])
 
 
 def weight_variable(

@@ -4,6 +4,7 @@ import argparse
 from algo_launchers import (
     test_my_ddpg,
     test_my_naf,
+    test_convex_naf,
     test_random_ddpg,
     test_shane_ddpg,
 )
@@ -33,10 +34,11 @@ SWEEP_N_EPOCHS = 50
 SWEEP_MIN_POOL_SIZE = BATCH_SIZE
 
 # Fast settings
-FAST_N_EPOCHS = 10
-FAST_EPOCH_LENGTH = 50
-FAST_EVAL_SAMPLES = 10
+FAST_N_EPOCHS = 20
+FAST_EPOCH_LENGTH = 30
+FAST_EVAL_SAMPLES = 20
 FAST_MIN_POOL_SIZE = 2
+FAST_MAX_PATH_LENGTH = 40
 
 NUM_SEEDS_PER_CONFIG = 2
 NUM_HYPERPARAMETER_CONFIGS = 50
@@ -82,14 +84,14 @@ def get_algo_settings(args):
         ])
         params = get_ddpg_params()
         test_function = test_shane_ddpg
-    elif algo_name == 'ddpg-quad-qf':
+    elif algo_name == 'cnaf':
         sweeper = hp.HyperparameterSweeper([
             hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
             hp.LogFloatParam("scale_reward", 10.0, 0.01),
             hp.LogFloatParam("Q_weight_decay", 1e-7, 1e-1),
         ])
-        params = get_my_ddpg_params()
-        test_function = test_quad_critic_ddpg
+        params = get_my_naf_params()
+        test_function = test_convex_naf
     elif algo_name == 'naf':
         sweeper = hp.HyperparameterSweeper([
             hp.LogFloatParam("qf_learning_rate", 1e-4, 1e-2),
@@ -172,7 +174,7 @@ def sweep(exp_prefix, env_settings, algo_settings):
 
 def main():
     env_choices = ['cheetah', 'cart', 'point']
-    algo_choices = ['ddpg', 'naf', 'shane-ddpg', 'random', 'ddpg-quad-qf']
+    algo_choices = ['ddpg', 'naf', 'shane-ddpg', 'random', 'cnaf']
     parser = argparse.ArgumentParser()
     parser.add_argument("--benchmark", action='store_true',
                         help="Run benchmarks.")
@@ -186,7 +188,8 @@ def main():
     parser.add_argument("--name", default='default',
                         help='Experiment prefix')
     parser.add_argument("--fast", action='store_true',
-                        help='Run a quick experiment. Intended for debugging. Trumps sweep settings')
+                        help=('Run a quick experiment. Intended for debugging. '
+                              'Overrides sweep settings'))
     parser.add_argument("--algo", default='ddpg',
                         help='Algo',
                         choices=algo_choices)
@@ -195,12 +198,11 @@ def main():
                         help='Seed')
     args = parser.parse_args()
 
+    global N_EPOCHS, EPOCH_LENGTH, EVAL_SAMPLES, MIN_POOL_SIZE
     if args.sweep:
-        global N_EPOCHS, MIN_POOL_SIZE
         N_EPOCHS = SWEEP_N_EPOCHS
         MIN_POOL_SIZE = SWEEP_MIN_POOL_SIZE
     if args.fast:
-        global N_EPOCHS, EPOCH_LENGTH, EVAL_SAMPLES, MIN_POOL_SIZE
         N_EPOCHS = FAST_N_EPOCHS
         EPOCH_LENGTH = FAST_EPOCH_LENGTH
         EVAL_SAMPLES = FAST_EVAL_SAMPLES
