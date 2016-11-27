@@ -126,6 +126,7 @@ class NAF(OnlineAlgorithm):
             itr=epoch,
             batch_size=self.n_eval_samples,
         )
+        self.log_diagnostics(paths)
         rewards, terminals, obs, actions, next_obs = split_paths(paths)
         feed_dict = self._update_feed_dict(rewards, terminals, obs, actions,
                                            next_obs)

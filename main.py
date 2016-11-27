@@ -12,6 +12,7 @@ from misc import hyperparameter as hp
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.envs.gym_env import GymEnv
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
+from rllab.envs.mujoco.ant_env import AntEnv
 from rllab.envs.normalized_env import normalize
 from rllab.misc.instrument import stub
 
@@ -52,17 +53,24 @@ def get_env_settings(args):
     elif env_name == 'cheetah':
         env = HalfCheetahEnv()
         name = "HalfCheetah"
+    elif env_name == 'ant':
+        env = AntEnv()
+        name = "Ant"
     elif env_name == 'point':
-        env = normalize(GymEnv("Pointmass-v1", record_video=False,
-                               log_dir='/tmp/gym-test',  # Ignore gym log.
-                               record_log=False))
+        env = GymEnv("Pointmass-v1",
+                     record_video=False,
+                     log_dir='/tmp/gym-test',  # Ignore gym log.
+                     record_log=False)
         name = "Pointmass"
     else:
         raise Exception("Unknown env: {0}".format(env_name))
-
+    if args.normalize:
+        env = normalize(env)
+        name = name + "_normalized"
     return dict(
         env=env,
         name=name,
+        normalize=args.normalize,
     )
 
 
@@ -173,7 +181,7 @@ def sweep(exp_prefix, env_settings, algo_settings):
 
 
 def main():
-    env_choices = ['cheetah', 'cart', 'point']
+    env_choices = ['ant', 'cheetah', 'cart', 'point']
     algo_choices = ['ddpg', 'naf', 'shane-ddpg', 'random', 'cnaf']
     parser = argparse.ArgumentParser()
     parser.add_argument("--benchmark", action='store_true',
@@ -190,6 +198,8 @@ def main():
     parser.add_argument("--fast", action='store_true',
                         help=('Run a quick experiment. Intended for debugging. '
                               'Overrides sweep settings'))
+    parser.add_argument("--normalize", action='store_true',
+                        help="Normalize the environment")
     parser.add_argument("--algo", default='ddpg',
                         help='Algo',
                         choices=algo_choices)

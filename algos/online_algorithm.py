@@ -193,6 +193,10 @@ class OnlineAlgorithm(RLAlgorithm):
             es=self.exploration_strategy,
         )
 
+    def log_diagnostics(self, paths):
+        self.env.log_diagnostics(paths)
+        self.policy.log_diagnostics(paths)
+
     @abc.abstractmethod
     def _init_tensorflow_ops(self):
         """
