@@ -38,54 +38,13 @@ def test_my_ddpg(env, exp_prefix, env_name, seed=1, **ddpg_params):
         output_nonlinearity=tf.nn.tanh,
     )
     qf = FeedForwardCritic(
-        "critic",
-        env.observation_space.flat_dim,
-        env.action_space.flat_dim,
+        name_or_scope="critic",
+        env_spec=env.spec,
         **qf_params
     )
     policy = FeedForwardPolicy(
-        "actor",
-        env.observation_space.flat_dim,
-        env.action_space.flat_dim,
-        **policy_params
-    )
-    algorithm = MyDDPG(
-        env,
-        es,
-        policy,
-        qf,
-        **ddpg_params
-    )
-    variant = ddpg_params
-    variant['Version'] = 'Mine'
-    variant['Environment'] = env_name
-    for qf_key, qf_value in qf_params.items():
-        variant['qf_' + qf_key] = str(qf_value)
-    for policy_key, policy_value in policy_params.items():
-        variant['policy_' + policy_key] = str(policy_value)
-    run_experiment(algorithm, exp_prefix, seed, variant)
-
-
-def test_quad_critic_ddpg(env, exp_prefix, env_name, seed=1, **ddpg_params):
-    es = OUStrategy(env_spec=env.spec)
-    qf_params = dict(
-        embedded_hidden_sizes=(100,),
-        observation_hidden_sizes=(100,),
-        hidden_nonlinearity=tf.nn.relu,
-    )
-    policy_params = dict(
-        observation_hidden_sizes=(100, 100),
-        hidden_nonlinearity=tf.nn.relu,
-        output_nonlinearity=tf.nn.tanh,
-    )
-    qf = QuadraticNAF(
-        "qf",
-        env.spec,
-    )
-    policy = FeedForwardPolicy(
-        "actor",
-        env.observation_space.flat_dim,
-        env.action_space.flat_dim,
+        name_or_scope="actor",
+        env_spec=env.spec,
         **policy_params
     )
     algorithm = MyDDPG(
@@ -108,8 +67,8 @@ def test_quad_critic_ddpg(env, exp_prefix, env_name, seed=1, **ddpg_params):
 def test_my_naf(env, exp_prefix, env_name, seed=1, **naf_params):
     es = GaussianStrategy(env)
     qf = QuadraticNAF(
-        "qf",
-        env.spec,
+        name_or_scope="qf",
+        env_spec=env.spec,
     )
     algorithm = NAF(
         env,
@@ -124,7 +83,8 @@ def test_my_naf(env, exp_prefix, env_name, seed=1, **naf_params):
     run_experiment(algorithm, exp_prefix, seed, variant)
 
 
-def test_shane_ddpg(env, exp_prefix, env_name, seed=1, **ddpg_params):
+def test_shane_ddpg(env, exp_prefix, env_name, seed=1, **new_ddpg_params):
+    ddpg_params = dict(get_ddpg_params(), **new_ddpg_params)
     es = GaussianStrategy(env.spec)
 
     policy_params = dict(
@@ -190,5 +150,4 @@ def run_experiment(algorithm, exp_prefix, seed, variant):
         variant=variant,
         seed=seed,
     )
-
 stub(globals())

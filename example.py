@@ -15,14 +15,12 @@ def main():
     env = TfEnv(HalfCheetahEnv())
     es = OUStrategy(env_spec=env.spec)
     qf = FeedForwardCritic(
-        "critic",
-        env.observation_space.flat_dim,
-        env.action_space.flat_dim,
+        name_or_scope="critic",
+        env_spec=env.spec,
     )
     policy = FeedForwardPolicy(
-        "actor",
-        env.observation_space.flat_dim,
-        env.action_space.flat_dim,
+        name_or_scope="actor",
+        env_spec=env.spec,
     )
     algorithm = DDPG(
         env,

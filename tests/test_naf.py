@@ -3,7 +3,6 @@ import unittest
 import numpy as np
 
 from algos.naf import NAF
-from misc.testing_utils import are_np_array_lists_equal
 from misc.tf_test_case import TFTestCase
 from qfunctions.quadratic_naf_qfunction import QuadraticNAF
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
@@ -12,7 +11,6 @@ from sandbox.rocky.tf.envs.base import TfEnv
 
 
 class TestNAF(TFTestCase):
-
     def setUp(self):
         super().setUp()
         self.env = TfEnv(CartpoleEnv())
@@ -22,7 +20,7 @@ class TestNAF(TFTestCase):
         algo = NAF(
             self.env,
             self.es,
-            QuadraticNAF('qf', self.env.spec),
+            QuadraticNAF(name_or_scope='qf', env_spec=self.env.spec),
             n_epochs=0,
         )
         target_vf = algo.target_vf
@@ -43,7 +41,7 @@ class TestNAF(TFTestCase):
         algo = NAF(
             self.env,
             self.es,
-            QuadraticNAF('qf', self.env.spec),
+            QuadraticNAF(name_or_scope='qf', env_spec=self.env.spec),
             n_epochs=0,
             soft_target_tau=tau,
         )
@@ -61,7 +59,7 @@ class TestNAF(TFTestCase):
                 orig_target_vals, orig_vals, new_target_vals):
             self.assertNpEqual(
                 new_target_val,
-                tau * orig_val + (1-tau) * orig_target_val
+                tau * orig_val + (1 - tau) * orig_target_val
             )
 
     def test_target_params_hard_update(self):
@@ -69,7 +67,7 @@ class TestNAF(TFTestCase):
         algo = NAF(
             self.env,
             self.es,
-            QuadraticNAF('qf', self.env.spec),
+            QuadraticNAF(name_or_scope='qf', env_spec=self.env.spec),
             n_epochs=0,
             soft_target_tau=tau,
         )
@@ -89,7 +87,7 @@ class TestNAF(TFTestCase):
         algo = NAF(
             self.env,
             self.es,
-            QuadraticNAF('qf', self.env.spec),
+            QuadraticNAF(name_or_scope='qf', env_spec=self.env.spec),
             n_epochs=0,
             soft_target_tau=tau,
         )
@@ -109,7 +107,7 @@ class TestNAF(TFTestCase):
         algo = NAF(
             self.env,
             self.es,
-            QuadraticNAF('qf', self.env.spec),
+            QuadraticNAF(name_or_scope='qf', env_spec=self.env.spec),
             n_epochs=1,
             epoch_length=3,
             soft_target_tau=tau,
@@ -123,10 +121,12 @@ class TestNAF(TFTestCase):
 
         self.assertNpArraysNotEqual(old_policy_values, new_policy_values)
 
+
 class TestNormalizedAdvantageFunction(TFTestCase):
     """
     Test Q function used for NAF algorithm.
     """
+
     def setUp(self):
         super().setUp()
         self.env = TfEnv(CartpoleEnv())
@@ -136,13 +136,14 @@ class TestNormalizedAdvantageFunction(TFTestCase):
         algo = NAF(
             self.env,
             self.es,
-            QuadraticNAF('qf', self.env.spec),
+            QuadraticNAF(name_or_scope='qf', env_spec=self.env.spec),
             n_epochs=0,
         )
         policy = algo.policy
         qf = algo.qf
 
         qf_params = qf.get_params_internal()
+        policy_params = policy.get_params_internal()
         for param in policy.get_params_internal():
             self.assertTrue(param in qf_params)
 
@@ -150,7 +151,7 @@ class TestNormalizedAdvantageFunction(TFTestCase):
         algo = NAF(
             self.env,
             self.es,
-            QuadraticNAF('qf', self.env.spec),
+            QuadraticNAF(name_or_scope='qf', env_spec=self.env.spec),
             n_epochs=0,
         )
         vf = algo.qf.get_implicit_value_function()
@@ -164,7 +165,7 @@ class TestNormalizedAdvantageFunction(TFTestCase):
         algo = NAF(
             self.env,
             self.es,
-            QuadraticNAF('qf', self.env.spec),
+            QuadraticNAF(name_or_scope='qf', env_spec=self.env.spec),
             n_epochs=0,
         )
         target_vf = algo.target_vf
@@ -173,6 +174,7 @@ class TestNormalizedAdvantageFunction(TFTestCase):
         qf_params = qf.get_params_internal()
         for param in target_vf.get_params_internal():
             self.assertFalse(param in qf_params)
+
 
 if __name__ == '__main__':
     unittest.main()

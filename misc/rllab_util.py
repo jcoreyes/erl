@@ -29,3 +29,17 @@ def split_paths(paths):
     actions = np.vstack(actions)
     next_obs = np.vstack(next_obs)
     return rewards, terminals, obs, actions, next_obs
+
+
+def get_action_dim(**kwargs):
+    env_spec = kwargs.get('env_spec', None)
+    action_dim = kwargs.get('action_dim', None)
+    assert env_spec or action_dim
+    return action_dim or env_spec.action_space.flat_dim
+
+
+def get_observation_dim(**kwargs):
+    env_spec = kwargs.get('env_spec', None)
+    observation_dim = kwargs.get('observation_dim', None)
+    assert env_spec or observation_dim
+    return observation_dim or env_spec.observation_space.flat_dim

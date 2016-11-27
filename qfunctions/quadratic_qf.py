@@ -1,38 +1,32 @@
 import tensorflow as tf
+
 from core import tf_util
-from predictors.state_action_network import StateActionNetwork
-from vfunction.mlp_vfunction import MlpStateNetwork
+from predictors.mlp_state_network import MlpStateNetwork
+from qfunctions.nn_qfunction import NNQFunction
 from rllab.core.serializable import Serializable
 
 
-class QuadraticQF(StateActionNetwork):
+class QuadraticQF(NNQFunction):
     def __init__(
             self,
-            scope_name,
-            env_spec,
-            output_dim,
-            action_input,
-            observation_input,
+            name_or_scope,
             policy,
             reuse=False,
+            **kwargs
     ):
         Serializable.quick_init(self, locals())
         self.policy = policy
         super(QuadraticQF, self).__init__(
-            scope_name,
-            env_spec,
-            output_dim,
-            action_input,
-            observation_input,
-            policy,
+            name_or_scope=name_or_scope,
+            **kwargs
         )
 
-    def _create_network(self):
+    def _create_network(self, observation_input, action_input):
         L_params = MlpStateNetwork(
-            "L",
-            self.env_spec,
-            self.action_dim * self.action_dim,
-            observation_input=self.observation_input,
+            name_or_scope="L",
+            output_dim=self.action_dim * self.action_dim,
+            observation_dim=self.observation_dim,
+            observation_input=observation_input,
             observation_hidden_sizes=(200, 200),
             hidden_W_init=None,
             hidden_b_init=None,
@@ -44,7 +38,7 @@ class QuadraticQF(StateActionNetwork):
         # L_shape = batch:dimA:dimA
         L = tf_util.vec2lower_triangle(L_params.output, self.action_dim)
 
-        delta = self.action_input - self.policy.output
+        delta = action_input - self.policy.output
         h1 = tf.expand_dims(delta, 1)  # h1_shape = batch:1:dimA
         h1 = tf.batch_matmul(h1, L)    # h1_shape = batch:1:dimA
         h1 = tf.batch_matmul(

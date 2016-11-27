@@ -1,8 +1,12 @@
 """Test different rl algorithms."""
 import argparse
 
-from algo_launchers import test_my_ddpg, test_my_naf, test_random_ddpg, \
-    test_shane_ddpg, test_quad_critic_ddpg
+from algo_launchers import (
+    test_my_ddpg,
+    test_my_naf,
+    test_random_ddpg,
+    test_shane_ddpg,
+)
 from misc import hyperparameter as hp
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.envs.gym_env import GymEnv

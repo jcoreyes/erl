@@ -6,10 +6,16 @@ from sandbox.rocky.tf.core.parameterized import Parameterized
 
 
 class NeuralNetwork(Parameterized, Serializable):
-    def __init__(self, scope_name, **kwargs):
+    """
+    Any neural network.
+    """
+    def __init__(self, name_or_scope, **kwargs):
         super().__init__(**kwargs)
         Serializable.quick_init(self, locals())
-        self.scope_name = scope_name
+        if type(name_or_scope) is str:
+            self.scope_name = name_or_scope
+        else:
+            self.scope_name = name_or_scope.original_name_scope
         self._output = None
         self._sess = None
 
@@ -25,6 +31,9 @@ class NeuralNetwork(Parameterized, Serializable):
 
     @property
     def output(self):
+        """
+        :return: Tensor/placeholder/op. Output of this network.
+        """
         return self._output
 
     @overrides
@@ -43,3 +52,5 @@ class NeuralNetwork(Parameterized, Serializable):
             self,
             **kwargs
         )
+
+

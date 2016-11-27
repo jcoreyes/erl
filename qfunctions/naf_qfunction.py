@@ -1,14 +1,14 @@
 import abc
-from predictors.state_action_network import StateActionNetwork
+from qfunctions.nn_qfunction import NNQFunction
 from qfunctions.optimizable_q_function import OptimizableQFunction
 from qfunctions.separable_q_function import SeparableQFunction
 
 
-class NAFQFunction(StateActionNetwork,
+class NAFQFunction(NNQFunction,
                    OptimizableQFunction,
                    SeparableQFunction):
     @abc.abstractmethod
-    def _create_network(self):
+    def get_implicit_value_function(self):
         return
 
     @abc.abstractmethod
@@ -16,9 +16,9 @@ class NAFQFunction(StateActionNetwork,
         return
 
     @abc.abstractmethod
-    def get_implicit_policy(self):
+    def _create_network(self, observation_input, action_input):
         return
 
     @abc.abstractmethod
-    def get_implicit_value_function(self):
+    def get_implicit_policy(self):
         return

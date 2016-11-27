@@ -1,61 +1,22 @@
 import tensorflow as tf
 
-from core.neuralnet import NeuralNetwork
-from core.tf_util import he_uniform_initializer, mlp, linear, weight_variable
+from core.tf_util import he_uniform_initializer, mlp, linear
+from predictors.state_action_network import StateActionNetwork
 from rllab.core.serializable import Serializable
 
-
-class NNCritic(NeuralNetwork):
+class NNQFunction(StateActionNetwork):
     def __init__(
             self,
-            scope_name,
-            observation_dim,
-            action_dim,
-            action_input=None,
-            reuse=False,
+            name_or_scope,
             **kwargs
     ):
         Serializable.quick_init(self, locals())
-        super(NNCritic, self).__init__(scope_name, **kwargs)
-        self.observation_dim = observation_dim
-        self.action_dim = action_dim
-        self.action_input = action_input
-        self.reuse = reuse
+        super().__init__(name_or_scope=name_or_scope, output_dim=1, **kwargs)
 
-        with tf.variable_scope(self.scope_name, reuse=reuse) as variable_scope:
-            if action_input is None:
-                self.actions_placeholder = tf.placeholder(
-                    tf.float32,
-                    shape=[None, action_dim],
-                    name='critic_actions',
-                )
-            else:
-                self.actions_placeholder = action_input
-            self.observations_placeholder = tf.placeholder(
-                tf.float32,
-                shape=[None, observation_dim],
-                name='critic_observations',
-            )
-            self._output = self.create_network(self.actions_placeholder)
-            self.variable_scope = variable_scope
-
-    def get_weight_tied_copy(self, action_input):
-        return self.get_copy(
-            scope_name=self.scope_name,
-            action_input=action_input,
-            reuse=True)
-
-    def create_network(self, action_input):
-        raise NotImplementedError
-
-class FeedForwardCritic(NNCritic):
+class FeedForwardCritic(NNQFunction):
     def __init__(
             self,
-            scope_name,
-            observation_dim,
-            action_dim,
-            action_input=None,
-            reuse=False,
+            name_or_scope,
             hidden_W_init=None,
             hidden_b_init=None,
             output_W_init=None,
@@ -63,6 +24,7 @@ class FeedForwardCritic(NNCritic):
             embedded_hidden_sizes=(100,),
             observation_hidden_sizes=(100,),
             hidden_nonlinearity=tf.nn.relu,
+            **kwargs
     ):
         Serializable.quick_init(self, locals())
         self.hidden_W_init = hidden_W_init or he_uniform_initializer()
@@ -74,12 +36,11 @@ class FeedForwardCritic(NNCritic):
         self.embedded_hidden_sizes = embedded_hidden_sizes
         self.observation_hidden_sizes = observation_hidden_sizes
         self.hidden_nonlinearity = hidden_nonlinearity
-        super().__init__(scope_name, observation_dim, action_dim,
-                         action_input=action_input, reuse=reuse)
+        super().__init__(name_or_scope=name_or_scope, **kwargs)
 
-    def create_network(self, action_input):
+    def _create_network(self, observation_input, action_input):
         with tf.variable_scope("observation_mlp") as _:
-            observation_output = mlp(self.observations_placeholder,
+            observation_output = mlp(observation_input,
                                      self.observation_dim,
                                      self.observation_hidden_sizes,
                                      self.hidden_nonlinearity,
@@ -104,24 +65,3 @@ class FeedForwardCritic(NNCritic):
                           W_initializer=self.output_W_init,
                           b_initializer=self.output_b_init,
                           reuse_variables=True)
-
-
-class SumCritic(NNCritic):
-    """Just output the sum of the inputs. This is used to debug."""
-
-    def create_network(self, action_input):
-        with tf.variable_scope("actions_layer") as _:
-            W_actions = weight_variable(
-                (self.action_dim, 1),
-                initializer=tf.constant_initializer(1.),
-                reuse_variables=True)
-        with tf.variable_scope("observation_layer") as _:
-            W_obs = weight_variable(
-                (self.observation_dim, 1),
-                initializer=tf.constant_initializer(1.),
-                reuse_variables=True)
-
-        return (tf.matmul(action_input, W_actions) +
-                tf.matmul(self.observations_placeholder, W_obs))
-
-

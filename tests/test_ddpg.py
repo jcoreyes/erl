@@ -3,29 +3,34 @@ import unittest
 import numpy as np
 import tensorflow as tf
 
-import policies.nn_policy
-import qfunctions.nn_qfunction
+from policies.sum_policy import SumPolicy
 from algos.ddpg import DDPG
 from misc.testing_utils import are_np_arrays_equal, are_np_array_lists_equal
 from misc.tf_test_case import TFTestCase
+from qfunctions.sum_qfunction import SumCritic
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.exploration_strategies.ou_strategy import OUStrategy
 from sandbox.rocky.tf.envs.base import TfEnv
 
 
 class TestDDPG(TFTestCase):
-
     def setUp(self):
         super().setUp()
         self.env = TfEnv(CartpoleEnv())
         self.es = OUStrategy(env_spec=self.env.spec)
+        self.sum_policy = SumPolicy(name_or_scope='policies',
+                                    observation_dim=4,
+                                    action_dim=1)
+        self.sum_critic = SumCritic(name_or_scope='qf',
+                                    observation_dim=4,
+                                    action_dim=1)
 
     def test_target_params_copied(self):
         algo = DDPG(
             self.env,
             self.es,
-            policies.nn_policy.SumPolicy('policies', 4, 1),
-            qfunctions.nn_qfunction.SumCritic('qf', 4, 1),
+            self.sum_policy,
+            self.sum_critic,
             n_epochs=0,
         )
         target_qf = algo.target_qf
@@ -56,8 +61,8 @@ class TestDDPG(TFTestCase):
         algo = DDPG(
             self.env,
             self.es,
-            policies.nn_policy.SumPolicy('policies', 4, 1),
-            qfunctions.nn_qfunction.SumCritic('qf', 4, 1),
+            self.sum_policy,
+            self.sum_critic,
             n_epochs=0,
             soft_target_tau=tau,
         )
@@ -80,20 +85,22 @@ class TestDDPG(TFTestCase):
         for orig_tc_val, orig_c_val, new_tc_val in zip(
                 orig_tc_vals, orig_c_vals, new_tc_vals):
             self.assertTrue(
-                (new_tc_val == tau * orig_c_val + (1-tau) * orig_tc_val).all())
+                (
+                new_tc_val == tau * orig_c_val + (1 - tau) * orig_tc_val).all())
 
         for orig_ta_val, orig_a_val, new_ta_val in zip(
                 orig_ta_vals, orig_a_vals, new_ta_vals):
             self.assertTrue(
-                (new_ta_val == tau * orig_a_val + (1-tau) * orig_ta_val).all())
+                (
+                new_ta_val == tau * orig_a_val + (1 - tau) * orig_ta_val).all())
 
     def test_target_params_hard_update(self):
         tau = 1
         algo = DDPG(
             self.env,
             self.es,
-            policies.nn_policy.SumPolicy('policies', 4, 1),
-            qfunctions.nn_qfunction.SumCritic('qf', 4, 1),
+            self.sum_policy,
+            self.sum_critic,
             n_epochs=0,
             soft_target_tau=tau,
         )
@@ -120,8 +127,8 @@ class TestDDPG(TFTestCase):
         algo = DDPG(
             self.env,
             self.es,
-            policies.nn_policy.SumPolicy('policies', 4, 1),
-            qfunctions.nn_qfunction.SumCritic('qf', 4, 1),
+            self.sum_policy,
+            self.sum_critic,
             n_epochs=0,
             soft_target_tau=tau,
         )
@@ -157,8 +164,8 @@ class TestDDPG(TFTestCase):
         algo = DDPG(
             self.env,
             self.es,
-            policies.nn_policy.SumPolicy('policies', 4, 1),
-            qfunctions.nn_qfunction.SumCritic('qf', 4, 1),
+            self.sum_policy,
+            self.sum_critic,
             n_epochs=0,
             epoch_length=0,
             eval_samples=0,  # Ignore eval. Just do this to remove warnings.
@@ -167,8 +174,8 @@ class TestDDPG(TFTestCase):
         actions = np.array([[-0.5]])
         for qf in [algo.qf, algo.target_qf]:
             feed_dict = {
-                qf.actions_placeholder: actions,
-                qf.observations_placeholder: obs,
+                qf.action_input: actions,
+                qf.observation_input: obs,
             }
             self.assertEqual(
                 np.sum(obs) + actions,
@@ -179,8 +186,8 @@ class TestDDPG(TFTestCase):
         algo = DDPG(
             self.env,
             self.es,
-            policies.nn_policy.SumPolicy('policies', 4, 1),
-            qfunctions.nn_qfunction.SumCritic('qf', 4, 1),
+            self.sum_policy,
+            self.sum_critic,
             n_epochs=0,
             epoch_length=0,
             eval_samples=0,  # Ignore eval. Just do this to remove warnings.
@@ -188,7 +195,7 @@ class TestDDPG(TFTestCase):
         obs = np.array([[1., 1., 1., 1.]])
         for policy in [algo.policy, algo.target_policy]:
             feed_dict = {
-                policy.observations_placeholder: obs,
+                policy.observation_input: obs,
             }
             self.assertEqual(
                 np.sum(obs),
@@ -200,8 +207,8 @@ class TestDDPG(TFTestCase):
         algo = DDPG(
             self.env,
             self.es,
-            policies.nn_policy.SumPolicy('policies', 4, 1),
-            qfunctions.nn_qfunction.SumCritic('qf', 4, 1),
+            self.sum_policy,
+            self.sum_critic,
             n_epochs=0,
             epoch_length=0,
             eval_samples=0,  # Ignore eval. Just do this to remove warnings.
@@ -237,8 +244,8 @@ class TestDDPG(TFTestCase):
         algo = DDPG(
             self.env,
             self.es,
-            policies.nn_policy.SumPolicy('policies', 4, 1),
-            qfunctions.nn_qfunction.SumCritic('qf', 4, 1),
+            self.sum_policy,
+            self.sum_critic,
             n_epochs=0,
             epoch_length=0,
             eval_samples=0,  # Ignore eval. Just do this to remove warnings.
@@ -272,8 +279,8 @@ class TestDDPG(TFTestCase):
         algo = DDPG(
             self.env,
             self.es,
-            policies.nn_policy.SumPolicy('policies', 4, 1),
-            qfunctions.nn_qfunction.SumCritic('qf', 4, 1),
+            self.sum_policy,
+            self.sum_critic,
             n_epochs=0,
             epoch_length=0,
             eval_samples=0,  # Ignore eval. Just do this to remove warnings.
@@ -319,8 +326,8 @@ class TestDDPG(TFTestCase):
         algo = DDPG(
             self.env,
             self.es,
-            policies.nn_policy.SumPolicy('policies', 4, 1),
-            qfunctions.nn_qfunction.SumCritic('qf', 4, 1),
+            self.sum_policy,
+            self.sum_critic,
             n_epochs=0,
             epoch_length=0,
             eval_samples=0,  # Ignore eval. Just do this to remove warnings.
@@ -366,8 +373,8 @@ class TestDDPG(TFTestCase):
         algo = DDPG(
             self.env,
             self.es,
-            policies.nn_policy.SumPolicy('policies', 4, 1),
-            qfunctions.nn_qfunction.SumCritic('qf', 4, 1),
+            self.sum_policy,
+            self.sum_critic,
             n_epochs=0,
             epoch_length=0,
             eval_samples=0,  # Ignore eval. Just do this to remove warnings.
@@ -415,8 +422,8 @@ class TestDDPG(TFTestCase):
         algo = DDPG(
             self.env,
             self.es,
-            policies.nn_policy.SumPolicy('policies', 4, 1),
-            qfunctions.nn_qfunction.SumCritic('qf', 4, 1),
+            self.sum_policy,
+            self.sum_critic,
             n_epochs=0,
             epoch_length=0,
             eval_samples=0,  # Ignore eval. Just do this to remove warnings.
@@ -445,8 +452,8 @@ class TestDDPG(TFTestCase):
         algo = DDPG(
             self.env,
             self.es,
-            policies.nn_policy.SumPolicy('policies', 4, 1),
-            qfunctions.nn_qfunction.SumCritic('qf', 4, 1),
+            self.sum_policy,
+            self.sum_critic,
             n_epochs=0,
             epoch_length=0,
             eval_samples=0,  # Ignore eval. Just do this to remove warnings.
@@ -475,8 +482,8 @@ class TestDDPG(TFTestCase):
         algo = DDPG(
             self.env,
             self.es,
-            policies.nn_policy.SumPolicy('policies', 4, 1),
-            qfunctions.nn_qfunction.SumCritic('qf', 4, 1),
+            self.sum_policy,
+            self.sum_critic,
             n_epochs=0,
             epoch_length=0,
             eval_samples=0,  # Ignore eval. Just do this to remove warnings.
@@ -495,7 +502,8 @@ class TestDDPG(TFTestCase):
                 algo.policy.get_params_internal())
         actual_loss_grads = algo.sess.run(loss_grad_ops, feed_dict=feed_dict)
         actual_loss_grads_flat = np.vstack(actual_loss_grads).flatten()
-        expected = [-1 * np.ones_like(v) for v in algo.policy.get_param_values()]
+        expected = [-1 * np.ones_like(v) for v in
+                    algo.policy.get_param_values()]
         self.assertTrue(
             are_np_array_lists_equal(actual_loss_grads_flat, expected)
         )
@@ -505,8 +513,8 @@ class TestDDPG(TFTestCase):
         algo = DDPG(
             self.env,
             self.es,
-            policies.nn_policy.SumPolicy('policies', 4, 1),
-            qfunctions.nn_qfunction.SumCritic('qf', 4, 1),
+            self.sum_policy,
+            self.sum_critic,
             n_epochs=0,
             epoch_length=0,
             eval_samples=0,  # Ignore eval. Just do this to remove warnings.
@@ -534,8 +542,8 @@ class TestDDPG(TFTestCase):
         algo = DDPG(
             self.env,
             self.es,
-            policies.nn_policy.SumPolicy('policies', 4, 1),
-            qfunctions.nn_qfunction.SumCritic('qf', 4, 1),
+            self.sum_policy,
+            self.sum_critic,
             n_epochs=3,
             epoch_length=10,
             eval_samples=10,  # Ignore eval. Just do this to remove warnings.
@@ -555,8 +563,8 @@ class TestDDPG(TFTestCase):
         algo = DDPG(
             self.env,
             self.es,
-            policies.nn_policy.SumPolicy('policies', 4, 1),
-            qfunctions.nn_qfunction.SumCritic('qf', 4, 1),
+            self.sum_policy,
+            self.sum_critic,
             n_epochs=0,
             epoch_length=0,
             eval_samples=0,  # Ignore eval. Just do this to remove warnings.
@@ -613,8 +621,8 @@ class TestDDPG(TFTestCase):
         algo = DDPG(
             self.env,
             self.es,
-            policies.nn_policy.SumPolicy('policies', 4, 1),
-            qfunctions.nn_qfunction.SumCritic('qf', 4, 1),
+            self.sum_policy,
+            self.sum_critic,
             n_epochs=0,
             epoch_length=0,
             eval_samples=0,  # Ignore eval. Just do this to remove warnings.
@@ -658,6 +666,7 @@ class TestDDPG(TFTestCase):
             old_target_qf_values,
             new_target_qf_values
         ))
+
 
 if __name__ == '__main__':
     unittest.main()
