@@ -93,7 +93,7 @@ class ArgmaxPolicy(NeuralNetwork, Policy, Serializable):
             observation_dim,
             observation_input,
             learning_rate=1e-3,
-            n_update_steps=1,
+            n_update_steps=100,
             **kwargs
     ):
         """
