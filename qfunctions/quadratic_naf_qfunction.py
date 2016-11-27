@@ -10,22 +10,6 @@ from rllab.misc.overrides import overrides
 
 
 class QuadraticNAF(NAFQFunction):
-    def __init__(
-            self,
-            name_or_scope,
-            observation_input=None,
-            **kwargs
-    ):
-        Serializable.quick_init(self, locals())
-        observation_dim = get_observation_dim(**kwargs)
-        observation_placeholder = tf.placeholder(tf.float32,
-                                                 shape=[None, observation_dim])
-        super(NAFQFunction, self).__init__(
-            name_or_scope=name_or_scope,
-            observation_input=observation_placeholder,
-            **kwargs
-        )
-
     @overrides
     def _create_network(self, observation_input, action_input):
         self.policy = FeedForwardPolicy(
