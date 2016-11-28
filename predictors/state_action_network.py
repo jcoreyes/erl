@@ -60,8 +60,7 @@ class StateActionNetwork(NeuralNetwork):
                     tf.float32,
                     [None, self.observation_dim],
                     "_observation")
-            super(StateActionNetwork, self).__init__(
-                variable_scope.original_name_scope, **kwargs)
+            super(StateActionNetwork, self).__init__(variable_scope, **kwargs)
             self._output = self._create_network(self.observation_input,
                                                 self.action_input)
             self.variable_scope = variable_scope

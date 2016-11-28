@@ -45,8 +45,7 @@ class StateNetwork(NeuralNetwork):
                     tf.float32,
                     [None, self.observation_dim],
                     "_observation")
-            super(StateNetwork, self).__init__(
-                variable_scope.original_name_scope, **kwargs)
+            super(StateNetwork, self).__init__(variable_scope, **kwargs)
             self._output = self._create_network(self.observation_input)
             self.variable_scope = variable_scope
 
