@@ -177,9 +177,9 @@ class DDPG(OnlineAlgorithm):
         (
             policy_loss,
             qf_loss,
-            policy_outputs,
-            target_policy_outputs,
-            qf_outputs,
+            policy_output,
+            target_policy_output,
+            qf_output,
             target_qf_outputs,
             ys,
         ) = self.sess.run(
@@ -193,10 +193,9 @@ class DDPG(OnlineAlgorithm):
                 self.ys,
             ],
             feed_dict=feed_dict)
-        average_discounted_return = np.mean(
-            [special.discount_return(path["rewards"], self.discount)
-             for path in paths]
-        )
+        discounted_returns = [
+            special.discount_return(path["rewards"], self.discount)
+            for path in paths]
         returns = [sum(path["rewards"]) for path in paths]
         rewards = np.hstack([path["rewards"] for path in paths])
 
@@ -204,20 +203,20 @@ class DDPG(OnlineAlgorithm):
         last_statistics = OrderedDict([
             ('Epoch', epoch),
             ('PolicySurrogateLoss', policy_loss),
-            ('PolicyMeanOutput', np.mean(policy_outputs)),
-            ('PolicyStdOutput', np.std(policy_outputs)),
-            ('TargetPolicyMeanOutput', np.mean(target_policy_outputs)),
-            ('TargetPolicyStdOutput', np.std(target_policy_outputs)),
-            ('CriticLoss', qf_loss),
-            ('AverageDiscountedReturn', average_discounted_return),
+            ('QfLoss', qf_loss),
         ])
         last_statistics.update(create_stats_ordered_dict('Ys', ys))
-        last_statistics.update(create_stats_ordered_dict('QfOutput',
-                                                         qf_outputs))
+        last_statistics.update(create_stats_ordered_dict('PolicyOutput',
+                                                         policy_output))
+        last_statistics.update(create_stats_ordered_dict('TargetPolicyOutput',
+                                                         target_policy_output))
+        last_statistics.update(create_stats_ordered_dict('QfOutput', qf_output))
         last_statistics.update(create_stats_ordered_dict('TargetQfOutput',
                                                          target_qf_outputs))
         last_statistics.update(create_stats_ordered_dict('Rewards', rewards))
         last_statistics.update(create_stats_ordered_dict('Returns', returns))
+        last_statistics.update(create_stats_ordered_dict('DiscountedReturns',
+                                                         discounted_returns))
         if len(es_path_returns) > 0:
             last_statistics.update(create_stats_ordered_dict('TrainingReturns',
                                                              es_path_returns))

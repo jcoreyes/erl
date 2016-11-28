@@ -156,7 +156,7 @@ class NAF(OnlineAlgorithm):
         # Log statistics
         last_statistics = OrderedDict([
             ('Epoch', epoch),
-            ('CriticLoss', qf_loss),
+            ('QfLoss', qf_loss),
         ])
         last_statistics.update(create_stats_ordered_dict('Ys', ys))
         last_statistics.update(create_stats_ordered_dict('PolicyOutput',
