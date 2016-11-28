@@ -189,7 +189,7 @@ class OnlineAlgorithm(RLAlgorithm):
         return dict(
             env=self.training_env,
             epoch=epoch,
-            # policy=self.policy,
+            policy=self.policy,
             es=self.exploration_strategy,
         )
 

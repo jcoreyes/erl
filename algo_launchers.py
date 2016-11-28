@@ -59,6 +59,7 @@ def test_my_ddpg(env, exp_prefix, env_name, seed=1, **ddpg_params):
     variant = ddpg_params
     variant['Version'] = 'Mine'
     variant['Environment'] = env_name
+    variant['Algo'] = 'DDPG'
     for qf_key, qf_value in qf_params.items():
         variant['qf_' + qf_key] = str(qf_value)
     for policy_key, policy_value in policy_params.items():

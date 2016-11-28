@@ -16,16 +16,16 @@ from rllab.envs.mujoco.ant_env import AntEnv
 from rllab.envs.normalized_env import normalize
 from rllab.misc.instrument import stub
 
-BATCH_SIZE = 64
-N_EPOCHS = 1000
+BATCH_SIZE = 128
+N_EPOCHS = 100
 EPOCH_LENGTH = 10000
 EVAL_SAMPLES = 10000
 DISCOUNT = 0.99
 CRITIC_LEARNING_RATE = 1e-3
 ACTOR_LEARNING_RATE = 1e-4
-SOFT_TARGET_TAU = 0.01
+SOFT_TARGET_TAU = 1e-2
 REPLAY_POOL_SIZE = 1000000
-MIN_POOL_SIZE = 1000
+MIN_POOL_SIZE = 10000
 SCALE_REWARD = 1.0
 Q_WEIGHT_DECAY = 0.0
 MAX_PATH_LENGTH = 1000
@@ -35,18 +35,17 @@ SWEEP_N_EPOCHS = 50
 SWEEP_MIN_POOL_SIZE = BATCH_SIZE
 
 # Fast settings
-FAST_N_EPOCHS = 20
-FAST_EPOCH_LENGTH = 30
-FAST_EVAL_SAMPLES = 20
+FAST_N_EPOCHS = 5
+FAST_EPOCH_LENGTH = 10
+FAST_EVAL_SAMPLES = 10
 FAST_MIN_POOL_SIZE = 2
-FAST_MAX_PATH_LENGTH = 40
+FAST_MAX_PATH_LENGTH = 5
 
 NUM_SEEDS_PER_CONFIG = 2
 NUM_HYPERPARAMETER_CONFIGS = 50
 
 
-def get_env_settings(args):
-    env_name = args.env
+def get_env_settings(env_name, normalize_env=True):
     if env_name == 'cart':
         env = CartpoleEnv()
         name = "Cartpole"
@@ -64,18 +63,17 @@ def get_env_settings(args):
         name = "Pointmass"
     else:
         raise Exception("Unknown env: {0}".format(env_name))
-    if args.normalize:
+    if normalize_env:
         env = normalize(env)
-        name = name + "_normalized"
+        name = name + "-normalized"
     return dict(
         env=env,
         name=name,
-        normalize=args.normalize,
+        normalize=normalize_env,
     )
 
 
-def get_algo_settings(args):
-    algo_name = args.algo
+def get_algo_settings(algo_name, render=False):
     if algo_name == 'ddpg':
         sweeper = hp.HyperparameterSweeper([
             hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
@@ -117,7 +115,7 @@ def get_algo_settings(args):
     else:
         raise Exception("Algo name not recognized: " + algo_name)
 
-    params['render'] = args.render
+    params['render'] = render
     return {
         'sweeper': sweeper,
         'algo_params': params,
@@ -180,6 +178,32 @@ def sweep(exp_prefix, env_settings, algo_settings):
                           **params)
 
 
+def benchmark(args):
+    """
+    Benchmark everything!
+    """
+    name = args.name + "-benchmark"
+    env_ids = ['ant', 'cheetah', 'cart']
+    algo_names = ['ddpg', 'naf']
+    for env_id in env_ids:
+        for algo_name in algo_names:
+            algo_settings = get_algo_settings(algo_name, render=False)
+            env_settings = get_env_settings(env_id, normalize_env=True)
+            test_function = algo_settings['test_function']
+            algo_params = algo_settings['algo_params']
+            env = env_settings['env']
+            env_name = env_settings['name']
+            test_function(env, name, env_name, seed=args.seed, **algo_params)
+
+
+def get_algo_settings_from_args(args):
+    return get_algo_settings(args.algo, args.render)
+
+
+def get_env_settings_from_args(args):
+    return get_env_settings(args.env, normalize_env=args.normalize)
+
+
 def main():
     env_choices = ['ant', 'cheetah', 'cart', 'point']
     algo_choices = ['ddpg', 'naf', 'shane-ddpg', 'random', 'cnaf']
@@ -224,8 +248,10 @@ def main():
 
     stub(globals())
 
-    algo_settings = get_algo_settings(args)
-    env_settings = get_env_settings(args)
+    if args.benchmark:
+        benchmark(args)
+    algo_settings = get_algo_settings_from_args(args)
+    env_settings = get_env_settings_from_args(args)
     if args.sweep:
         sweep(args.name, env_settings, algo_settings)
     else:
