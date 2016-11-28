@@ -12,12 +12,12 @@ class SumCritic(NNQFunction):
             W_actions = weight_variable(
                 (self.action_dim, 1),
                 initializer=tf.constant_initializer(1.),
-                reuse_variables=True)
+            )
         with tf.variable_scope("observation_layer") as _:
             W_obs = weight_variable(
                 (self.observation_dim, 1),
                 initializer=tf.constant_initializer(1.),
-                reuse_variables=True)
+            )
 
         return (tf.matmul(action_input, W_actions) +
                 tf.matmul(observation_input, W_obs))

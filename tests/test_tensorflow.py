@@ -18,9 +18,9 @@ def create_network(in_size):
 class TestTensorFlow(TFTestCase):
     def test_copy_values(self):
         in_size = 10
-        with tf.name_scope('a') as _:
+        with tf.variable_scope('a') as _:
             in_a, out_a = create_network(in_size)
-        with tf.name_scope('b') as _:
+        with tf.variable_scope('b') as _:
             in_b, out_b = create_network(in_size)
 
         init = tf.initialize_all_variables()
@@ -48,7 +48,7 @@ class TestTensorFlow(TFTestCase):
         out_size = 10
         input_placeholder = tf.placeholder(tf.float32, [None, in_size])
         scope = 'abc'
-        with tf.name_scope(scope) as _:
+        with tf.variable_scope(scope) as _:
             _ = tf_util.linear(input_placeholder,
                                in_size,
                                out_size)

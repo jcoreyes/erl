@@ -14,39 +14,31 @@ MlpConfig = namedtuple('MlpConfig', ['W_init', 'b_init', 'nonlinearity'])
 def weight_variable(
         shape,
         initializer=None,
-        reuse_variables=False,
         name=WEIGHT_DEFAULT_NAME,
 ):
     """
     Return a variable with the given shape.
 
     :param initializer: TensorFlow initializer
-    :param reuse_variables:
     :param name:
     :param shape:
     """
     if initializer is None:
         initializer = tf.random_uniform_initializer(minval=-3e-3,
                                                     maxval=3e-3)
-    if reuse_variables:
-        var = tf.get_variable(name, shape, initializer=initializer)
-    else:
-        # TODO(vpong): stop hardcoding float32
-        var = tf.Variable(initializer(shape), name=name)
+    var = tf.get_variable(name, shape, initializer=initializer)
     return var
 
 
 def bias_variable(
         shape,
         initializer=None,
-        reuse_variables=False,
         name=BIAS_DEFAULT_NAME,
 ):
     """
     Return a bias variable with the given shape.
 
     :param initializer: TensorFlow initializer
-    :param reuse_variables:
     :param name:
     :param shape:
     """
@@ -54,7 +46,6 @@ def bias_variable(
         initializer = tf.constant_initializer(0.)
     return weight_variable(shape,
                            initializer=initializer,
-                           reuse_variables=reuse_variables,
                            name=name)
 
 
@@ -64,7 +55,6 @@ def linear(
         new_size,
         W_initializer=None,
         b_initializer=None,
-        reuse_variables=False,
         W_name=WEIGHT_DEFAULT_NAME,
         bias_name=BIAS_DEFAULT_NAME,
 ):
@@ -73,7 +63,6 @@ def linear(
 
     :param W_initializer:
     :param b_initializer:
-    :param reuse_variables:
     :param bias_name: String for the bias variables names
     :param W_name: String for the weight matrix variables names
     :param last_layer: Input tensor
@@ -83,11 +72,9 @@ def linear(
     """
     W = weight_variable([last_size, new_size],
                         initializer=W_initializer,
-                        reuse_variables=reuse_variables,
                         name=W_name)
     b = bias_variable((new_size, ),
                       initializer=b_initializer,
-                      reuse_variables=reuse_variables,
                       name=bias_name)
     return tf.matmul(last_layer, W) + tf.expand_dims(b, 0)
 
@@ -98,7 +85,6 @@ def mlp(input_layer,
         nonlinearity,
         W_initializer=None,
         b_initializer=None,
-        reuse_variables=False,
         ):
     """
     Create a multi-layer perceptron with the given hidden sizes. The
@@ -106,7 +92,6 @@ def mlp(input_layer,
 
     :param b_initializer:
     :param W_initializer:
-    :param reuse_variables:
     :param input_layer: tf.Tensor, input to mlp
     :param input_layer_size: int, size of the input
     :param hidden_sizes: int iterable of the hidden sizes
@@ -123,7 +108,7 @@ def mlp(input_layer,
                                              hidden_size,
                                              W_initializer=W_initializer,
                                              b_initializer=b_initializer,
-                                             reuse_variables=reuse_variables))
+                                             ))
             last_layer_size = hidden_size
     return last_layer
 

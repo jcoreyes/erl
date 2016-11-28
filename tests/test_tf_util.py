@@ -5,9 +5,10 @@ import tensorflow as tf
 
 from core import tf_util
 from misc.testing_utils import are_np_arrays_equal
+from misc.tf_test_case import TFTestCase
 
 
-class TestUtil(unittest.TestCase):
+class TestUtil(TFTestCase):
     def assertNpEqual(self, np_arr1, np_arr2):
         self.assertTrue(
             are_np_arrays_equal(np_arr1, np_arr2, threshold=1e-4),
@@ -20,15 +21,14 @@ class TestUtil(unittest.TestCase):
             4,
             3,
         )
-        with tf.Session() as sess:
-            sess.run(tf.initialize_all_variables())
-            # y = xW + b
-            x = np.random.rand(13, 4)
-            y = sess.run(linear_output,
-                         feed_dict={
-                             input_placeholder: x,
-                         })
-            self.assertEqual(y.shape, (13, 3))
+        self.sess.run(tf.initialize_all_variables())
+        # y = xW + b
+        x = np.random.rand(13, 4)
+        y = self.sess.run(linear_output,
+                          feed_dict={
+                              input_placeholder: x,
+                          })
+        self.assertEqual(y.shape, (13, 3))
 
     def test_linear_output(self):
         input_placeholder = tf.placeholder(tf.float32, [None, 4])
@@ -39,16 +39,15 @@ class TestUtil(unittest.TestCase):
             W_initializer=tf.constant_initializer(1.),
             b_initializer=tf.constant_initializer(0.),
         )
-        with tf.Session() as sess:
-            sess.run(tf.initialize_all_variables())
-            # y = xW + b
-            x = np.random.rand(13, 4)
-            y = sess.run(linear_output,
-                         feed_dict={
-                             input_placeholder: x,
-                         })
-            expected = np.matmul(x, np.ones((4, 3)))
-            self.assertNpEqual(y, expected)
+        self.sess.run(tf.initialize_all_variables())
+        # y = xW + b
+        x = np.random.rand(13, 4)
+        y = self.sess.run(linear_output,
+                          feed_dict={
+                              input_placeholder: x,
+                          })
+        expected = np.matmul(x, np.ones((4, 3)))
+        self.assertNpEqual(y, expected)
 
     def test_vec2lower_triangle(self):
         batchsize = 2
@@ -58,11 +57,10 @@ class TestUtil(unittest.TestCase):
             [1, 2, 3, 4, 5, 6, 7, 8, 9],
             [-1, -2, -3, -4, -5, -6, -7, -8, -9],
         ])
-        with tf.Session() as sess:
-            actual = sess.run(mat,
-                              feed_dict={
-                                  vec_placeholder: vec_value,
-                              })
+        actual = self.sess.run(mat,
+                               feed_dict={
+                                   vec_placeholder: vec_value,
+                               })
         expected = np.array([
             [
                 [np.exp(1), 0, 0],

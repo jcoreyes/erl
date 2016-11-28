@@ -36,7 +36,7 @@ class TestHyperparameterSweeper(unittest.TestCase):
             hp.LinearFloatParam("v1", -10, 10),
             hp.LogFloatParam("v2", 1e-5, 1e-1),
         ])
-        n = 10000
+        n = 100000
         num_successes = np.zeros((2, 2))
         threshold_v1 = 0
         threshold_v2 = 1e-3

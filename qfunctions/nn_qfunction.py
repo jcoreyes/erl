@@ -46,7 +46,7 @@ class FeedForwardCritic(NNQFunction):
                                      self.hidden_nonlinearity,
                                      W_initializer=self.hidden_W_init,
                                      b_initializer=self.hidden_b_init,
-                                     reuse_variables=True)
+                                     )
         embedded = tf.concat(1, [observation_output, action_input])
         embedded_dim = self.action_dim + self.observation_hidden_sizes[-1]
         with tf.variable_scope("fusion_mlp") as _:
@@ -56,7 +56,7 @@ class FeedForwardCritic(NNQFunction):
                                self.hidden_nonlinearity,
                                W_initializer=self.hidden_W_init,
                                b_initializer=self.hidden_b_init,
-                               reuse_variables=True)
+                               )
 
         with tf.variable_scope("output_linear") as _:
             return linear(fused_output,
@@ -64,4 +64,4 @@ class FeedForwardCritic(NNQFunction):
                           1,
                           W_initializer=self.output_W_init,
                           b_initializer=self.output_b_init,
-                          reuse_variables=True)
+                          )
