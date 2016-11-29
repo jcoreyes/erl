@@ -13,6 +13,9 @@ from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.envs.gym_env import GymEnv
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 from rllab.envs.mujoco.ant_env import AntEnv
+from rllab.envs.mujoco.inverted_double_pendulum_env import (
+    InvertedDoublePendulumEnv
+)
 from rllab.envs.normalized_env import normalize
 from rllab.misc.instrument import stub
 
@@ -32,6 +35,8 @@ MAX_PATH_LENGTH = 1000
 
 # Sweep settings
 SWEEP_N_EPOCHS = 50
+SWEEP_EPOCH_LENGTH = 1000
+SWEEP_EVAL_SAMPLES = 1000
 SWEEP_MIN_POOL_SIZE = BATCH_SIZE
 
 # Fast settings
@@ -45,7 +50,14 @@ NUM_SEEDS_PER_CONFIG = 2
 NUM_HYPERPARAMETER_CONFIGS = 50
 
 
-def get_env_settings(env_name, normalize_env=True):
+def gym_env(name):
+    return GymEnv(name,
+                  record_video=False,
+                  log_dir='/tmp/gym-test',  # Ignore gym log.
+                  record_log=False)
+
+
+def get_env_settings(env_name, normalize_env=True, gym_name=None):
     if env_name == 'cart':
         env = CartpoleEnv()
         name = "Cartpole"
@@ -56,11 +68,22 @@ def get_env_settings(env_name, normalize_env=True):
         env = AntEnv()
         name = "Ant"
     elif env_name == 'point':
-        env = GymEnv("Pointmass-v1",
-                     record_video=False,
-                     log_dir='/tmp/gym-test',  # Ignore gym log.
-                     record_log=False)
+        env = gym_env("Pointmass-v1")
         name = "Pointmass"
+    elif env_name == 'pt':
+        env = gym_env("PointmassTarget-v1")
+        name = "PointmassTarget"
+    elif env_name == 'reacher':
+        env = gym_env("Reacher-v1")
+        name = "Reacher"
+    elif env_name == 'idp':
+        env = InvertedDoublePendulumEnv()
+        name = "InvertedDoublePendulum"
+    elif env_name == 'gym':
+        if gym_name is None or gym_name == "":
+            raise Exception("Must provide a gym name")
+        env = gym_env(gym_name)
+        name = gym_name
     else:
         raise Exception("Unknown env: {0}".format(env_name))
     if normalize_env:
@@ -100,10 +123,11 @@ def get_algo_settings(algo_name, render=False):
         test_function = test_convex_naf
     elif algo_name == 'naf':
         sweeper = hp.HyperparameterSweeper([
-            hp.LogFloatParam("qf_learning_rate", 1e-4, 1e-2),
+            hp.LogFloatParam("qf_learning_rate", 1e-6, 1e-2),
             hp.LogFloatParam("scale_reward", 10.0, 0.01),
-            hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
-            hp.LinearIntParam("n_updates_per_time_step", 1, 5),
+            hp.LogFloatParam("soft_target_tau", 0.001, 0.1),
+            hp.LogFloatParam("Q_weight_decay", 1e-6, 1e-1),
+            hp.LinearIntParam("n_updates_per_time_step", 1, 10),
         ])
         params = get_my_naf_params()
         test_function = test_my_naf
@@ -183,10 +207,12 @@ def benchmark(args):
     Benchmark everything!
     """
     name = args.name + "-benchmark"
-    env_ids = ['ant', 'cheetah', 'cart']
+    # env_ids = ['ant', 'cheetah', 'cart']
+    # algo_names = ['ddpg', 'naf']
+    env_ids = ['cheetah', 'cart']
     algo_names = ['ddpg', 'naf']
-    for env_id in env_ids:
-        for algo_name in algo_names:
+    for algo_name in algo_names:
+        for env_id in env_ids:
             algo_settings = get_algo_settings(algo_name, render=False)
             env_settings = get_env_settings(env_id, normalize_env=True)
             test_function = algo_settings['test_function']
@@ -201,11 +227,16 @@ def get_algo_settings_from_args(args):
 
 
 def get_env_settings_from_args(args):
-    return get_env_settings(args.env, normalize_env=args.normalize)
+    return get_env_settings(
+        args.env,
+        normalize_env=args.normalize,
+        gym_name=args.gym,
+    )
 
 
 def main():
-    env_choices = ['ant', 'cheetah', 'cart', 'point']
+    env_choices = ['ant', 'cheetah', 'cart', 'point', 'pt', 'reacher',
+                   'idp', 'gym']
     algo_choices = ['ddpg', 'naf', 'shane-ddpg', 'random', 'cnaf']
     parser = argparse.ArgumentParser()
     parser.add_argument("--benchmark", action='store_true',
@@ -217,6 +248,8 @@ def main():
     parser.add_argument("--env", default='cart',
                         help="Test algo on 'cart' or 'cheetah'.",
                         choices=env_choices)
+    parser.add_argument("--gym",
+                        help="Gym env name if 'gym' was given as the env")
     parser.add_argument("--name", default='default',
                         help='Experiment prefix')
     parser.add_argument("--fast", action='store_true',
@@ -236,6 +269,8 @@ def main():
     if args.sweep:
         N_EPOCHS = SWEEP_N_EPOCHS
         MIN_POOL_SIZE = SWEEP_MIN_POOL_SIZE
+        EPOCH_LENGTH = SWEEP_EPOCH_LENGTH
+        EVAL_SAMPLES = SWEEP_EVAL_SAMPLES
     if args.fast:
         N_EPOCHS = FAST_N_EPOCHS
         EPOCH_LENGTH = FAST_EPOCH_LENGTH
@@ -248,11 +283,11 @@ def main():
 
     stub(globals())
 
-    if args.benchmark:
-        benchmark(args)
     algo_settings = get_algo_settings_from_args(args)
     env_settings = get_env_settings_from_args(args)
-    if args.sweep:
+    if args.benchmark:
+        benchmark(args)
+    elif args.sweep:
         sweep(args.name, env_settings, algo_settings)
     else:
         test_function = algo_settings['test_function']
