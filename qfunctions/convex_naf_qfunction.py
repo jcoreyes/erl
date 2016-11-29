@@ -17,6 +17,8 @@ class ConvexNAF(NAFQFunction):
     ):
         Serializable.quick_init(self, locals())
         self.policy = None
+        self.af = None
+        self.vf = None
         super(NAFQFunction, self).__init__(
             name_or_scope=name_or_scope,
             **kwargs
@@ -37,35 +39,22 @@ class ConvexNAF(NAFQFunction):
             hidden_nonlinearity=tf.nn.relu,
             output_nonlinearity=tf.identity,
         )
+        return self.vf.output + self.af.output
+
+    @overrides
+    def _generate_inputs(self, action_input, observation_input):
         self.af = ActionConvexQFunction(
             name_or_scope="advantage_function",
-            action_input=action_input,
-            observation_input=observation_input,
             action_dim=self.action_dim,
             observation_dim=self.observation_dim,
         )
-        return self.vf.output + self.af.output
+        return self.af.action_input, self.af.observation_input
 
     def get_implicit_policy(self):
         if self.policy is None:
-            # Normally, this Q function is trained by getting actions. We need
-            # to make a copy where the action inputted are generated from
-            # internally.
-            self.proposed_action = tf.Variable(
-                tf.random_uniform([1, self.action_dim],
-                                  minval=-1.,
-                                  maxval=1.),
-                name="proposed_action")
-            self.af_with_proposed_action = self.get_weight_tied_copy(
-                action_input=self.proposed_action
-            )
             self.policy = ArgmaxPolicy(
                 name_or_scope="argmax_policy",
-                proposed_action=self.proposed_action,
-                qfunction=self.af_with_proposed_action,
-                action_dim=self.action_dim,
-                observation_dim=self.observation_dim,
-                observation_input=self.observation_input,
+                qfunction=self.af,
             )
         return self.policy
 
@@ -84,14 +73,11 @@ class ArgmaxPolicy(NeuralNetwork, Policy, Serializable):
 
     The policy is optimized using a gradient descent method on the action.
     """
+
     def __init__(
             self,
             name_or_scope,
-            proposed_action,
             qfunction,
-            action_dim,
-            observation_dim,
-            observation_input,
             learning_rate=1e-3,
             n_update_steps=100,
             **kwargs
@@ -110,24 +96,42 @@ class ArgmaxPolicy(NeuralNetwork, Policy, Serializable):
         :param kwargs:
         """
         Serializable.quick_init(self, locals())
-        super(ArgmaxPolicy, self).__init__(name_or_scope=name_or_scope,
-                                           **kwargs)
         self.qfunction = qfunction
-        self.proposed_action = proposed_action
-        self.action_dim = action_dim
-        self.observation_input = observation_input
-        self.observation_dim = observation_dim
         self.learning_rate = learning_rate
         self.n_update_steps = n_update_steps
 
-        self.loss = -qfunction.output
-        self.minimizer_op = tf.train.AdamOptimizer(self.learning_rate).minimize(
-            self.loss,
-            var_list=[self.proposed_action])
+        self.observation_input = qfunction.observation_input
+        self.action_dim = qfunction.action_dim
+        self.observation_dim = qfunction.observation_dim
+
+        # Normally, this Q function is trained by getting actions. We need
+        # to make a copy where the action inputted are generated from
+        # internally.
+        init = tf.random_uniform([1, self.action_dim],
+                                 minval=-1.,
+                                 maxval=1.)
+        with tf.variable_scope(name_or_scope) as variable_scope:
+            super(ArgmaxPolicy, self).__init__(name_or_scope=variable_scope,
+                                               **kwargs)
+            self.proposed_action = tf.Variable(
+                init,
+                name="proposed_action")
+            self.af_with_proposed_action = self.qfunction.get_weight_tied_copy(
+                action_input=self.proposed_action
+            )
+
+            self.loss = -self.af_with_proposed_action.output
+            self.minimizer_op = tf.train.AdamOptimizer(
+                self.learning_rate).minimize(
+                self.loss,
+                var_list=[self.proposed_action])
 
     @overrides
     def get_params_internal(self, **tags):
-        return self.qfunction.get_params_internal(**tags)
+        # Adam optimizer has variables as well, so don't just add
+        # `super().get_params_internal()`
+        return (self.qfunction.get_params_internal(**tags) +
+                tf.get_collection(tf.GraphKeys.VARIABLES, self.scope_name))
 
     def get_action(self, observation):
         assert observation.shape == (self.observation_dim,)

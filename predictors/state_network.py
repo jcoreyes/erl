@@ -40,14 +40,20 @@ class StateNetwork(NeuralNetwork):
                                 env_spec.observation_space.flat_dim)
 
         with tf.variable_scope(name_or_scope, reuse=reuse) as variable_scope:
-            if self.observation_input is None:
-                self.observation_input = tf.placeholder(
-                    tf.float32,
-                    [None, self.observation_dim],
-                    "_observation")
+            self.observation_input = self._generate_observation_input(
+                observation_input
+            )
             super(StateNetwork, self).__init__(variable_scope, **kwargs)
             self._output = self._create_network(self.observation_input)
             self.variable_scope = variable_scope
+
+    def _generate_observation_input(self, observation_input):
+        if observation_input is None:
+            observation_input = tf.placeholder(
+                tf.float32,
+                [None, self.observation_dim],
+                "_observation")
+        return observation_input
 
     def get_weight_tied_copy(self, observation_input):
         """

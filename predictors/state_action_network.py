@@ -38,8 +38,6 @@ class StateActionNetwork(NeuralNetwork):
         Serializable.quick_init(self, locals())
         self.output_dim = output_dim
         self.reuse = reuse
-        self.action_input = action_input
-        self.observation_input = observation_input
 
         assert env_spec or (action_dim and observation_dim)
         if action_dim is None:
@@ -50,20 +48,27 @@ class StateActionNetwork(NeuralNetwork):
             self.observation_dim = observation_dim
 
         with tf.variable_scope(name_or_scope, reuse=reuse) as variable_scope:
-            if self.action_input is None:
-                self.action_input = tf.placeholder(
-                    tf.float32,
-                    [None, self.action_dim],
-                    "_actions")
-            if self.observation_input is None:
-                self.observation_input = tf.placeholder(
-                    tf.float32,
-                    [None, self.observation_dim],
-                    "_observation")
             super(StateActionNetwork, self).__init__(variable_scope, **kwargs)
+            self.action_input, self.observation_input = self._generate_inputs(
+                action_input,
+                observation_input
+            )
             self._output = self._create_network(self.observation_input,
                                                 self.action_input)
             self.variable_scope = variable_scope
+
+    def _generate_inputs(self, action_input, observation_input):
+        if action_input is None:
+            action_input = tf.placeholder(
+                tf.float32,
+                [None, self.action_dim],
+                "_actions")
+        if observation_input is None:
+            observation_input = tf.placeholder(
+                tf.float32,
+                [None, self.observation_dim],
+                "_observation")
+        return action_input, observation_input
 
     def get_weight_tied_copy(self, observation_input=None, action_input=None):
         """
