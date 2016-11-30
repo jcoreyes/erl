@@ -143,6 +143,7 @@ def test_shane_ddpg(env_, exp_prefix, env_name, seed=1, **ddpg_params):
 
     variant = ddpg_params
     variant['Version'] = 'Shane'
+    variant['Algo'] = 'shane-ddpg'
     variant['Environment'] = env_name
     for qf_key, qf_value in qf_params.items():
         variant['qf_' + qf_key] = str(qf_value)
