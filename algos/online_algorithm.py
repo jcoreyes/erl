@@ -122,9 +122,9 @@ class OnlineAlgorithm(RLAlgorithm):
                     action = self.exploration_strategy.get_action(itr,
                                                                   observation,
                                                                   self.policy)
-                    test_action = self.test_argmax_policy.get_action(
-                        observation)[0]
-                    print("test_action = {0}".format(test_action))
+                    # test_action = self.test_argmax_policy.get_action(
+                    #     observation)[0]
+                    # print("test_action = {0}".format(test_action))
                     if self.render:
                         self.training_env.render()
                     next_ob, raw_reward, terminal, _ = self.training_env.step(action)
