@@ -117,6 +117,7 @@ def get_algo_settings(algo_name, render=False):
             hp.LogFloatParam("Q_weight_decay", 1e-7, 1e-1),
         ])
         params = get_my_ddpg_params()
+        params['render'] = render
         test_function = test_my_ddpg
     elif algo_name == 'shane-ddpg':
         sweeper = hp.HyperparameterSweeper([
@@ -125,6 +126,8 @@ def get_algo_settings(algo_name, render=False):
             hp.LogFloatParam("Q_weight_decay", 1e-7, 1e-1),
         ])
         params = get_ddpg_params()
+        if params['min_pool_size'] <= params['batch_size']:
+            params['min_pool_size'] = params['batch_size'] + 1
         test_function = test_shane_ddpg
     elif algo_name == 'cnaf':
         sweeper = hp.HyperparameterSweeper([
@@ -138,6 +141,7 @@ def get_algo_settings(algo_name, render=False):
             hp.LogFloatParam("scale_reward", 10.0, 0.01),
         ])
         params = get_my_naf_params()
+        params['render'] = render
         test_function = test_convex_naf
     elif algo_name == 'naf':
         sweeper = hp.HyperparameterSweeper([
@@ -148,6 +152,7 @@ def get_algo_settings(algo_name, render=False):
             hp.LinearIntParam("n_updates_per_time_step", 1, 10),
         ])
         params = get_my_naf_params()
+        params['render'] = render
         test_function = test_my_naf
     elif algo_name == 'random':
         test_function = test_random_ddpg
@@ -176,7 +181,6 @@ def get_algo_settings(algo_name, render=False):
     else:
         raise Exception("Algo name not recognized: " + algo_name)
 
-    params['render'] = render
     return {
         'sweeper': sweeper,
         'algo_params': params,

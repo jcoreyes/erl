@@ -62,10 +62,6 @@ class NAF(OnlineAlgorithm):
         self.qf.sess = self.sess
         self.policy = self.qf.get_implicit_policy()
         self.target_vf.sess = self.sess
-        # self.policy = ArgmaxPolicy(
-        #     name_or_scope='test_argmax',
-        #     qfunction=self.qf.af,
-        # )
         self._init_qf_ops()
         self._init_target_ops()
         self.sess.run(tf.initialize_all_variables())
@@ -160,6 +156,7 @@ class NAF(OnlineAlgorithm):
         # Log statistics
         last_statistics = OrderedDict([
             ('Epoch', epoch),
+            ('AverageReturn', np.mean(returns)),
             ('QfLoss', qf_loss),
         ])
         last_statistics.update(create_stats_ordered_dict('Ys', ys))
@@ -179,3 +176,11 @@ class NAF(OnlineAlgorithm):
             logger.record_tabular(key, value)
 
         return self.last_statistics
+
+    def get_epoch_snapshot(self, epoch):
+        return dict(
+            env=self.training_env,
+            epoch=epoch,
+            optimizable_qfunction=self.qf,
+            es=self.exploration_strategy,
+        )

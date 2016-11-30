@@ -202,6 +202,7 @@ class DDPG(OnlineAlgorithm):
         # Log statistics
         last_statistics = OrderedDict([
             ('Epoch', epoch),
+            ('AverageReturn', np.mean(returns)),
             ('PolicySurrogateLoss', policy_loss),
             ('QfLoss', qf_loss),
         ])

@@ -9,29 +9,6 @@ from rllab.misc.overrides import overrides
 
 class QuadraticNAF(NAFQFunction):
     @overrides
-    def _generate_inputs(self, action_input, observation_input):
-        if action_input is None:
-            action_input = tf.placeholder(
-                tf.float32,
-                [None, self.action_dim],
-                "_actions")
-        self.policy = FeedForwardPolicy(
-            name_or_scope="mu",
-            action_dim=self.action_dim,
-            observation_dim=self.observation_dim,
-            observation_input=None,
-            observation_hidden_sizes=(200, 200),
-            hidden_W_init=None,
-            hidden_b_init=None,
-            output_W_init=None,
-            output_b_init=None,
-            hidden_nonlinearity=tf.nn.relu,
-            output_nonlinearity=tf.nn.tanh,
-        )
-        observation_input = self.policy.observation_input
-        return action_input, observation_input
-
-    @overrides
     def _create_network(self, observation_input, action_input):
         self.vf = MlpStateNetwork(
             name_or_scope="V_function",
@@ -45,6 +22,19 @@ class QuadraticNAF(NAFQFunction):
             output_b_init=None,
             hidden_nonlinearity=tf.nn.relu,
             output_nonlinearity=tf.identity,
+        )
+        self.policy = FeedForwardPolicy(
+            name_or_scope="mu",
+            action_dim=self.action_dim,
+            observation_dim=self.observation_dim,
+            observation_input=observation_input,
+            observation_hidden_sizes=(200, 200),
+            hidden_W_init=None,
+            hidden_b_init=None,
+            output_W_init=None,
+            output_b_init=None,
+            hidden_nonlinearity=tf.nn.relu,
+            output_nonlinearity=tf.nn.tanh,
         )
         self.af = QuadraticQF(
             name_or_scope="advantage_function",

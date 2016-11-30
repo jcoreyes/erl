@@ -110,7 +110,8 @@ def test_convex_naf(env, exp_prefix, env_name, seed=1, **naf_params):
     run_experiment(algorithm, exp_prefix, seed, variant)
 
 
-def test_shane_ddpg(env, exp_prefix, env_name, seed=1, **ddpg_params):
+def test_shane_ddpg(env_, exp_prefix, env_name, seed=1, **ddpg_params):
+    env = TfEnv(env_)
     es = GaussianStrategy(env.spec)
 
     policy_params = dict(

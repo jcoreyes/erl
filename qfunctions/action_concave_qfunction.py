@@ -13,7 +13,7 @@ class ActionConcaveQFunction(NNQFunction):
             hidden_b_init=None,
             output_W_init=None,
             output_b_init=None,
-            embedded_hidden_sizes=(100,),
+            embedded_hidden_sizes=(20, 20, 20),
             observation_hidden_sizes=(100, 100),
             hidden_nonlinearity=tf.nn.relu,
             **kwargs
