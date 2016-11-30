@@ -27,7 +27,7 @@ class TestNAF(TFTestCase):
             n_epochs=0,
         )
         target_vf = algo.target_vf
-        vf = algo.qf.vf
+        vf = algo.qf.value_function
 
         # Make sure they're different to start
         random_values = [np.random.rand(*values.shape)
@@ -48,7 +48,7 @@ class TestNAF(TFTestCase):
             n_epochs=0,
         )
         qf = algo.qf
-        af = qf.af
+        af = qf.advantage_function
         L_param_gen = af.L_params
         L = af.L
         last_bs = L_param_gen.get_params_internal()[-1]
@@ -79,7 +79,7 @@ class TestNAF(TFTestCase):
             soft_target_tau=tau,
         )
         target_vf = algo.target_vf
-        vf = algo.qf.vf
+        vf = algo.qf.value_function
 
         algo.train()
 
@@ -105,7 +105,7 @@ class TestNAF(TFTestCase):
             soft_target_tau=tau,
         )
         target_vf = algo.target_vf
-        vf = algo.qf.vf
+        vf = algo.qf.value_function
 
         # Make sure they're different to start
         random_values = [np.random.rand(*values.shape)
@@ -125,7 +125,7 @@ class TestNAF(TFTestCase):
             soft_target_tau=tau,
         )
         target_vf = algo.target_vf
-        vf = algo.qf.vf
+        vf = algo.qf.value_function
         self.assertNotEqual(target_vf.get_params_internal(),
                             vf.get_params_internal())
 
@@ -190,7 +190,7 @@ class TestNormalizedAdvantageFunction(TFTestCase):
             QuadraticNAF(name_or_scope='qf', env_spec=self.env.spec),
             n_epochs=0,
         )
-        vf = algo.qf.get_implicit_value_function()
+        vf = algo.qf.value_function
         qf = algo.qf
 
         qf_params = qf.get_params_internal()

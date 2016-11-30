@@ -18,8 +18,8 @@ class ConvexNAF(NAFQFunction):
     ):
         self.setup_serialization(locals())
         self._policy = None
-        self.af = None
-        self.vf = None
+        self._af = None
+        self._vf = None
         super(NAFQFunction, self).__init__(
             name_or_scope=name_or_scope,
             **kwargs
@@ -28,14 +28,14 @@ class ConvexNAF(NAFQFunction):
 
     @overrides
     def _create_network(self, observation_input, action_input):
-        self.af = ActionConcaveQFunction(
+        self._af = ActionConcaveQFunction(
             name_or_scope="advantage_function",
             action_dim=self.action_dim,
             observation_dim=self.observation_dim,
             action_input=action_input,
             observation_input=observation_input,
         )
-        self.vf = MlpStateNetwork(
+        self._vf = MlpStateNetwork(
             name_or_scope="V_function",
             output_dim=1,
             observation_dim=self.observation_dim,
@@ -55,10 +55,10 @@ class ConvexNAF(NAFQFunction):
                 self.sess.run(tf.initialize_variables(self.get_params()))
                 self._policy = ArgmaxPolicy(
                     name_or_scope="argmax_policy",
-                    qfunction=self.af,
+                    qfunction=self._af,
                 )
-        return self.vf.output + self.af.output
-        # return self.af.output
+        return self._vf.output + self._af.output
+        # return self._af.output
 
         # TODO(vpong): subtract max_a A(a, s) to make the advantage function
         # equal the actual advantage function like so:
@@ -74,22 +74,25 @@ class ConvexNAF(NAFQFunction):
         #         self.sess.run(tf.initialize_variables(self.get_params()))
         #         self._policy = ArgmaxPolicy(
         #             name_or_scope="argmax_policy",
-        #             qfunction=self.af,
+        #             qfunction=self._af,
         #         )
-        #         self.af_copy_with_policy_input = self.af.get_weight_tied_copy(
+        #         self.af_copy_with_policy_input = self._af.get_weight_tied_copy(
         #             action_input=self.policy_output_placeholder,
         #             observation_input=observation_input,
         #         )
-        # return self.vf.output + (self.af.output -
+        # return self._vf.output + (self._af.output -
         #                          self.af_copy_with_policy_input.output)
 
-    def get_implicit_policy(self):
+    @property
+    def implicit_policy(self):
         return self._policy
 
-    def get_implicit_value_function(self):
-        return self.vf
+    @property
+    def value_function(self):
+        return self._vf
 
-    def get_implicit_advantage_function(self):
-        return self.af
+    @property
+    def advantage_function(self):
+        return self._af
 
 

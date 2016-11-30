@@ -26,9 +26,9 @@ class TestConvexNAF(TFTestCase):
             qf,
         )
         qf = algo.qf
-        af = qf.af
-        af1 = qf.get_implicit_policy().qfunction
-        # af2 = qf.af_copy_with_policy_input
+        af = qf.advantage_function
+        af1 = qf.implicit_policy.qfunction
+        # af2 = qf.advantage_function_copy_with_policy_input
 
         self.assertEqual(af.observation_input, af1.observation_input)
         # self.assertEqual(af2.observation_input, af1.observation_input)
@@ -44,9 +44,9 @@ class TestConvexNAF(TFTestCase):
             qf,
         )
         qf = algo.qf
-        af = qf.af
-        af1 = qf.get_implicit_policy().qfunction
-        # af2 = qf.af_copy_with_policy_input
+        af = qf.advantage_function
+        af1 = qf.implicit_policy.qfunction
+        # af2 = qf.advantage_function_copy_with_policy_input
 
         self.assertParamsEqual(af, af1)
         # self.assertParamsEqual(af1, af2)
@@ -66,7 +66,7 @@ class TestConvexNAF(TFTestCase):
             eval_samples=0,
         )
         algo.train()
-        af = algo.qf.af
+        af = algo.qf.advantage_function
 
         action_param_values = self.sess.run([param for param in
                                              af.get_action_W_params()])
@@ -88,7 +88,7 @@ class TestConvexNAF(TFTestCase):
             eval_samples=0,
         )
         algo.train()
-        af = algo.qf.af
+        af = algo.qf.advantage_function
 
         af_params = self.sess.run([param for param in af.get_params_internal()])
         none_are_neg = True

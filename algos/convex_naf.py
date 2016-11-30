@@ -21,10 +21,10 @@ class ConvexNAFAlgorithm(NAF):
     @overrides
     def _init_tensorflow_ops(self):
         super()._init_tensorflow_ops()
-        self.af = self.qf.get_implicit_advantage_function()
-        self.clip_weight_ops = [v.assign(tf.maximum(v, 0)) for v in
-                                self.af.get_action_W_params()]
-        self.sess.run(self.clip_weight_ops)
+        self._af = self.qf.advantage_function
+        self._clip_weight_ops = [v.assign(tf.maximum(v, 0)) for v in
+                                 self._af.get_action_W_params()]
+        self.sess.run(self._clip_weight_ops)
 
     @overrides
     def _get_training_ops(self):
@@ -92,7 +92,7 @@ class ConvexNAFAlgorithm(NAF):
     #     feed_dict = super()._update_feed_dict(rewards, terminals, obs,
     #                                           actions, next_obs)
     #     current_policy_actions = np.vstack(
-    #         [self.policy.get_action(o)[0] for o in obs]
+    #         [self._policy.get_action(o)[0] for o in obs]
     #     )
     #     feed_dict[self.qf.policy_output_placeholder] = current_policy_actions
     #     return feed_dict
@@ -100,4 +100,4 @@ class ConvexNAFAlgorithm(NAF):
     @overrides
     def _do_training(self):
         super()._do_training()
-        self.sess.run(self.clip_weight_ops)
+        self.sess.run(self._clip_weight_ops)

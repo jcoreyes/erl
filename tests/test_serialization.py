@@ -41,15 +41,6 @@ class TestSerialization(TFTestCase):
         self.sess.run(tf.initialize_all_variables())
         pickle.dumps(qf)
 
-    def test_serialize_quadratic_naf_policy(self):
-        qf = QuadraticNAF(
-            name_or_scope="qf",
-            action_dim=self.action_dim,
-            observation_dim=self.observation_dim,
-        )
-        policy = qf.get_implicit_policy()
-        self.sess.run(tf.initialize_all_variables())
-        pickle.dumps(policy)
 
 if __name__ == '__main__':
     unittest.main()

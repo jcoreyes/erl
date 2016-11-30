@@ -9,23 +9,24 @@ import tensorflow as tf
 from algos.online_algorithm import OnlineAlgorithm
 from misc.data_processing import create_stats_ordered_dict
 from misc.rllab_util import split_paths
+
 from rllab.misc import logger
 from rllab.misc import special
 from rllab.misc.overrides import overrides
 
-TARGET_PREFIX = "target_vf_of_"
+TARGET_PREFIX = "target_"
 
 
-class NAF(OnlineAlgorithm):
+class DQICNN(OnlineAlgorithm):
     """
-    Continuous Q-learning with Normalized Advantage Function
+    Deep Q-learning with ICNN
     """
 
     def __init__(
             self,
             env,
             exploration_strategy,
-            naf_qfunction,
+            action_convex_qfunction,
             qf_learning_rate=1e-3,
             Q_weight_decay=0.,
             **kwargs
@@ -33,12 +34,12 @@ class NAF(OnlineAlgorithm):
         """
         :param env: Environment
         :param exploration_strategy: ExplorationStrategy
-        :param naf_qfunction: A NAFQFunction
+        :param action_convex_qfunction: A NAFQFunction
         :param qf_learning_rate: Learning rate of the qf
         :param Q_weight_decay: How much to decay the weights for Q
         :return:
         """
-        self.qf = naf_qfunction
+        self.qf = action_convex_qfunction
         self.qf_learning_rate = qf_learning_rate
         self.Q_weight_decay = Q_weight_decay
 
@@ -55,13 +56,18 @@ class NAF(OnlineAlgorithm):
             tf.float32,
             shape=[None, self.observation_dim],
             name='next_obs')
-        self.target_vf = self.qf.value_function.get_copy(
+        self.target_action_placeholder = tf.placeholder(
+            tf.float32,
+            shape=[None, self.action_dim],
+            name='target_action')
+        self.target_qf = self.qf.get_copy(
             name_or_scope=TARGET_PREFIX + self.qf.scope_name,
             observation_input=self.next_obs_placeholder,
+            action_input=self.target_action_placeholder,
         )
         self.qf.sess = self.sess
         self.policy = self.qf.implicit_policy
-        self.target_vf.sess = self.sess
+        self.target_qf.sess = self.sess
         self._init_qf_ops()
         self._init_target_ops()
         self.sess.run(tf.initialize_all_variables())
@@ -70,7 +76,7 @@ class NAF(OnlineAlgorithm):
         self.ys = (
             self.rewards_placeholder +
             (1. - self.terminals_placeholder) *
-            self.discount * self.target_vf.output)
+            self.discount * self.target_qf.output)
         self.qf_loss = tf.reduce_mean(
             tf.square(
                 tf.sub(self.ys, self.qf.output)))
@@ -90,33 +96,37 @@ class NAF(OnlineAlgorithm):
             var_list=self.qf.get_params_internal())
 
     def _init_target_ops(self):
-        vf_vars = self.qf.value_function.get_params_internal()
-        target_vf_vars = self.target_vf.get_params_internal()
-        assert len(vf_vars) == len(target_vf_vars)
+        qf_vars = self.qf.vf.get_params_internal()
+        target_qf_vars = self.target_qf.get_params_internal()
+        assert len(qf_vars) == len(target_qf_vars)
 
-        self.update_target_vf_op = [
+        self.update_target_qf_op = [
             tf.assign(target, (self.tau * src + (1 - self.tau) * target))
-            for target, src in zip(target_vf_vars, vf_vars)]
+            for target, src in zip(target_qf_vars, qf_vars)]
 
     @overrides
     def _init_training(self):
-        self.target_vf.set_param_values(self.qf.value_function.get_param_values())
+        self.target_qf.set_param_values(self.qf.get_param_values())
 
     @overrides
     def _get_training_ops(self):
         return [
             self.train_qf_op,
-            self.update_target_vf_op,
+            self.update_target_qf_op,
         ]
 
     @overrides
     def _update_feed_dict(self, rewards, terminals, obs, actions, next_obs):
+        target_actions = np.vstack(
+            [self.policy.get_action(o)[0] for o in obs]
+        )
         return {
             self.rewards_placeholder: np.expand_dims(rewards, axis=1),
             self.terminals_placeholder: np.expand_dims(terminals, axis=1),
             self.qf.observation_input: obs,
             self.qf.action_input: actions,
             self.next_obs_placeholder: next_obs,
+            self.target_action_placeholder: target_actions,
         }
 
     @overrides
@@ -131,19 +141,20 @@ class NAF(OnlineAlgorithm):
         feed_dict = self._update_feed_dict(rewards, terminals, obs, actions,
                                            next_obs)
 
+        target_actions = feed_dict[self.target_action_placeholder]
         # Compute statistics
         (
             qf_loss,
             policy_output,
             qf_output,
-            target_vf_output,
+            target_qf_output,
             ys,
         ) = self.sess.run(
             [
                 self.qf_loss,
                 self.policy.output,
                 self.qf.output,
-                self.target_vf.output,
+                self.target_qf.output,
                 self.ys,
             ],
             feed_dict=feed_dict)
@@ -163,8 +174,10 @@ class NAF(OnlineAlgorithm):
         last_statistics.update(create_stats_ordered_dict('PolicyOutput',
                                                          policy_output))
         last_statistics.update(create_stats_ordered_dict('QfOutput', qf_output))
-        last_statistics.update(create_stats_ordered_dict('TargetVfOutput',
-                                                         target_vf_output))
+        last_statistics.update(create_stats_ordered_dict('TargetQfOutput',
+                                                         target_qf_output))
+        last_statistics.update(create_stats_ordered_dict('TargetActions',
+                                                         target_actions))
         last_statistics.update(create_stats_ordered_dict('Rewards', rewards))
         last_statistics.update(create_stats_ordered_dict('Returns', returns))
         last_statistics.update(create_stats_ordered_dict('DiscountedReturns',

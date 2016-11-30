@@ -39,7 +39,7 @@ class DDPG(OnlineAlgorithm):
         :param policy: Policy that is Serializable
         :param qf: QFunctions that is Serializable
         :param qf_learning_rate: Learning rate of the qf
-        :param policy_learning_rate: Learning rate of the policy
+        :param policy_learning_rate: Learning rate of the _policy
         :param Q_weight_decay: How much to decay the weights for Q
         :return:
         """
@@ -95,7 +95,7 @@ class DDPG(OnlineAlgorithm):
 
     def _init_policy_ops(self):
         # To compute the surrogate loss function for the qf, it must take
-        # as input the output of the policy. See Equation (6) of "Deterministic
+        # as input the output of the _policy. See Equation (6) of "Deterministic
         # Policy Gradient Algorithms" ICML 2014.
         self.qf_with_action_input = self.qf.get_weight_tied_copy(
             action_input=self.policy.output)

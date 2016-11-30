@@ -10,7 +10,7 @@ from rllab.misc.overrides import overrides
 class QuadraticNAF(NAFQFunction):
     @overrides
     def _create_network(self, observation_input, action_input):
-        self.vf = MlpStateNetwork(
+        self._vf = MlpStateNetwork(
             name_or_scope="V_function",
             output_dim=1,
             observation_dim=self.observation_dim,
@@ -23,7 +23,7 @@ class QuadraticNAF(NAFQFunction):
             hidden_nonlinearity=tf.nn.relu,
             output_nonlinearity=tf.identity,
         )
-        self.policy = FeedForwardPolicy(
+        self._policy = FeedForwardPolicy(
             name_or_scope="mu",
             action_dim=self.action_dim,
             observation_dim=self.observation_dim,
@@ -36,21 +36,24 @@ class QuadraticNAF(NAFQFunction):
             hidden_nonlinearity=tf.nn.relu,
             output_nonlinearity=tf.nn.tanh,
         )
-        self.af = QuadraticQF(
+        self._af = QuadraticQF(
             name_or_scope="advantage_function",
             action_input=action_input,
             observation_input=observation_input,
             action_dim=self.action_dim,
             observation_dim=self.observation_dim,
-            policy=self.policy,
+            policy=self._policy,
         )
-        return self.vf.output + self.af.output
+        return self._vf.output + self._af.output
 
-    def get_implicit_policy(self):
-        return self.policy
+    @property
+    def implicit_policy(self):
+        return self._policy
 
-    def get_implicit_value_function(self):
-        return self.vf
+    @property
+    def value_function(self):
+        return self._vf
 
-    def get_implicit_advantage_function(self):
-        return self.af
+    @property
+    def advantage_function(self):
+        return self._af
