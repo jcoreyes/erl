@@ -63,10 +63,10 @@ class NAF(OnlineAlgorithm):
         self.qf.sess = self.sess
         self.policy = self.qf.get_implicit_policy()
         self.target_vf.sess = self.sess
-        # self.test_argmax_policy = ArgmaxPolicy(
-        #     name_or_scope='test_argmax',
-        #     qfunction=self.qf
-        # )
+        self.test_argmax_policy = ArgmaxPolicy(
+            name_or_scope='test_argmax',
+            qfunction=self.qf.af,
+        )
         self._init_qf_ops()
         self._init_target_ops()
         self.sess.run(tf.initialize_all_variables())
