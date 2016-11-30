@@ -2,9 +2,6 @@ from rllab.sampler.utils import rollout
 import argparse
 import joblib
 import uuid
-import os
-import random
-import numpy as np
 import tensorflow as tf
 
 filename = str(uuid.uuid4())
@@ -23,22 +20,17 @@ if __name__ == "__main__":
     policy = None
     env = None
 
-    # If the snapshot file use tensorflow, do:
-    # import tensorflow as tf
-    # with tf.Session():
-    #     [rest of the code]
-    while True:
-        with tf.Session() as sess:
-            data = joblib.load(args.file)
-            policy = data['policy']
-            env = data['env']
-            while True:
-                try:
-                    path = rollout(env, policy, max_path_length=args.max_path_length,
-                                   animated=True, speedup=args.speedup)
-                # Hack for now. Not sure why rollout assumes that close is an
-                # keyword argument
-                except TypeError as e:
-                    if (str(e) != "render() got an unexpected keyword "
-                                  "argument 'close'"):
-                        raise e
+    with tf.Session() as sess:
+        data = joblib.load(args.file)
+        policy = data['policy']
+        env = data['env']
+        while True:
+            try:
+                path = rollout(env, policy, max_path_length=args.max_path_length,
+                               animated=True, speedup=args.speedup)
+            # Hack for now. Not sure why rollout assumes that close is an
+            # keyword argument
+            except TypeError as e:
+                if (str(e) != "render() got an unexpected keyword "
+                              "argument 'close'"):
+                    raise e
