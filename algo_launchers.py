@@ -8,13 +8,18 @@ from policies.nn_policy import FeedForwardPolicy
 from qfunctions.convex_naf_qfunction import ConvexNAF
 from qfunctions.nn_qfunction import FeedForwardCritic
 from qfunctions.quadratic_naf_qfunction import QuadraticNAF
+from rllab.baselines.linear_feature_baseline import LinearFeatureBaseline
 from rllab.exploration_strategies.gaussian_strategy import GaussianStrategy
 from rllab.exploration_strategies.ou_strategy import OUStrategy
 from rllab.misc.instrument import run_experiment_lite, stub
 from rllab.policies.uniform_control_policy import UniformControlPolicy
 from sandbox.rocky.tf.algos.ddpg import DDPG as ShaneDDPG
+from sandbox.rocky.tf.algos.vpg import VPG
+from sandbox.rocky.tf.algos.trpo import TRPO
+from sandbox.rocky.tf.envs.base import TfEnv
 from sandbox.rocky.tf.policies.deterministic_mlp_policy import \
     DeterministicMLPPolicy
+from sandbox.rocky.tf.policies.gaussian_mlp_policy import GaussianMLPPolicy
 from sandbox.rocky.tf.q_functions.continuous_mlp_q_function import \
     ContinuousMLPQFunction
 
@@ -104,8 +109,8 @@ def test_convex_naf(env, exp_prefix, env_name, seed=1, **naf_params):
     variant['Algo'] = 'ConvexNAF'
     run_experiment(algorithm, exp_prefix, seed, variant)
 
-def test_shane_ddpg(env, exp_prefix, env_name, seed=1, **new_ddpg_params):
-    ddpg_params = dict(get_ddpg_params(), **new_ddpg_params)
+
+def test_shane_ddpg(env, exp_prefix, env_name, seed=1, **ddpg_params):
     es = GaussianStrategy(env.spec)
 
     policy_params = dict(
@@ -143,6 +148,52 @@ def test_shane_ddpg(env, exp_prefix, env_name, seed=1, **new_ddpg_params):
     for policy_key, policy_value in policy_params.items():
         variant['policy_' + policy_key] = str(policy_value)
 
+    run_experiment(algorithm, exp_prefix, seed, variant=variant)
+
+
+def test_rllab_vpg(env_, exp_prefix, env_name, seed=1, **algo_params):
+    env = TfEnv(env_)
+    policy = GaussianMLPPolicy(
+        name="policy",
+        env_spec=env.spec,
+        hidden_sizes=(32, 32)
+    )
+
+    baseline = LinearFeatureBaseline(env_spec=env.spec)
+
+    algorithm = VPG(
+        env=env,
+        policy=policy,
+        baseline=baseline,
+        **algo_params
+    )
+    variant = algo_params
+    variant['Version'] = 'rllab'
+    variant['Environment'] = env_name
+    variant['Algo'] = 'vpg'
+    run_experiment(algorithm, exp_prefix, seed, variant=variant)
+
+
+def test_rllab_trpo(env_, exp_prefix, env_name, seed=1, **algo_params):
+    env = TfEnv(env_)
+    policy = GaussianMLPPolicy(
+        name="policy",
+        env_spec=env.spec,
+        hidden_sizes=(32, 32)
+    )
+
+    baseline = LinearFeatureBaseline(env_spec=env.spec)
+
+    algorithm = TRPO(
+        env=env,
+        policy=policy,
+        baseline=baseline,
+        **algo_params
+    )
+    variant = algo_params
+    variant['Version'] = 'rllab'
+    variant['Environment'] = env_name
+    variant['Algo'] = 'trpo'
     run_experiment(algorithm, exp_prefix, seed, variant=variant)
 
 

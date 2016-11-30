@@ -7,6 +7,8 @@ from algo_launchers import (
     test_convex_naf,
     test_random_ddpg,
     test_shane_ddpg,
+    test_rllab_vpg,
+    test_rllab_trpo,
 )
 from misc import hyperparameter as hp
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
@@ -19,19 +21,28 @@ from rllab.envs.mujoco.inverted_double_pendulum_env import (
 from rllab.envs.normalized_env import normalize
 from rllab.misc.instrument import stub
 
-BATCH_SIZE = 64
+BATCH_SIZE = 2048
 N_EPOCHS = 100
-EPOCH_LENGTH = 1000
-EVAL_SAMPLES = 100
+EPOCH_LENGTH = 10000
+EVAL_SAMPLES = 10000
 DISCOUNT = 0.99
 CRITIC_LEARNING_RATE = 1e-3
 ACTOR_LEARNING_RATE = 1e-4
+BATCH_LEARNING_RATE = 1e-2
 SOFT_TARGET_TAU = 1e-2
 REPLAY_POOL_SIZE = 1000000
 MIN_POOL_SIZE = 100
 SCALE_REWARD = 1.0
 Q_WEIGHT_DECAY = 0.0
 MAX_PATH_LENGTH = 1000
+# BATCH_SIZE = 64
+# N_EPOCHS = 100
+# EPOCH_LENGTH = 100
+# EVAL_SAMPLES = 100
+# CRITIC_LEARNING_RATE = 3e-7
+# SOFT_TARGET_TAU = 0.01
+# SCALE_REWARD = 0.425
+# Q_WEIGHT_DECAY = 1e-5
 
 # Sweep settings
 SWEEP_N_EPOCHS = 50
@@ -97,6 +108,8 @@ def get_env_settings(env_name, normalize_env=True, gym_name=None):
 
 
 def get_algo_settings(algo_name, render=False):
+    sweeper = hp.HyperparameterSweeper()
+    params = {}
     if algo_name == 'ddpg':
         sweeper = hp.HyperparameterSweeper([
             hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
@@ -115,7 +128,7 @@ def get_algo_settings(algo_name, render=False):
         test_function = test_shane_ddpg
     elif algo_name == 'cnaf':
         sweeper = hp.HyperparameterSweeper([
-            hp.FixedParam("n_epochs", 10),
+            hp.FixedParam("n_epochs", 25),
             hp.FixedParam("epoch_length", 100),
             hp.FixedParam("eval_samples", 100),
             hp.FixedParam("min_pool_size", 100),
@@ -137,10 +150,29 @@ def get_algo_settings(algo_name, render=False):
         params = get_my_naf_params()
         test_function = test_my_naf
     elif algo_name == 'random':
-        sweeper = hp.HyperparameterSweeper()
-        params = {}
         test_function = test_random_ddpg
-
+    elif algo_name == 'rl-vpg':
+        test_function = test_rllab_vpg
+        params = dict(
+            batch_size=BATCH_SIZE,
+            max_path_length=MAX_PATH_LENGTH,
+            n_itr=N_EPOCHS,
+            discount=DISCOUNT,
+            optimizer_args=dict(
+                tf_optimizer_args=dict(
+                    learning_rate=BATCH_LEARNING_RATE,
+                )
+            ),
+        )
+    elif algo_name == 'rl-trpo':
+        test_function = test_rllab_trpo
+        params = dict(
+            batch_size=BATCH_SIZE,
+            max_path_length=MAX_PATH_LENGTH,
+            n_itr=N_EPOCHS,
+            discount=DISCOUNT,
+            step_size=BATCH_LEARNING_RATE,
+        )
     else:
         raise Exception("Algo name not recognized: " + algo_name)
 
@@ -242,7 +274,8 @@ def get_env_settings_from_args(args):
 def main():
     env_choices = ['ant', 'cheetah', 'cart', 'point', 'pt', 'reacher',
                    'idp', 'gym']
-    algo_choices = ['ddpg', 'naf', 'shane-ddpg', 'random', 'cnaf']
+    algo_choices = ['ddpg', 'naf', 'shane-ddpg', 'random', 'cnaf', 'rl-vpg',
+                    'rl-trpo']
     parser = argparse.ArgumentParser()
     parser.add_argument("--benchmark", action='store_true',
                         help="Run benchmarks.")
