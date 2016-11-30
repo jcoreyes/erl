@@ -28,10 +28,10 @@ class TestConvexNAF(TFTestCase):
         qf = algo.qf
         af = qf.af
         af1 = qf.get_implicit_policy().qfunction
-        af2 = qf.af_copy_with_policy_input
+        # af2 = qf.af_copy_with_policy_input
 
         self.assertEqual(af.observation_input, af1.observation_input)
-        self.assertEqual(af2.observation_input, af1.observation_input)
+        # self.assertEqual(af2.observation_input, af1.observation_input)
 
     def test_af_outputs_same(self):
         qf = ConvexNAF(
@@ -46,10 +46,10 @@ class TestConvexNAF(TFTestCase):
         qf = algo.qf
         af = qf.af
         af1 = qf.get_implicit_policy().qfunction
-        af2 = qf.af_copy_with_policy_input
+        # af2 = qf.af_copy_with_policy_input
 
         self.assertParamsEqual(af, af1)
-        self.assertParamsEqual(af1, af2)
+        # self.assertParamsEqual(af1, af2)
 
     def test_af_W_weights_nonnegative(self):
         qf = ConvexNAF(
