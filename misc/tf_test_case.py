@@ -1,7 +1,7 @@
 import unittest
 import tensorflow as tf
 
-from misc.testing_utils import are_np_arrays_equal, are_np_array_lists_equal
+from misc.testing_utils import are_np_arrays_equal, are_np_array_iterables_equal
 
 
 class TFTestCase(unittest.TestCase):
@@ -27,7 +27,7 @@ class TFTestCase(unittest.TestCase):
             np_arrays2,
             msg="Numpy array lists are not equal."
     ):
-        self.assertTrue(are_np_array_lists_equal(np_arrays1, np_arrays2), msg)
+        self.assertTrue(are_np_array_iterables_equal(np_arrays1, np_arrays2), msg)
 
     def assertNpArraysNotEqual(
             self,
@@ -35,7 +35,7 @@ class TFTestCase(unittest.TestCase):
             np_arrays2,
             msg="Numpy array lists are equal."
     ):
-        self.assertFalse(are_np_array_lists_equal(np_arrays1, np_arrays2), msg)
+        self.assertFalse(are_np_array_iterables_equal(np_arrays1, np_arrays2), msg)
 
     def assertParamsEqual(self, network1, network2):
         self.assertNpArraysEqual(
