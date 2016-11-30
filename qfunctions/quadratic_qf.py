@@ -36,7 +36,9 @@ class QuadraticQF(NNQFunction):
             output_nonlinearity=tf.identity,
             )
         # L_shape = batch:dimA:dimA
+        self.L_params = L_params
         L = tf_util.vec2lower_triangle(L_params.output, self.action_dim)
+        self.L = L
 
         delta = action_input - self.policy.output
         h1 = tf.expand_dims(delta, 1)  # h1_shape = batch:1:dimA

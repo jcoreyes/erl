@@ -1,12 +1,11 @@
 import tensorflow as tf
 
-from core.neuralnet import NeuralNetwork
+from policies.argmax_policy import ArgmaxPolicy
 from predictors.mlp_state_network import MlpStateNetwork
-from qfunctions.action_convex_qfunction import ActionConvexQFunction
+from qfunctions.action_concave_qfunction import ActionConcaveQFunction
 from qfunctions.naf_qfunction import NAFQFunction
 from rllab.core.serializable import Serializable
 from rllab.misc.overrides import overrides
-from rllab.policies.base import Policy
 
 
 class ConvexNAF(NAFQFunction):
@@ -16,7 +15,7 @@ class ConvexNAF(NAFQFunction):
             **kwargs
     ):
         Serializable.quick_init(self, locals())
-        self.policy = None
+        self._policy = None
         self.af = None
         self.vf = None
         super(NAFQFunction, self).__init__(
@@ -39,11 +38,43 @@ class ConvexNAF(NAFQFunction):
             hidden_nonlinearity=tf.nn.relu,
             output_nonlinearity=tf.identity,
         )
+        with tf.Session() as sess:
+            # This is a bit ugly, but we need some session to copy the values
+            # over. The main session should initialize the values again
+            with sess.as_default():
+                self.sess.run(tf.initialize_variables(self.get_params()))
+                self._policy = ArgmaxPolicy(
+                    name_or_scope="argmax_policy",
+                    qfunction=self.af,
+                )
         return self.vf.output + self.af.output
+
+        # TODO(vpong): subtract max_a A(a, s) to make the advantage function
+        # equal the actual advantage function like so:
+        # self.policy_output_placeholder = tf.placeholder(
+        #     tf.float32,
+        #     shape=[None, self.action_dim],
+        #     name='policy_output',
+        # )
+        # with tf.Session() as sess:
+        #     # This is a bit ugly, but we need some session to copy the values
+        #     # over. The main session should initialize the values again
+        #     with sess.as_default():
+        #         self.sess.run(tf.initialize_variables(self.get_params()))
+        #         self._policy = ArgmaxPolicy(
+        #             name_or_scope="argmax_policy",
+        #             qfunction=self.af,
+        #         )
+        #         self.af_copy_with_policy_input = self.af.get_weight_tied_copy(
+        #             action_input=self.policy_output_placeholder,
+        #             observation_input=observation_input,
+        #         )
+        # return self.vf.output + (self.af.output -
+        #                          self.af_copy_with_policy_input.output)
 
     @overrides
     def _generate_inputs(self, action_input, observation_input):
-        self.af = ActionConvexQFunction(
+        self.af = ActionConcaveQFunction(
             name_or_scope="advantage_function",
             action_dim=self.action_dim,
             observation_dim=self.observation_dim,
@@ -51,12 +82,7 @@ class ConvexNAF(NAFQFunction):
         return self.af.action_input, self.af.observation_input
 
     def get_implicit_policy(self):
-        if self.policy is None:
-            self.policy = ArgmaxPolicy(
-                name_or_scope="argmax_policy",
-                qfunction=self.af,
-            )
-        return self.policy
+        return self._policy
 
     def get_implicit_value_function(self):
         return self.vf
@@ -65,77 +91,3 @@ class ConvexNAF(NAFQFunction):
         return self.af
 
 
-class ArgmaxPolicy(NeuralNetwork, Policy, Serializable):
-    """
-    A policy that outputs
-
-    pi(s) = argmax_a Q(a, s)
-
-    The policy is optimized using a gradient descent method on the action.
-    """
-
-    def __init__(
-            self,
-            name_or_scope,
-            qfunction,
-            learning_rate=1e-3,
-            n_update_steps=100,
-            **kwargs
-    ):
-        """
-
-        :param name_or_scope:
-        :param proposed_action: tf.Variable, which will be optimized for the
-        state.
-        :param qfunction: Some NNQFunction
-        :param action_dim:
-        :param observation_dim:
-        :param learning_rate: Gradient descent learning rate.
-        :param n_update_steps: How many gradient descent steps to take to
-        figure out the action.
-        :param kwargs:
-        """
-        Serializable.quick_init(self, locals())
-        self.qfunction = qfunction
-        self.learning_rate = learning_rate
-        self.n_update_steps = n_update_steps
-
-        self.observation_input = qfunction.observation_input
-        self.action_dim = qfunction.action_dim
-        self.observation_dim = qfunction.observation_dim
-
-        # Normally, this Q function is trained by getting actions. We need
-        # to make a copy where the action inputted are generated from
-        # internally.
-        init = tf.random_uniform([1, self.action_dim],
-                                 minval=-1.,
-                                 maxval=1.)
-        with tf.variable_scope(name_or_scope) as variable_scope:
-            super(ArgmaxPolicy, self).__init__(name_or_scope=variable_scope,
-                                               **kwargs)
-            self.proposed_action = tf.Variable(
-                init,
-                name="proposed_action")
-            self.af_with_proposed_action = self.qfunction.get_weight_tied_copy(
-                action_input=self.proposed_action
-            )
-
-            self.loss = -self.af_with_proposed_action.output
-            self.minimizer_op = tf.train.AdamOptimizer(
-                self.learning_rate).minimize(
-                self.loss,
-                var_list=[self.proposed_action])
-
-    @overrides
-    def get_params_internal(self, **tags):
-        # Adam optimizer has variables as well, so don't just add
-        # `super().get_params_internal()`
-        return (self.qfunction.get_params_internal(**tags) +
-                tf.get_collection(tf.GraphKeys.VARIABLES, self.scope_name))
-
-    def get_action(self, observation):
-        assert observation.shape == (self.observation_dim,)
-        for _ in range(self.n_update_steps):
-            self.sess.run(self.minimizer_op,
-                          {self.observation_input: [observation]})
-        return self.sess.run(self.proposed_action), {}

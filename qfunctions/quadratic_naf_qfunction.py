@@ -1,17 +1,20 @@
 import tensorflow as tf
 
-from misc.rllab_util import get_observation_dim
 from policies.nn_policy import FeedForwardPolicy
 from predictors.mlp_state_network import MlpStateNetwork
 from qfunctions.naf_qfunction import NAFQFunction
 from qfunctions.quadratic_qf import QuadraticQF
-from rllab.core.serializable import Serializable
 from rllab.misc.overrides import overrides
 
 
 class QuadraticNAF(NAFQFunction):
     @overrides
-    def _create_network(self, observation_input, action_input):
+    def _generate_inputs(self, action_input, observation_input):
+        if action_input is None:
+            action_input = tf.placeholder(
+                tf.float32,
+                [None, self.action_dim],
+                "_actions")
         self.policy = FeedForwardPolicy(
             name_or_scope="mu",
             action_dim=self.action_dim,
@@ -25,9 +28,11 @@ class QuadraticNAF(NAFQFunction):
             hidden_nonlinearity=tf.nn.relu,
             output_nonlinearity=tf.nn.tanh,
         )
-        # TODO(vpong): fix this. Needed for serialization to work
-        self.observation_input = self.policy.observation_input
-        observation_input = self.observation_input
+        observation_input = self.policy.observation_input
+        return action_input, observation_input
+
+    @overrides
+    def _create_network(self, observation_input, action_input):
         self.vf = MlpStateNetwork(
             name_or_scope="V_function",
             output_dim=1,

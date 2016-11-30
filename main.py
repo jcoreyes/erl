@@ -19,16 +19,16 @@ from rllab.envs.mujoco.inverted_double_pendulum_env import (
 from rllab.envs.normalized_env import normalize
 from rllab.misc.instrument import stub
 
-BATCH_SIZE = 128
+BATCH_SIZE = 64
 N_EPOCHS = 100
-EPOCH_LENGTH = 10000
-EVAL_SAMPLES = 10000
+EPOCH_LENGTH = 1000
+EVAL_SAMPLES = 100
 DISCOUNT = 0.99
 CRITIC_LEARNING_RATE = 1e-3
 ACTOR_LEARNING_RATE = 1e-4
 SOFT_TARGET_TAU = 1e-2
 REPLAY_POOL_SIZE = 1000000
-MIN_POOL_SIZE = 10000
+MIN_POOL_SIZE = 100
 SCALE_REWARD = 1.0
 Q_WEIGHT_DECAY = 0.0
 MAX_PATH_LENGTH = 1000
@@ -115,9 +115,14 @@ def get_algo_settings(algo_name, render=False):
         test_function = test_shane_ddpg
     elif algo_name == 'cnaf':
         sweeper = hp.HyperparameterSweeper([
+            hp.FixedParam("n_epochs", 10),
+            hp.FixedParam("epoch_length", 100),
+            hp.FixedParam("eval_samples", 100),
+            hp.FixedParam("min_pool_size", 100),
+            hp.LogFloatParam("qf_learning_rate", 1e-7, 1e-1),
+            hp.LogFloatParam("Q_weight_decay", 1e-6, 1e-1),
             hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
             hp.LogFloatParam("scale_reward", 10.0, 0.01),
-            hp.LogFloatParam("Q_weight_decay", 1e-7, 1e-1),
         ])
         params = get_my_naf_params()
         test_function = test_convex_naf

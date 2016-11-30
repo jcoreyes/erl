@@ -14,7 +14,7 @@ class ActionConcaveQFunction(NNQFunction):
             output_W_init=None,
             output_b_init=None,
             embedded_hidden_sizes=(100,),
-            observation_hidden_sizes=(100,),
+            observation_hidden_sizes=(100, 100),
             hidden_nonlinearity=tf.nn.relu,
             **kwargs
     ):
@@ -22,7 +22,7 @@ class ActionConcaveQFunction(NNQFunction):
         self.hidden_W_init = hidden_W_init or he_uniform_initializer()
         self.hidden_b_init = hidden_b_init or tf.constant_initializer(0.)
         self.output_W_init = output_W_init or tf.random_uniform_initializer(
-            -3e-3, 3e-3)
+            0., 3e-3)
         self.output_b_init = output_b_init or tf.random_uniform_initializer(
             -3e-3, 3e-3)
         self.embedded_hidden_sizes = embedded_hidden_sizes
@@ -59,10 +59,15 @@ class ActionConcaveQFunction(NNQFunction):
                                 )
             self.action_input_scope_name = (
                 action_input_scope.original_name_scope)
-        # return -output
-        # return - action_input
-        return action_input * action_input
+        return -output
 
-    def get_action_params(self):
-        return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,
-                                 self.action_input_scope_name)
+    def get_action_W_params(self):
+        """
+        Return params that should be clipped to non-negative
+        :return:
+        """
+        return [param
+                for param in tf.get_collection(
+                    tf.GraphKeys.TRAINABLE_VARIABLES,
+                    self.action_input_scope_name)
+                if 'bias' not in param.name]
