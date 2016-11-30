@@ -94,8 +94,5 @@ class ArgmaxPolicy(NeuralNetwork, Policy, Serializable):
                 {self.observation_input: [observation]})
             # print("proposed_action = {0}".format(proposed))
             # print("af_score = {0}".format(af_score))
-            # self.sess.run(self.minimizer_op,
-            #               {self.observation_input: [observation]})
         action = self.sess.run(self.clipped_action)
-        # print("action = {0}".format(action))
         return action, {}
