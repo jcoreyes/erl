@@ -35,7 +35,7 @@ class StateActionNetwork(NeuralNetwork):
         :param reuse: boolean, reuse variables when creating network?
         :param kwargs: kwargs to be passed to super
         """
-        Serializable.quick_init(self, locals())
+        self.setup_serialization(locals())
         self.output_dim = output_dim
         self.reuse = reuse
 
@@ -105,3 +105,13 @@ class StateActionNetwork(NeuralNetwork):
         :return: A tensor.
         """
         return
+
+    def setup_serialization(self, init_locals):
+        # TODO(vpong): fix this
+        # Serializable.quick_init_for_clone(self, init_locals)
+        # init_locals_copy = dict(init_locals.items())
+        # if 'kwargs' in init_locals:
+        #     init_locals_copy['kwargs'].pop('action_input', None)
+        #     init_locals_copy['kwargs'].pop('observation_input', None)
+        # Serializable.quick_init(self, init_locals_copy)
+        Serializable.quick_init(self, init_locals)

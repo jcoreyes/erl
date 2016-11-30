@@ -18,7 +18,7 @@ class ActionConcaveQFunction(NNQFunction):
             hidden_nonlinearity=tf.nn.relu,
             **kwargs
     ):
-        Serializable.quick_init(self, locals())
+        self.setup_serialization(locals())
         self.hidden_W_init = hidden_W_init or he_uniform_initializer()
         self.hidden_b_init = hidden_b_init or tf.constant_initializer(0.)
         self.output_W_init = output_W_init or tf.random_uniform_initializer(

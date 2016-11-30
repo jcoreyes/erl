@@ -1,9 +1,11 @@
 import tensorflow as tf
 
 from policies.argmax_policy import ArgmaxPolicy
+from policies.nn_policy import FeedForwardPolicy
 from predictors.mlp_state_network import MlpStateNetwork
 from qfunctions.action_concave_qfunction import ActionConcaveQFunction
 from qfunctions.naf_qfunction import NAFQFunction
+from qfunctions.quadratic_qf import QuadraticQF
 from rllab.core.serializable import Serializable
 from rllab.misc.overrides import overrides
 
@@ -14,7 +16,7 @@ class ConvexNAF(NAFQFunction):
             name_or_scope,
             **kwargs
     ):
-        Serializable.quick_init(self, locals())
+        self.setup_serialization(locals())
         self._policy = None
         self.af = None
         self.vf = None
@@ -22,6 +24,36 @@ class ConvexNAF(NAFQFunction):
             name_or_scope=name_or_scope,
             **kwargs
         )
+
+    @overrides
+    def _generate_inputs(self, action_input, observation_input):
+        self.af = ActionConcaveQFunction(
+            name_or_scope="advantage_function",
+            action_dim=self.action_dim,
+            observation_dim=self.observation_dim,
+        )
+        # self.quad_policy = FeedForwardPolicy(
+        #     name_or_scope="mu",
+        #     action_dim=self.action_dim,
+        #     observation_dim=self.observation_dim,
+        #     observation_input=None,
+        #     observation_hidden_sizes=(200, 200),
+        #     hidden_W_init=None,
+        #     hidden_b_init=None,
+        #     output_W_init=None,
+        #     output_b_init=None,
+        #     hidden_nonlinearity=tf.nn.relu,
+        #     output_nonlinearity=tf.nn.tanh,
+        # )
+        # self.af = QuadraticQF(
+        #     name_or_scope="advantage_function",
+        #     action_input=action_input,
+        #     observation_input=self.quad_policy.observation_input,
+        #     action_dim=self.action_dim,
+        #     observation_dim=self.observation_dim,
+        #     policy=self.quad_policy,
+        # )
+        return self.af.action_input, self.af.observation_input
 
     @overrides
     def _create_network(self, observation_input, action_input):
@@ -48,6 +80,7 @@ class ConvexNAF(NAFQFunction):
                     qfunction=self.af,
                 )
         return self.vf.output + self.af.output
+        # return self.af.output
 
         # TODO(vpong): subtract max_a A(a, s) to make the advantage function
         # equal the actual advantage function like so:
@@ -71,15 +104,6 @@ class ConvexNAF(NAFQFunction):
         #         )
         # return self.vf.output + (self.af.output -
         #                          self.af_copy_with_policy_input.output)
-
-    @overrides
-    def _generate_inputs(self, action_input, observation_input):
-        self.af = ActionConcaveQFunction(
-            name_or_scope="advantage_function",
-            action_dim=self.action_dim,
-            observation_dim=self.observation_dim,
-        )
-        return self.af.action_input, self.af.observation_input
 
     def get_implicit_policy(self):
         return self._policy

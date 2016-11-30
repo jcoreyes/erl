@@ -10,7 +10,7 @@ class NNQFunction(StateActionNetwork):
             name_or_scope,
             **kwargs
     ):
-        Serializable.quick_init(self, locals())
+        self.setup_serialization(locals())
         super().__init__(name_or_scope=name_or_scope, output_dim=1, **kwargs)
 
 class FeedForwardCritic(NNQFunction):
@@ -26,7 +26,7 @@ class FeedForwardCritic(NNQFunction):
             hidden_nonlinearity=tf.nn.relu,
             **kwargs
     ):
-        Serializable.quick_init(self, locals())
+        self.setup_serialization(locals())
         self.hidden_W_init = hidden_W_init or he_uniform_initializer()
         self.hidden_b_init = hidden_b_init or tf.constant_initializer(0.)
         self.output_W_init = output_W_init or tf.random_uniform_initializer(

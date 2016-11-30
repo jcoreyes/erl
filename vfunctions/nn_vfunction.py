@@ -8,5 +8,5 @@ class NNVFunction(StateNetwork):
             name_or_scope,
             **kwargs
     ):
-        Serializable.quick_init(self, locals())
+        self.setup_serialization(locals())
         super().__init__(name_or_scope=name_or_scope, output_dim=1, **kwargs)

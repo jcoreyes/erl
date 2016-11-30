@@ -15,7 +15,7 @@ class NNPolicy(StateNetwork, Policy):
             name_or_scope,
             **kwargs
     ):
-        Serializable.quick_init(self, locals())
+        self.setup_serialization(locals())
         action_dim = get_action_dim(**kwargs)
         # Copy dict to not affect kwargs, which is used by Serialization
         new_kwargs = dict(**kwargs)
@@ -48,7 +48,7 @@ class FeedForwardPolicy(NNPolicy):
             output_nonlinearity=tf.nn.tanh,
             **kwargs
     ):
-        Serializable.quick_init(self, locals())
+        self.setup_serialization(locals())
         self.observation_hidden_sizes = observation_hidden_sizes
         self.hidden_W_init = hidden_W_init or he_uniform_initializer()
         self.hidden_b_init = hidden_b_init or tf.constant_initializer(0.)

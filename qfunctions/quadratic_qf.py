@@ -13,7 +13,7 @@ class QuadraticQF(NNQFunction):
             policy,
             **kwargs
     ):
-        Serializable.quick_init(self, locals())
+        self.setup_serialization(locals())
         self.policy = policy
         super(QuadraticQF, self).__init__(
             name_or_scope=name_or_scope,

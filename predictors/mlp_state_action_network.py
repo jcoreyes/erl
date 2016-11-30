@@ -20,7 +20,7 @@ class MlpStateActionNetwork(StateActionNetwork):
             output_nonlinearity=tf.identity,
             **kwargs
     ):
-        Serializable.quick_init(self, locals())
+        self.setup_serialization(locals())
         self.hidden_sizes = hidden_sizes
         self.hidden_W_init = hidden_W_init or he_uniform_initializer()
         self.hidden_b_init = hidden_b_init or tf.constant_initializer(0.)
