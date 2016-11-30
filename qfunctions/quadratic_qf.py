@@ -11,7 +11,6 @@ class QuadraticQF(NNQFunction):
             self,
             name_or_scope,
             policy,
-            reuse=False,
             **kwargs
     ):
         Serializable.quick_init(self, locals())
