@@ -1,11 +1,14 @@
 import unittest
+import math
 
 import numpy as np
+import tensorflow as tf
 
 from algos.naf import NAF
 from misc.tf_test_case import TFTestCase
 from qfunctions.quadratic_naf_qfunction import QuadraticNAF
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
+from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 from rllab.exploration_strategies.ou_strategy import OUStrategy
 from sandbox.rocky.tf.envs.base import TfEnv
 
@@ -35,6 +38,36 @@ class TestNAF(TFTestCase):
 
         algo.train()
         self.assertParamsEqual(target_vf, vf)
+
+    def test_dead_grads(self):
+        self.env = HalfCheetahEnv()
+        algo = NAF(
+            self.env,
+            self.es,
+            QuadraticNAF(name_or_scope='qf', env_spec=self.env.spec),
+            n_epochs=0,
+        )
+        qf = algo.qf
+        af = qf.af
+        L_param_gen = af.L_params
+        L = af.L
+        last_bs = L_param_gen.get_params_internal()[-1]
+        grads_ops = tf.gradients(af.output, last_bs)
+        a = np.random.rand(1, algo.action_dim)
+        o = np.random.rand(1, algo.observation_dim)
+        grads = self.sess.run(
+            grads_ops,
+            {
+                qf.action_input: a,
+                qf.observation_input: o,
+            }
+        )[0]
+        bs = self.sess.run(last_bs)
+        num_elems = bs.size
+        length = int(math.sqrt(float(num_elems)))
+        expected_zero = length * (length - 1) / 2
+        num_zero = np.sum((grads == 0.))
+        self.assertAlmostEqual(expected_zero, num_zero)
 
     def test_target_params_update(self):
         tau = 0.2
@@ -93,6 +126,8 @@ class TestNAF(TFTestCase):
         )
         target_vf = algo.target_vf
         vf = algo.qf.vf
+        self.assertNotEqual(target_vf.get_params_internal(),
+                            vf.get_params_internal())
 
         # Make sure they're different to start
         random_values = [np.random.rand(*values.shape)
@@ -113,6 +148,7 @@ class TestNAF(TFTestCase):
             soft_target_tau=tau,
             min_pool_size=2,
             eval_samples=0,
+            max_path_length=5,
         )
         policy = algo.policy
         old_policy_values = policy.get_param_values()

@@ -5,7 +5,7 @@ import tensorflow as tf
 
 from policies.sum_policy import SumPolicy
 from algos.ddpg import DDPG
-from misc.testing_utils import are_np_arrays_equal, are_np_array_lists_equal
+from misc.testing_utils import are_np_arrays_equal, are_np_array_iterables_equal
 from misc.tf_test_case import TFTestCase
 from qfunctions.sum_qfunction import SumCritic
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
@@ -149,11 +149,11 @@ class TestDDPG(TFTestCase):
         self.assertParamsNotEqual(target_policy, policy)
         algo.sess.run(algo.update_target_policy_op)
         algo.sess.run(algo.update_target_qf_op)
-        self.assertTrue(are_np_array_lists_equal(
+        self.assertTrue(are_np_array_iterables_equal(
             old_target_qf_values,
             target_qf.get_param_values()
         ))
-        self.assertTrue(are_np_array_lists_equal(
+        self.assertTrue(are_np_array_iterables_equal(
             old_target_policy_values,
             target_policy.get_param_values()
         ))
@@ -414,7 +414,7 @@ class TestDDPG(TFTestCase):
         actual = algo.sess.run(grads, feed_dict=feed_dict)
         actual_flat = np.vstack(actual).flatten()
         self.assertTrue(
-            are_np_array_lists_equal(expected, actual_flat),
+            are_np_array_iterables_equal(expected, actual_flat),
             "Numpy arrays not equal")
 
     def test_policy_surrogate_loss(self):
@@ -505,7 +505,7 @@ class TestDDPG(TFTestCase):
         expected = [-1 * np.ones_like(v) for v in
                     algo.policy.get_param_values()]
         self.assertTrue(
-            are_np_array_lists_equal(actual_loss_grads_flat, expected)
+            are_np_array_iterables_equal(actual_loss_grads_flat, expected)
         )
 
     def test_policy_gradient2(self):
@@ -535,7 +535,7 @@ class TestDDPG(TFTestCase):
         actual_loss_grads = algo.sess.run(loss_grad_ops, feed_dict=feed_dict)
         expected = [np.array([[-1.], [-45.], [-1.], [-2.]])]
         self.assertTrue(
-            are_np_array_lists_equal(actual_loss_grads, expected)
+            are_np_array_iterables_equal(actual_loss_grads, expected)
         )
 
     def test_qf_copy_values_are_same(self):
@@ -555,8 +555,8 @@ class TestDDPG(TFTestCase):
         self.assertParamsEqual(qf_copy, qf)
         algo.train()
         self.assertParamsEqual(qf_copy, qf)
-        self.assertFalse(are_np_array_lists_equal(old_params,
-                                                  qf.get_param_values()))
+        self.assertFalse(are_np_array_iterables_equal(old_params,
+                                                      qf.get_param_values()))
 
     def test_only_qf_values_change(self):
         discount = 0.5
@@ -594,23 +594,23 @@ class TestDDPG(TFTestCase):
         new_target_qf_values = algo.target_qf.get_param_values()
         new_target_policy_values = algo.target_policy.get_param_values()
 
-        self.assertTrue(are_np_array_lists_equal(
+        self.assertTrue(are_np_array_iterables_equal(
             old_policy_values,
             new_policy_values
         ))
-        self.assertFalse(are_np_array_lists_equal(
+        self.assertFalse(are_np_array_iterables_equal(
             old_qf_values,
             new_qf_values
         ))
-        self.assertFalse(are_np_array_lists_equal(
+        self.assertFalse(are_np_array_iterables_equal(
             old_qf_copy_values,
             new_qf_copy_values
         ))
-        self.assertTrue(are_np_array_lists_equal(
+        self.assertTrue(are_np_array_iterables_equal(
             old_target_policy_values,
             new_target_policy_values
         ))
-        self.assertTrue(are_np_array_lists_equal(
+        self.assertTrue(are_np_array_iterables_equal(
             old_target_qf_values,
             new_target_qf_values
         ))
@@ -646,23 +646,23 @@ class TestDDPG(TFTestCase):
         new_target_qf_values = algo.target_qf.get_param_values()
         new_target_policy_values = algo.target_policy.get_param_values()
 
-        self.assertFalse(are_np_array_lists_equal(
+        self.assertFalse(are_np_array_iterables_equal(
             old_policy_values,
             new_policy_values
         ))
-        self.assertTrue(are_np_array_lists_equal(
+        self.assertTrue(are_np_array_iterables_equal(
             old_qf_values,
             new_qf_values
         ))
-        self.assertTrue(are_np_array_lists_equal(
+        self.assertTrue(are_np_array_iterables_equal(
             old_qf_copy_values,
             new_qf_copy_values
         ))
-        self.assertTrue(are_np_array_lists_equal(
+        self.assertTrue(are_np_array_iterables_equal(
             old_target_policy_values,
             new_target_policy_values
         ))
-        self.assertTrue(are_np_array_lists_equal(
+        self.assertTrue(are_np_array_iterables_equal(
             old_target_qf_values,
             new_target_qf_values
         ))

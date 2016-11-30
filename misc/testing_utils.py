@@ -9,9 +9,15 @@ def is_binomial_trial_likely(n, p, num_success):
     return mean - margin < num_success < mean + margin
 
 
-def are_np_array_lists_equal(np_list1, np_list2, threshold=1e-5):
-    return all(are_np_arrays_equal(arr1, arr2, threshold=threshold)
-               for arr1, arr2 in zip( np_list1, np_list2))
+def are_np_array_iterables_equal(np_itr1, np_itr2, threshold=1e-5):
+    # in case generators were passed in
+    np_list1 = list(np_itr1)
+    np_list2 = list(np_itr2)
+    return (
+        len(np_list1) == len(np_list2) and
+        all(are_np_arrays_equal(arr1, arr2, threshold=threshold)
+            for arr1, arr2 in zip(np_list1, np_list2))
+    )
 
 
 def are_np_arrays_equal(arr1, arr2, threshold=1e-5):

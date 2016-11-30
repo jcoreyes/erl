@@ -5,7 +5,7 @@ from qfunctions.nn_qfunction import NNQFunction
 from rllab.core.serializable import Serializable
 
 
-class ActionConvexQFunction(NNQFunction):
+class ActionConcaveQFunction(NNQFunction):
     def __init__(
             self,
             name_or_scope,
@@ -59,7 +59,9 @@ class ActionConvexQFunction(NNQFunction):
                                 )
             self.action_input_scope_name = (
                 action_input_scope.original_name_scope)
-        return output
+        # return -output
+        # return - action_input
+        return action_input * action_input
 
     def get_action_params(self):
         return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,
