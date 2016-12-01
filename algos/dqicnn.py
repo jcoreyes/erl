@@ -80,7 +80,7 @@ class DQICNN(OnlineAlgorithm):
         self.qf_loss = tf.reduce_mean(
             tf.square(
                 tf.sub(self.ys, self.qf.output)))
-        self.Q_weights_norm = tf.reduce_sum(
+        self.qf_weights_norm = tf.reduce_sum(
             tf.pack(
                 [tf.nn.l2_loss(v)
                  for v in
@@ -89,14 +89,14 @@ class DQICNN(OnlineAlgorithm):
             name='weights_norm'
         )
         self.qf_total_loss = (
-            self.qf_loss + self.qf_weight_decay * self.Q_weights_norm)
+            self.qf_loss + self.qf_weight_decay * self.qf_weights_norm)
         self.train_qf_op = tf.train.AdamOptimizer(
             self.qf_learning_rate).minimize(
             self.qf_total_loss,
             var_list=self.qf.get_params_internal())
 
     def _init_target_ops(self):
-        qf_vars = self.qf.vf.get_params_internal()
+        qf_vars = self.qf.get_params_internal()
         target_qf_vars = self.target_qf.get_params_internal()
         assert len(qf_vars) == len(target_qf_vars)
 

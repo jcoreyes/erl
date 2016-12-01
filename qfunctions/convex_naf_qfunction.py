@@ -1,16 +1,13 @@
 import tensorflow as tf
 
 from policies.argmax_policy import ArgmaxPolicy
-from policies.nn_policy import FeedForwardPolicy
 from predictors.mlp_state_network import MlpStateNetwork
 from qfunctions.action_concave_qfunction import ActionConcaveQFunction
 from qfunctions.naf_qfunction import NAFQFunction
-from qfunctions.quadratic_qf import QuadraticQF
-from rllab.core.serializable import Serializable
 from rllab.misc.overrides import overrides
 
 
-class ConvexNAF(NAFQFunction):
+class ConcaveNAF(NAFQFunction):
     def __init__(
             self,
             name_or_scope,
@@ -48,17 +45,7 @@ class ConvexNAF(NAFQFunction):
             hidden_nonlinearity=tf.nn.relu,
             output_nonlinearity=tf.identity,
         )
-        with tf.Session() as sess:
-            # This is a bit ugly, but we need some session to copy the values
-            # over. The main session should initialize the values again
-            with sess.as_default():
-                self.sess.run(tf.initialize_variables(self.get_params()))
-                self._policy = ArgmaxPolicy(
-                    name_or_scope="argmax_policy",
-                    qfunction=self._af,
-                )
         return self._vf.output + self._af.output
-        # return self._af.output
 
         # TODO(vpong): subtract max_a A(a, s) to make the advantage function
         # equal the actual advantage function like so:
@@ -85,7 +72,7 @@ class ConvexNAF(NAFQFunction):
 
     @property
     def implicit_policy(self):
-        return self._policy
+        return self.advantage_function.implicit_policy
 
     @property
     def value_function(self):

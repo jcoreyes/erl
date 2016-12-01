@@ -3,7 +3,7 @@ import numpy as np
 
 from algos.convex_naf import ConvexNAFAlgorithm
 from misc.tf_test_case import TFTestCase
-from qfunctions.convex_naf_qfunction import ConvexNAF
+from qfunctions.convex_naf_qfunction import ConcaveNAF
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.exploration_strategies.ou_strategy import OUStrategy
 from sandbox.rocky.tf.envs.base import TfEnv
@@ -16,7 +16,7 @@ class TestConvexNAF(TFTestCase):
         self.es = OUStrategy(env_spec=self.env.spec)
 
     def test_af_observation_inputs_same(self):
-        qf = ConvexNAF(
+        qf = ConcaveNAF(
             name_or_scope="qf",
             env_spec=self.env.spec,
         )
@@ -34,7 +34,7 @@ class TestConvexNAF(TFTestCase):
         # self.assertEqual(af2.observation_input, af1.observation_input)
 
     def test_af_outputs_same(self):
-        qf = ConvexNAF(
+        qf = ConcaveNAF(
             name_or_scope="qf",
             env_spec=self.env.spec,
         )
@@ -52,7 +52,7 @@ class TestConvexNAF(TFTestCase):
         # self.assertParamsEqual(af1, af2)
 
     def test_af_W_weights_nonnegative(self):
-        qf = ConvexNAF(
+        qf = ConcaveNAF(
             name_or_scope="qf",
             env_spec=self.env.spec,
         )
@@ -74,7 +74,7 @@ class TestConvexNAF(TFTestCase):
             self.assertTrue(np.min(param) >= 0.)
 
     def test_af_b_weights_can_be_negatative(self):
-        qf = ConvexNAF(
+        qf = ConcaveNAF(
             name_or_scope="qf",
             env_spec=self.env.spec,
         )

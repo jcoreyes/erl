@@ -1,11 +1,12 @@
 import tensorflow as tf
 
 from core.tf_util import mlp, linear, he_uniform_initializer
+from policies.argmax_policy import ArgmaxPolicy
 from qfunctions.nn_qfunction import NNQFunction
-from rllab.core.serializable import Serializable
+from qfunctions.optimizable_q_function import OptimizableQFunction
 
 
-class ActionConcaveQFunction(NNQFunction):
+class ActionConcaveQFunction(NNQFunction, OptimizableQFunction):
     def __init__(
             self,
             name_or_scope,
@@ -28,6 +29,7 @@ class ActionConcaveQFunction(NNQFunction):
         self.embedded_hidden_sizes = embedded_hidden_sizes
         self.observation_hidden_sizes = observation_hidden_sizes
         self.hidden_nonlinearity = hidden_nonlinearity
+        self._policy = None
         super().__init__(name_or_scope=name_or_scope, **kwargs)
 
     def _create_network(self, observation_input, action_input):
@@ -71,3 +73,14 @@ class ActionConcaveQFunction(NNQFunction):
                     tf.GraphKeys.TRAINABLE_VARIABLES,
                     self.action_input_scope_name)
                 if 'bias' not in param.name]
+
+    @property
+    def implicit_policy(self):
+        if self._policy is None:
+            with self.sess.as_default():
+                self.sess.run(tf.initialize_variables(self.get_params()))
+                self._policy = ArgmaxPolicy(
+                    name_or_scope="argmax_policy",
+                    qfunction=self,
+                )
+        return self._policy

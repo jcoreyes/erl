@@ -35,6 +35,7 @@ MIN_POOL_SIZE = 100
 SCALE_REWARD = 1.0
 QF_WEIGHT_DECAY = 0.0
 MAX_PATH_LENGTH = 1000
+N_UPDATES_PER_TIME_STEP = 5
 # BATCH_SIZE = 64
 # N_EPOCHS = 100
 # EPOCH_LENGTH = 100
@@ -238,8 +239,8 @@ def get_my_naf_params():
         min_pool_size=MIN_POOL_SIZE,
         scale_reward=SCALE_REWARD,
         max_path_length=MAX_PATH_LENGTH,
-        Q_weight_decay=QF_WEIGHT_DECAY,
-        n_updates_per_time_step=5,
+        qf_weight_decay=QF_WEIGHT_DECAY,
+        n_updates_per_time_step=N_UPDATES_PER_TIME_STEP,
     )
 
 
