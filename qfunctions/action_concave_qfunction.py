@@ -2,8 +2,10 @@ import tensorflow as tf
 
 from core.tf_util import mlp, linear, he_uniform_initializer
 from policies.argmax_policy import ArgmaxPolicy
+from policies.nn_policy import FeedForwardPolicy
 from qfunctions.nn_qfunction import NNQFunction
 from qfunctions.optimizable_q_function import OptimizableQFunction
+from qfunctions.quadratic_qf import QuadraticQF
 
 
 class ActionConcaveQFunction(NNQFunction, OptimizableQFunction):
@@ -16,7 +18,6 @@ class ActionConcaveQFunction(NNQFunction, OptimizableQFunction):
             output_b_init=None,
             embedded_hidden_sizes=(20, 20, 20),
             observation_hidden_sizes=(100, 100),
-            hidden_nonlinearity=tf.nn.relu,
             **kwargs
     ):
         self.setup_serialization(locals())
@@ -28,7 +29,7 @@ class ActionConcaveQFunction(NNQFunction, OptimizableQFunction):
             -3e-3, 3e-3)
         self.embedded_hidden_sizes = embedded_hidden_sizes
         self.observation_hidden_sizes = observation_hidden_sizes
-        self.hidden_nonlinearity = hidden_nonlinearity
+        self.hidden_nonlinearity = tf.nn.relu
         self._policy = None
         super().__init__(name_or_scope=name_or_scope, **kwargs)
 
@@ -62,6 +63,28 @@ class ActionConcaveQFunction(NNQFunction, OptimizableQFunction):
             self.action_input_scope_name = (
                 action_input_scope.original_name_scope)
         return -output
+        # self.quad_policy = FeedForwardPolicy(
+        #     name_or_scope="mu",
+        #     action_dim=self.action_dim,
+        #     observation_dim=self.observation_dim,
+        #     observation_input=observation_input,
+        #     observation_hidden_sizes=(200, 200),
+        #     hidden_W_init=None,
+        #     hidden_b_init=None,
+        #     output_W_init=None,
+        #     output_b_init=None,
+        #     hidden_nonlinearity=tf.nn.relu,
+        #     output_nonlinearity=tf.nn.tanh,
+        # )
+        # self._af = QuadraticQF(
+        #     name_or_scope="advantage_function",
+        #     action_input=action_input,
+        #     observation_input=observation_input,
+        #     action_dim=self.action_dim,
+        #     observation_dim=self.observation_dim,
+        #     policy=self.quad_policy,
+        # )
+        # return self._af.output
 
     def get_action_W_params(self):
         """

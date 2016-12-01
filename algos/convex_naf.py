@@ -43,6 +43,7 @@ class ConvexNAFAlgorithm(NAF):
                                            next_obs)
 
         # Compute statistics
+        policy_output = [self.policy.get_action(o)[0] for o in obs]
         (
             qf_loss,
             qf_output,
@@ -76,7 +77,6 @@ class ConvexNAFAlgorithm(NAF):
         last_statistics.update(create_stats_ordered_dict('Returns', returns))
         last_statistics.update(create_stats_ordered_dict('DiscountedReturns',
                                                          discounted_returns))
-        policy_output = [self.policy.get_action(o)[0] for o in obs]
         last_statistics.update(create_stats_ordered_dict('PolicyOutput',
                                                          policy_output))
         if len(es_path_returns) > 0:
@@ -92,7 +92,7 @@ class ConvexNAFAlgorithm(NAF):
     #     feed_dict = super()._update_feed_dict(rewards, terminals, obs,
     #                                           actions, next_obs)
     #     current_policy_actions = np.vstack(
-    #         [self._policy.get_action(o)[0] for o in obs]
+    #         [self.policy.get_action(o)[0] for o in obs]
     #     )
     #     feed_dict[self.qf.policy_output_placeholder] = current_policy_actions
     #     return feed_dict
@@ -100,4 +100,4 @@ class ConvexNAFAlgorithm(NAF):
     @overrides
     def _do_training(self):
         super()._do_training()
-        self.sess.run(self._clip_weight_ops)
+        # self.sess.run(self._clip_weight_ops)

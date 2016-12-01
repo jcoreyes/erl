@@ -21,10 +21,12 @@ from rllab.envs.mujoco.inverted_double_pendulum_env import (
 from rllab.envs.normalized_env import normalize
 from rllab.misc.instrument import stub
 
-BATCH_SIZE = 32
+BATCH_SIZE = 128
 N_EPOCHS = 100
-EPOCH_LENGTH = int(10000 / 64)
-EVAL_SAMPLES = int(10000 / 64)
+# EPOCH_LENGTH = int(10000 / 64)
+# EVAL_SAMPLES = int(10000 / 64)
+EPOCH_LENGTH = 10000
+EVAL_SAMPLES = 10000
 DISCOUNT = 0.99
 QF_LEARNING_RATE = 1e-3
 POLICY_LEARNING_RATE = 1e-4

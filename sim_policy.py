@@ -22,8 +22,8 @@ if __name__ == "__main__":
 
     with tf.Session() as sess:
         data = joblib.load(args.file)
-        if '_policy' in data:
-            policy = data['_policy']
+        if 'policy' in data:
+            policy = data['policy']
         else:
             qf = data['optimizable_qfunction']
             policy = qf.implicit_policy

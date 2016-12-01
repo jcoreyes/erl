@@ -67,6 +67,7 @@ class DQICNN(OnlineAlgorithm):
         )
         self.qf.sess = self.sess
         self.policy = self.qf.implicit_policy
+        self.target_policy = self.target_qf.implicit_policy
         self.target_qf.sess = self.sess
         self._init_qf_ops()
         self._init_target_ops()
@@ -118,7 +119,7 @@ class DQICNN(OnlineAlgorithm):
     @overrides
     def _update_feed_dict(self, rewards, terminals, obs, actions, next_obs):
         target_actions = np.vstack(
-            [self.policy.get_action(o)[0] for o in obs]
+            [self.target_policy.get_action(o)[0] for o in obs]
         )
         return {
             self.rewards_placeholder: np.expand_dims(rewards, axis=1),
@@ -142,17 +143,16 @@ class DQICNN(OnlineAlgorithm):
                                            next_obs)
 
         target_actions = feed_dict[self.target_action_placeholder]
+        policy_output = [self.policy.get_action(o)[0] for o in obs]
         # Compute statistics
         (
             qf_loss,
-            policy_output,
             qf_output,
             target_qf_output,
             ys,
         ) = self.sess.run(
             [
                 self.qf_loss,
-                self.policy.output,
                 self.qf.output,
                 self.target_qf.output,
                 self.ys,

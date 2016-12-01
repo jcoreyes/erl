@@ -96,3 +96,8 @@ class ArgmaxPolicy(NeuralNetwork, Policy, Serializable):
             # print("af_score = {0}".format(af_score))
         action = self.sess.run(self.clipped_action)
         return action, {}
+
+    @overrides
+    @property
+    def output(self):
+        raise Exception("{0} has no output".format(type(self)))

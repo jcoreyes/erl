@@ -4,6 +4,7 @@ from algos.convex_naf import ConvexNAFAlgorithm
 from algos.ddpg import DDPG as MyDDPG
 from algos.dqicnn import DQICNN
 from algos.naf import NAF
+from qfunctions.action_concave_qfunction import ActionConcaveQFunction
 from rllab.algos.ddpg import DDPG as RllabDDPG
 from algos.noop_algo import NoOpAlgo
 from policies.nn_policy import FeedForwardPolicy
@@ -123,7 +124,7 @@ def test_convex_naf(env, exp_prefix, env_name, seed=1, **naf_params):
 
 def test_dqicnn(env, exp_prefix, env_name, seed=1, **naf_params):
     es = GaussianStrategy(env)
-    qf = ConcaveNAF(
+    qf = ActionConcaveQFunction(
         name_or_scope="qf",
         env_spec=env.spec,
     )
