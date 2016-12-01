@@ -30,7 +30,7 @@ class DDPG(OnlineAlgorithm):
             qf,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
-            Q_weight_decay=0.,
+            qf_weight_decay=0.,
             **kwargs
     ):
         """
@@ -40,13 +40,13 @@ class DDPG(OnlineAlgorithm):
         :param qf: QFunctions that is Serializable
         :param qf_learning_rate: Learning rate of the qf
         :param policy_learning_rate: Learning rate of the _policy
-        :param Q_weight_decay: How much to decay the weights for Q
+        :param qf_weight_decay: How much to decay the weights for Q
         :return:
         """
         self.qf = qf
         self.qf_learning_rate = qf_learning_rate
         self.policy_learning_rate = policy_learning_rate
-        self.Q_weight_decay = Q_weight_decay
+        self.qf_weight_decay = qf_weight_decay
 
         super().__init__(env, policy, exploration_strategy, **kwargs)
 
@@ -87,7 +87,7 @@ class DDPG(OnlineAlgorithm):
             name='weights_norm'
         )
         self.qf_total_loss = (
-            self.qf_loss + self.Q_weight_decay * self.Q_weights_norm)
+            self.qf_loss + self.qf_weight_decay * self.Q_weights_norm)
         self.train_qf_op = tf.train.AdamOptimizer(
             self.qf_learning_rate).minimize(
             self.qf_total_loss,

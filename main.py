@@ -5,11 +5,11 @@ from algo_launchers import (
     test_my_ddpg,
     test_my_naf,
     test_convex_naf,
-    test_random_ddpg,
+    test_random,
     test_shane_ddpg,
     test_rllab_vpg,
     test_rllab_trpo,
-)
+    test_rllab_ddpg, test_dqicnn)
 from misc import hyperparameter as hp
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.envs.gym_env import GymEnv
@@ -21,28 +21,28 @@ from rllab.envs.mujoco.inverted_double_pendulum_env import (
 from rllab.envs.normalized_env import normalize
 from rllab.misc.instrument import stub
 
-BATCH_SIZE = 2048
+BATCH_SIZE = 32
 N_EPOCHS = 100
-EPOCH_LENGTH = 10000
-EVAL_SAMPLES = 10000
+EPOCH_LENGTH = int(10000 / 64)
+EVAL_SAMPLES = int(10000 / 64)
 DISCOUNT = 0.99
-CRITIC_LEARNING_RATE = 1e-3
-ACTOR_LEARNING_RATE = 1e-4
+QF_LEARNING_RATE = 1e-3
+POLICY_LEARNING_RATE = 1e-4
 BATCH_LEARNING_RATE = 1e-2
 SOFT_TARGET_TAU = 1e-2
 REPLAY_POOL_SIZE = 1000000
 MIN_POOL_SIZE = 100
 SCALE_REWARD = 1.0
-Q_WEIGHT_DECAY = 0.0
+QF_WEIGHT_DECAY = 0.0
 MAX_PATH_LENGTH = 1000
 # BATCH_SIZE = 64
 # N_EPOCHS = 100
 # EPOCH_LENGTH = 100
 # EVAL_SAMPLES = 100
-# CRITIC_LEARNING_RATE = 3e-7
+# QF_LEARNING_RATE = 3e-7
 # SOFT_TARGET_TAU = 0.01
 # SCALE_REWARD = 0.425
-# Q_WEIGHT_DECAY = 1e-5
+# QF_WEIGHT_DECAY = 1e-5
 
 # Sweep settings
 SWEEP_N_EPOCHS = 50
@@ -114,16 +114,16 @@ def get_algo_settings(algo_name, render=False):
         sweeper = hp.HyperparameterSweeper([
             hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
             hp.LogFloatParam("scale_reward", 10.0, 0.01),
-            hp.LogFloatParam("Q_weight_decay", 1e-7, 1e-1),
+            hp.LogFloatParam("qf_weight_decay", 1e-7, 1e-1),
         ])
-        params = get_my_ddpg_params()
+        params = get_ddpg_params()
         params['render'] = render
         test_function = test_my_ddpg
     elif algo_name == 'shane-ddpg':
         sweeper = hp.HyperparameterSweeper([
             hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
             hp.LogFloatParam("scale_reward", 10.0, 0.01),
-            hp.LogFloatParam("Q_weight_decay", 1e-7, 1e-1),
+            hp.LogFloatParam("qf_weight_decay", 1e-7, 1e-1),
         ])
         params = get_ddpg_params()
         if params['min_pool_size'] <= params['batch_size']:
@@ -136,7 +136,7 @@ def get_algo_settings(algo_name, render=False):
             hp.FixedParam("eval_samples", 100),
             hp.FixedParam("min_pool_size", 100),
             hp.LogFloatParam("qf_learning_rate", 1e-7, 1e-1),
-            hp.LogFloatParam("Q_weight_decay", 1e-6, 1e-1),
+            hp.LogFloatParam("qf_weight_decay", 1e-6, 1e-1),
             hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
             hp.LogFloatParam("scale_reward", 10.0, 0.01),
         ])
@@ -148,14 +148,28 @@ def get_algo_settings(algo_name, render=False):
             hp.LogFloatParam("qf_learning_rate", 1e-6, 1e-2),
             hp.LogFloatParam("scale_reward", 10.0, 0.01),
             hp.LogFloatParam("soft_target_tau", 0.001, 0.1),
-            hp.LogFloatParam("Q_weight_decay", 1e-6, 1e-1),
+            hp.LogFloatParam("qf_weight_decay", 1e-6, 1e-1),
             hp.LinearIntParam("n_updates_per_time_step", 1, 10),
         ])
         params = get_my_naf_params()
         params['render'] = render
         test_function = test_my_naf
+    elif algo_name == 'dqicnn':
+        test_function = test_dqicnn
+        sweeper = hp.HyperparameterSweeper([
+            hp.FixedParam("n_epochs", 25),
+            hp.FixedParam("epoch_length", 100),
+            hp.FixedParam("eval_samples", 100),
+            hp.FixedParam("min_pool_size", 100),
+            hp.LogFloatParam("qf_learning_rate", 1e-7, 1e-1),
+            hp.LogFloatParam("qf_weight_decay", 1e-6, 1e-1),
+            hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
+            hp.LogFloatParam("scale_reward", 10.0, 0.01),
+        ])
+        params = get_my_naf_params()
+        params['render'] = render
     elif algo_name == 'random':
-        test_function = test_random_ddpg
+        test_function = test_random
     elif algo_name == 'rl-vpg':
         test_function = test_rllab_vpg
         params = dict(
@@ -178,6 +192,11 @@ def get_algo_settings(algo_name, render=False):
             discount=DISCOUNT,
             step_size=BATCH_LEARNING_RATE,
         )
+    elif algo_name == 'rl-ddpg':
+        test_function = test_rllab_ddpg
+        params = get_ddpg_params()
+        if params['min_pool_size'] <= params['batch_size']:
+            params['min_pool_size'] = params['batch_size'] + 1
     else:
         raise Exception("Algo name not recognized: " + algo_name)
 
@@ -195,20 +214,15 @@ def get_ddpg_params():
         epoch_length=EPOCH_LENGTH,
         eval_samples=EVAL_SAMPLES,
         discount=DISCOUNT,
-        policy_learning_rate=ACTOR_LEARNING_RATE,
-        qf_learning_rate=CRITIC_LEARNING_RATE,
+        policy_learning_rate=POLICY_LEARNING_RATE,
+        qf_learning_rate=QF_LEARNING_RATE,
         soft_target_tau=SOFT_TARGET_TAU,
         replay_pool_size=REPLAY_POOL_SIZE,
         min_pool_size=MIN_POOL_SIZE,
         scale_reward=SCALE_REWARD,
         max_path_length=MAX_PATH_LENGTH,
+        qf_weight_decay=QF_WEIGHT_DECAY,
     )
-
-
-def get_my_ddpg_params():
-    params = get_ddpg_params()
-    params['Q_weight_decay'] = Q_WEIGHT_DECAY
-    return params
 
 
 def get_my_naf_params():
@@ -218,13 +232,13 @@ def get_my_naf_params():
         epoch_length=EPOCH_LENGTH,
         eval_samples=EVAL_SAMPLES,
         discount=DISCOUNT,
-        qf_learning_rate=CRITIC_LEARNING_RATE,
+        qf_learning_rate=QF_LEARNING_RATE,
         soft_target_tau=SOFT_TARGET_TAU,
         replay_pool_size=REPLAY_POOL_SIZE,
         min_pool_size=MIN_POOL_SIZE,
         scale_reward=SCALE_REWARD,
         max_path_length=MAX_PATH_LENGTH,
-        Q_weight_decay=Q_WEIGHT_DECAY,
+        Q_weight_decay=QF_WEIGHT_DECAY,
         n_updates_per_time_step=5,
     )
 
@@ -279,7 +293,7 @@ def main():
     env_choices = ['ant', 'cheetah', 'cart', 'point', 'pt', 'reacher',
                    'idp', 'gym']
     algo_choices = ['ddpg', 'naf', 'shane-ddpg', 'random', 'cnaf', 'rl-vpg',
-                    'rl-trpo']
+                    'rl-trpo', 'rl-ddpg', 'dqicnn']
     parser = argparse.ArgumentParser()
     parser.add_argument("--benchmark", action='store_true',
                         help="Run benchmarks.")

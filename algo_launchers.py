@@ -2,7 +2,9 @@ import tensorflow as tf
 
 from algos.convex_naf import ConvexNAFAlgorithm
 from algos.ddpg import DDPG as MyDDPG
+from algos.dqicnn import DQICNN
 from algos.naf import NAF
+from rllab.algos.ddpg import DDPG as RllabDDPG
 from algos.noop_algo import NoOpAlgo
 from policies.nn_policy import FeedForwardPolicy
 from qfunctions.convex_naf_qfunction import ConvexNAF
@@ -17,12 +19,24 @@ from sandbox.rocky.tf.algos.ddpg import DDPG as ShaneDDPG
 from sandbox.rocky.tf.algos.vpg import VPG
 from sandbox.rocky.tf.algos.trpo import TRPO
 from sandbox.rocky.tf.envs.base import TfEnv
-from sandbox.rocky.tf.policies.deterministic_mlp_policy import \
+from sandbox.rocky.tf.policies.deterministic_mlp_policy import (
     DeterministicMLPPolicy
+)
 from sandbox.rocky.tf.policies.gaussian_mlp_policy import GaussianMLPPolicy
-from sandbox.rocky.tf.q_functions.continuous_mlp_q_function import \
+from sandbox.rocky.tf.q_functions.continuous_mlp_q_function import (
     ContinuousMLPQFunction
+)
+from rllab.q_functions.continuous_mlp_q_function import (
+    ContinuousMLPQFunction as TheanoContinuousMLPQFunction
+)
+from rllab.policies.deterministic_mlp_policy import (
+    DeterministicMLPPolicy as TheanoDeterministicMLPPolicy
+)
 
+
+#################
+# my algorithms #
+#################
 
 def test_my_ddpg(env, exp_prefix, env_name, seed=1, **ddpg_params):
     es = OUStrategy(env_spec=env.spec)
@@ -62,9 +76,8 @@ def test_my_ddpg(env, exp_prefix, env_name, seed=1, **ddpg_params):
         **ddpg_params
     )
     variant = ddpg_params
-    variant['Version'] = 'Mine'
     variant['Environment'] = env_name
-    variant['Algo'] = 'DDPG'
+    variant['Algorithm'] = 'DDPG'
     for qf_key, qf_value in qf_params.items():
         variant['qf_' + qf_key] = str(qf_value)
     for policy_key, policy_value in policy_params.items():
@@ -85,9 +98,8 @@ def test_my_naf(env, exp_prefix, env_name, seed=1, **naf_params):
         **naf_params
     )
     variant = naf_params
-    variant['Version'] = 'Mine'
     variant['Environment'] = env_name
-    variant['Algo'] = 'NAF'
+    variant['Algorithm'] = 'NAF'
     run_experiment(algorithm, exp_prefix, seed, variant)
 
 
@@ -104,12 +116,32 @@ def test_convex_naf(env, exp_prefix, env_name, seed=1, **naf_params):
         **naf_params
     )
     variant = naf_params
-    variant['Version'] = 'Mine'
     variant['Environment'] = env_name
-    variant['Algo'] = 'ConvexNAF'
+    variant['Algorithm'] = 'ConvexNAF'
     run_experiment(algorithm, exp_prefix, seed, variant)
 
 
+def test_dqicnn(env, exp_prefix, env_name, seed=1, **naf_params):
+    es = GaussianStrategy(env)
+    qf = ConvexNAF(
+        name_or_scope="qf",
+        env_spec=env.spec,
+    )
+    algorithm = DQICNN(
+        env,
+        es,
+        qf,
+        **naf_params
+    )
+    variant = naf_params
+    variant['Environment'] = env_name
+    variant['Algorithm'] = 'DQICNN'
+    run_experiment(algorithm, exp_prefix, seed, variant)
+
+
+####################
+# other algorithms #
+####################
 def test_shane_ddpg(env_, exp_prefix, env_name, seed=1, **ddpg_params):
     env = TfEnv(env_)
     es = GaussianStrategy(env.spec)
@@ -142,8 +174,7 @@ def test_shane_ddpg(env_, exp_prefix, env_name, seed=1, **ddpg_params):
     )
 
     variant = ddpg_params
-    variant['Version'] = 'Shane'
-    variant['Algo'] = 'shane-ddpg'
+    variant['Algorithm'] = 'Shane-DDPG'
     variant['Environment'] = env_name
     for qf_key, qf_value in qf_params.items():
         variant['qf_' + qf_key] = str(qf_value)
@@ -170,9 +201,8 @@ def test_rllab_vpg(env_, exp_prefix, env_name, seed=1, **algo_params):
         **algo_params
     )
     variant = algo_params
-    variant['Version'] = 'rllab'
     variant['Environment'] = env_name
-    variant['Algo'] = 'vpg'
+    variant['Algorithm'] = 'rllab-VPG'
     run_experiment(algorithm, exp_prefix, seed, variant=variant)
 
 
@@ -193,13 +223,35 @@ def test_rllab_trpo(env_, exp_prefix, env_name, seed=1, **algo_params):
         **algo_params
     )
     variant = algo_params
-    variant['Version'] = 'rllab'
     variant['Environment'] = env_name
-    variant['Algo'] = 'trpo'
+    variant['Algorithm'] = 'rllab-TRPO'
     run_experiment(algorithm, exp_prefix, seed, variant=variant)
 
 
-def test_random_ddpg(env, exp_prefix, env_name, seed=1, **algo_params):
+def test_rllab_ddpg(env, exp_prefix, env_name, seed=1, **algo_params):
+    policy = TheanoDeterministicMLPPolicy(
+        env_spec=env.spec,
+        hidden_sizes=(32, 32)
+    )
+
+    es = OUStrategy(env_spec=env.spec)
+
+    qf = TheanoContinuousMLPQFunction(env_spec=env.spec)
+
+    algorithm = RllabDDPG(
+        env=env,
+        policy=policy,
+        es=es,
+        qf=qf,
+        **algo_params,
+    )
+    variant = algo_params
+    variant['Environment'] = env_name
+    variant['Algorithm'] = 'rllab-DDPG'
+    run_experiment(algorithm, exp_prefix, seed, variant=variant)
+
+
+def test_random(env, exp_prefix, env_name, seed=1, **algo_params):
     es = OUStrategy(env)
     policy = UniformControlPolicy(env_spec=env.spec)
     algorithm = NoOpAlgo(
@@ -207,7 +259,9 @@ def test_random_ddpg(env, exp_prefix, env_name, seed=1, **algo_params):
         policy,
         es,
         **algo_params)
-    variant = {'Version': 'Random', 'Environment': env_name}
+    variant = algo_params
+    variant['Environment'] = env_name
+    variant['Algorithm'] = 'Random'
 
     run_experiment(algorithm, exp_prefix, seed, variant=variant)
 
@@ -224,4 +278,6 @@ def run_experiment(algorithm, exp_prefix, seed, variant):
         variant=variant,
         seed=seed,
     )
+
+
 stub(globals())

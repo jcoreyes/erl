@@ -28,7 +28,7 @@ class DQICNN(OnlineAlgorithm):
             exploration_strategy,
             action_convex_qfunction,
             qf_learning_rate=1e-3,
-            Q_weight_decay=0.,
+            qf_weight_decay=0.,
             **kwargs
     ):
         """
@@ -36,12 +36,12 @@ class DQICNN(OnlineAlgorithm):
         :param exploration_strategy: ExplorationStrategy
         :param action_convex_qfunction: A NAFQFunction
         :param qf_learning_rate: Learning rate of the qf
-        :param Q_weight_decay: How much to decay the weights for Q
+        :param qf_weight_decay: How much to decay the weights for Q
         :return:
         """
         self.qf = action_convex_qfunction
         self.qf_learning_rate = qf_learning_rate
-        self.Q_weight_decay = Q_weight_decay
+        self.qf_weight_decay = qf_weight_decay
 
         super().__init__(
             env,
@@ -89,7 +89,7 @@ class DQICNN(OnlineAlgorithm):
             name='weights_norm'
         )
         self.qf_total_loss = (
-            self.qf_loss + self.Q_weight_decay * self.Q_weights_norm)
+            self.qf_loss + self.qf_weight_decay * self.Q_weights_norm)
         self.train_qf_op = tf.train.AdamOptimizer(
             self.qf_learning_rate).minimize(
             self.qf_total_loss,
