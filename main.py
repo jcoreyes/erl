@@ -23,10 +23,10 @@ from rllab.misc.instrument import stub
 
 BATCH_SIZE = 128
 N_EPOCHS = 100
-# EPOCH_LENGTH = int(10000 / 64)
-# EVAL_SAMPLES = int(10000 / 64)
-EPOCH_LENGTH = 10000
-EVAL_SAMPLES = 10000
+EPOCH_LENGTH = int(10000 / 64)
+EVAL_SAMPLES = int(10000 / 64)
+# EPOCH_LENGTH = 10000
+# EVAL_SAMPLES = 10000
 DISCOUNT = 0.99
 QF_LEARNING_RATE = 1e-3
 POLICY_LEARNING_RATE = 1e-4
@@ -314,7 +314,7 @@ def main():
     parser.add_argument("--fast", action='store_true',
                         help=('Run a quick experiment. Intended for debugging. '
                               'Overrides sweep settings'))
-    parser.add_argument("--normalize", action='store_true',
+    parser.add_argument("--nonorm", action='store_true',
                         help="Normalize the environment")
     parser.add_argument("--algo", default='ddpg',
                         help='Algo',
@@ -323,6 +323,7 @@ def main():
                         type=int,
                         help='Seed')
     args = parser.parse_args()
+    args.normalize = not args.nonorm
 
     global N_EPOCHS, EPOCH_LENGTH, EVAL_SAMPLES, MIN_POOL_SIZE
     if args.sweep:
