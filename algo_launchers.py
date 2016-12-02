@@ -105,7 +105,9 @@ def test_my_naf(env, exp_prefix, env_name, seed=1, **naf_params):
 
 
 def test_convex_naf(env, exp_prefix, env_name, seed=1, **naf_params):
-    es = GaussianStrategy(env)
+    # The ICNN paper uses the OU strategy
+    # es = GaussianStrategy(env)
+    es = OUStrategy(env_spec=env.spec)
     qf = ConcaveNAF(
         name_or_scope="qf",
         env_spec=env.spec,
@@ -244,7 +246,7 @@ def test_rllab_ddpg(env, exp_prefix, env_name, seed=1, **algo_params):
         policy=policy,
         es=es,
         qf=qf,
-        **algo_params,
+        **algo_params
     )
     variant = algo_params
     variant['Environment'] = env_name
