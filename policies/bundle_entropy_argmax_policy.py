@@ -21,7 +21,7 @@ class BundleEntropyArgmaxPolicy(Policy, Serializable):
            "Input Convex Neural Networks." arXiv preprint arXiv:1609.07152 (2016).
     """
 
-    def __init__(self, qfunction, action_dim, sess, n_update_steps=5, *args,
+    def __init__(self, qfunction, action_dim, sess, n_update_steps=10, *args,
                  **kwargs):
         """
 
@@ -37,8 +37,9 @@ class BundleEntropyArgmaxPolicy(Policy, Serializable):
         self.action_dim = qfunction.action_dim
         self.sess = sess
         self.n_update_steps = n_update_steps
-        self.qfunction_dout_daction = tf.gradients(
-            qfunction.output,
+        self.loss = -qfunction.output
+        self.dloss_daction = tf.gradients(
+            self.loss,
             qfunction.action_input,
         )[0]
 
@@ -53,17 +54,19 @@ class BundleEntropyArgmaxPolicy(Policy, Serializable):
         batch_size = observation.shape[0]
 
         def q_value_and_gradient(action_proposed):
+            assert np.max(action_proposed) <= 1.
+            assert np.min(action_proposed) >= -1.
             value, grad = self.sess.run(
                 [
-                    self.qfunction.output,
-                    self.qfunction_dout_daction,
+                    self.loss,
+                    self.dloss_daction,
                 ],
                 feed_dict={
-                    self.qfunction.action_input: 2 * action_proposed - 1,
+                    self.qfunction.action_input: action_proposed,
                     self.qfunction.observation_input: observation,
                 }
             )
-            value = np.squeeze(value, 1) # make the shape = (batchsize,)
+            value = np.squeeze(value, 1)  # make the shape = (batchsize,)
             grad *= 2  # Since the action is multiplied by two
             return value, grad
 
