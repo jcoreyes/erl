@@ -28,7 +28,15 @@ class ConvexNAFAlgorithm(NAF):
 
     @overrides
     def _get_training_ops(self):
-        return [self.train_qf_op, self.update_target_vf_op]
+        return [
+            [
+                self.train_qf_op,
+                self.update_target_vf_op,
+            ],
+            [
+                self._clip_weight_ops,
+            ]
+        ]
 
     @overrides
     def evaluate(self, epoch, es_path_returns):
@@ -96,8 +104,3 @@ class ConvexNAFAlgorithm(NAF):
     #     )
     #     feed_dict[self.qf.policy_output_placeholder] = current_policy_actions
     #     return feed_dict
-
-    @overrides
-    def _do_training(self):
-        super()._do_training()
-        # self.sess.run(self._clip_weight_ops)

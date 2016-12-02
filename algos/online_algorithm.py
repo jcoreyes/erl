@@ -186,7 +186,13 @@ class OnlineAlgorithm(RLAlgorithm):
                                            sampled_obs,
                                            sampled_actions,
                                            sampled_next_obs)
-        self.sess.run(self._get_training_ops(), feed_dict=feed_dict)
+        # self.sess.run(self._get_training_ops(), feed_dict=feed_dict)
+        ops = self._get_training_ops()
+        if isinstance(ops[0], list):
+            for op in ops:
+                self.sess.run(op, feed_dict=feed_dict)
+        else:
+            self.sess.run(ops, feed_dict=feed_dict)
 
     def get_epoch_snapshot(self, epoch):
         return dict(
@@ -220,7 +226,9 @@ class OnlineAlgorithm(RLAlgorithm):
     @abc.abstractmethod
     def _get_training_ops(self):
         """
-        :return: List of ops to perform when training
+        :return: List of ops to perform when training. If a list of list is
+        provided, each list is executed in order with separate calls to
+        sess.run.
         """
         return
 
