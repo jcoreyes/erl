@@ -107,7 +107,7 @@ def test_my_naf(env, exp_prefix, env_name, seed=1, **naf_params):
 def test_convex_naf(env, exp_prefix, env_name, seed=1, **naf_params):
     # The ICNN paper uses the OU strategy
     # es = GaussianStrategy(env)
-    es = OUStrategy(env_spec=env.spec)
+    es = OUStrategy(env_spec=env.spec, sigma=0.1)
     qf = ConcaveNAF(
         name_or_scope="qf",
         env_spec=env.spec,
