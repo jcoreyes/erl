@@ -86,6 +86,29 @@ def proj_newton_logistic(A,b,lam0=None, line_search=True):
     return lam
 
 def solveBatch(fg, initXs, nIter=5, callback=None):
+    """
+    Warning: Comments are made by Vitchyr. I'm not sure if this is the
+    correct interpretation.
+
+    Note that fg should take a batch of x inputs. So initXs should be of
+    shape (BATCH_SIZE, VAR_DIM).
+
+    :param fg: fg(x) returns (value, gradient w.r.t. x)
+        value shape: (BATCH_SIZE,)
+        gradient shape: (BATCH_SIZE, VAR_DIM)
+    :param initXs: initial x seed, shape (BATCH_SIZE, VAR_DIM)
+    :param nIter: number of iterations
+    :param callback: At each iteration, callback(t, fi) is called, where fi
+    is the current value and t is the time
+    :return: tuple (x, A, b, lam, xs, nIters)
+        x = value
+        A = gradients??
+        b = ?
+        lam = lambdas??
+        xs = xs chosen during optimization
+        nIters = the total number of iterations taken (one is taken per
+        sample in the batch)
+    """
     bsize = initXs.shape[0]
     A = [[] for i in range(bsize)]
     b = [[] for i in range(bsize)]

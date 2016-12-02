@@ -2,6 +2,7 @@ import tensorflow as tf
 
 from core.tf_util import mlp, linear, he_uniform_initializer
 from policies.argmax_policy import ArgmaxPolicy
+from policies.bundle_entropy_argmax_policy import BundleEntropyArgmaxPolicy
 from policies.nn_policy import FeedForwardPolicy
 from qfunctions.nn_qfunction import NNQFunction
 from qfunctions.optimizable_q_function import OptimizableQFunction
@@ -16,8 +17,9 @@ class ActionConcaveQFunction(NNQFunction, OptimizableQFunction):
             hidden_b_init=None,
             output_W_init=None,
             output_b_init=None,
-            embedded_hidden_sizes=(20, 20, 20),
-            observation_hidden_sizes=(100, 100),
+            embedded_hidden_sizes=(200, 200),
+            observation_hidden_sizes=(200, 200),
+            optimizer_type='bundle_entropy',
             **kwargs
     ):
         self.setup_serialization(locals())
@@ -29,6 +31,7 @@ class ActionConcaveQFunction(NNQFunction, OptimizableQFunction):
             -3e-3, 3e-3)
         self.embedded_hidden_sizes = embedded_hidden_sizes
         self.observation_hidden_sizes = observation_hidden_sizes
+        self.optimizer_type = optimizer_type
         self.hidden_nonlinearity = tf.nn.relu
         self._policy = None
         super().__init__(name_or_scope=name_or_scope, **kwargs)
@@ -102,8 +105,20 @@ class ActionConcaveQFunction(NNQFunction, OptimizableQFunction):
         if self._policy is None:
             with self.sess.as_default():
                 self.sess.run(tf.initialize_variables(self.get_params()))
-                self._policy = ArgmaxPolicy(
-                    name_or_scope="argmax_policy",
-                    qfunction=self,
-                )
+                # TODO(vpong): pass in the optimizer
+                if self.optimizer_type == 'sgd':
+                    self._policy = ArgmaxPolicy(
+                        name_or_scope="argmax_policy",
+                        qfunction=self,
+                    )
+                elif self.optimizer_type == 'bundle_entropy':
+                    self._policy = BundleEntropyArgmaxPolicy(
+                        qfunction=self,
+                        action_dim=self.action_dim,
+                        sess=self.sess,
+                    )
+                else:
+                    raise Exception(
+                        "Optimizer_type not recognized: {0}".format(
+                            self.optimizer_type))
         return self._policy
