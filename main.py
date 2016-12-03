@@ -23,19 +23,19 @@ from rllab.misc.instrument import stub
 
 BATCH_SIZE = 128
 N_EPOCHS = 100
-EPOCH_LENGTH = int(10000 / 64)
-EVAL_SAMPLES = int(10000 / 64)
-# EPOCH_LENGTH = 10000
-# EVAL_SAMPLES = 10000
+# EPOCH_LENGTH = int(10000 / 64)
+# EVAL_SAMPLES = int(10000 / 64)
+EPOCH_LENGTH = 100
+EVAL_SAMPLES = 100
 DISCOUNT = 0.99
 QF_LEARNING_RATE = 1e-3
 POLICY_LEARNING_RATE = 1e-4
 BATCH_LEARNING_RATE = 1e-2
 SOFT_TARGET_TAU = 1e-2
 REPLAY_POOL_SIZE = 1000000
-MIN_POOL_SIZE = 100
+MIN_POOL_SIZE = 256
 SCALE_REWARD = 1.0
-QF_WEIGHT_DECAY = 0.0
+QF_WEIGHT_DECAY = 0.01
 MAX_PATH_LENGTH = 1000
 N_UPDATES_PER_TIME_STEP = 5
 # BATCH_SIZE = 64
@@ -60,7 +60,7 @@ FAST_EVAL_SAMPLES = 10
 FAST_MIN_POOL_SIZE = 2
 FAST_MAX_PATH_LENGTH = 5
 
-NUM_SEEDS_PER_CONFIG = 2
+NUM_SEEDS_PER_CONFIG = 1
 NUM_HYPERPARAMETER_CONFIGS = 50
 
 
@@ -141,10 +141,12 @@ def get_algo_settings(algo_name, render=False):
             hp.LogFloatParam("qf_learning_rate", 1e-7, 1e-1),
             hp.LogFloatParam("qf_weight_decay", 1e-6, 1e-1),
             hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
-            hp.LogFloatParam("scale_reward", 10.0, 0.01),
+            hp.LogFloatParam("scale_reward", 100.0, 0.001),
+            hp.LinearFloatParam("discount", .25, 0.99),
         ])
         params = get_my_naf_params()
         params['render'] = render
+        params['optimizer_type'] = 'bundle_entropy'
         test_function = test_convex_naf
     elif algo_name == 'naf':
         sweeper = hp.HyperparameterSweeper([

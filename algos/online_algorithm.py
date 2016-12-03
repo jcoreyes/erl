@@ -122,12 +122,21 @@ class OnlineAlgorithm(RLAlgorithm):
                     action = self.exploration_strategy.get_action(itr,
                                                                   observation,
                                                                   self.policy)
-                    # test_action = self.test_argmax_policy.get_action(
+                    # print("---")
+                    # optimal_action = self.qf._af.quad_policy.get_action(
                     #     observation)[0]
-                    # print("test_action = {0}".format(test_action))
+                    # print("optimal_action = {0}".format(optimal_action))
+                    # bundle_action = self.qf._af._bundle_policy.get_action(
+                    #     observation)[0]
+                    # print("bundle_action = {0}".format(bundle_action))
+                    # sgd_action = self.qf._af._sgd_policy.get_action(
+                    #     observation)[0]
+                    # print("sgd_action = {0}".format(sgd_action))
                     if self.render:
                         self.training_env.render()
                     next_ob, raw_reward, terminal, _ = self.training_env.step(action)
+                    # Some envs return a Nx1 vector for the observation
+                    next_ob = next_ob.flatten()
                     reward = raw_reward * self.scale_reward
                     path_length += 1
                     path_return += reward

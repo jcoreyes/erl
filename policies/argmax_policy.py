@@ -21,7 +21,7 @@ class ArgmaxPolicy(NeuralNetwork, Policy, Serializable):
             name_or_scope,
             qfunction,
             learning_rate=1e-1,
-            n_update_steps=50,
+            n_update_steps=25,
             **kwargs
     ):
         """
@@ -80,7 +80,11 @@ class ArgmaxPolicy(NeuralNetwork, Policy, Serializable):
                 tf.get_collection(tf.GraphKeys.VARIABLES, self.scope_name))
 
     def get_action(self, observation):
-        assert observation.shape == (self.observation_dim,)
+        # print(observation.shape)
+        # print(self.observation_dim)
+        if len(observation.shape) > 1:
+            assert observation.shape[1] == 1
+            observation = observation.flatten()
         # Clear adam variables
         self.sess.run(tf.initialize_variables(
             tf.get_collection(tf.GraphKeys.VARIABLES, self.scope_name)

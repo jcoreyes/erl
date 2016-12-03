@@ -11,9 +11,11 @@ class ConcaveNAF(NAFQFunction):
     def __init__(
             self,
             name_or_scope,
+            optimizer_type='sgd',
             **kwargs
     ):
         self.setup_serialization(locals())
+        self.optimizer_type = optimizer_type
         self._policy = None
         self._af = None
         self._vf = None
@@ -31,6 +33,7 @@ class ConcaveNAF(NAFQFunction):
             observation_dim=self.observation_dim,
             action_input=action_input,
             observation_input=observation_input,
+            optimizer_type=self.optimizer_type,
         )
         self._vf = MlpStateNetwork(
             name_or_scope="V_function",

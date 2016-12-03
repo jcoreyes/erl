@@ -17,16 +17,18 @@ class ActionConcaveQFunction(NNQFunction, OptimizableQFunction):
             hidden_b_init=None,
             output_W_init=None,
             output_b_init=None,
-            embedded_hidden_sizes=(200, 200),
-            observation_hidden_sizes=(200, 200),
-            optimizer_type='bundle_entropy',
+            embedded_hidden_sizes=(100, ),
+            observation_hidden_sizes=(100, ),
+            optimizer_type='sgd',
             **kwargs
     ):
         self.setup_serialization(locals())
         self.hidden_W_init = hidden_W_init or he_uniform_initializer()
-        self.hidden_b_init = hidden_b_init or tf.constant_initializer(0.)
+        # self.hidden_b_init = hidden_b_init or tf.constant_initializer(0.)
+        self.hidden_b_init = output_b_init or tf.random_uniform_initializer(
+            -3e-3, 3e-3)
         self.output_W_init = output_W_init or tf.random_uniform_initializer(
-            0., 3e-3)
+            -3e-3, 3e-3)
         self.output_b_init = output_b_init or tf.random_uniform_initializer(
             -3e-3, 3e-3)
         self.embedded_hidden_sizes = embedded_hidden_sizes
@@ -99,19 +101,31 @@ class ActionConcaveQFunction(NNQFunction, OptimizableQFunction):
                     tf.GraphKeys.TRAINABLE_VARIABLES,
                     self.action_input_scope_name)
                 if 'bias' not in param.name]
+        # return []
 
     @property
     def implicit_policy(self):
         if self._policy is None:
+            self._sgd_policy = ArgmaxPolicy(
+                name_or_scope="argmax_policy",
+                qfunction=self,
+            )
+            self._bundle_policy = BundleEntropyArgmaxPolicy(
+                qfunction=self,
+                action_dim=self.action_dim,
+                sess=self.sess,
+            )
             with self.sess.as_default():
                 self.sess.run(tf.initialize_variables(self.get_params()))
                 # TODO(vpong): pass in the optimizer
                 if self.optimizer_type == 'sgd':
+                    print("Making SGD optimizer")
                     self._policy = ArgmaxPolicy(
                         name_or_scope="argmax_policy",
                         qfunction=self,
                     )
                 elif self.optimizer_type == 'bundle_entropy':
+                    print("Making bundle optimizer")
                     self._policy = BundleEntropyArgmaxPolicy(
                         qfunction=self,
                         action_dim=self.action_dim,

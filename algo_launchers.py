@@ -108,9 +108,11 @@ def test_convex_naf(env, exp_prefix, env_name, seed=1, **naf_params):
     # The ICNN paper uses the OU strategy
     # es = GaussianStrategy(env)
     es = OUStrategy(env_spec=env.spec, sigma=0.1)
+    optimizer_type = naf_params.pop('optimizer_type', 'sgd')
     qf = ConcaveNAF(
         name_or_scope="qf",
         env_spec=env.spec,
+        optimizer_type=optimizer_type,
     )
     algorithm = ConvexNAFAlgorithm(
         env,
@@ -119,6 +121,7 @@ def test_convex_naf(env, exp_prefix, env_name, seed=1, **naf_params):
         **naf_params
     )
     variant = naf_params
+    variant['optimizer_type'] = optimizer_type
     variant['Environment'] = env_name
     variant['Algorithm'] = 'ConvexNAF'
     run_experiment(algorithm, exp_prefix, seed, variant)
