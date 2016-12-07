@@ -111,10 +111,10 @@ def get_env_settings(env_name, normalize_env=True, gym_name=None):
 
 
 def get_algo_settings(algo_name, render=False):
-    sweeper = hp.HyperparameterSweeper()
+    sweeper = hp.RandomHyperparameterSweeper()
     params = {}
     if algo_name == 'ddpg':
-        sweeper = hp.HyperparameterSweeper([
+        sweeper = hp.RandomHyperparameterSweeper([
             hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
             hp.LogFloatParam("scale_reward", 10.0, 0.01),
             hp.LogFloatParam("qf_weight_decay", 1e-7, 1e-1),
@@ -123,7 +123,7 @@ def get_algo_settings(algo_name, render=False):
         params['render'] = render
         test_function = test_my_ddpg
     elif algo_name == 'shane-ddpg':
-        sweeper = hp.HyperparameterSweeper([
+        sweeper = hp.RandomHyperparameterSweeper([
             hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
             hp.LogFloatParam("scale_reward", 10.0, 0.01),
             hp.LogFloatParam("qf_weight_decay", 1e-7, 1e-1),
@@ -133,23 +133,27 @@ def get_algo_settings(algo_name, render=False):
             params['min_pool_size'] = params['batch_size'] + 1
         test_function = test_shane_ddpg
     elif algo_name == 'cnaf':
-        sweeper = hp.HyperparameterSweeper([
+        scale_rewards = [100., 10., 1., 0.1, 0.01, 0.001]
+        sweeper = hp.RandomHyperparameterSweeper([
             hp.FixedParam("n_epochs", 25),
-            hp.FixedParam("epoch_length", 100),
-            hp.FixedParam("eval_samples", 100),
-            hp.FixedParam("min_pool_size", 100),
-            hp.LogFloatParam("qf_learning_rate", 1e-7, 1e-1),
-            hp.LogFloatParam("qf_weight_decay", 1e-6, 1e-1),
-            hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
-            hp.LogFloatParam("scale_reward", 100.0, 0.001),
-            hp.LinearFloatParam("discount", .25, 0.99),
+            hp.FixedParam("epoch_length", 20),
+            hp.FixedParam("eval_samples", 20),
+            hp.FixedParam("min_pool_size", 20),
+            hp.FixedParam("batch_size", 32),
+            # hp.LogFloatParam("qf_learning_rate", 1e-7, 1e-1),
+            # hp.LogFloatParam("qf_weight_decay", 1e-6, 1e-1),
+            # hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
+            hp.ListedParam("scale_reward", scale_rewards),
+            # hp.LinearFloatParam("discount", .25, 0.99),
         ])
+        global NUM_HYPERPARAMETER_CONFIGS
+        NUM_HYPERPARAMETER_CONFIGS = len(scale_rewards)
         params = get_my_naf_params()
         params['render'] = render
         params['optimizer_type'] = 'bundle_entropy'
         test_function = test_convex_naf
     elif algo_name == 'naf':
-        sweeper = hp.HyperparameterSweeper([
+        sweeper = hp.RandomHyperparameterSweeper([
             hp.LogFloatParam("qf_learning_rate", 1e-6, 1e-2),
             hp.LogFloatParam("scale_reward", 10.0, 0.01),
             hp.LogFloatParam("soft_target_tau", 0.001, 0.1),
@@ -161,7 +165,7 @@ def get_algo_settings(algo_name, render=False):
         test_function = test_my_naf
     elif algo_name == 'dqicnn':
         test_function = test_dqicnn
-        sweeper = hp.HyperparameterSweeper([
+        sweeper = hp.RandomHyperparameterSweeper([
             hp.FixedParam("n_epochs", 25),
             hp.FixedParam("epoch_length", 100),
             hp.FixedParam("eval_samples", 100),
@@ -303,7 +307,7 @@ def main():
     parser.add_argument("--benchmark", action='store_true',
                         help="Run benchmarks.")
     parser.add_argument("--sweep", action='store_true',
-                        help="Sweep hyperparameters for my DDPG.")
+                        help="Sweep _hyperparameters for my DDPG.")
     parser.add_argument("--render", action='store_true',
                         help="Render the environment.")
     parser.add_argument("--env", default='cart',

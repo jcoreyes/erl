@@ -32,7 +32,7 @@ class TestHyperparameters(unittest.TestCase):
 
 class TestHyperparameterSweeper(unittest.TestCase):
     def test_sweep_hyperparameters(self):
-        sweeper = hp.HyperparameterSweeper([
+        sweeper = hp.RandomHyperparameterSweeper([
             hp.LinearFloatParam("v1", -10, 10),
             hp.LogFloatParam("v2", 1e-5, 1e-1),
         ])

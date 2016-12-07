@@ -17,16 +17,16 @@ class ActionConcaveQFunction(NNQFunction, OptimizableQFunction):
             hidden_b_init=None,
             output_W_init=None,
             output_b_init=None,
-            embedded_hidden_sizes=(100, ),
-            observation_hidden_sizes=(100, ),
+            embedded_hidden_sizes=(200, 200),
+            observation_hidden_sizes=(200, 200),
             optimizer_type='sgd',
             **kwargs
     ):
         self.setup_serialization(locals())
         self.hidden_W_init = hidden_W_init or he_uniform_initializer()
-        # self.hidden_b_init = hidden_b_init or tf.constant_initializer(0.)
-        self.hidden_b_init = output_b_init or tf.random_uniform_initializer(
-            -3e-3, 3e-3)
+        self.hidden_b_init = hidden_b_init or tf.constant_initializer(0.)
+        # self.hidden_b_init = output_b_init or tf.random_uniform_initializer(
+        #     -3e-3, 3e-3)
         self.output_W_init = output_W_init or tf.random_uniform_initializer(
             -3e-3, 3e-3)
         self.output_b_init = output_b_init or tf.random_uniform_initializer(
