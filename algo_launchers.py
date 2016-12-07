@@ -67,6 +67,68 @@ def test_my_ddpg(env, exp_prefix, env_name, seed=1, **ddpg_params):
     run_experiment(algorithm, exp_prefix, seed, variant)
 
 
+def test_ddpg_quadratic(env, exp_prefix, env_name, seed=1, **ddpg_params):
+    es = OUStrategy(env_spec=env.spec)
+    qf_params = dict(
+        embedded_hidden_sizes=(100,),
+        observation_hidden_sizes=(100,),
+        # hidden_W_init=util.xavier_uniform_initializer,
+        # hidden_b_init=tf.zeros_initializer,
+        # output_W_init=util.xavier_uniform_initializer,
+        # output_b_init=tf.zeros_initializer,
+        hidden_nonlinearity=tf.nn.relu,
+    )
+    policy_params = dict(
+        observation_hidden_sizes=(100, 100),
+        # hidden_W_init=util.xavier_uniform_initializer,
+        # hidden_b_init=tf.zeros_initializer,
+        # output_W_init=util.xavier_uniform_initializer,
+        # output_b_init=tf.zeros_initializer,
+        hidden_nonlinearity=tf.nn.relu,
+        output_nonlinearity=tf.nn.tanh,
+    )
+    quadratic_policy = FeedForwardPolicy(
+        name_or_scope="quadratic_policy",
+        env_spec=env.spec,
+        observation_input=None,
+        observation_hidden_sizes=(200, 200),
+        hidden_W_init=None,
+        hidden_b_init=None,
+        output_W_init=None,
+        output_b_init=None,
+        hidden_nonlinearity=tf.nn.relu,
+        output_nonlinearity=tf.nn.tanh,
+    )
+    qf = QuadraticQF(
+        name_or_scope="quadratic_qfunction",
+        action_input=None,
+        observation_input=policy.observation_input,
+        action_dim=self.action_dim,
+        observation_dim=self.observation_dim,
+        policy=self.policy,
+    )
+    policy = FeedForwardPolicy(
+        name_or_scope="actor",
+        env_spec=env.spec,
+        **policy_params
+    )
+    algorithm = MyDDPG(
+        env,
+        es,
+        policy,
+        qf,
+        **ddpg_params
+    )
+    variant = ddpg_params
+    variant['Version'] = 'Mine'
+    variant['Environment'] = env_name
+    variant['Algo'] = 'QuadraticDDPG'
+    for qf_key, qf_value in qf_params.items():
+        variant['qf_' + qf_key] = str(qf_value)
+    for policy_key, policy_value in policy_params.items():
+        variant['policy_' + policy_key] = str(policy_value)
+    run_experiment(algorithm, exp_prefix, seed, variant)
+
 def test_my_naf(env, exp_prefix, env_name, seed=1, **naf_params):
     es = GaussianStrategy(env)
     qf = QuadraticNAF(

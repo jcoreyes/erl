@@ -7,6 +7,7 @@ from algo_launchers import (
     test_convex_naf,
     test_random_ddpg,
     test_shane_ddpg,
+    test_quadratic_ddpg,
 )
 from misc import hyperparameter as hp
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
@@ -90,6 +91,16 @@ def get_algo_settings(algo_name, render=False):
         ])
         params = get_ddpg_params()
         test_function = test_shane_ddpg
+    elif algo_name == 'qddpg':
+        sweeper = hp.HyperparameterSweeper([
+            hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
+            hp.LogFloatParam("scale_reward", 10.0, 0.01),
+            hp.LogFloatParam("Q_weight_decay", 1e-7, 1e-1),
+            hp.LogFloatParam("qf_learning_rate", 1e-6, 1e-2),
+            hp.LogFloatParam("policy_learning_rate", 1e-6, 1e-2),
+        ])
+        params = get_ddpg_params()
+        test_function = test_quadratic_ddpg
     elif algo_name == 'cnaf':
         sweeper = hp.HyperparameterSweeper([
             hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
@@ -206,7 +217,7 @@ def get_env_settings_from_args(args):
 
 def main():
     env_choices = ['ant', 'cheetah', 'cart', 'point']
-    algo_choices = ['ddpg', 'naf', 'shane-ddpg', 'random', 'cnaf']
+    algo_choices = ['ddpg', 'naf', 'shane-ddpg', 'random', 'cnaf', 'qddpg']
     parser = argparse.ArgumentParser()
     parser.add_argument("--benchmark", action='store_true',
                         help="Run benchmarks.")
