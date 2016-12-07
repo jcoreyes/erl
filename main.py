@@ -9,7 +9,10 @@ from algo_launchers import (
     test_shane_ddpg,
     test_rllab_vpg,
     test_rllab_trpo,
-    test_rllab_ddpg, test_dqicnn)
+    test_rllab_ddpg,
+    test_dqicnn,
+    test_quadratic_ddpg,
+)
 from misc import hyperparameter as hp
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.envs.gym_env import GymEnv
@@ -132,6 +135,16 @@ def get_algo_settings(algo_name, render=False):
         if params['min_pool_size'] <= params['batch_size']:
             params['min_pool_size'] = params['batch_size'] + 1
         test_function = test_shane_ddpg
+    elif algo_name == 'qddpg':
+        sweeper = hp.HyperparameterSweeper([
+            hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
+            hp.LogFloatParam("scale_reward", 10.0, 0.01),
+            hp.LogFloatParam("Q_weight_decay", 1e-7, 1e-1),
+            hp.LogFloatParam("qf_learning_rate", 1e-6, 1e-2),
+            hp.LogFloatParam("policy_learning_rate", 1e-6, 1e-2),
+        ])
+        params = get_ddpg_params()
+        test_function = test_quadratic_ddpg
     elif algo_name == 'cnaf':
         scale_rewards = [100., 10., 1., 0.1, 0.01, 0.001]
         sweeper = hp.RandomHyperparameterSweeper([
@@ -302,7 +315,7 @@ def main():
     env_choices = ['ant', 'cheetah', 'cart', 'point', 'pt', 'reacher',
                    'idp', 'gym']
     algo_choices = ['ddpg', 'naf', 'shane-ddpg', 'random', 'cnaf', 'rl-vpg',
-                    'rl-trpo', 'rl-ddpg', 'dqicnn']
+                    'rl-trpo', 'rl-ddpg', 'dqicnn', 'qddpg']
     parser = argparse.ArgumentParser()
     parser.add_argument("--benchmark", action='store_true',
                         help="Run benchmarks.")
