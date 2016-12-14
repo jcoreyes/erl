@@ -26,7 +26,7 @@ class QuadraticQF(NNQFunction):
             output_dim=self.action_dim * self.action_dim,
             observation_dim=self.observation_dim,
             observation_input=observation_input,
-            observation_hidden_sizes=(200, 200),
+            observation_hidden_sizes=(100, 100),
             hidden_W_init=None,
             hidden_b_init=None,
             output_W_init=None,
