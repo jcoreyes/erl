@@ -139,7 +139,7 @@ def get_algo_settings(algo_name, render=False):
         sweeper = hp.RandomHyperparameterSweeper([
             hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
             hp.LogFloatParam("scale_reward", 10.0, 0.01),
-            hp.LogFloatParam("Q_weight_decay", 1e-7, 1e-1),
+            hp.LogFloatParam("qf_weight_decay", 1e-7, 1e-1),
             hp.LogFloatParam("qf_learning_rate", 1e-6, 1e-2),
             hp.LogFloatParam("policy_learning_rate", 1e-6, 1e-2),
         ])
