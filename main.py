@@ -28,8 +28,8 @@ BATCH_SIZE = 128
 N_EPOCHS = 100
 # EPOCH_LENGTH = int(10000 / 64)
 # EVAL_SAMPLES = int(10000 / 64)
-EPOCH_LENGTH = 100
-EVAL_SAMPLES = 100
+EPOCH_LENGTH = 10000
+EVAL_SAMPLES = 10000
 DISCOUNT = 0.99
 QF_LEARNING_RATE = 1e-3
 POLICY_LEARNING_RATE = 1e-4
@@ -52,7 +52,7 @@ N_UPDATES_PER_TIME_STEP = 5
 
 # Sweep settings
 SWEEP_N_EPOCHS = 50
-SWEEP_EPOCH_LENGTH = 1000
+SWEEP_EPOCH_LENGTH = 10000
 SWEEP_EVAL_SAMPLES = 1000
 SWEEP_MIN_POOL_SIZE = BATCH_SIZE
 
@@ -136,7 +136,7 @@ def get_algo_settings(algo_name, render=False):
             params['min_pool_size'] = params['batch_size'] + 1
         test_function = test_shane_ddpg
     elif algo_name == 'qddpg':
-        sweeper = hp.HyperparameterSweeper([
+        sweeper = hp.RandomHyperparameterSweeper([
             hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
             hp.LogFloatParam("scale_reward", 10.0, 0.01),
             hp.LogFloatParam("Q_weight_decay", 1e-7, 1e-1),

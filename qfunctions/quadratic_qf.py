@@ -11,12 +11,16 @@ class QuadraticQF(NNQFunction):
             self,
             name_or_scope,
             policy,
+            observation_input=None,
             **kwargs
     ):
         self.setup_serialization(locals())
         self.policy = policy
+        if observation_input is None:
+            observation_input = policy.observation_input
         super(QuadraticQF, self).__init__(
             name_or_scope=name_or_scope,
+            observation_input=observation_input,
             **kwargs
         )
 
@@ -26,7 +30,7 @@ class QuadraticQF(NNQFunction):
             output_dim=self.action_dim * self.action_dim,
             observation_dim=self.observation_dim,
             observation_input=observation_input,
-            observation_hidden_sizes=(200, 200),
+            observation_hidden_sizes=(100, 100),
             hidden_W_init=None,
             hidden_b_init=None,
             output_W_init=None,
