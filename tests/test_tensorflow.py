@@ -81,5 +81,36 @@ class TestTensorFlow(TFTestCase):
         self.assertNpEqual(actual, expected)
 
 
+    def test_batch_matmul2(self):
+        batchsize = 5
+        dim = 3
+        M = np.random.rand(batchsize, dim, dim)
+        x = np.random.rand(batchsize, dim)
+        x = np.expand_dims(x, axis=1)
+        x_shape = x.shape
+        M_shape = M.shape
+        x_placeholder = tf.placeholder(tf.float32, x_shape)
+        M_placeholder = tf.placeholder(tf.float32, M_shape)
+
+        expected = np.zeros((batchsize, 1))
+        for i in range(batchsize):
+            vec = np.matmul(x[i], M[i])
+            expected[i] = np.matmul(vec, vec.T)
+
+        batch = tf.batch_matmul(x_placeholder, M_placeholder)
+        actual_op = tf.batch_matmul(
+            batch,
+            batch,
+            adj_y=True,
+        )
+        actual_op_flat = tf.squeeze(actual_op, [1])
+        actual = self.sess.run(
+            actual_op_flat,
+            feed_dict={
+                x_placeholder: x,
+                M_placeholder: M,
+            })
+        self.assertNpEqual(actual, expected)
+
 if __name__ == '__main__':
     unittest.main()
