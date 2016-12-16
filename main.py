@@ -12,7 +12,7 @@ from algo_launchers import (
     test_rllab_ddpg,
     test_dqicnn,
     test_ddpg_quadratic,
-)
+    test_convex_quadratic_naf)
 from misc import hyperparameter as hp
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.envs.gym_env import GymEnv
@@ -25,7 +25,7 @@ from rllab.envs.normalized_env import normalize
 from rllab.misc.instrument import stub
 
 BATCH_SIZE = 128
-N_EPOCHS = 100
+N_EPOCHS = 50
 # EPOCH_LENGTH = int(10000 / 64)
 # EVAL_SAMPLES = int(10000 / 64)
 EPOCH_LENGTH = 10000
@@ -57,11 +57,11 @@ SWEEP_EVAL_SAMPLES = 1000
 SWEEP_MIN_POOL_SIZE = BATCH_SIZE
 
 # Fast settings
-FAST_N_EPOCHS = 5
-FAST_EPOCH_LENGTH = 10
-FAST_EVAL_SAMPLES = 10
-FAST_MIN_POOL_SIZE = 2
-FAST_MAX_PATH_LENGTH = 5
+FAST_N_EPOCHS = 100
+FAST_EPOCH_LENGTH = 100
+FAST_EVAL_SAMPLES = 100
+FAST_MIN_POOL_SIZE = 256
+FAST_MAX_PATH_LENGTH = 1000
 
 NUM_SEEDS_PER_CONFIG = 1
 NUM_HYPERPARAMETER_CONFIGS = 50
@@ -163,8 +163,28 @@ def get_algo_settings(algo_name, render=False):
         NUM_HYPERPARAMETER_CONFIGS = len(scale_rewards)
         params = get_my_naf_params()
         params['render'] = render
-        params['optimizer_type'] = 'bundle_entropy'
+        params['optimizer_type'] = 'sgd'
         test_function = test_convex_naf
+    elif algo_name == 'cqnaf':
+        scale_rewards = [100., 10., 1., 0.1, 0.01, 0.001]
+        sweeper = hp.RandomHyperparameterSweeper([
+            hp.FixedParam("n_epochs", 25),
+            hp.FixedParam("epoch_length", 20),
+            hp.FixedParam("eval_samples", 20),
+            hp.FixedParam("min_pool_size", 20),
+            hp.FixedParam("batch_size", 32),
+            # hp.LogFloatParam("qf_learning_rate", 1e-7, 1e-1),
+            # hp.LogFloatParam("qf_weight_decay", 1e-6, 1e-1),
+            # hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
+            hp.ListedParam("scale_reward", scale_rewards),
+            # hp.LinearFloatParam("discount", .25, 0.99),
+        ])
+        global NUM_HYPERPARAMETER_CONFIGS
+        NUM_HYPERPARAMETER_CONFIGS = len(scale_rewards)
+        params = get_my_naf_params()
+        params['render'] = render
+        params['optimizer_type'] = 'sgd'
+        test_function = test_convex_quadratic_naf
     elif algo_name == 'naf':
         sweeper = hp.RandomHyperparameterSweeper([
             hp.LogFloatParam("qf_learning_rate", 1e-6, 1e-2),
@@ -284,10 +304,10 @@ def benchmark(args):
     Benchmark everything!
     """
     name = args.name + "-benchmark"
-    # env_ids = ['ant', 'cheetah', 'cart']
-    # algo_names = ['ddpg', 'naf']
-    env_ids = ['cheetah', 'cart']
-    algo_names = ['ddpg', 'naf']
+    # env_ids = ['cart', 'idp', 'cheetah']
+    # algo_names = ['ddpg', 'naf', 'qddpg']
+    env_ids = ['cheetah']
+    algo_names = ['naf']
     for algo_name in algo_names:
         for env_id in env_ids:
             algo_settings = get_algo_settings(algo_name, render=False)
@@ -314,8 +334,8 @@ def get_env_settings_from_args(args):
 def main():
     env_choices = ['ant', 'cheetah', 'cart', 'point', 'pt', 'reacher',
                    'idp', 'gym']
-    algo_choices = ['ddpg', 'naf', 'shane-ddpg', 'random', 'cnaf', 'rl-vpg',
-                    'rl-trpo', 'rl-ddpg', 'dqicnn', 'qddpg']
+    algo_choices = ['ddpg', 'naf', 'shane-ddpg', 'random', 'cnaf', 'cqnaf',
+                    'rl-vpg', 'rl-trpo', 'rl-ddpg', 'dqicnn', 'qddpg']
     parser = argparse.ArgumentParser()
     parser.add_argument("--benchmark", action='store_true',
                         help="Run benchmarks.")
