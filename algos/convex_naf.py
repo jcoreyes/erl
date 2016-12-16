@@ -75,7 +75,7 @@ class ConvexNAFAlgorithm(NAF):
         last_statistics = OrderedDict([
             ('Epoch', epoch),
             ('AverageReturn', np.mean(returns)),
-            ('CriticLoss', qf_loss),
+            ('QfLoss', qf_loss),
         ])
         last_statistics.update(create_stats_ordered_dict('Ys', ys))
         last_statistics.update(create_stats_ordered_dict('QfOutput', qf_output))

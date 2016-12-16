@@ -24,7 +24,7 @@ class QuadraticNAF(NAFQFunction):
             output_nonlinearity=tf.identity,
         )
         self._policy = FeedForwardPolicy(
-            name_or_scope="mu",
+            name_or_scope="implict_policy",
             action_dim=self.action_dim,
             observation_dim=self.observation_dim,
             observation_input=observation_input,
@@ -48,7 +48,7 @@ class QuadraticNAF(NAFQFunction):
 
     @property
     def implicit_policy(self):
-        return self._policy
+        return self._af.implicit_policy
 
     @property
     def value_function(self):

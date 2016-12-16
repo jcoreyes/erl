@@ -1,12 +1,26 @@
 import tensorflow as tf
 
 from core import tf_util
+from core.tf_util import he_uniform_initializer, mlp, linear
 from predictors.mlp_state_network import MlpStateNetwork
 from qfunctions.nn_qfunction import NNQFunction
+from qfunctions.optimizable_q_function import OptimizableQFunction
 from rllab.core.serializable import Serializable
 
 
-class QuadraticQF(NNQFunction):
+class QuadraticQF(NNQFunction, OptimizableQFunction):
+    """
+    Given a policy pi, represent the Q function as
+
+        Q(s, a) = -0.5 (mu(s) - pi(s))^T P(s) (mu(s) - pi(s))
+
+    where
+
+        P(s) = L(s) L(s)^T
+
+    and L(s) is a lower triangular matrix. Both L and mu are parameterized by
+    feedforward neural networks.
+    """
     def __init__(
             self,
             name_or_scope,
@@ -15,9 +29,9 @@ class QuadraticQF(NNQFunction):
             **kwargs
     ):
         self.setup_serialization(locals())
-        self.policy = policy
+        self._policy = policy
         if observation_input is None:
-            observation_input = policy.observation_input
+            observation_input = self._policy.observation_input
         super(QuadraticQF, self).__init__(
             name_or_scope=name_or_scope,
             observation_input=observation_input,
@@ -43,7 +57,7 @@ class QuadraticQF(NNQFunction):
         L = tf_util.vec2lower_triangle(L_params.output, self.action_dim)
         self.L = L
 
-        delta = action_input - self.policy.output
+        delta = action_input - self._policy.output
         h1 = tf.expand_dims(delta, 1)  # h1_shape = batch:1:dimA
         h1 = tf.batch_matmul(h1, L)    # h1_shape = batch:1:dimA
         h1 = tf.batch_matmul(
@@ -53,3 +67,7 @@ class QuadraticQF(NNQFunction):
         )                              # h1_shape = batch:1:1
         h1 = tf.squeeze(h1, [1])       # h1_shape = batch:1
         return -0.5 * h1
+
+    @property
+    def implicit_policy(self):
+        return self._policy
