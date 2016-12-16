@@ -5,6 +5,7 @@ from algos.ddpg import DDPG as MyDDPG
 from algos.dqicnn import DQICNN
 from algos.naf import NAF
 from qfunctions.action_concave_qfunction import ActionConcaveQFunction
+from qfunctions.sgd_quadratic_naf_qfunction import SgdQuadraticNAF
 from rllab.algos.ddpg import DDPG as RllabDDPG
 from algos.noop_algo import NoOpAlgo
 from policies.nn_policy import FeedForwardPolicy
@@ -98,10 +99,6 @@ def test_ddpg_quadratic(env, exp_prefix, env_name, seed=1, **algo_params):
         env_spec=env.spec,
         **policy_params
     )
-    # qf = NNQuadraticQF(
-    #     name_or_scope="quadratic_qfunction",
-    #     env_spec=env.spec,
-    # )
     qf = QuadraticNAF(
         name_or_scope="quadratic_qf",
         env_spec=env.spec,
@@ -162,6 +159,26 @@ def test_convex_naf(env, exp_prefix, env_name, seed=1, **naf_params):
     variant['Algorithm'] = 'ConvexNAF'
     run_experiment(algorithm, exp_prefix, seed, variant)
 
+
+def test_convex_quadratic_naf(env, exp_prefix, env_name, seed=1, **naf_params):
+    # The ICNN paper uses the OU strategy
+    # es = GaussianStrategy(env)
+    optimizer_type = naf_params.pop('optimizer_type', 'sgd')
+    es = OUStrategy(env_spec=env.spec, sigma=0.1)
+    qf = SgdQuadraticNAF(
+        name_or_scope="qf",
+        env_spec=env.spec,
+    )
+    algorithm = ConvexNAFAlgorithm(
+        env,
+        es,
+        qf,
+        **naf_params
+    )
+    variant = naf_params
+    variant['Environment'] = env_name
+    variant['Algorithm'] = 'ConvexQuadraticNAF'
+    run_experiment(algorithm, exp_prefix, seed, variant)
 
 def test_dqicnn(env, exp_prefix, env_name, seed=1, **naf_params):
     es = GaussianStrategy(env)
