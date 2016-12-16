@@ -8,14 +8,32 @@ from rllab.misc.overrides import overrides
 
 
 class ConcaveNAF(NAFQFunction):
+    """
+    A Q function defined as
+
+        Q(s, a) = V(s) + A(s, a)
+
+    where A is a concave function in `a`.
+    """
     def __init__(
             self,
             name_or_scope,
             optimizer_type='sgd',
+            # action_input_preprocess=tf.identity,
             **kwargs
     ):
+        """
+
+        :param name_or_scope:
+        :param optimizer_type: What to optimize the input with. Either 'sgd'
+        or 'bundle'.
+        :param action_input_preprocess: A function to apply to the action
+        before putting it through the concave function.
+        :param kwargs:
+        """
         self.setup_serialization(locals())
         self.optimizer_type = optimizer_type
+        # self.action_input_preprocess = action_input_preprocess
         self._policy = None
         self._af = None
         self._vf = None
@@ -34,7 +52,10 @@ class ConcaveNAF(NAFQFunction):
             action_input=action_input,
             observation_input=observation_input,
             optimizer_type=self.optimizer_type,
+            # action_input_preprocess=self.action_input_preprocess,
         )
+        self._clip_weight_ops = [v.assign(tf.maximum(v, 0)) for v in
+                                 self._af.get_action_W_params()]
         self._vf = MlpStateNetwork(
             name_or_scope="V_function",
             output_dim=1,
@@ -85,4 +106,7 @@ class ConcaveNAF(NAFQFunction):
     def advantage_function(self):
         return self._af
 
-
+    @property
+    def update_weights_ops(self):
+        return [v.assign(tf.maximum(v, 0)) for v in
+                self.advantage_function.get_action_W_params()]

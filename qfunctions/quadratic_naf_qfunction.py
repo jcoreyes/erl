@@ -57,3 +57,7 @@ class QuadraticNAF(NAFQFunction):
     @property
     def advantage_function(self):
         return self._af
+
+    @property
+    def update_weights_ops(self):
+        return None

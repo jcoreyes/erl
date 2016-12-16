@@ -22,21 +22,19 @@ class ConvexNAFAlgorithm(NAF):
     def _init_tensorflow_ops(self):
         super()._init_tensorflow_ops()
         self._af = self.qf.advantage_function
-        self._clip_weight_ops = [v.assign(tf.maximum(v, 0)) for v in
-                                 self._af.get_action_W_params()]
-        self.sess.run(self._clip_weight_ops)
+        self._qf_update_weights_ops = self.qf.update_weights_ops
+        if self._qf_update_weights_ops is not None:
+            self.sess.run(self._qf_update_weights_ops)
 
     @overrides
     def _get_training_ops(self):
-        return [
-            [
-                self.train_qf_op,
-                self.update_target_vf_op,
-            ],
-            [
-                self._clip_weight_ops,
-            ]
-        ]
+        ops = [[
+            self.train_qf_op,
+            self.update_target_vf_op,
+        ]]
+        if self._qf_update_weights_ops is not None:
+            ops.append(self._qf_update_weights_ops)
+        return ops
 
     @overrides
     def evaluate(self, epoch, es_path_returns):
