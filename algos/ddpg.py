@@ -166,7 +166,7 @@ class DDPG(OnlineAlgorithm):
         logger.log("Collecting samples for evaluation")
         paths = self.eval_sampler.obtain_samples(
             itr=epoch,
-            batch_size=self.n_eval_samples,
+            max_samples=self.n_eval_samples,
         )
         self.log_diagnostics(paths)
         rewards, terminals, obs, actions, next_obs = split_paths(paths)
