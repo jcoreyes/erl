@@ -1,6 +1,7 @@
 """
-Check that having the same seed doesn't change anything. Likewise, check that
-having different seeds does something different.
+Check that having the same seed doesn't change anything for our DDPG
+implementaiton. Likewise, check that having different seeds does something
+different.
 """
 from algos.ddpg import DDPG
 from policies.nn_policy import FeedForwardPolicy
@@ -31,6 +32,7 @@ def main():
             epoch_length=100,
             eval_samples=100,
             max_path_length=10,
+            min_pool_size=2,
         )
         algorithm = DDPG(
             env,
@@ -48,6 +50,7 @@ def main():
                 exp_prefix="check-ddpg-seed",
                 seed=seed,
             )
+
 
 if __name__ == "__main__":
     main()
