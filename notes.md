@@ -1,8 +1,11 @@
 # TODOs
  - TODO's in code
- - make a better interface than main.py. Maybe have a seperate flag parser file
- - make FeedForward* subclass State/ActionNetwork
  - Make the network init stuff its own class/namedtuple
+ - add batch normalization
+ - Perform/set up mechanism for ablation tests
+ - Perform/set up mechanism for grid search/line sweep tests
+ - Ask Adam again to see how he looked at how much time was being spent on
+   different things.
 
 # Works
 critic LR: 1.079e-5
