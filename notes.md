@@ -3,11 +3,13 @@
  - Make the network init stuff its own class/namedtuple
  - add batch normalization
  - Perform/set up mechanism for ablation tests
- - Perform/set up mechanism for grid search/line sweep tests
- - Ask Adam again to see how he looked at how much time was being spent on
-   different things.
 
-# Works
+# Notes
+These notes are really for myself (vpong), so they're probably meaningless to anyone else.
+I just push them so that they're backed up.
+
+## Works
+
 critic LR: 1.079e-5
 actor LR: 1.039e-5
 discount: 0.949
