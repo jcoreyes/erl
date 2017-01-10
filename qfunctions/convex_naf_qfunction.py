@@ -1,9 +1,10 @@
 import tensorflow as tf
 
-from policies.argmax_policy import ArgmaxPolicy
 from predictors.mlp_state_network import MlpStateNetwork
 from qfunctions.action_concave_qfunction import ActionConcaveQFunction
 from qfunctions.naf_qfunction import NAFQFunction
+from qfunctions.simple_action_concave_qfunction import \
+    SimpleActionConcaveQFunction
 from rllab.misc.overrides import overrides
 
 
@@ -19,7 +20,6 @@ class ConcaveNAF(NAFQFunction):
             self,
             name_or_scope,
             optimizer_type='sgd',
-            # action_input_preprocess=tf.identity,
             **kwargs
     ):
         """
@@ -33,7 +33,6 @@ class ConcaveNAF(NAFQFunction):
         """
         self.setup_serialization(locals())
         self.optimizer_type = optimizer_type
-        # self.action_input_preprocess = action_input_preprocess
         self._policy = None
         self._af = None
         self._vf = None
@@ -45,17 +44,16 @@ class ConcaveNAF(NAFQFunction):
 
     @overrides
     def _create_network(self, observation_input, action_input):
-        self._af = ActionConcaveQFunction(
+        self._af = SimpleActionConcaveQFunction(
             name_or_scope="advantage_function",
             action_dim=self.action_dim,
             observation_dim=self.observation_dim,
             action_input=action_input,
             observation_input=observation_input,
             optimizer_type=self.optimizer_type,
-            # action_input_preprocess=self.action_input_preprocess,
         )
         self._clip_weight_ops = [v.assign(tf.maximum(v, 0)) for v in
-                                 self._af.get_action_W_params()]
+                                 self._af.weights_to_clip]
         self._vf = MlpStateNetwork(
             name_or_scope="V_function",
             output_dim=1,
@@ -108,5 +106,4 @@ class ConcaveNAF(NAFQFunction):
 
     @property
     def update_weights_ops(self):
-        return [v.assign(tf.maximum(v, 0)) for v in
-                self.advantage_function.get_action_W_params()]
+        return self._clip_weight_ops
