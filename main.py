@@ -38,7 +38,7 @@ SOFT_TARGET_TAU = 1e-2
 REPLAY_POOL_SIZE = 1000000
 MIN_POOL_SIZE = 256
 SCALE_REWARD = 1.0
-QF_WEIGHT_DECAY = 0.01
+QF_WEIGHT_DECAY = 0.00
 MAX_PATH_LENGTH = 1000
 N_UPDATES_PER_TIME_STEP = 5
 # BATCH_SIZE = 64
@@ -63,7 +63,7 @@ FAST_EVAL_SAMPLES = 100
 FAST_MIN_POOL_SIZE = 256
 FAST_MAX_PATH_LENGTH = 1000
 
-NUM_SEEDS_PER_CONFIG = 1
+NUM_SEEDS_PER_CONFIG = 3
 NUM_HYPERPARAMETER_CONFIGS = 50
 
 
@@ -153,11 +153,6 @@ def get_algo_settings(algo_name, render=False):
             hp.FixedParam("eval_samples", 20),
             hp.FixedParam("min_pool_size", 20),
             hp.FixedParam("batch_size", 32),
-            # hp.LogFloatParam("qf_learning_rate", 1e-7, 1e-1),
-            # hp.LogFloatParam("qf_weight_decay", 1e-6, 1e-1),
-            # hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
-            hp.ListedParam("scale_reward", scale_rewards),
-            # hp.LinearFloatParam("discount", .25, 0.99),
         ])
         global NUM_HYPERPARAMETER_CONFIGS
         NUM_HYPERPARAMETER_CONFIGS = len(scale_rewards)
@@ -304,19 +299,18 @@ def benchmark(args):
     Benchmark everything!
     """
     name = args.name + "-benchmark"
-    # env_ids = ['cart', 'idp', 'cheetah']
-    # algo_names = ['ddpg', 'naf', 'qddpg']
     env_ids = ['cheetah']
-    algo_names = ['naf']
-    for algo_name in algo_names:
-        for env_id in env_ids:
-            algo_settings = get_algo_settings(algo_name, render=False)
-            env_settings = get_env_settings(env_id, normalize_env=True)
-            test_function = algo_settings['test_function']
-            algo_params = algo_settings['algo_params']
-            env = env_settings['env']
-            env_name = env_settings['name']
-            test_function(env, name, env_name, seed=args.seed, **algo_params)
+    algo_names = ['qddpg', 'ddpg']
+    for env_id in env_ids:
+        for seed in range(NUM_SEEDS_PER_CONFIG):
+            for algo_name in algo_names:
+                algo_settings = get_algo_settings(algo_name, render=False)
+                env_settings = get_env_settings(env_id, normalize_env=True)
+                test_function = algo_settings['test_function']
+                algo_params = algo_settings['algo_params']
+                env = env_settings['env']
+                env_name = env_settings['name']
+                test_function(env, name, env_name, seed=seed, **algo_params)
 
 
 def get_algo_settings_from_args(args):
@@ -361,6 +355,8 @@ def main():
     parser.add_argument("--seed", default=1,
                         type=int,
                         help='Seed')
+    parser.add_argument("--num_seeds", default=NUM_SEEDS_PER_CONFIG, type=int,
+                        help="Run this many seeds, starting with --seed.")
     args = parser.parse_args()
     args.normalize = not args.nonorm
 
@@ -393,7 +389,11 @@ def main():
         algo_params = algo_settings['algo_params']
         env = env_settings['env']
         env_name = env_settings['name']
-        test_function(env, args.name, env_name, seed=args.seed, **algo_params)
+        print("algo_params =")
+        print(algo_params)
+        for i in range(args.num_seeds):
+            test_function(env, args.name, env_name, seed=args.seed + i,
+                          **algo_params)
 
 
 if __name__ == "__main__":

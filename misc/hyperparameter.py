@@ -2,6 +2,7 @@ import abc
 import copy
 import math
 import random
+import itertools
 
 
 class Hyperparameter(metaclass=abc.ABCMeta):
@@ -68,32 +69,9 @@ class LinearIntParam(RandomHyperparameter):
         return random.randint(self._min, self._max)
 
 
-class ListedParam(Hyperparameter):
-    """
-    Represents a list of possible _hyperparameters. Used to do a sweep over a
-    fixed list of _hyperparameters.
-    """
-    def __init__(self, name, values):
-        super().__init__(name)
-        self._name = name
-        self._values = values
-        self._last_value = None
-        self._i = 0
-        self._num_values = len(values)
-
-    @property
-    def values(self):
-        return self._values
-
-    def generate(self):
-        self._last_value = self.values[self._i]
-        self._i = (self._i + 1) % self._num_values
-        return self._last_value
-
-
-class FixedParam(ListedParam, RandomHyperparameter):
+class FixedParam(RandomHyperparameter):
     def __init__(self, name, value):
-        super().__init__(name, [value])
+        super().__init__(name)
         self._value = value
 
     def generate_next_value(self):
@@ -134,58 +112,45 @@ class RandomHyperparameterSweeper(object):
         return returned_value_and_params
 
 
-# TODO(vpong): Finish this or use an implementation online.
-class GridHyperparameterSweeper(object):
+class DeterministicHyperparameterSweeper(object):
     """
-    Do a grid search over hyperparameters.
+    Do a grid search over hyperparameters based on a predefined set of
+    hyperparameters.
     """
-    def __init__(self, hyperparameters=None):
-        self._hyperparameters = hyperparameters or []
-        self._validate_hyperparameters()
-        self._default_kwargs = {}
-        # names_to_values = []
-        # self._hyperparameter_dicts = [dict(
-        #
-        # )
-        #     for params
-        # ]
-
-    def _validate_hyperparameters(self):
-        names = set()
-        for hp in self._hyperparameters:
-            assert isinstance(hp, ListedParam)
-            name = hp.name
-            if name in names:
-                raise Exception("Hyperparameter '{0}' already added.".format(
-                    name))
-            names.add(name)
-
-    def set_default_parameters(self, default_kwargs):
+    def __init__(self, hyperparameters, default_parameters=None):
         """
-        Set default values for parameters so that when
-        iterate_hyperparameters() is called, those parameters will already be
-        set.
 
-        :param default_kwargs:
-        :return:
+        :param hyperparameters: A dictionary of the form
+        ```
+        {
+            'hp_1': [value1, value2, value3],
+            'hp_2': [value1, value2, value3],
+            ...
+        }
+        ```
+        This format is like the param_grid in SciKit-Learn:
+        http://scikit-learn.org/stable/modules/grid_search.html#exhaustive-grid-search
+        :param default_parameters: Default key-value pairs to add to the
+        dictionary.
         """
-        self._default_kwargs = default_kwargs
+        self._hyperparameters = hyperparameters
+        self._default_kwargs = default_parameters or {}
+        named_hyperparameters = []
+        for name, values in self._hyperparameters.items():
+            named_hyperparameters.append(
+                [(name, v) for v in values]
+            )
+        self._hyperparameters_dicts = [
+            dict(tuple_list)
+            for tuple_list in itertools.product(*named_hyperparameters)
+        ]
 
     def iterate_hyperparameters(self):
         """
+        Iterate over the hyperparameters in a grid-manner.
+
         :return: List of dictionaries. Each dictionary is a map from name to
         hyperpameter.
         """
-        kwargs = copy.deepcopy(self._default_kwargs)
-        for hp in self._hyperparameters:
-            kwargs[hp.name] = hp.generate()
-        return self._hyperparameter_dicts
-
-    def sweep_hyperparameters(self, function, num_configs):
-        returned_value_and_params = []
-        for _ in range(num_configs):
-            kwargs = self.generate_random_hyperparameters()
-            score = function(**kwargs)
-            returned_value_and_params.append((score, kwargs))
-
-        return returned_value_and_params
+        for hyperparameters in self._hyperparameters_dicts:
+            yield dict(hyperparameters, **copy.deepcopy(self._default_kwargs))

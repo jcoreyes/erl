@@ -119,6 +119,58 @@ def test_ddpg_quadratic(env, exp_prefix, env_name, seed=1, **algo_params):
     run_experiment(algorithm, exp_prefix, seed, variant)
 
 
+def test_naf_ddpg(env, exp_prefix, env_name, seed=1, **algo_params):
+    """Basically implement NAF with the DDPG code. The only difference is that
+    the actor now gets updated twice."""
+    # TODO
+    es = OUStrategy(env_spec=env.spec)
+    quadratic_policy_params = dict(
+        observation_hidden_sizes=(100, 100),
+        hidden_W_init=None,
+        hidden_b_init=None,
+        output_W_init=None,
+        output_b_init=None,
+        hidden_nonlinearity=tf.nn.relu,
+        output_nonlinearity=tf.nn.tanh,
+    )
+    policy_params = dict(
+        observation_hidden_sizes=(100, 100),
+        hidden_nonlinearity=tf.nn.relu,
+        output_nonlinearity=tf.nn.tanh,
+    )
+    quadratic_policy = FeedForwardPolicy(
+        name_or_scope="quadratic_policy",
+        env_spec=env.spec,
+        **quadratic_policy_params
+    )
+    qf = QuadraticQF(
+        name_or_scope="quadratic_qfunction",
+        env_spec=env.spec,
+        policy=quadratic_policy,
+    )
+    policy = FeedForwardPolicy(
+        name_or_scope="actor",
+        env_spec=env.spec,
+        **policy_params
+    )
+    algorithm = MyDDPG(
+        env,
+        es,
+        policy,
+        qf,
+        **algo_params
+    )
+    variant = algo_params
+    variant['Version'] = 'Mine'
+    variant['Environment'] = env_name
+    variant['Algo'] = 'QuadraticDDPG'
+    for qf_key, qf_value in quadratic_policy_params.items():
+        variant['quadratic_policy_params_' + qf_key] = str(qf_value)
+    for policy_key, policy_value in policy_params.items():
+        variant['policy_' + policy_key] = str(policy_value)
+    run_experiment(algorithm, exp_prefix, seed, variant)
+
+
 def test_my_naf(env, exp_prefix, env_name, seed=1, **naf_params):
     es = GaussianStrategy(env)
     qf = QuadraticNAF(

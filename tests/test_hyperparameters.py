@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 
 from misc import hyperparameter as hp
-from misc.testing_utils import is_binomial_trial_likely
+from misc.testing_utils import is_binomial_trial_likely, are_dict_lists_equal
 
 
 class TestHyperparameters(unittest.TestCase):
@@ -52,6 +52,82 @@ class TestHyperparameterSweeper(unittest.TestCase):
             for j in range(2):
                 self.assertTrue(
                     is_binomial_trial_likely(n, p, num_successes[i, j]))
+
+
+class TestDeterministicHyperparameterSweeper(unittest.TestCase):
+    def test_deterministic_sweeper_basic(self):
+        sweeper = hp.DeterministicHyperparameterSweeper(
+            {
+                "a": [1, 2],
+                "b": [-1, -2],
+            },
+            default_parameters={
+                "c": 3,
+            },
+        )
+        dicts = list(sweeper.iterate_hyperparameters())
+        expected_dicts = [
+            {
+                "a": 1,
+                "b": -1,
+                "c": 3,
+            },
+            {
+                "a": 2,
+                "b": -1,
+                "c": 3,
+            },
+            {
+                "a": 1,
+                "b": -2,
+                "c": 3,
+            },
+            {
+                "a": 2,
+                "b": -2,
+                "c": 3,
+            },
+        ]
+        self.assertTrue(are_dict_lists_equal(dicts, expected_dicts),
+                        "Expected: {0}\nActual: {1}".format(str(expected_dicts),
+                                                            str(dicts)))
+
+    def test_deterministic_sweeper_basic_many_types(self):
+        sweeper = hp.DeterministicHyperparameterSweeper(
+            {
+                "a": [1, 2],
+                "b": [False, True],
+            },
+            default_parameters={
+                "c": 'a',
+            },
+        )
+        dicts = list(sweeper.iterate_hyperparameters())
+        expected_dicts = [
+            {
+                "a": 1,
+                "b": False,
+                "c": 'a',
+            },
+            {
+                "a": 2,
+                "b": False,
+                "c": 'a',
+            },
+            {
+                "a": 1,
+                "b": True,
+                "c": 'a',
+            },
+            {
+                "a": 2,
+                "b": True,
+                "c": 'a',
+            },
+        ]
+        self.assertTrue(are_dict_lists_equal(dicts, expected_dicts),
+                        "Expected: {0}\nActual: {1}".format(str(expected_dicts),
+                                                            str(dicts)))
 
 
 if __name__ == '__main__':

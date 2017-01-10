@@ -103,6 +103,16 @@ class OnlineAlgorithm(RLAlgorithm):
     def _shutdown_worker(self):
         self.eval_sampler.shutdown_worker()
 
+    def _sample_paths(self, epoch):
+        # Sampler uses self.batch_size to figure out how many samples to get
+        saved_batch_size = self.batch_size
+        self.batch_size = self.n_eval_samples
+        paths = self.eval_sampler.obtain_samples(
+            itr=epoch,
+        )
+        self.batch_size = saved_batch_size
+        return paths
+
     @overrides
     def train(self):
         with self.sess.as_default():

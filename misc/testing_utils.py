@@ -24,3 +24,15 @@ def are_np_arrays_equal(arr1, arr2, threshold=1e-5):
     if arr1.shape != arr2.shape:
         return False
     return (np.abs(arr1 - arr2) <= threshold).all()
+
+
+def is_list_subset(list1, list2):
+    for a in list1:
+        if a not in list2:
+            return False
+    return True
+
+
+def are_dict_lists_equal(list1, list2):
+    return is_list_subset(list1, list2) and is_list_subset(list2, list1)
+
