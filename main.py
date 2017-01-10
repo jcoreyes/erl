@@ -153,11 +153,6 @@ def get_algo_settings(algo_name, render=False):
             hp.FixedParam("eval_samples", 20),
             hp.FixedParam("min_pool_size", 20),
             hp.FixedParam("batch_size", 32),
-            # hp.LogFloatParam("qf_learning_rate", 1e-7, 1e-1),
-            # hp.LogFloatParam("qf_weight_decay", 1e-6, 1e-1),
-            # hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
-            hp.ListedParam("scale_reward", scale_rewards),
-            # hp.LinearFloatParam("discount", .25, 0.99),
         ])
         global NUM_HYPERPARAMETER_CONFIGS
         NUM_HYPERPARAMETER_CONFIGS = len(scale_rewards)
