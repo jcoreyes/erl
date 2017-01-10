@@ -1,5 +1,6 @@
 import tensorflow as tf
 
+from policies.argmax_policy import ArgmaxPolicy
 from policies.nn_policy import FeedForwardPolicy
 from predictors.mlp_state_network import MlpStateNetwork
 from qfunctions.naf_qfunction import NAFQFunction
@@ -7,7 +8,16 @@ from qfunctions.quadratic_qf import QuadraticQF
 from rllab.misc.overrides import overrides
 
 
-class QuadraticNAF(NAFQFunction):
+class SgdQuadraticNAF(NAFQFunction):
+    def __init__(self, name_or_scope, **kwargs):
+        self.setup_serialization(locals())
+        super().__init__(name_or_scope=name_or_scope, **kwargs)
+        self._implicit_policy = None
+
+    """
+    Same as QuadraticNAF except that the implicit policy is computed by doing
+    SGD on the put. Used for debugging.
+    """
     @overrides
     def _create_network(self, observation_input, action_input):
         self._vf = MlpStateNetwork(
@@ -48,7 +58,15 @@ class QuadraticNAF(NAFQFunction):
 
     @property
     def implicit_policy(self):
-        return self._af.implicit_policy
+        if self._implicit_policy is None:
+            with self.sess.as_default():
+                self.sess.run(tf.initialize_variables(self.get_params()))
+                print("Making SGD optimizer")
+                self._implicit_policy = ArgmaxPolicy(
+                    name_or_scope="argmax_policy",
+                    qfunction=self,
+                )
+        return self._implicit_policy
 
     @property
     def value_function(self):

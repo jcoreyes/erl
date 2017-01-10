@@ -5,13 +5,13 @@ from algos.ddpg import DDPG as MyDDPG
 from algos.dqicnn import DQICNN
 from algos.naf import NAF
 from qfunctions.action_concave_qfunction import ActionConcaveQFunction
+from qfunctions.sgd_quadratic_naf_qfunction import SgdQuadraticNAF
 from rllab.algos.ddpg import DDPG as RllabDDPG
 from algos.noop_algo import NoOpAlgo
 from policies.nn_policy import FeedForwardPolicy
 from qfunctions.convex_naf_qfunction import ConcaveNAF
 from qfunctions.nn_qfunction import FeedForwardCritic
 from qfunctions.quadratic_naf_qfunction import QuadraticNAF
-from qfunctions.quadratic_qf import QuadraticQF
 from rllab.baselines.linear_feature_baseline import LinearFeatureBaseline
 from rllab.exploration_strategies.gaussian_strategy import GaussianStrategy
 from rllab.exploration_strategies.ou_strategy import OUStrategy
@@ -87,36 +87,21 @@ def test_my_ddpg(env, exp_prefix, env_name, seed=1, **ddpg_params):
     run_experiment(algorithm, exp_prefix, seed, variant)
 
 
-def test_quadratic_ddpg(env, exp_prefix, env_name, seed=1, **algo_params):
+def test_ddpg_quadratic(env, exp_prefix, env_name, seed=1, **algo_params):
     es = OUStrategy(env_spec=env.spec)
-    quadratic_policy_params = dict(
-        observation_hidden_sizes=(100, 100),
-        hidden_W_init=None,
-        hidden_b_init=None,
-        output_W_init=None,
-        output_b_init=None,
-        hidden_nonlinearity=tf.nn.relu,
-        output_nonlinearity=tf.nn.tanh,
-    )
     policy_params = dict(
         observation_hidden_sizes=(100, 100),
         hidden_nonlinearity=tf.nn.relu,
         output_nonlinearity=tf.nn.tanh,
     )
-    quadratic_policy = FeedForwardPolicy(
-        name_or_scope="quadratic_policy",
-        env_spec=env.spec,
-        **quadratic_policy_params
-    )
-    qf = QuadraticQF(
-        name_or_scope="quadratic_qfunction",
-        env_spec=env.spec,
-        policy=quadratic_policy,
-    )
     policy = FeedForwardPolicy(
-        name_or_scope="actor",
+        name_or_scope="policy",
         env_spec=env.spec,
         **policy_params
+    )
+    qf = QuadraticNAF(
+        name_or_scope="quadratic_qf",
+        env_spec=env.spec,
     )
     algorithm = MyDDPG(
         env,
@@ -128,9 +113,7 @@ def test_quadratic_ddpg(env, exp_prefix, env_name, seed=1, **algo_params):
     variant = algo_params
     variant['Version'] = 'Mine'
     variant['Environment'] = env_name
-    variant['Algo'] = 'QuadraticDDPG'
-    for qf_key, qf_value in quadratic_policy_params.items():
-        variant['quadratic_policy_params_' + qf_key] = str(qf_value)
+    variant['Algorithm'] = 'QuadraticDDPG'
     for policy_key, policy_value in policy_params.items():
         variant['policy_' + policy_key] = str(policy_value)
     run_experiment(algorithm, exp_prefix, seed, variant)
@@ -228,6 +211,26 @@ def test_convex_naf(env, exp_prefix, env_name, seed=1, **naf_params):
     variant['Algorithm'] = 'ConvexNAF'
     run_experiment(algorithm, exp_prefix, seed, variant)
 
+
+def test_convex_quadratic_naf(env, exp_prefix, env_name, seed=1, **naf_params):
+    # The ICNN paper uses the OU strategy
+    # es = GaussianStrategy(env)
+    optimizer_type = naf_params.pop('optimizer_type', 'sgd')
+    es = OUStrategy(env_spec=env.spec, sigma=0.1)
+    qf = SgdQuadraticNAF(
+        name_or_scope="qf",
+        env_spec=env.spec,
+    )
+    algorithm = ConvexNAFAlgorithm(
+        env,
+        es,
+        qf,
+        **naf_params
+    )
+    variant = naf_params
+    variant['Environment'] = env_name
+    variant['Algorithm'] = 'ConvexQuadraticNAF'
+    run_experiment(algorithm, exp_prefix, seed, variant)
 
 def test_dqicnn(env, exp_prefix, env_name, seed=1, **naf_params):
     es = GaussianStrategy(env)

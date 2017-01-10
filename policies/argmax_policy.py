@@ -1,4 +1,3 @@
-import time
 import tensorflow as tf
 
 from core.neuralnet import NeuralNetwork
@@ -69,7 +68,7 @@ class ArgmaxPolicy(NeuralNetwork, Policy, Serializable):
                     self.learning_rate).minimize(
                     self.loss,
                     var_list=[self.proposed_action])
-                self.clipped_action = tf.clip_by_value(self.proposed_action, -1, 1)
+                self.processed_action = tf.clip_by_value(self.proposed_action, -1, 1)
                 self.adam_scope = adam_scope.original_name_scope
 
     @overrides
@@ -98,7 +97,7 @@ class ArgmaxPolicy(NeuralNetwork, Policy, Serializable):
                 {self.observation_input: [observation]})
             # print("proposed_action = {0}".format(proposed))
             # print("af_score = {0}".format(af_score))
-        action = self.sess.run(self.clipped_action)
+        action = self.sess.run(self.processed_action)
         return action, {}
 
     @overrides

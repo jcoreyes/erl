@@ -144,7 +144,9 @@ class OnlineAlgorithm(RLAlgorithm):
                     # print("sgd_action = {0}".format(sgd_action))
                     if self.render:
                         self.training_env.render()
-                    next_ob, raw_reward, terminal, _ = self.training_env.step(action)
+                    next_ob, raw_reward, terminal, _ = self.training_env.step(
+                        self.process_action(action)
+                    )
                     # Some envs return a Nx1 vector for the observation
                     next_ob = next_ob.flatten()
                     reward = raw_reward * self.scale_reward
@@ -269,3 +271,13 @@ class OnlineAlgorithm(RLAlgorithm):
         :return: Dictionary of statistics.
         """
         return
+
+    def process_action(self, raw_action):
+        """
+        Process the action outputted by the policy before giving it to the
+        environment.
+
+        :param raw_action:
+        :return:
+        """
+        return raw_action
