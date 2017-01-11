@@ -11,7 +11,7 @@ from algo_launchers import (
     test_rllab_trpo,
     test_rllab_ddpg,
     test_dqicnn,
-    test_ddpg_quadratic,
+    test_quadratic_ddpg,
     test_convex_quadratic_naf)
 from misc import hyperparameter as hp
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
@@ -25,7 +25,7 @@ from rllab.envs.normalized_env import normalize
 from rllab.misc.instrument import stub
 
 BATCH_SIZE = 128
-N_EPOCHS = 50
+N_EPOCHS = 100
 # EPOCH_LENGTH = int(10000 / 64)
 # EVAL_SAMPLES = int(10000 / 64)
 EPOCH_LENGTH = 10000
@@ -36,7 +36,7 @@ POLICY_LEARNING_RATE = 1e-4
 BATCH_LEARNING_RATE = 1e-2
 SOFT_TARGET_TAU = 1e-2
 REPLAY_POOL_SIZE = 1000000
-MIN_POOL_SIZE = 256
+MIN_POOL_SIZE = 10000
 SCALE_REWARD = 1.0
 QF_WEIGHT_DECAY = 0.00
 MAX_PATH_LENGTH = 1000
@@ -144,7 +144,7 @@ def get_algo_settings(algo_name, render=False):
             hp.LogFloatParam("policy_learning_rate", 1e-6, 1e-2),
         ])
         params = get_ddpg_params()
-        test_function = test_ddpg_quadratic
+        test_function = test_quadratic_ddpg
     elif algo_name == 'cnaf':
         scale_rewards = [100., 10., 1., 0.1, 0.01, 0.001]
         sweeper = hp.RandomHyperparameterSweeper([

@@ -88,7 +88,7 @@ def test_my_ddpg(env, exp_prefix, env_name, seed=1, **ddpg_params):
     run_experiment(algorithm, exp_prefix, seed, variant)
 
 
-def test_ddpg_quadratic(env, exp_prefix, env_name, seed=1, **algo_params):
+def test_quadratic_ddpg(env, exp_prefix, env_name, seed=1, **algo_params):
     es = OUStrategy(env_spec=env.spec)
     policy_params = dict(
         observation_hidden_sizes=(100, 100),
@@ -164,7 +164,7 @@ def test_naf_ddpg(env, exp_prefix, env_name, seed=1, **algo_params):
     variant = algo_params
     variant['Version'] = 'Mine'
     variant['Environment'] = env_name
-    variant['Algo'] = 'QuadraticDDPG'
+    variant['Algo'] = 'NAF-DDPG'
     for qf_key, qf_value in quadratic_policy_params.items():
         variant['quadratic_policy_params_' + qf_key] = str(qf_value)
     for policy_key, policy_value in policy_params.items():
