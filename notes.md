@@ -3,6 +3,7 @@
  - Make the network init stuff its own class/namedtuple
  - add batch normalization
  - Perform/set up mechanism for ablation tests
+ - Make a function version of run_experiment_lite so that I can use cProfile
 
 # Notes
 These notes are really for myself (vpong), so they're probably meaningless to anyone else.
