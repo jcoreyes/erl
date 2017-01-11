@@ -152,5 +152,7 @@ class DeterministicHyperparameterSweeper(object):
         :return: List of dictionaries. Each dictionary is a map from name to
         hyperpameter.
         """
-        for hyperparameters in self._hyperparameters_dicts:
-            yield dict(hyperparameters, **copy.deepcopy(self._default_kwargs))
+        return [
+            dict(hyperparameters, **copy.deepcopy(self._default_kwargs))
+            for hyperparameters in self._hyperparameters_dicts
+        ]
