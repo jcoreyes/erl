@@ -38,8 +38,8 @@ def main():
     sweeper = DeterministicHyperparameterSweeper(
         {'scale_reward': [1e-4, 1e-3, 1e-2, 1e-1, 1, 1e1, 1e2, 1e3, 1e4]},
     )
+    exp_prefix = 'ddpg-cart-reward-scale-sweep-{0}'.format(timestamp())
     for ddpg_params in sweeper.iterate_hyperparameters():
-        print(ddpg_params)
         algorithm = DDPG(
             env,
             es,
@@ -49,7 +49,6 @@ def main():
             **default_ddpg_params,
         )
 
-        exp_prefix = 'ddpg-cart-reward-scale-sweep-{0}'.format(timestamp())
         for seed in range(3):
             run_experiment_lite(
                 algorithm.train(),
