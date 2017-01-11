@@ -1,3 +1,6 @@
+"""
+Compare DDPG and Quadratic-DDPG on Cartpole.
+"""
 from rllab.misc.instrument import run_experiment_lite
 from misc.scripts_util import timestamp
 
@@ -63,31 +66,32 @@ def run_task(variant):
 
 def main():
     exp_prefix = "ddpg-vs-qddpg-{0}".format(timestamp())
-    variant = {
-        'Algorithm': 'DDPG'
-    }
-    run_experiment_lite(
-        run_task,
-        snapshot_mode="last",
-        exp_prefix=exp_prefix,
-        seed=1,
-        mode="local",
-        use_cloudpickle=True,
-        variant=variant,
-    )
+    for seed in range(3):
+        variant = {
+            'Algorithm': 'DDPG'
+        }
+        run_experiment_lite(
+            run_task,
+            snapshot_mode="last",
+            exp_prefix=exp_prefix,
+            seed=seed,
+            mode="local",
+            use_cloudpickle=True,
+            variant=variant,
+        )
 
-    variant2 = {
-        'Algorithm': 'Quadratic-DDPG'
-    }
-    run_experiment_lite(
-        run_task,
-        snapshot_mode="last",
-        exp_prefix=exp_prefix,
-        seed=1,
-        mode="local",
-        use_cloudpickle=True,
-        variant=variant2,
-    )
+        variant2 = {
+            'Algorithm': 'Quadratic-DDPG'
+        }
+        run_experiment_lite(
+            run_task,
+            snapshot_mode="last",
+            exp_prefix=exp_prefix,
+            seed=seed,
+            mode="local",
+            use_cloudpickle=True,
+            variant=variant2,
+        )
 
 if __name__ == "__main__":
     main()

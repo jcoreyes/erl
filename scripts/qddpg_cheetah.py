@@ -1,3 +1,6 @@
+"""
+Run Quadratic DDPG on Cheetah.
+"""
 from algos.ddpg import DDPG
 from policies.nn_policy import FeedForwardPolicy
 from qfunctions.quadratic_naf_qfunction import QuadraticNAF
