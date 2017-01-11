@@ -1,5 +1,5 @@
 """
-Compare DDPG and Quadratic-DDPG on Cartpole.
+Compare DDPG and Quadratic-DDPG on Cheetah.
 """
 from rllab.misc.instrument import run_experiment_lite
 
@@ -12,9 +12,9 @@ def run_task(variant):
     from qfunctions.quadratic_naf_qfunction import QuadraticNAF
     from rllab.exploration_strategies.ou_strategy import OUStrategy
     from sandbox.rocky.tf.envs.base import TfEnv
-    from rllab.envs.box2d.cartpole_env import CartpoleEnv
+    from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 
-    env = TfEnv(CartpoleEnv())
+    env = TfEnv(HalfCheetahEnv())
     algo_name = variant['Algorithm']
     if algo_name == 'Quadratic-DDPG':
         qf = QuadraticNAF(
@@ -40,9 +40,9 @@ def run_task(variant):
 
     ddpg_params = dict(
         batch_size=128,
-        n_epochs=100,
-        epoch_length=1000,
-        eval_samples=1000,
+        n_epochs=20,
+        epoch_length=10000,
+        eval_samples=10000,
         discount=0.99,
         policy_learning_rate=1e-4,
         qf_learning_rate=1e-3,

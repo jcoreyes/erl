@@ -1,4 +1,6 @@
-import tensorflow as tf
+"""
+Exampling of running DDPG on HalfCheetah.
+"""
 
 from algos.ddpg import DDPG
 from policies.nn_policy import FeedForwardPolicy
