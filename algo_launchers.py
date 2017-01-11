@@ -12,6 +12,7 @@ from policies.nn_policy import FeedForwardPolicy
 from qfunctions.convex_naf_qfunction import ConcaveNAF
 from qfunctions.nn_qfunction import FeedForwardCritic
 from qfunctions.quadratic_naf_qfunction import QuadraticNAF
+from qfunctions.quadratic_qf import QuadraticQF
 from rllab.baselines.linear_feature_baseline import LinearFeatureBaseline
 from rllab.exploration_strategies.gaussian_strategy import GaussianStrategy
 from rllab.exploration_strategies.ou_strategy import OUStrategy
