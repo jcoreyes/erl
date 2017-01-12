@@ -1,18 +1,21 @@
 """Test different rl algorithms."""
 import argparse
+import copy
+import tensorflow as tf
 
 from algo_launchers import (
-    test_my_ddpg,
-    test_naf,
-    test_convex_naf,
-    test_random,
-    test_shane_ddpg,
-    test_rllab_vpg,
-    test_rllab_trpo,
-    test_rllab_ddpg,
-    test_dqicnn,
-    test_quadratic_ddpg,
-    test_convex_quadratic_naf,
+    my_ddpg_launcher,
+    naf_launcher,
+    convex_naf_launcher,
+    random_action_launcher,
+    shane_ddpg_launcher,
+    rllab_vpg_launcher,
+    rllab_trpo_launcher,
+    rllab_ddpg_launcher,
+    dqicnn_launcher,
+    quadratic_ddpg_launcher,
+    convex_quadratic_naf_launcher,
+    run_experiment,
 )
 from misc import hyperparameter as hp
 from rllab.envs.gym_env import GymEnv
@@ -61,27 +64,57 @@ def gym_env(name):
 
 
 def get_algo_settings(algo_name, render=False):
+    """
+    Return a dictionary of the form
+    {
+        'algo_params': algo_params to pass to run_algorithm
+        'variant': variant to pass to run_algorithm
+    }
+    :param algo_name:
+    :param render:
+    :return:
+    """
     sweeper = hp.RandomHyperparameterSweeper()
-    params = {}
+    algo_params = {}
     if algo_name == 'ddpg':
         sweeper = hp.RandomHyperparameterSweeper([
             hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
             hp.LogFloatParam("scale_reward", 10.0, 0.01),
             hp.LogFloatParam("qf_weight_decay", 1e-7, 1e-1),
         ])
-        params = get_ddpg_params()
-        params['render'] = render
-        algorithm_launcher = test_my_ddpg
+        algo_params = get_ddpg_params()
+        algo_params['render'] = render
+        algorithm_launcher = my_ddpg_launcher
+        variant = {
+            'Algorithm': 'DDPG',
+            'qf_params': dict(
+                embedded_hidden_sizes=(100,),
+                observation_hidden_sizes=(100,),
+                hidden_nonlinearity=tf.nn.relu,
+            ),
+            'policy_params': dict(
+                observation_hidden_sizes=(100, 100),
+                hidden_nonlinearity=tf.nn.relu,
+                output_nonlinearity=tf.nn.tanh,
+            )
+        }
     elif algo_name == 'shane-ddpg':
         sweeper = hp.RandomHyperparameterSweeper([
             hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
             hp.LogFloatParam("scale_reward", 10.0, 0.01),
             hp.LogFloatParam("qf_weight_decay", 1e-7, 1e-1),
         ])
-        params = get_ddpg_params()
-        if params['min_pool_size'] <= params['batch_size']:
-            params['min_pool_size'] = params['batch_size'] + 1
-        algorithm_launcher = test_shane_ddpg
+        algo_params = get_ddpg_params()
+        if algo_params['min_pool_size'] <= algo_params['batch_size']:
+            algo_params['min_pool_size'] = algo_params['batch_size'] + 1
+        algorithm_launcher = shane_ddpg_launcher
+        variant = {'Algorithm': 'Shane-DDPG', 'policy_params': dict(
+            hidden_sizes=(100, 100),
+            hidden_nonlinearity=tf.nn.relu,
+            output_nonlinearity=tf.nn.tanh,
+        ), 'qf_params': dict(
+            hidden_sizes=(100, 100)
+        )}
     elif algo_name == 'qddpg':
         sweeper = hp.RandomHyperparameterSweeper([
             hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
@@ -90,10 +123,18 @@ def get_algo_settings(algo_name, render=False):
             hp.LogFloatParam("qf_learning_rate", 1e-6, 1e-2),
             hp.LogFloatParam("policy_learning_rate", 1e-6, 1e-2),
         ])
-        params = get_ddpg_params()
-        algorithm_launcher = test_quadratic_ddpg
+        algo_params = get_ddpg_params()
+        algorithm_launcher = quadratic_ddpg_launcher
+        variant = {
+            'Algorithm': 'QuadraticDDPG',
+            'qf_params': dict(),
+            'policy_params': dict(
+                observation_hidden_sizes=(100, 100),
+                hidden_nonlinearity=tf.nn.relu,
+                output_nonlinearity=tf.nn.tanh,
+            )
+        }
     elif algo_name == 'cnaf':
-        scale_rewards = [100., 10., 1., 0.1, 0.01, 0.001]
         sweeper = hp.RandomHyperparameterSweeper([
             hp.FixedParam("n_epochs", 25),
             hp.FixedParam("epoch_length", 20),
@@ -101,32 +142,28 @@ def get_algo_settings(algo_name, render=False):
             hp.FixedParam("min_pool_size", 20),
             hp.FixedParam("batch_size", 32),
         ])
-        global NUM_HYPERPARAMETER_CONFIGS
-        NUM_HYPERPARAMETER_CONFIGS = len(scale_rewards)
-        params = get_my_naf_params()
-        params['render'] = render
-        params['optimizer_type'] = 'sgd'
-        algorithm_launcher = test_convex_naf
+        algo_params = get_my_naf_params()
+        algo_params['render'] = render
+        algorithm_launcher = convex_naf_launcher
+        variant = {
+            'Algorithm': 'ConvexNAF',
+            'optimizer_type': 'sgd',
+        }
     elif algo_name == 'cqnaf':
-        scale_rewards = [100., 10., 1., 0.1, 0.01, 0.001]
         sweeper = hp.RandomHyperparameterSweeper([
             hp.FixedParam("n_epochs", 25),
             hp.FixedParam("epoch_length", 20),
             hp.FixedParam("eval_samples", 20),
             hp.FixedParam("min_pool_size", 20),
             hp.FixedParam("batch_size", 32),
-            # hp.LogFloatParam("qf_learning_rate", 1e-7, 1e-1),
-            # hp.LogFloatParam("qf_weight_decay", 1e-6, 1e-1),
-            # hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
-            hp.ListedParam("scale_reward", scale_rewards),
-            # hp.LinearFloatParam("discount", .25, 0.99),
         ])
-        global NUM_HYPERPARAMETER_CONFIGS
-        NUM_HYPERPARAMETER_CONFIGS = len(scale_rewards)
-        params = get_my_naf_params()
-        params['render'] = render
-        params['optimizer_type'] = 'sgd'
-        algorithm_launcher = test_convex_quadratic_naf
+        algo_params = get_my_naf_params()
+        algo_params['render'] = render
+        algorithm_launcher = convex_quadratic_naf_launcher
+        variant = {
+            'Algorithm': 'ConvexQuadraticNAF',
+            'optimizer_type': 'sgd',
+        }
     elif algo_name == 'naf':
         sweeper = hp.RandomHyperparameterSweeper([
             hp.LogFloatParam("qf_learning_rate", 1e-6, 1e-2),
@@ -135,11 +172,12 @@ def get_algo_settings(algo_name, render=False):
             hp.LogFloatParam("qf_weight_decay", 1e-6, 1e-1),
             hp.LinearIntParam("n_updates_per_time_step", 1, 10),
         ])
-        params = get_my_naf_params()
-        params['render'] = render
-        algorithm_launcher = test_naf
+        algo_params = get_my_naf_params()
+        algo_params['render'] = render
+        algorithm_launcher = naf_launcher
+        variant = {'Algorithm': 'NAF'}
     elif algo_name == 'dqicnn':
-        algorithm_launcher = test_dqicnn
+        algorithm_launcher = dqicnn_launcher
         sweeper = hp.RandomHyperparameterSweeper([
             hp.FixedParam("n_epochs", 25),
             hp.FixedParam("epoch_length", 100),
@@ -150,13 +188,17 @@ def get_algo_settings(algo_name, render=False):
             hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
             hp.LogFloatParam("scale_reward", 10.0, 0.01),
         ])
-        params = get_my_naf_params()
-        params['render'] = render
+        algo_params = get_my_naf_params()
+        algo_params['render'] = render
+        variant = {
+            'Algorithm': 'DqnICNN',
+        }
     elif algo_name == 'random':
-        algorithm_launcher = test_random
+        algorithm_launcher = random_action_launcher
+        variant = {'Algorithm': 'Random'}
     elif algo_name == 'rl-vpg':
-        algorithm_launcher = test_rllab_vpg
-        params = dict(
+        algorithm_launcher = rllab_vpg_launcher
+        algo_params = dict(
             batch_size=BATCH_SIZE,
             max_path_length=MAX_PATH_LENGTH,
             n_itr=N_EPOCHS,
@@ -167,26 +209,30 @@ def get_algo_settings(algo_name, render=False):
                 )
             ),
         )
+        variant = {'Algorithm': 'rllab-VPG'}
     elif algo_name == 'rl-trpo':
-        algorithm_launcher = test_rllab_trpo
-        params = dict(
+        algorithm_launcher = rllab_trpo_launcher
+        algo_params = dict(
             batch_size=BATCH_SIZE,
             max_path_length=MAX_PATH_LENGTH,
             n_itr=N_EPOCHS,
             discount=DISCOUNT,
             step_size=BATCH_LEARNING_RATE,
         )
+        variant = {'Algorithm': 'rllab-TRPO'}
     elif algo_name == 'rl-ddpg':
-        algorithm_launcher = test_rllab_ddpg
-        params = get_ddpg_params()
-        if params['min_pool_size'] <= params['batch_size']:
-            params['min_pool_size'] = params['batch_size'] + 1
+        algorithm_launcher = rllab_ddpg_launcher
+        algo_params = get_ddpg_params()
+        if algo_params['min_pool_size'] <= algo_params['batch_size']:
+            algo_params['min_pool_size'] = algo_params['batch_size'] + 1
+        variant = {'Algorithm': 'rllab-DDPG'}
     else:
         raise Exception("Algo name not recognized: " + algo_name)
 
     return {
         'sweeper': sweeper,
-        'algo_params': params,
+        'variant': variant,
+        'algo_params': algo_params,
         'algorithm_launcher': algorithm_launcher,
     }
 
@@ -227,15 +273,28 @@ def get_my_naf_params():
     )
 
 
-def sweep(exp_prefix, env_params, algo_settings):
+def run_algorithm(algo_settings, env_params, exp_prefix, seed):
+    variant = algo_settings['variant']
+    variant['env_params'] = env_params
+    variant['algo_params'] = algo_settings['algo_params']
+
+    from misc.launcher_util import get_env_settings
+    env_settings = get_env_settings(**env_params)
+    variant['Environment'] = env_settings['name']
+    algorithm_launcher = algo_settings['algorithm_launcher']
+    run_experiment(algorithm_launcher, exp_prefix, seed, variant)
+
+
+def sweep(exp_prefix, env_params, algo_settings_):
+    algo_settings = copy.deepcopy(algo_settings_)
     sweeper = algo_settings['sweeper']
-    test_function = algo_settings['test_function']
     default_params = algo_settings['algo_params']
     for i in range(NUM_HYPERPARAMETER_CONFIGS):
         for seed in range(NUM_SEEDS_PER_CONFIG):
             algo_params = dict(default_params,
                           **sweeper.generate_random_hyperparameters())
-            test_function(algo_params, env_params, exp_prefix, seed=seed + 1)
+            algo_settings['algo_params'] = algo_params
+            run_algorithm(algo_settings, env_params, exp_prefix, seed)
 
 
 def benchmark(args):
@@ -249,13 +308,11 @@ def benchmark(args):
         for seed in range(NUM_SEEDS_PER_CONFIG):
             for algo_name in algo_names:
                 algo_settings = get_algo_settings(algo_name, render=False)
-                test_function = algo_settings['test_function']
-                algo_params = algo_settings['algo_params']
                 env_params = {
                     'env_id': env_id,
                     'normalize_env': True,
                 }
-                test_function(algo_params, env_params, name, seed=seed)
+                run_algorithm(algo_settings, env_params, name, seed=seed)
 
 
 def get_algo_settings_from_args(args):
@@ -268,6 +325,7 @@ def get_env_params_from_args(args):
         normalize_env=not args.nonorm,
         gym_name=args.gym
     )
+
 
 def main():
     env_choices = ['ant', 'cheetah', 'cart', 'point', 'pt', 'reacher',
@@ -327,14 +385,9 @@ def main():
     elif args.sweep:
         sweep(args.name, env_params, algo_settings)
     else:
-        algorithm_launcher = algo_settings['algorithm_launcher']
-        algo_params = algo_settings['algo_params']
-        print("algo_params =")
-        print(algo_params)
         env_params = get_env_params_from_args(args)
         for i in range(args.num_seeds):
-            algorithm_launcher(algo_params, env_params, args.name,
-                               seed=args.seed+i)
+            run_algorithm(algo_settings, env_params, args.name, args.seed+i)
 
 
 if __name__ == "__main__":
