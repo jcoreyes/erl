@@ -1,3 +1,11 @@
+"""
+This file contains 'launchers', which are self-contained functions that take
+one dictionary and run a full experiment. The dictionary configures the
+experiment.
+
+It is important that the functions are completely self-contained (i.e. they
+import their own modules) so that they can be serialized.
+"""
 from rllab.misc.instrument import run_experiment_lite
 import logging
 
@@ -73,6 +81,38 @@ def quadratic_ddpg_launcher(variant):
         **variant['policy_params']
     )
     algorithm = MyDDPG(
+        env,
+        es,
+        policy,
+        qf,
+        **variant['algo_params']
+    )
+    algorithm.train()
+
+
+def oat_qddpg_launcher(variant):
+    """
+    Quadratic optimal action target DDPG
+    """
+    from algos.optimal_action_target_ddpg import OptimalActionTargetDDPG as OAT
+    from policies.nn_policy import FeedForwardPolicy
+    from qfunctions.quadratic_naf_qfunction import QuadraticNAF
+    from rllab.exploration_strategies.ou_strategy import OUStrategy
+    from misc.launcher_util import get_env_settings
+    env_settings = get_env_settings(**variant['env_params'])
+    env = env_settings['env']
+    es = OUStrategy(env_spec=env.spec)
+    qf = QuadraticNAF(
+        name_or_scope="critic",
+        env_spec=env.spec,
+        **variant['qf_params']
+    )
+    policy = FeedForwardPolicy(
+        name_or_scope="actor",
+        env_spec=env.spec,
+        **variant['policy_params']
+    )
+    algorithm = OAT(
         env,
         es,
         policy,

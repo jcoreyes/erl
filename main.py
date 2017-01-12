@@ -16,12 +16,14 @@ from algo_launchers import (
     quadratic_ddpg_launcher,
     convex_quadratic_naf_launcher,
     run_experiment,
+    oat_qddpg_launcher,
 )
 from misc import hyperparameter as hp
 from rllab.envs.gym_env import GymEnv
 
-# Seems to do nothing, but this is needed to use local envs.
-# import envs
+# Although this import looks like it does nothing, but this is needed to use
+# the envs in this package, because this call will register the environments.
+import envs
 
 BATCH_SIZE = 128
 N_EPOCHS = 100
@@ -127,6 +129,18 @@ def get_algo_settings(algo_name, render=False):
         algorithm_launcher = quadratic_ddpg_launcher
         variant = {
             'Algorithm': 'QuadraticDDPG',
+            'qf_params': dict(),
+            'policy_params': dict(
+                observation_hidden_sizes=(100, 100),
+                hidden_nonlinearity=tf.nn.relu,
+                output_nonlinearity=tf.nn.tanh,
+            )
+        }
+    elif algo_name == 'oat':
+        algo_params = get_ddpg_params()
+        algorithm_launcher = oat_qddpg_launcher
+        variant = {
+            'Algorithm': 'QuadraticOptimalActionTargetDDPG',
             'qf_params': dict(),
             'policy_params': dict(
                 observation_hidden_sizes=(100, 100),
@@ -302,15 +316,18 @@ def benchmark(args):
     Benchmark everything!
     """
     name = args.name + "-benchmark"
-    env_ids = ['cheetah']
-    algo_names = ['qddpg', 'ddpg']
-    for env_id in env_ids:
+    env_id_and_gym_names = [
+        ('gym', 'OneDPoint-v0'),
+    ]
+    algo_names = ['ddpg', 'qddpg', 'oat', 'naf']
+    for env_id, gym_name in env_id_and_gym_names:
         for seed in range(NUM_SEEDS_PER_CONFIG):
             for algo_name in algo_names:
                 algo_settings = get_algo_settings(algo_name, render=False)
                 env_params = {
                     'env_id': env_id,
                     'normalize_env': True,
+                    'gym_name': gym_name,
                 }
                 run_algorithm(algo_settings, env_params, name, seed=seed)
 
@@ -322,7 +339,7 @@ def get_algo_settings_from_args(args):
 def get_env_params_from_args(args):
     return dict(
         env_id=args.env,
-        normalize_env=not args.nonorm,
+        normalize_env=args.normalize,
         gym_name=args.gym
     )
 
@@ -331,7 +348,7 @@ def main():
     env_choices = ['ant', 'cheetah', 'cart', 'point', 'pt', 'reacher',
                    'idp', 'gym']
     algo_choices = ['ddpg', 'naf', 'shane-ddpg', 'random', 'cnaf', 'cqnaf',
-                    'rl-vpg', 'rl-trpo', 'rl-ddpg', 'dqicnn', 'qddpg']
+                    'rl-vpg', 'rl-trpo', 'rl-ddpg', 'dqicnn', 'qddpg', 'oat']
     parser = argparse.ArgumentParser()
     parser.add_argument("--benchmark", action='store_true',
                         help="Run benchmarks.")
