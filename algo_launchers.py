@@ -18,17 +18,10 @@ from rllab.exploration_strategies.gaussian_strategy import GaussianStrategy
 from rllab.exploration_strategies.ou_strategy import OUStrategy
 from rllab.misc.instrument import run_experiment_lite, stub
 from rllab.policies.uniform_control_policy import UniformControlPolicy
-from sandbox.rocky.tf.algos.ddpg import DDPG as ShaneDDPG
 from sandbox.rocky.tf.algos.vpg import VPG
 from sandbox.rocky.tf.algos.trpo import TRPO
 from sandbox.rocky.tf.envs.base import TfEnv
-from sandbox.rocky.tf.policies.deterministic_mlp_policy import (
-    DeterministicMLPPolicy
-)
 from sandbox.rocky.tf.policies.gaussian_mlp_policy import GaussianMLPPolicy
-from sandbox.rocky.tf.q_functions.continuous_mlp_q_function import (
-    ContinuousMLPQFunction
-)
 from rllab.q_functions.continuous_mlp_q_function import (
     ContinuousMLPQFunction as TheanoContinuousMLPQFunction
 )
@@ -255,6 +248,18 @@ def test_dqicnn(env, exp_prefix, env_name, seed=1, **naf_params):
 # other algorithms #
 ####################
 def test_shane_ddpg(env_, exp_prefix, env_name, seed=1, **ddpg_params):
+    print("WARNING: This will soon be deprecated, if not already...")
+    try:
+        from sandbox.rocky.tf.algos.ddpg import DDPG as ShaneDDPG
+        from sandbox.rocky.tf.policies.deterministic_mlp_policy import (
+            DeterministicMLPPolicy
+        )
+        from sandbox.rocky.tf.q_functions.continuous_mlp_q_function import (
+            ContinuousMLPQFunction
+        )
+    except ImportError as e:
+        raise ImportError("{0}\nshane-ddpg requires Shane Gu's version of "
+                          "rllab".format(e.message))
     env = TfEnv(env_)
     es = GaussianStrategy(env.spec)
 
