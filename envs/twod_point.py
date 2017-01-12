@@ -2,7 +2,7 @@ import numpy as np
 from gym import utils
 from gym.envs.mujoco import mujoco_env
 
-from axe.envs.env_utils import get_asset_xml
+from envs.env_utils import get_asset_xml
 
 
 TARGET = np.array([0.2, 0])
