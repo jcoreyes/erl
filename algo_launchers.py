@@ -6,156 +6,122 @@ import logging
 # my algorithms #
 #################
 
-def test_my_ddpg(env, exp_prefix, env_name, seed=1, **ddpg_params):
-    import tensorflow as tf
+def my_ddpg_launcher(variant):
+    """
+    Run DDPG
+    :param variant: Dictionary of dictionary with the following keys:
+        - algo_params
+        - env_params
+        - qf_params
+        - policy_params
+    :return:
+    """
     from algos.ddpg import DDPG as MyDDPG
     from policies.nn_policy import FeedForwardPolicy
     from qfunctions.nn_qfunction import FeedForwardCritic
     from rllab.exploration_strategies.ou_strategy import OUStrategy
+    from misc.launcher_util import get_env_settings
+    env_settings = get_env_settings(**variant['env_params'])
+    env = env_settings['env']
     es = OUStrategy(env_spec=env.spec)
-    qf_params = dict(
-        embedded_hidden_sizes=(100,),
-        observation_hidden_sizes=(100,),
-        # hidden_W_init=util.xavier_uniform_initializer,
-        # hidden_b_init=tf.zeros_initializer,
-        # output_W_init=util.xavier_uniform_initializer,
-        # output_b_init=tf.zeros_initializer,
-        hidden_nonlinearity=tf.nn.relu,
-    )
-    policy_params = dict(
-        observation_hidden_sizes=(100, 100),
-        # hidden_W_init=util.xavier_uniform_initializer,
-        # hidden_b_init=tf.zeros_initializer,
-        # output_W_init=util.xavier_uniform_initializer,
-        # output_b_init=tf.zeros_initializer,
-        hidden_nonlinearity=tf.nn.relu,
-        output_nonlinearity=tf.nn.tanh,
-    )
     qf = FeedForwardCritic(
         name_or_scope="critic",
         env_spec=env.spec,
-        **qf_params
+        **variant['qf_params']
     )
     policy = FeedForwardPolicy(
         name_or_scope="actor",
         env_spec=env.spec,
-        **policy_params
+        **variant['policy_params']
     )
     algorithm = MyDDPG(
         env,
         es,
         policy,
         qf,
-        **ddpg_params
+        **variant['algo_params']
     )
-    variant = ddpg_params
-    variant['Environment'] = env_name
+    algorithm.train()
+
+
+def test_my_ddpg(algo_params, env_params, exp_prefix, seed=1):
+    import tensorflow as tf
+    variant = {}
     variant['Algorithm'] = 'DDPG'
-    for qf_key, qf_value in qf_params.items():
-        variant['qf_' + qf_key] = str(qf_value)
-    for policy_key, policy_value in policy_params.items():
-        variant['policy_' + policy_key] = str(policy_value)
-    run_experiment(algorithm, exp_prefix, seed, variant)
+    variant['qf_params'] = dict(
+        embedded_hidden_sizes=(100,),
+        observation_hidden_sizes=(100,),
+        hidden_nonlinearity=tf.nn.relu,
+    )
+    variant['policy_params'] = dict(
+        observation_hidden_sizes=(100, 100),
+        hidden_nonlinearity=tf.nn.relu,
+        output_nonlinearity=tf.nn.tanh,
+    )
+
+    run_algorithm(my_ddpg_launcher, algo_params, env_params,
+                  variant, exp_prefix, seed)
 
 
-def test_quadratic_ddpg(env, exp_prefix, env_name, seed=1, **algo_params):
-    import tensorflow as tf
+def my_qddpg_launcher(variant):
+    """
+    Run DDPG with Quadratic Critic
+    :param variant: Dictionary of dictionary with the following keys:
+        - algo_params
+        - env_params
+        - qf_params
+        - policy_params
+    :return:
+    """
     from algos.ddpg import DDPG as MyDDPG
     from policies.nn_policy import FeedForwardPolicy
+    from rllab.exploration_strategies.ou_strategy import OUStrategy
     from qfunctions.quadratic_naf_qfunction import QuadraticNAF
-    from rllab.exploration_strategies.ou_strategy import OUStrategy
+    from misc.launcher_util import get_env_settings
+    env_settings = get_env_settings(**variant['env_params'])
+    env = env_settings['env']
     es = OUStrategy(env_spec=env.spec)
-    policy_params = dict(
-        observation_hidden_sizes=(100, 100),
-        hidden_nonlinearity=tf.nn.relu,
-        output_nonlinearity=tf.nn.tanh,
-    )
-    policy = FeedForwardPolicy(
-        name_or_scope="policy",
-        env_spec=env.spec,
-        **policy_params
-    )
     qf = QuadraticNAF(
-        name_or_scope="quadratic_qf",
+        name_or_scope="critic",
         env_spec=env.spec,
-    )
-    algorithm = MyDDPG(
-        env,
-        es,
-        policy,
-        qf,
-        **algo_params
-    )
-    variant = algo_params
-    variant['Version'] = 'Mine'
-    variant['Environment'] = env_name
-    variant['Algorithm'] = 'QuadraticDDPG'
-    for policy_key, policy_value in policy_params.items():
-        variant['policy_' + policy_key] = str(policy_value)
-    run_experiment(algorithm, exp_prefix, seed, variant)
-
-
-def test_naf_ddpg(env, exp_prefix, env_name, seed=1, **algo_params):
-    import tensorflow as tf
-    from algos.ddpg import DDPG as MyDDPG
-    from policies.nn_policy import FeedForwardPolicy
-    from qfunctions.quadratic_qf import QuadraticQF
-    from rllab.exploration_strategies.ou_strategy import OUStrategy
-    """Basically implement NAF with the DDPG code. The only difference is that
-    the actor now gets updated twice."""
-    # TODO
-    es = OUStrategy(env_spec=env.spec)
-    quadratic_policy_params = dict(
-        observation_hidden_sizes=(100, 100),
-        hidden_W_init=None,
-        hidden_b_init=None,
-        output_W_init=None,
-        output_b_init=None,
-        hidden_nonlinearity=tf.nn.relu,
-        output_nonlinearity=tf.nn.tanh,
-    )
-    policy_params = dict(
-        observation_hidden_sizes=(100, 100),
-        hidden_nonlinearity=tf.nn.relu,
-        output_nonlinearity=tf.nn.tanh,
-    )
-    quadratic_policy = FeedForwardPolicy(
-        name_or_scope="quadratic_policy",
-        env_spec=env.spec,
-        **quadratic_policy_params
-    )
-    qf = QuadraticQF(
-        name_or_scope="quadratic_qfunction",
-        env_spec=env.spec,
-        policy=quadratic_policy,
+        **variant['qf_params']
     )
     policy = FeedForwardPolicy(
         name_or_scope="actor",
         env_spec=env.spec,
-        **policy_params
+        **variant['policy_params']
     )
     algorithm = MyDDPG(
         env,
         es,
         policy,
         qf,
-        **algo_params
+        **variant['algo_params']
     )
-    variant = algo_params
-    variant['Version'] = 'Mine'
-    variant['Environment'] = env_name
-    variant['Algo'] = 'NAF-DDPG'
-    for qf_key, qf_value in quadratic_policy_params.items():
-        variant['quadratic_policy_params_' + qf_key] = str(qf_value)
-    for policy_key, policy_value in policy_params.items():
-        variant['policy_' + policy_key] = str(policy_value)
-    run_experiment(algorithm, exp_prefix, seed, variant)
+    algorithm.train()
 
 
-def test_my_naf(env, exp_prefix, env_name, seed=1, **naf_params):
+def test_quadratic_ddpg(algo_params, env_params, exp_prefix, seed=1):
+    import tensorflow as tf
+    variant = {}
+    variant['Algorithm'] = 'QuadraticDDPG'
+    variant['qf_params'] = dict()
+    variant['policy_params'] = dict(
+        observation_hidden_sizes=(100, 100),
+        hidden_nonlinearity=tf.nn.relu,
+        output_nonlinearity=tf.nn.tanh,
+    )
+    run_algorithm(my_qddpg_launcher, algo_params, env_params,
+                  variant, exp_prefix, seed)
+
+
+def naf_launcher(variant):
     from algos.naf import NAF
     from qfunctions.quadratic_naf_qfunction import QuadraticNAF
     from rllab.exploration_strategies.gaussian_strategy import GaussianStrategy
+    from misc.launcher_util import get_env_settings
+    env_settings = get_env_settings(**variant['env_params'])
+    env = env_settings['env']
     es = GaussianStrategy(env)
     qf = QuadraticNAF(
         name_or_scope="qf",
@@ -165,12 +131,74 @@ def test_my_naf(env, exp_prefix, env_name, seed=1, **naf_params):
         env,
         es,
         qf,
-        **naf_params
+        **variant['algo_params']
     )
-    variant = naf_params
-    variant['Environment'] = env_name
-    variant['Algorithm'] = 'NAF'
-    run_experiment(algorithm, exp_prefix, seed, variant)
+    algorithm.train()
+
+
+def test_naf(algo_params, env_params, exp_prefix, seed=1):
+    variant = {'Algorithm': 'NAF'}
+    run_algorithm(naf_launcher, algo_params, env_params,
+                  variant, exp_prefix, seed)
+
+
+def naf_ddpg_launcher(variant):
+    """Basically implement NAF with the DDPG code. The only difference is that
+    the actor now gets updated twice."""
+    from algos.ddpg import DDPG as MyDDPG
+    from policies.nn_policy import FeedForwardPolicy
+    from qfunctions.quadratic_qf import QuadraticQF
+    from rllab.exploration_strategies.ou_strategy import OUStrategy
+    from misc.launcher_util import get_env_settings
+    env_settings = get_env_settings(**variant['env_params'])
+    env = env_settings['env']
+    es = OUStrategy(env_spec=env.spec)
+    quadratic_policy = FeedForwardPolicy(
+        name_or_scope="quadratic_policy",
+        env_spec=env.spec,
+        **variant['quadratic_policy_params']
+    )
+    qf = QuadraticQF(
+        name_or_scope="quadratic_qfunction",
+        env_spec=env.spec,
+        policy=quadratic_policy,
+    )
+    policy = FeedForwardPolicy(
+        name_or_scope="actor",
+        env_spec=env.spec,
+        **variant['policy_params']
+    )
+    algorithm = MyDDPG(
+        env,
+        es,
+        policy,
+        qf,
+        **variant['algo_params']
+    )
+    algorithm.train()
+
+
+def test_naf_ddpg(algo_params, env_params, exp_prefix, seed=1):
+    import tensorflow as tf
+    variant = algo_params
+    variant['Algorithm'] = 'NAF-DDPG'
+    variant['quadratic_policy_params'] = dict(
+        observation_hidden_sizes=(100, 100),
+        hidden_W_init=None,
+        hidden_b_init=None,
+        output_W_init=None,
+        output_b_init=None,
+        hidden_nonlinearity=tf.nn.relu,
+        output_nonlinearity=tf.nn.tanh,
+    )
+    variant['policy_params'] = dict(
+        observation_hidden_sizes=(100, 100),
+        hidden_nonlinearity=tf.nn.relu,
+        output_nonlinearity=tf.nn.tanh,
+    )
+    run_algorithm(naf_launcher, algo_params, env_params,
+                  variant, exp_prefix, seed)
+
 
 
 def test_convex_naf(env, exp_prefix, env_name, seed=1, **naf_params):
@@ -221,6 +249,7 @@ def test_convex_quadratic_naf(env, exp_prefix, env_name, seed=1, **naf_params):
     variant['Environment'] = env_name
     variant['Algorithm'] = 'ConvexQuadraticNAF'
     run_experiment(algorithm, exp_prefix, seed, variant)
+
 
 def test_dqicnn(env, exp_prefix, env_name, seed=1, **naf_params):
     from algos.dqicnn import DQICNN
@@ -398,18 +427,24 @@ def test_random(env, exp_prefix, env_name, seed=1, **algo_params):
 
     run_experiment(algorithm, exp_prefix, seed, variant=variant)
 
+def run_algorithm(algorithm_launcher, algo_params, env_params,
+                  variant, exp_prefix, seed):
+    variant['env_params'] = env_params
+    variant['algo_params'] = algo_params
 
-def run_experiment(algorithm, exp_prefix, seed, variant):
+    from misc.launcher_util import get_env_settings
+    env_settings = get_env_settings(**env_params)
+    variant['Environment'] = env_settings['name']
+    run_experiment(algorithm_launcher, exp_prefix, seed, variant)
+
+
+def run_experiment(task, exp_prefix, seed, variant):
     variant['seed'] = str(seed)
     logger = logging.getLogger(__name__)
     logger.info("Variant:")
     logger.info(variant)
-
-    def run_task(ignored_variant):
-        algorithm.train()
-
     run_experiment_lite(
-        run_task,
+        task,
         snapshot_mode="last",
         exp_prefix=exp_prefix,
         variant=variant,

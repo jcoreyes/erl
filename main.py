@@ -3,7 +3,7 @@ import argparse
 
 from algo_launchers import (
     test_my_ddpg,
-    test_my_naf,
+    test_naf,
     test_convex_naf,
     test_random,
     test_shane_ddpg,
@@ -12,16 +12,13 @@ from algo_launchers import (
     test_rllab_ddpg,
     test_dqicnn,
     test_quadratic_ddpg,
-    test_convex_quadratic_naf)
-from misc import hyperparameter as hp
-from rllab.envs.box2d.cartpole_env import CartpoleEnv
-from rllab.envs.gym_env import GymEnv
-from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
-from rllab.envs.mujoco.ant_env import AntEnv
-from rllab.envs.mujoco.inverted_double_pendulum_env import (
-    InvertedDoublePendulumEnv
+    test_convex_quadratic_naf,
 )
-from rllab.envs.normalized_env import normalize
+from misc import hyperparameter as hp
+from rllab.envs.gym_env import GymEnv
+
+# Seems to do nothing, but this is needed to use local envs.
+# import envs
 
 BATCH_SIZE = 128
 N_EPOCHS = 100
@@ -63,45 +60,6 @@ def gym_env(name):
                   record_log=False)
 
 
-def get_env_settings(env_name, normalize_env=True, gym_name=None):
-    if env_name == 'cart':
-        env = CartpoleEnv()
-        name = "Cartpole"
-    elif env_name == 'cheetah':
-        env = HalfCheetahEnv()
-        name = "HalfCheetah"
-    elif env_name == 'ant':
-        env = AntEnv()
-        name = "Ant"
-    elif env_name == 'point':
-        env = gym_env("Pointmass-v1")
-        name = "Pointmass"
-    elif env_name == 'pt':
-        env = gym_env("PointmassTarget-v1")
-        name = "PointmassTarget"
-    elif env_name == 'reacher':
-        env = gym_env("Reacher-v1")
-        name = "Reacher"
-    elif env_name == 'idp':
-        env = InvertedDoublePendulumEnv()
-        name = "InvertedDoublePendulum"
-    elif env_name == 'gym':
-        if gym_name is None or gym_name == "":
-            raise Exception("Must provide a gym name")
-        env = gym_env(gym_name)
-        name = gym_name
-    else:
-        raise Exception("Unknown env: {0}".format(env_name))
-    if normalize_env:
-        env = normalize(env)
-        name = name + "-normalized"
-    return dict(
-        env=env,
-        name=name,
-        normalize=normalize_env,
-    )
-
-
 def get_algo_settings(algo_name, render=False):
     sweeper = hp.RandomHyperparameterSweeper()
     params = {}
@@ -113,7 +71,7 @@ def get_algo_settings(algo_name, render=False):
         ])
         params = get_ddpg_params()
         params['render'] = render
-        test_function = test_my_ddpg
+        algorithm_launcher = test_my_ddpg
     elif algo_name == 'shane-ddpg':
         sweeper = hp.RandomHyperparameterSweeper([
             hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
@@ -123,7 +81,7 @@ def get_algo_settings(algo_name, render=False):
         params = get_ddpg_params()
         if params['min_pool_size'] <= params['batch_size']:
             params['min_pool_size'] = params['batch_size'] + 1
-        test_function = test_shane_ddpg
+        algorithm_launcher = test_shane_ddpg
     elif algo_name == 'qddpg':
         sweeper = hp.RandomHyperparameterSweeper([
             hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
@@ -133,7 +91,7 @@ def get_algo_settings(algo_name, render=False):
             hp.LogFloatParam("policy_learning_rate", 1e-6, 1e-2),
         ])
         params = get_ddpg_params()
-        test_function = test_quadratic_ddpg
+        algorithm_launcher = test_quadratic_ddpg
     elif algo_name == 'cnaf':
         scale_rewards = [100., 10., 1., 0.1, 0.01, 0.001]
         sweeper = hp.RandomHyperparameterSweeper([
@@ -148,7 +106,7 @@ def get_algo_settings(algo_name, render=False):
         params = get_my_naf_params()
         params['render'] = render
         params['optimizer_type'] = 'sgd'
-        test_function = test_convex_naf
+        algorithm_launcher = test_convex_naf
     elif algo_name == 'cqnaf':
         scale_rewards = [100., 10., 1., 0.1, 0.01, 0.001]
         sweeper = hp.RandomHyperparameterSweeper([
@@ -168,7 +126,7 @@ def get_algo_settings(algo_name, render=False):
         params = get_my_naf_params()
         params['render'] = render
         params['optimizer_type'] = 'sgd'
-        test_function = test_convex_quadratic_naf
+        algorithm_launcher = test_convex_quadratic_naf
     elif algo_name == 'naf':
         sweeper = hp.RandomHyperparameterSweeper([
             hp.LogFloatParam("qf_learning_rate", 1e-6, 1e-2),
@@ -179,9 +137,9 @@ def get_algo_settings(algo_name, render=False):
         ])
         params = get_my_naf_params()
         params['render'] = render
-        test_function = test_my_naf
+        algorithm_launcher = test_naf
     elif algo_name == 'dqicnn':
-        test_function = test_dqicnn
+        algorithm_launcher = test_dqicnn
         sweeper = hp.RandomHyperparameterSweeper([
             hp.FixedParam("n_epochs", 25),
             hp.FixedParam("epoch_length", 100),
@@ -195,9 +153,9 @@ def get_algo_settings(algo_name, render=False):
         params = get_my_naf_params()
         params['render'] = render
     elif algo_name == 'random':
-        test_function = test_random
+        algorithm_launcher = test_random
     elif algo_name == 'rl-vpg':
-        test_function = test_rllab_vpg
+        algorithm_launcher = test_rllab_vpg
         params = dict(
             batch_size=BATCH_SIZE,
             max_path_length=MAX_PATH_LENGTH,
@@ -210,7 +168,7 @@ def get_algo_settings(algo_name, render=False):
             ),
         )
     elif algo_name == 'rl-trpo':
-        test_function = test_rllab_trpo
+        algorithm_launcher = test_rllab_trpo
         params = dict(
             batch_size=BATCH_SIZE,
             max_path_length=MAX_PATH_LENGTH,
@@ -219,7 +177,7 @@ def get_algo_settings(algo_name, render=False):
             step_size=BATCH_LEARNING_RATE,
         )
     elif algo_name == 'rl-ddpg':
-        test_function = test_rllab_ddpg
+        algorithm_launcher = test_rllab_ddpg
         params = get_ddpg_params()
         if params['min_pool_size'] <= params['batch_size']:
             params['min_pool_size'] = params['batch_size'] + 1
@@ -229,7 +187,7 @@ def get_algo_settings(algo_name, render=False):
     return {
         'sweeper': sweeper,
         'algo_params': params,
-        'test_function': test_function,
+        'algorithm_launcher': algorithm_launcher,
     }
 
 
@@ -269,18 +227,15 @@ def get_my_naf_params():
     )
 
 
-def sweep(exp_prefix, env_settings, algo_settings):
+def sweep(exp_prefix, env_params, algo_settings):
     sweeper = algo_settings['sweeper']
     test_function = algo_settings['test_function']
     default_params = algo_settings['algo_params']
-    env = env_settings['env']
-    env_name = env_settings['name']
     for i in range(NUM_HYPERPARAMETER_CONFIGS):
         for seed in range(NUM_SEEDS_PER_CONFIG):
-            params = dict(default_params,
+            algo_params = dict(default_params,
                           **sweeper.generate_random_hyperparameters())
-            test_function(env, exp_prefix, env_name, seed=seed + 1,
-                          **params)
+            test_function(algo_params, env_params, exp_prefix, seed=seed + 1)
 
 
 def benchmark(args):
@@ -294,25 +249,25 @@ def benchmark(args):
         for seed in range(NUM_SEEDS_PER_CONFIG):
             for algo_name in algo_names:
                 algo_settings = get_algo_settings(algo_name, render=False)
-                env_settings = get_env_settings(env_id, normalize_env=True)
                 test_function = algo_settings['test_function']
                 algo_params = algo_settings['algo_params']
-                env = env_settings['env']
-                env_name = env_settings['name']
-                test_function(env, name, env_name, seed=seed, **algo_params)
+                env_params = {
+                    'env_id': env_id,
+                    'normalize_env': True,
+                }
+                test_function(algo_params, env_params, name, seed=seed)
 
 
 def get_algo_settings_from_args(args):
     return get_algo_settings(args.algo, args.render)
 
 
-def get_env_settings_from_args(args):
-    return get_env_settings(
-        args.env,
-        normalize_env=args.normalize,
-        gym_name=args.gym,
+def get_env_params_from_args(args):
+    return dict(
+        env_id=args.env,
+        normalize_env=not args.nonorm,
+        gym_name=args.gym
     )
-
 
 def main():
     env_choices = ['ant', 'cheetah', 'cart', 'point', 'pt', 'reacher',
@@ -366,21 +321,20 @@ def main():
             print("WARNING: Algorithm will be slow because render is on.")
 
     algo_settings = get_algo_settings_from_args(args)
-    env_settings = get_env_settings_from_args(args)
+    env_params = get_env_params_from_args(args)
     if args.benchmark:
         benchmark(args)
     elif args.sweep:
-        sweep(args.name, env_settings, algo_settings)
+        sweep(args.name, env_params, algo_settings)
     else:
-        test_function = algo_settings['test_function']
+        algorithm_launcher = algo_settings['algorithm_launcher']
         algo_params = algo_settings['algo_params']
-        env = env_settings['env']
-        env_name = env_settings['name']
         print("algo_params =")
         print(algo_params)
+        env_params = get_env_params_from_args(args)
         for i in range(args.num_seeds):
-            test_function(env, args.name, env_name, seed=args.seed + i,
-                          **algo_params)
+            algorithm_launcher(algo_params, env_params, args.name,
+                               seed=args.seed+i)
 
 
 if __name__ == "__main__":
