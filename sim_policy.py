@@ -3,6 +3,7 @@ import argparse
 import joblib
 import uuid
 import tensorflow as tf
+import envs
 
 filename = str(uuid.uuid4())
 
