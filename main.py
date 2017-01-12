@@ -65,7 +65,9 @@ def gym_env(name):
                   record_log=False)
 
 
-def get_algo_settings(algo_name, render=False):
+def get_algo_settings_list_from_args(args):
+    algo_name = args.algo
+    render = args.render
     """
     Return a dictionary of the form
     {
@@ -311,37 +313,12 @@ def sweep(exp_prefix, env_params, algo_settings_):
             run_algorithm(algo_settings, env_params, exp_prefix, seed)
 
 
-def benchmark(args):
-    """
-    Benchmark everything!
-    """
-    name = args.name + "-benchmark"
-    env_id_and_gym_names = [
-        ('gym', 'OneDPoint-v0'),
-    ]
-    algo_names = ['ddpg', 'qddpg', 'oat', 'naf']
-    for env_id, gym_name in env_id_and_gym_names:
-        for seed in range(NUM_SEEDS_PER_CONFIG):
-            for algo_name in algo_names:
-                algo_settings = get_algo_settings(algo_name, render=False)
-                env_params = {
-                    'env_id': env_id,
-                    'normalize_env': True,
-                    'gym_name': gym_name,
-                }
-                run_algorithm(algo_settings, env_params, name, seed=seed)
-
-
-def get_algo_settings_from_args(args):
-    return get_algo_settings(args.algo, args.render)
-
-
-def get_env_params_from_args(args):
-    return dict(
-        env_id=args.env,
+def get_env_params_list_from_args(args):
+    return [dict(
+        env_id=env,
         normalize_env=args.normalize,
         gym_name=args.gym
-    )
+    ) for env in args.env]
 
 
 def main():
@@ -350,14 +327,14 @@ def main():
     algo_choices = ['ddpg', 'naf', 'shane-ddpg', 'random', 'cnaf', 'cqnaf',
                     'rl-vpg', 'rl-trpo', 'rl-ddpg', 'dqicnn', 'qddpg', 'oat']
     parser = argparse.ArgumentParser()
-    parser.add_argument("--benchmark", action='store_true',
-                        help="Run benchmarks.")
     parser.add_argument("--sweep", action='store_true',
                         help="Sweep _hyperparameters for my DDPG.")
     parser.add_argument("--render", action='store_true',
                         help="Render the environment.")
-    parser.add_argument("--env", default='cart',
-                        help="Test algo on 'cart' or 'cheetah'.",
+    parser.add_argument("--env",
+                        default=['cart'],
+                        help="Environment to test.",
+                        nargs='+',
                         choices=env_choices)
     parser.add_argument("--gym",
                         help="Gym env name if 'gym' was given as the env")
@@ -368,8 +345,10 @@ def main():
                               'Overrides sweep settings'))
     parser.add_argument("--nonorm", action='store_true',
                         help="Normalize the environment")
-    parser.add_argument("--algo", default='ddpg',
-                        help='Algo',
+    parser.add_argument("--algo",
+                        default=['ddpg'],
+                        help='Algorithm to run.',
+                        nargs='+',
                         choices=algo_choices)
     parser.add_argument("--seed", default=1,
                         type=int,
@@ -395,16 +374,16 @@ def main():
         if args.render:
             print("WARNING: Algorithm will be slow because render is on.")
 
-    algo_settings = get_algo_settings_from_args(args)
-    env_params = get_env_params_from_args(args)
-    if args.benchmark:
-        benchmark(args)
-    elif args.sweep:
-        sweep(args.name, env_params, algo_settings)
-    else:
-        env_params = get_env_params_from_args(args)
-        for i in range(args.num_seeds):
-            run_algorithm(algo_settings, env_params, args.name, args.seed+i)
+    algo_settings_list = get_algo_settings_list_from_args(args)
+    env_params_list = get_env_params_list_from_args(args)
+    for env_params in env_params_list:
+        for algo_settings in algo_settings_list:
+            if args.sweep:
+                sweep(args.name, env_params, algo_settings)
+            else:
+                env_params = get_env_params_list_from_args(args)
+                for i in range(args.num_seeds):
+                    run_algorithm(algo_settings, env_params, args.name, args.seed+i)
 
 
 if __name__ == "__main__":
