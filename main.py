@@ -22,7 +22,6 @@ from rllab.envs.mujoco.inverted_double_pendulum_env import (
     InvertedDoublePendulumEnv
 )
 from rllab.envs.normalized_env import normalize
-from rllab.misc.instrument import stub
 
 BATCH_SIZE = 128
 N_EPOCHS = 100
@@ -365,8 +364,6 @@ def main():
     else:
         if args.render:
             print("WARNING: Algorithm will be slow because render is on.")
-
-    stub(globals())
 
     algo_settings = get_algo_settings_from_args(args)
     env_settings = get_env_settings_from_args(args)

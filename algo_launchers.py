@@ -1,40 +1,5 @@
-import tensorflow as tf
-
-from algos.convex_naf import ConvexNAFAlgorithm
-from algos.ddpg import DDPG as MyDDPG
-from algos.dqicnn import DQICNN
-from algos.naf import NAF
-from qfunctions.action_concave_qfunction import ActionConcaveQFunction
-from qfunctions.sgd_quadratic_naf_qfunction import SgdQuadraticNAF
-from rllab.algos.ddpg import DDPG as RllabDDPG
-from algos.noop_algo import NoOpAlgo
-from policies.nn_policy import FeedForwardPolicy
-from qfunctions.convex_naf_qfunction import ConcaveNAF
-from qfunctions.nn_qfunction import FeedForwardCritic
-from qfunctions.quadratic_naf_qfunction import QuadraticNAF
-from qfunctions.quadratic_qf import QuadraticQF
-from rllab.baselines.linear_feature_baseline import LinearFeatureBaseline
-from rllab.exploration_strategies.gaussian_strategy import GaussianStrategy
-from rllab.exploration_strategies.ou_strategy import OUStrategy
-from rllab.misc.instrument import run_experiment_lite, stub
-from rllab.policies.uniform_control_policy import UniformControlPolicy
-from sandbox.rocky.tf.algos.ddpg import DDPG as ShaneDDPG
-from sandbox.rocky.tf.algos.vpg import VPG
-from sandbox.rocky.tf.algos.trpo import TRPO
-from sandbox.rocky.tf.envs.base import TfEnv
-from sandbox.rocky.tf.policies.deterministic_mlp_policy import (
-    DeterministicMLPPolicy
-)
-from sandbox.rocky.tf.policies.gaussian_mlp_policy import GaussianMLPPolicy
-from sandbox.rocky.tf.q_functions.continuous_mlp_q_function import (
-    ContinuousMLPQFunction
-)
-from rllab.q_functions.continuous_mlp_q_function import (
-    ContinuousMLPQFunction as TheanoContinuousMLPQFunction
-)
-from rllab.policies.deterministic_mlp_policy import (
-    DeterministicMLPPolicy as TheanoDeterministicMLPPolicy
-)
+from rllab.misc.instrument import run_experiment_lite
+import logging
 
 
 #################
@@ -42,6 +7,11 @@ from rllab.policies.deterministic_mlp_policy import (
 #################
 
 def test_my_ddpg(env, exp_prefix, env_name, seed=1, **ddpg_params):
+    import tensorflow as tf
+    from algos.ddpg import DDPG as MyDDPG
+    from policies.nn_policy import FeedForwardPolicy
+    from qfunctions.nn_qfunction import FeedForwardCritic
+    from rllab.exploration_strategies.ou_strategy import OUStrategy
     es = OUStrategy(env_spec=env.spec)
     qf_params = dict(
         embedded_hidden_sizes=(100,),
@@ -89,6 +59,11 @@ def test_my_ddpg(env, exp_prefix, env_name, seed=1, **ddpg_params):
 
 
 def test_quadratic_ddpg(env, exp_prefix, env_name, seed=1, **algo_params):
+    import tensorflow as tf
+    from algos.ddpg import DDPG as MyDDPG
+    from policies.nn_policy import FeedForwardPolicy
+    from qfunctions.quadratic_naf_qfunction import QuadraticNAF
+    from rllab.exploration_strategies.ou_strategy import OUStrategy
     es = OUStrategy(env_spec=env.spec)
     policy_params = dict(
         observation_hidden_sizes=(100, 100),
@@ -121,6 +96,11 @@ def test_quadratic_ddpg(env, exp_prefix, env_name, seed=1, **algo_params):
 
 
 def test_naf_ddpg(env, exp_prefix, env_name, seed=1, **algo_params):
+    import tensorflow as tf
+    from algos.ddpg import DDPG as MyDDPG
+    from policies.nn_policy import FeedForwardPolicy
+    from qfunctions.quadratic_qf import QuadraticQF
+    from rllab.exploration_strategies.ou_strategy import OUStrategy
     """Basically implement NAF with the DDPG code. The only difference is that
     the actor now gets updated twice."""
     # TODO
@@ -173,6 +153,9 @@ def test_naf_ddpg(env, exp_prefix, env_name, seed=1, **algo_params):
 
 
 def test_my_naf(env, exp_prefix, env_name, seed=1, **naf_params):
+    from algos.naf import NAF
+    from qfunctions.quadratic_naf_qfunction import QuadraticNAF
+    from rllab.exploration_strategies.gaussian_strategy import GaussianStrategy
     es = GaussianStrategy(env)
     qf = QuadraticNAF(
         name_or_scope="qf",
@@ -191,6 +174,9 @@ def test_my_naf(env, exp_prefix, env_name, seed=1, **naf_params):
 
 
 def test_convex_naf(env, exp_prefix, env_name, seed=1, **naf_params):
+    from algos.convex_naf import ConvexNAFAlgorithm
+    from qfunctions.convex_naf_qfunction import ConcaveNAF
+    from rllab.exploration_strategies.ou_strategy import OUStrategy
     # The ICNN paper uses the OU strategy
     # es = GaussianStrategy(env)
     es = OUStrategy(env_spec=env.spec, sigma=0.1)
@@ -214,6 +200,9 @@ def test_convex_naf(env, exp_prefix, env_name, seed=1, **naf_params):
 
 
 def test_convex_quadratic_naf(env, exp_prefix, env_name, seed=1, **naf_params):
+    from algos.convex_naf import ConvexNAFAlgorithm
+    from qfunctions.sgd_quadratic_naf_qfunction import SgdQuadraticNAF
+    from rllab.exploration_strategies.ou_strategy import OUStrategy
     # The ICNN paper uses the OU strategy
     # es = GaussianStrategy(env)
     optimizer_type = naf_params.pop('optimizer_type', 'sgd')
@@ -234,6 +223,9 @@ def test_convex_quadratic_naf(env, exp_prefix, env_name, seed=1, **naf_params):
     run_experiment(algorithm, exp_prefix, seed, variant)
 
 def test_dqicnn(env, exp_prefix, env_name, seed=1, **naf_params):
+    from algos.dqicnn import DQICNN
+    from qfunctions.action_concave_qfunction import ActionConcaveQFunction
+    from rllab.exploration_strategies.gaussian_strategy import GaussianStrategy
     es = GaussianStrategy(env)
     qf = ActionConcaveQFunction(
         name_or_scope="qf",
@@ -255,6 +247,16 @@ def test_dqicnn(env, exp_prefix, env_name, seed=1, **naf_params):
 # other algorithms #
 ####################
 def test_shane_ddpg(env_, exp_prefix, env_name, seed=1, **ddpg_params):
+    import tensorflow as tf
+    from rllab.exploration_strategies.gaussian_strategy import GaussianStrategy
+    from sandbox.rocky.tf.algos.ddpg import DDPG as ShaneDDPG
+    from sandbox.rocky.tf.envs.base import TfEnv
+    from sandbox.rocky.tf.policies.deterministic_mlp_policy import (
+        DeterministicMLPPolicy
+    )
+    from sandbox.rocky.tf.q_functions.continuous_mlp_q_function import (
+        ContinuousMLPQFunction
+    )
     env = TfEnv(env_)
     es = GaussianStrategy(env.spec)
 
@@ -297,6 +299,10 @@ def test_shane_ddpg(env_, exp_prefix, env_name, seed=1, **ddpg_params):
 
 
 def test_rllab_vpg(env_, exp_prefix, env_name, seed=1, **algo_params):
+    from rllab.baselines.linear_feature_baseline import LinearFeatureBaseline
+    from sandbox.rocky.tf.algos.vpg import VPG
+    from sandbox.rocky.tf.envs.base import TfEnv
+    from sandbox.rocky.tf.policies.gaussian_mlp_policy import GaussianMLPPolicy
     env = TfEnv(env_)
     policy = GaussianMLPPolicy(
         name="policy",
@@ -319,6 +325,10 @@ def test_rllab_vpg(env_, exp_prefix, env_name, seed=1, **algo_params):
 
 
 def test_rllab_trpo(env_, exp_prefix, env_name, seed=1, **algo_params):
+    from rllab.baselines.linear_feature_baseline import LinearFeatureBaseline
+    from sandbox.rocky.tf.algos.trpo import TRPO
+    from sandbox.rocky.tf.envs.base import TfEnv
+    from sandbox.rocky.tf.policies.gaussian_mlp_policy import GaussianMLPPolicy
     env = TfEnv(env_)
     policy = GaussianMLPPolicy(
         name="policy",
@@ -341,6 +351,14 @@ def test_rllab_trpo(env_, exp_prefix, env_name, seed=1, **algo_params):
 
 
 def test_rllab_ddpg(env, exp_prefix, env_name, seed=1, **algo_params):
+    from rllab.algos.ddpg import DDPG as RllabDDPG
+    from rllab.exploration_strategies.ou_strategy import OUStrategy
+    from rllab.q_functions.continuous_mlp_q_function import (
+        ContinuousMLPQFunction as TheanoContinuousMLPQFunction
+    )
+    from rllab.policies.deterministic_mlp_policy import (
+        DeterministicMLPPolicy as TheanoDeterministicMLPPolicy
+    )
     policy = TheanoDeterministicMLPPolicy(
         env_spec=env.spec,
         hidden_sizes=(32, 32)
@@ -364,6 +382,9 @@ def test_rllab_ddpg(env, exp_prefix, env_name, seed=1, **algo_params):
 
 
 def test_random(env, exp_prefix, env_name, seed=1, **algo_params):
+    from algos.noop_algo import NoOpAlgo
+    from rllab.exploration_strategies.ou_strategy import OUStrategy
+    from rllab.policies.uniform_control_policy import UniformControlPolicy
     es = OUStrategy(env)
     policy = UniformControlPolicy(env_spec=env.spec)
     algorithm = NoOpAlgo(
@@ -380,16 +401,18 @@ def test_random(env, exp_prefix, env_name, seed=1, **algo_params):
 
 def run_experiment(algorithm, exp_prefix, seed, variant):
     variant['seed'] = str(seed)
-    print("variant=")
-    print(variant)
+    logger = logging.getLogger(__name__)
+    logger.info("Variant:")
+    logger.info(variant)
+
+    def run_task(ignored_variant):
+        algorithm.train()
+
     run_experiment_lite(
-        algorithm.train(),
-        n_parallel=1,
+        run_task,
         snapshot_mode="last",
         exp_prefix=exp_prefix,
         variant=variant,
         seed=seed,
+        use_cloudpickle=True,
     )
-
-
-stub(globals())
