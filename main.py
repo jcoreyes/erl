@@ -356,7 +356,7 @@ def main():
                         help='Algorithm to run.',
                         nargs='+',
                         choices=algo_choices)
-    parser.add_argument("--seed", default=1,
+    parser.add_argument("--seed", default=0,
                         type=int,
                         help='Seed')
     parser.add_argument("--num_seeds", default=NUM_SEEDS_PER_CONFIG, type=int,
@@ -380,7 +380,6 @@ def main():
         if args.render:
             print("WARNING: Algorithm will be slow because render is on.")
 
-    print(get_env_params_list_from_args(args))
     for env_params in get_env_params_list_from_args(args):
         for algo_settings in get_algo_settings_list_from_args(args):
             if args.sweep:
