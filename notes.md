@@ -4,6 +4,9 @@
  - add batch normalization
  - Perform/set up mechanism for ablation tests
  - Make a function version of run_experiment_lite so that I can use cProfile
+ - Make a load_policy method
+ - Organize the misc folder
+ - Implement batch norm
 
 # Notes
 These notes are really for myself (vpong), so they're probably meaningless to anyone else.
