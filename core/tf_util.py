@@ -178,6 +178,8 @@ def he_uniform_initializer():
             fan_in = shape[0]
         elif len(shape) > 2:
             fan_in = np.prod(shape[1:])
+        else:
+            raise Exception("Shape must be have dimension at least 2.")
         delta = np.sqrt(1.0 / fan_in)
         # TODO(vpong): refactor this common piece of code (e.g. move this to a
         # decorator)
