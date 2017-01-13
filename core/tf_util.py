@@ -5,7 +5,7 @@ import tensorflow as tf
 
 WEIGHT_DEFAULT_NAME = "weights"
 BIAS_DEFAULT_NAME = "bias"
-
+LAYER_NORMALIZATION_DEFAULT_NAME = "layer_normalization"
 
 # TODO(vpong): Use this namedtuple when possible
 MlpConfig = namedtuple('MlpConfig', ['W_init', 'b_init', 'nonlinearity'])
@@ -49,6 +49,44 @@ def bias_variable(
                            name=name)
 
 
+def layer_normalize(
+        input_pre_nonlinear_activations,
+        input_shape,
+        epsilon=1e-5,
+        name=LAYER_NORMALIZATION_DEFAULT_NAME,
+):
+    """
+    Layer normalizes a 2D tensor along its second axis, which corresponds to
+    normalizing within a layer.
+
+    :param input_pre_nonlinear_activations:
+    :param input_shape:
+    :param name: Name for the variables in this layer.
+    :param epsilon: The actual normalized value is
+    ```
+        norm = (x - mean) / sqrt(variance + epsilon)
+    ```
+    for numerical stability.
+    :return: Layer-normalized pre-non-linear activations
+    """
+    mean, variance = tf.nn.moments(input_pre_nonlinear_activations, [1],
+                                   keep_dims=True)
+    normalised_input = (input_pre_nonlinear_activations - mean) / tf.sqrt(
+        variance + epsilon)
+    with tf.variable_scope(name):
+        gains = tf.get_variable(
+            "gain",
+            input_shape,
+            initializer=tf.constant_initializer(0.),
+        )
+        biases = tf.get_variable(
+            'bias',
+            input_shape,
+            initializer=tf.constant_initializer(0.),
+        )
+    return normalised_input * gains + biases
+
+
 def linear(
         last_layer,
         last_size,
@@ -73,7 +111,7 @@ def linear(
     W = weight_variable([last_size, new_size],
                         initializer=W_initializer,
                         name=W_name)
-    b = bias_variable((new_size, ),
+    b = bias_variable((new_size,),
                       initializer=b_initializer,
                       name=bias_name)
     return tf.matmul(last_layer, W) + tf.expand_dims(b, 0)
