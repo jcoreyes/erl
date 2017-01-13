@@ -1,4 +1,7 @@
 """
+Run DDPG on Cartpole.
+
+After testing different settings, here are some timing results:
 Setting 1
 default_ddpg_params = dict(
     batch_size=32,

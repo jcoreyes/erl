@@ -69,7 +69,7 @@ class TestConvexNAF(TFTestCase):
         af = algo.qf.advantage_function
 
         action_param_values = self.sess.run([param for param in
-                                             af.get_action_W_params()])
+                                             af.weights_to_clip])
         for param in action_param_values:
             self.assertTrue(np.min(param) >= 0.)
 

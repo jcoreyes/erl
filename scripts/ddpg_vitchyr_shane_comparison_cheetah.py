@@ -1,3 +1,6 @@
+"""
+Compare my version of DDPG and Shane's version of DDPG on Cheetah.
+"""
 import tensorflow as tf
 
 from algos.ddpg import DDPG
