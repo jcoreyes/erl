@@ -180,7 +180,12 @@ def get_algo_settings_list_from_args(args):
             algo_params = get_my_naf_params()
             algo_params['render'] = render
             algorithm_launcher = naf_launcher
-            variant = {'Algorithm': 'NAF'}
+            variant = {
+                'Algorithm': 'NAF',
+                'exploration_strategy_params': {
+                    'sigma': 0.15
+                },
+            }
         elif algo_name == 'dqicnn':
             algorithm_launcher = dqicnn_launcher
             sweeper = hp.RandomHyperparameterSweeper([
