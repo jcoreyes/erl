@@ -6,7 +6,9 @@
  - Make a function version of run_experiment_lite so that I can use cProfile
  - Make a load_policy method
  - Organize the misc folder
+ - Implement tags correctly (It's hacky and broken now!!)
  - Implement batch norm
+ - Test EC2 launches
 
 # Notes
 These notes are really for myself (vpong), so they're probably meaningless to anyone else.
