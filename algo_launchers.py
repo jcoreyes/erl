@@ -29,7 +29,7 @@ def my_ddpg_launcher(variant):
     from railrl.policies.nn_policy import FeedForwardPolicy
     from railrl.qfunctions.nn_qfunction import FeedForwardCritic
     from rllab.exploration_strategies.ou_strategy import OUStrategy
-    from misc.launcher_util import get_env_settings
+    from railrl.misc.launcher_util import get_env_settings
     env_settings = get_env_settings(**variant['env_params'])
     env = env_settings['env']
     es = OUStrategy(env_spec=env.spec)
@@ -99,7 +99,7 @@ def oat_qddpg_launcher(variant):
     from railrl.policies.nn_policy import FeedForwardPolicy
     from railrl.qfunctions.quadratic_naf_qfunction import QuadraticNAF
     from rllab.exploration_strategies.ou_strategy import OUStrategy
-    from misc.launcher_util import get_env_settings
+    from railrl.misc.launcher_util import get_env_settings
     env_settings = get_env_settings(**variant['env_params'])
     env = env_settings['env']
     es = OUStrategy(env_spec=env.spec)
@@ -155,7 +155,7 @@ def naf_ddpg_launcher(variant):
     from policies.nn_policy import FeedForwardPolicy
     from railrl.qfunctions.quadratic_qf import QuadraticQF
     from rllab.exploration_strategies.ou_strategy import OUStrategy
-    from misc.launcher_util import get_env_settings
+    from railrl.misc.launcher_util import get_env_settings
     env_settings = get_env_settings(**variant['env_params'])
     env = env_settings['env']
     es = OUStrategy(env_spec=env.spec)
@@ -211,7 +211,7 @@ def convex_naf_launcher(variant):
     from railrl.algos.convex_naf import ConvexNAFAlgorithm
     from qfunctions.convex_naf_qfunction import ConcaveNAF
     from rllab.exploration_strategies.ou_strategy import OUStrategy
-    from misc.launcher_util import get_env_settings
+    from railrl.misc.launcher_util import get_env_settings
     env_settings = get_env_settings(**variant['env_params'])
     env = env_settings['env']
     # The ICNN paper uses the OU strategy
