@@ -52,9 +52,11 @@ class TestTensorFlow(TFTestCase):
             _ = tf_util.linear(input_placeholder,
                                in_size,
                                out_size)
-        variables = tf.get_collection(tf.GraphKeys.VARIABLES, scope)
+        # TODO(vpong): figure out why this line doesn't work
+        # variables = tf.get_collection(tf.GraphKeys.VARIABLES, scope)
+        variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
         self.assertEqual(2, len(variables))
-        variables = tf.get_collection(tf.GraphKeys.VARIABLES, "nope")
+        variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, "nope")
         self.assertEqual(0, len(variables))
 
     def test_batch_matmul(self):

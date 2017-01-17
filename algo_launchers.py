@@ -125,11 +125,14 @@ def oat_qddpg_launcher(variant):
 def naf_launcher(variant):
     from algos.naf import NAF
     from qfunctions.quadratic_naf_qfunction import QuadraticNAF
-    from rllab.exploration_strategies.gaussian_strategy import GaussianStrategy
+    from rllab.exploration_strategies.ou_strategy import OUStrategy
     from misc.launcher_util import get_env_settings
     env_settings = get_env_settings(**variant['env_params'])
     env = env_settings['env']
-    es = GaussianStrategy(env)
+    if 'es_init' in variant:
+        es = variant['es_init'](env, **variant['es_init_params'])
+    else:
+        es = OUStrategy(env_spec=env.spec)
     qf = QuadraticNAF(
         name_or_scope="qf",
         env_spec=env.spec,
