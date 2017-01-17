@@ -9,6 +9,7 @@
  - Implement tags correctly (It's hacky and broken now!!)
  - Implement batch norm
  - Test EC2 launches
+ - See TODO in test_tensorflow.py
 
 # Notes
 These notes are really for myself (vpong), so they're probably meaningless to anyone else.
