@@ -2,9 +2,9 @@ import unittest
 
 import numpy as np
 import tensorflow as tf
+from railrl.misc.tf_test_case import TFTestCase
 
-from core import tf_util
-from misc.tf_test_case import TFTestCase
+from railrl.core import tf_util
 
 
 def create_network(in_size):

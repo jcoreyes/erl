@@ -6,10 +6,10 @@ from rllab.misc.instrument import run_experiment_lite
 
 def run_task(variant):
     import tensorflow as tf
-    from algos.ddpg import DDPG
-    from policies.nn_policy import FeedForwardPolicy
-    from qfunctions.nn_qfunction import FeedForwardCritic
-    from qfunctions.quadratic_naf_qfunction import QuadraticNAF
+    from railrl.railrl.algos.ddpg import DDPG
+    from railrl.policies.nn_policy import FeedForwardPolicy
+    from railrl.qfunctions.nn_qfunction import FeedForwardCritic
+    from railrl.qfunctions.quadratic_naf_qfunction import QuadraticNAF
     from rllab.exploration_strategies.ou_strategy import OUStrategy
     from sandbox.rocky.tf.envs.base import TfEnv
     from rllab.envs.box2d.cartpole_env import CartpoleEnv

@@ -2,22 +2,22 @@
 Compare my version of DDPG and Shane's version of DDPG on Cheetah.
 """
 import tensorflow as tf
+from railrl.policies.nn_policy import FeedForwardPolicy
+from railrl.qfunctions.nn_qfunction import FeedForwardCritic
 
-from algos.ddpg import DDPG
+from railrl.algos.ddpg import DDPG
+from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 from rllab.exploration_strategies.gaussian_strategy import GaussianStrategy
+from rllab.exploration_strategies.ou_strategy import OUStrategy
+from rllab.misc.instrument import run_experiment_lite, stub
+from sandbox.rocky.tf.algos.ddpg import DDPG as ShaneDDPG
+from sandbox.rocky.tf.envs.base import TfEnv
 from sandbox.rocky.tf.policies.deterministic_mlp_policy import (
     DeterministicMLPPolicy
 )
 from sandbox.rocky.tf.q_functions.continuous_mlp_q_function import (
     ContinuousMLPQFunction
 )
-from sandbox.rocky.tf.algos.ddpg import DDPG as ShaneDDPG
-from policies.nn_policy import FeedForwardPolicy
-from qfunctions.nn_qfunction import FeedForwardCritic
-from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
-from rllab.exploration_strategies.ou_strategy import OUStrategy
-from rllab.misc.instrument import run_experiment_lite, stub
-from sandbox.rocky.tf.envs.base import TfEnv
 
 
 def main():

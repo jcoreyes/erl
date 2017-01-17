@@ -5,13 +5,12 @@ from rllab.misc.instrument import run_experiment_lite
 
 
 def run_task(_):
-    from algos.ddpg import DDPG
-    from policies.nn_policy import FeedForwardPolicy
-    from qfunctions.quadratic_naf_qfunction import QuadraticNAF
+    from railrl.algos.ddpg import DDPG
+    from railrl.policies.nn_policy import FeedForwardPolicy
+    from railrl.qfunctions.quadratic_naf_qfunction import QuadraticNAF
     from rllab.exploration_strategies.ou_strategy import OUStrategy
     from sandbox.rocky.tf.envs.base import TfEnv
     from rllab.envs.gym_env import GymEnv
-    import envs
 
     def gym_env(name):
         return GymEnv(name,

@@ -2,10 +2,10 @@ import unittest
 
 import numpy as np
 import tensorflow as tf
+from railrl.misc.tf_test_case import TFTestCase
 
-from core import tf_util
-from misc.testing_utils import are_np_arrays_equal
-from misc.tf_test_case import TFTestCase
+from railrl.core import tf_util
+from railrl.misc.testing_utils import are_np_arrays_equal
 
 
 class TestUtil(TFTestCase):

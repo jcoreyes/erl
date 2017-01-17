@@ -1,7 +1,7 @@
 import tensorflow as tf
+from railrl.policies.nn_policy import NNPolicy
 
-from core.tf_util import weight_variable
-from policies.nn_policy import NNPolicy
+from railrl.core.tf_util import weight_variable
 
 
 class SumPolicy(NNPolicy):

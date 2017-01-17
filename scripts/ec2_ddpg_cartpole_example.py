@@ -1,7 +1,7 @@
 """
 Use EC2 to run DDPG on Cartpole.
 """
-from algo_launchers import my_ddpg_launcher
+from railrl.algo_launchers import my_ddpg_launcher
 from rllab.misc.instrument import run_experiment_lite
 
 

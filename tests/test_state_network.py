@@ -1,9 +1,9 @@
 import numpy as np
 import tensorflow as tf
 
-from misc.tf_test_case import TFTestCase
-from predictors.mlp_state_action_network import MlpStateActionNetwork
-from predictors.mlp_state_network import MlpStateNetwork
+from railrl.misc.tf_test_case import TFTestCase
+from railrl.predictors.mlp_state_action_network import MlpStateActionNetwork
+from railrl.predictors.mlp_state_network import MlpStateNetwork
 
 
 class TestStateNetwork(TFTestCase):

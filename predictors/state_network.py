@@ -1,6 +1,8 @@
 import abc
+
 import tensorflow as tf
-from core.neuralnet import NeuralNetwork
+
+from railrl.core.neuralnet import NeuralNetwork
 from rllab.core.serializable import Serializable
 
 

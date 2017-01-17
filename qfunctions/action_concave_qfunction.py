@@ -1,13 +1,11 @@
 import tensorflow as tf
+from railrl.policies.argmax_policy import ArgmaxPolicy
+from railrl.policies.bundle_entropy_argmax_policy import BundleEntropyArgmaxPolicy
+from railrl.qfunctions.nn_qfunction import NNQFunction
 
-from core.tf_util import mlp, linear, he_uniform_initializer, weight_variable, \
+from railrl.core.tf_util import linear, he_uniform_initializer, weight_variable, \
     bias_variable
-from policies.argmax_policy import ArgmaxPolicy
-from policies.bundle_entropy_argmax_policy import BundleEntropyArgmaxPolicy
-from policies.nn_policy import FeedForwardPolicy
-from qfunctions.nn_qfunction import NNQFunction
-from qfunctions.optimizable_q_function import OptimizableQFunction
-from qfunctions.quadratic_qf import QuadraticQF
+from railrl.qfunctions.optimizable_q_function import OptimizableQFunction
 
 
 class ActionConcaveQFunction(NNQFunction, OptimizableQFunction):

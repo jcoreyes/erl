@@ -8,7 +8,7 @@ from rllab.envs.normalized_env import normalize
 
 # Although this import looks like it does nothing, but this is needed to use
 # the envs in this package, because this call will register the environments.
-import envs
+import railrl.envs
 
 
 

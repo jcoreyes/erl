@@ -6,10 +6,10 @@ actions must be computable for a Q function (e.g. the Q function is quadratic).
 """
 
 import tensorflow as tf
+from railrl.qfunctions.nn_qfunction import NNQFunction
 
-from algos.ddpg import DDPG
-from qfunctions.nn_qfunction import NNQFunction
-from qfunctions.optimizable_q_function import OptimizableQFunction
+from railrl.algos.ddpg import DDPG
+from railrl.qfunctions.optimizable_q_function import OptimizableQFunction
 from rllab.misc.overrides import overrides
 
 TARGET_PREFIX = "target_"

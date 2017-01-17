@@ -1,8 +1,8 @@
 import tensorflow as tf
+from railrl.predictors.state_action_network import StateActionNetwork
 
-from core.tf_util import he_uniform_initializer, mlp, linear
-from predictors.state_action_network import StateActionNetwork
-from rllab.core.serializable import Serializable
+from railrl.core.tf_util import he_uniform_initializer, mlp, linear
+
 
 class NNQFunction(StateActionNetwork):
     def __init__(

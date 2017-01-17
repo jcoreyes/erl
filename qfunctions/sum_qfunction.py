@@ -1,7 +1,7 @@
 import tensorflow as tf
+from railrl.qfunctions.nn_qfunction import NNQFunction
 
-from core.tf_util import weight_variable
-from qfunctions.nn_qfunction import NNQFunction
+from railrl.core.tf_util import weight_variable
 
 
 class SumCritic(NNQFunction):

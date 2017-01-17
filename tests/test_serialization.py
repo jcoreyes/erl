@@ -2,10 +2,10 @@ import unittest
 import pickle
 
 import tensorflow as tf
-from misc.tf_test_case import TFTestCase
-from policies.nn_policy import FeedForwardPolicy
-from qfunctions.nn_qfunction import FeedForwardCritic
-from qfunctions.quadratic_naf_qfunction import QuadraticNAF
+from railrl.misc.tf_test_case import TFTestCase
+from railrl.policies.nn_policy import FeedForwardPolicy
+from railrl.qfunctions.nn_qfunction import FeedForwardCritic
+from railrl.qfunctions.quadratic_naf_qfunction import QuadraticNAF
 
 
 class TestSerialization(TFTestCase):
