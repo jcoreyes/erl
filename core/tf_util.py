@@ -6,7 +6,6 @@ import tensorflow as tf
 WEIGHT_DEFAULT_NAME = "weights"
 BIAS_DEFAULT_NAME = "bias"
 
-
 # TODO(vpong): Use this namedtuple when possible
 MlpConfig = namedtuple('MlpConfig', ['W_init', 'b_init', 'nonlinearity'])
 
@@ -73,7 +72,7 @@ def linear(
     W = weight_variable([last_size, new_size],
                         initializer=W_initializer,
                         name=W_name)
-    b = bias_variable((new_size, ),
+    b = bias_variable((new_size,),
                       initializer=b_initializer,
                       name=b_name)
     return tf.matmul(last_layer, W) + tf.expand_dims(b, 0)
@@ -137,9 +136,14 @@ def vec2lower_triangle(vec, dim):
      [M[m(n-1)], M[m(n-1)+1], ...,       M[mn-2], e^M[mn-1]]
     """
     L = tf.reshape(vec, [-1, dim, dim])
-    L = tf.batch_matrix_band_part(L, -1, 0) - tf.batch_matrix_diag(
-        tf.batch_matrix_diag_part(L)) + \
-        tf.batch_matrix_diag(tf.exp(tf.batch_matrix_diag_part(L)))
+    if int(tf.__version__.split('.')[1]) >= 10:
+        L = tf.matrix_band_part(L, -1, 0) - tf.matrix_diag(
+            tf.matrix_diag_part(L)) + tf.matrix_diag(
+            tf.exp(tf.matrix_diag_part(L)))
+    else:
+        L = tf.batch_matrix_band_part(L, -1, 0) - tf.batch_matrix_diag(
+            tf.batch_matrix_diag_part(L)) + tf.batch_matrix_diag(
+            tf.exp(tf.batch_matrix_diag_part(L)))
     return L
 
 
