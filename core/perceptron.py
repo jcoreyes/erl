@@ -1,8 +1,8 @@
 import tensorflow as tf
 
 from rllab.core.serializable import Serializable
-from core.tf_util import linear, BIAS_DEFAULT_NAME, WEIGHT_DEFAULT_NAME
-from core.neuralnet import NeuralNetwork
+from railrl.core.tf_util import linear, BIAS_DEFAULT_NAME, WEIGHT_DEFAULT_NAME
+from railrl.core.neuralnet import NeuralNetwork
 
 
 class Perceptron(NeuralNetwork):

@@ -1,12 +1,8 @@
 import unittest
-import numpy as np
 import tensorflow as tf
 
-from core import tf_util
-from core.perceptron import Perceptron
-from misc.tf_test_case import TFTestCase
-
-
+from railrl.core.perceptron import Perceptron
+from railrl.misc.tf_test_case import TFTestCase
 
 
 class TestNeuralNetwork(TFTestCase):
