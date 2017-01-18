@@ -7,7 +7,6 @@
  - Make a load_policy method
  - Organize the misc folder
  - Implement batch norm
- - Test EC2 launches
  - See TODO in test_tensorflow.py
 
 # Notes
