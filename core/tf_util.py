@@ -55,14 +55,14 @@ def linear(
         W_initializer=None,
         b_initializer=None,
         W_name=WEIGHT_DEFAULT_NAME,
-        bias_name=BIAS_DEFAULT_NAME,
+        b_name=BIAS_DEFAULT_NAME,
 ):
     """
     Create a linear layer.
 
     :param W_initializer:
     :param b_initializer:
-    :param bias_name: String for the bias variables names
+    :param b_name: String for the bias variables names
     :param W_name: String for the weight matrix variables names
     :param last_layer: Input tensor
     :param last_size: Size of the input tensor
@@ -74,7 +74,7 @@ def linear(
                         name=W_name)
     b = bias_variable((new_size,),
                       initializer=b_initializer,
-                      name=bias_name)
+                      name=b_name)
     return tf.matmul(last_layer, W) + tf.expand_dims(b, 0)
 
 
