@@ -34,21 +34,21 @@ SOFT_TARGET_TAU = 1e-2
 REPLAY_POOL_SIZE = 1000000
 MIN_POOL_SIZE = 10000
 SCALE_REWARD = 1.0
-QF_WEIGHT_DECAY = 0.00
+QF_WEIGHT_DECAY = 0.0001
 MAX_PATH_LENGTH = 1000
 N_UPDATES_PER_TIME_STEP = 5
 
 # Sweep settings
 SWEEP_N_EPOCHS = 50
 SWEEP_EPOCH_LENGTH = 10000
-SWEEP_EVAL_SAMPLES = 1000
+SWEEP_EVAL_SAMPLES = 10000
 SWEEP_MIN_POOL_SIZE = BATCH_SIZE
 
 # Fast settings
-FAST_N_EPOCHS = 100
-FAST_EPOCH_LENGTH = 100
-FAST_EVAL_SAMPLES = 100
-FAST_MIN_POOL_SIZE = 256
+FAST_N_EPOCHS = 10
+FAST_EPOCH_LENGTH = 10
+FAST_EVAL_SAMPLES = 10
+FAST_MIN_POOL_SIZE = 5
 FAST_MAX_PATH_LENGTH = 25
 
 NUM_SEEDS_PER_CONFIG = 3
@@ -171,13 +171,9 @@ def get_algo_settings_list_from_args(args):
                 'optimizer_type': 'sgd',
             }
         elif algo_name == 'naf':
-            sweeper = hp.RandomHyperparameterSweeper([
-                hp.LogFloatParam("qf_learning_rate", 1e-6, 1e-2),
-                hp.LogFloatParam("scale_reward", 10.0, 0.01),
-                hp.LogFloatParam("soft_target_tau", 0.001, 0.1),
-                hp.LogFloatParam("qf_weight_decay", 1e-6, 1e-1),
-                hp.LinearIntParam("n_updates_per_time_step", 1, 10),
-            ])
+            sweeper = hp.DeterministicHyperparameterSweeper({
+                'qf_weight_decay': [0., 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1],
+            })
             algo_params = get_my_naf_params()
             algo_params['render'] = render
             algorithm_launcher = naf_launcher
@@ -286,7 +282,12 @@ def get_my_naf_params():
     )
 
 
-def run_algorithm(algo_settings, env_params, exp_prefix, seed, **kwargs):
+def run_algorithm(
+        algo_settings,
+        env_params,
+        exp_prefix,
+        seed,
+        **kwargs):
     """
     Launch an algorithm
     :param algo_settings: See get_algo_settings_list_from_args
@@ -303,19 +304,34 @@ def run_algorithm(algo_settings, env_params, exp_prefix, seed, **kwargs):
     env_settings = get_env_settings(**env_params)
     variant['Environment'] = env_settings['name']
     algorithm_launcher = algo_settings['algorithm_launcher']
-    run_experiment(algorithm_launcher, exp_prefix, seed, variant, **kwargs)
+
+    run_experiment(
+        algorithm_launcher,
+        exp_prefix,
+        seed,
+        variant,
+        **kwargs)
 
 
 def sweep(exp_prefix, env_params, algo_settings_, **kwargs):
     algo_settings = copy.deepcopy(algo_settings_)
     sweeper = algo_settings['sweeper']
     default_params = algo_settings['algo_params']
-    for i in range(NUM_HYPERPARAMETER_CONFIGS):
-        for seed in range(NUM_SEEDS_PER_CONFIG):
-            algo_params = dict(default_params,
-                               **sweeper.generate_random_hyperparameters())
-            algo_settings['algo_params'] = algo_params
-            run_algorithm(algo_settings, env_params, exp_prefix, seed, **kwargs)
+    if isinstance(sweeper, hp.DeterministicHyperparameterSweeper):
+        for params_dict in sweeper.iterate_hyperparameters():
+            for seed in range(NUM_SEEDS_PER_CONFIG):
+                algo_params = dict(default_params, **params_dict)
+                algo_settings['algo_params'] = algo_params
+                run_algorithm(algo_settings, env_params, exp_prefix, seed,
+                              **kwargs)
+    else:
+        for i in range(NUM_HYPERPARAMETER_CONFIGS):
+            for seed in range(NUM_SEEDS_PER_CONFIG):
+                algo_params = dict(default_params,
+                                   **sweeper.generate_random_hyperparameters())
+                algo_settings['algo_params'] = algo_params
+                run_algorithm(algo_settings, env_params, exp_prefix, seed,
+                              **kwargs)
 
 
 def get_env_params_list_from_args(args):
@@ -380,8 +396,16 @@ def main():
                         help="Mode to run experiment.",
                         choices=mode_choices,
                         )
+    parser.add_argument("--notime", action='store_true',
+                        help="Disable time prefix to python command.")
+    parser.add_argument("--profile", action='store_true',
+                        help="Use cProfile to time the python script.")
+    parser.add_argument("--profile_file",
+                        help="Where to save .prof file output of cProfiler. "
+                             "If set, --profile is forced to be true.")
     args = parser.parse_args()
     args.normalize = not args.nonorm
+    args.time = not args.notime
 
     global N_EPOCHS, EPOCH_LENGTH, EVAL_SAMPLES, MIN_POOL_SIZE
     if args.sweep:
@@ -399,14 +423,31 @@ def main():
         if args.render:
             print("WARNING: Algorithm will be slow because render is on.")
 
+    kwargs = dict(
+        time=not args.notime,
+        save_profile=args.profile or args.profile_file is not None,
+        mode=args.mode
+    )
+    if args.profile_file:
+        kwargs['profile_file'] = args.profile_file
     for env_params in get_env_params_list_from_args(args):
         for algo_settings in get_algo_settings_list_from_args(args):
             if args.sweep:
-                sweep(args.name, env_params, algo_settings, mode=args.mode)
+                sweep(
+                    args.name,
+                    env_params,
+                    algo_settings,
+                    **kwargs
+                )
             else:
                 for i in range(args.num_seeds):
-                    run_algorithm(algo_settings, env_params, args.name,
-                                  args.seed + i, mode=args.mode)
+                    run_algorithm(
+                        algo_settings,
+                        env_params,
+                        args.name,
+                        args.seed + i,
+                        **kwargs
+                    )
 
 
 if __name__ == "__main__":
