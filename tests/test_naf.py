@@ -211,6 +211,44 @@ class TestNormalizedAdvantageFunction(TFTestCase):
         for param in target_vf.get_params_internal():
             self.assertFalse(param in qf_params)
 
+    def test_regularized_variables_are_correct(self):
+        algo = NAF(
+            self.env,
+            self.es,
+            QuadraticNAF(name_or_scope='qf', env_spec=self.env.spec),
+            n_epochs=0,
+        )
+        qf = algo.qf
+        vars = qf.get_params_internal(regularizable=True)
+        expected_vars = [
+            v for v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'qf')
+            if 'weight' in v.name
+        ]
+
+        for v in vars:
+            self.assertTrue(v in expected_vars)
+        for v in expected_vars:
+            self.assertTrue(v in vars)
+
+    def test_l2_regularization(self):
+        algo = NAF(
+            self.env,
+            self.es,
+            QuadraticNAF(name_or_scope='qf', env_spec=self.env.spec),
+            n_epochs=0,
+        )
+        Q_weight_norm = algo.Q_weights_norm
+        expected_vars = [
+            v for v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'qf')
+            if 'weight' in v.name
+        ]
+        variable_values = self.sess.run(expected_vars)
+        expected_l2 = sum(
+            np.linalg.norm(value)**2 / 2 for value in variable_values
+        )
+        l2 = self.sess.run(Q_weight_norm)
+
+        self.assertAlmostEqual(l2, expected_l2, delta=1e-5)
 
 if __name__ == '__main__':
     unittest.main()
