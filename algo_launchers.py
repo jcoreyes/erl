@@ -6,9 +6,9 @@ experiment.
 It is important that the functions are completely self-contained (i.e. they
 import their own modules) so that they can be serialized.
 """
-import logging
-
 from rllab.misc.instrument import run_experiment_lite
+from rllab.misc import logger
+from rllab import config
 
 
 #################
@@ -413,11 +413,35 @@ def random_action_launcher(variant):
     algorithm.train()
 
 
-def run_experiment(task, exp_prefix, seed, variant, **kwargs):
+def run_experiment(
+        task,
+        exp_prefix,
+        seed,
+        variant,
+        time=True,
+        save_profile=False,
+        profile_file='time_log.prof',
+        **kwargs):
+    """
+
+    :param task:
+    :param exp_prefix:
+    :param seed:
+    :param variant:
+    :param time: Add a "time" command to the python command?
+    :param save_profile: Create a cProfile log?
+    :param kwargs:
+    :return:
+    """
     variant['seed'] = str(seed)
-    logger = logging.getLogger(__name__)
-    logger.info("Variant:")
-    logger.info(variant)
+    logger.log("Variant:")
+    logger.log(str(variant))
+    command_words = []
+    if time:
+        command_words.append('time')
+    command_words.append('python')
+    if save_profile:
+        command_words += ['-m cProfile -o', profile_file]
     run_experiment_lite(
         task,
         snapshot_mode="last",
@@ -425,5 +449,6 @@ def run_experiment(task, exp_prefix, seed, variant, **kwargs):
         variant=variant,
         seed=seed,
         use_cloudpickle=True,
+        python_command=' '.join(command_words),
         **kwargs
     )
