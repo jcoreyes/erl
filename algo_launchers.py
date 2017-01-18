@@ -6,8 +6,9 @@ experiment.
 It is important that the functions are completely self-contained (i.e. they
 import their own modules) so that they can be serialized.
 """
-from rllab.misc.instrument import run_experiment_lite
 import logging
+
+from rllab.misc.instrument import run_experiment_lite
 
 
 #################
@@ -24,23 +25,23 @@ def my_ddpg_launcher(variant):
         - policy_params
     :return:
     """
-    from algos.ddpg import DDPG as MyDDPG
-    from policies.nn_policy import FeedForwardPolicy
-    from qfunctions.nn_qfunction import FeedForwardCritic
+    from railrl.algos.ddpg import DDPG as MyDDPG
+    from railrl.policies.nn_policy import FeedForwardPolicy
+    from railrl.qfunctions.nn_qfunction import FeedForwardCritic
     from rllab.exploration_strategies.ou_strategy import OUStrategy
-    from misc.launcher_util import get_env_settings
+    from railrl.misc.launcher_util import get_env_settings
     env_settings = get_env_settings(**variant['env_params'])
     env = env_settings['env']
     es = OUStrategy(env_spec=env.spec)
     qf = FeedForwardCritic(
         name_or_scope="critic",
         env_spec=env.spec,
-        **variant['qf_params']
+        **variant.get('qf_params', {})
     )
     policy = FeedForwardPolicy(
         name_or_scope="actor",
         env_spec=env.spec,
-        **variant['policy_params']
+        **variant.get('policy_params', {})
     )
     algorithm = MyDDPG(
         env,
@@ -62,11 +63,11 @@ def quadratic_ddpg_launcher(variant):
         - policy_params
     :return:
     """
-    from algos.ddpg import DDPG as MyDDPG
-    from policies.nn_policy import FeedForwardPolicy
+    from railrl.algos.ddpg import DDPG as MyDDPG
+    from railrl.policies.nn_policy import FeedForwardPolicy
     from rllab.exploration_strategies.ou_strategy import OUStrategy
-    from qfunctions.quadratic_naf_qfunction import QuadraticNAF
-    from misc.launcher_util import get_env_settings
+    from railrl.qfunctions.quadratic_naf_qfunction import QuadraticNAF
+    from railrl.misc.launcher_util import get_env_settings
     env_settings = get_env_settings(**variant['env_params'])
     env = env_settings['env']
     es = OUStrategy(env_spec=env.spec)
@@ -94,11 +95,11 @@ def oat_qddpg_launcher(variant):
     """
     Quadratic optimal action target DDPG
     """
-    from algos.optimal_action_target_ddpg import OptimalActionTargetDDPG as OAT
-    from policies.nn_policy import FeedForwardPolicy
-    from qfunctions.quadratic_naf_qfunction import QuadraticNAF
+    from railrl.algos.optimal_action_target_ddpg import OptimalActionTargetDDPG as OAT
+    from railrl.policies.nn_policy import FeedForwardPolicy
+    from railrl.qfunctions.quadratic_naf_qfunction import QuadraticNAF
     from rllab.exploration_strategies.ou_strategy import OUStrategy
-    from misc.launcher_util import get_env_settings
+    from railrl.misc.launcher_util import get_env_settings
     env_settings = get_env_settings(**variant['env_params'])
     env = env_settings['env']
     es = OUStrategy(env_spec=env.spec)
@@ -123,10 +124,10 @@ def oat_qddpg_launcher(variant):
 
 
 def naf_launcher(variant):
-    from algos.naf import NAF
-    from qfunctions.quadratic_naf_qfunction import QuadraticNAF
+    from railrl.algos.naf import NAF
+    from railrl.qfunctions.quadratic_naf_qfunction import QuadraticNAF
     from rllab.exploration_strategies.ou_strategy import OUStrategy
-    from misc.launcher_util import get_env_settings
+    from railrl.misc.launcher_util import get_env_settings
     env_settings = get_env_settings(**variant['env_params'])
     env = env_settings['env']
     if 'es_init' in variant:
@@ -150,11 +151,11 @@ def naf_ddpg_launcher(variant):
     # TODO: try this
     """Basically implement NAF with the DDPG code. The only difference is that
     the actor now gets updated twice."""
-    from algos.ddpg import DDPG as MyDDPG
+    from railrl.algos.ddpg import DDPG as MyDDPG
     from policies.nn_policy import FeedForwardPolicy
-    from qfunctions.quadratic_qf import QuadraticQF
+    from railrl.qfunctions.quadratic_qf import QuadraticQF
     from rllab.exploration_strategies.ou_strategy import OUStrategy
-    from misc.launcher_util import get_env_settings
+    from railrl.misc.launcher_util import get_env_settings
     env_settings = get_env_settings(**variant['env_params'])
     env = env_settings['env']
     es = OUStrategy(env_spec=env.spec)
@@ -207,10 +208,10 @@ def get_naf_ddpg_params():
 
 
 def convex_naf_launcher(variant):
-    from algos.convex_naf import ConvexNAFAlgorithm
+    from railrl.algos.convex_naf import ConvexNAFAlgorithm
     from qfunctions.convex_naf_qfunction import ConcaveNAF
     from rllab.exploration_strategies.ou_strategy import OUStrategy
-    from misc.launcher_util import get_env_settings
+    from railrl.misc.launcher_util import get_env_settings
     env_settings = get_env_settings(**variant['env_params'])
     env = env_settings['env']
     # The ICNN paper uses the OU strategy
@@ -232,10 +233,10 @@ def convex_naf_launcher(variant):
 
 
 def convex_quadratic_naf_launcher(variant):
-    from algos.convex_naf import ConvexNAFAlgorithm
-    from qfunctions.sgd_quadratic_naf_qfunction import SgdQuadraticNAF
+    from railrl.algos.convex_naf import ConvexNAFAlgorithm
+    from railrl.qfunctions.sgd_quadratic_naf_qfunction import SgdQuadraticNAF
     from rllab.exploration_strategies.ou_strategy import OUStrategy
-    from misc.launcher_util import get_env_settings
+    from railrl.misc.launcher_util import get_env_settings
     env_settings = get_env_settings(**variant['env_params'])
     env = env_settings['env']
     optimizer_type = variant['optimizer_type']
@@ -254,10 +255,10 @@ def convex_quadratic_naf_launcher(variant):
 
 
 def dqicnn_launcher(variant):
-    from algos.dqicnn import DQICNN
-    from qfunctions.action_concave_qfunction import ActionConcaveQFunction
+    from railrl.algos.dqicnn import DQICNN
+    from railrl.qfunctions.action_concave_qfunction import ActionConcaveQFunction
     from rllab.exploration_strategies.gaussian_strategy import GaussianStrategy
-    from misc.launcher_util import get_env_settings
+    from railrl.misc.launcher_util import get_env_settings
     env_settings = get_env_settings(**variant['env_params'])
     env = env_settings['env']
     es = GaussianStrategy(env)
@@ -287,7 +288,7 @@ def shane_ddpg_launcher(variant):
     from sandbox.rocky.tf.q_functions.continuous_mlp_q_function import (
         ContinuousMLPQFunction
     )
-    from misc.launcher_util import get_env_settings
+    from railrl.misc.launcher_util import get_env_settings
     env_settings = get_env_settings(**variant['env_params'])
     env = TfEnv(env_settings['env'])
     es = GaussianStrategy(env.spec)
@@ -318,7 +319,7 @@ def rllab_vpg_launcher(variant):
     from sandbox.rocky.tf.algos.vpg import VPG
     from sandbox.rocky.tf.envs.base import TfEnv
     from sandbox.rocky.tf.policies.gaussian_mlp_policy import GaussianMLPPolicy
-    from misc.launcher_util import get_env_settings
+    from railrl.misc.launcher_util import get_env_settings
     env_settings = get_env_settings(**variant['env_params'])
     env = TfEnv(env_settings['env'])
     policy = GaussianMLPPolicy(
@@ -343,7 +344,7 @@ def rllab_trpo_launcher(variant):
     from sandbox.rocky.tf.algos.trpo import TRPO
     from sandbox.rocky.tf.envs.base import TfEnv
     from sandbox.rocky.tf.policies.gaussian_mlp_policy import GaussianMLPPolicy
-    from misc.launcher_util import get_env_settings
+    from railrl.misc.launcher_util import get_env_settings
     env_settings = get_env_settings(**variant['env_params'])
     env = TfEnv(env_settings['env'])
     policy = GaussianMLPPolicy(
@@ -372,7 +373,7 @@ def rllab_ddpg_launcher(variant):
     from rllab.policies.deterministic_mlp_policy import (
         DeterministicMLPPolicy as TheanoDeterministicMLPPolicy
     )
-    from misc.launcher_util import get_env_settings
+    from railrl.misc.launcher_util import get_env_settings
     env_settings = get_env_settings(**variant['env_params'])
     env = env_settings['env']
     policy = TheanoDeterministicMLPPolicy(
@@ -395,10 +396,10 @@ def rllab_ddpg_launcher(variant):
 
 
 def random_action_launcher(variant):
-    from algos.noop_algo import NoOpAlgo
+    from railrl.algos.noop_algo import NoOpAlgo
     from rllab.exploration_strategies.ou_strategy import OUStrategy
     from rllab.policies.uniform_control_policy import UniformControlPolicy
-    from misc.launcher_util import get_env_settings
+    from railrl.misc.launcher_util import get_env_settings
     env_settings = get_env_settings(**variant['env_params'])
     env = env_settings['env']
     es = OUStrategy(env)
@@ -412,7 +413,7 @@ def random_action_launcher(variant):
     algorithm.train()
 
 
-def run_experiment(task, exp_prefix, seed, variant):
+def run_experiment(task, exp_prefix, seed, variant, **kwargs):
     variant['seed'] = str(seed)
     logger = logging.getLogger(__name__)
     logger.info("Variant:")
@@ -424,4 +425,5 @@ def run_experiment(task, exp_prefix, seed, variant):
         variant=variant,
         seed=seed,
         use_cloudpickle=True,
+        **kwargs
     )

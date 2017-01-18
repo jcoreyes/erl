@@ -1,9 +1,9 @@
 import unittest
 
 import numpy as np
-from misc.rllab_util import split_paths
+from railrl.misc.rllab_util import split_paths
 
-from misc.testing_utils import are_np_arrays_equal
+from railrl.misc.testing_utils import are_np_arrays_equal
 
 
 def create_path(offset):

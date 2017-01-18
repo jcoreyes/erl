@@ -1,9 +1,10 @@
 import unittest
-import numpy as np
 
-from algos.convex_naf import ConvexNAFAlgorithm
-from misc.tf_test_case import TFTestCase
-from qfunctions.convex_naf_qfunction import ConcaveNAF
+import numpy as np
+from railrl.misc.tf_test_case import TFTestCase
+from railrl.qfunctions.convex_naf_qfunction import ConcaveNAF
+
+from railrl.algos.convex_naf import ConvexNAFAlgorithm
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.exploration_strategies.ou_strategy import OUStrategy
 from sandbox.rocky.tf.envs.base import TfEnv

@@ -1,11 +1,10 @@
 import abc
 
 import tensorflow as tf
+from railrl.misc.rllab_util import get_action_dim
+from railrl.predictors.state_network import StateNetwork
 
-from core.tf_util import he_uniform_initializer, mlp, linear
-from misc.rllab_util import get_action_dim
-from predictors.state_network import StateNetwork
-from rllab.core.serializable import Serializable
+from railrl.core.tf_util import he_uniform_initializer, mlp, linear
 from rllab.policies.base import Policy
 
 

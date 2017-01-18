@@ -1,9 +1,8 @@
 import tensorflow as tf
+from railrl.predictors.mlp_state_network import MlpStateNetwork
+from railrl.qfunctions.naf_qfunction import NAFQFunction
 
-from predictors.mlp_state_network import MlpStateNetwork
-from qfunctions.action_concave_qfunction import ActionConcaveQFunction
-from qfunctions.naf_qfunction import NAFQFunction
-from qfunctions.simple_action_concave_qfunction import \
+from railrl.qfunctions.simple_action_concave_qfunction import \
     SimpleActionConcaveQFunction
 from rllab.misc.overrides import overrides
 

@@ -1,9 +1,10 @@
 """
 Run Quadratic DDPG on Cheetah.
 """
-from algos.ddpg import DDPG
-from policies.nn_policy import FeedForwardPolicy
-from qfunctions.quadratic_naf_qfunction import QuadraticNAF
+from railrl.policies.nn_policy import FeedForwardPolicy
+from railrl.qfunctions.quadratic_naf_qfunction import QuadraticNAF
+
+from railrl.algos.ddpg import DDPG
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 from rllab.exploration_strategies.ou_strategy import OUStrategy
 from rllab.misc.instrument import run_experiment_lite, stub

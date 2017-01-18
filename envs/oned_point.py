@@ -2,7 +2,7 @@ import numpy as np
 from gym import utils
 from gym.envs.mujoco import mujoco_env
 
-from envs.env_utils import get_asset_xml
+from railrl.envs.env_utils import get_asset_xml
 
 
 class OneDPoint(mujoco_env.MujocoEnv, utils.EzPickle):

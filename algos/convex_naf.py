@@ -2,14 +2,14 @@
 :author: Vitchyr Pong
 """
 from collections import OrderedDict
-import numpy as np
-import tensorflow as tf
 
-from algos.naf import NAF
-from misc.data_processing import create_stats_ordered_dict
-from misc.rllab_util import split_paths
-from rllab.misc.overrides import overrides
+import numpy as np
+
+from railrl.misc.data_processing import create_stats_ordered_dict
+from railrl.misc.rllab_util import split_paths
+from railrl.algos.naf import NAF
 from rllab.misc import logger, special
+from rllab.misc.overrides import overrides
 
 
 class ConvexNAFAlgorithm(NAF):

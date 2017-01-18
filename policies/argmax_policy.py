@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from core.neuralnet import NeuralNetwork
+from railrl.core.neuralnet import NeuralNetwork
 from rllab.core.serializable import Serializable
 from rllab.misc.overrides import overrides
 from rllab.policies.base import Policy

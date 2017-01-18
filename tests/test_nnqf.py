@@ -1,8 +1,8 @@
 import numpy as np
 import tensorflow as tf
 
-from misc.tf_test_case import TFTestCase
-from qfunctions.nn_qfunction import FeedForwardCritic
+from railrl.misc.tf_test_case import TFTestCase
+from railrl.qfunctions.nn_qfunction import FeedForwardCritic
 
 
 class TestFeedForwardCritic(TFTestCase):

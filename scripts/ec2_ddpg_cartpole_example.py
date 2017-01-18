@@ -1,7 +1,7 @@
 """
 Use EC2 to run DDPG on Cartpole.
 """
-from algo_launchers import my_ddpg_launcher
+from railrl.algo_launchers import my_ddpg_launcher
 from rllab.misc.instrument import run_experiment_lite
 
 
@@ -31,7 +31,7 @@ def main():
     seed = 0
     run_experiment_lite(
         my_ddpg_launcher,
-        exp_prefix="ddpg-cartpole-example-2",
+        exp_prefix="ddpg-cartpole-example",
         n_parallel=1,
         snapshot_mode="last",
         seed=seed,

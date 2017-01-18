@@ -1,10 +1,10 @@
 import tensorflow as tf
+from railrl.policies.argmax_policy import ArgmaxPolicy
+from railrl.policies.nn_policy import FeedForwardPolicy
+from railrl.predictors.mlp_state_network import MlpStateNetwork
+from railrl.qfunctions.naf_qfunction import NAFQFunction
 
-from policies.argmax_policy import ArgmaxPolicy
-from policies.nn_policy import FeedForwardPolicy
-from predictors.mlp_state_network import MlpStateNetwork
-from qfunctions.naf_qfunction import NAFQFunction
-from qfunctions.quadratic_qf import QuadraticQF
+from railrl.qfunctions.quadratic_qf import QuadraticQF
 from rllab.misc.overrides import overrides
 
 

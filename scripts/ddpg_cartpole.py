@@ -26,10 +26,11 @@ default_ddpg_params = dict(
 With GPU: 1.22s
 Without GPU: 43s
 """
-from algos.ddpg import DDPG
-from misc.scripts_util import timestamp
-from policies.nn_policy import FeedForwardPolicy
-from qfunctions.nn_qfunction import FeedForwardCritic
+from railrl.misc.scripts_util import timestamp
+from railrl.policies.nn_policy import FeedForwardPolicy
+from railrl.qfunctions.nn_qfunction import FeedForwardCritic
+
+from railrl.algos.ddpg import DDPG
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.exploration_strategies.ou_strategy import OUStrategy
 from rllab.misc.instrument import run_experiment_lite, stub

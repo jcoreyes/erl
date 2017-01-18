@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-import misc.testing_utils as tu
+import railrl.misc.testing_utils as tu
 
 
 class TestAreNpArraysEqual(unittest.TestCase):

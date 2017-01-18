@@ -2,7 +2,7 @@
 import numpy as np
 import tensorflow as tf
 
-from core import tf_util
+from railrl.core import tf_util
 from rllab.core.serializable import Serializable
 from rllab.distributions.diagonal_gaussian import DiagonalGaussian
 from rllab.misc.overrides import overrides

@@ -1,11 +1,9 @@
 import tensorflow as tf
+from railrl.predictors.mlp_state_network import MlpStateNetwork
+from railrl.qfunctions.nn_qfunction import NNQFunction
 
-from core import tf_util
-from core.tf_util import he_uniform_initializer, mlp, linear
-from predictors.mlp_state_network import MlpStateNetwork
-from qfunctions.nn_qfunction import NNQFunction
-from qfunctions.optimizable_q_function import OptimizableQFunction
-from rllab.core.serializable import Serializable
+from railrl.core import tf_util
+from railrl.qfunctions.optimizable_q_function import OptimizableQFunction
 
 
 class QuadraticQF(NNQFunction, OptimizableQFunction):
