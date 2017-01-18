@@ -36,12 +36,12 @@ def my_ddpg_launcher(variant):
     qf = FeedForwardCritic(
         name_or_scope="critic",
         env_spec=env.spec,
-        **variant['qf_params']
+        **variant.get('qf_params', {})
     )
     policy = FeedForwardPolicy(
         name_or_scope="actor",
         env_spec=env.spec,
-        **variant['policy_params']
+        **variant.get('policy_params', {})
     )
     algorithm = MyDDPG(
         env,
@@ -413,7 +413,7 @@ def random_action_launcher(variant):
     algorithm.train()
 
 
-def run_experiment(task, exp_prefix, seed, variant):
+def run_experiment(task, exp_prefix, seed, variant, **kwargs):
     variant['seed'] = str(seed)
     logger = logging.getLogger(__name__)
     logger.info("Variant:")
@@ -425,4 +425,5 @@ def run_experiment(task, exp_prefix, seed, variant):
         variant=variant,
         seed=seed,
         use_cloudpickle=True,
+        **kwargs
     )

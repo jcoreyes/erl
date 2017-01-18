@@ -4,7 +4,7 @@ import copy
 
 import tensorflow as tf
 
-from algo_launchers import (
+from railrl.algo_launchers import (
     my_ddpg_launcher,
     naf_launcher,
     convex_naf_launcher,
@@ -19,7 +19,8 @@ from algo_launchers import (
     run_experiment,
     oat_qddpg_launcher,
 )
-from misc import hyperparameter as hp
+from railrl.misc import hyperparameter as hp
+from railrl.misc.launcher_util import get_env_settings
 
 BATCH_SIZE = 128
 N_EPOCHS = 100
@@ -285,19 +286,27 @@ def get_my_naf_params():
     )
 
 
-def run_algorithm(algo_settings, env_params, exp_prefix, seed):
+def run_algorithm(algo_settings, env_params, exp_prefix, seed, **kwargs):
+    """
+    Launch an algorithm
+    :param algo_settings: See get_algo_settings_list_from_args
+    :param env_params: See get_env_settings
+    :param exp_prefix: Experiment prefix
+    :param seed: Experiment seed
+    :param kwargs: Other kwargs to pass to run_experiment_lite
+    :return:
+    """
     variant = algo_settings['variant']
     variant['env_params'] = env_params
     variant['algo_params'] = algo_settings['algo_params']
 
-    from misc.launcher_util import get_env_settings
     env_settings = get_env_settings(**env_params)
     variant['Environment'] = env_settings['name']
     algorithm_launcher = algo_settings['algorithm_launcher']
-    run_experiment(algorithm_launcher, exp_prefix, seed, variant)
+    run_experiment(algorithm_launcher, exp_prefix, seed, variant, **kwargs)
 
 
-def sweep(exp_prefix, env_params, algo_settings_):
+def sweep(exp_prefix, env_params, algo_settings_, **kwargs):
     algo_settings = copy.deepcopy(algo_settings_)
     sweeper = algo_settings['sweeper']
     default_params = algo_settings['algo_params']
@@ -306,7 +315,7 @@ def sweep(exp_prefix, env_params, algo_settings_):
             algo_params = dict(default_params,
                                **sweeper.generate_random_hyperparameters())
             algo_settings['algo_params'] = algo_params
-            run_algorithm(algo_settings, env_params, exp_prefix, seed)
+            run_algorithm(algo_settings, env_params, exp_prefix, seed, **kwargs)
 
 
 def get_env_params_list_from_args(args):
@@ -329,10 +338,10 @@ def get_env_params_list_from_args(args):
 
 
 def main():
-    env_choices = ['ant', 'cheetah', 'cart', 'point', 'pt', 'reacher', 'idp',
-                   'gym']
+    env_choices = ['ant', 'cheetah', 'cart', 'point', 'reacher', 'idp', 'gym']
     algo_choices = ['ddpg', 'naf', 'shane-ddpg', 'random', 'cnaf', 'cqnaf',
                     'rl-vpg', 'rl-trpo', 'rl-ddpg', 'dqicnn', 'qddpg', 'oat']
+    mode_choices = ['local', 'local_docker', 'ec2']
     parser = argparse.ArgumentParser()
     parser.add_argument("--sweep", action='store_true',
                         help="Sweep _hyperparameters for my DDPG.")
@@ -366,6 +375,11 @@ def main():
                         help='Seed')
     parser.add_argument("--num_seeds", default=NUM_SEEDS_PER_CONFIG, type=int,
                         help="Run this many seeds, starting with --seed.")
+    parser.add_argument("--mode",
+                        default='local',
+                        help="Mode to run experiment.",
+                        choices=mode_choices,
+                        )
     args = parser.parse_args()
     args.normalize = not args.nonorm
 
@@ -388,11 +402,11 @@ def main():
     for env_params in get_env_params_list_from_args(args):
         for algo_settings in get_algo_settings_list_from_args(args):
             if args.sweep:
-                sweep(args.name, env_params, algo_settings)
+                sweep(args.name, env_params, algo_settings, mode=args.mode)
             else:
                 for i in range(args.num_seeds):
                     run_algorithm(algo_settings, env_params, args.name,
-                                  args.seed + i)
+                                  args.seed + i, mode=args.mode)
 
 
 if __name__ == "__main__":
