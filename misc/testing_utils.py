@@ -5,7 +5,7 @@ import numpy as np
 def is_binomial_trial_likely(n, p, num_success):
     mean = n * p
     std = math.sqrt(n * p * (1 - p))
-    margin = 2 * std
+    margin = 3 * std
     return mean - margin < num_success < mean + margin
 
 
