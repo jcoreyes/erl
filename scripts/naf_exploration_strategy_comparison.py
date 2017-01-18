@@ -1,8 +1,8 @@
-from algo_launchers import naf_launcher
+from railrl.algo_launchers import naf_launcher
 from rllab.misc.instrument import run_experiment_lite
 from rllab.exploration_strategies.gaussian_strategy import GaussianStrategy
 from rllab.exploration_strategies.ou_strategy import OUStrategy
-from exploration_strategies.simple_gaussian_strategy import (
+from railrl.exploration_strategies.simple_gaussian_strategy import (
     SimpleGaussianStrategy
 )
 
