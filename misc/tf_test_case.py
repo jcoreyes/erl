@@ -1,7 +1,10 @@
 import unittest
 import tensorflow as tf
 
-from misc.testing_utils import are_np_arrays_equal, are_np_array_iterables_equal
+from railrl.misc.testing_utils import (
+    are_np_arrays_equal,
+    are_np_array_iterables_equal,
+)
 
 
 class TFTestCase(unittest.TestCase):

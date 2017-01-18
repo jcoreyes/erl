@@ -1,8 +1,15 @@
 import tensorflow as tf
 
+from railrl.core import tf_util
 from rllab.core.serializable import Serializable
 from rllab.misc.overrides import overrides
 from sandbox.rocky.tf.core.parameterized import Parameterized
+
+ALLOWABLE_TAGS = ['regularizable']
+
+
+def negate(function):
+    return lambda x: not function(x)
 
 
 class NeuralNetwork(Parameterized, Serializable):
@@ -38,14 +45,26 @@ class NeuralNetwork(Parameterized, Serializable):
 
     @overrides
     def get_params_internal(self, **tags):
+        for key in tags.keys():
+            if key not in ALLOWABLE_TAGS:
+                raise KeyError(
+                    "Tag not allowed: {0}. Allowable tags: {1}".format(
+                        key,
+                        ALLOWABLE_TAGS))
         # TODO(vpong): This is a big hack! Fix this
+        filters = []
         if 'regularizable' in tags:
-            return [v
-                    for v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,
-                                               self.scope_name)
-                    if 'bias' not in v.name]
-        return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,
-                                 self.scope_name)
+            regularizable_vars = tf_util.get_regularizable_variables(
+                self.scope_name)
+            if tags['regularizable']:
+                reg_filter = lambda v: v in regularizable_vars
+            else:
+                reg_filter = lambda v: v not in regularizable_vars
+            filters.append(reg_filter)
+
+        variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,
+                                      self.scope_name)
+        return list(filter(lambda v: all(f(v) for f in filters), variables))
 
     def get_copy(self, **kwargs):
         return Serializable.clone(

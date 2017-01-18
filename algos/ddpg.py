@@ -82,7 +82,7 @@ class DDPG(OnlineAlgorithm):
             tf.pack(
                 [tf.nn.l2_loss(v)
                  for v in
-                 self.qf.get_params_internal(only_regularizable=True)]
+                 self.qf.get_params_internal(regularizable=True)]
             ),
             name='weights_norm'
         )

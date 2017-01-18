@@ -3,6 +3,7 @@ import math
 import numpy as np
 import tensorflow as tf
 
+REGULARIZABLE_VARS = "regularizable_weights_collection"
 WEIGHT_DEFAULT_NAME = "weights"
 BIAS_DEFAULT_NAME = "bias"
 
@@ -10,10 +11,20 @@ BIAS_DEFAULT_NAME = "bias"
 MlpConfig = namedtuple('MlpConfig', ['W_init', 'b_init', 'nonlinearity'])
 
 
+def get_regularizable_variables(scope):
+    """
+    Get *all* regularizable variables in the scope.
+    :param scope: scope to filter variables by
+    :return:
+    """
+    return tf.get_collection(REGULARIZABLE_VARS, scope)
+
+
 def weight_variable(
         shape,
         initializer=None,
         name=WEIGHT_DEFAULT_NAME,
+        regularizable=True,
 ):
     """
     Return a variable with the given shape.
@@ -26,6 +37,8 @@ def weight_variable(
         initializer = tf.random_uniform_initializer(minval=-3e-3,
                                                     maxval=3e-3)
     var = tf.get_variable(name, shape, initializer=initializer)
+    if regularizable:
+        tf.add_to_collection(REGULARIZABLE_VARS, var)
     return var
 
 
@@ -33,6 +46,7 @@ def bias_variable(
         shape,
         initializer=None,
         name=BIAS_DEFAULT_NAME,
+        regularizable=False,
 ):
     """
     Return a bias variable with the given shape.
@@ -45,7 +59,8 @@ def bias_variable(
         initializer = tf.constant_initializer(0.)
     return weight_variable(shape,
                            initializer=initializer,
-                           name=name)
+                           name=name,
+                           regularizable=regularizable)
 
 
 def linear(
