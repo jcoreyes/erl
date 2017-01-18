@@ -11,7 +11,6 @@ from rllab.envs.normalized_env import normalize
 import railrl.envs
 
 
-
 def get_env_settings(env_id="", normalize_env=True, gym_name=""):
     if env_id == 'cart':
         env = CartpoleEnv()
@@ -23,11 +22,8 @@ def get_env_settings(env_id="", normalize_env=True, gym_name=""):
         env = AntEnv()
         name = "Ant"
     elif env_id == 'point':
-        env = gym_env("Pointmass-v1")
-        name = "Pointmass"
-    elif env_id == 'pt':
-        env = gym_env("PointmassTarget-v1")
-        name = "PointmassTarget"
+        env = gym_env("OneDPoint-v0")
+        name = "OneDPoint"
     elif env_id == 'reacher':
         env = gym_env("Reacher-v1")
         name = "Reacher"
