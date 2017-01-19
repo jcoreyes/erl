@@ -6,10 +6,57 @@ import tensorflow as tf
 REGULARIZABLE_VARS = "regularizable_weights_collection"
 WEIGHT_DEFAULT_NAME = "weights"
 BIAS_DEFAULT_NAME = "bias"
+BN_SCALE_DEFAULT_NAME = "bn_scale"
+BN_OFFSET_DEFAULT_NAME = "bn_offset"
+BN_POP_MEAN_DEFAULT_NAME = "bn_pop_means"
+BN_POP_VAR_DEAFULT_NAME = "bn_pop_var"
+LAYER_NORM_BIAS_DEFAULT_NAME = "ln_bias"
+LAYER_NORM_GAIN_DEFAULT_NAME = "ln_gain"
 LAYER_NORMALIZATION_DEFAULT_NAME = "layer_normalization"
 
 # TODO(vpong): Use this namedtuple when possible
 MlpConfig = namedtuple('MlpConfig', ['W_init', 'b_init', 'nonlinearity'])
+
+
+class BatchNormConfig(object):
+    def __init__(
+            self,
+            enable_scale=True,
+            enable_offset=True,
+            mean_init=0.,
+            std_init=1.,
+            decay=0.999,
+            epsilon=1e-5,
+
+    ):
+        self.enable_scale = enable_scale
+        self.enable_offset = enable_offset
+        self.mean_init = mean_init
+        self.std_init = std_init
+        self.decay = decay
+        self.epsilon = epsilon
+
+
+class BatchNormOps(object):
+    def __init__(
+            self,
+            scale,
+            beta,
+            pop_mean,
+            pop_var,
+            batch_mean=None,
+            batch_var=None,
+            train_mean_op=None,
+            train_var_op=None,
+    ):
+        self.scale = scale
+        self.beta = beta
+        self.pop_mean = pop_mean
+        self.pop_var = pop_var
+        self.batch_mean = batch_mean
+        self.batch_var = batch_var
+        self.train_mean_op = train_mean_op
+        self.train_var_op = train_var_op
 
 
 def get_regularizable_variables(scope):
@@ -90,16 +137,85 @@ def layer_normalize(
         variance + epsilon)
     with tf.variable_scope(name):
         gains = tf.get_variable(
-            "gain",
+            LAYER_NORM_GAIN_DEFAULT_NAME,
             input_shape,
             initializer=tf.constant_initializer(0.),
         )
         biases = tf.get_variable(
-            'bias',
+            LAYER_NORM_BIAS_DEFAULT_NAME,
             input_shape,
             initializer=tf.constant_initializer(0.),
         )
     return normalised_input * gains + biases
+
+
+def batch_norm(
+        input_tensor,
+        is_training,
+        batch_norm_config=None,
+):
+    """
+    Based on http://r2rt.com/implementing-batch-normalization-in-tensorflow.html
+    :param input_tensor: Input tensor
+    :param is_training: Is this layer in training mode?
+    :param batch_norm_config: BatchNormConfig
+    :return: tuple, (output Tensor, BatchNormOps)
+    """
+    if batch_norm_config is None:
+        batch_norm_config = BatchNormConfig()  # Use default settings
+    decay = batch_norm_config.decay
+    epsilon = batch_norm_config.epsilon
+
+    bn_shape = input_tensor.get_shape()[-1]
+    scale = tf.get_variable(
+        BN_SCALE_DEFAULT_NAME,
+        bn_shape,
+        tf.constant_initializer(1.)
+    )
+    offset = tf.get_variable(
+        BN_OFFSET_DEFAULT_NAME,
+        bn_shape,
+        tf.constant_initializer(0.)
+    )
+    pop_mean = tf.get_variable(
+        BN_POP_MEAN_DEFAULT_NAME,
+        bn_shape,
+        tf.constant_initializer(0.)
+    )
+    pop_var = tf.get_variable(
+        BN_POP_VAR_DEAFULT_NAME,
+        bn_shape,
+        tf.constant_initializer(1.)
+    )
+
+    if is_training:
+        batch_mean, batch_var = tf.nn.moments(input_tensor, [0])
+        train_mean_op = tf.assign(pop_mean,
+                                  pop_mean * decay + batch_mean * (1 - decay))
+        train_var_op = tf.assign(pop_var,
+                                 pop_var * decay + batch_var * (1 - decay))
+        with tf.control_dependencies([train_mean_op, train_var_op]):
+            return tf.nn.batch_normalization(
+                input_tensor, batch_mean, batch_var, offset, scale, epsilon
+            ), BatchNormOps(
+                scale,
+                offset,
+                pop_mean,
+                pop_var,
+                batch_mean,
+                batch_var,
+                train_mean_op,
+                train_var_op,
+            )
+    else:
+        return tf.nn.batch_normalization(
+            input_tensor, pop_mean, pop_var, offset, scale, epsilon
+        ), BatchNormOps(
+            scale,
+            offset,
+            pop_mean,
+            pop_var,
+        )
 
 
 def linear(

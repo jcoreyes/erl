@@ -43,6 +43,25 @@ class NeuralNetwork(Parameterized, Serializable):
         """
         return self._output
 
+    @property
+    def training_output(self):
+        """
+        :return: Tensor/placeholder/op. Training output of this network.
+        """
+        return self.output
+
+    def process_layer(self, previous_layer):
+        """
+        This should be done called between every layer, i.e.
+
+        a = self.process_layer(linear(x))
+        b = self.process_layer(linear(relu(a)))
+
+        :param previous_layer:
+        :return:
+        """
+        return previous_layer
+
     @overrides
     def get_params_internal(self, **tags):
         for key in tags.keys():
