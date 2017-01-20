@@ -1,8 +1,10 @@
-from collections import namedtuple
 import math
+from collections import namedtuple
+
 import numpy as np
 import tensorflow as tf
-from pythonplusplus import identity
+
+from railrl.pythonplusplus import identity
 
 REGULARIZABLE_VARS = "regularizable_weights_collection"
 WEIGHT_DEFAULT_NAME = "weights"
