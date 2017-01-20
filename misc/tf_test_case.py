@@ -1,4 +1,5 @@
 import unittest
+import numpy as np
 import tensorflow as tf
 
 from railrl.misc.testing_utils import (
@@ -75,6 +76,22 @@ class TFTestCase(unittest.TestCase):
     ):
         self.assertFalse(are_np_array_iterables_equal(np_arrays1, np_arrays2), msg)
 
+    def assertNpArraysNotAlmostEqual(
+            self,
+            np_arrays1,
+            np_arrays2,
+            msg="Numpy array lists are equal.",
+            threshold=1e-4,
+    ):
+        self.assertFalse(
+            are_np_array_iterables_equal(
+                np_arrays1,
+                np_arrays2,
+                threshold=threshold,
+            ),
+            msg
+        )
+
     def assertParamsEqual(self, network1, network2):
         self.assertNpArraysEqual(
             network1.get_param_values(),
@@ -89,3 +106,8 @@ class TFTestCase(unittest.TestCase):
             msg="Parameters are equal.",
         )
 
+    def randomize_param_values(self, network):
+        for v in network.get_params():
+            self.sess.run(
+                v.assign(np.random.rand(*v.get_shape()))
+            )

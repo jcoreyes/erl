@@ -1,12 +1,11 @@
 import abc
-
 import tensorflow as tf
 
 from railrl.core.neuralnet import NeuralNetwork
-from rllab.core.serializable import Serializable
+from rllab.misc.overrides import overrides
 
 
-class StateActionNetwork(NeuralNetwork):
+class StateActionNetwork(NeuralNetwork, metaclass=abc.ABCMeta):
     """
     A map from (state, action) to a vector
     """
@@ -67,48 +66,10 @@ class StateActionNetwork(NeuralNetwork):
                                                 self.action_input)
             self.variable_scope = variable_scope
 
-    def get_weight_tied_copy(self, observation_input=None, action_input=None):
-        """
-        Return a weight-tied copy of the network. Replace the action or
-        observation to the network for the returned network.
-
-        :param action_input: A tensorflow Tensor. If not set,
-        the action input to the returned network is the same as this network's
-        action input.
-        :param observation_input: A tensorflow Tensor. If not set,
-        the observation input to the returned network is the same as this
-        network's observation input.
-        :return: StateNetwork copy with weights tied to this StateNetwork.
-        """
-        assert (observation_input is not None or action_input is not None)
-        if observation_input is None:
-            observation_input = self.observation_input
-        if action_input is None:
-            action_input = self.action_input
-        return self.get_copy(
-            name_or_scope=self.variable_scope,
-            observation_input=observation_input,
-            action_input=action_input,
-            reuse=True,
+    @property
+    @overrides
+    def _input_name_to_values(self):
+        return dict(
+            observation_input=self.observation_input,
+            action_input=self.action_input,
         )
-
-    @abc.abstractmethod
-    def _create_network(self, observation_input, action_input):
-        """
-        Create a network whose inputs are observation_input and action_input.
-
-        :param action_input: A tensor/placeholder.
-        :param observation_input: A tensor/placeholder.
-        :return: A tensor.
-        """
-        return
-
-    def setup_serialization(self, init_locals):
-        # TODO(vpong): fix this
-        # Serializable.quick_init_for_clone(self, init_locals)
-        # init_locals_copy = dict(init_locals.items())
-        # if 'kwargs' in init_locals:
-        #     init_locals_copy['kwargs'].pop('action_input', None)
-        #     init_locals_copy['kwargs'].pop('observation_input', None)
-        # Serializable.quick_init(self, init_locals_copy)
-        Serializable.quick_init(self, init_locals)

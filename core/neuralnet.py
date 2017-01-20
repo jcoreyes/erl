@@ -1,3 +1,4 @@
+import abc
 import tensorflow as tf
 
 from railrl.core import tf_util
@@ -91,4 +92,49 @@ class NeuralNetwork(Parameterized, Serializable):
             **kwargs
         )
 
+    def get_weight_tied_copy(self, **inputs):
+        """
+        Return a weight-tied copy of the network. Replace the action or
+        observation to the network for the returned network.
 
+        :param inputs: Dictionary, of the form
+        {
+            'input_x': self.input_x,
+            'input_y': self.input_y,
+        }
+
+        :return: StateNetwork copy with weights tied to this StateNetwork.
+        """
+        assert len(inputs) > 0
+        for input_name, input_value in self._input_name_to_values.items():
+            if input_name not in inputs:
+                inputs[input_name] = input_value
+        return self.get_copy(
+            name_or_scope=self.variable_scope,
+            reuse=True,
+            **inputs
+        )
+
+    @property
+    @abc.abstractmethod
+    def _input_name_to_values(self):
+        pass
+
+    @abc.abstractmethod
+    def _create_network(self, **inputs):
+        """
+        Create a network whose inputs are given.
+
+        :return: A tensor.
+        """
+        return
+
+    def setup_serialization(self, init_locals):
+        # TODO(vpong): fix this
+        # Serializable.quick_init_for_clone(self, init_locals)
+        # init_locals_copy = dict(init_locals.items())
+        # if 'kwargs' in init_locals:
+        #     init_locals_copy['kwargs'].pop('action_input', None)
+        #     init_locals_copy['kwargs'].pop('observation_input', None)
+        # Serializable.quick_init(self, init_locals_copy)
+        Serializable.quick_init(self, init_locals)
