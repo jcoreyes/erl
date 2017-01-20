@@ -9,6 +9,8 @@
  - Implement batch norm
  - Test EC2 launches
  - See TODO in test_tensorflow.py
+ - Delete old launchers
+ - Update calls to `tf.init...` since it's being deprecated
 
 # Notes
 These notes are really for myself (vpong), so they're probably meaningless to anyone else.
