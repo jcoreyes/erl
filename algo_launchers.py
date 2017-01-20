@@ -36,11 +36,13 @@ def my_ddpg_launcher(variant):
     qf = FeedForwardCritic(
         name_or_scope="critic",
         env_spec=env.spec,
+        batch_norm=True,
         **variant.get('qf_params', {})
     )
     policy = FeedForwardPolicy(
         name_or_scope="actor",
         env_spec=env.spec,
+        batch_norm=True,
         **variant.get('policy_params', {})
     )
     algorithm = MyDDPG(

@@ -176,8 +176,10 @@ def get_batch_norm_update_pop_stats_ops(scope=None):
     :return: List of batch norm ops that update population statistics in a
     given scope.
     """
+    if not isinstance(scope, str) and scope is not None:
+        scope = scope.original_name_scope
     return tf.get_collection(_BATCH_NORM_UPDATE_POP_STATS_COLLECTION_,
-                             scope=scope.original_name_scope)
+                             scope=scope)
 
 
 def batch_norm(

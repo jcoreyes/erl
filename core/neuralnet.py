@@ -40,6 +40,7 @@ class NeuralNetwork(Parameterized, Serializable):
         self._sess = None
         self._training_output = None
         self._output = None
+        self._is_bn_in_training_mode = False
 
     def _create_network(self, **inputs):
         """
@@ -48,14 +49,23 @@ class NeuralNetwork(Parameterized, Serializable):
         :param inputs: named Tensors
         :return: None
         """
-        with tf.variable_scope(self.scope_name, reuse=self._reuse):
+        with tf.variable_scope(self.scope_name, reuse=self._reuse) as scope:
             if self._batch_norm:
-                self._training_output, self._output = (
-                    self._create_network_internal(**inputs)
-                )
+                self._is_bn_in_training_mode = True
+                self._training_output = self._create_network_internal(**inputs)
+                scope.reuse_variables()
+                self._is_bn_in_training_mode = False
+                self._output = self._create_network_internal(**inputs)
             else:
                 self._output = self._create_network_internal(**inputs)
                 self._training_output = self._output
+            # It's important to make this equality and not += since a network
+            # may be composed of many sub-networks. Doing += would cause ops
+            # to be added twice (once in the sub-network's constructor,
+            # and again in the parent constructor).
+            self._bn_stat_update_ops = (
+                tf_util.get_batch_norm_update_pop_stats_ops(scope=scope)
+            )
 
     @property
     def sess(self):
@@ -81,7 +91,7 @@ class NeuralNetwork(Parameterized, Serializable):
         """
         return self.output
 
-    def _process_layer(self, previous_layer):
+    def _process_layer(self, previous_layer, scope_name="process_layer"):
         """
         This should be done called between every layer, i.e.
 
@@ -91,12 +101,13 @@ class NeuralNetwork(Parameterized, Serializable):
         If batch norm is disabled, this just returns `previous_layer`
         immediately.
 
-        If batch norm is enabled, this returns a tuple (a, b) where
-            a = layer after batch norm to be used when training
-            b = layer after batch norm to be used when evaluating
+        If batch norm is enabled, this returns a layer with bn enabled,
+        either for training or eval based on self._is_bn_in_training_mode
 
         :param previous_layer: Either the input layer or the output to a
         previous call to `_process_layer`
+        :param scope_name: Scope name for any variables that may be created
+        while processing the layer
         :return: If batch norm is disabled, this returns previous_layer.
         Otherwise, it returns a tuple (batch norm'd layer for training,
         batch norm'd layer for eval)
@@ -104,29 +115,13 @@ class NeuralNetwork(Parameterized, Serializable):
         if not self._batch_norm:
             return previous_layer
 
-        if not isinstance(previous_layer, tuple):  # This is the input
-            # TODO(vpong): Enforce that this is only called when processing
-            # the input. Probably use a context manager and force subclasses
-            # to do something like `with self.process_input`: ...
-            # or do something more elegant
-            previous_training_layer = previous_layer
-            previous_eval_layer = previous_layer
-        else:
-            assert len(previous_layer) == 2
-            previous_training_layer, previous_eval_layer = previous_layer
-        training_output, batch_ops = tf_util.batch_norm(
-            previous_training_layer,
-            is_training=True,
-            batch_norm_config=self._batch_norm_config,
-        )
-        self._bn_stat_update_ops += batch_ops.update_pop_stats_ops
-        with tf.variable_scope(self.scope_name, reuse=True):
-            eval_output, _ = tf_util.batch_norm(
-                previous_eval_layer,
-                is_training=False,
+        with tf.variable_scope(scope_name):
+            processed_layer, _ = tf_util.batch_norm(
+                previous_layer,
+                is_training=self._is_bn_in_training_mode,
                 batch_norm_config=self._batch_norm_config,
             )
-        return training_output, eval_output
+            return processed_layer
 
     @overrides
     def get_params_internal(self, **tags):
