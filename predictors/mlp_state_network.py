@@ -33,7 +33,7 @@ class MlpStateNetwork(StateNetwork):
                                               output_dim=output_dim,
                                               **kwargs)
 
-    def _create_network(self, observation_input):
+    def _create_network_internal(self, observation_input):
         hidden_output = tf_util.mlp(
             observation_input,
             self.observation_dim,

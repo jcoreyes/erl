@@ -18,7 +18,6 @@ class StateNetwork(NeuralNetwork, metaclass=abc.ABCMeta):
             env_spec=None,
             observation_dim=None,
             observation_input=None,
-            reuse=False,
             **kwargs):
         """
         Create a state network.
@@ -34,23 +33,21 @@ class StateNetwork(NeuralNetwork, metaclass=abc.ABCMeta):
         :param kwargs: kwargs to be passed to super
         """
         self.setup_serialization(locals())
+        super(StateNetwork, self).__init__(name_or_scope, **kwargs)
         self.output_dim = output_dim
-        self.observation_input = observation_input
 
         assert env_spec or observation_dim
         self.observation_dim = (observation_dim or
                                 env_spec.observation_space.flat_dim)
 
-        with tf.variable_scope(name_or_scope, reuse=reuse) as variable_scope:
+        with tf.variable_scope(self.scope_name):
             if observation_input is None:
                 observation_input = tf.placeholder(
                     tf.float32,
                     [None, self.observation_dim],
                     "_observation")
-            self.observation_input = observation_input
-            super(StateNetwork, self).__init__(variable_scope, **kwargs)
-            self._output = self._create_network(self.observation_input)
-            self.variable_scope = variable_scope
+        self.observation_input = observation_input
+        self._create_network(observation_input=observation_input)
 
     @property
     @overrides
@@ -58,3 +55,4 @@ class StateNetwork(NeuralNetwork, metaclass=abc.ABCMeta):
         return dict(
             observation_input=self.observation_input,
         )
+

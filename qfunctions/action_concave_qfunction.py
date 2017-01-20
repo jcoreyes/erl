@@ -39,7 +39,7 @@ class ActionConcaveQFunction(NNQFunction, OptimizableQFunction):
         self._weights_to_clip = []
         super().__init__(name_or_scope=name_or_scope, **kwargs)
 
-    def _create_network(self, observation_input, action_input):
+    def _create_network_internal(self, observation_input, action_input):
         """
         Let
             a = action

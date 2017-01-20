@@ -23,14 +23,13 @@ class NNPolicy(StateNetwork, Policy):
         super(NNPolicy, self).__init__(name_or_scope=name_or_scope,
                                        output_dim=action_dim,
                                        **new_kwargs)
-                                       # **kwargs)
 
     def get_action(self, observation):
         return self.sess.run(self.output,
                              {self.observation_input: [observation]}), {}
 
     @abc.abstractmethod
-    def _create_network(self, observation_input):
+    def _create_network_internal(self, observation_input):
         return
 
 
@@ -57,10 +56,10 @@ class FeedForwardPolicy(NNPolicy):
             -3e-3, 3e-3)
         self.hidden_nonlinearity = hidden_nonlinearity
         self.output_nonlinearity = output_nonlinearity
-        super(FeedForwardPolicy, self).__init__(name_or_scope=name_or_scope,
-                                                **kwargs)
+        super().__init__(name_or_scope=name_or_scope, **kwargs)
 
-    def _create_network(self, observation_input):
+    def _create_network_internal(self, observation_input=None):
+        assert observation_input is not None
         observation_output = mlp(
             observation_input,
             self.observation_dim,
@@ -68,11 +67,12 @@ class FeedForwardPolicy(NNPolicy):
             self.hidden_nonlinearity,
             W_initializer=self.hidden_W_init,
             b_initializer=self.hidden_b_init,
+            pre_nonlin_lambda=self._process_layer,
         )
-        return self.output_nonlinearity(linear(
+        return self._process_layer(self.output_nonlinearity(linear(
             observation_output,
             self.observation_hidden_sizes[-1],
             self.output_dim,
             W_initializer=self.output_W_init,
             b_initializer=self.output_b_init,
-        ))
+        )))

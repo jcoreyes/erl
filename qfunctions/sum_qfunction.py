@@ -7,7 +7,7 @@ from railrl.core.tf_util import weight_variable
 class SumCritic(NNQFunction):
     """Just output the sum of the inputs. This is used to debug."""
 
-    def _create_network(self, observation_input, action_input):
+    def _create_network_internal(self, observation_input, action_input):
         with tf.variable_scope("actions_layer") as _:
             W_actions = weight_variable(
                 (self.action_dim, 1),

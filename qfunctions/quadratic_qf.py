@@ -36,7 +36,7 @@ class QuadraticQF(NNQFunction, OptimizableQFunction):
             **kwargs
         )
 
-    def _create_network(self, observation_input, action_input):
+    def _create_network_internal(self, observation_input, action_input):
         L_params = MlpStateNetwork(
             name_or_scope="L",
             output_dim=self.action_dim * self.action_dim,

@@ -19,7 +19,7 @@ class SgdQuadraticNAF(NAFQFunction):
     SGD on the put. Used for debugging.
     """
     @overrides
-    def _create_network(self, observation_input, action_input):
+    def _create_network_internal(self, observation_input, action_input):
         self._vf = MlpStateNetwork(
             name_or_scope="V_function",
             output_dim=1,

@@ -188,6 +188,7 @@ class TestNeuralNetwork(TFTestCase):
             {input: input_values}
         )
         expected_training_values = np.array([[-1, 1]]).T
+        self.assertNotEqual(perceptron.training_output, perceptron.output)
         self.assertNpArraysAlmostEqual(expected_training_values,
                                        training_values)
 

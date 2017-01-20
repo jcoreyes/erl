@@ -62,9 +62,14 @@ class StateActionNetwork(NeuralNetwork, metaclass=abc.ABCMeta):
                     [None, self.observation_dim],
                     "_observation")
             self.observation_input = observation_input
-            self._output = self._create_network(self.observation_input,
-                                                self.action_input)
-            self.variable_scope = variable_scope
+            self._output = self._create_network_internal(self.observation_input,
+                                                         self.action_input)
+            self._variable_scope = variable_scope
+
+    @property
+    @overrides
+    def variable_scope(self):
+        return self._variable_scope
 
     @property
     @overrides

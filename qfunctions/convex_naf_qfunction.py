@@ -42,7 +42,7 @@ class ConcaveNAF(NAFQFunction):
 
 
     @overrides
-    def _create_network(self, observation_input, action_input):
+    def _create_network_internal(self, observation_input, action_input):
         self._af = SimpleActionConcaveQFunction(
             name_or_scope="advantage_function",
             action_dim=self.action_dim,

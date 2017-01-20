@@ -2,6 +2,7 @@ from collections import namedtuple
 import math
 import numpy as np
 import tensorflow as tf
+from pythonplusplus import identity
 
 REGULARIZABLE_VARS = "regularizable_weights_collection"
 WEIGHT_DEFAULT_NAME = "weights"
@@ -63,12 +64,18 @@ class BatchNormOps(object):
         self.update_pop_mean_op = update_pop_mean_op
         self.update_pop_var_op = update_pop_var_op
 
+        self._update_pop_stats_ops = []
+        if self.update_pop_mean_op is not None:
+            self._update_pop_stats_ops += [
+                self.update_pop_mean_op, self.update_pop_var_op
+            ]
+
     @property
     def update_pop_stats_ops(self):
-        if self.update_pop_mean_op is not None:
-            return [self.update_pop_mean_op, self.update_pop_var_op]
-        else:
-            return []
+        return self._update_pop_stats_ops
+
+    def add_pop_stats_ops(self, pop_stat_ops):
+        self._update_pop_stats_ops += pop_stat_ops
 
 
 def get_regularizable_variables(scope):
@@ -309,6 +316,8 @@ def mlp(input_layer,
         nonlinearity,
         W_initializer=None,
         b_initializer=None,
+        pre_nonlin_lambda=identity,
+        post_nonlin_lambda=identity,
         ):
     """
     Create a multi-layer perceptron with the given hidden sizes. The
@@ -320,6 +329,12 @@ def mlp(input_layer,
     :param input_layer_size: int, size of the input
     :param hidden_sizes: int iterable of the hidden sizes
     :param nonlinearity: the initialization function for the nonlinearity
+    :param post_nonlin_lambda: A function to pass the post-non-linearity
+    values through.
+    This is only applied between layers. Not on the input nor the output.
+    :param pre_nonlin_lambda: A function to pass the pre-non-linearity
+    values through.
+    This is only applied between layers. Not on the input nor the output.
     :return: Output of MLP.
     :type: tf.Tensor
     """
@@ -327,12 +342,22 @@ def mlp(input_layer,
     last_layer_size = input_layer_size
     for layer, hidden_size in enumerate(hidden_sizes):
         with tf.variable_scope('hidden{0}'.format(layer)) as _:
-            last_layer = nonlinearity(linear(last_layer,
-                                             last_layer_size,
-                                             hidden_size,
-                                             W_initializer=W_initializer,
-                                             b_initializer=b_initializer,
-                                             ))
+            pre_nonlin = linear(last_layer,
+                                last_layer_size,
+                                hidden_size,
+                                W_initializer=W_initializer,
+                                b_initializer=b_initializer,
+                                )
+            if layer == len(hidden_sizes) - 1:  # Last layer
+                last_layer = nonlinearity(pre_nonlin)
+            else:
+                last_layer = post_nonlin_lambda(
+                    nonlinearity(
+                        pre_nonlin_lambda(
+                            pre_nonlin
+                        )
+                    )
+                )
             last_layer_size = hidden_size
     return last_layer
 
