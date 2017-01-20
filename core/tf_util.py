@@ -13,6 +13,7 @@ BN_POP_VAR_DEAFULT_NAME = "bn_pop_var"
 LAYER_NORM_BIAS_DEFAULT_NAME = "ln_bias"
 LAYER_NORM_GAIN_DEFAULT_NAME = "ln_gain"
 LAYER_NORMALIZATION_DEFAULT_NAME = "layer_normalization"
+_BATCH_NORM_UPDATE_POP_STATS_COLLECTION_ = "_batch_norm_update_pop_stats_"
 
 # TODO(vpong): Use this namedtuple when possible
 MlpConfig = namedtuple('MlpConfig', ['W_init', 'b_init', 'nonlinearity'])
@@ -41,22 +42,33 @@ class BatchNormOps(object):
     def __init__(
             self,
             scale,
-            beta,
+            offset,
             pop_mean,
             pop_var,
             batch_mean=None,
             batch_var=None,
-            train_mean_op=None,
-            train_var_op=None,
+            update_pop_mean_op=None,
+            update_pop_var_op=None,
     ):
         self.scale = scale
-        self.beta = beta
+        self.offset = offset
         self.pop_mean = pop_mean
         self.pop_var = pop_var
         self.batch_mean = batch_mean
         self.batch_var = batch_var
-        self.train_mean_op = train_mean_op
-        self.train_var_op = train_var_op
+        assert (
+            update_pop_var_op is not None and update_pop_mean_op is not None or
+            update_pop_var_op is None and update_pop_mean_op is None
+        )
+        self.update_pop_mean_op = update_pop_mean_op
+        self.update_pop_var_op = update_pop_var_op
+
+    @property
+    def update_pop_stats_ops(self):
+        if self.update_pop_mean_op is not None:
+            return [self.update_pop_mean_op, self.update_pop_var_op]
+        else:
+            return []
 
 
 def get_regularizable_variables(scope):
@@ -149,6 +161,16 @@ def layer_normalize(
     return normalised_input * gains + biases
 
 
+def get_batch_norm_update_pop_stats_ops(scope=None):
+    """
+    :param scope: If None, return all ops.
+    :return: List of batch norm ops that update population statistics in a
+    given scope.
+    """
+    return tf.get_collection(_BATCH_NORM_UPDATE_POP_STATS_COLLECTION_,
+                             scope=scope.original_name_scope)
+
+
 def batch_norm(
         input_tensor,
         is_training,
@@ -156,6 +178,29 @@ def batch_norm(
 ):
     """
     Based on http://r2rt.com/implementing-batch-normalization-in-tensorflow.html
+    Note that unlike the version given above, the caller must explicitly update
+    the population mean and variance.
+
+    This can be done by doing:
+
+    ```
+    sess = ...
+    training_feed_dict = ...
+    train_output, batch_norm_op = tf_util.batch_norm(input_tensor, True)
+    pop_update_ops = batch_norm_op.update_pop_stats_ops  # returns a list
+
+    output, *_ = sess.run(
+        [train_output] + pop_update_ops,
+        feed_dict=training_feed_dict
+    )
+    ```
+
+    If batch_norm is called inside of a scope, `pop_update_ops` can
+    alternatively be accessed by running
+    ```
+    pop_update_ops = tf_util.get_batchnorm_ops(scope)
+    ```
+
     :param input_tensor: Input tensor
     :param is_training: Is this layer in training mode?
     :param batch_norm_config: BatchNormConfig
@@ -167,46 +212,56 @@ def batch_norm(
     epsilon = batch_norm_config.epsilon
 
     bn_shape = input_tensor.get_shape()[-1]
-    scale = tf.get_variable(
-        BN_SCALE_DEFAULT_NAME,
-        bn_shape,
-        tf.constant_initializer(1.)
-    )
-    offset = tf.get_variable(
-        BN_OFFSET_DEFAULT_NAME,
-        bn_shape,
-        tf.constant_initializer(0.)
-    )
+    scale, offset = None, None
+    if batch_norm_config.enable_scale:
+        scale = tf.get_variable(
+            BN_SCALE_DEFAULT_NAME,
+            shape=bn_shape,
+            initializer=tf.constant_initializer(1.),
+        )
+    if batch_norm_config.enable_offset:
+        offset = tf.get_variable(
+            BN_OFFSET_DEFAULT_NAME,
+            shape=bn_shape,
+            initializer=tf.constant_initializer(0.),
+        )
     pop_mean = tf.get_variable(
         BN_POP_MEAN_DEFAULT_NAME,
-        bn_shape,
-        tf.constant_initializer(0.)
+        shape=bn_shape,
+        initializer=tf.constant_initializer(0.)
     )
     pop_var = tf.get_variable(
         BN_POP_VAR_DEAFULT_NAME,
-        bn_shape,
-        tf.constant_initializer(1.)
+        shape=bn_shape,
+        initializer=tf.constant_initializer(1.)
     )
 
     if is_training:
         batch_mean, batch_var = tf.nn.moments(input_tensor, [0])
-        train_mean_op = tf.assign(pop_mean,
-                                  pop_mean * decay + batch_mean * (1 - decay))
-        train_var_op = tf.assign(pop_var,
-                                 pop_var * decay + batch_var * (1 - decay))
-        with tf.control_dependencies([train_mean_op, train_var_op]):
-            return tf.nn.batch_normalization(
-                input_tensor, batch_mean, batch_var, offset, scale, epsilon
-            ), BatchNormOps(
-                scale,
-                offset,
-                pop_mean,
-                pop_var,
-                batch_mean,
-                batch_var,
-                train_mean_op,
-                train_var_op,
-            )
+        update_pop_mean_op = tf.assign(
+            pop_mean,
+            pop_mean * decay + batch_mean * (1 - decay)
+        )
+        update_pop_var_op = tf.assign(
+            pop_var,
+            pop_var * decay + batch_var * (1 - decay)
+        )
+        tf.add_to_collection(_BATCH_NORM_UPDATE_POP_STATS_COLLECTION_,
+                             update_pop_mean_op)
+        tf.add_to_collection(_BATCH_NORM_UPDATE_POP_STATS_COLLECTION_,
+                             update_pop_var_op)
+        return tf.nn.batch_normalization(
+            input_tensor, batch_mean, batch_var, offset, scale, epsilon
+        ), BatchNormOps(
+            scale,
+            offset,
+            pop_mean,
+            pop_var,
+            batch_mean=batch_mean,
+            batch_var=batch_var,
+            update_pop_mean_op=update_pop_mean_op,
+            update_pop_var_op=update_pop_var_op,
+        )
     else:
         return tf.nn.batch_normalization(
             input_tensor, pop_mean, pop_var, offset, scale, epsilon

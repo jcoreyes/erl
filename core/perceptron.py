@@ -33,22 +33,29 @@ class Perceptron(NeuralNetwork):
         self.b_name = b_name
         self.W_initializer = W_initializer
         self.b_initializer = b_initializer
+        self._update_bn_ops = None
         with tf.variable_scope(name_or_scope) as variable_scope:
-            output = self.create_network(input_tensor)
+            output = self._create_network(input_tensor)
         if self._batch_norm:
             with tf.variable_scope(name_or_scope) as variable_scope:
-                self._training_output, update_ops = tf_util.batch_norm(
-                    output, is_training=True
+                self._training_output, batch_ops = tf_util.batch_norm(
+                    output,
+                    is_training=True,
+                    batch_norm_config=batch_norm_config,
                 )
-            with tf.variable_scope(name_or_scope, reuse=True) as variable_scope:
-                output_copy = self.create_network(input_tensor)
-                self._output, update_ops = tf_util.batch_norm(
-                    output_copy, is_training=False
+                self._update_bn_ops = batch_ops.update_pop_stats_ops
+                variable_scope.reuse_variables()
+                output_copy = self._create_network(input_tensor)
+                self._output, _ = tf_util.batch_norm(
+                    output_copy,
+                    is_training=False,
+                    batch_norm_config=batch_norm_config,
                 )
         else:
             self._output = output
+            self._training_output = output
 
-    def create_network(self, input_tensor):
+    def _create_network(self, input_tensor):
         return tf_util.linear(
             input_tensor,
             self.input_size,
@@ -66,4 +73,4 @@ class Perceptron(NeuralNetwork):
 
     @property
     def batch_norm_update_stats_op(self):
-        return None
+        return self._update_bn_ops
