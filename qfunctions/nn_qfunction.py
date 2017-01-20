@@ -13,6 +13,7 @@ class NNQFunction(StateActionNetwork):
         self.setup_serialization(locals())
         super().__init__(name_or_scope=name_or_scope, output_dim=1, **kwargs)
 
+
 class FeedForwardCritic(NNQFunction):
     def __init__(
             self,
@@ -40,28 +41,33 @@ class FeedForwardCritic(NNQFunction):
 
     def _create_network_internal(self, observation_input, action_input):
         with tf.variable_scope("observation_mlp") as _:
-            observation_output = mlp(observation_input,
-                                     self.observation_dim,
-                                     self.observation_hidden_sizes,
-                                     self.hidden_nonlinearity,
-                                     W_initializer=self.hidden_W_init,
-                                     b_initializer=self.hidden_b_init,
-                                     )
+            observation_output = mlp(
+                observation_input,
+                self.observation_dim,
+                self.observation_hidden_sizes,
+                self.hidden_nonlinearity,
+                W_initializer=self.hidden_W_init,
+                b_initializer=self.hidden_b_init,
+                pre_nonlin_lambda=self._process_layer,
+            )
         embedded = tf.concat(1, [observation_output, action_input])
         embedded_dim = self.action_dim + self.observation_hidden_sizes[-1]
         with tf.variable_scope("fusion_mlp") as _:
-            fused_output = mlp(embedded,
-                               embedded_dim,
-                               self.embedded_hidden_sizes,
-                               self.hidden_nonlinearity,
-                               W_initializer=self.hidden_W_init,
-                               b_initializer=self.hidden_b_init,
-                               )
+            fused_output = mlp(
+                embedded,
+                embedded_dim,
+                self.embedded_hidden_sizes,
+                self.hidden_nonlinearity,
+                W_initializer=self.hidden_W_init,
+                b_initializer=self.hidden_b_init,
+                pre_nonlin_lambda=self._process_layer,
+            )
 
         with tf.variable_scope("output_linear") as _:
-            return linear(fused_output,
-                          self.embedded_hidden_sizes[-1],
-                          1,
-                          W_initializer=self.output_W_init,
-                          b_initializer=self.output_b_init,
-                          )
+            return self._process_layer(linear(
+                fused_output,
+                self.embedded_hidden_sizes[-1],
+                1,
+                W_initializer=self.output_W_init,
+                b_initializer=self.output_b_init,
+            ))

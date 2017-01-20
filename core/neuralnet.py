@@ -40,7 +40,6 @@ class NeuralNetwork(Parameterized, Serializable):
         self._sess = None
         self._training_output = None
         self._output = None
-        self._variable_scope = None
 
     def _create_network(self, **inputs):
         """
@@ -49,9 +48,7 @@ class NeuralNetwork(Parameterized, Serializable):
         :param inputs: named Tensors
         :return: None
         """
-        with tf.variable_scope(
-                self.scope_name, reuse=self._reuse
-        ) as self._variable_scope:
+        with tf.variable_scope(self.scope_name, reuse=self._reuse):
             if self._batch_norm:
                 self._training_output, self._output = (
                     self._create_network_internal(**inputs)
@@ -123,7 +120,7 @@ class NeuralNetwork(Parameterized, Serializable):
             batch_norm_config=self._batch_norm_config,
         )
         self._bn_stat_update_ops += batch_ops.update_pop_stats_ops
-        with tf.variable_scope(self.variable_scope, reuse=True):
+        with tf.variable_scope(self.scope_name, reuse=True):
             eval_output, _ = tf_util.batch_norm(
                 previous_eval_layer,
                 is_training=False,
@@ -178,7 +175,6 @@ class NeuralNetwork(Parameterized, Serializable):
             if input_name not in inputs:
                 inputs[input_name] = input_value
         return self.get_copy(
-            name_or_scope=self.variable_scope,
             reuse=True,
             **inputs
         )
@@ -206,10 +202,6 @@ class NeuralNetwork(Parameterized, Serializable):
         :return: Tensor, output of network
         """
         pass
-
-    @property
-    def variable_scope(self):
-        return self._variable_scope
 
     @property
     @abc.abstractmethod
