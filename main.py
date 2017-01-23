@@ -256,6 +256,7 @@ def run_algorithm(
     variant = algo_settings['variant']
     variant['env_params'] = env_params
     variant['algo_params'] = algo_settings['algo_params']
+    variant['batch_norm_params'] = algo_settings['batch_norm_params']
 
     env_settings = get_env_settings(**env_params)
     variant['Environment'] = env_settings['name']

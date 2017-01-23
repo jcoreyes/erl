@@ -31,10 +31,13 @@ def my_ddpg_launcher(variant):
     from rllab.exploration_strategies.ou_strategy import OUStrategy
     from railrl.misc.launcher_util import get_env_settings
     from railrl.core.tf_util import BatchNormConfig
+    if 'batch_norm_params' in variant:
+        bn_config = BatchNormConfig(**variant['batch_norm_params'])
+    else:
+        bn_config = None
     env_settings = get_env_settings(**variant['env_params'])
     env = env_settings['env']
     es = OUStrategy(env_spec=env.spec)
-    bn_config = BatchNormConfig(**variant.get('batch_norm_params', {}))
     qf = FeedForwardCritic(
         name_or_scope="critic",
         env_spec=env.spec,
@@ -73,17 +76,24 @@ def quadratic_ddpg_launcher(variant):
     from rllab.exploration_strategies.ou_strategy import OUStrategy
     from railrl.qfunctions.quadratic_naf_qfunction import QuadraticNAF
     from railrl.misc.launcher_util import get_env_settings
+    from railrl.core.tf_util import BatchNormConfig
+    if 'batch_norm_params' in variant:
+        bn_config = BatchNormConfig(**variant['batch_norm_params'])
+    else:
+        bn_config = None
     env_settings = get_env_settings(**variant['env_params'])
     env = env_settings['env']
     es = OUStrategy(env_spec=env.spec)
     qf = QuadraticNAF(
         name_or_scope="critic",
         env_spec=env.spec,
+        batch_norm_config=bn_config,
         **variant['qf_params']
     )
     policy = FeedForwardPolicy(
         name_or_scope="actor",
         env_spec=env.spec,
+        batch_norm_config=bn_config,
         **variant['policy_params']
     )
     algorithm = MyDDPG(
@@ -91,6 +101,7 @@ def quadratic_ddpg_launcher(variant):
         es,
         policy,
         qf,
+        batch_norm_config=bn_config,
         **variant['algo_params']
     )
     algorithm.train()
@@ -105,17 +116,24 @@ def oat_qddpg_launcher(variant):
     from railrl.qfunctions.quadratic_naf_qfunction import QuadraticNAF
     from rllab.exploration_strategies.ou_strategy import OUStrategy
     from railrl.misc.launcher_util import get_env_settings
+    from railrl.core.tf_util import BatchNormConfig
+    if 'batch_norm_params' in variant:
+        bn_config = BatchNormConfig(**variant['batch_norm_params'])
+    else:
+        bn_config = None
     env_settings = get_env_settings(**variant['env_params'])
     env = env_settings['env']
     es = OUStrategy(env_spec=env.spec)
     qf = QuadraticNAF(
         name_or_scope="critic",
         env_spec=env.spec,
+        batch_norm_config=bn_config,
         **variant['qf_params']
     )
     policy = FeedForwardPolicy(
         name_or_scope="actor",
         env_spec=env.spec,
+        batch_norm_config=bn_config,
         **variant['policy_params']
     )
     algorithm = OAT(
@@ -123,6 +141,7 @@ def oat_qddpg_launcher(variant):
         es,
         policy,
         qf,
+        batch_norm_config=bn_config,
         **variant['algo_params']
     )
     algorithm.train()
@@ -133,6 +152,11 @@ def naf_launcher(variant):
     from railrl.qfunctions.quadratic_naf_qfunction import QuadraticNAF
     from rllab.exploration_strategies.ou_strategy import OUStrategy
     from railrl.misc.launcher_util import get_env_settings
+    from railrl.core.tf_util import BatchNormConfig
+    if 'batch_norm_params' in variant:
+        bn_config = BatchNormConfig(**variant['batch_norm_params'])
+    else:
+        bn_config = None
     env_settings = get_env_settings(**variant['env_params'])
     env = env_settings['env']
     if 'es_init' in variant:
@@ -142,11 +166,13 @@ def naf_launcher(variant):
     qf = QuadraticNAF(
         name_or_scope="qf",
         env_spec=env.spec,
+        batch_norm_config=bn_config,
     )
     algorithm = NAF(
         env,
         es,
         qf,
+        batch_norm_config=bn_config,
         **variant['algo_params']
     )
     algorithm.train()
