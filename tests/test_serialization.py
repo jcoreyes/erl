@@ -20,7 +20,7 @@ class TestSerialization(TFTestCase):
             action_dim=self.action_dim,
             observation_dim=self.observation_dim,
         )
-        self.sess.run(tf.initialize_all_variables())
+        self.sess.run(tf.global_variables_initializer())
         pickle.dumps(f)
 
     def test_serialize_feedforward_policy(self):
@@ -29,7 +29,7 @@ class TestSerialization(TFTestCase):
             action_dim=self.action_dim,
             observation_dim=self.observation_dim,
         )
-        self.sess.run(tf.initialize_all_variables())
+        self.sess.run(tf.global_variables_initializer())
         pickle.dumps(policy)
 
     def test_serialize_quadratic_naf(self):
@@ -38,7 +38,7 @@ class TestSerialization(TFTestCase):
             action_dim=self.action_dim,
             observation_dim=self.observation_dim,
         )
-        self.sess.run(tf.initialize_all_variables())
+        self.sess.run(tf.global_variables_initializer())
         pickle.dumps(qf)
 
 

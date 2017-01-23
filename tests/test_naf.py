@@ -248,7 +248,7 @@ class TestNormalizedAdvantageFunction(TFTestCase):
         )
         l2 = self.sess.run(Q_weight_norm)
 
-        self.assertAlmostEqual(l2, expected_l2, delta=1e-5)
+        self.assertAlmostEqual(l2, expected_l2, delta=1e-4)
 
 if __name__ == '__main__':
     unittest.main()
