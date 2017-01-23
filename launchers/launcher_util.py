@@ -1,5 +1,6 @@
+from railrl.envs.env_util import gym_env
+from railrl.envs.memory.one_char_memory import OneCharMemory
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
-from rllab.envs.gym_env import GymEnv
 from rllab.envs.mujoco.ant_env import AntEnv
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 from rllab.envs.mujoco.inverted_double_pendulum_env import \
@@ -8,10 +9,13 @@ from rllab.envs.normalized_env import normalize
 
 # Although this import looks like it does nothing, but this is needed to use
 # the envs in this package, because this call will register the environments.
-import railrl.envs
 
 
-def get_env_settings(env_id="", normalize_env=True, gym_name=""):
+def get_env_settings(env_id="", normalize_env=True, gym_name="",
+                     env_params=None):
+    if env_params is None:
+        env_params = {}
+
     if env_id == 'cart':
         env = CartpoleEnv()
         name = "Cartpole"
@@ -30,6 +34,9 @@ def get_env_settings(env_id="", normalize_env=True, gym_name=""):
     elif env_id == 'idp':
         env = InvertedDoublePendulumEnv()
         name = "InvertedDoublePendulum"
+    elif env_id == 'ocm':
+        env = OneCharMemory(**env_params)
+        name = "OneCharMemory"
     elif env_id == 'gym':
         if gym_name == "":
             raise Exception("Must provide a gym name")
@@ -47,8 +54,3 @@ def get_env_settings(env_id="", normalize_env=True, gym_name=""):
     )
 
 
-def gym_env(name):
-    return GymEnv(name,
-                  record_video=False,
-                  log_dir='/tmp/gym-test',  # Ignore gym log.
-                  record_log=False)

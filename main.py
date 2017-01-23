@@ -4,7 +4,7 @@ import copy
 
 import tensorflow as tf
 
-from railrl.algo_launchers import (
+from railrl.launchers.algo_launchers import (
     my_ddpg_launcher,
     naf_launcher,
     convex_naf_launcher,
@@ -19,8 +19,8 @@ from railrl.algo_launchers import (
     run_experiment,
     oat_qddpg_launcher,
 )
+from railrl.launchers.launcher_util import get_env_settings
 from railrl.misc import hyperparameter as hp
-from railrl.misc.launcher_util import get_env_settings
 
 BATCH_SIZE = 128
 N_EPOCHS = 100

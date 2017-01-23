@@ -1,14 +1,8 @@
 """
-This file contains 'launchers', which are self-contained functions that take
-one dictionary and run a full experiment. The dictionary configures the
-experiment.
-
-It is important that the functions are completely self-contained (i.e. they
-import their own modules) so that they can be serialized.
+This file contains classic RL launchers. See module docstring for more detail.
 """
-from rllab.misc.instrument import run_experiment_lite
 from rllab.misc import logger
-from rllab import config
+from rllab.misc.instrument import run_experiment_lite
 
 
 #################
@@ -29,7 +23,7 @@ def my_ddpg_launcher(variant):
     from railrl.policies.nn_policy import FeedForwardPolicy
     from railrl.qfunctions.nn_qfunction import FeedForwardCritic
     from rllab.exploration_strategies.ou_strategy import OUStrategy
-    from railrl.misc.launcher_util import get_env_settings
+    from railrl.launchers.launcher_util import get_env_settings
     env_settings = get_env_settings(**variant['env_params'])
     env = env_settings['env']
     es = OUStrategy(env_spec=env.spec)
@@ -67,7 +61,7 @@ def quadratic_ddpg_launcher(variant):
     from railrl.policies.nn_policy import FeedForwardPolicy
     from rllab.exploration_strategies.ou_strategy import OUStrategy
     from railrl.qfunctions.quadratic_naf_qfunction import QuadraticNAF
-    from railrl.misc.launcher_util import get_env_settings
+    from railrl.launchers.launcher_util import get_env_settings
     env_settings = get_env_settings(**variant['env_params'])
     env = env_settings['env']
     es = OUStrategy(env_spec=env.spec)
@@ -99,7 +93,7 @@ def oat_qddpg_launcher(variant):
     from railrl.policies.nn_policy import FeedForwardPolicy
     from railrl.qfunctions.quadratic_naf_qfunction import QuadraticNAF
     from rllab.exploration_strategies.ou_strategy import OUStrategy
-    from railrl.misc.launcher_util import get_env_settings
+    from railrl.launchers.launcher_util import get_env_settings
     env_settings = get_env_settings(**variant['env_params'])
     env = env_settings['env']
     es = OUStrategy(env_spec=env.spec)
@@ -127,7 +121,7 @@ def naf_launcher(variant):
     from railrl.algos.naf import NAF
     from railrl.qfunctions.quadratic_naf_qfunction import QuadraticNAF
     from rllab.exploration_strategies.ou_strategy import OUStrategy
-    from railrl.misc.launcher_util import get_env_settings
+    from railrl.launchers.launcher_util import get_env_settings
     env_settings = get_env_settings(**variant['env_params'])
     env = env_settings['env']
     if 'es_init' in variant:
@@ -155,7 +149,7 @@ def naf_ddpg_launcher(variant):
     from policies.nn_policy import FeedForwardPolicy
     from railrl.qfunctions.quadratic_qf import QuadraticQF
     from rllab.exploration_strategies.ou_strategy import OUStrategy
-    from railrl.misc.launcher_util import get_env_settings
+    from railrl.launchers.launcher_util import get_env_settings
     env_settings = get_env_settings(**variant['env_params'])
     env = env_settings['env']
     es = OUStrategy(env_spec=env.spec)
@@ -211,7 +205,7 @@ def convex_naf_launcher(variant):
     from railrl.algos.convex_naf import ConvexNAFAlgorithm
     from qfunctions.convex_naf_qfunction import ConcaveNAF
     from rllab.exploration_strategies.ou_strategy import OUStrategy
-    from railrl.misc.launcher_util import get_env_settings
+    from railrl.launchers.launcher_util import get_env_settings
     env_settings = get_env_settings(**variant['env_params'])
     env = env_settings['env']
     # The ICNN paper uses the OU strategy
@@ -236,7 +230,7 @@ def convex_quadratic_naf_launcher(variant):
     from railrl.algos.convex_naf import ConvexNAFAlgorithm
     from railrl.qfunctions.sgd_quadratic_naf_qfunction import SgdQuadraticNAF
     from rllab.exploration_strategies.ou_strategy import OUStrategy
-    from railrl.misc.launcher_util import get_env_settings
+    from railrl.launchers.launcher_util import get_env_settings
     env_settings = get_env_settings(**variant['env_params'])
     env = env_settings['env']
     optimizer_type = variant['optimizer_type']
@@ -258,7 +252,7 @@ def dqicnn_launcher(variant):
     from railrl.algos.dqicnn import DQICNN
     from railrl.qfunctions.action_concave_qfunction import ActionConcaveQFunction
     from rllab.exploration_strategies.gaussian_strategy import GaussianStrategy
-    from railrl.misc.launcher_util import get_env_settings
+    from railrl.launchers.launcher_util import get_env_settings
     env_settings = get_env_settings(**variant['env_params'])
     env = env_settings['env']
     es = GaussianStrategy(env)
@@ -288,7 +282,7 @@ def shane_ddpg_launcher(variant):
     from sandbox.rocky.tf.q_functions.continuous_mlp_q_function import (
         ContinuousMLPQFunction
     )
-    from railrl.misc.launcher_util import get_env_settings
+    from railrl.launchers.launcher_util import get_env_settings
     env_settings = get_env_settings(**variant['env_params'])
     env = TfEnv(env_settings['env'])
     es = GaussianStrategy(env.spec)
@@ -319,7 +313,7 @@ def rllab_vpg_launcher(variant):
     from sandbox.rocky.tf.algos.vpg import VPG
     from sandbox.rocky.tf.envs.base import TfEnv
     from sandbox.rocky.tf.policies.gaussian_mlp_policy import GaussianMLPPolicy
-    from railrl.misc.launcher_util import get_env_settings
+    from railrl.launchers.launcher_util import get_env_settings
     env_settings = get_env_settings(**variant['env_params'])
     env = TfEnv(env_settings['env'])
     policy = GaussianMLPPolicy(
@@ -344,7 +338,7 @@ def rllab_trpo_launcher(variant):
     from sandbox.rocky.tf.algos.trpo import TRPO
     from sandbox.rocky.tf.envs.base import TfEnv
     from sandbox.rocky.tf.policies.gaussian_mlp_policy import GaussianMLPPolicy
-    from railrl.misc.launcher_util import get_env_settings
+    from railrl.launchers.launcher_util import get_env_settings
     env_settings = get_env_settings(**variant['env_params'])
     env = TfEnv(env_settings['env'])
     policy = GaussianMLPPolicy(
@@ -373,7 +367,7 @@ def rllab_ddpg_launcher(variant):
     from rllab.policies.deterministic_mlp_policy import (
         DeterministicMLPPolicy as TheanoDeterministicMLPPolicy
     )
-    from railrl.misc.launcher_util import get_env_settings
+    from railrl.launchers.launcher_util import get_env_settings
     env_settings = get_env_settings(**variant['env_params'])
     env = env_settings['env']
     policy = TheanoDeterministicMLPPolicy(
@@ -399,7 +393,7 @@ def random_action_launcher(variant):
     from railrl.algos.noop_algo import NoOpAlgo
     from rllab.exploration_strategies.ou_strategy import OUStrategy
     from rllab.policies.uniform_control_policy import UniformControlPolicy
-    from railrl.misc.launcher_util import get_env_settings
+    from railrl.launchers.launcher_util import get_env_settings
     env_settings = get_env_settings(**variant['env_params'])
     env = env_settings['env']
     es = OUStrategy(env)

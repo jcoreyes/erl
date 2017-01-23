@@ -1,10 +1,10 @@
-from railrl.algo_launchers import naf_launcher
-from rllab.misc.instrument import run_experiment_lite
-from rllab.exploration_strategies.gaussian_strategy import GaussianStrategy
-from rllab.exploration_strategies.ou_strategy import OUStrategy
 from railrl.exploration_strategies.simple_gaussian_strategy import (
     SimpleGaussianStrategy
 )
+from railrl.launchers.algo_launchers import naf_launcher
+from rllab.exploration_strategies.gaussian_strategy import GaussianStrategy
+from rllab.exploration_strategies.ou_strategy import OUStrategy
+from rllab.misc.instrument import run_experiment_lite
 
 
 class SimpleGaussianStrategyTmp(SimpleGaussianStrategy):
