@@ -7,15 +7,12 @@ import tensorflow as tf
 from railrl.algo_launchers import (
     my_ddpg_launcher,
     naf_launcher,
-    convex_naf_launcher,
     random_action_launcher,
     shane_ddpg_launcher,
     rllab_vpg_launcher,
     rllab_trpo_launcher,
     rllab_ddpg_launcher,
-    dqicnn_launcher,
     quadratic_ddpg_launcher,
-    convex_quadratic_naf_launcher,
     run_experiment,
     oat_qddpg_launcher,
 )
@@ -142,36 +139,6 @@ def get_algo_settings_list_from_args(args):
                     output_nonlinearity=tf.nn.tanh,
                 )
             }
-        elif algo_name == 'cnaf':
-            sweeper = hp.RandomHyperparameterSweeper([
-                hp.FixedParam("n_epochs", 25),
-                hp.FixedParam("epoch_length", 20),
-                hp.FixedParam("eval_samples", 20),
-                hp.FixedParam("min_pool_size", 20),
-                hp.FixedParam("batch_size", 32),
-            ])
-            algo_params = get_my_naf_params()
-            algo_params['render'] = render
-            algorithm_launcher = convex_naf_launcher
-            variant = {
-                'Algorithm': 'ConvexNAF',
-                'optimizer_type': 'sgd',
-            }
-        elif algo_name == 'cqnaf':
-            sweeper = hp.RandomHyperparameterSweeper([
-                hp.FixedParam("n_epochs", 25),
-                hp.FixedParam("epoch_length", 20),
-                hp.FixedParam("eval_samples", 20),
-                hp.FixedParam("min_pool_size", 20),
-                hp.FixedParam("batch_size", 32),
-            ])
-            algo_params = get_my_naf_params()
-            algo_params['render'] = render
-            algorithm_launcher = convex_quadratic_naf_launcher
-            variant = {
-                'Algorithm': 'ConvexQuadraticNAF',
-                'optimizer_type': 'sgd',
-            }
         elif algo_name == 'naf':
             sweeper = hp.DeterministicHyperparameterSweeper({
                 'qf_weight_decay': [0., 1e-4, 1e-2],
@@ -187,23 +154,6 @@ def get_algo_settings_list_from_args(args):
                 'exploration_strategy_params': {
                     'sigma': 0.15
                 },
-            }
-        elif algo_name == 'dqicnn':
-            algorithm_launcher = dqicnn_launcher
-            sweeper = hp.RandomHyperparameterSweeper([
-                hp.FixedParam("n_epochs", 25),
-                hp.FixedParam("epoch_length", 100),
-                hp.FixedParam("eval_samples", 100),
-                hp.FixedParam("min_pool_size", 100),
-                hp.LogFloatParam("qf_learning_rate", 1e-7, 1e-1),
-                hp.LogFloatParam("qf_weight_decay", 1e-6, 1e-1),
-                hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
-                hp.LogFloatParam("scale_reward", 10.0, 0.01),
-            ])
-            algo_params = get_my_naf_params()
-            algo_params['render'] = render
-            variant = {
-                'Algorithm': 'DqnICNN',
             }
         elif algo_name == 'random':
             algorithm_launcher = random_action_launcher
@@ -361,8 +311,8 @@ def get_env_params_list_from_args(args):
 
 def main():
     env_choices = ['ant', 'cheetah', 'cart', 'point', 'reacher', 'idp', 'gym']
-    algo_choices = ['ddpg', 'naf', 'shane-ddpg', 'random', 'cnaf', 'cqnaf',
-                    'rl-vpg', 'rl-trpo', 'rl-ddpg', 'dqicnn', 'qddpg', 'oat']
+    algo_choices = ['ddpg', 'naf', 'shane-ddpg', 'random',
+                    'rl-vpg', 'rl-trpo', 'rl-ddpg', 'qddpg', 'oat']
     mode_choices = ['local', 'local_docker', 'ec2']
     parser = argparse.ArgumentParser()
     parser.add_argument("--sweep", action='store_true',
