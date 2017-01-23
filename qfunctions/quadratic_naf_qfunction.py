@@ -1,9 +1,12 @@
 import tensorflow as tf
+from typing import Iterable
+
+from railrl.core.neuralnet import NeuralNetwork
 from railrl.policies.nn_policy import FeedForwardPolicy
 from railrl.predictors.mlp_state_network import MlpStateNetwork
 from railrl.qfunctions.naf_qfunction import NAFQFunction
-
 from railrl.qfunctions.quadratic_qf import QuadraticQF
+
 from rllab.misc.overrides import overrides
 
 
@@ -52,6 +55,10 @@ class QuadraticNAF(NAFQFunction):
             batch_norm_config=self._batch_norm_config,
         )
         return self._vf.output + self._af.output
+
+    @property
+    def _subnetworks(self) -> Iterable[NeuralNetwork]:
+        return [self._vf, self._policy, self._af]
 
     @property
     def implicit_policy(self):

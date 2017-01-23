@@ -35,7 +35,8 @@ class Perceptron(NeuralNetwork):
 
     def _create_network_internal(self, input_tensor=None):
         assert input_tensor is not None
-        input_tensor = self._process_layer(input_tensor)
+        input_tensor = self._process_layer(input_tensor,
+                                           scope_name="input_tensor")
         return tf_util.linear(
             input_tensor,
             self.input_size,

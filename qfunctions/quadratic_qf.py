@@ -1,7 +1,9 @@
 import tensorflow as tf
+from typing import Iterable
+
+from railrl.core.neuralnet import NeuralNetwork
 from railrl.predictors.mlp_state_network import MlpStateNetwork
 from railrl.qfunctions.nn_qfunction import NNQFunction
-
 from railrl.core import tf_util
 from railrl.qfunctions.optimizable_q_function import OptimizableQFunction
 
@@ -37,7 +39,11 @@ class QuadraticQF(NNQFunction, OptimizableQFunction):
         )
 
     def _create_network_internal(self, observation_input, action_input):
-        L_params = MlpStateNetwork(
+        observation_input = self._process_layer(observation_input,
+                                                scope_name="observation_input")
+        action_input = self._process_layer(action_input,
+                                           scope_name="action_input")
+        self._L_computer = MlpStateNetwork(
             name_or_scope="L_computer",
             output_dim=self.action_dim * self.action_dim,
             observation_dim=self.observation_dim,
@@ -52,8 +58,8 @@ class QuadraticQF(NNQFunction, OptimizableQFunction):
             batch_norm_config=self._batch_norm_config,
         )
         # L_shape = batch:dimA:dimA
-        self.L_params = L_params
-        L = tf_util.vec2lower_triangle(L_params.output, self.action_dim)
+        self.L_params = self._L_computer
+        L = tf_util.vec2lower_triangle(self._L_computer.output, self.action_dim)
         self.L = L
 
         delta = action_input - self._policy.output
@@ -70,3 +76,7 @@ class QuadraticQF(NNQFunction, OptimizableQFunction):
     @property
     def implicit_policy(self):
         return self._policy
+
+    @property
+    def _subnetworks(self) -> Iterable[NeuralNetwork]:
+        return [self._L_computer]

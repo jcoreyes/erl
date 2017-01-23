@@ -1,4 +1,7 @@
 import tensorflow as tf
+from typing import Iterable
+
+from railrl.core.neuralnet import NeuralNetwork
 from railrl.policies.nn_policy import NNPolicy
 
 from railrl.core.tf_util import weight_variable
@@ -11,3 +14,7 @@ class SumPolicy(NNPolicy):
         W_obs = weight_variable((self.observation_dim, 1),
                                 initializer=tf.constant_initializer(1.))
         return tf.matmul(observation_input, W_obs)
+
+    @property
+    def _subnetworks(self) -> Iterable[NeuralNetwork]:
+        return []

@@ -69,3 +69,5 @@ class StateActionNetwork(NeuralNetwork, metaclass=abc.ABCMeta):
             observation_input=self.observation_input,
             action_input=self.action_input,
         )
+
+    # TODO(vpong): make it so that the inputs get automatically processed

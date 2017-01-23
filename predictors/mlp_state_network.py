@@ -1,4 +1,7 @@
 import tensorflow as tf
+from typing import Iterable
+
+from railrl.core.neuralnet import NeuralNetwork
 from railrl.predictors.state_network import StateNetwork
 
 from railrl.core.tf_util import he_uniform_initializer
@@ -34,6 +37,8 @@ class MlpStateNetwork(StateNetwork):
                                               **kwargs)
 
     def _create_network_internal(self, observation_input):
+        observation_input = self._process_layer(observation_input,
+                                                scope_name="observation_input")
         with tf.variable_scope("hidden_mlp"):
             hidden_output = tf_util.mlp(
                 observation_input,
@@ -54,3 +59,7 @@ class MlpStateNetwork(StateNetwork):
                 W_initializer=self.output_W_init,
                 b_initializer=self.output_b_init,
             ))
+
+    @property
+    def _subnetworks(self) -> Iterable[NeuralNetwork]:
+        return []

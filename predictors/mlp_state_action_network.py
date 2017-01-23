@@ -34,6 +34,10 @@ class MlpStateActionNetwork(StateActionNetwork):
                                                     **kwargs)
 
     def _create_network_internal(self, observation_input, action_input):
+        observation_input = self._process_layer(observation_input,
+                                                scope_name="observation_input")
+        action_input = self._process_layer(action_input,
+                                           scope_name="action_input")
         concat_input = tf.concat(1, [observation_input, action_input])
         hidden_output = tf_util.mlp(
             concat_input,
@@ -42,6 +46,7 @@ class MlpStateActionNetwork(StateActionNetwork):
             self.hidden_nonlinearity,
             W_initializer=self.hidden_W_init,
             b_initializer=self.hidden_b_init,
+            pre_nonlin_lambda=self._process_layer,
         )
         return self.output_nonlinearity(tf_util.linear(
             hidden_output,
@@ -50,3 +55,7 @@ class MlpStateActionNetwork(StateActionNetwork):
             W_initializer=self.output_W_init,
             b_initializer=self.output_b_init,
         ))
+
+    @property
+    def _subnetworks(self):
+        return []

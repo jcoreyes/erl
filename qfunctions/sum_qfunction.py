@@ -1,4 +1,7 @@
 import tensorflow as tf
+from typing import Iterable
+
+from railrl.core.neuralnet import NeuralNetwork
 from railrl.qfunctions.nn_qfunction import NNQFunction
 
 from railrl.core.tf_util import weight_variable
@@ -8,6 +11,10 @@ class SumCritic(NNQFunction):
     """Just output the sum of the inputs. This is used to debug."""
 
     def _create_network_internal(self, observation_input, action_input):
+        observation_input = self._process_layer(observation_input,
+                                                scope_name="observation_input")
+        action_input = self._process_layer(action_input,
+                                           scope_name="action_input")
         with tf.variable_scope("actions_layer") as _:
             W_actions = weight_variable(
                 (self.action_dim, 1),
@@ -21,3 +28,7 @@ class SumCritic(NNQFunction):
 
         return (tf.matmul(action_input, W_actions) +
                 tf.matmul(observation_input, W_obs))
+
+    @property
+    def _subnetworks(self) -> Iterable[NeuralNetwork]:
+        return []

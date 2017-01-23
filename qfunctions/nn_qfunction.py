@@ -1,7 +1,9 @@
 import abc
 import tensorflow as tf
-from railrl.predictors.state_action_network import StateActionNetwork
+from typing import Iterable
 
+from railrl.core.neuralnet import NeuralNetwork
+from railrl.predictors.state_action_network import StateActionNetwork
 from railrl.core.tf_util import he_uniform_initializer, mlp, linear
 
 
@@ -59,10 +61,7 @@ class FeedForwardCritic(NNQFunction):
                 observation_output,
                 scope_name="observation_output"
             )
-        embedded = self._process_layer(
-            tf.concat(1, [observation_output, action_input]),
-            scope_name="embed"
-        )
+        embedded = tf.concat(1, [observation_output, action_input])
         embedded_dim = self.action_dim + self.observation_hidden_sizes[-1]
         with tf.variable_scope("fusion_mlp"):
             fused_output = mlp(
@@ -84,3 +83,7 @@ class FeedForwardCritic(NNQFunction):
                 W_initializer=self.output_W_init,
                 b_initializer=self.output_b_init,
             )
+
+    @property
+    def _subnetworks(self) -> Iterable[NeuralNetwork]:
+        return []
