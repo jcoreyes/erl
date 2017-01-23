@@ -52,7 +52,7 @@ class NAF(OnlineAlgorithm):
 
     @overrides
     def _init_tensorflow_ops(self):
-        self.sess.run(tf.initialize_all_variables())
+        self.sess.run(tf.global_variables_initializer())
         self.next_obs_placeholder = tf.placeholder(
             tf.float32,
             shape=[None, self.observation_dim],
@@ -66,7 +66,7 @@ class NAF(OnlineAlgorithm):
         self.target_vf.sess = self.sess
         self._init_qf_ops()
         self._init_target_ops()
-        self.sess.run(tf.initialize_all_variables())
+        self.sess.run(tf.global_variables_initializer())
 
     def _init_qf_ops(self):
         self.ys = (
