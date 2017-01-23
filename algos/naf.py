@@ -58,7 +58,8 @@ class NAF(OnlineAlgorithm):
             shape=[None, self.observation_dim],
             name='next_obs')
         self.target_vf = self.qf.value_function.get_copy(
-            name_or_scope=TARGET_PREFIX + self.qf.value_function.scope_name,
+            name_or_scope=TARGET_PREFIX +
+                          self.qf.value_function.scope_name,
             observation_input=self.next_obs_placeholder,
         )
         self.qf.sess = self.sess
@@ -117,7 +118,7 @@ class NAF(OnlineAlgorithm):
     @overrides
     @property
     def _networks(self) -> List[NeuralNetwork]:
-        return [self.policy, self.qf, self.target_policy, self.target_qf]
+        return [self.policy, self.qf, self.target_vf]
 
     @overrides
     def _update_feed_dict(self, rewards, terminals, obs, actions, next_obs):

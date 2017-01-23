@@ -53,6 +53,16 @@ class NeuralNetwork(Parameterized, Serializable):
         self._output = None
         self._eval_output = None
         self._training_output = None
+        self._full_scope_name = None
+
+    @property
+    def full_scope_name(self):
+        """
+        The fully qualified scope name of this network when it was created, e.g.
+        `foo/bar/baz`, whereas `self.scope` would return `baz`.
+        :return:
+        """
+        return self._full_scope_name
 
     def _create_network(self, **inputs):
         """
@@ -80,6 +90,7 @@ class NeuralNetwork(Parameterized, Serializable):
         self._bn_stat_update_ops = (
             tf_util.get_batch_norm_update_pop_stats_ops(scope=scope)
         )
+        self._full_scope_name = scope.name
         self.switch_to_eval_mode()
 
     def _switch_to_bn_training_mode_on(self):
@@ -199,11 +210,11 @@ class NeuralNetwork(Parameterized, Serializable):
                     "Tag not allowed: {0}. Allowable tags: {1}".format(
                         key,
                         ALLOWABLE_TAGS))
-        # TODO(vpong): This is a big hack! Fix this
+        # TODO(vpong): This code is pretty messy. Clean it up
         filters = []
         if 'regularizable' in tags:
             regularizable_vars = tf_util.get_regularizable_variables(
-                self.scope_name)
+                self.full_scope_name)
             if tags['regularizable']:
                 reg_filter = lambda v: v in regularizable_vars
             else:
@@ -211,10 +222,10 @@ class NeuralNetwork(Parameterized, Serializable):
             filters.append(reg_filter)
 
         variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,
-                                      self.scope_name)
+                                      self.full_scope_name)
         if self._batch_norm:
             variables += tf_util.get_untrainable_batch_norm_vars(
-                self.scope_name
+                self.full_scope_name
             )
         return list(filter(lambda v: all(f(v) for f in filters), variables))
 
@@ -295,3 +306,9 @@ class NeuralNetwork(Parameterized, Serializable):
         This will be the input to get_weight_tied_copy
         """
         pass
+
+    ############################################
+    # Helper methods mostly just for debugging #
+    ############################################
+    def _get_all_variable_names(self):
+        return [p.name for p in self.get_params_internal()]
