@@ -70,7 +70,7 @@ class ArgmaxPolicy(NeuralNetwork, Policy, Serializable):
                     self.loss,
                     var_list=[self.proposed_action])
                 self.processed_action = tf.clip_by_value(self.proposed_action, -1, 1)
-                self.adam_scope = adam_scope.original_name_scope
+                self.adam_scope = adam_scope.name
 
     @overrides
     def get_params_internal(self, **tags):

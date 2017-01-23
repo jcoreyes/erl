@@ -97,6 +97,12 @@ def get_regularizable_variables(scope):
     return tf.get_collection(REGULARIZABLE_VARS, scope)
 
 
+def add_to_collection_if_not_added(key, value):
+    if value in tf.get_collection(key):
+        return
+    tf.add_to_collection(key, value)
+
+
 def weight_variable(
         shape,
         initializer=None,
@@ -115,7 +121,7 @@ def weight_variable(
                                                     maxval=3e-3)
     var = tf.get_variable(name, shape, initializer=initializer)
     if regularizable:
-        tf.add_to_collection(REGULARIZABLE_VARS, var)
+        add_to_collection_if_not_added(REGULARIZABLE_VARS, var)
     return var
 
 
@@ -180,7 +186,7 @@ def layer_normalize(
 
 def _get_collection(key, scope):
     if isinstance(scope, tf.VariableScope):
-        scope = scope.original_name_scope
+        scope = scope.name
     return tf.get_collection(key, scope=scope)
 
 
@@ -268,8 +274,8 @@ def batch_norm(
         initializer=tf.constant_initializer(1.),
         trainable=False,
     )
-    tf.add_to_collection(_UNTRAINABLE_BATCH_NORM_VARS_, pop_mean)
-    tf.add_to_collection(_UNTRAINABLE_BATCH_NORM_VARS_, pop_var)
+    add_to_collection_if_not_added(_UNTRAINABLE_BATCH_NORM_VARS_, pop_mean)
+    add_to_collection_if_not_added(_UNTRAINABLE_BATCH_NORM_VARS_, pop_var)
 
     if is_training:
         batch_mean, batch_var = tf.nn.moments(input_tensor, [0])
@@ -281,10 +287,14 @@ def batch_norm(
             pop_var,
             pop_var * decay + batch_var * (1 - decay)
         )
-        tf.add_to_collection(_BATCH_NORM_UPDATE_POP_STATS_COLLECTION_,
-                             update_pop_mean_op)
-        tf.add_to_collection(_BATCH_NORM_UPDATE_POP_STATS_COLLECTION_,
-                             update_pop_var_op)
+        add_to_collection_if_not_added(
+            _BATCH_NORM_UPDATE_POP_STATS_COLLECTION_,
+            update_pop_mean_op
+        )
+        add_to_collection_if_not_added(
+            _BATCH_NORM_UPDATE_POP_STATS_COLLECTION_,
+            update_pop_var_op
+        )
         return tf.nn.batch_normalization(
             input_tensor, batch_mean, batch_var, offset, scale, epsilon
         ), BatchNormOps(

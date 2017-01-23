@@ -55,10 +55,10 @@ class FeedForwardCritic(NNQFunction):
                 b_initializer=self.hidden_b_init,
                 pre_nonlin_lambda=self._process_layer,
             )
-        observation_output = self._process_layer(
-            observation_output,
-            scope_name="observation_output"
-        )
+            observation_output = self._process_layer(
+                observation_output,
+                scope_name="observation_output"
+            )
         embedded = self._process_layer(
             tf.concat(1, [observation_output, action_input]),
             scope_name="embed"

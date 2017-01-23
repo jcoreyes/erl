@@ -41,7 +41,7 @@ class NeuralNetwork(Parameterized, Serializable):
         if type(name_or_scope) is str:
             self.scope_name = name_or_scope
         else:
-            self.scope_name = name_or_scope.original_name_scope
+            self.scope_name = name_or_scope.name
         self._batch_norm = batch_norm_config is not None
         self._batch_norm_config = batch_norm_config
         self._reuse = reuse
@@ -199,8 +199,6 @@ class NeuralNetwork(Parameterized, Serializable):
             variables += tf_util.get_untrainable_batch_norm_vars(
                 self.scope_name
             )
-        # import ipdb
-        # ipdb.set_trace()
         return list(filter(lambda v: all(f(v) for f in filters), variables))
 
     def get_copy(self, **kwargs):

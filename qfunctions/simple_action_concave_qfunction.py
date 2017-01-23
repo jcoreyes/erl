@@ -61,8 +61,7 @@ class SimpleActionConcaveQFunction(NNQFunction, OptimizableQFunction):
                                 W_initializer=self.output_W_init,
                                 b_initializer=self.output_b_init,
                                 )
-            self.action_input_scope_name = (
-                action_input_scope.original_name_scope)
+            self.action_input_scope_name = action_input_scope.name
         return -output
 
     @property
