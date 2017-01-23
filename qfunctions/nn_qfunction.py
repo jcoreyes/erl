@@ -1,10 +1,11 @@
+import abc
 import tensorflow as tf
 from railrl.predictors.state_action_network import StateActionNetwork
 
 from railrl.core.tf_util import he_uniform_initializer, mlp, linear
 
 
-class NNQFunction(StateActionNetwork):
+class NNQFunction(StateActionNetwork, metaclass=abc.ABCMeta):
     def __init__(
             self,
             name_or_scope,
@@ -12,6 +13,7 @@ class NNQFunction(StateActionNetwork):
     ):
         self.setup_serialization(locals())
         super().__init__(name_or_scope=name_or_scope, output_dim=1, **kwargs)
+
 
 class FeedForwardCritic(NNQFunction):
     def __init__(
