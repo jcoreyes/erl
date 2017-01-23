@@ -28,10 +28,10 @@ class GaussianMLPPolicy(Policy, Serializable):
         :param env_spec:
         :param mean_hidden_nonlinearity: nonlinearity used for the mean hidden
                                          layers
-        :param mean_hidden_sizes: list of sizes for the fully-connected hidden layers
+        :param mean_hidden_sizes: list of hidden_sizes for the fully-connected hidden layers
         :param std_hidden_nonlinearity: nonlinearity used for the std hidden
                                         layers
-        :param std_hidden_sizes: list of sizes for the fully-connected hidden layers
+        :param std_hidden_sizes: list of hidden_sizes for the fully-connected hidden layers
         :param min_std: whether to make sure that the std is at least some
                         threshold value, to avoid numerical issues
         :return:
