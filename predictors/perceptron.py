@@ -1,4 +1,4 @@
-import tensorflow as tf
+from typing import Iterable
 
 from rllab.core.serializable import Serializable
 from railrl.core import tf_util
@@ -48,11 +48,12 @@ class Perceptron(NeuralNetwork):
 
     @property
     @overrides
-    def training_output(self):
-        return self._training_output
-
-    @property
     def _input_name_to_values(self):
         return dict(
             input_tensor=None,
         )
+
+    @property
+    @overrides
+    def _subnetworks(self) -> Iterable[NeuralNetwork]:
+        return []

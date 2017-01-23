@@ -226,9 +226,6 @@ class TestNeuralNetwork(TFTestCase):
         )
         perceptron.switch_to_eval_mode()
 
-        mean = self.sess.run(perceptron._batch_norm_ops.pop_mean)
-        var = self.sess.run(perceptron._batch_norm_ops.pop_var)
-
         expected_eval_values = np.array([[-2, 2]]).T
         expected_pop_mean = 2.5
         expected_pop_var = 1.25

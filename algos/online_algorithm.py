@@ -5,7 +5,7 @@ import abc
 import pickle
 import time
 from contextlib import contextmanager
-from typing import List
+from typing import Iterable
 
 import numpy as np
 import tensorflow as tf
@@ -265,9 +265,11 @@ class OnlineAlgorithm(RLAlgorithm):
 
     @property
     @abc.abstractmethod
-    def _networks(self) -> List[NeuralNetwork]:
+    def _networks(self) -> Iterable[NeuralNetwork]:
         """
-        :return: List of networks used in the algorithm
+        :return: List of networks used in the algorithm.
+
+        It's crucial that this list is up to date!
         """
         pass
 

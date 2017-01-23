@@ -1,5 +1,6 @@
 import abc
 import tensorflow as tf
+from typing import Iterable
 
 from railrl.core import tf_util
 from rllab.core.serializable import Serializable
@@ -29,8 +30,9 @@ class NeuralNetwork(Parameterized, Serializable):
     ):
         """
 
-        :param name_or_scope: Name (string) or scope (VariableScope) for
-        creating this network.
+        :param name_or_scope: Name (string) for creating this network. This
+        should only be name of this current network, and not the full scope
+        name, i.e. `bar` not `foo/bar`.
         :param batch_norm_config: Config for batch_norm. If set, batch_norm
         is enabled.
         :param reuse: Reuse variables when creating this network.
@@ -38,10 +40,9 @@ class NeuralNetwork(Parameterized, Serializable):
         """
         super().__init__(**kwargs)
         Serializable.quick_init(self, locals())
-        if type(name_or_scope) is str:
-            self.scope_name = name_or_scope
-        else:
-            self.scope_name = name_or_scope.name
+        assert isinstance(name_or_scope, str)
+        assert '/' not in name_or_scope
+        self.scope_name = name_or_scope
         self._batch_norm = batch_norm_config is not None
         self._batch_norm_config = batch_norm_config
         self._reuse = reuse
@@ -52,7 +53,6 @@ class NeuralNetwork(Parameterized, Serializable):
         self._output = None
         self._eval_output = None
         self._training_output = None
-        self._output_mode = _EVAL_OUTPUT_MODE
 
     def _create_network(self, **inputs):
         """
@@ -62,10 +62,11 @@ class NeuralNetwork(Parameterized, Serializable):
         :return: None
         """
         if self._batch_norm:
-            self._is_bn_in_training_mode = True
+            # TODO(vpong): This flag needs to somehow propagate to sub-networks
+            self._switch_to_bn_training_mode_on()
             with tf.variable_scope(self.scope_name, reuse=self._reuse):
                 self._training_output = self._create_network_internal(**inputs)
-            self._is_bn_in_training_mode = False
+            self._switch_to_bn_training_mode_off()
             with tf.variable_scope(self.scope_name, reuse=True) as scope:
                 self._eval_output = self._create_network_internal(**inputs)
         else:
@@ -79,17 +80,27 @@ class NeuralNetwork(Parameterized, Serializable):
         self._bn_stat_update_ops = (
             tf_util.get_batch_norm_update_pop_stats_ops(scope=scope)
         )
-        self._set_output()
+        self.switch_to_eval_mode()
 
-    def _set_output(self):
-        if self._output_mode == _TRAINING_OUTPUT_MODE:
-            self._output = self._training_output
-        elif self._output_mode == _EVAL_OUTPUT_MODE:
-            self._output = self._eval_output
-        else:
-            raise Exception(
-                "Output mode not recognized: {0}".format(self._output_mode)
-            )
+    def _switch_to_bn_training_mode_on(self):
+        self._is_bn_in_training_mode = True
+        for child in self._iter_sub_networks():
+            child._switch_to_bn_training_mode_on = True
+
+    def _switch_to_bn_training_mode_off(self):
+        self._is_bn_in_training_mode = False
+        for child in self._iter_sub_networks():
+            child._switch_to_bn_training_mode_on = False
+
+    def _iter_sub_networks(self):
+        """
+        Iterate through sub-networks.
+        :return:
+        """
+        for child in self._subnetworks:
+            yield child
+            for sub_child in child._iter_sub_networks():
+                yield sub_child
 
     def switch_to_training_mode(self):
         """
@@ -100,20 +111,19 @@ class NeuralNetwork(Parameterized, Serializable):
         will be independently set.
         :return: None
         """
-        self._output_mode = _TRAINING_OUTPUT_MODE
-        self._set_output()
+        self._output = self._training_output
 
     def switch_to_eval_mode(self):
         """
-        Output will be the output for eval.
+        Output will be the output for eval. By default, a network is in eval
+        mode.
 
         Note that only the output of this network will switch. If this
         network is composed of sub-networks, then those network's outputs
         will be independently set.
         :return: None
         """
-        self._output_mode = _EVAL_OUTPUT_MODE
-        self._set_output()
+        self._output = self._eval_output
 
     @property
     def sess(self):
@@ -137,7 +147,14 @@ class NeuralNetwork(Parameterized, Serializable):
         """
         :return: Tensor/placeholder/op. Training output of this network.
         """
-        return self.output
+        return self._training_output
+
+    @property
+    def eval_output(self):
+        """
+        :return: Tensor/placeholder/op. Eval output of this network.
+        """
+        return self.eval_output
 
     def _process_layer(self, previous_layer, scope_name="process_layer"):
         """
@@ -242,6 +259,17 @@ class NeuralNetwork(Parameterized, Serializable):
     @property
     def batch_norm_update_stats_op(self):
         return self._bn_stat_update_ops
+
+    @property
+    @abc.abstractmethod
+    def _subnetworks(self) -> Iterable['NeuralNetwork']:
+        """
+        If this network is built with sub-networks (i.e.
+        _create_network_internal creates some NeuralNetwork), then this must
+        iterate through them uniquely.
+        :return:
+        """
+        pass
 
     @abc.abstractmethod
     def _create_network_internal(self, **inputs):
