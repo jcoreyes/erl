@@ -8,7 +8,7 @@ from railrl.core.tf_util import he_uniform_initializer, mlp, linear
 from rllab.policies.base import Policy
 
 
-class NNPolicy(StateNetwork, Policy):
+class NNPolicy(StateNetwork, Policy, metaclass=abc.ABCMeta):
     def __init__(
             self,
             name_or_scope,
@@ -27,10 +27,6 @@ class NNPolicy(StateNetwork, Policy):
     def get_action(self, observation):
         return self.sess.run(self.output,
                              {self.observation_input: [observation]}), {}
-
-    @abc.abstractmethod
-    def _create_network_internal(self, observation_input):
-        return
 
 
 class FeedForwardPolicy(NNPolicy):
