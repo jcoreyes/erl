@@ -15,7 +15,7 @@ class TestUtil(TFTestCase):
             4,
             3,
         )
-        self.sess.run(tf.initialize_all_variables())
+        self.sess.run(tf.global_variables_initializer())
         # y = xW + b
         x = np.random.rand(13, 4)
         y = self.sess.run(linear_output,
@@ -33,7 +33,7 @@ class TestUtil(TFTestCase):
             W_initializer=tf.constant_initializer(1.),
             b_initializer=tf.constant_initializer(0.),
         )
-        self.sess.run(tf.initialize_all_variables())
+        self.sess.run(tf.global_variables_initializer())
         # y = xW + b
         x = np.random.rand(13, 4)
         y = self.sess.run(linear_output,
@@ -150,7 +150,7 @@ class TestUtil(TFTestCase):
         self.assertAlmostEqual(mean[0], 2.5)
         self.assertAlmostEqual(variance[0], 1.25)
 
-    def test_batch_norm_pop_stats_decays_well(self):
+    def test_batch_norm_pop_stats_decays_correctly(self):
         in_size = 1
         input_layer = tf.placeholder(tf.float32, shape=(None, in_size))
         bn_config = tf_util.BatchNormConfig(decay=0.5)
@@ -179,7 +179,7 @@ class TestUtil(TFTestCase):
         self.assertAlmostEqual(mean[0], 2.5 / 2)
         self.assertAlmostEqual(variance[0], (1.25 + 1) / 2)
 
-    def test_batch_norm_pop_stats_decays_well_2_itrs(self):
+    def test_batch_norm_pop_stats_decays_correctly_2_itrs(self):
         in_size = 1
         input_layer = tf.placeholder(tf.float32, shape=(None, in_size))
         bn_config = tf_util.BatchNormConfig(decay=0.5)
@@ -315,6 +315,21 @@ class TestUtil(TFTestCase):
         update_ops_v2 = tf_util.get_untrainable_batch_norm_vars(bn_scope)
 
         self.assertEqual(set(update_ops), set(update_ops_v2))
+
+    def test_untrainable_batch_norm_vars_not_trainable(self):
+        input_layer = tf.placeholder(tf.float32, shape=(None, 1))
+        scope_name = 'test_bn_scope'
+
+        with tf.variable_scope(scope_name):
+            tf_util.batch_norm(input_layer, True)
+        with tf.variable_scope(scope_name, reuse=True) as bn_scope:
+            tf_util.batch_norm(input_layer, False)
+
+        self.sess.run(tf.global_variables_initializer())
+        trainable_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
+        bn_params = tf_util.get_untrainable_batch_norm_vars(bn_scope)
+
+        self.assertEqual(0, len(set(trainable_params).intersection(bn_params)))
 
 if __name__ == '__main__':
     unittest.main()

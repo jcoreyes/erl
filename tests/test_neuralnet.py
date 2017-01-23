@@ -192,7 +192,7 @@ class TestNeuralNetwork(TFTestCase):
         self.assertNpArraysAlmostEqual(expected_training_values,
                                        training_values)
 
-    def test_batch_norm_stores_moving_average_std(self):
+    def test_batch_norm(self):
         in_size = 1
         out_size = 1
         W_name = "w"
@@ -219,10 +219,15 @@ class TestNeuralNetwork(TFTestCase):
         # variance([1, 2, 3, 4]) = 1.25
         # mean([1, 2, 3, 4]) = 2.5
 
+        perceptron.switch_to_training_mode()
         self.sess.run(
             perceptron.batch_norm_update_stats_op,
             {input_layer: input_values}
         )
+        perceptron.switch_to_eval_mode()
+
+        mean = self.sess.run(perceptron._batch_norm_ops.pop_mean)
+        var = self.sess.run(perceptron._batch_norm_ops.pop_var)
 
         expected_eval_values = np.array([[-2, 2]]).T
         expected_pop_mean = 2.5
