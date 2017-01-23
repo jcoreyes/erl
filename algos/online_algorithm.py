@@ -5,13 +5,14 @@ import abc
 import pickle
 import time
 from contextlib import contextmanager
-
+from typing import List
 
 import numpy as np
 import tensorflow as tf
 
 from railrl.misc.simple_replay_pool import SimpleReplayPool
 from railrl.policies.nn_policy import NNPolicy
+from railrl.core.neuralnet import NeuralNetwork
 from rllab.algos.base import RLAlgorithm
 from rllab.misc import logger
 from rllab.misc.overrides import overrides
@@ -203,15 +204,16 @@ class OnlineAlgorithm(RLAlgorithm):
         mode.
         :return:
         """
-        self.policy.switch_to_training_mode()
+        for network in self._networks:
+            network.switch_to_training_mode()
 
     def _switch_to_eval_mode(self):
         """
         Make any updates needed so that the internal networks are in eval mode.
         :return:
         """
-        self.policy.switch_to_eval_mode()
-        self._switch_to_eval_mode()
+        for network in self._networks:
+            network.switch_to_eval_mode()
 
     @contextmanager
     def _eval_then_training_mode(self):
@@ -260,6 +262,15 @@ class OnlineAlgorithm(RLAlgorithm):
     def log_diagnostics(self, paths):
         self.env.log_diagnostics(paths)
         self.policy.log_diagnostics(paths)
+
+    @property
+    @abc.abstractmethod
+    def _networks(self) -> List[NeuralNetwork]:
+        """
+        :return: List of networks used in the algorithm
+        """
+        pass
+
 
     @abc.abstractmethod
     def _init_tensorflow_ops(self):

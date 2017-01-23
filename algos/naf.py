@@ -2,10 +2,12 @@
 :author: Vitchyr Pong
 """
 from collections import OrderedDict
+from typing import List
 
 import numpy as np
 import tensorflow as tf
 
+from railrl.core.neuralnet import NeuralNetwork
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import split_paths
 from railrl.algos.online_algorithm import OnlineAlgorithm
@@ -113,16 +115,9 @@ class NAF(OnlineAlgorithm):
         return ops
 
     @overrides
-    def _switch_to_training_mode(self):
-        # Although the policy is part of the Q function, its output mode is
-        # independent of the output mode of the Q function
-        self.policy._switch_to_training_mode()
-        self.qf.switch_to_training_mode()
-
-    @overrides
-    def _switch_to_eval_mode(self):
-        self.policy._switch_to_eval_mode()
-        self.qf.switch_to_eval_mode()
+    @property
+    def _networks(self) -> List[NeuralNetwork]:
+        return [self.policy, self.qf, self.target_policy, self.target_qf]
 
     @overrides
     def _update_feed_dict(self, rewards, terminals, obs, actions, next_obs):
