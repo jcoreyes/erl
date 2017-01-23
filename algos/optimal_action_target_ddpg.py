@@ -45,7 +45,7 @@ class OptimalActionTargetDDPG(DDPG):
     @overrides
     def _init_tensorflow_ops(self):
         # Initialize variables for get_copy to work
-        self.sess.run(tf.initialize_all_variables())
+        self.sess.run(tf.global_variables_initializer())
         self.target_policy = self.policy.get_copy(
             name_or_scope=TARGET_PREFIX + self.policy.scope_name,
         )
@@ -60,4 +60,4 @@ class OptimalActionTargetDDPG(DDPG):
         self._init_qf_ops()
         self._init_policy_ops()
         self._init_target_ops()
-        self.sess.run(tf.initialize_all_variables())
+        self.sess.run(tf.global_variables_initializer())

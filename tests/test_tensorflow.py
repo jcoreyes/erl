@@ -23,7 +23,7 @@ class TestTensorFlow(TFTestCase):
         with tf.variable_scope('b') as _:
             in_b, out_b = create_network(in_size)
 
-        init = tf.initialize_all_variables()
+        init = tf.global_variables_initializer()
         self.sess.run(init)
 
         x = np.random.rand(1, in_size)

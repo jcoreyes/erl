@@ -21,7 +21,7 @@ class TestUtil(TFTestCase):
             4,
             3,
         )
-        self.sess.run(tf.initialize_all_variables())
+        self.sess.run(tf.global_variables_initializer())
         # y = xW + b
         x = np.random.rand(13, 4)
         y = self.sess.run(linear_output,
@@ -39,7 +39,7 @@ class TestUtil(TFTestCase):
             W_initializer=tf.constant_initializer(1.),
             b_initializer=tf.constant_initializer(0.),
         )
-        self.sess.run(tf.initialize_all_variables())
+        self.sess.run(tf.global_variables_initializer())
         # y = xW + b
         x = np.random.rand(13, 4)
         y = self.sess.run(linear_output,

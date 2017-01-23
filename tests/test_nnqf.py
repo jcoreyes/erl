@@ -30,7 +30,7 @@ class TestFeedForwardCritic(TFTestCase):
             critic2.observation_input: o,
         }
 
-        self.sess.run(tf.initialize_all_variables())
+        self.sess.run(tf.global_variables_initializer())
 
         out1 = self.sess.run(critic1.output, feed_1)
         out2 = self.sess.run(critic2.output, feed_2)
@@ -56,7 +56,7 @@ class TestFeedForwardCritic(TFTestCase):
             critic.observation_input: o,
         }
 
-        self.sess.run(tf.initialize_all_variables())
+        self.sess.run(tf.global_variables_initializer())
 
         out = self.sess.run(critic.output, feed)
         self.assertEqual(1, out.size)

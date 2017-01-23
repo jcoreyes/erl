@@ -26,7 +26,7 @@ class TestStateNetwork(TFTestCase):
             net2.observation_input: o,
         }
 
-        self.sess.run(tf.initialize_all_variables())
+        self.sess.run(tf.global_variables_initializer())
 
         out1 = self.sess.run(net1.output, feed_1)
         out2 = self.sess.run(net2.output, feed_2)
@@ -43,7 +43,7 @@ class TestStateNetwork(TFTestCase):
         net1 = MlpStateNetwork(name_or_scope="qf_a",
                                observation_dim=obs_dim,
                                output_dim=output_dim)
-        self.sess.run(tf.initialize_all_variables())
+        self.sess.run(tf.global_variables_initializer())
         net2 = net1.get_copy(name_or_scope="qf_b")
 
         o = np.random.rand(1, obs_dim)
@@ -55,7 +55,7 @@ class TestStateNetwork(TFTestCase):
             net2.observation_input: o,
         }
 
-        self.sess.run(tf.initialize_all_variables())
+        self.sess.run(tf.global_variables_initializer())
 
         out1 = self.sess.run(net1.output, feed_1)
         out2 = self.sess.run(net2.output, feed_2)
@@ -72,7 +72,7 @@ class TestStateNetwork(TFTestCase):
         net1 = MlpStateNetwork(name_or_scope="qf_a",
                                observation_dim=obs_dim,
                                output_dim=output_dim)
-        self.sess.run(tf.initialize_all_variables())
+        self.sess.run(tf.global_variables_initializer())
         net2_observation_input = tf.placeholder(tf.float32, [None, obs_dim])
         net2 = net1.get_weight_tied_copy(net2_observation_input)
 
@@ -119,7 +119,7 @@ class TestStateActionNetwork(TFTestCase):
             net2.observation_input: o,
         }
 
-        self.sess.run(tf.initialize_all_variables())
+        self.sess.run(tf.global_variables_initializer())
 
         out1 = self.sess.run(net1.output, feed_1)
         out2 = self.sess.run(net2.output, feed_2)
@@ -138,9 +138,9 @@ class TestStateActionNetwork(TFTestCase):
                                      observation_dim=obs_dim,
                                      action_dim=action_dim,
                                      output_dim=output_dim)
-        self.sess.run(tf.initialize_all_variables())
+        self.sess.run(tf.global_variables_initializer())
         net2 = net1.get_copy(name_or_scope="qf_b")
-        self.sess.run(tf.initialize_all_variables())
+        self.sess.run(tf.global_variables_initializer())
 
         a = np.random.rand(1, action_dim)
         o = np.random.rand(1, obs_dim)
@@ -205,12 +205,12 @@ class TestStateActionNetwork(TFTestCase):
                                      observation_dim=obs_dim,
                                      action_dim=action_dim,
                                      output_dim=output_dim)
-        self.sess.run(tf.initialize_all_variables())
+        self.sess.run(tf.global_variables_initializer())
         net2 = net1.get_weight_tied_copy(
             observation_input=net2_observation_input,
             action_input=net2_action_input)
 
-        self.sess.run(tf.initialize_all_variables())
+        self.sess.run(tf.global_variables_initializer())
         a = np.random.rand(1, action_dim)
         o = np.random.rand(1, obs_dim)
 
