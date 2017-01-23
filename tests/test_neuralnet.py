@@ -33,9 +33,7 @@ class TestNeuralNetwork(TFTestCase):
         )
 
         all_vars = perceptron.get_params()
-        print(all_vars)
         names = self.var_names(all_vars)
-        print(names)
 
         expected_names = {
             "perceptron/w:0",
