@@ -9,6 +9,8 @@ import tensorflow as tf
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import split_paths
 from railrl.algos.online_algorithm import OnlineAlgorithm
+from railrl.policies.nn_policy import NNPolicy
+from railrl.qfunctions.nn_qfunction import NNQFunction
 from rllab.misc import logger
 from rllab.misc import special
 from rllab.misc.overrides import overrides
@@ -25,8 +27,8 @@ class DDPG(OnlineAlgorithm):
             self,
             env,
             exploration_strategy,
-            policy,
-            qf,
+            policy: NNPolicy,
+            qf: NNQFunction,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
             qf_weight_decay=0.,
@@ -121,18 +123,32 @@ class DDPG(OnlineAlgorithm):
             for target, src in zip(target_qf_vars, qf_vars)]
 
     @overrides
+    def _switch_to_training_mode(self):
+        self.policy._switch_to_training_mode()
+        self.qf.switch_to_training_mode()
+
+    @overrides
+    def _switch_to_eval_mode(self):
+        self.policy._switch_to_eval_mode()
+        self.qf.switch_to_eval_mode()
+
+    @overrides
     def _init_training(self):
         self.target_qf.set_param_values(self.qf.get_param_values())
         self.target_policy.set_param_values(self.policy.get_param_values())
 
     @overrides
     def _get_training_ops(self):
-        return [
+        ops = [
             self.train_policy_op,
             self.train_qf_op,
             self.update_target_qf_op,
             self.update_target_policy_op,
         ]
+        if self._batch_norm:
+            ops += self.qf.batch_norm_update_stats_op
+            ops += self.policy.batch_norm_update_stats_op
+        return ops
 
     @overrides
     def _update_feed_dict(self, rewards, terminals, obs, actions, next_obs):

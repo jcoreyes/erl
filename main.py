@@ -37,12 +37,13 @@ SCALE_REWARD = 1.0
 QF_WEIGHT_DECAY = 0.0001
 MAX_PATH_LENGTH = 1000
 N_UPDATES_PER_TIME_STEP = 5
+BATCH_NORM_PARAMS = {}
 
 # Sweep settings
 SWEEP_N_EPOCHS = 50
 SWEEP_EPOCH_LENGTH = 10000
 SWEEP_EVAL_SAMPLES = 10000
-SWEEP_MIN_POOL_SIZE = BATCH_SIZE
+SWEEP_MIN_POOL_SIZE = None  # BATCH_SIZE
 
 # Fast settings
 FAST_N_EPOCHS = 10
@@ -72,7 +73,8 @@ def get_algo_settings_list_from_args(args):
         algo_params = {}
         if algo_name == 'ddpg':
             sweeper = hp.RandomHyperparameterSweeper([
-                hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
+                hp.LogFloatParam("qf_learning_rate", 1e-6, 1e-2),
+                hp.LogFloatParam("policy_learning_rate", 1e-6, 1e-2),
                 hp.LogFloatParam("scale_reward", 10.0, 0.01),
                 hp.LogFloatParam("qf_weight_decay", 1e-7, 1e-1),
             ])
@@ -172,7 +174,10 @@ def get_algo_settings_list_from_args(args):
             }
         elif algo_name == 'naf':
             sweeper = hp.DeterministicHyperparameterSweeper({
-                'qf_weight_decay': [0., 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1],
+                'qf_weight_decay': [0., 1e-4, 1e-2],
+                'qf_learning_rate': [1e-5, 1e-3, 1e-1],
+                'scale_reward': [0.001, 0.1, 1., 10, 1000],
+                'soft_target_tau': [1e-2, 1e-4],
             })
             algo_params = get_my_naf_params()
             algo_params['render'] = render
@@ -241,6 +246,7 @@ def get_algo_settings_list_from_args(args):
             'variant': variant,
             'algo_params': algo_params,
             'algorithm_launcher': algorithm_launcher,
+            'batch_norm_params': BATCH_NORM_PARAMS
         }
 
     return [get_algo_settings(algo_name) for algo_name in args.algo]

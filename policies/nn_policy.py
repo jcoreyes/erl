@@ -56,19 +56,21 @@ class FeedForwardPolicy(NNPolicy):
 
     def _create_network_internal(self, observation_input=None):
         assert observation_input is not None
-        observation_output = mlp(
-            observation_input,
-            self.observation_dim,
-            self.observation_hidden_sizes,
-            self.hidden_nonlinearity,
-            W_initializer=self.hidden_W_init,
-            b_initializer=self.hidden_b_init,
-            pre_nonlin_lambda=self._process_layer,
-        )
-        return self._process_layer(self.output_nonlinearity(linear(
-            observation_output,
-            self.observation_hidden_sizes[-1],
-            self.output_dim,
-            W_initializer=self.output_W_init,
-            b_initializer=self.output_b_init,
-        )))
+        with tf.variable_scope("mlp"):
+            observation_output = mlp(
+                observation_input,
+                self.observation_dim,
+                self.observation_hidden_sizes,
+                self.hidden_nonlinearity,
+                W_initializer=self.hidden_W_init,
+                b_initializer=self.hidden_b_init,
+                pre_nonlin_lambda=self._process_layer,
+            )
+        with tf.variable_scope("output"):
+            return self.output_nonlinearity(linear(
+                observation_output,
+                self.observation_hidden_sizes[-1],
+                self.output_dim,
+                W_initializer=self.output_W_init,
+                b_initializer=self.output_b_init,
+            ))

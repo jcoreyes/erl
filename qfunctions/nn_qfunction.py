@@ -60,7 +60,8 @@ class FeedForwardCritic(NNQFunction):
             scope_name="observation_output"
         )
         embedded = self._process_layer(
-            tf.concat(1, [observation_output, action_input])
+            tf.concat(1, [observation_output, action_input]),
+            scope_name="embed"
         )
         embedded_dim = self.action_dim + self.observation_hidden_sizes[-1]
         with tf.variable_scope("fusion_mlp"):
@@ -76,10 +77,10 @@ class FeedForwardCritic(NNQFunction):
             fused_output = self._process_layer(fused_output)
 
         with tf.variable_scope("output_linear"):
-            return self._process_layer(linear(
+            return linear(
                 fused_output,
                 self.embedded_hidden_sizes[-1],
                 1,
                 W_initializer=self.output_W_init,
                 b_initializer=self.output_b_init,
-            ))
+            )

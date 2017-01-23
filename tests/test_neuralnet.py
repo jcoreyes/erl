@@ -110,7 +110,7 @@ class TestNeuralNetwork(TFTestCase):
             W_initializer=W_initializer,
             b_name=b_name,
             b_initializer=b_initializer,
-            batch_norm=False,
+            batch_norm_config=None,
         )
 
         input_values = np.array([[-2], [2]])
@@ -144,7 +144,7 @@ class TestNeuralNetwork(TFTestCase):
             W_initializer=W_initializer,
             b_name=b_name,
             b_initializer=b_initializer,
-            batch_norm=True,
+            batch_norm_config=BatchNormConfig(),
         )
 
         input_values = np.array([[-2, 2]]).T
@@ -176,7 +176,7 @@ class TestNeuralNetwork(TFTestCase):
             W_initializer=W_initializer,
             b_name=b_name,
             b_initializer=b_initializer,
-            batch_norm=True,
+            batch_norm_config=BatchNormConfig(),
         )
 
         input_values = np.array([[-2, 2]]).T
@@ -236,6 +236,101 @@ class TestNeuralNetwork(TFTestCase):
             {input_layer: eval_input_values}
         )
         self.assertNpArraysAlmostEqual(expected_eval_values, eval_values)
+
+    def test_batch_norm_variables_are_saved(self):
+        in_size = 1
+        out_size = 1
+        input_layer = tf.placeholder(tf.float32, shape=(None, in_size))
+
+        perceptron = Perceptron(
+            "perceptron",
+            input_layer,
+            in_size,
+            out_size,
+            batch_norm_config=BatchNormConfig(),
+        )
+        self.sess.run(tf.global_variables_initializer())
+
+        params = perceptron.get_params()
+        self.assertEqual(6, len(params))
+        # 2 for the network
+        # 2 for the pop mean / variance
+        # 2 for the scale / offset
+
+    def test_batch_norm_offset_and_scale_variables_change_correctly(self):
+        in_size = 1
+        out_size = 1
+        input_layer = tf.placeholder(tf.float32, shape=(None, in_size))
+        learning_rate = 0.5
+        input_value = 0.75
+        W_initializer = tf.constant_initializer(value=np.eye(1))
+
+        scale_name = "test_scale"
+        offset_name = "test_offset"
+        perceptron = Perceptron(
+            "perceptron",
+            input_layer,
+            in_size,
+            out_size,
+            W_initializer=W_initializer,
+            batch_norm_config=BatchNormConfig(
+                bn_scale_name=scale_name,
+                bn_offset_name=offset_name,
+            ),
+        )
+        self.sess.run(tf.global_variables_initializer())
+        self.sess.run(
+            tf.train.GradientDescentOptimizer(
+                learning_rate=learning_rate
+            ).minimize(
+                perceptron.output
+            ),
+            feed_dict={
+                input_layer: np.array([[input_value]]),
+            }
+        )
+
+        params = perceptron.get_params()
+        scale_values = self.sess.run(
+            [v for v in params if scale_name in v.name]
+        )
+        assert len(scale_values) == 1
+        scale_value = scale_values[0][0]
+        offset_values = self.sess.run(
+            [v for v in params if offset_name in v.name]
+        )
+        assert len(offset_values) == 1
+        offset_value = offset_values[0][0]
+
+        self.assertAlmostEqual(offset_value, -learning_rate)
+        # Since it's just an offset, it increases by learning_rate
+        self.assertAlmostEqual(scale_value,
+                               1 - input_value * learning_rate,
+                               delta=1e-4)
+
+    def test_output_mode_switches(self):
+        in_size = 1
+        out_size = 1
+        input_layer = tf.placeholder(tf.float32, shape=(None, in_size))
+
+        perceptron = Perceptron(
+            "perceptron",
+            input_layer,
+            in_size,
+            out_size,
+            batch_norm_config=BatchNormConfig(),
+        )
+        self.sess.run(tf.global_variables_initializer())
+        training_output = perceptron.training_output
+        eval_output = perceptron._eval_output
+        self.assertNotEqual(training_output, eval_output)
+        self.assertEqual(perceptron.output, eval_output)
+        perceptron.switch_to_training_mode()
+        self.assertEqual(perceptron.output, training_output)
+        perceptron.switch_to_eval_mode()
+        self.assertEqual(perceptron.output, eval_output)
+        perceptron.switch_to_eval_mode()
+        self.assertEqual(perceptron.output, eval_output)
 
 
 if __name__ == '__main__':

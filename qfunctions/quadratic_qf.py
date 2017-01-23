@@ -38,7 +38,7 @@ class QuadraticQF(NNQFunction, OptimizableQFunction):
 
     def _create_network_internal(self, observation_input, action_input):
         L_params = MlpStateNetwork(
-            name_or_scope="L",
+            name_or_scope="L_computer",
             output_dim=self.action_dim * self.action_dim,
             observation_dim=self.observation_dim,
             observation_input=observation_input,
@@ -49,7 +49,8 @@ class QuadraticQF(NNQFunction, OptimizableQFunction):
             output_b_init=None,
             hidden_nonlinearity=tf.nn.relu,
             output_nonlinearity=tf.identity,
-            )
+            batch_norm_config=self._batch_norm_config,
+        )
         # L_shape = batch:dimA:dimA
         self.L_params = L_params
         L = tf_util.vec2lower_triangle(L_params.output, self.action_dim)

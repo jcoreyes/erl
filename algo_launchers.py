@@ -30,19 +30,21 @@ def my_ddpg_launcher(variant):
     from railrl.qfunctions.nn_qfunction import FeedForwardCritic
     from rllab.exploration_strategies.ou_strategy import OUStrategy
     from railrl.misc.launcher_util import get_env_settings
+    from railrl.core.tf_util import BatchNormConfig
     env_settings = get_env_settings(**variant['env_params'])
     env = env_settings['env']
     es = OUStrategy(env_spec=env.spec)
+    bn_config = BatchNormConfig(**variant.get('batch_norm_params', {}))
     qf = FeedForwardCritic(
         name_or_scope="critic",
         env_spec=env.spec,
-        batch_norm=True,
+        batch_norm_config=bn_config,
         **variant.get('qf_params', {})
     )
     policy = FeedForwardPolicy(
         name_or_scope="actor",
         env_spec=env.spec,
-        batch_norm=True,
+        batch_norm_config=bn_config,
         **variant.get('policy_params', {})
     )
     algorithm = MyDDPG(
@@ -50,6 +52,7 @@ def my_ddpg_launcher(variant):
         es,
         policy,
         qf,
+        batch_norm_config=bn_config,
         **variant['algo_params']
     )
     algorithm.train()

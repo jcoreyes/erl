@@ -34,18 +34,23 @@ class MlpStateNetwork(StateNetwork):
                                               **kwargs)
 
     def _create_network_internal(self, observation_input):
-        hidden_output = tf_util.mlp(
-            observation_input,
-            self.observation_dim,
-            self.observation_hidden_sizes,
-            self.hidden_nonlinearity,
-            W_initializer=self.hidden_W_init,
-            b_initializer=self.hidden_b_init,
-        )
-        return self.output_nonlinearity(tf_util.linear(
-            hidden_output,
-            self.observation_hidden_sizes[-1],
-            self.output_dim,
-            W_initializer=self.output_W_init,
-            b_initializer=self.output_b_init,
-        ))
+        with tf.variable_scope("hidden_mlp"):
+            hidden_output = tf_util.mlp(
+                observation_input,
+                self.observation_dim,
+                self.observation_hidden_sizes,
+                self.hidden_nonlinearity,
+                W_initializer=self.hidden_W_init,
+                b_initializer=self.hidden_b_init,
+                pre_nonlin_lambda=self._process_layer,
+            )
+        hidden_output = self._process_layer(hidden_output,
+                                            scope_name="hidden_output")
+        with tf.variable_scope("output"):
+            return self.output_nonlinearity(tf_util.linear(
+                hidden_output,
+                self.observation_hidden_sizes[-1],
+                self.output_dim,
+                W_initializer=self.output_W_init,
+                b_initializer=self.output_b_init,
+            ))

@@ -7,6 +7,8 @@ from rllab.misc.overrides import overrides
 from sandbox.rocky.tf.core.parameterized import Parameterized
 
 ALLOWABLE_TAGS = ['regularizable']
+_TRAINING_OUTPUT_MODE = "training_output_mode"
+_EVAL_OUTPUT_MODE = "eval_output_mode"
 
 
 def negate(function):
@@ -21,26 +23,36 @@ class NeuralNetwork(Parameterized, Serializable):
     def __init__(
             self,
             name_or_scope,
-            batch_norm=False,
             batch_norm_config=None,
             reuse=False,
             **kwargs
     ):
+        """
+
+        :param name_or_scope: Name (string) or scope (VariableScope) for
+        creating this network.
+        :param batch_norm_config: Config for batch_norm. If set, batch_norm
+        is enabled.
+        :param reuse: Reuse variables when creating this network.
+        :param kwargs:
+        """
         super().__init__(**kwargs)
         Serializable.quick_init(self, locals())
         if type(name_or_scope) is str:
             self.scope_name = name_or_scope
         else:
             self.scope_name = name_or_scope.original_name_scope
-        self._batch_norm = batch_norm or batch_norm_config is not None
+        self._batch_norm = batch_norm_config is not None
         self._batch_norm_config = batch_norm_config
         self._reuse = reuse
         self._bn_stat_update_ops = []
-        self._output = None
         self._sess = None
-        self._training_output = None
         self._output = None
         self._is_bn_in_training_mode = False
+        self._output = None
+        self._eval_output = None
+        self._training_output = None
+        self._output_mode = _EVAL_OUTPUT_MODE
 
     def _create_network(self, **inputs):
         """
@@ -49,23 +61,59 @@ class NeuralNetwork(Parameterized, Serializable):
         :param inputs: named Tensors
         :return: None
         """
-        with tf.variable_scope(self.scope_name, reuse=self._reuse) as scope:
-            if self._batch_norm:
-                self._is_bn_in_training_mode = True
+        if self._batch_norm:
+            self._is_bn_in_training_mode = True
+            with tf.variable_scope(self.scope_name, reuse=self._reuse):
                 self._training_output = self._create_network_internal(**inputs)
-                scope.reuse_variables()
-                self._is_bn_in_training_mode = False
-                self._output = self._create_network_internal(**inputs)
-            else:
-                self._output = self._create_network_internal(**inputs)
-                self._training_output = self._output
-            # It's important to make this equality and not += since a network
-            # may be composed of many sub-networks. Doing += would cause ops
-            # to be added twice (once in the sub-network's constructor,
-            # and again in the parent constructor).
-            self._bn_stat_update_ops = (
-                tf_util.get_batch_norm_update_pop_stats_ops(scope=scope)
+            self._is_bn_in_training_mode = False
+            with tf.variable_scope(self.scope_name, reuse=True) as scope:
+                self._eval_output = self._create_network_internal(**inputs)
+        else:
+            with tf.variable_scope(self.scope_name, reuse=self._reuse) as scope:
+                self._eval_output = self._create_network_internal(**inputs)
+                self._training_output = self._eval_output
+        # It's important to make this equality and not += since a network
+        # may be composed of many sub-networks. Doing += would cause ops
+        # to be added twice (once in the sub-network's constructor,
+        # and again in the parent constructor).
+        self._bn_stat_update_ops = (
+            tf_util.get_batch_norm_update_pop_stats_ops(scope=scope)
+        )
+        self._set_output()
+
+    def _set_output(self):
+        if self._output_mode == _TRAINING_OUTPUT_MODE:
+            self._output = self._training_output
+        elif self._output_mode == _EVAL_OUTPUT_MODE:
+            self._output = self._eval_output
+        else:
+            raise Exception(
+                "Output mode not recognized: {0}".format(self._output_mode)
             )
+
+    def switch_to_training_mode(self):
+        """
+        Output will be the output for training.
+
+        Note that only the output of this network will switch. If this
+        network is composed of sub-networks, then those network's outputs
+        will be independently set.
+        :return: None
+        """
+        self._output_mode = _TRAINING_OUTPUT_MODE
+        self._set_output()
+
+    def switch_to_eval_mode(self):
+        """
+        Output will be the output for eval.
+
+        Note that only the output of this network will switch. If this
+        network is composed of sub-networks, then those network's outputs
+        will be independently set.
+        :return: None
+        """
+        self._output_mode = _EVAL_OUTPUT_MODE
+        self._set_output()
 
     @property
     def sess(self):
@@ -97,6 +145,9 @@ class NeuralNetwork(Parameterized, Serializable):
 
         a = self.process_layer(linear(x))
         b = self.process_layer(linear(relu(a)))
+        output = linear(relu(b))
+
+        This method should NOT be called on the output.
 
         If batch norm is disabled, this just returns `previous_layer`
         immediately.
@@ -144,6 +195,12 @@ class NeuralNetwork(Parameterized, Serializable):
 
         variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,
                                       self.scope_name)
+        if self._batch_norm:
+            variables += tf_util.get_untrainable_batch_norm_vars(
+                self.scope_name
+            )
+        # import ipdb
+        # ipdb.set_trace()
         return list(filter(lambda v: all(f(v) for f in filters), variables))
 
     def get_copy(self, **kwargs):

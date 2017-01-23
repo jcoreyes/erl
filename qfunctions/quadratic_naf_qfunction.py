@@ -10,6 +10,10 @@ from rllab.misc.overrides import overrides
 class QuadraticNAF(NAFQFunction):
     @overrides
     def _create_network_internal(self, observation_input, action_input):
+        observation_input = self._process_layer(observation_input,
+                                                scope_name="observation_input")
+        action_input = self._process_layer(action_input,
+                                           scope_name="action_input")
         self._vf = MlpStateNetwork(
             name_or_scope="V_function",
             output_dim=1,
@@ -22,9 +26,10 @@ class QuadraticNAF(NAFQFunction):
             output_b_init=None,
             hidden_nonlinearity=tf.nn.relu,
             output_nonlinearity=tf.identity,
+            batch_norm_config=self._batch_norm_config,
         )
         self._policy = FeedForwardPolicy(
-            name_or_scope="implict_policy",
+            name_or_scope="implicit_policy",
             action_dim=self.action_dim,
             observation_dim=self.observation_dim,
             observation_input=observation_input,
@@ -35,6 +40,7 @@ class QuadraticNAF(NAFQFunction):
             output_b_init=None,
             hidden_nonlinearity=tf.nn.relu,
             output_nonlinearity=tf.nn.tanh,
+            batch_norm_config=self._batch_norm_config,
         )
         self._af = QuadraticQF(
             name_or_scope="advantage_function",
@@ -43,6 +49,7 @@ class QuadraticNAF(NAFQFunction):
             action_dim=self.action_dim,
             observation_dim=self.observation_dim,
             policy=self._policy,
+            batch_norm_config=self._batch_norm_config,
         )
         return self._vf.output + self._af.output
 

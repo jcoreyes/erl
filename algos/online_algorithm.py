@@ -4,11 +4,14 @@
 import abc
 import pickle
 import time
+from contextlib import contextmanager
+
 
 import numpy as np
 import tensorflow as tf
 
 from railrl.misc.simple_replay_pool import SimpleReplayPool
+from railrl.policies.nn_policy import NNPolicy
 from rllab.algos.base import RLAlgorithm
 from rllab.misc import logger
 from rllab.misc.overrides import overrides
@@ -23,7 +26,7 @@ class OnlineAlgorithm(RLAlgorithm):
     def __init__(
             self,
             env,
-            policy,
+            policy: NNPolicy,
             exploration_strategy,
             batch_size=64,
             n_epochs=1000,
@@ -37,6 +40,7 @@ class OnlineAlgorithm(RLAlgorithm):
             scale_reward=1.,
             render=False,
             n_updates_per_time_step=1,
+            batch_norm_config=None,
     ):
         """
         :param env: Environment
@@ -53,7 +57,10 @@ class OnlineAlgorithm(RLAlgorithm):
         :param eval_samples: Number of time steps to take for evaluation.
         :param scale_reward: How much to multiply the rewards by.
         :param render: Boolean. If True, render the environment.
-        :param n_updates_per_time_step: How many SGD steps to take per time step.
+        :param n_updates_per_time_step: How many SGD steps to take per time
+        step.
+        :param batch_norm_config: Config for batch_norm. If set, batch_norm
+        is enabled.
         :return:
         """
         assert min_pool_size >= 2
@@ -75,6 +82,8 @@ class OnlineAlgorithm(RLAlgorithm):
         self.scale_reward = scale_reward
         self.render = render
         self.n_updates_per_time_step = n_updates_per_time_step
+        self._batch_norm = batch_norm_config is not None
+        self._batch_norm_config = batch_norm_config
 
         self.observation_dim = self.training_env.observation_space.flat_dim
         self.action_dim = self.training_env.action_space.flat_dim
@@ -118,6 +127,7 @@ class OnlineAlgorithm(RLAlgorithm):
         with self.sess.as_default():
             self._init_training()
             self._start_worker()
+            self._switch_to_training_mode()
 
             observation = self.training_env.reset()
             self.exploration_strategy.reset()
@@ -129,19 +139,10 @@ class OnlineAlgorithm(RLAlgorithm):
                 logger.log("Training started")
                 start_time = time.time()
                 for _ in range(self.epoch_length):
-                    action = self.exploration_strategy.get_action(itr,
-                                                                  observation,
-                                                                  self.policy)
-                    # print("---")
-                    # optimal_action = self.qf._af.quad_policy.get_action(
-                    #     observation)[0]
-                    # print("optimal_action = {0}".format(optimal_action))
-                    # bundle_action = self.qf._af._bundle_policy.get_action(
-                    #     observation)[0]
-                    # print("bundle_action = {0}".format(bundle_action))
-                    # sgd_action = self.qf._af._sgd_policy.get_action(
-                    #     observation)[0]
-                    # print("sgd_action = {0}".format(sgd_action))
+                    with self._eval_then_training_mode():
+                        action = self.exploration_strategy.get_action(itr,
+                                                                      observation,
+                                                                      self.policy)
                     if self.render:
                         self.training_env.render()
                     next_ob, raw_reward, terminal, _ = self.training_env.step(
@@ -179,20 +180,54 @@ class OnlineAlgorithm(RLAlgorithm):
 
                 logger.log("Training finished. Time: {0}".format(time.time() -
                                                                  start_time))
-                if self.pool.size >= self.min_pool_size:
-                    start_time = time.time()
-                    if self.n_eval_samples > 0:
-                        self.evaluate(epoch, self.es_path_returns)
-                        self.es_path_returns = []
-                    params = self.get_epoch_snapshot(epoch)
-                    logger.log(
-                        "Eval time: {0}".format(time.time() - start_time))
-                    logger.save_itr_params(epoch, params)
-                logger.dump_tabular(with_prefix=False)
-                logger.pop_prefix()
+                with self._eval_then_training_mode():
+                    if self.pool.size >= self.min_pool_size:
+                        start_time = time.time()
+                        if self.n_eval_samples > 0:
+                            self.evaluate(epoch, self.es_path_returns)
+                            self.es_path_returns = []
+                        params = self.get_epoch_snapshot(epoch)
+                        logger.log(
+                            "Eval time: {0}".format(time.time() - start_time))
+                        logger.save_itr_params(epoch, params)
+                    logger.dump_tabular(with_prefix=False)
+                    logger.pop_prefix()
+            self._switch_to_eval_mode()
             self.training_env.terminate()
             self._shutdown_worker()
             return self.last_statistics
+
+    def _switch_to_training_mode(self):
+        """
+        Make any updates needed so that the internal networks are in training
+        mode.
+        :return:
+        """
+        self.policy.switch_to_training_mode()
+
+    def _switch_to_eval_mode(self):
+        """
+        Make any updates needed so that the internal networks are in eval mode.
+        :return:
+        """
+        self.policy.switch_to_eval_mode()
+        self._switch_to_eval_mode()
+
+    @contextmanager
+    def _eval_then_training_mode(self):
+        """
+        Helper method to quickly switch to eval mode and then to training mode
+
+        ```
+        # doesn't matter what mode you were in
+        with self.eval_then_training_mode():
+            # in eval mode
+        # in training mode
+        :return:
+        """
+        self._switch_to_eval_mode()
+        yield
+        self._switch_to_training_mode()
 
     def _do_training(self):
         minibatch = self.pool.random_batch(self.batch_size)
@@ -207,7 +242,6 @@ class OnlineAlgorithm(RLAlgorithm):
                                            sampled_obs,
                                            sampled_actions,
                                            sampled_next_obs)
-        # self.sess.run(self._get_training_ops(), feed_dict=feed_dict)
         ops = self._get_training_ops()
         if isinstance(ops[0], list):
             for op in ops:
