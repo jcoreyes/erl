@@ -72,7 +72,7 @@ class TestUtil(TFTestCase):
     def test_batch_norm_untrained_is_a_noop(self):
         in_size = 1
         input_layer = tf.placeholder(tf.float32, shape=(None, in_size))
-        bn_config = tf_util.BatchNormConfig()
+        bn_config = tf_util.BatchNormConfig(epsilon=0., decay=0.5)
         scope_name = 'test_bn_scope'
 
         with tf.variable_scope(scope_name) as scope:
@@ -96,13 +96,12 @@ class TestUtil(TFTestCase):
             {input_layer: input_values}
         )
         expected_eval_values = np.array([[-2], [2]])
-        self.assertNpArraysAlmostEqual(eval_values, expected_eval_values,
-                                       threshold=1e-4)
+        self.assertNpArraysEqual(eval_values, expected_eval_values)
 
     def test_batch_norm_whitens_training_data(self):
         in_size = 1
         input_layer = tf.placeholder(tf.float32, shape=(None, in_size))
-        bn_config = tf_util.BatchNormConfig()
+        bn_config = tf_util.BatchNormConfig(epsilon=0.)
         scope_name = 'test_bn_scope'
 
         with tf.variable_scope(scope_name):
@@ -302,6 +301,20 @@ class TestUtil(TFTestCase):
 
         self.assertEqual(set(update_ops), set(update_ops_v2))
 
+    def test_get_untrainable_batch_norm_vars(self):
+        input_layer = tf.placeholder(tf.float32, shape=(None, 1))
+        scope_name = 'test_bn_scope'
+
+        with tf.variable_scope(scope_name) as bn_scope:
+            output_train, bn_ops = tf_util.batch_norm(
+                input_layer,
+                True,
+            )
+
+        update_ops = [bn_ops.pop_mean, bn_ops.pop_var]
+        update_ops_v2 = tf_util.get_untrainable_batch_norm_vars(bn_scope)
+
+        self.assertEqual(set(update_ops), set(update_ops_v2))
 
 if __name__ == '__main__':
     unittest.main()

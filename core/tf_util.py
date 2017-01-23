@@ -17,6 +17,7 @@ LAYER_NORM_BIAS_DEFAULT_NAME = "ln_bias"
 LAYER_NORM_GAIN_DEFAULT_NAME = "ln_gain"
 LAYER_NORMALIZATION_DEFAULT_NAME = "layer_normalization"
 _BATCH_NORM_UPDATE_POP_STATS_COLLECTION_ = "_batch_norm_update_pop_stats_"
+_UNTRAINABLE_BATCH_NORM_VARS_ = "_untrainable_batch_norm_vars_"
 
 # TODO(vpong): Use this namedtuple when possible
 MlpConfig = namedtuple('MlpConfig', ['W_init', 'b_init', 'nonlinearity'])
@@ -31,7 +32,10 @@ class BatchNormConfig(object):
             std_init=1.,
             decay=0.999,
             epsilon=1e-5,
-
+            bn_scale_name=BN_SCALE_DEFAULT_NAME,
+            bn_offset_name=BN_OFFSET_DEFAULT_NAME,
+            bn_pop_mean_name=BN_POP_MEAN_DEFAULT_NAME,
+            bn_pop_var_name=BN_POP_VAR_DEAFULT_NAME,
     ):
         self.enable_scale = enable_scale
         self.enable_offset = enable_offset
@@ -39,6 +43,10 @@ class BatchNormConfig(object):
         self.std_init = std_init
         self.decay = decay
         self.epsilon = epsilon
+        self.bn_scale_name = bn_scale_name
+        self.bn_offset_name = bn_offset_name
+        self.bn_pop_mean_name = bn_pop_mean_name
+        self.bn_pop_var_name = bn_pop_var_name
 
 
 class BatchNormOps(object):
@@ -170,16 +178,28 @@ def layer_normalize(
     return normalised_input * gains + biases
 
 
+def _get_collection(key, scope):
+    if isinstance(scope, tf.VariableScope):
+        scope = scope.original_name_scope
+    return tf.get_collection(key, scope=scope)
+
+
 def get_batch_norm_update_pop_stats_ops(scope=None):
     """
     :param scope: If None, return all ops.
     :return: List of batch norm ops that update population statistics in a
     given scope.
     """
-    if not isinstance(scope, str) and scope is not None:
-        scope = scope.original_name_scope
-    return tf.get_collection(_BATCH_NORM_UPDATE_POP_STATS_COLLECTION_,
-                             scope=scope)
+    return _get_collection(_BATCH_NORM_UPDATE_POP_STATS_COLLECTION_, scope)
+
+
+def get_untrainable_batch_norm_vars(scope=None):
+    """
+    :param scope: If None, return all ops.
+    :return: List of untrainable batch norm variables (i.e. population mean
+    and variance) given scope.
+    """
+    return _get_collection(_UNTRAINABLE_BATCH_NORM_VARS_, scope)
 
 
 def batch_norm(
@@ -226,26 +246,30 @@ def batch_norm(
     scale, offset = None, None
     if batch_norm_config.enable_scale:
         scale = tf.get_variable(
-            BN_SCALE_DEFAULT_NAME,
+            batch_norm_config.bn_scale_name,
             shape=bn_shape,
             initializer=tf.constant_initializer(1.),
         )
     if batch_norm_config.enable_offset:
         offset = tf.get_variable(
-            BN_OFFSET_DEFAULT_NAME,
+            batch_norm_config.bn_offset_name,
             shape=bn_shape,
             initializer=tf.constant_initializer(0.),
         )
     pop_mean = tf.get_variable(
-        BN_POP_MEAN_DEFAULT_NAME,
+        batch_norm_config.bn_pop_mean_name,
         shape=bn_shape,
-        initializer=tf.constant_initializer(0.)
+        initializer=tf.constant_initializer(0.),
+        trainable=False,
     )
     pop_var = tf.get_variable(
-        BN_POP_VAR_DEAFULT_NAME,
+        batch_norm_config.bn_pop_var_name,
         shape=bn_shape,
-        initializer=tf.constant_initializer(1.)
+        initializer=tf.constant_initializer(1.),
+        trainable=False,
     )
+    tf.add_to_collection(_UNTRAINABLE_BATCH_NORM_VARS_, pop_mean)
+    tf.add_to_collection(_UNTRAINABLE_BATCH_NORM_VARS_, pop_var)
 
     if is_training:
         batch_mean, batch_var = tf.nn.moments(input_tensor, [0])
