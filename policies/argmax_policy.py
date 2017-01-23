@@ -54,9 +54,10 @@ class ArgmaxPolicy(NeuralNetwork, Policy, Serializable):
         with tf.variable_scope(name_or_scope) as variable_scope:
             super(ArgmaxPolicy, self).__init__(name_or_scope=variable_scope,
                                                **kwargs)
-            self.proposed_action = tf.Variable(
-                init,
-                name="proposed_action")
+            self.proposed_action = tf.get_variable(
+                name="proposed_action",
+                initializer=init,
+            )
             self.af_with_proposed_action = self.qfunction.get_weight_tied_copy(
                 action_input=self.proposed_action
             )

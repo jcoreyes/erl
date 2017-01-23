@@ -48,7 +48,7 @@ class GaussianMLPPolicy(Policy, Serializable):
         self.observations_input = tf.placeholder(tf.float32,
                                                  shape=[None, observation_dim])
         action_dim = self.env_spec.action_space.flat_dim
-        with tf.name_scope('mean') as _:
+        with tf.variable_scope('mean') as _:
             mlp_mean_output = tf_util.mlp(self.observations_input,
                                           observation_dim,
                                           mean_hidden_sizes,
@@ -58,7 +58,7 @@ class GaussianMLPPolicy(Policy, Serializable):
                                        mlp_mean_output_size,
                                        action_dim)
 
-        with tf.name_scope('log_std') as _:
+        with tf.variable_scope('log_std') as _:
             mlp_std_output = tf_util.mlp(self.observations_input,
                                          observation_dim,
                                          std_hidden_sizes,
