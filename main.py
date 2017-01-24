@@ -70,10 +70,10 @@ def get_algo_settings_list_from_args(args):
         algo_params = {}
         if algo_name == 'ddpg':
             sweeper = hp.RandomHyperparameterSweeper([
-                hp.LogFloatParam("qf_learning_rate", 1e-6, 1e-2),
-                hp.LogFloatParam("policy_learning_rate", 1e-6, 1e-2),
-                hp.LogFloatParam("scale_reward", 10.0, 0.01),
-                hp.LogFloatParam("qf_weight_decay", 1e-7, 1e-1),
+                hp.LogFloatParam("qf_learning_rate", 1e-5, 1e-2),
+                hp.LogFloatParam("policy_learning_rate", 1e-6, 1e-3),
+                hp.LogFloatParam("scale_reward", 10.0, 0.001),
+                hp.LogFloatParam("soft_target_tau", 1e-5, 1e-1),
             ])
             algo_params = get_ddpg_params()
             algo_params['render'] = render
@@ -191,8 +191,15 @@ def get_algo_settings_list_from_args(args):
         else:
             raise Exception("Algo name not recognized: " + algo_name)
 
+        bn_sweeper = hp.RandomHyperparameterSweeper([
+            hp.EnumParam("decay", [0.9, 0.99, 0.999, 0.9999]),
+            hp.LogFloatParam("epsilon", 1e-3, 1e-7),
+            hp.EnumParam("enable_offset", [True, False]),
+            hp.EnumParam("enable_scale", [True, False]),
+        ])
         return {
             'sweeper': sweeper,
+            'bn_sweeper': bn_sweeper,
             'variant': variant,
             'algo_params': algo_params,
             'algorithm_launcher': algorithm_launcher,
@@ -243,6 +250,7 @@ def run_algorithm(
         env_params,
         exp_prefix,
         seed,
+        exp_id=1,
         **kwargs):
     """
     Launch an algorithm
@@ -250,6 +258,7 @@ def run_algorithm(
     :param env_params: See get_env_settings
     :param exp_prefix: Experiment prefix
     :param seed: Experiment seed
+    :param exp_id: Experiment ID # to identify it later (e.g. for plotting data)
     :param kwargs: Other kwargs to pass to run_experiment_lite
     :return:
     """
@@ -257,6 +266,7 @@ def run_algorithm(
     variant['env_params'] = env_params
     variant['algo_params'] = algo_settings['algo_params']
     variant['batch_norm_params'] = algo_settings['batch_norm_params']
+    variant['exp_id'] = exp_id
 
     env_settings = get_env_settings(**env_params)
     variant['Environment'] = env_settings['name']
@@ -273,21 +283,31 @@ def run_algorithm(
 def sweep(exp_prefix, env_params, algo_settings_, **kwargs):
     algo_settings = copy.deepcopy(algo_settings_)
     sweeper = algo_settings['sweeper']
+    bn_sweeper = algo_settings['bn_sweeper']
     default_params = algo_settings['algo_params']
+    exp_id = 0
+    assert bn_sweeper is None or (
+        isinstance(sweeper, hp.DeterministicHyperparameterSweeper) ==
+        isinstance(bn_sweeper, hp.DeterministicHyperparameterSweeper)
+    )
     if isinstance(sweeper, hp.DeterministicHyperparameterSweeper):
         for params_dict in sweeper.iterate_hyperparameters():
+            exp_id += 1
             for seed in range(NUM_SEEDS_PER_CONFIG):
                 algo_params = dict(default_params, **params_dict)
                 algo_settings['algo_params'] = algo_params
                 run_algorithm(algo_settings, env_params, exp_prefix, seed,
+                              exp_id=exp_id,
                               **kwargs)
     else:
         for i in range(NUM_HYPERPARAMETER_CONFIGS):
+            exp_id += 1
             for seed in range(NUM_SEEDS_PER_CONFIG):
                 algo_params = dict(default_params,
                                    **sweeper.generate_random_hyperparameters())
                 algo_settings['algo_params'] = algo_params
                 run_algorithm(algo_settings, env_params, exp_prefix, seed,
+                              exp_id=exp_id,
                               **kwargs)
 
 
