@@ -31,7 +31,8 @@ def my_ddpg_launcher(variant):
     from rllab.exploration_strategies.ou_strategy import OUStrategy
     from railrl.misc.launcher_util import get_env_settings
     from railrl.core.tf_util import BatchNormConfig
-    if 'batch_norm_params' in variant:
+    if ('batch_norm_params' in variant
+        and variant['batch_norm_params'] is not None):
         bn_config = BatchNormConfig(**variant['batch_norm_params'])
     else:
         bn_config = None
@@ -77,7 +78,8 @@ def quadratic_ddpg_launcher(variant):
     from railrl.qfunctions.quadratic_naf_qfunction import QuadraticNAF
     from railrl.misc.launcher_util import get_env_settings
     from railrl.core.tf_util import BatchNormConfig
-    if 'batch_norm_params' in variant:
+    if ('batch_norm_params' in variant
+        and variant['batch_norm_params'] is not None):
         bn_config = BatchNormConfig(**variant['batch_norm_params'])
     else:
         bn_config = None
@@ -117,7 +119,8 @@ def oat_qddpg_launcher(variant):
     from rllab.exploration_strategies.ou_strategy import OUStrategy
     from railrl.misc.launcher_util import get_env_settings
     from railrl.core.tf_util import BatchNormConfig
-    if 'batch_norm_params' in variant:
+    if ('batch_norm_params' in variant
+        and variant['batch_norm_params'] is not None):
         bn_config = BatchNormConfig(**variant['batch_norm_params'])
     else:
         bn_config = None
@@ -153,7 +156,8 @@ def naf_launcher(variant):
     from rllab.exploration_strategies.ou_strategy import OUStrategy
     from railrl.misc.launcher_util import get_env_settings
     from railrl.core.tf_util import BatchNormConfig
-    if 'batch_norm_params' in variant:
+    if ('batch_norm_params' in variant
+            and variant['batch_norm_params'] is not None):
         bn_config = BatchNormConfig(**variant['batch_norm_params'])
     else:
         bn_config = None

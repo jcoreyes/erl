@@ -1,13 +1,10 @@
 import abc
 
 import tensorflow as tf
-from typing import Iterable
-
-from railrl.core.neuralnet import NeuralNetwork
-from railrl.misc.rllab_util import get_action_dim
-from railrl.predictors.state_network import StateNetwork
 
 from railrl.core.tf_util import he_uniform_initializer, mlp, linear
+from railrl.misc.rllab_util import get_action_dim
+from railrl.predictors.state_network import StateNetwork
 from rllab.policies.base import Policy
 
 
@@ -83,7 +80,3 @@ class FeedForwardPolicy(NNPolicy):
                 W_initializer=self.output_W_init,
                 b_initializer=self.output_b_init,
             ))
-
-    @property
-    def _subnetworks(self) -> Iterable[NeuralNetwork]:
-        return []

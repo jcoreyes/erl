@@ -1,5 +1,3 @@
-from typing import Iterable
-
 from rllab.core.serializable import Serializable
 from railrl.core import tf_util
 from railrl.core.neuralnet import NeuralNetwork
@@ -53,8 +51,3 @@ class Perceptron(NeuralNetwork):
         return dict(
             input_tensor=None,
         )
-
-    @property
-    @overrides
-    def _subnetworks(self) -> Iterable[NeuralNetwork]:
-        return []

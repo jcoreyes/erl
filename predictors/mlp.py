@@ -1,8 +1,6 @@
 """
 A series of perceptrons. Implemented mostly for unittests.
 """
-from typing import Iterable
-
 from rllab.core.serializable import Serializable
 from railrl.core import tf_util
 from railrl.core.neuralnet import NeuralNetwork
@@ -57,7 +55,8 @@ class Mlp(NeuralNetwork):
                 b_initializer=self.b_initializer,
                 batch_norm_config=self._batch_norm_config,
             )
-            input_tensor = self._process_layer(p.output)
+            input_tensor = self._add_subnetwork_and_get_output(p)
+            input_tensor = self._process_layer(input_tensor)
             in_size = next_size
         return tf_util.linear(
             input_tensor,
@@ -75,8 +74,3 @@ class Mlp(NeuralNetwork):
         return dict(
             input_tensor=None,
         )
-
-    @property
-    @overrides
-    def _subnetworks(self) -> Iterable[NeuralNetwork]:
-        return []

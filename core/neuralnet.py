@@ -49,11 +49,12 @@ class NeuralNetwork(Parameterized, Serializable):
         self._bn_stat_update_ops = []
         self._sess = None
         self._output = None
-        self._is_bn_in_training_mode = False
         self._output = None
         self._eval_output = None
         self._training_output = None
         self._full_scope_name = None
+        self._subnetwork_list = []
+        self._is_bn_in_training_mode = False
 
     @property
     def full_scope_name(self):
@@ -95,13 +96,9 @@ class NeuralNetwork(Parameterized, Serializable):
 
     def _switch_to_bn_training_mode_on(self):
         self._is_bn_in_training_mode = True
-        for child in self._iter_sub_networks():
-            child._switch_to_bn_training_mode_on = True
 
     def _switch_to_bn_training_mode_off(self):
         self._is_bn_in_training_mode = False
-        for child in self._iter_sub_networks():
-            child._switch_to_bn_training_mode_on = False
 
     def _iter_sub_networks(self):
         """
@@ -165,7 +162,7 @@ class NeuralNetwork(Parameterized, Serializable):
         """
         :return: Tensor/placeholder/op. Eval output of this network.
         """
-        return self.eval_output
+        return self._eval_output
 
     def _process_layer(self, previous_layer, scope_name="process_layer"):
         """
@@ -201,6 +198,33 @@ class NeuralNetwork(Parameterized, Serializable):
                 batch_norm_config=self._batch_norm_config,
             )
             return processed_layer
+
+    def _add_subnetwork_and_get_output(self, subnetwork):
+        """
+        Any time a network has a sub-network, it needs to call this method
+        to gets that subnetwork's output. e.g.
+
+        ```
+        def _create_internal_network(...):
+            n1 = Network1()
+            out_of_n1 = self._process_network_and_get_output(n1)
+
+            # out_of_n1 is a Tensor that can be used
+            # you probably want to call
+            out_of_n1 = self._process_layer(out_of_n1)
+        ```
+        """
+        if (subnetwork.full_scope_name not in
+                [n.full_scope_name for n in self._subnetwork_list]):
+            self._subnetwork_list.append(subnetwork)
+
+        if not self._batch_norm:
+            return subnetwork.output
+
+        if self._is_bn_in_training_mode:
+            return subnetwork.training_output
+        else:
+            return subnetwork.eval_output
 
     @overrides
     def get_params_internal(self, **tags):
@@ -272,7 +296,6 @@ class NeuralNetwork(Parameterized, Serializable):
         return self._bn_stat_update_ops
 
     @property
-    @abc.abstractmethod
     def _subnetworks(self) -> Iterable['NeuralNetwork']:
         """
         If this network is built with sub-networks (i.e.
@@ -280,7 +303,7 @@ class NeuralNetwork(Parameterized, Serializable):
         iterate through them uniquely.
         :return:
         """
-        pass
+        return self._subnetwork_list
 
     @abc.abstractmethod
     def _create_network_internal(self, **inputs):

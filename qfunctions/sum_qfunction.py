@@ -1,10 +1,7 @@
 import tensorflow as tf
-from typing import Iterable
-
-from railrl.core.neuralnet import NeuralNetwork
-from railrl.qfunctions.nn_qfunction import NNQFunction
 
 from railrl.core.tf_util import weight_variable
+from railrl.qfunctions.nn_qfunction import NNQFunction
 
 
 class SumCritic(NNQFunction):
@@ -28,7 +25,3 @@ class SumCritic(NNQFunction):
 
         return (tf.matmul(action_input, W_actions) +
                 tf.matmul(observation_input, W_obs))
-
-    @property
-    def _subnetworks(self) -> Iterable[NeuralNetwork]:
-        return []

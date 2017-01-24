@@ -55,7 +55,3 @@ class MlpStateActionNetwork(StateActionNetwork):
             W_initializer=self.output_W_init,
             b_initializer=self.output_b_init,
         ))
-
-    @property
-    def _subnetworks(self):
-        return []

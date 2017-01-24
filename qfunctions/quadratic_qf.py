@@ -1,7 +1,5 @@
 import tensorflow as tf
-from typing import Iterable
 
-from railrl.core.neuralnet import NeuralNetwork
 from railrl.predictors.mlp_state_network import MlpStateNetwork
 from railrl.qfunctions.nn_qfunction import NNQFunction
 from railrl.core import tf_util
@@ -57,9 +55,10 @@ class QuadraticQF(NNQFunction, OptimizableQFunction):
             output_nonlinearity=tf.identity,
             batch_norm_config=self._batch_norm_config,
         )
+        L_output = self._add_subnetwork_and_get_output(self._L_computer)
+        L_output = self._process_layer(L_output)
         # L_shape = batch:dimA:dimA
-        self.L_params = self._L_computer
-        L = tf_util.vec2lower_triangle(self._L_computer.output, self.action_dim)
+        L = tf_util.vec2lower_triangle(L_output, self.action_dim)
         self.L = L
 
         delta = action_input - self._policy.output
@@ -76,7 +75,3 @@ class QuadraticQF(NNQFunction, OptimizableQFunction):
     @property
     def implicit_policy(self):
         return self._policy
-
-    @property
-    def _subnetworks(self) -> Iterable[NeuralNetwork]:
-        return [self._L_computer]

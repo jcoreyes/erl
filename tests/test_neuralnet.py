@@ -3,9 +3,12 @@ import unittest
 import numpy as np
 import tensorflow as tf
 
+from railrl.core.neuralnet import NeuralNetwork
 from railrl.core.tf_util import BatchNormConfig
 from railrl.misc.tf_test_case import TFTestCase
+from railrl.predictors.mlp import Mlp
 from railrl.predictors.perceptron import Perceptron
+from rllab.misc.overrides import overrides
 
 
 class TestNeuralNetwork(TFTestCase):
@@ -334,6 +337,46 @@ class TestNeuralNetwork(TFTestCase):
         perceptron.switch_to_eval_mode()
         self.assertEqual(perceptron.output, eval_output)
 
+    def test_subnetwork_walk(self):
+        mmlp = TestMmlp(
+            "mmlp",
+            batch_norm_config=BatchNormConfig(),
+        )
+        self.assertEqual(6, len(list(mmlp._iter_sub_networks())))
+        self.assertEqual(6, len(set(n.full_scope_name for n
+                                in mmlp._iter_sub_networks())))
+
+class TestMmlp(NeuralNetwork):
+    """
+    Multi-multi-layer perceptron
+    2 MLPs with 2 perceptrons each
+    """
+    def __init__(
+            self,
+            name_or_scope,
+            **kwargs
+    ):
+        self.input_tensor = tf.placeholder(tf.float32, shape=[None, 1])
+        super(TestMmlp, self).__init__(name_or_scope, **kwargs)
+        self._create_network(input_tensor=self.input_tensor)
+
+    @overrides
+    def _create_network_internal(self, input_tensor=None):
+        with tf.variable_scope('a'):
+            self._add_subnetwork_and_get_output(
+                Mlp('mlp1', input_tensor, 1, 1, (1, 1))
+            )
+        with tf.variable_scope('b'):
+            return self._add_subnetwork_and_get_output(
+                Mlp('mlp2', input_tensor, 1, 1, (1, 1))
+            )
+
+    @property
+    @overrides
+    def _input_name_to_values(self):
+        return dict(
+            input_tensor=self.input_tensor,
+        )
 
 if __name__ == '__main__':
     unittest.main()
