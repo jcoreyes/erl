@@ -34,7 +34,7 @@ SCALE_REWARD = 1.0
 QF_WEIGHT_DECAY = 0.0001
 MAX_PATH_LENGTH = 1000
 N_UPDATES_PER_TIME_STEP = 5
-BATCH_NORM_PARAMS = None
+BATCH_NORM_PARAMS = {}  # None = off, {} = default params
 
 # Sweep settings
 SWEEP_N_EPOCHS = 50
