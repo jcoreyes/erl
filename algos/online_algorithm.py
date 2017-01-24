@@ -8,7 +8,7 @@ import time
 import numpy as np
 import tensorflow as tf
 
-from railrl.misc.simple_replay_pool import SimpleReplayPool
+from railrl.data.simple_replay_pool import SimpleReplayPool
 from rllab.algos.base import RLAlgorithm
 from rllab.misc import logger
 from rllab.misc.overrides import overrides
