@@ -3,6 +3,7 @@ import copy
 import math
 import random
 import itertools
+from typing import List
 
 
 class Hyperparameter(metaclass=abc.ABCMeta):
@@ -78,7 +79,11 @@ class FixedParam(RandomHyperparameter):
         return self._value
 
 
-class RandomHyperparameterSweeper(object):
+class Sweeper(object):
+    pass
+
+
+class RandomHyperparameterSweeper(Sweeper):
     def __init__(self, hyperparameters=None):
         self._hyperparameters = hyperparameters or []
         self._validate_hyperparameters()
@@ -112,7 +117,7 @@ class RandomHyperparameterSweeper(object):
         return returned_value_and_params
 
 
-class DeterministicHyperparameterSweeper(object):
+class DeterministicHyperparameterSweeper(Sweeper):
     """
     Do a grid search over hyperparameters based on a predefined set of
     hyperparameters.
@@ -156,3 +161,33 @@ class DeterministicHyperparameterSweeper(object):
             dict(hyperparameters, **copy.deepcopy(self._default_kwargs))
             for hyperparameters in self._hyperparameters_dicts
         ]
+
+
+# TODO(vpong): Test this
+class DeterministicSweeperCombiner(object):
+    """
+    A simple wrapper to combiner multiple DeterministicHyperParameterSweeper's
+    """
+    def __init__(self, sweepers: List[DeterministicHyperparameterSweeper]):
+        self._sweepers = sweepers
+
+    def iterate_list_of_hyperparameters(self):
+        """
+        Usage:
+
+        ```
+        sweeper1 = DeterministicHyperparameterSweeper(...)
+        sweeper2 = DeterministicHyperparameterSweeper(...)
+        combiner = DeterministicSweeperCombiner([sweeper1, sweeper2])
+
+        for params_1, params_2 in combiner.iterate_list_of_hyperparameters():
+            # param_1 = {...}
+            # param_2 = {...}
+        ```
+        :return: Generator of hyperparameters, in the same order as provided
+        sweepers.
+        """
+        return itertools.product(
+            sweeper.iterate_hyperparameters()
+            for sweeper in self._sweepers
+        )
