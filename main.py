@@ -53,10 +53,10 @@ NUM_SEEDS_PER_CONFIG = 3
 NUM_HYPERPARAMETER_CONFIGS = 50
 
 
-def get_algo_settings_list_from_args(args):
+def get_launch_settings_list_from_args(args):
     render = args.render
 
-    def get_algo_settings(algo_name):
+    def get_launch_settings(algo_name):
         """
         Return a dictionary of the form
         {
@@ -206,7 +206,7 @@ def get_algo_settings_list_from_args(args):
             'batch_norm_params': BATCH_NORM_PARAMS
         }
 
-    return [get_algo_settings(algo_name) for algo_name in args.algo]
+    return [get_launch_settings(algo_name) for algo_name in args.algo]
 
 
 def get_ddpg_params():
@@ -246,7 +246,7 @@ def get_my_naf_params():
 
 
 def run_algorithm(
-        algo_settings,
+        launch_settings,
         env_params,
         exp_prefix,
         seed,
@@ -254,7 +254,7 @@ def run_algorithm(
         **kwargs):
     """
     Launch an algorithm
-    :param algo_settings: See get_algo_settings_list_from_args
+    :param launch_settings: See get_launch_settings_list_from_args
     :param env_params: See get_env_settings
     :param exp_prefix: Experiment prefix
     :param seed: Experiment seed
@@ -262,15 +262,15 @@ def run_algorithm(
     :param kwargs: Other kwargs to pass to run_experiment_lite
     :return:
     """
-    variant = algo_settings['variant']
+    variant = launch_settings['variant']
     variant['env_params'] = env_params
-    variant['algo_params'] = algo_settings['algo_params']
-    variant['batch_norm_params'] = algo_settings['batch_norm_params']
+    variant['algo_params'] = launch_settings['algo_params']
+    variant['batch_norm_params'] = launch_settings['batch_norm_params']
     variant['exp_id'] = exp_id
 
     env_settings = get_env_settings(**env_params)
     variant['Environment'] = env_settings['name']
-    algorithm_launcher = algo_settings['algorithm_launcher']
+    algorithm_launcher = launch_settings['algorithm_launcher']
 
     run_experiment(
         algorithm_launcher,
@@ -280,11 +280,11 @@ def run_algorithm(
         **kwargs)
 
 
-def sweep(exp_prefix, env_params, algo_settings_, **kwargs):
-    algo_settings = copy.deepcopy(algo_settings_)
-    sweeper = algo_settings['sweeper']
-    bn_sweeper = algo_settings['bn_sweeper']
-    default_params = algo_settings['algo_params']
+def sweep(exp_prefix, env_params, launch_settings_, **kwargs):
+    launch_settings = copy.deepcopy(launch_settings_)
+    sweeper = launch_settings['sweeper']
+    bn_sweeper = launch_settings['bn_sweeper']
+    default_params = launch_settings['algo_params']
     exp_id = 0
     # So far, only support bn sweeper in random mode
     assert bn_sweeper is None or (
@@ -296,8 +296,8 @@ def sweep(exp_prefix, env_params, algo_settings_, **kwargs):
             exp_id += 1
             for seed in range(NUM_SEEDS_PER_CONFIG):
                 algo_params = dict(default_params, **params_dict)
-                algo_settings['algo_params'] = algo_params
-                run_algorithm(algo_settings, env_params, exp_prefix, seed,
+                launch_settings['algo_params'] = algo_params
+                run_algorithm(launch_settings, env_params, exp_prefix, seed,
                               exp_id=exp_id,
                               **kwargs)
     else:
@@ -308,9 +308,9 @@ def sweep(exp_prefix, env_params, algo_settings_, **kwargs):
                                    **sweeper.generate_random_hyperparameters())
                 bn_params = dict(BATCH_NORM_PARAMS,
                                  **bn_sweeper.generate_random_hyperparameters())
-                algo_settings['algo_params'] = algo_params
-                algo_settings['bn_params'] = bn_params
-                run_algorithm(algo_settings, env_params, exp_prefix, seed,
+                launch_settings['algo_params'] = algo_params
+                launch_settings['bn_params'] = bn_params
+                run_algorithm(launch_settings, env_params, exp_prefix, seed,
                               exp_id=exp_id,
                               **kwargs)
 
@@ -412,18 +412,18 @@ def main():
     if args.profile_file:
         kwargs['profile_file'] = args.profile_file
     for env_params in get_env_params_list_from_args(args):
-        for algo_settings in get_algo_settings_list_from_args(args):
+        for launcher_settings in get_launch_settings_list_from_args(args):
             if args.sweep:
                 sweep(
                     args.name,
                     env_params,
-                    algo_settings,
+                    launcher_settings,
                     **kwargs
                 )
             else:
                 for i in range(args.num_seeds):
                     run_algorithm(
-                        algo_settings,
+                        launcher_settings,
                         env_params,
                         args.name,
                         args.seed + i,
