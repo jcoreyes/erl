@@ -286,9 +286,10 @@ def sweep(exp_prefix, env_params, algo_settings_, **kwargs):
     bn_sweeper = algo_settings['bn_sweeper']
     default_params = algo_settings['algo_params']
     exp_id = 0
+    # So far, only support bn sweeper in random mode
     assert bn_sweeper is None or (
-        isinstance(sweeper, hp.DeterministicHyperparameterSweeper) ==
-        isinstance(bn_sweeper, hp.DeterministicHyperparameterSweeper)
+        not isinstance(sweeper, hp.DeterministicHyperparameterSweeper) and
+        not isinstance(bn_sweeper, hp.DeterministicHyperparameterSweeper)
     )
     if isinstance(sweeper, hp.DeterministicHyperparameterSweeper):
         for params_dict in sweeper.iterate_hyperparameters():
@@ -305,7 +306,10 @@ def sweep(exp_prefix, env_params, algo_settings_, **kwargs):
             for seed in range(NUM_SEEDS_PER_CONFIG):
                 algo_params = dict(default_params,
                                    **sweeper.generate_random_hyperparameters())
+                bn_params = dict(BATCH_NORM_PARAMS,
+                                 **bn_sweeper.generate_random_hyperparameters())
                 algo_settings['algo_params'] = algo_params
+                algo_settings['bn_params'] = bn_params
                 run_algorithm(algo_settings, env_params, exp_prefix, seed,
                               exp_id=exp_id,
                               **kwargs)
