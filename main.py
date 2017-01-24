@@ -37,10 +37,10 @@ N_UPDATES_PER_TIME_STEP = 5
 BATCH_NORM_PARAMS = {}  # None = off, {} = default params
 
 # Sweep settings
-SWEEP_N_EPOCHS = 50
+SWEEP_N_EPOCHS = 20
 SWEEP_EPOCH_LENGTH = 10000
 SWEEP_EVAL_SAMPLES = 10000
-SWEEP_MIN_POOL_SIZE = None  # BATCH_SIZE
+SWEEP_MIN_POOL_SIZE = 10000
 
 # Fast settings
 FAST_N_EPOCHS = 10
@@ -199,7 +199,7 @@ def get_launch_settings_list_from_args(args):
         ])
         return {
             'sweeper': sweeper,
-            'bn_sweeper': bn_sweeper,
+            'batch_norm_sweeper': bn_sweeper,
             'variant': variant,
             'algo_params': algo_params,
             'algorithm_launcher': algorithm_launcher,
@@ -283,8 +283,9 @@ def run_algorithm(
 def sweep(exp_prefix, env_params, launch_settings_, **kwargs):
     launch_settings = copy.deepcopy(launch_settings_)
     sweeper = launch_settings['sweeper']
-    bn_sweeper = launch_settings['bn_sweeper']
+    bn_sweeper = launch_settings['batch_norm_sweeper']
     default_params = launch_settings['algo_params']
+    default_bn_params = launch_settings['batch_norm_params']
     exp_id = 0
     # So far, only support bn sweeper in random mode
     assert bn_sweeper is None or (
@@ -306,10 +307,10 @@ def sweep(exp_prefix, env_params, launch_settings_, **kwargs):
             for seed in range(NUM_SEEDS_PER_CONFIG):
                 algo_params = dict(default_params,
                                    **sweeper.generate_random_hyperparameters())
-                bn_params = dict(BATCH_NORM_PARAMS,
+                bn_params = dict(default_bn_params,
                                  **bn_sweeper.generate_random_hyperparameters())
                 launch_settings['algo_params'] = algo_params
-                launch_settings['bn_params'] = bn_params
+                launch_settings['batch_norm_params'] = bn_params
                 run_algorithm(launch_settings, env_params, exp_prefix, seed,
                               exp_id=exp_id,
                               **kwargs)
