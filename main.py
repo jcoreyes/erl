@@ -73,7 +73,7 @@ def get_launch_settings_list_from_args(args):
                 hp.LogFloatParam("qf_learning_rate", 1e-5, 1e-2),
                 hp.LogFloatParam("policy_learning_rate", 1e-6, 1e-3),
                 hp.LogFloatParam("scale_reward", 10.0, 0.001),
-                hp.LogFloatParam("soft_target_tau", 1e-5, 1e-1),
+                hp.LogFloatParam("soft_target_tau", 1e-5, 1e-2),
             ])
             algo_params = get_ddpg_params()
             algo_params['render'] = render
@@ -191,12 +191,13 @@ def get_launch_settings_list_from_args(args):
         else:
             raise Exception("Algo name not recognized: " + algo_name)
 
-        bn_sweeper = hp.RandomHyperparameterSweeper([
-            hp.EnumParam("decay", [0.9, 0.99, 0.999, 0.9999]),
-            hp.LogFloatParam("epsilon", 1e-3, 1e-7),
-            hp.EnumParam("enable_offset", [True, False]),
-            hp.EnumParam("enable_scale", [True, False]),
-        ])
+        # bn_sweeper = hp.RandomHyperparameterSweeper([
+        #     hp.EnumParam("decay", [0.9, 0.99, 0.999, 0.9999]),
+        #     hp.LogFloatParam("epsilon", 1e-3, 1e-7),
+        #     hp.EnumParam("enable_offset", [True, False]),
+        #     hp.EnumParam("enable_scale", [True, False]),
+        # ])
+        bn_sweeper = None
         return {
             'sweeper': sweeper,
             'batch_norm_sweeper': bn_sweeper,
@@ -306,8 +307,11 @@ def sweep(exp_prefix, env_params, launch_settings_, **kwargs):
             exp_id += 1
             algo_params = dict(default_params,
                                **sweeper.generate_random_hyperparameters())
-            bn_params = dict(default_bn_params,
-                             **bn_sweeper.generate_random_hyperparameters())
+            if bn_sweeper is None:
+                bn_params = default_bn_params
+            else:
+                bn_params = dict(default_bn_params,
+                                 **bn_sweeper.generate_random_hyperparameters())
             for seed in range(NUM_SEEDS_PER_CONFIG):
                 launch_settings['algo_params'] = algo_params
                 launch_settings['batch_norm_params'] = bn_params
