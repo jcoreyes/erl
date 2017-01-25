@@ -295,8 +295,8 @@ def sweep(exp_prefix, env_params, launch_settings_, **kwargs):
     if isinstance(sweeper, hp.DeterministicHyperparameterSweeper):
         for params_dict in sweeper.iterate_hyperparameters():
             exp_id += 1
+            algo_params = dict(default_params, **params_dict)
             for seed in range(NUM_SEEDS_PER_CONFIG):
-                algo_params = dict(default_params, **params_dict)
                 launch_settings['algo_params'] = algo_params
                 run_algorithm(launch_settings, env_params, exp_prefix, seed,
                               exp_id=exp_id,
@@ -304,11 +304,11 @@ def sweep(exp_prefix, env_params, launch_settings_, **kwargs):
     else:
         for i in range(NUM_HYPERPARAMETER_CONFIGS):
             exp_id += 1
+            algo_params = dict(default_params,
+                               **sweeper.generate_random_hyperparameters())
+            bn_params = dict(default_bn_params,
+                             **bn_sweeper.generate_random_hyperparameters())
             for seed in range(NUM_SEEDS_PER_CONFIG):
-                algo_params = dict(default_params,
-                                   **sweeper.generate_random_hyperparameters())
-                bn_params = dict(default_bn_params,
-                                 **bn_sweeper.generate_random_hyperparameters())
                 launch_settings['algo_params'] = algo_params
                 launch_settings['batch_norm_params'] = bn_params
                 run_algorithm(launch_settings, env_params, exp_prefix, seed,
