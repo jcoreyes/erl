@@ -164,9 +164,12 @@ def naf_launcher(variant):
     env_settings = get_env_settings(**variant['env_params'])
     env = env_settings['env']
     if 'es_init' in variant:
-        es = variant['es_init'](env, **variant['es_init_params'])
+        es = variant['es_init'](env, **variant['exploration_strategy_params'])
     else:
-        es = OUStrategy(env_spec=env.spec)
+        es = OUStrategy(
+            env_spec=env.spec,
+            **variant['exploration_strategy_params']
+        )
     qf = QuadraticNAF(
         name_or_scope="qf",
         env_spec=env.spec,
