@@ -140,12 +140,12 @@ def get_launch_settings_list_from_args(args):
                 )
             }
         elif algo_name == 'naf':
-            sweeper = hp.DeterministicHyperparameterSweeper({
-                'qf_weight_decay': [0., 1e-4, 1e-2],
-                'qf_learning_rate': [1e-5, 1e-3, 1e-1],
-                'scale_reward': [0.001, 0.1, 1., 10, 1000],
-                'soft_target_tau': [1e-2, 1e-4],
-            })
+            sweeper = hp.RandomHyperparameterSweeper([
+                hp.LogFloatParam("qf_learning_rate", 1e-5, 1e-2),
+                hp.LogFloatParam("scale_reward", 10.0, 0.001),
+                hp.LogFloatParam("soft_target_tau", 1e-6, 1e-1),
+                hp.LogFloatParam("qf_weight_decay", 1e-7, 1e-1),
+            ])
             algo_params = get_my_naf_params()
             algo_params['render'] = render
             algorithm_launcher = naf_launcher
