@@ -1,4 +1,5 @@
 import unittest
+import numpy as np
 import tensorflow as tf
 
 from railrl.misc.testing_utils import (
@@ -21,6 +22,18 @@ class TFTestCase(unittest.TestCase):
     def assertNpEqual(self, np_arr1, np_arr2, msg="Numpy arrays not equal."):
         self.assertTrue(are_np_arrays_equal(np_arr1, np_arr2), msg)
 
+    def assertNpAlmostEqual(
+            self,
+            np_arr1,
+            np_arr2,
+            msg="Numpy arrays not equal.",
+            threshold=1e-5,
+    ):
+        self.assertTrue(
+            are_np_arrays_equal(np_arr1, np_arr2, threshold=threshold),
+            msg
+        )
+
     def assertNpNotEqual(self, np_arr1, np_arr2, msg="Numpy arrays equal"):
         self.assertFalse(are_np_arrays_equal(np_arr1, np_arr2), msg)
 
@@ -28,9 +41,32 @@ class TFTestCase(unittest.TestCase):
             self,
             np_arrays1,
             np_arrays2,
-            msg="Numpy array lists are not equal."
+            msg="Numpy array lists are not equal.",
     ):
-        self.assertTrue(are_np_array_iterables_equal(np_arrays1, np_arrays2), msg)
+        self.assertTrue(
+            are_np_array_iterables_equal(
+                np_arrays1,
+                np_arrays2,
+            ),
+            msg
+        )
+
+    # TODO(vpong): see why such a high threshold is needed
+    def assertNpArraysAlmostEqual(
+            self,
+            np_arrays1,
+            np_arrays2,
+            msg="Numpy array lists are not almost equal.",
+            threshold=1e-4,
+    ):
+        self.assertTrue(
+            are_np_array_iterables_equal(
+                np_arrays1,
+                np_arrays2,
+                threshold=threshold,
+            ),
+            msg
+        )
 
     def assertNpArraysNotEqual(
             self,
@@ -39,6 +75,22 @@ class TFTestCase(unittest.TestCase):
             msg="Numpy array lists are equal."
     ):
         self.assertFalse(are_np_array_iterables_equal(np_arrays1, np_arrays2), msg)
+
+    def assertNpArraysNotAlmostEqual(
+            self,
+            np_arrays1,
+            np_arrays2,
+            msg="Numpy array lists are equal.",
+            threshold=1e-4,
+    ):
+        self.assertFalse(
+            are_np_array_iterables_equal(
+                np_arrays1,
+                np_arrays2,
+                threshold=threshold,
+            ),
+            msg
+        )
 
     def assertParamsEqual(self, network1, network2):
         self.assertNpArraysEqual(
@@ -54,3 +106,8 @@ class TFTestCase(unittest.TestCase):
             msg="Parameters are equal.",
         )
 
+    def randomize_param_values(self, network):
+        for v in network.get_params():
+            self.sess.run(
+                v.assign(np.random.rand(*v.get_shape()))
+            )

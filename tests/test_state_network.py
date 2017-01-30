@@ -74,7 +74,9 @@ class TestStateNetwork(TFTestCase):
                                output_dim=output_dim)
         self.sess.run(tf.global_variables_initializer())
         net2_observation_input = tf.placeholder(tf.float32, [None, obs_dim])
-        net2 = net1.get_weight_tied_copy(net2_observation_input)
+        net2 = net1.get_weight_tied_copy(
+            observation_input=net2_observation_input
+        )
 
         params1 = net1.get_params_internal()
         params2 = net2.get_params_internal()
@@ -222,6 +224,12 @@ class TestStateActionNetwork(TFTestCase):
             net2.action_input: a,
             net2.observation_input: o,
         }
+
+        out1 = self.sess.run(net1.output, feed_1)
+        out2 = self.sess.run(net2.output, feed_2)
+        self.assertTrue((out1 == out2).all())
+
+        self.randomize_param_values(net1)
 
         out1 = self.sess.run(net1.output, feed_1)
         out2 = self.sess.run(net2.output, feed_2)

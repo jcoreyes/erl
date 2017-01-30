@@ -2,13 +2,17 @@
 :author: Vitchyr Pong
 """
 from collections import OrderedDict
+from typing import List
 
 import numpy as np
 import tensorflow as tf
 
+from railrl.core.neuralnet import NeuralNetwork
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import split_paths
 from railrl.algos.online_algorithm import OnlineAlgorithm
+from railrl.policies.nn_policy import NNPolicy
+from railrl.qfunctions.nn_qfunction import NNQFunction
 from rllab.misc import logger
 from rllab.misc import special
 from rllab.misc.overrides import overrides
@@ -25,8 +29,8 @@ class DDPG(OnlineAlgorithm):
             self,
             env,
             exploration_strategy,
-            policy,
-            qf,
+            policy: NNPolicy,
+            qf: NNQFunction,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
             qf_weight_decay=0.,
@@ -126,13 +130,22 @@ class DDPG(OnlineAlgorithm):
         self.target_policy.set_param_values(self.policy.get_param_values())
 
     @overrides
+    @property
+    def _networks(self) -> List[NeuralNetwork]:
+        return [self.policy, self.qf, self.target_policy, self.target_qf]
+
+    @overrides
     def _get_training_ops(self):
-        return [
+        ops = [
             self.train_policy_op,
             self.train_qf_op,
             self.update_target_qf_op,
             self.update_target_policy_op,
         ]
+        if self._batch_norm:
+            ops += self.qf.batch_norm_update_stats_op
+            ops += self.policy.batch_norm_update_stats_op
+        return ops
 
     @overrides
     def _update_feed_dict(self, rewards, terminals, obs, actions, next_obs):

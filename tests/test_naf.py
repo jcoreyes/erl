@@ -49,7 +49,7 @@ class TestNAF(TFTestCase):
         )
         qf = algo.qf
         af = qf.advantage_function
-        L_param_gen = af.L_params
+        L_param_gen = af._L_computer
         L = af.L
         last_bs = L_param_gen.get_params_internal()[-1]
         grads_ops = tf.gradients(af.output, last_bs)

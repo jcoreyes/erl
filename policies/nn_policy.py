@@ -1,10 +1,10 @@
 import abc
 
 import tensorflow as tf
-from railrl.misc.rllab_util import get_action_dim
-from railrl.predictors.state_network import StateNetwork
 
 from railrl.core.tf_util import he_uniform_initializer, mlp, linear
+from railrl.misc.rllab_util import get_action_dim
+from railrl.predictors.state_network import StateNetwork
 from rllab.policies.base import Policy
 
 
@@ -52,22 +52,31 @@ class FeedForwardPolicy(NNPolicy):
             -3e-3, 3e-3)
         self.hidden_nonlinearity = hidden_nonlinearity
         self.output_nonlinearity = output_nonlinearity
-        super(FeedForwardPolicy, self).__init__(name_or_scope=name_or_scope,
-                                                **kwargs)
+        super().__init__(name_or_scope=name_or_scope, **kwargs)
 
-    def _create_network(self, observation_input):
-        observation_output = mlp(
-            observation_input,
-            self.observation_dim,
-            self.observation_hidden_sizes,
-            self.hidden_nonlinearity,
-            W_initializer=self.hidden_W_init,
-            b_initializer=self.hidden_b_init,
-        )
-        return self.output_nonlinearity(linear(
+    def _create_network_internal(self, observation_input=None):
+        assert observation_input is not None
+        observation_input = self._process_layer(observation_input,
+                                                scope_name="observation_input")
+        with tf.variable_scope("mlp"):
+            observation_output = mlp(
+                observation_input,
+                self.observation_dim,
+                self.observation_hidden_sizes,
+                self.hidden_nonlinearity,
+                W_initializer=self.hidden_W_init,
+                b_initializer=self.hidden_b_init,
+                pre_nonlin_lambda=self._process_layer,
+            )
+        observation_output = self._process_layer(
             observation_output,
-            self.observation_hidden_sizes[-1],
-            self.output_dim,
-            W_initializer=self.output_W_init,
-            b_initializer=self.output_b_init,
-        ))
+            scope_name="output_preactivations",
+        )
+        with tf.variable_scope("output"):
+            return self.output_nonlinearity(linear(
+                observation_output,
+                self.observation_hidden_sizes[-1],
+                self.output_dim,
+                W_initializer=self.output_W_init,
+                b_initializer=self.output_b_init,
+            ))
