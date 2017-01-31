@@ -1,20 +1,16 @@
-"""Test different rl algorithms."""
+"""Test different rl algorithms for preparing to submit to ICML 2017."""
 import argparse
 import copy
 
 import tensorflow as tf
 
+from railrl.launchers.rnn_launchers import (
+    bptt_launcher,
+)
 from railrl.launchers.algo_launchers import (
     my_ddpg_launcher,
     naf_launcher,
     random_action_launcher,
-    shane_ddpg_launcher,
-    rllab_vpg_launcher,
-    rllab_trpo_launcher,
-    rllab_ddpg_launcher,
-    quadratic_ddpg_launcher,
-    run_experiment,
-    oat_qddpg_launcher,
 )
 from railrl.launchers.launcher_util import get_env_settings, run_experiment
 from railrl.misc import hyperparameter as hp
@@ -91,54 +87,6 @@ def get_launch_settings_list_from_args(args):
                     output_nonlinearity=tf.nn.tanh,
                 )
             }
-        elif algo_name == 'shane-ddpg':
-            sweeper = hp.RandomHyperparameterSweeper([
-                hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
-                hp.LogFloatParam("scale_reward", 10.0, 0.01),
-                hp.LogFloatParam("qf_weight_decay", 1e-7, 1e-1),
-            ])
-            algo_params = get_ddpg_params()
-            if algo_params['min_pool_size'] <= algo_params['batch_size']:
-                algo_params['min_pool_size'] = algo_params['batch_size'] + 1
-            algorithm_launcher = shane_ddpg_launcher
-            variant = {'Algorithm': 'Shane-DDPG', 'policy_params': dict(
-                hidden_sizes=(100, 100),
-                hidden_nonlinearity=tf.nn.relu,
-                output_nonlinearity=tf.nn.tanh,
-            ), 'qf_params': dict(
-                hidden_sizes=(100, 100)
-            )}
-        elif algo_name == 'qddpg':
-            sweeper = hp.RandomHyperparameterSweeper([
-                hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
-                hp.LogFloatParam("scale_reward", 10.0, 0.01),
-                hp.LogFloatParam("qf_weight_decay", 1e-7, 1e-1),
-                hp.LogFloatParam("qf_learning_rate", 1e-6, 1e-2),
-                hp.LogFloatParam("policy_learning_rate", 1e-6, 1e-2),
-            ])
-            algo_params = get_ddpg_params()
-            algorithm_launcher = quadratic_ddpg_launcher
-            variant = {
-                'Algorithm': 'QuadraticDDPG',
-                'qf_params': dict(),
-                'policy_params': dict(
-                    observation_hidden_sizes=(100, 100),
-                    hidden_nonlinearity=tf.nn.relu,
-                    output_nonlinearity=tf.nn.tanh,
-                )
-            }
-        elif algo_name == 'oat':
-            algo_params = get_ddpg_params()
-            algorithm_launcher = oat_qddpg_launcher
-            variant = {
-                'Algorithm': 'QuadraticOptimalActionTargetDDPG',
-                'qf_params': dict(),
-                'policy_params': dict(
-                    observation_hidden_sizes=(100, 100),
-                    hidden_nonlinearity=tf.nn.relu,
-                    output_nonlinearity=tf.nn.tanh,
-                )
-            }
         elif algo_name == 'naf':
             sweeper = hp.RandomHyperparameterSweeper([
                 hp.LogFloatParam("qf_learning_rate", 1e-5, 1e-2),
@@ -158,36 +106,9 @@ def get_launch_settings_list_from_args(args):
         elif algo_name == 'random':
             algorithm_launcher = random_action_launcher
             variant = {'Algorithm': 'Random'}
-        elif algo_name == 'rl-vpg':
-            algorithm_launcher = rllab_vpg_launcher
-            algo_params = dict(
-                batch_size=BATCH_SIZE,
-                max_path_length=MAX_PATH_LENGTH,
-                n_itr=N_EPOCHS,
-                discount=DISCOUNT,
-                optimizer_args=dict(
-                    tf_optimizer_args=dict(
-                        learning_rate=BATCH_LEARNING_RATE,
-                    )
-                ),
-            )
-            variant = {'Algorithm': 'rllab-VPG'}
-        elif algo_name == 'rl-trpo':
-            algorithm_launcher = rllab_trpo_launcher
-            algo_params = dict(
-                batch_size=BATCH_SIZE,
-                max_path_length=MAX_PATH_LENGTH,
-                n_itr=N_EPOCHS,
-                discount=DISCOUNT,
-                step_size=BATCH_LEARNING_RATE,
-            )
-            variant = {'Algorithm': 'rllab-TRPO'}
-        elif algo_name == 'rl-ddpg':
-            algorithm_launcher = rllab_ddpg_launcher
-            algo_params = get_ddpg_params()
-            if algo_params['min_pool_size'] <= algo_params['batch_size']:
-                algo_params['min_pool_size'] = algo_params['batch_size'] + 1
-            variant = {'Algorithm': 'rllab-DDPG'}
+        elif algo_name == 'bptt':
+            algorithm_launcher = bptt_launcher
+            variant = {'Algorithm': 'BPTT'}
         else:
             raise Exception("Algo name not recognized: " + algo_name)
 
@@ -330,7 +251,7 @@ def get_env_params_list_from_args(args):
                 gym_name=gym_name,
             )
             for gym_name in args.gym
-        ]
+            ]
 
     return envs_params_list + [dict(
         env_id=env,
@@ -340,9 +261,8 @@ def get_env_params_list_from_args(args):
 
 
 def main():
-    env_choices = ['ant', 'cheetah', 'cart', 'point', 'reacher', 'idp', 'gym']
-    algo_choices = ['ddpg', 'naf', 'shane-ddpg', 'random',
-                    'rl-vpg', 'rl-trpo', 'rl-ddpg', 'qddpg', 'oat']
+    env_choices = ['ocm']
+    algo_choices = ['ddpg', 'naf', 'bptt', 'random']
     mode_choices = ['local', 'local_docker', 'ec2']
     parser = argparse.ArgumentParser()
     parser.add_argument("--sweep", action='store_true',
@@ -350,7 +270,7 @@ def main():
     parser.add_argument("--render", action='store_true',
                         help="Render the environment.")
     parser.add_argument("--env",
-                        default=['cart'],
+                        default=['ocm'],
                         help="Environment to test. If env is 'gym' then you "
                              "must pass in argument to the '--gym' option.",
                         nargs='+',
@@ -368,7 +288,7 @@ def main():
     parser.add_argument("--nonorm", action='store_true',
                         help="Normalize the environment")
     parser.add_argument("--algo",
-                        default=['ddpg'],
+                        default=['bptt'],
                         help='Algorithm to run.',
                         nargs='+',
                         choices=algo_choices)

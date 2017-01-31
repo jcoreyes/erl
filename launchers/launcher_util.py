@@ -9,6 +9,8 @@ from rllab.envs.normalized_env import normalize
 
 # Although this import looks like it does nothing, but this is needed to use
 # the envs in this package, because this call will register the environments.
+from rllab.misc import logger
+from rllab.misc.instrument import run_experiment_lite
 
 
 def get_env_settings(env_id="", normalize_env=True, gym_name="",
@@ -54,3 +56,42 @@ def get_env_settings(env_id="", normalize_env=True, gym_name="",
     )
 
 
+def run_experiment(
+        task,
+        exp_prefix,
+        seed,
+        variant,
+        time=True,
+        save_profile=False,
+        profile_file='time_log.prof',
+        **kwargs):
+    """
+
+    :param task:
+    :param exp_prefix:
+    :param seed:
+    :param variant:
+    :param time: Add a "time" command to the python command?
+    :param save_profile: Create a cProfile log?
+    :param kwargs:
+    :return:
+    """
+    variant['seed'] = str(seed)
+    logger.log("Variant:")
+    logger.log(str(variant))
+    command_words = []
+    if time:
+        command_words.append('time')
+    command_words.append('python')
+    if save_profile:
+        command_words += ['-m cProfile -o', profile_file]
+    run_experiment_lite(
+        task,
+        snapshot_mode="last",
+        exp_prefix=exp_prefix,
+        variant=variant,
+        seed=seed,
+        use_cloudpickle=True,
+        python_command=' '.join(command_words),
+        **kwargs
+    )
