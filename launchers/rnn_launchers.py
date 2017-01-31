@@ -2,7 +2,7 @@
 Various launchers for recurrent algorithms.
 """
 
-def lstm_launcher(variant):
+def bptt_launcher(variant):
     """
     Run a simple LSTM on an environment.
 
