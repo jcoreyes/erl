@@ -1,8 +1,6 @@
 """
 This file contains classic RL launchers. See module docstring for more detail.
 """
-from rllab.misc import logger
-from rllab.misc.instrument import run_experiment_lite
 
 
 #################
@@ -339,42 +337,3 @@ def random_action_launcher(variant):
     algorithm.train()
 
 
-def run_experiment(
-        task,
-        exp_prefix,
-        seed,
-        variant,
-        time=True,
-        save_profile=False,
-        profile_file='time_log.prof',
-        **kwargs):
-    """
-
-    :param task:
-    :param exp_prefix:
-    :param seed:
-    :param variant:
-    :param time: Add a "time" command to the python command?
-    :param save_profile: Create a cProfile log?
-    :param kwargs:
-    :return:
-    """
-    variant['seed'] = str(seed)
-    logger.log("Variant:")
-    logger.log(str(variant))
-    command_words = []
-    if time:
-        command_words.append('time')
-    command_words.append('python')
-    if save_profile:
-        command_words += ['-m cProfile -o', profile_file]
-    run_experiment_lite(
-        task,
-        snapshot_mode="last",
-        exp_prefix=exp_prefix,
-        variant=variant,
-        seed=seed,
-        use_cloudpickle=True,
-        python_command=' '.join(command_words),
-        **kwargs
-    )

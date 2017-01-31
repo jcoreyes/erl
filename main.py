@@ -16,7 +16,7 @@ from railrl.launchers.algo_launchers import (
     run_experiment,
     oat_qddpg_launcher,
 )
-from railrl.launchers.launcher_util import get_env_settings
+from railrl.launchers.launcher_util import get_env_settings, run_experiment
 from railrl.misc import hyperparameter as hp
 
 BATCH_SIZE = 128
