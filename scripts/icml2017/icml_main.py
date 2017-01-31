@@ -270,7 +270,7 @@ def main():
     parser.add_argument("--render", action='store_true',
                         help="Render the environment.")
     parser.add_argument("--env",
-                        default=['cart'],
+                        default=['ocm'],
                         help="Environment to test. If env is 'gym' then you "
                              "must pass in argument to the '--gym' option.",
                         nargs='+',
@@ -288,7 +288,7 @@ def main():
     parser.add_argument("--nonorm", action='store_true',
                         help="Normalize the environment")
     parser.add_argument("--algo",
-                        default=['ddpg'],
+                        default=['bptt'],
                         help='Algorithm to run.',
                         nargs='+',
                         choices=algo_choices)
