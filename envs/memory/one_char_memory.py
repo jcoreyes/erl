@@ -1,9 +1,11 @@
 import numpy as np
+from sklearn.metrics import log_loss
 from random import randint
 from rllab.envs.base import Env
 from rllab.misc import special2 as special
-from railrl.spaces.onehot import OneHot
+from rllab.spaces.box import Box
 from railrl.envs.supervised_learning_env import SupervisedLearningEnv
+from cached_property import cached_property
 
 
 class OneCharMemory(Env, SupervisedLearningEnv):
@@ -11,8 +13,11 @@ class OneCharMemory(Env, SupervisedLearningEnv):
     A simple env whose output is a value `X` the first time step, followed by a
     fixed number of zeros.
 
-    The reward is 1 for all steps if the agent outputs zero except at the end,
-    where the agent gets a large reward if `X` is returned correctly.
+    The reward is the negative cross-entropy loss between the one-hot vector
+    corresponding to the target value and the actual action outputted. For
+    all values, the target value is 0 except the the last, in which case the
+    target value is `X`. Furthermore, the reward for the iteration is
+    multiplied by `reward_for_remember`.
 
     Both the actions and observations are represented as one-hot vectors.
     There are `n` different values that `X` can take on (excluding 0),
@@ -28,32 +33,39 @@ class OneCharMemory(Env, SupervisedLearningEnv):
         super().__init__()
         self.num_steps = num_steps
         self.n = n
-        self._action_space = OneHot(self.n + 1)
-        self._observation_space = OneHot(self.n + 1)
+        self._onehot_size = n + 1
+        self._action_space = Box(
+            np.zeros(self._onehot_size),
+            np.ones(self._onehot_size)
+        )
+        self._observation_space = self._action_space
         self._t = 1
         self._reward_for_remembering = reward_for_remembering
 
-        self._target = None
-        self._next_obs = None
+        self._target_number = None
+        self._next_obs_number = None
 
     def step(self, action):
         # flatten = to one hot...not sure why it was given that name.
         observation = self._get_next_observation()
-        self._next_obs = 0
+        self._next_obs_number = 0
 
         done = self._t == self.num_steps
         self._t += 1
 
         if done:
-            reward = self._reward_for_remembering * int(
-                self._observation_space.from_onehot(action) == self._target
-            )
+            reward = -(log_loss(self._get_target_onehot(), action) *
+                       self._reward_for_remembering)
         else:
-            reward = int(
-                self._observation_space.from_onehot(action) == 0
-            )
+            reward = -log_loss(self.zero, action)
         info = {'target': self.n}
         return observation, reward, done, info
+
+    @cached_property
+    def zero(self):
+        z = np.zeros(self._onehot_size)
+        z[0] = 1
+        return z
 
     @property
     def action_space(self):
@@ -64,13 +76,16 @@ class OneCharMemory(Env, SupervisedLearningEnv):
         return self.num_steps
 
     def reset(self):
-        self._target = randint(1, self.n)
-        self._next_obs = self._target
+        self._target_number = randint(1, self.n)
+        self._next_obs_number = self._target_number
         self._t = 1
         return self._get_next_observation()
 
     def _get_next_observation(self):
-        return self._observation_space.to_onehot(self._next_obs)
+        return special.to_onehot(self._next_obs_number, self._onehot_size)
+
+    def _get_target_onehot(self):
+        return special.to_onehot(self._target_number, self._onehot_size)
 
     @property
     def observation_space(self):
