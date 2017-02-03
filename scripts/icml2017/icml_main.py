@@ -45,7 +45,7 @@ FAST_EVAL_SAMPLES = 3
 FAST_MIN_POOL_SIZE = 5
 FAST_MAX_PATH_LENGTH = 5
 
-NUM_SEEDS_PER_CONFIG = 3
+NUM_SEEDS_PER_CONFIG = 1
 NUM_HYPERPARAMETER_CONFIGS = 50
 
 
@@ -280,12 +280,12 @@ def main():
                         help="Gym environment name (e.g. Cartpole-V1) to test. "
                              "Must pass 'gym' to the '--env' option to use "
                              "this.")
-    parser.add_argument("--name", default='default',
+    parser.add_argument("--name", default='default-icml2017',
                         help='Experiment prefix')
     parser.add_argument("--fast", action='store_true',
                         help=('Run a quick experiment. Intended for debugging. '
                               'Overrides sweep settings'))
-    parser.add_argument("--nonorm", action='store_true',
+    parser.add_argument("--normalize", action='store_true',
                         help="Normalize the environment")
     parser.add_argument("--algo",
                         default=['bptt'],
@@ -310,7 +310,6 @@ def main():
                         help="Where to save .prof file output of cProfiler. "
                              "If set, --profile is forced to be true.")
     args = parser.parse_args()
-    args.normalize = not args.nonorm
     args.time = not args.notime
 
     global N_EPOCHS, EPOCH_LENGTH, EVAL_SAMPLES, MIN_POOL_SIZE

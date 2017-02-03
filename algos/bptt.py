@@ -21,14 +21,14 @@ class Bptt(RLAlgorithm):
             num_epochs=1000,
             learning_rate=1e-3,
             batch_size=32,
-            eval_batch_size=128,
+            eval_num_batches=4,
             lstm_state_size=10,
     ):
         self._num_batches_per_epoch = num_batches_per_epoch
         self._num_epochs = num_epochs
         self._learning_rate = learning_rate
         self._batch_size = batch_size
-        self._eval_batch_size = eval_batch_size
+        self._eval_num_batches = eval_num_batches
         self._state_size = lstm_state_size
         self._env = env
         self._num_classes = env.feature_dim
@@ -38,7 +38,9 @@ class Bptt(RLAlgorithm):
 
     @overrides
     def train(self):
+        start_time = time.time()
         self._init_ops()
+        logger.log("Graph creation time: {0}".format(time.time() - start_time))
         for epoch in range(self._num_epochs):
             logger.push_prefix('Epoch #%d | ' % epoch)
 
@@ -49,14 +51,14 @@ class Bptt(RLAlgorithm):
             logger.log("Training time: {0}".format(time.time() - start_time))
 
             start_time = time.time()
-            X, Y = self._env.get_batch(self._eval_batch_size)
-            self._eval(X, Y, epoch)
+            self._eval(epoch)
             logger.pop_prefix()
             logger.log("Eval time: {0}".format(time.time() - start_time))
 
     def _init_ops(self):
         self._sess = tf.get_default_session() or tf.Session()
         self._init_network()
+        self._sess.run(tf.global_variables_initializer())
 
     def _init_network(self):
         """
@@ -74,29 +76,18 @@ class Bptt(RLAlgorithm):
             [self._batch_size, self._num_steps, self._num_classes],
             name='labels_placeholder',
         )
-        self._init_state = tf.zeros([self._batch_size, self._state_size])
 
-        """
-        Inputs/outputs
-        """
+        rnn_inputs = tf.unpack(tf.cast(self._x, tf.float32), axis=1)
+        labels = tf.unpack(tf.cast(self._y, tf.float32), axis=1)
 
-        rnn_inputs = tf.unpack(self._x, axis=1)
-        rnn_targets = tf.unpack(self._y, axis=1)
-
-        """
-        RNN
-        """
-
-        cell = tf.nn.rnn_cell.LSTMCell(self._state_size)
+        cell = tf.nn.rnn_cell.LSTMCell(self._state_size, state_is_tuple=True)
+        init_state = cell.zero_state(self._batch_size, tf.float32)
         rnn_outputs, self._final_state = tf.nn.rnn(
             cell,
             rnn_inputs,
-            initial_state=self._init_state,
+            initial_state=init_state,
         )
-
-        """
-        Predictions, loss, training step
-        """
+        self._c_init_state, self._m_init_state = init_state
 
         with tf.variable_scope('softmax'):
             W = tf.get_variable('W', [self._state_size, self._num_classes])
@@ -105,19 +96,15 @@ class Bptt(RLAlgorithm):
         logits = [tf.matmul(rnn_output, W) + b for rnn_output in rnn_outputs]
         self._predictions = [tf.nn.softmax(logit) for logit in logits]
 
-        # weight all losses equally
-        loss_weights = [tf.ones([self._batch_size]) for _ in
-                        range(self._num_steps)]
-        losses = tf.nn.seq2seq.sequence_loss_by_example(logits,
-                                                        rnn_targets,
-                                                        loss_weights)
-        self._total_loss = tf.reduce_mean(losses)
+        self._total_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits,
+                                                                   labels)
         self._train_step = tf.train.AdamOptimizer(
             self._learning_rate).minimize(
             self._total_loss)
 
     def _bptt_train(self, X, Y):
-        init_state = np.zeros((self._batch_size, self._state_size))
+        c_init_state = np.zeros((self._batch_size, self._state_size))
+        m_init_state = np.zeros((self._batch_size, self._state_size))
         training_loss_, _ = self._sess.run(
             [
                 self._total_loss,
@@ -126,20 +113,31 @@ class Bptt(RLAlgorithm):
             feed_dict={
                 self._x: X,
                 self._y: Y,
-                self._init_state: init_state,
+                self._c_init_state: c_init_state,
+                self._m_init_state: m_init_state,
             },
         )
         self._training_losses.append(training_loss_)
 
-    def _eval(self, X, Y, epoch):
-        init_state = np.zeros((self._batch_size, self._state_size))
-        eval_loss, _ = self._sess.run(
-            self._total_loss,
-            feed_dict={
-                self._x: X,
-                self._y: Y,
-                self._init_state: init_state,
-            },
+    def _eval(self, epoch):
+
+        # Create a tuple for c_state and m_state
+        def sample_eval_loss():
+            X, Y = self._env.get_batch(self._batch_size)
+            c_init_state = np.zeros((self._batch_size, self._state_size))
+            m_init_state = np.zeros((self._batch_size, self._state_size))
+            return self._sess.run(
+                self._total_loss,
+                feed_dict={
+                    self._x: X,
+                    self._y: Y,
+                    self._c_init_state: c_init_state,
+                    self._m_init_state: m_init_state,
+                },
+            )
+
+        eval_loss = np.mean(
+            [sample_eval_loss() for _ in range(self._eval_num_batches)]
         )
         last_statistics = OrderedDict([
             ('Epoch', epoch),
