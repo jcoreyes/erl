@@ -22,7 +22,7 @@ class TestNeuralNetwork(TFTestCase):
         )
         return unique_names
 
-    def test_get_params(self):
+    def test_get_params_internal(self):
         in_size = 5
         out_size = 1
         W_name = "w"
@@ -38,7 +38,7 @@ class TestNeuralNetwork(TFTestCase):
             b_name=b_name,
         )
 
-        all_vars = perceptron.get_params()
+        all_vars = perceptron.get_params_internal()
         names = self.var_names(all_vars)
 
         expected_names = {
@@ -63,7 +63,7 @@ class TestNeuralNetwork(TFTestCase):
             b_name=b_name,
         )
 
-        all_vars = perceptron.get_params(regularizable=True)
+        all_vars = perceptron.get_params_internal(regularizable=True)
         names = self.var_names(all_vars)
 
         expected_names = {
@@ -87,7 +87,7 @@ class TestNeuralNetwork(TFTestCase):
             b_name=b_name,
         )
 
-        all_vars = perceptron.get_params(regularizable=False)
+        all_vars = perceptron.get_params_internal(regularizable=False)
         names = self.var_names(all_vars)
 
         expected_names = {
