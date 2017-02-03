@@ -13,15 +13,16 @@ class OneCharMemory(Env, SupervisedLearningEnv):
     A simple env whose output is a value `X` the first time step, followed by a
     fixed number of zeros.
 
-    The reward is the negative cross-entropy loss between the one-hot vector
-    corresponding to the target value and the actual action outputted. For
-    all values, the target value is 0 except the the last, in which case the
-    target value is `X`. Furthermore, the reward for the iteration is
-    multiplied by `reward_for_remember`.
+    The goal of the agent is to output zero for all time steps, and then
+    output `X` in the last time step.
 
-    Both the actions and observations are represented as one-hot vectors.
+    Both the actions and observations are represented as probability vectors.
     There are `n` different values that `X` can take on (excluding 0),
-    so the one-hot vector's dimension is n+1.
+    so the probability vector's dimension is n+1.
+
+    The reward is the negative cross-entropy loss between the target one-hot
+    vector and the probability vector outputted by the agent. Furthermore, the
+    reward for the last time step is multiplied by `reward_for_remember`.
     """
 
     def __init__(self, n=4, num_steps=100, reward_for_remembering=1000):
