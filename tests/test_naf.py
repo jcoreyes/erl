@@ -137,37 +137,6 @@ class TestNAF(TFTestCase):
         algo.sess.run(algo.update_target_vf_op)
         self.assertParamsNotEqual(target_vf, vf)
 
-    def test_policy_params_updated(self):
-        tau = 0.2
-        algo = NAF(
-            self.env,
-            self.es,
-            QuadraticNAF(name_or_scope='qf', env_spec=self.env.spec),
-            n_epochs=1,
-            epoch_length=3,
-            soft_target_tau=tau,
-            min_pool_size=2,
-            eval_samples=0,
-            max_path_length=5,
-        )
-        policy = algo.policy
-        old_policy_values = policy.get_param_values()
-        algo.train()
-        new_policy_values = policy.get_param_values()
-
-        self.assertNpArraysNotEqual(old_policy_values, new_policy_values)
-
-
-class TestNormalizedAdvantageFunction(TFTestCase):
-    """
-    Test Q function used for NAF algorithm.
-    """
-
-    def setUp(self):
-        super().setUp()
-        self.env = TfEnv(CartpoleEnv())
-        self.es = OUStrategy(env_spec=self.env.spec)
-
     def test_policy_params_are_in_q_params(self):
         algo = NAF(
             self.env,
@@ -179,7 +148,6 @@ class TestNormalizedAdvantageFunction(TFTestCase):
         qf = algo.qf
 
         qf_params = qf.get_params_internal()
-        policy_params = policy.get_params_internal()
         for param in policy.get_params_internal():
             self.assertTrue(param in qf_params)
 

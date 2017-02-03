@@ -538,26 +538,6 @@ class TestDDPG(TFTestCase):
             are_np_array_iterables_equal(actual_loss_grads, expected)
         )
 
-    def test_qf_copy_values_are_same(self):
-        algo = DDPG(
-            self.env,
-            self.es,
-            self.sum_policy,
-            self.sum_critic,
-            n_epochs=3,
-            epoch_length=10,
-            eval_samples=10,  # Ignore eval. Just do this to remove warnings.
-            min_pool_size=2,
-        )
-        qf = algo.qf
-        qf_copy = algo.qf_with_action_input
-        old_params = qf.get_param_values()
-        self.assertParamsEqual(qf_copy, qf)
-        algo.train()
-        self.assertParamsEqual(qf_copy, qf)
-        self.assertFalse(are_np_array_iterables_equal(old_params,
-                                                      qf.get_param_values()))
-
     def test_only_qf_values_change(self):
         discount = 0.5
         algo = DDPG(

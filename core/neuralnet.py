@@ -12,10 +12,6 @@ _TRAINING_OUTPUT_MODE = "training_output_mode"
 _EVAL_OUTPUT_MODE = "eval_output_mode"
 
 
-def negate(function):
-    return lambda x: not function(x)
-
-
 class NeuralNetwork(Parameterized, Serializable):
     """
     Any neural network.
@@ -282,13 +278,6 @@ class NeuralNetwork(Parameterized, Serializable):
         )
 
     def setup_serialization(self, init_locals):
-        # TODO(vpong): fix this
-        # Serializable.quick_init_for_clone(self, init_locals)
-        # init_locals_copy = dict(init_locals.items())
-        # if 'kwargs' in init_locals:
-        #     init_locals_copy['kwargs'].pop('action_input', None)
-        #     init_locals_copy['kwargs'].pop('observation_input', None)
-        # Serializable.quick_init(self, init_locals_copy)
         Serializable.quick_init(self, init_locals)
 
     @property
