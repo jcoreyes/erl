@@ -2,7 +2,7 @@ import numpy as np
 from random import randint
 from rllab.envs.base import Env
 from rllab.misc import special2 as special
-from rllab.spaces.discrete import Discrete
+from railrl.spaces.onehot import OneHot
 from railrl.envs.supervised_learning_env import SupervisedLearningEnv
 
 
@@ -28,8 +28,8 @@ class OneCharMemory(Env, SupervisedLearningEnv):
         super().__init__()
         self.num_steps = num_steps
         self.n = n
-        self._action_space = Discrete(self.n + 1)
-        self._observation_space = Discrete(self.n + 1)
+        self._action_space = OneHot(self.n + 1)
+        self._observation_space = OneHot(self.n + 1)
         self._t = 1
         self._reward_for_remembering = reward_for_remembering
 
@@ -46,11 +46,11 @@ class OneCharMemory(Env, SupervisedLearningEnv):
 
         if done:
             reward = self._reward_for_remembering * int(
-                self._observation_space.unflatten(action) == self._target
+                self._observation_space.from_onehot(action) == self._target
             )
         else:
             reward = int(
-                self._observation_space.unflatten(action) == 0
+                self._observation_space.from_onehot(action) == 0
             )
         info = {'target': self.n}
         return observation, reward, done, info
@@ -70,7 +70,7 @@ class OneCharMemory(Env, SupervisedLearningEnv):
         return self._get_next_observation()
 
     def _get_next_observation(self):
-        return self._observation_space.flatten(self._next_obs)
+        return self._observation_space.to_onehot(self._next_obs)
 
     @property
     def observation_space(self):
