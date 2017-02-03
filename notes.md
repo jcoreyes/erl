@@ -1,13 +1,10 @@
 # TODOs
  - TODO's in code
  - Make the network init stuff its own class/namedtuple
- - add batch normalization
  - Perform/set up mechanism for ablation tests
  - Make a load_policy method
  - Organize the misc folder
  - See TODO in test_tensorflow.py
- - Delete old launchers
- - Update calls to `tf.init...` since it's being deprecated
 
 # Notes
 These notes are really for myself (vpong), so they're probably meaningless to anyone else.
