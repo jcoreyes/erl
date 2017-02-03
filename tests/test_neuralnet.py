@@ -22,7 +22,7 @@ class TestNeuralNetwork(TFTestCase):
         )
         return unique_names
 
-    def test_get_params(self):
+    def test_get_params_internal(self):
         in_size = 5
         out_size = 1
         W_name = "w"
@@ -38,7 +38,7 @@ class TestNeuralNetwork(TFTestCase):
             b_name=b_name,
         )
 
-        all_vars = perceptron.get_params()
+        all_vars = perceptron.get_params_internal()
         names = self.var_names(all_vars)
 
         expected_names = {
@@ -63,7 +63,7 @@ class TestNeuralNetwork(TFTestCase):
             b_name=b_name,
         )
 
-        all_vars = perceptron.get_params(regularizable=True)
+        all_vars = perceptron.get_params_internal(regularizable=True)
         names = self.var_names(all_vars)
 
         expected_names = {
@@ -87,7 +87,7 @@ class TestNeuralNetwork(TFTestCase):
             b_name=b_name,
         )
 
-        all_vars = perceptron.get_params(regularizable=False)
+        all_vars = perceptron.get_params_internal(regularizable=False)
         names = self.var_names(all_vars)
 
         expected_names = {
@@ -345,6 +345,79 @@ class TestNeuralNetwork(TFTestCase):
         self.assertEqual(6, len(list(mmlp._iter_sub_networks())))
         self.assertEqual(6, len(set(n.full_scope_name for n
                                 in mmlp._iter_sub_networks())))
+
+    def test_copy(self):
+        in_size = 3
+        out_size = 3
+        x = tf.placeholder(tf.float32, [None, in_size])
+        net1 = Perceptron(
+            name_or_scope="p1",
+            input_tensor=x,
+            input_size=in_size,
+            output_size=out_size,
+        )
+
+        self.sess.run(tf.global_variables_initializer())
+
+        net2 = net1.get_copy(name_or_scope="p2")
+        input_value = np.random.rand(1, in_size)
+
+        feed = {
+            x: input_value,
+        }
+
+        self.sess.run(tf.global_variables_initializer())
+
+        out1 = self.sess.run(net1.output, feed)
+        out2 = self.sess.run(net2.output, feed)
+        self.assertNpArraysNotAlmostEqual(out1, out2)
+
+        net2.set_param_values(net1.get_param_values())
+        out1 = self.sess.run(net1.output, feed)
+        out2 = self.sess.run(net2.output, feed)
+        self.assertNpArraysAlmostEqual(out1, out2)
+
+    def test_get_weight_tied_copy(self):
+        in_size = 3
+        out_size = 3
+        net1_input = tf.placeholder(tf.float32, [None, in_size])
+        net1 = Perceptron(
+            name_or_scope="p1",
+            input_tensor=net1_input,
+            input_size=in_size,
+            output_size=out_size,
+        )
+
+        self.sess.run(tf.global_variables_initializer())
+
+        net2_input = tf.placeholder(tf.float32, [None, in_size])
+        net2 = net1.get_weight_tied_copy(
+            input_tensor=net2_input,
+        )
+        input_value = np.random.rand(1, in_size)
+
+        feed_1 = {
+            net1_input: input_value,
+        }
+        feed_2 = {
+            net2_input: input_value,
+        }
+
+        out1 = self.sess.run(net1.output, feed_1)
+        out2 = self.sess.run(net2.output, feed_2)
+        self.assertNpArraysAlmostEqual(out1, out2)
+
+        # Output should be the same even after re-initializing parameters
+        self.sess.run(tf.global_variables_initializer())
+
+        out1 = self.sess.run(net1.output, feed_1)
+        out2 = self.sess.run(net2.output, feed_2)
+        self.assertNpArraysAlmostEqual(out1, out2)
+
+        params1 = net1.get_params_internal()
+        params2 = net2.get_params_internal()
+        self.assertEqual(params1, params2)
+
 
 class TestMmlp(NeuralNetwork):
     """
