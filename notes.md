@@ -9,6 +9,10 @@
  - Delete old launchers
  - Update calls to `tf.init...` since it's being deprecated
 
+## ICML
+ - Add a version of DDPG where the policy outputs a distribution over discrete actions
+ - Figure out how I want to create my memory augmented environments from scripts
+
 # Notes
 These notes are really for myself (vpong), so they're probably meaningless to anyone else.
 I just push them so that they're backed up.
