@@ -1,5 +1,6 @@
 from railrl.envs.env_util import gym_env
 from railrl.envs.memory.one_char_memory import OneCharMemory
+from railrl.envs.memory.continuous_memory_augmented import ContinuousMemoryAugmented
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.envs.mujoco.ant_env import AntEnv
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
@@ -13,8 +14,25 @@ from rllab.misc import logger
 from rllab.misc.instrument import run_experiment_lite
 
 
-def get_env_settings(env_id="", normalize_env=True, gym_name="",
-                     env_params=None):
+def get_env_settings(
+        env_id="",
+        normalize_env=True,
+        gym_name="",
+        env_params=None,
+        num_memory_states=0,
+):
+    """
+
+    :param env_id: Env ID. See code for acceptable IDs.
+    :param normalize_env: Boolean. If true, normalize the environment.
+    :param gym_name: Gym environment name if env_id is "gym".
+    :param env_params: Parameters to pass to the environment's constructor.
+    :param num_memory_states: Number of memory states. If positive, then the
+    environment is wrapped in a ContinuousMemoryAugmented env with this many
+    memory states.
+    :return:
+    """
+    assert num_memory_states >= 0
     if env_params is None:
         env_params = {}
 
@@ -49,6 +67,11 @@ def get_env_settings(env_id="", normalize_env=True, gym_name="",
     if normalize_env:
         env = normalize(env)
         name += "-normalized"
+    if num_memory_states > 0:
+        env = ContinuousMemoryAugmented(
+            env,
+            num_memory_states=num_memory_states,
+        )
     return dict(
         env=env,
         name=name,

@@ -150,7 +150,8 @@ class OnlineAlgorithm(RLAlgorithm):
                         self.process_action(action)
                     )
                     # Some envs return a Nx1 vector for the observation
-                    next_ob = next_ob.flatten()
+                    # TODO(vpong): find a cleaner solution
+                    next_ob = next_ob.squeeze()
                     reward = raw_reward * self.scale_reward
                     path_length += 1
                     path_return += reward

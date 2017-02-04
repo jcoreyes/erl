@@ -36,6 +36,8 @@ class ContinuousMemoryAugmented(Env):
         return self._env.horizon
 
     def step(self, action):
+        action = np.squeeze(action)
+        assert len(action.shape) == 1, "action.shape = {}".format(action.shape)
         env_action, memory_state = self.action_space.unflatten(action)
         observation, reward, done, info = self._env.step(env_action)
         return (
@@ -52,3 +54,11 @@ class ContinuousMemoryAugmented(Env):
     @property
     def observation_space(self):
         return self._observation_space
+
+    @property
+    def memory_dim(self):
+        return self._num_memory_states
+
+    @property
+    def wrapped_env(self):
+        return self._env

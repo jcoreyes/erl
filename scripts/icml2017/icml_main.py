@@ -8,6 +8,7 @@ from railrl.launchers.rnn_launchers import (
     bptt_launcher,
 )
 from railrl.launchers.algo_launchers import (
+    mem_ddpg_launcher,
     my_ddpg_launcher,
     naf_launcher,
     random_action_launcher,
@@ -64,7 +65,7 @@ def get_launch_settings_list_from_args(args):
         """
         sweeper = hp.RandomHyperparameterSweeper()
         algo_params = {}
-        if algo_name == 'ddpg':
+        if algo_name == 'ddpg' or algo_name == 'mddpg':
             sweeper = hp.RandomHyperparameterSweeper([
                 hp.LogFloatParam("qf_learning_rate", 1e-5, 1e-2),
                 hp.LogFloatParam("policy_learning_rate", 1e-6, 1e-3),
@@ -73,9 +74,7 @@ def get_launch_settings_list_from_args(args):
             ])
             algo_params = get_ddpg_params()
             algo_params['render'] = render
-            algorithm_launcher = my_ddpg_launcher
             variant = {
-                'Algorithm': 'DDPG',
                 'qf_params': dict(
                     embedded_hidden_sizes=(100,),
                     observation_hidden_sizes=(100,),
@@ -84,9 +83,15 @@ def get_launch_settings_list_from_args(args):
                 'policy_params': dict(
                     observation_hidden_sizes=(100, 100),
                     hidden_nonlinearity=tf.nn.relu,
-                    output_nonlinearity=tf.nn.tanh,
                 )
             }
+            if algo_name == 'ddpg':
+                algorithm_launcher = my_ddpg_launcher
+                variant['Algorithm'] = 'DDPG'
+                variant['policy_params']['output_nonlinearity'] = tf.nn.tanh
+            else:
+                algorithm_launcher = mem_ddpg_launcher
+                variant['Algorithm'] = 'Memory-DDPG'
         elif algo_name == 'naf':
             sweeper = hp.RandomHyperparameterSweeper([
                 hp.LogFloatParam("qf_learning_rate", 1e-5, 1e-2),
@@ -243,12 +248,14 @@ def sweep(exp_prefix, env_params, launch_settings_, **kwargs):
 
 def get_env_params_list_from_args(args):
     envs_params_list = []
+    num_memory_states = args.num_memory_states
     if 'gym' in args.env:
         envs_params_list = [
             dict(
                 env_id='gym',
                 normalize_env=args.normalize,
                 gym_name=gym_name,
+                num_memory_states=num_memory_states,
             )
             for gym_name in args.gym
             ]
@@ -257,12 +264,13 @@ def get_env_params_list_from_args(args):
         env_id=env,
         normalize_env=args.normalize,
         gym_name="",
+        num_memory_states=num_memory_states,
     ) for env in args.env if env != 'gym']
 
 
 def main():
-    env_choices = ['ocm']
-    algo_choices = ['ddpg', 'naf', 'bptt', 'random']
+    env_choices = ['ocm', 'cart']
+    algo_choices = ['mddpg', 'ddpg', 'naf', 'bptt', 'random']
     mode_choices = ['local', 'local_docker', 'ec2']
     parser = argparse.ArgumentParser()
     parser.add_argument("--sweep", action='store_true',
@@ -309,6 +317,11 @@ def main():
     parser.add_argument("--profile_file",
                         help="Where to save .prof file output of cProfiler. "
                              "If set, --profile is forced to be true.")
+    parser.add_argument("--num_memory_states", default=0,
+                        type=int,
+                        help='Number of memory states. If positive, '
+                             'the environment is wrapped in a '
+                             'ContinuousMemoryAugmented env')
     args = parser.parse_args()
     args.time = not args.notime
 

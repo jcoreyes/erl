@@ -6,6 +6,63 @@ This file contains classic RL launchers. See module docstring for more detail.
 #################
 # my algorithms #
 #################
+def mem_ddpg_launcher(variant):
+    """
+    Run DDPG with a memory state policy
+    :param variant: Dictionary of dictionary with the following keys:
+        - algo_params
+        - env_params
+        - qf_params
+        - policy_params
+    :return:
+    """
+    from railrl.algos.ddpg import DDPG as MyDDPG
+    from railrl.policies.softmax_memory_policy import SoftmaxMemoryPolicy
+    from railrl.qfunctions.nn_qfunction import FeedForwardCritic
+    from rllab.exploration_strategies.ou_strategy import OUStrategy
+    from railrl.launchers.launcher_util import get_env_settings
+    from railrl.core.tf_util import BatchNormConfig
+    from railrl.envs.memory.continuous_memory_augmented import (
+        ContinuousMemoryAugmented,
+    )
+    from railrl.exploration_strategies.partial_strategy import (
+        PartialStrategy,
+    )
+    if ('batch_norm_params' in variant
+        and variant['batch_norm_params'] is not None):
+        bn_config = BatchNormConfig(**variant['batch_norm_params'])
+    else:
+        bn_config = None
+    env_settings = get_env_settings(**variant['env_params'])
+    env = env_settings['env']
+    assert isinstance(env, ContinuousMemoryAugmented)
+    memory_dim = env.memory_dim
+    env_action_dim = env.wrapped_env.action_space.flat_dim
+    _es = OUStrategy(env_spec=env.wrapped_env.spec)
+    es = PartialStrategy(_es, env.action_space)
+    qf = FeedForwardCritic(
+        name_or_scope="critic",
+        env_spec=env.spec,
+        batch_norm_config=bn_config,
+        **variant.get('qf_params', {})
+    )
+    policy = SoftmaxMemoryPolicy(
+        name_or_scope="actor",
+        memory_dim=memory_dim,
+        env_action_dim=env_action_dim,
+        env_spec=env.spec,
+        batch_norm_config=bn_config,
+        **variant.get('policy_params', {})
+    )
+    algorithm = MyDDPG(
+        env,
+        es,
+        policy,
+        qf,
+        batch_norm_config=bn_config,
+        **variant['algo_params']
+    )
+    algorithm.train()
 
 def my_ddpg_launcher(variant):
     """
