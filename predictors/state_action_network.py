@@ -1,7 +1,10 @@
 import abc
+
 import tensorflow as tf
 
 from railrl.core.neuralnet import NeuralNetwork
+from railrl.core.tf_util import create_placeholder
+from railrl.misc.rllab_util import get_action_dim, get_observation_dim
 from rllab.misc.overrides import overrides
 
 
@@ -38,25 +41,26 @@ class StateActionNetwork(NeuralNetwork, metaclass=abc.ABCMeta):
         super(StateActionNetwork, self).__init__(name_or_scope, **kwargs)
         self.output_dim = output_dim
 
-        assert env_spec or (action_dim and observation_dim)
-        if action_dim is None:
-            self.observation_dim = env_spec.observation_space.flat_dim
-            self.action_dim = env_spec.action_space.flat_dim
-        else:
-            self.action_dim = action_dim
-            self.observation_dim = observation_dim
+        self.action_dim = get_action_dim(
+            env_spec=env_spec,
+            action_dim=action_dim,
+        )
+        self.observation_dim = get_observation_dim(
+            env_spec=env_spec,
+            observation_dim=observation_dim,
+        )
 
         with tf.variable_scope(self.scope_name):
             if action_input is None:
-                action_input = tf.placeholder(
-                    tf.float32,
-                    [None, self.action_dim],
-                    "_actions")
+                action_input = create_placeholder(
+                    self.action_dim,
+                    "action_input",
+                )
             if observation_input is None:
-                observation_input = tf.placeholder(
-                    tf.float32,
-                    [None, self.observation_dim],
-                    "_observation")
+                observation_input = create_placeholder(
+                    self.observation_dim,
+                    "observation_input",
+                )
         self.action_input = action_input
         self.observation_input = observation_input
         self._create_network(observation_input=observation_input,

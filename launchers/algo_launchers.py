@@ -16,9 +16,9 @@ def mem_ddpg_launcher(variant):
         - policy_params
     :return:
     """
-    from railrl.algos.ddpg import DDPG as MyDDPG
+    from railrl.algos.ddpg import DDPG
     from railrl.policies.softmax_memory_policy import SoftmaxMemoryPolicy
-    from railrl.qfunctions.nn_qfunction import FeedForwardCritic
+    from railrl.qfunctions.memory_qfunction import MemoryQFunction
     from rllab.exploration_strategies.ou_strategy import OUStrategy
     from railrl.launchers.launcher_util import get_env_settings
     from railrl.core.tf_util import BatchNormConfig
@@ -40,7 +40,7 @@ def mem_ddpg_launcher(variant):
     env_action_dim = env.wrapped_env.action_space.flat_dim
     _es = OUStrategy(env_spec=env.wrapped_env.spec)
     es = PartialStrategy(_es, env.action_space)
-    qf = FeedForwardCritic(
+    qf = MemoryQFunction(
         name_or_scope="critic",
         env_spec=env.spec,
         batch_norm_config=bn_config,
@@ -54,7 +54,7 @@ def mem_ddpg_launcher(variant):
         batch_norm_config=bn_config,
         **variant.get('policy_params', {})
     )
-    algorithm = MyDDPG(
+    algorithm = DDPG(
         env,
         es,
         policy,
@@ -63,6 +63,7 @@ def mem_ddpg_launcher(variant):
         **variant['algo_params']
     )
     algorithm.train()
+
 
 def my_ddpg_launcher(variant):
     """
@@ -74,7 +75,7 @@ def my_ddpg_launcher(variant):
         - policy_params
     :return:
     """
-    from railrl.algos.ddpg import DDPG as MyDDPG
+    from railrl.algos.ddpg import DDPG
     from railrl.policies.nn_policy import FeedForwardPolicy
     from railrl.qfunctions.nn_qfunction import FeedForwardCritic
     from rllab.exploration_strategies.ou_strategy import OUStrategy
@@ -100,7 +101,7 @@ def my_ddpg_launcher(variant):
         batch_norm_config=bn_config,
         **variant.get('policy_params', {})
     )
-    algorithm = MyDDPG(
+    algorithm = DDPG(
         env,
         es,
         policy,
@@ -162,7 +163,8 @@ def oat_qddpg_launcher(variant):
     """
     Quadratic optimal action target DDPG
     """
-    from railrl.algos.optimal_action_target_ddpg import OptimalActionTargetDDPG as OAT
+    from railrl.algos.optimal_action_target_ddpg import \
+        OptimalActionTargetDDPG as OAT
     from railrl.policies.nn_policy import FeedForwardPolicy
     from railrl.qfunctions.quadratic_naf_qfunction import QuadraticNAF
     from rllab.exploration_strategies.ou_strategy import OUStrategy
@@ -206,7 +208,7 @@ def naf_launcher(variant):
     from railrl.launchers.launcher_util import get_env_settings
     from railrl.core.tf_util import BatchNormConfig
     if ('batch_norm_params' in variant
-            and variant['batch_norm_params'] is not None):
+        and variant['batch_norm_params'] is not None):
         bn_config = BatchNormConfig(**variant['batch_norm_params'])
     else:
         bn_config = None
@@ -255,6 +257,7 @@ def get_naf_ddpg_params():
         )
     }
     return variant
+
 
 ####################
 # other algorithms #
@@ -392,5 +395,3 @@ def random_action_launcher(variant):
         **variant['algo_params']
     )
     algorithm.train()
-
-

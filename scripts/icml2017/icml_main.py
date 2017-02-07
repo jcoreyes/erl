@@ -40,9 +40,9 @@ SWEEP_EVAL_SAMPLES = 10000
 SWEEP_MIN_POOL_SIZE = 10000
 
 # Fast settings
-FAST_N_EPOCHS = 3
-FAST_EPOCH_LENGTH = 3
-FAST_EVAL_SAMPLES = 3
+FAST_N_EPOCHS = 5
+FAST_EPOCH_LENGTH = 5
+FAST_EVAL_SAMPLES = 5
 FAST_MIN_POOL_SIZE = 5
 FAST_MAX_PATH_LENGTH = 5
 
@@ -269,7 +269,7 @@ def get_env_params_list_from_args(args):
 
 
 def main():
-    env_choices = ['ocm', 'cart']
+    env_choices = ['ocm', 'cart', 'point']
     algo_choices = ['mddpg', 'ddpg', 'naf', 'bptt', 'random']
     mode_choices = ['local', 'local_docker', 'ec2']
     parser = argparse.ArgumentParser()

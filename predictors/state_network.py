@@ -3,6 +3,8 @@ import abc
 import tensorflow as tf
 
 from railrl.core.neuralnet import NeuralNetwork
+from railrl.core.tf_util import create_placeholder
+from railrl.misc.rllab_util import get_observation_dim
 from rllab.misc.overrides import overrides
 
 
@@ -36,16 +38,17 @@ class StateNetwork(NeuralNetwork, metaclass=abc.ABCMeta):
         super(StateNetwork, self).__init__(name_or_scope, **kwargs)
         self.output_dim = output_dim
 
-        assert env_spec or observation_dim
-        self.observation_dim = (observation_dim or
-                                env_spec.observation_space.flat_dim)
+        self.observation_dim = get_observation_dim(
+            env_spec=env_spec,
+            observation_dim=observation_dim,
+        )
 
         with tf.variable_scope(self.scope_name):
             if observation_input is None:
-                observation_input = tf.placeholder(
-                    tf.float32,
-                    [None, self.observation_dim],
-                    "_observation")
+                observation_input = create_placeholder(
+                    self.observation_dim,
+                    "observation_input",
+                )
         self.observation_input = observation_input
         self._create_network(observation_input=observation_input)
 

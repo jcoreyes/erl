@@ -16,6 +16,7 @@ from railrl.qfunctions.nn_qfunction import NNQFunction
 from rllab.misc import logger
 from rllab.misc import special
 from rllab.misc.overrides import overrides
+from rllab.spaces.product import Product
 
 TARGET_PREFIX = "target_"
 
@@ -101,7 +102,8 @@ class DDPG(OnlineAlgorithm):
         # as input the output of the _policy. See Equation (6) of "Deterministic
         # Policy Gradient Algorithms" ICML 2014.
         self.qf_with_action_input = self.qf.get_weight_tied_copy(
-            action_input=self.policy.output)
+            action_input=self.policy.output
+        )
         self.policy_surrogate_loss = - tf.reduce_mean(
             self.qf_with_action_input.output)
         self.train_policy_op = tf.train.AdamOptimizer(
@@ -149,6 +151,19 @@ class DDPG(OnlineAlgorithm):
 
     @overrides
     def _update_feed_dict(self, rewards, terminals, obs, actions, next_obs):
+        if isinstance(self.env.spec.action_space, Product):
+            actions = self.env.spec.action_space.split_flat_into_components_n(
+                actions
+            )
+        if isinstance(self.env.spec.observation_space, Product):
+            obs = self.env.spec.observation_space.split_flat_into_components_n(
+                obs
+            )
+            next_obs = (
+                self.env.spec.observation_space.split_flat_into_components_n(
+                    next_obs
+                )
+            )
         qf_feed = self._qf_feed_dict(rewards,
                                      terminals,
                                      obs,

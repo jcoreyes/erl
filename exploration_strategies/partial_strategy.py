@@ -1,4 +1,3 @@
-import numpy as np
 from rllab.exploration_strategies.base import ExplorationStrategy
 from rllab.spaces.product import Product
 
@@ -35,35 +34,8 @@ class PartialStrategy(ExplorationStrategy):
         return self.get_action_from_raw_action(action)
 
     def get_action_from_raw_action(self, action, **kwargs):
-        action = np.squeeze(action)
-
-        actions_split = list(self._product_space.unflatten(action))
-        partial_action = actions_split[self._component]
+        actions_split = list(action)
+        partial_action = action[self._component]
         new_action = self._wrapped_es.get_action_from_raw_action(partial_action)
-
         actions_split[self._component] = new_action
-        final_action = self._product_space.flatten(actions_split)
-        print("---")
-        print(final_action.shape)
-        final_action.squeeze()
-        print(final_action.shape)
-        final_action = final_action.squeeze()
-        print(final_action.shape)
-        return final_action
-
-        # list_of_actions_split = self._product_space.unflatten_n(action)
-        # new_list_of_actions_split = [
-        #     list(actions_split) for actions_split in list_of_actions_split
-        # ]
-        # new_partial_actions = []
-        #
-        # for actions_split in list_of_actions_split:
-        #     partial_action = actions_split[self._component]
-        #     new_partial_actions.append(
-        #         self._wrapped_es.get_action_from_raw_action(partial_action)
-        #     )
-        #
-        # for i, new_partial_action in enumerate(new_partial_actions):
-        #     new_list_of_actions_split[i][self._component] = new_partial_action
-        #
-        # return self._product_space.flatten_n(list_of_actions_split)
+        return tuple(actions_split)

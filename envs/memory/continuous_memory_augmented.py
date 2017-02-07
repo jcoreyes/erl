@@ -29,19 +29,25 @@ class ContinuousMemoryAugmented(Env):
     def reset(self):
         self._memory_state = np.zeros(self._num_memory_states)
         env_obs = self._env.reset()
-        return self.observation_space.flatten([env_obs, self._memory_state])
+        return env_obs, self._memory_state
 
     @property
     def horizon(self):
         return self._env.horizon
 
     def step(self, action):
-        action = np.squeeze(action)
-        assert len(action.shape) == 1, "action.shape = {}".format(action.shape)
-        env_action, memory_state = self.action_space.unflatten(action)
+        """
+        :param action: An unflattened action, i.e. action = (environment
+        action,
+        memory write) tuple.
+        :return: An unflattened observation.
+        """
+        env_action, memory_state = action
         observation, reward, done, info = self._env.step(env_action)
         return (
-            self.observation_space.flatten([observation, memory_state]),
+            # Squeeze the memory state since the returned next_observation
+            # should be flat.
+            (observation, memory_state.squeeze()),
             reward,
             done,
             info

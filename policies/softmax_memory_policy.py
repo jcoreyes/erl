@@ -1,7 +1,9 @@
+import numpy as np
 import tensorflow as tf
 
 from railrl.core.tf_util import he_uniform_initializer, mlp, linear
 from railrl.policies.nn_policy import NNPolicy
+from rllab.misc.overrides import overrides
 
 
 class SoftmaxMemoryPolicy(NNPolicy):
@@ -42,17 +44,25 @@ class SoftmaxMemoryPolicy(NNPolicy):
         self._hidden_nonlinearity = hidden_nonlinearity or tf.nn.relu
         self._output_nonlinearity = tf.nn.softmax
         super().__init__(name_or_scope=name_or_scope, **kwargs)
-        assert self._env_action_dim + self._memory_dim == self.output_dim
+        assert (self._env_action_dim, self._memory_dim) == self.output_dim
 
     def _create_network_internal(self, observation_input=None):
         assert observation_input is not None
-        observation_input = self._process_layer(observation_input,
-                                                scope_name="observation_input")
+        env_obs, memory_obs = observation_input
+        env_obs = self._process_layer(
+            env_obs,
+            scope_name="env_obs",
+        )
+        memory_obs = self._process_layer(
+            memory_obs,
+            scope_name="memory_obs",
+        )
+        observation_input = tf.concat(1, [env_obs, memory_obs])
         with tf.variable_scope("environment_action"):
             with tf.variable_scope("mlp"):
                 observation_output = mlp(
                     observation_input,
-                    self.observation_dim,
+                    sum(self.observation_dim),
                     self._observation_hidden_sizes,
                     self._hidden_nonlinearity,
                     W_initializer=self._hidden_W_init,
@@ -75,7 +85,7 @@ class SoftmaxMemoryPolicy(NNPolicy):
             with tf.variable_scope("mlp"):
                 observation_output = mlp(
                     observation_input,
-                    self.observation_dim,
+                    sum(self.observation_dim),
                     self._observation_hidden_sizes,
                     self._hidden_nonlinearity,
                     W_initializer=self._hidden_W_init,
@@ -94,7 +104,16 @@ class SoftmaxMemoryPolicy(NNPolicy):
                     W_initializer=self._output_W_init,
                     b_initializer=self._output_b_init,
                 ))
-        return tf.concat(
-            concat_dim=1,
-            values=[env_action, memory_write_action],
+        return env_action, memory_write_action
+
+    @overrides
+    def get_action(self, observation):
+        new_observation = tuple(
+            np.expand_dims(o, axis=0) for o in observation
         )
+        return self.sess.run(
+            self.output,
+            {
+                self.observation_input: new_observation,
+            }
+        ), {}

@@ -20,10 +20,8 @@ class TestContinuousMemoryAugmented(NPTestCase):
         env_action = np.zeros(6)
         env_action[0] = 1
         memory_written = np.random.rand(10)
-        action = env.action_space.flatten([env_action, memory_written])
-        observation = env.step(action)[0]
-
-        _, saved_memory = env.action_space.unflatten(observation)
+        action = [env_action, memory_written]
+        _, saved_memory = env.step(action)[0]
 
         self.assertNpArraysEqual(memory_written, saved_memory)
 

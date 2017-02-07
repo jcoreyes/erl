@@ -47,7 +47,7 @@ class OneCharMemory(Env, SupervisedLearningEnv):
         self._next_obs_number = None
 
     def step(self, action):
-        # flatten = to one hot...not sure why it was given that name.
+        action = action.flatten()
         observation = self._get_next_observation()
         self._next_obs_number = 0
 
