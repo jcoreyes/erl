@@ -89,7 +89,7 @@ class OneCharMemory(Env, SupervisedLearningEnv):
         return self.num_steps
 
     def reset(self):
-        self._target_number = randint(1, self.n)
+        self._target_number = randint(1, self._onehot_size)
         self._next_obs_number = self._target_number
         self._t = 1
         return self._get_next_observation()

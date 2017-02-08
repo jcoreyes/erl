@@ -5,25 +5,32 @@ import time
 
 from railrl.envs.supervised_learning_env import SupervisedLearningEnv
 from rllab.algos.base import RLAlgorithm
+from rllab.core.serializable import Serializable
 from rllab.misc import logger
 from rllab.misc.overrides import overrides
+from sandbox.rocky.tf.core.parameterized import Parameterized
+
+__BPTT_VARIABLE_SCOPE__ = "bptt_variable_scope"
 
 
-class Bptt(RLAlgorithm):
+class Bptt(Parameterized, RLAlgorithm, Serializable):
     """
     Back propagation through time
     """
 
     def __init__(
             self,
-            env: SupervisedLearningEnv,
+            env,
             num_batches_per_epoch=32,
             num_epochs=1000,
             learning_rate=1e-3,
             batch_size=32,
             eval_num_batches=4,
             lstm_state_size=10,
+            **kwargs
     ):
+        super().__init__(**kwargs)
+        Serializable.quick_init(self, locals())
         self._num_batches_per_epoch = num_batches_per_epoch
         self._num_epochs = num_epochs
         self._learning_rate = learning_rate
@@ -35,29 +42,37 @@ class Bptt(RLAlgorithm):
         self._num_steps = env.sequence_length
 
         self._training_losses = []
+        self._sess = None
 
-    @overrides
-    def train(self):
         start_time = time.time()
         self._init_ops()
         logger.log("Graph creation time: {0}".format(time.time() - start_time))
-        for epoch in range(self._num_epochs):
-            logger.push_prefix('Epoch #%d | ' % epoch)
 
-            start_time = time.time()
-            for update in range(self._num_batches_per_epoch):
-                X, Y = self._env.get_batch(self._batch_size)
-                self._bptt_train(X, Y)
-            logger.log("Training time: {0}".format(time.time() - start_time))
+    @overrides
+    def train(self):
+        with self._sess.as_default():
+            for epoch in range(self._num_epochs):
+                logger.push_prefix('Epoch #%d | ' % epoch)
 
-            start_time = time.time()
-            self._eval(epoch)
-            logger.pop_prefix()
-            logger.log("Eval time: {0}".format(time.time() - start_time))
+                start_time = time.time()
+                for update in range(self._num_batches_per_epoch):
+                    X, Y = self._env.get_batch(self._batch_size)
+                    self._bptt_train(X, Y)
+                logger.log("Training time: {0}".format(time.time() - start_time))
+
+                start_time = time.time()
+                self._eval(epoch)
+                logger.pop_prefix()
+                logger.log("Eval time: {0}".format(time.time() - start_time))
+
+                params = self.get_epoch_snapshot(epoch)
+                logger.save_itr_params(epoch, params)
 
     def _init_ops(self):
         self._sess = tf.get_default_session() or tf.Session()
-        self._init_network()
+        with self._sess.as_default():
+            with tf.variable_scope(__BPTT_VARIABLE_SCOPE__):
+                self._init_network()
         self._sess.run(tf.global_variables_initializer())
 
     def _init_network(self):
@@ -149,3 +164,23 @@ class Bptt(RLAlgorithm):
         for key, value in last_statistics.items():
             logger.record_tabular(key, value)
         logger.dump_tabular(with_prefix=False)
+
+    def get_epoch_snapshot(self, epoch):
+        return dict(
+            epoch=epoch,
+            bptt=self,
+        )
+
+    def get_prediction(self, X):
+        c_init_state = np.zeros((self._batch_size, self._state_size))
+        m_init_state = np.zeros((self._batch_size, self._state_size))
+        return self._sess.run(self._predictions,
+                              feed_dict={
+                                  self._x: X,
+                                  self._c_init_state: c_init_state,
+                                  self._m_init_state: m_init_state,
+                              })
+
+    def get_params_internal(self, **tags):
+        return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,
+                                 __BPTT_VARIABLE_SCOPE__)
