@@ -1,5 +1,6 @@
 import numpy as np
 from rllab.envs.base import Env
+from rllab.misc.overrides import overrides
 from rllab.spaces.product import Product
 from rllab.spaces.box import Box
 
@@ -68,3 +69,7 @@ class ContinuousMemoryAugmented(Env):
     @property
     def wrapped_env(self):
         return self._env
+
+    @overrides
+    def render(self, **kwargs):
+        self._env.render(**kwargs)
