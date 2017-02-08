@@ -1,9 +1,13 @@
 import numpy as np
 from sklearn.metrics import log_loss
 from random import randint
+
+from railrl.misc.np_util import np_print_options
 from rllab.envs.base import Env
 from rllab.misc import special2 as special
+from rllab.misc.overrides import overrides
 from rllab.spaces.box import Box
+from rllab.misc import logger
 from railrl.envs.supervised_learning_env import SupervisedLearningEnv
 from cached_property import cached_property
 
@@ -46,12 +50,18 @@ class OneCharMemory(Env, SupervisedLearningEnv):
         self._target_number = None
         self._next_obs_number = None
 
+        # For rendering
+        self._last_reward = None
+        self._last_action = None
+        self._last_t = None
+
     def step(self, action):
         action = action.flatten()
         observation = self._get_next_observation()
         self._next_obs_number = 0
 
         done = self._t == self.num_steps
+        self._last_t = self._t
         self._t += 1
 
         if done:
@@ -59,6 +69,8 @@ class OneCharMemory(Env, SupervisedLearningEnv):
                        self._reward_for_remembering)
         else:
             reward = -log_loss(self.zero, action)
+        self._last_reward = reward
+        self._last_action = action
         info = {'target': self.n}
         return observation, reward, done, info
 
@@ -118,3 +130,22 @@ class OneCharMemory(Env, SupervisedLearningEnv):
     @property
     def sequence_length(self):
         return self.horizon
+
+    @overrides
+    def render(self):
+        logger.push_prefix("OneCharMemory(n={0})\t".format(self._target_number))
+        if self._last_action is None:
+            logger.log("No action taken.")
+        else:
+            if self._last_t == 1:
+                logger.log("--- New Episode ---")
+            logger.push_prefix("t={0}\t".format(self._last_t))
+            with np_print_options(precision=3, suppress=False):
+                logger.log("Action: {0}".format(
+                    self._last_action,
+                ))
+            logger.log("Reward: {0}".format(
+                self._last_reward,
+            ))
+            logger.pop_prefix()
+        logger.pop_prefix()
