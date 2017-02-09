@@ -22,7 +22,7 @@ class Bptt(Parameterized, RLAlgorithm, Serializable):
             self,
             env,
             num_batches_per_epoch=32,
-            num_epochs=1000,
+            num_epochs=10000,
             learning_rate=1e-3,
             batch_size=32,
             eval_num_batches=4,
