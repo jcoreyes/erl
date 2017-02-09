@@ -1,4 +1,4 @@
-from railrl.envs.env_util import gym_env
+from railrl.envs.env_utils import gym_env
 from railrl.envs.memory.one_char_memory import OneCharMemory
 from railrl.envs.memory.continuous_memory_augmented import ContinuousMemoryAugmented
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
