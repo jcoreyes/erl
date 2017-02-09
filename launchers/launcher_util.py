@@ -1,4 +1,4 @@
-from railrl.envs.env_util import gym_env
+from railrl.envs.env_utils import gym_env
 from railrl.envs.memory.one_char_memory import OneCharMemory
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.envs.mujoco.ant_env import AntEnv
