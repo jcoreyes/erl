@@ -15,8 +15,8 @@ def create_stats_ordered_dict(name, data):
         return ordered_dict
     else:
         return OrderedDict([
-            (name + 'Mean', np.mean(data)),
-            (name + 'Std', np.std(data)),
-            (name + 'Max', np.max(data)),
-            (name + 'Min', np.min(data)),
+            (name + ' Mean', np.mean(data)),
+            (name + ' Std', np.std(data)),
+            (name + ' Max', np.max(data)),
+            (name + ' Min', np.min(data)),
         ])

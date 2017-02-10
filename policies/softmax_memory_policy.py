@@ -23,6 +23,7 @@ class SoftmaxMemoryPolicy(NNPolicy):
             output_W_init=None,
             output_b_init=None,
             hidden_nonlinearity=tf.nn.relu,
+            memory_output_nonlinearity=tf.identity,
             **kwargs
     ):
         """
@@ -42,6 +43,7 @@ class SoftmaxMemoryPolicy(NNPolicy):
         self._output_b_init = output_b_init or tf.random_uniform_initializer(
             -3e-3, 3e-3)
         self._hidden_nonlinearity = hidden_nonlinearity or tf.nn.relu
+        self._memory_output_nonlinearity = memory_output_nonlinearity
         self._output_nonlinearity = tf.nn.softmax
         super().__init__(name_or_scope=name_or_scope, **kwargs)
         assert (self._env_action_dim, self._memory_dim) == self.output_dim
@@ -97,7 +99,7 @@ class SoftmaxMemoryPolicy(NNPolicy):
                 scope_name="output_preactivations",
             )
             with tf.variable_scope("output"):
-                memory_write_action = self._output_nonlinearity(linear(
+                memory_write_action = self._memory_output_nonlinearity(linear(
                     observation_output,
                     self._observation_hidden_sizes[-1],
                     self._memory_dim,
@@ -111,9 +113,10 @@ class SoftmaxMemoryPolicy(NNPolicy):
         new_observation = tuple(
             np.expand_dims(o, axis=0) for o in observation
         )
-        return self.sess.run(
+        action = self.sess.run(
             self.output,
             {
                 self.observation_input: new_observation,
             }
-        ), {}
+        )
+        return action, {}

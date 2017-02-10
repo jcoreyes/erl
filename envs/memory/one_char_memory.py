@@ -89,7 +89,7 @@ class OneCharMemory(Env, SupervisedLearningEnv):
         return self.num_steps
 
     def reset(self):
-        self._target_number = randint(1, self._onehot_size)
+        self._target_number = randint(1, self.n)
         self._next_obs_number = self._target_number
         self._t = 1
         return self._get_next_observation()
@@ -107,7 +107,7 @@ class OneCharMemory(Env, SupervisedLearningEnv):
     def get_batch(self, batch_size):
         targets = np.random.randint(
             low=1,
-            high=self.n,
+            high=self.n+1,
             size=batch_size,
         )
         onehot_targets = special.to_onehot_n(targets, self.feature_dim)
@@ -140,7 +140,7 @@ class OneCharMemory(Env, SupervisedLearningEnv):
             if self._last_t == 1:
                 logger.log("--- New Episode ---")
             logger.push_prefix("t={0}\t".format(self._last_t))
-            with np_print_options(precision=3, suppress=False):
+            with np_print_options(precision=4, suppress=False):
                 logger.log("Action: {0}".format(
                     self._last_action,
                 ))

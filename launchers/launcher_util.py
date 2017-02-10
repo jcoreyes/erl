@@ -18,7 +18,7 @@ def get_env_settings(
         env_id="",
         normalize_env=True,
         gym_name="",
-        env_params=None,
+        init_env_params=None,
         num_memory_states=0,
 ):
     """
@@ -26,15 +26,15 @@ def get_env_settings(
     :param env_id: Env ID. See code for acceptable IDs.
     :param normalize_env: Boolean. If true, normalize the environment.
     :param gym_name: Gym environment name if env_id is "gym".
-    :param env_params: Parameters to pass to the environment's constructor.
+    :param init_env_params: Parameters to pass to the environment's constructor.
     :param num_memory_states: Number of memory states. If positive, then the
     environment is wrapped in a ContinuousMemoryAugmented env with this many
     memory states.
     :return:
     """
     assert num_memory_states >= 0
-    if env_params is None:
-        env_params = {}
+    if init_env_params is None:
+        init_env_params = {}
 
     if env_id == 'cart':
         env = CartpoleEnv()
@@ -55,7 +55,10 @@ def get_env_settings(
         env = InvertedDoublePendulumEnv()
         name = "InvertedDoublePendulum"
     elif env_id == 'ocm':
-        env = OneCharMemory(**env_params)
+        params = {}
+        if 'ocm_horizon' in init_env_params:
+            params['num_steps'] = init_env_params['ocm_horizon']
+        env = OneCharMemory(**params)
         name = "OneCharMemory"
     elif env_id == 'gym':
         if gym_name == "":
@@ -64,7 +67,7 @@ def get_env_settings(
         name = gym_name
     else:
         raise Exception("Unknown env: {0}".format(env_id))
-    if normalize_env:
+    if normalize_env and env_id != 'ocm':
         env = normalize(env)
         name += "-normalized"
     if num_memory_states > 0:

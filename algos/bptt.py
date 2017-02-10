@@ -3,7 +3,7 @@ import numpy as np
 import tensorflow as tf
 import time
 
-from railrl.envs.supervised_learning_env import SupervisedLearningEnv
+from railrl.misc.data_processing import create_stats_ordered_dict
 from rllab.algos.base import RLAlgorithm
 from rllab.core.serializable import Serializable
 from rllab.misc import logger
@@ -25,7 +25,7 @@ class Bptt(Parameterized, RLAlgorithm, Serializable):
             num_epochs=10000,
             learning_rate=1e-3,
             batch_size=32,
-            eval_num_batches=4,
+            eval_num_episodes=64,
             lstm_state_size=10,
             **kwargs
     ):
@@ -35,7 +35,7 @@ class Bptt(Parameterized, RLAlgorithm, Serializable):
         self._num_epochs = num_epochs
         self._learning_rate = learning_rate
         self._batch_size = batch_size
-        self._eval_num_batches = eval_num_batches
+        self._eval_num_episodes = eval_num_episodes
         self._state_size = lstm_state_size
         self._env = env
         self._num_classes = env.feature_dim
@@ -58,7 +58,8 @@ class Bptt(Parameterized, RLAlgorithm, Serializable):
                 for update in range(self._num_batches_per_epoch):
                     X, Y = self._env.get_batch(self._batch_size)
                     self._bptt_train(X, Y)
-                logger.log("Training time: {0}".format(time.time() - start_time))
+                logger.log(
+                    "Training time: {0}".format(time.time() - start_time))
 
                 start_time = time.time()
                 self._eval(epoch)
@@ -83,12 +84,12 @@ class Bptt(Parameterized, RLAlgorithm, Serializable):
 
         self._x = tf.placeholder(
             tf.int32,
-            [self._batch_size, self._num_steps, self._num_classes],
+            [None, self._num_steps, self._num_classes],
             name='input_placeholder',
         )
         self._y = tf.placeholder(
             tf.int32,
-            [self._batch_size, self._num_steps, self._num_classes],
+            [None, self._num_steps, self._num_classes],
             name='labels_placeholder',
         )
 
@@ -96,13 +97,11 @@ class Bptt(Parameterized, RLAlgorithm, Serializable):
         labels = tf.unpack(tf.cast(self._y, tf.float32), axis=1)
 
         cell = tf.nn.rnn_cell.LSTMCell(self._state_size, state_is_tuple=True)
-        init_state = cell.zero_state(self._batch_size, tf.float32)
         rnn_outputs, self._final_state = tf.nn.rnn(
             cell,
             rnn_inputs,
-            initial_state=init_state,
+            dtype=tf.float32,
         )
-        self._c_init_state, self._m_init_state = init_state
 
         with tf.variable_scope('softmax'):
             W = tf.get_variable('W', [self._state_size, self._num_classes])
@@ -118,8 +117,6 @@ class Bptt(Parameterized, RLAlgorithm, Serializable):
             self._total_loss)
 
     def _bptt_train(self, X, Y):
-        c_init_state = np.zeros((self._batch_size, self._state_size))
-        m_init_state = np.zeros((self._batch_size, self._state_size))
         training_loss_, _ = self._sess.run(
             [
                 self._total_loss,
@@ -128,37 +125,62 @@ class Bptt(Parameterized, RLAlgorithm, Serializable):
             feed_dict={
                 self._x: X,
                 self._y: Y,
-                self._c_init_state: c_init_state,
-                self._m_init_state: m_init_state,
             },
         )
         self._training_losses.append(training_loss_)
 
     def _eval(self, epoch):
-
-        # Create a tuple for c_state and m_state
-        def sample_eval_loss():
-            X, Y = self._env.get_batch(self._batch_size)
-            c_init_state = np.zeros((self._batch_size, self._state_size))
-            m_init_state = np.zeros((self._batch_size, self._state_size))
-            return self._sess.run(
+        X, Y = self._env.get_batch(self._eval_num_episodes)
+        eval_losses, predictions = self._sess.run(
+            [
                 self._total_loss,
-                feed_dict={
-                    self._x: X,
-                    self._y: Y,
-                    self._c_init_state: c_init_state,
-                    self._m_init_state: m_init_state,
-                },
-            )
-
-        eval_loss = np.mean(
-            [sample_eval_loss() for _ in range(self._eval_num_batches)]
+                self._predictions,
+            ],
+            feed_dict={
+                self._x: X,
+                self._y: Y,
+            },
         )
+        target_onehots = Y[:, -1, :]
+        final_predictions = predictions[-1]  # batch_size X dim
+        nonfinal_predictions = predictions[:-1]  # list of batch_size X dim
+        nonfinal_predictions_sequence_dimension_flattened = np.vstack(
+            nonfinal_predictions
+        )  # shape = N X dim
+        nonfinal_prob_zero = [softmax[0] for softmax in
+                              nonfinal_predictions_sequence_dimension_flattened]
+
+        """
+        This effective does this:
+        ```
+        final_probs_correct = []
+        for final_prediction, target_onehot in zip(final_predictions,
+                                                   target_onehots):
+            correct_pred_idx = np.argmax(target_onehot)
+            final_probs_correct.append(final_prediction[correct_pred_idx])
+        ```
+        """
+        # Axis 0 is batch size, so take the argmax over axis 1
+        final_probs_correct = final_predictions[0, np.argmax(target_onehots,
+                                                             axis=1)]
+        final_prob_zero = [softmax[0] for softmax in final_predictions]
+
         last_statistics = OrderedDict([
             ('Epoch', epoch),
-            ('Training Loss', np.mean(self._training_losses)),
-            ('Eval Loss', eval_loss),
         ])
+        last_statistics.update(create_stats_ordered_dict('Training Loss',
+                                                         self._training_losses))
+        last_statistics.update(create_stats_ordered_dict('Eval Loss',
+                                                         eval_losses))
+        last_statistics.update(create_stats_ordered_dict(
+            'Final P(correct)',
+            final_probs_correct))
+        last_statistics.update(create_stats_ordered_dict(
+            'Non-final P(zero)',
+            nonfinal_prob_zero))
+        last_statistics.update(create_stats_ordered_dict(
+            'Final P(zero)',
+            final_prob_zero))
         self._training_losses = []
 
         for key, value in last_statistics.items():
@@ -172,13 +194,9 @@ class Bptt(Parameterized, RLAlgorithm, Serializable):
         )
 
     def get_prediction(self, X):
-        c_init_state = np.zeros((self._batch_size, self._state_size))
-        m_init_state = np.zeros((self._batch_size, self._state_size))
         return self._sess.run(self._predictions,
                               feed_dict={
                                   self._x: X,
-                                  self._c_init_state: c_init_state,
-                                  self._m_init_state: m_init_state,
                               })
 
     def get_params_internal(self, **tags):

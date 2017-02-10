@@ -28,6 +28,7 @@ def mem_ddpg_launcher(variant):
     from railrl.exploration_strategies.partial_strategy import (
         PartialStrategy,
     )
+    from railrl.exploration_strategies.noop import NoopStrategy
     if ('batch_norm_params' in variant
         and variant['batch_norm_params'] is not None):
         bn_config = BatchNormConfig(**variant['batch_norm_params'])
@@ -35,11 +36,13 @@ def mem_ddpg_launcher(variant):
         bn_config = None
     env_settings = get_env_settings(**variant['env_params'])
     env = env_settings['env']
+
     assert isinstance(env, ContinuousMemoryAugmented)
     memory_dim = env.memory_dim
     env_action_dim = env.wrapped_env.action_space.flat_dim
-    _es = OUStrategy(env_spec=env.wrapped_env.spec)
-    es = PartialStrategy(_es, env.action_space)
+    # _es = OUStrategy(env_spec=env.wrapped_env.spec)
+    # es = PartialStrategy(_es, env.action_space)
+    es = NoopStrategy()
     qf = MemoryQFunction(
         name_or_scope="critic",
         env_spec=env.spec,

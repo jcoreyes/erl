@@ -260,11 +260,15 @@ def get_env_params_list_from_args(args):
             for gym_name in args.gym
             ]
 
+    init_env_params = {}
+    if args.ocm_horizon:
+        init_env_params['ocm_horizon'] = args.ocm_horizon
     return envs_params_list + [dict(
         env_id=env,
         normalize_env=args.normalize,
         gym_name="",
         num_memory_states=num_memory_states,
+        init_env_params=init_env_params,
     ) for env in args.env if env != 'gym']
 
 
@@ -322,6 +326,9 @@ def main():
                         help='Number of memory states. If positive, '
                              'the environment is wrapped in a '
                              'ContinuousMemoryAugmented env')
+    parser.add_argument("--ocm_horizon", default=100,
+                        type=int,
+                        help='For how long the character must be memorized.')
     args = parser.parse_args()
     args.time = not args.notime
 
@@ -364,6 +371,7 @@ def main():
                         env_params,
                         args.name,
                         args.seed + i,
+                        exp_id=i,
                         **kwargs
                     )
 
