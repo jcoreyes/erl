@@ -32,9 +32,9 @@ def get_env_settings(
     memory states.
     :return:
     """
-    assert num_memory_states >= 0
     if init_env_params is None:
         init_env_params = {}
+    assert num_memory_states >= 0
 
     if env_id == 'cart':
         env = CartpoleEnv()
@@ -55,10 +55,7 @@ def get_env_settings(
         env = InvertedDoublePendulumEnv()
         name = "InvertedDoublePendulum"
     elif env_id == 'ocm':
-        params = {}
-        if 'ocm_horizon' in init_env_params:
-            params['num_steps'] = init_env_params['ocm_horizon']
-        env = OneCharMemory(**params)
+        env = OneCharMemory(**init_env_params)
         name = "OneCharMemory"
     elif env_id == 'gym':
         if gym_name == "":
