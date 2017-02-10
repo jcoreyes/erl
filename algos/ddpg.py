@@ -170,7 +170,9 @@ class DDPG(OnlineAlgorithm):
                                      actions,
                                      next_obs)
         policy_feed = self._policy_feed_dict(obs)
-        return {**qf_feed, **policy_feed}
+        feed = qf_feed.copy()
+        feed.update(policy_feed)
+        return feed
 
     def _qf_feed_dict(self, rewards, terminals, obs, actions, next_obs):
         return {
