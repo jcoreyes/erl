@@ -3,6 +3,7 @@ from sklearn.metrics import log_loss
 from random import randint
 
 from railrl.misc.np_util import np_print_options
+from railrl.pythonplusplus import clip_magnitude
 from rllab.envs.base import Env
 from rllab.misc import special2 as special
 from rllab.misc.overrides import overrides
@@ -29,11 +30,20 @@ class OneCharMemory(Env, SupervisedLearningEnv):
     reward for the last time step is multiplied by `reward_for_remember`.
     """
 
-    def __init__(self, n=4, num_steps=100, reward_for_remembering=1000):
+    def __init__(
+            self,
+            n=4,
+            num_steps=10,
+            reward_for_remembering=1,
+            max_reward_magnitude=1,
+    ):
         """
         :param n: Number of different values that could be returned
         :param num_steps: How many steps the agent needs to remember.
-        :param reward_for_remembering: The reward for remembering the number.
+        :param reward_for_remembering: The reward bonus for remembering the
+        number. This number is added to the usual reward if the correct
+        number has the maximum probability.
+        :param max_reward_magnitude: Clip the reward magnitude to this value.
         """
         super().__init__()
         self.num_steps = num_steps
@@ -46,6 +56,7 @@ class OneCharMemory(Env, SupervisedLearningEnv):
         self._observation_space = self._action_space
         self._t = 1
         self._reward_for_remembering = reward_for_remembering
+        self._max_reward_magnitude = max_reward_magnitude
 
         self._target_number = None
         self._next_obs_number = None
@@ -64,11 +75,19 @@ class OneCharMemory(Env, SupervisedLearningEnv):
         self._last_t = self._t
         self._t += 1
 
-        if done:
-            reward = -(log_loss(self._get_target_onehot(), action) *
-                       self._reward_for_remembering)
-        else:
-            reward = -log_loss(self.zero, action)
+        try:
+            if done:
+                reward = -log_loss(self._get_target_onehot(), action)
+                if np.argmax(action) == self._target_number:
+                    reward += self._reward_for_remembering
+            else:
+                reward = -log_loss(self.zero, action)
+            reward = clip_magnitude(reward, self._max_reward_magnitude)
+        except ValueError as e:
+            print(e)
+            import ipdb
+            ipdb.set_trace()
+            raise e
         self._last_reward = reward
         self._last_action = action
         info = {'target': self.n}

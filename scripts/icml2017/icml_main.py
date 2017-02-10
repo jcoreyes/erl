@@ -49,6 +49,12 @@ FAST_MAX_PATH_LENGTH = 5
 NUM_SEEDS_PER_CONFIG = 3
 NUM_HYPERPARAMETER_CONFIGS = 50
 
+# One character memory settings
+OCM_N = 4
+OCM_NUM_STEPS = 10
+OCM_REWARD_FOR_REMEMBERING = 1
+OCM_MAX_REWARD_MAGNITUDE = 1
+
 
 def get_launch_settings_list_from_args(args):
     render = args.render
@@ -261,8 +267,12 @@ def get_env_params_list_from_args(args):
             ]
 
     init_env_params = {}
+    init_env_params['n'] = OCM_N
+    init_env_params['num_steps'] = OCM_NUM_STEPS
+    init_env_params['reward_for_remembering'] = OCM_REWARD_FOR_REMEMBERING
+    init_env_params['max_reward_magnitude'] = OCM_MAX_REWARD_MAGNITUDE
     if args.ocm_horizon:
-        init_env_params['ocm_horizon'] = args.ocm_horizon
+        init_env_params['num_steps'] = args.ocm_horizon
     return envs_params_list + [dict(
         env_id=env,
         normalize_env=args.normalize,
