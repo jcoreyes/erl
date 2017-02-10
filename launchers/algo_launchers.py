@@ -17,17 +17,15 @@ def mem_ddpg_launcher(variant):
     :return:
     """
     from railrl.algos.ddpg import DDPG
+    from railrl.algos.ddpg_ocm import DdpgOcm
     from railrl.policies.softmax_memory_policy import SoftmaxMemoryPolicy
     from railrl.qfunctions.memory_qfunction import MemoryQFunction
-    from rllab.exploration_strategies.ou_strategy import OUStrategy
     from railrl.launchers.launcher_util import get_env_settings
     from railrl.core.tf_util import BatchNormConfig
     from railrl.envs.memory.continuous_memory_augmented import (
         ContinuousMemoryAugmented,
     )
-    from railrl.exploration_strategies.partial_strategy import (
-        PartialStrategy,
-    )
+    from railrl.envs.memory.one_char_memory import OneCharMemory
     from railrl.exploration_strategies.noop import NoopStrategy
     if ('batch_norm_params' in variant
         and variant['batch_norm_params'] is not None):
@@ -40,8 +38,6 @@ def mem_ddpg_launcher(variant):
     assert isinstance(env, ContinuousMemoryAugmented)
     memory_dim = env.memory_dim
     env_action_dim = env.wrapped_env.action_space.flat_dim
-    # _es = OUStrategy(env_spec=env.wrapped_env.spec)
-    # es = PartialStrategy(_es, env.action_space)
     es = NoopStrategy()
     qf = MemoryQFunction(
         name_or_scope="critic",
@@ -57,7 +53,11 @@ def mem_ddpg_launcher(variant):
         batch_norm_config=bn_config,
         **variant.get('policy_params', {})
     )
-    algorithm = DDPG(
+    if isinstance(env.wrapped_env, OneCharMemory):
+        ddpg_class = DdpgOcm
+    else:
+        ddpg_class = DDPG
+    algorithm = ddpg_class(
         env,
         es,
         policy,
