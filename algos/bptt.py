@@ -151,18 +151,19 @@ class Bptt(Parameterized, RLAlgorithm, Serializable):
                               nonfinal_predictions_sequence_dimension_flattened]
 
         """
-        This effective does this:
+        Short version would be the following, but I don't think it's very
+        readable:
         ```
+        # Axis 0 is batch size, so take the argmax over axis 1
+        final_probs_correct = final_predictions[0, np.argmax(target_onehots,
+                                                             axis=1)]
+        ```
+        """
         final_probs_correct = []
         for final_prediction, target_onehot in zip(final_predictions,
                                                    target_onehots):
             correct_pred_idx = np.argmax(target_onehot)
             final_probs_correct.append(final_prediction[correct_pred_idx])
-        ```
-        """
-        # Axis 0 is batch size, so take the argmax over axis 1
-        final_probs_correct = final_predictions[0, np.argmax(target_onehots,
-                                                             axis=1)]
         final_prob_zero = [softmax[0] for softmax in final_predictions]
 
         last_statistics = OrderedDict([
