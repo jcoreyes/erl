@@ -9,6 +9,9 @@
 ## ICML
  - Add a version of DDPG where the policy outputs a distribution over discrete actions
  - Figure out how I want to create my memory augmented environments from scripts
+ - Save figures of bptt doing worse on horizon of 100
+ - Why is mem state DDPG unstable?
+ - ASAP: are the reduce_sum's in DDPG correct? Do I need to specify the batch axis???
 
 # Notes
 These notes are really for myself (vpong), so they're probably meaningless to anyone else.
