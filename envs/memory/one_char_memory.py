@@ -59,7 +59,6 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
         self._max_reward_magnitude = max_reward_magnitude
 
         self._target_number = None
-        self._next_obs_number = None
 
         # For rendering
         self._last_reward = None
@@ -68,8 +67,9 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
 
     def step(self, action):
         action = action.flatten()
-        observation = self._get_next_observation()
-        self._next_obs_number = 0
+
+        # Reset gives the first observation, so only return 0 in step.
+        observation = self._get_next_observation(0)
 
         done = self._t == self.num_steps
         self._last_t = self._t
@@ -110,12 +110,12 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
 
     def reset(self):
         self._target_number = randint(1, self.n)
-        self._next_obs_number = self._target_number
         self._t = 1
-        return self._get_next_observation()
+        first_observation = self._get_next_observation(self._target_number)
+        return first_observation
 
-    def _get_next_observation(self):
-        return special.to_onehot(self._next_obs_number, self._onehot_size)
+    def _get_next_observation(self, observation_int):
+        return special.to_onehot(observation_int, self._onehot_size)
 
     def _get_target_onehot(self):
         return special.to_onehot(self._target_number, self._onehot_size)
