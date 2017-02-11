@@ -23,7 +23,7 @@ class SoftmaxMemoryPolicy(NNPolicy):
             output_W_init=None,
             output_b_init=None,
             hidden_nonlinearity=tf.nn.relu,
-            memory_output_nonlinearity=tf.identity,
+            memory_output_nonlinearity=tf.tanh,
             **kwargs
     ):
         """
@@ -44,7 +44,7 @@ class SoftmaxMemoryPolicy(NNPolicy):
             -3e-3, 3e-3)
         self._hidden_nonlinearity = hidden_nonlinearity or tf.nn.relu
         self._memory_output_nonlinearity = memory_output_nonlinearity
-        self._output_nonlinearity = tf.nn.softmax
+        self._env_output_nonlinearity = tf.nn.softmax
         super().__init__(name_or_scope=name_or_scope, **kwargs)
         assert (self._env_action_dim, self._memory_dim) == self.output_dim
 
@@ -60,59 +60,41 @@ class SoftmaxMemoryPolicy(NNPolicy):
             scope_name="memory_obs",
         )
         observation_input = tf.concat(1, [env_obs, memory_obs])
+        with tf.variable_scope("mlp"):
+            observation_output = mlp(
+                observation_input,
+                sum(self.observation_dim),
+                self._observation_hidden_sizes,
+                self._hidden_nonlinearity,
+                W_initializer=self._hidden_W_init,
+                b_initializer=self._hidden_b_init,
+                pre_nonlin_lambda=self._process_layer,
+            )
+        observation_output = self._process_layer(
+            observation_output,
+            scope_name="output_preactivations",
+        )
         with tf.variable_scope("environment_action"):
-            with tf.variable_scope("mlp"):
-                observation_output = mlp(
-                    observation_input,
-                    sum(self.observation_dim),
-                    self._observation_hidden_sizes,
-                    self._hidden_nonlinearity,
-                    W_initializer=self._hidden_W_init,
-                    b_initializer=self._hidden_b_init,
-                    pre_nonlin_lambda=self._process_layer,
-                )
-            observation_output = self._process_layer(
+            env_action = self._env_output_nonlinearity(linear(
                 observation_output,
-                scope_name="output_preactivations",
-            )
-            with tf.variable_scope("output"):
-                env_action = self._output_nonlinearity(linear(
-                    observation_output,
-                    self._observation_hidden_sizes[-1],
-                    self._env_action_dim,
-                    W_initializer=self._output_W_init,
-                    b_initializer=self._output_b_init,
-                ))
+                self._observation_hidden_sizes[-1],
+                self._env_action_dim,
+                W_initializer=self._output_W_init,
+                b_initializer=self._output_b_init,
+            ))
         with tf.variable_scope("memory_state"):
-            with tf.variable_scope("mlp"):
-                observation_output = mlp(
-                    observation_input,
-                    sum(self.observation_dim),
-                    self._observation_hidden_sizes,
-                    self._hidden_nonlinearity,
-                    W_initializer=self._hidden_W_init,
-                    b_initializer=self._hidden_b_init,
-                    pre_nonlin_lambda=self._process_layer,
-                )
-            observation_output = self._process_layer(
+            memory_write_action = self._memory_output_nonlinearity(linear(
                 observation_output,
-                scope_name="output_preactivations",
-            )
-            with tf.variable_scope("output"):
-                memory_write_action = self._memory_output_nonlinearity(linear(
-                    observation_output,
-                    self._observation_hidden_sizes[-1],
-                    self._memory_dim,
-                    W_initializer=self._output_W_init,
-                    b_initializer=self._output_b_init,
-                ))
+                self._observation_hidden_sizes[-1],
+                self._memory_dim,
+                W_initializer=self._output_W_init,
+                b_initializer=self._output_b_init,
+            ))
         return env_action, memory_write_action
 
     @overrides
     def get_action(self, observation):
-        new_observation = tuple(
-            np.expand_dims(o, axis=0) for o in observation
-        )
+        new_observation = self._preprocess_observation(observation)
         action = self.sess.run(
             self.output,
             {
@@ -120,3 +102,7 @@ class SoftmaxMemoryPolicy(NNPolicy):
             }
         )
         return action, {}
+
+    @staticmethod
+    def _preprocess_observation(observation):
+        return tuple(np.expand_dims(o, axis=0) for o in observation)
