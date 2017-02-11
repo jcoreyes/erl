@@ -16,10 +16,10 @@ from railrl.launchers.algo_launchers import (
 from railrl.launchers.launcher_util import get_env_settings, run_experiment
 from railrl.misc import hyperparameter as hp
 
-BATCH_SIZE = 128
+BATCH_SIZE = 32
 N_EPOCHS = 100
-EPOCH_LENGTH = 10000
-EVAL_SAMPLES = 10000
+EPOCH_LENGTH = 3 * 32 * 10
+EVAL_SAMPLES = 3 * 64
 DISCOUNT = 0.99
 QF_LEARNING_RATE = 1e-3
 POLICY_LEARNING_RATE = 1e-4
