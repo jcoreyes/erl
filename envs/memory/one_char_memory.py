@@ -9,11 +9,11 @@ from rllab.misc import special2 as special
 from rllab.misc.overrides import overrides
 from rllab.spaces.box import Box
 from rllab.misc import logger
-from railrl.envs.supervised_learning_env import SupervisedLearningEnv
+from railrl.envs.supervised_learning_env import RecurrentSupervisedLearningEnv
 from cached_property import cached_property
 
 
-class OneCharMemory(Env, SupervisedLearningEnv):
+class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
     """
     A simple env whose output is a value `X` the first time step, followed by a
     fixed number of zeros.
@@ -75,6 +75,13 @@ class OneCharMemory(Env, SupervisedLearningEnv):
         self._last_t = self._t
         self._t += 1
 
+        reward = self._compute_reward(done, action)
+        self._last_reward = reward
+        self._last_action = action
+        info = {'target': self.n}
+        return observation, reward, done, info
+
+    def _compute_reward(self, done, action):
         try:
             if done:
                 reward = -log_loss(self._get_target_onehot(), action)
@@ -83,12 +90,9 @@ class OneCharMemory(Env, SupervisedLearningEnv):
             else:
                 reward = -log_loss(self.zero, action)
             reward = clip_magnitude(reward, self._max_reward_magnitude)
-        except ValueError as e:
+        except ValueError:
             reward = -self._max_reward_magnitude
-        self._last_reward = reward
-        self._last_action = action
-        info = {'target': self.n}
-        return observation, reward, done, info
+        return reward
 
     @cached_property
     def zero(self):
@@ -165,3 +169,13 @@ class OneCharMemory(Env, SupervisedLearningEnv):
             ))
             logger.pop_prefix()
         logger.pop_prefix()
+
+
+class OneCharMemoryEndOnly(OneCharMemory):
+    """
+    Don't reward or penalize outputs other than the last output.
+    """
+    def _compute_reward(self, done, action):
+        if done and np.argmax(action) == self._target_number:
+            return self._reward_for_remembering
+        return 0

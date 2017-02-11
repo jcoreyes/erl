@@ -27,8 +27,10 @@ class LinearOcmPolicy(MemoryPolicy):
         assert observation_input is not None
         env_obs, memory_obs = observation_input
 
-        # Initially, this will make write_action = env_obs + memory_obs
-        arr = np.vstack((np.eye(self._action_dim), np.eye(self._action_dim)))
+        # Initially, make write_action = env_obs[:-1] + memory_obs[:-1]
+        all_but_last = np.eye(self._action_dim)
+        all_but_last[-1] = 0
+        arr = np.vstack((all_but_last, all_but_last))
         sum_matrix = weight_variable(
             [2 * self._action_dim, self._action_dim],
             initializer=tf.constant_initializer(arr),
@@ -38,7 +40,7 @@ class LinearOcmPolicy(MemoryPolicy):
         env_and_memory = tf.concat(1, [env_obs, memory_obs])
         write_action = tf.matmul(env_and_memory, sum_matrix)
 
-        # This will make it so that stored_value = write_action except that
+        # This will make it so that write_action = stored_value
         # the last value will be replaced with a zero.
         copy_all_but_last = np.eye(self._action_dim)
         copy_all_but_last[-1] = 0
