@@ -1,5 +1,6 @@
 from railrl.envs.env_utils import gym_env
-from railrl.envs.memory.one_char_memory import OneCharMemory
+from railrl.envs.memory.one_char_memory import OneCharMemory, \
+    OneCharMemoryEndOnly
 from railrl.envs.memory.continuous_memory_augmented import ContinuousMemoryAugmented
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.envs.mujoco.ant_env import AntEnv
@@ -57,6 +58,9 @@ def get_env_settings(
     elif env_id == 'ocm':
         env = OneCharMemory(**init_env_params)
         name = "OneCharMemory"
+    elif env_id == 'ocme':
+        env = OneCharMemoryEndOnly(**init_env_params)
+        name = "OneCharMemoryEndOnly"
     elif env_id == 'gym':
         if gym_name == "":
             raise Exception("Must provide a gym name")
