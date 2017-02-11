@@ -1,12 +1,10 @@
-import numpy as np
 import tensorflow as tf
 
 from railrl.core.tf_util import he_uniform_initializer, mlp, linear
-from railrl.policies.nn_policy import NNPolicy
-from rllab.misc.overrides import overrides
+from railrl.policies.memory_policy import MemoryPolicy
 
 
-class SoftmaxMemoryPolicy(NNPolicy):
+class SoftmaxMemoryPolicy(MemoryPolicy):
     """
     A policy that outputs two things:
         1. A probability distribution over a set of discrete actions
@@ -91,18 +89,3 @@ class SoftmaxMemoryPolicy(NNPolicy):
                 b_initializer=self._output_b_init,
             ))
         return env_action, memory_write_action
-
-    @overrides
-    def get_action(self, observation):
-        new_observation = self._preprocess_observation(observation)
-        action = self.sess.run(
-            self.output,
-            {
-                self.observation_input: new_observation,
-            }
-        )
-        return action, {}
-
-    @staticmethod
-    def _preprocess_observation(observation):
-        return tuple(np.expand_dims(o, axis=0) for o in observation)
