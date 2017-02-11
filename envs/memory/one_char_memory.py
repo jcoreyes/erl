@@ -84,10 +84,7 @@ class OneCharMemory(Env, SupervisedLearningEnv):
                 reward = -log_loss(self.zero, action)
             reward = clip_magnitude(reward, self._max_reward_magnitude)
         except ValueError as e:
-            print(e)
-            import ipdb
-            ipdb.set_trace()
-            raise e
+            reward = -self._max_reward_magnitude
         self._last_reward = reward
         self._last_action = action
         info = {'target': self.n}
