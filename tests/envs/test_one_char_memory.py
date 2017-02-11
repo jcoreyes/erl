@@ -51,7 +51,7 @@ class TestOneCharMemory(NPTestCase):
         self.assertNpArrayConstant(np.sum(X[:, 0, 0]), 0)
 
     def test_reward_for_optimal_input_is_correct(self):
-        env = OneCharMemory(n=3, num_steps=4, reward_for_remembering=10)
+        env = OneCharMemory(n=3, num_steps=4, reward_for_remembering=.25)
         init_obs = env.reset()
 
         action = np.zeros((4, 1))
@@ -61,29 +61,24 @@ class TestOneCharMemory(NPTestCase):
             self.assertAlmostEqual(reward, 0.)
 
         next_ob, reward, terminal, _ = env.step(init_obs)
-        self.assertAlmostEqual(reward, 0.)
+        self.assertAlmostEqual(reward, 0.25)
 
     def test_reward_for_wrong_input_is_correct(self):
-        env = OneCharMemory(n=3, num_steps=4, reward_for_remembering=10)
+        env = OneCharMemory(num_steps=4)
         init_obs = env.reset()
 
         action = init_obs
-        based_reward = 0
         for _ in range(3):
             next_ob, reward, terminal, _ = env.step(action)
             self.assertTrue(reward < 0)
             based_reward = reward
 
         action = np.zeros((4,))
-        if init_obs[2]:
-            action[3] = 1
-        else:
-            action[2] = 1
         next_ob, reward, terminal, _ = env.step(action)
-        self.assertEqual(reward, 10*based_reward)
+        self.assertTrue(reward < 0)
 
     def test_episode_length_is_right(self):
-        env = OneCharMemory(n=3, num_steps=4, reward_for_remembering=10)
+        env = OneCharMemory(num_steps=4)
         action = env.reset()
 
         for _ in range(3):
@@ -92,6 +87,16 @@ class TestOneCharMemory(NPTestCase):
 
         _, _, terminal, _ = env.step(action)
         self.assertTrue(terminal)
+
+    def test_episode_length_one(self):
+        env = OneCharMemory(n=3, num_steps=1, reward_for_remembering=0.5)
+        action = env.reset()
+
+        next_ob, reward, terminal, _ = env.step(action)
+        self.assertTrue(terminal)
+        self.assertNpArraysEqual(next_ob, np.array([1, 0, 0, 0]))
+        self.assertAlmostEqual(reward, 0.5)
+
 
 
 
