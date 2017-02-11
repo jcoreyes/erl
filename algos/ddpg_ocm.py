@@ -19,6 +19,7 @@ class DdpgOcm(DDPG):
     """
     Deep Deterministic Policy Gradient for one character memory task.
     """
+
     @overrides
     def evaluate(self, epoch, es_path_returns):
         logger.log("Collecting samples for evaluation")
@@ -77,21 +78,30 @@ class DdpgOcm(DDPG):
             last_statistics.update(create_stats_ordered_dict('TrainingReturns',
                                                              es_path_returns))
 
-        # OCM-specific statistics
-        import ipdb
-        ipdb.set_trace()
+        """
+        OCM-specific statistics
+        """
         target_onehots = []
-        predictions = []
         for path in paths:
-            env_obs = [env_obs for env_obs, _, in path["observations"]]
-            target_onehots.append(np.argmax(env_obs[0, :]))
-            env_actions = [env_action for env_action, _ in path["actions"]]
-            predictions.append(env_actions)
-        final_predictions = predictions[-1]  # batch_size X dim
-        nonfinal_predictions = predictions[:-1]  # list of batch_size X dim
+            first_observation = path["observations"][0]
+            first_env_obs, _ = self._split_flat_obs(first_observation)
+            target_onehots.append(first_env_obs)
+
+        final_predictions = []  # each element has shape (dim)
+        nonfinal_predictions = []  # each element has shape (seq_length-1, dim)
+        for path in paths:
+            env_actions = np.array([self._split_flat_actions(a)[0] for a in
+                                    path["actions"]])
+            final_predictions.append(env_actions[-1])
+            nonfinal_predictions.append(env_actions[:-1])
         nonfinal_predictions_sequence_dimension_flattened = np.vstack(
             nonfinal_predictions
         )  # shape = N X dim
+
+        """
+        Calculate statistics
+        """
+
         nonfinal_prob_zero = [softmax[0] for softmax in
                               nonfinal_predictions_sequence_dimension_flattened]
         final_probs_correct = []
@@ -110,7 +120,6 @@ class DdpgOcm(DDPG):
         last_statistics.update(create_stats_ordered_dict(
             'Final P(zero)',
             final_prob_zero))
-
 
         for key, value in last_statistics.items():
             logger.record_tabular(key, value)
