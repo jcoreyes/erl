@@ -43,17 +43,21 @@ class LinearOcmPolicy(MemoryPolicy):
         )
         write_action = tf.matmul(env_and_memory, sum_matrix)
 
-        # Initially, make env_action = memory_obs
+        # Initially, make env_action = write_action
         arr2 = np.vstack((
+            np.zeros((self._action_dim, self._action_dim)),
             np.zeros((self._action_dim, self._action_dim)),
             np.eye(self._action_dim),
         ))
         env_action_matrix = weight_variable(
-            [2 * self._action_dim, self._action_dim],
+            [3 * self._action_dim, self._action_dim],
             initializer=tf.constant_initializer(arr2),
             name="remove_last_value_matrix",
             regularizable=True,
         )
-        env_action = tf.matmul(env_and_memory, env_action_matrix)
+        env_memory_and_write = tf.concat(1, [env_and_memory, write_action])
+        env_action = tf.matmul(env_memory_and_write, env_action_matrix)
+        env_action = tf.nn.relu(env_action)
+        env_action = tf.nn.l2_normalize(env_action, dim=1)
 
         return env_action, write_action

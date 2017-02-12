@@ -4,7 +4,7 @@ from railrl.exploration_strategies.noop import NoopStrategy
 from railrl.envs.memory.continuous_memory_augmented import (
     ContinuousMemoryAugmented
 )
-from railrl.envs.memory.one_char_memory import OneCharMemory
+from railrl.envs.memory.one_char_memory import OneCharMemoryEndOnly
 from railrl.policies.linear_ocm_policy import LinearOcmPolicy
 from railrl.launchers.launcher_util import setup_logger
 
@@ -47,7 +47,7 @@ Code for running the experiment.
 
 onehot_dim = num_values + 1
 
-env = OneCharMemory(n=num_values, num_steps=H)
+env = OneCharMemoryEndOnly(n=num_values, num_steps=H)
 env = ContinuousMemoryAugmented(
     env,
     num_memory_states=onehot_dim,
