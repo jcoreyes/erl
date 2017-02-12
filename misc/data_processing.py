@@ -4,6 +4,9 @@ import numpy as np
 
 
 def create_stats_ordered_dict(name, data):
+    if len(data) == 0:
+        return OrderedDict()
+
     if isinstance(data, tuple):
         ordered_dict = OrderedDict()
         for number, d in enumerate(data):
