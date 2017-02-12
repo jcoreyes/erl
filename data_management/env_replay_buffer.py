@@ -1,5 +1,5 @@
 import numpy as np
-from railrl.data.simple_replay_pool import SimpleReplayPool
+from railrl.data_management.simple_replay_pool import SimpleReplayPool
 from rllab.misc.overrides import overrides
 
 
