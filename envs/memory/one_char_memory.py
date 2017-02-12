@@ -89,9 +89,13 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
                     reward += self._reward_for_remembering
             else:
                 reward = -log_loss(self.zero, action)
-            reward = clip_magnitude(reward, self._max_reward_magnitude)
+            if reward == -np.inf:
+                reward = -self._max_reward_magnitude
+            if reward == np.inf or np.isnan(reward):
+                reward = self._max_reward_magnitude
         except ValueError:
             reward = -self._max_reward_magnitude
+        reward = clip_magnitude(reward, self._max_reward_magnitude)
         return reward
 
     @cached_property
