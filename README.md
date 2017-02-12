@@ -40,6 +40,7 @@ PROJECT_PATH/data/local/<default>/<foldername>
 ```
  -  `PROJECT_PATH` is the directory set by `rllab.config.PROJECT_PATH`. By default the project path is your rllab directory.
  - For example.py `<default>` is `ddpg-half-cheetah`, and can be changed by passing an argument to `exp_prefix` when calling `run_experiment_lite`.
+    - If you're using `main.py`, you can pass a `--name=foo` (e.g.) to set the `<default>` folder name to `foo`.
  - `<foldername>` is auto-generated and based off of what `<default>` is.
  - inside this folder, you should see a file called `params.pkl`. To visualize a policy, run
 
