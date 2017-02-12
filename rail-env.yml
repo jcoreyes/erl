@@ -1,4 +1,4 @@
-name: rllab-vitchyr
+name: railrl
 channels:
     - https://conda.anaconda.org/kne
     - https://conda.binstar.org/tlatorre

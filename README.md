@@ -5,11 +5,18 @@ So far, DDPG is implemented and NAF is a work in progress.
 ## Installation
 This library requires rllab to be installed. See [rllab's installation docs](https://rllab.readthedocs.io/en/latest/user/installation.html).
 
+One important difference: use my anaconda environment instead of rllab's conda environment. It can be installed and used with
+```
+$ conda env create -f railrl-env.yml
+$ source activate railrl
+(railrl) $ # Ready to run example.py
+```
+
 ## Usage
 You can use the `main.py` script to launch different experiments:
 
 ```
-$ python main.py --env=cheetah --algo=ddpg --name=my_amazing_experiment
+(railrl) $ python main.py --env=cheetah --algo=ddpg --name=my_amazing_experiment
 ```
 
 `example.py` gives a minimal example of how to write a script that launches experiments.
@@ -45,7 +52,7 @@ PROJECT_PATH/data/local/<default>/<foldername>
  - inside this folder, you should see a file called `params.pkl`. To visualize a policy, run
 
 ```
-$ python sim_policy PROJECT_PATH/data/local/<default>/<foldername>/params.pkl
+(railrl) $ python sim_policy PROJECT_PATH/data/local/<default>/<foldername>/params.pkl
 ```
 
 ## FAQs
