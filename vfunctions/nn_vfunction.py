@@ -1,4 +1,4 @@
-from predictors.state_network import StateNetwork
+from railrl.predictors.state_network import StateNetwork
 from rllab.core.serializable import Serializable
 
 

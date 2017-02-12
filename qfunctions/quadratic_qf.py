@@ -1,11 +1,9 @@
 import tensorflow as tf
 
-from core import tf_util
-from core.tf_util import he_uniform_initializer, mlp, linear
-from predictors.mlp_state_network import MlpStateNetwork
-from qfunctions.nn_qfunction import NNQFunction
-from qfunctions.optimizable_q_function import OptimizableQFunction
-from rllab.core.serializable import Serializable
+from railrl.predictors.mlp_state_network import MlpStateNetwork
+from railrl.qfunctions.nn_qfunction import NNQFunction
+from railrl.core import tf_util
+from railrl.qfunctions.optimizable_q_function import OptimizableQFunction
 
 
 class QuadraticQF(NNQFunction, OptimizableQFunction):
@@ -38,9 +36,13 @@ class QuadraticQF(NNQFunction, OptimizableQFunction):
             **kwargs
         )
 
-    def _create_network(self, observation_input, action_input):
-        L_params = MlpStateNetwork(
-            name_or_scope="L",
+    def _create_network_internal(self, observation_input, action_input):
+        observation_input = self._process_layer(observation_input,
+                                                scope_name="observation_input")
+        action_input = self._process_layer(action_input,
+                                           scope_name="action_input")
+        self._L_computer = MlpStateNetwork(
+            name_or_scope="L_computer",
             output_dim=self.action_dim * self.action_dim,
             observation_dim=self.observation_dim,
             observation_input=observation_input,
@@ -51,10 +53,12 @@ class QuadraticQF(NNQFunction, OptimizableQFunction):
             output_b_init=None,
             hidden_nonlinearity=tf.nn.relu,
             output_nonlinearity=tf.identity,
-            )
+            batch_norm_config=self._batch_norm_config,
+        )
+        L_output = self._add_subnetwork_and_get_output(self._L_computer)
+        L_output = self._process_layer(L_output)
         # L_shape = batch:dimA:dimA
-        self.L_params = L_params
-        L = tf_util.vec2lower_triangle(L_params.output, self.action_dim)
+        L = tf_util.vec2lower_triangle(L_output, self.action_dim)
         self.L = L
 
         delta = action_input - self._policy.output

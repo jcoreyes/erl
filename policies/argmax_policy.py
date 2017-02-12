@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from core.neuralnet import NeuralNetwork
+from railrl.core.neuralnet import NeuralNetwork
 from rllab.core.serializable import Serializable
 from rllab.misc.overrides import overrides
 from rllab.policies.base import Policy
@@ -54,9 +54,10 @@ class ArgmaxPolicy(NeuralNetwork, Policy, Serializable):
         with tf.variable_scope(name_or_scope) as variable_scope:
             super(ArgmaxPolicy, self).__init__(name_or_scope=variable_scope,
                                                **kwargs)
-            self.proposed_action = tf.Variable(
-                init,
-                name="proposed_action")
+            self.proposed_action = tf.get_variable(
+                name="proposed_action",
+                initializer=init,
+            )
             self.af_with_proposed_action = self.qfunction.get_weight_tied_copy(
                 action_input=self.proposed_action
             )
@@ -69,7 +70,7 @@ class ArgmaxPolicy(NeuralNetwork, Policy, Serializable):
                     self.loss,
                     var_list=[self.proposed_action])
                 self.processed_action = tf.clip_by_value(self.proposed_action, -1, 1)
-                self.adam_scope = adam_scope.original_name_scope
+                self.adam_scope = adam_scope.name
 
     @overrides
     def get_params_internal(self, **tags):

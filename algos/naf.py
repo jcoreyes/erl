@@ -2,13 +2,15 @@
 :author: Vitchyr Pong
 """
 from collections import OrderedDict
+from typing import List
 
 import numpy as np
 import tensorflow as tf
 
-from algos.online_algorithm import OnlineAlgorithm
-from misc.data_processing import create_stats_ordered_dict
-from misc.rllab_util import split_paths
+from railrl.core.neuralnet import NeuralNetwork
+from railrl.misc.data_processing import create_stats_ordered_dict
+from railrl.misc.rllab_util import split_paths
+from railrl.algos.online_algorithm import OnlineAlgorithm
 from rllab.misc import logger
 from rllab.misc import special
 from rllab.misc.overrides import overrides
@@ -44,19 +46,20 @@ class NAF(OnlineAlgorithm):
 
         super().__init__(
             env,
-            policy=None,
+            policy=None,  # TODO(vpong): why did I do this again?
             exploration_strategy=exploration_strategy,
             **kwargs)
 
     @overrides
     def _init_tensorflow_ops(self):
-        self.sess.run(tf.initialize_all_variables())
+        self.sess.run(tf.global_variables_initializer())
         self.next_obs_placeholder = tf.placeholder(
             tf.float32,
             shape=[None, self.observation_dim],
             name='next_obs')
         self.target_vf = self.qf.value_function.get_copy(
-            name_or_scope=TARGET_PREFIX + self.qf.scope_name,
+            name_or_scope=TARGET_PREFIX +
+                          self.qf.value_function.scope_name,
             observation_input=self.next_obs_placeholder,
         )
         self.qf.sess = self.sess
@@ -64,7 +67,7 @@ class NAF(OnlineAlgorithm):
         self.target_vf.sess = self.sess
         self._init_qf_ops()
         self._init_target_ops()
-        self.sess.run(tf.initialize_all_variables())
+        self.sess.run(tf.global_variables_initializer())
 
     def _init_qf_ops(self):
         self.ys = (
@@ -78,7 +81,7 @@ class NAF(OnlineAlgorithm):
             tf.pack(
                 [tf.nn.l2_loss(v)
                  for v in
-                 self.qf.get_params_internal(only_regularizable=True)]
+                 self.qf.get_params_internal(regularizable=True)]
             ),
             name='weights_norm'
         )
@@ -104,10 +107,18 @@ class NAF(OnlineAlgorithm):
 
     @overrides
     def _get_training_ops(self):
-        return [
+        ops = [
             self.train_qf_op,
             self.update_target_vf_op,
         ]
+        if self._batch_norm:
+            ops += self.qf.batch_norm_update_stats_op
+        return ops
+
+    @overrides
+    @property
+    def _networks(self) -> List[NeuralNetwork]:
+        return [self.policy, self.qf, self.target_vf]
 
     @overrides
     def _update_feed_dict(self, rewards, terminals, obs, actions, next_obs):

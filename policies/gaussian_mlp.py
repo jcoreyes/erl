@@ -2,7 +2,7 @@
 import numpy as np
 import tensorflow as tf
 
-from core import tf_util
+from railrl.core import tf_util
 from rllab.core.serializable import Serializable
 from rllab.distributions.diagonal_gaussian import DiagonalGaussian
 from rllab.misc.overrides import overrides
@@ -28,10 +28,10 @@ class GaussianMLPPolicy(Policy, Serializable):
         :param env_spec:
         :param mean_hidden_nonlinearity: nonlinearity used for the mean hidden
                                          layers
-        :param mean_hidden_sizes: list of sizes for the fully-connected hidden layers
+        :param mean_hidden_sizes: list of hidden_sizes for the fully-connected hidden layers
         :param std_hidden_nonlinearity: nonlinearity used for the std hidden
                                         layers
-        :param std_hidden_sizes: list of sizes for the fully-connected hidden layers
+        :param std_hidden_sizes: list of hidden_sizes for the fully-connected hidden layers
         :param min_std: whether to make sure that the std is at least some
                         threshold value, to avoid numerical issues
         :return:
@@ -48,7 +48,7 @@ class GaussianMLPPolicy(Policy, Serializable):
         self.observations_input = tf.placeholder(tf.float32,
                                                  shape=[None, observation_dim])
         action_dim = self.env_spec.action_space.flat_dim
-        with tf.name_scope('mean') as _:
+        with tf.variable_scope('mean') as _:
             mlp_mean_output = tf_util.mlp(self.observations_input,
                                           observation_dim,
                                           mean_hidden_sizes,
@@ -58,7 +58,7 @@ class GaussianMLPPolicy(Policy, Serializable):
                                        mlp_mean_output_size,
                                        action_dim)
 
-        with tf.name_scope('log_std') as _:
+        with tf.variable_scope('log_std') as _:
             mlp_std_output = tf_util.mlp(self.observations_input,
                                          observation_dim,
                                          std_hidden_sizes,

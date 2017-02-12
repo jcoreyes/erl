@@ -5,11 +5,12 @@ TODO: DeterministicHyperparameterSweeper doesn't work in stub mode because
 **(stub object) just hangs.
 different.
 """
-from algos.ddpg import DDPG
-from misc.hyperparameter import DeterministicHyperparameterSweeper
-from misc.scripts_util import timestamp
-from policies.nn_policy import FeedForwardPolicy
-from qfunctions.nn_qfunction import FeedForwardCritic
+from railrl.misc.hyperparameter import DeterministicHyperparameterSweeper
+from railrl.misc.scripts_util import timestamp
+from railrl.policies.nn_policy import FeedForwardPolicy
+from railrl.qfunctions.nn_qfunction import FeedForwardCritic
+
+from railrl.algos.ddpg import DDPG
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.exploration_strategies.ou_strategy import OUStrategy
 from rllab.misc.instrument import run_experiment_lite, stub
@@ -38,8 +39,8 @@ def main():
     sweeper = DeterministicHyperparameterSweeper(
         {'scale_reward': [1e-4, 1e-3, 1e-2, 1e-1, 1, 1e1, 1e2, 1e3, 1e4]},
     )
+    exp_prefix = 'ddpg-cart-reward-scale-sweep-{0}'.format(timestamp())
     for ddpg_params in sweeper.iterate_hyperparameters():
-        print(ddpg_params)
         algorithm = DDPG(
             env,
             es,
@@ -49,7 +50,6 @@ def main():
             **default_ddpg_params,
         )
 
-        exp_prefix = 'ddpg-cart-reward-scale-sweep-{0}'.format(timestamp())
         for seed in range(3):
             run_experiment_lite(
                 algorithm.train(),

@@ -1,20 +1,19 @@
 """
 Check that having the same seed doesn't change anything for our DDPG
-implementaiton. Likewise, check that having different seeds does something
+implementation. Likewise, check that having different seeds does something
 different.
 """
-from algos.ddpg import DDPG
-from policies.nn_policy import FeedForwardPolicy
-from qfunctions.nn_qfunction import FeedForwardCritic
+from railrl.policies.nn_policy import FeedForwardPolicy
+from railrl.qfunctions.nn_qfunction import FeedForwardCritic
+
+from railrl.algos.ddpg import DDPG
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 from rllab.exploration_strategies.ou_strategy import OUStrategy
-from rllab.misc.instrument import run_experiment_lite, stub
+from rllab.misc.instrument import run_experiment_lite
 from sandbox.rocky.tf.envs.base import TfEnv
 
 
-def main():
-    stub(globals())
-
+def run_task(_):
     for seed in range(3):
         env = TfEnv(HalfCheetahEnv())
         es = OUStrategy(env_spec=env.spec)
@@ -42,15 +41,19 @@ def main():
             **ddpg_params
         )
 
-        for _ in range(3):
-            run_experiment_lite(
-                algorithm.train(),
-                n_parallel=1,
-                snapshot_mode="last",
-                exp_prefix="check-ddpg-seed",
-                seed=seed,
-            )
+        algorithm.train(),
 
+
+def main():
+    for seed in range(3):
+        run_experiment_lite(
+            run_task,
+            n_parallel=1,
+            snapshot_mode="last",
+            exp_prefix="check-ddpg-seed",
+            seed=seed,
+            use_cloudpickle=True,
+        )
 
 if __name__ == "__main__":
     main()

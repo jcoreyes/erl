@@ -1,7 +1,7 @@
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
 
-from optimizers.bundle_entropy import solveBatch
+from railrl.optimizers.bundle_entropy import solveBatch
 from rllab.core.serializable import Serializable
 from rllab.misc.overrides import overrides
 from rllab.policies.base import Policy

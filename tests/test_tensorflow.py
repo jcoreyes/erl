@@ -2,9 +2,9 @@ import unittest
 
 import numpy as np
 import tensorflow as tf
+from railrl.misc.tf_test_case import TFTestCase
 
-from core import tf_util
-from misc.tf_test_case import TFTestCase
+from railrl.core import tf_util
 
 
 def create_network(in_size):
@@ -23,7 +23,7 @@ class TestTensorFlow(TFTestCase):
         with tf.variable_scope('b') as _:
             in_b, out_b = create_network(in_size)
 
-        init = tf.initialize_all_variables()
+        init = tf.global_variables_initializer()
         self.sess.run(init)
 
         x = np.random.rand(1, in_size)
@@ -52,9 +52,11 @@ class TestTensorFlow(TFTestCase):
             _ = tf_util.linear(input_placeholder,
                                in_size,
                                out_size)
-        variables = tf.get_collection(tf.GraphKeys.VARIABLES, scope)
+        # TODO(vpong): figure out why this line doesn't work
+        # variables = tf.get_collection(tf.GraphKeys.VARIABLES, scope)
+        variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
         self.assertEqual(2, len(variables))
-        variables = tf.get_collection(tf.GraphKeys.VARIABLES, "nope")
+        variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, "nope")
         self.assertEqual(0, len(variables))
 
     def test_batch_matmul(self):
