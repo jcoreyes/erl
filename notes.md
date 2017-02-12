@@ -5,6 +5,7 @@
  - Make a load_policy method
  - Organize the misc folder
  - See TODO in test_tensorflow.py
+ - Create my own spaces rather than editting rllab's spaces
 
 ## ICML
  - Add a version of DDPG where the policy outputs a distribution over discrete actions
