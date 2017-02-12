@@ -9,6 +9,10 @@ class LinearOcmPolicy(MemoryPolicy):
     """
     A custom linear policy for solving the one character memory task.
     Used as a sanity check.
+
+    Note: this policy does not support batch norm and other between-layer
+    operations. (To add this, add _process_layer_ calls in
+    _create_network_internal.)
     """
 
     def __init__(
