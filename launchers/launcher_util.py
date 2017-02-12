@@ -2,6 +2,11 @@ import datetime
 import dateutil.tz
 import os
 import os.path as osp
+import sys
+import random
+
+import numpy as np
+import tensorflow as tf
 
 from railrl.envs.env_utils import gym_env
 from railrl.envs.memory.one_char_memory import (
@@ -213,3 +218,15 @@ def setup_logger(
     logger.set_snapshot_mode(snapshot_mode)
     logger.set_snapshot_gap(snapshot_gap)
     logger.set_log_tabular_only(log_tabular_only)
+
+
+def set_seed(seed):
+    """
+    Set the seed for all the possible random number generators.
+
+    :param seed:
+    :return: None
+    """
+    random.seed(seed)
+    np.random.seed(seed)
+    tf.set_random_seed(seed)
