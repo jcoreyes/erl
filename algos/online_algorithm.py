@@ -12,7 +12,7 @@ import tensorflow as tf
 
 from railrl.policies.nn_policy import NNPolicy
 from railrl.core.neuralnet import NeuralNetwork
-from railrl.data.env_replay_buffer import EnvReplayBuffer
+from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from rllab.algos.base import RLAlgorithm
 from rllab.misc import logger
 from rllab.misc.overrides import overrides

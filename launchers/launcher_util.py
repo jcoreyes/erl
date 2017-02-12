@@ -167,7 +167,7 @@ def create_log_dir(exp_prefix="default", exp_count=0):
 def setup_logger(
         exp_prefix=None,
         exp_count=0,
-        variant_data=None,
+        variant=None,
         log_dir=None,
         text_log_file="debug.log",
         variant_log_file="variant.json",
@@ -197,9 +197,9 @@ def setup_logger(
     tabular_log_path = osp.join(log_dir, tabular_log_file)
     text_log_path = osp.join(log_dir, text_log_file)
 
-    if variant_data is not None:
+    if variant is not None:
         variant_log_path = osp.join(log_dir, variant_log_file)
-        logger.log_variant(variant_log_path, variant_data)
+        logger.log_variant(variant_log_path, variant)
 
     logger.add_text_output(text_log_path)
     logger.add_tabular_output(tabular_log_path)
