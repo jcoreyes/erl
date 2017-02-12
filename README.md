@@ -33,4 +33,28 @@ and similarly for creating your own critic. See `policies/nn_policy.py` and `qfu
 For an example on creating your own policy, see the `SumPolicy` class in `policies/nn_policy.py`.
 For an example on creating your own critic, see the `SumCritic` class in `qfunctions/nn_qfunction.py`.
 
-## Notes on relation to rllab
+## Visualizing a policy and seeing results
+During training, the results will be saved to a file called under
+```
+PROJECT_PATH/data/local/<default>/<foldername>
+```
+ -  `PROJECT_PATH` is the directory set by `rllab.config.PROJECT_PATH`. By default the project path is your rllab directory.
+ - For example.py `<default>` is `ddpg-half-cheetah`, and can be changed by passing an argument to `exp_prefix` when calling `run_experiment_lite`.
+ - `<foldername>` is auto-generated and based off of what `<default>` is.
+ - inside this folder, you should see a file called `params.pkl`. To visualize a policy, run
+
+```
+$ python sim_policy PROJECT_PATH/data/local/<default>/<foldername>/params.pkl
+```
+
+## FAQs
+_I'm getting issues about a session being None. (e.g. "None has not method called run")._
+This might happen if you run in stub mode and are unserializing a network.
+This error is because the un-serialization code expects a default Tensorflow Session to exist.
+Fix this by creating a default graph:
+```python
+with tf.Session().as_default():
+    # the rest of your code
+```
+
+
