@@ -1,18 +1,14 @@
-import tensorflow as tf
-
 from algos.ddpg import DDPG
 from policies.nn_policy import FeedForwardPolicy
 from qfunctions.nn_qfunction import FeedForwardCritic
+
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 from rllab.exploration_strategies.ou_strategy import OUStrategy
-from rllab.misc.instrument import run_experiment_lite, stub
-from sandbox.rocky.tf.envs.base import TfEnv
+from rllab.misc.instrument import run_experiment_lite
 
 
-def main():
-    stub(globals())
-
-    env = TfEnv(HalfCheetahEnv())
+def example(*_):
+    env = HalfCheetahEnv()
     es = OUStrategy(env_spec=env.spec)
     qf = FeedForwardCritic(
         name_or_scope="critic",
@@ -28,14 +24,15 @@ def main():
         policy,
         qf,
     )
+    algorithm.train()
 
+
+if __name__ == "__main__":
     run_experiment_lite(
-        algorithm.train(),
+        example,
         n_parallel=1,
         snapshot_mode="last",
         exp_prefix="ddpg-half-cheetah",
         seed=2,
+        use_cloudpickle=True,
     )
-
-if __name__ == "__main__":
-    main()
