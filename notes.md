@@ -5,6 +5,7 @@
  - Make a load_policy method
  - Organize the misc folder
  - See TODO in test_tensorflow.py
+ - Create my own spaces rather than editting rllab's spaces
 
 # Notes
 These notes are really for myself (vpong), so they're probably meaningless to anyone else.
