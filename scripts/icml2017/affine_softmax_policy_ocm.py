@@ -1,3 +1,6 @@
+"""
+Check affine_softmax_policy on OneCharMemoryEndOnly task.
+"""
 from railrl.launchers.launcher_util import (
     run_experiment,
     run_experiment_here,
@@ -12,7 +15,7 @@ def run_linear_ocm_exp(variant):
         ContinuousMemoryAugmented
     )
     from railrl.envs.memory.one_char_memory import OneCharMemoryEndOnly
-    from railrl.policies.memory.linear_ocm_policy import LinearOcmPolicy
+    from railrl.policies.memory.affine_softmax_policy import AffineSoftmaxPolicy
     from railrl.launchers.launcher_util import (
         set_seed,
     )
@@ -38,10 +41,9 @@ def run_linear_ocm_exp(variant):
         num_memory_states=onehot_dim,
     )
 
-    policy = LinearOcmPolicy(
+    policy = AffineSoftmaxPolicy(
         name_or_scope="policy",
         memory_and_action_dim=onehot_dim,
-        horizon=H,
         env_spec=env.spec,
     )
 
@@ -62,21 +64,22 @@ def run_linear_ocm_exp(variant):
 
 
 if __name__ == '__main__':
-    n_seeds = 3
-    exp_prefix = "2-12-test-linear-ocm"
+    n_seeds = 1
+    exp_prefix = "2-12-dev-affine-softmax-policy-ocm"
+
     """
     DDPG Params
     """
-    n_batches_per_epoch = 3
-    n_batches_per_eval = 3
-    batch_size = 1
-    n_epochs = 2
+    n_batches_per_epoch = 100
+    n_batches_per_eval = 100
+    batch_size = 64
+    n_epochs = 1000
     replay_pool_size = 100
 
     USE_EC2 = False
     exp_count = -1
-    for H in [1, 2, 8]:
-        for num_values in [2, 16]:
+    for H in [1]:
+        for num_values in [2]:
             print("H", H)
             print("num_values", num_values)
             exp_count += 1

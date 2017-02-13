@@ -13,8 +13,7 @@ class SoftmaxMemoryPolicy(MemoryPolicy):
     def __init__(
             self,
             name_or_scope,
-            env_action_dim,
-            memory_dim,
+            memory_and_action_dim,
             observation_hidden_sizes=(100, 100),
             hidden_W_init=None,
             hidden_b_init=None,
@@ -31,8 +30,8 @@ class SoftmaxMemoryPolicy(MemoryPolicy):
         :param kwargs:
         """
         self.setup_serialization(locals())
-        self._env_action_dim = env_action_dim
-        self._memory_dim = memory_dim
+        self._env_action_dim = memory_and_action_dim
+        self._memory_dim = memory_and_action_dim
         self._observation_hidden_sizes = observation_hidden_sizes
         self._hidden_W_init = hidden_W_init or he_uniform_initializer()
         self._hidden_b_init = hidden_b_init or tf.constant_initializer(0.)
