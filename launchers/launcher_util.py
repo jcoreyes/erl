@@ -105,6 +105,8 @@ def run_experiment(
         profile_file='time_log.prof',
         **kwargs):
     """
+    Run a task via the rllab interface, i.e. serialize it and then run it via
+    the run_experiment_lite script.
 
     :param task:
     :param exp_prefix:
@@ -137,21 +139,52 @@ def run_experiment(
     )
 
 
+def run_experiment_here(
+    experiment_function,
+    exp_prefix="default",
+    variant=None,
+    exp_count=0,
+    seed=0,
+):
+    """
+    Run an experiment locally without any serialization.
+
+    :param experiment_function: Function. `variant` will be passed in as its
+    only argument.
+    :param exp_prefix: Experiment prefix for the save file.
+    :param variant: Dictionary passed in to `experiment_function`.
+    :param exp_count: Experiment count. Should be unique across all
+    experiments. Note that one experiment may correspond to multiple seeds,.
+    :param seed: Seed used for this experiment.
+    :return:
+    """
+    if variant is None:
+        variant = {}
+    setup_logger(
+        exp_prefix=exp_prefix,
+        variant=variant,
+        exp_count=exp_count,
+        seed=seed,
+    )
+    experiment_function(variant)
+    reset_execution_environment()
+
+
 now = datetime.datetime.now(dateutil.tz.tzlocal())
 timestamp = now.strftime('%Y_%m_%d_%H_%M_%S')
 
 
-def create_exp_name(exp_prefix="default", exp_count=0):
+def create_exp_name(exp_prefix="default", exp_count=0, seed=0):
     """
     Create a semi-unique experiment name that has a timestamp
     :param exp_prefix:
     :param exp_count:
     :return:
     """
-    return "%s_%s_%04d" % (exp_prefix, timestamp, exp_count)
+    return "%s_%s_%04d--s-%d" % (exp_prefix, timestamp, exp_count, seed)
 
 
-def create_log_dir(exp_prefix="default", exp_count=0):
+def create_log_dir(exp_prefix="default", exp_count=0, seed=0):
     """
     Creates and returns a unique log directory.
 
@@ -160,13 +193,20 @@ def create_log_dir(exp_prefix="default", exp_count=0):
     :param exp_count: Different exp_counts will be in different directories.
     :return:
     """
-    exp_name = create_exp_name(exp_prefix=exp_prefix, exp_count=exp_count)
+    exp_name = create_exp_name(exp_prefix=exp_prefix, exp_count=exp_count,
+                               seed=seed)
     log_dir = osp.join(
         config.LOG_DIR,
         'local',
         exp_prefix.replace("_", "-"),
         exp_name,
     )
+    if osp.exists(log_dir):
+        raise Exception(
+            "Log directory already exists. Will no overwrite: {0}".format(
+                log_dir
+            )
+        )
     os.makedirs(log_dir, exist_ok=True)
     return log_dir
 
@@ -174,6 +214,7 @@ def create_log_dir(exp_prefix="default", exp_count=0):
 def setup_logger(
         exp_prefix=None,
         exp_count=0,
+        seed=0,
         variant=None,
         log_dir=None,
         text_log_file="debug.log",
@@ -200,7 +241,7 @@ def setup_logger(
     """
     if log_dir is None:
         assert exp_prefix is not None
-        log_dir = create_log_dir(exp_prefix, exp_count=exp_count)
+        log_dir = create_log_dir(exp_prefix, exp_count=exp_count, seed=seed)
     tabular_log_path = osp.join(log_dir, tabular_log_file)
     text_log_path = osp.join(log_dir, text_log_file)
 

@@ -1,6 +1,8 @@
 from railrl.launchers.launcher_util import (
     run_experiment,
+    run_experiment_here,
     reset_execution_environment,
+    setup_logger,
 )
 
 
@@ -14,7 +16,6 @@ def run_linear_ocm_exp(variant):
     from railrl.envs.memory.one_char_memory import OneCharMemoryEndOnly
     from railrl.policies.linear_ocm_policy import LinearOcmPolicy
     from railrl.launchers.launcher_util import (
-        setup_logger,
         set_seed,
     )
 
@@ -23,44 +24,15 @@ def run_linear_ocm_exp(variant):
     """
     H = variant['H']
     seed = variant['seed']
-    exp_prefix = variant['exp_prefix']
-    exp_count = variant['exp_count']
+    num_values = variant['num_values']
+    ddpg_params = variant['ddpg_params']
 
-    num_values = 2
-    batch_size = 64
-    n_epochs = 5
-    min_pool_size = 10 * H
-    replay_pool_size = 1000
-
-    n_batches_per_epoch = 100
-    n_batches_per_eval = 100
-
+    onehot_dim = num_values + 1
     set_seed(seed)
-
-    epoch_length = H * n_batches_per_epoch
-    eval_samples = H * n_batches_per_eval
-    max_path_length = H + 1
-
-    ddpg_params = dict(
-        batch_size=batch_size,
-        n_epochs=n_epochs,
-        min_pool_size=min_pool_size,
-        replay_pool_size=replay_pool_size,
-        epoch_length=epoch_length,
-        eval_samples=eval_samples,
-        max_path_length=max_path_length,
-    )
-    variant = dict(
-        num_values=num_values,
-        H=H,
-        ddpg_params=ddpg_params,
-    )
 
     """
     Code for running the experiment.
     """
-
-    onehot_dim = num_values + 1
 
     env = OneCharMemoryEndOnly(n=num_values, num_steps=H)
     env = ContinuousMemoryAugmented(
@@ -88,35 +60,64 @@ def run_linear_ocm_exp(variant):
         **ddpg_params
     )
 
-    setup_logger(
-        exp_prefix=exp_prefix,
-        variant=variant,
-        exp_count=exp_count,
-    )
     algorithm.train()
 
 
 if __name__ == '__main__':
     n_seeds = 3
-    H = 2
-    exp_prefix = "2-12-test_linear_ocm"
-    USE_EC2 = False
-    for seed in range(n_seeds):
-        variant = dict(
-            H=H,
-            seed=seed,
-            exp_count=seed,
-            exp_prefix=exp_prefix,
-        )
+    exp_prefix = "2-12-test-linear-ocm"
+    """
+    DDPG Params
+    """
+    n_batches_per_epoch = 3
+    n_batches_per_eval = 3
+    batch_size = 1
+    n_epochs = 2
+    replay_pool_size = 100
 
-        if USE_EC2:
-            run_experiment(
-                run_linear_ocm_exp,
-                exp_prefix=exp_prefix,
-                seed=seed,
-                mode="ec2",
-                variant=variant,
+    USE_EC2 = False
+    exp_count = -1
+    for H in [1, 2, 8]:
+        for num_values in [2, 16]:
+            print("H", H)
+            print("num_values", num_values)
+            exp_count += 1
+            min_pool_size = 10 * H
+            epoch_length = H * n_batches_per_epoch
+            eval_samples = H * n_batches_per_eval
+            max_path_length = H + 1
+            ddpg_params = dict(
+                batch_size=batch_size,
+                n_epochs=n_epochs,
+                min_pool_size=min_pool_size,
+                replay_pool_size=replay_pool_size,
+                epoch_length=epoch_length,
+                eval_samples=eval_samples,
+                max_path_length=max_path_length,
             )
-        else:
-            run_linear_ocm_exp(variant)
-            reset_execution_environment()
+            variant = dict(
+                H=H,
+                num_values=num_values,
+                exp_prefix=exp_prefix,
+                ddpg_params=ddpg_params,
+            )
+            for seed in range(n_seeds):
+                variant['seed'] = seed
+                variant['exp_count'] = exp_count
+
+                if USE_EC2:
+                    run_experiment(
+                        run_linear_ocm_exp,
+                        exp_prefix=exp_prefix,
+                        seed=seed,
+                        mode="ec2",
+                        variant=variant,
+                    )
+                else:
+                    run_experiment_here(
+                        run_linear_ocm_exp,
+                        exp_prefix=exp_prefix,
+                        variant=variant,
+                        exp_count=exp_count,
+                        seed=seed,
+                    )
