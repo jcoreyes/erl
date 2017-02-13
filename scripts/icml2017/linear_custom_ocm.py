@@ -65,8 +65,7 @@ def run_linear_ocm_exp(variant):
 
 if __name__ == '__main__':
     n_seeds = 1
-    exp_prefix = "2-12-dev-linear-custom-ocm"
-
+    exp_prefix = "2-12-dev-linear-ocm--branch-loosen-manual"
     """
     DDPG Params
     """
