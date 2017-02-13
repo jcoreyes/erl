@@ -6,13 +6,12 @@ from railrl.launchers.launcher_util import (
 
 def run_linear_ocm_exp(variant):
     from railrl.algos.ddpg_ocm import DdpgOcm
-    from railrl.qfunctions.memory_qfunction import MemoryQFunction
+    from railrl.qfunctions.memory.memory_qfunction import MemoryQFunction
     from railrl.exploration_strategies.noop import NoopStrategy
     from railrl.envs.memory.continuous_memory_augmented import (
         ContinuousMemoryAugmented
     )
     from railrl.envs.memory.one_char_memory import OneCharMemoryEndOnly
-    from railrl.envs.memory.one_char_memory import OneCharMemoryEndOnlyLogLoss
     from railrl.policies.memory.linear_ocm_policy import LinearOcmPolicy
     from railrl.launchers.launcher_util import (
         set_seed,
@@ -33,7 +32,6 @@ def run_linear_ocm_exp(variant):
     Code for running the experiment.
     """
 
-    # env = OneCharMemoryEndOnlyLogLoss(n=num_values, num_steps=H)
     env = OneCharMemoryEndOnly(n=num_values, num_steps=H)
     env = ContinuousMemoryAugmented(
         env,
@@ -50,6 +48,7 @@ def run_linear_ocm_exp(variant):
     es = NoopStrategy()
     qf = MemoryQFunction(
         name_or_scope="critic",
+        memory_and_action_dim=onehot_dim,
         env_spec=env.spec,
     )
     algorithm = DdpgOcm(
@@ -65,7 +64,7 @@ def run_linear_ocm_exp(variant):
 
 if __name__ == '__main__':
     n_seeds = 3
-    exp_prefix = "2-12-dev-linear-ocm-branch--icml2017"
+    exp_prefix = "2-12-dev-linear-ocm--branch-icml-1-30"
     """
     DDPG Params
     """
