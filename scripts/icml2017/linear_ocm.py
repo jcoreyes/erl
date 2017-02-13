@@ -63,14 +63,14 @@ def run_linear_ocm_exp(variant):
 
 if __name__ == '__main__':
     n_seeds = 3
-    exp_prefix = "2-12-test-linear-ocm"
+    exp_prefix = "2-12-dev-linear-ocm--branch-icml-1-30"
     """
     DDPG Params
     """
-    n_batches_per_epoch = 3
-    n_batches_per_eval = 3
-    batch_size = 1
-    n_epochs = 2
+    n_batches_per_epoch = 100
+    n_batches_per_eval = 100
+    batch_size = 64
+    n_epochs = 100
     replay_pool_size = 100
 
     USE_EC2 = False
