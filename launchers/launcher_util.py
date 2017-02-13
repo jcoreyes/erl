@@ -1,16 +1,21 @@
 import datetime
-import dateutil.tz
 import os
 import os.path as osp
+import random
+
+import dateutil.tz
+import numpy as np
+import tensorflow as tf
 
 from railrl.envs.env_utils import gym_env
+from railrl.envs.memory.continuous_memory_augmented import (
+    ContinuousMemoryAugmented
+)
 from railrl.envs.memory.one_char_memory import (
     OneCharMemory,
     OneCharMemoryEndOnly,
 )
-from railrl.envs.memory.continuous_memory_augmented import (
-    ContinuousMemoryAugmented
-)
+from rllab import config
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.envs.mujoco.ant_env import AntEnv
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
@@ -18,10 +23,6 @@ from rllab.envs.mujoco.inverted_double_pendulum_env import (
     InvertedDoublePendulumEnv
 )
 from rllab.envs.normalized_env import normalize
-
-# Although this import looks like it does nothing, but this is needed to use
-# the envs in this package, because this call will register the environments.
-from rllab import config
 from rllab.misc import logger
 from rllab.misc.instrument import run_experiment_lite
 
@@ -187,7 +188,7 @@ def setup_logger(
 
     :param exp_prefix:
     :param exp_count:
-    :param variant_data:
+    :param variant:
     :param log_dir:
     :param text_log_file:
     :param variant_log_file:
@@ -213,3 +214,25 @@ def setup_logger(
     logger.set_snapshot_mode(snapshot_mode)
     logger.set_snapshot_gap(snapshot_gap)
     logger.set_log_tabular_only(log_tabular_only)
+
+
+def set_seed(seed):
+    """
+    Set the seed for all the possible random number generators.
+
+    :param seed:
+    :return: None
+    """
+    random.seed(seed)
+    np.random.seed(seed)
+    tf.set_random_seed(seed)
+
+
+def reset_execution_environment():
+    """
+    Call this between calls to separate experiments.
+    :return:
+    """
+    tf.reset_default_graph()
+    import importlib
+    importlib.reload(logger)
