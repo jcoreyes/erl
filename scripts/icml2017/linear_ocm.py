@@ -12,6 +12,7 @@ def run_linear_ocm_exp(variant):
         ContinuousMemoryAugmented
     )
     from railrl.envs.memory.one_char_memory import OneCharMemoryEndOnly
+    from railrl.envs.memory.one_char_memory import OneCharMemoryEndOnlyLogLoss
     from railrl.policies.memory.linear_ocm_policy import LinearOcmPolicy
     from railrl.launchers.launcher_util import (
         set_seed,
@@ -32,6 +33,7 @@ def run_linear_ocm_exp(variant):
     Code for running the experiment.
     """
 
+    # env = OneCharMemoryEndOnlyLogLoss(n=num_values, num_steps=H)
     env = OneCharMemoryEndOnly(n=num_values, num_steps=H)
     env = ContinuousMemoryAugmented(
         env,
@@ -63,20 +65,20 @@ def run_linear_ocm_exp(variant):
 
 if __name__ == '__main__':
     n_seeds = 3
-    exp_prefix = "2-12-test-linear-ocm"
+    exp_prefix = "2-12-dev-linear-ocm-branch--icml2017"
     """
     DDPG Params
     """
-    n_batches_per_epoch = 3
-    n_batches_per_eval = 3
-    batch_size = 1
-    n_epochs = 2
+    n_batches_per_epoch = 100
+    n_batches_per_eval = 100
+    batch_size = 64
+    n_epochs = 50
     replay_pool_size = 100
 
     USE_EC2 = False
     exp_count = -1
-    for H in [1, 2, 8]:
-        for num_values in [2, 16]:
+    for H in [2]:
+        for num_values in [4]:
             print("H", H)
             print("num_values", num_values)
             exp_count += 1
@@ -92,6 +94,8 @@ if __name__ == '__main__':
                 epoch_length=epoch_length,
                 eval_samples=eval_samples,
                 max_path_length=max_path_length,
+                # qf_learning_rate=1e-1,
+                # policy_learning_rate=1e-1,
             )
             variant = dict(
                 H=H,

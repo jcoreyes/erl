@@ -177,9 +177,21 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
 
 class OneCharMemoryEndOnly(OneCharMemory):
     """
-    Don't reward or penalize outputs other than the last output.
+    Don't reward or penalize outputs other than the last output. Then,
+    only give a 1 or 0.
     """
     def _compute_reward(self, done, action):
         if done and np.argmax(action) == self._target_number:
             return self._reward_for_remembering
+        return 0
+
+
+class OneCharMemoryEndOnlyLogLoss(OneCharMemory):
+    """
+    Don't reward or penalize outputs other than the last output. Then,
+    give the usual reward.
+    """
+    def _compute_reward(self, done, action):
+        if done:
+            return super()._compute_reward(done, action)
         return 0
