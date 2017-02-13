@@ -45,6 +45,7 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
         number has the maximum probability.
         :param max_reward_magnitude: Clip the reward magnitude to this value.
         """
+        assert max_reward_magnitude >= reward_for_remembering
         super().__init__()
         self.num_steps = num_steps
         self.n = n
@@ -180,6 +181,9 @@ class OneCharMemoryEndOnly(OneCharMemory):
     Don't reward or penalize outputs other than the last output.
     """
     def _compute_reward(self, done, action):
-        if done and np.argmax(action) == self._target_number:
-            return self._reward_for_remembering
+        if done:
+            if np.argmax(action) == self._target_number:
+                return self._reward_for_remembering
+            else:
+                return - self._reward_for_remembering
         return 0
