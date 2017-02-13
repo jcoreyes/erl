@@ -9,6 +9,7 @@ def run_linear_ocm_exp(variant):
     from railrl.qfunctions.memory.affine_tanh_qfunction import (
         AffineTanHQFunction
     )
+    from railrl.qfunctions.memory.memory_qfunction import MemoryQFunction
     from railrl.exploration_strategies.noop import NoopStrategy
     from railrl.envs.memory.continuous_memory_augmented import (
         ContinuousMemoryAugmented
@@ -48,9 +49,9 @@ def run_linear_ocm_exp(variant):
     )
 
     es = NoopStrategy()
+    # qf = MemoryQFunction(
     qf = AffineTanHQFunction(
         name_or_scope="critic",
-        memory_and_action_dim=onehot_dim,
         env_spec=env.spec,
     )
     algorithm = DdpgOcm(
@@ -79,7 +80,7 @@ if __name__ == '__main__':
     USE_EC2 = False
     exp_count = -1
     for H in [1]:
-        for num_values in [2]:
+        for num_values in [1]:
             print("H", H)
             print("num_values", num_values)
             exp_count += 1

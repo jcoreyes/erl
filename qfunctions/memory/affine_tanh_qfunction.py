@@ -12,14 +12,10 @@ class AffineTanHQFunction(NNQFunction):
     def __init__(
             self,
             name_or_scope,
-            memory_and_action_dim,
             **kwargs
     ):
         self.setup_serialization(locals())
-        self._memory_and_action_dim = memory_and_action_dim
         super().__init__(name_or_scope=name_or_scope, **kwargs)
-        assert (self._memory_and_action_dim,
-                self._memory_and_action_dim) == self.output_dim
 
     def _create_network_internal(
             self,
@@ -35,6 +31,6 @@ class AffineTanHQFunction(NNQFunction):
         with tf.variable_scope("output_linear"):
             return tf.nn.tanh(linear(
                 all_input,
-                4 * self._memory_and_action_dim,
+                sum(self.observation_dim) + sum(self.action_dim),
                 1,
             ))
