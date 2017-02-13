@@ -6,7 +6,9 @@ from railrl.launchers.launcher_util import (
 
 def run_linear_ocm_exp(variant):
     from railrl.algos.ddpg_ocm import DdpgOcm
-    from railrl.qfunctions.memory.memory_qfunction import MemoryQFunction
+    from railrl.qfunctions.memory.affine_tanh_qfunction import (
+        AffineTanHQFunction
+    )
     from railrl.exploration_strategies.noop import NoopStrategy
     from railrl.envs.memory.continuous_memory_augmented import (
         ContinuousMemoryAugmented
@@ -46,7 +48,7 @@ def run_linear_ocm_exp(variant):
     )
 
     es = NoopStrategy()
-    qf = MemoryQFunction(
+    qf = AffineTanHQFunction(
         name_or_scope="critic",
         memory_and_action_dim=onehot_dim,
         env_spec=env.spec,
@@ -63,8 +65,8 @@ def run_linear_ocm_exp(variant):
 
 
 if __name__ == '__main__':
-    n_seeds = 3
-    exp_prefix = "2-12-dev-linear-ocm--branch-icml-1-30"
+    n_seeds = 1
+    exp_prefix = "2-12-dev-linear-ocm--branch-fix-manual"
     """
     DDPG Params
     """
@@ -76,8 +78,8 @@ if __name__ == '__main__':
 
     USE_EC2 = False
     exp_count = -1
-    for H in [2]:
-        for num_values in [4]:
+    for H in [1]:
+        for num_values in [2]:
             print("H", H)
             print("num_values", num_values)
             exp_count += 1
