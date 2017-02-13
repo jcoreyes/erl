@@ -1,8 +1,6 @@
 from railrl.launchers.launcher_util import (
     run_experiment,
     run_experiment_here,
-    reset_execution_environment,
-    setup_logger,
 )
 
 
@@ -14,7 +12,7 @@ def run_linear_ocm_exp(variant):
         ContinuousMemoryAugmented
     )
     from railrl.envs.memory.one_char_memory import OneCharMemoryEndOnly
-    from railrl.policies.linear_ocm_policy import LinearOcmPolicy
+    from railrl.policies.memory.linear_ocm_policy import LinearOcmPolicy
     from railrl.launchers.launcher_util import (
         set_seed,
     )

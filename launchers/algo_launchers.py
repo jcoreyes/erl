@@ -18,7 +18,7 @@ def mem_ddpg_launcher(variant):
     """
     from railrl.algos.ddpg import DDPG
     from railrl.algos.ddpg_ocm import DdpgOcm
-    from railrl.policies.softmax_memory_policy import SoftmaxMemoryPolicy
+    from railrl.policies.memory.softmax_memory_policy import SoftmaxMemoryPolicy
     from railrl.qfunctions.memory_qfunction import MemoryQFunction
     from railrl.launchers.launcher_util import get_env_settings
     from railrl.core.tf_util import BatchNormConfig
