@@ -1,9 +1,10 @@
 import numpy as np
+from rllab.spaces.product import Product
 
 # TODO(vpong): unittest this
 def split_paths(paths):
     """
-    Plit paths from rllab's rollout function into rewards, terminals, obs
+    Split paths from rllab's rollout function into rewards, terminals, obs
     actions, and next_obs
     terminals
     :param paths:
@@ -35,11 +36,27 @@ def get_action_dim(**kwargs):
     env_spec = kwargs.get('env_spec', None)
     action_dim = kwargs.get('action_dim', None)
     assert env_spec or action_dim
-    return action_dim or env_spec.action_space.flat_dim
+    if action_dim:
+        return action_dim
+
+    if isinstance(env_spec.action_space, Product):
+        return tuple(
+            c.flat_dim for c in env_spec.action_space.components
+        )
+    else:
+        return env_spec.action_space.flat_dim
 
 
 def get_observation_dim(**kwargs):
     env_spec = kwargs.get('env_spec', None)
     observation_dim = kwargs.get('observation_dim', None)
     assert env_spec or observation_dim
-    return observation_dim or env_spec.observation_space.flat_dim
+    if observation_dim:
+        return observation_dim
+
+    if isinstance(env_spec.observation_space, Product):
+        return tuple(
+            c.flat_dim for c in env_spec.observation_space.components
+        )
+    else:
+        return env_spec.observation_space.flat_dim

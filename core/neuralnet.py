@@ -297,9 +297,15 @@ class NeuralNetwork(Parameterized, Serializable):
     @abc.abstractmethod
     def _create_network_internal(self, **inputs):
         """
-        This function should construct the network. Between each layer,
-        it should call `self.add_layer()` like so:
-        :param inputs: Tensor inputs to the network by name
+        This function constructs the network.
+
+        If you plan on using batch norm:
+            - Between each layer, call `layer = self._process_layer(layer)`.
+            - Between each subnetwork, call
+            `output = self._add_subnetwork_and_get_output(subnetwork)`.
+            - See the documentation of those functions for more detail.
+
+        :param inputs: Tensor inputs to the network by name.
         :return: Tensor, output of network
         """
         pass
@@ -315,7 +321,9 @@ class NeuralNetwork(Parameterized, Serializable):
             'input_x': self.input_x,
             'input_y': self.input_y,
         }
-        This will be the input to get_weight_tied_copy
+
+        This will be the input to get_weight_tied_copy for inputs not
+        specified.
         """
         pass
 

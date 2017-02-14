@@ -1,5 +1,5 @@
 import math
-from collections import namedtuple
+from collections import namedtuple, Iterable
 
 import numpy as np
 import tensorflow as tf
@@ -508,3 +508,33 @@ def xavier_uniform_initializer():
                                  **acceptable_kwargs)
 
     return _initializer
+
+
+def create_placeholder(int_or_dimensions, name):
+    """
+    Create [None, dimensions] placeholders with name.
+
+    If there's multiple placeholders to be made, a unique number will be
+    appended to each name.
+
+    :param int_or_dimensions: int or list of int
+    :param name:
+    :return: if `int_or_dimensions` is an int, return a placeholder.
+    Otherwise, return a tuple of placeholders, one for each int in
+    `int_or_dimensions`
+    """
+    if isinstance(int_or_dimensions, Iterable):
+        return tuple(
+            tf.placeholder(
+                tf.float32,
+                [None, dim],
+                "{0}_{1}".format(name, number)
+            )
+            for number, dim in enumerate(int_or_dimensions)
+        )
+    else:
+        return tf.placeholder(
+            tf.float32,
+            [None, int_or_dimensions],
+            name,
+        )

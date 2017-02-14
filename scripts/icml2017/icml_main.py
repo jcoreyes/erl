@@ -1,28 +1,25 @@
-"""Test different rl algorithms."""
+"""Test different rl algorithms for preparing to submit to ICML 2017."""
 import argparse
 import copy
 
 import tensorflow as tf
 
+from railrl.launchers.rnn_launchers import (
+    bptt_launcher,
+)
 from railrl.launchers.algo_launchers import (
+    mem_ddpg_launcher,
     my_ddpg_launcher,
     naf_launcher,
     random_action_launcher,
-    shane_ddpg_launcher,
-    rllab_vpg_launcher,
-    rllab_trpo_launcher,
-    rllab_ddpg_launcher,
-    quadratic_ddpg_launcher,
-    run_experiment,
-    oat_qddpg_launcher,
 )
 from railrl.launchers.launcher_util import get_env_settings, run_experiment
 from railrl.misc import hyperparameter as hp
 
-BATCH_SIZE = 128
+BATCH_SIZE = 32
 N_EPOCHS = 100
-EPOCH_LENGTH = 10000
-EVAL_SAMPLES = 10000
+EPOCH_LENGTH = 3 * 32 * 10
+EVAL_SAMPLES = 3 * 64
 DISCOUNT = 0.99
 QF_LEARNING_RATE = 1e-3
 POLICY_LEARNING_RATE = 1e-4
@@ -43,14 +40,20 @@ SWEEP_EVAL_SAMPLES = 10000
 SWEEP_MIN_POOL_SIZE = 10000
 
 # Fast settings
-FAST_N_EPOCHS = 3
-FAST_EPOCH_LENGTH = 3
-FAST_EVAL_SAMPLES = 3
+FAST_N_EPOCHS = 5
+FAST_EPOCH_LENGTH = 5
+FAST_EVAL_SAMPLES = 5
 FAST_MIN_POOL_SIZE = 5
 FAST_MAX_PATH_LENGTH = 5
 
 NUM_SEEDS_PER_CONFIG = 3
 NUM_HYPERPARAMETER_CONFIGS = 50
+
+# One character memory settings
+OCM_N = 4
+OCM_NUM_STEPS = 10
+OCM_REWARD_FOR_REMEMBERING = 1
+OCM_MAX_REWARD_MAGNITUDE = 1
 
 
 def get_launch_settings_list_from_args(args):
@@ -68,7 +71,7 @@ def get_launch_settings_list_from_args(args):
         """
         sweeper = hp.RandomHyperparameterSweeper()
         algo_params = {}
-        if algo_name == 'ddpg':
+        if algo_name == 'ddpg' or algo_name == 'mddpg':
             sweeper = hp.RandomHyperparameterSweeper([
                 hp.LogFloatParam("qf_learning_rate", 1e-5, 1e-2),
                 hp.LogFloatParam("policy_learning_rate", 1e-6, 1e-3),
@@ -77,9 +80,7 @@ def get_launch_settings_list_from_args(args):
             ])
             algo_params = get_ddpg_params()
             algo_params['render'] = render
-            algorithm_launcher = my_ddpg_launcher
             variant = {
-                'Algorithm': 'DDPG',
                 'qf_params': dict(
                     embedded_hidden_sizes=(100,),
                     observation_hidden_sizes=(100,),
@@ -88,57 +89,15 @@ def get_launch_settings_list_from_args(args):
                 'policy_params': dict(
                     observation_hidden_sizes=(100, 100),
                     hidden_nonlinearity=tf.nn.relu,
-                    output_nonlinearity=tf.nn.tanh,
                 )
             }
-        elif algo_name == 'shane-ddpg':
-            sweeper = hp.RandomHyperparameterSweeper([
-                hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
-                hp.LogFloatParam("scale_reward", 10.0, 0.01),
-                hp.LogFloatParam("qf_weight_decay", 1e-7, 1e-1),
-            ])
-            algo_params = get_ddpg_params()
-            if algo_params['min_pool_size'] <= algo_params['batch_size']:
-                algo_params['min_pool_size'] = algo_params['batch_size'] + 1
-            algorithm_launcher = shane_ddpg_launcher
-            variant = {'Algorithm': 'Shane-DDPG', 'policy_params': dict(
-                hidden_sizes=(100, 100),
-                hidden_nonlinearity=tf.nn.relu,
-                output_nonlinearity=tf.nn.tanh,
-            ), 'qf_params': dict(
-                hidden_sizes=(100, 100)
-            )}
-        elif algo_name == 'qddpg':
-            sweeper = hp.RandomHyperparameterSweeper([
-                hp.LogFloatParam("soft_target_tau", 0.005, 0.1),
-                hp.LogFloatParam("scale_reward", 10.0, 0.01),
-                hp.LogFloatParam("qf_weight_decay", 1e-7, 1e-1),
-                hp.LogFloatParam("qf_learning_rate", 1e-6, 1e-2),
-                hp.LogFloatParam("policy_learning_rate", 1e-6, 1e-2),
-            ])
-            algo_params = get_ddpg_params()
-            algorithm_launcher = quadratic_ddpg_launcher
-            variant = {
-                'Algorithm': 'QuadraticDDPG',
-                'qf_params': dict(),
-                'policy_params': dict(
-                    observation_hidden_sizes=(100, 100),
-                    hidden_nonlinearity=tf.nn.relu,
-                    output_nonlinearity=tf.nn.tanh,
-                )
-            }
-        elif algo_name == 'oat':
-            algo_params = get_ddpg_params()
-            algorithm_launcher = oat_qddpg_launcher
-            variant = {
-                'Algorithm': 'QuadraticOptimalActionTargetDDPG',
-                'qf_params': dict(),
-                'policy_params': dict(
-                    observation_hidden_sizes=(100, 100),
-                    hidden_nonlinearity=tf.nn.relu,
-                    output_nonlinearity=tf.nn.tanh,
-                )
-            }
+            if algo_name == 'ddpg':
+                algorithm_launcher = my_ddpg_launcher
+                variant['Algorithm'] = 'DDPG'
+                variant['policy_params']['output_nonlinearity'] = tf.nn.tanh
+            else:
+                algorithm_launcher = mem_ddpg_launcher
+                variant['Algorithm'] = 'Memory-DDPG'
         elif algo_name == 'naf':
             sweeper = hp.RandomHyperparameterSweeper([
                 hp.LogFloatParam("qf_learning_rate", 1e-5, 1e-2),
@@ -158,36 +117,9 @@ def get_launch_settings_list_from_args(args):
         elif algo_name == 'random':
             algorithm_launcher = random_action_launcher
             variant = {'Algorithm': 'Random'}
-        elif algo_name == 'rl-vpg':
-            algorithm_launcher = rllab_vpg_launcher
-            algo_params = dict(
-                batch_size=BATCH_SIZE,
-                max_path_length=MAX_PATH_LENGTH,
-                n_itr=N_EPOCHS,
-                discount=DISCOUNT,
-                optimizer_args=dict(
-                    tf_optimizer_args=dict(
-                        learning_rate=BATCH_LEARNING_RATE,
-                    )
-                ),
-            )
-            variant = {'Algorithm': 'rllab-VPG'}
-        elif algo_name == 'rl-trpo':
-            algorithm_launcher = rllab_trpo_launcher
-            algo_params = dict(
-                batch_size=BATCH_SIZE,
-                max_path_length=MAX_PATH_LENGTH,
-                n_itr=N_EPOCHS,
-                discount=DISCOUNT,
-                step_size=BATCH_LEARNING_RATE,
-            )
-            variant = {'Algorithm': 'rllab-TRPO'}
-        elif algo_name == 'rl-ddpg':
-            algorithm_launcher = rllab_ddpg_launcher
-            algo_params = get_ddpg_params()
-            if algo_params['min_pool_size'] <= algo_params['batch_size']:
-                algo_params['min_pool_size'] = algo_params['batch_size'] + 1
-            variant = {'Algorithm': 'rllab-DDPG'}
+        elif algo_name == 'bptt':
+            algorithm_launcher = bptt_launcher
+            variant = {'Algorithm': 'BPTT'}
         else:
             raise Exception("Algo name not recognized: " + algo_name)
 
@@ -322,27 +254,37 @@ def sweep(exp_prefix, env_params, launch_settings_, **kwargs):
 
 def get_env_params_list_from_args(args):
     envs_params_list = []
+    num_memory_states = args.num_memory_states
     if 'gym' in args.env:
         envs_params_list = [
             dict(
                 env_id='gym',
                 normalize_env=args.normalize,
                 gym_name=gym_name,
+                num_memory_states=num_memory_states,
             )
             for gym_name in args.gym
-        ]
+            ]
 
+    init_env_params = {}
+    init_env_params['n'] = OCM_N
+    init_env_params['num_steps'] = OCM_NUM_STEPS
+    init_env_params['reward_for_remembering'] = OCM_REWARD_FOR_REMEMBERING
+    init_env_params['max_reward_magnitude'] = OCM_MAX_REWARD_MAGNITUDE
+    if args.ocm_horizon:
+        init_env_params['num_steps'] = args.ocm_horizon
     return envs_params_list + [dict(
         env_id=env,
         normalize_env=args.normalize,
         gym_name="",
+        num_memory_states=num_memory_states,
+        init_env_params=init_env_params,
     ) for env in args.env if env != 'gym']
 
 
 def main():
-    env_choices = ['ant', 'cheetah', 'cart', 'point', 'reacher', 'idp', 'gym']
-    algo_choices = ['ddpg', 'naf', 'shane-ddpg', 'random',
-                    'rl-vpg', 'rl-trpo', 'rl-ddpg', 'qddpg', 'oat']
+    env_choices = ['ocm', 'ocme', 'point', 'cheetah']
+    algo_choices = ['mddpg', 'ddpg', 'naf', 'bptt', 'random']
     mode_choices = ['local', 'local_docker', 'ec2']
     parser = argparse.ArgumentParser()
     parser.add_argument("--sweep", action='store_true',
@@ -350,7 +292,7 @@ def main():
     parser.add_argument("--render", action='store_true',
                         help="Render the environment.")
     parser.add_argument("--env",
-                        default=['cart'],
+                        default=['ocme'],
                         help="Environment to test. If env is 'gym' then you "
                              "must pass in argument to the '--gym' option.",
                         nargs='+',
@@ -360,15 +302,15 @@ def main():
                         help="Gym environment name (e.g. Cartpole-V1) to test. "
                              "Must pass 'gym' to the '--env' option to use "
                              "this.")
-    parser.add_argument("--name", default='default',
+    parser.add_argument("--name", default='default-icml2017',
                         help='Experiment prefix')
     parser.add_argument("--fast", action='store_true',
                         help=('Run a quick experiment. Intended for debugging. '
                               'Overrides sweep settings'))
-    parser.add_argument("--nonorm", action='store_true',
+    parser.add_argument("--normalize", action='store_true',
                         help="Normalize the environment")
     parser.add_argument("--algo",
-                        default=['ddpg'],
+                        default=['bptt'],
                         help='Algorithm to run.',
                         nargs='+',
                         choices=algo_choices)
@@ -389,8 +331,15 @@ def main():
     parser.add_argument("--profile_file",
                         help="Where to save .prof file output of cProfiler. "
                              "If set, --profile is forced to be true.")
+    parser.add_argument("--num_memory_states", default=0,
+                        type=int,
+                        help='Number of memory states. If positive, '
+                             'the environment is wrapped in a '
+                             'ContinuousMemoryAugmented env')
+    parser.add_argument("--ocm_horizon", default=100,
+                        type=int,
+                        help='For how long the character must be memorized.')
     args = parser.parse_args()
-    args.normalize = not args.nonorm
     args.time = not args.notime
 
     global N_EPOCHS, EPOCH_LENGTH, EVAL_SAMPLES, MIN_POOL_SIZE
@@ -432,6 +381,7 @@ def main():
                         env_params,
                         args.name,
                         args.seed + i,
+                        exp_id=i,
                         **kwargs
                     )
 

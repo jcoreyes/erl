@@ -12,7 +12,7 @@ import tensorflow as tf
 
 from railrl.policies.nn_policy import NNPolicy
 from railrl.core.neuralnet import NeuralNetwork
-from railrl.data_management.simple_replay_pool import SimpleReplayPool
+from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from rllab.algos.base import RLAlgorithm
 from rllab.misc import logger
 from rllab.misc.overrides import overrides
@@ -94,9 +94,10 @@ class OnlineAlgorithm(RLAlgorithm):
         self.terminals_placeholder = tf.placeholder(tf.float32,
                                                     shape=[None, 1],
                                                     name='terminals')
-        self.pool = SimpleReplayPool(self.replay_pool_size,
-                                     self.observation_dim,
-                                     self.action_dim)
+        self.pool = EnvReplayBuffer(
+            self.replay_pool_size,
+            self.env,
+        )
         self.last_statistics = None
         self.sess = tf.get_default_session() or tf.Session()
         with self.sess.as_default():
@@ -114,6 +115,18 @@ class OnlineAlgorithm(RLAlgorithm):
         self.eval_sampler.shutdown_worker()
 
     def _sample_paths(self, epoch):
+        """
+        Returns flattened paths.
+
+        :param epoch: Epoch number
+        :return: Dictionary with these keys:
+            observations: np.ndarray, shape BATCH_SIZE x flat observation dim
+            actions: np.ndarray, shape BATCH_SIZE x flat action dim
+            rewards: np.ndarray, shape BATCH_SIZE
+            terminals: np.ndarray, shape BATCH_SIZE
+            agent_infos: unsure
+            env_infos: unsure
+        """
         # Sampler uses self.batch_size to figure out how many samples to get
         saved_batch_size = self.batch_size
         self.batch_size = self.n_eval_samples
@@ -146,11 +159,13 @@ class OnlineAlgorithm(RLAlgorithm):
                                                                       self.policy)
                     if self.render:
                         self.training_env.render()
+
                     next_ob, raw_reward, terminal, _ = self.training_env.step(
                         self.process_action(action)
                     )
                     # Some envs return a Nx1 vector for the observation
-                    next_ob = next_ob.flatten()
+                    # TODO(vpong): find a cleaner solution
+                    # next_ob = next_ob.squeeze()
                     reward = raw_reward * self.scale_reward
                     path_length += 1
                     path_return += reward
@@ -162,9 +177,9 @@ class OnlineAlgorithm(RLAlgorithm):
                                          False)
                     if terminal or path_length >= self.max_path_length:
                         self.pool.add_sample(next_ob,
-                                             np.zeros_like(action),
-                                             np.zeros_like(reward),
-                                             np.zeros_like(terminal),
+                                             None,
+                                             0,
+                                             0,
                                              True)
                         observation = self.training_env.reset()
                         self.exploration_strategy.reset()
@@ -232,7 +247,7 @@ class OnlineAlgorithm(RLAlgorithm):
         self._switch_to_training_mode()
 
     def _do_training(self):
-        minibatch = self.pool.random_batch(self.batch_size)
+        minibatch = self.pool.random_batch(self.batch_size, flatten=True)
         sampled_obs = minibatch['observations']
         sampled_terminals = minibatch['terminals']
         sampled_actions = minibatch['actions']
@@ -303,6 +318,11 @@ class OnlineAlgorithm(RLAlgorithm):
     @abc.abstractmethod
     def _update_feed_dict(self, rewards, terminals, obs, actions, next_obs):
         """
+        :param rewards: np.ndarray, shape BATCH_SIZE
+        :param terminals: np.ndarray, shape BATCH_SIZE
+        :param obs: np.ndarray, shape BATCH_SIZE x flat observation dim
+        :param actions: np.ndarray, shape BATCH_SIZE x flat action dim
+        :param next_obs: np.ndarray, shape BATCH_SIZE x flat observation dim
         :return: feed_dict needed for the ops returned by get_training_ops.
         """
         return

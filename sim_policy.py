@@ -3,7 +3,6 @@ import argparse
 import joblib
 import uuid
 import tensorflow as tf
-import envs
 
 filename = str(uuid.uuid4())
 
@@ -29,6 +28,7 @@ if __name__ == "__main__":
             qf = data['optimizable_qfunction']
             policy = qf.implicit_policy
         env = data['env']
+        print("Policy loaded")
         while True:
             try:
                 path = rollout(env, policy, max_path_length=args.max_path_length,
