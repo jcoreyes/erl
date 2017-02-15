@@ -24,3 +24,16 @@ def np_print_options(*args, **kwargs):
     np.set_printoptions(*args, **kwargs)
     yield
     np.set_printoptions(**original)
+
+
+# TODO(vpong): Test this
+def to_onehot(x, num_values):
+    """
+    Return a one hot vector representing x.
+    :param x: Number to represent.
+    :param num_values: Size of onehot vector.
+    :return: nd.array of shape (num_values,)
+    """
+    onehot = np.zeros(num_values)
+    onehot[x] = 1
+    return onehot

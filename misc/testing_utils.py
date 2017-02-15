@@ -2,10 +2,18 @@ import math
 import numpy as np
 
 
-def is_binomial_trial_likely(n, p, num_success):
+def is_binomial_trial_likely(n, p, num_success, num_std=3):
+    """
+    Returns whether or not seeing `num_sucesss` successes is likely.
+    :param n: Number of trials.
+    :param p: Probability of success.
+    :param num_success: Number of successes
+    :param num_std: Number of standard deviations the results must be within.
+    :return:
+    """
     mean = n * p
     std = math.sqrt(n * p * (1 - p))
-    margin = 3 * std
+    margin = num_std * std
     return mean - margin < num_success < mean + margin
 
 
