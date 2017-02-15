@@ -191,7 +191,7 @@ class OnlineAlgorithm(RLAlgorithm):
 
                     if self.pool.size >= self.min_pool_size:
                         for _ in range(self.n_updates_per_time_step):
-                            self._do_training()
+                            self._do_training(epoch=epoch)
                     itr += 1
 
                 logger.log("Training finished. Time: {0}".format(time.time() -
@@ -246,7 +246,7 @@ class OnlineAlgorithm(RLAlgorithm):
         yield
         self._switch_to_training_mode()
 
-    def _do_training(self):
+    def _do_training(self, epoch=None):
         minibatch = self.pool.random_batch(self.batch_size, flatten=True)
         sampled_obs = minibatch['observations']
         sampled_terminals = minibatch['terminals']
@@ -259,7 +259,7 @@ class OnlineAlgorithm(RLAlgorithm):
                                            sampled_obs,
                                            sampled_actions,
                                            sampled_next_obs)
-        ops = self._get_training_ops()
+        ops = self._get_training_ops(epoch=epoch)
         if isinstance(ops[0], list):
             for op in ops:
                 self.sess.run(op, feed_dict=feed_dict)
@@ -307,7 +307,7 @@ class OnlineAlgorithm(RLAlgorithm):
         return
 
     @abc.abstractmethod
-    def _get_training_ops(self):
+    def _get_training_ops(self, epoch=None):
         """
         :return: List of ops to perform when training. If a list of list is
         provided, each list is executed in order with separate calls to

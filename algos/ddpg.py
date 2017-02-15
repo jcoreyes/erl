@@ -137,7 +137,7 @@ class DDPG(OnlineAlgorithm):
         return [self.policy, self.qf, self.target_policy, self.target_qf]
 
     @overrides
-    def _get_training_ops(self):
+    def _get_training_ops(self, epoch=None):
         ops = [
             self.train_policy_op,
             self.train_qf_op,

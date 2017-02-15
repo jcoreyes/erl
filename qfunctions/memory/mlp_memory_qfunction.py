@@ -4,7 +4,7 @@ from railrl.core.tf_util import he_uniform_initializer, mlp, linear
 from railrl.qfunctions.nn_qfunction import NNQFunction
 
 
-class MemoryQFunction(NNQFunction):
+class MlpMemoryQFunction(NNQFunction):
     def __init__(
             self,
             name_or_scope,

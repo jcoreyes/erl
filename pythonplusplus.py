@@ -17,3 +17,7 @@ def clip_magnitude(value, magnitude):
     :return:
     """
     return min(max(value, -magnitude), magnitude)
+
+
+def are_values_close(value, target, epsilon=1e-3):
+    return abs(value - target) <= epsilon
