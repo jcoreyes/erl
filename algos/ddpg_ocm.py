@@ -26,7 +26,8 @@ class DdpgOcm(DDPG):
             self.train_qf_op,
             self.update_target_qf_op,
         ]
-        if epoch > 50:
+        # if epoch > 50:
+        if True:
             ops += [
                 self.train_policy_op,
                 self.update_target_policy_op,
