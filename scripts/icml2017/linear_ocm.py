@@ -9,8 +9,10 @@ def run_linear_ocm_exp(variant):
     from railrl.qfunctions.memory.affine_tanh_qfunction import (
         AffineTanHQFunction
     )
-    from railrl.qfunctions.memory.memory_qfunction import MemoryQFunction
+    from railrl.qfunctions.memory.mlp_memory_qfunction import MlpMemoryQFunction
     from railrl.exploration_strategies.noop import NoopStrategy
+    from railrl.exploration_strategies.onehot_sampler import OneHotSampler
+    from railrl.exploration_strategies.product_strategy import ProductStrategy
     from railrl.envs.memory.continuous_memory_augmented import (
         ContinuousMemoryAugmented
     )
@@ -48,9 +50,9 @@ def run_linear_ocm_exp(variant):
         env_spec=env.spec,
     )
 
-    es = NoopStrategy()
-    # qf = MemoryQFunction(
-    qf = AffineTanHQFunction(
+    es = ProductStrategy([OneHotSampler(), NoopStrategy()])
+    # es = NoopStrategy()
+    qf = MlpMemoryQFunction(
         name_or_scope="critic",
         env_spec=env.spec,
     )
@@ -67,20 +69,20 @@ def run_linear_ocm_exp(variant):
 
 if __name__ == '__main__':
     n_seeds = 1
-    exp_prefix = "2-14-dev-linear-ocm--branch-fix-manual-qf"
+    exp_prefix = "2-14-dev-linear-ocm-sweep"
     """
     DDPG Params
     """
     n_batches_per_epoch = 100
     n_batches_per_eval = 100
     batch_size = 64
-    n_epochs = 49
+    n_epochs = 100k
     replay_pool_size = 100
 
     USE_EC2 = False
     exp_count = -1
-    for H in [1]:
-        for num_values in [2]:
+    for H in [2, 8, 16]:
+        for num_values in [2, 8, 16]:
             print("H", H)
             print("num_values", num_values)
             exp_count += 1
