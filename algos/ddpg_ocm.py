@@ -21,11 +21,16 @@ class DdpgOcm(DDPG):
     """
 
     @overrides
-    def _get_training_ops(self):
+    def _get_training_ops(self, epoch=None):
         ops = [
             self.train_qf_op,
             self.update_target_qf_op,
         ]
+        if epoch > 50:
+            ops += [
+                self.train_policy_op,
+                self.update_target_policy_op,
+            ]
         if self._batch_norm:
             ops += self.qf.batch_norm_update_stats_op
             ops += self.policy.batch_norm_update_stats_op
@@ -136,3 +141,12 @@ class DdpgOcm(DDPG):
             logger.record_tabular(key, value)
 
         return last_statistics
+
+    def get_epoch_snapshot(self, epoch):
+        return dict(
+            env=self.training_env,
+            epoch=epoch,
+            policy=self.policy,
+            es=self.exploration_strategy,
+            qf=self.qf,
+        )

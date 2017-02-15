@@ -67,20 +67,20 @@ def run_linear_ocm_exp(variant):
 
 if __name__ == '__main__':
     n_seeds = 1
-    exp_prefix = "2-12-dev-linear-ocm--branch-fix-manual"
+    exp_prefix = "2-14-dev-linear-ocm--branch-fix-manual-qf"
     """
     DDPG Params
     """
     n_batches_per_epoch = 100
     n_batches_per_eval = 100
     batch_size = 64
-    n_epochs = 50
+    n_epochs = 49
     replay_pool_size = 100
 
     USE_EC2 = False
     exp_count = -1
     for H in [1]:
-        for num_values in [1]:
+        for num_values in [2]:
             print("H", H)
             print("num_values", num_values)
             exp_count += 1
