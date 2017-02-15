@@ -9,9 +9,6 @@ from railrl.launchers.launcher_util import (
 
 def run_linear_ocm_exp(variant):
     from railrl.algos.ddpg_ocm import DdpgOcm
-    from railrl.qfunctions.memory.affine_tanh_qfunction import (
-        AffineTanHQFunction
-    )
     from railrl.qfunctions.memory.mlp_memory_qfunction import MlpMemoryQFunction
     from railrl.exploration_strategies.noop import NoopStrategy
     from railrl.exploration_strategies.onehot_sampler import OneHotSampler
@@ -53,7 +50,6 @@ def run_linear_ocm_exp(variant):
     )
 
     es = ProductStrategy([OneHotSampler(), NoopStrategy()])
-    # es = NoopStrategy()
     qf = MlpMemoryQFunction(
         name_or_scope="critic",
         env_spec=env.spec,
