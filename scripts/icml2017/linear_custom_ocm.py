@@ -67,7 +67,7 @@ def run_linear_ocm_exp(variant):
 
 if __name__ == '__main__':
     n_seeds = 1
-    exp_prefix = "2-15--linear-ocm-sweep"
+    exp_prefix = "2-15--linear-ocm-sweep-small-replay-size"
     """
     DDPG Params
     """
@@ -78,13 +78,13 @@ if __name__ == '__main__':
 
     USE_EC2 = False
     exp_count = -1
-    for H in [2, 8, 16]:
+    for H in [16]:
         for num_values in [2, 8, 16]:
             print("H", H)
             print("num_values", num_values)
             exp_count += 1
             min_pool_size = H * 10
-            replay_pool_size = 1000 * H
+            replay_pool_size = 16 * H
             epoch_length = H * n_batches_per_epoch
             eval_samples = H * n_batches_per_eval
             max_path_length = H + 1
