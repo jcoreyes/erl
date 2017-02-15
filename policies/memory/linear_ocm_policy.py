@@ -62,6 +62,6 @@ class LinearOcmPolicy(MemoryPolicy):
         env_memory_and_write = tf.concat(1, [env_and_memory, write_action])
         env_action = tf.matmul(env_memory_and_write, env_action_matrix)
         env_action = tf.nn.relu(env_action)
-        env_action = tf.nn.l2_normalize(env_action, dim=1)
+        env_action /= tf.reduce_sum(env_action, 1, keep_dims=True)
 
         return env_action, write_action
