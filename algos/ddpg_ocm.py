@@ -21,6 +21,17 @@ class DdpgOcm(DDPG):
     """
 
     @overrides
+    def _get_training_ops(self):
+        ops = [
+            self.train_qf_op,
+            self.update_target_qf_op,
+        ]
+        if self._batch_norm:
+            ops += self.qf.batch_norm_update_stats_op
+            ops += self.policy.batch_norm_update_stats_op
+        return ops
+
+    @overrides
     def evaluate(self, epoch, es_path_returns):
         logger.log("Collecting samples for evaluation")
         paths = self._sample_paths(epoch)
