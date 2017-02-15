@@ -19,7 +19,7 @@ def mem_ddpg_launcher(variant):
     from railrl.algos.ddpg import DDPG
     from railrl.algos.ddpg_ocm import DdpgOcm
     from railrl.policies.memory.softmax_memory_policy import SoftmaxMemoryPolicy
-    from railrl.qfunctions.memory.memory_qfunction import MemoryQFunction
+    from railrl.qfunctions.memory.memory_qfunction import MlpMemoryQFunction
     from railrl.launchers.launcher_util import get_env_settings
     from railrl.core.tf_util import BatchNormConfig
     from railrl.envs.memory.continuous_memory_augmented import (
@@ -39,7 +39,7 @@ def mem_ddpg_launcher(variant):
     memory_dim = env.memory_dim
     env_action_dim = env.wrapped_env.action_space.flat_dim
     es = NoopStrategy()
-    qf = MemoryQFunction(
+    qf = MlpMemoryQFunction(
         name_or_scope="critic",
         env_spec=env.spec,
         batch_norm_config=bn_config,

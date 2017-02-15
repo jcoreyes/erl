@@ -1,5 +1,6 @@
 import abc
 
+import numpy as np
 import tensorflow as tf
 
 from railrl.core.tf_util import he_uniform_initializer, mlp, linear
@@ -25,9 +26,26 @@ class NNPolicy(StateNetwork, Policy, metaclass=abc.ABCMeta):
                                        **new_kwargs)
 
     def get_action(self, observation):
-        return self.sess.run(self.output,
-                             {self.observation_input: [observation]}), {}
+        # This flattening/unflattening is necessary because the network is
+        # built to work with batches, but get_action takes in a single,
+        # flat observation vector and should return a single, flat action
+        # vector.
+        new_observation = self._unflatten_observation(observation)
+        action = self.sess.run(
+            self.output,
+            {
+                self.observation_input: new_observation,
+            }
+        )
+        return self._flatten_action(action), {}
 
+    @staticmethod
+    def _unflatten_observation(observation):
+        return np.expand_dims(observation, axis=0)
+
+    @staticmethod
+    def _flatten_action(action):
+        return np.squeeze(action)
 
 class FeedForwardPolicy(NNPolicy):
     def __init__(
