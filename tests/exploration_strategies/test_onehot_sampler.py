@@ -5,6 +5,7 @@ import numpy as np
 from railrl.exploration_strategies.onehot_sampler import OneHotSampler
 from railrl.misc.testing_utils import is_binomial_trial_likely
 from railrl.misc.tf_test_case import TFTestCase
+from railrl.utils.testing import StubPolicy
 
 
 class TestOneHotSampler(TFTestCase):
@@ -52,14 +53,6 @@ class TestOneHotSampler(TFTestCase):
 
         self.assertTrue(is_binomial_trial_likely(n, prob_a, num_a))
         self.assertTrue(is_binomial_trial_likely(n, prob_b, num_b))
-
-
-class StubPolicy(object):
-    def __init__(self, action):
-        self._action = action
-
-    def get_action(self, *arg, **kwargs):
-        return self._action, {}
 
 
 if __name__ == '__main__':
