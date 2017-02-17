@@ -6,6 +6,67 @@ This file contains classic RL launchers. See module docstring for more detail.
 #################
 # my algorithms #
 #################
+def bptt_ddpg_launcher(variant):
+    """
+    Run DDPG with back propagation through time
+    :param variant: Dictionary of dictionary with the following keys:
+        - algo_params
+        - env_params
+        - qf_params
+        - policy_params
+    :return:
+    """
+    from railrl.algos.ddpg import DDPG
+    from railrl.algos.ddpg_ocm import DdpgOcm
+    from railrl.policies.memory.softmax_memory_policy import SoftmaxMemoryPolicy
+    from railrl.qfunctions.memory.memory_qfunction import MlpMemoryQFunction
+    from railrl.launchers.launcher_util import get_env_settings
+    from railrl.core.tf_util import BatchNormConfig
+    from railrl.envs.memory.continuous_memory_augmented import (
+        ContinuousMemoryAugmented,
+    )
+    from railrl.envs.memory.one_char_memory import OneCharMemory
+    from railrl.exploration_strategies.noop import NoopStrategy
+    if ('batch_norm_params' in variant
+        and variant['batch_norm_params'] is not None):
+        bn_config = BatchNormConfig(**variant['batch_norm_params'])
+    else:
+        bn_config = None
+    env_settings = get_env_settings(**variant['env_params'])
+    env = env_settings['env']
+
+    assert isinstance(env, ContinuousMemoryAugmented)
+    memory_dim = env.memory_dim
+    env_action_dim = env.wrapped_env.action_space.flat_dim
+    es = NoopStrategy()
+    qf = MlpMemoryQFunction(
+        name_or_scope="critic",
+        env_spec=env.spec,
+        batch_norm_config=bn_config,
+        **variant.get('qf_params', {})
+    )
+    policy = SoftmaxMemoryPolicy(
+        name_or_scope="actor",
+        memory_dim=memory_dim,
+        env_action_dim=env_action_dim,
+        env_spec=env.spec,
+        batch_norm_config=bn_config,
+        **variant.get('policy_params', {})
+    )
+    if isinstance(env.wrapped_env, OneCharMemory):
+        ddpg_class = DdpgOcm
+    else:
+        ddpg_class = DDPG
+    algorithm = ddpg_class(
+        env,
+        es,
+        policy,
+        qf,
+        batch_norm_config=bn_config,
+        **variant['algo_params']
+    )
+    algorithm.train()
+
 def mem_ddpg_launcher(variant):
     """
     Run DDPG with a memory state policy

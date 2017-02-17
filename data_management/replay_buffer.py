@@ -29,17 +29,17 @@ class ReplayBuffer(object, metaclass=abc.ABCMeta):
         """
         pass
 
-    @abc.abstractmethod
-    def random_batch(self, batch_size):
-        """
-        Sample a random batch from this replay buffer.
+    # @abc.abstractmethod
+    # def random_batch(self, batch_size):
+    #     """
+    #     Sample a random batch from this replay buffer.
 
-        :param batch_size:
-        :return: Dictionary with the following keys:
-            - observations
-            - actions
-            - rewards
-            - terminals
-            - next_observations
-        """
-        pass
+    #     :param batch_size:
+    #     :return: Dictionary with the following keys:
+    #         - observations
+    #         - actions
+    #         - rewards
+    #         - terminals
+    #         - next_observations
+    #     """
+    #     pass

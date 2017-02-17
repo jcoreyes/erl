@@ -42,6 +42,7 @@ class OnlineAlgorithm(RLAlgorithm):
             render=False,
             n_updates_per_time_step=1,
             batch_norm_config=None,
+            replay_pool=None,
     ):
         """
         :param env: Environment
@@ -94,7 +95,7 @@ class OnlineAlgorithm(RLAlgorithm):
         self.terminals_placeholder = tf.placeholder(tf.float32,
                                                     shape=[None, 1],
                                                     name='terminals')
-        self.pool = EnvReplayBuffer(
+        self.pool = replay_pool or EnvReplayBuffer(
             self.replay_pool_size,
             self.env,
         )
@@ -170,17 +171,22 @@ class OnlineAlgorithm(RLAlgorithm):
                     path_length += 1
                     path_return += reward
 
-                    self.pool.add_sample(observation,
-                                         action,
-                                         reward,
-                                         terminal,
-                                         False)
+                    self.pool.add_sample(
+                        observation,
+                        action,
+                        reward,
+                        terminal,
+                        False,
+                    )
                     if terminal or path_length >= self.max_path_length:
-                        self.pool.add_sample(next_ob,
-                                             None,
-                                             0,
-                                             0,
-                                             True)
+                        # self.pool.terminate_epside(next_ob)
+                        self.pool.add_sample(
+                            next_ob,
+                            None,
+                            0,
+                            0,
+                            True,
+                        )
                         observation = self.training_env.reset()
                         self.exploration_strategy.reset()
                         self.es_path_returns.append(path_return)
