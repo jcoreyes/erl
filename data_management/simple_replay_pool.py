@@ -1,7 +1,9 @@
 import numpy as np
 
+from railrl.data_management.replay_buffer import ReplayBuffer
 
-class SimpleReplayPool(object):
+
+class SimpleReplayPool(ReplayBuffer):
     def __init__(
             self, max_pool_size, observation_dim, action_dim,
             replacement_policy='stochastic', replacement_prob=1.0,
@@ -26,7 +28,7 @@ class SimpleReplayPool(object):
         self._top = 0
         self._size = 0
 
-    def add_sample(self, observation, action, reward, terminal,
+    def _add_sample(self, observation, action, reward, terminal,
                    final_state):
         self._observations[self._top] = observation
         self._actions[self._top] = action
@@ -34,6 +36,25 @@ class SimpleReplayPool(object):
         self._terminals[self._top] = terminal
         self._final_state[self._top] = final_state
         self.advance()
+
+    def add_sample(self, observation, action, reward, terminal,
+                   final_state):
+        self._add_sample(
+            observation,
+            action,
+            reward,
+            terminal,
+            False,
+        )
+
+    def terminate_epsiode(self, terminal_observation):
+        self._add_sample(
+            terminal_observation,
+            None,
+            0,
+            0,
+            True,
+        )
 
     def advance(self):
         self._top = (self._top + 1) % self._max_pool_size
