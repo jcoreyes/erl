@@ -33,7 +33,7 @@ class ReplayBuffer(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def size(self):
         """
-        How many obsevation time steps are currently saved in this replay
+        How many observation time steps are currently saved in this replay
         buffer, *including* terminal observations.
         :return:
         """

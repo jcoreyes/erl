@@ -19,7 +19,7 @@ class EnvReplayBuffer(SimpleReplayPool):
         self._env = env
 
     @overrides
-    def add_sample(self, observation, action, reward, terminal, initial):
+    def _add_sample(self, observation, action, reward, terminal, initial):
         """
 
         :param observation: Unflattened observation. If None, will assume to
@@ -36,7 +36,7 @@ class EnvReplayBuffer(SimpleReplayPool):
         else:
             flat_action = self._env.action_space.flatten(action)
         flat_obs = self._env.observation_space.flatten(observation)
-        super().add_sample(
+        super()._add_sample(
             flat_obs,
             flat_action,
             reward,

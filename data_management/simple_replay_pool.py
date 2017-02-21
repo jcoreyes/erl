@@ -37,8 +37,7 @@ class SimpleReplayPool(ReplayBuffer):
         self._final_state[self._top] = final_state
         self.advance()
 
-    def add_sample(self, observation, action, reward, terminal,
-                   final_state):
+    def add_sample(self, observation, action, reward, terminal):
         self._add_sample(
             observation,
             action,
@@ -47,7 +46,7 @@ class SimpleReplayPool(ReplayBuffer):
             False,
         )
 
-    def terminate_epsiode(self, terminal_observation):
+    def terminate_episode(self, terminal_observation):
         self._add_sample(
             terminal_observation,
             None,
