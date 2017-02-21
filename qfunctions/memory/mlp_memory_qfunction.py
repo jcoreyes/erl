@@ -66,7 +66,7 @@ class MlpMemoryQFunction(NNQFunction):
             )
             observation_output = self._process_layer(
                 observation_output,
-                scope_name="observation_output"
+                scope_name="observation_output",
             )
         embedded = tf.concat(1, [observation_output, action_input])
         embedded_dim = sum(self.action_dim) + self.observation_hidden_sizes[-1]

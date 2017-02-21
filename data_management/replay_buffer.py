@@ -20,11 +20,21 @@ class ReplayBuffer(object, metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def terminate_epsiode(self, terminal_observation):
+    def terminate_episode(self, terminal_observation):
         """
         Terminate the episode.
 
         :param terminal_observation: The last observation seen .
+        :return:
+        """
+        pass
+
+    @property
+    @abc.abstractmethod
+    def size(self):
+        """
+        How many obsevation time steps are currently saved in this replay
+        buffer, *including* terminal observations.
         :return:
         """
         pass

@@ -1,23 +1,14 @@
 """
 :author: Vitchyr Pong
 """
-from collections import OrderedDict
-from typing import List
 
-import numpy as np
 import tensorflow as tf
 
-from railrl.core.neuralnet import NeuralNetwork
-from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.misc.rllab_util import split_paths
 from railrl.algos.ddpg import DDPG
+from railrl.data_management.episode_replay_buffer import EpisodeReplayBuffer
 from railrl.policies.memory.rnn_cell_policy import RnnCellPolicy
-from railrl.policies.nn_policy import NNPolicy
+from railrl.pythonplusplus import map_recursive
 from railrl.qfunctions.nn_qfunction import NNQFunction
-from rllab.misc import logger
-from rllab.misc import special
-from rllab.misc.overrides import overrides
-from rllab.spaces.product import Product
 
 TARGET_PREFIX = "target_"
 
@@ -34,9 +25,6 @@ class BpttDDPG(DDPG):
             exploration_strategy,
             policy: RnnCellPolicy,
             qf: NNQFunction,
-            qf_learning_rate=1e-3,
-            policy_learning_rate=1e-4,
-            qf_weight_decay=0.,
             num_bptt_unrolls=1,
             env_obs_dim=None,
             **kwargs
@@ -51,17 +39,22 @@ class BpttDDPG(DDPG):
         :param qf_weight_decay: How much to decay the weights for Q
         :return:
         """
-        self.qf = qf
-        self.qf_learning_rate = qf_learning_rate
-        self.policy_learning_rate = policy_learning_rate
-        self.qf_weight_decay = qf_weight_decay
         self._num_bptt_unrolls = num_bptt_unrolls
         self._env_obs_dim = env_obs_dim
 
         self._rnn_cell_scope = policy.rnn_cell_scope
         self._rnn_cell = policy.rnn_cell
 
-        super().__init__(env, policy, exploration_strategy, **kwargs)
+        super().__init__(
+            env,
+            exploration_strategy,
+            policy,
+            qf,
+            replay_pool=EpisodeReplayBuffer(
+                self._num_bptt_unrolls,
+                env,
+            ),
+            **kwargs)
 
     def _init_policy_ops(self):
         self._rnn_inputs_ph = tf.placeholder(
@@ -69,12 +62,7 @@ class BpttDDPG(DDPG):
             [None, self._num_bptt_unrolls, self._env_obs_dim],
             name='rnn_time_inputs',
         )
-        self._rnn_init_state = tf.placeholder(
-            tf.float32,
-            [None, self._num_bptt_unrolls, self._env_obs_dim],
-            name='rnn_init_state',
-
-        )
+        self._rnn_init_state_ph = self.policy.create_init_state_placeholder()
 
         rnn_inputs = tf.unpack(self._rnn_inputs_ph, axis=1)
 
@@ -83,17 +71,24 @@ class BpttDDPG(DDPG):
             self._rnn_outputs, self._rnn_final_state = tf.nn.rnn(
                 self._rnn_cell,
                 rnn_inputs,
-                initial_state=self._rnn_init_state,
+                # initial_state=self._rnn_init_state_ph,
+                initial_state=tf.split(1, 2, self._rnn_init_state_ph),
                 dtype=tf.float32,
                 scope=self._rnn_cell_scope,
             )
         self._final_rnn_output = self._rnn_outputs[-1]
+        self._final_rnn_action = (
+            self._final_rnn_output,
+            tf.concat(1, self._rnn_final_state),
+        )
+        # TODO(vitchyr): consider taking the sum of the outputs rather than
+        # only the last output.
 
         # To compute the surrogate loss function for the qf, it must take
         # as input the output of the _policy. See Equation (6) of "Deterministic
         # Policy Gradient Algorithms" ICML 2014.
         self.qf_with_action_input = self.qf.get_weight_tied_copy(
-            action_input=self._final_rnn_output
+            action_input=self._final_rnn_action
         )
         self.policy_surrogate_loss = - tf.reduce_mean(
             self.qf_with_action_input.output)
@@ -109,7 +104,6 @@ class BpttDDPG(DDPG):
          - [batch_size X num_bbpt_unroll X env_obs_dim
          - [batch_size X num_bbpt_unroll X memory_dim
         """
-        # TODO
         return self.env.spec.observation_space.split_flat_into_components_n(
             obs
         )
@@ -123,23 +117,78 @@ class BpttDDPG(DDPG):
          - [batch_size X num_bbpt_unroll X env_action_dim
          - [batch_size X num_bbpt_unroll X memory_dim
         """
-        # TODO
         return self.env.spec.action_space.split_flat_into_components_n(
             actions
         )
 
+    def _do_training(self, epoch=None):
+        minibatch = self.pool.random_subtrajectories(
+            self.batch_size,
+            self._num_bptt_unrolls,
+        )
+        sampled_obs = minibatch['observations']
+        sampled_terminals = minibatch['terminals']
+        sampled_actions = minibatch['actions']
+        sampled_rewards = minibatch['rewards']
+        sampled_next_obs = minibatch['next_observations']
+
+        feed_dict = self._update_feed_dict(sampled_rewards,
+                                           sampled_terminals,
+                                           sampled_obs,
+                                           sampled_actions,
+                                           sampled_next_obs)
+        ops = self._get_training_ops(epoch=epoch)
+        import pdb
+        pdb.set_trace()
+        if isinstance(ops[0], list):
+            for op in ops:
+                self.sess.run(op, feed_dict=feed_dict)
+        else:
+            self.sess.run(ops, feed_dict=feed_dict)
+
     def _qf_feed_dict(self, rewards, terminals, obs, actions, next_obs):
+        # rewards and terminals both have shape [batch_size x sub_traj_length],
+        # but they really just need to be [batch_size x 1]. Right now we only
+        # care about the reward/terminal at the very end since we're only
+        # computing the rewards for the last time step.
+        terminals = terminals[:, -1:]
+        rewards = rewards[:, -1:]
+        # For obs/actions, we only care about the last time step for the critic.
+        obs = self._get_last_time_step(obs)
+        actions = self._get_last_time_step(actions)
+        next_obs = self._get_last_time_step(next_obs)
         return {
-            self.rewards_placeholder: np.expand_dims(rewards, axis=1),
-            self.terminals_placeholder: np.expand_dims(terminals, axis=1),
+            self.rewards_placeholder: rewards,
+            self.terminals_placeholder: terminals,
             self.qf.observation_input: obs,
             self.qf.action_input: actions,
             self.target_qf.observation_input: next_obs,
             self.target_policy.observation_input: next_obs,
         }
 
+    @staticmethod
+    def _get_last_time_step(action_or_obs):
+        """
+        Squeeze time out by only taking the last time step dimension.
+
+        :param action_or_obs: tuple of Tensors or Tensor of shape [batch size x
+        traj length x dim]
+        :return: return tuple of Tensors or Tensor of shape [batch size x dim]
+        """
+        import pdb
+        pdb.set_trace()
+        return map_recursive(lambda x: x[:, -1, :], action_or_obs)
+
     def _policy_feed_dict(self, obs):
+        """
+        :param obs: See output of `self._split_flat_action`.
+        :return: Feed dictionary for policy training TensorFlow ops.
+        """
+        env_obs, memory_obs = obs
+        last_obs = env_obs[-1], memory_obs[-1]
+        initial_memory_obs = memory_obs[0]
         return {
-            self.qf_with_action_input.observation_input: obs,
-            self.policy.observation_input: obs,
+            self.qf_with_action_input.observation_input: last_obs,
+            self._rnn_inputs_ph: env_obs,
+            self._rnn_init_state_ph: initial_memory_obs,
         }

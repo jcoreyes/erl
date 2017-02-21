@@ -10,6 +10,7 @@ from typing import Iterable
 import numpy as np
 import tensorflow as tf
 
+from railrl.data_management.replay_buffer import ReplayBuffer
 from railrl.policies.nn_policy import NNPolicy
 from railrl.core.neuralnet import NeuralNetwork
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
@@ -42,7 +43,7 @@ class OnlineAlgorithm(RLAlgorithm):
             render=False,
             n_updates_per_time_step=1,
             batch_norm_config=None,
-            replay_pool=None,
+            replay_pool: ReplayBuffer=None,
     ):
         """
         :param env: Environment
@@ -176,17 +177,9 @@ class OnlineAlgorithm(RLAlgorithm):
                         action,
                         reward,
                         terminal,
-                        False,
                     )
                     if terminal or path_length >= self.max_path_length:
-                        # self.pool.terminate_epside(next_ob)
-                        self.pool.add_sample(
-                            next_ob,
-                            None,
-                            0,
-                            0,
-                            True,
-                        )
+                        self.pool.terminate_episode(next_ob)
                         observation = self.training_env.reset()
                         self.exploration_strategy.reset()
                         self.es_path_returns.append(path_return)

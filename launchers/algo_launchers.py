@@ -19,7 +19,7 @@ def bptt_ddpg_launcher(variant):
     from railrl.algos.ddpg import DDPG
     from railrl.algos.ddpg_ocm import DdpgOcm
     from railrl.policies.memory.softmax_memory_policy import SoftmaxMemoryPolicy
-    from railrl.qfunctions.memory.memory_qfunction import MlpMemoryQFunction
+    from railrl.qfunctions.memory.mlp_memory_qfunction import MlpMemoryQFunction
     from railrl.launchers.launcher_util import get_env_settings
     from railrl.core.tf_util import BatchNormConfig
     from railrl.envs.memory.continuous_memory_augmented import (

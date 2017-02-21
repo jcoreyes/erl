@@ -160,11 +160,17 @@ class DDPG(OnlineAlgorithm):
                                      actions,
                                      next_obs)
         policy_feed = self._policy_feed_dict(obs)
+        # TODO(vpong): I don't think I need this
         feed = qf_feed.copy()
         feed.update(policy_feed)
         return feed
 
     def _split_flat_obs(self, obs):
+        """
+        Process vectorized version of the observations as needed
+        :param observations: 1-dimensional np.ndarray
+        :return: Will be given to self._qf_feed_dict and self._policy_feed_dict
+        """
         if isinstance(self.env.spec.observation_space, Product):
             return self.env.spec.observation_space.split_flat_into_components_n(
                 obs
@@ -173,13 +179,17 @@ class DDPG(OnlineAlgorithm):
             return obs
 
     def _split_flat_actions(self, actions):
+        """
+        Process vectorized version of the actions as needed
+        :param actions: 1-dimensional np.ndarray
+        :return: Will be given to self._qf_feed_dict
+        """
         if isinstance(self.env.spec.action_space, Product):
             return self.env.spec.action_space.split_flat_into_components_n(
                 actions
             )
         else:
             return actions
-
 
     def _qf_feed_dict(self, rewards, terminals, obs, actions, next_obs):
         return {

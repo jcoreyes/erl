@@ -8,8 +8,14 @@ class RnnCellPolicy(MemoryPolicy, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def rnn_cell(self):
         """
-        Return a TensorFlow RNNCell.
-        :return:
+        :return: A TensorFlow RNNCell.
+        """
+        pass
+
+    @abc.abstractmethod
+    def create_init_state_placeholder(self):
+        """
+        :return: A new tf.placeholder for the initial state of the memory.
         """
         pass
 
