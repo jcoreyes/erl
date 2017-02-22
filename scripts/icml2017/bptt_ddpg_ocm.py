@@ -69,63 +69,66 @@ def run_linear_ocm_exp(variant):
 
 
 if __name__ == '__main__':
-    n_seeds = 1
-    exp_prefix = "2-18-dev-bptt-ddpg-ocm"
+    n_seeds = 3
+    exp_prefix = "2-21-bptt-ddpg-ocm-sweep-num-bptt-unrolls-long-2"
 
     """
     DDPG Params
     """
-    n_batches_per_epoch = 100
+    n_batches_per_epoch = 1000
     n_batches_per_eval = 100
-    batch_size = 64
-    n_epochs = 100
+    batch_size = 256
+    n_epochs = 25
 
     USE_EC2 = False
     exp_count = -1
     for H in [16]:
         for num_values in [2, 8, 16]:
-            print("H", H)
-            print("num_values", num_values)
-            exp_count += 1
-            min_pool_size = H * 10
-            replay_pool_size = 16 * H
-            epoch_length = H * n_batches_per_epoch
-            eval_samples = H * n_batches_per_eval
-            max_path_length = H + 1
-            ddpg_params = dict(
-                batch_size=batch_size,
-                n_epochs=n_epochs,
-                min_pool_size=min_pool_size,
-                replay_pool_size=replay_pool_size,
-                epoch_length=epoch_length,
-                eval_samples=eval_samples,
-                max_path_length=max_path_length,
-                # qf_learning_rate=1e-1,
-                # policy_learning_rate=1e-1,
-            )
-            variant = dict(
-                H=H,
-                num_values=num_values,
-                exp_prefix=exp_prefix,
-                ddpg_params=ddpg_params,
-            )
-            for seed in range(n_seeds):
-                variant['seed'] = seed
-                variant['exp_count'] = exp_count
+            for num_bptt_unrolls in [1, 4, 8, 16]:
+                print("H", H)
+                print("num_values", num_values)
+                print("num_bptt_unrolls", num_bptt_unrolls)
+                exp_count += 1
+                min_pool_size = H * 10
+                replay_pool_size = 16 * H
+                epoch_length = H * n_batches_per_epoch
+                eval_samples = H * n_batches_per_eval
+                max_path_length = H + 1
+                ddpg_params = dict(
+                    batch_size=batch_size,
+                    n_epochs=n_epochs,
+                    min_pool_size=min_pool_size,
+                    replay_pool_size=replay_pool_size,
+                    epoch_length=epoch_length,
+                    eval_samples=eval_samples,
+                    max_path_length=max_path_length,
+                    num_bptt_unrolls=num_bptt_unrolls,
+                    # qf_learning_rate=1e-1,
+                    # policy_learning_rate=1e-1,
+                )
+                variant = dict(
+                    H=H,
+                    num_values=num_values,
+                    exp_prefix=exp_prefix,
+                    ddpg_params=ddpg_params,
+                )
+                for seed in range(n_seeds):
+                    variant['seed'] = seed
+                    variant['exp_count'] = exp_count
 
-                if USE_EC2:
-                    run_experiment(
-                        run_linear_ocm_exp,
-                        exp_prefix=exp_prefix,
-                        seed=seed,
-                        mode="ec2",
-                        variant=variant,
-                    )
-                else:
-                    run_experiment_here(
-                        run_linear_ocm_exp,
-                        exp_prefix=exp_prefix,
-                        variant=variant,
-                        exp_count=exp_count,
-                        seed=seed,
-                    )
+                    if USE_EC2:
+                        run_experiment(
+                            run_linear_ocm_exp,
+                            exp_prefix=exp_prefix,
+                            seed=seed,
+                            mode="ec2",
+                            variant=variant,
+                        )
+                    else:
+                        run_experiment_here(
+                            run_linear_ocm_exp,
+                            exp_prefix=exp_prefix,
+                            variant=variant,
+                            exp_count=exp_count,
+                            seed=seed,
+                        )

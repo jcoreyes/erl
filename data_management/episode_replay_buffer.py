@@ -28,8 +28,8 @@ class EpisodeReplayBuffer(ReplayBuffer):
 
     def terminate_episode(self, terminal_observation):
         self._current_episode.terminate_epsiode(terminal_observation)
-        self._current_episode = SingleEpisode(self._env)
         self._episodes.append(self._current_episode)
+        self._current_episode = SingleEpisode(self._env)
         self._size += 1
 
     def add_sample(self, observation, action, reward, terminal):
@@ -48,7 +48,8 @@ class EpisodeReplayBuffer(ReplayBuffer):
     def random_subtrajectories(self, batch_size, sub_traj_length):
         """
         Return a list of
-        :param batch_size:
+        :param batch_size: How many sub-trajectories to sample.
+        :param sub_traj_length: The length of each sub-trajectory.
         :return: Dictionary with the following key and np array values:
             - observations: [batch_size x sub_traj_length x flat_obs_dim]
             - actions: [batch_size x sub_traj_length x flat_action_dim]
@@ -68,7 +69,13 @@ class EpisodeReplayBuffer(ReplayBuffer):
         rewards = np.zeros((batch_size, sub_traj_length))
         terminals = np.zeros((batch_size, sub_traj_length))
 
-        episodes = sample_with_replacement(self._episodes, batch_size)
+        episode_can_sample_from = [
+            episode for episode in self._episodes
+            if episode.is_long_enough_to_sample_subtraj_of_length(
+                sub_traj_length
+            )
+        ]
+        episodes = sample_with_replacement(episode_can_sample_from, batch_size)
         for i, episode in enumerate(episodes):
             subtraj = episode.sample_subtrajectory(sub_traj_length)
             observations[i, :, :] = subtraj["observations"]
@@ -93,8 +100,8 @@ class SingleEpisode(object):
         self._flat_observations = []
         self._rewards = []
         self._terminals = []
-        # length = number of actions taken, so when the episode has
-        # terminated, there should be self._length + 1 observations since the
+        # length = number of observations seen, so when the episode has
+        # terminated, there should be self._length - 1 actions since the
         # last observation doesn't have a corresponding action
         self._length = 0
         self._episode_terminated = False
@@ -106,18 +113,20 @@ class SingleEpisode(object):
 
     def add_sample(self, observation, action, reward, terminal):
         assert not self._episode_terminated
+        self._length += 1
         flat_action = self._env.action_space.flatten(action)
         flat_obs = self._env.observation_space.flatten(observation)
         self._flat_actions.append(flat_action)
         self._flat_observations.append(flat_obs)
         self._rewards.append(reward)
         self._terminals.append(terminal)
-        self._length += 1
 
     def terminate_epsiode(self, terminal_observation):
         assert not self._episode_terminated
+        self._length += 1
         self._episode_terminated = True
-        self._flat_observations.append(terminal_observation)
+        flat_obs = self._env.observation_space.flatten(terminal_observation)
+        self._flat_observations.append(flat_obs)
 
         self._flat_observations_np = np.array(self._flat_observations)
         self._flat_actions_np = np.array(self._flat_actions)
@@ -127,6 +136,9 @@ class SingleEpisode(object):
     @property
     def length(self):
         return self._length
+
+    def is_long_enough_to_sample_subtraj_of_length(self, length):
+        return 0 <= self.length - length - 1
 
     def sample_subtrajectory(self, length):
         """
@@ -139,15 +151,15 @@ class SingleEpisode(object):
          "rewards": np.ndarray of shape (length)
          "terminals": np.ndarray of shape (length)
         """
-        # We want
+        # Since next_observations is indexed with `last_index + 1`, we want
         #     last_index + 1 <= self.length
         # i.e.
         #     start_index + length + 1 <= self.length
         # So we need
-        #     start_index <= self.length - length - 1
-        # and
+        #     0 <= start_index <= self.length - length - 1
+        # i.e.
         #     0 <= self.length - length - 1
-        assert length <= self.length - 1
+        assert 0 <= self.length - length - 1
         if not self._episode_terminated:
             self._flat_observations_np = np.array(self._flat_observations)
             self._flat_actions_np = np.array(self._flat_actions)
@@ -155,11 +167,10 @@ class SingleEpisode(object):
             self._terminals_np = np.array(self._terminals)
         start_index = random.randint(0, self.length - length - 1)
         last_index = start_index + length
-        start_index + length + 1 <= self.length
         return dict(
             observations=self._flat_observations_np[start_index:last_index],
             next_observations=(
-                self._flat_observations_np[start_index+1:last_index+1]
+                self._flat_observations_np[start_index + 1:last_index + 1]
             ),
             actions=self._flat_actions_np[start_index:last_index],
             rewards=self._rewards_np[start_index:last_index],

@@ -1,14 +1,20 @@
 """
 :author: Vitchyr Pong
 """
+from collections import OrderedDict
 
+import numpy as np
 import tensorflow as tf
 
 from railrl.algos.ddpg import DDPG
 from railrl.data_management.episode_replay_buffer import EpisodeReplayBuffer
+from railrl.misc.data_processing import create_stats_ordered_dict
+from railrl.misc.rllab_util import split_paths
 from railrl.policies.memory.rnn_cell_policy import RnnCellPolicy
 from railrl.pythonplusplus import map_recursive
 from railrl.qfunctions.nn_qfunction import NNQFunction
+from rllab.misc import logger
+from rllab.misc import special
 
 TARGET_PREFIX = "target_"
 
@@ -138,25 +144,38 @@ class BpttDDPG(DDPG):
                                            sampled_actions,
                                            sampled_next_obs)
         ops = self._get_training_ops(epoch=epoch)
-        import pdb
-        pdb.set_trace()
         if isinstance(ops[0], list):
             for op in ops:
                 self.sess.run(op, feed_dict=feed_dict)
         else:
             self.sess.run(ops, feed_dict=feed_dict)
 
-    def _qf_feed_dict(self, rewards, terminals, obs, actions, next_obs):
+    def _update_feed_dict(self, rewards, terminals, obs, actions, next_obs):
+        actions = self._split_flat_actions(actions)
+        obs = self._split_flat_obs(obs)
+        next_obs = self._split_flat_obs(next_obs)
+
         # rewards and terminals both have shape [batch_size x sub_traj_length],
         # but they really just need to be [batch_size x 1]. Right now we only
         # care about the reward/terminal at the very end since we're only
         # computing the rewards for the last time step.
-        terminals = terminals[:, -1:]
-        rewards = rewards[:, -1:]
+        qf_terminals = terminals[:, -1:]
+        qf_rewards = rewards[:, -1:]
         # For obs/actions, we only care about the last time step for the critic.
-        obs = self._get_last_time_step(obs)
-        actions = self._get_last_time_step(actions)
-        next_obs = self._get_last_time_step(next_obs)
+        qf_obs = self._get_time_step(obs, t=-1)
+        qf_actions = self._get_time_step(actions, t=-1)
+        qf_next_obs = self._get_time_step(next_obs, t=-1)
+        feed = self._qf_feed_dict(qf_rewards,
+                                  qf_terminals,
+                                  qf_obs,
+                                  qf_actions,
+                                  qf_next_obs)
+
+        policy_feed = self._policy_feed_dict(obs)
+        feed.update(policy_feed)
+        return feed
+
+    def _qf_feed_dict(self, rewards, terminals, obs, actions, next_obs):
         return {
             self.rewards_placeholder: rewards,
             self.terminals_placeholder: terminals,
@@ -167,28 +186,136 @@ class BpttDDPG(DDPG):
         }
 
     @staticmethod
-    def _get_last_time_step(action_or_obs):
+    def _get_time_step(action_or_obs, t):
         """
-        Squeeze time out by only taking the last time step dimension.
+        Squeeze time out by only taking the one time step.
 
         :param action_or_obs: tuple of Tensors or Tensor of shape [batch size x
         traj length x dim]
+        :param t: The time index to slice out.
         :return: return tuple of Tensors or Tensor of shape [batch size x dim]
         """
-        import pdb
-        pdb.set_trace()
-        return map_recursive(lambda x: x[:, -1, :], action_or_obs)
+        return map_recursive(lambda x: x[:, t, :], action_or_obs)
 
     def _policy_feed_dict(self, obs):
         """
         :param obs: See output of `self._split_flat_action`.
         :return: Feed dictionary for policy training TensorFlow ops.
         """
-        env_obs, memory_obs = obs
-        last_obs = env_obs[-1], memory_obs[-1]
-        initial_memory_obs = memory_obs[0]
+        last_obs = self._get_time_step(obs, -1)
+        first_obs = self._get_time_step(obs, 0)
+        env_obs, _ = obs
+        initial_memory_obs = first_obs[1]
         return {
             self.qf_with_action_input.observation_input: last_obs,
             self._rnn_inputs_ph: env_obs,
             self._rnn_init_state_ph: initial_memory_obs,
         }
+
+    def evaluate(self, epoch, es_path_returns):
+        logger.log("Collecting samples for evaluation")
+        paths = self._sample_paths(epoch)
+        self.log_diagnostics(paths)
+        rewards, terminals, obs, actions, next_obs = split_paths(paths)
+        # feed_dict = self._update_feed_dict(rewards, terminals, obs, actions,
+        #                                    next_obs)
+        # feed_dict = self._qf_feed_dict(rewards, terminals, obs, actions, next_obs)
+
+        last_statistics = OrderedDict()
+
+        # # Compute statistics
+        # (
+        #     policy_loss,
+        #     qf_loss,
+        #     policy_output,
+        #     target_policy_output,
+        #     qf_output,
+        #     target_qf_outputs,
+        #     ys,
+        # ) = self.sess.run(
+        #     [
+        #         self.policy_surrogate_loss,
+        #         self.qf_loss,
+        #         self.policy.output,
+        #         self.target_policy.output,
+        #         self.qf.output,
+        #         self.target_qf.output,
+        #         self.ys,
+        #     ],
+        #     feed_dict=feed_dict)
+        # discounted_returns = [
+        #     special.discount_return(path["rewards"], self.discount)
+        #     for path in paths]
+        # returns = [sum(path["rewards"]) for path in paths]
+        # rewards = np.hstack([path["rewards"] for path in paths])
+        #
+        # # Log statistics
+        # last_statistics = OrderedDict([
+        #     ('Epoch', epoch),
+        #     ('AverageReturn', np.mean(returns)),
+        #     ('PolicySurrogateLoss', policy_loss),
+        #     ('QfLoss', qf_loss),
+        # ])
+        # last_statistics.update(create_stats_ordered_dict('Ys', ys))
+        # last_statistics.update(create_stats_ordered_dict('PolicyOutput',
+        #                                                  policy_output))
+        # last_statistics.update(create_stats_ordered_dict('TargetPolicyOutput',
+        #                                                  target_policy_output))
+        # last_statistics.update(create_stats_ordered_dict('QfOutput', qf_output))
+        # last_statistics.update(create_stats_ordered_dict('TargetQfOutput',
+        #                                                  target_qf_outputs))
+        # last_statistics.update(create_stats_ordered_dict('Rewards', rewards))
+        # last_statistics.update(create_stats_ordered_dict('Returns', returns))
+        # last_statistics.update(create_stats_ordered_dict('DiscountedReturns',
+        #                                                  discounted_returns))
+        # if len(es_path_returns) > 0:
+        #     last_statistics.update(create_stats_ordered_dict('TrainingReturns',
+        #                                                      es_path_returns))
+
+        """
+        OCM-specific statistics
+        """
+        target_onehots = []
+        for path in paths:
+            first_observation = path["observations"][0]
+            first_env_obs, _ = self._split_flat_obs(first_observation)
+            target_onehots.append(first_env_obs)
+
+        final_predictions = []  # each element has shape (dim)
+        nonfinal_predictions = []  # each element has shape (seq_length-1, dim)
+        for path in paths:
+            env_actions = np.array([self._split_flat_actions(a)[0] for a in
+                                    path["actions"]])
+            final_predictions.append(env_actions[-1])
+            nonfinal_predictions.append(env_actions[:-1])
+        nonfinal_predictions_sequence_dimension_flattened = np.vstack(
+            nonfinal_predictions
+        )  # shape = N X dim
+
+        """
+        Calculate statistics
+        """
+
+        nonfinal_prob_zero = [softmax[0] for softmax in
+                              nonfinal_predictions_sequence_dimension_flattened]
+        final_probs_correct = []
+        for final_prediction, target_onehot in zip(final_predictions,
+                                                   target_onehots):
+            correct_pred_idx = np.argmax(target_onehot)
+            final_probs_correct.append(final_prediction[correct_pred_idx])
+        final_prob_zero = [softmax[0] for softmax in final_predictions]
+
+        last_statistics.update(create_stats_ordered_dict(
+            'Final P(correct)',
+            final_probs_correct))
+        last_statistics.update(create_stats_ordered_dict(
+            'Non-final P(zero)',
+            nonfinal_prob_zero))
+        last_statistics.update(create_stats_ordered_dict(
+            'Final P(zero)',
+            final_prob_zero))
+
+        for key, value in last_statistics.items():
+            logger.record_tabular(key, value)
+
+        return last_statistics
