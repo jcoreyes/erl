@@ -77,12 +77,12 @@ if __name__ == '__main__':
     n_epochs = 100
 
     USE_EC2 = False
-    exp_count = -1
+    exp_id = -1
     for H in [16]:
         for num_values in [2, 8, 16]:
             print("H", H)
             print("num_values", num_values)
-            exp_count += 1
+            exp_id += 1
             min_pool_size = H * 10
             replay_pool_size = 16 * H
             epoch_length = H * n_batches_per_epoch
@@ -107,7 +107,7 @@ if __name__ == '__main__':
             )
             for seed in range(n_seeds):
                 variant['seed'] = seed
-                variant['exp_count'] = exp_count
+                variant['exp_id'] = exp_id
 
                 if USE_EC2:
                     run_experiment(
@@ -122,6 +122,6 @@ if __name__ == '__main__':
                         run_linear_ocm_exp,
                         exp_prefix=exp_prefix,
                         variant=variant,
-                        exp_count=exp_count,
+                        exp_id=exp_id,
                         seed=seed,
                     )

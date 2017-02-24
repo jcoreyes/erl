@@ -103,6 +103,8 @@ def run_experiment(
         time=True,
         save_profile=False,
         profile_file='time_log.prof',
+        mode='here',
+        exp_id=0,
         **kwargs):
     """
     Run a task via the rllab interface, i.e. serialize it and then run it via
@@ -115,10 +117,16 @@ def run_experiment(
     :param time: Add a "time" command to the python command?
     :param save_profile: Create a cProfile log?
     :param profile_file: Where to save the cProfile log.
+    :param mode: 'here' will run the code in line, without any serialization
+    Other options include 'local', 'local_docker', and 'ec2'. See
+    run_experiment_lite documentation to learn what those modes do.
+    :param exp_id: Experiment ID. Should be unique across all
+    experiments. Note that one experiment may correspond to multiple seeds,.
     :param kwargs:
     :return:
     """
     variant['seed'] = str(seed)
+    variant['exp_id'] = str(exp_id)
     logger.log("Variant:")
     logger.log(str(variant))
     command_words = []
@@ -127,23 +135,33 @@ def run_experiment(
     command_words.append('python')
     if save_profile:
         command_words += ['-m cProfile -o', profile_file]
-    run_experiment_lite(
-        task,
-        snapshot_mode="last",
-        exp_prefix=exp_prefix,
-        variant=variant,
-        seed=seed,
-        use_cloudpickle=True,
-        python_command=' '.join(command_words),
-        **kwargs
-    )
+    if mode == 'here':
+        run_experiment_here(
+            task,
+            exp_prefix=exp_prefix,
+            variant=variant,
+            exp_id=exp_id,
+            seed=seed,
+        )
+    else:
+        run_experiment_lite(
+            task,
+            snapshot_mode="last",
+            exp_prefix=exp_prefix,
+            variant=variant,
+            seed=seed,
+            use_cloudpickle=True,
+            python_command=' '.join(command_words),
+            mode=mode,
+            **kwargs
+        )
 
 
 def run_experiment_here(
     experiment_function,
     exp_prefix="default",
     variant=None,
-    exp_count=0,
+    exp_id=0,
     seed=0,
 ):
     """
@@ -153,7 +171,7 @@ def run_experiment_here(
     only argument.
     :param exp_prefix: Experiment prefix for the save file.
     :param variant: Dictionary passed in to `experiment_function`.
-    :param exp_count: Experiment count. Should be unique across all
+    :param exp_id: Experiment ID. Should be unique across all
     experiments. Note that one experiment may correspond to multiple seeds,.
     :param seed: Seed used for this experiment.
     :return:
@@ -163,7 +181,7 @@ def run_experiment_here(
     setup_logger(
         exp_prefix=exp_prefix,
         variant=variant,
-        exp_count=exp_count,
+        exp_id=exp_id,
         seed=seed,
     )
     experiment_function(variant)
@@ -174,26 +192,26 @@ now = datetime.datetime.now(dateutil.tz.tzlocal())
 timestamp = now.strftime('%Y_%m_%d_%H_%M_%S')
 
 
-def create_exp_name(exp_prefix="default", exp_count=0, seed=0):
+def create_exp_name(exp_prefix="default", exp_id=0, seed=0):
     """
     Create a semi-unique experiment name that has a timestamp
     :param exp_prefix:
-    :param exp_count:
+    :param exp_id:
     :return:
     """
-    return "%s_%s_%04d--s-%d" % (exp_prefix, timestamp, exp_count, seed)
+    return "%s_%s_%04d--s-%d" % (exp_prefix, timestamp, exp_id, seed)
 
 
-def create_log_dir(exp_prefix="default", exp_count=0, seed=0):
+def create_log_dir(exp_prefix="default", exp_id=0, seed=0):
     """
     Creates and returns a unique log directory.
 
     :param exp_prefix: All experiments with this prefix will have log
     directories be under this directory.
-    :param exp_count: Different exp_counts will be in different directories.
+    :param exp_id: Different exp_ids will be in different directories.
     :return:
     """
-    exp_name = create_exp_name(exp_prefix=exp_prefix, exp_count=exp_count,
+    exp_name = create_exp_name(exp_prefix=exp_prefix, exp_id=exp_id,
                                seed=seed)
     log_dir = osp.join(
         config.LOG_DIR,
@@ -213,7 +231,7 @@ def create_log_dir(exp_prefix="default", exp_count=0, seed=0):
 
 def setup_logger(
         exp_prefix=None,
-        exp_count=0,
+        exp_id=0,
         seed=0,
         variant=None,
         log_dir=None,
@@ -228,7 +246,7 @@ def setup_logger(
     Set up logger to have some reasonable default settings.
 
     :param exp_prefix:
-    :param exp_count:
+    :param exp_id:
     :param variant:
     :param log_dir:
     :param text_log_file:
@@ -241,7 +259,7 @@ def setup_logger(
     """
     if log_dir is None:
         assert exp_prefix is not None
-        log_dir = create_log_dir(exp_prefix, exp_count=exp_count, seed=seed)
+        log_dir = create_log_dir(exp_prefix, exp_id=exp_id, seed=seed)
     tabular_log_path = osp.join(log_dir, tabular_log_file)
     text_log_path = osp.join(log_dir, text_log_file)
 
