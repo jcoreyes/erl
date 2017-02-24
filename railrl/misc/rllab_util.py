@@ -60,3 +60,15 @@ def get_observation_dim(**kwargs):
         )
     else:
         return env_spec.observation_space.flat_dim
+
+
+def split_flat_product_space_into_components_n(product_space, xs):
+    """
+    Split up a flattened block into its components
+
+    :param product_space: ProductSpace instance
+    :param xs: N x flat_dim
+    :return: list of (N x component_dim)
+    """
+    dims = [c.flat_dim for c in product_space.components]
+    return np.split(xs, np.cumsum(dims)[:-1], axis=-1)

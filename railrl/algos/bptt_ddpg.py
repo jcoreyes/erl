@@ -9,7 +9,8 @@ import tensorflow as tf
 from railrl.algos.ddpg import DDPG
 from railrl.data_management.episode_replay_buffer import EpisodeReplayBuffer
 from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.misc.rllab_util import split_paths
+from railrl.misc.rllab_util import split_paths, \
+    split_flat_product_space_into_components_n
 from railrl.policies.memory.rnn_cell_policy import RnnCellPolicy
 from railrl.pythonplusplus import map_recursive
 from railrl.qfunctions.nn_qfunction import NNQFunction
@@ -110,8 +111,9 @@ class BpttDDPG(DDPG):
          - [batch_size X num_bbpt_unroll X env_obs_dim
          - [batch_size X num_bbpt_unroll X memory_dim
         """
-        return self.env.spec.observation_space.split_flat_into_components_n(
-            obs
+        return split_flat_product_space_into_components_n(
+            self.env.spec.observation_space,
+            obs,
         )
 
     def _split_flat_actions(self, actions):
@@ -123,8 +125,9 @@ class BpttDDPG(DDPG):
          - [batch_size X num_bbpt_unroll X env_action_dim
          - [batch_size X num_bbpt_unroll X memory_dim
         """
-        return self.env.spec.action_space.split_flat_into_components_n(
-            actions
+        return split_flat_product_space_into_components_n(
+            self.env.spec.action_space,
+            actions,
         )
 
     def _do_training(self, epoch=None):
