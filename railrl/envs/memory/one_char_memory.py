@@ -5,7 +5,7 @@ from random import randint
 from railrl.misc.np_util import np_print_options
 from railrl.pythonplusplus import clip_magnitude
 from rllab.envs.base import Env
-from rllab.misc import special2 as special
+from rllab.misc import special
 from rllab.misc.overrides import overrides
 from rllab.spaces.box import Box
 from rllab.misc import logger
