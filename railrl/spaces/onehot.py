@@ -1,5 +1,5 @@
 from rllab.misc.overrides import overrides
-from rllab.misc import special2 as special
+from rllab.misc import special
 from rllab.spaces.discrete import Discrete
 
 
