@@ -9,7 +9,10 @@ import tensorflow as tf
 
 from railrl.core.neuralnet import NeuralNetwork
 from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.misc.rllab_util import split_paths
+from railrl.misc.rllab_util import (
+    split_paths,
+    split_flat_product_space_into_components_n,
+)
 from railrl.algos.online_algorithm import OnlineAlgorithm
 from railrl.policies.nn_policy import NNPolicy
 from railrl.qfunctions.nn_qfunction import NNQFunction
@@ -168,12 +171,13 @@ class DDPG(OnlineAlgorithm):
     def _split_flat_obs(self, obs):
         """
         Process vectorized version of the observations as needed
-        :param observations: 1-dimensional np.ndarray
+        :param obs: 1-dimensional np.ndarray
         :return: Will be given to self._qf_feed_dict and self._policy_feed_dict
         """
         if isinstance(self.env.spec.observation_space, Product):
-            return self.env.spec.observation_space.split_flat_into_components_n(
-                obs
+            return split_flat_product_space_into_components_n(
+                self.env.spec.observation_space,
+                obs,
             )
         else:
             return obs
@@ -185,8 +189,9 @@ class DDPG(OnlineAlgorithm):
         :return: Will be given to self._qf_feed_dict
         """
         if isinstance(self.env.spec.action_space, Product):
-            return self.env.spec.action_space.split_flat_into_components_n(
-                actions
+            return split_flat_product_space_into_components_n(
+                self.env.spec.action_space,
+                actions,
             )
         else:
             return actions
