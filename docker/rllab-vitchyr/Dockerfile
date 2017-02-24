@@ -56,7 +56,7 @@ CMD mkdir /root/code
 ADD rllab-vitchyr-env.yml /root/code/environment.yml
 RUN conda env create -f /root/code/environment.yml
 
-ENV PYTHONPATH /root/code/rllab:$PYTHONPATH
+ENV PYTHONPATH /root/code/rllab:/root/code/rllab/railrl:$PYTHONPATH
 ENV PATH /opt/conda/envs/rllab-vitchyr/bin:$PATH
 RUN echo "source activate rllab-vitchyr" >> /root/.bashrc
 ENV BASH_ENV /root/.bashrc
@@ -64,7 +64,5 @@ WORKDIR /root/code
 
 # gpu theanno
 ENV THEANO_FLAGS mode=FAST_RUN,device=gpu,floatX=float32
-
-RUN cat /root/code/rllab/
 
 ENV PATH /opt/conda/envs/rllab-vitchyr/bin:$PATH
