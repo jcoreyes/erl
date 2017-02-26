@@ -2,7 +2,10 @@ import numpy as np
 from sklearn.metrics import log_loss
 from random import randint
 
+from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.np_util import np_print_options
+from railrl.misc.rllab_util import split_flat_product_space_into_components_n
+from collections import OrderedDict
 from railrl.pythonplusplus import clip_magnitude
 from rllab.envs.base import Env
 from rllab.misc import special
@@ -90,12 +93,13 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
                     reward += self._reward_for_remembering
             else:
                 reward = -log_loss(self.zero, action)
-            if reward == -np.inf:
-                reward = -self._max_reward_magnitude
-            if reward == np.inf or np.isnan(reward):
-                reward = self._max_reward_magnitude
-        except ValueError:
-            reward = -self._max_reward_magnitude
+            # if reward == -np.inf:
+            #     reward = -self._max_reward_magnitude
+            # if reward == np.inf or np.isnan(reward):
+            #     reward = self._max_reward_magnitude
+        except ValueError as e:
+            raise e
+            # reward = -self._max_reward_magnitude
         reward = clip_magnitude(reward, self._max_reward_magnitude)
         return reward
 
@@ -174,6 +178,44 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
             ))
             logger.pop_prefix()
         logger.pop_prefix()
+
+    def log_diagnostics(self, paths):
+        target_onehots = []
+        for path in paths:
+            first_observation = path["observations"][0]
+            target_onehots.append(first_observation)
+
+        final_predictions = []  # each element has shape (dim)
+        nonfinal_predictions = []  # each element has shape (seq_length-1, dim)
+        for path in paths:
+            actions = path["actions"]
+            final_predictions.append(actions[-1])
+            nonfinal_predictions.append(actions[:-1])
+        nonfinal_predictions_sequence_dimension_flattened = np.vstack(
+            nonfinal_predictions
+        )  # shape = N X dim
+        nonfinal_prob_zero = [softmax[0] for softmax in
+                              nonfinal_predictions_sequence_dimension_flattened]
+        final_probs_correct = []
+        for final_prediction, target_onehot in zip(final_predictions,
+                                                   target_onehots):
+            correct_pred_idx = np.argmax(target_onehot)
+            final_probs_correct.append(final_prediction[correct_pred_idx])
+        final_prob_zero = [softmax[0] for softmax in final_predictions]
+
+        last_statistics = OrderedDict()
+        last_statistics.update(create_stats_ordered_dict(
+            'Final P(correct)',
+            final_probs_correct))
+        last_statistics.update(create_stats_ordered_dict(
+            'Non-final P(zero)',
+            nonfinal_prob_zero))
+        last_statistics.update(create_stats_ordered_dict(
+            'Final P(zero)',
+            final_prob_zero))
+
+        for key, value in last_statistics.items():
+            logger.record_tabular(key, value)
 
 
 class OneCharMemoryEndOnly(OneCharMemory):
