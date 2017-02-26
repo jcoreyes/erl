@@ -5,11 +5,11 @@
  - Make a load_policy method
  - Organize the misc folder
  - See TODO in test_tensorflow.py
- - Create my own spaces rather than editting rllab's spaces
+ - Have my own trajectory/path/episode class/abstraction that interacts well
+ with the "paths" that rllab has
 
 ## ICML
  - Add a version of DDPG where the policy outputs a distribution over discrete actions
- - Figure out how I want to create my memory augmented environments from scripts
  - Save figures of bptt doing worse on horizon of 100
  - Why is mem state DDPG unstable?
 
