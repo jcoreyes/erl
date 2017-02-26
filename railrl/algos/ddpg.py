@@ -212,11 +212,6 @@ class DDPG(OnlineAlgorithm):
             self.policy.observation_input: obs,
         }
 
-    def _eval_feed_dict(self, paths):
-        rewards, terminals, obs, actions, next_obs = split_paths(paths)
-        return self._update_feed_dict(rewards, terminals, obs, actions,
-                                      next_obs)
-
     @overrides
     def _statistics_from_paths(self, paths) -> OrderedDict:
         feed_dict = self._update_feed_dict_from_path(paths)

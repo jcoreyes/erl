@@ -213,97 +213,29 @@ class BpttDDPG(DDPG):
             self.qf_with_action_input.observation_input: last_obs,
             self._rnn_inputs_ph: env_obs,
             self._rnn_init_state_ph: initial_memory_obs,
+            self.policy.observation_input: last_obs,
         }
 
-    def _eval_feed_dict(self, paths):
-        rewards, terminals, obs, actions, next_obs = split_paths(paths)
-        actions = self._split_flat_actions(actions)
-        obs = self._split_flat_obs(obs)
-        next_obs = self._split_flat_obs(next_obs)
-
-        # rewards and terminals both have shape [batch_size x sub_traj_length],
-        # but they really just need to be [batch_size x 1]. Right now we only
-        # care about the reward/terminal at the very end since we're only
-        # computing the rewards for the last time step.
-        # qf_terminals = terminals
-        # qf_rewards = rewards
-        # # For obs/actions, we only care about the last time step for the critic.
-        # qf_obs = self._get_time_step(obs, t=-1)
-        # qf_actions = self._get_time_step(actions, t=-1)
-        # qf_next_obs = self._get_time_step(next_obs, t=-1)
-        import ipdb
-        ipdb.set_trace()
-        feed = self._qf_feed_dict(rewards,
-                                  terminals,
-                                  obs,
-                                  actions,
-                                  next_obs)
-
-        policy_obs = tuple(
-            np.expand_dims(o, 1) for o in obs
+    def _update_feed_dict_from_path(self, paths):
+        eval_pool = EpisodeReplayBuffer(
+            self._num_bptt_unrolls,
+            self.env,
         )
-        policy_feed = self._policy_feed_dict(policy_obs)
-        feed.update(policy_feed)
-        return feed
+        for path in paths:
+            eval_pool.add_trajectory(path)
 
-    # def evaluate(self, epoch, es_path_returns):
-    #     logger.log("Collecting samples for evaluation")
-    #     paths = self._sample_paths(epoch)
-    #     self.log_diagnostics(paths)
-    #     rewards, terminals, obs, actions, next_obs = split_paths(paths)
-    #     # feed_dict = self._update_feed_dict(rewards, terminals, obs, actions,
-    #     #                                    next_obs)
-    #     # feed_dict = self._qf_feed_dict(rewards, terminals, obs, actions, next_obs)
-    #
-    #     last_statistics = OrderedDict()
-    #
-    #     # # Compute statistics
-    #     # (
-    #     #     policy_loss,
-    #     #     qf_loss,
-    #     #     policy_output,
-    #     #     target_policy_output,
-    #     #     qf_output,
-    #     #     target_qf_outputs,
-    #     #     ys,
-    #     # ) = self.sess.run(
-    #     #     [
-    #     #         self.policy_surrogate_loss,
-    #     #         self.qf_loss,
-    #     #         self.policy.output,
-    #     #         self.target_policy.output,
-    #     #         self.qf.output,
-    #     #         self.target_qf.output,
-    #     #         self.ys,
-    #     #     ],
-    #     #     feed_dict=feed_dict)
-    #     # discounted_returns = [
-    #     #     special.discount_return(path["rewards"], self.discount)
-    #     #     for path in paths]
-    #     # returns = [sum(path["rewards"]) for path in paths]
-    #     # rewards = np.hstack([path["rewards"] for path in paths])
-    #     #
-    #     # # Log statistics
-    #     # last_statistics = OrderedDict([
-    #     #     ('Epoch', epoch),
-    #     #     ('AverageReturn', np.mean(returns)),
-    #     #     ('PolicySurrogateLoss', policy_loss),
-    #     #     ('QfLoss', qf_loss),
-    #     # ])
-    #     # last_statistics.update(create_stats_ordered_dict('Ys', ys))
-    #     # last_statistics.update(create_stats_ordered_dict('PolicyOutput',
-    #     #                                                  policy_output))
-    #     # last_statistics.update(create_stats_ordered_dict('TargetPolicyOutput',
-    #     #                                                  target_policy_output))
-    #     # last_statistics.update(create_stats_ordered_dict('QfOutput', qf_output))
-    #     # last_statistics.update(create_stats_ordered_dict('TargetQfOutput',
-    #     #                                                  target_qf_outputs))
-    #     # last_statistics.update(create_stats_ordered_dict('Rewards', rewards))
-    #     # last_statistics.update(create_stats_ordered_dict('Returns', returns))
-    #     # last_statistics.update(create_stats_ordered_dict('DiscountedReturns',
-    #     #                                                  discounted_returns))
-    #     # if len(es_path_returns) > 0:
-    #     #     last_statistics.update(create_stats_ordered_dict('TrainingReturns',
-    #     #                                                      es_path_returns))
-    #
-    #     return last_statistics
+        minibatch = eval_pool.random_subtrajectories(
+            self.batch_size,
+            self._num_bptt_unrolls,
+        )
+        sampled_obs = minibatch['observations']
+        sampled_terminals = minibatch['terminals']
+        sampled_actions = minibatch['actions']
+        sampled_rewards = minibatch['rewards']
+        sampled_next_obs = minibatch['next_observations']
+
+        return self._update_feed_dict(sampled_rewards,
+                                      sampled_terminals,
+                                      sampled_obs,
+                                      sampled_actions,
+                                      sampled_next_obs)
