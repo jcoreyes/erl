@@ -67,8 +67,6 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
         self._last_t = None
 
     def step(self, action):
-        action = action.flatten()
-
         # Reset gives the first observation, so only return 0 in step.
         observation = self._get_next_observation(0)
 
