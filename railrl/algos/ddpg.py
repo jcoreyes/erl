@@ -213,13 +213,8 @@ class DDPG(OnlineAlgorithm):
         }
 
     @overrides
-    def evaluate(self, epoch, es_path_returns):
-        logger.log("Collecting samples for evaluation")
-        paths = self._sample_paths(epoch)
-        self.log_diagnostics(paths)
-        rewards, terminals, obs, actions, next_obs = split_paths(paths)
-        feed_dict = self._update_feed_dict(rewards, terminals, obs, actions,
-                                           next_obs)
+    def _statistics_from_paths(self, paths) -> OrderedDict:
+        feed_dict = self._update_feed_dict_from_path(paths)
 
         # Compute statistics
         (
@@ -241,35 +236,23 @@ class DDPG(OnlineAlgorithm):
                 self.ys,
             ],
             feed_dict=feed_dict)
-        discounted_returns = [
-            special.discount_return(path["rewards"], self.discount)
-            for path in paths]
-        returns = [sum(path["rewards"]) for path in paths]
-        rewards = np.hstack([path["rewards"] for path in paths])
-
         # Log statistics
-        last_statistics = OrderedDict([
-            ('Epoch', epoch),
-            ('AverageReturn', np.mean(returns)),
+        statistics = OrderedDict([
             ('PolicySurrogateLoss', policy_loss),
             ('QfLoss', qf_loss),
         ])
-        last_statistics.update(create_stats_ordered_dict('Ys', ys))
-        last_statistics.update(create_stats_ordered_dict('PolicyOutput',
-                                                         policy_output))
-        last_statistics.update(create_stats_ordered_dict('TargetPolicyOutput',
-                                                         target_policy_output))
-        last_statistics.update(create_stats_ordered_dict('QfOutput', qf_output))
-        last_statistics.update(create_stats_ordered_dict('TargetQfOutput',
-                                                         target_qf_outputs))
-        last_statistics.update(create_stats_ordered_dict('Rewards', rewards))
-        last_statistics.update(create_stats_ordered_dict('Returns', returns))
-        last_statistics.update(create_stats_ordered_dict('DiscountedReturns',
-                                                         discounted_returns))
-        if len(es_path_returns) > 0:
-            last_statistics.update(create_stats_ordered_dict('TrainingReturns',
-                                                             es_path_returns))
-        for key, value in last_statistics.items():
-            logger.record_tabular(key, value)
+        statistics.update(create_stats_ordered_dict('Ys', ys))
+        statistics.update(create_stats_ordered_dict('PolicyOutput',
+                                                    policy_output))
+        statistics.update(create_stats_ordered_dict('TargetPolicyOutput',
+                                                    target_policy_output))
+        statistics.update(create_stats_ordered_dict('QfOutput', qf_output))
+        statistics.update(create_stats_ordered_dict('TargetQfOutput',
+                                                    target_qf_outputs))
+        return statistics
 
-        return last_statistics
+    def _update_feed_dict_from_path(self, paths):
+        rewards, terminals, obs, actions, next_obs = split_paths(paths)
+        return self._update_feed_dict(rewards, terminals, obs, actions,
+                                      next_obs)
+
