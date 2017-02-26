@@ -70,7 +70,7 @@ def run_linear_ocm_exp(variant):
 
 if __name__ == '__main__':
     n_seeds = 3
-    exp_prefix = "dev-bptt-ddpg-ocm-sweep"
+    exp_prefix = "dev-bptt-ddpg-ocm"
 
     """
     DDPG Params
