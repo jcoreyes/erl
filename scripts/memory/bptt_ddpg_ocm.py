@@ -70,12 +70,12 @@ def run_linear_ocm_exp(variant):
 
 if __name__ == '__main__':
     n_seeds = 3
-    exp_prefix = "2-21-bptt-ddpg-ocm-sweep-num-bptt-unrolls-long-2"
+    exp_prefix = "dev-bptt-ddpg-ocm-sweep"
 
     """
     DDPG Params
     """
-    n_batches_per_epoch = 1000
+    n_batches_per_epoch = 100
     n_batches_per_eval = 100
     batch_size = 256
     n_epochs = 25
