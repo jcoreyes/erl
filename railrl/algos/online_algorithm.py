@@ -45,7 +45,7 @@ class OnlineAlgorithm(RLAlgorithm):
             render=False,
             n_updates_per_time_step=1,
             batch_norm_config=None,
-            replay_pool: ReplayBuffer=None,
+            replay_pool: ReplayBuffer = None,
     ):
         """
         :param env: Environment
@@ -247,23 +247,26 @@ class OnlineAlgorithm(RLAlgorithm):
 
     def _do_training(self, epoch=None):
         minibatch = self.pool.random_batch(self.batch_size, flatten=True)
-        sampled_obs = minibatch['observations']
-        sampled_terminals = minibatch['terminals']
-        sampled_actions = minibatch['actions']
-        sampled_rewards = minibatch['rewards']
-        sampled_next_obs = minibatch['next_observations']
-
-        feed_dict = self._update_feed_dict(sampled_rewards,
-                                           sampled_terminals,
-                                           sampled_obs,
-                                           sampled_actions,
-                                           sampled_next_obs)
+        feed_dict = self._update_feed_dict_from_batch(minibatch)
         ops = self._get_training_ops(epoch=epoch)
         if isinstance(ops[0], list):
             for op in ops:
                 self.sess.run(op, feed_dict=feed_dict)
         else:
             self.sess.run(ops, feed_dict=feed_dict)
+
+    def _update_feed_dict_from_batch(self, batch):
+        sampled_obs = batch['observations']
+        sampled_terminals = batch['terminals']
+        sampled_actions = batch['actions']
+        sampled_rewards = batch['rewards']
+        sampled_next_obs = batch['next_observations']
+
+        return self._update_feed_dict(sampled_rewards,
+                                      sampled_terminals,
+                                      sampled_obs,
+                                      sampled_actions,
+                                      sampled_next_obs)
 
     def get_epoch_snapshot(self, epoch):
         return dict(
@@ -295,7 +298,7 @@ class OnlineAlgorithm(RLAlgorithm):
         discounted_returns = [
             special.discount_return(path["rewards"], self.discount)
             for path in paths
-        ]
+            ]
         rewards = np.hstack([path["rewards"] for path in paths])
         statistics.update(create_stats_ordered_dict('Rewards', rewards))
         statistics.update(create_stats_ordered_dict('Returns', returns))
@@ -323,7 +326,6 @@ class OnlineAlgorithm(RLAlgorithm):
         It's crucial that this list is up to date!
         """
         pass
-
 
     @abc.abstractmethod
     def _init_tensorflow_ops(self):

@@ -92,41 +92,7 @@ class EpisodeReplayBuffer(ReplayBuffer):
             terminals=terminals,
         )
 
-    def all_trajectories(self):
-        batch_size = len(self._episodes)
-        traj_length = self._episodes[0].length - 1
-        observations = np.zeros(
-            (batch_size, traj_length, self._observation_dim)
-        )
-        next_obs = np.zeros(
-            (batch_size, traj_length, self._observation_dim)
-        )
-        actions = np.zeros(
-            (batch_size, traj_length, self._action_dim)
-        )
-        rewards = np.zeros((batch_size, traj_length))
-        terminals = np.zeros((batch_size, traj_length))
-
-        for i, episode in enumerate(self._episodes):
-            trajectory = episode.trajectory
-            observations[i, :, :] = trajectory["observations"]
-            next_obs[i, :, :] = trajectory["next_observations"]
-            actions[i, :, :] = trajectory["actions"]
-            rewards[i, :] = trajectory["rewards"]
-            terminals[i, :] = trajectory["terminals"]
-
-        return dict(
-            observations=observations,
-            actions=actions,
-            next_observations=next_obs,
-            rewards=rewards,
-            terminals=terminals,
-        )
-
     def add_trajectory(self, path):
-        # self._episodes.append(
-        #     SingleEpisode.create_from_path(self._env, path)
-        # )
         for observation, action, reward in zip(
             path["observations"],
             path["actions"],
@@ -139,18 +105,6 @@ class EpisodeReplayBuffer(ReplayBuffer):
             path["observations"][-1]
         )
         self.terminate_episode(terminal_observation)
-        # self._current_episode.terminate_episode(terminal_observation)
-        # self._episodes.append(self._current_episode)
-        # self._current_episode = SingleEpisode(self._env)
-        # self._size += 1
-        #
-        # self._current_episode.add_sample(
-        #     observation=observation,
-        #     action=action,
-        #     reward=reward,
-        #     terminal=terminal,
-        # )
-        # self._size += 1
 
 
 class SingleEpisode(object):
@@ -170,20 +124,6 @@ class SingleEpisode(object):
         self._flat_observations_np = None
         self._rewards_np = None
         self._terminals_np = None
-
-    @staticmethod
-    def create_from_path(env, path):
-        episode = SingleEpisode(env)
-        path_len = len(path["actions"])
-        episode._flat_actions = [a for a in path["actions"]]
-        episode._flat_observations = [o for o in path["observations"]]
-        episode._rewards = [r for r in path["rewards"]]
-        episode._terminals = [False for _ in range(path_len)]
-        episode._terminals[-1] = True
-        episode._length = path_len
-        # The last observation is ignored anyway
-        episode.terminate_episode(path["observations"][-1])
-        return episode
 
     def add_sample(self, observation, action, reward, terminal):
         assert not self._episode_terminated
@@ -250,15 +190,3 @@ class SingleEpisode(object):
             rewards=self._rewards_np[start_index:last_index],
             terminals=self._terminals_np[start_index:last_index],
         )
-
-    @property
-    def trajectory(self):
-        return self.sample_subtrajectory(self._length - 1)
-        # assert self._episode_terminated
-        # return dict(
-        #     observations=self._flat_observations_np[:-1],
-        #     next_observations=self._flat_observations_np[1:],
-        #     actions=self._flat_actions_np,
-        #     rewards=self._rewards_np,
-        #     terminals=self._terminals_np,
-        # )

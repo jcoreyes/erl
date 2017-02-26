@@ -228,14 +228,4 @@ class BpttDDPG(DDPG):
             self.batch_size,
             self._num_bptt_unrolls,
         )
-        sampled_obs = minibatch['observations']
-        sampled_terminals = minibatch['terminals']
-        sampled_actions = minibatch['actions']
-        sampled_rewards = minibatch['rewards']
-        sampled_next_obs = minibatch['next_observations']
-
-        return self._update_feed_dict(sampled_rewards,
-                                      sampled_terminals,
-                                      sampled_obs,
-                                      sampled_actions,
-                                      sampled_next_obs)
+        return self._update_feed_dict_from_batch(minibatch)
