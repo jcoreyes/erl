@@ -75,16 +75,16 @@ if __name__ == '__main__':
     """
     DDPG Params
     """
-    n_batches_per_epoch = 10
-    n_batches_per_eval = 10
-    batch_size = 2
+    n_batches_per_epoch = 100
+    n_batches_per_eval = 100
+    batch_size = 1024
     n_epochs = 25
 
     USE_EC2 = False
     exp_id = -1
-    for H in [16]:
-        for num_values in [2, 8, 16]:
-            for num_bptt_unrolls in [1, 4, 8, 16]:
+    for H in [4]:
+        for num_values in [4]:
+            for num_bptt_unrolls in [4]:
                 print("H", H)
                 print("num_values", num_values)
                 print("num_bptt_unrolls", num_bptt_unrolls)
