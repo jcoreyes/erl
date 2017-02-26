@@ -70,7 +70,7 @@ def run_linear_ocm_exp(variant):
 
 if __name__ == '__main__':
     n_seeds = 3
-    exp_prefix = "2-21-bptt-ddpg-ocm-sweep-num-bptt-unrolls-long-2"
+    exp_prefix = "dev-bptt-ddpg-ocm"
 
     """
     DDPG Params
@@ -82,9 +82,9 @@ if __name__ == '__main__':
 
     USE_EC2 = False
     exp_id = -1
-    for H in [16]:
-        for num_values in [2, 8, 16]:
-            for num_bptt_unrolls in [1, 4, 8, 16]:
+    for H in [4]:
+        for num_values in [4]:
+            for num_bptt_unrolls in [4]:
                 print("H", H)
                 print("num_values", num_values)
                 print("num_bptt_unrolls", num_bptt_unrolls)
