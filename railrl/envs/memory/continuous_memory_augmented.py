@@ -70,6 +70,7 @@ class ContinuousMemoryAugmented(ProxyEnv):
         return self._num_memory_states
 
     def _strip_path(self, path):
+        path = path.copy()
         actions = path['actions']
         env_actions = split_flat_product_space_into_components_n(
             self.action_space,
