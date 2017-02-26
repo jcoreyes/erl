@@ -2,6 +2,7 @@
 :author: Vitchyr Pong
 """
 import abc
+from collections import OrderedDict
 import pickle
 import time
 from contextlib import contextmanager
@@ -11,11 +12,12 @@ import numpy as np
 import tensorflow as tf
 
 from railrl.data_management.replay_buffer import ReplayBuffer
+from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.policies.nn_policy import NNPolicy
 from railrl.core.neuralnet import NeuralNetwork
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from rllab.algos.base import RLAlgorithm
-from rllab.misc import logger
+from rllab.misc import logger, special
 from rllab.misc.overrides import overrides
 from sandbox.rocky.tf.samplers.batch_sampler import BatchSampler
 
@@ -100,7 +102,6 @@ class OnlineAlgorithm(RLAlgorithm):
             self.replay_pool_size,
             self.env,
         )
-        self.last_statistics = None
         self.sess = tf.get_default_session() or tf.Session()
         with self.sess.as_default():
             self._init_tensorflow_ops()
@@ -210,7 +211,6 @@ class OnlineAlgorithm(RLAlgorithm):
             self._switch_to_eval_mode()
             self.training_env.terminate()
             self._shutdown_worker()
-            return self.last_statistics
 
     def _switch_to_training_mode(self):
         """
@@ -273,6 +273,43 @@ class OnlineAlgorithm(RLAlgorithm):
             es=self.exploration_strategy,
         )
 
+    def evaluate(self, epoch, es_path_returns):
+        """
+        Perform evaluation for this algorithm.
+
+        It's recommended
+        :param epoch: The epoch number.
+        :param es_path_returns: List of path returns from explorations strategy
+        :return: Dictionary of statistics.
+        """
+        logger.log("Collecting samples for evaluation")
+        paths = self._sample_paths(epoch)
+        self.log_diagnostics(paths)
+
+        returns = [sum(path["rewards"]) for path in paths]
+        statistics = OrderedDict([
+            ('Epoch', epoch),
+            ('AverageReturn', np.mean(returns)),
+        ])
+
+        discounted_returns = [
+            special.discount_return(path["rewards"], self.discount)
+            for path in paths
+        ]
+        rewards = np.hstack([path["rewards"] for path in paths])
+        statistics.update(create_stats_ordered_dict('Rewards', rewards))
+        statistics.update(create_stats_ordered_dict('Returns', returns))
+        statistics.update(create_stats_ordered_dict('DiscountedReturns',
+                                                    discounted_returns))
+        if len(es_path_returns) > 0:
+            statistics.update(create_stats_ordered_dict('TrainingReturns',
+                                                        es_path_returns))
+
+        statistics.update(self._statistics_from_paths(paths))
+
+        for key, value in statistics.items():
+            logger.record_tabular(key, value)
+
     def log_diagnostics(self, paths):
         self.env.log_diagnostics(paths)
         self.policy.log_diagnostics(paths)
@@ -327,16 +364,16 @@ class OnlineAlgorithm(RLAlgorithm):
         return
 
     @abc.abstractmethod
-    def evaluate(self, epoch, es_path_returns):
+    def _statistics_from_paths(self, paths) -> OrderedDict:
         """
-        Perform evaluation for this algorithm.
 
-        It's recommended
-        :param epoch: The epoch number.
-        :param es_path_returns: List of path returns from explorations strategy
-        :return: Dictionary of statistics.
+        :param paths: List of paths, where a path (AKA trajectory) is the
+        output or rllab.sampler.utils.rollout.
+        :return: OrderedDict, where
+            key = statistics label (string)
+            value = statistics value
         """
-        return
+        pass
 
     def process_action(self, raw_action):
         """
