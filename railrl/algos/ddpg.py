@@ -212,14 +212,17 @@ class DDPG(OnlineAlgorithm):
             self.policy.observation_input: obs,
         }
 
+    def _eval_feed_dict(self, paths):
+        rewards, terminals, obs, actions, next_obs = split_paths(paths)
+        return self._update_feed_dict(rewards, terminals, obs, actions,
+                                      next_obs)
+
     @overrides
     def evaluate(self, epoch, es_path_returns):
         logger.log("Collecting samples for evaluation")
         paths = self._sample_paths(epoch)
         self.log_diagnostics(paths)
-        rewards, terminals, obs, actions, next_obs = split_paths(paths)
-        feed_dict = self._update_feed_dict(rewards, terminals, obs, actions,
-                                           next_obs)
+        feed_dict = self._eval_feed_dict(paths)
 
         # Compute statistics
         (

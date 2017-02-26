@@ -75,9 +75,9 @@ if __name__ == '__main__':
     """
     DDPG Params
     """
-    n_batches_per_epoch = 100
-    n_batches_per_eval = 100
-    batch_size = 256
+    n_batches_per_epoch = 10
+    n_batches_per_eval = 10
+    batch_size = 2
     n_epochs = 25
 
     USE_EC2 = False
