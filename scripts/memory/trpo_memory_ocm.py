@@ -14,6 +14,7 @@ def run_linear_ocm_exp(variant):
     from sandbox.rocky.tf.algos.trpo import TRPO
     from rllab.baselines.linear_feature_baseline import LinearFeatureBaseline
     from sandbox.rocky.tf.policies.gaussian_mlp_policy import GaussianMLPPolicy
+    from sandbox.rocky.tf.policies.categorical_mlp_policy import CategoricalMLPPolicy
     from sandbox.rocky.tf.optimizers.conjugate_gradient_optimizer import (
         ConjugateGradientOptimizer,
         FiniteDifferenceHvp,
@@ -21,9 +22,15 @@ def run_linear_ocm_exp(variant):
     from railrl.envs.memory.continuous_memory_augmented import (
         ContinuousMemoryAugmented
     )
-    from railrl.envs.memory.one_char_memory import OneCharMemoryEndOnly
+    from railrl.envs.memory.one_char_memory import (
+        OneCharMemoryEndOnly,
+        OneCharMemoryEndOnlyDiscrete,
+    )
     from railrl.launchers.launcher_util import (
         set_seed,
+    )
+    from railrl.policies.rllab.deterministic_mlp_policy import (
+        DeterministicMLPPolicy
     )
 
     """
@@ -40,33 +47,45 @@ def run_linear_ocm_exp(variant):
     Code for running the experiment.
     """
 
-    env = OneCharMemoryEndOnly(n=num_values, num_steps=H)
+    env = OneCharMemoryEndOnly(n=num_values, num_steps=H, softmax_action=True)
     env = ContinuousMemoryAugmented(
         env,
         num_memory_states=onehot_dim,
     )
     env = FlattenedProductBox(env)
 
+    # policy = CategoricalMLPPolicy(
+    #     name="policy",
+    #     env_spec=env.spec,
+    #     # The neural network policy should have two hidden layers, each with 32 hidden units.
+    #     hidden_sizes=(32, 32),
+    # )
     policy = GaussianMLPPolicy(
         name="policy",
         env_spec=env.spec,
         # The neural network policy should have two hidden layers, each with 32 hidden units.
         hidden_sizes=(32, 32),
-        output_nonlinearity=tf.nn.softmax,
     )
 
+    # policy = DeterministicMLPPolicy(
+    #     name="policy",
+    #     env_spec=env.spec,
+    #     # The neural network policy should have two hidden layers, each with 32 hidden units.
+    #     hidden_sizes=(32, 32),
+    #     output_nonlinearity=tf.nn.softmax,
+    # )
     baseline = LinearFeatureBaseline(env_spec=env.spec)
 
+    optimizer_params = variant['optimizer_params']
+    trpo_params = variant['trpo_params']
     algo = TRPO(
         env=env,
         policy=policy,
         baseline=baseline,
-        batch_size=4000,
-        max_path_length=100,
-        n_itr=40,
-        discount=0.99,
-        step_size=0.01,
-        optimizer=ConjugateGradientOptimizer(hvp_approach=FiniteDifferenceHvp(base_eps=1e-5))
+        optimizer=ConjugateGradientOptimizer(hvp_approach=FiniteDifferenceHvp(
+            **optimizer_params
+        )),
+        **trpo_params
     )
 
     algo.train()
@@ -74,7 +93,7 @@ def run_linear_ocm_exp(variant):
 
 if __name__ == '__main__':
     n_seeds = 1
-    exp_prefix = "2-24-dev-ocm-trpo"
+    exp_prefix = "dev-ocm-trpo"
     """
     DDPG Params
     """
@@ -85,8 +104,8 @@ if __name__ == '__main__':
 
     USE_EC2 = False
     exp_id = -1
-    for H in [2]:
-        for num_values in [2]:
+    for H in [4]:
+        for num_values in [4]:
             print("H", H)
             print("num_values", num_values)
             exp_id += 1
@@ -95,22 +114,22 @@ if __name__ == '__main__':
             epoch_length = H * n_batches_per_epoch
             eval_samples = H * n_batches_per_eval
             max_path_length = H + 1
-            ddpg_params = dict(
-                batch_size=batch_size,
-                n_epochs=n_epochs,
-                min_pool_size=min_pool_size,
-                replay_pool_size=replay_pool_size,
-                epoch_length=epoch_length,
-                eval_samples=eval_samples,
-                max_path_length=max_path_length,
-                # qf_learning_rate=1e-1,
-                # policy_learning_rate=1e-1,
+            trpo_params = dict(
+                batch_size=4000,
+                max_path_length=100,
+                n_itr=40,
+                discount=0.99,
+                step_size=0.01,
+            )
+            optimizer_params = dict(
+                base_eps=1e-5,
             )
             variant = dict(
                 H=H,
                 num_values=num_values,
                 exp_prefix=exp_prefix,
-                ddpg_params=ddpg_params,
+                trpo_params=trpo_params,
+                optimizer_params=optimizer_params,
             )
             for seed in range(n_seeds):
                 variant['seed'] = seed
