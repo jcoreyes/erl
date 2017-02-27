@@ -14,7 +14,6 @@ def run_linear_ocm_exp(variant):
     from sandbox.rocky.tf.algos.trpo import TRPO
     from rllab.baselines.linear_feature_baseline import LinearFeatureBaseline
     from sandbox.rocky.tf.policies.gaussian_mlp_policy import GaussianMLPPolicy
-    from sandbox.rocky.tf.policies.categorical_mlp_policy import CategoricalMLPPolicy
     from sandbox.rocky.tf.optimizers.conjugate_gradient_optimizer import (
         ConjugateGradientOptimizer,
         FiniteDifferenceHvp,
@@ -24,13 +23,9 @@ def run_linear_ocm_exp(variant):
     )
     from railrl.envs.memory.one_char_memory import (
         OneCharMemoryEndOnly,
-        OneCharMemoryEndOnlyDiscrete,
     )
     from railrl.launchers.launcher_util import (
         set_seed,
-    )
-    from railrl.policies.rllab.deterministic_mlp_policy import (
-        DeterministicMLPPolicy
     )
 
     """
@@ -54,12 +49,6 @@ def run_linear_ocm_exp(variant):
     )
     env = FlattenedProductBox(env)
 
-    # policy = CategoricalMLPPolicy(
-    #     name="policy",
-    #     env_spec=env.spec,
-    #     # The neural network policy should have two hidden layers, each with 32 hidden units.
-    #     hidden_sizes=(32, 32),
-    # )
     policy = GaussianMLPPolicy(
         name="policy",
         env_spec=env.spec,
@@ -67,13 +56,6 @@ def run_linear_ocm_exp(variant):
         hidden_sizes=(32, 32),
     )
 
-    # policy = DeterministicMLPPolicy(
-    #     name="policy",
-    #     env_spec=env.spec,
-    #     # The neural network policy should have two hidden layers, each with 32 hidden units.
-    #     hidden_sizes=(32, 32),
-    #     output_nonlinearity=tf.nn.softmax,
-    # )
     baseline = LinearFeatureBaseline(env_spec=env.spec)
 
     optimizer_params = variant['optimizer_params']
