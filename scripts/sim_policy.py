@@ -3,6 +3,7 @@ import argparse
 import joblib
 import uuid
 import tensorflow as tf
+from rllab.misc import logger
 
 filename = str(uuid.uuid4())
 
@@ -31,8 +32,17 @@ if __name__ == "__main__":
         print("Policy loaded")
         while True:
             try:
-                path = rollout(env, policy, max_path_length=args.max_path_length,
-                               animated=True, speedup=args.speedup)
+                path = rollout(
+                    env,
+                    policy,
+                    max_path_length=args.max_path_length,
+                    animated=True,
+                    speedup=args.speedup,
+                    always_return_paths=True,
+                )
+                env.log_diagnostics([path])
+                policy.log_diagnostics([path])
+                logger.dump_tabular()
             # Hack for now. Not sure why rollout assumes that close is an
             # keyword argument
             except TypeError as e:
