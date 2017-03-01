@@ -174,7 +174,7 @@ def layer_normalize(
         gains = tf.get_variable(
             LAYER_NORM_GAIN_DEFAULT_NAME,
             input_shape,
-            initializer=tf.constant_initializer(0.),
+            initializer=tf.constant_initializer(1.),
         )
         biases = tf.get_variable(
             LAYER_NORM_BIAS_DEFAULT_NAME,
