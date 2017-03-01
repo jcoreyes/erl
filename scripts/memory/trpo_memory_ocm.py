@@ -1,16 +1,13 @@
 """
 Check TRPO on OneCharMemory task.
 """
-from railrl.envs.flattened_product_box import FlattenedProductBox
 from railrl.launchers.launcher_util import (
     run_experiment,
-    run_experiment_here,
+    set_seed,
 )
 
 
 def run_linear_ocm_exp(variant):
-    import tensorflow as tf
-
     from sandbox.rocky.tf.algos.trpo import TRPO
     from rllab.baselines.linear_feature_baseline import LinearFeatureBaseline
     from sandbox.rocky.tf.policies.gaussian_mlp_policy import GaussianMLPPolicy
@@ -18,6 +15,7 @@ def run_linear_ocm_exp(variant):
         ConjugateGradientOptimizer,
         FiniteDifferenceHvp,
     )
+    from railrl.envs.flattened_product_box import FlattenedProductBox
     from railrl.envs.memory.continuous_memory_augmented import (
         ContinuousMemoryAugmented
     )
@@ -35,8 +33,8 @@ def run_linear_ocm_exp(variant):
     seed = variant['seed']
     num_values = variant['num_values']
 
-    onehot_dim = num_values + 1
     set_seed(seed)
+    onehot_dim = num_values + 1
 
     """
     Code for running the experiment.
@@ -74,38 +72,25 @@ def run_linear_ocm_exp(variant):
 
 
 if __name__ == '__main__':
-    n_seeds = 1
-    exp_prefix = "dev-ocm-trpo"
-    """
-    DDPG Params
-    """
-    n_batches_per_epoch = 100
-    n_batches_per_eval = 100
-    batch_size = 64
-    n_epochs = 100
+    n_seeds = 3
+    exp_prefix = "dev-2-28-ocm-trpo-memory"
 
+    trpo_params = dict(
+        batch_size=4000,
+        max_path_length=100,
+        n_itr=100,
+        discount=0.99,
+        step_size=0.01,
+    )
+    optimizer_params = dict(
+        base_eps=1e-5,
+    )
     USE_EC2 = False
     exp_id = -1
-    for H in [4]:
-        for num_values in [4]:
+    for H in [8]:
+        for num_values in [2]:
             print("H", H)
             print("num_values", num_values)
-            exp_id += 1
-            min_pool_size = H * 10
-            replay_pool_size = 16 * H
-            epoch_length = H * n_batches_per_epoch
-            eval_samples = H * n_batches_per_eval
-            max_path_length = H + 1
-            trpo_params = dict(
-                batch_size=4000,
-                max_path_length=100,
-                n_itr=40,
-                discount=0.99,
-                step_size=0.01,
-            )
-            optimizer_params = dict(
-                base_eps=1e-5,
-            )
             variant = dict(
                 H=H,
                 num_values=num_values,
@@ -114,22 +99,20 @@ if __name__ == '__main__':
                 optimizer_params=optimizer_params,
             )
             for seed in range(n_seeds):
+                exp_id += 1
+                set_seed(seed)
                 variant['seed'] = seed
                 variant['exp_id'] = exp_id
 
                 if USE_EC2:
-                    run_experiment(
-                        run_linear_ocm_exp,
-                        exp_prefix=exp_prefix,
-                        seed=seed,
-                        mode="ec2",
-                        variant=variant,
-                    )
+                    mode = "ec2"
                 else:
-                    run_experiment_here(
-                        run_linear_ocm_exp,
-                        exp_prefix=exp_prefix,
-                        variant=variant,
-                        exp_id=exp_id,
-                        seed=seed,
-                    )
+                    mode = "here"
+                run_experiment(
+                    run_linear_ocm_exp,
+                    exp_prefix=exp_prefix,
+                    seed=seed,
+                    mode=mode,
+                    variant=variant,
+                    exp_id=exp_id,
+                )
