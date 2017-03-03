@@ -10,7 +10,6 @@ from railrl.launchers.launcher_util import (
 def run_linear_ocm_exp(variant):
     from sandbox.rocky.tf.algos.trpo import TRPO
     from rllab.baselines.linear_feature_baseline import LinearFeatureBaseline
-    from sandbox.rocky.tf.policies.gaussian_gru_policy import GaussianGRUPolicy
     from sandbox.rocky.tf.policies.gaussian_lstm_policy import GaussianLSTMPolicy
     import sandbox.rocky.tf.core.layers as L
     from sandbox.rocky.tf.optimizers.conjugate_gradient_optimizer import (
@@ -49,12 +48,10 @@ def run_linear_ocm_exp(variant):
     )
     env = FlattenedProductBox(env)
 
-    # policy = GaussianGRUPolicy(
     policy = GaussianLSTMPolicy(
         name="policy",
         env_spec=env.spec,
         lstm_layer_cls=L.TfBasicLSTMLayer,
-        # gru_layer_cls=L.GRULayer,
     )
 
     baseline = LinearFeatureBaseline(env_spec=env.spec)
@@ -75,13 +72,13 @@ def run_linear_ocm_exp(variant):
 
 
 if __name__ == '__main__':
-    n_seeds = 1
-    exp_prefix = "dev-2-28-ocm-trpo-lstm"
+    n_seeds = 3
+    exp_prefix = "dev-ocm-trpo-lstm"
 
     trpo_params = dict(
         batch_size=4000,
         max_path_length=100,
-        n_itr=100,
+        n_itr=500,
         discount=0.99,
         step_size=0.01,
     )
@@ -90,8 +87,8 @@ if __name__ == '__main__':
     )
     USE_EC2 = False
     exp_id = -1
-    for H in [8]:
-        for num_values in [4]:
+    for H in [8, 16, 32]:
+        for num_values in [4, 8, 16]:
             print("H", H)
             print("num_values", num_values)
             variant = dict(
