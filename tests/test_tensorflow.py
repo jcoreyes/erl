@@ -114,5 +114,45 @@ class TestTensorFlow(TFTestCase):
             })
         self.assertNpEqual(actual, expected)
 
+    def test_argmax(self):
+        input_layer = tf.placeholder(tf.float32, shape=(None, 2))
+        argmax = tf.argmax(input_layer, axis=1)
+        x = np.array([
+            [0, 1],
+            [-5, -20],
+            [100, 101],
+        ])
+        actual = self.sess.run(argmax,
+                               feed_dict={
+                                   input_layer: x,
+                               })
+        expected = np.array([1, 0, 1])
+        self.assertNpEqual(actual, expected)
+
+    def test_argmax_none_axis(self):
+        input_layer = tf.placeholder(tf.float32, shape=(None, 2))
+        argmax = tf.argmax(input_layer, axis=0)
+        x = np.array([
+            [0, 1],
+            [-5, -20],
+            [100, 101],
+        ])
+        actual = self.sess.run(argmax,
+                               feed_dict={
+                                   input_layer: x,
+                               })
+        expected = np.array([2, 2])
+        self.assertNpEqual(actual, expected)
+
+    def test_argmax_no_gradients(self):
+        x_ph = tf.placeholder(tf.float32, shape=(None, 2))
+        argmax = tf.argmax(x_ph, axis=1)
+        error_found = False
+        try:
+            tf.gradients(argmax, x_ph)
+        except LookupError:
+            error_found = True
+        self.assertTrue(error_found)
+
 if __name__ == '__main__':
     unittest.main()
