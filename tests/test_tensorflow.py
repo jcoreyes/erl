@@ -154,5 +154,42 @@ class TestTensorFlow(TFTestCase):
             error_found = True
         self.assertTrue(error_found)
 
+    def test_max(self):
+        x_ph = tf.placeholder(tf.float32, shape=(None, 2))
+        max = tf.reduce_max(x_ph, reduction_indices=[1])
+        x = np.array([
+            [0, 1],
+            [-5, -20],
+            [100, 101],
+        ])
+        actual = self.sess.run(max,
+                               feed_dict={
+                                   x_ph: x,
+                               })
+        expected = np.array([1, -5, 101])
+        self.assertNpEqual(actual, expected)
+
+    def test_max_none_axis(self):
+        x_ph = tf.placeholder(tf.float32, shape=(None, 2))
+        max = tf.reduce_max(x_ph, reduction_indices=[0])
+        x = np.array([
+            [0, 1],
+            [-5, -20],
+            [100, 101],
+        ])
+        actual = self.sess.run(max,
+                               feed_dict={
+                                   x_ph: x,
+                               })
+        expected = np.array([100, 101])
+        self.assertNpEqual(actual, expected)
+
+    def test_max_has_gradients(self):
+        x_ph = tf.placeholder(tf.float32, shape=(None, 2))
+        max = tf.reduce_max(x_ph, reduction_indices=[1])
+        grad = tf.gradients(max, x_ph)
+        self.assertTrue(grad is not None)
+        self.assertTrue(grad[0] is not None)
+
 if __name__ == '__main__':
     unittest.main()
