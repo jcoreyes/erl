@@ -1,17 +1,19 @@
 """
-Exampling of running DDPG on HalfCheetah.
+Test different target update modes.
 """
-from railrl.launchers.launcher_util import run_experiment
+from railrl.launchers.launcher_util import run_experiment, get_env_settings
 from railrl.policies.nn_policy import FeedForwardPolicy
 from railrl.qfunctions.nn_qfunction import FeedForwardCritic
 from railrl.algos.ddpg import DDPG, TargetUpdateMode
 
-from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 from rllab.exploration_strategies.ou_strategy import OUStrategy
 
 
-def example(*_):
-    env = HalfCheetahEnv()
+def example(variant):
+    env_settings = get_env_settings(
+        **variant['env_params']
+    )
+    env = env_settings['env']
     es = OUStrategy(env_spec=env.spec)
     qf = FeedForwardCritic(
         name_or_scope="critic",
@@ -26,19 +28,31 @@ def example(*_):
         es,
         policy,
         qf,
-        n_epochs=100,
-        batch_size=1024,
-        epoch_length=10000,
-        target_update_mode=TargetUpdateMode.HARD,
-        hard_update_period=1,
+        **variant['ddpg_params']
     )
     algorithm.train()
 
 
 if __name__ == "__main__":
-    run_experiment(
-        example,
-        exp_prefix="ddpg-cartpole",
-        seed=0,
-        mode='here',
+    ddpg_params = dict(
+        n_epochs=50,
+        batch_size=1024,
+        epoch_length=10000,
+        target_update_mode=TargetUpdateMode.HARD,
+        hard_update_period=10000,
     )
+    env_params = dict(
+        env_id='cheetah',
+        normalize_env=False,
+    )
+    variant = dict(
+        ddpg_params=ddpg_params,
+        env_params=env_params,
+    )
+    for seed in range(3):
+        run_experiment(
+            example,
+            exp_prefix="3-3-target-mode-ddpg-cheetah",
+            seed=seed,
+            variant=variant,
+        )
