@@ -97,14 +97,15 @@ def get_env_settings(
 
 def run_experiment(
         task,
-        exp_prefix,
-        seed,
-        variant,
+        exp_prefix='default',
+        seed=0,
+        variant=None,
         time=True,
         save_profile=False,
         profile_file='time_log.prof',
         mode='here',
         exp_id=0,
+        use_gpu=False,
         **kwargs):
     """
     Run a task via the rllab interface, i.e. serialize it and then run it via
@@ -125,6 +126,8 @@ def run_experiment(
     :param kwargs:
     :return:
     """
+    if variant is None:
+        variant = {}
     variant['seed'] = str(seed)
     variant['exp_id'] = str(exp_id)
     logger.log("Variant:")
@@ -142,6 +145,7 @@ def run_experiment(
             variant=variant,
             exp_id=exp_id,
             seed=seed,
+            use_gpu=use_gpu,
         )
     else:
         run_experiment_lite(
@@ -153,6 +157,7 @@ def run_experiment(
             use_cloudpickle=True,
             python_command=' '.join(command_words),
             mode=mode,
+            use_gpu=use_gpu,
             **kwargs
         )
 
@@ -163,6 +168,7 @@ def run_experiment_here(
     variant=None,
     exp_id=0,
     seed=0,
+    use_gpu=False,
 ):
     """
     Run an experiment locally without any serialization.
@@ -174,6 +180,7 @@ def run_experiment_here(
     :param exp_id: Experiment ID. Should be unique across all
     experiments. Note that one experiment may correspond to multiple seeds,.
     :param seed: Seed used for this experiment.
+    :param use_gpu: Run with GPU. By default False.
     :return:
     """
     if variant is None:
@@ -184,7 +191,11 @@ def run_experiment_here(
         exp_id=exp_id,
         seed=seed,
     )
-    experiment_function(variant)
+    if use_gpu:
+        experiment_function(variant)
+    else:
+        with tf.device("/cpu:0"):
+            experiment_function(variant)
     reset_execution_environment()
 
 
