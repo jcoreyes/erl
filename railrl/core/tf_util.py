@@ -538,3 +538,21 @@ def create_placeholder(int_or_dimensions, name):
             [None, int_or_dimensions],
             name,
         )
+
+
+def index_into(values, idxs):
+    """
+    return values[idxs]
+    :param values: tf.Tensor
+        shape: [None, x]
+    :param idxs: tf.Tensor
+        shape: [None]
+        type: int, ranging from 0 to x-1.
+    :return: tf.Tensor
+        shape: [None]
+        Return a Tensor `out` such that when evaluated,
+            out[i] == values[idxs[i]]
+    """
+    depth = values.get_shape()[-1]
+    one_hots = tf.one_hot(idxs, depth, axis=-1)
+    return tf.reduce_sum(values * one_hots, axis=-1)

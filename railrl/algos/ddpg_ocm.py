@@ -21,7 +21,12 @@ class DdpgOcm(DDPG):
     """
 
     @overrides
-    def _get_training_ops(self, epoch=None):
+    def _get_training_ops(
+            self,
+            epoch=None,
+            n_steps_total=None,
+            n_steps_current_epoch=None,
+    ):
         ops = [
             self.train_qf_op,
             self.update_target_qf_op,
