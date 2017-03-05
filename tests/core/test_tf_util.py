@@ -331,5 +331,27 @@ class TestUtil(TFTestCase):
 
         self.assertEqual(0, len(set(trainable_params).intersection(bn_params)))
 
+    def test_index_into(self):
+        values_ph = tf.placeholder(tf.float32, shape=(None, 2))
+        idxs_ph = tf.placeholder(tf.int32, shape=None)
+        index_values = tf_util.index_into(values_ph, idxs_ph)
+
+        values = np.array([
+            [0, 1],
+            [2, 3],
+            [4, 5],
+        ])
+        idxs = np.array([0, 1, 0])
+
+        expected = np.array([0, 3, 4])
+        actual = self.sess.run(
+            index_values,
+            {
+                values_ph: values,
+                idxs_ph: idxs,
+            }
+        )
+        self.assertNpEqual(expected, actual)
+
 if __name__ == '__main__':
     unittest.main()
