@@ -69,7 +69,7 @@ def run_linear_ocm_exp(variant):
 
 
 if __name__ == '__main__':
-    n_seeds = 3
+    n_seeds = 1
     exp_prefix = "dev-bptt-ddpg-ocm"
 
     """
@@ -80,7 +80,7 @@ if __name__ == '__main__':
     batch_size = 1024
     n_epochs = 25
 
-    USE_EC2 = False
+    mode = 'here'
     exp_id = -1
     for H in [4]:
         for num_values in [4]:
@@ -116,19 +116,10 @@ if __name__ == '__main__':
                     variant['seed'] = seed
                     variant['exp_id'] = exp_id
 
-                    if USE_EC2:
-                        run_experiment(
-                            run_linear_ocm_exp,
-                            exp_prefix=exp_prefix,
-                            seed=seed,
-                            mode="ec2",
-                            variant=variant,
-                        )
-                    else:
-                        run_experiment_here(
-                            run_linear_ocm_exp,
-                            exp_prefix=exp_prefix,
-                            variant=variant,
-                            exp_id=exp_id,
-                            seed=seed,
-                        )
+                    run_experiment(
+                        run_linear_ocm_exp,
+                        exp_prefix=exp_prefix,
+                        seed=seed,
+                        mode=mode,
+                        variant=variant,
+                    )
