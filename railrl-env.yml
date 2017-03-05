@@ -49,3 +49,6 @@ dependencies:
         - progressbar2
         - chainer==1.15.0
         - cloudpickle
+        - snakeviz==0.4.1
+        - yappi==0.98
+        - vmprof

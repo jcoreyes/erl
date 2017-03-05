@@ -7,6 +7,7 @@
  - See TODO in test_tensorflow.py
  - Have my own trajectory/path/episode class/abstraction that interacts well
  with the "paths" that rllab has
+ - Add a way to profile stuff run on EC2. Right now, the prof file isn't saved.
 
 ## ICML
  - Add a version of DDPG where the policy outputs a distribution over discrete actions

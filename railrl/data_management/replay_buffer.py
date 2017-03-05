@@ -22,9 +22,14 @@ class ReplayBuffer(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def terminate_episode(self, terminal_observation):
         """
-        Terminate the episode.
+        Terminate the episode. The only reason this is needed in addition to
+        add_sample is that sometimes you may want to terminate an episode
+        prematurely, but without wanting it to look like a terminal state to
+        the learning algorithm. For example, you might want to reset your
+        environment every T time steps, but it's not like the T'th state is
+        really a terminal state.
 
-        :param terminal_observation: The last observation seen .
+        :param terminal_observation: The last observation seen.
         :return:
         """
         pass
