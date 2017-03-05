@@ -20,8 +20,15 @@ from rllab.misc import logger
 from rllab.misc import special
 from rllab.misc.overrides import overrides
 from rllab.spaces.product import Product
+from enum import Enum
 
 TARGET_PREFIX = "target_"
+
+
+class TargetUpdateMode(Enum):
+    SOFT = 0  # Do a soft-target update. See DDPG paper.
+    HARD = 1  # Copy values over once in a while
+    NONE = 2  # Don't have a target network.
 
 
 class DDPG(OnlineAlgorithm):
@@ -38,6 +45,8 @@ class DDPG(OnlineAlgorithm):
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
             qf_weight_decay=0.,
+            target_update_mode=TargetUpdateMode.SOFT,
+            hard_update_period=10000,
             **kwargs
     ):
         """
@@ -48,8 +57,16 @@ class DDPG(OnlineAlgorithm):
         :param qf_learning_rate: Learning rate of the qf
         :param policy_learning_rate: Learning rate of the _policy
         :param qf_weight_decay: How much to decay the weights for Q
+        :param target_update_mode: How to update the target network.
+        Possible options are
+            - 'soft': Use a soft target update, i.e. exponential moving average
+            - 'hard': Copy the values over every `hard_update_period`
+        :param hard_update_period: How many epochs to between updates.
         :return:
         """
+        assert isinstance(target_update_mode, TargetUpdateMode)
+        self._target_update_mode = target_update_mode
+        self._hard_update_period = hard_update_period
         self.qf = qf
         self.qf_learning_rate = qf_learning_rate
         self.policy_learning_rate = policy_learning_rate
@@ -122,12 +139,29 @@ class DDPG(OnlineAlgorithm):
         assert len(policy_vars) == len(target_policy_vars)
         assert len(qf_vars) == len(target_qf_vars)
 
-        self.update_target_policy_op = [
-            tf.assign(target, (self.tau * src + (1 - self.tau) * target))
-            for target, src in zip(target_policy_vars, policy_vars)]
-        self.update_target_qf_op = [
-            tf.assign(target, (self.tau * src + (1 - self.tau) * target))
-            for target, src in zip(target_qf_vars, qf_vars)]
+        if self._target_update_mode == TargetUpdateMode.SOFT:
+            self.update_target_policy_op = [
+                tf.assign(target, (self.tau * src + (1 - self.tau) * target))
+                for target, src in zip(target_policy_vars, policy_vars)]
+            self.update_target_qf_op = [
+                tf.assign(target, (self.tau * src + (1 - self.tau) * target))
+                for target, src in zip(target_qf_vars, qf_vars)]
+        elif (self._target_update_mode == TargetUpdateMode.HARD or
+                self._target_update_mode == TargetUpdateMode.NONE):
+            self.update_target_policy_op = [
+                tf.assign(target, src)
+                for target, src in zip(target_policy_vars, policy_vars)
+                ]
+            self.update_target_qf_op = [
+                tf.assign(target, src)
+                for target, src in zip(target_qf_vars, qf_vars)
+                ]
+        else:
+            raise RuntimeError(
+                "Unknown target update mode: {}".format(
+                    self._target_update_mode
+                )
+            )
 
     @overrides
     def _init_training(self):
@@ -140,13 +174,38 @@ class DDPG(OnlineAlgorithm):
         return [self.policy, self.qf, self.target_policy, self.target_qf]
 
     @overrides
-    def _get_training_ops(self, epoch=None):
+    def _get_training_ops(
+            self,
+            epoch=None,
+            n_steps_total=None,
+            n_steps_current_epoch=None,
+    ):
         ops = [
             self.train_policy_op,
             self.train_qf_op,
-            self.update_target_qf_op,
-            self.update_target_policy_op,
         ]
+        if self._target_update_mode == TargetUpdateMode.SOFT:
+            ops += [
+                self.update_target_qf_op,
+                self.update_target_policy_op,
+            ]
+        elif self._target_update_mode == TargetUpdateMode.HARD:
+            if n_steps_total % self._hard_update_period == 0:
+                ops += [
+                    self.update_target_qf_op,
+                    self.update_target_policy_op,
+                ]
+        elif self._target_update_mode == TargetUpdateMode.NONE:
+            ops += [
+                self.update_target_qf_op,
+                self.update_target_policy_op,
+            ]
+        else:
+            raise RuntimeError(
+                "Unknown target update mode: {}".format(
+                    self._target_update_mode
+                )
+            )
         if self._batch_norm:
             ops += self.qf.batch_norm_update_stats_op
             ops += self.policy.batch_norm_update_stats_op
@@ -255,4 +314,3 @@ class DDPG(OnlineAlgorithm):
         rewards, terminals, obs, actions, next_obs = split_paths(paths)
         return self._update_feed_dict(rewards, terminals, obs, actions,
                                       next_obs)
-

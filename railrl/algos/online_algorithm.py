@@ -141,6 +141,7 @@ class OnlineAlgorithm(RLAlgorithm):
 
     @overrides
     def train(self):
+        n_steps_total = 0
         with self.sess.as_default():
             self._init_training()
             self._start_worker()
@@ -155,7 +156,7 @@ class OnlineAlgorithm(RLAlgorithm):
                 logger.push_prefix('Epoch #%d | ' % epoch)
                 logger.log("Training started")
                 start_time = time.time()
-                for _ in range(self.epoch_length):
+                for n_steps_current_epoch in range(self.epoch_length):
                     with self._eval_then_training_mode():
                         action = self.exploration_strategy.get_action(itr,
                                                                       observation,
@@ -166,6 +167,7 @@ class OnlineAlgorithm(RLAlgorithm):
                     next_ob, raw_reward, terminal, _ = self.training_env.step(
                         self.process_action(action)
                     )
+                    n_steps_total += 1
                     # Some envs return a Nx1 vector for the observation
                     # TODO(vpong): find a cleaner solution
                     # next_ob = next_ob.squeeze()
@@ -191,7 +193,11 @@ class OnlineAlgorithm(RLAlgorithm):
 
                     if self.pool.size >= self.min_pool_size:
                         for _ in range(self.n_updates_per_time_step):
-                            self._do_training(epoch=epoch)
+                            self._do_training(
+                                epoch=epoch,
+                                n_steps_total=n_steps_total,
+                                n_steps_current_epoch=n_steps_current_epoch,
+                            )
                     itr += 1
 
                 logger.log("Training finished. Time: {0}".format(time.time() -
@@ -245,7 +251,17 @@ class OnlineAlgorithm(RLAlgorithm):
         yield
         self._switch_to_training_mode()
 
-    def _do_training(self, epoch=None):
+    def _do_training(
+            self,
+            epoch=None,
+            n_steps_total=None,
+            n_steps_current_epoch=None,
+    ):
+        ops = self._get_training_ops(
+            epoch=epoch,
+            n_steps_total=n_steps_total,
+            n_steps_current_epoch=n_steps_current_epoch,
+        )
         minibatch = self.pool.random_batch(self.batch_size, flatten=True)
         sampled_obs = minibatch['observations']
         sampled_terminals = minibatch['terminals']
@@ -258,7 +274,6 @@ class OnlineAlgorithm(RLAlgorithm):
                                            sampled_obs,
                                            sampled_actions,
                                            sampled_next_obs)
-        ops = self._get_training_ops(epoch=epoch)
         if isinstance(ops[0], list):
             for op in ops:
                 self.sess.run(op, feed_dict=feed_dict)
@@ -343,7 +358,12 @@ class OnlineAlgorithm(RLAlgorithm):
         return
 
     @abc.abstractmethod
-    def _get_training_ops(self, epoch=None):
+    def _get_training_ops(
+            self,
+            epoch=None,
+            n_steps_total=None,
+            n_steps_current_epoch=None,
+    ):
         """
         :return: List of ops to perform when training. If a list of list is
         provided, each list is executed in order with separate calls to

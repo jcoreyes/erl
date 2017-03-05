@@ -107,7 +107,12 @@ class NAF(OnlineAlgorithm):
             self.qf.value_function.get_param_values())
 
     @overrides
-    def _get_training_ops(self):
+    def _get_training_ops(
+            self,
+            epoch=None,
+            n_steps_total=None,
+            n_steps_current_epoch=None,
+    ):
         ops = [
             self.train_qf_op,
             self.update_target_vf_op,
