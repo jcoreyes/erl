@@ -68,6 +68,8 @@ class SimpleReplayPool(ReplayBuffer):
         # make sure that the transition is valid: if we are at the end of
         # the pool, we need to discard this sample
         current_i = (self._top - 1) % self._max_pool_size
+        # TODO(vitchyr): this takes up a non-trivial amount of computation.
+        # Consider caching this.
         valid_indices = [i for i in range(min(self._size, self._max_pool_size))
                          if not self._final_state[i] and i != current_i]
         indices = np.random.choice(valid_indices, batch_size, replace=False)
