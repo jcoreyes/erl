@@ -2,7 +2,7 @@
 Use EC2 to run DDPG on Cartpole.
 """
 from railrl.launchers.algo_launchers import my_ddpg_launcher
-from rllab.misc.instrument import run_experiment_lite
+from railrl.launchers.launcher_util import run_experiment
 
 
 def main():
@@ -27,21 +27,16 @@ def main():
             normalize_env=True,
             gym_name="",
         ),
-        qf_params=dict(),
-        policy_params=dict(),
     )
     seed = 0
-    # for seed in range(3):
-    run_experiment_lite(
+    run_experiment(
         my_ddpg_launcher,
-        exp_prefix="test-example-local-docker-ddpg-cartpole",
+        exp_prefix="ddpg-cartpole-example",
+        seed=seed,
+        variant=variant,
+        mode="ec2",
         n_parallel=1,
         snapshot_mode="last",
-        seed=seed,
-        mode="local_docker",
-        variant=variant,
-        use_cloudpickle=True,
-        use_gpu=False,
     )
 
 
