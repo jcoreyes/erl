@@ -1,14 +1,13 @@
 """
 Exampling of running DDPG on HalfCheetah.
 """
-from railrl.launchers.launcher_util import run_experiment_here
+from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.nn_policy import FeedForwardPolicy
 from railrl.qfunctions.nn_qfunction import FeedForwardCritic
 from railrl.algos.ddpg import DDPG
 
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 from rllab.exploration_strategies.ou_strategy import OUStrategy
-from rllab.misc.instrument import run_experiment_lite
 
 
 def example(*_):
@@ -34,8 +33,9 @@ def example(*_):
 
 
 if __name__ == "__main__":
-    run_experiment_here(
+    run_experiment(
         example,
         exp_prefix="ddpg-half-cheetah",
         seed=2,
+        mode='here',
     )
