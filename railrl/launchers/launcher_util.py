@@ -22,10 +22,24 @@ from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 from rllab.envs.mujoco.inverted_double_pendulum_env import (
     InvertedDoublePendulumEnv
 )
+from rllab.envs.mujoco.swimmer_env import SwimmerEnv
 from rllab.envs.normalized_env import normalize
 from rllab.misc import logger
 from rllab.misc.instrument import run_experiment_lite
 
+
+def get_standard_env(normalized=True):
+    envs = [
+        HalfCheetahEnv(),
+        CartpoleEnv(),
+        InvertedDoublePendulumEnv(),
+        HalfCheetahEnv(),
+        AntEnv(),
+        SwimmerEnv(),
+    ]
+    if normalized:
+        envs = [normalize(e) for e in envs]
+    return envs
 
 def get_env_settings(
         env_id="",
