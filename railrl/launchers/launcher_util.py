@@ -41,6 +41,18 @@ def get_standard_env(normalized=True):
         envs = [normalize(e) for e in envs]
     return envs
 
+
+def get_standard_env_ids():
+    return [
+        'cart',
+        'cheetah',
+        'ant',
+        'reacher',
+        'idp',
+        'swimmer',
+    ]
+
+
 def get_env_settings(
         env_id="",
         normalize_env=True,
@@ -81,6 +93,9 @@ def get_env_settings(
     elif env_id == 'idp':
         env = InvertedDoublePendulumEnv()
         name = "InvertedDoublePendulum"
+    elif env_id == 'swimmer':
+        env = SwimmerEnv()
+        name = "Swimmer"
     elif env_id == 'ocm':
         env = OneCharMemory(**init_env_params)
         name = "OneCharMemory"
@@ -177,12 +192,12 @@ def run_experiment(
 
 
 def run_experiment_here(
-    experiment_function,
-    exp_prefix="default",
-    variant=None,
-    exp_id=0,
-    seed=0,
-    use_gpu=False,
+        experiment_function,
+        exp_prefix="default",
+        variant=None,
+        exp_id=0,
+        seed=0,
+        use_gpu=False,
 ):
     """
     Run an experiment locally without any serialization.
