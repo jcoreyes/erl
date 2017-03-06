@@ -191,7 +191,7 @@ class OnlineAlgorithm(RLAlgorithm):
                     else:
                         observation = next_ob
 
-                    if self.pool.size >= self.min_pool_size:
+                    if self._can_train():
                         for _ in range(self.n_updates_per_time_step):
                             self._do_training(
                                 epoch=epoch,
@@ -217,6 +217,9 @@ class OnlineAlgorithm(RLAlgorithm):
             self._switch_to_eval_mode()
             self.training_env.terminate()
             self._shutdown_worker()
+
+    def _can_train(self):
+        return self.pool.size >= self.min_pool_size
 
     def _switch_to_training_mode(self):
         """

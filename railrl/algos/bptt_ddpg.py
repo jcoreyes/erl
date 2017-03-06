@@ -7,7 +7,10 @@ import numpy as np
 import tensorflow as tf
 
 from railrl.algos.ddpg import DDPG
-from railrl.data_management.episode_replay_buffer import EpisodeReplayBuffer
+# from railrl.data_management.episode_replay_buffer import EpisodeReplayBuffer
+from railrl.data_management.simple_episode_replay_pool import (
+    SimpleEpisodeReplayPool
+)
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import split_paths, \
     split_flat_product_space_into_components_n
@@ -57,10 +60,6 @@ class BpttDDPG(DDPG):
             exploration_strategy,
             policy,
             qf,
-            replay_pool=EpisodeReplayBuffer(
-                self._num_bptt_unrolls,
-                env,
-            ),
             **kwargs)
 
     def _init_policy_ops(self):
@@ -130,7 +129,12 @@ class BpttDDPG(DDPG):
             actions,
         )
 
-    def _do_training(self, epoch=None):
+    def _do_training(
+            self,
+            epoch=None,
+            n_steps_total=None,
+            n_steps_current_epoch=None,
+    ):
         minibatch = self.pool.random_subtrajectories(
             self.batch_size,
             self._num_bptt_unrolls,
@@ -217,15 +221,21 @@ class BpttDDPG(DDPG):
         }
 
     def _update_feed_dict_from_path(self, paths):
-        eval_pool = EpisodeReplayBuffer(
-            self._num_bptt_unrolls,
+        eval_pool = SimpleEpisodeReplayPool(
+            len(paths) * self.max_path_length,
             self.env,
         )
         for path in paths:
             eval_pool.add_trajectory(path)
 
         minibatch = eval_pool.random_subtrajectories(
-            self.batch_size,
+            eval_pool.num_can_sample(self._num_bptt_unrolls),
             self._num_bptt_unrolls,
         )
         return self._update_feed_dict_from_batch(minibatch)
+
+    # def _can_train(self):
+    #     return self.pool.size >= self.min_pool_size and self.pool.can_sample(
+    #         self.batch_size,
+    #         self._num_bptt_unrolls,
+    #     )

@@ -1,6 +1,8 @@
 """
 Check linear_ocm_policy on OneCharMemory task.
 """
+from railrl.data_management.simple_episode_replay_pool import \
+    SimpleEpisodeReplayPool
 from railrl.launchers.launcher_util import (
     run_experiment,
     run_experiment_here,
@@ -62,6 +64,10 @@ def run_linear_ocm_exp(variant):
         policy,
         qf,
         env_obs_dim=env_action_dim,
+        replay_pool=SimpleEpisodeReplayPool(
+            ddpg_params['replay_pool_size'],
+            env,
+        ),
         **ddpg_params
     )
 
@@ -69,16 +75,16 @@ def run_linear_ocm_exp(variant):
 
 
 if __name__ == '__main__':
-    n_seeds = 1
-    exp_prefix = "dev-bptt-ddpg-ocm"
+    n_seeds = 3
+    exp_prefix = "3-5-bptt-ddpg-ocm-check-didnot-break-3"
 
     """
     DDPG Params
     """
-    n_batches_per_epoch = 100
+    n_batches_per_epoch = 1000
     n_batches_per_eval = 100
     batch_size = 1024
-    n_epochs = 25
+    n_epochs = 50
 
     mode = 'here'
     exp_id = -1
