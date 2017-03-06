@@ -1,24 +1,17 @@
 """
 :author: Vitchyr Pong
 """
-from collections import OrderedDict
 
-import numpy as np
 import tensorflow as tf
 
 from railrl.algos.ddpg import DDPG
-# from railrl.data_management.episode_replay_buffer import EpisodeReplayBuffer
 from railrl.data_management.simple_episode_replay_pool import (
-    SimpleEpisodeReplayPool
+    FlatEpisodeReplayPool
 )
-from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.misc.rllab_util import split_paths, \
-    split_flat_product_space_into_components_n
+from railrl.misc.rllab_util import split_flat_product_space_into_components_n
 from railrl.policies.memory.rnn_cell_policy import RnnCellPolicy
 from railrl.pythonplusplus import map_recursive
 from railrl.qfunctions.nn_qfunction import NNQFunction
-from rllab.misc import logger
-from rllab.misc import special
 
 TARGET_PREFIX = "target_"
 
@@ -221,7 +214,7 @@ class BpttDDPG(DDPG):
         }
 
     def _update_feed_dict_from_path(self, paths):
-        eval_pool = SimpleEpisodeReplayPool(
+        eval_pool = FlatEpisodeReplayPool(
             len(paths) * self.max_path_length,
             self.env,
         )
@@ -231,11 +224,6 @@ class BpttDDPG(DDPG):
         minibatch = eval_pool.random_subtrajectories(
             eval_pool.num_can_sample(self._num_bptt_unrolls),
             self._num_bptt_unrolls,
+            replace=False,
         )
         return self._update_feed_dict_from_batch(minibatch)
-
-    # def _can_train(self):
-    #     return self.pool.size >= self.min_pool_size and self.pool.can_sample(
-    #         self.batch_size,
-    #         self._num_bptt_unrolls,
-    #     )

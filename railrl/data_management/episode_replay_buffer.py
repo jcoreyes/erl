@@ -9,7 +9,9 @@ from railrl.pythonplusplus import sample_with_replacement
 
 class EpisodeReplayBuffer(ReplayBuffer):
     """
-    A replay buffer that stores episodes rather than simple transition tuples
+    A replay buffer that stores episodes rather than simple transition tuples.
+
+    Seems a bit slower than the FlatEpisodeReplayBuffer.
     """
 
     def __init__(

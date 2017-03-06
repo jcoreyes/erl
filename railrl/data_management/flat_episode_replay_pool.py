@@ -4,7 +4,10 @@ from railrl.data_management.replay_buffer import ReplayBuffer
 from railrl.misc.np_util import subsequences
 
 
-class SimpleEpisodeReplayPool(ReplayBuffer):
+class FlatEpisodeReplayPool(ReplayBuffer):
+    """
+    Combine all the episode data into one big replay buffer.
+    """
     def __init__(
             self, max_pool_size, env,
             replacement_policy='stochastic', replacement_prob=1.0,
@@ -110,9 +113,6 @@ class SimpleEpisodeReplayPool(ReplayBuffer):
                 return False
         return True
 
-    def can_sample(self, batch_size, sub_traj_length):
-        return len(self._valid_start_indices(sub_traj_length)) >= batch_size
-
     def num_can_sample(self, sub_traj_length):
         return len(self._valid_start_indices(sub_traj_length))
 
@@ -122,13 +122,14 @@ class SimpleEpisodeReplayPool(ReplayBuffer):
             if self._can_sample_subtraj_at(i, sub_traj_length)
         ]
 
-    def random_subtrajectories(self, batch_size, sub_traj_length):
+    def random_subtrajectories(self, batch_size, sub_traj_length,
+                               replace=True):
         assert self._size > 1
         # TODO(vitchyr): this takes up a non-trivial amount of computation.
         # Consider caching this.
         valid_start_indices = self._valid_start_indices(sub_traj_length)
         start_indices = np.random.choice(valid_start_indices, batch_size,
-                                         replace=True)
+                                         replace=replace)
         return dict(
             observations=subsequences(self._observations, start_indices,
                                       sub_traj_length),

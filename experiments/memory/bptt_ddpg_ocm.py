@@ -2,7 +2,7 @@
 Check linear_ocm_policy on OneCharMemory task.
 """
 from railrl.data_management.simple_episode_replay_pool import \
-    SimpleEpisodeReplayPool
+    FlatEpisodeReplayPool
 from railrl.launchers.launcher_util import (
     run_experiment,
     run_experiment_here,
@@ -64,7 +64,7 @@ def run_linear_ocm_exp(variant):
         policy,
         qf,
         env_obs_dim=env_action_dim,
-        replay_pool=SimpleEpisodeReplayPool(
+        replay_pool=FlatEpisodeReplayPool(
             ddpg_params['replay_pool_size'],
             env,
         ),
