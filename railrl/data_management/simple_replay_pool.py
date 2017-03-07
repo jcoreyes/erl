@@ -27,6 +27,7 @@ class SimpleReplayPool(ReplayBuffer):
         self._bottom = 0
         self._top = 0
         self._size = 0
+        # TODO: test this
         self._valid_transition_indices = []
 
     def _add_sample(self, observation, action, reward, terminal,
@@ -57,10 +58,11 @@ class SimpleReplayPool(ReplayBuffer):
         )
 
     def advance(self):
-        previous_top = (self._top - 1) % self._size
-        if (previous_top not in self._valid_transition_indices and
-                not self._final_state[previous_top]):
-            self._valid_transition_indices.append(previous_top)
+        if self._size > 0:
+            previous_top = (self._top - 1) % self._size
+            if (previous_top not in self._valid_transition_indices and
+                    not self._final_state[previous_top]):
+                self._valid_transition_indices.append(previous_top)
         # Current self._top is NOT a valid transition index since the next time
         # step is either garbage or from another episode
         if self._top in self._valid_transition_indices:
@@ -78,7 +80,7 @@ class SimpleReplayPool(ReplayBuffer):
             batch_size,
             replace=False
         )
-        next_indices = indices + 1
+        next_indices = (indices + 1) % self._size
         return dict(
             observations=self._observations[indices],
             actions=self._actions[indices],
