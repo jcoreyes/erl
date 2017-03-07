@@ -87,6 +87,9 @@ def get_env_settings(
     elif env_id == 'point':
         env = gym_env("OneDPoint-v0")
         name = "OneDPoint"
+    elif env_id == 'random2d':
+        env = gym_env("TwoDPointRandomInit-v0")
+        name = "TwoDPoint-RandomInit"
     elif env_id == 'reacher':
         env = gym_env("Reacher-v1")
         name = "Reacher"
