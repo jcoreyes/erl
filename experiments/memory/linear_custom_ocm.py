@@ -83,8 +83,8 @@ if __name__ == '__main__':
             print("H", H)
             print("num_values", num_values)
             exp_id += 1
-            min_pool_size = H * 10
-            replay_pool_size = 16 * H
+            min_pool_size = max(H * 10, batch_size)
+            replay_pool_size = 16 * H * batch_size
             epoch_length = H * n_batches_per_epoch
             eval_samples = H * n_batches_per_eval
             max_path_length = H + 1

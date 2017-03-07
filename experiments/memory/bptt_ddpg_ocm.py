@@ -1,11 +1,11 @@
 """
 Check linear_ocm_policy on OneCharMemory task.
 """
-from railrl.data_management.simple_episode_replay_pool import \
+from railrl.data_management.flat_episode_replay_pool import (
     FlatEpisodeReplayPool
+)
 from railrl.launchers.launcher_util import (
     run_experiment,
-    run_experiment_here,
 )
 
 
@@ -81,10 +81,10 @@ if __name__ == '__main__':
     """
     DDPG Params
     """
-    n_batches_per_epoch = 1000
+    n_batches_per_epoch = 100
     n_batches_per_eval = 100
-    batch_size = 1024
-    n_epochs = 50
+    batch_size = 128
+    n_epochs = 25
 
     mode = 'here'
     exp_id = -1
@@ -95,8 +95,8 @@ if __name__ == '__main__':
                 print("num_values", num_values)
                 print("num_bptt_unrolls", num_bptt_unrolls)
                 exp_id += 1
-                min_pool_size = H * 10
-                replay_pool_size = 16 * H
+                min_pool_size = max(H * 10, batch_size)
+                replay_pool_size = 16 * H * batch_size
                 epoch_length = H * n_batches_per_epoch
                 eval_samples = H * n_batches_per_eval
                 max_path_length = H + 1
