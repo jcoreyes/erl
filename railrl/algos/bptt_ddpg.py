@@ -5,8 +5,8 @@
 import tensorflow as tf
 
 from railrl.algos.ddpg import DDPG
-from railrl.data_management.flat_episode_replay_pool import (
-    FlatEpisodeReplayPool
+from railrl.data_management.subtraj_replay_pool import (
+    SubtrajReplayPool
 )
 from railrl.misc.rllab_util import split_flat_product_space_into_components_n
 from railrl.policies.memory.rnn_cell_policy import RnnCellPolicy
@@ -30,6 +30,7 @@ class BpttDDPG(DDPG):
             qf: NNQFunction,
             num_bptt_unrolls=1,
             env_obs_dim=None,
+            replay_pool_size=10000,
             **kwargs
     ):
         """
@@ -53,6 +54,11 @@ class BpttDDPG(DDPG):
             exploration_strategy,
             policy,
             qf,
+            replay_pool=SubtrajReplayPool(
+                replay_pool_size,
+                env,
+                num_bptt_unrolls,
+            ),
             **kwargs)
 
     def _init_policy_ops(self):
@@ -130,7 +136,6 @@ class BpttDDPG(DDPG):
     ):
         minibatch = self.pool.random_subtrajectories(
             self.batch_size,
-            self._num_bptt_unrolls,
         )
         sampled_obs = minibatch['observations']
         sampled_terminals = minibatch['terminals']
@@ -214,16 +219,13 @@ class BpttDDPG(DDPG):
         }
 
     def _update_feed_dict_from_path(self, paths):
-        eval_pool = FlatEpisodeReplayPool(
+        eval_pool = SubtrajReplayPool(
             len(paths) * self.max_path_length,
             self.env,
+            self._num_bptt_unrolls,
         )
         for path in paths:
             eval_pool.add_trajectory(path)
 
-        minibatch = eval_pool.random_subtrajectories(
-            eval_pool.num_can_sample(self._num_bptt_unrolls),
-            self._num_bptt_unrolls,
-            replace=False,
-        )
+        minibatch = eval_pool.get_all_valid_subtrajectories()
         return self._update_feed_dict_from_batch(minibatch)
