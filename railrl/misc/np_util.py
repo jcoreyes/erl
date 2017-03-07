@@ -59,16 +59,10 @@ def subsequences(tensor, start_indices, length, start_offset=0):
     :return: np.array
         shape: k x length x m1 x m2 x ... md
     """
-    tensor_shape = tensor.shape
-    if len(tensor_shape) == 1:
-        result = np.empty((len(start_indices), length), dtype=tensor.dtype)
-        for i, start_i in enumerate(start_indices):
-            result[i] = tensor[start_i+start_offset:start_i+start_offset+length]
-    else:
-        result = np.empty((len(start_indices), length) + tensor_shape[1:],
-                          dtype=tensor.dtype)
-        for i, start_i in enumerate(start_indices):
-            result[i, :] = (
-                tensor[start_i+start_offset:start_i+start_offset+length, :]
-            )
-    return result
+    num_indices = len(start_indices)
+    indices = np.repeat(
+        np.arange(length).reshape((1, length)),
+        num_indices,
+        axis=0
+    ) + np.array(start_indices).reshape((num_indices, 1)) + start_offset
+    return tensor[indices]
