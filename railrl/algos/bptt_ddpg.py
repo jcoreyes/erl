@@ -5,7 +5,7 @@
 import tensorflow as tf
 
 from railrl.algos.ddpg import DDPG
-from railrl.data_management.simple_episode_replay_pool import (
+from railrl.data_management.flat_episode_replay_pool import (
     FlatEpisodeReplayPool
 )
 from railrl.misc.rllab_util import split_flat_product_space_into_components_n
