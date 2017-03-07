@@ -68,7 +68,7 @@ class OnlineAlgorithm(RLAlgorithm):
         is enabled.
         :return:
         """
-        assert min_pool_size >= 2
+        assert min_pool_size >= batch_size
         # Have two separate env's to make sure that the training and eval
         # envs don't affect one another.
         self.training_env = env

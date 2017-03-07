@@ -38,23 +38,8 @@ class ReplayBuffer(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def size(self):
         """
-        How many observation time steps are currently saved in this replay
-        buffer, *including* terminal observations.
+        Return # of transitions steps are currently saved in this replay buffer,
+        i.e. how many valid (o_t, a_t, r_t, o_{t+1}) tuples there are.
         :return:
         """
         pass
-
-    # @abc.abstractmethod
-    # def random_batch(self, batch_size):
-    #     """
-    #     Sample a random batch from this replay buffer.
-
-    #     :param batch_size:
-    #     :return: Dictionary with the following keys:
-    #         - observations
-    #         - actions
-    #         - rewards
-    #         - terminals
-    #         - next_observations
-    #     """
-    #     pass
