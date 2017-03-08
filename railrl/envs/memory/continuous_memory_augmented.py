@@ -1,17 +1,24 @@
 import numpy as np
+
+from railrl.misc.rllab_util import split_flat_product_space_into_components_n
 from rllab.envs.base import Env
+from rllab.envs.proxy_env import ProxyEnv
 from rllab.misc.overrides import overrides
 from rllab.spaces.product import Product
 from rllab.spaces.box import Box
 
 
-class ContinuousMemoryAugmented(Env):
+class ContinuousMemoryAugmented(ProxyEnv):
     """
     An environment that wraps another environments and adds continuous memory
     states/actions.
     """
-    def __init__(self, env, num_memory_states=10):
-        self._env = env
+    def __init__(
+            self,
+            env: Env,
+            num_memory_states=10
+    ):
+        super().__init__(env)
         self._num_memory_states = num_memory_states
         self._memory_state = np.zeros(self._num_memory_states)
         self._action_space = Product(
@@ -29,12 +36,8 @@ class ContinuousMemoryAugmented(Env):
 
     def reset(self):
         self._memory_state = np.zeros(self._num_memory_states)
-        env_obs = self._env.reset()
+        env_obs = self._wrapped_env.reset()
         return env_obs, self._memory_state
-
-    @property
-    def horizon(self):
-        return self._env.horizon
 
     def step(self, action):
         """
@@ -44,7 +47,7 @@ class ContinuousMemoryAugmented(Env):
         :return: An unflattened observation.
         """
         env_action, memory_state = action
-        observation, reward, done, info = self._env.step(env_action)
+        observation, reward, done, info = self._wrapped_env.step(env_action)
         return (
             # Squeeze the memory state since the returned next_observation
             # should be flat.
@@ -66,10 +69,24 @@ class ContinuousMemoryAugmented(Env):
     def memory_dim(self):
         return self._num_memory_states
 
-    @property
-    def wrapped_env(self):
-        return self._env
+    def _strip_path(self, path):
+        path = path.copy()
+        actions = path['actions']
+        env_actions = split_flat_product_space_into_components_n(
+            self.action_space,
+            actions
+        )[0]
+        path['actions'] = env_actions
 
-    @overrides
-    def render(self, **kwargs):
-        self._env.render(**kwargs)
+        observations = path['observations']
+        env_obs = split_flat_product_space_into_components_n(
+            self.observation_space,
+            observations
+        )[0]
+        path['observations'] = env_obs
+
+        return path
+
+    def log_diagnostics(self, paths):
+        non_memory_paths = [self._strip_path(path) for path in paths]
+        return self._wrapped_env.log_diagnostics(non_memory_paths)

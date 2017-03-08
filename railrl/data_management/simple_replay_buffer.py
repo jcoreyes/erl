@@ -3,7 +3,7 @@ import numpy as np
 from railrl.data_management.replay_buffer import ReplayBuffer
 
 
-class SimpleReplayPool(ReplayBuffer):
+class SimpleReplayBuffer(ReplayBuffer):
     def __init__(
             self, max_pool_size, observation_dim, action_dim,
             replacement_policy='stochastic', replacement_prob=1.0,
@@ -27,9 +27,11 @@ class SimpleReplayPool(ReplayBuffer):
         self._bottom = 0
         self._top = 0
         self._size = 0
+        # TODO: test this
+        self._valid_transition_indices = []
 
     def _add_sample(self, observation, action, reward, terminal,
-                   final_state):
+                    final_state):
         self._observations[self._top] = observation
         self._actions[self._top] = action
         self._rewards[self._top] = reward
@@ -56,6 +58,16 @@ class SimpleReplayPool(ReplayBuffer):
         )
 
     def advance(self):
+        if self._size > 0:
+            previous_top = (self._top - 1) % self._size
+            if (previous_top not in self._valid_transition_indices and
+                    not self._final_state[previous_top]):
+                self._valid_transition_indices.append(previous_top)
+        # Current self._top is NOT a valid transition index since the next time
+        # step is either garbage or from another episode
+        if self._top in self._valid_transition_indices:
+            self._valid_transition_indices.remove(self._top)
+
         self._top = (self._top + 1) % self._max_pool_size
         if self._size >= self._max_pool_size:
             self._bottom = (self._bottom + 1) % self._max_pool_size
@@ -63,24 +75,20 @@ class SimpleReplayPool(ReplayBuffer):
             self._size += 1
 
     def random_batch(self, batch_size):
-        assert self._size > 1
-        transition_indices = np.zeros(batch_size, dtype='uint64')
-        # make sure that the transition is valid: if we are at the end of
-        # the pool, we need to discard this sample
-        current_i = (self._top - 1) % self._max_pool_size
-        # TODO(vitchyr): this takes up a non-trivial amount of computation.
-        # Consider caching this.
-        valid_indices = [i for i in range(min(self._size, self._max_pool_size))
-                         if not self._final_state[i] and i != current_i]
-        indices = np.random.choice(valid_indices, batch_size, replace=False)
+        indices = np.random.choice(
+            self._valid_transition_indices,
+            batch_size,
+            replace=False
+        )
+        next_indices = (indices + 1) % self._size
         return dict(
             observations=self._observations[indices],
             actions=self._actions[indices],
             rewards=self._rewards[indices],
             terminals=self._terminals[indices],
-            next_observations=self._observations[transition_indices]
+            next_observations=self._observations[next_indices],
         )
 
     @property
-    def size(self):
-        return self._size
+    def num_can_sample(self):
+        return len(self._valid_transition_indices)

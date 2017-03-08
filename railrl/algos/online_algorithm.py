@@ -45,7 +45,7 @@ class OnlineAlgorithm(RLAlgorithm):
             render=False,
             n_updates_per_time_step=1,
             batch_norm_config=None,
-            replay_pool: ReplayBuffer=None,
+            replay_pool: ReplayBuffer = None,
     ):
         """
         :param env: Environment
@@ -68,7 +68,7 @@ class OnlineAlgorithm(RLAlgorithm):
         is enabled.
         :return:
         """
-        assert min_pool_size >= 2
+        assert min_pool_size >= batch_size
         # Have two separate env's to make sure that the training and eval
         # envs don't affect one another.
         self.training_env = env
@@ -191,7 +191,7 @@ class OnlineAlgorithm(RLAlgorithm):
                     else:
                         observation = next_ob
 
-                    if self.pool.size >= self.min_pool_size:
+                    if self._can_train():
                         for _ in range(self.n_updates_per_time_step):
                             self._do_training(
                                 epoch=epoch,
@@ -203,7 +203,7 @@ class OnlineAlgorithm(RLAlgorithm):
                 logger.log("Training finished. Time: {0}".format(time.time() -
                                                                  start_time))
                 with self._eval_then_training_mode():
-                    if self.pool.size >= self.min_pool_size:
+                    if self.pool.num_can_sample >= self.min_pool_size:
                         start_time = time.time()
                         if self.n_eval_samples > 0:
                             self.evaluate(epoch, self.es_path_returns)
@@ -217,6 +217,9 @@ class OnlineAlgorithm(RLAlgorithm):
             self._switch_to_eval_mode()
             self.training_env.terminate()
             self._shutdown_worker()
+
+    def _can_train(self):
+        return self.pool.num_can_sample >= self.min_pool_size
 
     def _switch_to_training_mode(self):
         """
@@ -263,22 +266,25 @@ class OnlineAlgorithm(RLAlgorithm):
             n_steps_current_epoch=n_steps_current_epoch,
         )
         minibatch = self.pool.random_batch(self.batch_size, flatten=True)
-        sampled_obs = minibatch['observations']
-        sampled_terminals = minibatch['terminals']
-        sampled_actions = minibatch['actions']
-        sampled_rewards = minibatch['rewards']
-        sampled_next_obs = minibatch['next_observations']
-
-        feed_dict = self._update_feed_dict(sampled_rewards,
-                                           sampled_terminals,
-                                           sampled_obs,
-                                           sampled_actions,
-                                           sampled_next_obs)
+        feed_dict = self._update_feed_dict_from_batch(minibatch)
         if isinstance(ops[0], list):
             for op in ops:
                 self.sess.run(op, feed_dict=feed_dict)
         else:
             self.sess.run(ops, feed_dict=feed_dict)
+
+    def _update_feed_dict_from_batch(self, batch):
+        sampled_obs = batch['observations']
+        sampled_terminals = batch['terminals']
+        sampled_actions = batch['actions']
+        sampled_rewards = batch['rewards']
+        sampled_next_obs = batch['next_observations']
+
+        return self._update_feed_dict(sampled_rewards,
+                                      sampled_terminals,
+                                      sampled_obs,
+                                      sampled_actions,
+                                      sampled_next_obs)
 
     def get_epoch_snapshot(self, epoch):
         return dict(
@@ -310,7 +316,7 @@ class OnlineAlgorithm(RLAlgorithm):
         discounted_returns = [
             special.discount_return(path["rewards"], self.discount)
             for path in paths
-        ]
+            ]
         rewards = np.hstack([path["rewards"] for path in paths])
         statistics.update(create_stats_ordered_dict('Rewards', rewards))
         statistics.update(create_stats_ordered_dict('Returns', returns))
@@ -338,7 +344,6 @@ class OnlineAlgorithm(RLAlgorithm):
         It's crucial that this list is up to date!
         """
         pass
-
 
     @abc.abstractmethod
     def _init_tensorflow_ops(self):

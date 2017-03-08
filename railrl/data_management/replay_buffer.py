@@ -36,25 +36,8 @@ class ReplayBuffer(object, metaclass=abc.ABCMeta):
 
     @property
     @abc.abstractmethod
-    def size(self):
+    def num_can_sample(self):
         """
-        How many observation time steps are currently saved in this replay
-        buffer, *including* terminal observations.
-        :return:
+        :return: # of unique items that can be sampled.
         """
         pass
-
-    # @abc.abstractmethod
-    # def random_batch(self, batch_size):
-    #     """
-    #     Sample a random batch from this replay buffer.
-
-    #     :param batch_size:
-    #     :return: Dictionary with the following keys:
-    #         - observations
-    #         - actions
-    #         - rewards
-    #         - terminals
-    #         - next_observations
-    #     """
-    #     pass

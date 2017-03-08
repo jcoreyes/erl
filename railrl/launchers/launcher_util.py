@@ -154,10 +154,11 @@ def run_experiment(
     Other options include 'local', 'local_docker', and 'ec2'. See
     run_experiment_lite documentation to learn what those modes do.
     :param exp_id: Experiment ID. Should be unique across all
-    experiments. Note that one experiment may correspond to multiple seeds,.
+    experiments. Note that one experiment may correspond to multiple seeds.
     :param kwargs:
     :return:
     """
+    set_seed(seed)
     if variant is None:
         variant = {}
     variant['seed'] = str(seed)
@@ -325,6 +326,7 @@ def set_seed(seed):
     :param seed:
     :return: None
     """
+    seed = int(seed)
     random.seed(seed)
     np.random.seed(seed)
     tf.set_random_seed(seed)
