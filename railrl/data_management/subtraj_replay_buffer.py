@@ -72,8 +72,7 @@ class SubtrajReplayBuffer(ReplayBuffer):
         self._previous_indices = deque(maxlen=self._subtraj_length)
 
     def advance(self):
-        # +1 since we're about to add an index
-        if len(self._previous_indices) + 1>= self._subtraj_length:
+        if len(self._previous_indices) >= self._subtraj_length:
             previous_idx = self._previous_indices[0]
             # The first condition isn't stictly needed, but this makes it so
             # that we don't have to reason about when the circular buffer
@@ -90,6 +89,7 @@ class SubtrajReplayBuffer(ReplayBuffer):
             self._valid_start_indices.remove(self._top)
 
         self._previous_indices.append(self._top)
+
         self._top = (self._top + 1) % self._max_pool_size
         if self._size >= self._max_pool_size:
             self._bottom = (self._bottom + 1) % self._max_pool_size
