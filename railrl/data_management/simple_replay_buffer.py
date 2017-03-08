@@ -90,5 +90,5 @@ class SimpleReplayBuffer(ReplayBuffer):
         )
 
     @property
-    def size(self):
+    def num_can_sample(self):
         return len(self._valid_transition_indices)

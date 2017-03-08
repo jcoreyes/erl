@@ -203,7 +203,7 @@ class OnlineAlgorithm(RLAlgorithm):
                 logger.log("Training finished. Time: {0}".format(time.time() -
                                                                  start_time))
                 with self._eval_then_training_mode():
-                    if self.pool.size >= self.min_pool_size:
+                    if self.pool.num_can_sample >= self.min_pool_size:
                         start_time = time.time()
                         if self.n_eval_samples > 0:
                             self.evaluate(epoch, self.es_path_returns)
@@ -219,7 +219,7 @@ class OnlineAlgorithm(RLAlgorithm):
             self._shutdown_worker()
 
     def _can_train(self):
-        return self.pool.size >= self.min_pool_size
+        return self.pool.num_can_sample >= self.min_pool_size
 
     def _switch_to_training_mode(self):
         """

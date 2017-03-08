@@ -36,10 +36,8 @@ class ReplayBuffer(object, metaclass=abc.ABCMeta):
 
     @property
     @abc.abstractmethod
-    def size(self):
+    def num_can_sample(self):
         """
-        Return # of transitions steps are currently saved in this replay buffer,
-        i.e. how many valid (o_t, a_t, r_t, o_{t+1}) tuples there are.
-        :return:
+        :return: # of unique items that can be sampled.
         """
         pass
