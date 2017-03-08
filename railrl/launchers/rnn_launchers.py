@@ -17,5 +17,5 @@ def bptt_launcher(variant):
     from railrl.launchers.launcher_util import get_env_settings
     env_settings = get_env_settings(**variant['env_params'])
     env = env_settings['env']
-    algorithm = Bptt(env)
+    algorithm = Bptt(env, **variant['algo_params'])
     algorithm.train()
