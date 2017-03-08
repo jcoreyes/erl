@@ -1,6 +1,7 @@
 """
 Check linear_ocm_policy on OneCharMemory task.
 """
+from itertools import product
 from railrl.launchers.launcher_util import (
     run_experiment,
 )
@@ -68,57 +69,57 @@ def run_linear_ocm_exp(variant):
 
 
 if __name__ == '__main__':
-    n_seeds = 1
+    n_seed = 1
     exp_prefix = "dev-bptt-ddpg-ocm"
 
     """
     DDPG Params
     """
-    n_batches_per_epoch = 100
-    n_batches_per_eval = 100
-    batch_size = 128
-    n_epochs = 25
+    n_batches_per_epoch = 1000
+    n_batches_per_eval = 64
+    batch_size = 32
+    n_epochs = 100
 
     mode = 'here'
     exp_id = -1
-    for H in [4]:
-        for num_values in [4]:
-            for num_bptt_unrolls in [4]:
-                print("H", H)
-                print("num_values", num_values)
-                print("num_bptt_unrolls", num_bptt_unrolls)
-                exp_id += 1
-                min_pool_size = max(H * 10, batch_size)
-                replay_pool_size = 16 * H * batch_size
-                epoch_length = H * n_batches_per_epoch
-                eval_samples = H * n_batches_per_eval
-                max_path_length = H + 1
-                ddpg_params = dict(
-                    batch_size=batch_size,
-                    n_epochs=n_epochs,
-                    min_pool_size=min_pool_size,
-                    replay_pool_size=replay_pool_size,
-                    epoch_length=epoch_length,
-                    eval_samples=eval_samples,
-                    max_path_length=max_path_length,
-                    num_bptt_unrolls=num_bptt_unrolls,
-                    # qf_learning_rate=1e-1,
-                    # policy_learning_rate=1e-1,
-                )
-                variant = dict(
-                    H=H,
-                    num_values=num_values,
-                    exp_prefix=exp_prefix,
-                    ddpg_params=ddpg_params,
-                )
-                for seed in range(n_seeds):
-                    variant['seed'] = seed
-                    variant['exp_id'] = exp_id
-
-                    run_experiment(
-                        run_linear_ocm_exp,
-                        exp_prefix=exp_prefix,
-                        seed=seed,
-                        mode=mode,
-                        variant=variant,
-                    )
+    for H, num_values, num_bptt_unrolls in product(
+        [4],
+        [2],
+        [2],
+    ):
+        print("H", H)
+        print("num_values", num_values)
+        print("num_bptt_unrolls", num_bptt_unrolls)
+        exp_id += 1
+        min_pool_size = 1000
+        replay_pool_size = 100000
+        epoch_length = H * n_batches_per_epoch
+        eval_samples = H * n_batches_per_eval
+        max_path_length = H + 2
+        ddpg_params = dict(
+            batch_size=batch_size,
+            n_epochs=n_epochs,
+            min_pool_size=min_pool_size,
+            replay_pool_size=replay_pool_size,
+            epoch_length=epoch_length,
+            eval_samples=eval_samples,
+            max_path_length=max_path_length,
+            num_bptt_unrolls=num_bptt_unrolls,
+            # qf_learning_rate=1e-1,
+            # policy_learning_rate=1e-1,
+        )
+        variant = dict(
+            H=H,
+            num_values=num_values,
+            exp_prefix=exp_prefix,
+            ddpg_params=ddpg_params,
+        )
+        for seed in range(n_seed):
+            run_experiment(
+                run_linear_ocm_exp,
+                exp_prefix=exp_prefix,
+                seed=seed,
+                mode=mode,
+                variant=variant,
+                exp_id=exp_id,
+        )
