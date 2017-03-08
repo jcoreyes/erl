@@ -128,32 +128,8 @@ class BpttDDPG(DDPG):
             actions,
         )
 
-    def _do_training(
-            self,
-            epoch=None,
-            n_steps_total=None,
-            n_steps_current_epoch=None,
-    ):
-        minibatch = self.pool.random_subtrajectories(
-            self.batch_size,
-        )
-        sampled_obs = minibatch['observations']
-        sampled_terminals = minibatch['terminals']
-        sampled_actions = minibatch['actions']
-        sampled_rewards = minibatch['rewards']
-        sampled_next_obs = minibatch['next_observations']
-
-        feed_dict = self._update_feed_dict(sampled_rewards,
-                                           sampled_terminals,
-                                           sampled_obs,
-                                           sampled_actions,
-                                           sampled_next_obs)
-        ops = self._get_training_ops(epoch=epoch)
-        if isinstance(ops[0], list):
-            for op in ops:
-                self.sess.run(op, feed_dict=feed_dict)
-        else:
-            self.sess.run(ops, feed_dict=feed_dict)
+    def _sample_minibatch(self):
+        return self.pool.random_subtrajectories(self.batch_size)
 
     def _update_feed_dict(self, rewards, terminals, obs, actions, next_obs):
         actions = self._split_flat_actions(actions)
