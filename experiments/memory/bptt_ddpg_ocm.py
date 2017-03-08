@@ -31,7 +31,8 @@ def run_linear_ocm_exp(variant):
     ddpg_params = variant['ddpg_params']
 
     env_action_dim = num_values + 1
-    memory_dim = 2 * env_action_dim
+    lstm_state_size = variant['lstm_state_size']
+    memory_dim = 2 * lstm_state_size
     set_seed(seed)
 
     """
@@ -75,17 +76,18 @@ if __name__ == '__main__':
     """
     DDPG Params
     """
-    n_batches_per_epoch = 1000
+    n_batches_per_epoch = 100
     n_batches_per_eval = 64
     batch_size = 32
     n_epochs = 100
+    lstm_state_size = 10
 
     mode = 'here'
     exp_id = -1
     for H, num_values, num_bptt_unrolls in product(
+        [8],
         [4],
-        [2],
-        [2],
+        [8],
     ):
         print("H", H)
         print("num_values", num_values)
@@ -113,6 +115,7 @@ if __name__ == '__main__':
             num_values=num_values,
             exp_prefix=exp_prefix,
             ddpg_params=ddpg_params,
+            lstm_state_size=lstm_state_size,
         )
         for seed in range(n_seed):
             run_experiment(
