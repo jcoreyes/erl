@@ -5,7 +5,7 @@ from railrl.data_management.replay_buffer import ReplayBuffer
 from railrl.misc.np_util import subsequences
 
 
-class SubtrajReplayPool(ReplayBuffer):
+class SubtrajReplayBuffer(ReplayBuffer):
     """
     Combine all the episode data into one big replay buffer and sample
     sub-trajectories

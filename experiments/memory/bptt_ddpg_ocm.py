@@ -2,7 +2,7 @@
 Check linear_ocm_policy on OneCharMemory task.
 """
 from railrl.data_management.subtraj_replay_pool import (
-    SubtrajReplayPool
+    SubtrajReplayBuffer
 )
 from railrl.launchers.launcher_util import (
     run_experiment,

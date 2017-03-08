@@ -6,7 +6,7 @@ import tensorflow as tf
 
 from railrl.algos.ddpg import DDPG
 from railrl.data_management.subtraj_replay_pool import (
-    SubtrajReplayPool
+    SubtrajReplayBuffer
 )
 from railrl.misc.rllab_util import split_flat_product_space_into_components_n
 from railrl.policies.memory.rnn_cell_policy import RnnCellPolicy
@@ -54,7 +54,7 @@ class BpttDDPG(DDPG):
             exploration_strategy,
             policy,
             qf,
-            replay_pool=SubtrajReplayPool(
+            replay_pool=SubtrajReplayBuffer(
                 replay_pool_size,
                 env,
                 num_bptt_unrolls,
@@ -219,7 +219,7 @@ class BpttDDPG(DDPG):
         }
 
     def _update_feed_dict_from_path(self, paths):
-        eval_pool = SubtrajReplayPool(
+        eval_pool = SubtrajReplayBuffer(
             len(paths) * self.max_path_length,
             self.env,
             self._num_bptt_unrolls,

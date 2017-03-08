@@ -3,7 +3,7 @@ import numpy as np
 from railrl.data_management.replay_buffer import ReplayBuffer
 
 
-class SimpleReplayPool(ReplayBuffer):
+class SimpleReplayBuffer(ReplayBuffer):
     def __init__(
             self, max_pool_size, observation_dim, action_dim,
             replacement_policy='stochastic', replacement_prob=1.0,

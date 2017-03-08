@@ -1,9 +1,9 @@
 import numpy as np
-from railrl.data_management.simple_replay_pool import SimpleReplayPool
+from railrl.data_management.simple_replay_pool import SimpleReplayBuffer
 from rllab.misc.overrides import overrides
 
 
-class EnvReplayBuffer(SimpleReplayPool):
+class EnvReplayBuffer(SimpleReplayBuffer):
     def __init__(
             self,
             max_pool_size,
