@@ -45,8 +45,11 @@ class GaussianMLPPolicy(Policy, Serializable):
 
         # Create network
         observation_dim = self.env_spec.observation_space.flat_dim
-        self.observations_input = tf.placeholder(tf.float32,
-                                                 shape=[None, observation_dim])
+        self.observations_input = tf.placeholder(
+            tf.float32,
+            shape=[None, observation_dim],
+            name='observation_input',
+        )
         action_dim = self.env_spec.action_space.flat_dim
         with tf.variable_scope('mean') as _:
             mlp_mean_output = tf_util.mlp(self.observations_input,
@@ -71,7 +74,11 @@ class GaussianMLPPolicy(Policy, Serializable):
 
         self._dist = DiagonalGaussian(action_dim)
 
-        self.actions_output = tf.placeholder(tf.float32, shape=[None, action_dim])
+        self.actions_output = tf.placeholder(
+            tf.float32,
+            shape=[None, action_dim],
+            name='actions_output',
+        )
         z = (self.actions_output - self.mean) / self.std
         self.log_likelihood = (- tf.log(self.std**2)
                                - z**2 * 0.5

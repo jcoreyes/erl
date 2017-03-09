@@ -142,6 +142,7 @@ class OnlineAlgorithm(RLAlgorithm):
     @overrides
     def train(self):
         n_steps_total = 0
+        tf.summary.FileWriter(logger.get_snapshot_dir(), self.sess.graph)
         with self.sess.as_default():
             self._init_training()
             self._start_worker()
