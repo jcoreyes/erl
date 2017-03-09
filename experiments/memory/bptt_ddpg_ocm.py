@@ -71,16 +71,19 @@ def run_linear_ocm_exp(variant):
 
 if __name__ == '__main__':
     n_seed = 1
-    exp_prefix = "dev-bptt-ddpg-ocm"
+    # exp_prefix = "3-8-bptt-ddpg-ocm-benchmark"
+    exp_prefix = "dev-bptt-ddpg"
 
     """
     DDPG Params
     """
-    n_batches_per_epoch = 100
+    n_batches_per_epoch = 1000
     n_batches_per_eval = 64
     batch_size = 32
     n_epochs = 100
     lstm_state_size = 10
+    min_pool_size = 1000
+    replay_pool_size = 100000
 
     mode = 'here'
     exp_id = -1
@@ -93,8 +96,6 @@ if __name__ == '__main__':
         print("num_values", num_values)
         print("num_bptt_unrolls", num_bptt_unrolls)
         exp_id += 1
-        min_pool_size = 1000
-        replay_pool_size = 100000
         epoch_length = H * n_batches_per_epoch
         eval_samples = H * n_batches_per_eval
         max_path_length = H + 2
