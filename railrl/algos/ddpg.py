@@ -89,9 +89,12 @@ class DDPG(OnlineAlgorithm):
         self.policy.sess = self.sess
         self.target_qf.sess = self.sess
         self.target_policy.sess = self.sess
-        self._init_qf_ops()
-        self._init_policy_ops()
-        self._init_target_ops()
+        with tf.name_scope('qf_ops'):
+            self._init_qf_ops()
+        with tf.name_scope('policy_ops'):
+            self._init_policy_ops()
+        with tf.name_scope('target_ops'):
+            self._init_target_ops()
         self.sess.run(tf.global_variables_initializer())
 
     def _init_qf_ops(self):
