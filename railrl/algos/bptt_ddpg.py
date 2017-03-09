@@ -76,7 +76,6 @@ class BpttDDPG(DDPG):
             self._rnn_outputs, self._rnn_final_state = tf.nn.rnn(
                 self._rnn_cell,
                 rnn_inputs,
-                # initial_state=self._rnn_init_state_ph,
                 initial_state=tf.split(1, 2, self._rnn_init_state_ph),
                 dtype=tf.float32,
                 scope=self._rnn_cell_scope,
