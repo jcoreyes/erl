@@ -22,6 +22,7 @@ class StateActionNetwork(NeuralNetwork, metaclass=abc.ABCMeta):
             observation_dim=None,
             action_input=None,
             observation_input=None,
+            create_network_dict=None,
             **kwargs
     ):
         """
@@ -37,6 +38,10 @@ class StateActionNetwork(NeuralNetwork, metaclass=abc.ABCMeta):
         a placeholder of shape [None, action dim] will be made
         :param kwargs: kwargs to be passed to super
         """
+        # TODO(vitchyr): Find a better way to manage new inputs. Seems like
+        # this has a lot of repeated code. See oracle_qfunction for usage.
+        if create_network_dict is None:
+            create_network_dict = {}
         self.setup_serialization(locals())
         super(StateActionNetwork, self).__init__(name_or_scope, **kwargs)
         self.output_dim = output_dim
@@ -64,7 +69,8 @@ class StateActionNetwork(NeuralNetwork, metaclass=abc.ABCMeta):
         self.action_input = action_input
         self.observation_input = observation_input
         self._create_network(observation_input=observation_input,
-                             action_input=action_input)
+                             action_input=action_input,
+                             **create_network_dict)
 
     @property
     @overrides

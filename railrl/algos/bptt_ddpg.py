@@ -31,6 +31,7 @@ class BpttDDPG(DDPG):
             num_bptt_unrolls=1,
             env_obs_dim=None,
             replay_pool_size=10000,
+            replay_buffer_class=SubtrajReplayBuffer,
             **kwargs
     ):
         """
@@ -49,12 +50,13 @@ class BpttDDPG(DDPG):
         self._rnn_cell_scope = policy.rnn_cell_scope
         self._rnn_cell = policy.rnn_cell
 
+        self._replay_buffer_class = replay_buffer_class
         super().__init__(
             env,
             exploration_strategy,
             policy,
             qf,
-            replay_pool=SubtrajReplayBuffer(
+            replay_pool=replay_buffer_class(
                 replay_pool_size,
                 env,
                 num_bptt_unrolls,
@@ -130,7 +132,8 @@ class BpttDDPG(DDPG):
     def _sample_minibatch(self):
         return self.pool.random_subtrajectories(self.batch_size)
 
-    def _update_feed_dict(self, rewards, terminals, obs, actions, next_obs):
+    def _update_feed_dict(self, rewards, terminals, obs, actions, next_obs,
+                          **kwargs):
         actions = self._split_flat_actions(actions)
         obs = self._split_flat_obs(obs)
         next_obs = self._split_flat_obs(next_obs)
@@ -194,7 +197,7 @@ class BpttDDPG(DDPG):
         }
 
     def _update_feed_dict_from_path(self, paths):
-        eval_pool = SubtrajReplayBuffer(
+        eval_pool = self._replay_buffer_class(
             len(paths) * self.max_path_length,
             self.env,
             self._num_bptt_unrolls,

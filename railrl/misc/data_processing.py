@@ -1,9 +1,13 @@
 from collections import OrderedDict
+from numbers import Number
 
 import numpy as np
 
 
 def create_stats_ordered_dict(name, data):
+    if isinstance(data, Number):
+        return OrderedDict({name: data})
+
     if len(data) == 0:
         return OrderedDict()
 

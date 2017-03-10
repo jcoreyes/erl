@@ -215,7 +215,8 @@ class DDPG(OnlineAlgorithm):
         return ops
 
     @overrides
-    def _update_feed_dict(self, rewards, terminals, obs, actions, next_obs):
+    def _update_feed_dict(self, rewards, terminals, obs, actions, next_obs,
+                          **kwargs):
         actions = self._split_flat_actions(actions)
         obs = self._split_flat_obs(obs)
         next_obs = self._split_flat_obs(next_obs)
@@ -277,41 +278,31 @@ class DDPG(OnlineAlgorithm):
     @overrides
     def _statistics_from_paths(self, paths) -> OrderedDict:
         feed_dict = self._update_feed_dict_from_path(paths)
+        stat_names, ops = zip(*self._statistic_names_and_ops())
+        values = self.sess.run(ops, feed_dict=feed_dict)
 
-        # Compute statistics
-        (
-            policy_loss,
-            qf_loss,
-            policy_output,
-            target_policy_output,
-            qf_output,
-            target_qf_outputs,
-            ys,
-        ) = self.sess.run(
-            [
-                self.policy_surrogate_loss,
-                self.qf_loss,
-                self.policy.output,
-                self.target_policy.output,
-                self.qf.output,
-                self.target_qf.output,
-                self.ys,
-            ],
-            feed_dict=feed_dict)
-        # Log statistics
-        statistics = OrderedDict([
-            ('PolicySurrogateLoss', policy_loss),
-            ('QfLoss', qf_loss),
-        ])
-        statistics.update(create_stats_ordered_dict('Ys', ys))
-        statistics.update(create_stats_ordered_dict('PolicyOutput',
-                                                    policy_output))
-        statistics.update(create_stats_ordered_dict('TargetPolicyOutput',
-                                                    target_policy_output))
-        statistics.update(create_stats_ordered_dict('QfOutput', qf_output))
-        statistics.update(create_stats_ordered_dict('TargetQfOutput',
-                                                    target_qf_outputs))
+        statistics = OrderedDict()
+        for stat_name, value in zip(stat_names, values):
+            statistics.update(
+                create_stats_ordered_dict(stat_name, value)
+            )
+
         return statistics
+
+    def _statistic_names_and_ops(self):
+        """
+        :return: List of tuple (name, op). Each `op` will be evaluated. Its
+        output will be saved as a statistic with name `name`.
+        """
+        return [
+            ('PolicySurrogateLoss', self.policy_surrogate_loss),
+            ('QfLoss', self.qf_loss),
+            ('Ys', self.policy_surrogate_loss),
+            ('PolicyOutput', self.policy_surrogate_loss),
+            ('TargetPolicyOutput', self.policy_surrogate_loss),
+            ('QfOutput', self.policy_surrogate_loss),
+            ('TargetQfOutput', self.policy_surrogate_loss),
+        ]
 
     def _update_feed_dict_from_path(self, paths):
         rewards, terminals, obs, actions, next_obs = split_paths(paths)

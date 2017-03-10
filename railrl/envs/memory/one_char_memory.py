@@ -15,6 +15,7 @@ from rllab.spaces.discrete import Discrete
 from rllab.misc import logger
 from railrl.envs.supervised_learning_env import RecurrentSupervisedLearningEnv
 from cached_property import cached_property
+import tensorflow as tf
 
 
 class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
@@ -86,8 +87,11 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
         reward = self._compute_reward(done, action)
         self._last_reward = reward
         self._last_action = action
-        info = {'target': self.n}
+        info = self._get_info_dict()
         return observation, reward, done, info
+
+    def _get_info_dict(self):
+        return {'target_number': self._target_number}
 
     def _compute_reward(self, done, action):
         try:
@@ -223,6 +227,17 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
         for key, value in last_statistics.items():
             logger.record_tabular(key, value)
 
+    def get_tf_loss(self, observations, actions, target_labels):
+        """
+        Return the supervised-learning loss.
+        :param observation: Tensor
+        :param action: Tensor
+        :return: loss Tensor
+        """
+        target_labels_float = tf.cast(target_labels, tf.float32)
+        cross_entropy = target_labels_float * tf.log(actions)
+        return tf.reduce_sum(cross_entropy)
+
 
 class OneCharMemoryEndOnly(OneCharMemory):
     """
@@ -293,20 +308,6 @@ class OneCharMemoryEndOnlyDiscrete(OneCharMemory):
         self._last_reward = None
         self._last_action = None
         self._last_t = None
-
-    def step(self, action):
-        # Reset gives the first observation, so only return 0 in step.
-        observation = self._get_next_observation(0)
-
-        done = self._t == self.num_steps
-        self._last_t = self._t
-        self._t += 1
-
-        reward = self._compute_reward(done, action)
-        self._last_reward = reward
-        self._last_action = action
-        info = {'target': self.n}
-        return observation, reward, done, info
 
     def _compute_reward(self, done, action):
         if done:

@@ -165,8 +165,10 @@ class OnlineAlgorithm(RLAlgorithm):
                     if self.render:
                         self.training_env.render()
 
-                    next_ob, raw_reward, terminal, _ = self.training_env.step(
-                        self.process_action(action)
+                    next_ob, raw_reward, terminal, debug_info = (
+                        self.training_env.step(
+                            self.process_action(action)
+                        )
                     )
                     n_steps_total += 1
                     # Some envs return a Nx1 vector for the observation
@@ -181,9 +183,11 @@ class OnlineAlgorithm(RLAlgorithm):
                         action,
                         reward,
                         terminal,
+                        debug_info=debug_info,
                     )
                     if terminal or path_length >= self.max_path_length:
-                        self.pool.terminate_episode(next_ob)
+                        self.pool.terminate_episode(next_ob,
+                                                    debug_info=debug_info)
                         observation = self.training_env.reset()
                         self.exploration_strategy.reset()
                         self.es_path_returns.append(path_return)
@@ -381,7 +385,8 @@ class OnlineAlgorithm(RLAlgorithm):
         return
 
     @abc.abstractmethod
-    def _update_feed_dict(self, rewards, terminals, obs, actions, next_obs):
+    def _update_feed_dict(self, rewards, terminals, obs, actions, next_obs,
+                          **kwargs):
         """
         :param rewards: np.ndarray, shape BATCH_SIZE
         :param terminals: np.ndarray, shape BATCH_SIZE

@@ -1,6 +1,7 @@
 import abc
 
 
+
 class RecurrentSupervisedLearningEnv(metaclass=abc.ABCMeta):
     """
     An environment that's really just a supervised learning task.

@@ -13,6 +13,7 @@ class ContinuousMemoryAugmented(ProxyEnv):
     An environment that wraps another environments and adds continuous memory
     states/actions.
     """
+
     def __init__(
             self,
             env: Env,
@@ -90,3 +91,13 @@ class ContinuousMemoryAugmented(ProxyEnv):
     def log_diagnostics(self, paths):
         non_memory_paths = [self._strip_path(path) for path in paths]
         return self._wrapped_env.log_diagnostics(non_memory_paths)
+
+    def get_tf_loss(self, observations, actions, **kwargs):
+        """
+        Return the supervised-learning loss.
+        :param observation: Tensor
+        :param action: Tensor
+        :return: loss Tensor
+        """
+        return self._wrapped_env.get_tf_loss(observations[0], actions[0],
+                                             **kwargs)

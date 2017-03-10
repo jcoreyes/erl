@@ -7,7 +7,7 @@ class ReplayBuffer(object, metaclass=abc.ABCMeta):
     """
 
     @abc.abstractmethod
-    def add_sample(self, observation, action, reward, terminal):
+    def add_sample(self, observation, action, reward, terminal, **kwargs):
         """
         Add a (state, observation, reward, terminal) tuple.
 
@@ -20,7 +20,7 @@ class ReplayBuffer(object, metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def terminate_episode(self, terminal_observation):
+    def terminate_episode(self, terminal_observation, **kwargs):
         """
         Terminate the episode. The only reason this is needed in addition to
         add_sample is that sometimes you may want to terminate an episode
