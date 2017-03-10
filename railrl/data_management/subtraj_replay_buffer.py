@@ -10,7 +10,6 @@ class SubtrajReplayBuffer(ReplayBuffer):
     Combine all the episode data into one big replay buffer and sample
     sub-trajectories
     """
-
     def __init__(
             self,
             max_pool_size,
@@ -34,9 +33,7 @@ class SubtrajReplayBuffer(ReplayBuffer):
         # In other words, we're saving the s_{t+1} after sampling a tuple of
         # (s_t, a_t, r_t, s_{t+1}, TERMINAL=TRUE)
         self._final_state = np.zeros(max_pool_size, dtype='uint8')
-
-        # placeholder for when saving a terminal observation
-        self._example_action = None
+        self._debug_number = np.zeros(max_pool_size, dtype='uint8')
         self._bottom = 0
         self._top = 0
         self._size = 0
@@ -45,7 +42,7 @@ class SubtrajReplayBuffer(ReplayBuffer):
         self._previous_indices = deque(maxlen=self._subtraj_length)
 
     def _add_sample(self, observation, action_, reward, terminal,
-                    final_state):
+                    final_state, debug_info=None):
         action = self._env.action_space.flatten(action_)
         observation = self._env.observation_space.flatten(observation)
         self._observations[self._top] = observation
@@ -53,25 +50,30 @@ class SubtrajReplayBuffer(ReplayBuffer):
         self._rewards[self._top] = reward
         self._terminals[self._top] = terminal
         self._final_state[self._top] = final_state
+        if isinstance(debug_info, dict) and 'target_number' in debug_info:
+            self._debug_number[self._top] = debug_info['target_number']
         self.advance()
 
-    def add_sample(self, observation, action, reward, terminal, **kwargs):
+    def add_sample(self, observation, action, reward, terminal,
+                   debug_info=None):
         self._add_sample(
             observation,
             action,
             reward,
             terminal,
             False,
+            debug_info=debug_info,
         )
         self._example_action = action
 
-    def terminate_episode(self, terminal_observation, **kwargs):
+    def terminate_episode(self, terminal_observation, debug_info=None):
         self._add_sample(
             terminal_observation,
             self._example_action,
             0,
             0,
             True,
+            debug_info=debug_info,
         )
         self._previous_indices = deque(maxlen=self._subtraj_length)
 
@@ -134,10 +136,14 @@ class SubtrajReplayBuffer(ReplayBuffer):
             actions=subsequences(self._actions, start_indices,
                                  self._subtraj_length),
             next_observations=subsequences(self._observations, start_indices,
-                                           self._subtraj_length,
-                                           start_offset=1),
+                                           self._subtraj_length, start_offset=1),
             rewards=subsequences(self._rewards, start_indices,
                                  self._subtraj_length),
             terminals=subsequences(self._terminals, start_indices,
                                    self._subtraj_length),
+            debug_numbers=subsequences(
+                self._debug_number,
+                start_indices,
+                self._subtraj_length,
+            )
         )

@@ -91,7 +91,7 @@ if __name__ == '__main__':
     for H, num_values, num_bptt_unrolls in product(
         [8],
         [4],
-        [4],
+        [8],
     ):
         print("H", H)
         print("num_values", num_values)
