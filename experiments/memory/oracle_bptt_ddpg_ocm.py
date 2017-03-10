@@ -2,6 +2,7 @@
 Use an oracle qfunction to train a policy in bptt-ddpg style.
 """
 from itertools import product
+
 from railrl.launchers.launcher_util import (
     run_experiment,
 )
@@ -20,6 +21,9 @@ def run_linear_ocm_exp(variant):
     from railrl.policies.memory.lstm_memory_policy import LstmMemoryPolicy
     from railrl.launchers.launcher_util import (
         set_seed,
+    )
+    from railrl.data_management.ocm_subtraj_replay_buffer import (
+        OcmSubtrajReplayBuffer
     )
 
     """
@@ -64,6 +68,7 @@ def run_linear_ocm_exp(variant):
         policy,
         qf,
         env_obs_dim=env_action_dim,
+        replay_buffer_class=OcmSubtrajReplayBuffer,
         **ddpg_params
     )
 
