@@ -3,10 +3,10 @@ import unittest
 
 import numpy as np
 import tensorflow as tf
-from railrl.misc.tf_test_case import TFTestCase
-from railrl.qfunctions.quadratic_naf_qfunction import QuadraticNAF
 
 from railrl.algos.naf import NAF
+from railrl.qfunctions.quadratic_naf_qfunction import QuadraticNAF
+from railrl.testing.tf_test_case import TFTestCase
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 from rllab.exploration_strategies.ou_strategy import OUStrategy

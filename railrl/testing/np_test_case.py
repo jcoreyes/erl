@@ -1,7 +1,8 @@
 import unittest
+
 import numpy as np
 
-from railrl.misc.testing_utils import are_np_arrays_equal, \
+from railrl.testing.testing_utils import are_np_arrays_equal, \
     are_np_array_iterables_equal
 
 

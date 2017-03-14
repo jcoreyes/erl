@@ -1,8 +1,8 @@
 import numpy as np
 import tensorflow as tf
 
-from railrl.misc.tf_test_case import TFTestCase
 from railrl.predictors.mlp_state_network import MlpStateNetwork
+from railrl.testing.tf_test_case import TFTestCase
 
 
 class TestStateNetwork(TFTestCase):

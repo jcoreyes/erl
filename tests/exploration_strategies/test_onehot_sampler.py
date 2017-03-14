@@ -1,10 +1,10 @@
 import unittest
 
 import numpy as np
+from railrl.testing.tf_test_case import TFTestCase
 
 from railrl.exploration_strategies.onehot_sampler import OneHotSampler
-from railrl.misc.testing_utils import is_binomial_trial_likely
-from railrl.misc.tf_test_case import TFTestCase
+from railrl.testing.testing_utils import is_binomial_trial_likely
 from railrl.utils.testing import StubPolicy
 
 
