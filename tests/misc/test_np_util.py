@@ -1,7 +1,9 @@
 import unittest
+
 import numpy as np
+
 from railrl.misc import np_util
-from railrl.misc.np_test_case import NPTestCase
+from railrl.testing.np_test_case import NPTestCase
 
 
 class TestNpUtil(NPTestCase):
