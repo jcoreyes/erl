@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
-from railrl.misc.np_test_case import NPTestCase
+from railrl.testing.np_test_case import NPTestCase
 
 
 class TFTestCase(NPTestCase):

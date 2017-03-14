@@ -1,7 +1,9 @@
 import unittest
+
 import numpy as np
+
 from railrl.envs.memory.one_char_memory import OneCharMemory
-from railrl.misc.np_test_case import NPTestCase
+from railrl.testing.np_test_case import NPTestCase
 
 
 class TestOneCharMemory(NPTestCase):
@@ -64,7 +66,7 @@ class TestOneCharMemory(NPTestCase):
         self.assertAlmostEqual(reward, 0.25)
 
     def test_reward_for_wrong_input_is_correct(self):
-        env = OneCharMemory(num_steps=4)
+        env = OneCharMemory(n=3, num_steps=4)
         init_obs = env.reset()
 
         action = init_obs

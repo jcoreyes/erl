@@ -142,6 +142,7 @@ class OnlineAlgorithm(RLAlgorithm):
     @overrides
     def train(self):
         n_steps_total = 0
+        tf.summary.FileWriter(logger.get_snapshot_dir(), self.sess.graph)
         with self.sess.as_default():
             self._init_training()
             self._start_worker()
@@ -202,24 +203,28 @@ class OnlineAlgorithm(RLAlgorithm):
 
                 logger.log("Training finished. Time: {0}".format(time.time() -
                                                                  start_time))
-                with self._eval_then_training_mode():
-                    if self.pool.num_can_sample >= self.min_pool_size:
+                if self._can_eval():
+                    with self._eval_then_training_mode():
                         start_time = time.time()
-                        if self.n_eval_samples > 0:
-                            self.evaluate(epoch, self.es_path_returns)
-                            self.es_path_returns = []
-                        params = self.get_epoch_snapshot(epoch)
+                        self.evaluate(epoch, self.es_path_returns)
+                        self.es_path_returns = []
                         logger.log(
                             "Eval time: {0}".format(time.time() - start_time))
-                        logger.save_itr_params(epoch, params)
-                    logger.dump_tabular(with_prefix=False)
-                    logger.pop_prefix()
+                params = self.get_epoch_snapshot(epoch)
+                logger.save_itr_params(epoch, params)
+                logger.dump_tabular(with_prefix=False)
+                logger.pop_prefix()
+
             self._switch_to_eval_mode()
             self.training_env.terminate()
             self._shutdown_worker()
 
     def _can_train(self):
         return self.pool.num_can_sample >= self.min_pool_size
+
+    def _can_eval(self):
+        return (self.pool.num_can_sample >= self.min_pool_size and
+                self.n_eval_samples > 0)
 
     def _switch_to_training_mode(self):
         """
@@ -265,7 +270,7 @@ class OnlineAlgorithm(RLAlgorithm):
             n_steps_total=n_steps_total,
             n_steps_current_epoch=n_steps_current_epoch,
         )
-        minibatch = self.pool.random_batch(self.batch_size, flatten=True)
+        minibatch = self._sample_minibatch()
         feed_dict = self._update_feed_dict_from_batch(minibatch)
         if isinstance(ops[0], list):
             for op in ops:
@@ -273,18 +278,17 @@ class OnlineAlgorithm(RLAlgorithm):
         else:
             self.sess.run(ops, feed_dict=feed_dict)
 
-    def _update_feed_dict_from_batch(self, batch):
-        sampled_obs = batch['observations']
-        sampled_terminals = batch['terminals']
-        sampled_actions = batch['actions']
-        sampled_rewards = batch['rewards']
-        sampled_next_obs = batch['next_observations']
+    def _sample_minibatch(self):
+        return self.pool.random_batch(self.batch_size, flatten=True)
 
-        return self._update_feed_dict(sampled_rewards,
-                                      sampled_terminals,
-                                      sampled_obs,
-                                      sampled_actions,
-                                      sampled_next_obs)
+    def _update_feed_dict_from_batch(self, batch):
+        return self._update_feed_dict(
+            rewards=batch['rewards'],
+            terminals=batch['terminals'],
+            obs=batch['observations'],
+            actions=batch['actions'],
+            next_obs=batch['next_observations'],
+        )
 
     def get_epoch_snapshot(self, epoch):
         return dict(

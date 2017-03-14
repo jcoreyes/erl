@@ -1,7 +1,7 @@
 import unittest
 
 from railrl.exploration_strategies.product_strategy import ProductStrategy
-from railrl.misc.tf_test_case import TFTestCase
+from railrl.testing.tf_test_case import TFTestCase
 from railrl.utils.testing import AddEs, StubPolicy
 
 
