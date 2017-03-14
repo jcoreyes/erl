@@ -16,12 +16,13 @@ class OcmSubtrajReplayBuffer(SubtrajReplayBuffer):
             subtraj_length,
     ):
         self._debug_number = np.zeros(max_pool_size, dtype='uint8')
+        self._time = np.zeros(max_pool_size, dtype='uint8')
         super().__init__(max_pool_size, env, subtraj_length)
 
     def _add_sample(self, observation, action, reward, terminal,
                     final_state, debug_info=None):
-        if isinstance(debug_info, dict) and 'target_number' in debug_info:
-            self._debug_number[self._top] = debug_info['target_number']
+        self._debug_number[self._top] = debug_info['target_number']
+        self._time[self._top] = debug_info['time']
         super()._add_sample(
             observation,
             action,
@@ -34,6 +35,11 @@ class OcmSubtrajReplayBuffer(SubtrajReplayBuffer):
         trajs = super()._get_trajectories(start_indices)
         trajs['debug_numbers'] = subsequences(
             self._debug_number,
+            start_indices,
+            self._subtraj_length,
+        )
+        trajs['time'] = subsequences(
+            self._time,
             start_indices,
             self._subtraj_length,
         )

@@ -70,6 +70,7 @@ class BpttDDPG(DDPG):
             name='rnn_time_inputs',
         )
         self._rnn_init_state_ph = self.policy.create_init_state_placeholder()
+        self._rnn_init_state_flat = tf.concat(1, self._rnn_init_state_ph)
 
         rnn_inputs = tf.unpack(self._rnn_inputs_ph, axis=1)
 
@@ -78,7 +79,7 @@ class BpttDDPG(DDPG):
             self._rnn_outputs, self._rnn_final_state = tf.nn.rnn(
                 self._rnn_cell,
                 rnn_inputs,
-                initial_state=tf.split(1, 2, self._rnn_init_state_ph),
+                initial_state=self._rnn_init_state_ph,
                 dtype=tf.float32,
                 scope=self._rnn_cell_scope,
             )
@@ -192,7 +193,7 @@ class BpttDDPG(DDPG):
         return {
             self.qf_with_action_input.observation_input: last_obs,
             self._rnn_inputs_ph: env_obs,
-            self._rnn_init_state_ph: initial_memory_obs,
+            self._rnn_init_state_flat: initial_memory_obs,
             self.policy.observation_input: last_obs,
         }
 

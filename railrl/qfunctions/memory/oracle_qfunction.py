@@ -1,8 +1,36 @@
 import tensorflow as tf
 
-from railrl.core.tf_util import he_uniform_initializer, mlp, linear
-from railrl.envs.memory.one_char_memory import OneCharMemory
 from railrl.qfunctions.nn_qfunction import NNQFunction
+
+
+class _SaveActionRnn(tf.nn.rnn_cell.RNNCell):
+    """
+    An RNN that wraps another RNN. The main difference is that this saves the last action in state.
+    """
+    def __init__(
+            self,
+            rnn_cell: tf.nn.rnn_cell.RNNCell,
+    ):
+        self._wrapped_rnn_cell = rnn_cell
+
+    def __call__(self, inputs, state, scope=None):
+        wrapped_rnn_state_size = state[0]
+        wrapped_output, wrapped_state = self._wrapped_rnn_cell(
+            inputs,
+            wrapped_rnn_state_size,
+            scope=scope,
+        )
+
+        return wrapped_output, (wrapped_state, wrapped_output)
+
+    @property
+    def state_size(self):
+        return (self._wrapped_rnn_cell.state_size,
+                self._wrapped_rnn_cell.output_size)
+
+    @property
+    def output_size(self):
+        return self._wrapped_rnn_cell.output_size
 
 
 class OracleQFunction(NNQFunction):
@@ -73,6 +101,7 @@ class OracleUnrollQFunction(NNQFunction):
             num_bptt_unrolls,
             max_horizon_length,
             target_labels=None,
+            sequence_lengths=None,
             **kwargs
     ):
         self.setup_serialization(locals())
@@ -89,12 +118,13 @@ class OracleUnrollQFunction(NNQFunction):
         self._rnn_init_state_ph = self._policy.create_init_state_placeholder()
 
         self._rnn_inputs = tf.unpack(self._rnn_inputs_ph, axis=1)
-        self._sequence_length = tf.placeholder(
-            tf.int32,
-            shape=[None],
-            name='sequence_length',
-        )
 
+        if sequence_lengths is None:
+            sequence_lengths = tf.placeholder(
+                tf.int32,
+                shape=[None],
+                name='sequence_length',
+            )
         if target_labels is None:
             target_labels = tf.placeholder(
                 tf.int32,
@@ -104,6 +134,7 @@ class OracleUnrollQFunction(NNQFunction):
                 ],
                 name='oracle_target_labels',
             )
+        self.sequence_lengths = sequence_lengths
         self.target_labels = target_labels
         super().__init__(
             name_or_scope=name_or_scope,
@@ -114,7 +145,7 @@ class OracleUnrollQFunction(NNQFunction):
 
     @property
     def sequence_length_placeholder(self):
-        return self._sequence_length
+        return self.sequence_lengths
 
     def _create_network_internal(
             self,
@@ -130,10 +161,11 @@ class OracleUnrollQFunction(NNQFunction):
             dtype=tf.float32,
             scope=self._rnn_cell_scope,
         )
+        final_actions = self._rnn_final_state[-1]
         with tf.variable_scope("oracle_loss"):
             out = self._ocm_env.get_tf_loss(
-                observation_input,
-                action_input,
+                observations=observation_input,
+                actions=final_actions,
                 target_labels=target_labels,
             )
         return out
@@ -144,4 +176,5 @@ class OracleUnrollQFunction(NNQFunction):
             observation_input=self.observation_input,
             action_input=self.action_input,
             target_labels=self.target_labels,
+            sequence_lengths=self.sequence_lengths,
         )

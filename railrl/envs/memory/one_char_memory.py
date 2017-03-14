@@ -91,7 +91,10 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
         return observation, reward, done, info
 
     def _get_info_dict(self):
-        return {'target_number': self._target_number}
+        return {
+            'target_number': self._target_number,
+            'time': self._t - 1,
+        }
 
     def _compute_reward(self, done, action):
         try:

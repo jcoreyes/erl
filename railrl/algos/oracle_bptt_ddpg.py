@@ -28,7 +28,7 @@ class OracleBpttDDPG(BpttDDPG):
         return ops
 
     def _update_feed_dict(self, rewards, terminals, obs, actions, next_obs,
-                          debug_info=None):
+                          debug_info=None, times=None):
         actions = self._split_flat_actions(actions)
         obs = self._split_flat_obs(obs)
         next_obs = self._split_flat_obs(next_obs)
@@ -50,6 +50,7 @@ class OracleBpttDDPG(BpttDDPG):
             qf_actions,
             qf_next_obs,
             debug_info=debug_info,
+            times=times,
         )
 
         policy_feed = self._policy_feed_dict(obs)
@@ -57,12 +58,13 @@ class OracleBpttDDPG(BpttDDPG):
         return feed
 
     def _qf_feed_dict(self, rewards, terminals, obs, actions, next_obs,
-                      debug_info=None):
+                      debug_info=None, times=None):
         indices = debug_info[:, 0]
         target_one_hots = special.to_onehot_n(
             indices,
             self.env.wrapped_env.action_space.flat_dim,
         )
+        sequence_lengths = self.env.horizon - times
         return {
             self.rewards_placeholder: rewards,
             self.terminals_placeholder: terminals,
@@ -71,6 +73,7 @@ class OracleBpttDDPG(BpttDDPG):
             self.target_qf.observation_input: next_obs,
             self.target_policy.observation_input: next_obs,
             self.qf.target_labels: target_one_hots,
+            self.qf.sequence_length_placeholder: sequence_lengths,
         }
 
     def _update_feed_dict_from_batch(self, batch):
@@ -81,6 +84,7 @@ class OracleBpttDDPG(BpttDDPG):
             actions=batch['actions'],
             next_obs=batch['next_observations'],
             debug_info=batch['debug_numbers'],
+            times=batch['time'],
         )
 
     def _statistic_names_and_ops(self):
