@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 import tensorflow as tf
-from railrl.testing.tf_test_case import TFTestCase
+from railrl.testing.railrl_test_case import RailRLTestCase
 
 from railrl.algos.ddpg import DDPG
 from railrl.policies.sum_policy import SumPolicy
@@ -13,7 +13,7 @@ from rllab.exploration_strategies.ou_strategy import OUStrategy
 from sandbox.rocky.tf.envs.base import TfEnv
 
 
-class TestDDPG(TFTestCase):
+class TestDDPG(RailRLTestCase):
     def setUp(self):
         super().setUp()
         self.env = TfEnv(CartpoleEnv())

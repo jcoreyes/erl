@@ -6,14 +6,14 @@ import tensorflow as tf
 
 from railrl.algos.naf import NAF
 from railrl.qfunctions.quadratic_naf_qfunction import QuadraticNAF
-from railrl.testing.tf_test_case import TFTestCase
+from railrl.testing.railrl_test_case import RailRLTestCase
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 from rllab.exploration_strategies.ou_strategy import OUStrategy
 from sandbox.rocky.tf.envs.base import TfEnv
 
 
-class TestNAF(TFTestCase):
+class TestNAF(RailRLTestCase):
     def setUp(self):
         super().setUp()
         self.env = TfEnv(CartpoleEnv())
