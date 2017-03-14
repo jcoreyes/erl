@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 
 from railrl.data_management.subtraj_replay_buffer import SubtrajReplayBuffer
-from railrl.misc.tf_test_case import TFTestCase
+from railrl.testing.tf_test_case import TFTestCase
 from rllab.spaces.box import Box
 
 
