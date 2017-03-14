@@ -76,28 +76,30 @@ def run_linear_ocm_exp(variant):
 
 
 if __name__ == '__main__':
-    n_seed = 1
-    # exp_prefix = "3-8-bptt-ddpg-ocm-benchmark"
-    exp_prefix = "dev-oracle-bptt-ddpg"
+    n_seed = 3
+    # exp_prefix = "dev-oracle-bptt-ddpg"
+    exp_prefix = "3-9-oracle-bptt-ddpg-benchmark-hard"
 
     """
     DDPG Params
     """
-    n_batches_per_epoch = 100
+    n_batches_per_epoch = 1000
     n_batches_per_eval = 64
     batch_size = 32
     n_epochs = 100
     lstm_state_size = 10
-    min_pool_size = 100
+    min_pool_size = 1000
     replay_pool_size = 100000
 
     mode = 'here'
     exp_id = -1
     for H, num_values, num_bptt_unrolls in product(
-        [8],
-        [4],
-        [8],
+        [32, 64, 128],
+        [4, 16],
+        [1, 4, 8, 16],
     ):
+        if num_bptt_unrolls > H:
+            continue
         print("H", H)
         print("num_values", num_values)
         print("num_bptt_unrolls", num_bptt_unrolls)
