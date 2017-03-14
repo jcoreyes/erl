@@ -191,5 +191,218 @@ class TestTensorFlow(TFTestCase):
         self.assertTrue(grad is not None)
         self.assertTrue(grad[0] is not None)
 
+
+class TestTensorFlowRnns(TFTestCase):
+    class _AddOneRnn(tf.nn.rnn_cell.RNNCell):
+        """
+        A simple RNN that just adds one to the state. The output is input +
+        state.
+        """
+        def __init__(self, dim):
+            self._dim = dim
+
+        def __call__(self, inputs, state, scope=None):
+            """Run this RNN cell on inputs, starting from the given state.
+
+            Args:
+              inputs: `2-D` tensor with shape `[batch_size x input_size]`.
+              state: if `self.state_size` is an integer, this should be a `2-D Tensor`
+                with shape `[batch_size x self.state_size]`.  Otherwise, if
+                `self.state_size` is a tuple of integers, this should be a tuple
+                with shapes `[batch_size x s] for s in self.state_size`.
+              scope: VariableScope for the created subgraph; defaults to class name.
+
+            Returns:
+              A pair containing:
+
+              - Output: A `2-D` tensor with shape `[batch_size x self.output_size]`.
+              - New state: Either a single `2-D` tensor, or a tuple of tensors matching
+                the arity and shapes of `state`.
+            """
+            return inputs + state, state + 1
+
+        @property
+        def state_size(self):
+            """
+            size(s) of state(s) used by this cell.
+            """
+            return self._dim
+
+        @property
+        def output_size(self):
+            """Integer or TensorShape: size of outputs produced by this cell."""
+            return self._dim
+
+    class _AddOneRnnLastActionInState(tf.nn.rnn_cell.RNNCell):
+        """
+        Add the last action to the state
+        state.
+        """
+        def __init__(self, dim):
+            self._dim = dim
+
+        def __call__(self, inputs, state, scope=None):
+            """Run this RNN cell on inputs, starting from the given state.
+
+            Args:
+              inputs: `2-D` tensor with shape `[batch_size x input_size]`.
+              state: if `self.state_size` is an integer, this should be a `2-D Tensor`
+                with shape `[batch_size x self.state_size]`.  Otherwise, if
+                `self.state_size` is a tuple of integers, this should be a tuple
+                with shapes `[batch_size x s] for s in self.state_size`.
+              scope: VariableScope for the created subgraph; defaults to class name.
+
+            Returns:
+              A pair containing:
+
+              - Output: A `2-D` tensor with shape `[batch_size x self.output_size]`.
+              - New state: Either a single `2-D` tensor, or a tuple of tensors matching
+                the arity and shapes of `state`.
+            """
+            real_state = state[0]
+            output = inputs + real_state
+            one = tf.get_variable(
+                "add_var",
+                shape=(self._dim, ),
+                initializer=tf.constant_initializer(1, dtype=tf.float32),
+            )
+            return output, (real_state + one, output)
+
+        @property
+        def state_size(self):
+            """
+            size(s) of state(s) used by this cell.
+            """
+            return self._dim
+
+        @property
+        def output_size(self):
+            """Integer or TensorShape: size of outputs produced by this cell."""
+            return self._dim
+
+    def test_sequence_length(self):
+        rnn_cell = TestTensorFlowRnns._AddOneRnn(1)
+        input_ph = tf.placeholder(tf.float32, shape=(None, 3, 1))
+        rnn_inputs = tf.unpack(input_ph, axis=1)
+        init_state_ph = tf.placeholder(tf.float32, shape=(None, 1))
+        sequence_length_ph = tf.placeholder(tf.int32, shape=(None,))
+        rnn_outputs, rnn_final_state = tf.nn.rnn(
+            rnn_cell,
+            rnn_inputs,
+            initial_state=init_state_ph,
+            sequence_length=sequence_length_ph,
+            dtype=tf.float32,
+        )
+        x_values = np.array([
+            np.zeros((3, 1)),
+            np.ones((3, 1)),
+            2 * np.ones((3, 1)),
+            7 * np.ones((3, 1)),
+        ])
+        init_state_values = np.array([[10], [20], [30], [40]])
+        sequence_length_values = np.array([0, 1, 2, 3])
+        output_values, final_state_values = self.sess.run(
+            [rnn_outputs, rnn_final_state],
+            feed_dict={
+                input_ph: x_values,
+                init_state_ph: init_state_values,
+                sequence_length_ph: sequence_length_values,
+            }
+        )
+        output_expected = [
+            # batch =  0    1     2     3
+            np.array([[0], [21], [32], [47]]),  # T = 0
+            np.array([[0], [0], [33], [48]]),  # T = 1
+            np.array([[0], [0], [0], [49]]),  # T = 2
+        ]
+        final_state_expected = np.array([[10], [21], [32], [43]])
+        self.assertNpArraysEqual(output_expected, output_values)
+        self.assertNpEqual(np.array(final_state_values), final_state_expected)
+
+    def test_dynamics_rnn(self):
+        rnn_cell = TestTensorFlowRnns._AddOneRnn(1)
+        input_ph = tf.placeholder(tf.float32, shape=(None, 3, 1))
+        init_state_ph = tf.placeholder(tf.float32, shape=(None, 1))
+        sequence_length_ph = tf.placeholder(tf.int32, shape=(None,))
+        rnn_outputs, rnn_final_state = tf.nn.dynamic_rnn(
+            rnn_cell,
+            input_ph,
+            initial_state=init_state_ph,
+            sequence_length=sequence_length_ph,
+            dtype=tf.float32,
+            time_major=False,
+        )
+        x_values = np.array([
+            np.zeros((3, 1)),
+            np.ones((3, 1)),
+            2 * np.ones((3, 1)),
+            7 * np.ones((3, 1)),
+        ])
+        init_state_values = np.array([[10], [20], [30], [40]])
+        sequence_length_values = np.array([0, 1, 2, 3])
+        output_values, final_state_values = self.sess.run(
+            [rnn_outputs, rnn_final_state],
+            feed_dict={
+                input_ph: x_values,
+                init_state_ph: init_state_values,
+                sequence_length_ph: sequence_length_values,
+            }
+        )
+        output_expected = np.array([
+            # batch =  0    1     2     3
+            np.array([[0], [21], [32], [47]]),  # T = 0
+            np.array([[0], [0], [33], [48]]),  # T = 1
+            np.array([[0], [0], [0], [49]]),  # T = 2
+        ])
+        output_expected = np.swapaxes(output_expected, 0, 1)
+        final_state_expected = np.array([[10], [21], [32], [43]])
+        self.assertNpArraysEqual(output_expected, output_values)
+        self.assertNpEqual(np.array(final_state_values), final_state_expected)
+
+    def test_last_action_sequence_length(self):
+        rnn_cell = TestTensorFlowRnns._AddOneRnnLastActionInState(1)
+        input_ph = tf.placeholder(tf.float32, shape=(None, 3, 1))
+        init_state_ph = (tf.placeholder(tf.float32, shape=(None, 1)),
+                         tf.placeholder(tf.float32, shape=(None, 1)))
+        sequence_length_ph = tf.placeholder(tf.int32, shape=(None,))
+        rnn_outputs, rnn_final_state = tf.nn.dynamic_rnn(
+            rnn_cell,
+            input_ph,
+            initial_state=init_state_ph,
+            sequence_length=sequence_length_ph,
+            dtype=tf.float32,
+            time_major=False,
+        )
+        x_values = np.array([
+            np.zeros((3, 1)),
+            np.ones((3, 1)),
+            2 * np.ones((3, 1)),
+            7 * np.ones((3, 1)),
+        ])
+        init_state_values = (np.array([[10], [20], [30], [40]]),
+                             np.zeros((4, 1)))
+        sequence_length_values = np.array([0, 1, 2, 3])
+        self.sess.run(tf.global_variables_initializer())
+        output_values, final_state_values = self.sess.run(
+            [rnn_outputs, rnn_final_state],
+            feed_dict={
+                input_ph: x_values,
+                init_state_ph: init_state_values,
+                sequence_length_ph: sequence_length_values,
+            }
+        )
+        output_expected = np.array([
+            # batch =  0    1     2     3
+            np.array([[0], [21], [32], [47]]),  # T = 0
+            np.array([[0], [0], [33], [48]]),  # T = 1
+            np.array([[0], [0], [0], [49]]),  # T = 2
+        ])
+        output_expected = np.swapaxes(output_expected, 0, 1)
+        final_state_expected = (np.array([[10], [21], [32], [43]]),
+                                np.array([[0], [21], [33], [49]]))
+        self.assertNpArraysEqual(output_expected, output_values)
+        self.assertNpArraysEqual(np.array(final_state_values),
+                                 final_state_expected)
+
 if __name__ == '__main__':
     unittest.main()
