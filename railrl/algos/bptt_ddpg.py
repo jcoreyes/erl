@@ -69,10 +69,8 @@ class BpttDDPG(DDPG):
             [None, self._num_bptt_unrolls, self._env_obs_dim],
             name='rnn_time_inputs',
         )
-        self._rnn_init_state_ph = self.policy.create_init_state_placeholder()
-        self._rnn_init_state_flat = tf.concat(1, self._rnn_init_state_ph)
-
         rnn_inputs = tf.unpack(self._rnn_inputs_ph, axis=1)
+        self._rnn_init_state_ph = self.policy.create_init_state_placeholder()
 
         self._rnn_cell_scope.reuse_variables()
         with tf.variable_scope(self._rnn_cell_scope):
@@ -193,7 +191,7 @@ class BpttDDPG(DDPG):
         return {
             self.qf_with_action_input.observation_input: last_obs,
             self._rnn_inputs_ph: env_obs,
-            self._rnn_init_state_flat: initial_memory_obs,
+            self._rnn_init_state_ph: initial_memory_obs,
             self.policy.observation_input: last_obs,
         }
 
