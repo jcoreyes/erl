@@ -13,7 +13,7 @@ class RnnCellPolicy(MemoryPolicy, metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def create_init_state_placeholder(self):
+    def get_init_state_placeholder(self):
         """
         :return: A new tf.placeholder for the initial state of the memory.
         """

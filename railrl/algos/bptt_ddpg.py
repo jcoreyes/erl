@@ -70,7 +70,7 @@ class BpttDDPG(DDPG):
             name='rnn_time_inputs',
         )
         rnn_inputs = tf.unpack(self._rnn_inputs_ph, axis=1)
-        self._rnn_init_state_ph = self.policy.create_init_state_placeholder()
+        self._rnn_init_state_ph = self.policy.get_init_state_placeholder()
 
         self._rnn_cell_scope.reuse_variables()
         with tf.variable_scope(self._rnn_cell_scope):
@@ -84,7 +84,8 @@ class BpttDDPG(DDPG):
         self._final_rnn_output = self._rnn_outputs[-1]
         self._final_rnn_action = (
             self._final_rnn_output,
-            tf.concat(1, self._rnn_final_state),
+            # tf.concat(1, self._rnn_final_state),
+            self._rnn_final_state,
         )
         # TODO(vitchyr): consider taking the sum of the outputs rather than
         # only the last output.

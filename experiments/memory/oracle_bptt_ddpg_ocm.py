@@ -3,6 +3,7 @@ Use an oracle qfunction to train a policy in bptt-ddpg style.
 """
 from itertools import product
 
+from railrl.algos.oracle_bptt_ddpg import OracleUnrollBpttDDPG
 from railrl.launchers.launcher_util import (
     run_experiment,
 )
@@ -11,6 +12,9 @@ from railrl.launchers.launcher_util import (
 def run_linear_ocm_exp(variant):
     from railrl.algos.oracle_bptt_ddpg import OracleBpttDDPG
     from railrl.qfunctions.memory.oracle_qfunction import OracleQFunction
+    from railrl.qfunctions.memory.oracle_unroll_qfunction import (
+        OracleUnrollQFunction
+    )
     from railrl.exploration_strategies.noop import NoopStrategy
     from railrl.exploration_strategies.onehot_sampler import OneHotSampler
     from railrl.exploration_strategies.product_strategy import ProductStrategy
@@ -33,8 +37,10 @@ def run_linear_ocm_exp(variant):
     seed = variant['seed']
     num_values = variant['num_values']
     ddpg_params = variant['ddpg_params']
+    num_bptt_unrolls = ddpg_params['num_bptt_unrolls']
 
     env_action_dim = num_values + 1
+    env_obs_dim= env_action_dim
     lstm_state_size = variant['lstm_state_size']
     memory_dim = 2 * lstm_state_size
     set_seed(seed)
@@ -57,17 +63,28 @@ def run_linear_ocm_exp(variant):
     )
 
     es = ProductStrategy([OneHotSampler(), NoopStrategy()])
-    qf = OracleQFunction(
+    # qf = OracleQFunction(
+    #     name_or_scope="oracle_critic",
+    #     env=env,
+    #     env_spec=env.spec,
+    # )
+    qf = OracleUnrollQFunction(
         name_or_scope="oracle_critic",
         env=env,
+        policy=policy,
+        num_bptt_unrolls=num_bptt_unrolls,
+        env_obs_dim=env_obs_dim,
+        env_action_dim=env_action_dim,
+        max_horizon_length=H,
         env_spec=env.spec,
     )
-    algorithm = OracleBpttDDPG(
+    # algorithm = OracleBpttDDPG(
+    algorithm = OracleUnrollBpttDDPG(
         env,
         es,
         policy,
         qf,
-        env_obs_dim=env_action_dim,
+        env_obs_dim=env_obs_dim,
         replay_buffer_class=OcmSubtrajReplayBuffer,
         **ddpg_params
     )
@@ -77,26 +94,26 @@ def run_linear_ocm_exp(variant):
 
 if __name__ == '__main__':
     n_seed = 3
-    # exp_prefix = "dev-oracle-bptt-ddpg"
-    exp_prefix = "3-9-oracle-bptt-ddpg-benchmark-hard"
+    exp_prefix = "dev-oracle-bptt-ddpg"
+    # exp_prefix = "3-9-oracle-bptt-ddpg-benchmark-hard"
 
     """
     DDPG Params
     """
-    n_batches_per_epoch = 1000
-    n_batches_per_eval = 64
+    n_batches_per_epoch = 100
+    n_batches_per_eval = 100
     batch_size = 32
     n_epochs = 100
     lstm_state_size = 10
-    min_pool_size = 1000
+    min_pool_size = 100
     replay_pool_size = 100000
 
     mode = 'here'
     exp_id = -1
     for H, num_values, num_bptt_unrolls in product(
-        [32, 64, 128],
-        [4, 16],
-        [1, 4, 8, 16],
+        [4],
+        [2],
+        [2],
     ):
         if num_bptt_unrolls > H:
             continue

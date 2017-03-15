@@ -30,6 +30,14 @@ class _LstmLinearCell(tf.nn.rnn_cell.LSTMCell):
         env_action_logit = tf.matmul(lstm_output, W) + b
         return tf.nn.softmax(env_action_logit), flat_state
 
+    @property
+    def state_size(self):
+        return self._num_units * 2
+
+    @property
+    def output_size(self):
+        return self._output_dim
+
 
 class LstmMemoryPolicy(RnnCellPolicy):
     """
@@ -43,6 +51,7 @@ class LstmMemoryPolicy(RnnCellPolicy):
             name_or_scope,
             action_dim,
             memory_dim,
+            init_state=None,
             **kwargs
     ):
         assert memory_dim % 2 == 0
@@ -52,9 +61,21 @@ class LstmMemoryPolicy(RnnCellPolicy):
         self._rnn_cell = None
         self._rnn_cell_scope = None
         self._num_lstm_units = self._memory_dim / 2
-        super().__init__(name_or_scope=name_or_scope, **kwargs)
+        if init_state is None:
+            init_state = tf.placeholder(
+                tf.float32,
+                [None, self._num_lstm_units * 2],
+                name='lstm_init_state',
+            )
+        self.init_state = init_state
+        super().__init__(
+            name_or_scope=name_or_scope,
+            create_network_dict=dict(
+                init_state=self.init_state,
+            ),
+            **kwargs)
 
-    def _create_network_internal(self, observation_input=None):
+    def _create_network_internal(self, observation_input=None, init_state=None):
         assert observation_input is not None
         env_obs, memory_obs = observation_input
         self._rnn_cell = _LstmLinearCell(
@@ -69,14 +90,16 @@ class LstmMemoryPolicy(RnnCellPolicy):
     def rnn_cell(self):
         return self._rnn_cell
 
-    def create_init_state_placeholder(self):
-        return tf.placeholder(
-            tf.float32,
-            [None, self._num_lstm_units * 2],
-            name='lstm_init_state',
-        )
+    def get_init_state_placeholder(self):
+        return self.init_state
 
     @property
     def rnn_cell_scope(self):
         return self._rnn_cell_scope
 
+    @property
+    def _input_name_to_values(self):
+        return dict(
+            observation_input=self.observation_input,
+            init_state=self.init_state,
+        )

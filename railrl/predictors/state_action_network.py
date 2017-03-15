@@ -31,11 +31,12 @@ class StateActionNetwork(NeuralNetwork, metaclass=abc.ABCMeta):
         :param name_or_scope: a string or VariableScope
         :param output_dim: int, output dimension of this network
         :param env_spec: env spec for an Environment
-            :param action_dim: int, action dimension
+        :param action_dim: int, action dimension
         :param observation_input: tf.Tensor, observation input. If None,
         a placeholder of shape [None, observation dim] will be made
         :param action_input: tf.Tensor, observation input. If None,
         a placeholder of shape [None, action dim] will be made
+        :param create_network_dict: dict passed to _create_network_internal
         :param kwargs: kwargs to be passed to super
         """
         # TODO(vitchyr): Find a better way to manage new inputs. Seems like
