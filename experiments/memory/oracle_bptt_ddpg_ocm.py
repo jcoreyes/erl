@@ -63,23 +63,23 @@ def run_linear_ocm_exp(variant):
     )
 
     es = ProductStrategy([OneHotSampler(), NoopStrategy()])
-    # qf = OracleQFunction(
-    #     name_or_scope="oracle_critic",
-    #     env=env,
-    #     env_spec=env.spec,
-    # )
-    qf = OracleUnrollQFunction(
+    qf = OracleQFunction(
         name_or_scope="oracle_critic",
         env=env,
-        policy=policy,
-        num_bptt_unrolls=num_bptt_unrolls,
-        env_obs_dim=env_obs_dim,
-        env_action_dim=env_action_dim,
-        max_horizon_length=H,
         env_spec=env.spec,
     )
-    # algorithm = OracleBpttDDPG(
-    algorithm = OracleUnrollBpttDDPG(
+    # qf = OracleUnrollQFunction(
+    #     name_or_scope="oracle_critic",
+    #     env=env,
+    #     policy=policy,
+    #     num_bptt_unrolls=num_bptt_unrolls,
+    #     env_obs_dim=env_obs_dim,
+    #     env_action_dim=env_action_dim,
+    #     max_horizon_length=H,
+    #     env_spec=env.spec,
+    # )
+    algorithm = OracleBpttDDPG(
+    # algorithm = OracleUnrollBpttDDPG(
         env,
         es,
         policy,
