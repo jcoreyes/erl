@@ -22,6 +22,7 @@ class NeuralNetwork(Parameterized, Serializable):
             name_or_scope,
             batch_norm_config=None,
             reuse=False,
+            layer_norm=False,
             **kwargs
     ):
         """
@@ -41,6 +42,8 @@ class NeuralNetwork(Parameterized, Serializable):
         self.scope_name = name_or_scope
         self._batch_norm = batch_norm_config is not None
         self._batch_norm_config = batch_norm_config
+        self._layer_norm = layer_norm
+        assert not (self._layer_norm and self._batch_norm)
         self._reuse = reuse
         self._bn_stat_update_ops = []
         self._sess = None
@@ -184,16 +187,20 @@ class NeuralNetwork(Parameterized, Serializable):
         Otherwise, it returns a tuple (batch norm'd layer for training,
         batch norm'd layer for eval)
         """
-        if not self._batch_norm:
-            return previous_layer
+        if self._layer_norm:
+            with tf.variable_scope(scope_name):
+                return tf_util.layer_normalize(previous_layer)
 
-        with tf.variable_scope(scope_name):
-            processed_layer, _ = tf_util.batch_norm(
-                previous_layer,
-                is_training=self._is_bn_in_training_mode,
-                batch_norm_config=self._batch_norm_config,
-            )
-            return processed_layer
+        if self._batch_norm:
+            with tf.variable_scope(scope_name):
+                processed_layer, _ = tf_util.batch_norm(
+                    previous_layer,
+                    is_training=self._is_bn_in_training_mode,
+                    batch_norm_config=self._batch_norm_config,
+                )
+                return processed_layer
+
+        return previous_layer
 
     def _add_subnetwork_and_get_output(self, subnetwork):
         """
