@@ -100,7 +100,7 @@ def run_linear_ocm_exp(variant):
 if __name__ == '__main__':
     USE_UNROLL = True
     n_seed = 3
-    exp_prefix = "dev-oracle-bptt-ddpg"
+    exp_prefix = "3-16-oracle-unroll-bptt-ddpg"
     # exp_prefix = "3-9-oracle-bptt-ddpg-benchmark-hard"
 
     """
@@ -117,9 +117,9 @@ if __name__ == '__main__':
     mode = 'here'
     exp_id = -1
     for H, num_values, num_bptt_unrolls in product(
-        [4],
-        [2],
-        [2],
+        [16, 32],
+        [16],
+        [2, 8, 16],
     ):
         if num_bptt_unrolls > H:
             continue
