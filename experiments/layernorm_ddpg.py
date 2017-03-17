@@ -10,8 +10,8 @@ from railrl.misc import hyperparameter as hp
 
 
 def main():
-    num_hyperparameters = 20
-    layer_norm = False
+    num_hyperparameters = 40
+    layer_norm = True
     sweeper = hp.RandomHyperparameterSweeper([
         hp.LogFloatParam("qf_learning_rate", 1e-5, 1e-1),
         hp.LogFloatParam("policy_learning_rate", 1e-5, 1e-1),
