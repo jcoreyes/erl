@@ -126,7 +126,6 @@ class OracleUnrollBpttDDPG(OracleBpttDDPG):
                 ]
         )
         rest_of_obs[:, :, 0] = 1
-        ignored_init_action = np.zeros((batch_size, self._env_obs_dim))
         return {
             self.rewards_placeholder: rewards,
             self.terminals_placeholder: terminals,
@@ -137,5 +136,4 @@ class OracleUnrollBpttDDPG(OracleBpttDDPG):
             self.qf.target_labels: target_one_hots,
             self.qf.sequence_length_placeholder: sequence_lengths,
             self.qf.rest_of_obs_placeholder: rest_of_obs,
-            self.qf.ignored_init_last_action_state: ignored_init_action,
         }

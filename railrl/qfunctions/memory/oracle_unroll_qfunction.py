@@ -54,7 +54,6 @@ class OracleUnrollQFunction(NNQFunction):
             target_labels=None,
             sequence_lengths=None,
             save_rnn_inputs=None,
-            save_rnn_init_state=None,
             **kwargs
     ):
         self.setup_serialization(locals())
@@ -67,17 +66,6 @@ class OracleUnrollQFunction(NNQFunction):
         self._rnn_init_state_ph = self._policy.get_init_state_placeholder()
         self._rnn_cell_scope = self._policy.rnn_cell_scope
 
-        self._ignored_init_last_action_state = tf.placeholder(
-            tf.float32,
-            shape=[None, env_action_dim],
-            name="ignored_init_last_action_state",
-        )
-
-        if save_rnn_init_state is None:
-            save_rnn_init_state = (
-                self._policy.get_init_state_placeholder(),
-                self._ignored_init_last_action_state,
-            )
         if save_rnn_inputs is None:
             save_rnn_inputs = tf.placeholder(
                 tf.float32,
@@ -99,7 +87,6 @@ class OracleUnrollQFunction(NNQFunction):
                 ],
                 name='oracle_target_labels',
             )
-        self.save_rnn_init_state = save_rnn_init_state
         self.save_rnn_inputs = save_rnn_inputs
         self.sequence_lengths = sequence_lengths
         self.target_labels = target_labels
@@ -109,7 +96,6 @@ class OracleUnrollQFunction(NNQFunction):
                 target_labels=self.target_labels,
                 sequence_lengths=self.sequence_lengths,
                 save_rnn_inputs=self.save_rnn_inputs,
-                save_rnn_init_state=self.save_rnn_init_state,
             ),
             **kwargs)
 
@@ -121,10 +107,6 @@ class OracleUnrollQFunction(NNQFunction):
     def rest_of_obs_placeholder(self):
         return self.save_rnn_inputs
 
-    @property
-    def ignored_init_last_action_state(self):
-        return self._ignored_init_last_action_state
-
     def _create_network_internal(
             self,
             observation_input=None,
@@ -132,19 +114,21 @@ class OracleUnrollQFunction(NNQFunction):
             target_labels=None,
             sequence_lengths=None,
             save_rnn_inputs=None,
-            save_rnn_init_state=None,
     ):
         rnn_inputs = tf.unpack(save_rnn_inputs, axis=1)
         self._rnn_cell_scope.reuse_variables()
+        init_state = (action_input[1], action_input[0])
         self._rnn_outputs, self._rnn_final_state = tf.nn.rnn(
             self._save_rnn_cell,
             rnn_inputs,
-            initial_state=save_rnn_init_state,
+            initial_state=init_state,
             sequence_length=sequence_lengths,
             dtype=tf.float32,
             scope=self._rnn_cell_scope,
         )
-        final_actions = self._rnn_final_state[-1]
+        # The action still needs to be in the original shape, so it needs to
+        # have the added memory.
+        final_actions = (self._rnn_final_state[1], self._rnn_final_state[0])
         with tf.variable_scope("oracle_loss"):
             out = self._ocm_env.get_tf_loss(
                 observations=observation_input,
@@ -161,5 +145,4 @@ class OracleUnrollQFunction(NNQFunction):
             target_labels=self.target_labels,
             sequence_lengths=self.sequence_lengths,
             save_rnn_inputs=self.save_rnn_inputs,
-            save_rnn_init_state=self.save_rnn_init_state,
         )
