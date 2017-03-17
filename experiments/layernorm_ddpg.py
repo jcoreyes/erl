@@ -40,7 +40,7 @@ def main():
     )
     seed = 0
     run_experiment(
-        random_action_launcher,
+        my_ddpg_launcher,
         exp_prefix="dev-layernorm-ddpg",
         seed=seed,
         variant=variant,
