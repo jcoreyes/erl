@@ -38,6 +38,7 @@ def run_linear_ocm_exp(variant):
     num_values = variant['num_values']
     ddpg_params = variant['ddpg_params']
     num_bptt_unrolls = ddpg_params['num_bptt_unrolls']
+    use_unroll = variant['use_unroll']
 
     env_action_dim = num_values + 1
     env_obs_dim= env_action_dim
@@ -63,23 +64,27 @@ def run_linear_ocm_exp(variant):
     )
 
     es = ProductStrategy([OneHotSampler(), NoopStrategy()])
-    qf = OracleQFunction(
-        name_or_scope="oracle_critic",
-        env=env,
-        env_spec=env.spec,
-    )
-    # qf = OracleUnrollQFunction(
-    #     name_or_scope="oracle_critic",
-    #     env=env,
-    #     policy=policy,
-    #     num_bptt_unrolls=num_bptt_unrolls,
-    #     env_obs_dim=env_obs_dim,
-    #     env_action_dim=env_action_dim,
-    #     max_horizon_length=H,
-    #     env_spec=env.spec,
-    # )
-    algorithm = OracleBpttDDPG(
-    # algorithm = OracleUnrollBpttDDPG(
+    if use_unroll:
+        qf = OracleUnrollQFunction(
+            name_or_scope="oracle_critic",
+            env=env,
+            policy=policy,
+            num_bptt_unrolls=num_bptt_unrolls,
+            env_obs_dim=env_obs_dim,
+            env_action_dim=env_action_dim,
+            max_horizon_length=H,
+            env_spec=env.spec,
+        )
+        algo_class = OracleUnrollBpttDDPG
+    else:
+        qf = OracleQFunction(
+            name_or_scope="oracle_critic",
+            env=env,
+            env_spec=env.spec,
+        )
+        algo_class = OracleBpttDDPG
+
+    algorithm = algo_class(
         env,
         es,
         policy,
@@ -93,6 +98,7 @@ def run_linear_ocm_exp(variant):
 
 
 if __name__ == '__main__':
+    USE_UNROLL = True
     n_seed = 3
     exp_prefix = "dev-oracle-bptt-ddpg"
     # exp_prefix = "3-9-oracle-bptt-ddpg-benchmark-hard"
@@ -142,6 +148,7 @@ if __name__ == '__main__':
             exp_prefix=exp_prefix,
             ddpg_params=ddpg_params,
             lstm_state_size=lstm_state_size,
+            use_unroll=USE_UNROLL,
         )
         for seed in range(n_seed):
             run_experiment(
