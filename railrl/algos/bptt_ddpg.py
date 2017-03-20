@@ -84,7 +84,6 @@ class BpttDDPG(DDPG):
         self._final_rnn_output = self._rnn_outputs[-1]
         self._final_rnn_action = (
             self._final_rnn_output,
-            # tf.concat(1, self._rnn_final_state),
             self._rnn_final_state,
         )
         # TODO(vitchyr): consider taking the sum of the outputs rather than
@@ -103,32 +102,6 @@ class BpttDDPG(DDPG):
             self.policy_surrogate_loss,
             var_list=self.policy.get_params_internal())
 
-    def _split_flat_obs(self, obs):
-        """
-        :param obs: [batch_size X num_bbpt_unroll X (env_obs_dim + memory_dim)
-        :return: Tuple with
-         - [batch_size X num_bbpt_unroll X env_obs_dim
-         - [batch_size X num_bbpt_unroll X memory_dim
-        """
-        return split_flat_product_space_into_components_n(
-            self.env.spec.observation_space,
-            obs,
-        )
-
-    def _split_flat_actions(self, actions):
-        """
-
-        :param actions: [batch_size x num_bptt_unroll x (env_action_dim +
-        memory_dim)
-        :return: Tuple with
-         - [batch_size X num_bbpt_unroll X env_action_dim
-         - [batch_size X num_bbpt_unroll X memory_dim
-        """
-        return split_flat_product_space_into_components_n(
-            self.env.spec.action_space,
-            actions,
-        )
-
     def _sample_minibatch(self):
         return self.pool.random_subtrajectories(self.batch_size)
 
@@ -142,8 +115,8 @@ class BpttDDPG(DDPG):
         # but they really just need to be [batch_size x 1]. Right now we only
         # care about the reward/terminal at the very end since we're only
         # computing the rewards for the last time step.
-        qf_terminals = terminals[:, -1:]
-        qf_rewards = rewards[:, -1:]
+        qf_terminals = terminals[:, -1]
+        qf_rewards = rewards[:, -1]
         # For obs/actions, we only care about the last time step for the critic.
         qf_obs = self._get_time_step(obs, t=-1)
         qf_actions = self._get_time_step(actions, t=-1)
@@ -157,16 +130,6 @@ class BpttDDPG(DDPG):
         policy_feed = self._policy_feed_dict(obs)
         feed.update(policy_feed)
         return feed
-
-    def _qf_feed_dict(self, rewards, terminals, obs, actions, next_obs):
-        return {
-            self.rewards_placeholder: rewards,
-            self.terminals_placeholder: terminals,
-            self.qf.observation_input: obs,
-            self.qf.action_input: actions,
-            self.target_qf.observation_input: next_obs,
-            self.target_policy.observation_input: next_obs,
-        }
 
     @staticmethod
     def _get_time_step(action_or_obs, t):
@@ -205,5 +168,11 @@ class BpttDDPG(DDPG):
         for path in paths:
             eval_pool.add_trajectory(path)
 
-        minibatch = eval_pool.get_all_valid_subtrajectories()
-        return self._update_feed_dict_from_batch(minibatch)
+        batch = eval_pool.get_all_valid_subtrajectories()
+        return self._update_feed_dict(
+            rewards=batch['rewards'],
+            terminals=batch['terminals'],
+            obs=batch['observations'],
+            actions=batch['actions'],
+            next_obs=batch['next_observations'],
+        )
