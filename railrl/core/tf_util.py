@@ -148,7 +148,6 @@ def bias_variable(
 
 def layer_normalize(
         input_pre_nonlinear_activations,
-        input_shape,
         epsilon=1e-5,
         name=LAYER_NORMALIZATION_DEFAULT_NAME,
 ):
@@ -157,7 +156,6 @@ def layer_normalize(
     normalizing within a layer.
 
     :param input_pre_nonlinear_activations:
-    :param input_shape:
     :param name: Name for the variables in this layer.
     :param epsilon: The actual normalized value is
     ```
@@ -166,6 +164,9 @@ def layer_normalize(
     for numerical stability.
     :return: Layer-normalized pre-non-linear activations
     """
+    input_shape = input_pre_nonlinear_activations.get_shape()
+    if input_shape[0].value is None:
+        input_shape = input_shape[1:]
     mean, variance = tf.nn.moments(input_pre_nonlinear_activations, [1],
                                    keep_dims=True)
     normalised_input = (input_pre_nonlinear_activations - mean) / tf.sqrt(

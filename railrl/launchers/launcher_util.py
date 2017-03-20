@@ -127,7 +127,7 @@ def get_env_settings(
 def run_experiment(
         task,
         exp_prefix='default',
-        seed=0,
+        seed=None,
         variant=None,
         time=True,
         save_profile=False,
@@ -155,6 +155,8 @@ def run_experiment(
     :param kwargs:
     :return:
     """
+    if seed is None:
+        seed = random.randint(0, 100000)
     set_seed(seed)
     if variant is None:
         variant = {}
