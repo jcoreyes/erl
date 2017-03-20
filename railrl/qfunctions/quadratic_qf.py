@@ -10,13 +10,13 @@ class QuadraticQF(NNQFunction, OptimizableQFunction):
     """
     Given a policy pi, represent the Q function as
 
-        Q(s, a) = -0.5 (mu(s) - pi(s))^T P(s) (mu(s) - pi(s))
+        Q(s, a) = -0.5 (a - pi(s))^T P(s) (a - pi(s))
 
     where
 
         P(s) = L(s) L(s)^T
 
-    and L(s) is a lower triangular matrix. Both L and mu are parameterized by
+    and L(s) is a lower triangular matrix. L is parameterized by a
     feedforward neural networks.
     """
     def __init__(
