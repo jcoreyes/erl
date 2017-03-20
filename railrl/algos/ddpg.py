@@ -308,3 +308,12 @@ class DDPG(OnlineAlgorithm):
         rewards, terminals, obs, actions, next_obs = split_paths(paths)
         return self._update_feed_dict(rewards, terminals, obs, actions,
                                       next_obs)
+
+    def get_epoch_snapshot(self, epoch):
+        return dict(
+            env=self.training_env,
+            epoch=epoch,
+            policy=self.policy,
+            es=self.exploration_strategy,
+            qf=self.qf,
+        )
