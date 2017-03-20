@@ -21,7 +21,9 @@ class NoOpAlgo(RLAlgorithm):
             discount=0.99,
             max_path_length=250,
             n_eval_samples=10000,
-            render=False):
+            render=False,
+            **kwargs
+    ):
         """
         :param env: Environment
         :param policy: Policy
@@ -88,3 +90,6 @@ class NoOpAlgo(RLAlgorithm):
                               np.mean(returns))
         logger.record_tabular('AverageDiscountedReturn',
                               average_discounted_return)
+
+        self.env.log_diagnostics(paths)
+        self.policy.log_diagnostics(paths)
