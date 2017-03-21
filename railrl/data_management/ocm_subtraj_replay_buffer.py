@@ -22,7 +22,7 @@ class OcmSubtrajReplayBuffer(SubtrajReplayBuffer):
             max_pool_size,
             env,
             subtraj_length,
-            only_sample_at_start_of_episode=True,
+            only_sample_at_start_of_episode=False,
         )
 
     def _add_sample(self, observation, action, reward, terminal,
