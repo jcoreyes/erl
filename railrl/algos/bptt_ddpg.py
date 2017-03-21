@@ -12,6 +12,7 @@ from railrl.misc.rllab_util import split_flat_product_space_into_components_n
 from railrl.policies.memory.rnn_cell_policy import RnnCellPolicy
 from railrl.pythonplusplus import map_recursive
 from railrl.qfunctions.nn_qfunction import NNQFunction
+from railrl.algos.ddpg import TargetUpdateMode
 
 TARGET_PREFIX = "target_"
 
@@ -32,6 +33,7 @@ class BpttDDPG(DDPG):
             env_obs_dim=None,
             replay_pool_size=10000,
             replay_buffer_class=SubtrajReplayBuffer,
+            num_extra_qf_updates=0,
             **kwargs
     ):
         """
@@ -46,6 +48,7 @@ class BpttDDPG(DDPG):
         """
         self._num_bptt_unrolls = num_bptt_unrolls
         self._env_obs_dim = env_obs_dim
+        self._num_extra_qf_updates = num_extra_qf_updates
 
         self._rnn_cell_scope = policy.rnn_cell_scope
         self._rnn_cell = policy.rnn_cell
@@ -62,6 +65,21 @@ class BpttDDPG(DDPG):
                 num_bptt_unrolls,
             ),
             **kwargs)
+
+    def _do_training(
+            self,
+            **kwargs
+    ):
+        for _ in range(self._num_extra_qf_updates):
+            minibatch = self._sample_minibatch()
+            feed_dict = self._update_feed_dict_from_batch(minibatch)
+            ops = [
+                self.train_qf_op,
+                self.update_target_qf_op,
+            ]
+            self.sess.run(ops, feed_dict=feed_dict)
+
+        super()._do_training(**kwargs)
 
     def _init_policy_ops(self):
         self._rnn_inputs_ph = tf.placeholder(

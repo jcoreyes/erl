@@ -70,27 +70,28 @@ def run_linear_ocm_exp(variant):
 
 
 if __name__ == '__main__':
-    n_seed = 1
+    n_seed = 2
     # exp_prefix = "3-8-bptt-ddpg-ocm-benchmark"
-    exp_prefix = "dev-bptt-ddpg"
+    exp_prefix = "3-20-extra-qf-updates-bptt-ddpg"
 
     """
     DDPG Params
     """
-    n_batches_per_epoch = 1000
+    n_batches_per_epoch = 100
     n_batches_per_eval = 64
     batch_size = 32
-    n_epochs = 100
+    n_epochs = 20
     lstm_state_size = 10
     min_pool_size = 1000
     replay_pool_size = 100000
 
-    mode = 'here'
+    mode = 'ec2'
     exp_id = -1
-    for H, num_values, num_bptt_unrolls in product(
-        [8],
-        [4],
-        [8],
+    for H, num_values, num_bptt_unrolls, num_extra_qf_updates in product(
+        [4, 8, 16],
+        [2],
+        [1, 4],
+        [0, 10, 100],
     ):
         print("H", H)
         print("num_values", num_values)
@@ -108,6 +109,7 @@ if __name__ == '__main__':
             eval_samples=eval_samples,
             max_path_length=max_path_length,
             num_bptt_unrolls=num_bptt_unrolls,
+            num_extra_qf_updates=num_extra_qf_updates,
             # qf_learning_rate=1e-1,
             # policy_learning_rate=1e-1,
         )
@@ -119,6 +121,7 @@ if __name__ == '__main__':
             lstm_state_size=lstm_state_size,
         )
         for seed in range(n_seed):
+            seed = seed + 1
             run_experiment(
                 run_linear_ocm_exp,
                 exp_prefix=exp_prefix,
