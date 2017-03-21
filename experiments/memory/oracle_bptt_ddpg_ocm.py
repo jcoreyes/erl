@@ -100,26 +100,26 @@ def run_linear_ocm_exp(variant):
 if __name__ == '__main__':
     USE_UNROLL = True
     n_seed = 3
-    exp_prefix = "3-16-oracle-unroll-bptt-ddpg"
-    # exp_prefix = "3-9-oracle-bptt-ddpg-benchmark-hard"
+    # exp_prefix = "3-16-oracle-unroll-bptt-ddpg"
+    exp_prefix = "3-20-oracle-unroll-start-at-beginning"
 
     """
     DDPG Params
     """
-    n_batches_per_epoch = 100
+    n_batches_per_epoch = 20
     n_batches_per_eval = 100
     batch_size = 32
-    n_epochs = 100
+    n_epochs = 50
     lstm_state_size = 10
     min_pool_size = 100
     replay_pool_size = 100000
 
-    mode = 'here'
+    mode = 'ec2'
     exp_id = -1
     for H, num_values, num_bptt_unrolls in product(
         [16, 32],
-        [16],
-        [2, 8, 16],
+        [4],
+        [1, 4, 8],
     ):
         if num_bptt_unrolls > H:
             continue
@@ -149,6 +149,7 @@ if __name__ == '__main__':
             ddpg_params=ddpg_params,
             lstm_state_size=lstm_state_size,
             use_unroll=USE_UNROLL,
+            start_only_at_start=True,
         )
         for seed in range(n_seed):
             run_experiment(
