@@ -9,6 +9,7 @@ class OcmSubtrajReplayBuffer(SubtrajReplayBuffer):
     A replay buffer desired specifically for OneCharMem
     sub-trajectories
     """
+
     def __init__(
             self,
             max_pool_size,
@@ -17,7 +18,12 @@ class OcmSubtrajReplayBuffer(SubtrajReplayBuffer):
     ):
         self._debug_number = np.zeros(max_pool_size, dtype='uint8')
         self._time = np.zeros(max_pool_size, dtype='uint8')
-        super().__init__(max_pool_size, env, subtraj_length)
+        super().__init__(
+            max_pool_size,
+            env,
+            subtraj_length,
+            only_sample_at_start_of_episode=True,
+        )
 
     def _add_sample(self, observation, action, reward, terminal,
                     final_state, debug_info=None):
