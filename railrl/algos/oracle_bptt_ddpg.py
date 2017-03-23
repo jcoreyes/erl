@@ -31,7 +31,7 @@ class OracleBpttDDPG(BpttDDPG):
         return ops
 
     def _update_feed_dict(self, rewards, terminals, obs, actions, next_obs,
-                          debug_info=None, times=None):
+                          target_numbers=None, times=None):
         actions = self._split_flat_actions(actions)
         obs = self._split_flat_obs(obs)
         next_obs = self._split_flat_obs(next_obs)
@@ -52,7 +52,7 @@ class OracleBpttDDPG(BpttDDPG):
             qf_obs,
             qf_actions,
             qf_next_obs,
-            debug_info=debug_info,
+            target_numbers=target_numbers,
             times=times,
         )
 
@@ -61,8 +61,8 @@ class OracleBpttDDPG(BpttDDPG):
         return feed
 
     def _qf_feed_dict(self, rewards, terminals, obs, actions, next_obs,
-                      debug_info=None, times=None):
-        indices = debug_info[:, 0]
+                      target_numbers=None, times=None):
+        indices = target_numbers[:, 0]
         target_one_hots = special.to_onehot_n(
             indices,
             self.env.wrapped_env.action_space.flat_dim,
@@ -93,8 +93,8 @@ class OracleBpttDDPG(BpttDDPG):
             obs=batch['observations'],
             actions=batch['actions'],
             next_obs=batch['next_observations'],
-            debug_info=batch['debug_numbers'],
-            times=batch['time'],
+            target_numbers=batch['target_numbers'],
+            times=batch['times'],
         )
 
     def _statistic_names_and_ops(self):
@@ -107,11 +107,31 @@ class OracleBpttDDPG(BpttDDPG):
             ('TargetQfOutput', self.policy_surrogate_loss),
         ]
 
+    def _update_feed_dict_from_path(self, paths):
+        eval_pool = self._replay_buffer_class(
+            len(paths) * self.max_path_length,
+            self.env,
+            self._num_bptt_unrolls,
+            )
+        for path in paths:
+            eval_pool.add_trajectory(path)
+
+        batch = eval_pool.get_all_valid_subtrajectories()
+        return self._update_feed_dict(
+            rewards=batch['rewards'],
+            terminals=batch['terminals'],
+            obs=batch['observations'],
+            actions=batch['actions'],
+            next_obs=batch['next_observations'],
+            times=batch['times'],
+            target_numbers=batch['target_numbers'],
+        )
+
 
 class OracleUnrollBpttDDPG(OracleBpttDDPG):
     def _qf_feed_dict(self, rewards, terminals, obs, actions, next_obs,
-                      debug_info=None, times=None):
-        indices = debug_info[:, 0]
+                      target_numbers=None, times=None):
+        indices = target_numbers[:, 0]
         target_one_hots = special.to_onehot_n(
             indices,
             self.env.wrapped_env.action_space.flat_dim,
