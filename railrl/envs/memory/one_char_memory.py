@@ -79,15 +79,15 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
             action = softmax(action)
         # Reset gives the first observation, so only return 0 in step.
         observation = self._get_next_observation(0)
-
         done = self._t == self.num_steps
+        info = self._get_info_dict()
+        reward = self._compute_reward(done, action)
+
         self._last_t = self._t
         self._t += 1
 
-        reward = self._compute_reward(done, action)
         self._last_reward = reward
         self._last_action = action
-        info = self._get_info_dict()
         return observation, reward, done, info
 
     def _get_info_dict(self):

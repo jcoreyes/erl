@@ -16,6 +16,7 @@ class SubtrajReplayBuffer(ReplayBuffer):
             max_pool_size,
             env,
             subtraj_length,
+            only_sample_at_start_of_episode=False,
     ):
         self._max_pool_size = max_pool_size
         self._env = env
@@ -41,8 +42,13 @@ class SubtrajReplayBuffer(ReplayBuffer):
         self._top = 0
         self._size = 0
 
-        self._valid_start_indices = []
+        self._all_valid_start_indices = []
         self._previous_indices = deque(maxlen=self._subtraj_length)
+
+        self._only_sample_at_start_of_episode = only_sample_at_start_of_episode
+        self._episode_start_indices = np.zeros(max_pool_size, dtype='uint8')
+        self._starting_episode = True
+        self._valid_start_episode_start_indices = []
 
     def _add_sample(self, observation, action_, reward, terminal,
                     final_state, **kwargs):
@@ -53,6 +59,9 @@ class SubtrajReplayBuffer(ReplayBuffer):
         self._rewards[self._top] = reward
         self._terminals[self._top] = terminal
         self._final_state[self._top] = final_state
+        self._episode_start_indices[self._top] = self._starting_episode
+        self._starting_episode = False
+
         self.advance()
 
     def add_sample(self, observation, action, reward, terminal, **kwargs):
@@ -75,6 +84,7 @@ class SubtrajReplayBuffer(ReplayBuffer):
             True,
         )
         self._previous_indices = deque(maxlen=self._subtraj_length)
+        self._starting_episode = True
 
     def advance(self):
         if len(self._previous_indices) >= self._subtraj_length:
@@ -86,12 +96,17 @@ class SubtrajReplayBuffer(ReplayBuffer):
             # the `subsequence` method would need to reason about circular
             # indices.
             if (previous_idx + self._subtraj_length < self._max_pool_size and
-                    previous_idx not in self._valid_start_indices):
-                self._valid_start_indices.append(previous_idx)
+                    previous_idx not in self._all_valid_start_indices):
+                self._all_valid_start_indices.append(previous_idx)
+                if (self._only_sample_at_start_of_episode
+                        and self._episode_start_indices[previous_idx]):
+                    self._valid_start_episode_start_indices.append(previous_idx)
         # Current self._top is NOT a valid transition index since the next time
         # step is either garbage or from another episode
-        if self._top in self._valid_start_indices:
-            self._valid_start_indices.remove(self._top)
+        if self._top in self._all_valid_start_indices:
+            self._all_valid_start_indices.remove(self._top)
+        if self._top in self._valid_start_episode_start_indices:
+            self._valid_start_episode_start_indices.remove(self._top)
 
         self._previous_indices.append(self._top)
 
@@ -105,6 +120,13 @@ class SubtrajReplayBuffer(ReplayBuffer):
         start_indices = np.random.choice(self._valid_start_indices, batch_size,
                                          replace=replace)
         return self._get_trajectories(start_indices)
+
+    @property
+    def _valid_start_indices(self):
+        if self._only_sample_at_start_of_episode:
+            return self._valid_start_episode_start_indices
+        else:
+            return self._all_valid_start_indices
 
     @property
     def num_can_sample(self):
