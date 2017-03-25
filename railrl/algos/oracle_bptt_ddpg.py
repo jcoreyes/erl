@@ -6,8 +6,13 @@ from railrl.algos.bptt_ddpg import BpttDDPG
 from railrl.data_management.ocm_subtraj_replay_buffer import (
     OcmSubtrajReplayBuffer
 )
-from railrl.qfunctions.memory.oracle_unroll_qfunction import \
+from railrl.qfunctions.memory.hint_mlp_memory_qfunction import (
+    HintMlpMemoryQFunction
+)
+from railrl.qfunctions.memory.oracle_qfunction import OracleQFunction
+from railrl.qfunctions.memory.oracle_unroll_qfunction import (
     OracleUnrollQFunction
+)
 from rllab.misc import special
 
 TARGET_PREFIX = "target_"
@@ -117,15 +122,7 @@ class OracleBpttDDPG(BpttDDPG):
             eval_pool.add_trajectory(path)
 
         batch = eval_pool.get_all_valid_subtrajectories()
-        return self._update_feed_dict(
-            rewards=batch['rewards'],
-            terminals=batch['terminals'],
-            obs=batch['observations'],
-            actions=batch['actions'],
-            next_obs=batch['next_observations'],
-            times=batch['times'],
-            target_numbers=batch['target_numbers'],
-        )
+        return self._update_feed_dict_from_batch(batch)
 
 
 class OracleUnrollBpttDDPG(OracleBpttDDPG):
@@ -146,14 +143,26 @@ class OracleUnrollBpttDDPG(OracleBpttDDPG):
                 ]
         )
         rest_of_obs[:, :, 0] = 1
-        return {
-            self.rewards_placeholder: rewards,
-            self.terminals_placeholder: terminals,
-            self.qf.observation_input: obs,
-            self.qf.action_input: actions,
-            self.target_qf.observation_input: next_obs,
-            self.target_policy.observation_input: next_obs,
-            self.qf.target_labels: target_one_hots,
-            self.qf.sequence_length_placeholder: sequence_lengths,
-            self.qf.rest_of_obs_placeholder: rest_of_obs,
-        }
+        if (isinstance(self.qf, OracleQFunction) or
+                isinstance(self.qf, OracleUnrollQFunction)):
+            return {
+                self.rewards_placeholder: rewards,
+                self.terminals_placeholder: terminals,
+                self.qf.observation_input: obs,
+                self.qf.action_input: actions,
+                self.target_qf.observation_input: next_obs,
+                self.target_policy.observation_input: next_obs,
+                self.qf.target_labels: target_one_hots,
+                self.qf.sequence_length_placeholder: sequence_lengths,
+                self.qf.rest_of_obs_placeholder: rest_of_obs,
+            }
+        elif isinstance(self.qf, HintMlpMemoryQFunction):
+            return {
+                self.rewards_placeholder: rewards,
+                self.terminals_placeholder: terminals,
+                self.qf.observation_input: obs,
+                self.qf.action_input: actions,
+                self.target_qf.observation_input: next_obs,
+                self.target_policy.observation_input: next_obs,
+                self.qf.hint_input: target_one_hots,
+            }

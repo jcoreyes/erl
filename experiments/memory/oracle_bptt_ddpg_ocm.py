@@ -7,6 +7,8 @@ from railrl.algos.oracle_bptt_ddpg import OracleUnrollBpttDDPG
 from railrl.launchers.launcher_util import (
     run_experiment,
 )
+from railrl.qfunctions.memory.hint_mlp_memory_qfunction import \
+    HintMlpMemoryQFunction
 
 
 def run_linear_ocm_exp(variant):
@@ -38,7 +40,7 @@ def run_linear_ocm_exp(variant):
     num_values = variant['num_values']
     ddpg_params = variant['ddpg_params']
     num_bptt_unrolls = ddpg_params['num_bptt_unrolls']
-    use_unroll = variant['use_unroll']
+    oracle_mode = variant['oracle_mode']
 
     env_action_dim = num_values + 1
     env_obs_dim= env_action_dim
@@ -64,15 +66,22 @@ def run_linear_ocm_exp(variant):
     )
 
     es = ProductStrategy([OneHotSampler(), NoopStrategy()])
-    if use_unroll:
+    if oracle_mode == 'unroll':
         qf = OracleUnrollQFunction(
-            name_or_scope="oracle_critic",
+            name_or_scope="oracle_unroll_critic",
             env=env,
             policy=policy,
             num_bptt_unrolls=num_bptt_unrolls,
             env_obs_dim=env_obs_dim,
             env_action_dim=env_action_dim,
             max_horizon_length=H,
+            env_spec=env.spec,
+        )
+        algo_class = OracleUnrollBpttDDPG
+    elif oracle_mode == 'hint':
+        qf = HintMlpMemoryQFunction(
+            name_or_scope="hint_critic",
+            hint_dim=env_action_dim,
             env_spec=env.spec,
         )
         algo_class = OracleUnrollBpttDDPG
@@ -98,10 +107,9 @@ def run_linear_ocm_exp(variant):
 
 
 if __name__ == '__main__':
-    USE_UNROLL = True
+    ORACLE_MODE = 'hint'
     n_seed = 3
-    # exp_prefix = "3-16-oracle-unroll-bptt-ddpg"
-    exp_prefix = "3-20-oracle-unroll-start-at-beginning"
+    exp_prefix = "dev-oracle-unroll-bptt-ddpg"
 
     """
     DDPG Params
@@ -114,12 +122,12 @@ if __name__ == '__main__':
     min_pool_size = 100
     replay_pool_size = 100000
 
-    mode = 'ec2'
+    mode = 'here'
     exp_id = -1
     for H, num_values, num_bptt_unrolls in product(
-        [16, 32],
+        [8],
         [4],
-        [1, 4, 8],
+        [8],
     ):
         if num_bptt_unrolls > H:
             continue
@@ -148,7 +156,7 @@ if __name__ == '__main__':
             exp_prefix=exp_prefix,
             ddpg_params=ddpg_params,
             lstm_state_size=lstm_state_size,
-            use_unroll=USE_UNROLL,
+            oracle_mode=ORACLE_MODE,
             start_only_at_start=True,
         )
         for seed in range(n_seed):
