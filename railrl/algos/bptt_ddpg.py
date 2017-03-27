@@ -125,9 +125,10 @@ class BpttDDPG(DDPG):
                                   qf_terminals,
                                   qf_obs,
                                   qf_actions,
-                                  qf_next_obs)
+                                  qf_next_obs,
+                                  **kwargs)
 
-        policy_feed = self._policy_feed_dict(obs)
+        policy_feed = self._policy_feed_dict(obs, **kwargs)
         feed.update(policy_feed)
         return feed
 
@@ -143,7 +144,7 @@ class BpttDDPG(DDPG):
         """
         return map_recursive(lambda x: x[:, t, :], action_or_obs)
 
-    def _policy_feed_dict(self, obs):
+    def _policy_feed_dict(self, obs, **kwargs):
         """
         :param obs: See output of `self._split_flat_action`.
         :return: Feed dictionary for policy training TensorFlow ops.

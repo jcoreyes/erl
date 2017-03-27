@@ -13,7 +13,7 @@ class HintMlpMemoryQFunction(NNQFunction):
             self,
             name_or_scope,
             hint_dim,
-            hint_input=None,
+            target_labels=None,
             hidden_W_init=None,
             hidden_b_init=None,
             output_W_init=None,
@@ -34,20 +34,20 @@ class HintMlpMemoryQFunction(NNQFunction):
         self.observation_hidden_sizes = observation_hidden_sizes
         self.hidden_nonlinearity = hidden_nonlinearity
         self.hint_dim = hint_dim
-        if hint_input is None:
-            hint_input = tf.placeholder(
+        if target_labels is None:
+            target_labels = tf.placeholder(
                 tf.float32,
                 shape=[
                     None,
                     self.hint_dim,
                 ],
-                name='hint_input',
+                name='target_labels',
             )
-        self.hint_input = hint_input
+        self.target_labels = target_labels
         super().__init__(
             name_or_scope=name_or_scope,
             create_network_dict=dict(
-                hint_input=self.hint_input,
+                target_labels=self.target_labels,
             ),
             **kwargs
         )
@@ -56,7 +56,7 @@ class HintMlpMemoryQFunction(NNQFunction):
             self,
             observation_input=None,
             action_input=None,
-            hint_input=None
+            target_labels=None
     ):
         env_obs, memory_obs = observation_input
         env_action, memory_action = action_input
@@ -76,7 +76,7 @@ class HintMlpMemoryQFunction(NNQFunction):
             memory_action,
             scope_name="memory_action",
         )
-        observation_input = tf.concat(1, [env_obs, memory_obs, hint_input])
+        observation_input = tf.concat(1, [env_obs, memory_obs, target_labels])
         action_input = tf.concat(1, [env_action, memory_action])
         with tf.variable_scope("observation_mlp"):
             observation_output = mlp(
@@ -120,5 +120,5 @@ class HintMlpMemoryQFunction(NNQFunction):
         return dict(
             observation_input=self.observation_input,
             action_input=self.action_input,
-            hint_input=self.hint_input,
+            target_labels=self.target_labels,
         )

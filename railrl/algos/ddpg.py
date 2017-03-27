@@ -224,8 +224,9 @@ class DDPG(OnlineAlgorithm):
                                      terminals,
                                      obs,
                                      actions,
-                                     next_obs)
-        policy_feed = self._policy_feed_dict(obs)
+                                     next_obs,
+                                     **kwargs)
+        policy_feed = self._policy_feed_dict(obs, **kwargs)
         # TODO(vpong): I don't think I need this
         feed = qf_feed.copy()
         feed.update(policy_feed)
@@ -259,7 +260,8 @@ class DDPG(OnlineAlgorithm):
         else:
             return actions
 
-    def _qf_feed_dict(self, rewards, terminals, obs, actions, next_obs):
+    def _qf_feed_dict(self, rewards, terminals, obs, actions, next_obs,
+                      **kwargs):
         return {
             self.rewards_placeholder: np.expand_dims(rewards, axis=1),
             self.terminals_placeholder: np.expand_dims(terminals, axis=1),
@@ -269,7 +271,7 @@ class DDPG(OnlineAlgorithm):
             self.target_policy.observation_input: next_obs,
         }
 
-    def _policy_feed_dict(self, obs):
+    def _policy_feed_dict(self, obs, **kwargs):
         return {
             self.qf_with_action_input.observation_input: obs,
             self.policy.observation_input: obs,
