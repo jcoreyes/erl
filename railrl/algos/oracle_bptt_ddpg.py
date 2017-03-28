@@ -102,11 +102,6 @@ class OracleBpttDDPG(BpttDDPG):
 class OracleUnrollBpttDDPG(OracleBpttDDPG):
     def _qf_feed_dict(self, rewards, terminals, obs, actions, next_obs,
                       target_numbers=None, times=None):
-        indices = target_numbers[:, 0]
-        target_one_hots = special.to_onehot_n(
-            indices,
-            self.env.wrapped_env.action_space.flat_dim,
-        )
         sequence_lengths = np.squeeze(self.env.horizon - times[:, -1])
         batch_size = len(rewards)
         rest_of_obs = np.zeros(
@@ -114,17 +109,18 @@ class OracleUnrollBpttDDPG(OracleBpttDDPG):
                 batch_size,
                 self.env.horizon - self._num_bptt_unrolls,
                 self._env_obs_dim,
-                ]
+            ]
         )
         rest_of_obs[:, :, 0] = 1
-        return {
-            self.rewards_placeholder: rewards,
-            self.terminals_placeholder: terminals,
-            self.qf.observation_input: obs,
-            self.qf.action_input: actions,
-            self.target_qf.observation_input: next_obs,
-            self.target_policy.observation_input: next_obs,
-            self.qf.target_labels: target_one_hots,
-            self.qf.sequence_length_placeholder: sequence_lengths,
-            self.qf.rest_of_obs_placeholder: rest_of_obs,
-        }
+        qf_feed_dict = super()._qf_feed_dict(
+            rewards=rewards,
+            terminals=terminals,
+            obs=obs,
+            actions=actions,
+            next_obs=next_obs,
+            target_numbers=target_numbers,
+            times=times,
+        )
+        qf_feed_dict[self.qf.sequence_length_placeholder] = sequence_lengths
+        qf_feed_dict[self.qf.rest_of_obs_placeholder] = rest_of_obs
+        return qf_feed_dict
