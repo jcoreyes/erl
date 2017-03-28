@@ -36,12 +36,18 @@ class SumBpttDDPG(BpttDDPG):
             tf.concat(0, all_env_actions),
             tf.concat(0, all_write_actions),
         )
-        # all_rnn_actions = tf.concat(0, all_env_actions)
 
-        import ipdb
-        ipdb.set_trace()
+        all_memory_obs_list = (
+            [self._rnn_init_state_ph] + list(all_write_actions[:-1])
+        )
+        all_rnn_observations = (
+            tf.concat(0, rnn_inputs),
+            tf.concat(0, all_memory_obs_list),
+        )
+
         self.qf_with_action_input = self.qf.get_weight_tied_copy(
             action_input=all_rnn_actions,
+            observation_input=all_rnn_observations,
         )
         self.policy_surrogate_loss = - tf.reduce_mean(
             self.qf_with_action_input.output)
@@ -49,3 +55,16 @@ class SumBpttDDPG(BpttDDPG):
             self.policy_learning_rate).minimize(
             self.policy_surrogate_loss,
             var_list=self.policy.get_params_internal())
+
+    def _policy_feed_dict(self, obs, **kwargs):
+        """
+        :param obs: See output of `self._split_flat_action`.
+        :return: Feed dictionary for policy training TensorFlow ops.
+        """
+        first_obs = self._get_time_step(obs, 0)
+        env_obs, _ = obs
+        initial_memory_obs = first_obs[1]
+        return {
+            self._rnn_inputs_ph: env_obs,
+            self._rnn_init_state_ph: initial_memory_obs,
+        }
