@@ -46,7 +46,7 @@ class OutputStateRnn(tf.nn.rnn_cell.RNNCell):
         self._wrapped_rnn_cell = rnn_cell
 
     def __call__(self, inputs, state, scope=None):
-        wrapped_rnn_state_size = state[0]
+        wrapped_rnn_state_size = state
         wrapped_output, wrapped_state = self._wrapped_rnn_cell(
             inputs,
             wrapped_rnn_state_size,
