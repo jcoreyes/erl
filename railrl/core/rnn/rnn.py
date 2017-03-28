@@ -9,10 +9,8 @@ class SaveOutputRnn(tf.nn.rnn_cell.RNNCell):
     def __init__(
             self,
             rnn_cell: tf.nn.rnn_cell.RNNCell,
-            output_dim: int,
     ):
         self._wrapped_rnn_cell = rnn_cell
-        self._output_dim = output_dim
 
     def __call__(self, inputs, state, scope=None):
         wrapped_rnn_state_size = state[0]
@@ -26,12 +24,14 @@ class SaveOutputRnn(tf.nn.rnn_cell.RNNCell):
 
     @property
     def state_size(self):
-        return self._wrapped_rnn_cell.state_size, self._output_dim
-
+        return (
+            self._wrapped_rnn_cell.state_size,
+            self._wrapped_rnn_cell.output_size,
+        )
 
     @property
     def output_size(self):
-        return self._output_dim
+        return self._wrapped_rnn_cell.output_size
 
 
 class OutputStateRnn(tf.nn.rnn_cell.RNNCell):
@@ -42,10 +42,8 @@ class OutputStateRnn(tf.nn.rnn_cell.RNNCell):
     def __init__(
             self,
             rnn_cell: tf.nn.rnn_cell.RNNCell,
-            output_dim: int,
     ):
         self._wrapped_rnn_cell = rnn_cell
-        self._output_dim = output_dim
 
     def __call__(self, inputs, state, scope=None):
         wrapped_rnn_state_size = state[0]
@@ -59,9 +57,12 @@ class OutputStateRnn(tf.nn.rnn_cell.RNNCell):
 
     @property
     def state_size(self):
-        return self._wrapped_rnn_cell.state_size, self._output_dim
+        return self._wrapped_rnn_cell.state_size
 
 
     @property
     def output_size(self):
-        return self._output_dim
+        return (
+            self._wrapped_rnn_cell.output_size,
+            self._wrapped_rnn_cell.state_size,
+        )

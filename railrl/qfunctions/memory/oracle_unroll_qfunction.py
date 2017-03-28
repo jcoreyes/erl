@@ -29,7 +29,6 @@ class OracleUnrollQFunction(NNQFunction):
         self._policy = policy
         self._save_rnn_cell = SaveOutputRnn(
             self._policy.rnn_cell,
-            env_action_dim
         )
         self._rnn_init_state_ph = self._policy.get_init_state_placeholder()
         self._rnn_cell_scope = self._policy.rnn_cell_scope
