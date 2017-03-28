@@ -24,7 +24,7 @@ class WritebackBpttDDPG(BpttDDPG):
             self.discount * self.target_qf.output)
         self.qf_loss = tf.reduce_mean(
             tf.square(
-                tf.sub(self.ys, self.qf.output)))
+                tf.sub(self.ys, self.qf_with_memory_input.output)))
         self.Q_weights_norm = tf.reduce_sum(
             tf.pack(
                 [tf.nn.l2_loss(v)
@@ -38,4 +38,5 @@ class WritebackBpttDDPG(BpttDDPG):
         self.train_qf_op = tf.train.AdamOptimizer(
             self.qf_learning_rate).minimize(
             self.qf_total_loss,
-            var_list=self.qf.get_params_internal())
+            var_list=self.qf.get_params() + self.policy.get_params(),
+        )
