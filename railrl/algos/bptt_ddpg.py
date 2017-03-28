@@ -157,7 +157,6 @@ class BpttDDPG(DDPG):
             self.qf_with_action_input.observation_input: last_obs,
             self._rnn_inputs_ph: env_obs,
             self._rnn_init_state_ph: initial_memory_obs,
-            self.policy.observation_input: last_obs,
         }
 
     def _update_feed_dict_from_path(self, paths):
