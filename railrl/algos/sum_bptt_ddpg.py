@@ -37,6 +37,10 @@ class SumBpttDDPG(BpttDDPG):
             tf.concat(0, all_write_actions),
         )
 
+        # I think this is wrong because it's appending the first obs to the
+        # front of everything, rather than in front of each individual
+        # subtrajectory
+        # TODO(vitchyr): fix this
         all_memory_obs_list = (
             [self._rnn_init_state_ph] + list(all_write_actions[:-1])
         )
