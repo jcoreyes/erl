@@ -1,40 +1,8 @@
 import tensorflow as tf
 
+from railrl.core.rnn.rnn import SaveOutputRnn
 from railrl.policies.memory.rnn_cell_policy import RnnCellPolicy
 from railrl.qfunctions.nn_qfunction import NNQFunction
-
-
-class _SaveActionRnn(tf.nn.rnn_cell.RNNCell):
-    """
-    An RNN that wraps another RNN. The main difference is that this saves the
-    last action in state.
-    """
-    def __init__(
-            self,
-            rnn_cell: tf.nn.rnn_cell.RNNCell,
-            action_dim: int,
-    ):
-        self._wrapped_rnn_cell = rnn_cell
-        self._action_dim = action_dim
-
-    def __call__(self, inputs, state, scope=None):
-        wrapped_rnn_state_size = state[0]
-        wrapped_output, wrapped_state = self._wrapped_rnn_cell(
-            inputs,
-            wrapped_rnn_state_size,
-            scope=scope,
-        )
-
-        return wrapped_output, (wrapped_state, wrapped_output)
-
-    @property
-    def state_size(self):
-        return self._wrapped_rnn_cell.state_size, self._action_dim
-
-
-    @property
-    def output_size(self):
-        return self._action_dim
 
 
 class OracleUnrollQFunction(NNQFunction):
@@ -59,7 +27,7 @@ class OracleUnrollQFunction(NNQFunction):
         self.setup_serialization(locals())
         self._ocm_env = env
         self._policy = policy
-        self._save_rnn_cell = _SaveActionRnn(
+        self._save_rnn_cell = SaveOutputRnn(
             self._policy.rnn_cell,
             env_action_dim
         )
