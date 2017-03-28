@@ -2,13 +2,15 @@
 Check linear_ocm_policy on OneCharMemory task.
 """
 from itertools import product
+
+from railrl.algos.writeback_bptt_ddpt import WritebackBpttDDPG
+from railrl.algos.bptt_ddpg import BpttDDPG
 from railrl.launchers.launcher_util import (
     run_experiment,
 )
 
 
 def run_linear_ocm_exp(variant):
-    from railrl.algos.bptt_ddpg import BpttDDPG
     from railrl.qfunctions.memory.mlp_memory_qfunction import MlpMemoryQFunction
     from railrl.exploration_strategies.noop import NoopStrategy
     from railrl.exploration_strategies.onehot_sampler import OneHotSampler
@@ -28,11 +30,12 @@ def run_linear_ocm_exp(variant):
     H = variant['H']
     seed = variant['seed']
     num_values = variant['num_values']
-    ddpg_params = variant['ddpg_params']
-
     env_action_dim = num_values + 1
+    ddpg_params = variant['ddpg_params']
     lstm_state_size = variant['lstm_state_size']
     memory_dim = 2 * lstm_state_size
+    algo_class = variant['algo_class']
+
     set_seed(seed)
 
     """
@@ -57,7 +60,7 @@ def run_linear_ocm_exp(variant):
         name_or_scope="critic",
         env_spec=env.spec,
     )
-    algorithm = BpttDDPG(
+    algorithm = algo_class(
         env,
         es,
         policy,
@@ -70,7 +73,7 @@ def run_linear_ocm_exp(variant):
 
 
 if __name__ == '__main__':
-    n_seed = 3
+    n_seed = 1
     exp_prefix = "dev-bptt-ddpg-ocm"
 
     """
@@ -83,13 +86,15 @@ if __name__ == '__main__':
     lstm_state_size = 10
     min_pool_size = 1000
     replay_pool_size = 100000
+    # algo_class = BpttDDPG
+    algo_class = WritebackBpttDDPG
 
     mode = 'here'
     exp_id = -1
     for H, num_values, num_bptt_unrolls in product(
-        [4, 8, 16],
-        [2, 4, 8],
-        [4, 8],
+        [6],
+        [2],
+        [4],
     ):
         if num_bptt_unrolls > H:
             continue
@@ -118,6 +123,7 @@ if __name__ == '__main__':
             exp_prefix=exp_prefix,
             ddpg_params=ddpg_params,
             lstm_state_size=lstm_state_size,
+            algo_class=algo_class,
         )
         for seed in range(n_seed):
             run_experiment(
