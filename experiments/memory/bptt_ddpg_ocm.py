@@ -70,9 +70,8 @@ def run_linear_ocm_exp(variant):
 
 
 if __name__ == '__main__':
-    n_seed = 1
-    # exp_prefix = "3-8-bptt-ddpg-ocm-benchmark"
-    exp_prefix = "dev-bptt-ddpg"
+    n_seed = 3
+    exp_prefix = "dev-bptt-ddpg-ocm"
 
     """
     DDPG Params
@@ -88,10 +87,12 @@ if __name__ == '__main__':
     mode = 'here'
     exp_id = -1
     for H, num_values, num_bptt_unrolls in product(
-        [8],
-        [4],
-        [8],
+        [4, 8, 16],
+        [2, 4, 8],
+        [4, 8],
     ):
+        if num_bptt_unrolls > H:
+            continue
         print("H", H)
         print("num_values", num_values)
         print("num_bptt_unrolls", num_bptt_unrolls)

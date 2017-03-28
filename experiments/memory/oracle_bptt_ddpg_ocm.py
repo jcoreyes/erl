@@ -84,7 +84,7 @@ def run_linear_ocm_exp(variant):
             hint_dim=env_action_dim,
             env_spec=env.spec,
         )
-        algo_class = OracleUnrollBpttDDPG
+        algo_class = OracleBpttDDPG
     else:
         qf = OracleQFunction(
             name_or_scope="oracle_critic",
@@ -109,25 +109,25 @@ def run_linear_ocm_exp(variant):
 if __name__ == '__main__':
     ORACLE_MODE = 'hint'
     n_seed = 3
-    exp_prefix = "dev-oracle-unroll-bptt-ddpg"
+    exp_prefix = "dev-oracle-bptt-ddpg-ocm"
 
     """
     DDPG Params
     """
-    n_batches_per_epoch = 20
-    n_batches_per_eval = 100
+    n_batches_per_epoch = 1000
+    n_batches_per_eval = 64
     batch_size = 32
-    n_epochs = 50
+    n_epochs = 100
     lstm_state_size = 10
-    min_pool_size = 100
+    min_pool_size = 1000
     replay_pool_size = 100000
 
     mode = 'here'
     exp_id = -1
     for H, num_values, num_bptt_unrolls in product(
-        [8],
-        [4],
-        [8],
+        [4, 8, 16],
+        [2, 4, 8],
+        [4, 8],
     ):
         if num_bptt_unrolls > H:
             continue
