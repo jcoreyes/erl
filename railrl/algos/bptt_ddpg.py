@@ -69,12 +69,12 @@ class BpttDDPG(DDPG):
             [None, self._num_bptt_unrolls, self._env_obs_dim],
             name='rnn_time_inputs',
         )
-        rnn_inputs = tf.unpack(self._rnn_inputs_ph, axis=1)
+        rnn_inputs = tf.unstack(self._rnn_inputs_ph, axis=1)
         self._rnn_init_state_ph = self.policy.get_init_state_placeholder()
 
         self._rnn_cell_scope.reuse_variables()
         with tf.variable_scope(self._rnn_cell_scope):
-            self._rnn_outputs, self._rnn_final_state = tf.nn.rnn(
+            self._rnn_outputs, self._rnn_final_state = tf.contrib.rnn.static_rnn(
                 self._rnn_cell,
                 rnn_inputs,
                 initial_state=self._rnn_init_state_ph,

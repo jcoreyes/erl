@@ -24,7 +24,7 @@ class AffineSoftmaxPolicy(MemoryPolicy):
     def _create_network_internal(self, observation_input=None):
         assert observation_input is not None
         env_obs, memory_obs = observation_input
-        env_and_memory = tf.concat(1, [env_obs, memory_obs])
+        env_and_memory = tf.concat(axis=1, values=[env_obs, memory_obs])
 
         with tf.variable_scope("write_action"):
             write_action = linear(
@@ -33,7 +33,7 @@ class AffineSoftmaxPolicy(MemoryPolicy):
                 new_size=self._memory_and_action_dim,
             )
 
-        env_mem_and_write = tf.concat(1, [env_obs, memory_obs, write_action])
+        env_mem_and_write = tf.concat(axis=1, values=[env_obs, memory_obs, write_action])
         with tf.variable_scope("env_action"):
             action_logit = linear(
                 last_layer=env_mem_and_write,

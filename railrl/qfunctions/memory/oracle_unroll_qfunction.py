@@ -82,7 +82,7 @@ class OracleUnrollQFunction(NNQFunction):
             sequence_lengths=None,
             save_rnn_inputs=None,
     ):
-        rnn_inputs = tf.unpack(save_rnn_inputs, axis=1)
+        rnn_inputs = tf.unstack(save_rnn_inputs, axis=1)
         self._rnn_cell_scope.reuse_variables()
         init_state = (action_input[1], action_input[0])
         if save_rnn_inputs.get_shape()[1] == 0:

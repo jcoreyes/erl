@@ -38,7 +38,7 @@ class MlpStateActionNetwork(StateActionNetwork):
                                                 scope_name="observation_input")
         action_input = self._process_layer(action_input,
                                            scope_name="action_input")
-        concat_input = tf.concat(1, [observation_input, action_input])
+        concat_input = tf.concat(axis=1, values=[observation_input, action_input])
         hidden_output = tf_util.mlp(
             concat_input,
             self.observation_dim + self.action_dim,
