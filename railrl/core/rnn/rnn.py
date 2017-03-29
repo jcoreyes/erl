@@ -1,14 +1,14 @@
 import tensorflow as tf
 
 
-class SaveOutputRnn(tf.nn.rnn_cell.RNNCell):
+class SaveOutputRnn(tf.contrib.rnn.RNNCell):
     """
     An RNN that wraps another RNN. This RNN saves the last output in the
     state (in addition to the normal state).
     """
     def __init__(
             self,
-            rnn_cell: tf.nn.rnn_cell.RNNCell,
+            rnn_cell: tf.contrib.rnn.RNNCell,
     ):
         self._wrapped_rnn_cell = rnn_cell
 
@@ -34,14 +34,14 @@ class SaveOutputRnn(tf.nn.rnn_cell.RNNCell):
         return self._wrapped_rnn_cell.output_size
 
 
-class OutputStateRnn(tf.nn.rnn_cell.RNNCell):
+class OutputStateRnn(tf.contrib.rnn.RNNCell):
     """
     An RNN that wraps another RNN. This RNN outputs the state at every time
     step (in addition to the normal output).
     """
     def __init__(
             self,
-            rnn_cell: tf.nn.rnn_cell.RNNCell,
+            rnn_cell: tf.contrib.rnn.RNNCell,
     ):
         self._wrapped_rnn_cell = rnn_cell
 

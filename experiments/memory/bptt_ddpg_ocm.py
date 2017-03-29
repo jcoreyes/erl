@@ -5,6 +5,7 @@ from itertools import product
 
 from railrl.algos.writeback_bptt_ddpt import WritebackBpttDDPG
 from railrl.algos.bptt_ddpg import BpttDDPG
+from railrl.algos.sum_bptt_ddpg import SumBpttDDPG
 from railrl.launchers.launcher_util import (
     run_experiment,
 )
@@ -87,7 +88,8 @@ if __name__ == '__main__':
     min_pool_size = 1000
     replay_pool_size = 100000
     # algo_class = BpttDDPG
-    algo_class = WritebackBpttDDPG
+    # algo_class = WritebackBpttDDPG
+    algo_class = SumBpttDDPG
 
     mode = 'here'
     exp_id = -1
