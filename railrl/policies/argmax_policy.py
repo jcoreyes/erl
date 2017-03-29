@@ -86,7 +86,7 @@ class ArgmaxPolicy(NeuralNetwork, Policy, Serializable):
             assert observation.shape[1] == 1
             observation = observation.flatten()
         # Clear adam variables
-        self.sess.run(tf.initialize_variables(
+        self.sess.run(tf.variables_initializer(
             tf.get_collection(tf.GraphKeys.VARIABLES, self.scope_name)
         ))
         for _ in range(self.n_update_steps):

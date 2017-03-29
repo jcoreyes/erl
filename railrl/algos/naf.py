@@ -78,9 +78,9 @@ class NAF(OnlineAlgorithm):
             self.discount * self.target_vf.output)
         self.qf_loss = tf.reduce_mean(
             tf.square(
-                tf.sub(self.ys, self.qf.output)))
+                tf.subtract(self.ys, self.qf.output)))
         self.Q_weights_norm = tf.reduce_sum(
-            tf.pack(
+            tf.stack(
                 [tf.nn.l2_loss(v)
                  for v in
                  self.qf.get_params_internal(regularizable=True)]

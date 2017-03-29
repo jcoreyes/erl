@@ -3,7 +3,7 @@ import tensorflow as tf
 from railrl.policies.memory.rnn_cell_policy import RnnCellPolicy
 
 
-class _LstmLinearCell(tf.nn.rnn_cell.LSTMCell):
+class _LstmLinearCell(tf.contrib.rnn.BasicLSTMCell):
     """
     LSTM cell with a linear unit + softmax before the output.
     """

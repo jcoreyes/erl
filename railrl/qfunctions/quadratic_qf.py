@@ -63,8 +63,8 @@ class QuadraticQF(NNQFunction, OptimizableQFunction):
 
         delta = action_input - self._policy.output
         h1 = tf.expand_dims(delta, 1)  # h1_shape = batch:1:dimA
-        h1 = tf.batch_matmul(h1, L)    # h1_shape = batch:1:dimA
-        h1 = tf.batch_matmul(
+        h1 = tf.matmul(h1, L)    # h1_shape = batch:1:dimA
+        h1 = tf.matmul(
             h1,
             h1,
             adj_y=True,  # Compute h1 * h1^T

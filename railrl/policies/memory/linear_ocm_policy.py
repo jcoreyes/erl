@@ -28,7 +28,7 @@ class LinearOcmPolicy(MemoryPolicy):
     def _create_network_internal(self, observation_input=None):
         assert observation_input is not None
         env_obs, memory_obs = observation_input
-        env_and_memory = tf.concat(1, [env_obs, memory_obs])
+        env_and_memory = tf.concat(axis=1, values=[env_obs, memory_obs])
 
         # Initially, make write_action = env_obs[1:] + memory_obs
         all_but_last = np.eye(self._memory_and_action_dim)
@@ -57,7 +57,7 @@ class LinearOcmPolicy(MemoryPolicy):
             name="remove_last_value_matrix",
             regularizable=True,
         )
-        env_memory_and_write = tf.concat(1, [env_and_memory, write_action])
+        env_memory_and_write = tf.concat(axis=1, values=[env_and_memory, write_action])
         env_action = tf.matmul(env_memory_and_write, env_action_matrix)
         env_action = tf.nn.relu(env_action)
         env_action /= tf.reduce_sum(env_action, 1, keep_dims=True)
