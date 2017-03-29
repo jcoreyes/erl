@@ -75,7 +75,7 @@ class TestTensorFlow(TFTestCase):
             expected[i] = np.matmul(x[i], M[i])
 
         actual = self.sess.run(
-            tf.batch_matmul(x_placeholder, M_placeholder),
+            tf.matmul(x_placeholder, M_placeholder),
             feed_dict={
                 x_placeholder: x,
                 M_placeholder: M,
@@ -99,8 +99,8 @@ class TestTensorFlow(TFTestCase):
             vec = np.matmul(x[i], M[i])
             expected[i] = np.matmul(vec, vec.T)
 
-        batch = tf.batch_matmul(x_placeholder, M_placeholder)
-        actual_op = tf.batch_matmul(
+        batch = tf.matmul(x_placeholder, M_placeholder)
+        actual_op = tf.matmul(
             batch,
             batch,
             adj_y=True,
@@ -156,7 +156,7 @@ class TestTensorFlow(TFTestCase):
 
     def test_max(self):
         x_ph = tf.placeholder(tf.float32, shape=(None, 2))
-        max = tf.reduce_max(x_ph, reduction_indices=[1])
+        max = tf.reduce_max(x_ph, axis=[1])
         x = np.array([
             [0, 1],
             [-5, -20],
@@ -171,7 +171,7 @@ class TestTensorFlow(TFTestCase):
 
     def test_max_none_axis(self):
         x_ph = tf.placeholder(tf.float32, shape=(None, 2))
-        max = tf.reduce_max(x_ph, reduction_indices=[0])
+        max = tf.reduce_max(x_ph, axis=[0])
         x = np.array([
             [0, 1],
             [-5, -20],
@@ -186,7 +186,7 @@ class TestTensorFlow(TFTestCase):
 
     def test_max_has_gradients(self):
         x_ph = tf.placeholder(tf.float32, shape=(None, 2))
-        max = tf.reduce_max(x_ph, reduction_indices=[1])
+        max = tf.reduce_max(x_ph, axis=[1])
         grad = tf.gradients(max, x_ph)
         self.assertTrue(grad is not None)
         self.assertTrue(grad[0] is not None)

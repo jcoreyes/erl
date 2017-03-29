@@ -36,8 +36,8 @@ class LstmPolicy(NNPolicy):
             name='labels_placeholder',
         )
 
-        rnn_inputs = tf.unpack(tf.cast(self._x, tf.float32), axis=1)
-        labels = tf.unpack(tf.cast(self._y, tf.float32), axis=1)
+        rnn_inputs = tf.unstack(tf.cast(self._x, tf.float32), axis=1)
+        labels = tf.unstack(tf.cast(self._y, tf.float32), axis=1)
 
         cell = tf.nn.rnn_cell.LSTMCell(self._state_size, state_is_tuple=True)
         rnn_outputs, self._final_state = tf.nn.rnn(
@@ -53,8 +53,8 @@ class LstmPolicy(NNPolicy):
         logits = [tf.matmul(rnn_output, W) + b for rnn_output in rnn_outputs]
         self._predictions = [tf.nn.softmax(logit) for logit in logits]
 
-        self._total_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits,
-                                                                   labels)
+        self._total_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=logits,
+                                                                   labels=labels)
         self._train_step = tf.train.AdamOptimizer(
             self._learning_rate).minimize(
             self._total_loss)

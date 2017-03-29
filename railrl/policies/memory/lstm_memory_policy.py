@@ -30,15 +30,16 @@ class LstmMemoryPolicy(RnnCellPolicy):
     def _create_network_internal(self, observation_input=None):
         assert observation_input is not None
         env_obs, memory_obs = observation_input
-        self._rnn_cell = tf.nn.rnn_cell.LSTMCell(
+        tf.contrib.rnn
+        self._rnn_cell = tf.contrib.rnn.BasicLSTMCell(
             self._num_lstm_units,
             state_is_tuple=True,
         )
-        lstm_memory_c_and_m_tuple = tf.split(1, 2, memory_obs)
+        lstm_memory_c_and_m_tuple = tf.split(axis=1, num_or_size_splits=2, value=memory_obs)
         with tf.variable_scope("lstm") as self._rnn_cell_scope:
             cell_output = self._rnn_cell(env_obs, lstm_memory_c_and_m_tuple)
         env_action_logits, (lstm_c_output, lstm_m_output) = cell_output
-        write_action = tf.concat(1, (lstm_c_output, lstm_m_output))
+        write_action = tf.concat(axis=1, values=(lstm_c_output, lstm_m_output))
         env_action = tf.nn.softmax(env_action_logits)
         return env_action, write_action
 
@@ -57,7 +58,7 @@ class LstmMemoryPolicy(RnnCellPolicy):
             [None, self._num_lstm_units],
             name='lstm_init_m_state',
         )
-        return tf.concat(1, [lstm_init_c_state, lstm_init_m_state])
+        return tf.concat(axis=1, values=[lstm_init_c_state, lstm_init_m_state])
 
 
     @property
