@@ -86,12 +86,6 @@ class BpttDDPG(DDPG):
             self._final_rnn_output,
             self._rnn_final_state,
         )
-        # TODO(vitchyr): consider taking the sum of the outputs rather than
-        # only the last output.
-
-        # To compute the surrogate loss function for the qf, it must take
-        # as input the output of the _policy. See Equation (6) of "Deterministic
-        # Policy Gradient Algorithms" ICML 2014.
         self.qf_with_action_input = self.qf.get_weight_tied_copy(
             action_input=self._final_rnn_action
         )
