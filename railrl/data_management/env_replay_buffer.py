@@ -19,7 +19,8 @@ class EnvReplayBuffer(SimpleReplayBuffer):
         self._env = env
 
     @overrides
-    def _add_sample(self, observation, action, reward, terminal, initial):
+    def _add_sample(self, observation, action, reward, terminal, initial,
+                    **kwargs):
         """
 
         :param observation: Unflattened observation. If None, will assume to

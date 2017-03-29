@@ -31,7 +31,7 @@ class SimpleReplayBuffer(ReplayBuffer):
         self._valid_transition_indices = []
 
     def _add_sample(self, observation, action, reward, terminal,
-                    final_state):
+                    final_state, **kwargs):
         self._observations[self._top] = observation
         self._actions[self._top] = action
         self._rewards[self._top] = reward
@@ -39,22 +39,24 @@ class SimpleReplayBuffer(ReplayBuffer):
         self._final_state[self._top] = final_state
         self.advance()
 
-    def add_sample(self, observation, action, reward, terminal):
+    def add_sample(self, observation, action, reward, terminal, **kwargs):
         self._add_sample(
             observation,
             action,
             reward,
             terminal,
             False,
+            **kwargs
         )
 
-    def terminate_episode(self, terminal_observation):
+    def terminate_episode(self, terminal_observation, **kwargs):
         self._add_sample(
             terminal_observation,
             None,
             0,
             0,
             True,
+            **kwargs
         )
 
     def advance(self):
