@@ -40,3 +40,13 @@ class WritebackBpttDDPG(BpttDDPG):
             self.qf_total_loss,
             var_list=self.qf.get_params() + self.policy.get_params(),
         )
+
+    def _policy_feed_dict(self, obs, **kwargs):
+        """
+        :param obs: See output of `self._split_flat_action`.
+        :return: Feed dictionary for policy training TensorFlow ops.
+        """
+        last_obs = self._get_time_step(obs, -1)
+        feed_dict = super()._policy_feed_dict(obs, **kwargs)
+        feed_dict[self.policy.observation_input] = last_obs
+        return feed_dict
