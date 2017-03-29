@@ -10,8 +10,8 @@ from railrl.launchers.launcher_util import run_experiment
 def main():
     num_seeds = 3
     for H, num_values in product(
-        [2, 4, 8, 16],
-        [2, 4, 8, 16]
+        [8],
+        [4],
     ):
         variant = dict(
             env_params=dict(
@@ -34,7 +34,7 @@ def main():
             seed = random.randint(0, 100000)
             run_experiment(
                 bptt_launcher,
-                exp_prefix="3-8-bptt-sl-benchmark",
+                exp_prefix="dev-ocm-sl",
                 seed=seed,
                 variant=variant,
             )

@@ -56,7 +56,7 @@ class SoftmaxMemoryPolicy(MemoryPolicy):
             memory_obs,
             scope_name="memory_obs",
         )
-        observation_input = tf.concat(1, [env_obs, memory_obs])
+        observation_input = tf.concat(axis=1, values=[env_obs, memory_obs])
         with tf.variable_scope("mlp"):
             observation_output = mlp(
                 observation_input,

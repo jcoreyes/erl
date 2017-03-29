@@ -1,24 +1,19 @@
-import abc
 import tensorflow as tf
 
-from railrl.predictors.state_action_network import StateActionNetwork
 from railrl.core.tf_util import he_uniform_initializer, mlp, linear
+from railrl.qfunctions.nn_qfunction import NNQFunction
 
 
-class NNQFunction(StateActionNetwork, metaclass=abc.ABCMeta):
+class HintMlpMemoryQFunction(NNQFunction):
+    """
+    Same as MlpMemoryQFunction, except that this critic receives the true 
+    target as input.
+    """
     def __init__(
             self,
             name_or_scope,
-            **kwargs
-    ):
-        self.setup_serialization(locals())
-        super().__init__(name_or_scope=name_or_scope, output_dim=1, **kwargs)
-
-
-class FeedForwardCritic(NNQFunction):
-    def __init__(
-            self,
-            name_or_scope,
+            hint_dim,
+            target_labels=None,
             hidden_W_init=None,
             hidden_b_init=None,
             output_W_init=None,
@@ -38,17 +33,55 @@ class FeedForwardCritic(NNQFunction):
         self.embedded_hidden_sizes = embedded_hidden_sizes
         self.observation_hidden_sizes = observation_hidden_sizes
         self.hidden_nonlinearity = hidden_nonlinearity
-        super().__init__(name_or_scope=name_or_scope, **kwargs)
+        self.hint_dim = hint_dim
+        if target_labels is None:
+            target_labels = tf.placeholder(
+                tf.float32,
+                shape=[
+                    None,
+                    self.hint_dim,
+                ],
+                name='target_labels',
+            )
+        self.target_labels = target_labels
+        super().__init__(
+            name_or_scope=name_or_scope,
+            create_network_dict=dict(
+                target_labels=self.target_labels,
+            ),
+            **kwargs
+        )
 
-    def _create_network_internal(self, observation_input, action_input):
-        observation_input = self._process_layer(observation_input,
-                                                scope_name="observation_input")
-        action_input = self._process_layer(action_input,
-                                           scope_name="action_input")
+    def _create_network_internal(
+            self,
+            observation_input=None,
+            action_input=None,
+            target_labels=None
+    ):
+        env_obs, memory_obs = observation_input
+        env_action, memory_action = action_input
+        env_obs = self._process_layer(
+            env_obs,
+            scope_name="env_obs",
+        )
+        memory_obs = self._process_layer(
+            memory_obs,
+            scope_name="memory_obs",
+        )
+        env_action = self._process_layer(
+            env_action,
+            scope_name="env_action",
+        )
+        memory_action = self._process_layer(
+            memory_action,
+            scope_name="memory_action",
+        )
+        observation_input = tf.concat(axis=1, values=[env_obs, memory_obs, target_labels])
+        action_input = tf.concat(axis=1, values=[env_action, memory_action])
         with tf.variable_scope("observation_mlp"):
             observation_output = mlp(
                 observation_input,
-                self.observation_dim,
+                sum(self.observation_dim) + self.hint_dim,
                 self.observation_hidden_sizes,
                 self.hidden_nonlinearity,
                 W_initializer=self.hidden_W_init,
@@ -57,10 +90,10 @@ class FeedForwardCritic(NNQFunction):
             )
             observation_output = self._process_layer(
                 observation_output,
-                scope_name="observation_output"
+                scope_name="observation_output",
             )
         embedded = tf.concat(axis=1, values=[observation_output, action_input])
-        embedded_dim = self.action_dim + self.observation_hidden_sizes[-1]
+        embedded_dim = sum(self.action_dim) + self.observation_hidden_sizes[-1]
         with tf.variable_scope("fusion_mlp"):
             fused_output = mlp(
                 embedded,
@@ -81,3 +114,11 @@ class FeedForwardCritic(NNQFunction):
                 W_initializer=self.output_W_init,
                 b_initializer=self.output_b_init,
             )
+
+    @property
+    def _input_name_to_values(self):
+        return dict(
+            observation_input=self.observation_input,
+            action_input=self.action_input,
+            target_labels=self.target_labels,
+        )

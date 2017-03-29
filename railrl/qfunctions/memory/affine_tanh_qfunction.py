@@ -25,8 +25,8 @@ class AffineTanHQFunction(NNQFunction):
         env_obs, memory_obs = observation_input
         env_action, memory_action = action_input
         all_input = tf.concat(
-            1,
-            [env_obs, memory_obs, env_action, memory_action]
+            axis=1,
+            values=[env_obs, memory_obs, env_action, memory_action]
         )
         with tf.variable_scope("output_linear"):
             return tf.nn.tanh(linear(

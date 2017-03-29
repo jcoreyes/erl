@@ -3,7 +3,7 @@ import tensorflow as tf
 from railrl.policies.memory.rnn_cell_policy import RnnCellPolicy
 
 
-class _LstmLinearCell(tf.nn.rnn_cell.LSTMCell):
+class _LstmLinearCell(tf.contrib.rnn.BasicLSTMCell):
     """
     LSTM cell with a linear unit + softmax before the output.
     """
@@ -17,10 +17,10 @@ class _LstmLinearCell(tf.nn.rnn_cell.LSTMCell):
         self._output_dim = output_dim
 
     def __call__(self, inputs, state, scope=None):
-        split_state = tf.split(1, 2, state)
+        split_state = tf.split(axis=1, num_or_size_splits=2, value=state)
         lstm_output, lstm_state = super().__call__(inputs, split_state,
                                                    scope=scope)
-        flat_state = tf.concat(1, lstm_state)
+        flat_state = tf.concat(axis=1, values=lstm_state)
 
         with tf.variable_scope('softmax'):
             W = tf.get_variable('W', [self._num_units, self._output_dim])

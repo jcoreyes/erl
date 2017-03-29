@@ -69,7 +69,7 @@ class SgdQuadraticNAF(NAFQFunction):
     def implicit_policy(self):
         if self._implicit_policy is None:
             with self.sess.as_default():
-                self.sess.run(tf.initialize_variables(self.get_params()))
+                self.sess.run(tf.variables_initializer(self.get_params()))
                 print("Making SGD optimizer")
                 self._implicit_policy = ArgmaxPolicy(
                     name_or_scope="argmax_policy",

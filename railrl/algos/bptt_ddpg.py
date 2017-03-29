@@ -87,12 +87,12 @@ class BpttDDPG(DDPG):
             [None, self._num_bptt_unrolls, self._env_obs_dim],
             name='rnn_time_inputs',
         )
-        rnn_inputs = tf.unpack(self._rnn_inputs_ph, axis=1)
+        rnn_inputs = tf.unstack(self._rnn_inputs_ph, axis=1)
         self._rnn_init_state_ph = self.policy.get_init_state_placeholder()
 
         self._rnn_cell_scope.reuse_variables()
         with tf.variable_scope(self._rnn_cell_scope):
-            self._rnn_outputs, self._rnn_final_state = tf.nn.rnn(
+            self._rnn_outputs, self._rnn_final_state = tf.contrib.rnn.static_rnn(
                 self._rnn_cell,
                 rnn_inputs,
                 initial_state=self._rnn_init_state_ph,
@@ -143,9 +143,10 @@ class BpttDDPG(DDPG):
                                   qf_terminals,
                                   qf_obs,
                                   qf_actions,
-                                  qf_next_obs)
+                                  qf_next_obs,
+                                  **kwargs)
 
-        policy_feed = self._policy_feed_dict(obs)
+        policy_feed = self._policy_feed_dict(obs, **kwargs)
         feed.update(policy_feed)
         return feed
 
@@ -161,7 +162,7 @@ class BpttDDPG(DDPG):
         """
         return map_recursive(lambda x: x[:, t, :], action_or_obs)
 
-    def _policy_feed_dict(self, obs):
+    def _policy_feed_dict(self, obs, **kwargs):
         """
         :param obs: See output of `self._split_flat_action`.
         :return: Feed dictionary for policy training TensorFlow ops.
@@ -174,7 +175,6 @@ class BpttDDPG(DDPG):
             self.qf_with_action_input.observation_input: last_obs,
             self._rnn_inputs_ph: env_obs,
             self._rnn_init_state_ph: initial_memory_obs,
-            self.policy.observation_input: last_obs,
         }
 
     def _update_feed_dict_from_path(self, paths):

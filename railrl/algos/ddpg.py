@@ -104,9 +104,9 @@ class DDPG(OnlineAlgorithm):
             self.discount * self.target_qf.output)
         self.qf_loss = tf.reduce_mean(
             tf.square(
-                tf.sub(self.ys, self.qf.output)))
+                tf.subtract(self.ys, self.qf.output)))
         self.Q_weights_norm = tf.reduce_sum(
-            tf.pack(
+            tf.stack(
                 [tf.nn.l2_loss(v)
                  for v in
                  self.qf.get_params_internal(regularizable=True)]
@@ -224,8 +224,9 @@ class DDPG(OnlineAlgorithm):
                                      terminals,
                                      obs,
                                      actions,
-                                     next_obs)
-        policy_feed = self._policy_feed_dict(obs)
+                                     next_obs,
+                                     **kwargs)
+        policy_feed = self._policy_feed_dict(obs, **kwargs)
         # TODO(vpong): I don't think I need this
         feed = qf_feed.copy()
         feed.update(policy_feed)
@@ -259,7 +260,8 @@ class DDPG(OnlineAlgorithm):
         else:
             return actions
 
-    def _qf_feed_dict(self, rewards, terminals, obs, actions, next_obs):
+    def _qf_feed_dict(self, rewards, terminals, obs, actions, next_obs,
+                      **kwargs):
         return {
             self.rewards_placeholder: np.expand_dims(rewards, axis=1),
             self.terminals_placeholder: np.expand_dims(terminals, axis=1),
@@ -269,7 +271,7 @@ class DDPG(OnlineAlgorithm):
             self.target_policy.observation_input: next_obs,
         }
 
-    def _policy_feed_dict(self, obs):
+    def _policy_feed_dict(self, obs, **kwargs):
         return {
             self.qf_with_action_input.observation_input: obs,
             self.policy.observation_input: obs,
@@ -308,3 +310,12 @@ class DDPG(OnlineAlgorithm):
         rewards, terminals, obs, actions, next_obs = split_paths(paths)
         return self._update_feed_dict(rewards, terminals, obs, actions,
                                       next_obs)
+
+    def get_epoch_snapshot(self, epoch):
+        return dict(
+            env=self.training_env,
+            epoch=epoch,
+            policy=self.policy,
+            es=self.exploration_strategy,
+            qf=self.qf,
+        )
