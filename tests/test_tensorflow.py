@@ -240,7 +240,7 @@ class TestTensorFlowRnns(TFTestCase):
     def test_sequence_length(self):
         rnn_cell = TestTensorFlowRnns._AddOneRnn(1)
         input_ph = tf.placeholder(tf.float32, shape=(None, 3, 1))
-        rnn_inputs = tf.unpack(input_ph, axis=1)
+        rnn_inputs = tf.unstack(input_ph, axis=1)
         init_state_ph = tf.placeholder(tf.float32, shape=(None, 1))
         sequence_length_ph = tf.placeholder(tf.int32, shape=(None,))
         rnn_outputs, rnn_final_state = tf.nn.rnn(
