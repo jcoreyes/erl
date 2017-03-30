@@ -56,11 +56,14 @@ class _FrozenHiddenLstmLinearCell(tf.contrib.rnn.BasicLSTMCell):
                                                    scope=scope)
         flat_state = tf.concat(axis=1, values=lstm_state)
 
+        # Using this new scheme on the bottom left terminal in window 1 of tmux
+        # Using old scheme on the top left terminal in window 1 of tmux
+        all_inputs = tf.concat(axis=1, values=(inputs, state))
         with tf.variable_scope('env_action') as self.env_action_scope:
             env_action_logit = mlp(
-                lstm_output,
-                lstm_output.get_shape()[-1],
-                (32, self._output_dim),
+                all_inputs,
+                all_inputs.get_shape()[-1],
+                (32, 32, self._output_dim),
                 tf.nn.tanh,
             )
         return tf.nn.softmax(env_action_logit), flat_state
