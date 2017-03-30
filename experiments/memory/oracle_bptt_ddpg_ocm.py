@@ -2,6 +2,7 @@
 Use an oracle qfunction to train a policy in bptt-ddpg style.
 """
 from itertools import product
+import random
 
 from railrl.algos.oracle_bptt_ddpg import OracleUnrollBpttDDPG
 from railrl.launchers.launcher_util import (
@@ -43,7 +44,7 @@ def run_linear_ocm_exp(variant):
     oracle_mode = variant['oracle_mode']
 
     env_action_dim = num_values + 1
-    env_obs_dim= env_action_dim
+    env_obs_dim = env_action_dim
     lstm_state_size = variant['lstm_state_size']
     memory_dim = 2 * lstm_state_size
     set_seed(seed)
@@ -107,27 +108,27 @@ def run_linear_ocm_exp(variant):
 
 
 if __name__ == '__main__':
-    ORACLE_MODE = 'hint'
+    ORACLE_MODE = 'unroll'
     n_seed = 3
     exp_prefix = "dev-oracle-bptt-ddpg-ocm"
 
     """
     DDPG Params
     """
-    n_batches_per_epoch = 1000
+    n_batches_per_epoch = 100
     n_batches_per_eval = 64
     batch_size = 32
-    n_epochs = 100
+    n_epochs = 20
     lstm_state_size = 10
-    min_pool_size = 1000
+    min_pool_size = n_batches_per_epoch
     replay_pool_size = 100000
 
     mode = 'here'
     exp_id = -1
     for H, num_values, num_bptt_unrolls in product(
-        [4, 8, 16],
-        [2, 4, 8],
-        [4, 8],
+        [8],
+        [2],
+        [4],
     ):
         if num_bptt_unrolls > H:
             continue
@@ -147,6 +148,7 @@ if __name__ == '__main__':
             eval_samples=eval_samples,
             max_path_length=max_path_length,
             num_bptt_unrolls=num_bptt_unrolls,
+            soft_target_tau=1.0,
             # qf_learning_rate=1e-1,
             # policy_learning_rate=1e-1,
         )
@@ -157,9 +159,9 @@ if __name__ == '__main__':
             ddpg_params=ddpg_params,
             lstm_state_size=lstm_state_size,
             oracle_mode=ORACLE_MODE,
-            start_only_at_start=True,
         )
-        for seed in range(n_seed):
+        for _ in range(n_seed):
+            seed = random.randint(0, 10000)
             run_experiment(
                 run_linear_ocm_exp,
                 exp_prefix=exp_prefix,
@@ -167,4 +169,4 @@ if __name__ == '__main__':
                 mode=mode,
                 variant=variant,
                 exp_id=exp_id,
-        )
+            )
