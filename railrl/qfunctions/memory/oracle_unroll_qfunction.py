@@ -89,7 +89,7 @@ class OracleUnrollQFunction(NNQFunction):
             # In this case, there' no unrolling.
             final_actions = action_input
         else:
-            self._rnn_outputs, self._rnn_final_state = tf.nn.rnn(
+            self._rnn_outputs, self._rnn_final_state = tf.contrib.rnn.static_rnn(
                 self._save_rnn_cell,
                 rnn_inputs,
                 initial_state=init_state,
