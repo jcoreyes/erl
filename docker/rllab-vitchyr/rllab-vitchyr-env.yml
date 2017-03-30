@@ -22,8 +22,9 @@ dependencies:
     - matplotlib
     - opencv3=3.1.0
     - scikit-learn
-    - tensorflow=0.12.0rc0
     - pip:
+        # Tensorflow 2.0, GPU only
+        - https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-1.0.1-cp35-cp35m-linux_x86_64.whl
         - Pillow
         - atari-py
         - pyprind

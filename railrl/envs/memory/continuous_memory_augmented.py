@@ -1,9 +1,9 @@
 import numpy as np
 
 from railrl.misc.rllab_util import split_flat_product_space_into_components_n
+from rllab.core.serializable import Serializable
 from rllab.envs.base import Env
 from rllab.envs.proxy_env import ProxyEnv
-from rllab.misc.overrides import overrides
 from rllab.spaces.product import Product
 from rllab.spaces.box import Box
 
@@ -19,6 +19,7 @@ class ContinuousMemoryAugmented(ProxyEnv):
             env: Env,
             num_memory_states=10
     ):
+        Serializable.quick_init(self, locals())
         super().__init__(env)
         self._num_memory_states = num_memory_states
         self._memory_state = np.zeros(self._num_memory_states)
