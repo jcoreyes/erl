@@ -226,11 +226,9 @@ def run_experiment_here(
         exp_id=exp_id,
         seed=seed,
     )
-    if use_gpu:
-        experiment_function(variant)
-    else:
-        with tf.device("/cpu:0"):
-            experiment_function(variant)
+    if not use_gpu:
+        os.environ['CUDA_VISIBLE_DEVICES'] = ""
+    experiment_function(variant)
     reset_execution_environment()
 
 

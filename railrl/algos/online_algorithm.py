@@ -46,6 +46,7 @@ class OnlineAlgorithm(RLAlgorithm):
             n_updates_per_time_step=1,
             batch_norm_config=None,
             replay_pool: ReplayBuffer = None,
+            allow_gpu_growth=True,
     ):
         """
         :param env: Environment
@@ -66,6 +67,11 @@ class OnlineAlgorithm(RLAlgorithm):
         step.
         :param batch_norm_config: Config for batch_norm. If set, batch_norm
         is enabled.
+        :param replay_pool: Replay pool class
+        :param allow_gpu_growth: Allow the GPU to grow. If True, TensorFlow
+        won't pre-allocate memory, but this will be a bit slower.
+
+        http://stackoverflow.com/questions/34199233/how-to-prevent-tensorflow-from-allocating-the-totality-of-a-gpu-memory
         :return:
         """
         assert min_pool_size >= batch_size
@@ -102,9 +108,9 @@ class OnlineAlgorithm(RLAlgorithm):
             self.replay_pool_size,
             self.env,
         )
-        self.sess = tf.get_default_session() or tf.Session()
-        with self.sess.as_default():
-            self._init_tensorflow_ops()
+        config = tf.ConfigProto()
+        config.gpu_options.allow_growth = allow_gpu_growth
+        self.sess = tf.Session(config=config)
         self.es_path_returns = []
 
         self.eval_sampler = BatchSampler(self)
@@ -141,6 +147,11 @@ class OnlineAlgorithm(RLAlgorithm):
 
     @overrides
     def train(self):
+        with self.sess.as_default():
+            self._init_tensorflow_ops()
+            self._train()
+
+    def _train(self):
         n_steps_total = 0
         tf.summary.FileWriter(logger.get_snapshot_dir(), self.sess.graph)
         with self.sess.as_default():
