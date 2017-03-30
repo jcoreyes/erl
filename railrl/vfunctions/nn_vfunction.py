@@ -1,5 +1,4 @@
 from railrl.predictors.state_network import StateNetwork
-from rllab.core.serializable import Serializable
 
 
 class NNVFunction(StateNetwork):
@@ -10,3 +9,4 @@ class NNVFunction(StateNetwork):
     ):
         self.setup_serialization(locals())
         super().__init__(name_or_scope=name_or_scope, output_dim=1, **kwargs)
+        self._create_network()

@@ -47,6 +47,7 @@ class NNPolicy(StateNetwork, Policy, metaclass=abc.ABCMeta):
     def _flatten_action(action):
         return np.squeeze(action)
 
+
 class FeedForwardPolicy(NNPolicy):
     def __init__(
             self,
@@ -61,6 +62,7 @@ class FeedForwardPolicy(NNPolicy):
             **kwargs
     ):
         self.setup_serialization(locals())
+        super().__init__(name_or_scope=name_or_scope, **kwargs)
         self.observation_hidden_sizes = observation_hidden_sizes
         self.hidden_W_init = hidden_W_init or he_uniform_initializer()
         self.hidden_b_init = hidden_b_init or tf.constant_initializer(0.)
@@ -70,7 +72,7 @@ class FeedForwardPolicy(NNPolicy):
             -3e-3, 3e-3)
         self.hidden_nonlinearity = hidden_nonlinearity
         self.output_nonlinearity = output_nonlinearity
-        super().__init__(name_or_scope=name_or_scope, **kwargs)
+        self._create_network()
 
     def _create_network_internal(self, observation_input=None):
         assert observation_input is not None
