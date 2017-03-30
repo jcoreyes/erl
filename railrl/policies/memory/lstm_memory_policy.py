@@ -1,6 +1,7 @@
 import tensorflow as tf
 
 from railrl.policies.memory.rnn_cell_policy import RnnCellPolicy
+from railrl.core.tf_util import mlp
 
 
 class _LstmLinearCell(tf.contrib.rnn.BasicLSTMCell):
@@ -39,6 +40,32 @@ class _LstmLinearCell(tf.contrib.rnn.BasicLSTMCell):
         return self._output_dim
 
 
+class _FrozenHiddenLstmLinearCell(tf.contrib.rnn.BasicLSTMCell):
+    def __init__(
+            self,
+            num_units,
+            output_dim,
+            **kwargs
+    ):
+        super().__init__(num_units, **kwargs)
+        self._output_dim = output_dim
+
+    def __call__(self, inputs, state, scope=None):
+        split_state = tf.split(axis=1, num_or_size_splits=2, value=state)
+        lstm_output, lstm_state = super().__call__(inputs, split_state,
+                                                   scope=scope)
+        flat_state = tf.concat(axis=1, values=lstm_state)
+
+        with tf.variable_scope('env_action') as self.env_action_scope:
+            env_action_logit = mlp(
+                lstm_output,
+                lstm_output.get_shape()[-1],
+                (32, self._output_dim),
+                tf.nn.tanh,
+            )
+        return tf.nn.softmax(env_action_logit), flat_state
+
+
 class LstmMemoryPolicy(RnnCellPolicy):
     """
     write = affine function of environment observation and memory
@@ -52,6 +79,7 @@ class LstmMemoryPolicy(RnnCellPolicy):
             action_dim,
             memory_dim,
             init_state=None,
+            freeze_hidden=False,
             **kwargs
     ):
         assert memory_dim % 2 == 0
@@ -61,6 +89,7 @@ class LstmMemoryPolicy(RnnCellPolicy):
         self._rnn_cell = None
         self._rnn_cell_scope = None
         self._num_lstm_units = self._memory_dim / 2
+        self.freeze_hidden = freeze_hidden
         if init_state is None:
             init_state = tf.placeholder(
                 tf.float32,
@@ -78,13 +107,26 @@ class LstmMemoryPolicy(RnnCellPolicy):
     def _create_network_internal(self, observation_input=None, init_state=None):
         assert observation_input is not None
         env_obs, memory_obs = observation_input
-        self._rnn_cell = _LstmLinearCell(
-            self._num_lstm_units,
-            self._action_dim,
-        )
+        if self.freeze_hidden:
+            self._rnn_cell = _FrozenHiddenLstmLinearCell(
+                self._num_lstm_units,
+                self._action_dim,
+            )
+        else:
+            self._rnn_cell = _LstmLinearCell(
+                self._num_lstm_units,
+                self._action_dim,
+            )
         with tf.variable_scope("lstm") as self._rnn_cell_scope:
             cell_output = self._rnn_cell(env_obs, memory_obs)
         return cell_output
+
+    def get_params_internal(self, env_only=False):
+        if env_only:
+            return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,
+                                     self._rnn_cell.env_action_scope.name)
+        else:
+            return super().get_params_internal()
 
     @property
     def rnn_cell(self):

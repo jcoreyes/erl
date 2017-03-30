@@ -36,6 +36,7 @@ def run_linear_ocm_exp(variant):
     lstm_state_size = variant['lstm_state_size']
     memory_dim = 2 * lstm_state_size
     algo_class = variant['algo_class']
+    freeze_hidden = variant['freeze_hidden']
 
     set_seed(seed)
 
@@ -54,6 +55,7 @@ def run_linear_ocm_exp(variant):
         action_dim=env_action_dim,
         memory_dim=memory_dim,
         env_spec=env.spec,
+        freeze_hidden=freeze_hidden,
     )
 
     es = ProductStrategy([OneHotSampler(), NoopStrategy()])
@@ -67,6 +69,7 @@ def run_linear_ocm_exp(variant):
         policy,
         qf,
         env_obs_dim=env_action_dim,
+        freeze_hidden=freeze_hidden,
         **ddpg_params
     )
 
@@ -87,9 +90,10 @@ if __name__ == '__main__':
     lstm_state_size = 10
     min_pool_size = 1000
     replay_pool_size = 100000
-    # algo_class = BpttDDPG
+    algo_class = BpttDDPG
     # algo_class = WritebackBpttDDPG
-    algo_class = SumBpttDDPG
+    # algo_class = SumBpttDDPG
+    freeze_hidden = True
 
     mode = 'here'
     exp_id = -1
@@ -126,6 +130,7 @@ if __name__ == '__main__':
             ddpg_params=ddpg_params,
             lstm_state_size=lstm_state_size,
             algo_class=algo_class,
+            freeze_hidden=freeze_hidden,
         )
         for seed in range(n_seed):
             run_experiment(

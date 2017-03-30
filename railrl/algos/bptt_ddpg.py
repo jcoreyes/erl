@@ -32,6 +32,7 @@ class BpttDDPG(DDPG):
             env_obs_dim=None,
             replay_pool_size=10000,
             replay_buffer_class=SubtrajReplayBuffer,
+            freeze_hidden=False,
             **kwargs
     ):
         """
@@ -46,6 +47,7 @@ class BpttDDPG(DDPG):
         """
         self._num_bptt_unrolls = num_bptt_unrolls
         self._env_obs_dim = env_obs_dim
+        self._freeze_hidden = freeze_hidden
 
         self._rnn_cell_scope = policy.rnn_cell_scope
         self._rnn_cell = policy.rnn_cell
@@ -91,10 +93,16 @@ class BpttDDPG(DDPG):
         )
         self.policy_surrogate_loss = - tf.reduce_mean(
             self.qf_with_action_input.output)
+        if self._freeze_hidden:
+            trainable_policy_params = self.policy.get_params(env_only=True)
+        else:
+            trainable_policy_params = self.policy.get_params_internal()
         self.train_policy_op = tf.train.AdamOptimizer(
-            self.policy_learning_rate).minimize(
+            self.policy_learning_rate
+        ).minimize(
             self.policy_surrogate_loss,
-            var_list=self.policy.get_params_internal())
+            var_list=trainable_policy_params
+        )
 
     def _sample_minibatch(self):
         return self.pool.random_subtrajectories(self.batch_size)
