@@ -103,6 +103,9 @@ class DDPG(OnlineAlgorithm):
             name_or_scope=TARGET_PREFIX + self.qf.scope_name,
             action_input=self.target_policy.output
         )
+        # self.qf = self.qf.get_copy(
+        #     policy=self.target_policy,
+        # )
         self.qf.sess = self.sess
         self.policy.sess = self.sess
         self.target_qf.sess = self.sess
