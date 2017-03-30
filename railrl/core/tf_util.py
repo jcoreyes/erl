@@ -425,14 +425,9 @@ def vec2lower_triangle(vec, dim):
      [M[m(n-1)], M[m(n-1)+1], ...,       M[mn-2], e^M[mn-1]]
     """
     L = tf.reshape(vec, [-1, dim, dim])
-    if int(tf.__version__.split('.')[1]) >= 10:
-        L = tf.matrix_band_part(L, -1, 0) - tf.matrix_diag(
-            tf.matrix_diag_part(L)) + tf.matrix_diag(
-            tf.exp(tf.matrix_diag_part(L)))
-    else:
-        L = tf.batch_matrix_band_part(L, -1, 0) - tf.matrix_diag(
-            tf.batch_matrix_diag_part(L)) + tf.matrix_diag(
-            tf.exp(tf.batch_matrix_diag_part(L)))
+    L = tf.matrix_band_part(L, -1, 0) - tf.matrix_diag(
+        tf.matrix_diag_part(L)) + tf.matrix_diag(
+        tf.exp(tf.matrix_diag_part(L)))
     return L
 
 

@@ -103,7 +103,7 @@ class TestTensorFlow(TFTestCase):
         actual_op = tf.matmul(
             batch,
             batch,
-            adj_y=True,
+            transpose_b=True,
         )
         actual_op_flat = tf.squeeze(actual_op, [1])
         actual = self.sess.run(
@@ -193,7 +193,7 @@ class TestTensorFlow(TFTestCase):
 
 
 class TestTensorFlowRnns(TFTestCase):
-    class _AddOneRnn(tf.nn.rnn_cell.RNNCell):
+    class _AddOneRnn(tf.contrib.rnn.RNNCell):
         """
         A simple RNN that just adds one to the state. The output is input +
         state.
@@ -212,7 +212,7 @@ class TestTensorFlowRnns(TFTestCase):
         def output_size(self):
             return self._dim
 
-    class _AddOneRnnLastActionInState(tf.nn.rnn_cell.RNNCell):
+    class _AddOneRnnLastActionInState(tf.contrib.rnn.RNNCell):
         """
         Same as _AddOneRNN, but also add the last action to the state state.
         """
@@ -243,7 +243,7 @@ class TestTensorFlowRnns(TFTestCase):
         rnn_inputs = tf.unstack(input_ph, axis=1)
         init_state_ph = tf.placeholder(tf.float32, shape=(None, 1))
         sequence_length_ph = tf.placeholder(tf.int32, shape=(None,))
-        rnn_outputs, rnn_final_state = tf.nn.rnn(
+        rnn_outputs, rnn_final_state = tf.contrib.rnn.static_rnn(
             rnn_cell,
             rnn_inputs,
             initial_state=init_state_ph,

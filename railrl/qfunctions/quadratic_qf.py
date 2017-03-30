@@ -67,7 +67,7 @@ class QuadraticQF(NNQFunction, OptimizableQFunction):
         h1 = tf.matmul(
             h1,
             h1,
-            adj_y=True,  # Compute h1 * h1^T
+            transpose_b=True,  # Compute h1 * h1^T
         )                              # h1_shape = batch:1:1
         h1 = tf.squeeze(h1, [1])       # h1_shape = batch:1
         return -0.5 * h1
