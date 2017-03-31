@@ -50,6 +50,10 @@ class NAF(OnlineAlgorithm):
             exploration_strategy=exploration_strategy,
             **kwargs)
 
+        with self.sess.as_default():
+            self._init_tensorflow_ops()
+
+
     @overrides
     def _init_tensorflow_ops(self):
         self.sess.run(tf.global_variables_initializer())

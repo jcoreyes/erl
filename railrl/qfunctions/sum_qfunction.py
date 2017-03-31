@@ -6,6 +6,10 @@ from railrl.qfunctions.nn_qfunction import NNQFunction
 
 class SumCritic(NNQFunction):
     """Just output the sum of the inputs. This is used to debug."""
+    def __init__(self, *args, **kwargs):
+        self.setup_serialization(locals())
+        super().__init__(*args, **kwargs)
+        self._create_network()
 
     def _create_network_internal(self, observation_input, action_input):
         observation_input = self._process_layer(observation_input,

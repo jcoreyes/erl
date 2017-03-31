@@ -27,14 +27,15 @@ class QuadraticQF(NNQFunction, OptimizableQFunction):
             **kwargs
     ):
         self.setup_serialization(locals())
-        self._policy = policy
-        if observation_input is None:
-            observation_input = self._policy.observation_input
         super(QuadraticQF, self).__init__(
             name_or_scope=name_or_scope,
             observation_input=observation_input,
             **kwargs
         )
+        self._policy = policy
+        if observation_input is None:
+            observation_input = self._policy.observation_input
+        self._create_network()
 
     def _create_network_internal(self, observation_input, action_input):
         observation_input = self._process_layer(observation_input,
