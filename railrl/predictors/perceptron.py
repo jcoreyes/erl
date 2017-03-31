@@ -28,6 +28,7 @@ class Perceptron(NeuralNetwork):
         self.b_name = b_name
         self.W_initializer = W_initializer
         self.b_initializer = b_initializer
+        self.input_tensor = input_tensor
         self._create_network()
 
     def _create_network_internal(self, input_tensor=None):
@@ -48,5 +49,5 @@ class Perceptron(NeuralNetwork):
     @overrides
     def _input_name_to_values(self):
         return dict(
-            input_tensor=None,
+            input_tensor=self.input_tensor,
         )
