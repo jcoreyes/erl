@@ -20,6 +20,9 @@ class MlpStateActionNetwork(StateActionNetwork):
             **kwargs
     ):
         self.setup_serialization(locals())
+        super(MlpStateActionNetwork, self).__init__(name_or_scope=name_or_scope,
+                                                    output_dim=output_dim,
+                                                    **kwargs)
         self.hidden_sizes = hidden_sizes
         self.hidden_W_init = hidden_W_init or he_uniform_initializer()
         self.hidden_b_init = hidden_b_init or tf.constant_initializer(0.)
@@ -29,9 +32,7 @@ class MlpStateActionNetwork(StateActionNetwork):
             -3e-3, 3e-3)
         self.hidden_nonlinearity = hidden_nonlinearity
         self.output_nonlinearity = output_nonlinearity
-        super(MlpStateActionNetwork, self).__init__(name_or_scope=name_or_scope,
-                                                    output_dim=output_dim,
-                                                    **kwargs)
+        self._create_network()
 
     def _create_network_internal(self, observation_input, action_input):
         observation_input = self._process_layer(observation_input,

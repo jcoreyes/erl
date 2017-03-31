@@ -64,13 +64,15 @@ class NeuralNetwork(Parameterized, Serializable):
         """
         return self._full_scope_name
 
-    def _create_network(self, **inputs):
+    # TODO(vitchyr): consider making this a public method
+    def _create_network(self):
         """
-        This method should be called by subclasses after the super call is made.
+        This method should be called by concrete instances to create the
+        network.
 
-        :param inputs: named Tensors
         :return: None
         """
+        inputs = self._input_name_to_values
         if self._batch_norm:
             # TODO(vpong): This flag needs to somehow propagate to sub-networks
             self._switch_to_bn_training_mode_on()
@@ -92,6 +94,35 @@ class NeuralNetwork(Parameterized, Serializable):
         )
         self._full_scope_name = scope.name
         self.switch_to_eval_mode()
+
+    def _placeholder_if_none(self, input_layer, shape, name, dtype):
+        """
+        Returns a placeholder if the input is None.
+        """
+        if input_layer is None:
+            with tf.variable_scope(self.scope_name):
+                input_layer = tf.placeholder(
+                    dtype=dtype,
+                    shape=shape,
+                    name=name,
+                )
+        return input_layer
+
+    def _batch_placeholders_if_none(self, input_layer, int_or_dimensions, name,
+                                    dtype):
+        """
+        Returns placeholders for batches if the input is None.
+
+        See `tf_util.create_batch_placeholders` for detail.
+        """
+        if input_layer is None:
+            with tf.variable_scope(self.scope_name):
+                input_layer = tf_util.create_batch_placeholders(
+                    int_or_dimensions=int_or_dimensions,
+                    name=name,
+                    dtype=dtype,
+                )
+        return input_layer
 
     def _switch_to_bn_training_mode_on(self):
         self._is_bn_in_training_mode = True

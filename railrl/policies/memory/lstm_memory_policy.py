@@ -87,25 +87,20 @@ class LstmMemoryPolicy(RnnCellPolicy):
     ):
         assert memory_dim % 2 == 0
         self.setup_serialization(locals())
+        super().__init__(name_or_scope=name_or_scope, **kwargs)
         self._memory_dim = memory_dim
         self._action_dim = action_dim
         self._rnn_cell = None
         self._rnn_cell_scope = None
         self._num_lstm_units = self._memory_dim / 2
         self.freeze_hidden = freeze_hidden
-        if init_state is None:
-            init_state = tf.placeholder(
-                tf.float32,
-                [None, self._num_lstm_units * 2],
-                name='lstm_init_state',
-            )
-        self.init_state = init_state
-        super().__init__(
-            name_or_scope=name_or_scope,
-            create_network_dict=dict(
-                init_state=self.init_state,
-            ),
-            **kwargs)
+        self.init_state = self._placeholder_if_none(
+            init_state,
+            [None, self._num_lstm_units * 2],
+            name='lstm_init_state',
+            dtype=tf.float32,
+        )
+        self._create_network()
 
     def _create_network_internal(self, observation_input=None, init_state=None):
         assert observation_input is not None

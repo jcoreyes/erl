@@ -16,23 +16,15 @@ class OracleQFunction(NNQFunction):
             **kwargs
     ):
         self.setup_serialization(locals())
+        super().__init__(name_or_scope=name_or_scope, **kwargs)
         self._ocm_env = env
-        if target_labels is None:
-            target_labels = tf.placeholder(
-                tf.int32,
-                shape=[
-                    None,
-                    self._ocm_env.wrapped_env.action_space.flat_dim,
-                ],
-                name='oracle_target_labels',
-            )
-        self.target_labels = target_labels
-        super().__init__(
-            name_or_scope=name_or_scope,
-            create_network_dict=dict(
-                target_labels=self.target_labels,
-            ),
-            **kwargs)
+        self.target_labels = self._placeholder_if_none(
+            target_labels,
+            shape=[None, self._ocm_env.wrapped_env.action_space.flat_dim],
+            name='oracle_target_labels',
+            dtype=tf.int32,
+        )
+        self._create_network()
 
     def _create_network_internal(
             self,
