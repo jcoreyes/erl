@@ -24,6 +24,7 @@ class HintMlpMemoryQFunction(NNQFunction):
             **kwargs
     ):
         self.setup_serialization(locals())
+        super().__init__(name_or_scope=name_or_scope, **kwargs)
         self.hidden_W_init = hidden_W_init or he_uniform_initializer()
         self.hidden_b_init = hidden_b_init or tf.constant_initializer(0.)
         self.output_W_init = output_W_init or tf.random_uniform_initializer(
@@ -34,23 +35,13 @@ class HintMlpMemoryQFunction(NNQFunction):
         self.observation_hidden_sizes = observation_hidden_sizes
         self.hidden_nonlinearity = hidden_nonlinearity
         self.hint_dim = hint_dim
-        if target_labels is None:
-            target_labels = tf.placeholder(
-                tf.float32,
-                shape=[
-                    None,
-                    self.hint_dim,
-                ],
-                name='target_labels',
-            )
-        self.target_labels = target_labels
-        super().__init__(
-            name_or_scope=name_or_scope,
-            create_network_dict=dict(
-                target_labels=self.target_labels,
-            ),
-            **kwargs
+        self.target_labels = self._placeholder_if_none(
+            target_labels,
+            shape=[None, self.hint_dim],
+            name='target_labels',
+            dtype=tf.float32,
         )
+        self._create_network()
 
     def _create_network_internal(
             self,

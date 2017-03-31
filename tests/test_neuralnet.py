@@ -431,7 +431,7 @@ class TestMmlp(NeuralNetwork):
     ):
         self.input_tensor = tf.placeholder(tf.float32, shape=[None, 1])
         super(TestMmlp, self).__init__(name_or_scope, **kwargs)
-        self._create_network(input_tensor=self.input_tensor)
+        self._create_network()
 
     @overrides
     def _create_network_internal(self, input_tensor=None):

@@ -506,7 +506,7 @@ def xavier_uniform_initializer():
     return _initializer
 
 
-def create_placeholder(int_or_dimensions, name):
+def create_batch_placeholders(int_or_dimensions, name, dtype=tf.float32):
     """
     Create [None, dimensions] placeholders with name.
 
@@ -514,7 +514,8 @@ def create_placeholder(int_or_dimensions, name):
     appended to each name.
 
     :param int_or_dimensions: int or list of int
-    :param name:
+    :param name: String. Name of the placeholder
+    :param dtype: Tensorflow dtype.
     :return: if `int_or_dimensions` is an int, return a placeholder.
     Otherwise, return a tuple of placeholders, one for each int in
     `int_or_dimensions`
@@ -522,7 +523,7 @@ def create_placeholder(int_or_dimensions, name):
     if isinstance(int_or_dimensions, Iterable):
         return tuple(
             tf.placeholder(
-                tf.float32,
+                dtype,
                 [None, dim],
                 "{0}_{1}".format(name, number)
             )
@@ -530,7 +531,7 @@ def create_placeholder(int_or_dimensions, name):
         )
     else:
         return tf.placeholder(
-            tf.float32,
+            dtype,
             [None, int_or_dimensions],
             name,
         )

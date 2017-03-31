@@ -18,6 +18,7 @@ class MlpMemoryQFunction(NNQFunction):
             **kwargs
     ):
         self.setup_serialization(locals())
+        super().__init__(name_or_scope=name_or_scope, **kwargs)
         self.hidden_W_init = hidden_W_init or he_uniform_initializer()
         self.hidden_b_init = hidden_b_init or tf.constant_initializer(0.)
         self.output_W_init = output_W_init or tf.random_uniform_initializer(
@@ -27,7 +28,7 @@ class MlpMemoryQFunction(NNQFunction):
         self.embedded_hidden_sizes = embedded_hidden_sizes
         self.observation_hidden_sizes = observation_hidden_sizes
         self.hidden_nonlinearity = hidden_nonlinearity
-        super().__init__(name_or_scope=name_or_scope, **kwargs)
+        self._create_network()
 
     def _create_network_internal(
             self,

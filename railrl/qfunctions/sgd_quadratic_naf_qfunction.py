@@ -12,6 +12,7 @@ class SgdQuadraticNAF(NAFQFunction):
     def __init__(self, name_or_scope, **kwargs):
         self.setup_serialization(locals())
         super().__init__(name_or_scope=name_or_scope, **kwargs)
+        self._create_network()
         self._implicit_policy = None
 
     """

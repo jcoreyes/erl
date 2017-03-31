@@ -25,6 +25,7 @@ class OracleUnrollQFunction(NNQFunction):
             **kwargs
     ):
         self.setup_serialization(locals())
+        super().__init__(name_or_scope=name_or_scope, **kwargs)
         self._ocm_env = env
         self._policy = policy
         self._save_rnn_cell = SaveOutputRnn(
@@ -33,38 +34,25 @@ class OracleUnrollQFunction(NNQFunction):
         self._rnn_init_state_ph = self._policy.get_init_state_placeholder()
         self._rnn_cell_scope = self._policy.rnn_cell_scope
 
-        if save_rnn_inputs is None:
-            save_rnn_inputs = tf.placeholder(
-                tf.float32,
-                [None, max_horizon_length - num_bptt_unrolls, env_obs_dim],
-                name='rnn_time_inputs',
-            )
-        if sequence_lengths is None:
-            sequence_lengths = tf.placeholder(
-                tf.int32,
-                shape=[None],
-                name='sequence_length',
-            )
-        if target_labels is None:
-            target_labels = tf.placeholder(
-                tf.int32,
-                shape=[
-                    None,
-                    self._ocm_env.wrapped_env.action_space.flat_dim,
-                ],
-                name='oracle_target_labels',
-            )
-        self.save_rnn_inputs = save_rnn_inputs
-        self.sequence_lengths = sequence_lengths
-        self.target_labels = target_labels
-        super().__init__(
-            name_or_scope=name_or_scope,
-            create_network_dict=dict(
-                target_labels=self.target_labels,
-                sequence_lengths=self.sequence_lengths,
-                save_rnn_inputs=self.save_rnn_inputs,
-            ),
-            **kwargs)
+        self.save_rnn_inputs = self._placeholder_if_none(
+            save_rnn_inputs,
+            shape=[None, max_horizon_length - num_bptt_unrolls, env_obs_dim],
+            name='rnn_time_inputs',
+            dtype=tf.float32,
+        )
+        self.sequence_lengths = self._placeholder_if_none(
+            sequence_lengths,
+            shape=[None],
+            name='sequence_length',
+            dtype=tf.int32,
+        )
+        self.target_labels = self._placeholder_if_none(
+            target_labels,
+            shape=[None, self._ocm_env.wrapped_env.action_space.flat_dim],
+            name='oracle_target_labels',
+            dtype=tf.int32,
+        )
+        self._create_network()
 
     @property
     def sequence_length_placeholder(self):
