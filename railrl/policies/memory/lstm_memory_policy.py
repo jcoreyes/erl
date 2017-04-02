@@ -115,6 +115,14 @@ class LstmMemoryPolicy(RnnCellPolicy):
                 self._num_lstm_units,
                 self._action_dim,
             )
+        # TODO(vitchyr): I'm pretty sure that this rnn_cell_scope should NOT
+        # be passed into the _rnn_cell method. Basically, it should be passed
+        # to other functions like static_rnn. It seems that the scope that
+        # should be passed into static_rnn is the scope *surrounding* the
+        # call to the rnn's __call__ method, and NOT the scope that should be
+        # passed in to the __call__ method.
+        #
+        # I should verify this.
         with tf.variable_scope("rnn_cell") as self._rnn_cell_scope:
             cell_output = self._rnn_cell(env_obs, memory_obs)
         return cell_output
