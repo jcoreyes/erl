@@ -8,7 +8,6 @@ from railrl.algos.ddpg import DDPG
 from railrl.data_management.subtraj_replay_buffer import (
     SubtrajReplayBuffer
 )
-from railrl.misc.rllab_util import split_flat_product_space_into_components_n
 from railrl.policies.memory.rnn_cell_policy import RnnCellPolicy
 from railrl.pythonplusplus import map_recursive
 from railrl.qfunctions.nn_qfunction import NNQFunction
@@ -89,7 +88,7 @@ class BpttDDPG(DDPG):
             self._rnn_final_state,
         )
         self.qf_with_action_input = self.qf.get_weight_tied_copy(
-            action_input=self._final_rnn_action
+            action_input=self._final_rnn_action,
         )
         self.policy_surrogate_loss = - tf.reduce_mean(
             self.qf_with_action_input.output)
@@ -101,7 +100,7 @@ class BpttDDPG(DDPG):
             self.policy_learning_rate
         ).minimize(
             self.policy_surrogate_loss,
-            var_list=trainable_policy_params
+            var_list=trainable_policy_params,
         )
 
     def _sample_minibatch(self):
