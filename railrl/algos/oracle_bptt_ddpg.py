@@ -95,9 +95,9 @@ class OracleBpttDDPG(BpttDDPG):
 
 
 class OracleUnrollBpttDDPG(OracleBpttDDPG):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, unroll_through_target_policy=False, **kwargs):
         # TODO(vitchyr): pass this in
-        self.unroll_through_target_policy = True
+        self.unroll_through_target_policy = unroll_through_target_policy
         super().__init__(*args, **kwargs)
 
     def _qf_feed_dict(self, rewards, terminals, obs, actions, next_obs,

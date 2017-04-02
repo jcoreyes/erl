@@ -148,7 +148,8 @@ if __name__ == '__main__':
             eval_samples=eval_samples,
             max_path_length=max_path_length,
             num_bptt_unrolls=num_bptt_unrolls,
-            soft_target_tau=1.0,
+            # unroll_through_target_policy=False,
+            # soft_target_tau=1.0,
             # qf_learning_rate=1e-1,
             # policy_learning_rate=1e-1,
         )
