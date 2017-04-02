@@ -18,18 +18,19 @@ class _LstmLinearCell(tf.contrib.rnn.BasicLSTMCell):
         self._output_dim = output_dim
 
     def __call__(self, inputs, state, scope=None):
-        split_state = tf.split(axis=1, num_or_size_splits=2, value=state)
-        lstm_output, lstm_state = super().__call__(inputs, split_state,
-                                                   scope=scope)
-        flat_state = tf.concat(axis=1, values=lstm_state)
+        with tf.variable_scope(scope or "linear_lstm") as self.scope:
+            split_state = tf.split(axis=1, num_or_size_splits=2, value=state)
+            lstm_output, lstm_state = super().__call__(inputs, split_state,
+                                                       scope=self.scope)
+            flat_state = tf.concat(axis=1, values=lstm_state)
 
-        with tf.variable_scope('softmax'):
-            W = tf.get_variable('W', [self._num_units, self._output_dim])
-            b = tf.get_variable('b', [self._output_dim],
-                                initializer=tf.constant_initializer(0.0))
+            with tf.variable_scope('softmax'):
+                W = tf.get_variable('W', [self._num_units, self._output_dim])
+                b = tf.get_variable('b', [self._output_dim],
+                                    initializer=tf.constant_initializer(0.0))
 
-        env_action_logit = tf.matmul(lstm_output, W) + b
-        return tf.nn.softmax(env_action_logit), flat_state
+            env_action_logit = tf.matmul(lstm_output, W) + b
+            return tf.nn.softmax(env_action_logit), flat_state
 
     @property
     def state_size(self):
@@ -51,21 +52,20 @@ class _FrozenHiddenLstmLinearCell(tf.contrib.rnn.BasicLSTMCell):
         self._output_dim = output_dim
 
     def __call__(self, inputs, state, scope=None):
-        split_state = tf.split(axis=1, num_or_size_splits=2, value=state)
-        lstm_output, lstm_state = super().__call__(inputs, split_state,
-                                                   scope=scope)
-        flat_state = tf.concat(axis=1, values=lstm_state)
+        with tf.variable_scope(scope or "frozen_hidden_lstm_lin") as new_scope:
+            split_state = tf.split(axis=1, num_or_size_splits=2, value=state)
+            lstm_output, lstm_state = super().__call__(inputs, split_state,
+                                                       scope=new_scope)
+            flat_state = tf.concat(axis=1, values=lstm_state)
 
-        # Using this new scheme on the bottom left terminal in window 1 of tmux
-        # Using old scheme on the top left terminal in window 1 of tmux
-        all_inputs = tf.concat(axis=1, values=(inputs, state))
-        with tf.variable_scope('env_action') as self.env_action_scope:
-            env_action_logit = mlp(
-                all_inputs,
-                all_inputs.get_shape()[-1],
-                (32, 32, self._output_dim),
-                tf.nn.tanh,
-            )
+            all_inputs = tf.concat(axis=1, values=(inputs, state))
+            with tf.variable_scope('env_action') as self.env_action_scope:
+                env_action_logit = mlp(
+                    all_inputs,
+                    all_inputs.get_shape()[-1],
+                    (32, 32, self._output_dim),
+                    tf.nn.tanh,
+                )
         return tf.nn.softmax(env_action_logit), flat_state
 
 
@@ -115,7 +115,7 @@ class LstmMemoryPolicy(RnnCellPolicy):
                 self._num_lstm_units,
                 self._action_dim,
             )
-        with tf.variable_scope("lstm") as self._rnn_cell_scope:
+        with tf.variable_scope("rnn_cell") as self._rnn_cell_scope:
             cell_output = self._rnn_cell(env_obs, memory_obs)
         return cell_output
 

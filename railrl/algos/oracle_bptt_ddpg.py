@@ -2,6 +2,7 @@
 :author: Vitchyr Pong
 """
 import numpy as np
+import tensorflow as tf
 from railrl.algos.bptt_ddpg import BpttDDPG
 from railrl.data_management.ocm_subtraj_replay_buffer import (
     OcmSubtrajReplayBuffer
@@ -94,6 +95,11 @@ class OracleBpttDDPG(BpttDDPG):
 
 
 class OracleUnrollBpttDDPG(OracleBpttDDPG):
+    def __init__(self, *args, **kwargs):
+        # TODO(vitchyr): pass this in
+        self.unroll_through_target_policy = True
+        super().__init__(*args, **kwargs)
+
     def _qf_feed_dict(self, rewards, terminals, obs, actions, next_obs,
                       target_numbers=None, times=None):
         sequence_lengths = np.squeeze(self.env.horizon - times[:, -1])
@@ -118,3 +124,50 @@ class OracleUnrollBpttDDPG(OracleBpttDDPG):
         qf_feed_dict[self.qf.sequence_length_placeholder] = sequence_lengths
         qf_feed_dict[self.qf.rest_of_obs_placeholder] = rest_of_obs
         return qf_feed_dict
+
+    def _init_policy_ops(self):
+        self._rnn_inputs_ph = tf.placeholder(
+            tf.float32,
+            [None, self._num_bptt_unrolls, self._env_obs_dim],
+            name='rnn_time_inputs',
+        )
+        rnn_inputs = tf.unstack(self._rnn_inputs_ph, axis=1)
+        self._rnn_init_state_ph = self.policy.get_init_state_placeholder()
+
+        # This call isn't REALLY necessary since OracleUnrollQFunction will
+        # probably already make a call this scope's reuse_variable(),
+        # but it's good practice to have this here.
+        self._rnn_cell_scope.reuse_variables()
+        self._rnn_outputs, self._rnn_final_state = tf.contrib.rnn.static_rnn(
+            self._rnn_cell,
+            rnn_inputs,
+            initial_state=self._rnn_init_state_ph,
+            dtype=tf.float32,
+            scope=self._rnn_cell_scope,
+        )
+        self._final_rnn_output = self._rnn_outputs[-1]
+        self._final_rnn_action = (
+            self._final_rnn_output,
+            self._rnn_final_state,
+        )
+        if self.unroll_through_target_policy:
+            self.qf_with_action_input = self.qf.get_weight_tied_copy(
+                action_input=self._final_rnn_action,
+                policy=self.target_policy,
+            )
+        else:
+            self.qf_with_action_input = self.qf.get_weight_tied_copy(
+                action_input=self._final_rnn_action,
+            )
+        self.policy_surrogate_loss = - tf.reduce_mean(
+            self.qf_with_action_input.output)
+        if self._freeze_hidden:
+            trainable_policy_params = self.policy.get_params(env_only=True)
+        else:
+            trainable_policy_params = self.policy.get_params_internal()
+        self.train_policy_op = tf.train.AdamOptimizer(
+            self.policy_learning_rate
+        ).minimize(
+            self.policy_surrogate_loss,
+            var_list=trainable_policy_params,
+        )

@@ -97,9 +97,6 @@ class DDPG(OnlineAlgorithm):
     def _init_tensorflow_ops(self):
         # Initialize variables for get_copy to work
         self.sess.run(tf.global_variables_initializer())
-        self.qf = self.qf.get_copy(
-            policy=self.target_policy,
-        )
         self.target_policy = self.policy.get_copy(
             name_or_scope=TARGET_PREFIX + self.policy.scope_name,
         )
@@ -207,7 +204,6 @@ class DDPG(OnlineAlgorithm):
             n_steps_total=None,
             n_steps_current_epoch=None,
     ):
-
         train_ops = [
             self.train_policy_op,
             self.train_qf_op,
