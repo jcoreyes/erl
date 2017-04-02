@@ -36,12 +36,6 @@ class OracleBpttDDPG(BpttDDPG):
         else:
             self.train_qf_op = None
 
-    def _get_training_ops(self, **kwargs):
-        ops = super()._get_training_ops(**kwargs)
-        if None in ops:
-            ops.remove(None)
-        return ops
-
     def _qf_feed_dict(self, rewards, terminals, obs, actions, next_obs,
                       target_numbers=None, times=None):
         indices = target_numbers[:, 0]

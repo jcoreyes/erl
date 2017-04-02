@@ -15,6 +15,7 @@ from railrl.misc.rllab_util import (
 )
 from railrl.algos.online_algorithm import OnlineAlgorithm
 from railrl.policies.nn_policy import NNPolicy
+from railrl.pythonplusplus import filter_recursive
 from railrl.qfunctions.nn_qfunction import NNQFunction
 from rllab.misc import logger
 from rllab.misc import special
@@ -96,16 +97,16 @@ class DDPG(OnlineAlgorithm):
     def _init_tensorflow_ops(self):
         # Initialize variables for get_copy to work
         self.sess.run(tf.global_variables_initializer())
+        self.qf = self.qf.get_copy(
+            policy=self.target_policy,
+        )
         self.target_policy = self.policy.get_copy(
             name_or_scope=TARGET_PREFIX + self.policy.scope_name,
         )
         self.target_qf = self.qf.get_copy(
             name_or_scope=TARGET_PREFIX + self.qf.scope_name,
-            action_input=self.target_policy.output
+            action_input=self.target_policy.output,
         )
-        # self.qf = self.qf.get_copy(
-        #     policy=self.target_policy,
-        # )
         self.qf.sess = self.sess
         self.policy.sess = self.sess
         self.target_qf.sess = self.sess
@@ -151,9 +152,11 @@ class DDPG(OnlineAlgorithm):
         self.policy_surrogate_loss = - tf.reduce_mean(
             self.qf_with_action_input.output)
         self.train_policy_op = tf.train.AdamOptimizer(
-            self.policy_learning_rate).minimize(
+            self.policy_learning_rate
+        ).minimize(
             self.policy_surrogate_loss,
-            var_list=self.policy.get_params_internal())
+            var_list=self.policy.get_params_internal(),
+        )
 
     def _init_target_ops(self):
         policy_vars = self.policy.get_params_internal()
@@ -175,11 +178,11 @@ class DDPG(OnlineAlgorithm):
             self.update_target_policy_op = [
                 tf.assign(target, src)
                 for target, src in zip(target_policy_vars, policy_vars)
-                ]
+            ]
             self.update_target_qf_op = [
                 tf.assign(target, src)
                 for target, src in zip(target_qf_vars, qf_vars)
-                ]
+            ]
         else:
             raise RuntimeError(
                 "Unknown target update mode: {}".format(
@@ -204,23 +207,29 @@ class DDPG(OnlineAlgorithm):
             n_steps_total=None,
             n_steps_current_epoch=None,
     ):
-        ops = [
+
+        train_ops = [
             self.train_policy_op,
             self.train_qf_op,
         ]
+        if self._batch_norm:
+            train_ops += self.qf.batch_norm_update_stats_op
+            train_ops += self.policy.batch_norm_update_stats_op
+
+        target_ops = []
         if self._target_update_mode == TargetUpdateMode.SOFT:
-            ops += [
+            target_ops = [
                 self.update_target_qf_op,
                 self.update_target_policy_op,
             ]
         elif self._target_update_mode == TargetUpdateMode.HARD:
             if n_steps_total % self._hard_update_period == 0:
-                ops += [
+                target_ops = [
                     self.update_target_qf_op,
                     self.update_target_policy_op,
                 ]
         elif self._target_update_mode == TargetUpdateMode.NONE:
-            ops += [
+            target_ops = [
                 self.update_target_qf_op,
                 self.update_target_policy_op,
             ]
@@ -230,10 +239,11 @@ class DDPG(OnlineAlgorithm):
                     self._target_update_mode
                 )
             )
-        if self._batch_norm:
-            ops += self.qf.batch_norm_update_stats_op
-            ops += self.policy.batch_norm_update_stats_op
-        return ops
+
+        return filter_recursive([
+            train_ops,
+            target_ops,
+        ])
 
     @overrides
     def _update_feed_dict(self, rewards, terminals, obs, actions, next_obs,

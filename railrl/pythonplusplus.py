@@ -49,3 +49,26 @@ def map_recursive(fctn, x_or_iterable):
         )
     else:
         return fctn(x_or_iterable)
+
+
+def filter_recursive(x_or_iterable):
+    """
+    Filter out elements that are Falsy (where bool(x) is False) from
+    potentially recursive lists.
+
+    :param x_or_iterable: An element or a list.
+    :return: If x_or_iterable is not an Iterable, then return x_or_iterable.
+    Otherwise, return a filtered version of x_or_iterable.
+    """
+    if isinstance(x_or_iterable, list):
+        new_items = []
+        for sub_elem in x_or_iterable:
+            filtered_sub_elem = filter_recursive(sub_elem)
+            if filtered_sub_elem is not None and not (
+                isinstance(filtered_sub_elem, list) and
+                len(filtered_sub_elem) == 0
+            ):
+                new_items.append(filtered_sub_elem)
+        return new_items
+    else:
+        return x_or_iterable
