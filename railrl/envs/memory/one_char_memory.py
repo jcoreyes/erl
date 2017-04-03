@@ -239,7 +239,7 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
         """
         target_labels_float = tf.cast(target_labels, tf.float32)
         cross_entropy = target_labels_float * tf.log(actions)
-        return tf.reduce_sum(cross_entropy)
+        return tf.reduce_sum(cross_entropy, axis=1)
 
 
 class OneCharMemoryEndOnly(OneCharMemory):
