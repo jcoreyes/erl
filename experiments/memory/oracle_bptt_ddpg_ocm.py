@@ -4,15 +4,17 @@ Use an oracle qfunction to train a policy in bptt-ddpg style.
 from itertools import product
 import random
 
-from railrl.algos.oracle_bptt_ddpg import OracleUnrollBpttDDPG
 from railrl.launchers.launcher_util import (
     run_experiment,
 )
-from railrl.qfunctions.memory.hint_mlp_memory_qfunction import \
-    HintMlpMemoryQFunction
+from railrl.policies.memory.lstm_memory_policy import OutputAwareLstmCell, \
+    LstmLinearCell, FrozenHiddenLstmLinearCell
+from railrl.algos.writeback_bptt_ddpt import WritebackBpttDDPG
+from railrl.algos.bptt_ddpg import BpttDDPG
+from railrl.algos.sum_bptt_ddpg import SumBpttDDPG
 
 
-def run_linear_ocm_exp(variant):
+def run_ocm_experiment(variant):
     from railrl.algos.oracle_bptt_ddpg import OracleBpttDDPG
     from railrl.qfunctions.memory.oracle_qfunction import OracleQFunction
     from railrl.qfunctions.memory.oracle_unroll_qfunction import (
@@ -32,6 +34,11 @@ def run_linear_ocm_exp(variant):
     from railrl.data_management.ocm_subtraj_replay_buffer import (
         OcmSubtrajReplayBuffer
     )
+    from railrl.algos.oracle_bptt_ddpg import OracleUnrollBpttDDPG
+    from railrl.qfunctions.memory.hint_mlp_memory_qfunction import (
+        HintMlpMemoryQFunction
+    )
+    from railrl.qfunctions.memory.mlp_memory_qfunction import MlpMemoryQFunction
 
     """
     Set up experiment variants.
@@ -40,6 +47,7 @@ def run_linear_ocm_exp(variant):
     seed = variant['seed']
     num_values = variant['num_values']
     ddpg_params = variant['ddpg_params']
+    policy_params = variant['policy_params']
     num_bptt_unrolls = ddpg_params['num_bptt_unrolls']
     oracle_mode = variant['oracle_mode']
 
@@ -58,16 +66,24 @@ def run_linear_ocm_exp(variant):
         env,
         num_memory_states=memory_dim,
     )
-
     policy = LstmMemoryPolicy(
         name_or_scope="policy",
         action_dim=env_action_dim,
         memory_dim=memory_dim,
         env_spec=env.spec,
+        **policy_params
     )
-
     es = ProductStrategy([OneHotSampler(), NoopStrategy()])
-    if oracle_mode == 'unroll':
+
+    if oracle_mode == 'none':
+        qf = MlpMemoryQFunction(
+            name_or_scope="critic",
+            env_spec=env.spec,
+        )
+        algo_class = variant['algo_class']
+        ddpg_params = ddpg_params.copy()
+        ddpg_params.pop('unroll_through_target_policy')
+    elif oracle_mode == 'unroll':
         qf = OracleUnrollQFunction(
             name_or_scope="oracle_unroll_critic",
             env=env,
@@ -108,9 +124,11 @@ def run_linear_ocm_exp(variant):
 
 
 if __name__ == '__main__':
-    ORACLE_MODE = 'unroll'
+    mode = 'here'
     n_seed = 3
-    exp_prefix = "dev-oracle-bptt-ddpg-ocm"
+    # exp_prefix = "dev-oracle-bptt-ddpg-ocm"
+    exp_prefix = "4-2-variants-bptt-ddpg-ocm"
+    version = 'oracle_freeze_hidden_dynamics'
 
     """
     DDPG Params
@@ -123,10 +141,23 @@ if __name__ == '__main__':
     min_pool_size = n_batches_per_epoch
     replay_pool_size = 100000
 
-    mode = 'here'
+    oracle_mode = 'unroll'
+    algo_class = BpttDDPG
+    # algo_class = WritebackBpttDDPG
+    # algo_class = SumBpttDDPG
+    freeze_hidden = True
+    unroll_through_target_policy = False
+
+    """
+    Policy Params
+    """
+    # policy_rnn_cell_class = OutputAwareLstmCell
+    # policy_rnn_cell_class = LstmLinearCell
+    policy_rnn_cell_class = FrozenHiddenLstmLinearCell
+
     exp_id = -1
     for H, num_values, num_bptt_unrolls in product(
-        [8],
+        [6],
         [2],
         [4],
     ):
@@ -148,23 +179,31 @@ if __name__ == '__main__':
             eval_samples=eval_samples,
             max_path_length=max_path_length,
             num_bptt_unrolls=num_bptt_unrolls,
-            # unroll_through_target_policy=False,
+            unroll_through_target_policy=unroll_through_target_policy,
+            freeze_hidden=freeze_hidden,
             # soft_target_tau=1.0,
             # qf_learning_rate=1e-1,
             # policy_learning_rate=1e-1,
+        )
+        policy_params = dict(
+            rnn_cell_class=policy_rnn_cell_class,
         )
         variant = dict(
             H=H,
             num_values=num_values,
             exp_prefix=exp_prefix,
             ddpg_params=ddpg_params,
+            policy_params=policy_params,
             lstm_state_size=lstm_state_size,
-            oracle_mode=ORACLE_MODE,
+            oracle_mode=oracle_mode,
+            algo_class=algo_class,
+            freeze_hidden=freeze_hidden,
+            version=version,
         )
         for _ in range(n_seed):
             seed = random.randint(0, 10000)
             run_experiment(
-                run_linear_ocm_exp,
+                run_ocm_experiment,
                 exp_prefix=exp_prefix,
                 seed=seed,
                 mode=mode,

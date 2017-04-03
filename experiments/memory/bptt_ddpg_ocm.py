@@ -11,7 +11,7 @@ from railrl.launchers.launcher_util import (
 )
 
 
-def run_linear_ocm_exp(variant):
+def run_normal_ocm_experiment(variant):
     from railrl.qfunctions.memory.mlp_memory_qfunction import MlpMemoryQFunction
     from railrl.exploration_strategies.noop import NoopStrategy
     from railrl.exploration_strategies.onehot_sampler import OneHotSampler
@@ -78,17 +78,18 @@ def run_linear_ocm_exp(variant):
 
 if __name__ == '__main__':
     n_seed = 1
+    # exp_prefix = "4-2-variants-bptt-ddpg-ocm"
     exp_prefix = "dev-bptt-ddpg-ocm"
 
     """
     DDPG Params
     """
-    n_batches_per_epoch = 1000
+    n_batches_per_epoch = 100
     n_batches_per_eval = 64
     batch_size = 32
-    n_epochs = 100
+    n_epochs = 20
     lstm_state_size = 10
-    min_pool_size = 1000
+    min_pool_size = n_batches_per_epoch
     replay_pool_size = 100000
     algo_class = BpttDDPG
     # algo_class = WritebackBpttDDPG
@@ -131,6 +132,7 @@ if __name__ == '__main__':
             lstm_state_size=lstm_state_size,
             algo_class=algo_class,
             freeze_hidden=freeze_hidden,
+            version="our_method",
         )
         for seed in range(n_seed):
             run_experiment(
