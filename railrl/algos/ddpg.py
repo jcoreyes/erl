@@ -117,13 +117,7 @@ class DDPG(OnlineAlgorithm):
         self.sess.run(tf.global_variables_initializer())
 
     def _init_qf_ops(self):
-        self.ys = (
-            self.rewards_placeholder +
-            (1. - self.terminals_placeholder) *
-            self.discount * self.target_qf.output)
-        self.qf_loss = tf.reduce_mean(
-            tf.square(
-                tf.subtract(self.ys, self.qf.output)))
+        self.qf_loss = self._create_qf_loss()
         self.Q_weights_norm = tf.reduce_sum(
             tf.stack(
                 [tf.nn.l2_loss(v)
@@ -138,6 +132,17 @@ class DDPG(OnlineAlgorithm):
             self.qf_learning_rate).minimize(
             self.qf_total_loss,
             var_list=self.qf.get_params_internal())
+
+    def _create_qf_loss(self):
+        self.ys = (
+            self.rewards_placeholder +
+            (1. - self.terminals_placeholder) *
+            self.discount * self.target_qf.output)
+        return tf.reduce_mean(
+            tf.square(
+                tf.subtract(self.ys, self.qf.output)
+            )
+        )
 
     def _init_policy_ops(self):
         # To compute the surrogate loss function for the qf, it must take

@@ -170,6 +170,9 @@ class BpttDDPG(DDPG):
             eval_pool.add_trajectory(path)
 
         batch = eval_pool.get_all_valid_subtrajectories()
+        return self._update_feed_dict_from_batch(batch)
+
+    def _update_feed_dict_from_batch(self, batch):
         return self._update_feed_dict(
             rewards=batch['rewards'],
             terminals=batch['terminals'],

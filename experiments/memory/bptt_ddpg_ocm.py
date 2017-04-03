@@ -15,7 +15,11 @@ from railrl.algos.sum_bptt_ddpg import SumBpttDDPG
 
 
 def run_ocm_experiment(variant):
-    from railrl.algos.oracle_bptt_ddpg import OracleBpttDDPG
+    from railrl.algos.oracle_bptt_ddpg import (
+        OracleBpttDDPG,
+        OracleUnrollBpttDDPG,
+        RegressQBpttDdpg,
+    )
     from railrl.qfunctions.memory.oracle_qfunction import OracleQFunction
     from railrl.qfunctions.memory.oracle_unroll_qfunction import (
         OracleUnrollQFunction
@@ -34,7 +38,6 @@ def run_ocm_experiment(variant):
     from railrl.data_management.ocm_subtraj_replay_buffer import (
         OcmSubtrajReplayBuffer
     )
-    from railrl.algos.oracle_bptt_ddpg import OracleUnrollBpttDDPG
     from railrl.qfunctions.memory.hint_mlp_memory_qfunction import (
         HintMlpMemoryQFunction
     )
@@ -102,13 +105,36 @@ def run_ocm_experiment(variant):
             env_spec=env.spec,
         )
         algo_class = OracleBpttDDPG
-    else:
+        ddpg_params = ddpg_params.copy()
+        ddpg_params.pop('unroll_through_target_policy')
+    elif oracle_mode == 'oracle':
         qf = OracleQFunction(
             name_or_scope="oracle_critic",
             env=env,
             env_spec=env.spec,
         )
         algo_class = OracleBpttDDPG
+    elif oracle_mode == 'regress':
+        qf = MlpMemoryQFunction(
+            name_or_scope="critic",
+            env_spec=env.spec,
+        )
+        oracle_qf = OracleUnrollQFunction(
+            name_or_scope="oracle_unroll_critic",
+            env=env,
+            policy=policy,
+            num_bptt_unrolls=num_bptt_unrolls,
+            env_obs_dim=env_obs_dim,
+            env_action_dim=env_action_dim,
+            max_horizon_length=H,
+            env_spec=env.spec,
+        )
+        algo_class = RegressQBpttDdpg
+        ddpg_params = ddpg_params.copy()
+        ddpg_params.pop('unroll_through_target_policy')
+        ddpg_params['oracle_qf'] = oracle_qf
+    else:
+        raise Exception("Unknown mode: {}".format(oracle_mode))
 
     algorithm = algo_class(
         env,
@@ -126,9 +152,8 @@ def run_ocm_experiment(variant):
 if __name__ == '__main__':
     mode = 'here'
     n_seed = 3
-    # exp_prefix = "dev-oracle-bptt-ddpg-ocm"
-    exp_prefix = "4-2-variants-bptt-ddpg-ocm"
-    version = 'oracle_freeze_hidden_dynamics'
+    exp_prefix = "dev-oracle-bptt-ddpg-ocm"
+    version = 'dev'
 
     """
     DDPG Params
@@ -136,28 +161,32 @@ if __name__ == '__main__':
     n_batches_per_epoch = 100
     n_batches_per_eval = 64
     batch_size = 32
-    n_epochs = 20
+    n_epochs = 100
     lstm_state_size = 10
     min_pool_size = n_batches_per_epoch
     replay_pool_size = 100000
+    num_extra_qf_updates = 4
 
-    oracle_mode = 'unroll'
+    """
+    Algorithm Selection
+    """
+    oracle_mode = 'regress'
     algo_class = BpttDDPG
     # algo_class = WritebackBpttDDPG
     # algo_class = SumBpttDDPG
-    freeze_hidden = True
+    freeze_hidden = False
     unroll_through_target_policy = False
 
     """
     Policy Params
     """
     # policy_rnn_cell_class = OutputAwareLstmCell
-    # policy_rnn_cell_class = LstmLinearCell
-    policy_rnn_cell_class = FrozenHiddenLstmLinearCell
+    policy_rnn_cell_class = LstmLinearCell
+    # policy_rnn_cell_class = FrozenHiddenLstmLinearCell
 
     exp_id = -1
     for H, num_values, num_bptt_unrolls in product(
-        [6],
+        [4],
         [2],
         [4],
     ):
@@ -181,8 +210,9 @@ if __name__ == '__main__':
             num_bptt_unrolls=num_bptt_unrolls,
             unroll_through_target_policy=unroll_through_target_policy,
             freeze_hidden=freeze_hidden,
+            num_extra_qf_updates=num_extra_qf_updates,
+            # qf_learning_rate=1e-7,
             # soft_target_tau=1.0,
-            # qf_learning_rate=1e-1,
             # policy_learning_rate=1e-1,
         )
         policy_params = dict(

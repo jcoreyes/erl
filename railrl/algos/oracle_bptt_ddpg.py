@@ -3,14 +3,11 @@
 """
 import numpy as np
 import tensorflow as tf
+
 from railrl.algos.bptt_ddpg import BpttDDPG
 from railrl.data_management.ocm_subtraj_replay_buffer import (
     OcmSubtrajReplayBuffer
 )
-from railrl.qfunctions.memory.hint_mlp_memory_qfunction import (
-    HintMlpMemoryQFunction
-)
-from railrl.qfunctions.memory.oracle_qfunction import OracleQFunction
 from railrl.qfunctions.memory.oracle_unroll_qfunction import (
     OracleUnrollQFunction
 )
@@ -81,20 +78,13 @@ class OracleBpttDDPG(BpttDDPG):
             )
         return names_and_ops
 
-    def _update_feed_dict_from_path(self, paths):
-        eval_pool = self._replay_buffer_class(
-            len(paths) * self.max_path_length,
-            self.env,
-            self._num_bptt_unrolls,
-            )
-        for path in paths:
-            eval_pool.add_trajectory(path)
-
-        batch = eval_pool.get_all_valid_subtrajectories()
-        return self._update_feed_dict_from_batch(batch)
-
 
 class OracleUnrollBpttDDPG(OracleBpttDDPG):
+    """
+    If the environment's loss is only a function of the final output,
+    then you need to unroll the current policy to get the final output. This
+    is what this class adds.
+    """
     def __init__(self, *args, unroll_through_target_policy=False, **kwargs):
         # TODO(vitchyr): pass this in
         self.unroll_through_target_policy = unroll_through_target_policy
@@ -170,4 +160,74 @@ class OracleUnrollBpttDDPG(OracleBpttDDPG):
         ).minimize(
             self.policy_surrogate_loss,
             var_list=trainable_policy_params,
+        )
+
+
+class RegressQBpttDdpg(BpttDDPG):
+    """
+    Train the Q function by regressing onto the oracle Q values.
+    """
+    def __init__(
+            self,
+            *args,
+            oracle_qf: OracleUnrollQFunction,
+            **kwargs
+    ):
+        super().__init__(*args, **kwargs)
+        self.oracle_qf = oracle_qf
+
+    def _init_qf_ops(self):
+        # Alternatively, you could pass the action_input when creating this
+        # class instance, but then you might run into serialization issues.
+        self.oracle_qf = self.oracle_qf.get_weight_tied_copy(
+            action_input=self.policy.output,
+        )
+        super()._init_qf_ops()
+
+    def _create_qf_loss(self):
+        return tf.reduce_mean(
+            tf.square(
+                tf.subtract(self.oracle_qf.output, self.qf.output)
+            )
+        )
+
+    def _qf_feed_dict(self, *args, **kwargs):
+        feed_dict = super()._qf_feed_dict(*args, **kwargs)
+        feed_dict.update(self._oracle_qf_feed_dict(*args, **kwargs))
+        return feed_dict
+
+    def _oracle_qf_feed_dict(self, rewards, terminals, obs, actions, next_obs,
+                             target_numbers=None, times=None):
+        batch_size = len(rewards)
+        sequence_lengths = np.squeeze(self.env.horizon - times[:, -1])
+        indices = target_numbers[:, 0]
+        target_one_hots = special.to_onehot_n(
+            indices,
+            self.env.wrapped_env.action_space.flat_dim,
+        )
+        rest_of_obs = np.zeros(
+            [
+                batch_size,
+                self.env.horizon - self._num_bptt_unrolls,
+                self._env_obs_dim,
+            ]
+        )
+        rest_of_obs[:, :, 0] = 1
+        return {
+            self.oracle_qf.sequence_length_placeholder: sequence_lengths,
+            self.oracle_qf.rest_of_obs_placeholder: rest_of_obs,
+            self.oracle_qf.observation_input: obs,
+            self.policy.observation_input: obs,
+            self.oracle_qf.target_labels: target_one_hots,
+        }
+
+    def _update_feed_dict_from_batch(self, batch):
+        return self._update_feed_dict(
+            rewards=batch['rewards'],
+            terminals=batch['terminals'],
+            obs=batch['observations'],
+            actions=batch['actions'],
+            next_obs=batch['next_observations'],
+            target_numbers=batch['target_numbers'],
+            times=batch['times'],
         )
