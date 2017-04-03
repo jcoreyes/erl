@@ -115,8 +115,13 @@ def run_ocm_experiment(variant):
         )
         algo_class = OracleBpttDDPG
     elif oracle_mode == 'regress':
-        qf = MlpMemoryQFunction(
-            name_or_scope="critic",
+        # qf = MlpMemoryQFunction(
+        #     name_or_scope="critic",
+        #     env_spec=env.spec,
+        # )
+        qf = HintMlpMemoryQFunction(
+            name_or_scope="hint_critic",
+            hint_dim=env_action_dim,
             env_spec=env.spec,
         )
         oracle_qf = OracleUnrollQFunction(
@@ -151,8 +156,8 @@ def run_ocm_experiment(variant):
 
 if __name__ == '__main__':
     mode = 'here'
-    n_seed = 3
-    exp_prefix = "dev-oracle-bptt-ddpg-ocm"
+    n_seed = 1
+    exp_prefix = "dev-bptt-ddpg-ocm"
     version = 'dev'
 
     """
@@ -161,7 +166,7 @@ if __name__ == '__main__':
     n_batches_per_epoch = 100
     n_batches_per_eval = 64
     batch_size = 32
-    n_epochs = 100
+    n_epochs = 20
     lstm_state_size = 10
     min_pool_size = n_batches_per_epoch
     replay_pool_size = 100000
@@ -180,15 +185,18 @@ if __name__ == '__main__':
     """
     Policy Params
     """
-    # policy_rnn_cell_class = OutputAwareLstmCell
-    policy_rnn_cell_class = LstmLinearCell
+    policy_rnn_cell_class = OutputAwareLstmCell
+    # policy_rnn_cell_class = LstmLinearCell
     # policy_rnn_cell_class = FrozenHiddenLstmLinearCell
 
     exp_id = -1
-    for H, num_values, num_bptt_unrolls in product(
-        [4],
-        [2],
-        [4],
+
+    H = 4
+    num_values = 2
+    num_bptt_unrolls = 4
+    for num_extra_qf_updates, qf_learning_rate in product(
+        [5],
+        [1e-3],
     ):
         if num_bptt_unrolls > H:
             continue
@@ -211,7 +219,7 @@ if __name__ == '__main__':
             unroll_through_target_policy=unroll_through_target_policy,
             freeze_hidden=freeze_hidden,
             num_extra_qf_updates=num_extra_qf_updates,
-            # qf_learning_rate=1e-7,
+            qf_learning_rate=qf_learning_rate,
             # soft_target_tau=1.0,
             # policy_learning_rate=1e-1,
         )
