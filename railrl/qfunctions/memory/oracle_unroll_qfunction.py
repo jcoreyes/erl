@@ -31,6 +31,7 @@ class OracleUnrollQFunction(NNQFunction):
         self._rnn_init_state_ph = self._policy.get_init_state_placeholder()
         self._rnn_cell_scope = self._policy.rnn_cell_scope
 
+        self.nothing_to_unroll = max_horizon_length == num_bptt_unrolls
         self.save_rnn_inputs = self._placeholder_if_none(
             save_rnn_inputs,
             shape=[None, max_horizon_length - num_bptt_unrolls, env_obs_dim],
@@ -68,6 +69,12 @@ class OracleUnrollQFunction(NNQFunction):
             save_rnn_inputs=None,
             policy=None,
     ):
+        if self.nothing_to_unroll:
+            return self._ocm_env.get_tf_loss(
+                observations=observation_input,
+                actions=action_input,
+                target_labels=target_labels,
+            )
         self._save_rnn_cell = SaveOutputRnn(
             policy.rnn_cell,
         )
