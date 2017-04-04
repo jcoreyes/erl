@@ -11,7 +11,7 @@ class TestProductStrategy(TFTestCase):
         es2 = AddEs(2)
         policy = StubPolicy((1, 2))
         es = ProductStrategy([es1, es2])
-        action = es.get_action(None, None, policy)
+        action, _ = es.get_action(None, None, policy)
         self.assertEqual(action, (2, 4))
 
     def test_product_strategy_from_raw_action(self):

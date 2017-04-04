@@ -12,7 +12,7 @@ class TestOneHotSampler(TFTestCase):
     def test_deterministic_onehot_sampled_correct(self):
         policy = StubPolicy(np.array([1.0, 0., 0.]))
         sampler = OneHotSampler()
-        action = sampler.get_action(None, None, policy)
+        action, _ = sampler.get_action(None, None, policy)
 
         self.assertNpArraysEqual(np.array([1, 0, 0]), action)
 
@@ -26,7 +26,7 @@ class TestOneHotSampler(TFTestCase):
         a_vector = np.array([1, 0])
         b_vector = np.array([0, 1])
         for _ in range(n):
-            action = sampler.get_action(None, None, policy)
+            action, _ = sampler.get_action(None, None, policy)
             if (action == a_vector).all():
                 num_a += 1
             if (action == b_vector).all():
@@ -45,7 +45,7 @@ class TestOneHotSampler(TFTestCase):
         a_vector = np.array([1, 0])
         b_vector = np.array([0, 1])
         for _ in range(n):
-            action = sampler.get_action(None, None, policy)
+            action, _ = sampler.get_action(None, None, policy)
             if (action == a_vector).all():
                 num_a += 1
             if (action == b_vector).all():
