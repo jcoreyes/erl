@@ -47,7 +47,7 @@ class HintMlpMemoryQFunction(NNQFunction):
             self,
             observation_input=None,
             action_input=None,
-            target_labels=None
+            target_labels=None,
     ):
         env_obs, memory_obs = observation_input
         env_action, memory_action = action_input
