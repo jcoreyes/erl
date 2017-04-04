@@ -217,11 +217,11 @@ def run_experiment_here(
     :param use_gpu: Run with GPU. By default False.
     :return:
     """
-    if seed is None:
-        seed = random.randint(0, 100000)
     if variant is None:
         variant = {}
-    variant['seed'] = str(seed)
+    if seed is None and 'seed' not in variant:
+        seed = random.randint(0, 100000)
+        variant['seed'] = str(seed)
     variant['exp_id'] = str(exp_id)
     reset_execution_environment()
     set_seed(seed)
