@@ -25,4 +25,4 @@ class SimpleGaussianStrategy(ExplorationStrategy, Serializable):
         action, agent_info = policy.get_action(observation)
         return np.clip(action + np.random.normal(size=len(action))*self._sigma,
                        self._action_space.low,
-                       self._action_space.high)
+                       self._action_space.high), agent_info

@@ -171,13 +171,17 @@ class OnlineAlgorithm(RLAlgorithm):
                 start_time = time.time()
                 for n_steps_current_epoch in range(self.epoch_length):
                     with self._eval_then_training_mode():
-                        action = self.exploration_strategy.get_action(itr,
-                                                                      observation,
-                                                                      self.policy)
+                        action, agent_info = (
+                            self.exploration_strategy.get_action(
+                                itr,
+                                observation,
+                                self.policy,
+                            )
+                        )
                     if self.render:
                         self.training_env.render()
 
-                    next_ob, raw_reward, terminal, debug_info = (
+                    next_ob, raw_reward, terminal, env_info = (
                         self.training_env.step(
                             self.process_action(action)
                         )
@@ -195,11 +199,15 @@ class OnlineAlgorithm(RLAlgorithm):
                         action,
                         reward,
                         terminal,
-                        debug_info=debug_info,
+                        agent_info=agent_info,
+                        env_info=env_info,
                     )
                     if terminal or path_length >= self.max_path_length:
-                        self.pool.terminate_episode(next_ob,
-                                                    debug_info=debug_info)
+                        self.pool.terminate_episode(
+                            next_ob,
+                            agent_info=agent_info,
+                            env_info=env_info,
+                        )
                         observation = self.training_env.reset()
                         self.exploration_strategy.reset()
                         self.es_path_returns.append(path_return)

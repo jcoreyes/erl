@@ -26,10 +26,10 @@ class OcmSubtrajReplayBuffer(SubtrajReplayBuffer):
         )
 
     def _add_sample(self, observation, action, reward, terminal,
-                    final_state, debug_info=None):
-        if debug_info is not None:
-            self._target_numbers[self._top] = debug_info['target_number']
-            self._times[self._top] = debug_info['time']
+                    final_state, agent_info=None, env_info=None):
+        if env_info is not None:
+            self._target_numbers[self._top] = env_info['target_number']
+            self._times[self._top] = env_info['time']
         super()._add_sample(
             observation,
             action,

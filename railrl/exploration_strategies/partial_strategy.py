@@ -30,8 +30,8 @@ class PartialStrategy(ExplorationStrategy):
         assert 0 <= self._component <= len(self._product_space.components) - 1
 
     def get_action(self, t, observation, policy, **kwargs):
-        action, _ = policy.get_action(observation)
-        return self.get_action_from_raw_action(action)
+        action, agent_info = policy.get_action(observation)
+        return self.get_action_from_raw_action(action), agent_info
 
     def get_action_from_raw_action(self, action, **kwargs):
         actions_split = list(action)

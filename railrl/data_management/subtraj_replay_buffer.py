@@ -5,6 +5,15 @@ from railrl.data_management.replay_buffer import ReplayBuffer
 from railrl.misc.np_util import subsequences
 
 
+def dict_of_list__to__list_of_dicts(dict, n_items):
+    new_dicts = [{} for _ in range(n_items)]
+    for key, values in dict.items():
+        for i in range(n_items):
+            new_dicts[i][key] = values[i]
+    return new_dicts
+
+
+
 class SubtrajReplayBuffer(ReplayBuffer):
     """
     Combine all the episode data into one big replay buffer and sample
@@ -133,14 +142,28 @@ class SubtrajReplayBuffer(ReplayBuffer):
         return len(self._valid_start_indices)
 
     def add_trajectory(self, path):
-        for observation, action, reward in zip(
-                path["observations"],
-                path["actions"],
-                path["rewards"],
+        agent_infos = path['agent_infos']
+        env_infos = path['env_infos']
+        n_items = len(path["observations"])
+        list_of_agent_infos = dict_of_list__to__list_of_dicts(agent_infos, n_items)
+        list_of_env_infos = dict_of_list__to__list_of_dicts(env_infos, n_items)
+        for (
+            observation,
+            action,
+            reward,
+            agent_info,
+            env_info,
+        ) in zip(
+            path["observations"],
+            path["actions"],
+            path["rewards"],
+            list_of_agent_infos,
+            list_of_env_infos
         ):
             observation = self._env.observation_space.unflatten(observation)
             action = self._env.observation_space.unflatten(action)
-            self.add_sample(observation, action, reward, False)
+            self.add_sample(observation, action, reward, False,
+                            agent_info=agent_info, env_info=env_info)
         terminal_observation = self._env.observation_space.unflatten(
             path["observations"][-1]
         )
