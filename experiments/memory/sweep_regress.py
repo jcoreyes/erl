@@ -11,12 +11,8 @@ from railrl.launchers.launcher_util import (
 )
 from railrl.policies.memory.lstm_memory_policy import (
     OutputAwareLstmCell,
-    LstmLinearCell,
-    FrozenHiddenLstmLinearCell,
 )
-from railrl.algos.writeback_bptt_ddpt import WritebackBpttDDPG
 from railrl.algos.bptt_ddpg import BpttDDPG
-from railrl.algos.sum_bptt_ddpg import SumBpttDDPG
 
 
 def run_ocm_experiment(variant):
@@ -165,7 +161,7 @@ def run_ocm_experiment(variant):
 if __name__ == '__main__':
     mode = 'here'
     n_seed = 1
-    exp_prefix = "check-dev-sweep-regress"
+    exp_prefix = "4-3-sweep-regress"
     version = 'dev'
 
     """
@@ -174,7 +170,7 @@ if __name__ == '__main__':
     n_batches_per_epoch = 100
     n_batches_per_eval = 64
     batch_size = 32
-    n_epochs = 5
+    n_epochs = 20
     lstm_state_size = 10
     min_pool_size = n_batches_per_epoch
     replay_pool_size = 100000
@@ -185,12 +181,10 @@ if __name__ == '__main__':
     """
     oracle_mode = 'regress'
     algo_class = BpttDDPG
-    # algo_class = WritebackBpttDDPG
-    # algo_class = SumBpttDDPG
     freeze_hidden = False
     unroll_through_target_policy = False
 
-    H = 4
+    H = 5
     num_values = 2
     num_bptt_unrolls = 4
     epoch_length = H * n_batches_per_epoch
@@ -208,50 +202,37 @@ if __name__ == '__main__':
         num_bptt_unrolls=num_bptt_unrolls,
         unroll_through_target_policy=unroll_through_target_policy,
         freeze_hidden=freeze_hidden,
-        num_extra_qf_updates=num_extra_qf_updates,
     )
+    policy_params = {'rnn_cell_class': OutputAwareLstmCell}
     variant = dict(
         H=H,
         num_values=num_values,
         exp_prefix=exp_prefix,
         ddpg_params=ddpg_params,
+        policy_params=policy_params,
         lstm_state_size=lstm_state_size,
-        # oracle_mode=oracle_mode,
-        # algo_class=algo_class,
+        oracle_mode=oracle_mode,
+        algo_class=algo_class,
         freeze_hidden=freeze_hidden,
         version=version,
     )
     search_space = {
-        # 'ddpg_params.qf_learning_rate': hp.loguniform('qf_learning_rate',
-        #                                   np.log(1e-5),
-        #                                   np.log(1e-2)),
-        'policy_params.rnn_cell_class': hp.choice(
-            'policy_params.rnn_cell_class',
-            [
-                OutputAwareLstmCell,
-                LstmLinearCell,
-                FrozenHiddenLstmLinearCell,
-            ]
+        'ddpg_params.qf_learning_rate': hp.loguniform('qf_learning_rate',
+                                                      np.log(1e-5),
+                                                      np.log(1e-2)),
+        'ddpg_params.num_extra_qf_updates': hp.quniform(
+            'ddpg_params.num_extra_qf_updates',
+            0,
+            19,
+            1,
         ),
-        'algo_class': hp.choice(
-            'algo_class',
-            [
-                BpttDDPG,
-                WritebackBpttDDPG,
-                SumBpttDDPG,
-            ]
-        ),
-        'oracle_mode': hp.choice(
-            'oracle_mode',
-            [
-                'none',
-                'unroll',
-            ]
-        ),
+        'seed': hp.randint('seed', 10000),
     }
 
     base_log_dir = create_base_log_dir(exp_prefix=exp_prefix)
     exp_id = -1
+
+
     def run_experiment_wrapper(hyperparams):
         global exp_id
         exp_id += 1
@@ -260,8 +241,9 @@ if __name__ == '__main__':
             exp_prefix=exp_prefix,
             variant=hyperparams,
             exp_id=exp_id,
-            seed=0,
         )
+
+
     optimize_and_save(
         base_log_dir,
         run_experiment_wrapper,
@@ -270,6 +252,6 @@ if __name__ == '__main__':
         maximize=True,
         verbose=True,
         load_trials=True,
-        num_rounds=10,
+        num_rounds=500,
         num_evals_per_round=1,
     )
