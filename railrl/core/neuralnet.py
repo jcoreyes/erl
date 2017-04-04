@@ -55,6 +55,8 @@ class NeuralNetwork(Parameterized, Serializable):
         self._subnetwork_list = []
         self._is_bn_in_training_mode = False
 
+        self.param_values_when_last_loaded = None
+
     @property
     def full_scope_name(self):
         """
@@ -370,3 +372,11 @@ class NeuralNetwork(Parameterized, Serializable):
     ############################################
     def _get_all_variable_names(self):
         return [p.name for p in self.get_params_internal()]
+
+    def __setstate__(self, d):
+        super().__setstate__(d)
+        self.param_values_when_last_loaded = d["params"]
+
+    def reset_param_values_to_last_load(self):
+        if self.param_values_when_last_loaded is not None:
+            self.set_param_values(self.param_values_when_last_loaded)

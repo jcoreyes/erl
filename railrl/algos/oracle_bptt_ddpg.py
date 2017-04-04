@@ -234,3 +234,16 @@ class RegressQBpttDdpg(BpttDDPG):
             target_numbers=batch['target_numbers'],
             times=batch['times'],
         )
+
+    def _statistic_names_and_ops(self):
+        """
+        :return: List of tuple (name, op). Each `op` will be evaluated. Its
+        output will be saved as a statistic with name `name`.
+        """
+        return [
+            ('PolicySurrogateLoss', self.policy_surrogate_loss),
+            ('QfLoss', self.qf_loss),
+            ('PolicyOutput', self.policy.output),
+            ('QfOutput', self.qf.output),
+            ('OracleQfOutput', self.oracle_qf.output),
+        ]

@@ -116,6 +116,8 @@ class DDPG(OnlineAlgorithm):
         with tf.name_scope('target_ops'):
             self._init_target_ops()
         self.sess.run(tf.global_variables_initializer())
+        self.qf.reset_param_values_to_last_load()
+        self.policy.reset_param_values_to_last_load()
 
     def _init_qf_ops(self):
         self.qf_loss = self._create_qf_loss()
@@ -332,11 +334,11 @@ class DDPG(OnlineAlgorithm):
         return [
             ('PolicySurrogateLoss', self.policy_surrogate_loss),
             ('QfLoss', self.qf_loss),
-            ('Ys', self.policy_surrogate_loss),
-            ('PolicyOutput', self.policy_surrogate_loss),
-            ('TargetPolicyOutput', self.policy_surrogate_loss),
-            ('QfOutput', self.policy_surrogate_loss),
-            ('TargetQfOutput', self.policy_surrogate_loss),
+            ('Ys', self.ys),
+            ('PolicyOutput', self.policy.output),
+            ('TargetPolicyOutput', self.target_policy.output),
+            ('QfOutput', self.qf.output),
+            ('TargetQfOutput', self.target_qf.output),
         ]
 
     def _update_feed_dict_from_path(self, paths):

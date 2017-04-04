@@ -53,6 +53,7 @@ def run_ocm_experiment(variant):
     policy_params = variant['policy_params']
     num_bptt_unrolls = ddpg_params['num_bptt_unrolls']
     oracle_mode = variant['oracle_mode']
+    load_policy_file = variant.get('load_policy_file', None)
 
     env_action_dim = num_values + 1
     env_obs_dim = env_action_dim
@@ -69,13 +70,20 @@ def run_ocm_experiment(variant):
         env,
         num_memory_states=memory_dim,
     )
-    policy = LstmMemoryPolicy(
-        name_or_scope="policy",
-        action_dim=env_action_dim,
-        memory_dim=memory_dim,
-        env_spec=env.spec,
-        **policy_params
-    )
+    if load_policy_file is None:
+        policy = LstmMemoryPolicy(
+            name_or_scope="policy",
+            action_dim=env_action_dim,
+            memory_dim=memory_dim,
+            env_spec=env.spec,
+            **policy_params
+        )
+    else:
+        import joblib
+        import tensorflow as tf
+        with tf.Session():
+            data = joblib.load(load_policy_file)
+            policy = data['policy']
     es = ProductStrategy([OneHotSampler(), NoopStrategy()])
 
     if oracle_mode == 'none':
@@ -168,9 +176,8 @@ if __name__ == '__main__':
     batch_size = 32
     n_epochs = 20
     lstm_state_size = 10
-    min_pool_size = n_batches_per_epoch
+    min_pool_size = max(n_batches_per_epoch, batch_size)
     replay_pool_size = 100000
-    num_extra_qf_updates = 4
 
     """
     Algorithm Selection
@@ -188,6 +195,12 @@ if __name__ == '__main__':
     policy_rnn_cell_class = OutputAwareLstmCell
     # policy_rnn_cell_class = LstmLinearCell
     # policy_rnn_cell_class = FrozenHiddenLstmLinearCell
+    load_policy_file = (
+        '/home/vitchyr/git/rllab-rail/railrl/data/reference/expert'
+        '/ocm_80p'
+        '/params.pkl'
+    )
+    # load_policy_file = None
 
     exp_id = -1
 
@@ -195,8 +208,8 @@ if __name__ == '__main__':
     num_values = 2
     num_bptt_unrolls = 4
     for num_extra_qf_updates, qf_learning_rate in product(
-        [5],
-        [1e-3],
+        [0],
+        [1e-1],
     ):
         if num_bptt_unrolls > H:
             continue
@@ -220,6 +233,7 @@ if __name__ == '__main__':
             freeze_hidden=freeze_hidden,
             num_extra_qf_updates=num_extra_qf_updates,
             qf_learning_rate=qf_learning_rate,
+            discount=1.0,
             # soft_target_tau=1.0,
             # policy_learning_rate=1e-1,
         )
@@ -237,6 +251,7 @@ if __name__ == '__main__':
             algo_class=algo_class,
             freeze_hidden=freeze_hidden,
             version=version,
+            load_policy_file=load_policy_file,
         )
         for _ in range(n_seed):
             seed = random.randint(0, 10000)
