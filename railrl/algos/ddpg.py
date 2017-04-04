@@ -84,11 +84,12 @@ class DDPG(OnlineAlgorithm):
         for _ in range(self._num_extra_qf_updates):
             minibatch = self._sample_minibatch()
             feed_dict = self._update_feed_dict_from_batch(minibatch)
-            ops = [
+            ops = filter_recursive([
                 self.train_qf_op,
                 self.update_target_qf_op,
-            ]
-            self.sess.run(ops, feed_dict=feed_dict)
+            ])
+            if len(ops) > 0:
+                self.sess.run(ops, feed_dict=feed_dict)
 
         super()._do_training(**kwargs)
 

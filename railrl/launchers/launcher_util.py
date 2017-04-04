@@ -160,7 +160,6 @@ def run_experiment(
     """
     if seed is None:
         seed = random.randint(0, 100000)
-    set_seed(seed)
     if variant is None:
         variant = {}
     variant['seed'] = str(seed)
@@ -218,8 +217,14 @@ def run_experiment_here(
     :param use_gpu: Run with GPU. By default False.
     :return:
     """
+    if seed is None:
+        seed = random.randint(0, 100000)
     if variant is None:
         variant = {}
+    variant['seed'] = str(seed)
+    variant['exp_id'] = str(exp_id)
+    reset_execution_environment()
+    set_seed(seed)
     setup_logger(
         exp_prefix=exp_prefix,
         variant=variant,
@@ -228,8 +233,7 @@ def run_experiment_here(
     )
     if not use_gpu:
         os.environ['CUDA_VISIBLE_DEVICES'] = ""
-    experiment_function(variant)
-    reset_execution_environment()
+    return experiment_function(variant)
 
 
 now = datetime.datetime.now(dateutil.tz.tzlocal())
@@ -246,6 +250,14 @@ def create_exp_name(exp_prefix="default", exp_id=0, seed=0):
     return "%s_%s_%04d--s-%d" % (exp_prefix, timestamp, exp_id, seed)
 
 
+def create_base_log_dir(exp_prefix):
+    return osp.join(
+        config.LOG_DIR,
+        'local',
+        exp_prefix.replace("_", "-"),
+    )
+
+
 def create_log_dir(exp_prefix="default", exp_id=0, seed=0):
     """
     Creates and returns a unique log directory.
@@ -257,12 +269,8 @@ def create_log_dir(exp_prefix="default", exp_id=0, seed=0):
     """
     exp_name = create_exp_name(exp_prefix=exp_prefix, exp_id=exp_id,
                                seed=seed)
-    log_dir = osp.join(
-        config.LOG_DIR,
-        'local',
-        exp_prefix.replace("_", "-"),
-        exp_name,
-    )
+    base_log_dir = create_base_log_dir(exp_prefix)
+    log_dir = osp.join(base_log_dir, exp_name)
     if osp.exists(log_dir):
         raise Exception(
             "Log directory already exists. Will no overwrite: {0}".format(

@@ -116,6 +116,7 @@ class OnlineAlgorithm(RLAlgorithm):
         self.eval_sampler = BatchSampler(self)
         self.scope = None  # Necessary for BatchSampler
         self.whole_paths = True  # Also for BatchSampler
+        self._last_average_returns = None
 
     def _start_worker(self):
         self.eval_sampler.start_worker()
@@ -327,15 +328,17 @@ class OnlineAlgorithm(RLAlgorithm):
         self.log_diagnostics(paths)
 
         returns = [sum(path["rewards"]) for path in paths]
+        average_returns = np.mean(returns)
         statistics = OrderedDict([
             ('Epoch', epoch),
-            ('AverageReturn', np.mean(returns)),
+            ('AverageReturn', average_returns),
         ])
+        self._last_average_returns = average_returns
 
         discounted_returns = [
             special.discount_return(path["rewards"], self.discount)
             for path in paths
-            ]
+        ]
         rewards = np.hstack([path["rewards"] for path in paths])
         statistics.update(create_stats_ordered_dict('Rewards', rewards))
         statistics.update(create_stats_ordered_dict('Returns', returns))
@@ -353,6 +356,14 @@ class OnlineAlgorithm(RLAlgorithm):
     def log_diagnostics(self, paths):
         self.env.log_diagnostics(paths)
         self.policy.log_diagnostics(paths)
+
+    @property
+    def final_score(self) -> float:
+        """
+        :return: The score after training. The objective is to MAXIMIZE this
+        value.
+        """
+        return self._last_average_returns
 
     @property
     @abc.abstractmethod

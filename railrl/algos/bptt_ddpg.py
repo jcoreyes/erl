@@ -3,6 +3,7 @@
 """
 
 import tensorflow as tf
+import numpy as np
 
 from railrl.algos.ddpg import DDPG
 from railrl.data_management.subtraj_replay_buffer import (
@@ -52,6 +53,7 @@ class BpttDDPG(DDPG):
         self._rnn_cell = policy.rnn_cell
 
         self._replay_buffer_class = replay_buffer_class
+        self._last_env_score = None
         super().__init__(
             env,
             exploration_strategy,
@@ -180,3 +182,15 @@ class BpttDDPG(DDPG):
             actions=batch['actions'],
             next_obs=batch['next_observations'],
         )
+
+    def log_diagnostics(self, paths):
+        self._last_env_score = np.mean(self.env.log_diagnostics(paths))
+        self.policy.log_diagnostics(paths)
+
+    @property
+    def final_score(self) -> float:
+        """
+        :return: The score after training. The objective is to MAXIMIZE this
+        value.
+        """
+        return self._last_env_score

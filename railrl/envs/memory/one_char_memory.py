@@ -230,6 +230,8 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
         for key, value in last_statistics.items():
             logger.record_tabular(key, value)
 
+        return final_probs_correct
+
     def get_tf_loss(self, observations, actions, target_labels):
         """
         Return the supervised-learning loss.

@@ -1,5 +1,89 @@
+import pickle
 import time
+import json
+from os.path import join, exists
+
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
+
+
+def optimize_and_save(
+        base_log_dir,
+        function,
+        search_space,
+        num_rounds=100,
+        num_evals_per_round=1,
+        load_trials=False,
+        trials_filename="trials.pkl",
+        search_space_filename="search_space.pkl",
+        non_hp_results_filename="non_hp_results.json",
+        verbose=False,
+        **kwargs
+):
+    assert num_rounds > 0
+    assert num_evals_per_round > 0
+
+    trials = None
+    trials_path = join(base_log_dir, trials_filename)
+    if load_trials and exists(trials_path):
+        with open(trials_path, 'rb') as handle:
+            trials = pickle.load(handle)
+
+    start_time = time.time()
+    for round in range(num_rounds):
+        num_evals = (round+1) * num_evals_per_round
+        best_params, min_value, trials, best_variant = optimize(
+            function=function,
+            search_space=search_space,
+            num_evals=num_evals,
+            trials=trials,
+            **kwargs
+        )
+        search_space_path = join(base_log_dir, search_space_filename)
+        non_hp_results_path = join(base_log_dir, non_hp_results_filename)
+        if verbose:
+            print("# evaluations so far:", num_evals)
+            print("best_params:", best_params)
+            print("min_value:", min_value)
+            print("best_variant:", best_variant)
+            print("Total time elapsed = {}".format(time.time() - start_time))
+            print("Saving all results {0}".format(base_log_dir))
+        with open(trials_path, 'wb') as handle:
+            pickle.dump(trials, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        with open(search_space_path, 'wb') as handle:
+            pickle.dump(search_space, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        with open(non_hp_results_path, "w") as f:
+            results = {
+                'best_params': dict_to_safe_json(best_params),
+                'min_value': min_value,
+                'best_variant': dict_to_safe_json(best_variant),
+            }
+            json.dump(results, f, indent=2, sort_keys=True)
+
+
+def dict_to_safe_json(d):
+    new_d = {}
+    for key, item in d.items():
+        if safe_json(item):
+            new_d[key] = item
+        else:
+            if isinstance(item, dict):
+                new_d[key] = dict_to_safe_json(item)
+            else:
+                new_d[key] = str(item)
+    return new_d
+
+
+def safe_json(data):
+    if data is None:
+        return True
+    elif isinstance(data, (bool, int, float)):
+        return True
+    elif isinstance(data, (tuple, list)):
+        return all(safe_json(x) for x in data)
+    elif isinstance(data, dict):
+        return all(isinstance(k, str) and safe_json(v) for k, v in data.items())
+    return False
+
 
 
 def optimize(
@@ -102,7 +186,8 @@ def optimize(
             params = flatten_hyperopt_choice_dict(params)
         if dotmap_to_nested_dictionary:
             params = dot_map_dict_to_nested_dict(params)
-        loss = function(dict(params, **extra_function_kwargs))
+        # loss = function(dict(params, **extra_function_kwargs))
+        loss = function(merge_recursive_dicts(params, extra_function_kwargs))
         if maximize:
             loss = - loss
         return {
@@ -127,6 +212,24 @@ def optimize(
     best_params = min_results['params']
     return best_params, min_value, trials, best_variant
 
+
+def merge_recursive_dicts(a, b, path=None):
+    """
+    Merge two dicts that may have nested dicts.
+    """
+    if path is None: path = []
+    for key in b:
+        if key in a:
+            if isinstance(a[key], dict) and isinstance(b[key], dict):
+                merge_recursive_dicts(a[key], b[key], path + [str(key)])
+            elif a[key] == b[key]:
+                pass  # same leaf value
+            else:
+                raise Exception(
+                    'Conflict at %s' % '.'.join(path + [str(key)]))
+        else:
+            a[key] = b[key]
+    return a
 
 def flatten_hyperopt_choice_dict(hyperopt_choice_dict):
     """
