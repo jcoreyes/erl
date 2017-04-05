@@ -7,8 +7,12 @@ import random
 from railrl.launchers.launcher_util import (
     run_experiment,
 )
-from railrl.policies.memory.lstm_memory_policy import OutputAwareLstmCell, \
-    LstmLinearCell, FrozenHiddenLstmLinearCell
+from railrl.policies.memory.lstm_memory_policy import (
+    OutputAwareLstmCell,
+    LstmLinearCell,
+    FrozenHiddenLstmLinearCell,
+    IRnnCell,
+)
 from railrl.algos.writeback_bptt_ddpt import WritebackBpttDDPG
 from railrl.algos.bptt_ddpg import BpttDDPG
 from railrl.algos.sum_bptt_ddpg import SumBpttDDPG
@@ -58,8 +62,7 @@ def run_ocm_experiment(variant):
 
     env_action_dim = num_values + 1
     env_obs_dim = env_action_dim
-    lstm_state_size = variant['lstm_state_size']
-    memory_dim = 2 * lstm_state_size
+    memory_dim = variant['memory_dim']
     set_seed(seed)
 
     """
@@ -176,7 +179,7 @@ def run_ocm_experiment(variant):
 if __name__ == '__main__':
     mode = 'here'
     n_seed = 1
-    exp_prefix = "4-5-60"
+    exp_prefix = "4-5-dev"
     version = 'dev'
 
     """
@@ -185,15 +188,15 @@ if __name__ == '__main__':
     n_batches_per_epoch = 100
     n_batches_per_eval = 64
     batch_size = 32
-    n_epochs = 20
-    lstm_state_size = 10
+    n_epochs = 50
+    memory_dim = 20
     min_pool_size = max(n_batches_per_epoch, batch_size)
     replay_pool_size = 100000
 
     """
     Algorithm Selection
     """
-    oracle_mode = 'regress'
+    oracle_mode = 'none'
     algo_class = BpttDDPG
     freeze_hidden = False
     unroll_through_target_policy = False
@@ -201,7 +204,8 @@ if __name__ == '__main__':
     """
     Policy Params
     """
-    policy_rnn_cell_class = OutputAwareLstmCell
+    # policy_rnn_cell_class = OutputAwareLstmCell
+    policy_rnn_cell_class = IRnnCell
     # policy_rnn_cell_class = LstmLinearCell
     # policy_rnn_cell_class = FrozenHiddenLstmLinearCell
     load_policy_file = (
@@ -255,7 +259,7 @@ if __name__ == '__main__':
         exp_prefix=exp_prefix,
         ddpg_params=ddpg_params,
         policy_params=policy_params,
-        lstm_state_size=lstm_state_size,
+        memory_dim=memory_dim,
         oracle_mode=oracle_mode,
         algo_class=algo_class,
         freeze_hidden=freeze_hidden,
