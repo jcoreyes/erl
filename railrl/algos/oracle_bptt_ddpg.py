@@ -173,10 +173,12 @@ class RegressQBpttDdpg(BpttDDPG):
             *args,
             oracle_qf: OracleUnrollQFunction,
             qf_tolerance=None,
+            max_num_q_updates=100,
             **kwargs
     ):
         self.qf_tolerance = qf_tolerance
         self.oracle_qf = oracle_qf
+        self.max_num_q_updates = max_num_q_updates
         super().__init__(*args, **kwargs)
 
     def _do_training(
@@ -184,8 +186,7 @@ class RegressQBpttDdpg(BpttDDPG):
             **kwargs
     ):
         if self.train_qf_op is not None and self.qf_tolerance is not None:
-            last_qf_loss = self.qf_tolerance + 1
-            while last_qf_loss > self.qf_tolerance:
+            for _ in range(self.max_num_q_updates):
                 batch_size = min(self.pool.num_can_sample, 128)
                 minibatch = self._sample_minibatch(batch_size=batch_size)
                 feed_dict = self._update_feed_dict_from_batch(minibatch)
@@ -194,7 +195,9 @@ class RegressQBpttDdpg(BpttDDPG):
                     self.train_qf_op,
                     self.update_target_qf_op,
                 ])
-                last_qf_loss = self.sess.run(ops, feed_dict=feed_dict)[0]
+                qf_loss = self.sess.run(ops, feed_dict=feed_dict)[0]
+                if qf_loss <= self.qf_tolerance:
+                    break
 
         super()._do_training(**kwargs)
 
