@@ -302,8 +302,10 @@ class OnlineAlgorithm(RLAlgorithm):
         else:
             self.sess.run(ops, feed_dict=feed_dict)
 
-    def _sample_minibatch(self):
-        return self.pool.random_batch(self.batch_size, flatten=True)
+    def _sample_minibatch(self, batch_size=None):
+        if batch_size is None:
+            batch_size = self.batch_size
+        return self.pool.random_batch(batch_size, flatten=True)
 
     def _update_feed_dict_from_batch(self, batch):
         return self._update_feed_dict(

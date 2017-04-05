@@ -42,6 +42,7 @@ def run_ocm_experiment(variant):
         HintMlpMemoryQFunction
     )
     from railrl.qfunctions.memory.mlp_memory_qfunction import MlpMemoryQFunction
+    from os.path import exists
 
     """
     Set up experiment variants.
@@ -70,7 +71,7 @@ def run_ocm_experiment(variant):
         env,
         num_memory_states=memory_dim,
     )
-    if load_policy_file is None:
+    if load_policy_file is None or not exists(load_policy_file):
         policy = LstmMemoryPolicy(
             name_or_scope="policy",
             action_dim=env_action_dim,
@@ -86,14 +87,19 @@ def run_ocm_experiment(variant):
             policy = data['policy']
     es = ProductStrategy([OneHotSampler(), NoopStrategy()])
 
+    ddpg_params = ddpg_params.copy()
+    unroll_through_target_policy = ddpg_params.pop(
+        'unroll_through_target_policy',
+        False,
+    )
+    qf_tolerance = ddpg_params.pop('qf_tolerance', 1e-3)
+    max_num_q_updates = ddpg_params.pop('max_num_q_updates', 10)
     if oracle_mode == 'none':
         qf = MlpMemoryQFunction(
             name_or_scope="critic",
             env_spec=env.spec,
         )
         algo_class = variant['algo_class']
-        ddpg_params = ddpg_params.copy()
-        ddpg_params.pop('unroll_through_target_policy')
     elif oracle_mode == 'unroll':
         qf = OracleUnrollQFunction(
             name_or_scope="oracle_unroll_critic",
@@ -106,6 +112,9 @@ def run_ocm_experiment(variant):
             env_spec=env.spec,
         )
         algo_class = OracleUnrollBpttDDPG
+        ddpg_params['unroll_through_target_policy'] = (
+            unroll_through_target_policy
+        )
     elif oracle_mode == 'hint':
         qf = HintMlpMemoryQFunction(
             name_or_scope="hint_critic",
@@ -113,8 +122,6 @@ def run_ocm_experiment(variant):
             env_spec=env.spec,
         )
         algo_class = OracleBpttDDPG
-        ddpg_params = ddpg_params.copy()
-        ddpg_params.pop('unroll_through_target_policy')
     elif oracle_mode == 'oracle':
         qf = OracleQFunction(
             name_or_scope="oracle_critic",
@@ -127,10 +134,14 @@ def run_ocm_experiment(variant):
         #     name_or_scope="critic",
         #     env_spec=env.spec,
         # )
+        # import tensorflow as tf
         qf = HintMlpMemoryQFunction(
             name_or_scope="hint_critic",
             hint_dim=env_action_dim,
             env_spec=env.spec,
+            # hidden_nonlinearity=tf.nn.tanh,
+            embedded_hidden_sizes=(100, 100),
+            observation_hidden_sizes=(100,),
         )
         oracle_qf = OracleUnrollQFunction(
             name_or_scope="oracle_unroll_critic",
@@ -143,9 +154,9 @@ def run_ocm_experiment(variant):
             env_spec=env.spec,
         )
         algo_class = RegressQBpttDdpg
-        ddpg_params = ddpg_params.copy()
-        ddpg_params.pop('unroll_through_target_policy')
         ddpg_params['oracle_qf'] = oracle_qf
+        ddpg_params['qf_tolerance'] = qf_tolerance
+        ddpg_params['max_num_q_updates'] = max_num_q_updates
     else:
         raise Exception("Unknown mode: {}".format(oracle_mode))
 
@@ -165,7 +176,7 @@ def run_ocm_experiment(variant):
 if __name__ == '__main__':
     mode = 'here'
     n_seed = 1
-    exp_prefix = "dev-bptt-ddpg-ocm"
+    exp_prefix = "4-5-60"
     version = 'dev'
 
     """
@@ -184,8 +195,6 @@ if __name__ == '__main__':
     """
     oracle_mode = 'regress'
     algo_class = BpttDDPG
-    # algo_class = WritebackBpttDDPG
-    # algo_class = SumBpttDDPG
     freeze_hidden = False
     unroll_through_target_policy = False
 
@@ -197,69 +206,69 @@ if __name__ == '__main__':
     # policy_rnn_cell_class = FrozenHiddenLstmLinearCell
     load_policy_file = (
         '/home/vitchyr/git/rllab-rail/railrl/data/reference/expert'
-        '/ocm_80p'
+        '/ocm_100p'
         '/params.pkl'
     )
     # load_policy_file = None
+    load_policy_file = 'none'
 
     exp_id = -1
 
     H = 4
     num_values = 2
     num_bptt_unrolls = 4
-    for num_extra_qf_updates, qf_learning_rate in product(
-        [0],
-        [1e-1],
-    ):
-        if num_bptt_unrolls > H:
-            continue
-        print("H", H)
-        print("num_values", num_values)
-        print("num_bptt_unrolls", num_bptt_unrolls)
-        exp_id += 1
-        epoch_length = H * n_batches_per_epoch
-        eval_samples = H * n_batches_per_eval
-        max_path_length = H + 2
-        ddpg_params = dict(
-            batch_size=batch_size,
-            n_epochs=n_epochs,
-            min_pool_size=min_pool_size,
-            replay_pool_size=replay_pool_size,
-            epoch_length=epoch_length,
-            eval_samples=eval_samples,
-            max_path_length=max_path_length,
-            num_bptt_unrolls=num_bptt_unrolls,
-            unroll_through_target_policy=unroll_through_target_policy,
-            freeze_hidden=freeze_hidden,
-            num_extra_qf_updates=num_extra_qf_updates,
-            qf_learning_rate=qf_learning_rate,
-            discount=1.0,
-            # soft_target_tau=1.0,
-            # policy_learning_rate=1e-1,
-        )
-        policy_params = dict(
-            rnn_cell_class=policy_rnn_cell_class,
-        )
-        variant = dict(
-            H=H,
-            num_values=num_values,
+    num_extra_qf_updates = 0
+    qf_learning_rate = 1e-3
+    qf_tolerance = 1e-2
+    max_num_q_updates = 100
+
+
+    exp_id += 1
+    epoch_length = H * n_batches_per_epoch
+    eval_samples = H * n_batches_per_eval
+    max_path_length = H + 2
+    ddpg_params = dict(
+        batch_size=batch_size,
+        n_epochs=n_epochs,
+        min_pool_size=min_pool_size,
+        replay_pool_size=replay_pool_size,
+        epoch_length=epoch_length,
+        eval_samples=eval_samples,
+        max_path_length=max_path_length,
+        num_bptt_unrolls=num_bptt_unrolls,
+        unroll_through_target_policy=unroll_through_target_policy,
+        freeze_hidden=freeze_hidden,
+        num_extra_qf_updates=num_extra_qf_updates,
+        qf_learning_rate=qf_learning_rate,
+        discount=1.0,
+        qf_tolerance=qf_tolerance,
+        max_num_q_updates=max_num_q_updates,
+        # soft_target_tau=1.0,
+        # policy_learning_rate=1e-1,
+    )
+    policy_params = dict(
+        rnn_cell_class=policy_rnn_cell_class,
+    )
+    variant = dict(
+        H=H,
+        num_values=num_values,
+        exp_prefix=exp_prefix,
+        ddpg_params=ddpg_params,
+        policy_params=policy_params,
+        lstm_state_size=lstm_state_size,
+        oracle_mode=oracle_mode,
+        algo_class=algo_class,
+        freeze_hidden=freeze_hidden,
+        version=version,
+        load_policy_file=load_policy_file,
+    )
+    for _ in range(n_seed):
+        seed = random.randint(0, 10000)
+        run_experiment(
+            run_ocm_experiment,
             exp_prefix=exp_prefix,
-            ddpg_params=ddpg_params,
-            policy_params=policy_params,
-            lstm_state_size=lstm_state_size,
-            oracle_mode=oracle_mode,
-            algo_class=algo_class,
-            freeze_hidden=freeze_hidden,
-            version=version,
-            load_policy_file=load_policy_file,
+            seed=seed,
+            mode=mode,
+            variant=variant,
+            exp_id=exp_id,
         )
-        for _ in range(n_seed):
-            seed = random.randint(0, 10000)
-            run_experiment(
-                run_ocm_experiment,
-                exp_prefix=exp_prefix,
-                seed=seed,
-                mode=mode,
-                variant=variant,
-                exp_id=exp_id,
-            )
