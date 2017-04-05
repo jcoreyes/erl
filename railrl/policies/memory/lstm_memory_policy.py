@@ -1,7 +1,8 @@
 import tensorflow as tf
+import numpy as np
 
 from railrl.policies.memory.rnn_cell_policy import RnnCellPolicy
-from railrl.core.tf_util import mlp, linear
+from railrl.core import tf_util
 
 
 class LstmLinearCell(tf.contrib.rnn.BasicLSTMCell):
@@ -14,7 +15,7 @@ class LstmLinearCell(tf.contrib.rnn.BasicLSTMCell):
             output_dim,
             **kwargs
     ):
-        super().__init__(num_units, **kwargs)
+        super().__init__(num_units / 2, **kwargs)
         self._output_dim = output_dim
 
     def __call__(self, inputs, state, scope=None):
@@ -52,14 +53,14 @@ class OutputAwareLstmCell(tf.contrib.rnn.BasicLSTMCell):
             output_dim,
             **kwargs
     ):
-        super().__init__(num_units, **kwargs)
+        super().__init__(num_units / 2, **kwargs)
         self._output_dim = output_dim
 
     def __call__(self, inputs, state, scope=None):
         with tf.variable_scope(scope or "linear_lstm") as self.scope:
             with tf.variable_scope('env_action') as self.env_action_scope:
                 flat_inputs = tf.concat(axis=1, values=[inputs, state])
-                env_action_logit = linear(
+                env_action_logit = tf_util.linear(
                     flat_inputs,
                     flat_inputs.get_shape()[-1],
                     self._output_dim,
@@ -90,7 +91,7 @@ class FrozenHiddenLstmLinearCell(tf.contrib.rnn.BasicLSTMCell):
             output_dim,
             **kwargs
     ):
-        super().__init__(num_units, **kwargs)
+        super().__init__(num_units / 2, **kwargs)
         self._output_dim = output_dim
 
     def __call__(self, inputs, state, scope=None):
@@ -102,7 +103,7 @@ class FrozenHiddenLstmLinearCell(tf.contrib.rnn.BasicLSTMCell):
 
             all_inputs = tf.concat(axis=1, values=(inputs, state))
             with tf.variable_scope('env_action') as self.env_action_scope:
-                env_action_logit = mlp(
+                env_action_logit = tf_util.mlp(
                     all_inputs,
                     all_inputs.get_shape()[-1],
                     (32, 32, self._output_dim),
@@ -117,6 +118,75 @@ class FrozenHiddenLstmLinearCell(tf.contrib.rnn.BasicLSTMCell):
     @property
     def output_size(self):
         return self._output_dim
+
+
+class IRnnCell(tf.contrib.rnn.RNNCell):
+    def __init__(
+            self,
+            num_units,
+            output_dim,
+            num_hidden_layers=2,
+    ):
+        self._output_dim = int(output_dim)
+        self.num_units = int(num_units)
+        self.num_hidden_layers = num_hidden_layers
+
+    def __call__(self, inputs, state, scope=None):
+        with tf.variable_scope(scope or "linear_rnn_cell"):
+            with tf.variable_scope('env_action') as self.env_action_scope:
+                flat_inputs = tf.concat(axis=1, values=[inputs, state])
+                env_action_logit = tf_util.linear(
+                    flat_inputs,
+                    flat_inputs.get_shape()[-1],
+                    self._output_dim,
+                )
+
+            """
+            Set up IRNN inputs and weights
+            """
+            irnn_inputs = tf.concat(values=(inputs, env_action_logit), axis=1)
+            W_hidden = tf_util.weight_variable(
+                [self.num_units, self.num_units],
+                initializer=tf.constant_initializer(
+                    value=np.eye(self.num_units),
+                    dtype=tf.float32,
+                ),
+                name="W_hidden",
+            )
+            b_state = tf_util.bias_variable(
+                self.num_units,
+                initializer=tf.constant_initializer(0.),
+                name="b_state",
+            )
+            W_input = tf_util.weight_variable(
+                [irnn_inputs.get_shape()[-1], self.num_units],
+                name="W_input",
+                initializer=tf_util.xavier_uniform_initializer()
+            )
+
+            """
+            Compute the next state
+            """
+            last_layer = (
+                tf.matmul(state, W_hidden)
+                + tf.matmul(irnn_inputs, W_input)
+                + b_state
+            )
+            for _ in range(self.num_hidden_layers):
+                last_layer = tf.nn.relu(last_layer)
+                last_layer = tf.matmul(last_layer, W_hidden) + b_state
+            next_state = last_layer
+
+        return tf.nn.softmax(env_action_logit), next_state
+
+    @property
+    def state_size(self):
+        return self._num_units
+
+    @property
+    def output_size(self):
+        return self._output_dim
+
 
 
 class LstmMemoryPolicy(RnnCellPolicy):
@@ -142,11 +212,10 @@ class LstmMemoryPolicy(RnnCellPolicy):
         self._action_dim = action_dim
         self._rnn_cell = None
         self._rnn_cell_scope = None
-        self._num_lstm_units = self._memory_dim / 2
         self.rnn_cell_class = rnn_cell_class
         self.init_state = self._placeholder_if_none(
             init_state,
-            [None, self._num_lstm_units * 2],
+            [None, self._memory_dim],
             name='lstm_init_state',
             dtype=tf.float32,
         )
@@ -156,7 +225,7 @@ class LstmMemoryPolicy(RnnCellPolicy):
         assert observation_input is not None
         env_obs, memory_obs = observation_input
         self._rnn_cell = self.rnn_cell_class(
-            self._num_lstm_units,
+            self._memory_dim,
             self._action_dim,
         )
         # TODO(vitchyr): I'm pretty sure that this rnn_cell_scope should NOT
