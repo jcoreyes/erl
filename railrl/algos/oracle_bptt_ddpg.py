@@ -8,6 +8,7 @@ from railrl.algos.bptt_ddpg import BpttDDPG
 from railrl.data_management.ocm_subtraj_replay_buffer import (
     OcmSubtrajReplayBuffer
 )
+from railrl.pythonplusplus import filter_recursive
 from railrl.qfunctions.memory.oracle_unroll_qfunction import (
     OracleUnrollQFunction
 )
@@ -171,10 +172,35 @@ class RegressQBpttDdpg(BpttDDPG):
             self,
             *args,
             oracle_qf: OracleUnrollQFunction,
+            qf_tolerance=None,
             **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        self.qf_tolerance = qf_tolerance
         self.oracle_qf = oracle_qf
+        super().__init__(*args, **kwargs)
+
+    def _do_training(
+            self,
+            **kwargs
+    ):
+        if self.train_qf_op is not None and self.qf_tolerance is not None:
+            last_qf_loss = self.qf_tolerance + 1
+            while last_qf_loss > self.qf_tolerance:
+                batch_size = min(self.pool.num_can_sample, 128)
+                minibatch = self._sample_minibatch(batch_size=batch_size)
+                feed_dict = self._update_feed_dict_from_batch(minibatch)
+                ops = filter_recursive([
+                    self.qf_loss,
+                    self.train_qf_op,
+                    self.update_target_qf_op,
+                ])
+                last_qf_loss = self.sess.run(ops, feed_dict=feed_dict)[0]
+
+        super()._do_training(**kwargs)
+
+    # def _init_policy_ops(self):
+    #     super()._init_policy_ops()
+    #     self.train_policy_op = None
 
     def _init_qf_ops(self):
         # Alternatively, you could pass the action_input when creating this
