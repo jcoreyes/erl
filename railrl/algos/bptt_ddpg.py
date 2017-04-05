@@ -105,8 +105,10 @@ class BpttDDPG(DDPG):
             var_list=trainable_policy_params,
         )
 
-    def _sample_minibatch(self):
-        return self.pool.random_subtrajectories(self.batch_size)
+    def _sample_minibatch(self, batch_size=None):
+        if batch_size is None:
+            batch_size = self.batch_size
+        return self.pool.random_subtrajectories(batch_size)
 
     def _update_feed_dict(self, rewards, terminals, obs, actions, next_obs,
                           **kwargs):
@@ -160,6 +162,7 @@ class BpttDDPG(DDPG):
             self.qf_with_action_input.observation_input: last_obs,
             self._rnn_inputs_ph: env_obs,
             self._rnn_init_state_ph: initial_memory_obs,
+            self.policy.observation_input: last_obs,
         }
 
     def _update_feed_dict_from_path(self, paths):

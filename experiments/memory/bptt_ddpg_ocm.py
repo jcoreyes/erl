@@ -42,6 +42,7 @@ def run_ocm_experiment(variant):
         HintMlpMemoryQFunction
     )
     from railrl.qfunctions.memory.mlp_memory_qfunction import MlpMemoryQFunction
+    from os.path import exists
 
     """
     Set up experiment variants.
@@ -70,7 +71,7 @@ def run_ocm_experiment(variant):
         env,
         num_memory_states=memory_dim,
     )
-    if load_policy_file is None:
+    if load_policy_file is None or not exists(load_policy_file):
         policy = LstmMemoryPolicy(
             name_or_scope="policy",
             action_dim=env_action_dim,
@@ -86,14 +87,18 @@ def run_ocm_experiment(variant):
             policy = data['policy']
     es = ProductStrategy([OneHotSampler(), NoopStrategy()])
 
+    ddpg_params = ddpg_params.copy()
+    unroll_through_target_policy = ddpg_params.pop(
+        'unroll_through_target_policy',
+        False,
+    )
+    qf_tolerance = ddpg_params.pop('qf_tolerance', 1e-3)
     if oracle_mode == 'none':
         qf = MlpMemoryQFunction(
             name_or_scope="critic",
             env_spec=env.spec,
         )
         algo_class = variant['algo_class']
-        ddpg_params = ddpg_params.copy()
-        ddpg_params.pop('unroll_through_target_policy')
     elif oracle_mode == 'unroll':
         qf = OracleUnrollQFunction(
             name_or_scope="oracle_unroll_critic",
@@ -106,6 +111,9 @@ def run_ocm_experiment(variant):
             env_spec=env.spec,
         )
         algo_class = OracleUnrollBpttDDPG
+        ddpg_params['unroll_through_target_policy'] = (
+            unroll_through_target_policy
+        )
     elif oracle_mode == 'hint':
         qf = HintMlpMemoryQFunction(
             name_or_scope="hint_critic",
@@ -113,8 +121,6 @@ def run_ocm_experiment(variant):
             env_spec=env.spec,
         )
         algo_class = OracleBpttDDPG
-        ddpg_params = ddpg_params.copy()
-        ddpg_params.pop('unroll_through_target_policy')
     elif oracle_mode == 'oracle':
         qf = OracleQFunction(
             name_or_scope="oracle_critic",
@@ -127,10 +133,14 @@ def run_ocm_experiment(variant):
         #     name_or_scope="critic",
         #     env_spec=env.spec,
         # )
+        # import tensorflow as tf
         qf = HintMlpMemoryQFunction(
             name_or_scope="hint_critic",
             hint_dim=env_action_dim,
             env_spec=env.spec,
+            # hidden_nonlinearity=tf.nn.tanh,
+            # embedded_hidden_sizes=(32,),
+            # observation_hidden_sizes=(32,),
         )
         oracle_qf = OracleUnrollQFunction(
             name_or_scope="oracle_unroll_critic",
@@ -143,9 +153,8 @@ def run_ocm_experiment(variant):
             env_spec=env.spec,
         )
         algo_class = RegressQBpttDdpg
-        ddpg_params = ddpg_params.copy()
-        ddpg_params.pop('unroll_through_target_policy')
         ddpg_params['oracle_qf'] = oracle_qf
+        ddpg_params['qf_tolerance'] = qf_tolerance
     else:
         raise Exception("Unknown mode: {}".format(oracle_mode))
 
@@ -165,7 +174,7 @@ def run_ocm_experiment(variant):
 if __name__ == '__main__':
     mode = 'here'
     n_seed = 1
-    exp_prefix = "dev-bptt-ddpg-ocm"
+    exp_prefix = "4-4-dev-bptt-ddpg-ocm-freeze"
     version = 'dev'
 
     """
@@ -174,7 +183,7 @@ if __name__ == '__main__':
     n_batches_per_epoch = 100
     n_batches_per_eval = 64
     batch_size = 32
-    n_epochs = 20
+    n_epochs = 50
     lstm_state_size = 10
     min_pool_size = max(n_batches_per_epoch, batch_size)
     replay_pool_size = 100000
@@ -197,10 +206,11 @@ if __name__ == '__main__':
     # policy_rnn_cell_class = FrozenHiddenLstmLinearCell
     load_policy_file = (
         '/home/vitchyr/git/rllab-rail/railrl/data/reference/expert'
-        '/ocm_80p'
+        '/ocm_100p'
         '/params.pkl'
     )
     # load_policy_file = None
+    load_policy_file = 'none'
 
     exp_id = -1
 
@@ -209,7 +219,7 @@ if __name__ == '__main__':
     num_bptt_unrolls = 4
     for num_extra_qf_updates, qf_learning_rate in product(
         [0],
-        [1e-1],
+        [1e-3],
     ):
         if num_bptt_unrolls > H:
             continue
@@ -234,6 +244,7 @@ if __name__ == '__main__':
             num_extra_qf_updates=num_extra_qf_updates,
             qf_learning_rate=qf_learning_rate,
             discount=1.0,
+            qf_tolerance=1e-3,
             # soft_target_tau=1.0,
             # policy_learning_rate=1e-1,
         )
