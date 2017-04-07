@@ -2,6 +2,7 @@
 Use an oracle qfunction to train a policy in bptt-ddpg style.
 """
 from itertools import product
+import tensorflow as tf
 import random
 
 from railrl.launchers.launcher_util import (
@@ -84,7 +85,6 @@ def run_ocm_experiment(variant):
         )
     else:
         import joblib
-        import tensorflow as tf
         with tf.Session():
             data = joblib.load(load_policy_file)
             policy = data['policy']
@@ -97,6 +97,7 @@ def run_ocm_experiment(variant):
     )
     qf_tolerance = ddpg_params.pop('qf_tolerance', 1e-3)
     max_num_q_updates = ddpg_params.pop('max_num_q_updates', 10)
+    train_policy = ddpg_params.pop('train_policy', 10)
     if oracle_mode == 'none':
         qf = MlpMemoryQFunction(
             name_or_scope="critic",
@@ -137,14 +138,14 @@ def run_ocm_experiment(variant):
         #     name_or_scope="critic",
         #     env_spec=env.spec,
         # )
-        # import tensorflow as tf
+
         qf = HintMlpMemoryQFunction(
             name_or_scope="hint_critic",
             hint_dim=env_action_dim,
             env_spec=env.spec,
             # hidden_nonlinearity=tf.nn.tanh,
-            embedded_hidden_sizes=(100, 100),
-            observation_hidden_sizes=(100,),
+            # embedded_hidden_sizes=(32, 32),
+            # observation_hidden_sizes=(32,),
         )
         oracle_qf = OracleUnrollQFunction(
             name_or_scope="oracle_unroll_critic",
@@ -160,6 +161,7 @@ def run_ocm_experiment(variant):
         ddpg_params['oracle_qf'] = oracle_qf
         ddpg_params['qf_tolerance'] = qf_tolerance
         ddpg_params['max_num_q_updates'] = max_num_q_updates
+        ddpg_params['train_policy'] = train_policy
     else:
         raise Exception("Unknown mode: {}".format(oracle_mode))
 
@@ -179,7 +181,7 @@ def run_ocm_experiment(variant):
 if __name__ == '__main__':
     mode = 'here'
     n_seed = 1
-    exp_prefix = "4-5-dev"
+    exp_prefix = "dev-4-7-bptt-ddpg-ocm-regress"
     version = 'dev'
 
     """
@@ -188,7 +190,7 @@ if __name__ == '__main__':
     n_batches_per_epoch = 100
     n_batches_per_eval = 64
     batch_size = 32
-    n_epochs = 50
+    n_epochs = 100
     memory_dim = 20
     min_pool_size = max(n_batches_per_epoch, batch_size)
     replay_pool_size = 100000
@@ -196,7 +198,7 @@ if __name__ == '__main__':
     """
     Algorithm Selection
     """
-    oracle_mode = 'none'
+    oracle_mode = 'regress'
     algo_class = BpttDDPG
     freeze_hidden = False
     unroll_through_target_policy = False
@@ -204,13 +206,13 @@ if __name__ == '__main__':
     """
     Policy Params
     """
-    # policy_rnn_cell_class = OutputAwareLstmCell
-    policy_rnn_cell_class = IRnnCell
+    policy_rnn_cell_class = OutputAwareLstmCell
+    # policy_rnn_cell_class = IRnnCell
     # policy_rnn_cell_class = LstmLinearCell
     # policy_rnn_cell_class = FrozenHiddenLstmLinearCell
     load_policy_file = (
         '/home/vitchyr/git/rllab-rail/railrl/data/reference/expert'
-        '/ocm_100p'
+        '/ocm_66p'
         '/params.pkl'
     )
     # load_policy_file = None
@@ -218,13 +220,17 @@ if __name__ == '__main__':
 
     exp_id = -1
 
-    H = 4
+    # top: H = 6, memory dim = 100
+    # bottom: H = 6, memory dim = 20
+    H = 5
     num_values = 2
     num_bptt_unrolls = 4
     num_extra_qf_updates = 0
-    qf_learning_rate = 1e-3
+    qf_learning_rate = 1e-4
     qf_tolerance = 1e-2
-    max_num_q_updates = 100
+    policy_learning_rate = 5e-5
+    max_num_q_updates = 2
+    train_policy = True
 
 
     exp_id += 1
@@ -244,9 +250,11 @@ if __name__ == '__main__':
         freeze_hidden=freeze_hidden,
         num_extra_qf_updates=num_extra_qf_updates,
         qf_learning_rate=qf_learning_rate,
+        policy_learning_rate=policy_learning_rate,
         discount=1.0,
         qf_tolerance=qf_tolerance,
         max_num_q_updates=max_num_q_updates,
+        train_policy=train_policy,
         # soft_target_tau=1.0,
         # policy_learning_rate=1e-1,
     )
