@@ -4,6 +4,7 @@
 import tensorflow as tf
 
 from railrl.algos.bptt_ddpg import BpttDDPG
+from railrl.core import tf_util
 
 
 class WritebackBpttDDPG(BpttDDPG):
@@ -22,9 +23,7 @@ class WritebackBpttDDPG(BpttDDPG):
             self.rewards_placeholder +
             (1. - self.terminals_placeholder) *
             self.discount * self.target_qf.output)
-        self.qf_loss = tf.reduce_mean(
-            tf.square(
-                tf.subtract(self.ys, self.qf_with_memory_input.output)))
+        self.qf_loss = tf_util.mse(self.ys, self.qf_with_memory_input.output)
         self.Q_weights_norm = tf.reduce_sum(
             tf.stack(
                 [tf.nn.l2_loss(v)

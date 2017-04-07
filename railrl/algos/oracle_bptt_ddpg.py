@@ -12,6 +12,7 @@ from railrl.pythonplusplus import filter_recursive
 from railrl.qfunctions.memory.oracle_unroll_qfunction import (
     OracleUnrollQFunction
 )
+from railrl.core import tf_util
 from rllab.misc import special
 
 TARGET_PREFIX = "target_"
@@ -151,7 +152,9 @@ class OracleUnrollBpttDDPG(OracleBpttDDPG):
                 action_input=self._final_rnn_action,
             )
         self.policy_surrogate_loss = - tf.reduce_mean(
-            self.qf_with_action_input.output)
+            self.qf_with_action_input.output,
+            axis=0,
+        )
         if self._freeze_hidden:
             trainable_policy_params = self.policy.get_params(env_only=True)
         else:
@@ -174,11 +177,13 @@ class RegressQBpttDdpg(BpttDDPG):
             oracle_qf: OracleUnrollQFunction,
             qf_tolerance=None,
             max_num_q_updates=100,
+            train_policy=True,
             **kwargs
     ):
         self.qf_tolerance = qf_tolerance
         self.oracle_qf = oracle_qf
         self.max_num_q_updates = max_num_q_updates
+        self.train_policy = train_policy
         super().__init__(*args, **kwargs)
 
     def _do_training(
@@ -201,9 +206,10 @@ class RegressQBpttDdpg(BpttDDPG):
 
         super()._do_training(**kwargs)
 
-    # def _init_policy_ops(self):
-    #     super()._init_policy_ops()
-    #     self.train_policy_op = None
+    def _init_policy_ops(self):
+        super()._init_policy_ops()
+        if not self.train_policy:
+            self.train_policy_op = None
 
     def _init_qf_ops(self):
         # Alternatively, you could pass the action_input when creating this
@@ -214,11 +220,8 @@ class RegressQBpttDdpg(BpttDDPG):
         super()._init_qf_ops()
 
     def _create_qf_loss(self):
-        return tf.reduce_mean(
-            tf.square(
-                tf.subtract(self.oracle_qf.output, self.qf.output)
-            )
-        )
+        flat_qf_output = tf.squeeze(self.qf.output, axis=1)
+        return tf_util.mse(self.oracle_qf.output, flat_qf_output)
 
     def _qf_feed_dict(self, *args, **kwargs):
         feed_dict = super()._qf_feed_dict(*args, **kwargs)

@@ -553,3 +553,18 @@ def index_into(values, idxs):
     depth = values.get_shape()[-1]
     one_hots = tf.one_hot(idxs, depth, axis=-1)
     return tf.reduce_sum(values * one_hots, axis=-1)
+
+
+def mse(in1, in2, axis=0):
+    """
+    Safely compute the MSE between in1 and in2. Do some checks to make sure
+    there isn't some funky broadcasting happening.
+    :param in1: TensorFlow Tensor
+    :param in2: TensorFlow Tensor
+    :param axis: axis along which to compute the mean
+    :return: MSE between in1 and in2.
+    """
+    assert in1.get_shape().is_compatible_with(
+        in2.get_shape()
+    )
+    return tf.reduce_mean(tf.squared_difference(in1, in2), axis=axis)

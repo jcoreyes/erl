@@ -8,6 +8,7 @@ import numpy as np
 import tensorflow as tf
 
 from railrl.core.neuralnet import NeuralNetwork
+from railrl.core import tf_util
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import (
     split_paths,
@@ -139,13 +140,11 @@ class DDPG(OnlineAlgorithm):
     def _create_qf_loss(self):
         self.ys = (
             self.rewards_placeholder +
-            (1. - self.terminals_placeholder) *
-            self.discount * self.target_qf.output)
-        return tf.reduce_mean(
-            tf.square(
-                tf.subtract(self.ys, self.qf.output)
-            )
+            (1. - self.terminals_placeholder)
+            * self.discount
+            * self.target_qf.output
         )
+        return tf_util.mse(self.ys, self.qf.output)
 
     def _init_policy_ops(self):
         # To compute the surrogate loss function for the qf, it must take
@@ -155,7 +154,9 @@ class DDPG(OnlineAlgorithm):
             action_input=self.policy.output
         )
         self.policy_surrogate_loss = - tf.reduce_mean(
-            self.qf_with_action_input.output)
+            self.qf_with_action_input.output,
+            axis=0,
+        )
         self.train_policy_op = tf.train.AdamOptimizer(
             self.policy_learning_rate
         ).minimize(

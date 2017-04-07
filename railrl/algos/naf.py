@@ -8,6 +8,7 @@ import numpy as np
 import tensorflow as tf
 
 from railrl.core.neuralnet import NeuralNetwork
+from railrl.core import tf_util
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import split_paths
 from railrl.algos.online_algorithm import OnlineAlgorithm
@@ -80,16 +81,14 @@ class NAF(OnlineAlgorithm):
             self.rewards_placeholder +
             (1. - self.terminals_placeholder) *
             self.discount * self.target_vf.output)
-        self.qf_loss = tf.reduce_mean(
-            tf.square(
-                tf.subtract(self.ys, self.qf.output)))
+        self.qf_loss = tf_util.mse(self.ys, self.qf.output)
         self.Q_weights_norm = tf.reduce_sum(
             tf.stack(
                 [tf.nn.l2_loss(v)
                  for v in
                  self.qf.get_params_internal(regularizable=True)]
             ),
-            name='weights_norm'
+            name='weights_norm',
         )
         self.qf_total_loss = (
             self.qf_loss + self.qf_weight_decay * self.Q_weights_norm)
