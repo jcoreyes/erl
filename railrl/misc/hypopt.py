@@ -2,6 +2,7 @@ import pickle
 import time
 import json
 from os.path import join, exists
+import numpy as np
 
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
 
@@ -95,8 +96,10 @@ def optimize(
         maximize=False,
         flatten_choice_dictionary=True,
         dotmap_to_nested_dictionary=True,
+        max_magnitude=1e10,
 ):
     """
+    Optimize (by default minimize) a function over a search space.
 
     :param function: Function to optimize over.
     :param search_space: a hyperopt.pyll.base.Apply instance, or a dictionary
@@ -131,6 +134,7 @@ def optimize(
     nested dictionaries before passing onto the main function.
     :param flatten_choice_dictionary: If True, flatten the nested dictionary
     caused by creating a choice variable before passing it to the functions.
+    :param max_magnitude: Clip the returned value's magnitude to this value.
     
     A choice variable defined as
     
@@ -190,6 +194,8 @@ def optimize(
         loss = function(merge_recursive_dicts(params, extra_function_kwargs))
         if maximize:
             loss = - loss
+        if np.isnan(loss):
+            loss = max_magnitude
         return {
             'loss': loss,
             'status': STATUS_OK,
