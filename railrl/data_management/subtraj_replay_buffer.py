@@ -69,6 +69,7 @@ class SubtrajReplayBuffer(ReplayBuffer):
         self._save_episode_for_validation = False
         self.validat_size = int(validation_set_fraction * self._max_pool_size)
         self._validation_start_indices = []
+        self._training_start_indices = []
         self.first_validation_idx = int(
             validation_set_fraction * self._max_pool_size
         )
@@ -126,6 +127,8 @@ class SubtrajReplayBuffer(ReplayBuffer):
                 self._all_valid_start_indices.append(previous_idx)
                 if self._save_episode_for_validation:
                     self._validation_start_indices.append(previous_idx)
+                else:
+                    self._training_start_indices.append(previous_idx)
                 if (self._only_sample_at_start_of_episode
                         and self._episode_start_indices[previous_idx]):
                     self._valid_start_episode_start_indices.append(previous_idx)
@@ -135,6 +138,8 @@ class SubtrajReplayBuffer(ReplayBuffer):
             self._all_valid_start_indices.remove(self._top)
         if self._top in self._validation_start_indices:
             self._validation_start_indices.remove(self._top)
+        if self._top in self._training_start_indices:
+            self._training_start_indices.remove(self._top)
         if self._top in self._valid_start_episode_start_indices:
             self._valid_start_episode_start_indices.remove(self._top)
 
@@ -161,10 +166,8 @@ class SubtrajReplayBuffer(ReplayBuffer):
         if return_all:
             return self._all_valid_start_indices
         if validation:
-            return [i for i in self._all_valid_start_indices
-                    if i in self._validation_start_indices]
-        return [i for i in self._all_valid_start_indices
-                if i not in self._validation_start_indices]
+            return self._validation_start_indices
+        return self._training_start_indices
 
     def num_can_sample(self, return_all=False, validation=False):
         return len(self._valid_start_indices(
