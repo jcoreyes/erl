@@ -161,8 +161,6 @@ class SubtrajReplayBuffer(ReplayBuffer):
         if return_all:
             return self._all_valid_start_indices
         if validation:
-            import ipdb
-            ipdb.set_trace()
             return [i for i in self._all_valid_start_indices
                     if i in self._validation_start_indices]
         return [i for i in self._all_valid_start_indices
