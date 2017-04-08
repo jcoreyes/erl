@@ -155,14 +155,15 @@ def run_ocm_experiment(variant):
     )
 
     algorithm.train()
-    return algorithm.final_score
+    scores = algorithm.epoch_scores
+    return np.mean(scores[-3:])
 
 
 if __name__ == '__main__':
     mode = 'here'
     n_seed = 1
     # exp_prefix = "4-6-sweep-regress-2"
-    exp_prefix = "4-7-sweep-regress-h6-3"
+    exp_prefix = "4-8-sweep-regress-soft-3"
     version = 'dev'
 
     """
@@ -171,11 +172,10 @@ if __name__ == '__main__':
     n_batches_per_epoch = 100
     n_batches_per_eval = 64
     batch_size = 32
-    n_epochs = 10
+    n_epochs = 2
     lstm_state_size = 10
     min_pool_size = n_batches_per_epoch
     replay_pool_size = 100000
-    num_extra_qf_updates = 4
 
     """
     Algorithm Selection
@@ -232,6 +232,11 @@ if __name__ == '__main__':
             0,
             20,
             1,
+        ),
+        'ddpg_params.soft_target_tau': hp.uniform(
+            'ddpg_params.soft_target_tau',
+            0.01,
+            1.0,
         ),
         'seed': hp.randint('seed', 10000),
     }
