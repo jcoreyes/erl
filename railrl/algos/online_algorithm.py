@@ -116,7 +116,7 @@ class OnlineAlgorithm(RLAlgorithm):
         self.eval_sampler = BatchSampler(self)
         self.scope = None  # Necessary for BatchSampler
         self.whole_paths = True  # Also for BatchSampler
-        self._last_average_returns = None
+        self._last_average_returns = []
 
     def _start_worker(self):
         self.eval_sampler.start_worker()
@@ -343,7 +343,7 @@ class OnlineAlgorithm(RLAlgorithm):
             ('Epoch', epoch),
             ('AverageReturn', average_returns),
         ])
-        self._last_average_returns = average_returns
+        self._last_average_returns.append(average_returns)
 
         discounted_returns = [
             special.discount_return(path["rewards"], self.discount)
@@ -372,10 +372,10 @@ class OnlineAlgorithm(RLAlgorithm):
         return {}
 
     @property
-    def final_score(self) -> float:
+    def epoch_scores(self) -> Iterable[float]:
         """
-        :return: The score after training. The objective is to MAXIMIZE this
-        value.
+        :return: The scores after each epoch training. The objective is to
+        MAXIMIZE these value.
         """
         return self._last_average_returns
 

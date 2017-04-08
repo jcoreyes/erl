@@ -3,6 +3,7 @@
 """
 
 import tensorflow as tf
+from typing import Iterable
 import numpy as np
 
 from railrl.algos.ddpg import DDPG
@@ -53,7 +54,7 @@ class BpttDDPG(DDPG):
         self._rnn_cell = policy.rnn_cell
 
         self._replay_buffer_class = replay_buffer_class
-        self._last_env_score = None
+        self._last_env_scores = []
         super().__init__(
             env,
             exploration_strategy,
@@ -187,13 +188,13 @@ class BpttDDPG(DDPG):
         )
 
     def log_diagnostics(self, paths):
-        self._last_env_score = np.mean(self.env.log_diagnostics(paths))
+        self._last_env_scores.append(np.mean(self.env.log_diagnostics(paths)))
         self.policy.log_diagnostics(paths)
 
     @property
-    def final_score(self) -> float:
+    def epoch_scores(self) -> Iterable[float]:
         """
-        :return: The score after training. The objective is to MAXIMIZE this
-        value.
+        :return: The scores after each epoch training. The objective is to
+        MAXIMIZE these value.
         """
-        return self._last_env_score
+        return self._last_env_scores
