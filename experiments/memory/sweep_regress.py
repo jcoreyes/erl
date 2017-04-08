@@ -161,7 +161,8 @@ def run_ocm_experiment(variant):
 if __name__ == '__main__':
     mode = 'here'
     n_seed = 1
-    exp_prefix = "4-3-sweep-regress"
+    # exp_prefix = "4-6-sweep-regress-2"
+    exp_prefix = "4-7-sweep-regress-h6-3"
     version = 'dev'
 
     """
@@ -170,7 +171,7 @@ if __name__ == '__main__':
     n_batches_per_epoch = 100
     n_batches_per_eval = 64
     batch_size = 32
-    n_epochs = 20
+    n_epochs = 10
     lstm_state_size = 10
     min_pool_size = n_batches_per_epoch
     replay_pool_size = 100000
@@ -184,7 +185,7 @@ if __name__ == '__main__':
     freeze_hidden = False
     unroll_through_target_policy = False
 
-    H = 5
+    H = 6
     num_values = 2
     num_bptt_unrolls = 4
     epoch_length = H * n_batches_per_epoch
@@ -219,28 +220,31 @@ if __name__ == '__main__':
     search_space = {
         'ddpg_params.qf_learning_rate': hp.loguniform('qf_learning_rate',
                                                       np.log(1e-5),
-                                                      np.log(1e-2)),
-        'ddpg_params.num_extra_qf_updates': hp.quniform(
-            'ddpg_params.num_extra_qf_updates',
+                                                      np.log(2e-2)),
+        'ddpg_params.policy_learning_rate': hp.loguniform('policy_learning_rate',
+                                                      np.log(1e-5),
+                                                      np.log(2e-2)),
+        'ddpg_params.qf_tolerance': hp.loguniform('qf_tolerance',
+                                                  np.log(1e-5),
+                                                  np.log(1e-1)),
+        'ddpg_params.max_num_q_updates': hp.quniform(
+            'ddpg_params.max_num_q_updates',
             0,
-            19,
+            20,
             1,
         ),
         'seed': hp.randint('seed', 10000),
     }
 
     base_log_dir = create_base_log_dir(exp_prefix=exp_prefix)
-    exp_id = -1
 
 
     def run_experiment_wrapper(hyperparams):
-        global exp_id
-        exp_id += 1
         return run_experiment_here(
             run_ocm_experiment,
             exp_prefix=exp_prefix,
             variant=hyperparams,
-            exp_id=exp_id,
+            exp_id=0,
         )
 
 

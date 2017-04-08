@@ -180,8 +180,8 @@ def run_ocm_experiment(variant):
 
 if __name__ == '__main__':
     mode = 'here'
-    n_seed = 1
-    exp_prefix = "dev-4-7-bptt-ddpg-ocm-regress"
+    n_seed = 3
+    exp_prefix = "4-7-bptt-ddpg-ocm-regress-post-sweep-4"
     version = 'dev'
 
     """
@@ -190,7 +190,7 @@ if __name__ == '__main__':
     n_batches_per_epoch = 100
     n_batches_per_eval = 64
     batch_size = 32
-    n_epochs = 100
+    n_epochs = 50
     memory_dim = 20
     min_pool_size = max(n_batches_per_epoch, batch_size)
     replay_pool_size = 100000
@@ -226,10 +226,10 @@ if __name__ == '__main__':
     num_values = 2
     num_bptt_unrolls = 4
     num_extra_qf_updates = 0
-    qf_learning_rate = 1e-4
-    qf_tolerance = 1e-2
-    policy_learning_rate = 5e-5
-    max_num_q_updates = 2
+    qf_learning_rate = 4.1e-5
+    qf_tolerance = 0.0639
+    policy_learning_rate = 0.000267
+    max_num_q_updates = 4
     train_policy = True
 
 
@@ -255,7 +255,7 @@ if __name__ == '__main__':
         qf_tolerance=qf_tolerance,
         max_num_q_updates=max_num_q_updates,
         train_policy=train_policy,
-        # soft_target_tau=1.0,
+        soft_target_tau=1.0,
         # policy_learning_rate=1e-1,
     )
     policy_params = dict(
