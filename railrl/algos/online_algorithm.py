@@ -244,10 +244,10 @@ class OnlineAlgorithm(RLAlgorithm):
             self._shutdown_worker()
 
     def _can_train(self):
-        return self.pool.num_can_sample >= self.min_pool_size
+        return self.pool.num_can_sample() >= self.min_pool_size
 
     def _can_eval(self):
-        return (self.pool.num_can_sample >= self.min_pool_size and
+        return (self.pool.num_can_sample() >= self.min_pool_size and
                 self.n_eval_samples > 0)
 
     def _switch_to_training_mode(self):
@@ -359,6 +359,7 @@ class OnlineAlgorithm(RLAlgorithm):
                                                         es_path_returns))
 
         statistics.update(self._statistics_from_paths(paths))
+        statistics.update(self._get_other_statistics())
 
         for key, value in statistics.items():
             logger.record_tabular(key, value)
@@ -366,6 +367,9 @@ class OnlineAlgorithm(RLAlgorithm):
     def log_diagnostics(self, paths):
         self.env.log_diagnostics(paths)
         self.policy.log_diagnostics(paths)
+
+    def _get_other_statistics(self):
+        return {}
 
     @property
     def final_score(self) -> float:

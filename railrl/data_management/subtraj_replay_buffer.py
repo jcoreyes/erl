@@ -1,5 +1,6 @@
 from collections import deque
 import numpy as np
+import random
 
 from railrl.data_management.replay_buffer import ReplayBuffer
 from railrl.misc.np_util import subsequences
@@ -26,6 +27,7 @@ class SubtrajReplayBuffer(ReplayBuffer):
             env,
             subtraj_length,
             only_sample_at_start_of_episode=False,
+            validation_set_fraction=0.2,
     ):
         self._max_pool_size = max_pool_size
         self._env = env
@@ -58,6 +60,18 @@ class SubtrajReplayBuffer(ReplayBuffer):
         self._episode_start_indices = np.zeros(max_pool_size, dtype='uint8')
         self._starting_episode = True
         self._valid_start_episode_start_indices = []
+
+
+        """
+        The last part of the replay buffer will be saved as a validation set.
+        """
+        self.validation_set_fraction = validation_set_fraction
+        self._save_episode_for_validation = False
+        self.validat_size = int(validation_set_fraction * self._max_pool_size)
+        self._validation_start_indices = []
+        self.first_validation_idx = int(
+            validation_set_fraction * self._max_pool_size
+        )
 
     def _add_sample(self, observation, action_, reward, terminal,
                     final_state, **kwargs):
@@ -94,6 +108,9 @@ class SubtrajReplayBuffer(ReplayBuffer):
         )
         self._previous_indices = deque(maxlen=self._subtraj_length)
         self._starting_episode = True
+        self._save_episode_for_validation = (
+            random.random() < self.validation_set_fraction
+        )
 
     def advance(self):
         if len(self._previous_indices) >= self._subtraj_length:
@@ -107,6 +124,8 @@ class SubtrajReplayBuffer(ReplayBuffer):
             if (previous_idx + self._subtraj_length < self._max_pool_size and
                     previous_idx not in self._all_valid_start_indices):
                 self._all_valid_start_indices.append(previous_idx)
+                if self._save_episode_for_validation:
+                    self._validation_start_indices.append(previous_idx)
                 if (self._only_sample_at_start_of_episode
                         and self._episode_start_indices[previous_idx]):
                     self._valid_start_episode_start_indices.append(previous_idx)
@@ -114,6 +133,8 @@ class SubtrajReplayBuffer(ReplayBuffer):
         # step is either garbage or from another episode
         if self._top in self._all_valid_start_indices:
             self._all_valid_start_indices.remove(self._top)
+        if self._top in self._validation_start_indices:
+            self._validation_start_indices.remove(self._top)
         if self._top in self._valid_start_episode_start_indices:
             self._valid_start_episode_start_indices.remove(self._top)
 
@@ -125,21 +146,33 @@ class SubtrajReplayBuffer(ReplayBuffer):
         else:
             self._size += 1
 
-    def random_subtrajectories(self, batch_size, replace=False):
-        start_indices = np.random.choice(self._valid_start_indices, batch_size,
-                                         replace=replace)
+    def random_subtrajectories(self, batch_size, replace=False,
+                               validation=False):
+        start_indices = np.random.choice(
+            self._valid_start_indices(validation=validation),
+            batch_size,
+            replace=replace,
+        )
         return self._get_trajectories(start_indices)
 
-    @property
-    def _valid_start_indices(self):
+    def _valid_start_indices(self, return_all=False, validation=False):
         if self._only_sample_at_start_of_episode:
             return self._valid_start_episode_start_indices
-        else:
+        if return_all:
             return self._all_valid_start_indices
+        if validation:
+            import ipdb
+            ipdb.set_trace()
+            return [i for i in self._all_valid_start_indices
+                    if i in self._validation_start_indices]
+        return [i for i in self._all_valid_start_indices
+                if i not in self._validation_start_indices]
 
-    @property
-    def num_can_sample(self):
-        return len(self._valid_start_indices)
+    def num_can_sample(self, return_all=False, validation=False):
+        return len(self._valid_start_indices(
+            return_all=return_all,
+            validation=validation,
+        ))
 
     def add_trajectory(self, path):
         agent_infos = path['agent_infos']
@@ -158,7 +191,7 @@ class SubtrajReplayBuffer(ReplayBuffer):
             path["actions"],
             path["rewards"],
             list_of_agent_infos,
-            list_of_env_infos
+            list_of_env_infos,
         ):
             observation = self._env.observation_space.unflatten(observation)
             action = self._env.observation_space.unflatten(action)
@@ -170,8 +203,9 @@ class SubtrajReplayBuffer(ReplayBuffer):
         self.terminate_episode(terminal_observation)
 
     def get_all_valid_subtrajectories(self):
-        start_indices = self._valid_start_indices
-        return self._get_trajectories(start_indices)
+        return self._get_trajectories(self._valid_start_indices(
+            return_all=True)
+        )
 
     def _get_trajectories(self, start_indices):
         return dict(

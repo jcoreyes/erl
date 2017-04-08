@@ -192,7 +192,7 @@ class RegressQBpttDdpg(BpttDDPG):
     ):
         if self.train_qf_op is not None and self.qf_tolerance is not None:
             for _ in range(self.max_num_q_updates):
-                batch_size = min(self.pool.num_can_sample, 128)
+                batch_size = min(self.pool.num_can_sample(), 128)
                 minibatch = self._sample_minibatch(batch_size=batch_size)
                 feed_dict = self._update_feed_dict_from_batch(minibatch)
                 ops = filter_recursive([
@@ -279,3 +279,14 @@ class RegressQBpttDdpg(BpttDDPG):
             ('QfOutput', self.qf.output),
             ('OracleQfOutput', self.oracle_qf.output),
         ]
+
+    def _get_other_statistics(self):
+        if self.pool.num_can_sample(validation=True) > self.batch_size:
+            batch = self.pool.random_subtrajectories(self.batch_size,
+                                                     validation=True)
+            feed_dict = self._update_feed_dict_from_batch(batch)
+            qf_validation_loss = self.sess.run(self.qf_loss, feed_dict=feed_dict)
+            return {
+                'QfValidationLoss': qf_validation_loss,
+            }
+        return {}

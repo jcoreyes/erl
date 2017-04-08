@@ -34,7 +34,6 @@ class ReplayBuffer(object, metaclass=abc.ABCMeta):
         """
         pass
 
-    @property
     @abc.abstractmethod
     def num_can_sample(self):
         """

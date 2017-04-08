@@ -15,7 +15,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
             env,
             2,
         )
-        self.assertEqual(buff.num_can_sample, 0)
+        self.assertEqual(buff.num_can_sample(return_all=True), 0)
 
     def test_size_add_one(self):
         env = StubEnv()
@@ -27,7 +27,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
         observation = np.array([[0.5]])
         action = np.array([[0.5]])
         buff.add_sample(observation, action, 1, False)
-        self.assertEqual(buff.num_can_sample, 0)
+        self.assertEqual(buff.num_can_sample(return_all=True), 0)
 
     def test_size_enough_for_one_subtraj(self):
         env = StubEnv()
@@ -41,7 +41,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
         buff.add_sample(observation, action, 1, False)
         buff.add_sample(observation, action, 1, False)
         buff.add_sample(observation, action, 1, False)
-        self.assertEqual(buff.num_can_sample, 1)
+        self.assertEqual(buff.num_can_sample(return_all=True), 1)
 
     def test_size_enough_for_two_subtrajs(self):
         env = StubEnv()
@@ -56,7 +56,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
         buff.add_sample(observation, action, 1, False)
         buff.add_sample(observation, action, 1, False)
         buff.add_sample(observation, action, 1, False)
-        self.assertEqual(buff.num_can_sample, 2)
+        self.assertEqual(buff.num_can_sample(return_all=True), 2)
 
         buff = SubtrajReplayBuffer(
             100,
@@ -69,7 +69,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
         buff.add_sample(observation, action, 1, False)
         buff.add_sample(observation, action, 1, False)
         buff.terminate_episode(observation)
-        self.assertEqual(buff.num_can_sample, 2)
+        self.assertEqual(buff.num_can_sample(return_all=True), 2)
 
     def test_size_after_terminate(self):
         env = StubEnv()
@@ -86,7 +86,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
         buff.add_sample(observation, action, 1, False)
         buff.add_sample(observation, action, 1, False)
         buff.add_sample(observation, action, 1, False)
-        self.assertEqual(buff.num_can_sample, 2)
+        self.assertEqual(buff.num_can_sample(return_all=True), 2)
 
     def test_size_after_terminal_true(self):
         env = StubEnv()
@@ -103,7 +103,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
         buff.add_sample(observation, action, 1, False)
         buff.add_sample(observation, action, 1, False)
         buff.add_sample(observation, action, 1, False)
-        self.assertEqual(buff.num_can_sample, 2)
+        self.assertEqual(buff.num_can_sample(return_all=True), 2)
 
     def test_size_add_many(self):
         env = StubEnv()
@@ -116,7 +116,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
         action = np.array([[0.5]])
         for _ in range(10):
             buff.add_sample(observation, action, 1, False)
-        self.assertEqual(buff.num_can_sample, 8)
+        self.assertEqual(buff.num_can_sample(return_all=True), 8)
 
     def test_random_subtraj_shape(self):
         env = StubEnv()
