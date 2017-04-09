@@ -115,21 +115,26 @@ class HintMlpMemoryQFunction(NNQFunction):
         embedded = tf.concat(axis=1, values=[observation_output, action_input])
         embedded_dim = sum(self.action_dim) + obs_output_dim
         with tf.variable_scope("fusion_mlp"):
-            fused_output = mlp(
-                embedded,
-                embedded_dim,
-                self.embedded_hidden_sizes,
-                self.hidden_nonlinearity,
-                W_initializer=self.hidden_W_init,
-                b_initializer=self.hidden_b_init,
-                pre_nonlin_lambda=self._process_layer,
-            )
-            fused_output = self._process_layer(fused_output)
+            if len(self.embedded_hidden_sizes) > 0:
+                fused_output = mlp(
+                    embedded,
+                    embedded_dim,
+                    self.embedded_hidden_sizes,
+                    self.hidden_nonlinearity,
+                    W_initializer=self.hidden_W_init,
+                    b_initializer=self.hidden_b_init,
+                    pre_nonlin_lambda=self._process_layer,
+                )
+                fused_output = self._process_layer(fused_output)
+                fused_output_dim = self.embedded_hidden_sizes[-1]
+            else:
+                fused_output = embedded
+                fused_output_dim = embedded_dim
 
         with tf.variable_scope("output_linear"):
             return self.output_nonlinearity(linear(
                 fused_output,
-                self.embedded_hidden_sizes[-1],
+                fused_output_dim,
                 1,
                 W_initializer=self.output_W_init,
                 b_initializer=self.output_b_init,

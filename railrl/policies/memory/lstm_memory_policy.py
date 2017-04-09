@@ -132,7 +132,7 @@ class IRnnCell(tf.contrib.rnn.RNNCell):
         self.num_hidden_layers = num_hidden_layers
 
     def __call__(self, inputs, state, scope=None):
-        with tf.variable_scope(scope or "linear_rnn_cell"):
+        with tf.variable_scope(scope or "irnn_cell"):
             with tf.variable_scope('env_action') as self.env_action_scope:
                 flat_inputs = tf.concat(axis=1, values=[inputs, state])
                 env_action_logit = tf_util.linear(
@@ -187,6 +187,41 @@ class IRnnCell(tf.contrib.rnn.RNNCell):
     def output_size(self):
         return self._output_dim
 
+
+class LinearRnnCell(tf.contrib.rnn.RNNCell):
+    def __init__(
+            self,
+            num_units,
+            output_dim,
+    ):
+        self._output_dim = int(output_dim)
+        self.num_units = int(num_units)
+
+    def __call__(self, inputs, state, scope=None):
+        with tf.variable_scope(scope or "linear_rnn_cell"):
+            flat_inputs = tf.concat(axis=1, values=[inputs, state])
+            with tf.variable_scope('env_action') as self.env_action_scope:
+                env_action_logit = tf_util.linear(
+                    flat_inputs,
+                    flat_inputs.get_shape()[-1],
+                    self._output_dim,
+                )
+            with tf.variable_scope('next_state'):
+                next_state = tf_util.linear(
+                    flat_inputs,
+                    flat_inputs.get_shape()[-1],
+                    self._output_dim,
+                )
+
+        return tf.nn.softmax(env_action_logit), next_state
+
+    @property
+    def state_size(self):
+        return self._num_units
+
+    @property
+    def output_size(self):
+        return self._output_dim
 
 
 class LstmMemoryPolicy(RnnCellPolicy):
