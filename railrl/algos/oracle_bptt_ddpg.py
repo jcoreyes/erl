@@ -8,7 +8,7 @@ from railrl.algos.bptt_ddpg import BpttDDPG
 from railrl.data_management.ocm_subtraj_replay_buffer import (
     OcmSubtrajReplayBuffer
 )
-from railrl.pythonplusplus import filter_recursive
+from railrl.pythonplusplus import filter_recursive, print_rm_chars
 from railrl.qfunctions.memory.oracle_unroll_qfunction import (
     OracleUnrollQFunction
 )
@@ -52,6 +52,9 @@ class OracleBpttDDPG(BpttDDPG):
         )
         qf_feed_dict[self.qf.target_labels] = target_one_hots
         qf_feed_dict[self.target_qf.target_labels] = target_one_hots
+        if hasattr(self.qf, "time_labels"):
+            qf_feed_dict[self.qf.time_labels] = times[:, -1]
+            qf_feed_dict[self.target_qf.time_labels] = times[: -1]
         return qf_feed_dict
 
     def _update_feed_dict_from_batch(self, batch):
@@ -68,11 +71,9 @@ class OracleBpttDDPG(BpttDDPG):
     def _statistic_names_and_ops(self):
         names_and_ops = [
             ('PolicySurrogateLoss', self.policy_surrogate_loss),
-            ('Ys', self.policy_surrogate_loss),
-            ('PolicyOutput', self.policy_surrogate_loss),
-            ('TargetPolicyOutput', self.policy_surrogate_loss),
-            ('QfOutput', self.policy_surrogate_loss),
-            ('TargetQfOutput', self.policy_surrogate_loss),
+            ('PolicyOutput', self.policy.output),
+            ('TargetPolicyOutput', self.target_policy.output),
+            ('QfOutput', self.qf_with_action_input.output),
         ]
         if self.qf_is_trainable:
             names_and_ops.append(
@@ -188,9 +189,12 @@ class RegressQBpttDdpg(BpttDDPG):
 
     def _do_training(
             self,
+            epoch=None,
             **kwargs
     ):
         if self.train_qf_op is not None and self.qf_tolerance is not None:
+            import sys
+            sys.stdout.write("{0:03.3f}".format(0.0))
             for _ in range(self.max_num_q_updates):
                 batch_size = min(self.pool.num_can_sample(), 128)
                 minibatch = self._sample_minibatch(batch_size=batch_size)
@@ -201,10 +205,14 @@ class RegressQBpttDdpg(BpttDDPG):
                     self.update_target_qf_op,
                 ])
                 qf_loss = self.sess.run(ops, feed_dict=feed_dict)[0]
+                print_rm_chars(11)
+                sys.stdout.write("{0:03d} {1:03.3f}".format(epoch, qf_loss))
+                sys.stdout.flush()
                 if qf_loss <= self.qf_tolerance:
                     break
 
-        super()._do_training(**kwargs)
+
+        super()._do_training(epoch=epoch, **kwargs)
 
     def _init_policy_ops(self):
         super()._init_policy_ops()
@@ -254,6 +262,8 @@ class RegressQBpttDdpg(BpttDDPG):
         }
         if hasattr(self.qf, "target_labels"):
             feed_dict[self.qf.target_labels] = target_one_hots
+        if hasattr(self.qf, "time_labels"):
+            feed_dict[self.qf.time_labels] = times[:, -1]
         return feed_dict
 
     def _update_feed_dict_from_batch(self, batch):
@@ -282,11 +292,14 @@ class RegressQBpttDdpg(BpttDDPG):
 
     def _get_other_statistics(self):
         if self.pool.num_can_sample(validation=True) > self.batch_size:
-            batch = self.pool.random_subtrajectories(self.batch_size,
-                                                     validation=True)
+            batch = self.pool.get_valid_subtrajectories(validation=True)
             feed_dict = self._update_feed_dict_from_batch(batch)
             qf_validation_loss = self.sess.run(self.qf_loss, feed_dict=feed_dict)
+            batch = self.pool.get_valid_subtrajectories(validation=False)
+            feed_dict = self._update_feed_dict_from_batch(batch)
+            qf_training_loss = self.sess.run(self.qf_loss, feed_dict=feed_dict)
             return {
                 'QfValidationLoss': qf_validation_loss,
+                'QfTrainingLoss': qf_training_loss,
             }
         return {}

@@ -14,6 +14,8 @@ class HintMlpMemoryQFunction(NNQFunction):
             name_or_scope,
             hint_dim,
             target_labels=None,
+            time_labels=None,
+            max_time=None,
             hidden_W_init=None,
             hidden_b_init=None,
             output_W_init=None,
@@ -43,6 +45,13 @@ class HintMlpMemoryQFunction(NNQFunction):
             name='target_labels',
             dtype=tf.float32,
         )
+        self.max_time = max_time
+        self.time_labels = self._placeholder_if_none(
+            time_labels,
+            shape=[None],
+            name='time_labels',
+            dtype=tf.int32,
+        )
         self._create_network()
 
     def _create_network_internal(
@@ -50,6 +59,7 @@ class HintMlpMemoryQFunction(NNQFunction):
             observation_input=None,
             action_input=None,
             target_labels=None,
+            time_labels=None,
     ):
         env_obs, memory_obs = observation_input
         env_action, memory_action = action_input
@@ -69,10 +79,21 @@ class HintMlpMemoryQFunction(NNQFunction):
             memory_action,
             scope_name="memory_action",
         )
-        observation_input = tf.concat(axis=1, values=[env_obs, memory_obs, target_labels])
-        action_input = tf.concat(axis=1, values=[env_action, memory_action])
+        time_onehots = tf.one_hot(indices=time_labels,
+                                  depth=self.max_time,
+                                  on_value=1.0,
+                                  off_value=0., name="time_onehots")
+        # time_onehots = tf.cast(x=time_labels, dtype=tf.float32)
+        observation_input = tf.concat(
+            axis=1,
+            values=[env_obs, memory_obs, target_labels, time_onehots],
+        )
+        action_input = tf.concat(
+            axis=1,
+            values=[env_action, memory_action],
+        )
         with tf.variable_scope("observation_mlp"):
-            obs_input_dim = sum(self.observation_dim) + self.hint_dim
+            obs_input_dim = sum(self.observation_dim) + self.hint_dim + self.max_time
             if len(self.observation_hidden_sizes) > 0:
                 observation_output = mlp(
                     observation_input,
@@ -120,4 +141,5 @@ class HintMlpMemoryQFunction(NNQFunction):
             observation_input=self.observation_input,
             action_input=self.action_input,
             target_labels=self.target_labels,
+            time_labels=self.time_labels,
         )

@@ -142,10 +142,13 @@ def run_ocm_experiment(variant):
         qf = HintMlpMemoryQFunction(
             name_or_scope="hint_critic",
             hint_dim=env_action_dim,
+            max_time=H,
             env_spec=env.spec,
             # hidden_nonlinearity=tf.nn.tanh,
-            # embedded_hidden_sizes=(32, 32),
-            # observation_hidden_sizes=(32,),
+            output_nonlinearity=tf.nn.tanh,
+            embedded_hidden_sizes=(32, ),
+            observation_hidden_sizes=(32, ),
+            # observation_hidden_sizes=[],
         )
         oracle_qf = OracleUnrollQFunction(
             name_or_scope="oracle_unroll_critic",
@@ -181,7 +184,7 @@ def run_ocm_experiment(variant):
 if __name__ == '__main__':
     mode = 'here'
     n_seed = 1
-    exp_prefix = "dev-4-8-bptt-ddpg-ocm"
+    exp_prefix = "dev-4-9-bptt-ddpg-ocm-regress"
     version = 'dev'
 
     """
@@ -190,8 +193,9 @@ if __name__ == '__main__':
     n_batches_per_epoch = 100
     n_batches_per_eval = 64
     batch_size = 32
-    n_epochs = 10
+    n_epochs = 50
     memory_dim = 20
+    # min_pool_size = 10*max(n_batches_per_epoch, batch_size)
     min_pool_size = max(n_batches_per_epoch, batch_size)
     replay_pool_size = 100000
 
@@ -213,6 +217,7 @@ if __name__ == '__main__':
     load_policy_file = (
         '/home/vitchyr/git/rllab-rail/railrl/data/reference/expert'
         '/ocm_66p'
+        # '/ocm_lstm_linear_cell_80p'
         '/params.pkl'
     )
     # load_policy_file = None
@@ -225,13 +230,14 @@ if __name__ == '__main__':
     H = 6
     num_values = 2
     num_bptt_unrolls = 4
-    num_extra_qf_updates = 0
-    qf_learning_rate = 4.1e-5
-    qf_tolerance = 0.0639
-    policy_learning_rate = 0.000267
-    max_num_q_updates = 0
+    num_extra_qf_updates = 8
+    qf_learning_rate = 0.0013620919275503856
+    qf_tolerance = 0.01
+    policy_learning_rate = 0.012225993805564607
+    max_num_q_updates = 100
+    soft_target_tau = 0.5834232644350988
+    qf_weight_decay = 0.012006183194005954
     train_policy = True
-
 
     exp_id += 1
     epoch_length = H * n_batches_per_epoch
@@ -255,7 +261,8 @@ if __name__ == '__main__':
         qf_tolerance=qf_tolerance,
         max_num_q_updates=max_num_q_updates,
         train_policy=train_policy,
-        soft_target_tau=1.0,
+        soft_target_tau=soft_target_tau,
+        qf_weight_decay=qf_weight_decay,
         # policy_learning_rate=1e-1,
     )
     policy_params = dict(
@@ -275,7 +282,8 @@ if __name__ == '__main__':
         load_policy_file=load_policy_file,
     )
     for _ in range(n_seed):
-        seed = random.randint(0, 10000)
+        # seed = random.randint(0, 10000)
+        seed = 73
         run_experiment(
             run_ocm_experiment,
             exp_prefix=exp_prefix,

@@ -2,6 +2,7 @@
 Sweep hyperparameters to find good settings for RegressQBpttDdpg.
 """
 import numpy as np
+import tensorflow as tf
 
 from railrl.misc.hypopt import optimize_and_save
 from hyperopt import hp
@@ -104,6 +105,7 @@ def run_ocm_experiment(variant):
             name_or_scope="hint_critic",
             hint_dim=env_action_dim,
             env_spec=env.spec,
+            output_nonlinearity=tf.nn.tanh,
         )
         algo_class = OracleBpttDDPG
         ddpg_params = ddpg_params.copy()
@@ -163,7 +165,7 @@ if __name__ == '__main__':
     mode = 'here'
     n_seed = 1
     # exp_prefix = "4-6-sweep-regress-2"
-    exp_prefix = "4-8-sweep-regress-soft-3"
+    exp_prefix = "4-9-sweep-regress-tanh-qf"
     version = 'dev'
 
     """
@@ -172,7 +174,7 @@ if __name__ == '__main__':
     n_batches_per_epoch = 100
     n_batches_per_eval = 64
     batch_size = 32
-    n_epochs = 2
+    n_epochs = 5
     lstm_state_size = 10
     min_pool_size = n_batches_per_epoch
     replay_pool_size = 100000
@@ -238,6 +240,11 @@ if __name__ == '__main__':
             0.01,
             1.0,
         ),
+        'ddpg_params.qf_weight_decay': hp.uniform(
+            'ddpg_params.qf_weight_decay',
+            0.01,
+            1.0,
+        ),
         'seed': hp.randint('seed', 10000),
     }
 
@@ -245,12 +252,16 @@ if __name__ == '__main__':
 
 
     def run_experiment_wrapper(hyperparams):
-        return run_experiment_here(
-            run_ocm_experiment,
-            exp_prefix=exp_prefix,
-            variant=hyperparams,
-            exp_id=0,
-        )
+        scores = []
+        for i in range(3):
+            hyperparams['seed'] += 1
+            scores.append(run_experiment_here(
+                run_ocm_experiment,
+                exp_prefix=exp_prefix,
+                variant=hyperparams,
+                exp_id=0,
+            ))
+        return np.mean(scores)
 
 
     optimize_and_save(

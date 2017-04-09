@@ -223,6 +223,10 @@ class OnlineAlgorithm(RLAlgorithm):
                                 n_steps_total=n_steps_total,
                                 n_steps_current_epoch=n_steps_current_epoch,
                             )
+                        # import sys
+                        # sys.stdout.write("\n")
+                        # sys.stdout.flush()
+
                     itr += 1
 
                 logger.log("Training finished. Time: {0}".format(time.time() -

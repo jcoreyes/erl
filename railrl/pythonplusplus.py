@@ -2,7 +2,7 @@
 General purpose Python functions.
 """
 import random
-from collections import Iterable
+import sys
 
 
 # TODO(vpong): probably move this to its own module, not under railrl
@@ -72,3 +72,8 @@ def filter_recursive(x_or_iterable):
         return new_items
     else:
         return x_or_iterable
+
+
+def print_rm_chars(n_chars):
+    sys.stdout.write("\r" * n_chars)
+    sys.stdout.flush()
