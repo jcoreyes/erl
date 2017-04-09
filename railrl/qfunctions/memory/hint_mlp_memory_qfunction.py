@@ -21,6 +21,7 @@ class HintMlpMemoryQFunction(NNQFunction):
             embedded_hidden_sizes=(100,),
             observation_hidden_sizes=(100,),
             hidden_nonlinearity=tf.nn.relu,
+            output_nonlinearity=tf.identity,
             **kwargs
     ):
         self.setup_serialization(locals())
@@ -34,6 +35,7 @@ class HintMlpMemoryQFunction(NNQFunction):
         self.embedded_hidden_sizes = embedded_hidden_sizes
         self.observation_hidden_sizes = observation_hidden_sizes
         self.hidden_nonlinearity = hidden_nonlinearity
+        self.output_nonlinearity = output_nonlinearity
         self.hint_dim = hint_dim
         self.target_labels = self._placeholder_if_none(
             target_labels,
@@ -70,21 +72,27 @@ class HintMlpMemoryQFunction(NNQFunction):
         observation_input = tf.concat(axis=1, values=[env_obs, memory_obs, target_labels])
         action_input = tf.concat(axis=1, values=[env_action, memory_action])
         with tf.variable_scope("observation_mlp"):
-            observation_output = mlp(
-                observation_input,
-                sum(self.observation_dim) + self.hint_dim,
-                self.observation_hidden_sizes,
-                self.hidden_nonlinearity,
-                W_initializer=self.hidden_W_init,
-                b_initializer=self.hidden_b_init,
-                pre_nonlin_lambda=self._process_layer,
-            )
-            observation_output = self._process_layer(
-                observation_output,
-                scope_name="observation_output",
-            )
+            obs_input_dim = sum(self.observation_dim) + self.hint_dim
+            if len(self.observation_hidden_sizes) > 0:
+                observation_output = mlp(
+                    observation_input,
+                    obs_input_dim,
+                    self.observation_hidden_sizes,
+                    self.hidden_nonlinearity,
+                    W_initializer=self.hidden_W_init,
+                    b_initializer=self.hidden_b_init,
+                    pre_nonlin_lambda=self._process_layer,
+                )
+                observation_output = self._process_layer(
+                    observation_output,
+                    scope_name="observation_output",
+                )
+                obs_output_dim = self.observation_hidden_sizes[-1]
+            else:
+                observation_output = observation_input
+                obs_output_dim = obs_input_dim
         embedded = tf.concat(axis=1, values=[observation_output, action_input])
-        embedded_dim = sum(self.action_dim) + self.observation_hidden_sizes[-1]
+        embedded_dim = sum(self.action_dim) + obs_output_dim
         with tf.variable_scope("fusion_mlp"):
             fused_output = mlp(
                 embedded,
@@ -98,13 +106,13 @@ class HintMlpMemoryQFunction(NNQFunction):
             fused_output = self._process_layer(fused_output)
 
         with tf.variable_scope("output_linear"):
-            return linear(
+            return self.output_nonlinearity(linear(
                 fused_output,
                 self.embedded_hidden_sizes[-1],
                 1,
                 W_initializer=self.output_W_init,
                 b_initializer=self.output_b_init,
-            )
+            ))
 
     @property
     def _input_name_to_values(self):
