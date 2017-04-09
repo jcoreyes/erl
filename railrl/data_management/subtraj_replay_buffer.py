@@ -208,6 +208,9 @@ class SubtrajReplayBuffer(ReplayBuffer):
             return_all=True)
         )
 
+    def get_valid_subtrajectories(self, **kwargs):
+        return self._get_trajectories(self._valid_start_indices(**kwargs))
+
     def _get_trajectories(self, start_indices):
         return dict(
             observations=subsequences(self._observations, start_indices,
