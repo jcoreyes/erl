@@ -74,6 +74,7 @@ class OracleUnrollQFunction(NNQFunction):
                 observations=observation_input,
                 actions=action_input,
                 target_labels=target_labels,
+                return_expected_reward=True,
             )
         self._save_rnn_cell = SaveOutputRnn(
             policy.rnn_cell,
