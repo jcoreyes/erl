@@ -53,7 +53,6 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
         :param softmax_action: If true, put the action through a softmax.
         """
         assert max_reward_magnitude >= reward_for_remembering
-        super().__init__()
         self.num_steps = num_steps
         self.n = n
         self._onehot_size = n + 1
@@ -242,9 +241,11 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
         """
         target_labels_float = tf.cast(target_labels, tf.float32)
         if return_expected_reward:
-            env_final_actions = actions[0]
-            prob_correct = target_labels_float*env_final_actions
-            return 2 * tf.reduce_sum(prob_correct, axis=1) - 1
+            assert target_labels_float.get_shape().is_compatible_with(
+                actions.get_shape()
+            )
+            prob_correct = target_labels_float * actions
+            return -(2 * tf.reduce_sum(prob_correct, axis=1) - 1)
         cross_entropy = target_labels_float * tf.log(actions)
         return tf.reduce_sum(cross_entropy, axis=1)
 
