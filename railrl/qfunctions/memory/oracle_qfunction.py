@@ -37,6 +37,7 @@ class OracleQFunction(NNQFunction):
                 observation_input,
                 action_input,
                 target_labels=target_labels,
+                return_expected_reward=True,
             )
         return out
 
