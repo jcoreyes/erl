@@ -101,8 +101,8 @@ class OracleUnrollQFunction(NNQFunction):
                 observations=observation_input,
                 actions=final_actions,
                 target_labels=target_labels,
+                return_expected_reward=True,
             )
-        return out
 
     @property
     def _input_name_to_values(self):

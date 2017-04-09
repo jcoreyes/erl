@@ -232,7 +232,8 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
 
         return final_probs_correct
 
-    def get_tf_loss(self, observations, actions, target_labels):
+    def get_tf_loss(self, observations, actions, target_labels,
+                    return_expected_reward=False):
         """
         Return the supervised-learning loss.
         :param observation: Tensor
@@ -240,6 +241,10 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
         :return: loss Tensor
         """
         target_labels_float = tf.cast(target_labels, tf.float32)
+        if return_expected_reward:
+            env_final_actions = actions[0]
+            prob_correct = target_labels_float*env_final_actions
+            return 2 * tf.reduce_sum(prob_correct, axis=1) - 1
         cross_entropy = target_labels_float * tf.log(actions)
         return tf.reduce_sum(cross_entropy, axis=1)
 
