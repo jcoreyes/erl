@@ -3,11 +3,13 @@
 """
 import numpy as np
 import tensorflow as tf
+from collections import OrderedDict
 
 from railrl.algos.bptt_ddpg import BpttDDPG
 from railrl.data_management.ocm_subtraj_replay_buffer import (
     OcmSubtrajReplayBuffer
 )
+from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.pythonplusplus import filter_recursive, print_rm_chars
 from railrl.qfunctions.memory.oracle_unroll_qfunction import (
     OracleUnrollQFunction
@@ -22,6 +24,7 @@ class OracleBpttDDPG(BpttDDPG):
     """
     BpttDDPT but with an oracle QFunction.
     """
+
     def __init__(self, *args, **kwargs):
         kwargs['replay_buffer_class'] = OcmSubtrajReplayBuffer
         super().__init__(*args, **kwargs)
@@ -88,6 +91,7 @@ class OracleUnrollBpttDDPG(OracleBpttDDPG):
     then you need to unroll the current policy to get the final output. This
     is what this class adds.
     """
+
     def __init__(self, *args, unroll_through_target_policy=False, **kwargs):
         # TODO(vitchyr): pass this in
         self.unroll_through_target_policy = unroll_through_target_policy
@@ -139,10 +143,7 @@ class OracleUnrollBpttDDPG(OracleBpttDDPG):
             scope=self._rnn_cell_scope,
         )
         self._final_rnn_output = self._rnn_outputs[-1]
-        self._final_rnn_action = (
-            self._final_rnn_output,
-            self._rnn_final_state,
-        )
+        self._final_rnn_action = self._final_rnn_output, self._rnn_final_state
         if self.unroll_through_target_policy:
             self.qf_with_action_input = self.qf.get_weight_tied_copy(
                 action_input=self._final_rnn_action,
@@ -172,6 +173,7 @@ class RegressQBpttDdpg(BpttDDPG):
     """
     Train the Q function by regressing onto the oracle Q values.
     """
+
     def __init__(
             self,
             *args,
@@ -213,9 +215,12 @@ class RegressQBpttDdpg(BpttDDPG):
                     self.train_qf_op,
                     self.update_target_qf_op,
                 ])
-                self.last_qf_regression_loss = self.sess.run(ops, feed_dict=feed_dict)[0]
+                self.last_qf_regression_loss = (
+                    self.sess.run(ops, feed_dict=feed_dict)[0]
+                )
                 print_rm_chars(11)
-                sys.stdout.write("{0:03d} {1:03.3f}".format(epoch, self.last_qf_regression_loss))
+                sys.stdout.write("{0:03d} {1:03.3f}".format(epoch,
+                                                            self.last_qf_regression_loss))
                 sys.stdout.flush()
                 if self.last_qf_regression_loss <= self.qf_tolerance:
                     break
@@ -223,11 +228,21 @@ class RegressQBpttDdpg(BpttDDPG):
         super()._do_training(epoch=epoch, n_steps_total=n_steps_total,
                              n_steps_current_epoch=n_steps_current_epoch)
 
-
     def _init_policy_ops(self):
         super()._init_policy_ops()
         if not self.train_policy:
             self.train_policy_op = None
+
+        self.oracle_grads = tf.gradients(self.oracle_qf.output,
+                                         self.oracle_qf.final_actions[0])
+        self.oracle_grads += tf.gradients(self.oracle_qf.output,
+                                          self.policy.output[1])
+        self.qf_grads = tf.gradients(self.qf_with_action_input.output,
+                                     list(self._final_rnn_action))
+
+        self.grad_distance = []
+        for oracle_grad, qf_grad in zip(self.oracle_grads, self.qf_grads):
+            self.grad_distance.append(tf_util.cosine(oracle_grad, qf_grad))
 
     def _init_qf_ops(self):
         # Alternatively, you could pass the action_input when creating this
@@ -301,18 +316,44 @@ class RegressQBpttDdpg(BpttDDPG):
         ]
 
     def _get_other_statistics(self):
-        if self.pool.num_can_sample(validation=True) > self.batch_size:
-            batch = self.pool.get_valid_subtrajectories(validation=True)
-            feed_dict = self._update_feed_dict_from_batch(batch)
-            qf_validation_loss = self.sess.run(self.qf_loss, feed_dict=feed_dict)
-            batch = self.pool.get_valid_subtrajectories(validation=False)
-            feed_dict = self._update_feed_dict_from_batch(batch)
-            qf_training_loss = self.sess.run(self.qf_loss, feed_dict=feed_dict)
-            return {
-                'QfValidationLoss': qf_validation_loss,
-                'QfTrainingLoss': qf_training_loss,
-            }
-        return {}
+        if self.pool.num_can_sample(validation=True) < self.batch_size:
+            return {}
+
+        valid_batch = self.pool.get_valid_subtrajectories(validation=True)
+        valid_feed_dict = self._update_feed_dict_from_batch(valid_batch)
+        qf_validation_loss, *valid_grad_distance = self.sess.run(
+            [self.qf_loss] + self.grad_distance,
+            feed_dict=valid_feed_dict
+        )
+
+        train_batch = self.pool.get_valid_subtrajectories(validation=False)
+        train_feed_dict = self._update_feed_dict_from_batch(train_batch)
+        qf_training_loss, *train_grad_distance = self.sess.run(
+            [self.qf_loss] + self.grad_distance,
+            feed_dict=train_feed_dict
+        )
+
+        statistics = OrderedDict([
+            ('Qf_Validation_Loss', qf_validation_loss),
+            ('Qf_Training_Loss', qf_training_loss),
+        ])
+        statistics.update(create_stats_ordered_dict(
+            'Qf_Validation_Grad_Distance_env',
+            valid_grad_distance[0],
+        ))
+        statistics.update(create_stats_ordered_dict(
+            'Qf_Validation_Grad_Distance_memory',
+            valid_grad_distance[1],
+        ))
+        statistics.update(create_stats_ordered_dict(
+            'Qf_Training_Grad_Distance_env',
+            train_grad_distance[0],
+        ))
+        statistics.update(create_stats_ordered_dict(
+            'Qf_Training_Grad_Distance_memory',
+            train_grad_distance[1],
+        ))
+        return statistics
 
     def _get_training_ops(
             self,
