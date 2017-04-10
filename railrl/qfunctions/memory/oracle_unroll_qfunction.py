@@ -79,25 +79,21 @@ class OracleUnrollQFunction(NNQFunction):
         self._save_rnn_cell = SaveOutputRnn(
             policy.rnn_cell,
         )
-        rnn_inputs = tf.unstack(save_rnn_inputs, axis=1)
-        init_state = (action_input[1], action_input[0])
+        self.rnn_inputs = tf.unstack(save_rnn_inputs, axis=1)
+        self.init_state = action_input
         if save_rnn_inputs.get_shape()[1] == 0:
             # In this case, there' no unrolling.
             self.final_actions = action_input
         else:
             policy.rnn_cell_scope.reuse_variables()
-            self._rnn_outputs, self._rnn_final_state = tf.contrib.rnn.static_rnn(
+            self._rnn_outputs, self.final_actions = tf.contrib.rnn.static_rnn(
                 self._save_rnn_cell,
-                rnn_inputs,
-                initial_state=init_state,
+                self.rnn_inputs,
+                initial_state=self.init_state,
                 sequence_length=sequence_lengths,
                 dtype=tf.float32,
                 scope=policy.rnn_cell_scope,
             )
-            # The action still needs to be in the original shape, so it needs to
-            # have the added memory.
-            self.final_actions = (self._rnn_final_state[1],
-                                  self._rnn_final_state[0])
         with tf.variable_scope("oracle_loss"):
             out = self._ocm_env.get_tf_loss(
                 observations=observation_input,

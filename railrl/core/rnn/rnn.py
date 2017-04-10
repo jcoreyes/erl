@@ -13,20 +13,20 @@ class SaveOutputRnn(tf.contrib.rnn.RNNCell):
         self._wrapped_rnn_cell = rnn_cell
 
     def __call__(self, inputs, state, scope=None):
-        wrapped_rnn_state_size = state[0]
+        wrapped_rnn_state = state[1]
         wrapped_output, wrapped_state = self._wrapped_rnn_cell(
             inputs,
-            wrapped_rnn_state_size,
+            wrapped_rnn_state,
             scope=scope,
         )
 
-        return wrapped_output, (wrapped_state, wrapped_output)
+        return wrapped_output, (wrapped_output, wrapped_state)
 
     @property
     def state_size(self):
         return (
-            self._wrapped_rnn_cell.state_size,
             self._wrapped_rnn_cell.output_size,
+            self._wrapped_rnn_cell.state_size,
         )
 
     @property
