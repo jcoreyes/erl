@@ -353,5 +353,45 @@ class TestUtil(TFTestCase):
         )
         self.assertNpEqual(expected, actual)
 
+    def test_batch_dot_product(self):
+        xs_ph = tf.placeholder(tf.float32, shape=(None, 2))
+        ys_ph = tf.placeholder(tf.float32, shape=(None, 2))
+        result = tf_util.batch_dot_product(xs_ph, ys_ph)
+
+        xs = np.array([
+            [0, 1],
+            [2, 3],
+        ])
+        ys = np.array([
+            [0, 1],
+            [-2, 3],
+        ])
+        expected = np.array([1, 5])
+        actual = self.sess.run(result, {xs_ph: xs, ys_ph: ys})
+        self.assertNpEqual(expected, actual )
+
+    def test_cosine(self):
+        xs_ph = tf.placeholder(tf.float32, shape=(None, 2))
+        ys_ph = tf.placeholder(tf.float32, shape=(None, 2))
+        result = tf_util.cosine(xs_ph, ys_ph)
+        xs = np.array([
+            [0, 1],
+            [0, 5],
+            [0, 1],
+            [0, 5],
+            [1, 1],
+        ])
+        ys = np.array([
+            [1, 0],
+            [5, 0],
+            [0, -1],
+            [0, 5],
+            [1, 0],
+        ])
+
+        expected = np.array([0, 0, -1, 1, 1/np.sqrt(2)])
+        actual = self.sess.run(result, {xs_ph: xs, ys_ph: ys})
+        self.assertNpEqual(expected, actual)
+
 if __name__ == '__main__':
     unittest.main()

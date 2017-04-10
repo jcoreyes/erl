@@ -568,3 +568,27 @@ def mse(in1, in2, axis=0):
         in2.get_shape()
     )
     return tf.reduce_mean(tf.squared_difference(in1, in2), axis=axis)
+
+
+def batch_dot_product(xs, ys):
+    """
+    Return element-wise <x_i, y_i>
+    :param xs: Tensor of shape [None x DIM]
+    :param ys: Tensor of shape [None x DIM]
+    :return: Tensor of shape [None]
+    """
+    return tf.einsum('ij,ij->i', xs, ys)
+
+
+def cosine(xs, ys):
+    """
+    Return the cosine of the angle between x and y.
+    :param xs: TensorFlow Tensor of shape [None x DIM]
+    :param ys: TensorFlow Tensor of shape [None x DIM]
+    :return: Tensor of shape [None]
+    removed.
+    """
+    assert xs.get_shape().is_compatible_with(ys.get_shape())
+    norm_x = tf.nn.l2_normalize(xs, dim=1)
+    norm_y = tf.nn.l2_normalize(ys, dim=1)
+    return batch_dot_product(norm_x, norm_y)
