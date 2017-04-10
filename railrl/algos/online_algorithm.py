@@ -298,6 +298,8 @@ class OnlineAlgorithm(RLAlgorithm):
             n_steps_total=n_steps_total,
             n_steps_current_epoch=n_steps_current_epoch,
         )
+        if ops is None:
+            return
         minibatch = self._sample_minibatch()
         feed_dict = self._update_feed_dict_from_batch(minibatch)
         if isinstance(ops[0], list):

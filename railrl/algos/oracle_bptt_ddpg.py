@@ -185,14 +185,23 @@ class RegressQBpttDdpg(BpttDDPG):
         self.oracle_qf = oracle_qf
         self.max_num_q_updates = max_num_q_updates
         self.train_policy = train_policy
+        self.last_qf_regression_loss = 1e10
         super().__init__(*args, **kwargs)
 
     def _do_training(
             self,
             epoch=None,
-            **kwargs
+            n_steps_total=None,
+            n_steps_current_epoch=None,
     ):
-        if self.train_qf_op is not None and self.qf_tolerance is not None:
+        batch_size = min(self.pool.num_can_sample(), 128)
+        minibatch = self._sample_minibatch(batch_size=batch_size)
+        feed_dict = self._update_feed_dict_from_batch(minibatch)
+        self.last_qf_regression_loss = self.sess.run(
+            self.qf_loss,
+            feed_dict
+        )
+        if self.should_train_qf(n_steps_total=n_steps_total):
             import sys
             sys.stdout.write("{0:03.3f}".format(0.0))
             for _ in range(self.max_num_q_updates):
@@ -204,15 +213,16 @@ class RegressQBpttDdpg(BpttDDPG):
                     self.train_qf_op,
                     self.update_target_qf_op,
                 ])
-                qf_loss = self.sess.run(ops, feed_dict=feed_dict)[0]
+                self.last_qf_regression_loss = self.sess.run(ops, feed_dict=feed_dict)[0]
                 print_rm_chars(11)
-                sys.stdout.write("{0:03d} {1:03.3f}".format(epoch, qf_loss))
+                sys.stdout.write("{0:03d} {1:03.3f}".format(epoch, self.last_qf_regression_loss))
                 sys.stdout.flush()
-                if qf_loss <= self.qf_tolerance:
+                if self.last_qf_regression_loss <= self.qf_tolerance:
                     break
 
+        super()._do_training(epoch=epoch, n_steps_total=n_steps_total,
+                             n_steps_current_epoch=n_steps_current_epoch)
 
-        super()._do_training(epoch=epoch, **kwargs)
 
     def _init_policy_ops(self):
         super()._init_policy_ops()
@@ -303,3 +313,30 @@ class RegressQBpttDdpg(BpttDDPG):
                 'QfTrainingLoss': qf_training_loss,
             }
         return {}
+
+    def _get_training_ops(
+            self,
+            epoch=None,
+            n_steps_total=None,
+            n_steps_current_epoch=None,
+    ):
+        """
+        :return: List of ops to perform when training. If a list of list is
+        provided, each list is executed in order with separate calls to
+        sess.run.
+        """
+        ops = super()._get_training_ops()
+        if not self.should_train_qf(n_steps_total):
+            ops[0].remove(self.train_qf_op)
+            ops[1].remove(self.update_target_qf_op)
+        return ops
+
+    def should_train_qf(self, n_steps_total):
+        # return n_steps_total % 100 == 0 and self.train_qf_op is not None and self.qf_tolerance is not None
+        return (
+            True
+            # and self.last_qf_regression_loss <= self.qf_tolerance
+            and n_steps_total % 100 == 0
+            and self.train_qf_op is not None
+            and self.qf_tolerance is not None
+        )
