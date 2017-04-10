@@ -195,7 +195,7 @@ class LinearRnnCell(tf.contrib.rnn.RNNCell):
             output_dim,
     ):
         self._output_dim = int(output_dim)
-        self.num_units = int(num_units)
+        self._num_units = int(num_units)
 
     def __call__(self, inputs, state, scope=None):
         with tf.variable_scope(scope or "linear_rnn_cell"):
@@ -204,13 +204,13 @@ class LinearRnnCell(tf.contrib.rnn.RNNCell):
                 env_action_logit = tf_util.linear(
                     flat_inputs,
                     flat_inputs.get_shape()[-1],
-                    self._output_dim,
+                    self.output_size,
                 )
             with tf.variable_scope('next_state'):
                 next_state = tf_util.linear(
                     flat_inputs,
                     flat_inputs.get_shape()[-1],
-                    self._output_dim,
+                    self.state_size,
                 )
 
         return tf.nn.softmax(env_action_logit), next_state
