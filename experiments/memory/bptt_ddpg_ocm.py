@@ -13,6 +13,7 @@ from railrl.policies.memory.lstm_memory_policy import (
     LstmLinearCell,
     FrozenHiddenLstmLinearCell,
     IRnnCell,
+    LinearRnnCell,
 )
 from railrl.algos.writeback_bptt_ddpt import WritebackBpttDDPG
 from railrl.algos.bptt_ddpg import BpttDDPG
@@ -57,6 +58,7 @@ def run_ocm_experiment(variant):
     num_values = variant['num_values']
     ddpg_params = variant['ddpg_params']
     policy_params = variant['policy_params']
+    qf_params = variant['qf_params']
     num_bptt_unrolls = ddpg_params['num_bptt_unrolls']
     oracle_mode = variant['oracle_mode']
     load_policy_file = variant.get('load_policy_file', None)
@@ -144,11 +146,7 @@ def run_ocm_experiment(variant):
             hint_dim=env_action_dim,
             max_time=H,
             env_spec=env.spec,
-            # hidden_nonlinearity=tf.nn.tanh,
-            output_nonlinearity=tf.nn.tanh,
-            embedded_hidden_sizes=(32, ),
-            observation_hidden_sizes=(32, ),
-            # observation_hidden_sizes=[],
+            **qf_params
         )
         oracle_qf = OracleUnrollQFunction(
             name_or_scope="oracle_unroll_critic",
@@ -193,7 +191,7 @@ if __name__ == '__main__':
     n_batches_per_epoch = 100
     n_batches_per_eval = 64
     batch_size = 32
-    n_epochs = 50
+    n_epochs = 20
     memory_dim = 20
     # min_pool_size = 10*max(n_batches_per_epoch, batch_size)
     min_pool_size = max(n_batches_per_epoch, batch_size)
@@ -204,12 +202,13 @@ if __name__ == '__main__':
     """
     oracle_mode = 'regress'
     algo_class = BpttDDPG
-    freeze_hidden = False
+    freeze_hidden = True
     unroll_through_target_policy = False
 
     """
     Policy Params
     """
+    # policy_rnn_cell_class = LinearRnnCell
     policy_rnn_cell_class = OutputAwareLstmCell
     # policy_rnn_cell_class = IRnnCell
     # policy_rnn_cell_class = LstmLinearCell
@@ -231,10 +230,10 @@ if __name__ == '__main__':
     num_values = 2
     num_bptt_unrolls = 4
     num_extra_qf_updates = 8
-    qf_learning_rate = 0.0013620919275503856
+    qf_learning_rate = 1e-5
     qf_tolerance = 0.01
-    policy_learning_rate = 0.012225993805564607
-    max_num_q_updates = 100
+    policy_learning_rate = 1e-3
+    max_num_q_updates = 1000
     soft_target_tau = 0.5834232644350988
     qf_weight_decay = 0.012006183194005954
     train_policy = True
@@ -268,12 +267,18 @@ if __name__ == '__main__':
     policy_params = dict(
         rnn_cell_class=policy_rnn_cell_class,
     )
+    qf_params = dict(
+        hidden_nonlinearity=tf.identity,
+        embedded_hidden_sizes=[],
+        observation_hidden_sizes=[],
+    )
     variant = dict(
         H=H,
         num_values=num_values,
         exp_prefix=exp_prefix,
         ddpg_params=ddpg_params,
         policy_params=policy_params,
+        qf_params=qf_params,
         memory_dim=memory_dim,
         oracle_mode=oracle_mode,
         algo_class=algo_class,
@@ -282,8 +287,7 @@ if __name__ == '__main__':
         load_policy_file=load_policy_file,
     )
     for _ in range(n_seed):
-        # seed = random.randint(0, 10000)
-        seed = 73
+        seed = random.randint(0, 10000)
         run_experiment(
             run_ocm_experiment,
             exp_prefix=exp_prefix,
