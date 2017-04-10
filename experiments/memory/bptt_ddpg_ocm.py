@@ -202,7 +202,7 @@ if __name__ == '__main__':
     """
     oracle_mode = 'regress'
     algo_class = BpttDDPG
-    freeze_hidden = True
+    freeze_hidden = False
     unroll_through_target_policy = False
 
     """
@@ -229,13 +229,13 @@ if __name__ == '__main__':
     H = 6
     num_values = 2
     num_bptt_unrolls = 4
-    num_extra_qf_updates = 8
-    qf_learning_rate = 1e-5
+    num_extra_qf_updates = 0
+    qf_learning_rate = 1e-3
     qf_tolerance = 0.01
     policy_learning_rate = 1e-3
-    max_num_q_updates = 1000
-    soft_target_tau = 0.5834232644350988
-    qf_weight_decay = 0.012006183194005954
+    max_num_q_updates = 100000
+    soft_target_tau = 0.5
+    qf_weight_decay = 0.01
     train_policy = True
 
     exp_id += 1
@@ -268,9 +268,12 @@ if __name__ == '__main__':
         rnn_cell_class=policy_rnn_cell_class,
     )
     qf_params = dict(
-        hidden_nonlinearity=tf.identity,
-        embedded_hidden_sizes=[],
-        observation_hidden_sizes=[],
+        hidden_nonlinearity=tf.nn.relu,
+        output_nonlinearity=tf.nn.tanh,
+        # hidden_nonlinearity=tf.identity,
+        # output_nonlinearity=tf.identity,
+        # embedded_hidden_sizes=[],
+        # observation_hidden_sizes=[],
     )
     variant = dict(
         H=H,
