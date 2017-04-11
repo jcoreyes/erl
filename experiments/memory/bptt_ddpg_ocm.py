@@ -182,7 +182,7 @@ def run_ocm_experiment(variant):
 if __name__ == '__main__':
     mode = 'here'
     n_seed = 1
-    exp_prefix = "dev-4-9-bptt-ddpg-ocm-regress"
+    exp_prefix = "dev-4-10-bptt-ddpg-ocm-regress"
     version = 'dev'
 
     """
@@ -191,7 +191,7 @@ if __name__ == '__main__':
     n_batches_per_epoch = 100
     n_batches_per_eval = 64
     batch_size = 32
-    n_epochs = 20
+    n_epochs = 50
     memory_dim = 20
     # min_pool_size = 10*max(n_batches_per_epoch, batch_size)
     min_pool_size = max(n_batches_per_epoch, batch_size)
@@ -224,8 +224,6 @@ if __name__ == '__main__':
 
     exp_id = -1
 
-    # top: H = 6, memory dim = 100
-    # bottom: H = 6, memory dim = 20
     H = 6
     num_values = 2
     num_bptt_unrolls = 4
@@ -233,7 +231,7 @@ if __name__ == '__main__':
     qf_learning_rate = 1e-3
     qf_tolerance = 0.01
     policy_learning_rate = 1e-3
-    max_num_q_updates = 100000
+    max_num_q_updates = 100
     soft_target_tau = 0.5
     qf_weight_decay = 0.01
     train_policy = True

@@ -223,9 +223,6 @@ class OnlineAlgorithm(RLAlgorithm):
                                 n_steps_total=n_steps_total,
                                 n_steps_current_epoch=n_steps_current_epoch,
                             )
-                        # import sys
-                        # sys.stdout.write("\n")
-                        # sys.stdout.flush()
 
                     itr += 1
 
@@ -302,6 +299,8 @@ class OnlineAlgorithm(RLAlgorithm):
             return
         minibatch = self._sample_minibatch()
         feed_dict = self._update_feed_dict_from_batch(minibatch)
+        # import ipdb
+        # ipdb.set_trace()
         if isinstance(ops[0], list):
             for op in ops:
                 self.sess.run(op, feed_dict=feed_dict)
