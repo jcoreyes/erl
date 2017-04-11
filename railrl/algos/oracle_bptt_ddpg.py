@@ -200,30 +200,37 @@ class RegressQBpttDdpg(BpttDDPG):
         minibatch = self._sample_minibatch(batch_size=batch_size)
         feed_dict = self._update_feed_dict_from_batch(minibatch)
         self.last_qf_regression_loss = self.sess.run(
-            self.qf_loss,
+            self.qf_total_loss,
             feed_dict
         )
         if self.should_train_qf(n_steps_total=n_steps_total):
             import sys
-            sys.stdout.write("{0:03.3f}".format(0.0))
-            for _ in range(self.max_num_q_updates):
+            sys.stdout.write("{0:03d} {1:03.4f}".format(0, 0.0))
+            i = 0
+            for i in range(self.max_num_q_updates):
                 batch_size = min(self.pool.num_can_sample(), 128)
                 minibatch = self._sample_minibatch(batch_size=batch_size)
                 feed_dict = self._update_feed_dict_from_batch(minibatch)
                 ops = filter_recursive([
-                    self.qf_loss,
+                    self.qf_total_loss,
                     self.train_qf_op,
                     self.update_target_qf_op,
                 ])
                 self.last_qf_regression_loss = (
                     self.sess.run(ops, feed_dict=feed_dict)[0]
                 )
-                print_rm_chars(11)
-                sys.stdout.write("{0:03d} {1:03.3f}".format(epoch,
+                print_rm_chars(12)
+                sys.stdout.write("{0:03d} {1:03.4f}".format(i,
                                                             self.last_qf_regression_loss))
                 sys.stdout.flush()
                 if self.last_qf_regression_loss <= self.qf_tolerance:
                     break
+            print_rm_chars(12)
+            sys.stdout.write("{0:03d} {1:03.4f}\n".format(
+                i,
+                self.last_qf_regression_loss)
+            )
+            sys.stdout.flush()
 
         super()._do_training(epoch=epoch, n_steps_total=n_steps_total,
                              n_steps_current_epoch=n_steps_current_epoch)
@@ -233,16 +240,44 @@ class RegressQBpttDdpg(BpttDDPG):
         if not self.train_policy:
             self.train_policy_op = None
 
+        """
+        For oracle QF, only the gradient w.r.t. the memory is non-zero. The
+        oracle QF trains the environment output part via the weights that are
+        shared when the oracle QF unrolls the policy.
+
+        So, the first gradient is the ground truth environment action gradient.
+        The second gradient is how good the oracle things the memory
+        outputted at this time step is.
+        """
         self.oracle_grads = tf.gradients(self.oracle_qf.output,
                                          self.oracle_qf.final_actions[0])
         self.oracle_grads += tf.gradients(self.oracle_qf.output,
                                           self.policy.output[1])
+
         self.qf_grads = tf.gradients(self.qf_with_action_input.output,
                                      list(self._final_rnn_action))
 
         self.grad_distance = []
+        self.grad_mse = []
         for oracle_grad, qf_grad in zip(self.oracle_grads, self.qf_grads):
             self.grad_distance.append(tf_util.cosine(oracle_grad, qf_grad))
+            self.grad_mse.append(tf_util.mse(oracle_grad, qf_grad, axis=1))
+        # with tf.variable_scope("extra_train"):
+        #     self.extra_train_op = tf.train.AdamOptimizer(
+        #         1e-3
+        #     ).minimize(
+        #         -self.grad_distance[1],
+        #         var_list=self.qf_with_action_input.get_params(),
+        # self.qf_total_loss = (
+        #     self.qf_loss + self.qf_weight_decay * self.Q_weights_norm
+        #     - tf.reduce_mean(self.grad_distance[0])
+        #     - tf.reduce_mean(self.grad_distance[1]) * 100
+        # )
+        # with tf.variable_scope("new_train_op"):
+        #     self.train_qf_op = tf.train.AdamOptimizer(
+        #         self.qf_learning_rate).minimize(
+        #         self.qf_total_loss,
+        #         var_list=self.qf.get_params_internal())
 
     def _init_qf_ops(self):
         # Alternatively, you could pass the action_input when creating this
@@ -319,40 +354,43 @@ class RegressQBpttDdpg(BpttDDPG):
         if self.pool.num_can_sample(validation=True) < self.batch_size:
             return {}
 
-        valid_batch = self.pool.get_valid_subtrajectories(validation=True)
-        valid_feed_dict = self._update_feed_dict_from_batch(valid_batch)
-        qf_validation_loss, *valid_grad_distance = self.sess.run(
-            [self.qf_loss] + self.grad_distance,
-            feed_dict=valid_feed_dict
-        )
-
-        train_batch = self.pool.get_valid_subtrajectories(validation=False)
-        train_feed_dict = self._update_feed_dict_from_batch(train_batch)
-        qf_training_loss, *train_grad_distance = self.sess.run(
-            [self.qf_loss] + self.grad_distance,
-            feed_dict=train_feed_dict
-        )
-
-        statistics = OrderedDict([
-            ('Qf_Validation_Loss', qf_validation_loss),
-            ('Qf_Training_Loss', qf_training_loss),
-        ])
-        statistics.update(create_stats_ordered_dict(
-            'Qf_Validation_Grad_Distance_env',
-            valid_grad_distance[0],
-        ))
-        statistics.update(create_stats_ordered_dict(
-            'Qf_Validation_Grad_Distance_memory',
-            valid_grad_distance[1],
-        ))
-        statistics.update(create_stats_ordered_dict(
-            'Qf_Training_Grad_Distance_env',
-            train_grad_distance[0],
-        ))
-        statistics.update(create_stats_ordered_dict(
-            'Qf_Training_Grad_Distance_memory',
-            train_grad_distance[1],
-        ))
+        statistics = OrderedDict()
+        for name, validation in [
+            ('Validation', True),
+            ('Training', False),
+        ]:
+            batch = self.pool.get_valid_subtrajectories(validation=validation)
+            feed_dict = self._update_feed_dict_from_batch(batch)
+            (
+                qf_loss,
+                env_grad_distance,
+                memory_grad_distance,
+                env_grad_mag,
+                memory_grad_mag,
+            ) = self.sess.run(
+                [self.qf_loss] + self.grad_distance + self.grad_mse,
+                feed_dict=feed_dict
+            )
+            stat_base_name = 'Qf_{}'.format(name)
+            statistics.update(
+                {'{}_Loss'.format(stat_base_name): qf_loss},
+            )
+            statistics.update(create_stats_ordered_dict(
+                '{}_Grad_Distance_env'.format(stat_base_name),
+                env_grad_distance,
+            ))
+            statistics.update(create_stats_ordered_dict(
+                '{}_Grad_Distance_memory'.format(stat_base_name),
+                memory_grad_distance
+            ))
+            statistics.update(create_stats_ordered_dict(
+                '{}_Grad_MSE_env'.format(stat_base_name),
+                env_grad_mag,
+            ))
+            statistics.update(create_stats_ordered_dict(
+                '{}_Grad_MSE_memory'.format(stat_base_name),
+                memory_grad_mag
+            ))
         return statistics
 
     def _get_training_ops(
