@@ -273,8 +273,6 @@ class RegressQBpttDdpg(BpttDDPG):
     def _init_tensorflow_ops(self):
         super()._init_tensorflow_ops()
 
-        import ipdb
-        ipdb.set_trace()
         if self.env_grad_distance_weight >= 0.:
             self.qf_total_loss += - (
                 tf.reduce_mean(self.grad_distance[0]) *
@@ -381,17 +379,22 @@ class RegressQBpttDdpg(BpttDDPG):
             feed_dict = self._update_feed_dict_from_batch(batch)
             (
                 qf_loss,
+                qf_total_loss,
                 env_grad_distance,
                 memory_grad_distance,
                 env_grad_mag,
                 memory_grad_mag,
             ) = self.sess.run(
-                [self.qf_loss] + self.grad_distance + self.grad_mse,
+                [self.qf_loss, self.qf_total_loss] + self.grad_distance +
+                self.grad_mse,
                 feed_dict=feed_dict
             )
             stat_base_name = 'Qf_{}'.format(name)
             statistics.update(
-                {'{}_Loss'.format(stat_base_name): qf_loss},
+                {'{}_MSE_Loss'.format(stat_base_name): qf_loss},
+            )
+            statistics.update(
+                {'{}_Total_Loss'.format(stat_base_name): qf_total_loss},
             )
             statistics.update(create_stats_ordered_dict(
                 '{}_Grad_Distance_env'.format(stat_base_name),
