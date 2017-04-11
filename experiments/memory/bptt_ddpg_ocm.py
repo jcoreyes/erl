@@ -140,6 +140,7 @@ def run_ocm_experiment(variant):
         #     name_or_scope="critic",
         #     env_spec=env.spec,
         # )
+        regress_params = variant['regress_params']
 
         qf = HintMlpMemoryQFunction(
             name_or_scope="hint_critic",
@@ -163,6 +164,7 @@ def run_ocm_experiment(variant):
         ddpg_params['qf_tolerance'] = qf_tolerance
         ddpg_params['max_num_q_updates'] = max_num_q_updates
         ddpg_params['train_policy'] = train_policy
+        ddpg_params.update(regress_params)
     else:
         raise Exception("Unknown mode: {}".format(oracle_mode))
 
@@ -191,7 +193,7 @@ if __name__ == '__main__':
     n_batches_per_epoch = 100
     n_batches_per_eval = 64
     batch_size = 32
-    n_epochs = 50
+    n_epochs = 20
     memory_dim = 20
     # min_pool_size = 10*max(n_batches_per_epoch, batch_size)
     min_pool_size = max(n_batches_per_epoch, batch_size)
@@ -262,6 +264,10 @@ if __name__ == '__main__':
         qf_weight_decay=qf_weight_decay,
         # policy_learning_rate=1e-1,
     )
+    regress_params = dict(
+        env_grad_distance_weight=1.,
+        write_grad_distance_weight=100.,
+    )
     policy_params = dict(
         rnn_cell_class=policy_rnn_cell_class,
     )
@@ -282,6 +288,7 @@ if __name__ == '__main__':
         qf_params=qf_params,
         memory_dim=memory_dim,
         oracle_mode=oracle_mode,
+        regress_params=regress_params,
         algo_class=algo_class,
         freeze_hidden=freeze_hidden,
         version=version,

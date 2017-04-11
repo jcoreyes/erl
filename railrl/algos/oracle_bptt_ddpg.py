@@ -181,6 +181,8 @@ class RegressQBpttDdpg(BpttDDPG):
             qf_tolerance=None,
             max_num_q_updates=100,
             train_policy=True,
+            env_grad_distance_weight=1.,
+            write_grad_distance_weight=1.,
             **kwargs
     ):
         self.qf_tolerance = qf_tolerance
@@ -188,6 +190,9 @@ class RegressQBpttDdpg(BpttDDPG):
         self.max_num_q_updates = max_num_q_updates
         self.train_policy = train_policy
         self.last_qf_regression_loss = 1e10
+        self.env_grad_distance_weight = env_grad_distance_weight
+        self.write_grad_distance_weight = write_grad_distance_weight
+
         super().__init__(*args, **kwargs)
 
     def _do_training(
@@ -220,16 +225,18 @@ class RegressQBpttDdpg(BpttDDPG):
                     self.sess.run(ops, feed_dict=feed_dict)[0]
                 )
                 print_rm_chars(12)
-                sys.stdout.write("{0:03d} {1:03.4f}".format(i,
-                                                            self.last_qf_regression_loss))
+                sys.stdout.write("{0:03d} {1:03.4f}".format(
+                    i,
+                    self.last_qf_regression_loss,
+                ))
                 sys.stdout.flush()
                 if self.last_qf_regression_loss <= self.qf_tolerance:
                     break
             print_rm_chars(12)
             sys.stdout.write("{0:03d} {1:03.4f}\n".format(
                 i,
-                self.last_qf_regression_loss)
-            )
+                self.last_qf_regression_loss,
+            ))
             sys.stdout.flush()
 
         super()._do_training(epoch=epoch, n_steps_total=n_steps_total,
@@ -262,22 +269,33 @@ class RegressQBpttDdpg(BpttDDPG):
         for oracle_grad, qf_grad in zip(self.oracle_grads, self.qf_grads):
             self.grad_distance.append(tf_util.cosine(oracle_grad, qf_grad))
             self.grad_mse.append(tf_util.mse(oracle_grad, qf_grad, axis=1))
-        # with tf.variable_scope("extra_train"):
-        #     self.extra_train_op = tf.train.AdamOptimizer(
-        #         1e-3
-        #     ).minimize(
-        #         -self.grad_distance[1],
-        #         var_list=self.qf_with_action_input.get_params(),
-        # self.qf_total_loss = (
-        #     self.qf_loss + self.qf_weight_decay * self.Q_weights_norm
-        #     - tf.reduce_mean(self.grad_distance[0])
-        #     - tf.reduce_mean(self.grad_distance[1]) * 100
-        # )
-        # with tf.variable_scope("new_train_op"):
-        #     self.train_qf_op = tf.train.AdamOptimizer(
-        #         self.qf_learning_rate).minimize(
-        #         self.qf_total_loss,
-        #         var_list=self.qf.get_params_internal())
+
+    def _init_tensorflow_ops(self):
+        super()._init_tensorflow_ops()
+
+        import ipdb
+        ipdb.set_trace()
+        if self.env_grad_distance_weight >= 0.:
+            self.qf_total_loss += - (
+                tf.reduce_mean(self.grad_distance[0]) *
+                self.env_grad_distance_weight
+            )
+        if self.write_grad_distance_weight >= 0.:
+            self.qf_total_loss += - (
+                tf.reduce_mean(self.grad_distance[1]) *
+                self.write_grad_distance_weight
+            )
+        with tf.variable_scope("regress_train_qf_op"):
+            self.train_qf_op = tf.train.AdamOptimizer(
+                self.qf_learning_rate
+            ).minimize(
+                self.qf_total_loss,
+                var_list=self.qf.get_params_internal(),
+            )
+
+        self.sess.run(tf.global_variables_initializer())
+        self.qf.reset_param_values_to_last_load()
+        self.policy.reset_param_values_to_last_load()
 
     def _init_qf_ops(self):
         # Alternatively, you could pass the action_input when creating this
