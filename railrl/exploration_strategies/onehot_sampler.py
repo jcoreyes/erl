@@ -1,9 +1,10 @@
-from rllab.exploration_strategies.base import ExplorationStrategy
 import numpy as np
+
+from railrl.exploration_strategies.base import RawExplorationStrategy
 from railrl.misc.np_util import to_onehot
 
 
-class OneHotSampler(ExplorationStrategy):
+class OneHotSampler(RawExplorationStrategy):
     """
     Given a probability distribution over a set of discrete action, this ES
     samples one value and returns a one-hot vector.

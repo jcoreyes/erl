@@ -1,8 +1,7 @@
-from rllab.exploration_strategies.base import ExplorationStrategy
-from rllab.spaces.product import Product
+from railrl.exploration_strategies.base import RawExplorationStrategy
 
 
-class NoopStrategy(ExplorationStrategy):
+class NoopStrategy(RawExplorationStrategy):
     """
     Exploration strategy that does nothing.
     """

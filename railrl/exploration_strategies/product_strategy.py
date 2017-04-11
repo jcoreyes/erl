@@ -1,15 +1,16 @@
 from typing import Iterable
-from rllab.exploration_strategies.base import ExplorationStrategy
+
+from railrl.exploration_strategies.base import RawExplorationStrategy
 
 
-class ProductStrategy(ExplorationStrategy):
+class ProductStrategy(RawExplorationStrategy):
     """
     Apply different strategies to different parts parts of a Product space.
     """
 
     def __init__(
             self,
-            exploration_strategies: Iterable[ExplorationStrategy],
+            exploration_strategies: Iterable[RawExplorationStrategy],
     ):
         """
         :param exploration_strategies: List[ExplorationStrategy]

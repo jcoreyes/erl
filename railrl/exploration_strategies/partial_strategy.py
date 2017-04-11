@@ -1,9 +1,9 @@
-from rllab.exploration_strategies.base import ExplorationStrategy
+from railrl.exploration_strategies.base import RawExplorationStrategy
 from rllab.spaces.product import Product
 
 
 # TODO(vpong): test this
-class PartialStrategy(ExplorationStrategy):
+class PartialStrategy(RawExplorationStrategy):
     """
     Only apply an exploration strategy to part of the action space. This is
     used when you have a product action space, and you only want to add an
@@ -12,7 +12,7 @@ class PartialStrategy(ExplorationStrategy):
 
     def __init__(
             self,
-            exploration_strategy: ExplorationStrategy,
+            exploration_strategy: RawExplorationStrategy,
             product_space: Product,
             component=0,
     ):

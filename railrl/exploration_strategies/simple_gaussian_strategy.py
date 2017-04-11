@@ -1,10 +1,10 @@
+from railrl.exploration_strategies.base import RawExplorationStrategy
 from rllab.core.serializable import Serializable
 from rllab.spaces.box import Box
-from rllab.exploration_strategies.base import ExplorationStrategy
 import numpy as np
 
 
-class SimpleGaussianStrategy(ExplorationStrategy, Serializable):
+class SimpleGaussianStrategy(RawExplorationStrategy, Serializable):
     """
     This strategy adds a constant Gaussian noise to the action taken by the
     deterministic policy.

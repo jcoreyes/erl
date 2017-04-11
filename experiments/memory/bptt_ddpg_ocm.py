@@ -33,6 +33,7 @@ def run_ocm_experiment(variant):
     from railrl.exploration_strategies.noop import NoopStrategy
     from railrl.exploration_strategies.onehot_sampler import OneHotSampler
     from railrl.exploration_strategies.product_strategy import ProductStrategy
+    from railrl.exploration_strategies.ou_strategy import OUStrategy
     from railrl.envs.memory.continuous_memory_augmented import (
         ContinuousMemoryAugmented
     )
@@ -72,9 +73,9 @@ def run_ocm_experiment(variant):
     Code for running the experiment.
     """
 
-    env = OneCharMemoryEndOnly(n=num_values, num_steps=H)
+    ocm_env = OneCharMemoryEndOnly(n=num_values, num_steps=H)
     env = ContinuousMemoryAugmented(
-        env,
+        ocm_env,
         num_memory_states=memory_dim,
     )
     if load_policy_file is None or not exists(load_policy_file):
@@ -90,7 +91,11 @@ def run_ocm_experiment(variant):
         with tf.Session():
             data = joblib.load(load_policy_file)
             policy = data['policy']
-    es = ProductStrategy([OneHotSampler(), NoopStrategy()])
+    es = ProductStrategy([
+        OneHotSampler(),
+        # OUStrategy(env_spec=env.memory_spec),
+        NoopStrategy(),
+    ])
 
     ddpg_params = ddpg_params.copy()
     unroll_through_target_policy = ddpg_params.pop(
@@ -184,7 +189,7 @@ def run_ocm_experiment(variant):
 if __name__ == '__main__':
     mode = 'here'
     n_seed = 1
-    exp_prefix = "dev-4-10-bptt-ddpg-ocm-regress"
+    exp_prefix = "dev-4-11-bptt-ddpg-ocm"
     version = 'dev'
 
     """
@@ -265,8 +270,8 @@ if __name__ == '__main__':
         # policy_learning_rate=1e-1,
     )
     regress_params = dict(
-        env_grad_distance_weight=1.,
-        write_grad_distance_weight=100.,
+        env_grad_distance_weight=0.,
+        write_grad_distance_weight=0.,
     )
     policy_params = dict(
         rnn_cell_class=policy_rnn_cell_class,
