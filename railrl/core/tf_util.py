@@ -588,7 +588,9 @@ def cosine(xs, ys):
     :return: Tensor of shape [None]
     removed.
     """
-    assert xs.get_shape().is_compatible_with(ys.get_shape())
+    shape = xs.get_shape()
+    shape.assert_is_compatible_with(ys.get_shape())
+    assert len(shape) == 2
     norm_x = tf.nn.l2_normalize(xs, dim=1)
     norm_y = tf.nn.l2_normalize(ys, dim=1)
     return batch_dot_product(norm_x, norm_y)
