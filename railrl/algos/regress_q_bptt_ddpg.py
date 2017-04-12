@@ -49,10 +49,10 @@ class RegressQBpttDdpg(BpttDDPG):
         batch_size = min(self.pool.num_can_sample(), 128)
         minibatch = self._sample_minibatch(batch_size=batch_size)
         feed_dict = self._update_feed_dict_from_batch(minibatch)
-        self.last_qf_regression_loss = self.sess.run(
+        self.last_qf_regression_loss = float(self.sess.run(
             self.qf_total_loss,
             feed_dict
-        )
+        ))
         if self.should_train_qf(n_steps_total=n_steps_total):
             import sys
             sys.stdout.write("{0:03d} {1:03.4f}".format(0, 0.0))
@@ -64,9 +64,9 @@ class RegressQBpttDdpg(BpttDDPG):
                 ops = filter_recursive([
                     self.qf_total_loss,
                     self.train_qf_op,
-                    self.update_target_qf_op,
-                ])
-                new_qf_regression_loss = (
+                ] + self.update_target_qf_op
+                )
+                new_qf_regression_loss = float(
                     self.sess.run(ops, feed_dict=feed_dict)[0]
                 )
                 # if new_qf_regression_loss > self.last_qf_regression_loss:
@@ -167,8 +167,8 @@ class RegressQBpttDdpg(BpttDDPG):
         super()._init_qf_ops()
 
     def _create_qf_loss(self):
-        flat_qf_output = tf.squeeze(self.qf.output, axis=1)
-        return tf_util.mse(self.oracle_qf.output, flat_qf_output)
+        oracle_qf_output = tf.expand_dims(self.oracle_qf.output, axis=1)
+        return tf.squeeze(tf_util.mse(oracle_qf_output, self.qf.output))
 
     def _qf_feed_dict(self, *args, **kwargs):
         feed_dict = super()._qf_feed_dict(*args, **kwargs)
@@ -201,8 +201,10 @@ class RegressQBpttDdpg(BpttDDPG):
         }
         if hasattr(self.qf, "target_labels"):
             feed_dict[self.qf.target_labels] = target_one_hots
+            feed_dict[self.target_qf.target_labels] = target_one_hots
         if hasattr(self.qf, "time_labels"):
             feed_dict[self.qf.time_labels] = times[:, -1]
+            feed_dict[self.target_qf.time_labels] = times[:, -1]
         return feed_dict
 
     def _update_feed_dict_from_batch(self, batch):

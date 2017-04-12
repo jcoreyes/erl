@@ -144,7 +144,7 @@ class DDPG(OnlineAlgorithm):
             * self.discount
             * self.target_qf.output
         )
-        return tf_util.mse(self.ys, self.qf.output)
+        return tf.squeeze(tf_util.mse(self.ys, self.qf.output))
 
     def _init_policy_ops(self):
         # To compute the surrogate loss function for the qf, it must take
