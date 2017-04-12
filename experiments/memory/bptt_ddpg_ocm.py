@@ -93,8 +93,9 @@ def run_ocm_experiment(variant):
             policy = data['policy']
     es = ProductStrategy([
         OneHotSampler(),
-        # OUStrategy(env_spec=env.memory_spec),
+        # OUStrategy(env_spec=ocm_env.spec),
         NoopStrategy(),
+        # OUStrategy(env_spec=env.memory_spec),
     ])
 
     ddpg_params = ddpg_params.copy()
@@ -102,9 +103,6 @@ def run_ocm_experiment(variant):
         'unroll_through_target_policy',
         False,
     )
-    qf_tolerance = ddpg_params.pop('qf_tolerance', 1e-3)
-    max_num_q_updates = ddpg_params.pop('max_num_q_updates', 10)
-    train_policy = ddpg_params.pop('train_policy', 10)
     if oracle_mode == 'none':
         qf = MlpMemoryQFunction(
             name_or_scope="critic",
@@ -166,9 +164,6 @@ def run_ocm_experiment(variant):
         )
         algo_class = RegressQBpttDdpg
         ddpg_params['oracle_qf'] = oracle_qf
-        ddpg_params['qf_tolerance'] = qf_tolerance
-        ddpg_params['max_num_q_updates'] = max_num_q_updates
-        ddpg_params['train_policy'] = train_policy
         ddpg_params.update(regress_params)
     else:
         raise Exception("Unknown mode: {}".format(oracle_mode))
@@ -236,7 +231,8 @@ if __name__ == '__main__':
     num_bptt_unrolls = 4
     num_extra_qf_updates = 0
     qf_learning_rate = 1e-3
-    qf_tolerance = 0.01
+    # qf_tolerance = 0.01
+    qf_tolerance = -50
     policy_learning_rate = 1e-3
     max_num_q_updates = 100
     soft_target_tau = 0.5
@@ -262,16 +258,18 @@ if __name__ == '__main__':
         qf_learning_rate=qf_learning_rate,
         policy_learning_rate=policy_learning_rate,
         discount=1.0,
-        qf_tolerance=qf_tolerance,
-        max_num_q_updates=max_num_q_updates,
-        train_policy=train_policy,
         soft_target_tau=soft_target_tau,
         qf_weight_decay=qf_weight_decay,
         # policy_learning_rate=1e-1,
     )
     regress_params = dict(
-        env_grad_distance_weight=0.,
-        write_grad_distance_weight=0.,
+        qf_tolerance=qf_tolerance,
+        max_num_q_updates=max_num_q_updates,
+        train_policy=train_policy,
+        # env_grad_distance_weight=0.,
+        # write_grad_distance_weight=0.,
+        env_grad_distance_weight=1.,
+        write_grad_distance_weight=100.,
     )
     policy_params = dict(
         rnn_cell_class=policy_rnn_cell_class,
