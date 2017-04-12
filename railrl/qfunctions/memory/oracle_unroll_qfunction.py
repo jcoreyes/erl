@@ -70,9 +70,10 @@ class OracleUnrollQFunction(NNQFunction):
             policy=None,
     ):
         if self.nothing_to_unroll:
+            self.final_actions = action_input
             return self._ocm_env.get_tf_loss(
                 observations=observation_input,
-                actions=action_input,
+                actions=self.final_actions,
                 target_labels=target_labels,
                 return_expected_reward=True,
             )
