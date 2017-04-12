@@ -184,7 +184,7 @@ def run_ocm_experiment(variant):
 if __name__ == '__main__':
     mode = 'here'
     n_seed = 1
-    exp_prefix = "dev-4-11-bptt-ddpg-ocm"
+    exp_prefix = "dev-4-12-bptt-ddpg-ocm"
     version = 'dev'
 
     """
@@ -226,9 +226,9 @@ if __name__ == '__main__':
 
     exp_id = -1
 
-    H = 6
+    H = 2
     num_values = 2
-    num_bptt_unrolls = 4
+    num_bptt_unrolls = 1
     num_extra_qf_updates = 0
     qf_learning_rate = 1e-3
     # qf_tolerance = 0.01
@@ -278,6 +278,7 @@ if __name__ == '__main__':
     qf_params = dict(
         hidden_nonlinearity=tf.nn.relu,
         output_nonlinearity=tf.nn.tanh,
+        use_time=False,
         # hidden_nonlinearity=tf.identity,
         # output_nonlinearity=tf.identity,
         # embedded_hidden_sizes=[],

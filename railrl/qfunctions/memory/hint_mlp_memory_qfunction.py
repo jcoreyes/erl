@@ -24,6 +24,7 @@ class HintMlpMemoryQFunction(NNQFunction):
             observation_hidden_sizes=(100,),
             hidden_nonlinearity=tf.nn.relu,
             output_nonlinearity=tf.identity,
+            use_time=False,
             **kwargs
     ):
         self.setup_serialization(locals())
@@ -52,6 +53,7 @@ class HintMlpMemoryQFunction(NNQFunction):
             name='time_labels',
             dtype=tf.int32,
         )
+        self.use_time = use_time
         self._create_network()
 
     def _create_network_internal(
@@ -79,21 +81,29 @@ class HintMlpMemoryQFunction(NNQFunction):
             memory_action,
             scope_name="memory_action",
         )
-        time_onehots = tf.one_hot(indices=time_labels,
-                                  depth=self.max_time,
-                                  on_value=1.0,
-                                  off_value=0., name="time_onehots")
-        # time_onehots = tf.cast(x=time_labels, dtype=tf.float32)
-        observation_input = tf.concat(
-            axis=1,
-            values=[env_obs, memory_obs, target_labels, time_onehots],
-        )
+        if self.use_time:
+            time_onehots = tf.one_hot(indices=time_labels,
+                                      depth=self.max_time,
+                                      on_value=1.0,
+                                      off_value=0., name="time_onehots")
+            observation_input = tf.concat(
+                axis=1,
+                values=[env_obs, memory_obs, target_labels, time_onehots],
+            )
+            obs_input_dim = (
+                sum(self.observation_dim) + self.hint_dim + self.max_time
+            )
+        else:
+            observation_input = tf.concat(
+                axis=1,
+                values=[env_obs, memory_obs, target_labels],
+            )
+            obs_input_dim = sum(self.observation_dim) + self.hint_dim
         action_input = tf.concat(
             axis=1,
             values=[env_action, memory_action],
         )
         with tf.variable_scope("observation_mlp"):
-            obs_input_dim = sum(self.observation_dim) + self.hint_dim + self.max_time
             if len(self.observation_hidden_sizes) > 0:
                 observation_output = mlp(
                     observation_input,
