@@ -20,8 +20,8 @@ def run_ocm_experiment(variant):
     from railrl.algos.oracle_bptt_ddpg import (
         OracleBpttDDPG,
         OracleUnrollBpttDDPG,
-        RegressQBpttDdpg,
     )
+    from railrl.algos.regress_q_bptt_ddpg import RegressQBpttDdpg
     from railrl.qfunctions.memory.oracle_qfunction import OracleQFunction
     from railrl.qfunctions.memory.oracle_unroll_qfunction import (
         OracleUnrollQFunction

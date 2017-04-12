@@ -24,8 +24,8 @@ def run_ocm_experiment(variant):
     from railrl.algos.oracle_bptt_ddpg import (
         OracleBpttDDPG,
         OracleUnrollBpttDDPG,
-        RegressQBpttDdpg,
     )
+    from railrl.algos.regress_q_bptt_ddpg import RegressQBpttDdpg
     from railrl.qfunctions.memory.oracle_qfunction import OracleQFunction
     from railrl.qfunctions.memory.oracle_unroll_qfunction import (
         OracleUnrollQFunction
@@ -94,8 +94,8 @@ def run_ocm_experiment(variant):
     es = ProductStrategy([
         OneHotSampler(),
         # OUStrategy(env_spec=ocm_env.spec),
-        NoopStrategy(),
-        # OUStrategy(env_spec=env.memory_spec),
+        # NoopStrategy(),
+        OUStrategy(sigma=0.05, env_spec=env.memory_spec),
     ])
 
     ddpg_params = ddpg_params.copy()
@@ -232,9 +232,9 @@ if __name__ == '__main__':
     num_extra_qf_updates = 0
     qf_learning_rate = 1e-3
     # qf_tolerance = 0.01
-    qf_tolerance = -50
+    qf_tolerance = -10000
     policy_learning_rate = 1e-3
-    max_num_q_updates = 100
+    max_num_q_updates = 25
     soft_target_tau = 0.5
     qf_weight_decay = 0.01
     train_policy = True
@@ -266,10 +266,11 @@ if __name__ == '__main__':
         qf_tolerance=qf_tolerance,
         max_num_q_updates=max_num_q_updates,
         train_policy=train_policy,
-        # env_grad_distance_weight=0.,
-        # write_grad_distance_weight=0.,
-        env_grad_distance_weight=1.,
-        write_grad_distance_weight=100.,
+        env_grad_distance_weight=0.,
+        write_grad_distance_weight=0.,
+        qf_grad_mse_from_one_weight=0.,
+        # env_grad_distance_weight=1.,
+        # write_grad_distance_weight=100.,
     )
     policy_params = dict(
         rnn_cell_class=policy_rnn_cell_class,
