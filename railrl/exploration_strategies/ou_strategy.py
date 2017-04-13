@@ -43,6 +43,8 @@ class OUStrategy(RawExplorationStrategy, Serializable):
         x = self.state
         dx = self.theta * (self.mu - x) + self.sigma * nr.randn(len(x))
         self.state = x + dx
+        # TODO check if decaying exploration noise helps
+        # self.sigma *= 0.99
         return self.state
 
     def get_action(self, t, observation, policy, **kwargs):

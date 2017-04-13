@@ -20,3 +20,7 @@
 # Notes
 These notes are really for myself (vpong), so they're probably meaningless to anyone else.
 I just push them so that they're backed up.
+
+# Ideas
+ - Do Laplace smooth for OnehotSampler
+ - Decay exploration noise.

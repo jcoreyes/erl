@@ -16,5 +16,8 @@ class OneHotSampler(RawExplorationStrategy):
     def get_action_from_raw_action(self, action, **kwargs):
         num_values = len(action)
         elements = np.arange(num_values)
+        # TODO check if some smoothing helps
+        # action += 0.1
+        # action /= sum(action)
         number = np.random.choice(elements, p=action)
         return to_onehot(number, num_values)
