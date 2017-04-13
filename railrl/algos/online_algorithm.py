@@ -237,7 +237,7 @@ class OnlineAlgorithm(RLAlgorithm):
                             "Eval time: {0}".format(time.time() - start_time))
                 params = self.get_epoch_snapshot(epoch)
                 logger.save_itr_params(epoch, params)
-                logger.dump_tabular(with_prefix=False)
+                logger.dump_tabular(with_prefix=False, with_timestamp=False)
                 logger.pop_prefix()
 
             self._switch_to_eval_mode()
