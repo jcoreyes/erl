@@ -340,15 +340,12 @@ class OnlineAlgorithm(RLAlgorithm):
         """
         logger.log("Collecting samples for evaluation")
         paths = self._sample_paths(epoch)
-        self.log_diagnostics(paths)
+        statistics = OrderedDict()
+
+        statistics.update(self._get_other_statistics())
+        statistics.update(self._statistics_from_paths(paths))
 
         returns = [sum(path["rewards"]) for path in paths]
-        average_returns = np.mean(returns)
-        statistics = OrderedDict([
-            ('Epoch', epoch),
-            ('AverageReturn', average_returns),
-        ])
-        self._last_average_returns.append(average_returns)
 
         discounted_returns = [
             special.discount_return(path["rewards"], self.discount)
@@ -363,11 +360,15 @@ class OnlineAlgorithm(RLAlgorithm):
             statistics.update(create_stats_ordered_dict('TrainingReturns',
                                                         es_path_returns))
 
-        statistics.update(self._statistics_from_paths(paths))
-        statistics.update(self._get_other_statistics())
+        average_returns = np.mean(returns)
+        self._last_average_returns.append(average_returns)
+        statistics['AverageReturn'] = average_returns
+        statistics['Epoch'] = epoch
 
         for key, value in statistics.items():
             logger.record_tabular(key, value)
+
+        self.log_diagnostics(paths)
 
     def log_diagnostics(self, paths):
         self.env.log_diagnostics(paths)
