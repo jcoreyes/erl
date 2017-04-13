@@ -50,7 +50,7 @@ class OracleBpttDDPG(BpttDDPG):
         qf_feed_dict[self.target_qf.target_labels] = target_one_hots
         if hasattr(self.qf, "time_labels"):
             qf_feed_dict[self.qf.time_labels] = times[:, -1]
-            qf_feed_dict[self.target_qf.time_labels] = times[: -1]
+            qf_feed_dict[self.target_qf.time_labels] = times[:, -1]
         return qf_feed_dict
 
     def _update_feed_dict_from_batch(self, batch):

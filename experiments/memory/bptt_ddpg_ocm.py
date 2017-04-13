@@ -129,6 +129,7 @@ def run_ocm_experiment(variant):
             name_or_scope="hint_critic",
             hint_dim=env_action_dim,
             env_spec=env.spec,
+            max_time=H,
         )
         algo_class = OracleBpttDDPG
     elif oracle_mode == 'oracle':
@@ -203,7 +204,7 @@ if __name__ == '__main__':
     """
     Algorithm Selection
     """
-    oracle_mode = 'regress'
+    oracle_mode = 'hint'
     algo_class = BpttDDPG
     freeze_hidden = False
     unroll_through_target_policy = False
@@ -228,9 +229,9 @@ if __name__ == '__main__':
     """
     Env param
     """
-    H = 2
+    H = 3
     num_values = 2
-    num_bptt_unrolls = 1
+    num_bptt_unrolls = 3
 
     """
     Algo params
@@ -238,17 +239,17 @@ if __name__ == '__main__':
     num_extra_qf_updates = 0
     qf_learning_rate = 1e-3
     policy_learning_rate = 1e-3
-    soft_target_tau = 0.5
+    soft_target_tau = 0.01
     qf_weight_decay = 0.01
 
     """
     Regression Params
     """
     qf_tolerance = -10000
-    max_num_q_updates = 100
+    max_num_q_updates = 0
     train_policy = True
-    env_grad_distance_weight = 1.
-    write_grad_distance_weight = 10.
+    env_grad_distance_weight = 0.
+    write_grad_distance_weight = 0.
     qf_grad_mse_from_one_weight = 0.
 
     epoch_length = H * n_batches_per_epoch
