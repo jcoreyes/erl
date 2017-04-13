@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from railrl.core.rnn.rnn import SaveOutputRnn
+from railrl.core.rnn.rnn import SaveEverythingRnn
 from railrl.policies.memory.rnn_cell_policy import RnnCellPolicy
 from railrl.qfunctions.nn_qfunction import NNQFunction
 
@@ -77,7 +77,7 @@ class OracleUnrollQFunction(NNQFunction):
                 target_labels=target_labels,
                 return_expected_reward=True,
             )
-        self._save_rnn_cell = SaveOutputRnn(
+        self._save_rnn_cell = SaveEverythingRnn(
             policy.rnn_cell,
         )
         self.rnn_inputs = tf.unstack(save_rnn_inputs, axis=1)
