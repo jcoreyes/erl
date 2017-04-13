@@ -95,7 +95,7 @@ def run_ocm_experiment(variant):
         OneHotSampler(),
         # OUStrategy(env_spec=ocm_env.spec),
         # NoopStrategy(),
-        OUStrategy(sigma=0.05, env_spec=env.memory_spec),
+        OUStrategy(sigma=0.25, env_spec=env.memory_spec),
     ])
 
     ddpg_params = ddpg_params.copy()
@@ -186,6 +186,7 @@ if __name__ == '__main__':
     n_seed = 1
     exp_prefix = "dev-4-12-bptt-ddpg-ocm"
     version = 'dev'
+    exp_id = 0
 
     """
     DDPG Params
@@ -217,29 +218,39 @@ if __name__ == '__main__':
     # policy_rnn_cell_class = FrozenHiddenLstmLinearCell
     load_policy_file = (
         '/home/vitchyr/git/rllab-rail/railrl/data/reference/expert'
-        '/ocm_66p'
-        # '/ocm_lstm_linear_cell_80p'
+        # '/ocm_66p'
+        '/ocm_lstm_linear_cell_80p'
         '/params.pkl'
     )
     # load_policy_file = None
     load_policy_file = 'none'
 
-    exp_id = -1
-
+    """
+    Env param
+    """
     H = 2
     num_values = 2
     num_bptt_unrolls = 1
+
+    """
+    Algo params
+    """
     num_extra_qf_updates = 0
     qf_learning_rate = 1e-3
-    # qf_tolerance = 0.01
-    qf_tolerance = -10000
     policy_learning_rate = 1e-3
-    max_num_q_updates = 25
     soft_target_tau = 0.5
     qf_weight_decay = 0.01
-    train_policy = True
 
-    exp_id += 1
+    """
+    Regression Params
+    """
+    qf_tolerance = -10000
+    max_num_q_updates = 100
+    train_policy = True
+    env_grad_distance_weight = 1.
+    write_grad_distance_weight = 10.
+    qf_grad_mse_from_one_weight = 0.
+
     epoch_length = H * n_batches_per_epoch
     eval_samples = H * n_batches_per_eval
     max_path_length = H + 2
@@ -266,9 +277,9 @@ if __name__ == '__main__':
         qf_tolerance=qf_tolerance,
         max_num_q_updates=max_num_q_updates,
         train_policy=train_policy,
-        env_grad_distance_weight=0.,
-        write_grad_distance_weight=0.,
-        qf_grad_mse_from_one_weight=0.,
+        env_grad_distance_weight=env_grad_distance_weight,
+        write_grad_distance_weight=write_grad_distance_weight,
+        qf_grad_mse_from_one_weight=qf_grad_mse_from_one_weight,
         # env_grad_distance_weight=1.,
         # write_grad_distance_weight=100.,
     )
