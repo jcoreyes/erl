@@ -27,6 +27,7 @@ class RegressQBpttDdpg(BpttDDPG):
             env_grad_distance_weight=1.,
             write_grad_distance_weight=1.,
             qf_grad_mse_from_one_weight=1.,
+            extra_train_period=100,
             **kwargs
     ):
         self.qf_tolerance = qf_tolerance
@@ -37,6 +38,7 @@ class RegressQBpttDdpg(BpttDDPG):
         self.env_grad_distance_weight = env_grad_distance_weight
         self.write_grad_distance_weight = write_grad_distance_weight
         self.qf_grad_mse_from_one_weight = qf_grad_mse_from_one_weight
+        self.extra_train_period = extra_train_period
 
         super().__init__(*args, **kwargs)
 
@@ -53,7 +55,7 @@ class RegressQBpttDdpg(BpttDDPG):
             self.qf_total_loss,
             feed_dict
         ))
-        if self.should_train_qf(n_steps_total=n_steps_total):
+        if self.should_train_qf_extra(n_steps_total=n_steps_total):
             import sys
             sys.stdout.write("{0:03d} {1:03.4f}".format(0, 0.0))
             i = 0
@@ -94,23 +96,26 @@ class RegressQBpttDdpg(BpttDDPG):
         super()._init_policy_ops()
         if not self.train_policy:
             self.train_policy_op = None
+        self.oracle_qf = self.oracle_qf.get_weight_tied_copy(
+            action_input=self._final_rnn_action,
+        )
 
     def _init_tensorflow_ops(self):
         super()._init_tensorflow_ops()
 
         """
-        For oracle QF, only the gradient w.r.t. the memory is non-zero. The
-        oracle QF trains the environment output part via the weights that are
-        shared when the oracle QF unrolls the policy.
+        Memory gradients are w.r.t. to the LAST output of the BPTT unrolled
+        network.
 
-        So, the first gradient is the ground truth environment action gradient.
-        The second gradient is how good the oracle things the memory
-        outputted at this time step is.
+        For oracle QF, only the gradient w.r.t. the memory is non-zero. (The
+        oracle QF trains the environment output part via the weights that are
+        shared when the oracle QF unrolls the policy.) So, for the environment
+        gradient, we use the ground truth environment action gradient.
         """
         self.oracle_grads = tf.gradients(self.oracle_qf.output,
                                          self.oracle_qf.final_actions[0])
         self.oracle_grads += tf.gradients(self.oracle_qf.output,
-                                          self.policy.output[1])
+                                          self._final_rnn_action[1])
 
         self.qf_grads = tf.gradients(self.qf_with_action_input.output,
                                      list(self._final_rnn_action))
@@ -157,14 +162,6 @@ class RegressQBpttDdpg(BpttDDPG):
         self.sess.run(tf.global_variables_initializer())
         self.qf.reset_param_values_to_last_load()
         self.policy.reset_param_values_to_last_load()
-
-    def _init_qf_ops(self):
-        # Alternatively, you could pass the action_input when creating this
-        # class instance, but then you might run into serialization issues.
-        self.oracle_qf = self.oracle_qf.get_weight_tied_copy(
-            action_input=self.policy.output,
-        )
-        super()._init_qf_ops()
 
     def _qf_feed_dict(self, *args, **kwargs):
         feed_dict = super()._qf_feed_dict(*args, **kwargs)
@@ -295,28 +292,12 @@ class RegressQBpttDdpg(BpttDDPG):
             ))
         return statistics
 
-    def _get_training_ops(
-            self,
-            epoch=None,
-            n_steps_total=None,
-            n_steps_current_epoch=None,
-    ):
-        """
-        :return: List of ops to perform when training. If a list of list is
-        provided, each list is executed in order with separate calls to
-        sess.run.
-        """
-        ops = super()._get_training_ops()
-        if not self.should_train_qf(n_steps_total):
-            ops[0].remove(self.train_qf_op)
-            ops[1].remove(self.update_target_qf_op)
-        return ops
-
-    def should_train_qf(self, n_steps_total):
+    def should_train_qf_extra(self, n_steps_total):
         return (
             True
             # and self.last_qf_regression_loss <= self.qf_tolerance
-            and n_steps_total % 100 == 0
+            and n_steps_total % self.extra_train_period == 0
             and self.train_qf_op is not None
             and self.qf_tolerance is not None
+            and self.max_num_q_updates > 0
         )
