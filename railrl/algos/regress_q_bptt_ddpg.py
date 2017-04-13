@@ -166,10 +166,6 @@ class RegressQBpttDdpg(BpttDDPG):
         )
         super()._init_qf_ops()
 
-    def _create_qf_loss(self):
-        oracle_qf_output = tf.expand_dims(self.oracle_qf.output, axis=1)
-        return tf.squeeze(tf_util.mse(oracle_qf_output, self.qf.output))
-
     def _qf_feed_dict(self, *args, **kwargs):
         feed_dict = super()._qf_feed_dict(*args, **kwargs)
         feed_dict.update(self._oracle_qf_feed_dict(*args, **kwargs))
@@ -317,7 +313,6 @@ class RegressQBpttDdpg(BpttDDPG):
         return ops
 
     def should_train_qf(self, n_steps_total):
-        # return n_steps_total % 100 == 0 and self.train_qf_op is not None and self.qf_tolerance is not None
         return (
             True
             # and self.last_qf_regression_loss <= self.qf_tolerance
