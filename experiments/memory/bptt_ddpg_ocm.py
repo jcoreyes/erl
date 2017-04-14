@@ -5,9 +5,13 @@ from itertools import product
 import tensorflow as tf
 import random
 
+from railrl.exploration_strategies.action_aware_memory_strategy import \
+    ActionAwareMemoryStrategy
 from railrl.launchers.launcher_util import (
     run_experiment,
 )
+from railrl.policies.memory.action_aware_memory_policy import \
+    ActionAwareMemoryPolicy
 from railrl.policies.memory.lstm_memory_policy import (
     OutputAwareLstmCell,
     LstmLinearCell,
@@ -97,16 +101,15 @@ def run_ocm_experiment(variant):
         with tf.Session():
             data = joblib.load(load_policy_file)
             policy = data['policy']
-    es = ProductStrategy([
-        env_es_class(
-            env_spec=ocm_env.spec,
-            **env_es_params,
-        ),
-        memory_es_class(
-            env_spec=env.memory_spec,
-            **memory_es_params
-        ),
-    ])
+    env_strategy = env_es_class(
+        env_spec=ocm_env.spec,
+        **env_es_params,
+    )
+    write_strategy = memory_es_class(
+        env_spec=env.memory_spec,
+        **memory_es_params
+    )
+    es = ProductStrategy([env_strategy, write_strategy])
 
     ddpg_params = ddpg_params.copy()
     unroll_through_target_policy = ddpg_params.pop(
@@ -176,6 +179,23 @@ def run_ocm_experiment(variant):
         algo_class = RegressQBpttDdpg
         ddpg_params['oracle_qf'] = oracle_qf
         ddpg_params.update(regress_params)
+    elif oracle_mode == 'noisy':
+        qf = MlpMemoryQFunction(
+            name_or_scope="critic",
+            env_spec=env.spec,
+        )
+        policy = ActionAwareMemoryPolicy(
+            name_or_scope="noisy_policy",
+            action_dim=env_action_dim,
+            memory_dim=memory_dim,
+            env_spec=env.spec,
+            **policy_params
+        )
+        es = ActionAwareMemoryStrategy(
+            env_strategy=env_strategy,
+            write_strategy=write_strategy,
+        )
+        algo_class = variant['algo_class']
     else:
         raise Exception("Unknown mode: {}".format(oracle_mode))
 
@@ -207,7 +227,7 @@ if __name__ == '__main__':
     batch_size = 32
     n_epochs = 20
     # memory_dim = 20
-    memory_dim = 2
+    memory_dim = 4
     # min_pool_size = 10*max(n_batches_per_epoch, batch_size)
     min_pool_size = max(n_batches_per_epoch, batch_size)
     replay_pool_size = 100000
@@ -215,7 +235,7 @@ if __name__ == '__main__':
     """
     Algorithm Selection
     """
-    oracle_mode = 'regress'
+    oracle_mode = 'noisy'
     algo_class = BpttDDPG
     freeze_hidden = False
     unroll_through_target_policy = False
@@ -268,6 +288,12 @@ if __name__ == '__main__':
     """
     env_es_class = OneHotSampler
     env_es_params = {}
+    # env_es_class = GaussianStrategy
+    # env_es_params = dict(
+    #     max_sigma=0.25,
+    #     min_sigma=0.05,
+    #     decay_period=1000,
+    # )
     memory_es_class = GaussianStrategy
     memory_es_params = dict(
         max_sigma=0.25,
