@@ -9,6 +9,9 @@ class OneHotSampler(RawExplorationStrategy):
     Given a probability distribution over a set of discrete action, this ES
     samples one value and returns a one-hot vector.
     """
+    def __init__(self, softmax=False, **kwargs):
+        self.softmax = softmax
+
     def get_action(self, t, observation, policy, **kwargs):
         action, agent_info = policy.get_action(observation)
         return self.get_action_from_raw_action(action), agent_info
@@ -18,6 +21,8 @@ class OneHotSampler(RawExplorationStrategy):
         elements = np.arange(num_values)
         # TODO check if some smoothing helps
         # action += 0.1
-        # action /= sum(action)
+        if self.softmax:
+            action = np.exp(action)
+            action /= sum(action)
         number = np.random.choice(elements, p=action)
         return to_onehot(number, num_values)
