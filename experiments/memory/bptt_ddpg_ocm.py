@@ -18,6 +18,10 @@ from railrl.policies.memory.lstm_memory_policy import (
 from railrl.algos.writeback_bptt_ddpt import WritebackBpttDDPG
 from railrl.algos.bptt_ddpg import BpttDDPG
 from railrl.algos.sum_bptt_ddpg import SumBpttDDPG
+from railrl.exploration_strategies.noop import NoopStrategy
+from railrl.exploration_strategies.onehot_sampler import OneHotSampler
+from railrl.exploration_strategies.ou_strategy import OUStrategy
+from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 
 
 def run_ocm_experiment(variant):
@@ -30,10 +34,7 @@ def run_ocm_experiment(variant):
     from railrl.qfunctions.memory.oracle_unroll_qfunction import (
         OracleUnrollQFunction
     )
-    from railrl.exploration_strategies.noop import NoopStrategy
-    from railrl.exploration_strategies.onehot_sampler import OneHotSampler
     from railrl.exploration_strategies.product_strategy import ProductStrategy
-    from railrl.exploration_strategies.ou_strategy import OUStrategy
     from railrl.envs.memory.continuous_memory_augmented import (
         ContinuousMemoryAugmented
     )
@@ -68,6 +69,11 @@ def run_ocm_experiment(variant):
     env_obs_dim = env_action_dim
     memory_dim = variant['memory_dim']
     set_seed(seed)
+    es_params = variant['es_params']
+    env_es_class = es_params['env_es_class']
+    env_es_params = es_params['env_es_params']
+    memory_es_class = es_params['memory_es_class']
+    memory_es_params = es_params['memory_es_params']
 
     """
     Code for running the experiment.
@@ -92,10 +98,14 @@ def run_ocm_experiment(variant):
             data = joblib.load(load_policy_file)
             policy = data['policy']
     es = ProductStrategy([
-        OneHotSampler(),
-        # OUStrategy(env_spec=ocm_env.spec),
-        # NoopStrategy(),
-        OUStrategy(sigma=0.25, env_spec=env.memory_spec),
+        env_es_class(
+            env_spec=ocm_env.spec,
+            **env_es_params,
+        ),
+        memory_es_class(
+            env_spec=env.memory_spec,
+            **memory_es_params
+        ),
     ])
 
     ddpg_params = ddpg_params.copy()
@@ -196,7 +206,8 @@ if __name__ == '__main__':
     n_batches_per_eval = 64
     batch_size = 32
     n_epochs = 20
-    memory_dim = 20
+    # memory_dim = 20
+    memory_dim = 2
     # min_pool_size = 10*max(n_batches_per_epoch, batch_size)
     min_pool_size = max(n_batches_per_epoch, batch_size)
     replay_pool_size = 100000
@@ -204,7 +215,7 @@ if __name__ == '__main__':
     """
     Algorithm Selection
     """
-    oracle_mode = 'hint'
+    oracle_mode = 'regress'
     algo_class = BpttDDPG
     freeze_hidden = False
     unroll_through_target_policy = False
@@ -229,9 +240,9 @@ if __name__ == '__main__':
     """
     Env param
     """
-    H = 3
+    H = 6
     num_values = 2
-    num_bptt_unrolls = 3
+    num_bptt_unrolls = 4
 
     """
     Algo params
@@ -240,17 +251,35 @@ if __name__ == '__main__':
     qf_learning_rate = 1e-3
     policy_learning_rate = 1e-3
     soft_target_tau = 0.01
-    qf_weight_decay = 0.01
+    qf_weight_decay = 1.01
 
     """
     Regression Params
     """
-    qf_tolerance = -10000
-    max_num_q_updates = 0
+    qf_tolerance = -9999
+    max_num_q_updates = 0.
     train_policy = True
     env_grad_distance_weight = 0.
     write_grad_distance_weight = 0.
     qf_grad_mse_from_one_weight = 0.
+
+    """
+    Exploration params
+    """
+    env_es_class = OneHotSampler
+    env_es_params = {}
+    memory_es_class = GaussianStrategy
+    memory_es_params = dict(
+        max_sigma=0.25,
+        min_sigma=0.05,
+        decay_period=1000,
+    )
+    es_params = dict(
+        env_es_class=env_es_class,
+        env_es_params=env_es_params,
+        memory_es_class=memory_es_class,
+        memory_es_params=memory_es_params,
+    )
 
     epoch_length = H * n_batches_per_epoch
     eval_samples = H * n_batches_per_eval
@@ -272,7 +301,6 @@ if __name__ == '__main__':
         discount=1.0,
         soft_target_tau=soft_target_tau,
         qf_weight_decay=qf_weight_decay,
-        # policy_learning_rate=1e-1,
     )
     regress_params = dict(
         qf_tolerance=qf_tolerance,
@@ -281,8 +309,6 @@ if __name__ == '__main__':
         env_grad_distance_weight=env_grad_distance_weight,
         write_grad_distance_weight=write_grad_distance_weight,
         qf_grad_mse_from_one_weight=qf_grad_mse_from_one_weight,
-        # env_grad_distance_weight=1.,
-        # write_grad_distance_weight=100.,
     )
     policy_params = dict(
         rnn_cell_class=policy_rnn_cell_class,
@@ -310,6 +336,7 @@ if __name__ == '__main__':
         freeze_hidden=freeze_hidden,
         version=version,
         load_policy_file=load_policy_file,
+        es_params=es_params,
     )
     for _ in range(n_seed):
         seed = random.randint(0, 10000)
