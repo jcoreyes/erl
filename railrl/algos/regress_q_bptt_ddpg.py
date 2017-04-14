@@ -122,6 +122,10 @@ class RegressQBpttDdpg(BpttDDPG):
 
         self.grad_distance = []
         self.grad_mse = []
+        # TODO(vitchyr): Have a better way of handling when the horizon = #
+        # BPTT steps
+        if self.oracle_grads[1] is None:
+            self.oracle_grads[1] = tf.zeros_like(self.qf_grads[1])
         for oracle_grad, qf_grad in zip(self.oracle_grads, self.qf_grads):
             self.grad_distance.append(tf_util.cosine(oracle_grad, qf_grad))
             self.grad_mse.append(tf_util.mse(oracle_grad, qf_grad, axis=1))
