@@ -1,8 +1,8 @@
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
 
-from railrl.policies.memory.rnn_cell_policy import RnnCellPolicy
 from railrl.core import tf_util
+from railrl.policies.memory.rnn_cell_policy import RnnCellPolicy
 
 
 class LstmLinearCell(tf.contrib.rnn.BasicLSTMCell):
@@ -226,8 +226,8 @@ class LinearRnnCell(tf.contrib.rnn.RNNCell):
 
 class LstmMemoryPolicy(RnnCellPolicy):
     """
-    write = affine function of environment observation and memory
-    logits = affine function of environment observation, memory, and write
+    write = LSTM function of environment observation and memory
+    logits = function of environment observation and memory
     action = softmax(logits)
     """
 
