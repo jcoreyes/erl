@@ -78,6 +78,7 @@ def run_ocm_experiment(variant):
     env_es_params = es_params['env_es_params']
     memory_es_class = es_params['memory_es_class']
     memory_es_params = es_params['memory_es_params']
+    noise_action_to_memory = es_params['noise_action_to_memory']
 
     """
     Code for running the experiment.
@@ -109,7 +110,20 @@ def run_ocm_experiment(variant):
         env_spec=env.memory_spec,
         **memory_es_params
     )
-    es = ProductStrategy([env_strategy, write_strategy])
+    if noise_action_to_memory:
+        es = ActionAwareMemoryStrategy(
+            env_strategy=env_strategy,
+            write_strategy=write_strategy,
+        )
+        policy = ActionAwareMemoryPolicy(
+            name_or_scope="noisy_policy",
+            action_dim=env_action_dim,
+            memory_dim=memory_dim,
+            env_spec=env.spec,
+            **policy_params
+        )
+    else:
+        es = ProductStrategy([env_strategy, write_strategy])
 
     ddpg_params = ddpg_params.copy()
     unroll_through_target_policy = ddpg_params.pop(
@@ -179,23 +193,6 @@ def run_ocm_experiment(variant):
         algo_class = RegressQBpttDdpg
         ddpg_params['oracle_qf'] = oracle_qf
         ddpg_params.update(regress_params)
-    elif oracle_mode == 'noisy':
-        qf = MlpMemoryQFunction(
-            name_or_scope="critic",
-            env_spec=env.spec,
-        )
-        policy = ActionAwareMemoryPolicy(
-            name_or_scope="noisy_policy",
-            action_dim=env_action_dim,
-            memory_dim=memory_dim,
-            env_spec=env.spec,
-            **policy_params
-        )
-        es = ActionAwareMemoryStrategy(
-            env_strategy=env_strategy,
-            write_strategy=write_strategy,
-        )
-        algo_class = variant['algo_class']
     else:
         raise Exception("Unknown mode: {}".format(oracle_mode))
 
@@ -235,7 +232,7 @@ if __name__ == '__main__':
     """
     Algorithm Selection
     """
-    oracle_mode = 'noisy'
+    oracle_mode = 'regress'
     algo_class = BpttDDPG
     freeze_hidden = False
     unroll_through_target_policy = False
@@ -294,17 +291,20 @@ if __name__ == '__main__':
     #     min_sigma=0.05,
     #     decay_period=1000,
     # )
-    memory_es_class = GaussianStrategy
-    memory_es_params = dict(
-        max_sigma=0.25,
-        min_sigma=0.05,
-        decay_period=1000,
-    )
+    memory_es_class = NoopStrategy
+    memory_es_params = {}
+    # memory_es_class = GaussianStrategy
+    # memory_es_params = dict(
+    #     max_sigma=0.25,
+    #     min_sigma=0.05,
+    #     decay_period=1000,
+    # )
     es_params = dict(
         env_es_class=env_es_class,
         env_es_params=env_es_params,
         memory_es_class=memory_es_class,
         memory_es_params=memory_es_params,
+        noise_action_to_memory=True,
     )
 
     epoch_length = H * n_batches_per_epoch

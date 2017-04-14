@@ -5,6 +5,10 @@ class NoopStrategy(RawExplorationStrategy):
     """
     Exploration strategy that does nothing.
     """
+
+    def __init__(self, **kwargs):
+        pass
+
     def get_action(self, t, observation, policy, **kwargs):
         return policy.get_action(observation)
 
