@@ -16,13 +16,25 @@ class OUStrategy(RawExplorationStrategy, Serializable):
     Based on the rllab implementation.
     """
 
-    def __init__(self, env_spec, mu=0, theta=0.15, sigma=0.3, **kwargs):
+    def __init__(
+            self,
+            env_spec,
+            mu=0,
+            theta=0.15,
+            max_sigma=0.3,
+            min_sigma=0.3,
+            decay_period=100000,
+            **kwargs
+    ):
         assert isinstance(env_spec.action_space, Box)
         assert len(env_spec.action_space.shape) == 1
         Serializable.quick_init(self, locals())
         self.mu = mu
         self.theta = theta
-        self.sigma = sigma
+        self.sigma = max_sigma
+        self._max_sigma = max_sigma
+        self._min_sigma = min_sigma
+        self._decay_period = decay_period
         self.action_space = env_spec.action_space
         self.state = np.ones(self.action_space.flat_dim) * self.mu
         self.reset()
@@ -43,15 +55,18 @@ class OUStrategy(RawExplorationStrategy, Serializable):
         x = self.state
         dx = self.theta * (self.mu - x) + self.sigma * nr.randn(len(x))
         self.state = x + dx
-        # TODO check if decaying exploration noise helps
-        # self.sigma *= 0.99
-        # self.sigma = max(self.sigma, 0.05)
         return self.state
 
     def get_action(self, t, observation, policy, **kwargs):
         action, agent_info = policy.get_action(observation)
         return self.get_action_from_raw_action(action, **kwargs), agent_info
 
-    def get_action_from_raw_action(self, action, **kwargs):
+    def get_action_from_raw_action(self, action, t=0, **kwargs):
         ou_state = self.evolve_state()
-        return np.clip(action + ou_state, self.action_space.low, self.action_space.high)
+        self.sigma = (
+            self._max_sigma
+            - (self._max_sigma - self._min_sigma)
+            * min(1.0, t * 1.0 / self._decay_period)
+        )
+        return np.clip(action + ou_state, self.action_space.low,
+                       self.action_space.high)
