@@ -1,7 +1,8 @@
 """
 Use an oracle qfunction to train a policy in bptt-ddpg style.
 """
-from itertools import product
+from hyperopt import hp
+import numpy as np
 import tensorflow as tf
 import random
 
@@ -26,6 +27,15 @@ from railrl.exploration_strategies.noop import NoopStrategy
 from railrl.exploration_strategies.onehot_sampler import OneHotSampler
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
+
+from railrl.algos.bptt_ddpg import BpttDDPG
+from railrl.exploration_strategies.action_aware_memory_strategy import \
+    ActionAwareMemoryStrategy
+from railrl.launchers.launcher_util import (
+    run_experiment_here,
+    create_base_log_dir,
+)
+from railrl.misc.hypopt import optimize_and_save
 
 
 def run_ocm_experiment(variant):
@@ -207,13 +217,35 @@ def run_ocm_experiment(variant):
     )
 
     algorithm.train()
+    return algorithm
 
+
+def get_ocm_score(variant):
+    algorithm = run_ocm_experiment(variant)
+    scores = algorithm.epoch_scores
+    return np.mean(scores[-3:])
+
+
+def run_experiment_wrapper(hyperparams):
+    scores = []
+    print("Hyperparams chosen:")
+    print(hyperparams)
+    for i in range(3):
+        hyperparams['seed'] += 1
+        scores.append(run_experiment_here(
+            get_ocm_score,
+            exp_prefix=exp_prefix,
+            variant=hyperparams,
+            exp_id=0,
+        ))
+    return np.mean(scores)
 
 if __name__ == '__main__':
     mode = 'here'
     n_seed = 1
-    exp_prefix = "dev-4-12-bptt-ddpg-ocm"
+    exp_prefix = "dev-4-14-bptt-ddpg-ocm"
     version = 'dev'
+    HYPERPARAMETER_SWEEPING = False
     exp_id = 0
 
     """
@@ -222,9 +254,9 @@ if __name__ == '__main__':
     n_batches_per_epoch = 100
     n_batches_per_eval = 64
     batch_size = 32
-    n_epochs = 20
-    # memory_dim = 20
-    memory_dim = 4
+    n_epochs = 15
+    memory_dim = 20
+    # memory_dim = 4
     # min_pool_size = 10*max(n_batches_per_epoch, batch_size)
     min_pool_size = max(n_batches_per_epoch, batch_size)
     replay_pool_size = 100000
@@ -291,14 +323,14 @@ if __name__ == '__main__':
     #     min_sigma=0.05,
     #     decay_period=1000,
     # )
-    memory_es_class = NoopStrategy
-    memory_es_params = {}
-    # memory_es_class = GaussianStrategy
-    # memory_es_params = dict(
-    #     max_sigma=0.25,
-    #     min_sigma=0.05,
-    #     decay_period=1000,
-    # )
+    # memory_es_class = NoopStrategy
+    # memory_es_params = {}
+    memory_es_class = OUStrategy
+    memory_es_params = dict(
+        max_sigma=0.25,
+        min_sigma=0.05,
+        decay_period=1000,
+    )
     es_params = dict(
         env_es_class=env_es_class,
         env_es_params=env_es_params,
@@ -364,13 +396,73 @@ if __name__ == '__main__':
         load_policy_file=load_policy_file,
         es_params=es_params,
     )
-    for _ in range(n_seed):
-        seed = random.randint(0, 10000)
-        run_experiment(
-            run_ocm_experiment,
-            exp_prefix=exp_prefix,
-            seed=seed,
-            mode=mode,
-            variant=variant,
-            exp_id=exp_id,
+
+    if HYPERPARAMETER_SWEEPING:
+        mem_gaussian_es_space = {
+            'es_params.memory_es_params.max_sigma': hp.uniform(
+                'es_params.memory_es_params.max_sigma',
+                1.0,
+                0.5,
+            ),
+            'es_params.memory_es_params.min_sigma': hp.uniform(
+                'es_params.memory_es_params.min_sigma',
+                0.2,
+                0.001,
+            ),
+            'es_params.memory_es_params.decay_period': hp.qloguniform(
+                'es_params.memory_es_params.decay_period',
+                np.log(100),
+                np.log(100000),
+                1,
+            )
+        }
+        mem_ou_es_space = mem_gaussian_es_space.copy()
+        mem_ou_es_space['es_params.memory_es_params.theta'] = hp.uniform(
+            'es_params.memory_es_params.theta',
+            1.0,
+            0.,
+        ),
+        mem_noop_strategy_space = {'es_params.memory_es_params': {}}
+        search_space = {
+            'es_params.memory_es_class': hp.choice(
+                'es_params.memory_es_class',
+                [
+                    (GaussianStrategy, mem_gaussian_es_space),
+                    (OUStrategy, mem_ou_es_space),
+                    (NoopStrategy, mem_noop_strategy_space),
+                ]
+            ),
+            'es_params.noise_action_to_memory': hp.choice(
+                'es_params.noise_action_to_memory',
+                [True, False],
+            ),
+            'seed': hp.randint('seed', 10000),
+        }
+        variant['es_params'].pop('memory_es_class')
+        variant['es_params'].pop('memory_es_params')
+        variant['es_params'].pop('noise_action_to_memory')
+
+        base_log_dir = create_base_log_dir(exp_prefix=exp_prefix)
+
+        optimize_and_save(
+            base_log_dir,
+            run_experiment_wrapper,
+            search_space=search_space,
+            extra_function_kwargs=variant,
+            maximize=True,
+            verbose=True,
+            load_trials=True,
+            num_rounds=500,
+            num_evals_per_round=1,
         )
+    else:
+        for _ in range(n_seed):
+            seed = random.randint(0, 10000)
+            run_experiment(
+                run_ocm_experiment,
+                exp_prefix=exp_prefix,
+                seed=seed,
+                mode=mode,
+                variant=variant,
+                exp_id=exp_id,
+            )
