@@ -87,7 +87,7 @@ if __name__ == '__main__':
     )
     USE_EC2 = False
     exp_id = -1
-    for H in [8]:
+    for H in [6]:
         for num_values in [2]:
             print("H", H)
             print("num_values", num_values)

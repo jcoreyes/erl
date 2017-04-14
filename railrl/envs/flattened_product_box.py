@@ -1,4 +1,6 @@
 import numpy as np
+
+from rllab.core.serializable import Serializable
 from rllab.envs.base import Env
 from rllab.envs.proxy_env import ProxyEnv
 from rllab.misc.overrides import overrides
@@ -17,6 +19,8 @@ class FlattenedProductBox(ProxyEnv):
         assert isinstance(env.observation_space, Product)
         for c in env.action_space.components + env.observation_space.components:
             assert isinstance(c, Box) or isinstance(c, TfBox)
+
+        Serializable.quick_init(self, locals())
 
         super().__init__(env)
 

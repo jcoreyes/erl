@@ -96,8 +96,9 @@ class Bptt(Parameterized, RLAlgorithm, Serializable):
         rnn_inputs = tf.unstack(tf.cast(self._x, tf.float32), axis=1)
         labels = tf.unstack(tf.cast(self._y, tf.float32), axis=1)
 
-        cell = tf.nn.rnn_cell.LSTMCell(self._state_size, state_is_tuple=True)
-        rnn_outputs, self._final_state = tf.nn.rnn(
+        cell = tf.contrib.rnn.BasicLSTMCell(self._state_size,
+                                            state_is_tuple=True)
+        rnn_outputs, self._final_state = tf.contrib.rnn.static_rnn(
             cell,
             rnn_inputs,
             dtype=tf.float32,
