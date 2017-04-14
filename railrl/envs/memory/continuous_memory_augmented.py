@@ -36,8 +36,8 @@ class ContinuousMemoryAugmented(ProxyEnv):
 
     @cached_property
     def _memory_state_space(self):
-        return Box(-np.ones(self._num_memory_states),
-                   np.ones(self._num_memory_states))
+        return Box(-1e6*np.ones(self._num_memory_states),
+                   1e6*np.ones(self._num_memory_states))
 
     def reset(self):
         self._memory_state = np.zeros(self._num_memory_states)
