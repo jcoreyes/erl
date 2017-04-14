@@ -232,7 +232,7 @@ def merge_recursive_dicts(a, b, path=None):
                 pass  # same leaf value
             else:
                 raise Exception(
-                    'Conflict at %s' % '.'.join(path + [str(key)]))
+                    'Duplicate keys at {}'.format('.'.join(path + [str(key)])))
         else:
             a[key] = b[key]
     return a
