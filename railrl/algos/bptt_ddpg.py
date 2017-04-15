@@ -7,6 +7,7 @@ from typing import Iterable
 import numpy as np
 
 from railrl.algos.ddpg import DDPG
+from railrl.core import tf_util
 from railrl.data_management.subtraj_replay_buffer import (
     SubtrajReplayBuffer
 )
@@ -34,6 +35,7 @@ class BpttDDPG(DDPG):
             replay_pool_size=10000,
             replay_buffer_class=SubtrajReplayBuffer,
             freeze_hidden=False,
+            optimize_simultaneously=False,
             **kwargs
     ):
         """
@@ -49,6 +51,7 @@ class BpttDDPG(DDPG):
         self._num_bptt_unrolls = num_bptt_unrolls
         self._env_obs_dim = env_obs_dim
         self._freeze_hidden = freeze_hidden
+        self._optimize_simultaneously = optimize_simultaneously
 
         self._rnn_cell_scope = policy.rnn_cell_scope
         self._rnn_cell = policy.rnn_cell
@@ -66,6 +69,36 @@ class BpttDDPG(DDPG):
                 num_bptt_unrolls,
             ),
             **kwargs)
+
+    def _init_qf_ops(self):
+        if not self._optimize_simultaneously:
+            return super()._init_qf_ops()
+
+        self.ys = (
+            self.rewards_placeholder +
+            (1. - self.terminals_placeholder)
+            * self.discount
+            * self.target_qf.output
+        )
+        self.qf_loss = tf.squeeze(tf_util.mse(self.ys, self.qf_with_action_input.output))
+        self.Q_weights_norm = tf.reduce_sum(
+            tf.stack(
+                [tf.nn.l2_loss(v)
+                 for v in
+                 self.qf.get_params_internal(regularizable=True)]
+            ),
+            name='weights_norm'
+        )
+        import ipdb
+        ipdb.set_trace()
+        self.qf_total_loss = (
+            self.qf_loss + self.qf_weight_decay * self.Q_weights_norm
+        )
+        self.train_qf_op = tf.train.AdamOptimizer(
+            self.qf_learning_rate).minimize(
+            self.qf_total_loss,
+            var_list=self.qf.get_params()+self.policy.get_params(),
+        )
 
     def _init_policy_ops(self):
         self._rnn_inputs_ph = tf.placeholder(
@@ -94,7 +127,8 @@ class BpttDDPG(DDPG):
             action_input=self._final_rnn_action,
         )
         self.policy_surrogate_loss = - tf.reduce_mean(
-            self.qf_with_action_input.output)
+            self.qf_with_action_input.output
+        )
         if self._freeze_hidden:
             trainable_policy_params = self.policy.get_params(env_only=True)
         else:

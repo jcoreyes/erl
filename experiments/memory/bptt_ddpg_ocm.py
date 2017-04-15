@@ -1,6 +1,7 @@
 """
 Use an oracle qfunction to train a policy in bptt-ddpg style.
 """
+import copy
 from hyperopt import hp
 import numpy as np
 import tensorflow as tf
@@ -254,12 +255,13 @@ if __name__ == '__main__':
     n_batches_per_epoch = 100
     n_batches_per_eval = 64
     batch_size = 32
-    n_epochs = 15
+    n_epochs = 2
     memory_dim = 20
     # memory_dim = 4
     # min_pool_size = 10*max(n_batches_per_epoch, batch_size)
     min_pool_size = max(n_batches_per_epoch, batch_size)
     replay_pool_size = 100000
+    optimize_simultaneously = False
 
     """
     Algorithm Selection
@@ -327,7 +329,7 @@ if __name__ == '__main__':
     # memory_es_params = {}
     memory_es_class = OUStrategy
     memory_es_params = dict(
-        max_sigma=0.25,
+        max_sigma=0.5,
         min_sigma=0.05,
         decay_period=1000,
     )
@@ -336,7 +338,7 @@ if __name__ == '__main__':
         env_es_params=env_es_params,
         memory_es_class=memory_es_class,
         memory_es_params=memory_es_params,
-        noise_action_to_memory=True,
+        noise_action_to_memory=False,
     )
 
     epoch_length = H * n_batches_per_epoch
@@ -359,6 +361,7 @@ if __name__ == '__main__':
         discount=1.0,
         soft_target_tau=soft_target_tau,
         qf_weight_decay=qf_weight_decay,
+        optimize_simultaneously=optimize_simultaneously,
     )
     regress_params = dict(
         qf_tolerance=qf_tolerance,
@@ -416,7 +419,7 @@ if __name__ == '__main__':
                 1,
             )
         }
-        mem_ou_es_space = mem_gaussian_es_space.copy()
+        mem_ou_es_space = copy.deepcopy(mem_gaussian_es_space)
         mem_ou_es_space['es_params.memory_es_params.theta'] = hp.uniform(
             'es_params.memory_es_params.theta',
             1.0,
@@ -427,7 +430,7 @@ if __name__ == '__main__':
             'es_params.memory_es_class': hp.choice(
                 'es_params.memory_es_class',
                 [
-                    (GaussianStrategy, mem_gaussian_es_space),
+                    (GaussianStrategy, mem_ou_es_space),
                     (OUStrategy, mem_ou_es_space),
                     (NoopStrategy, mem_noop_strategy_space),
                 ]
