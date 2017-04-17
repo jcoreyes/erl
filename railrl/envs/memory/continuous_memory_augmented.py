@@ -19,11 +19,14 @@ class ContinuousMemoryAugmented(ProxyEnv):
     def __init__(
             self,
             env: Env,
-            num_memory_states=10
+            num_memory_states=10,
+            max_magnitude=1e6,
     ):
         Serializable.quick_init(self, locals())
         super().__init__(env)
         self._num_memory_states = num_memory_states
+        assert max_magnitude > 0
+        self._max_magnitude = max_magnitude
         self._memory_state = np.zeros(self._num_memory_states)
         self._action_space = Product(
             env.action_space,
@@ -36,8 +39,8 @@ class ContinuousMemoryAugmented(ProxyEnv):
 
     @cached_property
     def _memory_state_space(self):
-        return Box(-1e6*np.ones(self._num_memory_states),
-                   1e6*np.ones(self._num_memory_states))
+        return Box(-self._max_magnitude * np.ones(self._num_memory_states),
+                   self._max_magnitude * np.ones(self._num_memory_states))
 
     def reset(self):
         self._memory_state = np.zeros(self._num_memory_states)
