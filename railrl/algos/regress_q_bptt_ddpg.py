@@ -130,12 +130,12 @@ class RegressQBpttDdpg(BpttDDPG):
             self.grad_distance.append(tf_util.cosine(oracle_grad, qf_grad))
             self.grad_mse.append(tf_util.mse(oracle_grad, qf_grad, axis=1))
 
-        if self.env_grad_distance_weight >= 0.:
+        if self.env_grad_distance_weight > 0.:
             self.qf_total_loss += - (
                 tf.reduce_mean(self.grad_distance[0]) *
                 self.env_grad_distance_weight
             )
-        if self.write_grad_distance_weight >= 0.:
+        if self.write_grad_distance_weight > 0.:
             self.qf_total_loss += - (
                 tf.reduce_mean(self.grad_distance[1]) *
                 self.write_grad_distance_weight
@@ -150,7 +150,7 @@ class RegressQBpttDdpg(BpttDDPG):
             self.env_qf_grad_mse_from_one,
             self.memory_qf_grad_mse_from_one,
         ]
-        if self.qf_grad_mse_from_one_weight >= 0.:
+        if self.qf_grad_mse_from_one_weight > 0.:
             self.qf_total_loss += (
                 self.env_qf_grad_mse_from_one
                 + self.memory_qf_grad_mse_from_one
