@@ -5,7 +5,7 @@ from railrl.core import tf_util
 from railrl.policies.memory.rnn_cell_policy import RnnCellPolicy
 
 
-class LstmLinearCell(tf.contrib.rnn.BasicLSTMCell):
+class LstmLinearCell(tf.contrib.rnn.LSTMCell):
     """
     LSTM cell with a linear unit + softmax before the output.
     """
@@ -42,7 +42,7 @@ class LstmLinearCell(tf.contrib.rnn.BasicLSTMCell):
         return self._output_dim
 
 
-class OutputAwareLstmCell(tf.contrib.rnn.BasicLSTMCell):
+class OutputAwareLstmCell(tf.contrib.rnn.LSTMCell):
     """
     Env action = linear function of input.
     LSTM input = env action and env observation.
@@ -84,7 +84,7 @@ class OutputAwareLstmCell(tf.contrib.rnn.BasicLSTMCell):
         return self._output_dim
 
 
-class FrozenHiddenLstmLinearCell(tf.contrib.rnn.BasicLSTMCell):
+class FrozenHiddenLstmLinearCell(tf.contrib.rnn.LSTMCell):
     def __init__(
             self,
             num_units,
