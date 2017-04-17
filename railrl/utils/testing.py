@@ -1,4 +1,4 @@
-from rllab.exploration_strategies.base import ExplorationStrategy
+from railrl.exploration_strategies.base import RawExplorationStrategy
 
 
 class StubPolicy(object):
@@ -9,7 +9,7 @@ class StubPolicy(object):
         return self._action, {}
 
 
-class AddEs(ExplorationStrategy):
+class AddEs(RawExplorationStrategy):
     """
     return action + constant
     """

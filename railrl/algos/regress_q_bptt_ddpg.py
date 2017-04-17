@@ -130,12 +130,12 @@ class RegressQBpttDdpg(BpttDDPG):
             self.grad_distance.append(tf_util.cosine(oracle_grad, qf_grad))
             self.grad_mse.append(tf_util.mse(oracle_grad, qf_grad, axis=1))
 
-        if self.env_grad_distance_weight >= 0.:
+        if self.env_grad_distance_weight > 0.:
             self.qf_total_loss += - (
                 tf.reduce_mean(self.grad_distance[0]) *
                 self.env_grad_distance_weight
             )
-        if self.write_grad_distance_weight >= 0.:
+        if self.write_grad_distance_weight > 0.:
             self.qf_total_loss += - (
                 tf.reduce_mean(self.grad_distance[1]) *
                 self.write_grad_distance_weight
@@ -150,7 +150,7 @@ class RegressQBpttDdpg(BpttDDPG):
             self.env_qf_grad_mse_from_one,
             self.memory_qf_grad_mse_from_one,
         ]
-        if self.qf_grad_mse_from_one_weight >= 0.:
+        if self.qf_grad_mse_from_one_weight > 0.:
             self.qf_total_loss += (
                 self.env_qf_grad_mse_from_one
                 + self.memory_qf_grad_mse_from_one
@@ -234,8 +234,8 @@ class RegressQBpttDdpg(BpttDDPG):
 
         statistics = OrderedDict()
         for name, validation in [
-            ('Validation', True),
-            ('Training', False),
+            ('Valid', True),
+            ('Train', False),
         ]:
             batch = self.pool.get_valid_subtrajectories(validation=validation)
             feed_dict = self._update_feed_dict_from_batch(batch)
@@ -255,19 +255,19 @@ class RegressQBpttDdpg(BpttDDPG):
                 self.grad_mse + self.qf_grad_mse_from_one + self.qf_grads,
                 feed_dict=feed_dict
             )
-            stat_base_name = 'Qf_{}'.format(name)
+            stat_base_name = 'Qf{}'.format(name)
             statistics.update(
-                {'{}_MSE_Loss'.format(stat_base_name): qf_loss},
+                {'{}_Loss'.format(stat_base_name): qf_loss},
             )
             statistics.update(
                 {'{}_Total_Loss'.format(stat_base_name): qf_total_loss},
             )
             statistics.update(create_stats_ordered_dict(
-                '{}_Grad_Distance_env'.format(stat_base_name),
+                '{}_Grad_Dist_env'.format(stat_base_name),
                 env_grad_distance,
             ))
             statistics.update(create_stats_ordered_dict(
-                '{}_Grad_Distance_memory'.format(stat_base_name),
+                '{}_Grad_Dist_memory'.format(stat_base_name),
                 memory_grad_distance
             ))
             statistics.update(create_stats_ordered_dict(
@@ -279,11 +279,11 @@ class RegressQBpttDdpg(BpttDDPG):
                 memory_grad_mag
             ))
             statistics.update(create_stats_ordered_dict(
-                '{}_QF_Grad_MSE_from_one_env'.format(stat_base_name),
+                '{}_GradMSE_from_1_env'.format(stat_base_name),
                 env_qf_grad_mse_from_one
             ))
             statistics.update(create_stats_ordered_dict(
-                '{}_QF_Grad_MSE_from_one_memory'.format(stat_base_name),
+                '{}_GradMSE_from_1_memory'.format(stat_base_name),
                 memory_qf_grad_mse_from_one
             ))
             statistics.update(create_stats_ordered_dict(

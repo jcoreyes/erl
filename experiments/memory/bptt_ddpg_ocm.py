@@ -178,19 +178,20 @@ def run_ocm_experiment(variant):
         )
         algo_class = OracleBpttDDPG
     elif oracle_mode == 'regress':
-        # qf = MlpMemoryQFunction(
-        #     name_or_scope="critic",
-        #     env_spec=env.spec,
-        # )
         regress_params = variant['regress_params']
-
-        qf = HintMlpMemoryQFunction(
-            name_or_scope="hint_critic",
-            hint_dim=env_action_dim,
-            max_time=H,
-            env_spec=env.spec,
-            **qf_params
-        )
+        if regress_params.pop('use_hint_qf', False):
+            qf = HintMlpMemoryQFunction(
+                name_or_scope="hint_critic",
+                hint_dim=env_action_dim,
+                max_time=H,
+                env_spec=env.spec,
+                **qf_params
+            )
+        else:
+            qf = MlpMemoryQFunction(
+                name_or_scope="critic",
+                env_spec=env.spec,
+            )
         oracle_qf = OracleUnrollQFunction(
             name_or_scope="oracle_unroll_critic",
             env=env,
@@ -244,8 +245,8 @@ def run_experiment_wrapper(hyperparams):
 if __name__ == '__main__':
     mode = 'here'
     n_seed = 1
-    exp_prefix = "dev-4-14-bptt-ddpg-ocm"
-    version = 'dev'
+    exp_prefix = "dev-4-17-bptt-ddpg-ocm-lstm-comp"
+    version = 'basic-lstm'
     HYPERPARAMETER_SWEEPING = False
     exp_id = 0
 
@@ -255,7 +256,7 @@ if __name__ == '__main__':
     n_batches_per_epoch = 100
     n_batches_per_eval = 64
     batch_size = 32
-    n_epochs = 2
+    n_epochs = 20
     memory_dim = 20
     # memory_dim = 4
     # min_pool_size = 10*max(n_batches_per_epoch, batch_size)
@@ -291,9 +292,9 @@ if __name__ == '__main__':
     """
     Env param
     """
-    H = 6
+    H = 4
     num_values = 2
-    num_bptt_unrolls = 4
+    num_bptt_unrolls = 3
 
     """
     Algo params
@@ -302,7 +303,7 @@ if __name__ == '__main__':
     qf_learning_rate = 1e-3
     policy_learning_rate = 1e-3
     soft_target_tau = 0.01
-    qf_weight_decay = 1.01
+    qf_weight_decay = 0.0
 
     """
     Regression Params
@@ -313,6 +314,7 @@ if __name__ == '__main__':
     env_grad_distance_weight = 0.
     write_grad_distance_weight = 0.
     qf_grad_mse_from_one_weight = 0.
+    use_hint_qf = False
 
     """
     Exploration params
@@ -325,12 +327,12 @@ if __name__ == '__main__':
     #     min_sigma=0.05,
     #     decay_period=1000,
     # )
-    # memory_es_class = NoopStrategy
-    # memory_es_params = {}
-    memory_es_class = OUStrategy
+    memory_es_class = NoopStrategy
+    memory_es_params = {}
+    # memory_es_class = OUStrategy
     memory_es_params = dict(
         max_sigma=0.5,
-        min_sigma=0.05,
+        min_sigma=0.0,
         decay_period=1000,
     )
     es_params = dict(
@@ -364,6 +366,7 @@ if __name__ == '__main__':
         optimize_simultaneously=optimize_simultaneously,
     )
     regress_params = dict(
+        use_hint_qf=use_hint_qf,
         qf_tolerance=qf_tolerance,
         max_num_q_updates=max_num_q_updates,
         train_policy=train_policy,
@@ -375,9 +378,9 @@ if __name__ == '__main__':
         rnn_cell_class=policy_rnn_cell_class,
     )
     qf_params = dict(
-        hidden_nonlinearity=tf.nn.relu,
-        output_nonlinearity=tf.nn.tanh,
-        use_time=False,
+        # hidden_nonlinearity=tf.nn.relu,
+        # output_nonlinearity=tf.nn.tanh,
+        # use_time=False,
         # hidden_nonlinearity=tf.identity,
         # output_nonlinearity=tf.identity,
         # embedded_hidden_sizes=[],

@@ -335,6 +335,7 @@ class DDPG(OnlineAlgorithm):
         return [
             ('PolicySurrogateLoss', self.policy_surrogate_loss),
             ('QfLoss', self.qf_loss),
+            ('QfTotalLoss', self.qf_total_loss),
             ('Ys', self.ys),
             ('PolicyOutput', self.policy.output),
             ('TargetPolicyOutput', self.target_policy.output),
