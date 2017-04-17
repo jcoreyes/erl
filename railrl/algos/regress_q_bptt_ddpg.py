@@ -155,12 +155,16 @@ class RegressQBpttDdpg(BpttDDPG):
                 self.env_qf_grad_mse_from_one
                 + self.memory_qf_grad_mse_from_one
             ) * self.qf_grad_mse_from_one_weight
+        if self._optimize_simultaneously:
+            qf_params = self.qf.get_params() + self.policy.get_params()
+        else:
+            qf_params = self.qf.get_params()
         with tf.variable_scope("regress_train_qf_op"):
             self.train_qf_op = tf.train.AdamOptimizer(
                 self.qf_learning_rate
             ).minimize(
                 self.qf_total_loss,
-                var_list=self.qf.get_params_internal(),
+                var_list=qf_params,
             )
 
         self.sess.run(tf.global_variables_initializer())

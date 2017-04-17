@@ -74,13 +74,21 @@ class BpttDDPG(DDPG):
         if not self._optimize_simultaneously:
             return super()._init_qf_ops()
 
+        """
+        Backprop the Bellman error through time, i.e. through dQ/dwrite action
+        """
+        action_input = (self.qf.action_input[0], self._final_rnn_action[1])
+        self.qf_with_write_input = self.qf.get_weight_tied_copy(
+            action_input=action_input,
+        )
         self.ys = (
             self.rewards_placeholder +
             (1. - self.terminals_placeholder)
             * self.discount
             * self.target_qf.output
         )
-        self.qf_loss = tf.squeeze(tf_util.mse(self.ys, self.qf_with_action_input.output))
+        self.qf_loss = tf.squeeze(tf_util.mse(self.ys,
+                                              self.qf_with_write_input.output))
         self.Q_weights_norm = tf.reduce_sum(
             tf.stack(
                 [tf.nn.l2_loss(v)
@@ -89,8 +97,6 @@ class BpttDDPG(DDPG):
             ),
             name='weights_norm'
         )
-        import ipdb
-        ipdb.set_trace()
         self.qf_total_loss = (
             self.qf_loss + self.qf_weight_decay * self.Q_weights_norm
         )
