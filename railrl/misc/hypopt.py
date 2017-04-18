@@ -249,6 +249,7 @@ def flatten_hyperopt_choice_dict(hyperopt_choice_dict):
 
     def iter_items():
         for key, value in hyperopt_choice_dict.items():
+            # TODO(vitchyr): Figure out the best way to deal with empty dicts
             if isinstance(value, dict) and len(value) > 0:
                 for subkey, subvalue in flatten_hyperopt_choice_dict(value).items():
                     yield subkey, subvalue
