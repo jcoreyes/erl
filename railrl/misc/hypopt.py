@@ -190,7 +190,6 @@ def optimize(
             params = flatten_hyperopt_choice_dict(params)
         if dotmap_to_nested_dictionary:
             params = dot_map_dict_to_nested_dict(params)
-        # loss = function(dict(params, **extra_function_kwargs))
         loss = function(merge_recursive_dicts(params, extra_function_kwargs))
         if maximize:
             loss = - loss
@@ -250,7 +249,7 @@ def flatten_hyperopt_choice_dict(hyperopt_choice_dict):
 
     def iter_items():
         for key, value in hyperopt_choice_dict.items():
-            if isinstance(value, dict):
+            if isinstance(value, dict) and len(value) > 0:
                 for subkey, subvalue in flatten_hyperopt_choice_dict(value).items():
                     yield subkey, subvalue
             elif (isinstance(value, tuple) and len(value) == 2 and
