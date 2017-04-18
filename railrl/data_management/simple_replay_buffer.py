@@ -91,6 +91,5 @@ class SimpleReplayBuffer(ReplayBuffer):
             next_observations=self._observations[next_indices],
         )
 
-    @property
     def num_can_sample(self):
         return len(self._valid_transition_indices)
