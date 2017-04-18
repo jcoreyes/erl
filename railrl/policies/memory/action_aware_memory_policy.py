@@ -1,11 +1,11 @@
 import tensorflow as tf
-from tensorflow.contrib.rnn import BasicLSTMCell
+from tensorflow.contrib.rnn import LSTMCell
 
 from railrl.core import tf_util
 from railrl.policies.memory.rnn_cell_policy import RnnCellPolicy
 
 
-class DecoupledLSTM(BasicLSTMCell):
+class DecoupledLSTM(LSTMCell):
     """
     Env action = linear function of input.
     LSTM input = env action and env observation.
