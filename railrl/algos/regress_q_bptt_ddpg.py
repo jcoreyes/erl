@@ -28,6 +28,7 @@ class RegressQBpttDdpg(BpttDDPG):
             write_grad_distance_weight=1.,
             qf_grad_mse_from_one_weight=1.,
             extra_train_period=100,
+            regress_onto_values=False,
             **kwargs
     ):
         self.qf_tolerance = qf_tolerance
@@ -39,6 +40,7 @@ class RegressQBpttDdpg(BpttDDPG):
         self.write_grad_distance_weight = write_grad_distance_weight
         self.qf_grad_mse_from_one_weight = qf_grad_mse_from_one_weight
         self.extra_train_period = extra_train_period
+        self.regress_onto_values = regress_onto_values
 
         super().__init__(*args, **kwargs)
 
@@ -170,6 +172,13 @@ class RegressQBpttDdpg(BpttDDPG):
         self.sess.run(tf.global_variables_initializer())
         self.qf.reset_param_values_to_last_load()
         self.policy.reset_param_values_to_last_load()
+
+    def _create_qf_loss(self):
+        if self.regress_onto_values:
+            oracle_qf_output = tf.expand_dims(self.oracle_qf.output, axis=1)
+            return tf.squeeze(tf_util.mse(oracle_qf_output, self.qf.output))
+        else:
+            return super()._create_qf_loss()
 
     def _qf_feed_dict(self, *args, **kwargs):
         feed_dict = super()._qf_feed_dict(*args, **kwargs)

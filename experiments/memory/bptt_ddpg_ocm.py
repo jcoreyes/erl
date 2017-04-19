@@ -245,8 +245,8 @@ def run_experiment_wrapper(hyperparams):
 if __name__ == '__main__':
     mode = 'here'
     n_seed = 1
-    exp_prefix = "dev-4-17-bptt-ddpg-ocm-lstm-comp"
-    version = 'basic-lstm'
+    exp_prefix = "4-18-bptt-ddpg-ocm-regress"
+    version = 'no-hint-value'
     HYPERPARAMETER_SWEEPING = False
     exp_id = 0
 
@@ -256,7 +256,7 @@ if __name__ == '__main__':
     n_batches_per_epoch = 100
     n_batches_per_eval = 64
     batch_size = 32
-    n_epochs = 20
+    n_epochs = 10
     memory_dim = 20
     # memory_dim = 4
     # min_pool_size = 10*max(n_batches_per_epoch, batch_size)
@@ -292,9 +292,9 @@ if __name__ == '__main__':
     """
     Env param
     """
-    H = 4
+    H = 6
     num_values = 2
-    num_bptt_unrolls = 3
+    num_bptt_unrolls = 4
 
     """
     Algo params
@@ -303,18 +303,19 @@ if __name__ == '__main__':
     qf_learning_rate = 1e-3
     policy_learning_rate = 1e-3
     soft_target_tau = 0.01
-    qf_weight_decay = 0.0
+    qf_weight_decay = 0.01
 
     """
     Regression Params
     """
     qf_tolerance = -9999
-    max_num_q_updates = 0.
+    max_num_q_updates = 5
     train_policy = True
     env_grad_distance_weight = 0.
     write_grad_distance_weight = 0.
     qf_grad_mse_from_one_weight = 0.
     use_hint_qf = False
+    regress_onto_values = True
 
     """
     Exploration params
@@ -332,16 +333,16 @@ if __name__ == '__main__':
     # memory_es_class = OUStrategy
     memory_es_params = dict(
         max_sigma=0.5,
-        min_sigma=0.0,
-        decay_period=1000,
+        min_sigma=0.1,
+        decay_period=10000,
     )
     es_params = dict(
         env_es_class=env_es_class,
         env_es_params=env_es_params,
         memory_es_class=memory_es_class,
         memory_es_params=memory_es_params,
-        noise_action_to_memory=False,
-    )
+        noise_action_to_memory=True,
+   )
 
     epoch_length = H * n_batches_per_epoch
     eval_samples = H * n_batches_per_eval
@@ -373,6 +374,7 @@ if __name__ == '__main__':
         env_grad_distance_weight=env_grad_distance_weight,
         write_grad_distance_weight=write_grad_distance_weight,
         qf_grad_mse_from_one_weight=qf_grad_mse_from_one_weight,
+        regress_onto_values=regress_onto_values,
     )
     policy_params = dict(
         rnn_cell_class=policy_rnn_cell_class,
@@ -383,8 +385,8 @@ if __name__ == '__main__':
         # use_time=False,
         # hidden_nonlinearity=tf.identity,
         # output_nonlinearity=tf.identity,
-        # embedded_hidden_sizes=[],
-        # observation_hidden_sizes=[],
+        # embedded_hidden_sizes=[100, 100],
+        # observation_hidden_sizes=[100, 100],
     )
     variant = dict(
         H=H,
@@ -407,13 +409,13 @@ if __name__ == '__main__':
         mem_gaussian_es_space = {
             'es_params.memory_es_params.max_sigma': hp.uniform(
                 'es_params.memory_es_params.max_sigma',
-                1.0,
+                3.0,
                 0.5,
             ),
             'es_params.memory_es_params.min_sigma': hp.uniform(
                 'es_params.memory_es_params.min_sigma',
                 0.2,
-                0.001,
+                0.0,
             ),
             'es_params.memory_es_params.decay_period': hp.qloguniform(
                 'es_params.memory_es_params.decay_period',
