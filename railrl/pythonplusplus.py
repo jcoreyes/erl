@@ -65,8 +65,8 @@ def filter_recursive(x_or_iterable):
         for sub_elem in x_or_iterable:
             filtered_sub_elem = filter_recursive(sub_elem)
             if filtered_sub_elem is not None and not (
-                isinstance(filtered_sub_elem, list) and
-                len(filtered_sub_elem) == 0
+                        isinstance(filtered_sub_elem, list) and
+                            len(filtered_sub_elem) == 0
             ):
                 new_items.append(filtered_sub_elem)
         return new_items
@@ -74,6 +74,23 @@ def filter_recursive(x_or_iterable):
         return x_or_iterable
 
 
-def print_rm_chars(n_chars):
-    sys.stdout.write("\r" * n_chars)
-    sys.stdout.flush()
+class _Logger(object):
+    def __init__(self):
+        self.n_chars = 0
+
+    def print_over(self, string):
+        """
+        Remove anything printed in the last printover call. Then print `string`
+        """
+        sys.stdout.write("\r" * self.n_chars)
+        sys.stdout.write(string)
+        sys.stdout.flush()
+        self.n_chars = len(string)
+
+    def newline(self):
+        sys.stdout.write("\n")
+        sys.stdout.flush()
+        self.n_chars = 0
+
+
+line_logger = _Logger()

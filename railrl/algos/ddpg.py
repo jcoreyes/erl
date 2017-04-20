@@ -49,7 +49,6 @@ class DDPG(OnlineAlgorithm):
             qf_weight_decay=0.,
             target_update_mode=TargetUpdateMode.SOFT,
             hard_update_period=10000,
-            num_extra_qf_updates=0,
             **kwargs
     ):
         """
@@ -74,26 +73,8 @@ class DDPG(OnlineAlgorithm):
         self.qf_learning_rate = qf_learning_rate
         self.policy_learning_rate = policy_learning_rate
         self.qf_weight_decay = qf_weight_decay
-        self._num_extra_qf_updates = num_extra_qf_updates
 
         super().__init__(env, policy, exploration_strategy, **kwargs)
-
-    def _do_training(
-            self,
-            **kwargs
-    ):
-        for _ in range(self._num_extra_qf_updates):
-            minibatch = self._sample_minibatch()
-            feed_dict = self._update_feed_dict_from_batch(minibatch)
-            ops = filter_recursive([
-                self.train_qf_op,
-                self.update_target_qf_op,
-            ])
-            if len(ops) > 0:
-                self.sess.run(ops, feed_dict=feed_dict)
-
-        super()._do_training(**kwargs)
-
 
     @overrides
     def _init_tensorflow_ops(self):

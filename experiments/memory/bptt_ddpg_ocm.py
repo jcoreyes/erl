@@ -245,8 +245,8 @@ def run_experiment_wrapper(hyperparams):
 if __name__ == '__main__':
     mode = 'here'
     n_seed = 1
-    exp_prefix = "4-18-bptt-ddpg-ocm-regress"
-    version = 'no-hint-value'
+    exp_prefix = "dev-4-20-bptt-ddpg-ocm"
+    version = 'dev'
     HYPERPARAMETER_SWEEPING = False
     exp_id = 0
 
@@ -262,7 +262,7 @@ if __name__ == '__main__':
     # min_pool_size = 10*max(n_batches_per_epoch, batch_size)
     min_pool_size = max(n_batches_per_epoch, batch_size)
     replay_pool_size = 100000
-    optimize_simultaneously = False
+    optimize_simultaneously = True
 
     """
     Algorithm Selection
@@ -292,9 +292,9 @@ if __name__ == '__main__':
     """
     Env param
     """
-    H = 6
+    H = 4
     num_values = 2
-    num_bptt_unrolls = 4
+    num_bptt_unrolls = 2
 
     """
     Algo params
@@ -308,14 +308,15 @@ if __name__ == '__main__':
     """
     Regression Params
     """
-    qf_tolerance = -9999
-    max_num_q_updates = 5
-    train_policy = True
+    qf_total_loss_tolerance = -9999
+    max_num_q_updates = 100
+    train_policy = False
     env_grad_distance_weight = 0.
     write_grad_distance_weight = 0.
     qf_grad_mse_from_one_weight = 0.
     use_hint_qf = False
-    regress_onto_values = True
+    regress_onto_values = False
+    extra_qf_training_mode = 'validation'
 
     """
     Exploration params
@@ -358,7 +359,6 @@ if __name__ == '__main__':
         num_bptt_unrolls=num_bptt_unrolls,
         unroll_through_target_policy=unroll_through_target_policy,
         freeze_hidden=freeze_hidden,
-        num_extra_qf_updates=num_extra_qf_updates,
         qf_learning_rate=qf_learning_rate,
         policy_learning_rate=policy_learning_rate,
         discount=1.0,
@@ -368,13 +368,15 @@ if __name__ == '__main__':
     )
     regress_params = dict(
         use_hint_qf=use_hint_qf,
-        qf_tolerance=qf_tolerance,
+        qf_total_loss_tolerance=qf_total_loss_tolerance,
         max_num_q_updates=max_num_q_updates,
         train_policy=train_policy,
         env_grad_distance_weight=env_grad_distance_weight,
         write_grad_distance_weight=write_grad_distance_weight,
         qf_grad_mse_from_one_weight=qf_grad_mse_from_one_weight,
         regress_onto_values=regress_onto_values,
+        num_extra_qf_updates=num_extra_qf_updates,
+        extra_qf_training_mode=extra_qf_training_mode,
     )
     policy_params = dict(
         rnn_cell_class=policy_rnn_cell_class,
