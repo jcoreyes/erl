@@ -11,7 +11,7 @@ from railrl.exploration_strategies.ou_strategy import OUStrategy
 
 
 def example(*_):
-    env = BaxterEnv(update_hz=100)
+    env = BaxterEnv(update_hz=20)
     es = OUStrategy(
         max_sigma=0.05,
         min_sigma=0.05,
@@ -39,7 +39,7 @@ def example(*_):
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="ddpg-half-cheetah",
-        seed=2,
+        exp_prefix="4-19-baxter-desired-pos",
+        seed=0,
         mode='here',
     )
