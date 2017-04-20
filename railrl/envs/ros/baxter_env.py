@@ -9,11 +9,11 @@ from rllab.envs.base import Env
 NUM_JOINTS = 7
 JOINT_ANGLES_HIGH = np.array(
     [1.70167993, 1.04700017, 3.0541791, 2.61797006, 3.05900002,
-     2.09400001, 3.05899961]) / 10
+     2.09400001, 3.05899961])
 JOINT_ANGLES_LOW = np.array([
     -1.70167995, -2.14700025, -3.0541801, -0.04995198, -3.05900015,
     -1.5708003, -3.05899989
-]) / 10
+])
 
 
 def safe(raw_function):
@@ -30,9 +30,6 @@ class BaxterEnv(Env, Serializable):
     def __init__(self, update_hz=20):
         Serializable.quick_init(self, locals())
         rospy.init_node('baxter_env', anonymous=True)
-        # self.left_arm = bi.Limb('left')
-        # self.left_joint_names = self.left_arm.joint_names()
-        # self.left_grip = bi.Gripper('left', bi.CHECK_VERSION)
         self.right_arm = bi.Limb('right')
         self.right_joint_names = self.right_arm.joint_names()
         self.right_grip = bi.Gripper('right', bi.CHECK_VERSION)
@@ -89,17 +86,16 @@ class BaxterEnv(Env, Serializable):
         -------
         observation : the initial observation of the space. (Initial reward is assumed to be 0.)
         """
-        # self.left_arm.move_to_neutral()
         self.right_arm.move_to_neutral()
         return self._get_joint_angles()
 
     @cached_property
     def action_space(self):
-        return Box(JOINT_ANGLES_HIGH, JOINT_ANGLES_LOW)
+        return Box(JOINT_ANGLES_LOW, JOINT_ANGLES_HIGH)
 
     @cached_property
     def observation_space(self):
-        return Box(JOINT_ANGLES_HIGH, JOINT_ANGLES_LOW)
+        return Box(JOINT_ANGLES_LOW, JOINT_ANGLES_HIGH)
 
     def render(self):
         pass

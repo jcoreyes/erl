@@ -11,8 +11,12 @@ from railrl.exploration_strategies.ou_strategy import OUStrategy
 
 
 def example(*_):
-    env = BaxterEnv(update_hz=1)
-    es = OUStrategy(env_spec=env.spec)
+    env = BaxterEnv(update_hz=100)
+    es = OUStrategy(
+        max_sigma=0.05,
+        min_sigma=0.05,
+        env_spec=env.spec,
+    )
     qf = FeedForwardCritic(
         name_or_scope="critic",
         env_spec=env.spec,
