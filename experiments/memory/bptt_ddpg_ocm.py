@@ -12,6 +12,7 @@ from railrl.exploration_strategies.action_aware_memory_strategy import \
 from railrl.launchers.launcher_util import (
     run_experiment,
 )
+from railrl.misc.hyperparameter import DeterministicHyperparameterSweeper
 from railrl.policies.memory.action_aware_memory_policy import \
     ActionAwareMemoryPolicy
 from railrl.policies.memory.lstm_memory_policy import (
@@ -191,6 +192,7 @@ def run_ocm_experiment(variant):
             qf = MlpMemoryQFunction(
                 name_or_scope="critic",
                 env_spec=env.spec,
+                **qf_params
             )
         oracle_qf = OracleUnrollQFunction(
             name_or_scope="oracle_unroll_critic",
@@ -228,26 +230,28 @@ def get_ocm_score(variant):
     return np.mean(scores[-3:])
 
 
-def run_experiment_wrapper(hyperparams):
-    scores = []
-    print("Hyperparams chosen:")
-    print(hyperparams)
-    for i in range(3):
-        hyperparams['seed'] += 1
-        scores.append(run_experiment_here(
-            get_ocm_score,
-            exp_prefix=exp_prefix,
-            variant=hyperparams,
-            exp_id=0,
-        ))
-    return np.mean(scores)
+def create_run_experiment_multiple_seeds(n_seeds):
+    def run_experiment_with_multiple_seeds(variant):
+        scores = []
+        for i in range(n_seeds):
+            variant['seed'] = str(int(variant['seed']) + i)
+            exp_prefix = variant['exp_prefix']
+            scores.append(run_experiment_here(
+                get_ocm_score,
+                exp_prefix=exp_prefix,
+                variant=variant,
+                exp_id=i,
+            ))
+        return np.mean(scores)
+    return run_experiment_with_multiple_seeds
+
 
 if __name__ == '__main__':
-    mode = 'here'
-    n_seed = 1
-    exp_prefix = "dev-4-20-bptt-ddpg-ocm"
+    mode = 'ec2'
+    n_seeds = 1
+    exp_prefix = "4-21-bptt-ddpg-ocm-grid-qf-test-2"
     version = 'dev'
-    HYPERPARAMETER_SWEEPING = False
+    run_mode = 'grid'
     exp_id = 0
 
     """
@@ -262,7 +266,7 @@ if __name__ == '__main__':
     # min_pool_size = 10*max(n_batches_per_epoch, batch_size)
     min_pool_size = max(n_batches_per_epoch, batch_size)
     replay_pool_size = 100000
-    optimize_simultaneously = True
+    optimize_simultaneously = False
 
     """
     Algorithm Selection
@@ -310,25 +314,25 @@ if __name__ == '__main__':
     """
     qf_total_loss_tolerance = -9999
     max_num_q_updates = 100
-    train_policy = False
+    train_policy = True
     env_grad_distance_weight = 0.
     write_grad_distance_weight = 0.
     qf_grad_mse_from_one_weight = 0.
     use_hint_qf = False
     regress_onto_values = False
-    extra_qf_training_mode = 'validation'
+    extra_qf_training_mode = 'none'
 
     """
     Exploration params
     """
     env_es_class = OneHotSampler
     env_es_params = {}
-    # env_es_class = GaussianStrategy
-    # env_es_params = dict(
-    #     max_sigma=0.25,
-    #     min_sigma=0.05,
-    #     decay_period=1000,
-    # )
+    env_es_class = OUStrategy
+    env_es_params = dict(
+        max_sigma=0.5,
+        min_sigma=0.1,
+        decay_period=10000,
+    )
     memory_es_class = NoopStrategy
     memory_es_params = {}
     # memory_es_class = OUStrategy
@@ -342,7 +346,7 @@ if __name__ == '__main__':
         env_es_params=env_es_params,
         memory_es_class=memory_es_class,
         memory_es_params=memory_es_params,
-        noise_action_to_memory=True,
+        noise_action_to_memory=False,
    )
 
     epoch_length = H * n_batches_per_epoch
@@ -407,7 +411,7 @@ if __name__ == '__main__':
         es_params=es_params,
     )
 
-    if HYPERPARAMETER_SWEEPING:
+    if run_mode == 'hyperopt':
         mem_gaussian_es_space = {
             'es_params.memory_es_params.max_sigma': hp.uniform(
                 'es_params.memory_es_params.max_sigma',
@@ -456,7 +460,7 @@ if __name__ == '__main__':
 
         optimize_and_save(
             base_log_dir,
-            run_experiment_wrapper,
+            create_run_experiment_multiple_seeds(n_seeds=n_seeds),
             search_space=search_space,
             extra_function_kwargs=variant,
             maximize=True,
@@ -465,8 +469,27 @@ if __name__ == '__main__':
             num_rounds=500,
             num_evals_per_round=1,
         )
+    elif run_mode == 'grid':
+        search_space = {
+            'qf_params.hidden_nonlinearity': [tf.nn.relu, tf.nn.tanh,
+                                              tf.identity],
+            'qf_params.output_nonlinearity': [tf.nn.relu, tf.nn.tanh,
+                                              tf.identity],
+        }
+        sweeper = DeterministicHyperparameterSweeper(search_space,
+                                                     default_parameters=variant)
+        for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+            for i in range(n_seeds):
+                run_experiment(
+                    get_ocm_score,
+                    exp_prefix=exp_prefix,
+                    seed=i,
+                    mode=mode,
+                    variant=variant,
+                    exp_id=exp_id,
+                )
     else:
-        for _ in range(n_seed):
+        for _ in range(n_seeds):
             seed = random.randint(0, 10000)
             run_experiment(
                 run_ocm_experiment,
