@@ -248,7 +248,7 @@ def create_run_experiment_multiple_seeds(n_seeds):
 
 if __name__ == '__main__':
     mode = 'ec2'
-    n_seeds = 10
+    n_seeds = 5
     exp_prefix = "4-21-bptt-ddpg-ocm-grid-oustrategy-with-hint"
     version = 'dev'
     run_mode = 'grid'
@@ -260,7 +260,7 @@ if __name__ == '__main__':
     n_batches_per_epoch = 100
     n_batches_per_eval = 64
     batch_size = 32
-    n_epochs = 10
+    n_epochs = 25
     memory_dim = 20
     # memory_dim = 4
     # min_pool_size = 10*max(n_batches_per_epoch, batch_size)
@@ -332,7 +332,7 @@ if __name__ == '__main__':
     env_es_params = dict(
         max_sigma=0.5,
         min_sigma=0.1,
-        decay_period=10000,
+        decay_period=1000,
     )
     memory_es_class = NoopStrategy
     memory_es_class = OneHotSampler
@@ -341,7 +341,7 @@ if __name__ == '__main__':
     memory_es_params = dict(
         max_sigma=0.5,
         min_sigma=0.1,
-        decay_period=10000,
+        decay_period=1000,
         softmax=True,
     )
     noise_action_to_memory = True
@@ -482,12 +482,12 @@ if __name__ == '__main__':
         )
     elif run_mode == 'grid':
         search_space = {
-            'es_params.env_es_params.max_sigma': [0.5, 0.3, 0.1],
-            'es_params.env_es_params.min_sigma': [0.1, 0.05, 0.],
-            'es_params.env_es_params.decay_period': [10000, 100000],
-            'memory_params.memory_es_params.max_sigma': [0.5, 0.3, 0.1],
-            'memory_params.memory_es_params.min_sigma': [0.1, 0.05, 0.],
-            'memory_params.memory_es_params.decay_period': [10000, 100000],
+            'es_params.env_es_params.max_sigma': [0.5, 0.1],
+            'es_params.env_es_params.min_sigma': [0.1, 0.],
+            'es_params.env_es_params.decay_period': [1000, 100],
+            'memory_params.memory_es_params.max_sigma': [0.5, 0.1],
+            'memory_params.memory_es_params.min_sigma': [0.1, 0.],
+            'memory_params.memory_es_params.decay_period': [1000, 100],
         }
         sweeper = DeterministicHyperparameterSweeper(search_space,
                                                      default_parameters=variant)
