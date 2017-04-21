@@ -15,6 +15,7 @@ class MlpMemoryQFunction(NNQFunction):
             embedded_hidden_sizes=(100,),
             observation_hidden_sizes=(100,),
             hidden_nonlinearity=tf.nn.relu,
+            output_nonlinearity=tf.identity,
             **kwargs
     ):
         self.setup_serialization(locals())
@@ -28,6 +29,7 @@ class MlpMemoryQFunction(NNQFunction):
         self.embedded_hidden_sizes = embedded_hidden_sizes
         self.observation_hidden_sizes = observation_hidden_sizes
         self.hidden_nonlinearity = hidden_nonlinearity
+        self.output_nonlinearity = output_nonlinearity
         self._create_network()
 
     def _create_network_internal(
@@ -84,10 +86,10 @@ class MlpMemoryQFunction(NNQFunction):
             fused_output = self._process_layer(fused_output)
 
         with tf.variable_scope("output_linear"):
-            return linear(
+            return self.output_nonlinearity(linear(
                 fused_output,
                 self.embedded_hidden_sizes[-1],
                 1,
                 W_initializer=self.output_W_init,
                 b_initializer=self.output_b_init,
-            )
+            ))
