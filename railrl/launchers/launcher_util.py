@@ -2,6 +2,7 @@ import datetime
 import os
 import os.path as osp
 import random
+import uuid
 
 import dateutil.tz
 import numpy as np
@@ -137,6 +138,7 @@ def run_experiment(
         profile_file='time_log.prof',
         mode='here',
         exp_id=0,
+        unique_id=None,
         use_gpu=False,
         **kwargs):
     """
@@ -155,6 +157,8 @@ def run_experiment(
     run_experiment_lite documentation to learn what those modes do.
     :param exp_id: Experiment ID. Should be unique across all
     experiments. Note that one experiment may correspond to multiple seeds.
+    :param unique_id: Unique ID should be unique across all runs--even different
+    seeds!
     :param kwargs:
     :return:
     """
@@ -162,8 +166,11 @@ def run_experiment(
         seed = random.randint(0, 100000)
     if variant is None:
         variant = {}
+    if unique_id is None:
+        unique_id = str(uuid.uuid4())
     variant['seed'] = str(seed)
     variant['exp_id'] = str(exp_id)
+    variant['unique_id'] = str(unique_id)
     logger.log("Variant:")
     logger.log(str(variant))
     command_words = []
