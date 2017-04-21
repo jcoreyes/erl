@@ -248,8 +248,8 @@ def create_run_experiment_multiple_seeds(n_seeds):
 
 if __name__ == '__main__':
     mode = 'ec2'
-    n_seeds = 1
-    exp_prefix = "4-21-bptt-ddpg-ocm-grid-qf-test-2"
+    n_seeds = 10
+    exp_prefix = "4-21-bptt-ddpg-ocm-grid-es-with-hint"
     version = 'dev'
     run_mode = 'grid'
     exp_id = 0
@@ -296,9 +296,9 @@ if __name__ == '__main__':
     """
     Env param
     """
-    H = 4
+    H = 10
     num_values = 2
-    num_bptt_unrolls = 2
+    num_bptt_unrolls = 4
 
     """
     Algo params
@@ -318,7 +318,7 @@ if __name__ == '__main__':
     env_grad_distance_weight = 0.
     write_grad_distance_weight = 0.
     qf_grad_mse_from_one_weight = 0.
-    use_hint_qf = False
+    use_hint_qf = True
     regress_onto_values = False
     extra_qf_training_mode = 'none'
 
@@ -346,8 +346,8 @@ if __name__ == '__main__':
         env_es_params=env_es_params,
         memory_es_class=memory_es_class,
         memory_es_params=memory_es_params,
-        noise_action_to_memory=False,
-   )
+        noise_action_to_memory=True,
+    )
 
     epoch_length = H * n_batches_per_epoch
     eval_samples = H * n_batches_per_eval
@@ -471,10 +471,9 @@ if __name__ == '__main__':
         )
     elif run_mode == 'grid':
         search_space = {
-            'qf_params.hidden_nonlinearity': [tf.nn.relu, tf.nn.tanh,
-                                              tf.identity],
-            'qf_params.output_nonlinearity': [tf.nn.relu, tf.nn.tanh,
-                                              tf.identity],
+            'es_params.env_es_class': [NoopStrategy, OneHotSampler, OUStrategy],
+            'es_params.memory_es_class': [NoopStrategy, OneHotSampler, OUStrategy],
+            'es_params.noise_action_to_memory': [True, False],
         }
         sweeper = DeterministicHyperparameterSweeper(search_space,
                                                      default_parameters=variant)
