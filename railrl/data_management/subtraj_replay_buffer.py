@@ -195,7 +195,7 @@ class SubtrajReplayBuffer(ReplayBuffer):
             list_of_env_infos,
         ):
             observation = self._env.observation_space.unflatten(observation)
-            action = self._env.observation_space.unflatten(action)
+            action = self._env.action_space.unflatten(action)
             self.add_sample(observation, action, reward, False,
                             agent_info=agent_info, env_info=env_info)
         terminal_observation = self._env.observation_space.unflatten(

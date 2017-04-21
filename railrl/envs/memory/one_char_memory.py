@@ -1,6 +1,6 @@
 import numpy as np
 from sklearn.metrics import log_loss
-from random import randint
+from random import randint, choice
 
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.np_util import np_print_options, softmax
@@ -451,4 +451,27 @@ class OneCharMemoryEndOnlyDiscrete(OneCharMemory):
 
 
 class OneCharMemoryOutputRewardMag(OneCharMemoryEndOnly):
-    pass
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._reward_values = list(
+            range(1, int(self._max_reward_magnitude) + 1)
+        )
+
+        low = np.zeros(self._onehot_size + 1)
+        low[-1] = - self._max_reward_magnitude
+        high = np.ones(self._onehot_size + 1)
+        high[-1] = self._max_reward_magnitude
+
+        self._observation_space = Box(low, high)
+
+    def step(self, action):
+        observation, reward, done, info = super().step(action)
+        observation = np.hstack((observation, 0))
+        return observation, reward, done, info
+
+    def reset(self):
+        self._reward_for_remembering = choice(self._reward_values)
+        self._target_number = randint(1, self.n)
+        self._t = 1
+        first_observation = self._get_next_observation(self._target_number)
+        return np.hstack((first_observation, self._reward_for_remembering))
