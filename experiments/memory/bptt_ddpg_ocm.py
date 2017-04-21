@@ -71,32 +71,32 @@ def run_ocm_experiment(variant):
     """
     Set up experiment variants.
     """
-    H = variant['H']
     seed = variant['seed']
-    num_values = variant['num_values']
+    load_policy_file = variant.get('load_policy_file', None)
+    memory_dim = variant['memory_dim']
+    env_params = variant['env_params']
     ddpg_params = variant['ddpg_params']
     policy_params = variant['policy_params']
     qf_params = variant['qf_params']
-    num_bptt_unrolls = ddpg_params['num_bptt_unrolls']
     oracle_mode = variant['oracle_mode']
-    load_policy_file = variant.get('load_policy_file', None)
-
-    env_action_dim = num_values + 1
-    env_obs_dim = env_action_dim
-    memory_dim = variant['memory_dim']
-    set_seed(seed)
     es_params = variant['es_params']
+
     env_es_class = es_params['env_es_class']
     env_es_params = es_params['env_es_params']
     memory_es_class = es_params['memory_es_class']
     memory_es_params = es_params['memory_es_params']
     noise_action_to_memory = es_params['noise_action_to_memory']
+    num_bptt_unrolls = ddpg_params['num_bptt_unrolls']
+    set_seed(seed)
 
     """
     Code for running the experiment.
     """
 
-    ocm_env = OneCharMemoryEndOnly(n=num_values, num_steps=H)
+    ocm_env = OneCharMemoryEndOnly(**env_params)
+    env_action_dim = ocm_env.n + 1
+    env_obs_dim = env_action_dim
+    H = ocm_env.horizon
     env = ContinuousMemoryAugmented(
         ocm_env,
         num_memory_states=memory_dim,
@@ -249,7 +249,7 @@ def create_run_experiment_multiple_seeds(n_seeds):
 if __name__ == '__main__':
     mode = 'ec2'
     n_seeds = 10
-    exp_prefix = "4-21-bptt-ddpg-ocm-grid-es-with-hint"
+    exp_prefix = "4-21-bptt-ddpg-ocm-grid-oustrategy-with-hint"
     version = 'dev'
     run_mode = 'grid'
     exp_id = 0
@@ -298,7 +298,7 @@ if __name__ == '__main__':
     """
     H = 10
     num_values = 2
-    num_bptt_unrolls = 4
+    zero_observation = True
 
     """
     Algo params
@@ -308,6 +308,7 @@ if __name__ == '__main__':
     policy_learning_rate = 1e-3
     soft_target_tau = 0.01
     qf_weight_decay = 0.01
+    num_bptt_unrolls = 4
 
     """
     Regression Params
@@ -334,21 +335,28 @@ if __name__ == '__main__':
         decay_period=10000,
     )
     memory_es_class = NoopStrategy
+    memory_es_class = OneHotSampler
     memory_es_params = {}
     # memory_es_class = OUStrategy
     memory_es_params = dict(
         max_sigma=0.5,
         min_sigma=0.1,
         decay_period=10000,
+        softmax=True,
     )
+    noise_action_to_memory = True
+
+
+    """
+    Create them dict's
+    """
     es_params = dict(
         env_es_class=env_es_class,
         env_es_params=env_es_params,
         memory_es_class=memory_es_class,
         memory_es_params=memory_es_params,
-        noise_action_to_memory=True,
+        noise_action_to_memory=noise_action_to_memory,
     )
-
     epoch_length = H * n_batches_per_epoch
     eval_samples = H * n_batches_per_eval
     max_path_length = H + 2
@@ -394,20 +402,23 @@ if __name__ == '__main__':
         # embedded_hidden_sizes=[100, 100],
         # observation_hidden_sizes=[100, 100],
     )
+    env_params = dict(
+        n=num_values,
+        num_steps=H,
+        zero_observation=zero_observation,
+    )
     variant = dict(
-        H=H,
-        num_values=num_values,
         exp_prefix=exp_prefix,
+        memory_dim=memory_dim,
+        algo_class=algo_class,
+        version=version,
+        load_policy_file=load_policy_file,
+        oracle_mode=oracle_mode,
+        env_params=env_params,
         ddpg_params=ddpg_params,
         policy_params=policy_params,
         qf_params=qf_params,
-        memory_dim=memory_dim,
-        oracle_mode=oracle_mode,
         regress_params=regress_params,
-        algo_class=algo_class,
-        freeze_hidden=freeze_hidden,
-        version=version,
-        load_policy_file=load_policy_file,
         es_params=es_params,
     )
 
@@ -471,9 +482,12 @@ if __name__ == '__main__':
         )
     elif run_mode == 'grid':
         search_space = {
-            'es_params.env_es_class': [NoopStrategy, OneHotSampler, OUStrategy],
-            'es_params.memory_es_class': [NoopStrategy, OneHotSampler, OUStrategy],
-            'es_params.noise_action_to_memory': [True, False],
+            'es_params.env_es_params.max_sigma': [0.5, 0.3, 0.1],
+            'es_params.env_es_params.min_sigma': [0.1, 0.05, 0.],
+            'es_params.env_es_params.decay_period': [10000, 100000],
+            'memory_params.memory_es_params.max_sigma': [0.5, 0.3, 0.1],
+            'memory_params.memory_es_params.min_sigma': [0.1, 0.05, 0.],
+            'memory_params.memory_es_params.decay_period': [10000, 100000],
         }
         sweeper = DeterministicHyperparameterSweeper(search_space,
                                                      default_parameters=variant)
