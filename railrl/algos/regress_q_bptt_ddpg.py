@@ -115,7 +115,7 @@ class RegressQBpttDdpg(BpttDDPG):
                             i, train_loss, validation_loss,
                         )
                     )
-                    if validation_loss > last_validation_loss + 0.1:
+                    if validation_loss > last_validation_loss:
                         break
                     if validation_loss <= self.qf_total_loss_tolerance:
                         break
