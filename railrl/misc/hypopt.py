@@ -1,10 +1,13 @@
+import json
 import pickle
 import time
-import json
 from os.path import join, exists
-import numpy as np
 
+import numpy as np
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
+
+from railrl.pythonplusplus import dot_map_dict_to_nested_dict, \
+    merge_recursive_dicts
 
 
 def optimize_and_save(
@@ -218,24 +221,6 @@ def optimize(
     return best_params, min_value, trials, best_variant
 
 
-def merge_recursive_dicts(a, b, path=None):
-    """
-    Merge two dicts that may have nested dicts.
-    """
-    if path is None: path = []
-    for key in b:
-        if key in a:
-            if isinstance(a[key], dict) and isinstance(b[key], dict):
-                merge_recursive_dicts(a[key], b[key], path + [str(key)])
-            elif a[key] == b[key]:
-                pass  # same leaf value
-            else:
-                raise Exception(
-                    'Duplicate keys at {}'.format('.'.join(path + [str(key)])))
-        else:
-            a[key] = b[key]
-    return a
-
 def flatten_hyperopt_choice_dict(hyperopt_choice_dict):
     """
     Flatten recursive hyperopt choice dictionary. Behavior is undefined if keys 
@@ -267,33 +252,6 @@ def flatten_hyperopt_choice_dict(hyperopt_choice_dict):
             raise Exception("Key defined twice: {}".format(key))
         new_dict[key] = value
     return new_dict
-
-
-def dot_map_dict_to_nested_dict(dot_map_dict):
-    """
-    Convert something like
-    ```
-    ['one.two.three.four', 'one.six.seven.eight', 'five.nine.ten', 'five.zero']
-    ```
-    into its corresponding nested dict.
-
-    http://stackoverflow.com/questions/16547643/convert-a-list-of-delimited-strings-to-a-tree-nested-dict-using-python
-    :param dot_map_dict:
-    :return:
-    """
-    tree = {}
-
-    for key, item in dot_map_dict.items():
-        split_keys = key.split('.')
-        if len(split_keys) == 1:
-            tree[key] = item
-        else:
-            t = tree
-            for sub_key in split_keys[:-1]:
-                t = t.setdefault(sub_key, {})
-            last_key = split_keys[-1]
-            t[last_key] = item
-    return tree
 
 
 def __example_objective(params):

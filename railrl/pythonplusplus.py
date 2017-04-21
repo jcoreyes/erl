@@ -94,3 +94,61 @@ class _Logger(object):
 
 
 line_logger = _Logger()
+
+
+def dot_map_dict_to_nested_dict(dot_map_dict):
+    """
+    Convert something like
+    ```
+    {
+        'one.two.three.four': 4,
+        'one.six.seven.eight': None,
+        'five.nine.ten': 10,
+        'five.zero': 'foo',
+    }
+    ```
+    into its corresponding nested dict.
+
+    http://stackoverflow.com/questions/16547643/convert-a-list-of-delimited-strings-to-a-tree-nested-dict-using-python
+    :param dot_map_dict:
+    :return:
+    """
+    tree = {}
+
+    for key, item in dot_map_dict.items():
+        split_keys = key.split('.')
+        if len(split_keys) == 1:
+            tree[key] = item
+        else:
+            t = tree
+            for sub_key in split_keys[:-1]:
+                t = t.setdefault(sub_key, {})
+            last_key = split_keys[-1]
+            t[last_key] = item
+    return tree
+
+
+def merge_recursive_dicts(a, b, path=None,
+                          ignore_duplicat_keys_in_second_dict=False):
+    """
+    Merge two dicts that may have nested dicts.
+    """
+    if path is None: path = []
+    for key in b:
+        if key in a:
+            if isinstance(a[key], dict) and isinstance(b[key], dict):
+                merge_recursive_dicts(a[key], b[key], path + [str(key)],
+                                      ignore_duplicat_keys_in_second_dict=ignore_duplicat_keys_in_second_dict)
+            elif a[key] == b[key]:
+                pass  # same leaf value
+            else:
+                duplicate_key = '.'.join(path + [str(key)])
+                if ignore_duplicat_keys_in_second_dict:
+                    print("duplicate key ignored: {}".format(duplicate_key))
+                else:
+                    raise Exception(
+                        'Duplicate keys at {}'.format(duplicate_key)
+                    )
+        else:
+            a[key] = b[key]
+    return a

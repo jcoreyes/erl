@@ -5,6 +5,8 @@ import random
 import itertools
 from typing import List
 
+import railrl.pythonplusplus as ppp
+
 
 class Hyperparameter(metaclass=abc.ABCMeta):
     def __init__(self, name):
@@ -146,7 +148,7 @@ class DeterministicHyperparameterSweeper(Sweeper):
                 [(name, v) for v in values]
             )
         self._hyperparameters_dicts = [
-            dict(tuple_list)
+            ppp.dot_map_dict_to_nested_dict(dict(tuple_list))
             for tuple_list in itertools.product(*named_hyperparameters)
         ]
 
@@ -158,7 +160,11 @@ class DeterministicHyperparameterSweeper(Sweeper):
         hyperpameter.
         """
         return [
-            dict(hyperparameters, **copy.deepcopy(self._default_kwargs))
+            ppp.merge_recursive_dicts(
+                hyperparameters,
+                copy.deepcopy(self._default_kwargs),
+                ignore_duplicat_keys_in_second_dict=True,
+            )
             for hyperparameters in self._hyperparameters_dicts
         ]
 
