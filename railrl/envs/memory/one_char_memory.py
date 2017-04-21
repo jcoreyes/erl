@@ -42,6 +42,7 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
             reward_for_remembering=1,
             max_reward_magnitude=1,
             softmax_action=False,
+            zero_observation=False,
     ):
         """
         :param n: Number of different values that could be returned
@@ -51,6 +52,8 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
         number has the maximum probability.
         :param max_reward_magnitude: Clip the reward magnitude to this value.
         :param softmax_action: If true, put the action through a softmax.
+        :param softmax_action: If true, all observations after the first will be
+        just zeros (NOT the zero one-hot).
         """
         assert max_reward_magnitude >= reward_for_remembering
         self.num_steps = num_steps
@@ -65,6 +68,7 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
         self._reward_for_remembering = reward_for_remembering
         self._max_reward_magnitude = max_reward_magnitude
         self._softmax_action = softmax_action
+        self._zero_observation = zero_observation
 
         self._target_number = None
 
@@ -77,7 +81,10 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
         if self._softmax_action:
             action = softmax(action)
         # Reset gives the first observation, so only return 0 in step.
-        observation = self._get_next_observation(0)
+        if self._zero_observation:
+            observation = np.zeros(self._onehot_size)
+        else:
+            observation = self._get_next_observation(0)
         done = self._t == self.num_steps
         info = self._get_info_dict()
         reward = self._compute_reward(done, action)
@@ -93,6 +100,7 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
         return {
             'target_number': self._target_number,
             'time': self._t - 1,
+            'reward_for_remembering': self._reward_for_remembering,
         }
 
     def _compute_reward(self, done, action):
@@ -440,3 +448,7 @@ class OneCharMemoryEndOnlyDiscrete(OneCharMemory):
 
         for key, value in last_statistics.items():
             logger.record_tabular(key, value)
+
+
+class OneCharMemoryOutputRewardMag(OneCharMemoryEndOnly):
+    pass
