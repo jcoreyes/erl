@@ -475,3 +475,9 @@ class OneCharMemoryOutputRewardMag(OneCharMemoryEndOnly):
         self._t = 1
         first_observation = self._get_next_observation(self._target_number)
         return np.hstack((first_observation, self._reward_for_remembering))
+
+    def log_diagnostics(self, paths):
+        # Take out the extra reward observation
+        for path in paths:
+            path["observations"] = path["observations"][:, :-1]
+        return super().log_diagnostics(paths)
