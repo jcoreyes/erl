@@ -256,7 +256,7 @@ def create_run_experiment_multiple_seeds(n_seeds):
 if __name__ == '__main__':
     n_seeds = 1
     mode = 'here'
-    exp_prefix = "dev-4-21-bptt-ddpg-ocm"
+    exp_prefix = "dev-4-22-bptt-ddpg-ocm"
     run_mode = 'none'
     version = 'dev'
 
@@ -293,7 +293,7 @@ if __name__ == '__main__':
         '/ocm_reward_magnitude5_H6_nbptt6_100p'
         '/params.pkl'
     )
-    # load_policy_file = 'none'
+    load_policy_file = 'none'
 
     """
     Env param
@@ -312,7 +312,7 @@ if __name__ == '__main__':
     policy_learning_rate = 1e-3
     soft_target_tau = 0.01
     qf_weight_decay = 0.01
-    num_bptt_unrolls = 4
+    num_bptt_unrolls = 2
 
     """
     Regression Params
