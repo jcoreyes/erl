@@ -2,11 +2,16 @@
 Use an oracle qfunction to train a policy in bptt-ddpg style.
 """
 import copy
+import joblib
 from hyperopt import hp
 import numpy as np
 import tensorflow as tf
 import random
 
+from railrl.envs.memory.one_char_memory import (
+    OneCharMemoryOutputRewardMag,
+    OneCharMemoryEndOnly,
+)
 from railrl.exploration_strategies.action_aware_memory_strategy import \
     ActionAwareMemoryStrategy
 from railrl.launchers.launcher_util import (
@@ -54,7 +59,6 @@ def run_ocm_experiment(variant):
     from railrl.envs.memory.continuous_memory_augmented import (
         ContinuousMemoryAugmented
     )
-    from railrl.envs.memory.one_char_memory import OneCharMemoryEndOnly
     from railrl.policies.memory.lstm_memory_policy import LstmMemoryPolicy
     from railrl.launchers.launcher_util import (
         set_seed,
@@ -74,11 +78,12 @@ def run_ocm_experiment(variant):
     seed = variant['seed']
     load_policy_file = variant.get('load_policy_file', None)
     memory_dim = variant['memory_dim']
+    oracle_mode = variant['oracle_mode']
+    env_class = variant['env_class']
     env_params = variant['env_params']
     ddpg_params = variant['ddpg_params']
     policy_params = variant['policy_params']
     qf_params = variant['qf_params']
-    oracle_mode = variant['oracle_mode']
     es_params = variant['es_params']
 
     env_es_class = es_params['env_es_class']
@@ -93,27 +98,22 @@ def run_ocm_experiment(variant):
     Code for running the experiment.
     """
 
-    ocm_env = OneCharMemoryEndOnly(**env_params)
-    env_action_dim = ocm_env.n + 1
-    env_obs_dim = env_action_dim
+    ocm_env = env_class(**env_params)
+    env_action_dim = ocm_env.action_space.flat_dim
+    env_obs_dim = ocm_env.observation_space.flat_dim
     H = ocm_env.horizon
     env = ContinuousMemoryAugmented(
         ocm_env,
         num_memory_states=memory_dim,
     )
-    if load_policy_file is None or not exists(load_policy_file):
-        policy = LstmMemoryPolicy(
-            name_or_scope="policy",
-            action_dim=env_action_dim,
-            memory_dim=memory_dim,
-            env_spec=env.spec,
-            **policy_params
-        )
-    else:
-        import joblib
+
+    policy = None
+    qf = None
+    if load_policy_file is not None and exists(load_policy_file):
         with tf.Session():
             data = joblib.load(load_policy_file)
             policy = data['policy']
+            qf = data['qf']
     env_strategy = env_es_class(
         env_spec=ocm_env.spec,
         **env_es_params,
@@ -127,7 +127,7 @@ def run_ocm_experiment(variant):
             env_strategy=env_strategy,
             write_strategy=write_strategy,
         )
-        policy = ActionAwareMemoryPolicy(
+        policy = policy or ActionAwareMemoryPolicy(
             name_or_scope="noisy_policy",
             action_dim=env_action_dim,
             memory_dim=memory_dim,
@@ -136,6 +136,13 @@ def run_ocm_experiment(variant):
         )
     else:
         es = ProductStrategy([env_strategy, write_strategy])
+        policy = policy or LstmMemoryPolicy(
+            name_or_scope="policy",
+            action_dim=env_action_dim,
+            memory_dim=memory_dim,
+            env_spec=env.spec,
+            **policy_params
+        )
 
     ddpg_params = ddpg_params.copy()
     unroll_through_target_policy = ddpg_params.pop(
@@ -181,7 +188,7 @@ def run_ocm_experiment(variant):
     elif oracle_mode == 'regress':
         regress_params = variant['regress_params']
         if regress_params.pop('use_hint_qf', False):
-            qf = HintMlpMemoryQFunction(
+            qf = qf or HintMlpMemoryQFunction(
                 name_or_scope="hint_critic",
                 hint_dim=env_action_dim,
                 max_time=H,
@@ -189,7 +196,7 @@ def run_ocm_experiment(variant):
                 **qf_params
             )
         else:
-            qf = MlpMemoryQFunction(
+            qf = qf or MlpMemoryQFunction(
                 name_or_scope="critic",
                 env_spec=env.spec,
                 **qf_params
@@ -247,12 +254,11 @@ def create_run_experiment_multiple_seeds(n_seeds):
 
 
 if __name__ == '__main__':
-    mode = 'ec2'
-    n_seeds = 5
-    exp_prefix = "4-21-bptt-ddpg-ocm-grid-oustrategy-with-hint"
+    n_seeds = 1
+    mode = 'here'
+    exp_prefix = "dev-4-21-bptt-ddpg-ocm"
+    run_mode = 'none'
     version = 'dev'
-    run_mode = 'grid'
-    exp_id = 0
 
     """
     DDPG Params
@@ -262,8 +268,6 @@ if __name__ == '__main__':
     batch_size = 32
     n_epochs = 25
     memory_dim = 20
-    # memory_dim = 4
-    # min_pool_size = 10*max(n_batches_per_epoch, batch_size)
     min_pool_size = max(n_batches_per_epoch, batch_size)
     replay_pool_size = 100000
     optimize_simultaneously = False
@@ -286,17 +290,17 @@ if __name__ == '__main__':
     # policy_rnn_cell_class = FrozenHiddenLstmLinearCell
     load_policy_file = (
         '/home/vitchyr/git/rllab-rail/railrl/data/reference/expert'
-        # '/ocm_66p'
-        '/ocm_lstm_linear_cell_80p'
+        '/ocm_reward_magnitude5_H6_nbptt6_100p'
         '/params.pkl'
     )
-    # load_policy_file = None
-    load_policy_file = 'none'
+    # load_policy_file = 'none'
 
     """
     Env param
     """
-    H = 10
+    env_class = OneCharMemoryOutputRewardMag
+    # env_class = OneCharMemoryEndOnly
+    H = 6
     num_values = 2
     zero_observation = True
 
@@ -326,17 +330,16 @@ if __name__ == '__main__':
     """
     Exploration params
     """
+    env_es_class = NoopStrategy
     env_es_class = OneHotSampler
-    env_es_params = {}
-    env_es_class = OUStrategy
+    # env_es_class = OUStrategy
     env_es_params = dict(
-        max_sigma=0.5,
-        min_sigma=0.1,
-        decay_period=1000,
+        max_sigma=1.0,
+        min_sigma=0.5,
+        decay_period=500,
     )
     memory_es_class = NoopStrategy
-    memory_es_class = OneHotSampler
-    memory_es_params = {}
+    # memory_es_class = OneHotSampler
     # memory_es_class = OUStrategy
     memory_es_params = dict(
         max_sigma=0.5,
@@ -402,10 +405,12 @@ if __name__ == '__main__':
         # embedded_hidden_sizes=[100, 100],
         # observation_hidden_sizes=[100, 100],
     )
+    # TODO(vitchyr): Oracle needs to use the true reward
     env_params = dict(
         n=num_values,
         num_steps=H,
         zero_observation=zero_observation,
+        max_reward_magnitude=1,
     )
     variant = dict(
         exp_prefix=exp_prefix,
@@ -414,6 +419,7 @@ if __name__ == '__main__':
         version=version,
         load_policy_file=load_policy_file,
         oracle_mode=oracle_mode,
+        env_class=env_class,
         env_params=env_params,
         ddpg_params=ddpg_params,
         policy_params=policy_params,
@@ -482,12 +488,12 @@ if __name__ == '__main__':
         )
     elif run_mode == 'grid':
         search_space = {
-            'es_params.env_es_params.max_sigma': [0.5, 0.1],
-            'es_params.env_es_params.min_sigma': [0.1, 0.],
-            'es_params.env_es_params.decay_period': [1000, 100],
-            'memory_params.memory_es_params.max_sigma': [0.5, 0.1],
-            'memory_params.memory_es_params.min_sigma': [0.1, 0.],
-            'memory_params.memory_es_params.decay_period': [1000, 100],
+            'es_params.env_es_params.max_sigma': [5, 2, 1, 0.5],
+            'es_params.env_es_params.min_sigma': [1, 0.5, 0.],
+            'es_params.env_es_params.decay_period': [1000, 500, 100],
+            # 'memory_params.memory_es_params.max_sigma': [0.5, 0.1],
+            # 'memory_params.memory_es_params.min_sigma': [0.1, 0.],
+            # 'memory_params.memory_es_params.decay_period': [1000, 100],
         }
         sweeper = DeterministicHyperparameterSweeper(search_space,
                                                      default_parameters=variant)
@@ -510,5 +516,5 @@ if __name__ == '__main__':
                 seed=seed,
                 mode=mode,
                 variant=variant,
-                exp_id=exp_id,
+                exp_id=0,
             )
