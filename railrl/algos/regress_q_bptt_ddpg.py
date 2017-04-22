@@ -207,9 +207,13 @@ class RegressQBpttDdpg(BpttDDPG):
         self.policy.reset_param_values_to_last_load()
 
     def _create_qf_loss(self):
+        oracle_qf_output = tf.expand_dims(self.oracle_qf.output, axis=1)
+        self.true_qf_mse_loss = tf.squeeze(tf_util.mse(
+            oracle_qf_output,
+            self.qf.output,
+        ))
         if self.regress_onto_values:
-            oracle_qf_output = tf.expand_dims(self.oracle_qf.output, axis=1)
-            return tf.squeeze(tf_util.mse(oracle_qf_output, self.qf.output))
+            return self.true_qf_mse_loss
         else:
             return super()._create_qf_loss()
 
@@ -286,6 +290,7 @@ class RegressQBpttDdpg(BpttDDPG):
             batch = self.pool.get_valid_subtrajectories(validation=validation)
             feed_dict = self._update_feed_dict_from_batch(batch)
             (
+                true_qf_mse_loss,
                 qf_loss,
                 qf_total_loss,
                 env_grad_distance,
@@ -297,11 +302,15 @@ class RegressQBpttDdpg(BpttDDPG):
                 env_qf_grad,
                 memory_qf_grad,
             ) = self.sess.run(
-                [self.qf_loss, self.qf_total_loss] + self.grad_distance +
+                [self.true_qf_mse_loss, self.qf_loss, self.qf_total_loss] +
+                self.grad_distance +
                 self.grad_mse + self.qf_grad_mse_from_one + self.qf_grads,
                 feed_dict=feed_dict
             )
             stat_base_name = 'Qf{}'.format(name)
+            statistics.update(
+                {'{}_True_MSE_Loss'.format(stat_base_name): true_qf_mse_loss},
+            )
             statistics.update(
                 {'{}_Loss'.format(stat_base_name): qf_loss},
             )
