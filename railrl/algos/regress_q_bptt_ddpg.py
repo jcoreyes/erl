@@ -147,39 +147,49 @@ class RegressQBpttDdpg(BpttDDPG):
         shared when the oracle QF unrolls the policy.) So, for the environment
         gradient, we use the ground truth environment action gradient.
         """
-        self.oracle_grads = tf.gradients(self.oracle_qf.output,
-                                         self.oracle_qf.final_actions[0])
-        self.oracle_grads += tf.gradients(self.oracle_qf.output,
-                                          self._final_rnn_action[1])
+        self.oracle_memory_grad = []
+        self.oracle_env_grad = []
+        self.env_grad = []
+        self.memory_grad = []
+        for env_action, memory_action in self._rnn_outputs:
+            self.oracle_memory_grad += tf.gradients(self.oracle_qf.output,
+                                                    memory_action)
+            self.oracle_env_grad += tf.gradients(self.oracle_qf.output,
+                                                 env_action)
+            self.env_grad += tf.gradients(self.qf_with_action_input.output,
+                                          env_action)
+            self.memory_grad += tf.gradients(self.qf_with_action_input.output,
+                                             memory_action)
+        self.oracle_memory_grad = filter_recursive(self.oracle_memory_grad)
+        self.oracle_memory_grad = tf.reduce_sum(self.oracle_memory_grad, axis=0)
+        self.oracle_env_grad = tf.reduce_sum(self.oracle_env_grad, axis=0)
+        self.env_grad = tf.reduce_sum(self.env_grad, axis=0)
+        self.memory_grad = tf.reduce_sum(self.memory_grad, axis=0)
 
-        self.qf_grads = tf.gradients(self.qf_with_action_input.output,
-                                     list(self._final_rnn_action))
-
-        self.grad_distance = []
-        self.grad_mse = []
-        # TODO(vitchyr): Have a better way of handling when the horizon = #
-        # BPTT steps
-        if self.oracle_grads[1] is None:
-            self.oracle_grads[1] = tf.zeros_like(self.qf_grads[1])
-        for oracle_grad, qf_grad in zip(self.oracle_grads, self.qf_grads):
-            self.grad_distance.append(tf_util.cosine(oracle_grad, qf_grad))
-            self.grad_mse.append(tf_util.mse(oracle_grad, qf_grad, axis=1))
+        self.mem_grad_cosine_distance = tf_util.cosine(self.oracle_memory_grad,
+                                                       self.memory_grad)
+        self.env_grad_cosine_distance = tf_util.cosine(self.oracle_env_grad,
+                                                       self.env_grad)
+        self.mem_grad_mse = tf_util.mse(self.oracle_memory_grad,
+                                        self.memory_grad, axis=1)
+        self.env_grad_mse = tf_util.mse(self.oracle_env_grad,
+                                        self.env_grad, axis=1)
 
         if self.env_grad_distance_weight > 0.:
             self.qf_total_loss += - (
-                tf.reduce_mean(self.grad_distance[0]) *
+                tf.reduce_mean(self.env_grad_cosine_distance) *
                 self.env_grad_distance_weight
             )
         if self.write_grad_distance_weight > 0.:
             self.qf_total_loss += - (
-                tf.reduce_mean(self.grad_distance[1]) *
+                tf.reduce_mean(self.mem_grad_cosine_distance) *
                 self.write_grad_distance_weight
             )
         self.env_qf_grad_mse_from_one = tf.reduce_mean(
-            (tf.abs(self.qf_grads[0]) - 1)**2
+            (tf.abs(self.env_grad) - 1) ** 2
         )
         self.memory_qf_grad_mse_from_one = tf.reduce_mean(
-            (tf.abs(self.qf_grads[1]) - 1)**2
+            (tf.abs(self.memory_grad) - 1) ** 2
         )
         self.qf_grad_mse_from_one = [
             self.env_qf_grad_mse_from_one,
@@ -187,9 +197,9 @@ class RegressQBpttDdpg(BpttDDPG):
         ]
         if self.qf_grad_mse_from_one_weight > 0.:
             self.qf_total_loss += (
-                self.env_qf_grad_mse_from_one
-                + self.memory_qf_grad_mse_from_one
-            ) * self.qf_grad_mse_from_one_weight
+                                      self.env_qf_grad_mse_from_one
+                                      + self.memory_qf_grad_mse_from_one
+                                  ) * self.qf_grad_mse_from_one_weight
         if self._optimize_simultaneously:
             qf_params = self.qf.get_params() + self.policy.get_params()
         else:
@@ -225,7 +235,7 @@ class RegressQBpttDdpg(BpttDDPG):
     def _oracle_qf_feed_dict(self, rewards, terminals, obs, actions, next_obs,
                              target_numbers=None, times=None):
         batch_size = len(rewards)
-        sequence_lengths = np.squeeze(self.env.horizon - times[:, -1])
+        sequence_lengths = np.squeeze(self.env.horizon - 1 - times[:, -1])
         indices = target_numbers[:, 0]
         target_one_hots = special.to_onehot_n(
             indices,
@@ -295,16 +305,35 @@ class RegressQBpttDdpg(BpttDDPG):
                 qf_total_loss,
                 env_grad_distance,
                 memory_grad_distance,
-                env_grad_mag,
-                memory_grad_mag,
+                env_grad_mse,
+                memory_grad_mse,
                 env_qf_grad_mse_from_one,
                 memory_qf_grad_mse_from_one,
                 env_qf_grad,
                 memory_qf_grad,
+                oracle_env_qf_grad,
+                oracle_memory_qf_grad,
+                qf_output,
+                oracle_qf_output,
             ) = self.sess.run(
-                [self.true_qf_mse_loss, self.qf_loss, self.qf_total_loss] +
-                self.grad_distance +
-                self.grad_mse + self.qf_grad_mse_from_one + self.qf_grads,
+                [
+                    self.true_qf_mse_loss,
+                    self.qf_loss,
+                    self.qf_total_loss,
+                    self.env_grad_cosine_distance,
+                    self.mem_grad_cosine_distance,
+                    self.env_grad_mse,
+                    self.mem_grad_mse,
+                    self.env_qf_grad_mse_from_one,
+                    self.memory_qf_grad_mse_from_one,
+                    self.env_grad,
+                    self.memory_grad,
+                    self.oracle_env_grad,
+                    self.oracle_memory_grad,
+                    self.qf.output,
+                    self.oracle_qf.output,
+                ]
+                ,
                 feed_dict=feed_dict
             )
             stat_base_name = 'Qf{}'.format(name)
@@ -325,29 +354,45 @@ class RegressQBpttDdpg(BpttDDPG):
                 '{}_Grad_Dist_memory'.format(stat_base_name),
                 memory_grad_distance
             ))
+            # statistics.update(create_stats_ordered_dict(
+            #     '{}_Grad_MSE_env'.format(stat_base_name),
+            #     env_grad_mse,
+            # ))
+            # statistics.update(create_stats_ordered_dict(
+            #     '{}_Grad_MSE_memory'.format(stat_base_name),
+            #     memory_grad_mse
+            # ))
+            # statistics.update(create_stats_ordered_dict(
+            #     '{}_GradMSE_from_1_env'.format(stat_base_name),
+            #     env_qf_grad_mse_from_one
+            # ))
+            # statistics.update(create_stats_ordered_dict(
+            #     '{}_GradMSE_from_1_memory'.format(stat_base_name),
+            #     memory_qf_grad_mse_from_one
+            # ))
+            # statistics.update(create_stats_ordered_dict(
+            #     '{}_QF_Grads_env'.format(stat_base_name),
+            #     env_qf_grad
+            # ))
+            # statistics.update(create_stats_ordered_dict(
+            #     '{}_QF_Grads_memory'.format(stat_base_name),
+            #     memory_qf_grad
+            # ))
+            # statistics.update(create_stats_ordered_dict(
+            #     '{}_OracleQF_Grads_env'.format(stat_base_name),
+            #     oracle_env_qf_grad
+            # ))
+            # statistics.update(create_stats_ordered_dict(
+            #     '{}_OracleQF_Grads_memory'.format(stat_base_name),
+            #     oracle_memory_qf_grad
+            # ))
             statistics.update(create_stats_ordered_dict(
-                '{}_Grad_MSE_env'.format(stat_base_name),
-                env_grad_mag,
+                '{}_QfOutput'.format(stat_base_name),
+                qf_output
             ))
             statistics.update(create_stats_ordered_dict(
-                '{}_Grad_MSE_memory'.format(stat_base_name),
-                memory_grad_mag
-            ))
-            statistics.update(create_stats_ordered_dict(
-                '{}_GradMSE_from_1_env'.format(stat_base_name),
-                env_qf_grad_mse_from_one
-            ))
-            statistics.update(create_stats_ordered_dict(
-                '{}_GradMSE_from_1_memory'.format(stat_base_name),
-                memory_qf_grad_mse_from_one
-            ))
-            statistics.update(create_stats_ordered_dict(
-                '{}_QF_Grads_env'.format(stat_base_name),
-                env_qf_grad
-            ))
-            statistics.update(create_stats_ordered_dict(
-                '{}_QF_Grads_memory'.format(stat_base_name),
-                memory_qf_grad
+                '{}_OracleQfOutput'.format(stat_base_name),
+                oracle_qf_output
             ))
         return statistics
 

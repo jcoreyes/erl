@@ -8,6 +8,7 @@ import numpy as np
 
 from railrl.algos.ddpg import DDPG
 from railrl.core import tf_util
+from railrl.core.rnn.rnn import OutputStateRnn
 from railrl.data_management.subtraj_replay_buffer import (
     SubtrajReplayBuffer
 )
@@ -116,15 +117,18 @@ class BpttDDPG(DDPG):
         self._rnn_init_state_ph = self.policy.get_init_state_placeholder()
 
         self._rnn_cell_scope.reuse_variables()
+        self._save_rnn_cell = OutputStateRnn(
+            self._rnn_cell,
+        )
         with tf.variable_scope(self._rnn_cell_scope):
             self._rnn_outputs, self._rnn_final_state = tf.contrib.rnn.static_rnn(
-                self._rnn_cell,
+                self._save_rnn_cell,
                 rnn_inputs,
                 initial_state=self._rnn_init_state_ph,
                 dtype=tf.float32,
                 scope=self._rnn_cell_scope,
             )
-        self._final_rnn_output = self._rnn_outputs[-1]
+        self._final_rnn_output = self._rnn_outputs[-1][0]
         self._final_rnn_action = (
             self._final_rnn_output,
             self._rnn_final_state,

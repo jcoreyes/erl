@@ -92,7 +92,7 @@ class OracleUnrollBpttDDPG(OracleBpttDDPG):
 
     def _qf_feed_dict(self, rewards, terminals, obs, actions, next_obs,
                       target_numbers=None, times=None):
-        sequence_lengths = np.squeeze(self.env.horizon - times[:, -1])
+        sequence_lengths = np.squeeze(self.env.horizon - 1 - times[:, -1])
         batch_size = len(rewards)
         rest_of_obs = np.zeros(
             [
