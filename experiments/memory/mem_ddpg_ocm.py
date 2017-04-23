@@ -89,7 +89,6 @@ if __name__ == '__main__':
     # min_pool_size = 10*max(n_batches_per_epoch, batch_size)
     min_pool_size = max(n_batches_per_epoch, batch_size)
     replay_pool_size = 100000
-    optimize_simultaneously = False
 
     USE_EC2 = False
     exp_id = -1

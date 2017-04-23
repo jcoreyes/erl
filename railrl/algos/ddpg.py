@@ -18,8 +18,6 @@ from railrl.algos.online_algorithm import OnlineAlgorithm
 from railrl.policies.nn_policy import NNPolicy
 from railrl.pythonplusplus import filter_recursive
 from railrl.qfunctions.nn_qfunction import NNQFunction
-from rllab.misc import logger
-from rllab.misc import special
 from rllab.misc.overrides import overrides
 from rllab.spaces.product import Product
 from enum import Enum
@@ -97,12 +95,22 @@ class DDPG(OnlineAlgorithm):
             self._init_qf_ops()
         with tf.name_scope('target_ops'):
             self._init_target_ops()
+        with tf.name_scope('qf_train_ops'):
+            self._init_qf_loss_and_train_ops()
+        with tf.name_scope('policy_train_ops'):
+            self._init_policy_loss_and_train_ops()
         self.sess.run(tf.global_variables_initializer())
         self.qf.reset_param_values_to_last_load()
         self.policy.reset_param_values_to_last_load()
 
     def _init_qf_ops(self):
-        self.qf_loss = self._create_qf_loss()
+        self.ys = (
+            self.rewards_placeholder +
+            (1. - self.terminals_placeholder)
+            * self.discount
+            * self.target_qf.output
+        )
+        self.bellman_error = tf.squeeze(tf_util.mse(self.ys, self.qf.output))
         self.Q_weights_norm = tf.reduce_sum(
             tf.stack(
                 [tf.nn.l2_loss(v)
@@ -111,21 +119,6 @@ class DDPG(OnlineAlgorithm):
             ),
             name='weights_norm'
         )
-        self.qf_total_loss = (
-            self.qf_loss + self.qf_weight_decay * self.Q_weights_norm)
-        self.train_qf_op = tf.train.AdamOptimizer(
-            self.qf_learning_rate).minimize(
-            self.qf_total_loss,
-            var_list=self.qf.get_params_internal())
-
-    def _create_qf_loss(self):
-        self.ys = (
-            self.rewards_placeholder +
-            (1. - self.terminals_placeholder)
-            * self.discount
-            * self.target_qf.output
-        )
-        return tf.squeeze(tf_util.mse(self.ys, self.qf.output))
 
     def _init_policy_ops(self):
         # To compute the surrogate loss function for the qf, it must take
@@ -133,16 +126,6 @@ class DDPG(OnlineAlgorithm):
         # Policy Gradient Algorithms" ICML 2014.
         self.qf_with_action_input = self.qf.get_weight_tied_copy(
             action_input=self.policy.output
-        )
-        self.policy_surrogate_loss = - tf.reduce_mean(
-            self.qf_with_action_input.output,
-            axis=0,
-        )
-        self.train_policy_op = tf.train.AdamOptimizer(
-            self.policy_learning_rate
-        ).minimize(
-            self.policy_surrogate_loss,
-            var_list=self.policy.get_params_internal(),
         )
 
     def _init_target_ops(self):
@@ -176,6 +159,29 @@ class DDPG(OnlineAlgorithm):
                     self._target_update_mode
                 )
             )
+
+    def _init_qf_loss_and_train_ops(self):
+        self.qf_loss = (
+            self.bellman_error + self.qf_weight_decay * self.Q_weights_norm
+        )
+        self.train_qf_op = tf.train.AdamOptimizer(
+            self.qf_learning_rate
+        ).minimize(
+            self.qf_loss,
+            var_list=self.qf.get_params_internal()
+        )
+
+    def _init_policy_loss_and_train_ops(self):
+        self.policy_surrogate_loss = - tf.reduce_mean(
+            self.qf_with_action_input.output,
+            axis=0,
+        )
+        self.train_policy_op = tf.train.AdamOptimizer(
+            self.policy_learning_rate
+        ).minimize(
+            self.policy_surrogate_loss,
+            var_list=self.policy.get_params_internal(),
+        )
 
     @overrides
     def _init_training(self):
@@ -315,8 +321,8 @@ class DDPG(OnlineAlgorithm):
         """
         return [
             ('PolicySurrogateLoss', self.policy_surrogate_loss),
+            ('QfBellmanError', self.bellman_error),
             ('QfLoss', self.qf_loss),
-            ('QfTotalLoss', self.qf_total_loss),
             ('Ys', self.ys),
             ('PolicyOutput', self.policy.output),
             ('TargetPolicyOutput', self.target_policy.output),

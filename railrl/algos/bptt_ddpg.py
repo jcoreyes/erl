@@ -36,7 +36,7 @@ class BpttDDPG(DDPG):
             replay_pool_size=10000,
             replay_buffer_class=SubtrajReplayBuffer,
             freeze_hidden=False,
-            optimize_simultaneously=False,
+            bpt_bellman_error=False,
             **kwargs
     ):
         """
@@ -52,7 +52,7 @@ class BpttDDPG(DDPG):
         self._num_bptt_unrolls = num_bptt_unrolls
         self._env_obs_dim = env_obs_dim
         self._freeze_hidden = freeze_hidden
-        self._optimize_simultaneously = optimize_simultaneously
+        self._bpt_bellman_error = bpt_bellman_error
 
         self._rnn_cell_scope = policy.rnn_cell_scope
         self._rnn_cell = policy.rnn_cell
@@ -72,40 +72,19 @@ class BpttDDPG(DDPG):
             **kwargs)
 
     def _init_qf_ops(self):
-        if not self._optimize_simultaneously:
-            return super()._init_qf_ops()
-
+        super()._init_qf_ops()
         """
         Backprop the Bellman error through time, i.e. through dQ/dwrite action
         """
-        action_input = (self.qf.action_input[0], self._final_rnn_action[1])
-        self.qf_with_write_input = self.qf.get_weight_tied_copy(
-            action_input=action_input,
-        )
-        self.ys = (
-            self.rewards_placeholder +
-            (1. - self.terminals_placeholder)
-            * self.discount
-            * self.target_qf.output
-        )
-        self.qf_loss = tf.squeeze(tf_util.mse(self.ys,
-                                              self.qf_with_write_input.output))
-        self.Q_weights_norm = tf.reduce_sum(
-            tf.stack(
-                [tf.nn.l2_loss(v)
-                 for v in
-                 self.qf.get_params_internal(regularizable=True)]
-            ),
-            name='weights_norm'
-        )
-        self.qf_total_loss = (
-            self.qf_loss + self.qf_weight_decay * self.Q_weights_norm
-        )
-        self.train_qf_op = tf.train.AdamOptimizer(
-            self.qf_learning_rate).minimize(
-            self.qf_total_loss,
-            var_list=self.qf.get_params()+self.policy.get_params(),
-        )
+        if self._bpt_bellman_error:
+            action_input = (self.qf.action_input[0], self._final_rnn_action[1])
+            self.qf_with_write_input = self.qf.get_weight_tied_copy(
+                action_input=action_input,
+            )
+            self.bellman_error = tf.squeeze(tf_util.mse(
+                self.ys,
+                self.qf_with_write_input.output
+            ))
 
     def _init_policy_ops(self):
         self._rnn_inputs_ph = tf.placeholder(
@@ -136,6 +115,8 @@ class BpttDDPG(DDPG):
         self.qf_with_action_input = self.qf.get_weight_tied_copy(
             action_input=self._final_rnn_action,
         )
+
+    def _init_policy_loss_and_train_ops(self):
         self.policy_surrogate_loss = - tf.reduce_mean(
             self.qf_with_action_input.output
         )

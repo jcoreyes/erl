@@ -104,7 +104,7 @@ class RegressQBpttDdpg(BpttDDPG):
                 for i in range(self.max_num_q_updates):
                     minibatch = self._sample_minibatch()
                     feed_dict = self._update_feed_dict_from_batch(minibatch)
-                    ops = [self.qf_total_loss, self.train_qf_op]
+                    ops = [self.qf_loss, self.train_qf_op]
                     ops += self.update_target_qf_op
                     train_loss = float(
                         self.sess.run(ops, feed_dict=feed_dict)[0]
@@ -125,7 +125,7 @@ class RegressQBpttDdpg(BpttDDPG):
     def _validation_qf_loss(self):
         batch = self.pool.get_valid_subtrajectories(validation=True)
         feed_dict = self._update_feed_dict_from_batch(batch)
-        return self.sess.run(self.qf_total_loss, feed_dict=feed_dict)
+        return self.sess.run(self.qf_loss, feed_dict=feed_dict)
 
     def _init_policy_ops(self):
         super()._init_policy_ops()
@@ -135,18 +135,8 @@ class RegressQBpttDdpg(BpttDDPG):
             action_input=self._final_rnn_action,
         )
 
-    def _init_tensorflow_ops(self):
-        super()._init_tensorflow_ops()
-
-        """
-        Memory gradients are w.r.t. to the LAST output of the BPTT unrolled
-        network.
-
-        For oracle QF, only the gradient w.r.t. the memory is non-zero. (The
-        oracle QF trains the environment output part via the weights that are
-        shared when the oracle QF unrolls the policy.) So, for the environment
-        gradient, we use the ground truth environment action gradient.
-        """
+    def _init_qf_loss_and_train_ops(self):
+        # Compute a bunch of numbers that *could* be added to the loss.
         self.oracle_memory_grad = []
         self.oracle_env_grad = []
         self.env_grad = []
@@ -174,33 +164,41 @@ class RegressQBpttDdpg(BpttDDPG):
                                         self.memory_grad, axis=1)
         self.env_grad_mse = tf_util.mse(self.oracle_env_grad,
                                         self.env_grad, axis=1)
-
-        if self.env_grad_distance_weight > 0.:
-            self.qf_total_loss += - (
-                tf.reduce_mean(self.env_grad_cosine_distance) *
-                self.env_grad_distance_weight
-            )
-        if self.write_grad_distance_weight > 0.:
-            self.qf_total_loss += - (
-                tf.reduce_mean(self.mem_grad_cosine_distance) *
-                self.write_grad_distance_weight
-            )
         self.env_qf_grad_mse_from_one = tf.reduce_mean(
             (tf.abs(self.env_grad) - 1) ** 2
         )
         self.memory_qf_grad_mse_from_one = tf.reduce_mean(
             (tf.abs(self.memory_grad) - 1) ** 2
         )
-        self.qf_grad_mse_from_one = [
-            self.env_qf_grad_mse_from_one,
-            self.memory_qf_grad_mse_from_one,
-        ]
+        oracle_qf_output = tf.expand_dims(self.oracle_qf.output, axis=1)
+        self.true_qf_mse_loss = tf.squeeze(tf_util.mse(
+            oracle_qf_output,
+            self.qf.output,
+        ))
+
+        # The glorious if-then statement that maybe adds these numbers
+        self.qf_loss = self.qf_weight_decay * self.Q_weights_norm
+        if self.regress_onto_values:
+            self.qf_loss += self.true_qf_mse_loss
+        else:
+            self.qf_loss += self.bellman_error
+
+        if self.env_grad_distance_weight > 0.:
+            self.qf_loss += - (
+                tf.reduce_mean(self.env_grad_cosine_distance) *
+                self.env_grad_distance_weight
+            )
+        if self.write_grad_distance_weight > 0.:
+            self.qf_loss += - (
+                tf.reduce_mean(self.mem_grad_cosine_distance) *
+                self.write_grad_distance_weight
+            )
         if self.qf_grad_mse_from_one_weight > 0.:
-            self.qf_total_loss += (
-                                      self.env_qf_grad_mse_from_one
-                                      + self.memory_qf_grad_mse_from_one
-                                  ) * self.qf_grad_mse_from_one_weight
-        if self._optimize_simultaneously:
+            self.qf_loss += (
+                self.env_qf_grad_mse_from_one
+                + self.memory_qf_grad_mse_from_one
+            ) * self.qf_grad_mse_from_one_weight
+        if self._bpt_bellman_error:
             qf_params = self.qf.get_params() + self.policy.get_params()
         else:
             qf_params = self.qf.get_params()
@@ -208,24 +206,9 @@ class RegressQBpttDdpg(BpttDDPG):
             self.train_qf_op = tf.train.AdamOptimizer(
                 self.qf_learning_rate
             ).minimize(
-                self.qf_total_loss,
+                self.qf_loss,
                 var_list=qf_params,
             )
-
-        self.sess.run(tf.global_variables_initializer())
-        self.qf.reset_param_values_to_last_load()
-        self.policy.reset_param_values_to_last_load()
-
-    def _create_qf_loss(self):
-        oracle_qf_output = tf.expand_dims(self.oracle_qf.output, axis=1)
-        self.true_qf_mse_loss = tf.squeeze(tf_util.mse(
-            oracle_qf_output,
-            self.qf.output,
-        ))
-        if self.regress_onto_values:
-            return self.true_qf_mse_loss
-        else:
-            return super()._create_qf_loss()
 
     def _qf_feed_dict(self, *args, **kwargs):
         feed_dict = super()._qf_feed_dict(*args, **kwargs)
@@ -301,8 +284,8 @@ class RegressQBpttDdpg(BpttDDPG):
             feed_dict = self._update_feed_dict_from_batch(batch)
             (
                 true_qf_mse_loss,
+                bellman_error,
                 qf_loss,
-                qf_total_loss,
                 env_grad_distance,
                 memory_grad_distance,
                 env_grad_mse,
@@ -318,8 +301,8 @@ class RegressQBpttDdpg(BpttDDPG):
             ) = self.sess.run(
                 [
                     self.true_qf_mse_loss,
+                    self.bellman_error,
                     self.qf_loss,
-                    self.qf_total_loss,
                     self.env_grad_cosine_distance,
                     self.mem_grad_cosine_distance,
                     self.env_grad_mse,
@@ -341,10 +324,10 @@ class RegressQBpttDdpg(BpttDDPG):
                 {'{}_True_MSE_Loss'.format(stat_base_name): true_qf_mse_loss},
             )
             statistics.update(
-                {'{}_Loss'.format(stat_base_name): qf_loss},
+                {'{}_BellmanError'.format(stat_base_name): bellman_error},
             )
             statistics.update(
-                {'{}_Total_Loss'.format(stat_base_name): qf_total_loss},
+                {'{}_Loss'.format(stat_base_name): qf_loss},
             )
             statistics.update(create_stats_ordered_dict(
                 '{}_Grad_Dist_env'.format(stat_base_name),

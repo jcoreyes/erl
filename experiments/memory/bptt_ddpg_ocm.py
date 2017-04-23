@@ -270,7 +270,7 @@ if __name__ == '__main__':
     memory_dim = 20
     min_pool_size = max(n_batches_per_epoch, batch_size)
     replay_pool_size = 100000
-    optimize_simultaneously = False
+    bpt_bellman_error = False
 
     """
     Algorithm Selection
@@ -379,7 +379,7 @@ if __name__ == '__main__':
         discount=1.0,
         soft_target_tau=soft_target_tau,
         qf_weight_decay=qf_weight_decay,
-        optimize_simultaneously=optimize_simultaneously,
+        bpt_bellman_error=bpt_bellman_error,
     )
     regress_params = dict(
         use_hint_qf=use_hint_qf,
