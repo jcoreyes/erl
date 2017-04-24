@@ -256,7 +256,8 @@ def create_run_experiment_multiple_seeds(n_seeds):
 if __name__ == '__main__':
     n_seeds = 1
     mode = 'here'
-    exp_prefix = "dev-4-23-bptt-ddpg-ocm"
+    exp_prefix = 'dev-4-24-bptt-ddpg-ocm'
+    # exp_prefix = '4-24-bptt-ddpg-ocm-bpt-bellman-error-correct-target-next-mem'
     run_mode = 'none'
     version = 'dev'
 
@@ -300,7 +301,7 @@ if __name__ == '__main__':
     """
     env_class = OneCharMemoryOutputRewardMag
     # env_class = OneCharMemoryEndOnly
-    H = 6
+    H = 10
     num_values = 2
     zero_observation = True
 
@@ -312,7 +313,7 @@ if __name__ == '__main__':
     policy_learning_rate = 1e-3
     soft_target_tau = 0.01
     qf_weight_decay = 0.01
-    num_bptt_unrolls = 2
+    num_bptt_unrolls = 4
 
     """
     Regression Params
@@ -399,7 +400,7 @@ if __name__ == '__main__':
     qf_params = dict(
         # hidden_nonlinearity=tf.nn.relu,
         # output_nonlinearity=tf.nn.tanh,
-        # use_time=False,
+        use_time=True,
         # hidden_nonlinearity=tf.identity,
         # output_nonlinearity=tf.identity,
         # embedded_hidden_sizes=[100, 100],
@@ -488,9 +489,11 @@ if __name__ == '__main__':
         )
     elif run_mode == 'grid':
         search_space = {
-            'es_params.env_es_params.max_sigma': [5, 2, 1, 0.5],
-            'es_params.env_es_params.min_sigma': [1, 0.5, 0.],
-            'es_params.env_es_params.decay_period': [1000, 500, 100],
+            'ddpg_params.bpt_bellman_error_weight': [0, 0.0001, 0.001, 0.1, 1.,
+                                                      10., 100., 1000.],
+            # 'es_params.env_es_params.max_sigma': [5, 2, 1, 0.5],
+            # 'es_params.env_es_params.min_sigma': [1, 0.5, 0.],
+            # 'es_params.env_es_params.decay_period': [1000, 500, 100],
             # 'memory_params.memory_es_params.max_sigma': [0.5, 0.1],
             # 'memory_params.memory_es_params.min_sigma': [0.1, 0.],
             # 'memory_params.memory_es_params.decay_period': [1000, 100],
