@@ -79,6 +79,28 @@ class BpttDDPG(DDPG):
         Backprop the Bellman error through time, i.e. through dQ/dwrite action
         """
         if self._bpt_bellman_error_weight > 0.:
+            # You need to replace the next memory state with the last write
+            # action. See writeup for more details.
+            observation_input = (
+                self.target_policy.observation_input[0],
+                self._final_rnn_action[1]   # m_{t+1} = w_t = f_{k, \theta}(...)
+            )
+            self.target_policy = self.policy.get_copy(
+                name_or_scope=TARGET_PREFIX + '2' + self.policy.scope_name,
+                observation_input=observation_input,
+            )
+            self.target_qf = self.qf.get_copy(
+                name_or_scope=TARGET_PREFIX + '2' + self.qf.scope_name,
+                action_input=self.target_policy.output,
+                observation_input=observation_input,
+            )
+            self.ys = (
+                self.rewards_placeholder +
+                (1. - self.terminals_placeholder)
+                * self.discount
+                * self.target_qf.output
+            )
+
             action_input = (self.qf.action_input[0], self._final_rnn_action[1])
             self.qf_with_write_input = self.qf.get_weight_tied_copy(
                 action_input=action_input,
