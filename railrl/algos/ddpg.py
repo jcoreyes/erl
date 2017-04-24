@@ -111,6 +111,8 @@ class DDPG(OnlineAlgorithm):
             * self.target_qf.output
         )
         self.bellman_error = tf.squeeze(tf_util.mse(self.ys, self.qf.output))
+        # self.ys = self.ys + self.bellman_error
+        # self.bellman_error = tf.squeeze(tf_util.mse(self.ys, self.qf.output))
         self.Q_weights_norm = tf.reduce_sum(
             tf.stack(
                 [tf.nn.l2_loss(v)
