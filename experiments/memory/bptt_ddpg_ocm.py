@@ -256,7 +256,7 @@ def create_run_experiment_multiple_seeds(n_seeds):
 if __name__ == '__main__':
     n_seeds = 1
     mode = 'here'
-    exp_prefix = "dev-4-22-bptt-ddpg-ocm"
+    exp_prefix = "dev-4-23-bptt-ddpg-ocm"
     run_mode = 'none'
     version = 'dev'
 
@@ -270,7 +270,7 @@ if __name__ == '__main__':
     memory_dim = 20
     min_pool_size = max(n_batches_per_epoch, batch_size)
     replay_pool_size = 100000
-    bpt_bellman_error = False
+    bpt_bellman_error_weight = 1.
 
     """
     Algorithm Selection
@@ -379,7 +379,7 @@ if __name__ == '__main__':
         discount=1.0,
         soft_target_tau=soft_target_tau,
         qf_weight_decay=qf_weight_decay,
-        bpt_bellman_error=bpt_bellman_error,
+        bpt_bellman_error_weight=bpt_bellman_error_weight,
     )
     regress_params = dict(
         use_hint_qf=use_hint_qf,
