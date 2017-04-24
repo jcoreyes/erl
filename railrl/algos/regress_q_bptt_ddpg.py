@@ -24,7 +24,6 @@ class RegressQBpttDdpg(BpttDDPG):
             oracle_qf: OracleUnrollQFunction,
             qf_total_loss_tolerance=None,
             max_num_q_updates=100,
-            train_policy=True,
             env_grad_distance_weight=1.,
             write_grad_distance_weight=1.,
             qf_grad_mse_from_one_weight=1.,
@@ -65,7 +64,6 @@ class RegressQBpttDdpg(BpttDDPG):
         self.qf_total_loss_tolerance = qf_total_loss_tolerance
         self.oracle_qf = oracle_qf
         self.max_num_q_updates = max_num_q_updates
-        self.train_policy = train_policy
         self.env_grad_distance_weight = env_grad_distance_weight
         self.write_grad_distance_weight = write_grad_distance_weight
         self.qf_grad_mse_from_one_weight = qf_grad_mse_from_one_weight
@@ -129,8 +127,6 @@ class RegressQBpttDdpg(BpttDDPG):
 
     def _init_policy_ops(self):
         super()._init_policy_ops()
-        if not self.train_policy:
-            self.train_policy_op = None
         self.oracle_qf = self.oracle_qf.get_weight_tied_copy(
             action_input=self._final_rnn_action,
         )
@@ -198,16 +194,12 @@ class RegressQBpttDdpg(BpttDDPG):
                 self.env_qf_grad_mse_from_one
                 + self.memory_qf_grad_mse_from_one
             ) * self.qf_grad_mse_from_one_weight
-        if self._bpt_bellman_error:
-            qf_params = self.qf.get_params() + self.policy.get_params()
-        else:
-            qf_params = self.qf.get_params()
         with tf.variable_scope("regress_train_qf_op"):
             self.train_qf_op = tf.train.AdamOptimizer(
                 self.qf_learning_rate
             ).minimize(
                 self.qf_loss,
-                var_list=qf_params,
+                var_list=self.qf.get_params(),
             )
 
     def _qf_feed_dict(self, *args, **kwargs):

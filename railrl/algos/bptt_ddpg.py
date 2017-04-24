@@ -36,7 +36,8 @@ class BpttDDPG(DDPG):
             replay_pool_size=10000,
             replay_buffer_class=SubtrajReplayBuffer,
             freeze_hidden=False,
-            bpt_bellman_error=False,
+            bpt_bellman_error_weight=0.,
+            train_policy=True,
             **kwargs
     ):
         """
@@ -52,7 +53,8 @@ class BpttDDPG(DDPG):
         self._num_bptt_unrolls = num_bptt_unrolls
         self._env_obs_dim = env_obs_dim
         self._freeze_hidden = freeze_hidden
-        self._bpt_bellman_error = bpt_bellman_error
+        self._bpt_bellman_error_weight = bpt_bellman_error_weight
+        self.train_policy = train_policy
 
         self._rnn_cell_scope = policy.rnn_cell_scope
         self._rnn_cell = policy.rnn_cell
@@ -76,7 +78,7 @@ class BpttDDPG(DDPG):
         """
         Backprop the Bellman error through time, i.e. through dQ/dwrite action
         """
-        if self._bpt_bellman_error:
+        if self._bpt_bellman_error_weight > 0.:
             action_input = (self.qf.action_input[0], self._final_rnn_action[1])
             self.qf_with_write_input = self.qf.get_weight_tied_copy(
                 action_input=action_input,
@@ -120,6 +122,10 @@ class BpttDDPG(DDPG):
         self.policy_surrogate_loss = - tf.reduce_mean(
             self.qf_with_action_input.output
         )
+        if self._bpt_bellman_error_weight > 0.:
+            self.policy_surrogate_loss += (
+                self.bellman_error * self._bpt_bellman_error_weight
+            )
         if self._freeze_hidden:
             trainable_policy_params = self.policy.get_params(env_only=True)
         else:
@@ -130,6 +136,8 @@ class BpttDDPG(DDPG):
             self.policy_surrogate_loss,
             var_list=trainable_policy_params,
         )
+        if not self.train_policy:
+            self.train_policy_op = None
 
     def _sample_minibatch(self, batch_size=None):
         if batch_size is None:
