@@ -256,7 +256,7 @@ def create_run_experiment_multiple_seeds(n_seeds):
 if __name__ == '__main__':
     n_seeds = 1
     mode = 'here'
-    exp_prefix = "dev-4-22-bptt-ddpg-ocm"
+    exp_prefix = "dev-4-23-bptt-ddpg-ocm"
     run_mode = 'none'
     version = 'dev'
 

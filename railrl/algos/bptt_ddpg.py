@@ -157,20 +157,27 @@ class BpttDDPG(DDPG):
 
     def _update_feed_dict(self, rewards, terminals, obs, actions, next_obs,
                           **kwargs):
-        actions = self._split_flat_actions(actions)
-        obs = self._split_flat_obs(obs)
-        next_obs = self._split_flat_obs(next_obs)
+        flat_actions = actions.reshape(-1, actions.shape[-1])
+        flat_obs = obs.reshape(-1, obs.shape[-1])
+        flat_next_obs = next_obs.reshape(-1, next_obs.shape[-1])
 
-        # rewards and terminals both have shape [batch_size x sub_traj_length],
-        # but they really just need to be [batch_size x 1]. Right now we only
-        # care about the reward/terminal at the very end since we're only
-        # computing the rewards for the last time step.
-        qf_terminals = terminals[:, -1]
-        qf_rewards = rewards[:, -1]
-        # For obs/actions, we only care about the last time step for the critic.
-        qf_obs = self._get_time_step(obs, t=-1)
-        qf_actions = self._get_time_step(actions, t=-1)
-        qf_next_obs = self._get_time_step(next_obs, t=-1)
+        # # rewards and terminals both have shape [batch_size x sub_traj_length],
+        # # but they really just need to be [batch_size x 1]. Right now we only
+        # # care about the reward/terminal at the very end since we're only
+        # # computing the rewards for the last time step.
+        # qf_terminals = terminals[:, -1]
+        # qf_rewards = rewards[:, -1]
+        # # For obs/actions, we only care about the last time step for the critic.
+        # qf_obs = self._get_time_step(obs, t=-1)
+        # qf_actions = self._get_time_step(actions, t=-1)
+        # qf_next_obs = self._get_time_step(next_obs, t=-1)
+
+        qf_terminals = terminals.flatten()
+        qf_rewards = rewards.flatten()
+        qf_obs = self._split_flat_obs(flat_obs)
+        qf_actions = self._split_flat_actions(flat_actions)
+        qf_next_obs = self._split_flat_obs(flat_next_obs)
+
         feed = self._qf_feed_dict(qf_rewards,
                                   qf_terminals,
                                   qf_obs,
@@ -178,7 +185,8 @@ class BpttDDPG(DDPG):
                                   qf_next_obs,
                                   **kwargs)
 
-        policy_feed = self._policy_feed_dict(obs, **kwargs)
+        policy_feed = self._policy_feed_dict(self._split_flat_obs(obs),
+                                             **kwargs)
         feed.update(policy_feed)
         return feed
 
