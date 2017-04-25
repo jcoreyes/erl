@@ -155,6 +155,9 @@ class RegressQBpttDdpg(BpttDDPG):
             self.memory_grad += tf.gradients(self.qf_with_action_input.output,
                                              memory_action)
         self.oracle_memory_grad = filter_recursive(self.oracle_memory_grad)
+        self.oracle_env_grad = filter_recursive(self.oracle_env_grad)
+        self.env_grad = filter_recursive(self.env_grad)
+        self.memory_grad = filter_recursive(self.memory_grad)
         self.oracle_memory_grad = tf.reduce_sum(self.oracle_memory_grad, axis=0)
         self.oracle_env_grad = tf.reduce_sum(self.oracle_env_grad, axis=0)
         self.env_grad = tf.reduce_sum(self.env_grad, axis=0)
