@@ -119,8 +119,10 @@ class Bptt(Parameterized, RLAlgorithm, Serializable):
         logits = [tf.matmul(rnn_output, W) + b for rnn_output in rnn_outputs]
         self._predictions = [tf.nn.softmax(logit) for logit in logits]
 
-        self._total_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=logits,
-                                                                   labels=labels)
+        self._total_loss = tf.nn.sigmoid_cross_entropy_with_logits(
+            logits=logits[-1],
+            labels=labels[-1],
+        )
         self._train_step = tf.train.AdamOptimizer(
             self._learning_rate).minimize(
             self._total_loss)
