@@ -6,39 +6,6 @@ from railrl.policies.memory.rnn_cell_policy import RnnCellPolicy
 from tensorflow.contrib.rnn import LSTMCell
 
 
-class WrappedLstmCell(LSTMCell):
-    def __init__(
-            self,
-            num_units,
-            output_dim,
-            **kwargs
-    ):
-        super().__init__(num_units,# num_proj=output_dim,
-                         state_is_tuple=True, **kwargs)
-        self._output_dim = output_dim
-
-    def __call__(self, inputs, state, scope=None):
-        with tf.variable_scope(scope or "wrapped_lstm_cell") as self.scope:
-            split_state = tf.split(axis=1, num_or_size_splits=2, value=state)
-            import ipdb
-            ipdb.set_trace()
-            lstm_output, lstm_state = super().__call__(inputs, split_state,
-                                                       scope=self.scope)
-            next_context, output = lstm_state
-            flat_state = tf.concat(axis=1, values=lstm_state)
-            # # return tf.nn.softmax(env_action_logit), flat_state
-            # return lstm_output, flat_state
-            return output, next_context
-
-    @property
-    def state_size(self):
-        return self._num_units * 2
-
-    @property
-    def output_size(self):
-        return self._output_dim
-
-
 class LstmLinearCell(LSTMCell):
     """
     LSTM cell with a linear unit + softmax before the output.
