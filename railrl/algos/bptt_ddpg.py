@@ -130,12 +130,14 @@ class BpttDDPG(DDPG):
             )
         self._final_rnn_output = self._rnn_outputs[-1][0]
         self._final_rnn_action = (
-            self._final_rnn_output,
-            self._rnn_final_state,
+            self._final_rnn_output,  # pi_a(o, m)
+            self._rnn_final_state,   # pi_w(o, m)
         )
+        self._final_rnn_action = self._rnn_outputs[-1]
         self._final_rnn_input = (
-            self._rnn_inputs_unstacked[-1],
-            self._rnn_outputs[-2][1]
+            self._rnn_inputs_unstacked[-1],  # o
+            # self._rnn_outputs[-2][1]       # This is right, but doesn't work
+            self.qf.observation_input[1],    # TODO(vitchyr): Why's this better?
         )
         self.qf_with_action_input = self.qf.get_weight_tied_copy(
             action_input=self._final_rnn_action,
@@ -213,7 +215,7 @@ class BpttDDPG(DDPG):
             # self.qf_with_action_input.observation_input: last_obs,
             self._rnn_inputs_ph: env_obs,
             self._rnn_init_state_ph: initial_memory_obs,
-            self.policy.observation_input: last_obs,
+            # self.policy.observation_input: last_obs,  # this is for eval to work
         }
 
     def _update_feed_dict_from_path(self, paths):
