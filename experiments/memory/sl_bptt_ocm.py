@@ -18,9 +18,14 @@ from railrl.policies.memory.action_aware_memory_policy import DecoupledLSTM
 def main():
     num_seeds = 10
     num_values = 2
-    for H, rnn_cell_class in product(
-        [16, 32],
-        [LayerNormBasicLSTMCell, LSTMCell, BasicLSTMCell, DecoupledLSTM],
+    rnn_cell_class = LSTMCell
+    for H, use_peepholes, cell_clip in product(
+        [32, 64, 128],
+        # [LayerNormBasicLSTMCell, LSTMCell, DecoupledLSTM],
+        [True, False],
+        [None, 1.0, 2.0],
+        # [False],
+        # [None],
     ):
         variant = dict(
             env_params=dict(
@@ -39,13 +44,18 @@ def main():
                 eval_num_episodes=64,
                 lstm_state_size=10,
                 rnn_cell_class=rnn_cell_class,
+                rnn_cell_params=dict(
+                    use_peepholes=use_peepholes,
+                    cell_clip=cell_clip,
+                ),
             )
         )
         for _ in range(num_seeds):
             seed = random.randint(0, 100000)
             run_experiment(
                 bptt_launcher,
-                exp_prefix="4-24-ocm-sl-cell-type-sweep",
+                # exp_prefix="dev-ocm-sl",
+                exp_prefix="4-24-ocm-sl-lstm-hyperparam-sweep",
                 seed=seed,
                 variant=variant,
                 mode='ec2',
