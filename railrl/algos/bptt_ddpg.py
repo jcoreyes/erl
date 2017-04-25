@@ -113,7 +113,7 @@ class BpttDDPG(DDPG):
             [None, self._num_bptt_unrolls, self._env_obs_dim],
             name='rnn_time_inputs',
         )
-        rnn_inputs = tf.unstack(self._rnn_inputs_ph, axis=1)
+        self._rnn_inputs_unstacked = tf.unstack(self._rnn_inputs_ph, axis=1)
         self._rnn_init_state_ph = self.policy.get_init_state_placeholder()
 
         self._rnn_cell_scope.reuse_variables()
@@ -123,7 +123,7 @@ class BpttDDPG(DDPG):
         with tf.variable_scope(self._rnn_cell_scope):
             self._rnn_outputs, self._rnn_final_state = tf.contrib.rnn.static_rnn(
                 self._save_rnn_cell,
-                rnn_inputs,
+                self._rnn_inputs_unstacked,
                 initial_state=self._rnn_init_state_ph,
                 dtype=tf.float32,
                 scope=self._rnn_cell_scope,
@@ -133,8 +133,13 @@ class BpttDDPG(DDPG):
             self._final_rnn_output,
             self._rnn_final_state,
         )
+        self._final_rnn_input = (
+            self._rnn_inputs_unstacked[-1],
+            self._rnn_outputs[-2][1]
+        )
         self.qf_with_action_input = self.qf.get_weight_tied_copy(
             action_input=self._final_rnn_action,
+            observation_input=self._final_rnn_input,
         )
         self.policy_surrogate_loss = - tf.reduce_mean(
             self.qf_with_action_input.output
@@ -180,6 +185,8 @@ class BpttDDPG(DDPG):
 
         policy_feed = self._policy_feed_dict(obs, **kwargs)
         feed.update(policy_feed)
+        # foo = [(k[0].name, v[0].shape) for k, v in feed.items() if isinstance(v, list)]
+        # bar = [(k.name, v.shape) for k, v in feed.items() if not isinstance(v, list)]
         return feed
 
     @staticmethod
@@ -199,18 +206,21 @@ class BpttDDPG(DDPG):
         :param obs: See output of `self._split_flat_action`.
         :return: Feed dictionary for policy training TensorFlow ops.
         """
-        last_obs = self._get_time_step(obs, -1)
-        first_obs = self._get_time_step(obs, 0)
+        initial_memory_obs = self._get_time_step(obs, 0)[1]
         env_obs, _ = obs
-        initial_memory_obs = first_obs[1]
+        last_obs = self._get_time_step(obs, -1)
         return {
-            self.qf_with_action_input.observation_input: last_obs,
+            # self.qf_with_action_input.observation_input: last_obs,
             self._rnn_inputs_ph: env_obs,
             self._rnn_init_state_ph: initial_memory_obs,
             self.policy.observation_input: last_obs,
         }
 
     def _update_feed_dict_from_path(self, paths):
+        batch = self._batch_from_paths(paths)
+        return self._update_feed_dict_from_batch(batch)
+
+    def _batch_from_paths(self, paths):
         eval_pool = self._replay_buffer_class(
             len(paths) * self.max_path_length,
             self.env,
@@ -219,8 +229,7 @@ class BpttDDPG(DDPG):
         for path in paths:
             eval_pool.add_trajectory(path)
 
-        batch = eval_pool.get_all_valid_subtrajectories()
-        return self._update_feed_dict_from_batch(batch)
+        return eval_pool.get_all_valid_subtrajectories()
 
     def _update_feed_dict_from_batch(self, batch):
         return self._update_feed_dict(
