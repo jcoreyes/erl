@@ -32,6 +32,7 @@ class Bptt(Parameterized, RLAlgorithm, Serializable):
             lstm_state_size=10,
             rnn_cell_class=LSTMCell,
             rnn_cell_params=None,
+            softmax=False,
             **kwargs
     ):
         if rnn_cell_params is None:
@@ -46,6 +47,7 @@ class Bptt(Parameterized, RLAlgorithm, Serializable):
         self._state_size = lstm_state_size
         self._rnn_cell_class = rnn_cell_class
         self._rnn_cell_params = rnn_cell_params
+        self._softmax = softmax
         self._env = env
         self._num_classes = env.feature_dim
         self._num_steps = env.sequence_length
@@ -105,19 +107,29 @@ class Bptt(Parameterized, RLAlgorithm, Serializable):
         rnn_inputs = tf.unstack(tf.cast(self._x, tf.float32), axis=1)
         labels = tf.unstack(tf.cast(self._y, tf.float32), axis=1)
 
-        cell = self._rnn_cell_class(self._state_size, **self._rnn_cell_params)
+        if self._softmax:
+            cell = self._rnn_cell_class(self._state_size, **self._rnn_cell_params)
+        else:
+            cell = self._rnn_cell_class(self._state_size,
+                                        self._num_classes,
+                                        **self._rnn_cell_params)
         rnn_outputs, self._final_state = tf.contrib.rnn.static_rnn(
             cell,
             rnn_inputs,
             dtype=tf.float32,
         )
 
-        with tf.variable_scope('softmax'):
-            W = tf.get_variable('W', [self._state_size, self._num_classes])
-            b = tf.get_variable('b', [self._num_classes],
-                                initializer=tf.constant_initializer(0.0))
-        logits = [tf.matmul(rnn_output, W) + b for rnn_output in rnn_outputs]
-        self._predictions = [tf.nn.softmax(logit) for logit in logits]
+        if self._softmax:
+            with tf.variable_scope('softmax'):
+                W = tf.get_variable('W', [self._state_size, self._num_classes])
+                b = tf.get_variable('b', [self._num_classes],
+                                    initializer=tf.constant_initializer(0.0))
+            logits = [tf.matmul(rnn_output, W) + b
+                      for rnn_output in rnn_outputs]
+            self._predictions = [tf.nn.softmax(logit) for logit in logits]
+        else:
+            self._predictions = rnn_outputs
+            logits = [tf.exp(pred) for pred in self._predictions]
 
         self._total_loss = tf.nn.sigmoid_cross_entropy_with_logits(
             logits=logits[-1],

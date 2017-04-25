@@ -11,6 +11,9 @@ from tensorflow.contrib.rnn import (
     BasicLSTMCell,
 )
 from railrl.policies.memory.action_aware_memory_policy import DecoupledLSTM
+from railrl.policies.memory.lstm_memory_policy import (
+    LstmLinearCell,
+)
 
 
 
@@ -18,12 +21,15 @@ from railrl.policies.memory.action_aware_memory_policy import DecoupledLSTM
 def main():
     num_seeds = 10
     num_values = 2
-    rnn_cell_class = LSTMCell
-    for H, use_peepholes, cell_clip in product(
-        [32, 64, 128],
-        # [LayerNormBasicLSTMCell, LSTMCell, DecoupledLSTM],
+    for H, (rnn_cell_class, softmax), use_peepholes in product(
+        [128, 64, 32],
+        [
+            # (LayerNormBasicLSTMCell, False),
+            (LSTMCell, True),
+            (DecoupledLSTM, False),
+            (LstmLinearCell, False),
+        ],
         [True, False],
-        [None, 1.0, 2.0],
         # [False],
         # [None],
     ):
@@ -46,8 +52,8 @@ def main():
                 rnn_cell_class=rnn_cell_class,
                 rnn_cell_params=dict(
                     use_peepholes=use_peepholes,
-                    cell_clip=cell_clip,
                 ),
+                softmax=softmax,
             )
         )
         for _ in range(num_seeds):
@@ -55,7 +61,7 @@ def main():
             run_experiment(
                 bptt_launcher,
                 # exp_prefix="dev-ocm-sl",
-                exp_prefix="4-24-ocm-sl-lstm-hyperparam-sweep",
+                exp_prefix="4-25-ocm-sl-lstm-type-and-peephole--sweep",
                 seed=seed,
                 variant=variant,
                 mode='ec2',
