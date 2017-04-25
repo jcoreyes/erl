@@ -323,7 +323,7 @@ if __name__ == '__main__':
     env_grad_distance_weight = 0.
     write_grad_distance_weight = 0.
     qf_grad_mse_from_one_weight = 0.
-    use_hint_qf = True
+    use_hint_qf = False
     regress_onto_values = False
     extra_qf_training_mode = 'none'
 
