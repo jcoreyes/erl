@@ -13,10 +13,12 @@ class DecoupledLSTM(LSTMCell):
     def __init__(
             self,
             num_units,
-            output_dim,
+            output_dim=None,
             **kwargs
     ):
         super().__init__(num_units / 2, **kwargs)
+        if output_dim is None:
+            output_dim = num_units
         self._output_dim = output_dim
         self.env_action_scope = None
 

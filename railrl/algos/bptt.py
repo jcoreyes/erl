@@ -9,8 +9,11 @@ from rllab.core.serializable import Serializable
 from rllab.misc import logger
 from rllab.misc.overrides import overrides
 from sandbox.rocky.tf.core.parameterized import Parameterized
+from tensorflow.contrib.rnn import LSTMCell
 
 __BPTT_VARIABLE_SCOPE__ = "bptt_variable_scope"
+
+
 
 
 class Bptt(Parameterized, RLAlgorithm, Serializable):
@@ -27,8 +30,12 @@ class Bptt(Parameterized, RLAlgorithm, Serializable):
             batch_size=32,
             eval_num_episodes=64,
             lstm_state_size=10,
+            rnn_cell_class=LSTMCell,
+            rnn_cell_params=None,
             **kwargs
     ):
+        if rnn_cell_params is None:
+            rnn_cell_params = {}
         super().__init__(**kwargs)
         Serializable.quick_init(self, locals())
         self._num_batches_per_epoch = num_batches_per_epoch
@@ -37,6 +44,8 @@ class Bptt(Parameterized, RLAlgorithm, Serializable):
         self._batch_size = batch_size
         self._eval_num_episodes = eval_num_episodes
         self._state_size = lstm_state_size
+        self._rnn_cell_class = rnn_cell_class
+        self._rnn_cell_params = rnn_cell_params
         self._env = env
         self._num_classes = env.feature_dim
         self._num_steps = env.sequence_length
@@ -96,8 +105,7 @@ class Bptt(Parameterized, RLAlgorithm, Serializable):
         rnn_inputs = tf.unstack(tf.cast(self._x, tf.float32), axis=1)
         labels = tf.unstack(tf.cast(self._y, tf.float32), axis=1)
 
-        cell = tf.contrib.rnn.BasicLSTMCell(self._state_size,
-                                            state_is_tuple=True)
+        cell = self._rnn_cell_class(self._state_size, **self._rnn_cell_params)
         rnn_outputs, self._final_state = tf.contrib.rnn.static_rnn(
             cell,
             rnn_inputs,
@@ -187,7 +195,7 @@ class Bptt(Parameterized, RLAlgorithm, Serializable):
 
         for key, value in last_statistics.items():
             logger.record_tabular(key, value)
-        logger.dump_tabular(with_prefix=False)
+        logger.dump_tabular(with_prefix=False, with_timestamp=False)
 
     def get_epoch_snapshot(self, epoch):
         return dict(
