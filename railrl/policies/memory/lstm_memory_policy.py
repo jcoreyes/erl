@@ -3,9 +3,43 @@ import tensorflow as tf
 
 from railrl.core import tf_util
 from railrl.policies.memory.rnn_cell_policy import RnnCellPolicy
+from tensorflow.contrib.rnn import LSTMCell
 
 
-class LstmLinearCell(tf.contrib.rnn.LSTMCell):
+class WrappedLstmCell(LSTMCell):
+    def __init__(
+            self,
+            num_units,
+            output_dim,
+            **kwargs
+    ):
+        super().__init__(num_units,# num_proj=output_dim,
+                         state_is_tuple=True, **kwargs)
+        self._output_dim = output_dim
+
+    def __call__(self, inputs, state, scope=None):
+        with tf.variable_scope(scope or "wrapped_lstm_cell") as self.scope:
+            split_state = tf.split(axis=1, num_or_size_splits=2, value=state)
+            import ipdb
+            ipdb.set_trace()
+            lstm_output, lstm_state = super().__call__(inputs, split_state,
+                                                       scope=self.scope)
+            next_context, output = lstm_state
+            flat_state = tf.concat(axis=1, values=lstm_state)
+            # # return tf.nn.softmax(env_action_logit), flat_state
+            # return lstm_output, flat_state
+            return output, next_context
+
+    @property
+    def state_size(self):
+        return self._num_units * 2
+
+    @property
+    def output_size(self):
+        return self._output_dim
+
+
+class LstmLinearCell(LSTMCell):
     """
     LSTM cell with a linear unit + softmax before the output.
     """
@@ -42,7 +76,7 @@ class LstmLinearCell(tf.contrib.rnn.LSTMCell):
         return self._output_dim
 
 
-class OutputAwareLstmCell(tf.contrib.rnn.LSTMCell):
+class OutputAwareLstmCell(LSTMCell):
     """
     Env action = linear function of input.
     LSTM input = env action and env observation.
@@ -84,7 +118,7 @@ class OutputAwareLstmCell(tf.contrib.rnn.LSTMCell):
         return self._output_dim
 
 
-class FrozenHiddenLstmLinearCell(tf.contrib.rnn.LSTMCell):
+class FrozenHiddenLstmLinearCell(LSTMCell):
     def __init__(
             self,
             num_units,
@@ -238,8 +272,11 @@ class LstmMemoryPolicy(RnnCellPolicy):
             memory_dim,
             init_state=None,
             rnn_cell_class=LstmLinearCell,
+            rnn_cell_params=None,
             **kwargs
     ):
+        if rnn_cell_params is None:
+            rnn_cell_params = {}
         assert memory_dim % 2 == 0
         self.setup_serialization(locals())
         super().__init__(name_or_scope=name_or_scope, **kwargs)
@@ -248,6 +285,7 @@ class LstmMemoryPolicy(RnnCellPolicy):
         self._rnn_cell = None
         self._rnn_cell_scope = None
         self.rnn_cell_class = rnn_cell_class
+        self.rnn_cell_params = rnn_cell_params
         self.init_state = self._placeholder_if_none(
             init_state,
             [None, self._memory_dim],
@@ -262,6 +300,7 @@ class LstmMemoryPolicy(RnnCellPolicy):
         self._rnn_cell = self.rnn_cell_class(
             self._memory_dim,
             self._action_dim,
+            **self.rnn_cell_params
         )
         # TODO(vitchyr): I'm pretty sure that this rnn_cell_scope should NOT
         # be passed into the _rnn_cell method. Basically, it should be passed
