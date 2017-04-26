@@ -316,7 +316,7 @@ if __name__ == '__main__':
     policy_learning_rate = 1e-3
     soft_target_tau = 0.01
     qf_weight_decay = 0.01
-    num_bptt_unrolls = 4
+    num_bptt_unrolls = 6
 
     """
     Regression Params
@@ -327,8 +327,8 @@ if __name__ == '__main__':
     env_grad_distance_weight = 0.
     write_grad_distance_weight = 0.
     qf_grad_mse_from_one_weight = 0.
-    use_hint_qf = False
-    use_time = False
+    use_hint_qf = True
+    use_time = True
     regress_onto_values = False
     extra_qf_training_mode = 'none'
 

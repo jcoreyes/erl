@@ -15,7 +15,7 @@ from railrl.data_management.subtraj_replay_buffer import (
 )
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.policies.memory.rnn_cell_policy import RnnCellPolicy
-from railrl.pythonplusplus import map_recursive, filter_recursive
+from railrl.pythonplusplus import map_recursive, filter_recursive, line_logger
 from railrl.qfunctions.nn_qfunction import NNQFunction
 
 TARGET_PREFIX = "target_"
@@ -40,6 +40,11 @@ class BpttDDPG(DDPG):
             freeze_hidden=False,
             bpt_bellman_error_weight=0.,
             train_policy=True,
+            extra_train_period=100,
+            num_extra_qf_updates=0,
+            extra_qf_training_mode='none',
+            qf_total_loss_tolerance=None,
+            max_num_q_updates=100,
             **kwargs
     ):
         """
@@ -50,13 +55,28 @@ class BpttDDPG(DDPG):
         :param qf_learning_rate: Learning rate of the qf
         :param policy_learning_rate: Learning rate of the _policy
         :param qf_weight_decay: How much to decay the weights for Q
+        :param extra_qf_training_mode: String:
+         - 'none' : Don't do any extra QF training
+         - 'fixed': Always do `num_extra_qf_updates` extra updates
+         - 'validation': Do up to `max_num_q_updates` extra updates so long
+         as validation qf loss goes down.
         :return:
         """
+        assert extra_qf_training_mode in [
+            'none',
+            'fixed',
+            'validation',
+        ]
         self._num_bptt_unrolls = num_bptt_unrolls
         self._env_obs_dim = env_obs_dim
         self._freeze_hidden = freeze_hidden
         self._bpt_bellman_error_weight = bpt_bellman_error_weight
         self.train_policy = train_policy
+        self.extra_qf_training_mode = extra_qf_training_mode
+        self.extra_train_period = extra_train_period
+        self._num_extra_qf_updates = num_extra_qf_updates
+        self.qf_total_loss_tolerance = qf_total_loss_tolerance
+        self.max_num_q_updates = max_num_q_updates
 
         self._rnn_cell_scope = policy.rnn_cell_scope
         self._rnn_cell = policy.rnn_cell
@@ -86,6 +106,8 @@ class BpttDDPG(DDPG):
             n_steps_total=None,
             n_steps_current_epoch=None,
     ):
+        self._do_extra_qf_training(n_steps_total=n_steps_total)
+
         minibatch = self._sample_minibatch()
 
         qf_ops = self._get_qf_training_ops()
@@ -251,6 +273,61 @@ class BpttDDPG(DDPG):
             ('QfOutput', self.qf.output),
             # ('OracleQfOutput', self.oracle_qf.output),
         ]
+
+    def _do_extra_qf_training(self, n_steps_total=None, **kwargs):
+        if self.extra_qf_training_mode == 'none':
+            return
+        elif self.extra_qf_training_mode == 'fixed':
+            for _ in range(self._num_extra_qf_updates):
+                minibatch = self._sample_minibatch()
+                feed_dict = self._qf_feed_dict_from_batch(minibatch)
+                ops = self._get_qf_training_ops(n_steps_total=0)
+                if len(ops) > 0:
+                    self.sess.run(ops, feed_dict=feed_dict)
+        elif self.extra_qf_training_mode == 'validation':
+            if self.max_num_q_updates <= 0:
+                return
+
+            last_validation_loss = self._validation_qf_loss()
+            if self.should_train_qf_extra(n_steps_total=n_steps_total):
+                line_logger.print_over(
+                    "{0} T:{1:3.4f} V:{2:3.4f}".format(0, 0, 0)
+                )
+                for i in range(self.max_num_q_updates):
+                    minibatch = self._sample_minibatch()
+                    feed_dict = self._qf_feed_dict_from_batch(minibatch)
+                    ops = [self.qf_loss, self.train_qf_op]
+                    ops += self.update_target_qf_op
+                    train_loss = float(
+                        self.sess.run(ops, feed_dict=feed_dict)[0]
+                    )
+                    validation_loss = self._validation_qf_loss()
+                    line_logger.print_over(
+                        "{0} T:{1:3.4f} V:{2:3.4f}".format(
+                            i, train_loss, validation_loss,
+                        )
+                    )
+                    if validation_loss > last_validation_loss:
+                        break
+                    if validation_loss <= self.qf_total_loss_tolerance:
+                        break
+                    last_validation_loss = validation_loss
+                line_logger.newline()
+
+    def _validation_qf_loss(self):
+        batch = self.pool.get_valid_subtrajectories(validation=True)
+        feed_dict = self._qf_feed_dict_from_batch(batch)
+        return self.sess.run(self.qf_loss, feed_dict=feed_dict)
+
+    def should_train_qf_extra(self, n_steps_total):
+        return (
+            True
+            and n_steps_total % self.extra_train_period == 0
+            and self.train_qf_op is not None
+            and self.qf_total_loss_tolerance is not None
+            and self.max_num_q_updates > 0
+        )
+
 
     """
     Policy methods

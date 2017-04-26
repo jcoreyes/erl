@@ -23,101 +23,28 @@ class RegressQBpttDdpg(BpttDDPG):
             self,
             *args,
             oracle_qf: OracleUnrollQFunction,
-            qf_total_loss_tolerance=None,
-            max_num_q_updates=100,
             env_grad_distance_weight=1.,
             write_grad_distance_weight=1.,
             qf_grad_mse_from_one_weight=1.,
             regress_onto_values=False,
-            extra_train_period=100,
-            num_extra_qf_updates=0,
-            extra_qf_training_mode='none',
-            validation_batch_size=None,
             **kwargs
     ):
         """
 
         :param args:
         :param oracle_qf:
-        :param qf_total_loss_tolerance:
-        :param max_num_q_updates:
-        :param train_policy:
         :param env_grad_distance_weight:
         :param write_grad_distance_weight:
         :param qf_grad_mse_from_one_weight:
-        :param extra_train_period:
         :param regress_onto_values:
-        :param num_extra_qf_updates:
-        :param extra_qf_training_mode: String:
-         - 'none' : Don't do any extra QF training
-         - 'fixed': Always do `num_extra_qf_updates` extra updates
-         - 'validation': Do up to `max_num_q_updates` extra updates so long
-         as validation qf loss goes down.
         :param kwargs:
         """
-        assert extra_qf_training_mode in [
-            'none',
-            'fixed',
-            'validation',
-        ]
         super().__init__(*args, **kwargs)
-        self.extra_qf_training_mode = extra_qf_training_mode
-        self.qf_total_loss_tolerance = qf_total_loss_tolerance
         self.oracle_qf = oracle_qf
-        self.max_num_q_updates = max_num_q_updates
         self.env_grad_distance_weight = env_grad_distance_weight
         self.write_grad_distance_weight = write_grad_distance_weight
         self.qf_grad_mse_from_one_weight = qf_grad_mse_from_one_weight
-        self.extra_train_period = extra_train_period
         self.regress_onto_values = regress_onto_values
-        self._num_extra_qf_updates = num_extra_qf_updates
-
-        self._validation_batch_size = validation_batch_size or self.batch_size
-
-    def _do_extra_qf_training(self, n_steps_total=None, **kwargs):
-        if self.extra_qf_training_mode == 'none':
-            return
-        elif self.extra_qf_training_mode == 'fixed':
-            for _ in range(self._num_extra_qf_updates):
-                minibatch = self._sample_minibatch()
-                feed_dict = self._qf_feed_dict_from_batch(minibatch)
-                ops = self._get_qf_training_ops(n_steps_total=0)
-                if len(ops) > 0:
-                    self.sess.run(ops, feed_dict=feed_dict)
-        elif self.extra_qf_training_mode == 'validation':
-            if self.max_num_q_updates <= 0:
-                return
-
-            last_validation_loss = self._validation_qf_loss()
-            if self.should_train_qf_extra(n_steps_total=n_steps_total):
-                line_logger.print_over(
-                    "{0} T:{1:3.4f} V:{2:3.4f}".format(0, 0, 0)
-                )
-                for i in range(self.max_num_q_updates):
-                    minibatch = self._sample_minibatch()
-                    feed_dict = self._qf_feed_dict_from_batch(minibatch)
-                    ops = [self.qf_loss, self.train_qf_op]
-                    ops += self.update_target_qf_op
-                    train_loss = float(
-                        self.sess.run(ops, feed_dict=feed_dict)[0]
-                    )
-                    validation_loss = self._validation_qf_loss()
-                    line_logger.print_over(
-                        "{0} T:{1:3.4f} V:{2:3.4f}".format(
-                            i, train_loss, validation_loss,
-                        )
-                    )
-                    if validation_loss > last_validation_loss:
-                        break
-                    if validation_loss <= self.qf_total_loss_tolerance:
-                        break
-                    last_validation_loss = validation_loss
-                line_logger.newline()
-
-    def _validation_qf_loss(self):
-        batch = self.pool.get_valid_subtrajectories(validation=True)
-        feed_dict = self._qf_feed_dict_from_batch(batch)
-        return self.sess.run(self.qf_loss, feed_dict=feed_dict)
 
     def _init_policy_ops(self):
         super()._init_policy_ops()
@@ -350,28 +277,6 @@ class RegressQBpttDdpg(BpttDDPG):
                 oracle_qf_output
             ))
         return statistics
-
-    def should_train_qf_extra(self, n_steps_total):
-        return (
-            True
-            and n_steps_total % self.extra_train_period == 0
-            and self.train_qf_op is not None
-            and self.qf_total_loss_tolerance is not None
-            and self.max_num_q_updates > 0
-        )
-
-    def _do_training(
-            self,
-            epoch=None,
-            n_steps_total=None,
-            n_steps_current_epoch=None,
-    ):
-        self._do_extra_qf_training(n_steps_total=n_steps_total)
-        super()._do_training(
-            epoch=epoch,
-            n_steps_total=n_steps_total,
-            n_steps_current_epoch=n_steps_current_epoch,
-        )
 
     def _oracle_qf_feed_dict_for_policy(
             self, rewards, terminals, obs, actions,
