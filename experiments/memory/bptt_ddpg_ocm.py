@@ -272,7 +272,7 @@ if __name__ == '__main__':
     memory_dim = 20
     min_pool_size = max(n_batches_per_epoch, batch_size)
     replay_pool_size = 100000
-    bpt_bellman_error_weight = 0.
+    bpt_bellman_error_weight = 1.
 
     """
     Algorithm Selection

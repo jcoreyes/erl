@@ -147,56 +147,6 @@ class BpttDDPG(DDPG):
 
         return statistics
 
-    """
-    Q function methods
-    """
-    def _init_qf_ops(self):
-        super()._init_qf_ops()
-        """
-        Backprop the Bellman error through time, i.e. through dQ/dwrite action
-        """
-        if self._bpt_bellman_error_weight > 0.:
-            # You need to replace the next memory state with the last write
-            # action. See writeup for more details.
-            target_observation_input = (
-                self.target_policy.observation_input[0],  # o_{t+1}^buffer
-                self._final_rnn_action[1]   # m_{t+1} = w_t
-            )
-            self.target_policy_for_policy = self.policy.get_copy(
-                name_or_scope=TARGET_PREFIX + '2' + self.policy.scope_name,
-                observation_input=target_observation_input,
-            )
-            self.target_qf_for_policy = self.qf.get_copy(
-                name_or_scope=TARGET_PREFIX + '2' + self.qf.scope_name,
-                action_input=self.target_policy_for_policy.output,
-                observation_input=target_observation_input,
-            )
-            self.ys_for_policy = (
-                self.rewards_placeholder +
-                (1. - self.terminals_placeholder)
-                * self.discount
-                * self.target_qf_for_policy.output
-            )
-
-            action_input = (
-                self.qf.action_input[0],    # a_t^buffer
-                self._final_rnn_action[1],  # w_t
-            )
-            # action_input = self._final_rnn_action
-            observation_input = (
-                # self._rnn_inputs_unstacked[-1],  # o_t^buffer
-                self.qf.observation_input[0],  # o_t^buffer
-                self._rnn_outputs[-2][1],        # m_t
-            )
-            self.qf_from_policy = self.qf.get_weight_tied_copy(
-                action_input=action_input,
-                observation_input=observation_input,
-            )
-            self.bellman_error_for_policy = tf.squeeze(tf_util.mse(
-                self.ys_for_policy,
-                self.qf_from_policy.output
-            ))
-
     def _get_qf_training_ops(
             self,
             epoch=None,
@@ -274,6 +224,9 @@ class BpttDDPG(DDPG):
             # ('OracleQfOutput', self.oracle_qf.output),
         ]
 
+    """
+    Extra QF Training Functions
+    """
     def _do_extra_qf_training(self, n_steps_total=None, **kwargs):
         if self.extra_qf_training_mode == 'none':
             return
@@ -289,7 +242,7 @@ class BpttDDPG(DDPG):
                 return
 
             last_validation_loss = self._validation_qf_loss()
-            if self.should_train_qf_extra(n_steps_total=n_steps_total):
+            if self._should_train_qf_extra(n_steps_total=n_steps_total):
                 line_logger.print_over(
                     "{0} T:{1:3.4f} V:{2:3.4f}".format(0, 0, 0)
                 )
@@ -319,7 +272,7 @@ class BpttDDPG(DDPG):
         feed_dict = self._qf_feed_dict_from_batch(batch)
         return self.sess.run(self.qf_loss, feed_dict=feed_dict)
 
-    def should_train_qf_extra(self, n_steps_total):
+    def _should_train_qf_extra(self, n_steps_total):
         return (
             True
             and n_steps_total % self.extra_train_period == 0
@@ -372,6 +325,51 @@ class BpttDDPG(DDPG):
             action_input=self._final_rnn_action,
             observation_input=self._final_rnn_input,
         )
+
+        """
+        Backprop the Bellman error through time, i.e. through dQ/dwrite action
+        """
+        if self._bpt_bellman_error_weight > 0.:
+            # You need to replace the next memory state with the last write
+            # action. See writeup for more details.
+            target_observation_input = (
+                self.target_policy.observation_input[0],  # o_{t+1}^buffer
+                self._final_rnn_action[1]   # m_{t+1} = w_t
+            )
+            self.target_policy_for_policy = self.policy.get_copy(
+                name_or_scope=TARGET_PREFIX + '2' + self.policy.scope_name,
+                observation_input=target_observation_input,
+            )
+            self.target_qf_for_policy = self.qf.get_copy(
+                name_or_scope=TARGET_PREFIX + '2' + self.qf.scope_name,
+                action_input=self.target_policy_for_policy.output,
+                observation_input=target_observation_input,
+            )
+            self.ys_for_policy = (
+                self.rewards_placeholder +
+                (1. - self.terminals_placeholder)
+                * self.discount
+                * self.target_qf_for_policy.output
+            )
+
+            action_input = (
+                self.qf.action_input[0],    # a_t^buffer
+                self._final_rnn_action[1],  # w_t
+            )
+            # action_input = self._final_rnn_action
+            observation_input = (
+                # self._rnn_inputs_unstacked[-1],  # o_t^buffer
+                self.qf.observation_input[0],  # o_t^buffer
+                self._rnn_outputs[-2][1],        # m_t
+            )
+            self.qf_from_policy = self.qf.get_weight_tied_copy(
+                action_input=action_input,
+                observation_input=observation_input,
+            )
+            self.bellman_error_for_policy = tf.squeeze(tf_util.mse(
+                self.ys_for_policy,
+                self.qf_from_policy.output
+            ))
 
     def _init_policy_loss_and_train_ops(self):
         self.policy_surrogate_loss = - tf.reduce_mean(
