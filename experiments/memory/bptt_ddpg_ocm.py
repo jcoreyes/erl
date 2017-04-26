@@ -257,8 +257,8 @@ def create_run_experiment_multiple_seeds(n_seeds):
 if __name__ == '__main__':
     n_seeds = 1
     mode = 'here'
-    exp_prefix = '4-26-bptt-ddpg-ocm-hint-qf-vs-hint-env-correct'
-    # exp_prefix = "dev-bptt-ddpg-ocm"
+    # exp_prefix = '4-26-bptt-ddpg-ocm-hint-qf-vs-hint-env-correct'
+    exp_prefix = "dev-bptt-ddpg-ocm"
     run_mode = 'none'
     version = 'dev'
 
@@ -272,7 +272,7 @@ if __name__ == '__main__':
     memory_dim = 20
     min_pool_size = max(n_batches_per_epoch, batch_size)
     replay_pool_size = 100000
-    bpt_bellman_error_weight = 1.
+    bpt_bellman_error_weight = 0.
 
     """
     Algorithm Selection
@@ -305,8 +305,8 @@ if __name__ == '__main__':
     H = 6
     num_values = 2
     zero_observation = True
-    env_output_target_number = True
-    env_output_time = True
+    env_output_target_number = False
+    env_output_time = False
 
     """
     Algo params
