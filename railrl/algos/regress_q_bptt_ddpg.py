@@ -4,6 +4,7 @@ import numpy as np
 import tensorflow as tf
 
 from railrl.algos.bptt_ddpg import BpttDDPG
+from railrl.algos.ddpg import TargetUpdateMode
 from railrl.core import tf_util
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.pythonplusplus import filter_recursive, line_logger
@@ -73,21 +74,14 @@ class RegressQBpttDdpg(BpttDDPG):
 
         self._validation_batch_size = validation_batch_size or self.batch_size
 
-    def _do_training(self, **kwargs):
-        self._do_extra_qf_training(**kwargs)
-        super()._do_training(**kwargs)
-
     def _do_extra_qf_training(self, n_steps_total=None, **kwargs):
         if self.extra_qf_training_mode == 'none':
             return
         elif self.extra_qf_training_mode == 'fixed':
             for _ in range(self._num_extra_qf_updates):
                 minibatch = self._sample_minibatch()
-                feed_dict = self._update_feed_dict_from_batch(minibatch)
-                ops = filter_recursive([
-                    self.train_qf_op,
-                    self.update_target_qf_op,
-                ])
+                feed_dict = self._qf_feed_dict_from_batch(minibatch)
+                ops = self._get_qf_training_ops(n_steps_total=0)
                 if len(ops) > 0:
                     self.sess.run(ops, feed_dict=feed_dict)
         elif self.extra_qf_training_mode == 'validation':
@@ -101,7 +95,7 @@ class RegressQBpttDdpg(BpttDDPG):
                 )
                 for i in range(self.max_num_q_updates):
                     minibatch = self._sample_minibatch()
-                    feed_dict = self._update_feed_dict_from_batch(minibatch)
+                    feed_dict = self._qf_feed_dict_from_batch(minibatch)
                     ops = [self.qf_loss, self.train_qf_op]
                     ops += self.update_target_qf_op
                     train_loss = float(
@@ -122,7 +116,7 @@ class RegressQBpttDdpg(BpttDDPG):
 
     def _validation_qf_loss(self):
         batch = self.pool.get_valid_subtrajectories(validation=True)
-        feed_dict = self._update_feed_dict_from_batch(batch)
+        feed_dict = self._qf_feed_dict_from_batch(batch)
         return self.sess.run(self.qf_loss, feed_dict=feed_dict)
 
     def _init_policy_ops(self):
@@ -213,10 +207,9 @@ class RegressQBpttDdpg(BpttDDPG):
     def _oracle_qf_feed_dict(self, rewards, terminals, obs, actions, next_obs,
                              target_numbers=None, times=None):
         batch_size = len(rewards)
-        sequence_lengths = np.squeeze(self.env.horizon - 1 - times[:, -1])
-        indices = target_numbers[:, 0]
+        sequence_lengths = np.squeeze(self.env.horizon - 1 - times)
         target_one_hots = special.to_onehot_n(
-            indices,
+            target_numbers,
             self.env.wrapped_env.action_space.flat_dim,
         )
         rest_of_obs = np.zeros(
@@ -238,8 +231,8 @@ class RegressQBpttDdpg(BpttDDPG):
             feed_dict[self.qf.target_labels] = target_one_hots
             feed_dict[self.target_qf.target_labels] = target_one_hots
         if hasattr(self.qf, "time_labels"):
-            feed_dict[self.qf.time_labels] = times[:, -1]
-            feed_dict[self.target_qf.time_labels] = times[:, -1]
+            feed_dict[self.qf.time_labels] = times
+            feed_dict[self.target_qf.time_labels] = times
         return feed_dict
 
     def _update_feed_dict_from_batch(self, batch):
@@ -253,19 +246,6 @@ class RegressQBpttDdpg(BpttDDPG):
             times=batch['times'],
         )
 
-    def _statistic_names_and_ops(self):
-        """
-        :return: List of tuple (name, op). Each `op` will be evaluated. Its
-        output will be saved as a statistic with name `name`.
-        """
-        return [
-            ('PolicySurrogateLoss', self.policy_surrogate_loss),
-            ('QfLoss', self.qf_loss),
-            ('PolicyOutput', self.policy.output),
-            ('QfOutput', self.qf.output),
-            ('OracleQfOutput', self.oracle_qf.output),
-        ]
-
     def _get_other_statistics(self):
         if self.pool.num_can_sample(validation=True) < self.batch_size:
             return {}
@@ -276,11 +256,8 @@ class RegressQBpttDdpg(BpttDDPG):
             ('Train', False),
         ]:
             batch = self.pool.get_valid_subtrajectories(validation=validation)
-            feed_dict = self._update_feed_dict_from_batch(batch)
+            policy_feed_dict = self._policy_feed_dict_from_batch(batch)
             (
-                true_qf_mse_loss,
-                bellman_error,
-                qf_loss,
                 env_grad_distance,
                 memory_grad_distance,
                 env_grad_mse,
@@ -291,13 +268,9 @@ class RegressQBpttDdpg(BpttDDPG):
                 memory_qf_grad,
                 oracle_env_qf_grad,
                 oracle_memory_qf_grad,
-                qf_output,
                 oracle_qf_output,
             ) = self.sess.run(
                 [
-                    self.true_qf_mse_loss,
-                    self.bellman_error,
-                    self.qf_loss,
                     self.env_grad_cosine_distance,
                     self.mem_grad_cosine_distance,
                     self.env_grad_mse,
@@ -308,16 +281,31 @@ class RegressQBpttDdpg(BpttDDPG):
                     self.memory_grad,
                     self.oracle_env_grad,
                     self.oracle_memory_grad,
-                    self.qf.output,
                     self.oracle_qf.output,
                 ]
                 ,
-                feed_dict=feed_dict
+                feed_dict=policy_feed_dict
+            )
+            qf_feed_dict = self._qf_feed_dict_from_batch(batch)
+            (
+                # true_qf_mse_loss,
+                qf_loss,
+                bellman_error,
+                qf_output,
+            ) = self.sess.run(
+                [
+                    # self.true_qf_mse_loss,
+                    self.qf_loss,
+                    self.bellman_error,
+                    self.qf.output,
+                ]
+                ,
+                feed_dict=qf_feed_dict
             )
             stat_base_name = 'Qf{}'.format(name)
-            statistics.update(
-                {'{}_True_MSE_Loss'.format(stat_base_name): true_qf_mse_loss},
-            )
+            # statistics.update(
+            #     {'{}_True_MSE_Loss'.format(stat_base_name): true_qf_mse_loss},
+            # )
             statistics.update(
                 {'{}_BellmanError'.format(stat_base_name): bellman_error},
             )
@@ -382,3 +370,101 @@ class RegressQBpttDdpg(BpttDDPG):
             and self.qf_total_loss_tolerance is not None
             and self.max_num_q_updates > 0
         )
+
+    def _do_training(
+            self,
+            epoch=None,
+            n_steps_total=None,
+            n_steps_current_epoch=None,
+    ):
+        self._do_extra_qf_training(n_steps_total=n_steps_total)
+        super()._do_training(
+            epoch=epoch,
+            n_steps_total=n_steps_total,
+            n_steps_current_epoch=n_steps_current_epoch,
+        )
+
+    def _oracle_qf_feed_dict_for_policy(
+            self, rewards, terminals, obs, actions,
+            next_obs, target_numbers,
+            times):
+        batch_size = len(rewards)
+        sequence_lengths = np.squeeze(self.env.horizon - 1 - times)
+        target_one_hots = special.to_onehot_n(
+            target_numbers,
+            self.env.wrapped_env.action_space.flat_dim,
+        )
+        rest_of_obs = np.zeros(
+            [
+                batch_size,
+                self.env.horizon - self._num_bptt_unrolls,
+                self._env_obs_dim,
+                ]
+        )
+        rest_of_obs[:, :, 0] = 1
+        feed_dict = {
+            self.oracle_qf.sequence_length_placeholder: sequence_lengths,
+            self.oracle_qf.rest_of_obs_placeholder: rest_of_obs,
+            self.oracle_qf.observation_input: obs,
+            self.policy.observation_input: obs,
+            self.oracle_qf.target_labels: target_one_hots,
+        }
+        if hasattr(self.qf_with_action_input, "target_labels"):
+            feed_dict[self.qf_with_action_input.target_labels] = target_one_hots
+            # TODO(vitchyr): this should be the NEXT target...
+            feed_dict[self.target_qf_for_policy.target_labels] = target_one_hots
+        if hasattr(self.qf_with_action_input, "time_labels"):
+            feed_dict[self.qf_with_action_input.time_labels] = times
+            # TODO(vitchyr): this seems hacky
+            feed_dict[self.target_qf_for_policy.time_labels] = times + 1
+        return feed_dict
+
+    def _policy_feed_dict_from_batch(self, batch):
+        policy_feed = super()._policy_feed_dict_from_batch(batch)
+        (
+            last_rewards,
+            last_terminals,
+            last_obs,
+            last_actions,
+            last_next_obs,
+            last_target_numbers,
+            last_times,
+        ) = self._subtraj_batch_to_last_flat_batch(batch)
+        policy_feed.update(self._oracle_qf_feed_dict_for_policy(
+            rewards=last_rewards,
+            terminals=last_terminals,
+            obs=self._split_flat_obs(last_obs),
+            actions=self._split_flat_actions(last_actions),
+            next_obs=self._split_flat_obs(last_next_obs),
+            target_numbers=last_target_numbers,
+            times=last_times,
+        ))
+        return policy_feed
+
+    def _subtraj_batch_to_last_flat_batch(self, batch):
+        rewards = batch['rewards']
+        terminals = batch['terminals']
+        obs = batch['observations']
+        actions = batch['actions']
+        next_obs = batch['next_observations']
+        target_numbers = batch['target_numbers']
+        times = batch['times']
+
+        last_rewards = rewards[:, -1]
+        last_terminals = terminals[:, -1]
+        last_obs = self._get_time_step(obs, t=-1)
+        last_actions = self._get_time_step(actions, t=-1)
+        last_next_obs = self._get_time_step(next_obs, t=-1)
+        last_target_numbers = target_numbers[:, -1]
+        last_times = times[:, -1]
+
+        return (
+            last_rewards,
+            last_terminals,
+            last_obs,
+            last_actions,
+            last_next_obs,
+            last_target_numbers,
+            last_times,
+        )
+

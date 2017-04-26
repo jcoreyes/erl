@@ -299,16 +299,16 @@ if __name__ == '__main__':
     """
     Env param
     """
-    env_class = OneCharMemoryOutputRewardMag
-    # env_class = OneCharMemoryEndOnly
-    H = 10
+    # env_class = OneCharMemoryOutputRewardMag
+    env_class = OneCharMemoryEndOnly
+    H = 6
     num_values = 2
     zero_observation = True
 
     """
     Algo params
     """
-    num_extra_qf_updates = 0
+    num_extra_qf_updates = 10
     qf_learning_rate = 1e-3
     policy_learning_rate = 1e-3
     soft_target_tau = 0.01
@@ -324,7 +324,8 @@ if __name__ == '__main__':
     env_grad_distance_weight = 0.
     write_grad_distance_weight = 0.
     qf_grad_mse_from_one_weight = 0.
-    use_hint_qf = False
+    use_hint_qf = True
+    use_time = True
     regress_onto_values = False
     extra_qf_training_mode = 'none'
 
@@ -404,12 +405,13 @@ if __name__ == '__main__':
     qf_params = dict(
         # hidden_nonlinearity=tf.nn.relu,
         # output_nonlinearity=tf.nn.tanh,
-        use_time=True,
         # hidden_nonlinearity=tf.identity,
         # output_nonlinearity=tf.identity,
         # embedded_hidden_sizes=[100, 100],
         # observation_hidden_sizes=[100, 100],
     )
+    if use_hint_qf:
+        qf_params['use_time'] = use_time
     # TODO(vitchyr): Oracle needs to use the true reward
     env_params = dict(
         n=num_values,
