@@ -28,8 +28,8 @@ class RegressQBpttDdpg(BpttDDPG):
             env_grad_distance_weight=1.,
             write_grad_distance_weight=1.,
             qf_grad_mse_from_one_weight=1.,
-            extra_train_period=100,
             regress_onto_values=False,
+            extra_train_period=100,
             num_extra_qf_updates=0,
             extra_qf_training_mode='none',
             validation_batch_size=None,
@@ -401,11 +401,13 @@ class RegressQBpttDdpg(BpttDDPG):
         if hasattr(self.qf_with_action_input, "target_labels"):
             feed_dict[self.qf_with_action_input.target_labels] = target_one_hots
             # TODO(vitchyr): this should be the NEXT target...
-            feed_dict[self.target_qf_for_policy.target_labels] = target_one_hots
+            if self._bpt_bellman_error_weight > 0.:
+                feed_dict[self.target_qf_for_policy.target_labels] = target_one_hots
         if hasattr(self.qf_with_action_input, "time_labels"):
             feed_dict[self.qf_with_action_input.time_labels] = times
             # TODO(vitchyr): this seems hacky
-            feed_dict[self.target_qf_for_policy.time_labels] = times + 1
+            if self._bpt_bellman_error_weight > 0.:
+                feed_dict[self.target_qf_for_policy.time_labels] = times + 1
         return feed_dict
 
     def _policy_feed_dict_from_batch(self, batch):
