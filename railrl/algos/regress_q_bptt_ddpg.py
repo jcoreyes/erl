@@ -278,10 +278,17 @@ class RegressQBpttDdpg(BpttDDPG):
             ))
         return statistics
 
-    def _oracle_qf_feed_dict_for_policy(
-            self, rewards, terminals, obs, actions,
-            next_obs, target_numbers,
-            times):
+    def _oracle_qf_feed_dict_for_policy_from_batch(self, batch):
+        all_rewards = batch['rewards']
+        all_obs = batch['observations']
+        all_target_numbers = batch['target_numbers']
+        all_times = batch['times']
+
+        rewards = all_rewards[:, -1]
+        obs = self._split_flat_obs(self._get_time_step(all_obs, t=-1))
+        target_numbers = all_target_numbers[:, -1]
+        times = all_times[:, -1]
+
         batch_size = len(rewards)
         sequence_lengths = np.squeeze(self.env.horizon - 1 - times)
         target_one_hots = special.to_onehot_n(
@@ -317,31 +324,8 @@ class RegressQBpttDdpg(BpttDDPG):
 
     def _policy_feed_dict_from_batch(self, batch):
         policy_feed = super()._policy_feed_dict_from_batch(batch)
-
-        rewards = batch['rewards']
-        terminals = batch['terminals']
-        obs = batch['observations']
-        actions = batch['actions']
-        next_obs = batch['next_observations']
-        target_numbers = batch['target_numbers']
-        times = batch['times']
-
-        last_rewards = rewards[:, -1]
-        last_terminals = terminals[:, -1]
-        last_obs = self._get_time_step(obs, t=-1)
-        last_actions = self._get_time_step(actions, t=-1)
-        last_next_obs = self._get_time_step(next_obs, t=-1)
-        last_target_numbers = target_numbers[:, -1]
-        last_times = times[:, -1]
-
-        policy_feed.update(self._oracle_qf_feed_dict_for_policy(
-            rewards=last_rewards,
-            terminals=last_terminals,
-            obs=self._split_flat_obs(last_obs),
-            actions=self._split_flat_actions(last_actions),
-            next_obs=self._split_flat_obs(last_next_obs),
-            target_numbers=last_target_numbers,
-            times=last_times,
+        policy_feed.update(self._oracle_qf_feed_dict_for_policy_from_batch(
+            batch
         ))
         return policy_feed
 
