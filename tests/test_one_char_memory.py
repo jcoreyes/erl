@@ -99,6 +99,50 @@ class TestOneCharMemory(NPTestCase):
         self.assertNpArraysEqual(next_ob, np.array([1, 0, 0, 0]))
         self.assertAlmostEqual(reward, 0.5)
 
+    def test_output_target(self):
+        env = OneCharMemory(n=2, num_steps=5, output_target_number=True)
+        self.assertEqual(env.observation_space.flat_dim, 4)
+        obs = env.reset()
+        target_number = np.argmax(obs[:3])
+
+        action = np.zeros(3)
+        next_ob, reward, terminal, _ = env.step(action)
+        expected_obs = np.hstack((obs[:3], [target_number]))
+        expected_next_obs = np.array([1, 0, 0, target_number])
+        self.assertNpArraysEqual(obs, expected_obs)
+        self.assertNpArraysEqual(next_ob, expected_next_obs)
+        next_ob, reward, terminal, _ = env.step(action)
+        self.assertNpArraysEqual(next_ob, expected_next_obs)
+
+    def test_output_time(self):
+        env = OneCharMemory(n=2, num_steps=3, output_time=True)
+        self.assertEqual(env.observation_space.flat_dim, 3 + 4)
+        obs = env.reset()
+        action = np.zeros(3)
+        time = np.zeros(4)
+        time[0] = 1
+        self.assertNpEqual(obs[-4:], time)
+
+        next_ob, reward, terminal, _ = env.step(action)
+        time[0] = 0
+        time[1] = 1
+        self.assertNpEqual(next_ob[-4:], time)
+
+        next_ob, reward, terminal, _ = env.step(action)
+        time[1] = 0
+        time[2] = 1
+        self.assertNpEqual(next_ob[-4:], time)
+
+        next_ob, reward, terminal, _ = env.step(action)
+        time[2] = 0
+        time[3] = 1
+        self.assertNpEqual(next_ob[-4:], time)
+
+        self.assertTrue(terminal)
+        obs = env.reset()
+        time[3] = 0
+        time[0] = 1
+        self.assertNpEqual(obs[-4:], time)
 
 
 

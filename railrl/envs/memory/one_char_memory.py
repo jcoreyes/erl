@@ -43,6 +43,8 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
             max_reward_magnitude=1,
             softmax_action=False,
             zero_observation=False,
+            output_target_number=False,
+            output_time=False,
     ):
         """
         :param n: Number of different values that could be returned
@@ -59,16 +61,27 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
         self.num_steps = num_steps
         self.n = n
         self._onehot_size = n + 1
-        self._action_space = Box(
-            np.zeros(self._onehot_size),
-            np.ones(self._onehot_size)
-        )
-        self._observation_space = self._action_space
-        self._t = 1
+        self._t = 0
         self._reward_for_remembering = reward_for_remembering
         self._max_reward_magnitude = max_reward_magnitude
         self._softmax_action = softmax_action
         self._zero_observation = zero_observation
+        self._output_target_number = output_target_number
+        self._output_time = output_time
+
+        self._action_space = Box(
+            np.zeros(self._onehot_size),
+            np.ones(self._onehot_size)
+        )
+        obs_low = np.zeros(self._onehot_size)
+        obs_high = np.zeros(self._onehot_size)
+        if self._output_target_number:
+            obs_low = np.hstack((obs_low, [0]))
+            obs_high = np.hstack((obs_high, [self.n]))
+        if self._output_time:
+            obs_low = np.hstack((obs_low, [0] * (self.num_steps + 1)))
+            obs_high = np.hstack((obs_high, [1] * (self.num_steps + 1)))
+        self._observation_space = Box(obs_low, obs_high)
 
         self._target_number = None
 
@@ -81,10 +94,7 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
         if self._softmax_action:
             action = softmax(action)
         # Reset gives the first observation, so only return 0 in step.
-        if self._zero_observation:
-            observation = np.zeros(self._onehot_size)
-        else:
-            observation = self._get_next_observation(0)
+        observation = self._get_next_observation()
         done = self._t == self.num_steps
         info = self._get_info_dict()
         reward = self._compute_reward(done, action)
@@ -99,7 +109,7 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
     def _get_info_dict(self):
         return {
             'target_number': self._target_number,
-            'time': self._t - 1,
+            'time': self._t,
             'reward_for_remembering': self._reward_for_remembering,
         }
 
@@ -137,12 +147,27 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
 
     def reset(self):
         self._target_number = randint(1, self.n)
-        self._t = 1
-        first_observation = self._get_next_observation(self._target_number)
-        return first_observation
+        self._t = 0
+        observation = self._get_first_observation()
+        self._t += 1
+        return observation
 
-    def _get_next_observation(self, observation_int):
-        return special.to_onehot(observation_int, self._onehot_size)
+    def _get_first_observation(self):
+        return self._get_observation(self._target_number)
+
+    def _get_next_observation(self):
+        return self._get_observation(0)
+
+    def _get_observation(self, number):
+        observation = special.to_onehot(number, self._onehot_size)
+        if self._zero_observation:
+            observation = np.zeros(self._onehot_size)
+        if self._output_target_number:
+            observation = np.hstack((observation, [self._target_number]))
+        if self._output_time:
+            time = special.to_onehot(self._t, self.num_steps + 1)
+            observation = np.hstack((observation, time))
+        return observation
 
     def _get_target_onehot(self):
         return special.to_onehot(self._target_number, self._onehot_size)
@@ -184,7 +209,7 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
         if self._last_action is None:
             logger.log("No action taken.")
         else:
-            if self._last_t == 1:
+            if self._last_t == 0:
                 logger.log("--- New Episode ---")
             logger.push_prefix("t={0}\t".format(self._last_t))
             with np_print_options(precision=4, suppress=False):
@@ -319,7 +344,7 @@ class OneCharMemoryEndOnlyDiscrete(OneCharMemory):
         self._onehot_size = n + 1
         self._action_space = Discrete(self._onehot_size)
         self._observation_space = self._action_space
-        self._t = 1
+        self._t = 0
 
         self._target_number = None
 
@@ -351,12 +376,9 @@ class OneCharMemoryEndOnlyDiscrete(OneCharMemory):
 
     def reset(self):
         self._target_number = randint(1, self.n)
-        self._t = 1
-        first_observation = self._get_next_observation(self._target_number)
+        self._t = 0
+        first_observation = self._get_first_observation()
         return first_observation
-
-    def _get_next_observation(self, observation_int):
-        return special.to_onehot(observation_int, self._onehot_size)
 
     def _get_target_onehot(self):
         return special.to_onehot(self._target_number, self._onehot_size)
@@ -398,7 +420,7 @@ class OneCharMemoryEndOnlyDiscrete(OneCharMemory):
         if self._last_action is None:
             logger.log("No action taken.")
         else:
-            if self._last_t == 1:
+            if self._last_t == 0:
                 logger.log("--- New Episode ---")
             logger.push_prefix("t={0}\t".format(self._last_t))
             with np_print_options(precision=4, suppress=False):
@@ -472,8 +494,8 @@ class OneCharMemoryOutputRewardMag(OneCharMemoryEndOnly):
     def reset(self):
         self._reward_for_remembering = choice(self._reward_values)
         self._target_number = randint(1, self.n)
-        self._t = 1
-        first_observation = self._get_next_observation(self._target_number)
+        self._t = 0
+        first_observation = self._get_first_observation()
         return np.hstack((first_observation, self._reward_for_remembering))
 
     def log_diagnostics(self, paths):
