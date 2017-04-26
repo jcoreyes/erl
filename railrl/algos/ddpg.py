@@ -279,6 +279,10 @@ class DDPG(OnlineAlgorithm):
 
     def _qf_feed_dict(self, rewards, terminals, obs, actions, next_obs,
                       **kwargs):
+        """
+        The output of `self._split_flat_action`.
+        :return: Feed dictionary for policy training TensorFlow ops.
+        """
         return {
             self.rewards_placeholder: np.expand_dims(rewards, axis=1),
             self.terminals_placeholder: np.expand_dims(terminals, axis=1),

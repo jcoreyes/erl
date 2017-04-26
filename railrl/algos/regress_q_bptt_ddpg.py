@@ -403,228 +403,11 @@ class RegressQBpttDdpg(BpttDDPG):
             n_steps_current_epoch=None,
     ):
         self._do_extra_qf_training(n_steps_total=n_steps_total)
-
-        minibatch = self._sample_minibatch()
-
-        qf_ops = self._get_qf_training_ops()
-        qf_feed_dict = self._qf_update_feed_dict_from_batch(minibatch)
-        self.sess.run(qf_ops, feed_dict=qf_feed_dict)
-
-        policy_ops = self._get_policy_training_ops()
-        policy_feed_dict = self._policy_update_feed_dict_from_batch(minibatch)
-        self.sess.run(policy_ops, feed_dict=policy_feed_dict)
-
-    def _get_qf_training_ops(
-            self,
-            epoch=None,
-            n_steps_total=None,
-            n_steps_current_epoch=None,
-    ):
-        train_ops = [
-            self.train_qf_op,
-        ]
-        if self._batch_norm:
-            train_ops += self.qf.batch_norm_update_stats_op
-
-        target_ops = []
-        if self._target_update_mode == TargetUpdateMode.SOFT:
-            target_ops = [
-                self.update_target_qf_op,
-            ]
-        elif self._target_update_mode == TargetUpdateMode.HARD:
-            if n_steps_total % self._hard_update_period == 0:
-                target_ops = [
-                    self.update_target_qf_op,
-                ]
-        elif self._target_update_mode == TargetUpdateMode.NONE:
-            target_ops = [
-                self.update_target_qf_op,
-            ]
-        else:
-            raise RuntimeError(
-                "Unknown target update mode: {}".format(
-                    self._target_update_mode
-                )
-            )
-
-        return filter_recursive([
-            train_ops,
-            target_ops,
-        ])
-
-    def _get_policy_training_ops(
-            self,
-            epoch=None,
-            n_steps_total=None,
-            n_steps_current_epoch=None,
-    ):
-        train_ops = [
-            self.train_policy_op,
-        ]
-        if self._batch_norm:
-            train_ops += self.policy.batch_norm_update_stats_op
-
-        target_ops = []
-        if self._target_update_mode == TargetUpdateMode.SOFT:
-            target_ops = [
-                self.update_target_policy_op,
-            ]
-        elif self._target_update_mode == TargetUpdateMode.HARD:
-            if n_steps_total % self._hard_update_period == 0:
-                target_ops = [
-                    self.update_target_policy_op,
-                ]
-        elif self._target_update_mode == TargetUpdateMode.NONE:
-            target_ops = [
-                self.update_target_policy_op,
-            ]
-        else:
-            raise RuntimeError(
-                "Unknown target update mode: {}".format(
-                    self._target_update_mode
-                )
-            )
-
-        return filter_recursive([
-            train_ops,
-            target_ops,
-        ])
-
-    def _qf_update_feed_dict_from_batch(self, batch):
-        (
-            flat_rewards,
-            flat_terminals,
-            flat_obs,
-            flat_actions,
-            flat_next_obs,
-            flat_target_numbers,
-            flat_times,
-        ) = self._subtraj_batch_to_flat_batch(batch)
-        qf_obs = self._split_flat_obs(flat_obs)
-        qf_actions = self._split_flat_actions(flat_actions)
-        qf_next_obs = self._split_flat_obs(flat_next_obs)
-
-        feed = self._qf_feed_dict(flat_rewards,
-                                  flat_terminals,
-                                  qf_obs,
-                                  qf_actions,
-                                  qf_next_obs,
-                                  target_numbers=flat_target_numbers,
-                                  times=flat_times,
-                                  )
-
-        return feed
-
-    def _subtraj_batch_to_flat_batch(self, batch):
-        rewards = batch['rewards']
-        terminals = batch['terminals']
-        obs = batch['observations']
-        actions = batch['actions']
-        next_obs = batch['next_observations']
-        target_numbers = batch['target_numbers']
-        times = batch['times']
-
-        flat_actions = actions.reshape(-1, actions.shape[-1])
-        flat_obs = obs.reshape(-1, obs.shape[-1])
-        flat_next_obs = next_obs.reshape(-1, next_obs.shape[-1])
-        flat_target_numbers = target_numbers.flatten()
-        flat_times = times.flatten()
-        flat_terminals = terminals.flatten()
-        flat_rewards = rewards.flatten()
-        return (
-            flat_rewards,
-            flat_terminals,
-            flat_obs,
-            flat_actions,
-            flat_next_obs,
-            flat_target_numbers,
-            flat_times,
+        super()._do_training(
+            epoch=epoch,
+            n_steps_total=n_steps_total,
+            n_steps_current_epoch=n_steps_current_epoch,
         )
-
-    def _subtraj_batch_to_last_flat_batch(self, batch):
-        rewards = batch['rewards']
-        terminals = batch['terminals']
-        obs = batch['observations']
-        actions = batch['actions']
-        next_obs = batch['next_observations']
-        target_numbers = batch['target_numbers']
-        times = batch['times']
-
-        last_rewards = rewards[:, -1]
-        last_terminals = terminals[:, -1]
-        last_obs = self._get_time_step(obs, t=-1)
-        last_actions = self._get_time_step(actions, t=-1)
-        last_next_obs = self._get_time_step(next_obs, t=-1)
-        last_target_numbers = target_numbers[:, -1]
-        last_times = times[:, -1]
-
-        return (
-            last_rewards,
-            last_terminals,
-            last_obs,
-            last_actions,
-            last_next_obs,
-            last_target_numbers,
-            last_times,
-        )
-
-    def _policy_update_feed_dict_from_batch(self, batch):
-        (
-            last_rewards,
-            last_terminals,
-            last_obs,
-            last_actions,
-            last_next_obs,
-            last_target_numbers,
-            last_times,
-        ) = self._subtraj_batch_to_last_flat_batch(batch)
-        obs = batch['observations']
-        policy_feed = self._policy_feed_dict(self._split_flat_obs(obs))
-        policy_feed.update(self._oracle_qf_feed_dict_for_policy(
-            rewards=last_rewards,
-            terminals=last_terminals,
-            obs=self._split_flat_obs(last_obs),
-            actions=self._split_flat_actions(last_actions),
-            next_obs=self._split_flat_obs(last_next_obs),
-            target_numbers=last_target_numbers,
-            times=last_times,
-        ))
-        return policy_feed
-
-    def _statistics_from_paths(self, paths) -> OrderedDict:
-        batch = self._batch_from_paths(paths)
-        qf_feed_dict = self._qf_update_feed_dict_from_batch(batch)
-        policy_feed_dict = self._policy_update_feed_dict_from_batch(batch)
-        qf_stat_names, qf_ops = zip(*self._qf_statistic_names_and_ops())
-        policy_stat_names, policy_ops = zip(
-            *self._policy_statistic_names_and_ops())
-
-        statistics = OrderedDict()
-        for ops, feed_dict, stat_names in [
-            (qf_ops, qf_feed_dict, qf_stat_names),
-            (policy_ops, policy_feed_dict, policy_stat_names),
-        ]:
-            values = self.sess.run(ops, feed_dict=feed_dict)
-            for stat_name, value in zip(stat_names, values):
-                statistics.update(
-                    create_stats_ordered_dict(stat_name, value)
-                )
-
-        return statistics
-
-    def _qf_statistic_names_and_ops(self):
-        return [
-            ('QfLoss', self.qf_loss),
-            ('QfOutput', self.qf.output),
-            # ('OracleQfOutput', self.oracle_qf.output),
-        ]
-
-    def _policy_statistic_names_and_ops(self):
-        return [
-            ('PolicySurrogateLoss', self.policy_surrogate_loss),
-            ('PolicyOutput', self.policy.output),
-            # ('OracleQfOutput', self.oracle_qf.output),
-        ]
 
     def _oracle_qf_feed_dict_for_policy(
             self, rewards, terminals, obs, actions,
@@ -656,3 +439,53 @@ class RegressQBpttDdpg(BpttDDPG):
         if hasattr(self.qf_with_action_input, "time_labels"):
             feed_dict[self.qf_with_action_input.time_labels] = times
         return feed_dict
+
+    def _policy_update_feed_dict_from_batch(self, batch):
+        policy_feed = super()._policy_update_feed_dict_from_batch(batch)
+        (
+            last_rewards,
+            last_terminals,
+            last_obs,
+            last_actions,
+            last_next_obs,
+            last_target_numbers,
+            last_times,
+        ) = self._subtraj_batch_to_last_flat_batch(batch)
+        policy_feed.update(self._oracle_qf_feed_dict_for_policy(
+            rewards=last_rewards,
+            terminals=last_terminals,
+            obs=self._split_flat_obs(last_obs),
+            actions=self._split_flat_actions(last_actions),
+            next_obs=self._split_flat_obs(last_next_obs),
+            target_numbers=last_target_numbers,
+            times=last_times,
+        ))
+        return policy_feed
+
+    def _subtraj_batch_to_last_flat_batch(self, batch):
+        rewards = batch['rewards']
+        terminals = batch['terminals']
+        obs = batch['observations']
+        actions = batch['actions']
+        next_obs = batch['next_observations']
+        target_numbers = batch['target_numbers']
+        times = batch['times']
+
+        last_rewards = rewards[:, -1]
+        last_terminals = terminals[:, -1]
+        last_obs = self._get_time_step(obs, t=-1)
+        last_actions = self._get_time_step(actions, t=-1)
+        last_next_obs = self._get_time_step(next_obs, t=-1)
+        last_target_numbers = target_numbers[:, -1]
+        last_times = times[:, -1]
+
+        return (
+            last_rewards,
+            last_terminals,
+            last_obs,
+            last_actions,
+            last_next_obs,
+            last_target_numbers,
+            last_times,
+        )
+
