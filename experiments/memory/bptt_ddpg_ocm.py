@@ -224,6 +224,7 @@ def run_ocm_experiment(variant):
         policy,
         qf,
         env_obs_dim=env_obs_dim,
+        env_action_dim=env_action_dim,
         replay_buffer_class=OcmSubtrajReplayBuffer,
         **ddpg_params
     )

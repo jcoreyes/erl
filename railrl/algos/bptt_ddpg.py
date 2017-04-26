@@ -35,6 +35,7 @@ class BpttDDPG(DDPG):
             qf: NNQFunction,
             num_bptt_unrolls=1,
             env_obs_dim=None,
+            env_action_dim=None,
             replay_pool_size=10000,
             replay_buffer_class=SubtrajReplayBuffer,
             freeze_hidden=False,
@@ -69,6 +70,7 @@ class BpttDDPG(DDPG):
         ]
         self._num_bptt_unrolls = num_bptt_unrolls
         self._env_obs_dim = env_obs_dim
+        self._env_action_dim = env_action_dim
         self._freeze_hidden = freeze_hidden
         self._bpt_bellman_error_weight = bpt_bellman_error_weight
         self.train_policy = train_policy
@@ -324,11 +326,15 @@ class BpttDDPG(DDPG):
         Backprop the Bellman error through time, i.e. through dQ/dwrite action
         """
         if self._bpt_bellman_error_weight > 0.:
+            self.next_env_obs_ph_for_policy_bpt_bellman = tf.placeholder(
+                tf.float32,
+                [None, self._env_obs_dim]
+            )
             # You need to replace the next memory state with the last write
             # action. See writeup for more details.
             target_observation_input = (
-                self.target_policy.observation_input[0],  # o_{t+1}^buffer
-                self._final_rnn_augmented_action[1]       # m_{t+1} = w_t
+                self.next_env_obs_ph_for_policy_bpt_bellman,  # o_{t+1}^buffer
+                self._final_rnn_augmented_action[1]           # m_{t+1} = w_t
             )
             self.target_policy_for_policy = self.policy.get_copy(
                 name_or_scope=(
@@ -350,13 +356,21 @@ class BpttDDPG(DDPG):
                 * self.target_qf_for_policy.output
             )
 
+            self.env_action_ph_for_policy_bpt_bellman = tf.placeholder(
+                tf.float32,
+                [None, self._env_action_dim]
+            )
+            self.env_observation_ph_for_policy_bpt_bellman = tf.placeholder(
+                tf.float32,
+                [None, self._env_obs_dim]
+            )
             action_input = (
-                self.qf.action_input[0],              # a_t^buffer
-                self._final_rnn_augmented_action[1],  # w_t
+                self.env_action_ph_for_policy_bpt_bellman,  # a_t^buffer
+                self._final_rnn_augmented_action[1],        # w_t
             )
             observation_input = (
-                self.qf.observation_input[0],  # o_t^buffer
-                self._final_rnn_memory_input,  # m_t
+                self.env_observation_ph_for_policy_bpt_bellman,  # o_t^buffer
+                self._final_rnn_memory_input,                    # m_t
             )
             self.qf_for_policy = self.qf.get_weight_tied_copy(
                 action_input=action_input,
@@ -438,22 +452,26 @@ class BpttDDPG(DDPG):
         initial_memory_obs = self._get_time_step(obs, 0)[1]
         env_obs, _ = obs
         feed_dict = {
-            # self.qf_with_action_input.observation_input: last_obs,
             self._rnn_inputs_ph: env_obs,
             self._rnn_init_state_ph: initial_memory_obs,
-            # self.policy.observation_input: last_obs,  # this is for eval to work
         }
         if self._bpt_bellman_error_weight > 0.:
             next_obs = self._split_flat_obs(batch['next_observations'])
             actions = self._split_flat_actions(batch['actions'])
             last_rewards = batch['rewards'][:, -1:]
             last_terminals = batch['terminals'][:, -1:]
-            last_obs = self._get_time_step(obs, -1)
-            last_next_obs = self._get_time_step(next_obs, -1)
-            last_actions = self._get_time_step(actions, -1)
-            feed_dict[self.qf.observation_input] = last_obs
-            feed_dict[self.target_policy.observation_input] = last_next_obs
-            feed_dict[self.qf.action_input] = last_actions
+            last_env_obs = self._get_time_step(obs, -1)[0]
+            last_next_env_obs = self._get_time_step(next_obs, -1)[0]
+            last_env_actions = self._get_time_step(actions, -1)[0]
+            feed_dict[self.env_observation_ph_for_policy_bpt_bellman] = (
+                last_env_obs
+            )
+            feed_dict[self.next_env_obs_ph_for_policy_bpt_bellman] = (
+                last_next_env_obs
+            )
+            feed_dict[self.env_action_ph_for_policy_bpt_bellman] = (
+                last_env_actions
+            )
             feed_dict[self.rewards_placeholder] = last_rewards
             feed_dict[self.terminals_placeholder] = last_terminals
         return feed_dict
