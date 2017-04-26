@@ -194,6 +194,10 @@ class BpttDDPG(DDPG):
         target_numbers = batch['target_numbers']
         times = batch['times']
 
+        """
+        The batch is a bunch of subsequences. Flatten the subsequences so
+        that they just look like normal (s, a, s') tuples.
+        """
         flat_actions = actions.reshape(-1, actions.shape[-1])
         flat_obs = obs.reshape(-1, obs.shape[-1])
         flat_next_obs = next_obs.reshape(-1, next_obs.shape[-1])
@@ -298,32 +302,22 @@ class BpttDDPG(DDPG):
         self._save_rnn_cell = OutputStateRnn(
             self._rnn_cell,
         )
-        with tf.variable_scope(self._rnn_cell_scope):
-            self._rnn_outputs, self._rnn_final_state = tf.contrib.rnn.static_rnn(
-                self._save_rnn_cell,
-                self._rnn_inputs_unstacked,
-                initial_state=self._rnn_init_state_ph,
-                dtype=tf.float32,
-                scope=self._rnn_cell_scope,
-            )
-        self._final_rnn_output = self._rnn_outputs[-1][0]
-        self._final_rnn_action = (
-            self._final_rnn_output,  # pi_a(o, m)
-            self._rnn_final_state,  # pi_w(o, m)
+        self._rnn_outputs, self._rnn_final_state = tf.contrib.rnn.static_rnn(
+            self._save_rnn_cell,
+            self._rnn_inputs_unstacked,
+            initial_state=self._rnn_init_state_ph,
+            dtype=tf.float32,
+            scope=self._rnn_cell_scope,
         )
-        self._final_rnn_action = self._rnn_outputs[-1]
-        self._final_rnn_input = (
-            self._rnn_inputs_unstacked[-1],  # o
-            # self._rnn_outputs[-2][1]       # This is right, but doesn't work
-            self.qf.observation_input[1],  # TODO(vitchyr): Why's this better?
-        )
-        self._final_rnn_input = (
+        self._final_rnn_augmented_action = self._rnn_outputs[-1]
+        self._final_rnn_memory_input = self._rnn_outputs[-2][1]
+        self._final_rnn_augmented_input = (
             self._rnn_inputs_unstacked[-1],
-            self._rnn_outputs[-2][1]
+            self._final_rnn_memory_input,
         )
         self.qf_with_action_input = self.qf.get_weight_tied_copy(
-            action_input=self._final_rnn_action,
-            observation_input=self._final_rnn_input,
+            action_input=self._final_rnn_augmented_action,
+            observation_input=self._final_rnn_augmented_input,
         )
 
         """
@@ -334,14 +328,18 @@ class BpttDDPG(DDPG):
             # action. See writeup for more details.
             target_observation_input = (
                 self.target_policy.observation_input[0],  # o_{t+1}^buffer
-                self._final_rnn_action[1]   # m_{t+1} = w_t
+                self._final_rnn_augmented_action[1]       # m_{t+1} = w_t
             )
             self.target_policy_for_policy = self.policy.get_copy(
-                name_or_scope=TARGET_PREFIX + '2' + self.policy.scope_name,
+                name_or_scope=(
+                    TARGET_PREFIX + '_for_policy' + self.policy.scope_name
+                ),
                 observation_input=target_observation_input,
             )
             self.target_qf_for_policy = self.qf.get_copy(
-                name_or_scope=TARGET_PREFIX + '2' + self.qf.scope_name,
+                name_or_scope=(
+                    TARGET_PREFIX + '_for_policy' + self.qf.scope_name
+                ),
                 action_input=self.target_policy_for_policy.output,
                 observation_input=target_observation_input,
             )
@@ -353,22 +351,20 @@ class BpttDDPG(DDPG):
             )
 
             action_input = (
-                self.qf.action_input[0],    # a_t^buffer
-                self._final_rnn_action[1],  # w_t
+                self.qf.action_input[0],              # a_t^buffer
+                self._final_rnn_augmented_action[1],  # w_t
             )
-            # action_input = self._final_rnn_action
             observation_input = (
-                # self._rnn_inputs_unstacked[-1],  # o_t^buffer
                 self.qf.observation_input[0],  # o_t^buffer
-                self._rnn_outputs[-2][1],        # m_t
+                self._final_rnn_memory_input,  # m_t
             )
-            self.qf_from_policy = self.qf.get_weight_tied_copy(
+            self.qf_for_policy = self.qf.get_weight_tied_copy(
                 action_input=action_input,
                 observation_input=observation_input,
             )
             self.bellman_error_for_policy = tf.squeeze(tf_util.mse(
                 self.ys_for_policy,
-                self.qf_from_policy.output
+                self.qf_for_policy.output
             ))
 
     def _init_policy_loss_and_train_ops(self):

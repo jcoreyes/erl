@@ -311,26 +311,26 @@ if __name__ == '__main__':
     """
     Algo params
     """
-    num_extra_qf_updates = 10
+    num_extra_qf_updates = 0
     qf_learning_rate = 1e-3
     policy_learning_rate = 1e-3
     soft_target_tau = 0.01
     qf_weight_decay = 0.01
     num_bptt_unrolls = 6
+    qf_total_loss_tolerance = -9999
+    max_num_q_updates = 100
+    train_policy = True
+    extra_qf_training_mode = 'none'
 
     """
     Regression Params
     """
-    qf_total_loss_tolerance = -9999
-    max_num_q_updates = 100
-    train_policy = True
     env_grad_distance_weight = 0.
     write_grad_distance_weight = 0.
     qf_grad_mse_from_one_weight = 0.
+    regress_onto_values = False
     use_hint_qf = True
     use_time = True
-    regress_onto_values = False
-    extra_qf_training_mode = 'none'
 
     """
     Exploration params

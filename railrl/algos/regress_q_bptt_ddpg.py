@@ -49,7 +49,7 @@ class RegressQBpttDdpg(BpttDDPG):
     def _init_policy_ops(self):
         super()._init_policy_ops()
         self.oracle_qf = self.oracle_qf.get_weight_tied_copy(
-            action_input=self._final_rnn_action,
+            action_input=self._final_rnn_augmented_action,
         )
 
     def _init_qf_loss_and_train_ops(self):
