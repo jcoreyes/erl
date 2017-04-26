@@ -235,17 +235,6 @@ class RegressQBpttDdpg(BpttDDPG):
             feed_dict[self.target_qf.time_labels] = times
         return feed_dict
 
-    def _update_feed_dict_from_batch(self, batch):
-        return self._update_feed_dict(
-            rewards=batch['rewards'],
-            terminals=batch['terminals'],
-            obs=batch['observations'],
-            actions=batch['actions'],
-            next_obs=batch['next_observations'],
-            target_numbers=batch['target_numbers'],
-            times=batch['times'],
-        )
-
     def _get_other_statistics(self):
         if self.pool.num_can_sample(validation=True) < self.batch_size:
             return {}
@@ -421,27 +410,7 @@ class RegressQBpttDdpg(BpttDDPG):
 
     def _policy_feed_dict_from_batch(self, batch):
         policy_feed = super()._policy_feed_dict_from_batch(batch)
-        (
-            last_rewards,
-            last_terminals,
-            last_obs,
-            last_actions,
-            last_next_obs,
-            last_target_numbers,
-            last_times,
-        ) = self._subtraj_batch_to_last_flat_batch(batch)
-        policy_feed.update(self._oracle_qf_feed_dict_for_policy(
-            rewards=last_rewards,
-            terminals=last_terminals,
-            obs=self._split_flat_obs(last_obs),
-            actions=self._split_flat_actions(last_actions),
-            next_obs=self._split_flat_obs(last_next_obs),
-            target_numbers=last_target_numbers,
-            times=last_times,
-        ))
-        return policy_feed
 
-    def _subtraj_batch_to_last_flat_batch(self, batch):
         rewards = batch['rewards']
         terminals = batch['terminals']
         obs = batch['observations']
@@ -458,13 +427,14 @@ class RegressQBpttDdpg(BpttDDPG):
         last_target_numbers = target_numbers[:, -1]
         last_times = times[:, -1]
 
-        return (
-            last_rewards,
-            last_terminals,
-            last_obs,
-            last_actions,
-            last_next_obs,
-            last_target_numbers,
-            last_times,
-        )
+        policy_feed.update(self._oracle_qf_feed_dict_for_policy(
+            rewards=last_rewards,
+            terminals=last_terminals,
+            obs=self._split_flat_obs(last_obs),
+            actions=self._split_flat_actions(last_actions),
+            next_obs=self._split_flat_obs(last_next_obs),
+            target_numbers=last_target_numbers,
+            times=last_times,
+        ))
+        return policy_feed
 
