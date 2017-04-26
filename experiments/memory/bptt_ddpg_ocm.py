@@ -256,8 +256,8 @@ def create_run_experiment_multiple_seeds(n_seeds):
 if __name__ == '__main__':
     n_seeds = 1
     mode = 'here'
-    exp_prefix = 'dev-4-24-bptt-ddpg-ocm'
     # exp_prefix = '4-24-bptt-ddpg-ocm-bpt-bellman-error-correct-target-next-mem'
+    exp_prefix = "dev-bptt-ddpg-ocm"
     run_mode = 'none'
     version = 'dev'
 
@@ -267,7 +267,7 @@ if __name__ == '__main__':
     n_batches_per_epoch = 100
     n_batches_per_eval = 64
     batch_size = 32
-    n_epochs = 25
+    n_epochs = 10
     memory_dim = 20
     min_pool_size = max(n_batches_per_epoch, batch_size)
     replay_pool_size = 100000
@@ -285,9 +285,9 @@ if __name__ == '__main__':
     Policy Params
     """
     # policy_rnn_cell_class = LinearRnnCell
-    policy_rnn_cell_class = OutputAwareLstmCell
+    # policy_rnn_cell_class = OutputAwareLstmCell
     # policy_rnn_cell_class = IRnnCell
-    # policy_rnn_cell_class = LstmLinearCell
+    policy_rnn_cell_class = LstmLinearCell
     # policy_rnn_cell_class = FrozenHiddenLstmLinearCell
     load_policy_file = (
         '/home/vitchyr/git/rllab-rail/railrl/data/reference/expert'
@@ -324,7 +324,7 @@ if __name__ == '__main__':
     env_grad_distance_weight = 0.
     write_grad_distance_weight = 0.
     qf_grad_mse_from_one_weight = 0.
-    use_hint_qf = True
+    use_hint_qf = False
     regress_onto_values = False
     extra_qf_training_mode = 'none'
 
@@ -338,17 +338,18 @@ if __name__ == '__main__':
         max_sigma=1.0,
         min_sigma=0.5,
         decay_period=500,
+        softmax=True
     )
-    memory_es_class = NoopStrategy
+    # memory_es_class = NoopStrategy
     # memory_es_class = OneHotSampler
-    # memory_es_class = OUStrategy
+    memory_es_class = OUStrategy
     memory_es_params = dict(
         max_sigma=0.5,
         min_sigma=0.1,
         decay_period=1000,
         softmax=True,
     )
-    noise_action_to_memory = True
+    noise_action_to_memory = False
 
 
     """
@@ -396,6 +397,9 @@ if __name__ == '__main__':
     )
     policy_params = dict(
         rnn_cell_class=policy_rnn_cell_class,
+        rnn_cell_params=dict(
+            use_peepholes=True,
+        )
     )
     qf_params = dict(
         # hidden_nonlinearity=tf.nn.relu,

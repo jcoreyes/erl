@@ -3,9 +3,10 @@ import tensorflow as tf
 
 from railrl.core import tf_util
 from railrl.policies.memory.rnn_cell_policy import RnnCellPolicy
+from tensorflow.contrib.rnn import LSTMCell
 
 
-class LstmLinearCell(tf.contrib.rnn.LSTMCell):
+class LstmLinearCell(LSTMCell):
     """
     LSTM cell with a linear unit + softmax before the output.
     """
@@ -42,7 +43,7 @@ class LstmLinearCell(tf.contrib.rnn.LSTMCell):
         return self._output_dim
 
 
-class OutputAwareLstmCell(tf.contrib.rnn.LSTMCell):
+class OutputAwareLstmCell(LSTMCell):
     """
     Env action = linear function of input.
     LSTM input = env action and env observation.
@@ -84,7 +85,7 @@ class OutputAwareLstmCell(tf.contrib.rnn.LSTMCell):
         return self._output_dim
 
 
-class FrozenHiddenLstmLinearCell(tf.contrib.rnn.LSTMCell):
+class FrozenHiddenLstmLinearCell(LSTMCell):
     def __init__(
             self,
             num_units,
@@ -238,8 +239,11 @@ class LstmMemoryPolicy(RnnCellPolicy):
             memory_dim,
             init_state=None,
             rnn_cell_class=LstmLinearCell,
+            rnn_cell_params=None,
             **kwargs
     ):
+        if rnn_cell_params is None:
+            rnn_cell_params = {}
         assert memory_dim % 2 == 0
         self.setup_serialization(locals())
         super().__init__(name_or_scope=name_or_scope, **kwargs)
@@ -248,6 +252,7 @@ class LstmMemoryPolicy(RnnCellPolicy):
         self._rnn_cell = None
         self._rnn_cell_scope = None
         self.rnn_cell_class = rnn_cell_class
+        self.rnn_cell_params = rnn_cell_params
         self.init_state = self._placeholder_if_none(
             init_state,
             [None, self._memory_dim],
@@ -262,6 +267,7 @@ class LstmMemoryPolicy(RnnCellPolicy):
         self._rnn_cell = self.rnn_cell_class(
             self._memory_dim,
             self._action_dim,
+            **self.rnn_cell_params
         )
         # TODO(vitchyr): I'm pretty sure that this rnn_cell_scope should NOT
         # be passed into the _rnn_cell method. Basically, it should be passed

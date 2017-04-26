@@ -15,6 +15,7 @@ from railrl.envs.memory.continuous_memory_augmented import (
 from railrl.envs.memory.one_char_memory import (
     OneCharMemory,
     OneCharMemoryEndOnly,
+    OneCharMemoryOutputRewardMag,
 )
 from rllab import config
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
@@ -106,6 +107,9 @@ def get_env_settings(
     elif env_id == 'ocme':
         env = OneCharMemoryEndOnly(**init_env_params)
         name = "OneCharMemoryEndOnly"
+    elif env_id == 'ocmr':
+        env = OneCharMemoryOutputRewardMag(**init_env_params)
+        name = "OneCharMemoryOutputRewardMag"
     elif env_id == 'gym':
         if gym_name == "":
             raise Exception("Must provide a gym name")
