@@ -141,6 +141,7 @@ def run_ocm_experiment(variant):
             action_dim=env_action_dim,
             memory_dim=memory_dim,
             env_spec=env.spec,
+            num_env_obs_dims_to_use=env_params['n']+1,
             **policy_params
         )
 
@@ -256,8 +257,8 @@ def create_run_experiment_multiple_seeds(n_seeds):
 if __name__ == '__main__':
     n_seeds = 1
     mode = 'here'
-    # exp_prefix = '4-24-bptt-ddpg-ocm-bpt-bellman-error-correct-target-next-mem'
-    exp_prefix = "dev-bptt-ddpg-ocm"
+    exp_prefix = '4-26-bptt-ddpg-ocm-hint-qf-vs-hint-env-correct'
+    # exp_prefix = "dev-bptt-ddpg-ocm"
     run_mode = 'none'
     version = 'dev'
 
@@ -304,6 +305,8 @@ if __name__ == '__main__':
     H = 6
     num_values = 2
     zero_observation = True
+    env_output_target_number = True
+    env_output_time = True
 
     """
     Algo params
@@ -324,8 +327,8 @@ if __name__ == '__main__':
     env_grad_distance_weight = 0.
     write_grad_distance_weight = 0.
     qf_grad_mse_from_one_weight = 0.
-    use_hint_qf = True
-    use_time = True
+    use_hint_qf = False
+    use_time = False
     regress_onto_values = False
     extra_qf_training_mode = 'none'
 
@@ -418,6 +421,8 @@ if __name__ == '__main__':
         num_steps=H,
         zero_observation=zero_observation,
         max_reward_magnitude=1,
+        output_target_number=env_output_target_number,
+        output_time=env_output_time,
     )
     variant = dict(
         exp_prefix=exp_prefix,
@@ -495,14 +500,7 @@ if __name__ == '__main__':
         )
     elif run_mode == 'grid':
         search_space = {
-            'ddpg_params.bpt_bellman_error_weight': [0, 0.0001, 0.001, 0.1, 1.,
-                                                      10., 100., 1000.],
-            # 'es_params.env_es_params.max_sigma': [5, 2, 1, 0.5],
-            # 'es_params.env_es_params.min_sigma': [1, 0.5, 0.],
-            # 'es_params.env_es_params.decay_period': [1000, 500, 100],
-            # 'memory_params.memory_es_params.max_sigma': [0.5, 0.1],
-            # 'memory_params.memory_es_params.min_sigma': [0.1, 0.],
-            # 'memory_params.memory_es_params.decay_period': [1000, 100],
+            'env_params.output_time': [True, False],
         }
         sweeper = DeterministicHyperparameterSweeper(search_space,
                                                      default_parameters=variant)

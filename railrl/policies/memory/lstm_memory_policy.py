@@ -3,7 +3,38 @@ import tensorflow as tf
 
 from railrl.core import tf_util
 from railrl.policies.memory.rnn_cell_policy import RnnCellPolicy
-from tensorflow.contrib.rnn import LSTMCell
+from tensorflow.contrib.rnn import RNNCell, LSTMCell
+
+
+class SplitterCell(RNNCell):
+    """
+    Remove some stuff from the end of the input before feeding it to the
+    wrapped RNN.
+    """
+    def __init__(self, rnn_cell, num_or_size_splits):
+        """
+        :param rnn_cell: Some RNNCell
+        :param num_or_size_splits: See
+        https://www.tensorflow.org/api_docs/python/tf/split
+        """
+        self.rnn_cell = rnn_cell
+        self.num_or_size_splits = num_or_size_splits
+
+    def __call__(self, inputs, state, **kwargs):
+        inputs = tf.split(
+            inputs,
+            self.num_or_size_splits,
+            axis=1,
+        )[0]
+        return self.rnn_cell.__call__(inputs, state, **kwargs)
+
+    @property
+    def state_size(self):
+        return self.rnn_cell.state_size
+
+    @property
+    def output_size(self):
+        return self.rnn_cell.output_size
 
 
 class LstmLinearCell(LSTMCell):
@@ -237,6 +268,7 @@ class LstmMemoryPolicy(RnnCellPolicy):
             name_or_scope,
             action_dim,
             memory_dim,
+            num_env_obs_dims_to_use,
             init_state=None,
             rnn_cell_class=LstmLinearCell,
             rnn_cell_params=None,
@@ -251,6 +283,10 @@ class LstmMemoryPolicy(RnnCellPolicy):
         self._action_dim = action_dim
         self._rnn_cell = None
         self._rnn_cell_scope = None
+        self._num_env_obs_dims_to_use = num_env_obs_dims_to_use
+        self._num_env_obs_dims_to_ignore = (
+            self.observation_dim[0] - num_env_obs_dims_to_use
+        )
         self.rnn_cell_class = rnn_cell_class
         self.rnn_cell_params = rnn_cell_params
         self.init_state = self._placeholder_if_none(
@@ -269,6 +305,14 @@ class LstmMemoryPolicy(RnnCellPolicy):
             self._action_dim,
             **self.rnn_cell_params
         )
+        if self._num_env_obs_dims_to_ignore > 0:
+            self._rnn_cell = SplitterCell(
+                self._rnn_cell,
+                [
+                    self._num_env_obs_dims_to_use,
+                    self._num_env_obs_dims_to_ignore,
+                ],
+            )
         # TODO(vitchyr): I'm pretty sure that this rnn_cell_scope should NOT
         # be passed into the _rnn_cell method. Basically, it should be passed
         # to other functions like static_rnn. It seems that the scope that
