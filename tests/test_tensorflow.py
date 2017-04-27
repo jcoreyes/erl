@@ -212,6 +212,29 @@ class TestTensorFlowRnns(TFTestCase):
         def output_size(self):
             return self._dim
 
+    class _AddOneNoiseRnn(tf.contrib.rnn.RNNCell):
+        """
+        A simple RNN that just adds one to the state. The output is input +
+        state.
+        """
+        def __init__(self, dim):
+            self._dim = dim
+
+        def __call__(self, inputs, state, scope=None):
+            return inputs + state, state + tf.random_uniform(
+                tf.shape(state),
+                minval=1.,
+                maxval=1.1,
+            )
+
+        @property
+        def state_size(self):
+            return self._dim
+
+        @property
+        def output_size(self):
+            return self._dim
+
     class _AddOneRnnLastActionInState(tf.contrib.rnn.RNNCell):
         """
         Same as _AddOneRNN, but also add the last action to the state state.
@@ -231,7 +254,7 @@ class TestTensorFlowRnns(TFTestCase):
 
         @property
         def state_size(self):
-            return self._dim
+            return self._dim, self._dim
 
         @property
         def output_size(self):
@@ -448,6 +471,30 @@ class TestTensorFlowRnns(TFTestCase):
         # Check values
         gradient_expected = np.array([6])  # = 0 + 0 + 1 + 2 + 3
         self.assertNpArraysEqual(gradient_values, gradient_expected)
+
+    def test_added_noise_sum_correctly(self):
+        rnn_cell = TestTensorFlowRnns._AddOneNoiseRnn(1)
+        input_ph = tf.placeholder(tf.float32, shape=(None, 4, 1))
+        rnn_inputs = tf.unstack(input_ph, axis=1)
+        with tf.variable_scope("rnn"):
+            rnn_outputs, rnn_final_state = tf.contrib.rnn.static_rnn(
+                rnn_cell,
+                rnn_inputs,
+                dtype=tf.float32,
+            )
+        last_output = rnn_outputs[-1]
+
+        x_values = np.zeros((5, 4, 1))
+        self.sess.run(tf.global_variables_initializer())
+        output = self.sess.run(
+            last_output,
+            feed_dict={
+                input_ph: x_values,
+            }
+        )
+
+        # Check values
+        self.assertTrue(np.all(3 <= output) and np.all(output < 3.3))
 
 if __name__ == '__main__':
     unittest.main()
