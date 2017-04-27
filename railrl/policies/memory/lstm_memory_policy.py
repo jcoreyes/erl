@@ -45,17 +45,31 @@ class LstmLinearCell(LSTMCell):
             self,
             num_units,
             output_dim,
+            env_noise_std=0.,
+            memory_noise_std=0.,
             **kwargs
     ):
         super().__init__(num_units / 2, **kwargs)
         self._output_dim = output_dim
+        self._env_noise_std = env_noise_std
+        self._memory_noise_std = memory_noise_std
 
     def __call__(self, inputs, state, scope=None):
         with tf.variable_scope(scope or "linear_lstm") as self.scope:
             split_state = tf.split(axis=1, num_or_size_splits=2, value=state)
-            lstm_output, lstm_state = super().__call__(inputs, split_state,
+            _, (lstm_output, lstm_state) = super().__call__(inputs, split_state,
                                                        scope=self.scope)
-            flat_state = tf.concat(axis=1, values=lstm_state)
+
+            if self._env_noise_std > 0.:
+                lstm_output += self._env_noise_std * tf.random_normal(
+                    tf.shape(lstm_output)
+                )
+            if self._memory_noise_std > 0.:
+                lstm_state += self._memory_noise_std * tf.random_normal(
+                    tf.shape(lstm_state)
+                )
+
+            flat_state = tf.concat(axis=1, values=(lstm_output, lstm_state))
 
             with tf.variable_scope('env_action') as self.env_action_scope:
                 W = tf.get_variable('W', [self._num_units, self._output_dim])

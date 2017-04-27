@@ -141,7 +141,7 @@ def run_ocm_experiment(variant):
             action_dim=env_action_dim,
             memory_dim=memory_dim,
             env_spec=env.spec,
-            num_env_obs_dims_to_use=env_params['n']+1,
+            num_env_obs_dims_to_use=env_params['n'] + 1,
             **policy_params
         )
 
@@ -252,13 +252,14 @@ def create_run_experiment_multiple_seeds(n_seeds):
                 exp_id=i,
             ))
         return np.mean(scores)
+
     return run_experiment_with_multiple_seeds
 
 
 if __name__ == '__main__':
     n_seeds = 1
     mode = 'here'
-    # exp_prefix = '4-26-bptt-ddpg-ocm-hint-qf-vs-hint-env-correct'
+    # exp_prefix = '4-26-bptt-ddpg-ocm-long-stochastic-rnn'
     exp_prefix = "dev-bptt-ddpg-ocm"
     run_mode = 'none'
     version = 'dev'
@@ -273,7 +274,7 @@ if __name__ == '__main__':
     memory_dim = 20
     min_pool_size = max(n_batches_per_epoch, batch_size)
     replay_pool_size = 100000
-    bpt_bellman_error_weight = 1.
+    bpt_bellman_error_weight = 0.
 
     """
     Algorithm Selection
@@ -321,7 +322,7 @@ if __name__ == '__main__':
     qf_total_loss_tolerance = -9999
     max_num_q_updates = 100
     train_policy = True
-    extra_qf_training_mode = 'fixed'
+    extra_qf_training_mode = 'none'
 
     """
     Regression Params
@@ -331,13 +332,13 @@ if __name__ == '__main__':
     qf_grad_mse_from_one_weight = 0.
     regress_onto_values = False
     use_hint_qf = True
-    use_time = True
+    use_time = False
 
     """
     Exploration params
     """
     env_es_class = NoopStrategy
-    env_es_class = OneHotSampler
+    # env_es_class = OneHotSampler
     # env_es_class = OUStrategy
     env_es_params = dict(
         max_sigma=1.0,
@@ -346,9 +347,9 @@ if __name__ == '__main__':
         softmax=True,
         laplace_weight=0.,
     )
-    # memory_es_class = NoopStrategy
+    memory_es_class = NoopStrategy
     # memory_es_class = OneHotSampler
-    memory_es_class = OUStrategy
+    # memory_es_class = OUStrategy
     memory_es_params = dict(
         max_sigma=0.5,
         min_sigma=0.1,
@@ -357,6 +358,12 @@ if __name__ == '__main__':
     )
     noise_action_to_memory = False
 
+    """
+    LSTM Cell params
+    """
+    use_peepholes = True
+    env_noise_std = 0.
+    memory_noise_std = 0.
 
     """
     Create them dict's
@@ -404,7 +411,9 @@ if __name__ == '__main__':
     policy_params = dict(
         rnn_cell_class=policy_rnn_cell_class,
         rnn_cell_params=dict(
-            use_peepholes=True,
+            use_peepholes=use_peepholes,
+            env_noise_std=env_noise_std,
+            memory_noise_std=memory_noise_std,
         )
     )
     qf_params = dict(
