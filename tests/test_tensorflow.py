@@ -221,11 +221,51 @@ class TestTensorFlowRnns(TFTestCase):
             self._dim = dim
 
         def __call__(self, inputs, state, scope=None):
-            return inputs + state, state + tf.random_uniform(
+            input_noise = tf.random_uniform(
+                tf.shape(inputs),
+                minval=1.,
+                maxval=1.1,
+            )
+            return inputs + state + input_noise, state + tf.random_uniform(
                 tf.shape(state),
                 minval=1.,
                 maxval=1.1,
             )
+
+        @property
+        def state_size(self):
+            return self._dim
+
+        @property
+        def output_size(self):
+            return self._dim
+
+    class _TimesOneAddOneNoiseRnn(tf.contrib.rnn.RNNCell):
+        """
+        A simple RNN that just adds one to the state. The output is input +
+        state.
+        """
+        def __init__(self, dim):
+            self._dim = dim
+            self.w = tf.get_variable(
+                "w_variable",
+                shape=[1],
+                initializer=tf.constant_initializer(
+                    value=[1.],
+                    dtype=tf.float32,
+                )
+            )
+
+        def __call__(self, inputs, state, scope=None):
+            return self.w*state, state + tf.random_uniform(
+                tf.shape(state),
+                minval=1.,
+                maxval=1.1,
+            )
+
+        @property
+        def var(self):
+            return self.w
 
         @property
         def state_size(self):
@@ -482,19 +522,49 @@ class TestTensorFlowRnns(TFTestCase):
                 rnn_inputs,
                 dtype=tf.float32,
             )
-        last_output = rnn_outputs[-1]
 
         x_values = np.zeros((5, 4, 1))
         self.sess.run(tf.global_variables_initializer())
-        output = self.sess.run(
-            last_output,
+        output_values = self.sess.run(
+            rnn_outputs,
             feed_dict={
                 input_ph: x_values,
             }
         )
 
         # Check values
-        self.assertTrue(np.all(3 <= output) and np.all(output < 3.3))
+        for i, output in enumerate(output_values):
+            self.assertTrue(np.all(i+1 <= output)
+                            and np.all(output < (i+1)*1.1))
+
+    def test_added_noise_gradient_correct(self):
+        batch_size = 5
+        rnn_cell = TestTensorFlowRnns._TimesOneAddOneNoiseRnn(1)
+        input_ph = tf.placeholder(tf.float32, shape=(None, 4, 1))
+        rnn_inputs = tf.unstack(input_ph, axis=1)
+        with tf.variable_scope("rnn"):
+            rnn_outputs, rnn_final_state = tf.contrib.rnn.static_rnn(
+                rnn_cell,
+                rnn_inputs,
+                dtype=tf.float32,
+            )
+        gradients = [tf.gradients(output, rnn_cell.var)[0] for output in
+                     rnn_outputs]
+
+        x_values = np.ones((batch_size, 4, 1))
+        self.sess.run(tf.global_variables_initializer())
+        output_values, grad_values = self.sess.run(
+            [rnn_outputs, gradients],
+            feed_dict={
+                input_ph: x_values,
+            }
+        )
+        grad_values = np.array(grad_values).flatten()
+
+        lb = np.array([0, 1, 2, 3]) * batch_size
+        ub = np.array([0, 1.1, 2.2, 3.3]) * batch_size
+
+        self.assertTrue(np.all(lb <= grad_values) and np.all(grad_values <= ub))
 
 if __name__ == '__main__':
     unittest.main()
