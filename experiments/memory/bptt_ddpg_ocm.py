@@ -312,16 +312,16 @@ if __name__ == '__main__':
     """
     Algo params
     """
-    num_extra_qf_updates = 0
+    num_extra_qf_updates = 100
     qf_learning_rate = 1e-3
     policy_learning_rate = 1e-3
     soft_target_tau = 0.01
     qf_weight_decay = 0.01
-    num_bptt_unrolls = 6
+    num_bptt_unrolls = 4
     qf_total_loss_tolerance = -9999
     max_num_q_updates = 100
     train_policy = True
-    extra_qf_training_mode = 'none'
+    extra_qf_training_mode = 'fixed'
 
     """
     Regression Params
@@ -343,7 +343,8 @@ if __name__ == '__main__':
         max_sigma=1.0,
         min_sigma=0.5,
         decay_period=500,
-        softmax=True
+        softmax=True,
+        laplace_weight=0.,
     )
     # memory_es_class = NoopStrategy
     # memory_es_class = OneHotSampler
