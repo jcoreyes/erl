@@ -47,6 +47,7 @@ class OnlineAlgorithm(RLAlgorithm):
             batch_norm_config=None,
             replay_pool: ReplayBuffer = None,
             allow_gpu_growth=True,
+            save_tf_graph=True,
     ):
         """
         :param env: Environment
@@ -95,6 +96,7 @@ class OnlineAlgorithm(RLAlgorithm):
         self.n_updates_per_time_step = n_updates_per_time_step
         self._batch_norm = batch_norm_config is not None
         self._batch_norm_config = batch_norm_config
+        self.save_tf_graph = save_tf_graph
 
         self.observation_dim = self.training_env.observation_space.flat_dim
         self.action_dim = self.training_env.action_space.flat_dim
@@ -154,7 +156,8 @@ class OnlineAlgorithm(RLAlgorithm):
 
     def _train(self):
         n_steps_total = 0
-        tf.summary.FileWriter(logger.get_snapshot_dir(), self.sess.graph)
+        if self.save_tf_graph:
+            tf.summary.FileWriter(logger.get_snapshot_dir(), self.sess.graph)
         with self.sess.as_default():
             self._init_training()
             self._start_worker()
