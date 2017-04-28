@@ -130,8 +130,8 @@ class BpttDDPG(DDPG):
             eval_pool.add_trajectory(path)
         batch = eval_pool.get_all_valid_subtrajectories()
 
-        qf_feed_dict = self._qf_feed_dict_from_batch(batch)
-        policy_feed_dict = self._policy_feed_dict_from_batch(batch)
+        qf_feed_dict = self._eval_qf_feed_dict_from_batch(batch)
+        policy_feed_dict = self._eval_policy_feed_dict_from_batch(batch)
         qf_stat_names, qf_ops = zip(*self._qf_statistic_names_and_ops())
         policy_stat_names, policy_ops = zip(
             *self._policy_statistic_names_and_ops())
@@ -222,6 +222,9 @@ class BpttDDPG(DDPG):
             times=flat_times,
         )
         return feed
+
+    def _eval_qf_feed_dict_from_batch(self, batch):
+        return self._qf_feed_dict_from_batch(batch)
 
     def _qf_statistic_names_and_ops(self):
         return [
@@ -443,7 +446,7 @@ class BpttDDPG(DDPG):
     def _policy_statistic_names_and_ops(self):
         return [
             ('PolicySurrogateLoss', self.policy_surrogate_loss),
-            ('PolicyOutput', self.policy.output),
+            ('FinalPolicyOutput', self.policy.output),
             # ('OracleQfOutput', self.oracle_qf.output),
         ]
 
@@ -474,6 +477,13 @@ class BpttDDPG(DDPG):
             )
             feed_dict[self.rewards_placeholder] = last_rewards
             feed_dict[self.terminals_placeholder] = last_terminals
+        return feed_dict
+
+    def _eval_policy_feed_dict_from_batch(self, batch):
+        feed_dict = self._policy_feed_dict_from_batch(batch)
+        obs = self._split_flat_obs(batch['observations'])
+        last_obs = self._get_time_step(obs, t=-1)
+        feed_dict[self.policy.observation_input] = last_obs
         return feed_dict
 
 

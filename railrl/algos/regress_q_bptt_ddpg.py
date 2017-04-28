@@ -307,7 +307,6 @@ class RegressQBpttDdpg(BpttDDPG):
             self.oracle_qf.sequence_length_placeholder: sequence_lengths,
             self.oracle_qf.rest_of_obs_placeholder: rest_of_obs,
             self.oracle_qf.observation_input: obs,
-            self.policy.observation_input: obs,
             self.oracle_qf.target_labels: target_one_hots,
         }
         if hasattr(self.qf_with_action_input, "target_labels"):
