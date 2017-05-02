@@ -19,17 +19,19 @@ from railrl.policies.memory.lstm_memory_policy import (
 
 
 def main():
-    num_seeds = 10
+    num_seeds = 5
     num_values = 2
+    version = 'supervised_learning'
+    exp_prefix = '4-30-comparison-short'
     for H, (rnn_cell_class, softmax), use_peepholes in product(
-        [128, 64, 32],
+        [8, 16],
         [
             # (LayerNormBasicLSTMCell, False),
-            (LSTMCell, True),
-            (DecoupledLSTM, False),
+            # (LSTMCell, True),
+            # (DecoupledLSTM, False),
             (LstmLinearCell, False),
         ],
-        [True, False],
+        [True],
         # [False],
         # [None],
     ):
@@ -43,8 +45,8 @@ def main():
                 )
             ),
             algo_params=dict(
-                num_batches_per_epoch=1000,
-                num_epochs=100,
+                num_batches_per_epoch=100,
+                num_epochs=20,
                 learning_rate=1e-3,
                 batch_size=32,
                 eval_num_episodes=64,
@@ -54,17 +56,19 @@ def main():
                     use_peepholes=use_peepholes,
                 ),
                 softmax=softmax,
-            )
+            ),
+            version=version,
         )
         for _ in range(num_seeds):
             seed = random.randint(0, 100000)
             run_experiment(
                 bptt_launcher,
                 # exp_prefix="dev-ocm-sl",
-                exp_prefix="4-25-ocm-sl-lstm-type-and-peephole--sweep",
+                # exp_prefix="4-25-ocm-sl-lstm-type-and-peephole--sweep",
+                exp_prefix=exp_prefix,
                 seed=seed,
                 variant=variant,
-                mode='ec2',
+                # mode='ec2',
             )
 
 

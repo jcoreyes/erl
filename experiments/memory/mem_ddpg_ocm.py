@@ -77,13 +77,13 @@ def run_linear_ocm_exp(variant):
 
 
 if __name__ == '__main__':
-    n_seeds = 3
-    exp_prefix = "dev-4-17-ocm-ddpg-memory"
+    n_seeds = 1
+    exp_prefix = "dev-5-1-no=bptt"
 
-    n_batches_per_epoch = 1000
+    n_batches_per_epoch = 100
     n_batches_per_eval = 64
     batch_size = 32
-    n_epochs = 10
+    n_epochs = 100
     memory_dim = 20
     # memory_dim = 4
     # min_pool_size = 10*max(n_batches_per_epoch, batch_size)
@@ -92,7 +92,7 @@ if __name__ == '__main__':
 
     USE_EC2 = False
     exp_id = -1
-    for H in [1]:
+    for H in [8]:
         for num_values in [2]:
             epoch_length = H * n_batches_per_epoch
             eval_samples = H * n_batches_per_eval
