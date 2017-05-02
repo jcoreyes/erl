@@ -259,10 +259,14 @@ def create_run_experiment_multiple_seeds(n_seeds):
 if __name__ == '__main__':
     n_seeds = 1
     mode = 'here'
-    # exp_prefix = '4-26-bptt-ddpg-ocm-long-stochastic-rnn'
     exp_prefix = "dev-bptt-ddpg-ocm"
     run_mode = 'none'
     version = 'dev'
+    # n_seeds = 5
+    # mode = 'ec2'
+    # exp_prefix = '5-1-no=bptt'
+    # run_mode = 'none'
+    # version = 'bptt-ddpg-bellman-stochastic-rnn'
 
     """
     DDPG Params
@@ -270,18 +274,17 @@ if __name__ == '__main__':
     n_batches_per_epoch = 100
     n_batches_per_eval = 64
     batch_size = 32
-    n_epochs = 10
-    memory_dim = 20
+    n_epochs = 20
+    memory_dim = 2
     min_pool_size = max(n_batches_per_epoch, batch_size)
     replay_pool_size = 100000
-    bpt_bellman_error_weight = 0.
+    bpt_bellman_error_weight = 1.
 
     """
     Algorithm Selection
     """
     oracle_mode = 'regress'
     algo_class = BpttDDPG
-    freeze_hidden = False
     unroll_through_target_policy = False
 
     """
@@ -304,7 +307,7 @@ if __name__ == '__main__':
     """
     # env_class = OneCharMemoryOutputRewardMag
     env_class = OneCharMemoryEndOnly
-    H = 6
+    H = 8
     num_values = 2
     zero_observation = True
     env_output_target_number = False
@@ -318,11 +321,12 @@ if __name__ == '__main__':
     policy_learning_rate = 1e-3
     soft_target_tau = 0.01
     qf_weight_decay = 0.01
-    num_bptt_unrolls = 4
+    num_bptt_unrolls = min(8, H)
     qf_total_loss_tolerance = -9999
     max_num_q_updates = 100
     train_policy = True
     extra_qf_training_mode = 'none'
+    freeze_hidden = False
 
     """
     Regression Params
@@ -331,7 +335,7 @@ if __name__ == '__main__':
     write_grad_distance_weight = 0.
     qf_grad_mse_from_one_weight = 0.
     regress_onto_values = False
-    use_hint_qf = True
+    use_hint_qf = False
     use_time = False
 
     """
@@ -363,7 +367,7 @@ if __name__ == '__main__':
     """
     use_peepholes = True
     env_noise_std = 0.
-    memory_noise_std = 0.
+    memory_noise_std = 1.
 
     """
     Create them dict's
@@ -395,6 +399,7 @@ if __name__ == '__main__':
         soft_target_tau=soft_target_tau,
         qf_weight_decay=qf_weight_decay,
         bpt_bellman_error_weight=bpt_bellman_error_weight,
+        save_tf_graph=False,
     )
     regress_params = dict(
         use_hint_qf=use_hint_qf,
@@ -511,7 +516,11 @@ if __name__ == '__main__':
         )
     elif run_mode == 'grid':
         search_space = {
-            'env_params.output_time': [True, False],
+            'policy_params.rnn_cell_params.env_noise_std':
+                [0., 0.1, 0.2, 0.4],
+            'policy_params.rnn_cell_params.memory_noise_std':
+                [0., 0.3, 1, 2],
+            'ddpg_params.bpt_bellman_error_weight': [0., 0.5, 1, 5]
         }
         sweeper = DeterministicHyperparameterSweeper(search_space,
                                                      default_parameters=variant)
@@ -521,6 +530,38 @@ if __name__ == '__main__':
                     get_ocm_score,
                     exp_prefix=exp_prefix,
                     seed=i,
+                    mode=mode,
+                    variant=variant,
+                    exp_id=exp_id,
+                )
+    elif run_mode == 'custom_grid':
+        for exp_id, (
+            version,
+            bpt_bellman_error_weight,
+            memory_noise_std,
+            env_noise_std
+        ) in enumerate([
+            ("Basic", 1., 1., 0.),
+            ("No Bpt Bellman Error", 0., 1., 0.),
+            ("No Stochastic RNN", 1., 0., 1.),
+            ("No Bpt Bellman Error, No Stochastic RNN", 0., 0., 1.),
+        ]):
+            exp_id += 1000
+            variant['version'] = version
+            variant['policy_params']['rnn_cell_params']['env_noise_std'] = (
+                env_noise_std
+            )
+            variant['policy_params']['rnn_cell_params']['memory_noise_std'] = (
+                memory_noise_std
+            )
+            variant['ddpg_params']['bpt_bellman_error_weight'] = (
+                bpt_bellman_error_weight
+            )
+            for seed in range(n_seeds):
+                run_experiment(
+                    get_ocm_score,
+                    exp_prefix=exp_prefix,
+                    seed=seed,
                     mode=mode,
                     variant=variant,
                     exp_id=exp_id,
