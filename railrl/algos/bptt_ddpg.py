@@ -315,6 +315,14 @@ class BpttDDPG(DDPG):
             scope=self._rnn_cell_scope,
         )
         self._final_rnn_augmented_action = self._rnn_outputs[-1]
+        # self._final_rnn_augmented_action = (
+        #     self._rnn_outputs[-1][0],
+        #     tf.where(
+        #         tf.squeeze(self.terminals_placeholder > 0),
+        #         self._rnn_outputs[-1][1],
+        #         tf.stop_gradient(self._rnn_outputs[-1][1]),
+        #     )
+        # )
         self._final_rnn_memory_input = self._rnn_outputs[-2][1]
         self._final_rnn_augmented_input = (
             self._rnn_inputs_unstacked[-1],
@@ -324,6 +332,27 @@ class BpttDDPG(DDPG):
             action_input=self._final_rnn_augmented_action,
             observation_input=self._final_rnn_augmented_input,
         )
+
+        # convert list of tuple into two lists
+        self._all_rnn_env_actions = [env_action for env_action, _
+                                     in self._rnn_outputs]
+        self._all_rnn_write_actions = [write_action for _, write_action
+                                     in self._rnn_outputs]
+        self._all_rnn_augmented_actions = (
+            tf.concat(self._all_rnn_env_actions, axis=0),
+            tf.concat(self._all_rnn_write_actions, axis=0),
+        )
+        self._all_rnn_augmented_observations = (
+            tf.concat(self._rnn_inputs_unstacked, axis=0),
+            tf.concat([self._rnn_init_state_ph] + [
+                write_action for _, write_action in self._rnn_outputs[:-1]
+            ], axis=0)
+        )
+
+        # self.qf_with_action_input = self.qf.get_weight_tied_copy(
+        #     action_input=self._all_rnn_augmented_actions,
+        #     observation_input=self._all_rnn_augmented_observations,
+        # )
 
         """
         Backprop the Bellman error through time, i.e. through dQ/dwrite action
