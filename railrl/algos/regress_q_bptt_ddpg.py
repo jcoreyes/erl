@@ -170,9 +170,6 @@ class RegressQBpttDdpg(BpttDDPG):
         return feed_dict
 
     def _get_other_statistics(self):
-        if self.pool.num_can_sample(validation=True) < self.batch_size:
-            return {}
-
         statistics = OrderedDict()
         for name, validation in [
             ('Valid', True),
