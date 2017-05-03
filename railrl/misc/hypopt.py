@@ -193,7 +193,11 @@ def optimize(
             params = flatten_hyperopt_choice_dict(params)
         if dotmap_to_nested_dictionary:
             params = dot_map_dict_to_nested_dict(params)
-        loss = function(merge_recursive_dicts(params, extra_function_kwargs))
+        loss = function(merge_recursive_dicts(
+            params,
+            extra_function_kwargs,
+            ignore_duplicate_keys_in_second_dict=True,
+        ))
         if maximize:
             loss = - loss
         if np.isnan(loss):

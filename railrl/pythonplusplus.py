@@ -129,7 +129,7 @@ def dot_map_dict_to_nested_dict(dot_map_dict):
 
 
 def merge_recursive_dicts(a, b, path=None,
-                          ignore_duplicat_keys_in_second_dict=False):
+                          ignore_duplicate_keys_in_second_dict=False):
     """
     Merge two dicts that may have nested dicts.
     """
@@ -138,12 +138,12 @@ def merge_recursive_dicts(a, b, path=None,
         if key in a:
             if isinstance(a[key], dict) and isinstance(b[key], dict):
                 merge_recursive_dicts(a[key], b[key], path + [str(key)],
-                                      ignore_duplicat_keys_in_second_dict=ignore_duplicat_keys_in_second_dict)
+                                      ignore_duplicate_keys_in_second_dict=ignore_duplicate_keys_in_second_dict)
             elif a[key] == b[key]:
                 pass  # same leaf value
             else:
                 duplicate_key = '.'.join(path + [str(key)])
-                if ignore_duplicat_keys_in_second_dict:
+                if ignore_duplicate_keys_in_second_dict:
                     print("duplicate key ignored: {}".format(duplicate_key))
                 else:
                     raise Exception(

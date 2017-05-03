@@ -163,7 +163,7 @@ class DeterministicHyperparameterSweeper(Sweeper):
             ppp.merge_recursive_dicts(
                 hyperparameters,
                 copy.deepcopy(self._default_kwargs),
-                ignore_duplicat_keys_in_second_dict=True,
+                ignore_duplicate_keys_in_second_dict=True,
             )
             for hyperparameters in self._hyperparameters_dicts
         ]

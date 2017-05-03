@@ -257,16 +257,27 @@ def create_run_experiment_multiple_seeds(n_seeds):
 
 
 if __name__ == '__main__':
-    n_seeds = 1
+    # n_seeds = 1
     mode = 'here'
-    exp_prefix = "dev-bptt-ddpg-ocm"
-    run_mode = 'none'
-    version = 'dev'
-    # n_seeds = 5
-    # mode = 'ec2'
-    # exp_prefix = '5-1-no=bptt'
+    # exp_prefix = "dev-bptt-ddpg-ocm"
     # run_mode = 'none'
-    # version = 'bptt-ddpg-bellman-stochastic-rnn'
+    # version = 'dev'
+    n_seeds = 3
+    # mode = 'ec2'
+    exp_prefix = '5-3-hyperopt'
+    run_mode = 'hyperopt'
+    version = 'dev'
+    """
+    Env param
+    """
+    # env_class = OneCharMemoryOutputRewardMag
+    env_class = OneCharMemoryEndOnly
+    H = 6
+    num_values = 2
+    zero_observation = True
+    env_output_target_number = False
+    env_output_time = False
+
 
     """
     DDPG Params
@@ -276,7 +287,8 @@ if __name__ == '__main__':
     batch_size = 32
     n_epochs = 20
     memory_dim = 2
-    min_pool_size = max(n_batches_per_epoch, batch_size)
+    min_pool_size = 32
+    # replay_pool_size = 32 * 5 * H
     replay_pool_size = 100000
     bpt_bellman_error_weight = 1.
 
@@ -303,21 +315,10 @@ if __name__ == '__main__':
     load_policy_file = 'none'
 
     """
-    Env param
-    """
-    # env_class = OneCharMemoryOutputRewardMag
-    env_class = OneCharMemoryEndOnly
-    H = 6
-    num_values = 2
-    zero_observation = True
-    env_output_target_number = False
-    env_output_time = False
-
-    """
     Algo params
     """
     num_extra_qf_updates = 100
-    qf_learning_rate = 1e-3
+    qf_learning_rate = 1e-4
     policy_learning_rate = 1e-3
     soft_target_tau = 0.01
     qf_weight_decay = 0.01
@@ -459,49 +460,24 @@ if __name__ == '__main__':
     )
 
     if run_mode == 'hyperopt':
-        mem_gaussian_es_space = {
-            'es_params.memory_es_params.max_sigma': hp.uniform(
-                'es_params.memory_es_params.max_sigma',
-                3.0,
-                0.5,
-            ),
-            'es_params.memory_es_params.min_sigma': hp.uniform(
-                'es_params.memory_es_params.min_sigma',
-                0.2,
-                0.0,
-            ),
-            'es_params.memory_es_params.decay_period': hp.qloguniform(
-                'es_params.memory_es_params.decay_period',
-                np.log(100),
-                np.log(100000),
-                1,
-            )
-        }
-        mem_ou_es_space = copy.deepcopy(mem_gaussian_es_space)
-        mem_ou_es_space['es_params.memory_es_params.theta'] = hp.uniform(
-            'es_params.memory_es_params.theta',
-            1.0,
-            0.,
-        ),
-        mem_noop_strategy_space = {'es_params.memory_es_params': {}}
         search_space = {
-            'es_params.memory_es_class': hp.choice(
-                'es_params.memory_es_class',
-                [
-                    (GaussianStrategy, mem_ou_es_space),
-                    (OUStrategy, mem_ou_es_space),
-                    (NoopStrategy, mem_noop_strategy_space),
-                ]
+            'policy_params.rnn_cell_params.env_noise_std': hp.uniform(
+                'policy_params.rnn_cell_params.env_noise_std',
+                np.log(0.001),
+                np.log(5),
             ),
-            'es_params.noise_action_to_memory': hp.choice(
-                'es_params.noise_action_to_memory',
-                [True, False],
+            'policy_params.rnn_cell_params.memory_noise_std': hp.uniform(
+                'policy_params.rnn_cell_params.memory_noise_std',
+                np.log(0.001),
+                np.log(5),
+            ),
+            'ddpg_params.bpt_bellman_error_weight': hp.loguniform(
+                'ddpg_params.bpt_bellman_error_weight',
+                np.log(0.001),
+                np.log(100),
             ),
             'seed': hp.randint('seed', 10000),
         }
-        variant['es_params'].pop('memory_es_class')
-        variant['es_params'].pop('memory_es_params')
-        variant['es_params'].pop('noise_action_to_memory')
 
         base_log_dir = create_base_log_dir(exp_prefix=exp_prefix)
 
@@ -518,11 +494,9 @@ if __name__ == '__main__':
         )
     elif run_mode == 'grid':
         search_space = {
-            'policy_params.rnn_cell_params.env_noise_std':
-                [0., 0.1, 0.2, 0.4],
-            'policy_params.rnn_cell_params.memory_noise_std':
-                [0., 0.3, 1, 2],
-            'ddpg_params.bpt_bellman_error_weight': [0., 0.5, 1, 5]
+            'ddpg_params.replay_pool_size': [1000, 100000],
+            # 'ddpg_params.qf_learning_rate': [1e-3, 1e-4],
+            # 'ddpg_params.policy_learning_rate': [1e-3, 1e-4],
         }
         sweeper = DeterministicHyperparameterSweeper(search_space,
                                                      default_parameters=variant)
