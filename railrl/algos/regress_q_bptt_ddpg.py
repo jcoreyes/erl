@@ -76,9 +76,6 @@ class RegressQBpttDdpg(BpttDDPG):
         if self.oracle_memory_grad is None:
             logger.log("WARNING: Oracle memory gradients set to zero.")
             self.oracle_memory_grad = tf.zeros_like(final_memory_action)
-        if self.memory_grad is None:
-            logger.log("WARNING: Memory gradients set to zero.")
-            self.memory_grad = tf.zeros_like(final_memory_action)
 
         self.mem_grad_cosine_distance = tf_util.cosine(self.oracle_memory_grad,
                                                        self.memory_grad)
