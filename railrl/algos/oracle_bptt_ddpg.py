@@ -27,9 +27,8 @@ class OracleBpttDDPG(BpttDDPG):
         return len(self.qf.get_params()) > 0
 
     def _init_qf_ops(self):
-        if self.qf_is_trainable:
-            super()._init_qf_ops()
-        else:
+        super()._init_qf_ops()
+        if not self.qf_is_trainable:
             self.train_qf_op = None
 
     def _qf_feed_dict(self, rewards, terminals, obs, actions, next_obs,
