@@ -27,7 +27,7 @@ class SubtrajReplayBuffer(ReplayBuffer):
             env,
             subtraj_length,
             only_sample_at_start_of_episode=False,
-            validation_set_fraction=0.2,
+            save_period=5,
             random_generator=None,
     ):
         self._max_pool_size = max_pool_size
@@ -66,13 +66,13 @@ class SubtrajReplayBuffer(ReplayBuffer):
         """
         The last part of the replay buffer will be saved as a validation set.
         """
-        self.validation_set_fraction = validation_set_fraction
+        # self.validation_set_fraction = validation_set_fraction
         self._validation_start_indices = []
         self._training_start_indices = []
         self.random = random_generator or random.random
-        self._save_episode_for_validation = (
-            self.random() < self.validation_set_fraction
-        )
+        self._save_period = save_period
+        self._num_saved = 0
+        self._save_episode_for_validation = True
 
     def _add_sample(self, observation, action_, reward, terminal,
                     final_state, **kwargs):
@@ -109,8 +109,9 @@ class SubtrajReplayBuffer(ReplayBuffer):
         )
         self._previous_indices = deque(maxlen=self._subtraj_length)
         self._starting_episode = True
+        self._num_saved += 1
         self._save_episode_for_validation = (
-            self.random() < self.validation_set_fraction
+            self._num_saved % self._save_period == 0
         )
 
     def advance(self):
