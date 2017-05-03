@@ -307,7 +307,7 @@ if __name__ == '__main__':
     """
     # env_class = OneCharMemoryOutputRewardMag
     env_class = OneCharMemoryEndOnly
-    H = 8
+    H = 6
     num_values = 2
     zero_observation = True
     env_output_target_number = False
@@ -321,7 +321,7 @@ if __name__ == '__main__':
     policy_learning_rate = 1e-3
     soft_target_tau = 0.01
     qf_weight_decay = 0.01
-    num_bptt_unrolls = min(8, H)
+    num_bptt_unrolls = min(6, H)
     qf_total_loss_tolerance = -9999
     max_num_q_updates = 100
     train_policy = True
@@ -334,7 +334,8 @@ if __name__ == '__main__':
     env_grad_distance_weight = 0.
     write_grad_distance_weight = 0.
     qf_grad_mse_from_one_weight = 0.
-    regress_onto_values = False
+    regress_onto_values_weight = 0.
+    bellman_error_weight = 1.
     use_hint_qf = False
     use_time = False
 
@@ -409,7 +410,8 @@ if __name__ == '__main__':
         env_grad_distance_weight=env_grad_distance_weight,
         write_grad_distance_weight=write_grad_distance_weight,
         qf_grad_mse_from_one_weight=qf_grad_mse_from_one_weight,
-        regress_onto_values=regress_onto_values,
+        regress_onto_values_weight=regress_onto_values_weight,
+        bellman_error_weight=bellman_error_weight,
         num_extra_qf_updates=num_extra_qf_updates,
         extra_qf_training_mode=extra_qf_training_mode,
     )
