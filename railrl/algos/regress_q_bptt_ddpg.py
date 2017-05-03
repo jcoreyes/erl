@@ -11,7 +11,7 @@ from railrl.pythonplusplus import filter_recursive, line_logger
 from railrl.qfunctions.memory.oracle_unroll_qfunction import (
     OracleUnrollQFunction
 )
-from rllab.misc import special
+from rllab.misc import special, logger
 
 
 class RegressQBpttDdpg(BpttDDPG):
@@ -23,10 +23,11 @@ class RegressQBpttDdpg(BpttDDPG):
             self,
             *args,
             oracle_qf: OracleUnrollQFunction,
-            env_grad_distance_weight=1.,
-            write_grad_distance_weight=1.,
-            qf_grad_mse_from_one_weight=1.,
-            regress_onto_values=False,
+            env_grad_distance_weight=0.,
+            write_grad_distance_weight=0.,
+            qf_grad_mse_from_one_weight=0.,
+            regress_onto_values_weight=0.,
+            bellman_error_weight=1.,
             **kwargs
     ):
         """
@@ -36,7 +37,7 @@ class RegressQBpttDdpg(BpttDDPG):
         :param env_grad_distance_weight:
         :param write_grad_distance_weight:
         :param qf_grad_mse_from_one_weight:
-        :param regress_onto_values:
+        :param regress_onto_values_weight:
         :param kwargs:
         """
         super().__init__(*args, **kwargs)
@@ -44,12 +45,17 @@ class RegressQBpttDdpg(BpttDDPG):
         self.env_grad_distance_weight = env_grad_distance_weight
         self.write_grad_distance_weight = write_grad_distance_weight
         self.qf_grad_mse_from_one_weight = qf_grad_mse_from_one_weight
-        self.regress_onto_values = regress_onto_values
+        self.regress_onto_values_weight = regress_onto_values_weight
+        self.bellman_error_weight = bellman_error_weight
 
     def _init_policy_ops(self):
         super()._init_policy_ops()
         self.oracle_qf = self.oracle_qf.get_weight_tied_copy(
             action_input=self._final_rnn_augmented_action,
+        )
+        self.oracle_qf = self.oracle_qf.get_weight_tied_copy(
+            action_input=self.qf_with_action_input.action_input,
+            observation_input=self.qf_with_action_input.observation_input,
         )
 
     def _init_qf_loss_and_train_ops(self):
@@ -58,23 +64,18 @@ class RegressQBpttDdpg(BpttDDPG):
         self.oracle_env_grad = []
         self.env_grad = []
         self.memory_grad = []
-        for env_action, memory_action in self._rnn_outputs:
-            self.oracle_memory_grad += tf.gradients(self.oracle_qf.output,
-                                                    memory_action)
-            self.oracle_env_grad += tf.gradients(self.oracle_qf.output,
-                                                 env_action)
-            self.env_grad += tf.gradients(self.qf_with_action_input.output,
-                                          env_action)
-            self.memory_grad += tf.gradients(self.qf_with_action_input.output,
-                                             memory_action)
-        self.oracle_memory_grad = filter_recursive(self.oracle_memory_grad)
-        self.oracle_env_grad = filter_recursive(self.oracle_env_grad)
-        self.env_grad = filter_recursive(self.env_grad)
-        self.memory_grad = filter_recursive(self.memory_grad)
-        self.oracle_memory_grad = tf.reduce_sum(self.oracle_memory_grad, axis=0)
-        self.oracle_env_grad = tf.reduce_sum(self.oracle_env_grad, axis=0)
-        self.env_grad = tf.reduce_sum(self.env_grad, axis=0)
-        self.memory_grad = tf.reduce_sum(self.memory_grad, axis=0)
+        final_env_action, final_memory_action = self._rnn_outputs[-1]
+        self.oracle_memory_grad = tf.gradients(self.oracle_qf.output,
+                                               final_memory_action)[0]
+        self.oracle_env_grad = tf.gradients(self.oracle_qf.output,
+                                            final_env_action)[0]
+        self.env_grad = tf.gradients(self.qf_with_action_input.output,
+                                     final_env_action)[0]
+        self.memory_grad = tf.gradients(self.qf_with_action_input.output,
+                                        final_memory_action)[0]
+        if self.oracle_memory_grad is None:
+            logger.log("WARNING: Oracle memory gradients set to zero.")
+            self.oracle_memory_grad = tf.zeros_like(self.memory_grad)
 
         self.mem_grad_cosine_distance = tf_util.cosine(self.oracle_memory_grad,
                                                        self.memory_grad)
@@ -90,41 +91,47 @@ class RegressQBpttDdpg(BpttDDPG):
         self.memory_qf_grad_mse_from_one = tf.reduce_mean(
             (tf.abs(self.memory_grad) - 1) ** 2
         )
-        oracle_qf_output = tf.expand_dims(self.oracle_qf.output, axis=1)
         self.true_qf_mse_loss = tf.squeeze(tf_util.mse(
-            oracle_qf_output,
+            self.oracle_qf.output,
             self.qf.output,
         ))
 
+        self.qf_loss = 0.
         # The glorious if-then statement that maybe adds these numbers
-        self.qf_loss = self.qf_weight_decay * self.Q_weights_norm
-        if self.regress_onto_values:
-            self.qf_loss += self.true_qf_mse_loss
-        else:
-            self.qf_loss += self.bellman_error
-
+        if self.qf_weight_decay > 0.:
+            self.qf_loss += self.qf_weight_decay * self.Q_weights_norm
+        if self.regress_onto_values_weight > 0.:
+            self.qf_loss += (
+                self.true_qf_mse_loss * self.regress_onto_values_weight
+            )
+        if self.bellman_error_weight > 0.:
+            self.qf_loss += (
+                self.bellman_error * self.bellman_error_weight
+            )
         if self.env_grad_distance_weight > 0.:
             self.qf_loss += - (
-                tf.reduce_mean(self.env_grad_cosine_distance) *
-                self.env_grad_distance_weight
-            )
+                tf.reduce_mean(self.env_grad_cosine_distance)
+            ) * self.env_grad_distance_weight
         if self.write_grad_distance_weight > 0.:
             self.qf_loss += - (
-                tf.reduce_mean(self.mem_grad_cosine_distance) *
-                self.write_grad_distance_weight
-            )
+                tf.reduce_mean(self.mem_grad_cosine_distance)
+            ) * self.write_grad_distance_weight
         if self.qf_grad_mse_from_one_weight > 0.:
             self.qf_loss += (
                 self.env_qf_grad_mse_from_one
                 + self.memory_qf_grad_mse_from_one
             ) * self.qf_grad_mse_from_one_weight
-        with tf.variable_scope("regress_train_qf_op"):
-            self.train_qf_op = tf.train.AdamOptimizer(
-                self.qf_learning_rate
-            ).minimize(
-                self.qf_loss,
-                var_list=self.qf.get_params(),
-            )
+        if self.qf_loss != 0.:
+            with tf.variable_scope("regress_train_qf_op"):
+                self.train_qf_op = tf.train.AdamOptimizer(
+                    self.qf_learning_rate
+                ).minimize(
+                    self.qf_loss,
+                    var_list=self.qf.get_params(),
+                )
+        else:
+            self.qf_loss = tf.zeros([0], tf.float32)
+            self.train_qf_op = None
 
     def _qf_feed_dict(self, *args, **kwargs):
         feed_dict = super()._qf_feed_dict(*args, **kwargs)
@@ -204,13 +211,13 @@ class RegressQBpttDdpg(BpttDDPG):
             )
             qf_feed_dict = self._qf_feed_dict_from_batch(batch)
             (
-                # true_qf_mse_loss,
+                true_qf_mse_loss,
                 qf_loss,
                 bellman_error,
                 qf_output,
             ) = self.sess.run(
                 [
-                    # self.true_qf_mse_loss,
+                    self.true_qf_mse_loss,
                     self.qf_loss,
                     self.bellman_error,
                     self.qf.output,
@@ -219,9 +226,9 @@ class RegressQBpttDdpg(BpttDDPG):
                 feed_dict=qf_feed_dict
             )
             stat_base_name = 'Qf{}'.format(name)
-            # statistics.update(
-            #     {'{}_True_MSE_Loss'.format(stat_base_name): true_qf_mse_loss},
-            # )
+            statistics.update(
+                {'{}_True_MSE_Loss'.format(stat_base_name): true_qf_mse_loss},
+            )
             statistics.update(
                 {'{}_BellmanError'.format(stat_base_name): bellman_error},
             )
@@ -288,6 +295,8 @@ class RegressQBpttDdpg(BpttDDPG):
         obs = self._split_flat_obs(self._get_time_step(all_obs, t=-1))
         target_numbers = all_target_numbers[:, -1]
         times = all_times[:, -1]
+        # target_numbers = all_target_numbers.flatten()
+        # times = all_times.flatten()
 
         batch_size = len(rewards)
         sequence_lengths = np.squeeze(self.env.horizon - 1 - times)
@@ -300,7 +309,7 @@ class RegressQBpttDdpg(BpttDDPG):
                 batch_size,
                 self.env.horizon - self._num_bptt_unrolls,
                 self._env_obs_dim,
-                ]
+            ]
         )
         rest_of_obs[:, :, 0] = 1
         feed_dict = {
@@ -313,7 +322,8 @@ class RegressQBpttDdpg(BpttDDPG):
             feed_dict[self.qf_with_action_input.target_labels] = target_one_hots
             # TODO(vitchyr): this should be the NEXT target...
             if self._bpt_bellman_error_weight > 0.:
-                feed_dict[self.target_qf_for_policy.target_labels] = target_one_hots
+                feed_dict[
+                    self.target_qf_for_policy.target_labels] = target_one_hots
         if hasattr(self.qf_with_action_input, "time_labels"):
             feed_dict[self.qf_with_action_input.time_labels] = times
             # TODO(vitchyr): this seems hacky
@@ -327,4 +337,3 @@ class RegressQBpttDdpg(BpttDDPG):
             batch
         ))
         return policy_feed
-

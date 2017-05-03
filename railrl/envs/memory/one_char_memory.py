@@ -278,9 +278,9 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
                 actions.get_shape()
             )
             prob_correct = target_labels_float * actions
-            return 2 * tf.reduce_sum(prob_correct, axis=1) - 1
+            return 2 * tf.reduce_sum(prob_correct, axis=1, keep_dims=True) - 1
         cross_entropy = target_labels_float * tf.log(actions)
-        return tf.reduce_sum(cross_entropy, axis=1)
+        return tf.reduce_sum(cross_entropy, axis=1, keep_dims=True)
 
 
 class OneCharMemoryEndOnly(OneCharMemory):
