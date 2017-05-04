@@ -274,7 +274,7 @@ if __name__ == '__main__':
     """
     # env_class = OneCharMemoryOutputRewardMag
     env_class = OneCharMemoryEndOnly
-    H = 6
+    H = 2
     num_values = 2
     zero_observation = True
     env_output_target_number = False
@@ -287,10 +287,10 @@ if __name__ == '__main__':
     n_batches_per_eval = 64
     batch_size = 32
     n_epochs = 30
-    memory_dim = 2
+    memory_dim = 20
     min_pool_size = 32
     replay_pool_size = 100000
-    bpt_bellman_error_weight = 1.
+    bpt_bellman_error_weight = 0.
 
     """
     Algorithm Selection
@@ -321,8 +321,8 @@ if __name__ == '__main__':
     qf_learning_rate = 1e-4
     policy_learning_rate = 1e-3
     soft_target_tau = 0.01
-    qf_weight_decay = 0.01
-    num_bptt_unrolls = 6
+    qf_weight_decay = 0.
+    num_bptt_unrolls = 1
     qf_total_loss_tolerance = -9999
     max_num_q_updates = 100
     train_policy = True
@@ -338,7 +338,7 @@ if __name__ == '__main__':
     regress_onto_values_weight = 0.
     bellman_error_weight = 1.
     use_hint_qf = True
-    use_time = False
+    use_time = True
     use_target = True
 
     """
