@@ -279,6 +279,7 @@ if __name__ == '__main__':
     zero_observation = True
     env_output_target_number = False
     env_output_time = False
+    episode_boundary_flags = True
 
     """
     DDPG Params
@@ -288,7 +289,7 @@ if __name__ == '__main__':
     batch_size = 32
     n_epochs = 30
     memory_dim = 20
-    min_pool_size = 32
+    min_pool_size = 320
     replay_pool_size = 100000
     bpt_bellman_error_weight = 0.
 
@@ -318,16 +319,17 @@ if __name__ == '__main__':
     Algo params
     """
     num_extra_qf_updates = 100
-    qf_learning_rate = 1e-4
+    qf_learning_rate = 1e-3
     policy_learning_rate = 1e-3
     soft_target_tau = 0.01
-    qf_weight_decay = 0.
+    qf_weight_decay = 0.01
     num_bptt_unrolls = 1
     qf_total_loss_tolerance = -9999
     max_num_q_updates = 100
     train_policy = True
     extra_qf_training_mode = 'none'
     freeze_hidden = False
+    extra_train_period = 100
 
     """
     Regression Params
@@ -339,7 +341,7 @@ if __name__ == '__main__':
     bellman_error_weight = 1.
     use_hint_qf = True
     use_time = True
-    use_target = True
+    use_target = False
 
     """
     Exploration params
@@ -402,6 +404,7 @@ if __name__ == '__main__':
         soft_target_tau=soft_target_tau,
         qf_weight_decay=qf_weight_decay,
         bpt_bellman_error_weight=bpt_bellman_error_weight,
+        extra_train_period=extra_train_period,
         save_tf_graph=False,
     )
     regress_params = dict(
@@ -444,6 +447,7 @@ if __name__ == '__main__':
         max_reward_magnitude=1,
         output_target_number=env_output_target_number,
         output_time=env_output_time,
+        episode_boundary_flags=episode_boundary_flags,
     )
     variant = dict(
         exp_prefix=exp_prefix,

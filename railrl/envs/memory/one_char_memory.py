@@ -45,22 +45,41 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
             zero_observation=False,
             output_target_number=False,
             output_time=False,
+            episode_boundary_flags=False,
     ):
         """
         :param n: Number of different values that could be returned
-        :param num_steps: How many steps the agent needs to remember.
+        :param num_steps: How many steps the policy needs to output before the
+        episode ends. AKA the horizon.
+
+        So, the policy will see num_steps+1 total observations
+        if you include the observation returned when reset() is called. The
+        last observation will be the "terminal state" observation.
         :param reward_for_remembering: The reward bonus for remembering the
         number. This number is added to the usual reward if the correct
         number has the maximum probability.
         :param max_reward_magnitude: Clip the reward magnitude to this value.
         :param softmax_action: If true, put the action through a softmax.
-        :param softmax_action: If true, all observations after the first will be
-        just zeros (NOT the zero one-hot).
+        :param zero_observation: If true, all observations after the first will
+        be just zeros (NOT the zero one-hot).
+        :param episode_boundary_flags: If true, add a boolean flag to the
+        observation for whether or not the episode is starting or terminating.
         """
         assert max_reward_magnitude >= reward_for_remembering
         self.num_steps = num_steps
         self.n = n
         self._onehot_size = n + 1
+        """
+        Time step for the NEXT observation to be returned.
+
+        env = OneCharMemory()  # t == 0 after this line
+        obs = env.reset()      # t == 1
+        _ = env.step()         # t == 2
+        _ = env.step()         # t == 3
+        ...
+        done = env.step()[2]   # t == num_steps and done == False
+        done = env.step()[2]   # t == num_steps+1 and done == True
+        """
         self._t = 0
         self._reward_for_remembering = reward_for_remembering
         self._max_reward_magnitude = max_reward_magnitude
@@ -68,6 +87,7 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
         self._zero_observation = zero_observation
         self._output_target_number = output_target_number
         self._output_time = output_time
+        self._episode_boundary_flags = episode_boundary_flags
 
         self._action_space = Box(
             np.zeros(self._onehot_size),
@@ -81,6 +101,9 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
         if self._output_time:
             obs_low = np.hstack((obs_low, [0] * (self.num_steps + 1)))
             obs_high = np.hstack((obs_high, [1] * (self.num_steps + 1)))
+        if self._episode_boundary_flags:
+            obs_low = np.hstack((obs_low, [0] * 2))
+            obs_high = np.hstack((obs_high, [1] * 2))
         self._observation_space = Box(obs_low, obs_high)
 
         self._target_number = None
@@ -95,7 +118,7 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
             action = softmax(action)
         # Reset gives the first observation, so only return 0 in step.
         observation = self._get_next_observation()
-        done = self._t == self.num_steps
+        done = self.done
         info = self._get_info_dict()
         reward = self._compute_reward(done, action)
 
@@ -105,6 +128,14 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
         self._last_reward = reward
         self._last_action = action
         return observation, reward, done, info
+
+    @property
+    def done(self) -> bool:
+        return self._t == self.num_steps
+
+    @property
+    def will_take_last_action(self) -> bool:
+        return self._t + 1 == self.num_steps
 
     def _get_info_dict(self):
         return {
@@ -167,6 +198,11 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
         if self._output_time:
             time = special.to_onehot(self._t, self.num_steps + 1)
             observation = np.hstack((observation, time))
+        if self._episode_boundary_flags:
+            observation = np.hstack((
+                observation,
+                [int(first), int(self.will_take_last_action)],
+            ))
         return observation
 
     def _get_target_onehot(self):
