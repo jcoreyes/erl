@@ -257,16 +257,18 @@ def create_run_experiment_multiple_seeds(n_seeds):
 
 
 if __name__ == '__main__':
-    # n_seeds = 1
+    n_seeds = 1
     mode = 'here'
-    # exp_prefix = "dev-bptt-ddpg-ocm"
-    # run_mode = 'none'
-    # version = 'dev'
-    n_seeds = 3
-    # mode = 'ec2'
-    exp_prefix = '5-3-hyperopt'
-    run_mode = 'hyperopt'
+    exp_prefix = "dev-bptt-ddpg-ocm"
+    run_mode = 'none'
     version = 'dev'
+
+    # n_seeds = 10
+    # mode = 'ec2'
+    # exp_prefix = '5-3-replay-buffer-long'
+    # run_mode = 'grid'
+    # version = 'dev'
+
     """
     Env param
     """
@@ -278,17 +280,15 @@ if __name__ == '__main__':
     env_output_target_number = False
     env_output_time = False
 
-
     """
     DDPG Params
     """
     n_batches_per_epoch = 100
     n_batches_per_eval = 64
     batch_size = 32
-    n_epochs = 20
+    n_epochs = 30
     memory_dim = 2
     min_pool_size = 32
-    # replay_pool_size = 32 * 5 * H
     replay_pool_size = 100000
     bpt_bellman_error_weight = 1.
 
@@ -322,7 +322,7 @@ if __name__ == '__main__':
     policy_learning_rate = 1e-3
     soft_target_tau = 0.01
     qf_weight_decay = 0.01
-    num_bptt_unrolls = min(6, H)
+    num_bptt_unrolls = 6
     qf_total_loss_tolerance = -9999
     max_num_q_updates = 100
     train_policy = True
@@ -337,8 +337,9 @@ if __name__ == '__main__':
     qf_grad_mse_from_one_weight = 0.
     regress_onto_values_weight = 0.
     bellman_error_weight = 1.
-    use_hint_qf = False
+    use_hint_qf = True
     use_time = False
+    use_target = True
 
     """
     Exploration params
@@ -434,6 +435,7 @@ if __name__ == '__main__':
     )
     if use_hint_qf:
         qf_params['use_time'] = use_time
+        qf_params['use_target'] = use_target
     # TODO(vitchyr): Oracle needs to use the true reward
     env_params = dict(
         n=num_values,
@@ -495,8 +497,7 @@ if __name__ == '__main__':
     elif run_mode == 'grid':
         search_space = {
             'ddpg_params.replay_pool_size': [1000, 100000],
-            # 'ddpg_params.qf_learning_rate': [1e-3, 1e-4],
-            # 'ddpg_params.policy_learning_rate': [1e-3, 1e-4],
+            'ddpg_params.bpt_bellman_error_weight': [1, 10],
         }
         sweeper = DeterministicHyperparameterSweeper(search_space,
                                                      default_parameters=variant)
