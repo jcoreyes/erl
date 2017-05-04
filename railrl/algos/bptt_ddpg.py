@@ -355,16 +355,12 @@ class BpttDDPG(DDPG):
                 self.next_env_obs_ph_for_policy_bpt_bellman,  # o_{t+1}^buffer
                 self._final_rnn_augmented_action[1]           # m_{t+1} = w_t
             )
-            self.target_policy_for_policy = self.policy.get_copy(
-                name_or_scope=(
-                    TARGET_PREFIX + '_for_policy' + self.policy.scope_name
-                ),
-                observation_input=target_observation_input,
+            self.target_policy_for_policy = (
+                self.target_policy.get_weight_tied_copy(
+                    observation_input=target_observation_input,
+                )
             )
-            self.target_qf_for_policy = self.qf.get_copy(
-                name_or_scope=(
-                    TARGET_PREFIX + '_for_policy' + self.qf.scope_name
-                ),
+            self.target_qf_for_policy = self.target_qf.get_weight_tied_copy(
                 action_input=self.target_policy_for_policy.output,
                 observation_input=target_observation_input,
             )
