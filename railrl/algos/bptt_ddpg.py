@@ -53,21 +53,34 @@ class BpttDDPG(DDPG):
         :param exploration_strategy: ExplorationStrategy
         :param policy: Policy that is Serializable
         :param qf: QFunctions that is Serializable
-        :param qf_learning_rate: Learning rate of the qf
-        :param policy_learning_rate: Learning rate of the _policy
-        :param qf_weight_decay: How much to decay the weights for Q
+        :param num_bptt_unrolls: Number of time steps to feed to the policy
+        before feeding its output to the Q function.
+        Must be a positive integer.
+        `1` corresponds to doing just normal DDPG.
+        :param freeze_hidden: If True, don't train recurrent part of the policy.
+        :param bpt_bellman_error_weight:
+        :param train_policy: If False, don't train the policy at all.
+        :param extra_train_period: Only do extra QF training this often. Only
+        used for validation mode.
+        :param num_extra_qf_updates: Number of extra QF updates to do. Only used
+        for fixed mode.
+        :param qf_total_loss_tolerance: Stop training QF if the qf loss drops
+        below this value. Only used for validation mode.
+        :param max_num_q_updates: Maximum number of extra QF updates. Only
+        sed for validation mode.
         :param extra_qf_training_mode: String:
-         - 'none' : Don't do any extra QF training
-         - 'fixed': Always do `num_extra_qf_updates` extra updates
-         - 'validation': Do up to `max_num_q_updates` extra updates so long
-         as validation qf loss goes down.
-        :return:
+        - 'none' : Don't do any extra QF training
+        - 'fixed': Always do `num_extra_qf_updates` extra updates
+        - 'validation': Do up to `max_num_q_updates` extra updates so long
+        as validation qf loss goes down.
+        :param kwargs: kwargs to pass onto DDPG
         """
         assert extra_qf_training_mode in [
             'none',
             'fixed',
             'validation',
         ]
+        assert num_bptt_unrolls > 0
         self._num_bptt_unrolls = num_bptt_unrolls
         self._env_obs_dim = env_obs_dim
         self._env_action_dim = env_action_dim
@@ -315,7 +328,10 @@ class BpttDDPG(DDPG):
             scope=self._rnn_cell_scope,
         )
         self._final_rnn_augmented_action = self._rnn_outputs[-1]
-        self._final_rnn_memory_input = self._rnn_outputs[-2][1]
+        if self._num_bptt_unrolls > 1:
+            self._final_rnn_memory_input = self._rnn_outputs[-2][1]
+        else:
+            self._final_rnn_memory_input = self._rnn_init_state_ph
         self._final_rnn_augmented_input = (
             self._rnn_inputs_unstacked[-1],
             self._final_rnn_memory_input,
