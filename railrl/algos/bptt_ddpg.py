@@ -150,26 +150,40 @@ class BpttDDPG(DDPG):
         for path in paths:
             eval_pool.add_trajectory(path)
         batch = eval_pool.get_all_valid_subtrajectories()
+        return self._statistics_from_batch(batch)
 
-        qf_feed_dict = self._eval_qf_feed_dict_from_batch(batch)
-        policy_feed_dict = self._eval_policy_feed_dict_from_batch(batch)
-        qf_stat_names, qf_ops = zip(*self._qf_statistic_names_and_ops())
-        policy_stat_names, policy_ops = zip(
-            *self._policy_statistic_names_and_ops())
-
+    def _statistics_from_batch(self, batch) -> OrderedDict:
         statistics = OrderedDict()
-        for ops, feed_dict, stat_names in [
-            (qf_ops, qf_feed_dict, qf_stat_names),
-            (policy_ops, policy_feed_dict, policy_stat_names),
-        ]:
-            if ops[0] is None:
-                continue
-            values = self.sess.run(ops, feed_dict=feed_dict)
-            for stat_name, value in zip(stat_names, values):
-                statistics.update(
-                    create_stats_ordered_dict(stat_name, value)
-                )
+        statistics.update(self._policy_statistics_from_batch(batch))
+        statistics.update(self._qf_statistics_from_batch(batch))
+        return statistics
 
+    def _policy_statistics_from_batch(self, batch):
+        policy_feed_dict = self._eval_policy_feed_dict_from_batch(batch)
+        policy_stat_names, policy_ops = zip(*[
+            ('PolicySurrogateLoss', self.policy_surrogate_loss),
+            ('FinalPolicyOutput', self.policy.output),
+        ])
+        values = self.sess.run(policy_ops, feed_dict=policy_feed_dict)
+        statistics = OrderedDict()
+        for stat_name, value in zip(policy_stat_names, values):
+            statistics.update(
+                create_stats_ordered_dict(stat_name, value)
+            )
+        return statistics
+
+    def _qf_statistics_from_batch(self, batch):
+        qf_feed_dict = self._eval_qf_feed_dict_from_batch(batch)
+        qf_stat_names, qf_ops = zip(*[
+            ('QfLoss', self.qf_loss),
+            ('QfOutput', self.qf.output),
+        ])
+        values = self.sess.run(qf_ops, feed_dict=qf_feed_dict)
+        statistics = OrderedDict()
+        for stat_name, value in zip(qf_stat_names, values):
+            statistics.update(
+                create_stats_ordered_dict(stat_name, value)
+            )
         return statistics
 
     def _get_qf_training_ops(
@@ -242,13 +256,6 @@ class BpttDDPG(DDPG):
 
     def _eval_qf_feed_dict_from_batch(self, batch):
         return self._qf_feed_dict_from_batch(batch)
-
-    def _qf_statistic_names_and_ops(self):
-        return [
-            ('QfLoss', self.qf_loss),
-            ('QfOutput', self.qf.output),
-            # ('OracleQfOutput', self.oracle_qf.output),
-        ]
 
     """
     Extra QF Training Functions
@@ -433,13 +440,6 @@ class BpttDDPG(DDPG):
             self.update_target_policy_op,
             **kwargs
         )
-
-    def _policy_statistic_names_and_ops(self):
-        return [
-            ('PolicySurrogateLoss', self.policy_surrogate_loss),
-            ('FinalPolicyOutput', self.policy.output),
-            # ('OracleQfOutput', self.oracle_qf.output),
-        ]
 
     def _policy_feed_dict_from_batch(self, batch):
         obs = self._split_flat_obs(batch['observations'])

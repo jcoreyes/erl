@@ -1,15 +1,19 @@
+from collections import OrderedDict
+
 from railrl.algos.bptt_ddpg import BpttDDPG
 from railrl.algos.ddpg import TARGET_PREFIX, TargetUpdateMode
 import tensorflow as tf
 
 from railrl.core import tf_util
+from railrl.misc.data_processing import create_stats_ordered_dict
 
 
 class MetaBpttDdpg(BpttDDPG):
     """
     Add a meta critic: it predicts the error of the normal critic
     """
-    def __init__(self, meta_qf, *args, meta_qf_learning_rate=1e-4, **kwargs):
+    def __init__(self, *args, meta_qf=None, meta_qf_learning_rate=1e-4,
+                 **kwargs):
         super().__init__(*args, **kwargs)
         self.meta_qf = meta_qf
         self.meta_qf_learning_rate = meta_qf_learning_rate
@@ -48,22 +52,31 @@ class MetaBpttDdpg(BpttDDPG):
         policy_feed_dict = self._policy_feed_dict_from_batch(minibatch)
         self.sess.run(policy_ops, feed_dict=policy_feed_dict)
 
+    def _init_training(self):
+        super()._init_training()
+        self.meta_qf.reset_param_values_to_last_load()
+        self.target_meta_qf.set_param_values(self.meta_qf.get_param_values())
+
     def _init_tensorflow_ops(self):
-        super()._init_tensorflow_ops()
-        self.target_meta_qf = self.meta_qf.get_copy(
-            name_or_scope=TARGET_PREFIX + self.policy.scope_name,
+        # Initialize variables for get_copy to work
+        self.sess.run(tf.global_variables_initializer())
+        self.meta_qf = self.meta_qf.get_copy(
+            name_or_scope="copied_" + self.meta_qf.scope_name,
+            action_input=self.qf.action_input,
+            observation_input=self.qf.observation_input,
         )
+        self.target_meta_qf = self.meta_qf.get_copy(
+            name_or_scope=TARGET_PREFIX + self.meta_qf.scope_name,
+            action_input=self.meta_qf.action_input,
+            observation_input=self.meta_qf.observation_input,
+        )
+        super()._init_tensorflow_ops()
         self.meta_qf.sess = self.sess
         self.target_meta_qf.sess = self.sess
         with tf.name_scope('meta_qf_ops'):
             self._init_meta_qf_ops()
         with tf.name_scope('meta_qf_train_ops'):
             self._init_meta_qf_loss_and_train_ops()
-
-    def _init_training(self):
-        super()._init_training()
-        self.meta_qf.reset_param_values_to_last_load()
-        self.target_meta_qf.set_param_values(self.meta_qf.get_param_values())
 
     def _init_target_ops(self):
         super()._init_target_ops()
@@ -96,8 +109,8 @@ class MetaBpttDdpg(BpttDDPG):
             **kwargs,
         )
 
-    def _meta_qf_feed_dict_from_batch(self, minibatch):
-        pass
+    def _meta_qf_feed_dict_from_batch(self, batch):
+        return self._qf_feed_dict_from_batch(batch)
 
     def _init_meta_qf_loss_and_train_ops(self):
         self.meta_qf_loss = self.meta_qf_bellman_error
@@ -110,7 +123,7 @@ class MetaBpttDdpg(BpttDDPG):
 
     def _init_meta_qf_ops(self):
         self.meta_qf_ys = (
-            self.rewards_placeholder +
+            self.bellman_error +
             (1. - self.terminals_placeholder)
             * self.discount
             * self.target_meta_qf.output
@@ -118,3 +131,55 @@ class MetaBpttDdpg(BpttDDPG):
         self.meta_qf_bellman_error = tf.squeeze(
             tf_util.mse(self.meta_qf_ys, self.meta_qf.output)
         )
+
+    def _init_policy_ops(self):
+        super()._init_policy_ops()
+        self.meta_qf_with_action_input = self.meta_qf.get_weight_tied_copy(
+            action_input=self._final_rnn_augmented_action,
+            observation_input=self._final_rnn_augmented_input,
+        )
+
+    def _init_policy_loss_and_train_ops(self):
+        self.policy_surrogate_loss = - tf.reduce_mean(
+            self.qf_with_action_input.output
+        ) + tf.reduce_mean(
+            self.meta_qf_with_action_input.output
+        ) * 10
+        if self._bpt_bellman_error_weight > 0.:
+            self.policy_surrogate_loss += (
+                self.bellman_error_for_policy * self._bpt_bellman_error_weight
+            )
+        if self._freeze_hidden:
+            trainable_policy_params = self.policy.get_params(env_only=True)
+        else:
+            trainable_policy_params = self.policy.get_params_internal()
+        self.train_policy_op = tf.train.AdamOptimizer(
+            self.policy_learning_rate
+        ).minimize(
+            self.policy_surrogate_loss,
+            var_list=trainable_policy_params,
+        )
+        if not self.train_policy:
+            self.train_policy_op = None
+
+    def _statistics_from_batch(self, batch) -> OrderedDict:
+        statistics = super()._statistics_from_batch(batch)
+        statistics.update(self._meta_qf_statistics_from_batch(batch))
+        return statistics
+
+    def _meta_qf_statistics_from_batch(self, batch):
+        meta_qf_feed_dict = self._eval_meta_qf_feed_dict_from_batch(batch)
+        meta_qf_stat_names, meta_qf_ops = zip(*[
+            ('MetaQfLoss', self.meta_qf_loss),
+            ('MetaQfOutput', self.meta_qf.output),
+        ])
+        values = self.sess.run(meta_qf_ops, feed_dict=meta_qf_feed_dict)
+        statistics = OrderedDict()
+        for stat_name, value in zip(meta_qf_stat_names, values):
+            statistics.update(
+                create_stats_ordered_dict(stat_name, value)
+            )
+        return statistics
+
+    def _eval_meta_qf_feed_dict_from_batch(self, batch):
+        return self._meta_qf_feed_dict_from_batch(batch)

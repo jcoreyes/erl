@@ -50,6 +50,7 @@ def run_ocm_experiment(variant):
         OracleUnrollBpttDDPG,
     )
     from railrl.algos.regress_q_bptt_ddpg import RegressQBpttDdpg
+    from railrl.algos.meta_bptt_ddpg import MetaBpttDdpg
     from railrl.qfunctions.memory.oracle_qfunction import OracleQFunction
     from railrl.qfunctions.memory.oracle_unroll_qfunction import (
         OracleUnrollQFunction
@@ -199,6 +200,20 @@ def run_ocm_experiment(variant):
         algo_class = RegressQBpttDdpg
         ddpg_params['oracle_qf'] = oracle_qf
         ddpg_params.update(regress_params)
+    elif oracle_mode == 'meta':
+        qf = qf or MlpMemoryQFunction(
+            name_or_scope="critic",
+            env_spec=env.spec,
+            **qf_params
+        )
+        meta_qf = MlpMemoryQFunction(
+            name_or_scope="meta_critic",
+            env_spec=env.spec,
+            **qf_params
+        )
+        algo_class = MetaBpttDdpg
+        ddpg_params['meta_qf'] = meta_qf
+        ddpg_params['meta_qf_learning_rate'] = 1e-3
     else:
         raise Exception("Unknown mode: {}".format(oracle_mode))
 
@@ -280,7 +295,7 @@ if __name__ == '__main__':
     """
     Algorithm Selection
     """
-    oracle_mode = 'regress'
+    oracle_mode = 'meta'
     algo_class = BpttDDPG
     unroll_through_target_policy = False
 
