@@ -127,6 +127,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
         )
         observation = np.array([[0.5]])
         action = np.array([[0.5]])
+        buff.terminate_episode(observation)
         for _ in range(10):
             buff.add_sample(observation, action, 1, False)
         subtrajs = buff.random_subtrajectories(5)
@@ -193,7 +194,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
             100,
             env,
             2,
-            validation_set_fraction=1.0,
+            save_period=1,
         )
         observation = np.array([[0.5]])
         action = np.array([[0.5]])
@@ -219,7 +220,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
             100,
             env,
             2,
-            validation_set_fraction=.5,
+            save_period=2,
             random_generator=create_random_generator(),
         )
         observation = np.array([[0.5]])
