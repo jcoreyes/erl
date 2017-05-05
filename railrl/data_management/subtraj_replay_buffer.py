@@ -226,3 +226,10 @@ class SubtrajReplayBuffer(ReplayBuffer):
             terminals=subsequences(self._terminals, start_indices,
                                    self._subtraj_length),
         )
+
+    def refresh_replay_buffer(self, policy):
+        for start_i in self._all_valid_start_indices:
+            obs = self._observations[start_i]
+            for i in range(start_i, start_i + self._subtraj_length):
+                # TODO(vitchyr)
+                pass
