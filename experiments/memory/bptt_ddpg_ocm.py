@@ -263,18 +263,18 @@ if __name__ == '__main__':
     run_mode = 'none'
     version = 'dev'
 
-    # n_seeds = 10
-    # mode = 'ec2'
-    # exp_prefix = '5-3-replay-buffer-long'
-    # run_mode = 'grid'
-    # version = 'dev'
+    n_seeds = 10
+    mode = 'ec2'
+    exp_prefix = '5-4-flags-hp-sweep'
+    run_mode = 'grid'
+    version = 'dev'
 
     """
     Env param
     """
     # env_class = OneCharMemoryOutputRewardMag
     env_class = OneCharMemoryEndOnly
-    H = 2
+    H = 6
     num_values = 2
     zero_observation = True
     env_output_target_number = False
@@ -287,11 +287,11 @@ if __name__ == '__main__':
     n_batches_per_epoch = 100
     n_batches_per_eval = 64
     batch_size = 32
-    n_epochs = 30
+    n_epochs = 50
     memory_dim = 20
-    min_pool_size = 320
+    min_pool_size = 1000
     replay_pool_size = 100000
-    bpt_bellman_error_weight = 0.
+    bpt_bellman_error_weight = 1.
 
     """
     Algorithm Selection
@@ -318,14 +318,14 @@ if __name__ == '__main__':
     """
     Algo params
     """
-    num_extra_qf_updates = 100
+    num_extra_qf_updates = 10
     qf_learning_rate = 1e-3
     policy_learning_rate = 1e-3
     soft_target_tau = 0.01
-    qf_weight_decay = 0.01
-    num_bptt_unrolls = 1
-    qf_total_loss_tolerance = -9999
-    max_num_q_updates = 100
+    qf_weight_decay = 0.
+    num_bptt_unrolls = 4
+    qf_total_loss_tolerance = 0.1
+    max_num_q_updates = 10000
     train_policy = True
     extra_qf_training_mode = 'none'
     freeze_hidden = False
@@ -339,8 +339,8 @@ if __name__ == '__main__':
     qf_grad_mse_from_one_weight = 0.
     regress_onto_values_weight = 0.
     bellman_error_weight = 1.
-    use_hint_qf = True
-    use_time = True
+    use_hint_qf = False
+    use_time = False
     use_target = False
 
     """
@@ -371,7 +371,7 @@ if __name__ == '__main__':
     LSTM Cell params
     """
     use_peepholes = True
-    env_noise_std = 0.
+    env_noise_std = 1.
     memory_noise_std = 1.
 
     """
@@ -500,8 +500,9 @@ if __name__ == '__main__':
         )
     elif run_mode == 'grid':
         search_space = {
-            'ddpg_params.replay_pool_size': [1000, 100000],
-            'ddpg_params.bpt_bellman_error_weight': [1, 10],
+            'policy_params.rnn_cell_params.env_noise_std': [0., 1.],
+            'policy_params.rnn_cell_params.memory_noise_std': [0., 1.],
+            'ddpg_params.bpt_bellman_error_weight': [0, 1, 10, 100],
         }
         sweeper = DeterministicHyperparameterSweeper(search_space,
                                                      default_parameters=variant)
