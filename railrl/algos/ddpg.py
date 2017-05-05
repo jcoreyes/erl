@@ -99,9 +99,6 @@ class DDPG(OnlineAlgorithm):
             self._init_qf_loss_and_train_ops()
         with tf.name_scope('policy_train_ops'):
             self._init_policy_loss_and_train_ops()
-        self.sess.run(tf.global_variables_initializer())
-        self.qf.reset_param_values_to_last_load()
-        self.policy.reset_param_values_to_last_load()
 
     def _init_qf_ops(self):
         self.ys = (
@@ -111,8 +108,6 @@ class DDPG(OnlineAlgorithm):
             * self.target_qf.output
         )
         self.bellman_error = tf.squeeze(tf_util.mse(self.ys, self.qf.output))
-        # self.ys = self.ys + self.bellman_error
-        # self.bellman_error = tf.squeeze(tf_util.mse(self.ys, self.qf.output))
         self.Q_weights_norm = tf.reduce_sum(
             tf.stack(
                 [tf.nn.l2_loss(v)
@@ -187,6 +182,10 @@ class DDPG(OnlineAlgorithm):
 
     @overrides
     def _init_training(self):
+        self._init_tensorflow_ops()
+        self.sess.run(tf.global_variables_initializer())
+        self.qf.reset_param_values_to_last_load()
+        self.policy.reset_param_values_to_last_load()
         self.target_qf.set_param_values(self.qf.get_param_values())
         self.target_policy.set_param_values(self.policy.get_param_values())
 

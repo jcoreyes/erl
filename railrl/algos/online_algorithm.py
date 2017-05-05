@@ -150,16 +150,11 @@ class OnlineAlgorithm(RLAlgorithm):
 
     @overrides
     def train(self):
-        with self.sess.as_default():
-            self._init_tensorflow_ops()
-            self._train()
-
-    def _train(self):
         n_steps_total = 0
-        if self.save_tf_graph:
-            tf.summary.FileWriter(logger.get_snapshot_dir(), self.sess.graph)
         with self.sess.as_default():
             self._init_training()
+            if self.save_tf_graph:
+                tf.summary.FileWriter(logger.get_snapshot_dir(), self.sess.graph)
             self._start_worker()
             self._switch_to_training_mode()
 
@@ -397,15 +392,6 @@ class OnlineAlgorithm(RLAlgorithm):
         It's crucial that this list is up to date!
         """
         pass
-
-    @abc.abstractmethod
-    def _init_tensorflow_ops(self):
-        """
-        Method to be called in the initialization of the class. After this
-        method is called, the train() method should work.
-        :return: None
-        """
-        return
 
     @abc.abstractmethod
     def _init_training(self):

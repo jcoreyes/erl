@@ -125,11 +125,19 @@ class BpttDDPG(DDPG):
 
         minibatch = self._sample_minibatch()
 
-        qf_ops = self._get_qf_training_ops()
+        qf_ops = self._get_qf_training_ops(
+            epoch=epoch,
+            n_steps_total=n_steps_total,
+            n_steps_current_epoch=n_steps_current_epoch,
+        )
         qf_feed_dict = self._qf_feed_dict_from_batch(minibatch)
         self.sess.run(qf_ops, feed_dict=qf_feed_dict)
 
-        policy_ops = self._get_policy_training_ops()
+        policy_ops = self._get_policy_training_ops(
+            epoch=epoch,
+            n_steps_total=n_steps_total,
+            n_steps_current_epoch=n_steps_current_epoch,
+        )
         policy_feed_dict = self._policy_feed_dict_from_batch(minibatch)
         self.sess.run(policy_ops, feed_dict=policy_feed_dict)
 
@@ -166,21 +174,30 @@ class BpttDDPG(DDPG):
 
     def _get_qf_training_ops(
             self,
+            **kwargs
+    ):
+        return self._get_training_ops(
+            self.train_qf_op,
+            self.qf,
+            self.update_target_qf_op,
+            **kwargs,
+        )
+
+    def _get_training_ops(
+            self,
+            train_ops,
+            network,
+            target_ops,
             epoch=None,
             n_steps_total=None,
             n_steps_current_epoch=None,
     ):
-        train_ops = [
-            self.train_qf_op,
-        ]
         if self._batch_norm:
-            train_ops += self.qf.batch_norm_update_stats_op
+            train_ops += network.batch_norm_update_stats_op
 
         target_ops = []
         if self._should_update_target(n_steps_total):
-            target_ops = [
-                self.update_target_qf_op,
-            ]
+            target_ops = [target_ops]
 
         return filter_recursive([
             train_ops,
@@ -409,28 +426,13 @@ class BpttDDPG(DDPG):
         if not self.train_policy:
             self.train_policy_op = None
 
-    def _get_policy_training_ops(
-            self,
-            epoch=None,
-            n_steps_total=None,
-            n_steps_current_epoch=None,
-    ):
-        train_ops = [
+    def _get_policy_training_ops(self, **kwargs):
+        return self._get_training_ops(
             self.train_policy_op,
-        ]
-        if self._batch_norm:
-            train_ops += self.policy.batch_norm_update_stats_op
-
-        target_ops = []
-        if self._should_update_target(n_steps_total):
-            target_ops = [
-                self.update_target_policy_op,
-            ]
-
-        return filter_recursive([
-            train_ops,
-            target_ops,
-        ])
+            self.policy,
+            self.update_target_policy_op,
+            **kwargs
+        )
 
     def _policy_statistic_names_and_ops(self):
         return [
