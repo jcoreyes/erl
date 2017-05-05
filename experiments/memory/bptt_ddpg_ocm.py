@@ -153,7 +153,7 @@ def run_ocm_experiment(variant):
             env_spec=env.spec,
         )
         algo_class = variant['algo_class']
-    elif oracle_mode == 'oracle':
+    elif oracle_mode == 'oracle' or oracle_mode == 'meta':
         regress_params = variant['regress_params']
         if regress_params.pop('use_hint_qf', False):
             qf = qf or HintMlpMemoryQFunction(
@@ -182,22 +182,18 @@ def run_ocm_experiment(variant):
         algo_class = OracleBpttDdpg
         ddpg_params['oracle_qf'] = oracle_qf
         ddpg_params.update(regress_params)
-    elif oracle_mode == 'meta':
-        qf = qf or MlpMemoryQFunction(
-            name_or_scope="critic",
-            env_spec=env.spec,
-            **qf_params
-        )
+    else:
+        raise Exception("Unknown mode: {}".format(oracle_mode))
+    if oracle_mode == 'meta':
         meta_qf = MlpMemoryQFunction(
             name_or_scope="meta_critic",
             env_spec=env.spec,
             **qf_params
         )
         algo_class = MetaBpttDdpg
+        meta_params = variant['meta_params']
         ddpg_params['meta_qf'] = meta_qf
-        ddpg_params['meta_qf_learning_rate'] = 1e-3
-    else:
-        raise Exception("Unknown mode: {}".format(oracle_mode))
+        ddpg_params.update(meta_params)
 
     algorithm = algo_class(
         env,
@@ -255,7 +251,7 @@ if __name__ == '__main__':
     """
     # env_class = OneCharMemoryOutputRewardMag
     env_class = OneCharMemoryEndOnly
-    H = 6
+    H = 2
     num_values = 2
     zero_observation = True
     env_output_target_number = False
@@ -277,7 +273,7 @@ if __name__ == '__main__':
     """
     Algorithm Selection
     """
-    oracle_mode = 'oracle'
+    oracle_mode = 'meta'
     algo_class = BpttDDPG
 
     """
@@ -303,7 +299,7 @@ if __name__ == '__main__':
     policy_learning_rate = 1e-3
     soft_target_tau = 0.01
     qf_weight_decay = 0.
-    num_bptt_unrolls = 4
+    num_bptt_unrolls = 1
     qf_total_loss_tolerance = 0.1
     max_num_q_updates = 10000
     train_policy = True
@@ -324,6 +320,13 @@ if __name__ == '__main__':
     use_target = False
     use_oracle_qf = False
     unroll_through_target_policy = False
+
+    """
+    Meta-critic Params
+    """
+    meta_qf_learning_rate = 1e-3
+    meta_qf_output_weight = 10
+    qf_output_weight = 1
 
     """
     Exploration params
@@ -423,7 +426,11 @@ if __name__ == '__main__':
     if use_hint_qf:
         qf_params['use_time'] = use_time
         qf_params['use_target'] = use_target
-    # TODO(vitchyr): Oracle needs to use the true reward
+    meta_params = dict(
+        meta_qf_learning_rate=meta_qf_learning_rate,
+        meta_qf_output_weight=meta_qf_output_weight,
+        qf_output_weight=qf_output_weight,
+    )
     env_params = dict(
         n=num_values,
         num_steps=H,
@@ -447,6 +454,7 @@ if __name__ == '__main__':
         qf_params=qf_params,
         regress_params=regress_params,
         es_params=es_params,
+        meta_params=meta_params,
     )
 
     if run_mode == 'hyperopt':
@@ -502,10 +510,10 @@ if __name__ == '__main__':
                 )
     elif run_mode == 'custom_grid':
         for exp_id, (
-            version,
-            bpt_bellman_error_weight,
-            memory_noise_std,
-            env_noise_std
+                version,
+                bpt_bellman_error_weight,
+                memory_noise_std,
+                env_noise_std
         ) in enumerate([
             ("Basic", 1., 1., 0.),
             ("No Bpt Bellman Error", 0., 1., 0.),

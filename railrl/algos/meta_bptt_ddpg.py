@@ -1,6 +1,6 @@
 from collections import OrderedDict
 
-from railrl.algos.bptt_ddpg import BpttDDPG
+from railrl.algos.oracle_bptt_ddpg import OracleBpttDdpg
 from railrl.algos.ddpg import TARGET_PREFIX, TargetUpdateMode
 import tensorflow as tf
 
@@ -8,15 +8,35 @@ from railrl.core import tf_util
 from railrl.misc.data_processing import create_stats_ordered_dict
 
 
-class MetaBpttDdpg(BpttDDPG):
+class MetaBpttDdpg(OracleBpttDdpg):
     """
     Add a meta critic: it predicts the error of the normal critic
     """
-    def __init__(self, *args, meta_qf=None, meta_qf_learning_rate=1e-4,
-                 **kwargs):
+
+    def __init__(
+            self,
+            *args,
+            meta_qf=None,
+            meta_qf_learning_rate=1e-4,
+            meta_qf_output_weight=10,
+            qf_output_weight=1,
+            **kwargs
+    ):
+        """
+        :param args: args to pass to OracleBpttDdpg
+        :param meta_qf: Meta QF to predict Bellman Error
+        :param meta_qf_learning_rate: Learning rate for meta QF
+        :param meta_qf_output_weight: How much to scale the output of the
+        meta QF output for the policy
+        :param qf_output_weight: How much to scale the output of the
+        normal QF output for the policy
+        :param kwargs: kwargs to pass to OracleBpttDdpg
+        """
         super().__init__(*args, **kwargs)
         self.meta_qf = meta_qf
         self.meta_qf_learning_rate = meta_qf_learning_rate
+        self.meta_qf_output_weight = meta_qf_output_weight
+        self.qf_output_weight = qf_output_weight
 
     def _do_training(
             self,
@@ -89,7 +109,7 @@ class MetaBpttDdpg(BpttDDPG):
                 tf.assign(target, (self.tau * src + (1 - self.tau) * target))
                 for target, src in zip(target_meta_qf_vars, meta_qf_vars)]
         elif (self._target_update_mode == TargetUpdateMode.HARD or
-                      self._target_update_mode == TargetUpdateMode.NONE):
+                self._target_update_mode == TargetUpdateMode.NONE):
             self.update_target_meta_qf_op = [
                 tf.assign(target, src)
                 for target, src in zip(target_meta_qf_vars, meta_qf_vars)
@@ -142,9 +162,10 @@ class MetaBpttDdpg(BpttDDPG):
     def _init_policy_loss_and_train_ops(self):
         self.policy_surrogate_loss = - tf.reduce_mean(
             self.qf_with_action_input.output
-        ) + tf.reduce_mean(
+        ) * self.qf_output_weight
+        self.policy_surrogate_loss += tf.reduce_mean(
             self.meta_qf_with_action_input.output
-        ) * 10
+        ) * self.meta_qf_output_weight
         if self._bpt_bellman_error_weight > 0.:
             self.policy_surrogate_loss += (
                 self.bellman_error_for_policy * self._bpt_bellman_error_weight
