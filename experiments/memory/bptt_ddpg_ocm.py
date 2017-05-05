@@ -46,10 +46,7 @@ from railrl.misc.hypopt import optimize_and_save
 
 
 def run_ocm_experiment(variant):
-    from railrl.algos.oracle_bptt_ddpg import (
-        OracleUnrollBpttDDPG,
-    )
-    from railrl.algos.regress_q_bptt_ddpg import RegressQBpttDdpg
+    from railrl.algos.oracle_bptt_ddpg import OracleBpttDdpg
     from railrl.algos.meta_bptt_ddpg import MetaBpttDdpg
     from railrl.qfunctions.memory.oracle_qfunction import OracleQFunction
     from railrl.qfunctions.memory.oracle_unroll_qfunction import (
@@ -156,22 +153,7 @@ def run_ocm_experiment(variant):
             env_spec=env.spec,
         )
         algo_class = variant['algo_class']
-    elif oracle_mode == 'unroll':
-        qf = OracleUnrollQFunction(
-            name_or_scope="oracle_unroll_critic",
-            env=env,
-            policy=policy,
-            num_bptt_unrolls=num_bptt_unrolls,
-            env_obs_dim=env_obs_dim,
-            env_action_dim=env_action_dim,
-            max_horizon_length=H,
-            env_spec=env.spec,
-        )
-        algo_class = OracleUnrollBpttDDPG
-        ddpg_params['unroll_through_target_policy'] = (
-            unroll_through_target_policy
-        )
-    elif oracle_mode == 'regress':
+    elif oracle_mode == 'oracle':
         regress_params = variant['regress_params']
         if regress_params.pop('use_hint_qf', False):
             qf = qf or HintMlpMemoryQFunction(
@@ -197,7 +179,7 @@ def run_ocm_experiment(variant):
             max_horizon_length=H,
             env_spec=env.spec,
         )
-        algo_class = RegressQBpttDdpg
+        algo_class = OracleBpttDdpg
         ddpg_params['oracle_qf'] = oracle_qf
         ddpg_params.update(regress_params)
     elif oracle_mode == 'meta':
@@ -295,9 +277,8 @@ if __name__ == '__main__':
     """
     Algorithm Selection
     """
-    oracle_mode = 'meta'
+    oracle_mode = 'oracle'
     algo_class = BpttDDPG
-    unroll_through_target_policy = False
 
     """
     Policy Params
@@ -341,6 +322,8 @@ if __name__ == '__main__':
     use_hint_qf = False
     use_time = False
     use_target = False
+    use_oracle_qf = False
+    unroll_through_target_policy = False
 
     """
     Exploration params
@@ -418,6 +401,8 @@ if __name__ == '__main__':
         bellman_error_weight=bellman_error_weight,
         num_extra_qf_updates=num_extra_qf_updates,
         extra_qf_training_mode=extra_qf_training_mode,
+        use_oracle_qf=use_oracle_qf,
+        unroll_through_target_policy=unroll_through_target_policy,
     )
     policy_params = dict(
         rnn_cell_class=policy_rnn_cell_class,
