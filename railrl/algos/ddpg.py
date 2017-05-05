@@ -211,33 +211,32 @@ class DDPG(OnlineAlgorithm):
             train_ops += self.policy.batch_norm_update_stats_op
 
         target_ops = []
-        if self._target_update_mode == TargetUpdateMode.SOFT:
+        if self._should_update_target(n_steps_total):
             target_ops = [
                 self.update_target_qf_op,
                 self.update_target_policy_op,
             ]
+
+        return filter_recursive([
+            train_ops,
+            target_ops,
+        ])
+
+    def _should_update_target(self, n_steps_total):
+        if (self._target_update_mode == TargetUpdateMode.SOFT or
+                    self._target_update_mode == TargetUpdateMode.NONE):
+            return True
         elif self._target_update_mode == TargetUpdateMode.HARD:
             if n_steps_total % self._hard_update_period == 0:
-                target_ops = [
-                    self.update_target_qf_op,
-                    self.update_target_policy_op,
-                ]
-        elif self._target_update_mode == TargetUpdateMode.NONE:
-            target_ops = [
-                self.update_target_qf_op,
-                self.update_target_policy_op,
-            ]
+                return True
         else:
             raise RuntimeError(
                 "Unknown target update mode: {}".format(
                     self._target_update_mode
                 )
             )
+        return False
 
-        return filter_recursive([
-            train_ops,
-            target_ops,
-        ])
 
     @overrides
     def _update_feed_dict(self, rewards, terminals, obs, actions, next_obs,
