@@ -47,7 +47,6 @@ from railrl.misc.hypopt import optimize_and_save
 
 def run_ocm_experiment(variant):
     from railrl.algos.oracle_bptt_ddpg import (
-        OracleBpttDDPG,
         OracleUnrollBpttDDPG,
     )
     from railrl.algos.regress_q_bptt_ddpg import RegressQBpttDdpg
@@ -171,21 +170,6 @@ def run_ocm_experiment(variant):
         ddpg_params['unroll_through_target_policy'] = (
             unroll_through_target_policy
         )
-    elif oracle_mode == 'hint':
-        qf = HintMlpMemoryQFunction(
-            name_or_scope="hint_critic",
-            hint_dim=env_action_dim,
-            env_spec=env.spec,
-            max_time=H,
-        )
-        algo_class = OracleBpttDDPG
-    elif oracle_mode == 'oracle':
-        qf = OracleQFunction(
-            name_or_scope="oracle_critic",
-            env=env,
-            env_spec=env.spec,
-        )
-        algo_class = OracleBpttDDPG
     elif oracle_mode == 'regress':
         regress_params = variant['regress_params']
         if regress_params.pop('use_hint_qf', False):
@@ -263,11 +247,11 @@ if __name__ == '__main__':
     run_mode = 'none'
     version = 'dev'
 
-    n_seeds = 10
-    mode = 'ec2'
-    exp_prefix = '5-4-flags-hp-sweep'
-    run_mode = 'grid'
-    version = 'dev'
+    # n_seeds = 10
+    # mode = 'ec2'
+    # exp_prefix = '5-4-flags-hp-sweep'
+    # run_mode = 'grid'
+    # version = 'dev'
 
     """
     Env param
@@ -289,7 +273,7 @@ if __name__ == '__main__':
     batch_size = 32
     n_epochs = 50
     memory_dim = 20
-    min_pool_size = 1000
+    min_pool_size = 320
     replay_pool_size = 100000
     bpt_bellman_error_weight = 1.
 

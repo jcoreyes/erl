@@ -118,7 +118,7 @@ class RegressQBpttDdpg(BpttDDPG):
                 self.env_qf_grad_mse_from_one
                 + self.memory_qf_grad_mse_from_one
             ) * self.qf_grad_mse_from_one_weight
-        if self.qf_loss != 0.:
+        if self.qf_loss != 0. and self.qf_is_trainable:
             with tf.variable_scope("regress_train_qf_op"):
                 self.train_qf_op = tf.train.AdamOptimizer(
                     self.qf_learning_rate
@@ -143,6 +143,8 @@ class RegressQBpttDdpg(BpttDDPG):
             target_numbers,
             self.env.wrapped_env.action_space.flat_dim,
         )
+        # TODO(vitchyr): BUG this gets more complicated with the flags. I
+        # should make the environment generate the rest of the observations.
         rest_of_obs = np.zeros(
             [
                 batch_size,
@@ -150,7 +152,7 @@ class RegressQBpttDdpg(BpttDDPG):
                 self._env_obs_dim,
             ]
         )
-        rest_of_obs[:, :, 0] = 1
+        # rest_of_obs[:, :, 0] = 1
         feed_dict = {
             self.oracle_qf.sequence_length_placeholder: sequence_lengths,
             self.oracle_qf.rest_of_obs_placeholder: rest_of_obs,

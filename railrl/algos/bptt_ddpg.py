@@ -154,6 +154,8 @@ class BpttDDPG(DDPG):
             (qf_ops, qf_feed_dict, qf_stat_names),
             (policy_ops, policy_feed_dict, policy_stat_names),
         ]:
+            if ops[0] is None:
+                continue
             values = self.sess.run(ops, feed_dict=feed_dict)
             for stat_name, value in zip(stat_names, values):
                 statistics.update(
@@ -288,6 +290,10 @@ class BpttDDPG(DDPG):
             and self.qf_total_loss_tolerance is not None
             and self.max_num_q_updates > 0
         )
+
+    @property
+    def qf_is_trainable(self):
+        return len(self.qf.get_params()) > 0
 
     """
     Policy methods
