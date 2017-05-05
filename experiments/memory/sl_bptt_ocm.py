@@ -13,6 +13,7 @@ from tensorflow.contrib.rnn import (
 from railrl.policies.memory.action_aware_memory_policy import DecoupledLSTM
 from railrl.policies.memory.lstm_memory_policy import (
     LstmLinearCell,
+    ResidualLstmLinearCell,
 )
 
 
@@ -21,19 +22,20 @@ from railrl.policies.memory.lstm_memory_policy import (
 def main():
     num_seeds = 5
     num_values = 2
+    use_peepholes = True
+    rnn_cell_class = LstmLinearCell
+    rnn_cell_class = ResidualLstmLinearCell
+    softmax = False
     version = 'supervised_learning'
-    exp_prefix = '4-30-comparison-short'
-    for H, (rnn_cell_class, softmax), use_peepholes in product(
-        [8, 16],
-        [
-            # (LayerNormBasicLSTMCell, False),
-            # (LSTMCell, True),
-            # (DecoupledLSTM, False),
-            (LstmLinearCell, False),
-        ],
-        [True],
-        # [False],
-        # [None],
+    exp_prefix = '5-4-sl-residual-rnn'
+    # exp_prefix = 'dev-sl'
+    env_noise_std = 0
+    memory_noise_std = 0
+    for H, rnn_cell_class in product(
+        [64],
+        # [0., 0.1, 0.3, 1],
+        # [0., 0.5, 1., 3.],
+        [LstmLinearCell, ResidualLstmLinearCell],
     ):
         variant = dict(
             env_params=dict(
@@ -54,6 +56,8 @@ def main():
                 rnn_cell_class=rnn_cell_class,
                 rnn_cell_params=dict(
                     use_peepholes=use_peepholes,
+                    env_noise_std=env_noise_std,
+                    memory_noise_std=memory_noise_std,
                 ),
                 softmax=softmax,
             ),
