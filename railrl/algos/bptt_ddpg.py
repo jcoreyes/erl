@@ -175,25 +175,10 @@ class BpttDDPG(DDPG):
             train_ops += self.qf.batch_norm_update_stats_op
 
         target_ops = []
-        if self._target_update_mode == TargetUpdateMode.SOFT:
+        if self._should_update_target(n_steps_total):
             target_ops = [
                 self.update_target_qf_op,
             ]
-        elif self._target_update_mode == TargetUpdateMode.HARD:
-            if n_steps_total % self._hard_update_period == 0:
-                target_ops = [
-                    self.update_target_qf_op,
-                ]
-        elif self._target_update_mode == TargetUpdateMode.NONE:
-            target_ops = [
-                self.update_target_qf_op,
-            ]
-        else:
-            raise RuntimeError(
-                "Unknown target update mode: {}".format(
-                    self._target_update_mode
-                )
-            )
 
         return filter_recursive([
             train_ops,
@@ -249,6 +234,7 @@ class BpttDDPG(DDPG):
     """
     Extra QF Training Functions
     """
+
     def _do_extra_qf_training(self, n_steps_total=None, **kwargs):
         if self.extra_qf_training_mode == 'none':
             return
@@ -303,10 +289,10 @@ class BpttDDPG(DDPG):
             and self.max_num_q_updates > 0
         )
 
-
     """
     Policy methods
     """
+
     def _init_policy_ops(self):
         self._rnn_inputs_ph = tf.placeholder(
             tf.float32,
@@ -353,7 +339,7 @@ class BpttDDPG(DDPG):
             # action. See writeup for more details.
             target_observation_input = (
                 self.next_env_obs_ph_for_policy_bpt_bellman,  # o_{t+1}^buffer
-                self._final_rnn_augmented_action[1]           # m_{t+1} = w_t
+                self._final_rnn_augmented_action[1]  # m_{t+1} = w_t
             )
             self.target_policy_for_policy = (
                 self.target_policy.get_weight_tied_copy(
@@ -381,11 +367,11 @@ class BpttDDPG(DDPG):
             )
             action_input = (
                 self.env_action_ph_for_policy_bpt_bellman,  # a_t^buffer
-                self._final_rnn_augmented_action[1],        # w_t
+                self._final_rnn_augmented_action[1],  # w_t
             )
             observation_input = (
                 self.env_observation_ph_for_policy_bpt_bellman,  # o_t^buffer
-                self._final_rnn_memory_input,                    # m_t
+                self._final_rnn_memory_input,  # m_t
             )
             self.qf_for_policy = self.qf.get_weight_tied_copy(
                 action_input=action_input,
@@ -430,25 +416,10 @@ class BpttDDPG(DDPG):
             train_ops += self.policy.batch_norm_update_stats_op
 
         target_ops = []
-        if self._target_update_mode == TargetUpdateMode.SOFT:
+        if self._should_update_target(n_steps_total):
             target_ops = [
                 self.update_target_policy_op,
             ]
-        elif self._target_update_mode == TargetUpdateMode.HARD:
-            if n_steps_total % self._hard_update_period == 0:
-                target_ops = [
-                    self.update_target_policy_op,
-                ]
-        elif self._target_update_mode == TargetUpdateMode.NONE:
-            target_ops = [
-                self.update_target_policy_op,
-            ]
-        else:
-            raise RuntimeError(
-                "Unknown target update mode: {}".format(
-                    self._target_update_mode
-                )
-            )
 
         return filter_recursive([
             train_ops,
@@ -498,10 +469,10 @@ class BpttDDPG(DDPG):
         feed_dict[self.policy.observation_input] = last_obs
         return feed_dict
 
-
     """
     Miscellaneous functions
     """
+
     @staticmethod
     def _get_time_step(action_or_obs, t):
         """
