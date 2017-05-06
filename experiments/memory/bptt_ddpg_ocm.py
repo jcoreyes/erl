@@ -224,7 +224,6 @@ def get_ocm_score(variant):
 
 def create_run_experiment_multiple_seeds(n_seeds):
     def run_experiment_with_multiple_seeds(variant):
-        print("VARIANT", variant)
         scores = []
         for i in range(n_seeds):
             variant['seed'] = str(int(variant['seed']) + i)
@@ -247,12 +246,12 @@ if __name__ == '__main__':
     run_mode = 'none'
     version = 'dev'
 
-    # n_seeds = 3
+    # n_seeds = 20
     # mode = 'ec2'
-    # exp_prefix = '5-5-hyperopt-meta-no-flags'
-    # run_mode = 'random'
+    # exp_prefix = '5-6-meta-or-not-with-flags'
+    # run_mode = 'custom_grid'
     # version = 'dev'
-    num_hp_settings = 100
+    # num_hp_settings = 100
 
     """
     Env param
@@ -264,7 +263,7 @@ if __name__ == '__main__':
     zero_observation = True
     env_output_target_number = False
     env_output_time = False
-    episode_boundary_flags = False
+    episode_boundary_flags = True
 
     """
     DDPG Params
@@ -469,29 +468,29 @@ if __name__ == '__main__':
         search_space = {
             'policy_params.rnn_cell_params.env_noise_std': hp.uniform(
                 'policy_params.rnn_cell_params.env_noise_std',
-                np.log(0.001),
-                np.log(5),
+                0.,
+                5,
             ),
             'policy_params.rnn_cell_params.memory_noise_std': hp.uniform(
                 'policy_params.rnn_cell_params.memory_noise_std',
-                np.log(0.001),
-                np.log(5),
+                0.,
+                5,
             ),
-            'ddpg_params.bpt_bellman_error_weight': hp.loguniform(
-                'ddpg_params.bpt_bellman_error_weight',
-                np.log(0.01),
-                np.log(1000),
-            ),
-            'meta_params.meta_qf_learning_rate': hp.loguniform(
-                'meta_params.meta_qf_learning_rate',
-                np.log(1e-5),
-                np.log(1e-2),
-            ),
-            'meta_params.meta_qf_output_weight': hp.loguniform(
-                'meta_params.meta_qf_output_weight',
-                np.log(1e-1),
-                np.log(1000),
-            ),
+            # 'ddpg_params.bpt_bellman_error_weight': hp.loguniform(
+            #     'ddpg_params.bpt_bellman_error_weight',
+            #     np.log(0.01),
+            #     np.log(1000),
+            # ),
+            # 'meta_params.meta_qf_learning_rate': hp.loguniform(
+            #     'meta_params.meta_qf_learning_rate',
+            #     np.log(1e-5),
+            #     np.log(1e-2),
+            # ),
+            # 'meta_params.meta_qf_output_weight': hp.loguniform(
+            #     'meta_params.meta_qf_output_weight',
+            #     np.log(1e-1),
+            #     np.log(1000),
+            # ),
             'seed': hp.randint('seed', 10000),
         }
 
@@ -562,25 +561,14 @@ if __name__ == '__main__':
     elif run_mode == 'custom_grid':
         for exp_id, (
                 version,
-                bpt_bellman_error_weight,
-                memory_noise_std,
-                env_noise_std
+                meta_qf_output_weight,
         ) in enumerate([
-            ("Basic", 1., 1., 0.),
-            ("No Bpt Bellman Error", 0., 1., 0.),
-            ("No Stochastic RNN", 1., 0., 1.),
-            ("No Bpt Bellman Error, No Stochastic RNN", 0., 0., 1.),
+            ("No Meta", 0),
+            ("Meta-0.5", 0.5),
+            ("Meta-1", 1),
         ]):
-            exp_id += 1000
-            variant['version'] = version
-            variant['policy_params']['rnn_cell_params']['env_noise_std'] = (
-                env_noise_std
-            )
-            variant['policy_params']['rnn_cell_params']['memory_noise_std'] = (
-                memory_noise_std
-            )
-            variant['ddpg_params']['bpt_bellman_error_weight'] = (
-                bpt_bellman_error_weight
+            variant['meta_params']['meta_qf_output_weight'] = (
+                meta_qf_output_weight
             )
             for seed in range(n_seeds):
                 run_experiment(
