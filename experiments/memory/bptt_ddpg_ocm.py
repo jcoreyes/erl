@@ -247,12 +247,12 @@ if __name__ == '__main__':
     run_mode = 'none'
     version = 'dev'
 
-    # n_seeds = 3
-    # mode = 'ec2'
-    # exp_prefix = '5-5-hyperopt-meta-no-flags'
-    # run_mode = 'random'
-    # version = 'dev'
-    num_hp_settings = 100
+    n_seeds = 3
+    mode = 'ec2'
+    exp_prefix = '5-5-random-layernorm'
+    run_mode = 'random'
+    version = 'dev'
+    num_hp_settings = 50
 
     """
     Env param
@@ -333,7 +333,8 @@ if __name__ == '__main__':
     Meta-critic Params
     """
     meta_qf_learning_rate = 0.0043686912042467125
-    meta_qf_output_weight = 0.5895080878682102
+    # meta_qf_output_weight = 0.5895080878682102
+    meta_qf_output_weight = 0.
     qf_output_weight = 1
 
     """
@@ -541,10 +542,10 @@ if __name__ == '__main__':
                 LogFloatOffsetParam(
                     'ddpg_params.bpt_bellman_error_weight', 1, 1001, -1
                 ),
-                LogFloatParam('meta_params.meta_qf_learning_rate', 1e-5, 1e-2),
-                LogFloatOffsetParam(
-                    'meta_params.meta_qf_output_weight', 1e-3, 1e3, -1e-3
-                ),
+                # LogFloatParam('meta_params.meta_qf_learning_rate', 1e-5, 1e-2),
+                # LogFloatOffsetParam(
+                #     'meta_params.meta_qf_output_weight', 1e-3, 1e3, -1e-3
+                # ),
             ],
             default_kwargs=variant,
         )
