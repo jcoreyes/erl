@@ -218,6 +218,7 @@ def get_ocm_score(variant):
 
 def create_run_experiment_multiple_seeds(n_seeds):
     def run_experiment_with_multiple_seeds(variant):
+        print("VARIANT", variant)
         scores = []
         for i in range(n_seeds):
             variant['seed'] = str(int(variant['seed']) + i)
@@ -240,10 +241,10 @@ if __name__ == '__main__':
     run_mode = 'none'
     version = 'dev'
 
-    # n_seeds = 10
+    n_seeds = 3
     # mode = 'ec2'
-    # exp_prefix = '5-4-flags-hp-sweep'
-    # run_mode = 'grid'
+    exp_prefix = '5-5-hyperopt-no-meta-h6'
+    run_mode = 'hyperopt'
     # version = 'dev'
 
     """
@@ -251,7 +252,7 @@ if __name__ == '__main__':
     """
     # env_class = OneCharMemoryOutputRewardMag
     env_class = OneCharMemoryEndOnly
-    H = 2
+    H = 6
     num_values = 2
     zero_observation = True
     env_output_target_number = False
@@ -264,11 +265,11 @@ if __name__ == '__main__':
     n_batches_per_epoch = 100
     n_batches_per_eval = 64
     batch_size = 32
-    n_epochs = 50
+    n_epochs = 25
     memory_dim = 20
     min_pool_size = 320
     replay_pool_size = 100000
-    bpt_bellman_error_weight = 1.
+    bpt_bellman_error_weight = 2.043625554091334
 
     """
     Algorithm Selection
@@ -299,7 +300,7 @@ if __name__ == '__main__':
     policy_learning_rate = 1e-3
     soft_target_tau = 0.01
     qf_weight_decay = 0.
-    num_bptt_unrolls = 1
+    num_bptt_unrolls = 4
     qf_total_loss_tolerance = 0.1
     max_num_q_updates = 10000
     train_policy = True
@@ -324,8 +325,8 @@ if __name__ == '__main__':
     """
     Meta-critic Params
     """
-    meta_qf_learning_rate = 1e-3
-    meta_qf_output_weight = 10
+    meta_qf_learning_rate = 0.0043686912042467125
+    meta_qf_output_weight = 0.5895080878682102
     qf_output_weight = 1
 
     """
@@ -356,8 +357,8 @@ if __name__ == '__main__':
     LSTM Cell params
     """
     use_peepholes = True
-    env_noise_std = 1.
-    memory_noise_std = 1.
+    env_noise_std = 0.7834798765148419
+    memory_noise_std = -1.3624080142760144
 
     """
     Create them dict's
@@ -471,9 +472,19 @@ if __name__ == '__main__':
             ),
             'ddpg_params.bpt_bellman_error_weight': hp.loguniform(
                 'ddpg_params.bpt_bellman_error_weight',
-                np.log(0.001),
-                np.log(100),
+                np.log(0.01),
+                np.log(1000),
             ),
+            # 'meta_params.meta_qf_learning_rate': hp.loguniform(
+            #     'meta_params.meta_qf_learning_rate',
+            #     np.log(1e-5),
+            #     np.log(1e-2),
+            # ),
+            # 'meta_params.meta_qf_output_weight': hp.loguniform(
+            #     'meta_params.meta_qf_output_weight',
+            #     np.log(1e-1),
+            #     np.log(1000),
+            # ),
             'seed': hp.randint('seed', 10000),
         }
 
@@ -492,9 +503,12 @@ if __name__ == '__main__':
         )
     elif run_mode == 'grid':
         search_space = {
-            'policy_params.rnn_cell_params.env_noise_std': [0., 1.],
-            'policy_params.rnn_cell_params.memory_noise_std': [0., 1.],
-            'ddpg_params.bpt_bellman_error_weight': [0, 1, 10, 100],
+            # 'policy_params.rnn_cell_params.env_noise_std': [0., 1.],
+            # 'policy_params.rnn_cell_params.memory_noise_std': [0., 1.],
+            # 'ddpg_params.bpt_bellman_error_weight': [0, 1, 10, 100],
+            'meta_params.meta_qf_learning_rate': [1e-3, 1e-4],
+            'meta_params.meta_qf_output_weight': [0, 0.1, 1, 5, 10],
+            # 'meta_params.qf_output_weight': [0, 1],
         }
         sweeper = DeterministicHyperparameterSweeper(search_space,
                                                      default_parameters=variant)
