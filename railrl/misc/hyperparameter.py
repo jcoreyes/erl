@@ -125,7 +125,6 @@ class RandomHyperparameterSweeper(Sweeper):
         hyperparameters = {}
         for hp in self._hyperparameters:
             hyperparameters[hp.name] = hp.generate()
-        import ipdb; ipdb.set_trace()
         hyperparameters = ppp.dot_map_dict_to_nested_dict(hyperparameters)
         return ppp.merge_recursive_dicts(
             hyperparameters,
