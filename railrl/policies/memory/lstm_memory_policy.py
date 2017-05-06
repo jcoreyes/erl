@@ -70,6 +70,7 @@ class LstmLinearCell(LSTMCell):
                 )
 
             flat_state = tf.concat(axis=1, values=(lstm_output, lstm_state))
+            flat_state = tf_util.layer_normalize(flat_state)
 
             with tf.variable_scope('env_action') as self.env_action_scope:
                 W = tf.get_variable('W', [self._num_units, self._output_dim])

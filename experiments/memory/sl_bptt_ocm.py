@@ -23,19 +23,16 @@ def main():
     num_seeds = 5
     num_values = 2
     use_peepholes = True
-    rnn_cell_class = LstmLinearCell
-    rnn_cell_class = ResidualLstmLinearCell
     softmax = False
     version = 'supervised_learning'
-    exp_prefix = '5-4-sl-residual-rnn'
-    # exp_prefix = 'dev-sl'
+    exp_prefix = 'dev-sl'
     env_noise_std = 0
     memory_noise_std = 0
     for H, rnn_cell_class in product(
-        [64],
+        [16],
         # [0., 0.1, 0.3, 1],
         # [0., 0.5, 1., 3.],
-        [LstmLinearCell, ResidualLstmLinearCell],
+        [LstmLinearCell],
     ):
         variant = dict(
             env_params=dict(
