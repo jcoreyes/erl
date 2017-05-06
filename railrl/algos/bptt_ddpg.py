@@ -275,7 +275,7 @@ class BpttDDPG(DDPG):
             if self.max_num_q_updates <= 0:
                 return
 
-            last_validation_loss = self._validation_qf_loss()
+            best_validation_loss = self._validation_qf_loss()
             if self._should_train_qf_extra(n_steps_total=n_steps_total):
                 line_logger.print_over(
                     "{0} T:{1:3.4f} V:{2:3.4f}".format(0, 0, 0)
@@ -294,11 +294,12 @@ class BpttDDPG(DDPG):
                             i, train_loss, validation_loss,
                         )
                     )
-                    if validation_loss > last_validation_loss:
-                        break
+                    # if validation_loss > best_validation_loss:
+                    #     break
                     if validation_loss <= self.qf_total_loss_tolerance:
                         break
-                    last_validation_loss = validation_loss
+                    best_validation_loss = min(validation_loss,
+                                               best_validation_loss)
                 line_logger.newline()
 
     def _validation_qf_loss(self):

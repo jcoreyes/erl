@@ -241,10 +241,10 @@ if __name__ == '__main__':
     run_mode = 'none'
     version = 'dev'
 
-    n_seeds = 3
+    # n_seeds = 3
     # mode = 'ec2'
-    exp_prefix = '5-5-hyperopt-no-meta-h6'
-    run_mode = 'hyperopt'
+    # exp_prefix = '5-5-hyperopt-no-meta-h6'
+    # run_mode = 'hyperopt'
     # version = 'dev'
 
     """
@@ -296,15 +296,15 @@ if __name__ == '__main__':
     Algo params
     """
     num_extra_qf_updates = 10
-    qf_learning_rate = 1e-3
+    qf_learning_rate = 1e-4
     policy_learning_rate = 1e-3
     soft_target_tau = 0.01
-    qf_weight_decay = 0.
+    qf_weight_decay = 0.01
     num_bptt_unrolls = 4
-    qf_total_loss_tolerance = 0.1
-    max_num_q_updates = 10000
+    qf_total_loss_tolerance = 1.02
+    max_num_q_updates = 1000
     train_policy = True
-    extra_qf_training_mode = 'none'
+    extra_qf_training_mode = 'validation'
     freeze_hidden = False
     extra_train_period = 100
 
@@ -327,6 +327,7 @@ if __name__ == '__main__':
     """
     meta_qf_learning_rate = 0.0043686912042467125
     meta_qf_output_weight = 0.5895080878682102
+    meta_qf_output_weight = 0.
     qf_output_weight = 1
 
     """
@@ -358,7 +359,7 @@ if __name__ == '__main__':
     """
     use_peepholes = True
     env_noise_std = 0.7834798765148419
-    memory_noise_std = -1.3624080142760144
+    memory_noise_std = 1.3624080142760144
 
     """
     Create them dict's
