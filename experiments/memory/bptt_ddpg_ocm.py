@@ -17,7 +17,13 @@ from railrl.exploration_strategies.action_aware_memory_strategy import \
 from railrl.launchers.launcher_util import (
     run_experiment,
 )
-from railrl.misc.hyperparameter import DeterministicHyperparameterSweeper
+from railrl.misc.hyperparameter import (
+    DeterministicHyperparameterSweeper,
+    RandomHyperparameterSweeper,
+    LogFloatParam,
+    LogFloatOffsetParam,
+    LinearFloatParam,
+)
 from railrl.policies.memory.action_aware_memory_policy import \
     ActionAwareMemoryPolicy
 from railrl.policies.memory.lstm_memory_policy import (
@@ -241,11 +247,12 @@ if __name__ == '__main__':
     run_mode = 'none'
     version = 'dev'
 
-    n_seeds = 3
+    # n_seeds = 3
     # mode = 'ec2'
-    exp_prefix = '5-5-hyperopt-meta-no-flags'
-    run_mode = 'hyperopt'
+    # exp_prefix = '5-5-hyperopt-meta-no-flags'
+    # run_mode = 'random'
     # version = 'dev'
+    num_hp_settings = 100
 
     """
     Env param
@@ -513,6 +520,36 @@ if __name__ == '__main__':
         sweeper = DeterministicHyperparameterSweeper(search_space,
                                                      default_parameters=variant)
         for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+            for i in range(n_seeds):
+                run_experiment(
+                    get_ocm_score,
+                    exp_prefix=exp_prefix,
+                    seed=i,
+                    mode=mode,
+                    variant=variant,
+                    exp_id=exp_id,
+                )
+    elif run_mode == 'random':
+        sweeper = RandomHyperparameterSweeper(
+            hyperparameters=[
+                LinearFloatParam(
+                    'policy_params.rnn_cell_params.env_noise_std', 0, 1
+                ),
+                LinearFloatParam(
+                    'policy_params.rnn_cell_params.memory_noise_std', 0, 1
+                ),
+                LogFloatOffsetParam(
+                    'ddpg_params.bpt_bellman_error_weight', 1, 1001, -1
+                ),
+                LogFloatParam('meta_params.meta_qf_learning_rate', 1e-5, 1e-2),
+                LogFloatOffsetParam(
+                    'meta_params.meta_qf_output_weight', 1e-3, 1e3, -1e-3
+                ),
+            ],
+            default_kwargs=variant,
+        )
+        for exp_id in range(num_hp_settings):
+            variant = sweeper.generate_random_hyperparameters()
             for i in range(n_seeds):
                 run_experiment(
                     get_ocm_score,
