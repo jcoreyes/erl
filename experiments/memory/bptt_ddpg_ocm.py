@@ -241,10 +241,10 @@ if __name__ == '__main__':
     run_mode = 'none'
     version = 'dev'
 
-    n_seeds = 3
+    # n_seeds = 3
     # mode = 'ec2'
-    exp_prefix = '5-5-hyperopt-no-meta-h6'
-    run_mode = 'hyperopt'
+    exp_prefix = '5-5-meta-post-hyperopt-no-flags'
+    # run_mode = 'hyperopt'
     # version = 'dev'
 
     """
@@ -257,7 +257,7 @@ if __name__ == '__main__':
     zero_observation = True
     env_output_target_number = False
     env_output_time = False
-    episode_boundary_flags = True
+    episode_boundary_flags = False
 
     """
     DDPG Params
