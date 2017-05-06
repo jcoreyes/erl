@@ -241,10 +241,10 @@ if __name__ == '__main__':
     run_mode = 'none'
     version = 'dev'
 
-    # n_seeds = 3
+    n_seeds = 3
     # mode = 'ec2'
-    exp_prefix = '5-5-meta-post-hyperopt-no-flags'
-    # run_mode = 'hyperopt'
+    exp_prefix = '5-5-hyperopt-meta-no-flags'
+    run_mode = 'hyperopt'
     # version = 'dev'
 
     """
@@ -475,16 +475,16 @@ if __name__ == '__main__':
                 np.log(0.01),
                 np.log(1000),
             ),
-            # 'meta_params.meta_qf_learning_rate': hp.loguniform(
-            #     'meta_params.meta_qf_learning_rate',
-            #     np.log(1e-5),
-            #     np.log(1e-2),
-            # ),
-            # 'meta_params.meta_qf_output_weight': hp.loguniform(
-            #     'meta_params.meta_qf_output_weight',
-            #     np.log(1e-1),
-            #     np.log(1000),
-            # ),
+            'meta_params.meta_qf_learning_rate': hp.loguniform(
+                'meta_params.meta_qf_learning_rate',
+                np.log(1e-5),
+                np.log(1e-2),
+            ),
+            'meta_params.meta_qf_output_weight': hp.loguniform(
+                'meta_params.meta_qf_output_weight',
+                np.log(1e-1),
+                np.log(1000),
+            ),
             'seed': hp.randint('seed', 10000),
         }
 
