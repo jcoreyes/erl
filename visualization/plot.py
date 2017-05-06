@@ -44,6 +44,8 @@ def main():
     data_and_variant = []
     for dir_name in dir_names:
         data_file_name = join(args.expdir, dir_name, 'progress.csv')
+        if not os.path.exists(data_file_name):
+            continue
         variant_file_name = join(args.expdir, dir_name, 'variant.json')
         with open(variant_file_name) as variant_file:
             variant = json.load(variant_file)
