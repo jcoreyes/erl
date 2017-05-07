@@ -3,6 +3,7 @@ General purpose Python functions.
 """
 import random
 import sys
+import collections
 
 
 # TODO(vpong): probably move this to its own module, not under railrl
@@ -126,6 +127,24 @@ def dot_map_dict_to_nested_dict(dot_map_dict):
             last_key = split_keys[-1]
             t[last_key] = item
     return tree
+
+
+def nested_dict_to_dot_map_dict(d, parent_key=''):
+    """
+    Convert a recursive dictionary into a flat, dot-map dictionary.
+
+    :param d: e.g. {'a': {'b': 2, 'c': 3}}
+    :param parent_key: Used for recursion
+    :return: e.g. {'a.b': 2, 'a.c': 3}
+    """
+    items = []
+    for k, v in d.items():
+        new_key = parent_key + "." + k if parent_key else k
+        if isinstance(v, collections.MutableMapping):
+            items.extend(nested_dict_to_dot_map_dict(v, new_key).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
 
 
 def merge_recursive_dicts(a, b, path=None,

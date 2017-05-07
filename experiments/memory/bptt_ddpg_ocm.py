@@ -224,7 +224,6 @@ def get_ocm_score(variant):
 
 def create_run_experiment_multiple_seeds(n_seeds):
     def run_experiment_with_multiple_seeds(variant):
-        print("VARIANT", variant)
         scores = []
         for i in range(n_seeds):
             variant['seed'] = str(int(variant['seed']) + i)
@@ -248,18 +247,18 @@ if __name__ == '__main__':
     version = 'dev'
 
     n_seeds = 3
-    mode = 'ec2'
-    exp_prefix = '5-5-random-layernorm'
-    run_mode = 'random'
-    version = 'dev'
-    num_hp_settings = 50
+    # mode = 'ec2'
+    exp_prefix = '5-6-meta-hyperopt-sweep'
+    run_mode = 'hyperopt'
+    # version = 'dev'
+    # num_hp_settings = 100
 
     """
     Env param
     """
     # env_class = OneCharMemoryOutputRewardMag
     env_class = OneCharMemoryEndOnly
-    H = 6
+    H = 4
     num_values = 2
     zero_observation = True
     env_output_target_number = False
@@ -272,7 +271,7 @@ if __name__ == '__main__':
     n_batches_per_epoch = 100
     n_batches_per_eval = 64
     batch_size = 32
-    n_epochs = 25
+    n_epochs = 30
     memory_dim = 20
     min_pool_size = 320
     replay_pool_size = 100000
@@ -307,7 +306,7 @@ if __name__ == '__main__':
     policy_learning_rate = 1e-3
     soft_target_tau = 0.01
     qf_weight_decay = 0.
-    num_bptt_unrolls = 4
+    num_bptt_unrolls = 2
     qf_total_loss_tolerance = 0.1
     max_num_q_updates = 10000
     train_policy = True
@@ -470,18 +469,23 @@ if __name__ == '__main__':
         search_space = {
             'policy_params.rnn_cell_params.env_noise_std': hp.uniform(
                 'policy_params.rnn_cell_params.env_noise_std',
-                np.log(0.001),
-                np.log(5),
+                0.,
+                5,
             ),
             'policy_params.rnn_cell_params.memory_noise_std': hp.uniform(
                 'policy_params.rnn_cell_params.memory_noise_std',
-                np.log(0.001),
-                np.log(5),
+                0.,
+                5,
             ),
             'ddpg_params.bpt_bellman_error_weight': hp.loguniform(
                 'ddpg_params.bpt_bellman_error_weight',
                 np.log(0.01),
                 np.log(1000),
+            ),
+            'ddpg_params.qf_learning_rate': hp.loguniform(
+                'ddpg_params.qf_learning_rate',
+                np.log(0.00001),
+                np.log(0.01),
             ),
             'meta_params.meta_qf_learning_rate': hp.loguniform(
                 'meta_params.meta_qf_learning_rate',
@@ -563,25 +567,14 @@ if __name__ == '__main__':
     elif run_mode == 'custom_grid':
         for exp_id, (
                 version,
-                bpt_bellman_error_weight,
-                memory_noise_std,
-                env_noise_std
+                meta_qf_output_weight,
         ) in enumerate([
-            ("Basic", 1., 1., 0.),
-            ("No Bpt Bellman Error", 0., 1., 0.),
-            ("No Stochastic RNN", 1., 0., 1.),
-            ("No Bpt Bellman Error, No Stochastic RNN", 0., 0., 1.),
+            ("No Meta", 0),
+            ("Meta-0.5", 0.5),
+            ("Meta-1", 1),
         ]):
-            exp_id += 1000
-            variant['version'] = version
-            variant['policy_params']['rnn_cell_params']['env_noise_std'] = (
-                env_noise_std
-            )
-            variant['policy_params']['rnn_cell_params']['memory_noise_std'] = (
-                memory_noise_std
-            )
-            variant['ddpg_params']['bpt_bellman_error_weight'] = (
-                bpt_bellman_error_weight
+            variant['meta_params']['meta_qf_output_weight'] = (
+                meta_qf_output_weight
             )
             for seed in range(n_seeds):
                 run_experiment(
