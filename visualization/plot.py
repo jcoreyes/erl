@@ -99,7 +99,6 @@ def main():
         axes[i].errorbar(x_values, y_means, yerr=y_stds)
         axes[i].set_ylabel(y_label)
         axes[i].set_xlabel(x_label)
-    plt.show()
 
     """
     Display information about the best parameters
@@ -115,8 +114,11 @@ def main():
     print("Default Param", default_params)
     print("Top 3 params")
     for value, params in value_and_unique_params[:3]:
-        print("Params", params)
+        for k, v in params.items():
+            print("\t{}: {}".format(k, v))
         print("Value", value)
+
+    plt.show()
 
 if __name__ == '__main__':
     main()
