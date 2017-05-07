@@ -338,16 +338,17 @@ class OracleBpttDdpg(BpttDDPG):
         }
         if hasattr(self.qf_with_action_input, "target_labels"):
             feed_dict[self.qf_with_action_input.target_labels] = target_one_hots
-        if (hasattr(self.target_qf_for_policy, "target_labels") and
-                self._bpt_bellman_error_weight > 0.):
-            # TODO(vitchyr): this should be the NEXT target...
-            feed_dict[self.target_qf_for_policy.target_labels] = target_one_hots
         if hasattr(self.qf_with_action_input, "time_labels"):
             feed_dict[self.qf_with_action_input.time_labels] = times
-        if (hasattr(self.target_qf_for_policy, "time_labels") and
-                 self._bpt_bellman_error_weight > 0.):
-            # TODO(vitchyr): this seems hacky
-            feed_dict[self.target_qf_for_policy.time_labels] = times + 1
+        if self.target_qf_for_policy is not None:
+            if (hasattr(self.target_qf_for_policy, "target_labels") and
+                        self._bpt_bellman_error_weight > 0.):
+                # TODO(vitchyr): this should be the NEXT target...
+                feed_dict[self.target_qf_for_policy.target_labels] = target_one_hots
+            if (hasattr(self.target_qf_for_policy, "time_labels") and
+                     self._bpt_bellman_error_weight > 0.):
+                # TODO(vitchyr): this seems hacky
+                feed_dict[self.target_qf_for_policy.time_labels] = times + 1
         return feed_dict
 
     def _policy_feed_dict_from_batch(self, batch):

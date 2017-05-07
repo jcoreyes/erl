@@ -108,6 +108,14 @@ class DDPG(OnlineAlgorithm):
             * self.target_qf.output
         )
         self.bellman_error = tf.squeeze(tf_util.mse(self.ys, self.qf.output))
+        # import ipdb; ipdb.set_trace()
+        # self.bellman_error = tf.squeeze(
+        #     tf.reduce_mean(
+        #         tf.abs(self.rewards_placeholder) *
+        #         tf.squared_difference(self.ys, self.qf.output),
+        #         axis=0,
+        #     )
+        # )
         self.Q_weights_norm = tf.reduce_sum(
             tf.stack(
                 [tf.nn.l2_loss(v)
@@ -141,7 +149,7 @@ class DDPG(OnlineAlgorithm):
                 tf.assign(target, (self.tau * src + (1 - self.tau) * target))
                 for target, src in zip(target_qf_vars, qf_vars)]
         elif (self._target_update_mode == TargetUpdateMode.HARD or
-                self._target_update_mode == TargetUpdateMode.NONE):
+                      self._target_update_mode == TargetUpdateMode.NONE):
             self.update_target_policy_op = [
                 tf.assign(target, src)
                 for target, src in zip(target_policy_vars, policy_vars)
@@ -235,7 +243,6 @@ class DDPG(OnlineAlgorithm):
                 )
             )
         return False
-
 
     @overrides
     def _update_feed_dict(self, rewards, terminals, obs, actions, next_obs,

@@ -81,6 +81,17 @@ class BpttDDPG(DDPG):
             'validation',
         ]
         assert num_bptt_unrolls > 0
+        super().__init__(
+            env,
+            exploration_strategy,
+            policy,
+            qf,
+            replay_pool=replay_buffer_class(
+                replay_pool_size,
+                env,
+                num_bptt_unrolls,
+            ),
+            **kwargs)
         self._num_bptt_unrolls = num_bptt_unrolls
         self._env_obs_dim = env_obs_dim
         self._env_action_dim = env_action_dim
@@ -98,17 +109,8 @@ class BpttDDPG(DDPG):
 
         self._replay_buffer_class = replay_buffer_class
         self._last_env_scores = []
-        super().__init__(
-            env,
-            exploration_strategy,
-            policy,
-            qf,
-            replay_pool=replay_buffer_class(
-                replay_pool_size,
-                env,
-                num_bptt_unrolls,
-            ),
-            **kwargs)
+        self.target_policy_for_policy = None
+        self.target_qf_for_policy = None
 
     def _sample_minibatch(self, batch_size=None):
         if batch_size is None:
