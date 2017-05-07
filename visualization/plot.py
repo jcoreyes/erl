@@ -39,13 +39,17 @@ def main():
     args = parser.parse_args()
     y_label = args.ylabel
 
-
+    """
+    Load data
+    """
     dir_names = os.listdir(args.expdir)
     data_and_variant = []
+    variant = {}
     for dir_name in dir_names:
         data_file_name = join(args.expdir, dir_name, 'progress.csv')
         if not os.path.exists(data_file_name):
             continue
+        print("Reading {}".format(data_file_name))
         variant_file_name = join(args.expdir, dir_name, 'variant.json')
         with open(variant_file_name) as variant_file:
             variant = json.load(variant_file)
@@ -59,16 +63,21 @@ def main():
             print(name)
         return
 
+    """
+    Get the unique parameters
+    """
     _, all_variants = zip(*data_and_variant)
     unique_param_to_values = get_unique_param_to_values(all_variants)
-
-
     unique_numeric_param_to_values = {
         k: unique_param_to_values[k]
         for k in unique_param_to_values
         if is_numeric(list(unique_param_to_values[k])[0])
     }
+    value_to_unique_params = defaultdict(dict)
 
+    """
+    Plot results
+    """
     num_params = len(unique_numeric_param_to_values)
     fig, axes = plt.subplots(num_params)
     for i, x_label in enumerate(unique_numeric_param_to_values):
@@ -83,12 +92,31 @@ def main():
             x_values.append(x_value)
             y_means.append(np.mean(y_values))
             y_stds.append(np.std(y_values))
+            value_to_unique_params[np.mean(y_values)][x_label] = x_value
 
         x_values, y_means, y_stds = sort_by_first(x_values, y_means, y_stds)
 
         axes[i].errorbar(x_values, y_means, yerr=y_stds)
         axes[i].set_ylabel(y_label)
         axes[i].set_xlabel(x_label)
+
+    """
+    Display information about the best parameters
+    """
+    value_and_unique_params = sorted(value_to_unique_params.items(),
+                                     key=lambda v_and_params: -v_and_params[0])
+    unique_params = list(unique_numeric_param_to_values.keys())
+    default_params = {
+        k: variant[k]
+        for k in variant
+        if k not in unique_params
+    }
+    print("Default Param", default_params)
+    print("Top 3 params")
+    for value, params in value_and_unique_params[:3]:
+        for k, v in params.items():
+            print("\t{}: {}".format(k, v))
+        print("Value", value)
 
     plt.show()
 
