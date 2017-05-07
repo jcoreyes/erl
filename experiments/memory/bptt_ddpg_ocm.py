@@ -246,10 +246,10 @@ if __name__ == '__main__':
     run_mode = 'none'
     version = 'dev'
 
-    # n_seeds = 20
+    n_seeds = 3
     # mode = 'ec2'
-    # exp_prefix = '5-6-meta-or-not-with-flags'
-    # run_mode = 'custom_grid'
+    exp_prefix = '5-6-meta-hyperopt-sweep'
+    run_mode = 'hyperopt'
     # version = 'dev'
     # num_hp_settings = 100
 
@@ -258,12 +258,12 @@ if __name__ == '__main__':
     """
     # env_class = OneCharMemoryOutputRewardMag
     env_class = OneCharMemoryEndOnly
-    H = 6
+    H = 4
     num_values = 2
     zero_observation = True
     env_output_target_number = False
     env_output_time = False
-    episode_boundary_flags = True
+    episode_boundary_flags = False
 
     """
     DDPG Params
@@ -271,7 +271,7 @@ if __name__ == '__main__':
     n_batches_per_epoch = 100
     n_batches_per_eval = 64
     batch_size = 32
-    n_epochs = 25
+    n_epochs = 30
     memory_dim = 20
     min_pool_size = 320
     replay_pool_size = 100000
@@ -306,7 +306,7 @@ if __name__ == '__main__':
     policy_learning_rate = 1e-3
     soft_target_tau = 0.01
     qf_weight_decay = 0.
-    num_bptt_unrolls = 4
+    num_bptt_unrolls = 2
     qf_total_loss_tolerance = 0.1
     max_num_q_updates = 10000
     train_policy = True
@@ -476,21 +476,26 @@ if __name__ == '__main__':
                 0.,
                 5,
             ),
-            # 'ddpg_params.bpt_bellman_error_weight': hp.loguniform(
-            #     'ddpg_params.bpt_bellman_error_weight',
-            #     np.log(0.01),
-            #     np.log(1000),
-            # ),
-            # 'meta_params.meta_qf_learning_rate': hp.loguniform(
-            #     'meta_params.meta_qf_learning_rate',
-            #     np.log(1e-5),
-            #     np.log(1e-2),
-            # ),
-            # 'meta_params.meta_qf_output_weight': hp.loguniform(
-            #     'meta_params.meta_qf_output_weight',
-            #     np.log(1e-1),
-            #     np.log(1000),
-            # ),
+            'ddpg_params.bpt_bellman_error_weight': hp.loguniform(
+                'ddpg_params.bpt_bellman_error_weight',
+                np.log(0.01),
+                np.log(1000),
+            ),
+            'ddpg_params.qf_learning_rate': hp.loguniform(
+                'ddpg_params.qf_learning_rate',
+                np.log(0.00001),
+                np.log(0.01),
+            ),
+            'meta_params.meta_qf_learning_rate': hp.loguniform(
+                'meta_params.meta_qf_learning_rate',
+                np.log(1e-5),
+                np.log(1e-2),
+            ),
+            'meta_params.meta_qf_output_weight': hp.loguniform(
+                'meta_params.meta_qf_output_weight',
+                np.log(1e-1),
+                np.log(1000),
+            ),
             'seed': hp.randint('seed', 10000),
         }
 
