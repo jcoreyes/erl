@@ -99,6 +99,23 @@ class SubtrajReplayBuffer(ReplayBuffer):
         )
         self._example_action = action
 
+        # print(self._size)
+        # if self._size == 10000:
+        #     print("SAVING")
+        #     for name, np_array in [
+        #         ('obs', self._observations),
+        #         ('actions', self._actions),
+        #         ('rewards', self._rewards),
+        #         ('terminals', self._terminals),
+        #     ]:
+        #         np.savetxt(
+        #             '/home/vitchyr/git/rllab-rail/railrl/data/replay_buffer/'
+        #             '{}.csv'.format(name),
+        #             np_array,
+        #             delimiter=',',
+        #         )
+        #
+
     def terminate_episode(self, terminal_observation, **kwargs):
         self._add_sample(
             terminal_observation,
