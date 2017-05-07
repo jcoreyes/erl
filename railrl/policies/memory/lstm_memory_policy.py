@@ -4,6 +4,8 @@ import tensorflow as tf
 from railrl.core import tf_util
 from railrl.policies.memory.rnn_cell_policy import RnnCellPolicy
 from tensorflow.contrib.rnn import RNNCell, LSTMCell
+from tensorflow.contrib.layers import layer_norm
+from railrl.core.rnn.rnn import LNLSTMCell
 
 
 class SplitterCell(RNNCell):
@@ -37,7 +39,7 @@ class SplitterCell(RNNCell):
         return self.rnn_cell.output_size
 
 
-class LstmLinearCell(LSTMCell):
+class LstmLinearCell(LNLSTMCell):
     """
     LSTM cell with a linear unit + softmax before the output.
     """
@@ -47,12 +49,14 @@ class LstmLinearCell(LSTMCell):
             output_dim,
             env_noise_std=0.,
             memory_noise_std=0.,
+            layer_norm=False,
             **kwargs
     ):
         super().__init__(num_units / 2, **kwargs)
         self._output_dim = output_dim
         self._env_noise_std = env_noise_std
         self._memory_noise_std = memory_noise_std
+        self._layer_norm = layer_norm
 
     def __call__(self, inputs, state, scope=None):
         with tf.variable_scope(scope or "linear_lstm") as self.scope:
@@ -70,7 +74,9 @@ class LstmLinearCell(LSTMCell):
                 )
 
             flat_state = tf.concat(axis=1, values=(lstm_output, lstm_state))
-            flat_state = tf_util.layer_normalize(flat_state)
+            # flat_state = layer_norm(flat_state)
+            # flat_state = tf_util.layer_normalize(flat_state)
+            # if self._layer_norm:
 
             with tf.variable_scope('env_action') as self.env_action_scope:
                 W = tf.get_variable('W', [self._num_units, self._output_dim])

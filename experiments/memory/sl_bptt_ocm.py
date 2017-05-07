@@ -20,16 +20,18 @@ from railrl.policies.memory.lstm_memory_policy import (
 
 
 def main():
-    num_seeds = 5
+    num_seeds = 1
     num_values = 2
     use_peepholes = True
     softmax = False
-    version = 'supervised_learning'
-    exp_prefix = 'dev-sl'
+    # version = 'supervised_learning'
+    # exp_prefix = 'dev-sl'
+    version = 'proper-layer-norm'
+    exp_prefix = '5-7-sl-test-layer-norm'
     env_noise_std = 0
     memory_noise_std = 0
     for H, rnn_cell_class in product(
-        [16],
+        [64],
         # [0., 0.1, 0.3, 1],
         # [0., 0.5, 1., 3.],
         [LstmLinearCell],
@@ -45,7 +47,7 @@ def main():
             ),
             algo_params=dict(
                 num_batches_per_epoch=100,
-                num_epochs=20,
+                num_epochs=10,
                 learning_rate=1e-3,
                 batch_size=32,
                 eval_num_episodes=64,
