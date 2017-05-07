@@ -251,7 +251,7 @@ if __name__ == '__main__':
     # exp_prefix = '5-6-meta-or-not-with-flags'
     # run_mode = 'custom_grid'
     # version = 'dev'
-    # num_hp_settings = 100
+    num_hp_settings = 100
 
     """
     Env param
@@ -275,7 +275,8 @@ if __name__ == '__main__':
     memory_dim = 20
     min_pool_size = 320
     replay_pool_size = 100000
-    bpt_bellman_error_weight = 2.043625554091334
+    # bpt_bellman_error_weight = 2.043625554091334
+    bpt_bellman_error_weight = 0.
 
     """
     Algorithm Selection
@@ -307,7 +308,7 @@ if __name__ == '__main__':
     soft_target_tau = 0.01
     qf_weight_decay = 0.01
     num_bptt_unrolls = 4
-    qf_total_loss_tolerance = 1.02
+    qf_total_loss_tolerance = 0.03
     max_num_q_updates = 1000
     train_policy = True
     extra_qf_training_mode = 'validation'
