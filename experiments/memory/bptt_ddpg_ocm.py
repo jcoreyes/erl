@@ -246,19 +246,19 @@ if __name__ == '__main__':
     run_mode = 'none'
     version = 'dev'
 
-    n_seeds = 3
+    # n_seeds = 10
     # mode = 'ec2'
-    exp_prefix = '5-6-meta-hyperopt-sweep'
-    run_mode = 'hyperopt'
+    # exp_prefix = '5-7-meta-critic-post-hyperopt-no-boundary-flags-ablation'
+    # run_mode = 'grid'
     # version = 'dev'
-    # num_hp_settings = 100
+    num_hp_settings = 100
 
     """
     Env param
     """
     # env_class = OneCharMemoryOutputRewardMag
     env_class = OneCharMemoryEndOnly
-    H = 4
+    H = 6
     num_values = 2
     zero_observation = True
     env_output_target_number = False
@@ -275,7 +275,9 @@ if __name__ == '__main__':
     memory_dim = 20
     min_pool_size = 320
     replay_pool_size = 100000
-    bpt_bellman_error_weight = 2.043625554091334
+    # bpt_bellman_error_weight = 2.043625554091334
+    # bpt_bellman_error_weight = 0.22048495800782136
+    bpt_bellman_error_weight = 0.
 
     """
     Algorithm Selection
@@ -302,11 +304,11 @@ if __name__ == '__main__':
     Algo params
     """
     num_extra_qf_updates = 10
-    qf_learning_rate = 1e-3
+    qf_learning_rate = 0.0013349903055468661
     policy_learning_rate = 1e-3
     soft_target_tau = 0.01
     qf_weight_decay = 0.
-    num_bptt_unrolls = 2
+    num_bptt_unrolls = 4
     qf_total_loss_tolerance = 0.1
     max_num_q_updates = 10000
     train_policy = True
@@ -331,8 +333,10 @@ if __name__ == '__main__':
     """
     Meta-critic Params
     """
-    meta_qf_learning_rate = 0.0043686912042467125
-    meta_qf_output_weight = 0.5895080878682102
+    # meta_qf_learning_rate = 0.0043686912042467125
+    # meta_qf_output_weight = 0.5895080878682102
+    meta_qf_learning_rate = 0.0001900271829580542
+    meta_qf_output_weight = 4.567673606514774
     qf_output_weight = 1
 
     """
@@ -363,8 +367,10 @@ if __name__ == '__main__':
     LSTM Cell params
     """
     use_peepholes = True
-    env_noise_std = 0.7834798765148419
-    memory_noise_std = -1.3624080142760144
+    # env_noise_std = 0.7834798765148419
+    # memory_noise_std = -1.3624080142760144
+    env_noise_std = 0.756762921079621
+    memory_noise_std = 0.21530788444772347
 
     """
     Create them dict's
@@ -516,9 +522,10 @@ if __name__ == '__main__':
         search_space = {
             # 'policy_params.rnn_cell_params.env_noise_std': [0., 1.],
             # 'policy_params.rnn_cell_params.memory_noise_std': [0., 1.],
-            # 'ddpg_params.bpt_bellman_error_weight': [0, 1, 10, 100],
-            'meta_params.meta_qf_learning_rate': [1e-3, 1e-4],
-            'meta_params.meta_qf_output_weight': [0, 0.1, 1, 5, 10],
+            # 'meta_params.meta_qf_learning_rate': [1e-3, 1e-4],
+            'ddpg_params.bpt_bellman_error_weight': [0, 0.22048495800782136],
+            'meta_params.meta_qf_output_weight': [0, 4.567673606514774],
+            # 'env_params.episode_boundary_flags': [True, False],
             # 'meta_params.qf_output_weight': [0, 1],
         }
         sweeper = DeterministicHyperparameterSweeper(search_space,
