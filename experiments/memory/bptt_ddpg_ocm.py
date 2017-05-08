@@ -246,10 +246,10 @@ if __name__ == '__main__':
     run_mode = 'none'
     version = 'dev'
 
-    # n_seeds = 20
+    # n_seeds = 10
     # mode = 'ec2'
-    # exp_prefix = '5-6-meta-or-not-with-flags'
-    # run_mode = 'custom_grid'
+    # exp_prefix = '5-7-meta-critic-post-hyperopt-no-boundary-flags-ablation'
+    # run_mode = 'grid'
     # version = 'dev'
     num_hp_settings = 100
 
@@ -263,7 +263,7 @@ if __name__ == '__main__':
     zero_observation = True
     env_output_target_number = False
     env_output_time = False
-    episode_boundary_flags = True
+    episode_boundary_flags = False
 
     """
     DDPG Params
@@ -271,7 +271,7 @@ if __name__ == '__main__':
     n_batches_per_epoch = 100
     n_batches_per_eval = 64
     batch_size = 32
-    n_epochs = 25
+    n_epochs = 30
     memory_dim = 20
     min_pool_size = 320
     replay_pool_size = 100000
@@ -478,21 +478,26 @@ if __name__ == '__main__':
                 0.,
                 5,
             ),
-            # 'ddpg_params.bpt_bellman_error_weight': hp.loguniform(
-            #     'ddpg_params.bpt_bellman_error_weight',
-            #     np.log(0.01),
-            #     np.log(1000),
-            # ),
-            # 'meta_params.meta_qf_learning_rate': hp.loguniform(
-            #     'meta_params.meta_qf_learning_rate',
-            #     np.log(1e-5),
-            #     np.log(1e-2),
-            # ),
-            # 'meta_params.meta_qf_output_weight': hp.loguniform(
-            #     'meta_params.meta_qf_output_weight',
-            #     np.log(1e-1),
-            #     np.log(1000),
-            # ),
+            'ddpg_params.bpt_bellman_error_weight': hp.loguniform(
+                'ddpg_params.bpt_bellman_error_weight',
+                np.log(0.01),
+                np.log(1000),
+            ),
+            'ddpg_params.qf_learning_rate': hp.loguniform(
+                'ddpg_params.qf_learning_rate',
+                np.log(0.00001),
+                np.log(0.01),
+            ),
+            'meta_params.meta_qf_learning_rate': hp.loguniform(
+                'meta_params.meta_qf_learning_rate',
+                np.log(1e-5),
+                np.log(1e-2),
+            ),
+            'meta_params.meta_qf_output_weight': hp.loguniform(
+                'meta_params.meta_qf_output_weight',
+                np.log(1e-1),
+                np.log(1000),
+            ),
             'seed': hp.randint('seed', 10000),
         }
 
@@ -513,9 +518,10 @@ if __name__ == '__main__':
         search_space = {
             # 'policy_params.rnn_cell_params.env_noise_std': [0., 1.],
             # 'policy_params.rnn_cell_params.memory_noise_std': [0., 1.],
-            # 'ddpg_params.bpt_bellman_error_weight': [0, 1, 10, 100],
-            'meta_params.meta_qf_learning_rate': [1e-3, 1e-4],
-            'meta_params.meta_qf_output_weight': [0, 0.1, 1, 5, 10],
+            # 'meta_params.meta_qf_learning_rate': [1e-3, 1e-4],
+            'ddpg_params.bpt_bellman_error_weight': [0, 0.22048495800782136],
+            'meta_params.meta_qf_output_weight': [0, 4.567673606514774],
+            # 'env_params.episode_boundary_flags': [True, False],
             # 'meta_params.qf_output_weight': [0, 1],
         }
         sweeper = DeterministicHyperparameterSweeper(search_space,
