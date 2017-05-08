@@ -83,8 +83,9 @@ def main():
     for i, x_label in enumerate(unique_numeric_param_to_values):
         x_value_to_y_values = defaultdict(list)
         for data, variant in data_and_variant:
-            x_value_to_y_values[variant[x_label]].append(data[y_label][-1])
-
+            if len(data[y_label]) > 0:
+                print("WARNING. data is missing this label: {}".format(y_label))
+                x_value_to_y_values[variant[x_label]].append(data[y_label][-1])
         y_means = []
         y_stds = []
         x_values = []
