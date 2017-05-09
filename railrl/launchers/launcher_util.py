@@ -1,6 +1,7 @@
 import datetime
 import os
 import os.path as osp
+import subprocess
 import random
 import uuid
 
@@ -334,6 +335,15 @@ def setup_logger(
     logger.set_snapshot_mode(snapshot_mode)
     logger.set_snapshot_gap(snapshot_gap)
     logger.set_log_tabular_only(log_tabular_only)
+    try:
+        # Save git diff to experiment directory
+        cmd = "cd {} && git diff > {} 2>/dev/null".format(
+            osp.dirname(__file__),
+            osp.join(log_dir, "code.diff")
+        )
+        subprocess.check_call(cmd, shell=True)
+    except subprocess.CalledProcessError:
+        print("configure_output_dir: not storing the git diff, probably because you're not in a git repo")
 
 
 def set_seed(seed):
