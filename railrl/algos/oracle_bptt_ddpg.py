@@ -11,7 +11,7 @@ from railrl.pythonplusplus import filter_recursive, line_logger
 from railrl.qfunctions.memory.oracle_unroll_qfunction import (
     OracleUnrollQFunction
 )
-from rllab.misc import special, logger
+from rllab.misc import logger
 
 
 class OracleBpttDdpg(BpttDDPG):
@@ -158,10 +158,6 @@ class OracleBpttDdpg(BpttDDPG):
                              target_numbers=None, times=None):
         batch_size = len(rewards)
         sequence_lengths = np.squeeze(self.env.horizon - 1 - times)
-        target_one_hots = special.to_onehot_n(
-            target_numbers,
-            self.env.wrapped_env.action_space.flat_dim,
-        )
         # TODO(vitchyr): BUG this gets more complicated with the flags. I
         # should make the environment generate the rest of the observations.
         rest_of_obs = np.zeros(
@@ -177,11 +173,11 @@ class OracleBpttDdpg(BpttDDPG):
             self.oracle_qf.rest_of_obs_placeholder: rest_of_obs,
             self.oracle_qf.observation_input: obs,
             self.policy.observation_input: obs,
-            self.oracle_qf.target_labels: target_one_hots,
+            self.oracle_qf.target_labels: target_numbers,
         }
         if hasattr(self.qf, "target_labels"):
-            feed_dict[self.qf.target_labels] = target_one_hots
-            feed_dict[self.target_qf.target_labels] = target_one_hots
+            feed_dict[self.qf.target_labels] = target_numbers
+            feed_dict[self.target_qf.target_labels] = target_numbers
         if hasattr(self.qf, "time_labels"):
             feed_dict[self.qf.time_labels] = times
             feed_dict[self.target_qf.time_labels] = times
@@ -348,10 +344,6 @@ class OracleBpttDdpg(BpttDDPG):
 
         batch_size = len(last_rewards)
         episode_length_left = np.squeeze(self.env.horizon - 1 - last_times)
-        target_one_hots = special.to_onehot_n(
-            target_numbers,
-            self.env.wrapped_env.action_space.flat_dim,
-        )
         rest_of_obs = np.zeros(
             [
                 batch_size,
@@ -364,7 +356,7 @@ class OracleBpttDdpg(BpttDDPG):
             last_rewards,
             last_obs,
             episode_length_left,
-            target_one_hots,
+            target_numbers,
             last_times,
             rest_of_obs,
         )

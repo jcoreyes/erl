@@ -46,7 +46,7 @@ class OracleUnrollQFunction(NNQFunction):
         )
         self.target_labels = self._placeholder_if_none(
             target_labels,
-            shape=[None, self._ocm_env.wrapped_env.action_space.flat_dim],
+            shape=[None],
             name='oracle_target_labels',
             dtype=tf.int32,
         )
@@ -69,12 +69,16 @@ class OracleUnrollQFunction(NNQFunction):
             save_rnn_inputs=None,
             policy=None,
     ):
+        target_one_hots = tf.one_hot(
+            target_labels,
+            self._ocm_env.wrapped_env.action_space.flat_dim,
+        )
         if self.nothing_to_unroll:
             self.final_actions = action_input
             return self._ocm_env.get_tf_loss(
                 observations=observation_input,
                 actions=self.final_actions,
-                target_labels=target_labels,
+                target_labels=target_one_hots,
                 return_expected_reward=True,
             )
         self._save_rnn_cell = SaveEverythingRnn(
@@ -99,7 +103,7 @@ class OracleUnrollQFunction(NNQFunction):
             out = self._ocm_env.get_tf_loss(
                 observations=observation_input,
                 actions=self.final_actions,
-                target_labels=target_labels,
+                target_labels=target_one_hots,
                 return_expected_reward=True,
             )
         return out
