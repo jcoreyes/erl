@@ -8,6 +8,7 @@ import numpy as np
 import tensorflow as tf
 import random
 
+from railrl.algos.ddpg import TargetUpdateMode
 from railrl.envs.memory.one_char_memory import (
     OneCharMemoryOutputRewardMag,
     OneCharMemoryEndOnly,
@@ -54,7 +55,6 @@ from railrl.misc.hypopt import optimize_and_save
 def run_ocm_experiment(variant):
     from railrl.algos.oracle_bptt_ddpg import OracleBpttDdpg
     from railrl.algos.meta_bptt_ddpg import MetaBpttDdpg
-    from railrl.qfunctions.memory.oracle_qfunction import OracleQFunction
     from railrl.qfunctions.memory.oracle_unroll_qfunction import (
         OracleUnrollQFunction
     )
@@ -72,7 +72,6 @@ def run_ocm_experiment(variant):
     from railrl.qfunctions.memory.hint_mlp_memory_qfunction import (
         HintMlpMemoryQFunction
     )
-    from railrl.qfunctions.memory.mlp_memory_qfunction import MlpMemoryQFunction
     from os.path import exists
 
     """
@@ -151,27 +150,25 @@ def run_ocm_experiment(variant):
 
     ddpg_params = ddpg_params.copy()
     if oracle_mode == 'none':
-        qf = MlpMemoryQFunction(
+        qf_params['use_time'] = False
+        qf_params['use_target'] = False
+        qf = HintMlpMemoryQFunction(
             name_or_scope="critic",
+            hint_dim=env_action_dim,
+            max_time=H,
             env_spec=env.spec,
+            **qf_params
         )
         algo_class = variant['algo_class']
     elif oracle_mode == 'oracle' or oracle_mode == 'meta':
         regress_params = variant['regress_params']
-        if regress_params.pop('use_hint_qf', False):
-            qf = qf or HintMlpMemoryQFunction(
-                name_or_scope="hint_critic",
-                hint_dim=env_action_dim,
-                max_time=H,
-                env_spec=env.spec,
-                **qf_params
-            )
-        else:
-            qf = qf or MlpMemoryQFunction(
-                name_or_scope="critic",
-                env_spec=env.spec,
-                **qf_params
-            )
+        qf = qf or HintMlpMemoryQFunction(
+            name_or_scope="hint_critic",
+            hint_dim=env_action_dim,
+            max_time=H,
+            env_spec=env.spec,
+            **qf_params
+        )
         oracle_qf = OracleUnrollQFunction(
             name_or_scope="oracle_unroll_critic",
             env=env,
@@ -248,7 +245,7 @@ if __name__ == '__main__':
 
     # n_seeds = 10
     # mode = 'ec2'
-    # exp_prefix = '5-8-diff-test'
+    # exp_prefix = '5-10-target-update-mode'
     # run_mode = 'grid'
     # version = 'dev'
 
@@ -269,7 +266,7 @@ if __name__ == '__main__':
     """
     n_batches_per_epoch = 100
     n_batches_per_eval = 64
-    batch_size = 256
+    batch_size = 32
     n_epochs = 30
     memory_dim = 20
     min_pool_size = 256
@@ -307,6 +304,8 @@ if __name__ == '__main__':
     qf_learning_rate = 0.0013349903055468661
     policy_learning_rate = 1e-3
     soft_target_tau = 0.01
+    target_update_mode = TargetUpdateMode.SOFT
+    hard_update_period = 1000
     qf_weight_decay = 0.01
     num_bptt_unrolls = 4
     qf_total_loss_tolerance = 0.03
@@ -324,9 +323,8 @@ if __name__ == '__main__':
     qf_grad_mse_from_one_weight = 0.
     regress_onto_values_weight = 0.
     bellman_error_weight = 1.
-    use_hint_qf = True
     use_time = False
-    use_target = False
+    use_target = True
     use_oracle_qf = False
     unroll_through_target_policy = False
 
@@ -408,9 +406,10 @@ if __name__ == '__main__':
         bpt_bellman_error_weight=bpt_bellman_error_weight,
         extra_train_period=extra_train_period,
         save_tf_graph=False,
+        target_update_mode=target_update_mode,
+        hard_update_period=hard_update_period,
     )
     regress_params = dict(
-        use_hint_qf=use_hint_qf,
         qf_total_loss_tolerance=qf_total_loss_tolerance,
         max_num_q_updates=max_num_q_updates,
         train_policy=train_policy,
@@ -438,10 +437,9 @@ if __name__ == '__main__':
         # output_nonlinearity=tf.identity,
         # embedded_hidden_sizes=[100, 64, 32],
         # observation_hidden_sizes=[100],
+        use_time=use_time,
+        use_target=use_target,
     )
-    if use_hint_qf:
-        qf_params['use_time'] = use_time
-        qf_params['use_target'] = use_target
     meta_params = dict(
         meta_qf_learning_rate=meta_qf_learning_rate,
         meta_qf_output_weight=meta_qf_output_weight,
@@ -527,11 +525,15 @@ if __name__ == '__main__':
             # 'policy_params.rnn_cell_params.env_noise_std': [0., 1.],
             # 'policy_params.rnn_cell_params.memory_noise_std': [0., 1.],
             # 'meta_params.meta_qf_learning_rate': [1e-3, 1e-4],
-            'ddpg_params.bpt_bellman_error_weight': [0, 0.25, 1],
-            'meta_params.meta_qf_output_weight': [0, 5, 25],
-            'env_params.episode_boundary_flags': [True, False],
+            'ddpg_params.target_update_mode': [
+                TargetUpdateMode.HARD,
+                TargetUpdateMode.NONE,
+                TargetUpdateMode.SOFT,
+            ],
+            # 'meta_params.meta_qf_output_weight': [0, 5, 25],
+            # 'env_params.episode_boundary_flags': [True, False],
             # 'meta_params.qf_output_weight': [0, 1],
-            'env_params.num_steps': [8],
+            'env_params.num_steps': [6, 8],
         }
         sweeper = DeterministicHyperparameterSweeper(search_space,
                                                      default_parameters=variant)
