@@ -296,8 +296,8 @@ class BpttDDPG(DDPG):
                             i, train_loss, validation_loss,
                         )
                     )
-                    # if validation_loss > best_validation_loss:
-                    #     break
+                    if validation_loss > best_validation_loss:
+                        break
                     if validation_loss <= self.qf_total_loss_tolerance:
                         break
                     best_validation_loss = min(validation_loss,

@@ -249,7 +249,7 @@ if __name__ == '__main__':
 
     # n_seeds = 10
     # mode = 'ec2'
-    # exp_prefix = '5-7-grid-search-flag-bpt-meta'
+    # exp_prefix = '5-8-diff-test'
     # run_mode = 'grid'
     # version = 'dev'
 
@@ -308,7 +308,7 @@ if __name__ == '__main__':
     qf_learning_rate = 0.0013349903055468661
     policy_learning_rate = 1e-3
     soft_target_tau = 0.01
-    qf_weight_decay = 0.
+    qf_weight_decay = 0.01
     num_bptt_unrolls = 4
     qf_total_loss_tolerance = 0.03
     max_num_q_updates = 1000
@@ -435,8 +435,8 @@ if __name__ == '__main__':
         # output_nonlinearity=tf.nn.tanh,
         # hidden_nonlinearity=tf.identity,
         # output_nonlinearity=tf.identity,
-        # embedded_hidden_sizes=[100, 100],
-        # observation_hidden_sizes=[100, 100],
+        embedded_hidden_sizes=[],
+        observation_hidden_sizes=[100, 64, 32],
     )
     if use_hint_qf:
         qf_params['use_time'] = use_time
