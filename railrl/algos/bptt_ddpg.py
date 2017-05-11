@@ -221,6 +221,26 @@ class BpttDDPG(DDPG):
         ])
 
     def _qf_feed_dict_from_batch(self, batch):
+        flat_batch = self.subtraj_batch_to_flat_augmented_batch(batch)
+        feed = self._qf_feed_dict(
+            flat_batch['rewards'],
+            flat_batch['terminals'],
+            flat_batch['obs'],
+            flat_batch['actions'],
+            flat_batch['next_obs'],
+            target_numbers=flat_batch['target_numbers'],
+            times=flat_batch['times'],
+        )
+        return feed
+
+    def subtraj_batch_to_flat_augmented_batch(self, batch):
+        """
+        The batch is a bunch of subsequences. Flatten the subsequences so
+        that they just look like normal (s, a, s') tuples.
+        
+        Also, the actions/observations are split into their respective 
+        augmented parts.
+        """
         rewards = batch['rewards']
         terminals = batch['terminals']
         obs = batch['observations']
@@ -229,10 +249,6 @@ class BpttDDPG(DDPG):
         target_numbers = batch['target_numbers']
         times = batch['times']
 
-        """
-        The batch is a bunch of subsequences. Flatten the subsequences so
-        that they just look like normal (s, a, s') tuples.
-        """
         flat_actions = actions.reshape(-1, actions.shape[-1])
         flat_obs = obs.reshape(-1, obs.shape[-1])
         flat_next_obs = next_obs.reshape(-1, next_obs.shape[-1])
@@ -241,20 +257,55 @@ class BpttDDPG(DDPG):
         flat_terminals = terminals.flatten()
         flat_rewards = rewards.flatten()
 
-        qf_obs = self._split_flat_obs(flat_obs)
-        qf_actions = self._split_flat_actions(flat_actions)
-        qf_next_obs = self._split_flat_obs(flat_next_obs)
-
-        feed = self._qf_feed_dict(
-            flat_rewards,
-            flat_terminals,
-            qf_obs,
-            qf_actions,
-            qf_next_obs,
+        split_flat_obs = self._split_flat_obs(flat_obs)
+        split_flat_actions = self._split_flat_actions(flat_actions)
+        split_flat_next_obs = self._split_flat_obs(flat_next_obs)
+        return dict(
+            rewards=flat_rewards,
+            terminals=flat_terminals,
+            obs=split_flat_obs,
+            actions=split_flat_actions,
+            next_obs=split_flat_next_obs,
             target_numbers=flat_target_numbers,
             times=flat_times,
         )
-        return feed
+
+    def subtraj_batch_to_last_augmented_batch(self, batch):
+        """
+        The batch is a bunch of subsequences. Flatten the subsequences so
+        that they just look like normal (s, a, s') tuples.
+        
+        Also, the actions/observations are split into their respective 
+        augmented parts.
+        """
+        rewards = batch['rewards']
+        terminals = batch['terminals']
+        obs = batch['observations']
+        actions = batch['actions']
+        next_obs = batch['next_observations']
+        target_numbers = batch['target_numbers']
+        times = batch['times']
+
+        flat_actions = actions.reshape(-1, actions.shape[-1])
+        flat_obs = obs.reshape(-1, obs.shape[-1])
+        flat_next_obs = next_obs.reshape(-1, next_obs.shape[-1])
+        flat_target_numbers = target_numbers.flatten()
+        flat_times = times.flatten()
+        flat_terminals = terminals.flatten()
+        flat_rewards = rewards.flatten()
+
+        split_flat_obs = self._split_flat_obs(flat_obs)
+        split_flat_actions = self._split_flat_actions(flat_actions)
+        split_flat_next_obs = self._split_flat_obs(flat_next_obs)
+        return dict(
+            rewards=flat_rewards,
+            terminals=flat_terminals,
+            obs=split_flat_obs,
+            actions=split_flat_actions,
+            next_obs=split_flat_next_obs,
+            target_numbers=flat_target_numbers,
+            times=flat_times,
+        )
 
     def _eval_qf_feed_dict_from_batch(self, batch):
         return self._qf_feed_dict_from_batch(batch)

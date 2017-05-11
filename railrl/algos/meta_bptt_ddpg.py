@@ -130,7 +130,23 @@ class MetaBpttDdpg(OracleBpttDdpg):
         )
 
     def _meta_qf_feed_dict_from_batch(self, batch):
-        return self._qf_feed_dict_from_batch(batch)
+        feed_dict = self._qf_feed_dict_from_batch(batch)
+        (
+            flat_actions,
+            flat_obs,
+            flat_next_obs,
+            flat_times,
+            flat_terminals,
+            flat_rewards,
+            target_one_hots,
+        ) = self._get_all_time_step_from_batch(batch)
+        feed_dict.update({
+            self.meta_qf.target_labels: target_one_hots,
+            self.meta_qf.time_labels: flat_times,
+            self.target_meta_qf.target_labels: target_one_hots,
+            self.target_meta_qf.time_labels: flat_times,
+        })
+        return feed_dict
 
     def _init_meta_qf_loss_and_train_ops(self):
         self.meta_qf_loss = self.meta_qf_bellman_error

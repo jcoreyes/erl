@@ -301,20 +301,57 @@ class OracleBpttDdpg(BpttDDPG):
         return statistics
 
     def _oracle_qf_feed_dict_for_policy_from_batch(self, batch):
+        (
+            last_rewards,
+            last_obs,
+            episode_length_left,
+            target_one_hots,
+            last_times,
+            rest_of_obs,
+        ) = self._get_last_time_step_from_batch(batch)
+        feed_dict = {
+            self.oracle_qf.sequence_length_placeholder: episode_length_left,
+            self.oracle_qf.rest_of_obs_placeholder: rest_of_obs,
+            # It's better to separate them so that duplicate entries can be
+            # eliminated by TensorFlow
+            self.oracle_qf.observation_input[0]: last_obs[0],
+            self.oracle_qf.observation_input[1]: last_obs[1],
+            self.oracle_qf.target_labels: target_one_hots,
+            self.meta_qf.target_labels: target_one_hots,
+            self.meta_qf.time_labels: last_times,
+            self.target_meta_qf.target_labels: target_one_hots,
+            self.target_meta_qf.time_labels: last_times,
+        }
+        if hasattr(self.qf_with_action_input, "target_labels"):
+            feed_dict[self.qf_with_action_input.target_labels] = target_one_hots
+        if hasattr(self.qf_with_action_input, "time_labels"):
+            feed_dict[self.qf_with_action_input.time_labels] = last_times
+        if self.target_qf_for_policy is not None:
+            if (hasattr(self.target_qf_for_policy, "target_labels") and
+                        self._bpt_bellman_error_weight > 0.):
+                # TODO(vitchyr): this should be the NEXT target...
+                feed_dict[self.target_qf_for_policy.target_labels] = target_one_hots
+            if (hasattr(self.target_qf_for_policy, "time_labels") and
+                     self._bpt_bellman_error_weight > 0.):
+                # TODO(vitchyr): this seems hacky
+                feed_dict[self.target_qf_for_policy.time_labels] = last_times + 1
+        return feed_dict
+
+    def _get_last_time_step_from_batch(self, batch):
         all_rewards = batch['rewards']
         all_obs = batch['observations']
         all_target_numbers = batch['target_numbers']
         all_times = batch['times']
 
-        rewards = all_rewards[:, -1]
-        obs = self._split_flat_obs(self._get_time_step(all_obs, t=-1))
+        last_rewards = all_rewards[:, -1]
+        last_obs = self._split_flat_obs(self._get_time_step(all_obs, t=-1))
         target_numbers = all_target_numbers[:, -1]
-        times = all_times[:, -1]
+        last_times = all_times[:, -1]
         # target_numbers = all_target_numbers.flatten()
         # times = all_times.flatten()
 
-        batch_size = len(rewards)
-        sequence_lengths = np.squeeze(self.env.horizon - 1 - times)
+        batch_size = len(last_rewards)
+        episode_length_left = np.squeeze(self.env.horizon - 1 - last_times)
         target_one_hots = special.to_onehot_n(
             target_numbers,
             self.env.wrapped_env.action_space.flat_dim,
@@ -327,29 +364,48 @@ class OracleBpttDdpg(BpttDDPG):
             ]
         )
         rest_of_obs[:, :, 0] = 1
-        feed_dict = {
-            self.oracle_qf.sequence_length_placeholder: sequence_lengths,
-            self.oracle_qf.rest_of_obs_placeholder: rest_of_obs,
-            # It's better to separate them so that duplicate entries can be
-            # eliminated by TensorFlow
-            self.oracle_qf.observation_input[0]: obs[0],
-            self.oracle_qf.observation_input[1]: obs[1],
-            self.oracle_qf.target_labels: target_one_hots,
-        }
-        if hasattr(self.qf_with_action_input, "target_labels"):
-            feed_dict[self.qf_with_action_input.target_labels] = target_one_hots
-        if hasattr(self.qf_with_action_input, "time_labels"):
-            feed_dict[self.qf_with_action_input.time_labels] = times
-        if self.target_qf_for_policy is not None:
-            if (hasattr(self.target_qf_for_policy, "target_labels") and
-                        self._bpt_bellman_error_weight > 0.):
-                # TODO(vitchyr): this should be the NEXT target...
-                feed_dict[self.target_qf_for_policy.target_labels] = target_one_hots
-            if (hasattr(self.target_qf_for_policy, "time_labels") and
-                     self._bpt_bellman_error_weight > 0.):
-                # TODO(vitchyr): this seems hacky
-                feed_dict[self.target_qf_for_policy.time_labels] = times + 1
-        return feed_dict
+        return (
+            last_rewards,
+            last_obs,
+            episode_length_left,
+            target_one_hots,
+            last_times,
+            rest_of_obs,
+        )
+
+    def _get_all_time_step_from_batch(self, batch):
+        rewards = batch['rewards']
+        terminals = batch['terminals']
+        obs = batch['observations']
+        actions = batch['actions']
+        next_obs = batch['next_observations']
+        target_numbers = batch['target_numbers']
+        times = batch['times']
+
+        """
+        The batch is a bunch of subsequences. Flatten the subsequences so
+        that they just look like normal (s, a, s') tuples.
+        """
+        flat_actions = actions.reshape(-1, actions.shape[-1])
+        flat_obs = obs.reshape(-1, obs.shape[-1])
+        flat_next_obs = next_obs.reshape(-1, next_obs.shape[-1])
+        flat_times = times.flatten()
+        flat_terminals = terminals.flatten()
+        flat_rewards = rewards.flatten()
+        flat_target_numbers = target_numbers.flatten()
+        target_one_hots = special.to_onehot_n(
+            flat_target_numbers,
+            self.env.wrapped_env.action_space.flat_dim,
+        )
+        return (
+            flat_actions,
+            flat_obs,
+            flat_next_obs,
+            flat_times,
+            flat_terminals,
+            flat_rewards,
+            target_one_hots,
+        )
 
     def _policy_feed_dict_from_batch(self, batch):
         policy_feed = super()._policy_feed_dict_from_batch(batch)
