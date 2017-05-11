@@ -122,7 +122,7 @@ class MetaBpttDdpg(OracleBpttDdpg):
             )
 
     def _get_meta_qf_training_ops(self, **kwargs):
-        return self._get_training_ops(
+        return self._get_network_training_ops(
             self.train_meta_qf_op,
             self.meta_qf,
             self.update_target_meta_qf_op,

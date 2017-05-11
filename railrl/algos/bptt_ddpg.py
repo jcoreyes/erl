@@ -192,14 +192,14 @@ class BpttDDPG(DDPG):
             self,
             **kwargs
     ):
-        return self._get_training_ops(
+        return self._get_network_training_ops(
             self.train_qf_op,
             self.qf,
             self.update_target_qf_op,
             **kwargs,
         )
 
-    def _get_training_ops(
+    def _get_network_training_ops(
             self,
             train_ops,
             network,
@@ -211,13 +211,13 @@ class BpttDDPG(DDPG):
         if self._batch_norm:
             train_ops += network.batch_norm_update_stats_op
 
-        target_ops = []
+        all_target_ops = []
         if self._should_update_target(n_steps_total):
-            target_ops = [target_ops]
+            all_target_ops = [target_ops]
 
         return filter_recursive([
             train_ops,
-            target_ops,
+            all_target_ops,
         ])
 
     def _qf_feed_dict_from_batch(self, batch):
@@ -488,7 +488,7 @@ class BpttDDPG(DDPG):
             self.train_policy_op = None
 
     def _get_policy_training_ops(self, **kwargs):
-        return self._get_training_ops(
+        return self._get_network_training_ops(
             self.train_policy_op,
             self.policy,
             self.update_target_policy_op,
