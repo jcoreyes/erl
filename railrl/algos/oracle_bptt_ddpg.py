@@ -317,10 +317,6 @@ class OracleBpttDdpg(BpttDDPG):
             self.oracle_qf.observation_input[0]: last_obs[0],
             self.oracle_qf.observation_input[1]: last_obs[1],
             self.oracle_qf.target_labels: target_one_hots,
-            self.meta_qf.target_labels: target_one_hots,
-            self.meta_qf.time_labels: last_times,
-            self.target_meta_qf.target_labels: target_one_hots,
-            self.target_meta_qf.time_labels: last_times,
         }
         if hasattr(self.qf_with_action_input, "target_labels"):
             feed_dict[self.qf_with_action_input.target_labels] = target_one_hots
@@ -371,40 +367,6 @@ class OracleBpttDdpg(BpttDDPG):
             target_one_hots,
             last_times,
             rest_of_obs,
-        )
-
-    def _get_all_time_step_from_batch(self, batch):
-        rewards = batch['rewards']
-        terminals = batch['terminals']
-        obs = batch['observations']
-        actions = batch['actions']
-        next_obs = batch['next_observations']
-        target_numbers = batch['target_numbers']
-        times = batch['times']
-
-        """
-        The batch is a bunch of subsequences. Flatten the subsequences so
-        that they just look like normal (s, a, s') tuples.
-        """
-        flat_actions = actions.reshape(-1, actions.shape[-1])
-        flat_obs = obs.reshape(-1, obs.shape[-1])
-        flat_next_obs = next_obs.reshape(-1, next_obs.shape[-1])
-        flat_times = times.flatten()
-        flat_terminals = terminals.flatten()
-        flat_rewards = rewards.flatten()
-        flat_target_numbers = target_numbers.flatten()
-        target_one_hots = special.to_onehot_n(
-            flat_target_numbers,
-            self.env.wrapped_env.action_space.flat_dim,
-        )
-        return (
-            flat_actions,
-            flat_obs,
-            flat_next_obs,
-            flat_times,
-            flat_terminals,
-            flat_rewards,
-            target_one_hots,
         )
 
     def _policy_feed_dict_from_batch(self, batch):

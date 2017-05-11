@@ -6,6 +6,7 @@ import tensorflow as tf
 
 from railrl.core import tf_util
 from railrl.misc.data_processing import create_stats_ordered_dict
+from rllab.misc import special
 
 
 class MetaBpttDdpg(OracleBpttDdpg):
@@ -131,20 +132,35 @@ class MetaBpttDdpg(OracleBpttDdpg):
 
     def _meta_qf_feed_dict_from_batch(self, batch):
         feed_dict = self._qf_feed_dict_from_batch(batch)
-        (
-            flat_actions,
-            flat_obs,
-            flat_next_obs,
-            flat_times,
-            flat_terminals,
-            flat_rewards,
-            target_one_hots,
-        ) = self._get_all_time_step_from_batch(batch)
+        flat_batch = self.subtraj_batch_to_flat_augmented_batch(batch)
+        target_one_hots = special.to_onehot_n(
+            flat_batch['target_numbers'],
+            self.env.wrapped_env.action_space.flat_dim,
+        )
+        flat_times = flat_batch['times']
         feed_dict.update({
             self.meta_qf.target_labels: target_one_hots,
             self.meta_qf.time_labels: flat_times,
             self.target_meta_qf.target_labels: target_one_hots,
             self.target_meta_qf.time_labels: flat_times,
+        })
+        return feed_dict
+
+    def _oracle_qf_feed_dict_for_policy_from_batch(self, batch):
+        feed_dict = super()._oracle_qf_feed_dict_for_policy_from_batch(batch)
+        (
+            last_rewards,
+            last_obs,
+            episode_length_left,
+            target_one_hots,
+            last_times,
+            rest_of_obs,
+        ) = self._get_last_time_step_from_batch(batch)
+        feed_dict.update({
+            self.meta_qf.target_labels: target_one_hots,
+            self.meta_qf.time_labels: last_times,
+            self.target_meta_qf.target_labels: target_one_hots,
+            self.target_meta_qf.time_labels: last_times,
         })
         return feed_dict
 

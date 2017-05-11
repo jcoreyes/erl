@@ -87,6 +87,7 @@ def run_ocm_experiment(variant):
     ddpg_params = variant['ddpg_params']
     policy_params = variant['policy_params']
     qf_params = variant['qf_params']
+    meta_qf_params = variant['meta_qf_params']
     es_params = variant['es_params']
 
     env_es_class = es_params['env_es_class']
@@ -149,10 +150,6 @@ def run_ocm_experiment(variant):
         )
 
     ddpg_params = ddpg_params.copy()
-    unroll_through_target_policy = ddpg_params.pop(
-        'unroll_through_target_policy',
-        False,
-    )
     if oracle_mode == 'none':
         qf = MlpMemoryQFunction(
             name_or_scope="critic",
@@ -191,10 +188,12 @@ def run_ocm_experiment(variant):
     else:
         raise Exception("Unknown mode: {}".format(oracle_mode))
     if oracle_mode == 'meta':
-        meta_qf = MlpMemoryQFunction(
+        meta_qf = HintMlpMemoryQFunction(
             name_or_scope="meta_critic",
+            hint_dim=env_action_dim,
+            max_time=H,
             env_spec=env.spec,
-            **qf_params
+            **meta_qf_params
         )
         algo_class = MetaBpttDdpg
         meta_params = variant['meta_params']
@@ -270,10 +269,10 @@ if __name__ == '__main__':
     """
     n_batches_per_epoch = 100
     n_batches_per_eval = 64
-    batch_size = 32
+    batch_size = 256
     n_epochs = 30
     memory_dim = 20
-    min_pool_size = 320
+    min_pool_size = 256
     replay_pool_size = 100000
     # bpt_bellman_error_weight = 2.043625554091334
     # bpt_bellman_error_weight = 0.22048495800782136
@@ -325,7 +324,7 @@ if __name__ == '__main__':
     qf_grad_mse_from_one_weight = 0.
     regress_onto_values_weight = 0.
     bellman_error_weight = 1.
-    use_hint_qf = False
+    use_hint_qf = True
     use_time = False
     use_target = False
     use_oracle_qf = False
@@ -338,8 +337,11 @@ if __name__ == '__main__':
     # meta_qf_output_weight = 0.5895080878682102
     meta_qf_learning_rate = 0.0001900271829580542
     meta_qf_output_weight = 4.567673606514774
-
     qf_output_weight = 1
+    meta_qf_params = dict(
+        use_time=False,
+        use_target=True,
+    )
 
     """
     Exploration params
@@ -420,7 +422,6 @@ if __name__ == '__main__':
         num_extra_qf_updates=num_extra_qf_updates,
         extra_qf_training_mode=extra_qf_training_mode,
         use_oracle_qf=use_oracle_qf,
-        unroll_through_target_policy=unroll_through_target_policy,
     )
     policy_params = dict(
         rnn_cell_class=policy_rnn_cell_class,
@@ -435,8 +436,8 @@ if __name__ == '__main__':
         # output_nonlinearity=tf.nn.tanh,
         # hidden_nonlinearity=tf.identity,
         # output_nonlinearity=tf.identity,
-        embedded_hidden_sizes=[],
-        observation_hidden_sizes=[100, 64, 32],
+        # embedded_hidden_sizes=[100, 64, 32],
+        # observation_hidden_sizes=[100],
     )
     if use_hint_qf:
         qf_params['use_time'] = use_time
@@ -467,6 +468,7 @@ if __name__ == '__main__':
         ddpg_params=ddpg_params,
         policy_params=policy_params,
         qf_params=qf_params,
+        meta_qf_params=meta_qf_params,
         regress_params=regress_params,
         es_params=es_params,
         meta_params=meta_params,
