@@ -3,7 +3,7 @@ import tensorflow as tf
 
 from railrl.core import tf_util
 from railrl.policies.memory.rnn_cell_policy import RnnCellPolicy
-from tensorflow.contrib.rnn import RNNCell, LSTMCell
+from tensorflow.contrib.rnn import RNNCell, LSTMCell, GRUCell
 
 
 class SplitterCell(RNNCell):
@@ -87,6 +87,207 @@ class LstmLinearCell(LSTMCell):
     def output_size(self):
         return self._output_dim
 
+
+class LstmLinearCellNoiseAll(LSTMCell):
+    """
+    LSTM cell with a linear unit + softmax before the output.
+    """
+    def __init__(
+            self,
+            num_units,
+            output_dim,
+            env_noise_std=0.,
+            memory_noise_std=0.,
+            **kwargs
+    ):
+        super().__init__(num_units / 2, **kwargs)
+        self._output_dim = output_dim
+        self._env_noise_std = env_noise_std
+        self._memory_noise_std = memory_noise_std
+
+    def __call__(self, inputs, state, scope=None):
+        with tf.variable_scope(scope or "linear_lstm") as self.scope:
+            split_state = tf.split(axis=1, num_or_size_splits=2, value=state)
+            lstm_output, full_state = super().__call__(inputs, split_state,
+                                                       scope=self.scope)
+
+            if self._env_noise_std > 0.:
+                lstm_output += self._env_noise_std * tf.random_normal(
+                    tf.shape(lstm_output)
+                )
+
+            flat_state = tf.concat(axis=1, values=full_state)
+            if self._memory_noise_std > 0.:
+                flat_state += self._memory_noise_std * tf.random_normal(
+                    tf.shape(flat_state)
+                )
+
+            with tf.variable_scope('env_action') as self.env_action_scope:
+                W = tf.get_variable('W', [self._num_units, self._output_dim])
+                b = tf.get_variable('b', [self._output_dim],
+                                    initializer=tf.constant_initializer(0.0))
+
+            env_action_logit = tf.matmul(lstm_output, W) + b
+            return tf.nn.softmax(env_action_logit), flat_state
+
+    @property
+    def state_size(self):
+        return self._num_units * 2
+
+    @property
+    def output_size(self):
+        return self._output_dim
+
+
+class LstmLinearCellNoiseAllNoiseLogit(LSTMCell):
+    """
+    LSTM cell with a linear unit + softmax before the output.
+    """
+    def __init__(
+            self,
+            num_units,
+            output_dim,
+            env_noise_std=0.,
+            memory_noise_std=0.,
+            **kwargs
+    ):
+        super().__init__(num_units / 2, **kwargs)
+        self._output_dim = output_dim
+        self._env_noise_std = env_noise_std
+        self._memory_noise_std = memory_noise_std
+
+    def __call__(self, inputs, state, scope=None):
+        with tf.variable_scope(scope or "linear_lstm") as self.scope:
+            split_state = tf.split(axis=1, num_or_size_splits=2, value=state)
+            lstm_output, full_state = super().__call__(inputs, split_state,
+                                                       scope=self.scope)
+
+            flat_state = tf.concat(axis=1, values=full_state)
+            if self._memory_noise_std > 0.:
+                flat_state += self._memory_noise_std * tf.random_normal(
+                    tf.shape(flat_state)
+                )
+
+            with tf.variable_scope('env_action') as self.env_action_scope:
+                W = tf.get_variable('W', [self._num_units, self._output_dim])
+                b = tf.get_variable('b', [self._output_dim],
+                                    initializer=tf.constant_initializer(0.0))
+
+            env_action_logit = tf.matmul(lstm_output, W) + b
+            if self._env_noise_std > 0.:
+                env_action_logit += self._env_noise_std * tf.random_normal(
+                    tf.shape(env_action_logit)
+                )
+
+            return tf.nn.softmax(env_action_logit), flat_state
+
+    @property
+    def state_size(self):
+        return self._num_units * 2
+
+    @property
+    def output_size(self):
+        return self._output_dim
+
+
+class LstmLinearCellSwapped(LSTMCell):
+    """
+    LSTM cell with a linear unit + softmax before the output.
+    """
+    def __init__(
+            self,
+            num_units,
+            output_dim,
+            env_noise_std=0.,
+            memory_noise_std=0.,
+            **kwargs
+    ):
+        super().__init__(num_units / 2, **kwargs)
+        self._output_dim = output_dim
+        self._env_noise_std = env_noise_std
+        self._memory_noise_std = memory_noise_std
+
+    def __call__(self, inputs, state, scope=None):
+        with tf.variable_scope(scope or "linear_lstm") as self.scope:
+            split_state = tf.split(axis=1, num_or_size_splits=2, value=state)
+            _, (lstm_state, lstm_output) = super().__call__(inputs, split_state,
+                                                            scope=self.scope)
+
+            if self._env_noise_std > 0.:
+                lstm_output += self._env_noise_std * tf.random_normal(
+                    tf.shape(lstm_output)
+                )
+            if self._memory_noise_std > 0.:
+                lstm_state += self._memory_noise_std * tf.random_normal(
+                    tf.shape(lstm_state)
+                )
+
+            flat_state = tf.concat(axis=1, values=(lstm_state, lstm_output))
+
+            with tf.variable_scope('env_action') as self.env_action_scope:
+                W = tf.get_variable('W', [self._num_units, self._output_dim])
+                b = tf.get_variable('b', [self._output_dim],
+                                    initializer=tf.constant_initializer(0.0))
+
+            env_action_logit = tf.matmul(lstm_output, W) + b
+            return tf.nn.softmax(env_action_logit), flat_state
+
+    @property
+    def state_size(self):
+        return self._num_units * 2
+
+    @property
+    def output_size(self):
+        return self._output_dim
+
+
+class GRULinearCell(GRUCell):
+    """
+    LSTM cell with a linear unit + softmax before the output.
+    """
+    def __init__(
+            self,
+            num_units,
+            output_dim,
+            env_noise_std=0.,
+            memory_noise_std=0.,
+            **kwargs
+    ):
+        super().__init__(num_units)
+        self._output_dim = output_dim
+        self._env_noise_std = env_noise_std
+        self._memory_noise_std = memory_noise_std
+
+    def __call__(self, inputs, state, scope=None):
+        with tf.variable_scope(scope or "linear_lstm") as self.scope:
+            output, new_state = super().__call__(inputs, state,
+                                                 scope=self.scope)
+
+            if self._memory_noise_std > 0.:
+                new_state += self._memory_noise_std * tf.random_normal(
+                    tf.shape(new_state)
+                )
+
+            with tf.variable_scope('env_action') as self.env_action_scope:
+                W = tf.get_variable('W', [self._num_units, self._output_dim])
+                b = tf.get_variable('b', [self._output_dim],
+                                    initializer=tf.constant_initializer(0.0))
+
+            env_action_logit = tf.matmul(output, W) + b
+            if self._env_noise_std > 0.:
+                output += self._env_noise_std * tf.random_normal(
+                    tf.shape(output)
+                )
+
+            return tf.nn.softmax(env_action_logit), new_state
+
+    @property
+    def state_size(self):
+        return self._num_units
+
+    @property
+    def output_size(self):
+        return self._output_dim
 
 class ResidualLstmLinearCell(LSTMCell):
     """

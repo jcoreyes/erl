@@ -13,7 +13,11 @@ from tensorflow.contrib.rnn import (
 from railrl.policies.memory.action_aware_memory_policy import DecoupledLSTM
 from railrl.policies.memory.lstm_memory_policy import (
     LstmLinearCell,
+    LstmLinearCellNoiseAll,
+    LstmLinearCellSwapped,
+    LstmLinearCellNoiseAllNoiseLogit,
     ResidualLstmLinearCell,
+    GRULinearCell,
 )
 
 
@@ -27,15 +31,16 @@ def main():
     rnn_cell_class = ResidualLstmLinearCell
     softmax = False
     version = 'supervised_learning'
-    exp_prefix = '5-4-sl-residual-rnn'
+    exp_prefix = '5-11-sl-noise-architecture-sweep'
     # exp_prefix = 'dev-sl'
-    env_noise_std = 0
-    memory_noise_std = 0
-    for H, rnn_cell_class in product(
+    env_noise_std = 0.
+    memory_noise_std = .1
+    for H, rnn_cell_class, env_noise_std, memory_noise_std in product(
         [64],
-        # [0., 0.1, 0.3, 1],
-        # [0., 0.5, 1., 3.],
-        [LstmLinearCell, ResidualLstmLinearCell],
+        [LstmLinearCell, LstmLinearCellNoiseAll,
+         LstmLinearCellSwapped, LstmLinearCellNoiseAllNoiseLogit, GRULinearCell],
+        [0., 0.1, 1.],
+        [0., 0.1, 1.],
     ):
         variant = dict(
             env_params=dict(
@@ -72,7 +77,7 @@ def main():
                 exp_prefix=exp_prefix,
                 seed=seed,
                 variant=variant,
-                # mode='ec2',
+                mode='ec2',
             )
 
 
