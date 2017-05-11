@@ -50,6 +50,7 @@ from railrl.launchers.launcher_util import (
     create_base_log_dir,
 )
 from railrl.misc.hypopt import optimize_and_save
+from railrl.qfunctions.memory.mlp_memory_qfunction import MlpMemoryQFunction
 
 
 def run_ocm_experiment(variant):
@@ -259,7 +260,7 @@ if __name__ == '__main__':
     zero_observation = True
     env_output_target_number = False
     env_output_time = False
-    episode_boundary_flags = False
+    episode_boundary_flags = True
 
     """
     DDPG Params
@@ -269,7 +270,7 @@ if __name__ == '__main__':
     batch_size = 32
     n_epochs = 30
     memory_dim = 20
-    min_pool_size = 256
+    min_pool_size = 320
     replay_pool_size = 100000
     # bpt_bellman_error_weight = 2.043625554091334
     # bpt_bellman_error_weight = 0.22048495800782136
@@ -294,19 +295,20 @@ if __name__ == '__main__':
         '/ocm_reward_magnitude5_H6_nbptt6_100p'
         '/params.pkl'
     )
-    load_policy_file = 'none'
+    load_policy_file = None
 
     """
     Algo params
     """
     num_extra_qf_updates = 10
+    qf_learning_rate = 1e-3
     # qf_learning_rate = 1e-4
-    qf_learning_rate = 0.0013349903055468661
+    # qf_learning_rate = 0.0013349903055468661
     policy_learning_rate = 1e-3
     soft_target_tau = 0.01
     target_update_mode = TargetUpdateMode.SOFT
     hard_update_period = 1000
-    qf_weight_decay = 0.01
+    qf_weight_decay = 0.
     num_bptt_unrolls = 4
     qf_total_loss_tolerance = 0.03
     max_num_q_updates = 1000
@@ -334,7 +336,8 @@ if __name__ == '__main__':
     # meta_qf_learning_rate = 0.0043686912042467125
     # meta_qf_output_weight = 0.5895080878682102
     meta_qf_learning_rate = 0.0001900271829580542
-    meta_qf_output_weight = 4.567673606514774
+    # meta_qf_output_weight = 4.567673606514774
+    meta_qf_output_weight = 0
     qf_output_weight = 1
     meta_qf_params = dict(
         use_time=False,
@@ -369,10 +372,10 @@ if __name__ == '__main__':
     LSTM Cell params
     """
     use_peepholes = True
-    # env_noise_std = 0.7834798765148419
-    # memory_noise_std = 1.3624080142760144
-    env_noise_std = 0.756762921079621
-    memory_noise_std = 0.21530788444772347
+    env_noise_std = 0.7834798765148419
+    memory_noise_std = 1.3624080142760144
+    # env_noise_std = 0.756762921079621
+    # memory_noise_std = 0.21530788444772347
 
     """
     Create them dict's
