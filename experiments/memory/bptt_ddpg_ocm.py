@@ -25,17 +25,16 @@ from railrl.policies.memory.action_aware_memory_policy import \
     ActionAwareMemoryPolicy
 from railrl.policies.memory.lstm_memory_policy import (
     LstmLinearCell,
-    LstmLinearCellNoiseAll,
+    # LstmLinearCellNoiseAll,
 )
-from railrl.algos.writeback_bptt_ddpt import WritebackBpttDDPG
+# from railrl.algos.writeback_bptt_ddpt import WritebackBpttDDPG
 from railrl.algos.bptt_ddpg import BpttDDPG
-from railrl.algos.sum_bptt_ddpg import SumBpttDDPG
+# from railrl.algos.sum_bptt_ddpg import SumBpttDDPG
 from railrl.exploration_strategies.noop import NoopStrategy
 from railrl.exploration_strategies.onehot_sampler import OneHotSampler
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
+# from railrl.exploration_strategies.ou_strategy import OUStrategy
+# from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 
-from railrl.algos.bptt_ddpg import BpttDDPG
 from railrl.exploration_strategies.action_aware_memory_strategy import \
     ActionAwareMemoryStrategy
 from railrl.launchers.launcher_util import (
@@ -43,7 +42,7 @@ from railrl.launchers.launcher_util import (
     create_base_log_dir,
 )
 from railrl.misc.hypopt import optimize_and_save
-from railrl.qfunctions.memory.mlp_memory_qfunction import MlpMemoryQFunction
+# from railrl.qfunctions.memory.mlp_memory_qfunction import MlpMemoryQFunction
 
 
 def run_ocm_experiment(variant):
@@ -113,7 +112,7 @@ def run_ocm_experiment(variant):
             qf = data['qf']
     env_strategy = env_es_class(
         env_spec=ocm_env.spec,
-        **env_es_params,
+        **env_es_params
     )
     write_strategy = memory_es_class(
         env_spec=env.memory_spec,
@@ -238,10 +237,10 @@ if __name__ == '__main__':
     version = 'dev'
     num_hp_settings = 100
 
-    # n_seeds = 10
-    # mode = 'ec2'
-    # exp_prefix = '5-11-reward-low-bellman-diff-settings'
-    # run_mode = 'grid'
+    n_seeds = 10
+    mode = 'ec2'
+    exp_prefix = '5-11-meta-grid'
+    run_mode = 'grid'
     # version = 'reward-low-bellman'
 
     """
@@ -262,7 +261,7 @@ if __name__ == '__main__':
     Set all the hyperparameters!
     """
     env_class = OneCharMemoryEndOnly
-    H = 6
+    H = 4
     env_params = dict(
         num_steps=H,
         n=2,
@@ -296,7 +295,7 @@ if __name__ == '__main__':
         num_extra_qf_updates=5,
         extra_qf_training_mode='none',
         extra_train_period=100,
-        qf_weight_decay=0.001,
+        qf_weight_decay=0.,
         qf_total_loss_tolerance=0.03,
         train_qf_on_all=False,
         # Policy hps
@@ -338,7 +337,7 @@ if __name__ == '__main__':
     )
     meta_params = dict(
         meta_qf_learning_rate=0.0001900271829580542,
-        meta_qf_output_weight=0,
+        meta_qf_output_weight=10,
         qf_output_weight=1,
     )
 
@@ -371,7 +370,7 @@ if __name__ == '__main__':
         # embedded_hidden_sizes=[100, 64, 32],
         # observation_hidden_sizes=[100],
         use_time=False,
-        use_target=True,
+        use_target=False,
         dropout_keep_prob=0.5,
     )
 
@@ -513,7 +512,9 @@ if __name__ == '__main__':
         ]):
             variant['version'] = version
             variant['ddpg_params']['qf_weight_decay'] = qf_weight_decay
-            variant['env_params']['episode_boundary_flags'] = episode_boundary_flags
+            variant['env_params']['episode_boundary_flags'] = (
+                episode_boundary_flags
+            )
             variant['ddpg_params']['qf_weight_decay'] = qf_weight_decay
             variant['qf_params']['use_target'] = use_target
             for seed in range(n_seeds):
