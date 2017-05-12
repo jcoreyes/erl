@@ -151,14 +151,20 @@ class OracleBpttDdpg(BpttDDPG):
             self.qf_loss = tf.zeros([0], tf.float32)
             self.train_qf_op = None
 
-    def _qf_feed_dict(self, *args, **kwargs):
-        feed_dict = super()._qf_feed_dict(*args, **kwargs)
-        feed_dict.update(self._oracle_qf_feed_dict(*args, **kwargs))
+    def _qf_feed_dict_from_batch(self, batch):
+        feed_dict = super()._qf_feed_dict_from_batch(batch)
+        feed_dict.update(self._oracle_qf_feed_dict_from_batch(batch))
         return feed_dict
 
-    def _oracle_qf_feed_dict(self, rewards, terminals, obs, actions, next_obs,
-                             target_numbers=None, times=None):
-        batch_size = len(rewards)
+    def _oracle_qf_feed_dict_from_batch(self, batch):
+        all_flat_batch = self.subtraj_batch_to_flat_augmented_batch(batch)
+        if self.train_qf_on_all:
+            flat_batch = all_flat_batch
+
+        else:
+            flat_batch = self.subtraj_batch_to_last_augmented_batch(batch)
+        times = flat_batch['times']
+        batch_size = len(times)
         sequence_lengths = np.squeeze(self.env.horizon - 1 - times)
         # TODO(vitchyr): BUG this gets more complicated with the flags. I
         # should make the environment generate the rest of the observations.
@@ -169,18 +175,20 @@ class OracleBpttDdpg(BpttDDPG):
                 self._env_obs_dim,
             ]
         )
-        # rest_of_obs[:, :, 0] = 1
-        env_obs, _ = obs
+        all_env_obs, all_memories = all_flat_batch['obs']
+        obs = flat_batch['obs']
+        target_numbers = flat_batch['target_numbers']
         # TODO: oracle_qf shouldn't depend on policy.
-        env_obs = env_obs.reshape((-1, self._num_bptt_unrolls, env_obs.shape[
-            -1]))
+        split_all_env_obs = all_env_obs.reshape(
+            (-1, self._num_bptt_unrolls, all_env_obs.shape[-1])
+        )
         feed_dict = {
             self.oracle_qf.sequence_length_placeholder: sequence_lengths,
             self.oracle_qf.rest_of_obs_placeholder: rest_of_obs,
             self.oracle_qf.observation_input: obs,
             self.policy.observation_input: obs,
-            self._rnn_inputs_ph: env_obs,
-            self._rnn_init_state_ph: obs[1][::self._num_bptt_unrolls, :],
+            self._rnn_inputs_ph: split_all_env_obs,
+            self._rnn_init_state_ph: all_memories[::self._num_bptt_unrolls, :],
             self.oracle_qf.target_labels: target_numbers,
         }
         if hasattr(self.qf, "target_labels"):

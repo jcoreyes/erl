@@ -146,6 +146,7 @@ class MetaBpttDdpg(OracleBpttDdpg):
             target_numbers=flat_batch['target_numbers'],
             times=flat_batch['times'],
         )
+        feed_dict.update(self._oracle_qf_feed_dict_from_batch(batch))
         flat_target_labels = flat_batch['target_numbers']
         flat_times = flat_batch['times']
         feed_dict.update({
