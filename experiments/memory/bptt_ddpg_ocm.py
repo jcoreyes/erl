@@ -248,7 +248,7 @@ if __name__ == '__main__':
 
     n_seeds = 5
     mode = 'ec2'
-    exp_prefix = '5-11-dropout-sweep'
+    exp_prefix = '5-11-dropout-sweep-h4-nbptt4'
     run_mode = 'grid'
     # version = 'dev'
 
@@ -257,7 +257,7 @@ if __name__ == '__main__':
     """
     # env_class = OneCharMemoryOutputRewardMag
     env_class = OneCharMemoryEndOnly
-    H = 6
+    H = 4
     num_values = 2
     zero_observation = True
     env_output_target_number = False
@@ -287,8 +287,9 @@ if __name__ == '__main__':
     """
     Policy Params
     """
-    # policy_rnn_cell_class = LstmLinearCell
+    policy_rnn_cell_class = LstmLinearCell
     policy_rnn_cell_class = LstmLinearCellSwapped
+    policy_rnn_cell_class = LstmLinearCellNoiseAll
     load_policy_file = (
         '/home/vitchyr/git/rllab-rail/railrl/data/reference/expert'
         '/ocm_reward_magnitude5_H6_nbptt6_100p'
@@ -325,7 +326,7 @@ if __name__ == '__main__':
     regress_onto_values_weight = 0.
     bellman_error_weight = 1.
     use_time = False
-    use_target = True
+    use_target = False
     use_oracle_qf = False
     unroll_through_target_policy = False
 
@@ -529,7 +530,7 @@ if __name__ == '__main__':
             # 'policy_params.rnn_cell_params.memory_noise_std': [0., 1.],
             # 'meta_params.meta_qf_learning_rate': [1e-3, 1e-4],
             # 'ddpg_params.qf_weight_decay': [0, 0.001],
-            'qf_params.dropout_keep_prob': [0.9, 0.5, None],
+            'qf_params.dropout_keep_prob': [0.9, 0.5, 0.1, None],
             # 'meta_params.meta_qf_output_weight': [0, 5, 25],
             # 'env_params.episode_boundary_flags': [True, False],
             # 'meta_params.qf_output_weight': [0, 1],
