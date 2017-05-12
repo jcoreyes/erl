@@ -58,13 +58,14 @@ class MetaBpttDdpg(OracleBpttDdpg):
         qf_feed_dict = self._qf_feed_dict_from_batch(minibatch)
         self.sess.run(qf_ops, feed_dict=qf_feed_dict)
 
-        meta_qf_ops = self._get_meta_qf_training_ops(
-            epoch=epoch,
-            n_steps_total=n_steps_total,
-            n_steps_current_epoch=n_steps_current_epoch,
-        )
-        meta_qf_feed_dict = self._meta_qf_feed_dict_from_batch(minibatch)
-        self.sess.run(meta_qf_ops, feed_dict=meta_qf_feed_dict)
+        if self.meta_qf_output_weight > 0:
+            meta_qf_ops = self._get_meta_qf_training_ops(
+                epoch=epoch,
+                n_steps_total=n_steps_total,
+                n_steps_current_epoch=n_steps_current_epoch,
+            )
+            meta_qf_feed_dict = self._meta_qf_feed_dict_from_batch(minibatch)
+            self.sess.run(meta_qf_ops, feed_dict=meta_qf_feed_dict)
 
         policy_ops = self._get_policy_training_ops(
             epoch=epoch,
@@ -157,18 +158,21 @@ class MetaBpttDdpg(OracleBpttDdpg):
 
     def _oracle_qf_feed_dict_for_policy_from_batch(self, batch):
         feed_dict = super()._oracle_qf_feed_dict_for_policy_from_batch(batch)
-        (
-            last_rewards,
-            last_obs,
-            episode_length_left,
-            target_one_hots,
-            last_times,
-            rest_of_obs,
-        ) = self._get_last_time_step_from_batch(batch)
+        # (
+        #     last_rewards,
+        #     last_obs,
+        #     episode_length_left,
+        #     target_one_hots,
+        #     last_times,
+        #     rest_of_obs,
+        # ) = self._get_last_time_step_from_batch(batch)
+        flat_batch = self.subtraj_batch_to_flat_augmented_batch(batch)
+        last_times = flat_batch['times']
+        target_labels = flat_batch['target_numbers']
         feed_dict.update({
-            self.meta_qf.target_labels: target_one_hots,
+            self.meta_qf.target_labels: target_labels,
             self.meta_qf.time_labels: last_times,
-            self.target_meta_qf.target_labels: target_one_hots,
+            self.target_meta_qf.target_labels: target_labels,
             self.target_meta_qf.time_labels: last_times,
         })
         return feed_dict
@@ -196,8 +200,8 @@ class MetaBpttDdpg(OracleBpttDdpg):
     def _init_policy_ops(self):
         super()._init_policy_ops()
         self.meta_qf_with_action_input = self.meta_qf.get_weight_tied_copy(
-            action_input=self._final_rnn_augmented_action,
-            observation_input=self._final_rnn_augmented_input,
+            action_input=self.qf_with_action_input.action_input,
+            observation_input=self.qf_with_action_input.observation_input,
         )
 
     def _init_policy_loss_and_train_ops(self):

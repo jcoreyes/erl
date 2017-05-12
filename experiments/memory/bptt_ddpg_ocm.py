@@ -269,7 +269,7 @@ if __name__ == '__main__':
         zero_observation=True,
         output_target_number=False,
         output_time=False,
-        episode_boundary_flags=True,
+        episode_boundary_flags=False,
         max_reward_magnitude=1,
     )
 
@@ -297,7 +297,7 @@ if __name__ == '__main__':
         num_extra_qf_updates=5,
         extra_qf_training_mode='fixed',
         extra_train_period=100,
-        qf_weight_decay=0.,
+        qf_weight_decay=0.001,
         qf_total_loss_tolerance=0.03,
         train_qf_on_all=False,
         # Policy hps
@@ -312,7 +312,8 @@ if __name__ == '__main__':
 
     # noinspection PyTypeChecker
     policy_params = dict(
-        rnn_cell_class=LstmLinearCell,
+        # rnn_cell_class=LstmLinearCell,
+        rnn_cell_class=LstmLinearCellNoiseAll,
         rnn_cell_params=dict(
             use_peepholes=True,
             env_noise_std=0,
@@ -336,7 +337,7 @@ if __name__ == '__main__':
     )
     meta_params = dict(
         meta_qf_learning_rate=0.0001900271829580542,
-        meta_qf_output_weight=0,
+        meta_qf_output_weight=10,
         qf_output_weight=1,
     )
 
@@ -369,6 +370,7 @@ if __name__ == '__main__':
         # observation_hidden_sizes=[100],
         use_time=False,
         use_target=True,
+        dropout_keep_prob=0.5,
     )
 
     """

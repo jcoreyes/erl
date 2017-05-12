@@ -57,21 +57,23 @@ class OracleBpttDdpg(BpttDDPG):
 
     def _init_policy_ops(self):
         super()._init_policy_ops()
+        action_input = self.qf_with_action_input.action_input
+        obs_input = self.qf_with_action_input.observation_input
         self.oracle_qf = self.oracle_qf.get_weight_tied_copy(
-            action_input=self.qf_with_action_input.action_input,
-            observation_input=self.qf_with_action_input.observation_input,
+            action_input=action_input,
+            observation_input=obs_input,
         )
         if self.use_oracle_qf:
             if self.unroll_through_target_policy:
                 self.qf_with_action_input = self.oracle_qf.get_weight_tied_copy(
-                    action_input=self._final_rnn_augmented_action,
-                    observation_input=self._final_rnn_augmented_input,
+                    action_input=action_input,
+                    observation_input=obs_input,
                     policy=self.target_policy,
                 )
             else:
                 self.qf_with_action_input = self.oracle_qf.get_weight_tied_copy(
-                    action_input=self._final_rnn_augmented_action,
-                    observation_input=self._final_rnn_augmented_input,
+                    action_input=action_input,
+                    observation_input=obs_input,
                 )
 
     def _init_qf_loss_and_train_ops(self):
@@ -311,6 +313,8 @@ class OracleBpttDdpg(BpttDDPG):
         #     last_times,
         #     rest_of_obs,
         # ) = self._get_last_time_step_from_batch(batch)
+        # TODO(vitchyr): Last or just all? I think it's all because
+        # self.train_policy_on_all_qf_timesteps decides what to use
         flat_batch = self.subtraj_batch_to_flat_augmented_batch(batch)
         last_obs = flat_batch['obs']
         last_times = flat_batch['times']
