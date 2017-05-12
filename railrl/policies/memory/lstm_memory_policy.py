@@ -112,26 +112,39 @@ class LstmLinearCellNoiseAll(LSTMCell):
     def __call__(self, inputs, state, scope=None):
         with tf.variable_scope(scope or "linear_lstm") as self.scope:
             split_state = tf.split(axis=1, num_or_size_splits=2, value=state)
-            lstm_output, full_state = super().__call__(inputs, split_state,
-                                                       scope=self.scope)
+            raw_lstm_output, (state, lstm_output) = super().__call__(
+                inputs, split_state, scope=self.scope
+            )
 
-            if self._env_noise_std > 0.:
-                lstm_output += self._env_noise_std * tf.random_normal(
+            if self._memory_noise_std > 0.:
+                state += self._memory_noise_std * tf.random_normal(
+                    tf.shape(state)
+                )
+                lstm_output += self._memory_noise_std * tf.random_normal(
                     tf.shape(lstm_output)
                 )
+            flat_state = tf.concat(axis=1, values=(state, lstm_output))
 
-            flat_state = tf.concat(axis=1, values=full_state)
-            if self._memory_noise_std > 0.:
-                flat_state += self._memory_noise_std * tf.random_normal(
-                    tf.shape(flat_state)
-                )
+            # Apparently TensorFlow doesn't support the following:
+            # TODO(vitchyr): open a bug report. I guess they can't do the
+            # reparameterization trick through concat
+            # flat_state = tf.concat(axis=1, values=(state, lstm_output))
+            # if self._memory_noise_std > 0.:
+            #     flat_state += self._memory_noise_std * tf.random_normal(
+            #         tf.shape(flat_state)
+            #     )
 
             with tf.variable_scope('env_action') as self.env_action_scope:
                 W = tf.get_variable('W', [self._num_units, self._output_dim])
                 b = tf.get_variable('b', [self._output_dim],
                                     initializer=tf.constant_initializer(0.0))
 
-            env_action_logit = tf.matmul(lstm_output, W) + b
+            if self._env_noise_std > 0.:
+                raw_lstm_output += self._env_noise_std * tf.random_normal(
+                    tf.shape(raw_lstm_output)
+                )
+            env_action_logit = tf.matmul(raw_lstm_output, W) + b
+
             return tf.nn.softmax(env_action_logit), flat_state
 
     @property
