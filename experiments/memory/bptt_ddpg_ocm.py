@@ -240,9 +240,9 @@ if __name__ == '__main__':
 
     # n_seeds = 10
     # mode = 'ec2'
-    exp_prefix = '5-11-train-qf-on-all'
+    # exp_prefix = '5-11-reward-low-bellman-diff-settings'
     # run_mode = 'grid'
-    version = 'reward-low-bellman'
+    # version = 'reward-low-bellman'
 
     """
     Miscellaneous Params
@@ -292,9 +292,9 @@ if __name__ == '__main__':
         hard_update_period=1000,
         target_update_mode=TargetUpdateMode.HARD,
         # QF hyperparameters
-        qf_learning_rate=1e-3,
+        qf_learning_rate=5e-4,
         num_extra_qf_updates=5,
-        extra_qf_training_mode='fixed',
+        extra_qf_training_mode='none',
         extra_train_period=100,
         qf_weight_decay=0.001,
         qf_total_loss_tolerance=0.03,
@@ -308,6 +308,7 @@ if __name__ == '__main__':
         # memory
         num_bptt_unrolls=4,
         bpt_bellman_error_weight=0,
+        reward_low_bellman_error_weight=0.,
     )
 
     # noinspection PyTypeChecker
@@ -333,7 +334,7 @@ if __name__ == '__main__':
 
     meta_qf_params = dict(
         use_time=False,
-        use_target=True,
+        use_target=False,
     )
     meta_params = dict(
         meta_qf_learning_rate=0.0001900271829580542,

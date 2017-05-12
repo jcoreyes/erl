@@ -47,6 +47,7 @@ class DDPG(OnlineAlgorithm):
             qf_weight_decay=0.,
             target_update_mode=TargetUpdateMode.SOFT,
             hard_update_period=10000,
+            reward_low_bellman_error_weight=0.,
             **kwargs
     ):
         """
@@ -71,6 +72,7 @@ class DDPG(OnlineAlgorithm):
         self.qf_learning_rate = qf_learning_rate
         self.policy_learning_rate = policy_learning_rate
         self.qf_weight_decay = qf_weight_decay
+        self.reward_low_bellman_error_weight = reward_low_bellman_error_weight
         self.qf_with_action_input = None
         self.target_policy = None
         self.target_qf = None
@@ -104,16 +106,25 @@ class DDPG(OnlineAlgorithm):
             self._init_policy_loss_and_train_ops()
 
     def _init_qf_ops(self):
-        self.ys = (
+        self.raw_ys = (
             self.rewards_placeholder +
             (1. - self.terminals_placeholder)
             * self.discount
             * self.target_qf.output
         )
-        self.bellman_error = tf.squeeze(tf_util.mse(self.ys, self.qf.output))
-        self.new_ys = self.ys - self.bellman_error
-        self.bellman_error = tf.squeeze(tf_util.mse(self.new_ys,
-                                                    self.qf.output))
+        self.raw_ys = tf.stop_gradient(self.raw_ys)
+        self.raw_bellman_error = tf.squeeze(tf_util.mse(self.raw_ys,
+                                                        self.qf.output))
+        if self.reward_low_bellman_error_weight > 0.:
+            self.ys = tf.stop_gradient(
+                self.raw_ys
+                - self.raw_bellman_error * self.reward_low_bellman_error_weight
+            )
+            self.bellman_error = tf.squeeze(tf_util.mse(self.ys,
+                                                        self.qf.output))
+        else:
+            self.ys = self.raw_ys
+            self.bellman_error = self.raw_bellman_error
         # import ipdb; ipdb.set_trace()
         # self.bellman_error = tf.squeeze(
         #     tf.reduce_mean(

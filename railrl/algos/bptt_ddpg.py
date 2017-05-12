@@ -169,7 +169,7 @@ class BpttDDPG(DDPG):
         policy_feed_dict = self._eval_policy_feed_dict_from_batch(batch)
         policy_stat_names, policy_ops = zip(*[
             ('PolicySurrogateLoss', self.policy_surrogate_loss),
-            ('FinalPolicyOutput', self.policy.output),
+            ('PolicyOutput', self.policy.output),
         ])
         values = self.sess.run(policy_ops, feed_dict=policy_feed_dict)
         statistics = OrderedDict()
@@ -184,6 +184,12 @@ class BpttDDPG(DDPG):
         qf_stat_names, qf_ops = zip(*[
             ('QfLoss', self.qf_loss),
             ('QfOutput', self.qf.output),
+            ('TargetQfOutput', self.target_qf.output),
+            ('TargetPolicyOutput', self.target_policy.output),
+            ('RawYs', self.raw_ys),
+            ('Ys', self.ys),
+            ('QfBellmanError', self.bellman_error),
+            ('QfRawBellmanError', self.raw_bellman_error),
         ])
         values = self.sess.run(qf_ops, feed_dict=qf_feed_dict)
         statistics = OrderedDict()
