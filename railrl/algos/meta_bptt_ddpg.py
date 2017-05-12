@@ -191,9 +191,10 @@ class MetaBpttDdpg(OracleBpttDdpg):
         self.policy_surrogate_loss = - tf.reduce_mean(
             self.qf_with_action_input.output
         ) * self.qf_output_weight
-        self.policy_surrogate_loss += tf.reduce_mean(
-            self.meta_qf_with_action_input.output
-        ) * self.meta_qf_output_weight
+        if self.meta_qf_output_weight > 0:
+            self.policy_surrogate_loss += tf.reduce_mean(
+                self.meta_qf_with_action_input.output
+            ) * self.meta_qf_output_weight
         if self._bpt_bellman_error_weight > 0.:
             self.policy_surrogate_loss += (
                 self.bellman_error_for_policy * self._bpt_bellman_error_weight

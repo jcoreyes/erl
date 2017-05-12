@@ -369,9 +369,24 @@ class BpttDDPG(DDPG):
             self._rnn_inputs_unstacked[-1],
             self._final_rnn_memory_input,
         )
+        self.all_env_actions = tf.concat([env_action for env_action, _ in
+                                          self._rnn_outputs],
+                                         axis=0)
+        self.all_writes_list = [write for _, write in self._rnn_outputs]
+        self.all_writes = tf.concat(self.all_writes_list, axis=0)
+        self.all_actions = self.all_env_actions, self.all_writes
+        self.all_mems = tf.concat(
+            [self._rnn_init_state_ph] + self.all_writes_list[:-1],
+            axis=0
+        )
+        self.all_env_obs = tf.concat(self._rnn_inputs_unstacked,
+                                     axis=0)
+        self.all_obs = self.all_env_obs, self.all_mems
         self.qf_with_action_input = self.qf.get_weight_tied_copy(
-            action_input=self._final_rnn_augmented_action,
-            observation_input=self._final_rnn_augmented_input,
+            # action_input=self._final_rnn_augmented_action,
+            # observation_input=self._final_rnn_augmented_input,
+            action_input=self.all_actions,
+            observation_input=self.all_obs,
         )
 
         """
