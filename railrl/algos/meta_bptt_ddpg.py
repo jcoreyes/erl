@@ -189,7 +189,7 @@ class MetaBpttDdpg(OracleBpttDdpg):
     def _init_meta_qf_ops(self):
         self.meta_qf_ys = (
             self.bellman_error +
-            (1. - self.terminals_placeholder)
+            (1. - self.terminals_n1)
             * self.discount
             * self.target_meta_qf.output
         )

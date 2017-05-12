@@ -66,6 +66,8 @@ class DDPG(OnlineAlgorithm):
         :return:
         """
         assert isinstance(target_update_mode, TargetUpdateMode)
+        super().__init__(env, policy, exploration_strategy, **kwargs)
+
         self._target_update_mode = target_update_mode
         self._hard_update_period = hard_update_period
         self.qf = qf
@@ -76,8 +78,6 @@ class DDPG(OnlineAlgorithm):
         self.qf_with_action_input = None
         self.target_policy = None
         self.target_qf = None
-
-        super().__init__(env, policy, exploration_strategy, **kwargs)
 
     @overrides
     def _init_tensorflow_ops(self):
@@ -107,8 +107,8 @@ class DDPG(OnlineAlgorithm):
 
     def _init_qf_ops(self):
         self.raw_ys = (
-            self.rewards_placeholder +
-            (1. - self.terminals_placeholder)
+            self.rewards_n1 +
+            (1. - self.terminals_n1)
             * self.discount
             * self.target_qf.output
         )
@@ -128,7 +128,7 @@ class DDPG(OnlineAlgorithm):
         # import ipdb; ipdb.set_trace()
         # self.bellman_error = tf.squeeze(
         #     tf.reduce_mean(
-        #         tf.abs(self.rewards_placeholder) *
+        #         tf.abs(self.rewards_n1) *
         #         tf.squared_difference(self.ys, self.qf.output),
         #         axis=0,
         #     )
@@ -315,8 +315,8 @@ class DDPG(OnlineAlgorithm):
         :return: Feed dictionary for policy training TensorFlow ops.
         """
         return {
-            self.rewards_placeholder: np.expand_dims(rewards, axis=1),
-            self.terminals_placeholder: np.expand_dims(terminals, axis=1),
+            self.rewards_placeholder: rewards,
+            self.terminals_placeholder: terminals,
             self.qf.observation_input: obs,
             self.qf.action_input: actions,
             self.target_qf.observation_input: next_obs,

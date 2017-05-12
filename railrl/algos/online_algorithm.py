@@ -101,11 +101,16 @@ class OnlineAlgorithm(RLAlgorithm):
         self.observation_dim = self.training_env.observation_space.flat_dim
         self.action_dim = self.training_env.action_space.flat_dim
         self.rewards_placeholder = tf.placeholder(tf.float32,
-                                                  shape=[None, 1],
+                                                  shape=None,
                                                   name='rewards')
-        self.terminals_placeholder = tf.placeholder(tf.float32,
-                                                    shape=[None, 1],
+        self.terminals_placeholder = tf.placeholder(tf.bool,
+                                                    shape=None,
                                                     name='terminals')
+        self.rewards_n1 = tf.expand_dims(self.rewards_placeholder, axis=1)
+        self.terminals_n1 = tf.expand_dims(
+            tf.cast(self.terminals_placeholder, tf.float32),
+            axis=1,
+        )
         self.pool = replay_pool or EnvReplayBuffer(
             self.replay_pool_size,
             self.env,
