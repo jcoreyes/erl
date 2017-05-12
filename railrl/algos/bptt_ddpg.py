@@ -188,8 +188,8 @@ class BpttDDPG(DDPG):
             ('TargetPolicyOutput', self.target_policy.output),
             ('RawYs', self.raw_ys),
             ('Ys', self.ys),
-            ('QfBellmanError', self.bellman_error),
-            ('QfRawBellmanError', self.raw_bellman_error),
+            ('QfBellmanErrors', self.bellman_errors),
+            ('QfRawBellmanErrors', self.raw_bellman_errors),
         ])
         values = self.sess.run(qf_ops, feed_dict=qf_feed_dict)
         statistics = OrderedDict()

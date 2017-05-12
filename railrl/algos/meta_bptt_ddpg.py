@@ -188,13 +188,23 @@ class MetaBpttDdpg(OracleBpttDdpg):
 
     def _init_meta_qf_ops(self):
         self.meta_qf_ys = (
-            self.bellman_error +
+            self.bellman_errors +
             (1. - self.terminals_n1)
             * self.discount
             * self.target_meta_qf.output
         )
-        self.meta_qf_bellman_error = tf.squeeze(
-            tf_util.mse(self.meta_qf_ys, self.meta_qf.output)
+        self.meta_qf_bellman_errors = tf.squared_difference(
+            self.meta_qf_ys, self.meta_qf.output
+        )
+        assert tf_util.are_shapes_compatible(
+            self.bellman_errors,
+            self.terminals_n1,
+            self.target_meta_qf.output,
+            self.meta_qf.output,
+            self.meta_qf_bellman_errors,
+        )
+        self.meta_qf_bellman_error = tf.reduce_mean(
+            self.meta_qf_bellman_errors
         )
 
     def _init_policy_ops(self):
@@ -239,6 +249,7 @@ class MetaBpttDdpg(OracleBpttDdpg):
         meta_qf_stat_names, meta_qf_ops = zip(*[
             ('MetaQfLoss', self.meta_qf_loss),
             ('MetaQfOutput', self.meta_qf.output),
+            ('MetaQfBellmanErrors', self.meta_qf_bellman_errors),
         ])
         values = self.sess.run(meta_qf_ops, feed_dict=meta_qf_feed_dict)
         statistics = OrderedDict()

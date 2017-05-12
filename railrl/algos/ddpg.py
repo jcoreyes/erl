@@ -106,25 +106,31 @@ class DDPG(OnlineAlgorithm):
             self._init_policy_loss_and_train_ops()
 
     def _init_qf_ops(self):
-        self.raw_ys = (
+        self.raw_ys = tf.stop_gradient(
             self.rewards_n1 +
             (1. - self.terminals_n1)
             * self.discount
             * self.target_qf.output
         )
-        self.raw_ys = tf.stop_gradient(self.raw_ys)
-        self.raw_bellman_error = tf.squeeze(tf_util.mse(self.raw_ys,
-                                                        self.qf.output))
+        self.raw_bellman_errors = tf.squared_difference(self.raw_ys,
+                                                        self.qf.output)
         if self.reward_low_bellman_error_weight > 0.:
             self.ys = tf.stop_gradient(
                 self.raw_ys
-                - self.raw_bellman_error * self.reward_low_bellman_error_weight
+                - self.raw_bellman_errors * self.reward_low_bellman_error_weight
             )
-            self.bellman_error = tf.squeeze(tf_util.mse(self.ys,
-                                                        self.qf.output))
+            self.bellman_errors = tf.squared_difference(self.ys, self.qf.output)
         else:
             self.ys = self.raw_ys
-            self.bellman_error = self.raw_bellman_error
+            self.bellman_errors = self.raw_bellman_errors
+        assert tf_util.are_shapes_compatible(
+            self.rewards_n1,
+            self.terminals_n1,
+            self.target_qf.output,
+            self.qf.output,
+            self.bellman_errors,
+        )
+        self.bellman_error = tf.reduce_mean(self.bellman_errors)
         # import ipdb; ipdb.set_trace()
         # self.bellman_error = tf.squeeze(
         #     tf.reduce_mean(

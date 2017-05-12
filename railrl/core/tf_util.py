@@ -594,3 +594,16 @@ def cosine(xs, ys):
     norm_x = tf.nn.l2_normalize(xs, dim=1)
     norm_y = tf.nn.l2_normalize(ys, dim=1)
     return batch_dot_product(norm_x, norm_y)
+
+
+def are_shapes_compatible(*tensors):
+    """
+    :param tensors: list of TensorFlow Tensor
+    :return: Returns if the shapes of the Tensors match
+    """
+    assert len(tensors) > 1
+    tensor1 = tensors[0]
+    return all(
+        tensor1.get_shape().is_compatible_with(t.get_shape())
+        for t in tensors[1:]
+    )

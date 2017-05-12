@@ -232,28 +232,31 @@ class OracleBpttDdpg(BpttDDPG):
             (
                 true_qf_mse_loss,
                 qf_loss,
-                bellman_error,
+                bellman_errors,
                 qf_output,
             ) = self.sess.run(
                 [
                     self.true_qf_mse_loss,
                     self.qf_loss,
-                    self.bellman_error,
+                    self.bellman_errors,
                     self.qf.output,
                 ]
                 ,
                 feed_dict=qf_feed_dict
             )
             stat_base_name = 'Qf{}'.format(name)
-            statistics.update(
-                {'{}_True_MSE_Loss'.format(stat_base_name): true_qf_mse_loss},
-            )
-            statistics.update(
-                {'{}_BellmanError'.format(stat_base_name): bellman_error},
-            )
-            statistics.update(
-                {'{}_Loss'.format(stat_base_name): qf_loss},
-            )
+            statistics.update(create_stats_ordered_dict(
+                '{}_True_MSE_Loss'.format(stat_base_name),
+                true_qf_mse_loss,
+            ))
+            statistics.update(create_stats_ordered_dict(
+                '{}_BellmanError'.format(stat_base_name),
+                bellman_errors,
+            ))
+            statistics.update(create_stats_ordered_dict(
+                '{}_Loss'.format(stat_base_name),
+                qf_loss,
+            ))
             statistics.update(create_stats_ordered_dict(
                 '{}_Grad_Dist_env'.format(stat_base_name),
                 env_grad_distance,
