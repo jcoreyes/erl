@@ -46,6 +46,8 @@ class BpttDDPG(DDPG):
             extra_qf_training_mode='none',
             qf_total_loss_tolerance=None,
             max_num_q_updates=100,
+            train_qf_on_all=True,
+            train_policy_on_all_qf_timesteps=False,
             **kwargs
     ):
         """
@@ -103,6 +105,8 @@ class BpttDDPG(DDPG):
         self._num_extra_qf_updates = num_extra_qf_updates
         self.qf_total_loss_tolerance = qf_total_loss_tolerance
         self.max_num_q_updates = max_num_q_updates
+        self.train_qf_on_all = train_qf_on_all
+        self.train_policy_on_all_qf_timesteps = train_policy_on_all_qf_timesteps
 
         self._rnn_cell_scope = policy.rnn_cell_scope
         self._rnn_cell = policy.rnn_cell
@@ -222,7 +226,10 @@ class BpttDDPG(DDPG):
         ])
 
     def _qf_feed_dict_from_batch(self, batch):
-        flat_batch = self.subtraj_batch_to_flat_augmented_batch(batch)
+        if self.train_qf_on_all:
+            flat_batch = self.subtraj_batch_to_flat_augmented_batch(batch)
+        else:
+            flat_batch = self.subtraj_batch_to_last_augmented_batch(batch)
         feed = self._qf_feed_dict(
             rewards=flat_batch['rewards'],
             terminals=flat_batch['terminals'],
@@ -269,6 +276,43 @@ class BpttDDPG(DDPG):
             next_obs=split_flat_next_obs,
             target_numbers=flat_target_numbers,
             times=flat_times,
+        )
+
+    def subtraj_batch_to_last_augmented_batch(self, batch):
+        """
+        The batch is a bunch of subsequences. Slice out the last time of each
+        the subsequences so that they just look like normal (s, a, s') tuples.
+
+        Also, the actions/observations are split into their respective
+        augmented parts.
+        """
+        rewards = batch['rewards']
+        terminals = batch['terminals']
+        obs = batch['observations']
+        actions = batch['actions']
+        next_obs = batch['next_observations']
+        target_numbers = batch['target_numbers']
+        times = batch['times']
+
+        last_actions = self._get_time_step(actions, -1)
+        last_obs = self._get_time_step(obs, -1)
+        last_next_obs = self._get_time_step(next_obs, -1)
+        last_target_numbers = target_numbers[:, -1]
+        last_times = times[:, -1]
+        last_terminals = terminals[:, -1]
+        last_rewards = rewards[:, -1]
+
+        split_flat_obs = self._split_flat_obs(last_obs)
+        split_flat_actions = self._split_flat_actions(last_actions)
+        split_flat_next_obs = self._split_flat_obs(last_next_obs)
+        return dict(
+            rewards=last_rewards,
+            terminals=last_terminals,
+            obs=split_flat_obs,
+            actions=split_flat_actions,
+            next_obs=split_flat_next_obs,
+            target_numbers=last_target_numbers,
+            times=last_times,
         )
 
     def _eval_qf_feed_dict_from_batch(self, batch):
@@ -370,10 +414,29 @@ class BpttDDPG(DDPG):
             self._rnn_inputs_unstacked[-1],
             self._final_rnn_memory_input,
         )
-        self.qf_with_action_input = self.qf.get_weight_tied_copy(
-            action_input=self._final_rnn_augmented_action,
-            observation_input=self._final_rnn_augmented_input,
+        self.all_env_actions = tf.concat([env_action for env_action, _ in
+                                          self._rnn_outputs],
+                                         axis=0)
+        self.all_writes_list = [write for _, write in self._rnn_outputs]
+        self.all_writes = tf.concat(self.all_writes_list, axis=0)
+        self.all_actions = self.all_env_actions, self.all_writes
+        self.all_mems = tf.concat(
+            [self._rnn_init_state_ph] + self.all_writes_list[:-1],
+            axis=0
         )
+        self.all_env_obs = tf.concat(self._rnn_inputs_unstacked,
+                                     axis=0)
+        self.all_obs = self.all_env_obs, self.all_mems
+        if self.train_policy_on_all_qf_timesteps:
+            self.qf_with_action_input = self.qf.get_weight_tied_copy(
+                action_input=self.all_actions,
+                observation_input=self.all_obs,
+            )
+        else:
+            self.qf_with_action_input = self.qf.get_weight_tied_copy(
+                action_input=self._final_rnn_augmented_action,
+                observation_input=self._final_rnn_augmented_input,
+            )
 
         """
         Backprop the Bellman error through time, i.e. through dQ/dwrite action

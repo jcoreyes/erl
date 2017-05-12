@@ -20,6 +20,7 @@ class MetaBpttDdpg(OracleBpttDdpg):
             meta_qf_learning_rate=1e-4,
             meta_qf_output_weight=10,
             qf_output_weight=1,
+            train_meta_qf_on_all=True,
             **kwargs
     ):
         """
@@ -37,6 +38,7 @@ class MetaBpttDdpg(OracleBpttDdpg):
         self.meta_qf_learning_rate = meta_qf_learning_rate
         self.meta_qf_output_weight = meta_qf_output_weight
         self.qf_output_weight = qf_output_weight
+        self.train_meta_qf_on_all = train_meta_qf_on_all
 
     def _do_training(
             self,
@@ -130,8 +132,19 @@ class MetaBpttDdpg(OracleBpttDdpg):
         )
 
     def _meta_qf_feed_dict_from_batch(self, batch):
-        feed_dict = self._qf_feed_dict_from_batch(batch)
-        flat_batch = self.subtraj_batch_to_flat_augmented_batch(batch)
+        if self.train_qf_on_all:
+            flat_batch = self.subtraj_batch_to_flat_augmented_batch(batch)
+        else:
+            flat_batch = self.subtraj_batch_to_last_augmented_batch(batch)
+        feed_dict = self._qf_feed_dict(
+            rewards=flat_batch['rewards'],
+            terminals=flat_batch['terminals'],
+            obs=flat_batch['obs'],
+            actions=flat_batch['actions'],
+            next_obs=flat_batch['next_obs'],
+            target_numbers=flat_batch['target_numbers'],
+            times=flat_batch['times'],
+        )
         flat_target_labels = flat_batch['target_numbers']
         flat_times = flat_batch['times']
         feed_dict.update({
@@ -191,9 +204,10 @@ class MetaBpttDdpg(OracleBpttDdpg):
         self.policy_surrogate_loss = - tf.reduce_mean(
             self.qf_with_action_input.output
         ) * self.qf_output_weight
-        self.policy_surrogate_loss += tf.reduce_mean(
-            self.meta_qf_with_action_input.output
-        ) * self.meta_qf_output_weight
+        if self.meta_qf_output_weight > 0:
+            self.policy_surrogate_loss += tf.reduce_mean(
+                self.meta_qf_with_action_input.output
+            ) * self.meta_qf_output_weight
         if self._bpt_bellman_error_weight > 0.:
             self.policy_surrogate_loss += (
                 self.bellman_error_for_policy * self._bpt_bellman_error_weight

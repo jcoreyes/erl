@@ -168,11 +168,17 @@ class OracleBpttDdpg(BpttDDPG):
             ]
         )
         # rest_of_obs[:, :, 0] = 1
+        env_obs, _ = obs
+        # TODO: oracle_qf shouldn't depend on policy.
+        env_obs = env_obs.reshape((-1, self._num_bptt_unrolls, env_obs.shape[
+            -1]))
         feed_dict = {
             self.oracle_qf.sequence_length_placeholder: sequence_lengths,
             self.oracle_qf.rest_of_obs_placeholder: rest_of_obs,
             self.oracle_qf.observation_input: obs,
             self.policy.observation_input: obs,
+            self._rnn_inputs_ph: env_obs,
+            self._rnn_init_state_ph: obs[1][::self._num_bptt_unrolls, :],
             self.oracle_qf.target_labels: target_numbers,
         }
         if hasattr(self.qf, "target_labels"):
@@ -297,14 +303,26 @@ class OracleBpttDdpg(BpttDDPG):
         return statistics
 
     def _oracle_qf_feed_dict_for_policy_from_batch(self, batch):
-        (
-            last_rewards,
-            last_obs,
-            episode_length_left,
-            target_one_hots,
-            last_times,
-            rest_of_obs,
-        ) = self._get_last_time_step_from_batch(batch)
+        # (
+        #     last_rewards,
+        #     last_obs,
+        #     episode_length_left,
+        #     target_one_hots,
+        #     last_times,
+        #     rest_of_obs,
+        # ) = self._get_last_time_step_from_batch(batch)
+        flat_batch = self.subtraj_batch_to_flat_augmented_batch(batch)
+        last_obs = flat_batch['obs']
+        last_times = flat_batch['times']
+        target_labels = flat_batch['target_numbers']
+        episode_length_left = np.squeeze(self.env.horizon - 1 - last_times)
+        rest_of_obs = np.zeros(
+            [
+                len(last_times),
+                self.env.horizon - self._num_bptt_unrolls,
+                self._env_obs_dim,
+            ]
+        )
         feed_dict = {
             self.oracle_qf.sequence_length_placeholder: episode_length_left,
             self.oracle_qf.rest_of_obs_placeholder: rest_of_obs,
@@ -312,17 +330,17 @@ class OracleBpttDdpg(BpttDDPG):
             # eliminated by TensorFlow
             self.oracle_qf.observation_input[0]: last_obs[0],
             self.oracle_qf.observation_input[1]: last_obs[1],
-            self.oracle_qf.target_labels: target_one_hots,
+            self.oracle_qf.target_labels: target_labels,
         }
         if hasattr(self.qf_with_action_input, "target_labels"):
-            feed_dict[self.qf_with_action_input.target_labels] = target_one_hots
+            feed_dict[self.qf_with_action_input.target_labels] = target_labels
         if hasattr(self.qf_with_action_input, "time_labels"):
             feed_dict[self.qf_with_action_input.time_labels] = last_times
         if self.target_qf_for_policy is not None:
             if (hasattr(self.target_qf_for_policy, "target_labels") and
                         self._bpt_bellman_error_weight > 0.):
                 # TODO(vitchyr): this should be the NEXT target...
-                feed_dict[self.target_qf_for_policy.target_labels] = target_one_hots
+                feed_dict[self.target_qf_for_policy.target_labels] = target_labels
             if (hasattr(self.target_qf_for_policy, "time_labels") and
                      self._bpt_bellman_error_weight > 0.):
                 # TODO(vitchyr): this seems hacky
