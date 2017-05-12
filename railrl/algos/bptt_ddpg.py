@@ -47,6 +47,7 @@ class BpttDDPG(DDPG):
             qf_total_loss_tolerance=None,
             max_num_q_updates=100,
             train_qf_on_all=True,
+            train_policy_on_all_qf_timesteps=False,
             **kwargs
     ):
         """
@@ -105,6 +106,7 @@ class BpttDDPG(DDPG):
         self.qf_total_loss_tolerance = qf_total_loss_tolerance
         self.max_num_q_updates = max_num_q_updates
         self.train_qf_on_all = train_qf_on_all
+        self.train_policy_on_all_qf_timesteps = train_policy_on_all_qf_timesteps
 
         self._rnn_cell_scope = policy.rnn_cell_scope
         self._rnn_cell = policy.rnn_cell
@@ -424,12 +426,16 @@ class BpttDDPG(DDPG):
         self.all_env_obs = tf.concat(self._rnn_inputs_unstacked,
                                      axis=0)
         self.all_obs = self.all_env_obs, self.all_mems
-        self.qf_with_action_input = self.qf.get_weight_tied_copy(
-            # action_input=self._final_rnn_augmented_action,
-            # observation_input=self._final_rnn_augmented_input,
-            action_input=self.all_actions,
-            observation_input=self.all_obs,
-        )
+        if self.train_policy_on_all_qf_timesteps:
+            self.qf_with_action_input = self.qf.get_weight_tied_copy(
+                action_input=self.all_actions,
+                observation_input=self.all_obs,
+            )
+        else:
+            self.qf_with_action_input = self.qf.get_weight_tied_copy(
+                action_input=self._final_rnn_augmented_action,
+                observation_input=self._final_rnn_augmented_input,
+            )
 
         """
         Backprop the Bellman error through time, i.e. through dQ/dwrite action

@@ -412,6 +412,7 @@ if __name__ == '__main__':
         target_update_mode=target_update_mode,
         hard_update_period=hard_update_period,
         train_qf_on_all=train_qf_on_all,
+        train_policy_on_all_qf_timesteps=False,
     )
     regress_params = dict(
         qf_total_loss_tolerance=qf_total_loss_tolerance,
