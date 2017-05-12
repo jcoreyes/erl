@@ -1,7 +1,6 @@
 """
 Use an oracle qfunction to train a policy in bptt-ddpg style.
 """
-import copy
 import joblib
 from hyperopt import hp
 import numpy as np
@@ -10,11 +9,8 @@ import random
 
 from railrl.algos.ddpg import TargetUpdateMode
 from railrl.envs.memory.one_char_memory import (
-    OneCharMemoryOutputRewardMag,
     OneCharMemoryEndOnly,
 )
-from railrl.exploration_strategies.action_aware_memory_strategy import \
-    ActionAwareMemoryStrategy
 from railrl.launchers.launcher_util import (
     run_experiment,
 )
@@ -28,11 +24,7 @@ from railrl.misc.hyperparameter import (
 from railrl.policies.memory.action_aware_memory_policy import \
     ActionAwareMemoryPolicy
 from railrl.policies.memory.lstm_memory_policy import (
-    OutputAwareLstmCell,
     LstmLinearCell,
-    FrozenHiddenLstmLinearCell,
-    IRnnCell,
-    LinearRnnCell,
 )
 from railrl.algos.writeback_bptt_ddpt import WritebackBpttDDPG
 from railrl.algos.bptt_ddpg import BpttDDPG
@@ -252,45 +244,12 @@ if __name__ == '__main__':
     # version = 'only_last'
 
     """
-    Env param
-    """
-    # env_class = OneCharMemoryOutputRewardMag
-    env_class = OneCharMemoryEndOnly
-    H = 4
-    num_values = 2
-    zero_observation = True
-    env_output_target_number = False
-    env_output_time = False
-    episode_boundary_flags = True
-
-    """
-    DDPG Params
+    Miscellaneous Params
     """
     n_batches_per_epoch = 100
     n_batches_per_eval = 64
-    batch_size = 32
-    n_epochs = 30
-    memory_dim = 20
-    min_pool_size = 320
-    replay_pool_size = 100000
-    # bpt_bellman_error_weight = 2.043625554091334
-    # bpt_bellman_error_weight = 0.22048495800782136
-    bpt_bellman_error_weight = 0.
-
-    """
-    Algorithm Selection
-    """
     oracle_mode = 'meta'
     algo_class = BpttDDPG
-
-    """
-    Policy Params
-    """
-    # policy_rnn_cell_class = LinearRnnCell
-    # policy_rnn_cell_class = OutputAwareLstmCell
-    # policy_rnn_cell_class = IRnnCell
-    policy_rnn_cell_class = LstmLinearCell
-    # policy_rnn_cell_class = FrozenHiddenLstmLinearCell
     load_policy_file = (
         '/home/vitchyr/git/rllab-rail/railrl/data/reference/expert'
         '/ocm_reward_magnitude5_H6_nbptt6_100p'
@@ -299,142 +258,107 @@ if __name__ == '__main__':
     load_policy_file = None
 
     """
-    Algo params
+    Set all the hyperparameters!
     """
-    num_extra_qf_updates = 5
-    qf_learning_rate = 1e-3
-    # qf_learning_rate = 1e-4
-    # qf_learning_rate = 0.0013349903055468661
-    policy_learning_rate = 1e-3
-    soft_target_tau = 0.01
-    target_update_mode = TargetUpdateMode.HARD
-    hard_update_period = 1000
-    qf_weight_decay = 0.
-    num_bptt_unrolls = 4
-    qf_total_loss_tolerance = 0.03
-    max_num_q_updates = 1000
-    train_policy = True
-    extra_qf_training_mode = 'fixed'
-    freeze_hidden = False
-    extra_train_period = 100
-    train_qf_on_all = False
+    env_class = OneCharMemoryEndOnly
+    H = 4
+    env_params = dict(
+        num_steps=H,
+        n=2,
+        zero_observation=True,
+        output_target_number=False,
+        output_time=False,
+        episode_boundary_flags=True,
+        max_reward_magnitude=1,
+    )
 
-    """
-    Regression Params
-    """
-    env_grad_distance_weight = 0.
-    write_grad_distance_weight = 0.
-    qf_grad_mse_from_one_weight = 0.
-    regress_onto_values_weight = 0.
-    bellman_error_weight = 1.
-    use_time = False
-    use_target = True
-    use_oracle_qf = False
-    unroll_through_target_policy = False
+    epoch_length = H * n_batches_per_epoch
+    eval_samples = H * n_batches_per_eval
+    max_path_length = H + 2
+    # noinspection PyTypeChecker
+    ddpg_params = dict(
+        batch_size=32,
+        n_epochs=30,
+        min_pool_size=320,
+        replay_pool_size=100000,
+        bpt_bellman_error_weight=0,
+        epoch_length=epoch_length,
+        eval_samples=eval_samples,
+        max_path_length=max_path_length,
+        discount=1.0,
+        save_tf_graph=False,
+        # Target network
+        soft_target_tau=0.01,
+        hard_update_period=1000,
+        target_update_mode=TargetUpdateMode.HARD,
+        # QF hyperparameters
+        qf_learning_rate=1e-3,
+        num_extra_qf_updates=5,
+        extra_qf_training_mode='fixed',
+        extra_train_period=100,
+        qf_weight_decay=0.,
+        qf_total_loss_tolerance=0.03,
+        train_qf_on_all=False,
+        # Policy hps
+        policy_learning_rate=1e-3,
+        max_num_q_updates=1000,
+        train_policy=True,
+        freeze_hidden=False,
+        train_policy_on_all_qf_timesteps=False,
+        # memory
+        num_bptt_unrolls=4,
+    )
 
-    """
-    Meta-critic Params
-    """
-    # meta_qf_learning_rate = 0.0043686912042467125
-    # meta_qf_output_weight = 0.5895080878682102
-    meta_qf_learning_rate = 0.0001900271829580542
-    # meta_qf_output_weight = 4.567673606514774
-    meta_qf_output_weight = 0
-    qf_output_weight = 1
+    # noinspection PyTypeChecker
+    policy_params = dict(
+        rnn_cell_class=LstmLinearCell,
+        rnn_cell_params=dict(
+            use_peepholes=True,
+            env_noise_std=0,
+            memory_noise_std=1,
+        )
+    )
+
+    oracle_params = dict(
+        env_grad_distance_weight=0.,
+        write_grad_distance_weight=0.,
+        qf_grad_mse_from_one_weight=0.,
+        regress_onto_values_weight=0.,
+        bellman_error_weight=1.,
+        use_oracle_qf=False,
+        unroll_through_target_policy=False,
+    )
+
     meta_qf_params = dict(
         use_time=False,
         use_target=True,
     )
-
-    """
-    Exploration params
-    """
-    env_es_class = NoopStrategy
-    env_es_class = OneHotSampler
-    # env_es_class = OUStrategy
-    env_es_params = dict(
-        max_sigma=1.0,
-        min_sigma=0.5,
-        decay_period=500,
-        softmax=True,
-        laplace_weight=0.,
+    meta_params = dict(
+        meta_qf_learning_rate=0.0001900271829580542,
+        meta_qf_output_weight=0,
+        qf_output_weight=1,
     )
-    memory_es_class = NoopStrategy
-    # memory_es_class = OneHotSampler
-    # memory_es_class = OUStrategy
-    memory_es_params = dict(
-        max_sigma=0.5,
-        min_sigma=0.1,
-        decay_period=1000,
-        softmax=True,
-    )
-    noise_action_to_memory = False
 
-    """
-    LSTM Cell params
-    """
-    use_peepholes = True
-    env_noise_std = 0
-    memory_noise_std = 1
-
-    """
-    Create them dict's
-    """
+    # noinspection PyTypeChecker
     es_params = dict(
-        env_es_class=env_es_class,
-        env_es_params=env_es_params,
-        memory_es_class=memory_es_class,
-        memory_es_params=memory_es_params,
-        noise_action_to_memory=noise_action_to_memory,
+        env_es_class=OneHotSampler,
+        env_es_params=dict(
+            max_sigma=1.0,
+            min_sigma=0.5,
+            decay_period=500,
+            softmax=True,
+            laplace_weight=0.,
+        ),
+        memory_es_class=NoopStrategy,
+        memory_es_params=dict(
+            max_sigma=0.5,
+            min_sigma=0.1,
+            decay_period=1000,
+            softmax=True,
+        ),
+        noise_action_to_memory=False,
     )
-    epoch_length = H * n_batches_per_epoch
-    eval_samples = H * n_batches_per_eval
-    max_path_length = H + 2
-    ddpg_params = dict(
-        batch_size=batch_size,
-        n_epochs=n_epochs,
-        min_pool_size=min_pool_size,
-        replay_pool_size=replay_pool_size,
-        epoch_length=epoch_length,
-        eval_samples=eval_samples,
-        max_path_length=max_path_length,
-        num_bptt_unrolls=num_bptt_unrolls,
-        unroll_through_target_policy=unroll_through_target_policy,
-        freeze_hidden=freeze_hidden,
-        qf_learning_rate=qf_learning_rate,
-        policy_learning_rate=policy_learning_rate,
-        discount=1.0,
-        soft_target_tau=soft_target_tau,
-        qf_weight_decay=qf_weight_decay,
-        bpt_bellman_error_weight=bpt_bellman_error_weight,
-        extra_train_period=extra_train_period,
-        save_tf_graph=False,
-        target_update_mode=target_update_mode,
-        hard_update_period=hard_update_period,
-        train_qf_on_all=train_qf_on_all,
-        train_policy_on_all_qf_timesteps=False,
-    )
-    regress_params = dict(
-        qf_total_loss_tolerance=qf_total_loss_tolerance,
-        max_num_q_updates=max_num_q_updates,
-        train_policy=train_policy,
-        env_grad_distance_weight=env_grad_distance_weight,
-        write_grad_distance_weight=write_grad_distance_weight,
-        qf_grad_mse_from_one_weight=qf_grad_mse_from_one_weight,
-        regress_onto_values_weight=regress_onto_values_weight,
-        bellman_error_weight=bellman_error_weight,
-        num_extra_qf_updates=num_extra_qf_updates,
-        extra_qf_training_mode=extra_qf_training_mode,
-        use_oracle_qf=use_oracle_qf,
-    )
-    policy_params = dict(
-        rnn_cell_class=policy_rnn_cell_class,
-        rnn_cell_params=dict(
-            use_peepholes=use_peepholes,
-            env_noise_std=env_noise_std,
-            memory_noise_std=memory_noise_std,
-        )
-    )
+
     qf_params = dict(
         # hidden_nonlinearity=tf.nn.relu,
         # output_nonlinearity=tf.nn.tanh,
@@ -442,26 +366,17 @@ if __name__ == '__main__':
         # output_nonlinearity=tf.identity,
         # embedded_hidden_sizes=[100, 64, 32],
         # observation_hidden_sizes=[100],
-        use_time=use_time,
-        use_target=use_target,
+        use_time=False,
+        use_target=True,
     )
-    meta_params = dict(
-        meta_qf_learning_rate=meta_qf_learning_rate,
-        meta_qf_output_weight=meta_qf_output_weight,
-        qf_output_weight=qf_output_weight,
-    )
-    env_params = dict(
-        n=num_values,
-        num_steps=H,
-        zero_observation=zero_observation,
-        max_reward_magnitude=1,
-        output_target_number=env_output_target_number,
-        output_time=env_output_time,
-        episode_boundary_flags=episode_boundary_flags,
-    )
+
+    """
+    Create monolithic variant dictionary
+    """
+    # noinspection PyTypeChecker
     variant = dict(
+        memory_dim=20,
         exp_prefix=exp_prefix,
-        memory_dim=memory_dim,
         algo_class=algo_class,
         version=version,
         load_policy_file=load_policy_file,
@@ -472,7 +387,7 @@ if __name__ == '__main__':
         policy_params=policy_params,
         qf_params=qf_params,
         meta_qf_params=meta_qf_params,
-        regress_params=regress_params,
+        regress_params=oracle_params,
         es_params=es_params,
         meta_params=meta_params,
     )
