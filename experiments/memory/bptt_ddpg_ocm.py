@@ -30,6 +30,8 @@ from railrl.policies.memory.action_aware_memory_policy import \
 from railrl.policies.memory.lstm_memory_policy import (
     OutputAwareLstmCell,
     LstmLinearCell,
+    LstmLinearCellNoiseAll,
+    LstmLinearCellSwapped,
     FrozenHiddenLstmLinearCell,
     IRnnCell,
     LinearRnnCell,
@@ -244,10 +246,10 @@ if __name__ == '__main__':
     version = 'dev'
     num_hp_settings = 100
 
-    # n_seeds = 10
-    # mode = 'ec2'
-    # exp_prefix = '5-10-target-update-mode'
-    # run_mode = 'grid'
+    n_seeds = 5
+    mode = 'ec2'
+    exp_prefix = '5-11-dropout-sweep'
+    run_mode = 'grid'
     # version = 'dev'
 
     """
@@ -285,11 +287,8 @@ if __name__ == '__main__':
     """
     Policy Params
     """
-    # policy_rnn_cell_class = LinearRnnCell
-    # policy_rnn_cell_class = OutputAwareLstmCell
-    # policy_rnn_cell_class = IRnnCell
-    policy_rnn_cell_class = LstmLinearCell
-    # policy_rnn_cell_class = FrozenHiddenLstmLinearCell
+    # policy_rnn_cell_class = LstmLinearCell
+    policy_rnn_cell_class = LstmLinearCellSwapped
     load_policy_file = (
         '/home/vitchyr/git/rllab-rail/railrl/data/reference/expert'
         '/ocm_reward_magnitude5_H6_nbptt6_100p'
@@ -306,7 +305,7 @@ if __name__ == '__main__':
     # qf_learning_rate = 0.0013349903055468661
     policy_learning_rate = 1e-3
     soft_target_tau = 0.01
-    target_update_mode = TargetUpdateMode.SOFT
+    target_update_mode = TargetUpdateMode.HARD
     hard_update_period = 1000
     qf_weight_decay = 0.
     num_bptt_unrolls = 4
@@ -348,7 +347,7 @@ if __name__ == '__main__':
     Exploration params
     """
     env_es_class = NoopStrategy
-    # env_es_class = OneHotSampler
+    env_es_class = OneHotSampler
     # env_es_class = OUStrategy
     env_es_params = dict(
         max_sigma=1.0,
@@ -372,7 +371,7 @@ if __name__ == '__main__':
     LSTM Cell params
     """
     use_peepholes = True
-    env_noise_std = 0.7834798765148419
+    env_noise_std = 0.
     memory_noise_std = 1.3624080142760144
     # env_noise_std = 0.756762921079621
     # memory_noise_std = 0.21530788444772347
@@ -442,6 +441,7 @@ if __name__ == '__main__':
         # observation_hidden_sizes=[100],
         use_time=use_time,
         use_target=use_target,
+        # dropout_keep_prob=0.9,
     )
     meta_params = dict(
         meta_qf_learning_rate=meta_qf_learning_rate,
@@ -528,15 +528,12 @@ if __name__ == '__main__':
             # 'policy_params.rnn_cell_params.env_noise_std': [0., 1.],
             # 'policy_params.rnn_cell_params.memory_noise_std': [0., 1.],
             # 'meta_params.meta_qf_learning_rate': [1e-3, 1e-4],
-            'ddpg_params.target_update_mode': [
-                TargetUpdateMode.HARD,
-                TargetUpdateMode.NONE,
-                TargetUpdateMode.SOFT,
-            ],
+            # 'ddpg_params.qf_weight_decay': [0, 0.001],
+            'qf_params.dropout_keep_prob': [0.9, 0.5, None],
             # 'meta_params.meta_qf_output_weight': [0, 5, 25],
             # 'env_params.episode_boundary_flags': [True, False],
             # 'meta_params.qf_output_weight': [0, 1],
-            'env_params.num_steps': [6, 8],
+            # 'env_params.num_steps': [6, 8],
         }
         sweeper = DeterministicHyperparameterSweeper(search_space,
                                                      default_parameters=variant)
@@ -583,15 +580,20 @@ if __name__ == '__main__':
     elif run_mode == 'custom_grid':
         for exp_id, (
                 version,
-                meta_qf_output_weight,
+                qf_weight_decay,
+                episode_boundary_flags,
+                use_target,
         ) in enumerate([
-            ("No Meta", 0),
-            ("Meta-0.5", 0.5),
-            ("Meta-1", 1),
+            ("Works", 0., True, True),
+            ("Decay", 0.01, True, True),
+            ("No Episode Boundary Flags", 0., False, True),
+            ("No Target", 0., True, False),
         ]):
-            variant['meta_params']['meta_qf_output_weight'] = (
-                meta_qf_output_weight
-            )
+            variant['version'] = version
+            variant['ddpg_params']['qf_weight_decay'] = qf_weight_decay
+            variant['env_params']['episode_boundary_flags'] = episode_boundary_flags
+            variant['ddpg_params']['qf_weight_decay'] = qf_weight_decay
+            variant['qf_params']['use_target'] = use_target
             for seed in range(n_seeds):
                 run_experiment(
                     get_ocm_score,
