@@ -111,6 +111,9 @@ class DDPG(OnlineAlgorithm):
             * self.target_qf.output
         )
         self.bellman_error = tf.squeeze(tf_util.mse(self.ys, self.qf.output))
+        self.new_ys = self.ys - self.bellman_error
+        self.bellman_error = tf.squeeze(tf_util.mse(self.new_ys,
+                                                    self.qf.output))
         # import ipdb; ipdb.set_trace()
         # self.bellman_error = tf.squeeze(
         #     tf.reduce_mean(

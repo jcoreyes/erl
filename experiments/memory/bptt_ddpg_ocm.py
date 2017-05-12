@@ -240,9 +240,9 @@ if __name__ == '__main__':
 
     # n_seeds = 10
     # mode = 'ec2'
-    # exp_prefix = '5-11-train-qf-on-all'
+    exp_prefix = '5-11-train-qf-on-all'
     # run_mode = 'grid'
-    # version = 'only_last'
+    version = 'reward-low-bellman'
 
     """
     Miscellaneous Params
@@ -262,7 +262,7 @@ if __name__ == '__main__':
     Set all the hyperparameters!
     """
     env_class = OneCharMemoryEndOnly
-    H = 4
+    H = 6
     env_params = dict(
         num_steps=H,
         n=2,
@@ -278,11 +278,10 @@ if __name__ == '__main__':
     max_path_length = H + 2
     # noinspection PyTypeChecker
     ddpg_params = dict(
-        batch_size=32,
+        batch_size=128,
         n_epochs=30,
         min_pool_size=320,
         replay_pool_size=100000,
-        bpt_bellman_error_weight=0,
         epoch_length=epoch_length,
         eval_samples=eval_samples,
         max_path_length=max_path_length,
@@ -308,12 +307,13 @@ if __name__ == '__main__':
         train_policy_on_all_qf_timesteps=False,
         # memory
         num_bptt_unrolls=4,
+        bpt_bellman_error_weight=0,
     )
 
     # noinspection PyTypeChecker
     policy_params = dict(
-        # rnn_cell_class=LstmLinearCell,
-        rnn_cell_class=LstmLinearCellNoiseAll,
+        rnn_cell_class=LstmLinearCell,
+        # rnn_cell_class=LstmLinearCellNoiseAll,
         rnn_cell_params=dict(
             use_peepholes=True,
             env_noise_std=0,
@@ -337,7 +337,7 @@ if __name__ == '__main__':
     )
     meta_params = dict(
         meta_qf_learning_rate=0.0001900271829580542,
-        meta_qf_output_weight=10,
+        meta_qf_output_weight=0,
         qf_output_weight=1,
     )
 
@@ -361,6 +361,7 @@ if __name__ == '__main__':
         noise_action_to_memory=False,
     )
 
+    # noinspection PyTypeChecker
     qf_params = dict(
         # hidden_nonlinearity=tf.nn.relu,
         # output_nonlinearity=tf.nn.tanh,
