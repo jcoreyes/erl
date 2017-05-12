@@ -156,26 +156,25 @@ class OnlineAlgorithm(RLAlgorithm):
             if self.save_tf_graph:
                 tf.summary.FileWriter(logger.get_snapshot_dir(), self.sess.graph)
             self._start_worker()
-            self._switch_to_training_mode()
 
             observation = self.training_env.reset()
             self.exploration_strategy.reset()
             itr = 0
             path_length = 0
             path_return = 0
+            self._switch_to_eval_mode()
             for epoch in range(self.n_epochs):
                 logger.push_prefix('Epoch #%d | ' % epoch)
                 logger.log("Training started")
                 start_time = time.time()
                 for n_steps_current_epoch in range(self.epoch_length):
-                    with self._eval_then_training_mode():
-                        action, agent_info = (
-                            self.exploration_strategy.get_action(
-                                itr,
-                                observation,
-                                self.policy,
-                            )
+                    action, agent_info = (
+                        self.exploration_strategy.get_action(
+                            itr,
+                            observation,
+                            self.policy,
                         )
+                    )
                     if self.render:
                         self.training_env.render()
 
@@ -215,24 +214,24 @@ class OnlineAlgorithm(RLAlgorithm):
                         observation = next_ob
 
                     if self._can_train():
-                        for _ in range(self.n_updates_per_time_step):
-                            self._do_training(
-                                epoch=epoch,
-                                n_steps_total=n_steps_total,
-                                n_steps_current_epoch=n_steps_current_epoch,
-                            )
+                        with self._training_then_eval_mode():
+                            for _ in range(self.n_updates_per_time_step):
+                                self._do_training(
+                                    epoch=epoch,
+                                    n_steps_total=n_steps_total,
+                                    n_steps_current_epoch=n_steps_current_epoch,
+                                )
 
                     itr += 1
 
                 logger.log("Training finished. Time: {0}".format(time.time() -
                                                                  start_time))
                 if self._can_eval():
-                    with self._eval_then_training_mode():
-                        start_time = time.time()
-                        self.evaluate(epoch, self.es_path_returns)
-                        self.es_path_returns = []
-                        logger.log(
-                            "Eval time: {0}".format(time.time() - start_time))
+                    start_time = time.time()
+                    self.evaluate(epoch, self.es_path_returns)
+                    self.es_path_returns = []
+                    logger.log(
+                        "Eval time: {0}".format(time.time() - start_time))
                 params = self.get_epoch_snapshot(epoch)
                 logger.save_itr_params(epoch, params)
                 logger.dump_tabular(with_prefix=False, with_timestamp=False)
@@ -267,20 +266,20 @@ class OnlineAlgorithm(RLAlgorithm):
             network.switch_to_eval_mode()
 
     @contextmanager
-    def _eval_then_training_mode(self):
+    def _training_then_eval_mode(self):
         """
-        Helper method to quickly switch to eval mode and then to training mode
+        Helper method to quickly switch to training mode and then to eval mode.
 
         ```
         # doesn't matter what mode you were in
-        with self.eval_then_training_mode():
-            # in eval mode
-        # in training mode
+        with self._training_then_eval_mode():
+            # in training mode
+        # in eval mode
         :return:
         """
-        self._switch_to_eval_mode()
-        yield
         self._switch_to_training_mode()
+        yield
+        self._switch_to_eval_mode()
 
     def _do_training(
             self,
@@ -389,7 +388,8 @@ class OnlineAlgorithm(RLAlgorithm):
         """
         :return: List of networks used in the algorithm.
 
-        It's crucial that this list is up to date!
+        It's crucial that this list is up to date for training and eval mode
+        to switch correctly.
         """
         pass
 

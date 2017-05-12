@@ -232,3 +232,11 @@ class MetaBpttDdpg(OracleBpttDdpg):
 
     def _eval_meta_qf_feed_dict_from_batch(self, batch):
         return self._meta_qf_feed_dict_from_batch(batch)
+
+    @property
+    def _networks(self):
+        return super()._networks + [
+            self.meta_qf,
+            self.target_meta_qf,
+            self.meta_qf_with_action_input,
+        ]

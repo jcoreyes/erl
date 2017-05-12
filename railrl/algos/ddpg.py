@@ -71,6 +71,9 @@ class DDPG(OnlineAlgorithm):
         self.qf_learning_rate = qf_learning_rate
         self.policy_learning_rate = policy_learning_rate
         self.qf_weight_decay = qf_weight_decay
+        self.qf_with_action_input = None
+        self.target_policy = None
+        self.target_qf = None
 
         super().__init__(env, policy, exploration_strategy, **kwargs)
 
@@ -200,7 +203,8 @@ class DDPG(OnlineAlgorithm):
     @overrides
     @property
     def _networks(self) -> List[NeuralNetwork]:
-        return [self.policy, self.qf, self.target_policy, self.target_qf]
+        return [self.policy, self.qf, self.target_policy, self.target_qf,
+                self.qf_with_action_input]
 
     @overrides
     def _get_training_ops(

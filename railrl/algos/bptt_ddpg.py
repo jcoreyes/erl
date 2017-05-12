@@ -111,6 +111,7 @@ class BpttDDPG(DDPG):
         self._last_env_scores = []
         self.target_policy_for_policy = None
         self.target_qf_for_policy = None
+        self.qf_for_policy = None
 
     def _sample_minibatch(self, batch_size=None):
         if batch_size is None:
@@ -521,3 +522,14 @@ class BpttDDPG(DDPG):
         MAXIMIZE these value.
         """
         return self._last_env_scores
+
+    @property
+    def _networks(self):
+        networks = super()._networks
+        if self._bpt_bellman_error_weight > 0.:
+            networks += [
+                self.target_policy_for_policy,
+                self.target_qf_for_policy,
+                self.qf_for_policy,
+            ]
+        return networks

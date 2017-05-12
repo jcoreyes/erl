@@ -367,3 +367,9 @@ class OracleBpttDdpg(BpttDDPG):
             batch
         ))
         return policy_feed
+
+    @property
+    def _networks(self):
+        return super()._networks + [
+            self.oracle_qf,
+        ]
