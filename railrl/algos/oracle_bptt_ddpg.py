@@ -168,11 +168,17 @@ class OracleBpttDdpg(BpttDDPG):
             ]
         )
         # rest_of_obs[:, :, 0] = 1
+        env_obs, _ = obs
+        # TODO: oracle_qf shouldn't depend on policy.
+        env_obs = env_obs.reshape((-1, self._num_bptt_unrolls, env_obs.shape[
+            -1]))
         feed_dict = {
             self.oracle_qf.sequence_length_placeholder: sequence_lengths,
             self.oracle_qf.rest_of_obs_placeholder: rest_of_obs,
             self.oracle_qf.observation_input: obs,
             self.policy.observation_input: obs,
+            self._rnn_inputs_ph: env_obs,
+            self._rnn_init_state_ph: obs[1][::self._num_bptt_unrolls, :],
             self.oracle_qf.target_labels: target_numbers,
         }
         if hasattr(self.qf, "target_labels"):
@@ -224,14 +230,14 @@ class OracleBpttDdpg(BpttDDPG):
             (
                 true_qf_mse_loss,
                 qf_loss,
-                # bellman_error,
-                # qf_output,
+                bellman_error,
+                qf_output,
             ) = self.sess.run(
                 [
                     self.true_qf_mse_loss,
                     self.qf_loss,
-                    # self.bellman_error,
-                    # self.qf.output,
+                    self.bellman_error,
+                    self.qf.output,
                 ]
                 ,
                 feed_dict=qf_feed_dict
