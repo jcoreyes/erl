@@ -153,6 +153,7 @@ def run_ocm_experiment(variant):
     if oracle_mode == 'none':
         qf_params['use_time'] = False
         qf_params['use_target'] = False
+        ddpg_params.pop('unroll_through_target_policy')
         qf = HintMlpMemoryQFunction(
             name_or_scope="critic",
             hint_dim=env_action_dim,
@@ -246,16 +247,16 @@ if __name__ == '__main__':
 
     # n_seeds = 10
     # mode = 'ec2'
-    # exp_prefix = '5-10-target-update-mode'
+    # exp_prefix = '5-11-train-qf-on-all'
     # run_mode = 'grid'
-    # version = 'dev'
+    # version = 'only_last'
 
     """
     Env param
     """
     # env_class = OneCharMemoryOutputRewardMag
     env_class = OneCharMemoryEndOnly
-    H = 6
+    H = 4
     num_values = 2
     zero_observation = True
     env_output_target_number = False
@@ -300,7 +301,7 @@ if __name__ == '__main__':
     """
     Algo params
     """
-    num_extra_qf_updates = 10
+    num_extra_qf_updates = 5
     qf_learning_rate = 1e-3
     # qf_learning_rate = 1e-4
     # qf_learning_rate = 0.0013349903055468661
@@ -313,9 +314,10 @@ if __name__ == '__main__':
     qf_total_loss_tolerance = 0.03
     max_num_q_updates = 1000
     train_policy = True
-    extra_qf_training_mode = 'none'
+    extra_qf_training_mode = 'fixed'
     freeze_hidden = False
     extra_train_period = 100
+    train_qf_on_all = False
 
     """
     Regression Params
@@ -409,6 +411,7 @@ if __name__ == '__main__':
         save_tf_graph=False,
         target_update_mode=target_update_mode,
         hard_update_period=hard_update_period,
+        train_qf_on_all=train_qf_on_all,
     )
     regress_params = dict(
         qf_total_loss_tolerance=qf_total_loss_tolerance,

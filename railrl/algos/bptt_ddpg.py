@@ -46,6 +46,7 @@ class BpttDDPG(DDPG):
             extra_qf_training_mode='none',
             qf_total_loss_tolerance=None,
             max_num_q_updates=100,
+            train_qf_on_all=True,
             **kwargs
     ):
         """
@@ -103,6 +104,7 @@ class BpttDDPG(DDPG):
         self._num_extra_qf_updates = num_extra_qf_updates
         self.qf_total_loss_tolerance = qf_total_loss_tolerance
         self.max_num_q_updates = max_num_q_updates
+        self.train_qf_on_all = train_qf_on_all
 
         self._rnn_cell_scope = policy.rnn_cell_scope
         self._rnn_cell = policy.rnn_cell
@@ -221,7 +223,10 @@ class BpttDDPG(DDPG):
         ])
 
     def _qf_feed_dict_from_batch(self, batch):
-        flat_batch = self.subtraj_batch_to_flat_augmented_batch(batch)
+        if self.train_qf_on_all:
+            flat_batch = self.subtraj_batch_to_flat_augmented_batch(batch)
+        else:
+            flat_batch = self.subtraj_batch_to_last_augmented_batch(batch)
         feed = self._qf_feed_dict(
             rewards=flat_batch['rewards'],
             terminals=flat_batch['terminals'],
@@ -268,6 +273,43 @@ class BpttDDPG(DDPG):
             next_obs=split_flat_next_obs,
             target_numbers=flat_target_numbers,
             times=flat_times,
+        )
+
+    def subtraj_batch_to_last_augmented_batch(self, batch):
+        """
+        The batch is a bunch of subsequences. Slice out the last time of each
+        the subsequences so that they just look like normal (s, a, s') tuples.
+
+        Also, the actions/observations are split into their respective
+        augmented parts.
+        """
+        rewards = batch['rewards']
+        terminals = batch['terminals']
+        obs = batch['observations']
+        actions = batch['actions']
+        next_obs = batch['next_observations']
+        target_numbers = batch['target_numbers']
+        times = batch['times']
+
+        last_actions = self._get_time_step(actions, -1)
+        last_obs = self._get_time_step(obs, -1)
+        last_next_obs = self._get_time_step(next_obs, -1)
+        last_target_numbers = target_numbers[:, -1]
+        last_times = times[:, -1]
+        last_terminals = terminals[:, -1]
+        last_rewards = rewards[:, -1]
+
+        split_flat_obs = self._split_flat_obs(last_obs)
+        split_flat_actions = self._split_flat_actions(last_actions)
+        split_flat_next_obs = self._split_flat_obs(last_next_obs)
+        return dict(
+            rewards=last_rewards,
+            terminals=last_terminals,
+            obs=split_flat_obs,
+            actions=split_flat_actions,
+            next_obs=split_flat_next_obs,
+            target_numbers=last_target_numbers,
+            times=last_times,
         )
 
     def _eval_qf_feed_dict_from_batch(self, batch):
