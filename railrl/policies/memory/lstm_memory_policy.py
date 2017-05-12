@@ -49,6 +49,8 @@ class LstmLinearCell(LSTMCell):
             memory_noise_std=0.,
             **kwargs
     ):
+        assert env_noise_std >= 0.
+        assert memory_noise_std >= 0.
         super().__init__(num_units / 2, **kwargs)
         self._output_dim = output_dim
         self._env_noise_std = env_noise_std
@@ -100,6 +102,8 @@ class LstmLinearCellNoiseAll(LSTMCell):
             memory_noise_std=0.,
             **kwargs
     ):
+        assert env_noise_std >= 0.
+        assert memory_noise_std >= 0.
         super().__init__(num_units / 2, **kwargs)
         self._output_dim = output_dim
         self._env_noise_std = env_noise_std
@@ -151,6 +155,8 @@ class LstmLinearCellNoiseAllNoiseLogit(LSTMCell):
             memory_noise_std=0.,
             **kwargs
     ):
+        assert env_noise_std >= 0.
+        assert memory_noise_std >= 0.
         super().__init__(num_units / 2, **kwargs)
         self._output_dim = output_dim
         self._env_noise_std = env_noise_std
@@ -202,6 +208,8 @@ class LstmLinearCellSwapped(LSTMCell):
             memory_noise_std=0.,
             **kwargs
     ):
+        assert env_noise_std >= 0.
+        assert memory_noise_std >= 0.
         super().__init__(num_units / 2, **kwargs)
         self._output_dim = output_dim
         self._env_noise_std = env_noise_std
@@ -251,8 +259,9 @@ class GRULinearCell(GRUCell):
             output_dim,
             env_noise_std=0.,
             memory_noise_std=0.,
-            **kwargs
     ):
+        assert env_noise_std >= 0.
+        assert memory_noise_std >= 0.
         super().__init__(num_units)
         self._output_dim = output_dim
         self._env_noise_std = env_noise_std
@@ -302,6 +311,8 @@ class ResidualLstmLinearCell(LSTMCell):
             memory_noise_std=0.,
             **kwargs
     ):
+        assert env_noise_std >= 0.
+        assert memory_noise_std >= 0.
         super().__init__(num_units / 2, **kwargs)
         self._output_dim = output_dim
         self._env_noise_std = env_noise_std
