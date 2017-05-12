@@ -306,7 +306,7 @@ if __name__ == '__main__':
     # qf_learning_rate = 0.0013349903055468661
     policy_learning_rate = 1e-3
     soft_target_tau = 0.01
-    target_update_mode = TargetUpdateMode.SOFT
+    target_update_mode = TargetUpdateMode.HARD
     hard_update_period = 1000
     qf_weight_decay = 0.
     num_bptt_unrolls = 4
@@ -348,7 +348,7 @@ if __name__ == '__main__':
     Exploration params
     """
     env_es_class = NoopStrategy
-    # env_es_class = OneHotSampler
+    env_es_class = OneHotSampler
     # env_es_class = OUStrategy
     env_es_params = dict(
         max_sigma=1.0,
@@ -372,10 +372,8 @@ if __name__ == '__main__':
     LSTM Cell params
     """
     use_peepholes = True
-    env_noise_std = 0.7834798765148419
-    memory_noise_std = 1.3624080142760144
-    # env_noise_std = 0.756762921079621
-    # memory_noise_std = 0.21530788444772347
+    env_noise_std = 0
+    memory_noise_std = 1
 
     """
     Create them dict's
