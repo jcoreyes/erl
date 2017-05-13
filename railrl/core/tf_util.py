@@ -357,6 +357,7 @@ def mlp(input_layer,
         b_initializer=None,
         pre_nonlin_lambda=identity,
         post_nonlin_lambda=identity,
+        linear_output_size=None,
         ):
     """
     Create a multi-layer perceptron with the given hidden sizes. The
@@ -374,6 +375,8 @@ def mlp(input_layer,
     :param pre_nonlin_lambda: A function to pass the pre-non-linearity
     values through.
     This is only applied between layers. Not on the input nor the output.
+    :param linear_output_size: If set, add a linear layer with this size at
+    the very end. No non-linearity applied.
     :return: Output of MLP.
     :type: tf.Tensor
     """
@@ -398,6 +401,14 @@ def mlp(input_layer,
                     )
                 )
             last_layer_size = hidden_size
+    if linear_output_size is not None:
+        last_layer = linear(
+            last_layer,
+            last_layer_size,
+            linear_output_size,
+            W_initializer=W_initializer,
+            b_initializer=b_initializer,
+        )
     return last_layer
 
 
