@@ -92,6 +92,73 @@ class LstmLinearCell(LSTMCell):
         return self._output_dim
 
 
+class SeparateLstmLinearCell(LSTMCell):
+    """
+    LSTM cell with a linear unit + softmax before the output.
+    """
+    def __init__(
+            self,
+            num_units,
+            output_dim,
+            env_noise_std=0.,
+            memory_noise_std=0.,
+            output_nonlinearity=tf.nn.tanh,
+            env_hidden_sizes=(100, 64),
+            env_hidden_activation=tf.nn.relu,
+            **kwargs
+    ):
+        assert env_noise_std >= 0.
+        assert memory_noise_std >= 0.
+        super().__init__(num_units / 2, **kwargs)
+        self._output_dim = output_dim
+        self._env_noise_std = env_noise_std
+        self._memory_noise_std = memory_noise_std
+        self.output_nonlinearity = output_nonlinearity
+        self.write_action_scope = None
+        self.env_action_scope = None
+        self.env_hidden_sizes = env_hidden_sizes
+        self.env_hidden_activation = env_hidden_activation
+
+    def __call__(self, inputs, state, scope=None):
+        with tf.variable_scope(scope or "linear_lstm") as self.scope:
+            with tf.variable_scope('write_action') as self.write_action_scope:
+                split_state = tf.split(axis=1, num_or_size_splits=2, value=state)
+                _, (lstm_output, lstm_state) = super().__call__(
+                    inputs, split_state, scope=self.write_action_scope
+                )
+
+                if self._memory_noise_std > 0.:
+                    lstm_state += self._memory_noise_std * tf.random_normal(
+                        tf.shape(lstm_state)
+                    )
+
+                next_state = tf.concat(axis=1, values=(lstm_output, lstm_state))
+
+            with tf.variable_scope('env_action') as self.env_action_scope:
+                flat_inputs = tf.concat(axis=1, values=(inputs, state))
+                env_output = tf_util.mlp(
+                    flat_inputs,
+                    flat_inputs.get_shape()[-1],
+                    hidden_sizes=self.env_hidden_sizes,
+                    nonlinearity=self.env_hidden_activation,
+                    linear_output_size=self._output_dim
+                )
+                env_output = self.output_nonlinearity(env_output)
+                if self._env_noise_std > 0.:
+                    env_output += self._env_noise_std * tf.random_normal(
+                        tf.shape(env_output)
+                    )
+            return env_output, next_state
+
+    @property
+    def state_size(self):
+        return self._num_units * 2
+
+    @property
+    def output_size(self):
+        return self._output_dim
+
+
 class LstmLinearCellNoiseAll(LSTMCell):
     """
     LSTM cell with a linear unit + softmax before the output.
@@ -621,12 +688,15 @@ class LstmMemoryPolicy(RnnCellPolicy):
             cell_output = self._rnn_cell(env_obs, memory_obs)
         return cell_output
 
-    def get_params_internal(self, env_only=False):
+    def get_params_internal(self, env_only=False, write_only=False):
+        assert not (env_only and write_only)
         if env_only:
             return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,
                                      self._rnn_cell.env_action_scope.name)
-        else:
-            return super().get_params_internal()
+        if write_only:
+            return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,
+                                     self._rnn_cell.write_action_scope.name)
+        return super().get_params_internal()
 
     @property
     def rnn_cell(self):

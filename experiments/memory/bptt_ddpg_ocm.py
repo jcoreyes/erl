@@ -27,6 +27,7 @@ from railrl.policies.memory.action_aware_memory_policy import \
 from railrl.policies.memory.lstm_memory_policy import (
     LstmLinearCell,
     # LstmLinearCellNoiseAll,
+    SeparateLstmLinearCell,
 )
 # from railrl.algos.writeback_bptt_ddpt import WritebackBpttDDPG
 from railrl.algos.bptt_ddpg import BpttDDPG
@@ -304,23 +305,26 @@ if __name__ == '__main__':
         policy_learning_rate=1e-3,
         max_num_q_updates=1000,
         train_policy=True,
-        freeze_hidden=False,
+        write_policy_learning_rate=1e-4,
         train_policy_on_all_qf_timesteps=False,
         # memory
         num_bptt_unrolls=2,
-        bpt_bellman_error_weight=0,
+        bpt_bellman_error_weight=1,
         reward_low_bellman_error_weight=0.,
     )
 
     # noinspection PyTypeChecker
     policy_params = dict(
-        rnn_cell_class=LstmLinearCell,
+        # rnn_cell_class=LstmLinearCell,
+        rnn_cell_class=SeparateLstmLinearCell,
         # rnn_cell_class=LstmLinearCellNoiseAll,
         rnn_cell_params=dict(
             use_peepholes=True,
             env_noise_std=0.,
             memory_noise_std=1.,
             output_nonlinearity=tf.nn.tanh,
+            # env_hidden_sizes=[],
+            # env_hidden_activation=tf.identity,
         )
     )
 

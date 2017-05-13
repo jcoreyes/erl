@@ -205,17 +205,11 @@ class MetaBpttDdpg(OracleBpttDdpg):
             self.policy_surrogate_loss += (
                 self.bellman_error_for_policy * self._bpt_bellman_error_weight
             )
-        if self._freeze_hidden:
-            trainable_policy_params = self.policy.get_params(env_only=True)
+        if self.train_policy:
+            self.train_policy_op = self._get_policy_train_op(
+                self.policy_surrogate_loss
+            )
         else:
-            trainable_policy_params = self.policy.get_params_internal()
-        self.train_policy_op = tf.train.AdamOptimizer(
-            self.policy_learning_rate
-        ).minimize(
-            self.policy_surrogate_loss,
-            var_list=trainable_policy_params,
-        )
-        if not self.train_policy:
             self.train_policy_op = None
 
     def _statistics_from_batch(self, batch) -> OrderedDict:
