@@ -25,6 +25,7 @@ from railrl.policies.memory.action_aware_memory_policy import \
     ActionAwareMemoryPolicy
 from railrl.policies.memory.lstm_memory_policy import (
     LstmLinearCell,
+    LstmMlpCell,
     # LstmLinearCellNoiseAll,
 )
 # from railrl.algos.writeback_bptt_ddpt import WritebackBpttDDPG
@@ -239,7 +240,7 @@ if __name__ == '__main__':
 
     # n_seeds = 5
     # mode = 'ec2'
-    # exp_prefix = '5-11-low-bellman-error-grid'
+    # exp_prefix = '5-12-bpt-bellman-error-toggle'
     # run_mode = 'grid'
     # version = 'reward-low-bellman'
 
@@ -261,14 +262,14 @@ if __name__ == '__main__':
     Set all the hyperparameters!
     """
     env_class = OneCharMemoryEndOnly
-    H = 4
+    H = 2
     env_params = dict(
         num_steps=H,
         n=2,
         zero_observation=True,
         output_target_number=False,
         output_time=False,
-        episode_boundary_flags=True,
+        episode_boundary_flags=False,
         max_reward_magnitude=1,
     )
 
@@ -305,14 +306,15 @@ if __name__ == '__main__':
         freeze_hidden=False,
         train_policy_on_all_qf_timesteps=False,
         # memory
-        num_bptt_unrolls=4,
-        bpt_bellman_error_weight=1,
+        num_bptt_unrolls=2,
+        bpt_bellman_error_weight=0,
         reward_low_bellman_error_weight=0.,
     )
 
     # noinspection PyTypeChecker
     policy_params = dict(
         rnn_cell_class=LstmLinearCell,
+        # rnn_cell_class=LstmMlpCell,
         # rnn_cell_class=LstmLinearCellNoiseAll,
         rnn_cell_params=dict(
             use_peepholes=True,
