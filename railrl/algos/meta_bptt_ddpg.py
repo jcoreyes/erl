@@ -146,7 +146,6 @@ class MetaBpttDdpg(OracleBpttDdpg):
             target_numbers=flat_batch['target_numbers'],
             times=flat_batch['times'],
         )
-        feed_dict.update(self._oracle_qf_feed_dict_from_batch(batch))
         flat_target_labels = flat_batch['target_numbers']
         flat_times = flat_batch['times']
         feed_dict.update({
@@ -154,27 +153,6 @@ class MetaBpttDdpg(OracleBpttDdpg):
             self.meta_qf.time_labels: flat_times,
             self.target_meta_qf.target_labels: flat_target_labels,
             self.target_meta_qf.time_labels: flat_times,
-        })
-        return feed_dict
-
-    def _oracle_qf_feed_dict_for_policy_from_batch(self, batch):
-        feed_dict = super()._oracle_qf_feed_dict_for_policy_from_batch(batch)
-        # (
-        #     last_rewards,
-        #     last_obs,
-        #     episode_length_left,
-        #     target_one_hots,
-        #     last_times,
-        #     rest_of_obs,
-        # ) = self._get_last_time_step_from_batch(batch)
-        flat_batch = self.subtraj_batch_to_flat_augmented_batch(batch)
-        last_times = flat_batch['times']
-        target_labels = flat_batch['target_numbers']
-        feed_dict.update({
-            self.meta_qf.target_labels: target_labels,
-            self.meta_qf.time_labels: last_times,
-            self.target_meta_qf.target_labels: target_labels,
-            self.target_meta_qf.time_labels: last_times,
         })
         return feed_dict
 

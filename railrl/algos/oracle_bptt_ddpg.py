@@ -160,7 +160,6 @@ class OracleBpttDdpg(BpttDDPG):
         all_flat_batch = self.subtraj_batch_to_flat_augmented_batch(batch)
         if self.train_qf_on_all:
             flat_batch = all_flat_batch
-
         else:
             flat_batch = self.subtraj_batch_to_last_augmented_batch(batch)
         times = flat_batch['times']
@@ -316,24 +315,19 @@ class OracleBpttDdpg(BpttDDPG):
         return statistics
 
     def _oracle_qf_feed_dict_for_policy_from_batch(self, batch):
-        # (
-        #     last_rewards,
-        #     last_obs,
-        #     episode_length_left,
-        #     target_one_hots,
-        #     last_times,
-        #     rest_of_obs,
-        # ) = self._get_last_time_step_from_batch(batch)
-        # TODO(vitchyr): Last or just all? I think it's all because
-        # self.train_policy_on_all_qf_timesteps decides what to use
-        flat_batch = self.subtraj_batch_to_flat_augmented_batch(batch)
+        if self.train_policy_on_all_qf_timesteps:
+            flat_batch = self.subtraj_batch_to_flat_augmented_batch(batch)
+        else:
+            flat_batch = self.subtraj_batch_to_last_augmented_batch(batch)
+        target_numbers = flat_batch['target_numbers']
+        times = flat_batch['times']
         last_obs = flat_batch['obs']
         last_times = flat_batch['times']
-        target_labels = flat_batch['target_numbers']
+        last_target_numbers = flat_batch['target_numbers']
         episode_length_left = np.squeeze(self.env.horizon - 1 - last_times)
         rest_of_obs = np.zeros(
             [
-                len(last_times),
+                len(last_target_numbers),
                 self.env.horizon - self._num_bptt_unrolls,
                 self._env_obs_dim,
             ]
@@ -345,54 +339,23 @@ class OracleBpttDdpg(BpttDDPG):
             # eliminated by TensorFlow
             self.oracle_qf.observation_input[0]: last_obs[0],
             self.oracle_qf.observation_input[1]: last_obs[1],
-            self.oracle_qf.target_labels: target_labels,
+            self.oracle_qf.target_labels: last_target_numbers,
         }
+
         if hasattr(self.qf_with_action_input, "target_labels"):
-            feed_dict[self.qf_with_action_input.target_labels] = target_labels
+            feed_dict[self.qf_with_action_input.target_labels] = target_numbers
         if hasattr(self.qf_with_action_input, "time_labels"):
-            feed_dict[self.qf_with_action_input.time_labels] = last_times
+            feed_dict[self.qf_with_action_input.time_labels] = times
         if self.target_qf_for_policy is not None:
-            if (hasattr(self.target_qf_for_policy, "target_labels") and
+            if (hasattr(self.target_qf_for_policy, "target_numbers") and
                         self._bpt_bellman_error_weight > 0.):
                 # TODO(vitchyr): this should be the NEXT target...
-                feed_dict[self.target_qf_for_policy.target_labels] = target_labels
+                feed_dict[self.target_qf_for_policy.target_numbers] = target_numbers
             if (hasattr(self.target_qf_for_policy, "time_labels") and
                      self._bpt_bellman_error_weight > 0.):
                 # TODO(vitchyr): this seems hacky
-                feed_dict[self.target_qf_for_policy.time_labels] = last_times + 1
+                feed_dict[self.target_qf_for_policy.time_labels] = times + 1
         return feed_dict
-
-    def _get_last_time_step_from_batch(self, batch):
-        all_rewards = batch['rewards']
-        all_obs = batch['observations']
-        all_target_numbers = batch['target_numbers']
-        all_times = batch['times']
-
-        last_rewards = all_rewards[:, -1]
-        last_obs = self._split_flat_obs(self._get_time_step(all_obs, t=-1))
-        target_numbers = all_target_numbers[:, -1]
-        last_times = all_times[:, -1]
-        # target_numbers = all_target_numbers.flatten()
-        # times = all_times.flatten()
-
-        batch_size = len(last_rewards)
-        episode_length_left = np.squeeze(self.env.horizon - 1 - last_times)
-        rest_of_obs = np.zeros(
-            [
-                batch_size,
-                self.env.horizon - self._num_bptt_unrolls,
-                self._env_obs_dim,
-            ]
-        )
-        rest_of_obs[:, :, 0] = 1
-        return (
-            last_rewards,
-            last_obs,
-            episode_length_left,
-            target_numbers,
-            last_times,
-            rest_of_obs,
-        )
 
     def _policy_feed_dict_from_batch(self, batch):
         policy_feed = super()._policy_feed_dict_from_batch(batch)
