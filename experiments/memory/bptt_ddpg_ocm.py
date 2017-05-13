@@ -242,8 +242,8 @@ if __name__ == '__main__':
 
     # n_seeds = 5
     # mode = 'ec2'
-    # exp_prefix = '5-12-bpt-bellman-error-toggle'
-    # run_mode = 'grid'
+    # exp_prefix = '5-13-highlow-gaussian-vs-reparam'
+    # run_mode = 'custom_grid'
     # version = 'reward-low-bellman'
 
     """
@@ -455,13 +455,13 @@ if __name__ == '__main__':
         )
     elif run_mode == 'grid':
         search_space = {
-            # 'policy_params.rnn_cell_params.env_noise_std': [0., .5],
-            'policy_params.rnn_cell_params.memory_noise_std': [0., 0.1, 1.],
+            'policy_params.rnn_cell_params.env_noise_std': [0., .2],
+            'policy_params.rnn_cell_params.memory_noise_std': [0., 1.],
             # 'meta_params.meta_qf_learning_rate': [1e-3, 1e-4],
             # 'ddpg_params.qf_weight_decay': [0, 0.001],
-            'ddpg_params.reward_low_bellman_error_weight': [0, 0.1, 1., 10.],
-            'qf_params.dropout_keep_prob': [0.5, None],
-            'ddpg_params.num_extra_qf_updates': [0, 5],
+            # 'ddpg_params.reward_low_bellman_error_weight': [0, 0.1, 1., 10.],
+            # 'qf_params.dropout_keep_prob': [0.5, None],
+            # 'ddpg_params.num_extra_qf_updates': [0, 5],
             # 'meta_params.meta_qf_output_weight': [0, 0.1, 5],
             # 'env_params.episode_boundary_flags': [True, False],
             # 'meta_params.qf_output_weight': [0, 1],
@@ -512,22 +512,17 @@ if __name__ == '__main__':
     elif run_mode == 'custom_grid':
         for exp_id, (
                 version,
-                qf_weight_decay,
-                episode_boundary_flags,
-                use_target,
+                env_es_class,
+                env_noise_std,
         ) in enumerate([
-            ("Works", 0., True, True),
-            ("Decay", 0.01, True, True),
-            ("No Episode Boundary Flags", 0., False, True),
-            ("No Target", 0., True, False),
+            ("Gaussian", GaussianStrategy, 0),
+            ("Reparam", NoopStrategy, 0.2)
         ]):
             variant['version'] = version
-            variant['ddpg_params']['qf_weight_decay'] = qf_weight_decay
-            variant['env_params']['episode_boundary_flags'] = (
-                episode_boundary_flags
+            variant['es_params']['env_es_class'] = env_es_class
+            variant['policy_params']['rnn_cell_params']['env_noise_std'] = (
+                env_noise_std
             )
-            variant['ddpg_params']['qf_weight_decay'] = qf_weight_decay
-            variant['qf_params']['use_target'] = use_target
             for seed in range(n_seeds):
                 run_experiment(
                     get_ocm_score,
