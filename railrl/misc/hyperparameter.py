@@ -5,6 +5,8 @@ import random
 import itertools
 from typing import List
 
+import railrl.pythonplusplus as ppp
+
 
 class Hyperparameter(metaclass=abc.ABCMeta):
     def __init__(self, name):
@@ -50,6 +52,22 @@ class LogFloatParam(RandomHyperparameter):
         return math.e ** (self._linear_float_param.generate())
 
 
+class LogFloatOffsetParam(RandomHyperparameter):
+    """
+    Return something ranging from [min_value + offset, max_value + offset],
+    distributed with a log.
+    """
+    def __init__(self, name, min_value, max_value, offset):
+        super().__init__(name)
+        self._linear_float_param = LinearFloatParam("log_" + name,
+                                                    math.log(min_value),
+                                                    math.log(max_value))
+        self.offset = offset
+
+    def generate_next_value(self):
+        return math.e ** (self._linear_float_param.generate()) + self.offset
+
+
 class LinearFloatParam(RandomHyperparameter):
     def __init__(self, name, min_value, max_value):
         super(LinearFloatParam, self).__init__(name)
@@ -84,10 +102,12 @@ class Sweeper(object):
 
 
 class RandomHyperparameterSweeper(Sweeper):
-    def __init__(self, hyperparameters=None):
+    def __init__(self, hyperparameters=None, default_kwargs=None):
+        if default_kwargs is None:
+            default_kwargs = {}
         self._hyperparameters = hyperparameters or []
         self._validate_hyperparameters()
-        self._default_kwargs = {}
+        self._default_kwargs = default_kwargs
 
     def _validate_hyperparameters(self):
         names = set()
@@ -102,10 +122,15 @@ class RandomHyperparameterSweeper(Sweeper):
         self._default_kwargs = default_kwargs
 
     def generate_random_hyperparameters(self):
-        kwargs = copy.deepcopy(self._default_kwargs)
+        hyperparameters = {}
         for hp in self._hyperparameters:
-            kwargs[hp.name] = hp.generate()
-        return kwargs
+            hyperparameters[hp.name] = hp.generate()
+        hyperparameters = ppp.dot_map_dict_to_nested_dict(hyperparameters)
+        return ppp.merge_recursive_dicts(
+            hyperparameters,
+            copy.deepcopy(self._default_kwargs),
+            ignore_duplicate_keys_in_second_dict=True,
+        )
 
     def sweep_hyperparameters(self, function, num_configs):
         returned_value_and_params = []
@@ -146,7 +171,7 @@ class DeterministicHyperparameterSweeper(Sweeper):
                 [(name, v) for v in values]
             )
         self._hyperparameters_dicts = [
-            dict(tuple_list)
+            ppp.dot_map_dict_to_nested_dict(dict(tuple_list))
             for tuple_list in itertools.product(*named_hyperparameters)
         ]
 
@@ -158,7 +183,11 @@ class DeterministicHyperparameterSweeper(Sweeper):
         hyperpameter.
         """
         return [
-            dict(hyperparameters, **copy.deepcopy(self._default_kwargs))
+            ppp.merge_recursive_dicts(
+                hyperparameters,
+                copy.deepcopy(self._default_kwargs),
+                ignore_duplicate_keys_in_second_dict=True,
+            )
             for hyperparameters in self._hyperparameters_dicts
         ]
 

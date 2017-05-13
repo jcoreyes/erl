@@ -1,6 +1,6 @@
 import numpy as np
 from sklearn.metrics import log_loss
-from random import randint
+from random import randint, choice
 
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.np_util import np_print_options, softmax
@@ -42,29 +42,69 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
             reward_for_remembering=1,
             max_reward_magnitude=1,
             softmax_action=False,
+            zero_observation=False,
+            output_target_number=False,
+            output_time=False,
+            episode_boundary_flags=False,
     ):
         """
         :param n: Number of different values that could be returned
-        :param num_steps: How many steps the agent needs to remember.
+        :param num_steps: How many steps the policy needs to output before the
+        episode ends. AKA the horizon.
+
+        So, the policy will see num_steps+1 total observations
+        if you include the observation returned when reset() is called. The
+        last observation will be the "terminal state" observation.
         :param reward_for_remembering: The reward bonus for remembering the
         number. This number is added to the usual reward if the correct
         number has the maximum probability.
         :param max_reward_magnitude: Clip the reward magnitude to this value.
         :param softmax_action: If true, put the action through a softmax.
+        :param zero_observation: If true, all observations after the first will
+        be just zeros (NOT the zero one-hot).
+        :param episode_boundary_flags: If true, add a boolean flag to the
+        observation for whether or not the episode is starting or terminating.
         """
         assert max_reward_magnitude >= reward_for_remembering
         self.num_steps = num_steps
         self.n = n
         self._onehot_size = n + 1
+        """
+        Time step for the NEXT observation to be returned.
+
+        env = OneCharMemory()  # t == 0 after this line
+        obs = env.reset()      # t == 1
+        _ = env.step()         # t == 2
+        _ = env.step()         # t == 3
+        ...
+        done = env.step()[2]   # t == num_steps and done == False
+        done = env.step()[2]   # t == num_steps+1 and done == True
+        """
+        self._t = 0
+        self._reward_for_remembering = reward_for_remembering
+        self._max_reward_magnitude = max_reward_magnitude
+        self._softmax_action = softmax_action
+        self._zero_observation = zero_observation
+        self._output_target_number = output_target_number
+        self._output_time = output_time
+        self._episode_boundary_flags = episode_boundary_flags
+
         self._action_space = Box(
             np.zeros(self._onehot_size),
             np.ones(self._onehot_size)
         )
-        self._observation_space = self._action_space
-        self._t = 1
-        self._reward_for_remembering = reward_for_remembering
-        self._max_reward_magnitude = max_reward_magnitude
-        self._softmax_action = softmax_action
+        obs_low = np.zeros(self._onehot_size)
+        obs_high = np.zeros(self._onehot_size)
+        if self._output_target_number:
+            obs_low = np.hstack((obs_low, [0]))
+            obs_high = np.hstack((obs_high, [self.n]))
+        if self._output_time:
+            obs_low = np.hstack((obs_low, [0] * (self.num_steps + 1)))
+            obs_high = np.hstack((obs_high, [1] * (self.num_steps + 1)))
+        if self._episode_boundary_flags:
+            obs_low = np.hstack((obs_low, [0] * 2))
+            obs_high = np.hstack((obs_high, [1] * 2))
+        self._observation_space = Box(obs_low, obs_high)
 
         self._target_number = None
 
@@ -77,8 +117,8 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
         if self._softmax_action:
             action = softmax(action)
         # Reset gives the first observation, so only return 0 in step.
-        observation = self._get_next_observation(0)
-        done = self._t == self.num_steps
+        observation = self._get_next_observation()
+        done = self.done
         info = self._get_info_dict()
         reward = self._compute_reward(done, action)
 
@@ -89,10 +129,19 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
         self._last_action = action
         return observation, reward, done, info
 
+    @property
+    def done(self) -> bool:
+        return self._t == self.num_steps
+
+    @property
+    def will_take_last_action(self) -> bool:
+        return self._t + 1 == self.num_steps
+
     def _get_info_dict(self):
         return {
             'target_number': self._target_number,
-            'time': self._t - 1,
+            'time': self._t,
+            'reward_for_remembering': self._reward_for_remembering,
         }
 
     def _compute_reward(self, done, action):
@@ -129,12 +178,32 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
 
     def reset(self):
         self._target_number = randint(1, self.n)
-        self._t = 1
-        first_observation = self._get_next_observation(self._target_number)
-        return first_observation
+        self._t = 0
+        observation = self._get_first_observation()
+        self._t += 1
+        return observation
 
-    def _get_next_observation(self, observation_int):
-        return special.to_onehot(observation_int, self._onehot_size)
+    def _get_first_observation(self):
+        return self._get_observation(self._target_number, first=True)
+
+    def _get_next_observation(self):
+        return self._get_observation(0)
+
+    def _get_observation(self, number, first=False):
+        observation = special.to_onehot(number, self._onehot_size)
+        if not first and self._zero_observation:
+            observation = np.zeros(self._onehot_size)
+        if self._output_target_number:
+            observation = np.hstack((observation, [self._target_number]))
+        if self._output_time:
+            time = special.to_onehot(self._t, self.num_steps + 1)
+            observation = np.hstack((observation, time))
+        if self._episode_boundary_flags:
+            observation = np.hstack((
+                observation,
+                [int(first), int(self.will_take_last_action)],
+            ))
+        return observation
 
     def _get_target_onehot(self):
         return special.to_onehot(self._target_number, self._onehot_size)
@@ -176,7 +245,7 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
         if self._last_action is None:
             logger.log("No action taken.")
         else:
-            if self._last_t == 1:
+            if self._last_t == 0:
                 logger.log("--- New Episode ---")
             logger.push_prefix("t={0}\t".format(self._last_t))
             with np_print_options(precision=4, suppress=False):
@@ -192,7 +261,7 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
     def log_diagnostics(self, paths):
         target_onehots = []
         for path in paths:
-            first_observation = path["observations"][0]
+            first_observation = path["observations"][0][:self.n+1]
             target_onehots.append(first_observation)
 
         final_predictions = []  # each element has shape (dim)
@@ -245,9 +314,9 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
                 actions.get_shape()
             )
             prob_correct = target_labels_float * actions
-            return 2 * tf.reduce_sum(prob_correct, axis=1) - 1
+            return 2 * tf.reduce_sum(prob_correct, axis=1, keep_dims=True) - 1
         cross_entropy = target_labels_float * tf.log(actions)
-        return tf.reduce_sum(cross_entropy, axis=1)
+        return tf.reduce_sum(cross_entropy, axis=1, keep_dims=True)
 
 
 class OneCharMemoryEndOnly(OneCharMemory):
@@ -275,168 +344,34 @@ class OneCharMemoryEndOnlyLogLoss(OneCharMemory):
         return 0
 
 
-class OneCharMemoryEndOnlyDiscrete(OneCharMemory):
-    """
-    TODO: finish this class
-    A simple env whose output is a value `X` the first time step, followed by a
-    fixed number of zeros.
+class OneCharMemoryOutputRewardMag(OneCharMemoryEndOnly):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._reward_values = list(
+            range(1, int(self._max_reward_magnitude) + 1)
+        )
 
-    The goal of the agent is to output zero for all time steps, and then
-    output `X` in the last time step.
+        low = np.zeros(self._onehot_size + 1)
+        low[-1] = - self._max_reward_magnitude
+        high = np.ones(self._onehot_size + 1)
+        high[-1] = self._max_reward_magnitude
 
-    Both the actions and observations are represented as one hot vectors.
+        self._observation_space = Box(low, high)
 
-    The reward is the indicator function of whether or not the policy
-    outputted the correct thing.
-    """
-
-    def __init__(
-            self,
-            n=4,
-            num_steps=10,
-            reward_for_remembering=1,
-            max_reward_magnitude=1,
-    ):
-        """
-        :param n: Number of different values that could be returned
-        :param num_steps: How many steps the agent needs to remember.
-        :param reward_for_remembering: The reward bonus for remembering the
-        number. This number is added to the usual reward if the correct
-        number has the maximum probability.
-        :param max_reward_magnitude: Clip the reward magnitude to this value.
-        """
-        assert max_reward_magnitude >= reward_for_remembering
-        self.num_steps = num_steps
-        self.n = n
-        self._onehot_size = n + 1
-        self._action_space = Discrete(self._onehot_size)
-        self._observation_space = self._action_space
-        self._t = 1
-
-        self._target_number = None
-
-        # For rendering
-        self._last_reward = None
-        self._last_action = None
-        self._last_t = None
-
-    def _compute_reward(self, done, action):
-        if done:
-            reward = int(self._get_target_onehot() == action)
-        else:
-            reward = 0
-        return reward
-
-    @cached_property
-    def zero(self):
-        z = np.zeros(self._onehot_size)
-        z[0] = 1
-        return z
-
-    @property
-    def action_space(self):
-        return self._action_space
-
-    @property
-    def horizon(self):
-        return self.num_steps
+    def step(self, action):
+        observation, reward, done, info = super().step(action)
+        observation = np.hstack((observation, 0))
+        return observation, reward, done, info
 
     def reset(self):
+        self._reward_for_remembering = choice(self._reward_values)
         self._target_number = randint(1, self.n)
-        self._t = 1
-        first_observation = self._get_next_observation(self._target_number)
-        return first_observation
-
-    def _get_next_observation(self, observation_int):
-        return special.to_onehot(observation_int, self._onehot_size)
-
-    def _get_target_onehot(self):
-        return special.to_onehot(self._target_number, self._onehot_size)
-
-    @property
-    def observation_space(self):
-        return self._observation_space
-
-    def get_batch(self, batch_size):
-        targets = np.random.randint(
-            low=1,
-            high=self.n+1,
-            size=batch_size,
-        )
-        onehot_targets = special.to_onehot_n(targets, self.feature_dim)
-        X = np.zeros((batch_size, self.sequence_length, self.feature_dim))
-        X[:, :, 0] = 1  # make the target 0
-        X[:, 0, :] = onehot_targets
-        Y = np.zeros((batch_size, self.sequence_length, self.target_dim))
-        Y[:, :, 0] = 1  # make the target 0
-        Y[:, -1, :] = onehot_targets
-        return X, Y
-
-    @property
-    def feature_dim(self):
-        return self.n + 1
-
-    @property
-    def target_dim(self):
-        return self.n + 1
-
-    @property
-    def sequence_length(self):
-        return self.horizon
-
-    @overrides
-    def render(self):
-        logger.push_prefix("OneCharMemory(n={0})\t".format(self._target_number))
-        if self._last_action is None:
-            logger.log("No action taken.")
-        else:
-            if self._last_t == 1:
-                logger.log("--- New Episode ---")
-            logger.push_prefix("t={0}\t".format(self._last_t))
-            with np_print_options(precision=4, suppress=False):
-                logger.log("Action: {0}".format(
-                    self._last_action,
-                ))
-            logger.log("Reward: {0}".format(
-                self._last_reward,
-            ))
-            logger.pop_prefix()
-        logger.pop_prefix()
+        self._t = 0
+        first_observation = self._get_first_observation()
+        return np.hstack((first_observation, self._reward_for_remembering))
 
     def log_diagnostics(self, paths):
-        target_onehots = []
+        # Take out the extra reward observation
         for path in paths:
-            first_observation = path["observations"][0]
-            target_onehots.append(first_observation)
-
-        final_predictions = []  # each element has shape (dim)
-        nonfinal_predictions = []  # each element has shape (seq_length-1, dim)
-        for path in paths:
-            actions = path["actions"]
-            final_predictions.append(actions[-1])
-            nonfinal_predictions.append(actions[:-1])
-        nonfinal_predictions_sequence_dimension_flattened = np.vstack(
-            nonfinal_predictions
-        )  # shape = N X dim
-        nonfinal_prob_zero = [softmax[0] for softmax in
-                              nonfinal_predictions_sequence_dimension_flattened]
-        final_probs_correct = []
-        for final_prediction, target_onehot in zip(final_predictions,
-                                                   target_onehots):
-            correct_pred_idx = np.argmax(target_onehot)
-            final_probs_correct.append(final_prediction[correct_pred_idx])
-        final_prob_zero = [softmax[0] for softmax in final_predictions]
-
-        last_statistics = OrderedDict()
-        last_statistics.update(create_stats_ordered_dict(
-            'Final P(correct)',
-            final_probs_correct))
-        last_statistics.update(create_stats_ordered_dict(
-            'Non-final P(zero)',
-            nonfinal_prob_zero))
-        last_statistics.update(create_stats_ordered_dict(
-            'Final P(zero)',
-            final_prob_zero))
-
-        for key, value in last_statistics.items():
-            logger.record_tabular(key, value)
+            path["observations"] = path["observations"][:, :-1]
+        return super().log_diagnostics(paths)

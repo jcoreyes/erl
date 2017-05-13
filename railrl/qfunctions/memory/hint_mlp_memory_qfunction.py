@@ -25,6 +25,7 @@ class HintMlpMemoryQFunction(NNQFunction):
             hidden_nonlinearity=tf.nn.relu,
             output_nonlinearity=tf.identity,
             use_time=False,
+            use_target=False,
             **kwargs
     ):
         self.setup_serialization(locals())
@@ -42,9 +43,9 @@ class HintMlpMemoryQFunction(NNQFunction):
         self.hint_dim = hint_dim
         self.target_labels = self._placeholder_if_none(
             target_labels,
-            shape=[None, self.hint_dim],
+            shape=[None],
             name='target_labels',
-            dtype=tf.float32,
+            dtype=tf.int32,
         )
         self.max_time = max_time
         self.time_labels = self._placeholder_if_none(
@@ -54,6 +55,7 @@ class HintMlpMemoryQFunction(NNQFunction):
             dtype=tf.int32,
         )
         self.use_time = use_time
+        self.use_target = use_target
         self._create_network()
 
     def _create_network_internal(
@@ -81,24 +83,20 @@ class HintMlpMemoryQFunction(NNQFunction):
             memory_action,
             scope_name="memory_action",
         )
+        obs_input_dim = sum(self.observation_dim)
+        obs_values = [env_obs, memory_obs]
+        if self.use_target:
+            target_one_hots = tf.one_hot(target_labels, self.hint_dim)
+            obs_values.append(target_one_hots)
+            obs_input_dim += self.hint_dim
         if self.use_time:
             time_onehots = tf.one_hot(indices=time_labels,
                                       depth=self.max_time,
                                       on_value=1.0,
                                       off_value=0., name="time_onehots")
-            observation_input = tf.concat(
-                axis=1,
-                values=[env_obs, memory_obs, target_labels, time_onehots],
-            )
-            obs_input_dim = (
-                sum(self.observation_dim) + self.hint_dim + self.max_time
-            )
-        else:
-            observation_input = tf.concat(
-                axis=1,
-                values=[env_obs, memory_obs, target_labels],
-            )
-            obs_input_dim = sum(self.observation_dim) + self.hint_dim
+            obs_values.append(time_onehots)
+            obs_input_dim += self.max_time
+        observation_input = tf.concat(axis=1, values=obs_values)
         action_input = tf.concat(
             axis=1,
             values=[env_action, memory_action],

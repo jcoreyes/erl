@@ -1,7 +1,9 @@
 import datetime
 import os
 import os.path as osp
+import subprocess
 import random
+import uuid
 
 import dateutil.tz
 import numpy as np
@@ -14,6 +16,7 @@ from railrl.envs.memory.continuous_memory_augmented import (
 from railrl.envs.memory.one_char_memory import (
     OneCharMemory,
     OneCharMemoryEndOnly,
+    OneCharMemoryOutputRewardMag,
 )
 from rllab import config
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
@@ -105,6 +108,9 @@ def get_env_settings(
     elif env_id == 'ocme':
         env = OneCharMemoryEndOnly(**init_env_params)
         name = "OneCharMemoryEndOnly"
+    elif env_id == 'ocmr':
+        env = OneCharMemoryOutputRewardMag(**init_env_params)
+        name = "OneCharMemoryOutputRewardMag"
     elif env_id == 'gym':
         if gym_name == "":
             raise Exception("Must provide a gym name")
@@ -137,6 +143,7 @@ def run_experiment(
         profile_file='time_log.prof',
         mode='here',
         exp_id=0,
+        unique_id=None,
         use_gpu=False,
         **kwargs):
     """
@@ -155,6 +162,8 @@ def run_experiment(
     run_experiment_lite documentation to learn what those modes do.
     :param exp_id: Experiment ID. Should be unique across all
     experiments. Note that one experiment may correspond to multiple seeds.
+    :param unique_id: Unique ID should be unique across all runs--even different
+    seeds!
     :param kwargs:
     :return:
     """
@@ -162,8 +171,11 @@ def run_experiment(
         seed = random.randint(0, 100000)
     if variant is None:
         variant = {}
+    if unique_id is None:
+        unique_id = str(uuid.uuid4())
     variant['seed'] = str(seed)
     variant['exp_id'] = str(exp_id)
+    variant['unique_id'] = str(unique_id)
     logger.log("Variant:")
     logger.log(str(variant))
     command_words = []
@@ -323,6 +335,15 @@ def setup_logger(
     logger.set_snapshot_mode(snapshot_mode)
     logger.set_snapshot_gap(snapshot_gap)
     logger.set_log_tabular_only(log_tabular_only)
+    try:
+        # Save git diff to experiment directory
+        cmd = "cd {} && git diff > {} 2>/dev/null".format(
+            osp.dirname(__file__),
+            osp.join(log_dir, "code.diff")
+        )
+        subprocess.check_call(cmd, shell=True)
+    except subprocess.CalledProcessError:
+        print("configure_output_dir: not storing the git diff, probably because you're not in a git repo")
 
 
 def set_seed(seed):

@@ -27,7 +27,8 @@ class SubtrajReplayBuffer(ReplayBuffer):
             env,
             subtraj_length,
             only_sample_at_start_of_episode=False,
-            validation_set_fraction=0.2,
+            save_period=5,
+            random_generator=None,
     ):
         self._max_pool_size = max_pool_size
         self._env = env
@@ -40,7 +41,7 @@ class SubtrajReplayBuffer(ReplayBuffer):
         self._actions = np.zeros((max_pool_size, action_dim))
         self._rewards = np.zeros(max_pool_size)
         # self._terminals[i] = a terminal was received at time i
-        self._terminals = np.zeros(max_pool_size, dtype='uint8')
+        self._terminals = np.zeros(max_pool_size, dtype='bool')
         # self._final_state[i] = state i was the final state in a rollout,
         # so it should never be sampled since it has no correspond next state
         # In other words, we're saving the s_{t+1} after sampling a tuple of
@@ -65,14 +66,13 @@ class SubtrajReplayBuffer(ReplayBuffer):
         """
         The last part of the replay buffer will be saved as a validation set.
         """
-        self.validation_set_fraction = validation_set_fraction
-        self._save_episode_for_validation = False
-        self.validat_size = int(validation_set_fraction * self._max_pool_size)
+        # self.validation_set_fraction = validation_set_fraction
         self._validation_start_indices = []
         self._training_start_indices = []
-        self.first_validation_idx = int(
-            validation_set_fraction * self._max_pool_size
-        )
+        self.random = random_generator or random.random
+        self._save_period = save_period
+        self._num_saved = 0
+        self._save_episode_for_validation = True
 
     def _add_sample(self, observation, action_, reward, terminal,
                     final_state, **kwargs):
@@ -99,6 +99,23 @@ class SubtrajReplayBuffer(ReplayBuffer):
         )
         self._example_action = action
 
+        # print(self._size)
+        # if self._size == 10000:
+        #     print("SAVING")
+        #     for name, np_array in [
+        #         ('obs', self._observations),
+        #         ('actions', self._actions),
+        #         ('rewards', self._rewards),
+        #         ('terminals', self._terminals),
+        #     ]:
+        #         np.savetxt(
+        #             '/home/vitchyr/git/rllab-rail/railrl/data/replay_buffer/'
+        #             '{}.csv'.format(name),
+        #             np_array,
+        #             delimiter=',',
+        #         )
+        #
+
     def terminate_episode(self, terminal_observation, **kwargs):
         self._add_sample(
             terminal_observation,
@@ -109,8 +126,9 @@ class SubtrajReplayBuffer(ReplayBuffer):
         )
         self._previous_indices = deque(maxlen=self._subtraj_length)
         self._starting_episode = True
+        self._num_saved += 1
         self._save_episode_for_validation = (
-            random.random() < self.validation_set_fraction
+            self._num_saved % self._save_period == 0
         )
 
     def advance(self):
@@ -195,7 +213,7 @@ class SubtrajReplayBuffer(ReplayBuffer):
             list_of_env_infos,
         ):
             observation = self._env.observation_space.unflatten(observation)
-            action = self._env.observation_space.unflatten(action)
+            action = self._env.action_space.unflatten(action)
             self.add_sample(observation, action, reward, False,
                             agent_info=agent_info, env_info=env_info)
         terminal_observation = self._env.observation_space.unflatten(
@@ -225,3 +243,10 @@ class SubtrajReplayBuffer(ReplayBuffer):
             terminals=subsequences(self._terminals, start_indices,
                                    self._subtraj_length),
         )
+
+    def refresh_replay_buffer(self, policy):
+        for start_i in self._all_valid_start_indices:
+            obs = self._observations[start_i]
+            for i in range(start_i, start_i + self._subtraj_length):
+                # TODO(vitchyr)
+                pass

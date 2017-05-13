@@ -72,13 +72,15 @@ def run_linear_ocm_exp(variant):
 
 
 if __name__ == '__main__':
-    n_seeds = 3
-    exp_prefix = "dev-2-28-ocm-trpo-memory"
+    n_seeds = 5
+    exp_prefix = "4-30-comparison-short"
+
+    n_batches_per_itr = 100
 
     trpo_params = dict(
-        batch_size=4000,
+        batch_size=1000,
         max_path_length=100,
-        n_itr=100,
+        n_itr=20,
         discount=0.99,
         step_size=0.01,
     )
@@ -87,7 +89,7 @@ if __name__ == '__main__':
     )
     USE_EC2 = False
     exp_id = -1
-    for H in [6]:
+    for H in [8, 16]:
         for num_values in [2]:
             print("H", H)
             print("num_values", num_values)
@@ -97,6 +99,7 @@ if __name__ == '__main__':
                 exp_prefix=exp_prefix,
                 trpo_params=trpo_params,
                 optimizer_params=optimizer_params,
+                version='trpo_memory_10x_slow',
             )
             for seed in range(n_seeds):
                 exp_id += 1

@@ -212,6 +212,69 @@ class TestTensorFlowRnns(TFTestCase):
         def output_size(self):
             return self._dim
 
+    class _AddOneNoiseRnn(tf.contrib.rnn.RNNCell):
+        """
+        A simple RNN that just adds one to the state. The output is input +
+        state.
+        """
+        def __init__(self, dim):
+            self._dim = dim
+
+        def __call__(self, inputs, state, scope=None):
+            input_noise = tf.random_uniform(
+                tf.shape(inputs),
+                minval=1.,
+                maxval=1.1,
+            )
+            return inputs + state + input_noise, state + tf.random_uniform(
+                tf.shape(state),
+                minval=1.,
+                maxval=1.1,
+            )
+
+        @property
+        def state_size(self):
+            return self._dim
+
+        @property
+        def output_size(self):
+            return self._dim
+
+    class _TimesOneAddOneNoiseRnn(tf.contrib.rnn.RNNCell):
+        """
+        A simple RNN that just adds one to the state. The output is input +
+        state.
+        """
+        def __init__(self, dim):
+            self._dim = dim
+            self.w = tf.get_variable(
+                "w_variable",
+                shape=[1],
+                initializer=tf.constant_initializer(
+                    value=[1.],
+                    dtype=tf.float32,
+                )
+            )
+
+        def __call__(self, inputs, state, scope=None):
+            return self.w*state, state + tf.random_uniform(
+                tf.shape(state),
+                minval=1.,
+                maxval=1.1,
+            )
+
+        @property
+        def var(self):
+            return self.w
+
+        @property
+        def state_size(self):
+            return self._dim
+
+        @property
+        def output_size(self):
+            return self._dim
+
     class _AddOneRnnLastActionInState(tf.contrib.rnn.RNNCell):
         """
         Same as _AddOneRNN, but also add the last action to the state state.
@@ -231,7 +294,7 @@ class TestTensorFlowRnns(TFTestCase):
 
         @property
         def state_size(self):
-            return self._dim
+            return self._dim, self._dim
 
         @property
         def output_size(self):
@@ -410,6 +473,173 @@ class TestTensorFlowRnns(TFTestCase):
         # Check values
         gradient_expected = np.array([6])  # = 0 + 0 + 1 + 2 + 3
         self.assertNpArraysEqual(gradient_values, gradient_expected)
+
+    def test_last_action_gradient_static(self):
+        rnn_cell = TestTensorFlowRnns._AddOneRnnLastActionInState(1)
+        input_ph = tf.placeholder(tf.float32, shape=(None, 4, 1))
+        rnn_inputs = tf.unstack(input_ph, axis=1)
+        init_state_ph = (tf.placeholder(tf.float32, shape=(None, 1)),
+                         tf.placeholder(tf.float32, shape=(None, 1)))
+        sequence_length_ph = tf.placeholder(tf.int32, shape=(None,))
+        with tf.variable_scope("rnn"):
+            rnn_outputs, rnn_final_state = tf.contrib.rnn.static_rnn(
+                rnn_cell,
+                rnn_inputs,
+                initial_state=init_state_ph,
+                dtype=tf.float32,
+                sequence_length=sequence_length_ph,
+            )
+        last_action = rnn_final_state[1]
+        loss = tf.reduce_sum(last_action)
+        variable = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, "rnn")
+        gradient = tf.gradients(loss, variable)[0]
+
+        # Compute values
+        x_values = np.zeros((5, 4, 1))
+        init_state_values = (np.zeros((5, 1)), np.zeros((5, 1)))
+        sequence_length_values = np.array([0, 1, 2, 3, 4])
+        self.sess.run(tf.global_variables_initializer())
+        gradient_values = self.sess.run(
+            gradient,
+            feed_dict={
+                input_ph: x_values,
+                init_state_ph: init_state_values,
+                sequence_length_ph: sequence_length_values,
+            }
+        )
+
+        # Check values
+        gradient_expected = np.array([6])  # = 0 + 0 + 1 + 2 + 3
+        self.assertNpArraysEqual(gradient_values, gradient_expected)
+
+    def test_added_noise_sum_correctly(self):
+        """
+        Check that noise is added over time when unrolling a RNN.
+        """
+        rnn_cell = TestTensorFlowRnns._AddOneNoiseRnn(1)
+        input_ph = tf.placeholder(tf.float32, shape=(None, 4, 1))
+        rnn_inputs = tf.unstack(input_ph, axis=1)
+        with tf.variable_scope("rnn"):
+            rnn_outputs, rnn_final_state = tf.contrib.rnn.static_rnn(
+                rnn_cell,
+                rnn_inputs,
+                dtype=tf.float32,
+            )
+
+        x_values = np.zeros((5, 4, 1))
+        self.sess.run(tf.global_variables_initializer())
+        output_values = self.sess.run(
+            rnn_outputs,
+            feed_dict={
+                input_ph: x_values,
+            }
+        )
+
+        # Check values
+        for i, output in enumerate(output_values):
+            self.assertTrue(np.all(i+1 <= output)
+                            and np.all(output < (i+1)*1.1))
+
+    def test_added_noise_gradient_correct(self):
+        """
+        Check that gradients w.r.t. params that affect the output are correctly 
+        calculated via the reparameterization trick.
+        """
+        batch_size = 5
+        rnn_cell = TestTensorFlowRnns._TimesOneAddOneNoiseRnn(1)
+        input_ph = tf.placeholder(tf.float32, shape=(None, 4, 1))
+        rnn_inputs = tf.unstack(input_ph, axis=1)
+        with tf.variable_scope("rnn"):
+            rnn_outputs, rnn_final_state = tf.contrib.rnn.static_rnn(
+                rnn_cell,
+                rnn_inputs,
+                dtype=tf.float32,
+            )
+        gradients = [tf.gradients(output, rnn_cell.var)[0] for output in
+                     rnn_outputs]
+
+        x_values = np.ones((batch_size, 4, 1))
+        self.sess.run(tf.global_variables_initializer())
+        output_values, grad_values = self.sess.run(
+            [rnn_outputs, gradients],
+            feed_dict={
+                input_ph: x_values,
+            }
+        )
+        grad_values = np.array(grad_values).flatten()
+
+        lb = np.array([0, 1, 2, 3]) * batch_size
+        ub = np.array([0, 1.1, 2.2, 3.3]) * batch_size
+
+        self.assertTrue(np.all(lb <= grad_values) and np.all(grad_values <= ub))
+
+    def test_added_noise_gradient_correct_over_time(self):
+        """
+        Check that gradients w.r.t. params that affect the state are correctly 
+        calculated via the reparameterization trick.
+        """
+        class _TimesOneAddOneOverTimeNoiseRnn(tf.contrib.rnn.RNNCell):
+            def __init__(self):
+                self.w = tf.get_variable(
+                    "w_variable",
+                    shape=[1],
+                    initializer=tf.constant_initializer(
+                        value=[1.],
+                        dtype=tf.float32,
+                    )
+                )
+
+            def __call__(self, inputs, state, scope=None):
+                next_state = self.w * (state + tf.random_uniform(
+                    tf.shape(state),
+                    minval=2.,
+                    maxval=2.2,
+                ))
+                return next_state, next_state
+
+            @property
+            def var(self):
+                return self.w
+
+            @property
+            def state_size(self):
+                return 1
+
+            @property
+            def output_size(self):
+                return 1
+
+        batch_size = 5
+        rnn_cell = _TimesOneAddOneOverTimeNoiseRnn()
+        input_ph = tf.placeholder(tf.float32, shape=(None, 4, 1))
+        rnn_inputs = tf.unstack(input_ph, axis=1)
+        with tf.variable_scope("rnn"):
+            rnn_outputs, rnn_final_state = tf.contrib.rnn.static_rnn(
+                rnn_cell,
+                rnn_inputs,
+                dtype=tf.float32,
+            )
+        gradients = [tf.gradients(output, rnn_cell.var)[0] for output in
+                     rnn_outputs]
+        last_state_grad = tf.gradients(rnn_final_state, rnn_cell.var)[0]
+
+        x_values = np.ones((batch_size, 4, 1))
+        self.sess.run(tf.global_variables_initializer())
+        grad_values, last_state_grad_value = self.sess.run(
+            [gradients, last_state_grad],
+            feed_dict={
+                input_ph: x_values,
+            }
+        )
+        grad_values = np.array(grad_values).flatten()
+
+        lb = np.array([1, 3, 6, 10]) * batch_size * 2
+        ub = np.array([1, 3, 6, 10]) * 1.1 * batch_size * 2
+
+        self.assertTrue(np.all(lb <= grad_values) and np.all(grad_values <= ub))
+        self.assertNpAlmostEqual(last_state_grad_value.squeeze(),
+                                 grad_values[-1].squeeze())
+
 
 if __name__ == '__main__':
     unittest.main()

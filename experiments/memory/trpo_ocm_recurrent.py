@@ -23,6 +23,7 @@ def run_linear_ocm_exp(variant):
     from railrl.envs.memory.one_char_memory import (
         OneCharMemoryEndOnly,
     )
+    from railrl.envs.memory.high_low import HighLow
     from railrl.launchers.launcher_util import (
         set_seed,
     )
@@ -42,6 +43,7 @@ def run_linear_ocm_exp(variant):
     """
 
     env = OneCharMemoryEndOnly(n=num_values, num_steps=H, softmax_action=True)
+    # env = HighLow(num_steps=H)
     env = ContinuousMemoryAugmented(
         env,
         num_memory_states=onehot_dim,
@@ -51,7 +53,7 @@ def run_linear_ocm_exp(variant):
     policy = GaussianLSTMPolicy(
         name="policy",
         env_spec=env.spec,
-        lstm_layer_cls=L.TfBasicLSTMLayer,
+        lstm_layer_cls=L.LSTMLayer,
     )
 
     baseline = LinearFeatureBaseline(env_spec=env.spec)
@@ -72,13 +74,14 @@ def run_linear_ocm_exp(variant):
 
 
 if __name__ == '__main__':
-    n_seeds = 3
-    exp_prefix = "dev-ocm-trpo-lstm"
+    n_seeds = 5
+    # exp_prefix = "dev-ocm-trpo-lstm"
+    exp_prefix = "4-30-comparison-trpo-recurrent"
 
     trpo_params = dict(
-        batch_size=4000,
+        batch_size=1000,
         max_path_length=100,
-        n_itr=500,
+        n_itr=100,
         discount=0.99,
         step_size=0.01,
     )
@@ -87,7 +90,7 @@ if __name__ == '__main__':
     )
     USE_EC2 = False
     exp_id = -1
-    for H in [6]:
+    for H in [8, 16]:
         for num_values in [2]:
             print("H", H)
             print("num_values", num_values)
@@ -97,6 +100,7 @@ if __name__ == '__main__':
                 exp_prefix=exp_prefix,
                 trpo_params=trpo_params,
                 optimizer_params=optimizer_params,
+                version='trpo_recurrent_10x_slow',
             )
             for seed in range(n_seeds):
                 exp_id += 1

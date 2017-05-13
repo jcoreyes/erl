@@ -18,8 +18,6 @@ from railrl.algos.online_algorithm import OnlineAlgorithm
 from railrl.policies.nn_policy import NNPolicy
 from railrl.pythonplusplus import filter_recursive
 from railrl.qfunctions.nn_qfunction import NNQFunction
-from rllab.misc import logger
-from rllab.misc import special
 from rllab.misc.overrides import overrides
 from rllab.spaces.product import Product
 from enum import Enum
@@ -49,7 +47,7 @@ class DDPG(OnlineAlgorithm):
             qf_weight_decay=0.,
             target_update_mode=TargetUpdateMode.SOFT,
             hard_update_period=10000,
-            num_extra_qf_updates=0,
+            reward_low_bellman_error_weight=0.,
             **kwargs
     ):
         """
@@ -68,32 +66,18 @@ class DDPG(OnlineAlgorithm):
         :return:
         """
         assert isinstance(target_update_mode, TargetUpdateMode)
+        super().__init__(env, policy, exploration_strategy, **kwargs)
+
         self._target_update_mode = target_update_mode
         self._hard_update_period = hard_update_period
         self.qf = qf
         self.qf_learning_rate = qf_learning_rate
         self.policy_learning_rate = policy_learning_rate
         self.qf_weight_decay = qf_weight_decay
-        self._num_extra_qf_updates = num_extra_qf_updates
-
-        super().__init__(env, policy, exploration_strategy, **kwargs)
-
-    def _do_training(
-            self,
-            **kwargs
-    ):
-        for _ in range(self._num_extra_qf_updates):
-            minibatch = self._sample_minibatch()
-            feed_dict = self._update_feed_dict_from_batch(minibatch)
-            ops = filter_recursive([
-                self.train_qf_op,
-                self.update_target_qf_op,
-            ])
-            if len(ops) > 0:
-                self.sess.run(ops, feed_dict=feed_dict)
-
-        super()._do_training(**kwargs)
-
+        self.reward_low_bellman_error_weight = reward_low_bellman_error_weight
+        self.qf_with_action_input = None
+        self.target_policy = None
+        self.target_qf = None
 
     @overrides
     def _init_tensorflow_ops(self):
@@ -116,12 +100,45 @@ class DDPG(OnlineAlgorithm):
             self._init_qf_ops()
         with tf.name_scope('target_ops'):
             self._init_target_ops()
-        self.sess.run(tf.global_variables_initializer())
-        self.qf.reset_param_values_to_last_load()
-        self.policy.reset_param_values_to_last_load()
+        with tf.name_scope('qf_train_ops'):
+            self._init_qf_loss_and_train_ops()
+        with tf.name_scope('policy_train_ops'):
+            self._init_policy_loss_and_train_ops()
 
     def _init_qf_ops(self):
-        self.qf_loss = self._create_qf_loss()
+        self.raw_ys = tf.stop_gradient(
+            self.rewards_n1 +
+            (1. - self.terminals_n1)
+            * self.discount
+            * self.target_qf.output
+        )
+        self.raw_bellman_errors = tf.squared_difference(self.raw_ys,
+                                                        self.qf.output)
+        if self.reward_low_bellman_error_weight > 0.:
+            self.ys = tf.stop_gradient(
+                self.raw_ys
+                - self.raw_bellman_errors * self.reward_low_bellman_error_weight
+            )
+            self.bellman_errors = tf.squared_difference(self.ys, self.qf.output)
+        else:
+            self.ys = self.raw_ys
+            self.bellman_errors = self.raw_bellman_errors
+        assert tf_util.are_shapes_compatible(
+            self.rewards_n1,
+            self.terminals_n1,
+            self.target_qf.output,
+            self.qf.output,
+            self.bellman_errors,
+        )
+        self.bellman_error = tf.reduce_mean(self.bellman_errors)
+        # import ipdb; ipdb.set_trace()
+        # self.bellman_error = tf.squeeze(
+        #     tf.reduce_mean(
+        #         tf.abs(self.rewards_n1) *
+        #         tf.squared_difference(self.ys, self.qf.output),
+        #         axis=0,
+        #     )
+        # )
         self.Q_weights_norm = tf.reduce_sum(
             tf.stack(
                 [tf.nn.l2_loss(v)
@@ -130,21 +147,6 @@ class DDPG(OnlineAlgorithm):
             ),
             name='weights_norm'
         )
-        self.qf_total_loss = (
-            self.qf_loss + self.qf_weight_decay * self.Q_weights_norm)
-        self.train_qf_op = tf.train.AdamOptimizer(
-            self.qf_learning_rate).minimize(
-            self.qf_total_loss,
-            var_list=self.qf.get_params_internal())
-
-    def _create_qf_loss(self):
-        self.ys = (
-            self.rewards_placeholder +
-            (1. - self.terminals_placeholder)
-            * self.discount
-            * self.target_qf.output
-        )
-        return tf.squeeze(tf_util.mse(self.ys, self.qf.output))
 
     def _init_policy_ops(self):
         # To compute the surrogate loss function for the qf, it must take
@@ -152,16 +154,6 @@ class DDPG(OnlineAlgorithm):
         # Policy Gradient Algorithms" ICML 2014.
         self.qf_with_action_input = self.qf.get_weight_tied_copy(
             action_input=self.policy.output
-        )
-        self.policy_surrogate_loss = - tf.reduce_mean(
-            self.qf_with_action_input.output,
-            axis=0,
-        )
-        self.train_policy_op = tf.train.AdamOptimizer(
-            self.policy_learning_rate
-        ).minimize(
-            self.policy_surrogate_loss,
-            var_list=self.policy.get_params_internal(),
         )
 
     def _init_target_ops(self):
@@ -180,7 +172,7 @@ class DDPG(OnlineAlgorithm):
                 tf.assign(target, (self.tau * src + (1 - self.tau) * target))
                 for target, src in zip(target_qf_vars, qf_vars)]
         elif (self._target_update_mode == TargetUpdateMode.HARD or
-                self._target_update_mode == TargetUpdateMode.NONE):
+                      self._target_update_mode == TargetUpdateMode.NONE):
             self.update_target_policy_op = [
                 tf.assign(target, src)
                 for target, src in zip(target_policy_vars, policy_vars)
@@ -196,15 +188,43 @@ class DDPG(OnlineAlgorithm):
                 )
             )
 
+    def _init_qf_loss_and_train_ops(self):
+        self.qf_loss = (
+            self.bellman_error + self.qf_weight_decay * self.Q_weights_norm
+        )
+        self.train_qf_op = tf.train.AdamOptimizer(
+            self.qf_learning_rate
+        ).minimize(
+            self.qf_loss,
+            var_list=self.qf.get_params_internal()
+        )
+
+    def _init_policy_loss_and_train_ops(self):
+        self.policy_surrogate_loss = - tf.reduce_mean(
+            self.qf_with_action_input.output,
+            axis=0,
+        )
+        self.train_policy_op = tf.train.AdamOptimizer(
+            self.policy_learning_rate
+        ).minimize(
+            self.policy_surrogate_loss,
+            var_list=self.policy.get_params_internal(),
+        )
+
     @overrides
     def _init_training(self):
+        self._init_tensorflow_ops()
+        self.sess.run(tf.global_variables_initializer())
+        self.qf.reset_param_values_to_last_load()
+        self.policy.reset_param_values_to_last_load()
         self.target_qf.set_param_values(self.qf.get_param_values())
         self.target_policy.set_param_values(self.policy.get_param_values())
 
     @overrides
     @property
     def _networks(self) -> List[NeuralNetwork]:
-        return [self.policy, self.qf, self.target_policy, self.target_qf]
+        return [self.policy, self.qf, self.target_policy, self.target_qf,
+                self.qf_with_action_input]
 
     @overrides
     def _get_training_ops(
@@ -222,33 +242,31 @@ class DDPG(OnlineAlgorithm):
             train_ops += self.policy.batch_norm_update_stats_op
 
         target_ops = []
-        if self._target_update_mode == TargetUpdateMode.SOFT:
+        if self._should_update_target(n_steps_total):
             target_ops = [
                 self.update_target_qf_op,
                 self.update_target_policy_op,
             ]
+
+        return filter_recursive([
+            train_ops,
+            target_ops,
+        ])
+
+    def _should_update_target(self, n_steps_total):
+        if (self._target_update_mode == TargetUpdateMode.SOFT or
+                    self._target_update_mode == TargetUpdateMode.NONE):
+            return True
         elif self._target_update_mode == TargetUpdateMode.HARD:
             if n_steps_total % self._hard_update_period == 0:
-                target_ops = [
-                    self.update_target_qf_op,
-                    self.update_target_policy_op,
-                ]
-        elif self._target_update_mode == TargetUpdateMode.NONE:
-            target_ops = [
-                self.update_target_qf_op,
-                self.update_target_policy_op,
-            ]
+                return True
         else:
             raise RuntimeError(
                 "Unknown target update mode: {}".format(
                     self._target_update_mode
                 )
             )
-
-        return filter_recursive([
-            train_ops,
-            target_ops,
-        ])
+        return False
 
     @overrides
     def _update_feed_dict(self, rewards, terminals, obs, actions, next_obs,
@@ -298,9 +316,13 @@ class DDPG(OnlineAlgorithm):
 
     def _qf_feed_dict(self, rewards, terminals, obs, actions, next_obs,
                       **kwargs):
+        """
+        The output of `self._split_flat_action`.
+        :return: Feed dictionary for policy training TensorFlow ops.
+        """
         return {
-            self.rewards_placeholder: np.expand_dims(rewards, axis=1),
-            self.terminals_placeholder: np.expand_dims(terminals, axis=1),
+            self.rewards_placeholder: rewards,
+            self.terminals_placeholder: terminals,
             self.qf.observation_input: obs,
             self.qf.action_input: actions,
             self.target_qf.observation_input: next_obs,
@@ -334,8 +356,8 @@ class DDPG(OnlineAlgorithm):
         """
         return [
             ('PolicySurrogateLoss', self.policy_surrogate_loss),
+            ('QfBellmanError', self.bellman_error),
             ('QfLoss', self.qf_loss),
-            ('QfTotalLoss', self.qf_total_loss),
             ('Ys', self.ys),
             ('PolicyOutput', self.policy.output),
             ('TargetPolicyOutput', self.target_policy.output),
