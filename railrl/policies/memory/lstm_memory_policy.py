@@ -90,6 +90,60 @@ class LstmLinearCell(LSTMCell):
         return self._output_dim
 
 
+class LstmMlpCell(LSTMCell):
+    """
+    LSTM cell with a linear unit + softmax before the output.
+    """
+    def __init__(
+            self,
+            num_units,
+            output_dim,
+            env_noise_std=0.,
+            memory_noise_std=0.,
+            **kwargs
+    ):
+        assert env_noise_std >= 0.
+        assert memory_noise_std >= 0.
+        super().__init__(num_units / 2, **kwargs)
+        self._output_dim = output_dim
+        self._env_noise_std = env_noise_std
+        self._memory_noise_std = memory_noise_std
+
+    def __call__(self, inputs, state, scope=None):
+        with tf.variable_scope(scope or "linear_lstm") as self.scope:
+            split_state = tf.split(axis=1, num_or_size_splits=2, value=state)
+            _, (lstm_output, lstm_state) = super().__call__(inputs, split_state,
+                                                            scope=self.scope)
+
+            if self._env_noise_std > 0.:
+                lstm_output += self._env_noise_std * tf.random_normal(
+                    tf.shape(lstm_output)
+                )
+            if self._memory_noise_std > 0.:
+                lstm_state += self._memory_noise_std * tf.random_normal(
+                    tf.shape(lstm_state)
+                )
+
+            flat_state = tf.concat(axis=1, values=(lstm_output, lstm_state))
+
+            with tf.variable_scope('env_action') as self.env_action_scope:
+                env_action_logit = tf_util.mlp(
+                    lstm_output,
+                    self._num_units,
+                    [100, 64, self._output_dim],
+                    tf.nn.relu,
+                )
+            return tf.nn.softmax(env_action_logit), flat_state
+
+    @property
+    def state_size(self):
+        return self._num_units * 2
+
+    @property
+    def output_size(self):
+        return self._output_dim
+
+
 class LstmLinearCellNoiseAll(LSTMCell):
     """
     LSTM cell with a linear unit + softmax before the output.
@@ -590,6 +644,7 @@ class LstmMemoryPolicy(RnnCellPolicy):
             dtype=tf.float32,
         )
         self._create_network()
+        self._env_action_scope_name = None
 
     def _create_network_internal(self, observation_input=None, init_state=None):
         assert observation_input is not None
@@ -617,12 +672,18 @@ class LstmMemoryPolicy(RnnCellPolicy):
         # I should verify this.
         with tf.variable_scope("rnn_cell") as self._rnn_cell_scope:
             cell_output = self._rnn_cell(env_obs, memory_obs)
+        if self._num_env_obs_dims_to_ignore > 0:
+            self._env_action_scope_name = (
+                self._rnn_cell.rnn_cell.env_action_scope.name
+            )
+        else:
+            self._env_action_scope_name = self._rnn_cell.env_action_scope.name
         return cell_output
 
     def get_params_internal(self, env_only=False):
         if env_only:
             return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,
-                                     self._rnn_cell.env_action_scope.name)
+                                     self._env_action_scope_name)
         else:
             return super().get_params_internal()
 
