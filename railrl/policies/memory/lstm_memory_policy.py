@@ -47,6 +47,7 @@ class LstmLinearCell(LSTMCell):
             output_dim,
             env_noise_std=0.,
             memory_noise_std=0.,
+            output_nonlinearity=tf.nn.tanh,
             **kwargs
     ):
         assert env_noise_std >= 0.
@@ -55,6 +56,7 @@ class LstmLinearCell(LSTMCell):
         self._output_dim = output_dim
         self._env_noise_std = env_noise_std
         self._memory_noise_std = memory_noise_std
+        self.output_nonlinearity = output_nonlinearity
 
     def __call__(self, inputs, state, scope=None):
         with tf.variable_scope(scope or "linear_lstm") as self.scope:
@@ -79,7 +81,7 @@ class LstmLinearCell(LSTMCell):
                                     initializer=tf.constant_initializer(0.0))
 
             env_action_logit = tf.matmul(lstm_output, W) + b
-            return tf.nn.softmax(env_action_logit), flat_state
+            return self.output_nonlinearity(env_action_logit), flat_state
 
     @property
     def state_size(self):
