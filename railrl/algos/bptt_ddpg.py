@@ -38,7 +38,6 @@ class BpttDDPG(DDPG):
             env_action_dim=None,
             replay_pool_size=10000,
             replay_buffer_class=SubtrajReplayBuffer,
-            freeze_hidden=False,
             bpt_bellman_error_weight=0.,
             train_policy=True,
             extra_train_period=100,
@@ -46,8 +45,9 @@ class BpttDDPG(DDPG):
             extra_qf_training_mode='none',
             qf_total_loss_tolerance=None,
             max_num_q_updates=100,
-            train_qf_on_all=True,
+            train_qf_on_all=False,
             train_policy_on_all_qf_timesteps=False,
+            write_policy_learning_rate=None,
             **kwargs
     ):
         """
@@ -59,7 +59,6 @@ class BpttDDPG(DDPG):
         before feeding its output to the Q function.
         Must be a positive integer.
         `1` corresponds to doing just normal DDPG.
-        :param freeze_hidden: If True, don't train recurrent part of the policy.
         :param bpt_bellman_error_weight:
         :param train_policy: If False, don't train the policy at all.
         :param extra_train_period: Only do extra QF training this often. Only
@@ -75,6 +74,16 @@ class BpttDDPG(DDPG):
         - 'fixed': Always do `num_extra_qf_updates` extra updates
         - 'validation': Do up to `max_num_q_updates` extra updates so long
         as validation qf loss goes down.
+        :param train_qf_on_all: If True, then train the Q function on all the
+        (s, a, s') tuples along the sampled sub-trajectories (rather than just
+        the final tuple).
+        :param train_policy_on_all_qf_timesteps: If True, then train the policy
+        to maximizie all the Q(o, w, s, m) values along the sampled
+        sub-trajectories (rather than just the final tuple).
+        :param write_policy_learning_rate: If set, then train the write action
+        part of the policy at this different learning rate. If `None`,
+        the `policy_learning_rate` is used for all policy parameters. If set to
+        zero, then the write action parameters aren't trained at all.
         :param kwargs: kwargs to pass onto DDPG
         """
         assert extra_qf_training_mode in [
@@ -97,7 +106,6 @@ class BpttDDPG(DDPG):
         self._num_bptt_unrolls = num_bptt_unrolls
         self._env_obs_dim = env_obs_dim
         self._env_action_dim = env_action_dim
-        self._freeze_hidden = freeze_hidden
         self._bpt_bellman_error_weight = bpt_bellman_error_weight
         self.train_policy = train_policy
         self.extra_qf_training_mode = extra_qf_training_mode
@@ -107,6 +115,7 @@ class BpttDDPG(DDPG):
         self.max_num_q_updates = max_num_q_updates
         self.train_qf_on_all = train_qf_on_all
         self.train_policy_on_all_qf_timesteps = train_policy_on_all_qf_timesteps
+        self.write_policy_learning_rate = write_policy_learning_rate
 
         self._rnn_cell_scope = policy.rnn_cell_scope
         self._rnn_cell = policy.rnn_cell
@@ -507,18 +516,37 @@ class BpttDDPG(DDPG):
             self.policy_surrogate_loss += (
                 self.bellman_error_for_policy * self._bpt_bellman_error_weight
             )
-        if self._freeze_hidden:
-            trainable_policy_params = self.policy.get_params(env_only=True)
+        if self.train_policy:
+            self.train_policy_op = self._get_policy_train_op(
+                self.policy_surrogate_loss
+            )
         else:
-            trainable_policy_params = self.policy.get_params_internal()
-        self.train_policy_op = tf.train.AdamOptimizer(
-            self.policy_learning_rate
-        ).minimize(
-            self.policy_surrogate_loss,
-            var_list=trainable_policy_params,
-        )
-        if not self.train_policy:
             self.train_policy_op = None
+
+    def _get_policy_train_op(self, loss):
+        if self.write_policy_learning_rate is None:
+            trainable_policy_params = self.policy.get_params_internal()
+            return tf.train.AdamOptimizer(
+                self.policy_learning_rate
+            ).minimize(loss, var_list=trainable_policy_params)
+
+        policy_env_params = self.policy.get_params(env_only=True)
+        if self.write_policy_learning_rate == 0.:
+            return tf.train.AdamOptimizer(
+                self.policy_learning_rate
+            ).minimize(loss, var_list=policy_env_params)
+        else:
+            policy_write_params = self.policy.get_params(write_only=True)
+            self.train_policy_op_env = tf.train.AdamOptimizer(
+                self.policy_learning_rate
+            ).minimize(loss, var_list=policy_env_params)
+            self.train_policy_op_write = tf.train.AdamOptimizer(
+                self.write_policy_learning_rate
+            ).minimize(loss, var_list=policy_write_params)
+            return [
+                self.train_policy_op_env,
+                self.train_policy_op_write,
+            ]
 
     def _get_policy_training_ops(self, **kwargs):
         return self._get_network_training_ops(

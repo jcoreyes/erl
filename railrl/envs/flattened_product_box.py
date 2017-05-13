@@ -34,8 +34,8 @@ class FlattenedProductBox(ProxyEnv):
     @staticmethod
     def _create_flat_box(product_space):
         dim = product_space.flat_dim
-        lows = np.vstack([c.low for c in product_space.components])
-        highs = np.vstack([c.high for c in product_space.components])
+        lows = np.hstack([c.low for c in product_space.components])
+        highs = np.hstack([c.high for c in product_space.components])
         return TfBox(
             np.ones(dim) * np.min(lows),
             np.ones(dim) * np.max(highs),

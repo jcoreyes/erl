@@ -45,7 +45,7 @@ class NNPolicy(StateNetwork, Policy, metaclass=abc.ABCMeta):
 
     @staticmethod
     def _flatten_action(action):
-        return np.squeeze(action)
+        return np.squeeze(action, axis=0)
 
 
 class FeedForwardPolicy(NNPolicy):

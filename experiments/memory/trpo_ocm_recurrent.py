@@ -23,6 +23,7 @@ def run_linear_ocm_exp(variant):
     from railrl.envs.memory.one_char_memory import (
         OneCharMemoryEndOnly,
     )
+    from railrl.envs.memory.high_low import HighLow
     from railrl.launchers.launcher_util import (
         set_seed,
     )
@@ -42,6 +43,7 @@ def run_linear_ocm_exp(variant):
     """
 
     env = OneCharMemoryEndOnly(n=num_values, num_steps=H, softmax_action=True)
+    # env = HighLow(num_steps=H)
     env = ContinuousMemoryAugmented(
         env,
         num_memory_states=onehot_dim,

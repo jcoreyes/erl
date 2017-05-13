@@ -15,4 +15,4 @@ class MemoryPolicy(NNPolicy, metaclass=abc.ABCMeta):
 
     @staticmethod
     def _flatten_action(action):
-        return tuple(np.squeeze(a) for a in action)
+        return tuple(np.squeeze(a, axis=0) for a in action)

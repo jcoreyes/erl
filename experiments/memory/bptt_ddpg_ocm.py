@@ -11,6 +11,7 @@ from railrl.algos.ddpg import TargetUpdateMode
 from railrl.envs.memory.one_char_memory import (
     OneCharMemoryEndOnly,
 )
+from railrl.envs.memory.high_low import HighLow
 from railrl.launchers.launcher_util import (
     run_experiment,
 )
@@ -27,6 +28,7 @@ from railrl.policies.memory.lstm_memory_policy import (
     LstmLinearCell,
     LstmMlpCell,
     # LstmLinearCellNoiseAll,
+    SeparateLstmLinearCell,
 )
 # from railrl.algos.writeback_bptt_ddpt import WritebackBpttDDPG
 from railrl.algos.bptt_ddpg import BpttDDPG
@@ -34,7 +36,7 @@ from railrl.algos.bptt_ddpg import BpttDDPG
 from railrl.exploration_strategies.noop import NoopStrategy
 from railrl.exploration_strategies.onehot_sampler import OneHotSampler
 # from railrl.exploration_strategies.ou_strategy import OUStrategy
-# from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
+from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 
 from railrl.exploration_strategies.action_aware_memory_strategy import \
     ActionAwareMemoryStrategy
@@ -261,7 +263,8 @@ if __name__ == '__main__':
     """
     Set all the hyperparameters!
     """
-    env_class = OneCharMemoryEndOnly
+    # env_class = OneCharMemoryEndOnly
+    env_class = HighLow
     H = 2
     env_params = dict(
         num_steps=H,
@@ -303,23 +306,26 @@ if __name__ == '__main__':
         policy_learning_rate=1e-3,
         max_num_q_updates=1000,
         train_policy=True,
-        freeze_hidden=False,
+        write_policy_learning_rate=1e-4,
         train_policy_on_all_qf_timesteps=False,
         # memory
         num_bptt_unrolls=2,
-        bpt_bellman_error_weight=0,
+        bpt_bellman_error_weight=1,
         reward_low_bellman_error_weight=0.,
     )
 
     # noinspection PyTypeChecker
     policy_params = dict(
-        rnn_cell_class=LstmLinearCell,
-        # rnn_cell_class=LstmMlpCell,
+        # rnn_cell_class=LstmLinearCell,
+        rnn_cell_class=SeparateLstmLinearCell,
         # rnn_cell_class=LstmLinearCellNoiseAll,
         rnn_cell_params=dict(
             use_peepholes=True,
-            env_noise_std=0,
-            memory_noise_std=1,
+            env_noise_std=0.,
+            memory_noise_std=1.,
+            output_nonlinearity=tf.nn.tanh,
+            # env_hidden_sizes=[],
+            # env_hidden_activation=tf.identity,
         )
     )
 
@@ -345,11 +351,12 @@ if __name__ == '__main__':
 
     # noinspection PyTypeChecker
     es_params = dict(
-        env_es_class=NoopStrategy,
+        # env_es_class=NoopStrategy,
+        env_es_class=GaussianStrategy,
         env_es_params=dict(
-            max_sigma=1.0,
-            min_sigma=0.5,
-            decay_period=500,
+            max_sigma=.5,
+            min_sigma=0.01,
+            decay_period=epoch_length*15,
             softmax=True,
             laplace_weight=0.,
         ),
@@ -381,7 +388,7 @@ if __name__ == '__main__':
     """
     # noinspection PyTypeChecker
     variant = dict(
-        memory_dim=20,
+        memory_dim=2,
         exp_prefix=exp_prefix,
         algo_class=algo_class,
         version=version,
