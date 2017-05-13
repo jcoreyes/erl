@@ -468,8 +468,8 @@ class BpttDDPG(DDPG):
                 observation_input=target_observation_input,
             )
             self.ys_for_policy = (
-                self.rewards_placeholder +
-                (1. - self.terminals_placeholder)
+                self.rewards_n1 +
+                (1. - self.terminals_n1)
                 * self.discount
                 * self.target_qf_for_policy.output
             )
