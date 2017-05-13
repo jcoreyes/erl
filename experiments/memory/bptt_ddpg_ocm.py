@@ -268,7 +268,7 @@ if __name__ == '__main__':
         zero_observation=True,
         output_target_number=False,
         output_time=False,
-        episode_boundary_flags=False,
+        episode_boundary_flags=True,
         max_reward_magnitude=1,
     )
 
@@ -291,11 +291,11 @@ if __name__ == '__main__':
         hard_update_period=1000,
         target_update_mode=TargetUpdateMode.HARD,
         # QF hyperparameters
-        qf_learning_rate=5e-4,
-        num_extra_qf_updates=5,
-        extra_qf_training_mode='none',
+        qf_learning_rate=1e-3,
+        num_extra_qf_updates=0,
+        extra_qf_training_mode='fixed',
         extra_train_period=100,
-        qf_weight_decay=0.,
+        qf_weight_decay=0.01,
         qf_total_loss_tolerance=0.03,
         train_qf_on_all=False,
         # Policy hps
@@ -306,7 +306,7 @@ if __name__ == '__main__':
         train_policy_on_all_qf_timesteps=False,
         # memory
         num_bptt_unrolls=4,
-        bpt_bellman_error_weight=0,
+        bpt_bellman_error_weight=1,
         reward_low_bellman_error_weight=0.,
     )
 
@@ -333,7 +333,7 @@ if __name__ == '__main__':
 
     meta_qf_params = dict(
         use_time=False,
-        use_target=True,
+        use_target=False,
     )
     meta_params = dict(
         meta_qf_learning_rate=0.0001900271829580542,
@@ -343,7 +343,7 @@ if __name__ == '__main__':
 
     # noinspection PyTypeChecker
     es_params = dict(
-        env_es_class=OneHotSampler,
+        env_es_class=NoopStrategy,
         env_es_params=dict(
             max_sigma=1.0,
             min_sigma=0.5,
@@ -371,7 +371,7 @@ if __name__ == '__main__':
         # observation_hidden_sizes=[100],
         use_time=False,
         use_target=False,
-        dropout_keep_prob=0.5,
+        dropout_keep_prob=None,
     )
 
     """
