@@ -237,10 +237,10 @@ if __name__ == '__main__':
     version = 'dev'
     num_hp_settings = 100
 
-    n_seeds = 10
-    mode = 'ec2'
-    exp_prefix = '5-11-meta-grid'
-    run_mode = 'grid'
+    # n_seeds = 5
+    # mode = 'ec2'
+    # exp_prefix = '5-11-low-bellman-error-grid'
+    # run_mode = 'grid'
     # version = 'reward-low-bellman'
 
     """
@@ -333,11 +333,11 @@ if __name__ == '__main__':
 
     meta_qf_params = dict(
         use_time=False,
-        use_target=False,
+        use_target=True,
     )
     meta_params = dict(
         meta_qf_learning_rate=0.0001900271829580542,
-        meta_qf_output_weight=10,
+        meta_qf_output_weight=0,
         qf_output_weight=1,
     )
 
@@ -446,12 +446,14 @@ if __name__ == '__main__':
         )
     elif run_mode == 'grid':
         search_space = {
-            # 'policy_params.rnn_cell_params.env_noise_std': [0., 1.],
-            # 'policy_params.rnn_cell_params.memory_noise_std': [0., 1.],
+            # 'policy_params.rnn_cell_params.env_noise_std': [0., .5],
+            'policy_params.rnn_cell_params.memory_noise_std': [0., 0.1, 1.],
             # 'meta_params.meta_qf_learning_rate': [1e-3, 1e-4],
             # 'ddpg_params.qf_weight_decay': [0, 0.001],
-            'qf_params.dropout_keep_prob': [0.9, 0.5, 0.1, None],
-            # 'meta_params.meta_qf_output_weight': [0, 5, 25],
+            'ddpg_params.reward_low_bellman_error_weight': [0, 0.1, 1., 10.],
+            'qf_params.dropout_keep_prob': [0.5, None],
+            'ddpg_params.num_extra_qf_updates': [0, 5],
+            # 'meta_params.meta_qf_output_weight': [0, 0.1, 5],
             # 'env_params.episode_boundary_flags': [True, False],
             # 'meta_params.qf_output_weight': [0, 1],
             # 'env_params.num_steps': [6, 8],
