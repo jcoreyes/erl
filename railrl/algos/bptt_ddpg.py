@@ -551,7 +551,7 @@ class BpttDDPG(DDPG):
             self.all_writes_subsequences * self._saved_write_gradients
         )
         self._saved_write_loss = (
-            tf.reduce_mean(self._saved_write_losses)
+            tf.reduce_sum(self._saved_write_losses)
             * self.saved_write_loss_weight
         )
         if self.saved_write_loss_weight > 0:
