@@ -169,16 +169,16 @@ class BpttDDPG(DDPG):
             ],
             feed_dict=policy_feed_dict,
         )
-        print("Desired dL/dtheta (next time)")
-        print(self.sess.run(self.dL_dtheta_should_apply, policy_feed_dict))
-        print("Actualy dL/dtheta")
-        print(self.sess.run(self.dL_dtheta_actually_applied, policy_feed_dict))
-        print("Desired dL/w (next time)")
-        print(dloss_dwrites)
-        print("Actualy dL/w")
-        print(np.array(self.sess.run(self.dL_dwrite_actually_applied,
-                              policy_feed_dict)))
-        import ipdb; ipdb.set_trace()
+        # print("Desired dL/dtheta (next time)")
+        # print(self.sess.run(self.dL_dtheta_should_apply, policy_feed_dict))
+        # print("Actualy dL/dtheta")
+        # print(self.sess.run(self.dL_dtheta_actually_applied, policy_feed_dict))
+        # print("Desired dL/w (next time)")
+        # print(dloss_dwrites)
+        # print("Actualy dL/w")
+        # print(np.array(self.sess.run(self.dL_dwrite_actually_applied,
+        #                       policy_feed_dict)))
+        # import ipdb; ipdb.set_trace()
         self.pool.update_write_subtrajectories(new_writes, start_indices)
         self.pool.update_dloss_dwrites_subtrajectories(dloss_dwrites,
                                                        start_indices)
@@ -538,13 +538,14 @@ class BpttDDPG(DDPG):
         all_writes_subsequences because all_writes_subsequences is downstream of;
         all_writes_list in the computation graph
         """
-        # self.loss_to_propagate = self.bellman_error_for_policy
-        self.loss_to_propagate = tf.reduce_sum(self.all_writes_list[-1])
-        self.wparam = self.policy.get_params(write_only=True)[0]
-        self.dL_dtheta_should_apply = tf.gradients(
-            self.loss_to_propagate,
-            self.wparam,
-        )[0]
+        self.loss_to_propagate = self.bellman_error_for_policy
+        # For debugging:
+        # self.loss_to_propagate = tf.reduce_sum(self.all_writes_list[-1])
+        # self.wparam = self.policy.get_params(write_only=True)[0]
+        # self.dL_dtheta_should_apply = tf.gradients(
+        #     self.loss_to_propagate,
+        #     self.wparam,
+        # )[0]
         self.dloss_dwrite = tf.gradients(self.loss_to_propagate,
                                          self.all_writes_list)
         self.dloss_dwrite_subsequences = tf.stack(self.dloss_dwrite, axis=1)
@@ -575,14 +576,14 @@ class BpttDDPG(DDPG):
             tf.reduce_sum(self._saved_write_losses)
             * self.saved_write_loss_weight
         )
-        self.dL_dtheta_actually_applied = tf.gradients(
-            self._saved_write_loss,
-            self.wparam,
-        )[0]
-        self.dL_dwrite_actually_applied = tf.gradients(
-            self._saved_write_loss,
-            self.all_writes_list
-        )
+        # self.dL_dtheta_actually_applied = tf.gradients(
+        #     self._saved_write_loss,
+        #     self.wparam,
+        # )[0]
+        # self.dL_dwrite_actually_applied = tf.gradients(
+        #     self._saved_write_loss,
+        #     self.all_writes_list
+        # )
         if self.saved_write_loss_weight > 0:
             loss += self._saved_write_loss
         if self._bpt_bellman_error_weight > 0.:
