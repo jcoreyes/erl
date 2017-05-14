@@ -268,7 +268,7 @@ if __name__ == '__main__':
     """
     # env_class = OneCharMemoryEndOnly
     env_class = HighLow
-    H = 3
+    H = 4
     env_params = dict(
         num_steps=H,
         n=2,
@@ -284,10 +284,11 @@ if __name__ == '__main__':
     max_path_length = H + 2
     # noinspection PyTypeChecker
     ddpg_params = dict(
-        batch_size=4,
+        batch_size=32,
         n_epochs=30,
-        min_pool_size=4,
-        replay_pool_size=int(4*(H+1)*5/4),
+        min_pool_size=32,
+        replay_pool_size=(H+1)*1000,
+        # replay_pool_size=int(32*(H+1)*5/4),
         epoch_length=epoch_length,
         eval_samples=eval_samples,
         max_path_length=max_path_length,
@@ -321,9 +322,9 @@ if __name__ == '__main__':
     # noinspection PyTypeChecker
     policy_params = dict(
         # rnn_cell_class=LstmLinearCell,
-        # rnn_cell_class=SeparateLstmLinearCell,
+        rnn_cell_class=SeparateLstmLinearCell,
         # rnn_cell_class=LstmLinearCellNoiseAll,
-        rnn_cell_class=DebugCell,
+        # rnn_cell_class=DebugCell,
         rnn_cell_params=dict(
             use_peepholes=True,
             env_noise_std=0.5,
