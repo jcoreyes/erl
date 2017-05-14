@@ -37,7 +37,6 @@ class UpdatableSubtrajReplayBuffer(SubtrajReplayBuffer):
 
         self._memory_dim = env.memory_dim
         self._memories = np.zeros((max_pool_size, self._memory_dim))
-        # self._writes = np.zeros((max_pool_size, self._memory_dim))
 
     def random_subtrajectories(self, batch_size, replace=False,
                                validation=False):
@@ -50,12 +49,11 @@ class UpdatableSubtrajReplayBuffer(SubtrajReplayBuffer):
 
     def _add_sample(self, observation, action, reward, terminal,
                     final_state, **kwargs):
-        env_action, write = action
+        env_action, write = action  # write should be saved as next memory
         env_obs, memory = observation
         self._env_obs[self._top] = env_obs
         self._env_actions[self._top] = env_action
         self._memories[self._top] = memory
-        # self._writes[self._top] = write
         self._rewards[self._top] = reward
         self._terminals[self._top] = terminal
         self._final_state[self._top] = final_state
@@ -90,8 +88,8 @@ class UpdatableSubtrajReplayBuffer(SubtrajReplayBuffer):
 
     @cached_property
     def _stub_action(self):
-        # Though technically, the parent's method should work, I think this
-        # is more clear.
+        # Technically, the parent's method should work, but I think this is more
+        # clear.
         return np.zeros(self._env_action_dim), np.zeros(self.memory_dim)
 
     def update_subtrajectories(self, updated_writes, updated_dloss_dmemory,
@@ -103,12 +101,6 @@ class UpdatableSubtrajReplayBuffer(SubtrajReplayBuffer):
             length=self._subtraj_length,
             start_offset=1
         )
-        # assign_subsequences(
-        #     tensor=self._writes,
-        #     new_values=updated_writes,
-        #     start_indices=start_indices,
-        #     length=self._subtraj_length,
-        # )
         assign_subsequences(
             tensor=self._dloss_dmemories,
             new_values=updated_dloss_dmemory,
