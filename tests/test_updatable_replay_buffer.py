@@ -60,7 +60,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
         self.assertEqual(subtrajs['next_memories'].shape, (5, 2, 1))
         self.assertEqual(subtrajs['writes'].shape, (5, 2, 1))
         self.assertEqual(subtrajs['rewards'].shape, (5, 2))
-        self.assertEqual(subtrajs['dloss_dmemories'].shape, (5, 2, 1))
+        self.assertEqual(subtrajs['dloss_dwrites'].shape, (5, 2, 1))
 
     def test_next_memory_equals_write(self):
         env = StubMemoryEnv()
@@ -117,7 +117,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
             buff.add_sample(observation, action, 1, False)
         # First trajectory always goes in validation set
         subtrajs, _ = buff.random_subtrajectories(5, validation=True)
-        self.assertNpEqual(subtrajs['dloss_dmemories'], np.zeros((5, 2, 1)))
+        self.assertNpEqual(subtrajs['dloss_dwrites'], np.zeros((5, 2, 1)))
 
     def test__fixed_start_indices(self):
         env = StubMemoryEnv()
@@ -236,7 +236,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
         self.assertNpArraysNotEqual(old_memories, new_memories)
         self.assertNpEqual(new_memories, expected_new_memories)
 
-    def test_update_dloss_dmemories_works(self):
+    def test_update_dloss_dwrites_works(self):
         env = StubMemoryEnv()
         buff = UpdatableSubtrajReplayBuffer(
             max_pool_size=100,
@@ -254,13 +254,13 @@ class TestSubtrajReplayBuffer(TFTestCase):
         # First trajectory always goes in validation set
         start_indices = [0, 4, 8]
         new_dd = np.random.rand(len(start_indices), 2, 1)
-        buff.update_dloss_dmemories_subtrajectories(new_dd, start_indices)
+        buff.update_dloss_dwrites_subtrajectories(new_dd, start_indices)
         new_subtrajs, new_start_indices = buff.random_subtrajectories(
             len(start_indices),
             validation=True,
             _fixed_start_indices=start_indices,
         )
-        self.assertNpEqual(new_subtrajs['dloss_dmemories'], new_dd)
+        self.assertNpEqual(new_subtrajs['dloss_dwrites'], new_dd)
 
 
 class StubMemoryEnv(ContinuousMemoryAugmented):

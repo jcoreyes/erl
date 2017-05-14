@@ -28,7 +28,10 @@ class UpdatableSubtrajReplayBuffer(SubtrajReplayBuffer):
 
         self.memory_dim = memory_dim
         # Note that this must be computed from the next time step.
-        self._dloss_dmemories = np.zeros((self._max_pool_size,
+        """
+        self._dloss_dwrite[t] = dL/dw_t     (zero-indexed)
+        """
+        self._dloss_dwrites = np.zeros((self._max_pool_size,
                                           self.memory_dim))
         self._env_obs_dim = env.env_spec.observation_space.flat_dim
         self._env_action_dim = env.env_spec.action_space.flat_dim
@@ -84,7 +87,7 @@ class UpdatableSubtrajReplayBuffer(SubtrajReplayBuffer):
                                  self._subtraj_length),
             terminals=subsequences(self._terminals, start_indices,
                                    self._subtraj_length),
-            dloss_dmemories=subsequences(self._dloss_dmemories, start_indices,
+            dloss_dwrites=subsequences(self._dloss_dwrites, start_indices,
                                          self._subtraj_length),
         )
 
@@ -103,14 +106,14 @@ class UpdatableSubtrajReplayBuffer(SubtrajReplayBuffer):
             start_offset=1
         )
 
-    def update_dloss_dmemories_subtrajectories(
+    def update_dloss_dwrites_subtrajectories(
             self,
-            updated_dloss_dmemory,
+            updated_dloss_dwrites,
             start_indices
     ):
         assign_subsequences(
-            tensor=self._dloss_dmemories,
-            new_values=updated_dloss_dmemory,
+            tensor=self._dloss_dwrites,
+            new_values=updated_dloss_dwrites,
             start_indices=start_indices,
             length=self._subtraj_length,
         )
