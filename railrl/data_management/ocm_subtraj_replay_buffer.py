@@ -1,10 +1,12 @@
 import numpy as np
 
 from railrl.data_management.subtraj_replay_buffer import SubtrajReplayBuffer
+from railrl.data_management.updatable_subtraj_replay_buffer import \
+    UpdatableSubtrajReplayBuffer
 from railrl.misc.np_util import subsequences
 
 
-class OcmSubtrajReplayBuffer(SubtrajReplayBuffer):
+class OcmSubtrajReplayBuffer(UpdatableSubtrajReplayBuffer):
     """
     A replay buffer desired specifically for OneCharMem
     sub-trajectories
@@ -15,6 +17,8 @@ class OcmSubtrajReplayBuffer(SubtrajReplayBuffer):
             max_pool_size,
             env,
             subtraj_length,
+            *args,
+            **kwargs
     ):
         self._target_numbers = np.zeros(max_pool_size, dtype='uint8')
         self._times = np.zeros(max_pool_size, dtype='uint8')
@@ -22,7 +26,9 @@ class OcmSubtrajReplayBuffer(SubtrajReplayBuffer):
             max_pool_size,
             env,
             subtraj_length,
+            *args,
             only_sample_at_start_of_episode=False,
+            **kwargs
         )
 
     def _add_sample(self, observation, action, reward, terminal,

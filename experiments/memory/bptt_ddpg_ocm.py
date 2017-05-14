@@ -8,6 +8,9 @@ import tensorflow as tf
 import random
 
 from railrl.algos.ddpg import TargetUpdateMode
+from railrl.data_management.ocm_subtraj_replay_buffer import (
+    OcmSubtrajReplayBuffer
+)
 from railrl.envs.memory.one_char_memory import (
     OneCharMemoryEndOnly,
 )
@@ -62,9 +65,6 @@ def run_ocm_experiment(variant):
     from railrl.launchers.launcher_util import (
         set_seed,
     )
-    from railrl.data_management.ocm_subtraj_replay_buffer import (
-        OcmSubtrajReplayBuffer
-    )
     from railrl.qfunctions.memory.hint_mlp_memory_qfunction import (
         HintMlpMemoryQFunction
     )
@@ -84,6 +84,8 @@ def run_ocm_experiment(variant):
     qf_params = variant['qf_params']
     meta_qf_params = variant['meta_qf_params']
     es_params = variant['es_params']
+    replay_buffer_class = variant['replay_buffer_class']
+    replay_buffer_params = variant['replay_buffer_params']
 
     env_es_class = es_params['env_es_class']
     env_es_params = es_params['env_es_params']
@@ -148,7 +150,6 @@ def run_ocm_experiment(variant):
     if oracle_mode == 'none':
         qf_params['use_time'] = False
         qf_params['use_target'] = False
-        ddpg_params.pop('unroll_through_target_policy')
         qf = HintMlpMemoryQFunction(
             name_or_scope="critic",
             hint_dim=env_action_dim,
@@ -158,7 +159,7 @@ def run_ocm_experiment(variant):
         )
         algo_class = variant['algo_class']
     elif oracle_mode == 'oracle' or oracle_mode == 'meta':
-        regress_params = variant['regress_params']
+        oracle_params = variant['oracle_params']
         qf = qf or HintMlpMemoryQFunction(
             name_or_scope="hint_critic",
             hint_dim=env_action_dim,
@@ -178,7 +179,7 @@ def run_ocm_experiment(variant):
         )
         algo_class = OracleBpttDdpg
         ddpg_params['oracle_qf'] = oracle_qf
-        ddpg_params.update(regress_params)
+        ddpg_params.update(oracle_params)
     else:
         raise Exception("Unknown mode: {}".format(oracle_mode))
     if oracle_mode == 'meta':
@@ -201,7 +202,8 @@ def run_ocm_experiment(variant):
         qf,
         env_obs_dim=env_obs_dim,
         env_action_dim=env_action_dim,
-        replay_buffer_class=OcmSubtrajReplayBuffer,
+        replay_buffer_class=replay_buffer_class,
+        replay_buffer_params=replay_buffer_params,
         **ddpg_params
     )
 
@@ -251,7 +253,7 @@ if __name__ == '__main__':
     """
     n_batches_per_epoch = 100
     n_batches_per_eval = 64
-    oracle_mode = 'meta'
+    oracle_mode = 'none'
     algo_class = BpttDDPG
     load_policy_file = (
         '/home/vitchyr/git/rllab-rail/railrl/data/reference/expert'
@@ -383,12 +385,17 @@ if __name__ == '__main__':
         dropout_keep_prob=None,
     )
 
+    memory_dim = 2
+    replay_buffer_params = dict(
+        memory_dim=memory_dim,
+    )
+
     """
     Create monolithic variant dictionary
     """
     # noinspection PyTypeChecker
     variant = dict(
-        memory_dim=2,
+        memory_dim=memory_dim,
         exp_prefix=exp_prefix,
         algo_class=algo_class,
         version=version,
@@ -400,9 +407,11 @@ if __name__ == '__main__':
         policy_params=policy_params,
         qf_params=qf_params,
         meta_qf_params=meta_qf_params,
-        regress_params=oracle_params,
+        oracle_params=oracle_params,
         es_params=es_params,
         meta_params=meta_params,
+        replay_buffer_class=OcmSubtrajReplayBuffer,
+        replay_buffer_params=replay_buffer_params,
     )
 
     if run_mode == 'hyperopt':

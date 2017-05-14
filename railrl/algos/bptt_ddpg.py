@@ -13,6 +13,8 @@ from railrl.core.rnn.rnn import OutputStateRnn
 from railrl.data_management.subtraj_replay_buffer import (
     SubtrajReplayBuffer
 )
+from railrl.data_management.updatable_subtraj_replay_buffer import \
+    UpdatableSubtrajReplayBuffer
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.policies.memory.rnn_cell_policy import RnnCellPolicy
 from railrl.pythonplusplus import map_recursive, filter_recursive, line_logger
@@ -38,6 +40,7 @@ class BpttDDPG(DDPG):
             env_action_dim=None,
             replay_pool_size=10000,
             replay_buffer_class=SubtrajReplayBuffer,
+            replay_buffer_params=None,
             bpt_bellman_error_weight=0.,
             train_policy=True,
             extra_train_period=100,
@@ -92,6 +95,8 @@ class BpttDDPG(DDPG):
             'validation',
         ]
         assert num_bptt_unrolls > 0
+        if replay_buffer_params is None:
+            replay_buffer_params = {}
         super().__init__(
             env,
             exploration_strategy,
@@ -101,6 +106,7 @@ class BpttDDPG(DDPG):
                 replay_pool_size,
                 env,
                 num_bptt_unrolls,
+                **replay_buffer_params
             ),
             **kwargs)
         self._num_bptt_unrolls = num_bptt_unrolls
@@ -121,6 +127,7 @@ class BpttDDPG(DDPG):
         self._rnn_cell = policy.rnn_cell
 
         self._replay_buffer_class = replay_buffer_class
+        self._replay_buffer_params = replay_buffer_params
         self._last_env_scores = []
         self.target_policy_for_policy = None
         self.target_qf_for_policy = None
@@ -139,7 +146,7 @@ class BpttDDPG(DDPG):
     ):
         self._do_extra_qf_training(n_steps_total=n_steps_total)
 
-        minibatch = self._sample_minibatch()
+        minibatch, start_indices = self._sample_minibatch()
 
         qf_ops = self._get_qf_training_ops(
             epoch=epoch,
@@ -162,6 +169,7 @@ class BpttDDPG(DDPG):
             len(paths) * self.max_path_length,
             self.env,
             self._num_bptt_unrolls,
+            **self._replay_buffer_params
         )
         for path in paths:
             eval_pool.add_trajectory(path)
@@ -266,29 +274,41 @@ class BpttDDPG(DDPG):
         """
         rewards = batch['rewards']
         terminals = batch['terminals']
-        obs = batch['observations']
-        actions = batch['actions']
-        next_obs = batch['next_observations']
+        env_obs = batch['env_obs']
+        memories = batch['memories']
+        env_actions = batch['env_actions']
+        writes = batch['writes']
+        env_next_obs = batch['next_env_obs']
+        next_memories = batch['next_memories']
         target_numbers = batch['target_numbers']
         times = batch['times']
 
-        flat_actions = actions.reshape(-1, actions.shape[-1])
-        flat_obs = obs.reshape(-1, obs.shape[-1])
-        flat_next_obs = next_obs.reshape(-1, next_obs.shape[-1])
+        flat_actions = (
+            env_actions.reshape(-1, env_actions.shape[-1]),
+            writes.reshape(-1, writes.shape[-1]),
+        )
+        flat_obs = (
+            env_obs.reshape(-1, env_obs.shape[-1]),
+            memories.reshape(-1, memories.shape[-1]),
+        )
+        flat_next_obs = (
+            env_next_obs.reshape(-1, env_next_obs.shape[-1]),
+            next_memories.reshape(-1, next_memories.shape[-1])
+        )
         flat_target_numbers = target_numbers.flatten()
         flat_times = times.flatten()
         flat_terminals = terminals.flatten()
         flat_rewards = rewards.flatten()
 
-        split_flat_obs = self._split_flat_obs(flat_obs)
-        split_flat_actions = self._split_flat_actions(flat_actions)
-        split_flat_next_obs = self._split_flat_obs(flat_next_obs)
+        # split_flat_obs = self._split_flat_obs(flat_obs)
+        # split_flat_actions = self._split_flat_actions(flat_actions)
+        # split_flat_next_obs = self._split_flat_obs(flat_next_obs)
         return dict(
             rewards=flat_rewards,
             terminals=flat_terminals,
-            obs=split_flat_obs,
-            actions=split_flat_actions,
-            next_obs=split_flat_next_obs,
+            obs=flat_obs,
+            actions=flat_actions,
+            next_obs=flat_next_obs,
             target_numbers=flat_target_numbers,
             times=flat_times,
         )
@@ -303,29 +323,44 @@ class BpttDDPG(DDPG):
         """
         rewards = batch['rewards']
         terminals = batch['terminals']
-        obs = batch['observations']
-        actions = batch['actions']
-        next_obs = batch['next_observations']
+        obs = batch['env_obs'], batch['memories']
+        actions = batch['env_actions'], batch['writes']
+        next_obs = batch['next_env_obs'], batch['next_memories']
         target_numbers = batch['target_numbers']
         times = batch['times']
 
         last_actions = self._get_time_step(actions, -1)
         last_obs = self._get_time_step(obs, -1)
         last_next_obs = self._get_time_step(next_obs, -1)
+        # env_obs = batch['env_obs']
+        # memories = batch['memories']
+        # env_actions = batch['env_actions']
+        # writes = batch['writes']
+        # env_next_obs = batch['next_env_obs']
+        # next_memories = batch['next_memories']
+        # last_actions = (
+        #     self._get_time_step(env_actions, -1),
+        #     self._get_time_step(writes, -1),
+        # )
+        # last_obs = (
+        #     self._get_time_step(env_obs, -1),
+        #     self._get_time_step(memories, -1),
+        # )
+        # last_next_obs = (
+        #     self._get_time_step(env_next_obs, -1),
+        #     self._get_time_step(next_memories, -1),
+        # )
         last_target_numbers = target_numbers[:, -1]
         last_times = times[:, -1]
         last_terminals = terminals[:, -1]
         last_rewards = rewards[:, -1]
 
-        split_flat_obs = self._split_flat_obs(last_obs)
-        split_flat_actions = self._split_flat_actions(last_actions)
-        split_flat_next_obs = self._split_flat_obs(last_next_obs)
         return dict(
             rewards=last_rewards,
             terminals=last_terminals,
-            obs=split_flat_obs,
-            actions=split_flat_actions,
-            next_obs=split_flat_next_obs,
+            obs=last_obs,
+            actions=last_actions,
+            next_obs=last_next_obs,
             target_numbers=last_target_numbers,
             times=last_times,
         )
@@ -342,7 +377,7 @@ class BpttDDPG(DDPG):
             return
         elif self.extra_qf_training_mode == 'fixed':
             for _ in range(self._num_extra_qf_updates):
-                minibatch = self._sample_minibatch()
+                minibatch, start_indices = self._sample_minibatch()
                 feed_dict = self._qf_feed_dict_from_batch(minibatch)
                 ops = self._get_qf_training_ops(n_steps_total=0)
                 if len(ops) > 0:
@@ -357,7 +392,7 @@ class BpttDDPG(DDPG):
                     "{0} T:{1:3.4f} V:{2:3.4f}".format(0, 0, 0)
                 )
                 for i in range(self.max_num_q_updates):
-                    minibatch = self._sample_minibatch()
+                    minibatch, start_indices = self._sample_minibatch()
                     feed_dict = self._qf_feed_dict_from_batch(minibatch)
                     ops = [self.qf_loss, self.train_qf_op]
                     ops += self.update_target_qf_op
@@ -557,7 +592,7 @@ class BpttDDPG(DDPG):
         )
 
     def _policy_feed_dict_from_batch(self, batch):
-        obs = self._split_flat_obs(batch['observations'])
+        obs = self._get_obs(batch)
         initial_memory_obs = self._get_time_step(obs, 0)[1]
         env_obs, _ = obs
         feed_dict = {
@@ -565,8 +600,8 @@ class BpttDDPG(DDPG):
             self._rnn_init_state_ph: initial_memory_obs,
         }
         if self._bpt_bellman_error_weight > 0.:
-            next_obs = self._split_flat_obs(batch['next_observations'])
-            actions = self._split_flat_actions(batch['actions'])
+            next_obs = self._get_next_obs(batch)
+            actions = self._get_actions(batch)
             last_rewards = batch['rewards'][:, -1:]
             last_terminals = batch['terminals'][:, -1:]
             last_env_obs = self._get_time_step(obs, -1)[0]
@@ -587,7 +622,7 @@ class BpttDDPG(DDPG):
 
     def _eval_policy_feed_dict_from_batch(self, batch):
         feed_dict = self._policy_feed_dict_from_batch(batch)
-        obs = self._split_flat_obs(batch['observations'])
+        obs = self._get_obs(batch)
         last_obs = self._get_time_step(obs, t=-1)
         feed_dict[self.policy.observation_input] = last_obs
         return feed_dict
@@ -630,3 +665,15 @@ class BpttDDPG(DDPG):
                 self.qf_for_policy,
             ]
         return networks
+
+    @staticmethod
+    def _get_obs(batch):
+        return batch['env_obs'], batch['memories']
+
+    @staticmethod
+    def _get_next_obs(batch):
+        return batch['env_obs'], batch['memories']
+
+    @staticmethod
+    def _get_actions(batch):
+        return batch['env_actions'], batch['writes']
