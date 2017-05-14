@@ -174,23 +174,14 @@ class MetaBpttDdpg(OracleBpttDdpg):
         )
 
     def _init_policy_loss_and_train_ops(self):
-        self.policy_surrogate_loss = - tf.reduce_mean(
-            self.qf_with_action_input.output
-        ) * self.qf_output_weight
+        self.policy_surrogate_loss = self._get_policy_train_loss()
         if self.meta_qf_output_weight > 0:
             self.policy_surrogate_loss += tf.reduce_mean(
                 self.meta_qf_with_action_input.output
             ) * self.meta_qf_output_weight
-        if self._bpt_bellman_error_weight > 0.:
-            self.policy_surrogate_loss += (
-                self.bellman_error_for_policy * self._bpt_bellman_error_weight
-            )
-        if self.train_policy:
-            self.train_policy_op = self._get_policy_train_op(
-                self.policy_surrogate_loss
-            )
-        else:
-            self.train_policy_op = None
+        self.train_policy_op = self._get_policy_train_op(
+            self.policy_surrogate_loss
+        )
 
     def _statistics_from_batch(self, batch) -> OrderedDict:
         statistics = super()._statistics_from_batch(batch)

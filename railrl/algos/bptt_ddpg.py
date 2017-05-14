@@ -39,7 +39,7 @@ class BpttDDPG(DDPG):
             env_obs_dim=None,
             env_action_dim=None,
             replay_pool_size=10000,
-            replay_buffer_class=SubtrajReplayBuffer,
+            replay_buffer_class=UpdatableSubtrajReplayBuffer,
             replay_buffer_params=None,
             bpt_bellman_error_weight=0.,
             train_policy=True,
@@ -109,6 +109,7 @@ class BpttDDPG(DDPG):
                 **replay_buffer_params
             ),
             **kwargs)
+        assert isinstance(self.pool, UpdatableSubtrajReplayBuffer)
         self._num_bptt_unrolls = num_bptt_unrolls
         self._env_obs_dim = env_obs_dim
         self._env_action_dim = env_action_dim
@@ -156,7 +157,17 @@ class BpttDDPG(DDPG):
             n_steps_total=n_steps_total,
         )
         policy_feed_dict = self._policy_feed_dict_from_batch(minibatch)
-        self.sess.run(policy_ops, feed_dict=policy_feed_dict)
+        new_writes, dloss_dwrites, _ = self.sess.run(
+            [
+                self.all_writes_subsequences,
+                self.dloss_dwrite_subsequences,
+                policy_ops
+            ],
+            feed_dict=policy_feed_dict,
+        )
+        self.pool.update_write_subtrajectories(new_writes, start_indices)
+        self.pool.update_dloss_dwrites_subtrajectories(dloss_dwrites,
+                                                       start_indices)
 
         return minibatch, start_indices
 
@@ -183,6 +194,9 @@ class BpttDDPG(DDPG):
         policy_stat_names, policy_ops = zip(*[
             ('PolicySurrogateLoss', self.policy_surrogate_loss),
             ('PolicyOutput', self.policy.output),
+            # Unforuntately this won't work because new data sampled won't
+            # have any saved dloss/dwrites in the temporary replay buffer.
+            # ('SavedWriteLoss', self._saved_write_losses),
         ])
         values = self.sess.run(policy_ops, feed_dict=policy_feed_dict)
         statistics = OrderedDict()
@@ -429,6 +443,7 @@ class BpttDDPG(DDPG):
                                           self._rnn_outputs],
                                          axis=0)
         self.all_writes_list = [write for _, write in self._rnn_outputs]
+        self.all_writes_subsequences = tf.stack(self.all_writes_list, axis=1)
         self.all_writes = tf.concat(self.all_writes_list, axis=0)
         self.all_actions = self.all_env_actions, self.all_writes
         self.all_mems = tf.concat(
@@ -452,74 +467,97 @@ class BpttDDPG(DDPG):
         """
         Backprop the Bellman error through time, i.e. through dQ/dwrite action
         """
-        if self._bpt_bellman_error_weight > 0.:
-            self.next_env_obs_ph_for_policy_bpt_bellman = tf.placeholder(
-                tf.float32,
-                [None, self._env_obs_dim]
-            )
-            # You need to replace the next memory state with the last write
-            # action. See writeup for more details.
-            target_observation_input = (
-                self.next_env_obs_ph_for_policy_bpt_bellman,  # o_{t+1}^buffer
-                self._final_rnn_augmented_action[1]  # m_{t+1} = w_t
-            )
-            self.target_policy_for_policy = (
-                self.target_policy.get_weight_tied_copy(
-                    observation_input=target_observation_input,
-                )
-            )
-            self.target_qf_for_policy = self.target_qf.get_weight_tied_copy(
-                action_input=self.target_policy_for_policy.output,
+        self.next_env_obs_ph_for_policy_bpt_bellman = tf.placeholder(
+            tf.float32,
+            [None, self._env_obs_dim]
+        )
+        # You need to replace the next memory state with the last write
+        # action. See writeup for more details.
+        # TODO(vitchyr): Should I stop the gradient through m_{t+1}?
+        target_observation_input = (
+            self.next_env_obs_ph_for_policy_bpt_bellman,  # o_{t+1}^buffer
+            self._final_rnn_augmented_action[1]  # m_{t+1} = w_t
+        )
+        self.target_policy_for_policy = (
+            self.target_policy.get_weight_tied_copy(
                 observation_input=target_observation_input,
             )
-            self.ys_for_policy = (
-                self.rewards_n1 +
-                (1. - self.terminals_n1)
-                * self.discount
-                * self.target_qf_for_policy.output
-            )
+        )
+        self.target_qf_for_policy = self.target_qf.get_weight_tied_copy(
+            action_input=self.target_policy_for_policy.output,
+            observation_input=target_observation_input,
+        )
+        self.ys_for_policy = (
+            self.rewards_n1 +
+            (1. - self.terminals_n1)
+            * self.discount
+            * self.target_qf_for_policy.output
+        )
 
-            self.env_action_ph_for_policy_bpt_bellman = tf.placeholder(
-                tf.float32,
-                [None, self._env_action_dim]
-            )
-            self.env_observation_ph_for_policy_bpt_bellman = tf.placeholder(
-                tf.float32,
-                [None, self._env_obs_dim]
-            )
-            action_input = (
-                self.env_action_ph_for_policy_bpt_bellman,  # a_t^buffer
-                self._final_rnn_augmented_action[1],  # w_t
-            )
-            observation_input = (
-                self.env_observation_ph_for_policy_bpt_bellman,  # o_t^buffer
-                self._final_rnn_memory_input,  # m_t
-            )
-            self.qf_for_policy = self.qf.get_weight_tied_copy(
-                action_input=action_input,
-                observation_input=observation_input,
-            )
-            self.bellman_error_for_policy = tf.squeeze(tf_util.mse(
-                self.ys_for_policy,
-                self.qf_for_policy.output
-            ))
+        self.env_action_ph_for_policy_bpt_bellman = tf.placeholder(
+            tf.float32,
+            [None, self._env_action_dim]
+        )
+        self.env_observation_ph_for_policy_bpt_bellman = tf.placeholder(
+            tf.float32,
+            [None, self._env_obs_dim]
+        )
+        action_input = (
+            self.env_action_ph_for_policy_bpt_bellman,  # a_t^buffer
+            self._final_rnn_augmented_action[1],  # w_t
+        )
+        observation_input = (
+            self.env_observation_ph_for_policy_bpt_bellman,  # o_t^buffer
+            self._final_rnn_memory_input,  # m_t
+        )
+        self.qf_for_policy = self.qf.get_weight_tied_copy(
+            action_input=action_input,
+            observation_input=observation_input,
+        )
+        self.bellman_error_for_policy = tf.squeeze(tf_util.mse(
+            self.ys_for_policy,
+            self.qf_for_policy.output
+        ))
+
+        """
+        Note: you have to use all_writes_list and not (e.g.)
+        all_writes_subsequences because all_writes_subsequences is downstream of;
+        all_writes_list in the computation graph
+        """
+        self.dloss_dwrite = tf.gradients(self.bellman_error_for_policy,
+                                         self.all_writes_list)
+        self.dloss_dwrite_subsequences = tf.stack(self.dloss_dwrite, axis=1)
 
     def _init_policy_loss_and_train_ops(self):
-        self.policy_surrogate_loss = - tf.reduce_mean(
+        self.policy_surrogate_loss = self._get_policy_train_loss()
+        self.train_policy_op = self._get_policy_train_op(
+            self.policy_surrogate_loss
+        )
+
+    def _get_policy_train_loss(self):
+        loss = - tf.reduce_mean(
             self.qf_with_action_input.output
         )
+        self._saved_write_gradients = tf.placeholder(
+            tf.float32,
+            self.all_writes_subsequences.get_shape(),
+            "saved_dloss_dwrites",
+        )
+        self._saved_write_losses = 100 * (
+            self.all_writes_subsequences * self._saved_write_gradients
+        )
+        self._saved_write_loss = tf.reduce_mean(self._saved_write_losses)
+        loss += self._saved_write_loss
         if self._bpt_bellman_error_weight > 0.:
-            self.policy_surrogate_loss += (
+            loss += (
                 self.bellman_error_for_policy * self._bpt_bellman_error_weight
             )
-        if self.train_policy:
-            self.train_policy_op = self._get_policy_train_op(
-                self.policy_surrogate_loss
-            )
-        else:
-            self.train_policy_op = None
+        return loss
 
     def _get_policy_train_op(self, loss):
+        if not self.train_policy:
+            return None
+
         if self.write_policy_learning_rate is None:
             trainable_policy_params = self.policy.get_params_internal()
             return tf.train.AdamOptimizer(
@@ -559,6 +597,7 @@ class BpttDDPG(DDPG):
         feed_dict = {
             self._rnn_inputs_ph: env_obs,
             self._rnn_init_state_ph: initial_memory_obs,
+            self._saved_write_gradients: batch['dloss_dwrites'],
         }
         if self._bpt_bellman_error_weight > 0.:
             next_obs = self._get_next_obs(batch)
