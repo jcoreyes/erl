@@ -80,6 +80,10 @@ class ContinuousMemoryAugmented(ProxyEnv):
             action_space=self._memory_state_space,
         )
 
+    @cached_property
+    def env_spec(self):
+        return self.wrapped_env.spec
+
     @property
     def memory_dim(self):
         return self._num_memory_states
