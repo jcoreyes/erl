@@ -140,26 +140,20 @@ class BpttDDPG(DDPG):
 
     def _do_training(
             self,
-            epoch=None,
             n_steps_total=None,
-            n_steps_current_epoch=None,
     ):
         self._do_extra_qf_training(n_steps_total=n_steps_total)
 
         minibatch, start_indices = self._sample_minibatch()
 
         qf_ops = self._get_qf_training_ops(
-            epoch=epoch,
             n_steps_total=n_steps_total,
-            n_steps_current_epoch=n_steps_current_epoch,
         )
         qf_feed_dict = self._qf_feed_dict_from_batch(minibatch)
         self.sess.run(qf_ops, feed_dict=qf_feed_dict)
 
         policy_ops = self._get_policy_training_ops(
-            epoch=epoch,
             n_steps_total=n_steps_total,
-            n_steps_current_epoch=n_steps_current_epoch,
         )
         policy_feed_dict = self._policy_feed_dict_from_batch(minibatch)
         self.sess.run(policy_ops, feed_dict=policy_feed_dict)
@@ -234,9 +228,7 @@ class BpttDDPG(DDPG):
             train_ops,
             network,
             target_ops,
-            epoch=None,
             n_steps_total=None,
-            n_steps_current_epoch=None,
     ):
         if self._batch_norm:
             train_ops += network.batch_norm_update_stats_op

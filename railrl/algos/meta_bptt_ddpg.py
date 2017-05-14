@@ -42,21 +42,15 @@ class MetaBpttDdpg(OracleBpttDdpg):
 
     def _do_training(
             self,
-            epoch=None,
             n_steps_total=None,
-            n_steps_current_epoch=None,
     ):
         minibatch, start_indices = super()._do_training(
-            epoch=epoch,
             n_steps_total=n_steps_total,
-            n_steps_current_epoch=n_steps_current_epoch,
         )
 
         if self.meta_qf_output_weight > 0:
             meta_qf_ops = self._get_meta_qf_training_ops(
-                epoch=epoch,
                 n_steps_total=n_steps_total,
-                n_steps_current_epoch=n_steps_current_epoch,
             )
             meta_qf_feed_dict = self._meta_qf_feed_dict_from_batch(minibatch)
             self.sess.run(meta_qf_ops, feed_dict=meta_qf_feed_dict)

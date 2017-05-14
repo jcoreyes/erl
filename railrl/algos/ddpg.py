@@ -229,9 +229,7 @@ class DDPG(OnlineAlgorithm):
     @overrides
     def _get_training_ops(
             self,
-            epoch=None,
             n_steps_total=None,
-            n_steps_current_epoch=None,
     ):
         train_ops = [
             self.train_policy_op,

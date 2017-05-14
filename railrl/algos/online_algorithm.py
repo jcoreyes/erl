@@ -222,9 +222,7 @@ class OnlineAlgorithm(RLAlgorithm):
                         with self._training_then_eval_mode():
                             for _ in range(self.n_updates_per_time_step):
                                 self._do_training(
-                                    epoch=epoch,
                                     n_steps_total=n_steps_total,
-                                    n_steps_current_epoch=n_steps_current_epoch,
                                 )
 
                     itr += 1
@@ -288,14 +286,10 @@ class OnlineAlgorithm(RLAlgorithm):
 
     def _do_training(
             self,
-            epoch=None,
             n_steps_total=None,
-            n_steps_current_epoch=None,
     ):
         ops = self._get_training_ops(
-            epoch=epoch,
             n_steps_total=n_steps_total,
-            n_steps_current_epoch=n_steps_current_epoch,
         )
         if ops is None:
             return
@@ -409,9 +403,7 @@ class OnlineAlgorithm(RLAlgorithm):
     @abc.abstractmethod
     def _get_training_ops(
             self,
-            epoch=None,
             n_steps_total=None,
-            n_steps_current_epoch=None,
     ):
         """
         :return: List of ops to perform when training. If a list of list is
