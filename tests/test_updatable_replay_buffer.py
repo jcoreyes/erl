@@ -11,8 +11,9 @@ from railrl.data_management.updatable_subtraj_replay_buffer import (
 from railrl.testing.tf_test_case import TFTestCase
 from railrl.testing.stub_classes import StubEnv
 
-def rand():
-    return np.random.rand(1, 1)
+
+def rand(dim=1):
+    return np.random.rand(1, dim)
 
 class TestSubtrajReplayBuffer(TFTestCase):
     def test_size_add_none(self):
@@ -33,8 +34,8 @@ class TestSubtrajReplayBuffer(TFTestCase):
             subtraj_length=2,
             memory_dim=1,
         )
-        observation = np.array([[0.5]]), np.array([[0.5]])
-        action = np.array([0.5]), np.array([0.5])
+        observation = rand(), rand()
+        action = rand(), rand()
         buff.add_sample(observation, action, 1, False)
         self.assertEqual(buff.num_can_sample(return_all=True), 0)
 
@@ -46,8 +47,8 @@ class TestSubtrajReplayBuffer(TFTestCase):
             subtraj_length=2,
             memory_dim=1,
         )
-        observation = np.array([[0.5]]), np.array([[0.5]])
-        action = np.array([0.5]), np.array([0.5])
+        observation = rand(), rand()
+        action = rand(), rand()
         for _ in range(10):
             buff.add_sample(observation, action, 1, False)
         # First trajectory always goes in validation set
@@ -59,7 +60,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
         self.assertEqual(subtrajs['next_memories'].shape, (5, 2, 1))
         self.assertEqual(subtrajs['writes'].shape, (5, 2, 1))
         self.assertEqual(subtrajs['rewards'].shape, (5, 2))
-        self.assertEqual(subtrajs['terminals'].shape, (5, 2))
+        self.assertEqual(subtrajs['dloss_dmemories'].shape, (5, 2, 1))
 
     def test_next_memory_equals_write(self):
         env = StubMemoryEnv()
@@ -73,7 +74,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
         for _ in range(10):
             observation = rand(), last_write
             write = rand()
-            action = np.random.rand(1, 1), write
+            action = rand(), write
             last_write = write
             buff.add_sample(observation, action, 1, False)
         # First trajectory always goes in validation set
@@ -92,18 +93,179 @@ class TestSubtrajReplayBuffer(TFTestCase):
         for _ in range(13):
             observation = rand(), last_write
             write = rand()
-            action = np.random.rand(1, 1), write
+            action = rand(), write
             last_write = write
             buff.add_sample(observation, action, 1, False)
         # First trajectory always goes in validation set
         subtrajs, _ = buff.random_subtrajectories(5, validation=True)
         self.assertNpEqual(subtrajs['next_memories'], subtrajs['writes'])
 
+    def test_dloss_dwrite_is_zero_initially(self):
+        env = StubMemoryEnv()
+        buff = UpdatableSubtrajReplayBuffer(
+            max_pool_size=100,
+            env=env,
+            subtraj_length=2,
+            memory_dim=1,
+        )
+        last_write = rand()
+        for _ in range(13):
+            observation = rand(), last_write
+            write = rand()
+            action = rand(), write
+            last_write = write
+            buff.add_sample(observation, action, 1, False)
+        # First trajectory always goes in validation set
+        subtrajs, _ = buff.random_subtrajectories(5, validation=True)
+        self.assertNpEqual(subtrajs['dloss_dmemories'], np.zeros((5, 2, 1)))
+
+    def test__fixed_start_indices(self):
+        env = StubMemoryEnv()
+        buff = UpdatableSubtrajReplayBuffer(
+            max_pool_size=100,
+            env=env,
+            subtraj_length=2,
+            memory_dim=1,
+        )
+        for _ in range(25):
+            observation = rand(), rand()
+            action = rand(), rand()
+            buff.add_sample(observation, action, 1, False)
+        _, start_indices = buff.random_subtrajectories(15, validation=True)
+        _, new_start_indices = buff.random_subtrajectories(
+            15,
+            validation=True,
+            _fixed_start_indices=start_indices,
+        )
+        self.assertNpEqual(start_indices, new_start_indices)
+
+    def test_update_memories_updates_memories(self):
+        env = StubMemoryEnv()
+        buff = UpdatableSubtrajReplayBuffer(
+            max_pool_size=100,
+            env=env,
+            subtraj_length=2,
+            memory_dim=1,
+        )
+        last_write = rand()
+        for _ in range(13):
+            observation = rand(), last_write
+            write = rand()
+            action = rand(), write
+            last_write = write
+            buff.add_sample(observation, action, 1, False)
+        # First trajectory always goes in validation set
+        start_indices = [0, 4, 8]
+        new_writes = np.random.rand(len(start_indices), 2, 1)
+        buff.update_write_subtrajectories(new_writes, start_indices)
+        new_subtrajs, new_start_indices = buff.random_subtrajectories(
+            len(start_indices),
+            validation=True,
+            _fixed_start_indices=start_indices,
+        )
+        self.assertNpEqual(new_subtrajs['writes'], new_writes)
+
+    def test_update_memories_updates_memories_2d(self):
+        env = StubMemoryEnv(2)
+        buff = UpdatableSubtrajReplayBuffer(
+            max_pool_size=100,
+            env=env,
+            subtraj_length=2,
+            memory_dim=2,
+        )
+        last_write = rand(2)
+        for _ in range(13):
+            observation = rand(), last_write
+            write = rand(2)
+            action = rand(), write
+            last_write = write
+            buff.add_sample(observation, action, 1, False)
+        # First trajectory always goes in validation set
+        start_indices = [0, 4, 8]
+        new_writes = np.random.rand(len(start_indices), 2, 2)
+        buff.update_write_subtrajectories(new_writes, start_indices)
+        new_subtrajs, new_start_indices = buff.random_subtrajectories(
+            len(start_indices),
+            validation=True,
+            _fixed_start_indices=start_indices,
+        )
+        self.assertNpEqual(new_subtrajs['writes'], new_writes)
+
+    def test_update_memories_does_not_update_other_memories(self):
+        env = StubMemoryEnv()
+        buff = UpdatableSubtrajReplayBuffer(
+            max_pool_size=100,
+            env=env,
+            subtraj_length=2,
+            memory_dim=1,
+        )
+        last_write = rand()
+        # First trajectory always goes in validation set
+        buff.terminate_episode((rand(), rand()))
+        for _ in range(5):
+            observation = rand(), last_write
+            write = rand()
+            action = rand(), write
+            last_write = write
+            buff.add_sample(observation, action, 1, False)
+        # White box testing...sue me.
+        old_memories = buff._memories.copy()
+        """
+        For writes
+        0 - same
+        1 - different
+        2 - different
+        3 - same
+        4 - same
+
+        For memories
+        0 - same
+        1 - same
+        2 - different
+        3 - different
+        4 - same
+        """
+        start_indices = [1]
+        written_writes = np.random.rand(len(start_indices), 2, 1)
+        buff.update_write_subtrajectories(written_writes, start_indices)
+        new_memories = buff._memories
+
+        expected_new_memories = old_memories.copy()
+        expected_new_memories[2:4] = written_writes
+        self.assertNpArraysNotEqual(old_memories, expected_new_memories)
+        self.assertNpArraysNotEqual(old_memories, new_memories)
+        self.assertNpEqual(new_memories, expected_new_memories)
+
+    def test_update_memories(self):
+        env = StubMemoryEnv()
+        buff = UpdatableSubtrajReplayBuffer(
+            max_pool_size=100,
+            env=env,
+            subtraj_length=2,
+            memory_dim=1,
+        )
+        last_write = rand()
+        for _ in range(13):
+            observation = rand(), last_write
+            write = rand()
+            action = rand(), write
+            last_write = write
+            buff.add_sample(observation, action, 1, False)
+        # First trajectory always goes in validation set
+        start_indices = [0, 4, 8]
+        new_writes = np.random.rand(len(start_indices), 2, 1)
+        buff.update_write_subtrajectories(new_writes, start_indices)
+        new_subtrajs, new_start_indices = buff.random_subtrajectories(
+            len(start_indices),
+            validation=True,
+            _fixed_start_indices=start_indices,
+        )
+        self.assertNpEqual(new_subtrajs['writes'], new_writes)
 
 
 class StubMemoryEnv(ContinuousMemoryAugmented):
-    def __init__(self):
-        super().__init__(StubEnv(), 1)
+    def __init__(self, num_memory_states=1):
+        super().__init__(StubEnv(), num_memory_states=num_memory_states)
 
 if __name__ == '__main__':
     unittest.main()

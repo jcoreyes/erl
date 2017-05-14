@@ -158,20 +158,20 @@ class TestNpUtil(NPTestCase):
         length = 2
         new_values = np.array([
             [
-                [-1, -1],
-                [-2, -2],
+                [-1, -2],
+                [-3, -4],
             ],
             [
-                [-3, -3],
-                [-4, -4],
+                [-5, -6],
+                [-7, -8],
             ],
         ])
         np_util.assign_subsequences(M, new_values, start_indices, length)
         expected = np.array([
-            [-1, -1],
-            [-2, -2],
-            [-3, -3],
-            [-4, -4],
+            [-1, -2],
+            [-3, -4],
+            [-5, -6],
+            [-7, -8],
         ])
         self.assertNpEqual(M, expected)
 
@@ -187,21 +187,21 @@ class TestNpUtil(NPTestCase):
         length = 2
         new_values = np.array([
             [
-                [-1, -1],
-                [-2, -2],
+                [-1, -2],
+                [-3, -4],
             ],
             [
-                [-3, -3],
-                [-4, -4],
+                [-5, -6],
+                [-7, -8],
             ],
         ])
         np_util.assign_subsequences(M, new_values, start_indices, length)
         expected = np.array([
-            [-1, -1],
-            [-2, -2],
+            [-1, -2],
+            [-3, -4],
             [4, 5],
-            [-3, -3],
-            [-4, -4],
+            [-5, -6],
+            [-7, -8],
         ])
         self.assertNpEqual(M, expected)
 
@@ -216,19 +216,19 @@ class TestNpUtil(NPTestCase):
         length = 2
         new_values = np.array([
             [
-                [-1, -1],
-                [-2, -2],
+                [-1, -2],
+                [-3, -4],
             ],
             [
-                [-3, -3],
-                [-4, -4],
+                [-5, -6],
+                [-7, -8],
             ],
         ])
         np_util.assign_subsequences(M, new_values, start_indices, length)
         expected = np.array([
-            [-1, -1],
-            [-3, -3],
-            [-4, -4],
+            [-1, -2],
+            [-5, -6],
+            [-7, -8],
             [6, 7],
         ])
         self.assertNpEqual(M, expected)
@@ -244,20 +244,20 @@ class TestNpUtil(NPTestCase):
         length = 2
         new_values = np.array([
             [
-                [-3, -3],
-                [-4, -4],
+                [-5, -6],
+                [-7, -8],
             ],
             [
-                [-1, -1],
-                [-2, -2],
+                [-1, -2],
+                [-3, -4],
             ],
         ])
         np_util.assign_subsequences(M, new_values, start_indices, length,
                                     start_offset=0)
         expected = np.array([
-            [-1, -1],
-            [-2, -2],
-            [-4, -4],
+            [-1, -2],
+            [-3, -4],
+            [-7, -8],
             [6, 7],
         ])
         self.assertNpEqual(M, expected)
@@ -273,21 +273,21 @@ class TestNpUtil(NPTestCase):
         length = 2
         new_values = np.array([
             [
-                [-1, -1],
-                [-2, -2],
+                [-1, -2],
+                [-3, -4],
             ],
             [
-                [-3, -3],
-                [-4, -4],
+                [-5, -6],
+                [-7, -8],
             ],
         ])
         np_util.assign_subsequences(M, new_values, start_indices, length,
                                     start_offset=1)
         expected = np.array([
             [0, 1],
-            [-1, -1],
-            [-3, -3],
-            [-4, -4],
+            [-1, -2],
+            [-5, -6],
+            [-7, -8],
         ])
         self.assertNpEqual(M, expected)
 
@@ -302,18 +302,18 @@ class TestNpUtil(NPTestCase):
         length = 2
         new_values = np.array([
             [
-                [-1, -1],
-                [-2, -2],
+                [-1, -2],
+                [-3, -4],
             ],
             [
-                [-3, -3],
-                [-4, -4],
+                [-5, -6],
+                [-7, -8],
             ],
         ])
         np_util.assign_subsequences(M, new_values, start_indices, length)
         expected = np.array([
-            [-3, -3],
-            [-4, -4],
+            [-5, -6],
+            [-7, -8],
             [4, 5],
             [6, 7],
         ])

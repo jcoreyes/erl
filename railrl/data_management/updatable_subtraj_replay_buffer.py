@@ -39,12 +39,15 @@ class UpdatableSubtrajReplayBuffer(SubtrajReplayBuffer):
         self._memories = np.zeros((max_pool_size, self._memory_dim))
 
     def random_subtrajectories(self, batch_size, replace=False,
-                               validation=False):
-        start_indices = np.random.choice(
-            self._valid_start_indices(validation=validation),
-            batch_size,
-            replace=replace,
-        )
+                               validation=False, _fixed_start_indices=None):
+        if _fixed_start_indices is None:
+            start_indices = np.random.choice(
+                self._valid_start_indices(validation=validation),
+                batch_size,
+                replace=replace,
+            )
+        else:
+            start_indices = _fixed_start_indices
         return self._get_trajectories(start_indices), start_indices
 
     def _add_sample(self, observation, action, reward, terminal,
@@ -73,11 +76,10 @@ class UpdatableSubtrajReplayBuffer(SubtrajReplayBuffer):
             next_env_obs=subsequences(self._env_obs, start_indices,
                                       self._subtraj_length,
                                       start_offset=1),
-            writes=next_memories,
             memories=subsequences(self._memories, start_indices,
                                   self._subtraj_length),
-            next_memories=subsequences(self._memories, start_indices,
-                                       self._subtraj_length, start_offset=1),
+            writes=next_memories,
+            next_memories=next_memories,
             rewards=subsequences(self._rewards, start_indices,
                                  self._subtraj_length),
             terminals=subsequences(self._terminals, start_indices,
@@ -92,8 +94,7 @@ class UpdatableSubtrajReplayBuffer(SubtrajReplayBuffer):
         # clear.
         return np.zeros(self._env_action_dim), np.zeros(self.memory_dim)
 
-    def update_subtrajectories(self, updated_writes, updated_dloss_dmemory,
-                               start_indices):
+    def update_write_subtrajectories(self, updated_writes, start_indices):
         assign_subsequences(
             tensor=self._memories,
             new_values=updated_writes,
@@ -101,6 +102,12 @@ class UpdatableSubtrajReplayBuffer(SubtrajReplayBuffer):
             length=self._subtraj_length,
             start_offset=1
         )
+
+    def update_dloss_dmemories_subtrajectories(
+            self,
+            updated_dloss_dmemory,
+            start_indices
+    ):
         assign_subsequences(
             tensor=self._dloss_dmemories,
             new_values=updated_dloss_dmemory,
