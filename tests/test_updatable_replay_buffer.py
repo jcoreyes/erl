@@ -236,7 +236,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
         self.assertNpArraysNotEqual(old_memories, new_memories)
         self.assertNpEqual(new_memories, expected_new_memories)
 
-    def test_update_memories(self):
+    def test_update_dloss_dmemories_works(self):
         env = StubMemoryEnv()
         buff = UpdatableSubtrajReplayBuffer(
             max_pool_size=100,
@@ -253,14 +253,14 @@ class TestSubtrajReplayBuffer(TFTestCase):
             buff.add_sample(observation, action, 1, False)
         # First trajectory always goes in validation set
         start_indices = [0, 4, 8]
-        new_writes = np.random.rand(len(start_indices), 2, 1)
-        buff.update_write_subtrajectories(new_writes, start_indices)
+        new_dd = np.random.rand(len(start_indices), 2, 1)
+        buff.update_dloss_dmemories_subtrajectories(new_dd, start_indices)
         new_subtrajs, new_start_indices = buff.random_subtrajectories(
             len(start_indices),
             validation=True,
             _fixed_start_indices=start_indices,
         )
-        self.assertNpEqual(new_subtrajs['writes'], new_writes)
+        self.assertNpEqual(new_subtrajs['dloss_dmemories'], new_dd)
 
 
 class StubMemoryEnv(ContinuousMemoryAugmented):
