@@ -32,6 +32,7 @@ from railrl.policies.memory.lstm_memory_policy import (
     LstmMlpCell,
     # LstmLinearCellNoiseAll,
     SeparateLstmLinearCell,
+    DebugCell,
 )
 # from railrl.algos.writeback_bptt_ddpt import WritebackBpttDDPG
 from railrl.algos.bptt_ddpg import BpttDDPG
@@ -142,7 +143,7 @@ def run_ocm_experiment(variant):
             action_dim=env_action_dim,
             memory_dim=memory_dim,
             env_spec=env.spec,
-            num_env_obs_dims_to_use=env_params['n'] + 1,
+            num_env_obs_dims_to_use=1,
             **policy_params
         )
 
@@ -242,9 +243,9 @@ if __name__ == '__main__':
     version = 'dev'
     num_hp_settings = 100
 
-    # n_seeds = 5
+    # n_seeds = 10
     # mode = 'ec2'
-    # exp_prefix = '5-13-highlow-gaussian-vs-reparam'
+    # exp_prefix = '5-14-stop-gradient-target-q'
     # run_mode = 'grid'
     # version = 'reward-low-bellman'
 
@@ -267,7 +268,7 @@ if __name__ == '__main__':
     """
     # env_class = OneCharMemoryEndOnly
     env_class = HighLow
-    H = 4
+    H = 3
     env_params = dict(
         num_steps=H,
         n=2,
@@ -283,10 +284,10 @@ if __name__ == '__main__':
     max_path_length = H + 2
     # noinspection PyTypeChecker
     ddpg_params = dict(
-        batch_size=128,
+        batch_size=4,
         n_epochs=30,
-        min_pool_size=320,
-        replay_pool_size=100000,
+        min_pool_size=4,
+        replay_pool_size=int(4*(H+1)*5/4),
         epoch_length=epoch_length,
         eval_samples=eval_samples,
         max_path_length=max_path_length,
@@ -311,8 +312,8 @@ if __name__ == '__main__':
         write_policy_learning_rate=1e-4,
         train_policy_on_all_qf_timesteps=False,
         # memory
-        num_bptt_unrolls=2,
-        bpt_bellman_error_weight=1,
+        num_bptt_unrolls=3,
+        bpt_bellman_error_weight=0,
         reward_low_bellman_error_weight=0.,
         saved_write_loss_weight=1.,
     )
@@ -320,11 +321,12 @@ if __name__ == '__main__':
     # noinspection PyTypeChecker
     policy_params = dict(
         # rnn_cell_class=LstmLinearCell,
-        rnn_cell_class=SeparateLstmLinearCell,
+        # rnn_cell_class=SeparateLstmLinearCell,
         # rnn_cell_class=LstmLinearCellNoiseAll,
+        rnn_cell_class=DebugCell,
         rnn_cell_params=dict(
             use_peepholes=True,
-            env_noise_std=0.,
+            env_noise_std=0.5,
             memory_noise_std=1.,
             output_nonlinearity=tf.nn.tanh,
             env_hidden_sizes=[],
@@ -354,11 +356,11 @@ if __name__ == '__main__':
 
     # noinspection PyTypeChecker
     es_params = dict(
-        # env_es_class=NoopStrategy,
-        env_es_class=GaussianStrategy,
+        env_es_class=NoopStrategy,
+        # env_es_class=GaussianStrategy,
         env_es_params=dict(
-            max_sigma=.5,
-            min_sigma=0.01,
+            max_sigma=1.,
+            min_sigma=0.1,
             decay_period=epoch_length*15,
             softmax=True,
             laplace_weight=0.,
