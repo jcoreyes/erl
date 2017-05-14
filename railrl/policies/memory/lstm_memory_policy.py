@@ -673,6 +673,47 @@ class LinearRnnCell(tf.contrib.rnn.RNNCell):
         return self._output_dim
 
 
+class DebugCell(tf.contrib.rnn.RNNCell):
+    """
+    Used for debugging.
+    """
+    def __init__(
+            self,
+            num_units,
+            output_dim,
+            **kwargs
+    ):
+        self._output_dim = int(output_dim)
+        self._num_units = int(num_units)
+
+    def __call__(self, inputs, state, scope=None):
+        with tf.variable_scope(scope or "debug_cell"):
+            with tf.variable_scope('env_action') as self.env_action_scope:
+                env_action_var = tf_util.weight_variable(
+                    [inputs.get_shape()[-1], self.output_size],
+                    initializer=tf.constant_initializer(1.),
+                    name='env_out',
+                )
+                env_output = tf.matmul(inputs, env_action_var) + 1
+            with tf.variable_scope('next_state') as self.write_action_scope:
+                write_var = tf_util.weight_variable(
+                    [state.get_shape()[-1], self.state_size],
+                    initializer=tf.constant_initializer(0.),
+                    name='write',
+                )
+                write = state + tf.matmul(state, write_var) + 1
+
+        return env_output, write
+
+    @property
+    def state_size(self):
+        return self._num_units
+
+    @property
+    def output_size(self):
+        return self._output_dim
+
+
 class LstmMemoryPolicy(RnnCellPolicy):
     """
     write = LSTM function of environment observation and memory
@@ -704,6 +745,7 @@ class LstmMemoryPolicy(RnnCellPolicy):
         self._num_env_obs_dims_to_ignore = (
             self.observation_dim[0] - num_env_obs_dims_to_use
         )
+        assert self._num_env_obs_dims_to_ignore >= 0
         self.rnn_cell_class = rnn_cell_class
         self.rnn_cell_params = rnn_cell_params
         self.init_state = self._placeholder_if_none(
@@ -712,9 +754,9 @@ class LstmMemoryPolicy(RnnCellPolicy):
             name='lstm_init_state',
             dtype=tf.float32,
         )
+        # self._env_action_scope_name = None
+        # self._write_action_scope_name = None
         self._create_network()
-        self._env_action_scope_name = None
-        self._write_action_scope_name = None
 
     def _create_network_internal(self, observation_input=None, init_state=None):
         assert observation_input is not None
