@@ -48,7 +48,7 @@ class MetaBpttDdpg(OracleBpttDdpg):
     ):
         self._do_extra_qf_training(n_steps_total=n_steps_total)
 
-        minibatch = self._sample_minibatch()
+        minibatch, start_indices = self._sample_minibatch()
 
         qf_ops = self._get_qf_training_ops(
             epoch=epoch,

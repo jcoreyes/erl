@@ -274,35 +274,20 @@ class BpttDDPG(DDPG):
         """
         rewards = batch['rewards']
         terminals = batch['terminals']
-        env_obs = batch['env_obs']
-        memories = batch['memories']
-        env_actions = batch['env_actions']
-        writes = batch['writes']
-        env_next_obs = batch['next_env_obs']
-        next_memories = batch['next_memories']
+        obs = self._get_obs(batch)
+        actions = self._get_actions(batch)
+        next_obs = self._get_next_obs(batch)
         target_numbers = batch['target_numbers']
         times = batch['times']
 
-        flat_actions = (
-            env_actions.reshape(-1, env_actions.shape[-1]),
-            writes.reshape(-1, writes.shape[-1]),
-        )
-        flat_obs = (
-            env_obs.reshape(-1, env_obs.shape[-1]),
-            memories.reshape(-1, memories.shape[-1]),
-        )
-        flat_next_obs = (
-            env_next_obs.reshape(-1, env_next_obs.shape[-1]),
-            next_memories.reshape(-1, next_memories.shape[-1])
-        )
+        flat_actions = self._flatten(actions)
+        flat_obs = self._flatten(obs)
+        flat_next_obs = self._flatten(next_obs)
         flat_target_numbers = target_numbers.flatten()
         flat_times = times.flatten()
         flat_terminals = terminals.flatten()
         flat_rewards = rewards.flatten()
 
-        # split_flat_obs = self._split_flat_obs(flat_obs)
-        # split_flat_actions = self._split_flat_actions(flat_actions)
-        # split_flat_next_obs = self._split_flat_obs(flat_next_obs)
         return dict(
             rewards=flat_rewards,
             terminals=flat_terminals,
@@ -323,33 +308,15 @@ class BpttDDPG(DDPG):
         """
         rewards = batch['rewards']
         terminals = batch['terminals']
-        obs = batch['env_obs'], batch['memories']
-        actions = batch['env_actions'], batch['writes']
-        next_obs = batch['next_env_obs'], batch['next_memories']
+        obs = self._get_obs(batch)
+        actions = self._get_actions(batch)
+        next_obs = self._get_next_obs(batch)
         target_numbers = batch['target_numbers']
         times = batch['times']
 
         last_actions = self._get_time_step(actions, -1)
         last_obs = self._get_time_step(obs, -1)
         last_next_obs = self._get_time_step(next_obs, -1)
-        # env_obs = batch['env_obs']
-        # memories = batch['memories']
-        # env_actions = batch['env_actions']
-        # writes = batch['writes']
-        # env_next_obs = batch['next_env_obs']
-        # next_memories = batch['next_memories']
-        # last_actions = (
-        #     self._get_time_step(env_actions, -1),
-        #     self._get_time_step(writes, -1),
-        # )
-        # last_obs = (
-        #     self._get_time_step(env_obs, -1),
-        #     self._get_time_step(memories, -1),
-        # )
-        # last_next_obs = (
-        #     self._get_time_step(env_next_obs, -1),
-        #     self._get_time_step(next_memories, -1),
-        # )
         last_target_numbers = target_numbers[:, -1]
         last_times = times[:, -1]
         last_terminals = terminals[:, -1]
@@ -632,16 +599,29 @@ class BpttDDPG(DDPG):
     """
 
     @staticmethod
-    def _get_time_step(action_or_obs, t):
+    def _get_time_step(subsequences_action_or_obs, t):
         """
         Squeeze time out by only taking the one time step.
 
-        :param action_or_obs: tuple of Tensors or Tensor of shape [batch size x
-        traj length x dim]
+        :param subsequences_of_action_or_obs: tuple of Tensors or Tensor of
+        shape [batch_size x traj_length x dim]
         :param t: The time index to slice out.
         :return: return tuple of Tensors or Tensor of shape [batch size x dim]
         """
-        return map_recursive(lambda x: x[:, t, :], action_or_obs)
+        return map_recursive(lambda x: x[:, t, :], subsequences_action_or_obs)
+
+    @staticmethod
+    def _flatten(subsequences_of_action_or_obs):
+        """
+        Flatten a list of subsequences.
+
+        :param subsequences_of_action_or_obs: tuple of Tensors or Tensor of
+        shape [batch_size x traj_length x dim]
+        :return: return tuple of Tensors or Tensor of shape [k x dim]
+        where k = batch_size * traj_length
+        """
+        return map_recursive(lambda x: x.reshape(-1, x.shape[-1]),
+                             subsequences_of_action_or_obs)
 
     def log_diagnostics(self, paths):
         self._last_env_scores.append(np.mean(self.env.log_diagnostics(paths)))

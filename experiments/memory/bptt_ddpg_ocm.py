@@ -253,7 +253,7 @@ if __name__ == '__main__':
     """
     n_batches_per_epoch = 100
     n_batches_per_eval = 64
-    oracle_mode = 'none'
+    oracle_mode = 'meta'
     algo_class = BpttDDPG
     load_policy_file = (
         '/home/vitchyr/git/rllab-rail/railrl/data/reference/expert'
