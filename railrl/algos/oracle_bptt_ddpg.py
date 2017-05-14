@@ -167,7 +167,7 @@ class OracleBpttDdpg(BpttDDPG):
             flat_batch = self.subtraj_batch_to_last_augmented_batch(batch)
         times = flat_batch['times']
         batch_size = len(times)
-        sequence_lengths = np.squeeze(self.env.horizon - 1 - times)
+        sequence_lengths = self.env.horizon - 1 - times
         # TODO(vitchyr): BUG this gets more complicated with the flags. I
         # should make the environment generate the rest of the observations.
         rest_of_obs = np.zeros(
@@ -324,13 +324,11 @@ class OracleBpttDdpg(BpttDDPG):
             flat_batch = self.subtraj_batch_to_last_augmented_batch(batch)
         target_numbers = flat_batch['target_numbers']
         times = flat_batch['times']
-        last_obs = flat_batch['obs']
-        last_times = flat_batch['times']
-        last_target_numbers = flat_batch['target_numbers']
-        episode_length_left = np.squeeze(self.env.horizon - 1 - last_times)
+        obs = flat_batch['obs']
+        episode_length_left = self.env.horizon - 1 - times
         rest_of_obs = np.zeros(
             [
-                len(last_target_numbers),
+                len(target_numbers),
                 self.env.horizon - self._num_bptt_unrolls,
                 self._env_obs_dim,
             ]
@@ -340,9 +338,9 @@ class OracleBpttDdpg(BpttDDPG):
             self.oracle_qf.rest_of_obs_placeholder: rest_of_obs,
             # It's better to separate them so that duplicate entries can be
             # eliminated by TensorFlow
-            self.oracle_qf.observation_input[0]: last_obs[0],
-            self.oracle_qf.observation_input[1]: last_obs[1],
-            self.oracle_qf.target_labels: last_target_numbers,
+            self.oracle_qf.observation_input[0]: obs[0],
+            self.oracle_qf.observation_input[1]: obs[1],
+            self.oracle_qf.target_labels: target_numbers,
         }
 
         if hasattr(self.qf_with_action_input, "target_labels"):
@@ -353,7 +351,9 @@ class OracleBpttDdpg(BpttDDPG):
             if (hasattr(self.target_qf_for_policy, "target_numbers") and
                         self._bpt_bellman_error_weight > 0.):
                 # TODO(vitchyr): this should be the NEXT target...
-                feed_dict[self.target_qf_for_policy.target_numbers] = target_numbers
+                feed_dict[self.target_qf_for_policy.target_numbers] = (
+                    target_numbers
+                )
             if (hasattr(self.target_qf_for_policy, "time_labels") and
                      self._bpt_bellman_error_weight > 0.):
                 # TODO(vitchyr): this seems hacky
