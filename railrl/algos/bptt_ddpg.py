@@ -96,6 +96,8 @@ class BpttDDPG(DDPG):
             'validation',
         ]
         assert num_bptt_unrolls > 0
+        assert bpt_bellman_error_weight >= 0
+        assert saved_write_loss_weight >= 0
         if replay_buffer_params is None:
             replay_buffer_params = {}
         super().__init__(
