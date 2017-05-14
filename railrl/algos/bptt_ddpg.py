@@ -164,6 +164,8 @@ class BpttDDPG(DDPG):
         policy_feed_dict = self._policy_feed_dict_from_batch(minibatch)
         self.sess.run(policy_ops, feed_dict=policy_feed_dict)
 
+        return minibatch, start_indices
+
     def _statistics_from_paths(self, paths) -> OrderedDict:
         eval_pool = self._replay_buffer_class(
             len(paths) * self.max_path_length,

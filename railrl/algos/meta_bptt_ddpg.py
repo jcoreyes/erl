@@ -46,17 +46,11 @@ class MetaBpttDdpg(OracleBpttDdpg):
             n_steps_total=None,
             n_steps_current_epoch=None,
     ):
-        self._do_extra_qf_training(n_steps_total=n_steps_total)
-
-        minibatch, start_indices = self._sample_minibatch()
-
-        qf_ops = self._get_qf_training_ops(
+        minibatch, start_indices = super()._do_training(
             epoch=epoch,
             n_steps_total=n_steps_total,
             n_steps_current_epoch=n_steps_current_epoch,
         )
-        qf_feed_dict = self._qf_feed_dict_from_batch(minibatch)
-        self.sess.run(qf_ops, feed_dict=qf_feed_dict)
 
         if self.meta_qf_output_weight > 0:
             meta_qf_ops = self._get_meta_qf_training_ops(
@@ -66,14 +60,6 @@ class MetaBpttDdpg(OracleBpttDdpg):
             )
             meta_qf_feed_dict = self._meta_qf_feed_dict_from_batch(minibatch)
             self.sess.run(meta_qf_ops, feed_dict=meta_qf_feed_dict)
-
-        policy_ops = self._get_policy_training_ops(
-            epoch=epoch,
-            n_steps_total=n_steps_total,
-            n_steps_current_epoch=n_steps_current_epoch,
-        )
-        policy_feed_dict = self._policy_feed_dict_from_batch(minibatch)
-        self.sess.run(policy_ops, feed_dict=policy_feed_dict)
 
     def _init_training(self):
         super()._init_training()
