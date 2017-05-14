@@ -51,6 +51,7 @@ class BpttDDPG(DDPG):
             train_qf_on_all=False,
             train_policy_on_all_qf_timesteps=False,
             write_policy_learning_rate=None,
+            saved_write_loss_weight=1.,
             **kwargs
     ):
         """
@@ -123,6 +124,7 @@ class BpttDDPG(DDPG):
         self.train_qf_on_all = train_qf_on_all
         self.train_policy_on_all_qf_timesteps = train_policy_on_all_qf_timesteps
         self.write_policy_learning_rate = write_policy_learning_rate
+        self.saved_write_loss_weight = saved_write_loss_weight
 
         self._rnn_cell_scope = policy.rnn_cell_scope
         self._rnn_cell = policy.rnn_cell
@@ -543,10 +545,13 @@ class BpttDDPG(DDPG):
             self.all_writes_subsequences.get_shape(),
             "saved_dloss_dwrites",
         )
-        self._saved_write_losses = 100 * (
+        self._saved_write_losses = (
             self.all_writes_subsequences * self._saved_write_gradients
         )
-        self._saved_write_loss = tf.reduce_mean(self._saved_write_losses)
+        self._saved_write_loss = (
+            tf.reduce_mean(self._saved_write_losses)
+            * self.saved_write_loss_weight
+        )
         loss += self._saved_write_loss
         if self._bpt_bellman_error_weight > 0.:
             loss += (
