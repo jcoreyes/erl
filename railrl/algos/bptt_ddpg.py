@@ -547,8 +547,12 @@ class BpttDDPG(DDPG):
             self.all_writes_subsequences.get_shape(),
             "saved_dloss_dwrites",
         )
+        self._last_saved_write_gradients = tf.unstack(
+            self._saved_write_gradients,
+            axis=1
+        )[-1]
         self._saved_write_losses = (
-            self.all_writes_subsequences * self._saved_write_gradients
+            self.all_writes_list[-1] * self._last_saved_write_gradients
         )
         self._saved_write_loss = (
             tf.reduce_sum(self._saved_write_losses)
