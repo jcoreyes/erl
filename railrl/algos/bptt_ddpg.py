@@ -552,7 +552,8 @@ class BpttDDPG(DDPG):
             tf.reduce_mean(self._saved_write_losses)
             * self.saved_write_loss_weight
         )
-        loss += self._saved_write_loss
+        if self.saved_write_loss_weight > 0:
+            loss += self._saved_write_loss
         if self._bpt_bellman_error_weight > 0.:
             loss += (
                 self.bellman_error_for_policy * self._bpt_bellman_error_weight
@@ -604,25 +605,25 @@ class BpttDDPG(DDPG):
             self._rnn_init_state_ph: initial_memory_obs,
             self._saved_write_gradients: batch['dloss_dwrites'],
         }
-        if self._bpt_bellman_error_weight > 0.:
-            next_obs = self._get_next_obs(batch)
-            actions = self._get_actions(batch)
-            last_rewards = batch['rewards'][:, -1:]
-            last_terminals = batch['terminals'][:, -1:]
-            last_env_obs = self._get_time_step(obs, -1)[0]
-            last_next_env_obs = self._get_time_step(next_obs, -1)[0]
-            last_env_actions = self._get_time_step(actions, -1)[0]
-            feed_dict[self.env_observation_ph_for_policy_bpt_bellman] = (
-                last_env_obs
-            )
-            feed_dict[self.next_env_obs_ph_for_policy_bpt_bellman] = (
-                last_next_env_obs
-            )
-            feed_dict[self.env_action_ph_for_policy_bpt_bellman] = (
-                last_env_actions
-            )
-            feed_dict[self.rewards_placeholder] = last_rewards
-            feed_dict[self.terminals_placeholder] = last_terminals
+
+        next_obs = self._get_next_obs(batch)
+        actions = self._get_actions(batch)
+        last_rewards = batch['rewards'][:, -1:]
+        last_terminals = batch['terminals'][:, -1:]
+        last_env_obs = self._get_time_step(obs, -1)[0]
+        last_next_env_obs = self._get_time_step(next_obs, -1)[0]
+        last_env_actions = self._get_time_step(actions, -1)[0]
+        feed_dict[self.env_observation_ph_for_policy_bpt_bellman] = (
+            last_env_obs
+        )
+        feed_dict[self.next_env_obs_ph_for_policy_bpt_bellman] = (
+            last_next_env_obs
+        )
+        feed_dict[self.env_action_ph_for_policy_bpt_bellman] = (
+            last_env_actions
+        )
+        feed_dict[self.rewards_placeholder] = last_rewards
+        feed_dict[self.terminals_placeholder] = last_terminals
         return feed_dict
 
     def _eval_policy_feed_dict_from_batch(self, batch):
