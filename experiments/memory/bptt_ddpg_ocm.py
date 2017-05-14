@@ -326,7 +326,7 @@ if __name__ == '__main__':
             env_noise_std=0.,
             memory_noise_std=1.,
             output_nonlinearity=tf.nn.tanh,
-            # env_hidden_sizes=[],
+            env_hidden_sizes=[],
             # env_hidden_activation=tf.identity,
         )
     )
