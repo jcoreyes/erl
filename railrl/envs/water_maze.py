@@ -9,13 +9,20 @@ from rllab.core.serializable import Serializable
 from rllab.spaces.box import Box
 
 
-RADIUS = 0.05
+RADIUS = 0.1
 
 
-class WaterMaze(mujoco_env.MujocoEnv, utils.EzPickle):
+class WaterMaze(mujoco_env.MujocoEnv, utils.EzPickle, Serializable):
     def __init__(self, horizon=200, l2_action_penalty_weight=1e-2):
         Serializable.quick_init(self, locals())
         utils.EzPickle.__init__(self)
+        self.l2_action_penalty_weight = l2_action_penalty_weight
+        self.horizon = horizon
+        self._t = 0
+        self._on_platform_history = deque(maxlen=5)
+        for _ in range(5):
+            self._on_platform_history.append(False)
+
         mujoco_env.MujocoEnv.__init__(self, get_asset_xml('water_maze.xml'), 2)
         self.target_low = self.observation_space.low[2:]
         self.target_high = self.observation_space.high[2:]
@@ -23,12 +30,6 @@ class WaterMaze(mujoco_env.MujocoEnv, utils.EzPickle):
                                 self.action_space.high[:2])
         self.observation_space = Box(self.observation_space.low[:2],
                                      self.observation_space.high[:2])
-        self.l2_action_penalty_weight = l2_action_penalty_weight
-        self.horizon = horizon
-        self._t = 0
-        self._on_platform_history = deque(maxlen=5)
-        for _ in range(5):
-            self._on_platform_history.append(False)
 
     def _step(self, force_actions):
         self._t += 1
@@ -44,7 +45,10 @@ class WaterMaze(mujoco_env.MujocoEnv, utils.EzPickle):
         if all(self._on_platform_history):
             self.reset_ball_position()
 
-        reward = on_platform - self.l2_action_penalty_weight*np.linalg.norm(a)
+        reward = (
+            on_platform
+            - self.l2_action_penalty_weight*np.linalg.norm(force_actions)
+        )
         done = self._t >= self.horizon
         return observation, reward, done, {}
 
@@ -103,9 +107,8 @@ def plot_maps(old_combined=None, *heatmaps):
     return combined
 
 if __name__ == "__main__":
-    env = WaterMaze()
     def evalfn(a):
-        return np.linalg.norm(a - TARGET)
+        return np.linalg.norm(a - np.array([0, 0]))
     hm = make_heat_map(evalfn, resolution=50)
     paths = np.random.randn(5000,2)*0.1
     dm = make_density_map(paths, resolution=50)
