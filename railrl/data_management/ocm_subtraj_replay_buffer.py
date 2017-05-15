@@ -20,6 +20,7 @@ class OcmSubtrajReplayBuffer(UpdatableSubtrajReplayBuffer):
             *args,
             **kwargs
     ):
+        # TODO(vitchyr): Move this logic to environment
         self._target_numbers = np.zeros(max_pool_size, dtype='uint8')
         self._times = np.zeros(max_pool_size, dtype='uint8')
         super().__init__(
