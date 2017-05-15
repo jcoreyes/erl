@@ -100,7 +100,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
         subtrajs, _ = buff.random_subtrajectories(5, validation=True)
         self.assertNpEqual(subtrajs['next_memories'], subtrajs['writes'])
 
-    def test_dloss_dwrite_is_zero_initially(self):
+    def test_dloss_dwrites_are_zero_initially(self):
         env = StubMemoryEnv()
         buff = UpdatableSubtrajReplayBuffer(
             max_pool_size=100,
@@ -158,7 +158,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
         start_indices = [0, 4, 8]
         new_writes = np.random.rand(len(start_indices), 2, 1)
         buff.update_write_subtrajectories(new_writes, start_indices)
-        new_subtrajs, new_start_indices = buff.random_subtrajectories(
+        new_subtrajs, _ = buff.random_subtrajectories(
             len(start_indices),
             validation=True,
             _fixed_start_indices=start_indices,
@@ -184,7 +184,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
         start_indices = [0, 4, 8]
         new_writes = np.random.rand(len(start_indices), 2, 2)
         buff.update_write_subtrajectories(new_writes, start_indices)
-        new_subtrajs, new_start_indices = buff.random_subtrajectories(
+        new_subtrajs, _ = buff.random_subtrajectories(
             len(start_indices),
             validation=True,
             _fixed_start_indices=start_indices,
@@ -236,7 +236,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
         self.assertNpArraysNotEqual(old_memories, new_memories)
         self.assertNpEqual(new_memories, expected_new_memories)
 
-    def test_update_dloss_dwrites_works(self):
+    def test_update_dloss_dmemories_works(self):
         env = StubMemoryEnv()
         buff = UpdatableSubtrajReplayBuffer(
             max_pool_size=100,
@@ -252,15 +252,78 @@ class TestSubtrajReplayBuffer(TFTestCase):
             last_write = write
             buff.add_sample(observation, action, 1, False)
         # First trajectory always goes in validation set
+        """
+        internal
+        dL/dm idx   dL/dw idx   changed?
+        0           n/a         different
+        1           0           different
+        2           1           same
+        3           2           same
+        4           3           different
+        5           4           different
+        6           5           same
+        7           6           same
+        8           7           different
+        9           8           different
+        10          9           same
+        11          10          same
+        12          11          same
+        13          12          same
+        """
         start_indices = [0, 4, 8]
-        new_dd = np.random.rand(len(start_indices), 2, 1)
-        buff.update_dloss_dwrites_subtrajectories(new_dd, start_indices)
-        new_subtrajs, new_start_indices = buff.random_subtrajectories(
+        dloss_dmem = np.random.rand(len(start_indices), 2, 1)
+        buff.update_dloss_dmemories_subtrajectories(dloss_dmem, start_indices)
+        new_subtrajs, _ = buff.random_subtrajectories(
             len(start_indices),
             validation=True,
             _fixed_start_indices=start_indices,
         )
-        self.assertNpEqual(new_subtrajs['dloss_dwrites'], new_dd)
+        expected_dloss_dwrite = np.zeros_like(dloss_dmem)
+        for i in range(len(start_indices)):
+            expected_dloss_dwrite[i, 0, :] = dloss_dmem[i, 1, :]
+        self.assertNpEqual(new_subtrajs['dloss_dwrites'], expected_dloss_dwrite)
+
+    def test_update_dloss_dmemories_works_overlap(self):
+        env = StubMemoryEnv()
+        buff = UpdatableSubtrajReplayBuffer(
+            max_pool_size=100,
+            env=env,
+            subtraj_length=2,
+            memory_dim=1,
+        )
+        # First trajectory always goes in validation set
+        buff.terminate_episode((rand(), rand()))
+        last_write = rand()
+        for _ in range(13):
+            observation = rand(), last_write
+            write = rand()
+            action = rand(), write
+            last_write = write
+            buff.add_sample(observation, action, 1, False)
+        """
+        internal
+        dL/dm idx   dL/dw idx   changed?
+        0           n/a         different
+        1           0           different
+        2           1           same
+        3           2           different
+        4           3           different
+        5           4           same
+        """
+        start_indices = [0, 3]
+        dloss_dmem = np.random.rand(len(start_indices), 2, 1)
+        buff.update_dloss_dmemories_subtrajectories(dloss_dmem, start_indices)
+        new_subtrajs, _ = buff.random_subtrajectories(
+            len(start_indices),
+            _fixed_start_indices=[0, 1, 2, 3],
+        )
+        expected_dloss_dwrite = np.zeros((4, 2, 1))
+        expected_dloss_dwrite[0, 0, :] = dloss_dmem[0, 1, :]
+        expected_dloss_dwrite[1, 1, :] = dloss_dmem[1, 0, :]
+        expected_dloss_dwrite[2, 0, :] = dloss_dmem[1, 0, :]
+        expected_dloss_dwrite[2, 1, :] = dloss_dmem[1, 1, :]
+        expected_dloss_dwrite[3, 0, :] = dloss_dmem[1, 1, :]
+        self.assertNpEqual(new_subtrajs['dloss_dwrites'], expected_dloss_dwrite)
 
 
 class StubMemoryEnv(ContinuousMemoryAugmented):

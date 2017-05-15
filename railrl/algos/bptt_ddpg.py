@@ -161,10 +161,10 @@ class BpttDDPG(DDPG):
             n_steps_total=n_steps_total,
         )
         policy_feed_dict = self._policy_feed_dict_from_batch(minibatch)
-        new_writes, dloss_dwrites, _ = self.sess.run(
+        new_writes, dloss_dmemories, _ = self.sess.run(
             [
                 self.all_writes_subsequences,
-                self.dloss_dwrite_subsequences,
+                self.dloss_dmems_subsequences,
                 policy_ops
             ],
             feed_dict=policy_feed_dict,
@@ -180,7 +180,7 @@ class BpttDDPG(DDPG):
         #                       policy_feed_dict)))
         # import ipdb; ipdb.set_trace()
         self.pool.update_write_subtrajectories(new_writes, start_indices)
-        self.pool.update_dloss_dwrites_subtrajectories(dloss_dwrites,
+        self.pool.update_dloss_dmemories_subtrajectories(dloss_dmemories,
                                                        start_indices)
 
         return minibatch, start_indices
@@ -460,10 +460,11 @@ class BpttDDPG(DDPG):
         self.all_writes_subsequences = tf.stack(self.all_writes_list, axis=1)
         self.all_writes = tf.concat(self.all_writes_list, axis=0)
         self.all_actions = self.all_env_actions, self.all_writes
-        self.all_mems = tf.concat(
-            [self._rnn_init_state_ph] + self.all_writes_list[:-1],
-            axis=0
+        self.all_mems_list = (
+            [self._rnn_init_state_ph] + self.all_writes_list[:-1]
         )
+        self.all_mems_subsequences = tf.stack(self.all_mems_list, axis=1)
+        self.all_mems = tf.concat(self.all_mems_list, axis=0)
         self.all_env_obs = tf.concat(self._rnn_inputs_unstacked,
                                      axis=0)
         self.all_obs = self.all_env_obs, self.all_mems
@@ -546,9 +547,9 @@ class BpttDDPG(DDPG):
         #     self.loss_to_propagate,
         #     self.wparam,
         # )[0]
-        self.dloss_dwrite = tf.gradients(self.loss_to_propagate,
-                                         self.all_writes_list)
-        self.dloss_dwrite_subsequences = tf.stack(self.dloss_dwrite, axis=1)
+        self.dloss_dmems = tf.gradients(self.loss_to_propagate,
+                                        self.all_mems_list)
+        self.dloss_dmems_subsequences = tf.stack(self.dloss_dmems, axis=1)
 
     def _init_policy_loss_and_train_ops(self):
         self.policy_surrogate_loss = self._get_policy_train_loss()
