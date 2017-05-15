@@ -39,7 +39,7 @@ from railrl.algos.bptt_ddpg import BpttDDPG
 # from railrl.algos.sum_bptt_ddpg import SumBpttDDPG
 from railrl.exploration_strategies.noop import NoopStrategy
 from railrl.exploration_strategies.onehot_sampler import OneHotSampler
-# from railrl.exploration_strategies.ou_strategy import OUStrategy
+from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 
 from railrl.exploration_strategies.action_aware_memory_strategy import \
@@ -243,11 +243,11 @@ if __name__ == '__main__':
     version = 'dev'
     num_hp_settings = 100
 
-    # n_seeds = 5
-    # mode = 'ec2'
-    # exp_prefix = '5-14-save-gradient-sweep-2'
-    # run_mode = 'grid'
-    # version = 'reward-low-bellman'
+    n_seeds = 10
+    mode = 'ec2'
+    exp_prefix = '5-15-save-gradient-H-sweep'
+    run_mode = 'grid'
+    # version = 'reparam'
 
     """
     Miscellaneous Params
@@ -284,11 +284,10 @@ if __name__ == '__main__':
     max_path_length = H + 2
     # noinspection PyTypeChecker
     ddpg_params = dict(
-        batch_size=128,
-        n_epochs=30,
+        batch_size=32,
+        n_epochs=50,
         min_pool_size=128,
-        # replay_pool_size=(H+1)*1000,
-        replay_pool_size=900,
+        replay_pool_size=(H+1)*1000,
         # replay_pool_size=int(32*(H+1)*5/4),
         epoch_length=epoch_length,
         eval_samples=eval_samples,
@@ -328,8 +327,8 @@ if __name__ == '__main__':
         # rnn_cell_class=DebugCell,
         rnn_cell_params=dict(
             use_peepholes=True,
-            env_noise_std=0.5,
-            memory_noise_std=1.,
+            env_noise_std=.0,
+            memory_noise_std=0.,
             output_nonlinearity=tf.nn.tanh,
             env_hidden_sizes=[],
             # env_hidden_activation=tf.identity,
@@ -358,20 +357,21 @@ if __name__ == '__main__':
 
     # noinspection PyTypeChecker
     es_params = dict(
-        env_es_class=NoopStrategy,
-        # env_es_class=GaussianStrategy,
+        # env_es_class=NoopStrategy,
+        env_es_class=OUStrategy,
         env_es_params=dict(
             max_sigma=1.,
-            min_sigma=0.1,
+            min_sigma=1,
             decay_period=epoch_length*15,
             softmax=True,
             laplace_weight=0.,
         ),
-        memory_es_class=NoopStrategy,
+        # memory_es_class=NoopStrategy,
+        memory_es_class=OUStrategy,
         memory_es_params=dict(
-            max_sigma=0.5,
-            min_sigma=0.1,
-            decay_period=1000,
+            max_sigma=1,
+            min_sigma=1,
+            decay_period=epoch_length*15,
             softmax=True,
         ),
         noise_action_to_memory=False,
@@ -390,7 +390,7 @@ if __name__ == '__main__':
         dropout_keep_prob=None,
     )
 
-    memory_dim = 2
+    memory_dim = 20
     replay_buffer_params = dict(
         memory_dim=memory_dim,
     )
@@ -469,19 +469,26 @@ if __name__ == '__main__':
         )
     elif run_mode == 'grid':
         search_space = {
-            'policy_params.rnn_cell_params.env_noise_std': [0., 0.2, 1.],
-            'policy_params.rnn_cell_params.memory_noise_std': [0., 0.2, 1.],
+            # 'policy_params.rnn_cell_params.env_noise_std': [0., 0.2, 1.],
+            # 'policy_params.rnn_cell_params.memory_noise_std': [0., 0.2, 1.],
             # 'ddpg_params.qf_weight_decay': [0, 0.001],
             # 'ddpg_params.reward_low_bellman_error_weight': [0, 0.1, 1., 10.],
             # 'ddpg_params.num_extra_qf_updates': [0, 5],
-            'ddpg_params.batch_size': [32, 128],
-            'ddpg_params.replay_pool_size': [900, 90000],
+            # 'ddpg_params.batch_size': [32, 128],
+            # 'ddpg_params.replay_pool_size': [900, 90000],
+            # 'ddpg_params.num_bptt_unrolls': [8, 7, 6, 5, 4, 3],
             # 'qf_params.dropout_keep_prob': [0.5, None],
             # 'meta_params.meta_qf_learning_rate': [1e-3, 1e-4],
             # 'meta_params.meta_qf_output_weight': [0, 0.1, 5],
             # 'meta_params.qf_output_weight': [0, 1],
             # 'env_params.episode_boundary_flags': [True, False],
-            # 'env_params.num_steps': [6, 8],
+            'env_params.num_steps': [8, 10, 12],
+            # 'es_params.memory_es_class': [GaussianStrategy, OUStrategy],
+            # 'es_params.env_es_class': [GaussianStrategy, OUStrategy],
+            # 'es_params.memory_es_params.max_sigma': [1, 0.5],
+            # 'es_params.memory_es_params.min_sigma': [0, 0.2],
+            # 'es_params.env_es_params.max_sigma': [1, 0.5],
+            # 'es_params.env_es_params.min_sigma': [0, 0.2],
         }
         sweeper = DeterministicHyperparameterSweeper(search_space,
                                                      default_parameters=variant)
@@ -529,15 +536,21 @@ if __name__ == '__main__':
         for exp_id, (
                 version,
                 env_es_class,
+                memory_es_class,
                 env_noise_std,
+                memory_noise_std,
         ) in enumerate([
-            ("Gaussian", GaussianStrategy, 0),
+            ("Gaussian", OUStrategy, 0),
             ("Reparam", NoopStrategy, 0.2)
         ]):
             variant['version'] = version
             variant['es_params']['env_es_class'] = env_es_class
+            variant['es_params']['memory_es_class'] = memory_es_class
             variant['policy_params']['rnn_cell_params']['env_noise_std'] = (
                 env_noise_std
+            )
+            variant['policy_params']['rnn_cell_params']['memory_noise_std'] = (
+                memory_noise_std
             )
             for seed in range(n_seeds):
                 run_experiment(
