@@ -243,9 +243,9 @@ if __name__ == '__main__':
     version = 'dev'
     num_hp_settings = 100
 
-    # n_seeds = 10
+    # n_seeds = 5
     # mode = 'ec2'
-    # exp_prefix = '5-14-stop-gradient-target-q'
+    # exp_prefix = '5-14-save-gradient-sweep-2'
     # run_mode = 'grid'
     # version = 'reward-low-bellman'
 
@@ -268,7 +268,7 @@ if __name__ == '__main__':
     """
     # env_class = OneCharMemoryEndOnly
     env_class = HighLow
-    H = 4
+    H = 8
     env_params = dict(
         num_steps=H,
         n=2,
@@ -284,10 +284,11 @@ if __name__ == '__main__':
     max_path_length = H + 2
     # noinspection PyTypeChecker
     ddpg_params = dict(
-        batch_size=32,
+        batch_size=128,
         n_epochs=30,
-        min_pool_size=32,
-        replay_pool_size=(H+1)*1000,
+        min_pool_size=128,
+        # replay_pool_size=(H+1)*1000,
+        replay_pool_size=900,
         # replay_pool_size=int(32*(H+1)*5/4),
         epoch_length=epoch_length,
         eval_samples=eval_samples,
@@ -313,7 +314,7 @@ if __name__ == '__main__':
         write_policy_learning_rate=1e-4,
         train_policy_on_all_qf_timesteps=False,
         # memory
-        num_bptt_unrolls=3,
+        num_bptt_unrolls=4,
         bpt_bellman_error_weight=0,
         reward_low_bellman_error_weight=0.,
         saved_write_loss_weight=1.,
@@ -468,13 +469,13 @@ if __name__ == '__main__':
         )
     elif run_mode == 'grid':
         search_space = {
-            # 'policy_params.rnn_cell_params.env_noise_std': [0., .2],
-            # 'policy_params.rnn_cell_params.memory_noise_std': [0., 1.],
+            'policy_params.rnn_cell_params.env_noise_std': [0., 0.2, 1.],
+            'policy_params.rnn_cell_params.memory_noise_std': [0., 0.2, 1.],
             # 'ddpg_params.qf_weight_decay': [0, 0.001],
             # 'ddpg_params.reward_low_bellman_error_weight': [0, 0.1, 1., 10.],
             # 'ddpg_params.num_extra_qf_updates': [0, 5],
-            'ddpg_params.saved_write_loss_weight': [0, 0.01, 0.1, 1, 10, 100,
-                                                    1000],
+            'ddpg_params.batch_size': [32, 128],
+            'ddpg_params.replay_pool_size': [900, 90000],
             # 'qf_params.dropout_keep_prob': [0.5, None],
             # 'meta_params.meta_qf_learning_rate': [1e-3, 1e-4],
             # 'meta_params.meta_qf_output_weight': [0, 0.1, 5],
