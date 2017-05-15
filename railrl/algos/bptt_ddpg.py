@@ -281,8 +281,7 @@ class BpttDDPG(DDPG):
             obs=flat_batch['obs'],
             actions=flat_batch['actions'],
             next_obs=flat_batch['next_obs'],
-            target_numbers=flat_batch['target_numbers'],
-            times=flat_batch['times'],
+            **self.env.get_extra_info_dict_from_batch(flat_batch)
         )
         return feed
 
@@ -299,14 +298,10 @@ class BpttDDPG(DDPG):
         obs = self._get_obs(batch)
         actions = self._get_actions(batch)
         next_obs = self._get_next_obs(batch)
-        target_numbers = batch['target_numbers']
-        times = batch['times']
 
         flat_actions = self._flatten(actions)
         flat_obs = self._flatten(obs)
         flat_next_obs = self._flatten(next_obs)
-        flat_target_numbers = target_numbers.flatten()
-        flat_times = times.flatten()
         flat_terminals = terminals.flatten()
         flat_rewards = rewards.flatten()
 
@@ -316,8 +311,9 @@ class BpttDDPG(DDPG):
             obs=flat_obs,
             actions=flat_actions,
             next_obs=flat_next_obs,
-            target_numbers=flat_target_numbers,
-            times=flat_times,
+            **self.env.get_flattened_extra_info_dict_from_subsequence_batch(
+                batch
+            )
         )
 
     def subtraj_batch_to_last_augmented_batch(self, batch):
@@ -333,14 +329,10 @@ class BpttDDPG(DDPG):
         obs = self._get_obs(batch)
         actions = self._get_actions(batch)
         next_obs = self._get_next_obs(batch)
-        target_numbers = batch['target_numbers']
-        times = batch['times']
 
         last_actions = self._get_time_step(actions, -1)
         last_obs = self._get_time_step(obs, -1)
         last_next_obs = self._get_time_step(next_obs, -1)
-        last_target_numbers = target_numbers[:, -1]
-        last_times = times[:, -1]
         last_terminals = terminals[:, -1]
         last_rewards = rewards[:, -1]
 
@@ -350,8 +342,7 @@ class BpttDDPG(DDPG):
             obs=last_obs,
             actions=last_actions,
             next_obs=last_next_obs,
-            target_numbers=last_target_numbers,
-            times=last_times,
+            **self.env.get_last_extra_info_dict_from_subsequence_batch(batch)
         )
 
     def _eval_qf_feed_dict_from_batch(self, batch):

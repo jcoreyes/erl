@@ -119,3 +119,12 @@ class ContinuousMemoryAugmented(ProxyEnv):
         """
         return self._wrapped_env.get_tf_loss(observations[0], actions[0],
                                              **kwargs)
+
+    def get_extra_info_dict_from_batch(self, batch):
+        return self._wrapped_env.get_extra_info_dict_from_batch(batch)
+
+    def get_flattened_extra_info_dict_from_subsequence_batch(self, batch):
+        return self._wrapped_env.get_flattened_extra_info_dict_from_subsequence_batch(batch)
+
+    def get_last_extra_info_dict_from_subsequence_batch(self, batch):
+        return self._wrapped_env.get_last_extra_info_dict_from_subsequence_batch(batch)

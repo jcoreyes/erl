@@ -35,6 +35,18 @@ class WaterMaze(ProxyEnv, Serializable):
     def terminate(self):
         self._wrapped_env.close()
 
+    @staticmethod
+    def get_extra_info_dict_from_batch(batch):
+        return {}
+
+    @staticmethod
+    def get_flattened_extra_info_dict_from_subsequence_batch(batch):
+        return {}
+
+    @staticmethod
+    def get_last_extra_info_dict_from_subsequence_batch(batch):
+        return {}
+
 
 class MujocoWaterMaze(mujoco_env.MujocoEnv, utils.EzPickle):
     def __init__(self, horizon=200, l2_action_penalty_weight=1e-2, **kwargs):
