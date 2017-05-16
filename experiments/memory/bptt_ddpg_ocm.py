@@ -321,7 +321,7 @@ if __name__ == '__main__':
         train_policy=True,
         write_policy_learning_rate=None,
         train_policy_on_all_qf_timesteps=False,
-        write_decay_weight=0.,
+        write_decay_weight=0,
         # memory
         num_bptt_unrolls=9,
         bpt_bellman_error_weight=1,
@@ -345,12 +345,12 @@ if __name__ == '__main__':
             # env_hidden_activation=tf.tanh,
             env_output_nonlinearity=tf.nn.tanh,
             env_hidden_sizes=[100, 64],
-            # env_hidden_activation=tf.nn.tanh,
+            env_hidden_activation=tf.nn.tanh,
             write_hidden_sizes=[32, 32],
-            # write_hidden_activation=tf.nn.tanh,
+            write_hidden_activation=tf.nn.tanh,
             # write_output_nonlinearity=tf.identity,
-            # write_output_nonlinearity=tf.nn.tanh,
-            write_output_nonlinearity=tf.nn.relu,
+            write_output_nonlinearity=tf.nn.tanh,
+            # write_output_nonlinearity=tf.nn.relu,
         )
     )
 
