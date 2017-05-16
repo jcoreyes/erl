@@ -248,20 +248,21 @@ if __name__ == '__main__':
     version = 'dev'
     num_hp_settings = 100
 
-    # n_seeds = 5
+    n_seeds = 10
     # mode = 'ec2'
-    # exp_prefix = 'water-maze-no-training'
-    # run_mode = 'grid'
+    # exp_prefix = '5-15-savegrad-hl-n-grad-per-step-sweep-correct'
+    exp_prefix = '5-15-savegrad-bptb-weight-grid-search'
+    run_mode = 'grid'
     # version = 'reparam'
 
     """
     Miscellaneous Params
     """
-    n_batches_per_epoch = 100
-    n_batches_per_eval = 64
+    n_rollouts_per_epoch = 100
+    n_rollouts_per_eval = 64
     oracle_mode = 'none'
-    # algo_class = BpttDDPG
-    algo_class = NoOpBpttDDPG
+    algo_class = BpttDDPG
+    # algo_class = NoOpBpttDDPG
     load_policy_file = (
         '/home/vitchyr/git/rllab-rail/railrl/data/reference/expert'
         '/ocm_reward_magnitude5_H6_nbptt6_100p'
@@ -272,10 +273,10 @@ if __name__ == '__main__':
     """
     Set all the hyperparameters!
     """
-    env_class = WaterMaze
+    # env_class = WaterMaze
     # env_class = OneCharMemoryEndOnly
-    # env_class = HighLow
-    H = 7
+    env_class = HighLow
+    H = 9
     env_params = dict(
         num_steps=H,
         n=2,
@@ -286,8 +287,8 @@ if __name__ == '__main__':
         max_reward_magnitude=1,
     )
 
-    epoch_length = H * n_batches_per_epoch
-    eval_samples = H * n_batches_per_eval
+    epoch_length = H * n_rollouts_per_epoch
+    eval_samples = H * n_rollouts_per_eval
     max_path_length = H + 2
     # noinspection PyTypeChecker
     ddpg_params = dict(
@@ -295,6 +296,7 @@ if __name__ == '__main__':
         n_epochs=30,
         min_pool_size=128,
         replay_pool_size=(H+1)*1000,
+        n_updates_per_time_step=1,
         # replay_pool_size=int(32*(H+1)*5/4),
         epoch_length=epoch_length,
         eval_samples=eval_samples,
@@ -367,7 +369,7 @@ if __name__ == '__main__':
         # env_es_class=NoopStrategy,
         env_es_class=OUStrategy,
         env_es_params=dict(
-            max_sigma=1.,
+            max_sigma=1,
             min_sigma=1,
             decay_period=epoch_length*15,
             softmax=True,
@@ -420,8 +422,8 @@ if __name__ == '__main__':
         oracle_params=oracle_params,
         es_params=es_params,
         meta_params=meta_params,
-        # replay_buffer_class=OcmSubtrajReplayBuffer,
-        replay_buffer_class=UpdatableSubtrajReplayBuffer,
+        replay_buffer_class=OcmSubtrajReplayBuffer,
+        # replay_buffer_class=UpdatableSubtrajReplayBuffer,
         replay_buffer_params=replay_buffer_params,
     )
 
@@ -489,6 +491,9 @@ if __name__ == '__main__':
             # 'ddpg_params.batch_size': [32, 128],
             # 'ddpg_params.replay_pool_size': [900, 90000],
             # 'ddpg_params.num_bptt_unrolls': [8, 6, 5, 4, 2],
+            # 'ddpg_params.n_updates_per_time_step': [1, 5, 10],
+            'ddpg_params.bpt_bellman_error_weight': [10],
+            'ddpg_params.saved_write_loss_weight': [0, 1, 10],
             # 'qf_params.dropout_keep_prob': [0.5, None],
             # 'meta_params.meta_qf_learning_rate': [1e-3, 1e-4],
             # 'meta_params.meta_qf_output_weight': [0, 0.1, 5],
@@ -497,10 +502,10 @@ if __name__ == '__main__':
             # 'env_params.num_steps': [8, 10, 12],
             # 'es_params.memory_es_class': [GaussianStrategy, OUStrategy],
             # 'es_params.env_es_class': [GaussianStrategy, OUStrategy],
-            'es_params.memory_es_params.max_sigma': [3, 1],
-            'es_params.memory_es_params.min_sigma': [1],
-            'es_params.env_es_params.max_sigma': [3, 1],
-            'es_params.env_es_params.min_sigma': [1],
+            # 'es_params.memory_es_params.max_sigma': [3, 1],
+            # 'es_params.memory_es_params.min_sigma': [1],
+            # 'es_params.env_es_params.max_sigma': [3, 1],
+            # 'es_params.env_es_params.min_sigma': [1],
         }
         sweeper = DeterministicHyperparameterSweeper(search_space,
                                                      default_parameters=variant)
