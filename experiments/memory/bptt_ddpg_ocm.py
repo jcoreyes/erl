@@ -248,11 +248,10 @@ if __name__ == '__main__':
     version = 'dev'
     num_hp_settings = 100
 
-    n_seeds = 10
+    # n_seeds = 10
     # mode = 'ec2'
-    # exp_prefix = '5-15-savegrad-hl-n-grad-per-step-sweep-correct'
-    exp_prefix = '5-15-savegrad-bptb-weight-grid-search'
-    run_mode = 'grid'
+    # exp_prefix = '5-16-learning-rate-num-grad-steps'
+    # run_mode = 'grid'
     # version = 'reparam'
 
     """
@@ -323,9 +322,9 @@ if __name__ == '__main__':
         train_policy_on_all_qf_timesteps=False,
         # memory
         num_bptt_unrolls=4,
-        bpt_bellman_error_weight=0,
+        bpt_bellman_error_weight=1,
         reward_low_bellman_error_weight=0.,
-        saved_write_loss_weight=1.,
+        saved_write_loss_weight=1,
     )
 
     # noinspection PyTypeChecker
@@ -340,7 +339,7 @@ if __name__ == '__main__':
             memory_noise_std=0.,
             output_nonlinearity=tf.nn.tanh,
             env_hidden_sizes=[],
-            # env_hidden_activation=tf.identity,
+            # env_hidden_activation=tf.tanh,
         )
     )
 
@@ -491,9 +490,10 @@ if __name__ == '__main__':
             # 'ddpg_params.batch_size': [32, 128],
             # 'ddpg_params.replay_pool_size': [900, 90000],
             # 'ddpg_params.num_bptt_unrolls': [8, 6, 5, 4, 2],
-            # 'ddpg_params.n_updates_per_time_step': [1, 5, 10],
-            'ddpg_params.bpt_bellman_error_weight': [10],
-            'ddpg_params.saved_write_loss_weight': [0, 1, 10],
+            'ddpg_params.n_updates_per_time_step': [1, 5, 10],
+            'ddpg_params.policy_learning_rate': [1e-3, 1e-4, 1e-5],
+            # 'ddpg_params.bpt_bellman_error_weight': [10],
+            # 'ddpg_params.saved_write_loss_weight': [0, 1, 10],
             # 'qf_params.dropout_keep_prob': [0.5, None],
             # 'meta_params.meta_qf_learning_rate': [1e-3, 1e-4],
             # 'meta_params.meta_qf_output_weight': [0, 0.1, 5],
