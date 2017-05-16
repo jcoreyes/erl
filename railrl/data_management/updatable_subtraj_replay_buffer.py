@@ -15,6 +15,7 @@ class UpdatableSubtrajReplayBuffer(SubtrajReplayBuffer):
             env: ContinuousMemoryAugmented,
             subtraj_length,
             memory_dim,
+            keep_old_fraction=0.,
             **kwargs
     ):
         super().__init__(
@@ -40,6 +41,7 @@ class UpdatableSubtrajReplayBuffer(SubtrajReplayBuffer):
 
         self._memory_dim = env.memory_dim
         self._memories = np.zeros((max_pool_size, self._memory_dim))
+        self.keep_old_fraction = keep_old_fraction
 
     def random_subtrajectories(self, batch_size, replace=False,
                                validation=False, _fixed_start_indices=None):
@@ -116,4 +118,5 @@ class UpdatableSubtrajReplayBuffer(SubtrajReplayBuffer):
             new_values=updated_dloss_dmemories,
             start_indices=start_indices,
             length=self._subtraj_length,
+            keep_old_fraction=self.keep_old_fraction,
         )

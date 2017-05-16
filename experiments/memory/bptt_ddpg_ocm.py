@@ -248,10 +248,10 @@ if __name__ == '__main__':
     version = 'dev'
     num_hp_settings = 100
 
-    # n_seeds = 10
-    # mode = 'ec2'
-    # exp_prefix = '5-16-learning-rate-for-all-policy-and-num-grad-steps-grid'
-    # run_mode = 'grid'
+    n_seeds = 10
+    mode = 'ec2'
+    exp_prefix = '5-16-soft-cache-gradients'
+    run_mode = 'grid'
     # version = 'reparam'
 
     """
@@ -321,7 +321,7 @@ if __name__ == '__main__':
         write_policy_learning_rate=None,
         train_policy_on_all_qf_timesteps=False,
         # memory
-        num_bptt_unrolls=4,
+        num_bptt_unrolls=5,
         bpt_bellman_error_weight=1,
         reward_low_bellman_error_weight=0.,
         saved_write_loss_weight=1,
@@ -490,8 +490,8 @@ if __name__ == '__main__':
             # 'ddpg_params.batch_size': [32, 128],
             # 'ddpg_params.replay_pool_size': [900, 90000],
             # 'ddpg_params.num_bptt_unrolls': [8, 6, 5, 4, 2],
-            'ddpg_params.n_updates_per_time_step': [1, 5, 10],
-            'ddpg_params.policy_learning_rate': [1e-3, 1e-4, 1e-5],
+            # 'ddpg_params.n_updates_per_time_step': [1, 5, 10],
+            # 'ddpg_params.policy_learning_rate': [1e-3, 1e-4, 1e-5],
             # 'ddpg_params.bpt_bellman_error_weight': [10],
             # 'ddpg_params.saved_write_loss_weight': [0, 1, 10],
             # 'qf_params.dropout_keep_prob': [0.5, None],
@@ -506,6 +506,8 @@ if __name__ == '__main__':
             # 'es_params.memory_es_params.min_sigma': [1],
             # 'es_params.env_es_params.max_sigma': [3, 1],
             # 'es_params.env_es_params.min_sigma': [1],
+            'replay_buffer_params.keep_old_fraction': [0, 0.1, 0.3, 0.5,
+                                                       0.7, 0.9, 1],
         }
         sweeper = DeterministicHyperparameterSweeper(search_space,
                                                      default_parameters=variant)

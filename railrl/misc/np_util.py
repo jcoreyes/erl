@@ -69,7 +69,8 @@ def subsequences(tensor, start_indices, length, start_offset=0):
 
 
 def assign_subsequences(tensor, new_values, start_indices, length,
-                        start_offset=0):
+                        start_offset=0,
+                        keep_old_fraction=0.):
     """
     The same as subseqences, but instead of returning those subsequences,
     this assigns `new_values` to those entries.
@@ -96,5 +97,12 @@ def assign_subsequences(tensor, new_values, start_indices, length,
         num_indices,
         axis=0
     ) + np.array(start_indices).reshape((num_indices, 1)) + start_offset
-    for new_value, sub_indices in zip(new_values, indices):
-        tensor[sub_indices] = new_value
+    if keep_old_fraction > 0.:
+        for new_value, sub_indices in zip(new_values, indices):
+            tensor[sub_indices] = (
+                (1-keep_old_fraction) * new_value
+                + keep_old_fraction * tensor[sub_indices]
+            )
+    else:
+        for new_value, sub_indices in zip(new_values, indices):
+            tensor[sub_indices] = new_value
