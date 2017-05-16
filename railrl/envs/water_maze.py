@@ -33,33 +33,19 @@ class WaterMaze(ProxyEnv, Serializable):
         return None
 
     def log_diagnostics(self, paths, **kwargs):
-        # import ipdb; ipdb.set_trace()
-        rewards, terminals, obs, actions, next_obs = split_paths(paths)
-        # env_infos = [p['env_infos'] for p in paths]
-        # target_positions = [info['target_position'] for info in env_infos]
-        # radius = [info['radius'] for info in env_infos]
+        list_of_rewards, terminals, obs, actions, next_obs = split_paths(paths)
 
         returns = []
-        for path in paths:
-            target_position = path["env_infos"]["target_position"]
-            radius = path["env_infos"]["radius"]
-            def compute_reward(obs, action):
-                position = obs[:2]
-                dist = np.linalg.norm(position - target_position)
-                on_platform = dist <= radius
-                return (
-                    on_platform
-                    - self._wrapped_env.l2_action_penalty_weight
-                    * np.linalg.norm(action)
-                )
-            rewards = [compute_reward(obs, action)
-                       for obs, action
-                       in zip(path['observations'], path['actions'])]
+        for rewards in list_of_rewards:
             returns.append(np.sum(rewards))
         last_statistics = OrderedDict()
         last_statistics.update(create_stats_ordered_dict(
-            'Return',
+            'UndiscountedReturns',
             returns,
+        ))
+        last_statistics.update(create_stats_ordered_dict(
+            'Rewards',
+            list_of_rewards,
         ))
         last_statistics.update(create_stats_ordered_dict(
             'Actions',
@@ -68,7 +54,7 @@ class WaterMaze(ProxyEnv, Serializable):
 
         for key, value in last_statistics.items():
             logger.record_tabular(key, value)
-        return rewards
+        return returns
 
     def terminate(self):
         self._wrapped_env.close()
