@@ -206,7 +206,8 @@ class BpttDDPG(DDPG):
     def _policy_statistics_from_batch(self, batch):
         policy_feed_dict = self._eval_policy_feed_dict_from_batch(batch)
         policy_stat_names, policy_ops = zip(*[
-            ('PolicySurrogateLoss', self.policy_surrogate_loss),
+            ('PolicyEnvLoss', self.policy_env_action_loss),
+            ('PolicyWriteLoss', self.policy_write_action_loss),
             ('PolicyOutput', self.policy.output),
             # Unforuntately this won't work because new data sampled won't
             # have any saved dloss/dwrites in the temporary replay buffer.
@@ -577,7 +578,7 @@ class BpttDDPG(DDPG):
             self.write_policy_learning_rate
         ).minimize(self.policy_write_action_loss, var_list=policy_write_params)
 
-        return [
+        self.train_policy_op = [
             self.train_policy_op_env,
             self.train_policy_op_write,
         ]
