@@ -248,9 +248,9 @@ if __name__ == '__main__':
     version = 'dev'
     num_hp_settings = 100
 
-    # n_seeds = 10
-    # mode = 'ec2'
-    # exp_prefix = '5-16-learning-rate-num-grad-steps'
+    n_seeds = 10
+    mode = 'ec2'
+    exp_prefix = '5-16-write-only-optimize-bellman-error-correct-2'
     # run_mode = 'grid'
     # version = 'reparam'
 
@@ -275,7 +275,7 @@ if __name__ == '__main__':
     # env_class = WaterMaze
     # env_class = OneCharMemoryEndOnly
     env_class = HighLow
-    H = 32
+    H = 9
     env_params = dict(
         num_steps=H,
         n=2,
@@ -318,10 +318,10 @@ if __name__ == '__main__':
         policy_learning_rate=1e-3,
         max_num_q_updates=1000,
         train_policy=True,
-        write_policy_learning_rate=1e-3,
+        write_policy_learning_rate=1e-4,
         train_policy_on_all_qf_timesteps=False,
         # memory
-        num_bptt_unrolls=32,
+        num_bptt_unrolls=4,
         bpt_bellman_error_weight=1,
         reward_low_bellman_error_weight=0.,
         saved_write_loss_weight=1,
