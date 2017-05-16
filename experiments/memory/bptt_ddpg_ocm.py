@@ -35,6 +35,7 @@ from railrl.policies.memory.lstm_memory_policy import (
     LstmMlpCell,
     # LstmLinearCellNoiseAll,
     SeparateLstmLinearCell,
+    FfResCell,
     DebugCell,
 )
 # from railrl.algos.writeback_bptt_ddpt import WritebackBpttDDPG
@@ -248,10 +249,10 @@ if __name__ == '__main__':
     version = 'dev'
     num_hp_settings = 100
 
-    # n_seeds = 10
-    # mode = 'ec2'
-    # exp_prefix = '5-16-learning-rate-for-all-policy-and-num-grad-steps-grid'
-    # run_mode = 'grid'
+    n_seeds = 5
+    mode = 'ec2'
+    exp_prefix = '5-16-ff-res-cell-grid-H9-ez'
+    run_mode = 'grid'
     # version = 'reparam'
 
     """
@@ -320,8 +321,9 @@ if __name__ == '__main__':
         train_policy=True,
         write_policy_learning_rate=None,
         train_policy_on_all_qf_timesteps=False,
+        write_decay_weight=0.,
         # memory
-        num_bptt_unrolls=4,
+        num_bptt_unrolls=9,
         bpt_bellman_error_weight=1,
         reward_low_bellman_error_weight=0.,
         saved_write_loss_weight=1,
@@ -329,17 +331,26 @@ if __name__ == '__main__':
 
     # noinspection PyTypeChecker
     policy_params = dict(
+        rnn_cell_class=FfResCell,
         # rnn_cell_class=LstmLinearCell,
-        rnn_cell_class=SeparateLstmLinearCell,
+        # rnn_cell_class=SeparateLstmLinearCell,
         # rnn_cell_class=LstmLinearCellNoiseAll,
         # rnn_cell_class=DebugCell,
         rnn_cell_params=dict(
-            use_peepholes=True,
+            # use_peepholes=True,
             env_noise_std=.0,
             memory_noise_std=0.,
-            output_nonlinearity=tf.nn.tanh,
-            env_hidden_sizes=[],
+            # output_nonlinearity=tf.nn.tanh,
+            # env_hidden_sizes=[],
             # env_hidden_activation=tf.tanh,
+            env_output_nonlinearity=tf.nn.tanh,
+            env_hidden_sizes=[100, 64],
+            # env_hidden_activation=tf.nn.tanh,
+            write_hidden_sizes=[32, 32],
+            # write_hidden_activation=tf.nn.tanh,
+            # write_output_nonlinearity=tf.identity,
+            # write_output_nonlinearity=tf.nn.tanh,
+            write_output_nonlinearity=tf.nn.relu,
         )
     )
 
@@ -369,18 +380,18 @@ if __name__ == '__main__':
         env_es_class=OUStrategy,
         env_es_params=dict(
             max_sigma=1,
-            min_sigma=1,
+            min_sigma=None,
             decay_period=epoch_length*15,
-            softmax=True,
-            laplace_weight=0.,
+            # softmax=True,
+            # laplace_weight=0.,
         ),
         # memory_es_class=NoopStrategy,
         memory_es_class=OUStrategy,
         memory_es_params=dict(
-            max_sigma=1,
-            min_sigma=1,
+            max_sigma=.1,
+            min_sigma=None,
             decay_period=epoch_length*15,
-            softmax=True,
+            # softmax=True,
         ),
         noise_action_to_memory=False,
     )
@@ -484,14 +495,22 @@ if __name__ == '__main__':
             #     [32],
             #     [32, 32],
             # ],
+            'policy_params.rnn_cell_params.write_output_nonlinearity': [
+                tf.nn.relu,
+                tf.nn.tanh,
+                tf.identity,
+            ],
+            'es_params.memory_es_params.max_sigma': [5, 1, .1],
+            'es_params.memory_es_params.min_sigma': [None],
             # 'ddpg_params.qf_weight_decay': [0, 0.001],
             # 'ddpg_params.reward_low_bellman_error_weight': [0, 0.1, 1., 10.],
             # 'ddpg_params.num_extra_qf_updates': [0, 5],
             # 'ddpg_params.batch_size': [32, 128],
             # 'ddpg_params.replay_pool_size': [900, 90000],
             # 'ddpg_params.num_bptt_unrolls': [8, 6, 5, 4, 2],
-            'ddpg_params.n_updates_per_time_step': [1, 5, 10],
-            'ddpg_params.policy_learning_rate': [1e-3, 1e-4, 1e-5],
+            # 'ddpg_params.n_updates_per_time_step': [1, 5, 10],
+            # 'ddpg_params.policy_learning_rate': [1e-3, 1e-4, 1e-5],
+            'ddpg_params.write_decay_weight': [1, 1e-2, 1e-4],
             # 'ddpg_params.bpt_bellman_error_weight': [10],
             # 'ddpg_params.saved_write_loss_weight': [0, 1, 10],
             # 'qf_params.dropout_keep_prob': [0.5, None],
@@ -502,8 +521,6 @@ if __name__ == '__main__':
             # 'env_params.num_steps': [8, 10, 12],
             # 'es_params.memory_es_class': [GaussianStrategy, OUStrategy],
             # 'es_params.env_es_class': [GaussianStrategy, OUStrategy],
-            # 'es_params.memory_es_params.max_sigma': [3, 1],
-            # 'es_params.memory_es_params.min_sigma': [1],
             # 'es_params.env_es_params.max_sigma': [3, 1],
             # 'es_params.env_es_params.min_sigma': [1],
         }

@@ -24,7 +24,7 @@ class OUStrategy(RawExplorationStrategy, Serializable):
             max_sigma=0.3,
             min_sigma=0.3,
             decay_period=100000,
-            **kwargs
+            # **kwargs
     ):
         assert isinstance(env_spec.action_space, Box)
         assert len(env_spec.action_space.shape) == 1
@@ -33,6 +33,8 @@ class OUStrategy(RawExplorationStrategy, Serializable):
         self.theta = theta
         self.sigma = max_sigma
         self._max_sigma = max_sigma
+        if min_sigma is None:
+            min_sigma = max_sigma
         self._min_sigma = min_sigma
         self._decay_period = decay_period
         self.action_space = env_spec.action_space

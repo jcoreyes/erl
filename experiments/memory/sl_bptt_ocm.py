@@ -5,6 +5,7 @@ from itertools import product
 import random
 from railrl.launchers.rnn_launchers import bptt_launcher
 from railrl.launchers.launcher_util import run_experiment
+import tensorflow as tf
 from tensorflow.contrib.rnn import (
     LayerNormBasicLSTMCell,
     LSTMCell,
@@ -18,6 +19,8 @@ from railrl.policies.memory.lstm_memory_policy import (
     LstmLinearCellNoiseAllNoiseLogit,
     ResidualLstmLinearCell,
     GRULinearCell,
+    SeparateLstmLinearCell,
+    FfResCell,
 )
 
 
@@ -35,12 +38,12 @@ def main():
     # exp_prefix = 'dev-sl'
     env_noise_std = 0.
     memory_noise_std = .1
+    mode = 'here'
     for H, rnn_cell_class, env_noise_std, memory_noise_std in product(
-        [64],
-        [LstmLinearCell, LstmLinearCellNoiseAll,
-         LstmLinearCellSwapped, LstmLinearCellNoiseAllNoiseLogit, GRULinearCell],
-        [0., 0.1, 1.],
-        [0., 0.1, 1.],
+        [32],
+        [FfResCell],
+        [0],
+        [0],
     ):
         variant = dict(
             env_params=dict(
@@ -63,6 +66,13 @@ def main():
                     use_peepholes=use_peepholes,
                     env_noise_std=env_noise_std,
                     memory_noise_std=memory_noise_std,
+                    # output_nonlinearity=tf.nn.softmax,
+                    env_output_nonlinearity=tf.nn.softmax,
+                    # env_hidden_sizes=[100],
+                    # env_hidden_activation=tf.identity,
+                    # write_output_nonlinearity=tf.identity,
+                    # write_hidden_sizes=[100],
+                    # write_hidden_activation=tf.identity,
                 ),
                 softmax=softmax,
             ),
@@ -77,7 +87,7 @@ def main():
                 exp_prefix=exp_prefix,
                 seed=seed,
                 variant=variant,
-                mode='ec2',
+                mode=mode,
             )
 
 

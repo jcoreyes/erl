@@ -159,6 +159,80 @@ class SeparateLstmLinearCell(LSTMCell):
         return self._output_dim
 
 
+class FfResCell(RNNCell):
+    """
+    Feed forward + Residual connection.
+    """
+    def __init__(
+            self,
+            num_units,
+            output_dim,
+            env_noise_std=0.,
+            memory_noise_std=0.,
+            write_output_nonlinearity=tf.nn.tanh,
+            write_hidden_sizes=(100, 64),
+            write_hidden_activation=tf.nn.relu,
+            env_output_nonlinearity=tf.nn.tanh,
+            env_hidden_sizes=(100, 64),
+            env_hidden_activation=tf.nn.relu,
+    ):
+        assert env_noise_std >= 0.
+        assert memory_noise_std >= 0.
+        self._state_dim = num_units
+        self._output_dim = output_dim
+        self._env_noise_std = env_noise_std
+        self._memory_noise_std = memory_noise_std
+        self.write_action_scope = None
+        self.write_hidden_sizes = write_hidden_sizes
+        self.write_hidden_activation = write_hidden_activation
+        self.write_output_nonlinearity = write_output_nonlinearity
+        self.env_action_scope = None
+        self.env_hidden_sizes = env_hidden_sizes
+        self.env_hidden_activation = env_hidden_activation
+        self.env_output_nonlinearity = env_output_nonlinearity
+
+    def __call__(self, inputs, state, scope=None):
+        with tf.variable_scope(scope or "ff_res_cell") as self.scope:
+            flat_inputs = tf.concat(axis=1, values=(inputs, state))
+            with tf.variable_scope('write_action') as self.write_action_scope:
+                state_delta = tf_util.mlp(
+                    flat_inputs,
+                    flat_inputs.get_shape()[-1],
+                    hidden_sizes=self.write_hidden_sizes,
+                    nonlinearity=self.write_hidden_activation,
+                    linear_output_size=self.state_size
+                )
+                state_delta = self.write_output_nonlinearity(state_delta)
+                if self._memory_noise_std > 0.:
+                    state_delta += self._memory_noise_std * tf.random_normal(
+                        tf.shape(state_delta)
+                    )
+                next_state = state + state_delta
+
+            with tf.variable_scope('env_action') as self.env_action_scope:
+                env_output = tf_util.mlp(
+                    flat_inputs,
+                    flat_inputs.get_shape()[-1],
+                    hidden_sizes=self.env_hidden_sizes,
+                    nonlinearity=self.env_hidden_activation,
+                    linear_output_size=self._output_dim
+                )
+                env_output = self.env_output_nonlinearity(env_output)
+                if self._env_noise_std > 0.:
+                    env_output += self._env_noise_std * tf.random_normal(
+                        tf.shape(env_output)
+                    )
+            return env_output, next_state
+
+    @property
+    def state_size(self):
+        return self._state_dim
+
+    @property
+    def output_size(self):
+        return self._output_dim
+
+
 class LstmMlpCell(LSTMCell):
     """
     LSTM cell with a linear unit + softmax before the output.

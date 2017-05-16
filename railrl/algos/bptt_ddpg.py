@@ -52,6 +52,7 @@ class BpttDDPG(DDPG):
             train_policy_on_all_qf_timesteps=False,
             write_policy_learning_rate=None,
             saved_write_loss_weight=1.,
+            write_decay_weight=0.,
             **kwargs
     ):
         """
@@ -88,6 +89,7 @@ class BpttDDPG(DDPG):
         part of the policy at this different learning rate. If `None`,
         the `policy_learning_rate` is used for all policy parameters. If set to
         zero, then the write action parameters aren't trained at all.
+        :param write_decay_weight: Penalize the l2 norm of the write actions.
         :param kwargs: kwargs to pass onto DDPG
         """
         assert extra_qf_training_mode in [
@@ -127,6 +129,7 @@ class BpttDDPG(DDPG):
         self.train_policy_on_all_qf_timesteps = train_policy_on_all_qf_timesteps
         self.write_policy_learning_rate = write_policy_learning_rate
         self.saved_write_loss_weight = saved_write_loss_weight
+        self.write_decay_weight = write_decay_weight
 
         self._rnn_cell_scope = policy.rnn_cell_scope
         self._rnn_cell = policy.rnn_cell
@@ -581,6 +584,11 @@ class BpttDDPG(DDPG):
         if self._bpt_bellman_error_weight > 0.:
             loss += (
                 self.bellman_error_for_policy * self._bpt_bellman_error_weight
+            )
+        if self.write_decay_weight > 0.:
+            loss += (
+                tf.reduce_mean(self.all_writes_subsequences)
+                * self.write_decay_weight
             )
         return loss
 
