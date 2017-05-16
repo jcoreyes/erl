@@ -1,13 +1,16 @@
-from collections import deque
+from collections import deque, OrderedDict
 
 import numpy as np
 from gym import utils
 from gym.envs.mujoco import mujoco_env
 
 from railrl.envs.env_utils import get_asset_xml
+from railrl.misc.data_processing import create_stats_ordered_dict
+from railrl.misc.rllab_util import split_paths
 from rllab.core.serializable import Serializable
 from rllab.envs.proxy_env import ProxyEnv
 from rllab.spaces.box import Box
+from rllab.misc import logger
 
 RADIUS = 0.1
 
@@ -30,7 +33,42 @@ class WaterMaze(ProxyEnv, Serializable):
         return None
 
     def log_diagnostics(self, paths, **kwargs):
-        return 0
+        # import ipdb; ipdb.set_trace()
+        rewards, terminals, obs, actions, next_obs = split_paths(paths)
+        # env_infos = [p['env_infos'] for p in paths]
+        # target_positions = [info['target_position'] for info in env_infos]
+        # radius = [info['radius'] for info in env_infos]
+
+        returns = []
+        for path in paths:
+            target_position = path["env_infos"]["target_position"]
+            radius = path["env_infos"]["radius"]
+            def compute_reward(obs, action):
+                position = obs[:2]
+                dist = np.linalg.norm(position - target_position)
+                on_platform = dist <= radius
+                return (
+                    on_platform
+                    - self._wrapped_env.l2_action_penalty_weight
+                    * np.linalg.norm(action)
+                )
+            rewards = [compute_reward(obs, action)
+                       for obs, action
+                       in zip(path['observations'], path['actions'])]
+            returns.append(np.sum(rewards))
+        last_statistics = OrderedDict()
+        last_statistics.update(create_stats_ordered_dict(
+            'Return',
+            returns,
+        ))
+        last_statistics.update(create_stats_ordered_dict(
+            'Actions',
+            actions,
+        ))
+
+        for key, value in last_statistics.items():
+            logger.record_tabular(key, value)
+        return rewards
 
     def terminate(self):
         self._wrapped_env.close()
@@ -85,7 +123,11 @@ class MujocoWaterMaze(mujoco_env.MujocoEnv, utils.EzPickle):
             - self.l2_action_penalty_weight * np.linalg.norm(force_actions)
         )
         done = self._t >= self.horizon
-        return observation, reward, done, {}
+        info = {
+            'radius': RADIUS,
+            'target_position': self._get_target_position(),
+        }
+        return observation, reward, done, info
 
     def reset_ball_position(self):
         new_ball_position = self.np_random.uniform(size=2, low=-0.2, high=0.2)

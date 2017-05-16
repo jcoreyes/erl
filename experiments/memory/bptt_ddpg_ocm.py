@@ -11,10 +11,13 @@ from railrl.algos.ddpg import TargetUpdateMode
 from railrl.data_management.ocm_subtraj_replay_buffer import (
     OcmSubtrajReplayBuffer
 )
+from railrl.data_management.updatable_subtraj_replay_buffer import \
+    UpdatableSubtrajReplayBuffer
 from railrl.envs.memory.one_char_memory import (
     OneCharMemoryEndOnly,
 )
 from railrl.envs.memory.high_low import HighLow
+from railrl.envs.water_maze import WaterMaze
 from railrl.launchers.launcher_util import (
     run_experiment,
 )
@@ -36,6 +39,7 @@ from railrl.policies.memory.lstm_memory_policy import (
 )
 # from railrl.algos.writeback_bptt_ddpt import WritebackBpttDDPG
 from railrl.algos.bptt_ddpg import BpttDDPG
+from railrl.algos.noop_algo import NoOpBpttDDPG
 # from railrl.algos.sum_bptt_ddpg import SumBpttDDPG
 from railrl.exploration_strategies.noop import NoopStrategy
 from railrl.exploration_strategies.onehot_sampler import OneHotSampler
@@ -87,6 +91,7 @@ def run_ocm_experiment(variant):
     es_params = variant['es_params']
     replay_buffer_class = variant['replay_buffer_class']
     replay_buffer_params = variant['replay_buffer_params']
+    replay_buffer_params['memory_dim'] = memory_dim
 
     env_es_class = es_params['env_es_class']
     env_es_params = es_params['env_es_params']
@@ -197,10 +202,10 @@ def run_ocm_experiment(variant):
         ddpg_params.update(meta_params)
 
     algorithm = algo_class(
-        env,
-        es,
-        policy,
-        qf,
+        env=env,
+        exploration_strategy=es,
+        policy=policy,
+        qf=qf,
         env_obs_dim=env_obs_dim,
         env_action_dim=env_action_dim,
         replay_buffer_class=replay_buffer_class,
@@ -243,10 +248,10 @@ if __name__ == '__main__':
     version = 'dev'
     num_hp_settings = 100
 
-    n_seeds = 10
-    mode = 'ec2'
-    exp_prefix = '5-15-save-gradient-H-sweep'
-    run_mode = 'grid'
+    # n_seeds = 5
+    # mode = 'ec2'
+    # exp_prefix = 'water-maze-no-training'
+    # run_mode = 'grid'
     # version = 'reparam'
 
     """
@@ -254,8 +259,9 @@ if __name__ == '__main__':
     """
     n_batches_per_epoch = 100
     n_batches_per_eval = 64
-    oracle_mode = 'meta'
-    algo_class = BpttDDPG
+    oracle_mode = 'none'
+    # algo_class = BpttDDPG
+    algo_class = NoOpBpttDDPG
     load_policy_file = (
         '/home/vitchyr/git/rllab-rail/railrl/data/reference/expert'
         '/ocm_reward_magnitude5_H6_nbptt6_100p'
@@ -266,9 +272,10 @@ if __name__ == '__main__':
     """
     Set all the hyperparameters!
     """
+    env_class = WaterMaze
     # env_class = OneCharMemoryEndOnly
-    env_class = HighLow
-    H = 8
+    # env_class = HighLow
+    H = 7
     env_params = dict(
         num_steps=H,
         n=2,
@@ -285,7 +292,7 @@ if __name__ == '__main__':
     # noinspection PyTypeChecker
     ddpg_params = dict(
         batch_size=32,
-        n_epochs=50,
+        n_epochs=30,
         min_pool_size=128,
         replay_pool_size=(H+1)*1000,
         # replay_pool_size=int(32*(H+1)*5/4),
@@ -391,9 +398,7 @@ if __name__ == '__main__':
     )
 
     memory_dim = 20
-    replay_buffer_params = dict(
-        memory_dim=memory_dim,
-    )
+    replay_buffer_params = dict()
 
     """
     Create monolithic variant dictionary
@@ -415,7 +420,8 @@ if __name__ == '__main__':
         oracle_params=oracle_params,
         es_params=es_params,
         meta_params=meta_params,
-        replay_buffer_class=OcmSubtrajReplayBuffer,
+        # replay_buffer_class=OcmSubtrajReplayBuffer,
+        replay_buffer_class=UpdatableSubtrajReplayBuffer,
         replay_buffer_params=replay_buffer_params,
     )
 
@@ -469,26 +475,32 @@ if __name__ == '__main__':
         )
     elif run_mode == 'grid':
         search_space = {
+            # 'memory_dim': [2, 20, 100],
             # 'policy_params.rnn_cell_params.env_noise_std': [0., 0.2, 1.],
             # 'policy_params.rnn_cell_params.memory_noise_std': [0., 0.2, 1.],
+            # 'policy_params.rnn_cell_params.env_hidden_sizes': [
+            #     [],
+            #     [32],
+            #     [32, 32],
+            # ],
             # 'ddpg_params.qf_weight_decay': [0, 0.001],
             # 'ddpg_params.reward_low_bellman_error_weight': [0, 0.1, 1., 10.],
             # 'ddpg_params.num_extra_qf_updates': [0, 5],
             # 'ddpg_params.batch_size': [32, 128],
             # 'ddpg_params.replay_pool_size': [900, 90000],
-            # 'ddpg_params.num_bptt_unrolls': [8, 7, 6, 5, 4, 3],
+            # 'ddpg_params.num_bptt_unrolls': [8, 6, 5, 4, 2],
             # 'qf_params.dropout_keep_prob': [0.5, None],
             # 'meta_params.meta_qf_learning_rate': [1e-3, 1e-4],
             # 'meta_params.meta_qf_output_weight': [0, 0.1, 5],
             # 'meta_params.qf_output_weight': [0, 1],
             # 'env_params.episode_boundary_flags': [True, False],
-            'env_params.num_steps': [8, 10, 12],
+            # 'env_params.num_steps': [8, 10, 12],
             # 'es_params.memory_es_class': [GaussianStrategy, OUStrategy],
             # 'es_params.env_es_class': [GaussianStrategy, OUStrategy],
-            # 'es_params.memory_es_params.max_sigma': [1, 0.5],
-            # 'es_params.memory_es_params.min_sigma': [0, 0.2],
-            # 'es_params.env_es_params.max_sigma': [1, 0.5],
-            # 'es_params.env_es_params.min_sigma': [0, 0.2],
+            'es_params.memory_es_params.max_sigma': [3, 1],
+            'es_params.memory_es_params.min_sigma': [1],
+            'es_params.env_es_params.max_sigma': [3, 1],
+            'es_params.env_es_params.min_sigma': [1],
         }
         sweeper = DeterministicHyperparameterSweeper(search_space,
                                                      default_parameters=variant)
