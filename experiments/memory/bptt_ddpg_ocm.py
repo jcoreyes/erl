@@ -399,7 +399,9 @@ if __name__ == '__main__':
     )
 
     memory_dim = 20
-    replay_buffer_params = dict()
+    replay_buffer_params = dict(
+        keep_old_fraction=0,
+    )
 
     """
     Create monolithic variant dictionary
