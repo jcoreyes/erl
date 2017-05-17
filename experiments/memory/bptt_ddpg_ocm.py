@@ -250,10 +250,10 @@ if __name__ == '__main__':
     version = 'dev'
     num_hp_settings = 100
 
-    # n_seeds = 10
-    # mode = 'ec2'
-    # exp_prefix = '5-16-checks-hard-update-period'
-    # run_mode = 'grid'
+    n_seeds = 10
+    mode = 'ec2'
+    exp_prefix = '5-16-dropout-sweep'
+    run_mode = 'grid'
     # version = 'reparam'
 
     """
@@ -402,7 +402,7 @@ if __name__ == '__main__':
         # observation_hidden_sizes=[100],
         use_time=False,
         use_target=False,
-        use_dropout=False,
+        use_dropout=True,
     )
 
     memory_dim = 20
@@ -501,7 +501,8 @@ if __name__ == '__main__':
             # 'ddpg_params.num_bptt_unrolls': [8, 6, 5, 4, 2],
             # 'ddpg_params.n_updates_per_time_step': [1, 5, 10],
             # 'ddpg_params.policy_learning_rate': [1e-3, 1e-4, 1e-5],
-            'ddpg_params.hard_update_period': [1, 100, 1000, 10000],
+            # 'ddpg_params.hard_update_period': [1, 100, 1000, 10000],
+            'ddpg_params.dropout_keep_prob': [1, 0.9, 0.5, 0.1],
             # 'ddpg_params.bpt_bellman_error_weight': [1, 10],
             # 'ddpg_params.saved_write_loss_weight': [1, 10],
             # 'qf_params.dropout_keep_prob': [0.5, None],
@@ -509,7 +510,7 @@ if __name__ == '__main__':
             # 'meta_params.meta_qf_output_weight': [0, 0.1, 5],
             # 'meta_params.qf_output_weight': [0, 1],
             # 'env_params.episode_boundary_flags': [True, False],
-            # 'env_params.num_steps': [8, 10, 12],
+            'env_params.num_steps': [8, 12, 16],
             # 'es_params.memory_es_class': [GaussianStrategy, OUStrategy],
             # 'es_params.env_es_class': [GaussianStrategy, OUStrategy],
             # 'es_params.memory_es_params.max_sigma': [3, 1],
