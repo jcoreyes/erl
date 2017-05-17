@@ -578,7 +578,6 @@ class BpttDDPG(DDPG):
         )
         self._saved_write_loss = (
             tf.reduce_sum(self._saved_write_losses)
-            * self.saved_write_loss_weight
         )
         # self.dL_dtheta_actually_applied = tf.gradients(
         #     self._saved_write_loss,
