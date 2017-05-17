@@ -88,8 +88,8 @@ class MujocoWaterMaze(mujoco_env.MujocoEnv, utils.EzPickle):
         self.action_space = Box(self.action_space.low[:2],
                                 self.action_space.high[:2])
         self.observation_space = Box(
-            np.hstack((self.observation_space.low[:2], [0])),
-            np.hstack((self.observation_space.high[:2], [1])),
+            np.hstack((self.observation_space.low[:2], [-.3, -.3], [0])),
+            np.hstack((self.observation_space.high[:2], [.3, .3], [1])),
         )
 
     def _step(self, force_actions):
@@ -132,9 +132,10 @@ class MujocoWaterMaze(mujoco_env.MujocoEnv, utils.EzPickle):
 
     def _get_observation(self):
         position = np.concatenate([self.model.data.qpos]).ravel()[:2]
-        dist = np.linalg.norm(position - self._get_target_position())
+        target_position = self._get_target_position()
+        dist = np.linalg.norm(position - target_position)
         on_platform = dist <= RADIUS
-        return np.hstack((position, [on_platform]))
+        return np.hstack((position, [on_platform], target_position))
 
     def _get_target_position(self):
         return np.concatenate([self.model.data.qpos]).ravel()[2:]
