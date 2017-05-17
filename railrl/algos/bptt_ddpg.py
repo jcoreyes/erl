@@ -556,14 +556,12 @@ class BpttDDPG(DDPG):
             self._init_policy_loss_and_train_ops_write_only_optimize_bellman()
         else:
             self.policy_surrogate_loss = self._get_policy_train_loss()
-            self.policy_env_action_loss = self.policy_surrogate_loss
-            self.policy_write_action_loss = self.policy_surrogate_loss
             self.train_policy_op = self._get_policy_train_op(
                 self.policy_surrogate_loss
             )
 
     def _get_policy_train_loss(self):
-        loss = - tf.reduce_mean(
+        self.policy_env_action_loss = - tf.reduce_mean(
             self.qf_with_action_input.output
         )
         self._saved_write_gradients = tf.placeholder(
@@ -591,12 +589,14 @@ class BpttDDPG(DDPG):
         #     self.all_writes_list
         # )
         if self.saved_write_loss_weight > 0:
-            loss += self._saved_write_loss * self.saved_write_loss_weight
+            self.policy_write_action_loss = (
+                self._saved_write_loss * self.saved_write_loss_weight
+            )
         if self._bpt_bellman_error_weight > 0.:
-            loss += (
+            self.policy_write_action_loss += (
                 self.bellman_error_for_policy * self._bpt_bellman_error_weight
             )
-        return loss
+        return self.policy_write_action_loss + self.policy_env_action_loss
 
     def _get_policy_train_op(self, loss):
         if not self.train_policy:
