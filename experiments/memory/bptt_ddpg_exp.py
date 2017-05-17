@@ -250,9 +250,9 @@ if __name__ == '__main__':
     version = 'dev'
     num_hp_settings = 100
 
-    # n_seeds = 5
+    # n_seeds = 10
     # mode = 'ec2'
-    # exp_prefix = '5-17-keep-old-grad-sweep'
+    # exp_prefix = '5-17-hl-nbptt4-H-sweep'
     # run_mode = 'grid'
     # version = 'reparam'
 
@@ -277,9 +277,8 @@ if __name__ == '__main__':
     # env_class = WaterMaze
     # env_class = OneCharMemoryEndOnly
     env_class = HighLow
-    H = 15
     env_params = dict(
-        num_steps=H,
+        num_steps=16,
         n=2,
         zero_observation=True,
         output_target_number=False,
