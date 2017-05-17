@@ -9,7 +9,7 @@ from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import split_paths
 from rllab.core.serializable import Serializable
 from rllab.envs.proxy_env import ProxyEnv
-from rllab.spaces.box import Box
+from sandbox.rocky.tf.spaces.box import Box
 from rllab.misc import logger
 
 RADIUS = 0.1

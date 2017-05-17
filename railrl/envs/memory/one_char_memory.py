@@ -318,6 +318,35 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
         cross_entropy = target_labels_float * tf.log(actions)
         return tf.reduce_sum(cross_entropy, axis=1, keep_dims=True)
 
+    @staticmethod
+    def get_extra_info_dict_from_batch(batch):
+        return dict(
+            target_numbers=batch['target_numbers'],
+            times=batch['times'],
+        )
+
+    @staticmethod
+    def get_flattened_extra_info_dict_from_subsequence_batch(batch):
+        target_numbers = batch['target_numbers']
+        times = batch['times']
+        flat_target_numbers = target_numbers.flatten()
+        flat_times = times.flatten()
+        return dict(
+            target_numbers=flat_target_numbers,
+            times=flat_times,
+        )
+
+    @staticmethod
+    def get_last_extra_info_dict_from_subsequence_batch(batch):
+        target_numbers = batch['target_numbers']
+        times = batch['times']
+        last_target_numbers = target_numbers[:, -1]
+        last_times = times[:, -1]
+        return dict(
+            target_numbers=last_target_numbers,
+            times=last_times,
+        )
+
 
 class OneCharMemoryEndOnly(OneCharMemory):
     """

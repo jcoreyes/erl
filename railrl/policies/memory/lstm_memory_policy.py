@@ -5,6 +5,8 @@ from railrl.core import tf_util
 from railrl.policies.memory.rnn_cell_policy import RnnCellPolicy
 from tensorflow.contrib.rnn import RNNCell, LSTMCell, GRUCell
 
+from railrl.policies.nn_policy import NNPolicy
+
 
 class SplitterCell(RNNCell):
     """
@@ -825,3 +827,48 @@ class LstmMemoryPolicy(RnnCellPolicy):
             observation_input=self.observation_input,
             init_state=self.init_state,
         )
+
+
+class FlatLstmMemoryPolicy(NNPolicy):
+    def __init__(
+            self,
+            name_or_scope,
+            action_dim,
+            memory_dim,
+            env_obs_dim,
+            init_state=None,
+            rnn_cell_class=LstmLinearCell,
+            rnn_cell_params=None,
+            **kwargs
+    ):
+        if rnn_cell_params is None:
+            rnn_cell_params = {}
+        self.setup_serialization(locals())
+        super().__init__(name_or_scope=name_or_scope, **kwargs)
+        self._memory_dim = memory_dim
+        self._action_dim = action_dim
+        self._env_obs_dim = env_obs_dim
+        self.rnn_cell_class = rnn_cell_class
+        self.rnn_cell_params = rnn_cell_params
+        self.init_state = self._placeholder_if_none(
+            init_state,
+            [None, self._memory_dim],
+            name='lstm_init_state',
+            dtype=tf.float32,
+        )
+        self._create_network()
+
+    def _create_network_internal(self, observation_input=None):
+        env_obs, memory_obs = tf.split(
+            observation_input,
+            [self._env_obs_dim, self._memory_dim],
+            axis=1,
+        )
+        self._rnn_cell = self.rnn_cell_class(
+            self._memory_dim,
+            self._action_dim,
+            **self.rnn_cell_params
+        )
+        with tf.variable_scope("rnn_cell") as self._rnn_cell_scope:
+            cell_output = self._rnn_cell(env_obs, memory_obs)
+        return tf.concat(cell_output, axis=1)

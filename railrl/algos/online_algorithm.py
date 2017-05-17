@@ -20,6 +20,8 @@ from rllab.algos.base import RLAlgorithm
 from rllab.misc import logger, special
 from rllab.misc.overrides import overrides
 from sandbox.rocky.tf.samplers.batch_sampler import BatchSampler
+import railrl.core.neuralnet
+
 
 
 class OnlineAlgorithm(RLAlgorithm):
@@ -48,6 +50,7 @@ class OnlineAlgorithm(RLAlgorithm):
             replay_pool: ReplayBuffer = None,
             allow_gpu_growth=True,
             save_tf_graph=True,
+            dropout_keep_prob=None,
     ):
         """
         :param env: Environment
@@ -124,6 +127,25 @@ class OnlineAlgorithm(RLAlgorithm):
         self.scope = None  # Necessary for BatchSampler
         self.whole_paths = True  # Also for BatchSampler
         self._last_average_returns = []
+        self.__is_training = False
+
+        self.dropout_keep_prob = dropout_keep_prob
+        if self.dropout_keep_prob is not None:
+            self.sess.run = self.wrap_run(self.sess.run)
+
+    def wrap_run(self, run):
+        """
+        This is super hacky, but works for now to add the dropout value to every
+        call to self.sess.run
+        """
+        def new_run(fetches, feed_dict=None, **kwargs):
+            if feed_dict is not None:
+                feed_dict[railrl.core.neuralnet.dropout_ph] = (
+                    self.get_dropout_prob()
+                )
+            return run(fetches, feed_dict=feed_dict, **kwargs)
+
+        return new_run
 
     def _start_worker(self):
         self.eval_sampler.start_worker()
@@ -258,6 +280,7 @@ class OnlineAlgorithm(RLAlgorithm):
         mode.
         :return:
         """
+        self.__is_training = True
         for network in self._networks:
             network.switch_to_training_mode()
 
@@ -266,8 +289,14 @@ class OnlineAlgorithm(RLAlgorithm):
         Make any updates needed so that the internal networks are in eval mode.
         :return:
         """
+        self.__is_training = False
         for network in self._networks:
             network.switch_to_eval_mode()
+
+    def get_dropout_prob(self):
+        if self.__is_training:
+            return self.dropout_keep_prob
+        return 1.
 
     @contextmanager
     def _training_then_eval_mode(self):
