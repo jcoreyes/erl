@@ -277,7 +277,7 @@ if __name__ == '__main__':
     # env_class = WaterMaze
     # env_class = OneCharMemoryEndOnly
     env_class = HighLow
-    H = 16
+    H = 15
     env_params = dict(
         num_steps=H,
         n=2,
@@ -322,6 +322,7 @@ if __name__ == '__main__':
         qf_weight_decay=0,
         qf_total_loss_tolerance=0.03,
         train_qf_on_all=False,
+        dropout_keep_prob=1.,
         # Policy hps
         policy_learning_rate=1e-3,
         max_num_q_updates=1000,
@@ -329,11 +330,11 @@ if __name__ == '__main__':
         write_policy_learning_rate=1e-4,
         train_policy_on_all_qf_timesteps=False,
         # memory
-        num_bptt_unrolls=4,
+        num_bptt_unrolls=2,
         bpt_bellman_error_weight=10,
         reward_low_bellman_error_weight=0.,
         saved_write_loss_weight=10,
-        dropout_keep_prob=1.,
+        compute_gradients_immediately=False,
     )
 
     # noinspection PyTypeChecker

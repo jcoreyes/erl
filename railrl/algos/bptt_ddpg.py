@@ -52,6 +52,7 @@ class BpttDDPG(DDPG):
             train_policy_on_all_qf_timesteps=False,
             write_policy_learning_rate=None,
             saved_write_loss_weight=1.,
+            compute_gradients_immediately=False,
             **kwargs
     ):
         """
@@ -88,6 +89,8 @@ class BpttDDPG(DDPG):
         part of the policy at this different learning rate. If `None`,
         the `policy_learning_rate` is used for all policy parameters. If set to
         zero, then the write action parameters aren't trained at all.
+        :param compute_gradients_immediately: If true, compute the gradients
+        w.r.t. the write actions immdiately after an episode ends.
         :param kwargs: kwargs to pass onto DDPG
         """
         assert extra_qf_training_mode in [
@@ -127,6 +130,7 @@ class BpttDDPG(DDPG):
         self.train_policy_on_all_qf_timesteps = train_policy_on_all_qf_timesteps
         self.write_policy_learning_rate = write_policy_learning_rate
         self.saved_write_loss_weight = saved_write_loss_weight
+        self.compute_gradients_immediately = compute_gradients_immediately
 
         self._rnn_cell_scope = policy.rnn_cell_scope
         self._rnn_cell = policy.rnn_cell
@@ -181,7 +185,7 @@ class BpttDDPG(DDPG):
         # import ipdb; ipdb.set_trace()
         self.pool.update_write_subtrajectories(new_writes, start_indices)
         self.pool.update_dloss_dmemories_subtrajectories(dloss_dmemories,
-                                                       start_indices)
+                                                         start_indices)
 
         return minibatch, start_indices
 
@@ -658,7 +662,23 @@ class BpttDDPG(DDPG):
         return feed_dict
 
     def handle_rollout_ending(self):
-        pass
+        if self.compute_gradients_immediately:
+            minibatch, start_indices = (
+                self.pool.get_last_trajectory_subsequences(self.env.horizon)
+            )
+            policy_feed_dict = self._policy_feed_dict_from_batch(minibatch)
+            new_writes, dloss_dmemories = self.sess.run(
+                [
+                    self.all_writes_subsequences,
+                    self.dloss_dmems_subsequences,
+                ],
+                feed_dict=policy_feed_dict,
+            )
+            # TODO(vitchyr): Do I actually want to overwrite the write states?
+            # One issue is that no exploration will happen!
+            # self.pool.update_write_subtrajectories(new_writes, start_indices)
+            self.pool.update_dloss_dmemories_subtrajectories(dloss_dmemories,
+                                                             start_indices)
 
     """
     Miscellaneous functions
