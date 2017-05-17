@@ -35,6 +35,7 @@ def run_linear_ocm_exp(variant):
     env_class = variant['env_class']
     memory_dim = variant['memory_dim']
     policy_params = variant['policy_params']
+    ou_params = variant['ou_params']
 
     set_seed(seed)
 
@@ -63,7 +64,10 @@ def run_linear_ocm_exp(variant):
         env_spec=env.spec,
         **policy_params
     )
-    es = OUStrategy(env_spec=env.spec)
+    es = OUStrategy(
+        env_spec=env.spec,
+        **ou_params
+    )
     algorithm = DDPG(
         env,
         es,
@@ -80,9 +84,9 @@ if __name__ == '__main__':
     mode = "here"
     exp_prefix = "dev-mddpg"
 
-    n_seeds = 5
-    # mode = "ec2"
-    exp_prefix = "5-16-benchmark-mddpg-hl"
+    n_seeds = 10
+    mode = "ec2"
+    exp_prefix = "5-17-benchmark-mddpg-hl"
 
     exp_id = -1
     algo_params = dict(
@@ -105,6 +109,10 @@ if __name__ == '__main__':
             env_hidden_sizes=[],
         )
     )
+    ou_params = dict(
+        max_sigma=1,
+        min_sigma=None,
+    )
     variant = dict(
         H=32,
         exp_prefix=exp_prefix,
@@ -112,6 +120,7 @@ if __name__ == '__main__':
         env_class=HighLow,
         memory_dim=20,
         policy_params=policy_params,
+        ou_params=ou_params,
         version="Memory DDPG"
     )
     for seed in range(n_seeds):

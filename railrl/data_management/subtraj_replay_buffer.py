@@ -54,7 +54,7 @@ class SubtrajReplayBuffer(ReplayBuffer):
         self._only_sample_at_start_of_episode = only_sample_at_start_of_episode
         self._episode_start_indices = np.zeros(max_pool_size, dtype='uint8')
         self._starting_episode = True
-        self._valid_start_episode_start_indices = []
+        self._valid_start_episode_indices = []
 
         """
         The last part of the replay buffer will be saved as a validation set.
@@ -145,16 +145,15 @@ class SubtrajReplayBuffer(ReplayBuffer):
                     self._validation_start_indices.append(previous_idx)
                 else:
                     self._training_start_indices.append(previous_idx)
-                if (self._only_sample_at_start_of_episode
-                        and self._episode_start_indices[previous_idx]):
-                    self._valid_start_episode_start_indices.append(previous_idx)
+                if self._episode_start_indices[previous_idx]:
+                    self._valid_start_episode_indices.append(previous_idx)
         # Current self._top is NOT a valid transition index since the next time
         # step is either garbage or from another episode
         for lst in [
             self._all_valid_start_indices,
             self._validation_start_indices,
             self._training_start_indices,
-            self._valid_start_episode_start_indices,
+            self._valid_start_episode_indices,
         ]:
             if self._top in lst:
                 lst.remove(self._top)
@@ -184,7 +183,7 @@ class SubtrajReplayBuffer(ReplayBuffer):
 
     def _valid_start_indices(self, return_all=False, validation=False):
         if self._only_sample_at_start_of_episode:
-            return self._valid_start_episode_start_indices
+            return self._valid_start_episode_indices
         if return_all:
             return self._all_valid_start_indices
         if validation:

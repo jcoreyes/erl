@@ -250,9 +250,9 @@ if __name__ == '__main__':
     version = 'dev'
     num_hp_settings = 100
 
-    n_seeds = 10
+    n_seeds = 6
     mode = 'ec2'
-    exp_prefix = '5-17-write-only-optimize-bellman-error'
+    exp_prefix = '5-17-hl-keep-old-grad-prob-and-learning-rate-nsteps-sweep'
     run_mode = 'grid'
     # version = 'reparam'
 
@@ -277,9 +277,8 @@ if __name__ == '__main__':
     # env_class = WaterMaze
     # env_class = OneCharMemoryEndOnly
     env_class = HighLow
-    H = 32
     env_params = dict(
-        num_steps=H,
+        num_steps=24,
         n=2,
         zero_observation=True,
         output_target_number=False,
@@ -291,8 +290,8 @@ if __name__ == '__main__':
     # epoch_length = H * n_rollouts_per_epoch
     # eval_samples = H * n_rollouts_per_eval
     epoch_length = 1000
-    eval_samples = 400
-    max_path_length = H + 2
+    # eval_samples = 400
+    # max_path_length = epoch_length + 2
     # TODO(vitchyr): clean up this hacky dropout code. Also, you'll need to
     # fix the batchnorm code. Basically, calls to (e.g.) qf.output will
     # always take the eval output.
@@ -302,12 +301,12 @@ if __name__ == '__main__':
         batch_size=32,
         n_epochs=30,
         min_pool_size=128,
-        replay_pool_size=(H+1)*1000,
+        replay_pool_size=100000,
         n_updates_per_time_step=1,
         # replay_pool_size=int(32*(H+1)*5/4),
         epoch_length=epoch_length,
-        eval_samples=eval_samples,
-        max_path_length=max_path_length,
+        eval_samples=400,
+        max_path_length=1002,
         discount=1.0,
         save_tf_graph=False,
         # Target network
@@ -322,6 +321,7 @@ if __name__ == '__main__':
         qf_weight_decay=0,
         qf_total_loss_tolerance=0.03,
         train_qf_on_all=False,
+        dropout_keep_prob=1.,
         # Policy hps
         policy_learning_rate=1e-3,
         max_num_q_updates=1000,
@@ -333,7 +333,7 @@ if __name__ == '__main__':
         bpt_bellman_error_weight=10,
         reward_low_bellman_error_weight=0.,
         saved_write_loss_weight=10,
-        dropout_keep_prob=1.,
+        compute_gradients_immediately=False,
     )
 
     # noinspection PyTypeChecker
@@ -507,9 +507,9 @@ if __name__ == '__main__':
             # 'ddpg_params.batch_size': [32, 128],
             # 'ddpg_params.replay_pool_size': [900, 90000],
             # 'ddpg_params.num_bptt_unrolls': [32, 16, 8, 4, 2, 1],
-            # 'ddpg_params.n_updates_per_time_step': [1, 5, 10],
-            'ddpg_params.policy_learning_rate': [1e-2, 1e-3, 1e-4],
-            'ddpg_params.write_policy_learning_rate': [1e-3, 1e-4, 1e-5],
+            'ddpg_params.n_updates_per_time_step': [1, 10],
+            'ddpg_params.policy_learning_rate': [1e-3, 1e-4],
+            'ddpg_params.write_policy_learning_rate': [1e-4, 1e-5],
             # 'ddpg_params.hard_update_period': [1, 100, 1000, 10000],
             # 'ddpg_params.bpt_bellman_error_weight': [1, 10],
             # 'ddpg_params.saved_write_loss_weight': [1, 10],
@@ -517,15 +517,14 @@ if __name__ == '__main__':
             # 'meta_params.meta_qf_output_weight': [0, 0.1, 5],
             # 'meta_params.qf_output_weight': [0, 1],
             # 'env_params.episode_boundary_flags': [True, False],
-            # 'env_params.num_steps': [8, 12, 16],
+            # 'env_params.num_steps': [12, 16, 24],
             # 'es_params.memory_es_class': [GaussianStrategy, OUStrategy],
             # 'es_params.env_es_class': [GaussianStrategy, OUStrategy],
             # 'es_params.memory_es_params.max_sigma': [0.1, 0.3, 1],
             # 'es_params.memory_es_params.min_sigma': [1],
             # 'es_params.env_es_params.max_sigma': [0.1, 0.3, 1],
             # 'es_params.env_es_params.min_sigma': [1],
-            # 'replay_buffer_params.keep_old_fraction': [0, 0.1, 0.3, 0.5,
-            #                                            0.7, 0.9, 1],
+            'replay_buffer_params.keep_old_fraction': [0, 0.5, 0.9],
         }
         sweeper = DeterministicHyperparameterSweeper(search_space,
                                                      default_parameters=variant)
