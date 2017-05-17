@@ -577,7 +577,7 @@ class BpttDDPG(DDPG):
         #     self.all_writes_list
         # )
         if self.saved_write_loss_weight > 0:
-            loss += self._saved_write_loss
+            loss += self._saved_write_loss * self.saved_write_loss_weight
         if self._bpt_bellman_error_weight > 0.:
             loss += (
                 self.bellman_error_for_policy * self._bpt_bellman_error_weight
