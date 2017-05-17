@@ -29,6 +29,8 @@ class OUStrategy(RawExplorationStrategy, Serializable):
         assert isinstance(env_spec.action_space, Box)
         assert len(env_spec.action_space.shape) == 1
         Serializable.quick_init(self, locals())
+        if min_sigma is None:
+            min_sigma = max_sigma
         self.mu = mu
         self.theta = theta
         self.sigma = max_sigma
