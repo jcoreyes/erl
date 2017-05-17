@@ -10,6 +10,7 @@ from railrl.algos.ddpg import TargetUpdateMode
 from railrl.data_management.ocm_subtraj_replay_buffer import (
     OcmSubtrajReplayBuffer
 )
+from railrl.envs.memory.high_low import HighLow
 from railrl.envs.water_maze import WaterMaze
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.algo_launchers import bptt_ddpg_launcher
@@ -49,11 +50,10 @@ if __name__ == '__main__':
     """
     Set all the hyperparameters!
     """
-    env_class = WaterMaze
-    # env_class = OneCharMemoryEndOnly
-    # env_class = HighLow
+    # env_class = WaterMaze
+    env_class = HighLow
     env_params = dict(
-        num_steps=200,
+        num_steps=16,
         n=2,
         zero_observation=True,
         output_target_number=False,
@@ -70,7 +70,7 @@ if __name__ == '__main__':
         n_epochs=30,
         min_pool_size=128,
         replay_pool_size=100000,
-        n_updates_per_time_step=1,
+        n_updates_per_time_step=10,
         epoch_length=epoch_length,
         eval_samples=400,
         max_path_length=1002,
@@ -93,15 +93,15 @@ if __name__ == '__main__':
         policy_learning_rate=1e-3,
         max_num_q_updates=1000,
         train_policy=True,
-        write_policy_learning_rate=1e-4,
+        write_policy_learning_rate=1e-5,
         train_policy_on_all_qf_timesteps=False,
-        write_only_optimize_bellman=False,
+        write_only_optimize_bellman=True,
         # memory
-        num_bptt_unrolls=32,
+        num_bptt_unrolls=4,
         bpt_bellman_error_weight=10,
         reward_low_bellman_error_weight=0.,
         saved_write_loss_weight=10,
-        compute_gradients_immediately=False,
+        compute_gradients_immediately=True,
     )
 
     # noinspection PyTypeChecker
@@ -174,7 +174,7 @@ if __name__ == '__main__':
 
     memory_dim = 20
     replay_buffer_params = dict(
-        keep_old_fraction=0,
+        keep_old_fraction=0.9,
     )
 
     """
