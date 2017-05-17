@@ -250,7 +250,7 @@ if __name__ == '__main__':
 
     n_seeds = 10
     mode = 'ec2'
-    exp_prefix = '5-16-soft-cache-gradients'
+    exp_prefix = '5-16-checks-bpt-weights'
     run_mode = 'grid'
     # version = 'reparam'
 
@@ -318,7 +318,7 @@ if __name__ == '__main__':
         policy_learning_rate=1e-3,
         max_num_q_updates=1000,
         train_policy=True,
-        write_policy_learning_rate=None,
+        write_policy_learning_rate=1e-4,
         train_policy_on_all_qf_timesteps=False,
         # memory
         num_bptt_unrolls=5,
