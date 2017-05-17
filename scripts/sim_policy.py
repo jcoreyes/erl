@@ -22,6 +22,8 @@ if __name__ == "__main__":
     env = None
 
     with tf.Session() as sess:
+        import railrl.core.neuralnet
+        railrl.core.neuralnet.dropout_ph = tf.placeholder(tf.float32, name="dropout_keep_prob")
         data = joblib.load(args.file)
         if 'policy' in data:
             policy = data['policy']
