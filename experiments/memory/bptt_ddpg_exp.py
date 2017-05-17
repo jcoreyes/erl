@@ -74,6 +74,8 @@ def run_ocm_experiment(variant):
         HintMlpMemoryQFunction
     )
     from os.path import exists
+    import railrl.core.neuralnet
+    railrl.core.neuralnet.dropout_ph = tf.placeholder(tf.float32, name="dropout_keep_prob")
 
     """
     Set up experiment variants.
@@ -148,7 +150,7 @@ def run_ocm_experiment(variant):
             action_dim=env_action_dim,
             memory_dim=memory_dim,
             env_spec=env.spec,
-            num_env_obs_dims_to_use=1,
+            num_env_obs_dims_to_use=env_obs_dim,
             **policy_params
         )
 
@@ -250,7 +252,7 @@ if __name__ == '__main__':
 
     n_seeds = 10
     mode = 'ec2'
-    exp_prefix = '5-16-write-only-optimize-bellman-error-correct-2'
+    exp_prefix = '5-17-write-only-optimize-bellman-error-correct-2'
     # run_mode = 'grid'
     # version = 'reparam'
 
@@ -275,7 +277,7 @@ if __name__ == '__main__':
     # env_class = WaterMaze
     # env_class = OneCharMemoryEndOnly
     env_class = HighLow
-    H = 9
+    H = 32
     env_params = dict(
         num_steps=H,
         n=2,
@@ -286,9 +288,15 @@ if __name__ == '__main__':
         max_reward_magnitude=1,
     )
 
-    epoch_length = H * n_rollouts_per_epoch
-    eval_samples = H * n_rollouts_per_eval
+    # epoch_length = H * n_rollouts_per_epoch
+    # eval_samples = H * n_rollouts_per_eval
+    epoch_length = 1000
+    eval_samples = 400
     max_path_length = H + 2
+    # TODO(vitchyr): clean up this hacky dropout code. Also, you'll need to
+    # fix the batchnorm code. Basically, calls to (e.g.) qf.output will
+    # always take the eval output.
+
     # noinspection PyTypeChecker
     ddpg_params = dict(
         batch_size=32,
@@ -311,7 +319,7 @@ if __name__ == '__main__':
         num_extra_qf_updates=0,
         extra_qf_training_mode='fixed',
         extra_train_period=100,
-        qf_weight_decay=0.01,
+        qf_weight_decay=0,
         qf_total_loss_tolerance=0.03,
         train_qf_on_all=False,
         # Policy hps
@@ -321,10 +329,11 @@ if __name__ == '__main__':
         write_policy_learning_rate=1e-4,
         train_policy_on_all_qf_timesteps=False,
         # memory
-        num_bptt_unrolls=4,
-        bpt_bellman_error_weight=1,
+        num_bptt_unrolls=32,
+        bpt_bellman_error_weight=10,
         reward_low_bellman_error_weight=0.,
-        saved_write_loss_weight=1,
+        saved_write_loss_weight=10,
+        dropout_keep_prob=1.,
     )
 
     # noinspection PyTypeChecker
@@ -369,7 +378,7 @@ if __name__ == '__main__':
         env_es_class=OUStrategy,
         env_es_params=dict(
             max_sigma=1,
-            min_sigma=1,
+            min_sigma=None,
             decay_period=epoch_length*15,
             softmax=True,
             laplace_weight=0.,
@@ -378,7 +387,7 @@ if __name__ == '__main__':
         memory_es_class=OUStrategy,
         memory_es_params=dict(
             max_sigma=1,
-            min_sigma=1,
+            min_sigma=None,
             decay_period=epoch_length*15,
             softmax=True,
         ),
@@ -395,11 +404,13 @@ if __name__ == '__main__':
         # observation_hidden_sizes=[100],
         use_time=False,
         use_target=False,
-        dropout_keep_prob=None,
+        use_dropout=True,
     )
 
     memory_dim = 20
-    replay_buffer_params = dict()
+    replay_buffer_params = dict(
+        keep_old_fraction=0,
+    )
 
     """
     Create monolithic variant dictionary
@@ -476,36 +487,44 @@ if __name__ == '__main__':
         )
     elif run_mode == 'grid':
         search_space = {
-            # 'memory_dim': [2, 20, 100],
-            # 'policy_params.rnn_cell_params.env_noise_std': [0., 0.2, 1.],
-            # 'policy_params.rnn_cell_params.memory_noise_std': [0., 0.2, 1.],
+            # 'memory_dim': [5, 20, 40],
+            # 'policy_params.rnn_cell_params.env_noise_std': [0.1, 0.3, 1.],
+            # 'policy_params.rnn_cell_params.memory_noise_std': [0.1, 0.3, 1.],
             # 'policy_params.rnn_cell_params.env_hidden_sizes': [
             #     [],
             #     [32],
             #     [32, 32],
             # ],
+            # 'qf_params.embedded_hidden_sizes': [
+            #     [100, 64, 32],
+            #     [100],
+            #     [32],
+            # ],
+            # 'ddpg_params.dropout_keep_prob': [1, 0.9, 0.5],
             # 'ddpg_params.qf_weight_decay': [0, 0.001],
             # 'ddpg_params.reward_low_bellman_error_weight': [0, 0.1, 1., 10.],
             # 'ddpg_params.num_extra_qf_updates': [0, 5],
             # 'ddpg_params.batch_size': [32, 128],
             # 'ddpg_params.replay_pool_size': [900, 90000],
-            # 'ddpg_params.num_bptt_unrolls': [8, 6, 5, 4, 2],
-            'ddpg_params.n_updates_per_time_step': [1, 5, 10],
-            'ddpg_params.policy_learning_rate': [1e-3, 1e-4, 1e-5],
-            # 'ddpg_params.bpt_bellman_error_weight': [10],
-            # 'ddpg_params.saved_write_loss_weight': [0, 1, 10],
-            # 'qf_params.dropout_keep_prob': [0.5, None],
+            'ddpg_params.num_bptt_unrolls': [32, 16, 8, 4, 2, 1],
+            # 'ddpg_params.n_updates_per_time_step': [1, 5, 10],
+            # 'ddpg_params.policy_learning_rate': [1e-3, 1e-4, 1e-5],
+            # 'ddpg_params.hard_update_period': [1, 100, 1000, 10000],
+            # 'ddpg_params.bpt_bellman_error_weight': [1, 10],
+            # 'ddpg_params.saved_write_loss_weight': [1, 10],
             # 'meta_params.meta_qf_learning_rate': [1e-3, 1e-4],
             # 'meta_params.meta_qf_output_weight': [0, 0.1, 5],
             # 'meta_params.qf_output_weight': [0, 1],
             # 'env_params.episode_boundary_flags': [True, False],
-            # 'env_params.num_steps': [8, 10, 12],
+            # 'env_params.num_steps': [8, 12, 16],
             # 'es_params.memory_es_class': [GaussianStrategy, OUStrategy],
             # 'es_params.env_es_class': [GaussianStrategy, OUStrategy],
-            # 'es_params.memory_es_params.max_sigma': [3, 1],
+            # 'es_params.memory_es_params.max_sigma': [0.1, 0.3, 1],
             # 'es_params.memory_es_params.min_sigma': [1],
-            # 'es_params.env_es_params.max_sigma': [3, 1],
+            # 'es_params.env_es_params.max_sigma': [0.1, 0.3, 1],
             # 'es_params.env_es_params.min_sigma': [1],
+            # 'replay_buffer_params.keep_old_fraction': [0, 0.1, 0.3, 0.5,
+            #                                            0.7, 0.9, 1],
         }
         sweeper = DeterministicHyperparameterSweeper(search_space,
                                                      default_parameters=variant)

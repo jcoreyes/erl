@@ -691,3 +691,64 @@ class BpttDDPG(DDPG):
     @staticmethod
     def _get_actions(batch):
         return batch['env_actions'], batch['writes']
+
+    def _get_other_statistics(self):
+        statistics = OrderedDict()
+        statistics["Fraction of zero dL/dw in buffer"] = (
+            self.pool.fraction_dloss_dmemories_zero()
+        )
+        for name, validation in [
+            ('Valid', True),
+            ('Train', False),
+        ]:
+            batch = self.pool.get_valid_subtrajectories(validation=validation)
+            policy_feed_dict = self._policy_feed_dict_from_batch(batch)
+            (
+                policy_surrogate_loss,
+                policy_qf_output,
+            ) = self.sess.run(
+                [
+                    self.policy_surrogate_loss,
+                    self.qf_with_action_input.output,
+                ]
+                ,
+                feed_dict=policy_feed_dict
+            )
+            policy_base_stat_name = 'Policy{}'.format(name)
+            statistics.update(create_stats_ordered_dict(
+                '{}_Surrogate_Loss'.format(policy_base_stat_name),
+                policy_surrogate_loss,
+            ))
+            statistics.update(create_stats_ordered_dict(
+                '{}_Qf_Output'.format(policy_base_stat_name),
+                policy_qf_output,
+            ))
+
+            qf_feed_dict = self._qf_feed_dict_from_batch(batch)
+            (
+                qf_loss,
+                bellman_errors,
+                qf_output,
+            ) = self.sess.run(
+                [
+                    self.qf_loss,
+                    self.bellman_errors,
+                    self.qf.output,
+                ]
+                ,
+                feed_dict=qf_feed_dict
+            )
+            qf_stat_base_name = 'Qf{}'.format(name)
+            statistics.update(create_stats_ordered_dict(
+                '{}_BellmanError'.format(qf_stat_base_name),
+                bellman_errors,
+            ))
+            statistics.update(create_stats_ordered_dict(
+                '{}_Loss'.format(qf_stat_base_name),
+                qf_loss,
+            ))
+            statistics.update(create_stats_ordered_dict(
+                '{}_QfOutput'.format(qf_stat_base_name),
+                qf_output
+            ))
+        return statistics

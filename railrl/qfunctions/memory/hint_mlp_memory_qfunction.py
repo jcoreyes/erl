@@ -67,22 +67,6 @@ class HintMlpMemoryQFunction(NNQFunction):
     ):
         env_obs, memory_obs = observation_input
         env_action, memory_action = action_input
-        env_obs = self._process_layer(
-            env_obs,
-            scope_name="env_obs",
-        )
-        memory_obs = self._process_layer(
-            memory_obs,
-            scope_name="memory_obs",
-        )
-        env_action = self._process_layer(
-            env_action,
-            scope_name="env_action",
-        )
-        memory_action = self._process_layer(
-            memory_action,
-            scope_name="memory_action",
-        )
         obs_input_dim = sum(self.observation_dim)
         obs_values = [env_obs, memory_obs]
         if self.use_target:
