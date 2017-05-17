@@ -5,6 +5,7 @@ from railrl.envs.flattened_product_box import FlattenedProductBox
 from railrl.envs.memory.continuous_memory_augmented import \
     ContinuousMemoryAugmented
 from railrl.envs.memory.high_low import HighLow
+from railrl.envs.water_maze import WaterMaze, WaterMazeEasy
 from railrl.launchers.launcher_util import (
     run_experiment,
     set_seed,
@@ -38,11 +39,6 @@ def run_linear_ocm_exp(variant):
     """
 
     env = env_class(num_steps=H)
-    # env = ContinuousMemoryAugmented(
-    #     env,
-    #     num_memory_states=1,
-    # )
-    # env = FlattenedProductBox(env)
 
     policy = GaussianLSTMPolicy(
         name="policy",
@@ -72,13 +68,13 @@ if __name__ == '__main__':
     mode = "here"
     exp_prefix = "dev-rtrpo"
 
-    n_seeds = 10
-    mode = "ec2"
-    exp_prefix = "5-17-benchmark-rtrpo-hl"
+    # n_seeds = 10
+    # mode = "ec2"
+    exp_prefix = "5-17-dev-benchmark-rtrpo-watermaze-long"
 
     # noinspection PyTypeChecker
     trpo_params = dict(
-        batch_size=1000,
+        batch_size=10000,
         max_path_length=1000,  # Environment should stop it
         n_itr=100,
         discount=1.,
@@ -91,12 +87,14 @@ if __name__ == '__main__':
     exp_id = -1
     # noinspection PyTypeChecker
     variant = dict(
-        H=32,
+        H=200,
         exp_prefix=exp_prefix,
         trpo_params=trpo_params,
         optimizer_params=optimizer_params,
         version='Recurrent TRPO',
-        env_class=HighLow,
+        # env_class=HighLow,
+        # env_class=WaterMazeEasy,
+        env_class=WaterMaze,
     )
     for seed in range(n_seeds):
         exp_id += 1

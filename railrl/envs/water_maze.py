@@ -15,63 +15,6 @@ from rllab.misc import logger
 RADIUS = 0.1
 
 
-class WaterMaze(ProxyEnv, Serializable):
-    def __init__(self, **kwargs):
-        Serializable.quick_init(self, locals())
-        super().__init__(MujocoWaterMaze(**kwargs))
-
-    def get_tf_loss(self, observations, actions, target_labels, **kwargs):
-        """
-        Return the supervised-learning loss.
-        :param observation: Tensor
-        :param action: Tensor
-        :return: loss Tensor
-        """
-        return -(actions + observations - target_labels)**2
-
-    def get_param_values(self):
-        return None
-
-    def log_diagnostics(self, paths, **kwargs):
-        list_of_rewards, terminals, obs, actions, next_obs = split_paths(paths)
-
-        returns = []
-        for rewards in list_of_rewards:
-            returns.append(np.sum(rewards))
-        last_statistics = OrderedDict()
-        last_statistics.update(create_stats_ordered_dict(
-            'UndiscountedReturns',
-            returns,
-        ))
-        last_statistics.update(create_stats_ordered_dict(
-            'Rewards',
-            list_of_rewards,
-        ))
-        last_statistics.update(create_stats_ordered_dict(
-            'Actions',
-            actions,
-        ))
-
-        for key, value in last_statistics.items():
-            logger.record_tabular(key, value)
-        return returns
-
-    def terminate(self):
-        self._wrapped_env.close()
-
-    @staticmethod
-    def get_extra_info_dict_from_batch(batch):
-        return {}
-
-    @staticmethod
-    def get_flattened_extra_info_dict_from_subsequence_batch(batch):
-        return {}
-
-    @staticmethod
-    def get_last_extra_info_dict_from_subsequence_batch(batch):
-        return {}
-
-
 class MujocoWaterMaze(mujoco_env.MujocoEnv, utils.EzPickle):
     def __init__(self, horizon=200, l2_action_penalty_weight=1e-2, **kwargs):
         utils.EzPickle.__init__(self)
@@ -88,9 +31,10 @@ class MujocoWaterMaze(mujoco_env.MujocoEnv, utils.EzPickle):
         self.action_space = Box(self.action_space.low[:2],
                                 self.action_space.high[:2])
         self.observation_space = Box(
-            np.hstack((self.observation_space.low[:2], [-.3, -.3], [0])),
-            np.hstack((self.observation_space.high[:2], [.3, .3], [1])),
+            np.hstack((self.observation_space.low[:2], [0])),
+            np.hstack((self.observation_space.high[:2], [1])),
         )
+        self.reset_model()
 
     def _step(self, force_actions):
         self._t += 1
@@ -135,7 +79,7 @@ class MujocoWaterMaze(mujoco_env.MujocoEnv, utils.EzPickle):
         target_position = self._get_target_position()
         dist = np.linalg.norm(position - target_position)
         on_platform = dist <= RADIUS
-        return np.hstack((position, [on_platform], target_position))
+        return np.hstack((position, [on_platform]))
 
     def _get_target_position(self):
         return np.concatenate([self.model.data.qpos]).ravel()[2:]
@@ -144,6 +88,98 @@ class MujocoWaterMaze(mujoco_env.MujocoEnv, utils.EzPickle):
         v = self.viewer
         # v.cam.trackbodyid=0
         # v.cam.distance = v.model.stat.extent
+
+
+class MujocoWaterMazeEasy(MujocoWaterMaze):
+    def __init__(self, horizon=200, l2_action_penalty_weight=1e-2, **kwargs):
+        utils.EzPickle.__init__(self)
+        self.l2_action_penalty_weight = l2_action_penalty_weight
+        self.horizon = horizon
+        self._t = 0
+        self._on_platform_history = deque(maxlen=5)
+        for _ in range(5):
+            self._on_platform_history.append(False)
+
+        mujoco_env.MujocoEnv.__init__(self, get_asset_xml('water_maze.xml'), 2)
+        self.target_low = self.observation_space.low[2:]
+        self.target_high = self.observation_space.high[2:]
+        self.action_space = Box(self.action_space.low[:2],
+                                self.action_space.high[:2])
+        self.observation_space = Box(
+            np.hstack((self.observation_space.low[:2], [0], [-.3, -.3])),
+            np.hstack((self.observation_space.high[:2], [1], [.3, .3])),
+        )
+        self.reset_model()
+
+    def _get_observation(self):
+        position = np.concatenate([self.model.data.qpos]).ravel()[:2]
+        target_position = self._get_target_position()
+        dist = np.linalg.norm(position - target_position)
+        on_platform = dist <= RADIUS
+        return np.hstack((position, [on_platform], target_position))
+
+
+class WaterMaze(ProxyEnv, Serializable):
+    def __init__(self, env_class=MujocoWaterMaze, **kwargs):
+        Serializable.quick_init(self, locals())
+        super().__init__(env_class(**kwargs))
+
+    def get_tf_loss(self, observations, actions, target_labels, **kwargs):
+        """
+        Return the supervised-learning loss.
+        :param observation: Tensor
+        :param action: Tensor
+        :return: loss Tensor
+        """
+        return -(actions + observations - target_labels) ** 2
+
+    def get_param_values(self):
+        return None
+
+    def log_diagnostics(self, paths, **kwargs):
+        list_of_rewards, terminals, obs, actions, next_obs = split_paths(paths)
+
+        returns = []
+        for rewards in list_of_rewards:
+            returns.append(np.sum(rewards))
+        last_statistics = OrderedDict()
+        last_statistics.update(create_stats_ordered_dict(
+            'UndiscountedReturns',
+            returns,
+        ))
+        last_statistics.update(create_stats_ordered_dict(
+            'Rewards',
+            list_of_rewards,
+        ))
+        last_statistics.update(create_stats_ordered_dict(
+            'Actions',
+            actions,
+        ))
+
+        for key, value in last_statistics.items():
+            logger.record_tabular(key, value)
+        return returns
+
+    def terminate(self):
+        self._wrapped_env.close()
+
+    @staticmethod
+    def get_extra_info_dict_from_batch(batch):
+        return {}
+
+    @staticmethod
+    def get_flattened_extra_info_dict_from_subsequence_batch(batch):
+        return {}
+
+    @staticmethod
+    def get_last_extra_info_dict_from_subsequence_batch(batch):
+        return {}
+
+
+class WaterMazeEasy(WaterMaze):
+    def __init__(self, **kwargs):
+        Serializable.quick_init(self, locals())
+        super().__init__(MujocoWaterMazeEasy, **kwargs)
 
 
 def make_heat_map(eval_func, resolution=50):
