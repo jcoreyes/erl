@@ -250,10 +250,10 @@ if __name__ == '__main__':
     version = 'dev'
     num_hp_settings = 100
 
-    # n_seeds = 10
-    # mode = 'ec2'
-    # exp_prefix = '5-17-hl-nbptt4-H-sweep'
-    # run_mode = 'grid'
+    n_seeds = 6
+    mode = 'ec2'
+    exp_prefix = '5-17-hl-keep-old-grad-prob-and-learning-rate-nsteps-sweep'
+    run_mode = 'grid'
     # version = 'reparam'
 
     """
@@ -506,8 +506,9 @@ if __name__ == '__main__':
             # 'ddpg_params.batch_size': [32, 128],
             # 'ddpg_params.replay_pool_size': [900, 90000],
             # 'ddpg_params.num_bptt_unrolls': [32, 16, 8, 4, 2, 1],
-            # 'ddpg_params.n_updates_per_time_step': [1, 5, 10],
-            # 'ddpg_params.policy_learning_rate': [1e-3, 1e-4, 1e-5],
+            'ddpg_params.n_updates_per_time_step': [1, 10],
+            'ddpg_params.policy_learning_rate': [1e-3, 1e-4],
+            'ddpg_params.write_policy_learning_rate': [1e-4, 1e-5],
             # 'ddpg_params.hard_update_period': [1, 100, 1000, 10000],
             # 'ddpg_params.bpt_bellman_error_weight': [1, 10],
             # 'ddpg_params.saved_write_loss_weight': [1, 10],
@@ -515,15 +516,14 @@ if __name__ == '__main__':
             # 'meta_params.meta_qf_output_weight': [0, 0.1, 5],
             # 'meta_params.qf_output_weight': [0, 1],
             # 'env_params.episode_boundary_flags': [True, False],
-            'env_params.num_steps': [12, 16, 24],
+            # 'env_params.num_steps': [12, 16, 24],
             # 'es_params.memory_es_class': [GaussianStrategy, OUStrategy],
             # 'es_params.env_es_class': [GaussianStrategy, OUStrategy],
             # 'es_params.memory_es_params.max_sigma': [0.1, 0.3, 1],
             # 'es_params.memory_es_params.min_sigma': [1],
             # 'es_params.env_es_params.max_sigma': [0.1, 0.3, 1],
             # 'es_params.env_es_params.min_sigma': [1],
-            # 'replay_buffer_params.keep_old_fraction': [0, 0.1, 0.3, 0.5,
-            #                                            0.7, 0.9, 1],
+            'replay_buffer_params.keep_old_fraction': [0, 0.5, 0.9],
         }
         sweeper = DeterministicHyperparameterSweeper(search_space,
                                                      default_parameters=variant)
