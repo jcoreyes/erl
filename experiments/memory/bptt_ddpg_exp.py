@@ -251,10 +251,10 @@ if __name__ == '__main__':
     version = 'dev'
     num_hp_settings = 100
 
-    n_seeds = 5
-    mode = 'ec2'
-    exp_prefix = '5-17-ff-res-cell-grid-H9-nbptt4'
-    run_mode = 'grid'
+    # n_seeds = 10
+    # mode = 'ec2'
+    # exp_prefix = '5-17-hl-nbptt4-H-sweep'
+    # run_mode = 'grid'
     # version = 'reparam'
 
     """
@@ -278,9 +278,8 @@ if __name__ == '__main__':
     # env_class = WaterMaze
     # env_class = OneCharMemoryEndOnly
     env_class = HighLow
-    H = 9
     env_params = dict(
-        num_steps=H,
+        num_steps=16,
         n=2,
         zero_observation=True,
         output_target_number=False,
@@ -292,8 +291,8 @@ if __name__ == '__main__':
     # epoch_length = H * n_rollouts_per_epoch
     # eval_samples = H * n_rollouts_per_eval
     epoch_length = 1000
-    eval_samples = 400
-    max_path_length = H + 2
+    # eval_samples = 400
+    # max_path_length = epoch_length + 2
     # TODO(vitchyr): clean up this hacky dropout code. Also, you'll need to
     # fix the batchnorm code. Basically, calls to (e.g.) qf.output will
     # always take the eval output.
@@ -303,12 +302,12 @@ if __name__ == '__main__':
         batch_size=32,
         n_epochs=30,
         min_pool_size=128,
-        replay_pool_size=(H+1)*1000,
+        replay_pool_size=100000,
         n_updates_per_time_step=1,
         # replay_pool_size=int(32*(H+1)*5/4),
         epoch_length=epoch_length,
-        eval_samples=eval_samples,
-        max_path_length=max_path_length,
+        eval_samples=400,
+        max_path_length=1002,
         discount=1.0,
         save_tf_graph=False,
         # Target network
@@ -537,7 +536,7 @@ if __name__ == '__main__':
             # 'meta_params.meta_qf_output_weight': [0, 0.1, 5],
             # 'meta_params.qf_output_weight': [0, 1],
             # 'env_params.episode_boundary_flags': [True, False],
-            # 'env_params.num_steps': [8, 12, 16],
+            'env_params.num_steps': [12, 16, 24],
             # 'es_params.memory_es_class': [GaussianStrategy, OUStrategy],
             # 'es_params.env_es_class': [GaussianStrategy, OUStrategy],
             # 'es_params.memory_es_params.max_sigma': [0.1, 0.3, 1],
