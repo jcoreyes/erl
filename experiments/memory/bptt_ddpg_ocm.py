@@ -277,7 +277,7 @@ if __name__ == '__main__':
     # env_class = WaterMaze
     # env_class = OneCharMemoryEndOnly
     env_class = HighLow
-    H = 12
+    H = 9
     env_params = dict(
         num_steps=H,
         n=2,
@@ -291,7 +291,6 @@ if __name__ == '__main__':
     epoch_length = H * n_rollouts_per_epoch
     eval_samples = H * n_rollouts_per_eval
     max_path_length = H + 2
-    dropout_keep_prob = 0.5
     # TODO(vitchyr): clean up this hacky dropout code. Also, you'll need to
     # fix the batchnorm code. Basically, calls to (e.g.) qf.output will
     # always take the eval output.
@@ -332,7 +331,7 @@ if __name__ == '__main__':
         bpt_bellman_error_weight=10,
         reward_low_bellman_error_weight=0.,
         saved_write_loss_weight=10,
-        dropout_keep_prob=dropout_keep_prob,
+        dropout_keep_prob=None,
     )
 
     # noinspection PyTypeChecker
@@ -403,7 +402,7 @@ if __name__ == '__main__':
         # observation_hidden_sizes=[100],
         use_time=False,
         use_target=False,
-        dropout_keep_prob=dropout_keep_prob,
+        use_dropout=False,
     )
 
     memory_dim = 20
