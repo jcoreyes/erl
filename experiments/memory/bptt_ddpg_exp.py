@@ -1,25 +1,27 @@
 """
 Use an oracle qfunction to train a policy in bptt-ddpg style.
 """
-import joblib
-from hyperopt import hp
-import numpy as np
-import tensorflow as tf
 import random
 
+import numpy as np
+import tensorflow as tf
+from hyperopt import hp
+
+from railrl.algos.bptt_ddpg import BpttDDPG
 from railrl.algos.ddpg import TargetUpdateMode
 from railrl.data_management.ocm_subtraj_replay_buffer import (
     OcmSubtrajReplayBuffer
 )
-from railrl.data_management.updatable_subtraj_replay_buffer import \
-    UpdatableSubtrajReplayBuffer
-from railrl.envs.memory.one_char_memory import (
-    OneCharMemoryEndOnly,
-)
-from railrl.envs.memory.high_low import HighLow
 from railrl.envs.water_maze import WaterMaze
+from railrl.exploration_strategies.noop import NoopStrategy
+from railrl.exploration_strategies.ou_strategy import OUStrategy
+from railrl.launchers.algo_launchers import bptt_ddpg_launcher
 from railrl.launchers.launcher_util import (
     run_experiment,
+)
+from railrl.launchers.launcher_util import (
+    run_experiment_here,
+    create_base_log_dir,
 )
 from railrl.misc.hyperparameter import (
     DeterministicHyperparameterSweeper,
@@ -28,199 +30,14 @@ from railrl.misc.hyperparameter import (
     LogFloatOffsetParam,
     LinearFloatParam,
 )
-from railrl.policies.memory.action_aware_memory_policy import \
-    ActionAwareMemoryPolicy
-from railrl.policies.memory.lstm_memory_policy import (
-    LstmLinearCell,
-    LstmMlpCell,
-    # LstmLinearCellNoiseAll,
-    SeparateLstmLinearCell,
-    DebugCell,
-)
-# from railrl.algos.writeback_bptt_ddpt import WritebackBpttDDPG
-from railrl.algos.bptt_ddpg import BpttDDPG
-from railrl.algos.noop_algo import NoOpBpttDDPG
-# from railrl.algos.sum_bptt_ddpg import SumBpttDDPG
-from railrl.exploration_strategies.noop import NoopStrategy
-from railrl.exploration_strategies.onehot_sampler import OneHotSampler
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
-
-from railrl.exploration_strategies.action_aware_memory_strategy import \
-    ActionAwareMemoryStrategy
-from railrl.launchers.launcher_util import (
-    run_experiment_here,
-    create_base_log_dir,
-)
 from railrl.misc.hypopt import optimize_and_save
-# from railrl.qfunctions.memory.mlp_memory_qfunction import MlpMemoryQFunction
-
-
-def run_ocm_experiment(variant):
-    from railrl.algos.oracle_bptt_ddpg import OracleBpttDdpg
-    from railrl.algos.meta_bptt_ddpg import MetaBpttDdpg
-    from railrl.qfunctions.memory.oracle_unroll_qfunction import (
-        OracleUnrollQFunction
-    )
-    from railrl.exploration_strategies.product_strategy import ProductStrategy
-    from railrl.envs.memory.continuous_memory_augmented import (
-        ContinuousMemoryAugmented
-    )
-    from railrl.policies.memory.lstm_memory_policy import LstmMemoryPolicy
-    from railrl.launchers.launcher_util import (
-        set_seed,
-    )
-    from railrl.qfunctions.memory.hint_mlp_memory_qfunction import (
-        HintMlpMemoryQFunction
-    )
-    from os.path import exists
-    import railrl.core.neuralnet
-    railrl.core.neuralnet.dropout_ph = tf.placeholder(tf.float32, name="dropout_keep_prob")
-
-    """
-    Set up experiment variants.
-    """
-    seed = variant['seed']
-    load_policy_file = variant.get('load_policy_file', None)
-    memory_dim = variant['memory_dim']
-    oracle_mode = variant['oracle_mode']
-    env_class = variant['env_class']
-    env_params = variant['env_params']
-    ddpg_params = variant['ddpg_params']
-    policy_params = variant['policy_params']
-    qf_params = variant['qf_params']
-    meta_qf_params = variant['meta_qf_params']
-    es_params = variant['es_params']
-    replay_buffer_class = variant['replay_buffer_class']
-    replay_buffer_params = variant['replay_buffer_params']
-    replay_buffer_params['memory_dim'] = memory_dim
-
-    env_es_class = es_params['env_es_class']
-    env_es_params = es_params['env_es_params']
-    memory_es_class = es_params['memory_es_class']
-    memory_es_params = es_params['memory_es_params']
-    noise_action_to_memory = es_params['noise_action_to_memory']
-    num_bptt_unrolls = ddpg_params['num_bptt_unrolls']
-    set_seed(seed)
-
-    """
-    Code for running the experiment.
-    """
-
-    ocm_env = env_class(**env_params)
-    env_action_dim = ocm_env.action_space.flat_dim
-    env_obs_dim = ocm_env.observation_space.flat_dim
-    H = ocm_env.horizon
-    env = ContinuousMemoryAugmented(
-        ocm_env,
-        num_memory_states=memory_dim,
-    )
-
-    policy = None
-    qf = None
-    if load_policy_file is not None and exists(load_policy_file):
-        with tf.Session():
-            data = joblib.load(load_policy_file)
-            policy = data['policy']
-            qf = data['qf']
-    env_strategy = env_es_class(
-        env_spec=ocm_env.spec,
-        **env_es_params
-    )
-    write_strategy = memory_es_class(
-        env_spec=env.memory_spec,
-        **memory_es_params
-    )
-    if noise_action_to_memory:
-        es = ActionAwareMemoryStrategy(
-            env_strategy=env_strategy,
-            write_strategy=write_strategy,
-        )
-        policy = policy or ActionAwareMemoryPolicy(
-            name_or_scope="noisy_policy",
-            action_dim=env_action_dim,
-            memory_dim=memory_dim,
-            env_spec=env.spec,
-            **policy_params
-        )
-    else:
-        es = ProductStrategy([env_strategy, write_strategy])
-        policy = policy or LstmMemoryPolicy(
-            name_or_scope="policy",
-            action_dim=env_action_dim,
-            memory_dim=memory_dim,
-            env_spec=env.spec,
-            num_env_obs_dims_to_use=env_obs_dim,
-            **policy_params
-        )
-
-    ddpg_params = ddpg_params.copy()
-    if oracle_mode == 'none':
-        qf_params['use_time'] = False
-        qf_params['use_target'] = False
-        qf = HintMlpMemoryQFunction(
-            name_or_scope="critic",
-            hint_dim=env_action_dim,
-            max_time=H,
-            env_spec=env.spec,
-            **qf_params
-        )
-        algo_class = variant['algo_class']
-    elif oracle_mode == 'oracle' or oracle_mode == 'meta':
-        oracle_params = variant['oracle_params']
-        qf = qf or HintMlpMemoryQFunction(
-            name_or_scope="hint_critic",
-            hint_dim=env_action_dim,
-            max_time=H,
-            env_spec=env.spec,
-            **qf_params
-        )
-        oracle_qf = OracleUnrollQFunction(
-            name_or_scope="oracle_unroll_critic",
-            env=env,
-            policy=policy,
-            num_bptt_unrolls=num_bptt_unrolls,
-            env_obs_dim=env_obs_dim,
-            env_action_dim=env_action_dim,
-            max_horizon_length=H,
-            env_spec=env.spec,
-        )
-        algo_class = OracleBpttDdpg
-        ddpg_params['oracle_qf'] = oracle_qf
-        ddpg_params.update(oracle_params)
-    else:
-        raise Exception("Unknown mode: {}".format(oracle_mode))
-    if oracle_mode == 'meta':
-        meta_qf = HintMlpMemoryQFunction(
-            name_or_scope="meta_critic",
-            hint_dim=env_action_dim,
-            max_time=H,
-            env_spec=env.spec,
-            **meta_qf_params
-        )
-        algo_class = MetaBpttDdpg
-        meta_params = variant['meta_params']
-        ddpg_params['meta_qf'] = meta_qf
-        ddpg_params.update(meta_params)
-
-    algorithm = algo_class(
-        env=env,
-        exploration_strategy=es,
-        policy=policy,
-        qf=qf,
-        env_obs_dim=env_obs_dim,
-        env_action_dim=env_action_dim,
-        replay_buffer_class=replay_buffer_class,
-        replay_buffer_params=replay_buffer_params,
-        **ddpg_params
-    )
-
-    algorithm.train()
-    return algorithm
+from railrl.policies.memory.lstm_memory_policy import (
+    SeparateLstmLinearCell,
+)
 
 
 def get_ocm_score(variant):
-    algorithm = run_ocm_experiment(variant)
+    algorithm = bptt_ddpg_launcher(variant)
     scores = algorithm.epoch_scores
     return np.mean(scores[-3:])
 
@@ -274,11 +91,11 @@ if __name__ == '__main__':
     """
     Set all the hyperparameters!
     """
-    # env_class = WaterMaze
+    env_class = WaterMaze
     # env_class = OneCharMemoryEndOnly
-    env_class = HighLow
+    # env_class = HighLow
     env_params = dict(
-        num_steps=24,
+        num_steps=200,
         n=2,
         zero_observation=True,
         output_target_number=False,
@@ -330,7 +147,7 @@ if __name__ == '__main__':
         train_policy_on_all_qf_timesteps=False,
         write_only_optimize_bellman=False,
         # memory
-        num_bptt_unrolls=4,
+        num_bptt_unrolls=32,
         bpt_bellman_error_weight=10,
         reward_low_bellman_error_weight=0.,
         saved_write_loss_weight=10,
@@ -602,7 +419,7 @@ if __name__ == '__main__':
         for _ in range(n_seeds):
             seed = random.randint(0, 10000)
             run_experiment(
-                run_ocm_experiment,
+                bptt_ddpg_launcher,
                 exp_prefix=exp_prefix,
                 seed=seed,
                 mode=mode,
