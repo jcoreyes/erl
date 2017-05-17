@@ -74,6 +74,8 @@ def run_ocm_experiment(variant):
         HintMlpMemoryQFunction
     )
     from os.path import exists
+    import railrl.core.neuralnet
+    railrl.core.neuralnet.dropout_ph = tf.placeholder(tf.float32, name="dropout_keep_prob")
 
     """
     Set up experiment variants.
@@ -275,7 +277,7 @@ if __name__ == '__main__':
     # env_class = WaterMaze
     # env_class = OneCharMemoryEndOnly
     env_class = HighLow
-    H = 9
+    H = 12
     env_params = dict(
         num_steps=H,
         n=2,
@@ -289,6 +291,11 @@ if __name__ == '__main__':
     epoch_length = H * n_rollouts_per_epoch
     eval_samples = H * n_rollouts_per_eval
     max_path_length = H + 2
+    dropout_keep_prob = 0.5
+    # TODO(vitchyr): clean up this hacky dropout code. Also, you'll need to
+    # fix the batchnorm code. Basically, calls to (e.g.) qf.output will
+    # always take the eval output.
+
     # noinspection PyTypeChecker
     ddpg_params = dict(
         batch_size=32,
@@ -322,9 +329,10 @@ if __name__ == '__main__':
         train_policy_on_all_qf_timesteps=False,
         # memory
         num_bptt_unrolls=4,
-        bpt_bellman_error_weight=1,
+        bpt_bellman_error_weight=10,
         reward_low_bellman_error_weight=0.,
-        saved_write_loss_weight=1,
+        saved_write_loss_weight=10,
+        dropout_keep_prob=dropout_keep_prob,
     )
 
     # noinspection PyTypeChecker
@@ -395,7 +403,7 @@ if __name__ == '__main__':
         # observation_hidden_sizes=[100],
         use_time=False,
         use_target=False,
-        dropout_keep_prob=None,
+        dropout_keep_prob=dropout_keep_prob,
     )
 
     memory_dim = 20

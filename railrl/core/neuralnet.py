@@ -13,6 +13,9 @@ ALLOWABLE_TAGS = ['regularizable']
 _TRAINING_OUTPUT_MODE = "training_output_mode"
 _EVAL_OUTPUT_MODE = "eval_output_mode"
 
+# dropout_ph = tf.placeholder(tf.float32, name="dropout_keep_prob")
+# global dropout_ph
+dropout_ph = None
 
 class NeuralNetwork(Parameterized, Serializable):
     """
@@ -65,6 +68,9 @@ class NeuralNetwork(Parameterized, Serializable):
         self.dropout_keep_prob = dropout_keep_prob
 
         self.param_values_when_last_loaded = None
+        # global dropout_ph
+        self.dropout_ph = dropout_ph
+
 
     @property
     def full_scope_name(self):
@@ -251,11 +257,7 @@ class NeuralNetwork(Parameterized, Serializable):
                 )
 
         if self.use_dropout:
-            if self._is_in_training_mode:
-                previous_layer = tf.nn.dropout(previous_layer,
-                                               keep_prob=self.dropout_keep_prob)
-            else:
-                previous_layer = tf.nn.dropout(previous_layer, 1)
+            previous_layer = tf.nn.dropout(previous_layer, self.dropout_ph)
 
         return previous_layer
 
