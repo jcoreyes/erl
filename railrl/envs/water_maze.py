@@ -13,6 +13,9 @@ from sandbox.rocky.tf.spaces.box import Box
 from rllab.misc import logger
 
 RADIUS = 0.1
+BOUNDARY_RADIUS = 0.01
+BOUNDARY_DIST = 0.3
+MAX_GOAL_DIST = BOUNDARY_DIST - RADIUS - BOUNDARY_RADIUS - 0.01
 
 
 class MujocoWaterMaze(mujoco_env.MujocoEnv, utils.EzPickle):
@@ -67,10 +70,11 @@ class MujocoWaterMaze(mujoco_env.MujocoEnv, utils.EzPickle):
         self.set_state(new_pos, qvel)
 
     def reset_model(self):
-        qpos = self.init_qpos + self.np_random.uniform(size=self.model.nq,
-                                                       low=-0.2, high=0.2)
+        qpos = self.np_random.uniform(size=self.model.nq, low=-MAX_GOAL_DIST,
+                                      high=MAX_GOAL_DIST)
         qvel = np.zeros(self.model.nv)
         self.set_state(qpos, qvel)
+        self.reset_ball_position()
         self._t = 0
         return self._get_observation()
 
