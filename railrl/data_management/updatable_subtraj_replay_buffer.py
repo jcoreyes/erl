@@ -120,3 +120,7 @@ class UpdatableSubtrajReplayBuffer(SubtrajReplayBuffer):
             length=self._subtraj_length,
             keep_old_fraction=self.keep_old_fraction,
         )
+
+    def fraction_dloss_dmemories_zero(self):
+        dloss_dmemories_loaded = self._dloss_dmemories[:self._size]
+        return np.mean(dloss_dmemories_loaded == 0)

@@ -720,3 +720,10 @@ class BpttDDPG(DDPG):
     @staticmethod
     def _get_actions(batch):
         return batch['env_actions'], batch['writes']
+
+    def _get_other_statistics(self):
+        statistics = OrderedDict()
+        statistics["Fraction of zero dL/dw in buffer"] = (
+            self.pool.fraction_dloss_dmemories_zero()
+        )
+        return statistics
