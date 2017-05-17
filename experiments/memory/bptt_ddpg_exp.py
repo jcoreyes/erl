@@ -250,9 +250,9 @@ if __name__ == '__main__':
     version = 'dev'
     num_hp_settings = 100
 
-    # n_seeds = 10
+    # n_seeds = 5
     # mode = 'ec2'
-    # exp_prefix = '5-16-dropout-sweep'
+    # exp_prefix = '5-16-hl-h32-nbptt-sweep'
     # run_mode = 'grid'
     # version = 'reparam'
 
@@ -277,7 +277,7 @@ if __name__ == '__main__':
     # env_class = WaterMaze
     # env_class = OneCharMemoryEndOnly
     env_class = HighLow
-    H = 9
+    H = 32
     env_params = dict(
         num_steps=H,
         n=2,
@@ -288,8 +288,10 @@ if __name__ == '__main__':
         max_reward_magnitude=1,
     )
 
-    epoch_length = H * n_rollouts_per_epoch
-    eval_samples = H * n_rollouts_per_eval
+    # epoch_length = H * n_rollouts_per_epoch
+    # eval_samples = H * n_rollouts_per_eval
+    epoch_length = 1000
+    eval_samples = 400
     max_path_length = H + 2
     # TODO(vitchyr): clean up this hacky dropout code. Also, you'll need to
     # fix the batchnorm code. Basically, calls to (e.g.) qf.output will
@@ -327,11 +329,11 @@ if __name__ == '__main__':
         write_policy_learning_rate=1e-4,
         train_policy_on_all_qf_timesteps=False,
         # memory
-        num_bptt_unrolls=4,
+        num_bptt_unrolls=32,
         bpt_bellman_error_weight=10,
         reward_low_bellman_error_weight=0.,
         saved_write_loss_weight=10,
-        dropout_keep_prob=None,
+        dropout_keep_prob=1.,
     )
 
     # noinspection PyTypeChecker
@@ -376,7 +378,7 @@ if __name__ == '__main__':
         env_es_class=OUStrategy,
         env_es_params=dict(
             max_sigma=1,
-            min_sigma=1,
+            min_sigma=None,
             decay_period=epoch_length*15,
             softmax=True,
             laplace_weight=0.,
@@ -385,7 +387,7 @@ if __name__ == '__main__':
         memory_es_class=OUStrategy,
         memory_es_params=dict(
             max_sigma=1,
-            min_sigma=1,
+            min_sigma=None,
             decay_period=epoch_length*15,
             softmax=True,
         ),
@@ -402,7 +404,7 @@ if __name__ == '__main__':
         # observation_hidden_sizes=[100],
         use_time=False,
         use_target=False,
-        use_dropout=False,
+        use_dropout=True,
     )
 
     memory_dim = 20
@@ -485,37 +487,41 @@ if __name__ == '__main__':
         )
     elif run_mode == 'grid':
         search_space = {
-            # 'memory_dim': [2, 20, 100],
-            # 'policy_params.rnn_cell_params.env_noise_std': [0., 0.2, 1.],
-            # 'policy_params.rnn_cell_params.memory_noise_std': [0., 0.2, 1.],
+            # 'memory_dim': [5, 20, 40],
+            # 'policy_params.rnn_cell_params.env_noise_std': [0.1, 0.3, 1.],
+            # 'policy_params.rnn_cell_params.memory_noise_std': [0.1, 0.3, 1.],
             # 'policy_params.rnn_cell_params.env_hidden_sizes': [
             #     [],
             #     [32],
             #     [32, 32],
             # ],
+            # 'qf_params.embedded_hidden_sizes': [
+            #     [100, 64, 32],
+            #     [100],
+            #     [32],
+            # ],
+            # 'ddpg_params.dropout_keep_prob': [1, 0.9, 0.5],
             # 'ddpg_params.qf_weight_decay': [0, 0.001],
             # 'ddpg_params.reward_low_bellman_error_weight': [0, 0.1, 1., 10.],
             # 'ddpg_params.num_extra_qf_updates': [0, 5],
             # 'ddpg_params.batch_size': [32, 128],
             # 'ddpg_params.replay_pool_size': [900, 90000],
-            # 'ddpg_params.num_bptt_unrolls': [8, 6, 5, 4, 2],
+            'ddpg_params.num_bptt_unrolls': [32, 16, 8, 4, 2, 1],
             # 'ddpg_params.n_updates_per_time_step': [1, 5, 10],
             # 'ddpg_params.policy_learning_rate': [1e-3, 1e-4, 1e-5],
             # 'ddpg_params.hard_update_period': [1, 100, 1000, 10000],
-            'ddpg_params.dropout_keep_prob': [1, 0.9, 0.5, 0.1],
             # 'ddpg_params.bpt_bellman_error_weight': [1, 10],
             # 'ddpg_params.saved_write_loss_weight': [1, 10],
-            # 'qf_params.dropout_keep_prob': [0.5, None],
             # 'meta_params.meta_qf_learning_rate': [1e-3, 1e-4],
             # 'meta_params.meta_qf_output_weight': [0, 0.1, 5],
             # 'meta_params.qf_output_weight': [0, 1],
             # 'env_params.episode_boundary_flags': [True, False],
-            'env_params.num_steps': [8, 12, 16],
+            # 'env_params.num_steps': [8, 12, 16],
             # 'es_params.memory_es_class': [GaussianStrategy, OUStrategy],
             # 'es_params.env_es_class': [GaussianStrategy, OUStrategy],
-            # 'es_params.memory_es_params.max_sigma': [3, 1],
+            # 'es_params.memory_es_params.max_sigma': [0.1, 0.3, 1],
             # 'es_params.memory_es_params.min_sigma': [1],
-            # 'es_params.env_es_params.max_sigma': [3, 1],
+            # 'es_params.env_es_params.max_sigma': [0.1, 0.3, 1],
             # 'es_params.env_es_params.min_sigma': [1],
             # 'replay_buffer_params.keep_old_fraction': [0, 0.1, 0.3, 0.5,
             #                                            0.7, 0.9, 1],
