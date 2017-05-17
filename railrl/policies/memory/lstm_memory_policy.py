@@ -133,6 +133,9 @@ class SeparateLstmLinearCell(LSTMCell):
                     lstm_state += self._memory_noise_std * tf.random_normal(
                         tf.shape(lstm_state)
                     )
+                    lstm_output += self._memory_noise_std * tf.random_normal(
+                        tf.shape(lstm_output)
+                    )
 
                 next_state = tf.concat(axis=1, values=(lstm_output, lstm_state))
 
