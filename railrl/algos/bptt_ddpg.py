@@ -209,6 +209,9 @@ class BpttDDPG(DDPG):
         statistics = OrderedDict()
         statistics.update(self._policy_statistics_from_batch(batch))
         statistics.update(self._qf_statistics_from_batch(batch))
+        statistics.update(create_stats_ordered_dict(
+            'saved dL/dW', batch['dloss_dwrites']
+        ))
         return statistics
 
     def _policy_statistics_from_batch(self, batch):
@@ -573,28 +576,19 @@ class BpttDDPG(DDPG):
             self._saved_write_gradients,
             axis=1
         )[-1]
+        import ipdb; ipdb.set_trace()
         self._saved_write_losses = (
             self.all_writes_list[-1] * self._last_saved_write_gradients
         )
         self._saved_write_loss = (
             tf.reduce_sum(self._saved_write_losses)
         )
-        # self.dL_dtheta_actually_applied = tf.gradients(
-        #     self._saved_write_loss,
-        #     self.wparam,
-        # )[0]
-        # self.dL_dwrite_actually_applied = tf.gradients(
-        #     self._saved_write_loss,
-        #     self.all_writes_list
-        # )
-        if self.saved_write_loss_weight > 0:
-            self.policy_write_action_loss = (
-                self._saved_write_loss * self.saved_write_loss_weight
-            )
-        if self._bpt_bellman_error_weight > 0.:
-            self.policy_write_action_loss += (
-                self.bellman_error_for_policy * self._bpt_bellman_error_weight
-            )
+        self.policy_write_action_loss = (
+            self._saved_write_loss * self.saved_write_loss_weight
+        )
+        self.policy_write_action_loss += (
+            self.bellman_error_for_policy * self._bpt_bellman_error_weight
+        )
         return self.policy_write_action_loss + self.policy_env_action_loss
 
     def _get_policy_train_op(self, loss):
