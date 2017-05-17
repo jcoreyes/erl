@@ -1,5 +1,5 @@
 """
-Check Recurrent TRPO on OneCharMemory task.
+Recurrent TRPO
 """
 from railrl.envs.flattened_product_box import FlattenedProductBox
 from railrl.envs.memory.continuous_memory_augmented import \
