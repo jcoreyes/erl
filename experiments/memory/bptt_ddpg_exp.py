@@ -278,7 +278,7 @@ if __name__ == '__main__':
     # env_class = OneCharMemoryEndOnly
     env_class = HighLow
     env_params = dict(
-        num_steps=16,
+        num_steps=24,
         n=2,
         zero_observation=True,
         output_target_number=False,
@@ -321,6 +321,7 @@ if __name__ == '__main__':
         qf_weight_decay=0,
         qf_total_loss_tolerance=0.03,
         train_qf_on_all=False,
+        dropout_keep_prob=1.,
         # Policy hps
         policy_learning_rate=1e-3,
         max_num_q_updates=1000,
@@ -332,7 +333,7 @@ if __name__ == '__main__':
         bpt_bellman_error_weight=10,
         reward_low_bellman_error_weight=0.,
         saved_write_loss_weight=10,
-        dropout_keep_prob=1.,
+        compute_gradients_immediately=False,
     )
 
     # noinspection PyTypeChecker

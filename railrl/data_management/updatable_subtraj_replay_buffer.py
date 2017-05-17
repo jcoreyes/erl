@@ -93,6 +93,14 @@ class UpdatableSubtrajReplayBuffer(SubtrajReplayBuffer):
                                          self._subtraj_length, start_offset=1),
         )
 
+    def get_last_trajectory_subsequences(self, episode_length):
+        last_start_idx = self._valid_start_episode_indices[-1]
+        start_indices = []
+        # TODO(vitchyr): double check/unit test this
+        for i in range(episode_length - self._subtraj_length + 1):
+            start_indices.append(last_start_idx + i)
+        return self._get_trajectories(start_indices), start_indices
+
     @cached_property
     def _stub_action(self):
         # Technically, the parent's method should work, but I think this is more
