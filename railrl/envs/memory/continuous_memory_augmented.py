@@ -5,7 +5,8 @@ from rllab.core.serializable import Serializable
 from rllab.envs.base import Env
 from rllab.envs.proxy_env import ProxyEnv
 from rllab.spaces.product import Product
-from rllab.spaces.box import Box
+# from rllab.spaces.box import Box
+from sandbox.rocky.tf.spaces.box import Box
 from rllab.envs.env_spec import EnvSpec
 from cached_property import cached_property
 
