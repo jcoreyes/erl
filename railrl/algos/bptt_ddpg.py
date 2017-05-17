@@ -53,6 +53,7 @@ class BpttDDPG(DDPG):
             write_policy_learning_rate=None,
             saved_write_loss_weight=1.,
             compute_gradients_immediately=False,
+            write_only_optimize_bellman=False,
             **kwargs
     ):
         """
@@ -91,6 +92,8 @@ class BpttDDPG(DDPG):
         zero, then the write action parameters aren't trained at all.
         :param compute_gradients_immediately: If true, compute the gradients
         w.r.t. the write actions immdiately after an episode ends.
+        :param write_only_optimize_bellman: If True, the write parameters are
+        optimized only to minimize the Bellman error.
         :param kwargs: kwargs to pass onto DDPG
         """
         assert extra_qf_training_mode in [
@@ -141,6 +144,7 @@ class BpttDDPG(DDPG):
         self.target_policy_for_policy = None
         self.target_qf_for_policy = None
         self.qf_for_policy = None
+        self.write_only_optimize_bellman = write_only_optimize_bellman
 
     def _sample_minibatch(self, batch_size=None):
         if batch_size is None:
@@ -548,6 +552,81 @@ class BpttDDPG(DDPG):
         self.dloss_dmems_subsequences = tf.stack(self.dloss_dmems, axis=1)
 
     def _init_policy_loss_and_train_ops(self):
+        if self.write_only_optimize_bellman:
+            self._init_policy_loss_and_train_ops_write_only_optimize_bellman()
+        else:
+            self.policy_surrogate_loss = self._get_policy_train_loss()
+            self.policy_env_action_loss = self.policy_surrogate_loss
+            self.policy_write_action_loss = self.policy_surrogate_loss
+            self.train_policy_op = self._get_policy_train_op(
+                self.policy_surrogate_loss
+            )
+
+    def _get_policy_train_loss(self):
+        loss = - tf.reduce_mean(
+            self.qf_with_action_input.output
+        )
+        self._saved_write_gradients = tf.placeholder(
+            tf.float32,
+            self.all_writes_subsequences.get_shape(),
+            "saved_dloss_dwrites",
+        )
+        self._last_saved_write_gradients = tf.unstack(
+            self._saved_write_gradients,
+            axis=1
+        )[-1]
+        self._saved_write_losses = (
+            self.all_writes_list[-1] * self._last_saved_write_gradients
+        )
+        self._saved_write_loss = (
+            tf.reduce_sum(self._saved_write_losses)
+            * self.saved_write_loss_weight
+        )
+        # self.dL_dtheta_actually_applied = tf.gradients(
+        #     self._saved_write_loss,
+        #     self.wparam,
+        # )[0]
+        # self.dL_dwrite_actually_applied = tf.gradients(
+        #     self._saved_write_loss,
+        #     self.all_writes_list
+        # )
+        if self.saved_write_loss_weight > 0:
+            loss += self._saved_write_loss * self.saved_write_loss_weight
+        if self._bpt_bellman_error_weight > 0.:
+            loss += (
+                self.bellman_error_for_policy * self._bpt_bellman_error_weight
+            )
+        return loss
+
+    def _get_policy_train_op(self, loss):
+        if not self.train_policy:
+            return None
+
+        if self.write_policy_learning_rate is None:
+            trainable_policy_params = self.policy.get_params_internal()
+            return tf.train.AdamOptimizer(
+                self.policy_learning_rate
+            ).minimize(loss, var_list=trainable_policy_params)
+
+        policy_env_params = self.policy.get_params(env_only=True)
+        if self.write_policy_learning_rate == 0.:
+            return tf.train.AdamOptimizer(
+                self.policy_learning_rate
+            ).minimize(loss, var_list=policy_env_params)
+        else:
+            policy_write_params = self.policy.get_params(write_only=True)
+            self.train_policy_op_env = tf.train.AdamOptimizer(
+                self.policy_learning_rate
+            ).minimize(loss, var_list=policy_env_params)
+            self.train_policy_op_write = tf.train.AdamOptimizer(
+                self.write_policy_learning_rate
+            ).minimize(loss, var_list=policy_write_params)
+            return [
+                self.train_policy_op_env,
+                self.train_policy_op_write,
+            ]
+
+    def _init_policy_loss_and_train_ops_write_only_optimize_bellman(self):
         self.policy_env_action_loss = - tf.reduce_mean(
             self.qf_with_action_input.output
         )

@@ -250,10 +250,10 @@ if __name__ == '__main__':
     version = 'dev'
     num_hp_settings = 100
 
-    n_seeds = 6
-    mode = 'ec2'
-    exp_prefix = '5-17-hl-keep-old-grad-prob-and-learning-rate-nsteps-sweep'
-    run_mode = 'grid'
+    # n_seeds = 6
+    # mode = 'ec2'
+    # exp_prefix = '5-17-hl-keep-old-grad-prob-and-learning-rate-nsteps-sweep'
+    # run_mode = 'grid'
     # version = 'reparam'
 
     """
@@ -328,6 +328,7 @@ if __name__ == '__main__':
         train_policy=True,
         write_policy_learning_rate=1e-4,
         train_policy_on_all_qf_timesteps=False,
+        write_only_optimize_bellman=False,
         # memory
         num_bptt_unrolls=4,
         bpt_bellman_error_weight=10,
