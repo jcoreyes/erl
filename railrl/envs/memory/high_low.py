@@ -7,7 +7,7 @@ import numpy as np
 from railrl.misc.data_processing import create_stats_ordered_dict
 from rllab.envs.base import Env
 from rllab.misc import logger
-from rllab.spaces.box import Box
+from sandbox.rocky.tf.spaces.box import Box
 
 
 def _generate_sign():
