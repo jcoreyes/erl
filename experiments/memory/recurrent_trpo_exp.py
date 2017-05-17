@@ -42,8 +42,8 @@ def run_linear_ocm_exp(variant):
     Code for running the experiment.
     """
 
-    env = OneCharMemoryEndOnly(n=num_values, num_steps=H, softmax_action=True)
-    # env = HighLow(num_steps=H)
+    # env = OneCharMemoryEndOnly(n=num_values, num_steps=H, softmax_action=True)
+    env = HighLow(num_steps=H)
     env = ContinuousMemoryAugmented(
         env,
         num_memory_states=onehot_dim,

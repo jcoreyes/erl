@@ -13,6 +13,7 @@ ALLOWABLE_TAGS = ['regularizable']
 _TRAINING_OUTPUT_MODE = "training_output_mode"
 _EVAL_OUTPUT_MODE = "eval_output_mode"
 
+dropout_ph = None
 
 class NeuralNetwork(Parameterized, Serializable):
     """
@@ -25,7 +26,7 @@ class NeuralNetwork(Parameterized, Serializable):
             batch_norm_config=None,
             reuse=False,
             layer_norm=False,
-            dropout_keep_prob=None,
+            use_dropout=None,
             **kwargs
     ):
         """
@@ -36,8 +37,7 @@ class NeuralNetwork(Parameterized, Serializable):
         :param batch_norm_config: Config for batch_norm. If set, batch_norm
         is enabled.
         :param reuse: Reuse variables when creating this network.
-        :param dropout_keep_prob: IF not None, add dropout with this keep
-        probability.
+        :param use_dropout: Apply dropout or not to this network.
         :param kwargs:
         """
         super().__init__(**kwargs)
@@ -59,12 +59,12 @@ class NeuralNetwork(Parameterized, Serializable):
         self._full_scope_name = None
         self._subnetwork_list = []
         self._is_in_training_mode = False
-        self.use_dropout = dropout_keep_prob is not None
-        if self.use_dropout:
-            assert 0 < dropout_keep_prob <= 1
-        self.dropout_keep_prob = dropout_keep_prob
+        self.use_dropout = use_dropout
 
         self.param_values_when_last_loaded = None
+        # global dropout_ph
+        self.dropout_ph = dropout_ph
+
 
     @property
     def full_scope_name(self):
@@ -251,11 +251,7 @@ class NeuralNetwork(Parameterized, Serializable):
                 )
 
         if self.use_dropout:
-            if self._is_in_training_mode:
-                previous_layer = tf.nn.dropout(previous_layer,
-                                               keep_prob=self.dropout_keep_prob)
-            else:
-                previous_layer = tf.nn.dropout(previous_layer, 1)
+            previous_layer = tf.nn.dropout(previous_layer, self.dropout_ph)
 
         return previous_layer
 
