@@ -248,10 +248,10 @@ if __name__ == '__main__':
     version = 'dev'
     num_hp_settings = 100
 
-    n_seeds = 10
-    mode = 'ec2'
-    exp_prefix = '5-16-checks-bpt-weights'
-    run_mode = 'grid'
+    # n_seeds = 10
+    # mode = 'ec2'
+    # exp_prefix = '5-16-checks-hard-update-period'
+    # run_mode = 'grid'
     # version = 'reparam'
 
     """
@@ -311,7 +311,7 @@ if __name__ == '__main__':
         num_extra_qf_updates=0,
         extra_qf_training_mode='fixed',
         extra_train_period=100,
-        qf_weight_decay=0.01,
+        qf_weight_decay=0,
         qf_total_loss_tolerance=0.03,
         train_qf_on_all=False,
         # Policy hps
@@ -321,7 +321,7 @@ if __name__ == '__main__':
         write_policy_learning_rate=1e-4,
         train_policy_on_all_qf_timesteps=False,
         # memory
-        num_bptt_unrolls=5,
+        num_bptt_unrolls=4,
         bpt_bellman_error_weight=1,
         reward_low_bellman_error_weight=0.,
         saved_write_loss_weight=1,
@@ -494,8 +494,9 @@ if __name__ == '__main__':
             # 'ddpg_params.num_bptt_unrolls': [8, 6, 5, 4, 2],
             # 'ddpg_params.n_updates_per_time_step': [1, 5, 10],
             # 'ddpg_params.policy_learning_rate': [1e-3, 1e-4, 1e-5],
-            # 'ddpg_params.bpt_bellman_error_weight': [10],
-            # 'ddpg_params.saved_write_loss_weight': [0, 1, 10],
+            'ddpg_params.hard_update_period': [1, 100, 1000, 10000],
+            # 'ddpg_params.bpt_bellman_error_weight': [1, 10],
+            # 'ddpg_params.saved_write_loss_weight': [1, 10],
             # 'qf_params.dropout_keep_prob': [0.5, None],
             # 'meta_params.meta_qf_learning_rate': [1e-3, 1e-4],
             # 'meta_params.meta_qf_output_weight': [0, 0.1, 5],
@@ -508,8 +509,8 @@ if __name__ == '__main__':
             # 'es_params.memory_es_params.min_sigma': [1],
             # 'es_params.env_es_params.max_sigma': [3, 1],
             # 'es_params.env_es_params.min_sigma': [1],
-            'replay_buffer_params.keep_old_fraction': [0, 0.1, 0.3, 0.5,
-                                                       0.7, 0.9, 1],
+            # 'replay_buffer_params.keep_old_fraction': [0, 0.1, 0.3, 0.5,
+            #                                            0.7, 0.9, 1],
         }
         sweeper = DeterministicHyperparameterSweeper(search_space,
                                                      default_parameters=variant)
