@@ -250,11 +250,11 @@ if __name__ == '__main__':
     version = 'dev'
     num_hp_settings = 100
 
-    # n_seeds = 10
-    # mode = 'ec2'
-    # exp_prefix = '5-17-hl-nbptt4-H-sweep'
+    n_seeds = 10
+    mode = 'ec2'
+    exp_prefix = '5-17-toggle-compute-grad-immediately'
     # run_mode = 'grid'
-    # version = 'reparam'
+    # version = 'overwrite-writes-immediately'
 
     """
     Miscellaneous Params
@@ -278,7 +278,7 @@ if __name__ == '__main__':
     # env_class = OneCharMemoryEndOnly
     env_class = HighLow
     env_params = dict(
-        num_steps=16,
+        num_steps=24,
         n=2,
         zero_observation=True,
         output_target_number=False,
@@ -329,7 +329,7 @@ if __name__ == '__main__':
         write_policy_learning_rate=1e-4,
         train_policy_on_all_qf_timesteps=False,
         # memory
-        num_bptt_unrolls=2,
+        num_bptt_unrolls=4,
         bpt_bellman_error_weight=10,
         reward_low_bellman_error_weight=0.,
         saved_write_loss_weight=10,
