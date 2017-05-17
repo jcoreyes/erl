@@ -52,6 +52,7 @@ class RDPG(BpttDDPG):
             train_policy_on_all_qf_timesteps=False,
             write_policy_learning_rate=None,
             saved_write_loss_weight=1.,
+            memory_dim=None,
             **kwargs
     ):
         """
@@ -127,11 +128,10 @@ class RDPG(BpttDDPG):
         self.train_policy_on_all_qf_timesteps = train_policy_on_all_qf_timesteps
         self.write_policy_learning_rate = write_policy_learning_rate
         self.saved_write_loss_weight = saved_write_loss_weight
+        self.memory_dim = memory_dim
 
         self._rnn_cell_scope = policy.rnn_cell_scope
         self._rnn_cell = policy.rnn_cell
-        self._qf_rnn_cell_scope = self.qf.rnn_cell_scope
-        self._qf_rnn_cell = self.qf.rnn_cell
 
         self._replay_buffer_class = replay_buffer_class
         self._replay_buffer_params = replay_buffer_params
@@ -227,23 +227,21 @@ class RDPG(BpttDDPG):
     def _create_qf_rnn_output(
             self,
             rnn_cell,
-            observation_inputs,
-            action_inputs,
+            obs_unstacked,
+            actions_unstacked,
             rnn_init_state,
             rnn_cell_scope,
     ):
         """
         :param rnn_cell: 
-        :param observation_inputs: Tensor
-            shape [None x subsequence_length x dimension]
-        :param action_inputs: Tensor
-            shape [None x subsequence_length x dimension]
+        :param obs_unstacked: List of length subsequence_length of Tensors 
+        with shape [None x observation dimension]
+        :param actions_unstacked: List of length subsequence_length of Tensors 
+        with shape [None x observation dimension]
         :param rnn_init_state: 
         :param rnn_cell_scope: 
         :return: 
         """
-        obs_unstacked = tf.unstack(observation_inputs, axis=1)
-        actions_unstacked = tf.unstack(action_inputs, axis=1)
         rnn_inputs = list(zip(obs_unstacked, actions_unstacked))
         rnn_cell_scope.reuse_variables()
         rnn_outputs, _ = tf.contrib.rnn.static_rnn(
@@ -262,18 +260,32 @@ class RDPG(BpttDDPG):
             [None, self._num_bptt_unrolls, self._env_obs_dim],
             name='rnn_obs_inputs',
         )
+        self._qf_memory_inputs = tf.placeholder(
+            tf.float32,
+            [None, self._num_bptt_unrolls, self.memory_dim],
+            name='rnn_memory_inputs',
+        )
         self._qf_action_inputs = tf.placeholder(
             tf.float32,
             [None, self._num_bptt_unrolls, self._env_action_dim],
             name='rnn_action_inputs',
         )
+        self._qf_write_inputs = tf.placeholder(
+            tf.float32,
+            [None, self._num_bptt_unrolls, self.memory_dim],
+            name='rnn_write_inputs',
+        )
+        self._qf_obs_unstacked = tf.unstack(self._qf_obs_inputs, axis=1)
+        self._qf_memory_unstacked = tf.unstack(self._qf_memory_inputs, axis=1)
+        self._qf_actions_unstacked = tf.unstack(self._qf_action_inputs, axis=1)
+        self._qf_write_unstacked = tf.unstack(self._qf_write_inputs, axis=1)
         self._qf_rnn_init_state_ph = self.qf.get_init_state_placeholder()
         self._qf_rnn_outputs = self._create_qf_rnn_output(
-            self._qf_rnn_cell,
-            self._qf_obs_inputs,
-            self._qf_action_inputs,
+            self.qf.rnn_cell,
+            list(zip(self._qf_obs_unstacked, self._qf_memory_unstacked)),
+            list(zip(self._qf_actions_unstacked, self._qf_write_unstacked)),
             self._qf_rnn_init_state_ph,
-            self._qf_rnn_cell_scope,
+            self.qf.rnn_cell_scope,
         )
 
         self._qf_next_obs_inputs = tf.placeholder(
@@ -281,18 +293,37 @@ class RDPG(BpttDDPG):
             [None, self._num_bptt_unrolls, self._env_obs_dim],
             name='rnn_next_obs_inputs',
         )
+        self._qf_next_memories_inputs = tf.placeholder(
+            tf.float32,
+            [None, self._num_bptt_unrolls, self.memory_dim],
+            name='rnn_next_memory_inputs',
+        )
         next_obs_unstacked = tf.unstack(self._qf_next_obs_inputs, axis=1)
+        self._all_target_next_obs = self._qf_obs_unstacked[:1] + next_obs_unstacked
+        next_memories_unstacked = tf.unstack(
+            self._qf_next_memories_inputs, axis=1
+        )
+        self._all_target_next_memories = (
+            self._qf_memory_unstacked[:1] + next_memories_unstacked
+        )
+        self._target_policy_init_state_ph = (
+            self.target_policy.get_init_state_placeholder()
+        )
+        self.all_next_augmented_observations = list(zip(
+            self._all_target_next_obs,
+            self._all_target_next_memories,
+        ))
         self._target_policy_rnn_outputs, _ = tf.contrib.rnn.static_rnn(
             self.target_policy.rnn_cell,
-            next_obs_unstacked,
-            initial_state=rnn_init_state,
+            self.all_next_augmented_observations,
+            initial_state=self._target_policy_init_state_ph,
             dtype=tf.float32,
-            scope=rnn_cell_scope,
+            scope=self.target_policy.rnn_cell_scope,
         )
         self._target_qf_rnn_outputs = self._create_qf_rnn_output(
             self._qf_rnn_cell,
-            self._qf_obs_inputs,
-            self._qf_action_inputs,
+            self.all_next_augmented_observations,
+            self._target_policy_rnn_outputs,
             self._qf_rnn_init_state_ph,
             self._qf_rnn_cell_scope,
         )
