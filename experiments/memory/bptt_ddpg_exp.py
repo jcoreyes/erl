@@ -252,8 +252,8 @@ if __name__ == '__main__':
 
     n_seeds = 10
     mode = 'ec2'
-    exp_prefix = '5-17-write-only-optimize-bellman-error-correct-2'
-    # run_mode = 'grid'
+    exp_prefix = '5-17-write-only-optimize-bellman-error'
+    run_mode = 'grid'
     # version = 'reparam'
 
     """
@@ -329,7 +329,7 @@ if __name__ == '__main__':
         write_policy_learning_rate=1e-4,
         train_policy_on_all_qf_timesteps=False,
         # memory
-        num_bptt_unrolls=32,
+        num_bptt_unrolls=4,
         bpt_bellman_error_weight=10,
         reward_low_bellman_error_weight=0.,
         saved_write_loss_weight=10,
@@ -506,9 +506,10 @@ if __name__ == '__main__':
             # 'ddpg_params.num_extra_qf_updates': [0, 5],
             # 'ddpg_params.batch_size': [32, 128],
             # 'ddpg_params.replay_pool_size': [900, 90000],
-            'ddpg_params.num_bptt_unrolls': [32, 16, 8, 4, 2, 1],
+            # 'ddpg_params.num_bptt_unrolls': [32, 16, 8, 4, 2, 1],
             # 'ddpg_params.n_updates_per_time_step': [1, 5, 10],
-            # 'ddpg_params.policy_learning_rate': [1e-3, 1e-4, 1e-5],
+            'ddpg_params.policy_learning_rate': [1e-2, 1e-3, 1e-4],
+            'ddpg_params.write_policy_learning_rate': [1e-3, 1e-4, 1e-5],
             # 'ddpg_params.hard_update_period': [1, 100, 1000, 10000],
             # 'ddpg_params.bpt_bellman_error_weight': [1, 10],
             # 'ddpg_params.saved_write_loss_weight': [1, 10],
