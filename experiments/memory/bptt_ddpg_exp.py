@@ -246,14 +246,14 @@ def create_run_experiment_multiple_seeds(n_seeds):
 if __name__ == '__main__':
     n_seeds = 1
     mode = 'here'
-    exp_prefix = "dev-bptt-ddpg-ocm"
+    exp_prefix = "dev-bptt-ddpg"
     run_mode = 'none'
     version = 'dev'
     num_hp_settings = 100
 
     n_seeds = 5
     mode = 'ec2'
-    exp_prefix = '5-16-ff-res-cell-grid-H9-ez'
+    exp_prefix = '5-17-ff-res-cell-grid-H9-nbptt4'
     run_mode = 'grid'
     # version = 'reparam'
 
@@ -278,7 +278,7 @@ if __name__ == '__main__':
     # env_class = WaterMaze
     # env_class = OneCharMemoryEndOnly
     env_class = HighLow
-    H = 32
+    H = 9
     env_params = dict(
         num_steps=H,
         n=2,
@@ -331,7 +331,7 @@ if __name__ == '__main__':
         train_policy_on_all_qf_timesteps=False,
         write_decay_weight=0,
         # memory
-        num_bptt_unrolls=32,
+        num_bptt_unrolls=4,
         bpt_bellman_error_weight=10,
         reward_low_bellman_error_weight=0.,
         saved_write_loss_weight=10,
