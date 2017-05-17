@@ -704,11 +704,13 @@ class BpttDDPG(DDPG):
             batch = self.pool.get_valid_subtrajectories(validation=validation)
             policy_feed_dict = self._policy_feed_dict_from_batch(batch)
             (
-                policy_surrogate_loss,
+                policy_env_loss,
+                policy_write_loss,
                 policy_qf_output,
             ) = self.sess.run(
                 [
-                    self.policy_surrogate_loss,
+                    self.policy_env_action_loss,
+                    self.policy_write_action_loss,
                     self.qf_with_action_input.output,
                 ]
                 ,
@@ -716,8 +718,12 @@ class BpttDDPG(DDPG):
             )
             policy_base_stat_name = 'Policy{}'.format(name)
             statistics.update(create_stats_ordered_dict(
-                '{}_Surrogate_Loss'.format(policy_base_stat_name),
-                policy_surrogate_loss,
+                '{}_Env_Action_Loss'.format(policy_base_stat_name),
+                policy_env_loss,
+            ))
+            statistics.update(create_stats_ordered_dict(
+                '{}_Write_Loss'.format(policy_base_stat_name),
+                policy_write_loss,
             ))
             statistics.update(create_stats_ordered_dict(
                 '{}_Qf_Output'.format(policy_base_stat_name),
