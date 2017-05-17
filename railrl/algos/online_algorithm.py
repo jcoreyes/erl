@@ -215,6 +215,7 @@ class OnlineAlgorithm(RLAlgorithm):
                         self.es_path_returns.append(path_return)
                         path_length = 0
                         path_return = 0
+                        self.handle_rollout_ending()
                     else:
                         observation = next_ob
 
@@ -446,3 +447,10 @@ class OnlineAlgorithm(RLAlgorithm):
         :return:
         """
         return raw_action
+
+    @abc.abstractmethod
+    def handle_rollout_ending(self):
+        """
+        This method is called whenever a rollout ends.
+        """
+        pass

@@ -657,6 +657,9 @@ class BpttDDPG(DDPG):
         feed_dict[self.policy.observation_input] = last_obs
         return feed_dict
 
+    def handle_rollout_ending(self):
+        pass
+
     """
     Miscellaneous functions
     """
