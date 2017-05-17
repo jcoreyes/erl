@@ -95,7 +95,7 @@ if __name__ == '__main__':
         exp_prefix=exp_prefix,
         trpo_params=trpo_params,
         optimizer_params=optimizer_params,
-        version='recurrent_trpo',
+        version='Recurrent TRPO',
         env_class=HighLow,
     )
     for seed in range(n_seeds):
