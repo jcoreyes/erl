@@ -150,7 +150,7 @@ def run_ocm_experiment(variant):
             action_dim=env_action_dim,
             memory_dim=memory_dim,
             env_spec=env.spec,
-            num_env_obs_dims_to_use=1,
+            num_env_obs_dims_to_use=env_obs_dim,
             **policy_params
         )
 
@@ -250,10 +250,10 @@ if __name__ == '__main__':
     version = 'dev'
     num_hp_settings = 100
 
-    n_seeds = 10
-    mode = 'ec2'
-    exp_prefix = '5-16-dropout-sweep'
-    run_mode = 'grid'
+    # n_seeds = 10
+    # mode = 'ec2'
+    # exp_prefix = '5-16-dropout-sweep'
+    # run_mode = 'grid'
     # version = 'reparam'
 
     """
@@ -402,7 +402,7 @@ if __name__ == '__main__':
         # observation_hidden_sizes=[100],
         use_time=False,
         use_target=False,
-        use_dropout=True,
+        use_dropout=False,
     )
 
     memory_dim = 20
