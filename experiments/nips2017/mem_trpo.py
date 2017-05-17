@@ -68,13 +68,13 @@ def run_linear_ocm_exp(variant):
 
 
 if __name__ == '__main__':
-    # n_seeds = 1
-    # mode = "here"
-    # exp_prefix = "dev-mtrpo"
+    n_seeds = 1
+    mode = "here"
+    exp_prefix = "dev-mtrpo"
 
-    n_seeds = 5
+    n_seeds = 10
     mode = "ec2"
-    exp_prefix = "5-16-benchmark-mtrpo-hl"
+    exp_prefix = "5-17-benchmark-mtrpo-hl"
 
     # noinspection PyTypeChecker
     trpo_params = dict(
