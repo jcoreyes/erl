@@ -68,10 +68,10 @@ if __name__ == '__main__':
     version = 'dev'
     num_hp_settings = 100
 
-    # n_seeds = 10
-    # mode = 'ec2'
-    # exp_prefix = '5-17-dev-our-method-water-maze-easy'
-    # run_mode = 'grid'
+    n_seeds = 10
+    mode = 'ec2'
+    exp_prefix = '5-17-push-full-bptt-our-method-hl'
+    run_mode = 'custom_grid'
     # version = 'reparam'
 
     """
@@ -103,11 +103,6 @@ if __name__ == '__main__':
         max_reward_magnitude=1,
     )
 
-    # epoch_length = H * n_rollouts_per_epoch
-    # eval_samples = H * n_rollouts_per_eval
-    epoch_length = 1000
-    # eval_samples = 400
-    # max_path_length = epoch_length + 2
     # TODO(vitchyr): clean up this hacky dropout code. Also, you'll need to
     # fix the batchnorm code. Basically, calls to (e.g.) qf.output will
     # always take the eval output.
@@ -119,8 +114,7 @@ if __name__ == '__main__':
         min_pool_size=128,
         replay_pool_size=100000,
         n_updates_per_time_step=1,
-        # replay_pool_size=int(32*(H+1)*5/4),
-        epoch_length=epoch_length,
+        epoch_length=1000,
         eval_samples=400,
         max_path_length=1002,
         discount=1.0,
@@ -185,7 +179,7 @@ if __name__ == '__main__':
     )
     meta_params = dict(
         meta_qf_learning_rate=0.0001900271829580542,
-        meta_qf_output_weight=1,
+        meta_qf_output_weight=0,
         qf_output_weight=1,
     )
 
@@ -196,7 +190,6 @@ if __name__ == '__main__':
         env_es_params=dict(
             max_sigma=1,
             min_sigma=None,
-            decay_period=epoch_length*15,
             softmax=True,
             laplace_weight=0.,
         ),
@@ -205,7 +198,6 @@ if __name__ == '__main__':
         memory_es_params=dict(
             max_sigma=1,
             min_sigma=None,
-            decay_period=epoch_length*15,
             softmax=True,
         ),
         noise_action_to_memory=False,
@@ -388,23 +380,17 @@ if __name__ == '__main__':
     elif run_mode == 'custom_grid':
         for exp_id, (
                 version,
-                env_es_class,
-                memory_es_class,
-                env_noise_std,
-                memory_noise_std,
+                H,
         ) in enumerate([
-            ("Gaussian", OUStrategy, 0),
-            ("Reparam", NoopStrategy, 0.2)
+            ("16", 16),
+            ("32", 32),
+            ("64", 64),
+            ("128", 128),
+            ("256", 256),
         ]):
             variant['version'] = version
-            variant['es_params']['env_es_class'] = env_es_class
-            variant['es_params']['memory_es_class'] = memory_es_class
-            variant['policy_params']['rnn_cell_params']['env_noise_std'] = (
-                env_noise_std
-            )
-            variant['policy_params']['rnn_cell_params']['memory_noise_std'] = (
-                memory_noise_std
-            )
+            variant['env_params']['num_steps'] = H
+            variant['ddpg_params']['num_bptt_unrolls'] = H
             for seed in range(n_seeds):
                 run_experiment(
                     get_ocm_score,
