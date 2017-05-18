@@ -70,7 +70,7 @@ if __name__ == '__main__':
 
     # n_seeds = 5
     # mode = 'ec2'
-    # exp_prefix = '5-18-meta-critic-sweep'
+    exp_prefix = '5-18-watermaze-attempt'
     # run_mode = 'grid'
     # version = 'env-and-write-loss-only'
 
@@ -94,7 +94,7 @@ if __name__ == '__main__':
     # env_class = OneCharMemoryEndOnly
     # env_class = HighLow
     env_params = dict(
-        num_steps=100,
+        num_steps=200,
         # n=2,
         # zero_observation=True,
         # output_target_number=False,
