@@ -573,9 +573,9 @@ class BpttDDPG(DDPG):
         env_loss += bellman_loss
 
         if self.write_only_optimize_bellman:
-            write_action_loss = env_loss
-        else:
             write_action_loss = bellman_loss
+        else:
+            write_action_loss = env_loss
 
         self._saved_write_gradients = tf.placeholder(
             tf.float32,
