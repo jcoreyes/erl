@@ -11,7 +11,7 @@ from railrl.data_management.ocm_subtraj_replay_buffer import (
     OcmSubtrajReplayBuffer
 )
 from railrl.envs.memory.high_low import HighLow
-from railrl.envs.water_maze import WaterMaze
+from railrl.envs.water_maze import WaterMaze, WaterMazeEasy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.algo_launchers import bptt_ddpg_launcher
 from railrl.launchers.launcher_util import (
@@ -29,7 +29,7 @@ if __name__ == '__main__':
 
     n_seeds = 10
     mode = 'ec2'
-    exp_prefix = '5-17-dev-benchmark-our-method-hl'
+    exp_prefix = '5-17-benchmark-our-method-full-bptt-watermaze-easy'
     # run_mode = 'grid'
 
     """
@@ -48,10 +48,10 @@ if __name__ == '__main__':
     """
     Set all the hyperparameters!
     """
-    # env_class = WaterMaze
-    env_class = HighLow
+    env_class = WaterMazeEasy
+    # env_class = HighLow
     env_params = dict(
-        num_steps=32,
+        num_steps=200,
         n=2,
         zero_observation=True,
         output_target_number=False,
@@ -70,7 +70,7 @@ if __name__ == '__main__':
         replay_pool_size=100000,
         n_updates_per_time_step=10,
         epoch_length=epoch_length,
-        eval_samples=400,
+        eval_samples=2000,
         max_path_length=1002,
         discount=1.0,
         save_tf_graph=False,
@@ -95,7 +95,7 @@ if __name__ == '__main__':
         train_policy_on_all_qf_timesteps=False,
         write_only_optimize_bellman=True,
         # memory
-        num_bptt_unrolls=20,
+        num_bptt_unrolls=200,
         bpt_bellman_error_weight=10,
         reward_low_bellman_error_weight=0.,
         saved_write_loss_weight=10,
