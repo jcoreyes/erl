@@ -16,7 +16,7 @@
         </body>
 
         <!-- Target -->
-        <body name="target" pos="0 0 0">
+        <body name="target" pos="0 0 -0.02">
             <geom conaffinity="2" name="target_geom" type="cylinder" size=".1 .01" rgba="0 0.9 0.1 1"/>
             <joint name="target_x" type="slide" pos="0 0 0" axis="1 0 0" />
             <joint name="target_y" type="slide" pos="0 0 0" axis="0 1 0" />

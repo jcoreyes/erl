@@ -15,8 +15,8 @@ from rllab.misc import logger
 RADIUS = 0.1
 BOUNDARY_RADIUS = 0.01
 BOUNDARY_DIST = 0.3
-MAX_GOAL_DIST = BOUNDARY_DIST - RADIUS - BOUNDARY_RADIUS - 0.01
-
+# MAX_GOAL_DIST = BOUNDARY_DIST - RADIUS - BOUNDARY_RADIUS - 0.01
+MAX_GOAL_DIST = BOUNDARY_DIST
 
 class MujocoWaterMaze(mujoco_env.MujocoEnv, utils.EzPickle):
     def __init__(self, horizon=200, l2_action_penalty_weight=1e-2,
