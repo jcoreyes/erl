@@ -71,7 +71,7 @@ if __name__ == '__main__':
     # n_seeds = 10
     # mode = 'ec2'
     # exp_prefix = '5-17-dev-our-method-water-maze-easy'
-    # run_mode = 'grid'
+    run_mode = 'grid'
     # version = 'reparam'
 
     """
@@ -119,7 +119,7 @@ if __name__ == '__main__':
     ddpg_params = dict(
         batch_size=32,
         n_epochs=30,
-        min_pool_size=128,
+        min_pool_size=32,
         replay_pool_size=100000,
         n_updates_per_time_step=10,
         # replay_pool_size=int(32*(H+1)*5/4),
@@ -147,12 +147,12 @@ if __name__ == '__main__':
         train_policy=True,
         write_policy_learning_rate=1e-5,
         train_policy_on_all_qf_timesteps=False,
-        write_only_optimize_bellman=True,
+        write_only_optimize_bellman=False,
         # memory
         num_bptt_unrolls=32,
         bpt_bellman_error_weight=10,
         reward_low_bellman_error_weight=0.,
-        saved_write_loss_weight=10,
+        saved_write_loss_weight=0,
         compute_gradients_immediately=True,
     )
 
@@ -199,17 +199,12 @@ if __name__ == '__main__':
         env_es_params=dict(
             max_sigma=1,
             min_sigma=None,
-            decay_period=epoch_length*15,
-            softmax=True,
-            laplace_weight=0.,
         ),
         # memory_es_class=NoopStrategy,
         memory_es_class=OUStrategy,
         memory_es_params=dict(
             max_sigma=1,
             min_sigma=None,
-            decay_period=epoch_length*15,
-            softmax=True,
         ),
         noise_action_to_memory=False,
     )
