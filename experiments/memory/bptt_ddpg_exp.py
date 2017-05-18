@@ -63,15 +63,15 @@ def create_run_experiment_multiple_seeds(n_seeds):
 if __name__ == '__main__':
     n_seeds = 1
     mode = 'here'
-    exp_prefix = "tmp-5-18-dev-bptt-ddpg-ocm"
+    exp_prefix = "dev-bptt-ddpg-hl"
     run_mode = 'none'
     version = 'dev'
     num_hp_settings = 100
 
     n_seeds = 10
     mode = 'ec2'
-    exp_prefix = '5-18-hl-h32-sweep-nbptt'
-    run_mode = 'grid'
+    exp_prefix = '5-18-hl-big-batch-vs-many-small-batches'
+    run_mode = 'custom_grid'
     # version = 'take-2-no-optimize'
 
     """
@@ -315,7 +315,7 @@ if __name__ == '__main__':
             # 'ddpg_params.num_extra_qf_updates': [0, 5],
             # 'ddpg_params.batch_size': [32, 128],
             # 'ddpg_params.replay_pool_size': [900, 90000],
-            'ddpg_params.num_bptt_unrolls': [32, 16, 8, 4, 2, 1],
+            # 'ddpg_params.num_bptt_unrolls': [64, 48, 32, 16, 4, 1],
             # 'ddpg_params.n_updates_per_time_step': [1, 10],
             # 'ddpg_params.policy_learning_rate': [1e-3, 1e-4],
             # 'ddpg_params.write_policy_learning_rate': [1e-4, 1e-5],
@@ -380,17 +380,20 @@ if __name__ == '__main__':
     elif run_mode == 'custom_grid':
         for exp_id, (
                 version,
-                H,
+                subseq_length,
         ) in enumerate([
-            ("16", 16),
-            ("32", 32),
-            ("64", 64),
-            ("128", 128),
-            ("256", 256),
+            ("num_steps_per_batch=256", 32),
+            ("num_steps_per_batch=256", 16),
+            ("num_steps_per_batch=256", 8),
+            ("num_steps_per_batch=256", 4),
+            ("num_steps_per_batch=256", 1),
         ]):
+            num_steps_per_batch = 256
+            batch_size = int(num_steps_per_batch / subseq_length)
             variant['version'] = version
-            variant['env_params']['num_steps'] = H
-            variant['ddpg_params']['num_bptt_unrolls'] = H
+            variant['ddpg_params']['num_bptt_unrolls'] = subseq_length
+            variant['ddpg_params']['batch_size'] = batch_size
+            variant['ddpg_params']['min_pool_size'] = batch_size
             for seed in range(n_seeds):
                 run_experiment(
                     get_ocm_score,
