@@ -1,5 +1,6 @@
 from collections import OrderedDict
 
+from railrl.algos.bptt_ddpg import BpttDDPG
 from railrl.algos.oracle_bptt_ddpg import OracleBpttDdpg
 from railrl.algos.ddpg import TARGET_PREFIX, TargetUpdateMode
 import tensorflow as tf
@@ -8,7 +9,7 @@ from railrl.core import tf_util
 from railrl.misc.data_processing import create_stats_ordered_dict
 
 
-class MetaBpttDdpg(OracleBpttDdpg):
+class MetaBpttDdpg(BpttDDPG):
     """
     Add a meta critic: it predicts the error of the normal critic
     """
@@ -173,15 +174,13 @@ class MetaBpttDdpg(OracleBpttDdpg):
             observation_input=self.qf_with_action_input.observation_input,
         )
 
-    def _init_policy_loss_and_train_ops(self):
-        self.policy_surrogate_loss = self._get_policy_train_loss()
+    def _get_env_action_and_write_loss(self):
+        env_action_loss, write_loss = super()._get_env_action_and_write_loss()
         if self.meta_qf_output_weight > 0:
-            self.policy_surrogate_loss += tf.reduce_mean(
+            env_action_loss += tf.reduce_mean(
                 self.meta_qf_with_action_input.output
             ) * self.meta_qf_output_weight
-        self.train_policy_op = self._get_policy_train_op(
-            self.policy_surrogate_loss
-        )
+        return env_action_loss, write_loss
 
     def _statistics_from_batch(self, batch) -> OrderedDict:
         statistics = super()._statistics_from_batch(batch)

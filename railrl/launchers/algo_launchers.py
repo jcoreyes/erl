@@ -508,26 +508,19 @@ def bptt_ddpg_launcher(variant):
         )
 
     ddpg_params = ddpg_params.copy()
+    qf = HintMlpMemoryQFunction(
+        name_or_scope="critic",
+        hint_dim=env_action_dim,
+        max_time=H,
+        env_spec=env.spec,
+        **qf_params
+    )
     if oracle_mode == 'none':
         qf_params['use_time'] = False
         qf_params['use_target'] = False
-        qf = HintMlpMemoryQFunction(
-            name_or_scope="critic",
-            hint_dim=env_action_dim,
-            max_time=H,
-            env_spec=env.spec,
-            **qf_params
-        )
         algo_class = variant['algo_class']
-    elif oracle_mode == 'oracle' or oracle_mode == 'meta':
+    elif oracle_mode == 'oracle':
         oracle_params = variant['oracle_params']
-        qf = qf or HintMlpMemoryQFunction(
-            name_or_scope="hint_critic",
-            hint_dim=env_action_dim,
-            max_time=H,
-            env_spec=env.spec,
-            **qf_params
-        )
         oracle_qf = OracleUnrollQFunction(
             name_or_scope="oracle_unroll_critic",
             env=env,
@@ -541,9 +534,7 @@ def bptt_ddpg_launcher(variant):
         algo_class = OracleBpttDdpg
         ddpg_params['oracle_qf'] = oracle_qf
         ddpg_params.update(oracle_params)
-    else:
-        raise Exception("Unknown mode: {}".format(oracle_mode))
-    if oracle_mode == 'meta':
+    elif oracle_mode == 'meta':
         meta_qf = HintMlpMemoryQFunction(
             name_or_scope="meta_critic",
             hint_dim=env_action_dim,
@@ -555,6 +546,8 @@ def bptt_ddpg_launcher(variant):
         meta_params = variant['meta_params']
         ddpg_params['meta_qf'] = meta_qf
         ddpg_params.update(meta_params)
+    else:
+        raise Exception("Unknown mode: {}".format(oracle_mode))
 
     algorithm = algo_class(
         env=env,
