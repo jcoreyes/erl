@@ -180,7 +180,7 @@ class MetaBpttDdpg(BpttDDPG):
             self.meta_qf_with_action_input.output
         )
         if self.meta_qf_output_weight > 0:
-            env_action_loss += (
+            write_loss += (
                 self.policy_meta_loss * self.meta_qf_output_weight
             )
         return env_action_loss, write_loss
