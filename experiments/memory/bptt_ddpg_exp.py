@@ -63,16 +63,16 @@ def create_run_experiment_multiple_seeds(n_seeds):
 if __name__ == '__main__':
     n_seeds = 1
     mode = 'here'
-    exp_prefix = "dev-bptt-ddpg-ocm"
+    exp_prefix = "tmp-5-18-dev-bptt-ddpg-ocm"
     run_mode = 'none'
     version = 'dev'
     num_hp_settings = 100
 
     n_seeds = 10
     mode = 'ec2'
-    exp_prefix = '5-17-push-full-bptt-our-method-hl'
-    run_mode = 'custom_grid'
-    # version = 'reparam'
+    exp_prefix = '5-18-hl-h32-sweep-nbptt'
+    run_mode = 'grid'
+    # version = 'take-2-no-optimize'
 
     """
     Miscellaneous Params
@@ -94,7 +94,7 @@ if __name__ == '__main__':
     # env_class = OneCharMemoryEndOnly
     env_class = HighLow
     env_params = dict(
-        num_steps=16,
+        num_steps=32,
         n=2,
         zero_observation=True,
         output_target_number=False,
@@ -110,10 +110,10 @@ if __name__ == '__main__':
     # noinspection PyTypeChecker
     ddpg_params = dict(
         batch_size=32,
-        n_epochs=30,
-        min_pool_size=128,
+        n_epochs=50,
+        min_pool_size=32,
         replay_pool_size=100000,
-        n_updates_per_time_step=1,
+        n_updates_per_time_step=5,
         epoch_length=1000,
         eval_samples=400,
         max_path_length=1002,
@@ -138,9 +138,9 @@ if __name__ == '__main__':
         train_policy=True,
         write_policy_learning_rate=1e-5,
         train_policy_on_all_qf_timesteps=False,
-        write_only_optimize_bellman=True,
+        write_only_optimize_bellman=False,
         # memory
-        num_bptt_unrolls=4,
+        num_bptt_unrolls=32,
         bpt_bellman_error_weight=10,
         reward_low_bellman_error_weight=0.,
         saved_write_loss_weight=0,
@@ -315,10 +315,10 @@ if __name__ == '__main__':
             # 'ddpg_params.num_extra_qf_updates': [0, 5],
             # 'ddpg_params.batch_size': [32, 128],
             # 'ddpg_params.replay_pool_size': [900, 90000],
-            # 'ddpg_params.num_bptt_unrolls': [32, 16, 8, 4, 2, 1],
-            'ddpg_params.n_updates_per_time_step': [1, 10],
-            'ddpg_params.policy_learning_rate': [1e-3, 1e-4],
-            'ddpg_params.write_policy_learning_rate': [1e-4, 1e-5],
+            'ddpg_params.num_bptt_unrolls': [32, 16, 8, 4, 2, 1],
+            # 'ddpg_params.n_updates_per_time_step': [1, 10],
+            # 'ddpg_params.policy_learning_rate': [1e-3, 1e-4],
+            # 'ddpg_params.write_policy_learning_rate': [1e-4, 1e-5],
             # 'ddpg_params.hard_update_period': [1, 100, 1000, 10000],
             # 'ddpg_params.bpt_bellman_error_weight': [1, 10],
             # 'ddpg_params.saved_write_loss_weight': [1, 10],
@@ -333,7 +333,7 @@ if __name__ == '__main__':
             # 'es_params.memory_es_params.min_sigma': [1],
             # 'es_params.env_es_params.max_sigma': [0.1, 0.3, 1],
             # 'es_params.env_es_params.min_sigma': [1],
-            'replay_buffer_params.keep_old_fraction': [0, 0.5, 0.9],
+            # 'replay_buffer_params.keep_old_fraction': [0, 0.5, 0.9],
         }
         sweeper = DeterministicHyperparameterSweeper(search_space,
                                                      default_parameters=variant)
