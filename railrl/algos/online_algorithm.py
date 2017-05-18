@@ -192,7 +192,6 @@ class OnlineAlgorithm(RLAlgorithm):
             self._switch_to_eval_mode()
             for epoch in range(self.n_epochs):
                 logger.push_prefix('Epoch #%d | ' % epoch)
-                logger.log("Training started")
                 start_time = time.time()
                 for n_steps_current_epoch in range(self.epoch_length):
                     action, agent_info = (
@@ -249,15 +248,13 @@ class OnlineAlgorithm(RLAlgorithm):
                                 )
 
                     itr += 1
-
-                logger.log("Training finished. Time: {0}".format(time.time() -
-                                                                 start_time))
-                if self._can_eval():
-                    start_time = time.time()
-                    self.evaluate(epoch, self.es_path_returns)
-                    self.es_path_returns = []
-                    logger.log(
-                        "Eval time: {0}".format(time.time() - start_time))
+                logger.log(
+                    "Training Time: {0}".format(time.time() - start_time)
+                )
+                start_time = time.time()
+                self.evaluate(epoch, self.es_path_returns)
+                self.es_path_returns = []
+                logger.log("Eval Time: {0}".format(time.time() - start_time))
                 params = self.get_epoch_snapshot(epoch)
                 logger.save_itr_params(epoch, params)
                 logger.dump_tabular(with_prefix=False, with_timestamp=False)
