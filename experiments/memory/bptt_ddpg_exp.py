@@ -77,11 +77,8 @@ if __name__ == '__main__':
     """
     Miscellaneous Params
     """
-    n_rollouts_per_epoch = 100
-    n_rollouts_per_eval = 64
-    oracle_mode = 'none'
+    oracle_mode = 'meta'
     algo_class = BpttDDPG
-    # algo_class = NoOpBpttDDPG
     load_policy_file = (
         '/home/vitchyr/git/rllab-rail/railrl/data/reference/expert'
         '/ocm_reward_magnitude5_H6_nbptt6_100p'
@@ -97,7 +94,7 @@ if __name__ == '__main__':
     # env_class = OneCharMemoryEndOnly
     env_class = HighLow
     env_params = dict(
-        num_steps=32,
+        num_steps=16,
         n=2,
         zero_observation=True,
         output_target_number=False,
@@ -121,7 +118,7 @@ if __name__ == '__main__':
         n_epochs=30,
         min_pool_size=128,
         replay_pool_size=100000,
-        n_updates_per_time_step=10,
+        n_updates_per_time_step=1,
         # replay_pool_size=int(32*(H+1)*5/4),
         epoch_length=epoch_length,
         eval_samples=400,
@@ -149,11 +146,11 @@ if __name__ == '__main__':
         train_policy_on_all_qf_timesteps=False,
         write_only_optimize_bellman=True,
         # memory
-        num_bptt_unrolls=32,
+        num_bptt_unrolls=4,
         bpt_bellman_error_weight=10,
         reward_low_bellman_error_weight=0.,
-        saved_write_loss_weight=10,
-        compute_gradients_immediately=True,
+        saved_write_loss_weight=0,
+        compute_gradients_immediately=False,
     )
 
     # noinspection PyTypeChecker
@@ -188,7 +185,7 @@ if __name__ == '__main__':
     )
     meta_params = dict(
         meta_qf_learning_rate=0.0001900271829580542,
-        meta_qf_output_weight=0,
+        meta_qf_output_weight=1,
         qf_output_weight=1,
     )
 
