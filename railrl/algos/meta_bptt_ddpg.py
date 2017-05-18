@@ -177,14 +177,47 @@ class MetaBpttDdpg(BpttDDPG):
     def _get_env_action_and_write_loss(self):
         env_action_loss, write_loss = super()._get_env_action_and_write_loss()
         if self.meta_qf_output_weight > 0:
-            env_action_loss += tf.reduce_mean(
+            self.policy_meta_loss = tf.reduce_mean(
                 self.meta_qf_with_action_input.output
             ) * self.meta_qf_output_weight
+            env_action_loss += self.policy_meta_loss
         return env_action_loss, write_loss
 
     def _statistics_from_batch(self, batch) -> OrderedDict:
         statistics = super()._statistics_from_batch(batch)
         statistics.update(self._meta_qf_statistics_from_batch(batch))
+        return statistics
+
+    def _policy_statistics_from_batch(self, batch):
+        policy_feed_dict = self._eval_policy_feed_dict_from_batch(batch)
+        policy_stat_names, policy_ops = zip(*[
+            ('PolicyMetaLoss', self.policy_meta_loss),
+        ])
+        values = self.sess.run(policy_ops, feed_dict=policy_feed_dict)
+        statistics = super()._policy_statistics_from_batch(batch)
+        for stat_name, value in zip(policy_stat_names, values):
+            statistics.update(
+                create_stats_ordered_dict(stat_name, value)
+            )
+        return statistics
+
+    def _get_other_statistics_train_validation(self, batch, name):
+        statistics = super()._get_other_statistics_train_validation(batch, name)
+        policy_feed_dict = self._policy_feed_dict_from_batch(batch)
+        (
+            policy_meta_loss,
+        ) = self.sess.run(
+            [
+                self.policy_meta_loss,
+            ]
+            ,
+            feed_dict=policy_feed_dict
+        )
+        policy_base_stat_name = '{}Policy'.format(name)
+        statistics.update(create_stats_ordered_dict(
+            '{}_Meta_Loss'.format(policy_base_stat_name),
+            policy_meta_loss,
+        ))
         return statistics
 
     def _meta_qf_statistics_from_batch(self, batch):

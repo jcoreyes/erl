@@ -217,9 +217,9 @@ class BpttDDPG(DDPG):
     def _policy_statistics_from_batch(self, batch):
         policy_feed_dict = self._eval_policy_feed_dict_from_batch(batch)
         policy_stat_names, policy_ops = zip(*[
+            ('PolicyOutput', self.policy.output),
             ('PolicyEnvLoss', self.policy_env_action_loss),
             ('PolicyWriteLoss', self.policy_write_action_loss),
-            ('PolicyOutput', self.policy.output),
             # Unforuntately this won't work because new data sampled won't
             # have any saved dloss/dwrites in the temporary replay buffer.
             # ('SavedWriteLoss', self._saved_write_losses),
@@ -755,59 +755,70 @@ class BpttDDPG(DDPG):
             ('Train', False),
         ]:
             batch = self.pool.get_valid_subtrajectories(validation=validation)
-            policy_feed_dict = self._policy_feed_dict_from_batch(batch)
-            (
-                policy_env_loss,
-                policy_write_loss,
-                policy_qf_output,
-            ) = self.sess.run(
-                [
-                    self.policy_env_action_loss,
-                    self.policy_write_action_loss,
-                    self.qf_with_action_input.output,
-                ]
-                ,
-                feed_dict=policy_feed_dict
+            statistics.update(
+                self._get_other_statistics_train_validation(batch, name)
             )
-            policy_base_stat_name = 'Policy{}'.format(name)
-            statistics.update(create_stats_ordered_dict(
-                '{}_Env_Action_Loss'.format(policy_base_stat_name),
-                policy_env_loss,
-            ))
-            statistics.update(create_stats_ordered_dict(
-                '{}_Write_Loss'.format(policy_base_stat_name),
-                policy_write_loss,
-            ))
-            statistics.update(create_stats_ordered_dict(
-                '{}_Qf_Output'.format(policy_base_stat_name),
-                policy_qf_output,
-            ))
+        return statistics
 
-            qf_feed_dict = self._qf_feed_dict_from_batch(batch)
-            (
-                qf_loss,
-                bellman_errors,
-                qf_output,
-            ) = self.sess.run(
-                [
-                    self.qf_loss,
-                    self.bellman_errors,
-                    self.qf.output,
-                ]
-                ,
-                feed_dict=qf_feed_dict
-            )
-            qf_stat_base_name = 'Qf{}'.format(name)
-            statistics.update(create_stats_ordered_dict(
-                '{}_BellmanError'.format(qf_stat_base_name),
-                bellman_errors,
-            ))
-            statistics.update(create_stats_ordered_dict(
-                '{}_Loss'.format(qf_stat_base_name),
-                qf_loss,
-            ))
-            statistics.update(create_stats_ordered_dict(
-                '{}_QfOutput'.format(qf_stat_base_name),
-                qf_output
-            ))
+    def _get_other_statistics_train_validation(self, batch, name):
+        statistics = OrderedDict()
+        policy_feed_dict = self._policy_feed_dict_from_batch(batch)
+        (
+            policy_env_loss,
+            policy_write_loss,
+            policy_qf_output,
+        ) = self.sess.run(
+            [
+                self.policy_env_action_loss,
+                self.policy_write_action_loss,
+                self.qf_with_action_input.output,
+            ]
+            ,
+            feed_dict=policy_feed_dict
+        )
+        policy_base_stat_name = '{}Policy'.format(name)
+        statistics.update(create_stats_ordered_dict(
+            '{}_Env_Action_Loss'.format(policy_base_stat_name),
+            policy_env_loss,
+        ))
+        statistics.update(create_stats_ordered_dict(
+            '{}_Write_Loss'.format(policy_base_stat_name),
+            policy_write_loss,
+        ))
+        statistics.update(create_stats_ordered_dict(
+            '{}_Qf_Output'.format(policy_base_stat_name),
+            policy_qf_output,
+        ))
+
+        qf_feed_dict = self._qf_feed_dict_from_batch(batch)
+        (
+            qf_loss,
+            bellman_errors,
+            qf_output,
+        ) = self.sess.run(
+            [
+                self.qf_loss,
+                self.bellman_errors,
+                self.qf.output,
+            ]
+            ,
+            feed_dict=qf_feed_dict
+        )
+        qf_stat_base_name = '{}Qf'.format(name)
+        statistics.update(create_stats_ordered_dict(
+            '{}_BellmanError'.format(qf_stat_base_name),
+            bellman_errors,
+        ))
+        statistics.update(create_stats_ordered_dict(
+            '{}_Loss'.format(qf_stat_base_name),
+            qf_loss,
+        ))
+        statistics.update(create_stats_ordered_dict(
+            '{}_QfOutput'.format(qf_stat_base_name),
+            qf_output
+        ))
+        statistics.update(create_stats_ordered_dict(
+            '{}_QfOutput'.format(qf_stat_base_name),
+            qf_output
+        ))
         return statistics
