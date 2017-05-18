@@ -93,13 +93,19 @@ class UpdatableSubtrajReplayBuffer(SubtrajReplayBuffer):
                                          self._subtraj_length, start_offset=1),
         )
 
-    def get_last_trajectory_subsequences(self, episode_length):
-        last_start_idx = self._valid_start_episode_indices[-1]
+    def get_trajectory_subsequences(self, trajectory_start_index,
+                                    episode_length):
+        """
+        Warning: only pass a starting index of a trajectory that's finished
+        """
         start_indices = []
         # TODO(vitchyr): double check/unit test this
         for i in range(episode_length - self._subtraj_length + 1):
-            start_indices.append(last_start_idx + i)
+            start_indices.append(trajectory_start_index + i)
         return self._get_trajectories(start_indices), start_indices
+
+    def get_all_valid_trajectory_start_indices(self):
+        return self._valid_start_episode_indices
 
     @cached_property
     def _stub_action(self):
