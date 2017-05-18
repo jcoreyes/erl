@@ -30,8 +30,8 @@
     </worldbody>
 
     <actuator>
-        <motor joint="ball_x" ctrlrange="-10.0 10.0" ctrllimited="true"/>
-        <motor joint="ball_y" ctrlrange="-10.0 10.0" ctrllimited="true"/>
+        <motor joint="ball_x" ctrlrange="-1.0 1.0" ctrllimited="true"/>
+        <motor joint="ball_y" ctrlrange="-1.0 1.0" ctrllimited="true"/>
         <motor joint="target_x" ctrlrange="-1.0 1.0" ctrllimited="true"/>
         <motor joint="target_y" ctrlrange="-1.0 1.0" ctrllimited="true"/>
     </actuator>

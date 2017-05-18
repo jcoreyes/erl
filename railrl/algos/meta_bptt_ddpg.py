@@ -124,17 +124,16 @@ class MetaBpttDdpg(BpttDDPG):
             obs=flat_batch['obs'],
             actions=flat_batch['actions'],
             next_obs=flat_batch['next_obs'],
-            target_numbers=flat_batch['target_numbers'],
-            times=flat_batch['times'],
+            **self.env.get_extra_info_dict_from_batch(flat_batch)
         )
-        flat_target_labels = flat_batch['target_numbers']
-        flat_times = flat_batch['times']
-        feed_dict.update({
-            self.meta_qf.target_labels: flat_target_labels,
-            self.meta_qf.time_labels: flat_times,
-            self.target_meta_qf.target_labels: flat_target_labels,
-            self.target_meta_qf.time_labels: flat_times,
-        })
+        # flat_target_labels = flat_batch['target_numbers']
+        # flat_times = flat_batch['times']
+        # feed_dict.update({
+        #     self.meta_qf.target_labels: flat_target_labels,
+        #     self.meta_qf.time_labels: flat_times,
+        #     self.target_meta_qf.target_labels: flat_target_labels,
+        #     self.target_meta_qf.time_labels: flat_times,
+        # })
         return feed_dict
 
     def _init_meta_qf_loss_and_train_ops(self):
