@@ -138,7 +138,7 @@ if __name__ == '__main__':
         train_policy=True,
         write_policy_learning_rate=1e-5,
         train_policy_on_all_qf_timesteps=False,
-        write_only_optimize_bellman=False,
+        write_only_optimize_bellman=True,
         # memory
         num_bptt_unrolls=16,
         bpt_bellman_error_weight=10,
@@ -377,17 +377,20 @@ if __name__ == '__main__':
     elif run_mode == 'custom_grid':
         for exp_id, (
                 version,
-                H,
+                subseq_length,
         ) in enumerate([
-            ("16", 16),
-            ("32", 32),
-            ("64", 64),
-            ("128", 128),
-            ("256", 256),
+            ("num_steps_per_batch=256", 32),
+            ("num_steps_per_batch=256", 16),
+            ("num_steps_per_batch=256", 8),
+            ("num_steps_per_batch=256", 4),
+            ("num_steps_per_batch=256", 1),
         ]):
+            num_steps_per_batch = 256
+            batch_size = int(num_steps_per_batch / subseq_length)
             variant['version'] = version
-            variant['env_params']['num_steps'] = H
-            variant['ddpg_params']['num_bptt_unrolls'] = H
+            variant['ddpg_params']['num_bptt_unrolls'] = subseq_length
+            variant['ddpg_params']['batch_size'] = batch_size
+            variant['ddpg_params']['min_pool_size'] = batch_size
             for seed in range(n_seeds):
                 run_experiment(
                     get_ocm_score,

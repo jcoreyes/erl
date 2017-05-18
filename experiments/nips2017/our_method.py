@@ -92,7 +92,7 @@ if __name__ == '__main__':
         train_policy=True,
         write_policy_learning_rate=1e-5,
         train_policy_on_all_qf_timesteps=False,
-        write_only_optimize_bellman=False,
+        write_only_optimize_bellman=True,
         # memory
         num_bptt_unrolls=32,
         bpt_bellman_error_weight=10,
