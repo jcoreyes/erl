@@ -576,7 +576,6 @@ class BpttDDPG(DDPG):
             self._saved_write_gradients,
             axis=1
         )[-1]
-        import ipdb; ipdb.set_trace()
         self._saved_write_losses = (
             self.all_writes_list[-1] * self._last_saved_write_gradients
         )
