@@ -29,7 +29,7 @@ if __name__ == '__main__':
 
     n_seeds = 10
     mode = 'ec2'
-    exp_prefix = '5-17-benchmark-our-method-full-bptt-watermaze-easy'
+    exp_prefix = '5-17-benchmark-our-method-full-bptt-watermaze-2'
     # run_mode = 'grid'
 
     """
@@ -48,7 +48,8 @@ if __name__ == '__main__':
     """
     Set all the hyperparameters!
     """
-    env_class = WaterMazeEasy
+    # env_class = WaterMazeEasy
+    env_class = WaterMaze
     # env_class = HighLow
     env_params = dict(
         num_steps=200,
@@ -60,7 +61,7 @@ if __name__ == '__main__':
         max_reward_magnitude=1,
     )
 
-    epoch_length = 1000
+    epoch_length = 10000
 
     # noinspection PyTypeChecker
     ddpg_params = dict(
@@ -183,7 +184,7 @@ if __name__ == '__main__':
         memory_dim=memory_dim,
         exp_prefix=exp_prefix,
         algo_class=algo_class,
-        version="Our Method",
+        version="Our Method - Full BPTT",
         load_policy_file=load_policy_file,
         oracle_mode=oracle_mode,
         env_class=env_class,
