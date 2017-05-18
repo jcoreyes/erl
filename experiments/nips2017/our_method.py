@@ -29,7 +29,7 @@ if __name__ == '__main__':
 
     n_seeds = 10
     mode = 'ec2'
-    exp_prefix = '5-17-benchmark-our-method-full-bptt-watermaze-2'
+    exp_prefix = '5-18-try-watermaze'
     # run_mode = 'grid'
 
     """
@@ -53,24 +53,22 @@ if __name__ == '__main__':
     # env_class = HighLow
     env_params = dict(
         num_steps=200,
-        n=2,
-        zero_observation=True,
-        output_target_number=False,
-        output_time=False,
-        episode_boundary_flags=False,
-        max_reward_magnitude=1,
+        # n=2,
+        # zero_observation=True,
+        # output_target_number=False,
+        # output_time=False,
+        # episode_boundary_flags=False,
+        # max_reward_magnitude=1,
     )
-
-    epoch_length = 10000
 
     # noinspection PyTypeChecker
     ddpg_params = dict(
         batch_size=32,
         n_epochs=30,
-        min_pool_size=128,
+        min_pool_size=32,
         replay_pool_size=100000,
         n_updates_per_time_step=10,
-        epoch_length=epoch_length,
+        epoch_length=10000,
         eval_samples=2000,
         max_path_length=1002,
         discount=1.0,
@@ -94,13 +92,13 @@ if __name__ == '__main__':
         train_policy=True,
         write_policy_learning_rate=1e-5,
         train_policy_on_all_qf_timesteps=False,
-        write_only_optimize_bellman=True,
+        write_only_optimize_bellman=False,
         # memory
-        num_bptt_unrolls=200,
+        num_bptt_unrolls=32,
         bpt_bellman_error_weight=10,
         reward_low_bellman_error_weight=0.,
-        saved_write_loss_weight=10,
-        compute_gradients_immediately=True,
+        saved_write_loss_weight=0,
+        compute_gradients_immediately=False,
     )
 
     # noinspection PyTypeChecker
@@ -111,7 +109,7 @@ if __name__ == '__main__':
             env_noise_std=.0,
             memory_noise_std=0.,
             output_nonlinearity=tf.nn.tanh,
-            env_hidden_sizes=[],
+            env_hidden_sizes=[100, 100],
             # env_hidden_activation=tf.tanh,
         )
     )
@@ -143,17 +141,12 @@ if __name__ == '__main__':
         env_es_params=dict(
             max_sigma=1,
             min_sigma=None,
-            decay_period=epoch_length*15,
-            softmax=True,
-            laplace_weight=0.,
         ),
         # memory_es_class=NoopStrategy,
         memory_es_class=OUStrategy,
         memory_es_params=dict(
             max_sigma=1,
             min_sigma=None,
-            decay_period=epoch_length*15,
-            softmax=True,
         ),
         noise_action_to_memory=False,
     )
