@@ -217,9 +217,9 @@ class BpttDDPG(DDPG):
     def _policy_statistics_from_batch(self, batch):
         policy_feed_dict = self._eval_policy_feed_dict_from_batch(batch)
         policy_stat_names, policy_ops = zip(*[
+            ('PolicyOutput', self.policy.output),
             ('PolicyEnvLoss', self.policy_env_action_loss),
             ('PolicyWriteLoss', self.policy_write_action_loss),
-            ('PolicyOutput', self.policy.output),
             # Unforuntately this won't work because new data sampled won't
             # have any saved dloss/dwrites in the temporary replay buffer.
             # ('SavedWriteLoss', self._saved_write_losses),
@@ -555,105 +555,64 @@ class BpttDDPG(DDPG):
         self.dloss_dmems_subsequences = tf.stack(self.dloss_dmems, axis=1)
 
     def _init_policy_loss_and_train_ops(self):
-        if self.write_only_optimize_bellman:
-            self._init_policy_loss_and_train_ops_write_only_optimize_bellman()
-        else:
-            self.policy_surrogate_loss = self._get_policy_train_loss()
-            self.train_policy_op = self._get_policy_train_op(
-                self.policy_surrogate_loss
-            )
+        self.policy_env_action_loss, self.policy_write_action_loss = (
+            self._get_env_action_and_write_loss()
+        )
+        self.train_policy_op = self._get_policy_train_op(
+            self.policy_env_action_loss,
+            self.policy_write_action_loss,
+        )
 
-    def _get_policy_train_loss(self):
-        self.policy_env_action_loss = - tf.reduce_mean(
+    def _get_env_action_and_write_loss(self):
+        bellman_loss = (
+            self.bellman_error_for_policy * self._bpt_bellman_error_weight
+        )
+        env_loss = - tf.reduce_mean(
             self.qf_with_action_input.output
         )
+        env_loss += bellman_loss
+
+        if self.write_only_optimize_bellman:
+            write_action_loss = env_loss
+        else:
+            write_action_loss = bellman_loss
+
         self._saved_write_gradients = tf.placeholder(
             tf.float32,
             self.all_writes_subsequences.get_shape(),
             "saved_dloss_dwrites",
         )
-        self._last_saved_write_gradients = tf.unstack(
-            self._saved_write_gradients,
-            axis=1
-        )[-1]
-        self._saved_write_losses = (
-            self.all_writes_list[-1] * self._last_saved_write_gradients
-        )
-        self._saved_write_loss = (
-            tf.reduce_sum(self._saved_write_losses)
-        )
-        self.policy_write_action_loss = (
-            self._saved_write_loss * self.saved_write_loss_weight
-        )
-        self.policy_write_action_loss += (
-            self.bellman_error_for_policy * self._bpt_bellman_error_weight
-        )
-        return self.policy_write_action_loss + self.policy_env_action_loss
+        if self.saved_write_loss_weight > 0:
+            self._last_saved_write_gradients = tf.unstack(
+                self._saved_write_gradients,
+                axis=1
+            )[-1]
+            self._saved_write_losses = (
+                self.all_writes_list[-1] * self._last_saved_write_gradients
+            )
+            self._saved_write_loss = (
+                tf.reduce_sum(self._saved_write_losses)
+            )
+            write_action_loss += (
+                self._saved_write_loss * self.saved_write_loss_weight
+            )
+        return env_loss, write_action_loss
 
-    def _get_policy_train_op(self, loss):
+    def _get_policy_train_op(self, env_action_loss, write_loss):
         if not self.train_policy:
             return None
 
-        if self.write_policy_learning_rate is None:
-            trainable_policy_params = self.policy.get_params_internal()
-            return tf.train.AdamOptimizer(
-                self.policy_learning_rate
-            ).minimize(loss, var_list=trainable_policy_params)
-
-        policy_env_params = self.policy.get_params(env_only=True)
-        if self.write_policy_learning_rate == 0.:
-            return tf.train.AdamOptimizer(
-                self.policy_learning_rate
-            ).minimize(loss, var_list=policy_env_params)
-        else:
-            policy_write_params = self.policy.get_params(write_only=True)
-            self.train_policy_op_env = tf.train.AdamOptimizer(
-                self.policy_learning_rate
-            ).minimize(loss, var_list=policy_env_params)
-            self.train_policy_op_write = tf.train.AdamOptimizer(
-                self.write_policy_learning_rate
-            ).minimize(loss, var_list=policy_write_params)
-            return [
-                self.train_policy_op_env,
-                self.train_policy_op_write,
-            ]
-
-    def _init_policy_loss_and_train_ops_write_only_optimize_bellman(self):
-        self.policy_env_action_loss = - tf.reduce_mean(
-            self.qf_with_action_input.output
-        )
         policy_env_params = self.policy.get_params(env_only=True)
         self.train_policy_op_env = tf.train.AdamOptimizer(
             self.policy_learning_rate
-        ).minimize(self.policy_env_action_loss, var_list=policy_env_params)
+        ).minimize(env_action_loss, var_list=policy_env_params)
 
-        self._saved_write_gradients = tf.placeholder(
-            tf.float32,
-            self.all_writes_subsequences.get_shape(),
-            "saved_dloss_dwrites",
-        )
-        self._last_saved_write_gradients = tf.unstack(
-            self._saved_write_gradients,
-            axis=1
-        )[-1]
-        self._saved_write_losses = (
-            self.all_writes_list[-1] * self._last_saved_write_gradients
-        )
-        self._saved_write_loss = (
-            tf.reduce_sum(self._saved_write_losses)
-            * self.saved_write_loss_weight
-        )
-        write_loss = self._saved_write_loss * self.saved_write_loss_weight
-        write_loss += (
-            self.bellman_error_for_policy * self._bpt_bellman_error_weight
-        )
-        self.policy_write_action_loss = write_loss
         policy_write_params = self.policy.get_params(write_only=True)
         self.train_policy_op_write = tf.train.AdamOptimizer(
             self.write_policy_learning_rate
-        ).minimize(self.policy_write_action_loss, var_list=policy_write_params)
+        ).minimize(write_loss, var_list=policy_write_params)
 
-        self.train_policy_op = [
+        return [
             self.train_policy_op_env,
             self.train_policy_op_write,
         ]
@@ -796,59 +755,70 @@ class BpttDDPG(DDPG):
             ('Train', False),
         ]:
             batch = self.pool.get_valid_subtrajectories(validation=validation)
-            policy_feed_dict = self._policy_feed_dict_from_batch(batch)
-            (
-                policy_env_loss,
-                policy_write_loss,
-                policy_qf_output,
-            ) = self.sess.run(
-                [
-                    self.policy_env_action_loss,
-                    self.policy_write_action_loss,
-                    self.qf_with_action_input.output,
-                ]
-                ,
-                feed_dict=policy_feed_dict
+            statistics.update(
+                self._get_other_statistics_train_validation(batch, name)
             )
-            policy_base_stat_name = 'Policy{}'.format(name)
-            statistics.update(create_stats_ordered_dict(
-                '{}_Env_Action_Loss'.format(policy_base_stat_name),
-                policy_env_loss,
-            ))
-            statistics.update(create_stats_ordered_dict(
-                '{}_Write_Loss'.format(policy_base_stat_name),
-                policy_write_loss,
-            ))
-            statistics.update(create_stats_ordered_dict(
-                '{}_Qf_Output'.format(policy_base_stat_name),
-                policy_qf_output,
-            ))
+        return statistics
 
-            qf_feed_dict = self._qf_feed_dict_from_batch(batch)
-            (
-                qf_loss,
-                bellman_errors,
-                qf_output,
-            ) = self.sess.run(
-                [
-                    self.qf_loss,
-                    self.bellman_errors,
-                    self.qf.output,
-                ]
-                ,
-                feed_dict=qf_feed_dict
-            )
-            qf_stat_base_name = 'Qf{}'.format(name)
-            statistics.update(create_stats_ordered_dict(
-                '{}_BellmanError'.format(qf_stat_base_name),
-                bellman_errors,
-            ))
-            statistics.update(create_stats_ordered_dict(
-                '{}_Loss'.format(qf_stat_base_name),
-                qf_loss,
-            ))
-            statistics.update(create_stats_ordered_dict(
-                '{}_QfOutput'.format(qf_stat_base_name),
-                qf_output
-            ))
+    def _get_other_statistics_train_validation(self, batch, name):
+        statistics = OrderedDict()
+        policy_feed_dict = self._policy_feed_dict_from_batch(batch)
+        (
+            policy_env_loss,
+            policy_write_loss,
+            policy_qf_output,
+        ) = self.sess.run(
+            [
+                self.policy_env_action_loss,
+                self.policy_write_action_loss,
+                self.qf_with_action_input.output,
+            ]
+            ,
+            feed_dict=policy_feed_dict
+        )
+        policy_base_stat_name = '{}Policy'.format(name)
+        statistics.update(create_stats_ordered_dict(
+            '{}_Env_Action_Loss'.format(policy_base_stat_name),
+            policy_env_loss,
+        ))
+        statistics.update(create_stats_ordered_dict(
+            '{}_Write_Loss'.format(policy_base_stat_name),
+            policy_write_loss,
+        ))
+        statistics.update(create_stats_ordered_dict(
+            '{}_Qf_Output'.format(policy_base_stat_name),
+            policy_qf_output,
+        ))
+
+        qf_feed_dict = self._qf_feed_dict_from_batch(batch)
+        (
+            qf_loss,
+            bellman_errors,
+            qf_output,
+        ) = self.sess.run(
+            [
+                self.qf_loss,
+                self.bellman_errors,
+                self.qf.output,
+            ]
+            ,
+            feed_dict=qf_feed_dict
+        )
+        qf_stat_base_name = '{}Qf'.format(name)
+        statistics.update(create_stats_ordered_dict(
+            '{}_BellmanError'.format(qf_stat_base_name),
+            bellman_errors,
+        ))
+        statistics.update(create_stats_ordered_dict(
+            '{}_Loss'.format(qf_stat_base_name),
+            qf_loss,
+        ))
+        statistics.update(create_stats_ordered_dict(
+            '{}_QfOutput'.format(qf_stat_base_name),
+            qf_output
+        ))
+        statistics.update(create_stats_ordered_dict(
+            '{}_QfOutput'.format(qf_stat_base_name),
+            qf_output
+        ))
         return statistics
