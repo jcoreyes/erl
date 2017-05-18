@@ -63,16 +63,16 @@ def create_run_experiment_multiple_seeds(n_seeds):
 if __name__ == '__main__':
     n_seeds = 1
     mode = 'here'
-    exp_prefix = "dev-bptt-ddpg-ocm"
+    exp_prefix = "dev-bptt-ddpg-watermaze"
     run_mode = 'none'
     version = 'dev'
     num_hp_settings = 100
 
-    n_seeds = 5
-    mode = 'ec2'
-    exp_prefix = '5-18-meta-critic-sweep'
-    run_mode = 'grid'
-    version = 'env-and-write-loss-only'
+    # n_seeds = 5
+    # mode = 'ec2'
+    # exp_prefix = '5-18-meta-critic-sweep'
+    # run_mode = 'grid'
+    # version = 'env-and-write-loss-only'
 
     """
     Miscellaneous Params
@@ -89,18 +89,18 @@ if __name__ == '__main__':
     """
     Set all the hyperparameters!
     """
-    # env_class = WaterMaze
+    env_class = WaterMaze
     # env_class = WaterMazeEasy
     # env_class = OneCharMemoryEndOnly
-    env_class = HighLow
+    # env_class = HighLow
     env_params = dict(
-        num_steps=32,
-        n=2,
-        zero_observation=True,
-        output_target_number=False,
-        output_time=False,
-        episode_boundary_flags=False,
-        max_reward_magnitude=1,
+        num_steps=100,
+        # n=2,
+        # zero_observation=True,
+        # output_target_number=False,
+        # output_time=False,
+        # episode_boundary_flags=False,
+        # max_reward_magnitude=1,
     )
 
     # TODO(vitchyr): clean up this hacky dropout code. Also, you'll need to
@@ -140,7 +140,7 @@ if __name__ == '__main__':
         train_policy_on_all_qf_timesteps=False,
         write_only_optimize_bellman=False,
         # memory
-        num_bptt_unrolls=4,
+        num_bptt_unrolls=16,
         bpt_bellman_error_weight=10,
         reward_low_bellman_error_weight=0.,
         saved_write_loss_weight=0,
@@ -158,7 +158,7 @@ if __name__ == '__main__':
             env_noise_std=.0,
             memory_noise_std=0.,
             output_nonlinearity=tf.nn.tanh,
-            env_hidden_sizes=[],
+            env_hidden_sizes=[100, 100],
             # env_hidden_activation=tf.tanh,
         )
     )
