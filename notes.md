@@ -19,6 +19,8 @@ Still runnning: HighLow
 - 5-17-dev-benchmark-our-method-hl/
 
 Still runnning: WaterMaze
+- 5-17-benchmark-our-method-full-bptt-watermaze-easy-2/
+- 5-17-benchmark-our-method-full-bptt-watermaze-2/
 - 5-17-dev-our-method-water-maze-easy/
 
 Still running, benchmarks: WaterMaze
