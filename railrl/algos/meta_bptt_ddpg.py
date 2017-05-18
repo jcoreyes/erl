@@ -176,11 +176,13 @@ class MetaBpttDdpg(BpttDDPG):
 
     def _get_env_action_and_write_loss(self):
         env_action_loss, write_loss = super()._get_env_action_and_write_loss()
+        self.policy_meta_loss = tf.reduce_mean(
+            self.meta_qf_with_action_input.output
+        )
         if self.meta_qf_output_weight > 0:
-            self.policy_meta_loss = tf.reduce_mean(
-                self.meta_qf_with_action_input.output
-            ) * self.meta_qf_output_weight
-            env_action_loss += self.policy_meta_loss
+            env_action_loss += (
+                self.policy_meta_loss * self.meta_qf_output_weight
+            )
         return env_action_loss, write_loss
 
     def _statistics_from_batch(self, batch) -> OrderedDict:
