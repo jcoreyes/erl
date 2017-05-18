@@ -97,7 +97,7 @@ if __name__ == '__main__':
     # env_class = OneCharMemoryEndOnly
     env_class = HighLow
     env_params = dict(
-        num_steps=32,
+        num_steps=16,
         n=2,
         zero_observation=True,
         output_target_number=False,
@@ -149,7 +149,7 @@ if __name__ == '__main__':
         train_policy_on_all_qf_timesteps=False,
         write_only_optimize_bellman=True,
         # memory
-        num_bptt_unrolls=32,
+        num_bptt_unrolls=4,
         bpt_bellman_error_weight=10,
         reward_low_bellman_error_weight=0.,
         saved_write_loss_weight=10,
