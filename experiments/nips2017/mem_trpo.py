@@ -5,6 +5,7 @@ from railrl.envs.flattened_product_box import FlattenedProductBox
 from railrl.envs.memory.continuous_memory_augmented import \
     ContinuousMemoryAugmented
 from railrl.envs.memory.high_low import HighLow
+from railrl.envs.water_maze import WaterMazeEasy
 from railrl.launchers.launcher_util import (
     run_experiment,
     set_seed,
@@ -74,11 +75,11 @@ if __name__ == '__main__':
 
     n_seeds = 10
     mode = "ec2"
-    exp_prefix = "5-17-benchmark-mtrpo-hl"
+    exp_prefix = "5-17-benchmark-mtrpo-watermaze-easy-batchsize10000-2"
 
     # noinspection PyTypeChecker
     trpo_params = dict(
-        batch_size=1000,
+        batch_size=10000,
         max_path_length=1000,  # Environment should stop it
         n_itr=100,
         discount=1.,
@@ -91,12 +92,13 @@ if __name__ == '__main__':
     exp_id = -1
     # noinspection PyTypeChecker
     variant = dict(
-        H=32,
+        H=200,
         exp_prefix=exp_prefix,
         trpo_params=trpo_params,
         optimizer_params=optimizer_params,
         version='Memory States + TRPO',
-        env_class=HighLow,
+        # env_class=HighLow,
+        env_class=WaterMazeEasy,
         memory_dim=20,
     )
     for seed in range(n_seeds):

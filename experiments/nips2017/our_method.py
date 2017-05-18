@@ -27,16 +27,14 @@ if __name__ == '__main__':
     exp_prefix = "dev-bptt-ddpg-ocm"
     run_mode = 'none'
 
-    # n_seeds = 6
-    # mode = 'ec2'
-    # exp_prefix = '5-17-hl-keep-old-grad-prob-and-learning-rate-nsteps-sweep'
+    n_seeds = 10
+    mode = 'ec2'
+    exp_prefix = '5-17-dev-benchmark-our-method-hl'
     # run_mode = 'grid'
 
     """
     Miscellaneous Params
     """
-    n_rollouts_per_epoch = 100
-    n_rollouts_per_eval = 64
     oracle_mode = 'none'
     algo_class = BpttDDPG
     # algo_class = NoOpBpttDDPG
@@ -53,7 +51,7 @@ if __name__ == '__main__':
     # env_class = WaterMaze
     env_class = HighLow
     env_params = dict(
-        num_steps=16,
+        num_steps=32,
         n=2,
         zero_observation=True,
         output_target_number=False,
@@ -97,7 +95,7 @@ if __name__ == '__main__':
         train_policy_on_all_qf_timesteps=False,
         write_only_optimize_bellman=True,
         # memory
-        num_bptt_unrolls=4,
+        num_bptt_unrolls=20,
         bpt_bellman_error_weight=10,
         reward_low_bellman_error_weight=0.,
         saved_write_loss_weight=10,

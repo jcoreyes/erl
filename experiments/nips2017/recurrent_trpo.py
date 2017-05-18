@@ -68,9 +68,9 @@ if __name__ == '__main__':
     mode = "here"
     exp_prefix = "dev-rtrpo"
 
-    # n_seeds = 10
-    # mode = "ec2"
-    exp_prefix = "5-17-dev-benchmark-rtrpo-watermaze-long"
+    n_seeds = 10
+    mode = "ec2"
+    exp_prefix = "5-17-benchmark-rtrpo-watermaze-easy"
 
     # noinspection PyTypeChecker
     trpo_params = dict(
@@ -93,8 +93,8 @@ if __name__ == '__main__':
         optimizer_params=optimizer_params,
         version='Recurrent TRPO',
         # env_class=HighLow,
-        # env_class=WaterMazeEasy,
-        env_class=WaterMaze,
+        env_class=WaterMazeEasy,
+        # env_class=WaterMaze,
     )
     for seed in range(n_seeds):
         exp_id += 1

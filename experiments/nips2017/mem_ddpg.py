@@ -4,6 +4,7 @@ DDPG + memory states.
 import tensorflow as tf
 
 from railrl.envs.memory.high_low import HighLow
+from railrl.envs.water_maze import WaterMazeEasy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import (
     run_experiment,
@@ -13,6 +14,7 @@ from railrl.policies.memory.lstm_memory_policy import (
     SeparateLstmLinearCell,
     FlatLstmMemoryPolicy,
 )
+from railrl.policies.nn_policy import FeedForwardPolicy
 from railrl.qfunctions.nn_qfunction import FeedForwardCritic
 
 
@@ -56,14 +58,18 @@ def run_linear_ocm_exp(variant):
         name_or_scope="critic",
         env_spec=env.spec,
     )
-    policy = FlatLstmMemoryPolicy(
+    policy = FeedForwardPolicy(
         name_or_scope="policy",
-        action_dim=env_action_dim,
-        memory_dim=memory_dim,
-        env_obs_dim=env_obs_dim,
         env_spec=env.spec,
-        **policy_params
     )
+    # policy = FlatLstmMemoryPolicy(
+    #     name_or_scope="policy",
+    #     action_dim=env_action_dim,
+    #     memory_dim=memory_dim,
+    #     env_obs_dim=env_obs_dim,
+    #     env_spec=env.spec,
+    #     **policy_params
+    # )
     es = OUStrategy(
         env_spec=env.spec,
         **ou_params
@@ -86,7 +92,7 @@ if __name__ == '__main__':
 
     n_seeds = 10
     mode = "ec2"
-    exp_prefix = "5-17-benchmark-mddpg-hl"
+    exp_prefix = "5-17-policy-type-mddpg-watermaze-easy"
 
     exp_id = -1
     algo_params = dict(
@@ -94,8 +100,8 @@ if __name__ == '__main__':
         n_epochs=100,
         min_pool_size=100,
         replay_pool_size=100000,
-        epoch_length=1000,
-        eval_samples=100,
+        epoch_length=10000,
+        eval_samples=2000,
         max_path_length=1000,
         discount=1,
     )
@@ -106,7 +112,7 @@ if __name__ == '__main__':
             env_noise_std=.0,
             memory_noise_std=0.,
             output_nonlinearity=tf.nn.tanh,
-            env_hidden_sizes=[],
+            env_hidden_sizes=[100, 100],
         )
     )
     ou_params = dict(
@@ -114,14 +120,15 @@ if __name__ == '__main__':
         min_sigma=None,
     )
     variant = dict(
-        H=32,
+        H=200,
         exp_prefix=exp_prefix,
         algo_params=algo_params,
-        env_class=HighLow,
-        memory_dim=20,
+        # env_class=HighLow,
+        env_class=WaterMazeEasy,
+        memory_dim=2,
         policy_params=policy_params,
         ou_params=ou_params,
-        version="Memory DDPG"
+        version="Memory DDPG -- ff policy"
     )
     for seed in range(n_seeds):
         exp_id += 1
