@@ -36,7 +36,7 @@ class SubtrajReplayBuffer(ReplayBuffer):
         self._actions = np.zeros((self._max_pool_size, self._action_dim))
         self._rewards = np.zeros(self._max_pool_size)
         # self._terminals[i] = a terminal was received at time i
-        self._terminals = np.zeros(self._max_pool_size, dtype='bool')
+        self._terminals = np.zeros(self._max_pool_size, dtype='uint8')
         # self._final_state[i] = state i was the final state in a rollout,
         # so it should never be sampled since it has no correspond next state
         # In other words, we're saving the s_{t+1} after sampling a tuple of

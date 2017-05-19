@@ -132,3 +132,27 @@ class UpdatableSubtrajReplayBuffer(SubtrajReplayBuffer):
     def fraction_dloss_dmemories_zero(self):
         dloss_dmemories_loaded = self._dloss_dmemories[:self._size]
         return np.mean(dloss_dmemories_loaded == 0)
+
+    def random_batch(self, batch_size):
+        """
+        Get flat random batch.
+        :param batch_size: 
+        :return: 
+        """
+        indices = np.random.choice(
+            self._all_valid_start_indices,
+            batch_size,
+            replace=False
+        )
+        next_indices = (indices + 1) % self._size
+        next_memories = self._memories[next_indices]
+        return dict(
+            env_obs=self._env_obs[indices],
+            env_actions=self._env_actions[indices],
+            next_env_obs=self._env_obs[next_indices],
+            memories=self._memories[indices],
+            writes=next_memories,
+            next_memories=next_memories,
+            rewards=self._rewards[indices],
+            terminals=self._terminals[indices],
+        )

@@ -1,13 +1,17 @@
 import time
 
+from railrl.data_management.updatable_subtraj_replay_buffer import \
+    UpdatableSubtrajReplayBuffer
 from railrl.exploration_strategies.noop import NoopStrategy
 from rllab.algos.base import RLAlgorithm
+import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.autograd import Variable
 import torch.nn as nn
 import torch.optim as optim
 
+from rllab.algos.batch_polopt import BatchSampler
 from rllab.misc import logger
 
 
@@ -20,6 +24,12 @@ class QFunction(nn.Module):
             hidden_sizes,
     ):
         super().__init__()
+
+        self.obs_dim = obs_dim
+        self.action_dim = action_dim
+        self.memory_dim = memory_dim
+        self.hidden_sizes = hidden_sizes
+
         input_dim = obs_dim + action_dim + 2 * memory_dim
         self.fcs = []
         last_size = input_dim
@@ -34,6 +44,16 @@ class QFunction(nn.Module):
             x = F.relu(fc(x))
         return self.last_fc(x)
 
+    def clone(self):
+        copy = QFunction(
+            self.obs_dim,
+            self.action_dim,
+            self.memory_dim,
+            self.hidden_sizes,
+        )
+        copy_model_params(self, copy)
+        return copy
+
 
 class Policy(nn.Module):
     def __init__(
@@ -44,6 +64,12 @@ class Policy(nn.Module):
             hidden_sizes,
     ):
         super().__init__()
+
+        self.obs_dim = obs_dim
+        self.action_dim = action_dim
+        self.memory_dim = memory_dim
+        self.hidden_sizes = hidden_sizes
+
         self.fcs = []
         all_inputs_dim = obs_dim + memory_dim
         last_size = all_inputs_dim
@@ -52,20 +78,41 @@ class Policy(nn.Module):
             last_size = size
         self.last_fc = nn.Linear(last_size, action_dim)
 
-        self.lstm_cell = nn.LSTMCell(all_inputs_dim, memory_dim)
+        self.lstm_cell = nn.LSTMCell(all_inputs_dim, memory_dim // 2)
 
     def forward(self, obs, memory):
-        all_inputs = torch.cat((obs, memory), dim=1)
+        all_inputs = torch.cat([obs, memory], dim=1)
         last_layer = all_inputs
         for fc in self.fcs:
             last_layer = F.relu(fc(last_layer))
         action = self.last_fc(last_layer)
 
-        hx, cx = torch.split(memory, 2, dim=1)
-        write = self.lstm_cell(all_inputs, (hx, cx))
+        hx, cx = torch.split(memory, self.memory_dim // 2, dim=1)
+        new_hx, new_cx = self.lstm_cell(all_inputs, (hx, cx))
+        write = torch.cat((new_hx, new_cx), dim=1)
         return action, write
 
+    def get_action(self, augmented_obs):
+        obs, memory = augmented_obs
+        obs = np.expand_dims(obs, axis=0)
+        memory = np.expand_dims(memory, axis=0)
+        obs = Variable(torch.from_numpy(obs).float(), requires_grad=False)
+        memory = Variable(torch.from_numpy(memory).float(), requires_grad=False)
+        action, write = self.__call__(obs, memory)
+        return (action.data.numpy(), write.data.numpy()), {}
 
+    def clone(self):
+        copy = Policy(
+            self.obs_dim,
+            self.action_dim,
+            self.memory_dim,
+            self.hidden_sizes,
+        )
+        copy_model_params(self, copy)
+        return copy
+
+
+# noinspection PyCallingNonCallable
 class BDP(RLAlgorithm):
     """
     Online learning algorithm.
@@ -73,22 +120,44 @@ class BDP(RLAlgorithm):
 
     def __init__(self, env):
         self.training_env = env
+        self.action_dim = 1
+        self.obs_dim = 1
+        self.memory_dim = env.memory_dim
+        self.subtraj_length = 2
+
         self.exploration_strategy = NoopStrategy()
         self.num_epochs = 100
         self.num_steps_per_epoch = 100
-        self.policy = Policy()
-        self.render = None
+        self.render = False
         self.scale_reward = 1
-        self.pool = None
-        self.qf = None
-        self.policy = None
-        self.target_qf = None
-        self.target_policy = None
+        self.pool = UpdatableSubtrajReplayBuffer(
+            10000,
+            env,
+            self.subtraj_length,
+            self.memory_dim,
+        )
+        self.qf = QFunction(
+            self.obs_dim,
+            self.action_dim,
+            self.memory_dim,
+            [100, 100],
+        )
+        self.policy = Policy(
+            self.obs_dim,
+            self.action_dim,
+            self.memory_dim,
+            [100, 100],
+        )
+        self.target_qf = self.qf.clone()
+        self.target_policy = self.policy.clone()
         self.discount = 1.
+        self.batch_size = 32
 
         self.qf_criterion = nn.MSELoss()
         self.qf_optimizer = optim.Adam(self.qf.parameters(), lr=1e-3)
         self.policy_optimizer = optim.Adam(self.policy.parameters(), lr=1e-4)
+
+        self.eval_sampler = BatchSampler(self)
 
     def train(self):
         n_steps_total = 0
@@ -130,11 +199,11 @@ class BDP(RLAlgorithm):
                     )
                     observation = self.training_env.reset()
                     self.exploration_strategy.reset()
-                    self.policy.reset()
                 else:
                     observation = next_ob
 
-                self._do_training(n_steps_total=n_steps_total)
+                if self._can_train(n_steps_total):
+                    self._do_training(n_steps_total=n_steps_total)
 
             logger.log(
                 "Training Time: {0}".format(time.time() - start_time)
@@ -173,6 +242,7 @@ class BDP(RLAlgorithm):
             next_writes
         )
         y_target = rewards + (1. - terminals) * self.discount * target_q_values
+        y_target = y_target.detach()
         y_pred = self.qf(obs, memories, actions, writes)
         qf_loss = self.qf_criterion(y_pred, y_target)
 
@@ -186,7 +256,7 @@ class BDP(RLAlgorithm):
         """
         policy_actions, policy_writes = self.policy(obs, memories)
         q_output = self.qf(obs, memories, policy_actions, policy_writes)
-        policy_loss = - q_output
+        policy_loss = - q_output.mean()
         self.policy_optimizer.zero_grad()
         policy_loss.backward()
         self.policy_optimizer.step()
@@ -200,12 +270,90 @@ class BDP(RLAlgorithm):
 
     def evaluate(self, epoch):
         pass
+        # """
+        # Perform evaluation for this algorithm.
+        #
+        # It's recommended
+        # :param epoch: The epoch number.
+        # :param es_path_returns: List of path returns from explorations strategy
+        # :return: Dictionary of statistics.
+        # """
+        # logger.log("Collecting samples for evaluation")
+        # paths = self._sample_paths(epoch)
+        # statistics = OrderedDict()
+        #
+        # statistics.update(self._get_other_statistics())
+        # statistics.update(self._statistics_from_paths(paths))
+        #
+        # returns = [sum(path["rewards"]) for path in paths]
+        #
+        # discounted_returns = [
+        #     special.discount_return(path["rewards"], self.discount)
+        #     for path in paths
+        # ]
+        # rewards = np.hstack([path["rewards"] for path in paths])
+        # statistics.update(create_stats_ordered_dict('Rewards', rewards))
+        # statistics.update(create_stats_ordered_dict('Returns', returns))
+        # statistics.update(create_stats_ordered_dict('DiscountedReturns',
+        #                                             discounted_returns))
+        # if len(es_path_returns) > 0:
+        #     statistics.update(create_stats_ordered_dict('TrainingReturns',
+        #                                                 es_path_returns))
+        #
+        # average_returns = np.mean(returns)
+        # self._last_average_returns.append(average_returns)
+        # statistics['AverageReturn'] = average_returns
+        # statistics['Epoch'] = epoch
+        #
+        # for key, value in statistics.items():
+        #     logger.record_tabular(key, value)
+        #
+        # self.log_diagnostics(paths)
 
     def get_epoch_snapshot(self, epoch):
         pass
 
     def get_batch(self):
-        pass
+        batch = self.pool.random_batch(self.batch_size)
+        torch_batch = {
+            k: Variable(torch.from_numpy(array).float(), requires_grad=True)
+            for k, array in batch.items()
+        }
+        torch_batch['rewards'] = torch_batch['rewards'].view(-1, 1)
+        torch_batch['terminals'] = torch_batch['terminals'].view(-1, 1)
+        return torch_batch
+
+    def _can_train(self, n_steps_total):
+        return self.pool.num_can_sample() >= self.batch_size
+
+    def _start_worker(self):
+        self.eval_sampler.start_worker()
+
+    def _shutdown_worker(self):
+        self.eval_sampler.shutdown_worker()
+
+    def _sample_paths(self, epoch):
+        """
+        Returns flattened paths.
+
+        :param epoch: Epoch number
+        :return: Dictionary with these keys:
+            observations: np.ndarray, shape BATCH_SIZE x flat observation dim
+            actions: np.ndarray, shape BATCH_SIZE x flat action dim
+            rewards: np.ndarray, shape BATCH_SIZE
+            terminals: np.ndarray, shape BATCH_SIZE
+            agent_infos: unsure
+            env_infos: unsure
+        """
+        # Sampler uses self.batch_size to figure out how many samples to get
+        saved_batch_size = self.batch_size
+        self.batch_size = self.n_eval_samples
+        paths = self.eval_sampler.obtain_samples(
+            itr=epoch,
+        )
+        self.batch_size = saved_batch_size
+        return paths
+
 
 def copy_model_params(source, target):
     for source_param, target_param in zip(

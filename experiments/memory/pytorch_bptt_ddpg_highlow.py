@@ -1,6 +1,8 @@
 """
 Try the PyTorch version of BPTT DDPG on HighLow env.
 """
+from railrl.envs.memory.continuous_memory_augmented import \
+    ContinuousMemoryAugmented
 from railrl.envs.memory.high_low import HighLow
 from railrl.launchers.launcher_util import (
     run_experiment,
@@ -16,6 +18,10 @@ def experiment(variant):
     seed = variant['seed']
     set_seed(seed)
     env = HighLow(num_steps=4)
+    env = ContinuousMemoryAugmented(
+        env,
+        num_memory_states=20,
+    )
     algorithm = BDP(env)
     algorithm.train()
 
