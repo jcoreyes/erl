@@ -58,6 +58,12 @@ class QFunction(nn.Module):
         return copy
 
 
+def expand_dims(tensor, axis):
+    dims = list(tensor.size())
+    dims.insert(axis, 1)
+    return tensor.view(*dims)
+
+
 class Policy(nn.Module):
     def __init__(
             self,
@@ -81,6 +87,7 @@ class Policy(nn.Module):
             last_size = size
         self.last_fc = nn.Linear(last_size, action_dim)
 
+        # self.lstm = nn.LSTM(all_inputs_dim, memory_dim // 2, 1)
         self.lstm_cell = nn.LSTMCell(all_inputs_dim, memory_dim // 2)
 
     def forward(self, obs, memory):
@@ -88,7 +95,7 @@ class Policy(nn.Module):
         last_layer = all_inputs
         for fc in self.fcs:
             last_layer = F.relu(fc(last_layer))
-        action = self.last_fc(last_layer)
+        action = F.tanh(self.last_fc(last_layer))
 
         hx, cx = torch.split(memory, self.memory_dim // 2, dim=1)
         new_hx, new_cx = self.lstm_cell(all_inputs, (hx, cx))
@@ -101,6 +108,8 @@ class Policy(nn.Module):
         memory = np.expand_dims(memory, axis=0)
         obs = Variable(torch.from_numpy(obs).float(), requires_grad=False)
         memory = Variable(torch.from_numpy(memory).float(), requires_grad=False)
+        # obs = expand_dims(obs, 1)
+        # memory = expand_dims(memory, 1)
         action, write = self.__call__(obs, memory)
         return (action.data.numpy(), write.data.numpy()), {}
 
@@ -246,53 +255,54 @@ class BDP(RLAlgorithm):
             logger.pop_prefix()
 
     def _do_training(self, n_steps_total):
-        batch = self.get_batch()
-        rewards = batch['rewards']
-        terminals = batch['terminals']
-        obs = batch['env_obs']
-        actions = batch['env_actions']
-        next_obs = batch['next_env_obs']
-        memories = batch['memories']
-        writes = batch['writes']
-        next_memories = batch['next_memories']
+        subtraj_batch = self.get_subtraj_batch()
+        for batch in self.subtraj_batch_to_list_of_batch(subtraj_batch):
+            rewards = batch['rewards']
+            terminals = batch['terminals']
+            obs = batch['env_obs']
+            actions = batch['env_actions']
+            next_obs = batch['next_env_obs']
+            memories = batch['memories']
+            writes = batch['writes']
+            next_memories = batch['next_memories']
 
-        """
-        Optimize critic
-        """
-        # Generate y target using target policies
-        next_actions, next_writes = self.target_policy(next_obs, next_memories)
-        target_q_values = self.target_qf(
-            next_obs,
-            next_memories,
-            next_actions,
-            next_writes
-        )
-        y_target = rewards + (1. - terminals) * self.discount * target_q_values
-        y_target = y_target.detach()
-        y_pred = self.qf(obs, memories, actions, writes)
-        qf_loss = self.qf_criterion(y_pred, y_target)
+            """
+            Optimize critic
+            """
+            # Generate y target using target policies
+            next_actions, next_writes = self.target_policy(next_obs, next_memories)
+            target_q_values = self.target_qf(
+                next_obs,
+                next_memories,
+                next_actions,
+                next_writes
+            )
+            y_target = rewards + (1. - terminals) * self.discount * target_q_values
+            y_target = y_target.detach()
+            y_pred = self.qf(obs, memories, actions, writes)
+            qf_loss = self.qf_criterion(y_pred, y_target)
 
-        # Do training
-        self.qf_optimizer.zero_grad()
-        qf_loss.backward()
-        self.qf_optimizer.step()
+            # Do training
+            self.qf_optimizer.zero_grad()
+            qf_loss.backward()
+            self.qf_optimizer.step()
 
-        """
-        Optimize policy
-        """
-        policy_actions, policy_writes = self.policy(obs, memories)
-        q_output = self.qf(obs, memories, policy_actions, policy_writes)
-        policy_loss = - q_output.mean()
-        self.policy_optimizer.zero_grad()
-        policy_loss.backward()
-        self.policy_optimizer.step()
+            """
+            Optimize policy
+            """
+            policy_actions, policy_writes = self.policy(obs, memories)
+            q_output = self.qf(obs, memories, policy_actions, policy_writes)
+            policy_loss = - q_output.mean()
+            self.policy_optimizer.zero_grad()
+            policy_loss.backward()
+            self.policy_optimizer.step()
 
-        """
-        Update Target Networks
-        """
-        if n_steps_total % 1000 == 0:
-            copy_model_params(self.qf, self.target_qf)
-            copy_model_params(self.policy, self.target_policy)
+            """
+            Update Target Networks
+            """
+            if n_steps_total % 1000 == 0:
+                copy_model_params(self.qf, self.target_qf)
+                copy_model_params(self.policy, self.target_policy)
 
     def evaluate(self, epoch, es_path_returns):
         """
@@ -337,9 +347,9 @@ class BDP(RLAlgorithm):
     def get_epoch_snapshot(self, epoch):
         pass
 
-    def get_batch(self):
+    def get_subtraj_batch(self):
+        # batch = self.pool.random_batch(self.batch_size)
         batch, _ = self.pool.random_subtrajectories(self.batch_size)
-        # batch = subtraj_batch_to_flat_augmented_batch(batch)
         torch_batch = {
             k: Variable(torch.from_numpy(array).float(), requires_grad=True)
             for k, array in batch.items()
@@ -389,6 +399,15 @@ class BDP(RLAlgorithm):
 
     def log_diagnostics(self, paths):
         self.env.log_diagnostics(paths)
+
+    def subtraj_batch_to_list_of_batch(self, subtraj_batch):
+        batches = []
+        for i in range(self.subtraj_length):
+            batch = {
+                k: values[:, i, :] for k, values in subtraj_batch.items()
+            }
+            batches.append(batch)
+        return batches
 
 
 def copy_model_params(source, target):
