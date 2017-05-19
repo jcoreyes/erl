@@ -1,19 +1,18 @@
 import time
 from collections import OrderedDict
 
-from railrl.algos.bptt_ddpg import subtraj_batch_to_flat_augmented_batch
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+from torch.autograd import Variable
+
 from railrl.data_management.updatable_subtraj_replay_buffer import \
     UpdatableSubtrajReplayBuffer
 from railrl.exploration_strategies.noop import NoopStrategy
 from railrl.misc.data_processing import create_stats_ordered_dict
 from rllab.algos.base import RLAlgorithm
-import numpy as np
-import torch
-import torch.nn.functional as F
-from torch.autograd import Variable
-import torch.nn as nn
-import torch.optim as optim
-
 from rllab.algos.batch_polopt import BatchSampler
 from rllab.misc import logger, special
 
@@ -338,8 +337,7 @@ class BDP(RLAlgorithm):
         pass
 
     def get_batch(self):
-        batch, _ = self.pool.random_subtrajectories(self.batch_size)
-        # batch = subtraj_batch_to_flat_augmented_batch(batch)
+        batch = self.pool.random_batch(self.batch_size)
         torch_batch = {
             k: Variable(torch.from_numpy(array).float(), requires_grad=True)
             for k, array in batch.items()
