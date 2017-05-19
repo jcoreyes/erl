@@ -27,9 +27,9 @@ if __name__ == '__main__':
     exp_prefix = "dev-bptt-ddpg-ocm"
     run_mode = 'none'
 
-    n_seeds = 10
-    mode = 'ec2'
-    exp_prefix = '5-18-try-watermaze'
+    # n_seeds = 10
+    # mode = 'ec2'
+    # exp_prefix = '5-18-try-watermaze'
     # run_mode = 'grid'
 
     """
@@ -64,12 +64,12 @@ if __name__ == '__main__':
     # noinspection PyTypeChecker
     ddpg_params = dict(
         batch_size=32,
-        n_epochs=30,
+        n_epochs=5,
         min_pool_size=32,
         replay_pool_size=100000,
-        n_updates_per_time_step=10,
-        epoch_length=10000,
-        eval_samples=2000,
+        n_updates_per_time_step=1,
+        epoch_length=1000,
+        eval_samples=200,
         max_path_length=1002,
         discount=1.0,
         save_tf_graph=False,

@@ -187,9 +187,10 @@ class BpttDDPG(DDPG):
         # print(np.array(self.sess.run(self.dL_dwrite_actually_applied,
         #                       policy_feed_dict)))
         # import ipdb; ipdb.set_trace()
-        self.pool.update_write_subtrajectories(new_writes, start_indices)
-        self.pool.update_dloss_dmemories_subtrajectories(dloss_dmemories,
-                                                         start_indices)
+        if self.saved_write_loss_weight > 0:
+            self.pool.update_write_subtrajectories(new_writes, start_indices)
+            self.pool.update_dloss_dmemories_subtrajectories(dloss_dmemories,
+                                                             start_indices)
 
         return minibatch, start_indices
 

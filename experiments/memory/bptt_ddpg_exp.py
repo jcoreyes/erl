@@ -70,7 +70,7 @@ if __name__ == '__main__':
 
     # n_seeds = 5
     # mode = 'ec2'
-    exp_prefix = '5-18-watermaze-attempt'
+    # exp_prefix = '5-18-watermaze-attempt'
     # run_mode = 'grid'
     # version = 'env-and-write-loss-only'
 
@@ -109,16 +109,17 @@ if __name__ == '__main__':
 
     # noinspection PyTypeChecker
     ddpg_params = dict(
-        batch_size=32,
+        batch_size=250,
         n_epochs=30,
-        min_pool_size=32,
+        min_pool_size=250,
         replay_pool_size=100000,
-        n_updates_per_time_step=5,
-        epoch_length=1000,
-        eval_samples=400,
+        n_updates_per_time_step=1,
+        epoch_length=10000,
+        eval_samples=2000,
         max_path_length=1002,
         discount=1.0,
         save_tf_graph=False,
+        num_steps_between_train=100,
         # Target network
         soft_target_tau=0.01,
         hard_update_period=1000,
@@ -140,7 +141,7 @@ if __name__ == '__main__':
         train_policy_on_all_qf_timesteps=False,
         write_only_optimize_bellman=True,
         # memory
-        num_bptt_unrolls=16,
+        num_bptt_unrolls=25,
         bpt_bellman_error_weight=10,
         reward_low_bellman_error_weight=0.,
         saved_write_loss_weight=0,
@@ -155,10 +156,10 @@ if __name__ == '__main__':
         # rnn_cell_class=DebugCell,
         rnn_cell_params=dict(
             use_peepholes=True,
-            env_noise_std=.0,
-            memory_noise_std=0.,
+            env_noise_std=0,
+            memory_noise_std=0,
             output_nonlinearity=tf.nn.tanh,
-            env_hidden_sizes=[100, 100],
+            env_hidden_sizes=[],
             # env_hidden_activation=tf.tanh,
         )
     )
