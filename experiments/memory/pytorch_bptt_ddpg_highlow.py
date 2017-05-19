@@ -16,13 +16,17 @@ def experiment(variant):
         set_seed,
     )
     seed = variant['seed']
+    algo_params = variant['algo_params']
     set_seed(seed)
     env = HighLow(num_steps=4)
     env = ContinuousMemoryAugmented(
         env,
         num_memory_states=20,
     )
-    algorithm = BDP(env)
+    algorithm = BDP(
+        env,
+        **algo_params
+    )
     algorithm.train()
 
 
@@ -31,7 +35,12 @@ if __name__ == '__main__':
     mode = "here"
     exp_prefix = "dev-pytorch"
 
-    variant = dict()
+    algo_params = dict(
+        subtraj_length=2,
+    )
+    variant = dict(
+        algo_params=algo_params,
+    )
     exp_id = -1
     for seed in range(n_seeds):
         exp_id += 1

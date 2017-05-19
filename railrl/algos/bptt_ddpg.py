@@ -23,6 +23,101 @@ from railrl.qfunctions.nn_qfunction import NNQFunction
 TARGET_PREFIX = "target_"
 
 
+def _get_time_step(subsequences_action_or_obs, t):
+    """
+    Squeeze time out by only taking the one time step.
+
+    :param subsequences_of_action_or_obs: tuple of Tensors or Tensor of
+    shape [batch_size x traj_length x dim]
+    :param t: The time index to slice out.
+    :return: return tuple of Tensors or Tensor of shape [batch size x dim]
+    """
+    return map_recursive(lambda x: x[:, t, :], subsequences_action_or_obs)
+
+
+def _flatten(subsequences_of_action_or_obs):
+    """
+    Flatten a list of subsequences.
+
+    :param subsequences_of_action_or_obs: tuple of Tensors or Tensor of
+    shape [batch_size x traj_length x dim]
+    :return: return tuple of Tensors or Tensor of shape [k x dim]
+    where k = batch_size * traj_length
+    """
+    return map_recursive(lambda x: x.reshape(-1, x.shape[-1]),
+                         subsequences_of_action_or_obs)
+
+
+def _get_obs(batch):
+    return batch['env_obs'], batch['memories']
+
+
+def _get_next_obs(batch):
+    return batch['env_obs'], batch['memories']
+
+
+def _get_actions(batch):
+    return batch['env_actions'], batch['writes']
+
+
+def subtraj_batch_to_flat_augmented_batch(batch):
+    """
+    The batch is a bunch of subsequences. Flatten the subsequences so
+    that they just look like normal (s, a, s') tuples.
+    
+    Also, the actions/observations are split into their respective 
+    augmented parts.
+    """
+    rewards = batch['rewards']
+    terminals = batch['terminals']
+    obs = _get_obs(batch)
+    actions = _get_actions(batch)
+    next_obs = _get_next_obs(batch)
+
+    flat_actions = _flatten(actions)
+    flat_obs = _flatten(obs)
+    flat_next_obs = _flatten(next_obs)
+    flat_terminals = terminals.flatten()
+    flat_rewards = rewards.flatten()
+
+    return dict(
+        rewards=flat_rewards,
+        terminals=flat_terminals,
+        obs=flat_obs,
+        actions=flat_actions,
+        next_obs=flat_next_obs,
+    )
+
+
+def subtraj_batch_to_last_augmented_batch(batch):
+    """
+    The batch is a bunch of subsequences. Slice out the last time of each
+    the subsequences so that they just look like normal (s, a, s') tuples.
+
+    Also, the actions/observations are split into their respective
+    augmented parts.
+    """
+    rewards = batch['rewards']
+    terminals = batch['terminals']
+    obs = _get_obs(batch)
+    actions = _get_actions(batch)
+    next_obs = _get_next_obs(batch)
+
+    last_actions = _get_time_step(actions, -1)
+    last_obs = _get_time_step(obs, -1)
+    last_next_obs = _get_time_step(next_obs, -1)
+    last_terminals = terminals[:, -1]
+    last_rewards = rewards[:, -1]
+
+    return dict(
+        rewards=last_rewards,
+        terminals=last_terminals,
+        obs=last_obs,
+        actions=last_actions,
+        next_obs=last_next_obs,
+    )
+
+
 class BpttDDPG(DDPG):
     """
     The ICML idea: this does DDPG updates, but also does BPTT assuming you
@@ -299,64 +394,22 @@ class BpttDDPG(DDPG):
         return feed
 
     def subtraj_batch_to_flat_augmented_batch(self, batch):
-        """
-        The batch is a bunch of subsequences. Flatten the subsequences so
-        that they just look like normal (s, a, s') tuples.
-        
-        Also, the actions/observations are split into their respective 
-        augmented parts.
-        """
-        rewards = batch['rewards']
-        terminals = batch['terminals']
-        obs = self._get_obs(batch)
-        actions = self._get_actions(batch)
-        next_obs = self._get_next_obs(batch)
-
-        flat_actions = self._flatten(actions)
-        flat_obs = self._flatten(obs)
-        flat_next_obs = self._flatten(next_obs)
-        flat_terminals = terminals.flatten()
-        flat_rewards = rewards.flatten()
-
-        return dict(
-            rewards=flat_rewards,
-            terminals=flat_terminals,
-            obs=flat_obs,
-            actions=flat_actions,
-            next_obs=flat_next_obs,
-            **self.env.get_flattened_extra_info_dict_from_subsequence_batch(
+        feed_dict = subtraj_batch_to_flat_augmented_batch(batch)
+        feed_dict.update(
+            self.env.get_flattened_extra_info_dict_from_subsequence_batch(
                 batch
             )
         )
+        return feed_dict
 
     def subtraj_batch_to_last_augmented_batch(self, batch):
-        """
-        The batch is a bunch of subsequences. Slice out the last time of each
-        the subsequences so that they just look like normal (s, a, s') tuples.
-
-        Also, the actions/observations are split into their respective
-        augmented parts.
-        """
-        rewards = batch['rewards']
-        terminals = batch['terminals']
-        obs = self._get_obs(batch)
-        actions = self._get_actions(batch)
-        next_obs = self._get_next_obs(batch)
-
-        last_actions = self._get_time_step(actions, -1)
-        last_obs = self._get_time_step(obs, -1)
-        last_next_obs = self._get_time_step(next_obs, -1)
-        last_terminals = terminals[:, -1]
-        last_rewards = rewards[:, -1]
-
-        return dict(
-            rewards=last_rewards,
-            terminals=last_terminals,
-            obs=last_obs,
-            actions=last_actions,
-            next_obs=last_next_obs,
-            **self.env.get_last_extra_info_dict_from_subsequence_batch(batch)
+        feed_dict = subtraj_batch_to_last_augmented_batch(batch)
+        feed_dict.update(
+            self.env.get_flattened_extra_info_dict_from_subsequence_batch(
+                batch
+            )
         )
+        return feed_dict
 
     def _eval_qf_feed_dict_from_batch(self, batch):
         return self._qf_feed_dict_from_batch(batch)
@@ -627,8 +680,8 @@ class BpttDDPG(DDPG):
         )
 
     def _policy_feed_dict_from_batch(self, batch):
-        obs = self._get_obs(batch)
-        initial_memory_obs = self._get_time_step(obs, 0)[1]
+        obs = _get_obs(batch)
+        initial_memory_obs = _get_time_step(obs, 0)[1]
         env_obs, _ = obs
         feed_dict = {
             self._rnn_inputs_ph: env_obs,
@@ -636,13 +689,13 @@ class BpttDDPG(DDPG):
             self._saved_write_gradients: batch['dloss_dwrites'],
         }
 
-        next_obs = self._get_next_obs(batch)
-        actions = self._get_actions(batch)
+        next_obs = _get_next_obs(batch)
+        actions = _get_actions(batch)
         last_rewards = batch['rewards'][:, -1:]
         last_terminals = batch['terminals'][:, -1:]
-        last_env_obs = self._get_time_step(obs, -1)[0]
-        last_next_env_obs = self._get_time_step(next_obs, -1)[0]
-        last_env_actions = self._get_time_step(actions, -1)[0]
+        last_env_obs = _get_time_step(obs, -1)[0]
+        last_next_env_obs = _get_time_step(next_obs, -1)[0]
+        last_env_actions = _get_time_step(actions, -1)[0]
         feed_dict[self.env_observation_ph_for_policy_bpt_bellman] = (
             last_env_obs
         )
@@ -658,8 +711,8 @@ class BpttDDPG(DDPG):
 
     def _eval_policy_feed_dict_from_batch(self, batch):
         feed_dict = self._policy_feed_dict_from_batch(batch)
-        obs = self._get_obs(batch)
-        last_obs = self._get_time_step(obs, t=-1)
+        obs = _get_obs(batch)
+        last_obs = _get_time_step(obs, t=-1)
         feed_dict[self.policy.observation_input] = last_obs
         return feed_dict
 
@@ -686,31 +739,6 @@ class BpttDDPG(DDPG):
     Miscellaneous functions
     """
 
-    @staticmethod
-    def _get_time_step(subsequences_action_or_obs, t):
-        """
-        Squeeze time out by only taking the one time step.
-
-        :param subsequences_of_action_or_obs: tuple of Tensors or Tensor of
-        shape [batch_size x traj_length x dim]
-        :param t: The time index to slice out.
-        :return: return tuple of Tensors or Tensor of shape [batch size x dim]
-        """
-        return map_recursive(lambda x: x[:, t, :], subsequences_action_or_obs)
-
-    @staticmethod
-    def _flatten(subsequences_of_action_or_obs):
-        """
-        Flatten a list of subsequences.
-
-        :param subsequences_of_action_or_obs: tuple of Tensors or Tensor of
-        shape [batch_size x traj_length x dim]
-        :return: return tuple of Tensors or Tensor of shape [k x dim]
-        where k = batch_size * traj_length
-        """
-        return map_recursive(lambda x: x.reshape(-1, x.shape[-1]),
-                             subsequences_of_action_or_obs)
-
     def log_diagnostics(self, paths):
         self._last_env_scores.append(np.mean(self.env.log_diagnostics(paths)))
         self.policy.log_diagnostics(paths)
@@ -733,18 +761,6 @@ class BpttDDPG(DDPG):
                 self.qf_for_policy,
             ]
         return networks
-
-    @staticmethod
-    def _get_obs(batch):
-        return batch['env_obs'], batch['memories']
-
-    @staticmethod
-    def _get_next_obs(batch):
-        return batch['env_obs'], batch['memories']
-
-    @staticmethod
-    def _get_actions(batch):
-        return batch['env_actions'], batch['writes']
 
     def _get_other_statistics(self):
         statistics = OrderedDict()

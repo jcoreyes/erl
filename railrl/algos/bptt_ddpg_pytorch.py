@@ -1,6 +1,7 @@
 import time
 from collections import OrderedDict
 
+from railrl.algos.bptt_ddpg import subtraj_batch_to_flat_augmented_batch
 from railrl.data_management.updatable_subtraj_replay_buffer import \
     UpdatableSubtrajReplayBuffer
 from railrl.exploration_strategies.noop import NoopStrategy
@@ -130,13 +131,17 @@ class BDP(RLAlgorithm):
     Online learning algorithm.
     """
 
-    def __init__(self, env):
+    def __init__(
+            self,
+            env,
+            subtraj_length=None,
+    ):
         self.training_env = env
         self.env = env
         self.action_dim = 1
         self.obs_dim = 1
         self.memory_dim = env.memory_dim
-        self.subtraj_length = 2
+        self.subtraj_length = subtraj_length
 
         self.exploration_strategy = NoopStrategy()
         self.num_epochs = 100
@@ -241,8 +246,6 @@ class BDP(RLAlgorithm):
             logger.pop_prefix()
 
     def _do_training(self, n_steps_total):
-
-        # Get data
         batch = self.get_batch()
         rewards = batch['rewards']
         terminals = batch['terminals']
@@ -335,13 +338,16 @@ class BDP(RLAlgorithm):
         pass
 
     def get_batch(self):
-        batch = self.pool.random_batch(self.batch_size)
+        batch, _ = self.pool.random_subtrajectories(self.batch_size)
+        batch = subtraj_batch_to_flat_augmented_batch(batch)
         torch_batch = {
             k: Variable(torch.from_numpy(array).float(), requires_grad=True)
             for k, array in batch.items()
         }
-        torch_batch['rewards'] = torch_batch['rewards'].view(-1, 1)
-        torch_batch['terminals'] = torch_batch['terminals'].view(-1, 1)
+        rewards = torch_batch['rewards']
+        terminals = torch_batch['terminals']
+        torch_batch['rewards'] = rewards.view(*rewards.size(), 1)
+        torch_batch['terminals'] = terminals.view(*terminals.size(), 1)
         return torch_batch
 
     def _can_train(self, n_steps_total):
