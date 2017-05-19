@@ -1,8 +1,10 @@
 import time
+from collections import OrderedDict
 
 from railrl.data_management.updatable_subtraj_replay_buffer import \
     UpdatableSubtrajReplayBuffer
 from railrl.exploration_strategies.noop import NoopStrategy
+from railrl.misc.data_processing import create_stats_ordered_dict
 from rllab.algos.base import RLAlgorithm
 import numpy as np
 import torch
@@ -12,7 +14,7 @@ import torch.nn as nn
 import torch.optim as optim
 
 from rllab.algos.batch_polopt import BatchSampler
-from rllab.misc import logger
+from rllab.misc import logger, special
 
 
 class QFunction(nn.Module):
@@ -101,6 +103,16 @@ class Policy(nn.Module):
         action, write = self.__call__(obs, memory)
         return (action.data.numpy(), write.data.numpy()), {}
 
+    def get_param_values(self):
+        return [param.data for param in self.parameters()]
+
+    def set_param_values(self, param_values):
+        for param, value in zip(self.parameters(), param_values):
+            param.data = value
+
+    def reset(self):
+        pass
+
     def clone(self):
         copy = Policy(
             self.obs_dim,
@@ -120,6 +132,7 @@ class BDP(RLAlgorithm):
 
     def __init__(self, env):
         self.training_env = env
+        self.env = env
         self.action_dim = 1
         self.obs_dim = 1
         self.memory_dim = env.memory_dim
@@ -152,6 +165,10 @@ class BDP(RLAlgorithm):
         self.target_policy = self.policy.clone()
         self.discount = 1.
         self.batch_size = 32
+        self.max_path_length = 1000
+        self.n_eval_samples = 100
+        self.scope = None  # Necessary for BatchSampler
+        self.whole_paths = True  # Also for BatchSampler
 
         self.qf_criterion = nn.MSELoss()
         self.qf_optimizer = optim.Adam(self.qf.parameters(), lr=1e-3)
@@ -163,6 +180,9 @@ class BDP(RLAlgorithm):
         n_steps_total = 0
         observation = self.training_env.reset()
         self.exploration_strategy.reset()
+        path_return = 0
+        es_path_returns = []
+        self._start_worker()
         for epoch in range(self.num_epochs):
             logger.push_prefix('Iteration #%d | ' % epoch)
             start_time = time.time()
@@ -182,6 +202,7 @@ class BDP(RLAlgorithm):
                 )
                 n_steps_total += 1
                 reward = raw_reward * self.scale_reward
+                path_return += reward
 
                 self.pool.add_sample(
                     observation,
@@ -199,6 +220,8 @@ class BDP(RLAlgorithm):
                     )
                     observation = self.training_env.reset()
                     self.exploration_strategy.reset()
+                    es_path_returns.append(path_return)
+                    path_return = 0
                 else:
                     observation = next_ob
 
@@ -209,8 +232,8 @@ class BDP(RLAlgorithm):
                 "Training Time: {0}".format(time.time() - start_time)
             )
             start_time = time.time()
-            self.evaluate(epoch)
-            self.es_path_returns = []
+            self.evaluate(epoch, es_path_returns)
+            es_path_returns = []
             params = self.get_epoch_snapshot(epoch)
             logger.save_itr_params(epoch, params)
             logger.dump_tabular(with_prefix=False, with_timestamp=False)
@@ -268,47 +291,45 @@ class BDP(RLAlgorithm):
             copy_model_params(self.qf, self.target_qf)
             copy_model_params(self.policy, self.target_policy)
 
-    def evaluate(self, epoch):
-        pass
-        # """
-        # Perform evaluation for this algorithm.
-        #
-        # It's recommended
-        # :param epoch: The epoch number.
-        # :param es_path_returns: List of path returns from explorations strategy
-        # :return: Dictionary of statistics.
-        # """
-        # logger.log("Collecting samples for evaluation")
-        # paths = self._sample_paths(epoch)
-        # statistics = OrderedDict()
-        #
-        # statistics.update(self._get_other_statistics())
-        # statistics.update(self._statistics_from_paths(paths))
-        #
-        # returns = [sum(path["rewards"]) for path in paths]
-        #
-        # discounted_returns = [
-        #     special.discount_return(path["rewards"], self.discount)
-        #     for path in paths
-        # ]
-        # rewards = np.hstack([path["rewards"] for path in paths])
-        # statistics.update(create_stats_ordered_dict('Rewards', rewards))
-        # statistics.update(create_stats_ordered_dict('Returns', returns))
-        # statistics.update(create_stats_ordered_dict('DiscountedReturns',
-        #                                             discounted_returns))
-        # if len(es_path_returns) > 0:
-        #     statistics.update(create_stats_ordered_dict('TrainingReturns',
-        #                                                 es_path_returns))
-        #
-        # average_returns = np.mean(returns)
-        # self._last_average_returns.append(average_returns)
-        # statistics['AverageReturn'] = average_returns
-        # statistics['Epoch'] = epoch
-        #
-        # for key, value in statistics.items():
-        #     logger.record_tabular(key, value)
-        #
-        # self.log_diagnostics(paths)
+    def evaluate(self, epoch, es_path_returns):
+        """
+        Perform evaluation for this algorithm.
+
+        It's recommended
+        :param epoch: The epoch number.
+        :param es_path_returns: List of path returns from explorations strategy
+        :return: Dictionary of statistics.
+        """
+        logger.log("Collecting samples for evaluation")
+        paths = self._sample_paths(epoch)
+        statistics = OrderedDict()
+
+        statistics.update(self._get_other_statistics())
+        statistics.update(self._statistics_from_paths(paths))
+
+        returns = [sum(path["rewards"]) for path in paths]
+
+        discounted_returns = [
+            special.discount_return(path["rewards"], self.discount)
+            for path in paths
+        ]
+        rewards = np.hstack([path["rewards"] for path in paths])
+        statistics.update(create_stats_ordered_dict('Rewards', rewards))
+        statistics.update(create_stats_ordered_dict('Returns', returns))
+        statistics.update(create_stats_ordered_dict('DiscountedReturns',
+                                                    discounted_returns))
+        if len(es_path_returns) > 0:
+            statistics.update(create_stats_ordered_dict('TrainingReturns',
+                                                        es_path_returns))
+
+        average_returns = np.mean(returns)
+        statistics['AverageReturn'] = average_returns
+        statistics['Epoch'] = epoch
+
+        for key, value in statistics.items():
+            logger.record_tabular(key, value)
+
+        self.log_diagnostics(paths)
 
     def get_epoch_snapshot(self, epoch):
         pass
@@ -353,6 +374,15 @@ class BDP(RLAlgorithm):
         )
         self.batch_size = saved_batch_size
         return paths
+
+    def _get_other_statistics(self):
+        return {}
+
+    def _statistics_from_paths(self, paths):
+        return {}
+
+    def log_diagnostics(self, paths):
+        self.env.log_diagnostics(paths)
 
 
 def copy_model_params(source, target):
