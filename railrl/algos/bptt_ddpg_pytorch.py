@@ -86,8 +86,6 @@ class Policy(nn.Module):
         self.last_fc = nn.Linear(last_size, action_dim)
 
         self.lstm_cell = nn.LSTMCell(self.obs_dim, self.memory_dim // 2)
-        # self.lstm = nn.LSTM(self.obs_dim, self.memory_dim // 2, 1,
-        #                     batch_first=True)
 
     def forward(self, obs, initial_memory):
         """
@@ -100,25 +98,27 @@ class Policy(nn.Module):
         assert len(obs.size()) == 3
         assert len(initial_memory.size()) == 2
         batch_size, subsequence_length = obs.size()[:2]
+
+        """
+        Create the new writes.
+        """
         hx, cx = torch.split(initial_memory, self.memory_dim // 2, dim=1)
-        # The first dimension should correspond to the number of layers,
-        # but here we always have one layer.
-        # hx = expand_dims(hx, 0)
-        # cx = expand_dims(cx, 0)
-        # Shoot! This only gives me the last new_hx and last new_xc :(
-        # _, (new_hx, new_cx) = self.lstm(obs, (hx, cx))
-        # new_hxs, new_cxs = [], []
+        # noinspection PyArgumentList
         new_hxs = Variable(torch.FloatTensor(batch_size, subsequence_length,
                                              self.memory_dim // 2))
+        # noinspection PyArgumentList
         new_cxs = Variable(torch.FloatTensor(batch_size, subsequence_length,
                                              self.memory_dim // 2))
         for i in range(subsequence_length):
-            # import pdb; pdb.set_trace()
             hx, cx = self.lstm_cell(obs[:, i, :], (hx, cx))
             new_hxs[:, i, :] = hx
             new_cxs[:, i, :] = cx
         subtraj_writes = torch.cat((new_hxs, new_cxs), dim=2)
 
+        """
+        Create the new subtrajectory memories with the initial memories and the
+        new writes.
+        """
         expanded_init_memory = expand_dims(initial_memory, 1)
         if subsequence_length > 1:
             memories = torch.cat(
@@ -130,20 +130,22 @@ class Policy(nn.Module):
             )
         else:
             memories = expanded_init_memory
+
+        """
+        Use new memories to create env actions.
+        """
         all_subtraj_inputs = torch.cat([obs, memories], dim=2)
-        actions = []
+        # noinspection PyArgumentList
+        subtraj_actions = Variable(
+            torch.FloatTensor(batch_size, subsequence_length, self.action_dim)
+        )
         for i in range(subsequence_length):
             all_inputs = all_subtraj_inputs[:, i, :]
             last_layer = all_inputs
             for fc in self.fcs:
                 last_layer = F.relu(fc(last_layer))
             action = F.tanh(self.last_fc(last_layer))
-            actions.append(action)
-
-        if subsequence_length > 1:
-            subtraj_actions = torch.cat(actions, dim=1)
-        else:
-            subtraj_actions = actions[0].unsqueeze(1)
+            subtraj_actions[:, i, :] =  action.unsqueeze(1)
 
         return subtraj_actions, subtraj_writes
 
@@ -338,7 +340,7 @@ class BDP(RLAlgorithm):
     def _do_training(self, n_steps_total):
         subtraj_batch = self.get_subtraj_batch()
         self.train_critic(subtraj_batch)
-        # self.train_policy(subtraj_batch)
+        self.train_policy(subtraj_batch)
         if n_steps_total % 1000 == 0:
             copy_model_params(self.qf, self.target_qf)
             copy_model_params(self.policy, self.target_policy)
@@ -413,18 +415,30 @@ class BDP(RLAlgorithm):
     def train_policy(self, subtraj_batch):
         subtraj_obs = subtraj_batch['env_obs']
         initial_memories = get_initial_memories(subtraj_batch)
+        # TODO(vitchyr): policy_writes should overwrite the # memories...right?
         policy_actions, policy_writes = self.policy(subtraj_obs, initial_memories)
+        if self.subtraj_length > 1:
+            new_memories = torch.cat(
+                (
+                    initial_memories.unsqueeze(1),
+                    policy_writes[:, :-1, :],
+                ),
+                dim=1,
+            )
+            # TODO(vitchyr): should I detach (stop gradients)?
+            # new_memories = new_memories.detach()
+            subtraj_batch['new_memories'] = new_memories
         subtraj_batch['policy_actions'] = policy_actions
         subtraj_batch['policy_writes'] = policy_writes
 
         flat_batch = flatten_subtraj_batch(subtraj_batch)
         flat_obs = flat_batch['env_obs']
-        flat_memories = flat_batch['memories']
+        flat_new_memories = flat_batch['new_memories']
         flat_policy_actions = flat_batch['policy_actions']
         flat_policy_writes = flat_batch['policy_writes']
 
         q_output = self.qf(
-            flat_obs, flat_memories, flat_policy_actions, flat_policy_writes
+            flat_obs, flat_new_memories, flat_policy_actions, flat_policy_writes
         )
         policy_loss = - q_output.mean()
         self.policy_optimizer.zero_grad()
