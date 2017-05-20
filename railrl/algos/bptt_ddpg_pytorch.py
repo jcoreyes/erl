@@ -1,9 +1,9 @@
 import time
 from collections import OrderedDict
 
-from railrl.algos.bptt_ddpg import subtraj_batch_to_flat_augmented_batch
-from railrl.data_management.updatable_subtraj_replay_buffer import \
+from railrl.data_management.updatable_subtraj_replay_buffer import (
     UpdatableSubtrajReplayBuffer
+)
 from railrl.exploration_strategies.noop import NoopStrategy
 from railrl.misc.data_processing import create_stats_ordered_dict
 from rllab.algos.base import RLAlgorithm
@@ -59,9 +59,7 @@ class QFunction(nn.Module):
 
 
 def expand_dims(tensor, axis):
-    dims = list(tensor.size())
-    dims.insert(axis, 1)
-    return tensor.view(*dims)
+    return tensor.unsqueeze(axis)
 
 
 class Policy(nn.Module):
@@ -87,31 +85,102 @@ class Policy(nn.Module):
             last_size = size
         self.last_fc = nn.Linear(last_size, action_dim)
 
-        # self.lstm = nn.LSTM(all_inputs_dim, memory_dim // 2, 1)
-        self.lstm_cell = nn.LSTMCell(all_inputs_dim, memory_dim // 2)
+        self.lstm_cell = nn.LSTMCell(self.obs_dim, self.memory_dim // 2)
+        # self.lstm = nn.LSTM(self.obs_dim, self.memory_dim // 2, 1,
+        #                     batch_first=True)
 
-    def forward(self, obs, memory):
-        all_inputs = torch.cat([obs, memory], dim=1)
-        last_layer = all_inputs
-        for fc in self.fcs:
-            last_layer = F.relu(fc(last_layer))
-        action = F.tanh(self.last_fc(last_layer))
+    def forward(self, obs, initial_memory):
+        """
+        :param obs: torch Variable, [batch_size, sequence length, obs dim]
+        :param initial_memory: torch Variable, [batch_size, memory dim]
+        :return: (actions, writes) tuple
+            actions: [batch_size, sequence length, action dim]
+            writes: [batch_size, sequence length, memory dim]
+        """
+        assert len(obs.size()) == 3
+        assert len(initial_memory.size()) == 2
+        batch_size, subsequence_length = obs.size()[:2]
+        hx, cx = torch.split(initial_memory, self.memory_dim // 2, dim=1)
+        # The first dimension should correspond to the number of layers,
+        # but here we always have one layer.
+        # hx = expand_dims(hx, 0)
+        # cx = expand_dims(cx, 0)
+        # Shoot! This only gives me the last new_hx and last new_xc :(
+        # _, (new_hx, new_cx) = self.lstm(obs, (hx, cx))
+        # new_hxs, new_cxs = [], []
+        new_hxs = Variable(torch.FloatTensor(batch_size, subsequence_length,
+                                             self.memory_dim // 2))
+        new_cxs = Variable(torch.FloatTensor(batch_size, subsequence_length,
+                                             self.memory_dim // 2))
+        for i in range(subsequence_length):
+            # import pdb; pdb.set_trace()
+            hx, cx = self.lstm_cell(obs[:, i, :], (hx, cx))
+            new_hxs[:, i, :] = hx
+            new_cxs[:, i, :] = cx
+        subtraj_writes = torch.cat((new_hxs, new_cxs), dim=2)
 
-        hx, cx = torch.split(memory, self.memory_dim // 2, dim=1)
-        new_hx, new_cx = self.lstm_cell(all_inputs, (hx, cx))
-        write = torch.cat((new_hx, new_cx), dim=1)
-        return action, write
+        expanded_init_memory = expand_dims(initial_memory, 1)
+        if subsequence_length > 1:
+            memories = torch.cat(
+                (
+                    expanded_init_memory,
+                    subtraj_writes[:, :-1, :],
+                ),
+                dim=1,
+            )
+        else:
+            memories = expanded_init_memory
+        all_subtraj_inputs = torch.cat([obs, memories], dim=2)
+        actions = []
+        for i in range(subsequence_length):
+            all_inputs = all_subtraj_inputs[:, i, :]
+            last_layer = all_inputs
+            for fc in self.fcs:
+                last_layer = F.relu(fc(last_layer))
+            action = F.tanh(self.last_fc(last_layer))
+            actions.append(action)
+
+        if subsequence_length > 1:
+            subtraj_actions = torch.cat(actions, dim=1)
+        else:
+            subtraj_actions = actions[0].unsqueeze(1)
+
+        return subtraj_actions, subtraj_writes
 
     def get_action(self, augmented_obs):
+        """
+        :param augmented_obs: (obs, memories) tuple
+            obs: np.ndarray, [obs_dim]
+            memories: nd.ndarray, [memory_dim]
+        :return: (actions, writes) tuple
+            actions: np.ndarray, [action_dim]
+            writes: np.ndarray, [writes_dim]
+        """
         obs, memory = augmented_obs
         obs = np.expand_dims(obs, axis=0)
         memory = np.expand_dims(memory, axis=0)
         obs = Variable(torch.from_numpy(obs).float(), requires_grad=False)
         memory = Variable(torch.from_numpy(memory).float(), requires_grad=False)
-        # obs = expand_dims(obs, 1)
-        # memory = expand_dims(memory, 1)
-        action, write = self.__call__(obs, memory)
-        return (action.data.numpy(), write.data.numpy()), {}
+        action, write = self.get_flat_output(obs, memory)
+        return (
+                   np.squeeze(action.data.numpy(), axis=0),
+                    np.squeeze(write.data.numpy(), axis=0)
+               ), {}
+
+    def get_flat_output(self, obs, initial_memories):
+        """
+        Each batch element is processed independently. So, there's no recurrency
+        used.
+
+        :param obs: torch Variable, [batch_size X obs_dim]
+        :param initial_memories: torch Variable, [batch_size X memory_dim]
+        :return: (actions, writes) Tuple
+            actions: torch Variable, [batch_size X action_dim]
+            writes: torch Variable, [batch_size X writes_dim]
+        """
+        obs = expand_dims(obs, 1)
+        actions, writes = self.__call__(obs, initial_memories)
+        return torch.squeeze(actions, dim=1), torch.squeeze(writes, dim=1)
 
     def get_param_values(self):
         return [param.data for param in self.parameters()]
@@ -132,6 +201,17 @@ class Policy(nn.Module):
         )
         copy_model_params(self, copy)
         return copy
+
+
+def flatten_subtraj_batch(subtraj_batch):
+    return {
+        k: array.view(-1, array.size()[-1])
+        for k, array in subtraj_batch.items()
+    }
+
+
+def get_initial_memories(subtraj_batch):
+    return subtraj_batch['memories'][:, 0, :]
 
 
 # noinspection PyCallingNonCallable
@@ -188,6 +268,7 @@ class BDP(RLAlgorithm):
         self.qf_optimizer = optim.Adam(self.qf.parameters(), lr=1e-3)
         self.policy_optimizer = optim.Adam(self.policy.parameters(), lr=1e-4)
 
+        # noinspection PyTypeChecker
         self.eval_sampler = BatchSampler(self)
 
     def train(self):
@@ -256,53 +337,99 @@ class BDP(RLAlgorithm):
 
     def _do_training(self, n_steps_total):
         subtraj_batch = self.get_subtraj_batch()
-        for batch in self.subtraj_batch_to_list_of_batch(subtraj_batch):
-            rewards = batch['rewards']
-            terminals = batch['terminals']
-            obs = batch['env_obs']
-            actions = batch['env_actions']
-            next_obs = batch['next_env_obs']
-            memories = batch['memories']
-            writes = batch['writes']
-            next_memories = batch['next_memories']
+        self.train_critic(subtraj_batch)
+        # self.train_policy(subtraj_batch)
+        if n_steps_total % 1000 == 0:
+            copy_model_params(self.qf, self.target_qf)
+            copy_model_params(self.policy, self.target_policy)
 
-            """
-            Optimize critic
-            """
-            # Generate y target using target policies
-            next_actions, next_writes = self.target_policy(next_obs, next_memories)
-            target_q_values = self.target_qf(
-                next_obs,
-                next_memories,
-                next_actions,
-                next_writes
-            )
-            y_target = rewards + (1. - terminals) * self.discount * target_q_values
-            y_target = y_target.detach()
-            y_pred = self.qf(obs, memories, actions, writes)
-            qf_loss = self.qf_criterion(y_pred, y_target)
+    def train_critic(self, subtraj_batch):
+        # subtraj_batch = self.add_new_memories_and_writes(subtraj_batch)
+        flat_batch = flatten_subtraj_batch(subtraj_batch)
+        rewards = flat_batch['rewards']
+        terminals = flat_batch['terminals']
+        obs = flat_batch['env_obs']
+        actions = flat_batch['env_actions']
+        next_obs = flat_batch['next_env_obs']
+        memories = flat_batch['memories']
+        writes = flat_batch['writes']
+        next_memories = flat_batch['next_memories']
+        # new_memories = flat_batch['new_memories']
+        # new_writes = flat_batch['new_writes']
+        # new_next_memories = flat_batch['new_next_memories']
 
-            # Do training
-            self.qf_optimizer.zero_grad()
-            qf_loss.backward()
-            self.qf_optimizer.step()
+        # self.minimize_critic_bellman_error(
+        #     obs,
+        #     new_memories,
+        #     actions,
+        #     new_writes,
+        #     next_obs,
+        #     new_next_memories,
+        #     rewards,
+        #     terminals,
+        # )
+        self.minimize_critic_bellman_error(
+            obs,
+            memories,
+            actions,
+            writes,
+            next_obs,
+            next_memories,
+            rewards,
+            terminals,
+        )
 
-            """
-            Optimize policy
-            """
-            policy_actions, policy_writes = self.policy(obs, memories)
-            q_output = self.qf(obs, memories, policy_actions, policy_writes)
-            policy_loss = - q_output.mean()
-            self.policy_optimizer.zero_grad()
-            policy_loss.backward()
-            self.policy_optimizer.step()
+    def minimize_critic_bellman_error(
+            self,
+            obs,
+            memories,
+            actions,
+            writes,
+            next_obs,
+            next_memories,
+            rewards,
+            terminals,
+    ):
+        next_actions, next_writes = self.target_policy.get_flat_output(
+            next_obs, next_memories
+        )
+        target_q_values = self.target_qf(
+            next_obs,
+            next_memories,
+            next_actions,
+            next_writes
+        )
+        y_target = rewards + (1. - terminals) * self.discount * target_q_values
+        # noinspection PyUnresolvedReferences
+        y_target = y_target.detach()
+        y_pred = self.qf(obs, memories, actions, writes)
+        qf_loss = self.qf_criterion(y_pred, y_target)
 
-            """
-            Update Target Networks
-            """
-            if n_steps_total % 1000 == 0:
-                copy_model_params(self.qf, self.target_qf)
-                copy_model_params(self.policy, self.target_policy)
+        # Do training
+        self.qf_optimizer.zero_grad()
+        qf_loss.backward()
+        self.qf_optimizer.step()
+
+    def train_policy(self, subtraj_batch):
+        subtraj_obs = subtraj_batch['env_obs']
+        initial_memories = get_initial_memories(subtraj_batch)
+        policy_actions, policy_writes = self.policy(subtraj_obs, initial_memories)
+        subtraj_batch['policy_actions'] = policy_actions
+        subtraj_batch['policy_writes'] = policy_writes
+
+        flat_batch = flatten_subtraj_batch(subtraj_batch)
+        flat_obs = flat_batch['env_obs']
+        flat_memories = flat_batch['memories']
+        flat_policy_actions = flat_batch['policy_actions']
+        flat_policy_writes = flat_batch['policy_writes']
+
+        q_output = self.qf(
+            flat_obs, flat_memories, flat_policy_actions, flat_policy_writes
+        )
+        policy_loss = - q_output.mean()
+        self.policy_optimizer.zero_grad()
+        policy_loss.backward()
+        self.policy_optimizer.step()
 
     def evaluate(self, epoch, es_path_returns):
         """
@@ -408,6 +535,18 @@ class BDP(RLAlgorithm):
             }
             batches.append(batch)
         return batches
+
+    def add_new_memories_and_writes(self, subtraj_batch):
+        initial_memories = get_initial_memories(subtraj_batch)
+        subtraj_obs = subtraj_batch['env_obs']
+        _, new_writes = self.target_policy(
+            subtraj_obs, initial_memories
+        )
+        new_memories = torch.cat((initial_memories, new_writes), dim=1)
+        subtraj_batch['new_memories'] = new_memories
+        subtraj_batch['new_writes'] = new_writes
+        subtraj_batch['new_next_memories'] = new_writes
+        return subtraj_batch
 
 
 def copy_model_params(source, target):
