@@ -45,7 +45,7 @@ class QFunction(nn.Module):
         x = torch.cat((obs, memory, action, write), dim=1)
         for fc in self.fcs:
             x = F.relu(fc(x))
-        return self.last_fc(x)
+        return F.tanh(self.last_fc(x))
 
     def clone(self):
         copy = QFunction(
@@ -229,14 +229,14 @@ class BDP(RLAlgorithm):
     ):
         self.training_env = env
         self.env = env
-        self.action_dim = 1
-        self.obs_dim = 1
+        self.action_dim = int(env.env_spec.action_space.flat_dim)
+        self.obs_dim = int(env.env_spec.observation_space.flat_dim)
         self.memory_dim = env.memory_dim
         self.subtraj_length = subtraj_length
 
         self.exploration_strategy = NoopStrategy()
-        self.num_epochs = 100
-        self.num_steps_per_epoch = 100
+        self.num_epochs = 30
+        self.num_steps_per_epoch = 1000
         self.render = False
         self.scale_reward = 1
         self.pool = UpdatableSubtrajReplayBuffer(
@@ -415,7 +415,6 @@ class BDP(RLAlgorithm):
     def train_policy(self, subtraj_batch):
         subtraj_obs = subtraj_batch['env_obs']
         initial_memories = get_initial_memories(subtraj_batch)
-        # TODO(vitchyr): policy_writes should overwrite the # memories...right?
         policy_actions, policy_writes = self.policy(subtraj_obs, initial_memories)
         if self.subtraj_length > 1:
             new_memories = torch.cat(
@@ -434,16 +433,23 @@ class BDP(RLAlgorithm):
         flat_batch = flatten_subtraj_batch(subtraj_batch)
         flat_obs = flat_batch['env_obs']
         flat_new_memories = flat_batch['new_memories']
-        flat_policy_actions = flat_batch['policy_actions']
-        flat_policy_writes = flat_batch['policy_writes']
+        flat_policy_actions = flat_batch['env_actions']
+        flat_policy_new_writes = flat_batch['policy_writes']
 
         q_output = self.qf(
-            flat_obs, flat_new_memories, flat_policy_actions, flat_policy_writes
+            flat_obs,
+            flat_new_memories,
+            flat_policy_actions,
+            flat_policy_new_writes
         )
         policy_loss = - q_output.mean()
         self.policy_optimizer.zero_grad()
         policy_loss.backward()
         self.policy_optimizer.step()
+
+        # TODO(vitchyr): Make policy minimize Bellman error
+        # TODO(vitchyr): ^ When doing this, do I still use target policies?
+        # TODO(vitchyr): Split policy into training env and write actions
 
     def evaluate(self, epoch, es_path_returns):
         """
