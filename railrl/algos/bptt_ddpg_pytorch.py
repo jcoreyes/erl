@@ -40,10 +40,9 @@ class QFunction(nn.Module):
         for size in self.embed_obs_hidden_sizes:
             self.obs_embed_fcs.append(nn.Linear(last_size, size))
             last_size = size
-        input_dim = last_size + action_dim + memory_dim
 
         self.fcs = []
-        last_size = input_dim
+        last_size = last_size + action_dim + memory_dim
         for size in hidden_sizes:
             self.fcs.append(nn.Linear(last_size, size))
             last_size = size
@@ -157,7 +156,8 @@ class Policy(nn.Module):
             for fc in self.fcs:
                 last_layer = F.relu(fc(last_layer))
             action = F.tanh(self.last_fc(last_layer))
-            # subtraj_actions[:, i, :] = action.unsqueeze(1)
+            # action = self.last_fc(last_layer)
+            # action += 0.1 * Variable(torch.randn(*action.size()))
             subtraj_actions[:, i, :] = action
 
         return subtraj_actions, subtraj_writes
@@ -262,7 +262,7 @@ class BDP(RLAlgorithm):
 
         self.exploration_strategy = exploration_strategy
         self.num_epochs = 30
-        self.num_steps_per_epoch = 100
+        self.num_steps_per_epoch = 1000
         self.render = False
         self.scale_reward = 1
         self.pool = UpdatableSubtrajReplayBuffer(
@@ -282,7 +282,7 @@ class BDP(RLAlgorithm):
             self.obs_dim,
             self.action_dim,
             self.memory_dim,
-            [100, 64],
+            [],
         )
         self.target_qf = self.qf.clone()
         self.target_policy = self.policy.clone()
@@ -300,6 +300,8 @@ class BDP(RLAlgorithm):
         self.qf_criterion = nn.MSELoss()
         self.qf_optimizer = optim.Adam(self.qf.parameters(), lr=1e-3)
         self.policy_optimizer = optim.Adam(self.policy.parameters(), lr=1e-3)
+        self.pps = list(self.policy.parameters())
+        self.qps = list(self.qf.parameters())
 
     def train(self):
         n_steps_total = 0
@@ -310,6 +312,7 @@ class BDP(RLAlgorithm):
             logger.push_prefix('Iteration #%d | ' % epoch)
             path_return = 0
             es_path_returns = []
+            actions, writes = [], []
             start_time = time.time()
             for _ in range(self.num_steps_per_epoch):
                 action, agent_info = (
@@ -328,6 +331,8 @@ class BDP(RLAlgorithm):
                 n_steps_total += 1
                 reward = raw_reward * self.scale_reward
                 path_return += reward
+                actions.append(action[0])
+                writes.append(action[1])
 
                 self.pool.add_sample(
                     observation,
@@ -357,7 +362,11 @@ class BDP(RLAlgorithm):
                 "Training Time: {0}".format(time.time() - start_time)
             )
             start_time = time.time()
-            self.evaluate(epoch, es_path_returns)
+            self.evaluate(epoch, {
+                'Returns': es_path_returns,
+                'Env Actions': actions,
+                'Writes': writes,
+            })
             params = self.get_epoch_snapshot(epoch)
             logger.save_itr_params(epoch, params)
             logger.dump_tabular(with_prefix=False, with_timestamp=False)
@@ -442,7 +451,8 @@ class BDP(RLAlgorithm):
     def train_policy(self, subtraj_batch):
         subtraj_obs = subtraj_batch['env_obs']
         initial_memories = get_initial_memories(subtraj_batch)
-        _, policy_writes = self.policy(subtraj_obs, initial_memories)
+        policy_actions, policy_writes = self.policy(subtraj_obs,
+                                                    initial_memories)
         if self.subtraj_length > 1:
             new_memories = torch.cat(
                 (
@@ -455,15 +465,15 @@ class BDP(RLAlgorithm):
             new_memories = initial_memories.unsqueeze(1)
         # TODO(vitchyr): should I detach (stop gradients)?
         # new_memories = new_memories.detach()
-        subtraj_batch['new_memories'] = new_memories
-        subtraj_batch['policy_writes'] = policy_writes
+        subtraj_batch['policy_new_memories'] = new_memories
+        subtraj_batch['policy_new_writes'] = policy_writes
+        subtraj_batch['policy_new_actions'] = policy_actions
 
         flat_batch = flatten_subtraj_batch(subtraj_batch)
         flat_obs = flat_batch['env_obs']
-        flat_new_memories = flat_batch['new_memories']
-        flat_env_actions = flat_batch['env_actions']
-        flat_policy_new_writes = flat_batch['policy_writes']
-
+        flat_new_memories = flat_batch['policy_new_memories']
+        flat_env_actions = flat_batch['policy_new_actions']
+        flat_policy_new_writes = flat_batch['policy_new_writes']
         q_output = self.qf(
             flat_obs,
             flat_new_memories,
@@ -471,6 +481,7 @@ class BDP(RLAlgorithm):
             flat_policy_new_writes
         )
         policy_loss = - q_output.mean()
+
         self.policy_optimizer.zero_grad()
         policy_loss.backward()
         self.policy_optimizer.step()
@@ -479,7 +490,7 @@ class BDP(RLAlgorithm):
         # TODO(vitchyr): ^ When doing this, do I still use target policies?
         # TODO(vitchyr): Split policy into training env and write actions
 
-    def evaluate(self, epoch, es_path_returns):
+    def evaluate(self, epoch, exploration_info_dict):
         """
         Perform evaluation for this algorithm.
 
@@ -506,9 +517,10 @@ class BDP(RLAlgorithm):
         statistics.update(create_stats_ordered_dict('Returns', returns))
         statistics.update(create_stats_ordered_dict('DiscountedReturns',
                                                     discounted_returns))
-        statistics.update(create_stats_ordered_dict(
-            'TrainingReturns', np.array(es_path_returns, dtype=np.float32)
-        ))
+        for k, v in exploration_info_dict.items():
+            statistics.update(create_stats_ordered_dict(
+                'Exploration {}'.format(k), np.array(v, dtype=np.float32)
+            ))
 
         average_returns = np.mean(returns)
         statistics['AverageReturn'] = average_returns
@@ -603,11 +615,13 @@ class BDP(RLAlgorithm):
         raw_subtraj_batch = eval_pool.get_all_valid_subtrajectories()
         subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
         qf_loss = self.get_qf_loss(subtraj_batch)
-        policy_loss = self.get_policy_loss(subtraj_batch)
+        policy_loss, act, write = self.get_policy_loss(subtraj_batch)
 
         statistics = OrderedDict()
         statistics.update(create_stats_ordered_dict('Qf Loss', qf_loss))
         statistics.update(create_stats_ordered_dict('Policy Loss', policy_loss))
+        statistics.update(create_stats_ordered_dict('Policy Env Action', act))
+        statistics.update(create_stats_ordered_dict('Policy Env Write', write))
         return statistics
 
     def get_qf_loss(self, subtraj_batch):
@@ -639,7 +653,8 @@ class BDP(RLAlgorithm):
     def get_policy_loss(self, subtraj_batch):
         subtraj_obs = subtraj_batch['env_obs']
         initial_memories = get_initial_memories(subtraj_batch)
-        _, policy_writes = self.policy(subtraj_obs, initial_memories)
+        policy_actions, policy_writes = self.policy(subtraj_obs,
+                                                    initial_memories)
         if self.subtraj_length > 1:
             new_memories = torch.cat(
                 (
@@ -650,14 +665,18 @@ class BDP(RLAlgorithm):
             )
         else:
             new_memories = initial_memories.unsqueeze(1)
-        subtraj_batch['new_memories'] = new_memories
-        subtraj_batch['policy_writes'] = policy_writes
+        subtraj_batch['policy_new_memories'] = new_memories
+        subtraj_batch['policy_new_writes'] = policy_writes
+        subtraj_batch['policy_new_actions'] = policy_actions
 
         flat_batch = flatten_subtraj_batch(subtraj_batch)
         flat_obs = flat_batch['env_obs']
-        flat_new_memories = flat_batch['new_memories']
-        flat_env_actions = flat_batch['env_actions']
-        flat_policy_new_writes = flat_batch['policy_writes']
+        flat_new_memories = flat_batch['policy_new_memories']
+        flat_env_actions = flat_batch['policy_new_actions']
+        # TODO(vitchyr): I know I should use policy_new_actions, but why is
+        # that legit with off-policy subsequences? Sergey seems to think it is
+        # flat_env_actions = flat_batch['env_actions']
+        flat_policy_new_writes = flat_batch['policy_new_writes']
 
         q_output = self.qf(
             flat_obs,
@@ -666,7 +685,11 @@ class BDP(RLAlgorithm):
             flat_policy_new_writes
         )
         policy_loss = - q_output.mean()
-        return policy_loss.data.numpy()
+        return (
+            policy_loss.data.numpy(),
+            flat_batch['policy_new_actions'].data.numpy(),
+            flat_batch['policy_new_writes'].data.numpy(),
+        )
 
 
 def copy_model_params(source, target):
