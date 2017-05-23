@@ -444,7 +444,6 @@ class BDP(RLAlgorithm):
         y_pred = self.qf(obs, memories, actions, writes)
         qf_loss = self.qf_criterion(y_pred, y_target)
 
-        # Do training
         self.qf_optimizer.zero_grad()
         qf_loss.backward()
         self.qf_optimizer.step()
@@ -668,17 +667,14 @@ class BDP(RLAlgorithm):
         flat_batch = flatten_subtraj_batch(subtraj_batch)
         flat_obs = flat_batch['env_obs']
         flat_new_memories = flat_batch['policy_new_memories']
-        flat_env_actions = flat_batch['policy_new_actions']
-        # TODO(vitchyr): I know I should use policy_new_actions, but why is
-        # that legit with off-policy subsequences? Sergey seems to think it is
-        # flat_env_actions = flat_batch['env_actions']
-        flat_policy_new_writes = flat_batch['policy_new_writes']
+        flat_new_actions = flat_batch['policy_new_actions']
+        flat_new_writes = flat_batch['policy_new_writes']
 
         q_output = self.qf(
             flat_obs,
             flat_new_memories,
-            flat_env_actions,
-            flat_policy_new_writes
+            flat_new_actions,
+            flat_new_writes
         )
         policy_loss = - q_output.mean()
         return (
