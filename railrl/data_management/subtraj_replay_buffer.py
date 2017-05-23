@@ -206,19 +206,25 @@ class SubtrajReplayBuffer(ReplayBuffer):
             observation,
             action,
             reward,
+            terminal,
             agent_info,
             env_info,
         ) in zip(
             path["observations"],
             path["actions"],
             path["rewards"],
+            path["terminals"],
             list_of_agent_infos,
             list_of_env_infos,
         ):
             observation = self._env.observation_space.unflatten(observation)
             action = self._env.action_space.unflatten(action)
-            self.add_sample(observation, action, reward, False,
+            self.add_sample(observation, action, reward, terminal,
                             agent_info=agent_info, env_info=env_info)
+            if terminal:
+                # Hacky for now. Should be next obs, but that's not ever used
+                # anyways
+                self.terminate_episode(observation)
         terminal_observation = self._env.observation_space.unflatten(
             path["observations"][-1]
         )
