@@ -18,7 +18,7 @@ def experiment(variant):
     seed = variant['seed']
     algo_params = variant['algo_params']
     set_seed(seed)
-    env = HighLow(num_steps=4)
+    env = HighLow(num_steps=2)
     env = ContinuousMemoryAugmented(
         env,
         num_memory_states=20,
