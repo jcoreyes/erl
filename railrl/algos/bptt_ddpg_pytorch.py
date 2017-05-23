@@ -1,10 +1,10 @@
 import time
+import pickle
 from collections import OrderedDict
 
 from railrl.data_management.updatable_subtraj_replay_buffer import (
     UpdatableSubtrajReplayBuffer
 )
-from railrl.exploration_strategies.noop import NoopStrategy
 from railrl.misc.data_processing import create_stats_ordered_dict
 from rllab.algos.base import RLAlgorithm
 import numpy as np
@@ -25,6 +25,7 @@ class QFunction(nn.Module):
             action_dim,
             memory_dim,
             hidden_sizes,
+            embed_obs_hidden_sizes,
     ):
         super().__init__()
 
@@ -32,8 +33,15 @@ class QFunction(nn.Module):
         self.action_dim = action_dim
         self.memory_dim = memory_dim
         self.hidden_sizes = hidden_sizes
+        self.embed_obs_hidden_sizes = embed_obs_hidden_sizes
 
-        input_dim = obs_dim + action_dim + 2 * memory_dim
+        self.obs_embed_fcs = []
+        last_size = obs_dim + memory_dim
+        for size in self.embed_obs_hidden_sizes:
+            self.obs_embed_fcs.append(nn.Linear(last_size, size))
+            last_size = size
+        input_dim = last_size + action_dim + memory_dim
+
         self.fcs = []
         last_size = input_dim
         for size in hidden_sizes:
@@ -42,10 +50,13 @@ class QFunction(nn.Module):
         self.last_fc = nn.Linear(last_size, 1)
 
     def forward(self, obs, memory, action, write):
-        x = torch.cat((obs, memory, action, write), dim=1)
+        obs_embedded = torch.cat((obs, memory), dim=1)
+        for fc in self.obs_embed_fcs:
+            obs_embedded = F.relu(fc(obs_embedded))
+        x = torch.cat((obs_embedded, action, write), dim=1)
         for fc in self.fcs:
             x = F.relu(fc(x))
-        return F.tanh(self.last_fc(x))
+        return self.last_fc(x)
 
     def clone(self):
         copy = QFunction(
@@ -53,6 +64,7 @@ class QFunction(nn.Module):
             self.action_dim,
             self.memory_dim,
             self.hidden_sizes,
+            self.embed_obs_hidden_sizes,
         )
         copy_model_params(self, copy)
         return copy
@@ -145,7 +157,8 @@ class Policy(nn.Module):
             for fc in self.fcs:
                 last_layer = F.relu(fc(last_layer))
             action = F.tanh(self.last_fc(last_layer))
-            subtraj_actions[:, i, :] =  action.unsqueeze(1)
+            # subtraj_actions[:, i, :] = action.unsqueeze(1)
+            subtraj_actions[:, i, :] = action
 
         return subtraj_actions, subtraj_writes
 
@@ -166,7 +179,7 @@ class Policy(nn.Module):
         action, write = self.get_flat_output(obs, memory)
         return (
                    np.squeeze(action.data.numpy(), axis=0),
-                    np.squeeze(write.data.numpy(), axis=0)
+                   np.squeeze(write.data.numpy(), axis=0)
                ), {}
 
     def get_flat_output(self, obs, initial_memories):
@@ -216,6 +229,18 @@ def get_initial_memories(subtraj_batch):
     return subtraj_batch['memories'][:, 0, :]
 
 
+def create_torch_subtraj_batch(subtraj_batch):
+    torch_batch = {
+        k: Variable(torch.from_numpy(array).float(), requires_grad=True)
+        for k, array in subtraj_batch.items()
+        }
+    rewards = torch_batch['rewards']
+    terminals = torch_batch['terminals']
+    torch_batch['rewards'] = rewards.unsqueeze(-1)
+    torch_batch['terminals'] = terminals.unsqueeze(-1)
+    return torch_batch
+
+
 # noinspection PyCallingNonCallable
 class BDP(RLAlgorithm):
     """
@@ -225,18 +250,19 @@ class BDP(RLAlgorithm):
     def __init__(
             self,
             env,
+            exploration_strategy,
             subtraj_length=None,
     ):
         self.training_env = env
-        self.env = env
+        self.env = pickle.loads(pickle.dumps(self.training_env))
         self.action_dim = int(env.env_spec.action_space.flat_dim)
         self.obs_dim = int(env.env_spec.observation_space.flat_dim)
         self.memory_dim = env.memory_dim
         self.subtraj_length = subtraj_length
 
-        self.exploration_strategy = NoopStrategy()
+        self.exploration_strategy = exploration_strategy
         self.num_epochs = 30
-        self.num_steps_per_epoch = 1000
+        self.num_steps_per_epoch = 100
         self.render = False
         self.scale_reward = 1
         self.pool = UpdatableSubtrajReplayBuffer(
@@ -249,13 +275,14 @@ class BDP(RLAlgorithm):
             self.obs_dim,
             self.action_dim,
             self.memory_dim,
-            [100, 100],
+            [100],
+            [100],
         )
         self.policy = Policy(
             self.obs_dim,
             self.action_dim,
             self.memory_dim,
-            [100, 100],
+            [100, 64],
         )
         self.target_qf = self.qf.clone()
         self.target_policy = self.policy.clone()
@@ -263,25 +290,26 @@ class BDP(RLAlgorithm):
         self.batch_size = 32
         self.max_path_length = 1000
         self.n_eval_samples = 100
+        self.copy_target_param_period = 1000
+
+        # noinspection PyTypeChecker
+        self.eval_sampler = BatchSampler(self)
         self.scope = None  # Necessary for BatchSampler
         self.whole_paths = True  # Also for BatchSampler
 
         self.qf_criterion = nn.MSELoss()
         self.qf_optimizer = optim.Adam(self.qf.parameters(), lr=1e-3)
-        self.policy_optimizer = optim.Adam(self.policy.parameters(), lr=1e-4)
-
-        # noinspection PyTypeChecker
-        self.eval_sampler = BatchSampler(self)
+        self.policy_optimizer = optim.Adam(self.policy.parameters(), lr=1e-3)
 
     def train(self):
         n_steps_total = 0
         observation = self.training_env.reset()
         self.exploration_strategy.reset()
-        path_return = 0
-        es_path_returns = []
         self._start_worker()
         for epoch in range(self.num_epochs):
             logger.push_prefix('Iteration #%d | ' % epoch)
+            path_return = 0
+            es_path_returns = []
             start_time = time.time()
             for _ in range(self.num_steps_per_epoch):
                 action, agent_info = (
@@ -330,7 +358,6 @@ class BDP(RLAlgorithm):
             )
             start_time = time.time()
             self.evaluate(epoch, es_path_returns)
-            es_path_returns = []
             params = self.get_epoch_snapshot(epoch)
             logger.save_itr_params(epoch, params)
             logger.dump_tabular(with_prefix=False, with_timestamp=False)
@@ -341,7 +368,7 @@ class BDP(RLAlgorithm):
         subtraj_batch = self.get_subtraj_batch()
         self.train_critic(subtraj_batch)
         self.train_policy(subtraj_batch)
-        if n_steps_total % 1000 == 0:
+        if n_steps_total % self.copy_target_param_period == 0:
             copy_model_params(self.qf, self.target_qf)
             copy_model_params(self.policy, self.target_policy)
 
@@ -415,7 +442,7 @@ class BDP(RLAlgorithm):
     def train_policy(self, subtraj_batch):
         subtraj_obs = subtraj_batch['env_obs']
         initial_memories = get_initial_memories(subtraj_batch)
-        policy_actions, policy_writes = self.policy(subtraj_obs, initial_memories)
+        _, policy_writes = self.policy(subtraj_obs, initial_memories)
         if self.subtraj_length > 1:
             new_memories = torch.cat(
                 (
@@ -424,22 +451,23 @@ class BDP(RLAlgorithm):
                 ),
                 dim=1,
             )
-            # TODO(vitchyr): should I detach (stop gradients)?
-            # new_memories = new_memories.detach()
-            subtraj_batch['new_memories'] = new_memories
-        subtraj_batch['policy_actions'] = policy_actions
+        else:
+            new_memories = initial_memories.unsqueeze(1)
+        # TODO(vitchyr): should I detach (stop gradients)?
+        # new_memories = new_memories.detach()
+        subtraj_batch['new_memories'] = new_memories
         subtraj_batch['policy_writes'] = policy_writes
 
         flat_batch = flatten_subtraj_batch(subtraj_batch)
         flat_obs = flat_batch['env_obs']
         flat_new_memories = flat_batch['new_memories']
-        flat_policy_actions = flat_batch['env_actions']
+        flat_env_actions = flat_batch['env_actions']
         flat_policy_new_writes = flat_batch['policy_writes']
 
         q_output = self.qf(
             flat_obs,
             flat_new_memories,
-            flat_policy_actions,
+            flat_env_actions,
             flat_policy_new_writes
         )
         policy_loss = - q_output.mean()
@@ -478,9 +506,9 @@ class BDP(RLAlgorithm):
         statistics.update(create_stats_ordered_dict('Returns', returns))
         statistics.update(create_stats_ordered_dict('DiscountedReturns',
                                                     discounted_returns))
-        if len(es_path_returns) > 0:
-            statistics.update(create_stats_ordered_dict('TrainingReturns',
-                                                        es_path_returns))
+        statistics.update(create_stats_ordered_dict(
+            'TrainingReturns', np.array(es_path_returns, dtype=np.float32)
+        ))
 
         average_returns = np.mean(returns)
         statistics['AverageReturn'] = average_returns
@@ -492,20 +520,18 @@ class BDP(RLAlgorithm):
         self.log_diagnostics(paths)
 
     def get_epoch_snapshot(self, epoch):
-        pass
+        return dict(
+            env=self.training_env,
+            epoch=epoch,
+            policy=self.policy,
+            es=self.exploration_strategy,
+            qf=self.qf,
+        )
 
     def get_subtraj_batch(self):
         # batch = self.pool.random_batch(self.batch_size)
-        batch, _ = self.pool.random_subtrajectories(self.batch_size)
-        torch_batch = {
-            k: Variable(torch.from_numpy(array).float(), requires_grad=True)
-            for k, array in batch.items()
-        }
-        rewards = torch_batch['rewards']
-        terminals = torch_batch['terminals']
-        torch_batch['rewards'] = rewards.view(*rewards.size(), 1)
-        torch_batch['terminals'] = terminals.view(*terminals.size(), 1)
-        return torch_batch
+        raw_subtraj_batch, _ = self.pool.random_subtrajectories(self.batch_size)
+        return create_torch_subtraj_batch(raw_subtraj_batch)
 
     def _can_train(self, n_steps_total):
         return self.pool.num_can_sample() >= self.batch_size
@@ -541,9 +567,6 @@ class BDP(RLAlgorithm):
     def _get_other_statistics(self):
         return {}
 
-    def _statistics_from_paths(self, paths):
-        return {}
-
     def log_diagnostics(self, paths):
         self.env.log_diagnostics(paths)
 
@@ -567,6 +590,83 @@ class BDP(RLAlgorithm):
         subtraj_batch['new_writes'] = new_writes
         subtraj_batch['new_next_memories'] = new_writes
         return subtraj_batch
+
+    def _statistics_from_paths(self, paths):
+        eval_pool = UpdatableSubtrajReplayBuffer(
+            len(paths) * self.max_path_length,
+            self.env,
+            self.subtraj_length,
+            self.memory_dim,
+        )
+        for path in paths:
+            eval_pool.add_trajectory(path)
+        raw_subtraj_batch = eval_pool.get_all_valid_subtrajectories()
+        subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
+        qf_loss = self.get_qf_loss(subtraj_batch)
+        policy_loss = self.get_policy_loss(subtraj_batch)
+
+        statistics = OrderedDict()
+        statistics.update(create_stats_ordered_dict('Qf Loss', qf_loss))
+        statistics.update(create_stats_ordered_dict('Policy Loss', policy_loss))
+        return statistics
+
+    def get_qf_loss(self, subtraj_batch):
+        flat_batch = flatten_subtraj_batch(subtraj_batch)
+        rewards = flat_batch['rewards']
+        terminals = flat_batch['terminals']
+        obs = flat_batch['env_obs']
+        actions = flat_batch['env_actions']
+        next_obs = flat_batch['next_env_obs']
+        memories = flat_batch['memories']
+        writes = flat_batch['writes']
+        next_memories = flat_batch['next_memories']
+        next_actions, next_writes = self.target_policy.get_flat_output(
+            next_obs, next_memories
+        )
+        target_q_values = self.target_qf(
+            next_obs,
+            next_memories,
+            next_actions,
+            next_writes
+        )
+        y_target = rewards + (1. - terminals) * self.discount * target_q_values
+        # noinspection PyUnresolvedReferences
+        y_target = y_target.detach()
+        y_pred = self.qf(obs, memories, actions, writes)
+        qf_loss = self.qf_criterion(y_pred, y_target)
+        return qf_loss.data.numpy()
+
+    def get_policy_loss(self, subtraj_batch):
+        subtraj_obs = subtraj_batch['env_obs']
+        initial_memories = get_initial_memories(subtraj_batch)
+        _, policy_writes = self.policy(subtraj_obs, initial_memories)
+        if self.subtraj_length > 1:
+            new_memories = torch.cat(
+                (
+                    initial_memories.unsqueeze(1),
+                    policy_writes[:, :-1, :],
+                ),
+                dim=1,
+            )
+        else:
+            new_memories = initial_memories.unsqueeze(1)
+        subtraj_batch['new_memories'] = new_memories
+        subtraj_batch['policy_writes'] = policy_writes
+
+        flat_batch = flatten_subtraj_batch(subtraj_batch)
+        flat_obs = flat_batch['env_obs']
+        flat_new_memories = flat_batch['new_memories']
+        flat_env_actions = flat_batch['env_actions']
+        flat_policy_new_writes = flat_batch['policy_writes']
+
+        q_output = self.qf(
+            flat_obs,
+            flat_new_memories,
+            flat_env_actions,
+            flat_policy_new_writes
+        )
+        policy_loss = - q_output.mean()
+        return policy_loss.data.numpy()
 
 
 def copy_model_params(source, target):
