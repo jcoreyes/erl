@@ -8,6 +8,7 @@ from railrl.launchers.launcher_util import (
     run_experiment,
     set_seed,
 )
+from railrl.exploration_strategies.ou_strategy import OUStrategy
 
 
 def experiment(variant):
@@ -15,16 +16,34 @@ def experiment(variant):
     from railrl.launchers.launcher_util import (
         set_seed,
     )
+    from railrl.exploration_strategies.product_strategy import ProductStrategy
     seed = variant['seed']
     algo_params = variant['algo_params']
+    es_params = variant['es_params']
+
+    env_es_class = es_params['env_es_class']
+    env_es_params = es_params['env_es_params']
+    memory_es_class = es_params['memory_es_class']
+    memory_es_params = es_params['memory_es_params']
+
     set_seed(seed)
-    env = HighLow(num_steps=2)
+    raw_env = HighLow(num_steps=1)
     env = ContinuousMemoryAugmented(
-        env,
+        raw_env,
         num_memory_states=20,
     )
+    env_strategy = env_es_class(
+        env_spec=raw_env.spec,
+        **env_es_params
+    )
+    write_strategy = memory_es_class(
+        env_spec=env.memory_spec,
+        **memory_es_params
+    )
+    es = ProductStrategy([env_strategy, write_strategy])
     algorithm = BDP(
         env,
+        es,
         **algo_params
     )
     algorithm.train()
@@ -35,11 +54,24 @@ if __name__ == '__main__':
     mode = "here"
     exp_prefix = "dev-pytorch"
 
-    algo_params = dict(
-        subtraj_length=2,
-    )
+    # noinspection PyTypeChecker
     variant = dict(
-        algo_params=algo_params,
+        algo_params=dict(
+            subtraj_length=1,
+        ),
+        es_params=dict(
+            env_es_class=OUStrategy,
+            env_es_params=dict(
+                max_sigma=1,
+                min_sigma=None,
+            ),
+            memory_es_class=OUStrategy,
+            memory_es_params=dict(
+                max_sigma=1,
+                min_sigma=None,
+            ),
+            noise_action_to_memory=False,
+        ),
     )
     exp_id = -1
     for seed in range(n_seeds):
