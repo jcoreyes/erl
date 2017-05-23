@@ -20,6 +20,8 @@ def experiment(variant):
     seed = variant['seed']
     algo_params = variant['algo_params']
     es_params = variant['es_params']
+    memory_dim = variant['memory_dim']
+    env_params = variant['env_params']
 
     env_es_class = es_params['env_es_class']
     env_es_params = es_params['env_es_params']
@@ -27,10 +29,10 @@ def experiment(variant):
     memory_es_params = es_params['memory_es_params']
 
     set_seed(seed)
-    raw_env = HighLow(num_steps=1)
+    raw_env = HighLow(**env_params)
     env = ContinuousMemoryAugmented(
         raw_env,
-        num_memory_states=20,
+        num_memory_states=memory_dim,
     )
     env_strategy = env_es_class(
         env_spec=raw_env.spec,
@@ -56,8 +58,12 @@ if __name__ == '__main__':
 
     # noinspection PyTypeChecker
     variant = dict(
+        memory_dim=2,
+        env_params=dict(
+            num_steps=2,
+        ),
         algo_params=dict(
-            subtraj_length=1,
+            subtraj_length=2,
         ),
         es_params=dict(
             env_es_class=OUStrategy,
@@ -70,7 +76,6 @@ if __name__ == '__main__':
                 max_sigma=1,
                 min_sigma=None,
             ),
-            noise_action_to_memory=False,
         ),
     )
     exp_id = -1
