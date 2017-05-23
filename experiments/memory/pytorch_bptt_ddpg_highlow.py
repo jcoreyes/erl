@@ -1,8 +1,10 @@
 """
 Try the PyTorch version of BPTT DDPG on HighLow env.
 """
-from railrl.envs.memory.continuous_memory_augmented import \
+import random
+from railrl.envs.memory.continuous_memory_augmented import (
     ContinuousMemoryAugmented
+)
 from railrl.envs.memory.high_low import HighLow
 from railrl.launchers.launcher_util import (
     run_experiment,
@@ -58,7 +60,7 @@ if __name__ == '__main__':
 
     # noinspection PyTypeChecker
     variant = dict(
-        memory_dim=2,
+        memory_dim=20,
         env_params=dict(
             num_steps=2,
         ),
@@ -79,7 +81,8 @@ if __name__ == '__main__':
         ),
     )
     exp_id = -1
-    for seed in range(n_seeds):
+    for _ in range(n_seeds):
+        seed = random.randint(0, 99999)
         exp_id += 1
         set_seed(seed)
         variant['seed'] = seed
