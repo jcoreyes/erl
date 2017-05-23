@@ -383,7 +383,6 @@ class BDP(RLAlgorithm):
             copy_model_params(self.policy, self.target_policy)
 
     def train_critic(self, subtraj_batch):
-        # subtraj_batch = self.add_new_memories_and_writes(subtraj_batch)
         flat_batch = flatten_subtraj_batch(subtraj_batch)
         rewards = flat_batch['rewards']
         terminals = flat_batch['terminals']
@@ -393,21 +392,8 @@ class BDP(RLAlgorithm):
         memories = flat_batch['memories']
         writes = flat_batch['writes']
         next_memories = flat_batch['next_memories']
-        # new_memories = flat_batch['new_memories']
-        # new_writes = flat_batch['new_writes']
-        # new_next_memories = flat_batch['new_next_memories']
 
-        # self.minimize_critic_bellman_error(
-        #     obs,
-        #     new_memories,
-        #     actions,
-        #     new_writes,
-        #     next_obs,
-        #     new_next_memories,
-        #     rewards,
-        #     terminals,
-        # )
-        self.minimize_critic_bellman_error(
+        bellman_error = self.get_bellman_error(
             obs,
             memories,
             actions,
@@ -417,8 +403,11 @@ class BDP(RLAlgorithm):
             rewards,
             terminals,
         )
+        self.qf_optimizer.zero_grad()
+        bellman_error.backward()
+        self.qf_optimizer.step()
 
-    def minimize_critic_bellman_error(
+    def get_bellman_error(
             self,
             obs,
             memories,
@@ -441,12 +430,8 @@ class BDP(RLAlgorithm):
         y_target = rewards + (1. - terminals) * self.discount * target_q_values
         # noinspection PyUnresolvedReferences
         y_target = y_target.detach()
-        y_pred = self.qf(obs, memories, actions, writes)
-        qf_loss = self.qf_criterion(y_pred, y_target)
-
-        self.qf_optimizer.zero_grad()
-        qf_loss.backward()
-        self.qf_optimizer.step()
+        y_predicted = self.qf(obs, memories, actions, writes)
+        return self.qf_criterion(y_predicted, y_target)
 
     def train_policy(self, subtraj_batch):
         subtraj_obs = subtraj_batch['env_obs']
@@ -464,6 +449,7 @@ class BDP(RLAlgorithm):
         else:
             new_memories = initial_memories.unsqueeze(1)
         # TODO(vitchyr): should I detach (stop gradients)?
+        # I don't think so. If we have dQ/dmemory, why not use it?
         # new_memories = new_memories.detach()
         subtraj_batch['policy_new_memories'] = new_memories
         subtraj_batch['policy_new_writes'] = policy_writes
@@ -472,23 +458,39 @@ class BDP(RLAlgorithm):
         flat_batch = flatten_subtraj_batch(subtraj_batch)
         flat_obs = flat_batch['env_obs']
         flat_new_memories = flat_batch['policy_new_memories']
-        flat_env_actions = flat_batch['policy_new_actions']
-        flat_policy_new_writes = flat_batch['policy_new_writes']
+        flat_new_actions = flat_batch['policy_new_actions']
+        flat_new_writes = flat_batch['policy_new_writes']
         q_output = self.qf(
             flat_obs,
             flat_new_memories,
-            flat_env_actions,
-            flat_policy_new_writes
+            flat_new_actions,
+            flat_new_writes
         )
         policy_loss = - q_output.mean()
 
+        flat_env_next_obs = flat_batch['next_env_obs']
+        flat_env_actions = flat_batch['env_actions']
+        flat_rewards = flat_batch['rewards']
+        flat_terminals = flat_batch['terminals']
+        bellman_error = self.get_bellman_error(
+            flat_obs,
+            flat_new_memories,
+            flat_env_actions,
+            flat_new_writes,
+            flat_env_next_obs,
+            flat_new_writes,
+            flat_rewards,
+            flat_terminals,
+        )
+
         self.policy_optimizer.zero_grad()
-        policy_loss.backward()
+        policy_loss.backward(retain_variables=True)
+        bellman_error.backward()
         self.policy_optimizer.step()
 
-        # TODO(vitchyr): Make policy minimize Bellman error
-        # TODO(vitchyr): ^ When doing this, do I still use target policies?
+        # TODO(vitchyr): Still use target policies when minimizing Bellman err?
         # TODO(vitchyr): Split policy into training env and write actions
+        # TODO(vitchyr): Add train/validation set for policy and qf
 
     def evaluate(self, epoch, exploration_info_dict):
         """
