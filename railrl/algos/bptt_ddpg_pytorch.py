@@ -9,6 +9,7 @@ from railrl.misc.data_processing import create_stats_ordered_dict
 from rllab.algos.base import RLAlgorithm
 import numpy as np
 import torch
+# noinspection PyPep8Naming
 import torch.nn.functional as F
 from torch.autograd import Variable
 import torch.nn as nn
@@ -233,7 +234,7 @@ def create_torch_subtraj_batch(subtraj_batch):
     torch_batch = {
         k: Variable(torch.from_numpy(array).float(), requires_grad=True)
         for k, array in subtraj_batch.items()
-        }
+    }
     rewards = torch_batch['rewards']
     terminals = torch_batch['terminals']
     torch_batch['rewards'] = rewards.unsqueeze(-1)
@@ -355,7 +356,7 @@ class BDP(RLAlgorithm):
                 else:
                     observation = next_ob
 
-                if self._can_train(n_steps_total):
+                if self._can_train():
                     self._do_training(n_steps_total=n_steps_total)
 
             logger.log(
@@ -496,14 +497,13 @@ class BDP(RLAlgorithm):
 
         It's recommended
         :param epoch: The epoch number.
-        :param es_path_returns: List of path returns from explorations strategy
+        :param exploration_info_dict: Dict from name to torch Variable.
         :return: Dictionary of statistics.
         """
         logger.log("Collecting samples for evaluation")
         paths = self._sample_paths(epoch)
         statistics = OrderedDict()
 
-        statistics.update(self._get_other_statistics())
         statistics.update(self._statistics_from_paths(paths))
 
         returns = [sum(path["rewards"]) for path in paths]
@@ -541,11 +541,10 @@ class BDP(RLAlgorithm):
         )
 
     def get_subtraj_batch(self):
-        # batch = self.pool.random_batch(self.batch_size)
         raw_subtraj_batch, _ = self.pool.random_subtrajectories(self.batch_size)
         return create_torch_subtraj_batch(raw_subtraj_batch)
 
-    def _can_train(self, n_steps_total):
+    def _can_train(self):
         return self.pool.num_can_sample() >= self.batch_size
 
     def _start_worker(self):
@@ -575,9 +574,6 @@ class BDP(RLAlgorithm):
         )
         self.batch_size = saved_batch_size
         return paths
-
-    def _get_other_statistics(self):
-        return {}
 
     def log_diagnostics(self, paths):
         self.env.log_diagnostics(paths)
