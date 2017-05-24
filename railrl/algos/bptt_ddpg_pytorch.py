@@ -271,7 +271,6 @@ class BDP(RLAlgorithm):
         self.scope = None  # Necessary for BatchSampler
         self.whole_paths = True  # Also for BatchSampler
 
-        self.mse = nn.MSELoss()
         self.qf_optimizer = optim.Adam(self.qf.parameters(), lr=1e-3)
         self.policy_optimizer = optim.Adam(self.policy.parameters(), lr=1e-3)
         self.pps = list(self.policy.parameters())
@@ -359,9 +358,9 @@ class BDP(RLAlgorithm):
 
     def train_critic(self, subtraj_batch):
         critic_dict = self.get_critic_output_dict(subtraj_batch)
-        mean_bellman_error = critic_dict['mean_bellman_error']
+        bellman_error = critic_dict['Bellman Errors']
         self.qf_optimizer.zero_grad()
-        mean_bellman_error.backward()
+        bellman_error.mean().backward()
         self.qf_optimizer.step()
 
     def get_critic_output_dict(self, subtraj_batch):
@@ -394,23 +393,23 @@ class BDP(RLAlgorithm):
         # noinspection PyUnresolvedReferences
         y_target = y_target.detach()
         y_predicted = self.qf(obs, memories, actions, writes)
-        bellman_error = self.mse(y_predicted, y_target)
+        bellman_errors = (y_predicted - y_target)**2
         return OrderedDict({
-            'target_q_values': target_q_values,
-            'y_target': y_target,
-            'y_predicted': y_predicted,
-            'mean_bellman_error': bellman_error,
+            'Target Q Values': target_q_values,
+            'Y target': y_target,
+            'Y predicted': y_predicted,
+            'Bellman Errors': bellman_errors,
         })
 
     def train_policy(self, subtraj_batch):
         policy_dict = self.get_policy_output_dict(subtraj_batch)
 
         policy_loss = policy_dict['loss']
-        mean_bellman_error = policy_dict['mean_bellman_error']
+        bellman_errors = policy_dict['Bellman Errors']
 
         self.policy_optimizer.zero_grad()
         policy_loss.backward(retain_variables=True)
-        mean_bellman_error.backward()
+        bellman_errors.mean().backward()
         self.policy_optimizer.step()
 
     def get_policy_output_dict(self, subtraj_batch):
@@ -476,14 +475,14 @@ class BDP(RLAlgorithm):
         y_target = y_target.detach()
         y_predicted = self.qf(flat_obs, flat_new_memories, flat_actions,
                               flat_new_writes)
-        bellman_error = self.mse(y_predicted, y_target)
+        bellman_errors = (y_predicted - y_target)**2
         # TODO(vitchyr): Still use target policies when minimizing Bellman err?
         # TODO(vitchyr): Split policy into training env and write actions
         return OrderedDict({
-            'target_q_values': target_q_values,
-            'y_target': y_target,
-            'y_predicted': y_predicted,
-            'mean_bellman_error': bellman_error,
+            'Target Q Values': target_q_values,
+            'Y target': y_target,
+            'Y predicted': y_predicted,
+            'Bellman Errors': bellman_errors,
             'loss': policy_loss,
             'env_actions': flat_batch['policy_new_actions'],
             'writes': flat_batch['policy_new_writes'],
