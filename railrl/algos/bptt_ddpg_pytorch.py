@@ -127,7 +127,7 @@ class Policy(nn.Module):
         Create the new subtrajectory memories with the initial memories and the
         new writes.
         """
-        expanded_init_memory = expand_dims(initial_memory, 1)
+        expanded_init_memory = initial_memory.unsqueeze(1)
         if subsequence_length > 1:
             memories = torch.cat(
                 (
@@ -190,7 +190,7 @@ class Policy(nn.Module):
             actions: torch Variable, [batch_size X action_dim]
             writes: torch Variable, [batch_size X writes_dim]
         """
-        obs = expand_dims(obs, 1)
+        obs = obs.unsqueeze(1)
         actions, writes = self.__call__(obs, initial_memories)
         return torch.squeeze(actions, dim=1), torch.squeeze(writes, dim=1)
 
@@ -660,7 +660,3 @@ def create_torch_subtraj_batch(subtraj_batch):
     torch_batch['rewards'] = rewards.unsqueeze(-1)
     torch_batch['terminals'] = terminals.unsqueeze(-1)
     return torch_batch
-
-
-def expand_dims(tensor, axis):
-    return tensor.unsqueeze(axis)
