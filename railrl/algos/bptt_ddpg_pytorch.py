@@ -264,7 +264,7 @@ class BDP(RLAlgorithm):
         self.batch_size = 32
         self.max_path_length = 1000
         self.n_eval_samples = 100
-        self.copy_target_param_period = 1000
+        self.copy_target_param_period = 10000
 
         # noinspection PyTypeChecker
         self.eval_sampler = BatchSampler(self)
