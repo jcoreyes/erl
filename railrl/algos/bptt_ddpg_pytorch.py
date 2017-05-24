@@ -505,6 +505,7 @@ class BDP(RLAlgorithm):
         paths = self._sample_paths(epoch)
         statistics = OrderedDict()
 
+        statistics.update(self._get_other_statistics())
         statistics.update(self._statistics_from_paths(paths))
 
         returns = [sum(path["rewards"]) for path in paths]
@@ -611,14 +612,23 @@ class BDP(RLAlgorithm):
             eval_pool.add_trajectory(path)
         raw_subtraj_batch = eval_pool.get_all_valid_subtrajectories()
         subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
+        return self._statistics_from_subtraj_batch(subtraj_batch)
+
+    def _statistics_from_subtraj_batch(self, subtraj_batch, stat_prefix=''):
         qf_loss = self.get_qf_loss(subtraj_batch)
-        policy_loss, act, write = self.get_policy_loss(subtraj_batch)
+        policy_loss, action, write = self.get_policy_loss(subtraj_batch)
 
         statistics = OrderedDict()
-        statistics.update(create_stats_ordered_dict('Qf Loss', qf_loss))
-        statistics.update(create_stats_ordered_dict('Policy Loss', policy_loss))
-        statistics.update(create_stats_ordered_dict('Policy Env Action', act))
-        statistics.update(create_stats_ordered_dict('Policy Env Write', write))
+        for name, array in [
+            ('Qf Loss', qf_loss),
+            ('Policy Loss', policy_loss),
+            ('Policy Action', action),
+            ('Policy Write', write),
+        ]:
+            statistics.update(create_stats_ordered_dict(
+                '{}{}'.format(stat_prefix, name),
+                array,
+            ))
         return statistics
 
     def get_qf_loss(self, subtraj_batch):
@@ -684,6 +694,21 @@ class BDP(RLAlgorithm):
             flat_batch['policy_new_actions'].data.numpy(),
             flat_batch['policy_new_writes'].data.numpy(),
         )
+
+    def _get_other_statistics(self):
+        statistics = OrderedDict()
+        for stat_prefix, validation in [
+            ('Validation_', True),
+            ('Train_', False),
+        ]:
+            raw_subtraj_batch = self.pool.get_valid_subtrajectories(
+                validation=validation
+            )
+            subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
+            statistics.update(self._statistics_from_subtraj_batch(
+                subtraj_batch, stat_prefix=stat_prefix
+            ))
+        return statistics
 
 
 def copy_model_params(source, target):
