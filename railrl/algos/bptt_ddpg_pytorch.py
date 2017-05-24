@@ -70,10 +70,6 @@ class QFunction(nn.Module):
         return copy
 
 
-def expand_dims(tensor, axis):
-    return tensor.unsqueeze(axis)
-
-
 class Policy(nn.Module):
     def __init__(
             self,
@@ -219,29 +215,6 @@ class Policy(nn.Module):
         return copy
 
 
-def flatten_subtraj_batch(subtraj_batch):
-    return {
-        k: array.view(-1, array.size()[-1])
-        for k, array in subtraj_batch.items()
-    }
-
-
-def get_initial_memories(subtraj_batch):
-    return subtraj_batch['memories'][:, 0, :]
-
-
-def create_torch_subtraj_batch(subtraj_batch):
-    torch_batch = {
-        k: Variable(torch.from_numpy(array).float(), requires_grad=True)
-        for k, array in subtraj_batch.items()
-    }
-    rewards = torch_batch['rewards']
-    terminals = torch_batch['terminals']
-    torch_batch['rewards'] = rewards.unsqueeze(-1)
-    torch_batch['terminals'] = terminals.unsqueeze(-1)
-    return torch_batch
-
-
 # noinspection PyCallingNonCallable
 class BDP(RLAlgorithm):
     """
@@ -375,7 +348,9 @@ class BDP(RLAlgorithm):
             logger.pop_prefix()
 
     def _do_training(self, n_steps_total):
-        subtraj_batch = self.get_subtraj_batch()
+        raw_subtraj_batch, _ = self.pool.random_subtrajectories(self.batch_size)
+        subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
+
         self.train_critic(subtraj_batch)
         self.train_policy(subtraj_batch)
         if n_steps_total % self.copy_target_param_period == 0:
@@ -457,10 +432,6 @@ class BDP(RLAlgorithm):
         bellman_error.backward()
         self.policy_optimizer.step()
 
-        # TODO(vitchyr): Still use target policies when minimizing Bellman err?
-        # TODO(vitchyr): Split policy into training env and write actions
-        # TODO(vitchyr): Add train/validation set for policy and qf
-
     def get_policy_output_dict(self, subtraj_batch):
         """
         :param subtraj_batch: A tensor subtrajectory dict. Basically, it should
@@ -516,6 +487,8 @@ class BDP(RLAlgorithm):
             flat_rewards,
             flat_terminals,
         )
+        # TODO(vitchyr): Still use target policies when minimizing Bellman err?
+        # TODO(vitchyr): Split policy into training env and write actions
         return {
             'bellman_error': bellman_error,
             'loss': policy_loss,
@@ -549,7 +522,7 @@ class BDP(RLAlgorithm):
         discounted_returns = [
             special.discount_return(path["rewards"], self.discount)
             for path in paths
-        ]
+            ]
         statistics.update(create_stats_ordered_dict('Rewards', rewards))
         statistics.update(create_stats_ordered_dict('Returns', returns))
         statistics.update(create_stats_ordered_dict('DiscountedReturns',
@@ -562,74 +535,6 @@ class BDP(RLAlgorithm):
             logger.record_tabular(key, value)
 
         self.log_diagnostics(paths)
-
-    def get_epoch_snapshot(self, epoch):
-        return dict(
-            env=self.training_env,
-            epoch=epoch,
-            policy=self.policy,
-            es=self.exploration_strategy,
-            qf=self.qf,
-        )
-
-    def get_subtraj_batch(self):
-        raw_subtraj_batch, _ = self.pool.random_subtrajectories(self.batch_size)
-        return create_torch_subtraj_batch(raw_subtraj_batch)
-
-    def _can_train(self):
-        return self.pool.num_can_sample() >= self.batch_size
-
-    def _start_worker(self):
-        self.eval_sampler.start_worker()
-
-    def _shutdown_worker(self):
-        self.eval_sampler.shutdown_worker()
-
-    def _sample_paths(self, epoch):
-        """
-        Returns flattened paths.
-
-        :param epoch: Epoch number
-        :return: Dictionary with these keys:
-            observations: np.ndarray, shape BATCH_SIZE x flat observation dim
-            actions: np.ndarray, shape BATCH_SIZE x flat action dim
-            rewards: np.ndarray, shape BATCH_SIZE
-            terminals: np.ndarray, shape BATCH_SIZE
-            agent_infos: unsure
-            env_infos: unsure
-        """
-        # Sampler uses self.batch_size to figure out how many samples to get
-        saved_batch_size = self.batch_size
-        self.batch_size = self.n_eval_samples
-        paths = self.eval_sampler.obtain_samples(
-            itr=epoch,
-        )
-        self.batch_size = saved_batch_size
-        return paths
-
-    def log_diagnostics(self, paths):
-        self.env.log_diagnostics(paths)
-
-    def subtraj_batch_to_list_of_batch(self, subtraj_batch):
-        batches = []
-        for i in range(self.subtraj_length):
-            batch = {
-                k: values[:, i, :] for k, values in subtraj_batch.items()
-            }
-            batches.append(batch)
-        return batches
-
-    def add_new_memories_and_writes(self, subtraj_batch):
-        initial_memories = get_initial_memories(subtraj_batch)
-        subtraj_obs = subtraj_batch['env_obs']
-        _, new_writes = self.target_policy(
-            subtraj_obs, initial_memories
-        )
-        new_memories = torch.cat((initial_memories, new_writes), dim=1)
-        subtraj_batch['new_memories'] = new_memories
-        subtraj_batch['new_writes'] = new_writes
-        subtraj_batch['new_next_memories'] = new_writes
-        return subtraj_batch
 
     def _statistics_from_paths(self, paths):
         eval_pool = UpdatableSubtrajReplayBuffer(
@@ -678,6 +583,53 @@ class BDP(RLAlgorithm):
             ))
         return statistics
 
+    """
+    Random small functions.
+    """
+
+    def _can_train(self):
+        return self.pool.num_can_sample() >= self.batch_size
+
+    def _start_worker(self):
+        self.eval_sampler.start_worker()
+
+    def _shutdown_worker(self):
+        self.eval_sampler.shutdown_worker()
+
+    def _sample_paths(self, epoch):
+        """
+        Returns flattened paths.
+
+        :param epoch: Epoch number
+        :return: Dictionary with these keys:
+            observations: np.ndarray, shape BATCH_SIZE x flat observation dim
+            actions: np.ndarray, shape BATCH_SIZE x flat action dim
+            rewards: np.ndarray, shape BATCH_SIZE
+            terminals: np.ndarray, shape BATCH_SIZE
+            agent_infos: unsure
+            env_infos: unsure
+        """
+        # Sampler uses self.batch_size to figure out how many samples to get
+        saved_batch_size = self.batch_size
+        self.batch_size = self.n_eval_samples
+        paths = self.eval_sampler.obtain_samples(
+            itr=epoch,
+        )
+        self.batch_size = saved_batch_size
+        return paths
+
+    def get_epoch_snapshot(self, epoch):
+        return dict(
+            env=self.training_env,
+            epoch=epoch,
+            policy=self.policy,
+            es=self.exploration_strategy,
+            qf=self.qf,
+        )
+
+    def log_diagnostics(self, paths):
+        self.env.log_diagnostics(paths)
+
 
 def copy_model_params(source, target):
     for source_param, target_param in zip(
@@ -685,3 +637,30 @@ def copy_model_params(source, target):
             target.parameters()
     ):
         target_param.data = source_param.data
+
+
+def flatten_subtraj_batch(subtraj_batch):
+    return {
+        k: array.view(-1, array.size()[-1])
+        for k, array in subtraj_batch.items()
+        }
+
+
+def get_initial_memories(subtraj_batch):
+    return subtraj_batch['memories'][:, 0, :]
+
+
+def create_torch_subtraj_batch(subtraj_batch):
+    torch_batch = {
+        k: Variable(torch.from_numpy(array).float(), requires_grad=True)
+        for k, array in subtraj_batch.items()
+        }
+    rewards = torch_batch['rewards']
+    terminals = torch_batch['terminals']
+    torch_batch['rewards'] = rewards.unsqueeze(-1)
+    torch_batch['terminals'] = terminals.unsqueeze(-1)
+    return torch_batch
+
+
+def expand_dims(tensor, axis):
+    return tensor.unsqueeze(axis)
