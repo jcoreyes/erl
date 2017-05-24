@@ -66,7 +66,7 @@ class QFunction(nn.Module):
             self.hidden_sizes,
             self.embed_obs_hidden_sizes,
         )
-        copy_model_params(self, copy)
+        copy_module_params_from_to(self, copy)
         return copy
 
 
@@ -211,7 +211,7 @@ class Policy(nn.Module):
             self.memory_dim,
             self.hidden_sizes,
         )
-        copy_model_params(self, copy)
+        copy_module_params_from_to(self, copy)
         return copy
 
 
@@ -354,8 +354,8 @@ class BDP(RLAlgorithm):
         self.train_critic(subtraj_batch)
         self.train_policy(subtraj_batch)
         if n_steps_total % self.copy_target_param_period == 0:
-            copy_model_params(self.qf, self.target_qf)
-            copy_model_params(self.policy, self.target_policy)
+            copy_module_params_from_to(self.qf, self.target_qf)
+            copy_module_params_from_to(self.policy, self.target_policy)
 
     def train_critic(self, subtraj_batch):
         critic_dict = self.get_critic_output_dict(subtraj_batch)
@@ -631,7 +631,7 @@ class BDP(RLAlgorithm):
         self.env.log_diagnostics(paths)
 
 
-def copy_model_params(source, target):
+def copy_module_params_from_to(source, target):
     for source_param, target_param in zip(
             source.parameters(),
             target.parameters()
