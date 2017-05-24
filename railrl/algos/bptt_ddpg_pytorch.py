@@ -262,6 +262,7 @@ class BDP(RLAlgorithm):
         self.target_policy = self.policy.clone()
         self.discount = 1.
         self.batch_size = 32
+        self.train_validation_batch_size = 64
         self.max_path_length = 1000
         self.n_eval_samples = 100
         self.copy_target_param_period = 10000
@@ -566,9 +567,10 @@ class BDP(RLAlgorithm):
             ('Validation ', True),
             ('Train ', False),
         ]:
-            raw_subtraj_batch = self.pool.get_valid_subtrajectories(
+            raw_subtraj_batch = self.pool.random_subtrajectories(
+                self.train_validation_batch_size,
                 validation=validation
-            )
+            )[0]
             subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
             statistics.update(self._statistics_from_subtraj_batch(
                 subtraj_batch, stat_prefix=stat_prefix
