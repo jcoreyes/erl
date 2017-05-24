@@ -271,7 +271,7 @@ class BDP(RLAlgorithm):
         self.scope = None  # Necessary for BatchSampler
         self.whole_paths = True  # Also for BatchSampler
 
-        self.qf_criterion = nn.MSELoss()
+        self.mse = nn.MSELoss()
         self.qf_optimizer = optim.Adam(self.qf.parameters(), lr=1e-3)
         self.policy_optimizer = optim.Adam(self.policy.parameters(), lr=1e-3)
         self.pps = list(self.policy.parameters())
@@ -359,9 +359,9 @@ class BDP(RLAlgorithm):
 
     def train_critic(self, subtraj_batch):
         critic_dict = self.get_critic_output_dict(subtraj_batch)
-        bellman_error = critic_dict['bellman_error']
+        mean_bellman_error = critic_dict['mean_bellman_error']
         self.qf_optimizer.zero_grad()
-        bellman_error.backward()
+        mean_bellman_error.backward()
         self.qf_optimizer.step()
 
     def get_critic_output_dict(self, subtraj_batch):
@@ -381,31 +381,6 @@ class BDP(RLAlgorithm):
         writes = flat_batch['writes']
         next_memories = flat_batch['next_memories']
 
-        bellman_error = self.get_bellman_error(
-            obs,
-            memories,
-            actions,
-            writes,
-            next_obs,
-            next_memories,
-            rewards,
-            terminals,
-        )
-        return {
-            'bellman_error': bellman_error,
-        }
-
-    def get_bellman_error(
-            self,
-            obs,
-            memories,
-            actions,
-            writes,
-            next_obs,
-            next_memories,
-            rewards,
-            terminals,
-    ):
         next_actions, next_writes = self.target_policy.get_flat_output(
             next_obs, next_memories
         )
@@ -419,17 +394,23 @@ class BDP(RLAlgorithm):
         # noinspection PyUnresolvedReferences
         y_target = y_target.detach()
         y_predicted = self.qf(obs, memories, actions, writes)
-        return self.qf_criterion(y_predicted, y_target)
+        bellman_error = self.mse(y_predicted, y_target)
+        return OrderedDict({
+            'target_q_values': target_q_values,
+            'y_target': y_target,
+            'y_predicted': y_predicted,
+            'mean_bellman_error': bellman_error,
+        })
 
     def train_policy(self, subtraj_batch):
         policy_dict = self.get_policy_output_dict(subtraj_batch)
 
         policy_loss = policy_dict['loss']
-        bellman_error = policy_dict['bellman_error']
+        mean_bellman_error = policy_dict['mean_bellman_error']
 
         self.policy_optimizer.zero_grad()
         policy_loss.backward(retain_variables=True)
-        bellman_error.backward()
+        mean_bellman_error.backward()
         self.policy_optimizer.step()
 
     def get_policy_output_dict(self, subtraj_batch):
@@ -473,28 +454,40 @@ class BDP(RLAlgorithm):
         )
         policy_loss = - q_output.mean()
 
-        flat_env_next_obs = flat_batch['next_env_obs']
-        flat_env_actions = flat_batch['env_actions']
+        flat_next_obs = flat_batch['next_env_obs']
+        flat_actions = flat_batch['env_actions']
         flat_rewards = flat_batch['rewards']
         flat_terminals = flat_batch['terminals']
-        bellman_error = self.get_bellman_error(
-            flat_obs,
-            flat_new_memories,
-            flat_env_actions,
-            flat_new_writes,
-            flat_env_next_obs,
-            flat_new_writes,
-            flat_rewards,
-            flat_terminals,
+        flat_next_memories = flat_new_writes
+        flat_next_actions, flat_next_writes = self.target_policy.get_flat_output(
+            flat_next_obs, flat_next_memories
         )
+        target_q_values = self.target_qf(
+            flat_next_obs,
+            flat_next_memories,
+            flat_next_actions,
+            flat_next_writes
+        )
+        y_target = (
+            flat_rewards
+            + (1. - flat_terminals) * self.discount *  target_q_values
+        )
+        # noinspection PyUnresolvedReferences
+        y_target = y_target.detach()
+        y_predicted = self.qf(flat_obs, flat_new_memories, flat_actions,
+                              flat_new_writes)
+        bellman_error = self.mse(y_predicted, y_target)
         # TODO(vitchyr): Still use target policies when minimizing Bellman err?
         # TODO(vitchyr): Split policy into training env and write actions
-        return {
-            'bellman_error': bellman_error,
+        return OrderedDict({
+            'target_q_values': target_q_values,
+            'y_target': y_target,
+            'y_predicted': y_predicted,
+            'mean_bellman_error': bellman_error,
             'loss': policy_loss,
             'env_actions': flat_batch['policy_new_actions'],
             'writes': flat_batch['policy_new_writes'],
-        }
+        })
 
     def evaluate(self, epoch, exploration_info_dict):
         """
