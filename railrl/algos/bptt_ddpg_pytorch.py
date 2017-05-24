@@ -383,6 +383,19 @@ class BDP(RLAlgorithm):
             copy_model_params(self.policy, self.target_policy)
 
     def train_critic(self, subtraj_batch):
+        critic_dict = self.get_critic_output_dict(subtraj_batch)
+        bellman_error = critic_dict['bellman_error']
+        self.qf_optimizer.zero_grad()
+        bellman_error.backward()
+        self.qf_optimizer.step()
+
+    def get_critic_output_dict(self, subtraj_batch):
+        """
+        :param subtraj_batch: A tensor subtrajectory dict. Basically, it should
+        be the output of `create_torch_subtraj_batch`
+        :return: Dictionary containing Variables/Tensors for training the
+        critic, including intermediate values that might be useful to log.
+        """
         flat_batch = flatten_subtraj_batch(subtraj_batch)
         rewards = flat_batch['rewards']
         terminals = flat_batch['terminals']
@@ -403,9 +416,9 @@ class BDP(RLAlgorithm):
             rewards,
             terminals,
         )
-        self.qf_optimizer.zero_grad()
-        bellman_error.backward()
-        self.qf_optimizer.step()
+        return {
+            'bellman_error': bellman_error,
+        }
 
     def get_bellman_error(
             self,
@@ -434,6 +447,27 @@ class BDP(RLAlgorithm):
         return self.qf_criterion(y_predicted, y_target)
 
     def train_policy(self, subtraj_batch):
+        policy_dict = self.get_policy_output_dict(subtraj_batch)
+
+        policy_loss = policy_dict['loss']
+        bellman_error = policy_dict['bellman_error']
+
+        self.policy_optimizer.zero_grad()
+        policy_loss.backward(retain_variables=True)
+        bellman_error.backward()
+        self.policy_optimizer.step()
+
+        # TODO(vitchyr): Still use target policies when minimizing Bellman err?
+        # TODO(vitchyr): Split policy into training env and write actions
+        # TODO(vitchyr): Add train/validation set for policy and qf
+
+    def get_policy_output_dict(self, subtraj_batch):
+        """
+        :param subtraj_batch: A tensor subtrajectory dict. Basically, it should
+        be the output of `create_torch_subtraj_batch`
+        :return: Dictionary containing Variables/Tensors for training the
+        policy, including intermediate values that might be useful to log.
+        """
         subtraj_obs = subtraj_batch['env_obs']
         initial_memories = get_initial_memories(subtraj_batch)
         policy_actions, policy_writes = self.policy(subtraj_obs,
@@ -482,15 +516,12 @@ class BDP(RLAlgorithm):
             flat_rewards,
             flat_terminals,
         )
-
-        self.policy_optimizer.zero_grad()
-        policy_loss.backward(retain_variables=True)
-        bellman_error.backward()
-        self.policy_optimizer.step()
-
-        # TODO(vitchyr): Still use target policies when minimizing Bellman err?
-        # TODO(vitchyr): Split policy into training env and write actions
-        # TODO(vitchyr): Add train/validation set for policy and qf
+        return {
+            'bellman_error': bellman_error,
+            'loss': policy_loss,
+            'env_actions': flat_batch['policy_new_actions'],
+            'writes': flat_batch['policy_new_writes'],
+        }
 
     def evaluate(self, epoch, exploration_info_dict):
         """
@@ -501,31 +532,30 @@ class BDP(RLAlgorithm):
         :param exploration_info_dict: Dict from name to torch Variable.
         :return: Dictionary of statistics.
         """
-        logger.log("Collecting samples for evaluation")
-        paths = self._sample_paths(epoch)
         statistics = OrderedDict()
 
-        statistics.update(self._get_other_statistics())
-        statistics.update(self._statistics_from_paths(paths))
-
-        returns = [sum(path["rewards"]) for path in paths]
-
-        discounted_returns = [
-            special.discount_return(path["rewards"], self.discount)
-            for path in paths
-        ]
-        rewards = np.hstack([path["rewards"] for path in paths])
-        statistics.update(create_stats_ordered_dict('Rewards', rewards))
-        statistics.update(create_stats_ordered_dict('Returns', returns))
-        statistics.update(create_stats_ordered_dict('DiscountedReturns',
-                                                    discounted_returns))
         for k, v in exploration_info_dict.items():
             statistics.update(create_stats_ordered_dict(
                 'Exploration {}'.format(k), np.array(v, dtype=np.float32)
             ))
+        statistics.update(self._get_other_statistics())
 
+        logger.log("Collecting samples for evaluation")
+        paths = self._sample_paths(epoch)
+        statistics.update(self._statistics_from_paths(paths))
+
+        rewards = np.hstack([path["rewards"] for path in paths])
+        returns = [sum(path["rewards"]) for path in paths]
+        discounted_returns = [
+            special.discount_return(path["rewards"], self.discount)
+            for path in paths
+        ]
+        statistics.update(create_stats_ordered_dict('Rewards', rewards))
+        statistics.update(create_stats_ordered_dict('Returns', returns))
+        statistics.update(create_stats_ordered_dict('DiscountedReturns',
+                                                    discounted_returns))
         average_returns = np.mean(returns)
-        statistics['AverageReturn'] = average_returns
+        statistics['AverageReturn'] = average_returns  # to match rllab
         statistics['Epoch'] = epoch
 
         for key, value in statistics.items():
@@ -612,94 +642,32 @@ class BDP(RLAlgorithm):
             eval_pool.add_trajectory(path)
         raw_subtraj_batch = eval_pool.get_all_valid_subtrajectories()
         subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
-        return self._statistics_from_subtraj_batch(subtraj_batch)
+        return self._statistics_from_subtraj_batch(subtraj_batch,
+                                                   stat_prefix='Test ')
 
     def _statistics_from_subtraj_batch(self, subtraj_batch, stat_prefix=''):
-        qf_loss = self.get_qf_loss(subtraj_batch)
-        policy_loss, action, write = self.get_policy_loss(subtraj_batch)
-
         statistics = OrderedDict()
-        for name, array in [
-            ('Qf Loss', qf_loss),
-            ('Policy Loss', policy_loss),
-            ('Policy Action', action),
-            ('Policy Write', write),
-        ]:
+
+        critic_dict = self.get_critic_output_dict(subtraj_batch)
+        for name, tensor in critic_dict.items():
             statistics.update(create_stats_ordered_dict(
-                '{}{}'.format(stat_prefix, name),
-                array,
+                '{}QF {}'.format(stat_prefix, name),
+                tensor.data.numpy()
+            ))
+
+        policy_dict = self.get_policy_output_dict(subtraj_batch)
+        for name, tensor in policy_dict.items():
+            statistics.update(create_stats_ordered_dict(
+                '{}Policy {}'.format(stat_prefix, name),
+                tensor.data.numpy()
             ))
         return statistics
-
-    def get_qf_loss(self, subtraj_batch):
-        flat_batch = flatten_subtraj_batch(subtraj_batch)
-        rewards = flat_batch['rewards']
-        terminals = flat_batch['terminals']
-        obs = flat_batch['env_obs']
-        actions = flat_batch['env_actions']
-        next_obs = flat_batch['next_env_obs']
-        memories = flat_batch['memories']
-        writes = flat_batch['writes']
-        next_memories = flat_batch['next_memories']
-        next_actions, next_writes = self.target_policy.get_flat_output(
-            next_obs, next_memories
-        )
-        target_q_values = self.target_qf(
-            next_obs,
-            next_memories,
-            next_actions,
-            next_writes
-        )
-        y_target = rewards + (1. - terminals) * self.discount * target_q_values
-        # noinspection PyUnresolvedReferences
-        y_target = y_target.detach()
-        y_pred = self.qf(obs, memories, actions, writes)
-        qf_loss = self.qf_criterion(y_pred, y_target)
-        return qf_loss.data.numpy()
-
-    def get_policy_loss(self, subtraj_batch):
-        subtraj_obs = subtraj_batch['env_obs']
-        initial_memories = get_initial_memories(subtraj_batch)
-        policy_actions, policy_writes = self.policy(subtraj_obs,
-                                                    initial_memories)
-        if self.subtraj_length > 1:
-            new_memories = torch.cat(
-                (
-                    initial_memories.unsqueeze(1),
-                    policy_writes[:, :-1, :],
-                ),
-                dim=1,
-            )
-        else:
-            new_memories = initial_memories.unsqueeze(1)
-        subtraj_batch['policy_new_memories'] = new_memories
-        subtraj_batch['policy_new_writes'] = policy_writes
-        subtraj_batch['policy_new_actions'] = policy_actions
-
-        flat_batch = flatten_subtraj_batch(subtraj_batch)
-        flat_obs = flat_batch['env_obs']
-        flat_new_memories = flat_batch['policy_new_memories']
-        flat_new_actions = flat_batch['policy_new_actions']
-        flat_new_writes = flat_batch['policy_new_writes']
-
-        q_output = self.qf(
-            flat_obs,
-            flat_new_memories,
-            flat_new_actions,
-            flat_new_writes
-        )
-        policy_loss = - q_output.mean()
-        return (
-            policy_loss.data.numpy(),
-            flat_batch['policy_new_actions'].data.numpy(),
-            flat_batch['policy_new_writes'].data.numpy(),
-        )
 
     def _get_other_statistics(self):
         statistics = OrderedDict()
         for stat_prefix, validation in [
-            ('Validation_', True),
-            ('Train_', False),
+            ('Validation ', True),
+            ('Train ', False),
         ]:
             raw_subtraj_batch = self.pool.get_valid_subtrajectories(
                 validation=validation
