@@ -6,6 +6,7 @@ from railrl.data_management.updatable_subtraj_replay_buffer import (
     UpdatableSubtrajReplayBuffer
 )
 from railrl.misc.data_processing import create_stats_ordered_dict
+from railrl.pythonplusplus import line_logger
 from rllab.algos.base import RLAlgorithm
 import numpy as np
 import torch
@@ -70,6 +71,16 @@ class QFunction(nn.Module):
         return copy
 
 
+class SumCell(nn.Module):
+    def __init__(self, obs_dim, memory_dim):
+        super().__init__()
+        self.fc = nn.Linear(obs_dim, memory_dim)
+
+    def forward(self, obs, memory):
+        new_memory = self.fc(obs)
+        return memory + new_memory
+
+
 class Policy(nn.Module):
     def __init__(
             self,
@@ -87,23 +98,19 @@ class Policy(nn.Module):
 
         self.fcs = []
         last_size = obs_dim + memory_dim
-        # last_size = memory_dim
         for size in hidden_sizes:
             self.fcs.append(nn.Linear(last_size, size))
             last_size = size
         self.last_fc = nn.Linear(last_size, action_dim)
 
         self.lstm_cell = nn.LSTMCell(self.obs_dim, self.memory_dim // 2)
+        # self.lstm_cell = SumCell(obs_dim, memory_dim)
         self.memory_to_obs_fc = nn.Linear(self.memory_dim, obs_dim)
 
     def action_parameters(self):
         for fc in [self.last_fc] + self.fcs:
             for param in fc.parameters():
                 yield param
-        # for fc
-        # return self.last_fc.parameters() + sum(
-        #     list(fc.parameters()) for fc in self.fcs
-        # )
 
     def write_parameters(self):
         return self.lstm_cell.parameters()
@@ -132,6 +139,11 @@ class Policy(nn.Module):
                                              self.memory_dim // 2))
         for i in range(subsequence_length):
             hx, cx = self.lstm_cell(obs[:, i, :], (hx, cx))
+            # new_memory = self.lstm_cell(obs[:, i, :], initial_memory)
+            # hx, cx = torch.split(new_memory, self.memory_dim // 2, dim=1)
+            # new_hx, new_cx = self.lstm_cell(obs[:, i, :], (hx, cx))
+            # hx = hx + new_hx
+            # cx = cx + new_cx
             new_hxs[:, i, :] = hx
             new_cxs[:, i, :] = cx
         subtraj_writes = torch.cat((new_hxs, new_cxs), dim=2)
@@ -156,7 +168,6 @@ class Policy(nn.Module):
         Use new memories to create env actions.
         """
         all_subtraj_inputs = torch.cat([obs, memories], dim=2)
-        # all_subtraj_inputs = memories
         # noinspection PyArgumentList
         subtraj_actions = Variable(
             torch.FloatTensor(batch_size, subsequence_length, self.action_dim)
@@ -250,7 +261,7 @@ class BDP(RLAlgorithm):
 
         self.exploration_strategy = exploration_strategy
         self.num_epochs = 30
-        self.num_steps_per_epoch = 1000
+        self.num_steps_per_epoch = 100
         self.render = False
         self.scale_reward = 1
         self.pool = UpdatableSubtrajReplayBuffer(
@@ -367,9 +378,15 @@ class BDP(RLAlgorithm):
             logger.pop_prefix()
 
     def _do_training(self, n_steps_total):
+        # for _ in range(10):
+        #     raw_subtraj_batch, _ = self.pool.random_subtrajectories(self.batch_size)
+        #     subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
+        #
+        #     qf_loss = self.train_critic(subtraj_batch)
+        #     qf_loss_np = float(qf_loss.data.numpy())
+        # line_logger.print_over("QF loss: {}".format(qf_loss_np))
         raw_subtraj_batch, _ = self.pool.random_subtrajectories(self.batch_size)
         subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
-
         self.train_critic(subtraj_batch)
         self.train_policy(subtraj_batch)
         if n_steps_total % self.copy_target_param_period == 0:
@@ -378,10 +395,11 @@ class BDP(RLAlgorithm):
 
     def train_critic(self, subtraj_batch):
         critic_dict = self.get_critic_output_dict(subtraj_batch)
-        bellman_error = critic_dict['Bellman Errors']
+        qf_loss = critic_dict['Loss']
         self.qf_optimizer.zero_grad()
-        bellman_error.mean().backward()
+        qf_loss.backward()
         self.qf_optimizer.step()
+        return qf_loss
 
     def get_critic_output_dict(self, subtraj_batch):
         """
@@ -414,12 +432,13 @@ class BDP(RLAlgorithm):
         y_target = y_target.detach()
         y_predicted = self.qf(obs, memories, actions, writes)
         bellman_errors = (y_predicted - y_target)**2
-        return OrderedDict({
-            'Target Q Values': target_q_values,
-            'Y target': y_target,
-            'Y predicted': y_predicted,
-            'Bellman Errors': bellman_errors,
-        })
+        return OrderedDict([
+            ('Target Q Values', target_q_values),
+            ('Y target', y_target),
+            ('Y predicted', y_predicted),
+            ('Bellman Errors', bellman_errors),
+            ('Loss', bellman_errors.mean()),
+        ])
 
     def train_policy(self, subtraj_batch):
         policy_dict = self.get_policy_output_dict(subtraj_batch)
@@ -435,9 +454,9 @@ class BDP(RLAlgorithm):
         bellman_errors.mean().backward(retain_variables=True)
         self.write_policy_optimizer.step()
 
-        self.qf_optimizer.zero_grad()
-        bellman_errors.mean().backward()
-        self.qf_optimizer.step()
+        # self.qf_optimizer.zero_grad()
+        # bellman_errors.mean().backward()
+        # self.qf_optimizer.step()
 
     def get_policy_output_dict(self, subtraj_batch):
         """
@@ -507,16 +526,15 @@ class BDP(RLAlgorithm):
                               flat_new_writes)
         bellman_errors = (y_predicted - y_target)**2
         # TODO(vitchyr): Still use target policies when minimizing Bellman err?
-        # TODO(vitchyr): Split policy into training env and write actions
-        return OrderedDict({
-            'Target Q Values': target_q_values,
-            'Y target': y_target,
-            'Y predicted': y_predicted,
-            'Bellman Errors': bellman_errors,
-            'loss': policy_loss,
-            'env_actions': flat_batch['policy_new_actions'],
-            'writes': flat_batch['policy_new_writes'],
-        })
+        return OrderedDict([
+            ('Target Q Values', target_q_values),
+            ('Y target', y_target),
+            ('Y predicted', y_predicted),
+            ('Bellman Errors', bellman_errors),
+            ('loss', policy_loss),
+            ('env_actions', flat_batch['policy_new_actions']),
+            ('writes', flat_batch['policy_new_writes']),
+        ])
 
     def evaluate(self, epoch, exploration_info_dict):
         """
