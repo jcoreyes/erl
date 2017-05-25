@@ -86,14 +86,27 @@ class Policy(nn.Module):
         self.hidden_sizes = hidden_sizes
 
         self.fcs = []
-        all_inputs_dim = obs_dim + memory_dim
-        last_size = all_inputs_dim
+        last_size = obs_dim + memory_dim
+        # last_size = memory_dim
         for size in hidden_sizes:
             self.fcs.append(nn.Linear(last_size, size))
             last_size = size
         self.last_fc = nn.Linear(last_size, action_dim)
 
         self.lstm_cell = nn.LSTMCell(self.obs_dim, self.memory_dim // 2)
+        self.memory_to_obs_fc = nn.Linear(self.memory_dim, obs_dim)
+
+    def action_parameters(self):
+        for fc in [self.last_fc] + self.fcs:
+            for param in fc.parameters():
+                yield param
+        # for fc
+        # return self.last_fc.parameters() + sum(
+        #     list(fc.parameters()) for fc in self.fcs
+        # )
+
+    def write_parameters(self):
+        return self.lstm_cell.parameters()
 
     def forward(self, obs, initial_memory):
         """
@@ -143,6 +156,7 @@ class Policy(nn.Module):
         Use new memories to create env actions.
         """
         all_subtraj_inputs = torch.cat([obs, memories], dim=2)
+        # all_subtraj_inputs = memories
         # noinspection PyArgumentList
         subtraj_actions = Variable(
             torch.FloatTensor(batch_size, subsequence_length, self.action_dim)
@@ -256,7 +270,7 @@ class BDP(RLAlgorithm):
             self.obs_dim,
             self.action_dim,
             self.memory_dim,
-            [],
+            [100, 64],
         )
         self.target_qf = self.qf.clone()
         self.target_policy = self.policy.clone()
@@ -265,7 +279,7 @@ class BDP(RLAlgorithm):
         self.train_validation_batch_size = 64
         self.max_path_length = 1000
         self.n_eval_samples = 100
-        self.copy_target_param_period = 10000
+        self.copy_target_param_period = 1000
 
         # noinspection PyTypeChecker
         self.eval_sampler = BatchSampler(self)
@@ -273,7 +287,12 @@ class BDP(RLAlgorithm):
         self.whole_paths = True  # Also for BatchSampler
 
         self.qf_optimizer = optim.Adam(self.qf.parameters(), lr=1e-3)
-        self.policy_optimizer = optim.Adam(self.policy.parameters(), lr=1e-3)
+        self.action_policy_optimizer = optim.Adam(
+            self.policy.action_parameters(), lr=1e-4
+        )
+        self.write_policy_optimizer = optim.Adam(
+            self.policy.write_parameters(), lr=1e-4
+        )
         self.pps = list(self.policy.parameters())
         self.qps = list(self.qf.parameters())
 
@@ -408,10 +427,17 @@ class BDP(RLAlgorithm):
         policy_loss = policy_dict['loss']
         bellman_errors = policy_dict['Bellman Errors']
 
-        self.policy_optimizer.zero_grad()
+        self.action_policy_optimizer.zero_grad()
         policy_loss.backward(retain_variables=True)
+        self.action_policy_optimizer.step()
+
+        self.write_policy_optimizer.zero_grad()
+        bellman_errors.mean().backward(retain_variables=True)
+        self.write_policy_optimizer.step()
+
+        self.qf_optimizer.zero_grad()
         bellman_errors.mean().backward()
-        self.policy_optimizer.step()
+        self.qf_optimizer.step()
 
     def get_policy_output_dict(self, subtraj_batch):
         """
@@ -454,6 +480,9 @@ class BDP(RLAlgorithm):
         )
         policy_loss = - q_output.mean()
 
+        """
+        Train policy to minimize Bellman error as well.
+        """
         flat_next_obs = flat_batch['next_env_obs']
         flat_actions = flat_batch['env_actions']
         flat_rewards = flat_batch['rewards']
@@ -470,7 +499,7 @@ class BDP(RLAlgorithm):
         )
         y_target = (
             flat_rewards
-            + (1. - flat_terminals) * self.discount *  target_q_values
+            + (1. - flat_terminals) * self.discount * target_q_values
         )
         # noinspection PyUnresolvedReferences
         y_target = y_target.detach()
@@ -567,14 +596,16 @@ class BDP(RLAlgorithm):
             ('Validation ', True),
             ('Train ', False),
         ]:
-            raw_subtraj_batch = self.pool.random_subtrajectories(
-                self.train_validation_batch_size,
-                validation=validation
-            )[0]
-            subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
-            statistics.update(self._statistics_from_subtraj_batch(
-                subtraj_batch, stat_prefix=stat_prefix
-            ))
+            if (self.pool.num_can_sample(validation=validation) >=
+                    self.train_validation_batch_size):
+                raw_subtraj_batch = self.pool.random_subtrajectories(
+                    self.train_validation_batch_size,
+                    validation=validation
+                )[0]
+                subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
+                statistics.update(self._statistics_from_subtraj_batch(
+                    subtraj_batch, stat_prefix=stat_prefix
+                ))
         return statistics
 
     """
