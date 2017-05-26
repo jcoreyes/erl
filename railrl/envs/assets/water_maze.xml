@@ -17,7 +17,8 @@
 
         <!-- Target -->
         <body name="target" pos="0 0 0">
-            <geom conaffinity="2" name="target_geom" type="cylinder" size=".1 .01" rgba="0 0.9 0.1 1"/>
+            <geom conaffinity="0" name="target_geom" type="cylinder" size=".1
+             .01" rgba="0 0.9 0.1 1" contype="0"/>
             <joint name="target_x" type="slide" pos="0 0 0" axis="1 0 0" />
             <joint name="target_y" type="slide" pos="0 0 0" axis="0 1 0" />
         </body>
@@ -30,8 +31,8 @@
     </worldbody>
 
     <actuator>
-        <motor joint="ball_x" ctrlrange="-10.0 10.0" ctrllimited="true"/>
-        <motor joint="ball_y" ctrlrange="-10.0 10.0" ctrllimited="true"/>
+        <motor joint="ball_x" ctrlrange="-1.0 1.0" ctrllimited="true"/>
+        <motor joint="ball_y" ctrlrange="-1.0 1.0" ctrllimited="true"/>
         <motor joint="target_x" ctrlrange="-1.0 1.0" ctrllimited="true"/>
         <motor joint="target_y" ctrlrange="-1.0 1.0" ctrllimited="true"/>
     </actuator>

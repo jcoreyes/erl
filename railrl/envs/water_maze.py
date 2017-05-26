@@ -16,10 +16,12 @@ RADIUS = 0.1
 BOUNDARY_RADIUS = 0.01
 BOUNDARY_DIST = 0.3
 MAX_GOAL_DIST = BOUNDARY_DIST - RADIUS - BOUNDARY_RADIUS - 0.01
+# MAX_GOAL_DIST = BOUNDARY_DIST
 
 
 class MujocoWaterMaze(mujoco_env.MujocoEnv, utils.EzPickle):
-    def __init__(self, horizon=200, l2_action_penalty_weight=1e-2, **kwargs):
+    def __init__(self, horizon=200, l2_action_penalty_weight=1e-2,
+                 include_velocity=False, **kwargs):
         utils.EzPickle.__init__(self)
         self.l2_action_penalty_weight = l2_action_penalty_weight
         self.horizon = horizon
@@ -28,16 +30,18 @@ class MujocoWaterMaze(mujoco_env.MujocoEnv, utils.EzPickle):
         for _ in range(5):
             self._on_platform_history.append(False)
 
+        self.include_velocity = include_velocity
         mujoco_env.MujocoEnv.__init__(self, get_asset_xml('water_maze.xml'), 2)
-        self.target_low = self.observation_space.low[2:]
-        self.target_high = self.observation_space.high[2:]
-        self.action_space = Box(self.action_space.low[:2],
-                                self.action_space.high[:2])
-        self.observation_space = Box(
-            np.hstack((self.observation_space.low[:2], [0])),
-            np.hstack((self.observation_space.high[:2], [1])),
-        )
+        self.action_space = Box(np.array([-1, -1]), np.array([1, 1]))
+        self.observation_space = self._create_observation_space()
         self.reset_model()
+
+    def _create_observation_space(self):
+        num_obs = 4 if self.include_velocity else 2
+        return Box(
+            np.hstack((-np.inf + np.zeros(num_obs), [0])),
+            np.hstack((np.inf + np.zeros(num_obs), [1])),
+        )
 
     def _step(self, force_actions):
         self._t += 1
@@ -80,10 +84,14 @@ class MujocoWaterMaze(mujoco_env.MujocoEnv, utils.EzPickle):
 
     def _get_observation(self):
         position = np.concatenate([self.model.data.qpos]).ravel()[:2]
+        velocity = np.concatenate([self.model.data.qvel]).ravel()[:2]
         target_position = self._get_target_position()
         dist = np.linalg.norm(position - target_position)
         on_platform = dist <= RADIUS
-        return np.hstack((position, [on_platform]))
+        if self.include_velocity:
+            return np.hstack((position, velocity, [on_platform]))
+        else:
+            return np.hstack((position, [on_platform]))
 
     def _get_target_position(self):
         return np.concatenate([self.model.data.qpos]).ravel()[2:]
@@ -95,32 +103,19 @@ class MujocoWaterMaze(mujoco_env.MujocoEnv, utils.EzPickle):
 
 
 class MujocoWaterMazeEasy(MujocoWaterMaze):
-    def __init__(self, horizon=200, l2_action_penalty_weight=1e-2, **kwargs):
-        utils.EzPickle.__init__(self)
-        self.l2_action_penalty_weight = l2_action_penalty_weight
-        self.horizon = horizon
-        self._t = 0
-        self._on_platform_history = deque(maxlen=5)
-        for _ in range(5):
-            self._on_platform_history.append(False)
-
-        mujoco_env.MujocoEnv.__init__(self, get_asset_xml('water_maze.xml'), 2)
-        self.target_low = self.observation_space.low[2:]
-        self.target_high = self.observation_space.high[2:]
-        self.action_space = Box(self.action_space.low[:2],
-                                self.action_space.high[:2])
-        self.observation_space = Box(
-            np.hstack((self.observation_space.low[:2], [0], [-.3, -.3])),
-            np.hstack((self.observation_space.high[:2], [1], [.3, .3])),
+    def _create_observation_space(self):
+        num_obs = 4 if self.include_velocity else 2
+        return Box(
+            np.hstack((-np.inf + np.zeros(num_obs), [0], [-BOUNDARY_DIST,
+                                                          -BOUNDARY_DIST])),
+            np.hstack((np.inf + np.zeros(num_obs), [1], [BOUNDARY_DIST,
+                                                         BOUNDARY_DIST])),
         )
-        self.reset_model()
 
     def _get_observation(self):
-        position = np.concatenate([self.model.data.qpos]).ravel()[:2]
+        obs = super()._get_observation()
         target_position = self._get_target_position()
-        dist = np.linalg.norm(position - target_position)
-        on_platform = dist <= RADIUS
-        return np.hstack((position, [on_platform], target_position))
+        return np.hstack((obs, target_position))
 
 
 class WaterMaze(ProxyEnv, Serializable):

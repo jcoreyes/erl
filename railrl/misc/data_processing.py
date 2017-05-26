@@ -20,10 +20,13 @@ def create_stats_ordered_dict(name, data):
             )
             ordered_dict.update(sub_dict)
         return ordered_dict
-    else:
-        return OrderedDict([
-            (name + ' Mean', np.mean(data)),
-            (name + ' Std', np.std(data)),
-            (name + ' Max', np.max(data)),
-            (name + ' Min', np.min(data)),
-        ])
+
+    if isinstance(data, np.ndarray) and data.size == 1:
+        return OrderedDict({name: float(data)})
+
+    return OrderedDict([
+        (name + ' Mean', np.mean(data)),
+        (name + ' Std', np.std(data)),
+        (name + ' Max', np.max(data)),
+        (name + ' Min', np.min(data)),
+    ])

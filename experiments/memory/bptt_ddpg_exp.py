@@ -63,25 +63,22 @@ def create_run_experiment_multiple_seeds(n_seeds):
 if __name__ == '__main__':
     n_seeds = 1
     mode = 'here'
-    exp_prefix = "dev-bptt-ddpg-ocm"
+    exp_prefix = "dev-bptt-ddpg-watermaze"
     run_mode = 'none'
     version = 'dev'
     num_hp_settings = 100
 
-    # n_seeds = 10
+    # n_seeds = 5
     # mode = 'ec2'
-    # exp_prefix = '5-17-dev-our-method-water-maze-easy'
+    # exp_prefix = '5-18-watermaze-attempt'
     # run_mode = 'grid'
-    # version = 'reparam'
+    # version = 'env-and-write-loss-only'
 
     """
     Miscellaneous Params
     """
-    n_rollouts_per_epoch = 100
-    n_rollouts_per_eval = 64
-    oracle_mode = 'none'
+    oracle_mode = 'meta'
     algo_class = BpttDDPG
-    # algo_class = NoOpBpttDDPG
     load_policy_file = (
         '/home/vitchyr/git/rllab-rail/railrl/data/reference/expert'
         '/ocm_reward_magnitude5_H6_nbptt6_100p'
@@ -92,10 +89,10 @@ if __name__ == '__main__':
     """
     Set all the hyperparameters!
     """
-    # env_class = WaterMaze
+    env_class = WaterMaze
     # env_class = WaterMazeEasy
     # env_class = OneCharMemoryEndOnly
-    env_class = HighLow
+    # env_class = HighLow
     env_params = dict(
         num_steps=16,
         n=2,
@@ -106,28 +103,23 @@ if __name__ == '__main__':
         max_reward_magnitude=1,
     )
 
-    # epoch_length = H * n_rollouts_per_epoch
-    # eval_samples = H * n_rollouts_per_eval
-    epoch_length = 1000
-    # eval_samples = 400
-    # max_path_length = epoch_length + 2
     # TODO(vitchyr): clean up this hacky dropout code. Also, you'll need to
     # fix the batchnorm code. Basically, calls to (e.g.) qf.output will
     # always take the eval output.
 
     # noinspection PyTypeChecker
     ddpg_params = dict(
-        batch_size=32,
+        batch_size=250,
         n_epochs=30,
-        min_pool_size=128,
+        min_pool_size=250,
         replay_pool_size=100000,
-        n_updates_per_time_step=10,
-        # replay_pool_size=int(32*(H+1)*5/4),
-        epoch_length=epoch_length,
-        eval_samples=400,
+        n_updates_per_time_step=1,
+        epoch_length=10000,
+        eval_samples=2000,
         max_path_length=1002,
         discount=1.0,
         save_tf_graph=False,
+        num_steps_between_train=100,
         # Target network
         soft_target_tau=0.01,
         hard_update_period=1000,
@@ -152,8 +144,8 @@ if __name__ == '__main__':
         num_bptt_unrolls=4,
         bpt_bellman_error_weight=10,
         reward_low_bellman_error_weight=0.,
-        saved_write_loss_weight=10,
-        compute_gradients_immediately=True,
+        saved_write_loss_weight=0,
+        compute_gradients_immediately=False,
     )
 
     # noinspection PyTypeChecker
@@ -164,8 +156,8 @@ if __name__ == '__main__':
         # rnn_cell_class=DebugCell,
         rnn_cell_params=dict(
             use_peepholes=True,
-            env_noise_std=.0,
-            memory_noise_std=0.,
+            env_noise_std=0,
+            memory_noise_std=0,
             output_nonlinearity=tf.nn.tanh,
             env_hidden_sizes=[],
             # env_hidden_activation=tf.tanh,
@@ -199,17 +191,12 @@ if __name__ == '__main__':
         env_es_params=dict(
             max_sigma=1,
             min_sigma=None,
-            decay_period=epoch_length*15,
-            softmax=True,
-            laplace_weight=0.,
         ),
         # memory_es_class=NoopStrategy,
         memory_es_class=OUStrategy,
         memory_es_params=dict(
             max_sigma=1,
             min_sigma=None,
-            decay_period=epoch_length*15,
-            softmax=True,
         ),
         noise_action_to_memory=False,
     )
@@ -327,14 +314,14 @@ if __name__ == '__main__':
             # 'ddpg_params.batch_size': [32, 128],
             # 'ddpg_params.replay_pool_size': [900, 90000],
             # 'ddpg_params.num_bptt_unrolls': [32, 16, 8, 4, 2, 1],
-            'ddpg_params.n_updates_per_time_step': [1, 10],
-            'ddpg_params.policy_learning_rate': [1e-3, 1e-4],
-            'ddpg_params.write_policy_learning_rate': [1e-4, 1e-5],
+            # 'ddpg_params.n_updates_per_time_step': [1, 10],
+            # 'ddpg_params.policy_learning_rate': [1e-3, 1e-4],
+            # 'ddpg_params.write_policy_learning_rate': [1e-4, 1e-5],
             # 'ddpg_params.hard_update_period': [1, 100, 1000, 10000],
             # 'ddpg_params.bpt_bellman_error_weight': [1, 10],
             # 'ddpg_params.saved_write_loss_weight': [1, 10],
             # 'meta_params.meta_qf_learning_rate': [1e-3, 1e-4],
-            # 'meta_params.meta_qf_output_weight': [0, 0.1, 5],
+            'meta_params.meta_qf_output_weight': [0.1, 1, 10],
             # 'meta_params.qf_output_weight': [0, 1],
             # 'env_params.episode_boundary_flags': [True, False],
             # 'env_params.num_steps': [12, 16, 24],
@@ -344,7 +331,7 @@ if __name__ == '__main__':
             # 'es_params.memory_es_params.min_sigma': [1],
             # 'es_params.env_es_params.max_sigma': [0.1, 0.3, 1],
             # 'es_params.env_es_params.min_sigma': [1],
-            'replay_buffer_params.keep_old_fraction': [0, 0.5, 0.9],
+            # 'replay_buffer_params.keep_old_fraction': [0, 0.5, 0.9],
         }
         sweeper = DeterministicHyperparameterSweeper(search_space,
                                                      default_parameters=variant)
@@ -391,23 +378,20 @@ if __name__ == '__main__':
     elif run_mode == 'custom_grid':
         for exp_id, (
                 version,
-                env_es_class,
-                memory_es_class,
-                env_noise_std,
-                memory_noise_std,
+                subseq_length,
         ) in enumerate([
-            ("Gaussian", OUStrategy, 0),
-            ("Reparam", NoopStrategy, 0.2)
+            ("num_steps_per_batch=256", 32),
+            ("num_steps_per_batch=256", 16),
+            ("num_steps_per_batch=256", 8),
+            ("num_steps_per_batch=256", 4),
+            ("num_steps_per_batch=256", 1),
         ]):
+            num_steps_per_batch = 256
+            batch_size = int(num_steps_per_batch / subseq_length)
             variant['version'] = version
-            variant['es_params']['env_es_class'] = env_es_class
-            variant['es_params']['memory_es_class'] = memory_es_class
-            variant['policy_params']['rnn_cell_params']['env_noise_std'] = (
-                env_noise_std
-            )
-            variant['policy_params']['rnn_cell_params']['memory_noise_std'] = (
-                memory_noise_std
-            )
+            variant['ddpg_params']['num_bptt_unrolls'] = subseq_length
+            variant['ddpg_params']['batch_size'] = batch_size
+            variant['ddpg_params']['min_pool_size'] = batch_size
             for seed in range(n_seeds):
                 run_experiment(
                     get_ocm_score,

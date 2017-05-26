@@ -1,5 +1,6 @@
 from collections import OrderedDict
 
+from railrl.algos.bptt_ddpg import BpttDDPG
 from railrl.algos.oracle_bptt_ddpg import OracleBpttDdpg
 from railrl.algos.ddpg import TARGET_PREFIX, TargetUpdateMode
 import tensorflow as tf
@@ -8,7 +9,7 @@ from railrl.core import tf_util
 from railrl.misc.data_processing import create_stats_ordered_dict
 
 
-class MetaBpttDdpg(OracleBpttDdpg):
+class MetaBpttDdpg(BpttDDPG):
     """
     Add a meta critic: it predicts the error of the normal critic
     """
@@ -123,17 +124,16 @@ class MetaBpttDdpg(OracleBpttDdpg):
             obs=flat_batch['obs'],
             actions=flat_batch['actions'],
             next_obs=flat_batch['next_obs'],
-            target_numbers=flat_batch['target_numbers'],
-            times=flat_batch['times'],
+            **self.env.get_extra_info_dict_from_batch(flat_batch)
         )
-        flat_target_labels = flat_batch['target_numbers']
-        flat_times = flat_batch['times']
-        feed_dict.update({
-            self.meta_qf.target_labels: flat_target_labels,
-            self.meta_qf.time_labels: flat_times,
-            self.target_meta_qf.target_labels: flat_target_labels,
-            self.target_meta_qf.time_labels: flat_times,
-        })
+        # flat_target_labels = flat_batch['target_numbers']
+        # flat_times = flat_batch['times']
+        # feed_dict.update({
+        #     self.meta_qf.target_labels: flat_target_labels,
+        #     self.meta_qf.time_labels: flat_times,
+        #     self.target_meta_qf.target_labels: flat_target_labels,
+        #     self.target_meta_qf.time_labels: flat_times,
+        # })
         return feed_dict
 
     def _init_meta_qf_loss_and_train_ops(self):
@@ -173,19 +173,52 @@ class MetaBpttDdpg(OracleBpttDdpg):
             observation_input=self.qf_with_action_input.observation_input,
         )
 
-    def _init_policy_loss_and_train_ops(self):
-        self.policy_surrogate_loss = self._get_policy_train_loss()
-        if self.meta_qf_output_weight > 0:
-            self.policy_surrogate_loss += tf.reduce_mean(
-                self.meta_qf_with_action_input.output
-            ) * self.meta_qf_output_weight
-        self.train_policy_op = self._get_policy_train_op(
-            self.policy_surrogate_loss
+    def _get_env_action_and_write_loss(self):
+        env_action_loss, write_loss = super()._get_env_action_and_write_loss()
+        self.policy_meta_loss = tf.reduce_mean(
+            self.meta_qf_with_action_input.output
         )
+        if self.meta_qf_output_weight > 0:
+            write_loss += (
+                self.policy_meta_loss * self.meta_qf_output_weight
+            )
+        return env_action_loss, write_loss
 
     def _statistics_from_batch(self, batch) -> OrderedDict:
         statistics = super()._statistics_from_batch(batch)
         statistics.update(self._meta_qf_statistics_from_batch(batch))
+        return statistics
+
+    def _policy_statistics_from_batch(self, batch):
+        policy_feed_dict = self._eval_policy_feed_dict_from_batch(batch)
+        policy_stat_names, policy_ops = zip(*[
+            ('PolicyMetaLoss', self.policy_meta_loss),
+        ])
+        values = self.sess.run(policy_ops, feed_dict=policy_feed_dict)
+        statistics = super()._policy_statistics_from_batch(batch)
+        for stat_name, value in zip(policy_stat_names, values):
+            statistics.update(
+                create_stats_ordered_dict(stat_name, value)
+            )
+        return statistics
+
+    def _get_other_statistics_train_validation(self, batch, name):
+        statistics = super()._get_other_statistics_train_validation(batch, name)
+        policy_feed_dict = self._policy_feed_dict_from_batch(batch)
+        (
+            policy_meta_loss,
+        ) = self.sess.run(
+            [
+                self.policy_meta_loss,
+            ]
+            ,
+            feed_dict=policy_feed_dict
+        )
+        policy_base_stat_name = '{}Policy'.format(name)
+        statistics.update(create_stats_ordered_dict(
+            '{}_Meta_Loss'.format(policy_base_stat_name),
+            policy_meta_loss,
+        ))
         return statistics
 
     def _meta_qf_statistics_from_batch(self, batch):

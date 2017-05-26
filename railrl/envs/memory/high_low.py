@@ -37,7 +37,7 @@ class HighLow(Env):
         done = self._t == self.horizon
         action = max(-1, min(action, 1))
         if done:
-            reward = action * self._sign
+            reward = float(action * self._sign)
         else:
             reward = 0
         observation = np.array([0])
