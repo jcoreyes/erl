@@ -62,10 +62,10 @@ if __name__ == '__main__':
     variant = dict(
         memory_dim=20,
         env_params=dict(
-            num_steps=4,
+            num_steps=1,
         ),
         algo_params=dict(
-            subtraj_length=4,
+            subtraj_length=1,
         ),
         es_params=dict(
             env_es_class=OUStrategy,

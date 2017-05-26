@@ -104,7 +104,6 @@ class Policy(nn.Module):
         self.last_fc = nn.Linear(last_size, action_dim)
 
         self.lstm_cell = nn.LSTMCell(self.obs_dim, self.memory_dim // 2)
-        # self.lstm_cell = SumCell(obs_dim, memory_dim)
         self.memory_to_obs_fc = nn.Linear(self.memory_dim, obs_dim)
 
     def action_parameters(self):
@@ -260,10 +259,19 @@ class BDP(RLAlgorithm):
         self.subtraj_length = subtraj_length
 
         self.exploration_strategy = exploration_strategy
-        self.num_epochs = 30
+        self.num_epochs = 10
         self.num_steps_per_epoch = 100
         self.render = False
         self.scale_reward = 1
+        self.discount = 1.
+        self.batch_size = 32
+        self.train_validation_batch_size = 64
+        self.max_path_length = 1002
+        self.n_eval_samples = 200
+        self.copy_target_param_period = 1000
+        self.action_policy_learning_rate = 1e-3
+        self.write_policy_learning_rate = 1e-5
+        self.qf_learning_rate = 1e-3
         self.pool = UpdatableSubtrajReplayBuffer(
             10000,
             env,
@@ -285,24 +293,19 @@ class BDP(RLAlgorithm):
         )
         self.target_qf = self.qf.clone()
         self.target_policy = self.policy.clone()
-        self.discount = 1.
-        self.batch_size = 32
-        self.train_validation_batch_size = 64
-        self.max_path_length = 1000
-        self.n_eval_samples = 100
-        self.copy_target_param_period = 1000
 
         # noinspection PyTypeChecker
         self.eval_sampler = BatchSampler(self)
         self.scope = None  # Necessary for BatchSampler
         self.whole_paths = True  # Also for BatchSampler
 
-        self.qf_optimizer = optim.Adam(self.qf.parameters(), lr=1e-3)
+        self.qf_optimizer = optim.Adam(self.qf.parameters(),
+                                       lr=self.qf_learning_rate)
         self.action_policy_optimizer = optim.Adam(
-            self.policy.action_parameters(), lr=1e-4
+            self.policy.action_parameters(), lr=self.action_policy_learning_rate
         )
         self.write_policy_optimizer = optim.Adam(
-            self.policy.write_parameters(), lr=1e-4
+            self.policy.write_parameters(), lr=self.write_policy_learning_rate
         )
         self.pps = list(self.policy.parameters())
         self.qps = list(self.qf.parameters())
@@ -686,7 +689,7 @@ def flatten_subtraj_batch(subtraj_batch):
     return {
         k: array.view(-1, array.size()[-1])
         for k, array in subtraj_batch.items()
-        }
+    }
 
 
 def get_initial_memories(subtraj_batch):
