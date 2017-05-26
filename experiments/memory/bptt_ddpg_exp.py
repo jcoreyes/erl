@@ -89,12 +89,12 @@ if __name__ == '__main__':
     """
     Set all the hyperparameters!
     """
-    env_class = WaterMaze
+    # env_class = WaterMaze
     # env_class = WaterMazeEasy
     # env_class = OneCharMemoryEndOnly
-    # env_class = HighLow
+    env_class = HighLow
     env_params = dict(
-        num_steps=16,
+        num_steps=4,
         n=2,
         zero_observation=True,
         output_target_number=False,
@@ -109,13 +109,13 @@ if __name__ == '__main__':
 
     # noinspection PyTypeChecker
     ddpg_params = dict(
-        batch_size=250,
+        batch_size=32,
         n_epochs=30,
-        min_pool_size=250,
+        min_pool_size=32,
         replay_pool_size=100000,
         n_updates_per_time_step=1,
-        epoch_length=10000,
-        eval_samples=2000,
+        epoch_length=1000,
+        eval_samples=200,
         max_path_length=1002,
         discount=1.0,
         save_tf_graph=False,

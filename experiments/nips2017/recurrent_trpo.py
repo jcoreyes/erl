@@ -68,7 +68,7 @@ if __name__ == '__main__':
     mode = "here"
     exp_prefix = "dev-rtrpo"
 
-    n_seeds = 5
+    n_seeds = 10
     mode = "ec2"
     exp_prefix = "5-26-benchmark-rtrpo-highlow-H-sweep-nitr-1000"
 
@@ -77,7 +77,7 @@ if __name__ == '__main__':
     if env_class == HighLow:
         # noinspection PyTypeChecker
         variant = dict(
-            H=64,
+            H=256,
             exp_prefix=exp_prefix,
             trpo_params=dict(
                 batch_size=1000,
