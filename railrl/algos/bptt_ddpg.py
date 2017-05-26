@@ -730,7 +730,7 @@ class BpttDDPG(DDPG):
 
     @property
     def refresh_entire_buffer(self):
-        return True
+        return False
 
     def update_trajectory_memory_and_gradients(self, trajectory_start_idx):
         minibatch, start_indices = (
