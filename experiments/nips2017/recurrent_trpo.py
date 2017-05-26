@@ -68,34 +68,49 @@ if __name__ == '__main__':
     mode = "here"
     exp_prefix = "dev-rtrpo"
 
-    n_seeds = 10
+    n_seeds = 5
     mode = "ec2"
-    exp_prefix = "5-18-benchmark-rtrpo-watermaze-bs10000"
+    exp_prefix = "5-26-benchmark-rtrpo-highlow-H-sweep-nitr-1000"
 
-    # noinspection PyTypeChecker
-    trpo_params = dict(
-        batch_size=10000,
-        max_path_length=1000,  # Environment should stop it
-        n_itr=100,
-        discount=1.,
-        step_size=0.01,
-    )
-    optimizer_params = dict(
-        base_eps=1e-5,
-    )
-    USE_EC2 = False
+    env_class = WaterMaze
+    env_class = HighLow
+    if env_class == HighLow:
+        # noinspection PyTypeChecker
+        variant = dict(
+            H=64,
+            exp_prefix=exp_prefix,
+            trpo_params=dict(
+                batch_size=1000,
+                max_path_length=1000,  # Environment should stop it
+                n_itr=1000,
+                discount=1.,
+                step_size=0.01,
+            ),
+            optimizer_params=dict(
+                base_eps=1e-5,
+            ),
+            version='Recurrent TRPO',
+            env_class=env_class,
+        )
+    elif env_class == WaterMaze:
+        # noinspection PyTypeChecker
+        variant = dict(
+            H=200,
+            exp_prefix=exp_prefix,
+            trpo_params=dict(
+                batch_size=10000,
+                max_path_length=1000,  # Environment should stop it
+                n_itr=100,
+                discount=1.,
+                step_size=0.01,
+            ),
+            optimizer_params=dict(
+                base_eps=1e-5,
+            ),
+            version='Recurrent TRPO',
+            env_class=env_class,
+        )
     exp_id = -1
-    # noinspection PyTypeChecker
-    variant = dict(
-        H=200,
-        exp_prefix=exp_prefix,
-        trpo_params=trpo_params,
-        optimizer_params=optimizer_params,
-        version='Recurrent TRPO',
-        # env_class=HighLow,
-        # env_class=WaterMazeEasy,
-        env_class=WaterMaze,
-    )
     for seed in range(n_seeds):
         exp_id += 1
         set_seed(seed)
