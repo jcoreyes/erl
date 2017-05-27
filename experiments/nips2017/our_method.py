@@ -25,12 +25,10 @@ if __name__ == '__main__':
     n_seeds = 1
     mode = 'here'
     exp_prefix = "dev-bptt-ddpg-ocm"
-    run_mode = 'none'
 
     # n_seeds = 10
     # mode = 'ec2'
-    # exp_prefix = '5-18-try-watermaze'
-    # run_mode = 'grid'
+    # exp_prefix = '5-27-benchmark-sl-highlow'
 
     """
     Miscellaneous Params
@@ -49,27 +47,33 @@ if __name__ == '__main__':
     Set all the hyperparameters!
     """
     # env_class = WaterMazeEasy
-    env_class = WaterMaze
-    # env_class = HighLow
-    env_params = dict(
-        num_steps=200,
-        # n=2,
-        # zero_observation=True,
-        # output_target_number=False,
-        # output_time=False,
-        # episode_boundary_flags=False,
-        # max_reward_magnitude=1,
-    )
+    # env_class = WaterMaze
+    env_class = HighLow
+    if env_class == WaterMaze:
+        env_params = dict(
+            num_steps=200,
+        )
+        epoch_length = 10000
+        eval_samples = 2000
+    elif env_class == HighLow:
+        env_params = dict(
+            num_steps=32,
+        )
+        epoch_length = 1000
+        eval_samples = 200
+    else:
+        raise Exception("Invalid env_class: %s" % env_class)
+
 
     # noinspection PyTypeChecker
     ddpg_params = dict(
         batch_size=32,
-        n_epochs=5,
+        n_epochs=100,
         min_pool_size=32,
         replay_pool_size=100000,
-        n_updates_per_time_step=1,
-        epoch_length=1000,
-        eval_samples=200,
+        n_updates_per_time_step=5,
+        epoch_length=epoch_length,
+        eval_samples=eval_samples,
         max_path_length=1002,
         discount=1.0,
         save_tf_graph=False,
@@ -109,7 +113,7 @@ if __name__ == '__main__':
             env_noise_std=.0,
             memory_noise_std=0.,
             output_nonlinearity=tf.nn.tanh,
-            env_hidden_sizes=[100, 100],
+            env_hidden_sizes=[],
             # env_hidden_activation=tf.tanh,
         )
     )

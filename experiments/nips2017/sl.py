@@ -2,6 +2,7 @@
 Supervised learning with full BPTT.
 """
 import tensorflow as tf
+from tensorflow.contrib.rnn import LSTMCell
 
 from railrl.envs.memory.high_low import HighLow
 from railrl.launchers.launcher_util import (
@@ -32,13 +33,13 @@ def main():
     mode = "here"
     exp_prefix = "dev-sl"
 
-    # n_seeds = 3
+    # n_seeds = 10
     # mode = "ec2"
-    # exp_prefix = "5-26-benchmark-sl-highlow-H-sweep"
+    # exp_prefix = "5-27-benchmark-sl-highlow-cell-type"
 
     # noinspection PyTypeChecker
     variant = dict(
-        H=32,
+        H=128,
         exp_prefix=exp_prefix,
         algo_params=dict(
             num_batches_per_epoch=10000//32,
@@ -49,7 +50,7 @@ def main():
             lstm_state_size=10,
             # rnn_cell_class=LSTMCell,
             # rnn_cell_params=dict(
-            #
+            #     use_peepholes=True,
             # ),
             rnn_cell_class=SeparateLstmLinearCell,
             rnn_cell_params=dict(
