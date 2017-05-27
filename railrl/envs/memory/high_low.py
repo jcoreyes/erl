@@ -148,7 +148,7 @@ class HighLow(Env, RecurrentSupervisedLearningEnv):
         X[:, 0, :] = targets
         Y = np.zeros((batch_size, self.sequence_length, self.target_dim))
         # targets = np.expand_dims(targets, 2)
-        Y[:, -1 :] = targets
+        Y[:, -1, :] = targets
         return X, Y
 
     @property

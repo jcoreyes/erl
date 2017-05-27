@@ -58,7 +58,8 @@ def main():
                 memory_noise_std=0,
                 output_nonlinearity=tf.nn.tanh,
                 env_hidden_sizes=[],
-            )
+            ),
+            softmax=False,
         ),
         version='Supervised Learning',
         env_class=HighLow,
