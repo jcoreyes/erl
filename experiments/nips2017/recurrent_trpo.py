@@ -110,6 +110,8 @@ if __name__ == '__main__':
             version='Recurrent TRPO',
             env_class=env_class,
         )
+    else:
+        raise Exception("Invalid env_class: %s" % env_class)
     exp_id = -1
     for seed in range(n_seeds):
         exp_id += 1
