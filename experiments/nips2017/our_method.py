@@ -24,11 +24,12 @@ from railrl.policies.memory.lstm_memory_policy import (
 if __name__ == '__main__':
     n_seeds = 1
     mode = 'here'
-    exp_prefix = "dev-bptt-ddpg-ocm"
+    exp_prefix = "dev-bptt-ddpg"
 
-    # n_seeds = 10
-    # mode = 'ec2'
-    # exp_prefix = '5-27-benchmark-sl-highlow'
+    n_seeds = 10
+    mode = 'ec2'
+    exp_prefix = '5-27-benchmark-our-method-highlow'
+    version = "Our Method - Half length BPTT"
 
     """
     Miscellaneous Params
@@ -98,7 +99,7 @@ if __name__ == '__main__':
         train_policy_on_all_qf_timesteps=False,
         write_only_optimize_bellman=True,
         # memory
-        num_bptt_unrolls=32,
+        num_bptt_unrolls=16,
         bpt_bellman_error_weight=10,
         reward_low_bellman_error_weight=0.,
         saved_write_loss_weight=0,
@@ -181,7 +182,7 @@ if __name__ == '__main__':
         memory_dim=memory_dim,
         exp_prefix=exp_prefix,
         algo_class=algo_class,
-        version="Our Method - Full BPTT",
+        version=version,
         load_policy_file=load_policy_file,
         oracle_mode=oracle_mode,
         env_class=env_class,
