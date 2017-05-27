@@ -77,7 +77,7 @@ if __name__ == '__main__':
     if env_class == HighLow:
         # noinspection PyTypeChecker
         variant = dict(
-            H=256,
+            H=32,
             exp_prefix=exp_prefix,
             trpo_params=dict(
                 batch_size=1000,

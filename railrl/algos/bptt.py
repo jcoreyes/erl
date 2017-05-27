@@ -3,6 +3,8 @@ import numpy as np
 import tensorflow as tf
 import time
 
+from railrl.envs.memory.high_low import HighLow
+from railrl.envs.memory.one_char_memory import OneCharMemory
 from railrl.misc.data_processing import create_stats_ordered_dict
 from rllab.algos.base import RLAlgorithm
 from rllab.core.serializable import Serializable
@@ -131,6 +133,7 @@ class Bptt(Parameterized, RLAlgorithm, Serializable):
             self._predictions = rnn_outputs
             logits = [tf.exp(pred) for pred in self._predictions]
 
+        # TODO(vitchyr): change this loss function for the HighLow env
         self._total_loss = tf.nn.sigmoid_cross_entropy_with_logits(
             logits=logits[-1],
             labels=labels[-1],
@@ -153,6 +156,36 @@ class Bptt(Parameterized, RLAlgorithm, Serializable):
         self._training_losses.append(training_loss_)
 
     def _eval(self, epoch):
+        if isinstance(self._env, HighLow):
+            self._eval_highlow()
+        elif isinstance(self._env, OneCharMemory):
+            self._eval_ocm(epoch)
+        else:
+            raise Exception("Invalid env: %s" % self._env)
+
+    def _eval_highlow(self):
+        X, Y = self._env.get_batch(self._eval_num_episodes)
+        eval_losses, predictions = self._sess.run(
+            [
+                self._total_loss,
+                self._predictions,
+            ],
+            feed_dict={
+                self._x: X,
+                self._y: Y,
+            },
+        )
+        paths = []
+        for x, y_hat in zip(X, predictions):
+            path = {
+                'observations': x,
+                'actions': y_hat,
+            }
+            paths.append(path)
+        self._env.log_diagnostics(paths)
+        logger.dump_tabular(with_prefix=False, with_timestamp=False)
+
+    def _eval_ocm(self, epoch):
         X, Y = self._env.get_batch(self._eval_num_episodes)
         eval_losses, predictions = self._sess.run(
             [
