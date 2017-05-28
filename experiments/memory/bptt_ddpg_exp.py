@@ -77,7 +77,7 @@ if __name__ == '__main__':
     """
     Miscellaneous Params
     """
-    oracle_mode = 'meta'
+    oracle_mode = 'none'
     algo_class = BpttDDPG
     load_policy_file = (
         '/home/vitchyr/git/rllab-rail/railrl/data/reference/expert'
@@ -94,7 +94,7 @@ if __name__ == '__main__':
     # env_class = OneCharMemoryEndOnly
     env_class = HighLow
     env_params = dict(
-        num_steps=4,
+        num_steps=9,
         n=2,
         zero_observation=True,
         output_target_number=False,
@@ -113,7 +113,7 @@ if __name__ == '__main__':
         n_epochs=30,
         min_pool_size=32,
         replay_pool_size=100000,
-        n_updates_per_time_step=5,
+        n_updates_per_time_step=1,
         epoch_length=1000,
         eval_samples=200,
         max_path_length=1002,
