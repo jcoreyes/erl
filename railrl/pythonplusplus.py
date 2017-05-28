@@ -171,3 +171,11 @@ def merge_recursive_dicts(a, b, path=None,
         else:
             a[key] = b[key]
     return a
+
+
+def dict_of_list__to__list_of_dicts(dict, n_items):
+    new_dicts = [{} for _ in range(n_items)]
+    for key, values in dict.items():
+        for i in range(n_items):
+            new_dicts[i][key] = values[i]
+    return new_dicts

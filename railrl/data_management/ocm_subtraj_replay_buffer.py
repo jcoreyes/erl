@@ -1,10 +1,12 @@
 import numpy as np
 
 from railrl.data_management.subtraj_replay_buffer import SubtrajReplayBuffer
+from railrl.data_management.updatable_subtraj_replay_buffer import \
+    UpdatableSubtrajReplayBuffer
 from railrl.misc.np_util import subsequences
 
 
-class OcmSubtrajReplayBuffer(SubtrajReplayBuffer):
+class OcmSubtrajReplayBuffer(UpdatableSubtrajReplayBuffer):
     """
     A replay buffer desired specifically for OneCharMem
     sub-trajectories
@@ -15,21 +17,28 @@ class OcmSubtrajReplayBuffer(SubtrajReplayBuffer):
             max_pool_size,
             env,
             subtraj_length,
+            *args,
+            **kwargs
     ):
+        # TODO(vitchyr): Move this logic to environment
         self._target_numbers = np.zeros(max_pool_size, dtype='uint8')
         self._times = np.zeros(max_pool_size, dtype='uint8')
         super().__init__(
             max_pool_size,
             env,
             subtraj_length,
+            *args,
             only_sample_at_start_of_episode=False,
+            **kwargs
         )
 
     def _add_sample(self, observation, action, reward, terminal,
                     final_state, agent_info=None, env_info=None):
         if env_info is not None:
-            self._target_numbers[self._top] = env_info['target_number']
-            self._times[self._top] = env_info['time']
+            if 'target_number' in env_info:
+                self._target_numbers[self._top] = env_info['target_number']
+            if 'time' in env_info:
+                self._times[self._top] = env_info['time']
         super()._add_sample(
             observation,
             action,

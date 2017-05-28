@@ -4,7 +4,7 @@ import numpy as np
 
 from railrl.data_management.subtraj_replay_buffer import SubtrajReplayBuffer
 from railrl.testing.tf_test_case import TFTestCase
-from rllab.spaces.box import Box
+from railrl.testing.stub_classes import StubEnv
 
 
 class TestSubtrajReplayBuffer(TFTestCase):
@@ -245,15 +245,6 @@ class TestSubtrajReplayBuffer(TFTestCase):
         self.assertNpEqual(valid_actions[0], np.array([[0.5], [0.5]]))
         self.assertNpEqual(valid_actions[1], np.array([[1], [1]]))
         self.assertNpEqual(train_actions[0], np.array([[-0.5], [-0.5]]))
-
-
-
-class StubEnv(object):
-    def __init__(self):
-        low = np.array([0.])
-        high = np.array([1.])
-        self.action_space = Box(low, high)
-        self.observation_space = Box(low, high)
 
 
 if __name__ == '__main__':

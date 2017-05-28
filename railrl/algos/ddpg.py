@@ -15,6 +15,7 @@ from railrl.misc.rllab_util import (
     split_flat_product_space_into_components_n,
 )
 from railrl.algos.online_algorithm import OnlineAlgorithm
+from railrl.policies.memory.lstm_memory_policy import SeparateLstmLinearCell
 from railrl.policies.nn_policy import NNPolicy
 from railrl.pythonplusplus import filter_recursive
 from railrl.qfunctions.nn_qfunction import NNQFunction
@@ -85,6 +86,15 @@ class DDPG(OnlineAlgorithm):
         self.sess.run(tf.global_variables_initializer())
         self.target_policy = self.policy.get_copy(
             name_or_scope=TARGET_PREFIX + self.policy.scope_name,
+            # rnn_cell_class=SeparateLstmLinearCell,
+            # rnn_cell_params=dict(
+            #     use_peepholes=True,
+            #     env_noise_std=0.,
+            #     memory_noise_std=0.,
+            #     output_nonlinearity=tf.nn.tanh,
+            #     env_hidden_sizes=[],
+            #     # env_hidden_activation=tf.identity,
+            # ),
         )
         self.target_qf = self.qf.get_copy(
             name_or_scope=TARGET_PREFIX + self.qf.scope_name,
@@ -229,9 +239,7 @@ class DDPG(OnlineAlgorithm):
     @overrides
     def _get_training_ops(
             self,
-            epoch=None,
             n_steps_total=None,
-            n_steps_current_epoch=None,
     ):
         train_ops = [
             self.train_policy_op,

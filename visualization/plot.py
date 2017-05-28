@@ -19,6 +19,8 @@ def get_unique_param_to_values(all_variants):
     variant_key_to_values = defaultdict(set)
     for variant in all_variants:
         for k, v in variant.items():
+            if type(v) == list:
+                v = str(v)
             variant_key_to_values[k].add(v)
     unique_key_to_values = {
         k: variant_key_to_values[k]
@@ -35,7 +37,7 @@ def is_numeric(x):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("expdir", help="experiment dir, e.g., /tmp/experiments")
-    parser.add_argument("--ylabel", default='Final_Pcorrect_Mean')
+    parser.add_argument("--ylabel", default='AverageReturn')
     args = parser.parse_args()
     y_label = args.ylabel
 
@@ -73,6 +75,8 @@ def main():
         for k in unique_param_to_values
         if is_numeric(list(unique_param_to_values[k])[0])
     }
+    # TODO(vitchyr): Use bar plot if xlabel is not numeric, rather than just
+    # ignoring it
     value_to_unique_params = defaultdict(dict)
 
     """
@@ -80,6 +84,8 @@ def main():
     """
     num_params = len(unique_numeric_param_to_values)
     fig, axes = plt.subplots(num_params)
+    if num_params == 1:
+        axes = [axes]
     for i, x_label in enumerate(unique_numeric_param_to_values):
         x_value_to_y_values = defaultdict(list)
         for data, variant in data_and_variant:

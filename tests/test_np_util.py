@@ -147,6 +147,220 @@ class TestNpUtil(NPTestCase):
         ])
         self.assertNpEqual(subsequences, expected)
 
+    def test_assign_subsequence_all(self):
+        M = np.array([
+            [0, 1],
+            [2, 3],
+            [4, 5],
+            [6, 7],
+        ])
+        start_indices = [0, 2]
+        length = 2
+        new_values = np.array([
+            [
+                [-1, -2],
+                [-3, -4],
+            ],
+            [
+                [-5, -6],
+                [-7, -8],
+            ],
+        ])
+        np_util.assign_subsequences(M, new_values, start_indices, length)
+        expected = np.array([
+            [-1, -2],
+            [-3, -4],
+            [-5, -6],
+            [-7, -8],
+        ])
+        self.assertNpEqual(M, expected)
+
+    def test_assign_subsequence_gap(self):
+        M = np.array([
+            [0, 1],
+            [2, 3],
+            [4, 5],
+            [6, 7],
+            [8, 9],
+        ])
+        start_indices = [0, 3]
+        length = 2
+        new_values = np.array([
+            [
+                [-1, -2],
+                [-3, -4],
+            ],
+            [
+                [-5, -6],
+                [-7, -8],
+            ],
+        ])
+        np_util.assign_subsequences(M, new_values, start_indices, length)
+        expected = np.array([
+            [-1, -2],
+            [-3, -4],
+            [4, 5],
+            [-5, -6],
+            [-7, -8],
+        ])
+        self.assertNpEqual(M, expected)
+
+    def test_assign_subsequence_overlap(self):
+        M = np.array([
+            [0, 1],
+            [2, 3],
+            [4, 5],
+            [6, 7],
+        ])
+        start_indices = [0, 1]
+        length = 2
+        new_values = np.array([
+            [
+                [-1, -2],
+                [-3, -4],
+            ],
+            [
+                [-5, -6],
+                [-7, -8],
+            ],
+        ])
+        np_util.assign_subsequences(M, new_values, start_indices, length)
+        expected = np.array([
+            [-1, -2],
+            [-5, -6],
+            [-7, -8],
+            [6, 7],
+        ])
+        self.assertNpEqual(M, expected)
+
+    def test_assign_subsequence_overlap_order_flipped(self):
+        M = np.array([
+            [0, 1],
+            [2, 3],
+            [4, 5],
+            [6, 7],
+        ])
+        start_indices = [1, 0]
+        length = 2
+        new_values = np.array([
+            [
+                [-5, -6],
+                [-7, -8],
+            ],
+            [
+                [-1, -2],
+                [-3, -4],
+            ],
+        ])
+        np_util.assign_subsequences(M, new_values, start_indices, length,
+                                    start_offset=0)
+        expected = np.array([
+            [-1, -2],
+            [-3, -4],
+            [-7, -8],
+            [6, 7],
+        ])
+        self.assertNpEqual(M, expected)
+
+    def test_assign_subsequence_overlap_offset(self):
+        M = np.array([
+            [0, 1],
+            [2, 3],
+            [4, 5],
+            [6, 7],
+        ])
+        start_indices = [0, 1]
+        length = 2
+        new_values = np.array([
+            [
+                [-1, -2],
+                [-3, -4],
+            ],
+            [
+                [-5, -6],
+                [-7, -8],
+            ],
+        ])
+        np_util.assign_subsequences(M, new_values, start_indices, length,
+                                    start_offset=1)
+        expected = np.array([
+            [0, 1],
+            [-1, -2],
+            [-5, -6],
+            [-7, -8],
+        ])
+        self.assertNpEqual(M, expected)
+
+    def test_assign_subsequence_completely_overwrite(self):
+        M = np.array([
+            [0, 1],
+            [2, 3],
+            [4, 5],
+            [6, 7],
+        ])
+        start_indices = [0, 0]
+        length = 2
+        new_values = np.array([
+            [
+                [-1, -2],
+                [-3, -4],
+            ],
+            [
+                [-5, -6],
+                [-7, -8],
+            ],
+        ])
+        np_util.assign_subsequences(M, new_values, start_indices, length)
+        expected = np.array([
+            [-5, -6],
+            [-7, -8],
+            [4, 5],
+            [6, 7],
+        ])
+        self.assertNpEqual(M, expected)
+
+    def test_assign_subsequence_mismatch_lengths_throws_error(self):
+        M = np.zeros((4, 2))
+        start_indices = [0, 1]
+        length = 2
+        # new_values first dimension doesn't match start_indices
+        new_values = np.zeros((3, 2, 2))
+        with self.assertRaises(AssertionError):
+            np_util.assign_subsequences(M, new_values, start_indices, length,
+                                        start_offset=1)
+
+        new_values = np.zeros((2, 2, 2))
+        # now new_values is right, but length is wrong
+        length = 1
+        with self.assertRaises(AssertionError):
+            np_util.assign_subsequences(M, new_values, start_indices, length,
+                                        start_offset=1)
+
+        length = 2
+        # now length is right, but new_values and M dimensions don't match
+        M = np.zeros((4, 3))
+        with self.assertRaises(AssertionError):
+            np_util.assign_subsequences(M, new_values, start_indices, length,
+                                        start_offset=1)
+
+        M = np.zeros((4, 2))
+        # now M is right, but the index will be out of bounds
+        start_indices = [0, 3]
+        with self.assertRaises(AssertionError):
+            np_util.assign_subsequences(M, new_values, start_indices, length,
+                                        start_offset=1)
+
+        start_indices = [-1, 1]
+        with self.assertRaises(AssertionError):
+            np_util.assign_subsequences(M, new_values, start_indices, length,
+                                        start_offset=1)
+
+        start_indices = [0, 1]
+        # Now everything is right
+        np_util.assign_subsequences(M, new_values, start_indices, length,
+                                    start_offset=1)
+
+
 
 if __name__ == '__main__':
     unittest.main()

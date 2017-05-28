@@ -371,10 +371,12 @@ def mlp(input_layer,
     :param nonlinearity: the initialization function for the nonlinearity
     :param post_nonlin_lambda: A function to pass the post-non-linearity
     values through.
-    This is only applied between layers. Not on the input nor the output.
+    This is only applied between linear layers. Not on the input nor ont the
+    last linear layer.
     :param pre_nonlin_lambda: A function to pass the pre-non-linearity
     values through.
-    This is only applied between layers. Not on the input nor the output.
+    This is only applied between linear layers. Not on the input nor the last
+    linear layer.
     :param linear_output_size: If set, add a linear layer with this size at
     the very end. No non-linearity applied.
     :return: Output of MLP.

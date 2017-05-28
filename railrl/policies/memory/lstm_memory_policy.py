@@ -5,6 +5,8 @@ from railrl.core import tf_util
 from railrl.policies.memory.rnn_cell_policy import RnnCellPolicy
 from tensorflow.contrib.rnn import RNNCell, LSTMCell, GRUCell
 
+from railrl.policies.nn_policy import NNPolicy
+
 
 class SplitterCell(RNNCell):
     """
@@ -130,6 +132,9 @@ class SeparateLstmLinearCell(LSTMCell):
                 if self._memory_noise_std > 0.:
                     lstm_state += self._memory_noise_std * tf.random_normal(
                         tf.shape(lstm_state)
+                    )
+                    lstm_output += self._memory_noise_std * tf.random_normal(
+                        tf.shape(lstm_output)
                     )
 
                 next_state = tf.concat(axis=1, values=(lstm_output, lstm_state))
@@ -673,6 +678,47 @@ class LinearRnnCell(tf.contrib.rnn.RNNCell):
         return self._output_dim
 
 
+class DebugCell(tf.contrib.rnn.RNNCell):
+    """
+    Used for debugging.
+    """
+    def __init__(
+            self,
+            num_units,
+            output_dim,
+            **kwargs
+    ):
+        self._output_dim = int(output_dim)
+        self._num_units = int(num_units)
+
+    def __call__(self, inputs, state, scope=None):
+        with tf.variable_scope(scope or "debug_cell"):
+            with tf.variable_scope('env_action') as self.env_action_scope:
+                env_action_var = tf_util.weight_variable(
+                    [inputs.get_shape()[-1], self.output_size],
+                    initializer=tf.constant_initializer(1.),
+                    name='env_out',
+                )
+                env_output = tf.matmul(inputs, env_action_var) + 1
+            with tf.variable_scope('next_state') as self.write_action_scope:
+                write_var = tf_util.weight_variable(
+                    [state.get_shape()[-1], self.state_size],
+                    initializer=tf.constant_initializer(0.),
+                    name='write',
+                )
+                write = state + tf.matmul(state, write_var) + 1
+
+        return env_output, write
+
+    @property
+    def state_size(self):
+        return self._num_units
+
+    @property
+    def output_size(self):
+        return self._output_dim
+
+
 class LstmMemoryPolicy(RnnCellPolicy):
     """
     write = LSTM function of environment observation and memory
@@ -704,6 +750,7 @@ class LstmMemoryPolicy(RnnCellPolicy):
         self._num_env_obs_dims_to_ignore = (
             self.observation_dim[0] - num_env_obs_dims_to_use
         )
+        assert self._num_env_obs_dims_to_ignore >= 0
         self.rnn_cell_class = rnn_cell_class
         self.rnn_cell_params = rnn_cell_params
         self.init_state = self._placeholder_if_none(
@@ -712,9 +759,9 @@ class LstmMemoryPolicy(RnnCellPolicy):
             name='lstm_init_state',
             dtype=tf.float32,
         )
+        # self._env_action_scope_name = None
+        # self._write_action_scope_name = None
         self._create_network()
-        self._env_action_scope_name = None
-        self._write_action_scope_name = None
 
     def _create_network_internal(self, observation_input=None, init_state=None):
         assert observation_input is not None
@@ -783,3 +830,48 @@ class LstmMemoryPolicy(RnnCellPolicy):
             observation_input=self.observation_input,
             init_state=self.init_state,
         )
+
+
+class FlatLstmMemoryPolicy(NNPolicy):
+    def __init__(
+            self,
+            name_or_scope,
+            action_dim,
+            memory_dim,
+            env_obs_dim,
+            init_state=None,
+            rnn_cell_class=LstmLinearCell,
+            rnn_cell_params=None,
+            **kwargs
+    ):
+        if rnn_cell_params is None:
+            rnn_cell_params = {}
+        self.setup_serialization(locals())
+        super().__init__(name_or_scope=name_or_scope, **kwargs)
+        self._memory_dim = memory_dim
+        self._action_dim = action_dim
+        self._env_obs_dim = env_obs_dim
+        self.rnn_cell_class = rnn_cell_class
+        self.rnn_cell_params = rnn_cell_params
+        self.init_state = self._placeholder_if_none(
+            init_state,
+            [None, self._memory_dim],
+            name='lstm_init_state',
+            dtype=tf.float32,
+        )
+        self._create_network()
+
+    def _create_network_internal(self, observation_input=None):
+        env_obs, memory_obs = tf.split(
+            observation_input,
+            [self._env_obs_dim, self._memory_dim],
+            axis=1,
+        )
+        self._rnn_cell = self.rnn_cell_class(
+            self._memory_dim,
+            self._action_dim,
+            **self.rnn_cell_params
+        )
+        with tf.variable_scope("rnn_cell") as self._rnn_cell_scope:
+            cell_output = self._rnn_cell(env_obs, memory_obs)
+        return tf.concat(cell_output, axis=1)

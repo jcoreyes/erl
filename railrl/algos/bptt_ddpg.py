@@ -13,12 +13,109 @@ from railrl.core.rnn.rnn import OutputStateRnn
 from railrl.data_management.subtraj_replay_buffer import (
     SubtrajReplayBuffer
 )
+from railrl.data_management.updatable_subtraj_replay_buffer import \
+    UpdatableSubtrajReplayBuffer
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.policies.memory.rnn_cell_policy import RnnCellPolicy
 from railrl.pythonplusplus import map_recursive, filter_recursive, line_logger
 from railrl.qfunctions.nn_qfunction import NNQFunction
 
 TARGET_PREFIX = "target_"
+
+
+def _get_time_step(subsequences_action_or_obs, t):
+    """
+    Squeeze time out by only taking the one time step.
+
+    :param subsequences_of_action_or_obs: tuple of Tensors or Tensor of
+    shape [batch_size x traj_length x dim]
+    :param t: The time index to slice out.
+    :return: return tuple of Tensors or Tensor of shape [batch size x dim]
+    """
+    return map_recursive(lambda x: x[:, t, :], subsequences_action_or_obs)
+
+
+def _flatten(subsequences_of_action_or_obs):
+    """
+    Flatten a list of subsequences.
+
+    :param subsequences_of_action_or_obs: tuple of Tensors or Tensor of
+    shape [batch_size x traj_length x dim]
+    :return: return tuple of Tensors or Tensor of shape [k x dim]
+    where k = batch_size * traj_length
+    """
+    return map_recursive(lambda x: x.reshape(-1, x.shape[-1]),
+                         subsequences_of_action_or_obs)
+
+
+def _get_obs(batch):
+    return batch['env_obs'], batch['memories']
+
+
+def _get_next_obs(batch):
+    return batch['env_obs'], batch['memories']
+
+
+def _get_actions(batch):
+    return batch['env_actions'], batch['writes']
+
+
+def subtraj_batch_to_flat_augmented_batch(batch):
+    """
+    The batch is a bunch of subsequences. Flatten the subsequences so
+    that they just look like normal (s, a, s') tuples.
+    
+    Also, the actions/observations are split into their respective 
+    augmented parts.
+    """
+    rewards = batch['rewards']
+    terminals = batch['terminals']
+    obs = _get_obs(batch)
+    actions = _get_actions(batch)
+    next_obs = _get_next_obs(batch)
+
+    flat_actions = _flatten(actions)
+    flat_obs = _flatten(obs)
+    flat_next_obs = _flatten(next_obs)
+    flat_terminals = terminals.flatten()
+    flat_rewards = rewards.flatten()
+
+    return dict(
+        rewards=flat_rewards,
+        terminals=flat_terminals,
+        obs=flat_obs,
+        actions=flat_actions,
+        next_obs=flat_next_obs,
+    )
+
+
+def subtraj_batch_to_last_augmented_batch(batch):
+    """
+    The batch is a bunch of subsequences. Slice out the last time of each
+    the subsequences so that they just look like normal (s, a, s') tuples.
+
+    Also, the actions/observations are split into their respective
+    augmented parts.
+    """
+    rewards = batch['rewards']
+    terminals = batch['terminals']
+    obs = _get_obs(batch)
+    actions = _get_actions(batch)
+    next_obs = _get_next_obs(batch)
+
+    last_actions = _get_time_step(actions, -1)
+    last_obs = _get_time_step(obs, -1)
+    last_next_obs = _get_time_step(next_obs, -1)
+    last_terminals = terminals[:, -1]
+    last_rewards = rewards[:, -1]
+
+    return dict(
+        rewards=last_rewards,
+        terminals=last_terminals,
+        obs=last_obs,
+        actions=last_actions,
+        next_obs=last_next_obs,
+    )
 
 
 class BpttDDPG(DDPG):
@@ -37,7 +134,8 @@ class BpttDDPG(DDPG):
             env_obs_dim=None,
             env_action_dim=None,
             replay_pool_size=10000,
-            replay_buffer_class=SubtrajReplayBuffer,
+            replay_buffer_class=UpdatableSubtrajReplayBuffer,
+            replay_buffer_params=None,
             bpt_bellman_error_weight=0.,
             train_policy=True,
             extra_train_period=100,
@@ -48,6 +146,9 @@ class BpttDDPG(DDPG):
             train_qf_on_all=False,
             train_policy_on_all_qf_timesteps=False,
             write_policy_learning_rate=None,
+            saved_write_loss_weight=1.,
+            compute_gradients_immediately=False,
+            write_only_optimize_bellman=False,
             **kwargs
     ):
         """
@@ -84,6 +185,10 @@ class BpttDDPG(DDPG):
         part of the policy at this different learning rate. If `None`,
         the `policy_learning_rate` is used for all policy parameters. If set to
         zero, then the write action parameters aren't trained at all.
+        :param compute_gradients_immediately: If true, compute the gradients
+        w.r.t. the write actions immdiately after an episode ends.
+        :param write_only_optimize_bellman: If True, the write parameters are
+        optimized only to minimize the Bellman error.
         :param kwargs: kwargs to pass onto DDPG
         """
         assert extra_qf_training_mode in [
@@ -92,6 +197,10 @@ class BpttDDPG(DDPG):
             'validation',
         ]
         assert num_bptt_unrolls > 0
+        assert bpt_bellman_error_weight >= 0
+        assert saved_write_loss_weight >= 0
+        if replay_buffer_params is None:
+            replay_buffer_params = {}
         super().__init__(
             env,
             exploration_strategy,
@@ -101,8 +210,10 @@ class BpttDDPG(DDPG):
                 replay_pool_size,
                 env,
                 num_bptt_unrolls,
+                **replay_buffer_params
             ),
             **kwargs)
+        assert isinstance(self.pool, UpdatableSubtrajReplayBuffer)
         self._num_bptt_unrolls = num_bptt_unrolls
         self._env_obs_dim = env_obs_dim
         self._env_action_dim = env_action_dim
@@ -116,15 +227,19 @@ class BpttDDPG(DDPG):
         self.train_qf_on_all = train_qf_on_all
         self.train_policy_on_all_qf_timesteps = train_policy_on_all_qf_timesteps
         self.write_policy_learning_rate = write_policy_learning_rate
+        self.saved_write_loss_weight = saved_write_loss_weight
+        self.compute_gradients_immediately = compute_gradients_immediately
 
         self._rnn_cell_scope = policy.rnn_cell_scope
         self._rnn_cell = policy.rnn_cell
 
         self._replay_buffer_class = replay_buffer_class
+        self._replay_buffer_params = replay_buffer_params
         self._last_env_scores = []
         self.target_policy_for_policy = None
         self.target_qf_for_policy = None
         self.qf_for_policy = None
+        self.write_only_optimize_bellman = write_only_optimize_bellman
 
     def _sample_minibatch(self, batch_size=None):
         if batch_size is None:
@@ -133,35 +248,53 @@ class BpttDDPG(DDPG):
 
     def _do_training(
             self,
-            epoch=None,
             n_steps_total=None,
-            n_steps_current_epoch=None,
     ):
         self._do_extra_qf_training(n_steps_total=n_steps_total)
 
-        minibatch = self._sample_minibatch()
+        minibatch, start_indices = self._sample_minibatch()
 
         qf_ops = self._get_qf_training_ops(
-            epoch=epoch,
             n_steps_total=n_steps_total,
-            n_steps_current_epoch=n_steps_current_epoch,
         )
         qf_feed_dict = self._qf_feed_dict_from_batch(minibatch)
         self.sess.run(qf_ops, feed_dict=qf_feed_dict)
 
         policy_ops = self._get_policy_training_ops(
-            epoch=epoch,
             n_steps_total=n_steps_total,
-            n_steps_current_epoch=n_steps_current_epoch,
         )
         policy_feed_dict = self._policy_feed_dict_from_batch(minibatch)
-        self.sess.run(policy_ops, feed_dict=policy_feed_dict)
+        new_writes, dloss_dmemories, _ = self.sess.run(
+            [
+                self.all_writes_subsequences,
+                self.dloss_dmems_subsequences,
+                policy_ops
+            ],
+            feed_dict=policy_feed_dict,
+        )
+        # print("Desired dL/dtheta (next time)")
+        # print(self.sess.run(self.dL_dtheta_should_apply, policy_feed_dict))
+        # print("Actualy dL/dtheta")
+        # print(self.sess.run(self.dL_dtheta_actually_applied, policy_feed_dict))
+        # print("Desired dL/w (next time)")
+        # print(dloss_dwrites)
+        # print("Actualy dL/w")
+        # print(np.array(self.sess.run(self.dL_dwrite_actually_applied,
+        #                       policy_feed_dict)))
+        # import ipdb; ipdb.set_trace()
+        if self.saved_write_loss_weight > 0:
+            self.pool.update_write_subtrajectories(new_writes, start_indices)
+            self.pool.update_dloss_dmemories_subtrajectories(dloss_dmemories,
+                                                             start_indices)
+
+        return minibatch, start_indices
 
     def _statistics_from_paths(self, paths) -> OrderedDict:
         eval_pool = self._replay_buffer_class(
             len(paths) * self.max_path_length,
             self.env,
             self._num_bptt_unrolls,
+            **self._replay_buffer_params
         )
         for path in paths:
             eval_pool.add_trajectory(path)
@@ -172,13 +305,20 @@ class BpttDDPG(DDPG):
         statistics = OrderedDict()
         statistics.update(self._policy_statistics_from_batch(batch))
         statistics.update(self._qf_statistics_from_batch(batch))
+        statistics.update(create_stats_ordered_dict(
+            'saved dL/dW', batch['dloss_dwrites']
+        ))
         return statistics
 
     def _policy_statistics_from_batch(self, batch):
         policy_feed_dict = self._eval_policy_feed_dict_from_batch(batch)
         policy_stat_names, policy_ops = zip(*[
-            ('PolicySurrogateLoss', self.policy_surrogate_loss),
             ('PolicyOutput', self.policy.output),
+            ('PolicyEnvLoss', self.policy_env_action_loss),
+            ('PolicyWriteLoss', self.policy_write_action_loss),
+            # Unforuntately this won't work because new data sampled won't
+            # have any saved dloss/dwrites in the temporary replay buffer.
+            # ('SavedWriteLoss', self._saved_write_losses),
         ])
         values = self.sess.run(policy_ops, feed_dict=policy_feed_dict)
         statistics = OrderedDict()
@@ -224,9 +364,7 @@ class BpttDDPG(DDPG):
             train_ops,
             network,
             target_ops,
-            epoch=None,
             n_steps_total=None,
-            n_steps_current_epoch=None,
     ):
         if self._batch_norm:
             train_ops += network.batch_norm_update_stats_op
@@ -251,84 +389,27 @@ class BpttDDPG(DDPG):
             obs=flat_batch['obs'],
             actions=flat_batch['actions'],
             next_obs=flat_batch['next_obs'],
-            target_numbers=flat_batch['target_numbers'],
-            times=flat_batch['times'],
+            **self.env.get_extra_info_dict_from_batch(flat_batch)
         )
         return feed
 
     def subtraj_batch_to_flat_augmented_batch(self, batch):
-        """
-        The batch is a bunch of subsequences. Flatten the subsequences so
-        that they just look like normal (s, a, s') tuples.
-        
-        Also, the actions/observations are split into their respective 
-        augmented parts.
-        """
-        rewards = batch['rewards']
-        terminals = batch['terminals']
-        obs = batch['observations']
-        actions = batch['actions']
-        next_obs = batch['next_observations']
-        target_numbers = batch['target_numbers']
-        times = batch['times']
-
-        flat_actions = actions.reshape(-1, actions.shape[-1])
-        flat_obs = obs.reshape(-1, obs.shape[-1])
-        flat_next_obs = next_obs.reshape(-1, next_obs.shape[-1])
-        flat_target_numbers = target_numbers.flatten()
-        flat_times = times.flatten()
-        flat_terminals = terminals.flatten()
-        flat_rewards = rewards.flatten()
-
-        split_flat_obs = self._split_flat_obs(flat_obs)
-        split_flat_actions = self._split_flat_actions(flat_actions)
-        split_flat_next_obs = self._split_flat_obs(flat_next_obs)
-        return dict(
-            rewards=flat_rewards,
-            terminals=flat_terminals,
-            obs=split_flat_obs,
-            actions=split_flat_actions,
-            next_obs=split_flat_next_obs,
-            target_numbers=flat_target_numbers,
-            times=flat_times,
+        feed_dict = subtraj_batch_to_flat_augmented_batch(batch)
+        feed_dict.update(
+            self.env.get_flattened_extra_info_dict_from_subsequence_batch(
+                batch
+            )
         )
+        return feed_dict
 
     def subtraj_batch_to_last_augmented_batch(self, batch):
-        """
-        The batch is a bunch of subsequences. Slice out the last time of each
-        the subsequences so that they just look like normal (s, a, s') tuples.
-
-        Also, the actions/observations are split into their respective
-        augmented parts.
-        """
-        rewards = batch['rewards']
-        terminals = batch['terminals']
-        obs = batch['observations']
-        actions = batch['actions']
-        next_obs = batch['next_observations']
-        target_numbers = batch['target_numbers']
-        times = batch['times']
-
-        last_actions = self._get_time_step(actions, -1)
-        last_obs = self._get_time_step(obs, -1)
-        last_next_obs = self._get_time_step(next_obs, -1)
-        last_target_numbers = target_numbers[:, -1]
-        last_times = times[:, -1]
-        last_terminals = terminals[:, -1]
-        last_rewards = rewards[:, -1]
-
-        split_flat_obs = self._split_flat_obs(last_obs)
-        split_flat_actions = self._split_flat_actions(last_actions)
-        split_flat_next_obs = self._split_flat_obs(last_next_obs)
-        return dict(
-            rewards=last_rewards,
-            terminals=last_terminals,
-            obs=split_flat_obs,
-            actions=split_flat_actions,
-            next_obs=split_flat_next_obs,
-            target_numbers=last_target_numbers,
-            times=last_times,
+        feed_dict = subtraj_batch_to_last_augmented_batch(batch)
+        feed_dict.update(
+            self.env.get_flattened_extra_info_dict_from_subsequence_batch(
+                batch
+            )
         )
+        return feed_dict
 
     def _eval_qf_feed_dict_from_batch(self, batch):
         return self._qf_feed_dict_from_batch(batch)
@@ -342,7 +423,7 @@ class BpttDDPG(DDPG):
             return
         elif self.extra_qf_training_mode == 'fixed':
             for _ in range(self._num_extra_qf_updates):
-                minibatch = self._sample_minibatch()
+                minibatch, start_indices = self._sample_minibatch()
                 feed_dict = self._qf_feed_dict_from_batch(minibatch)
                 ops = self._get_qf_training_ops(n_steps_total=0)
                 if len(ops) > 0:
@@ -357,7 +438,7 @@ class BpttDDPG(DDPG):
                     "{0} T:{1:3.4f} V:{2:3.4f}".format(0, 0, 0)
                 )
                 for i in range(self.max_num_q_updates):
-                    minibatch = self._sample_minibatch()
+                    minibatch, start_indices = self._sample_minibatch()
                     feed_dict = self._qf_feed_dict_from_batch(minibatch)
                     ops = [self.qf_loss, self.train_qf_op]
                     ops += self.update_target_qf_op
@@ -433,12 +514,14 @@ class BpttDDPG(DDPG):
                                           self._rnn_outputs],
                                          axis=0)
         self.all_writes_list = [write for _, write in self._rnn_outputs]
+        self.all_writes_subsequences = tf.stack(self.all_writes_list, axis=1)
         self.all_writes = tf.concat(self.all_writes_list, axis=0)
         self.all_actions = self.all_env_actions, self.all_writes
-        self.all_mems = tf.concat(
-            [self._rnn_init_state_ph] + self.all_writes_list[:-1],
-            axis=0
+        self.all_mems_list = (
+            [self._rnn_init_state_ph] + self.all_writes_list[:-1]
         )
+        self.all_mems_subsequences = tf.stack(self.all_mems_list, axis=1)
+        self.all_mems = tf.concat(self.all_mems_list, axis=0)
         self.all_env_obs = tf.concat(self._rnn_inputs_unstacked,
                                      axis=0)
         self.all_obs = self.all_env_obs, self.all_mems
@@ -456,97 +539,137 @@ class BpttDDPG(DDPG):
         """
         Backprop the Bellman error through time, i.e. through dQ/dwrite action
         """
-        if self._bpt_bellman_error_weight > 0.:
-            self.next_env_obs_ph_for_policy_bpt_bellman = tf.placeholder(
-                tf.float32,
-                [None, self._env_obs_dim]
-            )
-            # You need to replace the next memory state with the last write
-            # action. See writeup for more details.
-            target_observation_input = (
-                self.next_env_obs_ph_for_policy_bpt_bellman,  # o_{t+1}^buffer
-                self._final_rnn_augmented_action[1]  # m_{t+1} = w_t
-            )
-            self.target_policy_for_policy = (
-                self.target_policy.get_weight_tied_copy(
-                    observation_input=target_observation_input,
-                )
-            )
-            self.target_qf_for_policy = self.target_qf.get_weight_tied_copy(
-                action_input=self.target_policy_for_policy.output,
+        self.next_env_obs_ph_for_policy_bpt_bellman = tf.placeholder(
+            tf.float32,
+            [None, self._env_obs_dim]
+        )
+        # You need to replace the next memory state with the last write
+        # action. See writeup for more details.
+        # TODO(vitchyr): Should I stop the gradient through m_{t+1}?
+        target_observation_input = (
+            self.next_env_obs_ph_for_policy_bpt_bellman,  # o_{t+1}^buffer
+            self._final_rnn_augmented_action[1]  # m_{t+1} = w_t
+        )
+        self.target_policy_for_policy = (
+            self.target_policy.get_weight_tied_copy(
                 observation_input=target_observation_input,
             )
-            self.ys_for_policy = (
-                self.rewards_n1 +
-                (1. - self.terminals_n1)
-                * self.discount
-                * self.target_qf_for_policy.output
-            )
+        )
+        self.target_qf_for_policy = self.target_qf.get_weight_tied_copy(
+            action_input=self.target_policy_for_policy.output,
+            observation_input=target_observation_input,
+        )
+        self.ys_for_policy = (
+            self.rewards_n1 +
+            (1. - self.terminals_n1)
+            * self.discount
+            * self.target_qf_for_policy.output
+        )
 
-            self.env_action_ph_for_policy_bpt_bellman = tf.placeholder(
-                tf.float32,
-                [None, self._env_action_dim]
-            )
-            self.env_observation_ph_for_policy_bpt_bellman = tf.placeholder(
-                tf.float32,
-                [None, self._env_obs_dim]
-            )
-            action_input = (
-                self.env_action_ph_for_policy_bpt_bellman,  # a_t^buffer
-                self._final_rnn_augmented_action[1],  # w_t
-            )
-            observation_input = (
-                self.env_observation_ph_for_policy_bpt_bellman,  # o_t^buffer
-                self._final_rnn_memory_input,  # m_t
-            )
-            self.qf_for_policy = self.qf.get_weight_tied_copy(
-                action_input=action_input,
-                observation_input=observation_input,
-            )
-            self.bellman_error_for_policy = tf.squeeze(tf_util.mse(
-                self.ys_for_policy,
-                self.qf_for_policy.output
-            ))
+        self.env_action_ph_for_policy_bpt_bellman = tf.placeholder(
+            tf.float32,
+            [None, self._env_action_dim]
+        )
+        self.env_observation_ph_for_policy_bpt_bellman = tf.placeholder(
+            tf.float32,
+            [None, self._env_obs_dim]
+        )
+        action_input = (
+            self.env_action_ph_for_policy_bpt_bellman,  # a_t^buffer
+            self._final_rnn_augmented_action[1],  # w_t
+        )
+        observation_input = (
+            self.env_observation_ph_for_policy_bpt_bellman,  # o_t^buffer
+            self._final_rnn_memory_input,  # m_t
+        )
+        self.qf_for_policy = self.qf.get_weight_tied_copy(
+            action_input=action_input,
+            observation_input=observation_input,
+        )
+        self.bellman_error_for_policy = tf.squeeze(tf_util.mse(
+            self.ys_for_policy,
+            self.qf_for_policy.output
+        ))
+
+        """
+        Note: you have to use all_writes_list and not (e.g.)
+        all_writes_subsequences because all_writes_subsequences is downstream of;
+        all_writes_list in the computation graph
+        """
+        self.loss_to_propagate = self.bellman_error_for_policy
+        # For debugging:
+        # self.loss_to_propagate = tf.reduce_sum(self.all_writes_list[-1])
+        # self.wparam = self.policy.get_params(write_only=True)[0]
+        # self.dL_dtheta_should_apply = tf.gradients(
+        #     self.loss_to_propagate,
+        #     self.wparam,
+        # )[0]
+        self.dloss_dmems = tf.gradients(self.loss_to_propagate,
+                                        self.all_mems_list)
+        self.dloss_dmems_subsequences = tf.stack(self.dloss_dmems, axis=1)
 
     def _init_policy_loss_and_train_ops(self):
-        self.policy_surrogate_loss = - tf.reduce_mean(
+        self.policy_env_action_loss, self.policy_write_action_loss = (
+            self._get_env_action_and_write_loss()
+        )
+        self.train_policy_op = self._get_policy_train_op(
+            self.policy_env_action_loss,
+            self.policy_write_action_loss,
+        )
+
+    def _get_env_action_and_write_loss(self):
+        bellman_loss = (
+            self.bellman_error_for_policy * self._bpt_bellman_error_weight
+        )
+        env_loss = - tf.reduce_mean(
             self.qf_with_action_input.output
         )
-        if self._bpt_bellman_error_weight > 0.:
-            self.policy_surrogate_loss += (
-                self.bellman_error_for_policy * self._bpt_bellman_error_weight
-            )
-        if self.train_policy:
-            self.train_policy_op = self._get_policy_train_op(
-                self.policy_surrogate_loss
-            )
-        else:
-            self.train_policy_op = None
+        env_loss += bellman_loss
 
-    def _get_policy_train_op(self, loss):
-        if self.write_policy_learning_rate is None:
-            trainable_policy_params = self.policy.get_params_internal()
-            return tf.train.AdamOptimizer(
-                self.policy_learning_rate
-            ).minimize(loss, var_list=trainable_policy_params)
+        if self.write_only_optimize_bellman:
+            write_action_loss = bellman_loss
+        else:
+            write_action_loss = env_loss
+
+        self._saved_write_gradients = tf.placeholder(
+            tf.float32,
+            self.all_writes_subsequences.get_shape(),
+            "saved_dloss_dwrites",
+        )
+        if self.saved_write_loss_weight > 0:
+            self._last_saved_write_gradients = tf.unstack(
+                self._saved_write_gradients,
+                axis=1
+            )[-1]
+            self._saved_write_losses = (
+                self.all_writes_list[-1] * self._last_saved_write_gradients
+            )
+            self._saved_write_loss = (
+                tf.reduce_sum(self._saved_write_losses)
+            )
+            write_action_loss += (
+                self._saved_write_loss * self.saved_write_loss_weight
+            )
+        return env_loss, write_action_loss
+
+    def _get_policy_train_op(self, env_action_loss, write_loss):
+        if not self.train_policy:
+            return None
 
         policy_env_params = self.policy.get_params(env_only=True)
-        if self.write_policy_learning_rate == 0.:
-            return tf.train.AdamOptimizer(
-                self.policy_learning_rate
-            ).minimize(loss, var_list=policy_env_params)
-        else:
-            policy_write_params = self.policy.get_params(write_only=True)
-            self.train_policy_op_env = tf.train.AdamOptimizer(
-                self.policy_learning_rate
-            ).minimize(loss, var_list=policy_env_params)
-            self.train_policy_op_write = tf.train.AdamOptimizer(
-                self.write_policy_learning_rate
-            ).minimize(loss, var_list=policy_write_params)
-            return [
-                self.train_policy_op_env,
-                self.train_policy_op_write,
-            ]
+        self.train_policy_op_env = tf.train.AdamOptimizer(
+            self.policy_learning_rate
+        ).minimize(env_action_loss, var_list=policy_env_params)
+
+        policy_write_params = self.policy.get_params(write_only=True)
+        self.train_policy_op_write = tf.train.AdamOptimizer(
+            self.write_policy_learning_rate
+        ).minimize(write_loss, var_list=policy_write_params)
+
+        return [
+            self.train_policy_op_env,
+            self.train_policy_op_write,
+        ]
 
     def _get_policy_training_ops(self, **kwargs):
         return self._get_network_training_ops(
@@ -557,56 +680,88 @@ class BpttDDPG(DDPG):
         )
 
     def _policy_feed_dict_from_batch(self, batch):
-        obs = self._split_flat_obs(batch['observations'])
-        initial_memory_obs = self._get_time_step(obs, 0)[1]
+        obs = _get_obs(batch)
+        initial_memory_obs = _get_time_step(obs, 0)[1]
         env_obs, _ = obs
         feed_dict = {
             self._rnn_inputs_ph: env_obs,
             self._rnn_init_state_ph: initial_memory_obs,
+            self._saved_write_gradients: batch['dloss_dwrites'],
         }
-        if self._bpt_bellman_error_weight > 0.:
-            next_obs = self._split_flat_obs(batch['next_observations'])
-            actions = self._split_flat_actions(batch['actions'])
-            last_rewards = batch['rewards'][:, -1:]
-            last_terminals = batch['terminals'][:, -1:]
-            last_env_obs = self._get_time_step(obs, -1)[0]
-            last_next_env_obs = self._get_time_step(next_obs, -1)[0]
-            last_env_actions = self._get_time_step(actions, -1)[0]
-            feed_dict[self.env_observation_ph_for_policy_bpt_bellman] = (
-                last_env_obs
-            )
-            feed_dict[self.next_env_obs_ph_for_policy_bpt_bellman] = (
-                last_next_env_obs
-            )
-            feed_dict[self.env_action_ph_for_policy_bpt_bellman] = (
-                last_env_actions
-            )
-            feed_dict[self.rewards_placeholder] = last_rewards
-            feed_dict[self.terminals_placeholder] = last_terminals
+
+        next_obs = _get_next_obs(batch)
+        actions = _get_actions(batch)
+        last_rewards = batch['rewards'][:, -1:]
+        last_terminals = batch['terminals'][:, -1:]
+        last_env_obs = _get_time_step(obs, -1)[0]
+        last_next_env_obs = _get_time_step(next_obs, -1)[0]
+        last_env_actions = _get_time_step(actions, -1)[0]
+        feed_dict[self.env_observation_ph_for_policy_bpt_bellman] = (
+            last_env_obs
+        )
+        feed_dict[self.next_env_obs_ph_for_policy_bpt_bellman] = (
+            last_next_env_obs
+        )
+        feed_dict[self.env_action_ph_for_policy_bpt_bellman] = (
+            last_env_actions
+        )
+        feed_dict[self.rewards_placeholder] = last_rewards
+        feed_dict[self.terminals_placeholder] = last_terminals
         return feed_dict
 
     def _eval_policy_feed_dict_from_batch(self, batch):
         feed_dict = self._policy_feed_dict_from_batch(batch)
-        obs = self._split_flat_obs(batch['observations'])
-        last_obs = self._get_time_step(obs, t=-1)
+        obs = _get_obs(batch)
+        last_obs = _get_time_step(obs, t=-1)
         feed_dict[self.policy.observation_input] = last_obs
         return feed_dict
 
+    def handle_rollout_ending(self):
+        if self.compute_gradients_immediately:
+            last_trajectory_start_index = (
+                self.pool.get_all_valid_trajectory_start_indices()[-1]
+            )
+            self.update_trajectory_memory_and_gradients(
+                last_trajectory_start_index
+            )
+
+        if self.refresh_entire_buffer:
+            self.update_replay_buffer()
+
+    @property
+    def refresh_entire_buffer(self):
+        return False
+
+    def update_trajectory_memory_and_gradients(self, trajectory_start_idx):
+        minibatch, start_indices = (
+            self.pool.get_trajectory_subsequences(
+                trajectory_start_idx,
+                self.env.horizon
+            )
+        )
+        policy_feed_dict = self._policy_feed_dict_from_batch(minibatch)
+        new_writes, dloss_dmemories = self.sess.run(
+            [
+                self.all_writes_subsequences,
+                self.dloss_dmems_subsequences,
+            ],
+            feed_dict=policy_feed_dict,
+        )
+        # TODO(vitchyr): Do I actually want to overwrite the write states?
+        # One issue is that no exploration will happen!
+        # self.pool.update_write_subtrajectories(new_writes, start_indices)
+        self.pool.update_dloss_dmemories_subtrajectories(dloss_dmemories,
+                                                         start_indices)
+
+    def update_replay_buffer(self):
+        start_episode_indices = (
+            self.pool.get_all_valid_trajectory_start_indices()
+        )
+        for start_episode_idx in start_episode_indices:
+            self.update_trajectory_memory_and_gradients(start_episode_idx)
     """
     Miscellaneous functions
     """
-
-    @staticmethod
-    def _get_time_step(action_or_obs, t):
-        """
-        Squeeze time out by only taking the one time step.
-
-        :param action_or_obs: tuple of Tensors or Tensor of shape [batch size x
-        traj length x dim]
-        :param t: The time index to slice out.
-        :return: return tuple of Tensors or Tensor of shape [batch size x dim]
-        """
-        return map_recursive(lambda x: x[:, t, :], action_or_obs)
 
     def log_diagnostics(self, paths):
         self._last_env_scores.append(np.mean(self.env.log_diagnostics(paths)))
@@ -630,3 +785,81 @@ class BpttDDPG(DDPG):
                 self.qf_for_policy,
             ]
         return networks
+
+    def _get_other_statistics(self):
+        statistics = OrderedDict()
+        statistics["Fraction of zero dL/dw in buffer"] = (
+            self.pool.fraction_dloss_dmemories_zero()
+        )
+        for name, validation in [
+            ('Valid', True),
+            ('Train', False),
+        ]:
+            batch = self.pool.get_valid_subtrajectories(validation=validation)
+            statistics.update(
+                self._get_other_statistics_train_validation(batch, name)
+            )
+        return statistics
+
+    def _get_other_statistics_train_validation(self, batch, name):
+        statistics = OrderedDict()
+        policy_feed_dict = self._policy_feed_dict_from_batch(batch)
+        (
+            policy_env_loss,
+            policy_write_loss,
+            policy_qf_output,
+        ) = self.sess.run(
+            [
+                self.policy_env_action_loss,
+                self.policy_write_action_loss,
+                self.qf_with_action_input.output,
+            ]
+            ,
+            feed_dict=policy_feed_dict
+        )
+        policy_base_stat_name = '{}Policy'.format(name)
+        statistics.update(create_stats_ordered_dict(
+            '{}_Env_Action_Loss'.format(policy_base_stat_name),
+            policy_env_loss,
+        ))
+        statistics.update(create_stats_ordered_dict(
+            '{}_Write_Loss'.format(policy_base_stat_name),
+            policy_write_loss,
+        ))
+        statistics.update(create_stats_ordered_dict(
+            '{}_Qf_Output'.format(policy_base_stat_name),
+            policy_qf_output,
+        ))
+
+        qf_feed_dict = self._qf_feed_dict_from_batch(batch)
+        (
+            qf_loss,
+            bellman_errors,
+            qf_output,
+        ) = self.sess.run(
+            [
+                self.qf_loss,
+                self.bellman_errors,
+                self.qf.output,
+            ]
+            ,
+            feed_dict=qf_feed_dict
+        )
+        qf_stat_base_name = '{}Qf'.format(name)
+        statistics.update(create_stats_ordered_dict(
+            '{}_BellmanError'.format(qf_stat_base_name),
+            bellman_errors,
+        ))
+        statistics.update(create_stats_ordered_dict(
+            '{}_Loss'.format(qf_stat_base_name),
+            qf_loss,
+        ))
+        statistics.update(create_stats_ordered_dict(
+            '{}_QfOutput'.format(qf_stat_base_name),
+            qf_output
+        ))
+        statistics.update(create_stats_ordered_dict(
+            '{}_QfOutput'.format(qf_stat_base_name),
+            qf_output
+        ))
+        return statistics

@@ -4,17 +4,18 @@ from random import randint
 import tensorflow as tf
 import numpy as np
 
+from railrl.envs.supervised_learning_env import RecurrentSupervisedLearningEnv
 from railrl.misc.data_processing import create_stats_ordered_dict
 from rllab.envs.base import Env
 from rllab.misc import logger
-from rllab.spaces.box import Box
+from sandbox.rocky.tf.spaces.box import Box
 
 
 def _generate_sign():
     return 2*randint(0, 1) - 1
 
 
-class HighLow(Env):
+class HighLow(Env, RecurrentSupervisedLearningEnv):
     def __init__(self, num_steps, **kwargs):
         assert num_steps > 0
         self._num_steps = num_steps
@@ -37,7 +38,7 @@ class HighLow(Env):
         done = self._t == self.horizon
         action = max(-1, min(action, 1))
         if done:
-            reward = action * self._sign
+            reward = float(action * self._sign)
         else:
             reward = 0
         observation = np.array([0])
@@ -95,3 +96,61 @@ class HighLow(Env):
             logger.record_tabular(key, value)
 
         return final_rewards
+
+    @staticmethod
+    def get_extra_info_dict_from_batch(batch):
+        return dict(
+            target_numbers=batch['target_numbers'],
+            times=batch['times'],
+        )
+
+    @staticmethod
+    def get_flattened_extra_info_dict_from_subsequence_batch(batch):
+        target_numbers = batch['target_numbers']
+        times = batch['times']
+        flat_target_numbers = target_numbers.flatten()
+        flat_times = times.flatten()
+        return dict(
+            target_numbers=flat_target_numbers,
+            times=flat_times,
+        )
+
+    @staticmethod
+    def get_last_extra_info_dict_from_subsequence_batch(batch):
+        target_numbers = batch['target_numbers']
+        times = batch['times']
+        last_target_numbers = target_numbers[:, -1]
+        last_times = times[:, -1]
+        return dict(
+            target_numbers=last_target_numbers,
+            times=last_times,
+        )
+
+    """
+    RecurrentSupervisedLearningEnv functions
+    """
+    @property
+    def target_dim(self):
+        return 1
+
+    @property
+    def feature_dim(self):
+        return 1
+
+    def get_batch(self, batch_size):
+        targets = 2 * np.random.randint(
+            low=0,
+            high=2,
+            size=batch_size,
+        ) - 1
+        targets = np.expand_dims(targets, 1)
+        X = np.zeros((batch_size, self.sequence_length, self.feature_dim))
+        X[:, 0, :] = targets
+        Y = np.zeros((batch_size, self.sequence_length, self.target_dim))
+        # targets = np.expand_dims(targets, 2)
+        Y[:, -1, :] = targets
+        return X, Y
+
+    @property
+    def sequence_length(self):
+        return self._num_steps

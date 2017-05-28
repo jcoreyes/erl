@@ -5,7 +5,7 @@ from rllab.core.serializable import Serializable
 from rllab.envs.base import Env
 from rllab.envs.proxy_env import ProxyEnv
 from rllab.spaces.product import Product
-from rllab.spaces.box import Box
+from sandbox.rocky.tf.spaces.box import Box
 from rllab.envs.env_spec import EnvSpec
 from cached_property import cached_property
 
@@ -80,6 +80,10 @@ class ContinuousMemoryAugmented(ProxyEnv):
             action_space=self._memory_state_space,
         )
 
+    @cached_property
+    def env_spec(self):
+        return self.wrapped_env.spec
+
     @property
     def memory_dim(self):
         return self._num_memory_states
@@ -115,3 +119,12 @@ class ContinuousMemoryAugmented(ProxyEnv):
         """
         return self._wrapped_env.get_tf_loss(observations[0], actions[0],
                                              **kwargs)
+
+    def get_extra_info_dict_from_batch(self, batch):
+        return self._wrapped_env.get_extra_info_dict_from_batch(batch)
+
+    def get_flattened_extra_info_dict_from_subsequence_batch(self, batch):
+        return self._wrapped_env.get_flattened_extra_info_dict_from_subsequence_batch(batch)
+
+    def get_last_extra_info_dict_from_subsequence_batch(self, batch):
+        return self._wrapped_env.get_last_extra_info_dict_from_subsequence_batch(batch)

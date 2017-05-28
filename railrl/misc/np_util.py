@@ -53,7 +53,7 @@ def subsequences(tensor, start_indices, length, start_offset=0):
     :param tensor: np.array
         Shape: n x m1 x m2 x ... x md
         where *m could be a number, or
-    :param start_indices: list, length k
+    :param start_indices: list with k elements
     :param length: int
     :param start_offset: int
     :return: np.array
@@ -66,3 +66,43 @@ def subsequences(tensor, start_indices, length, start_offset=0):
         axis=0
     ) + np.array(start_indices).reshape((num_indices, 1)) + start_offset
     return tensor[indices]
+
+
+def assign_subsequences(tensor, new_values, start_indices, length,
+                        start_offset=0,
+                        keep_old_fraction=0.):
+    """
+    The same as subseqences, but instead of returning those subsequences,
+    this assigns `new_values` to those entries.
+
+    If there's an overlap in places to assign values in `tensors`, the
+    subsequences later in `new_values` will overwrite preceding values.
+    :param tensor: np.array
+        Shape: n x m1 x m2 x ... x md
+        where *m could be a number, or
+    :param new_values: np.array
+        shape: k x `length` x m1 x m2 x ... md
+    :param start_indices: list with k elements
+    :param length: int, must match second dimension of new_values
+    :param start_offset: int
+    """
+    assert len(new_values) == len(start_indices)
+    assert new_values.shape[1] == length
+    assert new_values.shape[2:] == tensor.shape[1:]
+    assert min(start_indices) >= 0
+    assert max(start_indices) + length <= len(tensor)
+    num_indices = len(start_indices)
+    indices = np.repeat(
+        np.arange(length).reshape((1, length)),
+        num_indices,
+        axis=0
+    ) + np.array(start_indices).reshape((num_indices, 1)) + start_offset
+    if keep_old_fraction > 0.:
+        for new_value, sub_indices in zip(new_values, indices):
+            tensor[sub_indices] = (
+                (1-keep_old_fraction) * new_value
+                + keep_old_fraction * tensor[sub_indices]
+            )
+    else:
+        for new_value, sub_indices in zip(new_values, indices):
+            tensor[sub_indices] = new_value
