@@ -260,9 +260,15 @@ class BDP(RLAlgorithm):
         self.subtraj_length = subtraj_length
 
         self.exploration_strategy = exploration_strategy
-        self.num_epochs = 30
-        self.num_steps_per_epoch = 100
+        self.num_epochs = 10
+        self.num_steps_per_epoch = 1000
+        self.max_path_length = 1000
+        self.n_eval_samples = 100
+        self.train_validation_batch_size = 64
+        self.copy_target_param_period = 1000
         self.render = False
+        self.discount = 1.
+        self.batch_size = 32
         self.scale_reward = 1
         self.pool = UpdatableSubtrajReplayBuffer(
             10000,
@@ -285,12 +291,6 @@ class BDP(RLAlgorithm):
         )
         self.target_qf = self.qf.clone()
         self.target_policy = self.policy.clone()
-        self.discount = 1.
-        self.batch_size = 32
-        self.train_validation_batch_size = 64
-        self.max_path_length = 1000
-        self.n_eval_samples = 100
-        self.copy_target_param_period = 1000
 
         # noinspection PyTypeChecker
         self.eval_sampler = BatchSampler(self)
@@ -360,7 +360,8 @@ class BDP(RLAlgorithm):
                     observation = next_ob
 
                 if self._can_train():
-                    self._do_training(n_steps_total=n_steps_total)
+                    for _ in range(5):
+                        self._do_training(n_steps_total=n_steps_total)
 
             logger.log(
                 "Training Time: {0}".format(time.time() - start_time)
@@ -385,10 +386,11 @@ class BDP(RLAlgorithm):
         #     qf_loss = self.train_critic(subtraj_batch)
         #     qf_loss_np = float(qf_loss.data.numpy())
         # line_logger.print_over("QF loss: {}".format(qf_loss_np))
-        raw_subtraj_batch, _ = self.pool.random_subtrajectories(self.batch_size)
+        raw_subtraj_batch, start_indices = self.pool.random_subtrajectories(
+            self.batch_size)
         subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
         self.train_critic(subtraj_batch)
-        self.train_policy(subtraj_batch)
+        self.train_policy(subtraj_batch, start_indices)
         if n_steps_total % self.copy_target_param_period == 0:
             copy_module_params_from_to(self.qf, self.target_qf)
             copy_module_params_from_to(self.policy, self.target_policy)
@@ -440,7 +442,7 @@ class BDP(RLAlgorithm):
             ('Loss', bellman_errors.mean()),
         ])
 
-    def train_policy(self, subtraj_batch):
+    def train_policy(self, subtraj_batch, start_indices):
         policy_dict = self.get_policy_output_dict(subtraj_batch)
 
         policy_loss = policy_dict['loss']
@@ -453,6 +455,10 @@ class BDP(RLAlgorithm):
         self.write_policy_optimizer.zero_grad()
         bellman_errors.mean().backward(retain_variables=True)
         self.write_policy_optimizer.step()
+
+        self.pool.update_write_subtrajectories(
+            policy_dict['New Writes'].data.numpy(), start_indices
+        )
 
         # self.qf_optimizer.zero_grad()
         # bellman_errors.mean().backward()
@@ -532,8 +538,8 @@ class BDP(RLAlgorithm):
             ('Y predicted', y_predicted),
             ('Bellman Errors', bellman_errors),
             ('loss', policy_loss),
-            ('env_actions', flat_batch['policy_new_actions']),
-            ('writes', flat_batch['policy_new_writes']),
+            ('New Env Actions', flat_batch['policy_new_actions']),
+            ('New Writes', policy_writes),
         ])
 
     def evaluate(self, epoch, exploration_info_dict):
