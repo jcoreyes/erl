@@ -89,19 +89,23 @@ if __name__ == '__main__':
     """
     Set all the hyperparameters!
     """
-    # env_class = WaterMaze
     # env_class = WaterMazeEasy
-    # env_class = OneCharMemoryEndOnly
+    # env_class = WaterMaze
     env_class = HighLow
-    env_params = dict(
-        num_steps=9,
-        n=2,
-        zero_observation=True,
-        output_target_number=False,
-        output_time=False,
-        episode_boundary_flags=False,
-        max_reward_magnitude=1,
-    )
+    if env_class == WaterMaze:
+        env_params = dict(
+            num_steps=200,
+        )
+        epoch_length = 10000
+        eval_samples = 2000
+    elif env_class == HighLow:
+        env_params = dict(
+            num_steps=32,
+        )
+        epoch_length = 1000
+        eval_samples = 400
+    else:
+        raise Exception("Invalid env_class: %s" % env_class)
 
     # TODO(vitchyr): clean up this hacky dropout code. Also, you'll need to
     # fix the batchnorm code. Basically, calls to (e.g.) qf.output will
@@ -113,9 +117,9 @@ if __name__ == '__main__':
         n_epochs=30,
         min_pool_size=32,
         replay_pool_size=100000,
-        n_updates_per_time_step=1,
-        epoch_length=1000,
-        eval_samples=200,
+        n_updates_per_time_step=5,
+        epoch_length=epoch_length,
+        eval_samples=eval_samples,
         max_path_length=1002,
         discount=1.0,
         save_tf_graph=False,
