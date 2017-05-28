@@ -25,11 +25,12 @@ if __name__ == '__main__':
     n_seeds = 1
     mode = 'here'
     exp_prefix = "dev-bptt-ddpg"
+    version = "Our Method"
 
-    n_seeds = 10
-    mode = 'ec2'
-    exp_prefix = '5-27-benchmark-our-method-highlow'
-    version = "Our Method - Half length BPTT"
+    # n_seeds = 5
+    # mode = 'ec2'
+    # exp_prefix = '5-28-our-method-highlow-test-write-only-opt'
+    # version = "Our Method - Half length BPTT"
 
     """
     Miscellaneous Params
@@ -58,10 +59,10 @@ if __name__ == '__main__':
         eval_samples = 2000
     elif env_class == HighLow:
         env_params = dict(
-            num_steps=32,
+            num_steps=16,
         )
         epoch_length = 1000
-        eval_samples = 200
+        eval_samples = 400
     else:
         raise Exception("Invalid env_class: %s" % env_class)
 
