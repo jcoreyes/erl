@@ -5,6 +5,7 @@ import tensorflow as tf
 from tensorflow.contrib.rnn import LSTMCell
 
 from railrl.envs.memory.high_low import HighLow
+from railrl.envs.memory.one_char_memory import OneCharMemory
 from railrl.launchers.launcher_util import (
     run_experiment,
     set_seed,
@@ -35,7 +36,7 @@ def main():
 
     # n_seeds = 10
     # mode = "ec2"
-    # exp_prefix = "5-27-benchmark-sl-highlow-cell-type"
+    # exp_prefix = "5-27-benchmark-sl-ocm-sweep-h"
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -58,12 +59,14 @@ def main():
                 env_noise_std=0,
                 memory_noise_std=0,
                 output_nonlinearity=tf.nn.tanh,
+                # output_nonlinearity=tf.nn.softmax,
                 env_hidden_sizes=[],
             ),
             softmax=False,
         ),
         version='Supervised Learning',
         env_class=HighLow,
+        # env_class=OneCharMemory,
     )
 
     exp_id = -1
