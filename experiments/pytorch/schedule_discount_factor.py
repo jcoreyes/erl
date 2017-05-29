@@ -7,6 +7,7 @@ from railrl.envs.memory.continuous_memory_augmented import (
     ContinuousMemoryAugmented
 )
 from railrl.envs.memory.high_low import HighLow
+from railrl.envs.twod_point import TwoDPoint
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import (
     run_experiment,
@@ -19,33 +20,18 @@ def experiment(variant):
     from railrl.launchers.launcher_util import (
         set_seed,
     )
-    from railrl.exploration_strategies.product_strategy import ProductStrategy
     seed = variant['seed']
     algo_params = variant['algo_params']
-    es_params = variant['es_params']
-    memory_dim = variant['memory_dim']
     env_params = variant['env_params']
-
-    env_es_class = es_params['env_es_class']
-    env_es_params = es_params['env_es_params']
-    memory_es_class = es_params['memory_es_class']
-    memory_es_params = es_params['memory_es_params']
+    es_class = variant['es_class']
+    es_params = variant['es_params']
 
     set_seed(seed)
-    raw_env = HighLow(**env_params)
-    env = ContinuousMemoryAugmented(
-        raw_env,
-        num_memory_states=memory_dim,
+    env = TwoDPoint(**env_params)
+    es = es_class(
+        env_spec=env.spec,
+        **es_params
     )
-    env_strategy = env_es_class(
-        env_spec=raw_env.spec,
-        **env_es_params
-    )
-    write_strategy = memory_es_class(
-        env_spec=env.memory_spec,
-        **memory_es_params
-    )
-    es = ProductStrategy([env_strategy, write_strategy])
     algorithm = DDPG(
         env,
         es,
@@ -63,22 +49,14 @@ if __name__ == '__main__':
     variant = dict(
         memory_dim=20,
         env_params=dict(
-            num_steps=32,
         ),
         algo_params=dict(
             subtraj_length=16,
         ),
+        es_class=OUStrategy,
         es_params=dict(
-            env_es_class=OUStrategy,
-            env_es_params=dict(
-                max_sigma=1,
-                min_sigma=None,
-            ),
-            memory_es_class=OUStrategy,
-            memory_es_params=dict(
-                max_sigma=1,
-                min_sigma=None,
-            ),
+            max_sigma=1,
+            min_sigma=None,
         ),
     )
     exp_id = -1
