@@ -81,7 +81,7 @@ class SumCell(nn.Module):
         return memory + new_memory
 
 
-class Policy(nn.Module):
+class RecurrentPolicy(nn.Module):
     def __init__(
             self,
             obs_dim,
@@ -229,7 +229,7 @@ class Policy(nn.Module):
         pass
 
     def clone(self):
-        copy = Policy(
+        copy = RecurrentPolicy(
             self.obs_dim,
             self.action_dim,
             self.memory_dim,
@@ -290,7 +290,7 @@ class BpttDdpg(RLAlgorithm):
             [100],
             [100],
         )
-        self.policy = Policy(
+        self.policy = RecurrentPolicy(
             self.obs_dim,
             self.action_dim,
             self.memory_dim,

@@ -1,5 +1,5 @@
 """
-Try the PyTorch version of BPTT DDPG on HighLow env.
+See if slowly raising discount factor can stablize DDPG.
 """
 import random
 
@@ -15,7 +15,7 @@ from railrl.launchers.launcher_util import (
 
 
 def experiment(variant):
-    from railrl.torch.bptt_ddpg import BpttDdpg
+    from railrl.torch.ddpg import DDPG
     from railrl.launchers.launcher_util import (
         set_seed,
     )
@@ -46,7 +46,7 @@ def experiment(variant):
         **memory_es_params
     )
     es = ProductStrategy([env_strategy, write_strategy])
-    algorithm = BpttDdpg(
+    algorithm = DDPG(
         env,
         es,
         **algo_params
