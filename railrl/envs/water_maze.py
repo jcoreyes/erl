@@ -6,6 +6,7 @@ from railrl.envs.mujoco_env import MujocoEnv
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import split_paths
 from rllab.core.serializable import Serializable
+from rllab.envs.env_spec import EnvSpec
 from rllab.envs.proxy_env import ProxyEnv
 from rllab.misc import logger
 from sandbox.rocky.tf.spaces.box import Box
@@ -18,7 +19,7 @@ MAX_GOAL_DIST = BOUNDARY_DIST - RADIUS - BOUNDARY_RADIUS - 0.01
 
 
 # class MujocoWaterMaze(mujoco_env.MujocoEnv, utils.EzPickle):
-class MujocoWaterMaze(MujocoEnv):
+class WaterMaze(MujocoEnv):
     def __init__(self, horizon=200, l2_action_penalty_weight=1e-2,
                  include_velocity=False, **kwargs):
         super().__init__('water_maze.xml')
@@ -28,10 +29,14 @@ class MujocoWaterMaze(MujocoEnv):
         self._on_platform_history = deque(maxlen=5)
         for _ in range(5):
             self._on_platform_history.append(False)
-
         self.include_velocity = include_velocity
+
         self.action_space = Box(np.array([-1, -1]), np.array([1, 1]))
         self.observation_space = self._create_observation_space()
+        self.spec = EnvSpec(
+            self.observation_space,
+            self.action_space,
+        )
         self.reset_model()
 
     def _create_observation_space(self):
@@ -99,28 +104,6 @@ class MujocoWaterMaze(MujocoEnv):
         # v.cam.trackbodyid=0
         # v.cam.distance = v.model.stat.extent
 
-
-class MujocoWaterMazeEasy(MujocoWaterMaze):
-    def _create_observation_space(self):
-        num_obs = 4 if self.include_velocity else 2
-        return Box(
-            np.hstack((-np.inf + np.zeros(num_obs), [0], [-BOUNDARY_DIST,
-                                                          -BOUNDARY_DIST])),
-            np.hstack((np.inf + np.zeros(num_obs), [1], [BOUNDARY_DIST,
-                                                         BOUNDARY_DIST])),
-        )
-
-    def _get_observation(self):
-        obs = super()._get_observation()
-        target_position = self._get_target_position()
-        return np.hstack((obs, target_position))
-
-
-class WaterMaze(ProxyEnv, Serializable):
-    def __init__(self, env_class=MujocoWaterMaze, **kwargs):
-        Serializable.quick_init(self, locals())
-        super().__init__(env_class(**kwargs))
-
     def get_tf_loss(self, observations, actions, target_labels, **kwargs):
         """
         Return the supervised-learning loss.
@@ -158,7 +141,7 @@ class WaterMaze(ProxyEnv, Serializable):
         return returns
 
     def terminate(self):
-        self._wrapped_env.close()
+        self.close()
 
     @staticmethod
     def get_extra_info_dict_from_batch(batch):
@@ -174,9 +157,48 @@ class WaterMaze(ProxyEnv, Serializable):
 
 
 class WaterMazeEasy(WaterMaze):
-    def __init__(self, **kwargs):
-        Serializable.quick_init(self, locals())
-        super().__init__(MujocoWaterMazeEasy, **kwargs)
+    """
+    Always see the target position.
+    """
+    def _create_observation_space(self):
+        num_obs = 4 if self.include_velocity else 2
+        return Box(
+            np.hstack((-np.inf + np.zeros(num_obs), [0], [-BOUNDARY_DIST,
+                                                          -BOUNDARY_DIST])),
+            np.hstack((np.inf + np.zeros(num_obs), [1], [BOUNDARY_DIST,
+                                                         BOUNDARY_DIST])),
+        )
+
+    def _get_observation(self):
+        obs = super()._get_observation()
+        target_position = self._get_target_position()
+        return np.hstack((obs, target_position))
+
+
+class WaterMazeMemory(WaterMaze):
+    """
+    See the target position at the very first time step.
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.zeros = np.zeros(2)
+
+    def _create_observation_space(self):
+        num_obs = 4 if self.include_velocity else 2
+        return Box(
+            np.hstack((-np.inf + np.zeros(num_obs), [0], [-BOUNDARY_DIST,
+                                                          -BOUNDARY_DIST])),
+            np.hstack((np.inf + np.zeros(num_obs), [1], [BOUNDARY_DIST,
+                                                         BOUNDARY_DIST])),
+        )
+
+    def _get_observation(self):
+        obs = super()._get_observation()
+        if self._t == 0:
+            target_position = self._get_target_position()
+        else:
+            target_position = self.zeros
+        return np.hstack((obs, target_position))
 
 
 def make_heat_map(eval_func, resolution=50):
