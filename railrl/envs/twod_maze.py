@@ -1,18 +1,15 @@
 import numpy as np
-from gym import utils
-from gym.envs.mujoco import mujoco_env
 
-from railrl.envs.env_utils import get_asset_xml
-
+from railrl.envs.mujoco_env import MujocoEnv
 
 INIT_POS = np.array([0.2,0.15])
 TARGET = np.array([0.2, -0.15]) + INIT_POS
 DIST_THRESH = 0.05
 
-class TwoDMaze(mujoco_env.MujocoEnv, utils.EzPickle):
+
+class TwoDMaze(MujocoEnv):
     def __init__(self):
-        utils.EzPickle.__init__(self)
-        mujoco_env.MujocoEnv.__init__(self, get_asset_xml('twod_maze.xml'), 2)
+        super().__init__('twod_maze.xml')
 
     def _step(self, a):
         self.do_simulation(a, self.frame_skip)

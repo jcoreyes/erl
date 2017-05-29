@@ -1,21 +1,16 @@
 import numpy as np
-from gym import utils
-from rllab.envs.mujoco.mujoco_env import MujocoEnv
 
-from railrl.envs.env_utils import get_asset_xml
-
+from railrl.envs.mujoco_env import MujocoEnv
 
 TARGET = np.array([0.2, 0])
 
 
-class TwoDPoint(MujocoEnv, utils.EzPickle):
-    FILE = get_asset_xml('twod_point.xml')
-
+class TwoDPoint(MujocoEnv):
     def __init__(self):
-        super().__init__()
+        super().__init__('twod_point.xml')
 
     def _step(self, a):
-        self.forward_dynamics(a)
+        self.do_simulation(a, self.frame_skip)
         ob = self._get_obs()
         pos = ob[0:2]
         dist = np.linalg.norm(pos - TARGET)
@@ -26,10 +21,7 @@ class TwoDPoint(MujocoEnv, utils.EzPickle):
     def reset_model(self):
         qpos = self.init_qpos + np.random.uniform(size=self.model.nq, low=-0.01, high=0.01)
         qvel = self.init_qvel + np.random.uniform(size=self.model.nv, low=-0.01, high=0.01)
-        self.reset_mujoco({
-            'qpos': qpos,
-            'qvel': qvel,
-        })
+        self.set_state(qpos, qvel)
         return self._get_obs()
 
     def _get_obs(self):
