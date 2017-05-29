@@ -82,7 +82,7 @@ if __name__ == '__main__':
             trpo_params=dict(
                 batch_size=1000,
                 max_path_length=1000,  # Environment should stop it
-                n_itr=1000,
+                n_itr=100,
                 discount=1.,
                 step_size=0.01,
             ),
