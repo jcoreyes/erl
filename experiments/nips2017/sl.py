@@ -5,27 +5,14 @@ import tensorflow as tf
 from tensorflow.contrib.rnn import LSTMCell
 
 from railrl.envs.memory.high_low import HighLow
+from railrl.envs.memory.one_char_memory import OneCharMemory
 from railrl.launchers.launcher_util import (
     run_experiment,
     set_seed,
 )
+from railrl.launchers.rnn_launchers import bptt_launcher
 from railrl.policies.memory.lstm_memory_policy import (
     SeparateLstmLinearCell)
-
-
-def run_sl_exp(variant):
-    from railrl.launchers.launcher_util import (
-        set_seed,
-    )
-    from railrl.algos.bptt import Bptt
-    H = variant['H']
-    seed = variant['seed']
-    env_class = variant['env_class']
-    set_seed(seed)
-
-    env = env_class(num_steps=H)
-    algorithm = Bptt(env, **variant['algo_params'])
-    algorithm.train()
 
 
 def main():
@@ -35,7 +22,7 @@ def main():
 
     # n_seeds = 10
     # mode = "ec2"
-    # exp_prefix = "5-27-benchmark-sl-highlow-cell-type"
+    # exp_prefix = "5-27-benchmark-sl-ocm-sweep-h"
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -58,12 +45,14 @@ def main():
                 env_noise_std=0,
                 memory_noise_std=0,
                 output_nonlinearity=tf.nn.tanh,
+                # output_nonlinearity=tf.nn.softmax,
                 env_hidden_sizes=[],
             ),
             softmax=False,
         ),
         version='Supervised Learning',
         env_class=HighLow,
+        # env_class=OneCharMemory,
     )
 
     exp_id = -1
@@ -74,7 +63,7 @@ def main():
         variant['exp_id'] = exp_id
 
         run_experiment(
-            run_sl_exp,
+            bptt_launcher,
             exp_prefix=exp_prefix,
             seed=seed,
             mode=mode,

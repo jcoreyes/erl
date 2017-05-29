@@ -1,16 +1,14 @@
 from collections import deque, OrderedDict
 
 import numpy as np
-from gym import utils
-from gym.envs.mujoco import mujoco_env
 
-from railrl.envs.env_utils import get_asset_xml
+from railrl.envs.mujoco_env import MujocoEnv
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import split_paths
 from rllab.core.serializable import Serializable
 from rllab.envs.proxy_env import ProxyEnv
-from sandbox.rocky.tf.spaces.box import Box
 from rllab.misc import logger
+from sandbox.rocky.tf.spaces.box import Box
 
 RADIUS = 0.1
 BOUNDARY_RADIUS = 0.01
@@ -19,10 +17,11 @@ MAX_GOAL_DIST = BOUNDARY_DIST - RADIUS - BOUNDARY_RADIUS - 0.01
 # MAX_GOAL_DIST = BOUNDARY_DIST
 
 
-class MujocoWaterMaze(mujoco_env.MujocoEnv, utils.EzPickle):
+# class MujocoWaterMaze(mujoco_env.MujocoEnv, utils.EzPickle):
+class MujocoWaterMaze(MujocoEnv):
     def __init__(self, horizon=200, l2_action_penalty_weight=1e-2,
                  include_velocity=False, **kwargs):
-        utils.EzPickle.__init__(self)
+        super().__init__('water_maze.xml')
         self.l2_action_penalty_weight = l2_action_penalty_weight
         self.horizon = horizon
         self._t = 0
@@ -31,7 +30,6 @@ class MujocoWaterMaze(mujoco_env.MujocoEnv, utils.EzPickle):
             self._on_platform_history.append(False)
 
         self.include_velocity = include_velocity
-        mujoco_env.MujocoEnv.__init__(self, get_asset_xml('water_maze.xml'), 2)
         self.action_space = Box(np.array([-1, -1]), np.array([1, 1]))
         self.observation_space = self._create_observation_space()
         self.reset_model()

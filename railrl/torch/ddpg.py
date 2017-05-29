@@ -4,9 +4,10 @@ from collections import OrderedDict
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
+from torch import nn as nn
 from torch.autograd import Variable
+from torch.nn import functional as F
 
 from railrl.data_management.updatable_subtraj_replay_buffer import \
     UpdatableSubtrajReplayBuffer
@@ -17,115 +18,8 @@ from rllab.algos.batch_polopt import BatchSampler
 from rllab.misc import logger, special
 
 
-class QFunction(nn.Module):
-    def __init__(
-            self,
-            obs_dim,
-            action_dim,
-            memory_dim,
-            hidden_sizes,
-    ):
-        super().__init__()
-
-        self.obs_dim = obs_dim
-        self.action_dim = action_dim
-        self.memory_dim = memory_dim
-        self.hidden_sizes = hidden_sizes
-
-        input_dim = obs_dim + action_dim + 2 * memory_dim
-        self.fcs = []
-        last_size = input_dim
-        for size in hidden_sizes:
-            self.fcs.append(nn.Linear(last_size, size))
-            last_size = size
-        self.last_fc = nn.Linear(last_size, 1)
-
-    def forward(self, obs, memory, action, write):
-        x = torch.cat((obs, memory, action, write), dim=1)
-        for fc in self.fcs:
-            x = F.relu(fc(x))
-        return self.last_fc(x)
-
-    def clone(self):
-        copy = QFunction(
-            self.obs_dim,
-            self.action_dim,
-            self.memory_dim,
-            self.hidden_sizes,
-        )
-        copy_model_params(self, copy)
-        return copy
-
-
-class Policy(nn.Module):
-    def __init__(
-            self,
-            obs_dim,
-            action_dim,
-            memory_dim,
-            hidden_sizes,
-    ):
-        super().__init__()
-
-        self.obs_dim = obs_dim
-        self.action_dim = action_dim
-        self.memory_dim = memory_dim
-        self.hidden_sizes = hidden_sizes
-
-        self.fcs = []
-        all_inputs_dim = obs_dim + memory_dim
-        last_size = all_inputs_dim
-        for size in hidden_sizes:
-            self.fcs.append(nn.Linear(last_size, size))
-            last_size = size
-        self.last_fc = nn.Linear(last_size, action_dim)
-
-        self.lstm_cell = nn.LSTMCell(all_inputs_dim, memory_dim // 2)
-
-    def forward(self, obs, memory):
-        all_inputs = torch.cat([obs, memory], dim=1)
-        last_layer = all_inputs
-        for fc in self.fcs:
-            last_layer = F.relu(fc(last_layer))
-        action = self.last_fc(last_layer)
-
-        hx, cx = torch.split(memory, self.memory_dim // 2, dim=1)
-        new_hx, new_cx = self.lstm_cell(all_inputs, (hx, cx))
-        write = torch.cat((new_hx, new_cx), dim=1)
-        return action, write
-
-    def get_action(self, augmented_obs):
-        obs, memory = augmented_obs
-        obs = np.expand_dims(obs, axis=0)
-        memory = np.expand_dims(memory, axis=0)
-        obs = Variable(torch.from_numpy(obs).float(), requires_grad=False)
-        memory = Variable(torch.from_numpy(memory).float(), requires_grad=False)
-        action, write = self.__call__(obs, memory)
-        return (action.data.numpy(), write.data.numpy()), {}
-
-    def get_param_values(self):
-        return [param.data for param in self.parameters()]
-
-    def set_param_values(self, param_values):
-        for param, value in zip(self.parameters(), param_values):
-            param.data = value
-
-    def reset(self):
-        pass
-
-    def clone(self):
-        copy = Policy(
-            self.obs_dim,
-            self.action_dim,
-            self.memory_dim,
-            self.hidden_sizes,
-        )
-        copy_model_params(self, copy)
-        return copy
-
-
 # noinspection PyCallingNonCallable
-class BDP(RLAlgorithm):
+class DDPG(RLAlgorithm):
     """
     Online learning algorithm.
     """
@@ -395,3 +289,110 @@ def copy_model_params(source, target):
             target.parameters()
     ):
         target_param.data = source_param.data
+
+
+class QFunction(nn.Module):
+    def __init__(
+            self,
+            obs_dim,
+            action_dim,
+            memory_dim,
+            hidden_sizes,
+    ):
+        super().__init__()
+
+        self.obs_dim = obs_dim
+        self.action_dim = action_dim
+        self.memory_dim = memory_dim
+        self.hidden_sizes = hidden_sizes
+
+        input_dim = obs_dim + action_dim + 2 * memory_dim
+        self.fcs = []
+        last_size = input_dim
+        for size in hidden_sizes:
+            self.fcs.append(nn.Linear(last_size, size))
+            last_size = size
+        self.last_fc = nn.Linear(last_size, 1)
+
+    def forward(self, obs, memory, action, write):
+        x = torch.cat((obs, memory, action, write), dim=1)
+        for fc in self.fcs:
+            x = F.relu(fc(x))
+        return self.last_fc(x)
+
+    def clone(self):
+        copy = QFunction(
+            self.obs_dim,
+            self.action_dim,
+            self.memory_dim,
+            self.hidden_sizes,
+        )
+        copy_model_params(self, copy)
+        return copy
+
+
+class Policy(nn.Module):
+    def __init__(
+            self,
+            obs_dim,
+            action_dim,
+            memory_dim,
+            hidden_sizes,
+    ):
+        super().__init__()
+
+        self.obs_dim = obs_dim
+        self.action_dim = action_dim
+        self.memory_dim = memory_dim
+        self.hidden_sizes = hidden_sizes
+
+        self.fcs = []
+        all_inputs_dim = obs_dim + memory_dim
+        last_size = all_inputs_dim
+        for size in hidden_sizes:
+            self.fcs.append(nn.Linear(last_size, size))
+            last_size = size
+        self.last_fc = nn.Linear(last_size, action_dim)
+
+        self.lstm_cell = nn.LSTMCell(all_inputs_dim, memory_dim // 2)
+
+    def forward(self, obs, memory):
+        all_inputs = torch.cat([obs, memory], dim=1)
+        last_layer = all_inputs
+        for fc in self.fcs:
+            last_layer = F.relu(fc(last_layer))
+        action = self.last_fc(last_layer)
+
+        hx, cx = torch.split(memory, self.memory_dim // 2, dim=1)
+        new_hx, new_cx = self.lstm_cell(all_inputs, (hx, cx))
+        write = torch.cat((new_hx, new_cx), dim=1)
+        return action, write
+
+    def get_action(self, augmented_obs):
+        obs, memory = augmented_obs
+        obs = np.expand_dims(obs, axis=0)
+        memory = np.expand_dims(memory, axis=0)
+        obs = Variable(torch.from_numpy(obs).float(), requires_grad=False)
+        memory = Variable(torch.from_numpy(memory).float(), requires_grad=False)
+        action, write = self.__call__(obs, memory)
+        return (action.data.numpy(), write.data.numpy()), {}
+
+    def get_param_values(self):
+        return [param.data for param in self.parameters()]
+
+    def set_param_values(self, param_values):
+        for param, value in zip(self.parameters(), param_values):
+            param.data = value
+
+    def reset(self):
+        pass
+
+    def clone(self):
+        copy = Policy(
+            self.obs_dim,
+            self.action_dim,
+            self.memory_dim,
+            self.hidden_sizes,
+        )
+        copy_model_params(self, copy)
+        return copy

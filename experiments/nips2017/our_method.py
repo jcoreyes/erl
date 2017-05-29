@@ -25,11 +25,12 @@ if __name__ == '__main__':
     n_seeds = 1
     mode = 'here'
     exp_prefix = "dev-bptt-ddpg"
+    version = "Our Method"
 
-    n_seeds = 10
-    mode = 'ec2'
-    exp_prefix = '5-27-benchmark-our-method-highlow'
-    version = "Our Method - Half length BPTT"
+    # n_seeds = 5
+    # mode = 'ec2'
+    # exp_prefix = '5-28-our-method-highlow-test-write-only-opt'
+    # version = "Our Method - Half length BPTT"
 
     """
     Miscellaneous Params
@@ -51,20 +52,19 @@ if __name__ == '__main__':
     # env_class = WaterMaze
     env_class = HighLow
     if env_class == WaterMaze:
-        env_params = dict(
-            num_steps=200,
-        )
+        H = 200
         epoch_length = 10000
         eval_samples = 2000
     elif env_class == HighLow:
-        env_params = dict(
-            num_steps=32,
-        )
+        H = 16
         epoch_length = 1000
-        eval_samples = 200
+        eval_samples = 400
     else:
         raise Exception("Invalid env_class: %s" % env_class)
 
+    env_params = dict(
+        num_steps=H,
+    )
 
     # noinspection PyTypeChecker
     ddpg_params = dict(
@@ -179,6 +179,7 @@ if __name__ == '__main__':
     """
     # noinspection PyTypeChecker
     variant = dict(
+        H=H,
         memory_dim=memory_dim,
         exp_prefix=exp_prefix,
         algo_class=algo_class,

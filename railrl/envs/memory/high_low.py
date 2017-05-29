@@ -6,6 +6,7 @@ import numpy as np
 
 from railrl.envs.supervised_learning_env import RecurrentSupervisedLearningEnv
 from railrl.misc.data_processing import create_stats_ordered_dict
+from railrl.pythonplusplus import clip_magnitude
 from rllab.envs.base import Env
 from rllab.misc import logger
 from sandbox.rocky.tf.spaces.box import Box
@@ -76,11 +77,14 @@ class HighLow(Env, RecurrentSupervisedLearningEnv):
 
     def log_diagnostics(self, paths):
         final_values = []
+        final_unclipped_rewards = []
         final_rewards = []
         for path in paths:
             final_value = path["actions"][-1][0]
             final_values.append(final_value)
-            final_rewards.append(path["observations"][0][0] * final_value)
+            score = path["observations"][0][0] * final_value
+            final_unclipped_rewards.append(score)
+            final_rewards.append(clip_magnitude(score, 1))
 
         last_statistics = OrderedDict()
         last_statistics.update(create_stats_ordered_dict(
@@ -89,13 +93,17 @@ class HighLow(Env, RecurrentSupervisedLearningEnv):
         ))
         last_statistics.update(create_stats_ordered_dict(
             'Unclipped Final Rewards',
-            final_rewards,
+            final_unclipped_rewards,
+        ))
+        last_statistics.update(create_stats_ordered_dict(
+            'Final Rewards',
+            final_unclipped_rewards,
         ))
 
         for key, value in last_statistics.items():
             logger.record_tabular(key, value)
 
-        return final_rewards
+        return final_unclipped_rewards
 
     @staticmethod
     def get_extra_info_dict_from_batch(batch):
