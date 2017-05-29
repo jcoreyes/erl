@@ -30,7 +30,7 @@ def example(*_):
         es,
         policy,
         qf,
-        n_epochs=100,
+        n_epochs=20,
         batch_size=1024,
     )
     algorithm.train()
