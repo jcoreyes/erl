@@ -10,23 +10,9 @@ from railrl.launchers.launcher_util import (
     run_experiment,
     set_seed,
 )
+from railrl.launchers.rnn_launchers import bptt_launcher
 from railrl.policies.memory.lstm_memory_policy import (
     SeparateLstmLinearCell)
-
-
-def run_sl_exp(variant):
-    from railrl.launchers.launcher_util import (
-        set_seed,
-    )
-    from railrl.algos.bptt import Bptt
-    H = variant['H']
-    seed = variant['seed']
-    env_class = variant['env_class']
-    set_seed(seed)
-
-    env = env_class(num_steps=H)
-    algorithm = Bptt(env, **variant['algo_params'])
-    algorithm.train()
 
 
 def main():
@@ -77,7 +63,7 @@ def main():
         variant['exp_id'] = exp_id
 
         run_experiment(
-            run_sl_exp,
+            bptt_launcher,
             exp_prefix=exp_prefix,
             seed=seed,
             mode=mode,
