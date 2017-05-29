@@ -2,19 +2,20 @@
 Try the PyTorch version of BPTT DDPG on HighLow env.
 """
 import random
+
 from railrl.envs.memory.continuous_memory_augmented import (
     ContinuousMemoryAugmented
 )
 from railrl.envs.memory.high_low import HighLow
+from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import (
     run_experiment,
     set_seed,
 )
-from railrl.exploration_strategies.ou_strategy import OUStrategy
 
 
 def experiment(variant):
-    from railrl.algos.bptt_ddpg_pytorch import BDP
+    from railrl.algos.pytorch.bptt_ddpg import BpttDdpg
     from railrl.launchers.launcher_util import (
         set_seed,
     )
@@ -45,7 +46,7 @@ def experiment(variant):
         **memory_es_params
     )
     es = ProductStrategy([env_strategy, write_strategy])
-    algorithm = BDP(
+    algorithm = BpttDdpg(
         env,
         es,
         **algo_params

@@ -125,7 +125,7 @@ class Policy(nn.Module):
 
 
 # noinspection PyCallingNonCallable
-class BDP(RLAlgorithm):
+class DDPG(RLAlgorithm):
     """
     Online learning algorithm.
     """

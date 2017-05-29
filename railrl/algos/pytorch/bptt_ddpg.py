@@ -240,11 +240,10 @@ class Policy(nn.Module):
 
 
 # noinspection PyCallingNonCallable
-class BDP(RLAlgorithm):
+class BpttDdpg(RLAlgorithm):
     """
-    Online learning algorithm.
+    BPTT DDPG implemented in pytorch.
     """
-
     def __init__(
             self,
             env,
