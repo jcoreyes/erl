@@ -3,6 +3,8 @@ import numpy as np
 import tensorflow as tf
 import time
 
+from railrl.envs.memory.high_low import HighLow
+from railrl.envs.memory.one_char_memory import OneCharMemory
 from railrl.misc.data_processing import create_stats_ordered_dict
 from rllab.algos.base import RLAlgorithm
 from rllab.core.serializable import Serializable
@@ -131,10 +133,17 @@ class Bptt(Parameterized, RLAlgorithm, Serializable):
             self._predictions = rnn_outputs
             logits = [tf.exp(pred) for pred in self._predictions]
 
-        self._total_loss = tf.nn.sigmoid_cross_entropy_with_logits(
-            logits=logits[-1],
-            labels=labels[-1],
-        )
+        # TODO(vitchyr): change this loss function for the HighLow env
+        if isinstance(self._env, HighLow):
+            self._total_loss = - tf.reduce_mean(self._predictions[-1]
+                                                * labels[-1])
+        elif isinstance(self._env, OneCharMemory):
+            self._total_loss = tf.nn.sigmoid_cross_entropy_with_logits(
+                logits=logits[-1],
+                labels=labels[-1],
+            )
+        else:
+            raise Exception("Invalid env: %s" % self._env)
         self._train_step = tf.train.AdamOptimizer(
             self._learning_rate).minimize(
             self._total_loss)
@@ -153,6 +162,48 @@ class Bptt(Parameterized, RLAlgorithm, Serializable):
         self._training_losses.append(training_loss_)
 
     def _eval(self, epoch):
+        if isinstance(self._env, HighLow):
+            self._eval_highlow(epoch)
+        elif isinstance(self._env, OneCharMemory):
+            self._eval_ocm(epoch)
+        else:
+            raise Exception("Invalid env: %s" % self._env)
+
+    def _eval_highlow(self, epoch):
+        X, Y = self._env.get_batch(self._eval_num_episodes)
+        eval_losses, predictions = self._sess.run(
+            [
+                self._total_loss,
+                self._predictions,
+            ],
+            feed_dict={
+                self._x: X,
+                self._y: Y,
+            },
+        )
+        batch_first_predictions = np.array(predictions).swapaxes(0, 1)
+        paths = []
+        statistics = OrderedDict([
+            ('Epoch', epoch),
+        ])
+        statistics.update(create_stats_ordered_dict('Training Loss',
+                                                    self._training_losses))
+        statistics.update(create_stats_ordered_dict('Eval Loss',
+                                                    eval_losses))
+        self._training_losses = []
+        for x, y_hat in zip(X, batch_first_predictions):
+            path = {
+                'observations': x,
+                'actions': y_hat,
+            }
+            paths.append(path)
+        for key, value in statistics.items():
+            logger.record_tabular(key, value)
+
+        self._env.log_diagnostics(paths)
+        logger.dump_tabular(with_prefix=False, with_timestamp=False)
+
+    def _eval_ocm(self, epoch):
         X, Y = self._env.get_batch(self._eval_num_episodes)
         eval_losses, predictions = self._sess.run(
             [

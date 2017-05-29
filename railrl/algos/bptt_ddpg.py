@@ -149,6 +149,8 @@ class BpttDDPG(DDPG):
             saved_write_loss_weight=1.,
             compute_gradients_immediately=False,
             write_only_optimize_bellman=False,
+            env_action_minimize_bellman_loss=True,
+            save_new_memories_back_to_replay_buffer=True,
             **kwargs
     ):
         """
@@ -189,6 +191,8 @@ class BpttDDPG(DDPG):
         w.r.t. the write actions immdiately after an episode ends.
         :param write_only_optimize_bellman: If True, the write parameters are
         optimized only to minimize the Bellman error.
+        :param env_action_minimize_bellman_loss: If False, the env action is
+        only optimized to maximize the Q function.
         :param kwargs: kwargs to pass onto DDPG
         """
         assert extra_qf_training_mode in [
@@ -229,6 +233,10 @@ class BpttDDPG(DDPG):
         self.write_policy_learning_rate = write_policy_learning_rate
         self.saved_write_loss_weight = saved_write_loss_weight
         self.compute_gradients_immediately = compute_gradients_immediately
+        self.env_action_minimize_bellman_loss = env_action_minimize_bellman_loss
+        self.save_new_memories_back_to_replay_buffer = (
+            save_new_memories_back_to_replay_buffer
+        )
 
         self._rnn_cell_scope = policy.rnn_cell_scope
         self._rnn_cell = policy.rnn_cell
@@ -282,8 +290,9 @@ class BpttDDPG(DDPG):
         # print(np.array(self.sess.run(self.dL_dwrite_actually_applied,
         #                       policy_feed_dict)))
         # import ipdb; ipdb.set_trace()
-        if self.saved_write_loss_weight > 0:
+        if self.save_new_memories_back_to_replay_buffer:
             self.pool.update_write_subtrajectories(new_writes, start_indices)
+        if self.saved_write_loss_weight > 0:
             self.pool.update_dloss_dmemories_subtrajectories(dloss_dmemories,
                                                              start_indices)
 
@@ -624,7 +633,8 @@ class BpttDDPG(DDPG):
         env_loss = - tf.reduce_mean(
             self.qf_with_action_input.output
         )
-        env_loss += bellman_loss
+        if self.env_action_minimize_bellman_loss:
+            env_loss += bellman_loss
 
         if self.write_only_optimize_bellman:
             write_action_loss = bellman_loss
@@ -718,23 +728,47 @@ class BpttDDPG(DDPG):
 
     def handle_rollout_ending(self):
         if self.compute_gradients_immediately:
-            minibatch, start_indices = (
-                self.pool.get_last_trajectory_subsequences(self.env.horizon)
+            last_trajectory_start_index = (
+                self.pool.get_all_valid_trajectory_start_indices()[-1]
             )
-            policy_feed_dict = self._policy_feed_dict_from_batch(minibatch)
-            new_writes, dloss_dmemories = self.sess.run(
-                [
-                    self.all_writes_subsequences,
-                    self.dloss_dmems_subsequences,
-                ],
-                feed_dict=policy_feed_dict,
+            self.update_trajectory_memory_and_gradients(
+                last_trajectory_start_index
             )
-            # TODO(vitchyr): Do I actually want to overwrite the write states?
-            # One issue is that no exploration will happen!
-            # self.pool.update_write_subtrajectories(new_writes, start_indices)
-            self.pool.update_dloss_dmemories_subtrajectories(dloss_dmemories,
-                                                             start_indices)
 
+        if self.refresh_entire_buffer:
+            self.update_replay_buffer()
+
+    @property
+    def refresh_entire_buffer(self):
+        return False
+
+    def update_trajectory_memory_and_gradients(self, trajectory_start_idx):
+        minibatch, start_indices = (
+            self.pool.get_trajectory_subsequences(
+                trajectory_start_idx,
+                self.env.horizon
+            )
+        )
+        policy_feed_dict = self._policy_feed_dict_from_batch(minibatch)
+        new_writes, dloss_dmemories = self.sess.run(
+            [
+                self.all_writes_subsequences,
+                self.dloss_dmems_subsequences,
+            ],
+            feed_dict=policy_feed_dict,
+        )
+        # TODO(vitchyr): Do I actually want to overwrite the write states?
+        # One issue is that no exploration will happen!
+        # self.pool.update_write_subtrajectories(new_writes, start_indices)
+        self.pool.update_dloss_dmemories_subtrajectories(dloss_dmemories,
+                                                         start_indices)
+
+    def update_replay_buffer(self):
+        start_episode_indices = (
+            self.pool.get_all_valid_trajectory_start_indices()
+        )
+        for start_episode_idx in start_episode_indices:
+            self.update_trajectory_memory_and_gradients(start_episode_idx)
     """
     Miscellaneous functions
     """

@@ -24,13 +24,13 @@ from railrl.policies.memory.lstm_memory_policy import (
 if __name__ == '__main__':
     n_seeds = 1
     mode = 'here'
-    exp_prefix = "dev-bptt-ddpg-ocm"
-    run_mode = 'none'
+    exp_prefix = "dev-bptt-ddpg"
+    version = "Our Method"
 
-    # n_seeds = 10
+    # n_seeds = 5
     # mode = 'ec2'
-    # exp_prefix = '5-18-try-watermaze'
-    # run_mode = 'grid'
+    # exp_prefix = '5-28-our-method-highlow-test-write-only-opt'
+    # version = "Our Method - Half length BPTT"
 
     """
     Miscellaneous Params
@@ -49,27 +49,32 @@ if __name__ == '__main__':
     Set all the hyperparameters!
     """
     # env_class = WaterMazeEasy
-    env_class = WaterMaze
-    # env_class = HighLow
+    # env_class = WaterMaze
+    env_class = HighLow
+    if env_class == WaterMaze:
+        H = 200
+        epoch_length = 10000
+        eval_samples = 2000
+    elif env_class == HighLow:
+        H = 16
+        epoch_length = 1000
+        eval_samples = 400
+    else:
+        raise Exception("Invalid env_class: %s" % env_class)
+
     env_params = dict(
-        num_steps=200,
-        # n=2,
-        # zero_observation=True,
-        # output_target_number=False,
-        # output_time=False,
-        # episode_boundary_flags=False,
-        # max_reward_magnitude=1,
+        num_steps=H,
     )
 
     # noinspection PyTypeChecker
     ddpg_params = dict(
         batch_size=32,
-        n_epochs=5,
+        n_epochs=100,
         min_pool_size=32,
         replay_pool_size=100000,
-        n_updates_per_time_step=1,
-        epoch_length=1000,
-        eval_samples=200,
+        n_updates_per_time_step=5,
+        epoch_length=epoch_length,
+        eval_samples=eval_samples,
         max_path_length=1002,
         discount=1.0,
         save_tf_graph=False,
@@ -94,7 +99,7 @@ if __name__ == '__main__':
         train_policy_on_all_qf_timesteps=False,
         write_only_optimize_bellman=True,
         # memory
-        num_bptt_unrolls=32,
+        num_bptt_unrolls=16,
         bpt_bellman_error_weight=10,
         reward_low_bellman_error_weight=0.,
         saved_write_loss_weight=0,
@@ -109,7 +114,7 @@ if __name__ == '__main__':
             env_noise_std=.0,
             memory_noise_std=0.,
             output_nonlinearity=tf.nn.tanh,
-            env_hidden_sizes=[100, 100],
+            env_hidden_sizes=[],
             # env_hidden_activation=tf.tanh,
         )
     )
@@ -174,10 +179,11 @@ if __name__ == '__main__':
     """
     # noinspection PyTypeChecker
     variant = dict(
+        H=H,
         memory_dim=memory_dim,
         exp_prefix=exp_prefix,
         algo_class=algo_class,
-        version="Our Method - Full BPTT",
+        version=version,
         load_policy_file=load_policy_file,
         oracle_mode=oracle_mode,
         env_class=env_class,

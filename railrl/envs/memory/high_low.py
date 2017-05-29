@@ -4,7 +4,9 @@ from random import randint
 import tensorflow as tf
 import numpy as np
 
+from railrl.envs.supervised_learning_env import RecurrentSupervisedLearningEnv
 from railrl.misc.data_processing import create_stats_ordered_dict
+from railrl.pythonplusplus import clip_magnitude
 from rllab.envs.base import Env
 from rllab.misc import logger
 from sandbox.rocky.tf.spaces.box import Box
@@ -14,7 +16,7 @@ def _generate_sign():
     return 2*randint(0, 1) - 1
 
 
-class HighLow(Env):
+class HighLow(Env, RecurrentSupervisedLearningEnv):
     def __init__(self, num_steps, **kwargs):
         assert num_steps > 0
         self._num_steps = num_steps
@@ -75,11 +77,14 @@ class HighLow(Env):
 
     def log_diagnostics(self, paths):
         final_values = []
+        final_unclipped_rewards = []
         final_rewards = []
         for path in paths:
             final_value = path["actions"][-1][0]
             final_values.append(final_value)
-            final_rewards.append(path["observations"][0][0] * final_value)
+            score = path["observations"][0][0] * final_value
+            final_unclipped_rewards.append(score)
+            final_rewards.append(clip_magnitude(score, 1))
 
         last_statistics = OrderedDict()
         last_statistics.update(create_stats_ordered_dict(
@@ -88,13 +93,17 @@ class HighLow(Env):
         ))
         last_statistics.update(create_stats_ordered_dict(
             'Unclipped Final Rewards',
-            final_rewards,
+            final_unclipped_rewards,
+        ))
+        last_statistics.update(create_stats_ordered_dict(
+            'Final Rewards',
+            final_unclipped_rewards,
         ))
 
         for key, value in last_statistics.items():
             logger.record_tabular(key, value)
 
-        return final_rewards
+        return final_unclipped_rewards
 
     @staticmethod
     def get_extra_info_dict_from_batch(batch):
@@ -124,3 +133,32 @@ class HighLow(Env):
             target_numbers=last_target_numbers,
             times=last_times,
         )
+
+    """
+    RecurrentSupervisedLearningEnv functions
+    """
+    @property
+    def target_dim(self):
+        return 1
+
+    @property
+    def feature_dim(self):
+        return 1
+
+    def get_batch(self, batch_size):
+        targets = 2 * np.random.randint(
+            low=0,
+            high=2,
+            size=batch_size,
+        ) - 1
+        targets = np.expand_dims(targets, 1)
+        X = np.zeros((batch_size, self.sequence_length, self.feature_dim))
+        X[:, 0, :] = targets
+        Y = np.zeros((batch_size, self.sequence_length, self.target_dim))
+        # targets = np.expand_dims(targets, 2)
+        Y[:, -1, :] = targets
+        return X, Y
+
+    @property
+    def sequence_length(self):
+        return self._num_steps

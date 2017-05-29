@@ -37,7 +37,7 @@ class OneCharMemory(Env, RecurrentSupervisedLearningEnv):
 
     def __init__(
             self,
-            n=4,
+            n=2,
             num_steps=10,
             reward_for_remembering=1,
             max_reward_magnitude=1,
