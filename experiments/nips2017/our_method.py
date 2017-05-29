@@ -52,20 +52,19 @@ if __name__ == '__main__':
     # env_class = WaterMaze
     env_class = HighLow
     if env_class == WaterMaze:
-        env_params = dict(
-            num_steps=200,
-        )
+        H = 200
         epoch_length = 10000
         eval_samples = 2000
     elif env_class == HighLow:
-        env_params = dict(
-            num_steps=16,
-        )
+        H = 16
         epoch_length = 1000
         eval_samples = 400
     else:
         raise Exception("Invalid env_class: %s" % env_class)
 
+    env_params = dict(
+        num_steps=H,
+    )
 
     # noinspection PyTypeChecker
     ddpg_params = dict(
@@ -180,6 +179,7 @@ if __name__ == '__main__':
     """
     # noinspection PyTypeChecker
     variant = dict(
+        H=H,
         memory_dim=memory_dim,
         exp_prefix=exp_prefix,
         algo_class=algo_class,
