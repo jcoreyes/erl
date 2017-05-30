@@ -5,24 +5,31 @@ import numpy as np
 from railrl.envs.mujoco_env import MujocoEnv
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import split_paths
-from rllab.core.serializable import Serializable
 from rllab.envs.env_spec import EnvSpec
-from rllab.envs.proxy_env import ProxyEnv
 from rllab.misc import logger
 from sandbox.rocky.tf.spaces.box import Box
 
-RADIUS = 0.1
-BOUNDARY_RADIUS = 0.01
-BOUNDARY_DIST = 0.3
-MAX_GOAL_DIST = BOUNDARY_DIST - RADIUS - BOUNDARY_RADIUS - 0.01
-# MAX_GOAL_DIST = BOUNDARY_DIST
-
-
-# class MujocoWaterMaze(mujoco_env.MujocoEnv, utils.EzPickle):
 class WaterMaze(MujocoEnv):
     def __init__(self, horizon=200, l2_action_penalty_weight=1e-2,
-                 include_velocity=False, **kwargs):
-        super().__init__('water_maze.xml')
+                 include_velocity=False,
+                 use_small_maze=False,
+                 **kwargs):
+        if use_small_maze:
+            self.TARGET_RADIUS = 0.05
+            self.BOUNDARY_RADIUS = 0.005
+            self.BOUNDARY_DIST = 0.1
+            self.BALL_RADIUS = 0.01
+            super().__init__('small_water_maze.xml')
+        else:
+            self.TARGET_RADIUS = 0.1
+            self.BOUNDARY_RADIUS = 0.02
+            self.BOUNDARY_DIST = 0.3
+            self.BALL_RADIUS = 0.02
+            super().__init__('water_maze.xml')
+        self.BALL_START_DIST = (
+            self.BOUNDARY_DIST - self.BOUNDARY_RADIUS - 2 * self.BALL_RADIUS
+        )
+        self.MAX_GOAL_DIST = self.BOUNDARY_DIST
         self.l2_action_penalty_weight = l2_action_penalty_weight
         self.horizon = horizon
         self._t = 0
@@ -64,21 +71,23 @@ class WaterMaze(MujocoEnv):
         )
         done = self._t >= self.horizon
         info = {
-            'radius': RADIUS,
+            'radius': self.TARGET_RADIUS,
             'target_position': self._get_target_position(),
         }
         return observation, reward, done, info
 
     def reset_ball_position(self):
-        new_ball_position = self.np_random.uniform(size=2, low=-0.2, high=0.2)
+        new_ball_position = self.np_random.uniform(
+            size=2, low=-self.BALL_START_DIST, high=self.BALL_START_DIST
+        )
         target_position = self._get_target_position()
         qvel = np.zeros(self.model.nv)
         new_pos = np.hstack((new_ball_position, target_position))
         self.set_state(new_pos, qvel)
 
     def reset_model(self):
-        qpos = self.np_random.uniform(size=self.model.nq, low=-MAX_GOAL_DIST,
-                                      high=MAX_GOAL_DIST)
+        qpos = self.np_random.uniform(size=self.model.nq, low=-self.MAX_GOAL_DIST,
+                                      high=self.MAX_GOAL_DIST)
         qvel = np.zeros(self.model.nv)
         self.set_state(qpos, qvel)
         self.reset_ball_position()
@@ -90,7 +99,7 @@ class WaterMaze(MujocoEnv):
         velocity = np.concatenate([self.model.data.qvel]).ravel()[:2]
         target_position = self._get_target_position()
         dist = np.linalg.norm(position - target_position)
-        on_platform = dist <= RADIUS
+        on_platform = dist <= self.TARGET_RADIUS
         if self.include_velocity:
             return np.hstack((position, velocity, [on_platform]))
         else:
@@ -163,10 +172,10 @@ class WaterMazeEasy(WaterMaze):
     def _create_observation_space(self):
         num_obs = 4 if self.include_velocity else 2
         return Box(
-            np.hstack((-np.inf + np.zeros(num_obs), [0], [-BOUNDARY_DIST,
-                                                          -BOUNDARY_DIST])),
-            np.hstack((np.inf + np.zeros(num_obs), [1], [BOUNDARY_DIST,
-                                                         BOUNDARY_DIST])),
+            np.hstack((-np.inf + np.zeros(num_obs), [0], [-self.BOUNDARY_DIST,
+                                                          -self.BOUNDARY_DIST])),
+            np.hstack((np.inf + np.zeros(num_obs), [1], [self.BOUNDARY_DIST,
+                                                         self.BOUNDARY_DIST])),
         )
 
     def _get_observation(self):
@@ -186,10 +195,10 @@ class WaterMazeMemory(WaterMaze):
     def _create_observation_space(self):
         num_obs = 4 if self.include_velocity else 2
         return Box(
-            np.hstack((-np.inf + np.zeros(num_obs), [0], [-BOUNDARY_DIST,
-                                                          -BOUNDARY_DIST])),
-            np.hstack((np.inf + np.zeros(num_obs), [1], [BOUNDARY_DIST,
-                                                         BOUNDARY_DIST])),
+            np.hstack((-np.inf + np.zeros(num_obs), [0], [-self.BOUNDARY_DIST,
+                                                          -self.BOUNDARY_DIST])),
+            np.hstack((np.inf + np.zeros(num_obs), [1], [self.BOUNDARY_DIST,
+                                                         self.BOUNDARY_DIST])),
         )
 
     def _get_observation(self):
