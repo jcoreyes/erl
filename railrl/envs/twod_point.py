@@ -7,6 +7,7 @@ TARGET = np.array([0.2, 0])
 
 class TwoDPoint(MujocoEnv):
     def __init__(self):
+        self.init_serialization(locals())
         super().__init__('twod_point.xml')
 
     def _step(self, a):

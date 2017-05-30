@@ -9,6 +9,7 @@ DIST_THRESH = 0.05
 
 class TwoDMaze(MujocoEnv):
     def __init__(self):
+        self.init_serialization(locals())
         super().__init__('twod_maze.xml')
 
     def _step(self, a):

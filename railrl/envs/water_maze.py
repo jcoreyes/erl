@@ -5,6 +5,7 @@ import numpy as np
 from railrl.envs.mujoco_env import MujocoEnv
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import split_paths
+from rllab.core.serializable import Serializable
 from rllab.envs.env_spec import EnvSpec
 from rllab.misc import logger
 from sandbox.rocky.tf.spaces.box import Box
@@ -15,6 +16,7 @@ class WaterMaze(MujocoEnv):
                  include_velocity=False,
                  use_small_maze=False,
                  **kwargs):
+        self.init_serialization(locals())
         if use_small_maze:
             self.TARGET_RADIUS = 0.04
             self.BOUNDARY_RADIUS = 0.02
@@ -86,7 +88,8 @@ class WaterMaze(MujocoEnv):
         self.set_state(new_pos, qvel)
 
     def reset_model(self):
-        qpos = self.np_random.uniform(size=self.model.nq, low=-self.MAX_GOAL_DIST,
+        qpos = self.np_random.uniform(size=self.model.nq,
+                                      low=-self.MAX_GOAL_DIST,
                                       high=self.MAX_GOAL_DIST)
         qvel = np.zeros(self.model.nv)
         self.set_state(qpos, qvel)
@@ -174,6 +177,7 @@ class WaterMazeEasy(WaterMaze):
     """
     Always see the target position.
     """
+
     def _create_observation_space(self):
         obs_space = super()._create_observation_space()
         return Box(
@@ -193,14 +197,13 @@ class WaterMazeEasy(WaterMaze):
         return np.hstack((obs, target_position)), on_platform
 
 
+ZERO_TARGET_POSITION = np.zeros(2)
+
+
 class WaterMazeMemory(WaterMaze):
     """
     See the target position at the very first time step.
     """
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.zeros = np.zeros(2)
-
     def _create_observation_space(self):
         obs_space = super()._create_observation_space()
         return Box(
@@ -219,7 +222,7 @@ class WaterMazeMemory(WaterMaze):
         if self._t == 0:
             target_position = self._get_target_position()
         else:
-            target_position = self.zeros
+            target_position = ZERO_TARGET_POSITION
         return np.hstack((obs, target_position)), on_platform
 
 
