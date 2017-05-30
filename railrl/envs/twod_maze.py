@@ -30,10 +30,7 @@ class TwoDMaze(MujocoEnv):
         return self._get_obs()
 
     def _get_obs(self):
-        #return np.concatenate([self.model.data.qpos, self.model.data.qvel]).ravel()
         return np.concatenate([self.model.data.qpos]).ravel()
 
     def viewer_setup(self):
-        v = self.viewer
-        #v.cam.trackbodyid=0
-        #v.cam.distance = v.model.stat.extent
+        pass

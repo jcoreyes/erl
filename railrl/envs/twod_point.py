@@ -15,24 +15,24 @@ class TwoDPoint(MujocoEnv):
         ob = self._get_obs()
         pos = ob[0:2]
         dist = np.linalg.norm(pos - TARGET)
-        reward = - (dist + 1e-2*np.linalg.norm(a))
+        reward = - (dist + 1e-2 * np.linalg.norm(a))
         done = False
         return ob, reward, done, {}
 
     def reset_model(self):
-        qpos = self.init_qpos + np.random.uniform(size=self.model.nq, low=-0.01, high=0.01)
-        qvel = self.init_qvel + np.random.uniform(size=self.model.nv, low=-0.01, high=0.01)
+        qpos = self.init_qpos + np.random.uniform(size=self.model.nq, low=-0.01,
+                                                  high=0.01)
+        qvel = self.init_qvel + np.random.uniform(size=self.model.nv, low=-0.01,
+                                                  high=0.01)
         self.set_state(qpos, qvel)
         return self._get_obs()
 
     def _get_obs(self):
-        #return np.concatenate([self.model.data.qpos, self.model.data.qvel]).ravel()
         return np.concatenate([self.model.data.qpos]).ravel()
 
     def viewer_setup(self):
-        v = self.viewer
-        #v.cam.trackbodyid=0
-        #v.cam.distance = v.model.stat.extent
+        pass
+
 
 def make_heat_map(eval_func, resolution=50):
     linspace = np.linspace(-0.3, 0.3, num=resolution)
@@ -40,17 +40,19 @@ def make_heat_map(eval_func, resolution=50):
 
     for i in range(resolution):
         for j in range(resolution):
-            map[i,j] = eval_func(np.array([linspace[i], linspace[j]]))
+            map[i, j] = eval_func(np.array([linspace[i], linspace[j]]))
     return map
 
+
 def make_density_map(paths, resolution=50):
-    linspace = np.linspace(-0.3, 0.3, num=resolution+1)
-    y = paths[:,0]
-    x = paths[:,1]
+    linspace = np.linspace(-0.3, 0.3, num=resolution + 1)
+    y = paths[:, 0]
+    x = paths[:, 1]
     H, xedges, yedges = np.histogram2d(y, x, bins=(linspace, linspace))
     H = H.astype(np.float)
-    H = H/np.max(H)
+    H = H / np.max(H)
     return H
+
 
 def plot_maps(old_combined=None, *heatmaps):
     import matplotlib.pyplot as plt
@@ -62,11 +64,14 @@ def plot_maps(old_combined=None, *heatmaps):
     plt.show()
     return combined
 
+
 if __name__ == "__main__":
     def evalfn(a):
         return np.linalg.norm(a)
+
+
     hm = make_heat_map(evalfn, resolution=50)
-    paths = np.random.randn(5000,2)*0.1
+    paths = np.random.randn(5000, 2) * 0.1
     dm = make_density_map(paths, resolution=50)
     a = plot_maps(None, hm, dm)
     plot_maps(a, hm, dm)
