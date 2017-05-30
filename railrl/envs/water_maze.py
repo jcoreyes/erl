@@ -58,9 +58,8 @@ class WaterMaze(MujocoEnv):
         self._t += 1
         mujoco_action = np.hstack([force_actions, [0, 0]])
         self.do_simulation(mujoco_action, self.frame_skip)
-        observation = self._get_observation()
+        observation, on_platform = self._get_observation_and_on_platform()
 
-        on_platform = observation[2]
         self._on_platform_history.append(on_platform)
 
         if all(self._on_platform_history):
@@ -93,18 +92,23 @@ class WaterMaze(MujocoEnv):
         self.set_state(qpos, qvel)
         self.reset_ball_position()
         self._t = 0
-        return self._get_observation()
+        return self._get_observation_and_on_platform()[0]
 
-    def _get_observation(self):
+    def _get_observation_and_on_platform(self):
+        """
+        :return: Tuple
+        - Observation vector
+        - Flag: on platform or not.
+        """
         position = np.concatenate([self.model.data.qpos]).ravel()[:2]
-        velocity = np.concatenate([self.model.data.qvel]).ravel()[:2]
         target_position = self._get_target_position()
         dist = np.linalg.norm(position - target_position)
         on_platform = dist <= self.TARGET_RADIUS
         if self.include_velocity:
-            return np.hstack((position, velocity, [on_platform]))
+            velocity = np.concatenate([self.model.data.qvel]).ravel()[:2]
+            return np.hstack((position, velocity, [on_platform])), on_platform
         else:
-            return np.hstack((position, [on_platform]))
+            return np.hstack((position, [on_platform])), on_platform
 
     def _get_target_position(self):
         return np.concatenate([self.model.data.qpos]).ravel()[2:]
@@ -171,18 +175,22 @@ class WaterMazeEasy(WaterMaze):
     Always see the target position.
     """
     def _create_observation_space(self):
-        num_obs = 4 if self.include_velocity else 2
+        obs_space = super()._create_observation_space()
         return Box(
-            np.hstack((-np.inf + np.zeros(num_obs), [0], [-self.BOUNDARY_DIST,
-                                                          -self.BOUNDARY_DIST])),
-            np.hstack((np.inf + np.zeros(num_obs), [1], [self.BOUNDARY_DIST,
-                                                         self.BOUNDARY_DIST])),
+            np.hstack((
+                obs_space.low,
+                [-self.BOUNDARY_DIST, -self.BOUNDARY_DIST]
+            )),
+            np.hstack((
+                obs_space.high,
+                [self.BOUNDARY_DIST, self.BOUNDARY_DIST]
+            )),
         )
 
-    def _get_observation(self):
-        obs = super()._get_observation()
+    def _get_observation_and_on_platform(self):
+        obs, on_platform = super()._get_observation_and_on_platform()
         target_position = self._get_target_position()
-        return np.hstack((obs, target_position))
+        return np.hstack((obs, target_position)), on_platform
 
 
 class WaterMazeMemory(WaterMaze):
@@ -194,21 +202,25 @@ class WaterMazeMemory(WaterMaze):
         self.zeros = np.zeros(2)
 
     def _create_observation_space(self):
-        num_obs = 4 if self.include_velocity else 2
+        obs_space = super()._create_observation_space()
         return Box(
-            np.hstack((-np.inf + np.zeros(num_obs), [0], [-self.BOUNDARY_DIST,
-                                                          -self.BOUNDARY_DIST])),
-            np.hstack((np.inf + np.zeros(num_obs), [1], [self.BOUNDARY_DIST,
-                                                         self.BOUNDARY_DIST])),
+            np.hstack((
+                obs_space.low,
+                [-self.BOUNDARY_DIST, -self.BOUNDARY_DIST]
+            )),
+            np.hstack((
+                obs_space.high,
+                [self.BOUNDARY_DIST, self.BOUNDARY_DIST]
+            )),
         )
 
-    def _get_observation(self):
-        obs = super()._get_observation()
+    def _get_observation_and_on_platform(self):
+        obs, on_platform = super()._get_observation_and_on_platform()
         if self._t == 0:
             target_position = self._get_target_position()
         else:
             target_position = self.zeros
-        return np.hstack((obs, target_position))
+        return np.hstack((obs, target_position)), on_platform
 
 
 def make_heat_map(eval_func, resolution=50):
