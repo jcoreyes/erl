@@ -11,7 +11,7 @@ from railrl.data_management.ocm_subtraj_replay_buffer import (
     OcmSubtrajReplayBuffer
 )
 from railrl.envs.memory.high_low import HighLow
-from railrl.envs.water_maze import WaterMaze, WaterMazeEasy
+from railrl.envs.water_maze import WaterMaze, WaterMazeEasy, WaterMazeMemory
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.algo_launchers import bptt_ddpg_launcher
 from railrl.launchers.launcher_util import (
@@ -27,9 +27,9 @@ if __name__ == '__main__':
     exp_prefix = "dev-bptt-ddpg"
     version = "Our Method"
 
-    # n_seeds = 5
+    # n_seeds = 10
     # mode = 'ec2'
-    # exp_prefix = '5-28-our-method-highlow-test-write-only-opt'
+    # exp_prefix = '5-30-benchmark-our-method-easy-water-maze'
     # version = "Our Method - Half length BPTT"
 
     """
@@ -48,10 +48,11 @@ if __name__ == '__main__':
     """
     Set all the hyperparameters!
     """
-    # env_class = WaterMazeEasy
+    env_class = WaterMazeMemory
+    env_class = WaterMazeEasy
     # env_class = WaterMaze
     env_class = HighLow
-    if env_class == WaterMaze:
+    if issubclass(env_class, WaterMaze):
         H = 200
         epoch_length = 10000
         eval_samples = 2000
