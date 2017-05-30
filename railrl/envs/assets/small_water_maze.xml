@@ -17,21 +17,21 @@
 
         <!-- Target -->
         <body name="target" pos="0 0 0">
-            <geom conaffinity="0" name="target_geom" type="cylinder" size=".05
+            <geom conaffinity="0" name="target_geom" type="cylinder" size=".04
              .001" rgba="0 0.9 0.1 1" contype="0"/>
             <joint name="target_x" type="slide" pos="0 0 0" axis="1 0 0" />
             <joint name="target_y" type="slide" pos="0 0 0" axis="0 1 0" />
         </body>
 
         <!-- Arena -->
-        <geom conaffinity="1" fromto="-.1 -.1 .0 .1 -.1 .0" name="sideS"
-              rgba="0.9 0.4 0.6 1" size=".005" type="capsule"/>
-        <geom conaffinity="1" fromto=" .1 -.1 .0 .1  .1 .0" name="sideE"
-              rgba="0.9 0.4 0.6 1" size=".005" type="capsule"/>
-        <geom conaffinity="1" fromto="-.1  .1 .0 .1  .1 .0" name="sideN"
-              rgba="0.9 0.4 0.6 1" size=".005" type="capsule"/>
-        <geom conaffinity="1" fromto="-.1 -.1 .0 -.1 .1 .0" name="sideW"
-              rgba="0.9 0.4 0.6 1" size=".005" type="capsule"/>
+        <geom conaffinity="1" fromto="-.12 -.12 .0 .12 -.12 .0" name="sideS"
+              rgba="0.9 0.4 0.6 1" size=".02" type="capsule"/>
+        <geom conaffinity="1" fromto=" .12 -.12 .0 .12  .12 .0" name="sideE"
+              rgba="0.9 0.4 0.6 1" size=".02" type="capsule"/>
+        <geom conaffinity="1" fromto="-.12  .12 .0 .12  .12 .0" name="sideN"
+              rgba="0.9 0.4 0.6 1" size=".02" type="capsule"/>
+        <geom conaffinity="1" fromto="-.12 -.12 .0 -.12 .12 .0" name="sideW"
+              rgba="0.9 0.4 0.6 1" size=".02" type="capsule"/>
     </worldbody>
 
     <actuator>

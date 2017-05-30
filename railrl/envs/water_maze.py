@@ -9,15 +9,16 @@ from rllab.envs.env_spec import EnvSpec
 from rllab.misc import logger
 from sandbox.rocky.tf.spaces.box import Box
 
+
 class WaterMaze(MujocoEnv):
     def __init__(self, horizon=200, l2_action_penalty_weight=1e-2,
                  include_velocity=False,
                  use_small_maze=False,
                  **kwargs):
         if use_small_maze:
-            self.TARGET_RADIUS = 0.05
-            self.BOUNDARY_RADIUS = 0.005
-            self.BOUNDARY_DIST = 0.1
+            self.TARGET_RADIUS = 0.04
+            self.BOUNDARY_RADIUS = 0.02
+            self.BOUNDARY_DIST = 0.12
             self.BALL_RADIUS = 0.01
             super().__init__('small_water_maze.xml')
         else:
