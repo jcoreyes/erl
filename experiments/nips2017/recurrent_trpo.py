@@ -5,7 +5,7 @@ from railrl.envs.flattened_product_box import FlattenedProductBox
 from railrl.envs.memory.continuous_memory_augmented import \
     ContinuousMemoryAugmented
 from railrl.envs.memory.high_low import HighLow
-from railrl.envs.water_maze import WaterMaze, WaterMazeEasy
+from railrl.envs.water_maze import WaterMaze, WaterMazeEasy, WaterMazeMemory
 from railrl.launchers.launcher_util import (
     run_experiment,
     set_seed,
@@ -31,6 +31,7 @@ def run_linear_ocm_exp(variant):
     H = variant['H']
     seed = variant['seed']
     env_class = variant['env_class']
+    env_params = variant['env_params']
 
     set_seed(seed)
 
@@ -38,7 +39,7 @@ def run_linear_ocm_exp(variant):
     Code for running the experiment.
     """
 
-    env = env_class(num_steps=H)
+    env = env_class(**env_params)
 
     policy = GaussianLSTMPolicy(
         name="policy",
@@ -70,14 +71,16 @@ if __name__ == '__main__':
 
     n_seeds = 10
     mode = "ec2"
-    exp_prefix = "5-26-benchmark-rtrpo-highlow-H-sweep-nitr-1000"
+    exp_prefix = "5-30-benchmark-rtrpo-small-easy-water-maze"
 
-    env_class = WaterMaze
-    env_class = HighLow
+    env_class = WaterMazeMemory
+    env_class = WaterMazeEasy
+    # env_class = HighLow
     if env_class == HighLow:
+        H = 32
         # noinspection PyTypeChecker
         variant = dict(
-            H=32,
+            H=H,
             exp_prefix=exp_prefix,
             trpo_params=dict(
                 batch_size=1000,
@@ -91,11 +94,15 @@ if __name__ == '__main__':
             ),
             version='Recurrent TRPO',
             env_class=env_class,
+            env_params=dict(
+                num_steps=H,
+            )
         )
-    elif env_class == WaterMaze:
+    elif issubclass(env_class, WaterMaze):
+        H = 200
         # noinspection PyTypeChecker
         variant = dict(
-            H=200,
+            H=H,
             exp_prefix=exp_prefix,
             trpo_params=dict(
                 batch_size=10000,
@@ -109,6 +116,10 @@ if __name__ == '__main__':
             ),
             version='Recurrent TRPO',
             env_class=env_class,
+            env_params=dict(
+                num_steps=H,
+                use_small_maze=True,
+            )
         )
     else:
         raise Exception("Invalid env_class: %s" % env_class)
