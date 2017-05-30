@@ -1,7 +1,11 @@
 from railrl.envs.water_maze import WaterMaze
 import numpy as np
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument("--small", action='store_true', help="Use a small maze.")
+args = parser.parse_args()
 
-env = WaterMaze()
+env = WaterMaze(use_small_maze=args.small)
 
 while True:
     env.reset()
