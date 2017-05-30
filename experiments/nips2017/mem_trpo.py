@@ -1,10 +1,6 @@
 """
 TRPO + memory states.
 """
-from railrl.envs.flattened_product_box import FlattenedProductBox
-from railrl.envs.memory.continuous_memory_augmented import \
-    ContinuousMemoryAugmented
-from railrl.envs.memory.high_low import HighLow
 from railrl.envs.water_maze import WaterMazeEasy
 from railrl.launchers.launcher_util import (
     run_experiment,
@@ -23,13 +19,17 @@ def run_linear_ocm_exp(variant):
     from railrl.launchers.launcher_util import (
         set_seed,
     )
+    from railrl.envs.flattened_product_box import FlattenedProductBox
+    from railrl.envs.memory.continuous_memory_augmented import (
+        ContinuousMemoryAugmented
+    )
 
     """
     Set up experiment variants.
     """
-    H = variant['H']
     seed = variant['seed']
     env_class = variant['env_class']
+    env_params = variant['env_params']
     memory_dim = variant['memory_dim']
 
     set_seed(seed)
@@ -38,7 +38,7 @@ def run_linear_ocm_exp(variant):
     Code for running the experiment.
     """
 
-    env = env_class(num_steps=H)
+    env = env_class(**env_params)
     env = ContinuousMemoryAugmented(
         env,
         num_memory_states=memory_dim,
@@ -75,8 +75,9 @@ if __name__ == '__main__':
 
     n_seeds = 10
     mode = "ec2"
-    exp_prefix = "5-17-benchmark-mtrpo-watermaze-easy-batchsize10000-2"
+    exp_prefix = "5-30-benchmark-mtrpo-small-watermaze-easy"
 
+    H = 200
     # noinspection PyTypeChecker
     trpo_params = dict(
         batch_size=10000,
@@ -88,17 +89,22 @@ if __name__ == '__main__':
     optimizer_params = dict(
         base_eps=1e-5,
     )
+    env_params = dict(
+        num_steps=H,
+        use_small_maze=True,
+    )
     USE_EC2 = False
     exp_id = -1
     # noinspection PyTypeChecker
     variant = dict(
-        H=200,
+        H=H,
         exp_prefix=exp_prefix,
         trpo_params=trpo_params,
         optimizer_params=optimizer_params,
         version='Memory States + TRPO',
         # env_class=HighLow,
         env_class=WaterMazeEasy,
+        env_params=env_params,
         memory_dim=20,
     )
     for seed in range(n_seeds):
