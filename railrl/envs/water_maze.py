@@ -30,7 +30,7 @@ class WaterMaze(MujocoEnv):
         self.BALL_START_DIST = (
             self.BOUNDARY_DIST - self.BOUNDARY_RADIUS - 2 * self.BALL_RADIUS
         )
-        self.MAX_GOAL_DIST = self.BOUNDARY_DIST
+        self.MAX_GOAL_DIST = self.BOUNDARY_DIST - self.BOUNDARY_RADIUS
         self.l2_action_penalty_weight = l2_action_penalty_weight
         self.horizon = horizon
         self._t = 0
