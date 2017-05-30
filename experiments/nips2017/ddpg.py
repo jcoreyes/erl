@@ -35,7 +35,6 @@ def run_linear_ocm_exp(variant):
     seed = variant['seed']
     algo_params = variant['algo_params']
     env_class = variant['env_class']
-    memory_dim = variant['memory_dim']
     policy_params = variant['policy_params']
     ou_params = variant['ou_params']
 
@@ -85,7 +84,7 @@ if __name__ == '__main__':
         n_epochs=100,
         min_pool_size=100,
         replay_pool_size=100000,
-        epoch_length=1000,
+        epoch_length=10000,
         eval_samples=100,
         max_path_length=1000,
         discount=1,
@@ -110,7 +109,6 @@ if __name__ == '__main__':
         algo_params=algo_params,
         # env_class=HighLow,
         env_class=WaterMazeEasy,
-        memory_dim=2,
         policy_params=policy_params,
         ou_params=ou_params,
         version="DDPG"
