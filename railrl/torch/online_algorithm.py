@@ -15,7 +15,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             exploration_strategy=None,
             subtraj_length=None,
             num_epochs=100,
-            num_steps_epoch=10000,
+            num_steps_per_epoch=10000,
             batch_size=1024,
     ):
         self.training_env = env
@@ -26,7 +26,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
 
         self.exploration_strategy = exploration_strategy or NoopStrategy()
         self.num_epochs = num_epochs
-        self.num_steps_per_epoch = num_steps_epoch
+        self.num_steps_per_epoch = num_steps_per_epoch
         self.batch_size = batch_size
         self.max_path_length = 1000
         self.n_eval_samples = 1000
@@ -94,7 +94,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                 else:
                     observation = next_ob
 
-                if self._can_train(n_steps_total):
+                if self._can_train():
                     self._do_training(n_steps_total=n_steps_total)
 
             logger.log(
@@ -150,7 +150,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
     def evaluate(self, epoch, es_path_returns):
         pass
 
-    def _can_train(self, n_steps_total):
+    def _can_train(self):
         return self.pool.num_can_sample() >= self.batch_size
 
     def get_epoch_snapshot(self, epoch):

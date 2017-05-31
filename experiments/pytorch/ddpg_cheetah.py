@@ -15,6 +15,7 @@ def example(*_):
         env,
         es,
         num_epochs=100,
+        num_steps_per_epoch=10000,
         batch_size=1024,
     )
     algorithm.train()
