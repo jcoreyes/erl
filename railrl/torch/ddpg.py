@@ -1,17 +1,15 @@
+import abc
 import time
 from collections import OrderedDict
 
 import numpy as np
 import torch
-import torch.nn as nn
 import torch.optim as optim
 from torch import nn as nn
 from torch.autograd import Variable
 from torch.nn import functional as F
 
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
-from railrl.data_management.updatable_subtraj_replay_buffer import \
-    UpdatableSubtrajReplayBuffer
 from railrl.exploration_strategies.noop import NoopStrategy
 from railrl.misc.data_processing import create_stats_ordered_dict
 from rllab.algos.base import RLAlgorithm
@@ -19,12 +17,7 @@ from rllab.algos.batch_polopt import BatchSampler
 from rllab.misc import logger, special
 
 
-# noinspection PyCallingNonCallable
-class DDPG(RLAlgorithm):
-    """
-    Online learning algorithm.
-    """
-
+class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
     def __init__(
             self,
             env,
@@ -33,8 +26,6 @@ class DDPG(RLAlgorithm):
             num_epochs=100,
             num_steps_epoch=10000,
             batch_size=1024,
-            policy_learning_rate=1e-4,
-            qf_learning_rate=1e-3,
     ):
         self.training_env = env
         self.env = env
@@ -46,8 +37,6 @@ class DDPG(RLAlgorithm):
         self.num_epochs = num_epochs
         self.num_steps_per_epoch = num_steps_epoch
         self.batch_size = batch_size
-        self.policy_learning_rate = policy_learning_rate
-        self.qf_learning_rate = qf_learning_rate
         self.max_path_length = 1000
         self.n_eval_samples = 1000
         self.render = False
@@ -56,29 +45,14 @@ class DDPG(RLAlgorithm):
             10000,
             self.env,
         )
-        self.qf = QFunction(
-            self.obs_dim,
-            self.action_dim,
-            [100, 100],
-        )
-        self.policy = Policy(
-            self.obs_dim,
-            self.action_dim,
-            [100, 100],
-        )
-        self.target_qf = self.qf.clone()
-        self.target_policy = self.policy.clone()
         self.discount = 1.
-
-        self.qf_criterion = nn.MSELoss()
-        self.qf_optimizer = optim.Adam(self.qf.parameters(),
-                                       lr=self.qf_learning_rate)
-        self.policy_optimizer = optim.Adam(self.policy.parameters(),
-                                           lr=self.policy_learning_rate)
 
         self.scope = None  # Necessary for BatchSampler
         self.whole_paths = True  # Also for BatchSampler
+        # noinspection PyTypeChecker
         self.eval_sampler = BatchSampler(self)
+
+        self.policy = None
 
     def train(self):
         n_steps_total = 0
@@ -144,6 +118,97 @@ class DDPG(RLAlgorithm):
             logger.log("Eval Time: {0}".format(time.time() - start_time))
             logger.pop_prefix()
 
+    def _start_worker(self):
+        self.eval_sampler.start_worker()
+
+    def _shutdown_worker(self):
+        self.eval_sampler.shutdown_worker()
+
+    def _sample_paths(self, epoch):
+        """
+        Returns flattened paths.
+
+        :param epoch: Epoch number
+        :return: Dictionary with these keys:
+            observations: np.ndarray, shape BATCH_SIZE x flat observation dim
+            actions: np.ndarray, shape BATCH_SIZE x flat action dim
+            rewards: np.ndarray, shape BATCH_SIZE
+            terminals: np.ndarray, shape BATCH_SIZE
+            agent_infos: unsure
+            env_infos: unsure
+        """
+        # Sampler uses self.batch_size to figure out how many samples to get
+        saved_batch_size = self.batch_size
+        self.batch_size = self.n_eval_samples
+        paths = self.eval_sampler.obtain_samples(
+            itr=epoch,
+        )
+        self.batch_size = saved_batch_size
+        return paths
+
+    def _get_other_statistics(self):
+        return {}
+
+    def _statistics_from_paths(self, paths):
+        return {}
+
+    def log_diagnostics(self, paths):
+        self.env.log_diagnostics(paths)
+
+    @abc.abstractmethod
+    def evaluate(self, epoch, es_path_returns):
+        pass
+
+    def _can_train(self, n_steps_total):
+        return self.pool.num_can_sample() >= self.batch_size
+
+    def get_epoch_snapshot(self, epoch):
+        return dict(
+            epoch=epoch,
+            policy=self.policy,
+            env=self.training_env,
+        )
+
+    @abc.abstractmethod
+    def _do_training(self, n_steps_total):
+        pass
+
+
+# noinspection PyCallingNonCallable
+class DDPG(OnlineAlgorithm):
+    """
+    Online learning algorithm.
+    """
+
+    def __init__(
+            self,
+            *args,
+            policy_learning_rate=1e-4,
+            qf_learning_rate=1e-3,
+            **kwargs
+    ):
+        super().__init__(*args, **kwargs)
+        self.policy_learning_rate = policy_learning_rate
+        self.qf_learning_rate = qf_learning_rate
+        self.qf = QFunction(
+            self.obs_dim,
+            self.action_dim,
+            [100, 100],
+        )
+        self.policy = Policy(
+            self.obs_dim,
+            self.action_dim,
+            [100, 100],
+        )
+        self.target_qf = self.qf.clone()
+        self.target_policy = self.policy.clone()
+
+        self.qf_criterion = nn.MSELoss()
+        self.qf_optimizer = optim.Adam(self.qf.parameters(),
+                                       lr=self.qf_learning_rate)
+        self.policy_optimizer = optim.Adam(self.policy.parameters(),
+                                           lr=self.policy_learning_rate)
+
     def _do_training(self, n_steps_total):
         batch = self.get_batch()
         rewards = batch['rewards']
@@ -162,6 +227,7 @@ class DDPG(RLAlgorithm):
             next_actions,
         )
         y_target = rewards + (1. - terminals) * self.discount * target_q_values
+        # noinspection PyUnresolvedReferences
         y_target = y_target.detach()
         y_pred = self.qf(obs, actions)
         qf_loss = self.qf_criterion(y_pred, y_target)
@@ -228,9 +294,6 @@ class DDPG(RLAlgorithm):
 
         self.log_diagnostics(paths)
 
-    def get_epoch_snapshot(self, epoch):
-        pass
-
     def get_batch(self):
         batch = self.pool.random_batch(self.batch_size, flatten=True)
         torch_batch = {
@@ -243,45 +306,7 @@ class DDPG(RLAlgorithm):
         torch_batch['terminals'] = terminals.unsqueeze(-1)
         return torch_batch
 
-    def _can_train(self, n_steps_total):
-        return self.pool.num_can_sample() >= self.batch_size
 
-    def _start_worker(self):
-        self.eval_sampler.start_worker()
-
-    def _shutdown_worker(self):
-        self.eval_sampler.shutdown_worker()
-
-    def _sample_paths(self, epoch):
-        """
-        Returns flattened paths.
-
-        :param epoch: Epoch number
-        :return: Dictionary with these keys:
-            observations: np.ndarray, shape BATCH_SIZE x flat observation dim
-            actions: np.ndarray, shape BATCH_SIZE x flat action dim
-            rewards: np.ndarray, shape BATCH_SIZE
-            terminals: np.ndarray, shape BATCH_SIZE
-            agent_infos: unsure
-            env_infos: unsure
-        """
-        # Sampler uses self.batch_size to figure out how many samples to get
-        saved_batch_size = self.batch_size
-        self.batch_size = self.n_eval_samples
-        paths = self.eval_sampler.obtain_samples(
-            itr=epoch,
-        )
-        self.batch_size = saved_batch_size
-        return paths
-
-    def _get_other_statistics(self):
-        return {}
-
-    def _statistics_from_paths(self, paths):
-        return {}
-
-    def log_diagnostics(self, paths):
-        self.env.log_diagnostics(paths)
 
 
 def copy_model_params(source, target):
