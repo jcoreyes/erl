@@ -7,21 +7,28 @@ args = parser.parse_args()
 
 env = WaterMazeMemory(use_small_maze=args.small, include_velocity=True)
 
+all_returns = []
 while True:
     obs = env.reset()
     # print("init obs", obs)
     action = np.zeros(2)
     last_reward_t = 0
     print("---------- RESET ----------")
-    for t in range(100):
+    returns = 0
+    for t in range(101):
         obs, reward, done, info = env.step(action)
+        returns += reward
         # print("obs", obs)
         # time.sleep(0.1)
         if reward > 0:
             time_to_goal = t - last_reward_t
             if time_to_goal > 1:
-                print("Time to goal", time_to_goal)
+                # print("Time to goal", time_to_goal)
                 last_reward_t = t
         delta = obs[:2] - info['target_position']
         action = - delta * 10
         env.render()
+    print("Returns", returns)
+    all_returns.append(returns)
+    print("Returns Mean", np.mean(all_returns))
+    print("Returns Std", np.std(all_returns, axis=0))
