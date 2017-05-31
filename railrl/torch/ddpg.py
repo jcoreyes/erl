@@ -234,6 +234,7 @@ class Policy(nn.Module):
         obs = np.expand_dims(obs, axis=0)
         obs = Variable(torch.from_numpy(obs).float(), requires_grad=False)
         action = self.__call__(obs)
+        action = action.squeeze(0)
         return action.data.numpy(), {}
 
     def get_param_values(self):
