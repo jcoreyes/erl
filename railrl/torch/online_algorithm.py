@@ -31,10 +31,10 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         self.render = False
         self.scale_reward = 1
         self.pool = EnvReplayBuffer(
-            10000,
+            6000000,
             self.env,
         )
-        self.discount = 1.
+        self.discount = .99
 
         self.scope = None  # Necessary for BatchSampler
         self.whole_paths = True  # Also for BatchSampler
