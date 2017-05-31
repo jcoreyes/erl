@@ -8,20 +8,21 @@ from railrl.torch.ddpg import DDPG
 from rllab.envs.gym_env import GymEnv
 
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
+from railrl.envs.env_utils import gym_env
 from rllab.envs.normalized_env import normalize
 
 
 def example(*_):
     # env = HalfCheetahEnv()
     # env = PointEnv()
-    env = GymEnv("Pendulum-v0", record_video=False)
+    env = gym_env("Pendulum-v0")
     env = normalize(env)
     es = OUStrategy(env_spec=env.spec)
     algorithm = DDPG(
         env,
         exploration_strategy=es,
-        num_epochs=30,
-        num_steps_per_epoch=100,
+        num_epochs=100,
+        num_steps_per_epoch=1000,
         batch_size=32,
     )
     algorithm.train()

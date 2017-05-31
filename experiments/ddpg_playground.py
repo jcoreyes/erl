@@ -4,6 +4,7 @@ Run DDPG on things.
 from gym.envs.classic_control import PendulumEnv
 from gym.spaces.box import Box
 
+from railrl.envs.env_utils import gym_env
 from railrl.envs.point_env import PointEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
@@ -17,7 +18,7 @@ def example(*_):
     # env = HalfCheetahEnv()
     pointenv = PointEnv()
     # env = ProxyEnv(PendulumEnv())
-    env = GymEnv("HalfCheetah-v1", record_video=False)
+    env = gym_env("Pendulum-v0")
     es = OUStrategy(env_spec=env.spec)
     qf = FeedForwardCritic(
         name_or_scope="critic",
