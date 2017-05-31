@@ -69,9 +69,9 @@ if __name__ == '__main__':
 
     n_seeds = 10
     mode = 'ec2'
-    exp_prefix = '5-30-our-method-small-maze-h50'
-    # run_mode = 'grid'
-    version = 'Our Method - Full BPTT'
+    exp_prefix = '5-30-dev-our-method-small-water-maze-easy-h50-no-bptt'
+    run_mode = 'grid'
+    version = 'Our Method - No BPTT'
 
     """
     Miscellaneous Params
@@ -148,7 +148,7 @@ if __name__ == '__main__':
         train_policy_on_all_qf_timesteps=False,
         write_only_optimize_bellman=False,
         # memory
-        num_bptt_unrolls=H,
+        num_bptt_unrolls=1,
         bpt_bellman_error_weight=10,
         reward_low_bellman_error_weight=0.,
         saved_write_loss_weight=0,
@@ -221,10 +221,6 @@ if __name__ == '__main__':
         use_dropout=True,
     )
 
-    memory_dim = 20
-    replay_buffer_params = dict(
-        keep_old_fraction=0.9,
-    )
 
     """
     Create monolithic variant dictionary
@@ -232,7 +228,7 @@ if __name__ == '__main__':
     # noinspection PyTypeChecker
     variant = dict(
         H=H,
-        memory_dim=memory_dim,
+        memory_dim=10,
         exp_prefix=exp_prefix,
         algo_class=algo_class,
         version=version,
@@ -249,7 +245,9 @@ if __name__ == '__main__':
         meta_params=meta_params,
         replay_buffer_class=OcmSubtrajReplayBuffer,
         # replay_buffer_class=UpdatableSubtrajReplayBuffer,
-        replay_buffer_params=replay_buffer_params,
+        replay_buffer_params=dict(
+            keep_old_fraction=0.9,
+        ),
     )
 
     if run_mode == 'hyperopt':
