@@ -1,8 +1,10 @@
+import time
 from railrl.envs.water_maze import WaterMaze, WaterMazeMemory
 import numpy as np
 import argparse
 
 from railrl.exploration_strategies.ou_strategy import OUStrategy
+from railrl.pythonplusplus import clip_magnitude
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--small", action='store_true', help="Use a small maze.")
@@ -17,22 +19,27 @@ while True:
     es.reset()
     # print("init obs", obs)
     zero_action = np.zeros(2)
+    action = zero_action
     last_reward_t = 0
     print("---------- RESET ----------")
     returns = 0
-    for t in range(200):
-        action = es.get_action_from_raw_action(zero_action)
+    for t in range(50):
+        # action = es.get_action_from_raw_action(zero_action)
         obs, reward, done, info = env.step(action)
-        returns += reward
+        # print("action", action)
         # print("obs", obs)
+        target = info['target_position']
+        # print("target", target)
+        returns += reward
         # time.sleep(0.1)
         if reward > 0:
             time_to_goal = t - last_reward_t
             if time_to_goal > 1:
                 # print("Time to goal", time_to_goal)
                 last_reward_t = t
-        delta = obs[:2] - info['target_position']
-        # action = - delta * 10
+        delta = obs[:2] - target
+        action = - delta * 10
+        action = np.clip(action, -1, 1)
         # env.render()
     print("Returns", returns)
     all_returns.append(returns)
