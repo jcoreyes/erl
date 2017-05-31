@@ -31,7 +31,8 @@ class DDPG(OnlineAlgorithm):
         self.qf = QFunction(
             self.obs_dim,
             self.action_dim,
-            [100, 100],
+            [100],
+            [100],
         )
         self.policy = Policy(
             self.obs_dim,
@@ -145,8 +146,6 @@ class DDPG(OnlineAlgorithm):
         return torch_batch
 
 
-
-
 def copy_model_params(source, target):
     for source_param, target_param in zip(
             source.parameters(),
@@ -160,33 +159,46 @@ class QFunction(nn.Module):
             self,
             obs_dim,
             action_dim,
-            hidden_sizes,
+            observation_hidden_sizes,
+            embedded_hidden_sizes,
     ):
         super().__init__()
 
         self.obs_dim = obs_dim
         self.action_dim = action_dim
-        self.hidden_sizes = hidden_sizes
+        self.observation_hidden_sizes = observation_hidden_sizes
+        self.embedded_hidden_sizes = embedded_hidden_sizes
 
-        input_dim = obs_dim + action_dim
-        self.fcs = []
+        input_dim = obs_dim
+        self.obs_fcs = []
         last_size = input_dim
-        for size in hidden_sizes:
-            self.fcs.append(nn.Linear(last_size, size))
+        for size in self.observation_hidden_sizes:
+            self.obs_fcs.append(nn.Linear(last_size, size))
+            last_size = size
+
+        self.embedded_fcs = []
+        last_size = last_size + action_dim
+        for size in self.embedded_hidden_sizes:
+            self.embedded_fcs.append(nn.Linear(last_size, size))
             last_size = size
         self.last_fc = nn.Linear(last_size, 1)
 
     def forward(self, obs, action):
-        x = torch.cat((obs, action), dim=1)
-        for fc in self.fcs:
-            x = F.relu(fc(x))
-        return self.last_fc(x)
+        h = obs
+        for fc in self.obs_fcs:
+            h = F.relu(fc(h))
+
+        h = torch.cat((h, action), dim=1)
+        for fc in self.embedded_fcs:
+            h = F.relu(fc(h))
+        return self.last_fc(h)
 
     def clone(self):
         copy = QFunction(
             self.obs_dim,
             self.action_dim,
-            self.hidden_sizes,
+            self.observation_hidden_sizes,
+            self.embedded_hidden_sizes,
         )
         copy_model_params(self, copy)
         return copy
@@ -212,12 +224,11 @@ class Policy(nn.Module):
             last_size = size
         self.last_fc = nn.Linear(last_size, action_dim)
 
-
     def forward(self, obs):
         last_layer = obs
         for fc in self.fcs:
             last_layer = F.relu(fc(last_layer))
-        return self.last_fc(last_layer)
+        return F.tanh(self.last_fc(last_layer))
 
     def get_action(self, obs):
         obs = np.expand_dims(obs, axis=0)
