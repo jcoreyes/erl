@@ -67,6 +67,8 @@ if __name__ == '__main__':
         ),
         algo_params=dict(
             subtraj_length=16,
+            num_epochs=30,
+            num_steps_per_epoch=1000,
         ),
         es_params=dict(
             env_es_class=OUStrategy,

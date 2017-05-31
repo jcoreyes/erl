@@ -7,6 +7,7 @@ from railrl.data_management.updatable_subtraj_replay_buffer import (
 )
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.pythonplusplus import line_logger
+from railrl.torch.online_algorithm import OnlineAlgorithm
 from rllab.algos.base import RLAlgorithm
 import numpy as np
 import torch
@@ -240,46 +241,33 @@ class RecurrentPolicy(nn.Module):
 
 
 # noinspection PyCallingNonCallable
-class BpttDdpg(RLAlgorithm):
+class BpttDdpg(OnlineAlgorithm):
     """
     BPTT DDPG implemented in pytorch.
     """
     def __init__(
             self,
-            env,
-            exploration_strategy,
+            *args,
             subtraj_length=None,
+            **kwargs
     ):
-        self.training_env = env
-        self.env = pickle.loads(pickle.dumps(self.training_env))
-        self.action_dim = int(env.env_spec.action_space.flat_dim)
-        self.obs_dim = int(env.env_spec.observation_space.flat_dim)
-        self.memory_dim = env.memory_dim
+        super().__init__(*args, **kwargs)
+        self.action_dim = int(self.env.env_spec.action_space.flat_dim)
+        self.obs_dim = int(self.env.env_spec.observation_space.flat_dim)
+        self.memory_dim = self.env.memory_dim
         self.subtraj_length = subtraj_length
 
-        self.exploration_strategy = exploration_strategy
-        self.num_epochs = 10
-        self.num_steps_per_epoch = 1000
-        self.max_path_length = 1000
-        self.n_eval_samples = 100
         self.train_validation_batch_size = 64
         self.copy_target_param_period = 1000
-        self.render = False
-        self.discount = 1.
-        self.batch_size = 32
-        self.scale_reward = 1
-        self.discount = 1.
         self.batch_size = 32
         self.train_validation_batch_size = 64
-        self.max_path_length = 1002
-        self.n_eval_samples = 200
         self.copy_target_param_period = 1000
         self.action_policy_learning_rate = 1e-3
         self.write_policy_learning_rate = 1e-5
         self.qf_learning_rate = 1e-3
         self.pool = UpdatableSubtrajReplayBuffer(
             10000,
-            env,
+            self.env,
             self.subtraj_length,
             self.memory_dim,
         )
@@ -298,11 +286,6 @@ class BpttDdpg(RLAlgorithm):
         )
         self.target_qf = self.qf.clone()
         self.target_policy = self.policy.clone()
-
-        # noinspection PyTypeChecker
-        self.eval_sampler = BatchSampler(self)
-        self.scope = None  # Necessary for BatchSampler
-        self.whole_paths = True  # Also for BatchSampler
 
         self.qf_optimizer = optim.Adam(self.qf.parameters(),
                                        lr=self.qf_learning_rate)
@@ -643,16 +626,6 @@ class BpttDdpg(RLAlgorithm):
     """
     Random small functions.
     """
-
-    def _can_train(self):
-        return self.pool.num_can_sample() >= self.batch_size
-
-    def _start_worker(self):
-        self.eval_sampler.start_worker()
-
-    def _shutdown_worker(self):
-        self.eval_sampler.shutdown_worker()
-
     def _sample_paths(self, epoch):
         """
         Returns flattened paths.
@@ -683,9 +656,6 @@ class BpttDdpg(RLAlgorithm):
             es=self.exploration_strategy,
             qf=self.qf,
         )
-
-    def log_diagnostics(self, paths):
-        self.env.log_diagnostics(paths)
 
 
 def copy_module_params_from_to(source, target):
