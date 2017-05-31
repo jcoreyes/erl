@@ -13,7 +13,6 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             self,
             env,
             exploration_strategy=None,
-            subtraj_length=None,
             num_epochs=100,
             num_steps_per_epoch=10000,
             batch_size=1024,
@@ -22,9 +21,8 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         self.env = env
         self.action_dim = int(env.action_space.flat_dim)
         self.obs_dim = int(env.observation_space.flat_dim)
-        self.subtraj_length = subtraj_length
 
-        self.exploration_strategy = exploration_strategy or NoopStrategy()
+        self.exploration_strategy = exploration_strategy
         self.num_epochs = num_epochs
         self.num_steps_per_epoch = num_steps_per_epoch
         self.batch_size = batch_size
