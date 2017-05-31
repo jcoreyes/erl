@@ -13,7 +13,7 @@ from railrl.data_management.ocm_subtraj_replay_buffer import (
     OcmSubtrajReplayBuffer
 )
 from railrl.envs.memory.high_low import HighLow
-from railrl.envs.water_maze import WaterMaze, WaterMazeEasy
+from railrl.envs.water_maze import WaterMaze, WaterMazeEasy, WaterMazeMemory
 from railrl.exploration_strategies.noop import NoopStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.algo_launchers import bptt_ddpg_launcher
@@ -59,18 +59,17 @@ def create_run_experiment_multiple_seeds(n_seeds):
 
     return run_experiment_with_multiple_seeds
 
-
 if __name__ == '__main__':
     n_seeds = 1
     mode = 'here'
-    exp_prefix = "dev-bptt-ddpg-watermaze"
+    exp_prefix = "dev-bptt-ddpg"
     run_mode = 'none'
     version = 'dev'
     num_hp_settings = 100
 
-    # n_seeds = 5
-    # mode = 'ec2'
-    # exp_prefix = '5-28-hl-toggle-save-new-memories'
+    # n_seeds = 10
+    mode = 'ec2'
+    exp_prefix = '5-30-test-save-params-pkl'
     # run_mode = 'grid'
     # version = 'env-and-write-loss-only'
 
@@ -89,17 +88,25 @@ if __name__ == '__main__':
     """
     Set all the hyperparameters!
     """
-    # env_class = WaterMazeEasy
+    env_class = WaterMazeEasy
+    # env_class = WaterMazeMemory
     # env_class = WaterMaze
     env_class = HighLow
-    if env_class == WaterMaze:
-        H = 200
+    if issubclass(env_class, WaterMaze):
+        H = 50
         epoch_length = 10000
-        eval_samples = 2000
+        eval_samples = 1000
+        env_params = dict(
+            num_steps=H,
+            use_small_maze=True,
+        )
     elif env_class == HighLow:
         H = 32
         epoch_length = 1000
         eval_samples = 400
+        env_params = dict(
+            num_steps=H,
+        )
     else:
         raise Exception("Invalid env_class: %s" % env_class)
 
@@ -107,20 +114,16 @@ if __name__ == '__main__':
     # fix the batchnorm code. Basically, calls to (e.g.) qf.output will
     # always take the eval output.
 
-    env_params = dict(
-        num_steps=H,
-    )
-
     # noinspection PyTypeChecker
     ddpg_params = dict(
         batch_size=32,
-        n_epochs=30,
+        n_epochs=10,
         min_pool_size=32,
         replay_pool_size=100000,
-        n_updates_per_time_step=5,
+        n_updates_per_time_step=1,
         epoch_length=epoch_length,
         eval_samples=eval_samples,
-        max_path_length=1002,
+        max_path_length=999999,
         discount=1.0,
         save_tf_graph=False,
         num_steps_between_train=1,
@@ -143,9 +146,9 @@ if __name__ == '__main__':
         train_policy=True,
         write_policy_learning_rate=1e-5,
         train_policy_on_all_qf_timesteps=False,
-        write_only_optimize_bellman=True,
+        write_only_optimize_bellman=False,
         # memory
-        num_bptt_unrolls=16,
+        num_bptt_unrolls=50,
         bpt_bellman_error_weight=10,
         reward_low_bellman_error_weight=0.,
         saved_write_loss_weight=0,
