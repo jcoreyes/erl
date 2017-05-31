@@ -31,16 +31,18 @@ class DDPG(OnlineAlgorithm):
         self.qf = QFunction(
             self.obs_dim,
             self.action_dim,
-            [100],
-            [100],
+            [400],
+            [200],
         )
         self.policy = Policy(
             self.obs_dim,
             self.action_dim,
-            [100, 100],
+            [400, 200],
         )
         self.target_qf = self.qf.clone()
         self.target_policy = self.policy.clone()
+        self.target_hard_update_period = 1000
+        self.tau = 0.001
 
         self.qf_criterion = nn.MSELoss()
         self.qf_optimizer = optim.Adam(self.qf.parameters(),
@@ -89,9 +91,11 @@ class DDPG(OnlineAlgorithm):
         """
         Update Target Networks
         """
-        if n_steps_total % 1000 == 0:
-            copy_model_params(self.qf, self.target_qf)
-            copy_model_params(self.policy, self.target_policy)
+        soft_update(self.target_policy, self.policy, self.tau)
+        soft_update(self.target_qf, self.qf, self.tau)
+        # if n_steps_total % self.target_hard_update_period == 0:
+        #     copy_model_params(self.qf, self.target_qf)
+        #     copy_model_params(self.policy, self.target_policy)
 
     def evaluate(self, epoch, es_path_returns):
         """
@@ -136,7 +140,8 @@ class DDPG(OnlineAlgorithm):
     def get_batch(self):
         batch = self.pool.random_batch(self.batch_size, flatten=True)
         torch_batch = {
-            k: Variable(torch.from_numpy(array).float(), requires_grad=True)
+            k: Variable(torch.from_numpy(array).float(),
+                        requires_grad=False)
             for k, array in batch.items()
         }
         rewards = torch_batch['rewards']
@@ -146,12 +151,22 @@ class DDPG(OnlineAlgorithm):
         return torch_batch
 
 
+def soft_update(target, source, tau):
+    for target_param, param in zip(target.parameters(), source.parameters()):
+        target_param.data.copy_(
+            target_param.data * (1.0 - tau) + param.data * tau
+        )
+
+
 def copy_model_params(source, target):
-    for source_param, target_param in zip(
-            source.parameters(),
-            target.parameters()
-    ):
-        target_param.data = source_param.data
+    for target_param, param in zip(target.parameters(), source.parameters()):
+        target_param.data.copy_(param.data)
+
+
+def fanin_init(size, fanin=None):
+    fanin = fanin or size[0]
+    v = 1. / np.sqrt(fanin)
+    return torch.Tensor(size).uniform_(-v, v)
 
 
 class QFunction(nn.Module):
@@ -161,6 +176,7 @@ class QFunction(nn.Module):
             action_dim,
             observation_hidden_sizes,
             embedded_hidden_sizes,
+            init_w=3e-3,
     ):
         super().__init__()
 
@@ -182,6 +198,14 @@ class QFunction(nn.Module):
             self.embedded_fcs.append(nn.Linear(last_size, size))
             last_size = size
         self.last_fc = nn.Linear(last_size, 1)
+        self.init_weights(init_w)
+
+    def init_weights(self, init_w):
+        for fc in self.obs_fcs:
+            fc.weight.data = fanin_init(fc.weight.data.size())
+        for fc in self.embedded_fcs:
+            fc.weight.data = fanin_init(fc.weight.data.size())
+        self.last_fc.weight.data.uniform_(-init_w, init_w)
 
     def forward(self, obs, action):
         h = obs
@@ -210,6 +234,7 @@ class Policy(nn.Module):
             obs_dim,
             action_dim,
             hidden_sizes,
+            init_w=1e-3,
     ):
         super().__init__()
 
@@ -223,6 +248,12 @@ class Policy(nn.Module):
             self.fcs.append(nn.Linear(last_size, size))
             last_size = size
         self.last_fc = nn.Linear(last_size, action_dim)
+        self.init_weights(init_w)
+
+    def init_weights(self, init_w):
+        for fc in self.fcs:
+            fc.weight.data = fanin_init(fc.weight.data.size())
+        self.last_fc.weight.data.uniform_(-init_w, init_w)
 
     def forward(self, obs):
         last_layer = obs
