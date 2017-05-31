@@ -71,10 +71,10 @@ if __name__ == '__main__':
 
     n_seeds = 10
     mode = "ec2"
-    exp_prefix = "5-30-benchmark-rtrpo-small-water-maze-memory-h50"
+    exp_prefix = "5-31-benchmark-small-water-maze-easy-h100"
 
-    env_class = WaterMazeMemory
-    # env_class = WaterMazeEasy
+    # env_class = WaterMazeMemory
+    env_class = WaterMazeEasy
     # env_class = HighLow
     if env_class == HighLow:
         H = 32
@@ -99,7 +99,7 @@ if __name__ == '__main__':
             )
         )
     elif issubclass(env_class, WaterMaze):
-        H = 50
+        H = 100
         # noinspection PyTypeChecker
         variant = dict(
             H=H,

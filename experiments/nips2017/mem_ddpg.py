@@ -75,10 +75,10 @@ if __name__ == '__main__':
 
     n_seeds = 10
     mode = "ec2"
-    exp_prefix = "5-30-benchmark-mddpg-small-water-maze-memory-h50"
+    exp_prefix = "5-31-benchmark-small-water-maze-easy-h100"
 
     exp_id = -1
-    H = 50
+    H = 100
     algo_params = dict(
         batch_size=32,
         n_epochs=100,
@@ -102,8 +102,8 @@ if __name__ == '__main__':
         exp_prefix=exp_prefix,
         algo_params=algo_params,
         # env_class=HighLow,
-        # env_class=WaterMazeEasy,
-        env_class=WaterMazeMemory,
+        env_class=WaterMazeEasy,
+        # env_class=WaterMazeMemory,
         env_params=env_params,
         memory_dim=2,
         ou_params=ou_params,

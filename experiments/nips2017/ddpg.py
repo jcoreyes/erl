@@ -66,10 +66,10 @@ if __name__ == '__main__':
 
     n_seeds = 10
     mode = "ec2"
-    exp_prefix = "5-30-benchmark-ddpg-water-maze-easy-h50"
+    exp_prefix = "5-31-benchmark-small-water-maze-easy-h100"
 
     exp_id = -1
-    H = 50
+    H = 100
     algo_params = dict(
         batch_size=32,
         n_epochs=100,

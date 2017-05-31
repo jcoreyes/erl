@@ -64,9 +64,9 @@ if __name__ == '__main__':
 
     n_seeds = 10
     mode = "ec2"
-    exp_prefix = "5-30-benchmark-trpo-small-water-maze-memory-h50"
+    exp_prefix = "5-31-benchmark-small-water-maze-easy-h100"
 
-    H = 50
+    H = 100
     # noinspection PyTypeChecker
     trpo_params = dict(
         batch_size=10000,
@@ -92,8 +92,8 @@ if __name__ == '__main__':
         optimizer_params=optimizer_params,
         version='TRPO',
         # env_class=HighLow,
-        # env_class=WaterMazeEasy,
-        env_class=WaterMazeMemory,
+        env_class=WaterMazeEasy,
+        # env_class=WaterMazeMemory,
         env_params=env_params,
     )
     for seed in range(n_seeds):
