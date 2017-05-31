@@ -2,7 +2,7 @@
 DDPG + memory states.
 """
 
-from railrl.envs.water_maze import WaterMazeMemory
+from railrl.envs.water_maze import WaterMazeMemory, WaterMazeEasy
 from railrl.launchers.launcher_util import (
     run_experiment,
     set_seed,
@@ -66,10 +66,10 @@ if __name__ == '__main__':
 
     n_seeds = 10
     mode = "ec2"
-    exp_prefix = "5-30-benchmark-ddpg-watermaze-easy-memory"
+    exp_prefix = "5-30-benchmark-ddpg-water-maze-easy-h50"
 
     exp_id = -1
-    H = 200
+    H = 50
     algo_params = dict(
         batch_size=32,
         n_epochs=100,
@@ -93,8 +93,8 @@ if __name__ == '__main__':
         exp_prefix=exp_prefix,
         algo_params=algo_params,
         # env_class=HighLow,
-        # env_class=WaterMazeEasy,
-        env_class=WaterMazeMemory,
+        env_class=WaterMazeEasy,
+        # env_class=WaterMazeMemory,
         env_params=env_params,
         ou_params=ou_params,
         version="DDPG"

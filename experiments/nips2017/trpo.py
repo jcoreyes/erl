@@ -1,5 +1,5 @@
 """
-TRPO + memory states.
+TRPO
 """
 from railrl.envs.water_maze import WaterMazeEasy, WaterMazeMemory
 from railrl.launchers.launcher_util import (
@@ -19,18 +19,12 @@ def run_linear_ocm_exp(variant):
     from railrl.launchers.launcher_util import (
         set_seed,
     )
-    from railrl.envs.flattened_product_box import FlattenedProductBox
-    from railrl.envs.memory.continuous_memory_augmented import (
-        ContinuousMemoryAugmented
-    )
-
     """
     Set up experiment variants.
     """
     seed = variant['seed']
     env_class = variant['env_class']
     env_params = variant['env_params']
-    memory_dim = variant['memory_dim']
 
     set_seed(seed)
 
@@ -39,11 +33,6 @@ def run_linear_ocm_exp(variant):
     """
 
     env = env_class(**env_params)
-    env = ContinuousMemoryAugmented(
-        env,
-        num_memory_states=memory_dim,
-    )
-    env = FlattenedProductBox(env)
 
     policy = GaussianMLPPolicy(
         name="policy",
@@ -71,11 +60,11 @@ def run_linear_ocm_exp(variant):
 if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
-    exp_prefix = "dev-mtrpo"
+    exp_prefix = "dev-trpo"
 
     n_seeds = 10
     mode = "ec2"
-    exp_prefix = "5-30-benchmark-mtrpo-small-water-maze-memory-h50"
+    exp_prefix = "5-30-benchmark-trpo-small-water-maze-memory-h50"
 
     H = 50
     # noinspection PyTypeChecker
@@ -101,12 +90,11 @@ if __name__ == '__main__':
         exp_prefix=exp_prefix,
         trpo_params=trpo_params,
         optimizer_params=optimizer_params,
-        version='Memory States + TRPO',
+        version='TRPO',
         # env_class=HighLow,
         # env_class=WaterMazeEasy,
         env_class=WaterMazeMemory,
         env_params=env_params,
-        memory_dim=20,
     )
     for seed in range(n_seeds):
         exp_id += 1
