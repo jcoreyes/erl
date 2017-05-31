@@ -67,11 +67,11 @@ if __name__ == '__main__':
     version = 'dev'
     num_hp_settings = 100
 
-    # n_seeds = 10
+    n_seeds = 10
     mode = 'ec2'
-    exp_prefix = '5-30-test-save-params-pkl'
+    exp_prefix = '5-30-our-method-small-maze-h50'
     # run_mode = 'grid'
-    # version = 'env-and-write-loss-only'
+    version = 'Our Method - Full BPTT'
 
     """
     Miscellaneous Params
@@ -91,7 +91,7 @@ if __name__ == '__main__':
     env_class = WaterMazeEasy
     # env_class = WaterMazeMemory
     # env_class = WaterMaze
-    env_class = HighLow
+    # env_class = HighLow
     if issubclass(env_class, WaterMaze):
         H = 50
         epoch_length = 10000
@@ -117,7 +117,7 @@ if __name__ == '__main__':
     # noinspection PyTypeChecker
     ddpg_params = dict(
         batch_size=32,
-        n_epochs=10,
+        n_epochs=100,
         min_pool_size=32,
         replay_pool_size=100000,
         n_updates_per_time_step=1,
@@ -148,7 +148,7 @@ if __name__ == '__main__':
         train_policy_on_all_qf_timesteps=False,
         write_only_optimize_bellman=False,
         # memory
-        num_bptt_unrolls=50,
+        num_bptt_unrolls=H,
         bpt_bellman_error_weight=10,
         reward_low_bellman_error_weight=0.,
         saved_write_loss_weight=0,
