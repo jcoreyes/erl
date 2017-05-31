@@ -9,6 +9,7 @@ from torch import nn as nn
 from torch.autograd import Variable
 from torch.nn import functional as F
 
+from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.updatable_subtraj_replay_buffer import \
     UpdatableSubtrajReplayBuffer
 from railrl.exploration_strategies.noop import NoopStrategy
@@ -27,51 +28,56 @@ class DDPG(RLAlgorithm):
     def __init__(
             self,
             env,
+            exploration_strategy=None,
             subtraj_length=None,
+            num_epochs=100,
+            num_steps_epoch=10000,
+            batch_size=1024,
+            policy_learning_rate=1e-4,
+            qf_learning_rate=1e-3,
     ):
         self.training_env = env
         self.env = env
-        self.action_dim = 1
-        self.obs_dim = 1
-        self.memory_dim = env.memory_dim
+        self.action_dim = int(env.action_space.flat_dim)
+        self.obs_dim = int(env.observation_space.flat_dim)
         self.subtraj_length = subtraj_length
 
-        self.exploration_strategy = NoopStrategy()
-        self.num_epochs = 100
-        self.num_steps_per_epoch = 100
+        self.exploration_strategy = exploration_strategy or NoopStrategy()
+        self.num_epochs = num_epochs
+        self.num_steps_per_epoch = num_steps_epoch
+        self.batch_size = batch_size
+        self.policy_learning_rate = policy_learning_rate
+        self.qf_learning_rate = qf_learning_rate
+        self.max_path_length = 1000
+        self.n_eval_samples = 1000
         self.render = False
         self.scale_reward = 1
-        self.pool = UpdatableSubtrajReplayBuffer(
+        self.pool = EnvReplayBuffer(
             10000,
-            env,
-            self.subtraj_length,
-            self.memory_dim,
+            self.env,
         )
         self.qf = QFunction(
             self.obs_dim,
             self.action_dim,
-            self.memory_dim,
             [100, 100],
         )
         self.policy = Policy(
             self.obs_dim,
             self.action_dim,
-            self.memory_dim,
             [100, 100],
         )
         self.target_qf = self.qf.clone()
         self.target_policy = self.policy.clone()
         self.discount = 1.
-        self.batch_size = 32
-        self.max_path_length = 1000
-        self.n_eval_samples = 100
-        self.scope = None  # Necessary for BatchSampler
-        self.whole_paths = True  # Also for BatchSampler
 
         self.qf_criterion = nn.MSELoss()
-        self.qf_optimizer = optim.Adam(self.qf.parameters(), lr=1e-3)
-        self.policy_optimizer = optim.Adam(self.policy.parameters(), lr=1e-4)
+        self.qf_optimizer = optim.Adam(self.qf.parameters(),
+                                       lr=self.qf_learning_rate)
+        self.policy_optimizer = optim.Adam(self.policy.parameters(),
+                                           lr=self.policy_learning_rate)
 
+        self.scope = None  # Necessary for BatchSampler
+        self.whole_paths = True  # Also for BatchSampler
         self.eval_sampler = BatchSampler(self)
 
     def train(self):
@@ -142,27 +148,22 @@ class DDPG(RLAlgorithm):
         batch = self.get_batch()
         rewards = batch['rewards']
         terminals = batch['terminals']
-        obs = batch['env_obs']
-        actions = batch['env_actions']
-        next_obs = batch['next_env_obs']
-        memories = batch['memories']
-        writes = batch['writes']
-        next_memories = batch['next_memories']
+        obs = batch['observations']
+        actions = batch['actions']
+        next_obs = batch['next_observations']
 
         """
         Optimize critic
         """
         # Generate y target using target policies
-        next_actions, next_writes = self.target_policy(next_obs, next_memories)
+        next_actions = self.target_policy(next_obs)
         target_q_values = self.target_qf(
             next_obs,
-            next_memories,
             next_actions,
-            next_writes
         )
         y_target = rewards + (1. - terminals) * self.discount * target_q_values
         y_target = y_target.detach()
-        y_pred = self.qf(obs, memories, actions, writes)
+        y_pred = self.qf(obs, actions)
         qf_loss = self.qf_criterion(y_pred, y_target)
 
         # Do training
@@ -173,8 +174,8 @@ class DDPG(RLAlgorithm):
         """
         Optimize policy
         """
-        policy_actions, policy_writes = self.policy(obs, memories)
-        q_output = self.qf(obs, memories, policy_actions, policy_writes)
+        policy_actions = self.policy(obs)
+        q_output = self.qf(obs, policy_actions)
         policy_loss = - q_output.mean()
         self.policy_optimizer.zero_grad()
         policy_loss.backward()
@@ -231,15 +232,15 @@ class DDPG(RLAlgorithm):
         pass
 
     def get_batch(self):
-        batch = self.pool.random_batch(self.batch_size)
+        batch = self.pool.random_batch(self.batch_size, flatten=True)
         torch_batch = {
             k: Variable(torch.from_numpy(array).float(), requires_grad=True)
             for k, array in batch.items()
         }
         rewards = torch_batch['rewards']
         terminals = torch_batch['terminals']
-        torch_batch['rewards'] = rewards.view(*rewards.size(), 1)
-        torch_batch['terminals'] = terminals.view(*terminals.size(), 1)
+        torch_batch['rewards'] = rewards.unsqueeze(-1)
+        torch_batch['terminals'] = terminals.unsqueeze(-1)
         return torch_batch
 
     def _can_train(self, n_steps_total):
@@ -296,17 +297,15 @@ class QFunction(nn.Module):
             self,
             obs_dim,
             action_dim,
-            memory_dim,
             hidden_sizes,
     ):
         super().__init__()
 
         self.obs_dim = obs_dim
         self.action_dim = action_dim
-        self.memory_dim = memory_dim
         self.hidden_sizes = hidden_sizes
 
-        input_dim = obs_dim + action_dim + 2 * memory_dim
+        input_dim = obs_dim + action_dim
         self.fcs = []
         last_size = input_dim
         for size in hidden_sizes:
@@ -314,8 +313,8 @@ class QFunction(nn.Module):
             last_size = size
         self.last_fc = nn.Linear(last_size, 1)
 
-    def forward(self, obs, memory, action, write):
-        x = torch.cat((obs, memory, action, write), dim=1)
+    def forward(self, obs, action):
+        x = torch.cat((obs, action), dim=1)
         for fc in self.fcs:
             x = F.relu(fc(x))
         return self.last_fc(x)
@@ -324,7 +323,6 @@ class QFunction(nn.Module):
         copy = QFunction(
             self.obs_dim,
             self.action_dim,
-            self.memory_dim,
             self.hidden_sizes,
         )
         copy_model_params(self, copy)
@@ -336,46 +334,33 @@ class Policy(nn.Module):
             self,
             obs_dim,
             action_dim,
-            memory_dim,
             hidden_sizes,
     ):
         super().__init__()
 
         self.obs_dim = obs_dim
         self.action_dim = action_dim
-        self.memory_dim = memory_dim
         self.hidden_sizes = hidden_sizes
 
         self.fcs = []
-        all_inputs_dim = obs_dim + memory_dim
-        last_size = all_inputs_dim
+        last_size = obs_dim
         for size in hidden_sizes:
             self.fcs.append(nn.Linear(last_size, size))
             last_size = size
         self.last_fc = nn.Linear(last_size, action_dim)
 
-        self.lstm_cell = nn.LSTMCell(all_inputs_dim, memory_dim // 2)
 
-    def forward(self, obs, memory):
-        all_inputs = torch.cat([obs, memory], dim=1)
-        last_layer = all_inputs
+    def forward(self, obs):
+        last_layer = obs
         for fc in self.fcs:
             last_layer = F.relu(fc(last_layer))
-        action = self.last_fc(last_layer)
+        return self.last_fc(last_layer)
 
-        hx, cx = torch.split(memory, self.memory_dim // 2, dim=1)
-        new_hx, new_cx = self.lstm_cell(all_inputs, (hx, cx))
-        write = torch.cat((new_hx, new_cx), dim=1)
-        return action, write
-
-    def get_action(self, augmented_obs):
-        obs, memory = augmented_obs
+    def get_action(self, obs):
         obs = np.expand_dims(obs, axis=0)
-        memory = np.expand_dims(memory, axis=0)
         obs = Variable(torch.from_numpy(obs).float(), requires_grad=False)
-        memory = Variable(torch.from_numpy(memory).float(), requires_grad=False)
-        action, write = self.__call__(obs, memory)
-        return (action.data.numpy(), write.data.numpy()), {}
+        action = self.__call__(obs)
+        return action.data.numpy(), {}
 
     def get_param_values(self):
         return [param.data for param in self.parameters()]
@@ -391,7 +376,6 @@ class Policy(nn.Module):
         copy = Policy(
             self.obs_dim,
             self.action_dim,
-            self.memory_dim,
             self.hidden_sizes,
         )
         copy_model_params(self, copy)

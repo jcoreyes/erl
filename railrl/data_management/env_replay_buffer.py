@@ -53,15 +53,15 @@ class EnvReplayBuffer(SimpleReplayBuffer):
 
         actions = batch['actions']
         unflat_actions = [self._env.action_space.unflatten(a) for a in actions]
-        batch['actions'] = unflat_actions
+        batch['actions'] = np.array(unflat_actions)
 
         obs = batch['observations']
         unflat_obs = [self._env.observation_space.unflatten(o) for o in obs]
-        batch['observations'] = unflat_obs
+        batch['observations'] = np.array(unflat_obs)
 
         next_obs = batch['next_observations']
         unflat_next_obs = [self._env.observation_space.unflatten(o) for o in
                            next_obs]
-        batch['next_observations'] = unflat_next_obs
+        batch['next_observations'] = np.array(unflat_next_obs)
 
         return batch
