@@ -308,6 +308,8 @@ class BpttDDPG(DDPG):
         for path in paths:
             eval_pool.add_trajectory(path)
         batch = eval_pool.get_all_valid_subtrajectories()
+        if batch is None:
+            return OrderedDict()
         return self._statistics_from_batch(batch)
 
     def _statistics_from_batch(self, batch) -> OrderedDict:
@@ -806,6 +808,8 @@ class BpttDDPG(DDPG):
             ('Train', False),
         ]:
             batch = self.pool.get_valid_subtrajectories(validation=validation)
+            if batch is None:
+                continue
             statistics.update(
                 self._get_other_statistics_train_validation(batch, name)
             )

@@ -53,7 +53,7 @@ class UpdatableSubtrajReplayBuffer(SubtrajReplayBuffer):
             )
         else:
             start_indices = _fixed_start_indices
-        return self._get_trajectories(start_indices), start_indices
+        return self.get_trajectories(start_indices), start_indices
 
     def _add_sample(self, observation, action, reward, terminal,
                     final_state, **kwargs):
@@ -102,7 +102,7 @@ class UpdatableSubtrajReplayBuffer(SubtrajReplayBuffer):
         # TODO(vitchyr): double check/unit test this
         for i in range(episode_length - self._subtraj_length + 1):
             start_indices.append(trajectory_start_index + i)
-        return self._get_trajectories(start_indices), start_indices
+        return self.get_trajectories(start_indices), start_indices
 
     def get_all_valid_trajectory_start_indices(self):
         return self._valid_start_episode_indices

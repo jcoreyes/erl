@@ -37,6 +37,7 @@ from railrl.misc.hypopt import optimize_and_save
 from railrl.policies.memory.lstm_memory_policy import (
     SeparateLstmLinearCell,
 )
+from rllab.envs.box2d.cartpole_env import CartpoleEnv
 
 
 def get_ocm_score(variant):
@@ -69,12 +70,12 @@ if __name__ == '__main__':
     version = 'dev'
     num_hp_settings = 100
 
-    n_seeds = 10
-    mode = 'ec2'
-    exp_prefix = "6-1-benchmark-normalized-hidden-cart-h100"
-    # run_mode = 'grid'
-    version = 'Our Method - Full BPTT (dev)'
+    # n_seeds = 10
+    # mode = 'ec2'
+    # exp_prefix = "6-1-benchmark-normalized-hidden-cart-h100"
+    # version = 'Our Method - Full BPTT (dev)'
 
+    # run_mode = 'grid'
     """
     Miscellaneous Params
     """
@@ -95,30 +96,13 @@ if __name__ == '__main__':
     # env_class = WaterMaze
     # env_class = HighLow
     env_class = NormalizedHiddenCartpoleEnv
-    if issubclass(env_class, WaterMaze):
-        H = 50
-        epoch_length = 10000
-        eval_samples = 1000
-        env_params = dict(
-            num_steps=H,
-            use_small_maze=True,
-        )
-    elif env_class == HighLow:
-        H = 32
-        epoch_length = 1000
-        eval_samples = 400
-        env_params = dict(
-            num_steps=H,
-        )
-    elif env_class == NormalizedHiddenCartpoleEnv:
-        H = 100
-        epoch_length = 1000
-        eval_samples = 400
-        env_params = dict(
-            num_steps=H,
-        )
-    else:
-        raise Exception("Invalid env_class: %s" % env_class)
+    H = 100
+    epoch_length = 1000
+    eval_samples = 50
+    env_params = dict(
+        num_steps=H,
+        position_only=True,
+    )
 
     # TODO(vitchyr): clean up this hacky dropout code. Also, you'll need to
     # fix the batchnorm code. Basically, calls to (e.g.) qf.output will
@@ -133,7 +117,7 @@ if __name__ == '__main__':
         n_updates_per_time_step=1,
         epoch_length=epoch_length,
         eval_samples=eval_samples,
-        max_path_length=999999,
+        max_path_length=H,
         discount=1.0,
         save_tf_graph=False,
         num_steps_between_train=1,
@@ -158,7 +142,7 @@ if __name__ == '__main__':
         train_policy_on_all_qf_timesteps=False,
         write_only_optimize_bellman=False,
         # memory
-        num_bptt_unrolls=100,
+        num_bptt_unrolls=1,
         bpt_bellman_error_weight=10,
         reward_low_bellman_error_weight=0.,
         saved_write_loss_weight=0,
