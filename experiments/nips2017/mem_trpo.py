@@ -1,6 +1,7 @@
 """
 TRPO + memory states.
 """
+from railrl.envs.memory.hidden_cartpole import NormalizedHiddenCartpoleEnv
 from railrl.envs.water_maze import WaterMazeEasy, WaterMazeMemory
 from railrl.launchers.launcher_util import (
     run_experiment,
@@ -75,12 +76,12 @@ if __name__ == '__main__':
 
     n_seeds = 10
     mode = "ec2"
-    exp_prefix = "5-31-benchmark-small-water-maze-easy-h100"
+    exp_prefix = "6-1-benchmark-normalized-hidden-cart-h100"
 
     H = 100
     # noinspection PyTypeChecker
     trpo_params = dict(
-        batch_size=10000,
+        batch_size=1000,
         max_path_length=1000,  # Environment should stop it
         n_itr=100,
         discount=1.,
@@ -91,7 +92,7 @@ if __name__ == '__main__':
     )
     env_params = dict(
         num_steps=H,
-        use_small_maze=True,
+        # use_small_maze=True,
     )
     USE_EC2 = False
     exp_id = -1
@@ -103,8 +104,9 @@ if __name__ == '__main__':
         optimizer_params=optimizer_params,
         version='Memory States + TRPO',
         # env_class=HighLow,
-        env_class=WaterMazeEasy,
+        # env_class=WaterMazeEasy,
         # env_class=WaterMazeMemory,
+        env_class=NormalizedHiddenCartpoleEnv,
         env_params=env_params,
         memory_dim=20,
     )

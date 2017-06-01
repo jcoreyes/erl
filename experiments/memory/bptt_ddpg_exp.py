@@ -12,6 +12,8 @@ from railrl.algos.ddpg import TargetUpdateMode
 from railrl.data_management.ocm_subtraj_replay_buffer import (
     OcmSubtrajReplayBuffer
 )
+from railrl.envs.memory.hidden_cartpole import HiddenCartpoleEnv, \
+    NormalizedHiddenCartpoleEnv
 from railrl.envs.memory.high_low import HighLow
 from railrl.envs.water_maze import WaterMaze, WaterMazeEasy, WaterMazeMemory
 from railrl.exploration_strategies.noop import NoopStrategy
@@ -69,9 +71,9 @@ if __name__ == '__main__':
 
     n_seeds = 10
     mode = 'ec2'
-    exp_prefix = '5-30-dev-our-method-small-water-maze-easy-h50-no-bptt'
-    run_mode = 'grid'
-    version = 'Our Method - No BPTT'
+    exp_prefix = "6-1-benchmark-normalized-hidden-cart-h100"
+    # run_mode = 'grid'
+    version = 'Our Method - Full BPTT (dev)'
 
     """
     Miscellaneous Params
@@ -88,10 +90,11 @@ if __name__ == '__main__':
     """
     Set all the hyperparameters!
     """
-    env_class = WaterMazeEasy
+    # env_class = WaterMazeEasy
     # env_class = WaterMazeMemory
     # env_class = WaterMaze
     # env_class = HighLow
+    env_class = NormalizedHiddenCartpoleEnv
     if issubclass(env_class, WaterMaze):
         H = 50
         epoch_length = 10000
@@ -102,6 +105,13 @@ if __name__ == '__main__':
         )
     elif env_class == HighLow:
         H = 32
+        epoch_length = 1000
+        eval_samples = 400
+        env_params = dict(
+            num_steps=H,
+        )
+    elif env_class == NormalizedHiddenCartpoleEnv:
+        H = 100
         epoch_length = 1000
         eval_samples = 400
         env_params = dict(
@@ -148,7 +158,7 @@ if __name__ == '__main__':
         train_policy_on_all_qf_timesteps=False,
         write_only_optimize_bellman=False,
         # memory
-        num_bptt_unrolls=1,
+        num_bptt_unrolls=100,
         bpt_bellman_error_weight=10,
         reward_low_bellman_error_weight=0.,
         saved_write_loss_weight=0,

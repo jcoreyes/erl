@@ -4,12 +4,15 @@ Recurrent TRPO
 from railrl.envs.flattened_product_box import FlattenedProductBox
 from railrl.envs.memory.continuous_memory_augmented import \
     ContinuousMemoryAugmented
+from railrl.envs.memory.hidden_cartpole import HiddenCartpoleEnv, \
+    NormalizedHiddenCartpoleEnv
 from railrl.envs.memory.high_low import HighLow
 from railrl.envs.water_maze import WaterMaze, WaterMazeEasy, WaterMazeMemory
 from railrl.launchers.launcher_util import (
     run_experiment,
     set_seed,
 )
+from rllab.envs.box2d.cartpole_env import CartpoleEnv
 
 
 def run_linear_ocm_exp(variant):
@@ -71,17 +74,27 @@ if __name__ == '__main__':
 
     n_seeds = 10
     mode = "ec2"
-    exp_prefix = "5-31-benchmark-small-water-maze-easy-h100"
+    exp_prefix = "6-1-benchmark-normalized-hidden-cart-h100"
 
     # env_class = WaterMazeMemory
     env_class = WaterMazeEasy
     # env_class = HighLow
+    env_class = CartpoleEnv
+    env_class = NormalizedHiddenCartpoleEnv
+    # noinspection PyTypeChecker
+    variant = dict(
+        exp_prefix=exp_prefix,
+        version='Recurrent TRPO',
+        env_class=env_class,
+        optimizer_params=dict(
+            base_eps=1e-5,
+        ),
+    )
     if env_class == HighLow:
         H = 32
         # noinspection PyTypeChecker
-        variant = dict(
+        variant.update(dict(
             H=H,
-            exp_prefix=exp_prefix,
             trpo_params=dict(
                 batch_size=1000,
                 max_path_length=1000,  # Environment should stop it
@@ -89,21 +102,15 @@ if __name__ == '__main__':
                 discount=1.,
                 step_size=0.01,
             ),
-            optimizer_params=dict(
-                base_eps=1e-5,
-            ),
-            version='Recurrent TRPO',
-            env_class=env_class,
             env_params=dict(
                 num_steps=H,
             )
-        )
+        ))
     elif issubclass(env_class, WaterMaze):
         H = 100
         # noinspection PyTypeChecker
-        variant = dict(
+        variant.update(dict(
             H=H,
-            exp_prefix=exp_prefix,
             trpo_params=dict(
                 batch_size=10000,
                 max_path_length=1000,  # Environment should stop it
@@ -111,16 +118,27 @@ if __name__ == '__main__':
                 discount=1.,
                 step_size=0.01,
             ),
-            optimizer_params=dict(
-                base_eps=1e-5,
-            ),
-            version='Recurrent TRPO',
-            env_class=env_class,
             env_params=dict(
                 num_steps=H,
                 use_small_maze=True,
-            )
-        )
+            ),
+        ))
+    elif issubclass(env_class, NormalizedHiddenCartpoleEnv):
+        H = 100
+        # noinspection PyTypeChecker
+        variant.update(dict(
+            H=H,
+            trpo_params=dict(
+                batch_size=1000,
+                max_path_length=H,
+                n_itr=100,
+                discount=1.,
+                step_size=0.01,
+            ),
+            env_params=dict(
+                num_steps=H,
+            ),
+        ))
     else:
         raise Exception("Invalid env_class: %s" % env_class)
     exp_id = -1

@@ -12,6 +12,14 @@
  seems that their call_cell lambda should pass in the scope, but maybe that's
   just me
 
+FIX:
+
+"setting array element with sequnce"
+This is because the batch elements are not the same length. This happens if the
+sequences are different lengths.
+
+https://stackoverflow.com/questions/34156639/tensorflow-python-valueerror-setting-an-array-element-with-a-sequence-in-t
+
 ## NIPS 2017
 Still runnning: HighLow
 - 5-17-benchmark-our-method-full-bptt-H32-hl/
