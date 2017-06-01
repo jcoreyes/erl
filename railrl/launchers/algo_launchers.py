@@ -460,12 +460,12 @@ def bptt_ddpg_launcher(variant):
     Code for running the experiment.
     """
 
-    ocm_env = env_class(**env_params)
-    env_action_dim = ocm_env.action_space.flat_dim
-    env_obs_dim = ocm_env.observation_space.flat_dim
-    H = ocm_env.horizon
+    raw_env = env_class(**env_params)
+    env_action_dim = raw_env.action_space.flat_dim
+    env_obs_dim = raw_env.observation_space.flat_dim
+    H = raw_env.horizon
     env = ContinuousMemoryAugmented(
-        ocm_env,
+        raw_env,
         num_memory_states=memory_dim,
     )
 
@@ -477,7 +477,7 @@ def bptt_ddpg_launcher(variant):
             policy = data['policy']
             qf = data['qf']
     env_strategy = env_es_class(
-        env_spec=ocm_env.spec,
+        env_spec=raw_env.spec,
         **env_es_params
     )
     write_strategy = memory_es_class(
