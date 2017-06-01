@@ -68,38 +68,37 @@ if __name__ == '__main__':
     mode = "ec2"
     exp_prefix = "6-1-benchmark-normalized-hidden-cart-h100"
 
-    exp_id = -1
+    env_class = NormalizedHiddenCartpoleEnv
     H = 100
-    algo_params = dict(
-        batch_size=32,
-        n_epochs=100,
-        min_pool_size=100,
-        replay_pool_size=1000000,
-        epoch_length=1000,
-        eval_samples=100,
-        max_path_length=1000,
-        discount=1,
-    )
-    env_params = dict(
-        num_steps=H,
-        # use_small_maze=True,
-    )
-    ou_params = dict(
-        max_sigma=1,
-        min_sigma=None,
-    )
+    num_steps_per_iteration = 1000
+    num_iterations = 100
+
+    # noinspection PyTypeChecker
     variant = dict(
         H=H,
+        algo_params=dict(
+            batch_size=32,
+            n_epochs=num_iterations,
+            min_pool_size=100,
+            replay_pool_size=1000000,
+            epoch_length=num_steps_per_iteration,
+            eval_samples=100,
+            max_path_length=H,
+            discount=1,
+        ),
+        env_params=dict(
+            num_steps=H,
+            # use_small_maze=True,
+        ),
+        ou_params=dict(
+            max_sigma=1,
+            min_sigma=None,
+        ),
         exp_prefix=exp_prefix,
-        algo_params=algo_params,
-        # env_class=HighLow,
-        # env_class=WaterMazeEasy,
-        # env_class=WaterMazeMemory,
-        env_class=NormalizedHiddenCartpoleEnv,
-        env_params=env_params,
-        ou_params=ou_params,
+        env_class=env_class,
         version="DDPG"
     )
+    exp_id = -1
     for seed in range(n_seeds):
         exp_id += 1
         set_seed(seed)

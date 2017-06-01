@@ -81,6 +81,10 @@ if __name__ == '__main__':
     # env_class = HighLow
     env_class = CartpoleEnv
     env_class = NormalizedHiddenCartpoleEnv
+    H = 100
+    num_steps_per_iteration = 1000
+    num_iterations = 100
+
     # noinspection PyTypeChecker
     variant = dict(
         exp_prefix=exp_prefix,
@@ -89,58 +93,18 @@ if __name__ == '__main__':
         optimizer_params=dict(
             base_eps=1e-5,
         ),
+        H=H,
+        trpo_params=dict(
+            batch_size=num_steps_per_iteration,
+            max_path_length=H,
+            n_itr=num_iterations,
+            discount=1.,
+            step_size=0.01,
+        ),
+        env_params=dict(
+            num_steps=H,
+        ),
     )
-    if env_class == HighLow:
-        H = 32
-        # noinspection PyTypeChecker
-        variant.update(dict(
-            H=H,
-            trpo_params=dict(
-                batch_size=1000,
-                max_path_length=1000,  # Environment should stop it
-                n_itr=100,
-                discount=1.,
-                step_size=0.01,
-            ),
-            env_params=dict(
-                num_steps=H,
-            )
-        ))
-    elif issubclass(env_class, WaterMaze):
-        H = 100
-        # noinspection PyTypeChecker
-        variant.update(dict(
-            H=H,
-            trpo_params=dict(
-                batch_size=10000,
-                max_path_length=1000,  # Environment should stop it
-                n_itr=100,
-                discount=1.,
-                step_size=0.01,
-            ),
-            env_params=dict(
-                num_steps=H,
-                use_small_maze=True,
-            ),
-        ))
-    elif issubclass(env_class, NormalizedHiddenCartpoleEnv):
-        H = 100
-        # noinspection PyTypeChecker
-        variant.update(dict(
-            H=H,
-            trpo_params=dict(
-                batch_size=1000,
-                max_path_length=H,
-                n_itr=100,
-                discount=1.,
-                step_size=0.01,
-            ),
-            env_params=dict(
-                num_steps=H,
-            ),
-        ))
-    else:
-        raise Exception("Invalid env_class: %s" % env_class)
     exp_id = -1
     for seed in range(n_seeds):
         exp_id += 1

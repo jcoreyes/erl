@@ -69,39 +69,34 @@ if __name__ == '__main__':
     mode = "ec2"
     exp_prefix = "6-1-benchmark-normalized-hidden-cart-h100"
 
+    env_class = NormalizedHiddenCartpoleEnv
     H = 100
-    # noinspection PyTypeChecker
-    trpo_params = dict(
-        batch_size=1000,
-        max_path_length=1000,  # Environment should stop it
-        n_itr=100,
-        discount=1.,
-        step_size=0.01,
-        render=True,
-    )
-    optimizer_params = dict(
-        base_eps=1e-5,
-    )
-    env_params = dict(
-        num_steps=H,
-        # use_small_maze=True,
-    )
-    USE_EC2 = False
-    exp_id = -1
+    num_steps_per_iteration = 1000
+    num_iterations = 100
+
     # noinspection PyTypeChecker
     variant = dict(
         H=H,
+        trpo_params=dict(
+            batch_size=num_steps_per_iteration,
+            max_path_length=H,  # Environment should stop it
+            n_itr=num_iterations,
+            discount=1.,
+            step_size=0.01,
+            render=True,
+        ),
+        optimizer_params=dict(
+            base_eps=1e-5,
+        ),
+        env_params=dict(
+            num_steps=H,
+            # use_small_maze=True,
+        ),
         exp_prefix=exp_prefix,
-        trpo_params=trpo_params,
-        optimizer_params=optimizer_params,
         version='TRPO',
-        # env_class=HighLow,
-        # env_class=WaterMazeEasy,
-        # env_class=WaterMazeMemory,
-        # env_class=HiddenCartpoleEnv,
-        env_class=NormalizedHiddenCartpoleEnv,
-        env_params=env_params,
+        env_class=env_class,
     )
+    exp_id = -1
     for seed in range(n_seeds):
         exp_id += 1
         set_seed(seed)

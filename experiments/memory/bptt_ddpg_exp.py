@@ -97,7 +97,8 @@ if __name__ == '__main__':
     # env_class = HighLow
     env_class = NormalizedHiddenCartpoleEnv
     H = 100
-    epoch_length = 1000
+    num_steps_per_iteration = 1000
+    num_iterations = 100
     eval_samples = 50
     env_params = dict(
         num_steps=H,
@@ -111,11 +112,11 @@ if __name__ == '__main__':
     # noinspection PyTypeChecker
     ddpg_params = dict(
         batch_size=32,
-        n_epochs=100,
+        n_epochs=num_iterations,
         min_pool_size=32,
         replay_pool_size=100000,
         n_updates_per_time_step=1,
-        epoch_length=epoch_length,
+        epoch_length=num_steps_per_iteration,
         eval_samples=eval_samples,
         max_path_length=H,
         discount=1.0,
