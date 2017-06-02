@@ -103,6 +103,12 @@ class DDPG(OnlineAlgorithm):
                 copy_model_params(self.qf, self.target_qf)
                 copy_model_params(self.policy, self.target_policy)
 
+    def training_mode(self, mode):
+        self.policy.train(mode)
+        self.qf.train(mode)
+        self.target_policy.train(mode)
+        self.target_qf.train(mode)
+
     def evaluate(self, epoch, es_path_returns):
         """
         Perform evaluation for this algorithm.
@@ -190,11 +196,15 @@ class QFunction(nn.Module):
         self.action_dim = action_dim
         self.observation_hidden_sizes = observation_hidden_sizes
         self.embedded_hidden_sizes = embedded_hidden_sizes
+        self.obs_bn = nn.BatchNorm1d(obs_dim)
+        self.obs_fc_bn = nn.BatchNorm1d(observation_hidden_sizes[0])
 
         input_dim = obs_dim
         self.obs_fcs = []
+        self.fc_batchnorms = []
         last_size = input_dim
         for size in self.observation_hidden_sizes:
+            self.fc_batchnorms.append(nn.BatchNorm1d(size))
             self.obs_fcs.append(nn.Linear(last_size, size))
             last_size = size
 
@@ -214,9 +224,12 @@ class QFunction(nn.Module):
         self.last_fc.weight.data.uniform_(-init_w, init_w)
 
     def forward(self, obs, action):
+        obs = self.obs_bn(obs)
         h = obs
-        for fc in self.obs_fcs:
-            h = F.relu(fc(h))
+        for fc, bn in zip(self.obs_fcs, self.fc_batchnorms):
+            h = F.relu(
+                bn(fc(h))
+            )
 
         h = torch.cat((h, action), dim=1)
         for fc in self.embedded_fcs:
@@ -247,13 +260,19 @@ class Policy(nn.Module):
         self.obs_dim = obs_dim
         self.action_dim = action_dim
         self.hidden_sizes = hidden_sizes
+        self.obs_bn = nn.BatchNorm1d(self.obs_dim)
 
         self.fcs = []
+        self.fc_batchnorms = []
         last_size = obs_dim
         for size in hidden_sizes:
+            self.fc_batchnorms.append(nn.BatchNorm1d(size))
             self.fcs.append(nn.Linear(last_size, size))
             last_size = size
+
         self.last_fc = nn.Linear(last_size, action_dim)
+        self.last_batchnorm = nn.BatchNorm1d(action_dim)
+
         self.init_weights(init_w)
 
     def init_weights(self, init_w):
@@ -262,10 +281,17 @@ class Policy(nn.Module):
         self.last_fc.weight.data.uniform_(-init_w, init_w)
 
     def forward(self, obs):
+        obs = self.obs_bn(obs)
         last_layer = obs
-        for fc in self.fcs:
-            last_layer = F.relu(fc(last_layer))
-        return F.tanh(self.last_fc(last_layer))
+        for fc, bn in zip(self.fcs, self.fc_batchnorms):
+            last_layer = F.relu(
+                bn(fc(last_layer))
+            )
+        return F.tanh(
+            self.last_batchnorm(
+                self.last_fc(last_layer)
+            )
+        )
 
     def get_action(self, obs):
         obs = np.expand_dims(obs, axis=0)

@@ -50,6 +50,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         path_return = 0
         es_path_returns = []
         self._start_worker()
+        self.training_mode(False)
         for epoch in range(self.num_epochs):
             logger.push_prefix('Iteration #%d | ' % epoch)
             start_time = time.time()
@@ -93,7 +94,9 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                     observation = next_ob
 
                 if self._can_train():
+                    self.training_mode(True)
                     self._do_training(n_steps_total=n_steps_total)
+                    self.training_mode(False)
 
             logger.log(
                 "Training Time: {0}".format(time.time() - start_time)
@@ -161,5 +164,8 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def _do_training(self, n_steps_total):
         pass
+
+    def training_mode(self, mode):
+        self.policy.train(mode)
 
 

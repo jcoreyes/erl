@@ -17,12 +17,12 @@ def example(*_):
     # env = PointEnv()
     env = gym_env("Pendulum-v0")
     env = normalize(env)
-    es = OUStrategy(env_spec=env.spec)
+    es = OUStrategy(env_spec=env.spec, max_sima=0.2, min_sigma=None, theta=0.15)
     algorithm = DDPG(
         env,
         exploration_strategy=es,
         num_epochs=100,
-        num_steps_per_epoch=10000,
+        num_steps_per_epoch=1000,
         batch_size=32,
     )
     algorithm.train()
