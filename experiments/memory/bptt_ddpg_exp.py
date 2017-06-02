@@ -72,7 +72,7 @@ if __name__ == '__main__':
 
     n_seeds = 10
     mode = 'ec2'
-    exp_prefix = "6-1-hl-bptt-ddpg-sweep-update-buffer-period"
+    exp_prefix = "6-2-hl-bptt-ddpg-check-write-only-opt-bellman-again"
     version = 'Our Method - Full BPTT (dev)'
 
     run_mode = 'grid'
@@ -313,7 +313,7 @@ if __name__ == '__main__':
             # 'ddpg_params.num_extra_qf_updates': [0, 5],
             # 'ddpg_params.batch_size': [512, 128, 32, 8],
             # 'ddpg_params.replay_pool_size': [900, 90000],
-            # 'ddpg_params.num_bptt_unrolls': [32, 16, 8, 4, 2, 1],
+            'ddpg_params.num_bptt_unrolls': [32, 16],
             # 'ddpg_params.n_updates_per_time_step': [1, 10],
             # 'ddpg_params.policy_learning_rate': [1e-3, 1e-4],
             # 'ddpg_params.write_policy_learning_rate': [1e-4, 1e-5],
@@ -323,7 +323,8 @@ if __name__ == '__main__':
             # 'ddpg_params.env_action_minimize_bellman_loss': [False, True],
             # 'ddpg_params.save_new_memories_back_to_replay_buffer': [True,
             #                                                         False],
-            'ddpg_params.refresh_entire_buffer_period': [1],
+            # 'ddpg_params.refresh_entire_buffer_period': [1],
+            'ddpg_params.write_only_optimize_bellman': [False, True],
             # 'meta_params.meta_qf_learning_rate': [1e-3, 1e-4],
             # 'meta_params.meta_qf_output_weight': [0.1, 1, 10],
             # 'meta_params.qf_output_weight': [0, 1],
