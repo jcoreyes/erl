@@ -94,7 +94,7 @@ if __name__ == '__main__':
     env_class = HighLow
     H = 32
     num_steps_per_iteration = 1000
-    num_iterations = 30
+    num_iterations = 100
 
     eval_samples = 400
     env_params = dict(
@@ -110,7 +110,6 @@ if __name__ == '__main__':
     ddpg_params = dict(
         batch_size=32,
         n_epochs=num_iterations,
-        min_pool_size=32,
         n_updates_per_time_step=1,
         epoch_length=num_steps_per_iteration,
         eval_samples=eval_samples,
@@ -312,7 +311,7 @@ if __name__ == '__main__':
             # 'ddpg_params.qf_weight_decay': [0, 0.001],
             # 'ddpg_params.reward_low_bellman_error_weight': [0, 0.1, 1., 10.],
             # 'ddpg_params.num_extra_qf_updates': [0, 5],
-            # 'ddpg_params.batch_size': [8, 32, 128, 512],
+            # 'ddpg_params.batch_size': [512, 128, 32, 8],
             # 'ddpg_params.replay_pool_size': [900, 90000],
             # 'ddpg_params.num_bptt_unrolls': [32, 16, 8, 4, 2, 1],
             # 'ddpg_params.n_updates_per_time_step': [1, 10],
@@ -324,7 +323,7 @@ if __name__ == '__main__':
             # 'ddpg_params.env_action_minimize_bellman_loss': [False, True],
             # 'ddpg_params.save_new_memories_back_to_replay_buffer': [True,
             #                                                         False],
-            'ddpg_params.refresh_entire_buffer_period': [1000, 100, None],
+            'ddpg_params.refresh_entire_buffer_period': [1],
             # 'meta_params.meta_qf_learning_rate': [1e-3, 1e-4],
             # 'meta_params.meta_qf_output_weight': [0.1, 1, 10],
             # 'meta_params.qf_output_weight': [0, 1],

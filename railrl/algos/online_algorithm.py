@@ -37,7 +37,7 @@ class OnlineAlgorithm(RLAlgorithm):
             batch_size=64,
             n_epochs=1000,
             epoch_length=10000,
-            min_pool_size=10000,
+            min_pool_size=None,
             replay_pool_size=1000000,
             discount=0.99,
             soft_target_tau=1e-2,
@@ -80,6 +80,8 @@ class OnlineAlgorithm(RLAlgorithm):
         :param num_steps_between_train: How many steps to take before training.
         :return:
         """
+        if min_pool_size is None:
+            min_pool_size = batch_size
         assert min_pool_size >= batch_size
         # Have two separate env's to make sure that the training and eval
         # envs don't affect one another.

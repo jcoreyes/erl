@@ -88,7 +88,6 @@ if __name__ == '__main__':
         algo_params=dict(
             batch_size=32,
             n_epochs=5,
-            min_pool_size=100,
             replay_pool_size=1000000,
             epoch_length=num_steps_per_iteration,
             eval_samples=num_iterations,
