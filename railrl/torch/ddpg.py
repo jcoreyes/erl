@@ -41,7 +41,7 @@ class DDPG(OnlineAlgorithm):
         )
         self.target_qf = self.qf.clone()
         self.target_policy = self.policy.clone()
-        self.target_hard_update_period = 1000
+        self.target_hard_update_period = 10000
         self.tau = 0.001
 
         self.qf_criterion = nn.MSELoss()
@@ -91,11 +91,11 @@ class DDPG(OnlineAlgorithm):
         """
         Update Target Networks
         """
-        soft_update(self.target_policy, self.policy, self.tau)
-        soft_update(self.target_qf, self.qf, self.tau)
-        # if n_steps_total % self.target_hard_update_period == 0:
-        #     copy_model_params(self.qf, self.target_qf)
-        #     copy_model_params(self.policy, self.target_policy)
+        # soft_update(self.target_policy, self.policy, self.tau)
+        # soft_update(self.target_qf, self.qf, self.tau)
+        if n_steps_total % self.target_hard_update_period == 0:
+            copy_model_params(self.qf, self.target_qf)
+            copy_model_params(self.policy, self.target_policy)
 
     def evaluate(self, epoch, es_path_returns):
         """
