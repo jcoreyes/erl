@@ -23,6 +23,9 @@ class DDPG(OnlineAlgorithm):
             *args,
             policy_learning_rate=1e-4,
             qf_learning_rate=1e-3,
+            target_hard_update_period=10000,
+            tau=0.001,
+            use_soft_update=False,
             **kwargs
     ):
         super().__init__(*args, **kwargs)
@@ -32,17 +35,18 @@ class DDPG(OnlineAlgorithm):
             self.obs_dim,
             self.action_dim,
             [400],
-            [200],
+            [300],
         )
         self.policy = Policy(
             self.obs_dim,
             self.action_dim,
-            [400, 200],
+            [400, 300],
         )
         self.target_qf = self.qf.clone()
         self.target_policy = self.policy.clone()
-        self.target_hard_update_period = 10000
-        self.tau = 0.001
+        self.target_hard_update_period = target_hard_update_period
+        self.tau = tau
+        self.use_soft_update = use_soft_update
 
         self.qf_criterion = nn.MSELoss()
         self.qf_optimizer = optim.Adam(self.qf.parameters(),
@@ -91,11 +95,13 @@ class DDPG(OnlineAlgorithm):
         """
         Update Target Networks
         """
-        # soft_update(self.target_policy, self.policy, self.tau)
-        # soft_update(self.target_qf, self.qf, self.tau)
-        if n_steps_total % self.target_hard_update_period == 0:
-            copy_model_params(self.qf, self.target_qf)
-            copy_model_params(self.policy, self.target_policy)
+        if self.use_soft_update:
+            soft_update(self.target_policy, self.policy, self.tau)
+            soft_update(self.target_qf, self.qf, self.tau)
+        else:
+            if n_steps_total % self.target_hard_update_period == 0:
+                copy_model_params(self.qf, self.target_qf)
+                copy_model_params(self.policy, self.target_policy)
 
     def evaluate(self, epoch, es_path_returns):
         """

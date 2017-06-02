@@ -22,7 +22,7 @@ def example(*_):
         env,
         exploration_strategy=es,
         num_epochs=100,
-        num_steps_per_epoch=1000,
+        num_steps_per_epoch=10000,
         batch_size=32,
     )
     algorithm.train()
