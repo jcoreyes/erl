@@ -179,3 +179,38 @@ def dict_of_list__to__list_of_dicts(dict, n_items):
         for i in range(n_items):
             new_dicts[i][key] = values[i]
     return new_dicts
+
+
+class ConditionTimer(object):
+    """
+    A timer that goes off after the a fixed time period.
+    The catch: you need to poll it and provide it the time!
+
+    Usage:
+    ```
+    timer = PollTimer(100)  # next check will be true at 100
+    timer.check(90)  # False
+    timer.check(110) # True. Next check will go off at 110 + 100 = 210
+    timer.check(205) # False
+    timer.check(210) # True
+    ```
+    """
+
+    def __init__(self, trigger_period):
+        """
+        :param trigger_period: If None or 0, `check` will always return False.
+        """
+        self.last_time_triggered = 0
+        if trigger_period is None:
+            trigger_period = 0
+        self.trigger_period = trigger_period
+
+    def check(self, time):
+        if self.trigger_period == 0:
+            return False
+
+        if time - self.last_time_triggered >= self.trigger_period:
+            self.last_time_triggered = time
+            return True
+        else:
+            return False

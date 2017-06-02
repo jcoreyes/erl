@@ -239,7 +239,7 @@ class OnlineAlgorithm(RLAlgorithm):
                         self.es_path_returns.append(path_return)
                         path_length = 0
                         path_return = 0
-                        self.handle_rollout_ending()
+                        self.handle_rollout_ending(n_steps_total)
                     else:
                         observation = next_ob
 
@@ -479,8 +479,11 @@ class OnlineAlgorithm(RLAlgorithm):
         return raw_action
 
     @abc.abstractmethod
-    def handle_rollout_ending(self):
+    def handle_rollout_ending(self, n_steps_total):
         """
         This method is called whenever a rollout ends.
+
+        :param n_steps_total: The total number of environment steps taken so
+        far.
         """
         pass

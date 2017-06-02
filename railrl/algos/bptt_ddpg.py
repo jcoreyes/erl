@@ -7,17 +7,20 @@ import tensorflow as tf
 from typing import Iterable
 import numpy as np
 
-from railrl.algos.ddpg import DDPG, TargetUpdateMode
+from railrl.algos.ddpg import DDPG
 from railrl.core import tf_util
 from railrl.core.rnn.rnn import OutputStateRnn
-from railrl.data_management.subtraj_replay_buffer import (
-    SubtrajReplayBuffer
-)
-from railrl.data_management.updatable_subtraj_replay_buffer import \
+from railrl.data_management.updatable_subtraj_replay_buffer import (
     UpdatableSubtrajReplayBuffer
+)
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.policies.memory.rnn_cell_policy import RnnCellPolicy
-from railrl.pythonplusplus import map_recursive, filter_recursive, line_logger
+from railrl.pythonplusplus import (
+    map_recursive,
+    filter_recursive,
+    line_logger,
+    ConditionTimer,
+)
 from railrl.qfunctions.nn_qfunction import NNQFunction
 
 TARGET_PREFIX = "target_"
@@ -151,6 +154,7 @@ class BpttDDPG(DDPG):
             write_only_optimize_bellman=False,
             env_action_minimize_bellman_loss=True,
             save_new_memories_back_to_replay_buffer=True,
+            refresh_entire_buffer_period=None,
             **kwargs
     ):
         """
@@ -193,6 +197,8 @@ class BpttDDPG(DDPG):
         optimized only to minimize the Bellman error.
         :param env_action_minimize_bellman_loss: If False, the env action is
         only optimized to maximize the Q function.
+        :param refresh_entire_buffer_period: If set, refresh the replay buffer
+        after this many steps.
         :param kwargs: kwargs to pass onto DDPG
         """
         assert extra_qf_training_mode in [
@@ -236,6 +242,9 @@ class BpttDDPG(DDPG):
         self.env_action_minimize_bellman_loss = env_action_minimize_bellman_loss
         self.save_new_memories_back_to_replay_buffer = (
             save_new_memories_back_to_replay_buffer
+        )
+        self.should_refresh_buffer = ConditionTimer(
+            refresh_entire_buffer_period
         )
 
         self._rnn_cell_scope = policy.rnn_cell_scope
@@ -728,7 +737,7 @@ class BpttDDPG(DDPG):
         feed_dict[self.policy.observation_input] = last_obs
         return feed_dict
 
-    def handle_rollout_ending(self):
+    def handle_rollout_ending(self, n_steps_total):
         if self.compute_gradients_immediately:
             last_trajectory_start_index = (
                 self.pool.get_all_valid_trajectory_start_indices()[-1]
@@ -737,12 +746,8 @@ class BpttDDPG(DDPG):
                 last_trajectory_start_index
             )
 
-        if self.refresh_entire_buffer:
+        if self.should_refresh_buffer.check(n_steps_total):
             self.update_replay_buffer()
-
-    @property
-    def refresh_entire_buffer(self):
-        return False
 
     def update_trajectory_memory_and_gradients(self, trajectory_start_idx):
         minibatch, start_indices = (
@@ -761,9 +766,11 @@ class BpttDDPG(DDPG):
         )
         # TODO(vitchyr): Do I actually want to overwrite the write states?
         # One issue is that no exploration will happen!
-        # self.pool.update_write_subtrajectories(new_writes, start_indices)
-        self.pool.update_dloss_dmemories_subtrajectories(dloss_dmemories,
-                                                         start_indices)
+        if self.save_new_memories_back_to_replay_buffer:
+            self.pool.update_write_subtrajectories(new_writes, start_indices)
+        if self.saved_write_loss_weight > 0:
+            self.pool.update_dloss_dmemories_subtrajectories(dloss_dmemories,
+                                                             start_indices)
 
     def update_replay_buffer(self):
         start_episode_indices = (

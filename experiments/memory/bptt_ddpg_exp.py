@@ -91,14 +91,11 @@ if __name__ == '__main__':
     """
     Set all the hyperparameters!
     """
-    # env_class = WaterMazeEasy
-    # env_class = WaterMazeMemory
-    # env_class = WaterMaze
-    # env_class = HighLow
-    env_class = NormalizedHiddenCartpoleEnv
-    H = 100
+    env_class = HighLow
+    H = 32
     num_steps_per_iteration = 1000
-    num_iterations = 100
+    num_iterations = 30
+
     eval_samples = 50
     env_params = dict(
         num_steps=H,
@@ -114,7 +111,6 @@ if __name__ == '__main__':
         batch_size=32,
         n_epochs=num_iterations,
         min_pool_size=32,
-        replay_pool_size=100000,
         n_updates_per_time_step=1,
         epoch_length=num_steps_per_iteration,
         eval_samples=eval_samples,
@@ -143,11 +139,15 @@ if __name__ == '__main__':
         train_policy_on_all_qf_timesteps=False,
         write_only_optimize_bellman=False,
         # memory
-        num_bptt_unrolls=1,
+        num_bptt_unrolls=100,
         bpt_bellman_error_weight=10,
         reward_low_bellman_error_weight=0.,
         saved_write_loss_weight=0,
+        # Replay buffer
+        replay_pool_size=100000,
         compute_gradients_immediately=False,
+        save_new_memories_back_to_replay_buffer=True,
+        refresh_entire_buffer_period=None,
     )
 
     # noinspection PyTypeChecker
