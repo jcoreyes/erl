@@ -214,3 +214,26 @@ class ConditionTimer(object):
             return True
         else:
             return False
+
+
+def batch(iterable, n=1):
+    """
+    Split an interable into batches of size `n`. If `n` does not evenly divide
+    `iterable`, the last slice will be smaller.
+
+    https://stackoverflow.com/questions/8290397/how-to-split-an-iterable-in-constant-size-chunks
+
+    Usage:
+    ```
+        for i in batch(range(0,10), 3):
+            print i
+
+        [0,1,2]
+        [3,4,5]
+        [6,7,8]
+        [9]
+    ```
+    """
+    l = len(iterable)
+    for ndx in range(0, l, n):
+        yield iterable[ndx:min(ndx + n, l)]

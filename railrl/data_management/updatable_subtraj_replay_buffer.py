@@ -93,15 +93,43 @@ class UpdatableSubtrajReplayBuffer(SubtrajReplayBuffer):
                                          self._subtraj_length, start_offset=1),
         )
 
-    def get_trajectory_subsequences(self, trajectory_start_index,
-                                    episode_length):
+    def get_trajectory_minimal_covering_subsequences(
+            self, trajectory_start_idxs, episode_length
+    ):
         """
-        Warning: only pass a starting index of a trajectory that's finished
+        A set of subsequences _covers_ a trajectory if for every sample in the
+        trajectory, there exists at least one subsequence with that sample.
+
+        This function returns the minimally sized set of subsequences that
+        covers the trajectories starting at `trajectory_start_idxs`.
+
+        Warning: only pass a starting index of a trajectory that's finished.
+
+        :param trajectory_start_idxs: A list of trajectory start indices. A
+        useful function: `self.get_all_valid_trajectory_start_indices()`
+        :param episode_length: The length of the episode.
+        :return: Tuple
+            - list of subtrajectories (dictionaries)
+            - list of the start indices
         """
         start_indices = []
-        # TODO(vitchyr): double check/unit test this
-        for i in range(episode_length - self._subtraj_length + 1):
-            start_indices.append(trajectory_start_index + i)
+        for trajectory_start_index in trajectory_start_idxs:
+            last_subseq_start_idx = (
+                trajectory_start_index + episode_length - self._subtraj_length
+            )
+            # Only do every `self._subtraj_length` to get the minimal covering
+            # set of subsequences.
+            for subsequence_start_idx in range(
+                    trajectory_start_index,
+                    last_subseq_start_idx + 1,
+                    self._subtraj_length
+            ):
+                start_indices.append(subsequence_start_idx)
+            # If the episode is length 10, but subtraj_length = 4, we would
+            # only add [0, 4], so this adds `6` to start_indices to make sure
+            # (e.g.) the last two time steps aren't left out.
+            if last_subseq_start_idx not in start_indices:
+                start_indices.append(last_subseq_start_idx)
         return self.get_trajectories(start_indices), start_indices
 
     def get_all_valid_trajectory_start_indices(self):

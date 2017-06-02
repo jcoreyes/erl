@@ -70,12 +70,12 @@ if __name__ == '__main__':
     version = 'dev'
     num_hp_settings = 100
 
-    # n_seeds = 10
-    # mode = 'ec2'
-    # exp_prefix = "6-1-benchmark-normalized-hidden-cart-h100"
-    # version = 'Our Method - Full BPTT (dev)'
+    n_seeds = 10
+    mode = 'ec2'
+    exp_prefix = "6-1-hl-bptt-ddpg-sweep-update-buffer-period"
+    version = 'Our Method - Full BPTT (dev)'
 
-    # run_mode = 'grid'
+    run_mode = 'grid'
     """
     Miscellaneous Params
     """
@@ -96,7 +96,7 @@ if __name__ == '__main__':
     num_steps_per_iteration = 1000
     num_iterations = 30
 
-    eval_samples = 50
+    eval_samples = 400
     env_params = dict(
         num_steps=H,
         position_only=True,
@@ -139,7 +139,7 @@ if __name__ == '__main__':
         train_policy_on_all_qf_timesteps=False,
         write_only_optimize_bellman=False,
         # memory
-        num_bptt_unrolls=100,
+        num_bptt_unrolls=16,
         bpt_bellman_error_weight=10,
         reward_low_bellman_error_weight=0.,
         saved_write_loss_weight=0,
@@ -223,7 +223,7 @@ if __name__ == '__main__':
     # noinspection PyTypeChecker
     variant = dict(
         H=H,
-        memory_dim=10,
+        memory_dim=20,
         exp_prefix=exp_prefix,
         algo_class=algo_class,
         version=version,
@@ -312,7 +312,7 @@ if __name__ == '__main__':
             # 'ddpg_params.qf_weight_decay': [0, 0.001],
             # 'ddpg_params.reward_low_bellman_error_weight': [0, 0.1, 1., 10.],
             # 'ddpg_params.num_extra_qf_updates': [0, 5],
-            # 'ddpg_params.batch_size': [32, 128],
+            # 'ddpg_params.batch_size': [8, 32, 128, 512],
             # 'ddpg_params.replay_pool_size': [900, 90000],
             # 'ddpg_params.num_bptt_unrolls': [32, 16, 8, 4, 2, 1],
             # 'ddpg_params.n_updates_per_time_step': [1, 10],
@@ -322,8 +322,9 @@ if __name__ == '__main__':
             # 'ddpg_params.bpt_bellman_error_weight': [1, 10],
             # 'ddpg_params.saved_write_loss_weight': [1, 10],
             # 'ddpg_params.env_action_minimize_bellman_loss': [False, True],
-            'ddpg_params.save_new_memories_back_to_replay_buffer': [True,
-                                                                    False],
+            # 'ddpg_params.save_new_memories_back_to_replay_buffer': [True,
+            #                                                         False],
+            'ddpg_params.refresh_entire_buffer_period': [1000, 100, None],
             # 'meta_params.meta_qf_learning_rate': [1e-3, 1e-4],
             # 'meta_params.meta_qf_output_weight': [0.1, 1, 10],
             # 'meta_params.qf_output_weight': [0, 1],

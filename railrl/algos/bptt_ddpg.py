@@ -20,6 +20,7 @@ from railrl.pythonplusplus import (
     filter_recursive,
     line_logger,
     ConditionTimer,
+    batch,
 )
 from railrl.qfunctions.nn_qfunction import NNQFunction
 
@@ -155,6 +156,7 @@ class BpttDDPG(DDPG):
             env_action_minimize_bellman_loss=True,
             save_new_memories_back_to_replay_buffer=True,
             refresh_entire_buffer_period=None,
+            max_number_trajectories_loaded_at_once=32,
             **kwargs
     ):
         """
@@ -199,6 +201,8 @@ class BpttDDPG(DDPG):
         only optimized to maximize the Q function.
         :param refresh_entire_buffer_period: If set, refresh the replay buffer
         after this many steps.
+        :param max_number_trajectories_loaded_at_once: When refreshing the
+        replay buffer, only load this many trajectories at once.
         :param kwargs: kwargs to pass onto DDPG
         """
         assert extra_qf_training_mode in [
@@ -242,6 +246,9 @@ class BpttDDPG(DDPG):
         self.env_action_minimize_bellman_loss = env_action_minimize_bellman_loss
         self.save_new_memories_back_to_replay_buffer = (
             save_new_memories_back_to_replay_buffer
+        )
+        self.max_number_trajectories_loaded_at_once = (
+            max_number_trajectories_loaded_at_once
         )
         self.should_refresh_buffer = ConditionTimer(
             refresh_entire_buffer_period
@@ -738,23 +745,27 @@ class BpttDDPG(DDPG):
         return feed_dict
 
     def handle_rollout_ending(self, n_steps_total):
-        if self.compute_gradients_immediately:
+        if self.should_refresh_buffer.check(n_steps_total):
+            all_start_traj_indices = (
+                self.pool.get_all_valid_trajectory_start_indices()
+            )
+            for start_traj_indices in batch(
+                    all_start_traj_indices,
+                    self.max_number_trajectories_loaded_at_once,
+            ):
+                self.update_trajectory_memory_and_gradients(start_traj_indices)
+        elif self.compute_gradients_immediately:
             last_trajectory_start_index = (
                 self.pool.get_all_valid_trajectory_start_indices()[-1]
             )
             self.update_trajectory_memory_and_gradients(
-                last_trajectory_start_index
+                [last_trajectory_start_index]
             )
 
-        if self.should_refresh_buffer.check(n_steps_total):
-            self.update_replay_buffer()
-
-    def update_trajectory_memory_and_gradients(self, trajectory_start_idx):
+    def update_trajectory_memory_and_gradients(self, trajectory_start_idxs):
         minibatch, start_indices = (
-            self.pool.get_trajectory_subsequences(
-                trajectory_start_idx,
-                self.env.horizon
-            )
+            self.pool.get_trajectory_minimal_covering_subsequences(
+                trajectory_start_idxs, self.env.horizon)
         )
         policy_feed_dict = self._policy_feed_dict_from_batch(minibatch)
         new_writes, dloss_dmemories = self.sess.run(
@@ -772,12 +783,6 @@ class BpttDDPG(DDPG):
             self.pool.update_dloss_dmemories_subtrajectories(dloss_dmemories,
                                                              start_indices)
 
-    def update_replay_buffer(self):
-        start_episode_indices = (
-            self.pool.get_all_valid_trajectory_start_indices()
-        )
-        for start_episode_idx in start_episode_indices:
-            self.update_trajectory_memory_and_gradients(start_episode_idx)
     """
     Miscellaneous functions
     """
