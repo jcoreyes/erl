@@ -27,6 +27,7 @@ from railrl.policies.memory.lstm_memory_policy import (
     ResidualLstmLinearCell,
     GRULinearCell,
     SeparateLstmLinearCell,
+    SeparateRWALinearCell,
 )
 
 
@@ -42,8 +43,10 @@ def main():
     env_noise_std = 0
     memory_noise_std = 0
     for rnn_cell_class, H in product(
-        [RWACell, LSTMCell, GRUCell],
-        [512, 256, 128, 64],
+        [SeparateRWALinearCell],
+        [512],
+        # [RWACell, LSTMCell, GRUCell],
+        # [512, 256, 128, 64],
     ):
         # noinspection PyTypeChecker
         variant = dict(
@@ -57,9 +60,11 @@ def main():
                 eval_num_episodes=64,
                 lstm_state_size=10,
                 rnn_cell_class=rnn_cell_class,
-                # rnn_cell_params=dict(
-                #     use_peepholes=True,
-                # ),
+                rnn_cell_params=dict(
+                    # use_peepholes=True,
+                    state_is_flat_externally=False,
+                    output_dim=1,
+                ),
                 # rnn_cell_class=SeparateLstmLinearCell,
                 # rnn_cell_params=dict(
                 #     use_peepholes=True,

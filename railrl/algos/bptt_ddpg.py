@@ -684,6 +684,13 @@ class BpttDDPG(DDPG):
         if not self.train_policy:
             return None
 
+        # if self.write_policy_learning_rate == 0:
+        #     self.train_policy_op = tf.train.AdamOptimizer(
+        #         self.policy_learning_rate
+        #     ).minimize(env_action_loss + write_loss,
+        #                var_list=self.policy.get_params())
+        #     return self.train_policy_op
+
         policy_env_params = self.policy.get_params(env_only=True)
         self.train_policy_op_env = tf.train.AdamOptimizer(
             self.policy_learning_rate

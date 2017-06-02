@@ -9,6 +9,7 @@ from hyperopt import hp
 
 from railrl.algos.bptt_ddpg import BpttDDPG
 from railrl.algos.ddpg import TargetUpdateMode
+from railrl.core.rnn.rnn import RWACell
 from railrl.data_management.ocm_subtraj_replay_buffer import (
     OcmSubtrajReplayBuffer
 )
@@ -36,6 +37,7 @@ from railrl.misc.hyperparameter import (
 from railrl.misc.hypopt import optimize_and_save
 from railrl.policies.memory.lstm_memory_policy import (
     SeparateLstmLinearCell,
+    SeparateRWALinearCell,
 )
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 
@@ -65,17 +67,18 @@ def create_run_experiment_multiple_seeds(n_seeds):
 if __name__ == '__main__':
     n_seeds = 1
     mode = 'here'
-    exp_prefix = "dev-bptt-ddpg"
+    # exp_prefix = "dev-bptt-ddpg"
+    exp_prefix = "6-2-dev-bptt-ddpg-rwa"
     run_mode = 'none'
     version = 'dev'
     num_hp_settings = 100
 
-    n_seeds = 10
-    mode = 'ec2'
-    exp_prefix = "6-2-hl-bptt-ddpg-check-write-only-opt-bellman-again"
-    version = 'Our Method - Full BPTT (dev)'
+    # n_seeds = 10
+    # mode = 'ec2'
+    # exp_prefix = "6-2-hl-bptt-ddpg-check-write-only-opt-bellman-again"
+    # version = 'Our Method - Full BPTT (dev)'
 
-    run_mode = 'grid'
+    # run_mode = 'grid'
     """
     Miscellaneous Params
     """
@@ -92,7 +95,7 @@ if __name__ == '__main__':
     Set all the hyperparameters!
     """
     env_class = HighLow
-    H = 32
+    H = 16
     num_steps_per_iteration = 1000
     num_iterations = 100
 
@@ -131,12 +134,12 @@ if __name__ == '__main__':
         train_qf_on_all=False,
         dropout_keep_prob=1.,
         # Policy hps
-        policy_learning_rate=1e-3,
+        policy_learning_rate=1e-4,
         max_num_q_updates=1000,
         train_policy=True,
         write_policy_learning_rate=1e-5,
         train_policy_on_all_qf_timesteps=False,
-        write_only_optimize_bellman=False,
+        write_only_optimize_bellman=True,
         # memory
         num_bptt_unrolls=16,
         bpt_bellman_error_weight=10,
@@ -152,15 +155,16 @@ if __name__ == '__main__':
     # noinspection PyTypeChecker
     policy_params = dict(
         # rnn_cell_class=LstmLinearCell,
-        rnn_cell_class=SeparateLstmLinearCell,
+        # rnn_cell_class=SeparateLstmLinearCell,
         # rnn_cell_class=LstmLinearCellNoiseAll,
         # rnn_cell_class=DebugCell,
+        rnn_cell_class=SeparateRWALinearCell,
         rnn_cell_params=dict(
-            use_peepholes=True,
-            env_noise_std=0,
-            memory_noise_std=0,
-            output_nonlinearity=tf.nn.tanh,
-            env_hidden_sizes=[],
+            # use_peepholes=True,
+            # env_noise_std=0,
+            # memory_noise_std=0,
+            # output_nonlinearity=tf.nn.tanh,
+            # env_hidden_sizes=[],
             # env_hidden_activation=tf.tanh,
         )
     )
@@ -222,7 +226,7 @@ if __name__ == '__main__':
     # noinspection PyTypeChecker
     variant = dict(
         H=H,
-        memory_dim=20,
+        memory_dim=40,
         exp_prefix=exp_prefix,
         algo_class=algo_class,
         version=version,
