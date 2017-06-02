@@ -109,12 +109,7 @@ class Bptt(Parameterized, RLAlgorithm, Serializable):
         rnn_inputs = tf.unstack(tf.cast(self._x, tf.float32), axis=1)
         labels = tf.unstack(tf.cast(self._y, tf.float32), axis=1)
 
-        if self._softmax:
-            cell = self._rnn_cell_class(self._state_size, **self._rnn_cell_params)
-        else:
-            cell = self._rnn_cell_class(self._state_size,
-                                        self._num_classes,
-                                        **self._rnn_cell_params)
+        cell = self._rnn_cell_class(self._state_size, **self._rnn_cell_params)
         rnn_outputs, self._final_state = tf.contrib.rnn.static_rnn(
             cell,
             rnn_inputs,

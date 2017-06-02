@@ -5,6 +5,7 @@ from itertools import product
 import tensorflow as tf
 import random
 
+from railrl.core.rnn.rnn import RWACell
 from railrl.envs.memory.high_low import HighLow
 from railrl.launchers.rnn_launchers import bptt_launcher
 from railrl.launchers.launcher_util import (
@@ -15,6 +16,7 @@ from tensorflow.contrib.rnn import (
     LayerNormBasicLSTMCell,
     LSTMCell,
     BasicLSTMCell,
+    GRUCell,
 )
 from railrl.policies.memory.action_aware_memory_policy import DecoupledLSTM
 from railrl.policies.memory.lstm_memory_policy import (
@@ -35,15 +37,17 @@ def main():
 
     # n_seeds = 10
     # mode = "ec2"
-    # exp_prefix = "5-27-benchmark-sl-ocm-sweep-h"
+    # exp_prefix = "6-2-sl-rwa-vs-lstm"
 
-    for env_noise_std, memory_noise_std in product(
-        [0., 0.1, 1.],
-        [0., 0.1, 1.],
+    env_noise_std = 0
+    memory_noise_std = 0
+    for rnn_cell_class, H in product(
+        [RWACell, LSTMCell, GRUCell],
+        [512, 256, 128, 64],
     ):
         # noinspection PyTypeChecker
         variant = dict(
-            H=128,
+            H=H,
             exp_prefix=exp_prefix,
             algo_params=dict(
                 num_batches_per_epoch=10000//32,
@@ -52,19 +56,19 @@ def main():
                 batch_size=32,
                 eval_num_episodes=64,
                 lstm_state_size=10,
-                # rnn_cell_class=LSTMCell,
+                rnn_cell_class=rnn_cell_class,
                 # rnn_cell_params=dict(
                 #     use_peepholes=True,
                 # ),
-                rnn_cell_class=SeparateLstmLinearCell,
-                rnn_cell_params=dict(
-                    use_peepholes=True,
-                    env_noise_std=env_noise_std,
-                    memory_noise_std=memory_noise_std,
-                    output_nonlinearity=tf.nn.tanh,
-                    # output_nonlinearity=tf.nn.softmax,
-                    env_hidden_sizes=[],
-                ),
+                # rnn_cell_class=SeparateLstmLinearCell,
+                # rnn_cell_params=dict(
+                #     use_peepholes=True,
+                #     env_noise_std=env_noise_std,
+                #     memory_noise_std=memory_noise_std,
+                #     output_nonlinearity=tf.nn.tanh,
+                #     # output_nonlinearity=tf.nn.softmax,
+                #     env_hidden_sizes=[],
+                # ),
                 softmax=False,
             ),
             version='Supervised Learning',
