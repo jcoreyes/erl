@@ -233,6 +233,7 @@ class OnlineAlgorithm(RLAlgorithm):
                     if terminal or path_length >= self.max_path_length:
                         self.pool.terminate_episode(
                             next_ob,
+                            terminal,
                             agent_info=agent_info,
                             env_info=env_info,
                         )

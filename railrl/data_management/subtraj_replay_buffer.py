@@ -112,13 +112,13 @@ class SubtrajReplayBuffer(ReplayBuffer):
         #         )
         #
 
-    def terminate_episode(self, terminal_observation, **kwargs):
+    def terminate_episode(self, terminal_observation, terminal, **kwargs):
         self._add_sample(
             terminal_observation,
             self._stub_action,
             0,
             0,
-            True,
+            terminal,
         )
         self._previous_indices = deque(maxlen=self._subtraj_length)
         self._starting_episode = True
