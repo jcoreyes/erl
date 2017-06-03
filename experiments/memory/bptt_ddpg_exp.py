@@ -73,12 +73,12 @@ if __name__ == '__main__':
     version = 'dev'
     num_hp_settings = 100
 
-    # n_seeds = 10
-    # mode = 'ec2'
-    # exp_prefix = "6-2-hl-bptt-ddpg-check-write-only-opt-bellman-again"
-    # version = 'Our Method - Full BPTT (dev)'
+    n_seeds = 5
+    mode = 'ec2'
+    exp_prefix = "6-2-hl-bptt-ddpg-rwa-grid-writeonly-nbptt-refreshperiod"
+    version = 'Our Method - Full BPTT (dev)'
 
-    # run_mode = 'grid'
+    run_mode = 'grid'
     """
     Miscellaneous Params
     """
@@ -95,7 +95,7 @@ if __name__ == '__main__':
     Set all the hyperparameters!
     """
     env_class = HighLow
-    H = 16
+    H = 32
     num_steps_per_iteration = 1000
     num_iterations = 100
 
@@ -134,7 +134,7 @@ if __name__ == '__main__':
         train_qf_on_all=False,
         dropout_keep_prob=1.,
         # Policy hps
-        policy_learning_rate=1e-4,
+        policy_learning_rate=1e-3,
         max_num_q_updates=1000,
         train_policy=True,
         write_policy_learning_rate=1e-5,
@@ -161,11 +161,11 @@ if __name__ == '__main__':
         rnn_cell_class=SeparateRWALinearCell,
         rnn_cell_params=dict(
             # use_peepholes=True,
-            # env_noise_std=0,
-            # memory_noise_std=0,
-            # output_nonlinearity=tf.nn.tanh,
-            # env_hidden_sizes=[],
-            # env_hidden_activation=tf.tanh,
+            env_noise_std=0,
+            memory_noise_std=0,
+            output_nonlinearity=tf.nn.tanh,
+            env_hidden_sizes=[],
+            env_hidden_activation=tf.tanh,
         )
     )
 
@@ -317,7 +317,7 @@ if __name__ == '__main__':
             # 'ddpg_params.num_extra_qf_updates': [0, 5],
             # 'ddpg_params.batch_size': [512, 128, 32, 8],
             # 'ddpg_params.replay_pool_size': [900, 90000],
-            'ddpg_params.num_bptt_unrolls': [32, 16],
+            'ddpg_params.num_bptt_unrolls': [32, 24, 16],
             # 'ddpg_params.n_updates_per_time_step': [1, 10],
             # 'ddpg_params.policy_learning_rate': [1e-3, 1e-4],
             # 'ddpg_params.write_policy_learning_rate': [1e-4, 1e-5],
@@ -327,7 +327,7 @@ if __name__ == '__main__':
             # 'ddpg_params.env_action_minimize_bellman_loss': [False, True],
             # 'ddpg_params.save_new_memories_back_to_replay_buffer': [True,
             #                                                         False],
-            # 'ddpg_params.refresh_entire_buffer_period': [1],
+            'ddpg_params.refresh_entire_buffer_period': [1, None],
             'ddpg_params.write_only_optimize_bellman': [False, True],
             # 'meta_params.meta_qf_learning_rate': [1e-3, 1e-4],
             # 'meta_params.meta_qf_output_weight': [0.1, 1, 10],
