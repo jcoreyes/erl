@@ -11,6 +11,7 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.nn_policy import FeedForwardPolicy
 from railrl.qfunctions.nn_qfunction import FeedForwardCritic
 from railrl.algos.ddpg import DDPG
+from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.envs.gym_env import GymEnv
 
 
@@ -18,7 +19,8 @@ def example(*_):
     # env = HalfCheetahEnv()
     pointenv = PointEnv()
     # env = ProxyEnv(PendulumEnv())
-    env = gym_env("Pendulum-v0")
+    env = CartpoleEnv()
+    # env = gym_env("Pendulum-v0")
     es = OUStrategy(env_spec=env.spec)
     qf = FeedForwardCritic(
         name_or_scope="critic",
