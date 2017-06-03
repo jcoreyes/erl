@@ -48,6 +48,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         observation = self.training_env.reset()
         self.exploration_strategy.reset()
         path_return = 0
+        path_length = 0
         es_path_returns = []
         self._start_worker()
         self.training_mode(False)
@@ -71,6 +72,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                 n_steps_total += 1
                 reward = raw_reward * self.scale_reward
                 path_return += reward
+                path_length += 1
 
                 self.pool.add_sample(
                     observation,
@@ -80,9 +82,10 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                     agent_info=agent_info,
                     env_info=env_info,
                 )
-                if terminal:
+                if terminal or path_length >= self.max_path_length:
                     self.pool.terminate_episode(
                         next_ob,
+                        terminal,
                         agent_info=agent_info,
                         env_info=env_info,
                     )
@@ -90,6 +93,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                     self.exploration_strategy.reset()
                     es_path_returns.append(path_return)
                     path_return = 0
+                    path_length = 0
                 else:
                     observation = next_ob
 
