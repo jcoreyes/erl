@@ -112,13 +112,13 @@ class SubtrajReplayBuffer(ReplayBuffer):
         #         )
         #
 
-    def terminate_episode(self, terminal_observation, **kwargs):
+    def terminate_episode(self, terminal_observation, terminal, **kwargs):
         self._add_sample(
             terminal_observation,
             self._stub_action,
             0,
             0,
-            True,
+            terminal,
         )
         self._previous_indices = deque(maxlen=self._subtraj_length)
         self._starting_episode = True
@@ -179,7 +179,7 @@ class SubtrajReplayBuffer(ReplayBuffer):
             batch_size,
             replace=replace,
         )
-        return self._get_trajectories(start_indices)
+        return self.get_trajectories(start_indices)
 
     def _valid_start_indices(self, return_all=False, validation=False):
         if self._only_sample_at_start_of_episode:
@@ -231,12 +231,17 @@ class SubtrajReplayBuffer(ReplayBuffer):
         self.terminate_episode(terminal_observation)
 
     def get_all_valid_subtrajectories(self):
-        return self._get_trajectories(self._valid_start_indices(
+        return self.get_trajectories(self._valid_start_indices(
             return_all=True)
         )
 
     def get_valid_subtrajectories(self, **kwargs):
-        return self._get_trajectories(self._valid_start_indices(**kwargs))
+        return self.get_trajectories(self._valid_start_indices(**kwargs))
+
+    def get_trajectories(self, start_indices):
+        if len(start_indices) == 0:
+            return None
+        return self._get_trajectories(start_indices)
 
     def _get_trajectories(self, start_indices):
         return dict(

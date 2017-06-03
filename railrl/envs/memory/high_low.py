@@ -6,6 +6,7 @@ import numpy as np
 
 from railrl.envs.supervised_learning_env import RecurrentSupervisedLearningEnv
 from railrl.misc.data_processing import create_stats_ordered_dict
+from railrl.misc.np_util import np_print_options
 from railrl.pythonplusplus import clip_magnitude
 from rllab.envs.base import Env
 from rllab.misc import logger
@@ -25,6 +26,11 @@ class HighLow(Env, RecurrentSupervisedLearningEnv):
         self._action_space = Box(np.array([-1]), np.array([1]))
         self._observation_space = Box(np.array([-1]), np.array([1]))
 
+        # For rendering
+        self._last_reward = None
+        self._last_action = None
+        self._last_t = None
+
     @property
     def observation_space(self):
         return self._observation_space
@@ -35,6 +41,7 @@ class HighLow(Env, RecurrentSupervisedLearningEnv):
         return np.array([self._sign])
 
     def step(self, action):
+        self._last_t = self._t
         self._t += 1
         done = self._t == self.horizon
         action = max(-1, min(action, 1))
@@ -46,6 +53,8 @@ class HighLow(Env, RecurrentSupervisedLearningEnv):
         # To cheat:
         # observation = np.array([self._sign])
         info = self._get_info_dict()
+        self._last_reward = reward
+        self._last_action = action
         return observation, reward, done, info
 
     @property
@@ -133,6 +142,24 @@ class HighLow(Env, RecurrentSupervisedLearningEnv):
             target_numbers=last_target_numbers,
             times=last_times,
         )
+
+    def render(self):
+        logger.push_prefix("HighLow(sign={0})\t".format(self._sign))
+        if self._last_action is None:
+            logger.log("No action taken.")
+        else:
+            if self._last_t == 0:
+                logger.log("--- New Episode ---")
+            logger.push_prefix("t={0}\t".format(self._last_t))
+            with np_print_options(precision=4, suppress=False):
+                logger.log("Action: {0}".format(
+                    self._last_action,
+                ))
+            logger.log("Reward: {0}".format(
+                self._last_reward,
+            ))
+            logger.pop_prefix()
+        logger.pop_prefix()
 
     """
     RecurrentSupervisedLearningEnv functions

@@ -9,11 +9,14 @@ from hyperopt import hp
 
 from railrl.algos.bptt_ddpg import BpttDDPG
 from railrl.algos.ddpg import TargetUpdateMode
+from railrl.core.rnn.rnn import RWACell
 from railrl.data_management.ocm_subtraj_replay_buffer import (
     OcmSubtrajReplayBuffer
 )
+from railrl.envs.memory.hidden_cartpole import HiddenCartpoleEnv, \
+    NormalizedHiddenCartpoleEnv
 from railrl.envs.memory.high_low import HighLow
-from railrl.envs.water_maze import WaterMaze, WaterMazeEasy
+from railrl.envs.water_maze import WaterMaze, WaterMazeEasy, WaterMazeMemory
 from railrl.exploration_strategies.noop import NoopStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.algo_launchers import bptt_ddpg_launcher
@@ -34,7 +37,9 @@ from railrl.misc.hyperparameter import (
 from railrl.misc.hypopt import optimize_and_save
 from railrl.policies.memory.lstm_memory_policy import (
     SeparateLstmLinearCell,
+    SeparateRWALinearCell,
 )
+from rllab.envs.box2d.cartpole_env import CartpoleEnv
 
 
 def get_ocm_score(variant):
@@ -59,21 +64,21 @@ def create_run_experiment_multiple_seeds(n_seeds):
 
     return run_experiment_with_multiple_seeds
 
-
 if __name__ == '__main__':
     n_seeds = 1
     mode = 'here'
-    exp_prefix = "dev-bptt-ddpg-watermaze"
+    # exp_prefix = "dev-bptt-ddpg"
+    exp_prefix = "6-2-dev-bptt-ddpg-rwa"
     run_mode = 'none'
     version = 'dev'
     num_hp_settings = 100
 
-    # n_seeds = 5
-    # mode = 'ec2'
-    # exp_prefix = '5-28-hl-toggle-save-new-memories'
-    # run_mode = 'grid'
-    # version = 'env-and-write-loss-only'
+    n_seeds = 5
+    mode = 'ec2'
+    exp_prefix = "6-2-hl-bptt-ddpg-rwa-grid-writeonly-nbptt-refreshperiod"
+    version = 'Our Method - Full BPTT (dev)'
 
+    run_mode = 'grid'
     """
     Miscellaneous Params
     """
@@ -89,38 +94,29 @@ if __name__ == '__main__':
     """
     Set all the hyperparameters!
     """
-    # env_class = WaterMazeEasy
-    # env_class = WaterMaze
     env_class = HighLow
-    if env_class == WaterMaze:
-        H = 200
-        epoch_length = 10000
-        eval_samples = 2000
-    elif env_class == HighLow:
-        H = 32
-        epoch_length = 1000
-        eval_samples = 400
-    else:
-        raise Exception("Invalid env_class: %s" % env_class)
+    H = 32
+    num_steps_per_iteration = 1000
+    num_iterations = 100
+
+    eval_samples = 400
+    env_params = dict(
+        num_steps=H,
+        position_only=True,
+    )
 
     # TODO(vitchyr): clean up this hacky dropout code. Also, you'll need to
     # fix the batchnorm code. Basically, calls to (e.g.) qf.output will
     # always take the eval output.
 
-    env_params = dict(
-        num_steps=H,
-    )
-
     # noinspection PyTypeChecker
     ddpg_params = dict(
         batch_size=32,
-        n_epochs=30,
-        min_pool_size=32,
-        replay_pool_size=100000,
-        n_updates_per_time_step=5,
-        epoch_length=epoch_length,
+        n_epochs=num_iterations,
+        n_updates_per_time_step=1,
+        epoch_length=num_steps_per_iteration,
         eval_samples=eval_samples,
-        max_path_length=1002,
+        max_path_length=H,
         discount=1.0,
         save_tf_graph=False,
         num_steps_between_train=1,
@@ -149,22 +145,27 @@ if __name__ == '__main__':
         bpt_bellman_error_weight=10,
         reward_low_bellman_error_weight=0.,
         saved_write_loss_weight=0,
+        # Replay buffer
+        replay_pool_size=100000,
         compute_gradients_immediately=False,
+        save_new_memories_back_to_replay_buffer=True,
+        refresh_entire_buffer_period=None,
     )
 
     # noinspection PyTypeChecker
     policy_params = dict(
         # rnn_cell_class=LstmLinearCell,
-        rnn_cell_class=SeparateLstmLinearCell,
+        # rnn_cell_class=SeparateLstmLinearCell,
         # rnn_cell_class=LstmLinearCellNoiseAll,
         # rnn_cell_class=DebugCell,
+        rnn_cell_class=SeparateRWALinearCell,
         rnn_cell_params=dict(
-            use_peepholes=True,
+            # use_peepholes=True,
             env_noise_std=0,
             memory_noise_std=0,
             output_nonlinearity=tf.nn.tanh,
             env_hidden_sizes=[],
-            # env_hidden_activation=tf.tanh,
+            env_hidden_activation=tf.tanh,
         )
     )
 
@@ -218,10 +219,6 @@ if __name__ == '__main__':
         use_dropout=True,
     )
 
-    memory_dim = 20
-    replay_buffer_params = dict(
-        keep_old_fraction=0.9,
-    )
 
     """
     Create monolithic variant dictionary
@@ -229,7 +226,7 @@ if __name__ == '__main__':
     # noinspection PyTypeChecker
     variant = dict(
         H=H,
-        memory_dim=memory_dim,
+        memory_dim=40,
         exp_prefix=exp_prefix,
         algo_class=algo_class,
         version=version,
@@ -246,7 +243,9 @@ if __name__ == '__main__':
         meta_params=meta_params,
         replay_buffer_class=OcmSubtrajReplayBuffer,
         # replay_buffer_class=UpdatableSubtrajReplayBuffer,
-        replay_buffer_params=replay_buffer_params,
+        replay_buffer_params=dict(
+            keep_old_fraction=0.9,
+        ),
     )
 
     if run_mode == 'hyperopt':
@@ -316,9 +315,9 @@ if __name__ == '__main__':
             # 'ddpg_params.qf_weight_decay': [0, 0.001],
             # 'ddpg_params.reward_low_bellman_error_weight': [0, 0.1, 1., 10.],
             # 'ddpg_params.num_extra_qf_updates': [0, 5],
-            # 'ddpg_params.batch_size': [32, 128],
+            # 'ddpg_params.batch_size': [512, 128, 32, 8],
             # 'ddpg_params.replay_pool_size': [900, 90000],
-            # 'ddpg_params.num_bptt_unrolls': [32, 16, 8, 4, 2, 1],
+            'ddpg_params.num_bptt_unrolls': [32, 24, 16],
             # 'ddpg_params.n_updates_per_time_step': [1, 10],
             # 'ddpg_params.policy_learning_rate': [1e-3, 1e-4],
             # 'ddpg_params.write_policy_learning_rate': [1e-4, 1e-5],
@@ -326,8 +325,10 @@ if __name__ == '__main__':
             # 'ddpg_params.bpt_bellman_error_weight': [1, 10],
             # 'ddpg_params.saved_write_loss_weight': [1, 10],
             # 'ddpg_params.env_action_minimize_bellman_loss': [False, True],
-            'ddpg_params.save_new_memories_back_to_replay_buffer': [True,
-                                                                    False],
+            # 'ddpg_params.save_new_memories_back_to_replay_buffer': [True,
+            #                                                         False],
+            'ddpg_params.refresh_entire_buffer_period': [1, None],
+            'ddpg_params.write_only_optimize_bellman': [False, True],
             # 'meta_params.meta_qf_learning_rate': [1e-3, 1e-4],
             # 'meta_params.meta_qf_output_weight': [0.1, 1, 10],
             # 'meta_params.qf_output_weight': [0, 1],

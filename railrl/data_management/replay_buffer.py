@@ -20,7 +20,7 @@ class ReplayBuffer(object, metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def terminate_episode(self, terminal_observation, **kwargs):
+    def terminate_episode(self, terminal_observation, terminal, **kwargs):
         """
         Terminate the episode. The only reason this is needed in addition to
         add_sample is that sometimes you may want to terminate an episode
@@ -30,6 +30,7 @@ class ReplayBuffer(object, metaclass=abc.ABCMeta):
         really a terminal state.
 
         :param terminal_observation: The last observation seen.
+        :param terminal: Did the environment actually terminate by itself?
         :return:
         """
         pass

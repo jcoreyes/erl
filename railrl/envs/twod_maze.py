@@ -9,6 +9,7 @@ DIST_THRESH = 0.05
 
 class TwoDMaze(MujocoEnv):
     def __init__(self):
+        self.init_serialization(locals())
         super().__init__('twod_maze.xml')
 
     def _step(self, a):
@@ -29,10 +30,7 @@ class TwoDMaze(MujocoEnv):
         return self._get_obs()
 
     def _get_obs(self):
-        #return np.concatenate([self.model.data.qpos, self.model.data.qvel]).ravel()
         return np.concatenate([self.model.data.qpos]).ravel()
 
     def viewer_setup(self):
-        v = self.viewer
-        #v.cam.trackbodyid=0
-        #v.cam.distance = v.model.stat.extent
+        pass

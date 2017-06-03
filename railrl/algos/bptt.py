@@ -3,6 +3,7 @@ import numpy as np
 import tensorflow as tf
 import time
 
+from railrl.core.tf_util import are_shapes_compatible
 from railrl.envs.memory.high_low import HighLow
 from railrl.envs.memory.one_char_memory import OneCharMemory
 from railrl.misc.data_processing import create_stats_ordered_dict
@@ -109,12 +110,7 @@ class Bptt(Parameterized, RLAlgorithm, Serializable):
         rnn_inputs = tf.unstack(tf.cast(self._x, tf.float32), axis=1)
         labels = tf.unstack(tf.cast(self._y, tf.float32), axis=1)
 
-        if self._softmax:
-            cell = self._rnn_cell_class(self._state_size, **self._rnn_cell_params)
-        else:
-            cell = self._rnn_cell_class(self._state_size,
-                                        self._num_classes,
-                                        **self._rnn_cell_params)
+        cell = self._rnn_cell_class(self._state_size, **self._rnn_cell_params)
         rnn_outputs, self._final_state = tf.contrib.rnn.static_rnn(
             cell,
             rnn_inputs,
@@ -133,11 +129,12 @@ class Bptt(Parameterized, RLAlgorithm, Serializable):
             self._predictions = rnn_outputs
             logits = [tf.exp(pred) for pred in self._predictions]
 
-        # TODO(vitchyr): change this loss function for the HighLow env
         if isinstance(self._env, HighLow):
+            assert are_shapes_compatible(self._predictions[-1], labels[-1])
             self._total_loss = - tf.reduce_mean(self._predictions[-1]
                                                 * labels[-1])
         elif isinstance(self._env, OneCharMemory):
+            assert are_shapes_compatible(logits[-1], labels[-1])
             self._total_loss = tf.nn.sigmoid_cross_entropy_with_logits(
                 logits=logits[-1],
                 labels=labels[-1],
