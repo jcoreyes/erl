@@ -24,8 +24,8 @@ def split_paths(paths):
         terminal_i = np.zeros_like(path["rewards"])
         terminal_i[-1] = 1
         terminals.append(terminal_i)
-    rewards = np.array(rewards)
-    terminals = np.array(terminals)
+    rewards = np.hstack(rewards)
+    terminals = np.hstack(terminals)
     obs = np.vstack(obs)
     actions = np.vstack(actions)
     next_obs = np.vstack(next_obs)
