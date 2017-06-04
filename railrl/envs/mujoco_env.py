@@ -5,17 +5,27 @@ import mujoco_py
 import numpy as np
 from gym.envs.mujoco import mujoco_env
 
+from railrl.envs.env_utils import get_asset_xml
 from rllab.core.serializable import Serializable
+from rllab.envs.base import Env
 
 
-class MujocoEnv(mujoco_env.MujocoEnv, Serializable):
+class MujocoEnv(mujoco_env.MujocoEnv, Serializable, Env):
     """
     My own wrapper around MujocoEnv.
     
     The caller needs to declare
     """
-    def __init__(self, model_path, frame_skip=1, use_default_mujoco_init=False):
-        if use_default_mujoco_init:
+    def __init__(
+            self,
+            model_path,
+            frame_skip=1,
+            model_path_is_local=True,
+            automatically_set_obs_and_action_space=False,
+    ):
+        if model_path_is_local:
+            model_path = get_asset_xml(model_path)
+        if automatically_set_obs_and_action_space:
             mujoco_env.MujocoEnv.__init__(self, model_path, frame_skip)
         else:
             """
