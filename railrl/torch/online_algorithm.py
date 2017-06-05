@@ -34,7 +34,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         self.render = False
         self.scale_reward = 1
         self.pool = EnvReplayBuffer(
-            6000000,
+            1000000,
             self.env,
         )
         self.discount = .99

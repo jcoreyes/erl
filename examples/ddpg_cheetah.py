@@ -5,7 +5,7 @@ from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.nn_policy import FeedForwardPolicy
 from railrl.qfunctions.nn_qfunction import FeedForwardCritic
-from railrl.algos.ddpg import DDPG
+from railrl.algos.ddpg import DDPG, TargetUpdateMode
 
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 
@@ -26,8 +26,10 @@ def example(*_):
         es,
         policy,
         qf,
-        n_epochs=100,
+        n_epochs=50,
         batch_size=1024,
+        target_update_mode=TargetUpdateMode.HARD,
+        hard_update_period=5000,
     )
     algorithm.train()
 
