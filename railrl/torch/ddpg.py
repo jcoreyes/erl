@@ -181,8 +181,13 @@ def copy_model_params(source, target):
 
 
 def fanin_init(size, fanin=None):
-    fanin = fanin or size[0]
-    v = 1. / np.sqrt(fanin)
+    if len(size) == 2:
+        fan_in = size[0]
+    elif len(size) > 2:
+        fan_in = np.prod(size[1:])
+    else:
+        raise Exception("Shape must be have dimension at least 2.")
+    v = 1. / np.sqrt(fan_in)
     return torch.Tensor(size).uniform_(-v, v)
 
 
@@ -211,10 +216,13 @@ class QFunction(nn.Module):
 
     def init_weights(self, init_w):
         self.obs_fc.weight.data = fanin_init(self.obs_fc.weight.data.size())
+        self.obs_fc.bias.data *= 0
         self.embedded_fc.weight.data = fanin_init(
             self.embedded_fc.weight.data.size()
         )
+        self.embedded_fc.bias.data *= 0
         self.last_fc.weight.data.uniform_(-init_w, init_w)
+        self.last_fc.bias.data.uniform_(-init_w, init_w)
 
     def forward(self, obs, action):
         h = obs
@@ -258,8 +266,11 @@ class Policy(nn.Module):
 
     def init_weights(self, init_w):
         self.fc1.weight.data = fanin_init(self.fc1.weight.data.size())
+        self.fc1.bias.data *= 0
         self.fc2.weight.data = fanin_init(self.fc2.weight.data.size())
+        self.fc2.bias.data *= 0
         self.last_fc.weight.data.uniform_(-init_w, init_w)
+        self.last_fc.bias.data.uniform_(-init_w, init_w)
 
     def forward(self, obs):
         h = F.relu(self.fc1(obs))
@@ -292,3 +303,6 @@ class Policy(nn.Module):
         )
         copy_model_params(self, copy)
         return copy
+
+    def log_diagnostics(self, paths):
+        pass
