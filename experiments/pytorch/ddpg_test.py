@@ -29,18 +29,18 @@ def example(variant):
 if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
-            num_epochs=50,
-            num_steps_per_epoch=10000,
-            num_steps_per_eval=1000,
+            num_epochs=10,
+            num_steps_per_epoch=100,
+            num_steps_per_eval=10,
             target_hard_update_period=10000,
             batch_size=32,
-            max_path_length=1000,
+            max_path_length=100,
         )
     )
     run_experiment(
         example,
-        exp_prefix="6-5-torch-ddpg-half-cheetah",
+        exp_prefix="6-5-torch-ddpg-test",
         seed=0,
-        mode='here',
+        mode='local_docker',
         variant=variant,
     )
