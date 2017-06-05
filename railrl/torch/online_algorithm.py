@@ -1,4 +1,5 @@
 import abc
+import pickle
 import time
 
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
@@ -18,7 +19,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             batch_size=1024,
     ):
         self.training_env = env
-        self.env = env
+        self.env = pickle.loads(pickle.dumps(self.training_env))
         self.action_dim = int(env.action_space.flat_dim)
         self.obs_dim = int(env.observation_space.flat_dim)
 
