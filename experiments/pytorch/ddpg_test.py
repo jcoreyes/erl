@@ -12,27 +12,35 @@ from railrl.envs.env_utils import gym_env
 from rllab.envs.normalized_env import normalize
 
 
-def example(*_):
-    # env = HalfCheetahEnv()
+def example(variant):
+    env = HalfCheetahEnv()
     # env = PointEnv()
-    env = gym_env("Pendulum-v0")
+    # env = gym_env("Pendulum-v0")
     env = normalize(env)
     es = OUStrategy(env_spec=env.spec, max_sima=0.2, min_sigma=None, theta=0.15)
     algorithm = DDPG(
         env,
         exploration_strategy=es,
-        num_epochs=100,
-        num_steps_per_epoch=1000,
-        target_hard_update_period=1000,
-        batch_size=32,
+        **variant['algo_params']
     )
     algorithm.train()
 
 
 if __name__ == "__main__":
+    variant = dict(
+        algo_params=dict(
+            num_epochs=50,
+            num_steps_per_epoch=10000,
+            num_steps_per_eval=1000,
+            target_hard_update_period=10000,
+            batch_size=32,
+            max_path_length=1000,
+        )
+    )
     run_experiment(
         example,
-        exp_prefix="dev-6-4-torch-ddpg",
-        seed=2,
+        exp_prefix="6-5-torch-ddpg-half-cheetah",
+        seed=0,
         mode='here',
+        variant=variant,
     )
