@@ -23,7 +23,7 @@ class DDPG(OnlineAlgorithm):
             *args,
             policy_learning_rate=1e-4,
             qf_learning_rate=1e-3,
-            target_hard_update_period=10000,
+            target_hard_update_period=1000,
             tau=0.001,
             use_soft_update=False,
             **kwargs

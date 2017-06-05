@@ -23,6 +23,7 @@ def example(*_):
         exploration_strategy=es,
         num_epochs=100,
         num_steps_per_epoch=1000,
+        target_hard_update_period=1000,
         batch_size=32,
     )
     algorithm.train()
@@ -31,7 +32,7 @@ def example(*_):
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="dev-5-30-torch-ddpg",
+        exp_prefix="dev-6-4-torch-ddpg",
         seed=2,
         mode='here',
     )
