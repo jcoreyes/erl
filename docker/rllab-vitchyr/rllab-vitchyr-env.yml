@@ -51,4 +51,4 @@ dependencies:
         - jupyter
         - progressbar2
         - chainer==1.15.0
-        - cloudpickle
+        - cloudpickle==0.2.2
