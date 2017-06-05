@@ -63,7 +63,7 @@ class DDPG(OnlineAlgorithm):
         next_obs = batch['next_observations']
 
         """
-        Optimize critic
+        Compute tensors for critic update.
         """
         # Generate y target using target policies
         next_actions = self.target_policy(next_obs)
@@ -77,20 +77,22 @@ class DDPG(OnlineAlgorithm):
         y_pred = self.qf(obs, actions)
         qf_loss = self.qf_criterion(y_pred, y_target)
 
-        # Do training
-        self.qf_optimizer.zero_grad()
-        qf_loss.backward()
-        self.qf_optimizer.step()
-
         """
-        Optimize policy
+        Compute tensors for critic update.
         """
         policy_actions = self.policy(obs)
         q_output = self.qf(obs, policy_actions)
         policy_loss = - q_output.mean()
+
+        """
+        Update both networks at the same time.
+        """
         self.policy_optimizer.zero_grad()
+        self.qf_optimizer.zero_grad()
         policy_loss.backward()
+        qf_loss.backward()
         self.policy_optimizer.step()
+        self.qf_optimizer.step()
 
         """
         Update Target Networks
