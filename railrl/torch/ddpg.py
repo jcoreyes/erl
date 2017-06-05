@@ -206,9 +206,13 @@ class QFunction(nn.Module):
         self.action_dim = action_dim
         self.observation_hidden_size = observation_hidden_size
         self.embedded_hidden_size = embedded_hidden_size
+        self.embedded_input_size = embedded_hidden_size + action_dim
 
+        self.obs_bn = nn.BatchNorm1d(obs_dim)
         self.obs_fc = nn.Linear(obs_dim, observation_hidden_size)
-        self.embedded_fc = nn.Linear(observation_hidden_size + action_dim,
+        self.post_obs_bn = nn.BatchNorm1d(observation_hidden_size)
+        self.action_bn = nn.BatchNorm1d(self.action_dim)
+        self.embedded_fc = nn.Linear(self.embedded_input_size,
                                      embedded_hidden_size)
         self.last_fc = nn.Linear(embedded_hidden_size, 1)
 
@@ -225,10 +229,11 @@ class QFunction(nn.Module):
         self.last_fc.bias.data.uniform_(-init_w, init_w)
 
     def forward(self, obs, action):
-        h = obs
-        h = F.relu(self.obs_fc(h))
-        h = torch.cat((h, action), dim=1)
-        h = F.relu(self.embedded_fc(h))
+        obs = self.obs_bn(obs)
+        action = self.action_bn(action)
+        h = F.relu(self.post_obs_bn(self.obs_fc(obs)))
+        embedded = torch.cat((h, action), dim=1)
+        h = F.relu(self.embedded_fc(embedded))
         return self.last_fc(h)
 
     def clone(self):
@@ -258,8 +263,11 @@ class Policy(nn.Module):
         self.fc1_size = fc1_size
         self.fc2_size = fc2_size
 
+        self.obs_bn = nn.BatchNorm1d(obs_dim)
         self.fc1 = nn.Linear(obs_dim, fc1_size)
+        self.fc1_bn = nn.BatchNorm1d(fc1_size)
         self.fc2 = nn.Linear(fc1_size, fc2_size)
+        self.fc2_bn = nn.BatchNorm1d(fc2_size)
         self.last_fc = nn.Linear(fc2_size, action_dim)
 
         self.init_weights(init_w)
@@ -273,8 +281,9 @@ class Policy(nn.Module):
         self.last_fc.bias.data.uniform_(-init_w, init_w)
 
     def forward(self, obs):
-        h = F.relu(self.fc1(obs))
-        h = F.relu(self.fc2(h))
+        obs = self.obs_bn(obs)
+        h = F.relu(self.fc1_bn(self.fc1(obs)))
+        h = F.relu(self.fc2_bn(self.fc2(h)))
         return F.tanh(self.last_fc(h))
 
     def get_action(self, obs):

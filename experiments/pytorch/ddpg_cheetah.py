@@ -40,7 +40,8 @@ if __name__ == "__main__":
     )
     run_experiment(
         example,
-        exp_prefix="6-5-tf-vs-torch-ddpg-half-cheetah",
+        # exp_prefix="6-5-tf-vs-torch-ddpg-half-cheetah",
+        exp_prefix="6-5-torch-bn",
         seed=0,
         mode='here',
         variant=variant,
