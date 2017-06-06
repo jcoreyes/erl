@@ -54,6 +54,8 @@ class DDPG(OnlineAlgorithm):
                                        lr=self.qf_learning_rate)
         self.policy_optimizer = optim.Adam(self.policy.parameters(),
                                            lr=self.policy_learning_rate)
+        if self.use_gpu:
+            self.cuda()
 
     def _do_training(self, n_steps_total):
         batch = self.get_batch()
@@ -114,6 +116,12 @@ class DDPG(OnlineAlgorithm):
         self.target_policy.train(mode)
         self.target_qf.train(mode)
 
+    def cuda(self):
+        self.policy.cuda()
+        self.target_policy.cuda()
+        self.qf.cuda()
+        self.target_qf.cuda()
+
     def evaluate(self, epoch, es_path_returns):
         """
         Perform evaluation for this algorithm.
@@ -156,11 +164,18 @@ class DDPG(OnlineAlgorithm):
 
     def get_batch(self):
         batch = self.pool.random_batch(self.batch_size, flatten=True)
-        torch_batch = {
-            k: Variable(torch.from_numpy(array).float(),
-                        requires_grad=False)
-            for k, array in batch.items()
-        }
+        if self.use_gpu:
+            torch_batch = {
+                k: Variable(torch.from_numpy(array).float(),
+                            requires_grad=False).cuda()
+                for k, array in batch.items()
+            }
+        else:
+            torch_batch = {
+                k: Variable(torch.from_numpy(array).float(),
+                            requires_grad=False)
+                for k, array in batch.items()
+            }
         rewards = torch_batch['rewards']
         terminals = torch_batch['terminals']
         torch_batch['rewards'] = rewards.unsqueeze(-1)
@@ -279,7 +294,11 @@ class Policy(nn.Module):
 
     def get_action(self, obs):
         obs = np.expand_dims(obs, axis=0)
-        obs = Variable(torch.from_numpy(obs).float(), requires_grad=False)
+        if self.last_fc.weight.is_cuda:
+            obs = Variable(torch.from_numpy(obs).float(),
+                           requires_grad=False).cuda()
+        else:
+            obs = Variable(torch.from_numpy(obs).float(), requires_grad=False)
         action = self.__call__(obs)
         action = action.squeeze(0)
         return action.data.numpy(), {}

@@ -46,21 +46,21 @@ def example(variant):
 if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
-            n_epochs=100,
+            n_epochs=10,
             eval_samples=100,
             epoch_length=1000,
             batch_size=32,
             # target_update_mode=TargetUpdateMode.SOFT,
             # soft_target_tau=0.001,
             target_update_mode=TargetUpdateMode.HARD,
-            hard_update_period=100,
+            hard_update_period=1000,
         ),
     )
-    for seed in range(8):
-        run_experiment(
-            example,
-            exp_prefix="6-5-ddpg-tf-hard-vs-soft",
-            seed=seed,
-            mode='ec2',
-            variant=variant,
-        )
+    run_experiment(
+        example,
+        exp_prefix="dev-ddpg-tf",
+        seed=0,
+        mode='here',
+        variant=variant,
+        use_gpu=True,
+    )

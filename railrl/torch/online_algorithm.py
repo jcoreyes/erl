@@ -19,6 +19,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             num_steps_per_eval=1000,
             batch_size=1024,
             max_path_length=1000,
+            use_gpu=False,
     ):
         self.training_env = env
         self.env = pickle.loads(pickle.dumps(self.training_env))
@@ -31,6 +32,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         self.batch_size = batch_size
         self.max_path_length = max_path_length
         self.n_eval_samples = num_steps_per_eval
+        self.use_gpu = use_gpu
         self.render = False
         self.scale_reward = 1
         self.pool = EnvReplayBuffer(
