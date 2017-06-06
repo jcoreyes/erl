@@ -34,14 +34,14 @@ class DDPG(OnlineAlgorithm):
         self.qf = QFunction(
             self.obs_dim,
             self.action_dim,
-            100,
-            100,
+            400,
+            300,
         )
         self.policy = Policy(
             self.obs_dim,
             self.action_dim,
-            100,
-            100,
+            400,
+            300,
         )
         self.target_qf = self.qf.clone()
         self.target_policy = self.policy.clone()

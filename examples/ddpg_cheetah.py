@@ -18,10 +18,13 @@ def example(variant):
     qf = FeedForwardCritic(
         name_or_scope="critic",
         env_spec=env.spec,
+        embedded_hidden_sizes=(300,),
+        observation_hidden_sizes=(400,),
     )
     policy = FeedForwardPolicy(
         name_or_scope="actor",
         env_spec=env.spec,
+        observation_hidden_sizes=(400, 300),
     )
     algorithm = DDPG(
         env,
@@ -41,7 +44,7 @@ if __name__ == "__main__":
             epoch_length=10000,
             eval_samples=1000,
         ),
-        version="TensorFlow",
+        version="TensorFlow - bigger networks",
     )
     for seed in range(20):
         run_experiment(

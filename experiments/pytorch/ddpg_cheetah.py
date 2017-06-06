@@ -36,7 +36,7 @@ if __name__ == "__main__":
             batch_size=128,
             max_path_length=1000,
         ),
-        version="PyTorch",
+        version="PyTorch - bigger networks",
     )
     for seed in range(20):
         run_experiment(
