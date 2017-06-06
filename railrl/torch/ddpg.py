@@ -54,6 +54,7 @@ class DDPG(OnlineAlgorithm):
                                        lr=self.qf_learning_rate)
         self.policy_optimizer = optim.Adam(self.policy.parameters(),
                                            lr=self.policy_learning_rate)
+        self.use_gpu = self.use_gpu and torch.cuda.is_available()
         if self.use_gpu:
             self.cuda()
 
@@ -301,7 +302,10 @@ class Policy(nn.Module):
             obs = Variable(torch.from_numpy(obs).float(), requires_grad=False)
         action = self.__call__(obs)
         action = action.squeeze(0)
-        return action.data.numpy(), {}
+        if self.last_fc.weight.is_cuda:
+            return action.data.cpu().numpy(), {}
+        else:
+            return action.data.numpy(), {}
 
     def get_param_values(self):
         return [param.data for param in self.parameters()]
