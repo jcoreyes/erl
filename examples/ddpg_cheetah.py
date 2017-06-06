@@ -11,7 +11,7 @@ from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 from rllab.envs.normalized_env import normalize
 
 
-def example(*_):
+def example(variant):
     env = HalfCheetahEnv()
     env = normalize(env)
     es = OUStrategy(env_spec=env.spec)
@@ -28,22 +28,26 @@ def example(*_):
         es,
         policy,
         qf,
-        n_epochs=30,
-        batch_size=128,
-        # target_update_mode=TargetUpdateMode.HARD,
-        # hard_update_period=10000,
-        epoch_length=10000,
-        eval_samples=1000,
+        **variant['algo_params']
     )
     algorithm.train()
 
 
 if __name__ == "__main__":
-    for seed in range(10):
+    variant = dict(
+        algo_params=dict(
+            n_epochs=100,
+            batch_size=128,
+            epoch_length=10000,
+            eval_samples=1000,
+        ),
+        version="TensorFlow",
+    )
+    for seed in range(20):
         run_experiment(
             example,
-            exp_prefix="6-5-tf-vs-torch-ddpg-half-cheetah",
-            variant=dict(version="TF"),
+            exp_prefix="6-5-tf-vs-torch-ddpg-half-cheetah-h100",
+            variant=variant,
             seed=seed,
             mode='ec2',
         )

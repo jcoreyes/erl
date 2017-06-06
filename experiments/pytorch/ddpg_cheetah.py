@@ -27,7 +27,7 @@ def example(variant):
 if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
-            num_epochs=30,
+            num_epochs=100,
             num_steps_per_epoch=10000,
             num_steps_per_eval=1000,
             # target_hard_update_period=10000,
@@ -36,12 +36,12 @@ if __name__ == "__main__":
             batch_size=128,
             max_path_length=1000,
         ),
-        version="Torch",
+        version="PyTorch",
     )
-    for seed in range(10):
+    for seed in range(20):
         run_experiment(
             example,
-            exp_prefix="6-5-tf-vs-torch-ddpg-half-cheetah",
+            exp_prefix="6-5-tf-vs-torch-ddpg-half-cheetah-h100",
             seed=seed,
             mode='ec2',
             variant=variant,
