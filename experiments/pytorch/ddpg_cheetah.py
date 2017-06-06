@@ -1,5 +1,5 @@
 """
-Exampling of running DDPG on HalfCheetah.
+Run PyTorch DDPG on HalfCheetah.
 """
 from railrl.envs.point_env import PointEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
@@ -13,11 +13,9 @@ from rllab.envs.normalized_env import normalize
 
 
 def example(variant):
-    # env = HalfCheetahEnv()
-    # env = PointEnv()
-    env = gym_env("Pendulum-v0")
+    env = HalfCheetahEnv()
     env = normalize(env)
-    es = OUStrategy(env_spec=env.spec, max_sima=0.2, min_sigma=None, theta=0.15)
+    es = OUStrategy(env_spec=env.spec)
     algorithm = DDPG(
         env,
         exploration_strategy=es,
@@ -29,18 +27,22 @@ def example(variant):
 if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
-            num_epochs=10,
-            num_steps_per_epoch=100,
-            num_steps_per_eval=10,
-            target_hard_update_period=10000,
-            batch_size=32,
-            max_path_length=100,
+            num_epochs=30,
+            num_steps_per_epoch=10000,
+            num_steps_per_eval=1000,
+            # target_hard_update_period=10000,
+            use_soft_update=True,
+            tau=1e-2,
+            batch_size=128,
+            max_path_length=1000,
+        ),
+        version="Torch",
+    )
+    for seed in range(10):
+        run_experiment(
+            example,
+            exp_prefix="6-5-tf-vs-torch-ddpg-half-cheetah",
+            seed=seed,
+            mode='ec2',
+            variant=variant,
         )
-    )
-    run_experiment(
-        example,
-        exp_prefix="6-5-does-torch-work-on-ec2",
-        seed=0,
-        mode='ec2',
-        variant=variant,
-    )

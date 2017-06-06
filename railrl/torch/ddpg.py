@@ -23,7 +23,7 @@ class DDPG(OnlineAlgorithm):
             *args,
             policy_learning_rate=1e-4,
             qf_learning_rate=1e-3,
-            target_hard_update_period=10000,
+            target_hard_update_period=1000,
             tau=0.001,
             use_soft_update=False,
             **kwargs
@@ -34,13 +34,14 @@ class DDPG(OnlineAlgorithm):
         self.qf = QFunction(
             self.obs_dim,
             self.action_dim,
-            [400],
-            [300],
+            100,
+            100,
         )
         self.policy = Policy(
             self.obs_dim,
             self.action_dim,
-            [400, 300],
+            100,
+            100,
         )
         self.target_qf = self.qf.clone()
         self.target_policy = self.policy.clone()
@@ -62,8 +63,23 @@ class DDPG(OnlineAlgorithm):
         actions = batch['actions']
         next_obs = batch['next_observations']
 
+
         """
-        Optimize critic
+        Optimize Policy.
+        """
+        policy_actions = self.policy(obs)
+        q_output = self.qf(obs, policy_actions)
+        policy_loss = - q_output.mean()
+
+        self.policy_optimizer.zero_grad()
+        policy_loss.backward()
+        self.policy_optimizer.step()
+
+        """
+        Optimize Critic.
+
+        Update the critic second since so that the policy uses the QF from
+        this iteration.
         """
         # Generate y target using target policies
         next_actions = self.target_policy(next_obs)
@@ -77,20 +93,9 @@ class DDPG(OnlineAlgorithm):
         y_pred = self.qf(obs, actions)
         qf_loss = self.qf_criterion(y_pred, y_target)
 
-        # Do training
         self.qf_optimizer.zero_grad()
         qf_loss.backward()
         self.qf_optimizer.step()
-
-        """
-        Optimize policy
-        """
-        policy_actions = self.policy(obs)
-        q_output = self.qf(obs, policy_actions)
-        policy_loss = - q_output.mean()
-        self.policy_optimizer.zero_grad()
-        policy_loss.backward()
-        self.policy_optimizer.step()
 
         """
         Update Target Networks
@@ -176,8 +181,13 @@ def copy_model_params(source, target):
 
 
 def fanin_init(size, fanin=None):
-    fanin = fanin or size[0]
-    v = 1. / np.sqrt(fanin)
+    if len(size) == 2:
+        fan_in = size[0]
+    elif len(size) > 2:
+        fan_in = np.prod(size[1:])
+    else:
+        raise Exception("Shape must be have dimension at least 2.")
+    v = 1. / np.sqrt(fan_in)
     return torch.Tensor(size).uniform_(-v, v)
 
 
@@ -186,62 +196,47 @@ class QFunction(nn.Module):
             self,
             obs_dim,
             action_dim,
-            observation_hidden_sizes,
-            embedded_hidden_sizes,
+            observation_hidden_size,
+            embedded_hidden_size,
             init_w=3e-3,
     ):
         super().__init__()
 
         self.obs_dim = obs_dim
         self.action_dim = action_dim
-        self.observation_hidden_sizes = observation_hidden_sizes
-        self.embedded_hidden_sizes = embedded_hidden_sizes
-        self.obs_bn = nn.BatchNorm1d(obs_dim)
-        self.obs_fc_bn = nn.BatchNorm1d(observation_hidden_sizes[0])
+        self.observation_hidden_size = observation_hidden_size
+        self.embedded_hidden_size = embedded_hidden_size
 
-        input_dim = obs_dim
-        self.obs_fcs = []
-        self.fc_batchnorms = []
-        last_size = input_dim
-        for size in self.observation_hidden_sizes:
-            self.fc_batchnorms.append(nn.BatchNorm1d(size))
-            self.obs_fcs.append(nn.Linear(last_size, size))
-            last_size = size
+        self.obs_fc = nn.Linear(obs_dim, observation_hidden_size)
+        self.embedded_fc = nn.Linear(observation_hidden_size + action_dim,
+                                     embedded_hidden_size)
+        self.last_fc = nn.Linear(embedded_hidden_size, 1)
 
-        self.embedded_fcs = []
-        last_size = last_size + action_dim
-        for size in self.embedded_hidden_sizes:
-            self.embedded_fcs.append(nn.Linear(last_size, size))
-            last_size = size
-        self.last_fc = nn.Linear(last_size, 1)
         self.init_weights(init_w)
 
     def init_weights(self, init_w):
-        for fc in self.obs_fcs:
-            fc.weight.data = fanin_init(fc.weight.data.size())
-        for fc in self.embedded_fcs:
-            fc.weight.data = fanin_init(fc.weight.data.size())
+        self.obs_fc.weight.data = fanin_init(self.obs_fc.weight.data.size())
+        self.obs_fc.bias.data *= 0
+        self.embedded_fc.weight.data = fanin_init(
+            self.embedded_fc.weight.data.size()
+        )
+        self.embedded_fc.bias.data *= 0
         self.last_fc.weight.data.uniform_(-init_w, init_w)
+        self.last_fc.bias.data.uniform_(-init_w, init_w)
 
     def forward(self, obs, action):
-        obs = self.obs_bn(obs)
         h = obs
-        for fc, bn in zip(self.obs_fcs, self.fc_batchnorms):
-            h = F.relu(
-                bn(fc(h))
-            )
-
+        h = F.relu(self.obs_fc(h))
         h = torch.cat((h, action), dim=1)
-        for fc in self.embedded_fcs:
-            h = F.relu(fc(h))
+        h = F.relu(self.embedded_fc(h))
         return self.last_fc(h)
 
     def clone(self):
         copy = QFunction(
             self.obs_dim,
             self.action_dim,
-            self.observation_hidden_sizes,
-            self.embedded_hidden_sizes,
+            self.observation_hidden_size,
+            self.embedded_hidden_size,
         )
         copy_model_params(self, copy)
         return copy
@@ -252,46 +247,35 @@ class Policy(nn.Module):
             self,
             obs_dim,
             action_dim,
-            hidden_sizes,
+            fc1_size,
+            fc2_size,
             init_w=1e-3,
     ):
         super().__init__()
 
         self.obs_dim = obs_dim
         self.action_dim = action_dim
-        self.hidden_sizes = hidden_sizes
-        self.obs_bn = nn.BatchNorm1d(self.obs_dim)
+        self.fc1_size = fc1_size
+        self.fc2_size = fc2_size
 
-        self.fcs = []
-        self.fc_batchnorms = []
-        last_size = obs_dim
-        for size in hidden_sizes:
-            self.fc_batchnorms.append(nn.BatchNorm1d(size))
-            self.fcs.append(nn.Linear(last_size, size))
-            last_size = size
-
-        self.last_fc = nn.Linear(last_size, action_dim)
-        self.last_batchnorm = nn.BatchNorm1d(action_dim)
+        self.fc1 = nn.Linear(obs_dim, fc1_size)
+        self.fc2 = nn.Linear(fc1_size, fc2_size)
+        self.last_fc = nn.Linear(fc2_size, action_dim)
 
         self.init_weights(init_w)
 
     def init_weights(self, init_w):
-        for fc in self.fcs:
-            fc.weight.data = fanin_init(fc.weight.data.size())
+        self.fc1.weight.data = fanin_init(self.fc1.weight.data.size())
+        self.fc1.bias.data *= 0
+        self.fc2.weight.data = fanin_init(self.fc2.weight.data.size())
+        self.fc2.bias.data *= 0
         self.last_fc.weight.data.uniform_(-init_w, init_w)
+        self.last_fc.bias.data.uniform_(-init_w, init_w)
 
     def forward(self, obs):
-        obs = self.obs_bn(obs)
-        last_layer = obs
-        for fc, bn in zip(self.fcs, self.fc_batchnorms):
-            last_layer = F.relu(
-                bn(fc(last_layer))
-            )
-        return F.tanh(
-            self.last_batchnorm(
-                self.last_fc(last_layer)
-            )
-        )
+        h = F.relu(self.fc1(obs))
+        h = F.relu(self.fc2(h))
+        return F.tanh(self.last_fc(h))
 
     def get_action(self, obs):
         obs = np.expand_dims(obs, axis=0)
@@ -314,7 +298,11 @@ class Policy(nn.Module):
         copy = Policy(
             self.obs_dim,
             self.action_dim,
-            self.hidden_sizes,
+            self.fc1_size,
+            self.fc2_size,
         )
         copy_model_params(self, copy)
         return copy
+
+    def log_diagnostics(self, paths):
+        pass

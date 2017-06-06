@@ -1,4 +1,5 @@
 import abc
+import pickle
 import time
 
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
@@ -15,10 +16,12 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             exploration_strategy=None,
             num_epochs=100,
             num_steps_per_epoch=10000,
+            num_steps_per_eval=1000,
             batch_size=1024,
+            max_path_length=1000,
     ):
         self.training_env = env
-        self.env = env
+        self.env = pickle.loads(pickle.dumps(self.training_env))
         self.action_dim = int(env.action_space.flat_dim)
         self.obs_dim = int(env.observation_space.flat_dim)
 
@@ -26,12 +29,12 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         self.num_epochs = num_epochs
         self.num_steps_per_epoch = num_steps_per_epoch
         self.batch_size = batch_size
-        self.max_path_length = 1000
-        self.n_eval_samples = 1000
+        self.max_path_length = max_path_length
+        self.n_eval_samples = num_steps_per_eval
         self.render = False
         self.scale_reward = 1
         self.pool = EnvReplayBuffer(
-            6000000,
+            1000000,
             self.env,
         )
         self.discount = .99
@@ -48,6 +51,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         observation = self.training_env.reset()
         self.exploration_strategy.reset()
         path_return = 0
+        path_length = 0
         es_path_returns = []
         self._start_worker()
         self.training_mode(False)
@@ -71,6 +75,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                 n_steps_total += 1
                 reward = raw_reward * self.scale_reward
                 path_return += reward
+                path_length += 1
 
                 self.pool.add_sample(
                     observation,
@@ -80,9 +85,10 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                     agent_info=agent_info,
                     env_info=env_info,
                 )
-                if terminal:
+                if terminal or path_length >= self.max_path_length:
                     self.pool.terminate_episode(
                         next_ob,
+                        terminal,
                         agent_info=agent_info,
                         env_info=env_info,
                     )
@@ -90,6 +96,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                     self.exploration_strategy.reset()
                     es_path_returns.append(path_return)
                     path_return = 0
+                    path_length = 0
                 else:
                     observation = next_ob
 
