@@ -13,9 +13,9 @@ from rllab.envs.normalized_env import normalize
 
 
 def example(variant):
-    env = HalfCheetahEnv()
+    # env = HalfCheetahEnv()
     # env = PointEnv()
-    # env = gym_env("Pendulum-v0")
+    env = gym_env("Pendulum-v0")
     env = normalize(env)
     es = OUStrategy(env_spec=env.spec, max_sima=0.2, min_sigma=None, theta=0.15)
     algorithm = DDPG(
@@ -39,8 +39,8 @@ if __name__ == "__main__":
     )
     run_experiment(
         example,
-        exp_prefix="6-5-torch-ddpg-test",
+        exp_prefix="6-5-does-torch-work-on-ec2",
         seed=0,
-        mode='local_docker',
+        mode='ec2',
         variant=variant,
     )

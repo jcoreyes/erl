@@ -39,10 +39,11 @@ def example(*_):
 
 
 if __name__ == "__main__":
-    run_experiment(
-        example,
-        exp_prefix="6-5-tf-vs-torch-ddpg-half-cheetah",
-        variant=dict(version="TF"),
-        seed=2,
-        mode='here',
-    )
+    for seed in range(10):
+        run_experiment(
+            example,
+            exp_prefix="6-5-tf-vs-torch-ddpg-half-cheetah",
+            variant=dict(version="TF"),
+            seed=seed,
+            mode='ec2',
+        )
