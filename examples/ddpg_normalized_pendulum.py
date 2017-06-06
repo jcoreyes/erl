@@ -1,22 +1,17 @@
 """
-Exampling of running DDPG on HalfCheetah.
+Exampling of running DDPG on Double Pendulum.
 """
+from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.nn_policy import FeedForwardPolicy
 from railrl.qfunctions.nn_qfunction import FeedForwardCritic
 from railrl.algos.ddpg import DDPG
-
-from railrl.envs.ros.baxter_env import BaxterEnv
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-
+from railrl.envs.env_utils import gym_env
+from rllab.envs.normalized_env import normalize
 
 def example(*_):
-    env = BaxterEnv(update_hz=20)
-    es = OUStrategy(
-        max_sigma=0.05,
-        min_sigma=0.05,
-        env_spec=env.spec,
-    )
+    env = normalize(gym_env('Pendulum-v0'))
+    es = OUStrategy(env_spec=env.spec)
     qf = FeedForwardCritic(
         name_or_scope="critic",
         env_spec=env.spec,
@@ -39,7 +34,7 @@ def example(*_):
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="ddpg-baxter",
+        exp_prefix="ddpg-normalized-pendulum",
         seed=0,
-        mode='here',
+        mode='ec2',
     )

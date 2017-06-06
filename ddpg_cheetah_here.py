@@ -1,22 +1,19 @@
 """
 Exampling of running DDPG on HalfCheetah.
 """
-from railrl.launchers.launcher_util import run_experiment
+from railrl.launchers.launcher_util import run_experiment_here
 from railrl.policies.nn_policy import FeedForwardPolicy
 from railrl.qfunctions.nn_qfunction import FeedForwardCritic
 from railrl.algos.ddpg import DDPG
 
-from railrl.envs.ros.baxter_env import BaxterEnv
-from railrl.exploration_strategies.ou_strategy import OUStrategy
+from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
+from rllab.exploration_strategies.ou_strategy import OUStrategy
+from rllab.misc.instrument import run_experiment_lite
 
 
 def example(*_):
-    env = BaxterEnv(update_hz=20)
-    es = OUStrategy(
-        max_sigma=0.05,
-        min_sigma=0.05,
-        env_spec=env.spec,
-    )
+    env = HalfCheetahEnv()
+    es = OUStrategy(env_spec=env.spec)
     qf = FeedForwardCritic(
         name_or_scope="critic",
         env_spec=env.spec,
@@ -30,16 +27,15 @@ def example(*_):
         es,
         policy,
         qf,
-        n_epochs=30,
+        n_epochs=100,
         batch_size=1024,
     )
     algorithm.train()
 
 
 if __name__ == "__main__":
-    run_experiment(
+    run_experiment_here(
         example,
-        exp_prefix="ddpg-baxter",
-        seed=0,
-        mode='here',
+        exp_prefix="ddpg-half-cheetah",
+        seed=2,
     )

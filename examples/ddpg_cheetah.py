@@ -10,7 +10,7 @@ from railrl.algos.ddpg import DDPG
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 
 
-def example(*_):
+def example(variant):
     env = HalfCheetahEnv()
     es = OUStrategy(env_spec=env.spec)
     qf = FeedForwardCritic(
@@ -21,6 +21,7 @@ def example(*_):
         name_or_scope="actor",
         env_spec=env.spec,
     )
+    use_new_version = variant['use_new_version']
     algorithm = DDPG(
         env,
         es,
@@ -28,14 +29,30 @@ def example(*_):
         qf,
         n_epochs=100,
         batch_size=1024,
+        use_new_version=use_new_version,
     )
     algorithm.train()
 
 
 if __name__ == "__main__":
-    run_experiment(
-        example,
-        exp_prefix="ddpg-half-cheetah",
-        seed=2,
-        mode='here',
-    )
+	for i in range(10):
+		run_experiment(
+        	example,
+        	exp_prefix="ddpg-half-cheetah-modified",
+        	seed=i,
+        	mode='ec2',
+        	variant={
+        	    'version': 'Original',
+        	    'use_new_version': True,
+        	}
+        )
+ 	# run_experiment(
+  #       	example,
+  #       	exp_prefix="ddpg-half-cheetah",
+  #       	seed=i,
+  #       	mode='ec2',
+  #       	variant={
+  #       	    'version': 'Original',
+  #       	    'use_new_version': False,
+  #   		}
+  #   	)

@@ -37,6 +37,7 @@ class OnlineAlgorithm(RLAlgorithm):
             batch_size=64,
             n_epochs=1000,
             epoch_length=10000,
+            # epoch_length=1000,
             min_pool_size=10000,
             replay_pool_size=1000000,
             discount=0.99,
@@ -197,7 +198,9 @@ class OnlineAlgorithm(RLAlgorithm):
                 logger.push_prefix('Epoch #%d | ' % epoch)
                 start_time = time.time()
                 for n_steps_current_epoch in range(self.epoch_length):
-                    action, agent_info = (
+                    # action, agent_info = (
+                    agent_info = {}
+                    action = (
                         self.exploration_strategy.get_action(
                             itr,
                             observation,

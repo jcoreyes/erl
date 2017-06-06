@@ -54,34 +54,48 @@ class BaxterEnv(Env, Serializable):
             update_hz=20,
             action_mode='torque',
             observation_mode='position',
+            # observation_mode_list = ['position', 'velocity', 'torque']
     ):
         Serializable.quick_init(self, locals())
         rospy.init_node('baxter_env', anonymous=True)
+        self.rate = rospy.Rate(update_hz)
+
+        #setup the robots arm and gripper
         self.right_arm = bi.Limb('right')
         self.right_joint_names = self.right_arm.joint_names()
         self.right_grip = bi.Gripper('right', bi.CHECK_VERSION)
-        self.rate = rospy.Rate(update_hz)
+
+        #create a dictionary whose values are functions that set the appropriate values
         action_mode_dict = {
-            'position': self.right_arm.set_joint_positions,
+            'position': self.right_arm.set_joint_positions, 
             'velocity': self.right_arm.set_joint_velocities,
             'torque': self.right_arm.set_joint_torques,
         }
+
+        #create a dictionary whose values are functions that return the appropriate values
         observation_mode_dict = {
             'position': self.right_arm.joint_angles,
             'velocity': self.right_arm.joint_velocities,
             'torque': self.right_arm.joint_efforts,
         }
+
         self._set_joint_values = action_mode_dict[action_mode]
         self._get_joint_to_value_dict = observation_mode_dict[observation_mode]
+        self._get_joint_to_value_func_list = list(observation_mode_dict.values())
         self._action_space = Box(
             JOINT_VALUE_LOW[action_mode],
             JOINT_VALUE_HIGH[action_mode],
         )
-        self._observation_space = Box(
-            JOINT_VALUE_LOW[observation_mode],
-            JOINT_VALUE_HIGH[observation_mode],
-        )
-        self.desired_angles = np.zeros(NUM_JOINTS)
+        #lows = np.append(JOINT_VALUE_LOW['position'], [JOINT_VALUE_LOW['velocity'], 
+        #    JOINT_VALUE_LOW['torque'], JOINT_VALUE_LOW['position']])
+        #highs = np.append(JOINT_VALUE_HIGH['position'], [JOINT_VALUE_HIGH['velocity'], 
+        #    JOINT_VALUE_HIGH['torque'], JOINT_VALUE_HIGH['position']])
+        lows = np.append(JOINT_VALUE_LOW['position'], [JOINT_VALUE_LOW['velocity'], JOINT_VALUE_LOW['torque']])
+        highs = np.append(JOINT_VALUE_HIGH['position'], [JOINT_VALUE_HIGH['velocity'], JOINT_VALUE_HIGH['torque']]) 
+        self._observation_space = Box(lows, highs) 
+        # self.desired_angles = np.zeros(NUM_JOINTS) 
+        #self._randomize_desired_angles() 
+        self.desired_angle = 0
 
     @safe
     def _act(self, action):
@@ -102,16 +116,25 @@ class BaxterEnv(Env, Serializable):
         self._act(action)
         observation = self._get_joint_values()
 
-        reward = -np.mean((self._joint_angles() - self.desired_angles)**2)
+        #reward is MSE between current joint angles and the desired angles
+        #reward = -np.mean((self._joint_angles() - self.desired_angles)**2)
+        reward = -((self._joint_angles()[6]-self.desired_angle)**2) 
         done = False
         info = {}
         return observation, reward, done, info
 
     def _get_joint_values(self):
-        joint_values_dict = self._get_joint_to_value_dict()
-        return np.array([
-            joint_values_dict[joint] for joint in self.right_joint_names
-        ])
+        # joint_values_dict = self._get_joint_to_value_dict()
+        positions_dict = self._get_joint_to_value_func_list[0]()
+        velocities_dict = self._get_joint_to_value_func_list[1]()
+        torques_dict = self._get_joint_to_value_func_list[2]()
+        positions = [positions_dict[joint] for joint in self.right_joint_names]
+        velocities = [velocities_dict[joint] for joint in self.right_joint_names]
+        torques = [torques_dict[joint] for joint in self.right_joint_names]
+        #desired_angles = np.ndarray.tolist(self.desired_angles)
+        #temp = velocities + torques + desired_angles[0]
+        temp = velocities + torques
+        return np.append(positions, temp)
 
     def reset(self):
         """
@@ -120,9 +143,16 @@ class BaxterEnv(Env, Serializable):
         -------
         observation : the initial observation of the space. (Initial reward is assumed to be 0.)
         """
+        self._randomize_desired_angles()
         self.right_arm.move_to_neutral()
         return self._get_joint_values()
-
+    def _randomize_desired_angles(self):
+    	self.desired_angles = np.random.rand(1, 7)
+    	# for x in range(7):
+     #    	if self.desired_angles[x] < JOINT_ANGLES_LOW[x]:
+     #    		self.desired_angles[x] = JOINT_ANGLES_LOW[x]
+     #    	elif self.desired_angles[x] > JOINT_ANGLES_HIGH[x]:
+     #    		self.desired_angles[x] = JOINT_ANGLES_HIGH[x]
     @property
     def action_space(self):
         return self._action_space

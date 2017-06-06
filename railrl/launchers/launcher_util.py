@@ -196,7 +196,6 @@ def run_experiment(
     else:
         run_experiment_lite(
             task,
-            snapshot_mode="last",
             exp_prefix=exp_prefix,
             variant=variant,
             seed=seed,
