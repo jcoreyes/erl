@@ -26,11 +26,15 @@ class DDPG(OnlineAlgorithm):
             target_hard_update_period=1000,
             tau=0.001,
             use_soft_update=False,
+            target_qf_for_policy=False,
+            normal_policy_for_qf=False,
             **kwargs
     ):
         super().__init__(*args, **kwargs)
         self.policy_learning_rate = policy_learning_rate
         self.qf_learning_rate = qf_learning_rate
+        self.target_qf_for_policy = target_qf_for_policy
+        self.normal_policy_for_qf = normal_policy_for_qf
         self.qf = QFunction(
             self.obs_dim,
             self.action_dim,
@@ -68,7 +72,10 @@ class DDPG(OnlineAlgorithm):
         Optimize Policy.
         """
         policy_actions = self.policy(obs)
-        q_output = self.qf(obs, policy_actions)
+        if self.target_qf_for_policy:
+            q_output = self.target_qf(obs, policy_actions)
+        else:
+            q_output = self.qf(obs, policy_actions)
         policy_loss = - q_output.mean()
 
         self.policy_optimizer.zero_grad()
@@ -82,7 +89,10 @@ class DDPG(OnlineAlgorithm):
         this iteration.
         """
         # Generate y target using target policies
-        next_actions = self.target_policy(next_obs)
+        if self.normal_policy_for_qf:
+            next_actions = self.policy(next_obs)
+        else:
+            next_actions = self.target_policy(next_obs)
         target_q_values = self.target_qf(
             next_obs,
             next_actions,
