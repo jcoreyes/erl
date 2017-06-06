@@ -75,7 +75,7 @@ if __name__ == '__main__':
 
     n_seeds = 8
     mode = 'ec2'
-    exp_prefix = "6-5-hl-bptt-ddpg-rwa-grid-memory-dim-write-lr"
+    exp_prefix = "6-5-hl-bptt-ddpg-rwa-grid-memory-dim-write-lr-target"
     # version = 'Our Method - Half BPTT (dev)'
 
     run_mode = 'grid'
@@ -300,7 +300,7 @@ if __name__ == '__main__':
         )
     elif run_mode == 'grid':
         search_space = {
-            'memory_dim': [4, 8, 20, 160],
+            'memory_dim': [4, 16, 80],
             # 'policy_params.rnn_cell_class': [
             #     SeparateLstmLinearCell,
             #     SeparateRWALinearCell,
@@ -327,7 +327,8 @@ if __name__ == '__main__':
             # 'ddpg_params.n_updates_per_time_step': [1, 10],
             # 'ddpg_params.policy_learning_rate': [1e-3, 1e-4],
             'ddpg_params.write_policy_learning_rate': [1e-4, 1e-5],
-            # 'ddpg_params.hard_update_period': [1, 100, 1000, 10000],
+            'ddpg_params.hard_update_period': [1, 100, 1000],
+            # 'ddpg_params.soft_target_tau': [0.001, 0.01, 1],
             # 'ddpg_params.bpt_bellman_error_weight': [1, 10],
             # 'ddpg_params.saved_write_loss_weight': [1, 10],
             # 'ddpg_params.env_action_minimize_bellman_loss': [False, True],
