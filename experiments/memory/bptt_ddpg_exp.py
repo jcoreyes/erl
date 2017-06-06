@@ -68,15 +68,15 @@ if __name__ == '__main__':
     n_seeds = 1
     mode = 'here'
     # exp_prefix = "dev-bptt-ddpg"
-    exp_prefix = "6-2-dev-bptt-ddpg-rwa"
+    exp_prefix = "6-5-dev-bptt-ddpg-rwa"
     run_mode = 'none'
     version = 'dev'
     num_hp_settings = 100
 
-    n_seeds = 5
+    n_seeds = 8
     mode = 'ec2'
-    exp_prefix = "6-2-hl-bptt-ddpg-rwa-grid-writeonly-nbptt-refreshperiod"
-    version = 'Our Method - Full BPTT (dev)'
+    exp_prefix = "6-5-hl-bptt-ddpg-lstm-target-update-mode-check"
+    # version = 'Our Method - Half BPTT (dev)'
 
     run_mode = 'grid'
     """
@@ -95,9 +95,10 @@ if __name__ == '__main__':
     Set all the hyperparameters!
     """
     env_class = HighLow
+    # env_class = WaterMazeEasy
     H = 32
     num_steps_per_iteration = 1000
-    num_iterations = 100
+    num_iterations = 30
 
     eval_samples = 400
     env_params = dict(
@@ -124,6 +125,7 @@ if __name__ == '__main__':
         soft_target_tau=0.01,
         hard_update_period=1000,
         target_update_mode=TargetUpdateMode.HARD,
+        # target_update_mode=TargetUpdateMode.SOFT,
         # QF hyperparameters
         qf_learning_rate=1e-3,
         num_extra_qf_updates=0,
@@ -137,11 +139,11 @@ if __name__ == '__main__':
         policy_learning_rate=1e-3,
         max_num_q_updates=1000,
         train_policy=True,
-        write_policy_learning_rate=1e-5,
+        write_policy_learning_rate=1e-4,
         train_policy_on_all_qf_timesteps=False,
         write_only_optimize_bellman=True,
         # memory
-        num_bptt_unrolls=16,
+        num_bptt_unrolls=32,
         bpt_bellman_error_weight=10,
         reward_low_bellman_error_weight=0.,
         saved_write_loss_weight=0,
@@ -155,10 +157,10 @@ if __name__ == '__main__':
     # noinspection PyTypeChecker
     policy_params = dict(
         # rnn_cell_class=LstmLinearCell,
-        # rnn_cell_class=SeparateLstmLinearCell,
+        rnn_cell_class=SeparateLstmLinearCell,
         # rnn_cell_class=LstmLinearCellNoiseAll,
         # rnn_cell_class=DebugCell,
-        rnn_cell_class=SeparateRWALinearCell,
+        # rnn_cell_class=SeparateRWALinearCell,
         rnn_cell_params=dict(
             # use_peepholes=True,
             env_noise_std=0,
@@ -298,7 +300,11 @@ if __name__ == '__main__':
         )
     elif run_mode == 'grid':
         search_space = {
-            # 'memory_dim': [5, 20, 40],
+            # 'memory_dim': [8, 20],
+            # 'policy_params.rnn_cell_class': [
+            #     SeparateLstmLinearCell,
+            #     SeparateRWALinearCell,
+            # ],
             # 'policy_params.rnn_cell_params.env_noise_std': [0.1, 0.3, 1.],
             # 'policy_params.rnn_cell_params.memory_noise_std': [0.1, 0.3, 1.],
             # 'policy_params.rnn_cell_params.env_hidden_sizes': [
@@ -317,18 +323,23 @@ if __name__ == '__main__':
             # 'ddpg_params.num_extra_qf_updates': [0, 5],
             # 'ddpg_params.batch_size': [512, 128, 32, 8],
             # 'ddpg_params.replay_pool_size': [900, 90000],
-            'ddpg_params.num_bptt_unrolls': [32, 24, 16],
+            # 'ddpg_params.num_bptt_unrolls': [32, 16],
             # 'ddpg_params.n_updates_per_time_step': [1, 10],
             # 'ddpg_params.policy_learning_rate': [1e-3, 1e-4],
-            # 'ddpg_params.write_policy_learning_rate': [1e-4, 1e-5],
+            # 'ddpg_params.write_policy_learning_rate': [1e-3, 1e-5],
             # 'ddpg_params.hard_update_period': [1, 100, 1000, 10000],
             # 'ddpg_params.bpt_bellman_error_weight': [1, 10],
             # 'ddpg_params.saved_write_loss_weight': [1, 10],
             # 'ddpg_params.env_action_minimize_bellman_loss': [False, True],
             # 'ddpg_params.save_new_memories_back_to_replay_buffer': [True,
             #                                                         False],
-            'ddpg_params.refresh_entire_buffer_period': [1, None],
-            'ddpg_params.write_only_optimize_bellman': [False, True],
+            # 'ddpg_params.refresh_entire_buffer_period': [1, None],
+            # 'ddpg_params.write_only_optimize_bellman': [False, True],
+            # 'ddpg_params.discount': [1.0, 0.9],
+            'ddpg_params.target_update_mode': [
+                TargetUpdateMode.SOFT,
+                TargetUpdateMode.HARD,
+            ],
             # 'meta_params.meta_qf_learning_rate': [1e-3, 1e-4],
             # 'meta_params.meta_qf_output_weight': [0.1, 1, 10],
             # 'meta_params.qf_output_weight': [0, 1],
