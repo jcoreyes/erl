@@ -29,12 +29,12 @@ if __name__ == "__main__":
         for normal_policy_for_qf in [True, False]:
             variant = dict(
                 algo_params=dict(
-                    num_epochs=100,
+                    num_epochs=50,
                     num_steps_per_epoch=10000,
                     num_steps_per_eval=1000,
-                    target_hard_update_period=1,
-                    use_soft_update=False,
-                    # tau=1e-3,
+                    # target_hard_update_period=1,
+                    use_soft_update=True,
+                    tau=1e-1,
                     batch_size=128,
                     max_path_length=1000,
                     target_qf_for_policy=target_qf_for_policy,
