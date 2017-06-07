@@ -19,40 +19,48 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             num_steps_per_eval=1000,
             batch_size=1024,
             max_path_length=1000,
+            discount=0.99,
+            pool_size=1000000,
+            scale_reward=1,
             use_gpu=False,
+            render=False,
+            save_exploration_path_period=10,
     ):
         self.training_env = env
-        self.env = pickle.loads(pickle.dumps(self.training_env))
-        self.action_dim = int(env.action_space.flat_dim)
-        self.obs_dim = int(env.observation_space.flat_dim)
-
         self.exploration_strategy = exploration_strategy
         self.num_epochs = num_epochs
         self.num_steps_per_epoch = num_steps_per_epoch
+        self.num_steps_per_eval = num_steps_per_eval
         self.batch_size = batch_size
         self.max_path_length = max_path_length
-        self.n_eval_samples = num_steps_per_eval
+        self.discount = discount
+        self.pool_size = pool_size
+        self.scale_reward = scale_reward
         self.use_gpu = use_gpu
-        self.render = False
-        self.scale_reward = 1
+        self.render = render
+        self.save_exploration_path_period = save_exploration_path_period
+
+        self.env = pickle.loads(pickle.dumps(self.training_env))
+        self.action_dim = int(env.action_space.flat_dim)
+        self.obs_dim = int(env.observation_space.flat_dim)
         self.pool = EnvReplayBuffer(
-            1000000,
+            self.pool_size,
             self.env,
         )
-        self.discount = .99
 
         self.scope = None  # Necessary for BatchSampler
         self.whole_paths = True  # Also for BatchSampler
         # noinspection PyTypeChecker
         self.eval_sampler = BatchSampler(self)
 
-        self.policy = None
+        self.policy = None  # Subclass must set this.
 
     def train(self):
         n_steps_total = 0
         observation = self.training_env.reset()
         self.exploration_strategy.reset()
         path_length = 0
+        num_paths_total = 0
         self._start_worker()
         self.training_mode(False)
         for epoch in range(self.num_epochs):
@@ -83,13 +91,15 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                 reward = raw_reward * self.scale_reward
                 # path_return += reward
                 path_length += 1
-                observations.append(
-                    self.training_env.observation_space.flatten(observation))
-                rewards.append(reward)
-                terminals.append(terminal)
-                actions.append(self.training_env.action_space.flatten(action))
-                agent_infos.append(agent_info)
-                env_infos.append(env_info)
+
+                if num_paths_total % self.save_exploration_path_period == 0:
+                    observations.append(
+                        self.training_env.observation_space.flatten(observation))
+                    rewards.append(reward)
+                    terminals.append(terminal)
+                    actions.append(self.training_env.action_space.flatten(action))
+                    agent_infos.append(agent_info)
+                    env_infos.append(env_info)
 
                 self.pool.add_sample(
                     observation,
@@ -109,6 +119,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                     observation = self.training_env.reset()
                     self.exploration_strategy.reset()
                     path_length = 0
+                    num_paths_total += 1
                     paths.append(dict(
                         observations=tensor_utils.stack_tensor_list(observations),
                         actions=tensor_utils.stack_tensor_list(actions),
@@ -125,9 +136,12 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                     self._do_training(n_steps_total=n_steps_total)
                     self.training_mode(False)
 
-            logger.log(
-                "Training Time: {0}".format(time.time() - start_time)
-            )
+            if self._can_train():
+                logger.log(
+                    "Training Time: {0}".format(time.time() - start_time)
+                )
+            else:
+                logger.log("Not training yet.")
             start_time = time.time()
             self.evaluate(epoch, paths)
             params = self.get_epoch_snapshot(epoch)
@@ -157,7 +171,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         """
         # Sampler uses self.batch_size to figure out how many samples to get
         saved_batch_size = self.batch_size
-        self.batch_size = self.n_eval_samples
+        self.batch_size = self.num_steps_per_eval
         paths = self.eval_sampler.obtain_samples(
             itr=epoch,
         )

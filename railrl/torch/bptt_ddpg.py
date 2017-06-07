@@ -360,7 +360,7 @@ class BpttDdpg(OnlineAlgorithm):
         """
         # Sampler uses self.batch_size to figure out how many samples to get
         saved_batch_size = self.batch_size
-        self.batch_size = self.n_eval_samples
+        self.batch_size = self.num_steps_per_eval
         paths = self.eval_sampler.obtain_samples(
             itr=epoch,
         )
