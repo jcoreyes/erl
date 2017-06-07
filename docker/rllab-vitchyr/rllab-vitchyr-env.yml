@@ -56,3 +56,4 @@ dependencies:
         - rospkg
         - lasagne
         - ipdb
+        - catkin_pkg
