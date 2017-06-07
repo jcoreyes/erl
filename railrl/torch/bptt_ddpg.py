@@ -478,20 +478,24 @@ class BpttDdpg(OnlineAlgorithm):
             eval_pool.add_trajectory(path)
         raw_subtraj_batch = eval_pool.get_all_valid_subtrajectories()
         subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
-        statistics = self._statistics_from_subtraj_batch(subtraj_batch,
-                                                   stat_prefix=stat_prefix)
+        statistics = self._statistics_from_subtraj_batch(
+            subtraj_batch, stat_prefix=stat_prefix
+        )
         rewards = np.hstack([path["rewards"] for path in paths])
         returns = [sum(path["rewards"]) for path in paths]
         discounted_returns = [
             special.discount_return(path["rewards"], self.discount)
             for path in paths
         ]
-        statistics.update(create_stats_ordered_dict('Rewards', rewards))
-        statistics.update(create_stats_ordered_dict('Returns', returns))
-        statistics.update(create_stats_ordered_dict('DiscountedReturns',
-                                                    discounted_returns))
-        average_returns = np.mean(returns)
-        statistics['AverageReturn'] = average_returns  # to match rllab
+        statistics.update(create_stats_ordered_dict(
+            'Rewards', rewards, stat_prefix=stat_prefix
+        ))
+        statistics.update(create_stats_ordered_dict(
+            'Returns', returns, stat_prefix=stat_prefix
+        ))
+        statistics.update(create_stats_ordered_dict(
+            'DiscountedReturns', discounted_returns, stat_prefix=stat_prefix
+        ))
         return statistics
 
     def _statistics_from_subtraj_batch(self, subtraj_batch, stat_prefix=''):

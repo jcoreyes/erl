@@ -73,9 +73,9 @@ if __name__ == '__main__':
     version = 'dev'
     num_hp_settings = 100
 
-    n_seeds = 8
-    mode = 'ec2'
-    exp_prefix = "6-5-hl-bptt-ddpg-rwa-grid-memory-dim-write-lr"
+    # n_seeds = 8
+    # mode = 'ec2'
+    # exp_prefix = "6-5-hl-bptt-ddpg-rwa-grid-memory-dim-write-lr"
     # version = 'Our Method - Half BPTT (dev)'
 
     run_mode = 'grid'
