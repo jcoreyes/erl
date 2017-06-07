@@ -6,6 +6,7 @@ from railrl.data_management.updatable_subtraj_replay_buffer import (
     UpdatableSubtrajReplayBuffer
 )
 from railrl.misc.data_processing import create_stats_ordered_dict
+from railrl.misc.rllab_util import get_average_returns
 from railrl.pythonplusplus import line_logger
 from railrl.torch.core import PyTorchModule
 from railrl.torch.online_algorithm import OnlineAlgorithm
@@ -279,77 +280,6 @@ class BpttDdpg(OnlineAlgorithm):
         self.pps = list(self.policy.parameters())
         self.qps = list(self.qf.parameters())
 
-    # def train(self):
-    #     n_steps_total = 0
-    #     observation = self.training_env.reset()
-    #     self.exploration_strategy.reset()
-    #     self._start_worker()
-    #     for epoch in range(self.num_epochs):
-    #         logger.push_prefix('Iteration #%d | ' % epoch)
-    #         path_return = 0
-    #         es_path_returns = []
-    #         actions, writes = [], []
-    #         start_time = time.time()
-    #         for _ in range(self.num_steps_per_epoch):
-    #             action, agent_info = (
-    #                 self.exploration_strategy.get_action(
-    #                     n_steps_total,
-    #                     observation,
-    #                     self.policy,
-    #                 )
-    #             )
-    #             if self.render:
-    #                 self.training_env.render()
-    #
-    #             next_ob, raw_reward, terminal, env_info = (
-    #                 self.training_env.step(action)
-    #             )
-    #             n_steps_total += 1
-    #             reward = raw_reward * self.scale_reward
-    #             path_return += reward
-    #             actions.append(action[0])
-    #             writes.append(action[1])
-    #
-    #             self.pool.add_sample(
-    #                 observation,
-    #                 action,
-    #                 reward,
-    #                 terminal,
-    #                 agent_info=agent_info,
-    #                 env_info=env_info,
-    #             )
-    #             if terminal:
-    #                 self.pool.terminate_episode(
-    #                     next_ob,
-    #                     agent_info=agent_info,
-    #                     env_info=env_info,
-    #                 )
-    #                 observation = self.training_env.reset()
-    #                 self.exploration_strategy.reset()
-    #                 es_path_returns.append(path_return)
-    #                 path_return = 0
-    #             else:
-    #                 observation = next_ob
-    #
-    #             if self._can_train():
-    #                 for _ in range(5):
-    #                     self._do_training(n_steps_total=n_steps_total)
-    #
-    #         logger.log(
-    #             "Training Time: {0}".format(time.time() - start_time)
-    #         )
-    #         start_time = time.time()
-    #         self.evaluate(epoch, {
-    #             'Returns': es_path_returns,
-    #             'Env Actions': actions,
-    #             'Writes': writes,
-    #         })
-    #         params = self.get_epoch_snapshot(epoch)
-    #         logger.save_itr_params(epoch, params)
-    #         logger.dump_tabular(with_prefix=False, with_timestamp=False)
-    #         logger.log("Eval Time: {0}".format(time.time() - start_time))
-    #         logger.pop_prefix()
-
     def _do_training(self, n_steps_total):
         # for _ in range(10):
         #     raw_subtraj_batch, _ = self.pool.random_subtrajectories(self.batch_size)
@@ -514,39 +444,22 @@ class BpttDdpg(OnlineAlgorithm):
             ('New Writes', policy_writes),
         ])
 
-    def evaluate(self, epoch, exploration_info_dict):
+    def evaluate(self, epoch, exploration_paths):
         """
         Perform evaluation for this algorithm.
 
-        It's recommended
         :param epoch: The epoch number.
-        :param exploration_info_dict: Dict from name to torch Variable.
-        :return: Dictionary of statistics.
+        :param exploration_paths: List of dicts, each representing a path.
         """
-        statistics = OrderedDict()
-
-        # for k, v in exploration_info_dict.items():
-        #     statistics.update(create_stats_ordered_dict(
-        #         'Exploration {}'.format(k), np.array(v, dtype=np.float32)
-        #     ))
-        statistics.update(self._get_other_statistics())
-
         logger.log("Collecting samples for evaluation")
         paths = self._sample_paths(epoch)
-        statistics.update(self._statistics_from_paths(paths))
+        statistics = OrderedDict()
 
-        rewards = np.hstack([path["rewards"] for path in paths])
-        returns = [sum(path["rewards"]) for path in paths]
-        discounted_returns = [
-            special.discount_return(path["rewards"], self.discount)
-            for path in paths
-            ]
-        statistics.update(create_stats_ordered_dict('Rewards', rewards))
-        statistics.update(create_stats_ordered_dict('Returns', returns))
-        statistics.update(create_stats_ordered_dict('DiscountedReturns',
-                                                    discounted_returns))
-        average_returns = np.mean(returns)
-        statistics['AverageReturn'] = average_returns  # to match rllab
+        statistics.update(self._statistics_from_paths(exploration_paths,
+                                                      "Exploration"))
+        statistics.update(self._statistics_from_paths(paths, "Test"))
+
+        statistics['AverageReturn'] = get_average_returns(paths)
         statistics['Epoch'] = epoch
 
         for key, value in statistics.items():
@@ -554,7 +467,7 @@ class BpttDdpg(OnlineAlgorithm):
 
         self.log_diagnostics(paths)
 
-    def _statistics_from_paths(self, paths):
+    def _statistics_from_paths(self, paths, stat_prefix):
         eval_pool = UpdatableSubtrajReplayBuffer(
             len(paths) * self.max_path_length,
             self.env,
@@ -565,8 +478,21 @@ class BpttDdpg(OnlineAlgorithm):
             eval_pool.add_trajectory(path)
         raw_subtraj_batch = eval_pool.get_all_valid_subtrajectories()
         subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
-        return self._statistics_from_subtraj_batch(subtraj_batch,
-                                                   stat_prefix='Test ')
+        statistics = self._statistics_from_subtraj_batch(subtraj_batch,
+                                                   stat_prefix=stat_prefix)
+        rewards = np.hstack([path["rewards"] for path in paths])
+        returns = [sum(path["rewards"]) for path in paths]
+        discounted_returns = [
+            special.discount_return(path["rewards"], self.discount)
+            for path in paths
+        ]
+        statistics.update(create_stats_ordered_dict('Rewards', rewards))
+        statistics.update(create_stats_ordered_dict('Returns', returns))
+        statistics.update(create_stats_ordered_dict('DiscountedReturns',
+                                                    discounted_returns))
+        average_returns = np.mean(returns)
+        statistics['AverageReturn'] = average_returns  # to match rllab
+        return statistics
 
     def _statistics_from_subtraj_batch(self, subtraj_batch, stat_prefix=''):
         statistics = OrderedDict()

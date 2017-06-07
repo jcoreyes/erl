@@ -8,6 +8,7 @@ from torch.autograd import Variable
 from torch.nn import functional as F
 
 from railrl.misc.data_processing import create_stats_ordered_dict
+from railrl.misc.rllab_util import get_average_returns
 from railrl.torch.core import PyTorchModule
 from railrl.torch.online_algorithm import OnlineAlgorithm
 from railrl.torch.pytorch_util import soft_update, copy_model_params, fanin_init
@@ -116,39 +117,22 @@ class DDPG(OnlineAlgorithm):
         self.target_policy.train(mode)
         self.target_qf.train(mode)
 
-    def evaluate(self, epoch, es_path_returns):
+    def evaluate(self, epoch, exploration_paths):
         """
         Perform evaluation for this algorithm.
 
-        It's recommended
         :param epoch: The epoch number.
-        :param es_path_returns: List of path returns from explorations strategy
-        :return: Dictionary of statistics.
+        :param exploration_paths: List of dicts, each representing a path.
         """
         logger.log("Collecting samples for evaluation")
         paths = self._sample_paths(epoch)
         statistics = OrderedDict()
 
-        statistics.update(self._get_other_statistics())
-        statistics.update(self._statistics_from_paths(paths))
+        statistics.update(self._statistics_from_paths(exploration_paths,
+                                                      "Exploration"))
+        statistics.update(self._statistics_from_paths(paths, "Test"))
 
-        returns = [sum(path["rewards"]) for path in paths]
-
-        discounted_returns = [
-            special.discount_return(path["rewards"], self.discount)
-            for path in paths
-        ]
-        rewards = np.hstack([path["rewards"] for path in paths])
-        statistics.update(create_stats_ordered_dict('Rewards', rewards))
-        statistics.update(create_stats_ordered_dict('Returns', returns))
-        statistics.update(create_stats_ordered_dict('DiscountedReturns',
-                                                    discounted_returns))
-        if len(es_path_returns) > 0:
-            statistics.update(create_stats_ordered_dict('TrainingReturns',
-                                                        es_path_returns))
-
-        average_returns = np.mean(returns)
-        statistics['AverageReturn'] = average_returns
+        statistics['AverageReturn'] = get_average_returns(paths)
         statistics['Epoch'] = epoch
 
         for key, value in statistics.items():
@@ -168,6 +152,25 @@ class DDPG(OnlineAlgorithm):
         torch_batch['rewards'] = rewards.unsqueeze(-1)
         torch_batch['terminals'] = terminals.unsqueeze(-1)
         return torch_batch
+
+    def _statistics_from_paths(self, paths, stat_prefix):
+        statistics = OrderedDict()
+        returns = [sum(path["rewards"]) for path in paths]
+
+        discounted_returns = [
+            special.discount_return(path["rewards"], self.discount)
+            for path in paths
+        ]
+        rewards = np.hstack([path["rewards"] for path in paths])
+        statistics.update(create_stats_ordered_dict('Rewards', rewards,
+                                                    stat_prefix=stat_prefix))
+        statistics.update(create_stats_ordered_dict('Returns', returns,
+                                                    stat_prefix=stat_prefix))
+        statistics.update(create_stats_ordered_dict('DiscountedReturns',
+                                                    discounted_returns,
+                                                    stat_prefix=stat_prefix))
+        return statistics
+
 
 
 class QFunction(PyTorchModule):

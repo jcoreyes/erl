@@ -72,3 +72,8 @@ def split_flat_product_space_into_components_n(product_space, xs):
     """
     dims = [c.flat_dim for c in product_space.components]
     return np.split(xs, np.cumsum(dims)[:-1], axis=-1)
+
+
+def get_average_returns(paths):
+    returns = [sum(path["rewards"]) for path in paths]
+    return np.mean(returns)

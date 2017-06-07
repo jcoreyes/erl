@@ -6,7 +6,7 @@ from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.exploration_strategies.noop import NoopStrategy
 from rllab.algos.base import RLAlgorithm
 from rllab.algos.batch_polopt import BatchSampler
-from rllab.misc import logger
+from rllab.misc import logger, tensor_utils
 
 
 class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
@@ -50,14 +50,19 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         n_steps_total = 0
         observation = self.training_env.reset()
         self.exploration_strategy.reset()
-        path_return = 0
         path_length = 0
-        es_path_returns = []
         self._start_worker()
         self.training_mode(False)
         for epoch in range(self.num_epochs):
             logger.push_prefix('Iteration #%d | ' % epoch)
             start_time = time.time()
+            paths = []
+            observations = []
+            actions = []
+            rewards = []
+            terminals = []
+            agent_infos = []
+            env_infos = []
             for _ in range(self.num_steps_per_epoch):
                 action, agent_info = (
                     self.exploration_strategy.get_action(
@@ -74,8 +79,15 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                 )
                 n_steps_total += 1
                 reward = raw_reward * self.scale_reward
-                path_return += reward
+                # path_return += reward
                 path_length += 1
+                observations.append(
+                    self.training_env.observation_space.flatten(observation))
+                rewards.append(reward)
+                terminals.append(terminal)
+                actions.append(self.training_env.action_space.flatten(action))
+                agent_infos.append(agent_info)
+                env_infos.append(env_info)
 
                 self.pool.add_sample(
                     observation,
@@ -94,9 +106,15 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                     )
                     observation = self.training_env.reset()
                     self.exploration_strategy.reset()
-                    es_path_returns.append(path_return)
-                    path_return = 0
                     path_length = 0
+                    paths.append(dict(
+                        observations=tensor_utils.stack_tensor_list(observations),
+                        actions=tensor_utils.stack_tensor_list(actions),
+                        rewards=tensor_utils.stack_tensor_list(rewards),
+                        terminals=tensor_utils.stack_tensor_list(terminals),
+                        agent_infos=tensor_utils.stack_tensor_dict_list(agent_infos),
+                        env_infos=tensor_utils.stack_tensor_dict_list(env_infos),
+                    ))
                 else:
                     observation = next_ob
 
@@ -109,8 +127,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                 "Training Time: {0}".format(time.time() - start_time)
             )
             start_time = time.time()
-            self.evaluate(epoch, es_path_returns)
-            es_path_returns = []
+            self.evaluate(epoch, paths)
             params = self.get_epoch_snapshot(epoch)
             logger.save_itr_params(epoch, params)
             logger.dump_tabular(with_prefix=False, with_timestamp=False)
@@ -144,12 +161,6 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         )
         self.batch_size = saved_batch_size
         return paths
-
-    def _get_other_statistics(self):
-        return {}
-
-    def _statistics_from_paths(self, paths):
-        return {}
 
     def log_diagnostics(self, paths):
         self.env.log_diagnostics(paths)
