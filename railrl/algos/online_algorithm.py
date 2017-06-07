@@ -198,15 +198,13 @@ class OnlineAlgorithm(RLAlgorithm):
                 logger.push_prefix('Epoch #%d | ' % epoch)
                 start_time = time.time()
                 for n_steps_current_epoch in range(self.epoch_length):
-                    # action, agent_info = (
-                    agent_info = {}
-                    action = (
+                    action, agent_info = (
                         self.exploration_strategy.get_action(
-                            itr,
-                            observation,
-                            self.policy,
-                        )
-                    )
+                              itr,
+                              observation,
+                             self.policy,
+                         )
+                     )
                     if self.render:
                         self.training_env.render()
 

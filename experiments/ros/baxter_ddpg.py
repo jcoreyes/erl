@@ -10,7 +10,7 @@ from railrl.envs.ros.baxter_env import BaxterEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 
 
-def example(*_):
+def example(variant):
     env = BaxterEnv(update_hz=20)
     es = OUStrategy(
         max_sigma=0.05,
@@ -25,6 +25,7 @@ def example(*_):
         name_or_scope="actor",
         env_spec=env.spec,
     )
+    use_new_version=variant['use_new_version']
     algorithm = DDPG(
         env,
         es,
@@ -32,6 +33,7 @@ def example(*_):
         qf,
         n_epochs=30,
         batch_size=1024,
+        use_new_version=use_new_version,
     )
     algorithm.train()
 
@@ -39,7 +41,11 @@ def example(*_):
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="ddpg-baxter",
+        exp_prefix="ddpg-baxter-end-effector",
         seed=0,
         mode='here',
+        variant={
+                'version': 'Original',
+                'use_new_version': False,
+            }
     )

@@ -27,7 +27,7 @@ def example(variant):
         es,
         policy,
         qf,
-        n_epochs=100,
+        n_epochs=30,
         batch_size=1024,
         use_new_version=use_new_version,
     )
@@ -48,9 +48,9 @@ if __name__ == "__main__":
         )
  	# run_experiment(
   #       	example,
-  #       	exp_prefix="ddpg-half-cheetah",
-  #       	seed=i,
-  #       	mode='ec2',
+  #       	exp_prefix="ddpg-half-cheetah-normal",
+  #       	seed=0,
+  #       	mode='here',
   #       	variant={
   #       	    'version': 'Original',
   #       	    'use_new_version': False,

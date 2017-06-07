@@ -116,11 +116,11 @@ class DDPG(OnlineAlgorithm):
     def _init_qf_ops(self):
         if(self.use_new_version):
             self.raw_ys = tf.stop_gradient(
-            self.rewards_n1 +
-            (1. - self.terminals_n1)
-            * self.discount
-            * self.target_qf_with_action_input.output
-        )
+                self.rewards_n1 +
+                (1. - self.terminals_n1)
+                * self.discount
+                * self.target_qf_with_action_input.output
+            )
         else:
             self.raw_ys = tf.stop_gradient(
                 self.rewards_n1 +
