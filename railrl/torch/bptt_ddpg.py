@@ -1,27 +1,21 @@
-import time
-import pickle
 from collections import OrderedDict
+
+import numpy as np
+import torch
+import torch.nn as nn
+# noinspection PyPep8Naming
+import torch.nn.functional as F
+import torch.optim as optim
+from torch.autograd import Variable
 
 from railrl.data_management.updatable_subtraj_replay_buffer import (
     UpdatableSubtrajReplayBuffer
 )
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import get_average_returns
-from railrl.pythonplusplus import line_logger
 from railrl.torch.core import PyTorchModule
 from railrl.torch.online_algorithm import OnlineAlgorithm
-from railrl.torch.pytorch_util import fanin_init
-from rllab.algos.base import RLAlgorithm
-import numpy as np
-import torch
-# noinspection PyPep8Naming
-import torch.nn.functional as F
-from torch.autograd import Variable
-import torch.nn as nn
-import torch.optim as optim
-
-from rllab.algos.batch_polopt import BatchSampler
-from rllab.core.serializable import Serializable
+from railrl.torch.pytorch_util import fanin_init, copy_model_params_from_to
 from rllab.misc import logger, special
 
 
@@ -135,6 +129,9 @@ class MemoryPolicy(PyTorchModule):
         # noinspection PyArgumentList
         new_cxs = Variable(torch.FloatTensor(batch_size, subsequence_length,
                                              self.memory_dim // 2))
+        if self.is_cuda:
+            new_hxs = new_hxs.cuda()
+            new_cxs = new_cxs.cuda()
         for i in range(subsequence_length):
             hx, cx = self.lstm_cell(obs[:, i, :], (hx, cx))
             # new_memory = self.lstm_cell(obs[:, i, :], initial_memory)
@@ -170,6 +167,8 @@ class MemoryPolicy(PyTorchModule):
         subtraj_actions = Variable(
             torch.FloatTensor(batch_size, subsequence_length, self.action_dim)
         )
+        if self.is_cuda:
+            subtraj_actions = subtraj_actions.cuda()
         for i in range(subsequence_length):
             all_inputs = all_subtraj_inputs[:, i, :]
             h1 = F.relu(self.fc1(all_inputs))
@@ -178,6 +177,10 @@ class MemoryPolicy(PyTorchModule):
             subtraj_actions[:, i, :] = action
 
         return subtraj_actions, subtraj_writes
+
+    @property
+    def is_cuda(self):
+        return self.last_fc.weight.is_cuda
 
     def get_action(self, augmented_obs):
         """
@@ -193,10 +196,13 @@ class MemoryPolicy(PyTorchModule):
         memory = np.expand_dims(memory, axis=0)
         obs = Variable(torch.from_numpy(obs).float(), requires_grad=False)
         memory = Variable(torch.from_numpy(memory).float(), requires_grad=False)
+        if self.is_cuda:
+            obs = obs.cuda()
+            memory = memory.cuda()
         action, write = self.get_flat_output(obs, memory)
         return (
-                   np.squeeze(action.data.numpy(), axis=0),
-                   np.squeeze(write.data.numpy(), axis=0)
+                   np.squeeze(get_numpy(action, self.is_cuda), axis=0),
+                   np.squeeze(get_numpy(write, self.is_cuda), axis=0),
                ), {}
 
     def get_flat_output(self, obs, initial_memories):
@@ -279,6 +285,12 @@ class BpttDdpg(OnlineAlgorithm):
         )
         self.pps = list(self.policy.parameters())
         self.qps = list(self.qf.parameters())
+        self.use_gpu = self.use_gpu and torch.cuda.is_available()
+        if self.use_gpu:
+            self.policy.cuda()
+            self.target_policy.cuda()
+            self.qf.cuda()
+            self.target_qf.cuda()
 
     def _do_training(self, n_steps_total):
         # for _ in range(10):
@@ -286,16 +298,17 @@ class BpttDdpg(OnlineAlgorithm):
         #     subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
         #
         #     qf_loss = self.train_critic(subtraj_batch)
-        #     qf_loss_np = float(qf_loss.data.numpy())
+        #     qf_loss_np = float(get_numpy(qf_loss, self.use_gpu))
         # line_logger.print_over("QF loss: {}".format(qf_loss_np))
         raw_subtraj_batch, start_indices = self.pool.random_subtrajectories(
             self.batch_size)
-        subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
+        subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch,
+                                                   cuda=self.use_gpu)
         self.train_critic(subtraj_batch)
         self.train_policy(subtraj_batch, start_indices)
         if n_steps_total % self.copy_target_param_period == 0:
-            copy_module_params_from_to(self.qf, self.target_qf)
-            copy_module_params_from_to(self.policy, self.target_policy)
+            copy_model_params_from_to(self.qf, self.target_qf)
+            copy_model_params_from_to(self.policy, self.target_policy)
 
     def train_critic(self, subtraj_batch):
         critic_dict = self.get_critic_output_dict(subtraj_batch)
@@ -359,12 +372,15 @@ class BpttDdpg(OnlineAlgorithm):
         self.write_policy_optimizer.step()
 
         self.pool.update_write_subtrajectories(
-            policy_dict['New Writes'].data.numpy(), start_indices
+            self.get_numpy(policy_dict['New Writes']), start_indices
         )
 
         # self.qf_optimizer.zero_grad()
         # bellman_errors.mean().backward()
         # self.qf_optimizer.step()
+
+    def get_numpy(self, tensor):
+        return get_numpy(tensor, self.use_gpu)
 
     def get_policy_output_dict(self, subtraj_batch):
         """
@@ -477,7 +493,8 @@ class BpttDdpg(OnlineAlgorithm):
         for path in paths:
             eval_pool.add_trajectory(path)
         raw_subtraj_batch = eval_pool.get_all_valid_subtrajectories()
-        subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
+        subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch,
+                                                   cuda=self.use_gpu)
         statistics = self._statistics_from_subtraj_batch(
             subtraj_batch, stat_prefix=stat_prefix
         )
@@ -505,14 +522,14 @@ class BpttDdpg(OnlineAlgorithm):
         for name, tensor in critic_dict.items():
             statistics.update(create_stats_ordered_dict(
                 '{}QF {}'.format(stat_prefix, name),
-                tensor.data.numpy()
+                self.get_numpy(tensor)
             ))
 
         policy_dict = self.get_policy_output_dict(subtraj_batch)
         for name, tensor in policy_dict.items():
             statistics.update(create_stats_ordered_dict(
                 '{}Policy {}'.format(stat_prefix, name),
-                tensor.data.numpy()
+                self.get_numpy(tensor)
             ))
         return statistics
 
@@ -528,7 +545,8 @@ class BpttDdpg(OnlineAlgorithm):
                     self.train_validation_batch_size,
                     validation=validation
                 )[0]
-                subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
+                subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch,
+                                                           cuda=self.use_gpu)
                 statistics.update(self._statistics_from_subtraj_batch(
                     subtraj_batch, stat_prefix=stat_prefix
                 ))
@@ -569,14 +587,6 @@ class BpttDdpg(OnlineAlgorithm):
         )
 
 
-def copy_module_params_from_to(source: nn.Module, target: nn.Module):
-    for source_param, target_param in zip(
-            source.parameters(),
-            target.parameters()
-    ):
-        target_param.data = source_param.data
-
-
 def flatten_subtraj_batch(subtraj_batch):
     return {
         k: array.view(-1, array.size()[-1])
@@ -588,11 +598,19 @@ def get_initial_memories(subtraj_batch):
     return subtraj_batch['memories'][:, 0, :]
 
 
-def create_torch_subtraj_batch(subtraj_batch):
+def get_numpy(tensor, use_cuda):
+    if use_cuda:
+        return tensor.data.cpu().numpy()
+    return tensor.data.numpy()
+
+
+def create_torch_subtraj_batch(subtraj_batch, cuda=False):
     torch_batch = {
         k: Variable(torch.from_numpy(array).float(), requires_grad=True)
         for k, array in subtraj_batch.items()
-        }
+    }
+    if cuda:
+        torch_batch = {k: v.cuda() for k, v in torch_batch.items()}
     rewards = torch_batch['rewards']
     terminals = torch_batch['terminals']
     torch_batch['rewards'] = rewards.unsqueeze(-1)

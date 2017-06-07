@@ -2,7 +2,7 @@ import abc
 
 from torch import nn as nn
 
-from railrl.torch.pytorch_util import copy_model_params
+from railrl.torch.pytorch_util import copy_model_params_from_to
 from rllab.core.serializable import Serializable
 
 
@@ -17,7 +17,7 @@ class PyTorchModule(nn.Module, Serializable, metaclass=abc.ABCMeta):
 
     def copy(self):
         copy = Serializable.clone(self)
-        copy_model_params(self, copy)
+        copy_model_params_from_to(self, copy)
         return copy
 
     def save_init_params(self, locals):

@@ -11,7 +11,7 @@ from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import get_average_returns
 from railrl.torch.core import PyTorchModule
 from railrl.torch.online_algorithm import OnlineAlgorithm
-from railrl.torch.pytorch_util import soft_update, copy_model_params, fanin_init
+from railrl.torch.pytorch_util import soft_update, copy_model_params_from_to, fanin_init
 from rllab.misc import logger, special
 
 
@@ -58,8 +58,12 @@ class DDPG(OnlineAlgorithm):
         self.policy_optimizer = optim.Adam(self.policy.parameters(),
                                            lr=self.policy_learning_rate)
         self.use_gpu = self.use_gpu and torch.cuda.is_available()
+
         if self.use_gpu:
-            self.cuda()
+            self.policy.cuda()
+            self.target_policy.cuda()
+            self.qf.cuda()
+            self.target_qf.cuda()
 
     def _do_training(self, n_steps_total):
         batch = self.get_batch()
@@ -111,20 +115,14 @@ class DDPG(OnlineAlgorithm):
             soft_update(self.target_qf, self.qf, self.tau)
         else:
             if n_steps_total % self.target_hard_update_period == 0:
-                copy_model_params(self.qf, self.target_qf)
-                copy_model_params(self.policy, self.target_policy)
+                copy_model_params_from_to(self.qf, self.target_qf)
+                copy_model_params_from_to(self.policy, self.target_policy)
 
     def training_mode(self, mode):
         self.policy.train(mode)
         self.qf.train(mode)
         self.target_policy.train(mode)
         self.target_qf.train(mode)
-
-    def cuda(self):
-        self.policy.cuda()
-        self.target_policy.cuda()
-        self.qf.cuda()
-        self.target_qf.cuda()
 
     def evaluate(self, epoch, exploration_paths):
         """
@@ -186,7 +184,6 @@ class DDPG(OnlineAlgorithm):
                                                     discounted_returns,
                                                     stat_prefix=stat_prefix))
         return statistics
-
 
 
 class QFunction(PyTorchModule):

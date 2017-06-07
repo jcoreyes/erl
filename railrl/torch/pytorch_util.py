@@ -9,7 +9,7 @@ def soft_update(target, source, tau):
         )
 
 
-def copy_model_params(source, target):
+def copy_model_params_from_to(source, target):
     for target_param, param in zip(target.parameters(), source.parameters()):
         target_param.data.copy_(param.data)
 

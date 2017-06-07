@@ -59,6 +59,7 @@ if __name__ == '__main__':
     mode = "here"
     exp_prefix = "dev-pytorch"
 
+    use_gpu = True
     # noinspection PyTypeChecker
     variant = dict(
         memory_dim=20,
@@ -69,6 +70,7 @@ if __name__ == '__main__':
             subtraj_length=16,
             num_epochs=30,
             num_steps_per_epoch=1000,
+            use_gpu=use_gpu,
         ),
         es_params=dict(
             env_es_class=OUStrategy,
@@ -97,4 +99,5 @@ if __name__ == '__main__':
             mode=mode,
             variant=variant,
             exp_id=exp_id,
+            use_gpu=use_gpu,
         )
