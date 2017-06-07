@@ -69,6 +69,7 @@ class DDPG(OnlineAlgorithm):
         assert isinstance(target_update_mode, TargetUpdateMode)
         super().__init__(env, policy, exploration_strategy, **kwargs)
 
+        assert not self._batch_norm, "Batch norm not supported for DDPG."
         self._target_update_mode = target_update_mode
         self._hard_update_period = hard_update_period
         self.qf = qf
@@ -86,15 +87,6 @@ class DDPG(OnlineAlgorithm):
         self.sess.run(tf.global_variables_initializer())
         self.target_policy = self.policy.get_copy(
             name_or_scope=TARGET_PREFIX + self.policy.scope_name,
-            # rnn_cell_class=SeparateLstmLinearCell,
-            # rnn_cell_params=dict(
-            #     use_peepholes=True,
-            #     env_noise_std=0.,
-            #     memory_noise_std=0.,
-            #     output_nonlinearity=tf.nn.tanh,
-            #     env_hidden_sizes=[],
-            #     # env_hidden_activation=tf.identity,
-            # ),
         )
         self.target_qf = self.qf.get_copy(
             name_or_scope=TARGET_PREFIX + self.qf.scope_name,
@@ -141,14 +133,6 @@ class DDPG(OnlineAlgorithm):
             self.bellman_errors,
         )
         self.bellman_error = tf.reduce_mean(self.bellman_errors)
-        # import ipdb; ipdb.set_trace()
-        # self.bellman_error = tf.squeeze(
-        #     tf.reduce_mean(
-        #         tf.abs(self.rewards_n1) *
-        #         tf.squared_difference(self.ys, self.qf.output),
-        #         axis=0,
-        #     )
-        # )
         self.Q_weights_norm = tf.reduce_sum(
             tf.stack(
                 [tf.nn.l2_loss(v)
@@ -245,9 +229,6 @@ class DDPG(OnlineAlgorithm):
             self.train_policy_op,
             self.train_qf_op,
         ]
-        if self._batch_norm:
-            train_ops += self.qf.batch_norm_update_stats_op
-            train_ops += self.policy.batch_norm_update_stats_op
 
         target_ops = []
         if self._should_update_target(n_steps_total):
