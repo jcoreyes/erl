@@ -120,14 +120,15 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                     self.exploration_strategy.reset()
                     path_length = 0
                     num_paths_total += 1
-                    paths.append(dict(
-                        observations=tensor_utils.stack_tensor_list(observations),
-                        actions=tensor_utils.stack_tensor_list(actions),
-                        rewards=tensor_utils.stack_tensor_list(rewards),
-                        terminals=tensor_utils.stack_tensor_list(terminals),
-                        agent_infos=tensor_utils.stack_tensor_dict_list(agent_infos),
-                        env_infos=tensor_utils.stack_tensor_dict_list(env_infos),
-                    ))
+                    if len(observations) > 0:
+                        paths.append(dict(
+                            observations=tensor_utils.stack_tensor_list(observations),
+                            actions=tensor_utils.stack_tensor_list(actions),
+                            rewards=tensor_utils.stack_tensor_list(rewards),
+                            terminals=tensor_utils.stack_tensor_list(terminals),
+                            agent_infos=tensor_utils.stack_tensor_dict_list(agent_infos),
+                            env_infos=tensor_utils.stack_tensor_dict_list(env_infos),
+                        ))
                 else:
                     observation = next_ob
 
