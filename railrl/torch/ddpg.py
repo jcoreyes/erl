@@ -11,7 +11,7 @@ from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import get_average_returns
 from railrl.torch.core import PyTorchModule
 from railrl.torch.online_algorithm import OnlineAlgorithm
-from railrl.torch.pytorch_util import soft_update, copy_model_params_from_to, fanin_init
+from railrl.torch.pytorch_util import soft_update_from_to, copy_model_params_from_to, fanin_init
 from rllab.misc import logger, special
 
 
@@ -111,8 +111,8 @@ class DDPG(OnlineAlgorithm):
         Update Target Networks
         """
         if self.use_soft_update:
-            soft_update(self.target_policy, self.policy, self.tau)
-            soft_update(self.target_qf, self.qf, self.tau)
+            soft_update_from_to(self.target_policy, self.policy, self.tau)
+            soft_update_from_to(self.target_qf, self.qf, self.tau)
         else:
             if n_steps_total % self.target_hard_update_period == 0:
                 copy_model_params_from_to(self.qf, self.target_qf)
