@@ -758,19 +758,18 @@ class SeparateRWALinearCell(RWACell):
             with tf.variable_scope('write_action') as self.write_action_scope:
                 if self.state_is_flat_externally:
                     state = tf.split(axis=1, num_or_size_splits=4, value=state)
-                _, state = super().__call__(
+                _, next_state = super().__call__(
                     inputs, state
                 )
 
                 if self._memory_noise_std > 0.:
-                    state = tuple(
+                    next_state = tuple(
                         state_comp + self._memory_noise_std * tf.random_normal(
                             tf.shape(state_comp)
                         )
-                        for state_comp in state
+                        for state_comp in next_state
                     )
 
-                next_state = state
                 if self.state_is_flat_externally:
                     next_state = tf.concat(axis=1, values=next_state)
 
