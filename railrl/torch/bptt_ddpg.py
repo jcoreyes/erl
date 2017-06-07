@@ -134,14 +134,15 @@ class MemoryPolicy(PyTorchModule):
             new_cxs = new_cxs.cuda()
         for i in range(subsequence_length):
             hx, cx = self.lstm_cell(obs[:, i, :], (hx, cx))
-            # new_memory = self.lstm_cell(obs[:, i, :], initial_memory)
-            # hx, cx = torch.split(new_memory, self.memory_dim // 2, dim=1)
-            # new_hx, new_cx = self.lstm_cell(obs[:, i, :], (hx, cx))
-            # hx = hx + new_hx
-            # cx = cx + new_cx
             new_hxs[:, i, :] = hx
             new_cxs[:, i, :] = cx
         subtraj_writes = torch.cat((new_hxs, new_cxs), dim=2)
+
+        # The reason that using a LSTM doesn't work is that this gives you only
+        # the FINAL hx and cx, not all of them :(
+        # _, (new_hxs, new_cxs) = self.lstm(obs, (hx, cx))
+        # subtraj_writes = torch.cat((new_hxs, new_cxs), dim=2)
+        # subtraj_writes = subtraj_writes.permute(1, 0, 2)
 
         """
         Create the new subtrajectory memories with the initial memories and the
@@ -235,7 +236,7 @@ class BpttDdpg(OnlineAlgorithm):
     def __init__(
             self,
             *args,
-            subtraj_length=None,
+            subtraj_length,
             **kwargs
     ):
         super().__init__(*args, **kwargs)
@@ -253,7 +254,7 @@ class BpttDdpg(OnlineAlgorithm):
         self.write_policy_learning_rate = 1e-5
         self.qf_learning_rate = 1e-3
         self.pool = UpdatableSubtrajReplayBuffer(
-            10000,
+            self.pool_size,
             self.env,
             self.subtraj_length,
             self.memory_dim,
