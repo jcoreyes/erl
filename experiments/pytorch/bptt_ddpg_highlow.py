@@ -1,8 +1,6 @@
 """
 Try the PyTorch version of BPTT DDPG on HighLow env.
 """
-import random
-
 from railrl.envs.memory.continuous_memory_augmented import (
     ContinuousMemoryAugmented
 )
@@ -59,23 +57,24 @@ if __name__ == '__main__':
     mode = "here"
     exp_prefix = "dev-pytorch"
 
-    use_gpu = True
+    use_gpu = False
     # noinspection PyTypeChecker
     variant = dict(
         memory_dim=20,
         env_params=dict(
-            num_steps=32,
+            num_steps=8,
         ),
         algo_params=dict(
-            subtraj_length=16,
-            num_epochs=30,
+            subtraj_length=4,
+            num_epochs=50,
             num_steps_per_epoch=1000,
+            discount=1.,
             use_gpu=use_gpu,
         ),
         es_params=dict(
             env_es_class=OUStrategy,
             env_es_params=dict(
-                max_sigma=1,
+                max_sigma=0.5,
                 min_sigma=None,
             ),
             memory_es_class=OUStrategy,
