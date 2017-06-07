@@ -15,7 +15,8 @@ from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import get_average_returns
 from railrl.torch.core import PyTorchModule
 from railrl.torch.online_algorithm import OnlineAlgorithm
-from railrl.torch.pytorch_util import fanin_init, copy_model_params_from_to
+from railrl.torch.pytorch_util import fanin_init, copy_model_params_from_to, \
+    soft_update_from_to
 from rllab.misc import logger, special
 
 
@@ -28,6 +29,8 @@ class BpttDdpg(OnlineAlgorithm):
             self,
             *args,
             subtraj_length,
+            tau=0.01,
+            use_soft_update=True,
             **kwargs
     ):
         super().__init__(*args, **kwargs)
@@ -37,13 +40,15 @@ class BpttDdpg(OnlineAlgorithm):
         self.subtraj_length = subtraj_length
 
         self.train_validation_batch_size = 64
-        self.copy_target_param_period = 1000
         self.batch_size = 32
         self.train_validation_batch_size = 64
-        self.copy_target_param_period = 1000
         self.action_policy_learning_rate = 1e-3
         self.write_policy_learning_rate = 1e-5
         self.qf_learning_rate = 1e-3
+        self.bellman_error_loss_weight = 10
+        self.target_hard_update_period = 1000
+        self.tau = tau
+        self.use_soft_update = use_soft_update
         self.pool = UpdatableSubtrajReplayBuffer(
             self.pool_size,
             self.env,
@@ -95,9 +100,13 @@ class BpttDdpg(OnlineAlgorithm):
                                                    cuda=self.use_gpu)
         self.train_critic(subtraj_batch)
         self.train_policy(subtraj_batch, start_indices)
-        if n_steps_total % self.copy_target_param_period == 0:
-            copy_model_params_from_to(self.qf, self.target_qf)
-            copy_model_params_from_to(self.policy, self.target_policy)
+        if self.use_soft_update:
+            soft_update_from_to(self.target_policy, self.policy, self.tau)
+            soft_update_from_to(self.target_qf, self.qf, self.tau)
+        else:
+            if n_steps_total % self.target_hard_update_period == 0:
+                copy_model_params_from_to(self.qf, self.target_qf)
+                copy_model_params_from_to(self.policy, self.target_policy)
 
     def train_critic(self, subtraj_batch):
         critic_dict = self.get_critic_output_dict(subtraj_batch)
@@ -151,13 +160,13 @@ class BpttDdpg(OnlineAlgorithm):
 
         policy_loss = policy_dict['loss']
         bellman_errors = policy_dict['Bellman Errors']
+        bellman_loss = self.bellman_error_loss_weight * bellman_errors.mean()
 
         self.action_policy_optimizer.zero_grad()
         policy_loss.backward(retain_variables=True)
-        self.action_policy_optimizer.step()
-
         self.write_policy_optimizer.zero_grad()
-        bellman_errors.mean().backward(retain_variables=True)
+        bellman_loss.backward(retain_variables=True)
+        self.action_policy_optimizer.step()
         self.write_policy_optimizer.step()
 
         self.pool.update_write_subtrajectories(
