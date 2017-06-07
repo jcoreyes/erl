@@ -84,14 +84,11 @@ class BpttDdpg(OnlineAlgorithm):
             self.qf.cuda()
             self.target_qf.cuda()
 
+    """
+    Training functions
+    """
+
     def _do_training(self, n_steps_total):
-        # for _ in range(10):
-        #     raw_subtraj_batch, _ = self.pool.random_subtrajectories(self.batch_size)
-        #     subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
-        #
-        #     qf_loss = self.train_critic(subtraj_batch)
-        #     qf_loss_np = float(get_numpy(qf_loss, self.use_gpu))
-        # line_logger.print_over("QF loss: {}".format(qf_loss_np))
         raw_subtraj_batch, start_indices = self.pool.random_subtrajectories(
             self.batch_size)
         subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch,
@@ -171,9 +168,6 @@ class BpttDdpg(OnlineAlgorithm):
         # bellman_errors.mean().backward()
         # self.qf_optimizer.step()
 
-    def get_numpy(self, tensor):
-        return get_numpy(tensor, self.use_gpu)
-
     def get_policy_output_dict(self, subtraj_batch):
         """
         :param subtraj_batch: A tensor subtrajectory dict. Basically, it should
@@ -252,6 +246,9 @@ class BpttDdpg(OnlineAlgorithm):
             ('New Writes', policy_writes),
         ])
 
+    """
+    Eval functions
+    """
     def evaluate(self, epoch, exploration_paths):
         """
         Perform evaluation for this algorithm.
@@ -266,6 +263,7 @@ class BpttDdpg(OnlineAlgorithm):
         statistics.update(self._statistics_from_paths(exploration_paths,
                                                       "Exploration"))
         statistics.update(self._statistics_from_paths(paths, "Test"))
+        statistics.update(self._get_other_statistics())
 
         statistics['AverageReturn'] = get_average_returns(paths)
         statistics['Epoch'] = epoch
@@ -377,6 +375,9 @@ class BpttDdpg(OnlineAlgorithm):
             es=self.exploration_strategy,
             qf=self.qf,
         )
+
+    def get_numpy(self, tensor):
+        return get_numpy(tensor, self.use_gpu)
 
 
 def flatten_subtraj_batch(subtraj_batch):
