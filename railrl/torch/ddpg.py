@@ -8,7 +8,9 @@ from torch.autograd import Variable
 from torch.nn import functional as F
 
 from railrl.misc.data_processing import create_stats_ordered_dict
+from railrl.torch.core import PyTorchModule
 from railrl.torch.online_algorithm import OnlineAlgorithm
+from railrl.torch.pytorch_util import soft_update, copy_model_params, fanin_init
 from rllab.misc import logger, special
 
 
@@ -37,14 +39,14 @@ class DDPG(OnlineAlgorithm):
             400,
             300,
         )
-        self.policy = Policy(
+        self.policy = FeedForwardPolicy(
             self.obs_dim,
             self.action_dim,
             400,
             300,
         )
-        self.target_qf = self.qf.clone()
-        self.target_policy = self.policy.clone()
+        self.target_qf = self.qf.copy()
+        self.target_policy = self.policy.copy()
         self.target_hard_update_period = target_hard_update_period
         self.tau = tau
         self.use_soft_update = use_soft_update
@@ -168,30 +170,7 @@ class DDPG(OnlineAlgorithm):
         return torch_batch
 
 
-def soft_update(target, source, tau):
-    for target_param, param in zip(target.parameters(), source.parameters()):
-        target_param.data.copy_(
-            target_param.data * (1.0 - tau) + param.data * tau
-        )
-
-
-def copy_model_params(source, target):
-    for target_param, param in zip(target.parameters(), source.parameters()):
-        target_param.data.copy_(param.data)
-
-
-def fanin_init(size, fanin=None):
-    if len(size) == 2:
-        fan_in = size[0]
-    elif len(size) > 2:
-        fan_in = np.prod(size[1:])
-    else:
-        raise Exception("Shape must be have dimension at least 2.")
-    v = 1. / np.sqrt(fan_in)
-    return torch.Tensor(size).uniform_(-v, v)
-
-
-class QFunction(nn.Module):
+class QFunction(PyTorchModule):
     def __init__(
             self,
             obs_dim,
@@ -200,6 +179,7 @@ class QFunction(nn.Module):
             embedded_hidden_size,
             init_w=3e-3,
     ):
+        self.save_init_params(locals())
         super().__init__()
 
         self.obs_dim = obs_dim
@@ -231,18 +211,8 @@ class QFunction(nn.Module):
         h = F.relu(self.embedded_fc(h))
         return self.last_fc(h)
 
-    def clone(self):
-        copy = QFunction(
-            self.obs_dim,
-            self.action_dim,
-            self.observation_hidden_size,
-            self.embedded_hidden_size,
-        )
-        copy_model_params(self, copy)
-        return copy
 
-
-class Policy(nn.Module):
+class FeedForwardPolicy(PyTorchModule):
     def __init__(
             self,
             obs_dim,
@@ -251,6 +221,7 @@ class Policy(nn.Module):
             fc2_size,
             init_w=1e-3,
     ):
+        self.save_init_params(locals())
         super().__init__()
 
         self.obs_dim = obs_dim
@@ -284,25 +255,8 @@ class Policy(nn.Module):
         action = action.squeeze(0)
         return action.data.numpy(), {}
 
-    def get_param_values(self):
-        return [param.data for param in self.parameters()]
-
-    def set_param_values(self, param_values):
-        for param, value in zip(self.parameters(), param_values):
-            param.data = value
-
     def reset(self):
         pass
-
-    def clone(self):
-        copy = Policy(
-            self.obs_dim,
-            self.action_dim,
-            self.fc1_size,
-            self.fc2_size,
-        )
-        copy_model_params(self, copy)
-        return copy
 
     def log_diagnostics(self, paths):
         pass

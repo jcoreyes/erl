@@ -7,7 +7,9 @@ from railrl.data_management.updatable_subtraj_replay_buffer import (
 )
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.pythonplusplus import line_logger
+from railrl.torch.core import PyTorchModule
 from railrl.torch.online_algorithm import OnlineAlgorithm
+from railrl.torch.pytorch_util import fanin_init
 from rllab.algos.base import RLAlgorithm
 import numpy as np
 import torch
@@ -18,58 +20,55 @@ import torch.nn as nn
 import torch.optim as optim
 
 from rllab.algos.batch_polopt import BatchSampler
+from rllab.core.serializable import Serializable
 from rllab.misc import logger, special
 
 
-class QFunction(nn.Module):
+class MemoryQFunction(PyTorchModule):
     def __init__(
             self,
             obs_dim,
             action_dim,
             memory_dim,
-            hidden_sizes,
-            embed_obs_hidden_sizes,
+            observation_hidden_size,
+            embedded_hidden_size,
+            init_w=3e-3,
     ):
+        self.save_init_params(locals())
         super().__init__()
 
         self.obs_dim = obs_dim
         self.action_dim = action_dim
         self.memory_dim = memory_dim
-        self.hidden_sizes = hidden_sizes
-        self.embed_obs_hidden_sizes = embed_obs_hidden_sizes
+        self.observation_hidden_size = observation_hidden_size
+        self.embedded_hidden_size = embedded_hidden_size
+        self.init_w = init_w
 
-        self.obs_embed_fcs = []
-        last_size = obs_dim + memory_dim
-        for size in self.embed_obs_hidden_sizes:
-            self.obs_embed_fcs.append(nn.Linear(last_size, size))
-            last_size = size
+        self.obs_fc = nn.Linear(obs_dim + memory_dim, observation_hidden_size)
+        self.embedded_fc = nn.Linear(
+            observation_hidden_size + action_dim + memory_dim,
+            embedded_hidden_size,
+        )
+        self.last_fc = nn.Linear(embedded_hidden_size, 1)
 
-        self.fcs = []
-        last_size = last_size + action_dim + memory_dim
-        for size in hidden_sizes:
-            self.fcs.append(nn.Linear(last_size, size))
-            last_size = size
-        self.last_fc = nn.Linear(last_size, 1)
+        self.init_weights(init_w)
+
+    def init_weights(self, init_w):
+        self.obs_fc.weight.data = fanin_init(self.obs_fc.weight.data.size())
+        self.obs_fc.bias.data *= 0
+        self.embedded_fc.weight.data = fanin_init(
+            self.embedded_fc.weight.data.size()
+        )
+        self.embedded_fc.bias.data *= 0
+        self.last_fc.weight.data.uniform_(-init_w, init_w)
+        self.last_fc.bias.data.uniform_(-init_w, init_w)
 
     def forward(self, obs, memory, action, write):
         obs_embedded = torch.cat((obs, memory), dim=1)
-        for fc in self.obs_embed_fcs:
-            obs_embedded = F.relu(fc(obs_embedded))
+        obs_embedded = F.relu(self.obs_fc(obs_embedded))
         x = torch.cat((obs_embedded, action, write), dim=1)
-        for fc in self.fcs:
-            x = F.relu(fc(x))
+        x = F.relu(self.embedded_fc(x))
         return self.last_fc(x)
-
-    def clone(self):
-        copy = QFunction(
-            self.obs_dim,
-            self.action_dim,
-            self.memory_dim,
-            self.hidden_sizes,
-            self.embed_obs_hidden_sizes,
-        )
-        copy_module_params_from_to(self, copy)
-        return copy
 
 
 class SumCell(nn.Module):
@@ -82,33 +81,31 @@ class SumCell(nn.Module):
         return memory + new_memory
 
 
-class RecurrentPolicy(nn.Module):
+class MemoryPolicy(PyTorchModule):
     def __init__(
             self,
             obs_dim,
             action_dim,
             memory_dim,
-            hidden_sizes,
+            fc1_size,
+            fc2_size,
     ):
+        self.save_init_params(locals())
         super().__init__()
 
         self.obs_dim = obs_dim
         self.action_dim = action_dim
         self.memory_dim = memory_dim
-        self.hidden_sizes = hidden_sizes
+        self.fc1_size = fc1_size
+        self.fc2_size = fc2_size
 
-        self.fcs = []
-        last_size = obs_dim + memory_dim
-        for size in hidden_sizes:
-            self.fcs.append(nn.Linear(last_size, size))
-            last_size = size
-        self.last_fc = nn.Linear(last_size, action_dim)
-
+        self.fc1 = nn.Linear(obs_dim + memory_dim, fc1_size)
+        self.fc2 = nn.Linear(fc1_size, fc2_size)
+        self.last_fc = nn.Linear(fc2_size, action_dim)
         self.lstm_cell = nn.LSTMCell(self.obs_dim, self.memory_dim // 2)
-        self.memory_to_obs_fc = nn.Linear(self.memory_dim, obs_dim)
 
     def action_parameters(self):
-        for fc in [self.last_fc] + self.fcs:
+        for fc in [self.fc1, self.fc2, self.last_fc]:
             for param in fc.parameters():
                 yield param
 
@@ -174,12 +171,9 @@ class RecurrentPolicy(nn.Module):
         )
         for i in range(subsequence_length):
             all_inputs = all_subtraj_inputs[:, i, :]
-            last_layer = all_inputs
-            for fc in self.fcs:
-                last_layer = F.relu(fc(last_layer))
-            action = F.tanh(self.last_fc(last_layer))
-            # action = self.last_fc(last_layer)
-            # action += 0.1 * Variable(torch.randn(*action.size()))
+            h1 = F.relu(self.fc1(all_inputs))
+            h2 = F.relu(self.fc2(h1))
+            action = F.tanh(self.last_fc(h2))
             subtraj_actions[:, i, :] = action
 
         return subtraj_actions, subtraj_writes
@@ -219,25 +213,11 @@ class RecurrentPolicy(nn.Module):
         actions, writes = self.__call__(obs, initial_memories)
         return torch.squeeze(actions, dim=1), torch.squeeze(writes, dim=1)
 
-    def get_param_values(self):
-        return [param.data for param in self.parameters()]
-
-    def set_param_values(self, param_values):
-        for param, value in zip(self.parameters(), param_values):
-            param.data = value
-
     def reset(self):
         pass
 
-    def clone(self):
-        copy = RecurrentPolicy(
-            self.obs_dim,
-            self.action_dim,
-            self.memory_dim,
-            self.hidden_sizes,
-        )
-        copy_module_params_from_to(self, copy)
-        return copy
+    def log_diagnostics(self):
+        pass
 
 
 # noinspection PyCallingNonCallable
@@ -271,21 +251,22 @@ class BpttDdpg(OnlineAlgorithm):
             self.subtraj_length,
             self.memory_dim,
         )
-        self.qf = QFunction(
+        self.qf = MemoryQFunction(
             self.obs_dim,
             self.action_dim,
             self.memory_dim,
-            [100],
-            [100],
+            100,
+            100,
         )
-        self.policy = RecurrentPolicy(
+        self.policy = MemoryPolicy(
             self.obs_dim,
             self.action_dim,
             self.memory_dim,
-            [100, 64],
+            100,
+            100,
         )
-        self.target_qf = self.qf.clone()
-        self.target_policy = self.policy.clone()
+        self.target_qf = self.qf.copy()
+        self.target_policy = self.policy.copy()
 
         self.qf_optimizer = optim.Adam(self.qf.parameters(),
                                        lr=self.qf_learning_rate)
@@ -298,76 +279,76 @@ class BpttDdpg(OnlineAlgorithm):
         self.pps = list(self.policy.parameters())
         self.qps = list(self.qf.parameters())
 
-    def train(self):
-        n_steps_total = 0
-        observation = self.training_env.reset()
-        self.exploration_strategy.reset()
-        self._start_worker()
-        for epoch in range(self.num_epochs):
-            logger.push_prefix('Iteration #%d | ' % epoch)
-            path_return = 0
-            es_path_returns = []
-            actions, writes = [], []
-            start_time = time.time()
-            for _ in range(self.num_steps_per_epoch):
-                action, agent_info = (
-                    self.exploration_strategy.get_action(
-                        n_steps_total,
-                        observation,
-                        self.policy,
-                    )
-                )
-                if self.render:
-                    self.training_env.render()
-
-                next_ob, raw_reward, terminal, env_info = (
-                    self.training_env.step(action)
-                )
-                n_steps_total += 1
-                reward = raw_reward * self.scale_reward
-                path_return += reward
-                actions.append(action[0])
-                writes.append(action[1])
-
-                self.pool.add_sample(
-                    observation,
-                    action,
-                    reward,
-                    terminal,
-                    agent_info=agent_info,
-                    env_info=env_info,
-                )
-                if terminal:
-                    self.pool.terminate_episode(
-                        next_ob,
-                        agent_info=agent_info,
-                        env_info=env_info,
-                    )
-                    observation = self.training_env.reset()
-                    self.exploration_strategy.reset()
-                    es_path_returns.append(path_return)
-                    path_return = 0
-                else:
-                    observation = next_ob
-
-                if self._can_train():
-                    for _ in range(5):
-                        self._do_training(n_steps_total=n_steps_total)
-
-            logger.log(
-                "Training Time: {0}".format(time.time() - start_time)
-            )
-            start_time = time.time()
-            self.evaluate(epoch, {
-                'Returns': es_path_returns,
-                'Env Actions': actions,
-                'Writes': writes,
-            })
-            params = self.get_epoch_snapshot(epoch)
-            logger.save_itr_params(epoch, params)
-            logger.dump_tabular(with_prefix=False, with_timestamp=False)
-            logger.log("Eval Time: {0}".format(time.time() - start_time))
-            logger.pop_prefix()
+    # def train(self):
+    #     n_steps_total = 0
+    #     observation = self.training_env.reset()
+    #     self.exploration_strategy.reset()
+    #     self._start_worker()
+    #     for epoch in range(self.num_epochs):
+    #         logger.push_prefix('Iteration #%d | ' % epoch)
+    #         path_return = 0
+    #         es_path_returns = []
+    #         actions, writes = [], []
+    #         start_time = time.time()
+    #         for _ in range(self.num_steps_per_epoch):
+    #             action, agent_info = (
+    #                 self.exploration_strategy.get_action(
+    #                     n_steps_total,
+    #                     observation,
+    #                     self.policy,
+    #                 )
+    #             )
+    #             if self.render:
+    #                 self.training_env.render()
+    #
+    #             next_ob, raw_reward, terminal, env_info = (
+    #                 self.training_env.step(action)
+    #             )
+    #             n_steps_total += 1
+    #             reward = raw_reward * self.scale_reward
+    #             path_return += reward
+    #             actions.append(action[0])
+    #             writes.append(action[1])
+    #
+    #             self.pool.add_sample(
+    #                 observation,
+    #                 action,
+    #                 reward,
+    #                 terminal,
+    #                 agent_info=agent_info,
+    #                 env_info=env_info,
+    #             )
+    #             if terminal:
+    #                 self.pool.terminate_episode(
+    #                     next_ob,
+    #                     agent_info=agent_info,
+    #                     env_info=env_info,
+    #                 )
+    #                 observation = self.training_env.reset()
+    #                 self.exploration_strategy.reset()
+    #                 es_path_returns.append(path_return)
+    #                 path_return = 0
+    #             else:
+    #                 observation = next_ob
+    #
+    #             if self._can_train():
+    #                 for _ in range(5):
+    #                     self._do_training(n_steps_total=n_steps_total)
+    #
+    #         logger.log(
+    #             "Training Time: {0}".format(time.time() - start_time)
+    #         )
+    #         start_time = time.time()
+    #         self.evaluate(epoch, {
+    #             'Returns': es_path_returns,
+    #             'Env Actions': actions,
+    #             'Writes': writes,
+    #         })
+    #         params = self.get_epoch_snapshot(epoch)
+    #         logger.save_itr_params(epoch, params)
+    #         logger.dump_tabular(with_prefix=False, with_timestamp=False)
+    #         logger.log("Eval Time: {0}".format(time.time() - start_time))
+    #         logger.pop_prefix()
 
     def _do_training(self, n_steps_total):
         # for _ in range(10):
@@ -544,10 +525,10 @@ class BpttDdpg(OnlineAlgorithm):
         """
         statistics = OrderedDict()
 
-        for k, v in exploration_info_dict.items():
-            statistics.update(create_stats_ordered_dict(
-                'Exploration {}'.format(k), np.array(v, dtype=np.float32)
-            ))
+        # for k, v in exploration_info_dict.items():
+        #     statistics.update(create_stats_ordered_dict(
+        #         'Exploration {}'.format(k), np.array(v, dtype=np.float32)
+        #     ))
         statistics.update(self._get_other_statistics())
 
         logger.log("Collecting samples for evaluation")
@@ -658,7 +639,7 @@ class BpttDdpg(OnlineAlgorithm):
         )
 
 
-def copy_module_params_from_to(source, target):
+def copy_module_params_from_to(source: nn.Module, target: nn.Module):
     for source_param, target_param in zip(
             source.parameters(),
             target.parameters()

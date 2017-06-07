@@ -14,8 +14,8 @@ from rllab.envs.normalized_env import normalize
 
 def example(variant):
     # env = HalfCheetahEnv()
-    # env = PointEnv()
-    env = gym_env("Pendulum-v0")
+    env = PointEnv()
+    # env = gym_env("Pendulum-v0")
     env = normalize(env)
     es = OUStrategy(env_spec=env.spec, max_sima=0.2, min_sigma=None, theta=0.15)
     algorithm = DDPG(
@@ -30,8 +30,8 @@ if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
             num_epochs=10,
-            num_steps_per_epoch=100,
-            num_steps_per_eval=10,
+            num_steps_per_epoch=1000,
+            num_steps_per_eval=100,
             target_hard_update_period=10000,
             batch_size=32,
             max_path_length=100,
@@ -39,8 +39,8 @@ if __name__ == "__main__":
     )
     run_experiment(
         example,
-        exp_prefix="6-5-does-torch-work-on-ec2",
+        exp_prefix="6-6-dev-pytorch",
         seed=0,
-        mode='ec2',
+        mode='here',
         variant=variant,
     )

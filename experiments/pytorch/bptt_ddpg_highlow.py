@@ -68,7 +68,7 @@ if __name__ == '__main__':
         algo_params=dict(
             subtraj_length=16,
             num_epochs=30,
-            num_steps_per_epoch=1000,
+            num_steps_per_epoch=100,
         ),
         es_params=dict(
             env_es_class=OUStrategy,
@@ -84,8 +84,7 @@ if __name__ == '__main__':
         ),
     )
     exp_id = -1
-    for _ in range(n_seeds):
-        seed = random.randint(0, 99999)
+    for seed in range(n_seeds):
         exp_id += 1
         set_seed(seed)
         variant['seed'] = seed
