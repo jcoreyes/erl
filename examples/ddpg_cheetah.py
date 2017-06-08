@@ -35,24 +35,25 @@ def example(variant):
 
 
 if __name__ == "__main__":
-	for i in range(10):
-		run_experiment(
+	# for i in range(10):
+	# 	run_experiment(
+ #        	example,
+ #        	exp_prefix="ddpg-half-cheetah-modified",
+ #        	seed=i,
+ #        	mode='ec2',
+ #        	variant={
+ #        	    'version': 'Original',
+ #        	    'use_new_version': True,
+ #        	}
+ #        )
+ 	run_experiment(
         	example,
-        	exp_prefix="ddpg-half-cheetah-modified",
-        	seed=i,
-        	mode='ec2',
+        	exp_prefix="ddpg-half-cheetah-normal",
+        	seed=0,
+        	mode='here',
         	variant={
         	    'version': 'Original',
-        	    'use_new_version': True,
-        	}
-        )
- 	# run_experiment(
-  #       	example,
-  #       	exp_prefix="ddpg-half-cheetah-normal",
-  #       	seed=0,
-  #       	mode='here',
-  #       	variant={
-  #       	    'version': 'Original',
-  #       	    'use_new_version': False,
-  #   		}
-  #   	)
+        	    'use_new_version': False,
+    		},
+    		snapshot_mode='last',
+    	)

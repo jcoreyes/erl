@@ -18,8 +18,7 @@ JOINT_ANGLES_HIGH = np.array(
      2.09400001, 3.05899961])
 JOINT_ANGLES_LOW = np.array([
     -1.70167995, -2.14700025, -3.0541801, -0.04995198, -3.05900015,
-    -1.5708003, -3.05899989
-])
+    -1.5708003, -3.05899989])
 
 JOINT_VEL_HIGH = 2*np.ones(7)
 JOINT_VEL_LOW = -2*np.ones(7)
@@ -71,7 +70,7 @@ class BaxterEnv(Env, Serializable):
             self,
             update_hz=20,
             action_mode='torque',
-            observation_mode='position',
+            # observation_mode='position',
             # observation_mode_list = ['position', 'velocity', 'torque']
     ):
         Serializable.quick_init(self, locals())
@@ -98,7 +97,7 @@ class BaxterEnv(Env, Serializable):
         }
 
         self._set_joint_values = action_mode_dict[action_mode]
-        self._get_joint_to_value_dict = observation_mode_dict[observation_mode]
+        # self._get_joint_to_value_dict = observation_mode_dict[observation_mode]
         self._get_joint_to_value_func_list = list(observation_mode_dict.values())
         self._action_space = Box(
             JOINT_VALUE_LOW[action_mode],
@@ -110,21 +109,24 @@ class BaxterEnv(Env, Serializable):
         #    JOINT_VALUE_LOW['torque'], JOINT_VALUE_LOW['position']])
         # highs = np.append(JOINT_VALUE_HIGH['position'], [JOINT_VALUE_HIGH['velocity'], 
         #    JOINT_VALUE_HIGH['torque'], JOINT_VALUE_HIGH['position']])
-        lows = np.append(JOINT_VALUE_LOW['position'], [JOINT_VALUE_LOW['velocity'], 
-           JOINT_VALUE_LOW['torque']])
-        highs = np.append(JOINT_VALUE_HIGH['position'], [JOINT_VALUE_HIGH['velocity'], 
-           JOINT_VALUE_HIGH['torque']])
 
         # lows = np.append(JOINT_VALUE_LOW['position'], [JOINT_VALUE_LOW['velocity'], 
-        #    JOINT_VALUE_LOW['torque'], END_EFFECTOR_VALUE_LOW['position'], END_EFFECTOR_VALUE_LOW['angle']])
+        #    JOINT_VALUE_LOW['torque']])
         # highs = np.append(JOINT_VALUE_HIGH['position'], [JOINT_VALUE_HIGH['velocity'], 
-        #    JOINT_VALUE_HIGH['torque'], END_EFFECTOR_VALUE_HIGH['position'], END_EFFECTOR_VALUE_HIGH['angle']])
+        #    JOINT_VALUE_HIGH['torque']])
 
+        lows = np.append(JOINT_VALUE_LOW['position'], [JOINT_VALUE_LOW['velocity'], JOINT_VALUE_LOW['torque']]) 
+        lows = np.append(lows, END_EFFECTOR_VALUE_LOW['position'])
+        highs = np.append(JOINT_VALUE_HIGH['position'], [JOINT_VALUE_HIGH['velocity'], JOINT_VALUE_HIGH['torque']])
+        highs = np.append(highs, END_EFFECTOR_VALUE_HIGH['position'])
+    
         self._observation_space = Box(lows, highs) 
         # self.desired_angles = np.zeros(NUM_JOINTS) 
         # self._randomize_desired_angles() 
         #desired should be a numpy array with the position coordinates then the orientation coordinations of the end_effector
-        self.desired_end_effector_state = np.array([0.14854234521312332, -0.43227588084273644, -0.7116727296474704, 0.46800638382243764, 0.8837008622125236, -0.005641180126528841, -0.0033148021158782666])
+        # self.desired_end_effector_pose = np.array([0.14854234521312332, -0.43227588084273644, -0.7116727296474704, 0.46800638382243764, 0.8837008622125236, -0.005641180126528841, -0.0033148021158782666])
+        # self.desired_end_effector_pose = np.array([0.14854234521312332, -0.43227588084273644, -0.7116727296474704])
+        self.desired_end_effector_pose = self._randomize_desired_end_effector_pose()
 
     @safe
     def _act(self, action):
@@ -138,11 +140,12 @@ class BaxterEnv(Env, Serializable):
             joint_to_angles[joint] for joint in self.right_joint_names
         ])
 
-    def _end_effector_state(self):
+    def _end_effector_pose(self):
         state_dict = self.right_arm.endpoint_pose()
         pos = state_dict['position']
-        orientation = state_dict['orientation']
-        return np.array([pos.x, pos.y, pos.z, orientation.x, orientation.y, orientation.z, orientation.w])
+        # orientation = state_dict['orientation']
+        # return np.array([pos.x, pos.y, pos.z, orientation.x, orientation.y, orientation.z, orientation.w])
+        return np.array([pos.x, pos.y, pos.z])
 
     def step(self, action):
         """
@@ -155,8 +158,8 @@ class BaxterEnv(Env, Serializable):
         # reward = -np.mean((self._joint_angles() - self.desired_angles)**2)
 
         #reward is MSE between desired position/orientation and current position/orientation of end_effector
-        current_end_effector_state = self._end_effector_state()
-        reward = -np.mean((current_end_effector_state - self.desired_end_effector_state)**2)
+        current_end_effector_pose = self._end_effector_pose()
+        reward = -np.mean((current_end_effector_pose - self.desired_end_effector_pose)**2)
 
         done = False
         info = {}
@@ -173,7 +176,10 @@ class BaxterEnv(Env, Serializable):
         # desired_angles = np.ndarray.tolist(self.desired_angles)
         # temp = velocities + torques + desired_angles[0]
         temp = velocities + torques
-        return np.append(positions, temp)
+        temp = np.append(temp, self.desired_end_effector_pose)
+        temp = np.append(positions, temp)
+        # print(temp.shape)
+        return temp
 
     def reset(self):
         """
@@ -183,7 +189,7 @@ class BaxterEnv(Env, Serializable):
         observation : the initial observation of the space. (Initial reward is assumed to be 0.)
         """
         # self._randomize_desired_angles()
-        # self._randomize_desired_end_effector_pose()
+        self._randomize_desired_end_effector_pose()
         self.right_arm.move_to_neutral()
         return self._get_joint_values()
 
@@ -191,7 +197,7 @@ class BaxterEnv(Env, Serializable):
     	self.desired_angles = np.random.rand(1, 7)
 
     def _randomize_desired_end_effector_pose(self):
-        self.desired_end_effector_state = np.random.rand(1, 7)
+        self.desired_end_effector_pose = np.random.rand(1, 3)
 
     @property
     def action_space(self):
@@ -205,17 +211,17 @@ class BaxterEnv(Env, Serializable):
         pass
 
     def log_diagnostics(self, paths):
-        #In order to do this - I need to add end-effector observations into the observation
-        # observations = [path["observations"] for path in paths]
-        # desired = self.desired_end_effector_state
-        # for i in range(len(observations)-1):
-        #     np.append(desired, self.desired_end_effector_state)
-        # #slice off dist part of observation
-        # positions = [observation[21:24] for observation in observations]
-        # pos = np.array(positions[0])
-        # for i in range(1, len(positions)):
-        #     np.append(pos, positions[i])
-        # dist = np.mean(desired-pos)
+        # In order to do this - I need to add end-effector observations into the observation
+        observations = [path["observations"] for path in paths]
+        desired = self.desired_end_effector_pose
+        for i in range(len(observations)-1):
+            desired = np.append(desired, self.desired_end_effector_pose)
+        #slice off dist part of observation
+        positions = [observation[21:24] for observation in observations]
+        pos = np.array(positions[0])
+        for i in range(1, len(positions)):
+            np.append(pos, positions[i])
+        dist = np.mean(desired-pos)
 
         # #slice off orintation part of observation
         # #compute np.mean(desired-observation)
@@ -224,9 +230,10 @@ class BaxterEnv(Env, Serializable):
         # for i in range(1, len(orientations)):
         #     np.append(ori, orientations[i])
         # orientation = np.mean(desired-ori)
-        # logger.record_tabular("Distance from desired end-effector position", dist)
+        logger.record_tabular("Distance from desired end-effector position", dist)
+        logger.record_tabular("Desired end-effector position", self.desired_end_effector_pose)
         # logger.record_tabular("Difference in orientation from desired end-effector position", orientation)
-        pass
+        # pass
 
     @property
     def horizon(self):
