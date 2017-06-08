@@ -11,7 +11,13 @@ from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import get_average_returns
 from railrl.torch.core import PyTorchModule
 from railrl.torch.online_algorithm import OnlineAlgorithm
-from railrl.torch.pytorch_util import soft_update_from_to, copy_model_params_from_to, fanin_init
+from railrl.torch.pytorch_util import (
+    soft_update_from_to,
+    copy_model_params_from_to,
+    fanin_init,
+    set_gpu_mode,
+    from_numpy,
+)
 from rllab.misc import logger, special
 
 
@@ -59,6 +65,7 @@ class DDPG(OnlineAlgorithm):
                                            lr=self.policy_learning_rate)
         self.use_gpu = self.use_gpu and torch.cuda.is_available()
 
+        set_gpu_mode(self.use_gpu)
         if self.use_gpu:
             self.policy.cuda()
             self.target_policy.cuda()
@@ -149,18 +156,10 @@ class DDPG(OnlineAlgorithm):
 
     def get_batch(self):
         batch = self.pool.random_batch(self.batch_size, flatten=True)
-        if self.use_gpu:
-            torch_batch = {
-                k: Variable(torch.from_numpy(array).float(),
-                            requires_grad=False).cuda()
-                for k, array in batch.items()
-            }
-        else:
-            torch_batch = {
-                k: Variable(torch.from_numpy(array).float(),
-                            requires_grad=False)
-                for k, array in batch.items()
-            }
+        torch_batch = {
+            k: Variable(from_numpy(array).float(), requires_grad=False)
+            for k, array in batch.items()
+        }
         rewards = torch_batch['rewards']
         terminals = torch_batch['terminals']
         torch_batch['rewards'] = rewards.unsqueeze(-1)
@@ -266,11 +265,7 @@ class FeedForwardPolicy(PyTorchModule):
 
     def get_action(self, obs):
         obs = np.expand_dims(obs, axis=0)
-        if self.last_fc.weight.is_cuda:
-            obs = Variable(torch.from_numpy(obs).float(),
-                           requires_grad=False).cuda()
-        else:
-            obs = Variable(torch.from_numpy(obs).float(), requires_grad=False)
+        obs = Variable(from_numpy(obs).float(), requires_grad=False)
         action = self.__call__(obs)
         action = action.squeeze(0)
         if self.last_fc.weight.is_cuda:

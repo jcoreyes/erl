@@ -23,3 +23,36 @@ def fanin_init(size, fanin=None):
         raise Exception("Shape must be have dimension at least 2.")
     v = 1. / np.sqrt(fan_in)
     return torch.Tensor(size).uniform_(-v, v)
+
+
+"""
+GPU wrappers
+"""
+_use_gpu = False
+
+
+def set_gpu_mode(mode):
+    global _use_gpu
+    _use_gpu = mode
+
+
+# noinspection PyPep8Naming
+def FloatTensor(*args, **kwargs):
+    if _use_gpu:
+        return torch.cuda.FloatTensor(*args, **kwargs)
+    else:
+        # noinspection PyArgumentList
+        return torch.FloatTensor(*args, **kwargs)
+
+
+def from_numpy(*args, **kwargs):
+    if _use_gpu:
+        return torch.from_numpy(*args, **kwargs).cuda()
+    else:
+        return torch.from_numpy(*args, **kwargs)
+
+
+def get_numpy(tensor):
+    if _use_gpu:
+        return tensor.data.cpu().numpy()
+    return tensor.data.numpy()

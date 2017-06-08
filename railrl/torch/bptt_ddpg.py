@@ -15,8 +15,15 @@ from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import get_average_returns
 from railrl.torch.core import PyTorchModule
 from railrl.torch.online_algorithm import OnlineAlgorithm
-from railrl.torch.pytorch_util import fanin_init, copy_model_params_from_to, \
-    soft_update_from_to
+from railrl.torch.pytorch_util import (
+    fanin_init,
+    copy_model_params_from_to,
+    soft_update_from_to,
+    set_gpu_mode,
+    FloatTensor,
+    from_numpy,
+    get_numpy,
+)
 from rllab.misc import logger, special
 
 
@@ -83,6 +90,7 @@ class BpttDdpg(OnlineAlgorithm):
         self.pps = list(self.policy.parameters())
         self.qps = list(self.qf.parameters())
         self.use_gpu = self.use_gpu and torch.cuda.is_available()
+        set_gpu_mode(self.use_gpu)
         if self.use_gpu:
             self.policy.cuda()
             self.target_policy.cuda()
@@ -96,8 +104,7 @@ class BpttDdpg(OnlineAlgorithm):
     def _do_training(self, n_steps_total):
         raw_subtraj_batch, start_indices = self.pool.random_subtrajectories(
             self.batch_size)
-        subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch,
-                                                   cuda=self.use_gpu)
+        subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
         self.train_critic(subtraj_batch)
         self.train_policy(subtraj_batch, start_indices)
         if self.use_soft_update:
@@ -172,7 +179,7 @@ class BpttDdpg(OnlineAlgorithm):
         self.write_policy_optimizer.step()
 
         self.pool.update_write_subtrajectories(
-            self.get_numpy(policy_dict['New Writes']), start_indices
+            get_numpy(policy_dict['New Writes']), start_indices
         )
 
     def get_policy_output_dict(self, subtraj_batch):
@@ -291,8 +298,7 @@ class BpttDdpg(OnlineAlgorithm):
         for path in paths:
             eval_pool.add_trajectory(path)
         raw_subtraj_batch = eval_pool.get_all_valid_subtrajectories()
-        subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch,
-                                                   cuda=self.use_gpu)
+        subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
         statistics = self._statistics_from_subtraj_batch(
             subtraj_batch, stat_prefix=stat_prefix
         )
@@ -321,6 +327,9 @@ class BpttDdpg(OnlineAlgorithm):
         statistics.update(create_stats_ordered_dict(
             'Writes', writes, stat_prefix=stat_prefix
         ))
+        statistics.update(create_stats_ordered_dict(
+            'Num Paths', len(paths), stat_prefix=stat_prefix
+        ))
         return statistics
 
     def _statistics_from_subtraj_batch(self, subtraj_batch, stat_prefix=''):
@@ -330,14 +339,14 @@ class BpttDdpg(OnlineAlgorithm):
         for name, tensor in critic_dict.items():
             statistics.update(create_stats_ordered_dict(
                 '{} QF {}'.format(stat_prefix, name),
-                self.get_numpy(tensor)
+                get_numpy(tensor)
             ))
 
         policy_dict = self.get_policy_output_dict(subtraj_batch)
         for name, tensor in policy_dict.items():
             statistics.update(create_stats_ordered_dict(
                 '{} Policy {}'.format(stat_prefix, name),
-                self.get_numpy(tensor)
+                get_numpy(tensor)
             ))
         return statistics
 
@@ -353,8 +362,7 @@ class BpttDdpg(OnlineAlgorithm):
                     self.train_validation_batch_size,
                     validation=validation
                 )[0]
-                subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch,
-                                                           cuda=self.use_gpu)
+                subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
                 statistics.update(self._statistics_from_subtraj_batch(
                     subtraj_batch, stat_prefix=stat_prefix
                 ))
@@ -394,9 +402,6 @@ class BpttDdpg(OnlineAlgorithm):
             qf=self.qf,
         )
 
-    def get_numpy(self, tensor):
-        return get_numpy(tensor, self.use_gpu)
-
 
 def flatten_subtraj_batch(subtraj_batch):
     return {
@@ -409,19 +414,12 @@ def get_initial_memories(subtraj_batch):
     return subtraj_batch['memories'][:, 0, :]
 
 
-def get_numpy(tensor, use_cuda):
-    if use_cuda:
-        return tensor.data.cpu().numpy()
-    return tensor.data.numpy()
 
-
-def create_torch_subtraj_batch(subtraj_batch, cuda=False):
+def create_torch_subtraj_batch(subtraj_batch):
     torch_batch = {
-        k: Variable(torch.from_numpy(array).float(), requires_grad=True)
+        k: Variable(from_numpy(array).float(), requires_grad=True)
         for k, array in subtraj_batch.items()
     }
-    if cuda:
-        torch_batch = {k: v.cuda() for k, v in torch_batch.items()}
     rewards = torch_batch['rewards']
     terminals = torch_batch['terminals']
     torch_batch['rewards'] = rewards.unsqueeze(-1)
@@ -533,15 +531,12 @@ class MemoryPolicy(PyTorchModule):
         Create the new writes.
         """
         hx, cx = torch.split(initial_memory, self.memory_dim // 2, dim=1)
-        # noinspection PyArgumentList
-        new_hxs = Variable(torch.FloatTensor(batch_size, subsequence_length,
-                                             self.memory_dim // 2))
-        # noinspection PyArgumentList
-        new_cxs = Variable(torch.FloatTensor(batch_size, subsequence_length,
-                                             self.memory_dim // 2))
-        if self.is_cuda:
-            new_hxs = new_hxs.cuda()
-            new_cxs = new_cxs.cuda()
+        new_hxs = Variable(
+            FloatTensor(batch_size, subsequence_length, self.memory_dim // 2)
+        )
+        new_cxs = Variable(
+            FloatTensor(batch_size, subsequence_length, self.memory_dim // 2)
+        )
         for i in range(subsequence_length):
             hx, cx = self.lstm_cell(obs[:, i, :], (hx, cx))
             new_hxs[:, i, :] = hx
@@ -576,10 +571,8 @@ class MemoryPolicy(PyTorchModule):
         all_subtraj_inputs = torch.cat([obs, memories], dim=2)
         # noinspection PyArgumentList
         subtraj_actions = Variable(
-            torch.FloatTensor(batch_size, subsequence_length, self.action_dim)
+            FloatTensor(batch_size, subsequence_length, self.action_dim)
         )
-        if self.is_cuda:
-            subtraj_actions = subtraj_actions.cuda()
         for i in range(subsequence_length):
             all_inputs = all_subtraj_inputs[:, i, :]
             h1 = F.tanh(self.fc1(all_inputs))
@@ -588,10 +581,6 @@ class MemoryPolicy(PyTorchModule):
             subtraj_actions[:, i, :] = action
 
         return subtraj_actions, subtraj_writes
-
-    @property
-    def is_cuda(self):
-        return self.last_fc.weight.is_cuda
 
     def get_action(self, augmented_obs):
         """
@@ -605,15 +594,12 @@ class MemoryPolicy(PyTorchModule):
         obs, memory = augmented_obs
         obs = np.expand_dims(obs, axis=0)
         memory = np.expand_dims(memory, axis=0)
-        obs = Variable(torch.from_numpy(obs).float(), requires_grad=False)
-        memory = Variable(torch.from_numpy(memory).float(), requires_grad=False)
-        if self.is_cuda:
-            obs = obs.cuda()
-            memory = memory.cuda()
+        obs = Variable(from_numpy(obs).float(), requires_grad=False)
+        memory = Variable(from_numpy(memory).float(), requires_grad=False)
         action, write = self.get_flat_output(obs, memory)
         return (
-                   np.squeeze(get_numpy(action, self.is_cuda), axis=0),
-                   np.squeeze(get_numpy(write, self.is_cuda), axis=0),
+                   np.squeeze(get_numpy(action), axis=0),
+                   np.squeeze(get_numpy(write), axis=0),
                ), {}
 
     def get_flat_output(self, obs, initial_memories):
