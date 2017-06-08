@@ -320,14 +320,14 @@ class BpttDdpg(OnlineAlgorithm):
         critic_dict = self.get_critic_output_dict(subtraj_batch)
         for name, tensor in critic_dict.items():
             statistics.update(create_stats_ordered_dict(
-                '{}QF {}'.format(stat_prefix, name),
+                '{} QF {}'.format(stat_prefix, name),
                 self.get_numpy(tensor)
             ))
 
         policy_dict = self.get_policy_output_dict(subtraj_batch)
         for name, tensor in policy_dict.items():
             statistics.update(create_stats_ordered_dict(
-                '{}Policy {}'.format(stat_prefix, name),
+                '{} Policy {}'.format(stat_prefix, name),
                 self.get_numpy(tensor)
             ))
         return statistics
@@ -573,8 +573,8 @@ class MemoryPolicy(PyTorchModule):
             subtraj_actions = subtraj_actions.cuda()
         for i in range(subsequence_length):
             all_inputs = all_subtraj_inputs[:, i, :]
-            h1 = F.relu(self.fc1(all_inputs))
-            h2 = F.relu(self.fc2(h1))
+            h1 = F.tanh(self.fc1(all_inputs))
+            h2 = F.tanh(self.fc2(h1))
             action = F.tanh(self.last_fc(h2))
             subtraj_actions[:, i, :] = action
 
