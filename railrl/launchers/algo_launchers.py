@@ -447,6 +447,7 @@ def bptt_ddpg_launcher(variant):
     replay_buffer_class = variant['replay_buffer_class']
     replay_buffer_params = variant['replay_buffer_params']
     replay_buffer_params['memory_dim'] = memory_dim
+    memory_aug_params = variant['memory_aug_params']
 
     env_es_class = es_params['env_es_class']
     env_es_params = es_params['env_es_params']
@@ -467,6 +468,7 @@ def bptt_ddpg_launcher(variant):
     env = ContinuousMemoryAugmented(
         raw_env,
         num_memory_states=memory_dim,
+        **memory_aug_params
     )
 
     policy = None
