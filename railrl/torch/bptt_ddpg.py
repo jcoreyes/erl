@@ -165,17 +165,15 @@ class BpttDdpg(OnlineAlgorithm):
         self.action_policy_optimizer.zero_grad()
         policy_loss.backward(retain_variables=True)
         self.write_policy_optimizer.zero_grad()
+        # self.qf_optimizer.zero_grad()
         bellman_loss.backward(retain_variables=True)
+        # self.qf_optimizer.step()
         self.action_policy_optimizer.step()
         self.write_policy_optimizer.step()
 
         self.pool.update_write_subtrajectories(
             self.get_numpy(policy_dict['New Writes']), start_indices
         )
-
-        # self.qf_optimizer.zero_grad()
-        # bellman_errors.mean().backward()
-        # self.qf_optimizer.step()
 
     def get_policy_output_dict(self, subtraj_batch):
         """
@@ -269,10 +267,11 @@ class BpttDdpg(OnlineAlgorithm):
         paths = self._sample_paths(epoch)
         statistics = OrderedDict()
 
-        statistics.update(self._statistics_from_paths(exploration_paths,
-                                                      "Exploration"))
         statistics.update(self._statistics_from_paths(paths, "Test"))
         statistics.update(self._get_other_statistics())
+        if len(exploration_paths) > 0:
+            statistics.update(self._statistics_from_paths(exploration_paths,
+                                                          "Exploration"))
 
         statistics['AverageReturn'] = get_average_returns(paths)
         statistics['Epoch'] = epoch
@@ -311,6 +310,16 @@ class BpttDdpg(OnlineAlgorithm):
         ))
         statistics.update(create_stats_ordered_dict(
             'DiscountedReturns', discounted_returns, stat_prefix=stat_prefix
+        ))
+        env_actions = np.vstack([path["actions"][:self.action_dim] for path in
+                                 paths])
+        writes = np.vstack([path["actions"][self.action_dim:] for path in
+                                 paths])
+        statistics.update(create_stats_ordered_dict(
+            'Env Actions', env_actions, stat_prefix=stat_prefix
+        ))
+        statistics.update(create_stats_ordered_dict(
+            'Writes', writes, stat_prefix=stat_prefix
         ))
         return statistics
 
