@@ -39,7 +39,10 @@ def get_tf_time():
     for _ in range(num_iters):
         X, y = get_batch()
         sess.run(train_op, {x_ph: X, y_ph: y})
-    return time.time() - start_time
+    length = time.time() - start_time
+    sess.close()
+
+    return length
 
 def get_pt_time(cuda=True):
     lstm = nn.LSTM(x_dim, y_dim, 1, batch_first=True)
@@ -102,8 +105,11 @@ def get_pt_unrolled_time(cuda=True):
 def main():
     print("GPU")
     print(get_tf_time())
+    time.sleep(1)
     print(get_pt_time())
+    time.sleep(1)
     print(get_pt_unrolled_time())
+    time.sleep(1)
 
     os.environ['CUDA_VISIBLE_DEVICES'] = ""
     print("No GPU")
