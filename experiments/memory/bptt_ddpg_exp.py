@@ -38,6 +38,7 @@ from railrl.misc.hypopt import optimize_and_save
 from railrl.policies.memory.lstm_memory_policy import (
     SeparateLstmLinearCell,
     SeparateRWALinearCell,
+    LstmLinearCell,
 )
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 
@@ -68,7 +69,7 @@ if __name__ == '__main__':
     n_seeds = 1
     mode = 'here'
     # exp_prefix = "dev-bptt-ddpg"
-    exp_prefix = "6-5-dev-bptt-ddpg-rwa"
+    exp_prefix = "6-8-dev-bptt-ddpg-tf"
     run_mode = 'none'
     version = 'dev'
     num_hp_settings = 100
@@ -96,9 +97,9 @@ if __name__ == '__main__':
     """
     env_class = HighLow
     # env_class = WaterMazeEasy
-    H = 32
-    num_steps_per_iteration = 1000
-    num_iterations = 30
+    H = 16
+    num_steps_per_iteration = 100
+    num_iterations = 50
 
     eval_samples = 400
     env_params = dict(
@@ -133,23 +134,28 @@ if __name__ == '__main__':
         extra_train_period=100,
         qf_weight_decay=0,
         qf_total_loss_tolerance=0.03,
-        train_qf_on_all=False,
+        train_qf_on_all=True,
         dropout_keep_prob=1.,
         # Policy hps
         policy_learning_rate=1e-3,
         max_num_q_updates=1000,
         train_policy=True,
         write_policy_learning_rate=1e-5,
-        train_policy_on_all_qf_timesteps=False,
-        write_only_optimize_bellman=True,
+        train_policy_on_all_qf_timesteps=True,
+        # write_only_optimize_bellman=True,
+        # env_action_minimize_bellman_loss=True,
+        write_only_optimize_bellman=False,
+        env_action_minimize_bellman_loss=False,
         # memory
-        num_bptt_unrolls=32,
-        bpt_bellman_error_weight=10,
+        num_bptt_unrolls=16,
+        # bpt_bellman_error_weight=10,
+        bpt_bellman_error_weight=0,
         reward_low_bellman_error_weight=0.,
         saved_write_loss_weight=0,
         # Replay buffer
         replay_pool_size=100000,
         compute_gradients_immediately=False,
+        # TODO: figure out why this matters if we're doing full BPTT
         save_new_memories_back_to_replay_buffer=True,
         refresh_entire_buffer_period=None,
     )
@@ -157,17 +163,17 @@ if __name__ == '__main__':
     # noinspection PyTypeChecker
     policy_params = dict(
         # rnn_cell_class=LstmLinearCell,
-        # rnn_cell_class=SeparateLstmLinearCell,
+        rnn_cell_class=SeparateLstmLinearCell,
         # rnn_cell_class=LstmLinearCellNoiseAll,
         # rnn_cell_class=DebugCell,
-        rnn_cell_class=SeparateRWALinearCell,
+        # rnn_cell_class=SeparateRWALinearCell,
         rnn_cell_params=dict(
-            # use_peepholes=True,
+            use_peepholes=True,
             env_noise_std=0,
             memory_noise_std=0,
             output_nonlinearity=tf.nn.tanh,
-            env_hidden_sizes=[],
-            env_hidden_activation=tf.tanh,
+            env_hidden_sizes=[100, 100],
+            env_hidden_activation=tf.nn.tanh,
         )
     )
 
@@ -247,6 +253,9 @@ if __name__ == '__main__':
         # replay_buffer_class=UpdatableSubtrajReplayBuffer,
         replay_buffer_params=dict(
             keep_old_fraction=0.9,
+        ),
+        memory_aug_params=dict(
+            max_magnitude=1e6,
         ),
     )
 
@@ -422,6 +431,8 @@ if __name__ == '__main__':
                     variant=variant,
                     exp_id=exp_id,
                 )
+    elif run_mode == 'ablation':
+        pass
     else:
         for _ in range(n_seeds):
             seed = random.randint(0, 10000)
