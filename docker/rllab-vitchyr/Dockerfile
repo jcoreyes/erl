@@ -49,10 +49,10 @@ RUN apt-get -y install libgtk2.0-0
 RUN pip install gym
 #RUN apt-get -y install ffmpeg
 RUN apt-get -y install libav-tools
-CMD alias ffmpeg="avconv"
+RUN alias ffmpeg="avconv"
 
 # ========== Add codebase stub ==========
-CMD mkdir /root/code
+RUN mkdir /root/code
 ADD rllab-vitchyr-env.yml /root/code/environment.yml
 RUN conda env create -f /root/code/environment.yml
 
