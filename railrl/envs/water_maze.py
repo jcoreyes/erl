@@ -34,7 +34,7 @@ class WaterMaze(MujocoEnv):
         )
         self.MAX_GOAL_DIST = self.BOUNDARY_DIST - self.BOUNDARY_RADIUS
         self.l2_action_penalty_weight = l2_action_penalty_weight
-        self.horizon = horizon
+        self._horizon = horizon
         self._t = 0
         self._on_platform_history = deque(maxlen=5)
         for _ in range(5):
@@ -48,6 +48,10 @@ class WaterMaze(MujocoEnv):
             self.action_space,
         )
         self.reset_model()
+
+    @property
+    def horizon(self):
+        return self._horizon
 
     def _create_observation_space(self):
         num_obs = 4 if self.include_velocity else 2
