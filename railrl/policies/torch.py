@@ -37,7 +37,7 @@ class RWACell(PyTorchModule):
 
     def forward(self, inputs, state):
         # n, d, h, a_max = state
-        n, d, h = state
+        h, n, d = state
 
         u = self.fc_u(inputs)
         g = self.fc_g(torch.cat((inputs, h), dim=1))
@@ -59,9 +59,7 @@ class RWACell(PyTorchModule):
         d_new = d + weight
         h_new = F.tanh(n_new / d_new)
 
-        next_state = (n_new, d_new, h_new)
-
-        return h_new, next_state
+        return h_new, n_new, d_new
 
 
 class MemoryPolicy(PyTorchModule):
@@ -86,9 +84,13 @@ class MemoryPolicy(PyTorchModule):
         self.fc1 = nn.Linear(obs_dim + memory_dim, fc1_size)
         self.fc2 = nn.Linear(fc1_size, fc2_size)
         self.last_fc = nn.Linear(fc2_size, action_dim)
-        self.rnn_cell = BNLSTMCell(self.obs_dim, self.memory_dim // 2)
-        # self.rnn_cell = LSTMCell(self.obs_dim, self.memory_dim // 2)
-        # self.rnn_cell = RWACell(self.obs_dim, self.memory_dim // 3)
+        self.num_splits_for_rnn_internally = 2
+        self.rnn_cell = BNLSTMCell(
+            self.obs_dim, self.memory_dim // self.num_splits_for_rnn_internally
+        )
+        # self.rnn_cell = RWACell(
+        #     self.obs_dim, self.memory_dim // self.num_splits_for_rnn_internally
+        # )
         self.init_weights(init_w)
 
     def init_weights(self, init_w):
@@ -122,19 +124,11 @@ class MemoryPolicy(PyTorchModule):
         """
         Create the new writes.
         """
-        # hx, cx = torch.split(initial_memory, self.memory_dim // 2, dim=1)
-        # new_hxs = Variable(
-        #     ptu.FloatTensor(batch_size, subsequence_length, self.memory_dim // 2)
-        # )
-        # new_cxs = Variable(
-        #     ptu.FloatTensor(batch_size, subsequence_length, self.memory_dim // 2)
-        # )
-        # for i in range(subsequence_length):
-        #     hx, cx = self.rnn_cell(obs[:, i, :], (hx, cx))
-        #     new_hxs[:, i, :] = hx
-        #     new_cxs[:, i, :] = cx
-        # subtraj_writes = torch.cat((new_hxs, new_cxs), dim=2)
-        state = torch.split(initial_memory, self.memory_dim // 2, dim=1)
+        state = torch.split(
+            initial_memory,
+            self.memory_dim // self.num_splits_for_rnn_internally,
+            dim=1,
+        )
         subtraj_writes = Variable(
             ptu.FloatTensor(batch_size, subsequence_length, self.memory_dim)
         )
