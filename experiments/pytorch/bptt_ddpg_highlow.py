@@ -12,6 +12,8 @@ from railrl.launchers.launcher_util import (
     run_experiment,
     set_seed,
 )
+from railrl.policies.torch import MemoryPolicy
+from railrl.qfunctions.torch import MemoryQFunction
 
 
 def experiment(variant):
@@ -48,9 +50,25 @@ def experiment(variant):
         **memory_es_params
     )
     es = ProductStrategy([env_strategy, write_strategy])
+    qf = MemoryQFunction(
+        int(raw_env.observation_space.flat_dim),
+        int(raw_env.action_space.flat_dim),
+        memory_dim,
+        100,
+        100,
+    )
+    policy = MemoryPolicy(
+        int(raw_env.observation_space.flat_dim),
+        int(raw_env.action_space.flat_dim),
+        memory_dim,
+        100,
+        100,
+    )
     algorithm = BpttDdpg(
         env,
         es,
+        qf=qf,
+        policy=policy,
         **algo_params
     )
     algorithm.train()
@@ -61,15 +79,15 @@ if __name__ == '__main__':
     mode = "here"
     exp_prefix = "dev-pytorch"
 
-    n_seeds = 10
-    mode = "ec2"
-    exp_prefix = "6-8-hl-tf-bptt-check-limits"
+    # n_seeds = 10
+    # mode = "ec2"
+    # exp_prefix = "6-8-hl-tf-bptt-check-limits"
 
     use_gpu = True
     if mode == "ec2":
         use_gpu = False
 
-    H = 128
+    H = 32
     subtraj_length = 8
     version = "H = {0}, subtraj length = {1}".format(H, subtraj_length)
     # noinspection PyTypeChecker
@@ -83,8 +101,8 @@ if __name__ == '__main__':
         ),
         algo_params=dict(
             subtraj_length=subtraj_length,
-            num_epochs=40,
-            num_steps_per_epoch=1000,
+            num_epochs=50,
+            num_steps_per_epoch=100,
             discount=1.,
             use_gpu=use_gpu,
             policy_optimize_bellman=False,

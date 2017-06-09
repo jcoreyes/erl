@@ -4,6 +4,8 @@ Exampling of running DDPG on HalfCheetah.
 from railrl.envs.point_env import PointEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
+from railrl.policies.torch import FeedForwardPolicy
+from railrl.qfunctions.torch import FeedForwardQFunction
 from railrl.torch.ddpg import DDPG
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.envs.gym_env import GymEnv
@@ -20,9 +22,23 @@ def example(variant):
     env = CartpoleEnv()
     env = normalize(env)
     es = OUStrategy(env_spec=env.spec)
+    qf = FeedForwardQFunction(
+        int(env.observation_space.flat_dim),
+        int(env.action_space.flat_dim),
+        400,
+        300,
+    )
+    policy = FeedForwardPolicy(
+        int(env.observation_space.flat_dim),
+        int(env.action_space.flat_dim),
+        400,
+        300,
+    )
     algorithm = DDPG(
         env,
         exploration_strategy=es,
+        qf=qf,
+        policy=policy,
         **variant['algo_params']
     )
     algorithm.train()

@@ -16,8 +16,8 @@ def run_linear_ocm_exp(variant):
         set_seed,
     )
     from railrl.exploration_strategies.ou_strategy import OUStrategy
-    from railrl.policies.nn_policy import FeedForwardPolicy
-    from railrl.qfunctions.nn_qfunction import FeedForwardCritic
+    from railrl.policies.torch import FeedForwardPolicy
+    from railrl.qfunctions.torch import FeedForwardQFunction
 
     """
     Set up experiment variants.
@@ -42,9 +42,23 @@ def run_linear_ocm_exp(variant):
         env_spec=env.spec,
         **ou_params
     )
+    qf = FeedForwardQFunction(
+        int(env.observation_space.flat_dim),
+        int(env.action_space.flat_dim),
+        400,
+        300,
+    )
+    policy = FeedForwardPolicy(
+        int(env.observation_space.flat_dim),
+        int(env.action_space.flat_dim),
+        400,
+        300,
+    )
     algorithm = DDPG(
         env,
         es,
+        qf=qf,
+        policy=policy,
         **algo_params
     )
 
