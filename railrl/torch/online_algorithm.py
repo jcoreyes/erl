@@ -143,7 +143,9 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                     "Training Time: {0}".format(time.time() - start_time)
                 )
             else:
-                logger.log("Not training yet.")
+                logger.log("Not training yet. Time: {}".format(
+                    time.time() - start_time)
+                )
             start_time = time.time()
             self.evaluate(epoch, paths)
             params = self.get_epoch_snapshot(epoch)
