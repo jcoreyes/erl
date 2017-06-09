@@ -4,10 +4,64 @@ from torch import nn as nn
 from torch.autograd import Variable
 from torch.nn import functional as F
 
-from railrl.torch.bnlstm import BNLSTMCell
+from railrl.torch.bnlstm import BNLSTMCell, LSTMCell
 from railrl.torch.core import PyTorchModule
-from railrl.torch.pytorch_util import FloatTensor, from_numpy, get_numpy, \
-    fanin_init
+from railrl.torch import pytorch_util as ptu
+
+
+class FlattenLSTMCell(nn.Module):
+    def __init__(self, lstm_cell):
+        self.lstm_cell = lstm_cell
+
+    def forward(self, input, state):
+        hx, cx = torch.split(state, self.memory_dim // 2, dim=1)
+        new_hx, new_cx = self.lstm_cell(input, (hx, cx))
+        new_state = torch.cat((new_hx, new_cx), dim=1)
+        return hx, new_state
+
+
+class RWACell(PyTorchModule):
+    def __init__(
+            self,
+            input_dim,
+            num_units,
+    ):
+        self.save_init_params(locals())
+        super().__init__()
+        self.input_dim = input_dim
+        self.num_units = num_units
+
+        self.fc_u = nn.Linear(input_dim, num_units)
+        self.fc_g = nn.Linear(input_dim + num_units, num_units)
+        self.fc_a = nn.Linear(input_dim + num_units, num_units)
+
+    def forward(self, inputs, state):
+        # n, d, h, a_max = state
+        n, d, h = state
+
+        u = self.fc_u(inputs)
+        g = self.fc_g(torch.cat((inputs, h), dim=1))
+        z = u * F.tanh(g)
+        a = self.fc_a(torch.cat((inputs, h), dim=1))
+
+        # Numerically stable update of numerator and denom
+        # a_newmax = ptu.maximum_2d(a_max, a)
+        # exp_diff = torch.exp(a_max-a_newmax)
+        # weight_scaled = torch.exp(a-a_newmax)
+        # n_new = n * exp_diff + z * weight_scaled
+        # d_new = d * exp_diff + weight_scaled
+        # h_new = F.tanh(n_new / d_new)
+
+        # next_state = (n_new, d_new, h_new, a_max)
+
+        weight = torch.exp(a)
+        n_new = n + z * weight
+        d_new = d + weight
+        h_new = F.tanh(n_new / d_new)
+
+        next_state = (n_new, d_new, h_new)
+
+        return h_new, next_state
 
 
 class MemoryPolicy(PyTorchModule):
@@ -32,13 +86,15 @@ class MemoryPolicy(PyTorchModule):
         self.fc1 = nn.Linear(obs_dim + memory_dim, fc1_size)
         self.fc2 = nn.Linear(fc1_size, fc2_size)
         self.last_fc = nn.Linear(fc2_size, action_dim)
-        self.lstm_cell = BNLSTMCell(self.obs_dim, self.memory_dim // 2)
+        self.rnn_cell = BNLSTMCell(self.obs_dim, self.memory_dim // 2)
+        # self.rnn_cell = LSTMCell(self.obs_dim, self.memory_dim // 2)
+        # self.rnn_cell = RWACell(self.obs_dim, self.memory_dim // 3)
         self.init_weights(init_w)
 
     def init_weights(self, init_w):
-        self.fc1.weight.data = fanin_init(self.fc1.weight.data.size())
+        self.fc1.weight.data = ptu.fanin_init(self.fc1.weight.data.size())
         self.fc1.bias.data *= 0
-        self.fc2.weight.data = fanin_init(self.fc2.weight.data.size())
+        self.fc2.weight.data = ptu.fanin_init(self.fc2.weight.data.size())
         self.fc2.bias.data *= 0
         self.last_fc.weight.data.uniform_(-init_w, init_w)
         self.last_fc.bias.data.uniform_(-init_w, init_w)
@@ -49,7 +105,7 @@ class MemoryPolicy(PyTorchModule):
                 yield param
 
     def write_parameters(self):
-        return self.lstm_cell.parameters()
+        return self.rnn_cell.parameters()
 
     def forward(self, obs, initial_memory):
         """
@@ -66,18 +122,25 @@ class MemoryPolicy(PyTorchModule):
         """
         Create the new writes.
         """
-        hx, cx = torch.split(initial_memory, self.memory_dim // 2, dim=1)
-        new_hxs = Variable(
-            FloatTensor(batch_size, subsequence_length, self.memory_dim // 2)
-        )
-        new_cxs = Variable(
-            FloatTensor(batch_size, subsequence_length, self.memory_dim // 2)
+        # hx, cx = torch.split(initial_memory, self.memory_dim // 2, dim=1)
+        # new_hxs = Variable(
+        #     ptu.FloatTensor(batch_size, subsequence_length, self.memory_dim // 2)
+        # )
+        # new_cxs = Variable(
+        #     ptu.FloatTensor(batch_size, subsequence_length, self.memory_dim // 2)
+        # )
+        # for i in range(subsequence_length):
+        #     hx, cx = self.rnn_cell(obs[:, i, :], (hx, cx))
+        #     new_hxs[:, i, :] = hx
+        #     new_cxs[:, i, :] = cx
+        # subtraj_writes = torch.cat((new_hxs, new_cxs), dim=2)
+        state = torch.split(initial_memory, self.memory_dim // 2, dim=1)
+        subtraj_writes = Variable(
+            ptu.FloatTensor(batch_size, subsequence_length, self.memory_dim)
         )
         for i in range(subsequence_length):
-            hx, cx = self.lstm_cell(obs[:, i, :], (hx, cx))
-            new_hxs[:, i, :] = hx
-            new_cxs[:, i, :] = cx
-        subtraj_writes = torch.cat((new_hxs, new_cxs), dim=2)
+            state = self.rnn_cell(obs[:, i, :], state)
+            subtraj_writes[:, i, :] = torch.cat(state, dim=1)
 
         # The reason that using a LSTM doesn't work is that this gives you only
         # the FINAL hx and cx, not all of them :(
@@ -107,7 +170,7 @@ class MemoryPolicy(PyTorchModule):
         all_subtraj_inputs = torch.cat([obs, memories], dim=2)
         # noinspection PyArgumentList
         subtraj_actions = Variable(
-            FloatTensor(batch_size, subsequence_length, self.action_dim)
+            ptu.FloatTensor(batch_size, subsequence_length, self.action_dim)
         )
         for i in range(subsequence_length):
             all_inputs = all_subtraj_inputs[:, i, :]
@@ -130,12 +193,12 @@ class MemoryPolicy(PyTorchModule):
         obs, memory = augmented_obs
         obs = np.expand_dims(obs, axis=0)
         memory = np.expand_dims(memory, axis=0)
-        obs = Variable(from_numpy(obs).float(), requires_grad=False)
-        memory = Variable(from_numpy(memory).float(), requires_grad=False)
+        obs = Variable(ptu.from_numpy(obs).float(), requires_grad=False)
+        memory = Variable(ptu.from_numpy(memory).float(), requires_grad=False)
         action, write = self.get_flat_output(obs, memory)
         return (
-                   np.squeeze(get_numpy(action), axis=0),
-                   np.squeeze(get_numpy(write), axis=0),
+                   np.squeeze(ptu.get_numpy(action), axis=0),
+                   np.squeeze(ptu.get_numpy(write), axis=0),
                ), {}
 
     def get_flat_output(self, obs, initial_memories):
@@ -184,9 +247,9 @@ class FeedForwardPolicy(PyTorchModule):
         self.init_weights(init_w)
 
     def init_weights(self, init_w):
-        self.fc1.weight.data = fanin_init(self.fc1.weight.data.size())
+        self.fc1.weight.data = ptu.fanin_init(self.fc1.weight.data.size())
         self.fc1.bias.data *= 0
-        self.fc2.weight.data = fanin_init(self.fc2.weight.data.size())
+        self.fc2.weight.data = ptu.fanin_init(self.fc2.weight.data.size())
         self.fc2.bias.data *= 0
         self.last_fc.weight.data.uniform_(-init_w, init_w)
         self.last_fc.bias.data.uniform_(-init_w, init_w)
@@ -198,7 +261,7 @@ class FeedForwardPolicy(PyTorchModule):
 
     def get_action(self, obs):
         obs = np.expand_dims(obs, axis=0)
-        obs = Variable(from_numpy(obs).float(), requires_grad=False)
+        obs = Variable(ptu.from_numpy(obs).float(), requires_grad=False)
         action = self.__call__(obs)
         action = action.squeeze(0)
         if self.last_fc.weight.is_cuda:
