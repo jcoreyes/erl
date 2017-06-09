@@ -13,7 +13,8 @@ from railrl.data_management.updatable_subtraj_replay_buffer import (
 )
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import get_average_returns
-from railrl.pythonplusplus import batch
+from railrl.pythonplusplus import batch, ConditionTimer
+from railrl.torch.bnlstm import BNLSTMCell
 from railrl.torch.core import PyTorchModule
 from railrl.torch.online_algorithm import OnlineAlgorithm
 from railrl.torch.pytorch_util import (
@@ -39,6 +40,7 @@ class BpttDdpg(OnlineAlgorithm):
             subtraj_length,
             tau=0.01,
             use_soft_update=True,
+            refresh_entire_buffer_period=None,
             **kwargs
     ):
         super().__init__(*args, **kwargs)
@@ -89,6 +91,11 @@ class BpttDdpg(OnlineAlgorithm):
         self.write_policy_optimizer = optim.Adam(
             self.policy.write_parameters(), lr=self.write_policy_learning_rate
         )
+
+        self.should_refresh_buffer = ConditionTimer(
+            refresh_entire_buffer_period
+        )
+
         self.use_gpu = self.use_gpu and torch.cuda.is_available()
         set_gpu_mode(self.use_gpu)
         if self.use_gpu:
@@ -277,9 +284,8 @@ class BpttDdpg(OnlineAlgorithm):
 
         statistics.update(self._statistics_from_paths(paths, "Test"))
         statistics.update(self._get_other_statistics())
-        if len(exploration_paths) > 0:
-            statistics.update(self._statistics_from_paths(exploration_paths,
-                                                          "Exploration"))
+        statistics.update(self._statistics_from_paths(exploration_paths,
+                                                      "Exploration"))
 
         statistics['AverageReturn'] = get_average_returns(paths)
         statistics['Epoch'] = epoch
@@ -290,6 +296,9 @@ class BpttDdpg(OnlineAlgorithm):
         self.log_diagnostics(paths)
 
     def _statistics_from_paths(self, paths, stat_prefix):
+        if len(paths) == 0:
+            return {}
+
         eval_pool = UpdatableSubtrajReplayBuffer(
             len(paths) * self.max_path_length,
             self.env,
@@ -299,6 +308,8 @@ class BpttDdpg(OnlineAlgorithm):
         for path in paths:
             eval_pool.add_trajectory(path)
         raw_subtraj_batch = eval_pool.get_all_valid_subtrajectories()
+        if raw_subtraj_batch is None:  # No valid subtraj's
+            return {}
         subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
         statistics = self._statistics_from_subtraj_batch(
             subtraj_batch, stat_prefix=stat_prefix
@@ -407,24 +418,25 @@ class BpttDdpg(OnlineAlgorithm):
         if not self._can_train():
             return
 
-        all_start_traj_indices = (
-            self.pool.get_all_valid_trajectory_start_indices()
-        )
-        for start_traj_indices in batch(
-                all_start_traj_indices,
-                self.max_number_trajectories_loaded_at_once,
-        ):
-            raw_subtraj_batch, start_indices = (
-                self.pool.get_trajectory_minimal_covering_subsequences(
-                    start_traj_indices, self.training_env.horizon)
+        if self.should_refresh_buffer.check(n_steps_total):
+            all_start_traj_indices = (
+                self.pool.get_all_valid_trajectory_start_indices()
             )
-            subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
-            subtraj_obs = subtraj_batch['env_obs']
-            initial_memories = subtraj_batch['memories'][:, 0, :]
-            _, policy_writes = self.policy(subtraj_obs, initial_memories)
-            self.pool.update_write_subtrajectories(
-                get_numpy(policy_writes), start_indices
-            )
+            for start_traj_indices in batch(
+                    all_start_traj_indices,
+                    self.max_number_trajectories_loaded_at_once,
+            ):
+                raw_subtraj_batch, start_indices = (
+                    self.pool.get_trajectory_minimal_covering_subsequences(
+                        start_traj_indices, self.training_env.horizon)
+                )
+                subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
+                subtraj_obs = subtraj_batch['env_obs']
+                initial_memories = subtraj_batch['memories'][:, 0, :]
+                _, policy_writes = self.policy(subtraj_obs, initial_memories)
+                self.pool.update_write_subtrajectories(
+                    get_numpy(policy_writes), start_indices
+                )
 
 
 def flatten_subtraj_batch(subtraj_batch):
@@ -524,7 +536,8 @@ class MemoryPolicy(PyTorchModule):
         self.fc1 = nn.Linear(obs_dim + memory_dim, fc1_size)
         self.fc2 = nn.Linear(fc1_size, fc2_size)
         self.last_fc = nn.Linear(fc2_size, action_dim)
-        self.lstm_cell = nn.LSTMCell(self.obs_dim, self.memory_dim // 2)
+        # self.lstm_cell = nn.LSTMCell(self.obs_dim, self.memory_dim // 2)
+        self.lstm_cell = BNLSTMCell(self.obs_dim, self.memory_dim // 2)
 
     def action_parameters(self):
         for fc in [self.fc1, self.fc2, self.last_fc]:

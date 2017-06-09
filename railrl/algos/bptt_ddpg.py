@@ -566,6 +566,8 @@ class BpttDDPG(DDPG):
         """
         Backprop the Bellman error through time, i.e. through dQ/dwrite action
         """
+        # TODO(vitchyr): This is only optimize the Bellman error of the LAST
+        # time step
         self.next_env_obs_ph_for_policy_bpt_bellman = tf.placeholder(
             tf.float32,
             [None, self._env_obs_dim]
