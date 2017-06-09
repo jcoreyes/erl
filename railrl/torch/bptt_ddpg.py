@@ -365,8 +365,8 @@ class BpttDdpg(OnlineAlgorithm):
     def _get_other_statistics(self):
         statistics = OrderedDict()
         for stat_prefix, validation in [
-            ('Validation ', True),
-            ('Train ', False),
+            ('Validation', True),
+            ('Train', False),
         ]:
             if (self.pool.num_can_sample(validation=validation) >=
                     self.train_validation_batch_size):
