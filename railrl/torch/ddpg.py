@@ -182,6 +182,13 @@ class DDPG(OnlineAlgorithm):
         statistics.update(create_stats_ordered_dict('DiscountedReturns',
                                                     discounted_returns,
                                                     stat_prefix=stat_prefix))
+        actions = np.vstack([path["actions"] for path in paths])
+        statistics.update(create_stats_ordered_dict(
+            'Actions', actions, stat_prefix=stat_prefix
+        ))
+        statistics.update(create_stats_ordered_dict(
+            'Num Paths', len(paths), stat_prefix=stat_prefix
+        ))
         return statistics
 
 
