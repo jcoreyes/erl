@@ -1,3 +1,4 @@
+from railrl.torch.pytorch_util import set_gpu_mode
 from rllab.sampler.utils import rollout
 import argparse
 import joblib
@@ -16,6 +17,7 @@ if __name__ == "__main__":
                         help='Max length of rollout')
     parser.add_argument('--speedup', type=float, default=1,
                         help='Speedup')
+    parser.add_argument('--use_gpu', action='store_true')
     args = parser.parse_args()
 
     policy = None
@@ -32,6 +34,9 @@ if __name__ == "__main__":
             policy = qf.implicit_policy
         env = data['env']
         print("Policy loaded")
+        if args.use_gpu:
+            set_gpu_mode(True)
+            policy.cuda()
         while True:
             try:
                 path = rollout(

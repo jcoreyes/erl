@@ -2,22 +2,22 @@ import abc
 
 from torch import nn as nn
 
-from railrl.torch.pytorch_util import copy_model_params_from_to
+from railrl.torch import pytorch_util as ptu
 from rllab.core.serializable import Serializable
 
 
 class PyTorchModule(nn.Module, Serializable, metaclass=abc.ABCMeta):
 
     def get_param_values(self):
-        return [param.data for param in self.parameters()]
+        return [ptu.get_numpy(param) for param in self.parameters()]
 
     def set_param_values(self, param_values):
         for param, value in zip(self.parameters(), param_values):
-            param.data = value
+            param.data = ptu.from_numpy(value)
 
     def copy(self):
         copy = Serializable.clone(self)
-        copy_model_params_from_to(self, copy)
+        ptu.copy_model_params_from_to(self, copy)
         return copy
 
     def save_init_params(self, locals):
@@ -35,3 +35,12 @@ class PyTorchModule(nn.Module, Serializable, metaclass=abc.ABCMeta):
         :return: 
         """
         Serializable.quick_init(self, locals)
+
+    def __getstate__(self):
+        d = Serializable.__getstate__(self)
+        d["params"] = self.get_param_values()
+        return d
+
+    def __setstate__(self, d):
+        Serializable.__setstate__(self, d)
+        self.set_param_values(d["params"])
