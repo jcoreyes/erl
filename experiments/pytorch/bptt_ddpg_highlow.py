@@ -1,10 +1,12 @@
 """
 Try the PyTorch version of BPTT DDPG on HighLow env.
 """
+import random
 from railrl.envs.memory.continuous_memory_augmented import (
     ContinuousMemoryAugmented
 )
 from railrl.envs.memory.high_low import HighLow
+from railrl.exploration_strategies.noop import NoopStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import (
     run_experiment,
@@ -23,6 +25,7 @@ def experiment(variant):
     es_params = variant['es_params']
     memory_dim = variant['memory_dim']
     env_params = variant['env_params']
+    memory_aug_params = variant['memory_aug_params']
 
     env_es_class = es_params['env_es_class']
     env_es_params = es_params['env_es_params']
@@ -34,6 +37,7 @@ def experiment(variant):
     env = ContinuousMemoryAugmented(
         raw_env,
         num_memory_states=memory_dim,
+        **memory_aug_params
     )
     env_strategy = env_es_class(
         env_spec=raw_env.spec,
@@ -57,26 +61,36 @@ if __name__ == '__main__':
     mode = "here"
     exp_prefix = "dev-pytorch"
 
-    use_gpu = False
+    # n_seeds = 10
+    # mode = "ec2"
+    # exp_prefix = "6-8-check-new-docker"
+
+    use_gpu = True
+    if mode == "ec2":
+        use_gpu = False
     # noinspection PyTypeChecker
     variant = dict(
         memory_dim=20,
         env_params=dict(
-            num_steps=8,
+            num_steps=64,
+        ),
+        memory_aug_params=dict(
+            max_magnitude=1,
         ),
         algo_params=dict(
-            subtraj_length=4,
-            num_epochs=50,
-            num_steps_per_epoch=1000,
+            subtraj_length=64,
+            num_epochs=100,
+            num_steps_per_epoch=100,
             discount=1.,
             use_gpu=use_gpu,
         ),
         es_params=dict(
             env_es_class=OUStrategy,
             env_es_params=dict(
-                max_sigma=0.5,
+                max_sigma=1,
                 min_sigma=None,
             ),
+            # memory_es_class=NoopStrategy,
             memory_es_class=OUStrategy,
             memory_es_params=dict(
                 max_sigma=1,
@@ -84,9 +98,9 @@ if __name__ == '__main__':
             ),
         ),
     )
-    exp_id = -1
-    for seed in range(n_seeds):
-        exp_id += 1
+    exp_id = 0
+    for _ in range(n_seeds):
+        seed = random.randint(0, 10000)
         set_seed(seed)
         variant['seed'] = seed
         variant['exp_id'] = exp_id
