@@ -18,6 +18,7 @@ class MemoryPolicy(PyTorchModule):
             memory_dim,
             fc1_size,
             fc2_size,
+            init_w=1e-3,
     ):
         self.save_init_params(locals())
         super().__init__()
@@ -31,8 +32,16 @@ class MemoryPolicy(PyTorchModule):
         self.fc1 = nn.Linear(obs_dim + memory_dim, fc1_size)
         self.fc2 = nn.Linear(fc1_size, fc2_size)
         self.last_fc = nn.Linear(fc2_size, action_dim)
-        # self.lstm_cell = nn.LSTMCell(self.obs_dim, self.memory_dim // 2)
         self.lstm_cell = BNLSTMCell(self.obs_dim, self.memory_dim // 2)
+        self.init_weights(init_w)
+
+    def init_weights(self, init_w):
+        self.fc1.weight.data = fanin_init(self.fc1.weight.data.size())
+        self.fc1.bias.data *= 0
+        self.fc2.weight.data = fanin_init(self.fc2.weight.data.size())
+        self.fc2.bias.data *= 0
+        self.last_fc.weight.data.uniform_(-init_w, init_w)
+        self.last_fc.bias.data.uniform_(-init_w, init_w)
 
     def action_parameters(self):
         for fc in [self.fc1, self.fc2, self.last_fc]:
@@ -147,7 +156,7 @@ class MemoryPolicy(PyTorchModule):
     def reset(self):
         pass
 
-    def log_diagnostics(self):
+    def log_diagnostics(self, paths):
         pass
 
 
