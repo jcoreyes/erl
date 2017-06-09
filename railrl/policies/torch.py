@@ -85,6 +85,7 @@ class MemoryPolicy(PyTorchModule):
         self.fc2 = nn.Linear(fc1_size, fc2_size)
         self.last_fc = nn.Linear(fc2_size, action_dim)
         self.num_splits_for_rnn_internally = 2
+        assert memory_dim % self.num_splits_for_rnn_internally == 0
         self.rnn_cell = BNLSTMCell(
             self.obs_dim, self.memory_dim // self.num_splits_for_rnn_internally
         )
