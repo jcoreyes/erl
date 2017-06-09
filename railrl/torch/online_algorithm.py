@@ -190,7 +190,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         pass
 
     def _can_train(self):
-        return self.pool.num_can_sample() >= self.batch_size
+        return self.pool.num_steps_can_sample() >= self.batch_size
 
     def get_epoch_snapshot(self, epoch):
         return dict(

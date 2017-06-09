@@ -271,11 +271,11 @@ class OnlineAlgorithm(RLAlgorithm):
             self._shutdown_worker()
 
     def _can_train(self, n_steps_total):
-        return (self.pool.num_can_sample() >= self.min_pool_size
+        return (self.pool.num_steps_can_sample() >= self.min_pool_size
                 and n_steps_total % self.num_steps_between_train == 0)
 
     def _can_eval(self):
-        return (self.pool.num_can_sample() >= self.min_pool_size and
+        return (self.pool.num_steps_can_sample() >= self.min_pool_size and
                 self.n_eval_samples > 0)
 
     def _switch_to_training_mode(self):

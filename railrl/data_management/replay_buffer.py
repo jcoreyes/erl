@@ -36,7 +36,7 @@ class ReplayBuffer(object, metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def num_can_sample(self):
+    def num_steps_can_sample(self):
         """
         :return: # of unique items that can be sampled.
         """

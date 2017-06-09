@@ -190,7 +190,13 @@ class SubtrajReplayBuffer(ReplayBuffer):
             return self._validation_start_indices
         return self._training_start_indices
 
-    def num_can_sample(self, return_all=False, validation=False):
+    def num_steps_can_sample(self, return_all=False, validation=False):
+        return self.num_subtrajs_can_sample(
+            return_all=return_all,
+            validation=validation,
+        ) * self._subtraj_length
+
+    def num_subtrajs_can_sample(self, return_all=False, validation=False):
         return len(self._valid_start_indices(
             return_all=return_all,
             validation=validation,

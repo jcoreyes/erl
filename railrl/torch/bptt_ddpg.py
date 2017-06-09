@@ -51,9 +51,10 @@ class BpttDdpg(OnlineAlgorithm):
         self.subtraj_length = subtraj_length
         self.policy_optimize_bellman = policy_optimize_bellman
 
-        self.train_validation_batch_size = 64
-        self.batch_size = 32
-        self.train_validation_batch_size = 64
+        self.num_subtrajs_per_batch = self.batch_size // self.subtraj_length
+        self.train_validation_num_subtrajs_per_batch = (
+            self.num_subtrajs_per_batch
+        )
         self.action_policy_learning_rate = 1e-3
         self.write_policy_learning_rate = 1e-5
         self.qf_learning_rate = 1e-3
@@ -61,7 +62,9 @@ class BpttDdpg(OnlineAlgorithm):
         self.target_hard_update_period = 1000
         self.tau = tau
         self.use_soft_update = use_soft_update
-        self.max_number_trajectories_loaded_at_once = self.batch_size
+        self.max_number_trajectories_loaded_at_once = (
+            self.num_subtrajs_per_batch
+        )
         self.pool = UpdatableSubtrajReplayBuffer(
             self.pool_size,
             self.env,
@@ -98,7 +101,8 @@ class BpttDdpg(OnlineAlgorithm):
 
     def _do_training(self, n_steps_total):
         raw_subtraj_batch, start_indices = self.pool.random_subtrajectories(
-            self.batch_size)
+            self.num_subtrajs_per_batch
+        )
         subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
         self.train_critic(subtraj_batch)
         self.train_policy(subtraj_batch, start_indices)
@@ -356,10 +360,10 @@ class BpttDdpg(OnlineAlgorithm):
             ('Validation', True),
             ('Train', False),
         ]:
-            if (self.pool.num_can_sample(validation=validation) >=
-                    self.train_validation_batch_size):
+            if (self.pool.num_subtrajs_can_sample(validation=validation) >=
+                    self.train_validation_num_subtrajs_per_batch):
                 raw_subtraj_batch = self.pool.random_subtrajectories(
-                    self.train_validation_batch_size,
+                    self.train_validation_num_subtrajs_per_batch,
                     validation=validation
                 )[0]
                 subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
@@ -371,6 +375,11 @@ class BpttDdpg(OnlineAlgorithm):
     """
     Random small functions.
     """
+    def _can_train(self):
+        return (
+            self.pool.num_subtrajs_can_sample() >= self.num_subtrajs_per_batch
+        )
+
     def _sample_paths(self, epoch):
         """
         Returns flattened paths.
