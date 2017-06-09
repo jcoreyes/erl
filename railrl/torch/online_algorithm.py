@@ -120,6 +120,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                     self.exploration_strategy.reset()
                     path_length = 0
                     num_paths_total += 1
+                    self.handle_rollout_ending(n_steps_total)
                     if len(observations) > 0:
                         paths.append(dict(
                             observations=tensor_utils.stack_tensor_list(observations),
@@ -202,5 +203,8 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
 
     def training_mode(self, mode):
         self.policy.train(mode)
+
+    def handle_rollout_ending(self, n_steps_total):
+        pass
 
 

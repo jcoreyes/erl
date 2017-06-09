@@ -13,6 +13,7 @@ from railrl.data_management.updatable_subtraj_replay_buffer import (
 )
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import get_average_returns
+from railrl.pythonplusplus import batch
 from railrl.torch.core import PyTorchModule
 from railrl.torch.online_algorithm import OnlineAlgorithm
 from railrl.torch.pytorch_util import (
@@ -56,6 +57,7 @@ class BpttDdpg(OnlineAlgorithm):
         self.target_hard_update_period = 1000
         self.tau = tau
         self.use_soft_update = use_soft_update
+        self.max_number_trajectories_loaded_at_once = self.batch_size
         self.pool = UpdatableSubtrajReplayBuffer(
             self.pool_size,
             self.env,
@@ -87,8 +89,6 @@ class BpttDdpg(OnlineAlgorithm):
         self.write_policy_optimizer = optim.Adam(
             self.policy.write_parameters(), lr=self.write_policy_learning_rate
         )
-        self.pps = list(self.policy.parameters())
-        self.qps = list(self.qf.parameters())
         self.use_gpu = self.use_gpu and torch.cuda.is_available()
         set_gpu_mode(self.use_gpu)
         if self.use_gpu:
@@ -165,15 +165,16 @@ class BpttDdpg(OnlineAlgorithm):
     def train_policy(self, subtraj_batch, start_indices):
         policy_dict = self.get_policy_output_dict(subtraj_batch)
 
-        policy_loss = policy_dict['loss']
+        policy_loss = policy_dict['Loss']
         bellman_errors = policy_dict['Bellman Errors']
         bellman_loss = self.bellman_error_loss_weight * bellman_errors.mean()
 
         self.action_policy_optimizer.zero_grad()
-        policy_loss.backward(retain_variables=True)
+        # policy_loss.backward(retain_variables=True)
         self.write_policy_optimizer.zero_grad()
+        policy_loss.backward()
         # self.qf_optimizer.zero_grad()
-        bellman_loss.backward(retain_variables=True)
+        # bellman_loss.backward(retain_variables=True)
         # self.qf_optimizer.step()
         self.action_policy_optimizer.step()
         self.write_policy_optimizer.step()
@@ -190,7 +191,7 @@ class BpttDdpg(OnlineAlgorithm):
         policy, including intermediate values that might be useful to log.
         """
         subtraj_obs = subtraj_batch['env_obs']
-        initial_memories = get_initial_memories(subtraj_batch)
+        initial_memories = subtraj_batch['memories'][:, 0, :]
         policy_actions, policy_writes = self.policy(subtraj_obs,
                                                     initial_memories)
         if self.subtraj_length > 1:
@@ -255,7 +256,7 @@ class BpttDdpg(OnlineAlgorithm):
             ('Y target', y_target),
             ('Y predicted', y_predicted),
             ('Bellman Errors', bellman_errors),
-            ('loss', policy_loss),
+            ('Loss', policy_loss),
             ('New Env Actions', flat_batch['policy_new_actions']),
             ('New Writes', policy_writes),
         ])
@@ -402,17 +403,35 @@ class BpttDdpg(OnlineAlgorithm):
             qf=self.qf,
         )
 
+    def handle_rollout_ending(self, n_steps_total):
+        if not self._can_train():
+            return
+
+        all_start_traj_indices = (
+            self.pool.get_all_valid_trajectory_start_indices()
+        )
+        for start_traj_indices in batch(
+                all_start_traj_indices,
+                self.max_number_trajectories_loaded_at_once,
+        ):
+            raw_subtraj_batch, start_indices = (
+                self.pool.get_trajectory_minimal_covering_subsequences(
+                    start_traj_indices, self.training_env.horizon)
+            )
+            subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
+            subtraj_obs = subtraj_batch['env_obs']
+            initial_memories = subtraj_batch['memories'][:, 0, :]
+            _, policy_writes = self.policy(subtraj_obs, initial_memories)
+            self.pool.update_write_subtrajectories(
+                get_numpy(policy_writes), start_indices
+            )
+
 
 def flatten_subtraj_batch(subtraj_batch):
     return {
         k: array.view(-1, array.size()[-1])
         for k, array in subtraj_batch.items()
     }
-
-
-def get_initial_memories(subtraj_batch):
-    return subtraj_batch['memories'][:, 0, :]
-
 
 
 def create_torch_subtraj_batch(subtraj_batch):
@@ -451,7 +470,7 @@ class MemoryQFunction(PyTorchModule):
         self.embedded_fc = nn.Linear(
             observation_hidden_size + action_dim + memory_dim,
             embedded_hidden_size,
-            )
+        )
         self.last_fc = nn.Linear(embedded_hidden_size, 1)
 
         self.init_weights(init_w)
