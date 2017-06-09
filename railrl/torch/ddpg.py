@@ -71,7 +71,6 @@ class DDPG(OnlineAlgorithm):
         actions = batch['actions']
         next_obs = batch['next_observations']
 
-
         """
         Optimize Policy.
         """
