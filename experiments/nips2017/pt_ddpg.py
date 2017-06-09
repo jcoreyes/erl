@@ -3,6 +3,7 @@ DDPG
 """
 from railrl.envs.memory.hidden_cartpole import NormalizedHiddenCartpoleEnv
 from railrl.envs.water_maze import WaterMazeMemory, WaterMazeEasy
+from railrl.exploration_strategies.noop import NoopStrategy
 from railrl.launchers.launcher_util import (
     run_experiment,
     set_seed,
@@ -36,6 +37,7 @@ def run_linear_ocm_exp(variant):
 
     env = env_class(**env_params)
 
+    # es = NoopStrategy(
     es = OUStrategy(
         env_spec=env.spec,
         **ou_params
@@ -56,7 +58,7 @@ if __name__ == '__main__':
 
     # n_seeds = 10
     # mode = "ec2"
-    exp_prefix = "6-8-ddpg-watermaze-easy"
+    exp_prefix = "6-9-ddpg-watermaze-easy"
 
     env_class = NormalizedHiddenCartpoleEnv
     env_class = WaterMazeEasy
@@ -81,7 +83,7 @@ if __name__ == '__main__':
         env_params=dict(
             num_steps=H,
             use_small_maze=True,
-            l2_action_penalty_weight=0,
+            l2_action_penalty_weight=1e-2,
         ),
         ou_params=dict(
             max_sigma=1,
