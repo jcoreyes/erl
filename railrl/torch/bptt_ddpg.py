@@ -41,6 +41,7 @@ class BpttDdpg(OnlineAlgorithm):
             tau=0.01,
             use_soft_update=True,
             refresh_entire_buffer_period=None,
+            policy_optimize_bellman=True,
             **kwargs
     ):
         super().__init__(*args, **kwargs)
@@ -48,6 +49,7 @@ class BpttDdpg(OnlineAlgorithm):
         self.obs_dim = int(self.env.env_spec.observation_space.flat_dim)
         self.memory_dim = self.env.memory_dim
         self.subtraj_length = subtraj_length
+        self.policy_optimize_bellman = policy_optimize_bellman
 
         self.train_validation_batch_size = 64
         self.batch_size = 32
@@ -177,12 +179,12 @@ class BpttDdpg(OnlineAlgorithm):
         bellman_loss = self.bellman_error_loss_weight * bellman_errors.mean()
 
         self.action_policy_optimizer.zero_grad()
-        # policy_loss.backward(retain_variables=True)
         self.write_policy_optimizer.zero_grad()
-        policy_loss.backward()
-        # self.qf_optimizer.zero_grad()
-        # bellman_loss.backward(retain_variables=True)
-        # self.qf_optimizer.step()
+        if self.policy_optimize_bellman:
+            policy_loss.backward(retain_variables=True)
+            bellman_loss.backward()
+        else:
+            policy_loss.backward()
         self.action_policy_optimizer.step()
         self.write_policy_optimizer.step()
 

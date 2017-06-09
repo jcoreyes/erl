@@ -61,28 +61,33 @@ if __name__ == '__main__':
     mode = "here"
     exp_prefix = "dev-pytorch"
 
-    # n_seeds = 10
-    # mode = "ec2"
-    # exp_prefix = "6-8-check-new-docker"
+    n_seeds = 10
+    mode = "ec2"
+    exp_prefix = "6-8-hl-tf-bptt-check-limits"
 
     use_gpu = True
     if mode == "ec2":
         use_gpu = False
+
+    H = 128
+    subtraj_length = 8
+    version = "H = {0}, subtraj length = {1}".format(H, subtraj_length)
     # noinspection PyTypeChecker
     variant = dict(
         memory_dim=20,
         env_params=dict(
-            num_steps=64,
+            num_steps=H,
         ),
         memory_aug_params=dict(
             max_magnitude=1,
         ),
         algo_params=dict(
-            subtraj_length=64,
-            num_epochs=100,
-            num_steps_per_epoch=100,
+            subtraj_length=subtraj_length,
+            num_epochs=40,
+            num_steps_per_epoch=1000,
             discount=1.,
             use_gpu=use_gpu,
+            policy_optimize_bellman=False,
         ),
         es_params=dict(
             env_es_class=OUStrategy,
@@ -97,6 +102,7 @@ if __name__ == '__main__':
                 min_sigma=None,
             ),
         ),
+        version=version,
     )
     exp_id = 0
     for _ in range(n_seeds):
