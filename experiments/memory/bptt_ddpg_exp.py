@@ -6,14 +6,17 @@ from railrl.envs.memory.continuous_memory_augmented import (
     ContinuousMemoryAugmented
 )
 from railrl.envs.memory.high_low import HighLow
+from railrl.envs.water_maze import WaterMazeEasy, WaterMaze, WaterMazeMemory
 from railrl.exploration_strategies.noop import NoopStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import (
     run_experiment,
     set_seed,
 )
+from railrl.misc.hyperparameter import DeterministicHyperparameterSweeper
 from railrl.policies.torch import MemoryPolicy
 from railrl.qfunctions.torch import MemoryQFunction
+from rllab.misc.instrument import VariantGenerator
 
 
 def experiment(variant):
@@ -55,15 +58,15 @@ def experiment(variant):
         int(raw_env.observation_space.flat_dim),
         int(raw_env.action_space.flat_dim),
         memory_dim,
-        100,
-        100,
+        400,
+        300,
     )
     policy = MemoryPolicy(
         int(raw_env.observation_space.flat_dim),
         int(raw_env.action_space.flat_dim),
         memory_dim,
-        100,
-        100,
+        400,
+        300,
     )
     algorithm = BpttDdpg(
         env,
@@ -79,35 +82,47 @@ if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
     exp_prefix = "dev-pytorch"
+    run_mode = 'none'
 
-    # n_seeds = 10
+    # n_seeds = 5
     # mode = "ec2"
-    # exp_prefix = "6-8-hl-tf-bptt-check-limits"
+    exp_prefix = "6-9-bddpg-water-maze-memory-h50"
+    # run_mode = 'grid'
 
     use_gpu = True
     if mode == "ec2":
         use_gpu = False
 
-    H = 32
-    subtraj_length = 8
+    H = 50
+    subtraj_length = 25
+    # H = 100
+    # subtraj_length = 50
     version = "H = {0}, subtraj length = {1}".format(H, subtraj_length)
     # noinspection PyTypeChecker
     variant = dict(
+        # memory_dim=2,
         memory_dim=20,
+        # env_class=WaterMazeEasy,
+        # env_class=WaterMaze,
+        # env_class=WaterMazeMemory,
         env_class=HighLow,
         env_params=dict(
             num_steps=H,
+            # use_small_maze=True,
+            # l2_action_penalty_weight=1e-2,
         ),
         memory_aug_params=dict(
             max_magnitude=1,
         ),
         algo_params=dict(
             subtraj_length=subtraj_length,
-            num_epochs=50,
+            batch_size=100*32,
+            num_epochs=100,
             num_steps_per_epoch=100,
+            # num_steps_per_epoch=1000,
             discount=1.,
             use_gpu=use_gpu,
-            policy_optimize_bellman=False,
+            policy_optimize_bellman=True,
         ),
         es_params=dict(
             env_es_class=OUStrategy,
@@ -115,7 +130,6 @@ if __name__ == '__main__':
                 max_sigma=1,
                 min_sigma=None,
             ),
-            # memory_es_class=NoopStrategy,
             memory_es_class=OUStrategy,
             memory_es_params=dict(
                 max_sigma=1,
@@ -124,19 +138,33 @@ if __name__ == '__main__':
         ),
         version=version,
     )
-    exp_id = 0
-    for _ in range(n_seeds):
-        seed = random.randint(0, 10000)
-        set_seed(seed)
-        variant['seed'] = seed
-        variant['exp_id'] = exp_id
-
-        run_experiment(
-            experiment,
-            exp_prefix=exp_prefix,
-            seed=seed,
-            mode=mode,
-            variant=variant,
-            exp_id=exp_id,
-            use_gpu=use_gpu,
-        )
+    if run_mode == 'grid':
+        search_space = {
+            'algo_params.qf_learning_rate': [1e-3, 1e-4],
+            'algo_params.action_policy_learning_rate': [1e-3, 1e-4],
+            'algo_params.write_policy_learning_rate': [1e-3, 1e-4],
+        }
+        sweeper = DeterministicHyperparameterSweeper(search_space,
+                                                     default_parameters=variant)
+        for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+            for i in range(n_seeds):
+                run_experiment(
+                    experiment,
+                    exp_prefix=exp_prefix,
+                    seed=i,
+                    mode=mode,
+                    variant=variant,
+                    exp_id=exp_id,
+                )
+    else:
+        for _ in range(n_seeds):
+            seed = random.randint(0, 10000)
+            run_experiment(
+                experiment,
+                exp_prefix=exp_prefix,
+                seed=seed,
+                mode=mode,
+                variant=variant,
+                exp_id=0,
+                use_gpu=use_gpu,
+            )
