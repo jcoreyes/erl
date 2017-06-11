@@ -1,5 +1,8 @@
 import torch
 import numpy as np
+from torch import nn as nn
+from torch.autograd import Variable
+from torch.nn import functional as F
 
 
 def soft_update_from_to(target, source, tau):
@@ -31,6 +34,28 @@ def maximum_2d(t1, t2):
         torch.cat((t1.unsqueeze(2), t2.unsqueeze(2)), dim=2),
         dim=2,
     )[0].squeeze(2)
+
+
+def kronecker_square(t1, size1, t2, size2):
+    """
+    Computes the Kronecker product between two square tensors
+    See https://en.wikipedia.org/wiki/Kronecker_product
+
+    :param t1:
+    :param size1:
+    :param t2:
+    :param size2:
+    :return:
+    """
+    output_size = size1 * size2
+    expanded_t1 = F.upsample_nearest(
+        t1.view(1, 1, size1, size1), size2, size2
+    ).view(output_size, output_size)
+
+    tiled_t2 = t2.repeat(size1, size1)
+
+    return expanded_t1 * tiled_t2
+
 
 """
 GPU wrappers
