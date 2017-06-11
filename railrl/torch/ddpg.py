@@ -97,7 +97,13 @@ class DDPG(OnlineAlgorithm):
             next_obs,
             next_actions,
         )
-        y_target = rewards + (1. - terminals) * self.discount * target_q_values
+        actions = self.policy(next_obs)
+        target_q_values_with_normal_policy = self.target_qf(
+            next_obs,
+            actions,
+        )
+       # y_target = rewards + (1. - terminals) * self.discount * target_q_values
+        y_target = rewards  + (1. - terminals) * self.discount * target_q_values_with_normal_policy
         # noinspection PyUnresolvedReferences
         y_target = y_target.detach()
         y_pred = self.qf(obs, actions)
