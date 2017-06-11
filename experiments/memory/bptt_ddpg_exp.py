@@ -82,44 +82,46 @@ if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
     exp_prefix = "dev-pytorch"
-    run_mode = 'none'
 
+    run_mode = 'none'
     # n_seeds = 5
     # mode = "ec2"
-    exp_prefix = "6-9-bddpg-water-maze-memory-h50"
+    # exp_prefix = "6-10-bddpg-water-maze-easy-h20"
     # run_mode = 'grid'
+    # mode = "local_docker"
 
     use_gpu = True
     if mode == "ec2":
         use_gpu = False
 
-    H = 50
-    subtraj_length = 25
-    # H = 100
-    # subtraj_length = 50
+    # H = 16
+    # subtraj_length = 8
+    H = 20
+    subtraj_length = 20
     version = "H = {0}, subtraj length = {1}".format(H, subtraj_length)
     # noinspection PyTypeChecker
     variant = dict(
         # memory_dim=2,
         memory_dim=20,
-        # env_class=WaterMazeEasy,
+        env_class=WaterMazeEasy,
         # env_class=WaterMaze,
         # env_class=WaterMazeMemory,
-        env_class=HighLow,
+        # env_class=HighLow,
         env_params=dict(
-            num_steps=H,
-            # use_small_maze=True,
-            # l2_action_penalty_weight=1e-2,
+            horizon=H,
+            use_small_maze=True,
+            l2_action_penalty_weight=0,
         ),
         memory_aug_params=dict(
             max_magnitude=1,
         ),
         algo_params=dict(
             subtraj_length=subtraj_length,
-            batch_size=100*32,
+            batch_size=subtraj_length*32,
+            # batch_size=32*32,
             num_epochs=100,
-            num_steps_per_epoch=100,
-            # num_steps_per_epoch=1000,
+            # num_steps_per_epoch=100,
+            num_steps_per_epoch=1000,
             discount=1.,
             use_gpu=use_gpu,
             policy_optimize_bellman=True,
@@ -140,9 +142,9 @@ if __name__ == '__main__':
     )
     if run_mode == 'grid':
         search_space = {
-            'algo_params.qf_learning_rate': [1e-3, 1e-4],
-            'algo_params.action_policy_learning_rate': [1e-3, 1e-4],
-            'algo_params.write_policy_learning_rate': [1e-3, 1e-4],
+            'algo_params.qf_learning_rate': [1e-3, 1e-5],
+            'algo_params.action_policy_learning_rate': [1e-3, 1e-5],
+            'algo_params.write_policy_learning_rate': [1e-3, 1e-5],
         }
         sweeper = DeterministicHyperparameterSweeper(search_space,
                                                      default_parameters=variant)
