@@ -294,9 +294,6 @@ class BpttDdpg(OnlineAlgorithm):
         self.log_diagnostics(paths)
 
     def _statistics_from_paths(self, paths, stat_prefix):
-        if len(paths) == 0:
-            return {}
-
         eval_pool = UpdatableSubtrajReplayBuffer(
             len(paths) * self.max_path_length,
             self.env,
@@ -306,8 +303,7 @@ class BpttDdpg(OnlineAlgorithm):
         for path in paths:
             eval_pool.add_trajectory(path)
         raw_subtraj_batch = eval_pool.get_all_valid_subtrajectories()
-        if raw_subtraj_batch is None:  # No valid subtraj's
-            return {}
+        assert raw_subtraj_batch is not None
         subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
         statistics = self._statistics_from_subtraj_batch(
             subtraj_batch, stat_prefix=stat_prefix
@@ -377,6 +373,28 @@ class BpttDdpg(OnlineAlgorithm):
                     subtraj_batch, stat_prefix=stat_prefix
                 ))
         return statistics
+
+    def _can_evaluate(self, exploration_paths):
+        can = (
+            self.pool.num_subtrajs_can_sample(validation=True) >=
+                self.train_validation_num_subtrajs_per_batch
+            and
+            self.pool.num_subtrajs_can_sample(validation=False) >=
+            self.train_validation_num_subtrajs_per_batch
+            and
+            len(exploration_paths) > 0
+            # Technically, I should also check that the exploration path has
+            # enough subtraj batches, but whatever.
+        )
+        if not can:
+            print("val true", self.pool.num_subtrajs_can_sample(
+                validation=True) >=
+                  self.train_validation_num_subtrajs_per_batch)
+            print("val false", self.pool.num_subtrajs_can_sample(validation=False) >=
+                self.train_validation_num_subtrajs_per_batch
+                  )
+            print("exp path", len(exploration_paths) > 0)
+        return can
 
     """
     Random small functions.

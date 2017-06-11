@@ -181,4 +181,5 @@ class DDPG(OnlineAlgorithm):
         ))
         return statistics
 
-
+    def _can_evaluate(self, exploration_paths):
+        return len(exploration_paths) > 0

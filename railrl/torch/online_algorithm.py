@@ -24,7 +24,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             scale_reward=1,
             use_gpu=False,
             render=False,
-            save_exploration_path_period=10,
+            save_exploration_path_period=1,
     ):
         self.training_env = env
         self.exploration_strategy = exploration_strategy
@@ -63,10 +63,11 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         num_paths_total = 0
         self._start_worker()
         self.training_mode(False)
+        old_table_keys = None
         for epoch in range(self.num_epochs):
             logger.push_prefix('Iteration #%d | ' % epoch)
             start_time = time.time()
-            paths = []
+            exploration_paths = []
             observations = []
             actions = []
             rewards = []
@@ -94,10 +95,12 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
 
                 if num_paths_total % self.save_exploration_path_period == 0:
                     observations.append(
-                        self.training_env.observation_space.flatten(observation))
+                        self.training_env.observation_space.flatten(
+                            observation))
                     rewards.append(reward)
                     terminals.append(terminal)
-                    actions.append(self.training_env.action_space.flatten(action))
+                    actions.append(
+                        self.training_env.action_space.flatten(action))
                     agent_infos.append(agent_info)
                     env_infos.append(env_info)
 
@@ -122,13 +125,16 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                     num_paths_total += 1
                     self.handle_rollout_ending(n_steps_total)
                     if len(observations) > 0:
-                        paths.append(dict(
-                            observations=tensor_utils.stack_tensor_list(observations),
+                        exploration_paths.append(dict(
+                            observations=tensor_utils.stack_tensor_list(
+                                observations),
                             actions=tensor_utils.stack_tensor_list(actions),
                             rewards=tensor_utils.stack_tensor_list(rewards),
                             terminals=tensor_utils.stack_tensor_list(terminals),
-                            agent_infos=tensor_utils.stack_tensor_dict_list(agent_infos),
-                            env_infos=tensor_utils.stack_tensor_dict_list(env_infos),
+                            agent_infos=tensor_utils.stack_tensor_dict_list(
+                                agent_infos),
+                            env_infos=tensor_utils.stack_tensor_dict_list(
+                                env_infos),
                         ))
                 else:
                     observation = next_ob
@@ -146,12 +152,21 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                 logger.log("Not training yet. Time: {}".format(
                     time.time() - start_time)
                 )
-            start_time = time.time()
-            self.evaluate(epoch, paths)
-            params = self.get_epoch_snapshot(epoch)
-            logger.save_itr_params(epoch, params)
-            logger.dump_tabular(with_prefix=False, with_timestamp=False)
-            logger.log("Eval Time: {0}".format(time.time() - start_time))
+            if self._can_evaluate(exploration_paths):
+                start_time = time.time()
+                self.evaluate(epoch, exploration_paths)
+                params = self.get_epoch_snapshot(epoch)
+                logger.save_itr_params(epoch, params)
+                table_keys = logger.get_table_key_set()
+                if old_table_keys is not None:
+                    assert table_keys == old_table_keys, (
+                        "Table keys cannot change from iteration to iteration."
+                    )
+                old_table_keys = table_keys
+                logger.dump_tabular(with_prefix=False, with_timestamp=False)
+                logger.log("Eval Time: {0}".format(time.time() - start_time))
+            else:
+                logger.log("Skipping eval for now.")
             logger.pop_prefix()
 
     def _start_worker(self):
@@ -209,4 +224,17 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
     def handle_rollout_ending(self, n_steps_total):
         pass
 
+    def _can_evaluate(self, exploration_paths):
+        """
+        One annoying thing about the logger table is that the keys at each
+        iteration need to be the exact same. So unless you can compute
+        everything, skip evaluation.
 
+        A common example for why you might want to skip evaluation is that at
+        the beginning of training, you may not have enough data for a
+        validation and training set.
+
+        :param exploration_paths: List of paths taken while exploring.
+        :return:
+        """
+        return True
