@@ -335,6 +335,7 @@ def setup_logger(
     logger.set_snapshot_mode(snapshot_mode)
     logger.set_snapshot_gap(snapshot_gap)
     logger.set_log_tabular_only(log_tabular_only)
+    logger.push_prefix("[%s] " % exp_prefix)
     try:
         # Save git diff to experiment directory
         cmd = "cd {} && git diff > {} 2>/dev/null".format(
