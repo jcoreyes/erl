@@ -30,6 +30,7 @@ class BpttDdpg(OnlineAlgorithm):
     """
     BPTT DDPG implemented in pytorch.
     """
+
     def __init__(
             self,
             *args,
@@ -40,6 +41,9 @@ class BpttDdpg(OnlineAlgorithm):
             use_soft_update=True,
             refresh_entire_buffer_period=None,
             policy_optimize_bellman=True,
+            action_policy_learning_rate=1e-3,
+            write_policy_learning_rate=1e-5,
+            qf_learning_rate=1e-3,
             **kwargs
     ):
         super().__init__(*args, **kwargs)
@@ -55,9 +59,9 @@ class BpttDdpg(OnlineAlgorithm):
         self.train_validation_num_subtrajs_per_batch = (
             self.num_subtrajs_per_batch
         )
-        self.action_policy_learning_rate = 1e-3
-        self.write_policy_learning_rate = 1e-5
-        self.qf_learning_rate = 1e-3
+        self.action_policy_learning_rate = action_policy_learning_rate
+        self.write_policy_learning_rate = write_policy_learning_rate
+        self.qf_learning_rate = qf_learning_rate
         self.bellman_error_loss_weight = 10
         self.target_hard_update_period = 1000
         self.tau = tau
@@ -74,8 +78,9 @@ class BpttDdpg(OnlineAlgorithm):
         self.target_qf = self.qf.copy()
         self.target_policy = self.policy.copy()
 
-        self.qf_optimizer = optim.Adam(self.qf.parameters(),
-                                       lr=self.qf_learning_rate)
+        self.qf_optimizer = optim.Adam(
+            self.qf.parameters(), lr=self.qf_learning_rate
+        )
         self.action_policy_optimizer = optim.Adam(
             self.policy.action_parameters(), lr=self.action_policy_learning_rate
         )
@@ -152,7 +157,7 @@ class BpttDdpg(OnlineAlgorithm):
         # noinspection PyUnresolvedReferences
         y_target = y_target.detach()
         y_predicted = self.qf(obs, memories, actions, writes)
-        bellman_errors = (y_predicted - y_target)**2
+        bellman_errors = (y_predicted - y_target) ** 2
         return OrderedDict([
             ('Target Q Values', target_q_values),
             ('Y target', y_target),
@@ -165,13 +170,13 @@ class BpttDdpg(OnlineAlgorithm):
         policy_dict = self.get_policy_output_dict(subtraj_batch)
 
         policy_loss = policy_dict['Loss']
-        bellman_errors = policy_dict['Bellman Errors']
-        bellman_loss = self.bellman_error_loss_weight * bellman_errors.mean()
 
         self.action_policy_optimizer.zero_grad()
         self.write_policy_optimizer.zero_grad()
         if self.policy_optimize_bellman:
             policy_loss.backward(retain_variables=True)
+            bellman_errors = policy_dict['Bellman Errors']
+            bellman_loss = self.bellman_error_loss_weight * bellman_errors.mean()
             bellman_loss.backward()
         else:
             policy_loss.backward()
@@ -248,7 +253,7 @@ class BpttDdpg(OnlineAlgorithm):
         y_target = y_target.detach()
         y_predicted = self.qf(flat_obs, flat_new_memories, flat_actions,
                               flat_new_writes)
-        bellman_errors = (y_predicted - y_target)**2
+        bellman_errors = (y_predicted - y_target) ** 2
         # TODO(vitchyr): Still use target policies when minimizing Bellman err?
         return OrderedDict([
             ('Target Q Values', target_q_values),
@@ -263,6 +268,7 @@ class BpttDdpg(OnlineAlgorithm):
     """
     Eval functions
     """
+
     def evaluate(self, epoch, exploration_paths):
         """
         Perform evaluation for this algorithm.
@@ -324,7 +330,7 @@ class BpttDdpg(OnlineAlgorithm):
         env_actions = np.vstack([path["actions"][:self.action_dim] for path in
                                  paths])
         writes = np.vstack([path["actions"][self.action_dim:] for path in
-                                 paths])
+                            paths])
         statistics.update(create_stats_ordered_dict(
             'Env Actions', env_actions, stat_prefix=stat_prefix
         ))
@@ -375,6 +381,7 @@ class BpttDdpg(OnlineAlgorithm):
     """
     Random small functions.
     """
+
     def _can_train(self):
         return (
             self.pool.num_subtrajs_can_sample() >= self.num_subtrajs_per_batch
@@ -453,5 +460,3 @@ def create_torch_subtraj_batch(subtraj_batch):
     torch_batch['rewards'] = rewards.unsqueeze(-1)
     torch_batch['terminals'] = terminals.unsqueeze(-1)
     return torch_batch
-
-
