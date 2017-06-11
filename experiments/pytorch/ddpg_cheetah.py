@@ -16,6 +16,7 @@ def example(variant):
     env = HalfCheetahEnv()
     env = normalize(env)
     es = OUStrategy(env_spec=env.spec)
+    use_new_version = variant['use_new_version']
     algorithm = DDPG(
         env,
         exploration_strategy=es,
@@ -36,13 +37,14 @@ if __name__ == "__main__":
             batch_size=128,
             max_path_length=1000,
         ),
+        use_new_version=True,
         version="PyTorch - bigger networks",
     )
     for seed in range(20):
         run_experiment(
             example,
-            exp_prefix="6-5-tf-vs-torch-ddpg-half-cheetah-h100",
+            exp_prefix="6-11-torch-ddpg-modified-cheetah",
             seed=seed,
-            mode='ec2',
+            mode='here',
             variant=variant,
         )

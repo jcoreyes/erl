@@ -29,6 +29,7 @@ class DDPG(OnlineAlgorithm):
             target_hard_update_period=1000,
             tau=0.001,
             use_soft_update=False,
+            use_new_version=False,
             **kwargs
     ):
         super().__init__(*args, **kwargs)
@@ -64,7 +65,7 @@ class DDPG(OnlineAlgorithm):
             self.target_policy.cuda()
             self.qf.cuda()
             self.target_qf.cuda()
-
+        self.use_new_version = use_new_version
     def _do_training(self, n_steps_total):
         batch = self.get_batch()
         rewards = batch['rewards']
@@ -91,19 +92,23 @@ class DDPG(OnlineAlgorithm):
         Update the critic second since so that the policy uses the QF from
         this iteration.
         """
-        # Generate y target using target policies
-        next_actions = self.target_policy(next_obs)
-        target_q_values = self.target_qf(
-            next_obs,
-            next_actions,
-        )
-        actions = self.policy(next_obs)
-        target_q_values_with_normal_policy = self.target_qf(
-            next_obs,
-            actions,
-        )
-       # y_target = rewards + (1. - terminals) * self.discount * target_q_values
-        y_target = rewards  + (1. - terminals) * self.discount * target_q_values_with_normal_policy
+        
+        if(self.use_new_version):
+            #generate y target using normal policy
+            next_actions = self.policy(next_obs)
+            target_q_values_with_normal_policy = self.target_qf(
+                next_obs,
+                next_actions,
+            )
+            y_target = rewards  + (1. - terminals) * self.discount * target_q_values_with_normal_policy
+        else:
+            #generate y target using target policies
+            next_actions = self.target_policy(next_obs)
+            target_q_values = self.target_qf(
+                next_obs,
+                next_actions,
+            )
+            y_target = rewards + (1. - terminals) * self.discount * target_q_values
         # noinspection PyUnresolvedReferences
         y_target = y_target.detach()
         y_pred = self.qf(obs, actions)
