@@ -13,7 +13,7 @@ class LSTMCell(nn.Module):
 
     """A basic LSTM cell."""
 
-    def __init__(self, input_size, hidden_size, use_bias=True):
+    def __init__(self, input_size, hidden_size, use_bias=True, forget_bias=1.0):
         """
         Most codes are stolen from torch.nn.LSTMCell.
         """
@@ -22,6 +22,7 @@ class LSTMCell(nn.Module):
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.use_bias = use_bias
+        self.forget_bias = forget_bias
         self.weight_ih = nn.Parameter(
             torch.FloatTensor(input_size, 4 * hidden_size))
         self.weight_hh = nn.Parameter(
@@ -42,8 +43,8 @@ class LSTMCell(nn.Module):
         weight_hh_data = torch.eye(self.hidden_size)
         weight_hh_data = weight_hh_data.repeat(1, 4)
         self.weight_hh.data.set_(weight_hh_data)
-        # The bias is just set to zero vectors.
         self.bias.data.fill_(0)
+        self.bias.data[:self.hidden_size].fill_(self.forget_bias)
 
     def forward(self, input_, hx):
         """
@@ -79,7 +80,7 @@ class BNLSTMCell(nn.Module):
 
     """A cell of BN-LSTM."""
 
-    def __init__(self, input_size, hidden_size, use_bias=True):
+    def __init__(self, input_size, hidden_size, use_bias=True, forget_bias=1.0):
         """
         Most codes are stolen from torch.nn.LSTMCell.
         """
@@ -96,6 +97,7 @@ class BNLSTMCell(nn.Module):
             self.bias = nn.Parameter(torch.FloatTensor(4 * hidden_size))
         else:
             self.register_parameter('bias', None)
+        self.forget_bias = forget_bias
         # BN parameters
         self.bn_ih = nn.BatchNorm1d(4 * hidden_size)
         self.bn_hh = nn.BatchNorm1d(4 * hidden_size)
@@ -115,8 +117,8 @@ class BNLSTMCell(nn.Module):
         weight_hh_data = torch.eye(self.hidden_size)
         weight_hh_data = weight_hh_data.repeat(1, 4)
         self.weight_hh.data.set_(weight_hh_data)
-        # The bias is just set to zero vectors.
         self.bias.data.fill_(0)
+        self.bias.data[:self.hidden_size].fill_(self.forget_bias)
         # Initialization of BN parameters.
         self.bn_ih.reset_parameters()
         self.bn_hh.reset_parameters()
