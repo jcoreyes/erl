@@ -2,6 +2,7 @@ import torch
 from torch import nn as nn
 from torch.nn import functional as F
 
+from railrl.pythonplusplus import identity
 from railrl.torch.core import PyTorchModule
 from railrl.torch.pytorch_util import fanin_init
 
@@ -14,6 +15,7 @@ class FeedForwardQFunction(PyTorchModule):
             observation_hidden_size,
             embedded_hidden_size,
             init_w=3e-3,
+            output_activation=identity,
     ):
         self.save_init_params(locals())
         super().__init__()
@@ -27,6 +29,7 @@ class FeedForwardQFunction(PyTorchModule):
         self.embedded_fc = nn.Linear(observation_hidden_size + action_dim,
                                      embedded_hidden_size)
         self.last_fc = nn.Linear(embedded_hidden_size, 1)
+        self.output_activation = output_activation
 
         self.init_weights(init_w)
 
@@ -45,7 +48,7 @@ class FeedForwardQFunction(PyTorchModule):
         h = F.relu(self.obs_fc(h))
         h = torch.cat((h, action), dim=1)
         h = F.relu(self.embedded_fc(h))
-        return self.last_fc(h)
+        return self.output_activation(self.last_fc(h))
 
 
 class MemoryQFunction(PyTorchModule):
@@ -57,6 +60,7 @@ class MemoryQFunction(PyTorchModule):
             observation_hidden_size,
             embedded_hidden_size,
             init_w=3e-3,
+            output_activation=identity,
     ):
         self.save_init_params(locals())
         super().__init__()
@@ -74,6 +78,7 @@ class MemoryQFunction(PyTorchModule):
             embedded_hidden_size,
         )
         self.last_fc = nn.Linear(embedded_hidden_size, 1)
+        self.output_activation = output_activation
 
         self.init_weights(init_w)
 
@@ -92,4 +97,4 @@ class MemoryQFunction(PyTorchModule):
         obs_embedded = F.relu(self.obs_fc(obs_embedded))
         x = torch.cat((obs_embedded, action, write), dim=1)
         x = F.relu(self.embedded_fc(x))
-        return self.last_fc(x)
+        return self.output_activation(self.last_fc(x))
