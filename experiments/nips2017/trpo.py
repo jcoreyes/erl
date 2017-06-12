@@ -2,7 +2,8 @@
 TRPO
 """
 from railrl.envs.memory.hidden_cartpole import HiddenCartpoleEnv, \
-    convert_to_tf_env, NormalizedHiddenCartpoleEnv, normalize_tf
+    NormalizedHiddenCartpoleEnv
+from railrl.envs.wrappers import normalize_tf, convert_to_tf_env
 from railrl.envs.water_maze import WaterMazeEasy, WaterMazeMemory
 from railrl.launchers.launcher_util import (
     run_experiment,
