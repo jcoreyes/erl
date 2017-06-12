@@ -375,7 +375,7 @@ class BpttDdpg(OnlineAlgorithm):
         return statistics
 
     def _can_evaluate(self, exploration_paths):
-        can = (
+        return (
             self.pool.num_subtrajs_can_sample(validation=True) >=
                 self.train_validation_num_subtrajs_per_batch
             and
@@ -386,15 +386,6 @@ class BpttDdpg(OnlineAlgorithm):
             # Technically, I should also check that the exploration path has
             # enough subtraj batches, but whatever.
         )
-        if not can:
-            print("val true", self.pool.num_subtrajs_can_sample(
-                validation=True) >=
-                  self.train_validation_num_subtrajs_per_batch)
-            print("val false", self.pool.num_subtrajs_can_sample(validation=False) >=
-                self.train_validation_num_subtrajs_per_batch
-                  )
-            print("exp path", len(exploration_paths) > 0)
-        return can
 
     """
     Random small functions.
