@@ -13,6 +13,7 @@ from sandbox.rocky.tf.spaces.box import Box
 
 class WaterMaze(MujocoEnv):
     def __init__(self, horizon=200, l2_action_penalty_weight=1e-2,
+                 num_steps=None,
                  include_velocity=False,
                  use_small_maze=False):
         self.init_serialization(locals())
@@ -33,6 +34,9 @@ class WaterMaze(MujocoEnv):
         )
         self.MAX_GOAL_DIST = self.BOUNDARY_DIST - self.BOUNDARY_RADIUS
         self.l2_action_penalty_weight = l2_action_penalty_weight
+        if num_steps is not None:  # support backwards compatibility
+            horizon = num_steps
+
         self._horizon = horizon
         self._t = 0
         self._on_platform_history = deque(maxlen=5)
