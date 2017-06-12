@@ -119,8 +119,6 @@ class RecurrentQFunction(PyTorchModule):
                             batch_first=True)
         self.last_fc = nn.Linear(self.hidden_size, 1)
 
-        self.reset()
-
     def forward(self, obs, action):
         """
         :param obs: torch Variable, [batch_size, sequence length, obs dim]

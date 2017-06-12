@@ -59,6 +59,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         n_steps_total = 0
         observation = self.training_env.reset()
         self.exploration_strategy.reset()
+        self.policy.reset()
         path_length = 0
         num_paths_total = 0
         self._start_worker()
@@ -121,6 +122,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                     )
                     observation = self.training_env.reset()
                     self.exploration_strategy.reset()
+                    self.policy.reset()
                     path_length = 0
                     num_paths_total += 1
                     self.handle_rollout_ending(n_steps_total)
