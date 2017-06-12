@@ -145,7 +145,7 @@ def run_experiment(
         exp_id=0,
         unique_id=None,
         use_gpu=False,
-        **kwargs):
+        **run_experiment_lite_kwargs):
     """
     Run a task via the rllab interface, i.e. serialize it and then run it via
     the run_experiment_lite script.
@@ -164,7 +164,8 @@ def run_experiment(
     experiments. Note that one experiment may correspond to multiple seeds.
     :param unique_id: Unique ID should be unique across all runs--even different
     seeds!
-    :param kwargs:
+    :param run_experiment_lite_kwargs: kwargs to be passed to
+    `run_experiment_lite`
     :return:
     """
     if seed is None:
@@ -204,7 +205,7 @@ def run_experiment(
             python_command=' '.join(command_words),
             mode=mode,
             use_gpu=use_gpu,
-            **kwargs
+            **run_experiment_lite_kwargs
         )
 
 

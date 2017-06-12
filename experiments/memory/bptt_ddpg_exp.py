@@ -88,9 +88,9 @@ if __name__ == '__main__':
     exp_prefix = "dev-6-11-pytorch-2"
     run_mode = 'none'
 
-    n_seeds = 10
+    n_seeds = 3
     mode = "ec2"
-    exp_prefix = "6-11-water-maze-easy-full-bptt-2"
+    exp_prefix = "6-11-water-maze-easy-full-bptt-H100"
 
     # run_mode = 'grid'
     use_gpu = True
@@ -99,8 +99,8 @@ if __name__ == '__main__':
 
     # H = 16
     # subtraj_length = 8
-    H = 20
-    subtraj_length = 20
+    H = 100
+    subtraj_length = 100
     # version = "H = {0}, subtraj length = {1}".format(H, subtraj_length)
     # version = "Obs only -- actually"
     version = exp_prefix
@@ -131,8 +131,9 @@ if __name__ == '__main__':
             discount=1.,
             use_gpu=use_gpu,
             policy_optimize_bellman=True,
-            # action_policy_learning_rate=1e-4,
-            # write_policy_learning_rate=1e-6,
+            action_policy_learning_rate=1e-5,
+            write_policy_learning_rate=1e-5,
+            qf_learning_rate=1e-5,
         ),
         qf_params=dict(
             # output_activation=F.softsign,
@@ -182,4 +183,6 @@ if __name__ == '__main__':
                 variant=variant,
                 exp_id=0,
                 use_gpu=use_gpu,
+                sync_s3_log=True,
+                sync_s3_pkl=True,
             )
