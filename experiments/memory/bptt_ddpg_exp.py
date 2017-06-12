@@ -88,19 +88,19 @@ if __name__ == '__main__':
     exp_prefix = "dev-6-11-pytorch-2"
     run_mode = 'none'
 
-    # n_seeds = 10
-    # mode = "ec2"
-    # exp_prefix = "6-11-hl-qf-activation"
-    # run_mode = 'grid'
+    n_seeds = 10
+    mode = "ec2"
+    exp_prefix = "6-11-water-maze-easy-full-bptt-2"
 
+    # run_mode = 'grid'
     use_gpu = True
     if mode != "here":
         use_gpu = False
 
     # H = 16
     # subtraj_length = 8
-    H = 32
-    subtraj_length = 8
+    H = 20
+    subtraj_length = 20
     # version = "H = {0}, subtraj length = {1}".format(H, subtraj_length)
     # version = "Obs only -- actually"
     version = exp_prefix
@@ -108,10 +108,10 @@ if __name__ == '__main__':
     variant = dict(
         # memory_dim=2,
         memory_dim=20,
-        # env_class=WaterMazeEasy,
+        env_class=WaterMazeEasy,
         # env_class=WaterMaze,
         # env_class=WaterMazeMemory,
-        env_class=HighLow,
+        # env_class=HighLow,
         env_params=dict(
             num_steps=H,
             # horizon=H,
@@ -125,9 +125,9 @@ if __name__ == '__main__':
             subtraj_length=subtraj_length,
             batch_size=subtraj_length*64,
             # batch_size=32*32,
-            num_epochs=30,
-            num_steps_per_epoch=100,
-            # num_steps_per_epoch=1000,
+            num_epochs=50,
+            # num_steps_per_epoch=100,
+            num_steps_per_epoch=1000,
             discount=1.,
             use_gpu=use_gpu,
             policy_optimize_bellman=True,
@@ -135,8 +135,9 @@ if __name__ == '__main__':
             # write_policy_learning_rate=1e-6,
         ),
         qf_params=dict(
-            output_activation=F.softsign,
-            # output_activation=identity,
+            # output_activation=F.softsign,
+            # output_activation=F.tanh,
+            output_activation=identity,
         ),
         es_params=dict(
             env_es_class=OUStrategy,
