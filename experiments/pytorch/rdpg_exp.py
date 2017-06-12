@@ -23,11 +23,12 @@ def example(variant):
     qf = RecurrentQFunction(
         int(env.observation_space.flat_dim),
         int(env.action_space.flat_dim),
-        4,
+        20,
     )
     policy = RecurrentPolicy(
         int(env.observation_space.flat_dim),
         int(env.action_space.flat_dim),
+        20,
     )
     algorithm = Rdpg(
         env,
@@ -51,7 +52,7 @@ if __name__ == "__main__":
             use_gpu=use_gpu,
         ),
         env_params=dict(
-            num_steps=2,
+            num_steps=1,
         ),
         env_class=HighLow,
     )

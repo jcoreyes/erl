@@ -273,21 +273,20 @@ class RecurrentPolicy(PyTorchModule):
             self,
             obs_dim,
             action_dim,
+            hidden_size,
     ):
         self.save_init_params(locals())
         super().__init__()
 
         self.obs_dim = obs_dim
         self.action_dim = action_dim
-        self.lstm = LSTM(BNLSTMCell, self.obs_dim, self.action_dim, 1,
+        self.hidden_size = hidden_size
+        self.lstm = LSTM(BNLSTMCell, self.obs_dim, self.hidden_size, 1,
                          batch_first=True)
+        self.last_fc = nn.Linear(hidden_size, self.action_dim)
 
-        self.hx = Variable(
-            ptu.FloatTensor(1, 1, self.action_dim)
-        )
-        self.cx = Variable(
-            ptu.FloatTensor(1, 1, self.action_dim)
-        )
+        self.hx = None
+        self.cx = None
         self.reset()
 
     def forward(self, obs, cx=None, hx=None):
@@ -299,14 +298,18 @@ class RecurrentPolicy(PyTorchModule):
         batch_size, subsequence_length = obs.size()[:2]
         if hx is None:
             cx = Variable(
-                ptu.FloatTensor(1, batch_size, self.action_dim)
+                ptu.FloatTensor(1, batch_size, self.hidden_size)
             )
             cx.data.fill_(0)
             hx = Variable(
-                ptu.FloatTensor(1, batch_size, self.action_dim)
+                ptu.FloatTensor(1, batch_size, self.hidden_size)
             )
             hx.data.fill_(0)
-        return self.lstm(obs, (hx, cx))
+        rnn_outputs, state = self.lstm(obs, (hx, cx))
+        rnn_outputs.contiguous()
+        rnn_outputs_flat = rnn_outputs.view(-1, self.hidden_size)
+        outputs_flat = F.tanh(self.last_fc(rnn_outputs_flat))
+        return outputs_flat.view(batch_size, subsequence_length, 1), state
 
     def get_action(self, obs):
         obs = np.expand_dims(obs, axis=0)
@@ -320,5 +323,11 @@ class RecurrentPolicy(PyTorchModule):
         return ptu.get_numpy(action), {}
 
     def reset(self):
+        self.hx = Variable(
+            ptu.FloatTensor(1, 1, self.hidden_size)
+        )
+        self.cx = Variable(
+            ptu.FloatTensor(1, 1, self.hidden_size)
+        )
         self.hx.data.fill_(0)
         self.cx.data.fill_(0)
