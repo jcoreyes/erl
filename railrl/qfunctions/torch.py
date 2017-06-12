@@ -1,10 +1,12 @@
+import numpy as np
 import torch
 from torch import nn as nn
 from torch.nn import functional as F
+from torch.autograd import Variable
 
 from railrl.pythonplusplus import identity
 from railrl.torch.core import PyTorchModule
-from railrl.torch.pytorch_util import fanin_init
+from railrl.torch import pytorch_util as ptu
 
 
 class FeedForwardQFunction(PyTorchModule):
@@ -34,9 +36,9 @@ class FeedForwardQFunction(PyTorchModule):
         self.init_weights(init_w)
 
     def init_weights(self, init_w):
-        self.obs_fc.weight.data = fanin_init(self.obs_fc.weight.data.size())
+        self.obs_fc.weight.data = ptu.fanin_init(self.obs_fc.weight.data.size())
         self.obs_fc.bias.data *= 0
-        self.embedded_fc.weight.data = fanin_init(
+        self.embedded_fc.weight.data = ptu.fanin_init(
             self.embedded_fc.weight.data.size()
         )
         self.embedded_fc.bias.data *= 0
@@ -83,9 +85,9 @@ class MemoryQFunction(PyTorchModule):
         self.init_weights(init_w)
 
     def init_weights(self, init_w):
-        self.obs_fc.weight.data = fanin_init(self.obs_fc.weight.data.size())
+        self.obs_fc.weight.data = ptu.fanin_init(self.obs_fc.weight.data.size())
         self.obs_fc.bias.data *= 0
-        self.embedded_fc.weight.data = fanin_init(
+        self.embedded_fc.weight.data = ptu.fanin_init(
             self.embedded_fc.weight.data.size()
         )
         self.embedded_fc.bias.data *= 0
@@ -98,3 +100,45 @@ class MemoryQFunction(PyTorchModule):
         x = torch.cat((obs_embedded, action, write), dim=1)
         x = F.relu(self.embedded_fc(x))
         return self.output_activation(self.last_fc(x))
+
+
+class RecurrentQFunction(PyTorchModule):
+    def __init__(
+            self,
+            obs_dim,
+            action_dim,
+            hidden_size,
+    ):
+        self.save_init_params(locals())
+        super().__init__()
+
+        self.obs_dim = obs_dim
+        self.action_dim = action_dim
+        self.hidden_size = hidden_size
+        self.lstm = nn.LSTM(self.obs_dim + self.action_dim, self.hidden_size,
+                            batch_first=True)
+        self.last_fc = nn.Linear(self.hidden_size, 1)
+
+        self.reset()
+
+    def forward(self, obs, action):
+        """
+        :param obs: torch Variable, [batch_size, sequence length, obs dim]
+        :param action: torch Variable, [batch_size, sequence length, action dim]
+        :return: torch Variable, [batch_size, sequence length, 1]
+        """
+        assert len(obs.size()) == 3
+        inputs = torch.cat((obs, action), dim=2)
+        batch_size, subsequence_length = obs.size()[:2]
+        cx = Variable(
+            ptu.FloatTensor(1, batch_size, self.action_dim)
+        )
+        cx.data.fill_(0)
+        hx = Variable(
+            ptu.FloatTensor(1, batch_size, self.action_dim)
+        )
+        hx.data.fill_(0)
+        rnn_outputs, _ = self.lstm(inputs, (hx, cx))
+        rnn_outputs_flat = rnn_outputs.view(-1, self.hidden_size)
+        outputs_flat = self.last_fc(rnn_outputs_flat)
+        return outputs_flat.view(batch_size, subsequence_length, 1)

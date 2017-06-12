@@ -259,13 +259,60 @@ class FeedForwardPolicy(PyTorchModule):
         obs = Variable(ptu.from_numpy(obs).float(), requires_grad=False)
         action = self.__call__(obs)
         action = action.squeeze(0)
-        if self.last_fc.weight.is_cuda:
-            return action.data.cpu().numpy(), {}
-        else:
-            return action.data.numpy(), {}
+        return ptu.get_numpy(action), {}
 
     def reset(self):
         pass
 
     def log_diagnostics(self, paths):
         pass
+
+
+class RecurrentPolicy(PyTorchModule):
+    def __init__(self, obs_dim, action_dim):
+        self.save_init_params(locals())
+        super().__init__()
+
+        self.obs_dim = obs_dim
+        self.action_dim = action_dim
+        self.lstm = nn.LSTM(self.obs_dim, self.action_dim, 1, batch_first=True)
+
+        self.hx = Variable(
+            ptu.FloatTensor(1, 1, self.action_dim)
+        )
+        self.cx = Variable(
+            ptu.FloatTensor(1, 1, self.action_dim)
+        )
+        self.reset()
+
+    def forward(self, obs, cx=None, hx=None):
+        """
+        :param obs: torch Variable, [batch_size, sequence length, obs dim]
+        :return: torch Variable, [batch_size, sequence length, action dim]
+        """
+        assert len(obs.size()) == 3
+        batch_size, subsequence_length = obs.size()[:2]
+        if hx is None:
+            assert cx is None
+            cx = Variable(
+                ptu.FloatTensor(1, batch_size, self.action_dim)
+            )
+            cx.data.fill_(0)
+            hx = Variable(
+                ptu.FloatTensor(1, batch_size, self.action_dim)
+            )
+            hx.data.fill_(0)
+        return self.lstm(obs, (hx, cx))
+
+    def get_action(self, obs):
+        obs = np.expand_dims(obs, axis=0)
+        obs = np.expand_dims(obs, axis=1)
+        obs = Variable(ptu.from_numpy(obs).float(), requires_grad=False)
+        action, (self.hx, self.cx) = self.__call__(obs)
+        action = action.squeeze(0)
+        action = action.squeeze(0)
+        return ptu.get_numpy(action), {}
+
+    def reset(self):
+        self.hx.data.fill_(0)
+        self.cx.data.fill_(0)
