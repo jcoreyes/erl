@@ -4,7 +4,7 @@ from torch import nn as nn
 from torch.autograd import Variable
 from torch.nn import functional as F
 
-from railrl.torch.bnlstm import BNLSTMCell, LSTMCell
+from railrl.torch.bnlstm import BNLSTMCell, LSTM
 from railrl.torch.core import PyTorchModule
 from railrl.torch import pytorch_util as ptu
 
@@ -269,13 +269,18 @@ class FeedForwardPolicy(PyTorchModule):
 
 
 class RecurrentPolicy(PyTorchModule):
-    def __init__(self, obs_dim, action_dim):
+    def __init__(
+            self,
+            obs_dim,
+            action_dim,
+    ):
         self.save_init_params(locals())
         super().__init__()
 
         self.obs_dim = obs_dim
         self.action_dim = action_dim
-        self.lstm = nn.LSTM(self.obs_dim, self.action_dim, 1, batch_first=True)
+        self.lstm = LSTM(BNLSTMCell, self.obs_dim, self.action_dim, 1,
+                         batch_first=True)
 
         self.hx = Variable(
             ptu.FloatTensor(1, 1, self.action_dim)
@@ -293,7 +298,6 @@ class RecurrentPolicy(PyTorchModule):
         assert len(obs.size()) == 3
         batch_size, subsequence_length = obs.size()[:2]
         if hx is None:
-            assert cx is None
             cx = Variable(
                 ptu.FloatTensor(1, batch_size, self.action_dim)
             )
@@ -308,7 +312,9 @@ class RecurrentPolicy(PyTorchModule):
         obs = np.expand_dims(obs, axis=0)
         obs = np.expand_dims(obs, axis=1)
         obs = Variable(ptu.from_numpy(obs).float(), requires_grad=False)
-        action, (self.hx, self.cx) = self.__call__(obs)
+        action, (self.hx, self.cx) = self.__call__(
+            obs, cx=self.cx, hx=self.hx
+        )
         action = action.squeeze(0)
         action = action.squeeze(0)
         return ptu.get_numpy(action), {}

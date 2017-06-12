@@ -34,18 +34,17 @@ class Rdpg(OnlineAlgorithm):
             *args,
             qf,
             policy,
-            subtraj_length,
             tau=0.01,
             policy_learning_rate=1e-3,
             qf_learning_rate=1e-3,
             **kwargs
     ):
         super().__init__(*args, **kwargs)
-        self.action_dim = int(self.env.env_spec.action_space.flat_dim)
-        self.obs_dim = int(self.env.env_spec.observation_space.flat_dim)
+        self.action_dim = int(self.env.action_space.flat_dim)
+        self.obs_dim = int(self.env.observation_space.flat_dim)
         self.qf = qf
         self.policy = policy
-        self.subtraj_length = subtraj_length
+        self.subtraj_length = self.env.horizon
 
         self.num_subtrajs_per_batch = self.batch_size // self.subtraj_length
         self.train_validation_num_subtrajs_per_batch = (
@@ -67,7 +66,7 @@ class Rdpg(OnlineAlgorithm):
             self.qf.parameters(), lr=self.qf_learning_rate
         )
         self.policy_optimizer = optim.Adam(
-            self.policy.action_parameters(), lr=self.policy_learning_rate
+            self.policy.parameters(), lr=self.policy_learning_rate
         )
 
         self.use_gpu = self.use_gpu and torch.cuda.is_available()
@@ -114,7 +113,7 @@ class Rdpg(OnlineAlgorithm):
         actions = subtraj_batch['actions']
         next_obs = subtraj_batch['next_observations']
 
-        next_actions = self.target_policy(next_obs)
+        next_actions, _ = self.target_policy(next_obs)
         target_q_values = self.target_qf(next_obs, next_actions)
         y_target = rewards + (1. - terminals) * self.discount * target_q_values
         # noinspection PyUnresolvedReferences
@@ -145,7 +144,7 @@ class Rdpg(OnlineAlgorithm):
         policy, including intermediate values that might be useful to log.
         """
         observations = subtraj_batch['observations']
-        policy_actions = self.policy(observations)
+        policy_actions, _ = self.policy(observations)
         q_output = self.qf(observations, policy_actions)
         policy_loss = - q_output.mean()
 
@@ -249,7 +248,7 @@ class Rdpg(OnlineAlgorithm):
                 raw_subtraj_batch = self.pool.random_subtrajectories(
                     self.train_validation_num_subtrajs_per_batch,
                     validation=validation
-                )[0]
+                )
                 subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
                 statistics.update(self._statistics_from_subtraj_batch(
                     subtraj_batch, stat_prefix=stat_prefix
@@ -308,37 +307,6 @@ class Rdpg(OnlineAlgorithm):
             es=self.exploration_strategy,
             qf=self.qf,
         )
-
-    def handle_rollout_ending(self, n_steps_total):
-        if not self._can_train():
-            return
-
-        if self.should_refresh_buffer.check(n_steps_total):
-            all_start_traj_indices = (
-                self.pool.get_all_valid_trajectory_start_indices()
-            )
-            for start_traj_indices in batch(
-                    all_start_traj_indices,
-                    self.max_number_trajectories_loaded_at_once,
-            ):
-                raw_subtraj_batch, start_indices = (
-                    self.pool.get_trajectory_minimal_covering_subsequences(
-                        start_traj_indices, self.training_env.horizon)
-                )
-                subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
-                subtraj_obs = subtraj_batch['env_obs']
-                initial_memories = subtraj_batch['memories'][:, 0, :]
-                _, policy_writes = self.policy(subtraj_obs, initial_memories)
-                self.pool.update_write_subtrajectories(
-                    get_numpy(policy_writes), start_indices
-                )
-
-
-def flatten_subtraj_batch(subtraj_batch):
-    return {
-        k: array.view(-1, array.size()[-1])
-        for k, array in subtraj_batch.items()
-    }
 
 
 def create_torch_subtraj_batch(subtraj_batch):

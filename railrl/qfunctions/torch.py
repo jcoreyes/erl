@@ -8,6 +8,8 @@ from railrl.pythonplusplus import identity
 from railrl.torch.core import PyTorchModule
 from railrl.torch import pytorch_util as ptu
 
+from railrl.torch.bnlstm import BNLSTMCell, LSTM
+
 
 class FeedForwardQFunction(PyTorchModule):
     def __init__(
@@ -115,8 +117,12 @@ class RecurrentQFunction(PyTorchModule):
         self.obs_dim = obs_dim
         self.action_dim = action_dim
         self.hidden_size = hidden_size
-        self.lstm = nn.LSTM(self.obs_dim + self.action_dim, self.hidden_size,
-                            batch_first=True)
+        self.lstm = LSTM(
+            BNLSTMCell,
+            self.obs_dim + self.action_dim,
+            self.hidden_size,
+            batch_first=True,
+        )
         self.last_fc = nn.Linear(self.hidden_size, 1)
 
     def forward(self, obs, action):
@@ -129,14 +135,15 @@ class RecurrentQFunction(PyTorchModule):
         inputs = torch.cat((obs, action), dim=2)
         batch_size, subsequence_length = obs.size()[:2]
         cx = Variable(
-            ptu.FloatTensor(1, batch_size, self.action_dim)
+            ptu.FloatTensor(1, batch_size, self.hidden_size)
         )
         cx.data.fill_(0)
         hx = Variable(
-            ptu.FloatTensor(1, batch_size, self.action_dim)
+            ptu.FloatTensor(1, batch_size, self.hidden_size)
         )
         hx.data.fill_(0)
         rnn_outputs, _ = self.lstm(inputs, (hx, cx))
+        rnn_outputs.contiguous()
         rnn_outputs_flat = rnn_outputs.view(-1, self.hidden_size)
         outputs_flat = self.last_fc(rnn_outputs_flat)
         return outputs_flat.view(batch_size, subsequence_length, 1)

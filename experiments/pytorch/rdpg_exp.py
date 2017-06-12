@@ -17,7 +17,8 @@ from rllab.envs.normalized_env import normalize
 
 
 def example(variant):
-    env = HighLow(**variant['env_params'])
+    env_class = variant['env_class']
+    env = env_class(**variant['env_params'])
     es = OUStrategy(env_spec=env.spec)
     qf = RecurrentQFunction(
         int(env.observation_space.flat_dim),
@@ -43,10 +44,8 @@ if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
             num_epochs=10,
-            num_steps_per_epoch=1000,
+            num_steps_per_epoch=100,
             num_steps_per_eval=100,
-            target_hard_update_period=10000,
-            # use_soft_update=True,
             batch_size=32,
             max_path_length=100,
             use_gpu=use_gpu,
@@ -54,6 +53,7 @@ if __name__ == "__main__":
         env_params=dict(
             num_steps=2,
         ),
+        env_class=HighLow,
     )
     run_experiment(
         example,
