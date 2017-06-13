@@ -45,14 +45,16 @@ def example(variant):
         int(raw_env.observation_space.flat_dim),
         int(raw_env.action_space.flat_dim),
         memory_dim,
+        100,
+        100,
         10,
     )
     policy = MemoryPolicy(
         int(raw_env.observation_space.flat_dim),
         int(raw_env.action_space.flat_dim),
         memory_dim,
-        400,
-        300,
+        100,
+        100,
     )
     algorithm = BpttDdpgRecurrentQ(
         env,
@@ -66,16 +68,19 @@ def example(variant):
 
 if __name__ == "__main__":
     use_gpu = True
-    H = 32
+    H = 64
     variant = dict(
         algo_params=dict(
-            num_epochs=50,
+            num_epochs=100,
             num_steps_per_epoch=100,
-            num_steps_per_eval=100,
+            num_steps_per_eval=H*20,
             batch_size=H*64,
             max_path_length=H,
             use_gpu=use_gpu,
             subtraj_length=8,
+            action_policy_learning_rate=1e-4,
+            write_policy_learning_rate=1e-5,
+            qf_learning_rate=1e-4,
         ),
         env_params=dict(
             num_steps=H,

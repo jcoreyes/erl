@@ -92,6 +92,8 @@ class MemoryQFunction(PyTorchModule):
         self.embedded_fc.bias.data.fill_(0)
         self.last_fc.weight.data.uniform_(-init_w, init_w)
         self.last_fc.bias.data.uniform_(-init_w, init_w)
+        # init.kaiming_normal(self.last_fc.weight)
+        # self.last_fc.bias.data.fill_(0)
 
     def forward(self, obs, memory, action, write):
         obs_embedded = torch.cat((obs, memory), dim=1)
@@ -165,14 +167,15 @@ class RecurrentMemoryQFunction(PyTorchModule):
         self.memory_dim = memory_dim
         self.hidden_size = hidden_size
         self.fc1_size = fc1_size
+        self.fc2_size = fc2_size
         self.lstm = LSTM(
             BNLSTMCell,
             self.obs_dim + self.action_dim + 2 * memory_dim,
             self.hidden_size,
             batch_first=True,
             )
-        self.fc1 = nn.Linear(self.hidden_size, fc1_size)
-        self.fc2 = nn.Linear(self.fc2_size, fc2_size)
+        self.fc1 = nn.Linear(self.hidden_size, self.fc1_size)
+        self.fc2 = nn.Linear(self.fc1_size, self.fc2_size)
         self.last_fc = nn.Linear(self.fc2_size, 1)
         self.init_weights(init_w)
 
@@ -206,5 +209,7 @@ class RecurrentMemoryQFunction(PyTorchModule):
         rnn_outputs, _ = self.lstm(inputs, (hx, cx))
         rnn_outputs.contiguous()
         rnn_outputs_flat = rnn_outputs.view(-1, self.hidden_size)
-        outputs_flat = self.last_fc(rnn_outputs_flat)
+        h1 = F.relu(self.fc1(rnn_outputs_flat))
+        h2 = F.relu(self.fc2(h1))
+        outputs_flat = self.last_fc(h2)
         return outputs_flat.view(batch_size, subsequence_length, 1)

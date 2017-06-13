@@ -99,9 +99,11 @@ class MemoryPolicy(PyTorchModule):
         init.kaiming_normal(self.fc1.weight)
         self.fc1.bias.data.fill_(0)
         init.kaiming_normal(self.fc2.weight)
-        self.fc2.bias.data *= 0
+        self.fc2.bias.data.fill_(0)
         self.last_fc.weight.data.uniform_(-init_w, init_w)
         self.last_fc.bias.data.uniform_(-init_w, init_w)
+        # init.kaiming_normal(self.last_fc.weight)
+        # self.last_fc.bias.data.fill_(0)
 
     def action_parameters(self):
         for fc in [self.fc1, self.fc2, self.last_fc]:
