@@ -309,7 +309,9 @@ class RecurrentPolicy(PyTorchModule):
         rnn_outputs.contiguous()
         rnn_outputs_flat = rnn_outputs.view(-1, self.hidden_size)
         outputs_flat = F.tanh(self.last_fc(rnn_outputs_flat))
-        return outputs_flat.view(batch_size, subsequence_length, 1), state
+        return outputs_flat.view(
+            batch_size, subsequence_length, self.action_dim
+        ), state
 
     def get_action(self, obs):
         obs = np.expand_dims(obs, axis=0)
@@ -331,3 +333,6 @@ class RecurrentPolicy(PyTorchModule):
         )
         self.hx.data.fill_(0)
         self.cx.data.fill_(0)
+
+    def log_diagnostics(self, paths):
+        pass
