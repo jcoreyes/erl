@@ -122,6 +122,7 @@ class OnlineAlgorithm(RLAlgorithm):
             self.replay_pool_size,
             self.env,
         )
+        
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = allow_gpu_growth
         self.sess = tf.Session(config=config)
@@ -355,6 +356,7 @@ class OnlineAlgorithm(RLAlgorithm):
             epoch=epoch,
             policy=self.policy,
             es=self.exploration_strategy,
+            pool=self.pool,
         )
 
     def evaluate(self, epoch, es_path_returns):

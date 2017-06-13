@@ -179,6 +179,7 @@ class BaxterEnv(Env, Serializable):
         if(joint_angle_experiment):
             #reward is MSE between current joint angles and the desired angles
             reward = -np.mean((self._joint_angles() - self.desired)**2)
+            
         if(end_effector_experiment_position or end_effector_experiment_total):
             #reward is MSE between desired position/orientation and current position/orientation of end_effector
             current_end_effector_pose = self._end_effector_pose()

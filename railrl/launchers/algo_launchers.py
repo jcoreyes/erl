@@ -476,6 +476,8 @@ def bptt_ddpg_launcher(variant):
             data = joblib.load(load_policy_file)
             policy = data['policy']
             qf = data['qf']
+            replay_buffer=data['pool']
+            
     env_strategy = env_es_class(
         env_spec=ocm_env.spec,
         **env_es_params
@@ -558,6 +560,7 @@ def bptt_ddpg_launcher(variant):
         env_action_dim=env_action_dim,
         replay_buffer_class=replay_buffer_class,
         replay_buffer_params=replay_buffer_params,
+        replay_pool=replay_buffer,
         **ddpg_params
     )
 
