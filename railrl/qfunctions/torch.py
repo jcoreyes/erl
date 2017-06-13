@@ -147,3 +147,58 @@ class RecurrentQFunction(PyTorchModule):
         rnn_outputs_flat = rnn_outputs.view(-1, self.hidden_size)
         outputs_flat = self.last_fc(rnn_outputs_flat)
         return outputs_flat.view(batch_size, subsequence_length, 1)
+
+
+class RecurrentMemoryQFunction(PyTorchModule):
+    def __init__(
+            self,
+            obs_dim,
+            action_dim,
+            memory_dim,
+            hidden_size,
+            init_w=3e-3,
+    ):
+        self.save_init_params(locals())
+        super().__init__()
+
+        self.obs_dim = obs_dim
+        self.action_dim = action_dim
+        self.memory_dim = memory_dim
+        self.hidden_size = hidden_size
+        self.lstm = LSTM(
+            BNLSTMCell,
+            self.obs_dim + self.action_dim + 2 * memory_dim,
+            self.hidden_size,
+            batch_first=True,
+            )
+        self.last_fc = nn.Linear(self.hidden_size, 1)
+        self.init_weights(init_w)
+
+    def init_weights(self, init_w):
+        self.last_fc.weight.data.uniform_(-init_w, init_w)
+        self.last_fc.bias.data.uniform_(-init_w, init_w)
+
+    def forward(self, obs, memory, action, write):
+        """
+        :param obs: torch Variable, [batch_size, sequence length, obs dim]
+        :param memory: torch Variable, [batch_size, sequence length, memory dim]
+        :param action: torch Variable, [batch_size, sequence length, action dim]
+        :param write: torch Variable, [batch_size, sequence length, memory dim]
+        :return: torch Variable, [batch_size, sequence length, 1]
+        """
+        assert len(obs.size()) == 3
+        inputs = torch.cat((obs, memory, action, write), dim=2)
+        batch_size, subsequence_length = obs.size()[:2]
+        cx = Variable(
+            ptu.FloatTensor(1, batch_size, self.hidden_size)
+        )
+        cx.data.fill_(0)
+        hx = Variable(
+            ptu.FloatTensor(1, batch_size, self.hidden_size)
+        )
+        hx.data.fill_(0)
+        rnn_outputs, _ = self.lstm(inputs, (hx, cx))
+        rnn_outputs.contiguous()
+        rnn_outputs_flat = rnn_outputs.view(-1, self.hidden_size)
+        outputs_flat = self.last_fc(rnn_outputs_flat)
+        return outputs_flat.view(batch_size, subsequence_length, 1)
