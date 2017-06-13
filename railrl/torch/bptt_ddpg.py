@@ -362,27 +362,25 @@ class BpttDdpg(OnlineAlgorithm):
             ('Validation', True),
             ('Train', False),
         ]:
-            if (self.pool.num_subtrajs_can_sample(validation=validation) >=
-                    self.train_validation_num_subtrajs_per_batch):
-                raw_subtraj_batch = self.pool.random_subtrajectories(
-                    self.train_validation_num_subtrajs_per_batch,
-                    validation=validation
-                )[0]
-                subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
-                statistics.update(self._statistics_from_subtraj_batch(
-                    subtraj_batch, stat_prefix=stat_prefix
-                ))
+            sample_size = min(
+                self.pool.num_subtrajs_can_sample(validation=validation),
+                self.train_validation_num_subtrajs_per_batch
+            )
+            raw_subtraj_batch = self.pool.random_subtrajectories(
+                sample_size,
+                validation=validation
+            )[0]
+            subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
+            statistics.update(self._statistics_from_subtraj_batch(
+                subtraj_batch, stat_prefix=stat_prefix
+            ))
         return statistics
 
     def _can_evaluate(self, exploration_paths):
         return (
-            self.pool.num_subtrajs_can_sample(validation=True) >=
-                self.train_validation_num_subtrajs_per_batch
-            and
-            self.pool.num_subtrajs_can_sample(validation=False) >=
-            self.train_validation_num_subtrajs_per_batch
-            and
-            len(exploration_paths) > 0
+            self.pool.num_subtrajs_can_sample(validation=True) >= 1
+            and self.pool.num_subtrajs_can_sample(validation=False) >= 1
+            and len(exploration_paths) > 0
             # Technically, I should also check that the exploration path has
             # enough subtraj batches, but whatever.
         )
