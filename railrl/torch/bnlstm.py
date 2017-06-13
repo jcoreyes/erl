@@ -131,6 +131,8 @@ class BNLSTMCell(nn.Module):
 
     def forward(self, input_, hx):
         """
+        Seems to follow this implementation:
+        https://arxiv.org/pdf/1603.09025.pdf
         Args:
             input_: A (batch, input_size) tensor containing input
                 features.
