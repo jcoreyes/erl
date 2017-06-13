@@ -12,6 +12,7 @@ from railrl.misc.rllab_util import get_average_returns
 from railrl.policies.torch import MemoryPolicy
 from railrl.pythonplusplus import batch, ConditionTimer
 from railrl.qfunctions.torch import MemoryQFunction
+from railrl.torch.bptt_ddpg import create_torch_subtraj_batch
 from railrl.torch.online_algorithm import OnlineAlgorithm
 from railrl.torch.pytorch_util import (
     copy_model_params_from_to,
@@ -303,15 +304,3 @@ class Rdpg(OnlineAlgorithm):
             es=self.exploration_strategy,
             qf=self.qf,
         )
-
-
-def create_torch_subtraj_batch(subtraj_batch):
-    torch_batch = {
-        k: Variable(from_numpy(array).float(), requires_grad=True)
-        for k, array in subtraj_batch.items()
-    }
-    rewards = torch_batch['rewards']
-    terminals = torch_batch['terminals']
-    torch_batch['rewards'] = rewards.unsqueeze(-1)
-    torch_batch['terminals'] = terminals.unsqueeze(-1)
-    return torch_batch

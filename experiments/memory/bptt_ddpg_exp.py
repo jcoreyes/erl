@@ -29,13 +29,13 @@ def experiment(variant):
     from railrl.exploration_strategies.product_strategy import ProductStrategy
     seed = variant['seed']
     algo_params = variant['algo_params']
-    es_params = variant['es_params']
     memory_dim = variant['memory_dim']
     env_class = variant['env_class']
     env_params = variant['env_params']
     memory_aug_params = variant['memory_aug_params']
     qf_params = variant['qf_params']
 
+    es_params = variant['es_params']
     env_es_class = es_params['env_es_class']
     env_es_params = es_params['env_es_params']
     memory_es_class = es_params['memory_es_class']
@@ -85,12 +85,12 @@ def experiment(variant):
 if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
-    exp_prefix = "dev-6-11-pytorch-2"
+    exp_prefix = "dev-6-12-pytorch"
     run_mode = 'none'
 
-    n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "6-11-water-maze-easy-full-bptt-H100"
+    # n_seeds = 3
+    # mode = "ec2"
+    # exp_prefix = "6-12-small-water-maze-memory-full-bptt-H100"
 
     # run_mode = 'grid'
     use_gpu = True
@@ -99,8 +99,8 @@ if __name__ == '__main__':
 
     # H = 16
     # subtraj_length = 8
-    H = 100
-    subtraj_length = 100
+    H = 8
+    subtraj_length = 8
     # version = "H = {0}, subtraj length = {1}".format(H, subtraj_length)
     # version = "Obs only -- actually"
     version = exp_prefix
@@ -108,10 +108,10 @@ if __name__ == '__main__':
     variant = dict(
         # memory_dim=2,
         memory_dim=20,
-        env_class=WaterMazeEasy,
+        # env_class=WaterMazeEasy,
         # env_class=WaterMaze,
         # env_class=WaterMazeMemory,
-        # env_class=HighLow,
+        env_class=HighLow,
         env_params=dict(
             num_steps=H,
             # horizon=H,
@@ -126,8 +126,8 @@ if __name__ == '__main__':
             batch_size=subtraj_length*64,
             # batch_size=32*32,
             num_epochs=50,
-            # num_steps_per_epoch=100,
-            num_steps_per_epoch=1000,
+            num_steps_per_epoch=100,
+            # num_steps_per_epoch=1000,
             discount=1.,
             use_gpu=use_gpu,
             policy_optimize_bellman=True,
@@ -185,4 +185,5 @@ if __name__ == '__main__':
                 use_gpu=use_gpu,
                 sync_s3_log=True,
                 sync_s3_pkl=True,
+                periodic_sync_interval=120,
             )

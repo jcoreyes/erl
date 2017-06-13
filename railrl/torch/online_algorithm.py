@@ -146,14 +146,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                     self._do_training(n_steps_total=n_steps_total)
                     self.training_mode(False)
 
-            if self._can_train():
-                logger.log(
-                    "Training Time: {0}".format(time.time() - start_time)
-                )
-            else:
-                logger.log("Not training yet. Time: {}".format(
-                    time.time() - start_time)
-                )
+            train_time = time.time() - start_time
             if self._can_evaluate(exploration_paths):
                 start_time = time.time()
                 self.evaluate(epoch, exploration_paths)
@@ -169,6 +162,10 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                 logger.log("Eval Time: {0}".format(time.time() - start_time))
             else:
                 logger.log("Skipping eval for now.")
+            if self._can_train():
+                logger.log("Training Time: {0}".format(train_time))
+            else:
+                logger.log("Not training yet. Time: {}".format(train_time))
             logger.pop_prefix()
 
     def _start_worker(self):
