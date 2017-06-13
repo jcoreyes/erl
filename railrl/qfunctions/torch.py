@@ -171,10 +171,10 @@ class RecurrentMemoryQFunction(PyTorchModule):
         self.fc2_size = fc2_size
         self.lstm = LSTM(
             BNLSTMCell,
-            self.obs_dim + self.action_dim + 2 * memory_dim,
+            self.obs_dim + self.action_dim + 2 * self.memory_dim,
             self.hidden_size,
             batch_first=True,
-            )
+        )
         self.fc1 = nn.Linear(self.hidden_size, self.fc1_size)
         self.fc2 = nn.Linear(self.fc1_size, self.fc2_size)
         self.last_fc = nn.Linear(self.fc2_size, 1)
@@ -197,7 +197,7 @@ class RecurrentMemoryQFunction(PyTorchModule):
         :return: torch Variable, [batch_size, sequence length, 1]
         """
         assert len(obs.size()) == 3
-        inputs = torch.cat((obs, memory, action, write), dim=2)
+        rnn_inputs = torch.cat((obs, memory, action, write), dim=2)
         batch_size, subsequence_length = obs.size()[:2]
         cx = Variable(
             ptu.FloatTensor(1, batch_size, self.hidden_size)
@@ -207,9 +207,9 @@ class RecurrentMemoryQFunction(PyTorchModule):
             ptu.FloatTensor(1, batch_size, self.hidden_size)
         )
         hx.data.fill_(0)
-        rnn_outputs, _ = self.lstm(inputs, (hx, cx))
+        rnn_outputs, _ = self.lstm(rnn_inputs, (hx, cx))
         rnn_outputs.contiguous()
-        rnn_outputs_flat = rnn_outputs.view(-1, self.hidden_size)
+        rnn_outputs_flat = rnn_outputs.view(-1, self.fc1.in_features)
         h1 = F.relu(self.fc1(rnn_outputs_flat))
         h2 = F.relu(self.fc2(h1))
         outputs_flat = self.last_fc(h2)
