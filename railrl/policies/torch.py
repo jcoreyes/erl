@@ -4,7 +4,7 @@ from torch import nn as nn
 from torch.autograd import Variable
 from torch.nn import functional as F
 
-from railrl.torch.bnlstm import BNLSTMCell, LSTMCell
+from railrl.torch.bnlstm import BNLSTMCell, LSTM
 from railrl.torch.core import PyTorchModule
 from railrl.torch import pytorch_util as ptu
 
@@ -259,13 +259,80 @@ class FeedForwardPolicy(PyTorchModule):
         obs = Variable(ptu.from_numpy(obs).float(), requires_grad=False)
         action = self.__call__(obs)
         action = action.squeeze(0)
-        if self.last_fc.weight.is_cuda:
-            return action.data.cpu().numpy(), {}
-        else:
-            return action.data.numpy(), {}
+        return ptu.get_numpy(action), {}
 
     def reset(self):
         pass
+
+    def log_diagnostics(self, paths):
+        pass
+
+
+class RecurrentPolicy(PyTorchModule):
+    def __init__(
+            self,
+            obs_dim,
+            action_dim,
+            hidden_size,
+    ):
+        self.save_init_params(locals())
+        super().__init__()
+
+        self.obs_dim = obs_dim
+        self.action_dim = action_dim
+        self.hidden_size = hidden_size
+        self.lstm = LSTM(BNLSTMCell, self.obs_dim, self.hidden_size, 1,
+                         batch_first=True)
+        self.last_fc = nn.Linear(hidden_size, self.action_dim)
+
+        self.hx = None
+        self.cx = None
+        self.reset()
+
+    def forward(self, obs, cx=None, hx=None):
+        """
+        :param obs: torch Variable, [batch_size, sequence length, obs dim]
+        :return: torch Variable, [batch_size, sequence length, action dim]
+        """
+        assert len(obs.size()) == 3
+        batch_size, subsequence_length = obs.size()[:2]
+        if hx is None:
+            cx = Variable(
+                ptu.FloatTensor(1, batch_size, self.hidden_size)
+            )
+            cx.data.fill_(0)
+            hx = Variable(
+                ptu.FloatTensor(1, batch_size, self.hidden_size)
+            )
+            hx.data.fill_(0)
+        rnn_outputs, state = self.lstm(obs, (hx, cx))
+        rnn_outputs.contiguous()
+        rnn_outputs_flat = rnn_outputs.view(-1, self.hidden_size)
+        outputs_flat = F.tanh(self.last_fc(rnn_outputs_flat))
+        return outputs_flat.view(
+            batch_size, subsequence_length, self.action_dim
+        ), state
+
+    def get_action(self, obs):
+        obs = np.expand_dims(obs, axis=0)
+        obs = np.expand_dims(obs, axis=1)
+        obs = Variable(ptu.from_numpy(obs).float(), requires_grad=False)
+        action, (self.hx, self.cx) = self.__call__(
+            obs, cx=self.cx, hx=self.hx
+        )
+        action = action.squeeze(0)
+        action = action.squeeze(0)
+        return ptu.get_numpy(action), {}
+
+    def reset(self):
+        self.hx = Variable(
+            ptu.FloatTensor(1, 1, self.hidden_size)
+        )
+        self.cx = Variable(
+            ptu.FloatTensor(1, 1, self.hidden_size)
+        )
+        self.hx.data.fill_(0)
+        self.cx.data.fill_(0)
 
     def log_diagnostics(self, paths):
         pass

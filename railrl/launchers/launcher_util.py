@@ -18,6 +18,7 @@ from railrl.envs.memory.one_char_memory import (
     OneCharMemoryEndOnly,
     OneCharMemoryOutputRewardMag,
 )
+from railrl.torch.pytorch_util import set_gpu_mode
 from rllab import config
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.envs.mujoco.ant_env import AntEnv
@@ -246,6 +247,8 @@ def run_experiment_here(
     )
     if not use_gpu:
         os.environ['CUDA_VISIBLE_DEVICES'] = ""
+    else:
+        set_gpu_mode(use_gpu)
     return experiment_function(variant)
 
 

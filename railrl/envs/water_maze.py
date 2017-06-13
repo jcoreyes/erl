@@ -12,10 +12,14 @@ from sandbox.rocky.tf.spaces.box import Box
 
 
 class WaterMaze(MujocoEnv):
-    def __init__(self, horizon=200, l2_action_penalty_weight=1e-2,
-                 num_steps=None,
-                 include_velocity=False,
-                 use_small_maze=False):
+    def __init__(
+            self,
+            horizon=200,
+            l2_action_penalty_weight=1e-2,
+            num_steps=None,
+            include_velocity=False,
+            use_small_maze=False
+    ):
         self.init_serialization(locals())
         if use_small_maze:
             self.TARGET_RADIUS = 0.04
