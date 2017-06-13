@@ -40,20 +40,24 @@ class BpttDdpg(OnlineAlgorithm):
             tau=0.01,
             use_soft_update=True,
             refresh_entire_buffer_period=None,
-            policy_optimize_bellman=True,
+            action_policy_optimize_bellman=True,
+            write_policy_optimizes='both',
             action_policy_learning_rate=1e-3,
             write_policy_learning_rate=1e-5,
             qf_learning_rate=1e-3,
+            bellman_error_loss_weight=10,
             **kwargs
     ):
         super().__init__(*args, **kwargs)
+        assert write_policy_optimizes in ['qf', 'bellman', 'both']
         self.action_dim = int(self.env.env_spec.action_space.flat_dim)
         self.obs_dim = int(self.env.env_spec.observation_space.flat_dim)
         self.memory_dim = self.env.memory_dim
         self.qf = qf
         self.policy = policy
         self.subtraj_length = subtraj_length
-        self.policy_optimize_bellman = policy_optimize_bellman
+        self.action_policy_optimize_bellman = action_policy_optimize_bellman
+        self.write_policy_optimizes = write_policy_optimizes
 
         self.num_subtrajs_per_batch = self.batch_size // self.subtraj_length
         self.train_validation_num_subtrajs_per_batch = (
@@ -62,7 +66,7 @@ class BpttDdpg(OnlineAlgorithm):
         self.action_policy_learning_rate = action_policy_learning_rate
         self.write_policy_learning_rate = write_policy_learning_rate
         self.qf_learning_rate = qf_learning_rate
-        self.bellman_error_loss_weight = 10
+        self.bellman_error_loss_weight = bellman_error_loss_weight
         self.target_hard_update_period = 1000
         self.tau = tau
         self.use_soft_update = use_soft_update
@@ -173,15 +177,29 @@ class BpttDdpg(OnlineAlgorithm):
 
         self.action_policy_optimizer.zero_grad()
         self.write_policy_optimizer.zero_grad()
-        if self.policy_optimize_bellman:
-            policy_loss.backward(retain_variables=True)
-            bellman_errors = policy_dict['Bellman Errors']
-            bellman_loss = self.bellman_error_loss_weight * bellman_errors.mean()
-            bellman_loss.backward()
+        policy_loss.backward(retain_variables=True)
+
+        if self.write_policy_optimizes == 'qf':
+            self.write_policy_optimizer.step()
+            if self.action_policy_optimize_bellman:
+                bellman_errors = policy_dict['Bellman Errors']
+                bellman_loss = self.bellman_error_loss_weight * bellman_errors.mean()
+                bellman_loss.backward()
+            self.action_policy_optimizer.step()
         else:
-            policy_loss.backward()
-        self.action_policy_optimizer.step()
-        self.write_policy_optimizer.step()
+            if self.write_policy_optimizes == 'bellman':
+                self.write_policy_optimizer.zero_grad()
+            if self.action_policy_optimize_bellman:
+                bellman_errors = policy_dict['Bellman Errors']
+                bellman_loss = self.bellman_error_loss_weight * bellman_errors.mean()
+                bellman_loss.backward()
+                self.action_policy_optimizer.step()
+            else:
+                self.action_policy_optimizer.step()
+                bellman_errors = policy_dict['Bellman Errors']
+                bellman_loss = self.bellman_error_loss_weight * bellman_errors.mean()
+                bellman_loss.backward()
+            self.write_policy_optimizer.step()
 
         self.pool.update_write_subtrajectories(
             get_numpy(policy_dict['New Writes']), start_indices
@@ -260,6 +278,7 @@ class BpttDdpg(OnlineAlgorithm):
             ('Y target', y_target),
             ('Y predicted', y_predicted),
             ('Bellman Errors', bellman_errors),
+            ('Q Output', q_output),
             ('Loss', policy_loss),
             ('New Env Actions', flat_batch['policy_new_actions']),
             ('New Writes', policy_writes),
