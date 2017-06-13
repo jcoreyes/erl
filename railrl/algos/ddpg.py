@@ -374,7 +374,6 @@ class DDPG(OnlineAlgorithm):
                                       next_obs)
 
     def get_epoch_snapshot(self, epoch):
-        print('wahtas')
         return dict(
             env=self.training_env,
             epoch=epoch,
