@@ -1,31 +1,58 @@
-from gym import utils
+import os
+from os import path
+
+import mujoco_py
+import numpy as np
 from gym.envs.mujoco import mujoco_env
 
 from railrl.envs.env_utils import get_asset_xml
-from rllab.envs.env_spec import EnvSpec
-from rllab.spaces import Box
+from rllab.core.serializable import Serializable
+from rllab.envs.base import Env
 
 
-class MujocoEnv(mujoco_env.MujocoEnv, utils.EzPickle):
-    def __init__(self, local_xml_file_name, frame_skip=1):
-        utils.EzPickle.__init__(self)
-        mujoco_env.MujocoEnv.__init__(
+class MujocoEnv(mujoco_env.MujocoEnv, Serializable, Env):
+    """
+    My own wrapper around MujocoEnv.
+    
+    The caller needs to declare
+    """
+    def __init__(
             self,
-            get_asset_xml(local_xml_file_name),
-            frame_skip=frame_skip,
-        )
-        self.observation_space = Box(
-            low=self.observation_space.low,
-            high=self.observation_space.high,
-        )
-        self.action_space = Box(
-            low=self.action_space.low,
-            high=self.action_space.high,
-        )
-        self.spec = EnvSpec(
-            self.observation_space,
-            self.action_space,
-        )
+            model_path,
+            frame_skip=1,
+            model_path_is_local=True,
+            automatically_set_obs_and_action_space=False,
+    ):
+        if model_path_is_local:
+            model_path = get_asset_xml(model_path)
+        if automatically_set_obs_and_action_space:
+            mujoco_env.MujocoEnv.__init__(self, model_path, frame_skip)
+        else:
+            """
+            Code below is copy/pasted from MujocoEnv's __init__ function.
+            """
+            if model_path.startswith("/"):
+                fullpath = model_path
+            else:
+                fullpath = os.path.join(os.path.dirname(__file__), "assets", model_path)
+            if not path.exists(fullpath):
+                raise IOError("File %s does not exist" % fullpath)
+            self.frame_skip = frame_skip
+            self.model = mujoco_py.MjModel(fullpath)
+            self.data = self.model.data
+            self.viewer = None
+
+            self.metadata = {
+                'render.modes': ['human', 'rgb_array'],
+                'video.frames_per_second': int(np.round(1.0 / self.dt))
+            }
+
+            self.init_qpos = self.model.data.qpos.ravel().copy()
+            self.init_qvel = self.model.data.qvel.ravel().copy()
+            self._seed()
+
+    def init_serialization(self, locals):
+        Serializable.quick_init(self, locals)
 
     def log_diagnostics(self, paths):
         pass

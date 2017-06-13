@@ -7,17 +7,21 @@ import tensorflow as tf
 from typing import Iterable
 import numpy as np
 
-from railrl.algos.ddpg import DDPG, TargetUpdateMode
+from railrl.algos.ddpg import DDPG
 from railrl.core import tf_util
 from railrl.core.rnn.rnn import OutputStateRnn
-from railrl.data_management.subtraj_replay_buffer import (
-    SubtrajReplayBuffer
-)
-from railrl.data_management.updatable_subtraj_replay_buffer import \
+from railrl.data_management.updatable_subtraj_replay_buffer import (
     UpdatableSubtrajReplayBuffer
+)
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.policies.memory.rnn_cell_policy import RnnCellPolicy
-from railrl.pythonplusplus import map_recursive, filter_recursive, line_logger
+from railrl.pythonplusplus import (
+    map_recursive,
+    filter_recursive,
+    line_logger,
+    ConditionTimer,
+    batch,
+)
 from railrl.qfunctions.nn_qfunction import NNQFunction
 
 TARGET_PREFIX = "target_"
@@ -151,6 +155,8 @@ class BpttDDPG(DDPG):
             write_only_optimize_bellman=False,
             env_action_minimize_bellman_loss=True,
             save_new_memories_back_to_replay_buffer=True,
+            refresh_entire_buffer_period=None,
+            max_number_trajectories_loaded_at_once=32,
             **kwargs
     ):
         """
@@ -193,6 +199,10 @@ class BpttDDPG(DDPG):
         optimized only to minimize the Bellman error.
         :param env_action_minimize_bellman_loss: If False, the env action is
         only optimized to maximize the Q function.
+        :param refresh_entire_buffer_period: If set, refresh the replay buffer
+        after this many steps.
+        :param max_number_trajectories_loaded_at_once: When refreshing the
+        replay buffer, only load this many trajectories at once.
         :param kwargs: kwargs to pass onto DDPG
         """
         assert extra_qf_training_mode in [
@@ -236,6 +246,12 @@ class BpttDDPG(DDPG):
         self.env_action_minimize_bellman_loss = env_action_minimize_bellman_loss
         self.save_new_memories_back_to_replay_buffer = (
             save_new_memories_back_to_replay_buffer
+        )
+        self.max_number_trajectories_loaded_at_once = (
+            max_number_trajectories_loaded_at_once
+        )
+        self.should_refresh_buffer = ConditionTimer(
+            refresh_entire_buffer_period
         )
 
         self._rnn_cell_scope = policy.rnn_cell_scope
@@ -308,6 +324,8 @@ class BpttDDPG(DDPG):
         for path in paths:
             eval_pool.add_trajectory(path)
         batch = eval_pool.get_all_valid_subtrajectories()
+        if batch is None:
+            return OrderedDict()
         return self._statistics_from_batch(batch)
 
     def _statistics_from_batch(self, batch) -> OrderedDict:
@@ -666,6 +684,13 @@ class BpttDDPG(DDPG):
         if not self.train_policy:
             return None
 
+        # if self.write_policy_learning_rate == 0:
+        #     self.train_policy_op = tf.train.AdamOptimizer(
+        #         self.policy_learning_rate
+        #     ).minimize(env_action_loss + write_loss,
+        #                var_list=self.policy.get_params())
+        #     return self.train_policy_op
+
         policy_env_params = self.policy.get_params(env_only=True)
         self.train_policy_op_env = tf.train.AdamOptimizer(
             self.policy_learning_rate
@@ -726,28 +751,28 @@ class BpttDDPG(DDPG):
         feed_dict[self.policy.observation_input] = last_obs
         return feed_dict
 
-    def handle_rollout_ending(self):
-        if self.compute_gradients_immediately:
+    def handle_rollout_ending(self, n_steps_total):
+        if self.should_refresh_buffer.check(n_steps_total):
+            all_start_traj_indices = (
+                self.pool.get_all_valid_trajectory_start_indices()
+            )
+            for start_traj_indices in batch(
+                    all_start_traj_indices,
+                    self.max_number_trajectories_loaded_at_once,
+            ):
+                self.update_trajectory_memory_and_gradients(start_traj_indices)
+        elif self.compute_gradients_immediately:
             last_trajectory_start_index = (
                 self.pool.get_all_valid_trajectory_start_indices()[-1]
             )
             self.update_trajectory_memory_and_gradients(
-                last_trajectory_start_index
+                [last_trajectory_start_index]
             )
 
-        if self.refresh_entire_buffer:
-            self.update_replay_buffer()
-
-    @property
-    def refresh_entire_buffer(self):
-        return False
-
-    def update_trajectory_memory_and_gradients(self, trajectory_start_idx):
+    def update_trajectory_memory_and_gradients(self, trajectory_start_idxs):
         minibatch, start_indices = (
-            self.pool.get_trajectory_subsequences(
-                trajectory_start_idx,
-                self.env.horizon
-            )
+            self.pool.get_trajectory_minimal_covering_subsequences(
+                trajectory_start_idxs, self.env.horizon)
         )
         policy_feed_dict = self._policy_feed_dict_from_batch(minibatch)
         new_writes, dloss_dmemories = self.sess.run(
@@ -759,16 +784,12 @@ class BpttDDPG(DDPG):
         )
         # TODO(vitchyr): Do I actually want to overwrite the write states?
         # One issue is that no exploration will happen!
-        # self.pool.update_write_subtrajectories(new_writes, start_indices)
-        self.pool.update_dloss_dmemories_subtrajectories(dloss_dmemories,
-                                                         start_indices)
+        if self.save_new_memories_back_to_replay_buffer:
+            self.pool.update_write_subtrajectories(new_writes, start_indices)
+        if self.saved_write_loss_weight > 0:
+            self.pool.update_dloss_dmemories_subtrajectories(dloss_dmemories,
+                                                             start_indices)
 
-    def update_replay_buffer(self):
-        start_episode_indices = (
-            self.pool.get_all_valid_trajectory_start_indices()
-        )
-        for start_episode_idx in start_episode_indices:
-            self.update_trajectory_memory_and_gradients(start_episode_idx)
     """
     Miscellaneous functions
     """
@@ -806,6 +827,8 @@ class BpttDDPG(DDPG):
             ('Train', False),
         ]:
             batch = self.pool.get_valid_subtrajectories(validation=validation)
+            if batch is None:
+                continue
             statistics.update(
                 self._get_other_statistics_train_validation(batch, name)
             )

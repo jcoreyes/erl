@@ -9,7 +9,7 @@
     <worldbody>
         <!-- Pointmass -->
         <body name="particle" pos="0 0 0">
-            <geom name="particle_geom" type="sphere" size="0.02" rgba="0.0 0.0 1.0 1" contype="1"/>
+            <geom name="particle_geom" type="sphere" size="0.01" rgba="0.0 0.0 1.0 1" contype="1"/>
             <site name="particle_site" pos="0 0 0" size="0.01" />
             <joint name="ball_x" type="slide" pos="0 0 0" axis="1 0 0" />
             <joint name="ball_y" type="slide" pos="0 0 0" axis="0 1 0" />
@@ -17,17 +17,21 @@
 
         <!-- Target -->
         <body name="target" pos="0 0 0">
-            <geom conaffinity="0" name="target_geom" type="cylinder" size=".1
-             .01" rgba="0 0.9 0.1 1" contype="0"/>
+            <geom conaffinity="0" name="target_geom" type="cylinder" size=".04
+             .001" rgba="0 0.9 0.1 1" contype="0"/>
             <joint name="target_x" type="slide" pos="0 0 0" axis="1 0 0" />
             <joint name="target_y" type="slide" pos="0 0 0" axis="0 1 0" />
         </body>
 
         <!-- Arena -->
-        <geom conaffinity="1" fromto="-.3 -.3 .01 .3 -.3 .01" name="sideS" rgba="0.9 0.4 0.6 1" size=".02" type="capsule"/>
-		<geom conaffinity="1" fromto=" .3 -.3 .01 .3  .3 .01" name="sideE" rgba="0.9 0.4 0.6 1" size=".02" type="capsule"/>
-		<geom conaffinity="1" fromto="-.3  .3 .01 .3  .3 .01" name="sideN" rgba="0.9 0.4 0.6 1" size=".02" type="capsule"/>
-		<geom conaffinity="1" fromto="-.3 -.3 .01 -.3 .3 .01" name="sideW" rgba="0.9 0.4 0.6 1" size=".02" type="capsule"/>
+        <geom conaffinity="1" fromto="-.12 -.12 .0 .12 -.12 .0" name="sideS"
+              rgba="0.9 0.4 0.6 1" size=".02" type="capsule"/>
+        <geom conaffinity="1" fromto=" .12 -.12 .0 .12  .12 .0" name="sideE"
+              rgba="0.9 0.4 0.6 1" size=".02" type="capsule"/>
+        <geom conaffinity="1" fromto="-.12  .12 .0 .12  .12 .0" name="sideN"
+              rgba="0.9 0.4 0.6 1" size=".02" type="capsule"/>
+        <geom conaffinity="1" fromto="-.12 -.12 .0 -.12 .12 .0" name="sideW"
+              rgba="0.9 0.4 0.6 1" size=".02" type="capsule"/>
     </worldbody>
 
     <actuator>

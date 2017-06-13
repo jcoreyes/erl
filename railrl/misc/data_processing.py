@@ -4,7 +4,9 @@ from numbers import Number
 import numpy as np
 
 
-def create_stats_ordered_dict(name, data):
+def create_stats_ordered_dict(name, data, stat_prefix=None):
+    if stat_prefix is not None:
+        name = "{} {}".format(stat_prefix, name)
     if isinstance(data, Number):
         return OrderedDict({name: data})
 

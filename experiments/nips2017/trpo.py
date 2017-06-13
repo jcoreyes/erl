@@ -1,25 +1,20 @@
 """
-Recurrent TRPO
+TRPO
 """
-from railrl.envs.flattened_product_box import FlattenedProductBox
-from railrl.envs.memory.continuous_memory_augmented import \
-    ContinuousMemoryAugmented
 from railrl.envs.memory.hidden_cartpole import HiddenCartpoleEnv, \
-    NormalizedHiddenCartpoleEnv
-from railrl.envs.memory.high_low import HighLow
-from railrl.envs.water_maze import WaterMaze, WaterMazeEasy, WaterMazeMemory
+    convert_to_tf_env, NormalizedHiddenCartpoleEnv, normalize_tf
+from railrl.envs.water_maze import WaterMazeEasy, WaterMazeMemory
 from railrl.launchers.launcher_util import (
     run_experiment,
     set_seed,
 )
-from rllab.envs.box2d.cartpole_env import CartpoleEnv
+from rllab.envs.normalized_env import normalize
 
 
 def run_linear_ocm_exp(variant):
     from sandbox.rocky.tf.algos.trpo import TRPO
     from rllab.baselines.linear_feature_baseline import LinearFeatureBaseline
-    from sandbox.rocky.tf.policies.gaussian_lstm_policy import GaussianLSTMPolicy
-    import sandbox.rocky.tf.core.layers as L
+    from sandbox.rocky.tf.policies.gaussian_mlp_policy import GaussianMLPPolicy
     from sandbox.rocky.tf.optimizers.conjugate_gradient_optimizer import (
         ConjugateGradientOptimizer,
         FiniteDifferenceHvp,
@@ -27,11 +22,9 @@ def run_linear_ocm_exp(variant):
     from railrl.launchers.launcher_util import (
         set_seed,
     )
-
     """
     Set up experiment variants.
     """
-    H = variant['H']
     seed = variant['seed']
     env_class = variant['env_class']
     env_params = variant['env_params']
@@ -44,10 +37,10 @@ def run_linear_ocm_exp(variant):
 
     env = env_class(**env_params)
 
-    policy = GaussianLSTMPolicy(
+    policy = GaussianMLPPolicy(
         name="policy",
         env_spec=env.spec,
-        lstm_layer_cls=L.LSTMLayer,
+        hidden_sizes=(32, 32),
     )
 
     baseline = LinearFeatureBaseline(env_spec=env.spec)
@@ -70,16 +63,12 @@ def run_linear_ocm_exp(variant):
 if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
-    exp_prefix = "dev-rtrpo"
+    exp_prefix = "dev-trpo"
 
     n_seeds = 10
     mode = "ec2"
     exp_prefix = "6-1-benchmark-normalized-hidden-cart-h100"
 
-    # env_class = WaterMazeMemory
-    env_class = WaterMazeEasy
-    # env_class = HighLow
-    env_class = CartpoleEnv
     env_class = NormalizedHiddenCartpoleEnv
     H = 100
     num_steps_per_iteration = 1000
@@ -87,23 +76,25 @@ if __name__ == '__main__':
 
     # noinspection PyTypeChecker
     variant = dict(
-        exp_prefix=exp_prefix,
-        version='Recurrent TRPO',
-        env_class=env_class,
-        optimizer_params=dict(
-            base_eps=1e-5,
-        ),
         H=H,
         trpo_params=dict(
             batch_size=num_steps_per_iteration,
-            max_path_length=H,
+            max_path_length=H,  # Environment should stop it
             n_itr=num_iterations,
             discount=1.,
             step_size=0.01,
+            render=True,
+        ),
+        optimizer_params=dict(
+            base_eps=1e-5,
         ),
         env_params=dict(
             num_steps=H,
+            # use_small_maze=True,
         ),
+        exp_prefix=exp_prefix,
+        version='TRPO',
+        env_class=env_class,
     )
     exp_id = -1
     for seed in range(n_seeds):

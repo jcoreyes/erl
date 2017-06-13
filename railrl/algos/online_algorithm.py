@@ -81,6 +81,8 @@ class OnlineAlgorithm(RLAlgorithm):
         :param num_steps_between_train: How many steps to take before training.
         :return:
         """
+        if min_pool_size is None:
+            min_pool_size = batch_size
         assert min_pool_size >= batch_size
         # Have two separate env's to make sure that the training and eval
         # envs don't affect one another.
@@ -233,6 +235,7 @@ class OnlineAlgorithm(RLAlgorithm):
                     if terminal or path_length >= self.max_path_length:
                         self.pool.terminate_episode(
                             next_ob,
+                            terminal,
                             agent_info=agent_info,
                             env_info=env_info,
                         )
@@ -241,7 +244,7 @@ class OnlineAlgorithm(RLAlgorithm):
                         self.es_path_returns.append(path_return)
                         path_length = 0
                         path_return = 0
-                        self.handle_rollout_ending()
+                        self.handle_rollout_ending(n_steps_total)
                     else:
                         observation = next_ob
 
@@ -482,8 +485,11 @@ class OnlineAlgorithm(RLAlgorithm):
         return raw_action
 
     @abc.abstractmethod
-    def handle_rollout_ending(self):
+    def handle_rollout_ending(self, n_steps_total):
         """
         This method is called whenever a rollout ends.
+
+        :param n_steps_total: The total number of environment steps taken so
+        far.
         """
         pass
