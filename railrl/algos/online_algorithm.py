@@ -356,7 +356,6 @@ class OnlineAlgorithm(RLAlgorithm):
             epoch=epoch,
             policy=self.policy,
             es=self.exploration_strategy,
-            pool=self.pool,
         )
 
     def evaluate(self, epoch, es_path_returns):
