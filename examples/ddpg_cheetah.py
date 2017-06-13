@@ -12,11 +12,11 @@ import joblib
 import tensorflow as tf
 
 def example(variant):
-    #cool variant stuff!
     load_policy_file = variant.get('load_policy_file', None)
     if load_policy_file is not None and exists(load_policy_file):
         with tf.Session():
             data = joblib.load(load_policy_file)
+            print(data)
             policy = data['policy']
             qf = data['qf']
             replay_buffer=data['pool']
@@ -28,7 +28,7 @@ def example(variant):
             es,
             policy,
             qf,
-            n_epochs=30,
+            n_epochs=2,
             batch_size=1024,
             replay_pool=replay_buffer,
             use_new_version=use_new_version,
@@ -78,7 +78,7 @@ if __name__ == "__main__":
         	variant={
         	    'version': 'Original',
         	    'use_new_version': False,
-                'load_policy_file': '/home/murtaza/Documents/rllab/data/local/ddpg-half-cheetah-6-13/ddpg-half-cheetah-6-13_2017_06_13_00_43_37_0000--s-0/params.pkl'
+                'load_policy_file': '/home/murtaza/Documents/rllab/data/local/ddpg-half-cheetah-6-13/ddpg-half-cheetah-6-13_2017_06_13_09_05_31_0000--s-0/params.pkl'
     		},
     		snapshot_mode='last',
     	)
