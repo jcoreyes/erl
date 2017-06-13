@@ -68,6 +68,7 @@ class MemoryQFunction(PyTorchModule):
         self.save_init_params(locals())
         super().__init__()
 
+        # memory_dim = memory_dim // 3
         self.obs_dim = obs_dim
         self.action_dim = action_dim
         self.memory_dim = memory_dim
@@ -96,6 +97,8 @@ class MemoryQFunction(PyTorchModule):
         self.last_fc.bias.data.uniform_(-init_w, init_w)
 
     def forward(self, obs, memory, action, write):
+        # memory = memory[:, :self.memory_dim]
+        # write = write[:, :self.memory_dim]
         obs_embedded = torch.cat((obs, memory), dim=1)
         obs_embedded = F.relu(self.obs_fc(obs_embedded))
         x = torch.cat((obs_embedded, action, write), dim=1)
