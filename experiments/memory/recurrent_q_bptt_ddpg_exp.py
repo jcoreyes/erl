@@ -3,12 +3,12 @@ import random
 from railrl.envs.memory.continuous_memory_augmented import \
     ContinuousMemoryAugmented
 from railrl.envs.memory.high_low import HighLow
-from railrl.envs.water_maze import WaterMazeEasy
+from railrl.envs.water_maze import WaterMazeEasy, WaterMazeMemory
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.exploration_strategies.product_strategy import ProductStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import RecurrentPolicy, MemoryPolicy
-from railrl.qfunctions.torch import RecurrentMemoryQFunction
+from railrl.qfunctions.torch import RecurrentMemoryQFunction, MemoryQFunction
 from railrl.torch.bptt_ddpg_rq import BpttDdpgRecurrentQ
 
 
@@ -44,17 +44,17 @@ def example(variant):
     qf = RecurrentMemoryQFunction(
         int(raw_env.observation_space.flat_dim),
         int(raw_env.action_space.flat_dim),
-        memory_dim,
-        100,
-        100,
-        10,
+        memory_dim=memory_dim,
+        hidden_size=10,
+        fc1_size=400,
+        fc2_size=300,
     )
     policy = MemoryPolicy(
         int(raw_env.observation_space.flat_dim),
         int(raw_env.action_space.flat_dim),
-        memory_dim,
-        100,
-        100,
+        memory_dim=memory_dim,
+        fc1_size=400,
+        fc2_size=300,
     )
     algorithm = BpttDdpgRecurrentQ(
         env,
@@ -68,28 +68,34 @@ def example(variant):
 
 if __name__ == "__main__":
     use_gpu = True
-    H = 64
+    H = 20
+    subtraj_length = 20
     variant = dict(
         algo_params=dict(
             num_epochs=100,
-            num_steps_per_epoch=100,
-            num_steps_per_eval=H*20,
-            batch_size=H*64,
+            num_steps_per_epoch=1000,
+            # num_steps_per_epoch=100,
+            num_steps_per_eval=H*10,
+            batch_size=H*32,
             max_path_length=H,
             use_gpu=use_gpu,
-            subtraj_length=8,
-            action_policy_learning_rate=1e-4,
+            subtraj_length=subtraj_length,
+            action_policy_learning_rate=1e-3,
             write_policy_learning_rate=1e-5,
-            qf_learning_rate=1e-4,
+            qf_learning_rate=1e-3,
+            action_policy_optimize_bellman=True,
+            write_policy_optimizes='both',
+            refresh_entire_buffer_period=10,
         ),
         env_params=dict(
-            num_steps=H,
-            # horizon=H,
-            # use_small_maze=True,
-            # l2_action_penalty_weight=0,
+            # num_steps=H,
+            horizon=H,
+            use_small_maze=True,
+            l2_action_penalty_weight=0,
+            num_steps_until_reset=0,
         ),
-        env_class=HighLow,
-        # env_class=WaterMazeEasy,
+        # env_class=HighLow,
+        env_class=WaterMazeMemory,
         memory_dim=20,
         memory_aug_params=dict(
             max_magnitude=1,
@@ -110,8 +116,8 @@ if __name__ == "__main__":
     seed = random.randint(0, 9999)
     run_experiment(
         example,
-        exp_prefix="dev-pytorch-rdpg",
-        # exp_prefix="dev-6-12-rdpg-small-water-maze-easy",
+        # exp_prefix="dev-pytorch-recurrent-q-bptt-ddpg",
+        exp_prefix="6-13-small-memory-no-reset-full-bptt-recurrent",
         seed=seed,
         mode='here',
         variant=variant,

@@ -88,32 +88,35 @@ if __name__ == '__main__':
     exp_prefix = "dev-6-12-pytorch"
     run_mode = 'none'
 
-    n_seeds = 5
-    mode = "ec2"
-    exp_prefix = "6-12-hl-h64-sublen8-sweep-discount-tau"
+    # n_seeds = 10
+    # mode = "ec2"
+    exp_prefix = "6-13-small-memory-no-reset-full-bptt"
 
-    run_mode = 'grid'
+    # run_mode = 'custom_grid'
     use_gpu = True
     if mode != "here":
         use_gpu = False
 
-    H = 64
-    subtraj_length = 8
+    H = 20
+    subtraj_length = 20
     version = exp_prefix
     # version = "H = {0}, subtraj length = {1}".format(H, subtraj_length)
+    # version = "Detach memory gradient"
+    version = "BN-LSTM"
     # noinspection PyTypeChecker
     variant = dict(
         # memory_dim=2,
-        memory_dim=20,
+        memory_dim=30,
         # env_class=WaterMazeEasy,
         # env_class=WaterMaze,
-        # env_class=WaterMazeMemory,
-        env_class=HighLow,
+        env_class=WaterMazeMemory,
+        # env_class=HighLow,
         env_params=dict(
-            num_steps=H,
-            # horizon=H,
-            # use_small_maze=True,
-            # l2_action_penalty_weight=0,
+            # num_steps=H,
+            horizon=H,
+            use_small_maze=True,
+            l2_action_penalty_weight=0,
+            num_steps_until_reset=0,
         ),
         memory_aug_params=dict(
             max_magnitude=1,
@@ -123,16 +126,20 @@ if __name__ == '__main__':
             batch_size=subtraj_length*32,
             # batch_size=32*32,
             num_epochs=100,
-            num_steps_per_epoch=100,
-            # num_steps_per_epoch=1000,
+            # num_steps_per_epoch=100,
+            num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             discount=1.,
             use_gpu=use_gpu,
+            # action_policy_optimize_bellman=False,
+            # write_policy_optimizes='qf',
             action_policy_optimize_bellman=True,
             write_policy_optimizes='both',
-            action_policy_learning_rate=1e-5,
+            action_policy_learning_rate=1e-4,
             write_policy_learning_rate=1e-5,
-            qf_learning_rate=1e-5,
+            qf_learning_rate=1e-4,
+            max_path_length=H,
+            refresh_entire_buffer_period=10,
         ),
         qf_params=dict(
             # output_activation=F.softsign,
@@ -161,8 +168,8 @@ if __name__ == '__main__':
             # 'algo_params.action_policy_optimize_bellman': [True, False],
             # 'algo_params.write_policy_optimizes': ['qf', 'bellman', 'both'],
             # 'algo_params.bellman_error_loss_weight': [0.1, 1, 10, 100, 1000],
-            'algo_params.tau': [1, 0.1, 0.01, 0.001],
-            'algo_params.discount': [1, 0.9, 0.5],
+            # 'algo_params.tau': [1, 0.1, 0.01, 0.001],
+            # 'algo_params.discount': [1, 0.9, 0.5],
         }
         sweeper = DeterministicHyperparameterSweeper(search_space,
                                                      default_parameters=variant)
@@ -172,6 +179,35 @@ if __name__ == '__main__':
                     experiment,
                     exp_prefix=exp_prefix,
                     seed=i,
+                    mode=mode,
+                    variant=variant,
+                    exp_id=exp_id,
+                )
+    if run_mode == 'custom_grid':
+        for exp_id, (
+            action_policy_optimize_bellman,
+            write_policy_optimizes,
+            refresh_entire_buffer_period,
+        ) in enumerate([
+            (True, 'both', 1),
+            (False, 'qf', 1),
+            (True, 'both', None),
+            (False, 'qf', None),
+        ]):
+            variant['algo_params']['action_policy_optimize_bellman'] = (
+                action_policy_optimize_bellman
+            )
+            variant['algo_params']['write_policy_optimizes'] = (
+                write_policy_optimizes
+            )
+            variant['algo_params']['refresh_entire_buffer_period'] = (
+                refresh_entire_buffer_period
+            )
+            for seed in range(n_seeds):
+                run_experiment(
+                    experiment,
+                    exp_prefix=exp_prefix,
+                    seed=seed,
                     mode=mode,
                     variant=variant,
                     exp_id=exp_id,

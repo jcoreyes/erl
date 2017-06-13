@@ -18,7 +18,8 @@ class WaterMaze(MujocoEnv):
             l2_action_penalty_weight=1e-2,
             num_steps=None,
             include_velocity=False,
-            use_small_maze=False
+            use_small_maze=False,
+            num_steps_until_reset=5,
     ):
         self.init_serialization(locals())
         if use_small_maze:
@@ -44,8 +45,11 @@ class WaterMaze(MujocoEnv):
         self._horizon = horizon
         self._t = 0
         self._on_platform_history = deque(maxlen=5)
-        for _ in range(5):
-            self._on_platform_history.append(False)
+        self.num_steps_until_reset = num_steps_until_reset
+        self.teleport_after_a_while = self.num_steps_until_reset > 0
+        if self.teleport_after_a_while:
+            for _ in range(self.num_steps_until_reset):
+                self._on_platform_history.append(False)
         self.include_velocity = include_velocity
 
         self.action_space = Box(np.array([-1, -1]), np.array([1, 1]))
@@ -75,7 +79,7 @@ class WaterMaze(MujocoEnv):
 
         self._on_platform_history.append(on_platform)
 
-        if all(self._on_platform_history):
+        if self.teleport_after_a_while and all(self._on_platform_history):
             self.reset_ball_position()
 
         reward = (
