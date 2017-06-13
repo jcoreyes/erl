@@ -90,7 +90,7 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "6-11-water-maze-easy-full-bptt-H100"
+    exp_prefix = "6-12-small-water-maze-memory-full-bptt-H100"
 
     # run_mode = 'grid'
     use_gpu = True
@@ -108,15 +108,15 @@ if __name__ == '__main__':
     variant = dict(
         # memory_dim=2,
         memory_dim=20,
-        env_class=WaterMazeEasy,
+        # env_class=WaterMazeEasy,
         # env_class=WaterMaze,
-        # env_class=WaterMazeMemory,
+        env_class=WaterMazeMemory,
         # env_class=HighLow,
         env_params=dict(
-            num_steps=H,
-            # horizon=H,
-            # use_small_maze=True,
-            # l2_action_penalty_weight=0,
+            # num_steps=H,
+            horizon=H,
+            use_small_maze=True,
+            l2_action_penalty_weight=0,
         ),
         memory_aug_params=dict(
             max_magnitude=1,
@@ -185,4 +185,5 @@ if __name__ == '__main__':
                 use_gpu=use_gpu,
                 sync_s3_log=True,
                 sync_s3_pkl=True,
+                periodic_sync_interval=120,
             )
