@@ -91,15 +91,9 @@ class MemoryQFunction(PyTorchModule):
         self.obs_fc.bias.data.fill_(0)
         init.kaiming_normal(self.embedded_fc.weight)
         self.embedded_fc.bias.data.fill_(0)
-        # self.obs_fc.weight.data = ptu.fanin_init(self.obs_fc.weight.data.size())
-        # self.obs_fc.bias.data *= 0
-        # self.embedded_fc.weight.data = ptu.fanin_init(self.embedded_fc.weight.data.size())
-        # self.embedded_fc.bias.data *= 0
 
         self.last_fc.weight.data.uniform_(-init_w, init_w)
         self.last_fc.bias.data.uniform_(-init_w, init_w)
-        # init.kaiming_normal(self.last_fc.weight)
-        # self.last_fc.bias.data.fill_(0)
 
     def forward(self, obs, memory, action, write):
         obs_embedded = torch.cat((obs, memory), dim=1)

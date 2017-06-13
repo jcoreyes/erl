@@ -250,10 +250,6 @@ class FeedForwardPolicy(PyTorchModule):
         self.fc1.bias.data.fill_(0)
         init.kaiming_normal(self.fc2.weight)
         self.fc2.bias.data.fill_(0)
-        # self.fc1.weight.data = ptu.fanin_init(self.fc1.weight.data.size())
-        # self.fc1.bias.data *= 0
-        # self.fc2.weight.data = ptu.fanin_init(self.fc2.weight.data.size())
-        # self.fc2.bias.data *= 0
 
         self.last_fc.weight.data.uniform_(-init_w, init_w)
         self.last_fc.bias.data.uniform_(-init_w, init_w)
