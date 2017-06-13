@@ -314,7 +314,7 @@ class BpttDdpg(OnlineAlgorithm):
 
     def _statistics_from_paths(self, paths, stat_prefix):
         eval_pool = UpdatableSubtrajReplayBuffer(
-            len(paths) * self.max_path_length,
+            len(paths) * (self.max_path_length + 1),
             self.env,
             self.subtraj_length,
             self.memory_dim,
@@ -400,6 +400,8 @@ class BpttDdpg(OnlineAlgorithm):
             self.pool.num_subtrajs_can_sample(validation=True) >= 1
             and self.pool.num_subtrajs_can_sample(validation=False) >= 1
             and len(exploration_paths) > 0
+            and any([len(path['terminals']) > self.subtraj_length
+                     for path in exploration_paths])
             # Technically, I should also check that the exploration path has
             # enough subtraj batches, but whatever.
         )
