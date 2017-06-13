@@ -25,6 +25,16 @@ def maximum_2d(t1, t2):
     )[0].squeeze(2)
 
 
+def fanin_init(size, fanin=None):
+    if len(size) == 2:
+        fan_in = size[0]
+    elif len(size) > 2:
+        fan_in = np.prod(size[1:])
+    else:
+        raise Exception("Shape must be have dimension at least 2.")
+    v = 1. / np.sqrt(fan_in)
+    return torch.Tensor(size).uniform_(-v, v)
+
 def kronecker_square(t1, size1, t2, size2):
     """
     Computes the Kronecker product between two square tensors

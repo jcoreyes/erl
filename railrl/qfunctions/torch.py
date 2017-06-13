@@ -78,6 +78,7 @@ class MemoryQFunction(PyTorchModule):
         self.obs_fc = nn.Linear(obs_dim + memory_dim, observation_hidden_size)
         self.embedded_fc = nn.Linear(
             observation_hidden_size + action_dim + memory_dim,
+            # observation_hidden_size + action_dim,
             embedded_hidden_size,
         )
         self.last_fc = nn.Linear(embedded_hidden_size, 1)
@@ -90,6 +91,11 @@ class MemoryQFunction(PyTorchModule):
         self.obs_fc.bias.data.fill_(0)
         init.kaiming_normal(self.embedded_fc.weight)
         self.embedded_fc.bias.data.fill_(0)
+        # self.obs_fc.weight.data = ptu.fanin_init(self.obs_fc.weight.data.size())
+        # self.obs_fc.bias.data *= 0
+        # self.embedded_fc.weight.data = ptu.fanin_init(self.embedded_fc.weight.data.size())
+        # self.embedded_fc.bias.data *= 0
+
         self.last_fc.weight.data.uniform_(-init_w, init_w)
         self.last_fc.bias.data.uniform_(-init_w, init_w)
         # init.kaiming_normal(self.last_fc.weight)
@@ -99,6 +105,7 @@ class MemoryQFunction(PyTorchModule):
         obs_embedded = torch.cat((obs, memory), dim=1)
         obs_embedded = F.relu(self.obs_fc(obs_embedded))
         x = torch.cat((obs_embedded, action, write), dim=1)
+        # x = torch.cat((obs_embedded, action), dim=1)
         x = F.relu(self.embedded_fc(x))
         return self.output_activation(self.last_fc(x))
 
