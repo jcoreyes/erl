@@ -21,6 +21,22 @@ class FlattenLSTMCell(nn.Module):
         return hx, new_state
 
 
+class LinearBN(nn.Module):
+    """
+    Linear then BN layer
+    """
+    def __init__(self, in_features, out_features, bias=True):
+        super().__init__()
+        self.fc = nn.Linear(in_features, out_features, bias=bias)
+        self.bn = nn.BatchNorm1d(out_features)
+        self.weight = self.fc.weight
+        if bias:
+            self.bias = self.fc.bias
+
+    def forward(self, input):
+        return self.bn(self.fc(input))
+
+
 class RWACell(PyTorchModule):
     def __init__(
             self,
@@ -34,7 +50,16 @@ class RWACell(PyTorchModule):
 
         self.fc_u = nn.Linear(input_dim, num_units)
         self.fc_g = nn.Linear(input_dim + num_units, num_units)
-        self.fc_a = nn.Linear(input_dim + num_units, num_units)
+        # Bias term factors when from numerate and denominator
+        self.fc_a = nn.Linear(input_dim + num_units, num_units, bias=False)
+        self.init_weights()
+
+    def init_weights(self):
+        init.kaiming_normal(self.fc_u.weight)
+        self.fc_u.bias.data.fill_(0)
+        init.kaiming_normal(self.fc_g.weight)
+        self.fc_g.bias.data.fill_(0)
+        init.kaiming_normal(self.fc_a.weight)
 
     def forward(self, inputs, state):
         # n, d, h, a_max = state
@@ -63,7 +88,6 @@ class RWACell(PyTorchModule):
         return h_new, n_new, d_new
 
 
-
 class MemoryPolicy(PyTorchModule):
     def __init__(
             self,
@@ -87,6 +111,7 @@ class MemoryPolicy(PyTorchModule):
         self.fc2 = nn.Linear(fc1_size, fc2_size)
         self.last_fc = nn.Linear(fc2_size, action_dim)
         self.num_splits_for_rnn_internally = 2
+        # self.num_splits_for_rnn_internally = 3
         assert memory_dim % self.num_splits_for_rnn_internally == 0
         self.rnn_cell = BNLSTMCell(
             self.obs_dim, self.memory_dim // self.num_splits_for_rnn_internally
