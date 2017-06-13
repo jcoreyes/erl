@@ -1,7 +1,10 @@
 MUJOCO_LOG.TXT
 data/
 logs/
+<<<<<<< HEAD
 __pycache__
+=======
+>>>>>>> torch-6-11-murtaza
 *.pyc
 *.swp
 *.swo
