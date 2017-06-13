@@ -3,6 +3,7 @@ import numpy as np
 from torch import nn as nn
 from torch.autograd import Variable
 from torch.nn import functional as F
+from torch.nn import init
 
 from railrl.torch.bnlstm import BNLSTMCell, LSTM
 from railrl.torch.core import PyTorchModule
@@ -95,9 +96,9 @@ class MemoryPolicy(PyTorchModule):
         self.init_weights(init_w)
 
     def init_weights(self, init_w):
-        self.fc1.weight.data = ptu.fanin_init(self.fc1.weight.data.size())
-        self.fc1.bias.data *= 0
-        self.fc2.weight.data = ptu.fanin_init(self.fc2.weight.data.size())
+        init.kaiming_normal(self.fc1.weight)
+        self.fc1.bias.data.fill_(0)
+        init.kaiming_normal(self.fc2.weight)
         self.fc2.bias.data *= 0
         self.last_fc.weight.data.uniform_(-init_w, init_w)
         self.last_fc.bias.data.uniform_(-init_w, init_w)
@@ -242,10 +243,10 @@ class FeedForwardPolicy(PyTorchModule):
         self.init_weights(init_w)
 
     def init_weights(self, init_w):
-        self.fc1.weight.data = ptu.fanin_init(self.fc1.weight.data.size())
-        self.fc1.bias.data *= 0
-        self.fc2.weight.data = ptu.fanin_init(self.fc2.weight.data.size())
-        self.fc2.bias.data *= 0
+        init.kaiming_normal(self.fc1.weight)
+        self.fc1.bias.data.fill_(0)
+        init.kaiming_normal(self.fc2.weight)
+        self.fc2.bias.data.fill_(0)
         self.last_fc.weight.data.uniform_(-init_w, init_w)
         self.last_fc.bias.data.uniform_(-init_w, init_w)
 

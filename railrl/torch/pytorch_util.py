@@ -17,17 +17,6 @@ def copy_model_params_from_to(source, target):
         target_param.data.copy_(param.data)
 
 
-def fanin_init(size, fanin=None):
-    if len(size) == 2:
-        fan_in = size[0]
-    elif len(size) > 2:
-        fan_in = np.prod(size[1:])
-    else:
-        raise Exception("Shape must be have dimension at least 2.")
-    v = 1. / np.sqrt(fan_in)
-    return torch.Tensor(size).uniform_(-v, v)
-
-
 def maximum_2d(t1, t2):
     # noinspection PyArgumentList
     return torch.max(
