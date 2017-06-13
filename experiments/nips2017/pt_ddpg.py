@@ -72,11 +72,11 @@ if __name__ == '__main__':
 
     # n_seeds = 10
     # mode = "ec2"
-    exp_prefix = "6-9-ddpg-watermaze-easy"
+    exp_prefix = "6-12-ddpg-watermaze-easy"
 
     env_class = NormalizedHiddenCartpoleEnv
     env_class = WaterMazeEasy
-    H = 100
+    H = 20
     num_steps_per_iteration = 1000
     num_iterations = 100
     use_gpu = True
@@ -97,7 +97,7 @@ if __name__ == '__main__':
         env_params=dict(
             num_steps=H,
             use_small_maze=True,
-            l2_action_penalty_weight=1e-2,
+            l2_action_penalty_weight=0,
         ),
         ou_params=dict(
             max_sigma=1,

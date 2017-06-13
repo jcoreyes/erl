@@ -88,52 +88,50 @@ if __name__ == '__main__':
     exp_prefix = "dev-6-12-pytorch"
     run_mode = 'none'
 
-    # n_seeds = 3
+    # n_seeds = 5
     # mode = "ec2"
-    # exp_prefix = "6-12-small-water-maze-memory-full-bptt-H100"
+    exp_prefix = "6-12-small-water-maze-memory"
 
     # run_mode = 'grid'
     use_gpu = True
     if mode != "here":
         use_gpu = False
 
-    # H = 16
-    # subtraj_length = 8
-    H = 8
-    subtraj_length = 8
-    # version = "H = {0}, subtraj length = {1}".format(H, subtraj_length)
-    # version = "Obs only -- actually"
+    H = 20
+    subtraj_length = 20
     version = exp_prefix
+    # version = "H = {0}, subtraj length = {1}".format(H, subtraj_length)
     # noinspection PyTypeChecker
     variant = dict(
         # memory_dim=2,
         memory_dim=20,
         # env_class=WaterMazeEasy,
         # env_class=WaterMaze,
-        # env_class=WaterMazeMemory,
-        env_class=HighLow,
+        env_class=WaterMazeMemory,
+        # env_class=HighLow,
         env_params=dict(
-            num_steps=H,
-            # horizon=H,
-            # use_small_maze=True,
-            # l2_action_penalty_weight=0,
+            # num_steps=H,
+            horizon=H,
+            use_small_maze=True,
+            l2_action_penalty_weight=0,
         ),
         memory_aug_params=dict(
             max_magnitude=1,
         ),
         algo_params=dict(
             subtraj_length=subtraj_length,
-            batch_size=subtraj_length*64,
+            batch_size=subtraj_length*32,
             # batch_size=32*32,
-            num_epochs=50,
-            num_steps_per_epoch=100,
-            # num_steps_per_epoch=1000,
+            num_epochs=100,
+            # num_steps_per_epoch=100,
+            num_steps_per_epoch=1000,
+            num_steps_per_eval=1000,
             discount=1.,
             use_gpu=use_gpu,
             policy_optimize_bellman=True,
-            action_policy_learning_rate=1e-5,
+            action_policy_learning_rate=1e-4,
             write_policy_learning_rate=1e-5,
-            qf_learning_rate=1e-5,
+            qf_learning_rate=1e-4,
         ),
         qf_params=dict(
             # output_activation=F.softsign,
