@@ -38,10 +38,11 @@ def example(variant):
 
 
 if __name__ == "__main__":
+    # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
             num_epochs=100,
-            num_steps_per_epoch=10000,
+            num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             # target_hard_update_period=10000,
             use_soft_update=True,
@@ -51,11 +52,11 @@ if __name__ == "__main__":
         ),
         version="PyTorch - bigger networks",
     )
-    for seed in range(20):
+    for seed in range(1):
         run_experiment(
             example,
-            exp_prefix="6-5-tf-vs-torch-ddpg-half-cheetah-h100",
+            exp_prefix="dev-ddpg-half-cheetah-pytorch",
             seed=seed,
-            mode='ec2',
+            mode='here',
             variant=variant,
         )
