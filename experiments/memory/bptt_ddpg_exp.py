@@ -7,8 +7,8 @@ from railrl.envs.memory.continuous_memory_augmented import (
     ContinuousMemoryAugmented
 )
 from railrl.envs.memory.high_low import HighLow
-# from railrl.envs.pygame.water_maze import WaterMaze
-from railrl.envs.mujoco.water_maze import WaterMaze
+from railrl.envs.pygame.water_maze import WaterMaze
+# from railrl.envs.mujoco.water_maze import WaterMaze
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import (
     run_experiment,

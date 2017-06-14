@@ -1,8 +1,11 @@
+import time
 from collections import OrderedDict
 
 import numpy as np
 from gym import Env
+from pygame import Color
 
+from railrl.envs.pygame.pygame_viewer import PygameViewer
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import split_paths
 from rllab.core.serializable import Serializable
@@ -15,11 +18,12 @@ class WaterMaze(Serializable, Env):
     def __init__(
             self,
             horizon=200,
+            render_dt_msec=30,
     ):
         Serializable.quick_init(self, locals())
-        self.TARGET_RADIUS = 1
+        self.TARGET_RADIUS = 2
         self.BOUNDARY_DIST = 5
-        self.BALL_RADIUS = 0.01
+        self.BALL_RADIUS = 0.25
         self.MAX_TARGET_DISTANCE = self.BOUNDARY_DIST - self.TARGET_RADIUS
 
         self._horizon = horizon
@@ -32,6 +36,9 @@ class WaterMaze(Serializable, Env):
             np.array([-self.BOUNDARY_DIST, -self.BOUNDARY_DIST, 0]),
             np.array([self.BOUNDARY_DIST, self.BOUNDARY_DIST, 1])
         )
+
+        self.drawer = None
+        self.render_dt_msec = render_dt_msec
 
     def _step(self, velocities):
         self._t += 1
@@ -71,9 +78,6 @@ class WaterMaze(Serializable, Env):
         on_platform = dist <= self.TARGET_RADIUS
         return np.hstack((self._position, [on_platform])), on_platform
 
-    # def get_param_values(self):
-    #     return None
-
     def log_diagnostics(self, paths, **kwargs):
         list_of_rewards, terminals, obs, actions, next_obs = split_paths(paths)
 
@@ -109,3 +113,31 @@ class WaterMaze(Serializable, Env):
     @property
     def horizon(self):
         return self._horizon
+
+    def render(self, mode='human', close=False):
+        if close:
+            self.drawer = None
+            return
+
+        if self.drawer is None or self.drawer.terminated:
+            self.drawer = PygameViewer(
+                500,
+                500,
+                x_bounds=(-self.BOUNDARY_DIST, self.BOUNDARY_DIST),
+                y_bounds=(-self.BOUNDARY_DIST, self.BOUNDARY_DIST),
+            )
+
+        self.drawer.fill(Color('white'))
+        self.drawer.draw_solid_circle(
+            self._target_position,
+            self.TARGET_RADIUS,
+            Color('green'),
+        )
+        self.drawer.draw_solid_circle(
+            self._position,
+            self.BALL_RADIUS,
+            Color('blue'),
+        )
+
+        self.drawer.render()
+        self.drawer.tick(self.render_dt_msec)
