@@ -2,6 +2,7 @@
 DDPG
 """
 from railrl.envs.memory.hidden_cartpole import NormalizedHiddenCartpoleEnv
+from railrl.envs.memory.high_low import HighLow
 from railrl.envs.water_maze import WaterMazeMemory, WaterMazeEasy
 from railrl.exploration_strategies.noop import NoopStrategy
 from railrl.launchers.launcher_util import (
@@ -72,12 +73,14 @@ if __name__ == '__main__':
 
     # n_seeds = 10
     # mode = "ec2"
-    # exp_prefix = "6-12-ddpg-watermaze-easy"
+    # exp_prefix = "results-6-13-ddpg-highlow"
 
-    env_class = NormalizedHiddenCartpoleEnv
-    env_class = WaterMazeEasy
-    H = 20
-    num_steps_per_iteration = 1000
+    # env_class = NormalizedHiddenCartpoleEnv
+    # env_class = WaterMazeEasy
+    env_class = HighLow
+    H = 25
+    num_steps_per_iteration = 100
+    num_steps_per_eval = 1000
     num_iterations = 100
     use_gpu = True
 
@@ -85,20 +88,20 @@ if __name__ == '__main__':
     variant = dict(
         H=H,
         algo_params=dict(
-            batch_size=32,
+            batch_size=100,
             num_epochs=num_iterations,
             pool_size=1000000,
             num_steps_per_epoch=num_steps_per_iteration,
-            num_steps_per_eval=100,
+            num_steps_per_eval=num_steps_per_eval,
             max_path_length=H,
             discount=1,
             use_gpu=use_gpu,
         ),
         env_params=dict(
             num_steps=H,
-            use_small_maze=True,
-            l2_action_penalty_weight=0,
-            num_steps_until_reset=0,
+            # use_small_maze=True,
+            # l2_action_penalty_weight=0,
+            # num_steps_until_reset=0,
         ),
         ou_params=dict(
             max_sigma=1,

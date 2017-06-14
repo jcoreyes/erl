@@ -90,15 +90,15 @@ if __name__ == '__main__':
 
     # n_seeds = 10
     # mode = "ec2"
-    exp_prefix = "6-13-small-memory-no-reset-full-bptt"
+    # exp_prefix = "6-13-small-memory-no-reset-full-bptt"
 
     # run_mode = 'custom_grid'
     use_gpu = True
     if mode != "here":
         use_gpu = False
 
-    H = 20
-    subtraj_length = 20
+    H = 25
+    subtraj_length = 8
     version = exp_prefix
     # version = "H = {0}, subtraj length = {1}".format(H, subtraj_length)
     # version = "Detach memory gradient"
@@ -109,25 +109,25 @@ if __name__ == '__main__':
         memory_dim=30,
         # env_class=WaterMazeEasy,
         # env_class=WaterMaze,
-        env_class=WaterMazeMemory,
-        # env_class=HighLow,
+        # env_class=WaterMazeMemory,
+        env_class=HighLow,
         env_params=dict(
-            # num_steps=H,
-            horizon=H,
-            use_small_maze=True,
-            l2_action_penalty_weight=0,
-            num_steps_until_reset=0,
+            num_steps=H,
+            # horizon=H,
+            # use_small_maze=True,
+            # l2_action_penalty_weight=0,
+            # num_steps_until_reset=0,
         ),
         memory_aug_params=dict(
             max_magnitude=1,
         ),
         algo_params=dict(
             subtraj_length=subtraj_length,
-            batch_size=subtraj_length*32,
+            batch_size=100,
             # batch_size=32*32,
             num_epochs=100,
-            # num_steps_per_epoch=100,
-            num_steps_per_epoch=1000,
+            num_steps_per_epoch=100,
+            # num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             discount=1.,
             use_gpu=use_gpu,
@@ -139,7 +139,7 @@ if __name__ == '__main__':
             write_policy_learning_rate=1e-5,
             qf_learning_rate=1e-4,
             max_path_length=H,
-            refresh_entire_buffer_period=10,
+            refresh_entire_buffer_period=1,
         ),
         qf_params=dict(
             # output_activation=F.softsign,
@@ -169,7 +169,7 @@ if __name__ == '__main__':
             # 'algo_params.write_policy_optimizes': ['qf', 'bellman', 'both'],
             # 'algo_params.bellman_error_loss_weight': [0.1, 1, 10, 100, 1000],
             # 'algo_params.tau': [1, 0.1, 0.01, 0.001],
-            # 'algo_params.discount': [1, 0.9, 0.5],
+            'algo_params.subtraj_length': [1, 2, 4, 8, 16, 25],
         }
         sweeper = DeterministicHyperparameterSweeper(search_space,
                                                      default_parameters=variant)

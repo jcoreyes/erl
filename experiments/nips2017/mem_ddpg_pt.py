@@ -1,13 +1,11 @@
-import random
-
-from railrl.envs.memory.high_low import HighLow
-from railrl.envs.water_maze import WaterMazeEasy
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import run_experiment
-from railrl.policies.torch import RecurrentPolicy
-from railrl.qfunctions.torch import RecurrentQFunction
-from railrl.torch.rdpg import Rdpg
+"""
+DDPG
+"""
+from railrl.envs.flattened_product_box import FlattenedProductBox
+from railrl.envs.memory.continuous_memory_augmented import \
+    ContinuousMemoryAugmented
 from railrl.envs.memory.hidden_cartpole import NormalizedHiddenCartpoleEnv
+from railrl.envs.memory.high_low import HighLow
 from railrl.envs.water_maze import WaterMazeMemory, WaterMazeEasy
 from railrl.exploration_strategies.noop import NoopStrategy
 from railrl.launchers.launcher_util import (
@@ -15,39 +13,79 @@ from railrl.launchers.launcher_util import (
     set_seed,
 )
 
-def experiment(variant):
+
+def run_linear_ocm_exp(variant):
+    from railrl.torch.ddpg import DDPG
+    from railrl.launchers.launcher_util import (
+        set_seed,
+    )
+    from railrl.exploration_strategies.ou_strategy import OUStrategy
+    from railrl.policies.torch import FeedForwardPolicy
+    from railrl.qfunctions.torch import FeedForwardQFunction
+
+    """
+    Set up experiment variants.
+    """
+    H = variant['H']
+    seed = variant['seed']
+    algo_params = variant['algo_params']
     env_class = variant['env_class']
-    env = env_class(**variant['env_params'])
-    es = OUStrategy(env_spec=env.spec)
-    qf = RecurrentQFunction(
-        int(env.observation_space.flat_dim),
-        int(env.action_space.flat_dim),
-        10,
-    )
-    policy = RecurrentPolicy(
-        int(env.observation_space.flat_dim),
-        int(env.action_space.flat_dim),
-        10,
-    )
-    algorithm = Rdpg(
+    env_params = variant['env_params']
+    ou_params = variant['ou_params']
+    memory_dim = variant['memory_dim']
+
+    set_seed(seed)
+
+    """
+    Code for running the experiment.
+    """
+
+    env = env_class(**env_params)
+    env = ContinuousMemoryAugmented(
         env,
-        exploration_strategy=es,
+        num_memory_states=memory_dim,
+    )
+    env = FlattenedProductBox(env)
+
+    # es = NoopStrategy(
+    es = OUStrategy(
+        env_spec=env.spec,
+        **ou_params
+    )
+    qf = FeedForwardQFunction(
+        int(env.observation_space.flat_dim),
+        int(env.action_space.flat_dim),
+        400,
+        300,
+    )
+    policy = FeedForwardPolicy(
+        int(env.observation_space.flat_dim),
+        int(env.action_space.flat_dim),
+        400,
+        300,
+    )
+    algorithm = DDPG(
+        env,
+        es,
         qf=qf,
         policy=policy,
-        **variant['algo_params']
+        **algo_params
     )
+
     algorithm.train()
 
 
 if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
-    exp_prefix = "dev-rdpg"
+    exp_prefix = "dev-pt-mem-ddpg"
 
     # n_seeds = 10
     # mode = "ec2"
-    # exp_prefix = "6-12-ddpg-watermaze-easy"
+    # exp_prefix = "results-6-13-ddpg-highlow"
 
+    # env_class = NormalizedHiddenCartpoleEnv
+    # env_class = WaterMazeEasy
     env_class = HighLow
     H = 25
     num_steps_per_iteration = 100
@@ -67,13 +105,12 @@ if __name__ == '__main__':
             max_path_length=H,
             discount=1,
             use_gpu=use_gpu,
-            subtraj_length=25,
         ),
         env_params=dict(
             num_steps=H,
-            use_small_maze=True,
-            l2_action_penalty_weight=0,
-            num_steps_until_reset=0,
+            # use_small_maze=True,
+            # l2_action_penalty_weight=0,
+            # num_steps_until_reset=0,
         ),
         ou_params=dict(
             max_sigma=1,
@@ -81,7 +118,8 @@ if __name__ == '__main__':
         ),
         exp_prefix=exp_prefix,
         env_class=env_class,
-        version="PyTorch DDPG"
+        version="Memory DDPG",
+        memory_dim=20,
     )
     exp_id = -1
     for seed in range(n_seeds):
@@ -91,7 +129,7 @@ if __name__ == '__main__':
         variant['exp_id'] = exp_id
 
         run_experiment(
-            experiment,
+            run_linear_ocm_exp,
             exp_prefix=exp_prefix,
             seed=seed,
             mode=mode,
