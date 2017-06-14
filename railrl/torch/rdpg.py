@@ -38,6 +38,7 @@ class Rdpg(OnlineAlgorithm):
             tau=0.01,
             policy_learning_rate=1e-3,
             qf_learning_rate=1e-3,
+            subtraj_length=None,
             **kwargs
     ):
         super().__init__(*args, **kwargs)
@@ -45,7 +46,9 @@ class Rdpg(OnlineAlgorithm):
         self.obs_dim = int(self.env.observation_space.flat_dim)
         self.qf = qf
         self.policy = policy
-        self.subtraj_length = self.env.horizon
+        if subtraj_length is None:
+            subtraj_length = self.env.horizon
+        self.subtraj_length = subtraj_length
 
         self.num_subtrajs_per_batch = self.batch_size // self.subtraj_length
         self.train_validation_num_subtrajs_per_batch = (
