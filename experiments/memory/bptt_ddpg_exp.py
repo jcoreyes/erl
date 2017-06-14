@@ -88,21 +88,21 @@ if __name__ == '__main__':
     exp_prefix = "dev-6-12-pytorch"
     run_mode = 'none'
 
-    # n_seeds = 10
+    # n_seeds = 5
     # mode = "ec2"
-    # exp_prefix = "6-13-small-memory-no-reset-full-bptt"
+    # exp_prefix = "dev-6-13-highlow-subtrajlen1-why-so-good"
 
-    # run_mode = 'custom_grid'
+    # run_mode = 'grid'
     use_gpu = True
     if mode != "here":
         use_gpu = False
 
-    H = 25
-    subtraj_length = 8
+    H = 50
+    subtraj_length = 1
     version = exp_prefix
     # version = "H = {0}, subtraj length = {1}".format(H, subtraj_length)
     # version = "Detach memory gradient"
-    version = "BN-LSTM"
+    version = "Our Method"
     # noinspection PyTypeChecker
     variant = dict(
         # memory_dim=2,
@@ -123,23 +123,22 @@ if __name__ == '__main__':
         ),
         algo_params=dict(
             subtraj_length=subtraj_length,
-            batch_size=100,
+            batch_size=200,
             # batch_size=32*32,
             num_epochs=100,
-            num_steps_per_epoch=100,
-            # num_steps_per_epoch=1000,
+            # num_steps_per_epoch=100,
+            num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             discount=1.,
             use_gpu=use_gpu,
-            # action_policy_optimize_bellman=False,
-            # write_policy_optimizes='qf',
-            action_policy_optimize_bellman=True,
-            write_policy_optimizes='both',
+            action_policy_optimize_bellman=False,
+            write_policy_optimizes='qf',
             action_policy_learning_rate=1e-4,
             write_policy_learning_rate=1e-5,
             qf_learning_rate=1e-4,
             max_path_length=H,
             refresh_entire_buffer_period=1,
+            save_new_memories_back_to_replay_buffer=True,
         ),
         qf_params=dict(
             # output_activation=F.softsign,
@@ -169,7 +168,7 @@ if __name__ == '__main__':
             # 'algo_params.write_policy_optimizes': ['qf', 'bellman', 'both'],
             # 'algo_params.bellman_error_loss_weight': [0.1, 1, 10, 100, 1000],
             # 'algo_params.tau': [1, 0.1, 0.01, 0.001],
-            'algo_params.subtraj_length': [1, 2, 4, 8, 16, 25],
+            'algo_params.subtraj_length': [50, 1, 10, 20, 30, 40],
         }
         sweeper = DeterministicHyperparameterSweeper(search_space,
                                                      default_parameters=variant)
