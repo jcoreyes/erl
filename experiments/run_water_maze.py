@@ -2,7 +2,7 @@ import argparse
 
 import numpy as np
 
-from railrl.envs.mujoco.water_maze import WaterMazeMemory
+from railrl.envs.pygame.water_maze import WaterMaze
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 
 parser = argparse.ArgumentParser()
@@ -12,11 +12,10 @@ parser.add_argument("--nreset", default=0, type=int,
 parser.add_argument("--render", action='store_true', help="Render env.")
 args = parser.parse_args()
 
-env = WaterMazeMemory(use_small_maze=args.small, include_velocity=True,
-                      num_steps_until_reset=args.nreset)
+env = WaterMaze()
 
 all_returns = []
-es = OUStrategy(env)
+es = OUStrategy(env.action_space)
 while True:
     obs = env.reset()
     es.reset()

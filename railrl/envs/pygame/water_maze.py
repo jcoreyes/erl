@@ -10,7 +10,7 @@ from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import split_paths
 from rllab.core.serializable import Serializable
 from rllab.misc import logger
-from sandbox.rocky.tf.spaces import Box
+from rllab.spaces import Box
 
 
 class WaterMaze(Serializable, Env):
