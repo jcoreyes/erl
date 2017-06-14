@@ -39,40 +39,61 @@ class BpttDdpg(OnlineAlgorithm):
             subtraj_length,
             tau=0.01,
             use_soft_update=True,
-            refresh_entire_buffer_period=None,
+            target_hard_update_period=1000,
             action_policy_optimize_bellman=True,
             write_policy_optimizes='both',
             action_policy_learning_rate=1e-3,
             write_policy_learning_rate=1e-5,
             qf_learning_rate=1e-3,
             bellman_error_loss_weight=10,
+            refresh_entire_buffer_period=None,
+            save_new_memories_back_to_replay_buffer=True,
             **kwargs
     ):
         super().__init__(*args, **kwargs)
         assert write_policy_optimizes in ['qf', 'bellman', 'both']
-        self.action_dim = int(self.env.env_spec.action_space.flat_dim)
-        self.obs_dim = int(self.env.env_spec.observation_space.flat_dim)
-        self.memory_dim = self.env.memory_dim
         self.qf = qf
         self.policy = policy
         self.subtraj_length = subtraj_length
+        self.tau = tau
+        self.use_soft_update = use_soft_update
+        self.target_hard_update_period = target_hard_update_period
         self.action_policy_optimize_bellman = action_policy_optimize_bellman
         self.write_policy_optimizes = write_policy_optimizes
-
-        self.num_subtrajs_per_batch = self.batch_size // self.subtraj_length
-        self.train_validation_num_subtrajs_per_batch = (
-            self.num_subtrajs_per_batch
-        )
         self.action_policy_learning_rate = action_policy_learning_rate
         self.write_policy_learning_rate = write_policy_learning_rate
         self.qf_learning_rate = qf_learning_rate
         self.bellman_error_loss_weight = bellman_error_loss_weight
-        self.target_hard_update_period = 1000
-        self.tau = tau
-        self.use_soft_update = use_soft_update
+        self.should_refresh_buffer = ConditionTimer(
+            refresh_entire_buffer_period
+        )
+        self.save_new_memories_back_to_replay_buffer = (
+            save_new_memories_back_to_replay_buffer
+        )
+
+        """
+        Set some params-dependency values
+        """
+        self.num_subtrajs_per_batch = self.batch_size // self.subtraj_length
+        self.train_validation_num_subtrajs_per_batch = (
+            self.num_subtrajs_per_batch
+        )
+        self.action_dim = int(self.env.env_spec.action_space.flat_dim)
+        self.obs_dim = int(self.env.env_spec.observation_space.flat_dim)
+        self.memory_dim = self.env.memory_dim
         self.max_number_trajectories_loaded_at_once = (
             self.num_subtrajs_per_batch
         )
+
+        if not self.save_new_memories_back_to_replay_buffer:
+            assert self.should_refresh_buffer.always_false, (
+                "If save_new_memories_back_to_replay_buffer is False, "
+                "you cannot refresh the replay buffer."
+            )
+
+        """
+        Create the necessary node objects.
+        """
         self.pool = UpdatableSubtrajReplayBuffer(
             self.pool_size,
             self.env,
@@ -90,10 +111,6 @@ class BpttDdpg(OnlineAlgorithm):
         )
         self.write_policy_optimizer = optim.Adam(
             self.policy.write_parameters(), lr=self.write_policy_learning_rate
-        )
-
-        self.should_refresh_buffer = ConditionTimer(
-            refresh_entire_buffer_period
         )
 
         self.use_gpu = self.use_gpu and torch.cuda.is_available()
@@ -201,9 +218,10 @@ class BpttDdpg(OnlineAlgorithm):
                 bellman_loss.backward()
             self.write_policy_optimizer.step()
 
-        self.pool.update_write_subtrajectories(
-            get_numpy(policy_dict['New Writes']), start_indices
-        )
+        if self.save_new_memories_back_to_replay_buffer:
+            self.pool.update_write_subtrajectories(
+                get_numpy(policy_dict['New Writes']), start_indices
+            )
 
     def get_policy_output_dict(self, subtraj_batch):
         """
