@@ -498,7 +498,7 @@ def flatten_subtraj_batch(subtraj_batch):
 
 def create_torch_subtraj_batch(subtraj_batch):
     torch_batch = {
-        k: Variable(from_numpy(array).float(), requires_grad=True)
+        k: Variable(from_numpy(array).float(), requires_grad=False)
         for k, array in subtraj_batch.items()
     }
     rewards = torch_batch['rewards']
