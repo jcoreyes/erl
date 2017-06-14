@@ -7,6 +7,8 @@ from railrl.envs.memory.continuous_memory_augmented import (
     ContinuousMemoryAugmented
 )
 from railrl.envs.memory.high_low import HighLow
+# from railrl.envs.pygame.water_maze import WaterMaze
+from railrl.envs.mujoco.water_maze import WaterMaze
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import (
     run_experiment,
@@ -45,11 +47,11 @@ def experiment(variant):
         **memory_aug_params
     )
     env_strategy = env_es_class(
-        env_spec=raw_env.spec,
+        action_space=raw_env.action_space,
         **env_es_params
     )
     write_strategy = memory_es_class(
-        env_spec=env.memory_spec,
+        action_space=env.memory_state_space,
         **memory_es_params
     )
     es = ProductStrategy([env_strategy, write_strategy])
@@ -104,12 +106,12 @@ if __name__ == '__main__':
         # memory_dim=2,
         memory_dim=30,
         # env_class=WaterMazeEasy,
-        # env_class=WaterMaze,
+        env_class=WaterMaze,
         # env_class=WaterMazeMemory,
-        env_class=HighLow,
+        # env_class=HighLow,
         env_params=dict(
-            num_steps=H,
-            # horizon=H,
+            # num_steps=H,
+            horizon=H,
             # use_small_maze=True,
             # l2_action_penalty_weight=0,
             # num_steps_until_reset=0,
@@ -121,10 +123,10 @@ if __name__ == '__main__':
             subtraj_length=subtraj_length,
             batch_size=200,
             # batch_size=32*32,
-            num_epochs=100,
+            num_epochs=5,
             # num_steps_per_epoch=100,
-            num_steps_per_epoch=1000,
-            num_steps_per_eval=1000,
+            num_steps_per_epoch=100,
+            num_steps_per_eval=10000,
             discount=1.,
             use_gpu=use_gpu,
             action_policy_optimize_bellman=False,

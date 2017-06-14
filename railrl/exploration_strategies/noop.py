@@ -7,8 +7,8 @@ class NoopStrategy(RawExplorationStrategy):
     Exploration strategy that does nothing other than clip the action.
     """
 
-    def __init__(self, env_spec, **kwargs):
-        self.action_space = env_spec.action_space
+    def __init__(self, action_space, **kwargs):
+        self.action_space = action_space
 
     def get_action(self, t, observation, policy, **kwargs):
         return policy.get_action(observation)

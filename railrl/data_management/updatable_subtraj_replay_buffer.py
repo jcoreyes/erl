@@ -34,8 +34,8 @@ class UpdatableSubtrajReplayBuffer(SubtrajReplayBuffer):
         """
         self._dloss_dmemories = np.zeros((self._max_pool_size,
                                           self.memory_dim))
-        self._env_obs_dim = env.env_spec.observation_space.flat_dim
-        self._env_action_dim = env.env_spec.action_space.flat_dim
+        self._env_obs_dim = env.wrapped_env.observation_space.flat_dim
+        self._env_action_dim = env.wrapped_env.action_space.flat_dim
         self._env_obs = np.zeros((max_pool_size, self._env_obs_dim))
         self._env_actions = np.zeros((max_pool_size, self._env_action_dim))
 

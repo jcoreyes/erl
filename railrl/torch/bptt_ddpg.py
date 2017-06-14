@@ -78,8 +78,8 @@ class BpttDdpg(OnlineAlgorithm):
         self.train_validation_num_subtrajs_per_batch = (
             self.num_subtrajs_per_batch
         )
-        self.action_dim = int(self.env.env_spec.action_space.flat_dim)
-        self.obs_dim = int(self.env.env_spec.observation_space.flat_dim)
+        self.action_dim = int(self.env.action_space.flat_dim)
+        self.obs_dim = int(self.env.observation_space.flat_dim)
         self.memory_dim = self.env.memory_dim
         self.max_number_trajectories_loaded_at_once = (
             self.num_subtrajs_per_batch
