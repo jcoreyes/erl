@@ -272,7 +272,7 @@ class BpttDdpg(OnlineAlgorithm):
         flat_rewards = flat_batch['rewards']
         flat_terminals = flat_batch['terminals']
         flat_next_memories = flat_new_writes
-        flat_next_actions, flat_next_writes = self.target_policy.get_flat_output(
+        flat_next_actions, flat_next_writes = self.policy.get_flat_output(
             flat_next_obs, flat_next_memories
         )
         target_q_values = self.target_qf(
