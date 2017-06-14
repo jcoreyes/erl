@@ -40,14 +40,15 @@ class ConvertEnv(ProxyEnv, Serializable):
     def __str__(self):
         return "TfConverted: %s" % self._wrapped_env
 
-    def get_param_values(self):
-        return None
-
-    def log_diagnostics(self, paths, *args, **kwargs):
-        pass
-
-    def terminate(self):
-        pass
+    # def get_param_values(self):
+    #     return None
+    #
+    # def log_diagnostics(self, paths, *args, **kwargs):
+    #     if hasattr(self.wrapped_env, "log_diagnostics"):
+    #         self.wrapped_env.log_diagnostics(paths, *args, **kwargs)
+    #
+    # def terminate(self):
+    #     pass
 
 
 convert_to_tf_env = ConvertEnv
