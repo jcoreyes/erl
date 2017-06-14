@@ -9,15 +9,10 @@ from hyperopt import hp
 
 from railrl.algos.bptt_ddpg import BpttDDPG
 from railrl.algos.ddpg import TargetUpdateMode
-from railrl.core.rnn.rnn import RWACell
 from railrl.data_management.ocm_subtraj_replay_buffer import (
     OcmSubtrajReplayBuffer
 )
-from railrl.envs.memory.hidden_cartpole import HiddenCartpoleEnv, \
-    NormalizedHiddenCartpoleEnv
 from railrl.envs.memory.high_low import HighLow
-from railrl.envs.water_maze import WaterMaze, WaterMazeEasy, WaterMazeMemory
-from railrl.exploration_strategies.noop import NoopStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.algo_launchers import bptt_ddpg_launcher
 from railrl.launchers.launcher_util import (
@@ -37,10 +32,7 @@ from railrl.misc.hyperparameter import (
 from railrl.misc.hypopt import optimize_and_save
 from railrl.policies.memory.lstm_memory_policy import (
     SeparateLstmLinearCell,
-    SeparateRWALinearCell,
-    LstmLinearCell,
 )
-from rllab.envs.box2d.cartpole_env import CartpoleEnv
 
 
 def get_ocm_score(variant):

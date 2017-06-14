@@ -1,10 +1,7 @@
 """
 DDPG
 """
-from railrl.envs.memory.hidden_cartpole import NormalizedHiddenCartpoleEnv
 from railrl.envs.memory.high_low import HighLow
-from railrl.envs.water_maze import WaterMazeMemory, WaterMazeEasy
-from railrl.exploration_strategies.noop import NoopStrategy
 from railrl.launchers.launcher_util import (
     run_experiment,
     set_seed,

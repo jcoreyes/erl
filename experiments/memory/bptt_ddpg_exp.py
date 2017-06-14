@@ -2,23 +2,19 @@
 Try the PyTorch version of BPTT DDPG on HighLow env.
 """
 import random
+
 from railrl.envs.memory.continuous_memory_augmented import (
     ContinuousMemoryAugmented
 )
 from railrl.envs.memory.high_low import HighLow
-from railrl.envs.water_maze import WaterMazeEasy, WaterMaze, WaterMazeMemory
-from railrl.exploration_strategies.noop import NoopStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import (
     run_experiment,
-    set_seed,
 )
 from railrl.misc.hyperparameter import DeterministicHyperparameterSweeper
 from railrl.policies.torch import MemoryPolicy
 from railrl.pythonplusplus import identity
 from railrl.qfunctions.torch import MemoryQFunction
-from rllab.misc.instrument import VariantGenerator
-from torch.nn import functional as F
 
 
 def experiment(variant):

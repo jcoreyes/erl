@@ -1,16 +1,13 @@
 """
 Run PyTorch DDPG on HalfCheetah.
 """
-from railrl.envs.point_env import PointEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.qfunctions.torch import FeedForwardQFunction
 from railrl.torch.ddpg import DDPG
-from rllab.envs.gym_env import GymEnv
 
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
-from railrl.envs.env_utils import gym_env
 from rllab.envs.normalized_env import normalize
 
 

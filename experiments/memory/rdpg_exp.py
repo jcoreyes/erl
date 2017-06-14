@@ -4,7 +4,6 @@ RDPG Experiments
 import random
 
 from railrl.envs.memory.high_low import HighLow
-from railrl.envs.water_maze import WaterMazeEasy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import RecurrentPolicy

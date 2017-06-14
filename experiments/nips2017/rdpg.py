@@ -1,19 +1,13 @@
-import random
-
 from railrl.envs.memory.high_low import HighLow
-from railrl.envs.water_maze import WaterMazeEasy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import run_experiment
-from railrl.policies.torch import RecurrentPolicy
-from railrl.qfunctions.torch import RecurrentQFunction
-from railrl.torch.rdpg import Rdpg
-from railrl.envs.memory.hidden_cartpole import NormalizedHiddenCartpoleEnv
-from railrl.envs.water_maze import WaterMazeMemory, WaterMazeEasy
-from railrl.exploration_strategies.noop import NoopStrategy
 from railrl.launchers.launcher_util import (
     run_experiment,
     set_seed,
 )
+from railrl.policies.torch import RecurrentPolicy
+from railrl.qfunctions.torch import RecurrentQFunction
+from railrl.torch.rdpg import Rdpg
+
 
 def experiment(variant):
     env_class = variant['env_class']

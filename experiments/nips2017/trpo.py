@@ -1,15 +1,11 @@
 """
 TRPO
 """
-from railrl.envs.memory.hidden_cartpole import HiddenCartpoleEnv, \
-    NormalizedHiddenCartpoleEnv
-from railrl.envs.wrappers import normalize_tf, convert_to_tf_env
-from railrl.envs.water_maze import WaterMazeEasy, WaterMazeMemory
+from railrl.envs.memory.hidden_cartpole import NormalizedHiddenCartpoleEnv
 from railrl.launchers.launcher_util import (
     run_experiment,
     set_seed,
 )
-from rllab.envs.normalized_env import normalize
 
 
 def run_linear_ocm_exp(variant):

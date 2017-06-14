@@ -1,10 +1,9 @@
-import time
-from railrl.envs.water_maze import WaterMaze, WaterMazeMemory
-import numpy as np
 import argparse
 
+import numpy as np
+
+from railrl.envs.mujoco.water_maze import WaterMazeMemory
 from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.pythonplusplus import clip_magnitude
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--small", action='store_true', help="Use a small maze.")

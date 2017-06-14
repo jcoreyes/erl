@@ -1,6 +1,6 @@
 import numpy as np
 
-from railrl.envs.mujoco_env import MujocoEnv
+from railrl.envs.mujoco.mujoco_env import MujocoEnv
 
 TARGET = np.array([0.2, 0])
 
