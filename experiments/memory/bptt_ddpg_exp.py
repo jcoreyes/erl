@@ -89,24 +89,24 @@ def experiment(variant):
 if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
-    exp_prefix = "dev-6-14-pytorch"
+    exp_prefix = "dev-6-14-pytorch-2"
     run_mode = 'none'
 
-    # n_seeds = 5
-    # mode = "ec2"
-    # exp_prefix = "dev-6-14-hl-subtraj-length-H25-sweep-things"
+    n_seeds = 10
+    mode = "ec2"
+    exp_prefix = "paper-6-14-hl-our-method-sweep-subtraj-length-batchsize1000"
 
-    # run_mode = 'grid'
+    run_mode = 'grid'
     use_gpu = True
     if mode != "here":
         use_gpu = False
 
     H = 25
     subtraj_length = 25
-    num_steps_per_iteration = 1000
+    num_steps_per_iteration = 100
     num_steps_per_eval = 1000
     num_iterations = 30
-    batch_size = 200
+    batch_size = 1000
     memory_dim = 30
     version = exp_prefix
     # version = "H = {0}, subtraj length = {1}".format(H, subtraj_length)
@@ -114,16 +114,12 @@ if __name__ == '__main__':
     # noinspection PyTypeChecker
     variant = dict(
         memory_dim=memory_dim,
-        env_class=WaterMazeEasy,
+        # env_class=WaterMazeEasy,
         # env_class=WaterMaze,
         # env_class=WaterMazeMemory,
-        # env_class=HighLow,
+        env_class=HighLow,
         env_params=dict(
-            # num_steps=H,
             horizon=H,
-            # use_small_maze=True,
-            # l2_action_penalty_weight=0,
-            # num_steps_until_reset=0,
         ),
         memory_aug_params=dict(
             max_magnitude=1,
@@ -142,7 +138,7 @@ if __name__ == '__main__':
             write_policy_learning_rate=1e-5,
             qf_learning_rate=1e-3,
             max_path_length=H,
-            refresh_entire_buffer_period=1,
+            refresh_entire_buffer_period=None,
             save_new_memories_back_to_replay_buffer=True,
         ),
         qf_params=dict(
@@ -172,10 +168,10 @@ if __name__ == '__main__':
             # 'algo_params.write_policy_learning_rate': [1e-5, 1e-7],
             # 'algo_params.action_policy_optimize_bellman': [True, False],
             # 'algo_params.write_policy_optimizes': ['qf', 'bellman', 'both'],
-            'algo_params.refresh_entire_buffer_period': [None, 1],
-            'es_params.memory_es_params.max_sigma': [0, 1],
-            'policy_params.cell_class': [LSTMCell, BNLSTMCell, RWACell],
-            'algo_params.subtraj_length': [1, 15, 25],
+            # 'algo_params.refresh_entire_buffer_period': [None, 1],
+            # 'es_params.memory_es_params.max_sigma': [0, 1],
+            # 'policy_params.cell_class': [LSTMCell, BNLSTMCell, RWACell],
+            'algo_params.subtraj_length': [1, 5, 10, 15, 20],
             # 'algo_params.bellman_error_loss_weight': [0.1, 1, 10, 100, 1000],
             # 'algo_params.tau': [1, 0.1, 0.01, 0.001],
         }
