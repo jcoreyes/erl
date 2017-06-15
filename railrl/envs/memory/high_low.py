@@ -106,7 +106,7 @@ class HighLow(Env, RecurrentSupervisedLearningEnv):
         ))
         last_statistics.update(create_stats_ordered_dict(
             'Final Rewards',
-            final_unclipped_rewards,
+            final_rewards,
         ))
 
         for key, value in last_statistics.items():
