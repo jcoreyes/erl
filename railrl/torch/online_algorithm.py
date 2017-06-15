@@ -39,7 +39,6 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         self.use_gpu = use_gpu
         self.render = render
         self.save_exploration_path_period = save_exploration_path_period
-
         self.env = pickle.loads(pickle.dumps(self.training_env))
         self.action_dim = int(env.action_space.flat_dim)
         self.obs_dim = int(env.observation_space.flat_dim)

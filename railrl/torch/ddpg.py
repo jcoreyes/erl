@@ -196,6 +196,14 @@ class DDPG(OnlineAlgorithm):
                                                     stat_prefix=stat_prefix))
         return statistics
 
+     def get_epoch_snapshot(self, epoch):
+        return dict(
+            epoch=epoch,
+            policy=self.policy,
+            env=self.training_env,
+            qf=self.qf,
+            replay_pool=self.replay_pool,
+        )
 
 class QFunction(PyTorchModule):
     def __init__(

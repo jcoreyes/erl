@@ -4,13 +4,40 @@ Exampling of running DDPG on HalfCheetah.
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.nn_policy import FeedForwardPolicy
 from railrl.qfunctions.nn_qfunction import FeedForwardCritic
-from railrl.algos.ddpg import DDPG
+from railrl.torch.ddpg import DDPG
 
 from railrl.envs.ros.baxter_env import BaxterEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 
 
 def example(variant):
+    oad_policy_file = variant.get('load_policy_file', None)
+    if load_policy_file is not None and exists(load_policy_file):
+        with tf.Session():
+            data = joblib.load(load_policy_file)
+            print(data)
+            policy = data['policy']
+            qf = data['qf']
+            replay_buffer=data['pool']
+        env = BaxterEnv(update_hz=20)
+        es = OUStrategy(
+            max_sigma=0.05,
+            min_sigma=0.05,
+            env_spec=env.spec,
+        )
+        use_new_version = variant['use_new_version']
+        algorithm = DDPG(
+            env,
+            es,
+            policy,
+            qf,
+            n_epochs=2,
+            batch_size=1024,
+            replay_pool=replay_buffer,
+            use_new_version=use_new_version,
+        )
+        algorithm.train()
+
     env = BaxterEnv(update_hz=20)
     es = OUStrategy(
         max_sigma=0.05,
@@ -29,9 +56,7 @@ def example(variant):
     algorithm = DDPG(
         env,
         es,
-        policy,
-        qf,
-        n_epochs=30,
+        num_epochs=30,
         batch_size=1024,
         use_new_version=use_new_version,
     )
@@ -41,7 +66,7 @@ def example(variant):
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="ddpg-baxter-safety-fixed-angle-6-14",
+        exp_prefix="ddpg-baxter-fixed-angle-torch",
         seed=0,
         mode='here',
         variant={
