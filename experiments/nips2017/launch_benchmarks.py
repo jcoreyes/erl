@@ -1,5 +1,9 @@
 from railrl.envs.memory.high_low import HighLow
-from railrl.envs.pygame.water_maze import WaterMaze, WaterMazeMemory
+from railrl.envs.pygame.water_maze import (
+    WaterMaze,
+    WaterMazeMemory,
+    WaterMazeEasy,
+)
 from railrl.launchers.launcher_util import (
     run_experiment,
     set_seed,
@@ -12,19 +16,20 @@ from railrl.launchers.memory_bptt_launchers import (
     mem_ddpg_launcher,
     rdpg_launcher,
 )
+from railrl.misc.hyperparameter import DeterministicHyperparameterSweeper
 
 if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
     exp_prefix = "dev-6-14-launch-benchmark"
 
-    # n_seeds = 10
-    # mode = "here"
-    # exp_prefix = "benchmark-6-14-memory-states-HL-H25"
+    n_seeds = 5
+    mode = "ec2"
+    exp_prefix = "benchmark-6-14-trpo-water-mazes-H25"
 
-    # env_class = WaterMaze
     # env_class = HighLow
     env_class = WaterMazeMemory
+    env_class = WaterMaze
 
     use_gpu = True
     if mode != "here":
@@ -33,7 +38,7 @@ if __name__ == '__main__':
     H = 25
     num_steps_per_iteration = 10000
     num_steps_per_eval = 1000
-    num_iterations = 30
+    num_iterations = 100
     batch_size = 200
     memory_dim = 30
     # noinspection PyTypeChecker
@@ -53,24 +58,30 @@ if __name__ == '__main__':
     )
     exp_id = -1
     for launcher in [
-        # trpo_launcher,
-        # mem_trpo_launcher,
+        trpo_launcher,
+        mem_trpo_launcher,
         rtrpo_launcher,
         # ddpg_launcher,
         # mem_ddpg_launcher,
         # rdpg_launcher,
     ]:
-        for seed in range(n_seeds):
-            exp_id += 1
-            set_seed(seed)
-            variant['seed'] = seed
-            variant['exp_id'] = exp_id
+        search_space = {
+            'env_class': [WaterMaze, WaterMazeEasy, WaterMazeMemory],
+        }
+        sweeper = DeterministicHyperparameterSweeper(search_space,
+                                                     default_parameters=variant)
+        for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+            for seed in range(n_seeds):
+                exp_id += 1
+                set_seed(seed)
+                variant['seed'] = seed
+                variant['exp_id'] = exp_id
 
-            run_experiment(
-                launcher,
-                exp_prefix=exp_prefix,
-                seed=seed,
-                mode=mode,
-                variant=variant,
-                exp_id=exp_id,
-            )
+                run_experiment(
+                    launcher,
+                    exp_prefix=exp_prefix,
+                    seed=seed,
+                    mode=mode,
+                    variant=variant,
+                    exp_id=exp_id,
+                )
