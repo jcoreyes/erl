@@ -23,20 +23,21 @@ if __name__ == '__main__':
     mode = "here"
     exp_prefix = "dev-6-14-launch-benchmark"
 
-    n_seeds = 5
-    mode = "ec2"
-    exp_prefix = "benchmark-6-14-trpo-water-mazes-H25"
+    # n_seeds = 5
+    # mode = "ec2"
+    # exp_prefix = "benchmark-6-14-trpo-water-mazes-H25"
 
     # env_class = HighLow
     env_class = WaterMazeMemory
     env_class = WaterMaze
+    env_class = WaterMazeEasy
 
     use_gpu = True
     if mode != "here":
         use_gpu = False
 
     H = 25
-    num_steps_per_iteration = 10000
+    num_steps_per_iteration = 100
     num_steps_per_eval = 1000
     num_iterations = 100
     batch_size = 200
@@ -58,15 +59,15 @@ if __name__ == '__main__':
     )
     exp_id = -1
     for launcher in [
-        trpo_launcher,
-        mem_trpo_launcher,
-        rtrpo_launcher,
-        # ddpg_launcher,
+        # trpo_launcher,
+        # mem_trpo_launcher,
+        # rtrpo_launcher,
+        ddpg_launcher,
         # mem_ddpg_launcher,
         # rdpg_launcher,
     ]:
         search_space = {
-            'env_class': [WaterMaze, WaterMazeEasy, WaterMazeMemory],
+            # 'env_class': [WaterMaze, WaterMazeEasy, WaterMazeMemory],
         }
         sweeper = DeterministicHyperparameterSweeper(search_space,
                                                      default_parameters=variant)
