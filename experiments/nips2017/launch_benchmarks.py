@@ -14,13 +14,13 @@ from railrl.launchers.memory_bptt_launchers import (
 )
 
 if __name__ == '__main__':
-    # n_seeds = 1
-    # mode = "here"
-    # exp_prefix = "dev-6-14-launch-benchmark"
+    n_seeds = 1
+    mode = "here"
+    exp_prefix = "dev-6-14-launch-benchmark"
 
     n_seeds = 10
     mode = "here"
-    exp_prefix = "benchmark-6-14-memory-states-HL-H50"
+    exp_prefix = "benchmark-6-14-memory-states-HL-H25"
 
     # env_class = WaterMaze
     env_class = HighLow
@@ -29,7 +29,7 @@ if __name__ == '__main__':
     if mode != "here":
         use_gpu = False
 
-    H = 50
+    H = 25
     num_steps_per_iteration = 100
     num_steps_per_eval = 1000
     num_iterations = 30
@@ -53,11 +53,11 @@ if __name__ == '__main__':
     exp_id = -1
     for launcher in [
         # trpo_launcher,
-        # mem_trpo_launcher,
+        mem_trpo_launcher,
         # rtrpo_launcher,
         # ddpg_launcher,
-        # mem_ddpg_launcher,
-        rdpg_launcher,
+        mem_ddpg_launcher,
+        # rdpg_launcher,
     ]:
         for seed in range(n_seeds):
             exp_id += 1
