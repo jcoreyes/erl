@@ -42,6 +42,9 @@ class Rdpg(OnlineAlgorithm):
             **kwargs
     ):
         super().__init__(*args, **kwargs)
+        assert self.num_steps_per_eval >= self.env.horizon, (
+            "Cannot evaluate RDPG with such short trajectories"
+        )
         self.action_dim = int(self.env.action_space.flat_dim)
         self.obs_dim = int(self.env.observation_space.flat_dim)
         self.qf = qf
@@ -266,6 +269,8 @@ class Rdpg(OnlineAlgorithm):
             self.pool.num_subtrajs_can_sample(validation=True) >= 1
             and self.pool.num_subtrajs_can_sample(validation=False) >= 1
             and len(exploration_paths) > 0
+            and any([len(path['terminals']) > self.subtraj_length
+                     for path in exploration_paths])
         )
 
     """
