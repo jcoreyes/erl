@@ -7,16 +7,20 @@ from railrl.envs.memory.continuous_memory_augmented import (
     ContinuousMemoryAugmented
 )
 from railrl.envs.memory.high_low import HighLow
-from railrl.envs.pygame.water_maze import WaterMaze
-# from railrl.envs.mujoco.water_maze import WaterMaze
+from railrl.envs.pygame.water_maze import (
+    WaterMaze,
+    WaterMazeEasy,
+    WaterMazeMemory,
+)
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import (
     run_experiment,
 )
 from railrl.misc.hyperparameter import DeterministicHyperparameterSweeper
-from railrl.policies.torch import MemoryPolicy
+from railrl.policies.torch import MemoryPolicy, RWACell
 from railrl.pythonplusplus import identity
 from railrl.qfunctions.torch import MemoryQFunction
+from railrl.torch.bnlstm import LSTMCell, BNLSTMCell
 
 
 def experiment(variant):
@@ -32,6 +36,7 @@ def experiment(variant):
     env_params = variant['env_params']
     memory_aug_params = variant['memory_aug_params']
     qf_params = variant['qf_params']
+    policy_params = variant['policy_params']
 
     es_params = variant['es_params']
     env_es_class = es_params['env_es_class']
@@ -69,6 +74,7 @@ def experiment(variant):
         memory_dim,
         400,
         300,
+        **policy_params,
     )
     algorithm = BpttDdpg(
         env,
@@ -83,30 +89,33 @@ def experiment(variant):
 if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
-    exp_prefix = "dev-6-12-pytorch"
+    exp_prefix = "dev-6-14-pytorch"
     run_mode = 'none'
 
     # n_seeds = 5
     # mode = "ec2"
-    # exp_prefix = "dev-6-13-highlow-subtrajlen1-why-so-good"
+    # exp_prefix = "dev-6-14-hl-subtraj-length-H25-sweep-things"
 
     # run_mode = 'grid'
     use_gpu = True
     if mode != "here":
         use_gpu = False
 
-    H = 50
-    subtraj_length = 1
+    H = 25
+    subtraj_length = 25
+    num_steps_per_iteration = 1000
+    num_steps_per_eval = 1000
+    num_iterations = 30
+    batch_size = 200
+    memory_dim = 30
     version = exp_prefix
     # version = "H = {0}, subtraj length = {1}".format(H, subtraj_length)
-    # version = "Detach memory gradient"
     version = "Our Method"
     # noinspection PyTypeChecker
     variant = dict(
-        # memory_dim=2,
-        memory_dim=30,
-        # env_class=WaterMazeEasy,
-        env_class=WaterMaze,
+        memory_dim=memory_dim,
+        env_class=WaterMazeEasy,
+        # env_class=WaterMaze,
         # env_class=WaterMazeMemory,
         # env_class=HighLow,
         env_params=dict(
@@ -121,27 +130,26 @@ if __name__ == '__main__':
         ),
         algo_params=dict(
             subtraj_length=subtraj_length,
-            batch_size=200,
-            # batch_size=32*32,
-            num_epochs=5,
-            # num_steps_per_epoch=100,
-            num_steps_per_epoch=100,
-            num_steps_per_eval=10000,
+            batch_size=batch_size,
+            num_epochs=num_iterations,
+            num_steps_per_epoch=num_steps_per_iteration,
+            num_steps_per_eval=num_steps_per_eval,
             discount=1.,
             use_gpu=use_gpu,
             action_policy_optimize_bellman=False,
-            write_policy_optimizes='qf',
-            action_policy_learning_rate=1e-4,
+            write_policy_optimizes='both',
+            action_policy_learning_rate=1e-3,
             write_policy_learning_rate=1e-5,
-            qf_learning_rate=1e-4,
+            qf_learning_rate=1e-3,
             max_path_length=H,
             refresh_entire_buffer_period=1,
             save_new_memories_back_to_replay_buffer=True,
         ),
         qf_params=dict(
-            # output_activation=F.softsign,
-            # output_activation=F.tanh,
             output_activation=identity,
+        ),
+        policy_params=dict(
+            cell_class=LSTMCell,
         ),
         es_params=dict(
             env_es_class=OUStrategy,
@@ -151,7 +159,7 @@ if __name__ == '__main__':
             ),
             memory_es_class=OUStrategy,
             memory_es_params=dict(
-                max_sigma=1,
+                max_sigma=0,
                 min_sigma=None,
             ),
         ),
@@ -164,9 +172,12 @@ if __name__ == '__main__':
             # 'algo_params.write_policy_learning_rate': [1e-5, 1e-7],
             # 'algo_params.action_policy_optimize_bellman': [True, False],
             # 'algo_params.write_policy_optimizes': ['qf', 'bellman', 'both'],
+            'algo_params.refresh_entire_buffer_period': [None, 1],
+            'es_params.memory_es_params.max_sigma': [0, 1],
+            'policy_params.cell_class': [LSTMCell, BNLSTMCell, RWACell],
+            'algo_params.subtraj_length': [1, 15, 25],
             # 'algo_params.bellman_error_loss_weight': [0.1, 1, 10, 100, 1000],
             # 'algo_params.tau': [1, 0.1, 0.01, 0.001],
-            'algo_params.subtraj_length': [50, 1, 10, 20, 30, 40],
         }
         sweeper = DeterministicHyperparameterSweeper(search_space,
                                                      default_parameters=variant)
