@@ -23,7 +23,7 @@ def example(variant):
         es = OUStrategy(
             max_sigma=0.05,
             min_sigma=0.05,
-            env_spec=env.spec,
+            action_space=env.action_space,
         )
         use_new_version = variant['use_new_version']
         algorithm = DDPG(

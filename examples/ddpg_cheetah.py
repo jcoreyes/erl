@@ -21,7 +21,7 @@ def example(variant):
             qf = data['qf']
             replay_buffer=data['pool']
         env = HalfCheetahEnv()
-        es = OUStrategy(env_spec=env.spec)
+        es = OUStrategy(action_space=env.action_space)
         use_new_version = variant['use_new_version']
         algorithm = DDPG(
             env,
@@ -36,7 +36,7 @@ def example(variant):
         algorithm.train()
     else:
         env = HalfCheetahEnv()
-        es = OUStrategy(env_spec=env.spec)
+        es = OUStrategy(action_space=env.action_space)
         qf = FeedForwardCritic(
             name_or_scope="critic",
             env_spec=env.spec,
@@ -76,13 +76,13 @@ if __name__ == "__main__":
     else:
         run_experiment(
         	example,
-        	exp_prefix="ddpg-half-cheetah-6-13",
+        	exp_prefix="ddpg-half-cheetah-6-14-TEST-DELETE",
         	seed=0,
         	mode='here',
         	variant={
         	    'version': 'Original',
         	    'use_new_version': False,
-                'load_policy_file': '/home/murtaza/Documents/rllab/data/local/ddpg-half-cheetah-6-13/ddpg-half-cheetah-6-13_2017_06_13_09_05_31_0000--s-0/params.pkl'
+                # 'load_policy_file': '/home/murtaza/Documents/rllab/data/local/ddpg-half-cheetah-6-13/ddpg-half-cheetah-6-13_2017_06_13_09_05_31_0000--s-0/params.pkl'
     		},
     		snapshot_mode='last',
     	)

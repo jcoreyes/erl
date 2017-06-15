@@ -9,12 +9,12 @@ from railrl.torch.ddpg import DDPG
 
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 from rllab.envs.normalized_env import normalize
-
+import ipdb
 
 def example(variant):
     env = HalfCheetahEnv()
     env = normalize(env)
-    es = OUStrategy(env_spec=env.spec)
+    es = OUStrategy(action_space=env.action_space)
     use_new_version = variant['use_new_version']
     qf = FeedForwardQFunction(
         int(env.observation_space.flat_dim),

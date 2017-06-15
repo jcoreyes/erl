@@ -15,7 +15,7 @@ def example(variant):
     es = OUStrategy(
         max_sigma=0.05,
         min_sigma=0.05,
-        env_spec=env.spec,
+        action_space=env.action_space,
     )
     qf = FeedForwardCritic(
         name_or_scope="critic",
@@ -41,7 +41,7 @@ def example(variant):
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="ddpg-baxter-safety-fixed-angle-6-14",
+        exp_prefix="ddpg-baxter-safety-fixed-angle-6-14-TEST-DELEET",
         seed=0,
         mode='here',
         variant={
