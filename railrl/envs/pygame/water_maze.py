@@ -32,13 +32,16 @@ class WaterMaze(Serializable, Env):
         self._position = None
 
         self._action_space = Box(np.array([-1, -1]), np.array([1, 1]))
-        self._observation_space = Box(
-            np.array([-self.BOUNDARY_DIST, -self.BOUNDARY_DIST, 0]),
-            np.array([self.BOUNDARY_DIST, self.BOUNDARY_DIST, 1])
-        )
+        self._observation_space = self._create_observation_space()
 
         self.drawer = None
         self.render_dt_msec = render_dt_msec
+
+    def _create_observation_space(self):
+        return Box(
+            np.array([-self.BOUNDARY_DIST, -self.BOUNDARY_DIST, 0]),
+            np.array([self.BOUNDARY_DIST, self.BOUNDARY_DIST, 1])
+        )
 
     def _step(self, velocities):
         self._t += 1
@@ -141,3 +144,55 @@ class WaterMaze(Serializable, Env):
 
         self.drawer.render()
         self.drawer.tick(self.render_dt_msec)
+
+
+class WaterMazeEasy(WaterMaze):
+    """
+    See the target position at all time steps.
+    """
+    def _create_observation_space(self):
+        return Box(
+            np.array([-self.BOUNDARY_DIST, -self.BOUNDARY_DIST, 0,
+                      -self.BOUNDARY_DIST, -self.BOUNDARY_DIST]),
+            np.array([self.BOUNDARY_DIST, self.BOUNDARY_DIST, 1,
+                      self.BOUNDARY_DIST, self.BOUNDARY_DIST])
+        )
+
+    def _get_observation_and_on_platform(self):
+        """
+        :return: Tuple
+        - Observation vector
+        - Flag: on platform or not.
+        """
+        dist = np.linalg.norm(self._position - self._target_position)
+        on_platform = dist <= self.TARGET_RADIUS
+        return np.hstack(
+            (self._position, [on_platform], self._target_position)
+        ), on_platform
+
+
+class WaterMazeMemory(WaterMazeEasy):
+    """
+    See the target position at the very first time step.
+    """
+    def _create_observation_space(self):
+        return Box(
+            np.array([-self.BOUNDARY_DIST, -self.BOUNDARY_DIST, 0,
+                      -self.BOUNDARY_DIST, -self.BOUNDARY_DIST]),
+            np.array([self.BOUNDARY_DIST, self.BOUNDARY_DIST, 1,
+                      self.BOUNDARY_DIST, self.BOUNDARY_DIST])
+        )
+
+    def _get_observation_and_on_platform(self):
+        """
+        :return: Tuple
+        - Observation vector
+        - Flag: on platform or not.
+        """
+        dist = np.linalg.norm(self._position - self._target_position)
+        on_platform = dist <= self.TARGET_RADIUS
+        if self._t == 0:
+            hint = self._target_position
+        else:
+            hint = np.zeros_like(self._target_position)
+        return np.hstack((self._position, [on_platform], hint)), on_platform

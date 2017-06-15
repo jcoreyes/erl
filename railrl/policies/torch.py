@@ -5,7 +5,7 @@ from torch.autograd import Variable
 from torch.nn import functional as F
 from torch.nn import init
 
-from railrl.torch.bnlstm import BNLSTMCell, LSTM
+from railrl.torch.bnlstm import BNLSTMCell, LSTM, LSTMCell
 from railrl.torch.core import PyTorchModule
 from railrl.torch import pytorch_util as ptu
 
@@ -87,6 +87,10 @@ class RWACell(PyTorchModule):
 
         return h_new, n_new, d_new
 
+    @staticmethod
+    def state_num_split():
+        return 3
+
 
 class MemoryPolicy(PyTorchModule):
     def __init__(
@@ -97,6 +101,7 @@ class MemoryPolicy(PyTorchModule):
             fc1_size,
             fc2_size,
             init_w=1e-3,
+            cell_class=LSTMCell,
     ):
         self.save_init_params(locals())
         super().__init__()
@@ -110,15 +115,11 @@ class MemoryPolicy(PyTorchModule):
         self.fc1 = nn.Linear(obs_dim + memory_dim, fc1_size)
         self.fc2 = nn.Linear(fc1_size, fc2_size)
         self.last_fc = nn.Linear(fc2_size, action_dim)
-        self.num_splits_for_rnn_internally = 2
-        # self.num_splits_for_rnn_internally = 3
+        self.num_splits_for_rnn_internally = cell_class.state_num_split()
         assert memory_dim % self.num_splits_for_rnn_internally == 0
-        self.rnn_cell = BNLSTMCell(
+        self.rnn_cell = cell_class(
             self.obs_dim, self.memory_dim // self.num_splits_for_rnn_internally
         )
-        # self.rnn_cell = RWACell(
-        #     self.obs_dim, self.memory_dim // self.num_splits_for_rnn_internally
-        # )
         self.init_weights(init_w)
 
     def init_weights(self, init_w):
@@ -304,6 +305,9 @@ class RecurrentPolicy(PyTorchModule):
             obs_dim,
             action_dim,
             hidden_size,
+            fc1_size,
+            fc2_size,
+            init_w=3e-3,
     ):
         self.save_init_params(locals())
         super().__init__()
@@ -311,13 +315,27 @@ class RecurrentPolicy(PyTorchModule):
         self.obs_dim = obs_dim
         self.action_dim = action_dim
         self.hidden_size = hidden_size
+        self.fc1_size = fc1_size
+        self.fc2_size = fc2_size
         self.lstm = LSTM(BNLSTMCell, self.obs_dim, self.hidden_size, 1,
                          batch_first=True)
-        self.last_fc = nn.Linear(hidden_size, self.action_dim)
+        self.fc1 = nn.Linear(self.hidden_size + self.obs_dim, self.fc1_size)
+        self.fc2 = nn.Linear(self.fc1_size, self.fc2_size)
+        self.last_fc = nn.Linear(self.fc2_size, self.action_dim)
 
         self.hx = None
         self.cx = None
+        self.init_weights(init_w)
         self.reset()
+
+    def init_weights(self, init_w):
+        init.kaiming_normal(self.fc1.weight)
+        self.fc1.bias.data.fill_(0)
+        init.kaiming_normal(self.fc2.weight)
+        self.fc2.bias.data.fill_(0)
+
+        self.last_fc.weight.data.uniform_(-init_w, init_w)
+        self.last_fc.bias.data.uniform_(-init_w, init_w)
 
     def forward(self, obs, cx=None, hx=None):
         """
@@ -338,10 +356,16 @@ class RecurrentPolicy(PyTorchModule):
         rnn_outputs, state = self.lstm(obs, (hx, cx))
         rnn_outputs.contiguous()
         rnn_outputs_flat = rnn_outputs.view(-1, self.hidden_size)
-        outputs_flat = F.tanh(self.last_fc(rnn_outputs_flat))
-        return outputs_flat.view(
+        obs_flat = obs.view(-1, self.obs_dim)
+        h = torch.cat((rnn_outputs_flat, obs_flat), dim=1)
+        h = F.relu(self.fc1(h))
+        h = F.relu(self.fc2(h))
+        outputs_flat = F.tanh(self.last_fc(h))
+
+        out = outputs_flat.view(
             batch_size, subsequence_length, self.action_dim
         ), state
+        return out
 
     def get_action(self, obs):
         obs = np.expand_dims(obs, axis=0)

@@ -1,4 +1,9 @@
-from railrl.envs.pygame.water_maze import WaterMaze
+from railrl.envs.memory.high_low import HighLow
+from railrl.envs.pygame.water_maze import (
+    WaterMaze,
+    WaterMazeMemory,
+    WaterMazeEasy,
+)
 from railrl.launchers.launcher_util import (
     run_experiment,
     set_seed,
@@ -11,15 +16,32 @@ from railrl.launchers.memory_bptt_launchers import (
     mem_ddpg_launcher,
     rdpg_launcher,
 )
+from railrl.misc.hyperparameter import DeterministicHyperparameterSweeper
 
 if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
-    exp_prefix = "6-14-dev-mbptt-ddpg-benchmarks-many-3"
+    exp_prefix = "dev-6-14-launch-benchmark"
 
+    # n_seeds = 5
+    # mode = "ec2"
+    # exp_prefix = "benchmark-6-14-trpo-water-mazes-H25"
+
+    # env_class = HighLow
+    env_class = WaterMazeMemory
     env_class = WaterMaze
-    H = 25
+    env_class = WaterMazeEasy
 
+    use_gpu = True
+    if mode != "here":
+        use_gpu = False
+
+    H = 25
+    num_steps_per_iteration = 100
+    num_steps_per_eval = 1000
+    num_iterations = 100
+    batch_size = 200
+    memory_dim = 30
     # noinspection PyTypeChecker
     variant = dict(
         H=H,
@@ -28,33 +50,39 @@ if __name__ == '__main__':
             horizon=H,
         ),
         exp_prefix=exp_prefix,
-        num_steps_per_iteration=100,
-        num_steps_per_eval=100,
-        num_iterations=10,
-        memory_dim=30,
-        use_gpu=True,
-        batch_size=50,  # For DDPG only
+        num_steps_per_iteration=num_steps_per_iteration,
+        num_steps_per_eval=num_steps_per_eval,
+        num_iterations=num_iterations,
+        memory_dim=memory_dim,
+        use_gpu=use_gpu,
+        batch_size=batch_size,  # For DDPG only
     )
     exp_id = -1
     for launcher in [
-        # rtrpo_launcher,
         # trpo_launcher,
         # mem_trpo_launcher,
+        # rtrpo_launcher,
+        ddpg_launcher,
         # mem_ddpg_launcher,
-        # ddpg_launcher,
-        rdpg_launcher,
+        # rdpg_launcher,
     ]:
-        for seed in range(n_seeds):
-            exp_id += 1
-            set_seed(seed)
-            variant['seed'] = seed
-            variant['exp_id'] = exp_id
+        search_space = {
+            # 'env_class': [WaterMaze, WaterMazeEasy, WaterMazeMemory],
+        }
+        sweeper = DeterministicHyperparameterSweeper(search_space,
+                                                     default_parameters=variant)
+        for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+            for seed in range(n_seeds):
+                exp_id += 1
+                set_seed(seed)
+                variant['seed'] = seed
+                variant['exp_id'] = exp_id
 
-            run_experiment(
-                launcher,
-                exp_prefix=exp_prefix,
-                seed=seed,
-                mode=mode,
-                variant=variant,
-                exp_id=exp_id,
-            )
+                run_experiment(
+                    launcher,
+                    exp_prefix=exp_prefix,
+                    seed=seed,
+                    mode=mode,
+                    variant=variant,
+                    exp_id=exp_id,
+                )

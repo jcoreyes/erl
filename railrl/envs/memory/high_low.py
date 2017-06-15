@@ -10,7 +10,7 @@ from railrl.misc.np_util import np_print_options
 from railrl.pythonplusplus import clip_magnitude
 from rllab.envs.base import Env
 from rllab.misc import logger
-from sandbox.rocky.tf.spaces.box import Box
+from rllab.spaces.box import Box
 
 
 def _generate_sign():
@@ -18,9 +18,9 @@ def _generate_sign():
 
 
 class HighLow(Env, RecurrentSupervisedLearningEnv):
-    def __init__(self, num_steps, **kwargs):
-        assert num_steps > 0
-        self._num_steps = num_steps
+    def __init__(self, horizon, **kwargs):
+        assert horizon > 0
+        self._horizon = horizon
         self._t = 0
         self._sign = _generate_sign()
         self._action_space = Box(np.array([-1]), np.array([1]))
@@ -63,7 +63,7 @@ class HighLow(Env, RecurrentSupervisedLearningEnv):
 
     @property
     def horizon(self):
-        return self._num_steps
+        return self._horizon
 
     def _get_info_dict(self):
         return {
@@ -106,7 +106,7 @@ class HighLow(Env, RecurrentSupervisedLearningEnv):
         ))
         last_statistics.update(create_stats_ordered_dict(
             'Final Rewards',
-            final_unclipped_rewards,
+            final_rewards,
         ))
 
         for key, value in last_statistics.items():
@@ -188,4 +188,4 @@ class HighLow(Env, RecurrentSupervisedLearningEnv):
 
     @property
     def sequence_length(self):
-        return self._num_steps
+        return self._horizon

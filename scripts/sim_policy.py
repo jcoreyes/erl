@@ -18,6 +18,7 @@ if __name__ == "__main__":
     parser.add_argument('--speedup', type=float, default=1,
                         help='Speedup')
     parser.add_argument('--use_gpu', action='store_true')
+    parser.add_argument('--pause', action='store_true')
     args = parser.parse_args()
 
     policy = None
@@ -37,6 +38,8 @@ if __name__ == "__main__":
         if args.use_gpu:
             set_gpu_mode(True)
             policy.cuda()
+        if args.pause:
+            import ipdb; ipdb.set_trace()
         while True:
             try:
                 path = rollout(

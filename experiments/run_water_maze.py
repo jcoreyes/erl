@@ -9,6 +9,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--small", action='store_true', help="Use a small maze.")
 parser.add_argument("--nreset", default=0, type=int,
                     help="# steps until teleport.")
+parser.add_argument("--H", default=20, type=int, help="env horizon.")
 parser.add_argument("--render", action='store_true', help="Render env.")
 args = parser.parse_args()
 
@@ -25,7 +26,7 @@ while True:
     last_reward_t = 0
     print("---------- RESET ----------")
     returns = 0
-    for t in range(50):
+    for t in range(args.H):
         # action = es.get_action_from_raw_action(zero_action)
         obs, reward, done, info = env.step(action)
         # print("action", action)
