@@ -354,8 +354,6 @@ class RecurrentPolicy(PyTorchModule):
             )
             hx.data.fill_(0)
         rnn_outputs, state = self.lstm(obs, (hx, cx))
-        if subsequence_length > 1:
-            import ipdb; ipdb.set_trace()
         rnn_outputs.contiguous()
         rnn_outputs_flat = rnn_outputs.view(-1, self.hidden_size)
         obs_flat = obs.view(-1, self.obs_dim)
@@ -367,7 +365,6 @@ class RecurrentPolicy(PyTorchModule):
         out = outputs_flat.view(
             batch_size, subsequence_length, self.action_dim
         ), state
-        print(out[0][0, :, :])
         return out
 
     def get_action(self, obs):
