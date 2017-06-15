@@ -2,6 +2,7 @@
 Supervised learning with full BPTT.
 """
 import tensorflow as tf
+import random
 from tensorflow.contrib.rnn import LSTMCell
 
 from railrl.envs.memory.high_low import HighLow
@@ -22,17 +23,18 @@ def main():
 
     # n_seeds = 10
     # mode = "ec2"
-    # exp_prefix = "5-27-benchmark-sl-ocm-sweep-h"
+    exp_prefix = "paper-6-14-HL-sl-H25"
 
+    H = 25
     # noinspection PyTypeChecker
     variant = dict(
-        H=128,
+        H=H,
         exp_prefix=exp_prefix,
         algo_params=dict(
-            num_batches_per_epoch=10000//32,
-            num_epochs=100,
+            num_batches_per_epoch=100,
+            num_epochs=30,
             learning_rate=1e-3,
-            batch_size=32,
+            batch_size=1000,
             eval_num_episodes=64,
             lstm_state_size=10,
             # rnn_cell_class=LSTMCell,
@@ -47,16 +49,21 @@ def main():
                 output_nonlinearity=tf.nn.tanh,
                 # output_nonlinearity=tf.nn.softmax,
                 env_hidden_sizes=[],
+                output_dim=1,
             ),
             softmax=False,
         ),
         version='Supervised Learning',
         env_class=HighLow,
+        env_params=dict(
+            horizon=H,
+        )
         # env_class=OneCharMemory,
     )
 
     exp_id = -1
-    for seed in range(n_seeds):
+    for _ in range(n_seeds):
+        seed = random.randint(0, 999999)
         exp_id += 1
         set_seed(seed)
         variant['seed'] = seed
