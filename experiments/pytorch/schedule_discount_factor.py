@@ -3,11 +3,7 @@ See if slowly raising discount factor can stablize DDPG.
 """
 import random
 
-from railrl.envs.memory.continuous_memory_augmented import (
-    ContinuousMemoryAugmented
-)
-from railrl.envs.memory.high_low import HighLow
-from railrl.envs.twod_point import TwoDPoint
+from railrl.envs.mujoco.twod_point import TwoDPoint
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import (
     run_experiment,

@@ -5,13 +5,18 @@ import torch
 import torch.optim as optim
 from torch import nn as nn
 from torch.autograd import Variable
-from torch.nn import functional as F
 
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import get_average_returns
-from railrl.torch.core import PyTorchModule
+from railrl.policies.torch import FeedForwardPolicy
+from railrl.qfunctions.torch import FeedForwardQFunction
 from railrl.torch.online_algorithm import OnlineAlgorithm
-from railrl.torch.pytorch_util import soft_update_from_to, copy_model_params_from_to, fanin_init
+from railrl.torch.pytorch_util import (
+    soft_update_from_to,
+    copy_model_params_from_to,
+    set_gpu_mode,
+    from_numpy,
+)
 from rllab.misc import logger, special
 
 
@@ -24,6 +29,8 @@ class DDPG(OnlineAlgorithm):
     def __init__(
             self,
             *args,
+            qf,
+            policy,
             policy_learning_rate=1e-4,
             qf_learning_rate=1e-3,
             target_hard_update_period=1000,
@@ -33,20 +40,10 @@ class DDPG(OnlineAlgorithm):
             **kwargs
     ):
         super().__init__(*args, **kwargs)
+        self.qf = qf
+        self.policy = policy
         self.policy_learning_rate = policy_learning_rate
         self.qf_learning_rate = qf_learning_rate
-        self.qf = QFunction(
-            self.obs_dim,
-            self.action_dim,
-            400,
-            300,
-        )
-        self.policy = FeedForwardPolicy(
-            self.obs_dim,
-            self.action_dim,
-            400,
-            300,
-        )
         self.target_qf = self.qf.copy()
         self.target_policy = self.policy.copy()
         self.target_hard_update_period = target_hard_update_period
@@ -60,12 +57,14 @@ class DDPG(OnlineAlgorithm):
                                            lr=self.policy_learning_rate)
         self.use_gpu = self.use_gpu and torch.cuda.is_available()
 
+        set_gpu_mode(self.use_gpu)
         if self.use_gpu:
             self.policy.cuda()
             self.target_policy.cuda()
             self.qf.cuda()
             self.target_qf.cuda()
         self.use_new_version = use_new_version
+
     def _do_training(self, n_steps_total):
         batch = self.get_batch()
         rewards = batch['rewards']
@@ -73,7 +72,6 @@ class DDPG(OnlineAlgorithm):
         obs = batch['observations']
         actions = batch['actions']
         next_obs = batch['next_observations']
-
 
         """
         Optimize Policy.
@@ -160,18 +158,10 @@ class DDPG(OnlineAlgorithm):
 
     def get_batch(self):
         batch = self.pool.random_batch(self.batch_size, flatten=True)
-        if self.use_gpu:
-            torch_batch = {
-                k: Variable(torch.from_numpy(array).float(),
-                            requires_grad=False).cuda()
-                for k, array in batch.items()
-            }
-        else:
-            torch_batch = {
-                k: Variable(torch.from_numpy(array).float(),
-                            requires_grad=False)
-                for k, array in batch.items()
-            }
+        torch_batch = {
+            k: Variable(from_numpy(array).float(), requires_grad=False)
+            for k, array in batch.items()
+        }
         rewards = torch_batch['rewards']
         terminals = torch_batch['terminals']
         torch_batch['rewards'] = rewards.unsqueeze(-1)
@@ -194,9 +184,16 @@ class DDPG(OnlineAlgorithm):
         statistics.update(create_stats_ordered_dict('DiscountedReturns',
                                                     discounted_returns,
                                                     stat_prefix=stat_prefix))
+        actions = np.vstack([path["actions"] for path in paths])
+        statistics.update(create_stats_ordered_dict(
+            'Actions', actions, stat_prefix=stat_prefix
+        ))
+        statistics.update(create_stats_ordered_dict(
+            'Num Paths', len(paths), stat_prefix=stat_prefix
+        ))
         return statistics
 
-     def get_epoch_snapshot(self, epoch):
+    def get_epoch_snapshot(self, epoch):
         return dict(
             epoch=epoch,
             policy=self.policy,
@@ -205,100 +202,6 @@ class DDPG(OnlineAlgorithm):
             replay_pool=self.replay_pool,
         )
 
-class QFunction(PyTorchModule):
-    def __init__(
-            self,
-            obs_dim,
-            action_dim,
-            observation_hidden_size,
-            embedded_hidden_size,
-            init_w=3e-3,
-    ):
-        self.save_init_params(locals())
-        super().__init__()
+    def _can_evaluate(self, exploration_paths):
+        return len(exploration_paths) > 0
 
-        self.obs_dim = obs_dim
-        self.action_dim = action_dim
-        self.observation_hidden_size = observation_hidden_size
-        self.embedded_hidden_size = embedded_hidden_size
-
-        self.obs_fc = nn.Linear(obs_dim, observation_hidden_size)
-        self.embedded_fc = nn.Linear(observation_hidden_size + action_dim,
-                                     embedded_hidden_size)
-        self.last_fc = nn.Linear(embedded_hidden_size, 1)
-
-        self.init_weights(init_w)
-
-    def init_weights(self, init_w):
-        self.obs_fc.weight.data = fanin_init(self.obs_fc.weight.data.size())
-        self.obs_fc.bias.data *= 0
-        self.embedded_fc.weight.data = fanin_init(
-            self.embedded_fc.weight.data.size()
-        )
-        self.embedded_fc.bias.data *= 0
-        self.last_fc.weight.data.uniform_(-init_w, init_w)
-        self.last_fc.bias.data.uniform_(-init_w, init_w)
-
-    def forward(self, obs, action):
-        h = obs
-        h = F.relu(self.obs_fc(h))
-        h = torch.cat((h, action), dim=1)
-        h = F.relu(self.embedded_fc(h))
-        return self.last_fc(h)
-
-
-class FeedForwardPolicy(PyTorchModule):
-    def __init__(
-            self,
-            obs_dim,
-            action_dim,
-            fc1_size,
-            fc2_size,
-            init_w=1e-3,
-    ):
-        self.save_init_params(locals())
-        super().__init__()
-
-        self.obs_dim = obs_dim
-        self.action_dim = action_dim
-        self.fc1_size = fc1_size
-        self.fc2_size = fc2_size
-
-        self.fc1 = nn.Linear(obs_dim, fc1_size)
-        self.fc2 = nn.Linear(fc1_size, fc2_size)
-        self.last_fc = nn.Linear(fc2_size, action_dim)
-
-        self.init_weights(init_w)
-
-    def init_weights(self, init_w):
-        self.fc1.weight.data = fanin_init(self.fc1.weight.data.size())
-        self.fc1.bias.data *= 0
-        self.fc2.weight.data = fanin_init(self.fc2.weight.data.size())
-        self.fc2.bias.data *= 0
-        self.last_fc.weight.data.uniform_(-init_w, init_w)
-        self.last_fc.bias.data.uniform_(-init_w, init_w)
-
-    def forward(self, obs):
-        h = F.relu(self.fc1(obs))
-        h = F.relu(self.fc2(h))
-        return F.tanh(self.last_fc(h))
-
-    def get_action(self, obs):
-        obs = np.expand_dims(obs, axis=0)
-        if self.last_fc.weight.is_cuda:
-            obs = Variable(torch.from_numpy(obs).float(),
-                           requires_grad=False).cuda()
-        else:
-            obs = Variable(torch.from_numpy(obs).float(), requires_grad=False)
-        action = self.__call__(obs)
-        action = action.squeeze(0)
-        if self.last_fc.weight.is_cuda:
-            return action.data.cpu().numpy(), {}
-        else:
-            return action.data.numpy(), {}
-
-    def reset(self):
-        pass
-
-    def log_diagnostics(self, paths):
-        pass

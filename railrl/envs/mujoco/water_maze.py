@@ -2,20 +2,24 @@ from collections import deque, OrderedDict
 
 import numpy as np
 
-from railrl.envs.mujoco_env import MujocoEnv
+from railrl.envs.mujoco.mujoco_env import MujocoEnv
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import split_paths
-from rllab.core.serializable import Serializable
 from rllab.envs.env_spec import EnvSpec
 from rllab.misc import logger
 from sandbox.rocky.tf.spaces.box import Box
 
 
 class WaterMaze(MujocoEnv):
-    def __init__(self, horizon=200, l2_action_penalty_weight=1e-2,
-                 include_velocity=False,
-                 use_small_maze=False,
-                 **kwargs):
+    def __init__(
+            self,
+            horizon=200,
+            l2_action_penalty_weight=1e-2,
+            num_steps=None,
+            include_velocity=False,
+            use_small_maze=False,
+            num_steps_until_reset=5,
+    ):
         self.init_serialization(locals())
         if use_small_maze:
             self.TARGET_RADIUS = 0.04
@@ -34,11 +38,17 @@ class WaterMaze(MujocoEnv):
         )
         self.MAX_GOAL_DIST = self.BOUNDARY_DIST - self.BOUNDARY_RADIUS
         self.l2_action_penalty_weight = l2_action_penalty_weight
-        self.horizon = horizon
+        if num_steps is not None:  # support backwards compatibility
+            horizon = num_steps
+
+        self._horizon = horizon
         self._t = 0
         self._on_platform_history = deque(maxlen=5)
-        for _ in range(5):
-            self._on_platform_history.append(False)
+        self.num_steps_until_reset = num_steps_until_reset
+        self.teleport_after_a_while = self.num_steps_until_reset > 0
+        if self.teleport_after_a_while:
+            for _ in range(self.num_steps_until_reset):
+                self._on_platform_history.append(False)
         self.include_velocity = include_velocity
 
         self.action_space = Box(np.array([-1, -1]), np.array([1, 1]))
@@ -48,6 +58,10 @@ class WaterMaze(MujocoEnv):
             self.action_space,
         )
         self.reset_model()
+
+    @property
+    def horizon(self):
+        return self._horizon
 
     def _create_observation_space(self):
         num_obs = 4 if self.include_velocity else 2
@@ -64,7 +78,7 @@ class WaterMaze(MujocoEnv):
 
         self._on_platform_history.append(on_platform)
 
-        if all(self._on_platform_history):
+        if self.teleport_after_a_while and all(self._on_platform_history):
             self.reset_ball_position()
 
         reward = (

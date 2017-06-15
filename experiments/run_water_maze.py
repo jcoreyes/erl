@@ -1,19 +1,21 @@
-import time
-from railrl.envs.water_maze import WaterMaze, WaterMazeMemory
-import numpy as np
 import argparse
 
+import numpy as np
+
+from railrl.envs.pygame.water_maze import WaterMaze
 from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.pythonplusplus import clip_magnitude
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--small", action='store_true', help="Use a small maze.")
+parser.add_argument("--nreset", default=0, type=int,
+                    help="# steps until teleport.")
+parser.add_argument("--render", action='store_true', help="Render env.")
 args = parser.parse_args()
 
-env = WaterMazeMemory(use_small_maze=args.small, include_velocity=True)
+env = WaterMaze()
 
 all_returns = []
-es = OUStrategy(env)
+es = OUStrategy(env.action_space)
 while True:
     obs = env.reset()
     es.reset()
@@ -40,7 +42,8 @@ while True:
         delta = obs[:2] - target
         action = - delta * 10
         action = np.clip(action, -1, 1)
-        # env.render()
+        if args.render:
+            env.render()
     print("Returns", returns)
     all_returns.append(returns)
     print("Returns Mean", np.mean(all_returns))

@@ -24,7 +24,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
             subtraj_length=2,
             memory_dim=1,
         )
-        self.assertEqual(buff.num_can_sample(return_all=True), 0)
+        self.assertEqual(buff.num_steps_can_sample(return_all=True), 0)
 
     def test_size_add_one(self):
         env = StubMemoryEnv()
@@ -37,7 +37,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
         observation = rand(), rand()
         action = rand(), rand()
         buff.add_sample(observation, action, 1, False)
-        self.assertEqual(buff.num_can_sample(return_all=True), 0)
+        self.assertEqual(buff.num_steps_can_sample(return_all=True), 0)
 
     def test_random_subtraj_shape(self):
         env = StubMemoryEnv()

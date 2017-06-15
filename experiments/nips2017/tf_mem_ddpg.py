@@ -1,8 +1,7 @@
 """
-TRPO + memory states.
+DDPG + memory states.
 """
 from railrl.envs.memory.hidden_cartpole import NormalizedHiddenCartpoleEnv
-from railrl.envs.water_maze import WaterMazeEasy, WaterMazeMemory
 from railrl.launchers.launcher_util import (
     run_experiment,
     set_seed,
@@ -10,28 +9,27 @@ from railrl.launchers.launcher_util import (
 
 
 def run_linear_ocm_exp(variant):
-    from sandbox.rocky.tf.algos.trpo import TRPO
-    from rllab.baselines.linear_feature_baseline import LinearFeatureBaseline
-    from sandbox.rocky.tf.policies.gaussian_mlp_policy import GaussianMLPPolicy
-    from sandbox.rocky.tf.optimizers.conjugate_gradient_optimizer import (
-        ConjugateGradientOptimizer,
-        FiniteDifferenceHvp,
+    from railrl.algos.ddpg import DDPG
+    from railrl.envs.flattened_product_box import FlattenedProductBox
+    from railrl.exploration_strategies.ou_strategy import OUStrategy
+    from railrl.policies.nn_policy import FeedForwardPolicy
+    from railrl.qfunctions.nn_qfunction import FeedForwardCritic
+    from railrl.envs.memory.continuous_memory_augmented import (
+        ContinuousMemoryAugmented
     )
     from railrl.launchers.launcher_util import (
         set_seed,
-    )
-    from railrl.envs.flattened_product_box import FlattenedProductBox
-    from railrl.envs.memory.continuous_memory_augmented import (
-        ContinuousMemoryAugmented
     )
 
     """
     Set up experiment variants.
     """
     seed = variant['seed']
+    algo_params = variant['algo_params']
     env_class = variant['env_class']
     env_params = variant['env_params']
     memory_dim = variant['memory_dim']
+    ou_params = variant['ou_params']
 
     set_seed(seed)
 
@@ -46,37 +44,37 @@ def run_linear_ocm_exp(variant):
     )
     env = FlattenedProductBox(env)
 
-    policy = GaussianMLPPolicy(
-        name="policy",
+    qf = FeedForwardCritic(
+        name_or_scope="critic",
         env_spec=env.spec,
-        hidden_sizes=(32, 32),
+    )
+    policy = FeedForwardPolicy(
+        name_or_scope="policy",
+        env_spec=env.spec,
+    )
+    es = OUStrategy(
+        env_spec=env.spec,
+        **ou_params
+    )
+    algorithm = DDPG(
+        env,
+        es,
+        policy,
+        qf,
+        **algo_params
     )
 
-    baseline = LinearFeatureBaseline(env_spec=env.spec)
-
-    optimizer_params = variant['optimizer_params']
-    trpo_params = variant['trpo_params']
-    algo = TRPO(
-        env=env,
-        policy=policy,
-        baseline=baseline,
-        optimizer=ConjugateGradientOptimizer(hvp_approach=FiniteDifferenceHvp(
-            **optimizer_params
-        )),
-        **trpo_params
-    )
-
-    algo.train()
+    algorithm.train()
 
 
 if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
-    exp_prefix = "dev-mtrpo"
+    exp_prefix = "dev-mddpg"
 
-    n_seeds = 10
-    mode = "ec2"
-    exp_prefix = "6-1-benchmark-normalized-hidden-cart-h100"
+    # n_seeds = 10
+    # mode = "ec2"
+    # exp_prefix = "6-1-benchmark-normalized-hidden-cart-h100"
 
     env_class = NormalizedHiddenCartpoleEnv
     H = 100
@@ -86,24 +84,27 @@ if __name__ == '__main__':
     # noinspection PyTypeChecker
     variant = dict(
         H=H,
-        exp_prefix=exp_prefix,
-        version='Memory States + TRPO',
-        env_class=env_class,
-        memory_dim=20,
-        trpo_params=dict(
-            batch_size=num_steps_per_iteration,
+        algo_params=dict(
+            batch_size=32,
+            n_epochs=5,
+            replay_pool_size=1000000,
+            epoch_length=num_steps_per_iteration,
+            eval_samples=num_iterations,
             max_path_length=H,
-            n_itr=num_iterations,
-            discount=1.,
-            step_size=0.01,
-        ),
-        optimizer_params=dict(
-            base_eps=1e-5,
+            discount=1,
         ),
         env_params=dict(
             num_steps=H,
             # use_small_maze=True,
         ),
+        ou_params=dict(
+            max_sigma=1,
+            min_sigma=None,
+        ),
+        exp_prefix=exp_prefix,
+        env_class=env_class,
+        memory_dim=2,
+        version="Memory DDPG",
     )
     exp_id = -1
     for seed in range(n_seeds):

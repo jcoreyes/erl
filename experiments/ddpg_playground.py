@@ -1,19 +1,13 @@
 """
 Run DDPG on things.
 """
-from gym.envs.classic_control import PendulumEnv
-from gym.spaces.box import Box
 
-from railrl.envs.env_utils import gym_env
-from railrl.envs.point_env import PointEnv
+from railrl.algos.ddpg import DDPG, TargetUpdateMode
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.nn_policy import FeedForwardPolicy
 from railrl.qfunctions.nn_qfunction import FeedForwardCritic
-from railrl.algos.ddpg import DDPG, TargetUpdateMode
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
-from rllab.envs.gym_env import GymEnv
-from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 from rllab.envs.normalized_env import normalize
 
 

@@ -2,7 +2,6 @@
 DDPG + memory states.
 """
 from railrl.envs.memory.hidden_cartpole import NormalizedHiddenCartpoleEnv
-from railrl.envs.water_maze import WaterMazeMemory, WaterMazeEasy
 from railrl.launchers.launcher_util import (
     run_experiment,
     set_seed,

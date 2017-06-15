@@ -206,7 +206,7 @@ class ConditionTimer(object):
         self.trigger_period = trigger_period
 
     def check(self, time):
-        if self.trigger_period == 0:
+        if self.always_false:
             return False
 
         if time - self.last_time_triggered >= self.trigger_period:
@@ -214,6 +214,10 @@ class ConditionTimer(object):
             return True
         else:
             return False
+
+    @property
+    def always_false(self):
+        return self.trigger_period == 0
 
 
 def batch(iterable, n=1):

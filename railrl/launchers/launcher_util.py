@@ -18,6 +18,7 @@ from railrl.envs.memory.one_char_memory import (
     OneCharMemoryEndOnly,
     OneCharMemoryOutputRewardMag,
 )
+from railrl.torch.pytorch_util import set_gpu_mode
 from rllab import config
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.envs.mujoco.ant_env import AntEnv
@@ -145,7 +146,7 @@ def run_experiment(
         exp_id=0,
         unique_id=None,
         use_gpu=False,
-        **kwargs):
+        **run_experiment_lite_kwargs):
     """
     Run a task via the rllab interface, i.e. serialize it and then run it via
     the run_experiment_lite script.
@@ -164,7 +165,8 @@ def run_experiment(
     experiments. Note that one experiment may correspond to multiple seeds.
     :param unique_id: Unique ID should be unique across all runs--even different
     seeds!
-    :param kwargs:
+    :param run_experiment_lite_kwargs: kwargs to be passed to
+    `run_experiment_lite`
     :return:
     """
     if seed is None:
@@ -203,7 +205,7 @@ def run_experiment(
             python_command=' '.join(command_words),
             mode=mode,
             use_gpu=use_gpu,
-            **kwargs
+            **run_experiment_lite_kwargs
         )
 
 
@@ -244,6 +246,8 @@ def run_experiment_here(
     )
     if not use_gpu:
         os.environ['CUDA_VISIBLE_DEVICES'] = ""
+    else:
+        set_gpu_mode(use_gpu)
     return experiment_function(variant)
 
 
@@ -334,6 +338,7 @@ def setup_logger(
     logger.set_snapshot_mode(snapshot_mode)
     logger.set_snapshot_gap(snapshot_gap)
     logger.set_log_tabular_only(log_tabular_only)
+    logger.push_prefix("[%s] " % exp_prefix)
     try:
         # Save git diff to experiment directory
         cmd = "cd {} && git diff > {} 2>/dev/null".format(
