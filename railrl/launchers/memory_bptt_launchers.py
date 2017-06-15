@@ -381,6 +381,7 @@ def _rdpg_launcher(variant):
     set_seed(seed)
     env_class = variant['env_class']
     env = env_class(**variant['env_params'])
+    memory_dim = variant['memory_dim']
     es = OUStrategy(
         action_space=env.action_space,
         **variant['ou_params']
@@ -395,7 +396,7 @@ def _rdpg_launcher(variant):
     policy = RecurrentPolicy(
         int(env.observation_space.flat_dim),
         int(env.action_space.flat_dim),
-        10,
+        memory_dim,
         fc1_size=100,
         fc2_size=100,
     )

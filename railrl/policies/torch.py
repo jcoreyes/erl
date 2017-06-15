@@ -319,7 +319,7 @@ class RecurrentPolicy(PyTorchModule):
         self.fc2_size = fc2_size
         self.lstm = LSTM(BNLSTMCell, self.obs_dim, self.hidden_size, 1,
                          batch_first=True)
-        self.fc1 = nn.Linear(self.hidden_size + self.obs_dim, self.fc1_size)
+        self.fc1 = nn.Linear(self.hidden_size, self.fc1_size)
         self.fc2 = nn.Linear(self.fc1_size, self.fc2_size)
         self.last_fc = nn.Linear(self.fc2_size, self.action_dim)
 
@@ -356,10 +356,8 @@ class RecurrentPolicy(PyTorchModule):
         rnn_outputs, state = self.lstm(obs, (hx, cx))
         rnn_outputs.contiguous()
         rnn_outputs_flat = rnn_outputs.view(-1, self.hidden_size)
-        obs_flat = obs.view(-1, self.obs_dim)
-        h = torch.cat((rnn_outputs_flat, obs_flat), dim=1)
-        h = F.relu(self.fc1(h))
-        h = F.relu(self.fc2(h))
+        h = F.tanh(self.fc1(rnn_outputs_flat))
+        h = F.tanh(self.fc2(h))
         outputs_flat = F.tanh(self.last_fc(h))
 
         out = outputs_flat.view(
