@@ -113,6 +113,9 @@ class RecurrentQFunction(PyTorchModule):
             obs_dim,
             action_dim,
             hidden_size,
+            fc1_size,
+            fc2_size,
+            init_w=3e-3,
     ):
         self.save_init_params(locals())
         super().__init__()
@@ -120,13 +123,27 @@ class RecurrentQFunction(PyTorchModule):
         self.obs_dim = obs_dim
         self.action_dim = action_dim
         self.hidden_size = hidden_size
+        self.fc1_size = fc1_size
+        self.fc2_size = fc2_size
         self.lstm = LSTM(
             BNLSTMCell,
             self.obs_dim + self.action_dim,
             self.hidden_size,
             batch_first=True,
         )
-        self.last_fc = nn.Linear(self.hidden_size, 1)
+        self.fc1 = nn.Linear(self.hidden_size + self.obs_dim, fc1_size)
+        self.fc2 = nn.Linear(self.fc1_size + self.action_dim, fc2_size)
+        self.last_fc = nn.Linear(self.fc2_size, 1)
+        self.init_weights(init_w)
+
+    def init_weights(self, init_w):
+        init.kaiming_normal(self.fc1.weight)
+        self.fc1.bias.data.fill_(0)
+        init.kaiming_normal(self.fc2.weight)
+        self.fc2.bias.data.fill_(0)
+
+        self.last_fc.weight.data.uniform_(-init_w, init_w)
+        self.last_fc.bias.data.uniform_(-init_w, init_w)
 
     def forward(self, obs, action):
         """
@@ -148,7 +165,13 @@ class RecurrentQFunction(PyTorchModule):
         rnn_outputs, _ = self.lstm(inputs, (hx, cx))
         rnn_outputs.contiguous()
         rnn_outputs_flat = rnn_outputs.view(-1, self.hidden_size)
-        outputs_flat = self.last_fc(rnn_outputs_flat)
+        obs_flat = obs.view(-1, self.obs_dim)
+        action_flat = action.view(-1, self.action_dim)
+        h = torch.cat((rnn_outputs_flat, obs_flat), dim=1)
+        h = F.relu(self.fc1(h))
+        h = torch.cat((h, action_flat), dim=1)
+        h = F.relu(self.fc2(h))
+        outputs_flat = self.last_fc(h)
         return outputs_flat.view(batch_size, subsequence_length, 1)
 
 

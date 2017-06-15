@@ -126,6 +126,7 @@ def _rtrpo_launcher(variant):
     env_class = variant['env_class']
     env_params = variant['env_params']
     seed = variant['seed']
+    memory_dim = variant['memory_dim']
     set_seed(seed)
     env = env_class(**env_params)
     env = convert_to_tf_env(env)
@@ -134,6 +135,7 @@ def _rtrpo_launcher(variant):
         name="policy",
         env_spec=env.spec,
         lstm_layer_cls=L.LSTMLayer,
+        hidden_dim=memory_dim,
     )
 
     baseline = LinearFeatureBaseline(env_spec=env.spec)
@@ -379,16 +381,23 @@ def _rdpg_launcher(variant):
     set_seed(seed)
     env_class = variant['env_class']
     env = env_class(**variant['env_params'])
-    es = OUStrategy(action_space=env.action_space)
+    es = OUStrategy(
+        action_space=env.action_space,
+        **variant['ou_params']
+    )
     qf = RecurrentQFunction(
         int(env.observation_space.flat_dim),
         int(env.action_space.flat_dim),
-        10,
+        hidden_size=30,
+        fc1_size=100,
+        fc2_size=100,
     )
     policy = RecurrentPolicy(
         int(env.observation_space.flat_dim),
         int(env.action_space.flat_dim),
         10,
+        fc1_size=100,
+        fc2_size=100,
     )
     algorithm = Rdpg(
         env,

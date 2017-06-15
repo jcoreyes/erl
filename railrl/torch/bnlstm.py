@@ -75,6 +75,10 @@ class LSTMCell(nn.Module):
         s = '{name}({input_size}, {hidden_size})'
         return s.format(name=self.__class__.__name__, **self.__dict__)
 
+    @staticmethod
+    def state_num_split():
+        return 2
+
 
 class BNLSTMCell(nn.Module):
 
@@ -157,6 +161,10 @@ class BNLSTMCell(nn.Module):
         c_1 = torch.sigmoid(f)*c_0 + torch.sigmoid(i)*torch.tanh(g)
         h_1 = torch.sigmoid(o) * torch.tanh(self.bn_c(c_1))
         return h_1, c_1
+
+    @staticmethod
+    def state_num_split():
+        return 2
 
 
 class LSTM(nn.Module):
