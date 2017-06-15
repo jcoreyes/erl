@@ -1,3 +1,4 @@
+from railrl.envs.memory.high_low import HighLow
 from railrl.envs.pygame.water_maze import WaterMaze
 from railrl.launchers.launcher_util import (
     run_experiment,
@@ -13,13 +14,27 @@ from railrl.launchers.memory_bptt_launchers import (
 )
 
 if __name__ == '__main__':
-    n_seeds = 1
+    # n_seeds = 1
+    # mode = "here"
+    # exp_prefix = "dev-6-14-launch-benchmark"
+
+    n_seeds = 10
     mode = "here"
-    exp_prefix = "6-14-dev-mbptt-ddpg-benchmarks-many-3"
+    exp_prefix = "benchmark-6-14-memory-states-HL-H50"
 
-    env_class = WaterMaze
-    H = 25
+    # env_class = WaterMaze
+    env_class = HighLow
 
+    use_gpu = True
+    if mode != "here":
+        use_gpu = False
+
+    H = 50
+    num_steps_per_iteration = 100
+    num_steps_per_eval = 1000
+    num_iterations = 30
+    batch_size = 200
+    memory_dim = 30
     # noinspection PyTypeChecker
     variant = dict(
         H=H,
@@ -28,20 +43,20 @@ if __name__ == '__main__':
             horizon=H,
         ),
         exp_prefix=exp_prefix,
-        num_steps_per_iteration=100,
-        num_steps_per_eval=100,
-        num_iterations=10,
-        memory_dim=30,
-        use_gpu=True,
-        batch_size=50,  # For DDPG only
+        num_steps_per_iteration=num_steps_per_iteration,
+        num_steps_per_eval=num_steps_per_eval,
+        num_iterations=num_iterations,
+        memory_dim=memory_dim,
+        use_gpu=use_gpu,
+        batch_size=batch_size,  # For DDPG only
     )
     exp_id = -1
     for launcher in [
-        # rtrpo_launcher,
         # trpo_launcher,
         # mem_trpo_launcher,
-        # mem_ddpg_launcher,
+        # rtrpo_launcher,
         # ddpg_launcher,
+        # mem_ddpg_launcher,
         rdpg_launcher,
     ]:
         for seed in range(n_seeds):
