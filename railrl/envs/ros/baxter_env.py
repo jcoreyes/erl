@@ -14,12 +14,12 @@ NUM_JOINTS = 7
 These are just ball-parks. For more specific specs, either measure them
 and/or see http://sdk.rethinkrobotics.com/wiki/Hardware_Specifications.
 """
-joint_angle_experiment = True
-fixed_angle = True
-end_effector_experiment_position = False
+joint_angle_experiment = False
+fixed_angle = False
+end_effector_experiment_position = True
 end_effector_experiment_total = False
 fixed_end_effector = False
-safety_fixed_angle = True
+safety_fixed_angle = False
 number_fixed_angles = 2
 
 JOINT_ANGLES_HIGH = np.array([
@@ -275,19 +275,19 @@ class BaxterEnv(Env, Serializable):
 
         is_valid = True
         if safety_fixed_angle:
-        	endpoint_pose = self._end_effector_pose()
-        	lower_endpoint_pose = np.hstack((
+            endpoint_pose = self._end_effector_pose()
+            lower_endpoint_pose = np.hstack((
                 END_EFFECTOR_VALUE_LOW['position'], 
                 END_EFFECTOR_VALUE_LOW['angle'],
             ))
-        	higher_endpoint_pose = np.hstack((
+            higher_endpoint_pose = np.hstack((
                 END_EFFECTOR_VALUE_HIGH['position'], 
                 END_EFFECTOR_VALUE_HIGH['angle']
             ))
-        	within_box = [curr_pose > lower_pose or curr_pose < higher_pose 
+            within_box = [curr_pose > lower_pose or curr_pose < higher_pose
                 for curr_pose, lower_pose, higher_pose 
                 in zip(endpoint_pose, lower_endpoint_pose, higher_endpoint_pose)]
-        	is_valid = all(within_box)
+            is_valid = all(within_box)
 
         if joint_angle_experiment:
             #reward is MSE between current joint angles and the desired angles
@@ -300,10 +300,10 @@ class BaxterEnv(Env, Serializable):
             reward = -np.mean((current_end_effector_pose - self.desired)**2)
 
         if not is_valid:
-        	reward = -10000
-        	done = True
+            reward = -10000
+            done = True
         else:
-        	done = False
+            done = False
 
         info = {}
         return observation, reward, done, info
@@ -322,6 +322,7 @@ class BaxterEnv(Env, Serializable):
             temp = np.hstack((temp, self._end_effector_pose()))
 
         temp = np.hstack((positions, temp, self.desired))
+
         return temp
 
     def reset(self):
@@ -342,11 +343,11 @@ class BaxterEnv(Env, Serializable):
         return self._get_joint_values()
 
     def _randomize_desired_angles(self):
-    	self.desired = np.random.rand(1, 7)
+        self.desired = np.random.rand(1, 7)
 
     def _randomize_desired_end_effector_pose(self):
         if end_effector_experiment_position:
-            self.desired = np.random.rand(1, 3)
+            self.desired = np.random.rand(1, 3)[0]
         else:
             self.desired = np.random.rand(1, 7)
 
@@ -372,11 +373,12 @@ class BaxterEnv(Env, Serializable):
             for obsSet in obsSets:
                 for observation in obsSet:
                     positions = np.hstack((positions, observation[21:24]))
-                    desired_positions = np.hstack((desired_positions, observation[28:31]))
+                    desired_positions = np.hstack((desired_positions, observation[24:27]))
+                    # ipdb.set_trace()
                     
                     if end_effector_experiment_total:
                         orientations = np.hstack((orientations, observation[24:28]))
-                        desired_orientations = np.hstack((desired_orientations, observation[31:]))
+                        desired_orientations = np.hstack((desired_orientations, observation[28:]))
 
             mean_distance = np.mean(positions - desired_positions)
             logger.record_tabular("Mean Distance from desired end-effector position", mean_distance)

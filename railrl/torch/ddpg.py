@@ -199,7 +199,7 @@ class DDPG(OnlineAlgorithm):
             policy=self.policy,
             env=self.training_env,
             qf=self.qf,
-            # replay_pool=self.replay_pool,
+            replay_pool=self.pool,
         )
 
     def _can_evaluate(self, exploration_paths):

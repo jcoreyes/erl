@@ -45,16 +45,16 @@ def example(variant):
             action_space=env.action_space,
         )
         qf = FeedForwardQFunction(
-        int(env.observation_space.flat_dim),
-        int(env.action_space.flat_dim),
-        400,
-        300,
+            int(env.observation_space.flat_dim),
+            int(env.action_space.flat_dim),
+            100,
+            100,
         )
         policy = FeedForwardPolicy(
             int(env.observation_space.flat_dim),
             int(env.action_space.flat_dim),
-            400,
-            300,
+            100,
+            100,
         )
         use_new_version=variant['use_new_version']
         algorithm = DDPG(
