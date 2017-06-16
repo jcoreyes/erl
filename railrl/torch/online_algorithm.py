@@ -4,6 +4,7 @@ import time
 
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.exploration_strategies.noop import NoopStrategy
+from railrl.misc.rllab_util import get_table_key_set
 from rllab.algos.base import RLAlgorithm
 from rllab.algos.batch_polopt import BatchSampler
 from rllab.misc import logger, tensor_utils
@@ -152,7 +153,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                 self.evaluate(epoch, exploration_paths)
                 params = self.get_epoch_snapshot(epoch)
                 logger.save_itr_params(epoch, params)
-                table_keys = logger.get_table_key_set()
+                table_keys = get_table_key_set(logger)
                 if old_table_keys is not None:
                     assert table_keys == old_table_keys, (
                         "Table keys cannot change from iteration to iteration."

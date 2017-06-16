@@ -1,5 +1,7 @@
 import numpy as np
+
 from rllab.spaces.product import Product
+
 
 # TODO(vpong): unittest this
 def split_paths(paths):
@@ -77,3 +79,7 @@ def split_flat_product_space_into_components_n(product_space, xs):
 def get_average_returns(paths):
     returns = [sum(path["rewards"]) for path in paths]
     return np.mean(returns)
+
+
+def get_table_key_set(logger):
+    return set(key for key, value in logger._tabular)

@@ -48,6 +48,7 @@ class BpttDdpg(OnlineAlgorithm):
             bellman_error_loss_weight=10,
             refresh_entire_buffer_period=None,
             save_new_memories_back_to_replay_buffer=True,
+            only_use_last_dqdm=False,
             **kwargs
     ):
         super().__init__(*args, **kwargs)
@@ -70,6 +71,7 @@ class BpttDdpg(OnlineAlgorithm):
         self.save_new_memories_back_to_replay_buffer = (
             save_new_memories_back_to_replay_buffer
         )
+        self.only_use_last_dqdm = only_use_last_dqdm
 
         """
         Set some params-dependency values
@@ -244,9 +246,16 @@ class BpttDdpg(OnlineAlgorithm):
             )
         else:
             new_memories = initial_memories.unsqueeze(1)
-        # TODO(vitchyr): should I detach (stop gradients)?
-        # I don't think so. If we have dQ/dmemory, why not use it?
-        # new_memories = new_memories.detach()
+        # TODO(vitchyr): Test this
+        if self.only_use_last_dqdm:
+            new_memories = new_memories.detach()
+            policy_writes = torch.cat(
+                (
+                    policy_writes[:, :-1, :].detach(),
+                    policy_writes[:, -1:, :]
+                ),
+                dim=1
+            )
         subtraj_batch['policy_new_memories'] = new_memories
         subtraj_batch['policy_new_writes'] = policy_writes
         subtraj_batch['policy_new_actions'] = policy_actions
