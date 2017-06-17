@@ -1,4 +1,3 @@
-import time
 from collections import OrderedDict
 
 import numpy as np
@@ -31,11 +30,14 @@ class WaterMaze(Serializable, Env):
         self._target_position = None
         self._position = None
 
-        self._action_space = Box(np.array([-1, -1]), np.array([1, 1]))
+        self._action_space = self._create_action_space()
         self._observation_space = self._create_observation_space()
 
         self.drawer = None
         self.render_dt_msec = render_dt_msec
+
+    def _create_action_space(self):
+        return Box(np.array([-1, -1]), np.array([1, 1]))
 
     def _create_observation_space(self):
         return Box(
@@ -45,6 +47,7 @@ class WaterMaze(Serializable, Env):
 
     def _step(self, velocities):
         self._t += 1
+        velocities = np.clip(velocities, a_min=-1, a_max=1)
         self._position += velocities
         self._position = np.clip(
             self._position,
@@ -175,14 +178,6 @@ class WaterMazeMemory(WaterMazeEasy):
     """
     See the target position at the very first time step.
     """
-    def _create_observation_space(self):
-        return Box(
-            np.array([-self.BOUNDARY_DIST, -self.BOUNDARY_DIST, 0,
-                      -self.BOUNDARY_DIST, -self.BOUNDARY_DIST]),
-            np.array([self.BOUNDARY_DIST, self.BOUNDARY_DIST, 1,
-                      self.BOUNDARY_DIST, self.BOUNDARY_DIST])
-        )
-
     def _get_observation_and_on_platform(self):
         """
         :return: Tuple
@@ -196,3 +191,78 @@ class WaterMazeMemory(WaterMazeEasy):
         else:
             hint = np.zeros_like(self._target_position)
         return np.hstack((self._position, [on_platform], hint)), on_platform
+
+
+class WaterMaze1D(WaterMaze):
+    def _create_action_space(self):
+        return Box(np.array([-1]), np.array([1]))
+
+    def _create_observation_space(self):
+        return Box(
+            np.array([-self.BOUNDARY_DIST, 0]),
+            np.array([self.BOUNDARY_DIST, 1])
+        )
+
+    def _step(self, velocity):
+        velocities = np.hstack((velocity, 0))
+        return super()._step(velocities)
+
+    def _get_observation_and_on_platform(self):
+        dist = np.linalg.norm(self._position - self._target_position)
+        on_platform = dist <= self.TARGET_RADIUS
+        return np.hstack((self._position[0], [on_platform])), on_platform
+
+    def _reset(self):
+        self._target_position = np.random.uniform(
+            size=2, low=-self.MAX_TARGET_DISTANCE, high=self.MAX_TARGET_DISTANCE
+        )
+        self._position = np.random.uniform(
+            size=2, low=-self.BOUNDARY_DIST, high=self.BOUNDARY_DIST
+        )
+        self._target_position[1] = 0
+        self._position[1] = 0
+        self._t = 0
+        return self._get_observation_and_on_platform()[0]
+
+
+class WaterMazeEasy1D(WaterMaze1D):
+    """
+    See the target position at all time steps.
+    """
+    def _create_observation_space(self):
+        return Box(
+            np.array([-self.BOUNDARY_DIST, 0, -self.BOUNDARY_DIST]),
+            np.array([self.BOUNDARY_DIST, 1, self.BOUNDARY_DIST]),
+        )
+
+    def _get_observation_and_on_platform(self):
+        """
+        :return: Tuple
+        - Observation vector
+        - Flag: on platform or not.
+        """
+        dist = np.linalg.norm(self._position - self._target_position)
+        on_platform = dist <= self.TARGET_RADIUS
+        return np.hstack(
+            (self._position[0], [on_platform], self._target_position[0])
+        ), on_platform
+
+
+class WaterMazeMemory1D(WaterMazeEasy1D):
+    """
+    See the target position at the very first time step.
+    """
+    def _get_observation_and_on_platform(self):
+        """
+        :return: Tuple
+        - Observation vector
+        - Flag: on platform or not.
+        """
+        dist = np.linalg.norm(self._position - self._target_position)
+        on_platform = dist <= self.TARGET_RADIUS
+        if self._t == 0:
+            print("hit")
+            hint = self._target_position[0]
+        else:
+            hint = np.zeros_like(self._target_position[0])
+        return np.hstack((self._position[0], [on_platform], hint)), on_platform
