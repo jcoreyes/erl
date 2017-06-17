@@ -13,6 +13,9 @@ from rllab.spaces import Box
 
 
 class WaterMaze(Serializable, Env):
+    TARGET_RADIUS = 2
+    BOUNDARY_DIST = 5
+    BALL_RADIUS = 0.25
 
     def __init__(
             self,
@@ -20,9 +23,6 @@ class WaterMaze(Serializable, Env):
             render_dt_msec=30,
     ):
         Serializable.quick_init(self, locals())
-        self.TARGET_RADIUS = 2
-        self.BOUNDARY_DIST = 5
-        self.BALL_RADIUS = 0.25
         self.MAX_TARGET_DISTANCE = self.BOUNDARY_DIST - self.TARGET_RADIUS
 
         self._horizon = horizon
