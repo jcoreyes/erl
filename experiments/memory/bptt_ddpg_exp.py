@@ -89,28 +89,29 @@ def experiment(variant):
 if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
-    exp_prefix = "dev-6-14-pytorch-2"
+    exp_prefix = "dev-6-15-pytorch"
     run_mode = 'none'
 
-    n_seeds = 10
-    mode = "ec2"
-    exp_prefix = "paper-6-14-hl-our-method-sweep-subtraj-length-batchsize1000"
+    # n_seeds = 10
+    # mode = "ec2"
+    # exp_prefix = "6-15-paper-sweep-subtraj-length-load-but-q-no-criticize-mem"
 
-    run_mode = 'grid'
+    # run_mode = 'grid'
     use_gpu = True
     if mode != "here":
         use_gpu = False
 
-    H = 25
-    subtraj_length = 25
+    H = 50
+    subtraj_length = 10
     num_steps_per_iteration = 100
     num_steps_per_eval = 1000
     num_iterations = 30
-    batch_size = 1000
+    batch_size = 200
     memory_dim = 30
     version = exp_prefix
-    # version = "H = {0}, subtraj length = {1}".format(H, subtraj_length)
     version = "Our Method"
+    version = "Policy optimized QF. Cut gradients"
+    # version = "Our Method - loading but Q does not read mem state"
     # noinspection PyTypeChecker
     variant = dict(
         memory_dim=memory_dim,
@@ -134,12 +135,15 @@ if __name__ == '__main__':
             use_gpu=use_gpu,
             action_policy_optimize_bellman=False,
             write_policy_optimizes='both',
-            action_policy_learning_rate=1e-3,
-            write_policy_learning_rate=1e-5,
-            qf_learning_rate=1e-3,
+            action_policy_learning_rate=1e-4,
+            write_policy_learning_rate=1e-6,
+            qf_learning_rate=1e-2,
             max_path_length=H,
             refresh_entire_buffer_period=None,
             save_new_memories_back_to_replay_buffer=True,
+            # tau=0.001,
+            use_soft_update=False,
+            target_hard_update_period=300,
         ),
         qf_params=dict(
             output_activation=identity,
@@ -171,7 +175,7 @@ if __name__ == '__main__':
             # 'algo_params.refresh_entire_buffer_period': [None, 1],
             # 'es_params.memory_es_params.max_sigma': [0, 1],
             # 'policy_params.cell_class': [LSTMCell, BNLSTMCell, RWACell],
-            'algo_params.subtraj_length': [1, 5, 10, 15, 20],
+            'algo_params.subtraj_length': [1, 5, 10, 15, 20, 25],
             # 'algo_params.bellman_error_loss_weight': [0.1, 1, 10, 100, 1000],
             # 'algo_params.tau': [1, 0.1, 0.01, 0.001],
         }
@@ -207,7 +211,8 @@ if __name__ == '__main__':
             variant['algo_params']['refresh_entire_buffer_period'] = (
                 refresh_entire_buffer_period
             )
-            for seed in range(n_seeds):
+            for _ in range(n_seeds):
+                seed = random.randint(0, 10000)
                 run_experiment(
                     experiment,
                     exp_prefix=exp_prefix,
