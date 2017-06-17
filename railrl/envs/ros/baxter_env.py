@@ -6,6 +6,7 @@ import numpy as np
 from cached_property import cached_property
 from rllab.envs.base import Env
 from rllab.misc import logger
+from numpy import linalg
 import ipdb
 
 NUM_JOINTS = 7
@@ -20,6 +21,7 @@ end_effector_experiment_position = True
 end_effector_experiment_total = False
 fixed_end_effector = False
 safety_fixed_angle = False
+position_resetting = False
 number_fixed_angles = 2
 
 JOINT_ANGLES_HIGH = np.array([
@@ -225,10 +227,10 @@ class BaxterEnv(Env, Serializable):
     @safe
     def _act(self, action):
         if safety_fixed_angle:
-            # fixed_names = self.right_joint_names[:number_fixed_angles]
-            # fixed_positions = dict(zip(fixed_names, self.initial_positions))
-            # self._set_joint_values[self.safety_mode](fixed_positions)
-            # ipdb.set_trace()
+            if(position_resetting):
+                fixed_names = self.right_joint_names[:number_fixed_angles]
+                fixed_positions = dict(zip(fixed_names, self.initial_positions))
+                self._set_joint_values[self.safety_mode](fixed_positions)
             action_names = self.right_joint_names[number_fixed_angles:]
             actions = dict(zip(action_names, action))
             self._set_joint_values[self.action_mode](actions)
@@ -336,10 +338,12 @@ class BaxterEnv(Env, Serializable):
             self._randomize_desired_angles()
         elif end_effector_experiment_position or end_effector_experiment_total and not fixed_end_effector:
             self._randomize_desired_end_effector_pose()
+
+        self.right_arm.move_to_neutral()
+
         if safety_fixed_angle:
             self.initial_positions = self._joint_angles()[:number_fixed_angles]
 
-        self.right_arm.move_to_neutral()
         return self._get_joint_values()
 
     def _randomize_desired_angles(self):
@@ -372,32 +376,38 @@ class BaxterEnv(Env, Serializable):
                 desired_orientations = []
             for obsSet in obsSets:
                 for observation in obsSet:
-                    positions = np.hstack((positions, observation[21:24]))
-                    desired_positions = np.hstack((desired_positions, observation[24:27]))
+                    # positions = np.hstack((positions, observation[21:24]))
+                    # desired_positions = np.hstack((desired_positions, observation[24:27]))
+                    positions.append(observation[21:24])
+                    desired_positions.append(observation[24:27])
                     # ipdb.set_trace()
                     
                     if end_effector_experiment_total:
                         orientations = np.hstack((orientations, observation[24:28]))
                         desired_orientations = np.hstack((desired_orientations, observation[28:]))
 
-            mean_distance = np.mean(positions - desired_positions)
+            # mean_distance = np.sum(positions - desired_positions)
+            positions = np.array(positions)
+            desired_positions = np.array(desired_positions)
+            mean_distance = np.mean(linalg.norm(positions - desired_positions, axis=1))
             logger.record_tabular("Mean Distance from desired end-effector position", mean_distance)
+
 
             if end_effector_experiment_total:
                 mean_orientation_difference = np.mean(orientations - desired_orientations)
                 logger.record_tabular("Mean Orientation difference from desired end-effector position", mean_orientation_difference)
 
         if joint_angle_experiment:
-        	obsSets = [path["observations"] for path in paths]
-        	angles = []
-        	desired_angles = []
-        	for obsSet in obsSets:
-        		for observation in obsSet:
-        			angles = np.hstack((angles, observation[:7]))
-        			desired_angles = np.hstack((desired_angles, observation[21:]))
+            obsSets = [path["observations"] for path in paths]
+            angles = []
+            desired_angles = []
+            for obsSet in obsSets:
+                for observation in obsSet:
+                    angles = np.hstack((angles, observation[:7]))
+                    desired_angles = np.hstack((desired_angles, observation[21:]))
 
-       		mean_difference = np.mean(angles - desired_angles)
-       		logger.record_tabular("Mean Difference from desired angle", mean_difference)
+            mean_difference = np.mean(angles - desired_angles)
+            logger.record_tabular("Mean Difference from desired angle", mean_difference)
 
         
 
