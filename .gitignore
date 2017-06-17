@@ -1,3 +1,6 @@
 MUJOCO_LOG.TXT
 data/
 logs/
+*.pyc
+*.swp
+*.swo
