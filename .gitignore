@@ -1,7 +1,6 @@
 MUJOCO_LOG.TXT
 data/
 logs/
-__pycache__
 *.pyc
 *.swp
 *.swo
