@@ -183,3 +183,11 @@ class DDPG(OnlineAlgorithm):
 
     def _can_evaluate(self, exploration_paths):
         return len(exploration_paths) > 0
+
+    def get_epoch_snapshot(self, epoch):
+        return dict(
+            epoch=epoch,
+            policy=self.policy,
+            env=self.training_env,
+            qf=self.qf,
+        )
