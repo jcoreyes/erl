@@ -1,7 +1,7 @@
 import rospy
 from rllab.core.serializable import Serializable
 from rllab.spaces.box import Box
-import baxter_interface as bi
+import intera_interface as saw
 import numpy as np
 from cached_property import cached_property
 from rllab.envs.base import Env
@@ -25,30 +25,30 @@ position_resetting = False
 number_fixed_angles = 2
 
 JOINT_ANGLES_HIGH = np.array([
-    1.70167993, 
-    1.04700017, 
-    3.0541791, 
-    2.61797006, 
+    1.70167993,
+    1.04700017,
+    3.0541791,
+    2.61797006,
     3.05900002,
-    2.09400001, 
+    2.09400001,
     3.05899961
 ])
 
 JOINT_ANGLES_LOW = np.array([
-    -1.70167995, 
-    -2.14700025, 
-    -3.0541801, 
-    -0.04995198, 
+    -1.70167995,
+    -2.14700025,
+    -3.0541801,
+    -0.04995198,
     -3.05900015,
-    -1.5708003, 
+    -1.5708003,
     -3.05899989
 ])
 
-JOINT_VEL_HIGH = 2*np.ones(7)
-JOINT_VEL_LOW = -2*np.ones(7)
+JOINT_VEL_HIGH = 2 * np.ones(7)
+JOINT_VEL_LOW = -2 * np.ones(7)
 
-JOINT_TORQUE_HIGH = 10*np.ones(7)
-JOINT_TORQUE_LOW = -10*np.ones(7)
+JOINT_TORQUE_HIGH = 10 * np.ones(7)
+JOINT_TORQUE_LOW = -10 * np.ones(7)
 
 JOINT_VALUE_HIGH = {
     'position': JOINT_ANGLES_HIGH,
@@ -61,11 +61,11 @@ JOINT_VALUE_LOW = {
     'torque': JOINT_TORQUE_LOW,
 }
 
-#not sure what the min/max angle and pos are supposed to be
-END_EFFECTOR_POS_LOW = -1*np.ones(3)
+# not sure what the min/max angle and pos are supposed to be
+END_EFFECTOR_POS_LOW = -1 * np.ones(3)
 END_EFFECTOR_POS_HIGH = np.ones(3)
 
-END_EFFECTOR_ANGLE_LOW = -1*np.ones(4)
+END_EFFECTOR_ANGLE_LOW = -1 * np.ones(4)
 END_EFFECTOR_ANGLE_HIGH = np.ones(4)
 
 END_EFFECTOR_VALUE_LOW = {
@@ -78,6 +78,7 @@ END_EFFECTOR_VALUE_HIGH = {
     'angle': END_EFFECTOR_ANGLE_HIGH,
 }
 
+
 def safe(raw_function):
     def safe_function(*args, **kwargs):
         try:
@@ -88,41 +89,40 @@ def safe(raw_function):
     return safe_function
 
 
-class BaxterEnv(Env, Serializable):
+class SawyerEnv(Env, Serializable):
     def __init__(
             self,
             update_hz=20,
-            robot_name='robot',
             action_mode='torque',
             safety_mode='position'
     ):
         Serializable.quick_init(self, locals())
-        rospy.init_node('baxter_env', anonymous=True)
+        rospy.init_node('sawyer_env', anonymous=True)
         self.rate = rospy.Rate(update_hz)
 
-        #setup the robots arm and gripper
-        self.right_arm = bi.Limb('right', robot_name=robot_name)
-        self.right_joint_names = self.right_arm.joint_names()
-        self.right_grip = bi.Gripper('right', robot_name=robot_name, bi.CHECK_VERSION)
+        # setup the robots arm and gripper
+        self.arm = saw.Limb()
+        self.joint_names = self.arm.joint_names()
+        self.grip = bi.Gripper(saw.CHECK_VERSION)
 
-        #create a dictionary whose values are functions that set the appropriate values
+        # create a dictionary whose values are functions that set the appropriate values
         action_mode_dict = {
-            'position': self.right_arm.set_joint_positions, 
-            'velocity': self.right_arm.set_joint_velocities,
-            'torque': self.right_arm.set_joint_torques,
+            'position': self.arm.set_joint_positions,
+            'velocity': self.arm.set_joint_velocities,
+            'torque': self.arm.set_joint_torques,
         }
 
-        #create a dictionary whose values are functions that return the appropriate values
+        # create a dictionary whose values are functions that return the appropriate values
         observation_mode_dict = {
-            'position': self.right_arm.joint_angles,
-            'velocity': self.right_arm.joint_velocities,
-            'torque': self.right_arm.joint_efforts,
+            'position': self.arm.joint_angles,
+            'velocity': self.arm.joint_velocities,
+            'torque': self.arm.joint_efforts,
         }
 
         self._set_joint_values = action_mode_dict[action_mode]
         self._get_joint_to_value_func_list = list(observation_mode_dict.values())
 
-        #set up safety mode components (fixing a certain number of joint angles)
+        # set up safety mode components (fixing a certain number of joint angles)
         if safety_fixed_angle:
 
             self._set_joint_values = action_mode_dict
@@ -130,59 +130,59 @@ class BaxterEnv(Env, Serializable):
             self.safety_mode = safety_mode
             self.initial_positions = self._joint_angles()[:number_fixed_angles]
             self._action_space = Box(
-                JOINT_VALUE_LOW[action_mode][number_fixed_angles:], 
+                JOINT_VALUE_LOW[action_mode][number_fixed_angles:],
                 JOINT_VALUE_HIGH[action_mode][number_fixed_angles:]
-                )
+            )
 
         else:
             self._action_space = Box(
                 JOINT_VALUE_LOW[action_mode],
                 JOINT_VALUE_HIGH[action_mode]
-                )
+            )
 
-        #set up lows and highs for observation space based on which experiment we are running
-        #additionally set up the desired angle as well
+        # set up lows and highs for observation space based on which experiment we are running
+        # additionally set up the desired angle as well
         if joint_angle_experiment:
             lows = np.hstack((
-                JOINT_VALUE_LOW['position'], 
-                JOINT_VALUE_LOW['velocity'], 
-                JOINT_VALUE_LOW['torque'], 
+                JOINT_VALUE_LOW['position'],
+                JOINT_VALUE_LOW['velocity'],
+                JOINT_VALUE_LOW['torque'],
                 JOINT_VALUE_LOW['position'],
             ))
 
             highs = np.hstack((
-                JOINT_VALUE_HIGH['position'], 
+                JOINT_VALUE_HIGH['position'],
                 JOINT_VALUE_HIGH['velocity'],
-                JOINT_VALUE_HIGH['torque'], 
+                JOINT_VALUE_HIGH['torque'],
                 JOINT_VALUE_HIGH['position'],
             ))
 
             if fixed_angle:
-                self.desired = np.zeros(NUM_JOINTS) 
+                self.desired = np.zeros(NUM_JOINTS)
             else:
-                self._randomize_desired_angles() 
+                self._randomize_desired_angles()
 
         elif end_effector_experiment_position:
             lows = np.hstack((
-                JOINT_VALUE_LOW['position'], 
-                JOINT_VALUE_LOW['velocity'], 
+                JOINT_VALUE_LOW['position'],
+                JOINT_VALUE_LOW['velocity'],
                 JOINT_VALUE_LOW['torque'],
-                END_EFFECTOR_VALUE_LOW['position'], 
                 END_EFFECTOR_VALUE_LOW['position'],
-            )) 
+                END_EFFECTOR_VALUE_LOW['position'],
+            ))
 
             highs = np.hstack((
-                JOINT_VALUE_HIGH['position'], 
-                JOINT_VALUE_HIGH['velocity'], 
+                JOINT_VALUE_HIGH['position'],
+                JOINT_VALUE_HIGH['velocity'],
                 JOINT_VALUE_HIGH['torque'],
-                END_EFFECTOR_VALUE_HIGH['position'], 
+                END_EFFECTOR_VALUE_HIGH['position'],
                 END_EFFECTOR_VALUE_HIGH['position'],
             ))
 
             if fixed_end_effector:
                 self.desired = np.array([
-                    0.1485434521312332, 
-                    -0.43227588084273644, 
+                    0.1485434521312332,
+                    -0.43227588084273644,
                     -0.7116727296474704
                 ])
 
@@ -191,8 +191,8 @@ class BaxterEnv(Env, Serializable):
 
         elif end_effector_experiment_total:
             lows = np.hstack((
-                JOINT_VALUE_LOW['position'], 
-                JOINT_VALUE_LOW['velocity'], 
+                JOINT_VALUE_LOW['position'],
+                JOINT_VALUE_LOW['velocity'],
                 JOINT_VALUE_LOW['torque'],
                 END_EFFECTOR_VALUE_LOW['position'],
                 END_EFFECTOR_VALUE_LOW['angle'],
@@ -201,71 +201,71 @@ class BaxterEnv(Env, Serializable):
             ))
 
             highs = np.hstack((
-                JOINT_VALUE_HIGH['position'], 
-                JOINT_VALUE_HIGH['velocity'], 
+                JOINT_VALUE_HIGH['position'],
+                JOINT_VALUE_HIGH['velocity'],
                 JOINT_VALUE_HIGH['torque'],
                 END_EFFECTOR_VALUE_HIGH['position'],
                 END_EFFECTOR_VALUE_HIGH['angle'],
                 END_EFFECTOR_VALUE_HIGH['position'],
                 END_EFFECTOR_VALUE_HIGH['angle'],
             ))
-            
+
             if fixed_end_effector:
                 self.desired = np.array([
-                    0.14854234521312332, 
-                    -0.43227588084273644, 
-                    -0.7116727296474704, 
-                    0.46800638382243764, 
-                    0.8837008622125236, 
-                    -0.005641180126528841, 
+                    0.14854234521312332,
+                    -0.43227588084273644,
+                    -0.7116727296474704,
+                    0.46800638382243764,
+                    0.8837008622125236,
+                    -0.005641180126528841,
                     -0.0033148021158782666
                 ])
             else:
                 self._randomize_desired_end_effector_pose()
-    
-        self._observation_space = Box(lows, highs) 
+
+        self._observation_space = Box(lows, highs)
 
     @safe
     def _act(self, action):
         if safety_fixed_angle:
-            if(position_resetting):
-                fixed_names = self.right_joint_names[:number_fixed_angles]
+            if (position_resetting):
+                fixed_names = self.joint_names[:number_fixed_angles]
                 fixed_positions = dict(zip(fixed_names, self.initial_positions))
                 self._set_joint_values[self.safety_mode](fixed_positions)
-            action_names = self.right_joint_names[number_fixed_angles:]
+            action_names = self.joint_names[number_fixed_angles:]
             actions = dict(zip(action_names, action))
             self._set_joint_values[self.action_mode](actions)
 
         else:
-            joint_to_values = dict(zip(self.right_joint_names, action))
+            joint_to_values = dict(zip(self.joint_names, action))
             self._set_joint_values(joint_to_values)
-    	
+
         self.rate.sleep()
 
     def _joint_angles(self):
-        joint_to_angles = self.right_arm.joint_angles()
+        joint_to_angles = self.arm.joint_angles()
         return np.array([
-            joint_to_angles[joint] for joint in self.right_joint_names
+            joint_to_angles[joint] for joint in self.joint_names
         ])
 
     def _end_effector_pose(self):
-        state_dict = self.right_arm.endpoint_pose()
+        state_dict = self.arm.endpoint_pose()
         pos = state_dict['position']
         if end_effector_experiment_total or safety_fixed_angle:
             orientation = state_dict['orientation']
             return np.array([
-                pos.x, 
-                pos.y, 
-                pos.z, 
-                orientation.x, 
-                orientation.y, 
-                orientation.z, 
+                pos.x,
+                pos.y,
+                pos.z,
+                orientation.x,
+                orientation.y,
+                orientation.z,
                 orientation.w
             ])
         else:
             return np.array([
-                pos.x, 
-                pos.y, 
+                pos.x,
+                pos.y,
                 pos.z
             ])
 
@@ -280,27 +280,27 @@ class BaxterEnv(Env, Serializable):
         if safety_fixed_angle:
             endpoint_pose = self._end_effector_pose()
             lower_endpoint_pose = np.hstack((
-                END_EFFECTOR_VALUE_LOW['position'], 
+                END_EFFECTOR_VALUE_LOW['position'],
                 END_EFFECTOR_VALUE_LOW['angle'],
             ))
             higher_endpoint_pose = np.hstack((
-                END_EFFECTOR_VALUE_HIGH['position'], 
+                END_EFFECTOR_VALUE_HIGH['position'],
                 END_EFFECTOR_VALUE_HIGH['angle']
             ))
             within_box = [curr_pose > lower_pose or curr_pose < higher_pose
-                for curr_pose, lower_pose, higher_pose 
-                in zip(endpoint_pose, lower_endpoint_pose, higher_endpoint_pose)]
+                          for curr_pose, lower_pose, higher_pose
+                          in zip(endpoint_pose, lower_endpoint_pose, higher_endpoint_pose)]
             is_valid = all(within_box)
 
         if joint_angle_experiment:
-            #reward is MSE between current joint angles and the desired angles
+            # reward is MSE between current joint angles and the desired angles
             clipped_joint_angles = self._joint_angles()[number_fixed_angles]
-            reward = -np.mean((clipped_joint_angles - self.desired[number_fixed_angles:])**2)
-            
+            reward = -np.mean((clipped_joint_angles - self.desired[number_fixed_angles:]) ** 2)
+
         if end_effector_experiment_position or end_effector_experiment_total:
-            #reward is MSE between desired position/orientation and current position/orientation of end_effector
+            # reward is MSE between desired position/orientation and current position/orientation of end_effector
             current_end_effector_pose = self._end_effector_pose()
-            reward = -np.mean((current_end_effector_pose - self.desired)**2)
+            reward = -np.mean((current_end_effector_pose - self.desired) ** 2)
 
         if not is_valid:
             reward = -10000
@@ -316,9 +316,9 @@ class BaxterEnv(Env, Serializable):
         positions_dict = self._get_joint_to_value_func_list[0]()
         velocities_dict = self._get_joint_to_value_func_list[1]()
         torques_dict = self._get_joint_to_value_func_list[2]()
-        positions = [positions_dict[joint] for joint in self.right_joint_names]
-        velocities = [velocities_dict[joint] for joint in self.right_joint_names]
-        torques = [torques_dict[joint] for joint in self.right_joint_names]
+        positions = [positions_dict[joint] for joint in self.joint_names]
+        velocities = [velocities_dict[joint] for joint in self.joint_names]
+        torques = [torques_dict[joint] for joint in self.joint_names]
         temp = velocities + torques
 
         if end_effector_experiment_position or end_effector_experiment_total:
@@ -340,7 +340,7 @@ class BaxterEnv(Env, Serializable):
         elif end_effector_experiment_position or end_effector_experiment_total and not fixed_end_effector:
             self._randomize_desired_end_effector_pose()
 
-        self.right_arm.move_to_neutral()
+        self.arm.move_to_neutral()
 
         if safety_fixed_angle:
             self.initial_positions = self._joint_angles()[:number_fixed_angles]
@@ -382,7 +382,7 @@ class BaxterEnv(Env, Serializable):
                     positions.append(observation[21:24])
                     desired_positions.append(observation[24:27])
                     # ipdb.set_trace()
-                    
+
                     if end_effector_experiment_total:
                         orientations = np.hstack((orientations, observation[24:28]))
                         desired_orientations = np.hstack((desired_orientations, observation[28:]))
@@ -393,10 +393,10 @@ class BaxterEnv(Env, Serializable):
             mean_distance = np.mean(linalg.norm(positions - desired_positions, axis=1))
             logger.record_tabular("Mean Distance from desired end-effector position", mean_distance)
 
-
             if end_effector_experiment_total:
                 mean_orientation_difference = np.mean(orientations - desired_orientations)
-                logger.record_tabular("Mean Orientation difference from desired end-effector position", mean_orientation_difference)
+                logger.record_tabular("Mean Orientation difference from desired end-effector position",
+                                      mean_orientation_difference)
 
         if joint_angle_experiment:
             obsSets = [path["observations"] for path in paths]
@@ -409,8 +409,6 @@ class BaxterEnv(Env, Serializable):
 
             mean_difference = np.mean(angles - desired_angles)
             logger.record_tabular("Mean Difference from desired angle", mean_difference)
-
-        
 
     @property
     def horizon(self):
