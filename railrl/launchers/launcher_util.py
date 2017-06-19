@@ -146,6 +146,7 @@ def run_experiment(
         exp_id=0,
         unique_id=None,
         use_gpu=False,
+        snapshot_mode='last',
         **run_experiment_lite_kwargs):
     """
     Run a task via the rllab interface, i.e. serialize it and then run it via
@@ -194,11 +195,12 @@ def run_experiment(
             exp_id=exp_id,
             seed=seed,
             use_gpu=use_gpu,
+            snapshot_mode=snapshot_mode,
         )
     else:
         run_experiment_lite(
             task,
-            snapshot_mode="last",
+            snapshot_mode=snapshot_mode,
             exp_prefix=exp_prefix,
             variant=variant,
             seed=seed,
@@ -217,6 +219,7 @@ def run_experiment_here(
         exp_id=0,
         seed=0,
         use_gpu=False,
+        snapshot_mode='last',
 ):
     """
     Run an experiment locally without any serialization.
@@ -244,6 +247,7 @@ def run_experiment_here(
         variant=variant,
         exp_id=exp_id,
         seed=seed,
+        snapshot_mode=snapshot_mode,
     )
     if not use_gpu:
         os.environ['CUDA_VISIBLE_DEVICES'] = ""
