@@ -46,6 +46,51 @@ def kronecker_square(t1, size1, t2, size2):
     return expanded_t1 * tiled_t2
 
 
+def selu(
+        x,
+        alpha=1.6732632423543772848170429916717,
+        scale=1.0507009873554804934193349852946,
+):
+    """
+    Based on https://github.com/dannysdeng/selu/blob/master/selu.py
+    """
+    return scale * (
+        F.relu(x) + alpha * (F.elu(-1 * F.relu(-1 * x)))
+    )
+
+
+def alpha_dropout(
+        x,
+        p=0.05,
+        alpha=-1.7580993408473766,
+        fixedPointMean=0,
+        fixedPointVar=1,
+        training=False,
+):
+    keep_prob = 1 - p
+    if keep_prob == 1 or not training:
+        return x
+    a = np.sqrt(fixedPointVar / (keep_prob * (
+        (1 - keep_prob) * pow(alpha - fixedPointMean, 2) + fixedPointVar)))
+    b = fixedPointMean - a * (
+        keep_prob * fixedPointMean + (1 - keep_prob) * alpha)
+    keep_prob = 1 - p
+
+    random_tensor = keep_prob + torch.rand(x.size())
+    if _use_gpu:
+        binary_tensor = Variable(torch.floor(random_tensor).cuda())
+    else:
+        binary_tensor = Variable(torch.floor(random_tensor))
+    x = x.mul(binary_tensor)
+    ret = x + alpha * (1 - binary_tensor)
+    ret.mul_(a).add_(b)
+    return ret
+
+
+def alpha_selu(x, training=False):
+    return alpha_dropout(selu(x), training=training)
+
+
 """
 GPU wrappers
 """
