@@ -68,8 +68,8 @@ def create_figure(estimated_heatmaps, optimal_heatmaps, target_poses,
             ax=ax,
             xticklabels=False,
             yticklabels=False,
-            vmax=vmax,
-            vmin=vmin,
+            # vmax=vmax,
+            # vmin=vmin,
         )
         ax.vlines([first_index_on, last_index_on], *ax.get_ylim())
         ax.set_xlabel("Position")
@@ -82,8 +82,8 @@ def create_figure(estimated_heatmaps, optimal_heatmaps, target_poses,
             ax=ax,
             xticklabels=False,
             yticklabels=False,
-            vmax=vmax,
-            vmin=vmin,
+            # vmax=vmax,
+            # vmin=vmin,
         )
         ax.vlines([first_index_on, last_index_on], *ax.get_ylim())
         ax.set_xlabel("Position")
@@ -195,7 +195,7 @@ def main():
         save_dir.mkdir()
 
     resolution = 10
-    discount_factor = 0.5
+    discount_factor = 0.99
     state_bounds = (-WaterMaze.BOUNDARY_DIST, WaterMaze.BOUNDARY_DIST)
     action_bounds = (-1, 1)
 
