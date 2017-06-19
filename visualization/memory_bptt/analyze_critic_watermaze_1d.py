@@ -33,89 +33,91 @@ def make_heat_map(eval_func, state_bounds, action_bounds, *, resolution=10):
     return HeatMap(map, state_values, action_values)
 
 
-def create_figure(estimated_heatmaps, optimal_heatmaps, target_poses,
-                  iteration_number):
-    width = 5 * len(estimated_heatmaps)
-    height = 20
-    fig, axes = plt.subplots(4, len(estimated_heatmaps), figsize=(width, height))
-    vmax = max(itertools.chain(
-        [hm.values.max() for hm in estimated_heatmaps],
-        [hm.values.max() for hm in optimal_heatmaps],
-    ))
-    vmin = min(itertools.chain(
-        [hm.values.min() for hm in estimated_heatmaps],
-        [hm.values.min() for hm in optimal_heatmaps],
-    ))
-    for i, (estimated_heatmap, opt_heatmap, target_pos) in enumerate(
-            zip(estimated_heatmaps, optimal_heatmaps, target_poses)
+def create_figure(
+        titles,
+        list_of_list_of_heatmaps,
+        # optimal_heatmaps,
+        target_poses,
+        iteration_number
+):
+    num_heatmaps = len(list_of_list_of_heatmaps)
+    series_length = len(target_poses)
+    width = 5 * series_length
+    height = 10 * num_heatmaps
+    fig, axes = plt.subplots(
+        2 * num_heatmaps, series_length, figsize=(width, height)
+    )
+    # vmax = max(itertools.chain(
+    #     [hm.values.max() for hm in estimated_heatmaps],
+    #     [hm.values.max() for hm in optimal_heatmaps],
+    # ))
+    # vmin = min(itertools.chain(
+    #     [hm.values.min() for hm in estimated_heatmaps],
+    #     [hm.values.min() for hm in optimal_heatmaps],
+    # ))
+    for i, (heatmaps, target_pos) in enumerate(
+            zip(zip(*list_of_list_of_heatmaps), target_poses)
     ):
+        # `heatmaps` is now a list of heatmaps, such that
+        # heatmaps[k] = list_of_list_of_heatmaps[k][i]
         min_pos = max(target_pos - WaterMaze.TARGET_RADIUS,
                       -WaterMaze.BOUNDARY_DIST)
         max_pos = min(target_pos + WaterMaze.TARGET_RADIUS,
                       WaterMaze.BOUNDARY_DIST)
-        state_values = estimated_heatmap.state_values
+        state_values = heatmaps[0].state_values
         target_right_of = min_pos <= state_values
         target_left_of = state_values <= max_pos
         first_index_on = np.where(target_right_of)[0][0]
         last_index_on = np.where(target_left_of)[0][-1] + 1
 
+        names_and_heatmaps = list(zip(titles, heatmaps))
+        num_heatmaps = len(names_and_heatmaps)
+
         """
         Plot Estimated & Optimal QF
         """
-        ax = axes[0][i]
-        sns.heatmap(
-            estimated_heatmap.values,
-            ax=ax,
-            xticklabels=False,
-            yticklabels=False,
-            # vmax=vmax,
-            # vmin=vmin,
-        )
-        ax.vlines([first_index_on, last_index_on], *ax.get_ylim())
-        ax.set_xlabel("Position")
-        ax.set_ylabel("Velocity")
-        ax.set_title("Estimated QF. Target Position = {0}".format(target_pos))
-
-        ax = axes[1][i]
-        sns.heatmap(
-            opt_heatmap.values,
-            ax=ax,
-            xticklabels=False,
-            yticklabels=False,
-            # vmax=vmax,
-            # vmin=vmin,
-        )
-        ax.vlines([first_index_on, last_index_on], *ax.get_ylim())
-        ax.set_xlabel("Position")
-        ax.set_ylabel("Velocity")
-        ax.set_title("Optimal QF. Target Position = {0}".format(target_pos))
+        for j, (title, heatmap) in enumerate(names_and_heatmaps):
+            ax = axes[j][i]
+            sns.heatmap(
+                heatmap.values,
+                ax=ax,
+                xticklabels=False,
+                yticklabels=False,
+                # vmax=vmax,
+                # vmin=vmin,
+            )
+            ax.vlines([first_index_on, last_index_on], *ax.get_ylim())
+            ax.set_xlabel("Position")
+            ax.set_ylabel("Velocity")
+            ax.set_title("{0} QF. Target Position = {1}".format(
+                title,
+                target_pos,
+            ))
 
         """
         Plot Estimated & Optimal VF
         """
-        ax = axes[2][i]
-        ax.plot(state_values, np.max(estimated_heatmap.values, axis=1))
-        ax.vlines([min_pos, max_pos], *ax.get_ylim())
-        ax.set_xlabel("Position")
-        ax.set_ylabel("Value Function")
-        ax.set_title("Estimated VF. Target Position = {0}".format(target_pos))
-
-        ax = axes[3][i]
-        ax.plot(state_values, np.max(opt_heatmap.values, axis=1))
-        ax.vlines([min_pos, max_pos], *ax.get_ylim())
-        ax.set_xlabel("Position")
-        ax.set_ylabel("Value Function")
-        ax.set_title("Optimal VF. Target Position = {0}".format(target_pos))
+        for j, (title, heatmap) in enumerate(names_and_heatmaps):
+            ax = axes[num_heatmaps + j][i]
+            ax.plot(state_values, np.max(heatmap.values, axis=1))
+            ax.vlines([min_pos, max_pos], *ax.get_ylim())
+            ax.set_xlabel("Position")
+            ax.set_ylabel("Value Function")
+            ax.set_title("{0} VF. Target Position = {1}".format(
+                title,
+                target_pos,
+            ))
 
     fig.suptitle("Iteration = {0}".format(iteration_number))
+    plt.show()
     return fig
 
 
-def create_eval_fnct(qf, target_pos):
+def create_eval_fnct(qf, target_pos, time):
     def evaluate(x_pos, x_vel):
         dist = np.linalg.norm(x_pos - target_pos)
         on_target = dist <= WaterMaze.TARGET_RADIUS
-        state = np.hstack([x_pos, on_target, target_pos])
+        state = np.hstack([x_pos, on_target, target_pos, time])
         state = Variable(torch.from_numpy(state)).float().unsqueeze(0)
 
         action = np.array([x_vel])
@@ -187,7 +189,8 @@ def main():
     for pkl_path in base.glob('*.pkl'):
         match = re.search('_(-*[0-9]*).pkl$', str(pkl_path))
         iter_number = int(match.group(1))
-        path_and_iter.append((pkl_path, iter_number))
+        if iter_number > 8:
+            path_and_iter.append((pkl_path, iter_number))
     path_and_iter = sorted(path_and_iter, key=itemgetter(1))
 
     save_dir = base / "images"
@@ -205,13 +208,21 @@ def main():
         qf = data['qf']
         print("QF loaded from iteration %d" % iter_number)
 
-        heatmaps = []
+        heatmaps_t0 = []
+        heatmaps_t24 = []
         optimal_heatmaps = []
         target_poses = np.linspace(-5, 5, num=5)
         for target_pos in target_poses:
-            qf_eval = create_eval_fnct(qf, target_pos)
-            heatmaps.append(make_heat_map(
-                qf_eval,
+            qf_eval_t0 = create_eval_fnct(qf, target_pos, 0)
+            heatmaps_t0.append(make_heat_map(
+                qf_eval_t0,
+                state_bounds=state_bounds,
+                action_bounds=action_bounds,
+                resolution=resolution,
+            ))
+            qf_eval_t24 = create_eval_fnct(qf, target_pos, 24)
+            heatmaps_t24.append(make_heat_map(
+                qf_eval_t24,
                 state_bounds=state_bounds,
                 action_bounds=action_bounds,
                 resolution=resolution,
@@ -230,9 +241,13 @@ def main():
                 resolution=resolution,
             ))
 
-        fig = create_figure(heatmaps, optimal_heatmaps, target_poses,
-                            iter_number)
-        fig.savefig(str(save_file))
+        fig = create_figure(
+            ['Estimated T=0', 'Estimated T=24', 'Optimal'],
+            [heatmaps_t0, heatmaps_t24, optimal_heatmaps],
+            target_poses,
+            iter_number,
+        )
+        # fig.savefig(str(save_file), bbox_inches='tight')
 
 if __name__ == '__main__':
     main()

@@ -41,8 +41,8 @@ class WaterMaze(Serializable, Env):
 
     def _create_observation_space(self):
         return Box(
-            np.array([-self.BOUNDARY_DIST, -self.BOUNDARY_DIST, 0]),
-            np.array([self.BOUNDARY_DIST, self.BOUNDARY_DIST, 1])
+            np.array([-self.BOUNDARY_DIST, -self.BOUNDARY_DIST, 0, 0]),
+            np.array([self.BOUNDARY_DIST, self.BOUNDARY_DIST, 1, self.horizon])
         )
 
     def _step(self, velocities):
@@ -155,11 +155,14 @@ class WaterMazeEasy(WaterMaze):
     """
     def _create_observation_space(self):
         return Box(
-            np.array([-self.BOUNDARY_DIST, -self.BOUNDARY_DIST, 0,
+            np.array([-self.BOUNDARY_DIST, -self.BOUNDARY_DIST, 0, 0,
                       -self.BOUNDARY_DIST, -self.BOUNDARY_DIST]),
-            np.array([self.BOUNDARY_DIST, self.BOUNDARY_DIST, 1,
+            np.array([self.BOUNDARY_DIST, self.BOUNDARY_DIST, 1, self.horizon,
                       self.BOUNDARY_DIST, self.BOUNDARY_DIST])
         )
+
+    def _get_hint(self):
+        return self._target_position
 
     def _get_observation_and_on_platform(self):
         """
@@ -169,8 +172,9 @@ class WaterMazeEasy(WaterMaze):
         """
         dist = np.linalg.norm(self._position - self._target_position)
         on_platform = dist <= self.TARGET_RADIUS
+        hint = self._get_hint()
         return np.hstack(
-            (self._position, [on_platform], self._target_position)
+            (self._position, [on_platform, self._t], hint)
         ), on_platform
 
 
@@ -178,19 +182,11 @@ class WaterMazeMemory(WaterMazeEasy):
     """
     See the target position at the very first time step.
     """
-    def _get_observation_and_on_platform(self):
-        """
-        :return: Tuple
-        - Observation vector
-        - Flag: on platform or not.
-        """
-        dist = np.linalg.norm(self._position - self._target_position)
-        on_platform = dist <= self.TARGET_RADIUS
+    def _get_hint(self):
         if self._t == 0:
-            hint = self._target_position
+            return self._target_position
         else:
-            hint = np.zeros_like(self._target_position)
-        return np.hstack((self._position, [on_platform], hint)), on_platform
+            return np.zeros_like(self._target_position)
 
 
 class WaterMaze1D(WaterMaze):
@@ -231,9 +227,12 @@ class WaterMazeEasy1D(WaterMaze1D):
     """
     def _create_observation_space(self):
         return Box(
-            np.array([-self.BOUNDARY_DIST, 0, -self.BOUNDARY_DIST]),
-            np.array([self.BOUNDARY_DIST, 1, self.BOUNDARY_DIST]),
+            np.array([-self.BOUNDARY_DIST, 0, -self.BOUNDARY_DIST, 0]),
+            np.array([self.BOUNDARY_DIST, 1, self.BOUNDARY_DIST, self.horizon]),
         )
+
+    def _get_hint(self):
+        return self._target_position[0]
 
     def _get_observation_and_on_platform(self):
         """
@@ -243,8 +242,9 @@ class WaterMazeEasy1D(WaterMaze1D):
         """
         dist = np.linalg.norm(self._position - self._target_position)
         on_platform = dist <= self.TARGET_RADIUS
+        hint = self._get_hint()
         return np.hstack(
-            (self._position[0], [on_platform], self._target_position[0])
+            (self._position[0], [on_platform], hint, self._t)
         ), on_platform
 
 
@@ -252,17 +252,8 @@ class WaterMazeMemory1D(WaterMazeEasy1D):
     """
     See the target position at the very first time step.
     """
-    def _get_observation_and_on_platform(self):
-        """
-        :return: Tuple
-        - Observation vector
-        - Flag: on platform or not.
-        """
-        dist = np.linalg.norm(self._position - self._target_position)
-        on_platform = dist <= self.TARGET_RADIUS
+    def _get_hint(self):
         if self._t == 0:
-            print("hit")
-            hint = self._target_position[0]
+            return self._target_position[0]
         else:
-            hint = np.zeros_like(self._target_position[0])
-        return np.hstack((self._position[0], [on_platform], hint)), on_platform
+            return 0
