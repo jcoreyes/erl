@@ -103,7 +103,7 @@ class BaxterEnv(Env, Serializable):
         #setup the robots arm and gripper
         self.right_arm = bi.Limb('right', robot_name=robot_name)
         self.right_joint_names = self.right_arm.joint_names()
-        self.right_grip = bi.Gripper('right', robot_name=robot_name, bi.CHECK_VERSION)
+        self.right_grip = bi.Gripper('right', robot_name=robot_name)
 
         #create a dictionary whose values are functions that set the appropriate values
         action_mode_dict = {
