@@ -44,3 +44,7 @@ class PyTorchModule(nn.Module, Serializable, metaclass=abc.ABCMeta):
     def __setstate__(self, d):
         Serializable.__setstate__(self, d)
         self.set_param_values(d["params"])
+
+    @property
+    def is_recurrent(self):
+        return False

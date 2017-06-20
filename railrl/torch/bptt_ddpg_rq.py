@@ -16,6 +16,8 @@ class BpttDdpgRecurrentQ(BpttDdpg):
         :return: Dictionary containing Variables/Tensors for training the
         critic, including intermediate values that might be useful to log.
         """
+        if not self.qf.is_recurrent:
+            return super().get_critic_output_dict(subtraj_batch)
         rewards = subtraj_batch['rewards']
         terminals = subtraj_batch['terminals']
         obs = subtraj_batch['env_obs']
@@ -54,6 +56,8 @@ class BpttDdpgRecurrentQ(BpttDdpg):
         :return: Dictionary containing Variables/Tensors for training the
         policy, including intermediate values that might be useful to log.
         """
+        if not self.qf.is_recurrent:
+            return super().get_policy_output_dict(subtraj_batch)
         subtraj_obs = subtraj_batch['env_obs']
         initial_memories = subtraj_batch['memories'][:, 0, :]
         policy_actions, policy_writes = self.policy(subtraj_obs,

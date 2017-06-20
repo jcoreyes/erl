@@ -11,7 +11,11 @@ from railrl.envs.pygame.water_maze import (
     WaterMaze,
     WaterMazeEasy,
     WaterMazeMemory,
+    WaterMaze1D,
+    WaterMazeEasy1D,
+    WaterMazeMemory1D,
 )
+from railrl.exploration_strategies.noop import NoopStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import (
     run_experiment,
@@ -19,8 +23,9 @@ from railrl.launchers.launcher_util import (
 from railrl.misc.hyperparameter import DeterministicHyperparameterSweeper
 from railrl.policies.torch import MemoryPolicy, RWACell
 from railrl.pythonplusplus import identity
-from railrl.qfunctions.torch import MemoryQFunction
+from railrl.qfunctions.torch import MemoryQFunction, RecurrentMemoryQFunction
 from railrl.torch.bnlstm import LSTMCell, BNLSTMCell
+from railrl.torch.bptt_ddpg_rq import BpttDdpgRecurrentQ
 
 
 def experiment(variant):
@@ -35,6 +40,8 @@ def experiment(variant):
     env_class = variant['env_class']
     env_params = variant['env_params']
     memory_aug_params = variant['memory_aug_params']
+
+    qf_class = variant['qf_class']
     qf_params = variant['qf_params']
     policy_params = variant['policy_params']
 
@@ -60,23 +67,20 @@ def experiment(variant):
         **memory_es_params
     )
     es = ProductStrategy([env_strategy, write_strategy])
-    qf = MemoryQFunction(
+    qf = qf_class(
         int(raw_env.observation_space.flat_dim),
         int(raw_env.action_space.flat_dim),
         memory_dim,
-        400,
-        300,
         **qf_params,
     )
     policy = MemoryPolicy(
         int(raw_env.observation_space.flat_dim),
         int(raw_env.action_space.flat_dim),
-        memory_dim,
-        400,
-        300,
-        **policy_params,
+        memory_dim=memory_dim,
+        fc1_size=400,
+        fc2_size=300,
     )
-    algorithm = BpttDdpg(
+    algorithm = BpttDdpgRecurrentQ(
         env,
         es,
         qf=qf,
@@ -89,7 +93,7 @@ def experiment(variant):
 if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
-    exp_prefix = "dev-6-15-pytorch"
+    exp_prefix = "6-20-dev-bptt-ddpg-exp"
     run_mode = 'none'
 
     # n_seeds = 10
@@ -101,26 +105,26 @@ if __name__ == '__main__':
     if mode != "here":
         use_gpu = False
 
-    H = 50
-    subtraj_length = 10
-    num_steps_per_iteration = 100
+    H = 25
+    subtraj_length = 25
+    num_steps_per_iteration = 1000
     num_steps_per_eval = 1000
     num_iterations = 30
     batch_size = 200
-    memory_dim = 30
+    memory_dim = 2
     version = exp_prefix
     version = "Our Method"
-    version = "Policy optimized QF. Cut gradients"
     # version = "Our Method - loading but Q does not read mem state"
     # noinspection PyTypeChecker
     variant = dict(
         memory_dim=memory_dim,
-        # env_class=WaterMazeEasy,
         # env_class=WaterMaze,
+        env_class=WaterMazeEasy,
         # env_class=WaterMazeMemory,
-        env_class=HighLow,
+        # env_class=HighLow,
         env_params=dict(
             horizon=H,
+            give_time=True,
         ),
         memory_aug_params=dict(
             max_magnitude=1,
@@ -135,21 +139,26 @@ if __name__ == '__main__':
             use_gpu=use_gpu,
             action_policy_optimize_bellman=False,
             write_policy_optimizes='both',
-            action_policy_learning_rate=1e-4,
-            write_policy_learning_rate=1e-6,
-            qf_learning_rate=1e-2,
+            action_policy_learning_rate=1e-3,
+            write_policy_learning_rate=1e-5,
+            qf_learning_rate=1e-3,
             max_path_length=H,
             refresh_entire_buffer_period=None,
             save_new_memories_back_to_replay_buffer=True,
             # tau=0.001,
-            use_soft_update=False,
-            target_hard_update_period=300,
+            # use_soft_update=False,
+            # target_hard_update_period=300,
         ),
+        # qf_class=RecurrentMemoryQFunction,
+        qf_class=MemoryQFunction,
         qf_params=dict(
             output_activation=identity,
+            # hidden_size=10,
+            fc1_size=400,
+            fc2_size=300,
         ),
         policy_params=dict(
-            cell_class=LSTMCell,
+            cell_class=BNLSTMCell,
         ),
         es_params=dict(
             env_es_class=OUStrategy,
@@ -157,10 +166,11 @@ if __name__ == '__main__':
                 max_sigma=1,
                 min_sigma=None,
             ),
-            memory_es_class=OUStrategy,
+            memory_es_class=NoopStrategy,
+            # memory_es_class=OUStrategy,
             memory_es_params=dict(
-                max_sigma=0,
-                min_sigma=None,
+                # max_sigma=0,
+                # min_sigma=None,
             ),
         ),
         version=version,
