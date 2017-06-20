@@ -241,12 +241,6 @@ class MemoryPolicy(PyTorchModule):
         actions, writes = self.__call__(obs, initial_memories)
         return torch.squeeze(actions, dim=1), torch.squeeze(writes, dim=1)
 
-    def reset(self):
-        pass
-
-    def log_diagnostics(self, paths):
-        pass
-
 
 class FeedForwardPolicy(PyTorchModule):
     def __init__(
@@ -291,12 +285,6 @@ class FeedForwardPolicy(PyTorchModule):
         action = self.__call__(obs)
         action = action.squeeze(0)
         return ptu.get_numpy(action), {}
-
-    def reset(self):
-        pass
-
-    def log_diagnostics(self, paths):
-        pass
 
 
 class RecurrentPolicy(PyTorchModule):
@@ -385,6 +373,3 @@ class RecurrentPolicy(PyTorchModule):
         )
         self.hx.data.fill_(0)
         self.cx.data.fill_(0)
-
-    def log_diagnostics(self, paths):
-        pass

@@ -48,3 +48,9 @@ class PyTorchModule(nn.Module, Serializable, metaclass=abc.ABCMeta):
     @property
     def is_recurrent(self):
         return False
+
+    def log_diagnostics(self, paths):
+        pass
+
+    def reset(self):
+        pass
