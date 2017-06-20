@@ -17,7 +17,7 @@ def example(variant):
     # env = gym_env("Pendulum-v0")
     env = CartpoleEnv()
     env = normalize(env)
-    es = OUStrategy(env_spec=env.spec)
+    es = OUStrategy(action_space=env.action_space)
     qf = FeedForwardQFunction(
         int(env.observation_space.flat_dim),
         int(env.action_space.flat_dim),
@@ -41,7 +41,6 @@ def example(variant):
 
 
 if __name__ == "__main__":
-    use_gpu = True
     variant = dict(
         algo_params=dict(
             num_epochs=10,
@@ -51,7 +50,6 @@ if __name__ == "__main__":
             # use_soft_update=True,
             batch_size=32,
             max_path_length=100,
-            use_gpu=use_gpu,
         )
     )
     run_experiment(
@@ -60,5 +58,5 @@ if __name__ == "__main__":
         seed=0,
         mode='here',
         variant=variant,
-        use_gpu=use_gpu,
+        use_gpu=True,
     )

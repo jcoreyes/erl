@@ -14,7 +14,7 @@ from rllab.envs.normalized_env import normalize
 def example(variant):
     env = HalfCheetahEnv()
     env = normalize(env)
-    es = OUStrategy(env_spec=env.spec)
+    es = OUStrategy(action_space=env.action_space)
     qf = FeedForwardQFunction(
         int(env.observation_space.flat_dim),
         int(env.action_space.flat_dim),
