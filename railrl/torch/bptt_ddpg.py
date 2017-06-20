@@ -367,7 +367,7 @@ class BpttDdpg(OnlineAlgorithm):
             'Returns', returns, stat_prefix=stat_prefix
         ))
         statistics.update(create_stats_ordered_dict(
-            'DiscountedReturns', discounted_returns, stat_prefix=stat_prefix
+            'Discounted Returns', discounted_returns, stat_prefix=stat_prefix
         ))
         env_actions = np.vstack([path["actions"][:self.action_dim] for path in
                                  paths])
