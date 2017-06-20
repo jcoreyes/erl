@@ -350,7 +350,6 @@ class BpttDdpg(OnlineAlgorithm):
         statistics = self._statistics_from_subtraj_batch(
             subtraj_batch, stat_prefix=stat_prefix
         )
-        import ipdb; ipdb.set_trace()
         rewards = np.hstack([path["rewards"] for path in paths])
         returns = [sum(path["rewards"]) for path in paths]
         discounted_returns = [
