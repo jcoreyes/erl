@@ -96,9 +96,9 @@ if __name__ == '__main__':
     exp_prefix = "6-20-dev-bptt-ddpg-exp"
     run_mode = 'none'
 
-    # n_seeds = 10
+    # n_seeds = 5
     # mode = "ec2"
-    # exp_prefix = "6-15-paper-sweep-subtraj-length-load-but-q-no-criticize-mem"
+    # exp_prefix = "6-20-give-time-watermaze-easy"
 
     # run_mode = 'grid'
     use_gpu = True
@@ -136,7 +136,6 @@ if __name__ == '__main__':
             num_steps_per_epoch=num_steps_per_iteration,
             num_steps_per_eval=num_steps_per_eval,
             discount=1.,
-            use_gpu=use_gpu,
             action_policy_optimize_bellman=False,
             write_policy_optimizes='both',
             action_policy_learning_rate=1e-3,
@@ -185,9 +184,10 @@ if __name__ == '__main__':
             # 'algo_params.refresh_entire_buffer_period': [None, 1],
             # 'es_params.memory_es_params.max_sigma': [0, 1],
             # 'policy_params.cell_class': [LSTMCell, BNLSTMCell, RWACell],
-            'algo_params.subtraj_length': [1, 5, 10, 15, 20, 25],
+            # 'algo_params.subtraj_length': [1, 5, 10, 15, 20, 25],
             # 'algo_params.bellman_error_loss_weight': [0.1, 1, 10, 100, 1000],
             # 'algo_params.tau': [1, 0.1, 0.01, 0.001],
+            'env_params.give_time': [True, False],
         }
         sweeper = DeterministicHyperparameterSweeper(search_space,
                                                      default_parameters=variant)

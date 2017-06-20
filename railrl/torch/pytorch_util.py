@@ -102,6 +102,10 @@ def set_gpu_mode(mode):
     _use_gpu = mode
 
 
+def gpu_enabled():
+    return _use_gpu
+
+
 # noinspection PyPep8Naming
 def FloatTensor(*args, **kwargs):
     if _use_gpu:

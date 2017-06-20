@@ -1,20 +1,17 @@
 from collections import OrderedDict
 
 import numpy as np
-import torch
 import torch.optim as optim
 from torch import nn as nn
 from torch.autograd import Variable
 
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import get_average_returns
-from railrl.policies.torch import FeedForwardPolicy
-from railrl.qfunctions.torch import FeedForwardQFunction
 from railrl.torch.online_algorithm import OnlineAlgorithm
 from railrl.torch.pytorch_util import (
     soft_update_from_to,
     copy_model_params_from_to,
-    set_gpu_mode,
+    gpu_enabled,
     from_numpy,
 )
 from rllab.misc import logger, special
@@ -54,10 +51,7 @@ class DDPG(OnlineAlgorithm):
                                        lr=self.qf_learning_rate)
         self.policy_optimizer = optim.Adam(self.policy.parameters(),
                                            lr=self.policy_learning_rate)
-        self.use_gpu = self.use_gpu and torch.cuda.is_available()
-
-        set_gpu_mode(self.use_gpu)
-        if self.use_gpu:
+        if gpu_enabled():
             self.policy.cuda()
             self.target_policy.cuda()
             self.qf.cuda()

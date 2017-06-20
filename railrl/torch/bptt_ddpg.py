@@ -11,14 +11,12 @@ from railrl.data_management.updatable_subtraj_replay_buffer import (
 )
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import get_average_returns
-from railrl.policies.torch import MemoryPolicy
 from railrl.pythonplusplus import batch, ConditionTimer
-from railrl.qfunctions.torch import MemoryQFunction
 from railrl.torch.online_algorithm import OnlineAlgorithm
 from railrl.torch.pytorch_util import (
     copy_model_params_from_to,
     soft_update_from_to,
-    set_gpu_mode,
+    gpu_enabled,
     from_numpy,
     get_numpy,
 )
@@ -115,9 +113,7 @@ class BpttDdpg(OnlineAlgorithm):
             self.policy.write_parameters(), lr=self.write_policy_learning_rate
         )
 
-        self.use_gpu = self.use_gpu and torch.cuda.is_available()
-        set_gpu_mode(self.use_gpu)
-        if self.use_gpu:
+        if gpu_enabled():
             self.policy.cuda()
             self.target_policy.cuda()
             self.qf.cuda()
