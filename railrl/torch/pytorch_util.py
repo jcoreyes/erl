@@ -25,23 +25,23 @@ def maximum_2d(t1, t2):
     )[0].squeeze(2)
 
 
-def kronecker_square(t1, size1, t2, size2):
+def kronecker_product(t1, t2):
     """
-    Computes the Kronecker product between two square tensors
+    Computes the Kronecker product between two tensors
     See https://en.wikipedia.org/wiki/Kronecker_product
-
-    :param t1:
-    :param size1:
-    :param t2:
-    :param size2:
-    :return:
     """
-    output_size = size1 * size2
-    expanded_t1 = F.upsample_nearest(
-        t1.view(1, 1, size1, size1), size2, size2
-    ).view(output_size, output_size)
+    t1_height, t1_width = t1.size()
+    t2_height, t2_width = t2.size()
+    out_height = t1_height * t2_height
+    out_width = t1_width * t2_width
 
-    tiled_t2 = t2.repeat(size1, size1)
+    tiled_t2 = t2.repeat(t1_height, t1_width)
+    expanded_t1 = (
+        t1.unsqueeze(2)
+          .unsqueeze(3)
+          .repeat(1, t2_height, t2_width, 1)
+          .view(out_height, out_width)
+    )
 
     return expanded_t1 * tiled_t2
 
