@@ -22,6 +22,9 @@ from railrl.envs.pygame.water_maze import WaterMaze
 HeatMap = namedtuple("HeatMap", ['values', 'state_values', 'action_values'])
 
 
+USE_TIME = False
+
+
 def make_heat_map(eval_func, state_bounds, action_bounds, *, resolution=10):
     state_values = np.linspace(*state_bounds, num=resolution)
     action_values = np.linspace(*action_bounds, num=resolution)
@@ -117,7 +120,10 @@ def create_eval_fnct(qf, target_pos, time):
     def evaluate(x_pos, x_vel):
         dist = np.linalg.norm(x_pos - target_pos)
         on_target = dist <= WaterMaze.TARGET_RADIUS
-        state = np.hstack([x_pos, on_target, target_pos, time])
+        if USE_TIME:
+            state = np.hstack([x_pos, on_target, time, target_pos])
+        else:
+            state = np.hstack([x_pos, on_target, target_pos])
         state = Variable(torch.from_numpy(state)).float().unsqueeze(0)
 
         action = np.array([x_vel])
@@ -204,7 +210,6 @@ def main():
 
     for path, iter_number in path_and_iter:
         data = joblib.load(str(path))
-        save_file = save_dir / 'iter_{}.png'.format(iter_number)
         qf = data['qf']
         print("QF loaded from iteration %d" % iter_number)
 
@@ -247,7 +252,8 @@ def main():
             target_poses,
             iter_number,
         )
-        # fig.savefig(str(save_file), bbox_inches='tight')
+        save_file = save_dir / 'iter_{}.png'.format(iter_number)
+        fig.savefig(str(save_file), bbox_inches='tight')
 
 if __name__ == '__main__':
     main()
