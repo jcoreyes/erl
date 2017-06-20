@@ -7,6 +7,8 @@ import os
 from os.path import join
 import json
 from collections import defaultdict, OrderedDict
+
+from railrl.misc.data_processing import get_dirs
 from railrl.pythonplusplus import nested_dict_to_dot_map_dict
 import seaborn as sns
 
@@ -35,11 +37,6 @@ def get_unique_param_to_values(all_variants):
 def is_numeric(x):
     return isinstance(x, int) or isinstance(x, float)
 
-
-def get_dirs(root):
-    for root, directories, filenames in os.walk(root):
-        for directory in directories:
-            yield os.path.join(root, directory)
 
 def main():
     parser = argparse.ArgumentParser()

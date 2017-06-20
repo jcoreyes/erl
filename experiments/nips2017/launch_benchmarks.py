@@ -3,6 +3,9 @@ from railrl.envs.pygame.water_maze import (
     WaterMaze,
     WaterMazeMemory,
     WaterMazeEasy,
+    WaterMazeEasy1D,
+    WaterMaze1D,
+    WaterMazeMemory1D,
 )
 from railrl.launchers.launcher_util import (
     run_experiment,
@@ -21,25 +24,27 @@ from railrl.misc.hyperparameter import DeterministicHyperparameterSweeper
 if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
-    exp_prefix = "dev-6-14-launch-benchmark"
+    exp_prefix = "6-18-launch-benchmark-1d-ddpg-no-horizon-and-discount-p99"
 
     # n_seeds = 5
     # mode = "ec2"
-    # exp_prefix = "benchmark-6-14-trpo-water-mazes-H25"
+    # exp_prefix = "fig1-6-15-ddpg-trpo-hl-h25-correct"
 
     # env_class = HighLow
-    env_class = WaterMazeMemory
-    env_class = WaterMaze
-    env_class = WaterMazeEasy
+    # env_class = WaterMazeMemory
+    # env_class = WaterMaze
+    # env_class = WaterMazeEasy
+    env_class = WaterMazeEasy1D
+    # env_class = WaterMaze1D
 
     use_gpu = True
     if mode != "here":
         use_gpu = False
 
     H = 25
-    num_steps_per_iteration = 100
+    num_steps_per_iteration = 1000
     num_steps_per_eval = 1000
-    num_iterations = 100
+    num_iterations = 10
     batch_size = 200
     memory_dim = 30
     # noinspection PyTypeChecker
@@ -67,7 +72,7 @@ if __name__ == '__main__':
         # rdpg_launcher,
     ]:
         search_space = {
-            # 'env_class': [WaterMaze, WaterMazeEasy, WaterMazeMemory],
+            # 'env_class': [WaterMaze1D, WaterMazeEasy1D, WaterMazeMemory1D],
         }
         sweeper = DeterministicHyperparameterSweeper(search_space,
                                                      default_parameters=variant)
@@ -85,4 +90,5 @@ if __name__ == '__main__':
                     mode=mode,
                     variant=variant,
                     exp_id=exp_id,
+                    snapshot_mode='all',
                 )

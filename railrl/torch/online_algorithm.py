@@ -66,6 +66,8 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         self._start_worker()
         self.training_mode(False)
         old_table_keys = None
+        params = self.get_epoch_snapshot(-1)
+        logger.save_itr_params(-1, params)
         for epoch in range(self.num_epochs):
             logger.push_prefix('Iteration #%d | ' % epoch)
             start_time = time.time()

@@ -1,3 +1,13 @@
+"""
+This script generates a bunch of plots that show
+
+    Final `ylabel` vs variant
+
+Usage:
+```
+$ python analyze_variants.py path/to/data/folder --ylabel="AverageReturn"
+```
+"""
 import argparse
 import matplotlib.pyplot as plt
 import numpy as np

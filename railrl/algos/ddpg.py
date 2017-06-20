@@ -147,6 +147,7 @@ class DDPG(OnlineAlgorithm):
         # as input the output of the _policy. See Equation (6) of "Deterministic
         # Policy Gradient Algorithms" ICML 2014.
         self.qf_with_action_input = self.qf.get_weight_tied_copy(
+            observation_input=None,
             action_input=self.policy.output
         )
 
