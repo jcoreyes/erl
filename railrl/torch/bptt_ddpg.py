@@ -354,6 +354,7 @@ class BpttDdpg(OnlineAlgorithm):
         statistics = self._statistics_from_subtraj_batch(
             subtraj_batch, stat_prefix=stat_prefix
         )
+        import ipdb; ipdb.set_trace()
         rewards = np.hstack([path["rewards"] for path in paths])
         returns = [sum(path["rewards"]) for path in paths]
         discounted_returns = [
@@ -427,7 +428,7 @@ class BpttDdpg(OnlineAlgorithm):
             self.pool.num_subtrajs_can_sample(validation=True) >= 1
             and self.pool.num_subtrajs_can_sample(validation=False) >= 1
             and len(exploration_paths) > 0
-            and any([len(path['terminals']) > self.subtraj_length
+            and any([len(path['terminals']) >= self.subtraj_length
                      for path in exploration_paths])
             # Technically, I should also check that the exploration path has
             # enough subtraj batches, but whatever.
