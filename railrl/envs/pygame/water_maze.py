@@ -21,6 +21,7 @@ class WaterMaze(Serializable, Env):
             self,
             horizon=200,
             render_dt_msec=30,
+            give_time=False,
     ):
         Serializable.quick_init(self, locals())
         self.MAX_TARGET_DISTANCE = self.BOUNDARY_DIST - self.TARGET_RADIUS
@@ -29,6 +30,7 @@ class WaterMaze(Serializable, Env):
         self._t = 0
         self._target_position = None
         self._position = None
+        self.give_time = give_time
 
         self._action_space = self._create_action_space()
         self._observation_space = self._create_observation_space()
@@ -40,10 +42,12 @@ class WaterMaze(Serializable, Env):
         return Box(np.array([-1, -1]), np.array([1, 1]))
 
     def _create_observation_space(self):
-        return Box(
-            np.array([-self.BOUNDARY_DIST, -self.BOUNDARY_DIST, 0]),
-            np.array([self.BOUNDARY_DIST, self.BOUNDARY_DIST, 1])
-        )
+        low = np.array([-self.BOUNDARY_DIST, -self.BOUNDARY_DIST, 0])
+        high = np.array([self.BOUNDARY_DIST, self.BOUNDARY_DIST, 1])
+        if self.give_time:
+            low = np.hstack((low, [0]))
+            high = np.hstack((high, [self.horizon]))
+        return Box(low, high)
 
     def _step(self, velocities):
         self._t += 1
@@ -82,7 +86,10 @@ class WaterMaze(Serializable, Env):
         """
         dist = np.linalg.norm(self._position - self._target_position)
         on_platform = dist <= self.TARGET_RADIUS
-        return np.hstack((self._position, [on_platform])), on_platform
+        obs = np.hstack((self._position, [on_platform]))
+        if self.give_time:
+            obs = np.hstack((obs, [self._t]))
+        return obs, on_platform
 
     def log_diagnostics(self, paths, **kwargs):
         list_of_rewards, terminals, obs, actions, next_obs = split_paths(paths)
@@ -92,7 +99,7 @@ class WaterMaze(Serializable, Env):
             returns.append(np.sum(rewards))
         last_statistics = OrderedDict()
         last_statistics.update(create_stats_ordered_dict(
-            'UndiscountedReturns',
+            'Undiscounted Returns',
             returns,
         ))
         last_statistics.update(create_stats_ordered_dict(
@@ -154,12 +161,13 @@ class WaterMazeEasy(WaterMaze):
     See the target position at all time steps.
     """
     def _create_observation_space(self):
-        return Box(
-            np.array([-self.BOUNDARY_DIST, -self.BOUNDARY_DIST, 0,
-                      -self.BOUNDARY_DIST, -self.BOUNDARY_DIST]),
-            np.array([self.BOUNDARY_DIST, self.BOUNDARY_DIST, 1,
-                      self.BOUNDARY_DIST, self.BOUNDARY_DIST])
-        )
+        box = super()._create_observation_space()
+        low = np.hstack((box.low, [-self.BOUNDARY_DIST, -self.BOUNDARY_DIST]))
+        high = np.hstack((box.high, [self.BOUNDARY_DIST, self.BOUNDARY_DIST]))
+        return Box(low, high)
+
+    def _get_hint(self):
+        return self._target_position
 
     def _get_observation_and_on_platform(self):
         """
@@ -167,30 +175,21 @@ class WaterMazeEasy(WaterMaze):
         - Observation vector
         - Flag: on platform or not.
         """
-        dist = np.linalg.norm(self._position - self._target_position)
-        on_platform = dist <= self.TARGET_RADIUS
-        return np.hstack(
-            (self._position, [on_platform], self._target_position)
-        ), on_platform
+        old_obs, on_platform = super()._get_observation_and_on_platform()
+        hint = self._get_hint()
+        obs = np.hstack((old_obs, hint))
+        return obs, on_platform
 
 
 class WaterMazeMemory(WaterMazeEasy):
     """
     See the target position at the very first time step.
     """
-    def _get_observation_and_on_platform(self):
-        """
-        :return: Tuple
-        - Observation vector
-        - Flag: on platform or not.
-        """
-        dist = np.linalg.norm(self._position - self._target_position)
-        on_platform = dist <= self.TARGET_RADIUS
+    def _get_hint(self):
         if self._t == 0:
-            hint = self._target_position
+            return self._target_position
         else:
-            hint = np.zeros_like(self._target_position)
-        return np.hstack((self._position, [on_platform], hint)), on_platform
+            return np.zeros_like(self._target_position)
 
 
 class WaterMaze1D(WaterMaze):
@@ -198,10 +197,12 @@ class WaterMaze1D(WaterMaze):
         return Box(np.array([-1]), np.array([1]))
 
     def _create_observation_space(self):
-        return Box(
-            np.array([-self.BOUNDARY_DIST, 0]),
-            np.array([self.BOUNDARY_DIST, 1])
-        )
+        low = np.array([-self.BOUNDARY_DIST, 0])
+        high = np.array([self.BOUNDARY_DIST, 1])
+        if self.give_time:
+            low = np.hstack((low, [0]))
+            high = np.hstack((high, [self.horizon]))
+        return Box(low, high)
 
     def _step(self, velocity):
         velocities = np.hstack((velocity, 0))
@@ -210,7 +211,10 @@ class WaterMaze1D(WaterMaze):
     def _get_observation_and_on_platform(self):
         dist = np.linalg.norm(self._position - self._target_position)
         on_platform = dist <= self.TARGET_RADIUS
-        return np.hstack((self._position[0], [on_platform])), on_platform
+        obs = np.hstack((self._position[0], [on_platform]))
+        if self.give_time:
+            obs = np.hstack((obs, [self._t]))
+        return obs, on_platform
 
     def _reset(self):
         self._target_position = np.random.uniform(
@@ -230,10 +234,13 @@ class WaterMazeEasy1D(WaterMaze1D):
     See the target position at all time steps.
     """
     def _create_observation_space(self):
-        return Box(
-            np.array([-self.BOUNDARY_DIST, 0, -self.BOUNDARY_DIST]),
-            np.array([self.BOUNDARY_DIST, 1, self.BOUNDARY_DIST]),
-        )
+        box = super()._create_observation_space()
+        low = np.hstack((box.low, [-self.BOUNDARY_DIST]))
+        high = np.hstack((box.high, [self.BOUNDARY_DIST]))
+        return Box(low, high)
+
+    def _get_hint(self):
+        return self._target_position[0]
 
     def _get_observation_and_on_platform(self):
         """
@@ -241,28 +248,18 @@ class WaterMazeEasy1D(WaterMaze1D):
         - Observation vector
         - Flag: on platform or not.
         """
-        dist = np.linalg.norm(self._position - self._target_position)
-        on_platform = dist <= self.TARGET_RADIUS
-        return np.hstack(
-            (self._position[0], [on_platform], self._target_position[0])
-        ), on_platform
+        old_obs, on_platform = super()._get_observation_and_on_platform()
+        hint = self._get_hint()
+        obs = np.hstack((old_obs, hint))
+        return obs, on_platform
 
 
 class WaterMazeMemory1D(WaterMazeEasy1D):
     """
     See the target position at the very first time step.
     """
-    def _get_observation_and_on_platform(self):
-        """
-        :return: Tuple
-        - Observation vector
-        - Flag: on platform or not.
-        """
-        dist = np.linalg.norm(self._position - self._target_position)
-        on_platform = dist <= self.TARGET_RADIUS
+    def _get_hint(self):
         if self._t == 0:
-            print("hit")
-            hint = self._target_position[0]
+            return self._target_position[0]
         else:
-            hint = np.zeros_like(self._target_position[0])
-        return np.hstack((self._position[0], [on_platform], hint)), on_platform
+            return 0
