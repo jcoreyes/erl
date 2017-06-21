@@ -49,12 +49,12 @@ def make_vector_field(eval_func, x_bounds, y_bounds, *, resolution=10,
     dx_values = np.zeros((resolution, resolution))
     dy_values = np.zeros((resolution, resolution))
 
-    for i in range(resolution):
-        for j in range(resolution):
-            value, dx, dy = eval_func(x_values[i], y_values[j])
-            values[i, j] = value
-            dx_values[i, j] = dx
-            dy_values[i, j] = dy
+    for x in range(resolution):
+        for y in range(resolution):
+            value, dx, dy = eval_func(x_values[x], y_values[y])
+            values[x, y] = value
+            dx_values[x, y] = dx
+            dy_values[x, y] = dy
     return VectorField(
         values=values,
         dx_values=dx_values,
@@ -73,17 +73,12 @@ def plot_heatmap(fig, ax, heatmap):
         cmap=plt.get_cmap('plasma'),
         interpolation='nearest',
         aspect='auto',
+        origin='bottom',  # <-- Important! By default top left is (0, 0)
     )
     divider = make_axes_locatable(ax)
     cax = divider.append_axes('right', size='5%', pad=0.05)
     fig.colorbar(im, cax=cax, orientation='vertical')
     return im
-    # sns.heatmap(
-    #     heatmap.values,
-    #     ax=ax,
-    #     xticklabels=x,
-    #     yticklabels=y,
-    # )
 
 
 def plot_vector_field(fig, ax, vector_field, skip_rate=1):
@@ -95,6 +90,7 @@ def plot_vector_field(fig, ax, vector_field, skip_rate=1):
         cmap=plt.get_cmap('plasma'),
         interpolation='nearest',
         aspect='auto',
+        origin='bottom',  # <-- Important! By default top left is (0, 0)
     )
     x, y = np.meshgrid(x, y)
     ax.quiver(x[skip], y[skip], dx[skip], dy[skip])

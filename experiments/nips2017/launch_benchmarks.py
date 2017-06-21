@@ -24,7 +24,7 @@ from railrl.misc.hyperparameter import DeterministicHyperparameterSweeper
 if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
-    exp_prefix = "6-20-launch-benchmark-easy-2d-ddpg-for-critic-grad-get-time"
+    exp_prefix = "6-20-launch-benchmark-easy-1d-ddpg-critic-grad-get-time-relu"
 
     # n_seeds = 5
     # mode = "ec2"
@@ -33,8 +33,8 @@ if __name__ == '__main__':
     # env_class = HighLow
     # env_class = WaterMazeMemory
     # env_class = WaterMaze
-    env_class = WaterMazeEasy
-    # env_class = WaterMazeEasy1D
+    # env_class = WaterMazeEasy
+    env_class = WaterMazeEasy1D
     # env_class = WaterMaze1D
 
     use_gpu = True

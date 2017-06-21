@@ -17,9 +17,6 @@ from torch.autograd import Variable
 
 from railrl.envs.pygame.water_maze import WaterMaze
 import railrl.misc.visualization_util as vu
-from visualization.memory_bptt.analyze_critic_watermaze_1d import (
-    create_qf_eval_fnct, create_optimal_qf
-)
 
 USE_TIME = False
 
@@ -62,22 +59,20 @@ def create_figure(
 
 
 def create_qf_derivative_eval_fnct(qf, target_pos, time):
-    def evaluate(pos, vel):
-        dist = np.linalg.norm(pos - target_pos)
+    def evaluate(x_pos, x_vel):
+        dist = np.linalg.norm(x_pos - target_pos)
         on_target = dist <= WaterMaze.TARGET_RADIUS
-        state = np.hstack([pos, on_target, time, target_pos])
+        state = np.hstack([x_pos, on_target, time, target_pos])
         state = Variable(torch.from_numpy(state)).float().unsqueeze(0)
 
-        action = np.array([[vel]])
-        action_var = Variable(
-            torch.from_numpy(action).float(),
-            requires_grad=True,
+        action = np.array([[x_vel]])
+        action = Variable(
+            torch.from_numpy(action).float(), requires_grad=True,
         )
-        out = qf(state, action_var)
+        out = qf(state, action)
         out.backward()
-        dq_da = action_var.grad.data.numpy().flatten()
-        value = out.data.numpy().flatten()[0]
-        return value, 0, dq_da
+        dq_da = action.grad.data.numpy()
+        return out.data.numpy(), 0, dq_da
     return evaluate
 
 
@@ -102,8 +97,7 @@ def main():
 
     path_and_iter = get_path_and_iters(base)
 
-    resolution = 10
-    discount_factor = 0.99
+    resolution = 20
     state_bounds = (-WaterMaze.BOUNDARY_DIST, WaterMaze.BOUNDARY_DIST)
     action_bounds = (-1, 1)
 
@@ -136,8 +130,6 @@ def main():
         fig = create_figure(
             target_poses,
             *list_of_vector_fields,
-            # vector_fields_t0,
-            # vector_fields_t24,
         )
         fig.suptitle("Iteration = {0}".format(iter_number))
         save_dir = base / "derivative_images"
