@@ -21,7 +21,7 @@ class WaterMaze(Serializable, Env):
             self,
             horizon=200,
             render_dt_msec=30,
-            give_time=False,
+            give_time=True,
     ):
         Serializable.quick_init(self, locals())
         self.MAX_TARGET_DISTANCE = self.BOUNDARY_DIST - self.TARGET_RADIUS
