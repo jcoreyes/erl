@@ -1,45 +1,30 @@
 """
 For the heatmap, I index into the Q function with Q[state, action]
 """
-from collections import namedtuple
 
-import os
 import argparse
-
 import itertools
+import os
+import re
+from operator import itemgetter
+from pathlib import Path
+
 import joblib
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 import seaborn as sns
 import torch
 from torch.autograd import Variable
-from pathlib import Path
-import re
-from operator import itemgetter
 
 from railrl.envs.pygame.water_maze import WaterMaze
+import railrl.misc.visualization_util as vu
 
-HeatMap = namedtuple("HeatMap", ['values', 'state_values', 'action_values'])
-
-
-USE_TIME = False
-
-
-def make_heat_map(eval_func, state_bounds, action_bounds, *, resolution=10):
-    state_values = np.linspace(*state_bounds, num=resolution)
-    action_values = np.linspace(*action_bounds, num=resolution)
-    map = np.zeros((resolution, resolution))
-
-    for i in range(resolution):
-        for j in range(resolution):
-            map[i, j] = eval_func(state_values[i], action_values[j])
-    return HeatMap(map, state_values, action_values)
+USE_TIME = True
 
 
 def create_figure(
         titles,
         list_of_list_of_heatmaps,
-        # optimal_heatmaps,
         target_poses,
         iteration_number
 ):
@@ -50,14 +35,6 @@ def create_figure(
     fig, axes = plt.subplots(
         2 * num_heatmaps, series_length, figsize=(width, height)
     )
-    # vmax = max(itertools.chain(
-    #     [hm.values.max() for hm in estimated_heatmaps],
-    #     [hm.values.max() for hm in optimal_heatmaps],
-    # ))
-    # vmin = min(itertools.chain(
-    #     [hm.values.min() for hm in estimated_heatmaps],
-    #     [hm.values.min() for hm in optimal_heatmaps],
-    # ))
     for i, (heatmaps, target_pos) in enumerate(
             zip(zip(*list_of_list_of_heatmaps), target_poses)
     ):
@@ -67,11 +44,7 @@ def create_figure(
                       -WaterMaze.BOUNDARY_DIST)
         max_pos = min(target_pos + WaterMaze.TARGET_RADIUS,
                       WaterMaze.BOUNDARY_DIST)
-        state_values = heatmaps[0].state_values
-        target_right_of = min_pos <= state_values
-        target_left_of = state_values <= max_pos
-        first_index_on = np.where(target_right_of)[0][0]
-        last_index_on = np.where(target_left_of)[0][-1] + 1
+        state_values = heatmaps[0].x_values
 
         names_and_heatmaps = list(zip(titles, heatmaps))
         num_heatmaps = len(names_and_heatmaps)
@@ -81,15 +54,8 @@ def create_figure(
         """
         for j, (title, heatmap) in enumerate(names_and_heatmaps):
             ax = axes[j][i]
-            sns.heatmap(
-                heatmap.values,
-                ax=ax,
-                xticklabels=False,
-                yticklabels=False,
-                # vmax=vmax,
-                # vmin=vmin,
-            )
-            ax.vlines([first_index_on, last_index_on], *ax.get_ylim())
+            vu.plot_heatmap(fig, ax, heatmap)
+            ax.vlines([min_pos, max_pos], *ax.get_ylim())
             ax.set_xlabel("Position")
             ax.set_ylabel("Velocity")
             ax.set_title("{0} QF. Target Position = {1}".format(
@@ -112,11 +78,10 @@ def create_figure(
             ))
 
     fig.suptitle("Iteration = {0}".format(iteration_number))
-    plt.show()
     return fig
 
 
-def create_eval_fnct(qf, target_pos, time):
+def create_qf_eval_fnct(qf, target_pos, time):
     def evaluate(x_pos, x_vel):
         dist = np.linalg.norm(x_pos - target_pos)
         on_target = dist <= WaterMaze.TARGET_RADIUS
@@ -195,13 +160,9 @@ def main():
     for pkl_path in base.glob('*.pkl'):
         match = re.search('_(-*[0-9]*).pkl$', str(pkl_path))
         iter_number = int(match.group(1))
-        if iter_number > 8:
-            path_and_iter.append((pkl_path, iter_number))
+        path_and_iter.append((pkl_path, iter_number))
     path_and_iter = sorted(path_and_iter, key=itemgetter(1))
 
-    save_dir = base / "images"
-    if not save_dir.exists():
-        save_dir.mkdir()
 
     resolution = 10
     discount_factor = 0.99
@@ -218,18 +179,18 @@ def main():
         optimal_heatmaps = []
         target_poses = np.linspace(-5, 5, num=5)
         for target_pos in target_poses:
-            qf_eval_t0 = create_eval_fnct(qf, target_pos, 0)
-            heatmaps_t0.append(make_heat_map(
+            qf_eval_t0 = create_qf_eval_fnct(qf, target_pos, 0)
+            heatmaps_t0.append(vu.make_heat_map(
                 qf_eval_t0,
-                state_bounds=state_bounds,
-                action_bounds=action_bounds,
+                x_bounds=state_bounds,
+                y_bounds=action_bounds,
                 resolution=resolution,
             ))
-            qf_eval_t24 = create_eval_fnct(qf, target_pos, 24)
-            heatmaps_t24.append(make_heat_map(
+            qf_eval_t24 = create_qf_eval_fnct(qf, target_pos, 24)
+            heatmaps_t24.append(vu.make_heat_map(
                 qf_eval_t24,
-                state_bounds=state_bounds,
-                action_bounds=action_bounds,
+                x_bounds=state_bounds,
+                y_bounds=action_bounds,
                 resolution=resolution,
             ))
             optimal_qf_eval = create_optimal_qf(
@@ -239,10 +200,10 @@ def main():
                 resolution=resolution,
                 discount_factor=discount_factor,
             )
-            optimal_heatmaps.append(make_heat_map(
+            optimal_heatmaps.append(vu.make_heat_map(
                 optimal_qf_eval,
-                state_bounds=state_bounds,
-                action_bounds=action_bounds,
+                x_bounds=state_bounds,
+                y_bounds=action_bounds,
                 resolution=resolution,
             ))
 
@@ -252,6 +213,9 @@ def main():
             target_poses,
             iter_number,
         )
+        save_dir = base / "images"
+        if not save_dir.exists():
+            save_dir.mkdir()
         save_file = save_dir / 'iter_{}.png'.format(iter_number)
         fig.savefig(str(save_file), bbox_inches='tight')
 
