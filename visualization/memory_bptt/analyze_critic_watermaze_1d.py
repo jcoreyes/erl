@@ -150,19 +150,26 @@ def create_optimal_qf(target_pos, state_bounds, action_bounds, discount_factor,
     return qf_fnct
 
 
+def get_path_and_iters(dir_path):
+    path_and_iter = []
+    for pkl_path in dir_path.glob('*.pkl'):
+        match = re.search('_(-*[0-9]*).pkl$', str(pkl_path))
+        if match is None:  # only saved one param
+            path_and_iter.append((pkl_path, 0))
+            break
+        iter_number = int(match.group(1))
+        path_and_iter.append((pkl_path, iter_number))
+    return sorted(path_and_iter, key=itemgetter(1))
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("folder_path", type=str)
     args = parser.parse_args()
     base = Path(os.getcwd())
     base = base / args.folder_path
-    path_and_iter = []
-    for pkl_path in base.glob('*.pkl'):
-        match = re.search('_(-*[0-9]*).pkl$', str(pkl_path))
-        iter_number = int(match.group(1))
-        path_and_iter.append((pkl_path, iter_number))
-    path_and_iter = sorted(path_and_iter, key=itemgetter(1))
 
+    path_and_iter = get_path_and_iters(base)
 
     resolution = 10
     discount_factor = 0.99
