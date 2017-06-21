@@ -55,11 +55,11 @@ class NAF(OnlineAlgorithm):
         Optimize Critic.
         """
         # Generate y target using target policies
-        _, _, target_values = self.target_qf((next_obs, None))
-        y_target = rewards + (1. - terminals) * self.discount * target_values
+        _, _, v_pred = self.target_qf(next_obs, None)
+        y_target = rewards + (1. - terminals) * self.discount * v_pred
         # noinspection PyUnresolvedReferences
         y_target = y_target.detach()
-        y_pred = self.qf(obs, actions)
+        _, y_pred, _ = self.qf(obs, actions)
         qf_loss = self.qf_criterion(y_pred, y_target)
 
         self.qf_optimizer.zero_grad()
@@ -225,22 +225,22 @@ class NafPolicy(PyTorchModule):
         self.L.weight.data.mul_(0.1)
         self.L.bias.data.mul_(0.1)
 
-        self.tril_mask = Variable(torch.tril(torch.ones(
+        self.tril_mask = ptu.Variable(torch.tril(torch.ones(
             action_dim, action_dim), k=-1).unsqueeze(0))
-        self.diag_mask = Variable(torch.diag(torch.diag(
+        self.diag_mask = ptu.Variable(torch.diag(torch.diag(
             torch.ones(action_dim, action_dim))).unsqueeze(0))
 
-    def forward(self, inputs):
-        x, u = inputs
-        x = self.bn0(x)
-        x = F.tanh(self.linear1(x))
-        x = F.tanh(self.linear2(x))
+
+    def forward(self, state, action):
+        x = self.bn0(state)
+        x = torch.tanh(self.linear1(x))
+        x = torch.tanh(self.linear2(x))
 
         V = self.V(x)
-        mu = F.tanh(self.mu(x))
+        mu = torch.tanh(self.mu(x))
 
         Q = None
-        if u is not None:
+        if action is not None:
             num_outputs = mu.size(1)
             L = self.L(x).view(-1, num_outputs, num_outputs)
             L = L * \
@@ -248,7 +248,7 @@ class NafPolicy(PyTorchModule):
                     L) + torch.exp(L) * self.diag_mask.expand_as(L)
             P = torch.bmm(L, L.transpose(2, 1))
 
-            u_mu = (u - mu).unsqueeze(2)
+            u_mu = (action - mu).unsqueeze(2)
             A = -0.5 * \
                 torch.bmm(torch.bmm(u_mu.transpose(2, 1), P), u_mu)[:, :, 0]
 
@@ -258,9 +258,7 @@ class NafPolicy(PyTorchModule):
 
     def get_action(self, obs):
         obs = np.expand_dims(obs, axis=0)
-        obs = np.expand_dims(obs, axis=1)
         obs = Variable(ptu.from_numpy(obs).float(), requires_grad=False)
-        input = (obs, None)
-        action = self.__call__(input)
+        action, _, _ = self.__call__(obs, None)
         action = action.squeeze(0)
         return ptu.get_numpy(action), {}

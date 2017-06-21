@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 from torch import nn as nn
-from torch.autograd import Variable
+from torch.autograd import Variable as TorchVariable
 from torch.nn import functional as F
 
 
@@ -77,10 +77,7 @@ def alpha_dropout(
     keep_prob = 1 - p
 
     random_tensor = keep_prob + torch.rand(x.size())
-    if _use_gpu:
-        binary_tensor = Variable(torch.floor(random_tensor).cuda())
-    else:
-        binary_tensor = Variable(torch.floor(random_tensor))
+    binary_tensor = Variable(torch.floor(random_tensor))
     x = x.mul(binary_tensor)
     ret = x + alpha * (1 - binary_tensor)
     ret.mul_(a).add_(b)
@@ -113,6 +110,13 @@ def FloatTensor(*args, **kwargs):
     else:
         # noinspection PyArgumentList
         return torch.FloatTensor(*args, **kwargs)
+
+
+def Variable(*args, **kwargs):
+    var = TorchVariable(*args, **kwargs)
+    if _use_gpu:
+        var = var.cuda()
+    return var
 
 
 def from_numpy(*args, **kwargs):
