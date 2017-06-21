@@ -220,7 +220,6 @@ def super_ddpg_launcher(variant, sub_launcher, version):
     num_steps_per_iteration = variant['num_steps_per_iteration']
     num_steps_per_eval = variant['num_steps_per_eval']
     num_iterations = variant['num_iterations']
-    use_gpu = variant['use_gpu']
     batch_size = variant['batch_size']
     new_variant = update_variant(
         variant,
@@ -233,7 +232,6 @@ def super_ddpg_launcher(variant, sub_launcher, version):
                 num_steps_per_eval=num_steps_per_eval,
                 max_path_length=H,
                 discount=1,
-                use_gpu=use_gpu,
             ),
             ou_params=dict(
                 max_sigma=1,

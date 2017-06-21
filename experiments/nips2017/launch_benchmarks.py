@@ -24,7 +24,7 @@ from railrl.misc.hyperparameter import DeterministicHyperparameterSweeper
 if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
-    exp_prefix = "6-18-launch-benchmark-1d-ddpg-no-horizon-and-discount-p99"
+    exp_prefix = "6-20-launch-benchmark-easy-1d-ddpg-critic-grad-get-time-relu"
 
     # n_seeds = 5
     # mode = "ec2"
@@ -91,4 +91,5 @@ if __name__ == '__main__':
                     variant=variant,
                     exp_id=exp_id,
                     snapshot_mode='all',
+                    use_gpu=use_gpu,
                 )
