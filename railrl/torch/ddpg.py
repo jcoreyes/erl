@@ -8,12 +8,7 @@ from torch.autograd import Variable
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import get_average_returns
 from railrl.torch.online_algorithm import OnlineAlgorithm
-from railrl.torch.pytorch_util import (
-    soft_update_from_to,
-    copy_model_params_from_to,
-    gpu_enabled,
-    from_numpy,
-)
+import railrl.torch.pytorch_util as ptu
 from rllab.misc import logger, special
 
 
@@ -51,7 +46,7 @@ class DDPG(OnlineAlgorithm):
                                        lr=self.qf_learning_rate)
         self.policy_optimizer = optim.Adam(self.policy.parameters(),
                                            lr=self.policy_learning_rate)
-        if gpu_enabled():
+        if ptu.gpu_enabled():
             self.policy.cuda()
             self.target_policy.cuda()
             self.qf.cuda()
@@ -102,12 +97,12 @@ class DDPG(OnlineAlgorithm):
         Update Target Networks
         """
         if self.use_soft_update:
-            soft_update_from_to(self.target_policy, self.policy, self.tau)
-            soft_update_from_to(self.target_qf, self.qf, self.tau)
+            ptu.soft_update_from_to(self.target_policy, self.policy, self.tau)
+            ptu.soft_update_from_to(self.target_qf, self.qf, self.tau)
         else:
             if n_steps_total % self.target_hard_update_period == 0:
-                copy_model_params_from_to(self.qf, self.target_qf)
-                copy_model_params_from_to(self.policy, self.target_policy)
+                ptu.copy_model_params_from_to(self.qf, self.target_qf)
+                ptu.copy_model_params_from_to(self.policy, self.target_policy)
 
     def training_mode(self, mode):
         self.policy.train(mode)
@@ -141,7 +136,7 @@ class DDPG(OnlineAlgorithm):
     def get_batch(self):
         batch = self.pool.random_batch(self.batch_size, flatten=True)
         torch_batch = {
-            k: Variable(from_numpy(array).float(), requires_grad=False)
+            k: Variable(ptu.from_numpy(array).float(), requires_grad=False)
             for k, array in batch.items()
         }
         rewards = torch_batch['rewards']
