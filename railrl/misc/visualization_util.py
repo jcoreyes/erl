@@ -6,6 +6,7 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 
+# The first dimension of values correspond to the x axis
 HeatMap = namedtuple("HeatMap", ['values', 'x_values', 'y_values', 'info'])
 VectorField = namedtuple("VectorField",
                          ['values', 'dx_values', 'dy_values', 'x_values',
@@ -70,7 +71,7 @@ def make_vector_field(eval_func, x_bounds, y_bounds, *, resolution=10,
 def plot_heatmap(fig, ax, heatmap):
     p, x, y, _ = heatmap
     im = ax.imshow(
-        p,
+        np.swapaxes(p, 0, 1),  # imshow uses first axis as y-axis
         extent=[x.min(), x.max(), y.min(), y.max()],
         cmap=plt.get_cmap('plasma'),
         interpolation='nearest',
@@ -87,7 +88,7 @@ def plot_vector_field(fig, ax, vector_field, skip_rate=1):
     skip = (slice(None, None, skip_rate), slice(None, None, skip_rate))
     p, dx, dy, x, y, _ = vector_field
     im = ax.imshow(
-        p,
+        np.swapaxes(p, 0, 1),  # imshow uses first axis as y-axis
         extent=[x.min(), x.max(), y.min(), y.max()],
         cmap=plt.get_cmap('plasma'),
         interpolation='nearest',
