@@ -1,42 +1,46 @@
 import numpy as np
+import math
 from pathlib import Path
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils import data
-from torchvision import datasets, transforms
-from torch.autograd import Variable
 import railrl.misc.visualization_util as vu
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from railrl.launchers.launcher_util import setup_logger
 from railrl.misc.html_report import HTMLReport
 from railrl.pythonplusplus import line_logger
+from railrl.torch import pytorch_util as ptu
+from railrl.torch.modules import SelfOuterProductLinear
+from railrl.torch.pytorch_util import double_moments
 
 
-class BatchMatrixMultiply(nn.Module):
-    def __init__(self, state_size, size):
+class BatchSquare(nn.Module):
+    def __init__(self, hidden_size, action_dim):
         super().__init__()
-        self.state_size = size
-        self.size = size
-        self.L = nn.Linear(state_size, size**2)
+        self.size = action_dim
+
+        self.L = nn.Linear(hidden_size, action_dim ** 2)
         self.L.weight.data.mul_(0.1)
         self.L.bias.data.mul_(0.1)
-        self.tril_mask = Variable(torch.tril(torch.ones(size, size), k=-1).unsqueeze(0))
-        self.diag_mask = Variable(torch.diag(torch.diag(torch.ones(size, size))).unsqueeze(0))
+        self.tril_mask = ptu.Variable(
+            torch.tril(torch.ones(action_dim, action_dim), k=-1).unsqueeze(0)
+        )
+        self.diag_mask = ptu.Variable(
+            torch.diag(torch.diag(torch.ones(action_dim, action_dim))).unsqueeze(0)
+        )
 
-    def forward(self, x, term):
-        L = self.L(x).view(-1, self.size, self.size)
+    def forward(self, state, vector):
+        L = self.L(state).view(-1, self.size, self.size)
         L = L * (
             self.tril_mask.expand_as(L)
             + torch.exp(L) * self.diag_mask.expand_as(L)
         )
         P = torch.bmm(L, L.transpose(2, 1))
-        term = term.unsqueeze(2)
-        # return torch.bmm(torch.bmm(term.transpose(2, 1), P), term).squeeze(2)
-        return torch.bmm(term.transpose(2, 1), P).squeeze(1)
+        vector = vector.unsqueeze(2)
+        return torch.bmm(torch.bmm(vector.transpose(2, 1), P), vector).squeeze(2)
 
 
 class Polynomial(nn.Module):
@@ -45,34 +49,37 @@ class Polynomial(nn.Module):
         self.obs_dim = obs_dim
         self.action_dim = action_dim
 
-        self.vf_fc1_size = 100
-        self.vf_fc2_size = 200
-        self.vf = nn.Sequential(
-            nn.Linear(self.obs_dim, self.vf_fc1_size),
+        self.embed_fc1_size = 100
+        self.embed_size = 200
+
+        self.embed = nn.Sequential(
+            nn.Linear(self.obs_dim, self.embed_fc1_size),
             nn.Tanh(),
-            nn.Linear(self.vf_fc1_size, self.vf_fc2_size),
+            nn.Linear(self.embed_fc1_size, self.embed_size),
             nn.Tanh(),
-            nn.Linear(self.vf_fc2_size, 1),
         )
 
-        self.bmm1 = BatchMatrixMultiply(self.obs_dim, self.action_dim)
-        self.bmm2 = BatchMatrixMultiply(self.obs_dim, self.action_dim)
-        self.bmm3 = BatchMatrixMultiply(self.obs_dim, self.action_dim)
+        self.mu = nn.Linear(self.embed_size, action_dim)
+        self.mu.weight.data.mul_(0.1)
+        self.mu.bias.data.mul_(0.1)
+
+        self.vf = nn.Sequential(
+            nn.Linear(self.embed_size, 1),
+        )
+
+        self.bs = BatchSquare(self.embed_size, self.action_dim)
 
     def forward(self, state, action):
-        V = self.vf(state)
+        embedded = self.embed(state)
 
-        h = self.bmm1(state, action)
-        h = self.bmm2(state, h + action)
-        h = self.bmm2(state, h + action)
+        V = self.vf(embedded)
+        mu = torch.tanh(self.mu(embedded))
+        A = self.bs(embedded, action - mu)
 
-        A = torch.bmm(h.unsqueeze(1), action.unsqueeze(2)).squeeze(2)
-        A = F.relu(A)
-
-        return A, V
+        return A, 0
 
 
-class FFModel(nn.Module):
+class SeparateDuelingFF(nn.Module):
     def __init__(self, obs_dim, action_dim):
         super().__init__()
         self.obs_dim = obs_dim
@@ -105,8 +112,63 @@ class FFModel(nn.Module):
         return A, V
 
 
+class ConcatFF(nn.Module):
+    def __init__(self, obs_dim, action_dim):
+        super().__init__()
+        self.obs_dim = obs_dim
+        self.action_dim = action_dim
+
+        self.fc1_size = 100
+        self.fc2_size = 100
+
+        self.af = nn.Sequential(
+            nn.Linear(self.obs_dim + self.action_dim, self.fc1_size),
+            nn.Tanh(),
+            nn.Linear(self.fc1_size, self.fc2_size),
+            nn.Tanh(),
+            nn.Linear(self.fc2_size, 1),
+        )
+
+    def forward(self, state, action):
+        A = self.af(torch.cat((state, action), dim=1))
+        return A, 0
+
+
+class OuterProductFF(nn.Module):
+    def __init__(self, obs_dim, action_dim):
+        super().__init__()
+        self.obs_dim = obs_dim
+        self.action_dim = action_dim
+
+        self.fc1_size = 100
+        self.fc2_size = 100
+
+        self.af = nn.Sequential(
+            SelfOuterProductLinear(self.obs_dim + self.action_dim,
+                      self.fc1_size),
+            nn.Tanh(),
+            # SelfOuterProductLinear(self.fc1_size, self.fc2_size),
+            nn.Linear(self.fc1_size, self.fc2_size),
+            nn.Tanh(),
+            # SelfOuterProductLinear(self.fc2_size, 1),
+            nn.Linear(self.fc2_size, 1),
+        )
+
+    def forward(self, state, action):
+        flat = torch.cat((state, action), dim=1)
+        # h = outer_product(flat, flat)
+        A = self.af(flat)
+        return A, 0
+
+
+def q_function_torch(state, action):
+    # return state**2 + action**2
+    return action**2
+
+
 def q_function(state, action):
-    return state**2 + state * action
+    # return state**2# + action**2
+    return action**2
 
 
 def uniform(size, bounds):
@@ -124,7 +186,7 @@ class FakeDataset(data.Dataset):
         self.state = uniform((size, obs_dim), state_bounds)
         self.action = uniform((size, action_dim), action_bounds)
         self.q_value = torch.sum(
-            q_function(self.state, self.action), dim=1,
+            q_function_torch(self.state, self.action), dim=1,
         )
 
     def __getitem__(self, index):
@@ -135,12 +197,20 @@ class FakeDataset(data.Dataset):
 
 
 def main():
+    ptu.set_gpu_mode(True)
+
     obs_dim = 1
     action_dim = 1
-    batch_size = 32
-    # model = Polynomial(obs_dim, action_dim)
-    model = FFModel(obs_dim, action_dim)
-    optimizer = optim.SGD(model.parameters(), lr=1e-5, momentum=0.5)
+    batch_size = 100
+
+    model = Polynomial(obs_dim, action_dim)
+    # model = SeparateDuelingFF(obs_dim, action_dim)
+    # model = ConcatFF(obs_dim, action_dim)
+    # model = OuterProductFF(obs_dim, action_dim)
+    version = model.__class__.__name__
+    # version = "dev"
+
+    optimizer = optim.SGD(model.parameters(), lr=1e-7, momentum=0.5)
     loss_fnct = nn.MSELoss()
 
     num_batches_per_print = 100
@@ -151,12 +221,15 @@ def main():
     action_bounds = (-10, 10)
     resolution = 20
 
-    setup_logger("polynomial-nn")
     base_dir = Path(
         "/home/vitchyr/git/rllab-rail/railrl/data/one-offs/polynomial-nn"
     )
-    report = HTMLReport(str(base_dir / "report.html"), images_per_row=2)
-
+    base_dir = base_dir / version
+    if not base_dir.exists():
+        base_dir.mkdir()
+    report_path = str(base_dir / "report.html")
+    report = HTMLReport(report_path, images_per_row=2)
+    print("Saving report to: {}".format(report_path))
 
     train_loader = data.DataLoader(
         FakeDataset(obs_dim, action_dim, train_size, state_bounds, action_bounds),
@@ -165,16 +238,18 @@ def main():
         FakeDataset(obs_dim, action_dim, test_size, state_bounds, action_bounds),
         batch_size=batch_size, shuffle=True)
 
+    model.cuda()
+
     def eval_model(state, action):
-        state = Variable(state, requires_grad=False)
-        action = Variable(action, requires_grad=False)
+        state = ptu.Variable(state, requires_grad=False)
+        action = ptu.Variable(action, requires_grad=False)
         a, v = model(state, action)
         return a + v
 
     def train(epoch):
         for batch_idx, (state, action, q_target) in enumerate(train_loader):
             q_estim = eval_model(state, action)
-            q_target = Variable(q_target, requires_grad=False)
+            q_target = ptu.Variable(q_target, requires_grad=False)
 
             loss = loss_fnct(q_estim, q_target)
             optimizer.zero_grad()
@@ -192,7 +267,7 @@ def main():
         test_losses = []
         for state, action, q_target in test_loader:
             q_estim = eval_model(state, action)
-            q_target = Variable(q_target, requires_grad=False)
+            q_target = ptu.Variable(q_target, requires_grad=False)
             loss = loss_fnct(q_estim, q_target)
             test_losses.append(loss.data[0])
 
@@ -212,11 +287,11 @@ def main():
         report.new_row()
 
     def eval_model_np(state, action):
-        state = Variable(torch.FloatTensor([[state]]), volatile=True)
-        action = Variable(torch.FloatTensor([[action]]), volatile=True)
+        state = ptu.Variable(ptu.FloatTensor([[state]]), volatile=True)
+        action = ptu.Variable(ptu.FloatTensor([[action]]), volatile=True)
         a, v = model(state, action)
         q = a + v
-        return q.data.numpy()[0]
+        return ptu.get_numpy(q)[0]
 
     def visualize_model(eval, title):
         fig = plt.figure()
@@ -240,6 +315,8 @@ def main():
         train(epoch)
         model.eval()
         test(epoch)
+
+    print("Report saved to: {}".format(report_path))
 
 if __name__ == '__main__':
     main()

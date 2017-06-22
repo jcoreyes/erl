@@ -88,6 +88,34 @@ def alpha_selu(x, training=False):
     return alpha_dropout(selu(x), training=training)
 
 
+def double_moments(x, y):
+    """
+    Returns the first two moments between x and y.
+
+    Specifically, for each vector x_i and y_i in x and y, compute their
+    outer-product. Flatten this resulting matrix and return it.
+
+    The first moments (i.e. x_i and y_i) are included by appending a `1` to x_i
+    and y_i before taking the outer product.
+    :param x: Shape [batch_size, feature_x_dim]
+    :param y: Shape [batch_size, feature_y_dim]
+    :return: Shape [batch_size, (feature_x_dim + 1) * (feature_y_dim + 1)
+    """
+    batch_size, x_dim = x.size()
+    _, y_dim = x.size()
+    x = torch.cat((x, ptu.Variable(torch.ones(batch_size, 1))), dim=1)
+    y = torch.cat((y, ptu.Variable(torch.ones(batch_size, 1))), dim=1)
+    x_dim += 1
+    y_dim += 1
+    x = x.unsqueeze(2)
+    y = y.unsqueeze(1)
+
+    outer_prod = (
+        x.expand(batch_size, x_dim, y_dim) * y.expand(batch_size, x_dim, y_dim)
+    )
+    return outer_prod.view(batch_size, -1)
+
+
 """
 GPU wrappers
 """
