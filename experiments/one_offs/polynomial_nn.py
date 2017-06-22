@@ -1,4 +1,5 @@
 import numpy as np
+from pathlib import Path
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -7,7 +8,11 @@ from torch.utils import data
 from torchvision import datasets, transforms
 from torch.autograd import Variable
 import railrl.misc.visualization_util as vu
+import matplotlib.pyplot as plt
+import seaborn as sns
 
+from railrl.launchers.launcher_util import setup_logger
+from railrl.misc.html_report import HTMLReport
 from railrl.pythonplusplus import line_logger
 
 
@@ -104,11 +109,20 @@ def q_function(state, action):
     return state**2 + state * action
 
 
+def uniform(size, bounds):
+    values = torch.rand(*size)
+    min_value, max_value = bounds
+    delta = max_value - min_value
+    values *= delta
+    values += min_value
+    return values
+
+
 class FakeDataset(data.Dataset):
-    def __init__(self, obs_dim, action_dim, size):
+    def __init__(self, obs_dim, action_dim, size, state_bounds, action_bounds):
         self.size = size
-        self.state = torch.rand(size, obs_dim)
-        self.action = torch.rand(size, action_dim)
+        self.state = uniform((size, obs_dim), state_bounds)
+        self.action = uniform((size, action_dim), action_bounds)
         self.q_value = torch.sum(
             q_function(self.state, self.action), dim=1,
         )
@@ -121,23 +135,34 @@ class FakeDataset(data.Dataset):
 
 
 def main():
-    obs_dim = 2
-    action_dim = 2
+    obs_dim = 1
+    action_dim = 1
     batch_size = 32
-    model = Polynomial(obs_dim, action_dim)
-    # model = FFModel(obs_dim, action_dim)
-    optimizer = optim.SGD(model.parameters(), lr=1e-2, momentum=0.5)
+    # model = Polynomial(obs_dim, action_dim)
+    model = FFModel(obs_dim, action_dim)
+    optimizer = optim.SGD(model.parameters(), lr=1e-5, momentum=0.5)
     loss_fnct = nn.MSELoss()
 
     num_batches_per_print = 100
     train_size = 100000
     test_size = 10000
 
+    state_bounds = (-10, 10)
+    action_bounds = (-10, 10)
+    resolution = 20
+
+    setup_logger("polynomial-nn")
+    base_dir = Path(
+        "/home/vitchyr/git/rllab-rail/railrl/data/one-offs/polynomial-nn"
+    )
+    report = HTMLReport(str(base_dir / "report.html"), images_per_row=2)
+
+
     train_loader = data.DataLoader(
-        FakeDataset(obs_dim, action_dim, train_size),
+        FakeDataset(obs_dim, action_dim, train_size, state_bounds, action_bounds),
         batch_size=batch_size, shuffle=True)
     test_loader = data.DataLoader(
-        FakeDataset(obs_dim, action_dim, test_size),
+        FakeDataset(obs_dim, action_dim, test_size, state_bounds, action_bounds),
         batch_size=batch_size, shuffle=True)
 
     def eval_model(state, action):
@@ -145,7 +170,6 @@ def main():
         action = Variable(action, requires_grad=False)
         a, v = model(state, action)
         return a + v
-
 
     def train(epoch):
         for batch_idx, (state, action, q_target) in enumerate(train_loader):
@@ -167,39 +191,55 @@ def main():
     def test(epoch):
         test_losses = []
         for state, action, q_target in test_loader:
-            state = Variable(state, requires_grad=False)
-            action = Variable(action, requires_grad=False)
+            q_estim = eval_model(state, action)
             q_target = Variable(q_target, requires_grad=False)
-
-            a, v = model(state, action)
-            q_estim = a + v
             loss = loss_fnct(q_estim, q_target)
             test_losses.append(loss.data[0])
 
         line_logger.newline()
         print('Test Epoch: {0}. Loss: {1}'.format(epoch, np.mean(test_losses)))
 
-    def visualize_model():
-        state_bounds = (-10, 10)
-        action_bounds = (-10, 10)
-        resolution = 10
-        true_heatmap = vu.make_heat_map(
-            q_function,
+        report.add_header("Epoch = {}".format(epoch))
+
+        fig = visualize_model(q_function, "True Q Function")
+        img = vu.save_image(fig)
+        report.add_image(img, txt='True Q Function')
+
+        fig = visualize_model(eval_model_np, "Estimated Q Function")
+        img = vu.save_image(fig)
+        report.add_image(img, txt='Estimated Q Function')
+
+        report.new_row()
+
+    def eval_model_np(state, action):
+        state = Variable(torch.FloatTensor([[state]]), volatile=True)
+        action = Variable(torch.FloatTensor([[action]]), volatile=True)
+        a, v = model(state, action)
+        q = a + v
+        return q.data.numpy()[0]
+
+    def visualize_model(eval, title):
+        fig = plt.figure()
+        ax = plt.gca()
+        heatmap = vu.make_heat_map(
+            eval,
             x_bounds=state_bounds,
             y_bounds=action_bounds,
             resolution=resolution,
         )
-        estimated_heatmap = vu.make_heat_map(
 
-        )
+        vu.plot_heatmap(fig, ax, heatmap)
+        ax.set_xlabel("State")
+        ax.set_ylabel("Action")
+        ax.set_title(title)
 
-    for epoch in range(1, 10):
+        return fig
+
+    for epoch in range(0, 10):
         model.train()
         train(epoch)
         model.eval()
         test(epoch)
-
-    # visualize_model()
 
 if __name__ == '__main__':
     main()
