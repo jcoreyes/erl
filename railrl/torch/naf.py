@@ -19,7 +19,7 @@ from rllab.misc import logger, special
 class NAF(OnlineAlgorithm):
     def __init__(
             self,
-            *args,
+            env,
             qf,
             qf_learning_rate=1e-3,
             target_hard_update_period=1000,
@@ -27,7 +27,7 @@ class NAF(OnlineAlgorithm):
             use_soft_update=False,
             **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(env, **kwargs)
         self.qf = qf
         self.policy = self.qf
         self.qf_learning_rate = qf_learning_rate
@@ -147,6 +147,7 @@ class NAF(OnlineAlgorithm):
             epoch=epoch,
             env=self.training_env,
             qf=self.qf,
+            policy=self.policy,
         )
 
 
@@ -199,19 +200,12 @@ class NafPolicy(PyTorchModule):
         self.obs_dim = obs_dim
         self.action_dim = action_dim
 
-        self.bn0 = nn.BatchNorm1d(obs_dim)
-        self.bn0.weight.data.fill_(1)
-        self.bn0.bias.data.fill_(0)
+        self.bn_state = nn.BatchNorm1d(obs_dim)
+        self.bn_state.weight.data.fill_(1)
+        self.bn_state.bias.data.fill_(0)
 
         self.linear1 = nn.Linear(obs_dim, hidden_size)
-        self.bn1 = nn.BatchNorm1d(hidden_size)
-        self.bn1.weight.data.fill_(1)
-        self.bn1.bias.data.fill_(0)
-
         self.linear2 = nn.Linear(hidden_size, hidden_size)
-        self.bn2 = nn.BatchNorm1d(hidden_size)
-        self.bn2.weight.data.fill_(1)
-        self.bn2.bias.data.fill_(0)
 
         self.V = nn.Linear(hidden_size, 1)
         self.V.weight.data.mul_(0.1)
@@ -230,9 +224,9 @@ class NafPolicy(PyTorchModule):
         self.diag_mask = ptu.Variable(torch.diag(torch.diag(
             torch.ones(action_dim, action_dim))).unsqueeze(0))
 
-
     def forward(self, state, action):
-        x = self.bn0(state)
+        state = self.bn_state(state)
+        x = state
         x = torch.tanh(self.linear1(x))
         x = torch.tanh(self.linear2(x))
 
