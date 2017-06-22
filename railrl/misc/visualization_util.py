@@ -1,3 +1,5 @@
+import tempfile
+import scipy.misc
 from collections import namedtuple
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
@@ -98,3 +100,17 @@ def plot_vector_field(fig, ax, vector_field, skip_rate=1):
     divider = make_axes_locatable(ax)
     cax = divider.append_axes('right', size='5%', pad=0.05)
     fig.colorbar(im, cax=cax, orientation='vertical')
+
+
+def save_image(fig=None, fname=None):
+    if fname is None:
+        fname = tempfile.TemporaryFile()
+    if fig is not None:
+        fig.savefig(fname)
+    else:
+        plt.savefig(fname, format='png')
+    plt.close('all')
+    fname.seek(0)
+    img = scipy.misc.imread(fname)
+    fname.close()
+    return img

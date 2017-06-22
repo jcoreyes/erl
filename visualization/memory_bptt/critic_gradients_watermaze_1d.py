@@ -17,22 +17,23 @@ from torch.autograd import Variable
 
 from railrl.envs.pygame.water_maze import WaterMaze
 import railrl.misc.visualization_util as vu
+from railrl.misc.html_report import HTMLReport
 
 USE_TIME = False
 
 
 def create_figure(
+        report: HTMLReport,
         target_poses,
         *list_of_vector_fields
 ):
-    series_length = len(target_poses)
     num_vfs = len(list_of_vector_fields)
-    width = 7 * series_length
+    width = 7
     height = 7 * num_vfs
-    fig, axes = plt.subplots(
-        num_vfs, series_length, figsize=(width, height)
-    )
     for i, target_pos in enumerate(target_poses):
+        fig, axes = plt.subplots(
+            num_vfs, figsize=(width, height)
+        )
         for j, vf in enumerate([vfs[i] for vfs in list_of_vector_fields]):
             # `heatmaps` is now a list of heatmaps, such that
             # heatmaps[k] = list_of_list_of_heatmaps[k][i]
@@ -44,7 +45,7 @@ def create_figure(
             """
             Plot Estimated & Optimal QF
             """
-            ax = axes[j][i]
+            ax = axes[j]
             vu.plot_vector_field(fig, ax, vf)
             ax.vlines([min_pos, max_pos], *ax.get_ylim())
             ax.set_xlabel("Position")
@@ -54,8 +55,8 @@ def create_figure(
                 vf.info['time'],
                 vf.info['target_pos'],
             ))
-
-    return fig
+        img = vu.save_image(fig)
+        report.add_image(img, "Target Position = {}".format(target_pos))
 
 
 def create_qf_derivative_eval_fnct(qf, target_pos, time):
@@ -92,21 +93,28 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("folder_path", type=str)
     args = parser.parse_args()
-    base = Path(os.getcwd())
-    base = base / args.folder_path
+    base_dir = Path(os.getcwd())
+    base_dir = base_dir / args.folder_path
 
-    path_and_iter = get_path_and_iters(base)
+    path_and_iter = get_path_and_iters(base_dir)
 
     resolution = 20
     state_bounds = (-WaterMaze.BOUNDARY_DIST, WaterMaze.BOUNDARY_DIST)
     action_bounds = (-1, 1)
+    num_target_poses = 5
+    target_poses = np.linspace(*state_bounds, num_target_poses)
 
+    report = HTMLReport(
+        str(base_dir / 'report.html'), images_per_row=num_target_poses
+    )
+
+    report.add_header("test_header")
+    report.add_text("test")
     for path, iter_number in path_and_iter:
         data = joblib.load(str(path))
         qf = data['qf']
         print("QF loaded from iteration %d" % iter_number)
 
-        target_poses = np.linspace(-5, 5, num=5)
         list_of_vector_fields = []
         for time in [0, 24]:
             vector_fields = []
@@ -127,16 +135,13 @@ def main():
                 ))
             list_of_vector_fields.append(vector_fields)
 
-        fig = create_figure(
+        report.add_text("Iteration = {0}".format(iter_number))
+        create_figure(
+            report,
             target_poses,
             *list_of_vector_fields,
         )
-        fig.suptitle("Iteration = {0}".format(iter_number))
-        save_dir = base / "derivative_images"
-        if not save_dir.exists():
-            save_dir.mkdir()
-        save_file = save_dir / 'iter_{}.png'.format(iter_number)
-        fig.savefig(str(save_file), bbox_inches='tight')
+        report.new_row()
 
 if __name__ == '__main__':
     main()
