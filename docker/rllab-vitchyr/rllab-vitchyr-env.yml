@@ -25,6 +25,7 @@ dependencies:
     - scikit-learn
     - pytorch
     - torchvision
+    - scikit-image
     - pip:
         # Tensorflow 1.0, GPU only
         - https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-1.0.1-cp35-cp35m-linux_x86_64.whl
@@ -58,3 +59,4 @@ dependencies:
         - matplotlib
         - catkin_pkg
         - seaborn
+        - dominate
