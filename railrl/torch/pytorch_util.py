@@ -103,8 +103,8 @@ def double_moments(x, y):
     """
     batch_size, x_dim = x.size()
     _, y_dim = x.size()
-    x = torch.cat((x, ptu.Variable(torch.ones(batch_size, 1))), dim=1)
-    y = torch.cat((y, ptu.Variable(torch.ones(batch_size, 1))), dim=1)
+    x = torch.cat((x, Variable(torch.ones(batch_size, 1))), dim=1)
+    y = torch.cat((y, Variable(torch.ones(batch_size, 1))), dim=1)
     x_dim += 1
     y_dim += 1
     x = x.unsqueeze(2)
