@@ -4,6 +4,7 @@ import os.path as osp
 import subprocess
 import random
 import uuid
+import git
 
 import dateutil.tz
 import numpy as np
@@ -187,6 +188,8 @@ def run_experiment(
     command_words.append('python')
     if save_profile:
         command_words += ['-m cProfile -o', profile_file]
+    repo = git.Repo(os.getcwd())
+    diff_string = repo.git.diff(None)
     if mode == 'here':
         run_experiment_here(
             task,
@@ -196,6 +199,7 @@ def run_experiment(
             seed=seed,
             use_gpu=use_gpu,
             snapshot_mode=snapshot_mode,
+            code_diff=diff_string,
         )
     else:
         run_experiment_lite(
@@ -208,6 +212,7 @@ def run_experiment(
             python_command=' '.join(command_words),
             mode=mode,
             use_gpu=use_gpu,
+            code_diff=diff_string,
             **run_experiment_lite_kwargs
         )
 
@@ -220,6 +225,7 @@ def run_experiment_here(
         seed=0,
         use_gpu=False,
         snapshot_mode='last',
+        code_diff=None,
 ):
     """
     Run an experiment locally without any serialization.
@@ -248,6 +254,7 @@ def run_experiment_here(
         exp_id=exp_id,
         seed=seed,
         snapshot_mode=snapshot_mode,
+        code_diff=code_diff,
     )
     if not use_gpu:
         os.environ['CUDA_VISIBLE_DEVICES'] = ""
@@ -296,7 +303,7 @@ def create_log_dir(exp_prefix="default", exp_id=0, seed=0):
             )
         )
     os.makedirs(log_dir, exist_ok=True)
-    return log_dir
+    return log_dir, exp_name
 
 
 def setup_logger(
@@ -311,6 +318,7 @@ def setup_logger(
         snapshot_mode="last",
         log_tabular_only=False,
         snapshot_gap=1,
+        code_diff=None,
 ):
     """
     Set up logger to have some reasonable default settings.
@@ -329,7 +337,7 @@ def setup_logger(
     """
     if log_dir is None:
         assert exp_prefix is not None
-        log_dir = create_log_dir(exp_prefix, exp_id=exp_id, seed=seed)
+        log_dir, exp_name = create_log_dir(exp_prefix, exp_id=exp_id, seed=seed)
     tabular_log_path = osp.join(log_dir, tabular_log_file)
     text_log_path = osp.join(log_dir, text_log_file)
 
@@ -343,16 +351,10 @@ def setup_logger(
     logger.set_snapshot_mode(snapshot_mode)
     logger.set_snapshot_gap(snapshot_gap)
     logger.set_log_tabular_only(log_tabular_only)
-    logger.push_prefix("[%s] " % exp_prefix)
-    try:
-        # Save git diff to experiment directory
-        cmd = "cd {} && git diff > {} 2>/dev/null".format(
-            osp.dirname(__file__),
-            osp.join(log_dir, "code.diff")
-        )
-        subprocess.check_call(cmd, shell=True)
-    except subprocess.CalledProcessError:
-        print("configure_output_dir: not storing the git diff, probably because you're not in a git repo")
+    logger.push_prefix("[%s] " % exp_name)
+    if code_diff is not None:
+        with open(osp.join(log_dir, "code.diff"), "w") as f:
+            f.write(code_diff)
 
 
 def set_seed(seed):

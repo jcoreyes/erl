@@ -60,3 +60,4 @@ dependencies:
         - catkin_pkg
         - seaborn
         - dominate
+        - gitpython
