@@ -18,32 +18,37 @@ from railrl.torch.pytorch_util import double_moments
 
 
 class BatchSquare(nn.Module):
-    def __init__(self, hidden_size, action_dim):
+    """
+    Compute x^T P(s) x
+    """
+    def __init__(self, matrix_input_size, vector_size):
         super().__init__()
-        self.size = action_dim
+        self.vector_size = vector_size
 
-        self.L = nn.Linear(hidden_size, action_dim ** 2)
+        self.L = nn.Linear(matrix_input_size, vector_size ** 2)
         self.L.weight.data.mul_(0.1)
         self.L.bias.data.mul_(0.1)
         self.tril_mask = ptu.Variable(
-            torch.tril(torch.ones(action_dim, action_dim), k=-1).unsqueeze(0)
+            torch.tril(torch.ones(vector_size, vector_size), k=-1).unsqueeze(0)
         )
         self.diag_mask = ptu.Variable(
-            torch.diag(torch.diag(torch.ones(action_dim, action_dim))).unsqueeze(0)
+            torch.diag(torch.diag(torch.ones(vector_size, vector_size))).unsqueeze(0)
         )
 
     def forward(self, state, vector):
-        L = self.L(state).view(-1, self.size, self.size)
+        L = self.L(state).view(-1, self.vector_size, self.vector_size)
         L = L * (
             self.tril_mask.expand_as(L)
             + torch.exp(L) * self.diag_mask.expand_as(L)
         )
         P = torch.bmm(L, L.transpose(2, 1))
         vector = vector.unsqueeze(2)
-        return torch.bmm(torch.bmm(vector.transpose(2, 1), P), vector).squeeze(2)
+        return torch.bmm(
+            torch.bmm(vector.transpose(2, 1), P), vector
+        ).squeeze(2)
 
 
-class Polynomial(nn.Module):
+class NAF(nn.Module):
     def __init__(self, obs_dim, action_dim):
         super().__init__()
         self.obs_dim = obs_dim
@@ -68,6 +73,7 @@ class Polynomial(nn.Module):
         )
 
         self.bs = BatchSquare(self.embed_size, self.action_dim)
+        # self.bs = BatchSquare(self.obs_dim, self.action_dim)
 
     def forward(self, state, action):
         embedded = self.embed(state)
@@ -75,8 +81,9 @@ class Polynomial(nn.Module):
         V = self.vf(embedded)
         mu = torch.tanh(self.mu(embedded))
         A = self.bs(embedded, action - mu)
+        # A = self.bs(state, action - mu)
 
-        return A, 0
+        return A, V
 
 
 class SeparateDuelingFF(nn.Module):
@@ -147,11 +154,11 @@ class OuterProductFF(nn.Module):
             SelfOuterProductLinear(self.obs_dim + self.action_dim,
                       self.fc1_size),
             nn.Tanh(),
-            # SelfOuterProductLinear(self.fc1_size, self.fc2_size),
-            nn.Linear(self.fc1_size, self.fc2_size),
+            SelfOuterProductLinear(self.fc1_size, self.fc2_size),
+            # nn.Linear(self.fc1_size, self.fc2_size),
             nn.Tanh(),
-            # SelfOuterProductLinear(self.fc2_size, 1),
-            nn.Linear(self.fc2_size, 1),
+            SelfOuterProductLinear(self.fc2_size, 1),
+            # nn.Linear(self.fc2_size, 1),
         )
 
     def forward(self, state, action):
@@ -203,12 +210,12 @@ def main():
     action_dim = 1
     batch_size = 100
 
-    model = Polynomial(obs_dim, action_dim)
+    model = NAF(obs_dim, action_dim)
     # model = SeparateDuelingFF(obs_dim, action_dim)
     # model = ConcatFF(obs_dim, action_dim)
     # model = OuterProductFF(obs_dim, action_dim)
     version = model.__class__.__name__
-    # version = "dev"
+    version = "NAF-P-depends-on-embedded"
 
     optimizer = optim.SGD(model.parameters(), lr=1e-7, momentum=0.5)
     loss_fnct = nn.MSELoss()
