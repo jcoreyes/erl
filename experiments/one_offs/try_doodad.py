@@ -37,13 +37,15 @@ mode_ec2 = pd.mode.EC2SpotDocker(
 
 # Set up code and output directories
 OUTPUT_DIR = '/mount/outputs'  # this is the directory visible to the target
-mounts = [
+input_mounts = [
     # mount.MountLocal(local_dir=REPO_DIR, pythonpath=True),
-    # mount.MountLocal(local_dir='~/install/rllab', pythonpath=True),  # rllab
+    mount.MountLocal(local_dir='~/install/rllab', pythonpath=True),  # rllab
     # mount.MountLocal(local_dir='~/install/gym/.mujoco', mount_point='/root/.mujoco'),  # mujoco
     # mount.MountLocal(local_dir='~/code/doodad', pythonpath=True),  # rllab
-    # mount.MountLocal(local_dir='~/data/vitchyr', mount_point=OUTPUT_DIR,
-    #                  read_only=False),  # mujoco
+]
+output_mounts = [
+    mount.MountLocal(local_dir='~/data/vitchyr', mount_point=OUTPUT_DIR,
+                     read_only=False),  # mujoco
     mount.MountS3(
         s3_path="test",
         s3_bucket="2-12-2017.railrl.vitchyr.rail.bucket",
@@ -51,6 +53,7 @@ mounts = [
         output=True,
     )
 ]
+mounts = input_mounts + output_mounts
 
 script_path = os.path.join(THIS_FILE_DIR, 'test_script.py')
 print(script_path)
