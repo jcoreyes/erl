@@ -93,25 +93,25 @@ def experiment(variant):
 if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
-    exp_prefix = "6-20-dev-bptt-ddpg-exp"
+    exp_prefix = "6-22-dev-bptt-ddpg-exp"
     run_mode = 'none'
 
-    # n_seeds = 5
-    # mode = "ec2"
-    # exp_prefix = "6-20-give-time-watermaze-easy"
+    n_seeds = 10
+    mode = "ec2"
+    exp_prefix = "6-22-hl-sweep-discount-factor-and-give-time"
 
-    # run_mode = 'grid'
+    run_mode = 'grid'
     use_gpu = True
     if mode != "here":
         use_gpu = False
 
-    H = 25
+    H = 50
     subtraj_length = 25
-    num_steps_per_iteration = 1000
+    num_steps_per_iteration = 100
     num_steps_per_eval = 1000
-    num_iterations = 30
+    num_iterations = 100
     batch_size = 200
-    memory_dim = 2
+    memory_dim = 30
     version = exp_prefix
     version = "Our Method"
     # version = "Our Method - loading but Q does not read mem state"
@@ -119,9 +119,9 @@ if __name__ == '__main__':
     variant = dict(
         memory_dim=memory_dim,
         # env_class=WaterMaze,
-        env_class=WaterMazeEasy,
+        # env_class=WaterMazeEasy,
         # env_class=WaterMazeMemory,
-        # env_class=HighLow,
+        env_class=HighLow,
         env_params=dict(
             horizon=H,
             give_time=True,
@@ -135,7 +135,7 @@ if __name__ == '__main__':
             num_epochs=num_iterations,
             num_steps_per_epoch=num_steps_per_iteration,
             num_steps_per_eval=num_steps_per_eval,
-            discount=1.,
+            discount=.9,
             action_policy_optimize_bellman=False,
             write_policy_optimizes='both',
             action_policy_learning_rate=1e-3,
@@ -188,6 +188,7 @@ if __name__ == '__main__':
             # 'algo_params.bellman_error_loss_weight': [0.1, 1, 10, 100, 1000],
             # 'algo_params.tau': [1, 0.1, 0.01, 0.001],
             'env_params.give_time': [True, False],
+            'algo_params.discount': [1, .9, .5, 0],
         }
         sweeper = DeterministicHyperparameterSweeper(search_space,
                                                      default_parameters=variant)
