@@ -15,6 +15,7 @@ import uuid
 import pickle as pickle
 import base64
 import joblib
+import cloudpickle
 
 import logging
 
@@ -110,8 +111,10 @@ def run_experiment(argv):
     logger.push_prefix("[%s] " % args.exp_name)
 
     if args.code_diff is not None:
-        with open(osp.join(log_dir, "code_from_railrl.diff"), "w") as f:
-            f.write(args.code_diff)
+        code_diff_str = cloudpickle.loads(base64.b64decode(args.code_diff))
+        with open(osp.join(log_dir, "code.diff"),
+                  "w") as f:
+            f.write(code_diff_str)
 
     if args.resume_from is not None:
         data = joblib.load(args.resume_from)
@@ -121,7 +124,6 @@ def run_experiment(argv):
     else:
         # read from stdin
         if args.use_cloudpickle:
-            import cloudpickle
             method_call = cloudpickle.loads(base64.b64decode(args.args_data))
             method_call(variant_data)
         else:

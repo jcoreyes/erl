@@ -5,6 +5,8 @@ import subprocess
 import random
 import uuid
 import git
+import base64
+import cloudpickle
 
 import dateutil.tz
 import numpy as np
@@ -202,6 +204,9 @@ def run_experiment(
             code_diff=diff_string,
         )
     else:
+        code_diff = (
+            base64.b64encode(cloudpickle.dumps(diff_string)).decode("utf-8")
+        )
         run_experiment_lite(
             task,
             snapshot_mode=snapshot_mode,
@@ -212,8 +217,8 @@ def run_experiment(
             python_command=' '.join(command_words),
             mode=mode,
             use_gpu=use_gpu,
-            code_diff=diff_string,
             script="railrl/scripts/run_experiment_lite.py",
+            code_diff=code_diff,
             **run_experiment_lite_kwargs
         )
 
