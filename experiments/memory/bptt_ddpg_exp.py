@@ -96,16 +96,16 @@ if __name__ == '__main__':
     exp_prefix = "6-22-dev-bptt-ddpg-exp"
     run_mode = 'none'
 
-    n_seeds = 10
-    mode = "ec2"
-    exp_prefix = "6-22-hl-sweep-discount-factor-and-give-time"
+    # n_seeds = 10
+    # mode = "ec2"
+    # exp_prefix = "6-22-hl-sweep-discount-factor-and-give-time"
 
-    run_mode = 'grid'
+    # run_mode = 'grid'
     use_gpu = True
     if mode != "here":
         use_gpu = False
 
-    H = 50
+    H = 25
     subtraj_length = 25
     num_steps_per_iteration = 100
     num_steps_per_eval = 1000
@@ -120,8 +120,8 @@ if __name__ == '__main__':
         memory_dim=memory_dim,
         # env_class=WaterMaze,
         # env_class=WaterMazeEasy,
-        # env_class=WaterMazeMemory,
-        env_class=HighLow,
+        env_class=WaterMazeMemory,
+        # env_class=HighLow,
         env_params=dict(
             horizon=H,
             give_time=True,
