@@ -213,6 +213,7 @@ def run_experiment(
             mode=mode,
             use_gpu=use_gpu,
             code_diff=diff_string,
+            script="railrl/scripts/run_experiment_lite.py",
             **run_experiment_lite_kwargs
         )
 
