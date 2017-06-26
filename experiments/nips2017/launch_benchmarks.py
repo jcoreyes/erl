@@ -20,11 +20,12 @@ from railrl.launchers.memory_bptt_launchers import (
     rdpg_launcher,
 )
 from railrl.misc.hyperparameter import DeterministicHyperparameterSweeper
+from rllab.envs.mujoco.walker2d_env import Walker2DEnv
 
 if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
-    exp_prefix = "6-20-launch-benchmark-easy-1d-ddpg-critic-grad-get-time-relu"
+    exp_prefix = "dev-launch-benchmark"
 
     # n_seeds = 5
     # mode = "ec2"
@@ -34,14 +35,15 @@ if __name__ == '__main__':
     # env_class = WaterMazeMemory
     # env_class = WaterMaze
     # env_class = WaterMazeEasy
-    env_class = WaterMazeEasy1D
+    # env_class = WaterMazeEasy1D
     # env_class = WaterMaze1D
+    env_class = Walker2DEnv
 
     use_gpu = True
     if mode != "here":
         use_gpu = False
 
-    H = 25
+    H = 1000
     num_steps_per_iteration = 1000
     num_steps_per_eval = 1000
     num_iterations = 10
@@ -52,7 +54,7 @@ if __name__ == '__main__':
         H=H,
         env_class=env_class,
         env_params=dict(
-            horizon=H,
+            # horizon=H,
         ),
         exp_prefix=exp_prefix,
         num_steps_per_iteration=num_steps_per_iteration,
@@ -64,10 +66,10 @@ if __name__ == '__main__':
     )
     exp_id = -1
     for launcher in [
-        # trpo_launcher,
+        trpo_launcher,
         # mem_trpo_launcher,
         # rtrpo_launcher,
-        ddpg_launcher,
+        # ddpg_launcher,
         # mem_ddpg_launcher,
         # rdpg_launcher,
     ]:
