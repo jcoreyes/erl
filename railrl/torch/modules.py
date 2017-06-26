@@ -35,8 +35,34 @@ class BatchSquareDiagonal(nn.Module):
     def __init__(self, vector_size):
         super().__init__()
         self.vector_size = vector_size
-        self.diag_mask = torch.diag(torch.ones(vector_size))
+        self.diag_mask = ptu.Variable(torch.diag(torch.ones(vector_size)),
+                                      requires_grad=False)
 
     def forward(self, vector, diag_values):
         M = ptu.batch_diag(diag_values=diag_values, diag_mask=self.diag_mask)
         return ptu.batch_square_vector(vector=vector, M=M)
+
+
+class Concat(nn.Module):
+    """
+    Flatten a tuple of inputs.
+
+    Usage:
+    ```
+    net = nn.Sequential(
+        Concat(),
+        nn.Linear(3, 1),
+    )
+
+    a = Variable(torch.ones(32, 2))
+    b = Variable(torch.ones(32, 1))
+
+    result = net((a, b))
+    ```
+    """
+    def __init__(self, *, dim=1):
+        super().__init__()
+        self.dim = dim
+
+    def forward(self, inputs):
+        return torch.cat(inputs, dim=self.dim)

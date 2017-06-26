@@ -35,6 +35,7 @@ def kronecker_product(t1, t2):
     out_height = t1_height * t2_height
     out_width = t1_width * t2_width
 
+    # TODO(vitchyr): see if you can use expand instead of repeat
     tiled_t2 = t2.repeat(t1_height, t1_width)
     expanded_t1 = (
         t1.unsqueeze(2)
