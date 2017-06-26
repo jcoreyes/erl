@@ -1,6 +1,7 @@
 """
 Contain some self-contained modules. Maybe depend on pytorch_util.
 """
+import torch
 import torch.nn as nn
 from railrl.torch import pytorch_util as ptu
 
@@ -25,3 +26,17 @@ class SelfOuterProductLinear(OuterProductLinear):
 
     def forward(self, input):
         return super().forward(input, input)
+
+
+class BatchSquareDiagonal(nn.Module):
+    """
+    Compute x^T diag(`diag_values`) x
+    """
+    def __init__(self, vector_size):
+        super().__init__()
+        self.vector_size = vector_size
+        self.diag_mask = torch.diag(torch.ones(vector_size))
+
+    def forward(self, vector, diag_values):
+        M = ptu.batch_diag(diag_values=diag_values, diag_mask=self.diag_mask)
+        return ptu.batch_square_vector(vector=vector, M=M)
