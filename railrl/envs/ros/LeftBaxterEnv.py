@@ -15,9 +15,6 @@ NUM_JOINTS = 7
 These are just ball-parks. For more specific specs, either measure them
 and/or see http://sdk.rethinkrobotics.com/wiki/Hardware_Specifications.
 """
-
-###TODO: FIX JOINT_ANGLES
-
 joint_angle_experiment = True
 fixed_angle = True
 end_effector_experiment_position = False
@@ -26,8 +23,8 @@ fixed_end_effector = False
 safety_fixed_angle = False
 position_resetting = False
 number_fixed_angles = 2
-safety_limited_end_effector = True
 
+#These need to be fixed for left arm
 JOINT_ANGLES_HIGH = np.array([
     1.70167993, 
     1.04700017, 
@@ -38,6 +35,7 @@ JOINT_ANGLES_HIGH = np.array([
     3.05899961
 ])
 
+#These need to be fixed for left arm
 JOINT_ANGLES_LOW = np.array([
     -1.70167995, 
     -2.14700025, 
@@ -66,8 +64,8 @@ JOINT_VALUE_LOW = {
 }
 
 #not sure what the min/max angle and pos are supposed to be
-END_EFFECTOR_POS_LOW = [0.3404830862298487, -1.2633121086809487, -0.5698485041484043]
-END_EFFECTOR_POS_HIGH = [1.1163239572333106, 0.003933425621414761, 0.795699462010194]
+END_EFFECTOR_POS_LOW = -1*np.ones(3)
+END_EFFECTOR_POS_HIGH = np.ones(3)
 
 END_EFFECTOR_ANGLE_LOW = -1*np.ones(4)
 END_EFFECTOR_ANGLE_HIGH = np.ones(4)
@@ -82,23 +80,6 @@ END_EFFECTOR_VALUE_HIGH = {
     'angle': END_EFFECTOR_ANGLE_HIGH,
 }
 
-# safety box:
-right_top_left = np.array([0.5593476422885908, -1.2633121086809487, 0.795699462010194])
-right_top_right = np.array([1.1163239572333106, 0.003933425621414761, 0.795699462010194])
-right_bottom_left = np.array([0.3404830862298487, -0.8305357734786465, -0.569848507615453])
-right_bottom_right = np.array([0.6810604337404508, -0.10962952928553238, -0.5698485041484043])
-
-left_top_left = np.array([0.5593476422885908, 1.2633121086809487, 0.795699462010194])
-left_top_right = np.array([1.1163239572333106, -0.003933425621414761, 0.795699462010194])
-left_bottom_left = np.array([0.3404830862298487, 0.8305357734786465, -0.569848507615453])
-left_bottom_right = np.array([0.6810604337404508, 0.10962952928553238, -0.5698485041484043])
-
-right_lows = [0.3404830862298487, -1.2633121086809487, -0.5698485041484043]
-right_highs = [1.1163239572333106, 0.003933425621414761, 0.795699462010194]
-
-left_lows = [0.3404830862298487, -0.003933425621414761, -0.5698485041484043]
-left_highs = [1.1163239572333106, 1.2633121086809487, 0.795699462010194]
-
 def safe(raw_function):
     def safe_function(*args, **kwargs):
         try:
@@ -109,48 +90,35 @@ def safe(raw_function):
     return safe_function
 
 
-class BaxterEnv(Env, Serializable):
+class LeftBaxterEnv(Env, Serializable):
     def __init__(
             self,
-            use_right_arm,
             update_hz=20,
             robot_name='robot',
             action_mode='torque',
-            safety_mode='position',
-            joint_angle_experiment = True,
-            fixed_angle = True,
-            end_effector_experiment_position = False,
-            end_effector_experiment_total = False,
-            fixed_end_effector = False,
-            safety_fixed_angle = False,
-            safety_limited_end_effector = False,
+            safety_mode='position'
     ):
         Serializable.quick_init(self, locals())
         rospy.init_node('baxter_env', anonymous=True)
         self.rate = rospy.Rate(update_hz)
-        self.use_right_arm = use_right_arm
+
         #setup the robots arm and gripper
-        if(self.use_right_arm):
-            self.arm = bi.Limb('right')
-            self.arm_joint_names = self.arm.joint_names()
-            self.grip = bi.Gripper('right', bi.CHECK_VERSION)
-        else:
-            self.arm = bi.Limb('left')
-            self.arm_joint_names = self.arm.joint_names()
-            self.grip = bi.Gripper('left', bi.CHECK_VERSION)
+        self.left_arm = bi.Limb('left')
+        self.left_joint_names = self.left_arm.joint_names()
+        self.left_grip = bi.Gripper('left', bi.CHECK_VERSION)
 
         #create a dictionary whose values are functions that set the appropriate values
         action_mode_dict = {
-            'position': self.arm.set_joint_positions, 
-            'velocity': self.arm.set_joint_velocities,
-            'torque': self.arm.set_joint_torques,
+            'position': self.left_arm.set_joint_positions, 
+            'velocity': self.left_arm.set_joint_velocities,
+            'torque': self.left_arm.set_joint_torques,
         }
 
         #create a dictionary whose values are functions that return the appropriate values
         observation_mode_dict = {
-            'position': self.arm.joint_angles,
-            'velocity': self.arm.joint_velocities,
-            'torque': self.arm.joint_efforts,
+            'position': self.left_arm.joint_angles,
+            'velocity': self.left_arm.joint_velocities,
+            'torque': self.left_arm.joint_efforts,
         }
 
         self._set_joint_values = action_mode_dict[action_mode]
@@ -263,27 +231,27 @@ class BaxterEnv(Env, Serializable):
     def _act(self, action):
         if safety_fixed_angle:
             if(position_resetting):
-                fixed_names = self.arm_joint_names[:number_fixed_angles]
+                fixed_names = self.left_joint_names[:number_fixed_angles]
                 fixed_positions = dict(zip(fixed_names, self.initial_positions))
                 self._set_joint_values[self.safety_mode](fixed_positions)
-            action_names = self.arm_joint_names[number_fixed_angles:]
+            action_names = self.left_joint_names[number_fixed_angles:]
             actions = dict(zip(action_names, action))
             self._set_joint_values[self.action_mode](actions)
 
         else:
-            joint_to_values = dict(zip(self.arm_joint_names, action))
+            joint_to_values = dict(zip(self.left_joint_names, action))
             self._set_joint_values(joint_to_values)
-    	
+        
         self.rate.sleep()
 
     def _joint_angles(self):
-        joint_to_angles = self.arm.joint_angles()
+        joint_to_angles = self.left_arm.joint_angles()
         return np.array([
-            joint_to_angles[joint] for joint in self.arm_joint_names
+            joint_to_angles[joint] for joint in self.left_joint_names
         ])
 
     def _end_effector_pose(self):
-        state_dict = self.arm.endpoint_pose()
+        state_dict = self.left_arm.endpoint_pose()
         pos = state_dict['position']
         if end_effector_experiment_total or safety_fixed_angle:
             orientation = state_dict['orientation']
@@ -311,18 +279,20 @@ class BaxterEnv(Env, Serializable):
         observation = self._get_joint_values()
 
         is_valid = True
-        if safety_fixed_angle or safety_limited_end_effector:
+        if safety_fixed_angle:
             endpoint_pose = self._end_effector_pose()
-            if(self.use_right_arm):
-                within_box = [curr_pose > lower_pose or curr_pose < higher_pose
-                    for curr_pose, lower_pose, higher_pose 
-                    in zip(endpoint_pose, right_lows, right_highs)]
-                is_valid = all(within_box)
-            else:
-                within_box = [curr_pose > lower_pose or curr_pose < higher_pose
-                    for curr_pose, lower_pose, higher_pose 
-                    in zip(endpoint_pose, left_lows, left_highs)]
-                is_valid = all(within_box)
+            lower_endpoint_pose = np.hstack((
+                END_EFFECTOR_VALUE_LOW['position'], 
+                END_EFFECTOR_VALUE_LOW['angle'],
+            ))
+            higher_endpoint_pose = np.hstack((
+                END_EFFECTOR_VALUE_HIGH['position'], 
+                END_EFFECTOR_VALUE_HIGH['angle']
+            ))
+            within_box = [curr_pose > lower_pose or curr_pose < higher_pose
+                for curr_pose, lower_pose, higher_pose 
+                in zip(endpoint_pose, lower_endpoint_pose, higher_endpoint_pose)]
+            is_valid = all(within_box)
 
         if joint_angle_experiment:
             #reward is MSE between current joint angles and the desired angles
@@ -348,14 +318,14 @@ class BaxterEnv(Env, Serializable):
         positions_dict = self._get_joint_to_value_func_list[0]()
         velocities_dict = self._get_joint_to_value_func_list[1]()
         torques_dict = self._get_joint_to_value_func_list[2]()
-        positions = [positions_dict[joint] for joint in self.arm_joint_names]
-        velocities = [velocities_dict[joint] for joint in self.arm_joint_names]
-        torques = [torques_dict[joint] for joint in self.arm_joint_names]
+        positions = [positions_dict[joint] for joint in self.left_joint_names]
+        velocities = [velocities_dict[joint] for joint in self.left_joint_names]
+        torques = [torques_dict[joint] for joint in self.left_joint_names]
         temp = velocities + torques
 
         if end_effector_experiment_position or end_effector_experiment_total:
             temp = np.hstack((temp, self._end_effector_pose()))
-        
+
         temp = np.hstack((positions, temp, self.desired))
 
         return temp
@@ -372,7 +342,7 @@ class BaxterEnv(Env, Serializable):
         elif end_effector_experiment_position or end_effector_experiment_total and not fixed_end_effector:
             self._randomize_desired_end_effector_pose()
 
-        self.arm.move_to_neutral()
+        self.left_arm.move_to_neutral()
 
         if safety_fixed_angle:
             self.initial_positions = self._joint_angles()[:number_fixed_angles]
@@ -380,7 +350,7 @@ class BaxterEnv(Env, Serializable):
         return self._get_joint_values()
 
     def _randomize_desired_angles(self):
-        self.desired = np.random.rand(1, 7)[0]
+        self.desired = np.random.rand(1, 7)
 
     def _randomize_desired_end_effector_pose(self):
         if end_effector_experiment_position:
@@ -436,13 +406,11 @@ class BaxterEnv(Env, Serializable):
             desired_angles = []
             for obsSet in obsSets:
                 for observation in obsSet:
-                    angles.append(observation[:7])
-                    desired_angles.append(observation[21:])
+                    angles = np.hstack((angles, observation[:7]))
+                    desired_angles = np.hstack((desired_angles, observation[21:]))
 
-            angles = np.array(angles)
-            desired_angles = np.array(desired_angles)
-            mean_distance = np.mean(linalg.norm(angles - desired_angles, axis=1))
-            logger.record_tabular("Mean Difference from desired angle", mean_distance)
+            mean_difference = np.mean(angles - desired_angles)
+            logger.record_tabular("Mean Difference from desired angle", mean_difference)
 
         
 
