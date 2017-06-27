@@ -91,7 +91,7 @@ class DDPG(OnlineAlgorithm):
         """
         Critic operations.
         """
-        next_actions = self.policy(next_obs)
+        next_actions = self.target_policy(next_obs)
         target_q_values = self.target_qf(
             next_obs,
             next_actions,
@@ -156,9 +156,6 @@ class DDPG(OnlineAlgorithm):
 
     def _statistics_from_paths(self, paths, stat_prefix):
         statistics = OrderedDict()
-        # statistics.update(
-        #     get_generic_path_information(paths, self.discount, stat_prefix)
-        # )
         statistics.update(self._get_training_statistics(paths, stat_prefix))
         statistics.update(create_stats_ordered_dict(
             'Num Paths', len(paths), stat_prefix=stat_prefix
@@ -181,7 +178,6 @@ class DDPG(OnlineAlgorithm):
         }
 
         train_dict = self.get_train_dict(batch)
-        # train_dict.update(self.get_qf_train_dict(batch))
         for name in [
             'QF Loss',
             'Policy Loss',
