@@ -222,6 +222,7 @@ class DDPG(OnlineAlgorithm):
             qf=self.qf,
         )
 
+
 def paths_to_pytorch_batch(paths):
     rewards, terminals, obs, actions, next_obs = split_paths(paths)
     np_batch = dict(
