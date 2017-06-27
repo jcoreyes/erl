@@ -35,6 +35,7 @@ def kronecker_product(t1, t2):
     out_height = t1_height * t2_height
     out_width = t1_width * t2_width
 
+    # TODO(vitchyr): see if you can use expand instead of repeat
     tiled_t2 = t2.repeat(t1_height, t1_width)
     expanded_t1 = (
         t1.unsqueeze(2)
@@ -116,6 +117,23 @@ def double_moments(x, y):
     return outer_prod.view(batch_size, -1)
 
 
+def batch_diag(diag_values, diag_mask=None):
+    batch_size, dim = diag_values.size()
+    if diag_mask is None:
+        diag_mask = torch.diag(torch.ones(dim))
+    batch_diag_mask = diag_mask.unsqueeze(0).expand(batch_size, dim, dim)
+    batch_diag_values = diag_values.unsqueeze(1).expand(batch_size, dim, dim)
+    return batch_diag_values * batch_diag_mask
+
+
+def batch_square_vector(vector, M):
+    """
+    Compute x^T M x
+    """
+    vector = vector.unsqueeze(2)
+    return torch.bmm(torch.bmm(vector.transpose(2, 1), M), vector).squeeze(2)
+
+
 """
 GPU wrappers
 """
@@ -155,6 +173,8 @@ def from_numpy(*args, **kwargs):
 
 
 def get_numpy(tensor):
+    if isinstance(tensor, TorchVariable):
+        return get_numpy(tensor.data)
     if _use_gpu:
-        return tensor.data.cpu().numpy()
-    return tensor.data.numpy()
+        return tensor.cpu().numpy()
+    return tensor.numpy()

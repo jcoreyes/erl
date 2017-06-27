@@ -8,8 +8,7 @@ from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.qfunctions.torch import FeedForwardQFunction
-from railrl.torch.ddpg import DDPG
-from railrl.torch.easy_v_ql import EasyVQFunction
+from railrl.torch.easy_v_ql import EasyVQFunction, EasyVQLearning
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 from rllab.envs.mujoco.hopper_env import HopperEnv
@@ -24,31 +23,25 @@ def example(variant):
     # env = HopperEnv()
     env = normalize(env)
     es = OUStrategy(action_space=env.action_space)
-    qf = FeedForwardQFunction(
+    qf = EasyVQFunction(
         int(env.observation_space.flat_dim),
         int(env.action_space.flat_dim),
-        400,
-        300,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
     )
-    # qf = EasyVQFunction(
-    #     int(env.observation_space.flat_dim),
-    #     int(env.action_space.flat_dim),
-    #     400,
-    #     300,
-    #     400,
-    #     300,
-    #     400,
-    #     300,
-    #     400,
-    #     300,
-    # )
     policy = FeedForwardPolicy(
         int(env.observation_space.flat_dim),
         int(env.action_space.flat_dim),
         400,
         300,
     )
-    algorithm = DDPG(
+    algorithm = EasyVQLearning(
         env,
         exploration_strategy=es,
         qf=qf,
@@ -64,17 +57,15 @@ if __name__ == "__main__":
             num_epochs=50,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
-            target_hard_update_period=100,
-            # use_soft_update=True,
             batch_size=128,
-            # tau=1e-2,
             max_path_length=1000,
+            target_hard_update_period=100,
         )
     )
     seed = random.randint(0, 999999)
     run_experiment(
         example,
-        exp_prefix="dev-ddpg",
+        exp_prefix="6-26-dev-easy-v",
         seed=seed,
         mode='here',
         variant=variant,
