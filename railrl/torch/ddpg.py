@@ -6,6 +6,7 @@ from torch import nn as nn
 from torch.autograd import Variable
 
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
+from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import get_average_returns, split_paths
 from railrl.torch.online_algorithm import OnlineAlgorithm
@@ -46,6 +47,18 @@ class DDPG(OnlineAlgorithm):
                                        lr=self.qf_learning_rate)
         self.policy_optimizer = optim.Adam(self.policy.parameters(),
                                            lr=self.policy_learning_rate)
+        # TODO(vitchyr): pass in the replay buffer
+        self.pool = SplitReplayBuffer(
+            EnvReplayBuffer(
+                self.pool_size,
+                self.env,
+            ),
+            EnvReplayBuffer(
+                self.pool_size,
+                self.env,
+            ),
+            fraction_paths_in_train=0.8,
+        )
         if ptu.gpu_enabled():
             self.policy.cuda()
             self.target_policy.cuda()
@@ -134,6 +147,13 @@ class DDPG(OnlineAlgorithm):
                                                       "Exploration"))
         statistics.update(self._statistics_from_paths(paths, "Test"))
 
+        train_batch = self.get_batch(training=True)
+        statistics.update(self._statistics_from_batch(train_batch, "Train"))
+        validation_batch = self.get_batch(training=False)
+        statistics.update(
+            self._statistics_from_batch(validation_batch, "Validation")
+        )
+
         statistics['AverageReturn'] = get_average_returns(paths)
         statistics['Epoch'] = epoch
 
@@ -142,8 +162,10 @@ class DDPG(OnlineAlgorithm):
 
         self.log_diagnostics(paths)
 
-    def get_batch(self):
-        batch = self.pool.random_batch(self.batch_size, flatten=True)
+    def get_batch(self, training=True):
+        batch = self.pool.random_batch(
+            self.batch_size, training=training, flatten=True
+        )
         torch_batch = {
             k: Variable(ptu.from_numpy(array).float(), requires_grad=False)
             for k, array in batch.items()
@@ -156,26 +178,15 @@ class DDPG(OnlineAlgorithm):
 
     def _statistics_from_paths(self, paths, stat_prefix):
         statistics = OrderedDict()
-        statistics.update(self._get_training_statistics(paths, stat_prefix))
+        batch = paths_to_pytorch_batch(paths)
+        statistics.update(self._statistics_from_batch(batch, stat_prefix))
         statistics.update(create_stats_ordered_dict(
             'Num Paths', len(paths), stat_prefix=stat_prefix
         ))
         return statistics
 
-    def _get_training_statistics(self, paths, stat_prefix):
+    def _statistics_from_batch(self, batch, stat_prefix):
         statistics = OrderedDict()
-        rewards, terminals, obs, actions, next_obs = split_paths(paths)
-        np_batch = dict(
-            rewards=rewards,
-            terminals=terminals,
-            observations=obs,
-            actions=actions,
-            next_observations=next_obs,
-        )
-        batch = {
-            k: Variable(ptu.from_numpy(array).float(), requires_grad=False)
-            for k, array in np_batch.items()
-        }
 
         train_dict = self.get_train_dict(batch)
         for name in [
@@ -198,7 +209,10 @@ class DDPG(OnlineAlgorithm):
         return statistics
 
     def _can_evaluate(self, exploration_paths):
-        return len(exploration_paths) > 0
+        return (
+            len(exploration_paths) > 0
+            and self.pool.num_steps_can_sample() > 1
+        )
 
     def get_epoch_snapshot(self, epoch):
         return dict(
@@ -207,6 +221,20 @@ class DDPG(OnlineAlgorithm):
             env=self.training_env,
             qf=self.qf,
         )
+
+def paths_to_pytorch_batch(paths):
+    rewards, terminals, obs, actions, next_obs = split_paths(paths)
+    np_batch = dict(
+        rewards=rewards,
+        terminals=terminals,
+        observations=obs,
+        actions=actions,
+        next_observations=next_obs,
+    )
+    return {
+        k: Variable(ptu.from_numpy(array).float(), requires_grad=False)
+        for k, array in np_batch.items()
+    }
 
 
 def get_generic_path_information(paths, discount, stat_prefix):
