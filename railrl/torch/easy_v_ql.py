@@ -39,8 +39,8 @@ class EasyVQLearning(DDPG):
         Policy operations.
         """
         policy_actions = self.policy(obs)
-        q_output = self.qf(obs, policy_actions)
-        policy_loss = - q_output.mean()
+        v, a = self.qf(obs, policy_actions)
+        policy_loss = - a.mean()
 
         """
         Critic operations.
@@ -48,31 +48,99 @@ class EasyVQLearning(DDPG):
         next_actions = self.policy(next_obs)
         # TODO: try to get this to work
         # next_actions = None
-        target_q_values = self.target_qf(
+        v_target, a_target = self.target_qf(
             next_obs,
             next_actions,
         )
-        y_target = rewards + (1. - terminals) * self.discount * target_q_values
+        y_target = rewards + (1. - terminals) * self.discount * v_target
         # noinspection PyUnresolvedReferences
         y_target = y_target.detach()
-        y_pred = self.qf(obs, actions)
+        v_pred, a_pred = self.qf(obs, actions)
+        y_pred = v_pred + a_pred
         bellman_errors = (y_pred - y_target)**2
         qf_loss = self.qf_criterion(y_pred, y_target)
 
         return OrderedDict([
             ('Policy Actions', policy_actions),
             ('Policy Loss', policy_loss),
-            ('QF Outputs', q_output),
+            ('Policy Action Value', v),
+            ('Policy Action Advantage', a),
+            ('Target Value', v_target),
+            ('Target Advantage', a_target),
+            ('Predicted Value', v_pred),
+            ('Predicted Advantage', a_pred),
             ('Bellman Errors', bellman_errors),
             ('Y targets', y_target),
             ('Y predictions', y_pred),
             ('QF Loss', qf_loss),
         ])
 
-    def training_mode(self, mode):
-        self.policy.train(mode)
-        self.qf.train(mode)
-        self.target_qf.train(mode)
+    def _statistics_from_batch(self, batch, stat_prefix):
+        statistics = OrderedDict()
+
+        train_dict = self.get_train_dict(batch)
+        for name in [
+            'QF Loss',
+            'Policy Loss',
+        ]:
+            tensor = train_dict[name]
+            statistics_name = "{} {} Mean".format(stat_prefix, name)
+            statistics[statistics_name] = np.mean(ptu.get_numpy(tensor))
+
+        for name in [
+            'Bellman Errors',
+            'Target Value',
+            'Target Advantage',
+            'Predicted Value',
+            'Predicted Advantage',
+            'Policy Action Value',
+            'Policy Action Advantage',
+        ]:
+            tensor = train_dict[name]
+            statistics.update(create_stats_ordered_dict(
+                '{} {}'.format(stat_prefix, name),
+                ptu.get_numpy(tensor)
+            ))
+
+        return statistics
+
+    def evaluate(self, epoch, exploration_paths):
+        """
+        Perform evaluation for this algorithm.
+
+        :param epoch: The epoch number.
+        :param exploration_paths: List of dicts, each representing a path.
+        """
+        logger.log("Collecting samples for evaluation")
+        paths = self._sample_paths(epoch)
+        statistics = OrderedDict()
+
+        statistics.update(self._statistics_from_paths(exploration_paths,
+                                                      "Exploration"))
+        statistics.update(self._statistics_from_paths(paths, "Test"))
+
+        train_batch = self.get_batch(training=True)
+        statistics.update(self._statistics_from_batch(train_batch, "Train"))
+        validation_batch = self.get_batch(training=False)
+        statistics.update(
+            self._statistics_from_batch(validation_batch, "Validation")
+        )
+
+        statistics['QF Loss Validation - Train Gap'] = (
+            statistics['Validation QF Loss Mean']
+            - statistics['Train QF Loss Mean']
+        )
+        statistics['Policy Loss Validation - Train Gap'] = (
+            statistics['Validation Policy Loss Mean']
+            - statistics['Train Policy Loss Mean']
+        )
+        statistics['AverageReturn'] = get_average_returns(paths)
+        statistics['Epoch'] = epoch
+
+        for key, value in statistics.items():
+            logger.record_tabular(key, value)
+
+        self.log_diagnostics(paths)
 
 
 class EasyVQFunction(PyTorchModule):
@@ -155,15 +223,15 @@ class EasyVQFunction(PyTorchModule):
         obs = self.obs_batchnorm(obs)
         V = self.vf(obs)
         if action is None:
-            return V
+            A = None
+        else:
+            diag_values = torch.exp(self.diag(obs))
+            diff = action - self.zero(obs)
+            quadratic = self.batch_square(diff, diag_values)
+            f = self.f((obs, action))
+            A = - quadratic * (f**2)
 
-        diag_values = torch.exp(self.diag(obs))
-        diff = action - self.zero(obs)
-        quadratic = self.batch_square(diff, diag_values)
-        f = self.f((obs, action))
-        AF = - quadratic * (f**2)
-
-        return V + AF
+        return V, A
 
 
 def init_layer(layer):
