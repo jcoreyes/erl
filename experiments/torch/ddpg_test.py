@@ -30,6 +30,18 @@ def example(variant):
         400,
         300,
     )
+    # qf = EasyVQFunction(
+    #     int(env.observation_space.flat_dim),
+    #     int(env.action_space.flat_dim),
+    #     400,
+    #     300,
+    #     400,
+    #     300,
+    #     400,
+    #     300,
+    #     400,
+    #     300,
+    # )
     policy = FeedForwardPolicy(
         int(env.observation_space.flat_dim),
         int(env.action_space.flat_dim),

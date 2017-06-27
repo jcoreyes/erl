@@ -56,7 +56,6 @@ class EasyVQLearning(DDPG):
         self.qf_optimizer.zero_grad()
         # Generate y target using target policies
         next_actions = self.policy(next_obs)
-        # next_v_values = self.qf(next_obs, next_actions)
         next_v_values = self.target_qf(
             next_obs,
             next_actions,
@@ -156,22 +155,7 @@ class EasyVQFunction(PyTorchModule):
             nn.Linear(vf_fc2_size, 1),
         )
 
-        # self.reset_parameters()
         self.apply(init_layer)
-
-    # def reset_parameters(self):
-    #     self.obs_batchnorm.reset_parameters()
-    #
-    #     for mod in self.modules():
-    #         if isinstance(mod, nn.Sequential):
-    #             for layer in mod.modules():
-    #                 if isinstance(layer, nn.Linear):
-    #                     init.kaiming_normal(layer.weight)
-    #                     layer.bias.data.fill_(0)
-        # init.kaiming_normal(self.f[3].weight)
-        # self.f[3].bias.data.fill_(0)
-        # self.f[5].weight.data.uniform_(-init_w, init_w)
-        # self.f[5].bias.data.uniform_(-init_w, init_w)
 
     def forward(self, obs, action):
         obs = self.obs_batchnorm(obs)
@@ -183,8 +167,6 @@ class EasyVQFunction(PyTorchModule):
         diff = action - self.zero(obs)
         quadratic = self.batch_square(diff, diag_values)
         f = self.f((obs, action))
-        # return f
-        # AF = - quadratic * (f**2)
         AF = - quadratic * (f**2)
 
         return V + AF
