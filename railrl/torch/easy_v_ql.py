@@ -5,17 +5,19 @@ import torch.optim as optim
 import torch
 from torch import nn as nn
 from torch.autograd import Variable
+from torch.nn import init
 
 from railrl.torch.core import PyTorchModule
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import get_average_returns
+from railrl.torch.ddpg import DDPG
 from railrl.torch.online_algorithm import OnlineAlgorithm
 import railrl.torch.pytorch_util as ptu
 import railrl.torch.modules as M
 from rllab.misc import logger, special
 
 
-class EasyVQLearning(OnlineAlgorithm):
+class EasyVQLearning(DDPG):
     """
     Continous action Q learning where the V function is easy:
 
@@ -26,30 +28,6 @@ class EasyVQLearning(OnlineAlgorithm):
         max_a A(s, a) = 0
 
     """
-    def __init__(
-            self,
-            *args,
-            qf,
-            policy,
-            policy_learning_rate=1e-4,
-            qf_learning_rate=1e-3,
-            **kwargs
-    ):
-        super().__init__(*args, **kwargs)
-        self.qf = qf
-        self.policy = policy
-        self.policy_learning_rate = policy_learning_rate
-        self.qf_learning_rate = qf_learning_rate
-
-        self.qf_criterion = nn.MSELoss()
-        self.qf_optimizer = optim.Adam(self.qf.parameters(),
-                                       lr=self.qf_learning_rate)
-        self.policy_optimizer = optim.Adam(self.policy.parameters(),
-                                           lr=self.policy_learning_rate)
-        if ptu.gpu_enabled():
-            self.policy.cuda()
-            self.qf.cuda()
-
     def _do_training(self, n_steps_total):
         batch = self.get_batch()
         rewards = batch['rewards']
@@ -61,11 +39,11 @@ class EasyVQLearning(OnlineAlgorithm):
         """
         Optimize Policy.
         """
+        self.policy_optimizer.zero_grad()
         policy_actions = self.policy(obs)
         q_output = self.qf(obs, policy_actions)
         policy_loss = - q_output.mean()
 
-        self.policy_optimizer.zero_grad()
         policy_loss.backward()
         self.policy_optimizer.step()
 
@@ -75,93 +53,33 @@ class EasyVQLearning(OnlineAlgorithm):
         Update the critic second since so that the policy uses the QF from
         this iteration.
         """
+        self.qf_optimizer.zero_grad()
         # Generate y target using target policies
         next_actions = self.policy(next_obs)
-        next_v_values = self.qf(next_obs, next_actions)
+        # next_v_values = self.qf(next_obs, next_actions)
+        next_v_values = self.target_qf(
+            next_obs,
+            next_actions,
+        )
         y_target = rewards + (1. - terminals) * self.discount * next_v_values
         # noinspection PyUnresolvedReferences
         y_target = y_target.detach()
         y_pred = self.qf(obs, actions)
         qf_loss = self.qf_criterion(y_pred, y_target)
 
-        self.qf_optimizer.zero_grad()
         qf_loss.backward()
         self.qf_optimizer.step()
+
+        """
+        Update Target Networks
+        """
+        if n_steps_total % self.target_hard_update_period == 0:
+            ptu.copy_model_params_from_to(self.qf, self.target_qf)
 
     def training_mode(self, mode):
         self.policy.train(mode)
         self.qf.train(mode)
-
-    def evaluate(self, epoch, exploration_paths):
-        """
-        Perform evaluation for this algorithm.
-
-        :param epoch: The epoch number.
-        :param exploration_paths: List of dicts, each representing a path.
-        """
-        logger.log("Collecting samples for evaluation")
-        paths = self._sample_paths(epoch)
-        statistics = OrderedDict()
-
-        statistics.update(self._statistics_from_paths(exploration_paths,
-                                                      "Exploration"))
-        statistics.update(self._statistics_from_paths(paths, "Test"))
-
-        statistics['AverageReturn'] = get_average_returns(paths)
-        statistics['Epoch'] = epoch
-
-        for key, value in statistics.items():
-            logger.record_tabular(key, value)
-
-        self.log_diagnostics(paths)
-
-    def get_batch(self):
-        batch = self.pool.random_batch(self.batch_size, flatten=True)
-        torch_batch = {
-            k: Variable(ptu.from_numpy(array).float(), requires_grad=False)
-            for k, array in batch.items()
-        }
-        rewards = torch_batch['rewards']
-        terminals = torch_batch['terminals']
-        torch_batch['rewards'] = rewards.unsqueeze(-1)
-        torch_batch['terminals'] = terminals.unsqueeze(-1)
-        return torch_batch
-
-    def _statistics_from_paths(self, paths, stat_prefix):
-        statistics = OrderedDict()
-        returns = [sum(path["rewards"]) for path in paths]
-
-        discounted_returns = [
-            special.discount_return(path["rewards"], self.discount)
-            for path in paths
-        ]
-        rewards = np.hstack([path["rewards"] for path in paths])
-        statistics.update(create_stats_ordered_dict('Rewards', rewards,
-                                                    stat_prefix=stat_prefix))
-        statistics.update(create_stats_ordered_dict('Returns', returns,
-                                                    stat_prefix=stat_prefix))
-        statistics.update(create_stats_ordered_dict('DiscountedReturns',
-                                                    discounted_returns,
-                                                    stat_prefix=stat_prefix))
-        actions = np.vstack([path["actions"] for path in paths])
-        statistics.update(create_stats_ordered_dict(
-            'Actions', actions, stat_prefix=stat_prefix
-        ))
-        statistics.update(create_stats_ordered_dict(
-            'Num Paths', len(paths), stat_prefix=stat_prefix
-        ))
-        return statistics
-
-    def _can_evaluate(self, exploration_paths):
-        return len(exploration_paths) > 0
-
-    def get_epoch_snapshot(self, epoch):
-        return dict(
-            epoch=epoch,
-            policy=self.policy,
-            env=self.training_env,
-            qf=self.qf,
-        )
+        self.target_qf.train(mode)
 
 
 class EasyVQFunction(PyTorchModule):
@@ -221,14 +139,6 @@ class EasyVQFunction(PyTorchModule):
             nn.Linear(zero_fc2_size, action_dim),
         )
 
-        self.root = nn.Sequential(
-            nn.Linear(obs_dim, zero_fc1_size),
-            nn.ReLU(),
-            nn.Linear(zero_fc1_size, zero_fc2_size),
-            nn.ReLU(),
-            nn.Linear(zero_fc2_size, action_dim),
-        )
-
         self.f = nn.Sequential(
             M.Concat(),
             nn.Linear(obs_dim + action_dim, af_fc1_size),
@@ -246,10 +156,22 @@ class EasyVQFunction(PyTorchModule):
             nn.Linear(vf_fc2_size, 1),
         )
 
-        self.reset_parameters()
+        # self.reset_parameters()
+        self.apply(init_layer)
 
-    def reset_parameters(self):
-        self.obs_batchnorm.reset_parameters()
+    # def reset_parameters(self):
+    #     self.obs_batchnorm.reset_parameters()
+    #
+    #     for mod in self.modules():
+    #         if isinstance(mod, nn.Sequential):
+    #             for layer in mod.modules():
+    #                 if isinstance(layer, nn.Linear):
+    #                     init.kaiming_normal(layer.weight)
+    #                     layer.bias.data.fill_(0)
+        # init.kaiming_normal(self.f[3].weight)
+        # self.f[3].bias.data.fill_(0)
+        # self.f[5].weight.data.uniform_(-init_w, init_w)
+        # self.f[5].bias.data.uniform_(-init_w, init_w)
 
     def forward(self, obs, action):
         obs = self.obs_batchnorm(obs)
@@ -261,7 +183,16 @@ class EasyVQFunction(PyTorchModule):
         diff = action - self.zero(obs)
         quadratic = self.batch_square(diff, diag_values)
         f = self.f((obs, action))
-        # AF = f
+        # return f
+        # AF = - quadratic * (f**2)
         AF = - quadratic * (f**2)
 
         return V + AF
+
+
+def init_layer(layer):
+    if isinstance(layer, nn.Linear):
+        init.kaiming_normal(layer.weight)
+        layer.bias.data.fill_(0)
+    elif isinstance(layer, nn.BatchNorm1d):
+        layer.reset_parameters()
