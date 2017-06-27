@@ -4,6 +4,7 @@ Exampling of running DDPG on HalfCheetah.
 import random
 
 from railrl.envs.env_utils import gym_env
+from railrl.envs.time_limited_env import TimeLimitedEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
@@ -22,6 +23,8 @@ def example(variant):
     # env = PointEnv()
     env = gym_env("Pendulum-v0")
     # env = HopperEnv()
+    horizon = variant['algo_params']['max_path_length']
+    env = TimeLimitedEnv(env, horizon)
     env = normalize(env)
     es = OUStrategy(action_space=env.action_space)
     qf = FeedForwardQFunction(
