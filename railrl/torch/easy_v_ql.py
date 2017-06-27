@@ -28,8 +28,7 @@ class EasyVQLearning(DDPG):
         max_a A(s, a) = 0
 
     """
-    def _do_training(self, n_steps_total):
-        batch = self.get_batch()
+    def get_train_dict(self, batch):
         rewards = batch['rewards']
         terminals = batch['terminals']
         obs = batch['observations']
@@ -37,43 +36,38 @@ class EasyVQLearning(DDPG):
         next_obs = batch['next_observations']
 
         """
-        Optimize Policy.
+        Policy operations.
         """
-        self.policy_optimizer.zero_grad()
         policy_actions = self.policy(obs)
         q_output = self.qf(obs, policy_actions)
         policy_loss = - q_output.mean()
 
-        policy_loss.backward()
-        self.policy_optimizer.step()
-
         """
-        Optimize Critic.
-
-        Update the critic second since so that the policy uses the QF from
-        this iteration.
+        Critic operations.
         """
-        self.qf_optimizer.zero_grad()
-        # Generate y target using target policies
         next_actions = self.policy(next_obs)
-        next_v_values = self.target_qf(
+        # TODO: try to get this to work
+        # next_actions = None
+        target_q_values = self.target_qf(
             next_obs,
             next_actions,
         )
-        y_target = rewards + (1. - terminals) * self.discount * next_v_values
+        y_target = rewards + (1. - terminals) * self.discount * target_q_values
         # noinspection PyUnresolvedReferences
         y_target = y_target.detach()
         y_pred = self.qf(obs, actions)
+        bellman_errors = (y_pred - y_target)**2
         qf_loss = self.qf_criterion(y_pred, y_target)
 
-        qf_loss.backward()
-        self.qf_optimizer.step()
-
-        """
-        Update Target Networks
-        """
-        if n_steps_total % self.target_hard_update_period == 0:
-            ptu.copy_model_params_from_to(self.qf, self.target_qf)
+        return OrderedDict([
+            ('Policy Actions', policy_actions),
+            ('Policy Loss', policy_loss),
+            ('QF Outputs', q_output),
+            ('Bellman Errors', bellman_errors),
+            ('Y targets', y_target),
+            ('Y predictions', y_pred),
+            ('QF Loss', qf_loss),
+        ])
 
     def training_mode(self, mode):
         self.policy.train(mode)
