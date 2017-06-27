@@ -5,14 +5,14 @@ import torch.optim as optim
 from torch import nn as nn
 from torch.autograd import Variable
 
+from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.misc.rllab_util import get_average_returns
+from railrl.misc.rllab_util import get_average_returns, split_paths
 from railrl.torch.online_algorithm import OnlineAlgorithm
 import railrl.torch.pytorch_util as ptu
 from rllab.misc import logger, special
 
 
-# noinspection PyCallingNonCallable
 class DDPG(OnlineAlgorithm):
     """
     Online learning algorithm.
@@ -26,7 +26,7 @@ class DDPG(OnlineAlgorithm):
             policy_learning_rate=1e-4,
             qf_learning_rate=1e-3,
             target_hard_update_period=1000,
-            tau=0.001,
+            tau=1e-2,
             use_soft_update=False,
             **kwargs
     ):
@@ -54,6 +54,27 @@ class DDPG(OnlineAlgorithm):
 
     def _do_training(self, n_steps_total):
         batch = self.get_batch()
+        train_dict = self.get_train_dict(batch)
+
+        self.policy_optimizer.zero_grad()
+        policy_loss = train_dict['Policy Loss']
+        policy_loss.backward()
+        self.policy_optimizer.step()
+
+        self.qf_optimizer.zero_grad()
+        qf_loss = train_dict['QF Loss']
+        qf_loss.backward()
+        self.qf_optimizer.step()
+
+        if self.use_soft_update:
+            ptu.soft_update_from_to(self.target_policy, self.policy, self.tau)
+            ptu.soft_update_from_to(self.target_qf, self.qf, self.tau)
+        else:
+            if n_steps_total % self.target_hard_update_period == 0:
+                ptu.copy_model_params_from_to(self.qf, self.target_qf)
+                ptu.copy_model_params_from_to(self.policy, self.target_policy)
+
+    def get_train_dict(self, batch):
         rewards = batch['rewards']
         terminals = batch['terminals']
         obs = batch['observations']
@@ -61,24 +82,16 @@ class DDPG(OnlineAlgorithm):
         next_obs = batch['next_observations']
 
         """
-        Optimize Policy.
+        Policy operations.
         """
         policy_actions = self.policy(obs)
         q_output = self.qf(obs, policy_actions)
         policy_loss = - q_output.mean()
 
-        self.policy_optimizer.zero_grad()
-        policy_loss.backward()
-        self.policy_optimizer.step()
-
         """
-        Optimize Critic.
-
-        Update the critic second since so that the policy uses the QF from
-        this iteration.
+        Critic operations.
         """
-        # Generate y target using target policies
-        next_actions = self.target_policy(next_obs)
+        next_actions = self.policy(next_obs)
         target_q_values = self.target_qf(
             next_obs,
             next_actions,
@@ -87,22 +100,18 @@ class DDPG(OnlineAlgorithm):
         # noinspection PyUnresolvedReferences
         y_target = y_target.detach()
         y_pred = self.qf(obs, actions)
+        bellman_errors = (y_pred - y_target)**2
         qf_loss = self.qf_criterion(y_pred, y_target)
 
-        self.qf_optimizer.zero_grad()
-        qf_loss.backward()
-        self.qf_optimizer.step()
-
-        """
-        Update Target Networks
-        """
-        if self.use_soft_update:
-            ptu.soft_update_from_to(self.target_policy, self.policy, self.tau)
-            ptu.soft_update_from_to(self.target_qf, self.qf, self.tau)
-        else:
-            if n_steps_total % self.target_hard_update_period == 0:
-                ptu.copy_model_params_from_to(self.qf, self.target_qf)
-                ptu.copy_model_params_from_to(self.policy, self.target_policy)
+        return OrderedDict([
+            ('Policy Actions', policy_actions),
+            ('Policy Loss', policy_loss),
+            ('QF Outputs', q_output),
+            ('Bellman Errors', bellman_errors),
+            ('Y targets', y_target),
+            ('Y predictions', y_pred),
+            ('QF Loss', qf_loss),
+        ])
 
     def training_mode(self, mode):
         self.policy.train(mode)
@@ -147,27 +156,49 @@ class DDPG(OnlineAlgorithm):
 
     def _statistics_from_paths(self, paths, stat_prefix):
         statistics = OrderedDict()
-        returns = [sum(path["rewards"]) for path in paths]
-
-        discounted_returns = [
-            special.discount_return(path["rewards"], self.discount)
-            for path in paths
-        ]
-        rewards = np.hstack([path["rewards"] for path in paths])
-        statistics.update(create_stats_ordered_dict('Rewards', rewards,
-                                                    stat_prefix=stat_prefix))
-        statistics.update(create_stats_ordered_dict('Returns', returns,
-                                                    stat_prefix=stat_prefix))
-        statistics.update(create_stats_ordered_dict('DiscountedReturns',
-                                                    discounted_returns,
-                                                    stat_prefix=stat_prefix))
-        actions = np.vstack([path["actions"] for path in paths])
-        statistics.update(create_stats_ordered_dict(
-            'Actions', actions, stat_prefix=stat_prefix
-        ))
+        # statistics.update(
+        #     get_generic_path_information(paths, self.discount, stat_prefix)
+        # )
+        statistics.update(self._get_training_statistics(paths, stat_prefix))
         statistics.update(create_stats_ordered_dict(
             'Num Paths', len(paths), stat_prefix=stat_prefix
         ))
+        return statistics
+
+    def _get_training_statistics(self, paths, stat_prefix):
+        statistics = OrderedDict()
+        rewards, terminals, obs, actions, next_obs = split_paths(paths)
+        np_batch = dict(
+            rewards=rewards,
+            terminals=terminals,
+            observations=obs,
+            actions=actions,
+            next_observations=next_obs,
+        )
+        batch = {
+            k: Variable(ptu.from_numpy(array).float(), requires_grad=False)
+            for k, array in np_batch.items()
+        }
+
+        train_dict = self.get_train_dict(batch)
+        # train_dict.update(self.get_qf_train_dict(batch))
+        for name in [
+            'QF Loss',
+            'Policy Loss',
+        ]:
+            tensor = train_dict[name]
+            statistics_name = "{} {} Mean".format(stat_prefix, name)
+            statistics[statistics_name] = np.mean(ptu.get_numpy(tensor))
+
+        for name in [
+            'Bellman Errors',
+        ]:
+            tensor = train_dict[name]
+            statistics.update(create_stats_ordered_dict(
+                '{} {}'.format(stat_prefix, name),
+                ptu.get_numpy(tensor)
+            ))
+
         return statistics
 
     def _can_evaluate(self, exploration_paths):
@@ -180,3 +211,28 @@ class DDPG(OnlineAlgorithm):
             env=self.training_env,
             qf=self.qf,
         )
+
+
+def get_generic_path_information(paths, discount, stat_prefix):
+    """
+    Get an OrderedDict with a bunch of statistic names and values.
+    """
+    statistics = OrderedDict()
+    returns = [sum(path["rewards"]) for path in paths]
+
+    discounted_returns = [
+        special.discount_return(path["rewards"], discount)
+        for path in paths
+    ]
+    rewards = np.hstack([path["rewards"] for path in paths])
+    statistics.update(create_stats_ordered_dict('Rewards', rewards,
+                                                stat_prefix=stat_prefix))
+    statistics.update(create_stats_ordered_dict('Returns', returns,
+                                                stat_prefix=stat_prefix))
+    statistics.update(create_stats_ordered_dict('DiscountedReturns',
+                                                discounted_returns,
+                                                stat_prefix=stat_prefix))
+    actions = np.vstack([path["actions"] for path in paths])
+    statistics.update(create_stats_ordered_dict(
+        'Actions', actions, stat_prefix=stat_prefix
+    ))
