@@ -1,6 +1,8 @@
 """
 Exampling of running DDPG on HalfCheetah.
 """
+import random
+
 from railrl.envs.env_utils import gym_env
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
@@ -57,12 +59,14 @@ if __name__ == "__main__":
             num_steps_per_eval=1000,
             batch_size=128,
             max_path_length=1000,
+            target_hard_update_period=100,
         )
     )
+    seed = random.randint(0, 999999)
     run_experiment(
         example,
         exp_prefix="6-26-dev-easy-v",
-        seed=0,
+        seed=seed,
         mode='here',
         variant=variant,
         use_gpu=True,
