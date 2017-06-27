@@ -384,3 +384,28 @@ def reset_execution_environment():
     tf.reset_default_graph()
     import importlib
     importlib.reload(logger)
+
+
+def create_run_experiment_multiple_seeds(n_seeds, experiment, **kwargs):
+    """
+    Run a function multiple times over different seeds and return the average
+    score.
+    :param n_seeds: Number of times to run an experiment.
+    :param experiment: A function that returns a score.
+    :param kwargs: keyword arguements to pass to experiment.
+    :return: Average score across `n_seeds`.
+    """
+    def run_experiment_with_multiple_seeds(variant):
+        seed = int(variant['seed'])
+        scores = []
+        for i in range(n_seeds):
+            variant['seed'] = str(seed + i)
+            scores.append(run_experiment_here(
+                experiment,
+                variant=variant,
+                exp_id=i,
+                **kwargs
+            ))
+        return np.mean(scores)
+
+    return run_experiment_with_multiple_seeds
