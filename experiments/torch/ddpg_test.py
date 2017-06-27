@@ -30,18 +30,6 @@ def example(variant):
         400,
         300,
     )
-    # qf = EasyVQFunction(
-    #     int(env.observation_space.flat_dim),
-    #     int(env.action_space.flat_dim),
-    #     400,
-    #     300,
-    #     400,
-    #     300,
-    #     400,
-    #     300,
-    #     400,
-    #     300,
-    # )
     policy = FeedForwardPolicy(
         int(env.observation_space.flat_dim),
         int(env.action_space.flat_dim),
@@ -65,9 +53,7 @@ if __name__ == "__main__":
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             target_hard_update_period=100,
-            # use_soft_update=True,
             batch_size=128,
-            # tau=1e-2,
             max_path_length=1000,
         )
     )
