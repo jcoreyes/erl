@@ -1,11 +1,15 @@
 """
 Exampling of running DDPG on HalfCheetah.
 """
+import random
+
+from railrl.envs.env_utils import gym_env
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.qfunctions.torch import FeedForwardQFunction
 from railrl.torch.ddpg import DDPG
+from railrl.torch.easy_v_ql import EasyVQFunction
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 from rllab.envs.mujoco.hopper_env import HopperEnv
@@ -14,9 +18,9 @@ from rllab.envs.normalized_env import normalize
 
 
 def example(variant):
-    env = HalfCheetahEnv()
+    # env = HalfCheetahEnv()
     # env = PointEnv()
-    # env = gym_env("Pendulum-v0")
+    env = gym_env("Pendulum-v0")
     # env = HopperEnv()
     env = normalize(env)
     es = OUStrategy(action_space=env.action_space)
@@ -46,18 +50,20 @@ if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
             num_epochs=50,
-            num_steps_per_epoch=10000,
+            num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
-            target_hard_update_period=10000,
+            target_hard_update_period=100,
             # use_soft_update=True,
             batch_size=128,
+            # tau=1e-2,
             max_path_length=1000,
         )
     )
+    seed = random.randint(0, 999999)
     run_experiment(
         example,
-        exp_prefix="6-21-pytorch-ddpg-no-bn-cheetah",
-        seed=0,
+        exp_prefix="dev-ddpg",
+        seed=seed,
         mode='here',
         variant=variant,
         use_gpu=True,
