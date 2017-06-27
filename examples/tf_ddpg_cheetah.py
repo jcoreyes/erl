@@ -1,5 +1,5 @@
 """
-Exampling of running DDPG on HalfCheetah.
+Exampling of running the TensorFlow version of DDPG on HalfCheetah.
 """
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment

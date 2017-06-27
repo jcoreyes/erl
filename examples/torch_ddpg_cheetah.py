@@ -1,6 +1,8 @@
 """
 Run PyTorch DDPG on HalfCheetah.
 """
+import random
+
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
@@ -44,7 +46,6 @@ if __name__ == "__main__":
             num_epochs=100,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
-            # target_hard_update_period=10000,
             use_soft_update=True,
             tau=1e-2,
             batch_size=128,
@@ -52,11 +53,11 @@ if __name__ == "__main__":
         ),
         version="PyTorch - bigger networks",
     )
-    for seed in range(1):
-        run_experiment(
-            example,
-            exp_prefix="dev-ddpg-half-cheetah-pytorch",
-            seed=seed,
-            mode='here',
-            variant=variant,
-        )
+    seed = random.randint(0, 999999)
+    run_experiment(
+        example,
+        exp_prefix="ddpg-half-cheetah-pytorch",
+        seed=seed,
+        mode='here',
+        variant=variant,
+    )
