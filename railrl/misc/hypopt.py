@@ -1,3 +1,6 @@
+"""
+Utility functions that wrap the hyperopt library.
+"""
 import json
 import pickle
 import time

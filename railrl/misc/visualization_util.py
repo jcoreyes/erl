@@ -1,3 +1,6 @@
+"""
+Utility functions for making visuals.
+"""
 import tempfile
 import scipy.misc
 from collections import namedtuple

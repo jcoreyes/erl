@@ -1,3 +1,6 @@
+"""
+Custom hyperparameter functions.
+"""
 import abc
 import copy
 import math

@@ -29,7 +29,7 @@ def format_dict(d):
 class HTMLReport:
     """
     Create an HTML report out.
-    
+
     Usage:
     ```
     report = HTMLReport(osp.join(log_dir, 'report.html'), images_per_row=3)
@@ -58,7 +58,7 @@ class HTMLReport:
             h3(str, style='word-wrap: break-word; white-space: pre-wrap;')
         self.t = None
         self.row_image_count = 0
-        
+
     def add_text(self, str):
         with self.doc:
             p(str, style='word-wrap: break-word; white-space: pre-wrap;')
@@ -115,7 +115,7 @@ class HTMLReport:
         f = open(self.path, 'w')
         f.write(self.doc.render())
         f.close()
-        
+
     def __del__(self):
         self.save()
 

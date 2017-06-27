@@ -1,3 +1,6 @@
+"""
+Utility functions that heavily use or modify numpy.
+"""
 import numpy as np
 import contextlib
 

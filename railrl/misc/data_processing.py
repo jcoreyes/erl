@@ -1,3 +1,6 @@
+"""
+Utility functions for loading data.
+"""
 from collections import OrderedDict
 from numbers import Number
 
@@ -42,45 +45,3 @@ def get_dirs(root):
     for root, directories, filenames in os.walk(root):
         for directory in directories:
             yield os.path.join(root, directory)
-
-
-def make_heat_map(eval_func, *, resolution=50, min_val=-1, max_val=1):
-    linspace = np.linspace(min_val, max_val, num=resolution)
-    map = np.zeros((resolution, resolution))
-
-    for i in range(resolution):
-        for j in range(resolution):
-            map[i, j] = eval_func(np.array([linspace[i], linspace[j]]))
-    return map
-
-
-def make_density_map(paths, *, resolution=50, min_val=-1, max_val=1):
-    linspace = np.linspace(min_val, max_val, num=resolution)
-    y = paths[:, 0]
-    x = paths[:, 1]
-    H, xedges, yedges = np.histogram2d(y, x, bins=(linspace, linspace))
-    H = H.astype(np.float)
-    H = H / np.max(H)
-    return H
-
-
-def plot_maps(old_combined=None, *heatmaps):
-    import matplotlib.pyplot as plt
-    combined = np.c_[heatmaps]
-    if old_combined is not None:
-        combined = np.r_[old_combined, combined]
-    plt.figure()
-    plt.imshow(combined, cmap='afmhot', interpolation='none')
-    plt.show()
-    return combined
-
-
-if __name__ == "__main__":
-    def evalfn(a):
-        return np.linalg.norm(a)
-
-    hm = make_heat_map(evalfn, resolution=50)
-    paths = np.random.randn(5000, 2) * 0.1
-    dm = make_density_map(paths, resolution=50)
-    a = plot_maps(None, hm, dm)
-    plot_maps(a, hm, dm)

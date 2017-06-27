@@ -1,3 +1,6 @@
+"""
+Utility functions built around rllab functions/objects/classes.
+"""
 import numpy as np
 
 from rllab.spaces.product import Product
