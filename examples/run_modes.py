@@ -1,6 +1,18 @@
 import random
+import numpy as np
+from hyperopt import hp
+from railrl.misc.hypopt import optimize_and_save
+from railrl.launchers.launcher_util import (
+    create_base_log_dir,
+    create_run_experiment_multiple_seeds,
+)
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.hyperparameter import DeterministicHyperparameterSweeper
+
+
+def experiment(variant):
+    return 0
+
 
 if __name__ == '__main__':
     n_seeds = 1
@@ -42,6 +54,38 @@ if __name__ == '__main__':
                     sync_s3_pkl=True,
                     periodic_sync_interval=600,
                 )
+    if run_mode == 'hyperopt':
+        search_space = {
+            'float_param': hp.uniform(
+                'float_param',
+                0.,
+                5,
+            ),
+            'float_param2': hp.loguniform(
+                'float_param2',
+                np.log(0.01),
+                np.log(1000),
+            ),
+            'seed': hp.randint('seed', 10000),
+        }
+
+        base_log_dir = create_base_log_dir(exp_prefix=exp_prefix)
+
+        optimize_and_save(
+            base_log_dir,
+            create_run_experiment_multiple_seeds(
+                n_seeds,
+                experiment,
+                exp_prefix=exp_prefix,
+            ),
+            search_space=search_space,
+            extra_function_kwargs=variant,
+            maximize=True,
+            verbose=True,
+            load_trials=True,
+            num_rounds=500,
+            num_evals_per_round=1,
+        )
     else:
         for _ in range(n_seeds):
             seed = random.randint(0, 10000)
