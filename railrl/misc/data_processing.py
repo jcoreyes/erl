@@ -71,6 +71,9 @@ def get_data_and_variants(base_dir):
         with open(variant_file_name) as variant_file:
             variant = json.load(variant_file)
         variant = nested_dict_to_dot_map_dict(variant)
+        num_lines = sum(1 for _ in open(data_file_name))
+        if num_lines < 2:
+            continue
         data = np.genfromtxt(
             data_file_name, delimiter=',', dtype=None, names=True
         )
