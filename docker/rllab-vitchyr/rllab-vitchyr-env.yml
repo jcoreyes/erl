@@ -61,3 +61,5 @@ dependencies:
         - seaborn
         - dominate
         - gitpython
+        - pyrfr
+        - git+https://github.com/automl/fanova.git
