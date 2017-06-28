@@ -134,7 +134,9 @@ class EasyVQLearning(DDPG):
             statistics['Validation Policy Loss Mean']
             - statistics['Train Policy Loss Mean']
         )
-        statistics['AverageReturn'] = get_average_returns(paths)
+        average_returns = get_average_returns(paths)
+        statistics['AverageReturn'] = average_returns
+        self.final_score = average_returns
         statistics['Epoch'] = epoch
 
         for key, value in statistics.items():
