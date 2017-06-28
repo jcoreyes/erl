@@ -79,6 +79,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         )
 
         self.policy = None  # Subclass must set this.
+        self.final_score = 0
 
     def train(self):
         n_steps_total = 0
