@@ -400,10 +400,11 @@ def create_run_experiment_multiple_seeds(n_seeds, experiment, **kwargs):
         scores = []
         for i in range(n_seeds):
             variant['seed'] = str(seed + i)
-            scores.append(run_experiment_here(
+            scores.append(run_experiment(
                 experiment,
                 variant=variant,
                 exp_id=i,
+                mode='here',
                 **kwargs
             ))
         return np.mean(scores)
