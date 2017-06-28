@@ -8,7 +8,7 @@ from railrl.envs.env_utils import gym_env
 from railrl.envs.time_limited_env import TimeLimitedEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.misc.hyperparameter import DeterministicHyperparameterSweeper
+import railrl.misc.hyperparameter as hyp
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.qfunctions.torch import FeedForwardQFunction
 from railrl.torch.easy_v_ql import EasyVQFunction, EasyVQLearning
@@ -72,14 +72,15 @@ if __name__ == "__main__":
 
     # n_seeds = 5
     # mode = "ec2"
-    exp_prefix = "6-27-easy-v-sweep-hyperopt"
+    exp_prefix = "6-27-easy-v-sweep-random"
     # version = "Easy V"
 
-    run_mode = 'hyperopt'
+    run_mode = 'random'
     use_gpu = True
     if mode != "here":
         use_gpu = False
 
+    # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
             num_epochs=10,
@@ -89,7 +90,8 @@ if __name__ == "__main__":
             max_path_length=1000,
             target_hard_update_period=100,
             discount=0.9,
-            policy_learnin=0.9,
+            policy_learning_rate=1e-4,
+            qf_learning_rate=1e-2,
         ),
         version=version,
     )
@@ -100,8 +102,9 @@ if __name__ == "__main__":
             'algo_params.qf_learning_rate': [1e-4, 1e-3, 1e-2],
             'algo_params.target_hard_update_period': [10, 100, 1000],
         }
-        sweeper = DeterministicHyperparameterSweeper(search_space,
-                                                     default_parameters=variant)
+        sweeper = hyp.DeterministicHyperparameterSweeper(
+            search_space, default_parameters=variant
+        )
         for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
             for i in range(n_seeds):
                 seed = random.randint(0, 10000)
@@ -116,6 +119,31 @@ if __name__ == "__main__":
                     sync_s3_pkl=True,
                     periodic_sync_interval=600,
                 )
+    if run_mode == 'random':
+        hyperparameters = [
+            hyp.LinearFloatParam('algo_params.discount', 0, 1),
+            hyp.LogFloatParam('algo_params.policy_learning_rate', 1e-7, 1e-1),
+            hyp.LogFloatParam('algo_params.qf_learning_rate', 1e-7, 1e-1),
+            hyp.LogIntParam('algo_params.target_hard_update_period', 1, 1000),
+        ]
+        sweeper = hyp.RandomHyperparameterSweeper(
+            hyperparameters,
+            default_kwargs=variant,
+        )
+        for exp_id in range(n_seeds):
+            seed = random.randint(0, 10000)
+            variant = sweeper.generate_random_hyperparameters()
+            run_experiment(
+                experiment,
+                exp_prefix=exp_prefix,
+                seed=seed,
+                mode=mode,
+                variant=variant,
+                exp_id=exp_id,
+                sync_s3_log=True,
+                sync_s3_pkl=True,
+                periodic_sync_interval=600,
+            )
     if run_mode == 'hyperopt':
         search_space = {
             'algo_params.qf_learning_rate': hp.loguniform(

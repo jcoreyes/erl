@@ -26,7 +26,6 @@ from railrl.misc.hyperparameter import (
     DeterministicHyperparameterSweeper,
     RandomHyperparameterSweeper,
     LogFloatParam,
-    LogFloatOffsetParam,
     LinearFloatParam,
 )
 from railrl.misc.hypopt import optimize_and_save
@@ -376,12 +375,12 @@ if __name__ == '__main__':
                 LinearFloatParam(
                     'policy_params.rnn_cell_params.memory_noise_std', 0, 1
                 ),
-                LogFloatOffsetParam(
-                    'ddpg_params.bpt_bellman_error_weight', 1, 1001, -1
+                LogFloatParam(
+                    'ddpg_params.bpt_bellman_error_weight', 1, 1001, offset=-1
                 ),
                 LogFloatParam('meta_params.meta_qf_learning_rate', 1e-5, 1e-2),
-                LogFloatOffsetParam(
-                    'meta_params.meta_qf_output_weight', 1e-3, 1e3, -1e-3
+                LogFloatParam(
+                    'meta_params.meta_qf_output_weight', 1e-3, 1e3, offset=-1e-3
                 ),
             ],
             default_kwargs=variant,

@@ -7,7 +7,7 @@ from railrl.launchers.launcher_util import (
     create_run_experiment_multiple_seeds,
 )
 from railrl.launchers.launcher_util import run_experiment
-from railrl.misc.hyperparameter import DeterministicHyperparameterSweeper
+import railrl.misc.hyperparameter as hyp
 
 
 def experiment(variant):
@@ -38,8 +38,9 @@ if __name__ == '__main__':
         search_space = {
             'algo_params.discount': [1, 0.9],
         }
-        sweeper = DeterministicHyperparameterSweeper(search_space,
-                                                     default_parameters=variant)
+        sweeper = hyp.DeterministicHyperparameterSweeper(
+            search_space, default_parameters=variant,
+        )
         for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
             for i in range(n_seeds):
                 seed = random.randint(0, 10000)
@@ -86,6 +87,29 @@ if __name__ == '__main__':
             num_rounds=500,
             num_evals_per_round=1,
         )
+    if run_mode == 'random':
+        hyperparameters = [
+            hyp.LinearFloatParam('foo', 0, 1),
+            hyp.LogFloatParam('bar', 1e-5, 1e2),
+        ]
+        sweeper = hyp.RandomHyperparameterSweeper(
+            hyperparameters,
+            default_kwargs=variant,
+        )
+        for exp_id in range(n_seeds):
+            seed = random.randint(0, 10000)
+            variant = sweeper.generate_random_hyperparameters()
+            run_experiment(
+                experiment,
+                exp_prefix=exp_prefix,
+                seed=seed,
+                mode=mode,
+                variant=variant,
+                exp_id=exp_id,
+                sync_s3_log=True,
+                sync_s3_pkl=True,
+                periodic_sync_interval=600,
+            )
     else:
         for _ in range(n_seeds):
             seed = random.randint(0, 10000)
