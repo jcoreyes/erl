@@ -70,10 +70,10 @@ if __name__ == "__main__":
     version = "Dev"
     run_mode = "none"
 
-    # n_seeds = 5
-    # mode = "ec2"
+    n_seeds = 100
+    mode = "ec2"
     exp_prefix = "6-27-easy-v-sweep-random"
-    # version = "Easy V"
+    version = "Easy V"
 
     run_mode = 'random'
     use_gpu = True
@@ -90,7 +90,7 @@ if __name__ == "__main__":
             max_path_length=1000,
             target_hard_update_period=100,
             discount=0.9,
-            policy_learning_rate=1e-4,
+            policy_learning_rate=1e-3,
             qf_learning_rate=1e-2,
         ),
         version=version,
