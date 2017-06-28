@@ -15,6 +15,8 @@ import os
 from os.path import join
 import json
 from collections import defaultdict
+
+from railrl.misc.data_processing import get_data_and_variants
 from railrl.pythonplusplus import nested_dict_to_dot_map_dict
 import seaborn
 
@@ -54,21 +56,9 @@ def main():
     """
     Load data
     """
-    dir_names = os.listdir(args.expdir)
-    data_and_variant = []
-    variant = {}
-    for dir_name in dir_names:
-        data_file_name = join(args.expdir, dir_name, 'progress.csv')
-        if not os.path.exists(data_file_name):
-            continue
-        print("Reading {}".format(data_file_name))
-        variant_file_name = join(args.expdir, dir_name, 'variant.json')
-        with open(variant_file_name) as variant_file:
-            variant = json.load(variant_file)
-        variant = nested_dict_to_dot_map_dict(variant)
-        data = np.genfromtxt(data_file_name, delimiter=',', dtype=None, names=True)
-        data_and_variant.append((data, variant))
+    data_and_variant = get_data_and_variants(args.expdir)
 
+    data = data_and_variant[0][0]
     if y_label not in data.dtype.names:
         print("Invalid ylabel. Valid ylabels:")
         for name in sorted(data.dtype.names):
