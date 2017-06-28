@@ -1,5 +1,5 @@
 """
-Try out Easy V Q-Learning.
+Multi-step Q-learning.
 """
 import random
 import numpy as np
@@ -34,17 +34,11 @@ def experiment(variant):
     env = TimeLimitedEnv(env, horizon)
     env = normalize(env)
     es = OUStrategy(action_space=env.action_space)
-    qf = EasyVQFunction(
+    qf = FeedForwardQFunction(
         int(env.observation_space.flat_dim),
         int(env.action_space.flat_dim),
-        100,
-        100,
-        100,
-        100,
-        100,
-        100,
-        100,
-        100,
+        400,
+        300,
     )
     policy = FeedForwardPolicy(
         int(env.observation_space.flat_dim),
@@ -52,7 +46,7 @@ def experiment(variant):
         400,
         300,
     )
-    algorithm = EasyVQLearning(
+    algorithm = MultiStepDdpg(
         env,
         exploration_strategy=es,
         qf=qf,
