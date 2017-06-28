@@ -30,9 +30,9 @@ class FeedForwardQFunction(PyTorchModule):
         self.observation_hidden_size = observation_hidden_size
         self.embedded_hidden_size = embedded_hidden_size
 
-        # self.obs_fc = nn.Linear(obs_dim, observation_hidden_size)
-        # self.embedded_fc = nn.Linear(observation_hidden_size + action_dim,
-        #                              embedded_hidden_size)
+        self.obs_fc = nn.Linear(obs_dim, observation_hidden_size)
+        self.embedded_fc = nn.Linear(observation_hidden_size + action_dim,
+                                     embedded_hidden_size)
         self.obs_fc = nn.Linear(obs_dim + action_dim, observation_hidden_size)
         self.embedded_fc = nn.Linear(observation_hidden_size,
                                      embedded_hidden_size)
@@ -50,10 +50,9 @@ class FeedForwardQFunction(PyTorchModule):
         self.last_fc.bias.data.uniform_(-init_w, init_w)
 
     def forward(self, obs, action):
-        # h = obs
-        h = torch.cat((obs, action), dim=1)
+        h = obs
         h = F.relu(self.obs_fc(h))
-        # h = torch.cat((h, action), dim=1)
+        h = torch.cat((h, action), dim=1)
         h = F.relu(self.embedded_fc(h))
         return self.output_activation(self.last_fc(h))
 
