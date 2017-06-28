@@ -11,7 +11,7 @@ from os.path import join
 
 from fanova import visualizer, CategoricalHyperparameter
 
-from railrl.misc.fanova_util import get_fanova_info
+from railrl.misc.fanova_util import get_fanova_info, FanovaInfo
 from railrl.misc.html_report import HTMLReport
 import railrl.misc.visualization_util as vu
 
@@ -22,11 +22,12 @@ def get_param_importance(f, param):
     return result[param_name_tuple]['total importance']
 
 
-def generate_report(fanova_info, base_dir):
-    f, config_space, X, Y, param_names = fanova_info
+def generate_report(fanova_info: FanovaInfo, base_dir):
+    f, config_space, X, Y = fanova_info
     report = HTMLReport(
         join(base_dir, 'report.html'), images_per_row=3,
     )
+    param_names = [p.name for p in config_space.get_hyperparameters()]
 
     """
     List the top 10 parameters.

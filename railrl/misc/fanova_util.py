@@ -6,8 +6,8 @@ from railrl.misc.data_processing import get_data_and_variants
 import ConfigSpace
 from ConfigSpace.hyperparameters import UniformFloatHyperparameter
 
-FanovoInfo = namedtuple(
-    'FanovaInfo', ['f', 'config_space', 'X', 'Y', 'param_names']
+FanovaInfo = namedtuple(
+    'FanovaInfo', ['f', 'config_space', 'X', 'Y']
 )
 
 
@@ -23,12 +23,11 @@ def get_fanova_info(base_dir):
     names = list(variants[0].keys())
     X_raw = _extract_features(variants, names)
     config_space, X = _get_config_space_and_new_features(X_raw, names)
-    return FanovoInfo(
+    return FanovaInfo(
         fANOVA(X, Y, config_space=config_space),
         config_space,
         X,
         Y,
-        names,
     )
 
 
