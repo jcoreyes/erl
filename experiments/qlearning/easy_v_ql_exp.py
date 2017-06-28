@@ -60,6 +60,7 @@ def experiment(variant):
         **variant['algo_params']
     )
     algorithm.train()
+    return algorithm.final_score
 
 
 if __name__ == "__main__":
@@ -87,6 +88,8 @@ if __name__ == "__main__":
             batch_size=128,
             max_path_length=1000,
             target_hard_update_period=100,
+            discount=0.9,
+            policy_learnin=0.9,
         ),
         version=version,
     )
