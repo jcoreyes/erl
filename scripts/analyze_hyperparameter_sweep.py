@@ -11,7 +11,7 @@ from os.path import join
 
 from fanova import visualizer, CategoricalHyperparameter
 
-from railrl.misc.fanova_util import get_fanova_and_config_space
+from railrl.misc.fanova_util import get_fanova_info
 from railrl.misc.html_report import HTMLReport
 import railrl.misc.visualization_util as vu
 
@@ -22,17 +22,30 @@ def get_param_importance(f, param):
     return result[param_name_tuple]['total importance']
 
 
-def generate_report(f, config_space, base_dir):
+def generate_report(fanova_info, base_dir):
+    f, config_space, X, Y, param_names = fanova_info
+    report = HTMLReport(
+        join(base_dir, 'report.html'), images_per_row=3,
+    )
+
+    """
+    List the top 10 parameters.
+    """
+    N = min(10, len(Y))
+    best_idxs = Y.argsort()[-N:][::-1]
+    for rank, i in enumerate(best_idxs):
+        report.add_text("Rank {} params, with score = {}:".format(rank+1, Y[i]))
+        for name, value in zip(param_names, X[i, :]):
+            report.add_text("\t{} = {}\n".format(name, value))
+
     vis = visualizer.Visualizer(f, config_space)
     cs_params = config_space.get_hyperparameters()
-    report = HTMLReport(
-        join(base_dir, 'report.html'), images_per_row=1,
-    )
     importances = [get_param_importance(f, param) for param in cs_params]
     param_and_importance = sorted(
         zip(cs_params, importances),
         key=lambda x: -x[1],
     )
+
     """
     Plot individual marginals.
     """
@@ -47,7 +60,6 @@ def generate_report(f, config_space, base_dir):
             img,
             "Marginal for {}.\nImportance = {}".format(param_name, importance),
         )
-        report.new_row()
 
     """
     Plot pairwise marginals.
@@ -70,15 +82,14 @@ def generate_report(f, config_space, base_dir):
                 importance,
             ),
         )
-        report.new_row()
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("expdir", help="experiment dir, e.g., /tmp/experiments")
     args = parser.parse_args()
-    f, config_space = get_fanova_and_config_space(args.expdir)
-    generate_report(f, config_space, args.expdir)
+    fanova_info = get_fanova_info(args.expdir)
+    generate_report(fanova_info, args.expdir)
 
 
 if __name__ == '__main__':

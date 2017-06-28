@@ -1,25 +1,35 @@
 from fanova import fANOVA
 import numpy as np
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 
 from railrl.misc.data_processing import get_data_and_variants
 import ConfigSpace
 from ConfigSpace.hyperparameters import UniformFloatHyperparameter
+
+FanovoInfo = namedtuple(
+    'FanovaInfo', ['f', 'config_space', 'X', 'Y', 'param_names']
+)
 
 
 def is_numeric(x):
     return isinstance(x, int) or isinstance(x, float)
 
 
-def get_fanova_and_config_space(base_dir):
+def get_fanova_info(base_dir):
     data_and_variants = get_data_and_variants(base_dir)
     data, all_variants = zip(*data_and_variants)
     Y = np.array([exp['AverageReturn'][-1] for exp in data])
     variants = filter_variants_to_unique_params(all_variants)
     names = list(variants[0].keys())
-    X = _extract_features(variants, names)
-    config_space, X = _get_config_space_and_new_features(X, names)
-    return fANOVA(X, Y, config_space=config_space), config_space
+    X_raw = _extract_features(variants, names)
+    config_space, X = _get_config_space_and_new_features(X_raw, names)
+    return FanovoInfo(
+        fANOVA(X, Y, config_space=config_space),
+        config_space,
+        X,
+        Y,
+        names,
+    )
 
 
 def filter_variants_to_unique_params(all_variants):
