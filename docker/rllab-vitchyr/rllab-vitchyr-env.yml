@@ -1,7 +1,7 @@
 name: rllab-vitchyr
 channels:
     - https://conda.anaconda.org/kne
-#    - https://conda.binstar.org/tlatorre
+    - https://conda.anaconda.org/tlatorre
     - https://conda.anaconda.org/cjs15
     - https://conda.anaconda.org/menpo
     - jjhelmus
@@ -38,7 +38,7 @@ dependencies:
         - nose2
         - pyzmq
         - msgpack-python
-        - mujoco_py
+        - mujoco_py==0.5.7
         - cached_property
         - line_profiler
         - Cython
