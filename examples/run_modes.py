@@ -15,6 +15,7 @@ def experiment(variant):
 
 
 if __name__ == '__main__':
+    num_configurations = 1  # for random mode
     n_seeds = 1
     mode = "here"
     exp_prefix = "dev"
@@ -96,20 +97,21 @@ if __name__ == '__main__':
             hyperparameters,
             default_kwargs=variant,
         )
-        for exp_id in range(n_seeds):
-            seed = random.randint(0, 10000)
-            variant = sweeper.generate_random_hyperparameters()
-            run_experiment(
-                experiment,
-                exp_prefix=exp_prefix,
-                seed=seed,
-                mode=mode,
-                variant=variant,
-                exp_id=exp_id,
-                sync_s3_log=True,
-                sync_s3_pkl=True,
-                periodic_sync_interval=600,
-            )
+        for _ in range(num_configurations):
+            for exp_id in range(n_seeds):
+                seed = random.randint(0, 10000)
+                variant = sweeper.generate_random_hyperparameters()
+                run_experiment(
+                    experiment,
+                    exp_prefix=exp_prefix,
+                    seed=seed,
+                    mode=mode,
+                    variant=variant,
+                    exp_id=exp_id,
+                    sync_s3_log=True,
+                    sync_s3_pkl=True,
+                    periodic_sync_interval=600,
+                )
     else:
         for _ in range(n_seeds):
             seed = random.randint(0, 10000)
