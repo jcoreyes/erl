@@ -20,11 +20,11 @@ from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import (
     run_experiment,
 )
-from railrl.misc.hyperparameter import DeterministicHyperparameterSweeper
+import railrl.misc.hyperparameter as hyp
 from railrl.policies.torch import MemoryPolicy, RWACell
 from railrl.pythonplusplus import identity
 from railrl.qfunctions.torch import MemoryQFunction, RecurrentMemoryQFunction
-from railrl.torch.bnlstm import LSTMCell, BNLSTMCell
+from railrl.torch.rnn import LSTMCell, BNLSTMCell, GRUCell
 from railrl.torch.bptt_ddpg_rq import BpttDdpgRecurrentQ
 
 
@@ -37,6 +37,8 @@ def experiment(variant):
     seed = variant['seed']
     algo_params = variant['algo_params']
     memory_dim = variant['memory_dim']
+    if memory_dim % 2 == 1:
+        memory_dim += 1
     env_class = variant['env_class']
     env_params = variant['env_params']
     memory_aug_params = variant['memory_aug_params']
@@ -79,6 +81,7 @@ def experiment(variant):
         memory_dim=memory_dim,
         fc1_size=400,
         fc2_size=300,
+        **policy_params
     )
     algorithm = BpttDdpgRecurrentQ(
         env,
@@ -93,14 +96,15 @@ def experiment(variant):
 if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
-    exp_prefix = "6-22-dev-bptt-ddpg-exp"
+    exp_prefix = "6-29-dev-bptt-ddpg-exp"
     run_mode = 'none'
 
-    # n_seeds = 10
-    # mode = "ec2"
-    # exp_prefix = "6-22-hl-sweep-discount-factor-and-give-time"
+    n_seeds = 1
+    mode = "ec2"
+    exp_prefix = "6-29-bptt-ddpg-exp-sweep-gru-vs-bnlstm"
 
-    # run_mode = 'grid'
+    run_mode = 'random'
+    num_configurations = 100
     use_gpu = True
     if mode != "here":
         use_gpu = False
@@ -157,7 +161,7 @@ if __name__ == '__main__':
             fc2_size=300,
         ),
         policy_params=dict(
-            cell_class=BNLSTMCell,
+            cell_class=GRUCell,
         ),
         es_params=dict(
             env_es_class=OUStrategy,
@@ -165,11 +169,11 @@ if __name__ == '__main__':
                 max_sigma=1,
                 min_sigma=None,
             ),
-            memory_es_class=NoopStrategy,
-            # memory_es_class=OUStrategy,
+            # memory_es_class=NoopStrategy,
+            memory_es_class=OUStrategy,
             memory_es_params=dict(
-                # max_sigma=0,
-                # min_sigma=None,
+                max_sigma=0,
+                min_sigma=None,
             ),
         ),
         version=version,
@@ -190,8 +194,9 @@ if __name__ == '__main__':
             'env_params.give_time': [True, False],
             'algo_params.discount': [1, .9, .5, 0],
         }
-        sweeper = DeterministicHyperparameterSweeper(search_space,
-                                                     default_parameters=variant)
+        sweeper = hyp.DeterministicHyperparameterSweeper(
+            search_space, default_parameters=variant,
+        )
         for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
             for i in range(n_seeds):
                 run_experiment(
@@ -231,6 +236,51 @@ if __name__ == '__main__':
                     mode=mode,
                     variant=variant,
                     exp_id=exp_id,
+                )
+    if run_mode == 'random':
+        hyperparameters = [
+            hyp.LogIntParam('memory_dim', 2, 400),
+            # hyp.LogFloatParam('algo_params.qf_learning_rate', 1e-5, 1e-1),
+            # hyp.LogFloatParam(
+            #     'algo_params.write_policy_learning_rate', 1e-6, 1e-2
+            # ),
+            # hyp.LogFloatParam(
+            #     'algo_params.action_policy_learning_rate', 1e-6, 1e-2
+            # ),
+            # hyp.EnumParam(
+            #     'algo_params.action_policy_optimize_bellman', [True, False],
+            # ),
+            # hyp.EnumParam(
+            #     'algo_params.write_policy_optimizes', ['both', 'qf', 'bellman']
+            # ),
+            hyp.EnumParam(
+                'policy_params.cell_class', [GRUCell, BNLSTMCell],
+            ),
+            hyp.LinearFloatParam(
+                'es_params.memory_es_params.max_sigma', 0, 1,
+            ),
+            hyp.LinearFloatParam(
+                'algo_params.discount', 0.8, 0.99,
+            ),
+        ]
+        sweeper = hyp.RandomHyperparameterSweeper(
+            hyperparameters,
+            default_kwargs=variant,
+        )
+        for _ in range(num_configurations):
+            for exp_id in range(n_seeds):
+                seed = random.randint(0, 10000)
+                variant = sweeper.generate_random_hyperparameters()
+                run_experiment(
+                    experiment,
+                    exp_prefix=exp_prefix,
+                    seed=seed,
+                    mode=mode,
+                    variant=variant,
+                    exp_id=exp_id,
+                    sync_s3_log=True,
+                    sync_s3_pkl=True,
+                    periodic_sync_interval=600,
                 )
     else:
         for _ in range(n_seeds):
