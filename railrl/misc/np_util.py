@@ -3,6 +3,7 @@ Utility functions that heavily use or modify numpy.
 """
 import numpy as np
 import contextlib
+import scipy.signal
 
 
 @contextlib.contextmanager
@@ -109,3 +110,27 @@ def assign_subsequences(tensor, new_values, start_indices, length,
     else:
         for new_value, sub_indices in zip(new_values, indices):
             tensor[sub_indices] = new_value
+
+
+def batch_discounted_cumsum(values, discount):
+    """
+    Return a matrix of discounted returns.
+
+    output[i, j] = discounted sum of returns of rewards[i, j:]
+
+    So
+
+    output[i, j] = rewards[i, j] + rewards[i, j+1] * discount
+                    + rewards[i, j+2] * discount**2 + ...
+
+    Based on rllab.misc.special.discounted_cumsum
+    :param rewards: FloatTensor, size [batch_size, sequence_length, 1]
+    :param discount: float, discount factor
+    :return FloatTensor, size [batch_size, sequence_length, 1]
+    """
+    # See https://docs.scipy.org/doc/scipy/reference/tutorial/signal.html#difference-equation-filtering
+    # Here, we have y[t] - discount*y[t+1] = x[t]
+    # or reverse(y)[t] - discount*reverse(y)[t-1] = reverse(x)[t]
+    return scipy.signal.lfilter(
+        [1], [1, float(-discount)], values.T[::-1], axis=0,
+    )[::-1].T
