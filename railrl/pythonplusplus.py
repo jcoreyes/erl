@@ -159,7 +159,7 @@ def merge_recursive_dicts(a, b, path=None,
                 merge_recursive_dicts(a[key], b[key], path + [str(key)],
                                       ignore_duplicate_keys_in_second_dict=ignore_duplicate_keys_in_second_dict)
             elif a[key] == b[key]:
-                pass  # same leaf value
+                print("Same value for key: {}".format(key))
             else:
                 duplicate_key = '.'.join(path + [str(key)])
                 if ignore_duplicate_keys_in_second_dict:
