@@ -12,6 +12,7 @@ import railrl.misc.hyperparameter as hyp
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.qfunctions.torch import FeedForwardQFunction
 from railrl.torch.easy_v_ql import EasyVQFunction, EasyVQLearning
+from railrl.torch.multi_step_ql import MultiStepDdpg
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 from rllab.envs.mujoco.hopper_env import HopperEnv
@@ -61,14 +62,14 @@ if __name__ == "__main__":
     num_configurations = 1  # for random mode
     n_seeds = 1
     mode = "here"
-    exp_prefix = "6-28-dev-easy-v"
+    exp_prefix = "6-28-dev-multi-step-ql"
     version = "Dev"
     run_mode = "none"
 
     # n_seeds = 100
     # mode = "ec2"
-    # exp_prefix = "6-27-easy-v-sweep-random"
-    # version = "Easy V"
+    # exp_prefix = "6-28-multi-step-ql"
+    # version = "Multistep QL"
 
     # run_mode = 'random'
     use_gpu = True
