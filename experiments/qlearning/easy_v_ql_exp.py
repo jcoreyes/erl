@@ -34,17 +34,18 @@ def experiment(variant):
     env = TimeLimitedEnv(env, horizon)
     env = normalize(env)
     es = OUStrategy(action_space=env.action_space)
+    qf_hidden_sizes = variant['qf_hidden_sizes']
     qf = EasyVQFunction(
         int(env.observation_space.flat_dim),
         int(env.action_space.flat_dim),
-        100,
-        100,
-        100,
-        100,
-        100,
-        100,
-        100,
-        100,
+        qf_hidden_sizes,
+        qf_hidden_sizes,
+        qf_hidden_sizes,
+        qf_hidden_sizes,
+        qf_hidden_sizes,
+        qf_hidden_sizes,
+        qf_hidden_sizes,
+        qf_hidden_sizes,
     )
     policy = FeedForwardPolicy(
         int(env.observation_space.flat_dim),
@@ -64,19 +65,19 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
-    num_configurations = 1  # for random mode
+    num_configurations = 75  # for random mode
     n_seeds = 1
     mode = "here"
-    exp_prefix = "6-28-dev-easy-v"
+    exp_prefix = "6-28-dev-easy-v-2"
     version = "Dev"
     run_mode = "none"
 
-    # n_seeds = 100
-    # mode = "ec2"
-    # exp_prefix = "6-27-easy-v-sweep-random"
+    n_seeds = 4
+    mode = "ec2"
+    exp_prefix = "6-28-easy-v-sweep-random"
     # version = "Easy V"
 
-    # run_mode = 'random'
+    run_mode = 'random'
     use_gpu = True
     if mode != "here":
         use_gpu = False
@@ -94,6 +95,7 @@ if __name__ == "__main__":
             policy_learning_rate=4e-4,
             qf_learning_rate=2e-3,
         ),
+        qf_hidden_sizes=100,
         version=version,
     )
     if run_mode == 'grid':
@@ -122,10 +124,9 @@ if __name__ == "__main__":
                 )
     if run_mode == 'random':
         hyperparameters = [
-            hyp.LinearFloatParam('algo_params.discount', 0, 1),
             hyp.LogFloatParam('algo_params.policy_learning_rate', 1e-7, 1e-1),
             hyp.LogFloatParam('algo_params.qf_learning_rate', 1e-7, 1e-1),
-            hyp.LogIntParam('algo_params.target_hard_update_period', 1, 1000),
+            hyp.LogIntParam('qf_hidden_sizes', 10, 1000),
         ]
         sweeper = hyp.RandomHyperparameterSweeper(
             hyperparameters,
