@@ -23,12 +23,8 @@ class TestRllabUtil(unittest.TestCase):
     def test_split_paths(self):
         paths = [create_path(0), create_path(1)]
         rewards, terminals, obs, actions, next_obs = split_paths(paths)
-        expected_rewards = np.array([
-            -1, 0, 1, 0, 1, 2
-        ])
-        expected_terminals = np.array([
-            0, 0, 1, 0, 0, 1
-        ])
+        expected_rewards = np.array([-1, 0, 1, 0, 1, 2]).reshape(-1, 1)
+        expected_terminals = np.array([0, 0, 1, 0, 0, 1]).reshape(-1, 1)
         expected_obs = np.array([
             [2], [4], [8],
             [3], [5], [9],

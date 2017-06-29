@@ -6,7 +6,6 @@ import numpy as np
 from rllab.spaces.product import Product
 
 
-# TODO(vpong): unittest this
 def split_paths(paths):
     """
     Split paths from rllab's rollout function into rewards, terminals, obs
