@@ -7,8 +7,8 @@ $ python analyze_hyperparameter_sweep.py path/to/exp_directory
 ```
 """
 import argparse
-from os.path import join
-from string import Template
+import os.path as osp
+import subprocess
 
 import numpy as np
 
@@ -17,6 +17,7 @@ from fanova import visualizer, CategoricalHyperparameter
 from railrl.misc.fanova_util import get_fanova_info, FanovaInfo
 from railrl.misc.html_report import HTMLReport
 import railrl.misc.visualization_util as vu
+from rllab.misc.instrument import query_yes_no
 
 
 def get_param_importance(f, param):
@@ -55,7 +56,7 @@ def generate_report(fanova_info: FanovaInfo, base_dir, param_name_to_log=None):
         param_name_to_log = {}
     f, config_space, X, Y = fanova_info
     report = HTMLReport(
-        join(base_dir, 'report.html'), images_per_row=3,
+        osp.join(base_dir, 'report.html'), images_per_row=3,
     )
     param_names = [p.name for p in config_space.get_hyperparameters()]
 
@@ -63,6 +64,7 @@ def generate_report(fanova_info: FanovaInfo, base_dir, param_name_to_log=None):
     List the top 10 parameters.
     """
     N = min(10, len(Y))
+    Y[np.isnan(Y)] = np.nanmin(Y) - 1
     best_idxs = Y.argsort()[-N:][::-1]
     for rank, i in enumerate(best_idxs):
         report.add_text("Rank {} params, with score = {}:".format(rank+1, Y[i]))
@@ -126,7 +128,13 @@ def generate_report(fanova_info: FanovaInfo, base_dir, param_name_to_log=None):
                 importance,
             ),
         )
-    print("Report saved to: {}".format(report.path))
+    abs_path = osp.abspath(report.path)
+    print("Report saved to: {}".format(abs_path))
+    open_report = query_yes_no("Open report?", default="yes")
+    if open_report:
+        cmd = "xdg-open {}".format(abs_path)
+        print(cmd)
+        subprocess.call(cmd, shell=True)
 
 
 def main():
