@@ -7,127 +7,106 @@ from railrl.testing.tf_test_case import TFTestCase
 from railrl.testing.stub_classes import StubEnv
 
 
+def create_buffer(subtraj_length):
+    env = StubEnv()
+    return SubtrajReplayBuffer(
+        100,
+        env,
+        subtraj_length,
+    )
+
+
 class TestSubtrajReplayBuffer(TFTestCase):
     def test_size_add_none(self):
-        env = StubEnv()
-        buff = SubtrajReplayBuffer(
-            100,
-            env,
-            2,
-        )
+        subtraj_length = 2
+        buff = create_buffer(subtraj_length)
         self.assertEqual(buff.num_steps_can_sample(return_all=True), 0)
 
     def test_size_add_one(self):
-        env = StubEnv()
-        buff = SubtrajReplayBuffer(
-            100,
-            env,
-            2,
-        )
+        subtraj_length = 2
+        buff = create_buffer(subtraj_length)
         observation = np.array([[0.5]])
         action = np.array([[0.5]])
         buff.add_sample(observation, action, 1, False)
         self.assertEqual(buff.num_steps_can_sample(return_all=True), 0)
 
     def test_size_enough_for_one_subtraj(self):
-        env = StubEnv()
-        buff = SubtrajReplayBuffer(
-            100,
-            env,
-            2,
-        )
+        subtraj_length = 2
+        buff = create_buffer(subtraj_length)
         observation = np.array([[0.5]])
         action = np.array([[0.5]])
         buff.add_sample(observation, action, 1, False)
         buff.add_sample(observation, action, 1, False)
         buff.add_sample(observation, action, 1, False)
-        self.assertEqual(buff.num_steps_can_sample(return_all=True), 1)
+        self.assertEqual(buff.num_steps_can_sample(return_all=True),
+                         1 * subtraj_length)
 
     def test_size_enough_for_two_subtrajs(self):
-        env = StubEnv()
-        buff = SubtrajReplayBuffer(
-            100,
-            env,
-            2,
-        )
+        subtraj_length = 2
+        buff = create_buffer(subtraj_length)
         observation = np.array([[0.5]])
         action = np.array([[0.5]])
         buff.add_sample(observation, action, 1, False)
         buff.add_sample(observation, action, 1, False)
         buff.add_sample(observation, action, 1, False)
         buff.add_sample(observation, action, 1, False)
-        self.assertEqual(buff.num_steps_can_sample(return_all=True), 2)
+        self.assertEqual(buff.num_steps_can_sample(return_all=True),
+                         2 * subtraj_length)
 
-        buff = SubtrajReplayBuffer(
-            100,
-            env,
-            2,
-        )
+        buff = create_buffer(subtraj_length)
         observation = np.array([[0.5]])
         action = np.array([[0.5]])
         buff.add_sample(observation, action, 1, False)
         buff.add_sample(observation, action, 1, False)
         buff.add_sample(observation, action, 1, False)
-        buff.terminate_episode(observation)
-        self.assertEqual(buff.num_steps_can_sample(return_all=True), 2)
+        buff.terminate_episode(observation, True)
+        self.assertEqual(buff.num_steps_can_sample(return_all=True),
+                         2 * subtraj_length)
 
     def test_size_after_terminate(self):
-        env = StubEnv()
-        buff = SubtrajReplayBuffer(
-            100,
-            env,
-            2,
-        )
+        subtraj_length = 2
+        buff = create_buffer(subtraj_length)
         observation = np.array([[0.5]])
         action = np.array([[0.5]])
         buff.add_sample(observation, action, 1, False)
         buff.add_sample(observation, action, 1, False)
-        buff.terminate_episode(observation)
+        buff.terminate_episode(observation, True)
         buff.add_sample(observation, action, 1, False)
         buff.add_sample(observation, action, 1, False)
         buff.add_sample(observation, action, 1, False)
-        self.assertEqual(buff.num_steps_can_sample(return_all=True), 2)
+        self.assertEqual(buff.num_steps_can_sample(return_all=True),
+                         2 * subtraj_length)
 
     def test_size_after_terminal_true(self):
-        env = StubEnv()
-        buff = SubtrajReplayBuffer(
-            100,
-            env,
-            2,
-        )
+        subtraj_length = 2
+        buff = create_buffer(subtraj_length)
         observation = np.array([[0.5]])
         action = np.array([[0.5]])
         buff.add_sample(observation, action, 1, False)
         buff.add_sample(observation, action, 1, True)
-        buff.terminate_episode(observation)
+        buff.terminate_episode(observation, True)
         buff.add_sample(observation, action, 1, False)
         buff.add_sample(observation, action, 1, False)
         buff.add_sample(observation, action, 1, False)
-        self.assertEqual(buff.num_steps_can_sample(return_all=True), 2)
+        self.assertEqual(buff.num_steps_can_sample(return_all=True),
+                         2 * subtraj_length)
 
     def test_size_add_many(self):
-        env = StubEnv()
-        buff = SubtrajReplayBuffer(
-            100,
-            env,
-            2,
-        )
+        subtraj_length = 2
+        buff = create_buffer(subtraj_length)
         observation = np.array([[0.5]])
         action = np.array([[0.5]])
         for _ in range(10):
             buff.add_sample(observation, action, 1, False)
-        self.assertEqual(buff.num_steps_can_sample(return_all=True), 8)
+        self.assertEqual(buff.num_steps_can_sample(return_all=True),
+                         8 * subtraj_length)
 
     def test_random_subtraj_shape(self):
-        env = StubEnv()
-        buff = SubtrajReplayBuffer(
-            100,
-            env,
-            2,
-        )
+        subtraj_length = 2
+        buff = create_buffer(subtraj_length)
         observation = np.array([[0.5]])
         action = np.array([[0.5]])
-        buff.terminate_episode(observation)
+        buff.terminate_episode(observation, True)
         for _ in range(10):
             buff.add_sample(observation, action, 1, False)
         subtrajs = buff.random_subtrajectories(5)
@@ -138,15 +117,11 @@ class TestSubtrajReplayBuffer(TFTestCase):
         self.assertEqual(subtrajs['terminals'].shape, (5, 2))
 
     def test_get_all_valid_subtrajectories(self):
-        env = StubEnv()
-        buff = SubtrajReplayBuffer(
-            100,
-            env,
-            2,
-        )
+        subtraj_length = 2
+        buff = create_buffer(subtraj_length)
         buff.add_sample(np.array([[1]]), np.array([[-1]]), 1, False)
         buff.add_sample(np.array([[2]]), np.array([[-2]]), 1, True)
-        buff.terminate_episode(np.array([[0]]))
+        buff.terminate_episode(np.array([[0]]), True)
         buff.add_sample(np.array([[3]]), np.array([[-3]]), 1, False)
         buff.add_sample(np.array([[4]]), np.array([[-4]]), 1, False)
         buff.add_sample(np.array([[5]]), np.array([[-5]]), 1, False)
@@ -190,10 +165,11 @@ class TestSubtrajReplayBuffer(TFTestCase):
 
     def test_num_can_sample_validation(self):
         env = StubEnv()
+        subtraj_length = 2
         buff = SubtrajReplayBuffer(
             100,
             env,
-            2,
+            subtraj_length,
             save_period=1,
         )
         observation = np.array([[0.5]])
@@ -202,7 +178,8 @@ class TestSubtrajReplayBuffer(TFTestCase):
         buff.add_sample(observation, action, 1, False)
         buff.add_sample(observation, action, 1, False)
         self.assertEqual(buff.num_steps_can_sample(validation=False), 0)
-        self.assertEqual(buff.num_steps_can_sample(validation=True), 1)
+        self.assertEqual(buff.num_steps_can_sample(validation=True),
+                         1 * subtraj_length)
 
     def test_validation_splitter(self):
         def create_random_generator():
@@ -227,15 +204,15 @@ class TestSubtrajReplayBuffer(TFTestCase):
         action = np.array([[0.5]])
         buff.add_sample(observation, action, 1, False)
         buff.add_sample(observation, action, 1, False)
-        buff.terminate_episode(observation)
+        buff.terminate_episode(observation, True)
         action = np.array([[-0.5]])
         buff.add_sample(observation, action, 1, False)
         buff.add_sample(observation, action, 1, False)
-        buff.terminate_episode(observation)
+        buff.terminate_episode(observation, True)
         action = np.array([[1]])
         buff.add_sample(observation, action, 1, False)
         buff.add_sample(observation, action, 1, False)
-        buff.terminate_episode(observation)
+        buff.terminate_episode(observation, True)
         train_trajs = buff.get_valid_subtrajectories(validation=False)
         validation_trajs = buff.get_valid_subtrajectories(validation=True)
         train_actions = train_trajs['actions']
