@@ -1,8 +1,9 @@
 name: rllab-vitchyr
 channels:
+    - defaults
     - https://conda.anaconda.org/kne
     - https://conda.anaconda.org/tlatorre
-    - https://conda.anaconda.org/cjs15
+#    - https://conda.anaconda.org/cjs15
     - https://conda.anaconda.org/menpo
     - jjhelmus
     - soumith

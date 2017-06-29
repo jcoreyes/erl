@@ -101,9 +101,10 @@ if __name__ == '__main__':
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "6-29-bptt-ddpg-exp-sweep-gru-vs-bnlstm"
+    # exp_prefix = "6-29-bptt-ddpg-exp-sweep-gru-vs-bnlstm"
+    exp_prefix = "6-29-check-docker-31e82383f58e"
 
-    run_mode = 'random'
+    # run_mode = 'random'
     num_configurations = 100
     use_gpu = True
     if mode != "here":
@@ -113,7 +114,7 @@ if __name__ == '__main__':
     subtraj_length = 25
     num_steps_per_iteration = 100
     num_steps_per_eval = 1000
-    num_iterations = 100
+    num_iterations = 10
     batch_size = 200
     memory_dim = 30
     version = exp_prefix
