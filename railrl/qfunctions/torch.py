@@ -9,7 +9,7 @@ from railrl.pythonplusplus import identity
 from railrl.torch.core import PyTorchModule
 from railrl.torch import pytorch_util as ptu
 
-from railrl.torch.bnlstm import BNLSTMCell, LSTM
+from railrl.torch.rnn import BNLSTMCell, LSTM
 
 
 class FeedForwardQFunction(PyTorchModule):

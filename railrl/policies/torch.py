@@ -5,7 +5,7 @@ from torch.autograd import Variable
 from torch.nn import functional as F
 from torch.nn import init
 
-from railrl.torch.bnlstm import BNLSTMCell, LSTM, LSTMCell
+from railrl.torch.rnn import BNLSTMCell, LSTM, LSTMCell
 from railrl.torch.core import PyTorchModule
 from railrl.torch import pytorch_util as ptu
 
@@ -155,17 +155,23 @@ class MemoryPolicy(PyTorchModule):
         """
         Create the new writes.
         """
-        state = torch.split(
-            initial_memory,
-            self.memory_dim // self.num_splits_for_rnn_internally,
-            dim=1,
-        )
         subtraj_writes = Variable(
             ptu.FloatTensor(batch_size, subsequence_length, self.memory_dim)
         )
-        for i in range(subsequence_length):
-            state = self.rnn_cell(obs[:, i, :], state)
-            subtraj_writes[:, i, :] = torch.cat(state, dim=1)
+        if self.num_splits_for_rnn_internally > 1:
+            state = torch.split(
+                initial_memory,
+                self.memory_dim // self.num_splits_for_rnn_internally,
+                dim=1,
+            )
+            for i in range(subsequence_length):
+                state = self.rnn_cell(obs[:, i, :], state)
+                subtraj_writes[:, i, :] = torch.cat(state, dim=1)
+        else:
+            state = initial_memory
+            for i in range(subsequence_length):
+                state = self.rnn_cell(obs[:, i, :], state)
+                subtraj_writes[:, i, :] = state
 
         # The reason that using a LSTM doesn't work is that this gives you only
         # the FINAL hx and cx, not all of them :(
