@@ -34,10 +34,6 @@ def get_unique_param_to_values(all_variants):
     return unique_key_to_values
 
 
-def is_numeric(x):
-    return isinstance(x, int) or isinstance(x, float)
-
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("expdir", help="experiment dir, e.g., /tmp/experiments")
