@@ -7,6 +7,9 @@ from cached_property import cached_property
 from rllab.envs.base import Env
 from rllab.misc import logger
 from numpy import linalg
+#JACOBIAN STUFF SHOULD GO HERE
+from robot_info.srv import *
+import random
 import ipdb
 
 NUM_JOINTS = 7
@@ -26,7 +29,7 @@ fixed_end_effector = False
 safety_fixed_angle = False
 position_resetting = False
 number_fixed_angles = 2
-safety_limited_end_effector = True
+# safety_limited_end_effector = False
 
 JOINT_ANGLES_HIGH = np.array([
     1.70167993, 
@@ -99,6 +102,13 @@ right_highs = [1.1163239572333106, 0.003933425621414761, 0.795699462010194]
 left_lows = [0.3404830862298487, -0.003933425621414761, -0.5698485041484043]
 left_highs = [1.1163239572333106, 1.2633121086809487, 0.795699462010194]
 
+end_effector_force = np.ones(3)
+
+# RIGHT ARM POSE: (AT ZERO JOINT_ANGLES)
+# x=0.9048343033476591, y=-1.10782475483212, z=0.3179643218511679
+
+# LEFT ARM POSE: (AT ZERO JOINT_ANGLES)
+# position': Point(x=0.9067813662539473, y=1.106112343313852, z=0.31764719868253904)
 def safe(raw_function):
     def safe_function(*args, **kwargs):
         try:
@@ -124,11 +134,16 @@ class BaxterEnv(Env, Serializable):
             fixed_end_effector = False,
             safety_fixed_angle = False,
             safety_limited_end_effector = False,
+            delta=1,
+            huber=False,
     ):
         Serializable.quick_init(self, locals())
         rospy.init_node('baxter_env', anonymous=True)
         self.rate = rospy.Rate(update_hz)
         self.use_right_arm = use_right_arm
+        self.huber = huber
+        self.delta = delta
+        self.safety_limited_end_effector = safety_limited_end_effector
         #setup the robots arm and gripper
         if(self.use_right_arm):
             self.arm = bi.Limb('right')
@@ -271,6 +286,13 @@ class BaxterEnv(Env, Serializable):
             self._set_joint_values[self.action_mode](actions)
 
         else:
+            if not is_in_box:
+                jacobian = self.get_jacobian()
+                #implement force adjustment based on which edge was violated!
+                torques = jacobian.T @ end_effector_force
+                action = action + torques
+            else:
+                action = action
             joint_to_values = dict(zip(self.arm_joint_names, action))
             self._set_joint_values(joint_to_values)
     	
@@ -310,32 +332,37 @@ class BaxterEnv(Env, Serializable):
         self._act(action)
         observation = self._get_joint_values()
 
-        is_valid = True
-        if safety_fixed_angle or safety_limited_end_effector:
-            endpoint_pose = self._end_effector_pose()
-            if(self.use_right_arm):
-                within_box = [curr_pose > lower_pose or curr_pose < higher_pose
-                    for curr_pose, lower_pose, higher_pose 
-                    in zip(endpoint_pose, right_lows, right_highs)]
-                is_valid = all(within_box)
-            else:
-                within_box = [curr_pose > lower_pose or curr_pose < higher_pose
-                    for curr_pose, lower_pose, higher_pose 
-                    in zip(endpoint_pose, left_lows, left_highs)]
-                is_valid = all(within_box)
+        is_valid = self.is_in_box()
 
         if joint_angle_experiment:
             #reward is MSE between current joint angles and the desired angles
-            clipped_joint_angles = self._joint_angles()[number_fixed_angles]
-            reward = -np.mean((clipped_joint_angles - self.desired[number_fixed_angles:])**2)
+            if position_resetting:
+                clipped_joint_angles = self._joint_angles()[number_fixed_angles]
+                reward = -np.mean((clipped_joint_angles - self.desired[number_fixed_angles:])**2)
+            else:
+                reward = -np.mean((self._joint_angles() - self.desired)**2)
+                if self.huber:
+                    a = np.mean(np.abs(self.desired - self._joint_angles()))
+                    if a <= self.delta:
+                        reward = -1/2 * a **2
+                    else:
+                        reward = -1 * self.delta * (a - 1/2 * self.delta)
+
             
         if end_effector_experiment_position or end_effector_experiment_total:
             #reward is MSE between desired position/orientation and current position/orientation of end_effector
             current_end_effector_pose = self._end_effector_pose()
             reward = -np.mean((current_end_effector_pose - self.desired)**2)
+            if self.huber:
+                a = np.abs(np.mean(self.desired - current_end_effector_pose))
+                if a <= self.delta:
+                        reward = -1/2 * a **2
+                else:
+                    reward = -1 * self.delta * (a- 1/2 * self.delta)
+
 
         if not is_valid:
-            reward = -10000
+            reward = -1000
             done = True
         else:
             done = False
@@ -388,6 +415,30 @@ class BaxterEnv(Env, Serializable):
         else:
             self.desired = np.random.rand(1, 7)
 
+    def get_jacobian_client(self):
+        rospy.wait_for_service('get_jacobian')
+        try:
+            get_jacobian = rospy.ServiceProxy('get_jacobian', GetJacobian)
+            resp = get_jacobian()
+            return np.array([resp.jacobianr1, resp.jacobianr2, resp.jacobianr3, resp.jacobianr4, resp.jacobianr5, resp.jacobianr6])
+        except rospy.ServiceException as e:
+            print("Service call failed: %s"%e)
+
+    def get_jacobian(self):
+        return self.get_jacobian_client()[:3]
+    def is_in_box(self):
+        if safety_fixed_angle or self.safety_limited_end_effector:
+            endpoint_pose = self._end_effector_pose()
+            if self.use_right_arm:
+                within_box = [curr_pose > lower_pose and curr_pose < higher_pose
+                    for curr_pose, lower_pose, higher_pose 
+                    in zip(endpoint_pose, right_lows, right_highs)]
+            else:
+                within_box = [curr_pose > lower_pose and curr_pose < higher_pose
+                    for curr_pose, lower_pose, higher_pose 
+                    in zip(endpoint_pose, left_lows, left_highs)]
+            return all(within_box)
+        return True
     @property
     def action_space(self):
         return self._action_space
@@ -409,17 +460,13 @@ class BaxterEnv(Env, Serializable):
                 desired_orientations = []
             for obsSet in obsSets:
                 for observation in obsSet:
-                    # positions = np.hstack((positions, observation[21:24]))
-                    # desired_positions = np.hstack((desired_positions, observation[24:27]))
                     positions.append(observation[21:24])
                     desired_positions.append(observation[24:27])
-                    # ipdb.set_trace()
                     
                     if end_effector_experiment_total:
                         orientations = np.hstack((orientations, observation[24:28]))
                         desired_orientations = np.hstack((desired_orientations, observation[28:]))
 
-            # mean_distance = np.sum(positions - desired_positions)
             positions = np.array(positions)
             desired_positions = np.array(desired_positions)
             mean_distance = np.mean(linalg.norm(positions - desired_positions, axis=1))
