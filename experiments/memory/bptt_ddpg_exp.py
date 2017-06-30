@@ -99,10 +99,9 @@ if __name__ == '__main__':
     exp_prefix = "6-29-dev-bptt-ddpg-exp"
     run_mode = 'none'
 
-    n_seeds = 1
-    mode = "ec2"
-    # exp_prefix = "6-29-bptt-ddpg-exp-sweep-gru-vs-bnlstm"
-    exp_prefix = "6-29-check-docker-31e82383f58e"
+    # n_seeds = 1
+    # mode = "ec2"
+    # exp_prefix = "6-30-check-docker-f5e1c127fba7"
 
     # run_mode = 'random'
     num_configurations = 100
@@ -114,7 +113,7 @@ if __name__ == '__main__':
     subtraj_length = 25
     num_steps_per_iteration = 100
     num_steps_per_eval = 1000
-    num_iterations = 10
+    num_iterations = 101
     batch_size = 200
     memory_dim = 30
     version = exp_prefix
@@ -140,12 +139,12 @@ if __name__ == '__main__':
             num_epochs=num_iterations,
             num_steps_per_epoch=num_steps_per_iteration,
             num_steps_per_eval=num_steps_per_eval,
-            discount=.9,
+            discount=0.8624075627114989,
             action_policy_optimize_bellman=False,
-            write_policy_optimizes='both',
-            action_policy_learning_rate=1e-3,
-            write_policy_learning_rate=1e-5,
-            qf_learning_rate=1e-3,
+            write_policy_optimizes='bellman',
+            action_policy_learning_rate=0.00411668130663536,
+            write_policy_learning_rate=0.0004672156121755223,
+            qf_learning_rate=0.002021863834563243,
             max_path_length=H,
             refresh_entire_buffer_period=None,
             save_new_memories_back_to_replay_buffer=True,
@@ -170,11 +169,11 @@ if __name__ == '__main__':
                 max_sigma=1,
                 min_sigma=None,
             ),
-            # memory_es_class=NoopStrategy,
-            memory_es_class=OUStrategy,
+            memory_es_class=NoopStrategy,
+            # memory_es_class=OUStrategy,
             memory_es_params=dict(
-                max_sigma=0,
-                min_sigma=None,
+                # max_sigma=0,
+                # min_sigma=None,
             ),
         ),
         version=version,
