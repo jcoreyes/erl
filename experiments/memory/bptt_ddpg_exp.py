@@ -96,7 +96,7 @@ def experiment(variant):
 if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
-    exp_prefix = "6-29-dev-bptt-ddpg-exp"
+    exp_prefix = "6-30-dev-bptt-ddpg-exp"
     run_mode = 'none'
 
     # n_seeds = 1
@@ -113,9 +113,9 @@ if __name__ == '__main__':
     subtraj_length = 25
     num_steps_per_iteration = 100
     num_steps_per_eval = 1000
-    num_iterations = 101
+    num_iterations = 100
     batch_size = 200
-    memory_dim = 30
+    memory_dim = 100
     version = exp_prefix
     version = "Our Method"
     # version = "Our Method - loading but Q does not read mem state"
