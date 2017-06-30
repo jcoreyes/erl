@@ -1,12 +1,19 @@
 """
 Exampling of running DDPG on HalfCheetah.
 """
+import random
+
+from railrl.envs.env_utils import gym_env
+from railrl.envs.time_limited_env import TimeLimitedEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.qfunctions.torch import FeedForwardQFunction
 from railrl.torch.ddpg import DDPG
+from railrl.torch.easy_v_ql import EasyVQFunction
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
+from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
+from rllab.envs.mujoco.hopper_env import HopperEnv
 
 from rllab.envs.normalized_env import normalize
 
@@ -14,10 +21,12 @@ from rllab.envs.normalized_env import normalize
 def example(variant):
     # env = HalfCheetahEnv()
     # env = PointEnv()
-    # env = gym_env("Pendulum-v0")
-    env = CartpoleEnv()
+    env = gym_env("Pendulum-v0")
+    # env = HopperEnv()
+    horizon = variant['algo_params']['max_path_length']
+    env = TimeLimitedEnv(env, horizon)
     env = normalize(env)
-    es = OUStrategy(env_spec=env.spec)
+    es = OUStrategy(action_space=env.action_space)
     qf = FeedForwardQFunction(
         int(env.observation_space.flat_dim),
         int(env.action_space.flat_dim),
@@ -41,24 +50,22 @@ def example(variant):
 
 
 if __name__ == "__main__":
-    use_gpu = True
     variant = dict(
         algo_params=dict(
-            num_epochs=10,
+            num_epochs=50,
             num_steps_per_epoch=1000,
-            num_steps_per_eval=100,
-            target_hard_update_period=10000,
-            # use_soft_update=True,
-            batch_size=32,
-            max_path_length=100,
-            use_gpu=use_gpu,
+            num_steps_per_eval=1000,
+            target_hard_update_period=100,
+            batch_size=128,
+            max_path_length=1000,
         )
     )
+    seed = random.randint(0, 999999)
     run_experiment(
         example,
-        exp_prefix="dev-pytorch-ddpg",
-        seed=0,
+        exp_prefix="dev-ddpg",
+        seed=seed,
         mode='here',
         variant=variant,
-        use_gpu=use_gpu,
+        use_gpu=True,
     )

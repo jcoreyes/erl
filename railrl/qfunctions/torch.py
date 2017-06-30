@@ -9,7 +9,7 @@ from railrl.pythonplusplus import identity
 from railrl.torch.core import PyTorchModule
 from railrl.torch import pytorch_util as ptu
 
-from railrl.torch.bnlstm import BNLSTMCell, LSTM
+from railrl.torch.rnn import BNLSTMCell, LSTM
 
 
 class FeedForwardQFunction(PyTorchModule):
@@ -32,6 +32,9 @@ class FeedForwardQFunction(PyTorchModule):
 
         self.obs_fc = nn.Linear(obs_dim, observation_hidden_size)
         self.embedded_fc = nn.Linear(observation_hidden_size + action_dim,
+                                     embedded_hidden_size)
+        self.obs_fc = nn.Linear(obs_dim + action_dim, observation_hidden_size)
+        self.embedded_fc = nn.Linear(observation_hidden_size,
                                      embedded_hidden_size)
         self.last_fc = nn.Linear(embedded_hidden_size, 1)
         self.output_activation = output_activation
@@ -60,8 +63,8 @@ class MemoryQFunction(PyTorchModule):
             obs_dim,
             action_dim,
             memory_dim,
-            observation_hidden_size,
-            embedded_hidden_size,
+            fc1_size,
+            fc2_size,
             init_w=3e-3,
             output_activation=identity,
     ):
@@ -72,17 +75,18 @@ class MemoryQFunction(PyTorchModule):
         self.obs_dim = obs_dim
         self.action_dim = action_dim
         self.memory_dim = memory_dim
-        self.observation_hidden_size = observation_hidden_size
-        self.embedded_hidden_size = embedded_hidden_size
+        self.observation_hidden_size = fc1_size
+        self.embedded_hidden_size = fc2_size
         self.init_w = init_w
 
-        self.obs_fc = nn.Linear(obs_dim + memory_dim, observation_hidden_size)
+        self.obs_fc = nn.Linear(obs_dim + memory_dim, fc1_size)
+        # self.obs_fc = nn.Linear(obs_dim, observation_hidden_size)
         self.embedded_fc = nn.Linear(
-            observation_hidden_size + action_dim + memory_dim,
+            fc1_size + action_dim + memory_dim,
             # observation_hidden_size + action_dim,
-            embedded_hidden_size,
+            fc2_size,
         )
-        self.last_fc = nn.Linear(embedded_hidden_size, 1)
+        self.last_fc = nn.Linear(fc2_size, 1)
         self.output_activation = output_activation
 
         self.init_weights(init_w)
@@ -97,9 +101,8 @@ class MemoryQFunction(PyTorchModule):
         self.last_fc.bias.data.uniform_(-init_w, init_w)
 
     def forward(self, obs, memory, action, write):
-        # memory = memory[:, :self.memory_dim]
-        # write = write[:, :self.memory_dim]
         obs_embedded = torch.cat((obs, memory), dim=1)
+        # obs_embedded = obs
         obs_embedded = F.relu(self.obs_fc(obs_embedded))
         x = torch.cat((obs_embedded, action, write), dim=1)
         # x = torch.cat((obs_embedded, action), dim=1)
@@ -174,6 +177,10 @@ class RecurrentQFunction(PyTorchModule):
         outputs_flat = self.last_fc(h)
         return outputs_flat.view(batch_size, subsequence_length, 1)
 
+    @property
+    def is_recurrent(self):
+        return True
+
 
 class RecurrentMemoryQFunction(PyTorchModule):
     def __init__(
@@ -185,6 +192,7 @@ class RecurrentMemoryQFunction(PyTorchModule):
             fc1_size,
             fc2_size,
             init_w=3e-3,
+            output_activation=identity,
     ):
         self.save_init_params(locals())
         super().__init__()
@@ -195,6 +203,7 @@ class RecurrentMemoryQFunction(PyTorchModule):
         self.hidden_size = hidden_size
         self.fc1_size = fc1_size
         self.fc2_size = fc2_size
+        self.output_activation = output_activation
         self.lstm = LSTM(
             BNLSTMCell,
             self.obs_dim + self.action_dim + 2 * self.memory_dim,
@@ -239,4 +248,10 @@ class RecurrentMemoryQFunction(PyTorchModule):
         h1 = F.relu(self.fc1(rnn_outputs_flat))
         h2 = F.relu(self.fc2(h1))
         outputs_flat = self.last_fc(h2)
-        return outputs_flat.view(batch_size, subsequence_length, 1)
+        return self.output_activation(
+            outputs_flat.view(batch_size, subsequence_length, 1)
+        )
+
+    @property
+    def is_recurrent(self):
+        return True

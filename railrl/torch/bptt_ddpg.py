@@ -11,14 +11,12 @@ from railrl.data_management.updatable_subtraj_replay_buffer import (
 )
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import get_average_returns
-from railrl.policies.torch import MemoryPolicy
 from railrl.pythonplusplus import batch, ConditionTimer
-from railrl.qfunctions.torch import MemoryQFunction
 from railrl.torch.online_algorithm import OnlineAlgorithm
 from railrl.torch.pytorch_util import (
     copy_model_params_from_to,
     soft_update_from_to,
-    set_gpu_mode,
+    gpu_enabled,
     from_numpy,
     get_numpy,
 )
@@ -48,6 +46,7 @@ class BpttDdpg(OnlineAlgorithm):
             bellman_error_loss_weight=10,
             refresh_entire_buffer_period=None,
             save_new_memories_back_to_replay_buffer=True,
+            only_use_last_dqdm=False,
             **kwargs
     ):
         super().__init__(*args, **kwargs)
@@ -70,6 +69,7 @@ class BpttDdpg(OnlineAlgorithm):
         self.save_new_memories_back_to_replay_buffer = (
             save_new_memories_back_to_replay_buffer
         )
+        self.only_use_last_dqdm = only_use_last_dqdm
 
         """
         Set some params-dependency values
@@ -113,9 +113,7 @@ class BpttDdpg(OnlineAlgorithm):
             self.policy.write_parameters(), lr=self.write_policy_learning_rate
         )
 
-        self.use_gpu = self.use_gpu and torch.cuda.is_available()
-        set_gpu_mode(self.use_gpu)
-        if self.use_gpu:
+        if gpu_enabled():
             self.policy.cuda()
             self.target_policy.cuda()
             self.qf.cuda()
@@ -244,9 +242,16 @@ class BpttDdpg(OnlineAlgorithm):
             )
         else:
             new_memories = initial_memories.unsqueeze(1)
-        # TODO(vitchyr): should I detach (stop gradients)?
-        # I don't think so. If we have dQ/dmemory, why not use it?
-        # new_memories = new_memories.detach()
+        # TODO(vitchyr): Test this
+        if self.only_use_last_dqdm:
+            new_memories = new_memories.detach()
+            policy_writes = torch.cat(
+                (
+                    policy_writes[:, :-1, :].detach(),
+                    policy_writes[:, -1:, :]
+                ),
+                dim=1
+            )
         subtraj_batch['policy_new_memories'] = new_memories
         subtraj_batch['policy_new_writes'] = policy_writes
         subtraj_batch['policy_new_actions'] = policy_actions
@@ -358,7 +363,7 @@ class BpttDdpg(OnlineAlgorithm):
             'Returns', returns, stat_prefix=stat_prefix
         ))
         statistics.update(create_stats_ordered_dict(
-            'DiscountedReturns', discounted_returns, stat_prefix=stat_prefix
+            'Discounted Returns', discounted_returns, stat_prefix=stat_prefix
         ))
         env_actions = np.vstack([path["actions"][:self.action_dim] for path in
                                  paths])
@@ -418,7 +423,7 @@ class BpttDdpg(OnlineAlgorithm):
             self.pool.num_subtrajs_can_sample(validation=True) >= 1
             and self.pool.num_subtrajs_can_sample(validation=False) >= 1
             and len(exploration_paths) > 0
-            and any([len(path['terminals']) > self.subtraj_length
+            and any([len(path['terminals']) >= self.subtraj_length
                      for path in exploration_paths])
             # Technically, I should also check that the exploration path has
             # enough subtraj batches, but whatever.

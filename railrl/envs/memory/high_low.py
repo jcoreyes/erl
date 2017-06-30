@@ -18,13 +18,19 @@ def _generate_sign():
 
 
 class HighLow(Env, RecurrentSupervisedLearningEnv):
-    def __init__(self, horizon, **kwargs):
+    def __init__(self, horizon, give_time):
         assert horizon > 0
         self._horizon = horizon
+        self.give_time = give_time
         self._t = 0
         self._sign = _generate_sign()
         self._action_space = Box(np.array([-1]), np.array([1]))
-        self._observation_space = Box(np.array([-1]), np.array([1]))
+        if self.give_time:
+            self._observation_space = Box(
+                np.array([-1, 0]), np.array([1, self.horizon])
+            )
+        else:
+            self._observation_space = Box(np.array([-1]), np.array([1]))
 
         # For rendering
         self._last_reward = None
@@ -38,7 +44,10 @@ class HighLow(Env, RecurrentSupervisedLearningEnv):
     def reset(self):
         self._t = 0
         self._sign = _generate_sign()
-        return np.array([self._sign])
+        if self.give_time:
+            return np.array([self._sign, self._t])
+        else:
+            return np.array([self._sign])
 
     def step(self, action):
         self._last_t = self._t
@@ -49,7 +58,10 @@ class HighLow(Env, RecurrentSupervisedLearningEnv):
             reward = float(action * self._sign)
         else:
             reward = 0
-        observation = np.array([0])
+        if self.give_time:
+            observation = np.array([0, self._t])
+        else:
+            observation = np.array([0])
         # To cheat:
         # observation = np.array([self._sign])
         info = self._get_info_dict()

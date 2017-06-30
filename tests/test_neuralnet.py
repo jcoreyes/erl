@@ -3,6 +3,7 @@ import unittest
 import numpy as np
 import tensorflow as tf
 
+import railrl
 from railrl.core.neuralnet import NeuralNetwork
 from railrl.core.tf_util import BatchNormConfig
 from railrl.predictors.mlp import Mlp
@@ -322,6 +323,7 @@ class TestNeuralNetwork(TFTestCase):
         b_name = "b"
         b_initializer = tf.constant_initializer(value=np.array([0]))
         input_layer = tf.placeholder(tf.float32, shape=(None, in_size))
+        railrl.core.neuralnet.dropout_ph = tf.placeholder(tf.float32, name="dropout_keep_prob")
 
         perceptron = Perceptron(
             "perceptron",
@@ -332,7 +334,7 @@ class TestNeuralNetwork(TFTestCase):
             W_initializer=W_initializer,
             b_name=b_name,
             b_initializer=b_initializer,
-            dropout_keep_prob=0.5,
+            use_dropout=True,
         )
         self.sess.run(tf.global_variables_initializer())
 
@@ -341,12 +343,18 @@ class TestNeuralNetwork(TFTestCase):
         perceptron.switch_to_training_mode()
         training_output = self.sess.run(
             perceptron.output,
-            {input_layer: input_values}
+            {
+                input_layer: input_values,
+                railrl.core.neuralnet.dropout_ph: 0.5,
+            }
         )
         perceptron.switch_to_eval_mode()
         eval_output = self.sess.run(
             perceptron.output,
-            {input_layer: input_values}
+            {
+                input_layer: input_values,
+                railrl.core.neuralnet.dropout_ph: 1.,
+            }
         )
         """
         Probability(sum is 8) = 1/16

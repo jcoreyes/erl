@@ -1,3 +1,4 @@
+from railrl.torch.core import PyTorchModule
 from railrl.torch.pytorch_util import set_gpu_mode
 from rllab.sampler.utils import rollout
 import argparse
@@ -40,6 +41,8 @@ if __name__ == "__main__":
             policy.cuda()
         if args.pause:
             import ipdb; ipdb.set_trace()
+        if isinstance(policy, PyTorchModule):
+            policy.train(False)
         while True:
             try:
                 path = rollout(

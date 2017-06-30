@@ -244,3 +244,9 @@ class LSTM(nn.Module):
         if self.batch_first:
             output = output.transpose(0, 1)
         return output, (h_n, c_n)
+
+
+class GRUCell(nn.GRUCell):
+    @staticmethod
+    def state_num_split():
+        return 1

@@ -220,7 +220,6 @@ def super_ddpg_launcher(variant, sub_launcher, version):
     num_steps_per_iteration = variant['num_steps_per_iteration']
     num_steps_per_eval = variant['num_steps_per_eval']
     num_iterations = variant['num_iterations']
-    use_gpu = variant['use_gpu']
     batch_size = variant['batch_size']
     new_variant = update_variant(
         variant,
@@ -233,7 +232,6 @@ def super_ddpg_launcher(variant, sub_launcher, version):
                 num_steps_per_eval=num_steps_per_eval,
                 max_path_length=H,
                 discount=1,
-                use_gpu=use_gpu,
             ),
             ou_params=dict(
                 max_sigma=1,
@@ -381,6 +379,7 @@ def _rdpg_launcher(variant):
     set_seed(seed)
     env_class = variant['env_class']
     env = env_class(**variant['env_params'])
+    memory_dim = variant['memory_dim']
     es = OUStrategy(
         action_space=env.action_space,
         **variant['ou_params']
@@ -395,7 +394,7 @@ def _rdpg_launcher(variant):
     policy = RecurrentPolicy(
         int(env.observation_space.flat_dim),
         int(env.action_space.flat_dim),
-        10,
+        memory_dim,
         fc1_size=100,
         fc2_size=100,
     )
