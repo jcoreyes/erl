@@ -33,9 +33,6 @@ class FeedForwardQFunction(PyTorchModule):
         self.obs_fc = nn.Linear(obs_dim, observation_hidden_size)
         self.embedded_fc = nn.Linear(observation_hidden_size + action_dim,
                                      embedded_hidden_size)
-        self.obs_fc = nn.Linear(obs_dim + action_dim, observation_hidden_size)
-        self.embedded_fc = nn.Linear(observation_hidden_size,
-                                     embedded_hidden_size)
         self.last_fc = nn.Linear(embedded_hidden_size, 1)
         self.output_activation = output_activation
 
