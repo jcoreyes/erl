@@ -96,13 +96,13 @@ def experiment(variant):
 if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
-    exp_prefix = "6-29-dev-bptt-ddpg-exp"
+    exp_prefix = "6-30-dev-bptt-ddpg-exp"
     run_mode = 'none'
 
-    n_seeds = 1
-    mode = "ec2"
+    # n_seeds = 1
+    # mode = "ec2"
     # exp_prefix = "6-29-bptt-ddpg-exp-sweep-gru-vs-bnlstm"
-    exp_prefix = "6-29-check-docker-31e82383f58e"
+    # exp_prefix = "6-29-check-docker-31e82383f58e"
 
     # run_mode = 'random'
     num_configurations = 100
@@ -114,9 +114,9 @@ if __name__ == '__main__':
     subtraj_length = 25
     num_steps_per_iteration = 100
     num_steps_per_eval = 1000
-    num_iterations = 10
+    num_iterations = 100
     batch_size = 200
-    memory_dim = 30
+    memory_dim = 100
     version = exp_prefix
     version = "Our Method"
     # version = "Our Method - loading but Q does not read mem state"
@@ -140,12 +140,12 @@ if __name__ == '__main__':
             num_epochs=num_iterations,
             num_steps_per_epoch=num_steps_per_iteration,
             num_steps_per_eval=num_steps_per_eval,
-            discount=.9,
+            discount=0.86,
             action_policy_optimize_bellman=False,
-            write_policy_optimizes='both',
-            action_policy_learning_rate=1e-3,
-            write_policy_learning_rate=1e-5,
-            qf_learning_rate=1e-3,
+            write_policy_optimizes='bellman',
+            action_policy_learning_rate=0.001,
+            write_policy_learning_rate=0.006,
+            qf_learning_rate=0.0004,
             max_path_length=H,
             refresh_entire_buffer_period=None,
             save_new_memories_back_to_replay_buffer=True,
