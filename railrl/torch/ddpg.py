@@ -52,10 +52,12 @@ class DDPG(OnlineAlgorithm):
             EnvReplayBuffer(
                 self.pool_size,
                 self.env,
+                flatten=True,
             ),
             EnvReplayBuffer(
                 self.pool_size,
                 self.env,
+                flatten=True,
             ),
             fraction_paths_in_train=0.8,
         )
@@ -164,7 +166,7 @@ class DDPG(OnlineAlgorithm):
 
     def get_batch(self, training=True):
         batch = self.pool.random_batch(
-            self.batch_size, training=training, flatten=True
+            self.batch_size, training=training
         )
         torch_batch = {
             k: Variable(ptu.from_numpy(array).float(), requires_grad=False)
