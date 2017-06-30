@@ -5,3 +5,7 @@ logs/
 *.swp
 *.swo
 *.idea
+railrl/bin/
+railrl/.idea/
+examples/#ddpg_cheetah.here.py#
+examples/tmp.yml
