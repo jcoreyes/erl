@@ -63,7 +63,6 @@ def generate_report(fanova_info: FanovaInfo, base_dir, param_name_to_log=None):
     report = HTMLReport(
         osp.join(base_dir, 'report.html'), images_per_row=3,
     )
-    param_names = [p.name for p in config_space.get_hyperparameters()]
 
     vis = visualizer.Visualizer(f, config_space)
     cs_params = config_space.get_hyperparameters()
@@ -134,10 +133,11 @@ def generate_report(fanova_info: FanovaInfo, base_dir, param_name_to_log=None):
     N = min(10, len(Y))
     Y[np.isnan(Y)] = np.nanmin(Y) - 1
     best_idxs = Y.argsort()[-N:][::-1]
+    all_param_names = [p.name for p in config_space.get_hyperparameters()]
     for rank, i in enumerate(best_idxs):
         variant = variants_list[i]
         report.add_text("Rank {} params, with score = {}:".format(rank+1, Y[i]))
-        for name, value in zip(param_names, X[i, :]):
+        for name, value in zip(all_param_names, X[i, :]):
             report.add_text("\t{} = {}\n".format(name, value))
         report.add_text("\texp_name = {}\n".format(variant['exp_name']))
         report.add_text("\tunique_id = {}\n".format(variant['unique_id']))
