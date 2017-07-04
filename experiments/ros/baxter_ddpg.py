@@ -15,7 +15,7 @@ def example(*_):
     es = OUStrategy(
         max_sigma=0.05,
         min_sigma=0.05,
-        env_spec=env.spec,
+        action_space=env.action_space,
     )
     qf = FeedForwardCritic(
         name_or_scope="critic",
