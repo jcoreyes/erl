@@ -201,7 +201,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
         )
         last_write = rand()
         # First trajectory always goes in validation set
-        buff.terminate_episode((rand(), rand()))
+        buff.terminate_episode((rand(), rand()), True)
         for _ in range(5):
             observation = rand(), last_write
             write = rand()
@@ -292,7 +292,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
             memory_dim=1,
         )
         # First trajectory always goes in validation set
-        buff.terminate_episode((rand(), rand()))
+        buff.terminate_episode((rand(), rand()), True)
         last_write = rand()
         for _ in range(13):
             observation = rand(), last_write

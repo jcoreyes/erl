@@ -1,5 +1,5 @@
 """
-Exampling of running DDPG on HalfCheetah.
+Exampling of running the TensorFlow version of DDPG on HalfCheetah.
 """
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
@@ -14,7 +14,7 @@ from rllab.envs.normalized_env import normalize
 def example(variant):
     env = HalfCheetahEnv()
     env = normalize(env)
-    es = OUStrategy(env_spec=env.spec)
+    es = OUStrategy(action_space=env.action_space)
     qf = FeedForwardCritic(
         name_or_scope="critic",
         env_spec=env.spec,
@@ -43,14 +43,14 @@ if __name__ == "__main__":
             batch_size=128,
             epoch_length=10000,
             eval_samples=1000,
+            max_path_length=1000,
         ),
-        version="TensorFlow - bigger networks",
+        version="Example",
     )
-    for seed in range(20):
-        run_experiment(
-            example,
-            exp_prefix="6-5-tf-vs-torch-ddpg-half-cheetah-h100",
-            variant=variant,
-            seed=seed,
-            mode='ec2',
-        )
+    run_experiment(
+        example,
+        exp_prefix="ddpg-half-cheetah-example",
+        variant=variant,
+        seed=0,
+        mode='here',
+    )

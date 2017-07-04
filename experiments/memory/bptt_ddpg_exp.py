@@ -11,16 +11,21 @@ from railrl.envs.pygame.water_maze import (
     WaterMaze,
     WaterMazeEasy,
     WaterMazeMemory,
+    WaterMaze1D,
+    WaterMazeEasy1D,
+    WaterMazeMemory1D,
 )
+from railrl.exploration_strategies.noop import NoopStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import (
     run_experiment,
 )
-from railrl.misc.hyperparameter import DeterministicHyperparameterSweeper
+import railrl.misc.hyperparameter as hyp
 from railrl.policies.torch import MemoryPolicy, RWACell
 from railrl.pythonplusplus import identity
-from railrl.qfunctions.torch import MemoryQFunction
-from railrl.torch.bnlstm import LSTMCell, BNLSTMCell
+from railrl.qfunctions.torch import MemoryQFunction, RecurrentMemoryQFunction
+from railrl.torch.rnn import LSTMCell, BNLSTMCell, GRUCell
+from railrl.torch.bptt_ddpg_rq import BpttDdpgRecurrentQ
 
 
 def experiment(variant):
@@ -32,9 +37,13 @@ def experiment(variant):
     seed = variant['seed']
     algo_params = variant['algo_params']
     memory_dim = variant['memory_dim']
+    if memory_dim % 2 == 1:
+        memory_dim += 1
     env_class = variant['env_class']
     env_params = variant['env_params']
     memory_aug_params = variant['memory_aug_params']
+
+    qf_class = variant['qf_class']
     qf_params = variant['qf_params']
     policy_params = variant['policy_params']
 
@@ -60,23 +69,21 @@ def experiment(variant):
         **memory_es_params
     )
     es = ProductStrategy([env_strategy, write_strategy])
-    qf = MemoryQFunction(
+    qf = qf_class(
         int(raw_env.observation_space.flat_dim),
         int(raw_env.action_space.flat_dim),
         memory_dim,
-        400,
-        300,
         **qf_params,
     )
     policy = MemoryPolicy(
         int(raw_env.observation_space.flat_dim),
         int(raw_env.action_space.flat_dim),
-        memory_dim,
-        400,
-        300,
-        **policy_params,
+        memory_dim=memory_dim,
+        fc1_size=400,
+        fc2_size=300,
+        **policy_params
     )
-    algorithm = BpttDdpg(
+    algorithm = BpttDdpgRecurrentQ(
         env,
         es,
         qf=qf,
@@ -89,14 +96,16 @@ def experiment(variant):
 if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
-    exp_prefix = "dev-6-14-pytorch-2"
+    exp_prefix = "6-29-dev-bptt-ddpg-exp"
     run_mode = 'none'
 
-    n_seeds = 10
+    n_seeds = 1
     mode = "ec2"
-    exp_prefix = "paper-6-14-hl-our-method-sweep-subtraj-length-batchsize1000"
+    # exp_prefix = "6-29-bptt-ddpg-exp-sweep-gru-vs-bnlstm"
+    exp_prefix = "6-29-check-docker-31e82383f58e"
 
-    run_mode = 'grid'
+    # run_mode = 'random'
+    num_configurations = 100
     use_gpu = True
     if mode != "here":
         use_gpu = False
@@ -105,21 +114,22 @@ if __name__ == '__main__':
     subtraj_length = 25
     num_steps_per_iteration = 100
     num_steps_per_eval = 1000
-    num_iterations = 30
-    batch_size = 1000
+    num_iterations = 10
+    batch_size = 200
     memory_dim = 30
     version = exp_prefix
-    # version = "H = {0}, subtraj length = {1}".format(H, subtraj_length)
     version = "Our Method"
+    # version = "Our Method - loading but Q does not read mem state"
     # noinspection PyTypeChecker
     variant = dict(
         memory_dim=memory_dim,
-        # env_class=WaterMazeEasy,
         # env_class=WaterMaze,
-        # env_class=WaterMazeMemory,
-        env_class=HighLow,
+        # env_class=WaterMazeEasy,
+        env_class=WaterMazeMemory,
+        # env_class=HighLow,
         env_params=dict(
             horizon=H,
+            give_time=True,
         ),
         memory_aug_params=dict(
             max_magnitude=1,
@@ -130,8 +140,7 @@ if __name__ == '__main__':
             num_epochs=num_iterations,
             num_steps_per_epoch=num_steps_per_iteration,
             num_steps_per_eval=num_steps_per_eval,
-            discount=1.,
-            use_gpu=use_gpu,
+            discount=.9,
             action_policy_optimize_bellman=False,
             write_policy_optimizes='both',
             action_policy_learning_rate=1e-3,
@@ -140,12 +149,20 @@ if __name__ == '__main__':
             max_path_length=H,
             refresh_entire_buffer_period=None,
             save_new_memories_back_to_replay_buffer=True,
+            # tau=0.001,
+            # use_soft_update=False,
+            # target_hard_update_period=300,
         ),
+        # qf_class=RecurrentMemoryQFunction,
+        qf_class=MemoryQFunction,
         qf_params=dict(
             output_activation=identity,
+            # hidden_size=10,
+            fc1_size=400,
+            fc2_size=300,
         ),
         policy_params=dict(
-            cell_class=LSTMCell,
+            cell_class=GRUCell,
         ),
         es_params=dict(
             env_es_class=OUStrategy,
@@ -153,6 +170,7 @@ if __name__ == '__main__':
                 max_sigma=1,
                 min_sigma=None,
             ),
+            # memory_es_class=NoopStrategy,
             memory_es_class=OUStrategy,
             memory_es_params=dict(
                 max_sigma=0,
@@ -171,12 +189,15 @@ if __name__ == '__main__':
             # 'algo_params.refresh_entire_buffer_period': [None, 1],
             # 'es_params.memory_es_params.max_sigma': [0, 1],
             # 'policy_params.cell_class': [LSTMCell, BNLSTMCell, RWACell],
-            'algo_params.subtraj_length': [1, 5, 10, 15, 20],
+            # 'algo_params.subtraj_length': [1, 5, 10, 15, 20, 25],
             # 'algo_params.bellman_error_loss_weight': [0.1, 1, 10, 100, 1000],
             # 'algo_params.tau': [1, 0.1, 0.01, 0.001],
+            'env_params.give_time': [True, False],
+            'algo_params.discount': [1, .9, .5, 0],
         }
-        sweeper = DeterministicHyperparameterSweeper(search_space,
-                                                     default_parameters=variant)
+        sweeper = hyp.DeterministicHyperparameterSweeper(
+            search_space, default_parameters=variant,
+        )
         for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
             for i in range(n_seeds):
                 run_experiment(
@@ -207,7 +228,8 @@ if __name__ == '__main__':
             variant['algo_params']['refresh_entire_buffer_period'] = (
                 refresh_entire_buffer_period
             )
-            for seed in range(n_seeds):
+            for _ in range(n_seeds):
+                seed = random.randint(0, 10000)
                 run_experiment(
                     experiment,
                     exp_prefix=exp_prefix,
@@ -215,6 +237,51 @@ if __name__ == '__main__':
                     mode=mode,
                     variant=variant,
                     exp_id=exp_id,
+                )
+    if run_mode == 'random':
+        hyperparameters = [
+            hyp.LogIntParam('memory_dim', 2, 400),
+            # hyp.LogFloatParam('algo_params.qf_learning_rate', 1e-5, 1e-1),
+            # hyp.LogFloatParam(
+            #     'algo_params.write_policy_learning_rate', 1e-6, 1e-2
+            # ),
+            # hyp.LogFloatParam(
+            #     'algo_params.action_policy_learning_rate', 1e-6, 1e-2
+            # ),
+            # hyp.EnumParam(
+            #     'algo_params.action_policy_optimize_bellman', [True, False],
+            # ),
+            # hyp.EnumParam(
+            #     'algo_params.write_policy_optimizes', ['both', 'qf', 'bellman']
+            # ),
+            hyp.EnumParam(
+                'policy_params.cell_class', [GRUCell, BNLSTMCell],
+            ),
+            hyp.LinearFloatParam(
+                'es_params.memory_es_params.max_sigma', 0, 1,
+            ),
+            hyp.LinearFloatParam(
+                'algo_params.discount', 0.8, 0.99,
+            ),
+        ]
+        sweeper = hyp.RandomHyperparameterSweeper(
+            hyperparameters,
+            default_kwargs=variant,
+        )
+        for _ in range(num_configurations):
+            for exp_id in range(n_seeds):
+                seed = random.randint(0, 10000)
+                variant = sweeper.generate_random_hyperparameters()
+                run_experiment(
+                    experiment,
+                    exp_prefix=exp_prefix,
+                    seed=seed,
+                    mode=mode,
+                    variant=variant,
+                    exp_id=exp_id,
+                    sync_s3_log=True,
+                    sync_s3_pkl=True,
+                    periodic_sync_interval=600,
                 )
     else:
         for _ in range(n_seeds):

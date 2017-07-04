@@ -3,11 +3,35 @@ import pickle
 import time
 
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
-from railrl.exploration_strategies.noop import NoopStrategy
 from railrl.misc.rllab_util import get_table_key_set
 from rllab.algos.base import RLAlgorithm
-from rllab.algos.batch_polopt import BatchSampler
 from rllab.misc import logger, tensor_utils
+from rllab.sampler.base import BaseSampler
+from rllab.sampler import parallel_sampler
+
+
+class SimplePathSampler(BaseSampler):
+    def __init__(self, algo, max_samples, max_path_length):
+        """
+        :type algo: BatchPolopt
+        """
+        self.algo = algo
+        self.max_samples = max_samples
+        self.max_path_length = max_path_length
+
+    def start_worker(self):
+        parallel_sampler.populate_task(self.algo.env, self.algo.policy)
+
+    def shutdown_worker(self):
+        parallel_sampler.terminate_task()
+
+    def obtain_samples(self, itr):
+        cur_params = self.algo.policy.get_param_values()
+        return parallel_sampler.sample_paths(
+            policy_params=cur_params,
+            max_samples=self.max_samples,
+            max_path_length=self.max_path_length,
+        )
 
 
 class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
@@ -23,7 +47,6 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             discount=0.99,
             pool_size=1000000,
             scale_reward=1,
-            use_gpu=False,
             render=False,
             save_exploration_path_period=1,
     ):
@@ -37,7 +60,6 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         self.discount = discount
         self.pool_size = pool_size
         self.scale_reward = scale_reward
-        self.use_gpu = use_gpu
         self.render = render
         self.save_exploration_path_period = save_exploration_path_period
 
@@ -52,12 +74,21 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         self.scope = None  # Necessary for BatchSampler
         self.whole_paths = True  # Also for BatchSampler
         # noinspection PyTypeChecker
-        self.eval_sampler = BatchSampler(self)
+        self.eval_sampler = SimplePathSampler(
+            self, self.num_steps_per_eval, self.max_path_length
+        )
 
         self.policy = None  # Subclass must set this.
+        self.final_score = 0
 
     def train(self):
         n_steps_total = 0
+        observations = []
+        actions = []
+        rewards = []
+        terminals = []
+        agent_infos = []
+        env_infos = []
         observation = self.training_env.reset()
         self.exploration_strategy.reset()
         self.policy.reset()
@@ -66,16 +97,12 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         self._start_worker()
         self.training_mode(False)
         old_table_keys = None
+        params = self.get_epoch_snapshot(-1)
+        logger.save_itr_params(-1, params)
         for epoch in range(self.num_epochs):
             logger.push_prefix('Iteration #%d | ' % epoch)
             start_time = time.time()
             exploration_paths = []
-            observations = []
-            actions = []
-            rewards = []
-            terminals = []
-            agent_infos = []
-            env_infos = []
             for _ in range(self.num_steps_per_epoch):
                 action, agent_info = (
                     self.exploration_strategy.get_action(
@@ -139,6 +166,12 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                             env_infos=tensor_utils.stack_tensor_dict_list(
                                 env_infos),
                         ))
+                        observations = []
+                        actions = []
+                        rewards = []
+                        terminals = []
+                        agent_infos = []
+                        env_infos = []
                 else:
                     observation = next_ob
 
@@ -180,7 +213,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         Returns flattened paths.
 
         :param epoch: Epoch number
-        :return: Dictionary with these keys:
+        :return: List of dictionaries with these keys:
             observations: np.ndarray, shape BATCH_SIZE x flat observation dim
             actions: np.ndarray, shape BATCH_SIZE x flat action dim
             rewards: np.ndarray, shape BATCH_SIZE
@@ -188,14 +221,9 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             agent_infos: unsure
             env_infos: unsure
         """
-        # Sampler uses self.batch_size to figure out how many samples to get
-        saved_batch_size = self.batch_size
-        self.batch_size = self.num_steps_per_eval
-        paths = self.eval_sampler.obtain_samples(
+        return self.eval_sampler.obtain_samples(
             itr=epoch,
         )
-        self.batch_size = saved_batch_size
-        return paths
 
     def log_diagnostics(self, paths):
         self.env.log_diagnostics(paths)

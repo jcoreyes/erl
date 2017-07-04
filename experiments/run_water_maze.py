@@ -2,7 +2,12 @@ import argparse
 
 import numpy as np
 
-from railrl.envs.pygame.water_maze import WaterMaze
+from railrl.envs.pygame.water_maze import (
+    WaterMaze,
+    WaterMaze1D,
+    WaterMazeEasy1D,
+    WaterMazeMemory1D,
+)
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 
 parser = argparse.ArgumentParser()
@@ -14,6 +19,8 @@ parser.add_argument("--render", action='store_true', help="Render env.")
 args = parser.parse_args()
 
 env = WaterMaze()
+# env = WaterMaze1D()
+# env = WaterMazeMemory1D()
 
 all_returns = []
 es = OUStrategy(env.action_space)
@@ -42,7 +49,7 @@ while True:
                 last_reward_t = t
         delta = obs[:2] - target
         action = - delta * 10
-        action = np.clip(action, -1, 1)
+        # action = np.clip(action, -1, 1)
         if args.render:
             env.render()
     print("Returns", returns)

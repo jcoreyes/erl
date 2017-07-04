@@ -5,7 +5,7 @@ from torch.autograd import Variable
 from torch.nn import functional as F
 from torch.nn import init
 
-from railrl.torch.bnlstm import BNLSTMCell, LSTM, LSTMCell
+from railrl.torch.rnn import BNLSTMCell, LSTM, LSTMCell
 from railrl.torch.core import PyTorchModule
 from railrl.torch import pytorch_util as ptu
 
@@ -155,17 +155,23 @@ class MemoryPolicy(PyTorchModule):
         """
         Create the new writes.
         """
-        state = torch.split(
-            initial_memory,
-            self.memory_dim // self.num_splits_for_rnn_internally,
-            dim=1,
-        )
         subtraj_writes = Variable(
             ptu.FloatTensor(batch_size, subsequence_length, self.memory_dim)
         )
-        for i in range(subsequence_length):
-            state = self.rnn_cell(obs[:, i, :], state)
-            subtraj_writes[:, i, :] = torch.cat(state, dim=1)
+        if self.num_splits_for_rnn_internally > 1:
+            state = torch.split(
+                initial_memory,
+                self.memory_dim // self.num_splits_for_rnn_internally,
+                dim=1,
+            )
+            for i in range(subsequence_length):
+                state = self.rnn_cell(obs[:, i, :], state)
+                subtraj_writes[:, i, :] = torch.cat(state, dim=1)
+        else:
+            state = initial_memory
+            for i in range(subsequence_length):
+                state = self.rnn_cell(obs[:, i, :], state)
+                subtraj_writes[:, i, :] = state
 
         # The reason that using a LSTM doesn't work is that this gives you only
         # the FINAL hx and cx, not all of them :(
@@ -241,12 +247,6 @@ class MemoryPolicy(PyTorchModule):
         actions, writes = self.__call__(obs, initial_memories)
         return torch.squeeze(actions, dim=1), torch.squeeze(writes, dim=1)
 
-    def reset(self):
-        pass
-
-    def log_diagnostics(self, paths):
-        pass
-
 
 class FeedForwardPolicy(PyTorchModule):
     def __init__(
@@ -292,12 +292,6 @@ class FeedForwardPolicy(PyTorchModule):
         action = action.squeeze(0)
         return ptu.get_numpy(action), {}
 
-    def reset(self):
-        pass
-
-    def log_diagnostics(self, paths):
-        pass
-
 
 class RecurrentPolicy(PyTorchModule):
     def __init__(
@@ -319,7 +313,7 @@ class RecurrentPolicy(PyTorchModule):
         self.fc2_size = fc2_size
         self.lstm = LSTM(BNLSTMCell, self.obs_dim, self.hidden_size, 1,
                          batch_first=True)
-        self.fc1 = nn.Linear(self.hidden_size + self.obs_dim, self.fc1_size)
+        self.fc1 = nn.Linear(self.hidden_size, self.fc1_size)
         self.fc2 = nn.Linear(self.fc1_size, self.fc2_size)
         self.last_fc = nn.Linear(self.fc2_size, self.action_dim)
 
@@ -356,10 +350,8 @@ class RecurrentPolicy(PyTorchModule):
         rnn_outputs, state = self.lstm(obs, (hx, cx))
         rnn_outputs.contiguous()
         rnn_outputs_flat = rnn_outputs.view(-1, self.hidden_size)
-        obs_flat = obs.view(-1, self.obs_dim)
-        h = torch.cat((rnn_outputs_flat, obs_flat), dim=1)
-        h = F.relu(self.fc1(h))
-        h = F.relu(self.fc2(h))
+        h = F.tanh(self.fc1(rnn_outputs_flat))
+        h = F.tanh(self.fc2(h))
         outputs_flat = F.tanh(self.last_fc(h))
 
         out = outputs_flat.view(
@@ -387,6 +379,3 @@ class RecurrentPolicy(PyTorchModule):
         )
         self.hx.data.fill_(0)
         self.cx.data.fill_(0)
-
-    def log_diagnostics(self, paths):
-        pass
