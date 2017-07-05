@@ -73,7 +73,7 @@ def example(variant):
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="6-26-ddpg-baxter-right-arm-fixed-angle-safety-end-effector-TEST-DELEETETE",
+        exp_prefix="7-4-ddpg-baxter-right-arm-fixed-angle-safety-limited-end-effector",
         seed=0,
         mode='here',
         variant={
