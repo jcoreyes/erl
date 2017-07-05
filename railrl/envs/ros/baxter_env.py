@@ -73,15 +73,15 @@ END_EFFECTOR_VALUE_HIGH = {
 }
 
 # safety box:
-right_top_left = np.array([0.5593476422885908, -1.2633121086809487, 0.795699462010194])
-right_top_right = np.array([1.1163239572333106, 0.003933425621414761, 0.795699462010194])
-right_bottom_left = np.array([0.3404830862298487, -0.8305357734786465, -0.569848507615453])
-right_bottom_right = np.array([0.6810604337404508, -0.10962952928553238, -0.5698485041484043])
+# right_top_left = np.array([0.5593476422885908, -1.2633121086809487, 0.795699462010194])
+# right_top_right = np.array([1.1163239572333106, 0.003933425621414761, 0.795699462010194])
+# right_bottom_left = np.array([0.3404830862298487, -0.8305357734786465, -0.569848507615453])
+# right_bottom_right = np.array([0.6810604337404508, -0.10962952928553238, -0.5698485041484043])
 
-left_top_left = np.array([0.5593476422885908, 1.2633121086809487, 0.795699462010194])
-left_top_right = np.array([1.1163239572333106, -0.003933425621414761, 0.795699462010194])
-left_bottom_left = np.array([0.3404830862298487, 0.8305357734786465, -0.569848507615453])
-left_bottom_right = np.array([0.6810604337404508, 0.10962952928553238, -0.5698485041484043])
+# left_top_left = np.array([0.5593476422885908, 1.2633121086809487, 0.795699462010194])
+# left_top_right = np.array([1.1163239572333106, -0.003933425621414761, 0.795699462010194])
+# left_bottom_left = np.array([0.3404830862298487, 0.8305357734786465, -0.569848507615453])
+# left_bottom_right = np.array([0.6810604337404508, 0.10962952928553238, -0.5698485041484043])
 
 right_lows = [0.3404830862298487, -1.2633121086809487, -0.5698485041484043]
 right_highs = [1.1163239572333106, 0.003933425621414761, 0.795699462010194]
@@ -109,18 +109,16 @@ class BaxterEnv(Env, Serializable):
             self,
             use_right_arm,
             update_hz=20,
-            robot_name='robot',
             action_mode='torque',
-            safety_mode='position',
             joint_angle_experiment = True,
             fixed_angle = True,
             end_effector_experiment_position = False,
             end_effector_experiment_total = False,
             fixed_end_effector = False,
             safety_limited_end_effector = False,
-            delta=1,
-            huber=False,
-            MSE=True,
+            delta=10,
+            huber=True,
+            MSE=False,
     ):
         Serializable.quick_init(self, locals())
         rospy.init_node('baxter_env', anonymous=True)
@@ -255,12 +253,11 @@ class BaxterEnv(Env, Serializable):
 
     @safe
     def _act(self, action):
-        if not self.is_in_box():
+        if self.safety_limited_end_effector and not self.is_in_box():
             jacobian = self.get_jacobian()
             end_effector_force = self.get_adjustment_force() #gets the proper force to apply to push the end effector back into the box
-            torques = jacobian.T @ end_effector_force
+            torques = np.dot(jacobian.T, end_effector_force).T
             action = action + torques
-
         
         joint_to_values = dict(zip(self.arm_joint_names, action))
         self._set_joint_values(joint_to_values)
@@ -297,16 +294,15 @@ class BaxterEnv(Env, Serializable):
         """
         :param deltas: a change joint angles
         """
+        self.terminate = False
         self._act(action)
         observation = self._get_joint_values()
-
-        # is_valid = self.is_in_box()
 
         if self.joint_angle_experiment:
             #reward is MSE between current joint angles and the desired angles
             if self.MSE:
                 reward = -np.mean((self._joint_angles() - self.desired)**2)
-            if self.huber:
+            elif self.huber:
                 a = np.mean(np.abs(self.desired - self._joint_angles()))
                 if a <= self.delta:
                     reward = -1/2 * a **2
@@ -318,19 +314,15 @@ class BaxterEnv(Env, Serializable):
             current_end_effector_pose = self._end_effector_pose()
             if self.MSE:
                 reward = -np.mean((current_end_effector_pose - self.desired)**2)
-            if self.huber:
+            elif self.huber:
                 a = np.abs(np.mean(self.desired - current_end_effector_pose))
                 if a <= self.delta:
                         reward = -1/2 * a **2
                 else:
                     reward = -1 * self.delta * (a- 1/2 * self.delta)
 
-        # if not is_valid:
-        #     done = True
-        # else:
-        #     done = False
-        # ipdb.set_trace()
-        done = False
+        # done = False
+        done = self.terminate
         info = {}
         return observation, reward, done, info
 
@@ -342,12 +334,12 @@ class BaxterEnv(Env, Serializable):
         positions = [positions_dict[joint] for joint in self.arm_joint_names]
         velocities = [velocities_dict[joint] for joint in self.arm_joint_names]
         torques = [torques_dict[joint] for joint in self.arm_joint_names]
-        temp = velocities + torques
+        temp = positions + velocities + torques
 
         if self.end_effector_experiment_position or self.end_effector_experiment_total:
             temp = np.hstack((temp, self._end_effector_pose()))
-        temp = np.hstack((positions, temp, self.desired))
-
+        
+        temp = np.hstack((temp, self.desired))
         return temp
 
     def reset(self):
@@ -378,10 +370,14 @@ class BaxterEnv(Env, Serializable):
         rospy.wait_for_service('get_jacobian')
         try:
             get_jacobian = rospy.ServiceProxy('get_jacobian', GetJacobian)
-            resp = get_jacobian()
+            if self.use_right_arm:
+                resp = get_jacobian('right')
+            else:
+                resp = get_jacobian('left')
             return np.array([resp.jacobianr1, resp.jacobianr2, resp.jacobianr3, resp.jacobianr4, resp.jacobianr5, resp.jacobianr6])
-        except rospy.ServiceException as e:
-            print("Service call failed: %s"%e)
+        except Exception as e:
+            self.terminate = True
+            return np.zeros((6, 7))
 
     def get_jacobian(self):
         return self.get_jacobian_client()[:3]
@@ -398,6 +394,7 @@ class BaxterEnv(Env, Serializable):
                     for curr_pose, lower_pose, higher_pose 
                     in zip(endpoint_pose, left_lows, left_highs)]
             return all(within_box)
+        
         return True
 
     def get_adjustment_force(self):
@@ -438,21 +435,21 @@ class BaxterEnv(Env, Serializable):
                 z = -1 * np.exp(np.abs(curr_z - left_highs[2]))
             elif curr_z < left_lows[2]:
                 z = np.exp(np.abs(curr_z - left_highs[2]))
-                
-        if x > 1:
-            x = 1
-        elif x < -1:
-            x = -1
 
-        if y > 1:
-            y = 1
-        elif y < -1:
-            y = -1
+        # if x > 1:
+        #     x = 1
+        # elif x < -1:
+        #     x = -1
 
-        if z > 1:
-            z = 1
-        elif z < -1:
-            z = -1
+        # if y > 1:
+        #     y = 1
+        # elif y < -1:
+        #     y = -1
+
+        # if z > 1:
+        #     z = 1
+        # elif z < -1:
+        #     z = -1
 
         return np.array([x, y, z])
 
