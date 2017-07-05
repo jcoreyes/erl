@@ -4,6 +4,7 @@ General purpose Python functions.
 import random
 import sys
 import collections
+import itertools
 
 
 # TODO(vpong): probably move this to its own module, not under railrl
@@ -241,3 +242,59 @@ def batch(iterable, n=1):
     l = len(iterable)
     for ndx in range(0, l, n):
         yield iterable[ndx:min(ndx + n, l)]
+
+
+def is_numeric(x):
+    return not isinstance(x, bool) and (
+        isinstance(x, int) or isinstance(x, float)
+    )
+
+
+class IntIdDict(collections.defaultdict):
+    """
+    Automatically assign int IDs to hashable objects.
+
+    Usage:
+    ```
+    id_map = IntIdDict()
+    print(id_map['a'])
+    print(id_map['b'])
+    print(id_map['c'])
+    print(id_map['a'])
+    print(id_map['b'])
+    print(id_map['a'])
+
+    print('')
+
+    print(id_map.get_inverse(0))
+    print(id_map.get_inverse(1))
+    print(id_map.get_inverse(2))
+    ```
+
+    Output:
+    ```
+    1
+    2
+    3
+    1
+    2
+    1
+
+    'a'
+    'b'
+    'c'
+    ```
+    :return: 
+    """
+    def __init__(self, **kwargs):
+        c = itertools.count()
+        self.inverse_dict = {}
+        super().__init__(lambda: next(c), **kwargs)
+
+    def __getitem__(self, y):
+        int_id = super().__getitem__(y)
+        self.inverse_dict[int_id] = y
+        return int_id
+
+    def reverse_id(self, int_id):
+        return self.inverse_dict[int_id]

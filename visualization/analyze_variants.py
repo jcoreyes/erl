@@ -17,7 +17,7 @@ import json
 from collections import defaultdict
 
 from railrl.misc.data_processing import get_data_and_variants
-from railrl.pythonplusplus import nested_dict_to_dot_map_dict
+from railrl.pythonplusplus import nested_dict_to_dot_map_dict, is_numeric
 import seaborn
 
 
@@ -40,10 +40,6 @@ def get_unique_param_to_values(all_variants):
         if len(variant_key_to_values[k]) > 1
     }
     return unique_key_to_values
-
-
-def is_numeric(x):
-    return isinstance(x, int) or isinstance(x, float)
 
 
 def main():
