@@ -27,9 +27,9 @@ from railrl.launchers.launcher_util import (
 
 
 def experiment(variant):
-    # env = HalfCheetahEnv()
+    env = HalfCheetahEnv()
     # env = PointEnv()
-    env = gym_env("Pendulum-v0")
+    # env = gym_env("Pendulum-v0")
     # env = HopperEnv()
     horizon = variant['algo_params']['max_path_length']
     env = TimeLimitedEnv(env, horizon)
@@ -79,8 +79,8 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
-            num_epochs=10,
-            num_steps_per_epoch=1000,
+            num_epochs=100,
+            num_steps_per_epoch=10000,
             num_steps_per_eval=1000,
             batch_size=128,
             max_path_length=1000,
@@ -88,6 +88,7 @@ if __name__ == "__main__":
             discount=0.98,
             policy_learning_rate=4e-4,
             qf_learning_rate=2e-3,
+            subtraj_length=10,
         ),
         version=version,
     )

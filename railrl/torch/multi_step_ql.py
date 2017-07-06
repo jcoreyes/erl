@@ -21,9 +21,9 @@ def flatten_subtraj_batch(subtraj_batch):
 
 
 class MultiStepDdpg(DDPG):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, subtraj_length=10, **kwargs):
         super().__init__(*args, **kwargs)
-        self.subtraj_length = 10
+        self.subtraj_length = subtraj_length
         self.gammas = self.discount * torch.ones(self.subtraj_length)
         discount_factors = torch.cumprod(self.gammas, dim=0)
         self.discount_factors = ptu.Variable(
