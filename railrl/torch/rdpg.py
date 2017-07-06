@@ -6,7 +6,8 @@ import torch
 import torch.optim as optim
 from torch.autograd import Variable
 
-from railrl.data_management.split_buffer import SplitReplayBuffer
+from railrl.data_management.split_buffer import SplitReplayBuffer, \
+    SplitSubtrajReplayBuffer
 from railrl.data_management.subtraj_replay_buffer import SubtrajReplayBuffer
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import get_average_returns
@@ -56,7 +57,7 @@ class Rdpg(OnlineAlgorithm):
         self.qf_learning_rate = qf_learning_rate
         self.tau = tau
 
-        self.pool = SplitReplayBuffer(
+        self.pool = SplitSubtrajReplayBuffer(
             SubtrajReplayBuffer(
                 self.pool_size,
                 self.env,
@@ -247,17 +248,17 @@ class Rdpg(OnlineAlgorithm):
 
     def _get_other_statistics(self):
         statistics = OrderedDict()
-        for stat_prefix, validation in [
-            ('Validation', True),
-            ('Train', False),
+        for stat_prefix, training in [
+            ('Validation', False),
+            ('Train', True),
         ]:
             sample_size = min(
-                self.pool.num_subtrajs_can_sample(validation=validation),
+                self.pool.num_subtrajs_can_sample(training=training),
                 self.train_validation_num_subtrajs_per_batch
             )
             raw_subtraj_batch = self.pool.random_subtrajectories(
                 sample_size,
-                validation=validation
+                training=training,
             )
             subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
             statistics.update(self._statistics_from_subtraj_batch(
@@ -267,8 +268,8 @@ class Rdpg(OnlineAlgorithm):
 
     def _can_evaluate(self, exploration_paths):
         return (
-            self.pool.num_subtrajs_can_sample(validation=True) >= 1
-            and self.pool.num_subtrajs_can_sample(validation=False) >= 1
+            self.pool.num_subtrajs_can_sample(training=True) >= 1
+            and self.pool.num_subtrajs_can_sample(training=False) >= 1
             and len(exploration_paths) > 0
             and any([len(path['terminals']) >= self.subtraj_length
                      for path in exploration_paths])
