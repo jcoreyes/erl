@@ -6,6 +6,7 @@ import torch
 import torch.optim as optim
 from torch.autograd import Variable
 
+from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.data_management.subtraj_replay_buffer import SubtrajReplayBuffer
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import get_average_returns
@@ -14,13 +15,7 @@ from railrl.pythonplusplus import batch, ConditionTimer
 from railrl.qfunctions.torch import MemoryQFunction
 from railrl.torch.bptt_ddpg import create_torch_subtraj_batch
 from railrl.torch.online_algorithm import OnlineAlgorithm
-from railrl.torch.pytorch_util import (
-    copy_model_params_from_to,
-    soft_update_from_to,
-    set_gpu_mode,
-    from_numpy,
-    get_numpy,
-)
+import railrl.torch.pytorch_util as ptu
 from rllab.misc import logger, special
 
 
@@ -61,10 +56,18 @@ class Rdpg(OnlineAlgorithm):
         self.qf_learning_rate = qf_learning_rate
         self.tau = tau
 
-        self.pool = SubtrajReplayBuffer(
-            self.pool_size,
-            self.env,
-            self.subtraj_length,
+        self.pool = SplitReplayBuffer(
+            SubtrajReplayBuffer(
+                self.pool_size,
+                self.env,
+                self.subtraj_length,
+            ),
+            SubtrajReplayBuffer(
+                self.pool_size,
+                self.env,
+                self.subtraj_length,
+            ),
+            fraction_paths_in_train=0.8,
         )
         self.target_qf = self.qf.copy()
         self.target_policy = self.policy.copy()
@@ -76,9 +79,7 @@ class Rdpg(OnlineAlgorithm):
             self.policy.parameters(), lr=self.policy_learning_rate
         )
 
-        self.use_gpu = self.use_gpu and torch.cuda.is_available()
-        set_gpu_mode(self.use_gpu)
-        if self.use_gpu:
+        if ptu.gpu_enabled():
             self.policy.cuda()
             self.target_policy.cuda()
             self.qf.cuda()
@@ -96,8 +97,8 @@ class Rdpg(OnlineAlgorithm):
         self.train_critic(subtraj_batch)
         self.train_policy(subtraj_batch)
 
-        soft_update_from_to(self.target_policy, self.policy, self.tau)
-        soft_update_from_to(self.target_qf, self.qf, self.tau)
+        ptu.soft_update_from_to(self.target_policy, self.policy, self.tau)
+        ptu.soft_update_from_to(self.target_qf, self.qf, self.tau)
 
     def train_critic(self, subtraj_batch):
         critic_dict = self.get_critic_output_dict(subtraj_batch)
@@ -233,14 +234,14 @@ class Rdpg(OnlineAlgorithm):
         for name, tensor in critic_dict.items():
             statistics.update(create_stats_ordered_dict(
                 '{} QF {}'.format(stat_prefix, name),
-                get_numpy(tensor)
+                ptu.get_numpy(tensor)
             ))
 
         policy_dict = self.get_policy_output_dict(subtraj_batch)
         for name, tensor in policy_dict.items():
             statistics.update(create_stats_ordered_dict(
                 '{} Policy {}'.format(stat_prefix, name),
-                get_numpy(tensor)
+                ptu.get_numpy(tensor)
             ))
         return statistics
 
@@ -269,7 +270,7 @@ class Rdpg(OnlineAlgorithm):
             self.pool.num_subtrajs_can_sample(validation=True) >= 1
             and self.pool.num_subtrajs_can_sample(validation=False) >= 1
             and len(exploration_paths) > 0
-            and any([len(path['terminals']) > self.subtraj_length
+            and any([len(path['terminals']) >= self.subtraj_length
                      for path in exploration_paths])
         )
 
