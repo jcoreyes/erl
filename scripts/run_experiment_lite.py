@@ -66,6 +66,7 @@ def run_experiment(argv):
                         help='Pickled data for variant configuration')
     parser.add_argument('--use_cloudpickle', type=ast.literal_eval, default=False)
     parser.add_argument('--code_diff', type=str, help='A string of the code diff to save.')
+    parser.add_argument('--commit_hash', type=str, help='A string of the commit hash')
 
     args = parser.parse_args(argv[1:])
 
@@ -112,9 +113,11 @@ def run_experiment(argv):
 
     if args.code_diff is not None:
         code_diff_str = cloudpickle.loads(base64.b64decode(args.code_diff))
-        with open(osp.join(log_dir, "code.diff"),
-                  "w") as f:
+        with open(osp.join(log_dir, "code.diff"), "w") as f:
             f.write(code_diff_str)
+    if args.commit_hash is not None:
+        with open(osp.join(log_dir, "commit_hash.txt"), "w") as f:
+            f.write(args.commit_hash)
 
     if args.resume_from is not None:
         data = joblib.load(args.resume_from)
