@@ -222,9 +222,10 @@ class DDPG(OnlineAlgorithm):
         return statistics
 
     def _can_evaluate(self, exploration_paths):
+        # import ipdb; ipdb.set_trace()
         return (
             len(exploration_paths) > 0
-            and self.pool.num_steps_can_sample() > 1
+            and self.pool.num_steps_can_sample() >= self.batch_size
         )
 
     def get_epoch_snapshot(self, epoch):

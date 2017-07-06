@@ -56,7 +56,6 @@ JOINT_VALUE_LOW = {
 }
 
 #not sure what the min/max angle and pos are supposed to be
-
 END_EFFECTOR_POS_LOW = [0.3404830862298487, -1.2633121086809487, -0.5698485041484043]
 END_EFFECTOR_POS_HIGH = [1.1163239572333106, 0.003933425621414761, 0.795699462010194]
 
@@ -84,15 +83,11 @@ END_EFFECTOR_VALUE_HIGH = {
 # left_bottom_left = np.array([0.3404830862298487, 0.8305357734786465, -0.569848507615453])
 # left_bottom_right = np.array([0.6810604337404508, 0.10962952928553238, -0.5698485041484043])
 
-#limits for predefined box for safety mode
 right_lows = [0.3404830862298487, -1.2633121086809487, -0.5698485041484043]
 right_highs = [1.1163239572333106, 0.003933425621414761, 0.795699462010194]
 
 left_lows = [0.3404830862298487, -0.003933425621414761, -0.5698485041484043]
 left_highs = [1.1163239572333106, 1.2633121086809487, 0.795699462010194]
-
-#max force that should be applied 
-end_effector_force = np.ones(3)
 
 # RIGHT ARM POSE: (AT ZERO JOINT_ANGLES)
 # x=0.9048343033476591, y=-1.10782475483212, z=0.3179643218511679
@@ -263,7 +258,8 @@ class BaxterEnv(Env, Serializable):
             end_effector_force = self.get_adjustment_force() #gets the proper force to apply to push the end effector back into the box
             torques = np.dot(jacobian.T, end_effector_force).T
             action = action + torques
-        
+
+        ipdb.set_trace()
         joint_to_values = dict(zip(self.arm_joint_names, action))
         self._set_joint_values(joint_to_values)
         self.rate.sleep()
@@ -277,7 +273,6 @@ class BaxterEnv(Env, Serializable):
     def _end_effector_pose(self):
         state_dict = self.arm.endpoint_pose()
         pos = state_dict['position']
-
         if self.end_effector_experiment_total:
             orientation = state_dict['orientation']
             return np.array([
@@ -359,6 +354,7 @@ class BaxterEnv(Env, Serializable):
             self._randomize_desired_angles()
         elif self.end_effector_experiment_position or self.end_effector_experiment_total and not self.fixed_end_effector:
             self._randomize_desired_end_effector_pose()
+
         self.arm.move_to_neutral()
         return self._get_joint_values()
 
@@ -385,8 +381,8 @@ class BaxterEnv(Env, Serializable):
             return np.zeros((6, 7))
 
     def get_jacobian(self):
-        return self.get_jacobian_client()[:3] #only want rows of jacobian corresponding to the xyz coordinates of end-effector
-
+        return self.get_jacobian_client()[:3]
+        
     def is_in_box(self):
         if self.safety_limited_end_effector:
             endpoint_pose = self._end_effector_pose()

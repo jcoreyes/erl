@@ -11,7 +11,8 @@ from railrl.exploration_strategies.ou_strategy import OUStrategy
 
 
 def example(variant):
-    env = BaxterEnv(update_hz=20)
+    use_right_arm = variant['use_right_arm']
+    env = BaxterEnv(update_hz=20, use_right_arm=use_right_arm)
     es = OUStrategy(
         max_sigma=0.05,
         min_sigma=0.05,
@@ -41,11 +42,12 @@ def example(variant):
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="6-17-ddpg-baxter-varying-end-effector-norm-distance",
+        exp_prefix="6-17-ddpg-baxter-varying-end-effector-norm-distance-TEST",
         seed=0,
         mode='here',
         variant={
                 'version': 'Original',
                 'use_new_version': False,
+                'use_right_arm':True,
             }
     )

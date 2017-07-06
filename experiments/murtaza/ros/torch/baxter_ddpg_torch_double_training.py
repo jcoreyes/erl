@@ -73,15 +73,14 @@ def example(variant):
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="7-4-ddpg-baxter-right-arm-fixed-angle-safety-limited-end-effector-TEST-DELETE",
+        exp_prefix="7-5-ddpg-baxter-left-arm-varying-angle-huber-delta-10-TEST-TEST-ETST",
         seed=0,
         mode='here',
         variant={
                 'version': 'Original',
                 'use_new_version': False,
-                'use_right_arm': True,
-                'safety_limited_end_effector':True,
-                # 'load_policy_file':"/home/murtaza/Documents/rllab/data/local/6-26-ddpg-baxter-right-arm-fixed-angle-safety-end-effector/6-26-ddpg-baxter-right-arm-fixed-angle-safety-end-effector_2017_06_28_08_49_19_0000--s-0/params.pkl",      
+                'use_right_arm': False,
+                'safety_limited_end_effector':False,
                 },
         use_gpu=True,
     )

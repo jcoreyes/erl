@@ -17,10 +17,7 @@ def example(variant):
     env = HalfCheetahEnv()
     env = normalize(env)
     es = OUStrategy(action_space=env.action_space)
-<<<<<<< HEAD:experiments/pytorch/ddpg_cheetah.py
     use_new_version = variant['use_new_version']
-=======
->>>>>>> fd452f1d8e3ae0a550e6caaee11f7aba39b359ab:examples/torch_ddpg_cheetah.py
     qf = FeedForwardQFunction(
         int(env.observation_space.flat_dim),
         int(env.action_space.flat_dim),
@@ -38,6 +35,7 @@ def example(variant):
         exploration_strategy=es,
         qf=qf,
         policy=policy,
+        use_new_version=use_new_version,
         **variant['algo_params']
     )
     algorithm.train()
@@ -52,13 +50,12 @@ if __name__ == "__main__":
             num_steps_per_eval=1000,
             use_soft_update=True,
             tau=1e-2,
-            batch_size=128,
+            batch_size=1024,
             max_path_length=1000,
         ),
         use_new_version=True,
         version="PyTorch - bigger networks",
     )
-<<<<<<< HEAD:experiments/pytorch/ddpg_cheetah.py
     for seed in range(1):
         run_experiment(
             example,
@@ -67,13 +64,3 @@ if __name__ == "__main__":
             mode='here',
             variant=variant,
         )
-=======
-    seed = random.randint(0, 999999)
-    run_experiment(
-        example,
-        exp_prefix="ddpg-half-cheetah-pytorch",
-        seed=seed,
-        mode='here',
-        variant=variant,
-    )
->>>>>>> fd452f1d8e3ae0a550e6caaee11f7aba39b359ab:examples/torch_ddpg_cheetah.py
