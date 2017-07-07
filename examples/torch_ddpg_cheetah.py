@@ -63,4 +63,5 @@ if __name__ == "__main__":
         seed=seed,
         mode='here',
         variant=variant,
+        use_gpu=True,
     )
