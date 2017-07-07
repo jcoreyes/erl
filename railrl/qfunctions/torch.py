@@ -21,6 +21,7 @@ class FeedForwardQFunction(PyTorchModule):
             embedded_hidden_size,
             init_w=3e-3,
             output_activation=identity,
+            hidden_init=ptu.fanin_init,
     ):
         self.save_init_params(locals())
         super().__init__()
@@ -29,6 +30,7 @@ class FeedForwardQFunction(PyTorchModule):
         self.action_dim = action_dim
         self.observation_hidden_size = observation_hidden_size
         self.embedded_hidden_size = embedded_hidden_size
+        self.hidden_init = hidden_init
 
         self.obs_fc = nn.Linear(obs_dim, observation_hidden_size)
         self.embedded_fc = nn.Linear(observation_hidden_size + action_dim,
@@ -39,9 +41,9 @@ class FeedForwardQFunction(PyTorchModule):
         self.init_weights(init_w)
 
     def init_weights(self, init_w):
-        init.kaiming_normal(self.obs_fc.weight)
+        self.hidden_init(self.obs_fc.weight)
         self.obs_fc.bias.data.fill_(0)
-        init.kaiming_normal(self.embedded_fc.weight)
+        self.hidden_init(self.embedded_fc.weight)
         self.embedded_fc.bias.data.fill_(0)
         self.last_fc.weight.data.uniform_(-init_w, init_w)
         self.last_fc.bias.data.uniform_(-init_w, init_w)
@@ -64,17 +66,18 @@ class MemoryQFunction(PyTorchModule):
             fc2_size,
             init_w=3e-3,
             output_activation=identity,
+            hidden_init=ptu.fanin_init,
     ):
         self.save_init_params(locals())
         super().__init__()
 
-        # memory_dim = memory_dim // 3
         self.obs_dim = obs_dim
         self.action_dim = action_dim
         self.memory_dim = memory_dim
         self.observation_hidden_size = fc1_size
         self.embedded_hidden_size = fc2_size
         self.init_w = init_w
+        self.hidden_init = hidden_init
 
         self.obs_fc = nn.Linear(obs_dim + memory_dim, fc1_size)
         # self.obs_fc = nn.Linear(obs_dim, observation_hidden_size)
@@ -89,9 +92,9 @@ class MemoryQFunction(PyTorchModule):
         self.init_weights(init_w)
 
     def init_weights(self, init_w):
-        init.kaiming_normal(self.obs_fc.weight)
+        self.hidden_init(self.obs_fc.weight)
         self.obs_fc.bias.data.fill_(0)
-        init.kaiming_normal(self.embedded_fc.weight)
+        self.hidden_init(self.embedded_fc.weight)
         self.embedded_fc.bias.data.fill_(0)
 
         self.last_fc.weight.data.uniform_(-init_w, init_w)
@@ -116,6 +119,7 @@ class RecurrentQFunction(PyTorchModule):
             fc1_size,
             fc2_size,
             init_w=3e-3,
+            hidden_init=ptu.fanin_init,
     ):
         self.save_init_params(locals())
         super().__init__()
@@ -125,6 +129,8 @@ class RecurrentQFunction(PyTorchModule):
         self.hidden_size = hidden_size
         self.fc1_size = fc1_size
         self.fc2_size = fc2_size
+        self.hidden_init = hidden_init
+
         self.lstm = LSTM(
             BNLSTMCell,
             self.obs_dim + self.action_dim,
@@ -137,9 +143,9 @@ class RecurrentQFunction(PyTorchModule):
         self.init_weights(init_w)
 
     def init_weights(self, init_w):
-        init.kaiming_normal(self.fc1.weight)
+        self.hidden_init(self.fc1.weight)
         self.fc1.bias.data.fill_(0)
-        init.kaiming_normal(self.fc2.weight)
+        self.hidden_init(self.fc2.weight)
         self.fc2.bias.data.fill_(0)
 
         self.last_fc.weight.data.uniform_(-init_w, init_w)
@@ -190,6 +196,7 @@ class RecurrentMemoryQFunction(PyTorchModule):
             fc2_size,
             init_w=3e-3,
             output_activation=identity,
+            hidden_init=ptu.fanin_init,
     ):
         self.save_init_params(locals())
         super().__init__()
@@ -201,6 +208,7 @@ class RecurrentMemoryQFunction(PyTorchModule):
         self.fc1_size = fc1_size
         self.fc2_size = fc2_size
         self.output_activation = output_activation
+        self.hidden_init = hidden_init
         self.lstm = LSTM(
             BNLSTMCell,
             self.obs_dim + self.action_dim + 2 * self.memory_dim,
@@ -213,9 +221,9 @@ class RecurrentMemoryQFunction(PyTorchModule):
         self.init_weights(init_w)
 
     def init_weights(self, init_w):
-        init.kaiming_normal(self.fc1.weight)
+        self.hidden_init(self.fc1.weight)
         self.fc1.bias.data.fill_(0)
-        init.kaiming_normal(self.fc2.weight)
+        self.hidden_init(self.fc2.weight)
         self.fc2.bias.data.fill_(0)
         self.last_fc.weight.data.uniform_(-init_w, init_w)
         self.last_fc.bias.data.uniform_(-init_w, init_w)

@@ -18,7 +18,7 @@ if __name__ == "__main__":
                         help='Max length of rollout')
     parser.add_argument('--speedup', type=float, default=1,
                         help='Speedup')
-    parser.add_argument('--use_gpu', action='store_true')
+    parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--pause', action='store_true')
     args = parser.parse_args()
 
@@ -36,7 +36,7 @@ if __name__ == "__main__":
             policy = qf.implicit_policy
         env = data['env']
         print("Policy loaded")
-        if args.use_gpu:
+        if args.gpu:
             set_gpu_mode(True)
             policy.cuda()
         if args.pause:
