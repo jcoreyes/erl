@@ -48,6 +48,8 @@ class BpttDdpg(OnlineAlgorithm):
             refresh_entire_buffer_period=None,
             save_new_memories_back_to_replay_buffer=True,
             only_use_last_dqdm=False,
+            action_policy_weight_decay=0,
+            write_policy_weight_decay=0,
             **kwargs
     ):
         super().__init__(*args, **kwargs)
@@ -71,6 +73,8 @@ class BpttDdpg(OnlineAlgorithm):
             save_new_memories_back_to_replay_buffer
         )
         self.only_use_last_dqdm = only_use_last_dqdm
+        self.action_policy_weight_decay = action_policy_weight_decay
+        self.write_policy_weight_decay = write_policy_weight_decay
 
         """
         Set some params-dependency values
@@ -117,10 +121,14 @@ class BpttDdpg(OnlineAlgorithm):
             self.qf.parameters(), lr=self.qf_learning_rate
         )
         self.action_policy_optimizer = optim.Adam(
-            self.policy.action_parameters(), lr=self.action_policy_learning_rate
+            self.policy.action_parameters(),
+            lr=self.action_policy_learning_rate,
+            weight_decay=self.action_policy_weight_decay,
         )
         self.write_policy_optimizer = optim.Adam(
-            self.policy.write_parameters(), lr=self.write_policy_learning_rate
+            self.policy.write_parameters(),
+            lr=self.write_policy_learning_rate,
+            weight_decay=self.write_policy_weight_decay,
         )
 
         if gpu_enabled():
