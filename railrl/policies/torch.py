@@ -391,23 +391,26 @@ class RecurrentPolicy(PyTorchModule):
             hx.data.fill_(0)
         rnn_outputs, state = self.lstm(obs, (hx, cx))
         rnn_outputs.contiguous()
-        rnn_outputs_flat = rnn_outputs.view(-1, self.hidden_size)
-        h = F.tanh(self.fc1(rnn_outputs_flat))
-        h = F.tanh(self.fc2(h))
+        rnn_outputs_flat = rnn_outputs.view(
+            batch_size * subsequence_length,
+            self.hidden_size,
+        )
+        h = F.relu(self.fc1(rnn_outputs_flat))
+        h = F.relu(self.fc2(h))
         outputs_flat = F.tanh(self.last_fc(h))
 
-        out = outputs_flat.view(
+        return outputs_flat.view(
             batch_size, subsequence_length, self.action_dim
         ), state
-        return out
 
     def get_action(self, obs):
         obs = np.expand_dims(obs, axis=0)
         obs = np.expand_dims(obs, axis=1)
         obs = Variable(ptu.from_numpy(obs).float(), requires_grad=False)
-        action, (self.hx, self.cx) = self.__call__(
+        action, state = self.__call__(
             obs, cx=self.cx, hx=self.hx
         )
+        self.hx, self.cx = state
         action = action.squeeze(0)
         action = action.squeeze(0)
         return ptu.get_numpy(action), {}

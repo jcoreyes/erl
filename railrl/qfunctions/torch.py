@@ -215,7 +215,7 @@ class RecurrentMemoryQFunction(PyTorchModule):
             self.hidden_size,
             batch_first=True,
         )
-        self.fc1 = nn.Linear(self.hidden_size, self.fc1_size)
+        self.fc1 = nn.Linear(self.hidden_size, self.fc2_size)
         self.fc2 = nn.Linear(self.fc1_size, self.fc2_size)
         self.last_fc = nn.Linear(self.fc2_size, 1)
         self.init_weights(init_w)
@@ -249,13 +249,14 @@ class RecurrentMemoryQFunction(PyTorchModule):
         hx.data.fill_(0)
         rnn_outputs, _ = self.lstm(rnn_inputs, (hx, cx))
         rnn_outputs.contiguous()
-        rnn_outputs_flat = rnn_outputs.view(-1, self.fc1.in_features)
+        rnn_outputs_flat = rnn_outputs.view(
+            batch_size * subsequence_length,
+            self.fc1.in_features,
+        )
         h1 = F.relu(self.fc1(rnn_outputs_flat))
         h2 = F.relu(self.fc2(h1))
-        outputs_flat = self.last_fc(h2)
-        return self.output_activation(
-            outputs_flat.view(batch_size, subsequence_length, 1)
-        )
+        outputs_flat = self.output_activation(self.last_fc(h2))
+        return outputs_flat.view(batch_size, subsequence_length, 1)
 
     @property
     def is_recurrent(self):
