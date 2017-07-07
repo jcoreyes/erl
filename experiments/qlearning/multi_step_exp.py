@@ -27,9 +27,9 @@ from railrl.launchers.launcher_util import (
 
 
 def experiment(variant):
-    env = HalfCheetahEnv()
+    # env = HalfCheetahEnv()
     # env = PointEnv()
-    # env = gym_env("Pendulum-v0")
+    env = gym_env("Pendulum-v0")
     # env = HopperEnv()
     horizon = variant['algo_params']['max_path_length']
     env = TimeLimitedEnv(env, horizon)
@@ -60,10 +60,11 @@ def experiment(variant):
 
 if __name__ == "__main__":
     num_configurations = 1  # for random mode
+
     n_seeds = 1
     mode = "here"
-    exp_prefix = "6-28-dev-multi-step-ql"
-    version = "Dev"
+    exp_prefix = "7-7-dev-multi-step-ql"
+    version = "dev"
     run_mode = "none"
 
     # n_seeds = 100
