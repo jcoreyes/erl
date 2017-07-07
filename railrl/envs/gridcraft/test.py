@@ -1,6 +1,7 @@
-from guided_prop.envs.gridcraft import REW_ARENA_64
-from guided_prop.envs.gridcraft.grid_env import GridEnv
-from guided_prop.envs.gridcraft.grid_spec import *
+from railrl.envs.gridcraft import REW_ARENA_64
+from railrl.envs.gridcraft.grid_env import GridEnv
+from railrl.envs.gridcraft.grid_spec import *
+from railrl.envs.gridcraft.mazes import MAZE_ANY_START1
 import gym.spaces.prng as prng
 import numpy as np
 
@@ -16,7 +17,8 @@ if __name__ == "__main__":
                          )
 
     #maze_spec = spec_from_sparse_locations(50, 50, {START: [(25,25)], REWARD: [(45,45)]})
-    maze_spec = REW_ARENA_64
+    # maze_spec = REW_ARENA_64
+    maze_spec = MAZE_ANY_START1
 
     env = GridEnv(maze_spec, one_hot=True, add_eyes=True, coordinate_wise=True)
 
