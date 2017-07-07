@@ -192,6 +192,7 @@ def run_experiment(
         command_words += ['-m cProfile -o', profile_file]
     repo = git.Repo(os.getcwd())
     diff_string = repo.git.diff(None)
+    commit_hash = repo.head.commit.hexsha
     if mode == 'here':
         run_experiment_here(
             task,
@@ -202,6 +203,7 @@ def run_experiment(
             use_gpu=use_gpu,
             snapshot_mode=snapshot_mode,
             code_diff=diff_string,
+            commit_hash=commit_hash,
         )
     else:
         code_diff = (
@@ -219,6 +221,7 @@ def run_experiment(
             use_gpu=use_gpu,
             script="railrl/scripts/run_experiment_lite.py",
             code_diff=code_diff,
+            commit_hash=commit_hash,
             **run_experiment_lite_kwargs
         )
 
@@ -232,6 +235,7 @@ def run_experiment_here(
         use_gpu=False,
         snapshot_mode='last',
         code_diff=None,
+        commit_hash=None,
 ):
     """
     Run an experiment locally without any serialization.
@@ -261,6 +265,7 @@ def run_experiment_here(
         seed=seed,
         snapshot_mode=snapshot_mode,
         code_diff=code_diff,
+        commit_hash=commit_hash,
     )
     if not use_gpu:
         os.environ['CUDA_VISIBLE_DEVICES'] = ""
@@ -325,6 +330,7 @@ def setup_logger(
         log_tabular_only=False,
         snapshot_gap=1,
         code_diff=None,
+        commit_hash=None,
 ):
     """
     Set up logger to have some reasonable default settings.
@@ -361,6 +367,9 @@ def setup_logger(
     if code_diff is not None:
         with open(osp.join(log_dir, "code.diff"), "w") as f:
             f.write(code_diff)
+    if commit_hash is not None:
+        with open(osp.join(log_dir, "commit_hash.txt"), "w") as f:
+            f.write(commit_hash)
 
 
 def set_seed(seed):

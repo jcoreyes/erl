@@ -27,6 +27,9 @@ from railrl.qfunctions.torch import MemoryQFunction, RecurrentMemoryQFunction
 from railrl.torch.rnn import LSTMCell, BNLSTMCell, GRUCell
 from railrl.torch.bptt_ddpg_rq import BpttDdpgRecurrentQ
 
+from torch.nn import init
+import railrl.torch.pytorch_util as ptu
+
 
 def experiment(variant):
     from railrl.torch.bptt_ddpg import BpttDdpg
@@ -96,14 +99,14 @@ def experiment(variant):
 if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
-    exp_prefix = "6-30-dev-bptt-ddpg-exp"
+    exp_prefix = "7-7-dev-bptt-ddpg-exp"
     run_mode = 'none'
 
-    # n_seeds = 1
-    # mode = "ec2"
-    # exp_prefix = "6-30-check-docker-f5e1c127fba7"
+    n_seeds = 5
+    mode = "ec2"
+    exp_prefix = "7-7-bptt-ddpg-water-maze-memory-1d-toggle-things"
 
-    # run_mode = 'random'
+    run_mode = 'grid'
     num_configurations = 100
     use_gpu = True
     if mode != "here":
@@ -115,7 +118,7 @@ if __name__ == '__main__':
     num_steps_per_eval = 1000
     num_iterations = 100
     batch_size = 200
-    memory_dim = 100
+    memory_dim = 30
     version = exp_prefix
     version = "Our Method"
     # version = "Our Method - loading but Q does not read mem state"
@@ -124,7 +127,8 @@ if __name__ == '__main__':
         memory_dim=memory_dim,
         # env_class=WaterMaze,
         # env_class=WaterMazeEasy,
-        env_class=WaterMazeMemory,
+        env_class=WaterMazeMemory1D,
+        # env_class=WaterMazeMemory,
         # env_class=HighLow,
         env_params=dict(
             horizon=H,
@@ -148,6 +152,8 @@ if __name__ == '__main__':
             max_path_length=H,
             refresh_entire_buffer_period=None,
             save_new_memories_back_to_replay_buffer=True,
+            write_policy_weight_decay=0,
+            action_policy_weight_decay=0,
             # tau=0.001,
             # use_soft_update=False,
             # target_hard_update_period=300,
@@ -186,13 +192,16 @@ if __name__ == '__main__':
             # 'algo_params.action_policy_optimize_bellman': [True, False],
             # 'algo_params.write_policy_optimizes': ['qf', 'bellman', 'both'],
             # 'algo_params.refresh_entire_buffer_period': [None, 1],
-            # 'es_params.memory_es_params.max_sigma': [0, 1],
+            'es_params.memory_es_params.max_sigma': [0, 1],
+            'qf_params.hidden_init': [init.kaiming_normal, ptu.fanin_init],
+            'policy_params.hidden_init': [init.kaiming_normal, ptu.fanin_init],
+            'policy_params.feed_action_to_memory': [False, True],
             # 'policy_params.cell_class': [LSTMCell, BNLSTMCell, RWACell],
             # 'algo_params.subtraj_length': [1, 5, 10, 15, 20, 25],
             # 'algo_params.bellman_error_loss_weight': [0.1, 1, 10, 100, 1000],
             # 'algo_params.tau': [1, 0.1, 0.01, 0.001],
-            'env_params.give_time': [True, False],
-            'algo_params.discount': [1, .9, .5, 0],
+            # 'env_params.give_time': [True, False],
+            # 'algo_params.discount': [1, .9, .5, 0],
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
             search_space, default_parameters=variant,
@@ -239,38 +248,44 @@ if __name__ == '__main__':
                 )
     if run_mode == 'random':
         hyperparameters = [
-            hyp.LogIntParam('memory_dim', 2, 400),
-            # hyp.LogFloatParam('algo_params.qf_learning_rate', 1e-5, 1e-1),
-            # hyp.LogFloatParam(
-            #     'algo_params.write_policy_learning_rate', 1e-6, 1e-2
-            # ),
-            # hyp.LogFloatParam(
-            #     'algo_params.action_policy_learning_rate', 1e-6, 1e-2
-            # ),
+            hyp.LogIntParam('memory_dim', 50, 300),
+            hyp.LogFloatParam('algo_params.qf_learning_rate', 1e-5, 1e-2),
+            hyp.LogFloatParam(
+                'algo_params.write_policy_learning_rate', 1e-6, 1e-3
+            ),
+            hyp.LogFloatParam(
+                'algo_params.action_policy_learning_rate', 1e-6, 1e-3
+            ),
             # hyp.EnumParam(
             #     'algo_params.action_policy_optimize_bellman', [True, False],
             # ),
             # hyp.EnumParam(
             #     'algo_params.write_policy_optimizes', ['both', 'qf', 'bellman']
             # ),
-            hyp.EnumParam(
-                'policy_params.cell_class', [GRUCell, BNLSTMCell],
-            ),
+            # hyp.EnumParam(
+            #     'policy_params.cell_class', [GRUCell, BNLSTMCell],
+            # ),
             hyp.LinearFloatParam(
                 'es_params.memory_es_params.max_sigma', 0, 1,
             ),
-            hyp.LinearFloatParam(
-                'algo_params.discount', 0.8, 0.99,
+            hyp.LogFloatParam(
+                'algo_params.write_policy_weight_decay', 1e-5, 1e2,
             ),
+            hyp.LogFloatParam(
+                'algo_params.action_policy_weight_decay', 1e-5, 1e2,
+            ),
+            # hyp.LinearFloatParam(
+            #     'algo_params.discount', 0.8, 0.99,
+            # ),
         ]
         sweeper = hyp.RandomHyperparameterSweeper(
             hyperparameters,
             default_kwargs=variant,
         )
-        for _ in range(num_configurations):
-            for exp_id in range(n_seeds):
+        for exp_id in range(num_configurations):
+            variant = sweeper.generate_random_hyperparameters()
+            for _ in range(n_seeds):
                 seed = random.randint(0, 10000)
-                variant = sweeper.generate_random_hyperparameters()
                 run_experiment(
                     experiment,
                     exp_prefix=exp_prefix,

@@ -134,6 +134,19 @@ def batch_square_vector(vector, M):
     return torch.bmm(torch.bmm(vector.transpose(2, 1), M), vector).squeeze(2)
 
 
+def fanin_init(tensor):
+    if isinstance(tensor, TorchVariable):
+        return fanin_init(tensor.data)
+    size = tensor.size()
+    if len(size) == 2:
+        fan_in = size[0]
+    elif len(size) > 2:
+        fan_in = np.prod(size[1:])
+    else:
+        raise Exception("Shape must be have dimension at least 2.")
+    bound = 1. / np.sqrt(fan_in)
+    return tensor.uniform_(-bound, bound)
+
 """
 GPU wrappers
 """

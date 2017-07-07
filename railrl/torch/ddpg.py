@@ -47,7 +47,6 @@ class DDPG(OnlineAlgorithm):
                                        lr=self.qf_learning_rate)
         self.policy_optimizer = optim.Adam(self.policy.parameters(),
                                            lr=self.policy_learning_rate)
-        # TODO(vitchyr): pass in the replay buffer
         self.pool = SplitReplayBuffer(
             EnvReplayBuffer(
                 self.pool_size,
@@ -165,9 +164,12 @@ class DDPG(OnlineAlgorithm):
         self.log_diagnostics(paths)
 
     def get_batch(self, training=True):
-        batch = self.pool.random_batch(
-            self.batch_size, training=training
+        pool = self.pool.get_replay_buffer(training)
+        sample_size = min(
+            pool.num_steps_can_sample(),
+            self.batch_size
         )
+        batch = pool.random_batch(sample_size, flatten=True)
         torch_batch = {
             k: Variable(ptu.from_numpy(array).float(), requires_grad=False)
             for k, array in batch.items()
@@ -213,7 +215,7 @@ class DDPG(OnlineAlgorithm):
     def _can_evaluate(self, exploration_paths):
         return (
             len(exploration_paths) > 0
-            and self.pool.num_steps_can_sample() > 1
+            and self.pool.num_steps_can_sample() > 0
         )
 
     def get_epoch_snapshot(self, epoch):
