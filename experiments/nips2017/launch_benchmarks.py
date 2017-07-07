@@ -70,9 +70,9 @@ if __name__ == '__main__':
         # trpo_launcher,
         # mem_trpo_launcher,
         # rtrpo_launcher,
-        ddpg_launcher,
+        # ddpg_launcher,
         # mem_ddpg_launcher,
-        # rdpg_launcher,
+        rdpg_launcher,
     ]:
         search_space = {
             # 'env_class': [WaterMaze1D, WaterMazeEasy1D, WaterMazeMemory1D],
