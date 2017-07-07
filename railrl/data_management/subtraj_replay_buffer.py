@@ -172,9 +172,6 @@ class SubtrajReplayBuffer(ReplayBuffer):
         else:
             self._size += 1
 
-    def random_batch(self, batch_size, training=True):
-        return self.random_subtrajectories(batch_size, validation=not training)
-
     def random_subtrajectories(self, batch_size, replace=False,
                                validation=False):
         start_indices = np.random.choice(
