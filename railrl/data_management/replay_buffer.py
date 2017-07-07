@@ -41,7 +41,3 @@ class ReplayBuffer(object, metaclass=abc.ABCMeta):
         :return: # of unique items that can be sampled.
         """
         pass
-
-    @abc.abstractmethod
-    def random_batch(self, batch_size, **kwargs):
-        pass

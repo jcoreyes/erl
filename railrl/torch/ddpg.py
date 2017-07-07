@@ -162,13 +162,12 @@ class DDPG(OnlineAlgorithm):
         self.log_diagnostics(paths)
 
     def get_batch(self, training=True):
+        pool = self.pool.get_replay_buffer(training)
         sample_size = min(
-            self.pool.num_steps_can_sample(),
+            pool.num_steps_can_sample(),
             self.batch_size
         )
-        batch = self.pool.random_batch(
-            sample_size, training=training, flatten=True
-        )
+        batch = pool.random_batch(sample_size, flatten=True)
         torch_batch = {
             k: Variable(ptu.from_numpy(array).float(), requires_grad=False)
             for k, array in batch.items()

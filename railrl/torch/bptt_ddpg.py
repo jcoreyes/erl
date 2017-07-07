@@ -6,6 +6,7 @@ import torch
 import torch.optim as optim
 from torch.autograd import Variable
 
+from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.data_management.updatable_subtraj_replay_buffer import (
     UpdatableSubtrajReplayBuffer
 )
@@ -94,11 +95,20 @@ class BpttDdpg(OnlineAlgorithm):
         """
         Create the necessary node objects.
         """
-        self.pool = UpdatableSubtrajReplayBuffer(
-            self.pool_size,
-            self.env,
-            self.subtraj_length,
-            self.memory_dim,
+        self.pool = SplitReplayBuffer(
+            UpdatableSubtrajReplayBuffer(
+                self.pool_size,
+                self.env,
+                self.subtraj_length,
+                self.memory_dim,
+            ),
+            UpdatableSubtrajReplayBuffer(
+                self.pool_size,
+                self.env,
+                self.subtraj_length,
+                self.memory_dim,
+            ),
+            fraction_paths_in_train=0.8,
         )
         self.target_qf = self.qf.copy()
         self.target_policy = self.policy.copy()
@@ -124,8 +134,10 @@ class BpttDdpg(OnlineAlgorithm):
     """
 
     def _do_training(self, n_steps_total):
-        raw_subtraj_batch, start_indices = self.pool.random_subtrajectories(
-            self.num_subtrajs_per_batch
+        raw_subtraj_batch, start_indices = (
+            self.pool.train_replay_buffer.random_subtrajectories(
+                self.num_subtrajs_per_batch
+            )
         )
         subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
         self.train_critic(subtraj_batch)
@@ -217,7 +229,7 @@ class BpttDdpg(OnlineAlgorithm):
             self.write_policy_optimizer.step()
 
         if self.save_new_memories_back_to_replay_buffer:
-            self.pool.update_write_subtrajectories(
+            self.pool.train_replay_buffer.update_write_subtrajectories(
                 get_numpy(policy_dict['New Writes']), start_indices
             )
 
@@ -400,18 +412,16 @@ class BpttDdpg(OnlineAlgorithm):
 
     def _get_other_statistics(self):
         statistics = OrderedDict()
-        for stat_prefix, validation in [
-            ('Validation', True),
-            ('Train', False),
+        for stat_prefix, training in [
+            ('Validation', False),
+            ('Train', True),
         ]:
+            pool = self.pool.get_replay_buffer(training=training)
             sample_size = min(
-                self.pool.num_subtrajs_can_sample(validation=validation),
+                pool.num_subtrajs_can_sample(),
                 self.train_validation_num_subtrajs_per_batch
             )
-            raw_subtraj_batch = self.pool.random_subtrajectories(
-                sample_size,
-                validation=validation
-            )[0]
+            raw_subtraj_batch = pool.random_subtrajectories(sample_size)[0]
             subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
             statistics.update(self._statistics_from_subtraj_batch(
                 subtraj_batch, stat_prefix=stat_prefix
@@ -420,8 +430,9 @@ class BpttDdpg(OnlineAlgorithm):
 
     def _can_evaluate(self, exploration_paths):
         return (
-            self.pool.num_subtrajs_can_sample(validation=True) >= 1
-            and self.pool.num_subtrajs_can_sample(validation=False) >= 1
+            self.pool.train_replay_buffer.num_subtrajs_can_sample() >= 1
+            and
+            self.pool.validation_replay_buffer.num_subtrajs_can_sample() >= 1
             and len(exploration_paths) > 0
             and any([len(path['terminals']) >= self.subtraj_length
                      for path in exploration_paths])
@@ -435,7 +446,8 @@ class BpttDdpg(OnlineAlgorithm):
 
     def _can_train(self):
         return (
-            self.pool.num_subtrajs_can_sample() >= self.num_subtrajs_per_batch
+            self.pool.train_replay_buffer.num_subtrajs_can_sample()
+            >= self.num_subtrajs_per_batch
         )
 
     def _sample_paths(self, epoch):
@@ -474,24 +486,30 @@ class BpttDdpg(OnlineAlgorithm):
             return
 
         if self.should_refresh_buffer.check(n_steps_total):
-            all_start_traj_indices = (
-                self.pool.get_all_valid_trajectory_start_indices()
-            )
-            for start_traj_indices in batch(
-                    all_start_traj_indices,
-                    self.max_number_trajectories_loaded_at_once,
-            ):
-                raw_subtraj_batch, start_indices = (
-                    self.pool.get_trajectory_minimal_covering_subsequences(
-                        start_traj_indices, self.training_env.horizon)
-                )
-                subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
-                subtraj_obs = subtraj_batch['env_obs']
-                initial_memories = subtraj_batch['memories'][:, 0, :]
-                _, policy_writes = self.policy(subtraj_obs, initial_memories)
-                self.pool.update_write_subtrajectories(
-                    get_numpy(policy_writes), start_indices
-                )
+            for pool in [
+                    self.pool.train_replay_buffer,
+                    self.pool.validation_replay_buffer,
+            ]:
+                for start_traj_indices in batch(
+                        pool.get_all_valid_trajectory_start_indices(),
+                        self.max_number_trajectories_loaded_at_once,
+                ):
+                    raw_subtraj_batch, start_indices = (
+                        pool.get_trajectory_minimal_covering_subsequences(
+                            start_traj_indices, self.training_env.horizon
+                        )
+                    )
+                    subtraj_batch = create_torch_subtraj_batch(
+                        raw_subtraj_batch
+                    )
+                    subtraj_obs = subtraj_batch['env_obs']
+                    initial_memories = subtraj_batch['memories'][:, 0, :]
+                    _, policy_writes = self.policy(
+                        subtraj_obs, initial_memories
+                    )
+                    pool.update_write_subtrajectories(
+                        get_numpy(policy_writes), start_indices
+                    )
 
 
 def flatten_subtraj_batch(subtraj_batch):
