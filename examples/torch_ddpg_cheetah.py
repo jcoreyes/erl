@@ -44,12 +44,15 @@ if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
             num_epochs=100,
-            num_steps_per_epoch=1000,
+            num_steps_per_epoch=10000,
             num_steps_per_eval=1000,
             use_soft_update=True,
             tau=1e-2,
             batch_size=128,
             max_path_length=1000,
+            discount=0.99,
+            qf_learning_rate=1e-3,
+            policy_learning_rate=1e-4,
         ),
         version="PyTorch - bigger networks",
     )
