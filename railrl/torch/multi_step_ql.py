@@ -191,3 +191,20 @@ class MultiStepDdpg(DDPG):
             logger.record_tabular(key, value)
 
         self.log_diagnostics(paths)
+
+    def get_batch(self, training=True):
+        pool = self.pool.get_replay_buffer(training)
+        sample_size = min(
+            pool.num_steps_can_sample(),
+            self.batch_size
+        )
+        batch = pool.random_batch(sample_size)
+        torch_batch = {
+            k: ptu.Variable(ptu.from_numpy(array).float(), requires_grad=False)
+            for k, array in batch.items()
+        }
+        rewards = torch_batch['rewards']
+        terminals = torch_batch['terminals']
+        torch_batch['rewards'] = rewards.unsqueeze(-1)
+        torch_batch['terminals'] = terminals.unsqueeze(-1)
+        return torch_batch
