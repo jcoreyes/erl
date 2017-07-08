@@ -24,7 +24,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
             subtraj_length=2,
             memory_dim=1,
         )
-        self.assertEqual(buff.num_can_sample(return_all=True), 0)
+        self.assertEqual(buff.num_steps_can_sample(return_all=True), 0)
 
     def test_size_add_one(self):
         env = StubMemoryEnv()
@@ -37,7 +37,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
         observation = rand(), rand()
         action = rand(), rand()
         buff.add_sample(observation, action, 1, False)
-        self.assertEqual(buff.num_can_sample(return_all=True), 0)
+        self.assertEqual(buff.num_steps_can_sample(return_all=True), 0)
 
     def test_random_subtraj_shape(self):
         env = StubMemoryEnv()
@@ -201,7 +201,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
         )
         last_write = rand()
         # First trajectory always goes in validation set
-        buff.terminate_episode((rand(), rand()))
+        buff.terminate_episode((rand(), rand()), True)
         for _ in range(5):
             observation = rand(), last_write
             write = rand()
@@ -292,7 +292,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
             memory_dim=1,
         )
         # First trajectory always goes in validation set
-        buff.terminate_episode((rand(), rand()))
+        buff.terminate_episode((rand(), rand()), True)
         last_write = rand()
         for _ in range(13):
             observation = rand(), last_write

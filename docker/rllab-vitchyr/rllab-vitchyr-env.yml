@@ -1,8 +1,8 @@
 name: rllab-vitchyr
 channels:
+    - defaults
     - https://conda.anaconda.org/kne
-    - https://conda.binstar.org/tlatorre
-    - https://conda.anaconda.org/cjs14
+    - https://conda.anaconda.org/tlatorre
     - https://conda.anaconda.org/menpo
     - jjhelmus
     - soumith
@@ -25,6 +25,7 @@ dependencies:
     - scikit-learn
     - pytorch
     - torchvision
+    - scikit-image
     - pip:
         # Tensorflow 1.0, GPU only
         - https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-1.0.1-cp35-cp35m-linux_x86_64.whl
@@ -37,7 +38,7 @@ dependencies:
         - nose2
         - pyzmq
         - msgpack-python
-        - mujoco_py
+        - mujoco_py==0.5.7
         - cached_property
         - line_profiler
         - Cython
@@ -52,3 +53,15 @@ dependencies:
         - progressbar2
         - chainer==1.15.0
         - cloudpickle==0.2.2
+        - rospkg
+        - lasagne
+        - ipdb
+        - matplotlib
+        - catkin_pkg
+        - seaborn
+        - dominate
+        - gitpython
+# Can't get this to work, but you should install this if you want to run
+# fanova analysis
+#        - pyrfr
+#        - git+https://github.com/automl/fanova.git

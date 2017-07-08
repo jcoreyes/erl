@@ -151,6 +151,7 @@ class BpttDDPG(DDPG):
             train_policy_on_all_qf_timesteps=False,
             write_policy_learning_rate=None,
             saved_write_loss_weight=1.,
+            write_decay_weight=0.,
             compute_gradients_immediately=False,
             write_only_optimize_bellman=False,
             env_action_minimize_bellman_loss=True,
@@ -193,6 +194,7 @@ class BpttDDPG(DDPG):
         part of the policy at this different learning rate. If `None`,
         the `policy_learning_rate` is used for all policy parameters. If set to
         zero, then the write action parameters aren't trained at all.
+        :param write_decay_weight: Penalize the l2 norm of the write actions.
         :param compute_gradients_immediately: If true, compute the gradients
         w.r.t. the write actions immdiately after an episode ends.
         :param write_only_optimize_bellman: If True, the write parameters are
@@ -242,6 +244,7 @@ class BpttDDPG(DDPG):
         self.train_policy_on_all_qf_timesteps = train_policy_on_all_qf_timesteps
         self.write_policy_learning_rate = write_policy_learning_rate
         self.saved_write_loss_weight = saved_write_loss_weight
+        self.write_decay_weight = write_decay_weight
         self.compute_gradients_immediately = compute_gradients_immediately
         self.env_action_minimize_bellman_loss = env_action_minimize_bellman_loss
         self.save_new_memories_back_to_replay_buffer = (
@@ -566,6 +569,8 @@ class BpttDDPG(DDPG):
         """
         Backprop the Bellman error through time, i.e. through dQ/dwrite action
         """
+        # TODO(vitchyr): This is only optimize the Bellman error of the LAST
+        # time step
         self.next_env_obs_ph_for_policy_bpt_bellman = tf.placeholder(
             tf.float32,
             [None, self._env_obs_dim]
@@ -677,6 +682,11 @@ class BpttDDPG(DDPG):
             )
             write_action_loss += (
                 self._saved_write_loss * self.saved_write_loss_weight
+            )
+        if self.write_decay_weight > 0.:
+            write_action_loss += (
+                tf.reduce_mean(self.all_writes_subsequences)
+                * self.write_decay_weight
             )
         return env_loss, write_action_loss
 
