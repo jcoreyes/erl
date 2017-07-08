@@ -148,7 +148,7 @@ def run_experiment(
         mode='here',
         exp_id=0,
         unique_id=None,
-        use_gpu=False,
+        use_gpu=True,
         snapshot_mode='last',
         **run_experiment_lite_kwargs):
     """
@@ -232,7 +232,7 @@ def run_experiment_here(
         variant=None,
         exp_id=0,
         seed=0,
-        use_gpu=False,
+        use_gpu=True,
         snapshot_mode='last',
         code_diff=None,
         commit_hash=None,
