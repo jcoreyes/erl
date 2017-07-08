@@ -5,6 +5,7 @@ from railrl.torch.ddpg import DDPG
 from os.path import exists
 from railrl.envs.mujoco.sawyer_env import SawyerEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
+import ipdb
 
 #test if we need to set an action and observation space in sawyer env
 def example(variant):
@@ -33,9 +34,10 @@ def example(variant):
         qf=qf,
         policy=policy,
         num_epochs=30,
-        batch_size=1024,
+        batch_size=128,
         use_new_version=use_new_version,
     )
+    # ipdb.set_trace()
     algorithm.train()
 
 if __name__ == "__main__":

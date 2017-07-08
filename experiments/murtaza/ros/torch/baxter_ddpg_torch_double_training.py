@@ -73,14 +73,14 @@ def example(variant):
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="7-5-ddpg-baxter-left-arm-varying-angle-huber-delta-10-TEST-TEST-ETST",
+        exp_prefix="7-6-ddpg-baxter-right-arm-fixed-angle-safety-huber-TEST",
         seed=0,
         mode='here',
         variant={
                 'version': 'Original',
                 'use_new_version': False,
-                'use_right_arm': False,
-                'safety_limited_end_effector':False,
+                'use_right_arm': True,
+                'safety_limited_end_effector':True,
                 },
         use_gpu=True,
     )

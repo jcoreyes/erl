@@ -111,7 +111,7 @@ class BaxterEnv(Env, Serializable):
             update_hz=20,
             action_mode='torque',
             joint_angle_experiment = True,
-            fixed_angle = True,
+            fixed_angle = False,
             end_effector_experiment_position = False,
             end_effector_experiment_total = False,
             fixed_end_effector = False,
@@ -119,6 +119,8 @@ class BaxterEnv(Env, Serializable):
             delta=10,
             huber=True,
             MSE=False,
+            magnitude=2,
+            temp=1.05,
     ):
         Serializable.quick_init(self, locals())
         rospy.init_node('baxter_env', anonymous=True)
@@ -134,6 +136,8 @@ class BaxterEnv(Env, Serializable):
         self.MSE = MSE
         self.huber = huber
         self.delta = delta
+        self.magnitude = magnitude
+        self.temp = temp
         #setup the robots arm and gripper
         if(self.use_right_arm):
             self.arm = bi.Limb('right')
@@ -258,8 +262,8 @@ class BaxterEnv(Env, Serializable):
             end_effector_force = self.get_adjustment_force() #gets the proper force to apply to push the end effector back into the box
             torques = np.dot(jacobian.T, end_effector_force).T
             action = action + torques
+            # ipdb.set_trace()
 
-        ipdb.set_trace()
         joint_to_values = dict(zip(self.arm_joint_names, action))
         self._set_joint_values(joint_to_values)
         self.rate.sleep()
@@ -377,7 +381,7 @@ class BaxterEnv(Env, Serializable):
                 resp = get_jacobian('left')
             return np.array([resp.jacobianr1, resp.jacobianr2, resp.jacobianr3, resp.jacobianr4, resp.jacobianr5, resp.jacobianr6])
         except Exception as e:
-            self.terminate = True
+            # self.terminate = True
             return np.zeros((6, 7))
 
     def get_jacobian(self):
@@ -408,34 +412,34 @@ class BaxterEnv(Env, Serializable):
         curr_z = endpoint_pose[2]
         if self.use_right_arm:
             if curr_x > right_highs[0]:
-                x = -1 * np.exp(np.abs(curr_x - right_highs[0]))
+                x = -1 * np.exp(np.abs(curr_x - right_highs[0]) * self.temp) * self.magnitude
             elif curr_x < right_lows[0]:
-                x = np.exp(np.abs(curr_x - right_lows[0]))
+                x = np.exp(np.abs(curr_x - right_lows[0]) * self.temp) * self.magnitude
             
             if curr_y > right_highs[1]:
-                y = -1 * np.exp(np.abs(curr_y - right_highs[1]))
+                y = -1 * np.exp(np.abs(curr_y - right_highs[1]) * self.temp) * self.magnitude
             elif curr_y < right_lows[1]:
-                y = np.exp(np.abs(curr_y - right_lows[1]))
+                y = np.exp(np.abs(curr_y - right_lows[1]) * self.temp) * self.magnitude
             
             if curr_z > right_highs[2]:
-                z = -1 * np.exp(np.abs(curr_z - right_highs[2]))
+                z = -1 * np.exp(np.abs(curr_z - right_highs[2]) * self.temp) * self.magnitude
             elif curr_z < right_lows[2]:
-                z = np.exp(np.abs(curr_z - right_highs[2]))
+                z = np.exp(np.abs(curr_z - right_highs[2]) * self.temp) * self.magnitude
         else:
             if curr_x > left_highs[0]:
-                x = -1 * np.exp(np.abs(curr_x - left_highs[0]))
+                x = -1 * np.exp(np.abs(curr_x - left_highs[0]) * self.temp) * self.magnitude
             elif curr_x < left_lows[0]:
-                x = np.exp(np.abs(curr_x - left_lows[0]))
+                x = np.exp(np.abs(curr_x - left_lows[0]) * self.temp) * self.magnitude
             
             if curr_y > left_highs[1]:
-                y = -1 * np.exp(np.abs(curr_y - left_highs[1]))
+                y = -1 * np.exp(np.abs(curr_y - left_highs[1]) * self.temp) * self.magnitude
             elif curr_y < left_lows[1]:
-                y = np.exp(np.abs(curr_y - left_lows[1]))
+                y = np.exp(np.abs(curr_y - left_lows[1]) * self.temp) * self.magnitude
             
             if curr_z > left_highs[2]:
-                z = -1 * np.exp(np.abs(curr_z - left_highs[2]))
+                z = -1 * np.exp(np.abs(curr_z - left_highs[2]) * self.temp) * self.magnitude
             elif curr_z < left_lows[2]:
-                z = np.exp(np.abs(curr_z - left_highs[2]))
+                z = np.exp(np.abs(curr_z - left_highs[2]) * self.temp) * self.magnitude
 
         # if x > 1:
         #     x = 1

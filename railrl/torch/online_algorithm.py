@@ -47,7 +47,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             discount=0.99,
             pool_size=1000000,
             scale_reward=1,
-            use_gpu=True,
+            use_gpu=False,
             render=False,
             save_exploration_path_period=1,
     ):
