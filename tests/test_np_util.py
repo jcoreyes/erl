@@ -360,6 +360,21 @@ class TestNpUtil(NPTestCase):
         np_util.assign_subsequences(M, new_values, start_indices, length,
                                     start_offset=1)
 
+    def test_batch_discounted_cumsum(self):
+        values = np.array([
+            [1, 1, 1],
+            [2, 0, 1],
+            [2, 1, 0],
+        ])
+        discount = 0.5
+        expected = np.array([
+            [1.75, 1.5, 1],
+            [2.25, 0.5, 1],
+            [2.5, 1, 0],
+        ])
+        actual = np_util.batch_discounted_cumsum(values, discount)
+        import ipdb; ipdb.set_trace()
+        self.assertNpEqual(expected, actual)
 
 
 if __name__ == '__main__':

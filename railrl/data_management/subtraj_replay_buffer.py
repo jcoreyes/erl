@@ -181,6 +181,10 @@ class SubtrajReplayBuffer(ReplayBuffer):
         )
         return self.get_trajectories(start_indices)
 
+    def random_batch(self, batch_size, **kwargs):
+        num_subtrajs = batch_size // self._subtraj_length
+        return self.random_subtrajectories(num_subtrajs, **kwargs)
+
     def _valid_start_indices(self, return_all=False, validation=False):
         if self._only_sample_at_start_of_episode:
             return self._valid_start_episode_indices
@@ -190,7 +194,13 @@ class SubtrajReplayBuffer(ReplayBuffer):
             return self._validation_start_indices
         return self._training_start_indices
 
-    def num_can_sample(self, return_all=False, validation=False):
+    def num_steps_can_sample(self, return_all=False, validation=False):
+        return self.num_subtrajs_can_sample(
+            return_all=return_all,
+            validation=validation,
+        ) * self._subtraj_length
+
+    def num_subtrajs_can_sample(self, return_all=False, validation=False):
         return len(self._valid_start_indices(
             return_all=return_all,
             validation=validation,
@@ -202,6 +212,7 @@ class SubtrajReplayBuffer(ReplayBuffer):
         n_items = len(path["observations"])
         list_of_agent_infos = dict_of_list__to__list_of_dicts(agent_infos, n_items)
         list_of_env_infos = dict_of_list__to__list_of_dicts(env_infos, n_items)
+        last_time_step_was_terminal = False
         for (
             observation,
             action,
@@ -217,6 +228,7 @@ class SubtrajReplayBuffer(ReplayBuffer):
             list_of_agent_infos,
             list_of_env_infos,
         ):
+            last_time_step_was_terminal = False
             observation = self._env.observation_space.unflatten(observation)
             action = self._env.action_space.unflatten(action)
             self.add_sample(observation, action, reward, terminal,
@@ -224,11 +236,13 @@ class SubtrajReplayBuffer(ReplayBuffer):
             if terminal:
                 # Hacky for now. Should be next obs, but that's not ever used
                 # anyways
-                self.terminate_episode(observation)
-        terminal_observation = self._env.observation_space.unflatten(
-            path["observations"][-1]
-        )
-        self.terminate_episode(terminal_observation)
+                self.terminate_episode(observation, terminal)
+                last_time_step_was_terminal = True
+        if not last_time_step_was_terminal:
+            terminal_observation = self._env.observation_space.unflatten(
+                path["observations"][-1]
+            )
+            self.terminate_episode(terminal_observation, False)
 
     def get_all_valid_subtrajectories(self):
         return self.get_trajectories(self._valid_start_indices(

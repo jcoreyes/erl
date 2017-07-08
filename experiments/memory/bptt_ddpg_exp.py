@@ -1,423 +1,320 @@
 """
-Use an oracle qfunction to train a policy in bptt-ddpg style.
+Try the PyTorch version of BPTT DDPG on HighLow env.
 """
 import random
 
-import numpy as np
-import tensorflow as tf
-from hyperopt import hp
-
-from railrl.algos.bptt_ddpg import BpttDDPG
-from railrl.algos.ddpg import TargetUpdateMode
-from railrl.core.rnn.rnn import RWACell
-from railrl.data_management.ocm_subtraj_replay_buffer import (
-    OcmSubtrajReplayBuffer
+from railrl.envs.memory.continuous_memory_augmented import (
+    ContinuousMemoryAugmented
 )
-from railrl.envs.memory.hidden_cartpole import HiddenCartpoleEnv, \
-    NormalizedHiddenCartpoleEnv
 from railrl.envs.memory.high_low import HighLow
-from railrl.envs.water_maze import WaterMaze, WaterMazeEasy, WaterMazeMemory
+from railrl.envs.pygame.water_maze import (
+    WaterMaze,
+    WaterMazeEasy,
+    WaterMazeMemory,
+    WaterMaze1D,
+    WaterMazeEasy1D,
+    WaterMazeMemory1D,
+)
 from railrl.exploration_strategies.noop import NoopStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.algo_launchers import bptt_ddpg_launcher
 from railrl.launchers.launcher_util import (
     run_experiment,
 )
-from railrl.launchers.launcher_util import (
-    run_experiment_here,
-    create_base_log_dir,
-)
-from railrl.misc.hyperparameter import (
-    DeterministicHyperparameterSweeper,
-    RandomHyperparameterSweeper,
-    LogFloatParam,
-    LogFloatOffsetParam,
-    LinearFloatParam,
-)
-from railrl.misc.hypopt import optimize_and_save
-from railrl.policies.memory.lstm_memory_policy import (
-    SeparateLstmLinearCell,
-    SeparateRWALinearCell,
-)
-from rllab.envs.box2d.cartpole_env import CartpoleEnv
+import railrl.misc.hyperparameter as hyp
+from railrl.policies.torch import MemoryPolicy, RWACell
+from railrl.pythonplusplus import identity
+from railrl.qfunctions.torch import MemoryQFunction, RecurrentMemoryQFunction
+from railrl.torch.rnn import LSTMCell, BNLSTMCell, GRUCell
+from railrl.torch.bptt_ddpg_rq import BpttDdpgRecurrentQ
+
+from torch.nn import init
+import railrl.torch.pytorch_util as ptu
 
 
-def get_ocm_score(variant):
-    algorithm = bptt_ddpg_launcher(variant)
-    scores = algorithm.epoch_scores
-    return np.mean(scores[-3:])
+def experiment(variant):
+    from railrl.torch.bptt_ddpg import BpttDdpg
+    from railrl.launchers.launcher_util import (
+        set_seed,
+    )
+    from railrl.exploration_strategies.product_strategy import ProductStrategy
+    seed = variant['seed']
+    algo_params = variant['algo_params']
+    memory_dim = variant['memory_dim']
+    rnn_cell = variant['policy_params']['cell_class']
+    memory_dim -= memory_dim % rnn_cell.state_num_split()
+    env_class = variant['env_class']
+    env_params = variant['env_params']
+    memory_aug_params = variant['memory_aug_params']
 
+    qf_class = variant['qf_class']
+    qf_params = variant['qf_params']
+    policy_params = variant['policy_params']
 
-def create_run_experiment_multiple_seeds(n_seeds):
-    def run_experiment_with_multiple_seeds(variant):
-        scores = []
-        for i in range(n_seeds):
-            variant['seed'] = str(int(variant['seed']) + i)
-            exp_prefix = variant['exp_prefix']
-            scores.append(run_experiment_here(
-                get_ocm_score,
-                exp_prefix=exp_prefix,
-                variant=variant,
-                exp_id=i,
-            ))
-        return np.mean(scores)
+    es_params = variant['es_params']
+    env_es_class = es_params['env_es_class']
+    env_es_params = es_params['env_es_params']
+    memory_es_class = es_params['memory_es_class']
+    memory_es_params = es_params['memory_es_params']
 
-    return run_experiment_with_multiple_seeds
+    set_seed(seed)
+    raw_env = env_class(**env_params)
+    env = ContinuousMemoryAugmented(
+        raw_env,
+        num_memory_states=memory_dim,
+        **memory_aug_params
+    )
+    env_strategy = env_es_class(
+        action_space=raw_env.action_space,
+        **env_es_params
+    )
+    write_strategy = memory_es_class(
+        action_space=env.memory_state_space,
+        **memory_es_params
+    )
+    es = ProductStrategy([env_strategy, write_strategy])
+    qf = qf_class(
+        int(raw_env.observation_space.flat_dim),
+        int(raw_env.action_space.flat_dim),
+        memory_dim,
+        **qf_params,
+    )
+    policy = MemoryPolicy(
+        int(raw_env.observation_space.flat_dim),
+        int(raw_env.action_space.flat_dim),
+        memory_dim=memory_dim,
+        **policy_params
+    )
+    algorithm = BpttDdpg(
+        env,
+        es,
+        qf=qf,
+        policy=policy,
+        **algo_params
+    )
+    algorithm.train()
+
 
 if __name__ == '__main__':
     n_seeds = 1
-    mode = 'here'
-    # exp_prefix = "dev-bptt-ddpg"
-    exp_prefix = "6-2-dev-bptt-ddpg-rwa"
+    mode = "here"
+    exp_prefix = "7-8-dev-bptt-ddpg-exp"
     run_mode = 'none'
-    version = 'dev'
-    num_hp_settings = 100
 
-    n_seeds = 5
-    mode = 'ec2'
-    exp_prefix = "6-2-hl-bptt-ddpg-rwa-grid-writeonly-nbptt-refreshperiod"
-    version = 'Our Method - Full BPTT (dev)'
+    n_seeds = 1
+    mode = "ec2"
+    exp_prefix = "7-8-bptt-ddpg-water-maze-memory-big-sweep"
 
-    run_mode = 'grid'
-    """
-    Miscellaneous Params
-    """
-    oracle_mode = 'none'
-    algo_class = BpttDDPG
-    load_policy_file = (
-        '/home/vitchyr/git/rllab-rail/railrl/data/reference/expert'
-        '/ocm_reward_magnitude5_H6_nbptt6_100p'
-        '/params.pkl'
-    )
-    load_policy_file = None
+    run_mode = 'random'
+    num_configurations = 500
+    use_gpu = True
+    if mode != "here":
+        use_gpu = False
 
-    """
-    Set all the hyperparameters!
-    """
-    env_class = HighLow
-    H = 32
+    H = 25
+    subtraj_length = 25
     num_steps_per_iteration = 1000
-    num_iterations = 100
-
-    eval_samples = 400
-    env_params = dict(
-        num_steps=H,
-        position_only=True,
-    )
-
-    # TODO(vitchyr): clean up this hacky dropout code. Also, you'll need to
-    # fix the batchnorm code. Basically, calls to (e.g.) qf.output will
-    # always take the eval output.
-
-    # noinspection PyTypeChecker
-    ddpg_params = dict(
-        batch_size=32,
-        n_epochs=num_iterations,
-        n_updates_per_time_step=1,
-        epoch_length=num_steps_per_iteration,
-        eval_samples=eval_samples,
-        max_path_length=H,
-        discount=1.0,
-        save_tf_graph=False,
-        num_steps_between_train=1,
-        # Target network
-        soft_target_tau=0.01,
-        hard_update_period=1000,
-        target_update_mode=TargetUpdateMode.HARD,
-        # QF hyperparameters
-        qf_learning_rate=1e-3,
-        num_extra_qf_updates=0,
-        extra_qf_training_mode='fixed',
-        extra_train_period=100,
-        qf_weight_decay=0,
-        qf_total_loss_tolerance=0.03,
-        train_qf_on_all=False,
-        dropout_keep_prob=1.,
-        # Policy hps
-        policy_learning_rate=1e-3,
-        max_num_q_updates=1000,
-        train_policy=True,
-        write_policy_learning_rate=1e-5,
-        train_policy_on_all_qf_timesteps=False,
-        write_only_optimize_bellman=True,
-        # memory
-        num_bptt_unrolls=16,
-        bpt_bellman_error_weight=10,
-        reward_low_bellman_error_weight=0.,
-        saved_write_loss_weight=0,
-        # Replay buffer
-        replay_pool_size=100000,
-        compute_gradients_immediately=False,
-        save_new_memories_back_to_replay_buffer=True,
-        refresh_entire_buffer_period=None,
-    )
-
-    # noinspection PyTypeChecker
-    policy_params = dict(
-        # rnn_cell_class=LstmLinearCell,
-        # rnn_cell_class=SeparateLstmLinearCell,
-        # rnn_cell_class=LstmLinearCellNoiseAll,
-        # rnn_cell_class=DebugCell,
-        rnn_cell_class=SeparateRWALinearCell,
-        rnn_cell_params=dict(
-            # use_peepholes=True,
-            env_noise_std=0,
-            memory_noise_std=0,
-            output_nonlinearity=tf.nn.tanh,
-            env_hidden_sizes=[],
-            env_hidden_activation=tf.tanh,
-        )
-    )
-
-    oracle_params = dict(
-        env_grad_distance_weight=0.,
-        write_grad_distance_weight=0.,
-        qf_grad_mse_from_one_weight=0.,
-        regress_onto_values_weight=0.,
-        bellman_error_weight=1.,
-        use_oracle_qf=False,
-        unroll_through_target_policy=False,
-    )
-
-    meta_qf_params = dict(
-        use_time=False,
-        use_target=False,
-    )
-    meta_params = dict(
-        meta_qf_learning_rate=0.0001900271829580542,
-        meta_qf_output_weight=0,
-        qf_output_weight=1,
-    )
-
-    # noinspection PyTypeChecker
-    es_params = dict(
-        # env_es_class=NoopStrategy,
-        env_es_class=OUStrategy,
-        env_es_params=dict(
-            max_sigma=1,
-            min_sigma=None,
-        ),
-        # memory_es_class=NoopStrategy,
-        memory_es_class=OUStrategy,
-        memory_es_params=dict(
-            max_sigma=1,
-            min_sigma=None,
-        ),
-        noise_action_to_memory=False,
-    )
-
-    # noinspection PyTypeChecker
-    qf_params = dict(
-        # hidden_nonlinearity=tf.nn.relu,
-        # output_nonlinearity=tf.nn.tanh,
-        # hidden_nonlinearity=tf.identity,
-        # output_nonlinearity=tf.identity,
-        # embedded_hidden_sizes=[100, 64, 32],
-        # observation_hidden_sizes=[100],
-        use_time=False,
-        use_target=False,
-        use_dropout=True,
-    )
-
-
-    """
-    Create monolithic variant dictionary
-    """
+    num_steps_per_eval = 1000
+    num_iterations = 50
+    batch_size = 200
+    memory_dim = 100
+    version = exp_prefix
+    version = "Our Method"
+    # version = "Our Method - loading but Q does not read mem state"
     # noinspection PyTypeChecker
     variant = dict(
-        H=H,
-        memory_dim=40,
-        exp_prefix=exp_prefix,
-        algo_class=algo_class,
-        version=version,
-        load_policy_file=load_policy_file,
-        oracle_mode=oracle_mode,
-        env_class=env_class,
-        env_params=env_params,
-        ddpg_params=ddpg_params,
-        policy_params=policy_params,
-        qf_params=qf_params,
-        meta_qf_params=meta_qf_params,
-        oracle_params=oracle_params,
-        es_params=es_params,
-        meta_params=meta_params,
-        replay_buffer_class=OcmSubtrajReplayBuffer,
-        # replay_buffer_class=UpdatableSubtrajReplayBuffer,
-        replay_buffer_params=dict(
-            keep_old_fraction=0.9,
+        memory_dim=memory_dim,
+        # env_class=WaterMaze,
+        # env_class=WaterMazeEasy,
+        # env_class=WaterMazeMemory1D,
+        env_class=WaterMazeMemory,
+        # env_class=HighLow,
+        env_params=dict(
+            horizon=H,
+            give_time=True,
         ),
+        memory_aug_params=dict(
+            max_magnitude=1,
+        ),
+        algo_params=dict(
+            subtraj_length=subtraj_length,
+            batch_size=batch_size,
+            num_epochs=num_iterations,
+            num_steps_per_epoch=num_steps_per_iteration,
+            num_steps_per_eval=num_steps_per_eval,
+            discount=0.9,
+            use_action_policy_params_for_entire_policy=True,
+            action_policy_optimize_bellman=False,
+            write_policy_optimizes='bellman',
+            action_policy_learning_rate=0.00411668130663536,
+            write_policy_learning_rate=0.0005,
+            qf_learning_rate=0.002021863834563243,
+            max_path_length=H,
+            refresh_entire_buffer_period=None,
+            save_new_memories_back_to_replay_buffer=True,
+            write_policy_weight_decay=0,
+            action_policy_weight_decay=0,
+            # tau=0.001,
+            # use_soft_update=False,
+            # target_hard_update_period=300,
+        ),
+        # qf_class=RecurrentMemoryQFunction,
+        qf_class=MemoryQFunction,
+        qf_params=dict(
+            output_activation=identity,
+            # hidden_size=10,
+            fc1_size=400,
+            fc2_size=300,
+        ),
+        policy_params=dict(
+            fc1_size=400,
+            fc2_size=300,
+            cell_class=GRUCell,
+        ),
+        es_params=dict(
+            env_es_class=OUStrategy,
+            env_es_params=dict(
+                max_sigma=1,
+                min_sigma=None,
+            ),
+            # memory_es_class=NoopStrategy,
+            memory_es_class=OUStrategy,
+            memory_es_params=dict(
+                max_sigma=1,
+                min_sigma=None,
+            ),
+        ),
+        version=version,
     )
-
-    if run_mode == 'hyperopt':
+    if run_mode == 'grid':
         search_space = {
-            'policy_params.rnn_cell_params.env_noise_std': hp.uniform(
-                'policy_params.rnn_cell_params.env_noise_std',
-                0.,
-                5,
-            ),
-            'policy_params.rnn_cell_params.memory_noise_std': hp.uniform(
-                'policy_params.rnn_cell_params.memory_noise_std',
-                0.,
-                5,
-            ),
-            'ddpg_params.bpt_bellman_error_weight': hp.loguniform(
-                'ddpg_params.bpt_bellman_error_weight',
-                np.log(0.01),
-                np.log(1000),
-            ),
-            'ddpg_params.qf_learning_rate': hp.loguniform(
-                'ddpg_params.qf_learning_rate',
-                np.log(0.00001),
-                np.log(0.01),
-            ),
-            'meta_params.meta_qf_learning_rate': hp.loguniform(
-                'meta_params.meta_qf_learning_rate',
-                np.log(1e-5),
-                np.log(1e-2),
-            ),
-            'meta_params.meta_qf_output_weight': hp.loguniform(
-                'meta_params.meta_qf_output_weight',
-                np.log(1e-1),
-                np.log(1000),
-            ),
-            'seed': hp.randint('seed', 10000),
+            # 'algo_params.qf_learning_rate': [1e-3, 1e-5],
+            # 'algo_params.action_policy_learning_rate': [1e-3, 1e-5],
+            # 'algo_params.write_policy_learning_rate': [1e-5, 1e-7],
+            # 'algo_params.action_policy_optimize_bellman': [True, False],
+            # 'algo_params.write_policy_optimizes': ['qf', 'bellman', 'both'],
+            # 'algo_params.refresh_entire_buffer_period': [None, 1],
+            'es_params.memory_es_params.max_sigma': [0, 1],
+            'qf_params.hidden_init': [init.kaiming_normal, ptu.fanin_init],
+            'policy_params.hidden_init': [init.kaiming_normal, ptu.fanin_init],
+            'policy_params.feed_action_to_memory': [False, True],
+            # 'policy_params.cell_class': [LSTMCell, BNLSTMCell, RWACell],
+            # 'algo_params.subtraj_length': [1, 5, 10, 15, 20, 25],
+            # 'algo_params.bellman_error_loss_weight': [0.1, 1, 10, 100, 1000],
+            # 'algo_params.tau': [1, 0.1, 0.01, 0.001],
+            # 'env_params.give_time': [True, False],
+            # 'algo_params.discount': [1, .9, .5, 0],
         }
-
-        base_log_dir = create_base_log_dir(exp_prefix=exp_prefix)
-
-        optimize_and_save(
-            base_log_dir,
-            create_run_experiment_multiple_seeds(n_seeds=n_seeds),
-            search_space=search_space,
-            extra_function_kwargs=variant,
-            maximize=True,
-            verbose=True,
-            load_trials=True,
-            num_rounds=500,
-            num_evals_per_round=1,
+        sweeper = hyp.DeterministicHyperparameterSweeper(
+            search_space, default_parameters=variant,
         )
-    elif run_mode == 'grid':
-        search_space = {
-            # 'memory_dim': [5, 20, 40],
-            # 'policy_params.rnn_cell_params.env_noise_std': [0.1, 0.3, 1.],
-            # 'policy_params.rnn_cell_params.memory_noise_std': [0.1, 0.3, 1.],
-            # 'policy_params.rnn_cell_params.env_hidden_sizes': [
-            #     [],
-            #     [32],
-            #     [32, 32],
-            # ],
-            # 'qf_params.embedded_hidden_sizes': [
-            #     [100, 64, 32],
-            #     [100],
-            #     [32],
-            # ],
-            # 'ddpg_params.dropout_keep_prob': [1, 0.9, 0.5],
-            # 'ddpg_params.qf_weight_decay': [0, 0.001],
-            # 'ddpg_params.reward_low_bellman_error_weight': [0, 0.1, 1., 10.],
-            # 'ddpg_params.num_extra_qf_updates': [0, 5],
-            # 'ddpg_params.batch_size': [512, 128, 32, 8],
-            # 'ddpg_params.replay_pool_size': [900, 90000],
-            'ddpg_params.num_bptt_unrolls': [32, 24, 16],
-            # 'ddpg_params.n_updates_per_time_step': [1, 10],
-            # 'ddpg_params.policy_learning_rate': [1e-3, 1e-4],
-            # 'ddpg_params.write_policy_learning_rate': [1e-4, 1e-5],
-            # 'ddpg_params.hard_update_period': [1, 100, 1000, 10000],
-            # 'ddpg_params.bpt_bellman_error_weight': [1, 10],
-            # 'ddpg_params.saved_write_loss_weight': [1, 10],
-            # 'ddpg_params.env_action_minimize_bellman_loss': [False, True],
-            # 'ddpg_params.save_new_memories_back_to_replay_buffer': [True,
-            #                                                         False],
-            'ddpg_params.refresh_entire_buffer_period': [1, None],
-            'ddpg_params.write_only_optimize_bellman': [False, True],
-            # 'meta_params.meta_qf_learning_rate': [1e-3, 1e-4],
-            # 'meta_params.meta_qf_output_weight': [0.1, 1, 10],
-            # 'meta_params.qf_output_weight': [0, 1],
-            # 'env_params.episode_boundary_flags': [True, False],
-            # 'env_params.num_steps': [12, 16, 24],
-            # 'es_params.memory_es_class': [GaussianStrategy, OUStrategy],
-            # 'es_params.env_es_class': [GaussianStrategy, OUStrategy],
-            # 'es_params.memory_es_params.max_sigma': [0.1, 0.3, 1],
-            # 'es_params.memory_es_params.min_sigma': [1],
-            # 'es_params.env_es_params.max_sigma': [0.1, 0.3, 1],
-            # 'es_params.env_es_params.min_sigma': [1],
-            # 'replay_buffer_params.keep_old_fraction': [0, 0.5, 0.9],
-        }
-        sweeper = DeterministicHyperparameterSweeper(search_space,
-                                                     default_parameters=variant)
         for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
             for i in range(n_seeds):
                 run_experiment(
-                    get_ocm_score,
+                    experiment,
                     exp_prefix=exp_prefix,
                     seed=i,
                     mode=mode,
                     variant=variant,
                     exp_id=exp_id,
                 )
-    elif run_mode == 'random':
-        sweeper = RandomHyperparameterSweeper(
-            hyperparameters=[
-                LinearFloatParam(
-                    'policy_params.rnn_cell_params.env_noise_std', 0, 1
-                ),
-                LinearFloatParam(
-                    'policy_params.rnn_cell_params.memory_noise_std', 0, 1
-                ),
-                LogFloatOffsetParam(
-                    'ddpg_params.bpt_bellman_error_weight', 1, 1001, -1
-                ),
-                LogFloatParam('meta_params.meta_qf_learning_rate', 1e-5, 1e-2),
-                LogFloatOffsetParam(
-                    'meta_params.meta_qf_output_weight', 1e-3, 1e3, -1e-3
-                ),
-            ],
-            default_kwargs=variant,
-        )
-        for exp_id in range(num_hp_settings):
-            variant = sweeper.generate_random_hyperparameters()
-            for i in range(n_seeds):
-                run_experiment(
-                    get_ocm_score,
-                    exp_prefix=exp_prefix,
-                    seed=i,
-                    mode=mode,
-                    variant=variant,
-                    exp_id=exp_id,
-                )
-    elif run_mode == 'custom_grid':
+    if run_mode == 'custom_grid':
         for exp_id, (
-                version,
-                subseq_length,
+            action_policy_optimize_bellman,
+            write_policy_optimizes,
+            refresh_entire_buffer_period,
         ) in enumerate([
-            ("num_steps_per_batch=256", 32),
-            ("num_steps_per_batch=256", 16),
-            ("num_steps_per_batch=256", 8),
-            ("num_steps_per_batch=256", 4),
-            ("num_steps_per_batch=256", 1),
+            (True, 'both', 1),
+            (False, 'qf', 1),
+            (True, 'both', None),
+            (False, 'qf', None),
         ]):
-            num_steps_per_batch = 256
-            batch_size = int(num_steps_per_batch / subseq_length)
-            variant['version'] = version
-            variant['ddpg_params']['num_bptt_unrolls'] = subseq_length
-            variant['ddpg_params']['batch_size'] = batch_size
-            variant['ddpg_params']['min_pool_size'] = batch_size
-            for seed in range(n_seeds):
+            variant['algo_params']['action_policy_optimize_bellman'] = (
+                action_policy_optimize_bellman
+            )
+            variant['algo_params']['write_policy_optimizes'] = (
+                write_policy_optimizes
+            )
+            variant['algo_params']['refresh_entire_buffer_period'] = (
+                refresh_entire_buffer_period
+            )
+            for _ in range(n_seeds):
+                seed = random.randint(0, 10000)
                 run_experiment(
-                    get_ocm_score,
+                    experiment,
                     exp_prefix=exp_prefix,
                     seed=seed,
                     mode=mode,
                     variant=variant,
                     exp_id=exp_id,
                 )
+    if run_mode == 'random':
+        hyperparameters = [
+            hyp.LogIntParam('memory_dim', 4, 400),
+            hyp.LogFloatParam('algo_params.qf_learning_rate', 1e-5, 1e-2),
+            # hyp.LogFloatParam(
+            #     'algo_params.write_policy_learning_rate', 1e-6, 1e-3
+            # ),
+            hyp.LogFloatParam(
+                'algo_params.action_policy_learning_rate', 1e-6, 1e-3
+            ),
+            hyp.EnumParam(
+                'algo_params.action_policy_optimize_bellman', [True, False],
+            ),
+            hyp.EnumParam(
+                'algo_params.use_action_policy_params_for_entire_policy',
+                [True, False],
+            ),
+            # hyp.EnumParam(
+            #     'algo_params.write_policy_optimizes', ['both', 'qf', 'bellman']
+            # ),
+            # hyp.EnumParam(
+            #     'policy_params.cell_class', [GRUCell, BNLSTMCell, LSTMCell,
+            #                                  RWACell],
+            # ),
+            hyp.EnumParam(
+                'es_params.memory_es_params.max_sigma', [0, 0.1, 1],
+            ),
+            # hyp.LogFloatParam(
+            #     'algo_params.write_policy_weight_decay', 1e-5, 1e2,
+            # ),
+            hyp.LogFloatParam(
+                'algo_params.action_policy_weight_decay', 1e-5, 1e2,
+            ),
+            # hyp.LinearFloatParam(
+            #     'algo_params.discount', 0.8, 0.99,
+            # ),
+        ]
+        sweeper = hyp.RandomHyperparameterSweeper(
+            hyperparameters,
+            default_kwargs=variant,
+        )
+        for exp_id in range(num_configurations):
+            variant = sweeper.generate_random_hyperparameters()
+            for _ in range(n_seeds):
+                seed = random.randint(0, 10000)
+                run_experiment(
+                    experiment,
+                    exp_prefix=exp_prefix,
+                    seed=seed,
+                    mode=mode,
+                    variant=variant,
+                    exp_id=exp_id,
+                    sync_s3_log=True,
+                    sync_s3_pkl=True,
+                    periodic_sync_interval=600,
+                )
     else:
         for _ in range(n_seeds):
             seed = random.randint(0, 10000)
             run_experiment(
-                bptt_ddpg_launcher,
+                experiment,
                 exp_prefix=exp_prefix,
                 seed=seed,
                 mode=mode,
                 variant=variant,
                 exp_id=0,
+                use_gpu=use_gpu,
+                sync_s3_log=True,
+                sync_s3_pkl=True,
+                periodic_sync_interval=120,
             )
