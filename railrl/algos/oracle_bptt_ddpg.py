@@ -11,7 +11,7 @@ from railrl.pythonplusplus import filter_recursive, line_logger
 from railrl.qfunctions.memory.oracle_unroll_qfunction import (
     OracleUnrollQFunction
 )
-from rllab.misc import special, logger
+from rllab.misc import logger
 
 
 class OracleBpttDdpg(BpttDDPG):
@@ -57,21 +57,23 @@ class OracleBpttDdpg(BpttDDPG):
 
     def _init_policy_ops(self):
         super()._init_policy_ops()
+        action_input = self.qf_with_action_input.action_input
+        obs_input = self.qf_with_action_input.observation_input
         self.oracle_qf = self.oracle_qf.get_weight_tied_copy(
-            action_input=self.qf_with_action_input.action_input,
-            observation_input=self.qf_with_action_input.observation_input,
+            action_input=action_input,
+            observation_input=obs_input,
         )
         if self.use_oracle_qf:
             if self.unroll_through_target_policy:
                 self.qf_with_action_input = self.oracle_qf.get_weight_tied_copy(
-                    action_input=self._final_rnn_augmented_action,
-                    observation_input=self._final_rnn_augmented_input,
+                    action_input=action_input,
+                    observation_input=obs_input,
                     policy=self.target_policy,
                 )
             else:
                 self.qf_with_action_input = self.oracle_qf.get_weight_tied_copy(
-                    action_input=self._final_rnn_augmented_action,
-                    observation_input=self._final_rnn_augmented_input,
+                    action_input=action_input,
+                    observation_input=obs_input,
                 )
 
     def _init_qf_loss_and_train_ops(self):
@@ -92,6 +94,9 @@ class OracleBpttDdpg(BpttDDPG):
         if self.oracle_memory_grad is None:
             logger.log("WARNING: Oracle memory gradients set to zero.")
             self.oracle_memory_grad = tf.zeros_like(final_memory_action)
+        if self.memory_grad is None:
+            logger.log("WARNING: Memory gradients set to zero.")
+            self.memory_grad = tf.zeros_like(final_memory_action)
 
         self.mem_grad_cosine_distance = tf_util.cosine(self.oracle_memory_grad,
                                                        self.memory_grad)
@@ -149,19 +154,20 @@ class OracleBpttDdpg(BpttDDPG):
             self.qf_loss = tf.zeros([0], tf.float32)
             self.train_qf_op = None
 
-    def _qf_feed_dict(self, *args, **kwargs):
-        feed_dict = super()._qf_feed_dict(*args, **kwargs)
-        feed_dict.update(self._oracle_qf_feed_dict(*args, **kwargs))
+    def _qf_feed_dict_from_batch(self, batch):
+        feed_dict = super()._qf_feed_dict_from_batch(batch)
+        feed_dict.update(self._oracle_qf_feed_dict_from_batch(batch))
         return feed_dict
 
-    def _oracle_qf_feed_dict(self, rewards, terminals, obs, actions, next_obs,
-                             target_numbers=None, times=None):
-        batch_size = len(rewards)
-        sequence_lengths = np.squeeze(self.env.horizon - 1 - times)
-        target_one_hots = special.to_onehot_n(
-            target_numbers,
-            self.env.wrapped_env.action_space.flat_dim,
-        )
+    def _oracle_qf_feed_dict_from_batch(self, batch):
+        all_flat_batch = self.subtraj_batch_to_flat_augmented_batch(batch)
+        if self.train_qf_on_all:
+            flat_batch = all_flat_batch
+        else:
+            flat_batch = self.subtraj_batch_to_last_augmented_batch(batch)
+        times = flat_batch['times']
+        batch_size = len(times)
+        sequence_lengths = self.env.horizon - 1 - times
         # TODO(vitchyr): BUG this gets more complicated with the flags. I
         # should make the environment generate the rest of the observations.
         rest_of_obs = np.zeros(
@@ -171,24 +177,32 @@ class OracleBpttDdpg(BpttDDPG):
                 self._env_obs_dim,
             ]
         )
-        # rest_of_obs[:, :, 0] = 1
+        all_env_obs, all_memories = all_flat_batch['obs']
+        obs = flat_batch['obs']
+        target_numbers = flat_batch['target_numbers']
+        # TODO: oracle_qf shouldn't depend on policy.
+        split_all_env_obs = all_env_obs.reshape(
+            (-1, self._num_bptt_unrolls, all_env_obs.shape[-1])
+        )
         feed_dict = {
             self.oracle_qf.sequence_length_placeholder: sequence_lengths,
             self.oracle_qf.rest_of_obs_placeholder: rest_of_obs,
             self.oracle_qf.observation_input: obs,
             self.policy.observation_input: obs,
-            self.oracle_qf.target_labels: target_one_hots,
+            self._rnn_inputs_ph: split_all_env_obs,
+            self._rnn_init_state_ph: all_memories[::self._num_bptt_unrolls, :],
+            self.oracle_qf.target_labels: target_numbers,
         }
         if hasattr(self.qf, "target_labels"):
-            feed_dict[self.qf.target_labels] = target_one_hots
-            feed_dict[self.target_qf.target_labels] = target_one_hots
+            feed_dict[self.qf.target_labels] = target_numbers
+            feed_dict[self.target_qf.target_labels] = target_numbers
         if hasattr(self.qf, "time_labels"):
             feed_dict[self.qf.time_labels] = times
             feed_dict[self.target_qf.time_labels] = times
         return feed_dict
 
     def _get_other_statistics(self):
-        statistics = OrderedDict()
+        statistics = super()._get_other_statistics()
         for name, validation in [
             ('Valid', True),
             ('Train', False),
@@ -227,29 +241,18 @@ class OracleBpttDdpg(BpttDDPG):
             qf_feed_dict = self._qf_feed_dict_from_batch(batch)
             (
                 true_qf_mse_loss,
-                qf_loss,
-                bellman_error,
-                qf_output,
             ) = self.sess.run(
                 [
                     self.true_qf_mse_loss,
-                    self.qf_loss,
-                    self.bellman_error,
-                    self.qf.output,
                 ]
                 ,
                 feed_dict=qf_feed_dict
             )
             stat_base_name = 'Qf{}'.format(name)
-            statistics.update(
-                {'{}_True_MSE_Loss'.format(stat_base_name): true_qf_mse_loss},
-            )
-            statistics.update(
-                {'{}_BellmanError'.format(stat_base_name): bellman_error},
-            )
-            statistics.update(
-                {'{}_Loss'.format(stat_base_name): qf_loss},
-            )
+            statistics.update(create_stats_ordered_dict(
+                '{}_True_MSE_Loss'.format(stat_base_name),
+                true_qf_mse_loss,
+            ))
             statistics.update(create_stats_ordered_dict(
                 '{}_Grad_Dist_env'.format(stat_base_name),
                 env_grad_distance,
@@ -258,42 +261,6 @@ class OracleBpttDdpg(BpttDDPG):
                 '{}_Grad_Dist_memory'.format(stat_base_name),
                 memory_grad_distance
             ))
-            # statistics.update(create_stats_ordered_dict(
-            #     '{}_Grad_MSE_env'.format(stat_base_name),
-            #     env_grad_mse,
-            # ))
-            # statistics.update(create_stats_ordered_dict(
-            #     '{}_Grad_MSE_memory'.format(stat_base_name),
-            #     memory_grad_mse
-            # ))
-            # statistics.update(create_stats_ordered_dict(
-            #     '{}_GradMSE_from_1_env'.format(stat_base_name),
-            #     env_qf_grad_mse_from_one
-            # ))
-            # statistics.update(create_stats_ordered_dict(
-            #     '{}_GradMSE_from_1_memory'.format(stat_base_name),
-            #     memory_qf_grad_mse_from_one
-            # ))
-            # statistics.update(create_stats_ordered_dict(
-            #     '{}_QF_Grads_env'.format(stat_base_name),
-            #     env_qf_grad
-            # ))
-            # statistics.update(create_stats_ordered_dict(
-            #     '{}_QF_Grads_memory'.format(stat_base_name),
-            #     memory_qf_grad
-            # ))
-            # statistics.update(create_stats_ordered_dict(
-            #     '{}_OracleQF_Grads_env'.format(stat_base_name),
-            #     oracle_env_qf_grad
-            # ))
-            # statistics.update(create_stats_ordered_dict(
-            #     '{}_OracleQF_Grads_memory'.format(stat_base_name),
-            #     oracle_memory_qf_grad
-            # ))
-            statistics.update(create_stats_ordered_dict(
-                '{}_QfOutput'.format(stat_base_name),
-                qf_output
-            ))
             statistics.update(create_stats_ordered_dict(
                 '{}_OracleQfOutput'.format(stat_base_name),
                 oracle_qf_output
@@ -301,53 +268,46 @@ class OracleBpttDdpg(BpttDDPG):
         return statistics
 
     def _oracle_qf_feed_dict_for_policy_from_batch(self, batch):
-        all_rewards = batch['rewards']
-        all_obs = batch['observations']
-        all_target_numbers = batch['target_numbers']
-        all_times = batch['times']
-
-        rewards = all_rewards[:, -1]
-        obs = self._split_flat_obs(self._get_time_step(all_obs, t=-1))
-        target_numbers = all_target_numbers[:, -1]
-        times = all_times[:, -1]
-        # target_numbers = all_target_numbers.flatten()
-        # times = all_times.flatten()
-
-        batch_size = len(rewards)
-        sequence_lengths = np.squeeze(self.env.horizon - 1 - times)
-        target_one_hots = special.to_onehot_n(
-            target_numbers,
-            self.env.wrapped_env.action_space.flat_dim,
-        )
+        if self.train_policy_on_all_qf_timesteps:
+            flat_batch = self.subtraj_batch_to_flat_augmented_batch(batch)
+        else:
+            flat_batch = self.subtraj_batch_to_last_augmented_batch(batch)
+        target_numbers = flat_batch['target_numbers']
+        times = flat_batch['times']
+        obs = flat_batch['obs']
+        episode_length_left = self.env.horizon - 1 - times
         rest_of_obs = np.zeros(
             [
-                batch_size,
+                len(target_numbers),
                 self.env.horizon - self._num_bptt_unrolls,
                 self._env_obs_dim,
             ]
         )
-        rest_of_obs[:, :, 0] = 1
         feed_dict = {
-            self.oracle_qf.sequence_length_placeholder: sequence_lengths,
+            self.oracle_qf.sequence_length_placeholder: episode_length_left,
             self.oracle_qf.rest_of_obs_placeholder: rest_of_obs,
             # It's better to separate them so that duplicate entries can be
             # eliminated by TensorFlow
             self.oracle_qf.observation_input[0]: obs[0],
             self.oracle_qf.observation_input[1]: obs[1],
-            self.oracle_qf.target_labels: target_one_hots,
+            self.oracle_qf.target_labels: target_numbers,
         }
+
         if hasattr(self.qf_with_action_input, "target_labels"):
-            feed_dict[self.qf_with_action_input.target_labels] = target_one_hots
-        if (hasattr(self.target_qf_for_policy, "target_labels") and
-                self._bpt_bellman_error_weight > 0.):
-            # TODO(vitchyr): this should be the NEXT target...
-            feed_dict[self.target_qf_for_policy.target_labels] = target_one_hots
+            feed_dict[self.qf_with_action_input.target_labels] = target_numbers
         if hasattr(self.qf_with_action_input, "time_labels"):
             feed_dict[self.qf_with_action_input.time_labels] = times
-        if (hasattr(self.target_qf_for_policy, "time_labels") and
-                 self._bpt_bellman_error_weight > 0.):
-            # TODO(vitchyr): this seems hacky
-            feed_dict[self.target_qf_for_policy.time_labels] = times + 1
+        if self.target_qf_for_policy is not None:
+            if (hasattr(self.target_qf_for_policy, "target_numbers") and
+                        self._bpt_bellman_error_weight > 0.):
+                # TODO(vitchyr): this should be the NEXT target...
+                feed_dict[self.target_qf_for_policy.target_numbers] = (
+                    target_numbers
+                )
+            if (hasattr(self.target_qf_for_policy, "time_labels") and
+                     self._bpt_bellman_error_weight > 0.):
+                # TODO(vitchyr): this seems hacky
+                feed_dict[self.target_qf_for_policy.time_labels] = times + 1
         return feed_dict
 
     def _policy_feed_dict_from_batch(self, batch):
@@ -356,3 +316,9 @@ class OracleBpttDdpg(BpttDDPG):
             batch
         ))
         return policy_feed
+
+    @property
+    def _networks(self):
+        return super()._networks + [
+            self.oracle_qf,
+        ]

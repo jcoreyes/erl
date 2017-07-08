@@ -6,7 +6,6 @@ from rllab.envs.base import Env
 from rllab.envs.proxy_env import ProxyEnv
 from rllab.spaces.product import Product
 from rllab.spaces.box import Box
-from rllab.envs.env_spec import EnvSpec
 from cached_property import cached_property
 
 
@@ -30,15 +29,15 @@ class ContinuousMemoryAugmented(ProxyEnv):
         self._memory_state = np.zeros(self._num_memory_states)
         self._action_space = Product(
             env.action_space,
-            self._memory_state_space,
+            self.memory_state_space,
         )
         self._observation_space = Product(
             env.observation_space,
-            self._memory_state_space,
+            self.memory_state_space,
         )
 
     @cached_property
-    def _memory_state_space(self):
+    def memory_state_space(self):
         return Box(-self._max_magnitude * np.ones(self._num_memory_states),
                    self._max_magnitude * np.ones(self._num_memory_states))
 
@@ -72,13 +71,6 @@ class ContinuousMemoryAugmented(ProxyEnv):
     @property
     def observation_space(self):
         return self._observation_space
-
-    @cached_property
-    def memory_spec(self):
-        return EnvSpec(
-            observation_space=self._memory_state_space,
-            action_space=self._memory_state_space,
-        )
 
     @property
     def memory_dim(self):
@@ -115,3 +107,12 @@ class ContinuousMemoryAugmented(ProxyEnv):
         """
         return self._wrapped_env.get_tf_loss(observations[0], actions[0],
                                              **kwargs)
+
+    def get_extra_info_dict_from_batch(self, batch):
+        return self._wrapped_env.get_extra_info_dict_from_batch(batch)
+
+    def get_flattened_extra_info_dict_from_subsequence_batch(self, batch):
+        return self._wrapped_env.get_flattened_extra_info_dict_from_subsequence_batch(batch)
+
+    def get_last_extra_info_dict_from_subsequence_batch(self, batch):
+        return self._wrapped_env.get_last_extra_info_dict_from_subsequence_batch(batch)

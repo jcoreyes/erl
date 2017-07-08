@@ -1,8 +1,12 @@
 import datetime
 import os
 import os.path as osp
+import subprocess
 import random
 import uuid
+import git
+import base64
+import cloudpickle
 
 import dateutil.tz
 import numpy as np
@@ -17,6 +21,7 @@ from railrl.envs.memory.one_char_memory import (
     OneCharMemoryEndOnly,
     OneCharMemoryOutputRewardMag,
 )
+from railrl.torch.pytorch_util import set_gpu_mode
 from rllab import config
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.envs.mujoco.ant_env import AntEnv
@@ -143,8 +148,9 @@ def run_experiment(
         mode='here',
         exp_id=0,
         unique_id=None,
-        use_gpu=False,
-        **kwargs):
+        use_gpu=True,
+        snapshot_mode='last',
+        **run_experiment_lite_kwargs):
     """
     Run a task via the rllab interface, i.e. serialize it and then run it via
     the run_experiment_lite script.
@@ -163,7 +169,8 @@ def run_experiment(
     experiments. Note that one experiment may correspond to multiple seeds.
     :param unique_id: Unique ID should be unique across all runs--even different
     seeds!
-    :param kwargs:
+    :param run_experiment_lite_kwargs: kwargs to be passed to
+    `run_experiment_lite`
     :return:
     """
     if seed is None:
@@ -183,6 +190,9 @@ def run_experiment(
     command_words.append('python')
     if save_profile:
         command_words += ['-m cProfile -o', profile_file]
+    repo = git.Repo(os.getcwd())
+    diff_string = repo.git.diff(None)
+    commit_hash = repo.head.commit.hexsha
     if mode == 'here':
         run_experiment_here(
             task,
@@ -191,11 +201,17 @@ def run_experiment(
             exp_id=exp_id,
             seed=seed,
             use_gpu=use_gpu,
+            snapshot_mode=snapshot_mode,
+            code_diff=diff_string,
+            commit_hash=commit_hash,
         )
     else:
+        code_diff = (
+            base64.b64encode(cloudpickle.dumps(diff_string)).decode("utf-8")
+        )
         run_experiment_lite(
             task,
-            snapshot_mode="last",
+            snapshot_mode=snapshot_mode,
             exp_prefix=exp_prefix,
             variant=variant,
             seed=seed,
@@ -203,7 +219,10 @@ def run_experiment(
             python_command=' '.join(command_words),
             mode=mode,
             use_gpu=use_gpu,
-            **kwargs
+            script="railrl/scripts/run_experiment_lite.py",
+            code_diff=code_diff,
+            commit_hash=commit_hash,
+            **run_experiment_lite_kwargs
         )
 
 
@@ -213,7 +232,10 @@ def run_experiment_here(
         variant=None,
         exp_id=0,
         seed=0,
-        use_gpu=False,
+        use_gpu=True,
+        snapshot_mode='last',
+        code_diff=None,
+        commit_hash=None,
 ):
     """
     Run an experiment locally without any serialization.
@@ -241,9 +263,14 @@ def run_experiment_here(
         variant=variant,
         exp_id=exp_id,
         seed=seed,
+        snapshot_mode=snapshot_mode,
+        code_diff=code_diff,
+        commit_hash=commit_hash,
     )
     if not use_gpu:
         os.environ['CUDA_VISIBLE_DEVICES'] = ""
+    else:
+        set_gpu_mode(use_gpu)
     return experiment_function(variant)
 
 
@@ -287,7 +314,7 @@ def create_log_dir(exp_prefix="default", exp_id=0, seed=0):
             )
         )
     os.makedirs(log_dir, exist_ok=True)
-    return log_dir
+    return log_dir, exp_name
 
 
 def setup_logger(
@@ -302,6 +329,8 @@ def setup_logger(
         snapshot_mode="last",
         log_tabular_only=False,
         snapshot_gap=1,
+        code_diff=None,
+        commit_hash=None,
 ):
     """
     Set up logger to have some reasonable default settings.
@@ -320,7 +349,7 @@ def setup_logger(
     """
     if log_dir is None:
         assert exp_prefix is not None
-        log_dir = create_log_dir(exp_prefix, exp_id=exp_id, seed=seed)
+        log_dir, exp_name = create_log_dir(exp_prefix, exp_id=exp_id, seed=seed)
     tabular_log_path = osp.join(log_dir, tabular_log_file)
     text_log_path = osp.join(log_dir, text_log_file)
 
@@ -334,6 +363,13 @@ def setup_logger(
     logger.set_snapshot_mode(snapshot_mode)
     logger.set_snapshot_gap(snapshot_gap)
     logger.set_log_tabular_only(log_tabular_only)
+    logger.push_prefix("[%s] " % exp_name)
+    if code_diff is not None:
+        with open(osp.join(log_dir, "code.diff"), "w") as f:
+            f.write(code_diff)
+    if commit_hash is not None:
+        with open(osp.join(log_dir, "commit_hash.txt"), "w") as f:
+            f.write(commit_hash)
 
 
 def set_seed(seed):
@@ -357,3 +393,29 @@ def reset_execution_environment():
     tf.reset_default_graph()
     import importlib
     importlib.reload(logger)
+
+
+def create_run_experiment_multiple_seeds(n_seeds, experiment, **kwargs):
+    """
+    Run a function multiple times over different seeds and return the average
+    score.
+    :param n_seeds: Number of times to run an experiment.
+    :param experiment: A function that returns a score.
+    :param kwargs: keyword arguements to pass to experiment.
+    :return: Average score across `n_seeds`.
+    """
+    def run_experiment_with_multiple_seeds(variant):
+        seed = int(variant['seed'])
+        scores = []
+        for i in range(n_seeds):
+            variant['seed'] = str(seed + i)
+            scores.append(run_experiment(
+                experiment,
+                variant=variant,
+                exp_id=i,
+                mode='here',
+                **kwargs
+            ))
+        return np.mean(scores)
+
+    return run_experiment_with_multiple_seeds

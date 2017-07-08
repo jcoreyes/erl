@@ -1,5 +1,6 @@
 from collections import OrderedDict
 
+from railrl.algos.bptt_ddpg import BpttDDPG
 from railrl.algos.oracle_bptt_ddpg import OracleBpttDdpg
 from railrl.algos.ddpg import TARGET_PREFIX, TargetUpdateMode
 import tensorflow as tf
@@ -8,7 +9,7 @@ from railrl.core import tf_util
 from railrl.misc.data_processing import create_stats_ordered_dict
 
 
-class MetaBpttDdpg(OracleBpttDdpg):
+class MetaBpttDdpg(BpttDDPG):
     """
     Add a meta critic: it predicts the error of the normal critic
     """
@@ -20,6 +21,7 @@ class MetaBpttDdpg(OracleBpttDdpg):
             meta_qf_learning_rate=1e-4,
             meta_qf_output_weight=10,
             qf_output_weight=1,
+            train_meta_qf_on_all=True,
             **kwargs
     ):
         """
@@ -37,40 +39,22 @@ class MetaBpttDdpg(OracleBpttDdpg):
         self.meta_qf_learning_rate = meta_qf_learning_rate
         self.meta_qf_output_weight = meta_qf_output_weight
         self.qf_output_weight = qf_output_weight
+        self.train_meta_qf_on_all = train_meta_qf_on_all
 
     def _do_training(
             self,
-            epoch=None,
             n_steps_total=None,
-            n_steps_current_epoch=None,
     ):
-        self._do_extra_qf_training(n_steps_total=n_steps_total)
-
-        minibatch = self._sample_minibatch()
-
-        qf_ops = self._get_qf_training_ops(
-            epoch=epoch,
+        minibatch, start_indices = super()._do_training(
             n_steps_total=n_steps_total,
-            n_steps_current_epoch=n_steps_current_epoch,
         )
-        qf_feed_dict = self._qf_feed_dict_from_batch(minibatch)
-        self.sess.run(qf_ops, feed_dict=qf_feed_dict)
 
-        meta_qf_ops = self._get_meta_qf_training_ops(
-            epoch=epoch,
-            n_steps_total=n_steps_total,
-            n_steps_current_epoch=n_steps_current_epoch,
-        )
-        meta_qf_feed_dict = self._meta_qf_feed_dict_from_batch(minibatch)
-        self.sess.run(meta_qf_ops, feed_dict=meta_qf_feed_dict)
-
-        policy_ops = self._get_policy_training_ops(
-            epoch=epoch,
-            n_steps_total=n_steps_total,
-            n_steps_current_epoch=n_steps_current_epoch,
-        )
-        policy_feed_dict = self._policy_feed_dict_from_batch(minibatch)
-        self.sess.run(policy_ops, feed_dict=policy_feed_dict)
+        if self.meta_qf_output_weight > 0:
+            meta_qf_ops = self._get_meta_qf_training_ops(
+                n_steps_total=n_steps_total,
+            )
+            meta_qf_feed_dict = self._meta_qf_feed_dict_from_batch(minibatch)
+            self.sess.run(meta_qf_ops, feed_dict=meta_qf_feed_dict)
 
     def _init_training(self):
         super()._init_training()
@@ -122,7 +106,7 @@ class MetaBpttDdpg(OracleBpttDdpg):
             )
 
     def _get_meta_qf_training_ops(self, **kwargs):
-        return self._get_training_ops(
+        return self._get_network_training_ops(
             self.train_meta_qf_op,
             self.meta_qf,
             self.update_target_meta_qf_op,
@@ -130,7 +114,27 @@ class MetaBpttDdpg(OracleBpttDdpg):
         )
 
     def _meta_qf_feed_dict_from_batch(self, batch):
-        return self._qf_feed_dict_from_batch(batch)
+        if self.train_qf_on_all:
+            flat_batch = self.subtraj_batch_to_flat_augmented_batch(batch)
+        else:
+            flat_batch = self.subtraj_batch_to_last_augmented_batch(batch)
+        feed_dict = self._qf_feed_dict(
+            rewards=flat_batch['rewards'],
+            terminals=flat_batch['terminals'],
+            obs=flat_batch['obs'],
+            actions=flat_batch['actions'],
+            next_obs=flat_batch['next_obs'],
+            **self.env.get_extra_info_dict_from_batch(flat_batch)
+        )
+        # flat_target_labels = flat_batch['target_numbers']
+        # flat_times = flat_batch['times']
+        # feed_dict.update({
+        #     self.meta_qf.target_labels: flat_target_labels,
+        #     self.meta_qf.time_labels: flat_times,
+        #     self.target_meta_qf.target_labels: flat_target_labels,
+        #     self.target_meta_qf.time_labels: flat_times,
+        # })
+        return feed_dict
 
     def _init_meta_qf_loss_and_train_ops(self):
         self.meta_qf_loss = self.meta_qf_bellman_error
@@ -143,49 +147,78 @@ class MetaBpttDdpg(OracleBpttDdpg):
 
     def _init_meta_qf_ops(self):
         self.meta_qf_ys = (
-            self.bellman_error +
-            (1. - self.terminals_placeholder)
+            self.bellman_errors +
+            (1. - self.terminals_n1)
             * self.discount
             * self.target_meta_qf.output
         )
-        self.meta_qf_bellman_error = tf.squeeze(
-            tf_util.mse(self.meta_qf_ys, self.meta_qf.output)
+        self.meta_qf_bellman_errors = tf.squared_difference(
+            self.meta_qf_ys, self.meta_qf.output
+        )
+        assert tf_util.are_shapes_compatible(
+            self.bellman_errors,
+            self.terminals_n1,
+            self.target_meta_qf.output,
+            self.meta_qf.output,
+            self.meta_qf_bellman_errors,
+        )
+        self.meta_qf_bellman_error = tf.reduce_mean(
+            self.meta_qf_bellman_errors
         )
 
     def _init_policy_ops(self):
         super()._init_policy_ops()
         self.meta_qf_with_action_input = self.meta_qf.get_weight_tied_copy(
-            action_input=self._final_rnn_augmented_action,
-            observation_input=self._final_rnn_augmented_input,
+            action_input=self.qf_with_action_input.action_input,
+            observation_input=self.qf_with_action_input.observation_input,
         )
 
-    def _init_policy_loss_and_train_ops(self):
-        self.policy_surrogate_loss = - tf.reduce_mean(
-            self.qf_with_action_input.output
-        ) * self.qf_output_weight
-        self.policy_surrogate_loss += tf.reduce_mean(
+    def _get_env_action_and_write_loss(self):
+        env_action_loss, write_loss = super()._get_env_action_and_write_loss()
+        self.policy_meta_loss = tf.reduce_mean(
             self.meta_qf_with_action_input.output
-        ) * self.meta_qf_output_weight
-        if self._bpt_bellman_error_weight > 0.:
-            self.policy_surrogate_loss += (
-                self.bellman_error_for_policy * self._bpt_bellman_error_weight
-            )
-        if self._freeze_hidden:
-            trainable_policy_params = self.policy.get_params(env_only=True)
-        else:
-            trainable_policy_params = self.policy.get_params_internal()
-        self.train_policy_op = tf.train.AdamOptimizer(
-            self.policy_learning_rate
-        ).minimize(
-            self.policy_surrogate_loss,
-            var_list=trainable_policy_params,
         )
-        if not self.train_policy:
-            self.train_policy_op = None
+        if self.meta_qf_output_weight > 0:
+            write_loss += (
+                self.policy_meta_loss * self.meta_qf_output_weight
+            )
+        return env_action_loss, write_loss
 
     def _statistics_from_batch(self, batch) -> OrderedDict:
         statistics = super()._statistics_from_batch(batch)
         statistics.update(self._meta_qf_statistics_from_batch(batch))
+        return statistics
+
+    def _policy_statistics_from_batch(self, batch):
+        policy_feed_dict = self._eval_policy_feed_dict_from_batch(batch)
+        policy_stat_names, policy_ops = zip(*[
+            ('PolicyMetaLoss', self.policy_meta_loss),
+        ])
+        values = self.sess.run(policy_ops, feed_dict=policy_feed_dict)
+        statistics = super()._policy_statistics_from_batch(batch)
+        for stat_name, value in zip(policy_stat_names, values):
+            statistics.update(
+                create_stats_ordered_dict(stat_name, value)
+            )
+        return statistics
+
+    def _get_other_statistics_train_validation(self, batch, name):
+        statistics = super()._get_other_statistics_train_validation(batch, name)
+        policy_feed_dict = self._policy_feed_dict_from_batch(batch)
+        (
+            policy_meta_loss,
+        ) = self.sess.run(
+            [
+                self.policy_meta_loss,
+            ]
+            ,
+            feed_dict=policy_feed_dict
+        )
+        policy_base_stat_name = '{}Policy'.format(name)
+        statistics.update(create_stats_ordered_dict(
+            '{}_Meta_Loss'.format(policy_base_stat_name),
+            policy_meta_loss,
+        ))
         return statistics
 
     def _meta_qf_statistics_from_batch(self, batch):
@@ -193,6 +226,7 @@ class MetaBpttDdpg(OracleBpttDdpg):
         meta_qf_stat_names, meta_qf_ops = zip(*[
             ('MetaQfLoss', self.meta_qf_loss),
             ('MetaQfOutput', self.meta_qf.output),
+            ('MetaQfBellmanErrors', self.meta_qf_bellman_errors),
         ])
         values = self.sess.run(meta_qf_ops, feed_dict=meta_qf_feed_dict)
         statistics = OrderedDict()
@@ -204,3 +238,11 @@ class MetaBpttDdpg(OracleBpttDdpg):
 
     def _eval_meta_qf_feed_dict_from_batch(self, batch):
         return self._meta_qf_feed_dict_from_batch(batch)
+
+    @property
+    def _networks(self):
+        return super()._networks + [
+            self.meta_qf,
+            self.target_meta_qf,
+            self.meta_qf_with_action_input,
+        ]

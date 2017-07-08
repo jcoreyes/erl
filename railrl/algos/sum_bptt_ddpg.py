@@ -70,7 +70,7 @@ class SumBpttDDPG(BpttDDPG):
         :param obs: See output of `self._split_flat_action`.
         :return: Feed dictionary for policy training TensorFlow ops.
         """
-        _, initial_memory_obs = self._get_time_step(obs, 0)
+        _, initial_memory_obs = _get_time_step(obs, 0)
         env_obs, memory_obs = obs
         """
         The observations need to be stacked in the same order that the q

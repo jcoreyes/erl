@@ -1,4 +1,6 @@
 import abc
+from contextlib import contextmanager
+
 import tensorflow as tf
 from typing import Iterable
 
@@ -11,6 +13,7 @@ ALLOWABLE_TAGS = ['regularizable']
 _TRAINING_OUTPUT_MODE = "training_output_mode"
 _EVAL_OUTPUT_MODE = "eval_output_mode"
 
+dropout_ph = None
 
 class NeuralNetwork(Parameterized, Serializable):
     """
@@ -23,16 +26,17 @@ class NeuralNetwork(Parameterized, Serializable):
             batch_norm_config=None,
             reuse=False,
             layer_norm=False,
+            use_dropout=None,
             **kwargs
     ):
         """
-
         :param name_or_scope: Name (string) for creating this network. This
         should only be name of this current network, and not the full scope
         name, i.e. `bar` not `foo/bar`.
         :param batch_norm_config: Config for batch_norm. If set, batch_norm
         is enabled.
         :param reuse: Reuse variables when creating this network.
+        :param use_dropout: Apply dropout or not to this network.
         :param kwargs:
         """
         super().__init__(**kwargs)
@@ -53,9 +57,13 @@ class NeuralNetwork(Parameterized, Serializable):
         self._training_output = None
         self._full_scope_name = None
         self._subnetwork_list = []
-        self._is_bn_in_training_mode = False
+        self._is_in_training_mode = False
+        self.use_dropout = use_dropout
 
         self.param_values_when_last_loaded = None
+        # global dropout_ph
+        self.dropout_ph = dropout_ph
+
 
     @property
     def full_scope_name(self):
@@ -71,18 +79,16 @@ class NeuralNetwork(Parameterized, Serializable):
         """
         This method should be called by concrete instances to create the
         network.
-
         :return: None
         """
         inputs = self._input_name_to_values
-        if self._batch_norm:
-            # TODO(vpong): This flag needs to somehow propagate to sub-networks
-            self._switch_to_bn_training_mode_on()
-            with tf.variable_scope(self.scope_name, reuse=self._reuse):
-                self._training_output = self._create_network_internal(**inputs)
-            self._switch_to_bn_training_mode_off()
-            with tf.variable_scope(self.scope_name, reuse=True) as scope:
-                self._eval_output = self._create_network_internal(**inputs)
+        if self._batch_norm or self.use_dropout:
+            with self._training_mode():
+                with tf.variable_scope(self.scope_name, reuse=self._reuse):
+                    self._training_output = self._create_network_internal(**inputs)
+            with self._eval_mode():
+                with tf.variable_scope(self.scope_name, reuse=True) as scope:
+                    self._eval_output = self._create_network_internal(**inputs)
         else:
             with tf.variable_scope(self.scope_name, reuse=self._reuse) as scope:
                 self._eval_output = self._create_network_internal(**inputs)
@@ -114,7 +120,6 @@ class NeuralNetwork(Parameterized, Serializable):
                                     dtype):
         """
         Returns placeholders for batches if the input is None.
-
         See `tf_util.create_batch_placeholders` for detail.
         """
         if input_layer is None:
@@ -127,10 +132,21 @@ class NeuralNetwork(Parameterized, Serializable):
         return input_layer
 
     def _switch_to_bn_training_mode_on(self):
-        self._is_bn_in_training_mode = True
+        self._is_in_training_mode = True
 
-    def _switch_to_bn_training_mode_off(self):
-        self._is_bn_in_training_mode = False
+    @contextmanager
+    def _training_mode(self):
+        old_training_mode = self._is_in_training_mode
+        self._is_in_training_mode = True
+        yield
+        self._is_in_training_mode = old_training_mode
+
+    @contextmanager
+    def _eval_mode(self):
+        old_training_mode = self._is_in_training_mode
+        self._is_in_training_mode = False
+        yield
+        self._is_in_training_mode = old_training_mode
 
     def _iter_sub_networks(self):
         """
@@ -145,7 +161,6 @@ class NeuralNetwork(Parameterized, Serializable):
     def switch_to_training_mode(self):
         """
         Output will be the output for training.
-
         Note that only the output of this network will switch. If this
         network is composed of sub-networks, then those network's outputs
         will be independently set.
@@ -157,7 +172,6 @@ class NeuralNetwork(Parameterized, Serializable):
         """
         Output will be the output for eval. By default, a network is in eval
         mode.
-
         Note that only the output of this network will switch. If this
         network is composed of sub-networks, then those network's outputs
         will be independently set.
@@ -199,19 +213,14 @@ class NeuralNetwork(Parameterized, Serializable):
     def _process_layer(self, previous_layer, scope_name="process_layer"):
         """
         This should be done called between every layer, i.e.
-
         a = self.process_layer(linear(x))
         b = self.process_layer(linear(relu(a)))
         output = linear(relu(b))
-
         This method should NOT be called on the output.
-
         If batch norm is disabled, this just returns `previous_layer`
         immediately.
-
         If batch norm is enabled, this returns a layer with bn enabled,
         either for training or eval based on self._is_bn_in_training_mode
-
         :param previous_layer: Either the input layer or the output to a
         previous call to `_process_layer`
         :param scope_name: Scope name for any variables that may be created
@@ -222,16 +231,17 @@ class NeuralNetwork(Parameterized, Serializable):
         """
         if self._layer_norm:
             with tf.variable_scope(scope_name):
-                return tf_util.layer_normalize(previous_layer)
-
-        if self._batch_norm:
+                previous_layer = tf_util.layer_normalize(previous_layer)
+        elif self._batch_norm:
             with tf.variable_scope(scope_name):
-                processed_layer, _ = tf_util.batch_norm(
+                previous_layer, _ = tf_util.batch_norm(
                     previous_layer,
-                    is_training=self._is_bn_in_training_mode,
+                    is_training=self._is_in_training_mode,
                     batch_norm_config=self._batch_norm_config,
                 )
-                return processed_layer
+
+        if self.use_dropout:
+            previous_layer = tf.nn.dropout(previous_layer, self.dropout_ph)
 
         return previous_layer
 
@@ -239,12 +249,10 @@ class NeuralNetwork(Parameterized, Serializable):
         """
         Any time a network has a sub-network, it needs to call this method
         to gets that subnetwork's output. e.g.
-
         ```
         def _create_internal_network(...):
             n1 = Network1()
             out_of_n1 = self._process_network_and_get_output(n1)
-
             # out_of_n1 is a Tensor that can be used
             # you probably want to call
             out_of_n1 = self._process_layer(out_of_n1)
@@ -257,7 +265,7 @@ class NeuralNetwork(Parameterized, Serializable):
         if not self._batch_norm:
             return subnetwork.output
 
-        if self._is_bn_in_training_mode:
+        if self._is_in_training_mode:
             return subnetwork.training_output
         else:
             return subnetwork.eval_output
@@ -299,13 +307,11 @@ class NeuralNetwork(Parameterized, Serializable):
         """
         Return a weight-tied copy of the network. Replace the action or
         observation to the network for the returned network.
-
         :param inputs: Dictionary, of the form
         {
             'input_x': self.input_x,
             'input_y': self.input_y,
         }
-
         :return: StateNetwork copy with weights tied to this StateNetwork.
         """
         assert len(inputs) > 0
@@ -338,13 +344,11 @@ class NeuralNetwork(Parameterized, Serializable):
     def _create_network_internal(self, **inputs):
         """
         This function constructs the network.
-
         If you plan on using batch norm:
             - Between each layer, call `layer = self._process_layer(layer)`.
             - Between each subnetwork, call
             `output = self._add_subnetwork_and_get_output(subnetwork)`.
             - See the documentation of those functions for more detail.
-
         :param inputs: Tensor inputs to the network by name.
         :return: Tensor, output of network
         """
@@ -355,13 +359,11 @@ class NeuralNetwork(Parameterized, Serializable):
     def _input_name_to_values(self):
         """
         Return a dictionary describing what inputs are and their current values.
-
         :return: Return a dictionary of the form
         {
             'input_x': self.input_x,
             'input_y': self.input_y,
         }
-
         This will be the input to get_weight_tied_copy for inputs not
         specified.
         """

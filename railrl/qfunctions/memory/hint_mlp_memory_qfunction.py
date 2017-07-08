@@ -43,9 +43,9 @@ class HintMlpMemoryQFunction(NNQFunction):
         self.hint_dim = hint_dim
         self.target_labels = self._placeholder_if_none(
             target_labels,
-            shape=[None, self.hint_dim],
+            shape=[None],
             name='target_labels',
-            dtype=tf.float32,
+            dtype=tf.int32,
         )
         self.max_time = max_time
         self.time_labels = self._placeholder_if_none(
@@ -67,26 +67,11 @@ class HintMlpMemoryQFunction(NNQFunction):
     ):
         env_obs, memory_obs = observation_input
         env_action, memory_action = action_input
-        env_obs = self._process_layer(
-            env_obs,
-            scope_name="env_obs",
-        )
-        memory_obs = self._process_layer(
-            memory_obs,
-            scope_name="memory_obs",
-        )
-        env_action = self._process_layer(
-            env_action,
-            scope_name="env_action",
-        )
-        memory_action = self._process_layer(
-            memory_action,
-            scope_name="memory_action",
-        )
         obs_input_dim = sum(self.observation_dim)
         obs_values = [env_obs, memory_obs]
         if self.use_target:
-            obs_values.append(target_labels)
+            target_one_hots = tf.one_hot(target_labels, self.hint_dim)
+            obs_values.append(target_one_hots)
             obs_input_dim += self.hint_dim
         if self.use_time:
             time_onehots = tf.one_hot(indices=time_labels,

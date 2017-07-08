@@ -78,9 +78,11 @@ class NAF(OnlineAlgorithm):
 
     def _init_qf_ops(self):
         self.ys = (
-            self.rewards_placeholder +
-            (1. - self.terminals_placeholder) *
-            self.discount * self.target_vf.output)
+            self.rewards_n1 +
+            (1. - self.terminals_n1)
+            * self.discount
+            * self.target_vf.output
+        )
         self.qf_loss = tf_util.mse(self.ys, self.qf.output)
         self.Q_weights_norm = tf.reduce_sum(
             tf.stack(
@@ -134,8 +136,8 @@ class NAF(OnlineAlgorithm):
     @overrides
     def _update_feed_dict(self, rewards, terminals, obs, actions, next_obs):
         return {
-            self.rewards_placeholder: np.expand_dims(rewards, axis=1),
-            self.terminals_placeholder: np.expand_dims(terminals, axis=1),
+            self.rewards_placeholder: rewards,
+            self.terminals_placeholder: terminals,
             self.qf.observation_input: obs,
             self.qf.action_input: actions,
             self.next_obs_placeholder: next_obs,

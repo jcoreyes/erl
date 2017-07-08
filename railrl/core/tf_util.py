@@ -357,6 +357,7 @@ def mlp(input_layer,
         b_initializer=None,
         pre_nonlin_lambda=identity,
         post_nonlin_lambda=identity,
+        linear_output_size=None,
         ):
     """
     Create a multi-layer perceptron with the given hidden sizes. The
@@ -370,10 +371,14 @@ def mlp(input_layer,
     :param nonlinearity: the initialization function for the nonlinearity
     :param post_nonlin_lambda: A function to pass the post-non-linearity
     values through.
-    This is only applied between layers. Not on the input nor the output.
+    This is only applied between linear layers. Not on the input nor ont the
+    last linear layer.
     :param pre_nonlin_lambda: A function to pass the pre-non-linearity
     values through.
-    This is only applied between layers. Not on the input nor the output.
+    This is only applied between linear layers. Not on the input nor the last
+    linear layer.
+    :param linear_output_size: If set, add a linear layer with this size at
+    the very end. No non-linearity applied.
     :return: Output of MLP.
     :type: tf.Tensor
     """
@@ -398,6 +403,14 @@ def mlp(input_layer,
                     )
                 )
             last_layer_size = hidden_size
+    if linear_output_size is not None:
+        last_layer = linear(
+            last_layer,
+            last_layer_size,
+            linear_output_size,
+            W_initializer=W_initializer,
+            b_initializer=b_initializer,
+        )
     return last_layer
 
 
@@ -594,3 +607,16 @@ def cosine(xs, ys):
     norm_x = tf.nn.l2_normalize(xs, dim=1)
     norm_y = tf.nn.l2_normalize(ys, dim=1)
     return batch_dot_product(norm_x, norm_y)
+
+
+def are_shapes_compatible(*tensors):
+    """
+    :param tensors: list of TensorFlow Tensor
+    :return: Returns if the shapes of the Tensors match
+    """
+    assert len(tensors) > 1
+    tensor1 = tensors[0]
+    return all(
+        tensor1.get_shape().is_compatible_with(t.get_shape())
+        for t in tensors[1:]
+    )

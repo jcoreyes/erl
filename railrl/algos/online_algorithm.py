@@ -20,6 +20,8 @@ from rllab.algos.base import RLAlgorithm
 from rllab.misc import logger, special
 from rllab.misc.overrides import overrides
 from sandbox.rocky.tf.samplers.batch_sampler import BatchSampler
+import railrl.core.neuralnet
+
 
 
 class OnlineAlgorithm(RLAlgorithm):
@@ -35,7 +37,7 @@ class OnlineAlgorithm(RLAlgorithm):
             batch_size=64,
             n_epochs=1000,
             epoch_length=10000,
-            min_pool_size=10000,
+            min_pool_size=None,
             replay_pool_size=1000000,
             discount=0.99,
             soft_target_tau=1e-2,
@@ -48,6 +50,8 @@ class OnlineAlgorithm(RLAlgorithm):
             replay_pool: ReplayBuffer = None,
             allow_gpu_growth=True,
             save_tf_graph=True,
+            dropout_keep_prob=None,
+            num_steps_between_train=1,
     ):
         """
         :param env: Environment
@@ -73,8 +77,11 @@ class OnlineAlgorithm(RLAlgorithm):
         won't pre-allocate memory, but this will be a bit slower.
 
         http://stackoverflow.com/questions/34199233/how-to-prevent-tensorflow-from-allocating-the-totality-of-a-gpu-memory
+        :param num_steps_between_train: How many steps to take before training.
         :return:
         """
+        if min_pool_size is None:
+            min_pool_size = batch_size
         assert min_pool_size >= batch_size
         # Have two separate env's to make sure that the training and eval
         # envs don't affect one another.
@@ -97,15 +104,21 @@ class OnlineAlgorithm(RLAlgorithm):
         self._batch_norm = batch_norm_config is not None
         self._batch_norm_config = batch_norm_config
         self.save_tf_graph = save_tf_graph
+        self.num_steps_between_train = num_steps_between_train
 
         self.observation_dim = self.training_env.observation_space.flat_dim
         self.action_dim = self.training_env.action_space.flat_dim
         self.rewards_placeholder = tf.placeholder(tf.float32,
-                                                  shape=[None, 1],
+                                                  shape=None,
                                                   name='rewards')
-        self.terminals_placeholder = tf.placeholder(tf.float32,
-                                                    shape=[None, 1],
+        self.terminals_placeholder = tf.placeholder(tf.bool,
+                                                    shape=None,
                                                     name='terminals')
+        self.rewards_n1 = tf.reshape(self.rewards_placeholder, (-1, 1))
+        self.terminals_n1 = tf.reshape(
+            tf.cast(self.terminals_placeholder, tf.float32),
+            (-1, 1),
+        )
         self.pool = replay_pool or EnvReplayBuffer(
             self.replay_pool_size,
             self.env,
@@ -119,6 +132,25 @@ class OnlineAlgorithm(RLAlgorithm):
         self.scope = None  # Necessary for BatchSampler
         self.whole_paths = True  # Also for BatchSampler
         self._last_average_returns = []
+        self.__is_training = False
+
+        self.dropout_keep_prob = dropout_keep_prob
+        if self.dropout_keep_prob is not None:
+            self.sess.run = self.wrap_run(self.sess.run)
+
+    def wrap_run(self, run):
+        """
+        This is super hacky, but works for now to add the dropout value to every
+        call to self.sess.run
+        """
+        def new_run(fetches, feed_dict=None, **kwargs):
+            if feed_dict is not None:
+                feed_dict[railrl.core.neuralnet.dropout_ph] = (
+                    self.get_dropout_prob()
+                )
+            return run(fetches, feed_dict=feed_dict, **kwargs)
+
+        return new_run
 
     def _start_worker(self):
         self.eval_sampler.start_worker()
@@ -156,26 +188,24 @@ class OnlineAlgorithm(RLAlgorithm):
             if self.save_tf_graph:
                 tf.summary.FileWriter(logger.get_snapshot_dir(), self.sess.graph)
             self._start_worker()
-            self._switch_to_training_mode()
 
             observation = self.training_env.reset()
             self.exploration_strategy.reset()
             itr = 0
             path_length = 0
             path_return = 0
+            self._switch_to_eval_mode()
             for epoch in range(self.n_epochs):
                 logger.push_prefix('Epoch #%d | ' % epoch)
-                logger.log("Training started")
                 start_time = time.time()
                 for n_steps_current_epoch in range(self.epoch_length):
-                    with self._eval_then_training_mode():
-                        action, agent_info = (
-                            self.exploration_strategy.get_action(
-                                itr,
-                                observation,
-                                self.policy,
-                            )
+                    action, agent_info = (
+                        self.exploration_strategy.get_action(
+                            itr,
+                            observation,
+                            self.policy,
                         )
+                    )
                     if self.render:
                         self.training_env.render()
 
@@ -203,6 +233,7 @@ class OnlineAlgorithm(RLAlgorithm):
                     if terminal or path_length >= self.max_path_length:
                         self.pool.terminate_episode(
                             next_ob,
+                            terminal,
                             agent_info=agent_info,
                             env_info=env_info,
                         )
@@ -211,42 +242,40 @@ class OnlineAlgorithm(RLAlgorithm):
                         self.es_path_returns.append(path_return)
                         path_length = 0
                         path_return = 0
+                        self.handle_rollout_ending(n_steps_total)
                     else:
                         observation = next_ob
 
-                    if self._can_train():
-                        for _ in range(self.n_updates_per_time_step):
-                            self._do_training(
-                                epoch=epoch,
-                                n_steps_total=n_steps_total,
-                                n_steps_current_epoch=n_steps_current_epoch,
-                            )
+                    if self._can_train(n_steps_total):
+                        with self._training_then_eval_mode():
+                            for _ in range(self.n_updates_per_time_step):
+                                self._do_training(
+                                    n_steps_total=n_steps_total,
+                                )
 
                     itr += 1
-
-                logger.log("Training finished. Time: {0}".format(time.time() -
-                                                                 start_time))
-                if self._can_eval():
-                    with self._eval_then_training_mode():
-                        start_time = time.time()
-                        self.evaluate(epoch, self.es_path_returns)
-                        self.es_path_returns = []
-                        logger.log(
-                            "Eval time: {0}".format(time.time() - start_time))
+                logger.log(
+                    "Training Time: {0}".format(time.time() - start_time)
+                )
+                start_time = time.time()
+                self.evaluate(epoch, self.es_path_returns)
+                self.es_path_returns = []
                 params = self.get_epoch_snapshot(epoch)
                 logger.save_itr_params(epoch, params)
                 logger.dump_tabular(with_prefix=False, with_timestamp=False)
+                logger.log("Eval Time: {0}".format(time.time() - start_time))
                 logger.pop_prefix()
 
             self._switch_to_eval_mode()
             self.training_env.terminate()
             self._shutdown_worker()
 
-    def _can_train(self):
-        return self.pool.num_can_sample() >= self.min_pool_size
+    def _can_train(self, n_steps_total):
+        return (self.pool.num_steps_can_sample() >= self.min_pool_size
+                and n_steps_total % self.num_steps_between_train == 0)
 
     def _can_eval(self):
-        return (self.pool.num_can_sample() >= self.min_pool_size and
+        return (self.pool.num_steps_can_sample() >= self.min_pool_size and
                 self.n_eval_samples > 0)
 
     def _switch_to_training_mode(self):
@@ -255,6 +284,7 @@ class OnlineAlgorithm(RLAlgorithm):
         mode.
         :return:
         """
+        self.__is_training = True
         for network in self._networks:
             network.switch_to_training_mode()
 
@@ -263,35 +293,37 @@ class OnlineAlgorithm(RLAlgorithm):
         Make any updates needed so that the internal networks are in eval mode.
         :return:
         """
+        self.__is_training = False
         for network in self._networks:
             network.switch_to_eval_mode()
 
+    def get_dropout_prob(self):
+        if self.__is_training:
+            return self.dropout_keep_prob
+        return 1.
+
     @contextmanager
-    def _eval_then_training_mode(self):
+    def _training_then_eval_mode(self):
         """
-        Helper method to quickly switch to eval mode and then to training mode
+        Helper method to quickly switch to training mode and then to eval mode.
 
         ```
         # doesn't matter what mode you were in
-        with self.eval_then_training_mode():
-            # in eval mode
-        # in training mode
+        with self._training_then_eval_mode():
+            # in training mode
+        # in eval mode
         :return:
         """
-        self._switch_to_eval_mode()
-        yield
         self._switch_to_training_mode()
+        yield
+        self._switch_to_eval_mode()
 
     def _do_training(
             self,
-            epoch=None,
             n_steps_total=None,
-            n_steps_current_epoch=None,
     ):
         ops = self._get_training_ops(
-            epoch=epoch,
             n_steps_total=n_steps_total,
-            n_steps_current_epoch=n_steps_current_epoch,
         )
         if ops is None:
             return
@@ -389,7 +421,8 @@ class OnlineAlgorithm(RLAlgorithm):
         """
         :return: List of networks used in the algorithm.
 
-        It's crucial that this list is up to date!
+        It's crucial that this list is up to date for training and eval mode
+        to switch correctly.
         """
         pass
 
@@ -404,9 +437,7 @@ class OnlineAlgorithm(RLAlgorithm):
     @abc.abstractmethod
     def _get_training_ops(
             self,
-            epoch=None,
             n_steps_total=None,
-            n_steps_current_epoch=None,
     ):
         """
         :return: List of ops to perform when training. If a list of list is
@@ -449,3 +480,13 @@ class OnlineAlgorithm(RLAlgorithm):
         :return:
         """
         return raw_action
+
+    @abc.abstractmethod
+    def handle_rollout_ending(self, n_steps_total):
+        """
+        This method is called whenever a rollout ends.
+
+        :param n_steps_total: The total number of environment steps taken so
+        far.
+        """
+        pass

@@ -3,10 +3,12 @@ import unittest
 import numpy as np
 import tensorflow as tf
 
+import railrl
 from railrl.core.neuralnet import NeuralNetwork
 from railrl.core.tf_util import BatchNormConfig
 from railrl.predictors.mlp import Mlp
 from railrl.predictors.perceptron import Perceptron
+from railrl.testing.testing_utils import is_binomial_trial_likely
 from railrl.testing.tf_test_case import TFTestCase
 from rllab.misc.overrides import overrides
 
@@ -312,6 +314,60 @@ class TestNeuralNetwork(TFTestCase):
         self.assertAlmostEqual(scale_value,
                                1 - input_value * learning_rate,
                                delta=1e-4)
+
+    def test_dropout(self):
+        in_size = 4
+        out_size = 1
+        W_name = "w"
+        W_initializer = tf.constant_initializer(value=np.eye(1))
+        b_name = "b"
+        b_initializer = tf.constant_initializer(value=np.array([0]))
+        input_layer = tf.placeholder(tf.float32, shape=(None, in_size))
+        railrl.core.neuralnet.dropout_ph = tf.placeholder(tf.float32, name="dropout_keep_prob")
+
+        perceptron = Perceptron(
+            "perceptron",
+            input_layer,
+            in_size,
+            out_size,
+            W_name=W_name,
+            W_initializer=W_initializer,
+            b_name=b_name,
+            b_initializer=b_initializer,
+            use_dropout=True,
+        )
+        self.sess.run(tf.global_variables_initializer())
+
+        input_values = np.ones((100, 4))
+
+        perceptron.switch_to_training_mode()
+        training_output = self.sess.run(
+            perceptron.output,
+            {
+                input_layer: input_values,
+                railrl.core.neuralnet.dropout_ph: 0.5,
+            }
+        )
+        perceptron.switch_to_eval_mode()
+        eval_output = self.sess.run(
+            perceptron.output,
+            {
+                input_layer: input_values,
+                railrl.core.neuralnet.dropout_ph: 1.,
+            }
+        )
+        """
+        Probability(sum is 8) = 1/16
+
+        8 and not 4 because dropout scales everything by 1/keep_prob
+        """
+        num_training_8s = np.sum(training_output == 8)
+        self.assertNpEqual(eval_output, 4*np.ones((100, 1)))
+        self.assertTrue(is_binomial_trial_likely(
+            n=100,
+            p=1./16,
+            num_success=num_training_8s,
+        ))
 
     def test_output_mode_switches(self):
         in_size = 1
