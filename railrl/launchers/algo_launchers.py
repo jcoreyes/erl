@@ -435,6 +435,7 @@ def bptt_ddpg_launcher(variant):
     """
     seed = variant['seed']
     load_policy_file = variant.get('load_policy_file', None)
+    print('wkejhrflkajsdf')
     memory_dim = variant['memory_dim']
     oracle_mode = variant['oracle_mode']
     env_class = variant['env_class']
@@ -478,6 +479,7 @@ def bptt_ddpg_launcher(variant):
             data = joblib.load(load_policy_file)
             policy = data['policy']
             qf = data['qf']
+            
     env_strategy = env_es_class(
         env_spec=raw_env.spec,
         **env_es_params
