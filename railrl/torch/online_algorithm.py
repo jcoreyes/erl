@@ -47,7 +47,6 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             discount=0.99,
             pool_size=1000000,
             scale_reward=1,
-            use_gpu=False,
             render=False,
             save_exploration_path_period=1,
     ):
@@ -63,6 +62,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         self.scale_reward = scale_reward
         self.render = render
         self.save_exploration_path_period = save_exploration_path_period
+
         self.env = pickle.loads(pickle.dumps(self.training_env))
         self.action_dim = int(env.action_space.flat_dim)
         self.obs_dim = int(env.observation_space.flat_dim)
