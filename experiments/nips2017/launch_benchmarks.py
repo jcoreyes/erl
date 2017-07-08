@@ -32,9 +32,9 @@ if __name__ == '__main__':
     # exp_prefix = "fig1-6-15-ddpg-trpo-hl-h25-correct"
 
     # env_class = HighLow
-    env_class = WaterMazeMemory
+    # env_class = WaterMazeMemory
     # env_class = WaterMaze
-    # env_class = WaterMazeEasy
+    env_class = WaterMazeEasy
     # env_class = WaterMazeEasy1D
     # env_class = WaterMazeMemory1D
     # env_class = WaterMaze1D
@@ -49,7 +49,7 @@ if __name__ == '__main__':
     num_steps_per_eval = 1000
     num_iterations = 100
     batch_size = 200
-    memory_dim = 30
+    memory_dim = 100
     # noinspection PyTypeChecker
     variant = dict(
         H=H,
@@ -70,9 +70,9 @@ if __name__ == '__main__':
         # trpo_launcher,
         # mem_trpo_launcher,
         # rtrpo_launcher,
-        ddpg_launcher,
+        # ddpg_launcher,
         # mem_ddpg_launcher,
-        # rdpg_launcher,
+        rdpg_launcher,
     ]:
         search_space = {
             # 'env_class': [WaterMaze1D, WaterMazeEasy1D, WaterMazeMemory1D],

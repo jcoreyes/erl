@@ -353,14 +353,17 @@ class RecurrentPolicy(PyTorchModule):
         self.fc1_size = fc1_size
         self.fc2_size = fc2_size
         self.hidden_init = hidden_init
-        self.lstm = LSTM(BNLSTMCell, self.obs_dim, self.hidden_size, 1,
-                         batch_first=True)
+        self.rnn = nn.LSTM(
+            self.obs_dim,
+            self.hidden_size,
+            1,
+            batch_first=True,
+        )
         self.fc1 = nn.Linear(self.hidden_size, self.fc1_size)
         self.fc2 = nn.Linear(self.fc1_size, self.fc2_size)
         self.last_fc = nn.Linear(self.fc2_size, self.action_dim)
 
-        self.hx = None
-        self.cx = None
+        self.state = None
         self.init_weights(init_w)
         self.reset()
 
@@ -373,23 +376,17 @@ class RecurrentPolicy(PyTorchModule):
         self.last_fc.weight.data.uniform_(-init_w, init_w)
         self.last_fc.bias.data.uniform_(-init_w, init_w)
 
-    def forward(self, obs, cx=None, hx=None):
+    def forward(self, obs, state=None):
         """
         :param obs: torch Variable, [batch_size, sequence length, obs dim]
+        :param state: initial state of the RNN, [?, batch_size, hidden_size]
         :return: torch Variable, [batch_size, sequence length, action dim]
         """
         assert len(obs.size()) == 3
         batch_size, subsequence_length = obs.size()[:2]
-        if hx is None:
-            cx = Variable(
-                ptu.FloatTensor(1, batch_size, self.hidden_size)
-            )
-            cx.data.fill_(0)
-            hx = Variable(
-                ptu.FloatTensor(1, batch_size, self.hidden_size)
-            )
-            hx.data.fill_(0)
-        rnn_outputs, state = self.lstm(obs, (hx, cx))
+        if state is None:
+            state = self.get_new_state(batch_size)
+        rnn_outputs, new_state = self.rnn(obs, state)
         rnn_outputs.contiguous()
         rnn_outputs_flat = rnn_outputs.view(
             batch_size * subsequence_length,
@@ -401,26 +398,30 @@ class RecurrentPolicy(PyTorchModule):
 
         return outputs_flat.view(
             batch_size, subsequence_length, self.action_dim
-        ), state
+        ), new_state
 
     def get_action(self, obs):
         obs = np.expand_dims(obs, axis=0)
         obs = np.expand_dims(obs, axis=1)
         obs = Variable(ptu.from_numpy(obs).float(), requires_grad=False)
         action, state = self.__call__(
-            obs, cx=self.cx, hx=self.hx
+            obs, state=self.state,
         )
-        self.hx, self.cx = state
+        self.state = state
         action = action.squeeze(0)
         action = action.squeeze(0)
         return ptu.get_numpy(action), {}
 
+    def get_new_state(self, batch_size):
+        cx = Variable(
+            ptu.FloatTensor(1, batch_size, self.hidden_size)
+        )
+        cx.data.fill_(0)
+        hx = Variable(
+            ptu.FloatTensor(1, batch_size, self.hidden_size)
+        )
+        hx.data.fill_(0)
+        return hx, cx
+
     def reset(self):
-        self.hx = Variable(
-            ptu.FloatTensor(1, 1, self.hidden_size)
-        )
-        self.cx = Variable(
-            ptu.FloatTensor(1, 1, self.hidden_size)
-        )
-        self.hx.data.fill_(0)
-        self.cx.data.fill_(0)
+        self.state = self.get_new_state(1)
