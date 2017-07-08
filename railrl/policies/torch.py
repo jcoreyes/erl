@@ -62,8 +62,7 @@ class RWACell(PyTorchModule):
         init.kaiming_normal(self.fc_a.weight)
 
     def forward(self, inputs, state):
-        # n, d, h, a_max = state
-        h, n, d = state
+        h, n, d, a_max = state
 
         u = self.fc_u(inputs)
         g = self.fc_g(torch.cat((inputs, h), dim=1))
@@ -71,25 +70,18 @@ class RWACell(PyTorchModule):
         a = self.fc_a(torch.cat((inputs, h), dim=1))
 
         # Numerically stable update of numerator and denom
-        # a_newmax = ptu.maximum_2d(a_max, a)
-        # exp_diff = torch.exp(a_max-a_newmax)
-        # weight_scaled = torch.exp(a-a_newmax)
-        # n_new = n * exp_diff + z * weight_scaled
-        # d_new = d * exp_diff + weight_scaled
-        # h_new = F.tanh(n_new / d_new)
-
-        # next_state = (n_new, d_new, h_new, a_max)
-
-        weight = torch.exp(a)
-        n_new = n + z * weight
-        d_new = d + weight
+        a_newmax = ptu.maximum_2d(a_max, a)
+        exp_diff = torch.exp(a_max-a_newmax)
+        weight_scaled = torch.exp(a-a_newmax)
+        n_new = n * exp_diff + z * weight_scaled
+        d_new = d * exp_diff + weight_scaled
         h_new = F.tanh(n_new / d_new)
 
-        return h_new, n_new, d_new
+        return h_new, n_new, d_new, a_max
 
     @staticmethod
     def state_num_split():
-        return 3
+        return 4
 
 
 class MemoryPolicy(PyTorchModule):
@@ -116,9 +108,10 @@ class MemoryPolicy(PyTorchModule):
         self.hidden_init = hidden_init
         self.feed_action_to_memory = feed_action_to_memory
 
-        self.fc1 = nn.Linear(obs_dim + memory_dim, fc1_size)
-        self.fc2 = nn.Linear(fc1_size, fc2_size)
-        self.last_fc = nn.Linear(fc2_size, action_dim)
+        # self.fc1 = nn.Linear(obs_dim + memory_dim, fc1_size)
+        # self.fc2 = nn.Linear(fc1_size, fc2_size)
+        # self.last_fc = nn.Linear(fc2_size, action_dim)
+        self.last_fc = nn.Linear(obs_dim + memory_dim, action_dim)
         self.num_splits_for_rnn_internally = cell_class.state_num_split()
         assert memory_dim % self.num_splits_for_rnn_internally == 0
         if self.feed_action_to_memory:
@@ -132,17 +125,18 @@ class MemoryPolicy(PyTorchModule):
         self.init_weights(init_w)
 
     def init_weights(self, init_w):
-        self.hidden_init(self.fc1.weight)
-        self.fc1.bias.data.fill_(0)
-        self.hidden_init(self.fc2.weight)
-        self.fc2.bias.data.fill_(0)
+        # self.hidden_init(self.fc1.weight)
+        # self.fc1.bias.data.fill_(0)
+        # self.hidden_init(self.fc2.weight)
+        # self.fc2.bias.data.fill_(0)
         self.last_fc.weight.data.uniform_(-init_w, init_w)
         self.last_fc.bias.data.uniform_(-init_w, init_w)
 
     def action_parameters(self):
-        for fc in [self.fc1, self.fc2, self.last_fc]:
-            for param in fc.parameters():
-                yield param
+        return self.last_fc.parameters()
+        # for fc in [self.fc1, self.fc2, self.last_fc]:
+        #     for param in fc.parameters():
+        #         yield param
 
     def write_parameters(self):
         return self.rnn_cell.parameters()
@@ -175,9 +169,10 @@ class MemoryPolicy(PyTorchModule):
                 for i in range(subsequence_length):
                     current_obs = obs[:, i, :]
                     augmented_state = torch.cat((current_obs,) + state, dim=1)
-                    h1 = F.tanh(self.fc1(augmented_state))
-                    h2 = F.tanh(self.fc2(h1))
-                    action = F.tanh(self.last_fc(h2))
+                    # h1 = F.tanh(self.fc1(augmented_state))
+                    # h2 = F.tanh(self.fc2(h1))
+                    # action = F.tanh(self.last_fc(h2))
+                    action = F.tanh(self.last_fc(augmented_state))
                     rnn_input = torch.cat([current_obs, action], dim=1)
                     state = self.rnn_cell(rnn_input, state)
                     subtraj_writes[:, i, :] = torch.cat(state, dim=1)
@@ -187,9 +182,10 @@ class MemoryPolicy(PyTorchModule):
                 for i in range(subsequence_length):
                     current_obs = obs[:, i, :]
                     augmented_state = torch.cat([current_obs, state], dim=1)
-                    h1 = F.tanh(self.fc1(augmented_state))
-                    h2 = F.tanh(self.fc2(h1))
-                    action = F.tanh(self.last_fc(h2))
+                    # h1 = F.tanh(self.fc1(augmented_state))
+                    # h2 = F.tanh(self.fc2(h1))
+                    # action = F.tanh(self.last_fc(h2))
+                    action = F.tanh(self.last_fc(augmented_state))
                     rnn_input = torch.cat([current_obs, action], dim=1)
                     state = self.rnn_cell(rnn_input, state)
                     subtraj_writes[:, i, :] = state
@@ -216,9 +212,6 @@ class MemoryPolicy(PyTorchModule):
 
         # The reason that using a LSTM doesn't work is that this gives you only
         # the FINAL hx and cx, not all of them :(
-        # _, (new_hxs, new_cxs) = self.lstm(obs, (hx, cx))
-        # subtraj_writes = torch.cat((new_hxs, new_cxs), dim=2)
-        # subtraj_writes = subtraj_writes.permute(1, 0, 2)
 
         """
         Create the new subtrajectory memories with the initial memories and the
@@ -240,12 +233,11 @@ class MemoryPolicy(PyTorchModule):
         Use new memories to create env actions.
         """
         all_subtraj_inputs = torch.cat([obs, memories], dim=2)
-        # noinspection PyArgumentList
         for i in range(subsequence_length):
             all_inputs = all_subtraj_inputs[:, i, :]
-            h1 = F.tanh(self.fc1(all_inputs))
-            h2 = F.tanh(self.fc2(h1))
-            action = F.tanh(self.last_fc(h2))
+            # h1 = F.tanh(self.fc1(all_inputs))
+            # h2 = F.tanh(self.fc2(h1))
+            action = F.tanh(self.last_fc(all_inputs))
             subtraj_actions[:, i, :] = action
 
         return subtraj_actions, subtraj_writes
@@ -353,14 +345,17 @@ class RecurrentPolicy(PyTorchModule):
         self.fc1_size = fc1_size
         self.fc2_size = fc2_size
         self.hidden_init = hidden_init
-        self.lstm = LSTM(BNLSTMCell, self.obs_dim, self.hidden_size, 1,
-                         batch_first=True)
+        self.rnn = nn.LSTM(
+            self.obs_dim,
+            self.hidden_size,
+            1,
+            batch_first=True,
+        )
         self.fc1 = nn.Linear(self.hidden_size, self.fc1_size)
         self.fc2 = nn.Linear(self.fc1_size, self.fc2_size)
         self.last_fc = nn.Linear(self.fc2_size, self.action_dim)
 
-        self.hx = None
-        self.cx = None
+        self.state = None
         self.init_weights(init_w)
         self.reset()
 
@@ -373,51 +368,52 @@ class RecurrentPolicy(PyTorchModule):
         self.last_fc.weight.data.uniform_(-init_w, init_w)
         self.last_fc.bias.data.uniform_(-init_w, init_w)
 
-    def forward(self, obs, cx=None, hx=None):
+    def forward(self, obs, state=None):
         """
         :param obs: torch Variable, [batch_size, sequence length, obs dim]
+        :param state: initial state of the RNN, [?, batch_size, hidden_size]
         :return: torch Variable, [batch_size, sequence length, action dim]
         """
         assert len(obs.size()) == 3
         batch_size, subsequence_length = obs.size()[:2]
-        if hx is None:
-            cx = Variable(
-                ptu.FloatTensor(1, batch_size, self.hidden_size)
-            )
-            cx.data.fill_(0)
-            hx = Variable(
-                ptu.FloatTensor(1, batch_size, self.hidden_size)
-            )
-            hx.data.fill_(0)
-        rnn_outputs, state = self.lstm(obs, (hx, cx))
+        if state is None:
+            state = self.get_new_state(batch_size)
+        rnn_outputs, new_state = self.rnn(obs, state)
         rnn_outputs.contiguous()
-        rnn_outputs_flat = rnn_outputs.view(-1, self.hidden_size)
-        h = F.tanh(self.fc1(rnn_outputs_flat))
-        h = F.tanh(self.fc2(h))
+        rnn_outputs_flat = rnn_outputs.view(
+            batch_size * subsequence_length,
+            self.hidden_size,
+        )
+        h = F.relu(self.fc1(rnn_outputs_flat))
+        h = F.relu(self.fc2(h))
         outputs_flat = F.tanh(self.last_fc(h))
 
-        out = outputs_flat.view(
+        return outputs_flat.view(
             batch_size, subsequence_length, self.action_dim
-        ), state
-        return out
+        ), new_state
 
     def get_action(self, obs):
         obs = np.expand_dims(obs, axis=0)
         obs = np.expand_dims(obs, axis=1)
         obs = Variable(ptu.from_numpy(obs).float(), requires_grad=False)
-        action, (self.hx, self.cx) = self.__call__(
-            obs, cx=self.cx, hx=self.hx
+        action, state = self.__call__(
+            obs, state=self.state,
         )
+        self.state = state
         action = action.squeeze(0)
         action = action.squeeze(0)
         return ptu.get_numpy(action), {}
 
+    def get_new_state(self, batch_size):
+        cx = Variable(
+            ptu.FloatTensor(1, batch_size, self.hidden_size)
+        )
+        cx.data.fill_(0)
+        hx = Variable(
+            ptu.FloatTensor(1, batch_size, self.hidden_size)
+        )
+        hx.data.fill_(0)
+        return hx, cx
+
     def reset(self):
-        self.hx = Variable(
-            ptu.FloatTensor(1, 1, self.hidden_size)
-        )
-        self.cx = Variable(
-            ptu.FloatTensor(1, 1, self.hidden_size)
-        )
-        self.hx.data.fill_(0)
-        self.cx.data.fill_(0)
+        self.state = self.get_new_state(1)

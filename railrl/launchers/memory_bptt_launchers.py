@@ -387,7 +387,7 @@ def _rdpg_launcher(variant):
     qf = RecurrentQFunction(
         int(env.observation_space.flat_dim),
         int(env.action_space.flat_dim),
-        hidden_size=30,
+        hidden_size=100,
         fc1_size=100,
         fc2_size=100,
     )

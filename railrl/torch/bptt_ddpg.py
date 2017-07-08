@@ -39,6 +39,7 @@ class BpttDdpg(OnlineAlgorithm):
             tau=0.01,
             use_soft_update=True,
             target_hard_update_period=1000,
+            use_action_policy_params_for_entire_policy=False,
             action_policy_optimize_bellman=True,
             write_policy_optimizes='both',
             action_policy_learning_rate=1e-3,
@@ -52,6 +53,32 @@ class BpttDdpg(OnlineAlgorithm):
             write_policy_weight_decay=0,
             **kwargs
     ):
+        """
+        :param args: arguments to be passed onto super class constructor
+        :param qf: Q function to train
+        :param policy: Policy trained to optimized the Q function
+        :param subtraj_length: Length of the subtrajectories loaded
+        :param tau: Soft target tau
+        :param use_soft_update: If False, use hard target updates.
+        :param target_hard_update_period: Number of environment steps between
+        hard updates.
+        :param use_action_policy_params_for_entire_policy: If True, train the
+        entire policy together, rather than training the action and write parts
+        separately.
+        :param action_policy_optimize_bellman:
+        :param write_policy_optimizes:
+        :param action_policy_learning_rate:
+        :param write_policy_learning_rate:
+        :param qf_learning_rate:
+        :param bellman_error_loss_weight:
+        :param refresh_entire_buffer_period:
+        :param save_new_memories_back_to_replay_buffer:
+        :param only_use_last_dqdm: If True, cut the gradients for all dQ/dmemory
+        other than the last time step.
+        :param action_policy_weight_decay:
+        :param write_policy_weight_decay:
+        :param kwargs: kwargs to pass onto super class constructor
+        """
         super().__init__(*args, **kwargs)
         assert write_policy_optimizes in ['qf', 'bellman', 'both']
         self.qf = qf
@@ -60,6 +87,9 @@ class BpttDdpg(OnlineAlgorithm):
         self.tau = tau
         self.use_soft_update = use_soft_update
         self.target_hard_update_period = target_hard_update_period
+        self.use_action_policy_params_for_entire_policy = (
+            use_action_policy_params_for_entire_policy
+        )
         self.action_policy_optimize_bellman = action_policy_optimize_bellman
         self.write_policy_optimizes = write_policy_optimizes
         self.action_policy_learning_rate = action_policy_learning_rate
@@ -129,6 +159,11 @@ class BpttDdpg(OnlineAlgorithm):
             self.policy.write_parameters(),
             lr=self.write_policy_learning_rate,
             weight_decay=self.write_policy_weight_decay,
+        )
+        self.policy_optimizer = optim.Adam(
+            self.policy.parameters(),
+            lr=self.action_policy_learning_rate,
+            weight_decay=self.action_policy_weight_decay,
         )
 
         if gpu_enabled():
@@ -209,32 +244,42 @@ class BpttDdpg(OnlineAlgorithm):
         policy_dict = self.get_policy_output_dict(subtraj_batch)
 
         policy_loss = policy_dict['Loss']
-
-        self.action_policy_optimizer.zero_grad()
-        self.write_policy_optimizer.zero_grad()
-        policy_loss.backward(retain_variables=True)
-
-        if self.write_policy_optimizes == 'qf':
-            self.write_policy_optimizer.step()
+        if self.use_action_policy_params_for_entire_policy:
+            self.policy_optimizer.zero_grad()
+            policy_loss.backward(
+                retain_variables=self.action_policy_optimize_bellman
+            )
             if self.action_policy_optimize_bellman:
                 bellman_errors = policy_dict['Bellman Errors']
                 bellman_loss = self.bellman_error_loss_weight * bellman_errors.mean()
                 bellman_loss.backward()
-            self.action_policy_optimizer.step()
+            self.policy_optimizer.step()
         else:
-            if self.write_policy_optimizes == 'bellman':
-                self.write_policy_optimizer.zero_grad()
-            if self.action_policy_optimize_bellman:
-                bellman_errors = policy_dict['Bellman Errors']
-                bellman_loss = self.bellman_error_loss_weight * bellman_errors.mean()
-                bellman_loss.backward()
+            self.action_policy_optimizer.zero_grad()
+            self.write_policy_optimizer.zero_grad()
+            policy_loss.backward(retain_variables=True)
+
+            if self.write_policy_optimizes == 'qf':
+                self.write_policy_optimizer.step()
+                if self.action_policy_optimize_bellman:
+                    bellman_errors = policy_dict['Bellman Errors']
+                    bellman_loss = self.bellman_error_loss_weight * bellman_errors.mean()
+                    bellman_loss.backward()
                 self.action_policy_optimizer.step()
             else:
-                self.action_policy_optimizer.step()
-                bellman_errors = policy_dict['Bellman Errors']
-                bellman_loss = self.bellman_error_loss_weight * bellman_errors.mean()
-                bellman_loss.backward()
-            self.write_policy_optimizer.step()
+                if self.write_policy_optimizes == 'bellman':
+                    self.write_policy_optimizer.zero_grad()
+                if self.action_policy_optimize_bellman:
+                    bellman_errors = policy_dict['Bellman Errors']
+                    bellman_loss = self.bellman_error_loss_weight * bellman_errors.mean()
+                    bellman_loss.backward()
+                    self.action_policy_optimizer.step()
+                else:
+                    self.action_policy_optimizer.step()
+                    bellman_errors = policy_dict['Bellman Errors']
+                    bellman_loss = self.bellman_error_loss_weight * bellman_errors.mean()
+                    bellman_loss.backward()
+                self.write_policy_optimizer.step()
 
         if self.save_new_memories_back_to_replay_buffer:
             self.pool.train_replay_buffer.update_write_subtrajectories(

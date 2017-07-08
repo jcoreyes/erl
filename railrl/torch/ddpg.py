@@ -169,7 +169,7 @@ class DDPG(OnlineAlgorithm):
             pool.num_steps_can_sample(),
             self.batch_size
         )
-        batch = pool.random_batch(sample_size, flatten=True)
+        batch = pool.random_batch(sample_size)
         torch_batch = {
             k: Variable(ptu.from_numpy(array).float(), requires_grad=False)
             for k, array in batch.items()
@@ -181,9 +181,8 @@ class DDPG(OnlineAlgorithm):
         return torch_batch
 
     def _statistics_from_paths(self, paths, stat_prefix):
-        statistics = OrderedDict()
         batch = paths_to_pytorch_batch(paths)
-        statistics.update(self._statistics_from_batch(batch, stat_prefix))
+        statistics = self._statistics_from_batch(batch, stat_prefix)
         statistics.update(create_stats_ordered_dict(
             'Num Paths', len(paths), stat_prefix=stat_prefix
         ))
@@ -223,6 +222,7 @@ class DDPG(OnlineAlgorithm):
             epoch=epoch,
             policy=self.policy,
             env=self.training_env,
+            es=self.exploration_strategy,
             qf=self.qf,
         )
 
