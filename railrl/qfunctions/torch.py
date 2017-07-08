@@ -230,9 +230,8 @@ class RecurrentMemoryQFunction(PyTorchModule):
         :param write: torch Variable, [batch_size, sequence length, memory dim]
         :return: torch Variable, [batch_size, sequence length, 1]
         """
-        assert len(obs.size()) == 3
         rnn_inputs = torch.cat((obs, memory, action, write), dim=2)
-        batch_size, subsequence_length = obs.size()[:2]
+        batch_size, subsequence_length, _ = obs.size()
         cx = Variable(
             ptu.FloatTensor(1, batch_size, self.hidden_size)
         )
