@@ -27,7 +27,6 @@ from railrl.policies.memory.lstm_memory_policy import (
     ResidualLstmLinearCell,
     GRULinearCell,
     SeparateLstmLinearCell,
-    FfResCell,
     SeparateRWALinearCell,
 )
 
@@ -41,23 +40,13 @@ def main():
     # mode = "ec2"
     # exp_prefix = "6-2-sl-rwa-vs-lstm"
 
-    num_seeds = 5
-    num_values = 2
-    use_peepholes = True
-    rnn_cell_class = LstmLinearCell
-    rnn_cell_class = ResidualLstmLinearCell
-    softmax = False
-    version = 'supervised_learning'
-    exp_prefix = '5-11-sl-noise-architecture-sweep'
-    # exp_prefix = 'dev-sl'
-    env_noise_std = 0.
-    memory_noise_std = .1
-    mode = 'here'
-    for H, rnn_cell_class, env_noise_std, memory_noise_std in product(
-        [32],
-        [FfResCell],
-        [0],
-        [0],
+    env_noise_std = 0
+    memory_noise_std = 0
+    for rnn_cell_class, H in product(
+        [SeparateRWALinearCell],
+        [512],
+        # [RWACell, LSTMCell, GRUCell],
+        # [512, 256, 128, 64],
     ):
         # noinspection PyTypeChecker
         variant = dict(
@@ -72,16 +61,9 @@ def main():
                 lstm_state_size=10,
                 rnn_cell_class=rnn_cell_class,
                 rnn_cell_params=dict(
-                    use_peepholes=use_peepholes,
-                    env_noise_std=env_noise_std,
-                    memory_noise_std=memory_noise_std,
-                    # output_nonlinearity=tf.nn.softmax,
-                    env_output_nonlinearity=tf.nn.softmax,
-                    # env_hidden_sizes=[100],
-                    # env_hidden_activation=tf.identity,
-                    # write_output_nonlinearity=tf.identity,
-                    # write_hidden_sizes=[100],
-                    # write_hidden_activation=tf.identity,
+                    # use_peepholes=True,
+                    state_is_flat_externally=False,
+                    output_dim=1,
                 ),
                 # rnn_cell_class=SeparateLstmLinearCell,
                 # rnn_cell_params=dict(
