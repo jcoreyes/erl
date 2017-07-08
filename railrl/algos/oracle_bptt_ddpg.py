@@ -202,7 +202,7 @@ class OracleBpttDdpg(BpttDDPG):
         return feed_dict
 
     def _get_other_statistics(self):
-        statistics = OrderedDict()
+        statistics = super()._get_other_statistics()
         for name, validation in [
             ('Valid', True),
             ('Train', False),
@@ -241,15 +241,9 @@ class OracleBpttDdpg(BpttDDPG):
             qf_feed_dict = self._qf_feed_dict_from_batch(batch)
             (
                 true_qf_mse_loss,
-                qf_loss,
-                bellman_errors,
-                qf_output,
             ) = self.sess.run(
                 [
                     self.true_qf_mse_loss,
-                    self.qf_loss,
-                    self.bellman_errors,
-                    self.qf.output,
                 ]
                 ,
                 feed_dict=qf_feed_dict
@@ -260,56 +254,12 @@ class OracleBpttDdpg(BpttDDPG):
                 true_qf_mse_loss,
             ))
             statistics.update(create_stats_ordered_dict(
-                '{}_BellmanError'.format(stat_base_name),
-                bellman_errors,
-            ))
-            statistics.update(create_stats_ordered_dict(
-                '{}_Loss'.format(stat_base_name),
-                qf_loss,
-            ))
-            statistics.update(create_stats_ordered_dict(
                 '{}_Grad_Dist_env'.format(stat_base_name),
                 env_grad_distance,
             ))
             statistics.update(create_stats_ordered_dict(
                 '{}_Grad_Dist_memory'.format(stat_base_name),
                 memory_grad_distance
-            ))
-            # statistics.update(create_stats_ordered_dict(
-            #     '{}_Grad_MSE_env'.format(stat_base_name),
-            #     env_grad_mse,
-            # ))
-            # statistics.update(create_stats_ordered_dict(
-            #     '{}_Grad_MSE_memory'.format(stat_base_name),
-            #     memory_grad_mse
-            # ))
-            # statistics.update(create_stats_ordered_dict(
-            #     '{}_GradMSE_from_1_env'.format(stat_base_name),
-            #     env_qf_grad_mse_from_one
-            # ))
-            # statistics.update(create_stats_ordered_dict(
-            #     '{}_GradMSE_from_1_memory'.format(stat_base_name),
-            #     memory_qf_grad_mse_from_one
-            # ))
-            # statistics.update(create_stats_ordered_dict(
-            #     '{}_QF_Grads_env'.format(stat_base_name),
-            #     env_qf_grad
-            # ))
-            # statistics.update(create_stats_ordered_dict(
-            #     '{}_QF_Grads_memory'.format(stat_base_name),
-            #     memory_qf_grad
-            # ))
-            # statistics.update(create_stats_ordered_dict(
-            #     '{}_OracleQF_Grads_env'.format(stat_base_name),
-            #     oracle_env_qf_grad
-            # ))
-            # statistics.update(create_stats_ordered_dict(
-            #     '{}_OracleQF_Grads_memory'.format(stat_base_name),
-            #     oracle_memory_qf_grad
-            # ))
-            statistics.update(create_stats_ordered_dict(
-                '{}_QfOutput'.format(stat_base_name),
-                qf_output
             ))
             statistics.update(create_stats_ordered_dict(
                 '{}_OracleQfOutput'.format(stat_base_name),

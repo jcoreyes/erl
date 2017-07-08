@@ -1,3 +1,6 @@
+"""
+Utility functions that wrap the hyperopt library.
+"""
 import json
 import pickle
 import time
@@ -62,6 +65,8 @@ def optimize_and_save(
                 'best_variant': dict_to_safe_json(best_variant),
             }
             json.dump(results, f, indent=2, sort_keys=True)
+
+
 
 
 def dict_to_safe_json(d):

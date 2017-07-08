@@ -4,6 +4,7 @@ General purpose Python functions.
 import random
 import sys
 import collections
+import itertools
 
 
 # TODO(vpong): probably move this to its own module, not under railrl
@@ -159,7 +160,7 @@ def merge_recursive_dicts(a, b, path=None,
                 merge_recursive_dicts(a[key], b[key], path + [str(key)],
                                       ignore_duplicate_keys_in_second_dict=ignore_duplicate_keys_in_second_dict)
             elif a[key] == b[key]:
-                pass  # same leaf value
+                print("Same value for key: {}".format(key))
             else:
                 duplicate_key = '.'.join(path + [str(key)])
                 if ignore_duplicate_keys_in_second_dict:
@@ -179,3 +180,121 @@ def dict_of_list__to__list_of_dicts(dict, n_items):
         for i in range(n_items):
             new_dicts[i][key] = values[i]
     return new_dicts
+
+
+class ConditionTimer(object):
+    """
+    A timer that goes off after the a fixed time period.
+    The catch: you need to poll it and provide it the time!
+
+    Usage:
+    ```
+    timer = PollTimer(100)  # next check will be true at 100
+    timer.check(90)  # False
+    timer.check(110) # True. Next check will go off at 110 + 100 = 210
+    timer.check(205) # False
+    timer.check(210) # True
+    ```
+    """
+
+    def __init__(self, trigger_period):
+        """
+        :param trigger_period: If None or 0, `check` will always return False.
+        """
+        self.last_time_triggered = 0
+        if trigger_period is None:
+            trigger_period = 0
+        self.trigger_period = trigger_period
+
+    def check(self, time):
+        if self.always_false:
+            return False
+
+        if time - self.last_time_triggered >= self.trigger_period:
+            self.last_time_triggered = time
+            return True
+        else:
+            return False
+
+    @property
+    def always_false(self):
+        return self.trigger_period == 0
+
+
+def batch(iterable, n=1):
+    """
+    Split an interable into batches of size `n`. If `n` does not evenly divide
+    `iterable`, the last slice will be smaller.
+
+    https://stackoverflow.com/questions/8290397/how-to-split-an-iterable-in-constant-size-chunks
+
+    Usage:
+    ```
+        for i in batch(range(0,10), 3):
+            print i
+
+        [0,1,2]
+        [3,4,5]
+        [6,7,8]
+        [9]
+    ```
+    """
+    l = len(iterable)
+    for ndx in range(0, l, n):
+        yield iterable[ndx:min(ndx + n, l)]
+
+
+def is_numeric(x):
+    return not isinstance(x, bool) and (
+        isinstance(x, int) or isinstance(x, float)
+    )
+
+
+class IntIdDict(collections.defaultdict):
+    """
+    Automatically assign int IDs to hashable objects.
+
+    Usage:
+    ```
+    id_map = IntIdDict()
+    print(id_map['a'])
+    print(id_map['b'])
+    print(id_map['c'])
+    print(id_map['a'])
+    print(id_map['b'])
+    print(id_map['a'])
+
+    print('')
+
+    print(id_map.get_inverse(0))
+    print(id_map.get_inverse(1))
+    print(id_map.get_inverse(2))
+    ```
+
+    Output:
+    ```
+    1
+    2
+    3
+    1
+    2
+    1
+
+    'a'
+    'b'
+    'c'
+    ```
+    :return: 
+    """
+    def __init__(self, **kwargs):
+        c = itertools.count()
+        self.inverse_dict = {}
+        super().__init__(lambda: next(c), **kwargs)
+
+    def __getitem__(self, y):
+        int_id = super().__getitem__(y)
+        self.inverse_dict[int_id] = y
+        return int_id
+
+    def reverse_id(self, int_id):
+        return self.inverse_dict[int_id]

@@ -13,6 +13,7 @@ ALLOWABLE_TAGS = ['regularizable']
 _TRAINING_OUTPUT_MODE = "training_output_mode"
 _EVAL_OUTPUT_MODE = "eval_output_mode"
 
+dropout_ph = None
 
 class NeuralNetwork(Parameterized, Serializable):
     """
@@ -25,19 +26,17 @@ class NeuralNetwork(Parameterized, Serializable):
             batch_norm_config=None,
             reuse=False,
             layer_norm=False,
-            dropout_keep_prob=None,
+            use_dropout=None,
             **kwargs
     ):
         """
-
         :param name_or_scope: Name (string) for creating this network. This
         should only be name of this current network, and not the full scope
         name, i.e. `bar` not `foo/bar`.
         :param batch_norm_config: Config for batch_norm. If set, batch_norm
         is enabled.
         :param reuse: Reuse variables when creating this network.
-        :param dropout_keep_prob: IF not None, add dropout with this keep
-        probability.
+        :param use_dropout: Apply dropout or not to this network.
         :param kwargs:
         """
         super().__init__(**kwargs)
@@ -59,12 +58,12 @@ class NeuralNetwork(Parameterized, Serializable):
         self._full_scope_name = None
         self._subnetwork_list = []
         self._is_in_training_mode = False
-        self.use_dropout = dropout_keep_prob is not None
-        if self.use_dropout:
-            assert 0 < dropout_keep_prob <= 1
-        self.dropout_keep_prob = dropout_keep_prob
+        self.use_dropout = use_dropout
 
         self.param_values_when_last_loaded = None
+        # global dropout_ph
+        self.dropout_ph = dropout_ph
+
 
     @property
     def full_scope_name(self):
@@ -80,7 +79,6 @@ class NeuralNetwork(Parameterized, Serializable):
         """
         This method should be called by concrete instances to create the
         network.
-
         :return: None
         """
         inputs = self._input_name_to_values
@@ -122,7 +120,6 @@ class NeuralNetwork(Parameterized, Serializable):
                                     dtype):
         """
         Returns placeholders for batches if the input is None.
-
         See `tf_util.create_batch_placeholders` for detail.
         """
         if input_layer is None:
@@ -164,7 +161,6 @@ class NeuralNetwork(Parameterized, Serializable):
     def switch_to_training_mode(self):
         """
         Output will be the output for training.
-
         Note that only the output of this network will switch. If this
         network is composed of sub-networks, then those network's outputs
         will be independently set.
@@ -176,7 +172,6 @@ class NeuralNetwork(Parameterized, Serializable):
         """
         Output will be the output for eval. By default, a network is in eval
         mode.
-
         Note that only the output of this network will switch. If this
         network is composed of sub-networks, then those network's outputs
         will be independently set.
@@ -218,19 +213,14 @@ class NeuralNetwork(Parameterized, Serializable):
     def _process_layer(self, previous_layer, scope_name="process_layer"):
         """
         This should be done called between every layer, i.e.
-
         a = self.process_layer(linear(x))
         b = self.process_layer(linear(relu(a)))
         output = linear(relu(b))
-
         This method should NOT be called on the output.
-
         If batch norm is disabled, this just returns `previous_layer`
         immediately.
-
         If batch norm is enabled, this returns a layer with bn enabled,
         either for training or eval based on self._is_bn_in_training_mode
-
         :param previous_layer: Either the input layer or the output to a
         previous call to `_process_layer`
         :param scope_name: Scope name for any variables that may be created
@@ -251,11 +241,7 @@ class NeuralNetwork(Parameterized, Serializable):
                 )
 
         if self.use_dropout:
-            if self._is_in_training_mode:
-                previous_layer = tf.nn.dropout(previous_layer,
-                                               keep_prob=self.dropout_keep_prob)
-            else:
-                previous_layer = tf.nn.dropout(previous_layer, 1)
+            previous_layer = tf.nn.dropout(previous_layer, self.dropout_ph)
 
         return previous_layer
 
@@ -263,12 +249,10 @@ class NeuralNetwork(Parameterized, Serializable):
         """
         Any time a network has a sub-network, it needs to call this method
         to gets that subnetwork's output. e.g.
-
         ```
         def _create_internal_network(...):
             n1 = Network1()
             out_of_n1 = self._process_network_and_get_output(n1)
-
             # out_of_n1 is a Tensor that can be used
             # you probably want to call
             out_of_n1 = self._process_layer(out_of_n1)
@@ -323,13 +307,11 @@ class NeuralNetwork(Parameterized, Serializable):
         """
         Return a weight-tied copy of the network. Replace the action or
         observation to the network for the returned network.
-
         :param inputs: Dictionary, of the form
         {
             'input_x': self.input_x,
             'input_y': self.input_y,
         }
-
         :return: StateNetwork copy with weights tied to this StateNetwork.
         """
         assert len(inputs) > 0
@@ -362,13 +344,11 @@ class NeuralNetwork(Parameterized, Serializable):
     def _create_network_internal(self, **inputs):
         """
         This function constructs the network.
-
         If you plan on using batch norm:
             - Between each layer, call `layer = self._process_layer(layer)`.
             - Between each subnetwork, call
             `output = self._add_subnetwork_and_get_output(subnetwork)`.
             - See the documentation of those functions for more detail.
-
         :param inputs: Tensor inputs to the network by name.
         :return: Tensor, output of network
         """
@@ -379,13 +359,11 @@ class NeuralNetwork(Parameterized, Serializable):
     def _input_name_to_values(self):
         """
         Return a dictionary describing what inputs are and their current values.
-
         :return: Return a dictionary of the form
         {
             'input_x': self.input_x,
             'input_y': self.input_y,
         }
-
         This will be the input to get_weight_tied_copy for inputs not
         specified.
         """

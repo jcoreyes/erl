@@ -49,13 +49,13 @@ class SimpleReplayBuffer(ReplayBuffer):
             **kwargs
         )
 
-    def terminate_episode(self, terminal_observation, **kwargs):
+    def terminate_episode(self, terminal_observation, terminal, **kwargs):
         self._add_sample(
             terminal_observation,
             None,
             0,
             0,
-            True,
+            terminal,
             **kwargs
         )
 
@@ -91,5 +91,5 @@ class SimpleReplayBuffer(ReplayBuffer):
             next_observations=self._observations[next_indices],
         )
 
-    def num_can_sample(self):
+    def num_steps_can_sample(self):
         return len(self._valid_transition_indices)

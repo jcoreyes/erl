@@ -12,6 +12,32 @@
  seems that their call_cell lambda should pass in the scope, but maybe that's
   just me
 
+FIX:
+
+"setting array element with sequnce"
+This is because the batch elements are not the same length. This happens if the
+sequences are different lengths.
+
+https://stackoverflow.com/questions/34156639/tensorflow-python-valueerror-setting-an-array-element-with-a-sequence-in-t
+
+## NIPS 2017
+Still runnning: HighLow
+- 5-17-benchmark-our-method-full-bptt-H32-hl/
+- 5-17-benchmark-our-method-no-bptt-H32-hl/
+- 5-17-dev-benchmark-our-method-hl/
+
+Still runnning: WaterMaze
+- 5-17-benchmark-our-method-full-bptt-watermaze-easy-2/
+- 5-17-benchmark-our-method-full-bptt-watermaze-2/
+- 5-17-dev-our-method-water-maze-easy/
+
+Still running, benchmarks: WaterMaze
+- 5-17-benchmark-mtrpo-watermaze-batchsize10000
+- 5-17-policy-type-mddpg-watermaze-easy/
+    - keep for mddpg baseline
+
+
+
 ## ICML
  - Add a version of DDPG where the policy outputs a distribution over discrete actions
  - Save figures of bptt doing worse on horizon of 100

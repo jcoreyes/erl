@@ -13,13 +13,13 @@ class SimpleGaussianStrategy(RawExplorationStrategy, Serializable):
     does not decay over time.
     """
 
-    def __init__(self, env_spec, sigma=1.0):
-        assert isinstance(env_spec.action_space, Box)
-        assert len(env_spec.action_space.shape) == 1
+    def __init__(self, action_space, sigma=1.0):
+        assert isinstance(action_space, Box)
+        assert len(action_space.shape) == 1
         Serializable.quick_init(self, locals())
         super().__init__()
         self._sigma = sigma
-        self._action_space = env_spec.action_space
+        self._action_space = action_space
 
     def get_action(self, t, observation, policy, **kwargs):
         action, agent_info = policy.get_action(observation)

@@ -18,24 +18,28 @@ class OUStrategy(RawExplorationStrategy, Serializable):
 
     def __init__(
             self,
-            env_spec,
+            action_space,
             mu=0,
             theta=0.15,
             max_sigma=0.3,
             min_sigma=0.3,
             decay_period=100000,
-            **kwargs
+            # **kwargs
     ):
-        assert isinstance(env_spec.action_space, Box)
-        assert len(env_spec.action_space.shape) == 1
+        assert isinstance(action_space, Box)
+        assert len(action_space.shape) == 1
         Serializable.quick_init(self, locals())
+        if min_sigma is None:
+            min_sigma = max_sigma
         self.mu = mu
         self.theta = theta
         self.sigma = max_sigma
         self._max_sigma = max_sigma
+        if min_sigma is None:
+            min_sigma = max_sigma
         self._min_sigma = min_sigma
         self._decay_period = decay_period
-        self.action_space = env_spec.action_space
+        self.action_space = action_space
         self.state = np.ones(self.action_space.flat_dim) * self.mu
         self.reset()
 
