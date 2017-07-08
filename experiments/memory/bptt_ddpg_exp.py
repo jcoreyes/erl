@@ -40,8 +40,8 @@ def experiment(variant):
     seed = variant['seed']
     algo_params = variant['algo_params']
     memory_dim = variant['memory_dim']
-    if memory_dim % 2 == 1:
-        memory_dim += 1
+    rnn_cell = variant['policy_params']['cell_class']
+    memory_dim -= memory_dim % rnn_cell.state_num_split()
     env_class = variant['env_class']
     env_params = variant['env_params']
     memory_aug_params = variant['memory_aug_params']
@@ -82,11 +82,9 @@ def experiment(variant):
         int(raw_env.observation_space.flat_dim),
         int(raw_env.action_space.flat_dim),
         memory_dim=memory_dim,
-        fc1_size=400,
-        fc2_size=300,
         **policy_params
     )
-    algorithm = BpttDdpgRecurrentQ(
+    algorithm = BpttDdpg(
         env,
         es,
         qf=qf,
@@ -99,26 +97,26 @@ def experiment(variant):
 if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
-    exp_prefix = "7-7-dev-bptt-ddpg-exp"
+    exp_prefix = "7-8-dev-bptt-ddpg-exp"
     run_mode = 'none'
 
-    n_seeds = 5
+    n_seeds = 1
     mode = "ec2"
-    exp_prefix = "7-7-bptt-ddpg-water-maze-memory-1d-toggle-things"
+    exp_prefix = "7-8-bptt-ddpg-water-maze-memory-big-sweep"
 
-    run_mode = 'grid'
-    num_configurations = 100
+    run_mode = 'random'
+    num_configurations = 500
     use_gpu = True
     if mode != "here":
         use_gpu = False
 
     H = 25
     subtraj_length = 25
-    num_steps_per_iteration = 100
+    num_steps_per_iteration = 1000
     num_steps_per_eval = 1000
-    num_iterations = 100
+    num_iterations = 50
     batch_size = 200
-    memory_dim = 30
+    memory_dim = 100
     version = exp_prefix
     version = "Our Method"
     # version = "Our Method - loading but Q does not read mem state"
@@ -127,8 +125,8 @@ if __name__ == '__main__':
         memory_dim=memory_dim,
         # env_class=WaterMaze,
         # env_class=WaterMazeEasy,
-        env_class=WaterMazeMemory1D,
-        # env_class=WaterMazeMemory,
+        # env_class=WaterMazeMemory1D,
+        env_class=WaterMazeMemory,
         # env_class=HighLow,
         env_params=dict(
             horizon=H,
@@ -143,11 +141,12 @@ if __name__ == '__main__':
             num_epochs=num_iterations,
             num_steps_per_epoch=num_steps_per_iteration,
             num_steps_per_eval=num_steps_per_eval,
-            discount=0.8624075627114989,
+            discount=0.9,
+            use_action_policy_params_for_entire_policy=True,
             action_policy_optimize_bellman=False,
             write_policy_optimizes='bellman',
             action_policy_learning_rate=0.00411668130663536,
-            write_policy_learning_rate=0.0004672156121755223,
+            write_policy_learning_rate=0.0005,
             qf_learning_rate=0.002021863834563243,
             max_path_length=H,
             refresh_entire_buffer_period=None,
@@ -167,6 +166,8 @@ if __name__ == '__main__':
             fc2_size=300,
         ),
         policy_params=dict(
+            fc1_size=400,
+            fc2_size=300,
             cell_class=GRUCell,
         ),
         es_params=dict(
@@ -175,11 +176,11 @@ if __name__ == '__main__':
                 max_sigma=1,
                 min_sigma=None,
             ),
-            memory_es_class=NoopStrategy,
-            # memory_es_class=OUStrategy,
+            # memory_es_class=NoopStrategy,
+            memory_es_class=OUStrategy,
             memory_es_params=dict(
-                # max_sigma=0,
-                # min_sigma=None,
+                max_sigma=1,
+                min_sigma=None,
             ),
         ),
         version=version,
@@ -248,29 +249,34 @@ if __name__ == '__main__':
                 )
     if run_mode == 'random':
         hyperparameters = [
-            hyp.LogIntParam('memory_dim', 50, 300),
+            hyp.LogIntParam('memory_dim', 4, 400),
             hyp.LogFloatParam('algo_params.qf_learning_rate', 1e-5, 1e-2),
-            hyp.LogFloatParam(
-                'algo_params.write_policy_learning_rate', 1e-6, 1e-3
-            ),
+            # hyp.LogFloatParam(
+            #     'algo_params.write_policy_learning_rate', 1e-6, 1e-3
+            # ),
             hyp.LogFloatParam(
                 'algo_params.action_policy_learning_rate', 1e-6, 1e-3
             ),
-            # hyp.EnumParam(
-            #     'algo_params.action_policy_optimize_bellman', [True, False],
-            # ),
+            hyp.EnumParam(
+                'algo_params.action_policy_optimize_bellman', [True, False],
+            ),
+            hyp.EnumParam(
+                'algo_params.use_action_policy_params_for_entire_policy',
+                [True, False],
+            ),
             # hyp.EnumParam(
             #     'algo_params.write_policy_optimizes', ['both', 'qf', 'bellman']
             # ),
             # hyp.EnumParam(
-            #     'policy_params.cell_class', [GRUCell, BNLSTMCell],
+            #     'policy_params.cell_class', [GRUCell, BNLSTMCell, LSTMCell,
+            #                                  RWACell],
             # ),
-            hyp.LinearFloatParam(
-                'es_params.memory_es_params.max_sigma', 0, 1,
+            hyp.EnumParam(
+                'es_params.memory_es_params.max_sigma', [0, 0.1, 1],
             ),
-            hyp.LogFloatParam(
-                'algo_params.write_policy_weight_decay', 1e-5, 1e2,
-            ),
+            # hyp.LogFloatParam(
+            #     'algo_params.write_policy_weight_decay', 1e-5, 1e2,
+            # ),
             hyp.LogFloatParam(
                 'algo_params.action_policy_weight_decay', 1e-5, 1e2,
             ),
