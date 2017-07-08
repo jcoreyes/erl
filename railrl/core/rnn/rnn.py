@@ -32,6 +32,7 @@ class SaveOutputRnn(tf.contrib.rnn.RNNCell):
     An RNN that wraps another RNN. This RNN saves the last output in the
     state (in addition to the normal state).
     """
+
     def __init__(
             self,
             rnn_cell: tf.contrib.rnn.RNNCell,
@@ -65,6 +66,7 @@ class OutputStateRnn(tf.contrib.rnn.RNNCell):
     An RNN that wraps another RNN. This RNN outputs the state at every time
     step (in addition to the normal output).
     """
+
     def __init__(
             self,
             rnn_cell: tf.contrib.rnn.RNNCell,
@@ -85,7 +87,6 @@ class OutputStateRnn(tf.contrib.rnn.RNNCell):
     def state_size(self):
         return self._wrapped_rnn_cell.state_size
 
-
     @property
     def output_size(self):
         return (
@@ -100,6 +101,7 @@ class SaveEverythingRnn(tf.contrib.rnn.RNNCell):
     step (in addition to the normal output) and also saves the output to the
     state.
     """
+
     def __init__(
             self,
             rnn_cell: tf.contrib.rnn.RNNCell,
@@ -124,7 +126,6 @@ class SaveEverythingRnn(tf.contrib.rnn.RNNCell):
             self._wrapped_rnn_cell.state_size,
         )
 
-
     @property
     def output_size(self):
         return (
@@ -137,6 +138,7 @@ class LNLSTMCell(LSTMCell):
     """
     Same as LSTMCell but add LayerNorm.
     """
+
     def __call__(self, inputs, state, scope=None):
         """Run one step of LSTM.
     
@@ -169,12 +171,14 @@ class LNLSTMCell(LSTMCell):
             (c_prev, m_prev) = state
         else:
             c_prev = array_ops.slice(state, [0, 0], [-1, self._num_units])
-            m_prev = array_ops.slice(state, [0, self._num_units], [-1, num_proj])
+            m_prev = array_ops.slice(state, [0, self._num_units],
+                                     [-1, num_proj])
 
         dtype = inputs.dtype
         input_size = inputs.get_shape().with_rank(2)[1]
         if input_size.value is None:
-            raise ValueError("Could not infer input size from inputs.get_shape()[-1]")
+            raise ValueError(
+                "Could not infer input size from inputs.get_shape()[-1]")
         with vs.variable_scope(scope or "lstm_cell",
                                initializer=self._initializer) as unit_scope:
             if self._num_unit_shards is not None:
@@ -184,7 +188,8 @@ class LNLSTMCell(LSTMCell):
             # i = input_gate, j = new_input, f = forget_gate, o = output_gate
             inputs = layer_normalize(inputs, name="lstm_inputs")
             m_prev = layer_normalize(m_prev, name="lstm_m_prev")
-            lstm_matrix = _linear([inputs, m_prev], 4 * self._num_units, bias=True,
+            lstm_matrix = _linear([inputs, m_prev], 4 * self._num_units,
+                                  bias=True,
                                   scope=scope)
             i, j, f, o = array_ops.split(
                 value=lstm_matrix, num_or_size_splits=4, axis=1)
@@ -202,8 +207,9 @@ class LNLSTMCell(LSTMCell):
                         "w_o_diag", shape=[self._num_units], dtype=dtype)
 
             if self._use_peepholes:
-                c = (sigmoid(f + self._forget_bias + w_f_diag * c_prev) * c_prev +
-                     sigmoid(i + w_i_diag * c_prev) * self._activation(j))
+                c = (
+                sigmoid(f + self._forget_bias + w_f_diag * c_prev) * c_prev +
+                sigmoid(i + w_i_diag * c_prev) * self._activation(j))
             else:
                 c = (sigmoid(f + self._forget_bias) * c_prev + sigmoid(i) *
                      self._activation(j))
@@ -228,12 +234,14 @@ class LNLSTMCell(LSTMCell):
 
                 if self._proj_clip is not None:
                     # pylint: disable=invalid-unary-operand-type
-                    m = clip_ops.clip_by_value(m, -self._proj_clip, self._proj_clip)
+                    m = clip_ops.clip_by_value(m, -self._proj_clip,
+                                               self._proj_clip)
                     # pylint: enable=invalid-unary-operand-type
 
         new_state = (LSTMStateTuple(c, m) if self._state_is_tuple else
                      array_ops.concat([c, m], 1))
         return m, new_state
+
 
 def _linear(args, output_size, bias, bias_start=0.0, scope=None):
     """Linear map: sum_i(args[i] * W[i]), where W[i] is a variable.
@@ -264,8 +272,9 @@ def _linear(args, output_size, bias, bias_start=0.0, scope=None):
         if shape.ndims != 2:
             raise ValueError("linear is expecting 2D arguments: %s" % shapes)
         if shape[1].value is None:
-            raise ValueError("linear expects shape[1] to be provided for shape %s, "
-                             "but saw %s" % (shape, shape[1]))
+            raise ValueError(
+                "linear expects shape[1] to be provided for shape %s, "
+                "but saw %s" % (shape, shape[1]))
         else:
             total_arg_size += shape[1].value
 
@@ -287,7 +296,8 @@ def _linear(args, output_size, bias, bias_start=0.0, scope=None):
             biases = vs.get_variable(
                 "biases", [output_size],
                 dtype=dtype,
-                initializer=init_ops.constant_initializer(bias_start, dtype=dtype))
+                initializer=init_ops.constant_initializer(bias_start,
+                                                          dtype=dtype))
     return nn_ops.bias_add(res, biases)
 
 
@@ -312,7 +322,8 @@ class RWACell(tf.contrib.rnn.RNNCell):
         """
 
         self.num_units = num_units
-        if type(decay_rate) is not tf.Variable:	# Do nothing if the decay rate is learnable
+        if type(
+                decay_rate) is not tf.Variable:  # Do nothing if the decay rate is learnable
             decay_rate = tf.convert_to_tensor(decay_rate)
         self.decay_rate = decay_rate
         self.activation = tf.nn.tanh
@@ -327,7 +338,8 @@ class RWACell(tf.contrib.rnn.RNNCell):
         n = tf.zeros([batch_size, num_units], dtype=dtype)
         d = tf.zeros([batch_size, num_units], dtype=dtype)
         h = tf.zeros([batch_size, num_units], dtype=dtype)
-        a_max = -float('inf')*tf.ones([batch_size, num_units], dtype=dtype)	# Start off with a large negative number with room for this value to decay
+        a_max = -float('inf') * tf.ones([batch_size, num_units],
+                                        dtype=dtype)  # Start off with a large negative number with room for this value to decay
 
         """The scope for the RWACell is hard-coded into `RWACell.zero_state`.
         This is done because the initial state is learned and some of the model
@@ -336,7 +348,9 @@ class RWACell(tf.contrib.rnn.RNNCell):
         it must be hard-coded.
         """
         with tf.variable_scope('RWACell'):
-            s_0 = tf.get_variable('s_0', [num_units], initializer=tf.random_normal_initializer(stddev=1.0))
+            s_0 = tf.get_variable('s_0', [num_units],
+                                  initializer=tf.random_normal_initializer(
+                                      stddev=1.0))
             h += activation(tf.expand_dims(s_0, 0))
 
         return (n, d, h, a_max)
@@ -356,34 +370,41 @@ class RWACell(tf.contrib.rnn.RNNCell):
             )
 
         with tf.variable_scope('RWACell'):
-            W_u = tf.get_variable('W_u', [num_inputs, num_units], initializer=tf.contrib.layers.xavier_initializer())
-            b_u = tf.get_variable('b_u', [num_units], initializer=tf.constant_initializer(0.0))
-            W_g = tf.get_variable('W_g', [num_inputs+num_units, num_units], initializer=tf.contrib.layers.xavier_initializer())
-            b_g = tf.get_variable('b_g', [num_units], initializer=tf.constant_initializer(0.0))
-            W_a = tf.get_variable('W_a', [num_inputs+num_units, num_units], initializer=tf.contrib.layers.xavier_initializer())
+            W_u = tf.get_variable('W_u', [num_inputs, num_units],
+                                  initializer=tf.contrib.layers.xavier_initializer())
+            b_u = tf.get_variable('b_u', [num_units],
+                                  initializer=tf.constant_initializer(0.0))
+            W_g = tf.get_variable('W_g', [num_inputs + num_units, num_units],
+                                  initializer=tf.contrib.layers.xavier_initializer())
+            b_g = tf.get_variable('b_g', [num_units],
+                                  initializer=tf.constant_initializer(0.0))
+            W_a = tf.get_variable('W_a', [num_inputs + num_units, num_units],
+                                  initializer=tf.contrib.layers.xavier_initializer())
 
         xh = tf.concat([x, h], 1)
 
-        u = tf.matmul(x, W_u)+b_u
-        g = tf.matmul(xh, W_g)+b_g
-        a = tf.matmul(xh, W_a)     # The bias term when factored out of the numerator and denominator cancels and is unnecessary
+        u = tf.matmul(x, W_u) + b_u
+        g = tf.matmul(xh, W_g) + b_g
+        a = tf.matmul(xh,
+                      W_a)  # The bias term when factored out of the numerator and denominator cancels and is unnecessary
         z = tf.multiply(u, tf.nn.tanh(g))
 
-        a_decay = a_max-decay_rate
+        a_decay = a_max - decay_rate
         n_decay = tf.multiply(n, tf.exp(-decay_rate))
         d_decay = tf.multiply(d, tf.exp(-decay_rate))
 
         a_newmax = tf.maximum(a_decay, a)
-        exp_diff = tf.exp(a_max-a_newmax)
-        exp_scaled = tf.exp(a-a_newmax)
-        n = tf.multiply(n_decay, exp_diff)+tf.multiply(z, exp_scaled)	# Numerically stable update of numerator
-        d = tf.multiply(d_decay, exp_diff)+exp_scaled	# Numerically stable update of denominator
+        exp_diff = tf.exp(a_max - a_newmax)
+        exp_scaled = tf.exp(a - a_newmax)
+        n = tf.multiply(n_decay, exp_diff) + tf.multiply(z,
+                                                         exp_scaled)  # Numerically stable update of numerator
+        d = tf.multiply(d_decay,
+                        exp_diff) + exp_scaled  # Numerically stable update of denominator
         h = activation(tf.div(n, d))
         a_max = a_newmax
 
         next_state = (n, d, h, a_max)
         return h, next_state
-
 
     @property
     def output_size(self):
