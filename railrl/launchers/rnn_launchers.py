@@ -2,20 +2,23 @@
 Various launchers for recurrent algorithms.
 """
 
+
 def bptt_launcher(variant):
     """
-    Run a simple LSTM on an environment.
+    Run the BPTT algorithm.
 
-    :param variant: Dictionary of dictionary with the following keys:
-        - algo_params
-        - env_params
-        - qf_params
-        - policy_params
-    :return:
+    :param variant: Variant (dictionary) for experiment
     """
+    from railrl.launchers.launcher_util import (
+        set_seed,
+    )
     from railrl.algos.bptt import Bptt
-    from railrl.launchers.launcher_util import get_env_settings
-    env_settings = get_env_settings(**variant['env_params'])
-    env = env_settings['env']
+    H = variant['H']
+    seed = variant['seed']
+    env_class = variant['env_class']
+    env_params = variant['env_params']
+    set_seed(seed)
+
+    env = env_class(**env_params)
     algorithm = Bptt(env, **variant['algo_params'])
     algorithm.train()

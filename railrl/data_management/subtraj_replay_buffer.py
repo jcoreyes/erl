@@ -36,7 +36,7 @@ class SubtrajReplayBuffer(ReplayBuffer):
         self._actions = np.zeros((self._max_pool_size, self._action_dim))
         self._rewards = np.zeros(self._max_pool_size)
         # self._terminals[i] = a terminal was received at time i
-        self._terminals = np.zeros(self._max_pool_size, dtype='bool')
+        self._terminals = np.zeros(self._max_pool_size, dtype='uint8')
         # self._final_state[i] = state i was the final state in a rollout,
         # so it should never be sampled since it has no correspond next state
         # In other words, we're saving the s_{t+1} after sampling a tuple of
@@ -54,7 +54,7 @@ class SubtrajReplayBuffer(ReplayBuffer):
         self._only_sample_at_start_of_episode = only_sample_at_start_of_episode
         self._episode_start_indices = np.zeros(max_pool_size, dtype='uint8')
         self._starting_episode = True
-        self._valid_start_episode_start_indices = []
+        self._valid_start_episode_indices = []
 
         """
         The last part of the replay buffer will be saved as a validation set.
@@ -112,13 +112,13 @@ class SubtrajReplayBuffer(ReplayBuffer):
         #         )
         #
 
-    def terminate_episode(self, terminal_observation, **kwargs):
+    def terminate_episode(self, terminal_observation, terminal, **kwargs):
         self._add_sample(
             terminal_observation,
             self._stub_action,
             0,
             0,
-            True,
+            terminal,
         )
         self._previous_indices = deque(maxlen=self._subtraj_length)
         self._starting_episode = True
@@ -145,16 +145,15 @@ class SubtrajReplayBuffer(ReplayBuffer):
                     self._validation_start_indices.append(previous_idx)
                 else:
                     self._training_start_indices.append(previous_idx)
-                if (self._only_sample_at_start_of_episode
-                        and self._episode_start_indices[previous_idx]):
-                    self._valid_start_episode_start_indices.append(previous_idx)
+                if self._episode_start_indices[previous_idx]:
+                    self._valid_start_episode_indices.append(previous_idx)
         # Current self._top is NOT a valid transition index since the next time
         # step is either garbage or from another episode
         for lst in [
             self._all_valid_start_indices,
             self._validation_start_indices,
             self._training_start_indices,
-            self._valid_start_episode_start_indices,
+            self._valid_start_episode_indices,
         ]:
             if self._top in lst:
                 lst.remove(self._top)
@@ -180,18 +179,28 @@ class SubtrajReplayBuffer(ReplayBuffer):
             batch_size,
             replace=replace,
         )
-        return self._get_trajectories(start_indices)
+        return self.get_trajectories(start_indices)
+
+    def random_batch(self, batch_size, **kwargs):
+        num_subtrajs = batch_size // self._subtraj_length
+        return self.random_subtrajectories(num_subtrajs, **kwargs)
 
     def _valid_start_indices(self, return_all=False, validation=False):
         if self._only_sample_at_start_of_episode:
-            return self._valid_start_episode_start_indices
+            return self._valid_start_episode_indices
         if return_all:
             return self._all_valid_start_indices
         if validation:
             return self._validation_start_indices
         return self._training_start_indices
 
-    def num_can_sample(self, return_all=False, validation=False):
+    def num_steps_can_sample(self, return_all=False, validation=False):
+        return self.num_subtrajs_can_sample(
+            return_all=return_all,
+            validation=validation,
+        ) * self._subtraj_length
+
+    def num_subtrajs_can_sample(self, return_all=False, validation=False):
         return len(self._valid_start_indices(
             return_all=return_all,
             validation=validation,
@@ -203,35 +212,50 @@ class SubtrajReplayBuffer(ReplayBuffer):
         n_items = len(path["observations"])
         list_of_agent_infos = dict_of_list__to__list_of_dicts(agent_infos, n_items)
         list_of_env_infos = dict_of_list__to__list_of_dicts(env_infos, n_items)
+        last_time_step_was_terminal = False
         for (
             observation,
             action,
             reward,
+            terminal,
             agent_info,
             env_info,
         ) in zip(
             path["observations"],
             path["actions"],
             path["rewards"],
+            path["terminals"],
             list_of_agent_infos,
             list_of_env_infos,
         ):
+            last_time_step_was_terminal = False
             observation = self._env.observation_space.unflatten(observation)
             action = self._env.action_space.unflatten(action)
-            self.add_sample(observation, action, reward, False,
+            self.add_sample(observation, action, reward, terminal,
                             agent_info=agent_info, env_info=env_info)
-        terminal_observation = self._env.observation_space.unflatten(
-            path["observations"][-1]
-        )
-        self.terminate_episode(terminal_observation)
+            if terminal:
+                # Hacky for now. Should be next obs, but that's not ever used
+                # anyways
+                self.terminate_episode(observation, terminal)
+                last_time_step_was_terminal = True
+        if not last_time_step_was_terminal:
+            terminal_observation = self._env.observation_space.unflatten(
+                path["observations"][-1]
+            )
+            self.terminate_episode(terminal_observation, False)
 
     def get_all_valid_subtrajectories(self):
-        return self._get_trajectories(self._valid_start_indices(
+        return self.get_trajectories(self._valid_start_indices(
             return_all=True)
         )
 
     def get_valid_subtrajectories(self, **kwargs):
-        return self._get_trajectories(self._valid_start_indices(**kwargs))
+        return self.get_trajectories(self._valid_start_indices(**kwargs))
+
+    def get_trajectories(self, start_indices):
+        if len(start_indices) == 0:
+            return None
+        return self._get_trajectories(start_indices)
 
     def _get_trajectories(self, start_indices):
         return dict(

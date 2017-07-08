@@ -6,66 +6,14 @@ This file contains classic RL launchers. See module docstring for more detail.
 #################
 # my algorithms #
 #################
-def bptt_ddpg_launcher(variant):
-    """
-    Run DDPG with back propagation through time
-    :param variant: Dictionary of dictionary with the following keys:
-        - algo_params
-        - env_params
-        - qf_params
-        - policy_params
-    :return:
-    """
-    from railrl.algos.ddpg import DDPG
-    from railrl.algos.ddpg_ocm import DdpgOcm
-    from railrl.policies.memory.softmax_memory_policy import SoftmaxMemoryPolicy
-    from railrl.qfunctions.memory.mlp_memory_qfunction import MlpMemoryQFunction
-    from railrl.launchers.launcher_util import get_env_settings
-    from railrl.core.tf_util import BatchNormConfig
-    from railrl.envs.memory.continuous_memory_augmented import (
-        ContinuousMemoryAugmented,
-    )
-    from railrl.envs.memory.one_char_memory import OneCharMemory
-    from railrl.exploration_strategies.noop import NoopStrategy
-    if ('batch_norm_params' in variant
-        and variant['batch_norm_params'] is not None):
-        bn_config = BatchNormConfig(**variant['batch_norm_params'])
-    else:
-        bn_config = None
-    env_settings = get_env_settings(**variant['env_params'])
-    env = env_settings['env']
+import joblib
+import tensorflow as tf
 
-    assert isinstance(env, ContinuousMemoryAugmented)
-    memory_dim = env.memory_dim
-    env_action_dim = env.wrapped_env.action_space.flat_dim
-    es = NoopStrategy()
-    qf = MlpMemoryQFunction(
-        name_or_scope="critic",
-        env_spec=env.spec,
-        batch_norm_config=bn_config,
-        **variant.get('qf_params', {})
-    )
-    policy = SoftmaxMemoryPolicy(
-        name_or_scope="actor",
-        memory_dim=memory_dim,
-        env_action_dim=env_action_dim,
-        env_spec=env.spec,
-        batch_norm_config=bn_config,
-        **variant.get('policy_params', {})
-    )
-    if isinstance(env.wrapped_env, OneCharMemory):
-        ddpg_class = DdpgOcm
-    else:
-        ddpg_class = DDPG
-    algorithm = ddpg_class(
-        env,
-        es,
-        policy,
-        qf,
-        batch_norm_config=bn_config,
-        **variant['algo_params']
-    )
-    algorithm.train()
+from railrl.exploration_strategies.action_aware_memory_strategy import \
+    ActionAwareMemoryStrategy
+from railrl.policies.memory.action_aware_memory_policy import \
+    ActionAwareMemoryPolicy
+
 
 def mem_ddpg_launcher(variant):
     """
@@ -459,3 +407,163 @@ def random_action_launcher(variant):
         **variant['algo_params']
     )
     algorithm.train()
+
+
+def bptt_ddpg_launcher(variant):
+    from railrl.algos.oracle_bptt_ddpg import OracleBpttDdpg
+    from railrl.algos.meta_bptt_ddpg import MetaBpttDdpg
+    from railrl.qfunctions.memory.oracle_unroll_qfunction import (
+        OracleUnrollQFunction
+    )
+    from railrl.exploration_strategies.product_strategy import ProductStrategy
+    from railrl.envs.memory.continuous_memory_augmented import (
+        ContinuousMemoryAugmented
+    )
+    from railrl.policies.memory.lstm_memory_policy import LstmMemoryPolicy
+    from railrl.launchers.launcher_util import (
+        set_seed,
+    )
+    from railrl.qfunctions.memory.hint_mlp_memory_qfunction import (
+        HintMlpMemoryQFunction
+    )
+    from os.path import exists
+    import railrl.core.neuralnet
+    railrl.core.neuralnet.dropout_ph = tf.placeholder(tf.float32, name="dropout_keep_prob")
+
+    """
+    Set up experiment variants.
+    """
+    seed = variant['seed']
+    load_policy_file = variant.get('load_policy_file', None)
+    print('wkejhrflkajsdf')
+    memory_dim = variant['memory_dim']
+    oracle_mode = variant['oracle_mode']
+    env_class = variant['env_class']
+    env_params = variant['env_params']
+    ddpg_params = variant['ddpg_params']
+    policy_params = variant['policy_params']
+    qf_params = variant['qf_params']
+    meta_qf_params = variant['meta_qf_params']
+    es_params = variant['es_params']
+    replay_buffer_class = variant['replay_buffer_class']
+    replay_buffer_params = variant['replay_buffer_params']
+    replay_buffer_params['memory_dim'] = memory_dim
+    memory_aug_params = variant['memory_aug_params']
+
+    env_es_class = es_params['env_es_class']
+    env_es_params = es_params['env_es_params']
+    memory_es_class = es_params['memory_es_class']
+    memory_es_params = es_params['memory_es_params']
+    noise_action_to_memory = es_params['noise_action_to_memory']
+    num_bptt_unrolls = ddpg_params['num_bptt_unrolls']
+    set_seed(seed)
+
+    """
+    Code for running the experiment.
+    """
+
+    raw_env = env_class(**env_params)
+    env_action_dim = raw_env.action_space.flat_dim
+    env_obs_dim = raw_env.observation_space.flat_dim
+    H = raw_env.horizon
+    env = ContinuousMemoryAugmented(
+        raw_env,
+        num_memory_states=memory_dim,
+        **memory_aug_params
+    )
+
+    policy = None
+    qf = None
+    if load_policy_file is not None and exists(load_policy_file):
+        with tf.Session():
+            data = joblib.load(load_policy_file)
+            policy = data['policy']
+            qf = data['qf']
+            
+    env_strategy = env_es_class(
+        env_spec=raw_env.spec,
+        **env_es_params
+    )
+    write_strategy = memory_es_class(
+        env_spec=env.memory_spec,
+        **memory_es_params
+    )
+    if noise_action_to_memory:
+        es = ActionAwareMemoryStrategy(
+            env_strategy=env_strategy,
+            write_strategy=write_strategy,
+        )
+        policy = policy or ActionAwareMemoryPolicy(
+            name_or_scope="noisy_policy",
+            action_dim=env_action_dim,
+            memory_dim=memory_dim,
+            env_spec=env.spec,
+            **policy_params
+        )
+    else:
+        es = ProductStrategy([env_strategy, write_strategy])
+        policy = policy or LstmMemoryPolicy(
+            name_or_scope="policy",
+            action_dim=env_action_dim,
+            memory_dim=memory_dim,
+            env_spec=env.spec,
+            num_env_obs_dims_to_use=env_obs_dim,
+            **policy_params
+        )
+
+    ddpg_params = ddpg_params.copy()
+    qf = HintMlpMemoryQFunction(
+        name_or_scope="critic",
+        hint_dim=env_action_dim,
+        max_time=H,
+        env_spec=env.spec,
+        **qf_params
+    )
+    if oracle_mode == 'none':
+        qf_params['use_time'] = False
+        qf_params['use_target'] = False
+        algo_class = variant['algo_class']
+    elif oracle_mode == 'oracle':
+        oracle_params = variant['oracle_params']
+        oracle_qf = OracleUnrollQFunction(
+            name_or_scope="oracle_unroll_critic",
+            env=env,
+            policy=policy,
+            num_bptt_unrolls=num_bptt_unrolls,
+            env_obs_dim=env_obs_dim,
+            env_action_dim=env_action_dim,
+            max_horizon_length=H,
+            env_spec=env.spec,
+        )
+        algo_class = OracleBpttDdpg
+        ddpg_params['oracle_qf'] = oracle_qf
+        ddpg_params.update(oracle_params)
+    elif oracle_mode == 'meta':
+        meta_qf = HintMlpMemoryQFunction(
+            name_or_scope="meta_critic",
+            hint_dim=env_action_dim,
+            max_time=H,
+            env_spec=env.spec,
+            **meta_qf_params
+        )
+        algo_class = MetaBpttDdpg
+        meta_params = variant['meta_params']
+        ddpg_params['meta_qf'] = meta_qf
+        ddpg_params.update(meta_params)
+    else:
+        raise Exception("Unknown mode: {}".format(oracle_mode))
+
+    algorithm = algo_class(
+        env=env,
+        exploration_strategy=es,
+        policy=policy,
+        qf=qf,
+        env_obs_dim=env_obs_dim,
+        env_action_dim=env_action_dim,
+        replay_buffer_class=replay_buffer_class,
+        replay_buffer_params=replay_buffer_params,
+        **ddpg_params
+    )
+
+    algorithm.train()
+    return algorithm

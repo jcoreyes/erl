@@ -37,7 +37,7 @@ class OnlineAlgorithm(RLAlgorithm):
             batch_size=64,
             n_epochs=1000,
             epoch_length=10000,
-            min_pool_size=10000,
+            min_pool_size=None,
             replay_pool_size=1000000,
             discount=0.99,
             soft_target_tau=1e-2,
@@ -51,6 +51,7 @@ class OnlineAlgorithm(RLAlgorithm):
             allow_gpu_growth=True,
             save_tf_graph=True,
             dropout_keep_prob=None,
+            num_steps_between_train=1,
     ):
         """
         :param env: Environment
@@ -76,8 +77,11 @@ class OnlineAlgorithm(RLAlgorithm):
         won't pre-allocate memory, but this will be a bit slower.
 
         http://stackoverflow.com/questions/34199233/how-to-prevent-tensorflow-from-allocating-the-totality-of-a-gpu-memory
+        :param num_steps_between_train: How many steps to take before training.
         :return:
         """
+        if min_pool_size is None:
+            min_pool_size = batch_size
         assert min_pool_size >= batch_size
         # Have two separate env's to make sure that the training and eval
         # envs don't affect one another.
@@ -100,6 +104,7 @@ class OnlineAlgorithm(RLAlgorithm):
         self._batch_norm = batch_norm_config is not None
         self._batch_norm_config = batch_norm_config
         self.save_tf_graph = save_tf_graph
+        self.num_steps_between_train = num_steps_between_train
 
         self.observation_dim = self.training_env.observation_space.flat_dim
         self.action_dim = self.training_env.action_space.flat_dim
@@ -192,7 +197,6 @@ class OnlineAlgorithm(RLAlgorithm):
             self._switch_to_eval_mode()
             for epoch in range(self.n_epochs):
                 logger.push_prefix('Epoch #%d | ' % epoch)
-                logger.log("Training started")
                 start_time = time.time()
                 for n_steps_current_epoch in range(self.epoch_length):
                     action, agent_info = (
@@ -229,6 +233,7 @@ class OnlineAlgorithm(RLAlgorithm):
                     if terminal or path_length >= self.max_path_length:
                         self.pool.terminate_episode(
                             next_ob,
+                            terminal,
                             agent_info=agent_info,
                             env_info=env_info,
                         )
@@ -237,10 +242,11 @@ class OnlineAlgorithm(RLAlgorithm):
                         self.es_path_returns.append(path_return)
                         path_length = 0
                         path_return = 0
+                        self.handle_rollout_ending(n_steps_total)
                     else:
                         observation = next_ob
 
-                    if self._can_train():
+                    if self._can_train(n_steps_total):
                         with self._training_then_eval_mode():
                             for _ in range(self.n_updates_per_time_step):
                                 self._do_training(
@@ -248,29 +254,28 @@ class OnlineAlgorithm(RLAlgorithm):
                                 )
 
                     itr += 1
-
-                logger.log("Training finished. Time: {0}".format(time.time() -
-                                                                 start_time))
-                if self._can_eval():
-                    start_time = time.time()
-                    self.evaluate(epoch, self.es_path_returns)
-                    self.es_path_returns = []
-                    logger.log(
-                        "Eval time: {0}".format(time.time() - start_time))
+                logger.log(
+                    "Training Time: {0}".format(time.time() - start_time)
+                )
+                start_time = time.time()
+                self.evaluate(epoch, self.es_path_returns)
+                self.es_path_returns = []
                 params = self.get_epoch_snapshot(epoch)
                 logger.save_itr_params(epoch, params)
                 logger.dump_tabular(with_prefix=False, with_timestamp=False)
+                logger.log("Eval Time: {0}".format(time.time() - start_time))
                 logger.pop_prefix()
 
             self._switch_to_eval_mode()
             self.training_env.terminate()
             self._shutdown_worker()
 
-    def _can_train(self):
-        return self.pool.num_can_sample() >= self.min_pool_size
+    def _can_train(self, n_steps_total):
+        return (self.pool.num_steps_can_sample() >= self.min_pool_size
+                and n_steps_total % self.num_steps_between_train == 0)
 
     def _can_eval(self):
-        return (self.pool.num_can_sample() >= self.min_pool_size and
+        return (self.pool.num_steps_can_sample() >= self.min_pool_size and
                 self.n_eval_samples > 0)
 
     def _switch_to_training_mode(self):
@@ -475,3 +480,13 @@ class OnlineAlgorithm(RLAlgorithm):
         :return:
         """
         return raw_action
+
+    @abc.abstractmethod
+    def handle_rollout_ending(self, n_steps_total):
+        """
+        This method is called whenever a rollout ends.
+
+        :param n_steps_total: The total number of environment steps taken so
+        far.
+        """
+        pass

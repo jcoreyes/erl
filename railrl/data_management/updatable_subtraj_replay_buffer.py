@@ -34,8 +34,8 @@ class UpdatableSubtrajReplayBuffer(SubtrajReplayBuffer):
         """
         self._dloss_dmemories = np.zeros((self._max_pool_size,
                                           self.memory_dim))
-        self._env_obs_dim = env.env_spec.observation_space.flat_dim
-        self._env_action_dim = env.env_spec.action_space.flat_dim
+        self._env_obs_dim = env.wrapped_env.observation_space.flat_dim
+        self._env_action_dim = env.wrapped_env.action_space.flat_dim
         self._env_obs = np.zeros((max_pool_size, self._env_obs_dim))
         self._env_actions = np.zeros((max_pool_size, self._env_action_dim))
 
@@ -53,7 +53,7 @@ class UpdatableSubtrajReplayBuffer(SubtrajReplayBuffer):
             )
         else:
             start_indices = _fixed_start_indices
-        return self._get_trajectories(start_indices), start_indices
+        return self.get_trajectories(start_indices), start_indices
 
     def _add_sample(self, observation, action, reward, terminal,
                     final_state, **kwargs):
@@ -93,6 +93,48 @@ class UpdatableSubtrajReplayBuffer(SubtrajReplayBuffer):
                                          self._subtraj_length, start_offset=1),
         )
 
+    def get_trajectory_minimal_covering_subsequences(
+            self, trajectory_start_idxs, episode_length
+    ):
+        """
+        A set of subsequences _covers_ a trajectory if for every sample in the
+        trajectory, there exists at least one subsequence with that sample.
+
+        This function returns the minimally sized set of subsequences that
+        covers the trajectories starting at `trajectory_start_idxs`.
+
+        Warning: only pass a starting index of a trajectory that's finished.
+
+        :param trajectory_start_idxs: A list of trajectory start indices. A
+        useful function: `self.get_all_valid_trajectory_start_indices()`
+        :param episode_length: The length of the episode.
+        :return: Tuple
+            - list of subtrajectories (dictionaries)
+            - list of the start indices
+        """
+        start_indices = []
+        for trajectory_start_index in trajectory_start_idxs:
+            last_subseq_start_idx = (
+                trajectory_start_index + episode_length - self._subtraj_length
+            )
+            # Only do every `self._subtraj_length` to get the minimal covering
+            # set of subsequences.
+            for subsequence_start_idx in range(
+                    trajectory_start_index,
+                    last_subseq_start_idx + 1,
+                    self._subtraj_length
+            ):
+                start_indices.append(subsequence_start_idx)
+            # If the episode is length 10, but subtraj_length = 4, we would
+            # only add [0, 4], so this adds `6` to start_indices to make sure
+            # (e.g.) the last two time steps aren't left out.
+            if last_subseq_start_idx not in start_indices:
+                start_indices.append(last_subseq_start_idx)
+        return self.get_trajectories(start_indices), start_indices
+
+    def get_all_valid_trajectory_start_indices(self):
+        return self._valid_start_episode_indices
+
     @cached_property
     def _stub_action(self):
         # Technically, the parent's method should work, but I think this is more
@@ -124,3 +166,27 @@ class UpdatableSubtrajReplayBuffer(SubtrajReplayBuffer):
     def fraction_dloss_dmemories_zero(self):
         dloss_dmemories_loaded = self._dloss_dmemories[:self._size]
         return np.mean(dloss_dmemories_loaded == 0)
+
+    def random_batch(self, batch_size):
+        """
+        Get flat random batch.
+        :param batch_size: 
+        :return: 
+        """
+        indices = np.random.choice(
+            self._all_valid_start_indices,
+            batch_size,
+            replace=False
+        )
+        next_indices = (indices + 1) % self._size
+        next_memories = self._memories[next_indices]
+        return dict(
+            env_obs=self._env_obs[indices],
+            env_actions=self._env_actions[indices],
+            next_env_obs=self._env_obs[next_indices],
+            memories=self._memories[indices],
+            writes=next_memories,
+            next_memories=next_memories,
+            rewards=self._rewards[indices],
+            terminals=self._terminals[indices],
+        )

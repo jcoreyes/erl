@@ -1,3 +1,6 @@
+"""
+Custom hyperparameter functions.
+"""
 import abc
 import copy
 import math
@@ -42,23 +45,12 @@ class EnumParam(RandomHyperparameter):
 
 
 class LogFloatParam(RandomHyperparameter):
-    def __init__(self, name, min_value, max_value):
-        super(LogFloatParam, self).__init__(name)
-        self._linear_float_param = LinearFloatParam("log_" + name,
-                                                    math.log(min_value),
-                                                    math.log(max_value))
-
-    def generate_next_value(self):
-        return math.e ** (self._linear_float_param.generate())
-
-
-class LogFloatOffsetParam(RandomHyperparameter):
     """
     Return something ranging from [min_value + offset, max_value + offset],
     distributed with a log.
     """
-    def __init__(self, name, min_value, max_value, offset):
-        super().__init__(name)
+    def __init__(self, name, min_value, max_value, *, offset=0):
+        super(LogFloatParam, self).__init__(name)
         self._linear_float_param = LinearFloatParam("log_" + name,
                                                     math.log(min_value),
                                                     math.log(max_value))
@@ -76,6 +68,20 @@ class LinearFloatParam(RandomHyperparameter):
 
     def generate_next_value(self):
         return random.random() * self._delta + self._min
+
+
+class LogIntParam(RandomHyperparameter):
+    def __init__(self, name, min_value, max_value, *, offset=0):
+        super().__init__(name)
+        self._linear_float_param = LinearFloatParam("log_" + name,
+                                                    math.log(min_value),
+                                                    math.log(max_value))
+        self.offset = offset
+
+    def generate_next_value(self):
+        return int(
+            math.e ** (self._linear_float_param.generate()) + self.offset
+        )
 
 
 class LinearIntParam(RandomHyperparameter):
