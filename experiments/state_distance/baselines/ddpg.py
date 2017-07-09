@@ -73,4 +73,7 @@ if __name__ == "__main__":
             mode=mode,
             variant=variant,
             use_gpu=False,
+            sync_s3_pkl=True,
+            sync_s3_log=True,
+            periodic_sync_interval=60*30,
         )
