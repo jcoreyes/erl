@@ -73,7 +73,7 @@ if __name__ == "__main__":
             tau=1e-2,
             batch_size=128,
             max_path_length=H,
-            discount=0.99,
+            discount=0.,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
         ),
