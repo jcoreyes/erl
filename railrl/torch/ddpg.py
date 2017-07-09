@@ -155,8 +155,19 @@ class DDPG(OnlineAlgorithm):
             self._statistics_from_batch(validation_batch, "Validation")
         )
 
-        statistics['AverageReturn'] = get_average_returns(paths)
+        statistics['QF Loss Validation - Train Gap'] = (
+            statistics['Validation QF Loss Mean']
+            - statistics['Train QF Loss Mean']
+        )
+        statistics['Policy Loss Validation - Train Gap'] = (
+            statistics['Validation Policy Loss Mean']
+            - statistics['Train Policy Loss Mean']
+        )
+        average_returns = get_average_returns(paths)
+        statistics['AverageReturn'] = average_returns
         statistics['Epoch'] = epoch
+
+        self.final_score = average_returns
 
         for key, value in statistics.items():
             logger.record_tabular(key, value)
