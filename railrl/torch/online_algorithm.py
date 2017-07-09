@@ -4,29 +4,27 @@ import time
 
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.misc.rllab_util import get_table_key_set
+from railrl.policies.base import SerializablePolicy
 from rllab.algos.base import RLAlgorithm
 from rllab.misc import logger, tensor_utils
-from rllab.sampler.base import BaseSampler
 from rllab.sampler import parallel_sampler
 
 
-class SimplePathSampler(BaseSampler):
-    def __init__(self, algo, max_samples, max_path_length):
-        """
-        :type algo: BatchPolopt
-        """
-        self.algo = algo
+class SimplePathSampler(object):
+    def __init__(self, env, policy, max_samples, max_path_length):
+        self.env = env
+        self.policy = policy
         self.max_samples = max_samples
         self.max_path_length = max_path_length
 
     def start_worker(self):
-        parallel_sampler.populate_task(self.algo.env, self.algo.policy)
+        parallel_sampler.populate_task(self.env, self.policy)
 
     def shutdown_worker(self):
         parallel_sampler.terminate_task()
 
-    def obtain_samples(self, itr):
-        cur_params = self.algo.policy.get_param_values()
+    def obtain_samples(self):
+        cur_params = self.policy.get_param_values()
         return parallel_sampler.sample_paths(
             policy_params=cur_params,
             max_samples=self.max_samples,
@@ -38,7 +36,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
     def __init__(
             self,
             env,
-            exploration_policy,
+            exploration_policy: SerializablePolicy,
             exploration_strategy=None,
             num_epochs=100,
             num_steps_per_epoch=10000,
@@ -52,6 +50,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             save_exploration_path_period=1,
     ):
         self.training_env = env
+        self.exploration_policy = exploration_policy
         self.exploration_strategy = exploration_strategy
         self.num_epochs = num_epochs
         self.num_steps_per_epoch = num_steps_per_epoch
@@ -72,14 +71,14 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             self.env,
         )
 
-        self.scope = None  # Necessary for BatchSampler
-        self.whole_paths = True  # Also for BatchSampler
         # noinspection PyTypeChecker
         self.eval_sampler = SimplePathSampler(
-            self, self.num_steps_per_eval, self.max_path_length
+            self.env,
+            self.exploration_policy,
+            self.num_steps_per_eval,
+            self.max_path_length,
         )
 
-        self.exploration_policy = exploration_policy
         self.final_score = 0
 
     def reset_env(self):
@@ -223,9 +222,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             agent_infos: unsure
             env_infos: unsure
         """
-        return self.eval_sampler.obtain_samples(
-            itr=epoch,
-        )
+        return self.eval_sampler.obtain_samples()
 
     def log_diagnostics(self, paths):
         self.env.log_diagnostics(paths)
