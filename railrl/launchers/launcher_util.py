@@ -148,7 +148,7 @@ def run_experiment(
         mode='here',
         exp_id=0,
         unique_id=None,
-        use_gpu=True,
+        use_gpu=False,
         snapshot_mode='last',
         **run_experiment_lite_kwargs):
     """
