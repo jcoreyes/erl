@@ -27,17 +27,16 @@ class StateDistanceQLearning(DDPG):
             exploration_policy,
             **kwargs
     ):
-        super().__init__(*args, **kwargs)
-        self.exploration_policy = exploration_policy
+        super().__init__(*args, exploration_policy=exploration_policy, **kwargs)
 
     def get_batch(self, training=True):
         pool = self.pool.get_replay_buffer(training)
-        sample_size = min(
+        batch_size = min(
             pool.num_steps_can_sample(),
             self.batch_size
         )
-        batch = pool.random_batch(sample_size)
-        goal_states = self.env.sample_goal_states(len(batch))
+        batch = pool.random_batch(batch_size)
+        goal_states = self.env.sample_goal_states(batch_size)
         new_rewards = self.env.compute_rewards(
             batch['observations'],
             batch['actions'],
@@ -50,6 +49,12 @@ class StateDistanceQLearning(DDPG):
         )
         batch['rewards'] = new_rewards
         torch_batch = np_to_pytorch_batch(batch)
+        torch_batch['observations'] = torch.cat(
+            torch_batch['observations'], dim=1
+        )
+        torch_batch['next_observations'] = torch.cat(
+            torch_batch['next_observations'], dim=1
+        )
         return torch_batch
 
     def reset_env(self):
@@ -57,6 +62,23 @@ class StateDistanceQLearning(DDPG):
         self.exploration_policy.reset()
         self.policy.reset()
         return self.training_env.reset()
+
+    def _paths_to_np_batch(self, paths):
+        batch = super()._paths_to_np_batch(paths)
+        batch_size = len(batch['observations'])
+        goal_states = self.env.sample_goal_states(batch_size)
+        new_rewards = self.env.compute_rewards(
+            batch['observations'],
+            batch['actions'],
+            batch['next_observations'],
+            goal_states,
+        )
+        batch['observations'] = np.hstack((batch['observations'], goal_states))
+        batch['next_observations'] = np.hstack((
+            batch['next_observations'], goal_states
+        ))
+        batch['rewards'] = new_rewards
+        return batch
 
 
 class ArgmaxPolicy(PyTorchModule):

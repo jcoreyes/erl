@@ -5,36 +5,36 @@ from railrl.algos.qlearning.state_distance_q_learning import (
 )
 from railrl.envs.env_utils import gym_env
 from railrl.envs.multitask.reacher_env import MultitaskReacherEnv
-from railrl.envs.wrappers import convert_to_tf_env
+from railrl.envs.wrappers import convert_to_tf_env, normalize, convert_gym_space
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.policies.zero_policy import ZeroPolicy
 from railrl.qfunctions.torch import FeedForwardQFunction
-from railrl.torch.ddpg import DDPG
 
-from rllab.envs.normalized_env import normalize
 from gym.envs.mujoco.reacher import ReacherEnv
 
 
 def experiment(variant):
-    # env = MultitaskReacherEnv()
-    env = gym_env("Reacher-v1")
-    env = convert_to_tf_env(env)
-    env = normalize(env)
-    es = OUStrategy(action_space=env.action_space)
+    env = MultitaskReacherEnv()
+    # env = gym_env("Reacher-v1")
+    # env = convert_to_tf_env(env)
+    # env = normalize(env)
+    action_space = convert_gym_space(env.action_space)
+    observation_space = convert_gym_space(env.observation_space)
+    es = OUStrategy(action_space=action_space)
     qf = FeedForwardQFunction(
-        int(env.observation_space.flat_dim),
-        int(env.action_space.flat_dim),
+        int(observation_space.flat_dim) + env.goal_dim,
+        int(action_space.flat_dim),
         400,
         300,
     )
     exploration_policy = ZeroPolicy(
-        int(env.action_space.flat_dim),
+        int(action_space.flat_dim),
     )
     policy = FeedForwardPolicy(
-        int(env.observation_space.flat_dim),
-        int(env.action_space.flat_dim),
+        int(observation_space.flat_dim) + env.goal_dim,
+        int(action_space.flat_dim),
         400,
         300,
     )
@@ -59,7 +59,7 @@ if __name__ == "__main__":
     # mode = "ec2"
     # exp_prefix = "7-8-state-distance-ddpg-baseline"
 
-    num_steps_per_iteration = 100
+    num_steps_per_iteration = 1000
     num_steps_per_eval = 1000
     H = 1000
     num_iterations = 100
