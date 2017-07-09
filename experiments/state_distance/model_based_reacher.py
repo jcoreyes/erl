@@ -22,13 +22,12 @@ def main():
 
     data = joblib.load(args.file)
     policy = data['policy']
-    qf = data['qf']
     env = data['env']
     if args.gpu:
         set_gpu_mode(True)
         policy.cuda()
 
-    goal = np.array([-.1, .1])
+    goal = np.array([-.0, .0])
     obs = env.reset()
     print(obs)
     for _ in range(1000):
