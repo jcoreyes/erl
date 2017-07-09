@@ -100,11 +100,11 @@ if __name__ == '__main__':
     exp_prefix = "7-8-dev-bptt-ddpg-exp"
     run_mode = 'none'
 
-    n_seeds = 1
+    n_seeds = 10
     mode = "ec2"
-    exp_prefix = "7-8-bptt-ddpg-water-maze-memory-big-sweep"
+    exp_prefix = "7-8-bptt-ddpg-water-maze-memory-sweep-subtraj-length"
 
-    run_mode = 'random'
+    run_mode = 'grid'
     num_configurations = 500
     use_gpu = True
     if mode != "here":
@@ -142,10 +142,10 @@ if __name__ == '__main__':
             num_steps_per_epoch=num_steps_per_iteration,
             num_steps_per_eval=num_steps_per_eval,
             discount=0.9,
-            use_action_policy_params_for_entire_policy=True,
+            use_action_policy_params_for_entire_policy=False,
             action_policy_optimize_bellman=False,
             write_policy_optimizes='bellman',
-            action_policy_learning_rate=0.00411668130663536,
+            action_policy_learning_rate=0.000980014225523977,
             write_policy_learning_rate=0.0005,
             qf_learning_rate=0.002021863834563243,
             max_path_length=H,
@@ -193,12 +193,12 @@ if __name__ == '__main__':
             # 'algo_params.action_policy_optimize_bellman': [True, False],
             # 'algo_params.write_policy_optimizes': ['qf', 'bellman', 'both'],
             # 'algo_params.refresh_entire_buffer_period': [None, 1],
-            'es_params.memory_es_params.max_sigma': [0, 1],
-            'qf_params.hidden_init': [init.kaiming_normal, ptu.fanin_init],
-            'policy_params.hidden_init': [init.kaiming_normal, ptu.fanin_init],
-            'policy_params.feed_action_to_memory': [False, True],
+            # 'es_params.memory_es_params.max_sigma': [0, 1],
+            # 'qf_params.hidden_init': [init.kaiming_normal, ptu.fanin_init],
+            # 'policy_params.hidden_init': [init.kaiming_normal, ptu.fanin_init],
+            # 'policy_params.feed_action_to_memory': [False, True],
             # 'policy_params.cell_class': [LSTMCell, BNLSTMCell, RWACell],
-            # 'algo_params.subtraj_length': [1, 5, 10, 15, 20, 25],
+            'algo_params.subtraj_length': [1, 15, 25],
             # 'algo_params.bellman_error_loss_weight': [0.1, 1, 10, 100, 1000],
             # 'algo_params.tau': [1, 0.1, 0.01, 0.001],
             # 'env_params.give_time': [True, False],
