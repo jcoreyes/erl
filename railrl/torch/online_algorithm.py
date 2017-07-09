@@ -38,6 +38,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
     def __init__(
             self,
             env,
+            exploration_policy,
             exploration_strategy=None,
             num_epochs=100,
             num_steps_per_epoch=10000,
@@ -78,8 +79,13 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             self, self.num_steps_per_eval, self.max_path_length
         )
 
-        self.policy = None  # Subclass must set this.
+        self.exploration_policy = exploration_policy
         self.final_score = 0
+
+    def reset_env(self):
+        self.exploration_strategy.reset()
+        self.exploration_policy.reset()
+        return self.training_env.reset()
 
     def train(self):
         n_steps_total = 0
@@ -89,9 +95,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         terminals = []
         agent_infos = []
         env_infos = []
-        observation = self.training_env.reset()
-        self.exploration_strategy.reset()
-        self.policy.reset()
+        observation = self.reset_env()
         path_length = 0
         num_paths_total = 0
         self._start_worker()
@@ -108,7 +112,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                     self.exploration_strategy.get_action(
                         n_steps_total,
                         observation,
-                        self.policy,
+                        self.exploration_policy,
                     )
                 )
                 if self.render:
@@ -148,9 +152,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                         agent_info=agent_info,
                         env_info=env_info,
                     )
-                    observation = self.training_env.reset()
-                    self.exploration_strategy.reset()
-                    self.policy.reset()
+                    observation = self.reset_env()
                     path_length = 0
                     num_paths_total += 1
                     self.handle_rollout_ending(n_steps_total)
@@ -238,7 +240,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
     def get_epoch_snapshot(self, epoch):
         return dict(
             epoch=epoch,
-            policy=self.policy,
+            exploration_policy=self.exploration_policy,
             env=self.training_env,
         )
 
@@ -247,7 +249,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         pass
 
     def training_mode(self, mode):
-        self.policy.train(mode)
+        self.exploration_policy.train(mode)
 
     def handle_rollout_ending(self, n_steps_total):
         pass
