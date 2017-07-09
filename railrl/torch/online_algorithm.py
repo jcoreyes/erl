@@ -3,6 +3,7 @@ import pickle
 import time
 
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
+from railrl.envs.wrappers import convert_gym_space
 from railrl.misc.rllab_util import get_table_key_set
 from railrl.policies.base import SerializablePolicy
 from rllab.algos.base import RLAlgorithm
@@ -64,8 +65,8 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         self.save_exploration_path_period = save_exploration_path_period
 
         self.env = pickle.loads(pickle.dumps(self.training_env))
-        self.action_dim = int(env.action_space.flat_dim)
-        self.obs_dim = int(env.observation_space.flat_dim)
+        self.action_space = convert_gym_space(env.action_space)
+        self.obs_space = convert_gym_space(env.observation_space)
         self.pool = EnvReplayBuffer(
             self.pool_size,
             self.env,
@@ -126,13 +127,10 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                 path_length += 1
 
                 if num_paths_total % self.save_exploration_path_period == 0:
-                    observations.append(
-                        self.training_env.observation_space.flatten(
-                            observation))
+                    observations.append(self.obs_space.flatten(observation))
                     rewards.append(reward)
                     terminals.append(terminal)
-                    actions.append(
-                        self.training_env.action_space.flatten(action))
+                    actions.append(self.action_space.flatten(action))
                     agent_infos.append(agent_info)
                     env_infos.append(env_info)
 
