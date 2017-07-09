@@ -26,6 +26,14 @@ def get_fanova_info(
 ):
     data_and_variants = get_data_and_variants(base_dir)
     data, variants_list = zip(*data_and_variants)
+    good_indices = [i for i, exp in enumerate(data)
+                    if exp['AverageReturn'].size > 1]
+    if len(good_indices) != len(data):
+        print("WARNING: Skipping some experiments. Probably because they only "
+              "have one data point.")
+    data = [d for i, d in enumerate(data) if i in good_indices]
+    variants_list = [v for i, v in enumerate(variants_list)
+                     if i in good_indices]
     Y = np.array([exp['AverageReturn'][-1] for exp in data])
     filtered_variants_list = remove_keys_with_nonunique_values(
         variants_list, params_to_ignore=params_to_ignore
@@ -61,11 +69,11 @@ def get_fanova_info(
 
 def get_dict_key_to_values(dict_list):
     """
-    Given a list of dictionaries, return a dictionary. Keys are the set 
-    of keys in the list of dictionaries. Values are the set of values 
+    Given a list of dictionaries, return a dictionary. Keys are the set
+    of keys in the list of dictionaries. Values are the set of values
     that seen with that key across every dictionary.
-    :param all_variants: 
-    :return: 
+    :param all_variants:
+    :return:
     """
     dict_key_to_values = defaultdict(set)
     for d in dict_list:
@@ -80,9 +88,9 @@ def remove_keys_with_nonunique_values(dict_list, params_to_ignore=None):
     """
     Given a list of dictionaries, remove all keys from the dictionaries where
     all the dictionaries have the same value for that key.
-    :param dict_list: 
-    :param params_to_ignore: 
-    :return: 
+    :param dict_list:
+    :param params_to_ignore:
+    :return:
     """
     if params_to_ignore is None:
         params_to_ignore = []
@@ -188,7 +196,7 @@ def generate_pairwise_marginal(vis, param_list, resolution=20):
     The version in visualize.pyr is wrong.
 
     :param param_list: list of ints or strings
-        Contains the selected parameters  
+        Contains the selected parameters
 
     :param resolution: int
         Number of samples to generate from the parameter range as

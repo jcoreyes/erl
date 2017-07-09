@@ -1,7 +1,7 @@
+import sys
 import datetime
 import os
 import os.path as osp
-import subprocess
 import random
 import uuid
 import git
@@ -32,7 +32,7 @@ from rllab.envs.mujoco.inverted_double_pendulum_env import (
 from rllab.envs.mujoco.swimmer_env import SwimmerEnv
 from rllab.envs.normalized_env import normalize
 from rllab.misc import logger
-from rllab.misc.instrument import run_experiment_lite
+from rllab.misc.instrument import run_experiment_lite, query_yes_no
 
 
 def get_standard_env(normalized=True):
@@ -206,6 +206,11 @@ def run_experiment(
             commit_hash=commit_hash,
         )
     else:
+        if mode == "ec2" and use_gpu:
+            if not query_yes_no(
+                "EC2 is more expensive with GPUs. Confirm?"
+            ):
+                sys.exit(1)
         code_diff = (
             base64.b64encode(cloudpickle.dumps(diff_string)).decode("utf-8")
         )
