@@ -53,11 +53,11 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = "here"
-    exp_prefix = "7-8-dev-state-distance-ddpg-baseline"
+    exp_prefix = "7-9-dev-state-distance-reacher"
 
     # n_seeds = 10
     # mode = "ec2"
-    # exp_prefix = "7-8-state-distance-ddpg-baseline"
+    # exp_prefix = "7-9-state-distance-ddpg-baseline"
 
     num_steps_per_iteration = 1000
     num_steps_per_eval = 1000
