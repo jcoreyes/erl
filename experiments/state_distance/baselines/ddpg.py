@@ -41,9 +41,9 @@ if __name__ == "__main__":
     mode = "here"
     exp_prefix = "7-8-dev-state-distance-ddpg-baseline"
 
-    n_seeds = 10
-    mode = "ec2"
-    exp_prefix = "7-8-state-distance-ddpg-baseline"
+    # n_seeds = 10
+    # mode = "ec2"
+    # exp_prefix = "7-8-state-distance-ddpg-baseline"
 
     num_steps_per_iteration = 10000
     H = 1000
