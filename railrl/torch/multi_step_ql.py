@@ -129,8 +129,7 @@ class MultiStepDdpg(DDPG):
 
         return statistics
 
-    def _statistics_from_paths(self, paths, stat_prefix):
-        statistics = OrderedDict()
+    def _paths_to_np_batch(self, paths):
         eval_pool = SubtrajReplayBuffer(
             len(paths) * (self.max_path_length + 1),
             self.env,
@@ -138,14 +137,7 @@ class MultiStepDdpg(DDPG):
         )
         for path in paths:
             eval_pool.add_trajectory(path)
-        subtraj_batch = eval_pool.get_all_valid_subtrajectories()
-        torch_batch = np_to_pytorch_batch(subtraj_batch)
-        statistics.update(self._statistics_from_batch(torch_batch,
-                                                      stat_prefix))
-        statistics.update(create_stats_ordered_dict(
-            'Num Paths', len(paths), stat_prefix=stat_prefix
-        ))
-        return statistics
+        return eval_pool.get_all_valid_subtrajectories()
 
     def evaluate(self, epoch, exploration_paths):
         """
