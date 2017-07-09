@@ -150,6 +150,7 @@ def run_experiment(
         unique_id=None,
         use_gpu=True,
         snapshot_mode='last',
+        n_parallel=0,
         **run_experiment_lite_kwargs):
     """
     Run a task via the rllab interface, i.e. serialize it and then run it via
@@ -204,6 +205,7 @@ def run_experiment(
             snapshot_mode=snapshot_mode,
             code_diff=diff_string,
             commit_hash=commit_hash,
+            n_parallel=n_parallel,
         )
     else:
         if mode == "ec2" and use_gpu:
@@ -227,6 +229,7 @@ def run_experiment(
             script="railrl/scripts/run_experiment_lite.py",
             code_diff=code_diff,
             commit_hash=commit_hash,
+            n_parallel=n_parallel,
             **run_experiment_lite_kwargs
         )
 
@@ -241,6 +244,7 @@ def run_experiment_here(
         snapshot_mode='last',
         code_diff=None,
         commit_hash=None,
+        n_parallel=0,
 ):
     """
     Run an experiment locally without any serialization.
@@ -260,6 +264,10 @@ def run_experiment_here(
     if seed is None and 'seed' not in variant:
         seed = random.randint(0, 100000)
         variant['seed'] = str(seed)
+    if n_parallel > 0:
+        from rllab.sampler import parallel_sampler
+        parallel_sampler.initialize(n_parallel=n_parallel)
+        parallel_sampler.set_seed(seed)
     variant['exp_id'] = str(exp_id)
     reset_execution_environment()
     set_seed(seed)
