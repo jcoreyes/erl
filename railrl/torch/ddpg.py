@@ -31,7 +31,7 @@ class DDPG(OnlineAlgorithm):
             use_soft_update=False,
             **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, exploration_policy=policy, **kwargs)
         self.qf = qf
         self.policy = policy
         self.policy_learning_rate = policy_learning_rate
@@ -170,15 +170,7 @@ class DDPG(OnlineAlgorithm):
             self.batch_size
         )
         batch = pool.random_batch(sample_size)
-        torch_batch = {
-            k: Variable(ptu.from_numpy(array).float(), requires_grad=False)
-            for k, array in batch.items()
-        }
-        rewards = torch_batch['rewards']
-        terminals = torch_batch['terminals']
-        torch_batch['rewards'] = rewards.unsqueeze(-1)
-        torch_batch['terminals'] = terminals.unsqueeze(-1)
-        return torch_batch
+        return np_to_pytorch_batch(batch)
 
     def _statistics_from_paths(self, paths, stat_prefix):
         batch = paths_to_pytorch_batch(paths)
@@ -225,6 +217,22 @@ class DDPG(OnlineAlgorithm):
             es=self.exploration_strategy,
             qf=self.qf,
         )
+
+
+def array_or_tuple_to_variable(array_or_tuple):
+    if isinstance(array_or_tuple, tuple):
+        return (array_or_tuple_to_variable(elem) for elem in array_or_tuple)
+    return Variable(ptu.from_numpy(array_or_tuple).float(), requires_grad=False)
+
+
+def np_to_pytorch_batch(np_batch):
+    torch_batch = {
+        k: array_or_tuple_to_variable(elem)
+        for k, elem in np_batch.items()
+    }
+    torch_batch['rewards'] = torch_batch['rewards'].unsqueeze(-1)
+    torch_batch['terminals'] = torch_batch['terminals'].unsqueeze(-1)
+    return torch_batch
 
 
 def paths_to_pytorch_batch(paths):
