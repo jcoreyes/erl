@@ -113,7 +113,7 @@ def main():
     qf = data['qf']
 
     resolution = 20
-    joint_angles = np.array([pi / 2, pi / 2])
+    joint_angles = np.array([0, 0])
     x_bounds = (-1, 1)
     y_bounds = (-1, 1)
 
