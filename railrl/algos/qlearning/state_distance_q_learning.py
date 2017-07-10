@@ -1,6 +1,8 @@
 from collections import OrderedDict
 
+import pickle
 import random
+import os
 import numpy as np
 import torch
 import torch.optim as optim
@@ -24,10 +26,9 @@ class StateDistanceQLearning(DDPG):
     def __init__(
             self,
             *args,
-            exploration_policy,
             **kwargs
     ):
-        super().__init__(*args, exploration_policy=exploration_policy, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def get_batch(self, training=True):
         pool = self.pool.get_replay_buffer(training)
@@ -81,98 +82,123 @@ class StateDistanceQLearning(DDPG):
         return batch
 
 
-class StateDistanceQLearningSimple(object):
+class MultitaskPathSampler(object):
     def __init__(
             self,
             env,
-            qf,
             exploration_policy,
             exploration_strategy,
             pool,
-            num_steps_to_collect=1000,
+            min_num_steps_to_collect=1000,
+            max_path_length=None,
     ):
         self.env = env
-        self.qf = qf
         self.exploration_policy = exploration_policy
         self.exploration_strategy = exploration_strategy
-        self.num_steps_to_collect = num_steps_to_collect
+        self.min_num_steps_to_collect = min_num_steps_to_collect
         self.pool = pool
+        if max_path_length is None:
+            max_path_length = np.inf
         self.max_path_length = max_path_length
-
-    def train(self):
-        self.collect_data()
-        self.train_Q()
 
     def collect_data(self):
         obs = self.env.reset()
         n_steps_total = 0
         path_length = 0
-        while True:
-            for _ in range(self.num_steps_per_epoch):
-                action, agent_info = (
-                    self.exploration_strategy.get_action(
-                        n_steps_total,
-                        obs,
-                        self.exploration_policy,
-                    )
-                )
-
-                next_ob, raw_reward, terminal, env_info = (
-                    self.env.step(action)
-                )
-                n_steps_total += 1
-                path_length += 1
-                reward = raw_reward
-
-                self.pool.add_sample(
+        while n_steps_total < self.min_num_steps_to_collect:
+            action, agent_info = (
+                self.exploration_strategy.get_action(
+                    n_steps_total,
                     obs,
-                    action,
-                    reward,
+                    self.exploration_policy,
+                )
+            )
+
+            next_ob, raw_reward, terminal, env_info = (
+                self.env.step(action)
+            )
+            n_steps_total += 1
+            path_length += 1
+            reward = raw_reward
+
+            self.pool.add_sample(
+                obs,
+                action,
+                reward,
+                terminal,
+                agent_info=agent_info,
+                env_info=env_info,
+            )
+            if terminal or path_length >= self.max_path_length:
+                self.pool.terminate_episode(
+                    next_ob,
                     terminal,
                     agent_info=agent_info,
                     env_info=env_info,
                 )
-                if terminal or path_length >= self.max_path_length:
-                    self.pool.terminate_episode(
-                        next_ob,
-                        terminal,
-                        agent_info=agent_info,
-                        env_info=env_info,
-                    )
-                    observation = self.reset_env()
-                    path_length = 0
-                else:
-                    observation = next_ob
+                obs = self.reset_env()
+                path_length = 0
+            else:
+                obs = next_ob
+
+    def save_pool(self, filename):
+        # train_file = os.path.join(dir_name, 'train.pkl')
+        # validation_file = os.path.join(dir_name, 'validation.pkl')
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        with open(filename, 'wb') as handle:
+            pickle.dump(self.pool, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     def reset_env(self):
         self.exploration_strategy.reset()
         self.exploration_policy.reset()
         return self.env.reset()
 
-    def train_Q(self):
-        obs, action, next_obs = replay_buffer.sample()
-        goal_state = sample_goal_state()
-        gamma = sample_discount_factor()
-        reward = compute_distance(next_obs, goal_state)
 
-        q_pred = Q(obs, action, goal_state, gamma)
-        next_action = argmax_a
-        Q(next_obs, a, goal_state, gamma)
-        q_target = reward + discount * Q(next_obs, next_action, goal_state,
-                                         gamma)
+class StateDistanceQLearningSimple(StateDistanceQLearning):
+    def __init__(
+            self,
+            *args,
+            pool=None,
+            num_batches=100,
+            **kwargs
+    ):
+        super().__init__(*args, **kwargs)
+        self.num_batches = num_batches
+        self.pool = pool
 
-        loss = (q_pred - q_target) ** 2
-        minimize(loss)
+    def train(self):
+        for n_steps_total in range(self.num_batches):
+            self.training_mode(True)
+            self._do_training(n_steps_total=n_steps_total)
+            if n_steps_total % 100 == 0:
+                self.training_mode(False)
+                self.evaluate(n_steps_total, None)
 
-    algorithm = StateDistanceQLearning(
-        env,
-        exploration_strategy=es,
-        qf=qf,
-        policy=policy,
-        exploration_policy=exploration_policy,
-        # exploration_policy=policy,
-        **variant['algo_params']
-    )
+    def evaluate(self, epoch, _):
+        """
+        Perform evaluation for this algorithm.
+
+        :param epoch: The epoch number.
+        :param exploration_paths: List of dicts, each representing a path.
+        """
+        statistics = OrderedDict()
+        train_batch = self.get_batch(training=True)
+        statistics.update(self._statistics_from_batch(train_batch, "Train"))
+        validation_batch = self.get_batch(training=False)
+        statistics.update(
+            self._statistics_from_batch(validation_batch, "Validation")
+        )
+
+        statistics['QF Loss Validation - Train Gap'] = (
+            statistics['Validation QF Loss Mean']
+            - statistics['Train QF Loss Mean']
+        )
+        statistics['Policy Loss Validation - Train Gap'] = (
+            statistics['Validation Policy Loss Mean']
+            - statistics['Train Policy Loss Mean']
+        )
+        for key, value in statistics.items():
+            logger.record_tabular(key, value)
 
 
 class ArgmaxPolicy(PyTorchModule):

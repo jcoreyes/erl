@@ -112,10 +112,10 @@ if __name__ == '__main__':
 
     H = 25
     subtraj_length = 25
-    num_steps_per_iteration = 1000
-    num_steps_per_eval = 1000
+    num_steps_per_iteration = 100
+    num_steps_per_eval = 100
     num_iterations = 50
-    batch_size = 200
+    batch_size = 100
     memory_dim = 100
     version = exp_prefix
     version = "Our Method"
