@@ -8,7 +8,7 @@ from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.data_management.subtraj_replay_buffer import SubtrajReplayBuffer
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import get_average_returns
-from railrl.torch.ddpg import DDPG
+from railrl.torch.ddpg import DDPG, np_to_pytorch_batch
 from rllab.misc import logger
 from railrl.misc import np_util
 
@@ -129,8 +129,7 @@ class MultiStepDdpg(DDPG):
 
         return statistics
 
-    def _statistics_from_paths(self, paths, stat_prefix):
-        statistics = OrderedDict()
+    def _paths_to_np_batch(self, paths):
         eval_pool = SubtrajReplayBuffer(
             len(paths) * (self.max_path_length + 1),
             self.env,
@@ -138,19 +137,7 @@ class MultiStepDdpg(DDPG):
         )
         for path in paths:
             eval_pool.add_trajectory(path)
-        subtraj_batch = eval_pool.get_all_valid_subtrajectories()
-        torch_batch = {
-            k: ptu.Variable(ptu.from_numpy(array).float(), requires_grad=False)
-            for k, array in subtraj_batch.items()
-        }
-        torch_batch['rewards'] = torch_batch['rewards'].unsqueeze(-1)
-        torch_batch['terminals'] = torch_batch['terminals'].unsqueeze(-1)
-        statistics.update(self._statistics_from_batch(torch_batch,
-                                                      stat_prefix))
-        statistics.update(create_stats_ordered_dict(
-            'Num Paths', len(paths), stat_prefix=stat_prefix
-        ))
-        return statistics
+        return eval_pool.get_all_valid_subtrajectories()
 
     def get_batch(self, training=True):
         pool = self.pool.get_replay_buffer(training)

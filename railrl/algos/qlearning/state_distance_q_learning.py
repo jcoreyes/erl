@@ -14,192 +14,165 @@ from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import get_average_returns, split_paths
 from railrl.pythonplusplus import identity
 from railrl.torch.core import PyTorchModule
+from railrl.torch.ddpg import DDPG, np_to_pytorch_batch
 from railrl.torch.online_algorithm import OnlineAlgorithm
 import railrl.torch.pytorch_util as ptu
 from rllab.misc import logger, special
 
 
-class StateDistanceQLearning(OnlineAlgorithm):
-    """
-    Online learning algorithm.
-    """
+class StateDistanceQLearning(DDPG):
     def __init__(
             self,
             *args,
-            qf,
-            qf_learning_rate=1e-3,
-            target_hard_update_period=1000,
-            tau=1e-2,
-            use_soft_update=False,
+            exploration_policy,
             **kwargs
     ):
-        super().__init__(*args, **kwargs)
-        self.qf = qf
-        self.policy = ArgmaxPolicy(self.qf, 5)
-        self.qf_learning_rate = qf_learning_rate
-        self.target_qf = self.qf.copy()
-        self.target_hard_update_period = target_hard_update_period
-        self.tau = tau
-        self.use_soft_update = use_soft_update
-
-        self.qf_criterion = nn.MSELoss()
-        self.qf_optimizer = optim.Adam(self.qf.parameters(),
-                                       lr=self.qf_learning_rate)
-        self.pool = SplitReplayBuffer(
-            EnvReplayBuffer(
-                self.pool_size,
-                self.env,
-                flatten=True,
-            ),
-            EnvReplayBuffer(
-                self.pool_size,
-                self.env,
-                flatten=True,
-            ),
-            fraction_paths_in_train=0.8,
-        )
-        if ptu.gpu_enabled():
-            self.policy.cuda()
-            self.qf.cuda()
-            self.target_qf.cuda()
-
-    def _do_training(self, n_steps_total):
-        batch = self.get_batch()
-        train_dict = self.get_train_dict(batch)
-
-        self.qf_optimizer.zero_grad()
-        qf_loss = train_dict['QF Loss']
-        qf_loss.backward()
-        self.qf_optimizer.step()
-
-        if self.use_soft_update:
-            ptu.soft_update_from_to(self.target_qf, self.qf, self.tau)
-        else:
-            if n_steps_total % self.target_hard_update_period == 0:
-                ptu.copy_model_params_from_to(self.qf, self.target_qf)
-
-    def get_train_dict(self, batch):
-        rewards = batch['rewards']
-        terminals = batch['terminals']
-        obs = batch['observations']
-        actions = batch['actions']
-        next_obs = batch['next_observations']
-
-        """
-        Critic operations.
-        """
-        target_q_values = torch.max(self.target_qf(next_obs), dim=1)[0]
-        y_target = rewards + (1. - terminals) * self.discount * target_q_values
-        # noinspection PyUnresolvedReferences
-        y_target = y_target.detach()
-        y_pred = self.qf(obs).gather(1, actions)
-        bellman_errors = (y_pred - y_target)**2
-        qf_loss = self.qf_criterion(y_pred, y_target)
-
-        return OrderedDict([
-            ('Bellman Errors', bellman_errors),
-            ('Y targets', y_target),
-            ('Y predictions', y_pred),
-            ('QF Loss', qf_loss),
-        ])
-
-    def training_mode(self, mode):
-        self.policy.train(mode)
-        self.qf.train(mode)
-        self.target_qf.train(mode)
-
-    def evaluate(self, epoch, exploration_paths):
-        """
-        Perform evaluation for this algorithm.
-
-        :param epoch: The epoch number.
-        :param exploration_paths: List of dicts, each representing a path.
-        """
-        logger.log("Collecting samples for evaluation")
-        paths = self._sample_paths(epoch)
-        statistics = OrderedDict()
-
-        statistics.update(self._statistics_from_paths(exploration_paths,
-                                                      "Exploration"))
-        statistics.update(self._statistics_from_paths(paths, "Test"))
-
-        train_batch = self.get_batch(training=True)
-        statistics.update(self._statistics_from_batch(train_batch, "Train"))
-        validation_batch = self.get_batch(training=False)
-        statistics.update(
-            self._statistics_from_batch(validation_batch, "Validation")
-        )
-
-        statistics['AverageReturn'] = get_average_returns(paths)
-        statistics['Epoch'] = epoch
-
-        for key, value in statistics.items():
-            logger.record_tabular(key, value)
-
-        self.log_diagnostics(paths)
+        super().__init__(*args, exploration_policy=exploration_policy, **kwargs)
 
     def get_batch(self, training=True):
         pool = self.pool.get_replay_buffer(training)
-        sample_size = min(
+        batch_size = min(
             pool.num_steps_can_sample(),
             self.batch_size
         )
-        batch = pool.random_batch(sample_size, flatten=True)
-        torch_batch = {
-            k: Variable(ptu.from_numpy(array).float(), requires_grad=False)
-            for k, array in batch.items()
-        }
-        rewards = torch_batch['rewards']
-        terminals = torch_batch['terminals']
-        torch_batch['rewards'] = rewards.unsqueeze(-1)
-        torch_batch['terminals'] = terminals.unsqueeze(-1)
+        batch = pool.random_batch(batch_size)
+        goal_states = self.env.sample_goal_states(batch_size)
+        new_rewards = self.env.compute_rewards(
+            batch['observations'],
+            batch['actions'],
+            batch['next_observations'],
+            goal_states,
+        )
+        batch['observations'] = batch['observations'], goal_states
+        batch['next_observations'] = (
+            batch['next_observations'], goal_states
+        )
+        batch['rewards'] = new_rewards
+        torch_batch = np_to_pytorch_batch(batch)
+        torch_batch['observations'] = torch.cat(
+            torch_batch['observations'], dim=1
+        )
+        torch_batch['next_observations'] = torch.cat(
+            torch_batch['next_observations'], dim=1
+        )
         return torch_batch
 
-    def _statistics_from_paths(self, paths, stat_prefix):
-        statistics = OrderedDict()
-        batch = ptu.paths_to_pytorch_batch(paths)
-        statistics.update(self._statistics_from_batch(batch, stat_prefix))
-        statistics.update(create_stats_ordered_dict(
-            'Num Paths', len(paths), stat_prefix=stat_prefix
+    def reset_env(self):
+        self.exploration_strategy.reset()
+        self.exploration_policy.reset()
+        self.policy.reset()
+        return self.training_env.reset()
+
+    def _paths_to_np_batch(self, paths):
+        batch = super()._paths_to_np_batch(paths)
+        batch_size = len(batch['observations'])
+        goal_states = self.env.sample_goal_states(batch_size)
+        new_rewards = self.env.compute_rewards(
+            batch['observations'],
+            batch['actions'],
+            batch['next_observations'],
+            goal_states,
+        )
+        batch['observations'] = np.hstack((batch['observations'], goal_states))
+        batch['next_observations'] = np.hstack((
+            batch['next_observations'], goal_states
         ))
-        return statistics
+        batch['rewards'] = new_rewards
+        return batch
 
-    def _statistics_from_batch(self, batch, stat_prefix):
-        statistics = OrderedDict()
 
-        train_dict = self.get_train_dict(batch)
-        for name in [
-            'QF Loss',
-            'Policy Loss',
-        ]:
-            tensor = train_dict[name]
-            statistics_name = "{} {} Mean".format(stat_prefix, name)
-            statistics[statistics_name] = np.mean(ptu.get_numpy(tensor))
+class StateDistanceQLearningSimple(object):
+    def __init__(
+            self,
+            env,
+            qf,
+            exploration_policy,
+            exploration_strategy,
+            pool,
+            num_steps_to_collect=1000,
+    ):
+        self.env = env
+        self.qf = qf
+        self.exploration_policy = exploration_policy
+        self.exploration_strategy = exploration_strategy
+        self.num_steps_to_collect = num_steps_to_collect
+        self.pool = pool
+        self.max_path_length = max_path_length
 
-        for name in [
-            'Bellman Errors',
-        ]:
-            tensor = train_dict[name]
-            statistics.update(create_stats_ordered_dict(
-                '{} {}'.format(stat_prefix, name),
-                ptu.get_numpy(tensor)
-            ))
+    def train(self):
+        self.collect_data()
+        self.train_Q()
 
-        return statistics
+    def collect_data(self):
+        obs = self.env.reset()
+        n_steps_total = 0
+        path_length = 0
+        while True:
+            for _ in range(self.num_steps_per_epoch):
+                action, agent_info = (
+                    self.exploration_strategy.get_action(
+                        n_steps_total,
+                        obs,
+                        self.exploration_policy,
+                    )
+                )
 
-    def _can_evaluate(self, exploration_paths):
-        return (
-            len(exploration_paths) > 0
-            and self.pool.num_steps_can_sample() > 0
-        )
+                next_ob, raw_reward, terminal, env_info = (
+                    self.env.step(action)
+                )
+                n_steps_total += 1
+                path_length += 1
+                reward = raw_reward
 
-    def get_epoch_snapshot(self, epoch):
-        return dict(
-            epoch=epoch,
-            policy=self.policy,
-            env=self.training_env,
-            qf=self.qf,
-        )
+                self.pool.add_sample(
+                    obs,
+                    action,
+                    reward,
+                    terminal,
+                    agent_info=agent_info,
+                    env_info=env_info,
+                )
+                if terminal or path_length >= self.max_path_length:
+                    self.pool.terminate_episode(
+                        next_ob,
+                        terminal,
+                        agent_info=agent_info,
+                        env_info=env_info,
+                    )
+                    observation = self.reset_env()
+                    path_length = 0
+                else:
+                    observation = next_ob
+
+    def reset_env(self):
+        self.exploration_strategy.reset()
+        self.exploration_policy.reset()
+        return self.env.reset()
+
+    def train_Q(self):
+        obs, action, next_obs = replay_buffer.sample()
+        goal_state = sample_goal_state()
+        gamma = sample_discount_factor()
+        reward = compute_distance(next_obs, goal_state)
+
+        q_pred = Q(obs, action, goal_state, gamma)
+        next_action = argmax_a
+        Q(next_obs, a, goal_state, gamma)
+        q_target = reward + discount * Q(next_obs, next_action, goal_state,
+                                         gamma)
+
+        loss = (q_pred - q_target) ** 2
+        minimize(loss)
+
+    algorithm = StateDistanceQLearning(
+        env,
+        exploration_strategy=es,
+        qf=qf,
+        policy=policy,
+        exploration_policy=exploration_policy,
+        # exploration_policy=policy,
+        **variant['algo_params']
+    )
 
 
 class ArgmaxPolicy(PyTorchModule):
