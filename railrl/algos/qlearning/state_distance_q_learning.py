@@ -81,6 +81,100 @@ class StateDistanceQLearning(DDPG):
         return batch
 
 
+class StateDistanceQLearningSimple(object):
+    def __init__(
+            self,
+            env,
+            qf,
+            exploration_policy,
+            exploration_strategy,
+            pool,
+            num_steps_to_collect=1000,
+    ):
+        self.env = env
+        self.qf = qf
+        self.exploration_policy = exploration_policy
+        self.exploration_strategy = exploration_strategy
+        self.num_steps_to_collect = num_steps_to_collect
+        self.pool = pool
+        self.max_path_length = max_path_length
+
+    def train(self):
+        self.collect_data()
+        self.train_Q()
+
+    def collect_data(self):
+        obs = self.env.reset()
+        n_steps_total = 0
+        path_length = 0
+        while True:
+            for _ in range(self.num_steps_per_epoch):
+                action, agent_info = (
+                    self.exploration_strategy.get_action(
+                        n_steps_total,
+                        obs,
+                        self.exploration_policy,
+                    )
+                )
+
+                next_ob, raw_reward, terminal, env_info = (
+                    self.env.step(action)
+                )
+                n_steps_total += 1
+                path_length += 1
+                reward = raw_reward
+
+                self.pool.add_sample(
+                    obs,
+                    action,
+                    reward,
+                    terminal,
+                    agent_info=agent_info,
+                    env_info=env_info,
+                )
+                if terminal or path_length >= self.max_path_length:
+                    self.pool.terminate_episode(
+                        next_ob,
+                        terminal,
+                        agent_info=agent_info,
+                        env_info=env_info,
+                    )
+                    observation = self.reset_env()
+                    path_length = 0
+                else:
+                    observation = next_ob
+
+    def reset_env(self):
+        self.exploration_strategy.reset()
+        self.exploration_policy.reset()
+        return self.env.reset()
+
+    def train_Q(self):
+        obs, action, next_obs = replay_buffer.sample()
+        goal_state = sample_goal_state()
+        gamma = sample_discount_factor()
+        reward = compute_distance(next_obs, goal_state)
+
+        q_pred = Q(obs, action, goal_state, gamma)
+        next_action = argmax_a
+        Q(next_obs, a, goal_state, gamma)
+        q_target = reward + discount * Q(next_obs, next_action, goal_state,
+                                         gamma)
+
+        loss = (q_pred - q_target) ** 2
+        minimize(loss)
+
+    algorithm = StateDistanceQLearning(
+        env,
+        exploration_strategy=es,
+        qf=qf,
+        policy=policy,
+        exploration_policy=exploration_policy,
+        # exploration_policy=policy,
+        **variant['algo_params']
+    )
+
+
 class ArgmaxPolicy(PyTorchModule):
     def __init__(
             self,
