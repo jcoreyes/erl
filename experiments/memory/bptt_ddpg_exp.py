@@ -86,7 +86,7 @@ def experiment(variant):
     )
     algorithm = BpttDdpg(
         env,
-        es,
+        exploration_strategy=es,
         qf=qf,
         policy=policy,
         **algo_params
@@ -97,14 +97,14 @@ def experiment(variant):
 if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
-    exp_prefix = "7-8-dev-bptt-ddpg-exp"
+    exp_prefix = "7-9-dev-bptt-ddpg-exp"
     run_mode = 'none'
 
-    n_seeds = 10
-    mode = "ec2"
-    exp_prefix = "7-8-bptt-ddpg-water-maze-memory-sweep-subtraj-length"
+    # n_seeds = 10
+    # mode = "ec2"
+    # exp_prefix = "7-8-bptt-ddpg-water-maze-memory-sweep-subtraj-length"
 
-    run_mode = 'grid'
+    # run_mode = 'grid'
     num_configurations = 500
     use_gpu = True
     if mode != "here":
