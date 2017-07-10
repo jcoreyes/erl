@@ -25,7 +25,7 @@ def example(variant):
             min_sigma=0.05,
             action_space=env.action_space,
         )
-        use_new_version = variant['use_new_version']
+        use_target_policy = variant['use_target_policy']
         algorithm = DDPG(
             env,
             es,
@@ -33,13 +33,16 @@ def example(variant):
             policy=policy,
             num_epochs=30,
             batch_size=1024,
-            use_new_version=use_new_version,
+            use_target_policy=use_target_policy,
         )
         algorithm.train()
     else:
         use_right_arm = variant['use_right_arm']
+        loss = variant['loss']
         safety_limited_end_effector = variant['safety_limited_end_effector']
-        env = BaxterEnv(update_hz=20, use_right_arm=use_right_arm, safety_limited_end_effector=safety_limited_end_effector)
+        magnitude = variant['magnitude']
+        temp = variant['temp']
+        env = BaxterEnv(update_hz=20, use_right_arm=use_right_arm, loss=loss, safety_limited_end_effector=safety_limited_end_effector, magnitude=magnitude, temp=temp)
         es = OUStrategy(
             max_sigma=0.05,
             min_sigma=0.05,
@@ -57,7 +60,7 @@ def example(variant):
             100,
             100,
         )
-        use_new_version=variant['use_new_version']
+        use_target_policy=variant['use_target_policy']
         algorithm = DDPG(
             env,
             es,
@@ -65,7 +68,7 @@ def example(variant):
             policy=policy,
             num_epochs=30,
             batch_size=1024,
-            use_new_version=use_new_version,
+            use_target_policy=use_target_policy,
         )
     algorithm.train()
 
@@ -73,14 +76,17 @@ def example(variant):
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="7-6-ddpg-baxter-right-arm-fixed-angle-safety-huber-TEST",
+        exp_prefix="7-7-ddpg-baxter-right-arm-fixed-angle-safety-huber",
         seed=0,
         mode='here',
         variant={
                 'version': 'Original',
-                'use_new_version': False,
+                'use_target_policy': False,
                 'use_right_arm': True,
                 'safety_limited_end_effector':True,
+                'loss':'huber',
+                'magnitude':2,
+                'temp':1.05,
                 },
         use_gpu=True,
     )

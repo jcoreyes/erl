@@ -29,7 +29,7 @@ class DDPG(OnlineAlgorithm):
             target_hard_update_period=1000,
             tau=1e-2,
             use_soft_update=False,
-            use_new_version=False,
+            use_target_policy=False,
             **kwargs
     ):
         super().__init__(*args, **kwargs)
@@ -65,7 +65,7 @@ class DDPG(OnlineAlgorithm):
             self.target_policy.cuda()
             self.qf.cuda()
             self.target_qf.cuda()
-        self.use_new_version = use_new_version
+        self.use_target_policy = use_target_policy
 
     def _do_training(self, n_steps_total):
         batch = self.get_batch()
@@ -106,7 +106,7 @@ class DDPG(OnlineAlgorithm):
         """
         Critic operations.
         """
-        if(self.use_new_version):
+        if(self.use_target_policy):
             #generate y target using normal policy
             next_actions = self.policy(next_obs)
             target_q_values_with_normal_policy = self.target_qf(

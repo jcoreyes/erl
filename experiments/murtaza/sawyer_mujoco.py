@@ -27,7 +27,7 @@ def example(variant):
         100,
         100,
     )
-    use_new_version = variant['use_new_version']
+    use_target_policy = variant['use_target_policy']
     algorithm = DDPG(
         env,
         es,
@@ -35,7 +35,7 @@ def example(variant):
         policy=policy,
         num_epochs=30,
         batch_size=128,
-        use_new_version=use_new_version,
+        use_target_policy=use_target_policy,
     )
     # ipdb.set_trace()
     algorithm.train()
@@ -48,7 +48,7 @@ if __name__ == "__main__":
         mode='here',
         variant={
                 'version': 'Original',
-                'use_new_version': False,
+                'use_target_policy': False,
                 },
         use_gpu=False,
     )

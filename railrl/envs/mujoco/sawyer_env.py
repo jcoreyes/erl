@@ -66,27 +66,37 @@ class SawyerEnv(MujocoEnv):
         #     JOINT_VALUE_HIGH['position']
         # )
         self.desired = np.ones(7)
-        # ipdb.set_trace()
+        self.reset()
         
     #needs to return the observation, reward, done, and info
     def _step(self, a):
-        # ipdb.set_trace()
-        #take an action
         action = np.hstack((a, [0]))
         self.do_simulation(action, self.frame_skip)
-        # ipdb.set_trace()
         obs = self._get_obs()
         reward = -np.mean((self.desired-self._get_joint_angles())**2)
+        if reward < -100:
+            ipdb.set_trace()
         done = False
         info = {}
         return obs, reward, done, info
 
     def reset(self):
         #reset to some arbitrary neutral position
+        #currently it is equal to the neutral position for the baxter:
+        angles = [1.2513886965340406, 0.005148737818322147,  0.004222751482764409, 0.0012673001326177769,
+                  0.7523082764083187, 0.00016802203726484777, -0.5449456802340835]
+        angles = [[self.wrapper(angle)] for angle in angles]
+        angles = np.concatenate((angles, [[0]]), axis=0)
+        # self.model.data.__setattr__('qpos', angles)
+        # self.set_state(angles, Non
+        velocities = np.ones(8)
+        velocities = np.array([[velocity] for velocity in velocities])
+        self.set_state(angles, velocities)
         return self._get_obs()
 
     def _get_joint_angles(self):
-        return np.concatenate([self.model.data.qpos]).ravel()[:7]
+        return np.array([self.wrapper(angle) for angle in np.concatenate([self.model.data.qpos]).ravel()[:7]])  
+
     def _get_obs(self):
         # ipdb.set_trace()
         joint_pos = self._get_joint_angles()
@@ -94,7 +104,7 @@ class SawyerEnv(MujocoEnv):
         return np.hstack((joint_pos, joint_vel))
 
     def viewer_setup(self):
-        go_fast = False
+        gofast = False
         self.viewer = mujoco_py.MjViewer(visible=True, init_width=480,
                                      init_height=480, go_fast=gofast)
         self.viewer.start()
@@ -107,6 +117,13 @@ class SawyerEnv(MujocoEnv):
     @property
     def observation_space(self):
         return self._observation_space
+
+    def wrapper(self, angle):
+        while angle > np.pi:
+            angle -= np.pi
+        while angle < -np.pi:
+            angle += np.pi
+        return angle
 #how does this environment command actions?
 # See twod_point.py
 #         self.do_simulation(a, self.frame_skip)

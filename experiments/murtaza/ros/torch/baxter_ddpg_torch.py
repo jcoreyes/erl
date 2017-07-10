@@ -25,7 +25,7 @@ def example(variant):
         #     min_sigma=0.05,
         #     env_spec=env.spec,
         # )
-        # use_new_version = variant['use_new_version']
+        # use_target_policy = variant['use_target_policy']
         # algorithm = DDPG(
         #     env,
         #     es,
@@ -34,7 +34,7 @@ def example(variant):
         #     n_epochs=30,
         #     batch_size=1024,
         #     replay_pool=replay_buffer,
-        #     use_new_version=use_new_version,
+        #     use_target_policy=use_target_policy,
         # )
         # algorithm.train()
     # else:
@@ -57,7 +57,7 @@ def example(variant):
         100,
         100,
     )
-    use_new_version=variant['use_new_version']
+    use_target_policy=variant['use_target_policy']
     algorithm = DDPG(
         env,
         es,
@@ -65,7 +65,7 @@ def example(variant):
         policy=policy,
         num_epochs=30,
         batch_size=1024,
-        use_new_version=use_new_version,
+        use_target_policy=use_target_policy,
     )
     algorithm.train()
 
@@ -78,7 +78,7 @@ if __name__ == "__main__":
         mode='here',
         variant={
                 'version': 'Original',
-                'use_new_version': False,
+                'use_target_policy': False,
                 'use_right_arm':True,
             },
         use_gpu=True,

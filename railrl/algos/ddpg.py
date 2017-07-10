@@ -49,7 +49,7 @@ class DDPG(OnlineAlgorithm):
             target_update_mode=TargetUpdateMode.SOFT,
             hard_update_period=10000,
             reward_low_bellman_error_weight=0.,
-            use_new_version=False,
+            use_target_policy=False,
             **kwargs
     ):
         """
@@ -82,7 +82,7 @@ class DDPG(OnlineAlgorithm):
         self.target_policy = None
         self.target_qf = None
         self.target_qf_with_action_input = None
-        self.use_new_version=use_new_version
+        self.use_target_policy=use_target_policy
 
     @overrides
     def _init_tensorflow_ops(self):
@@ -114,7 +114,7 @@ class DDPG(OnlineAlgorithm):
             self._init_policy_loss_and_train_ops()
 
     def _init_qf_ops(self):
-        if(self.use_new_version):
+        if(self.use_target_policy):
             self.raw_ys = tf.stop_gradient(
                 self.rewards_n1 +
                 (1. - self.terminals_n1)
