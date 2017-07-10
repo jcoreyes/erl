@@ -44,10 +44,10 @@ class UpdatableSubtrajReplayBuffer(SubtrajReplayBuffer):
         self.keep_old_fraction = keep_old_fraction
 
     def random_subtrajectories(self, batch_size, replace=False,
-                               validation=False, _fixed_start_indices=None):
+                               _fixed_start_indices=None):
         if _fixed_start_indices is None:
             start_indices = np.random.choice(
-                self._valid_start_indices(validation=validation),
+                self._valid_start_indices(),
                 batch_size,
                 replace=replace,
             )
@@ -167,11 +167,12 @@ class UpdatableSubtrajReplayBuffer(SubtrajReplayBuffer):
         dloss_dmemories_loaded = self._dloss_dmemories[:self._size]
         return np.mean(dloss_dmemories_loaded == 0)
 
-    def random_batch(self, batch_size):
+    def random_batch(self, batch_size, **kwargs):
         """
         Get flat random batch.
-        :param batch_size: 
-        :return: 
+        :param batch_size:
+        :param **kwargs:
+        :return:
         """
         indices = np.random.choice(
             self._all_valid_start_indices,
