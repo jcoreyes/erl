@@ -91,6 +91,8 @@ def create_optimal_qf(target_pos, joint_angles):
 def get_path_and_iters(dir_path):
     path_and_iter = []
     for pkl_path in dir_path.glob('*.pkl'):
+        if 'data.pkl' in str(pkl_path):
+            continue
         match = re.search('_(-*[0-9]*).pkl$', str(pkl_path))
         if match is None:  # only saved one param
             path_and_iter.append((pkl_path, 0))
@@ -108,48 +110,58 @@ def main():
     base = base / args.folder_path
 
     path_and_iter = get_path_and_iters(base)
-    path, _ = path_and_iter[0]
+    path, _ = path_and_iter[-1]
+    print("Loading: %s" % path)
     data = joblib.load(str(path))
     qf = data['qf']
 
     resolution = 20
-    joint_angles = np.array([0, 0])
     x_bounds = (-1, 1)
     y_bounds = (-1, 1)
 
     report = HTMLReport(
         str(base / 'report.html'), images_per_row=1
     )
-    report.add_text("Joint Angles = {}".format(joint_angles))
 
-    for target_pos in [
+    for joint_angles in [
         np.array([0, 0]),
-        np.array([.1, .1]),
-        np.array([.1, -.1]),
-        np.array([-.1, .1]),
-        np.array([-.1, -.1]),
+        # np.array([pi/2, pi/2]),
+        # np.random.uniform(-pi, pi, size=2),
+        # np.random.uniform(-pi, pi, size=2),
+        # np.random.uniform(-pi, pi, size=2),
     ]:
-        qf_eval = create_qf_eval_fnct(qf, target_pos, joint_angles)
-        qf_heatmap = vu.make_heat_map(
-            qf_eval,
-            x_bounds=x_bounds,
-            y_bounds=y_bounds,
-            resolution=resolution,
-        )
-        optimal_qf_eval = create_optimal_qf(target_pos, joint_angles)
-        optimal_heatmap = vu.make_heat_map(
-            optimal_qf_eval,
-            x_bounds=x_bounds,
-            y_bounds=y_bounds,
-            resolution=resolution,
-        )
+        report.add_text("Joint Angles = {}".format(joint_angles))
+        for target_pos in [
+            np.array([0, 0]),
+            np.array([.1, .1]),
+            np.array([.1, -.1]),
+            np.array([-.1, .1]),
+            np.array([-.1, -.1]),
+            np.random.uniform(-.2, .2, size=2),
+            np.random.uniform(-.2, .2, size=2),
+            np.random.uniform(-.2, .2, size=2),
+        ]:
+            qf_eval = create_qf_eval_fnct(qf, target_pos, joint_angles)
+            qf_heatmap = vu.make_heat_map(
+                qf_eval,
+                x_bounds=x_bounds,
+                y_bounds=y_bounds,
+                resolution=resolution,
+            )
+            optimal_qf_eval = create_optimal_qf(target_pos, joint_angles)
+            optimal_heatmap = vu.make_heat_map(
+                optimal_qf_eval,
+                x_bounds=x_bounds,
+                y_bounds=y_bounds,
+                resolution=resolution,
+            )
 
-        fig = create_figure(
-            ['Estimated', 'Optimal'],
-            [qf_heatmap, optimal_heatmap],
-        )
-        img = vu.save_image(fig)
-        report.add_image(img, "Target Position = {}".format(target_pos))
+            fig = create_figure(
+                ['Estimated', 'Optimal'],
+                [qf_heatmap, optimal_heatmap],
+            )
+            img = vu.save_image(fig)
+            report.add_image(img, "Target Position = {}".format(target_pos))
 
     abs_path = osp.abspath(report.path)
     print("Report saved to: {}".format(abs_path))

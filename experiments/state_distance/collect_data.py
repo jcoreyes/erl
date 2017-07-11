@@ -50,17 +50,21 @@ def main(variant):
     sampler.save_pool(str(out_dir / 'data.pkl'))
     pool = sampler.pool
 
+
 if __name__ == '__main__':
     out_dir = Path(LOG_DIR) / 'datasets/generated'
     out_dir /= '7-10-reacher'
+    min_num_steps_to_collect = 100000
+    max_path_length = 1000
+    pool_size = min_num_steps_to_collect + max_path_length
 
     # noinspection PyTypeChecker
     variant = dict(
         dataset_path=str(out_dir),
         algo_params=dict(
-            min_num_steps_to_collect=100000,
-            max_path_length=1000,
+            min_num_steps_to_collect=min_num_steps_to_collect,
+            max_path_length=max_path_length,
         ),
-        pool_size=1000000,
+        pool_size=pool_size,
     )
     main(variant)

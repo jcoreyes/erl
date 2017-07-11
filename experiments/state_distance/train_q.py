@@ -1,4 +1,5 @@
 from pathlib import Path
+import random
 import pickle
 import os
 import os.path as osp
@@ -11,10 +12,12 @@ from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.multitask.reacher_env import MultitaskReacherEnv
 from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.ou_strategy import OUStrategy
+from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.policies.zero_policy import ZeroPolicy
 from railrl.qfunctions.torch import FeedForwardQFunction
 from rllab.config import LOG_DIR
+from rllab.misc import logger
 
 
 def main(variant):
@@ -48,15 +51,22 @@ def main(variant):
     algo.train()
 
 if __name__ == '__main__':
+    n_seeds = 1
+    mode = "here"
+    exp_prefix = "7-11-dev-state-distance-train-q"
+    snapshot_mode = 'all'
+
     out_dir = Path(LOG_DIR) / 'datasets/generated'
     out_dir /= '7-10-reacher'
+    logger.set_snapshot_dir(str(out_dir))
     dataset_path = out_dir / 'data.pkl'
 
     # noinspection PyTypeChecker
     variant = dict(
         dataset_path=str(dataset_path),
         algo_params=dict(
-            num_batches=100,
+            num_batches=10000,
+            num_batches_per_epoch=100,
             use_soft_update=True,
             tau=1e-2,
             batch_size=128,
@@ -64,6 +74,16 @@ if __name__ == '__main__':
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
         ),
-        pool_size=1000000,
     )
-    main(variant)
+
+    seed = random.randint(0, 10000)
+    run_experiment(
+        main,
+        exp_prefix=exp_prefix,
+        seed=seed,
+        mode=mode,
+        variant=variant,
+        exp_id=0,
+        use_gpu=True,
+        snapshot_mode=snapshot_mode,
+    )
