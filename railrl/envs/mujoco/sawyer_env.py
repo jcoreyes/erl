@@ -1,11 +1,8 @@
 import numpy as np
-from rllab.core.serializable import Serializable
 from rllab.spaces.box import Box
-from rllab.envs.base import Env
 from rllab.misc import logger
 from railrl.envs.mujoco.mujoco_env import MujocoEnv
 import mujoco_py
-import imp
 import ipdb
 
 JOINT_ANGLES_HIGH = np.array([
@@ -46,11 +43,26 @@ JOINT_VALUE_LOW = {
 }
 
 class SawyerEnv(MujocoEnv):
-    def __init__(self, action_mode='torque'):
+    def __init__(
+            self,
+            loss,
+            action_mode='torque',
+            delta=10,
+            torque_reg_lambda=1,
+            joint_angle_experiment=True,
+            end_effector_experiment=False,
+        ):
         self.init_serialization(locals())
-
+        self.end_effector_experiment = end_effector_experiment
         super().__init__('sawyer.xml')
-
+        if loss == 'MSE':
+            self.MSE = True
+            self.huber = False
+        elif loss == 'huber':
+            self.MSE = False
+            self.huber = True
+        self.delta=delta
+        self.torque_reg_lambda = torque_reg_lambda
         self._action_space = Box(
             JOINT_VALUE_LOW[action_mode],
             JOINT_VALUE_HIGH[action_mode]
@@ -61,11 +73,7 @@ class SawyerEnv(MujocoEnv):
             np.hstack((JOINT_VALUE_HIGH['position'], JOINT_VALUE_HIGH['velocity']))
         )
 
-        # self._observation_space = Box(
-        #     JOINT_VALUE_LOW['position'],
-        #     JOINT_VALUE_HIGH['position']
-        # )
-        self.desired = np.ones(7)
+        self.desired = np.zeros(7)
         self.reset()
         
     #needs to return the observation, reward, done, and info
@@ -73,32 +81,35 @@ class SawyerEnv(MujocoEnv):
         action = np.hstack((a, [0]))
         self.do_simulation(action, self.frame_skip)
         obs = self._get_obs()
-        reward = -np.mean((self.desired-self._get_joint_angles())**2)
-        if reward < -100:
-            ipdb.set_trace()
+        if self.MSE:
+            reward = -np.mean((self.desired-self._get_joint_angles())**2)
+        elif self.huber:
+            a = np.mean(np.abs(self.desired - self._get_joint_angles()))
+            if a <= self.delta:
+                reward = -1 / 2 * a ** 2
+            else:
+                reward = -1 * self.delta * (a - 1 / 2 * self.delta)
+        else:
+            reward = 0
+        reward -= np.linalg.norm(a)**2 * self.torque_reg_lambda
         done = False
         info = {}
         return obs, reward, done, info
 
     def reset(self):
-        #reset to some arbitrary neutral position
-        #currently it is equal to the neutral position for the baxter:
         angles = [1.2513886965340406, 0.005148737818322147,  0.004222751482764409, 0.0012673001326177769,
                   0.7523082764083187, 0.00016802203726484777, -0.5449456802340835]
         angles = [[self.wrapper(angle)] for angle in angles]
         angles = np.concatenate((angles, [[0]]), axis=0)
-        # self.model.data.__setattr__('qpos', angles)
-        # self.set_state(angles, Non
-        velocities = np.ones(8)
+        velocities = np.zeros(8)
         velocities = np.array([[velocity] for velocity in velocities])
         self.set_state(angles, velocities)
         return self._get_obs()
 
     def _get_joint_angles(self):
-        return np.array([self.wrapper(angle) for angle in np.concatenate([self.model.data.qpos]).ravel()[:7]])  
+        return np.array([self.wrapper(angle) for angle in np.concatenate([self.model.data.qpos]).ravel()[:7]])
 
     def _get_obs(self):
-        # ipdb.set_trace()
         joint_pos = self._get_joint_angles()
         joint_vel = np.concatenate([self.model.data.qpos]).ravel()[:7]
         return np.hstack((joint_pos, joint_vel))
@@ -124,6 +135,54 @@ class SawyerEnv(MujocoEnv):
         while angle < -np.pi:
             angle += np.pi
         return angle
+
+    def log_diagnostics(self, paths):
+        if self.end_effector_experiment:
+            obsSets = [path["observations"] for path in paths]
+            positions = []
+            desired_positions = []
+            for obsSet in obsSets:
+                for observation in obsSet:
+                    positions.append(observation[21:24])
+                    desired_positions.append(observation[24:27])
+
+            positions = np.array(positions)
+            desired_positions = np.array(desired_positions)
+            mean_distance_from_desired_ee_pose = np.mean(linalg.norm(positions - desired_positions, axis=1))
+            logger.record_tabular("Mean Distance from desired end-effector position",
+                                  mean_distance_from_desired_ee_pose)
+
+            if self.safety_limited_end_effector:
+                mean_distance_outside_box = np.mean(
+                    [self.compute_mean_distance_outside_box(pose) for pose in positions])
+                logger.record_tabular("Mean Distance Outside Box", mean_distance_outside_box)
+
+
+        if self.joint_angle_experiment:
+            obsSets = [path["observations"] for path in paths]
+            angles = []
+            desired_angles = []
+            positions = []
+            for obsSet in obsSets:
+                for observation in obsSet:
+                    angles.append(observation[:7])
+                    desired_angles.append(observation[24:31])
+                    positions.append(observation[21:24])
+
+            angles = np.array(angles)
+            desired_angles = np.array(desired_angles)
+
+            mean_distance_from_desired_angle = np.mean(linalg.norm(angles - desired_angles, axis=1))
+            logger.record_tabular("Mean Distance from desired angle", mean_distance_from_desired_angle)
+
+            if self.safety_limited_end_effector:
+                mean_distance_outside_box = np.mean(
+                    [self.compute_mean_distance_outside_box(pose) for pose in positions if not self.is_in_box(pose)])
+                # ipdb.set_trace()
+                logger.record_tabular("Mean Distance Outside Box", mean_distance_outside_box)
+    def terminate(self):
+        self.reset()
+        
 #how does this environment command actions?
 # See twod_point.py
 #         self.do_simulation(a, self.frame_skip)

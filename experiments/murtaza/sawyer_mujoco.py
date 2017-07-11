@@ -9,7 +9,9 @@ import ipdb
 
 #test if we need to set an action and observation space in sawyer env
 def example(variant):
-    env = SawyerEnv()
+    loss = variant['loss']
+    experiment=variant['experiment']
+    env = SawyerEnv(loss=loss)
     es = OUStrategy(
         max_sigma=0.05,
         min_sigma=0.05,
@@ -43,12 +45,14 @@ def example(variant):
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="7-5-ddpg-sawyer-mujoco-fixed-angle-test",
+        exp_prefix="7-10-ddpg-sawyer-mujoco-fixed-angle-test",
         seed=0,
         mode='here',
         variant={
                 'version': 'Original',
                 'use_target_policy': False,
+                'loss':'huber',
+                'experiment':'joint_angle_fixed',
                 },
-        use_gpu=False,
+        use_gpu=True,
     )
