@@ -14,10 +14,10 @@ class MultitaskReacherEnv(ReacherEnv):
 
     def sample_goal_states(self, batch_size):
         return self.np_random.uniform(
-            low=-0.1,
-            high=0.1,
+            low=-0.2,
+            high=0.2,
             size=(batch_size, 2)
-        ) + self.init_qpos[-2:]
+        )
 
     def compute_rewards(self, obs, action, next_obs, goal_states):
         c1 = next_obs[:, 0:1]  # cosine of angle 1
