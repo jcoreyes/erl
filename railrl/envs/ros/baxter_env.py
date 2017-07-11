@@ -84,13 +84,6 @@ left_highs = [1.1163239572333106, 1.2633121086809487, 0.795699462010194]
 
 experiments=['joint_angle|fixed_angle', 'joint_angle|varying_angle', 'end_effector_position|fixed_ee', 'end_effector_position|varying_ee', 'end_effector_position_orientation|fixed_ee', 'end_effector_position_orientation|varying_ee']
 
-joint_angle_experiment = False
-fixed_angle = False
-end_effector_experiment_position = False
-end_effector_experiment_total = False
-fixed_end_effector = False
-safety_end_effector_box = False
-
 def safe(raw_function):
     def safe_function(*args, **kwargs):
         try:
@@ -109,6 +102,7 @@ class BaxterEnv(Env, Serializable):
             update_hz=20,
             action_mode='torque',
             remove_action=False,
+            safety_end_effector_box=False,
             loss='huber',
             delta=10,
             magnitude=2,
@@ -118,7 +112,15 @@ class BaxterEnv(Env, Serializable):
         Serializable.quick_init(self, locals())
         rospy.init_node('baxter_env', anonymous=True)
         self.rate = rospy.Rate(update_hz)
-        
+
+        #defaults:
+        self.joint_angle_experiment = False
+        self.fixed_angle = False
+        self.end_effector_experiment_position = False
+        self.end_effector_experiment_total = False
+        self.fixed_end_effector = False
+        self.safety_end_effector_box = False
+
         if experiment == experiments[0]:
             self.joint_angle_experiment=True
         elif experiment == experiments[1]:

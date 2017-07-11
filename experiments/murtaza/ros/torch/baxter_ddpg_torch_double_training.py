@@ -75,7 +75,7 @@ experiments=['joint_angle|fixed_angle', 'joint_angle|varying_angle', 'end_effect
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="7-10-ddpg-baxter-right-arm-fixed-angle-safety-huber",
+        exp_prefix="7-10-ddpg-baxter-right-arm-fixed-angle-safety-huber-TEST",
         seed=0,
         mode='here',
         variant={
