@@ -8,8 +8,15 @@ class EnvReplayBuffer(SimpleReplayBuffer):
             self,
             max_pool_size,
             env,
+            flatten=False,
             **kwargs
     ):
+        """
+        :param max_pool_size:
+        :param env:
+        :param flatten: Flatten action, obs, and next_obs when returning samples
+        :param kwargs: kwargs to pass to SimpleReplayBuffer constructor.
+        """
         super().__init__(
             max_pool_size=max_pool_size,
             observation_dim=env.observation_space.flat_dim,
@@ -17,6 +24,7 @@ class EnvReplayBuffer(SimpleReplayBuffer):
             **kwargs
         )
         self._env = env
+        self.flatten = flatten
 
     @overrides
     def _add_sample(self, observation, action, reward, terminal, initial,
@@ -45,10 +53,10 @@ class EnvReplayBuffer(SimpleReplayBuffer):
             initial,
         )
 
-    def random_batch(self, batch_size, flatten=False):
+    def random_batch(self, batch_size):
         batch = super().random_batch(batch_size)
 
-        if flatten:
+        if self.flatten:
             return batch
 
         actions = batch['actions']

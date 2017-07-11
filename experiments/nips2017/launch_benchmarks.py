@@ -25,7 +25,7 @@ from rllab.envs.mujoco.walker2d_env import Walker2DEnv
 if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
-    exp_prefix = "dev-launch-benchmark"
+    exp_prefix = "7-7-dev-launch-benchmark"
 
     # n_seeds = 5
     # mode = "ec2"
@@ -34,27 +34,28 @@ if __name__ == '__main__':
     # env_class = HighLow
     # env_class = WaterMazeMemory
     # env_class = WaterMaze
-    # env_class = WaterMazeEasy
+    env_class = WaterMazeEasy
     # env_class = WaterMazeEasy1D
+    # env_class = WaterMazeMemory1D
     # env_class = WaterMaze1D
-    env_class = Walker2DEnv
+    # env_class = Walker2DEnv
 
     use_gpu = True
     if mode != "here":
         use_gpu = False
 
-    H = 1000
-    num_steps_per_iteration = 1000
+    H = 25
+    num_steps_per_iteration = 100
     num_steps_per_eval = 1000
-    num_iterations = 10
+    num_iterations = 100
     batch_size = 200
-    memory_dim = 30
+    memory_dim = 100
     # noinspection PyTypeChecker
     variant = dict(
         H=H,
         env_class=env_class,
         env_params=dict(
-            # horizon=H,
+            horizon=H,
         ),
         exp_prefix=exp_prefix,
         num_steps_per_iteration=num_steps_per_iteration,
@@ -66,12 +67,12 @@ if __name__ == '__main__':
     )
     exp_id = -1
     for launcher in [
-        trpo_launcher,
+        # trpo_launcher,
         # mem_trpo_launcher,
         # rtrpo_launcher,
         # ddpg_launcher,
         # mem_ddpg_launcher,
-        # rdpg_launcher,
+        rdpg_launcher,
     ]:
         search_space = {
             # 'env_class': [WaterMaze1D, WaterMazeEasy1D, WaterMazeMemory1D],
@@ -92,6 +93,6 @@ if __name__ == '__main__':
                     mode=mode,
                     variant=variant,
                     exp_id=exp_id,
-                    snapshot_mode='all',
+                    snapshot_mode='last',
                     use_gpu=use_gpu,
                 )

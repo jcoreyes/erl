@@ -4,6 +4,7 @@ logs/
 *.pyc
 *.swp
 *.swo
+tmp.py
 *.idea
 railrl/bin/
 railrl/.idea/

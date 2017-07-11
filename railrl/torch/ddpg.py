@@ -29,7 +29,7 @@ class DDPG(OnlineAlgorithm):
             target_hard_update_period=1000,
             tau=1e-2,
             use_soft_update=False,
-            use_target_policy=False,
+            use_target_policy=True,
             **kwargs
     ):
         super().__init__(*args, **kwargs)
@@ -48,15 +48,16 @@ class DDPG(OnlineAlgorithm):
                                        lr=self.qf_learning_rate)
         self.policy_optimizer = optim.Adam(self.policy.parameters(),
                                            lr=self.policy_learning_rate)
-        # TODO(vitchyr): pass in the replay buffer
         self.pool = SplitReplayBuffer(
             EnvReplayBuffer(
                 self.pool_size,
                 self.env,
+                flatten=True,
             ),
             EnvReplayBuffer(
                 self.pool_size,
                 self.env,
+                flatten=True,
             ),
             fraction_paths_in_train=0.8,
         )
@@ -108,14 +109,6 @@ class DDPG(OnlineAlgorithm):
         """
         if(self.use_target_policy):
             #generate y target using normal policy
-            next_actions = self.policy(next_obs)
-            target_q_values_with_normal_policy = self.target_qf(
-                next_obs,
-                next_actions,
-            )
-            y_target = rewards  + (1. - terminals) * self.discount * target_q_values_with_normal_policy
-        else:
-            #generate y target using target policies
             next_actions = self.target_policy(next_obs)
             target_q_values = self.target_qf(
                 next_obs,
@@ -123,6 +116,14 @@ class DDPG(OnlineAlgorithm):
             )
             y_target = rewards + (1. - terminals) * self.discount * target_q_values
 
+        else:
+            #generate y target using target policies
+            next_actions = self.policy(next_obs)
+            target_q_values_with_normal_policy = self.target_qf(
+                next_obs,
+                next_actions,
+            )
+            y_target = rewards + (1. - terminals) * self.discount * target_q_values_with_normal_policy
         # noinspection PyUnresolvedReferences
         y_target = y_target.detach()
         y_pred = self.qf(obs, actions)
@@ -176,9 +177,12 @@ class DDPG(OnlineAlgorithm):
         self.log_diagnostics(paths)
 
     def get_batch(self, training=True):
-        batch = self.pool.random_batch(
-            self.batch_size, training=training, flatten=True
+        pool = self.pool.get_replay_buffer(training)
+        sample_size = min(
+            pool.num_steps_can_sample(),
+            self.batch_size
         )
+        batch = pool.random_batch(sample_size)
         torch_batch = {
             k: Variable(ptu.from_numpy(array).float(), requires_grad=False)
             for k, array in batch.items()
@@ -190,9 +194,8 @@ class DDPG(OnlineAlgorithm):
         return torch_batch
 
     def _statistics_from_paths(self, paths, stat_prefix):
-        statistics = OrderedDict()
         batch = paths_to_pytorch_batch(paths)
-        statistics.update(self._statistics_from_batch(batch, stat_prefix))
+        statistics = self._statistics_from_batch(batch, stat_prefix)
         statistics.update(create_stats_ordered_dict(
             'Num Paths', len(paths), stat_prefix=stat_prefix
         ))
@@ -222,10 +225,9 @@ class DDPG(OnlineAlgorithm):
         return statistics
 
     def _can_evaluate(self, exploration_paths):
-        # import ipdb; ipdb.set_trace()
         return (
             len(exploration_paths) > 0
-            and self.pool.num_steps_can_sample() >= self.batch_size
+            and self.pool.num_steps_can_sample() > 0
         )
 
     def get_epoch_snapshot(self, epoch):
@@ -233,8 +235,8 @@ class DDPG(OnlineAlgorithm):
             epoch=epoch,
             policy=self.policy,
             env=self.training_env,
+            es=self.exploration_strategy,
             qf=self.qf,
-            replay_pool=self.pool,
         )
 
 

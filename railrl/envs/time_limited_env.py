@@ -22,7 +22,7 @@ class TimeLimitedEnv(ProxyEnv, Serializable):
 
     @property
     def horizon(self):
-        return self._wrapped_env.horizon
+        return self._horizon
 
     def step(self, action):
         obs, reward, done, info = self._wrapped_env.step(action)

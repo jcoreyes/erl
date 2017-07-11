@@ -11,13 +11,12 @@ from railrl.torch.ddpg import DDPG
 
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 from rllab.envs.normalized_env import normalize
-import ipdb
+
 
 def example(variant):
     env = HalfCheetahEnv()
     env = normalize(env)
     es = OUStrategy(action_space=env.action_space)
-    use_new_version = variant['use_new_version']
     qf = FeedForwardQFunction(
         int(env.observation_space.flat_dim),
         int(env.action_space.flat_dim),
@@ -35,7 +34,6 @@ def example(variant):
         exploration_strategy=es,
         qf=qf,
         policy=policy,
-        use_new_version=use_new_version,
         **variant['algo_params']
     )
     algorithm.train()
@@ -45,22 +43,25 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
-            num_epochs=2,
+            num_epochs=100,
             num_steps_per_epoch=10000,
             num_steps_per_eval=1000,
             use_soft_update=True,
             tau=1e-2,
-            batch_size=1024,
+            batch_size=128,
             max_path_length=1000,
+            discount=0.99,
+            qf_learning_rate=1e-3,
+            policy_learning_rate=1e-4,
         ),
-        use_new_version=True,
         version="PyTorch - bigger networks",
     )
-    for seed in range(1):
-        run_experiment(
-            example,
-            exp_prefix="ddpg-modified-cheetah-torch-test-DELETE",
-            seed=seed,
-            mode='here',
-            variant=variant,
-        )
+    seed = random.randint(0, 999999)
+    run_experiment(
+        example,
+        exp_prefix="ddpg-half-cheetah-pytorch",
+        seed=seed,
+        mode='here',
+        variant=variant,
+        use_gpu=True,
+    )

@@ -50,7 +50,7 @@ if __name__ == "__main__":
         mode='here',
         variant={
                 'version': 'Original',
-                'use_target_policy': False,
+                'use_target_policy': True,
                 'loss':'huber',
                 'experiment':'joint_angle_fixed',
                 },

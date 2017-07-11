@@ -6,6 +6,7 @@ from os.path import exists
 from railrl.envs.ros.baxter_env import BaxterEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 import joblib
+
 def example(variant):
     load_policy_file = variant.get('load_policy_file', None)
     if load_policy_file is not None and exists(load_policy_file):
@@ -80,7 +81,7 @@ if __name__ == "__main__":
         mode='here',
         variant={
                 'version': 'Original',
-                'use_target_policy': False,
+                'use_target_policy': True,
                 'use_right_arm': True,
                 'safety_end_effector_box':True,
                 'loss':'huber',

@@ -181,6 +181,10 @@ class SubtrajReplayBuffer(ReplayBuffer):
         )
         return self.get_trajectories(start_indices)
 
+    def random_batch(self, batch_size, **kwargs):
+        num_subtrajs = batch_size // self._subtraj_length
+        return self.random_subtrajectories(num_subtrajs, **kwargs)
+
     def _valid_start_indices(self, return_all=False, validation=False):
         if self._only_sample_at_start_of_episode:
             return self._valid_start_episode_indices

@@ -37,8 +37,7 @@ class OnlineAlgorithm(RLAlgorithm):
             batch_size=64,
             n_epochs=1000,
             epoch_length=10000,
-            # epoch_length=1000,
-            min_pool_size=10000,
+            min_pool_size=None,
             replay_pool_size=1000000,
             discount=0.99,
             soft_target_tau=1e-2,
@@ -124,7 +123,6 @@ class OnlineAlgorithm(RLAlgorithm):
             self.replay_pool_size,
             self.env,
         )
-        
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = allow_gpu_growth
         self.sess = tf.Session(config=config)
@@ -203,11 +201,11 @@ class OnlineAlgorithm(RLAlgorithm):
                 for n_steps_current_epoch in range(self.epoch_length):
                     action, agent_info = (
                         self.exploration_strategy.get_action(
-                              itr,
-                              observation,
-                             self.policy,
-                         )
-                     )
+                            itr,
+                            observation,
+                            self.policy,
+                        )
+                    )
                     if self.render:
                         self.training_env.render()
 

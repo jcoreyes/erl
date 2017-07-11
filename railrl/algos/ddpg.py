@@ -49,7 +49,7 @@ class DDPG(OnlineAlgorithm):
             target_update_mode=TargetUpdateMode.SOFT,
             hard_update_period=10000,
             reward_low_bellman_error_weight=0.,
-            use_target_policy=False,
+            use_target_policy=True,
             **kwargs
     ):
         """
@@ -95,9 +95,6 @@ class DDPG(OnlineAlgorithm):
             name_or_scope=TARGET_PREFIX + self.qf.scope_name,
             action_input=self.target_policy.output,
         )
-        self.target_qf_with_action_input=self.target_qf.get_weight_tied_copy(
-            action_input=self.policy.output,
-        )
         self.qf.sess = self.sess
         self.policy.sess = self.sess
         self.target_qf.sess = self.sess
@@ -114,7 +111,7 @@ class DDPG(OnlineAlgorithm):
             self._init_policy_loss_and_train_ops()
 
     def _init_qf_ops(self):
-        if(self.use_target_policy):
+        if(not self.use_target_policy):
             self.raw_ys = tf.stop_gradient(
                 self.rewards_n1 +
                 (1. - self.terminals_n1)
@@ -128,6 +125,7 @@ class DDPG(OnlineAlgorithm):
                 * self.discount
                 * self.target_qf.output
             )
+
         self.raw_bellman_errors = tf.squared_difference(self.raw_ys,
                                                         self.qf.output)
         if self.reward_low_bellman_error_weight > 0.:
@@ -381,5 +379,4 @@ class DDPG(OnlineAlgorithm):
             policy=self.policy,
             es=self.exploration_strategy,
             qf=self.qf,
-            pool=self.pool,
         )

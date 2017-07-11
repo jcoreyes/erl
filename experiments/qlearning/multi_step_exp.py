@@ -60,10 +60,11 @@ def experiment(variant):
 
 if __name__ == "__main__":
     num_configurations = 1  # for random mode
+
     n_seeds = 1
     mode = "here"
-    exp_prefix = "6-28-dev-multi-step-ql"
-    version = "Dev"
+    exp_prefix = "7-7-dev-multi-step-ql"
+    version = "dev"
     run_mode = "none"
 
     # n_seeds = 100
@@ -79,8 +80,8 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
-            num_epochs=10,
-            num_steps_per_epoch=1000,
+            num_epochs=100,
+            num_steps_per_epoch=10000,
             num_steps_per_eval=1000,
             batch_size=128,
             max_path_length=1000,
@@ -88,6 +89,7 @@ if __name__ == "__main__":
             discount=0.98,
             policy_learning_rate=4e-4,
             qf_learning_rate=2e-3,
+            subtraj_length=10,
         ),
         version=version,
     )

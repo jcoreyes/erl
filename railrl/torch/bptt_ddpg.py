@@ -6,6 +6,7 @@ import torch
 import torch.optim as optim
 from torch.autograd import Variable
 
+from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.data_management.updatable_subtraj_replay_buffer import (
     UpdatableSubtrajReplayBuffer
 )
@@ -38,6 +39,7 @@ class BpttDdpg(OnlineAlgorithm):
             tau=0.01,
             use_soft_update=True,
             target_hard_update_period=1000,
+            use_action_policy_params_for_entire_policy=False,
             action_policy_optimize_bellman=True,
             write_policy_optimizes='both',
             action_policy_learning_rate=1e-3,
@@ -47,8 +49,36 @@ class BpttDdpg(OnlineAlgorithm):
             refresh_entire_buffer_period=None,
             save_new_memories_back_to_replay_buffer=True,
             only_use_last_dqdm=False,
+            action_policy_weight_decay=0,
+            write_policy_weight_decay=0,
             **kwargs
     ):
+        """
+        :param args: arguments to be passed onto super class constructor
+        :param qf: Q function to train
+        :param policy: Policy trained to optimized the Q function
+        :param subtraj_length: Length of the subtrajectories loaded
+        :param tau: Soft target tau
+        :param use_soft_update: If False, use hard target updates.
+        :param target_hard_update_period: Number of environment steps between
+        hard updates.
+        :param use_action_policy_params_for_entire_policy: If True, train the
+        entire policy together, rather than training the action and write parts
+        separately.
+        :param action_policy_optimize_bellman:
+        :param write_policy_optimizes:
+        :param action_policy_learning_rate:
+        :param write_policy_learning_rate:
+        :param qf_learning_rate:
+        :param bellman_error_loss_weight:
+        :param refresh_entire_buffer_period:
+        :param save_new_memories_back_to_replay_buffer:
+        :param only_use_last_dqdm: If True, cut the gradients for all dQ/dmemory
+        other than the last time step.
+        :param action_policy_weight_decay:
+        :param write_policy_weight_decay:
+        :param kwargs: kwargs to pass onto super class constructor
+        """
         super().__init__(*args, **kwargs)
         assert write_policy_optimizes in ['qf', 'bellman', 'both']
         self.qf = qf
@@ -57,6 +87,9 @@ class BpttDdpg(OnlineAlgorithm):
         self.tau = tau
         self.use_soft_update = use_soft_update
         self.target_hard_update_period = target_hard_update_period
+        self.use_action_policy_params_for_entire_policy = (
+            use_action_policy_params_for_entire_policy
+        )
         self.action_policy_optimize_bellman = action_policy_optimize_bellman
         self.write_policy_optimizes = write_policy_optimizes
         self.action_policy_learning_rate = action_policy_learning_rate
@@ -70,6 +103,8 @@ class BpttDdpg(OnlineAlgorithm):
             save_new_memories_back_to_replay_buffer
         )
         self.only_use_last_dqdm = only_use_last_dqdm
+        self.action_policy_weight_decay = action_policy_weight_decay
+        self.write_policy_weight_decay = write_policy_weight_decay
 
         """
         Set some params-dependency values
@@ -94,11 +129,20 @@ class BpttDdpg(OnlineAlgorithm):
         """
         Create the necessary node objects.
         """
-        self.pool = UpdatableSubtrajReplayBuffer(
-            self.pool_size,
-            self.env,
-            self.subtraj_length,
-            self.memory_dim,
+        self.pool = SplitReplayBuffer(
+            UpdatableSubtrajReplayBuffer(
+                self.pool_size,
+                self.env,
+                self.subtraj_length,
+                self.memory_dim,
+            ),
+            UpdatableSubtrajReplayBuffer(
+                self.pool_size,
+                self.env,
+                self.subtraj_length,
+                self.memory_dim,
+            ),
+            fraction_paths_in_train=0.8,
         )
         self.target_qf = self.qf.copy()
         self.target_policy = self.policy.copy()
@@ -107,10 +151,19 @@ class BpttDdpg(OnlineAlgorithm):
             self.qf.parameters(), lr=self.qf_learning_rate
         )
         self.action_policy_optimizer = optim.Adam(
-            self.policy.action_parameters(), lr=self.action_policy_learning_rate
+            self.policy.action_parameters(),
+            lr=self.action_policy_learning_rate,
+            weight_decay=self.action_policy_weight_decay,
         )
         self.write_policy_optimizer = optim.Adam(
-            self.policy.write_parameters(), lr=self.write_policy_learning_rate
+            self.policy.write_parameters(),
+            lr=self.write_policy_learning_rate,
+            weight_decay=self.write_policy_weight_decay,
+        )
+        self.policy_optimizer = optim.Adam(
+            self.policy.parameters(),
+            lr=self.action_policy_learning_rate,
+            weight_decay=self.action_policy_weight_decay,
         )
 
         if gpu_enabled():
@@ -124,8 +177,10 @@ class BpttDdpg(OnlineAlgorithm):
     """
 
     def _do_training(self, n_steps_total):
-        raw_subtraj_batch, start_indices = self.pool.random_subtrajectories(
-            self.num_subtrajs_per_batch
+        raw_subtraj_batch, start_indices = (
+            self.pool.train_replay_buffer.random_subtrajectories(
+                self.num_subtrajs_per_batch
+            )
         )
         subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
         self.train_critic(subtraj_batch)
@@ -189,35 +244,45 @@ class BpttDdpg(OnlineAlgorithm):
         policy_dict = self.get_policy_output_dict(subtraj_batch)
 
         policy_loss = policy_dict['Loss']
-
-        self.action_policy_optimizer.zero_grad()
-        self.write_policy_optimizer.zero_grad()
-        policy_loss.backward(retain_variables=True)
-
-        if self.write_policy_optimizes == 'qf':
-            self.write_policy_optimizer.step()
+        if self.use_action_policy_params_for_entire_policy:
+            self.policy_optimizer.zero_grad()
+            policy_loss.backward(
+                retain_variables=self.action_policy_optimize_bellman
+            )
             if self.action_policy_optimize_bellman:
                 bellman_errors = policy_dict['Bellman Errors']
                 bellman_loss = self.bellman_error_loss_weight * bellman_errors.mean()
                 bellman_loss.backward()
-            self.action_policy_optimizer.step()
+            self.policy_optimizer.step()
         else:
-            if self.write_policy_optimizes == 'bellman':
-                self.write_policy_optimizer.zero_grad()
-            if self.action_policy_optimize_bellman:
-                bellman_errors = policy_dict['Bellman Errors']
-                bellman_loss = self.bellman_error_loss_weight * bellman_errors.mean()
-                bellman_loss.backward()
+            self.action_policy_optimizer.zero_grad()
+            self.write_policy_optimizer.zero_grad()
+            policy_loss.backward(retain_variables=True)
+
+            if self.write_policy_optimizes == 'qf':
+                self.write_policy_optimizer.step()
+                if self.action_policy_optimize_bellman:
+                    bellman_errors = policy_dict['Bellman Errors']
+                    bellman_loss = self.bellman_error_loss_weight * bellman_errors.mean()
+                    bellman_loss.backward()
                 self.action_policy_optimizer.step()
             else:
-                self.action_policy_optimizer.step()
-                bellman_errors = policy_dict['Bellman Errors']
-                bellman_loss = self.bellman_error_loss_weight * bellman_errors.mean()
-                bellman_loss.backward()
-            self.write_policy_optimizer.step()
+                if self.write_policy_optimizes == 'bellman':
+                    self.write_policy_optimizer.zero_grad()
+                if self.action_policy_optimize_bellman:
+                    bellman_errors = policy_dict['Bellman Errors']
+                    bellman_loss = self.bellman_error_loss_weight * bellman_errors.mean()
+                    bellman_loss.backward()
+                    self.action_policy_optimizer.step()
+                else:
+                    self.action_policy_optimizer.step()
+                    bellman_errors = policy_dict['Bellman Errors']
+                    bellman_loss = self.bellman_error_loss_weight * bellman_errors.mean()
+                    bellman_loss.backward()
+                self.write_policy_optimizer.step()
 
         if self.save_new_memories_back_to_replay_buffer:
-            self.pool.update_write_subtrajectories(
+            self.pool.train_replay_buffer.update_write_subtrajectories(
                 get_numpy(policy_dict['New Writes']), start_indices
             )
 
@@ -400,18 +465,16 @@ class BpttDdpg(OnlineAlgorithm):
 
     def _get_other_statistics(self):
         statistics = OrderedDict()
-        for stat_prefix, validation in [
-            ('Validation', True),
-            ('Train', False),
+        for stat_prefix, training in [
+            ('Validation', False),
+            ('Train', True),
         ]:
+            pool = self.pool.get_replay_buffer(training=training)
             sample_size = min(
-                self.pool.num_subtrajs_can_sample(validation=validation),
+                pool.num_subtrajs_can_sample(),
                 self.train_validation_num_subtrajs_per_batch
             )
-            raw_subtraj_batch = self.pool.random_subtrajectories(
-                sample_size,
-                validation=validation
-            )[0]
+            raw_subtraj_batch = pool.random_subtrajectories(sample_size)[0]
             subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
             statistics.update(self._statistics_from_subtraj_batch(
                 subtraj_batch, stat_prefix=stat_prefix
@@ -420,8 +483,9 @@ class BpttDdpg(OnlineAlgorithm):
 
     def _can_evaluate(self, exploration_paths):
         return (
-            self.pool.num_subtrajs_can_sample(validation=True) >= 1
-            and self.pool.num_subtrajs_can_sample(validation=False) >= 1
+            self.pool.train_replay_buffer.num_subtrajs_can_sample() >= 1
+            and
+            self.pool.validation_replay_buffer.num_subtrajs_can_sample() >= 1
             and len(exploration_paths) > 0
             and any([len(path['terminals']) >= self.subtraj_length
                      for path in exploration_paths])
@@ -435,7 +499,8 @@ class BpttDdpg(OnlineAlgorithm):
 
     def _can_train(self):
         return (
-            self.pool.num_subtrajs_can_sample() >= self.num_subtrajs_per_batch
+            self.pool.train_replay_buffer.num_subtrajs_can_sample()
+            >= self.num_subtrajs_per_batch
         )
 
     def _sample_paths(self, epoch):
@@ -474,24 +539,30 @@ class BpttDdpg(OnlineAlgorithm):
             return
 
         if self.should_refresh_buffer.check(n_steps_total):
-            all_start_traj_indices = (
-                self.pool.get_all_valid_trajectory_start_indices()
-            )
-            for start_traj_indices in batch(
-                    all_start_traj_indices,
-                    self.max_number_trajectories_loaded_at_once,
-            ):
-                raw_subtraj_batch, start_indices = (
-                    self.pool.get_trajectory_minimal_covering_subsequences(
-                        start_traj_indices, self.training_env.horizon)
-                )
-                subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
-                subtraj_obs = subtraj_batch['env_obs']
-                initial_memories = subtraj_batch['memories'][:, 0, :]
-                _, policy_writes = self.policy(subtraj_obs, initial_memories)
-                self.pool.update_write_subtrajectories(
-                    get_numpy(policy_writes), start_indices
-                )
+            for pool in [
+                    self.pool.train_replay_buffer,
+                    self.pool.validation_replay_buffer,
+            ]:
+                for start_traj_indices in batch(
+                        pool.get_all_valid_trajectory_start_indices(),
+                        self.max_number_trajectories_loaded_at_once,
+                ):
+                    raw_subtraj_batch, start_indices = (
+                        pool.get_trajectory_minimal_covering_subsequences(
+                            start_traj_indices, self.training_env.horizon
+                        )
+                    )
+                    subtraj_batch = create_torch_subtraj_batch(
+                        raw_subtraj_batch
+                    )
+                    subtraj_obs = subtraj_batch['env_obs']
+                    initial_memories = subtraj_batch['memories'][:, 0, :]
+                    _, policy_writes = self.policy(
+                        subtraj_obs, initial_memories
+                    )
+                    pool.update_write_subtrajectories(
+                        get_numpy(policy_writes), start_indices
+                    )
 
 
 def flatten_subtraj_batch(subtraj_batch):
