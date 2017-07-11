@@ -24,7 +24,6 @@ def main(variant):
     exploration_policy = ZeroPolicy(
         int(action_space.flat_dim),
     )
-    dataset_path = variant['dataset_path']
     pool_size = variant['pool_size']
     pool = SplitReplayBuffer(
         EnvReplayBuffer(
@@ -47,20 +46,22 @@ def main(variant):
         **variant['algo_params']
     )
     sampler.collect_data()
-    sampler.save_pool(str(out_dir / 'data.pkl'))
-    pool = sampler.pool
+    out_dir = variant['out_dir']
+    save_file = osp.join(out_dir, 'data.pkl')
+    sampler.save_pool(save_file)
+    print("Saved to {}".format(save_file))
 
 
 if __name__ == '__main__':
     out_dir = Path(LOG_DIR) / 'datasets/generated'
-    out_dir /= '7-10-reacher'
-    min_num_steps_to_collect = 100000
+    out_dir /= '7-11-reacher'
+    min_num_steps_to_collect = 1000000
     max_path_length = 1000
     pool_size = min_num_steps_to_collect + max_path_length
 
     # noinspection PyTypeChecker
     variant = dict(
-        dataset_path=str(out_dir),
+        out_dir=str(out_dir),
         algo_params=dict(
             min_num_steps_to_collect=min_num_steps_to_collect,
             max_path_length=max_path_length,

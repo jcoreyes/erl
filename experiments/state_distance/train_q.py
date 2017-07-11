@@ -33,13 +33,14 @@ def main(variant):
         int(action_space.flat_dim),
         400,
         300,
-        )
+        batchnorm_obs=True,
+    )
     policy = FeedForwardPolicy(
         int(observation_space.flat_dim) + env.goal_dim,
         int(action_space.flat_dim),
         400,
         300,
-        )
+    )
     algo = StateDistanceQLearningSimple(
         env=env,
         qf=qf,
@@ -65,8 +66,8 @@ if __name__ == '__main__':
     variant = dict(
         dataset_path=str(dataset_path),
         algo_params=dict(
-            num_batches=10000,
-            num_batches_per_epoch=100,
+            num_batches=100000,
+            num_batches_per_epoch=500,
             use_soft_update=True,
             tau=1e-2,
             batch_size=128,
