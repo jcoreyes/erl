@@ -56,6 +56,7 @@ env = ReacherEnv()
 
 def set_state(target_pos, joint_angles):
     qpos, qvel = np.concatenate([joint_angles, target_pos]), np.zeros(4)
+    env.reset()
     env.set_state(qpos, qvel)
 
 
@@ -106,6 +107,7 @@ def get_path_and_iters(dir_path):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("folder_path", type=str)
+    # parser.add_argument("--num_iters", type=int)
     args = parser.parse_args()
     base = Path(os.getcwd())
     base = base / args.folder_path
@@ -120,8 +122,10 @@ def main():
         str(base / 'report.html'), images_per_row=1
     )
 
-    path, itr = path_and_iter[-1]
-    for path, itr in takespread(path_and_iter, 5):
+    # for path, itr in takespread(path_and_iter, args):
+    for path, itr in [
+        path_and_iter[-1]
+    ]:
         report.add_text("Path: %s" % path)
         print("Loading: %s" % path)
         data = joblib.load(str(path))
@@ -129,19 +133,19 @@ def main():
         qf.train(False)
 
         for joint_angles in [
-            np.array([pi/4, pi/4]),
+            # np.array([pi/4, pi/4]),
             # np.array([pi/2, pi/2]),
-            # np.random.uniform(-pi, pi, size=2),
-            # np.random.uniform(-pi, pi, size=2),
-            # np.random.uniform(-pi, pi, size=2),
+            np.random.uniform(-pi, pi, size=2),
+            np.random.uniform(-pi, pi, size=2),
+            np.random.uniform(-pi, pi, size=2),
         ]:
             report.add_text("Joint Angles = {}".format(joint_angles))
             for target_pos in [
-                np.array([0, 0]),
-                np.array([.1, .1]),
-                np.array([.1, -.1]),
-                np.array([-.1, .1]),
-                np.array([-.1, -.1]),
+                # np.array([0, 0]),
+                # np.array([.2, .2]),
+                # np.array([.2, -.2]),
+                # np.array([-.2, .2]),
+                # np.array([-.2, -.2]),
                 np.random.uniform(-.2, .2, size=2),
                 np.random.uniform(-.2, .2, size=2),
                 np.random.uniform(-.2, .2, size=2),
