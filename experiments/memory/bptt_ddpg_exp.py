@@ -97,14 +97,14 @@ def experiment(variant):
 if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
-    exp_prefix = "7-9-dev-bptt-ddpg-exp"
+    exp_prefix = "7-11-dev-bptt-ddpg-check-if-it-works"
     run_mode = 'none'
 
-    # n_seeds = 10
-    # mode = "ec2"
-    # exp_prefix = "7-8-bptt-ddpg-water-maze-memory-sweep-subtraj-length"
+    n_seeds = 10
+    mode = "ec2"
+    exp_prefix = "7-11-bptt-ddpg-check-if-it-works-2"
 
-    # run_mode = 'grid'
+    run_mode = 'grid'
     num_configurations = 500
     use_gpu = True
     if mode != "here":
@@ -112,10 +112,10 @@ if __name__ == '__main__':
 
     H = 25
     subtraj_length = 25
-    num_steps_per_iteration = 100
-    num_steps_per_eval = 100
+    num_steps_per_iteration = 1000
+    num_steps_per_eval = 1000
     num_iterations = 50
-    batch_size = 100
+    batch_size = 200
     memory_dim = 100
     version = exp_prefix
     version = "Our Method"
@@ -198,7 +198,7 @@ if __name__ == '__main__':
             # 'policy_params.hidden_init': [init.kaiming_normal, ptu.fanin_init],
             # 'policy_params.feed_action_to_memory': [False, True],
             # 'policy_params.cell_class': [LSTMCell, BNLSTMCell, RWACell],
-            'algo_params.subtraj_length': [1, 15, 25],
+            'algo_params.subtraj_length': [1, 5, 10, 15, 20, 25],
             # 'algo_params.bellman_error_loss_weight': [0.1, 1, 10, 100, 1000],
             # 'algo_params.tau': [1, 0.1, 0.01, 0.001],
             # 'env_params.give_time': [True, False],
