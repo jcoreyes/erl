@@ -1,3 +1,4 @@
+import argparse
 import numpy as np
 
 from railrl.envs.multitask.reacher_env import MultitaskReacherEnv
@@ -7,6 +8,7 @@ env = MultitaskReacherEnv()
 
 def set_state(target_pos, joint_angles):
     qpos, qvel = np.concatenate([joint_angles, target_pos]), np.zeros(4)
+    env.reset()
     env.set_state(qpos, qvel)
 
 
@@ -29,17 +31,26 @@ def true_q(target_pos, obs, action):
 
 def sample_best_action_ground_truth(obs, num_samples):
     sampled_actions = np.random.uniform(-.1, .1, size=(num_samples, 2))
+    # resolution = 10
+    # x = np.linspace(-1, 1, resolution)
+    # y = np.linspace(-1, 1, resolution)
+    # sampled_actions = np.transpose([np.tile(x, len(y)), np.repeat(y, len(x))])
     q_values = [true_q(obs[-2:], obs, a) for a in sampled_actions]
     max_i = np.argmax(q_values)
     return sampled_actions[max_i]
 
 if __name__ == "__main__":
-    goal = np.array([.1, .1])
-    num_samples = 10
+    parser = argparse.ArgumentParser()
+    parser.add_argument('x', type=float, default=0.1)
+    parser.add_argument('y', type=float, default=0.1)
+    args = parser.parse_args()
+    goal = np.array([args.x, args.y])
+    num_samples = 100
 
-    obs = env.reset()
+    eval_env = MultitaskReacherEnv()
+    obs = eval_env.reset()
     for _ in range(1000):
         new_obs = np.hstack((obs, goal))
         action = sample_best_action_ground_truth(new_obs, num_samples)
-        obs, r, d, env_info = env.step(action)
-        env.render()
+        obs, r, d, env_info = eval_env.step(action)
+        eval_env.render()
