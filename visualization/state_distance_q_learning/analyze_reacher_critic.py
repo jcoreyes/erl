@@ -133,22 +133,22 @@ def main():
         qf.train(False)
 
         for joint_angles in [
-            # np.array([pi/4, pi/4]),
-            # np.array([pi/2, pi/2]),
-            np.random.uniform(-pi, pi, size=2),
-            np.random.uniform(-pi, pi, size=2),
-            np.random.uniform(-pi, pi, size=2),
+            np.array([pi/4, pi/4]),
+            np.array([pi/2, pi/2]),
+            # np.random.uniform(-pi, pi, size=2),
+            # np.random.uniform(-pi, pi, size=2),
+            # np.random.uniform(-pi, pi, size=2),
         ]:
             report.add_text("Joint Angles = {}".format(joint_angles))
             for target_pos in [
                 # np.array([0, 0]),
-                # np.array([.2, .2]),
+                np.array([.2, .2]),
                 # np.array([.2, -.2]),
                 # np.array([-.2, .2]),
                 # np.array([-.2, -.2]),
-                np.random.uniform(-.2, .2, size=2),
-                np.random.uniform(-.2, .2, size=2),
-                np.random.uniform(-.2, .2, size=2),
+                # np.random.uniform(-.2, .2, size=2),
+                # np.random.uniform(-.2, .2, size=2),
+                # np.random.uniform(-.2, .2, size=2),
             ]:
                 qf_eval = create_qf_eval_fnct(qf, target_pos, joint_angles)
                 qf_heatmap = vu.make_heat_map(
