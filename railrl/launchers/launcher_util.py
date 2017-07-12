@@ -319,8 +319,9 @@ def create_log_dir(exp_prefix="default", exp_id=0, seed=0, base_log_dir=None):
         base_log_dir = osp.join(
             config.LOG_DIR,
             'local',
+            exp_prefix.replace("_", "-"),
         )
-    log_dir = osp.join(base_log_dir, exp_prefix.replace("_", "-"), exp_name)
+    log_dir = osp.join(base_log_dir, exp_name)
     if osp.exists(log_dir):
         raise Exception(
             "Log directory already exists. Will no overwrite: {0}".format(
