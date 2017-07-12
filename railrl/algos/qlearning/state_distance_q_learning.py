@@ -91,6 +91,7 @@ class MultitaskPathSampler(object):
             pool,
             min_num_steps_to_collect=1000,
             max_path_length=None,
+            render=False,
     ):
         self.env = env
         self.exploration_policy = exploration_policy
@@ -100,6 +101,7 @@ class MultitaskPathSampler(object):
         if max_path_length is None:
             max_path_length = np.inf
         self.max_path_length = max_path_length
+        self.render = render
 
     def collect_data(self):
         obs = self.env.reset()
@@ -117,6 +119,8 @@ class MultitaskPathSampler(object):
             next_ob, raw_reward, terminal, env_info = (
                 self.env.step(action)
             )
+            if self.render:
+                self.env.render()
             n_steps_total += 1
             path_length += 1
             reward = raw_reward

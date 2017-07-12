@@ -60,6 +60,7 @@ if __name__ == '__main__':
         algo_params=dict(
             min_num_steps_to_collect=100000,
             max_path_length=1000,
+            render=True,
         ),
         pool_size=1000000,
     )
