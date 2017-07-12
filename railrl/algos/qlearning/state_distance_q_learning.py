@@ -105,7 +105,7 @@ class MultitaskPathSampler(object):
         obs = self.env.reset()
         n_steps_total = 0
         path_length = 0
-        while n_steps_total < self.min_num_steps_to_collect:
+        while True:
             action, agent_info = (
                 self.exploration_strategy.get_action(
                     n_steps_total,
@@ -130,6 +130,8 @@ class MultitaskPathSampler(object):
                 env_info=env_info,
             )
             if terminal or path_length >= self.max_path_length:
+                if n_steps_total >= self.min_num_steps_to_collect:
+                    break
                 self.pool.terminate_episode(
                     next_ob,
                     terminal,
@@ -142,7 +144,7 @@ class MultitaskPathSampler(object):
                     "Episode Done. # steps done = {}/{} ({:2.2f} %)".format(
                         n_steps_total,
                         self.min_num_steps_to_collect,
-                        n_steps_total / self.min_num_steps_to_collect,
+                        100 * n_steps_total / self.min_num_steps_to_collect,
                     )
                 )
             else:
