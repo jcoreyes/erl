@@ -75,7 +75,7 @@ class SawyerEnv(MujocoEnv):
 
         self.desired = np.zeros(7)
         self.reset()
-        
+
     #needs to return the observation, reward, done, and info
     def _step(self, a):
         action = np.hstack((a, [0]))
@@ -84,6 +84,7 @@ class SawyerEnv(MujocoEnv):
         if self.MSE:
             reward = -np.mean((self.desired-self._get_joint_angles())**2)
         elif self.huber:
+            # TODO(murtaza): rename this variable
             a = np.mean(np.abs(self.desired - self._get_joint_angles()))
             if a <= self.delta:
                 reward = -1 / 2 * a ** 2
@@ -101,8 +102,7 @@ class SawyerEnv(MujocoEnv):
                   0.7523082764083187, 0.00016802203726484777, -0.5449456802340835]
         angles = [[self.wrapper(angle)] for angle in angles]
         angles = np.concatenate((angles, [[0]]), axis=0)
-        velocities = np.zeros(8)
-        velocities = np.array([[velocity] for velocity in velocities])
+        velocities = np.zeros((8, 1))
         self.set_state(angles, velocities)
         return self._get_obs()
 
@@ -182,7 +182,7 @@ class SawyerEnv(MujocoEnv):
                 logger.record_tabular("Mean Distance Outside Box", mean_distance_outside_box)
     def terminate(self):
         self.reset()
-        
+
 #how does this environment command actions?
 # See twod_point.py
 #         self.do_simulation(a, self.frame_skip)
