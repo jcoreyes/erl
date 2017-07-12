@@ -30,7 +30,6 @@ class DDPG(OnlineAlgorithm):
             target_hard_update_period=1000,
             tau=1e-2,
             use_soft_update=False,
-            use_target_policy=True,
             **kwargs
     ):
         if exploration_policy is None:
@@ -69,7 +68,6 @@ class DDPG(OnlineAlgorithm):
             self.target_policy.cuda()
             self.qf.cuda()
             self.target_qf.cuda()
-        self.use_target_policy = use_target_policy
 
     def _do_training(self, n_steps_total):
         batch = self.get_batch()
@@ -110,23 +108,13 @@ class DDPG(OnlineAlgorithm):
         """
         Critic operations.
         """
-        if(self.use_target_policy):
-            #generate y target using normal policy
-            next_actions = self.target_policy(next_obs)
-            target_q_values = self.target_qf(
-                next_obs,
-                next_actions,
-            )
-            y_target = rewards + (1. - terminals) * self.discount * target_q_values
+        next_actions = self.target_policy(next_obs)
+        target_q_values = self.target_qf(
+            next_obs,
+            next_actions,
+        )
+        y_target = rewards + (1. - terminals) * self.discount * target_q_values
 
-        else:
-            #generate y target using target policies
-            next_actions = self.policy(next_obs)
-            target_q_values_with_normal_policy = self.target_qf(
-                next_obs,
-                next_actions,
-            )
-            y_target = rewards + (1. - terminals) * self.discount * target_q_values_with_normal_policy
         # noinspection PyUnresolvedReferences
         y_target = y_target.detach()
         y_pred = self.qf(obs, actions)
