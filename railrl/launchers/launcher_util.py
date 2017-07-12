@@ -151,7 +151,9 @@ def run_experiment(
         use_gpu=False,
         snapshot_mode='last',
         n_parallel=0,
-        **run_experiment_lite_kwargs):
+        base_log_dir=None,
+        **run_experiment_lite_kwargs
+):
     """
     Run a task via the rllab interface, i.e. serialize it and then run it via
     the run_experiment_lite script.
@@ -206,6 +208,7 @@ def run_experiment(
             code_diff=diff_string,
             commit_hash=commit_hash,
             n_parallel=n_parallel,
+            base_log_dir=base_log_dir,
         )
     else:
         if mode == "ec2" and use_gpu:
@@ -245,6 +248,7 @@ def run_experiment_here(
         code_diff=None,
         commit_hash=None,
         n_parallel=0,
+        base_log_dir=None,
 ):
     """
     Run an experiment locally without any serialization.
@@ -279,6 +283,7 @@ def run_experiment_here(
         snapshot_mode=snapshot_mode,
         code_diff=code_diff,
         commit_hash=commit_hash,
+        base_log_dir=base_log_dir,
     )
     if not use_gpu:
         os.environ['CUDA_VISIBLE_DEVICES'] = ""
@@ -299,15 +304,7 @@ def create_exp_name(exp_prefix="default", exp_id=0, seed=0):
     return "%s_%s_%04d--s-%d" % (exp_prefix, timestamp, exp_id, seed)
 
 
-def create_base_log_dir(exp_prefix):
-    return osp.join(
-        config.LOG_DIR,
-        'local',
-        exp_prefix.replace("_", "-"),
-    )
-
-
-def create_log_dir(exp_prefix="default", exp_id=0, seed=0):
+def create_log_dir(exp_prefix="default", exp_id=0, seed=0, base_log_dir=None):
     """
     Creates and returns a unique log directory.
 
@@ -318,7 +315,12 @@ def create_log_dir(exp_prefix="default", exp_id=0, seed=0):
     """
     exp_name = create_exp_name(exp_prefix=exp_prefix, exp_id=exp_id,
                                seed=seed)
-    base_log_dir = create_base_log_dir(exp_prefix)
+    if base_log_dir is None:
+        base_log_dir = osp.join(
+            config.LOG_DIR,
+            'local',
+            exp_prefix.replace("_", "-"),
+        )
     log_dir = osp.join(base_log_dir, exp_name)
     if osp.exists(log_dir):
         raise Exception(
@@ -335,7 +337,7 @@ def setup_logger(
         exp_id=0,
         seed=0,
         variant=None,
-        log_dir=None,
+        base_log_dir=None,
         text_log_file="debug.log",
         variant_log_file="variant.json",
         tabular_log_file="progress.csv",
@@ -360,9 +362,8 @@ def setup_logger(
     :param snapshot_gap:
     :return:
     """
-    if log_dir is None:
-        assert exp_prefix is not None
-        log_dir, exp_name = create_log_dir(exp_prefix, exp_id=exp_id, seed=seed)
+    log_dir, exp_name = create_log_dir(exp_prefix, exp_id=exp_id, seed=seed,
+                                       base_log_dir=base_log_dir)
     tabular_log_path = osp.join(log_dir, tabular_log_file)
     text_log_path = osp.join(log_dir, text_log_file)
 

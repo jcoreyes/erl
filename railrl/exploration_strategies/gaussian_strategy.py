@@ -23,7 +23,8 @@ class GaussianStrategy(RawExplorationStrategy, Serializable):
 
     def get_action(self, t, observation, policy, **kwargs):
         action, agent_info = policy.get_action(observation)
-        return self.get_action_from_raw_action(action, **kwargs), agent_info
+        return self.get_action_from_raw_action(action, t=t, **kwargs), \
+               agent_info
 
     def get_action_from_raw_action(self, action, t=None, **kwargs):
         sigma = self._max_sigma - (self._max_sigma - self._min_sigma) * min(1.0, t * 1.0 / self._decay_period)
