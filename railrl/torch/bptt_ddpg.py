@@ -32,7 +32,7 @@ class BpttDdpg(OnlineAlgorithm):
 
     def __init__(
             self,
-            *args,
+            env,
             qf,
             policy,
             subtraj_length,
@@ -79,7 +79,7 @@ class BpttDdpg(OnlineAlgorithm):
         :param write_policy_weight_decay:
         :param kwargs: kwargs to pass onto super class constructor
         """
-        super().__init__(*args, **kwargs)
+        super().__init__(env, policy, **kwargs)
         assert write_policy_optimizes in ['qf', 'bellman', 'both']
         self.qf = qf
         self.policy = policy
@@ -519,9 +519,7 @@ class BpttDdpg(OnlineAlgorithm):
         # Sampler uses self.batch_size to figure out how many samples to get
         saved_batch_size = self.batch_size
         self.batch_size = self.num_steps_per_eval
-        paths = self.eval_sampler.obtain_samples(
-            itr=epoch,
-        )
+        paths = self.eval_sampler.obtain_samples()
         self.batch_size = saved_batch_size
         return paths
 

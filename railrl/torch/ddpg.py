@@ -24,6 +24,7 @@ class DDPG(OnlineAlgorithm):
             *args,
             qf,
             policy,
+            exploration_policy=None,
             policy_learning_rate=1e-4,
             qf_learning_rate=1e-3,
             target_hard_update_period=1000,
@@ -32,7 +33,9 @@ class DDPG(OnlineAlgorithm):
             use_target_policy=True,
             **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        if exploration_policy is None:
+            exploration_policy = policy
+        super().__init__(*args, exploration_policy=exploration_policy, **kwargs)
         self.qf = qf
         self.policy = policy
         self.policy_learning_rate = policy_learning_rate
@@ -168,8 +171,19 @@ class DDPG(OnlineAlgorithm):
             self._statistics_from_batch(validation_batch, "Validation")
         )
 
-        statistics['AverageReturn'] = get_average_returns(paths)
+        statistics['QF Loss Validation - Train Gap'] = (
+            statistics['Validation QF Loss Mean']
+            - statistics['Train QF Loss Mean']
+        )
+        statistics['Policy Loss Validation - Train Gap'] = (
+            statistics['Validation Policy Loss Mean']
+            - statistics['Train Policy Loss Mean']
+        )
+        average_returns = get_average_returns(paths)
+        statistics['AverageReturn'] = average_returns
         statistics['Epoch'] = epoch
+
+        self.final_score = average_returns
 
         for key, value in statistics.items():
             logger.record_tabular(key, value)
@@ -183,23 +197,26 @@ class DDPG(OnlineAlgorithm):
             self.batch_size
         )
         batch = pool.random_batch(sample_size)
-        torch_batch = {
-            k: Variable(ptu.from_numpy(array).float(), requires_grad=False)
-            for k, array in batch.items()
-        }
-        rewards = torch_batch['rewards']
-        terminals = torch_batch['terminals']
-        torch_batch['rewards'] = rewards.unsqueeze(-1)
-        torch_batch['terminals'] = terminals.unsqueeze(-1)
-        return torch_batch
+        return np_to_pytorch_batch(batch)
 
     def _statistics_from_paths(self, paths, stat_prefix):
-        batch = paths_to_pytorch_batch(paths)
+        np_batch = self._paths_to_np_batch(paths)
+        batch = np_to_pytorch_batch(np_batch)
         statistics = self._statistics_from_batch(batch, stat_prefix)
         statistics.update(create_stats_ordered_dict(
             'Num Paths', len(paths), stat_prefix=stat_prefix
         ))
         return statistics
+
+    def _paths_to_np_batch(self, paths):
+        rewards, terminals, obs, actions, next_obs = split_paths(paths)
+        return dict(
+            rewards=rewards,
+            terminals=terminals,
+            observations=obs,
+            actions=actions,
+            next_observations=next_obs,
+        )
 
     def _statistics_from_batch(self, batch, stat_prefix):
         statistics = OrderedDict()
@@ -240,19 +257,22 @@ class DDPG(OnlineAlgorithm):
         )
 
 
-def paths_to_pytorch_batch(paths):
-    rewards, terminals, obs, actions, next_obs = split_paths(paths)
-    np_batch = dict(
-        rewards=rewards,
-        terminals=terminals,
-        observations=obs,
-        actions=actions,
-        next_observations=next_obs,
-    )
-    return {
-        k: Variable(ptu.from_numpy(array).float(), requires_grad=False)
-        for k, array in np_batch.items()
+def array_or_tuple_to_variable(array_or_tuple):
+    if isinstance(array_or_tuple, tuple):
+        return tuple(
+            array_or_tuple_to_variable(elem) for elem in array_or_tuple
+        )
+    return Variable(ptu.from_numpy(array_or_tuple).float(), requires_grad=False)
+
+
+def np_to_pytorch_batch(np_batch):
+    torch_batch = {
+        k: array_or_tuple_to_variable(elem)
+        for k, elem in np_batch.items()
     }
+    torch_batch['rewards'] = torch_batch['rewards'].unsqueeze(-1)
+    torch_batch['terminals'] = torch_batch['terminals'].unsqueeze(-1)
+    return torch_batch
 
 
 def get_generic_path_information(paths, discount, stat_prefix):
