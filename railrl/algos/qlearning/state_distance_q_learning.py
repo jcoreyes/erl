@@ -138,6 +138,13 @@ class MultitaskPathSampler(object):
                 )
                 obs = self.reset_env()
                 path_length = 0
+                logger.log(
+                    "Episode Done. # steps done = {}/{} ({:2.2f} %)".format(
+                        n_steps_total,
+                        self.min_num_steps_to_collect,
+                        n_steps_total / self.min_num_steps_to_collect,
+                    )
+                )
             else:
                 obs = next_ob
 
