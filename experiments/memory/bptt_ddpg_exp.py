@@ -110,10 +110,10 @@ if __name__ == '__main__':
 
     # n_seeds = 3
     # mode = "ec2"
-    # exp_prefix = "7-12-bptt-ddpg-watermaze-memory-cell-type"
+    # exp_prefix = "7-12-bptt-ddpg-watermaze-memory-rwa-sweep"
 
-    # run_mode = 'random'
-    num_configurations = 10
+    run_mode = 'random'
+    num_configurations = 100
     use_gpu = True
     if mode != "here":
         use_gpu = False
@@ -177,8 +177,8 @@ if __name__ == '__main__':
         policy_params=dict(
             fc1_size=400,
             fc2_size=300,
-            cell_class=GRUCell,
-            # cell_class=RWACell,
+            # cell_class=GRUCell,
+            cell_class=RWACell,
             # cell_class=BNLSTMCell,
             # cell_class=LSTMCell,
             output_activation=F.tanh,
@@ -189,12 +189,12 @@ if __name__ == '__main__':
                 max_sigma=1,
                 min_sigma=None,
             ),
-            # memory_es_class=NoopStrategy,
-            memory_es_class=OUStrategy,
-            memory_es_params=dict(
-                max_sigma=1,
-                min_sigma=None,
-            ),
+            memory_es_class=NoopStrategy,
+            # memory_es_class=OUStrategy,
+            # memory_es_params=dict(
+            #     max_sigma=1,
+            #     min_sigma=None,
+            # ),
         ),
         version=version,
     )
@@ -263,7 +263,7 @@ if __name__ == '__main__':
     if run_mode == 'random':
         hyperparameters = [
             hyp.LogIntParam('memory_dim', 4, 400),
-            # hyp.LogFloatParam('algo_params.qf_learning_rate', 1e-5, 1e-2),
+            hyp.LogFloatParam('algo_params.qf_learning_rate', 1e-5, 1e-2),
             hyp.LogFloatParam(
                 'algo_params.write_policy_learning_rate', 1e-5, 1e-3
             ),
@@ -296,9 +296,9 @@ if __name__ == '__main__':
             # hyp.EnumParam(
             #     'policy_params.output_activation', [F.tanh, clip1],
             # ),
-            # hyp.EnumParam(
-            #     'es_params.memory_es_class', [OUStrategy, NoopStrategy],
-            # ),
+            hyp.EnumParam(
+                'es_params.memory_es_class', [OUStrategy, NoopStrategy],
+            ),
             # hyp.LogFloatParam(
             #     'env_params.action_l2norm_penalty', 1e-2, 10,
             # ),
