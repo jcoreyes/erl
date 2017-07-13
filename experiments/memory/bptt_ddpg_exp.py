@@ -2,6 +2,7 @@
 Try the PyTorch version of BPTT DDPG on HighLow env.
 """
 import random
+import numpy as np
 
 from railrl.envs.memory.continuous_memory_augmented import (
     ContinuousMemoryAugmented
@@ -27,7 +28,9 @@ from railrl.qfunctions.torch import MemoryQFunction, RecurrentMemoryQFunction
 from railrl.torch.rnn import LSTMCell, BNLSTMCell, GRUCell
 from railrl.torch.bptt_ddpg_rq import BpttDdpgRecurrentQ
 
+import torch
 from torch.nn import init
+from torch.nn import functional as F
 import railrl.torch.pytorch_util as ptu
 
 
@@ -94,18 +97,22 @@ def experiment(variant):
     algorithm.train()
 
 
+def clip1(x):
+    return torch.clamp(x, -1, 1)
+
+
 if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
-    exp_prefix = "7-11-dev-bptt-ddpg-check-if-it-works"
+    exp_prefix = "7-12-dev-bptt-ddpg-check"
     run_mode = 'none'
 
-    n_seeds = 10
-    mode = "ec2"
-    exp_prefix = "7-11-bptt-ddpg-check-if-it-works-2"
+    # n_seeds = 3
+    # mode = "ec2"
+    # exp_prefix = "7-11-bptt-ddpg-check-if-it-works-2"
 
-    run_mode = 'grid'
-    num_configurations = 500
+    # run_mode = 'random'
+    num_configurations = 100
     use_gpu = True
     if mode != "here":
         use_gpu = False
@@ -169,6 +176,7 @@ if __name__ == '__main__':
             fc1_size=400,
             fc2_size=300,
             cell_class=GRUCell,
+            output_activation=clip1,
         ),
         es_params=dict(
             env_es_class=OUStrategy,
@@ -176,8 +184,8 @@ if __name__ == '__main__':
                 max_sigma=1,
                 min_sigma=None,
             ),
-            # memory_es_class=NoopStrategy,
-            memory_es_class=OUStrategy,
+            memory_es_class=NoopStrategy,
+            # memory_es_class=OUStrategy,
             memory_es_params=dict(
                 max_sigma=1,
                 min_sigma=None,
@@ -249,21 +257,21 @@ if __name__ == '__main__':
                 )
     if run_mode == 'random':
         hyperparameters = [
-            hyp.LogIntParam('memory_dim', 4, 400),
+            # hyp.LogIntParam('memory_dim', 4, 400),
             hyp.LogFloatParam('algo_params.qf_learning_rate', 1e-5, 1e-2),
-            # hyp.LogFloatParam(
-            #     'algo_params.write_policy_learning_rate', 1e-6, 1e-3
-            # ),
+            hyp.LogFloatParam(
+                'algo_params.write_policy_learning_rate', 1e-6, 1e-3
+            ),
             hyp.LogFloatParam(
                 'algo_params.action_policy_learning_rate', 1e-6, 1e-3
             ),
-            hyp.EnumParam(
-                'algo_params.action_policy_optimize_bellman', [True, False],
-            ),
-            hyp.EnumParam(
-                'algo_params.use_action_policy_params_for_entire_policy',
-                [True, False],
-            ),
+            # hyp.EnumParam(
+            #     'algo_params.action_policy_optimize_bellman', [True, False],
+            # ),
+            # hyp.EnumParam(
+            #     'algo_params.use_action_policy_params_for_entire_policy',
+            #     [True, False],
+            # ),
             # hyp.EnumParam(
             #     'algo_params.write_policy_optimizes', ['both', 'qf', 'bellman']
             # ),
@@ -271,14 +279,20 @@ if __name__ == '__main__':
             #     'policy_params.cell_class', [GRUCell, BNLSTMCell, LSTMCell,
             #                                  RWACell],
             # ),
-            hyp.EnumParam(
-                'es_params.memory_es_params.max_sigma', [0, 0.1, 1],
-            ),
+            # hyp.EnumParam(
+            #     'es_params.memory_es_params.max_sigma', [0, 0.1, 1],
+            # ),
             # hyp.LogFloatParam(
             #     'algo_params.write_policy_weight_decay', 1e-5, 1e2,
             # ),
-            hyp.LogFloatParam(
-                'algo_params.action_policy_weight_decay', 1e-5, 1e2,
+            # hyp.LogFloatParam(
+            #     'algo_params.action_policy_weight_decay', 1e-5, 1e2,
+            # ),
+            hyp.EnumParam(
+                'policy_params.output_activation', [F.tanh, clip1],
+            ),
+            hyp.EnumParam(
+                'es_params.memory_es_class', [OUStrategy, NoopStrategy],
             ),
             # hyp.LinearFloatParam(
             #     'algo_params.discount', 0.8, 0.99,

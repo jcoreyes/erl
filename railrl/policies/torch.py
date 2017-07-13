@@ -96,6 +96,7 @@ class MemoryPolicy(PyTorchModule):
             cell_class=LSTMCell,
             hidden_init=ptu.fanin_init,
             feed_action_to_memory=False,
+            output_activation=F.tanh,
     ):
         self.save_init_params(locals())
         super().__init__()
@@ -107,6 +108,7 @@ class MemoryPolicy(PyTorchModule):
         self.fc2_size = fc2_size
         self.hidden_init = hidden_init
         self.feed_action_to_memory = feed_action_to_memory
+        self.output_activation = output_activation
 
         # self.fc1 = nn.Linear(obs_dim + memory_dim, fc1_size)
         # self.fc2 = nn.Linear(fc1_size, fc2_size)
@@ -172,7 +174,7 @@ class MemoryPolicy(PyTorchModule):
                     # h1 = F.tanh(self.fc1(augmented_state))
                     # h2 = F.tanh(self.fc2(h1))
                     # action = F.tanh(self.last_fc(h2))
-                    action = F.tanh(self.last_fc(augmented_state))
+                    action = self.output_activation(self.last_fc(augmented_state))
                     rnn_input = torch.cat([current_obs, action], dim=1)
                     state = self.rnn_cell(rnn_input, state)
                     subtraj_writes[:, i, :] = torch.cat(state, dim=1)
@@ -185,7 +187,7 @@ class MemoryPolicy(PyTorchModule):
                     # h1 = F.tanh(self.fc1(augmented_state))
                     # h2 = F.tanh(self.fc2(h1))
                     # action = F.tanh(self.last_fc(h2))
-                    action = F.tanh(self.last_fc(augmented_state))
+                    action = self.output_activation(self.last_fc(augmented_state))
                     rnn_input = torch.cat([current_obs, action], dim=1)
                     state = self.rnn_cell(rnn_input, state)
                     subtraj_writes[:, i, :] = state
@@ -237,7 +239,7 @@ class MemoryPolicy(PyTorchModule):
             all_inputs = all_subtraj_inputs[:, i, :]
             # h1 = F.tanh(self.fc1(all_inputs))
             # h2 = F.tanh(self.fc2(h1))
-            action = F.tanh(self.last_fc(all_inputs))
+            action = self.output_activation(self.last_fc(all_inputs))
             subtraj_actions[:, i, :] = action
 
         return subtraj_actions, subtraj_writes
