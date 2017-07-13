@@ -5,6 +5,7 @@ import os.path as osp
 import random
 import uuid
 import git
+import json
 import base64
 import cloudpickle
 
@@ -21,6 +22,7 @@ from railrl.envs.memory.one_char_memory import (
     OneCharMemoryEndOnly,
     OneCharMemoryOutputRewardMag,
 )
+from railrl.pythonplusplus import dict_to_safe_json
 from railrl.torch.pytorch_util import set_gpu_mode
 from rllab import config
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
@@ -186,7 +188,7 @@ def run_experiment(
     variant['exp_id'] = str(exp_id)
     variant['unique_id'] = str(unique_id)
     logger.log("Variant:")
-    logger.log(str(variant))
+    logger.log(json.dumps(dict_to_safe_json(variant), indent=2))
     command_words = []
     if time:
         command_words.append('time')

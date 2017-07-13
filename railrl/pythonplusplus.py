@@ -131,6 +131,30 @@ def dict_of_list__to__list_of_dicts(dict, n_items):
     return new_dicts
 
 
+def safe_json(data):
+    if data is None:
+        return True
+    elif isinstance(data, (bool, int, float)):
+        return True
+    elif isinstance(data, (tuple, list)):
+        return all(safe_json(x) for x in data)
+    elif isinstance(data, dict):
+        return all(isinstance(k, str) and safe_json(v) for k, v in data.items())
+    return False
+
+
+def dict_to_safe_json(d):
+    new_d = {}
+    for key, item in d.items():
+        if safe_json(item):
+            new_d[key] = item
+        else:
+            if isinstance(item, dict):
+                new_d[key] = dict_to_safe_json(item)
+            else:
+                new_d[key] = str(item)
+    return new_d
+
 """
 Itertools++
 """
@@ -332,3 +356,4 @@ class _Logger(object):
 
 
 line_logger = _Logger()
+
