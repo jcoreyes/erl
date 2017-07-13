@@ -38,7 +38,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             self,
             env,
             exploration_policy: SerializablePolicy,
-            exploration_strategy=None,
+            exploration_strategy,
             num_epochs=100,
             num_steps_per_epoch=10000,
             num_steps_per_eval=1000,

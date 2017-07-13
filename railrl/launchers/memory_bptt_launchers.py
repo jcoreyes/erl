@@ -308,7 +308,7 @@ def _mem_ddpg_launcher(variant):
         300,
     )
     algorithm = DDPG(
-        env,
+        env=env,
         exploration_strategy=es,
         qf=qf,
         policy=policy,
@@ -359,7 +359,7 @@ def _ddpg_launcher(variant):
         300,
     )
     algorithm = DDPG(
-        env,
+        env=env,
         qf=qf,
         policy=policy,
         exploration_strategy=es,
@@ -400,9 +400,9 @@ def _rdpg_launcher(variant):
     )
     algorithm = Rdpg(
         env,
-        exploration_strategy=es,
-        qf=qf,
-        policy=policy,
+        qf,
+        policy,
+        es,
         **variant['algo_params']
     )
     algorithm.train()

@@ -35,6 +35,7 @@ class BpttDdpg(OnlineAlgorithm):
             env,
             qf,
             policy,
+            exploration_strategy,
             subtraj_length,
             tau=0.01,
             use_soft_update=True,
@@ -79,7 +80,7 @@ class BpttDdpg(OnlineAlgorithm):
         :param write_policy_weight_decay:
         :param kwargs: kwargs to pass onto super class constructor
         """
-        super().__init__(env, policy, **kwargs)
+        super().__init__(env, policy, exploration_strategy, **kwargs)
         assert write_policy_optimizes in ['qf', 'bellman', 'both']
         self.qf = qf
         self.policy = policy
