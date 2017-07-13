@@ -1,3 +1,11 @@
+"""
+Generate plot of Performance vs Iteration for the following method:
+    - Our Method
+    - DDPG
+    - Memory States + DDPG
+    - TRPO
+    - Memory States + TRPO
+"""
 import copy
 import matplotlib
 import argparse
