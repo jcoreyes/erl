@@ -89,9 +89,9 @@ def experiment(variant):
     )
     algorithm = BpttDdpg(
         env,
-        exploration_strategy=es,
-        qf=qf,
-        policy=policy,
+        qf,
+        policy,
+        es,
         **algo_params
     )
     algorithm.train()
@@ -107,11 +107,11 @@ if __name__ == '__main__':
     exp_prefix = "7-12-dev-bptt-ddpg-check"
     run_mode = 'none'
 
-    # n_seeds = 3
-    # mode = "ec2"
-    # exp_prefix = "7-11-bptt-ddpg-check-if-it-works-2"
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "7-12-bptt-ddpg-check-output-activation"
 
-    # run_mode = 'random'
+    run_mode = 'random'
     num_configurations = 100
     use_gpu = True
     if mode != "here":
@@ -176,7 +176,7 @@ if __name__ == '__main__':
             fc1_size=400,
             fc2_size=300,
             cell_class=GRUCell,
-            output_activation=clip1,
+            output_activation=F.tanh,
         ),
         es_params=dict(
             env_es_class=OUStrategy,
