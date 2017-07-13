@@ -2,7 +2,7 @@
 Each launcher variant should contain the following keys:
     - H
     - num_steps_per_iteration
-    - num_steps_per_eval 
+    - num_steps_per_eval
     - num_iterations
     - env_class
     - env_params
@@ -309,7 +309,7 @@ def _mem_ddpg_launcher(variant):
     )
     algorithm = DDPG(
         env,
-        es,
+        exploration_strategy=es,
         qf=qf,
         policy=policy,
         **algo_params
@@ -360,9 +360,9 @@ def _ddpg_launcher(variant):
     )
     algorithm = DDPG(
         env,
-        es,
         qf=qf,
         policy=policy,
+        exploration_strategy=es,
         **algo_params
     )
 

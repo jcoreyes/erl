@@ -21,9 +21,10 @@ class DDPG(OnlineAlgorithm):
 
     def __init__(
             self,
-            *args,
-            qf,
-            policy,
+            env,
+            *,
+            qf=None,
+            policy=None,
             exploration_policy=None,
             policy_learning_rate=1e-4,
             qf_learning_rate=1e-3,
@@ -34,7 +35,7 @@ class DDPG(OnlineAlgorithm):
     ):
         if exploration_policy is None:
             exploration_policy = policy
-        super().__init__(*args, exploration_policy=exploration_policy, **kwargs)
+        super().__init__(env, exploration_policy=exploration_policy, **kwargs)
         self.qf = qf
         self.policy = policy
         self.policy_learning_rate = policy_learning_rate
