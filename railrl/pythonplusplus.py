@@ -356,4 +356,3 @@ class _Logger(object):
 
 
 line_logger = _Logger()
-
