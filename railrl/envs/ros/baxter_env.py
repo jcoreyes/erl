@@ -7,6 +7,8 @@ from rllab.envs.base import Env
 from rllab.misc import logger
 from numpy import linalg
 from robot_info.srv import *
+from railrl.misc.data_processing import create_stats_ordered_dict
+from collections import OrderedDict
 import ipdb
 
 NUM_JOINTS = 7
@@ -76,11 +78,14 @@ right_highs = [1.1163239572333106, 0.003933425621414761, 0.795699462010194]
 left_lows = [0.3404830862298487, -0.003933425621414761, -0.5698485041484043]
 left_highs = [1.1163239572333106, 1.2633121086809487, 0.795699462010194]
 
+# right_lows = [0.9048343033476591]
 # RIGHT ARM POSE: (AT ZERO JOINT_ANGLES)
 # x=0.9048343033476591, y=-1.10782475483212, z=0.3179643218511679
 
 # LEFT ARM POSE: (AT ZERO JOINT_ANGLES)
 # position': Point(x=0.9067813662539473, y=1.106112343313852, z=0.31764719868253904)
+
+# Point(x=1.2569234941977525, y=-0.29134565183667527, z=0.40411635771609206)
 
 experiments=['joint_angle|fixed_angle', 'joint_angle|varying_angle', 'end_effector_position|fixed_ee', 'end_effector_position|varying_ee', 'end_effector_position_orientation|fixed_ee', 'end_effector_position_orientation|varying_ee']
 
@@ -340,7 +345,7 @@ class BaxterEnv(Env, Serializable):
             if self.MSE:
                 reward = -np.mean((current_end_effector_pose - self.desired)**2)
             elif self.huber:
-                a = np.abs(np.mean(self.desired - current_end_effector_pose))
+                a = np.mean(np.abs(self.desired - current_end_effector_pose))
                 if a <= self.delta:
                         reward = -1/2 * a **2
                 else:
@@ -470,38 +475,41 @@ class BaxterEnv(Env, Serializable):
         curr_x = pose[0]
         curr_y = pose[1]
         curr_z = pose[2]
-        x, y, z = 0, 0, 0
-        if self.use_right_arm:
-            if curr_x > right_highs[0]:
-                x = np.abs(curr_x - right_highs[0])
-            elif curr_x < right_lows[0]:
-                x = np.abs(curr_x - right_lows[0])
-
-            if curr_y > right_highs[1]:
-                y = np.abs(curr_y - right_highs[1])
-            elif curr_y < right_lows[1]:
-                y = np.abs(curr_y - right_lows[1])
-
-            if curr_z > right_highs[2]:
-                z = np.abs(curr_z - right_highs[2])
-            elif curr_z < right_lows[2]:
-                z = np.abs(curr_z - right_lows[2])
+        if(self.is_in_box(pose)):
+            x, y, z = 0, 0, 0
         else:
-            if curr_x > right_highs[0]:
-                x = np.abs(curr_x - left_highs[0])
-            elif curr_x < left_lows[0]:
-                x = np.abs(curr_x - left_lows[0])
+            x, y, z = 0, 0, 0
+            if self.use_right_arm:
+                if curr_x > right_highs[0]:
+                    x = np.abs(curr_x - right_highs[0])
+                elif curr_x < right_lows[0]:
+                    x = np.abs(curr_x - right_lows[0])
 
-            if curr_y > left_highs[1]:
-                y = np.abs(curr_y - left_highs[1])
-            elif curr_y < left_lows[1]:
-                y = np.abs(curr_y - left_lows[1])
+                if curr_y > right_highs[1]:
+                    y = np.abs(curr_y - right_highs[1])
+                elif curr_y < right_lows[1]:
+                    y = np.abs(curr_y - right_lows[1])
 
-            if curr_z > left_highs[2]:
-                z = np.abs(curr_z - left_highs[2])
-            elif curr_z < left_lows[2]:
-                z = np.abs(curr_z - left_lows[2])
-        # ipdb.set_trace()
+                if curr_z > right_highs[2]:
+                    z = np.abs(curr_z - right_highs[2])
+                elif curr_z < right_lows[2]:
+                    z = np.abs(curr_z - right_lows[2])
+            else:
+                if curr_x > right_highs[0]:
+                    x = np.abs(curr_x - left_highs[0])
+                elif curr_x < left_lows[0]:
+                    x = np.abs(curr_x - left_lows[0])
+
+                if curr_y > left_highs[1]:
+                    y = np.abs(curr_y - left_highs[1])
+                elif curr_y < left_lows[1]:
+                    y = np.abs(curr_y - left_lows[1])
+
+                if curr_z > left_highs[2]:
+                    z = np.abs(curr_z - left_highs[2])
+                elif curr_z < left_lows[2]:
+                    z = np.abs(curr_z - left_lows[2])
+            # ipdb.set_trace()
         return np.linalg.norm([x, y, z])
 
     @property
@@ -516,58 +524,83 @@ class BaxterEnv(Env, Serializable):
         pass
 
     def log_diagnostics(self, paths):
-        if self.end_effector_experiment_total or self.end_effector_experiment_position:
-            obsSets = [path["observations"] for path in paths]
-            positions = []
-            desired_positions = []
-            if self.end_effector_experiment_total:
-                orientations = []
-                desired_orientations = []
-            for obsSet in obsSets:
-                for observation in obsSet:
-                    positions.append(observation[21:24])
-                    desired_positions.append(observation[24:27])
-                    
-                    if self.end_effector_experiment_total:
-                        orientations.append(observation[24:28])
-                        desired_orientations.append(observation[28:])
+        pass
+        # if self.end_effector_experiment_total or self.end_effector_experiment_position:
+        #     obsSets = [path["observations"] for path in paths]
+        #     positions = []
+        #     desired_positions = []
+        #     if self.end_effector_experiment_total:
+        #         orientations = []
+        #         desired_orientations = []
+        #     for obsSet in obsSets:
+        #         for observation in obsSet:
+        #             positions.append(observation[21:24])
+        #             desired_positions.append(observation[24:27])
+        #
+        #             if self.end_effector_experiment_total:
+        #                 orientations.append(observation[24:28])
+        #                 desired_orientations.append(observation[28:])
+        #
+        #     positions = np.array(positions)
+        #     desired_positions = np.array(desired_positions)
+        #     mean_distance_from_desired_ee_pose = np.mean(linalg.norm(positions - desired_positions, axis=1))
+        #     logger.record_tabular("Mean Distance from desired end-effector position",
+        #                           mean_distance_from_desired_ee_pose)
+        #
+        #     if self.safety_end_effector_box:
+        #         mean_distance_outside_box = np.mean([self.compute_mean_distance_outside_box(pose) for pose in positions])
+        #         logger.record_tabular("Mean Distance Outside Box", mean_distance_outside_box)
+        #
+        #     if self.end_effector_experiment_total:
+        #         mean_orientation_difference = np.mean(linalg.norm(orientations-desired_orientations), axis=1)
+        #         logger.record_tabular("Mean Orientation difference from desired end-effector position",
+        #                               mean_orientation_difference)
+        #
+        # if self.joint_angle_experiment:
+        #     angle_distances, positions = self._get_angle_obs(paths)
+        #     mean_distance_from_desired_angle = np.mean(angle_distances)
+        #     logger.record_tabular("Mean Distance from desired angle", mean_distance_from_desired_angle)
+        #
+        #     if self.safety_end_effector_box:
+        #         mean_distance_outside_box = np.mean(positions)
+        #         logger.record_tabular("Mean Distance Outside Box", mean_distance_outside_box)
 
-            positions = np.array(positions)
-            desired_positions = np.array(desired_positions)
-            mean_distance_from_desired_ee_pose = np.mean(linalg.norm(positions - desired_positions, axis=1))
-            logger.record_tabular("Mean Distance from desired end-effector position",
-                                  mean_distance_from_desired_ee_pose)
 
-            if self.safety_end_effector_box:
-                mean_distance_outside_box = np.mean([self.compute_mean_distance_outside_box(pose) for pose in positions])
-                logger.record_tabular("Mean Distance Outside Box", mean_distance_outside_box)
+    def _get_angle_obs(self, paths):
+        obsSets = [path["observations"] for path in paths]
+        angles = []
+        desired_angles = []
+        positions = []
+        for obsSet in obsSets:
+            for observation in obsSet:
+                angles.append(observation[:7])
+                desired_angles.append(observation[24:31])
+                positions.append(observation[21:24])
 
-            if self.end_effector_experiment_total:
-                mean_orientation_difference = np.mean(linalg.norm(orientations-desired_orientations), axis=1)
-                logger.record_tabular("Mean Orientation difference from desired end-effector position",
-                                      mean_orientation_difference)
+        angles = np.array(angles)
+        desired_angles = np.array(desired_angles)
 
-        if self.joint_angle_experiment:
-            obsSets = [path["observations"] for path in paths]
-            angles = []
-            desired_angles = []
-            positions = []
-            for obsSet in obsSets:
-                for observation in obsSet:
-                    angles.append(observation[:7])
-                    desired_angles.append(observation[24:31])
-                    positions.append(observation[21:24])
+        angle_distances = linalg.norm(angles - desired_angles, axis=1)
+        positions = np.array([self.compute_mean_distance_outside_box(pose) for pose in positions])
+        return [angle_distances, positions]
 
-            angles = np.array(angles)
-            desired_angles = np.array(desired_angles)
+    def _statistics_from_paths(self, paths, stat_prefix):
+        angle_distances, positions = self._get_angle_obs(paths)
+        statistics = OrderedDict()
 
-            mean_distance_from_desired_angle = np.mean(linalg.norm(angles - desired_angles, axis=1))
-            logger.record_tabular("Mean Distance from desired angle", mean_distance_from_desired_angle)
+        statistics.update(create_stats_ordered_dict(
+            '{} {}'.format(stat_prefix, 'Distance from Desired Angle'),
+            angle_distances,
+        ))
 
-            if self.safety_end_effector_box:
-                mean_distance_outside_box = np.mean(
-                    [self.compute_mean_distance_outside_box(pose) for pose in positions if not self.is_in_box(pose)])
-                logger.record_tabular("Mean Distance Outside Box", mean_distance_outside_box)
+        statistics.update(create_stats_ordered_dict(
+            '{} {}'.format(stat_prefix, 'Distance Outside Box'),
+            positions,
+        ))
+
+        return statistics
+
+
     @property
     def horizon(self):
         raise NotImplementedError

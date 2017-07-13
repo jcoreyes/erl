@@ -19,8 +19,8 @@ def example(variant):
         safety_end_effector_box = variant['safety_end_effector_box']
         env = BaxterEnv(update_hz=20, use_right_arm=use_right_arm, safety_end_effector_box=safety_end_effector_box)
         es = OUStrategy(
-            max_sigma=0.05,
-            min_sigma=0.05,
+            max_sigma=1,
+            min_sigma=1,
             action_space=env.action_space,
         )
         use_target_policy = variant['use_target_policy']
@@ -76,7 +76,7 @@ experiments=['joint_angle|fixed_angle', 'joint_angle|varying_angle', 'end_effect
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="7-10-ddpg-baxter-right-arm-fixed-angle-safety-huber-TEST",
+        exp_prefix="7-12-ddpg-baxter-right-arm-fixed-angle-safety-huber-increased-exploration",
         seed=0,
         mode='here',
         variant={

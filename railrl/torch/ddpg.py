@@ -168,6 +168,8 @@ class DDPG(OnlineAlgorithm):
             self._statistics_from_batch(validation_batch, "Validation")
         )
 
+        # statistics.update(self.env._statistics_from_paths(paths, "Test"))
+
         statistics['AverageReturn'] = get_average_returns(paths)
         statistics['Epoch'] = epoch
 
