@@ -108,12 +108,12 @@ if __name__ == '__main__':
     exp_prefix = "7-12-dev-bptt-ddpg-check"
     run_mode = 'none'
 
-    n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "7-12-bptt-ddpg-watermaze-hard-small-sweep"
+    # n_seeds = 3
+    # mode = "ec2"
+    # exp_prefix = "7-12-bptt-ddpg-watermaze-memory-cell-type"
 
     run_mode = 'random'
-    num_configurations = 50
+    num_configurations = 10
     use_gpu = True
     if mode != "here":
         use_gpu = False
@@ -126,16 +126,15 @@ if __name__ == '__main__':
     batch_size = 200
     memory_dim = 100
     version = exp_prefix
-    version = "Our Method"
-    # version = "Our Method - loading but Q does not read mem state"
+    version = "Our Method - custom rwa policy"
     # noinspection PyTypeChecker
     variant = dict(
         memory_dim=memory_dim,
         # env_class=WaterMaze,
         # env_class=WaterMazeEasy,
         # env_class=WaterMazeMemory1D,
-        # env_class=WaterMazeMemory,
-        env_class=WaterMazeHard,
+        env_class=WaterMazeMemory,
+        # env_class=WaterMazeHard,
         # env_class=HighLow,
         env_params=dict(
             horizon=H,
@@ -143,7 +142,7 @@ if __name__ == '__main__':
             action_l2norm_penalty=0,
         ),
         memory_aug_params=dict(
-            max_magnitude=1,
+            max_magnitude=1e6,
         ),
         algo_params=dict(
             subtraj_length=subtraj_length,
@@ -178,7 +177,10 @@ if __name__ == '__main__':
         policy_params=dict(
             fc1_size=400,
             fc2_size=300,
-            cell_class=GRUCell,
+            # cell_class=GRUCell,
+            cell_class=RWACell,
+            # cell_class=BNLSTMCell,
+            # cell_class=LSTMCell,
             output_activation=F.tanh,
         ),
         es_params=dict(
@@ -261,12 +263,12 @@ if __name__ == '__main__':
     if run_mode == 'random':
         hyperparameters = [
             hyp.LogIntParam('memory_dim', 4, 400),
-            hyp.LogFloatParam('algo_params.qf_learning_rate', 1e-5, 1e-2),
+            # hyp.LogFloatParam('algo_params.qf_learning_rate', 1e-5, 1e-2),
             hyp.LogFloatParam(
-                'algo_params.write_policy_learning_rate', 1e-6, 1e-3
+                'algo_params.write_policy_learning_rate', 1e-5, 1e-3
             ),
             hyp.LogFloatParam(
-                'algo_params.action_policy_learning_rate', 1e-6, 1e-3
+                'algo_params.action_policy_learning_rate', 1e-5, 1e-3
             ),
             # hyp.EnumParam(
             #     'algo_params.action_policy_optimize_bellman', [True, False],
