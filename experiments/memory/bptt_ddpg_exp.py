@@ -108,9 +108,9 @@ if __name__ == '__main__':
     exp_prefix = "7-12-dev-bptt-ddpg-check"
     run_mode = 'none'
 
-    # n_seeds = 3
-    # mode = "ec2"
-    # exp_prefix = "7-12-bptt-ddpg-watermaze-memory-rwa-sweep"
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "7-12-bptt-ddpg-watermaze-memory-gru-activation-check-2"
 
     run_mode = 'random'
     num_configurations = 100
@@ -142,7 +142,7 @@ if __name__ == '__main__':
             action_l2norm_penalty=0,
         ),
         memory_aug_params=dict(
-            max_magnitude=1e6,
+            max_magnitude=1,
         ),
         algo_params=dict(
             subtraj_length=subtraj_length,
@@ -191,10 +191,10 @@ if __name__ == '__main__':
             ),
             memory_es_class=NoopStrategy,
             # memory_es_class=OUStrategy,
-            # memory_es_params=dict(
-            #     max_sigma=1,
-            #     min_sigma=None,
-            # ),
+            memory_es_params=dict(
+                max_sigma=1,
+                min_sigma=None,
+            ),
         ),
         version=version,
     )
@@ -293,9 +293,9 @@ if __name__ == '__main__':
             # hyp.LogFloatParam(
             #     'algo_params.action_policy_weight_decay', 1e-5, 1e2,
             # ),
-            # hyp.EnumParam(
-            #     'policy_params.output_activation', [F.tanh, clip1],
-            # ),
+            hyp.EnumParam(
+                'policy_params.output_activation', [F.tanh, clip1],
+            ),
             hyp.EnumParam(
                 'es_params.memory_es_class', [OUStrategy, NoopStrategy],
             ),
