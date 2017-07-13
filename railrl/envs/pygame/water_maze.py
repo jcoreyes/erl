@@ -104,21 +104,26 @@ class WaterMaze(Serializable, Env):
         returns = []
         for rewards in list_of_rewards:
             returns.append(np.sum(rewards))
-        last_statistics = OrderedDict()
-        last_statistics.update(create_stats_ordered_dict(
+        statistics = OrderedDict()
+        statistics.update(create_stats_ordered_dict(
             'Undiscounted Returns',
             returns,
         ))
-        last_statistics.update(create_stats_ordered_dict(
+        statistics.update(create_stats_ordered_dict(
             'Rewards',
             list_of_rewards,
         ))
-        last_statistics.update(create_stats_ordered_dict(
+        statistics.update(create_stats_ordered_dict(
             'Actions',
             actions,
         ))
 
-        for key, value in last_statistics.items():
+        fraction_of_time_on_platform = [
+            o[2] for o in obs
+        ]
+        statistics['Fraction of time on platform'] = np.mean(fraction_of_time_on_platform)
+
+        for key, value in statistics.items():
             logger.record_tabular(key, value)
         return returns
 
@@ -275,6 +280,35 @@ class WaterMaze1D(WaterMaze):
         self._position[1] = 0
         self._t = 0
         return self._get_observation_and_on_platform()[0]
+
+    def log_diagnostics(self, paths, **kwargs):
+        list_of_rewards, terminals, obs, actions, next_obs = split_paths(paths)
+
+        returns = []
+        for rewards in list_of_rewards:
+            returns.append(np.sum(rewards))
+        statistics = OrderedDict()
+        statistics.update(create_stats_ordered_dict(
+            'Undiscounted Returns',
+            returns,
+        ))
+        statistics.update(create_stats_ordered_dict(
+            'Rewards',
+            list_of_rewards,
+        ))
+        statistics.update(create_stats_ordered_dict(
+            'Actions',
+            actions,
+        ))
+
+        fraction_of_time_on_platform = [
+            o[1] for o in obs
+        ]
+        statistics['Fraction of time on platform'] = np.mean(fraction_of_time_on_platform)
+
+        for key, value in statistics.items():
+            logger.record_tabular(key, value)
+        return returns
 
 
 class WaterMazeEasy1D(WaterMaze1D):
