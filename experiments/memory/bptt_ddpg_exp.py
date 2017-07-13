@@ -108,11 +108,11 @@ if __name__ == '__main__':
     exp_prefix = "7-12-dev-bptt-ddpg-check"
     run_mode = 'none'
 
-    # n_seeds = 3
-    # mode = "ec2"
-    # exp_prefix = "7-12-bptt-ddpg-check-action-penalty-watermaze"
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "7-12-bptt-ddpg-watermaze-hard-small-sweep"
 
-    # run_mode = 'random'
+    run_mode = 'random'
     num_configurations = 50
     use_gpu = True
     if mode != "here":
@@ -134,8 +134,8 @@ if __name__ == '__main__':
         # env_class=WaterMaze,
         # env_class=WaterMazeEasy,
         # env_class=WaterMazeMemory1D,
-        env_class=WaterMazeMemory,
-        # env_class=WaterMazeHard,
+        # env_class=WaterMazeMemory,
+        env_class=WaterMazeHard,
         # env_class=HighLow,
         env_params=dict(
             horizon=H,
@@ -187,8 +187,8 @@ if __name__ == '__main__':
                 max_sigma=1,
                 min_sigma=None,
             ),
-            memory_es_class=NoopStrategy,
-            # memory_es_class=OUStrategy,
+            # memory_es_class=NoopStrategy,
+            memory_es_class=OUStrategy,
             memory_es_params=dict(
                 max_sigma=1,
                 min_sigma=None,
@@ -260,7 +260,7 @@ if __name__ == '__main__':
                 )
     if run_mode == 'random':
         hyperparameters = [
-            # hyp.LogIntParam('memory_dim', 4, 400),
+            hyp.LogIntParam('memory_dim', 4, 400),
             hyp.LogFloatParam('algo_params.qf_learning_rate', 1e-5, 1e-2),
             hyp.LogFloatParam(
                 'algo_params.write_policy_learning_rate', 1e-6, 1e-3
@@ -297,9 +297,9 @@ if __name__ == '__main__':
             # hyp.EnumParam(
             #     'es_params.memory_es_class', [OUStrategy, NoopStrategy],
             # ),
-            hyp.LogFloatParam(
-                'env_params.action_l2norm_penalty', 1e-2, 10,
-            ),
+            # hyp.LogFloatParam(
+            #     'env_params.action_l2norm_penalty', 1e-2, 10,
+            # ),
         ]
         sweeper = hyp.RandomHyperparameterSweeper(
             hyperparameters,
