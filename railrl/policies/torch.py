@@ -113,12 +113,8 @@ class MemoryPolicy(PyTorchModule):
         # self.fc1 = nn.Linear(obs_dim + memory_dim, fc1_size)
         # self.fc2 = nn.Linear(fc1_size, fc2_size)
         # self.last_fc = nn.Linear(fc2_size, action_dim)
-        # self.last_fc = nn.Linear(obs_dim + memory_dim, action_dim)
+        self.last_fc = nn.Linear(obs_dim + memory_dim, action_dim)
         self.num_splits_for_rnn_internally = cell_class.state_num_split()
-        self.last_fc = nn.Linear(
-            obs_dim + memory_dim // self.num_splits_for_rnn_internally,
-            action_dim
-        )
         assert memory_dim % self.num_splits_for_rnn_internally == 0
         if self.feed_action_to_memory:
             cell_input_dim = self.action_dim + self.obs_dim
@@ -203,14 +199,6 @@ class MemoryPolicy(PyTorchModule):
         """
         Create the new writes.
         """
-        memories_for_action = Variable(
-            ptu.FloatTensor(
-                batch_size,
-                subsequence_length,
-                self.memory_dim // self.num_splits_for_rnn_internally
-            ),
-            requires_grad=False
-        )
         if self.num_splits_for_rnn_internally > 1:
             state = torch.split(
                 initial_memory,
@@ -218,7 +206,6 @@ class MemoryPolicy(PyTorchModule):
                 dim=1,
             )
             for i in range(subsequence_length):
-                memories_for_action[:, i, :] = state[0]
                 state = self.rnn_cell(obs[:, i, :], state)
                 subtraj_writes[:, i, :] = torch.cat(state, dim=1)
         else:
@@ -249,7 +236,7 @@ class MemoryPolicy(PyTorchModule):
         """
         Use new memories to create env actions.
         """
-        all_subtraj_inputs = torch.cat([obs, memories_for_action], dim=2)
+        all_subtraj_inputs = torch.cat([obs, memories], dim=2)
         for i in range(subsequence_length):
             all_inputs = all_subtraj_inputs[:, i, :]
             # h1 = F.tanh(self.fc1(all_inputs))

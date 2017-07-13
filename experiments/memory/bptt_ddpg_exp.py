@@ -112,7 +112,7 @@ if __name__ == '__main__':
     # mode = "ec2"
     # exp_prefix = "7-12-bptt-ddpg-watermaze-memory-cell-type"
 
-    run_mode = 'random'
+    # run_mode = 'random'
     num_configurations = 10
     use_gpu = True
     if mode != "here":
@@ -126,7 +126,7 @@ if __name__ == '__main__':
     batch_size = 200
     memory_dim = 100
     version = exp_prefix
-    version = "Our Method - custom rwa policy"
+    version = "Our Method"
     # noinspection PyTypeChecker
     variant = dict(
         memory_dim=memory_dim,
@@ -177,8 +177,8 @@ if __name__ == '__main__':
         policy_params=dict(
             fc1_size=400,
             fc2_size=300,
-            # cell_class=GRUCell,
-            cell_class=RWACell,
+            cell_class=GRUCell,
+            # cell_class=RWACell,
             # cell_class=BNLSTMCell,
             # cell_class=LSTMCell,
             output_activation=F.tanh,
