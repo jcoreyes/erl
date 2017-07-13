@@ -21,9 +21,9 @@ if __name__ == '__main__':
     mode = "here"
     exp_prefix = "7-12-dev-generate_highlow_figure_data"
 
-    # n_seeds = 10
-    # mode = "ec2"
-    # exp_prefix = "7-12-generate_highlow_figure_data"
+    n_seeds = 1
+    mode = "ec2"
+    exp_prefix = "7-12-generate_highlow_figure_data-test"
 
     env_class = HighLow
 
@@ -55,12 +55,12 @@ if __name__ == '__main__':
     )
     exp_id = -1
     for launcher in [
-        # trpo_launcher,
-        # mem_trpo_launcher,
-        # rtrpo_launcher,
-        # ddpg_launcher,
-        # mem_ddpg_launcher,
-        # rdpg_launcher,
+        trpo_launcher,
+        mem_trpo_launcher,
+        rtrpo_launcher,
+        ddpg_launcher,
+        mem_ddpg_launcher,
+        rdpg_launcher,
         our_method_launcher,
     ]:
         search_space = {

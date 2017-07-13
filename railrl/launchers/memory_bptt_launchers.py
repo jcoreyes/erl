@@ -419,6 +419,7 @@ def our_method_launcher(variant):
     from railrl.policies.torch import RWACell
     from railrl.qfunctions.torch import MemoryQFunction
     from railrl.exploration_strategies.ou_strategy import OUStrategy
+    from railrl.envs.memory.high_low import HighLow
     from torch.nn import functional as F
     H = variant['H']
     num_steps_per_iteration = variant['num_steps_per_iteration']
@@ -426,6 +427,7 @@ def our_method_launcher(variant):
     num_iterations = variant['num_iterations']
     batch_size = variant['batch_size']
     version = "Our Method"
+    assert variant['env_class'] == HighLow, "cell_class hardcoded for HighLow"
     # noinspection PyTypeChecker
     new_variant = update_variant(
         variant,
@@ -464,7 +466,8 @@ def our_method_launcher(variant):
                 fc1_size=400,
                 fc2_size=300,
                 # cell_class=GRUCell,
-                cell_class=BNLSTMCell,
+                # cell_class=BNLSTMCell,
+                cell_class=RWACell,
                 output_activation=F.tanh,
             ),
             es_params=dict(
