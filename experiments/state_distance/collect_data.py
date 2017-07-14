@@ -5,6 +5,7 @@ from railrl.algos.qlearning.state_distance_q_learning import (
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.multitask.reacher_env import MultitaskReacherEnv
+from railrl.envs.multitask.reacher_simple_state import SimpleReacherEnv
 from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.launchers.launcher_util import run_experiment
@@ -13,10 +14,15 @@ from rllab.config import LOG_DIR
 
 
 def main(variant):
-    env = MultitaskReacherEnv()
+    # env = MultitaskReacherEnv()
+    env = SimpleReacherEnv()
     action_space = convert_gym_space(env.action_space)
     # es = OUStrategy(action_space=action_space)
-    es = GaussianStrategy(action_space=action_space)
+    es = GaussianStrategy(
+        action_space=action_space,
+        max_sigma=0.2,
+        min_sigma=0.2,
+    )
     exploration_policy = ZeroPolicy(
         int(action_space.flat_dim),
     )
@@ -47,9 +53,9 @@ def main(variant):
 
 if __name__ == '__main__':
     out_dir = Path(LOG_DIR) / 'datasets/generated'
-    out_dir /= '7-11-reacher-gaussian-dev'
+    out_dir /= '7-13-simple-reacher-gaussian'
     min_num_steps_to_collect = 100000
-    max_path_length = 100
+    max_path_length = 1000
     pool_size = min_num_steps_to_collect + max_path_length
 
     # noinspection PyTypeChecker
