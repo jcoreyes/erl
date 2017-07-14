@@ -178,7 +178,7 @@ class StateDistanceQLearningSimple(StateDistanceQLearning):
             num_batches_per_epoch=100,
             **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, exploration_strategy=None, **kwargs)
         self.num_batches = num_batches
         self.num_batches_per_epoch = num_batches_per_epoch
         self.pool = pool
