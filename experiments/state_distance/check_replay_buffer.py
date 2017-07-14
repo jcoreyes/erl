@@ -1,9 +1,11 @@
 """
 Plot histogram of the actions and observations in a replay buffer.
 """
+import numpy as np
 import argparse
 import pickle
 
+from railrl.envs.multitask.reacher_simple_state import SimpleReacherEnv
 import matplotlib.pyplot as plt
 
 
@@ -31,6 +33,17 @@ def main(dataset_path):
         ax.hist(x)
     plt.title("observation")
     plt.show()
+
+    env = SimpleReacherEnv()
+    batch = train_pool.random_batch(1)
+    computed_rewards = env.compute_rewards(
+        batch['observations'],
+        batch['actions'],
+        batch['next_observations'],
+        0.2 * np.ones((1, 2)),
+    )
+    import ipdb; ipdb.set_trace()
+    pass
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
