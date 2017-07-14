@@ -1,6 +1,11 @@
+from collections import OrderedDict
+
 import numpy as np
 from gym import utils
 from gym.envs.mujoco import mujoco_env
+
+from railrl.misc.data_processing import create_stats_ordered_dict
+from rllab.misc import logger
 
 
 class SimpleReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
