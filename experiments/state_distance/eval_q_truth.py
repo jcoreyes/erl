@@ -6,8 +6,9 @@ from railrl.envs.multitask.reacher_env import MultitaskReacherEnv
 env = MultitaskReacherEnv()
 
 
-def set_state(target_pos, joint_angles):
-    qpos, qvel = np.concatenate([joint_angles, target_pos]), np.zeros(4)
+def set_state(target_pos, joint_angles, velocity):
+    qpos = np.concatenate([joint_angles, target_pos])
+    qvel = np.array([velocity[0], velocity[1], 0, 0])
     env.reset()
     env.set_state(qpos, qvel)
 
@@ -23,7 +24,8 @@ def true_q(target_pos, obs, action):
         np.arctan2(s2, c2),
     ])
 
-    set_state(target_pos, joint_angles)
+    velocity = obs[6:8]
+    set_state(target_pos, joint_angles, velocity)
     env.do_simulation(action, env.frame_skip)
     pos = env.get_body_com('fingertip')[:2]
     return -np.linalg.norm(pos - target_pos)
@@ -45,7 +47,7 @@ if __name__ == "__main__":
     parser.add_argument('y', type=float, default=0.1)
     args = parser.parse_args()
     goal = np.array([args.x, args.y])
-    num_samples = 100
+    num_samples = 10
 
     eval_env = MultitaskReacherEnv()
     obs = eval_env.reset()
