@@ -21,6 +21,7 @@ from gym.envs.mujoco import ReacherEnv
 from torch.autograd import Variable
 
 import railrl.misc.visualization_util as vu
+from railrl.envs.multitask.reacher_simple_state import SimpleReacherEnv
 from railrl.misc.html_report import HTMLReport
 from railrl.pythonplusplus import takespread
 from rllab.misc.instrument import query_yes_no
@@ -51,7 +52,7 @@ def create_figure(
     return fig
 
 
-env = ReacherEnv()
+env = SimpleReacherEnv()
 
 
 def set_state(target_pos, joint_angles):
