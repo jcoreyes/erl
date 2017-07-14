@@ -22,6 +22,9 @@ class SimpleReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         reward_ctrl = - np.square(a).sum()
         reward = reward_dist + reward_ctrl
         self.do_simulation(a, self.frame_skip)
+        # Make it so that your actions (torque) actually affect the next
+        # observation position.
+        self.do_simulation(np.zeros_like(a), self.frame_skip)
         ob = self._get_obs()
         done = False
         return ob, reward, done, dict(reward_dist=reward_dist,

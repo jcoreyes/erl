@@ -118,7 +118,7 @@ if __name__ == '__main__':
 
     n_seeds = 1
     mode = "here"
-    exp_prefix = "7-13-dev-state-distance-train-q"
+    exp_prefix = "7-13-state-distance-train-one-goal"
     snapshot_mode = 'all'
 
     # out_dir = Path(LOG_DIR) / 'datasets/generated'

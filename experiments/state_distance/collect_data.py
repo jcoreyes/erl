@@ -53,7 +53,7 @@ def main(variant):
 
 if __name__ == '__main__':
     out_dir = Path(LOG_DIR) / 'datasets/generated'
-    out_dir /= '7-13-simple-reacher-gaussian'
+    out_dir /= '7-13-simple-reacher-gaussian-frame-skip'
     min_num_steps_to_collect = 100000
     max_path_length = 1000
     pool_size = min_num_steps_to_collect + max_path_length

@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 
 def sample_best_action(qf, obs, num_samples):
-    sampled_actions = np.random.uniform(-.5, .5, size=(num_samples, 2))
+    sampled_actions = np.random.uniform(-.2, .2, size=(num_samples, 2))
     obs_expanded = np.repeat(np.expand_dims(obs, 0), num_samples, axis=0)
     actions = Variable(ptu.from_numpy(sampled_actions).float(), requires_grad=False)
     obs = Variable(ptu.from_numpy(obs_expanded).float(), requires_grad=False)
