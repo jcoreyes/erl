@@ -235,16 +235,15 @@ class StateDistanceQLearningSimple(StateDistanceQLearning):
         obs = batch['observations']
         actions = batch['actions']
 
-        y_target = rewards
         y_pred = self.qf(obs, actions)
-        bellman_errors = (y_pred - y_target)**2
-        qf_loss = self.qf_criterion(y_pred, y_target)
+        bellman_errors = (y_pred - rewards)**2
+        qf_loss = bellman_errors.mean()
 
         return OrderedDict([
             ('Bellman Errors', bellman_errors),
-            ('Y targets', y_target),
             ('Y predictions', y_pred),
             ('QF Loss', qf_loss),
+            ('Target Rewards', rewards),
         ])
 
     def _statistics_from_batch(self, batch, stat_prefix):
@@ -260,6 +259,7 @@ class StateDistanceQLearningSimple(StateDistanceQLearning):
 
         for name in [
             'Bellman Errors',
+            'Target Rewards',
         ]:
             tensor = train_dict[name]
             statistics.update(create_stats_ordered_dict(
