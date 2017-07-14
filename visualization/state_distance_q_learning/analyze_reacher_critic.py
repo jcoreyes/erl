@@ -136,9 +136,9 @@ def main():
         for joint_angles in [
             np.array([pi/4, pi/4]),
             np.array([pi/2, pi/2]),
-            # np.random.uniform(-pi, pi, size=2),
-            # np.random.uniform(-pi, pi, size=2),
-            # np.random.uniform(-pi, pi, size=2),
+            np.random.uniform(-pi, pi, size=2),
+            np.random.uniform(-pi, pi, size=2),
+            np.random.uniform(-pi, pi, size=2),
         ]:
             report.add_text("Joint Angles = {}".format(joint_angles))
             for target_pos in [
