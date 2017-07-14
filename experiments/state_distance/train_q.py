@@ -1,3 +1,4 @@
+import argparse
 import numpy as np
 from torch.autograd import Variable
 import railrl.torch.pytorch_util as ptu
@@ -14,6 +15,7 @@ from railrl.algos.qlearning.state_distance_q_learning import (
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.multitask.reacher_env import MultitaskReacherEnv
+from railrl.envs.multitask.reacher_simple_state import SimpleReacherEnv
 from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
@@ -26,7 +28,7 @@ import matplotlib.pyplot as plt
 
 
 def main(variant):
-    env = MultitaskReacherEnv()
+    env = SimpleReacherEnv()
     action_space = convert_gym_space(env.action_space)
     dataset_path = variant['dataset_path']
     with open(dataset_path, 'rb') as handle:
@@ -109,16 +111,20 @@ def grid_search_best_action(qf, obs, resolution):
     return sampled_actions[max_i]
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('replay_pkl_path', type=str,
+                        help='path to the snapshot file')
+    args = parser.parse_args()
+
     n_seeds = 1
     mode = "here"
-    # exp_prefix = "7-11-dev-state-distance-train-q"
-    exp_prefix = "7-11-dev-state-distance-train-q-fixed-goal-state"
+    exp_prefix = "7-13-dev-state-distance-train-q"
     snapshot_mode = 'all'
 
-    out_dir = Path(LOG_DIR) / 'datasets/generated'
-    out_dir /= '7-10-reacher'
-    logger.set_snapshot_dir(str(out_dir))
-    dataset_path = out_dir / 'data.pkl'
+    # out_dir = Path(LOG_DIR) / 'datasets/generated'
+    # out_dir /= '7-10-reacher'
+    # logger.set_snapshot_dir(str(out_dir))
+    dataset_path = args.replay_pkl_path
 
     # noinspection PyTypeChecker
     variant = dict(
