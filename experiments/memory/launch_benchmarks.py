@@ -2,6 +2,7 @@ from railrl.envs.memory.high_low import HighLow
 from railrl.envs.pygame.water_maze import (
     WaterMaze,
     WaterMazeMemory,
+    WaterMazeHard,
     WaterMazeEasy,
     WaterMazeEasy1D,
     WaterMaze1D,
@@ -25,14 +26,15 @@ from rllab.envs.mujoco.walker2d_env import Walker2DEnv
 if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
-    exp_prefix = "7-12-dev-launch-benchmark"
+    exp_prefix = "7-13-dev-launch-benchmark"
 
-    # n_seeds = 10
-    # mode = "ec2"
-    # exp_prefix = "7-12-ddpg-watermaze-memory"
+    n_seeds = 10
+    mode = "ec2"
+    exp_prefix = "7-13-all-trpo-watermaze-hard"
 
     # env_class = HighLow
-    env_class = WaterMazeMemory
+    # env_class = WaterMazeMemory
+    env_class = WaterMazeHard
     # env_class = WaterMaze
     # env_class = WaterMazeEasy
     # env_class = WaterMazeEasy1D
@@ -67,8 +69,8 @@ if __name__ == '__main__':
     )
     exp_id = -1
     for launcher in [
-        # trpo_launcher,
-        # mem_trpo_launcher,
+        trpo_launcher,
+        mem_trpo_launcher,
         rtrpo_launcher,
         # ddpg_launcher,
         # mem_ddpg_launcher,
