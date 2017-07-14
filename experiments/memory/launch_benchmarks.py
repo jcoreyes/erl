@@ -30,7 +30,7 @@ if __name__ == '__main__':
 
     n_seeds = 10
     mode = "ec2"
-    exp_prefix = "7-13-all-trpo-watermaze-hard"
+    exp_prefix = "7-13-all-ddpg-watermaze-hard"
 
     # env_class = HighLow
     # env_class = WaterMazeMemory
@@ -47,7 +47,7 @@ if __name__ == '__main__':
         use_gpu = False
 
     H = 25
-    num_steps_per_iteration = 10000
+    num_steps_per_iteration = 1000
     num_steps_per_eval = 1000
     num_iterations = 100
     batch_size = 200
@@ -69,12 +69,12 @@ if __name__ == '__main__':
     )
     exp_id = -1
     for launcher in [
-        trpo_launcher,
-        mem_trpo_launcher,
-        rtrpo_launcher,
-        # ddpg_launcher,
-        # mem_ddpg_launcher,
-        # rdpg_launcher,
+        # trpo_launcher,
+        # mem_trpo_launcher,
+        # rtrpo_launcher,
+        ddpg_launcher,
+        mem_ddpg_launcher,
+        rdpg_launcher,
     ]:
         search_space = {
             # 'env_class': [WaterMaze1D, WaterMazeEasy1D, WaterMazeMemory1D],
