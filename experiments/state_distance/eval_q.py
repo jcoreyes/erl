@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 
 def sample_best_action(qf, obs, num_samples):
-    sampled_actions = np.random.uniform(-.1, .1, size=(num_samples, 2))
+    sampled_actions = np.random.uniform(-.5, .5, size=(num_samples, 2))
     obs_expanded = np.repeat(np.expand_dims(obs, 0), num_samples, axis=0)
     actions = Variable(ptu.from_numpy(sampled_actions).float(), requires_grad=False)
     obs = Variable(ptu.from_numpy(obs_expanded).float(), requires_grad=False)
@@ -45,7 +45,7 @@ if __name__ == "__main__":
                         help='path to the snapshot file')
     parser.add_argument('--max_path_length', type=int, default=1000,
                         help='Max length of rollout')
-    parser.add_argument('--truth', action='store_true')
+    parser.add_argument('--grid', action='store_true')
     parser.add_argument('--gpu', action='store_true')
     args = parser.parse_args()
 
@@ -55,14 +55,18 @@ if __name__ == "__main__":
     if args.gpu:
         set_gpu_mode(True)
         qf.cuda()
-        qf.train(False)
+    qf.train(False)
 
     goal = np.array([.2, .2])
     num_samples = 100
+    resolution = 10
 
     obs = env.reset()
     for _ in range(args.max_path_length):
         new_obs = np.hstack((obs, goal))
-        action = sample_best_action(qf, new_obs, num_samples)
+        if args.grid:
+            action = grid_search_best_action(qf, new_obs, resolution)
+        else:
+            action = sample_best_action(qf, new_obs, num_samples)
         obs, r, d, env_info = env.step(action)
         env.render()
