@@ -98,22 +98,18 @@ def experiment(variant):
     algorithm.train()
 
 
-def clip1(x):
-    return torch.clamp(x, -1, 1)
-
-
 if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
-    exp_prefix = "7-12-dev-bptt-ddpg-check"
+    exp_prefix = "7-13-dev-bptt-ddpg-check"
     run_mode = 'none'
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "7-12-bptt-ddpg-watermaze-memory-gru-activation-check-2"
+    exp_prefix = "7-13-tanh-vs-no-and-gru-vs-lstm-2"
 
     run_mode = 'random'
-    num_configurations = 100
+    num_configurations = 25
     use_gpu = True
     if mode != "here":
         use_gpu = False
@@ -125,8 +121,8 @@ if __name__ == '__main__':
     num_iterations = 50
     batch_size = 200
     memory_dim = 100
-    version = exp_prefix
     version = "Our Method"
+
     # noinspection PyTypeChecker
     variant = dict(
         memory_dim=memory_dim,
@@ -177,11 +173,12 @@ if __name__ == '__main__':
         policy_params=dict(
             fc1_size=400,
             fc2_size=300,
-            # cell_class=GRUCell,
-            cell_class=RWACell,
+            cell_class=GRUCell,
+            # cell_class=RWACell,
             # cell_class=BNLSTMCell,
             # cell_class=LSTMCell,
-            output_activation=F.tanh,
+            # output_activation=F.tanh,
+            output_activation=ptu.clip1,
         ),
         es_params=dict(
             env_es_class=OUStrategy,
@@ -192,8 +189,8 @@ if __name__ == '__main__':
             memory_es_class=NoopStrategy,
             # memory_es_class=OUStrategy,
             memory_es_params=dict(
-                max_sigma=1,
-                min_sigma=None,
+                # max_sigma=1,
+                # min_sigma=None,
             ),
         ),
         version=version,
@@ -211,11 +208,12 @@ if __name__ == '__main__':
             # 'policy_params.hidden_init': [init.kaiming_normal, ptu.fanin_init],
             # 'policy_params.feed_action_to_memory': [False, True],
             # 'policy_params.cell_class': [LSTMCell, BNLSTMCell, RWACell],
-            'algo_params.subtraj_length': [1, 5, 10, 15, 20, 25],
+            # 'algo_params.subtraj_length': [1, 5, 10, 15, 20, 25],
             # 'algo_params.bellman_error_loss_weight': [0.1, 1, 10, 100, 1000],
             # 'algo_params.tau': [1, 0.1, 0.01, 0.001],
             # 'env_params.give_time': [True, False],
             # 'algo_params.discount': [1, .9, .5, 0],
+            'env_params.action_l2norm_penalty': [0, 1e-3, 1e-2, 1e-1, 1, 10],
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
             search_space, default_parameters=variant,
@@ -261,67 +259,77 @@ if __name__ == '__main__':
                     exp_id=exp_id,
                 )
     if run_mode == 'random':
-        hyperparameters = [
-            hyp.LogIntParam('memory_dim', 4, 400),
-            hyp.LogFloatParam('algo_params.qf_learning_rate', 1e-5, 1e-2),
-            hyp.LogFloatParam(
-                'algo_params.write_policy_learning_rate', 1e-5, 1e-3
-            ),
-            hyp.LogFloatParam(
-                'algo_params.action_policy_learning_rate', 1e-5, 1e-3
-            ),
-            # hyp.EnumParam(
-            #     'algo_params.action_policy_optimize_bellman', [True, False],
-            # ),
-            # hyp.EnumParam(
-            #     'algo_params.use_action_policy_params_for_entire_policy',
-            #     [True, False],
-            # ),
-            # hyp.EnumParam(
-            #     'algo_params.write_policy_optimizes', ['both', 'qf', 'bellman']
-            # ),
-            # hyp.EnumParam(
-            #     'policy_params.cell_class', [GRUCell, BNLSTMCell, LSTMCell,
-            #                                  RWACell],
-            # ),
-            # hyp.EnumParam(
-            #     'es_params.memory_es_params.max_sigma', [0, 0.1, 1],
-            # ),
-            # hyp.LogFloatParam(
-            #     'algo_params.write_policy_weight_decay', 1e-5, 1e2,
-            # ),
-            # hyp.LogFloatParam(
-            #     'algo_params.action_policy_weight_decay', 1e-5, 1e2,
-            # ),
-            hyp.EnumParam(
-                'policy_params.output_activation', [F.tanh, clip1],
-            ),
-            hyp.EnumParam(
-                'es_params.memory_es_class', [OUStrategy, NoopStrategy],
-            ),
-            # hyp.LogFloatParam(
-            #     'env_params.action_l2norm_penalty', 1e-2, 10,
-            # ),
-        ]
-        sweeper = hyp.RandomHyperparameterSweeper(
-            hyperparameters,
-            default_kwargs=variant,
-        )
-        for exp_id in range(num_configurations):
-            variant = sweeper.generate_random_hyperparameters()
-            for _ in range(n_seeds):
-                seed = random.randint(0, 10000)
-                run_experiment(
-                    experiment,
-                    exp_prefix=exp_prefix,
-                    seed=seed,
-                    mode=mode,
-                    variant=variant,
-                    exp_id=exp_id,
-                    sync_s3_log=True,
-                    sync_s3_pkl=True,
-                    periodic_sync_interval=600,
-                )
+        for (
+            rnn_cell,
+            output_activation,
+        ) in [
+            (LSTMCell, F.tanh),
+            (LSTMCell, ptu.clip1),
+            (GRUCell, F.tanh),
+            (GRUCell, ptu.clip1),
+        ]:
+            variant['policy_params']['cell_class'] = rnn_cell
+            variant['policy_params']['output_activation'] = output_activation
+            hyperparameters = [
+                hyp.LogIntParam('memory_dim', 4, 400),
+                hyp.LogFloatParam('algo_params.qf_learning_rate', 1e-5, 1e-2),
+                hyp.LogFloatParam(
+                    'algo_params.write_policy_learning_rate', 1e-5, 1e-3
+                ),
+                hyp.LogFloatParam(
+                    'algo_params.action_policy_learning_rate', 1e-5, 1e-3
+                ),
+                # hyp.EnumParam(
+                #     'algo_params.action_policy_optimize_bellman', [True, False],
+                # ),
+                # hyp.EnumParam(
+                #     'algo_params.use_action_policy_params_for_entire_policy',
+                #     [True, False],
+                # ),
+                # hyp.EnumParam(
+                #     'algo_params.write_policy_optimizes', ['both', 'qf', 'bellman']
+                # ),
+                # hyp.EnumParam(
+                #     'policy_params.cell_class', [GRUCell, LSTMCell],
+                # ),
+                # hyp.EnumParam(
+                #     'es_params.memory_es_params.max_sigma', [0, 0.1, 1],
+                # ),
+                # hyp.LogFloatParam(
+                #     'algo_params.write_policy_weight_decay', 1e-5, 1e2,
+                # ),
+                # hyp.LogFloatParam(
+                #     'algo_params.action_policy_weight_decay', 1e-5, 1e2,
+                # ),
+                # hyp.EnumParam(
+                #     'policy_params.output_activation', [F.tanh, ptu.clip1],
+                # ),
+                # hyp.EnumParam(
+                #     'es_params.memory_es_class', [OUStrategy, NoopStrategy],
+                # ),
+                # hyp.LogFloatParam(
+                #     'env_params.action_l2norm_penalty', 1e-2, 10,
+                # ),
+            ]
+            sweeper = hyp.RandomHyperparameterSweeper(
+                hyperparameters,
+                default_kwargs=variant,
+            )
+            for exp_id in range(num_configurations):
+                variant = sweeper.generate_random_hyperparameters()
+                for _ in range(n_seeds):
+                    seed = random.randint(0, 10000)
+                    run_experiment(
+                        experiment,
+                        exp_prefix=exp_prefix,
+                        seed=seed,
+                        mode=mode,
+                        variant=variant,
+                        exp_id=exp_id,
+                        sync_s3_log=True,
+                        sync_s3_pkl=True,
+                        periodic_sync_interval=600,
+                    )
     else:
         for _ in range(n_seeds):
             seed = random.randint(0, 10000)

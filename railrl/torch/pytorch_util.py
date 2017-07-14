@@ -147,6 +147,12 @@ def fanin_init(tensor):
     bound = 1. / np.sqrt(fan_in)
     return tensor.uniform_(-bound, bound)
 
+
+def clip1(x):
+    return torch.clamp(x, -1, 1)
+
+
+
 """
 GPU wrappers
 """
