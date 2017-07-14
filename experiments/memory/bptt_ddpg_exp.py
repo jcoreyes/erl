@@ -104,11 +104,11 @@ if __name__ == '__main__':
     exp_prefix = "7-13-dev-bptt-ddpg-check"
     run_mode = 'none'
 
-    n_seeds = 3
+    n_seeds = 5
     mode = "ec2"
-    exp_prefix = "7-13-tanh-vs-no-and-gru-vs-lstm-2"
+    exp_prefix = "7-13-importance-of-bellman-error-minimization-non-full-bptt"
 
-    run_mode = 'random'
+    run_mode = 'grid'
     num_configurations = 25
     use_gpu = True
     if mode != "here":
@@ -177,8 +177,8 @@ if __name__ == '__main__':
             # cell_class=RWACell,
             # cell_class=BNLSTMCell,
             # cell_class=LSTMCell,
-            # output_activation=F.tanh,
-            output_activation=ptu.clip1,
+            output_activation=F.tanh,
+            # output_activation=ptu.clip1,
         ),
         es_params=dict(
             env_es_class=OUStrategy,
@@ -200,20 +200,20 @@ if __name__ == '__main__':
             # 'algo_params.qf_learning_rate': [1e-3, 1e-5],
             # 'algo_params.action_policy_learning_rate': [1e-3, 1e-5],
             # 'algo_params.write_policy_learning_rate': [1e-5, 1e-7],
-            # 'algo_params.action_policy_optimize_bellman': [True, False],
-            # 'algo_params.write_policy_optimizes': ['qf', 'bellman', 'both'],
+            'algo_params.action_policy_optimize_bellman': [True, False],
+            'algo_params.write_policy_optimizes': ['qf', 'bellman', 'both'],
             # 'algo_params.refresh_entire_buffer_period': [None, 1],
             # 'es_params.memory_es_params.max_sigma': [0, 1],
             # 'qf_params.hidden_init': [init.kaiming_normal, ptu.fanin_init],
             # 'policy_params.hidden_init': [init.kaiming_normal, ptu.fanin_init],
             # 'policy_params.feed_action_to_memory': [False, True],
             # 'policy_params.cell_class': [LSTMCell, BNLSTMCell, RWACell],
-            # 'algo_params.subtraj_length': [1, 5, 10, 15, 20, 25],
+            'algo_params.subtraj_length': [1, 5, 10, 15, 20, 25],
             # 'algo_params.bellman_error_loss_weight': [0.1, 1, 10, 100, 1000],
             # 'algo_params.tau': [1, 0.1, 0.01, 0.001],
             # 'env_params.give_time': [True, False],
             # 'algo_params.discount': [1, .9, .5, 0],
-            'env_params.action_l2norm_penalty': [0, 1e-3, 1e-2, 1e-1, 1, 10],
+            # 'env_params.action_l2norm_penalty': [0, 1e-3, 1e-2, 1e-1, 1, 10],
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
             search_space, default_parameters=variant,
