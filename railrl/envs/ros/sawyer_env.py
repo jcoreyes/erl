@@ -97,8 +97,8 @@ def safe(raw_function):
 class SawyerEnv(Env, Serializable):
     def __init__(
             self,
-            use_right_arm,
             experiment,
+            use_right_arm=True,
             update_hz=20,
             action_mode='torque',
             remove_action=False,
@@ -205,7 +205,11 @@ class SawyerEnv(Env, Serializable):
 
             if self.fixed_angle:
                 #self.desired = np.zeros(NUM_JOINTS) 
-                self.desired = np.array([-0.0689638671875, -0.3104677734375, 0.0359287109375, 0.0439013671875, 0.11585546875, 0.0172080078125, 3.3888388671875])
+                # self.desired = np.array([-0.0689638671875, -0.3104677734375, 0.0359287109375, 0.0439013671875, 0.11585546875, 0.0172080078125, 3.3888388671875])
+                angle_dict = {'right_j6': 1.6192763671875, 'right_j5': 1.8405947265625, 'right_j4': 1.7157666015625, 'right_j3': 1.95903125, 'right_j2': -1.7705771484375, 'right_j1': 0.13664453125, 'right_j0': 0.143740234375}
+                angles = list(angle_dict.values())
+                angles.reverse()
+                self.desired = angles
             else:
                 self._randomize_desired_angles() 
 
