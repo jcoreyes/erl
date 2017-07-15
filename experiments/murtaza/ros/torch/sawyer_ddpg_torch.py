@@ -8,6 +8,7 @@ from railrl.exploration_strategies.ou_strategy import OUStrategy
 import joblib
 
 def example(variant):
+    #TODO: Fix the loading code to actually work! 
     load_policy_file = variant.get('load_policy_file', None)
     if load_policy_file is not None and exists(load_policy_file):
         data = joblib.load(load_policy_file)
@@ -36,12 +37,19 @@ def example(variant):
         algorithm.train()
     else:
         experiment = variant['experiment']
-        loss = variant['loss']
+        reward_function = variant['reward_function']
         safety_end_effector_box = variant['safety_end_effector_box']
         remove_action = variant['remove_action']
-        magnitude = variant['magnitude']
-        temp = variant['temp']
-        env = SawyerEnv(experiment=experiment, loss=loss, safety_end_effector_box=safety_end_effector_box, remove_action=remove_action, magnitude=magnitude, temp=temp)
+        safety_box_magnitude = variant['safety_box_magnitude']
+        safety_box_temp = variant['safety_box_temp']
+        env = SawyerEnv(
+            experiment=experiment,
+            reward_function=reward_function,
+            safety_end_effector_box=safety_end_effector_box,
+            remove_action=remove_action,
+            safety_box_magnitude=safety_box_magnitude,
+            safety_box_temp=safety_box_temp
+        )
         es = OUStrategy(
             max_sigma=1,
             min_sigma=1,
@@ -71,7 +79,14 @@ def example(variant):
         )
     algorithm.train()
 
-experiments=['joint_angle|fixed_angle', 'joint_angle|varying_angle', 'end_effector_position|fixed_ee', 'end_effector_position|varying_ee', 'end_effector_position_orientation|fixed_ee', 'end_effector_position_orientation|varying_ee']
+experiments=[
+    'joint_angle|fixed_angle',
+    'joint_angle|varying_angle',
+    'end_effector_position|fixed_ee',
+    'end_effector_position|varying_ee',
+    'end_effector_position_orientation|fixed_ee',
+    'end_effector_position_orientation|varying_ee'
+]
 if __name__ == "__main__":
     run_experiment(
         example,
@@ -82,9 +97,9 @@ if __name__ == "__main__":
                 'version': 'Original',
                 'use_target_policy': True,
                 'safety_end_effector_box':True,
-                'loss':'huber',
-                'magnitude':2,
-                'temp':1.05,
+                'reward_function':'huber',
+                'safety_box_magnitude':2,
+                'safety_box_temp':1.05,
                 'remove_action':False,
                 'experiment':experiments[0],
                 },

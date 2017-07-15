@@ -53,9 +53,16 @@ JOINT_VALUE_LOW = {
     'torque': JOINT_TORQUE_LOW,
 }
 
-#not sure what the min/max angle and pos are supposed to be
-END_EFFECTOR_POS_LOW = [0.3404830862298487, -1.2633121086809487, -0.5698485041484043]
-END_EFFECTOR_POS_HIGH = [1.1163239572333106, 0.003933425621414761, 0.795699462010194]
+END_EFFECTOR_POS_LOW = [
+    0.3404830862298487, 
+    -1.2633121086809487, 
+    -0.5698485041484043
+]
+END_EFFECTOR_POS_HIGH = [
+    1.1163239572333106, 
+    0.003933425621414761, 
+    0.795699462010194
+]
 
 END_EFFECTOR_ANGLE_LOW = -1*np.ones(4)
 END_EFFECTOR_ANGLE_HIGH = np.ones(4)
@@ -70,19 +77,25 @@ END_EFFECTOR_VALUE_HIGH = {
     'angle': END_EFFECTOR_ANGLE_HIGH,
 }
 
-right_lows = [0.3404830862298487, -1.2633121086809487, -0.5698485041484043]
-right_highs = [1.1163239572333106, 0.003933425621414761, 0.795699462010194]
+ee_box_lows = [
+    0.3404830862298487, 
+    -1.2633121086809487, 
+    -0.5698485041484043
+]
+ee_box_highs = [
+    1.1163239572333106, 
+    0.003933425621414761, 
+    0.795699462010194
+]
 
-left_lows = [0.3404830862298487, -0.003933425621414761, -0.5698485041484043]
-left_highs = [1.1163239572333106, 1.2633121086809487, 0.795699462010194]
-
-# RIGHT ARM POSE: (AT ZERO JOINT_ANGLES)
-# x=0.9048343033476591, y=-1.10782475483212, z=0.3179643218511679
-
-# LEFT ARM POSE: (AT ZERO JOINT_ANGLES)
-# position': Point(x=0.9067813662539473, y=1.106112343313852, z=0.31764719868253904)
-
-experiments=['joint_angle|fixed_angle', 'joint_angle|varying_angle', 'end_effector_position|fixed_ee', 'end_effector_position|varying_ee', 'end_effector_position_orientation|fixed_ee', 'end_effector_position_orientation|varying_ee']
+experiments=[
+    'joint_angle|fixed_angle',
+    'joint_angle|varying_angle',
+    'end_effector_position|fixed_ee',
+    'end_effector_position|varying_ee',
+    'end_effector_position_orientation|fixed_ee',
+    'end_effector_position_orientation|varying_ee'
+]
 
 def safe(raw_function):
     def safe_function(*args, **kwargs):
@@ -98,15 +111,15 @@ class SawyerEnv(Env, Serializable):
     def __init__(
             self,
             experiment,
-            use_right_arm=True,
             update_hz=20,
+            use_grip=False,
             action_mode='torque',
             remove_action=False,
             safety_end_effector_box=False,
-            loss='huber',
-            delta=10,
-            magnitude=2,
-            temp=1.05,
+            reward_function='huber',
+            huber_delta=10,
+            safety_box_magnitude=2,
+            safety_box_temp=1.05,
     ):
 
         Serializable.quick_init(self, locals())
@@ -139,28 +152,23 @@ class SawyerEnv(Env, Serializable):
         
         self.safety_end_effector_box = safety_end_effector_box
         self.remove_action = remove_action
-        self.use_right_arm = use_right_arm
 
-        if loss == 'MSE':
+        if reward_function == 'MSE':
             self.MSE = True
             self.huber=False
-        elif loss == 'huber':
+        elif reward_function == 'huber':
             self.huber = True
             self.MSE = False
 
-        self.delta = delta
-        self.magnitude = magnitude
-        self.temp = temp
+        self.huber_delta = huber_delta
+        self.safety_box_magnitude = safety_box_magnitude
+        self.safety_box_temp = safety_box_temp
 
+        self.arm = ii.Limb('right')
+        self.arm_joint_names = self.arm.joint_names()
 
-        if(self.use_right_arm):
-            self.arm = ii.Limb('right')
-            self.arm_joint_names = self.arm.joint_names()
-            #self.grip = bi.Gripper('right', bi.CHECK_VERSION)
-        else:
-            self.arm = ii.Limb('left')
-            self.arm_joint_names = self.arm.joint_names()
-            self.grip = ii.Gripper('left', bi.CHECK_VERSION)
+        if self.use_gripper:
+            self.grip = bi.Gripper('right', bi.CHECK_VERSION)
 
         #create a dictionary whose values are functions that set the appropriate values
         action_mode_dict = {
@@ -204,9 +212,16 @@ class SawyerEnv(Env, Serializable):
             ))
 
             if self.fixed_angle:
-                #self.desired = np.zeros(NUM_JOINTS) 
-                # self.desired = np.array([-0.0689638671875, -0.3104677734375, 0.0359287109375, 0.0439013671875, 0.11585546875, 0.0172080078125, 3.3888388671875])
-                angle_dict = {'right_j6': 1.6192763671875, 'right_j5': 1.8405947265625, 'right_j4': 1.7157666015625, 'right_j3': 1.95903125, 'right_j2': -1.7705771484375, 'right_j1': 0.13664453125, 'right_j0': 0.143740234375}
+                #self.desired = np.zeros(NUM_JOINTS)
+                angle_dict = {
+                    'right_j6': 1.6192763671875,
+                    'right_j5': 1.8405947265625,
+                    'right_j4': 1.7157666015625,
+                    'right_j3': 1.95903125,
+                    'right_j2': -1.7705771484375,
+                    'right_j1': 0.13664453125,
+                    'right_j0': 0.143740234375
+                }
                 angles = list(angle_dict.values())
                 angles.reverse()
                 self.desired = angles
@@ -321,7 +336,7 @@ class SawyerEnv(Env, Serializable):
 
     def step(self, action):
         """
-        :param deltas: a change joint angles
+        :param huber_deltas: a change joint angles
         """
         # ipdb.set_trace()
         self.terminate = False
@@ -334,10 +349,10 @@ class SawyerEnv(Env, Serializable):
                 reward = -np.mean((self._joint_angles() - self.desired)**2)
             elif self.huber:
                 a = np.mean(np.abs(self.desired - self._joint_angles()))
-                if a <= self.delta:
+                if a <= self.huber_delta:
                     reward = -1/2 * a **2
                 else:
-                    reward = -1 * self.delta * (a - 1/2 * self.delta)
+                    reward = -1 * self.huber_delta * (a - 1/2 * self.huber_delta)
             
         if self.end_effector_experiment_position or self.end_effector_experiment_total:
             #reward is MSE between desired position/orientation and current position/orientation of end_effector
@@ -346,10 +361,10 @@ class SawyerEnv(Env, Serializable):
                 reward = -np.mean((current_end_effector_pose - self.desired)**2)
             elif self.huber:
                 a = np.abs(np.mean(self.desired - current_end_effector_pose))
-                if a <= self.delta:
+                if a <= self.huber_delta:
                         reward = -1/2 * a **2
                 else:
-                    reward = -1 * self.delta * (a- 1/2 * self.delta)
+                    reward = -1 * self.huber_delta * (a- 1/2 * self.huber_delta)
 
         # done = False
         done = self.terminate
@@ -365,10 +380,10 @@ class SawyerEnv(Env, Serializable):
         positions = [positions_dict[joint] for joint in self.arm_joint_names]
         velocities = [velocities_dict[joint] for joint in self.arm_joint_names]
         torques = [torques_dict[joint] for joint in self.arm_joint_names]
-        temp = positions + velocities + torques
-        temp = np.hstack((temp, self._end_effector_pose()))
-        temp = np.hstack((temp, self.desired))
-        return temp
+        safety_box_temp = positions + velocities + torques
+        safety_box_temp = np.hstack((safety_box_temp, self._end_effector_pose()))
+        safety_box_temp = np.hstack((safety_box_temp, self.desired))
+        return safety_box_temp
 
     def reset(self):
         """
@@ -400,10 +415,7 @@ class SawyerEnv(Env, Serializable):
         rospy.wait_for_service('get_jacobian')
         try:
             get_jacobian = rospy.ServiceProxy('get_jacobian', GetJacobian)
-            if self.use_right_arm:
-                resp = get_jacobian('right')
-            else:
-                resp = get_jacobian('left')
+            resp = get_jacobian('right')
             return np.array([resp.jacobianr1,
                              resp.jacobianr2,
                              resp.jacobianr3,
@@ -419,14 +431,9 @@ class SawyerEnv(Env, Serializable):
         
     def is_in_box(self, endpoint_pose):
         if self.safety_end_effector_box:
-            if self.use_right_arm:
-                within_box = [curr_pose > lower_pose and curr_pose < higher_pose
-                    for curr_pose, lower_pose, higher_pose 
-                    in zip(endpoint_pose, right_lows, right_highs)]
-            else:
-                within_box = [curr_pose > lower_pose and curr_pose < higher_pose
-                    for curr_pose, lower_pose, higher_pose 
-                    in zip(endpoint_pose, left_lows, left_highs)]
+            within_box = [curr_pose > lower_pose and curr_pose < higher_pose
+                for curr_pose, lower_pose, higher_pose
+                in zip(endpoint_pose, ee_box_lows, ee_box_highs)]
             return all(within_box)
         
         return True
@@ -437,37 +444,21 @@ class SawyerEnv(Env, Serializable):
         curr_x = endpoint_pose[0]
         curr_y = endpoint_pose[1]
         curr_z = endpoint_pose[2]
-        if self.use_right_arm:
-            if curr_x > right_highs[0]:
-                x = -1 * np.exp(np.abs(curr_x - right_highs[0]) * self.temp) * self.magnitude
-            elif curr_x < right_lows[0]:
-                x = np.exp(np.abs(curr_x - right_lows[0]) * self.temp) * self.magnitude
-            
-            if curr_y > right_highs[1]:
-                y = -1 * np.exp(np.abs(curr_y - right_highs[1]) * self.temp) * self.magnitude
-            elif curr_y < right_lows[1]:
-                y = np.exp(np.abs(curr_y - right_lows[1]) * self.temp) * self.magnitude
-            
-            if curr_z > right_highs[2]:
-                z = -1 * np.exp(np.abs(curr_z - right_highs[2]) * self.temp) * self.magnitude
-            elif curr_z < right_lows[2]:
-                z = np.exp(np.abs(curr_z - right_highs[2]) * self.temp) * self.magnitude
-        else:
-            if curr_x > left_highs[0]:
-                x = -1 * np.exp(np.abs(curr_x - left_highs[0]) * self.temp) * self.magnitude
-            elif curr_x < left_lows[0]:
-                x = np.exp(np.abs(curr_x - left_lows[0]) * self.temp) * self.magnitude
-            
-            if curr_y > left_highs[1]:
-                y = -1 * np.exp(np.abs(curr_y - left_highs[1]) * self.temp) * self.magnitude
-            elif curr_y < left_lows[1]:
-                y = np.exp(np.abs(curr_y - left_lows[1]) * self.temp) * self.magnitude
-            
-            if curr_z > left_highs[2]:
-                z = -1 * np.exp(np.abs(curr_z - left_highs[2]) * self.temp) * self.magnitude
-            elif curr_z < left_lows[2]:
-                z = np.exp(np.abs(curr_z - left_highs[2]) * self.temp) * self.magnitude
 
+        if curr_x > ee_box_highs[0]:
+            x = -1 * np.exp(np.abs(curr_x - ee_box_highs[0]) * self.safety_box_temp) * self.safety_box_magnitude
+        elif curr_x < ee_box_lows[0]:
+            x = np.exp(np.abs(curr_x - ee_box_lows[0]) * self.safety_box_temp) * self.safety_box_magnitude
+
+        if curr_y > ee_box_highs[1]:
+             y = -1 * np.exp(np.abs(curr_y - ee_box_highs[1]) * self.safety_box_temp) * self.safety_box_magnitude
+        elif curr_y < ee_box_lows[1]:
+            y = np.exp(np.abs(curr_y - ee_box_lows[1]) * self.safety_box_temp) * self.safety_box_magnitude
+
+        if curr_z > ee_box_highs[2]:
+            z = -1 * np.exp(np.abs(curr_z - ee_box_highs[2]) * self.safety_box_temp) * self.safety_box_magnitude
+        elif curr_z < ee_box_lows[2]:
+            z = np.exp(np.abs(curr_z - ee_box_highs[2]) * self.safety_box_temp) * self.safety_box_magnitude
 
         return np.array([x, y, z])
 
@@ -476,37 +467,22 @@ class SawyerEnv(Env, Serializable):
         curr_y = pose[1]
         curr_z = pose[2]
         x, y, z = 0, 0, 0
-        if self.use_right_arm:
-            if curr_x > right_highs[0]:
-                x = np.abs(curr_x - right_highs[0])
-            elif curr_x < right_lows[0]:
-                x = np.abs(curr_x - right_lows[0])
 
-            if curr_y > right_highs[1]:
-                y = np.abs(curr_y - right_highs[1])
-            elif curr_y < right_lows[1]:
-                y = np.abs(curr_y - right_lows[1])
+        if curr_x > ee_box_highs[0]:
+            x = np.abs(curr_x - ee_box_highs[0])
+        elif curr_x < ee_box_lows[0]:
+            x = np.abs(curr_x - ee_box_lows[0])
 
-            if curr_z > right_highs[2]:
-                z = np.abs(curr_z - right_highs[2])
-            elif curr_z < right_lows[2]:
-                z = np.abs(curr_z - right_lows[2])
-        else:
-            if curr_x > right_highs[0]:
-                x = np.abs(curr_x - left_highs[0])
-            elif curr_x < left_lows[0]:
-                x = np.abs(curr_x - left_lows[0])
+        if curr_y > ee_box_highs[1]:
+            y = np.abs(curr_y - ee_box_highs[1])
+        elif curr_y < ee_box_lows[1]:
+            y = np.abs(curr_y - ee_box_lows[1])
 
-            if curr_y > left_highs[1]:
-                y = np.abs(curr_y - left_highs[1])
-            elif curr_y < left_lows[1]:
-                y = np.abs(curr_y - left_lows[1])
+        if curr_z > ee_box_highs[2]:
+            z = np.abs(curr_z - ee_box_highs[2])
+        elif curr_z < ee_box_lows[2]:
+            z = np.abs(curr_z - ee_box_lows[2])
 
-            if curr_z > left_highs[2]:
-                z = np.abs(curr_z - left_highs[2])
-            elif curr_z < left_lows[2]:
-                z = np.abs(curr_z - left_lows[2])
-        # ipdb.set_trace()
         return np.linalg.norm([x, y, z])
 
     @property
