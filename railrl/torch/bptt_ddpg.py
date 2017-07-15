@@ -52,6 +52,7 @@ class BpttDdpg(OnlineAlgorithm):
             only_use_last_dqdm=False,
             action_policy_weight_decay=0,
             write_policy_weight_decay=0,
+            do_not_load_memories=False,
             **kwargs
     ):
         """
@@ -106,6 +107,7 @@ class BpttDdpg(OnlineAlgorithm):
         self.only_use_last_dqdm = only_use_last_dqdm
         self.action_policy_weight_decay = action_policy_weight_decay
         self.write_policy_weight_decay = write_policy_weight_decay
+        self.do_not_load_memories = do_not_load_memories
 
         """
         Set some params-dependency values
@@ -296,6 +298,8 @@ class BpttDdpg(OnlineAlgorithm):
         """
         subtraj_obs = subtraj_batch['env_obs']
         initial_memories = subtraj_batch['memories'][:, 0, :]
+        if self.do_not_load_memories:
+            initial_memories.data.fill_(0)
         policy_actions, policy_writes = self.policy(subtraj_obs,
                                                     initial_memories)
         if self.subtraj_length > 1:

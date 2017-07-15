@@ -101,12 +101,12 @@ def experiment(variant):
 if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
-    exp_prefix = "7-13-dev-bptt-ddpg-check"
+    exp_prefix = "7-14-dev-bptt-ddpg-check"
     run_mode = 'none'
 
     n_seeds = 5
     mode = "ec2"
-    exp_prefix = "7-13-importance-of-bellman-error-minimization-non-full-bptt"
+    exp_prefix = "7-14-bptt-ddpg-watermaze-memory-ablation-memory-state"
 
     run_mode = 'grid'
     num_configurations = 25
@@ -150,14 +150,15 @@ if __name__ == '__main__':
             use_action_policy_params_for_entire_policy=False,
             action_policy_optimize_bellman=False,
             write_policy_optimizes='bellman',
-            action_policy_learning_rate=0.000980014225523977,
+            action_policy_learning_rate=0.001,
             write_policy_learning_rate=0.0005,
-            qf_learning_rate=0.002021863834563243,
+            qf_learning_rate=0.002,
             max_path_length=H,
             refresh_entire_buffer_period=None,
             save_new_memories_back_to_replay_buffer=True,
             write_policy_weight_decay=0,
             action_policy_weight_decay=0,
+            do_not_load_memories=False,
             # tau=0.001,
             # use_soft_update=False,
             # target_hard_update_period=300,
@@ -169,6 +170,7 @@ if __name__ == '__main__':
             # hidden_size=10,
             fc1_size=400,
             fc2_size=300,
+            ignore_memory=False,
         ),
         policy_params=dict(
             fc1_size=400,
@@ -200,11 +202,11 @@ if __name__ == '__main__':
             # 'algo_params.qf_learning_rate': [1e-3, 1e-5],
             # 'algo_params.action_policy_learning_rate': [1e-3, 1e-5],
             # 'algo_params.write_policy_learning_rate': [1e-5, 1e-7],
-            'algo_params.action_policy_optimize_bellman': [True, False],
-            'algo_params.write_policy_optimizes': ['qf', 'bellman', 'both'],
+            'algo_params.do_not_load_memories': [True, False],
+            # 'algo_params.write_policy_optimizes': ['qf', 'bellman', 'both'],
             # 'algo_params.refresh_entire_buffer_period': [None, 1],
             # 'es_params.memory_es_params.max_sigma': [0, 1],
-            # 'qf_params.hidden_init': [init.kaiming_normal, ptu.fanin_init],
+            'qf_params.ignore_memory': [True, False],
             # 'policy_params.hidden_init': [init.kaiming_normal, ptu.fanin_init],
             # 'policy_params.feed_action_to_memory': [False, True],
             # 'policy_params.cell_class': [LSTMCell, BNLSTMCell, RWACell],
