@@ -52,7 +52,7 @@ class BpttDdpg(OnlineAlgorithm):
             only_use_last_dqdm=False,
             action_policy_weight_decay=0,
             write_policy_weight_decay=0,
-            do_not_load_memories=False,
+            do_not_load_initial_memories=False,
             **kwargs
     ):
         """
@@ -78,6 +78,8 @@ class BpttDdpg(OnlineAlgorithm):
         :param only_use_last_dqdm: If True, cut the gradients for all dQ/dmemory
         other than the last time step.
         :param action_policy_weight_decay:
+        :param do_not_load_initial_memories: If True, always zero-out the
+        loaded initial memory.
         :param write_policy_weight_decay:
         :param kwargs: kwargs to pass onto super class constructor
         """
@@ -107,7 +109,7 @@ class BpttDdpg(OnlineAlgorithm):
         self.only_use_last_dqdm = only_use_last_dqdm
         self.action_policy_weight_decay = action_policy_weight_decay
         self.write_policy_weight_decay = write_policy_weight_decay
-        self.do_not_load_memories = do_not_load_memories
+        self.do_not_load_initial_memories = do_not_load_initial_memories
 
         """
         Set some params-dependency values
@@ -298,7 +300,7 @@ class BpttDdpg(OnlineAlgorithm):
         """
         subtraj_obs = subtraj_batch['env_obs']
         initial_memories = subtraj_batch['memories'][:, 0, :]
-        if self.do_not_load_memories:
+        if self.do_not_load_initial_memories:
             initial_memories.data.fill_(0)
         policy_actions, policy_writes = self.policy(subtraj_obs,
                                                     initial_memories)
