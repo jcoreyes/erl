@@ -1,3 +1,7 @@
+# import sys
+# print(sys.version)
+# print(sys.path)
+import ipdb; ipdb.set_trace()
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.qfunctions.torch import FeedForwardQFunction
@@ -8,7 +12,7 @@ from railrl.exploration_strategies.ou_strategy import OUStrategy
 import joblib
 
 def example(variant):
-    #TODO: Fix the loading code to actually work! 
+    #TODO: Fix the loading code to actually work!
     load_policy_file = variant.get('load_policy_file', None)
     if load_policy_file is not None and exists(load_policy_file):
         data = joblib.load(load_policy_file)
@@ -98,9 +102,9 @@ if __name__ == "__main__":
                 'use_target_policy': True,
                 'safety_end_effector_box':True,
                 'reward_function':'huber',
-                'safety_box_magnitude':2,
+                'safety_box_magnitude':5,
                 'safety_box_temp':1.05,
-                'remove_action':False,
+                'remove_action':True,
                 'experiment':experiments[0],
                 },
         use_gpu=True,

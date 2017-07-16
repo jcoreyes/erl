@@ -6,7 +6,7 @@ import numpy as np
 from rllab.envs.base import Env
 from rllab.misc import logger
 from numpy import linalg
-#from robot_info.srv import *
+from robot_info.srv import *
 import ipdb
 
 NUM_JOINTS = 7
@@ -39,8 +39,8 @@ JOINT_ANGLES_LOW = np.array([
 JOINT_VEL_HIGH = 2*np.ones(7)
 JOINT_VEL_LOW = -2*np.ones(7)
 
-JOINT_TORQUE_HIGH = 1*np.ones(7)
-JOINT_TORQUE_LOW = -1*np.ones(7)
+JOINT_TORQUE_HIGH = 0.5*np.ones(7)
+JOINT_TORQUE_LOW = -0.5*np.ones(7)
 
 JOINT_VALUE_HIGH = {
     'position': JOINT_ANGLES_HIGH,
@@ -77,15 +77,16 @@ END_EFFECTOR_VALUE_HIGH = {
     'angle': END_EFFECTOR_ANGLE_HIGH,
 }
 
-ee_box_lows = [
-    0.3404830862298487, 
-    -1.2633121086809487, 
-    -0.5698485041484043
-]
 ee_box_highs = [
-    1.1163239572333106, 
-    0.003933425621414761, 
-    0.795699462010194
+    0.7175958839273338,
+    0.3464466563902636,
+    0.7659791453416877,
+]
+
+ee_box_lows = [
+    0.1628008448954529,
+    -0.33786487626917794,
+    0.20084391863426093,
 ]
 
 experiments=[
@@ -112,7 +113,7 @@ class SawyerEnv(Env, Serializable):
             self,
             experiment,
             update_hz=20,
-            use_grip=False,
+            use_gripper=False,
             action_mode='torque',
             remove_action=False,
             safety_end_effector_box=False,
@@ -127,6 +128,7 @@ class SawyerEnv(Env, Serializable):
         self.rate = rospy.Rate(update_hz)
 
         #defaults:
+        self.use_gripper = use_gripper
         self.joint_angle_experiment = False
         self.fixed_angle = False
         self.end_effector_experiment_position = False
@@ -247,9 +249,9 @@ class SawyerEnv(Env, Serializable):
 
             if self.fixed_end_effector:
                 self.desired = np.array([
-                    0.1485434521312332, 
-                    -0.43227588084273644, 
-                    -0.7116727296474704
+                    0.5217189571796944,
+                    -0.10860045563531961,
+                    0.3957934159711215,
                 ])
 
             else:
@@ -295,6 +297,7 @@ class SawyerEnv(Env, Serializable):
     def _act(self, action):
         if self.safety_end_effector_box and not self.is_in_box(self._end_effector_pose()):
             jacobian = self.get_jacobian()
+            #ipdb.set_trace()
             end_effector_force = self.get_adjustment_force()
             torques = np.dot(jacobian.T, end_effector_force).T
             if self.remove_action:
@@ -302,7 +305,8 @@ class SawyerEnv(Env, Serializable):
             else:
                 action = action + torques
             # ipdb.set_trace()
-        np.clip(action, -1, 1, out=action)
+
+        # np.clip(action, -.5, .5, out=action)
         joint_to_values = dict(zip(self.arm_joint_names, action))
         self._set_joint_values(joint_to_values)
         self.rate.sleep()
@@ -335,16 +339,11 @@ class SawyerEnv(Env, Serializable):
             ])
 
     def step(self, action):
-        """
-        :param huber_deltas: a change joint angles
-        """
-        # ipdb.set_trace()
         self.terminate = False
         self._act(action)
         observation = self._get_joint_values()
 
         if self.joint_angle_experiment:
-            #reward is MSE between current joint angles and the desired angles
             if self.MSE:
                 reward = -np.mean((self._joint_angles() - self.desired)**2)
             elif self.huber:
@@ -355,7 +354,6 @@ class SawyerEnv(Env, Serializable):
                     reward = -1 * self.huber_delta * (a - 1/2 * self.huber_delta)
             
         if self.end_effector_experiment_position or self.end_effector_experiment_total:
-            #reward is MSE between desired position/orientation and current position/orientation of end_effector
             current_end_effector_pose = self._end_effector_pose()
             if self.MSE:
                 reward = -np.mean((current_end_effector_pose - self.desired)**2)
@@ -366,10 +364,8 @@ class SawyerEnv(Env, Serializable):
                 else:
                     reward = -1 * self.huber_delta * (a- 1/2 * self.huber_delta)
 
-        # done = False
         done = self.terminate
         info = {}
-        # ipdb.set_trace()
         return observation, reward, done, info
 
     def _get_joint_values(self):
@@ -399,7 +395,7 @@ class SawyerEnv(Env, Serializable):
             self._randomize_desired_end_effector_pose()
 
         self.arm.move_to_neutral()
-        # ipdb.set_trace()
+        # #ipdb.set_trace()
         return self._get_joint_values()
 
     def _randomize_desired_angles(self):
@@ -416,6 +412,7 @@ class SawyerEnv(Env, Serializable):
         try:
             get_jacobian = rospy.ServiceProxy('get_jacobian', GetJacobian)
             resp = get_jacobian('right')
+            #ipdb.set_trace()
             return np.array([resp.jacobianr1,
                              resp.jacobianr2,
                              resp.jacobianr3,
@@ -424,19 +421,21 @@ class SawyerEnv(Env, Serializable):
                              resp.jacobianr6])
         except Exception as e:
             # self.terminate = True
+            #ipdb.set_trace()
             return np.zeros((6, 7))
 
     def get_jacobian(self):
         return self.get_jacobian_client()[:3]
         
     def is_in_box(self, endpoint_pose):
+
+        is_in_box = True
         if self.safety_end_effector_box:
             within_box = [curr_pose > lower_pose and curr_pose < higher_pose
                 for curr_pose, lower_pose, higher_pose
                 in zip(endpoint_pose, ee_box_lows, ee_box_highs)]
-            return all(within_box)
-        
-        return True
+            is_in_box = all(within_box)
+        return is_in_box
 
     def get_adjustment_force(self):
         x, y, z = 0, 0, 0
