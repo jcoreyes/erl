@@ -260,17 +260,9 @@ class DDPG(OnlineAlgorithm):
         )
 
 
-def array_or_tuple_to_variable(array_or_tuple):
-    if isinstance(array_or_tuple, tuple):
-        return tuple(
-            array_or_tuple_to_variable(elem) for elem in array_or_tuple
-        )
-    return Variable(ptu.from_numpy(array_or_tuple).float(), requires_grad=False)
-
-
 def np_to_pytorch_batch(np_batch):
     torch_batch = {
-        k: array_or_tuple_to_variable(elem)
+        k: Variable(ptu.from_numpy(elem).float(), requires_grad=False)
         for k, elem in np_batch.items()
     }
     torch_batch['rewards'] = torch_batch['rewards'].unsqueeze(-1)

@@ -44,18 +44,12 @@ class StateDistanceQLearning(DDPG):
             batch['next_observations'],
             goal_states,
         )
-        batch['observations'] = batch['observations'], goal_states
-        batch['next_observations'] = (
+        batch['observations'] = np.hstack((batch['observations'], goal_states))
+        batch['next_observations'] = np.hstack((
             batch['next_observations'], goal_states
-        )
+        ))
         batch['rewards'] = new_rewards
         torch_batch = np_to_pytorch_batch(batch)
-        torch_batch['observations'] = torch.cat(
-            torch_batch['observations'], dim=1
-        )
-        torch_batch['next_observations'] = torch.cat(
-            torch_batch['next_observations'], dim=1
-        )
         return torch_batch
 
     def reset_env(self):
