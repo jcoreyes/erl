@@ -1,7 +1,6 @@
 name: railrl-tf1
 channels:
     - https://conda.anaconda.org/kne
-    - https://conda.binstar.org/tlatorre
     - https://conda.anaconda.org/cjs14
     - https://conda.anaconda.org/menpo
     - jjhelmus
@@ -51,4 +50,3 @@ dependencies:
         - snakeviz==0.4.1
         - yappi==0.98
         - vmprof
-        - /home/vitchyr/programs/tensorflow-1.0.1-cp35-cp35m-linux_x86_64.whl

@@ -30,6 +30,8 @@ class DDPG(OnlineAlgorithm):
             target_hard_update_period=1000,
             tau=1e-2,
             use_soft_update=False,
+            use_target_policy=True,
+            replay_buffer=None,
             **kwargs
     ):
         if exploration_policy is None:
@@ -50,19 +52,22 @@ class DDPG(OnlineAlgorithm):
                                        lr=self.qf_learning_rate)
         self.policy_optimizer = optim.Adam(self.policy.parameters(),
                                            lr=self.policy_learning_rate)
-        self.pool = SplitReplayBuffer(
-            EnvReplayBuffer(
-                self.pool_size,
-                self.env,
-                flatten=True,
-            ),
-            EnvReplayBuffer(
-                self.pool_size,
-                self.env,
-                flatten=True,
-            ),
-            fraction_paths_in_train=0.8,
-        )
+        if replay_buffer == None:
+            self.pool = SplitReplayBuffer(
+                EnvReplayBuffer(
+                    self.pool_size,
+                    self.env,
+                    flatten=True,
+                ),
+                EnvReplayBuffer(
+                    self.pool_size,
+                    self.env,
+                    flatten=True,
+                ),
+                fraction_paths_in_train=0.8,
+            )
+        else:
+            self.pool = replay_buffer
         if ptu.gpu_enabled():
             self.policy.cuda()
             self.target_policy.cuda()
@@ -159,6 +164,8 @@ class DDPG(OnlineAlgorithm):
             self._statistics_from_batch(validation_batch, "Validation")
         )
 
+        statistics.update(self.env._statistics_from_paths(paths, "Test"))
+
         statistics['QF Loss Validation - Train Gap'] = (
             statistics['Validation QF Loss Mean']
             - statistics['Train QF Loss Mean']
@@ -169,6 +176,7 @@ class DDPG(OnlineAlgorithm):
         )
         average_returns = get_average_returns(paths)
         statistics['AverageReturn'] = average_returns
+
         statistics['Epoch'] = epoch
 
         self.final_score = average_returns
@@ -242,6 +250,7 @@ class DDPG(OnlineAlgorithm):
             env=self.training_env,
             es=self.exploration_strategy,
             qf=self.qf,
+            replay_pool=self.pool,
         )
 
 

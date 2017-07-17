@@ -13,8 +13,8 @@ def example(variant):
     experiment=variant['experiment']
     env = SawyerEnv(loss=loss)
     es = OUStrategy(
-        max_sigma=0.05,
-        min_sigma=0.05,
+        max_sigma=1,
+        min_sigma=1,
         action_space=env.action_space,
     )
     qf = FeedForwardQFunction(
@@ -36,8 +36,9 @@ def example(variant):
         qf=qf,
         policy=policy,
         num_epochs=30,
-        batch_size=128,
+        batch_size=1024,
         use_target_policy=use_target_policy,
+        render=True,
     )
     # ipdb.set_trace()
     algorithm.train()
@@ -45,7 +46,7 @@ def example(variant):
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="7-10-ddpg-sawyer-mujoco-fixed-angle-test",
+        exp_prefix="7-12-ddpg-sawyer-mujoco-fixed-angle-updated-log-diagnostics",
         seed=0,
         mode='here',
         variant={
