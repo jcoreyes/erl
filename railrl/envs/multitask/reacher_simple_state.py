@@ -56,12 +56,11 @@ class SimpleReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         ])
 
     def sample_goal_states(self, batch_size):
-        return 0.2 * np.ones((batch_size, 2))
-        # return self.np_random.uniform(
-        #     low=-0.2,
-        #     high=0.2,
-        #     size=(batch_size, 2)
-        # )
+        return self.np_random.uniform(
+            low=-0.2,
+            high=0.2,
+            size=(batch_size, 2)
+        )
 
     def compute_rewards(self, obs, action, next_obs, goal_states):
         c1 = next_obs[:, 0:1]  # cosine of angle 1

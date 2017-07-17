@@ -136,6 +136,8 @@ def main():
         for joint_angles in [
             np.array([pi/4, pi/4]),
             np.array([pi/2, pi/2]),
+            np.array([2.21577542, -2.69287318]),
+            np.array([-0.35543371, 2.27485328]),
             np.random.uniform(-pi, pi, size=2),
             np.random.uniform(-pi, pi, size=2),
             np.random.uniform(-pi, pi, size=2),

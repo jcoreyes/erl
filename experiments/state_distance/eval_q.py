@@ -57,8 +57,8 @@ if __name__ == "__main__":
         qf.cuda()
     qf.train(False)
 
-    goal = np.array([.2, .2])
-    num_samples = 100
+    goal = np.array([-.2, -.1])
+    num_samples = 1000
     resolution = 10
 
     obs = env.reset()

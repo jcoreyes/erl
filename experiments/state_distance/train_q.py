@@ -47,6 +47,8 @@ def main(variant):
     #
     # import ipdb; ipdb.set_trace()
     observation_space = convert_gym_space(env.observation_space)
+    action_space = convert_gym_space(env.action_space)
+    es = OUStrategy(action_space=action_space)
     qf = FeedForwardQFunction(
         int(observation_space.flat_dim) + env.goal_dim,
         int(action_space.flat_dim),
@@ -60,6 +62,7 @@ def main(variant):
         400,
         300,
     )
+    # algo = StateDistanceQLearning(
     algo = StateDistanceQLearningSimple(
         env=env,
         qf=qf,
@@ -118,7 +121,7 @@ if __name__ == '__main__':
 
     n_seeds = 1
     mode = "here"
-    exp_prefix = "7-13-state-distance-train-one-goal"
+    exp_prefix = "7-17-dev-state-distance-train-multiple-goals-ddpg"
     snapshot_mode = 'all'
 
     # out_dir = Path(LOG_DIR) / 'datasets/generated'
@@ -136,7 +139,7 @@ if __name__ == '__main__':
             tau=1e-2,
             batch_size=1024,
             discount=0.,
-            qf_learning_rate=1e-2,
+            qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
         ),
     )
