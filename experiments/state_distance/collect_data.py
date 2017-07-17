@@ -1,7 +1,6 @@
 from pathlib import Path
 
-from railrl.algos.qlearning.state_distance_q_learning import (
-    MultitaskPathSampler)
+from railrl.samplers.path_sampler import MultitaskPathSampler
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.multitask.reacher_env import MultitaskReacherEnv
