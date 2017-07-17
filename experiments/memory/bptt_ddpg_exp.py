@@ -106,7 +106,7 @@ if __name__ == '__main__':
 
     n_seeds = 5
     mode = "ec2"
-    exp_prefix = "7-14-bptt-ddpg-watermaze-memory-ablation-memory-state"
+    exp_prefix = "7-14-bptt-ddpg-watermaze-memory-sweep-traj-with-loaded-dldm"
 
     run_mode = 'grid'
     num_configurations = 25
@@ -159,6 +159,8 @@ if __name__ == '__main__':
             write_policy_weight_decay=0,
             action_policy_weight_decay=0,
             do_not_load_initial_memories=False,
+            do_not_load_memories=False,
+            save_memory_gradients=False,
             # tau=0.001,
             # use_soft_update=False,
             # target_hard_update_period=300,
@@ -202,11 +204,11 @@ if __name__ == '__main__':
             # 'algo_params.qf_learning_rate': [1e-3, 1e-5],
             # 'algo_params.action_policy_learning_rate': [1e-3, 1e-5],
             # 'algo_params.write_policy_learning_rate': [1e-5, 1e-7],
-            'algo_params.do_not_load_initial_memories': [True, False],
+            # 'algo_params.do_not_load_initial_memories': [True, False],
             # 'algo_params.write_policy_optimizes': ['qf', 'bellman', 'both'],
             # 'algo_params.refresh_entire_buffer_period': [None, 1],
             # 'es_params.memory_es_params.max_sigma': [0, 1],
-            'qf_params.ignore_memory': [True, False],
+            # 'qf_params.ignore_memory': [True, False],
             # 'policy_params.hidden_init': [init.kaiming_normal, ptu.fanin_init],
             # 'policy_params.feed_action_to_memory': [False, True],
             # 'policy_params.cell_class': [LSTMCell, BNLSTMCell, RWACell],

@@ -14,13 +14,7 @@ from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import get_average_returns
 from railrl.pythonplusplus import batch, ConditionTimer
 from railrl.torch.online_algorithm import OnlineAlgorithm
-from railrl.torch.pytorch_util import (
-    copy_model_params_from_to,
-    soft_update_from_to,
-    gpu_enabled,
-    from_numpy,
-    get_numpy,
-)
+from railrl.torch import pytorch_util as ptu
 from rllab.misc import logger, special
 
 
@@ -53,6 +47,7 @@ class BpttDdpg(OnlineAlgorithm):
             action_policy_weight_decay=0,
             write_policy_weight_decay=0,
             do_not_load_initial_memories=False,
+            save_memory_gradients=False,
             **kwargs
     ):
         """
@@ -81,6 +76,7 @@ class BpttDdpg(OnlineAlgorithm):
         :param do_not_load_initial_memories: If True, always zero-out the
         loaded initial memory.
         :param write_policy_weight_decay:
+        :param save_memory_gradients: If True, save and load dL/dmemory.
         :param kwargs: kwargs to pass onto super class constructor
         """
         super().__init__(env, policy, exploration_strategy, **kwargs)
@@ -110,6 +106,7 @@ class BpttDdpg(OnlineAlgorithm):
         self.action_policy_weight_decay = action_policy_weight_decay
         self.write_policy_weight_decay = write_policy_weight_decay
         self.do_not_load_initial_memories = do_not_load_initial_memories
+        self.save_memory_gradients = save_memory_gradients
 
         """
         Set some params-dependency values
@@ -171,11 +168,15 @@ class BpttDdpg(OnlineAlgorithm):
             weight_decay=self.action_policy_weight_decay,
         )
 
-        if gpu_enabled():
+        if ptu.gpu_enabled():
             self.policy.cuda()
             self.target_policy.cuda()
             self.qf.cuda()
             self.target_qf.cuda()
+
+        if self.save_memory_gradients:
+            self.saved_grads = {}
+            self.save_hook = self.create_save_grad_hook('dl_dmemory')
 
     """
     Training functions
@@ -188,15 +189,17 @@ class BpttDdpg(OnlineAlgorithm):
             )
         )
         subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
+        if self.save_memory_gradients:
+            subtraj_batch['memories'].requires_grad = True
         self.train_critic(subtraj_batch)
         self.train_policy(subtraj_batch, start_indices)
         if self.use_soft_update:
-            soft_update_from_to(self.target_policy, self.policy, self.tau)
-            soft_update_from_to(self.target_qf, self.qf, self.tau)
+            ptu.soft_update_from_to(self.target_policy, self.policy, self.tau)
+            ptu.soft_update_from_to(self.target_qf, self.qf, self.tau)
         else:
             if n_steps_total % self.target_hard_update_period == 0:
-                copy_model_params_from_to(self.qf, self.target_qf)
-                copy_model_params_from_to(self.policy, self.target_policy)
+                ptu.copy_model_params_from_to(self.qf, self.target_qf)
+                ptu.copy_model_params_from_to(self.policy, self.target_policy)
 
     def train_critic(self, subtraj_batch):
         critic_dict = self.get_critic_output_dict(subtraj_batch)
@@ -249,6 +252,11 @@ class BpttDdpg(OnlineAlgorithm):
         policy_dict = self.get_policy_output_dict(subtraj_batch)
 
         policy_loss = policy_dict['Loss']
+        qf_loss = 0
+        if self.save_memory_gradients:
+            dloss_dlast_writes = subtraj_batch['dloss_dwrites'][:, -1, :]
+            new_last_writes = policy_dict['New Writes'][:, -1, :]
+            qf_loss += (dloss_dlast_writes * new_last_writes).sum()
         if self.use_action_policy_params_for_entire_policy:
             self.policy_optimizer.zero_grad()
             policy_loss.backward(
@@ -256,8 +264,10 @@ class BpttDdpg(OnlineAlgorithm):
             )
             if self.action_policy_optimize_bellman:
                 bellman_errors = policy_dict['Bellman Errors']
-                bellman_loss = self.bellman_error_loss_weight * bellman_errors.mean()
-                bellman_loss.backward()
+                qf_loss += (
+                    self.bellman_error_loss_weight * bellman_errors.mean()
+                )
+                qf_loss.backward()
             self.policy_optimizer.step()
         else:
             self.action_policy_optimizer.zero_grad()
@@ -268,27 +278,38 @@ class BpttDdpg(OnlineAlgorithm):
                 self.write_policy_optimizer.step()
                 if self.action_policy_optimize_bellman:
                     bellman_errors = policy_dict['Bellman Errors']
-                    bellman_loss = self.bellman_error_loss_weight * bellman_errors.mean()
-                    bellman_loss.backward()
+                    qf_loss += (
+                        self.bellman_error_loss_weight * bellman_errors.mean()
+                    )
+                    qf_loss.backward()
                 self.action_policy_optimizer.step()
             else:
                 if self.write_policy_optimizes == 'bellman':
                     self.write_policy_optimizer.zero_grad()
                 if self.action_policy_optimize_bellman:
                     bellman_errors = policy_dict['Bellman Errors']
-                    bellman_loss = self.bellman_error_loss_weight * bellman_errors.mean()
-                    bellman_loss.backward()
+                    qf_loss += (
+                        self.bellman_error_loss_weight * bellman_errors.mean()
+                    )
+                    qf_loss.backward()
                     self.action_policy_optimizer.step()
                 else:
                     self.action_policy_optimizer.step()
                     bellman_errors = policy_dict['Bellman Errors']
-                    bellman_loss = self.bellman_error_loss_weight * bellman_errors.mean()
-                    bellman_loss.backward()
+                    qf_loss += (
+                        self.bellman_error_loss_weight * bellman_errors.mean()
+                    )
+                    qf_loss.backward()
                 self.write_policy_optimizer.step()
 
         if self.save_new_memories_back_to_replay_buffer:
             self.pool.train_replay_buffer.update_write_subtrajectories(
-                get_numpy(policy_dict['New Writes']), start_indices
+                ptu.get_numpy(policy_dict['New Writes']), start_indices
+            )
+        if self.save_memory_gradients:
+            new_dloss_dmemory = ptu.get_numpy(self.saved_grads['dl_dmemory'])
+            self.pool.train_replay_buffer.update_dloss_dmemories_subtrajectories(
+                new_dloss_dmemory, start_indices
             )
 
     def get_policy_output_dict(self, subtraj_batch):
@@ -314,6 +335,10 @@ class BpttDdpg(OnlineAlgorithm):
             )
         else:
             new_memories = initial_memories.unsqueeze(1)
+        if self.save_memory_gradients:
+            new_memories.register_hook(
+                self.save_hook
+            )
         # TODO(vitchyr): Test this
         if self.only_use_last_dqdm:
             new_memories = new_memories.detach()
@@ -419,6 +444,8 @@ class BpttDdpg(OnlineAlgorithm):
         raw_subtraj_batch = eval_pool.get_all_valid_subtrajectories()
         assert raw_subtraj_batch is not None
         subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
+        if self.save_memory_gradients:
+            subtraj_batch['memories'].requires_grad = True
         statistics = self._statistics_from_subtraj_batch(
             subtraj_batch, stat_prefix=stat_prefix
         )
@@ -459,14 +486,14 @@ class BpttDdpg(OnlineAlgorithm):
         for name, tensor in critic_dict.items():
             statistics.update(create_stats_ordered_dict(
                 '{} QF {}'.format(stat_prefix, name),
-                get_numpy(tensor)
+                ptu.get_numpy(tensor)
             ))
 
         policy_dict = self.get_policy_output_dict(subtraj_batch)
         for name, tensor in policy_dict.items():
             statistics.update(create_stats_ordered_dict(
                 '{} Policy {}'.format(stat_prefix, name),
-                get_numpy(tensor)
+                ptu.get_numpy(tensor)
             ))
         return statistics
 
@@ -483,6 +510,8 @@ class BpttDdpg(OnlineAlgorithm):
             )
             raw_subtraj_batch = pool.random_subtrajectories(sample_size)[0]
             subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
+            if self.save_memory_gradients:
+                subtraj_batch['memories'].requires_grad = True
             statistics.update(self._statistics_from_subtraj_batch(
                 subtraj_batch, stat_prefix=stat_prefix
             ))
@@ -566,8 +595,13 @@ class BpttDdpg(OnlineAlgorithm):
                         subtraj_obs, initial_memories
                     )
                     pool.update_write_subtrajectories(
-                        get_numpy(policy_writes), start_indices
+                        ptu.get_numpy(policy_writes), start_indices
                     )
+
+    def create_save_grad_hook(self, key):
+        def save_grad_hook(grad):
+            self.saved_grads[key] = grad
+        return save_grad_hook
 
 
 def flatten_subtraj_batch(subtraj_batch):
@@ -579,7 +613,7 @@ def flatten_subtraj_batch(subtraj_batch):
 
 def create_torch_subtraj_batch(subtraj_batch):
     torch_batch = {
-        k: Variable(from_numpy(array).float(), requires_grad=False)
+        k: Variable(ptu.from_numpy(array).float(), requires_grad=False)
         for k, array in subtraj_batch.items()
     }
     rewards = torch_batch['rewards']
