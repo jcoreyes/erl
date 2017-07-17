@@ -1,4 +1,4 @@
-from collections import OrderedDict
+from collections import OrderedDict, deque
 
 import numpy as np
 from gym import Env
@@ -22,6 +22,7 @@ class WaterMaze(Serializable, Env):
             horizon=200,
             render_dt_msec=30,
             give_time=True,
+            action_l2norm_penalty=0,
     ):
         Serializable.quick_init(self, locals())
         self.MAX_TARGET_DISTANCE = self.BOUNDARY_DIST - self.TARGET_RADIUS
@@ -31,6 +32,7 @@ class WaterMaze(Serializable, Env):
         self._target_position = None
         self._position = None
         self.give_time = give_time
+        self.action_l2norm_penalty = action_l2norm_penalty
 
         self._action_space = self._create_action_space()
         self._observation_space = self._create_observation_space()
@@ -60,13 +62,18 @@ class WaterMaze(Serializable, Env):
         )
         observation, on_platform = self._get_observation_and_on_platform()
 
-        reward = float(on_platform)
+        reward = self.get_reward(velocities, on_platform)
         done = self._t >= self.horizon
         info = {
             'radius': self.TARGET_RADIUS,
             'target_position': self._target_position,
         }
         return observation, reward, done, info
+
+    def get_reward(self, velocities, on_platform):
+        reward = float(on_platform)
+        reward -= np.linalg.norm(velocities) * self.action_l2norm_penalty
+        return reward
 
     def _reset(self):
         self._target_position = np.random.uniform(
@@ -97,21 +104,26 @@ class WaterMaze(Serializable, Env):
         returns = []
         for rewards in list_of_rewards:
             returns.append(np.sum(rewards))
-        last_statistics = OrderedDict()
-        last_statistics.update(create_stats_ordered_dict(
+        statistics = OrderedDict()
+        statistics.update(create_stats_ordered_dict(
             'Undiscounted Returns',
             returns,
         ))
-        last_statistics.update(create_stats_ordered_dict(
+        statistics.update(create_stats_ordered_dict(
             'Rewards',
             list_of_rewards,
         ))
-        last_statistics.update(create_stats_ordered_dict(
+        statistics.update(create_stats_ordered_dict(
             'Actions',
             actions,
         ))
 
-        for key, value in last_statistics.items():
+        fraction_of_time_on_platform = [
+            o[2] for o in obs
+        ]
+        statistics['Fraction of time on platform'] = np.mean(fraction_of_time_on_platform)
+
+        for key, value in statistics.items():
             logger.record_tabular(key, value)
         return returns
 
@@ -154,6 +166,47 @@ class WaterMaze(Serializable, Env):
 
         self.drawer.render()
         self.drawer.tick(self.render_dt_msec)
+
+
+class WaterMazeHard(WaterMaze):
+    """
+    WaterMaze + teleportation after some time steps of being on the platform.
+    """
+    def __init__(self, *args, num_steps_until_teleportation=5, **kwargs):
+        Serializable.quick_init(self, locals())
+        super().__init__(*args, **kwargs)
+        self.num_steps_until_teleportation = num_steps_until_teleportation
+        self.on_platform = deque(maxlen=self.num_steps_until_teleportation)
+        self.on_platform.append(False)
+
+    def _step(self, velocities):
+        self._t += 1
+        velocities = np.clip(velocities, a_min=-1, a_max=1)
+        self._position += velocities
+        self._position = np.clip(
+            self._position,
+            a_min=-self.BOUNDARY_DIST,
+            a_max=self.BOUNDARY_DIST,
+        )
+        observation, on_platform = self._get_observation_and_on_platform()
+        self.on_platform.append(on_platform)
+        if all(self.on_platform):
+            self._position = np.random.uniform(
+                size=2, low=-self.BOUNDARY_DIST, high=self.BOUNDARY_DIST
+            )
+            observation, _ = self._get_observation_and_on_platform()
+        reward = self.get_reward(velocities, on_platform)
+
+        done = self._t >= self.horizon
+        info = {
+            'radius': self.TARGET_RADIUS,
+            'target_position': self._target_position,
+        }
+        return observation, reward, done, info
+
+    def _reset(self):
+        self.on_platform.append(False)
+        return super()._reset()
 
 
 class WaterMazeEasy(WaterMaze):
@@ -227,6 +280,35 @@ class WaterMaze1D(WaterMaze):
         self._position[1] = 0
         self._t = 0
         return self._get_observation_and_on_platform()[0]
+
+    def log_diagnostics(self, paths, **kwargs):
+        list_of_rewards, terminals, obs, actions, next_obs = split_paths(paths)
+
+        returns = []
+        for rewards in list_of_rewards:
+            returns.append(np.sum(rewards))
+        statistics = OrderedDict()
+        statistics.update(create_stats_ordered_dict(
+            'Undiscounted Returns',
+            returns,
+        ))
+        statistics.update(create_stats_ordered_dict(
+            'Rewards',
+            list_of_rewards,
+        ))
+        statistics.update(create_stats_ordered_dict(
+            'Actions',
+            actions,
+        ))
+
+        fraction_of_time_on_platform = [
+            o[1] for o in obs
+        ]
+        statistics['Fraction of time on platform'] = np.mean(fraction_of_time_on_platform)
+
+        for key, value in statistics.items():
+            logger.record_tabular(key, value)
+        return returns
 
 
 class WaterMazeEasy1D(WaterMaze1D):

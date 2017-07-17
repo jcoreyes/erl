@@ -2,7 +2,7 @@ import gym.spaces
 from rllab.core.serializable import Serializable
 from rllab.envs.normalized_env import NormalizedEnv
 from rllab.envs.proxy_env import ProxyEnv
-from sandbox.rocky.tf.spaces import Box
+from sandbox.rocky.tf.spaces import Box as TfBox
 from rllab.spaces.box import Box
 from rllab.spaces.discrete import Discrete
 from rllab.spaces.product import Product
@@ -33,12 +33,12 @@ class ConvertEnv(ProxyEnv, Serializable):
 
     @property
     def action_space(self):
-        return Box(super().action_space.low,
+        return TfBox(super().action_space.low,
                    super().action_space.high)
 
     @property
     def observation_space(self):
-        return Box(super().observation_space.low,
+        return TfBox(super().observation_space.low,
                    super().observation_space.high)
 
     def __str__(self):

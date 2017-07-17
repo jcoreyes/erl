@@ -9,8 +9,11 @@ from os.path import join, exists
 import numpy as np
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
 
-from railrl.pythonplusplus import dot_map_dict_to_nested_dict, \
-    merge_recursive_dicts
+from railrl.pythonplusplus import (
+    dot_map_dict_to_nested_dict,
+    merge_recursive_dicts,
+    dict_to_safe_json,
+)
 
 
 def optimize_and_save(
@@ -67,34 +70,6 @@ def optimize_and_save(
             json.dump(results, f, indent=2, sort_keys=True)
 
 
-
-
-def dict_to_safe_json(d):
-    new_d = {}
-    for key, item in d.items():
-        if safe_json(item):
-            new_d[key] = item
-        else:
-            if isinstance(item, dict):
-                new_d[key] = dict_to_safe_json(item)
-            else:
-                new_d[key] = str(item)
-    return new_d
-
-
-def safe_json(data):
-    if data is None:
-        return True
-    elif isinstance(data, (bool, int, float)):
-        return True
-    elif isinstance(data, (tuple, list)):
-        return all(safe_json(x) for x in data)
-    elif isinstance(data, dict):
-        return all(isinstance(k, str) and safe_json(v) for k, v in data.items())
-    return False
-
-
-
 def optimize(
         function,
         search_space,
@@ -136,16 +111,16 @@ def optimize(
         - `trials.losses()` - a list of losses (float for each 'ok' trial)
         - `trials.statuses()` - a list of status strings
     :param num_evals: Maximum number of queries to function.
-    :param maximize: Default behavior is the minimize the functions. If True, 
+    :param maximize: Default behavior is the minimize the functions. If True,
     maximize the .
     :param dotmap_to_nested_dictionary: If True, convert keys like `a.b` into
     nested dictionaries before passing onto the main function.
     :param flatten_choice_dictionary: If True, flatten the nested dictionary
     caused by creating a choice variable before passing it to the functions.
     :param max_magnitude: Clip the returned value's magnitude to this value.
-    
+
     A choice variable defined as
-    
+
     ```
         z=hp.choice('z', [
             ('z_one', {'a': 5}),
@@ -155,14 +130,14 @@ def optimize(
     will results in a dictionary like
     ```
         {
-            `z`: `z_one`, 
+            `z`: `z_one`,
             `a`: 5,
         }
     ```
     or
     ```
         {
-            `z`: `z_two`, 
+            `z`: `z_two`,
             `a`: 4,
         }
     ```
@@ -171,22 +146,22 @@ def optimize(
     ```
         {
             `z`: (
-                'z_one', 
+                'z_one',
                 {
                     `a`: 4,
                 }
             )
         }
-    
+
     ```
     which I find a bit messier.
-    
+
     :return: tuple
-     - best_params: Best dictionary passed to function. Does not include the 
+     - best_params: Best dictionary passed to function. Does not include the
      `extra_function_kwargs`.
      - minimum: value at the best_variant.
      - trials: updated hyperopt.base.Trials instance.
-     - best_variant: Best dictionary over the search space. Similar to 
+     - best_variant: Best dictionary over the search space. Similar to
      `best_params`, but this has a type that hyperopt uses.
     """
     if extra_function_kwargs is None:
@@ -232,11 +207,11 @@ def optimize(
 
 def flatten_hyperopt_choice_dict(hyperopt_choice_dict):
     """
-    Flatten recursive hyperopt choice dictionary. Behavior is undefined if keys 
+    Flatten recursive hyperopt choice dictionary. Behavior is undefined if keys
     are repeated.
-    
+
     A list of (name, value) tuples is treated like a dict.
-    
+
     :param hyperopt_choice_dict: Potentially recursive dictionary (e.g. dict of dict of dicts).
     :return: One flat dictionary, where elements
     """

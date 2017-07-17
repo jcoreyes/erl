@@ -1,3 +1,10 @@
+"""
+Create plot of performance for varying subtrajectory lengths.
+
+Based on data from
+
+/home/vitchyr/git/rllab-rail/railrl/data/papers/icml2017/ablation
+"""
 import matplotlib.pyplot as plt
 import matplotlib
 import numpy as np
