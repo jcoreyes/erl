@@ -22,6 +22,7 @@ class FeedForwardQFunction(PyTorchModule):
             init_w=3e-3,
             output_activation=identity,
             hidden_init=ptu.fanin_init,
+            batchnorm_obs=False,
     ):
         self.save_init_params(locals())
         super().__init__()
@@ -39,6 +40,9 @@ class FeedForwardQFunction(PyTorchModule):
         self.output_activation = output_activation
 
         self.init_weights(init_w)
+        self.batchnorm_obs = batchnorm_obs
+        if self.batchnorm_obs:
+            self.bn_obs = nn.BatchNorm1d(obs_dim)
 
     def init_weights(self, init_w):
         self.hidden_init(self.obs_fc.weight)
@@ -49,6 +53,8 @@ class FeedForwardQFunction(PyTorchModule):
         self.last_fc.bias.data.uniform_(-init_w, init_w)
 
     def forward(self, obs, action):
+        if self.batchnorm_obs:
+            obs = self.bn_obs(obs)
         h = obs
         h = F.relu(self.obs_fc(h))
         h = torch.cat((h, action), dim=1)
@@ -67,6 +73,7 @@ class MemoryQFunction(PyTorchModule):
             init_w=3e-3,
             output_activation=identity,
             hidden_init=ptu.fanin_init,
+            ignore_memory=False,
     ):
         self.save_init_params(locals())
         super().__init__()
@@ -78,14 +85,20 @@ class MemoryQFunction(PyTorchModule):
         self.embedded_hidden_size = fc2_size
         self.init_w = init_w
         self.hidden_init = hidden_init
+        self.ignore_memory = ignore_memory
 
-        self.obs_fc = nn.Linear(obs_dim + memory_dim, fc1_size)
-        # self.obs_fc = nn.Linear(obs_dim, observation_hidden_size)
-        self.embedded_fc = nn.Linear(
-            fc1_size + action_dim + memory_dim,
-            # observation_hidden_size + action_dim,
-            fc2_size,
-        )
+        if self.ignore_memory:
+            self.obs_fc = nn.Linear(self.obs_dim, self.observation_hidden_size)
+            self.embedded_fc = nn.Linear(
+                self.observation_hidden_size + self.action_dim,
+                fc2_size,
+            )
+        else:
+            self.obs_fc = nn.Linear(obs_dim + memory_dim, fc1_size)
+            self.embedded_fc = nn.Linear(
+                fc1_size + action_dim + memory_dim,
+                fc2_size,
+            )
         self.last_fc = nn.Linear(fc2_size, 1)
         self.output_activation = output_activation
 
@@ -101,12 +114,15 @@ class MemoryQFunction(PyTorchModule):
         self.last_fc.bias.data.uniform_(-init_w, init_w)
 
     def forward(self, obs, memory, action, write):
-        obs_embedded = torch.cat((obs, memory), dim=1)
-        # obs_embedded = obs
-        obs_embedded = F.relu(self.obs_fc(obs_embedded))
-        x = torch.cat((obs_embedded, action, write), dim=1)
-        # x = torch.cat((obs_embedded, action), dim=1)
-        x = F.relu(self.embedded_fc(x))
+        if self.ignore_memory:
+            obs_embedded = F.relu(self.obs_fc(obs))
+            x = torch.cat((obs_embedded, action), dim=1)
+            x = F.relu(self.embedded_fc(x))
+        else:
+            obs_embedded = torch.cat((obs, memory), dim=1)
+            obs_embedded = F.relu(self.obs_fc(obs_embedded))
+            x = torch.cat((obs_embedded, action, write), dim=1)
+            x = F.relu(self.embedded_fc(x))
         return self.output_activation(self.last_fc(x))
 
 

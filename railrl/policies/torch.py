@@ -96,6 +96,7 @@ class MemoryPolicy(PyTorchModule):
             cell_class=LSTMCell,
             hidden_init=ptu.fanin_init,
             feed_action_to_memory=False,
+            output_activation=F.tanh,
     ):
         self.save_init_params(locals())
         super().__init__()
@@ -107,12 +108,17 @@ class MemoryPolicy(PyTorchModule):
         self.fc2_size = fc2_size
         self.hidden_init = hidden_init
         self.feed_action_to_memory = feed_action_to_memory
+        self.output_activation = output_activation
 
         # self.fc1 = nn.Linear(obs_dim + memory_dim, fc1_size)
         # self.fc2 = nn.Linear(fc1_size, fc2_size)
         # self.last_fc = nn.Linear(fc2_size, action_dim)
         self.last_fc = nn.Linear(obs_dim + memory_dim, action_dim)
         self.num_splits_for_rnn_internally = cell_class.state_num_split()
+        # self.last_fc = nn.Linear(
+        #     obs_dim + memory_dim // self.num_splits_for_rnn_internally,
+        #     action_dim
+        # )
         assert memory_dim % self.num_splits_for_rnn_internally == 0
         if self.feed_action_to_memory:
             cell_input_dim = self.action_dim + self.obs_dim
@@ -154,10 +160,12 @@ class MemoryPolicy(PyTorchModule):
         batch_size, subsequence_length = obs.size()[:2]
 
         subtraj_writes = Variable(
-            ptu.FloatTensor(batch_size, subsequence_length, self.memory_dim)
+            ptu.FloatTensor(batch_size, subsequence_length, self.memory_dim),
+            requires_grad=False
         )
         subtraj_actions = Variable(
-            ptu.FloatTensor(batch_size, subsequence_length, self.action_dim)
+            ptu.FloatTensor(batch_size, subsequence_length, self.action_dim),
+            requires_grad=False
         )
         if self.feed_action_to_memory:
             if self.num_splits_for_rnn_internally > 1:
@@ -172,7 +180,7 @@ class MemoryPolicy(PyTorchModule):
                     # h1 = F.tanh(self.fc1(augmented_state))
                     # h2 = F.tanh(self.fc2(h1))
                     # action = F.tanh(self.last_fc(h2))
-                    action = F.tanh(self.last_fc(augmented_state))
+                    action = self.output_activation(self.last_fc(augmented_state))
                     rnn_input = torch.cat([current_obs, action], dim=1)
                     state = self.rnn_cell(rnn_input, state)
                     subtraj_writes[:, i, :] = torch.cat(state, dim=1)
@@ -185,7 +193,7 @@ class MemoryPolicy(PyTorchModule):
                     # h1 = F.tanh(self.fc1(augmented_state))
                     # h2 = F.tanh(self.fc2(h1))
                     # action = F.tanh(self.last_fc(h2))
-                    action = F.tanh(self.last_fc(augmented_state))
+                    action = self.output_activation(self.last_fc(augmented_state))
                     rnn_input = torch.cat([current_obs, action], dim=1)
                     state = self.rnn_cell(rnn_input, state)
                     subtraj_writes[:, i, :] = state
@@ -195,6 +203,14 @@ class MemoryPolicy(PyTorchModule):
         """
         Create the new writes.
         """
+        # memories_for_action = Variable(
+        #     ptu.FloatTensor(
+        #         batch_size,
+        #         subsequence_length,
+        #         self.memory_dim // self.num_splits_for_rnn_internally
+        #     ),
+        #     requires_grad=False
+        # )
         if self.num_splits_for_rnn_internally > 1:
             state = torch.split(
                 initial_memory,
@@ -202,6 +218,7 @@ class MemoryPolicy(PyTorchModule):
                 dim=1,
             )
             for i in range(subsequence_length):
+                # memories_for_action[:, i, :] = state[0]
                 state = self.rnn_cell(obs[:, i, :], state)
                 subtraj_writes[:, i, :] = torch.cat(state, dim=1)
         else:
@@ -232,12 +249,13 @@ class MemoryPolicy(PyTorchModule):
         """
         Use new memories to create env actions.
         """
+        # all_subtraj_inputs = torch.cat([obs, memories_for_action], dim=2)
         all_subtraj_inputs = torch.cat([obs, memories], dim=2)
         for i in range(subsequence_length):
             all_inputs = all_subtraj_inputs[:, i, :]
             # h1 = F.tanh(self.fc1(all_inputs))
             # h2 = F.tanh(self.fc2(h1))
-            action = F.tanh(self.last_fc(all_inputs))
+            action = self.output_activation(self.last_fc(all_inputs))
             subtraj_actions[:, i, :] = action
 
         return subtraj_actions, subtraj_writes

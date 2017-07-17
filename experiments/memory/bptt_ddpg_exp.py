@@ -2,6 +2,7 @@
 Try the PyTorch version of BPTT DDPG on HighLow env.
 """
 import random
+import numpy as np
 
 from railrl.envs.memory.continuous_memory_augmented import (
     ContinuousMemoryAugmented
@@ -9,6 +10,7 @@ from railrl.envs.memory.continuous_memory_augmented import (
 from railrl.envs.memory.high_low import HighLow
 from railrl.envs.pygame.water_maze import (
     WaterMaze,
+    WaterMazeHard,
     WaterMazeEasy,
     WaterMazeMemory,
     WaterMaze1D,
@@ -27,7 +29,9 @@ from railrl.qfunctions.torch import MemoryQFunction, RecurrentMemoryQFunction
 from railrl.torch.rnn import LSTMCell, BNLSTMCell, GRUCell
 from railrl.torch.bptt_ddpg_rq import BpttDdpgRecurrentQ
 
+import torch
 from torch.nn import init
+from torch.nn import functional as F
 import railrl.torch.pytorch_util as ptu
 
 
@@ -86,9 +90,9 @@ def experiment(variant):
     )
     algorithm = BpttDdpg(
         env,
-        exploration_strategy=es,
-        qf=qf,
-        policy=policy,
+        qf,
+        policy,
+        es,
         **algo_params
     )
     algorithm.train()
@@ -97,15 +101,15 @@ def experiment(variant):
 if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
-    exp_prefix = "7-11-dev-bptt-ddpg-check-if-it-works"
+    exp_prefix = "7-14-dev-bptt-ddpg-check"
     run_mode = 'none'
 
-    n_seeds = 10
+    n_seeds = 5
     mode = "ec2"
-    exp_prefix = "7-11-bptt-ddpg-check-if-it-works-2"
+    exp_prefix = "7-14-bptt-ddpg-watermaze-memory-sweep-traj-with-loaded-dldm"
 
     run_mode = 'grid'
-    num_configurations = 500
+    num_configurations = 25
     use_gpu = True
     if mode != "here":
         use_gpu = False
@@ -117,9 +121,8 @@ if __name__ == '__main__':
     num_iterations = 50
     batch_size = 200
     memory_dim = 100
-    version = exp_prefix
     version = "Our Method"
-    # version = "Our Method - loading but Q does not read mem state"
+
     # noinspection PyTypeChecker
     variant = dict(
         memory_dim=memory_dim,
@@ -127,10 +130,12 @@ if __name__ == '__main__':
         # env_class=WaterMazeEasy,
         # env_class=WaterMazeMemory1D,
         env_class=WaterMazeMemory,
+        # env_class=WaterMazeHard,
         # env_class=HighLow,
         env_params=dict(
             horizon=H,
             give_time=True,
+            action_l2norm_penalty=0,
         ),
         memory_aug_params=dict(
             max_magnitude=1,
@@ -145,14 +150,17 @@ if __name__ == '__main__':
             use_action_policy_params_for_entire_policy=False,
             action_policy_optimize_bellman=False,
             write_policy_optimizes='bellman',
-            action_policy_learning_rate=0.000980014225523977,
+            action_policy_learning_rate=0.001,
             write_policy_learning_rate=0.0005,
-            qf_learning_rate=0.002021863834563243,
+            qf_learning_rate=0.002,
             max_path_length=H,
             refresh_entire_buffer_period=None,
             save_new_memories_back_to_replay_buffer=True,
             write_policy_weight_decay=0,
             action_policy_weight_decay=0,
+            do_not_load_initial_memories=False,
+            do_not_load_memories=False,
+            save_memory_gradients=False,
             # tau=0.001,
             # use_soft_update=False,
             # target_hard_update_period=300,
@@ -164,11 +172,17 @@ if __name__ == '__main__':
             # hidden_size=10,
             fc1_size=400,
             fc2_size=300,
+            ignore_memory=False,
         ),
         policy_params=dict(
             fc1_size=400,
             fc2_size=300,
             cell_class=GRUCell,
+            # cell_class=RWACell,
+            # cell_class=BNLSTMCell,
+            # cell_class=LSTMCell,
+            output_activation=F.tanh,
+            # output_activation=ptu.clip1,
         ),
         es_params=dict(
             env_es_class=OUStrategy,
@@ -176,11 +190,11 @@ if __name__ == '__main__':
                 max_sigma=1,
                 min_sigma=None,
             ),
-            # memory_es_class=NoopStrategy,
-            memory_es_class=OUStrategy,
+            memory_es_class=NoopStrategy,
+            # memory_es_class=OUStrategy,
             memory_es_params=dict(
-                max_sigma=1,
-                min_sigma=None,
+                # max_sigma=1,
+                # min_sigma=None,
             ),
         ),
         version=version,
@@ -190,11 +204,11 @@ if __name__ == '__main__':
             # 'algo_params.qf_learning_rate': [1e-3, 1e-5],
             # 'algo_params.action_policy_learning_rate': [1e-3, 1e-5],
             # 'algo_params.write_policy_learning_rate': [1e-5, 1e-7],
-            # 'algo_params.action_policy_optimize_bellman': [True, False],
+            # 'algo_params.do_not_load_initial_memories': [True, False],
             # 'algo_params.write_policy_optimizes': ['qf', 'bellman', 'both'],
             # 'algo_params.refresh_entire_buffer_period': [None, 1],
             # 'es_params.memory_es_params.max_sigma': [0, 1],
-            # 'qf_params.hidden_init': [init.kaiming_normal, ptu.fanin_init],
+            # 'qf_params.ignore_memory': [True, False],
             # 'policy_params.hidden_init': [init.kaiming_normal, ptu.fanin_init],
             # 'policy_params.feed_action_to_memory': [False, True],
             # 'policy_params.cell_class': [LSTMCell, BNLSTMCell, RWACell],
@@ -203,6 +217,7 @@ if __name__ == '__main__':
             # 'algo_params.tau': [1, 0.1, 0.01, 0.001],
             # 'env_params.give_time': [True, False],
             # 'algo_params.discount': [1, .9, .5, 0],
+            # 'env_params.action_l2norm_penalty': [0, 1e-3, 1e-2, 1e-1, 1, 10],
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
             search_space, default_parameters=variant,
@@ -248,61 +263,77 @@ if __name__ == '__main__':
                     exp_id=exp_id,
                 )
     if run_mode == 'random':
-        hyperparameters = [
-            hyp.LogIntParam('memory_dim', 4, 400),
-            hyp.LogFloatParam('algo_params.qf_learning_rate', 1e-5, 1e-2),
-            # hyp.LogFloatParam(
-            #     'algo_params.write_policy_learning_rate', 1e-6, 1e-3
-            # ),
-            hyp.LogFloatParam(
-                'algo_params.action_policy_learning_rate', 1e-6, 1e-3
-            ),
-            hyp.EnumParam(
-                'algo_params.action_policy_optimize_bellman', [True, False],
-            ),
-            hyp.EnumParam(
-                'algo_params.use_action_policy_params_for_entire_policy',
-                [True, False],
-            ),
-            # hyp.EnumParam(
-            #     'algo_params.write_policy_optimizes', ['both', 'qf', 'bellman']
-            # ),
-            # hyp.EnumParam(
-            #     'policy_params.cell_class', [GRUCell, BNLSTMCell, LSTMCell,
-            #                                  RWACell],
-            # ),
-            hyp.EnumParam(
-                'es_params.memory_es_params.max_sigma', [0, 0.1, 1],
-            ),
-            # hyp.LogFloatParam(
-            #     'algo_params.write_policy_weight_decay', 1e-5, 1e2,
-            # ),
-            hyp.LogFloatParam(
-                'algo_params.action_policy_weight_decay', 1e-5, 1e2,
-            ),
-            # hyp.LinearFloatParam(
-            #     'algo_params.discount', 0.8, 0.99,
-            # ),
-        ]
-        sweeper = hyp.RandomHyperparameterSweeper(
-            hyperparameters,
-            default_kwargs=variant,
-        )
-        for exp_id in range(num_configurations):
-            variant = sweeper.generate_random_hyperparameters()
-            for _ in range(n_seeds):
-                seed = random.randint(0, 10000)
-                run_experiment(
-                    experiment,
-                    exp_prefix=exp_prefix,
-                    seed=seed,
-                    mode=mode,
-                    variant=variant,
-                    exp_id=exp_id,
-                    sync_s3_log=True,
-                    sync_s3_pkl=True,
-                    periodic_sync_interval=600,
-                )
+        for (
+            rnn_cell,
+            output_activation,
+        ) in [
+            (LSTMCell, F.tanh),
+            (LSTMCell, ptu.clip1),
+            (GRUCell, F.tanh),
+            (GRUCell, ptu.clip1),
+        ]:
+            variant['policy_params']['cell_class'] = rnn_cell
+            variant['policy_params']['output_activation'] = output_activation
+            hyperparameters = [
+                hyp.LogIntParam('memory_dim', 4, 400),
+                hyp.LogFloatParam('algo_params.qf_learning_rate', 1e-5, 1e-2),
+                hyp.LogFloatParam(
+                    'algo_params.write_policy_learning_rate', 1e-5, 1e-3
+                ),
+                hyp.LogFloatParam(
+                    'algo_params.action_policy_learning_rate', 1e-5, 1e-3
+                ),
+                # hyp.EnumParam(
+                #     'algo_params.action_policy_optimize_bellman', [True, False],
+                # ),
+                # hyp.EnumParam(
+                #     'algo_params.use_action_policy_params_for_entire_policy',
+                #     [True, False],
+                # ),
+                # hyp.EnumParam(
+                #     'algo_params.write_policy_optimizes', ['both', 'qf', 'bellman']
+                # ),
+                # hyp.EnumParam(
+                #     'policy_params.cell_class', [GRUCell, LSTMCell],
+                # ),
+                # hyp.EnumParam(
+                #     'es_params.memory_es_params.max_sigma', [0, 0.1, 1],
+                # ),
+                # hyp.LogFloatParam(
+                #     'algo_params.write_policy_weight_decay', 1e-5, 1e2,
+                # ),
+                # hyp.LogFloatParam(
+                #     'algo_params.action_policy_weight_decay', 1e-5, 1e2,
+                # ),
+                # hyp.EnumParam(
+                #     'policy_params.output_activation', [F.tanh, ptu.clip1],
+                # ),
+                # hyp.EnumParam(
+                #     'es_params.memory_es_class', [OUStrategy, NoopStrategy],
+                # ),
+                # hyp.LogFloatParam(
+                #     'env_params.action_l2norm_penalty', 1e-2, 10,
+                # ),
+            ]
+            sweeper = hyp.RandomHyperparameterSweeper(
+                hyperparameters,
+                default_kwargs=variant,
+            )
+            for exp_id in range(num_configurations):
+                variant = sweeper.generate_random_hyperparameters()
+                for _ in range(n_seeds):
+                    seed = random.randint(0, 10000)
+                    run_experiment(
+                        experiment,
+                        exp_prefix=exp_prefix,
+                        seed=seed,
+                        mode=mode,
+                        variant=variant,
+                        exp_id=exp_id,
+                        sync_s3_log=True,
+                        sync_s3_pkl=True,
+                        periodic_sync_interval=600,
+                    )
     else:
         for _ in range(n_seeds):
             seed = random.randint(0, 10000)

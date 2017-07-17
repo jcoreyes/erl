@@ -19,22 +19,22 @@ and/or see http://sdk.rethinkrobotics.com/wiki/Hardware_Specifications.
 """
 
 JOINT_ANGLES_HIGH = np.array([
-    1.70167993, 
-    1.04700017, 
-    3.0541791, 
-    2.61797006, 
+    1.70167993,
+    1.04700017,
+    3.0541791,
+    2.61797006,
     3.05900002,
-    2.09400001, 
+    2.09400001,
     3.05899961
 ])
 
 JOINT_ANGLES_LOW = np.array([
-    -1.70167995, 
-    -2.14700025, 
-    -3.0541801, 
-    -0.04995198, 
+    -1.70167995,
+    -2.14700025,
+    -3.0541801,
+    -0.04995198,
     -3.05900015,
-    -1.5708003, 
+    -1.5708003,
     -3.05899989
 ])
 
@@ -141,7 +141,7 @@ class BaxterEnv(Env, Serializable):
         elif experiment == experiments[5]:
             self.end_effector_experiment_total = True
             self.fixed_end_effector=False
-        
+
         self.safety_end_effector_box = safety_end_effector_box
         self.remove_action = remove_action
         self.use_right_arm = use_right_arm
@@ -169,7 +169,7 @@ class BaxterEnv(Env, Serializable):
 
         #create a dictionary whose values are functions that set the appropriate values
         action_mode_dict = {
-            'position': self.arm.set_joint_positions, 
+            'position': self.arm.set_joint_positions,
             'velocity': self.arm.set_joint_velocities,
             'torque': self.arm.set_joint_torques,
         }
@@ -193,15 +193,15 @@ class BaxterEnv(Env, Serializable):
         #additionally set up the desired angle as well
         if self.joint_angle_experiment:
             lows = np.hstack((
-                JOINT_VALUE_LOW['position'], 
-                JOINT_VALUE_LOW['velocity'], 
+                JOINT_VALUE_LOW['position'],
+                JOINT_VALUE_LOW['velocity'],
                 JOINT_VALUE_LOW['torque'],
                 END_EFFECTOR_VALUE_LOW['position'],
                 JOINT_VALUE_LOW['position'],
             ))
 
             highs = np.hstack((
-                JOINT_VALUE_HIGH['position'], 
+                JOINT_VALUE_HIGH['position'],
                 JOINT_VALUE_HIGH['velocity'],
                 JOINT_VALUE_HIGH['torque'],
                 END_EFFECTOR_VALUE_HIGH['position'],
@@ -209,22 +209,22 @@ class BaxterEnv(Env, Serializable):
             ))
 
             if self.fixed_angle:
-                self.desired = np.zeros(NUM_JOINTS) 
+                self.desired = np.zeros(NUM_JOINTS)
             else:
-                self._randomize_desired_angles() 
+                self._randomize_desired_angles()
 
         elif self.end_effector_experiment_position:
             lows = np.hstack((
-                JOINT_VALUE_LOW['position'], 
-                JOINT_VALUE_LOW['velocity'], 
+                JOINT_VALUE_LOW['position'],
+                JOINT_VALUE_LOW['velocity'],
                 JOINT_VALUE_LOW['torque'],
-                END_EFFECTOR_VALUE_LOW['position'], 
                 END_EFFECTOR_VALUE_LOW['position'],
-            )) 
+                END_EFFECTOR_VALUE_LOW['position'],
+            ))
 
             highs = np.hstack((
-                JOINT_VALUE_HIGH['position'], 
-                JOINT_VALUE_HIGH['velocity'], 
+                JOINT_VALUE_HIGH['position'],
+                JOINT_VALUE_HIGH['velocity'],
                 JOINT_VALUE_HIGH['torque'],
                 END_EFFECTOR_VALUE_HIGH['position'],
                 END_EFFECTOR_VALUE_HIGH['position'],
@@ -232,8 +232,8 @@ class BaxterEnv(Env, Serializable):
 
             if self.fixed_end_effector:
                 self.desired = np.array([
-                    0.1485434521312332, 
-                    -0.43227588084273644, 
+                    0.1485434521312332,
+                    -0.43227588084273644,
                     -0.7116727296474704
                 ])
 
@@ -242,8 +242,8 @@ class BaxterEnv(Env, Serializable):
 
         elif self.end_effector_experiment_total:
             lows = np.hstack((
-                JOINT_VALUE_LOW['position'], 
-                JOINT_VALUE_LOW['velocity'], 
+                JOINT_VALUE_LOW['position'],
+                JOINT_VALUE_LOW['velocity'],
                 JOINT_VALUE_LOW['torque'],
                 END_EFFECTOR_VALUE_LOW['position'],
                 END_EFFECTOR_VALUE_LOW['angle'],
@@ -252,8 +252,8 @@ class BaxterEnv(Env, Serializable):
             ))
 
             highs = np.hstack((
-                JOINT_VALUE_HIGH['position'], 
-                JOINT_VALUE_HIGH['velocity'], 
+                JOINT_VALUE_HIGH['position'],
+                JOINT_VALUE_HIGH['velocity'],
                 JOINT_VALUE_HIGH['torque'],
                 END_EFFECTOR_VALUE_HIGH['position'],
                 END_EFFECTOR_VALUE_HIGH['angle'],
@@ -263,18 +263,18 @@ class BaxterEnv(Env, Serializable):
 
             if self.fixed_end_effector:
                 self.desired = np.array([
-                    0.14854234521312332, 
-                    -0.43227588084273644, 
-                    -0.7116727296474704, 
-                    0.46800638382243764, 
-                    0.8837008622125236, 
-                    -0.005641180126528841, 
+                    0.14854234521312332,
+                    -0.43227588084273644,
+                    -0.7116727296474704,
+                    0.46800638382243764,
+                    0.8837008622125236,
+                    -0.005641180126528841,
                     -0.0033148021158782666
                 ])
             else:
                 self._randomize_desired_end_effector_pose()
-    
-        self._observation_space = Box(lows, highs) 
+
+        self._observation_space = Box(lows, highs)
 
     @safe
     def _act(self, action):
@@ -304,18 +304,18 @@ class BaxterEnv(Env, Serializable):
         if self.end_effector_experiment_total:
             orientation = state_dict['orientation']
             return np.array([
-                pos.x, 
-                pos.y, 
-                pos.z, 
-                orientation.x, 
-                orientation.y, 
-                orientation.z, 
+                pos.x,
+                pos.y,
+                pos.z,
+                orientation.x,
+                orientation.y,
+                orientation.z,
                 orientation.w
             ])
         else:
             return np.array([
-                pos.x, 
-                pos.y, 
+                pos.x,
+                pos.y,
                 pos.z
             ])
 
@@ -338,7 +338,7 @@ class BaxterEnv(Env, Serializable):
                     reward = -1/2 * a **2
                 else:
                     reward = -1 * self.delta * (a - 1/2 * self.delta)
-            
+
         if self.end_effector_experiment_position or self.end_effector_experiment_total:
             #reward is MSE between desired position/orientation and current position/orientation of end_effector
             current_end_effector_pose = self._end_effector_pose()
@@ -416,19 +416,19 @@ class BaxterEnv(Env, Serializable):
 
     def get_jacobian(self):
         return self.get_jacobian_client()[:3]
-        
+
     def is_in_box(self, endpoint_pose):
         if self.safety_end_effector_box:
             if self.use_right_arm:
                 within_box = [curr_pose > lower_pose and curr_pose < higher_pose
-                    for curr_pose, lower_pose, higher_pose 
+                    for curr_pose, lower_pose, higher_pose
                     in zip(endpoint_pose, right_lows, right_highs)]
             else:
                 within_box = [curr_pose > lower_pose and curr_pose < higher_pose
-                    for curr_pose, lower_pose, higher_pose 
+                    for curr_pose, lower_pose, higher_pose
                     in zip(endpoint_pose, left_lows, left_highs)]
             return all(within_box)
-        
+
         return True
 
     def get_adjustment_force(self):
@@ -442,12 +442,12 @@ class BaxterEnv(Env, Serializable):
                 x = -1 * np.exp(np.abs(curr_x - right_highs[0]) * self.temp) * self.magnitude
             elif curr_x < right_lows[0]:
                 x = np.exp(np.abs(curr_x - right_lows[0]) * self.temp) * self.magnitude
-            
+
             if curr_y > right_highs[1]:
                 y = -1 * np.exp(np.abs(curr_y - right_highs[1]) * self.temp) * self.magnitude
             elif curr_y < right_lows[1]:
                 y = np.exp(np.abs(curr_y - right_lows[1]) * self.temp) * self.magnitude
-            
+
             if curr_z > right_highs[2]:
                 z = -1 * np.exp(np.abs(curr_z - right_highs[2]) * self.temp) * self.magnitude
             elif curr_z < right_lows[2]:
@@ -457,12 +457,12 @@ class BaxterEnv(Env, Serializable):
                 x = -1 * np.exp(np.abs(curr_x - left_highs[0]) * self.temp) * self.magnitude
             elif curr_x < left_lows[0]:
                 x = np.exp(np.abs(curr_x - left_lows[0]) * self.temp) * self.magnitude
-            
+
             if curr_y > left_highs[1]:
                 y = -1 * np.exp(np.abs(curr_y - left_highs[1]) * self.temp) * self.magnitude
             elif curr_y < left_lows[1]:
                 y = np.exp(np.abs(curr_y - left_lows[1]) * self.temp) * self.magnitude
-            
+
             if curr_z > left_highs[2]:
                 z = -1 * np.exp(np.abs(curr_z - left_highs[2]) * self.temp) * self.magnitude
             elif curr_z < left_lows[2]:
@@ -599,7 +599,6 @@ class BaxterEnv(Env, Serializable):
         ))
 
         return statistics
-
 
     @property
     def horizon(self):
