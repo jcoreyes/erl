@@ -32,7 +32,7 @@ class DDPG(OnlineAlgorithm):
             tau=1e-2,
             use_soft_update=False,
             use_target_policy=True,
-            replay_buffer=None,
+            pool=None,  # TODO(vitchyr): rename pool to replay_buffer
             **kwargs
     ):
         if exploration_policy is None:
@@ -58,7 +58,7 @@ class DDPG(OnlineAlgorithm):
                                        lr=self.qf_learning_rate)
         self.policy_optimizer = optim.Adam(self.policy.parameters(),
                                            lr=self.policy_learning_rate)
-        if replay_buffer == None:
+        if pool is None:
             self.pool = SplitReplayBuffer(
                 EnvReplayBuffer(
                     self.pool_size,
@@ -73,7 +73,7 @@ class DDPG(OnlineAlgorithm):
                 fraction_paths_in_train=0.8,
             )
         else:
-            self.pool = replay_buffer
+            self.pool = pool
         if ptu.gpu_enabled():
             self.policy.cuda()
             self.target_policy.cuda()
