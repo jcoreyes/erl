@@ -16,7 +16,7 @@ def example(variant):
         replay_buffer=data['replay_pool']
         env = data['env']
         es = data['es']
-
+        epoch = data['epoch']
         use_target_policy = variant['use_target_policy']
 
         algorithm = DDPG(
@@ -24,7 +24,7 @@ def example(variant):
             es,
             qf=qf,
             policy=policy,
-            num_epochs=30,
+            num_epochs=30-epoch,
             batch_size=1024,
             use_target_policy=use_target_policy,
             replay_buffer=replay_buffer,

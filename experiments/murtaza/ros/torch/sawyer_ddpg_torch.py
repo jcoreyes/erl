@@ -18,40 +18,24 @@ def example(variant):
         data = joblib.load(load_policy_file)
         policy = data['policy']
         qf = data['qf']
-        # replay_buffer=data['replay_pool']
-
-        experiment = variant['experiment']
-        reward_function = variant['reward_function']
-        safety_end_effector_box = variant['safety_end_effector_box']
-        remove_action = variant['remove_action']
-        safety_box_magnitude = variant['safety_box_magnitude']
-        safety_box_temp = variant['safety_box_temp']
-
-        env = SawyerEnv(
-            experiment=experiment,
-            reward_function=reward_function,
-            safety_end_effector_box=safety_end_effector_box,
-            remove_action=remove_action,
-            safety_box_magnitude=safety_box_magnitude,
-            safety_box_temp=safety_box_temp
-        )
-        es = OUStrategy(
-            max_sigma=1,
-            min_sigma=1,
-            action_space=env.action_space,
-        )
+        replay_buffer = data['replay_pool']
+        env = data['env']
+        es = data['es']
+        epoch = data['epoch']
 
         use_target_policy = variant['use_target_policy']
+
         algorithm = DDPG(
             env,
             es,
             qf=qf,
             policy=policy,
-            num_epochs=30,
+            num_epochs=30-epoch,
             batch_size=1024,
             use_target_policy=use_target_policy,
-            # replay_buffer=replay_buffer,
+            replay_buffer=replay_buffer,
         )
+
         algorithm.train()
     else:
         experiment = variant['experiment']
