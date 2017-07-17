@@ -30,11 +30,8 @@ class DDPG(OnlineAlgorithm):
             target_hard_update_period=1000,
             tau=1e-2,
             use_soft_update=False,
-<<<<<<< HEAD
             use_target_policy=True,
             replay_buffer=None,
-=======
->>>>>>> 216d10ce97e7086aa712ae46e1098dfd1495bc9a
             **kwargs
     ):
         if exploration_policy is None:
