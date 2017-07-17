@@ -14,16 +14,11 @@ def example(variant):
         policy = data['policy']
         qf = data['qf']
         replay_buffer=data['replay_pool']
+        env = data['env']
+        es = data['es']
 
-        use_right_arm = variant['use_right_arm']
-        safety_end_effector_box = variant['safety_end_effector_box']
-        env = BaxterEnv(update_hz=20, use_right_arm=use_right_arm, safety_end_effector_box=safety_end_effector_box)
-        es = OUStrategy(
-            max_sigma=1,
-            min_sigma=1,
-            action_space=env.action_space,
-        )
         use_target_policy = variant['use_target_policy']
+
         algorithm = DDPG(
             env,
             es,
@@ -32,6 +27,7 @@ def example(variant):
             num_epochs=30,
             batch_size=1024,
             use_target_policy=use_target_policy,
+            replay_buffer=replay_buffer,
         )
         algorithm.train()
     else:
@@ -42,7 +38,15 @@ def example(variant):
         remove_action = variant['remove_action']
         magnitude = variant['magnitude']
         temp = variant['temp']
-        env = BaxterEnv(experiment=experiment, use_right_arm=use_right_arm, loss=loss, safety_end_effector_box=safety_end_effector_box, remove_action=remove_action, magnitude=magnitude, temp=temp)
+        env = BaxterEnv(
+            experiment=experiment,
+            use_right_arm=use_right_arm,
+            loss=loss,
+            safety_end_effector_box=safety_end_effector_box,
+            remove_action=remove_action,
+            magnitude=magnitude,
+            temp=temp
+        )
         es = OUStrategy(
             max_sigma=1,
             min_sigma=1,
