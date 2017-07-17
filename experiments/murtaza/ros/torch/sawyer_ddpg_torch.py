@@ -18,16 +18,29 @@ def example(variant):
         data = joblib.load(load_policy_file)
         policy = data['policy']
         qf = data['qf']
-        replay_buffer=data['replay_pool']
+        # replay_buffer=data['replay_pool']
 
-        use_right_arm = variant['use_right_arm']
+        experiment = variant['experiment']
+        reward_function = variant['reward_function']
         safety_end_effector_box = variant['safety_end_effector_box']
-        env = SawyerEnv(update_hz=20, use_right_arm=use_right_arm, safety_end_effector_box=safety_end_effector_box)
+        remove_action = variant['remove_action']
+        safety_box_magnitude = variant['safety_box_magnitude']
+        safety_box_temp = variant['safety_box_temp']
+
+        env = SawyerEnv(
+            experiment=experiment,
+            reward_function=reward_function,
+            safety_end_effector_box=safety_end_effector_box,
+            remove_action=remove_action,
+            safety_box_magnitude=safety_box_magnitude,
+            safety_box_temp=safety_box_temp
+        )
         es = OUStrategy(
-            max_sigma=0.05,
-            min_sigma=0.05,
+            max_sigma=1,
+            min_sigma=1,
             action_space=env.action_space,
         )
+
         use_target_policy = variant['use_target_policy']
         algorithm = DDPG(
             env,
@@ -37,6 +50,7 @@ def example(variant):
             num_epochs=30,
             batch_size=1024,
             use_target_policy=use_target_policy,
+            # replay_buffer=replay_buffer,
         )
         algorithm.train()
     else:
@@ -106,6 +120,7 @@ if __name__ == "__main__":
                 'safety_box_temp':1.05,
                 'remove_action':True,
                 'experiment':experiments[0],
+                'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-15-ddpg-sawyer-fixed-angle-huber/7-15-ddpg-sawyer-fixed-angle-huber_2017_07_16_15_28_17_0000--s-0/params.pkl',
                 },
         use_gpu=True,
     )
