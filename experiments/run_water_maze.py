@@ -7,6 +7,7 @@ from railrl.envs.pygame.water_maze import (
     WaterMaze1D,
     WaterMazeEasy1D,
     WaterMazeMemory1D,
+    WaterMazeHard,
 )
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 
@@ -18,12 +19,14 @@ parser.add_argument("--H", default=20, type=int, help="env horizon.")
 parser.add_argument("--render", action='store_true', help="Render env.")
 args = parser.parse_args()
 
-env = WaterMaze()
+# env = WaterMaze()
+env = WaterMazeHard()
 # env = WaterMaze1D()
 # env = WaterMazeMemory1D()
 
 all_returns = []
 es = OUStrategy(env.action_space)
+print(args.H)
 while True:
     obs = env.reset()
     es.reset()

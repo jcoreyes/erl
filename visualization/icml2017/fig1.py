@@ -1,3 +1,11 @@
+"""
+Generate plot of Performance vs Iteration for the following method:
+    - Our Method
+    - DDPG
+    - Memory States + DDPG
+    - TRPO
+    - Memory States + TRPO
+"""
 import copy
 import matplotlib
 import argparse
@@ -36,7 +44,12 @@ def get_unique_param_to_values(all_variants):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("expdir", help="experiment dir, e.g., /tmp/experiments")
+    parser.add_argument(
+        "--expdir",
+        help="experiment dir, e.g, /tmp/experiments",
+        default="/home/vitchyr/git/rllab-rail/railrl/data/papers/icml2017"
+                "/method-vs-mem",
+    )
     parser.add_argument("--ylabel", default='AverageReturn')
     args = parser.parse_args()
     y_label = args.ylabel
@@ -66,7 +79,7 @@ def main():
             variant = json.load(variant_file)
         method_name = variant['version']
         data = np.genfromtxt(data_file_name, delimiter=',', dtype=None, names=True)
-        returns = data['AverageReturn']
+        returns = data[y_label]
         method_to_data[method_name].append(returns)
 
     print(method_to_data.keys())

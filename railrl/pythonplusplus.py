@@ -1,13 +1,15 @@
 """
 General purpose Python functions.
+
+TODO(vpong): probably move this to its own module, not under railrl
 """
+import math
 import random
 import sys
 import collections
 import itertools
 
 
-# TODO(vpong): probably move this to its own module, not under railrl
 def identity(x):
     return x
 
@@ -23,6 +25,12 @@ def clip_magnitude(value, magnitude):
     return min(max(value, -magnitude), magnitude)
 
 
+def is_numeric(x):
+    return not isinstance(x, bool) and (
+        isinstance(x, int) or isinstance(x, float)
+    )
+
+
 def are_values_close(value, target, epsilon=1e-3):
     return abs(value - target) <= epsilon
 
@@ -32,70 +40,11 @@ def sample_with_replacement(iterable, num_samples):
 
 
 # TODO(vpong): test this
-def map_recursive(fctn, x_or_iterable):
-    """
-    Apply `fctn` to each element in x_or_iterable.
-
-    This is a generalization of the map function since this will work
-    recursively for iterables.
-
-    :param fctn: Function from element of iterable to something.
-    :param x_or_iterable: An element or an Iterable of an element.
-    :return: The same (potentially recursive) iterable but with
-    all the elements transformed by fctn.
-    """
-    # if isinstance(x_or_iterable, Iterable):
-    if isinstance(x_or_iterable, list) or isinstance(x_or_iterable, tuple):
-        return type(x_or_iterable)(
-            map_recursive(fctn, item) for item in x_or_iterable
-        )
-    else:
-        return fctn(x_or_iterable)
 
 
-def filter_recursive(x_or_iterable):
-    """
-    Filter out elements that are Falsy (where bool(x) is False) from
-    potentially recursive lists.
-
-    :param x_or_iterable: An element or a list.
-    :return: If x_or_iterable is not an Iterable, then return x_or_iterable.
-    Otherwise, return a filtered version of x_or_iterable.
-    """
-    if isinstance(x_or_iterable, list):
-        new_items = []
-        for sub_elem in x_or_iterable:
-            filtered_sub_elem = filter_recursive(sub_elem)
-            if filtered_sub_elem is not None and not (
-                        isinstance(filtered_sub_elem, list) and
-                            len(filtered_sub_elem) == 0
-            ):
-                new_items.append(filtered_sub_elem)
-        return new_items
-    else:
-        return x_or_iterable
-
-
-class _Logger(object):
-    def __init__(self):
-        self.n_chars = 0
-
-    def print_over(self, string):
-        """
-        Remove anything printed in the last printover call. Then print `string`
-        """
-        sys.stdout.write("\r" * self.n_chars)
-        sys.stdout.write(string)
-        sys.stdout.flush()
-        self.n_chars = len(string)
-
-    def newline(self):
-        sys.stdout.write("\n")
-        sys.stdout.flush()
-        self.n_chars = 0
-
-
-line_logger = _Logger()
+"""
+Dictionary methods
+"""
 
 
 def dot_map_dict_to_nested_dict(dot_map_dict):
@@ -182,6 +131,172 @@ def dict_of_list__to__list_of_dicts(dict, n_items):
     return new_dicts
 
 
+def safe_json(data):
+    if data is None:
+        return True
+    elif isinstance(data, (bool, int, float)):
+        return True
+    elif isinstance(data, (tuple, list)):
+        return all(safe_json(x) for x in data)
+    elif isinstance(data, dict):
+        return all(isinstance(k, str) and safe_json(v) for k, v in data.items())
+    return False
+
+
+def dict_to_safe_json(d):
+    new_d = {}
+    for key, item in d.items():
+        if safe_json(item):
+            new_d[key] = item
+        else:
+            if isinstance(item, dict):
+                new_d[key] = dict_to_safe_json(item)
+            else:
+                new_d[key] = str(item)
+    return new_d
+
+"""
+Itertools++
+"""
+
+
+def map_recursive(fctn, x_or_iterable):
+    """
+    Apply `fctn` to each element in x_or_iterable.
+
+    This is a generalization of the map function since this will work
+    recursively for iterables.
+
+    :param fctn: Function from element of iterable to something.
+    :param x_or_iterable: An element or an Iterable of an element.
+    :return: The same (potentially recursive) iterable but with
+    all the elements transformed by fctn.
+    """
+    # if isinstance(x_or_iterable, Iterable):
+    if isinstance(x_or_iterable, list) or isinstance(x_or_iterable, tuple):
+        return type(x_or_iterable)(
+            map_recursive(fctn, item) for item in x_or_iterable
+        )
+    else:
+        return fctn(x_or_iterable)
+
+
+def filter_recursive(x_or_iterable):
+    """
+    Filter out elements that are Falsy (where bool(x) is False) from
+    potentially recursive lists.
+
+    :param x_or_iterable: An element or a list.
+    :return: If x_or_iterable is not an Iterable, then return x_or_iterable.
+    Otherwise, return a filtered version of x_or_iterable.
+    """
+    if isinstance(x_or_iterable, list):
+        new_items = []
+        for sub_elem in x_or_iterable:
+            filtered_sub_elem = filter_recursive(sub_elem)
+            if filtered_sub_elem is not None and not (
+                        isinstance(filtered_sub_elem, list) and
+                            len(filtered_sub_elem) == 0
+            ):
+                new_items.append(filtered_sub_elem)
+        return new_items
+    else:
+        return x_or_iterable
+
+
+def batch(iterable, n=1):
+    """
+    Split an interable into batches of size `n`. If `n` does not evenly divide
+    `iterable`, the last slice will be smaller.
+
+    https://stackoverflow.com/questions/8290397/how-to-split-an-iterable-in-constant-size-chunks
+
+    Usage:
+    ```
+        for i in batch(range(0,10), 3):
+            print i
+
+        [0,1,2]
+        [3,4,5]
+        [6,7,8]
+        [9]
+    ```
+    """
+    l = len(iterable)
+    for ndx in range(0, l, n):
+        yield iterable[ndx:min(ndx + n, l)]
+
+
+def takespread(sequence, num):
+    """
+    Get `num` elements from the sequence that are as spread out as possible.
+
+    https://stackoverflow.com/questions/9873626/choose-m-evenly-spaced-elements-from-a-sequence-of-length-n
+    :param sequence:
+    :param num:
+    :return:
+    """
+    length = float(len(sequence))
+    for i in range(num):
+        yield sequence[int(math.ceil(i * length / num))]
+
+
+"""
+Custom Classes
+"""
+
+
+class IntIdDict(collections.defaultdict):
+    """
+    Automatically assign int IDs to hashable objects.
+
+    Usage:
+    ```
+    id_map = IntIdDict()
+    print(id_map['a'])
+    print(id_map['b'])
+    print(id_map['c'])
+    print(id_map['a'])
+    print(id_map['b'])
+    print(id_map['a'])
+
+    print('')
+
+    print(id_map.get_inverse(0))
+    print(id_map.get_inverse(1))
+    print(id_map.get_inverse(2))
+    ```
+
+    Output:
+    ```
+    1
+    2
+    3
+    1
+    2
+    1
+
+    'a'
+    'b'
+    'c'
+    ```
+    :return:
+    """
+
+    def __init__(self, **kwargs):
+        c = itertools.count()
+        self.inverse_dict = {}
+        super().__init__(lambda: next(c), **kwargs)
+
+    def __getitem__(self, y):
+        int_id = super().__getitem__(y)
+        self.inverse_dict[int_id] = y
+        return int_id
+
+    def reverse_id(self, int_id):
+        return self.inverse_dict[int_id]
+
+
 class ConditionTimer(object):
     """
     A timer that goes off after the a fixed time period.
@@ -221,80 +336,23 @@ class ConditionTimer(object):
         return self.trigger_period == 0
 
 
-def batch(iterable, n=1):
-    """
-    Split an interable into batches of size `n`. If `n` does not evenly divide
-    `iterable`, the last slice will be smaller.
+class _Logger(object):
+    def __init__(self):
+        self.n_chars = 0
 
-    https://stackoverflow.com/questions/8290397/how-to-split-an-iterable-in-constant-size-chunks
+    def print_over(self, string):
+        """
+        Remove anything printed in the last printover call. Then print `string`
+        """
+        sys.stdout.write("\r" * self.n_chars)
+        sys.stdout.write(string)
+        sys.stdout.flush()
+        self.n_chars = len(string)
 
-    Usage:
-    ```
-        for i in batch(range(0,10), 3):
-            print i
-
-        [0,1,2]
-        [3,4,5]
-        [6,7,8]
-        [9]
-    ```
-    """
-    l = len(iterable)
-    for ndx in range(0, l, n):
-        yield iterable[ndx:min(ndx + n, l)]
+    def newline(self):
+        sys.stdout.write("\n")
+        sys.stdout.flush()
+        self.n_chars = 0
 
 
-def is_numeric(x):
-    return not isinstance(x, bool) and (
-        isinstance(x, int) or isinstance(x, float)
-    )
-
-
-class IntIdDict(collections.defaultdict):
-    """
-    Automatically assign int IDs to hashable objects.
-
-    Usage:
-    ```
-    id_map = IntIdDict()
-    print(id_map['a'])
-    print(id_map['b'])
-    print(id_map['c'])
-    print(id_map['a'])
-    print(id_map['b'])
-    print(id_map['a'])
-
-    print('')
-
-    print(id_map.get_inverse(0))
-    print(id_map.get_inverse(1))
-    print(id_map.get_inverse(2))
-    ```
-
-    Output:
-    ```
-    1
-    2
-    3
-    1
-    2
-    1
-
-    'a'
-    'b'
-    'c'
-    ```
-    :return: 
-    """
-    def __init__(self, **kwargs):
-        c = itertools.count()
-        self.inverse_dict = {}
-        super().__init__(lambda: next(c), **kwargs)
-
-    def __getitem__(self, y):
-        int_id = super().__getitem__(y)
-        self.inverse_dict[int_id] = y
-        return int_id
-
-    def reverse_id(self, int_id):
-        return self.inverse_dict[int_id]
+line_logger = _Logger()

@@ -17,22 +17,22 @@ and/or see http://sdk.rethinkrobotics.com/wiki/Hardware_Specifications.
 """
 
 JOINT_ANGLES_HIGH = np.array([
-    1.70167993, 
-    1.04700017, 
-    3.0541791, 
-    2.61797006, 
+    1.70167993,
+    1.04700017,
+    3.0541791,
+    2.61797006,
     3.05900002,
-    2.09400001, 
+    2.09400001,
     3.05899961
 ])
 
 JOINT_ANGLES_LOW = np.array([
-    -1.70167995, 
-    -2.14700025, 
-    -3.0541801, 
-    -0.04995198, 
+    -1.70167995,
+    -2.14700025,
+    -3.0541801,
+    -0.04995198,
     -3.05900015,
-    -1.5708003, 
+    -1.5708003,
     -3.05899989
 ])
 
@@ -54,13 +54,13 @@ JOINT_VALUE_LOW = {
 }
 
 END_EFFECTOR_POS_LOW = [
-    0.3404830862298487, 
-    -1.2633121086809487, 
+    0.3404830862298487,
+    -1.2633121086809487,
     -0.5698485041484043
 ]
 END_EFFECTOR_POS_HIGH = [
-    1.1163239572333106, 
-    0.003933425621414761, 
+    1.1163239572333106,
+    0.003933425621414761,
     0.795699462010194
 ]
 
@@ -151,7 +151,7 @@ class SawyerEnv(Env, Serializable):
         elif experiment == experiments[5]:
             self.end_effector_experiment_total = True
             self.fixed_end_effector=False
-        
+
         self.safety_end_effector_box = safety_end_effector_box
         self.remove_action = remove_action
 
@@ -174,7 +174,7 @@ class SawyerEnv(Env, Serializable):
 
         #create a dictionary whose values are functions that set the appropriate values
         action_mode_dict = {
-            'position': self.arm.set_joint_positions, 
+            'position': self.arm.set_joint_positions,
             'velocity': self.arm.set_joint_velocities,
             'torque': self.arm.set_joint_torques,
         }
@@ -198,15 +198,15 @@ class SawyerEnv(Env, Serializable):
         #additionally set up the desired angle as well
         if self.joint_angle_experiment:
             lows = np.hstack((
-                JOINT_VALUE_LOW['position'], 
-                JOINT_VALUE_LOW['velocity'], 
+                JOINT_VALUE_LOW['position'],
+                JOINT_VALUE_LOW['velocity'],
                 JOINT_VALUE_LOW['torque'],
                 END_EFFECTOR_VALUE_LOW['position'],
                 JOINT_VALUE_LOW['position'],
             ))
 
             highs = np.hstack((
-                JOINT_VALUE_HIGH['position'], 
+                JOINT_VALUE_HIGH['position'],
                 JOINT_VALUE_HIGH['velocity'],
                 JOINT_VALUE_HIGH['torque'],
                 END_EFFECTOR_VALUE_HIGH['position'],
@@ -228,20 +228,20 @@ class SawyerEnv(Env, Serializable):
                 angles.reverse()
                 self.desired = angles
             else:
-                self._randomize_desired_angles() 
+                self._randomize_desired_angles()
 
         elif self.end_effector_experiment_position:
             lows = np.hstack((
-                JOINT_VALUE_LOW['position'], 
-                JOINT_VALUE_LOW['velocity'], 
+                JOINT_VALUE_LOW['position'],
+                JOINT_VALUE_LOW['velocity'],
                 JOINT_VALUE_LOW['torque'],
-                END_EFFECTOR_VALUE_LOW['position'], 
                 END_EFFECTOR_VALUE_LOW['position'],
-            )) 
+                END_EFFECTOR_VALUE_LOW['position'],
+            ))
 
             highs = np.hstack((
-                JOINT_VALUE_HIGH['position'], 
-                JOINT_VALUE_HIGH['velocity'], 
+                JOINT_VALUE_HIGH['position'],
+                JOINT_VALUE_HIGH['velocity'],
                 JOINT_VALUE_HIGH['torque'],
                 END_EFFECTOR_VALUE_HIGH['position'],
                 END_EFFECTOR_VALUE_HIGH['position'],
@@ -259,8 +259,8 @@ class SawyerEnv(Env, Serializable):
 
         elif self.end_effector_experiment_total:
             lows = np.hstack((
-                JOINT_VALUE_LOW['position'], 
-                JOINT_VALUE_LOW['velocity'], 
+                JOINT_VALUE_LOW['position'],
+                JOINT_VALUE_LOW['velocity'],
                 JOINT_VALUE_LOW['torque'],
                 END_EFFECTOR_VALUE_LOW['position'],
                 END_EFFECTOR_VALUE_LOW['angle'],
@@ -269,8 +269,8 @@ class SawyerEnv(Env, Serializable):
             ))
 
             highs = np.hstack((
-                JOINT_VALUE_HIGH['position'], 
-                JOINT_VALUE_HIGH['velocity'], 
+                JOINT_VALUE_HIGH['position'],
+                JOINT_VALUE_HIGH['velocity'],
                 JOINT_VALUE_HIGH['torque'],
                 END_EFFECTOR_VALUE_HIGH['position'],
                 END_EFFECTOR_VALUE_HIGH['angle'],
@@ -280,18 +280,18 @@ class SawyerEnv(Env, Serializable):
 
             if self.fixed_end_effector:
                 self.desired = np.array([
-                    0.14854234521312332, 
-                    -0.43227588084273644, 
-                    -0.7116727296474704, 
-                    0.46800638382243764, 
-                    0.8837008622125236, 
-                    -0.005641180126528841, 
+                    0.14854234521312332,
+                    -0.43227588084273644,
+                    -0.7116727296474704,
+                    0.46800638382243764,
+                    0.8837008622125236,
+                    -0.005641180126528841,
                     -0.0033148021158782666
                 ])
             else:
                 self._randomize_desired_end_effector_pose()
-    
-        self._observation_space = Box(lows, highs) 
+
+        self._observation_space = Box(lows, highs)
 
     @safe
     def _act(self, action):
@@ -323,18 +323,18 @@ class SawyerEnv(Env, Serializable):
         if self.end_effector_experiment_total:
             orientation = state_dict['orientation']
             return np.array([
-                pos.x, 
-                pos.y, 
-                pos.z, 
-                orientation.x, 
-                orientation.y, 
-                orientation.z, 
+                pos.x,
+                pos.y,
+                pos.z,
+                orientation.x,
+                orientation.y,
+                orientation.z,
                 orientation.w
             ])
         else:
             return np.array([
-                pos.x, 
-                pos.y, 
+                pos.x,
+                pos.y,
                 pos.z
             ])
 
@@ -352,7 +352,7 @@ class SawyerEnv(Env, Serializable):
                     reward = -1/2 * a **2
                 else:
                     reward = -1 * self.huber_delta * (a - 1/2 * self.huber_delta)
-            
+
         if self.end_effector_experiment_position or self.end_effector_experiment_total:
             current_end_effector_pose = self._end_effector_pose()
             if self.MSE:
@@ -426,7 +426,7 @@ class SawyerEnv(Env, Serializable):
 
     def get_jacobian(self):
         return self.get_jacobian_client()[:3]
-        
+
     def is_in_box(self, endpoint_pose):
 
         is_in_box = True
@@ -507,7 +507,7 @@ class SawyerEnv(Env, Serializable):
                 for observation in obsSet:
                     positions.append(observation[21:24])
                     desired_positions.append(observation[24:27])
-                    
+
                     if self.end_effector_experiment_total:
                         orientations.append(observation[24:28])
                         desired_orientations.append(observation[28:])
