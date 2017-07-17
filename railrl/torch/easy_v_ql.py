@@ -14,7 +14,6 @@ from railrl.torch.ddpg import DDPG
 from railrl.torch.online_algorithm import OnlineAlgorithm
 import railrl.torch.pytorch_util as ptu
 import railrl.torch.modules as M
-from rllab.misc import logger, special
 
 
 class EasyVQLearning(DDPG):
@@ -103,46 +102,6 @@ class EasyVQLearning(DDPG):
             ))
 
         return statistics
-
-    def evaluate(self, epoch, exploration_paths):
-        """
-        Perform evaluation for this algorithm.
-
-        :param epoch: The epoch number.
-        :param exploration_paths: List of dicts, each representing a path.
-        """
-        logger.log("Collecting samples for evaluation")
-        paths = self._sample_paths(epoch)
-        statistics = OrderedDict()
-
-        statistics.update(self._statistics_from_paths(exploration_paths,
-                                                      "Exploration"))
-        statistics.update(self._statistics_from_paths(paths, "Test"))
-
-        train_batch = self.get_batch(training=True)
-        statistics.update(self._statistics_from_batch(train_batch, "Train"))
-        validation_batch = self.get_batch(training=False)
-        statistics.update(
-            self._statistics_from_batch(validation_batch, "Validation")
-        )
-
-        statistics['QF Loss Validation - Train Gap'] = (
-            statistics['Validation QF Loss Mean']
-            - statistics['Train QF Loss Mean']
-        )
-        statistics['Policy Loss Validation - Train Gap'] = (
-            statistics['Validation Policy Loss Mean']
-            - statistics['Train Policy Loss Mean']
-        )
-        average_returns = get_average_returns(paths)
-        statistics['AverageReturn'] = average_returns
-        self.final_score = average_returns
-        statistics['Epoch'] = epoch
-
-        for key, value in statistics.items():
-            logger.record_tabular(key, value)
-
-        self.log_diagnostics(paths)
 
 
 class EasyVQFunction(PyTorchModule):

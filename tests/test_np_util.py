@@ -373,7 +373,6 @@ class TestNpUtil(NPTestCase):
             [2.5, 1, 0],
         ])
         actual = np_util.batch_discounted_cumsum(values, discount)
-        import ipdb; ipdb.set_trace()
         self.assertNpEqual(expected, actual)
 
 

@@ -21,8 +21,6 @@ class SubtrajReplayBuffer(ReplayBuffer):
             env,
             subtraj_length,
             only_sample_at_start_of_episode=False,
-            save_period=5,
-            random_generator=None,
     ):
         self._max_pool_size = max_pool_size
         self._env = env
@@ -40,7 +38,8 @@ class SubtrajReplayBuffer(ReplayBuffer):
         # self._final_state[i] = state i was the final state in a rollout,
         # so it should never be sampled since it has no correspond next state
         # In other words, we're saving the s_{t+1} after sampling a tuple of
-        # (s_t, a_t, r_t, s_{t+1}, TERMINAL=TRUE)
+        # (s_t, a_t, r_t, s_{t+1}) and the episode terminated (either because
+        # terminal=True or for some other reason, e.g. a time limit)
         self._final_state = np.zeros(self._max_pool_size, dtype='uint8')
 
         # placeholder for when saving a terminal observation
@@ -54,18 +53,6 @@ class SubtrajReplayBuffer(ReplayBuffer):
         self._only_sample_at_start_of_episode = only_sample_at_start_of_episode
         self._episode_start_indices = np.zeros(max_pool_size, dtype='uint8')
         self._starting_episode = True
-        self._valid_start_episode_indices = []
-
-        """
-        The last part of the replay buffer will be saved as a validation set.
-        """
-        # self.validation_set_fraction = validation_set_fraction
-        self._validation_start_indices = []
-        self._training_start_indices = []
-        self.random = random_generator or random.random
-        self._save_period = save_period
-        self._num_saved = 0
-        self._save_episode_for_validation = True
 
     @cached_property
     def _stub_action(self):
@@ -95,37 +82,16 @@ class SubtrajReplayBuffer(ReplayBuffer):
             **kwargs
         )
 
-        # print(self._size)
-        # if self._size == 10000:
-        #     print("SAVING")
-        #     for name, np_array in [
-        #         ('obs', self._observations),
-        #         ('actions', self._actions),
-        #         ('rewards', self._rewards),
-        #         ('terminals', self._terminals),
-        #     ]:
-        #         np.savetxt(
-        #             '/home/vitchyr/git/rllab-rail/railrl/data/replay_buffer/'
-        #             '{}.csv'.format(name),
-        #             np_array,
-        #             delimiter=',',
-        #         )
-        #
-
     def terminate_episode(self, terminal_observation, terminal, **kwargs):
         self._add_sample(
             terminal_observation,
             self._stub_action,
             0,
-            0,
             terminal,
+            True,
         )
         self._previous_indices = deque(maxlen=self._subtraj_length)
         self._starting_episode = True
-        self._num_saved += 1
-        self._save_episode_for_validation = (
-            self._num_saved % self._save_period == 0
-        )
 
     def advance(self):
         if len(self._previous_indices) >= self._subtraj_length:
@@ -141,28 +107,13 @@ class SubtrajReplayBuffer(ReplayBuffer):
             if (previous_idx + self._subtraj_length < self._max_pool_size and
                     previous_idx not in self._all_valid_start_indices):
                 self._all_valid_start_indices.append(previous_idx)
-                if self._save_episode_for_validation:
-                    self._validation_start_indices.append(previous_idx)
-                else:
-                    self._training_start_indices.append(previous_idx)
-                if self._episode_start_indices[previous_idx]:
-                    self._valid_start_episode_indices.append(previous_idx)
         # Current self._top is NOT a valid transition index since the next time
         # step is either garbage or from another episode
         for lst in [
             self._all_valid_start_indices,
-            self._validation_start_indices,
-            self._training_start_indices,
-            self._valid_start_episode_indices,
         ]:
             if self._top in lst:
                 lst.remove(self._top)
-        # if self._top in self._validation_start_indices:
-        #     self._validation_start_indices.remove(self._top)
-        # if self._top in self._training_start_indices:
-        #     self._training_start_indices.remove(self._top)
-        # if self._top in self._valid_start_episode_start_indices:
-        #     self._valid_start_episode_start_indices.remove(self._top)
 
         self._previous_indices.append(self._top)
 
@@ -172,10 +123,9 @@ class SubtrajReplayBuffer(ReplayBuffer):
         else:
             self._size += 1
 
-    def random_subtrajectories(self, batch_size, replace=False,
-                               validation=False):
+    def random_subtrajectories(self, batch_size, replace=False):
         start_indices = np.random.choice(
-            self._valid_start_indices(validation=validation),
+            self._valid_start_indices(),
             batch_size,
             replace=replace,
         )
@@ -185,26 +135,16 @@ class SubtrajReplayBuffer(ReplayBuffer):
         num_subtrajs = batch_size // self._subtraj_length
         return self.random_subtrajectories(num_subtrajs, **kwargs)
 
-    def _valid_start_indices(self, return_all=False, validation=False):
-        if self._only_sample_at_start_of_episode:
-            return self._valid_start_episode_indices
-        if return_all:
-            return self._all_valid_start_indices
-        if validation:
-            return self._validation_start_indices
-        return self._training_start_indices
+    def _valid_start_indices(self, return_all=False):
+        return self._all_valid_start_indices
 
-    def num_steps_can_sample(self, return_all=False, validation=False):
+    def num_steps_can_sample(self, return_all=False):
         return self.num_subtrajs_can_sample(
             return_all=return_all,
-            validation=validation,
         ) * self._subtraj_length
 
-    def num_subtrajs_can_sample(self, return_all=False, validation=False):
-        return len(self._valid_start_indices(
-            return_all=return_all,
-            validation=validation,
-        ))
+    def num_subtrajs_can_sample(self, return_all=False):
+        return len(self._valid_start_indices(return_all=return_all))
 
     def add_trajectory(self, path):
         agent_infos = path['agent_infos']

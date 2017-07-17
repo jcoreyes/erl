@@ -76,7 +76,7 @@ class SawyerEnv(MujocoEnv):
 
         self.desired = np.zeros(7)
         self.reset()
-        
+
     #needs to return the observation, reward, done, and info
     def _step(self, a):
         action = .01 * a
@@ -89,6 +89,7 @@ class SawyerEnv(MujocoEnv):
         if self.MSE:
             reward = -np.mean((self.desired-self._get_joint_angles())**2)
         elif self.huber:
+            # TODO(murtaza): rename this variable
             a = np.mean(np.abs(self.desired - self._get_joint_angles()))
             if a <= self.delta:
                 reward = -1 / 2 * a ** 2
@@ -167,3 +168,37 @@ class SawyerEnv(MujocoEnv):
     def terminate(self):
         self.reset()
 
+<<<<<<< HEAD
+=======
+#how does this environment command actions?
+# See twod_point.py
+#         self.do_simulation(a, self.frame_skip)
+# we want the observation space to be position and velocity
+"""
+qpos = joint angles/position
+qvel = joint velocities
+
+Based off of 
+
+    <actuator>
+        <motor joint="right_j0" ctrlrange="-100.0 100.0" ctrllimited="true"/>
+        <motor joint="right_j1" ctrlrange="-100.0 100.0" ctrllimited="true"/>
+        <motor joint="right_j2" ctrlrange="-100.0 100.0" ctrllimited="true"/>
+        <motor joint="right_j3" ctrlrange="-100.0 100.0" ctrllimited="true"/>
+        <motor joint="right_j4" ctrlrange="-100.0 100.0" ctrllimited="true"/>
+        <motor joint="right_j5" ctrlrange="-100.0 100.0" ctrllimited="true"/>
+        <motor joint="right_j6" ctrlrange="-100.0 100.0" ctrllimited="true"/>
+        <motor joint="head_pan" ctrlrange="-100.0 100.0" ctrllimited="true"/>
+    </actuator>
+    
+    
+in sawyer.xml
+"""
+#how do we get observations? and what form do they take?
+#how do we reset the model?
+
+#need to communicate actions to simulator:
+#or does self.do_simulation just handle that? hmmm
+
+#need to figure out why simulator is moving on its own
+>>>>>>> 216d10ce97e7086aa712ae46e1098dfd1495bc9a

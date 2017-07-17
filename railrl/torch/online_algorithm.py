@@ -3,30 +3,29 @@ import pickle
 import time
 
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
+from railrl.envs.wrappers import convert_gym_space
 from railrl.misc.rllab_util import get_table_key_set
+from railrl.policies.base import SerializablePolicy
 from rllab.algos.base import RLAlgorithm
 from rllab.misc import logger, tensor_utils
-from rllab.sampler.base import BaseSampler
 from rllab.sampler import parallel_sampler
 
 
-class SimplePathSampler(BaseSampler):
-    def __init__(self, algo, max_samples, max_path_length):
-        """
-        :type algo: BatchPolopt
-        """
-        self.algo = algo
+class SimplePathSampler(object):
+    def __init__(self, env, policy, max_samples, max_path_length):
+        self.env = env
+        self.policy = policy
         self.max_samples = max_samples
         self.max_path_length = max_path_length
 
     def start_worker(self):
-        parallel_sampler.populate_task(self.algo.env, self.algo.policy)
+        parallel_sampler.populate_task(self.env, self.policy)
 
     def shutdown_worker(self):
         parallel_sampler.terminate_task()
 
-    def obtain_samples(self, itr):
-        cur_params = self.algo.policy.get_param_values()
+    def obtain_samples(self):
+        cur_params = self.policy.get_param_values()
         return parallel_sampler.sample_paths(
             policy_params=cur_params,
             max_samples=self.max_samples,
@@ -38,6 +37,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
     def __init__(
             self,
             env,
+            exploration_policy: SerializablePolicy,
             exploration_strategy=None,
             num_epochs=100,
             num_steps_per_epoch=10000,
@@ -51,6 +51,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             save_exploration_path_period=1,
     ):
         self.training_env = env
+        self.exploration_policy = exploration_policy
         self.exploration_strategy = exploration_strategy
         self.num_epochs = num_epochs
         self.num_steps_per_epoch = num_steps_per_epoch
@@ -64,22 +65,27 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         self.save_exploration_path_period = save_exploration_path_period
 
         self.env = pickle.loads(pickle.dumps(self.training_env))
-        self.action_dim = int(env.action_space.flat_dim)
-        self.obs_dim = int(env.observation_space.flat_dim)
+        self.action_space = convert_gym_space(env.action_space)
+        self.obs_space = convert_gym_space(env.observation_space)
         self.pool = EnvReplayBuffer(
             self.pool_size,
             self.env,
         )
 
-        self.scope = None  # Necessary for BatchSampler
-        self.whole_paths = True  # Also for BatchSampler
         # noinspection PyTypeChecker
         self.eval_sampler = SimplePathSampler(
-            self, self.num_steps_per_eval, self.max_path_length
+            self.env,
+            self.exploration_policy,
+            self.num_steps_per_eval,
+            self.max_path_length,
         )
 
-        self.policy = None  # Subclass must set this.
         self.final_score = 0
+
+    def reset_env(self):
+        self.exploration_strategy.reset()
+        self.exploration_policy.reset()
+        return self.training_env.reset()
 
     def train(self):
         n_steps_total = 0
@@ -89,9 +95,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         terminals = []
         agent_infos = []
         env_infos = []
-        observation = self.training_env.reset()
-        self.exploration_strategy.reset()
-        self.policy.reset()
+        observation = self.reset_env()
         path_length = 0
         num_paths_total = 0
         self._start_worker()
@@ -108,7 +112,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                     self.exploration_strategy.get_action(
                         n_steps_total,
                         observation,
-                        self.policy,
+                        self.exploration_policy,
                     )
                 )
                 if self.render:
@@ -123,13 +127,10 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                 path_length += 1
 
                 if num_paths_total % self.save_exploration_path_period == 0:
-                    observations.append(
-                        self.training_env.observation_space.flatten(
-                            observation))
+                    observations.append(self.obs_space.flatten(observation))
                     rewards.append(reward)
                     terminals.append(terminal)
-                    actions.append(
-                        self.training_env.action_space.flatten(action))
+                    actions.append(self.action_space.flatten(action))
                     agent_infos.append(agent_info)
                     env_infos.append(env_info)
 
@@ -148,9 +149,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                         agent_info=agent_info,
                         env_info=env_info,
                     )
-                    observation = self.training_env.reset()
-                    self.exploration_strategy.reset()
-                    self.policy.reset()
+                    observation = self.reset_env()
                     path_length = 0
                     num_paths_total += 1
                     self.handle_rollout_ending(n_steps_total)
@@ -221,9 +220,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             agent_infos: unsure
             env_infos: unsure
         """
-        return self.eval_sampler.obtain_samples(
-            itr=epoch,
-        )
+        return self.eval_sampler.obtain_samples()
 
     def log_diagnostics(self, paths):
         self.env.log_diagnostics(paths)
@@ -238,7 +235,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
     def get_epoch_snapshot(self, epoch):
         return dict(
             epoch=epoch,
-            policy=self.policy,
+            exploration_policy=self.exploration_policy,
             env=self.training_env,
         )
 
@@ -247,7 +244,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         pass
 
     def training_mode(self, mode):
-        self.policy.train(mode)
+        self.exploration_policy.train(mode)
 
     def handle_rollout_ending(self, n_steps_total):
         pass

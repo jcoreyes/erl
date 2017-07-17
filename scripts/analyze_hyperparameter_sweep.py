@@ -30,6 +30,8 @@ def get_param_importance(f, param):
 
 def max_min_mean_error(x):
     delta = x.max() - x.min()
+    if delta == 0:
+        return 1
     uniform_mean_estimate = (x.max() + x.min()) / 2
     return np.abs((x.mean() - uniform_mean_estimate) / delta)
 
@@ -154,6 +156,7 @@ def generate_report(fanova_info: FanovaInfo, base_dir, param_name_to_log=None):
     """
     abs_path = osp.abspath(report.path)
     print("Report saved to: {}".format(abs_path))
+    report.save()
     open_report = query_yes_no("Open report?", default="yes")
     if open_report:
         cmd = "xdg-open {}".format(abs_path)
