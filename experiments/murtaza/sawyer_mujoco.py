@@ -13,8 +13,8 @@ def example(variant):
     experiment=variant['experiment']
     env = SawyerEnv(loss=loss)
     es = OUStrategy(
-        max_sigma=0.05,
-        min_sigma=0.05,
+        max_sigma=1,
+        min_sigma=1,
         action_space=env.action_space,
     )
     qf = FeedForwardQFunction(

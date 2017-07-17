@@ -28,8 +28,8 @@ JOINT_ANGLES_LOW = np.array([
 JOINT_VEL_HIGH = 2*np.ones(7)
 JOINT_VEL_LOW = -2*np.ones(7)
 
-JOINT_TORQUE_HIGH = 10*np.ones(8)
-JOINT_TORQUE_LOW = -10*np.ones(8)
+JOINT_TORQUE_HIGH = 10*np.ones(7)
+JOINT_TORQUE_LOW = -10*np.ones(7)
 
 JOINT_VALUE_HIGH = {
     'position': JOINT_ANGLES_HIGH,
@@ -79,11 +79,12 @@ class SawyerEnv(MujocoEnv):
         
     #needs to return the observation, reward, done, and info
     def _step(self, a):
-        action = np.hstack((.01*a, [0]))
-        action = np.zeros(8)
+        action = .01 * a
+        # action = np.zeros(8)
         # self.model.data.act = np.zeros(8)
         self.do_simulation(action, self.frame_skip)
         # ipdb.set_trace()
+        # self.model.data.efc_J
         obs = self._get_obs()
         if self.MSE:
             reward = -np.mean((self.desired-self._get_joint_angles())**2)
@@ -106,7 +107,7 @@ class SawyerEnv(MujocoEnv):
                   0.7523082764083187, 0.00016802203726484777, -0.5449456802340835]
         angles = [[angle] for angle in angles]
         angles = np.concatenate((angles, [[0]]), axis=0)
-        velocities = np.zeros(8)
+        velocities = np.zeros(7)
         velocities = np.array([[velocity] for velocity in velocities])
         self.set_state(angles, velocities)
         return self._get_obs()
@@ -117,7 +118,7 @@ class SawyerEnv(MujocoEnv):
     def _get_joint_angles(self):
         for angle in np.concatenate([self.model.data.qpos]).ravel()[:7]:
             if np.abs(self.wrapper(angle)) > np.pi:
-                ipdb.set_trace( )
+                ipdb.set_trace()
         return np.array([self.wrapper(angle) for angle in np.concatenate([self.model.data.qpos]).ravel()[:7]])
 
     def _get_obs(self):
@@ -126,7 +127,7 @@ class SawyerEnv(MujocoEnv):
         return np.hstack((joint_pos, joint_vel, self.desired))
 
     def viewer_setup(self):
-        gofast = False
+        gofast = True
         self.viewer = mujoco_py.MjViewer(visible=True, init_width=480,
                                      init_height=480, go_fast=gofast)
         self.viewer.start()
@@ -165,35 +166,4 @@ class SawyerEnv(MujocoEnv):
         pass
     def terminate(self):
         self.reset()
-        
-#how does this environment command actions?
-# See twod_point.py
-#         self.do_simulation(a, self.frame_skip)
-# we want the observation space to be position and velocity
-"""
-qpos = joint angles/position
-qvel = joint velocities
 
-Based off of 
-
-    <actuator>
-        <motor joint="right_j0" ctrlrange="-100.0 100.0" ctrllimited="true"/>
-        <motor joint="right_j1" ctrlrange="-100.0 100.0" ctrllimited="true"/>
-        <motor joint="right_j2" ctrlrange="-100.0 100.0" ctrllimited="true"/>
-        <motor joint="right_j3" ctrlrange="-100.0 100.0" ctrllimited="true"/>
-        <motor joint="right_j4" ctrlrange="-100.0 100.0" ctrllimited="true"/>
-        <motor joint="right_j5" ctrlrange="-100.0 100.0" ctrllimited="true"/>
-        <motor joint="right_j6" ctrlrange="-100.0 100.0" ctrllimited="true"/>
-        <motor joint="head_pan" ctrlrange="-100.0 100.0" ctrllimited="true"/>
-    </actuator>
-    
-    
-in sawyer.xml
-"""
-#how do we get observations? and what form do they take?
-#how do we reset the model?
-
-#need to communicate actions to simulator:
-#or does self.do_simulation just handle that? hmmm
-
-#need to figure out why simulator is moving on its own
