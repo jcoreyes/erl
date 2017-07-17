@@ -63,9 +63,9 @@ def example(variant):
         use_target_policy=variant['use_target_policy']
         algorithm = DDPG(
             env,
+            qf,
+            policy,
             es,
-            qf=qf,
-            policy=policy,
             num_epochs=30,
             batch_size=1024,
             use_target_policy=use_target_policy,
