@@ -168,8 +168,6 @@ class SawyerEnv(MujocoEnv):
     def terminate(self):
         self.reset()
 
-<<<<<<< HEAD
-=======
 #how does this environment command actions?
 # See twod_point.py
 #         self.do_simulation(a, self.frame_skip)
@@ -201,4 +199,3 @@ in sawyer.xml
 #or does self.do_simulation just handle that? hmmm
 
 #need to figure out why simulator is moving on its own
->>>>>>> 216d10ce97e7086aa712ae46e1098dfd1495bc9a
