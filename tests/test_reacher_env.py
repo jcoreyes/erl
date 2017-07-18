@@ -1,8 +1,10 @@
 import unittest
 import numpy as np
 
-from railrl.envs.multitask.reacher_env import MultitaskReacherEnv
-from railrl.envs.multitask.reacher_simple_state import SimpleReacherEnv
+from railrl.envs.multitask.reacher_env import (
+    MultitaskReacherEnv,
+    SimpleReacherEnv,
+)
 from railrl.testing.np_test_case import NPTestCase
 
 

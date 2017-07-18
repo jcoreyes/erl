@@ -3,8 +3,10 @@ from pathlib import Path
 from railrl.samplers.path_sampler import MultitaskPathSampler
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
-from railrl.envs.multitask.reacher_env import MultitaskReacherEnv
-from railrl.envs.multitask.reacher_simple_state import SimpleReacherEnv
+from railrl.envs.multitask.reacher_env import (
+    MultitaskReacherEnv,
+    SimpleReacherEnv,
+)
 from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.launchers.launcher_util import run_experiment
