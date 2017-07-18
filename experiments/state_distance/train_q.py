@@ -11,7 +11,9 @@ import os.path as osp
 
 from railrl.algos.qlearning.state_distance_q_learning import (
     StateDistanceQLearning,
-    MultitaskPathSampler, StateDistanceQLearningSimple)
+    StateDistanceQLearningSimple,
+)
+from railrl.samplers.path_sampler import MultitaskPathSampler
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.multitask.reacher_env import MultitaskReacherEnv
@@ -67,6 +69,7 @@ def main(variant):
         env=env,
         qf=qf,
         policy=policy,
+        # exploration_strategy=es,
         pool=pool,
         exploration_policy=None,
         **variant['algo_params']
@@ -121,7 +124,8 @@ if __name__ == '__main__':
 
     n_seeds = 1
     mode = "here"
-    exp_prefix = "7-17-dev-state-distance-train-multiple-goals-ddpg"
+    # exp_prefix = "7-17-dev-state-distance-train-multiple-goals-nonzero-gamma"
+    exp_prefix = "7-17-dev-state-distance-train-multiple-goals-zero-gamma"
     snapshot_mode = 'all'
 
     # out_dir = Path(LOG_DIR) / 'datasets/generated'
@@ -136,11 +140,11 @@ if __name__ == '__main__':
             num_batches=100000,
             num_batches_per_epoch=1000,
             use_soft_update=True,
-            tau=1e-2,
+            tau=1e-3,
             batch_size=1024,
             discount=0.,
-            qf_learning_rate=1e-3,
-            policy_learning_rate=1e-4,
+            qf_learning_rate=1e-4,
+            policy_learning_rate=1e-5,
         ),
     )
 
