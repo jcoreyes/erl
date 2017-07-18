@@ -19,9 +19,15 @@ class StateDistanceQLearning(DDPG):
     def __init__(
             self,
             *args,
+            pool=None,
+            num_batches=100,
+            num_batches_per_epoch=100,
             **kwargs
     ):
         super().__init__(*args, exploration_strategy=None, **kwargs)
+        self.num_batches = num_batches
+        self.num_batches_per_epoch = num_batches_per_epoch
+        self.pool = pool
 
     def train(self):
         epoch = 0
@@ -37,7 +43,6 @@ class StateDistanceQLearning(DDPG):
                 logger.log("Done evaluating")
                 logger.pop_prefix()
                 epoch += 1
-
 
     def get_batch(self, training=True):
         pool = self.pool.get_replay_buffer(training)
@@ -84,21 +89,6 @@ class StateDistanceQLearning(DDPG):
         batch['rewards'] = new_rewards
         return batch
 
-
-class StateDistanceQLearningSimple(StateDistanceQLearning):
-    def __init__(
-            self,
-            *args,
-            pool=None,
-            num_batches=100,
-            num_batches_per_epoch=100,
-            **kwargs
-    ):
-        super().__init__(*args, exploration_strategy=None, **kwargs)
-        self.num_batches = num_batches
-        self.num_batches_per_epoch = num_batches_per_epoch
-        self.pool = pool
-
     def evaluate(self, epoch, _):
         """
         Perform evaluation for this algorithm.
@@ -122,6 +112,8 @@ class StateDistanceQLearningSimple(StateDistanceQLearning):
             logger.record_tabular(key, value)
         logger.dump_tabular(with_prefix=False, with_timestamp=False)
 
+
+class StateDistanceQLearningSimple(StateDistanceQLearning):
     def _do_training(self, n_steps_total):
         batch = self.get_batch()
         train_dict = self.get_train_dict(batch)
