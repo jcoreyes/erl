@@ -15,6 +15,11 @@ class SimpleReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def __init__(self):
         utils.EzPickle.__init__(self)
         mujoco_env.MujocoEnv.__init__(self, 'reacher.xml', 2)
+        self._fixed_goal = None
+        self.goal = None
+
+    def set_goal(self, goal):
+        self._fixed_goal = goal
 
     def _step(self, a):
         vec = self.get_body_com("fingertip") - self.get_body_com("target")
@@ -36,10 +41,13 @@ class SimpleReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def reset_model(self):
         qpos = self.np_random.uniform(low=-0.1, high=0.1,
                                       size=self.model.nq) + self.init_qpos
-        while True:
-            self.goal = self.np_random.uniform(low=-.2, high=.2, size=2)
-            if np.linalg.norm(self.goal) < 2:
-                break
+        if self._fixed_goal is None:
+            while True:
+                self.goal = self.np_random.uniform(low=-.2, high=.2, size=2)
+                if np.linalg.norm(self.goal) < 2:
+                    break
+        else:
+            self.goal = self._fixed_goal
         qpos[-2:] = self.goal
         qvel = self.init_qvel + self.np_random.uniform(low=-.005, high=.005,
                                                        size=self.model.nv)
