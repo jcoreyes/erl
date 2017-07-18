@@ -43,30 +43,40 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('file', type=str,
                         help='path to the snapshot file')
-    parser.add_argument('--max_path_length', type=int, default=1000,
+    parser.add_argument('--max_path_length', type=int, default=100,
+                        help='Max length of rollout')
+    parser.add_argument('--num_rollouts', type=int, default=100,
                         help='Max length of rollout')
     parser.add_argument('--grid', action='store_true')
     parser.add_argument('--gpu', action='store_true')
+    parser.add_argument('--use_policy', action='store_true')
     args = parser.parse_args()
 
     data = joblib.load(args.file)
     env = data['env']
     qf = data['qf']
+    policy = data['policy']
     if args.gpu:
         set_gpu_mode(True)
         qf.cuda()
     qf.train(False)
 
-    goal = np.array([-.2, -.1])
+    goal = np.array([.1, -.1])
     num_samples = 1000
     resolution = 10
 
-    obs = env.reset()
-    for _ in range(args.max_path_length):
-        new_obs = np.hstack((obs, goal))
-        if args.grid:
-            action = grid_search_best_action(qf, new_obs, resolution)
-        else:
-            action = sample_best_action(qf, new_obs, num_samples)
-        obs, r, d, env_info = env.step(action)
-        env.render()
+    for _ in range(args.num_rollouts):
+        goal = np.random.uniform(low=-.2, high=.2, size=2)
+        env.set_goal(goal)
+        obs = env.reset()
+        for _ in range(args.max_path_length):
+            new_obs = np.hstack((obs, goal))
+            if args.use_policy:
+                action, _ = policy.get_action(new_obs)
+            else:
+                if args.grid:
+                    action = grid_search_best_action(qf, new_obs, resolution)
+                else:
+                    action = sample_best_action(qf, new_obs, num_samples)
+            obs, r, d, env_info = env.step(action)
+            env.render()
