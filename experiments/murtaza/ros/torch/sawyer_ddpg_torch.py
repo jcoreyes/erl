@@ -72,9 +72,9 @@ def example(variant):
         use_target_policy=variant['use_target_policy']
         algorithm = DDPG(
             env,
+            qf,
+            policy,
             es,
-            qf=qf,
-            policy=policy,
             num_epochs=30,
             batch_size=1024,
             use_target_policy=use_target_policy,
@@ -102,9 +102,9 @@ if __name__ == "__main__":
                 'reward_function':'huber',
                 'safety_box_magnitude':5,
                 'safety_box_temp':1.05,
-                'remove_action':True,
+                'remove_action':False,
                 'experiment':experiments[0],
-                'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-15-ddpg-sawyer-fixed-angle-huber/7-15-ddpg-sawyer-fixed-angle-huber_2017_07_16_15_28_17_0000--s-0/params.pkl',
+                # 'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-15-ddpg-sawyer-fixed-angle-huber/7-15-ddpg-sawyer-fixed-angle-huber_2017_07_16_15_28_17_0000--s-0/params.pkl',
                 },
         use_gpu=True,
     )
