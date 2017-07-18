@@ -21,7 +21,7 @@ from gym.envs.mujoco import ReacherEnv
 from torch.autograd import Variable
 
 import railrl.misc.visualization_util as vu
-from railrl.envs.multitask.reacher_simple_state import SimpleReacherEnv
+from railrl.envs.multitask.reacher_env import SimpleReacherEnv
 from railrl.misc.html_report import HTMLReport
 from railrl.pythonplusplus import takespread
 from rllab.misc.instrument import query_yes_no
@@ -131,6 +131,7 @@ def main():
         print("Loading: %s" % path)
         data = joblib.load(str(path))
         qf = data['qf']
+        env = data['env']
         qf.train(False)
 
         for joint_angles in [
@@ -142,6 +143,7 @@ def main():
             np.random.uniform(-pi, pi, size=2),
             np.random.uniform(-pi, pi, size=2),
         ]:
+            goal_state = env.sample_goal_states(1)[0]
             report.add_text("Joint Angles = {}".format(joint_angles))
             for target_pos in [
                 # np.array([0, 0]),

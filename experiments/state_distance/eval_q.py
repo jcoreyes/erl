@@ -6,6 +6,7 @@ from torch.autograd import Variable
 
 import railrl.torch.pytorch_util as ptu
 from railrl.torch.pytorch_util import set_gpu_mode
+from rllab.misc import logger
 
 
 class SamplePolicy(object):
@@ -132,3 +133,4 @@ if __name__ == "__main__":
             animated=True,
         )
         env.log_diagnostics([path])
+        logger.dump_tabular()
