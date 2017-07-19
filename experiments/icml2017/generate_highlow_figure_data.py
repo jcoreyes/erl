@@ -19,11 +19,11 @@ from railrl.misc.hyperparameter import DeterministicHyperparameterSweeper
 if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
-    exp_prefix = "7-12-dev-generate_highlow_figure_data"
+    exp_prefix = "7-19-dev-generate_highlow_figure_data"
 
-    # n_seeds = 1
-    # mode = "ec2"
-    # exp_prefix = "7-18-generate_highlow_figure_data-test"
+    n_seeds = 5
+    mode = "ec2"
+    exp_prefix = "7-19-generate_highlow_figure_data"
 
     env_class = HighLow
 
@@ -31,18 +31,18 @@ if __name__ == '__main__':
     if mode != "here":
         use_gpu = False
 
-    # H = 25
-    # num_steps_per_iteration = 100
-    # num_steps_per_eval = 1000
-    # num_iterations = 100
-    # batch_size = 200
-    # memory_dim = 100
-    H = 5
-    num_steps_per_iteration = 10
-    num_steps_per_eval = 100
-    num_iterations = 10
-    batch_size = 20
-    memory_dim = 10
+    H = 25
+    num_steps_per_iteration = 100
+    num_steps_per_eval = 1000
+    num_iterations = 100
+    batch_size = 200
+    memory_dim = 100
+    # H = 5
+    # num_steps_per_iteration = 10
+    # num_steps_per_eval = 100
+    # num_iterations = 10
+    # batch_size = 5
+    # memory_dim = 10
     # noinspection PyTypeChecker
     variant = dict(
         H=H,
