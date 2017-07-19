@@ -58,8 +58,9 @@ class SimpleReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     R1 = 0.1  # from reacher.xml
     R2 = 0.11
 
-    def __init__(self):
-        utils.EzPickle.__init__(self)
+    def __init__(self, add_noop_action=True):
+        self.add_noop_action = add_noop_action
+        utils.EzPickle.__init__(self, add_noop_action=add_noop_action)
         mujoco_env.MujocoEnv.__init__(self, 'reacher.xml', 2)
         self._fixed_goal = None
         self.goal = None
@@ -75,7 +76,8 @@ class SimpleReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self.do_simulation(a, self.frame_skip)
         # Make it so that your actions (torque) actually affect the next
         # observation position.
-        self.do_simulation(np.zeros_like(a), self.frame_skip)
+        if self.add_noop_action:
+            self.do_simulation(np.zeros_like(a), self.frame_skip)
         ob = self._get_obs()
         done = False
         return ob, reward, done, dict(reward_dist=reward_dist,
@@ -117,28 +119,33 @@ class SimpleReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         )
 
     def compute_rewards(self, obs, action, next_obs, goal_states):
-        c1 = next_obs[:, 0:1]  # cosine of angle 1
-        c2 = next_obs[:, 1:2]
-        s1 = next_obs[:, 2:3]
-        s2 = next_obs[:, 3:4]
-        next_qpos = (  # forward kinematics equation for 2-link robot
+        next_endeffector_positions = self.position(next_obs)
+        return -np.linalg.norm(next_endeffector_positions - goal_states, axis=1)
+
+    def position(self, obs):
+        c1 = obs[:, 0:1]  # cosine of angle 1
+        c2 = obs[:, 1:2]
+        s1 = obs[:, 2:3]
+        s2 = obs[:, 3:4]
+        return (  # forward kinematics equation for 2-link robot
             self.R1 * np.hstack([c1, s1])
             + self.R2 * np.hstack([
                 c1 * c2 - s1 * s2,
                 s1 * c2 + c1 * s2,
             ])
         )
-        return -np.linalg.norm(next_qpos - goal_states, axis=1)
 
     def log_diagnostics(self, paths):
-        distance = [
-            np.linalg.norm(path["observations"][-1][-3:])
-            for path in paths
-        ]
+        observations = np.vstack([path['observations'][:, :4] for path in
+                                  paths])
+        positions = self.position(observations)
+        goal_positions = np.vstack([path['observations'][:, -2:] for path in
+                                   paths])
+        distances = np.linalg.norm(positions - goal_positions, axis=1)
 
         statistics = OrderedDict()
         statistics.update(create_stats_ordered_dict(
-            'Distance to target', distance
+            'Distance to target', distances
         ))
         for key, value in statistics.items():
             logger.record_tabular(key, value)
@@ -175,7 +182,22 @@ class GoalStateReacherEnv(SimpleReacherEnv):
         ])
 
     def compute_rewards(self, obs, action, next_obs, goal_states):
+        # return -np.linalg.norm(next_obs[:, :4] - goal_states[:, :4], axis=1)
         return -np.linalg.norm(next_obs - goal_states, axis=1)
+
+    def log_diagnostics(self, paths):
+        observations = np.vstack([path['observations'][:, :6] for path in
+                                  paths])
+        goal_states = np.vstack([path['observations'][:, -6:] for path in
+                                    paths])
+        rewards = self.compute_rewards(None, None, observations, goal_states)
+
+        statistics = OrderedDict()
+        statistics.update(create_stats_ordered_dict(
+            'Rewards', rewards,
+        ))
+        for key, value in statistics.items():
+            logger.record_tabular(key, value)
 
     @property
     def goal_dim(self):

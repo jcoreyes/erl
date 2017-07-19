@@ -66,8 +66,8 @@ def main(variant):
         400,
         300,
     )
-    # algo = StateDistanceQLearning(
-    algo = StateDistanceQLearningSimple(
+    algo = StateDistanceQLearning(
+    # algo = StateDistanceQLearningSimple(
         env=env,
         qf=qf,
         policy=policy,
@@ -127,7 +127,7 @@ if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
     # exp_prefix = "7-17-dev-state-distance-train-multiple-goals-nonzero-gamma"
-    exp_prefix = "7-17-dev-sdql-train-goal-state-100k"
+    exp_prefix = "7-18-dev-sdql-train-goal-state-reacher-env-10k-only-joints"
     snapshot_mode = 'all'
 
     # out_dir = Path(LOG_DIR) / 'datasets/generated'
@@ -149,6 +149,7 @@ if __name__ == '__main__':
             policy_learning_rate=1e-5,
         ),
         env_class=GoalStateReacherEnv,
+        # env_class=SimpleReacherEnv,
     )
 
     seed = random.randint(0, 10000)
