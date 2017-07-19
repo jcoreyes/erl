@@ -12,7 +12,7 @@ from railrl.launchers.memory_bptt_launchers import (
     ddpg_launcher,
     mem_ddpg_launcher,
     rdpg_launcher,
-    our_method_launcher,
+    our_method_launcher_add_defaults,
 )
 from railrl.misc.hyperparameter import DeterministicHyperparameterSweeper
 
@@ -21,9 +21,9 @@ if __name__ == '__main__':
     mode = "here"
     exp_prefix = "7-12-dev-generate_highlow_figure_data"
 
-    n_seeds = 1
-    mode = "ec2"
-    exp_prefix = "7-12-generate_highlow_figure_data-test"
+    # n_seeds = 1
+    # mode = "ec2"
+    # exp_prefix = "7-18-generate_highlow_figure_data-test"
 
     env_class = HighLow
 
@@ -31,12 +31,18 @@ if __name__ == '__main__':
     if mode != "here":
         use_gpu = False
 
-    H = 25
-    num_steps_per_iteration = 100
+    # H = 25
+    # num_steps_per_iteration = 100
+    # num_steps_per_eval = 1000
+    # num_iterations = 100
+    # batch_size = 200
+    # memory_dim = 100
+    H = 5
+    num_steps_per_iteration = 10
     num_steps_per_eval = 100
-    num_iterations = 100
-    batch_size = 200
-    memory_dim = 100
+    num_iterations = 10
+    batch_size = 20
+    memory_dim = 10
     # noinspection PyTypeChecker
     variant = dict(
         H=H,
@@ -55,13 +61,13 @@ if __name__ == '__main__':
     )
     exp_id = -1
     for launcher in [
-        trpo_launcher,
-        mem_trpo_launcher,
-        rtrpo_launcher,
+        # trpo_launcher,
+        # mem_trpo_launcher,
+        # rtrpo_launcher,
         ddpg_launcher,
         mem_ddpg_launcher,
         rdpg_launcher,
-        our_method_launcher,
+        our_method_launcher_add_defaults,
     ]:
         search_space = {
             # 'env_class': [WaterMaze1D, WaterMazeEasy1D, WaterMazeMemory1D],

@@ -23,6 +23,7 @@ from railrl.launchers.launcher_util import (
     run_experiment,
 )
 import railrl.misc.hyperparameter as hyp
+from railrl.launchers.memory_bptt_launchers import bptt_ddpg_launcher
 from railrl.policies.torch import MemoryPolicy, RWACell
 from railrl.pythonplusplus import identity
 from railrl.qfunctions.torch import MemoryQFunction, RecurrentMemoryQFunction
@@ -35,91 +36,30 @@ from torch.nn import functional as F
 import railrl.torch.pytorch_util as ptu
 
 
-def experiment(variant):
-    from railrl.torch.bptt_ddpg import BpttDdpg
-    from railrl.launchers.launcher_util import (
-        set_seed,
-    )
-    from railrl.exploration_strategies.product_strategy import ProductStrategy
-    seed = variant['seed']
-    algo_params = variant['algo_params']
-    memory_dim = variant['memory_dim']
-    rnn_cell = variant['policy_params']['cell_class']
-    memory_dim -= memory_dim % rnn_cell.state_num_split()
-    env_class = variant['env_class']
-    env_params = variant['env_params']
-    memory_aug_params = variant['memory_aug_params']
-
-    qf_class = variant['qf_class']
-    qf_params = variant['qf_params']
-    policy_params = variant['policy_params']
-
-    es_params = variant['es_params']
-    env_es_class = es_params['env_es_class']
-    env_es_params = es_params['env_es_params']
-    memory_es_class = es_params['memory_es_class']
-    memory_es_params = es_params['memory_es_params']
-
-    set_seed(seed)
-    raw_env = env_class(**env_params)
-    env = ContinuousMemoryAugmented(
-        raw_env,
-        num_memory_states=memory_dim,
-        **memory_aug_params
-    )
-    env_strategy = env_es_class(
-        action_space=raw_env.action_space,
-        **env_es_params
-    )
-    write_strategy = memory_es_class(
-        action_space=env.memory_state_space,
-        **memory_es_params
-    )
-    es = ProductStrategy([env_strategy, write_strategy])
-    qf = qf_class(
-        int(raw_env.observation_space.flat_dim),
-        int(raw_env.action_space.flat_dim),
-        memory_dim,
-        **qf_params,
-    )
-    policy = MemoryPolicy(
-        int(raw_env.observation_space.flat_dim),
-        int(raw_env.action_space.flat_dim),
-        memory_dim=memory_dim,
-        **policy_params
-    )
-    algorithm = BpttDdpg(
-        env,
-        qf,
-        policy,
-        es,
-        **algo_params
-    )
-    algorithm.train()
-
-
 if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
-    exp_prefix = "7-14-dev-bptt-ddpg-check"
+    exp_prefix = "7-18-dev-bptt-ddpg-check"
     run_mode = 'none'
 
-    n_seeds = 5
-    mode = "ec2"
-    exp_prefix = "7-14-bptt-ddpg-watermaze-memory-sweep-traj-with-loaded-dldm"
+    # n_seeds = 5
+    # mode = "ec2"
+    # exp_prefix = "7-14-bptt-ddpg-watermaze-memory-sweep-traj-with-loaded-dldm"
 
-    run_mode = 'grid'
+    # run_mode = 'grid'
     num_configurations = 25
     use_gpu = True
     if mode != "here":
         use_gpu = False
 
-    H = 25
-    subtraj_length = 25
-    num_steps_per_iteration = 1000
+    H = 32
+    subtraj_length = 32
+    num_steps_per_iteration = 100
     num_steps_per_eval = 1000
     num_iterations = 50
-    batch_size = 200
+    # batch_size = 200
+    # memory_dim = 100
+    batch_size = 100
     memory_dim = 100
     version = "Our Method"
 
@@ -129,13 +69,14 @@ if __name__ == '__main__':
         # env_class=WaterMaze,
         # env_class=WaterMazeEasy,
         # env_class=WaterMazeMemory1D,
-        env_class=WaterMazeMemory,
+        # env_class=WaterMazeMemory,
         # env_class=WaterMazeHard,
-        # env_class=HighLow,
+        env_class=HighLow,
         env_params=dict(
             horizon=H,
-            give_time=True,
-            action_l2norm_penalty=0,
+            give_time=False,
+            # give_time=True,
+            # action_l2norm_penalty=0,
         ),
         memory_aug_params=dict(
             max_magnitude=1,
@@ -149,7 +90,7 @@ if __name__ == '__main__':
             discount=0.9,
             use_action_policy_params_for_entire_policy=False,
             action_policy_optimize_bellman=False,
-            write_policy_optimizes='bellman',
+            write_policy_optimizes='both',
             action_policy_learning_rate=0.001,
             write_policy_learning_rate=0.0005,
             qf_learning_rate=0.002,
@@ -159,7 +100,6 @@ if __name__ == '__main__':
             write_policy_weight_decay=0,
             action_policy_weight_decay=0,
             do_not_load_initial_memories=False,
-            do_not_load_memories=False,
             save_memory_gradients=False,
             # tau=0.001,
             # use_soft_update=False,
@@ -177,10 +117,10 @@ if __name__ == '__main__':
         policy_params=dict(
             fc1_size=400,
             fc2_size=300,
-            cell_class=GRUCell,
+            # cell_class=GRUCell,
             # cell_class=RWACell,
             # cell_class=BNLSTMCell,
-            # cell_class=LSTMCell,
+            cell_class=LSTMCell,
             output_activation=F.tanh,
             # output_activation=ptu.clip1,
         ),
@@ -190,10 +130,10 @@ if __name__ == '__main__':
                 max_sigma=1,
                 min_sigma=None,
             ),
-            memory_es_class=NoopStrategy,
-            # memory_es_class=OUStrategy,
+            # memory_es_class=NoopStrategy,
+            memory_es_class=OUStrategy,
             memory_es_params=dict(
-                # max_sigma=1,
+                max_sigma=1,
                 # min_sigma=None,
             ),
         ),
@@ -225,7 +165,7 @@ if __name__ == '__main__':
         for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
             for i in range(n_seeds):
                 run_experiment(
-                    experiment,
+                    bptt_ddpg_launcher,
                     exp_prefix=exp_prefix,
                     seed=i,
                     mode=mode,
@@ -255,7 +195,7 @@ if __name__ == '__main__':
             for _ in range(n_seeds):
                 seed = random.randint(0, 10000)
                 run_experiment(
-                    experiment,
+                    bptt_ddpg_launcher,
                     exp_prefix=exp_prefix,
                     seed=seed,
                     mode=mode,
@@ -324,7 +264,7 @@ if __name__ == '__main__':
                 for _ in range(n_seeds):
                     seed = random.randint(0, 10000)
                     run_experiment(
-                        experiment,
+                        bptt_ddpg_launcher,
                         exp_prefix=exp_prefix,
                         seed=seed,
                         mode=mode,
@@ -338,7 +278,7 @@ if __name__ == '__main__':
         for _ in range(n_seeds):
             seed = random.randint(0, 10000)
             run_experiment(
-                experiment,
+                bptt_ddpg_launcher,
                 exp_prefix=exp_prefix,
                 seed=seed,
                 mode=mode,
