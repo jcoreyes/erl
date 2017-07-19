@@ -5,10 +5,35 @@ import json
 import numpy as np
 import os
 import os.path as osp
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict, namedtuple
 from numbers import Number
 
 from railrl.pythonplusplus import nested_dict_to_dot_map_dict
+
+
+Trial = namedtuple("Trial", ["data", "variant"])
+
+
+def matches_dict(criteria_dict, test_dict):
+    for k, v in criteria_dict.items():
+        if test_dict[k] != v:
+            return False
+    return True
+
+
+class Experiment(object):
+    def __init__(self, base_dir):
+        self.trials = []
+        for data, variant in get_data_and_variants(base_dir):
+            self.trials.append(Trial(data, variant))
+        assert len(self.trials) > 0, "Nothing loaded."
+        self.label = 'AverageReturn'
+
+    def get_trials(self, criteria=None):
+        if criteria is None:
+            criteria = {}
+        return [trial for trial in self.trials
+                if matches_dict(criteria, trial.variant)]
 
 
 def create_stats_ordered_dict(name, data, stat_prefix=None):
@@ -79,3 +104,18 @@ def get_data_and_variants(base_dir):
         )
         data_and_variants.append((data, variant))
     return data_and_variants
+
+
+def get_unique_param_to_values(all_variants):
+    variant_key_to_values = defaultdict(set)
+    for variant in all_variants:
+        for k, v in variant.items():
+            if type(v) == list:
+                v = str(v)
+            variant_key_to_values[k].add(v)
+    unique_key_to_values = {
+        k: variant_key_to_values[k]
+        for k in variant_key_to_values
+        if len(variant_key_to_values[k]) > 1
+    }
+    return unique_key_to_values
