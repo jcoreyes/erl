@@ -1,10 +1,10 @@
 """
-Create plot of performance for varying subtrajectory lengths.
+Ablative analysis for varying subtrajectory lengths.
 
 Based on data from
 
 /home/vitchyr/git/rllab-rail/railrl/data/papers/icml2017/ablation
-7-14-bptt-ddpg-watermaze-memory-ablation-memory-state"
+7-14-bptt-ddpg-watermaze-memory-ablation-memory-state
 """
 import matplotlib.pyplot as plt
 import matplotlib
@@ -61,7 +61,6 @@ def main():
         y_means = [np.mean(score) for score in final_scores]
         y_stds = [np.std(score) for score in final_scores]
         assert len(y_means) == len(y_stds) == len(x_axis)
-        # ax.errorbar(x_axis, y_means, yerr=y_stds)
         rect = ax.bar(
             ind + width * i,
             y_means,
@@ -71,9 +70,8 @@ def main():
             hatch=pattern,
             ecolor='red',
             capsize=10,
-        linewidth=10,
-            )
-        # rects1 = ax.bar(ind, men_means, width, color='r', yerr=men_std)
+            linewidth=10,
+        )
         legend_rects.append(rect[0])
         legend_names.append(version_name)
     fontsize = 50
