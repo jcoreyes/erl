@@ -26,7 +26,38 @@ def matches_dict(criteria_dict, test_dict, ignore_missing_keys=False):
 
 
 class Experiment(object):
+    """
+    Represents an experiment, which consists of many Trials.
+    """
     def __init__(self, base_dir):
+        """
+        :param base_dir: A path. Directory structure should be something like:
+        ```
+        base_dir/
+            foo/
+                bar/
+                    arbtrarily_deep/
+                        trial_one/
+                            variant.json
+                            progress.csv
+                        trial_two/
+                            variant.json
+                            progress.csv
+                    trial_three/
+                        variant.json
+                        progress.csv
+                        ...
+                    variant.json  # <-- base_dir/foo/bar has its own Trial
+                    progress.csv
+                variant.json  # <-- base_dir/foo has its own Trial
+                progress.csv
+            variant.json  # <-- base_dir has its own Trial
+            progress.csv
+        ```
+
+        The important thing is that `variant.json` and `progress.csv` are
+        in the same sub-directory for each Trial.
+        """
         self.trials = []
         for data, variant in get_data_and_variants(base_dir):
             self.trials.append(Trial(data, variant))
@@ -34,6 +65,27 @@ class Experiment(object):
         self.label = 'AverageReturn'
 
     def get_trials(self, criteria=None, ignore_missing_keys=False):
+        """
+        Return a list of Trials that match a criteria.
+        :param criteria: A dictionary from key to value that must be matches
+        in the trial's variant. e.g.
+        ```
+        >>> print(exp.trials)
+        [
+            (X, {'a': True, ...})
+            (Y, {'a': False, ...})
+            (Z, {'a': True, ...})
+        ]
+        >>> print(exp.get_trials({'a': True}))
+        [
+            (X, {'a': True, ...})
+            (Z, {'a': True, ...})
+        ]
+        ```
+        :param ignore_missing_keys: If a trial does not have a key that
+        criteria provides, ignore it. Otherwise, raise an error.
+        :return:
+        """
         if criteria is None:
             criteria = {}
         return [trial for trial in self.trials
