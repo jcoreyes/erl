@@ -31,7 +31,6 @@ class DDPG(OnlineAlgorithm):
             target_hard_update_period=1000,
             tau=1e-2,
             use_soft_update=False,
-            use_target_policy=True,
             replay_buffer=None,
             **kwargs
     ):
@@ -169,8 +168,6 @@ class DDPG(OnlineAlgorithm):
         statistics.update(
             self._statistics_from_batch(validation_batch, "Validation")
         )
-
-        statistics.update(self.env._statistics_from_paths(paths, "Test"))
 
         statistics['QF Loss Validation - Train Gap'] = (
             statistics['Validation QF Loss Mean']

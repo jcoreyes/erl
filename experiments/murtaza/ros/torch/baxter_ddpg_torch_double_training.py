@@ -11,45 +11,53 @@ def example(variant):
     load_policy_file = variant.get('load_policy_file', None)
     if load_policy_file is not None and exists(load_policy_file):
         data = joblib.load(load_policy_file)
-        policy = data['policy']
-        qf = data['qf']
-        replay_buffer=data['replay_pool']
-        env = data['env']
-        es = data['es']
-        epoch = data['epoch']
-        use_target_policy = variant['use_target_policy']
-
-        algorithm = DDPG(
-            env,
-            es,
-            qf=qf,
-            policy=policy,
-            num_epochs=30-epoch,
-            batch_size=1024,
-            use_target_policy=use_target_policy,
-            replay_buffer=replay_buffer,
-        )
+        # policy = data['policy']
+        # qf = data['qf']
+        # replay_buffer=data['replay_pool']
+        # env = data['env']
+        # es = data['es']
+        # epoch = data['epoch']
+        algorithm = data['algorithm']
+        # use_target_policy = variant['use_target_policy']
+        #
+        # algorithm = DDPG(
+        #     env,
+        #     es,
+        #     qf=qf,
+        #     policy=policy,
+        #     num_epochs=30-epoch,
+        #     batch_size=1024,
+        #     use_target_policy=use_target_policy,
+        #     replay_buffer=replay_buffer,
+        # )
         algorithm.train()
     else:
-        use_right_arm = variant['use_right_arm']
+        arm_name = variant['arm_name']
         experiment = variant['experiment']
         loss = variant['loss']
-        safety_end_effector_box = variant['safety_end_effector_box']
+        huber_delta= variant['huber_delta']
+        safety_box = variant['safety_box']
         remove_action = variant['remove_action']
-        magnitude = variant['magnitude']
+        safety_force_magnitude = variant['safety_force_magnitude']
         temp = variant['temp']
+        es_min_sigma = variant['es_min_sigma']
+        es_max_sigma = variant['es_max_sigma']
+        num_epochs = variant['num_epochs']
+        batch_size = variant['batch_size']
+        
         env = BaxterEnv(
             experiment=experiment,
-            use_right_arm=use_right_arm,
+            arm_name=arm_name,
             loss=loss,
-            safety_end_effector_box=safety_end_effector_box,
+            safety_box=safety_box,
             remove_action=remove_action,
-            magnitude=magnitude,
-            temp=temp
+            safety_force_magnitude=safety_force_magnitude,
+            temp=temp,
+            huber_delta=huber_delta,
         )
         es = OUStrategy(
-            max_sigma=1,
-            min_sigma=1,
+            max_sigma=es_max_sigma,
+            min_sigma=es_min_sigma,
             action_space=env.action_space,
         )
         qf = FeedForwardQFunction(
@@ -64,35 +72,45 @@ def example(variant):
             100,
             100,
         )
-        use_target_policy=variant['use_target_policy']
         algorithm = DDPG(
             env,
             qf,
             policy,
             es,
-            num_epochs=30,
-            batch_size=1024,
-            use_target_policy=use_target_policy,
+            num_epochs=num_epochs,
+            batch_size=batch_size,
         )
     algorithm.train()
 
-experiments=['joint_angle|fixed_angle', 'joint_angle|varying_angle', 'end_effector_position|fixed_ee', 'end_effector_position|varying_ee', 'end_effector_position_orientation|fixed_ee', 'end_effector_position_orientation|varying_ee']
+experiments=[
+    'joint_angle|fixed_angle', 
+    'joint_angle|varying_angle', 
+    'end_effector_position|fixed_ee', 
+    'end_effector_position|varying_ee', 
+    'end_effector_position_orientation|fixed_ee', 
+    'end_effector_position_orientation|varying_ee'
+]
+
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="7-16-ddpg-baxter-right-arm-fixed-angle-safety-huber-increased-exploration",
+        exp_prefix="7-19-ddpg-baxter-right-arm-fixed-angle-huber-safety-REFACTOR-TEST",
         seed=0,
         mode='here',
         variant={
                 'version': 'Original',
-                'use_target_policy': True,
-                'use_right_arm': True,
-                'safety_end_effector_box':True,
+                'arm_name':'right',
+                'safety_box':True,
                 'loss':'huber',
-                'magnitude':2,
+                'huber_delta':10,
+                'safety_force_magnitude':1,
                 'temp':1.05,
                 'remove_action':False,
                 'experiment':experiments[0],
+                'es_min_sigma':.05,
+                'es_max_sigma':.05,
+                'num_epochs':30,
+                'batch_size':1024,
                 },
         use_gpu=True,
     )

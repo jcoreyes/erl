@@ -1,7 +1,7 @@
 import rospy
 from rllab.core.serializable import Serializable
 from rllab.spaces.box import Box
-import baxter_interface as bi
+import intera_interface as ii
 import numpy as np
 from rllab.envs.base import Env
 from rllab.misc import logger
@@ -81,39 +81,26 @@ END_EFFECTOR_VALUE_HIGH = {
     'angle': END_EFFECTOR_ANGLE_HIGH,
 }
 
-right_lows = [
+box_lows = [
     0.3404830862298487,
     -1.2633121086809487,
     -0.5698485041484043
 ]
 
-right_highs = [
+box_highs = [
     1.1163239572333106,
     0.003933425621414761,
     0.795699462010194
 ]
 
-left_lows = [
-    0.3404830862298487,
-    -0.003933425621414761,
-    -0.5698485041484043
-]
-
-left_highs = [
-    1.1163239572333106,
-    1.2633121086809487,
-    0.795699462010194
-]
-
 joint_names = [
-    '_upper_shoulder',
-    '_lower_shoulder',
-    '_upper_elbow',
-    '_lower_elbow',
-    '_upper_forearm',
-    '_lower_forearm',
-    '_wrist',
-    '_gripper',
+    '_l1'
+    '_l2'
+    '_l3'
+    '_l4'
+    '_l5'
+    '_l6'
+    '_hand'
 ]
 
 experiments=[
@@ -135,7 +122,7 @@ def safe(raw_function):
     return safe_function
 
 
-class BaxterEnv(Env, Serializable):
+class SawyerEnv(Env, Serializable):
     def __init__(
             self,
             arm_name,
@@ -152,7 +139,7 @@ class BaxterEnv(Env, Serializable):
     ):
 
         Serializable.quick_init(self, locals())
-        rospy.init_node('baxter_env', anonymous=True)
+        rospy.init_node('sawyer_env', anonymous=True)
         self.rate = rospy.Rate(update_hz)
 
         #defaults:
@@ -195,7 +182,7 @@ class BaxterEnv(Env, Serializable):
         self.safety_force_magnitude = safety_force_magnitude
         self.temp = temp
 
-        self.arm = bi.Limb(self.arm_name)
+        self.arm = ii.Limb(self.arm_name)
         self.arm_joint_names = self.arm.joint_names()
 
 
@@ -242,25 +229,6 @@ class BaxterEnv(Env, Serializable):
 
             if self.fixed_angle:
                 self.desired = np.zeros(NUM_JOINTS)
-                #neutral position angles
-                q = {
-                    'left_w2': -0.008423861230665963,
-                    'left_e1': 0.7485673179130048,
-                    'left_w0': 0.0010680478081015465,
-                    'left_s1': -0.5413065631815099,
-                    'left_e0': 1.309886327405252e-06,
-                    'left_s0': 0.00024022051661010124,
-                    'left_w1': 1.2530310106476312
-                }
-                self.desired = [
-                    q['left' + '_s0'],
-                    q['left' + '_s1'],
-                    q['left' + '_e0'],
-                    q['left' + '_e1'],
-                    q['left' + '_w0'],
-                    q['left' + '_w1'],
-                    q['left' + '_w2']
-                ]
             else:
                 self._randomize_desired_angles()
 
@@ -474,14 +442,9 @@ class BaxterEnv(Env, Serializable):
         return joint_dict
 
     def is_in_box(self, endpoint_pose):
-        if self.arm_name == 'right':
-            within_box = [curr_pose > lower_pose and curr_pose < higher_pose
-                for curr_pose, lower_pose, higher_pose
-                in zip(endpoint_pose, right_lows, right_highs)]
-        else:
-            within_box = [curr_pose > lower_pose and curr_pose < higher_pose
-                for curr_pose, lower_pose, higher_pose
-                in zip(endpoint_pose, left_lows, left_highs)]
+        within_box = [curr_pose > lower_pose and curr_pose < higher_pose
+            for curr_pose, lower_pose, higher_pose
+            in zip(endpoint_pose, box_lows, box_highs)]
         return all(within_box)
 
     def get_adjustment_forces_per_joint_dict(self, joint_dict):
@@ -497,37 +460,20 @@ class BaxterEnv(Env, Serializable):
         curr_x = endpoint_pose[0]
         curr_y = endpoint_pose[1]
         curr_z = endpoint_pose[2]
-        if self.arm_name == 'right':
-            if curr_x > right_highs[0]:
-                x = -1 * np.exp(np.abs(curr_x - right_highs[0]) * self.temp) * self.safety_force_magnitude
-            elif curr_x < right_lows[0]:
-                x = np.exp(np.abs(curr_x - right_lows[0]) * self.temp) * self.safety_force_magnitude
+        if curr_x > box_highs[0]:
+            x = -1 * np.exp(np.abs(curr_x - box_highs[0]) * self.temp) * self.safety_force_magnitude
+        elif curr_x < box_lows[0]:
+            x = np.exp(np.abs(curr_x - box_lows[0]) * self.temp) * self.safety_force_magnitude
 
-            if curr_y > right_highs[1]:
-                y = -1 * np.exp(np.abs(curr_y - right_highs[1]) * self.temp) * self.safety_force_magnitude
-            elif curr_y < right_lows[1]:
-                y = np.exp(np.abs(curr_y - right_lows[1]) * self.temp) * self.safety_force_magnitude
+        if curr_y > box_highs[1]:
+            y = -1 * np.exp(np.abs(curr_y - box_highs[1]) * self.temp) * self.safety_force_magnitude
+        elif curr_y < box_lows[1]:
+            y = np.exp(np.abs(curr_y - box_lows[1]) * self.temp) * self.safety_force_magnitude
 
-            if curr_z > right_highs[2]:
-                z = -1 * np.exp(np.abs(curr_z - right_highs[2]) * self.temp) * self.safety_force_magnitude
-            elif curr_z < right_lows[2]:
-                z = np.exp(np.abs(curr_z - right_highs[2]) * self.temp) * self.safety_force_magnitude
-        else:
-            if curr_x > left_highs[0]:
-                x = -1 * np.exp(np.abs(curr_x - left_highs[0]) * self.temp) * self.safety_force_magnitude
-            elif curr_x < left_lows[0]:
-                x = np.exp(np.abs(curr_x - left_lows[0]) * self.temp) * self.safety_force_magnitude
-
-            if curr_y > left_highs[1]:
-                y = -1 * np.exp(np.abs(curr_y - left_highs[1]) * self.temp) * self.safety_force_magnitude
-            elif curr_y < left_lows[1]:
-                y = np.exp(np.abs(curr_y - left_lows[1]) * self.temp) * self.safety_force_magnitude
-
-            if curr_z > left_highs[2]:
-                z = -1 * np.exp(np.abs(curr_z - left_highs[2]) * self.temp) * self.safety_force_magnitude
-            elif curr_z < left_lows[2]:
-                z = np.exp(np.abs(curr_z - left_highs[2]) * self.temp) * self.safety_force_magnitude
-
+        if curr_z > box_highs[2]:
+            z = -1 * np.exp(np.abs(curr_z - box_highs[2]) * self.temp) * self.safety_force_magnitude
+        elif curr_z < box_lows[2]:
+            z = np.exp(np.abs(curr_z - box_highs[2]) * self.temp) * self.safety_force_magnitude
 
         return np.array([x, y, z])
 
@@ -539,36 +485,18 @@ class BaxterEnv(Env, Serializable):
             x, y, z = 0, 0, 0
         else:
             x, y, z = 0, 0, 0
-            if self.arm_name == 'right':
-                if curr_x > right_highs[0]:
-                    x = np.abs(curr_x - right_highs[0])
-                elif curr_x < right_lows[0]:
-                    x = np.abs(curr_x - right_lows[0])
-
-                if curr_y > right_highs[1]:
-                    y = np.abs(curr_y - right_highs[1])
-                elif curr_y < right_lows[1]:
-                    y = np.abs(curr_y - right_lows[1])
-
-                if curr_z > right_highs[2]:
-                    z = np.abs(curr_z - right_highs[2])
-                elif curr_z < right_lows[2]:
-                    z = np.abs(curr_z - right_lows[2])
-            else:
-                if curr_x > right_highs[0]:
-                    x = np.abs(curr_x - left_highs[0])
-                elif curr_x < left_lows[0]:
-                    x = np.abs(curr_x - left_lows[0])
-
-                if curr_y > left_highs[1]:
-                    y = np.abs(curr_y - left_highs[1])
-                elif curr_y < left_lows[1]:
-                    y = np.abs(curr_y - left_lows[1])
-
-                if curr_z > left_highs[2]:
-                    z = np.abs(curr_z - left_highs[2])
-                elif curr_z < left_lows[2]:
-                    z = np.abs(curr_z - left_lows[2])
+            if curr_x > box_highs[0]:
+                x = np.abs(curr_x - box_highs[0])
+            elif curr_x < box_lows[0]:
+                x = np.abs(curr_x - box_lows[0])
+            if curr_y > box_highs[1]:
+                y = np.abs(curr_y - box_highs[1])
+            elif curr_y < box_lows[1]:
+                y = np.abs(curr_y - box_lows[1])
+            if curr_z > box_highs[2]:
+                z = np.abs(curr_z - box_highs[2])
+            elif curr_z < box_lows[2]:
+                z = np.abs(curr_z - box_lows[2])
         return np.linalg.norm([x, y, z])
 
     @property
