@@ -39,12 +39,12 @@ import railrl.torch.pytorch_util as ptu
 if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
-    exp_prefix = "7-18-dev-bptt-ddpg-check"
+    exp_prefix = "7-19-dev-bptt-ddpg-check"
     run_mode = 'none'
 
-    # n_seeds = 5
+    # n_seeds = 1
     # mode = "ec2"
-    # exp_prefix = "7-14-bptt-ddpg-watermaze-memory-sweep-traj-with-loaded-dldm"
+    # exp_prefix = "7-19-bptt-ddpg-watermaze-memory-sweep-architecture"
 
     # run_mode = 'grid'
     num_configurations = 25
@@ -52,13 +52,11 @@ if __name__ == '__main__':
     if mode != "here":
         use_gpu = False
 
-    H = 32
-    subtraj_length = 32
+    H = 25
+    subtraj_length = 15
     num_steps_per_iteration = 100
     num_steps_per_eval = 1000
     num_iterations = 50
-    # batch_size = 200
-    # memory_dim = 100
     batch_size = 100
     memory_dim = 100
     version = "Our Method"
@@ -69,13 +67,12 @@ if __name__ == '__main__':
         # env_class=WaterMaze,
         # env_class=WaterMazeEasy,
         # env_class=WaterMazeMemory1D,
-        # env_class=WaterMazeMemory,
+        env_class=WaterMazeMemory,
         # env_class=WaterMazeHard,
-        env_class=HighLow,
+        # env_class=HighLow,
         env_params=dict(
             horizon=H,
-            give_time=False,
-            # give_time=True,
+            give_time=True,
             # action_l2norm_penalty=0,
         ),
         memory_aug_params=dict(
@@ -123,6 +120,7 @@ if __name__ == '__main__':
             cell_class=LSTMCell,
             output_activation=F.tanh,
             # output_activation=ptu.clip1,
+            only_one_fc_for_action=True,
         ),
         es_params=dict(
             env_es_class=OUStrategy,

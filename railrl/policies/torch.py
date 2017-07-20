@@ -97,6 +97,7 @@ class MemoryPolicy(PyTorchModule):
             hidden_init=ptu.fanin_init,
             feed_action_to_memory=False,
             output_activation=F.tanh,
+            only_one_fc_for_action=False,
     ):
         self.save_init_params(locals())
         super().__init__()
@@ -109,11 +110,14 @@ class MemoryPolicy(PyTorchModule):
         self.hidden_init = hidden_init
         self.feed_action_to_memory = feed_action_to_memory
         self.output_activation = output_activation
+        self.only_one_fc_for_action = only_one_fc_for_action
 
-        self.fc1 = nn.Linear(obs_dim + memory_dim, fc1_size)
-        self.fc2 = nn.Linear(fc1_size, fc2_size)
-        self.last_fc = nn.Linear(fc2_size, action_dim)
-        # self.last_fc = nn.Linear(obs_dim + memory_dim, action_dim)
+        if self.only_one_fc_for_action:
+            self.last_fc = nn.Linear(obs_dim + memory_dim, action_dim)
+        else:
+            self.fc1 = nn.Linear(obs_dim + memory_dim, fc1_size)
+            self.fc2 = nn.Linear(fc1_size, fc2_size)
+            self.last_fc = nn.Linear(fc2_size, action_dim)
         self.num_splits_for_rnn_internally = cell_class.state_num_split()
         assert memory_dim % self.num_splits_for_rnn_internally == 0
         if self.feed_action_to_memory:
@@ -127,16 +131,20 @@ class MemoryPolicy(PyTorchModule):
         self.init_weights(init_w)
 
     def init_weights(self, init_w):
-        self.hidden_init(self.fc1.weight)
-        self.fc1.bias.data.fill_(0)
-        self.hidden_init(self.fc2.weight)
-        self.fc2.bias.data.fill_(0)
+        if not self.only_one_fc_for_action:
+            self.hidden_init(self.fc1.weight)
+            self.fc1.bias.data.fill_(0)
+            self.hidden_init(self.fc2.weight)
+            self.fc2.bias.data.fill_(0)
         self.last_fc.weight.data.uniform_(-init_w, init_w)
         self.last_fc.bias.data.uniform_(-init_w, init_w)
 
     def action_parameters(self):
-        # return self.last_fc.parameters()
-        for fc in [self.fc1, self.fc2, self.last_fc]:
+        if self.only_one_fc_for_action:
+            layers = [self.last_fc]
+        else:
+            layers = [self.fc1, self.fc2, self.last_fc]
+        for fc in layers:
             for param in fc.parameters():
                 yield param
 
@@ -144,10 +152,12 @@ class MemoryPolicy(PyTorchModule):
         return self.rnn_cell.parameters()
 
     def forward_action(self, input_to_action):
-        h1 = F.tanh(self.fc1(input_to_action))
-        h2 = F.tanh(self.fc2(h1))
-        return self.output_activation(self.last_fc(h2))
-        # return self.output_activation(self.last_fc(augmented_state))
+        if self.only_one_fc_for_action:
+            return self.output_activation(self.last_fc(input_to_action))
+        else:
+            h1 = F.tanh(self.fc1(input_to_action))
+            h2 = F.tanh(self.fc2(h1))
+            return self.output_activation(self.last_fc(h2))
 
     def forward(self, obs, initial_memory):
         """
