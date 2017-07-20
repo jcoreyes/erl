@@ -14,10 +14,14 @@ from railrl.pythonplusplus import nested_dict_to_dot_map_dict
 Trial = namedtuple("Trial", ["data", "variant"])
 
 
-def matches_dict(criteria_dict, test_dict):
+def matches_dict(criteria_dict, test_dict, ignore_missing_keys=False):
     for k, v in criteria_dict.items():
-        if test_dict[k] != v:
-            return False
+        if k not in test_dict:
+            if not ignore_missing_keys:
+                raise KeyError("Key '{}' not in dictionary".format(k))
+        else:
+            if test_dict[k] != v:
+                return False
     return True
 
 
@@ -29,11 +33,11 @@ class Experiment(object):
         assert len(self.trials) > 0, "Nothing loaded."
         self.label = 'AverageReturn'
 
-    def get_trials(self, criteria=None):
+    def get_trials(self, criteria=None, ignore_missing_keys=False):
         if criteria is None:
             criteria = {}
         return [trial for trial in self.trials
-                if matches_dict(criteria, trial.variant)]
+                if matches_dict(criteria, trial.variant, ignore_missing_keys)]
 
 
 def create_stats_ordered_dict(name, data, stat_prefix=None):
