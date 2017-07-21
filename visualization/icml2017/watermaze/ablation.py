@@ -17,21 +17,24 @@ import seaborn
 
 def main():
     # matplotlib.rcParams.update({'font.size': 39})
-    base_dir = "/home/vitchyr/git/rllab-rail/railrl/data/papers/icml2017/watermaze/ablation"
+    # base_dir = "/home/vitchyr/git/rllab-rail/railrl/data/papers/icml2017/watermaze/ablation"
+    base_dir = "/home/vitchyr/git/rllab-rail/railrl/data/papers/icml2017/watermaze/ablation2"
     experiment = Experiment(base_dir)
 
     version_to_list_of_final_scores = OrderedDict()
-    subtraj_lengths = [1, 5, 10, 15, 20, 25]
+    # subtraj_lengths = [1, 5, 10, 15, 20, 25]
+    subtraj_lengths = [1, 10, 20, 25]
     for do_not_load_memories, ignore_memories, name in [
-        [True, True, 'No Memory State (Truncated BPTT)'],
+        [False, False, 'Our Method'],
         [True, False, 'No Memory State Loaded'],
         [False, True, 'No Memory State for Critic'],
-        [False, False, 'Our Method'],
+        [True, True, 'No Memory State (Truncated BPTT)'],
     ]:
         version_to_list_of_final_scores[name] = []
         for subtraj_length in subtraj_lengths:
             trials = experiment.get_trials({
-                'algo_params.do_not_load_memories': do_not_load_memories,
+                'algo_params.do_not_load_initial_memories':
+                    do_not_load_memories,
                 'qf_params.ignore_memory': ignore_memories,
                 'algo_params.subtraj_length': subtraj_length,
             })
