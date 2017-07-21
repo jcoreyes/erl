@@ -3,32 +3,15 @@ from railrl.policies.torch import FeedForwardPolicy
 from railrl.qfunctions.torch import FeedForwardQFunction
 from railrl.torch.ddpg import DDPG
 from os.path import exists
-from railrl.envs.ros.sawyer_env_updated import SawyerEnv
+from railrl.envs.ros.baxter_env import BaxterEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 import joblib
 
 def example(variant):
-    #TODO: Fix the loading code to actually work!
     load_policy_file = variant.get('load_policy_file', None)
-    if load_policy_file is not None and exists(load_policy_file):
+    if not load_policy_file == None and exists(load_policy_file):
         data = joblib.load(load_policy_file)
-        # policy = data['policy']
-        # qf = data['qf']
-        # replay_buffer = data['replay_pool']
-        # env = data['env']
-        # es = data['es']
-        # epoch = data['epoch']
         algorithm = data['algorithm']
-        # batch_size = variant['batch_size']
-        # algorithm = DDPG(
-        #     env,
-        #     qf,
-        #     policy,
-        #     es,
-        #     num_epochs=30-epoch,
-        #     batch_size=batch_size,
-        #     replay_buffer=replay_buffer,
-        # )
         algorithm.policy.cuda()
         algorithm.target_policy.cuda()
         algorithm.qf.cuda()
@@ -38,7 +21,7 @@ def example(variant):
         arm_name = variant['arm_name']
         experiment = variant['experiment']
         loss = variant['loss']
-        huber_delta = variant['huber_delta']
+        huber_delta= variant['huber_delta']
         safety_box = variant['safety_box']
         remove_action = variant['remove_action']
         safety_force_magnitude = variant['safety_force_magnitude']
@@ -47,8 +30,8 @@ def example(variant):
         es_max_sigma = variant['es_max_sigma']
         num_epochs = variant['num_epochs']
         batch_size = variant['batch_size']
-
-        env = SawyerEnv(
+        
+        env = BaxterEnv(
             experiment=experiment,
             arm_name=arm_name,
             loss=loss,
@@ -86,34 +69,35 @@ def example(variant):
     algorithm.train()
 
 experiments=[
-    'joint_angle|fixed_angle',
-    'joint_angle|varying_angle',
-    'end_effector_position|fixed_ee',
-    'end_effector_position|varying_ee',
-    'end_effector_position_orientation|fixed_ee',
+    'joint_angle|fixed_angle', 
+    'joint_angle|varying_angle', 
+    'end_effector_position|fixed_ee', 
+    'end_effector_position|varying_ee', 
+    'end_effector_position_orientation|fixed_ee', 
     'end_effector_position_orientation|varying_ee'
 ]
+
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="7-20-ddpg-sawyer-fixed-angle-huber-move-to-neutral",
+        exp_prefix="7-21-ddpg-baxter-left-arm-rollout-TEST",
         seed=0,
         mode='here',
         variant={
-            'version': 'Original',
-            'arm_name': 'right',
-            'safety_box': True,
-            'loss': 'huber',
-            'huber_delta': 10,
-            'safety_force_magnitude': 2,
-            'temp': 1.05,
-            'remove_action': False,
-            'experiment': experiments[0],
-            'es_min_sigma': .1,
-            'es_max_sigma': .1,
-            'num_epochs': 30,
-            'batch_size': 1024,
-            'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-20-ddpg-sawyer-fixed-angle-huber-move-to-neutral/7-20-ddpg-sawyer-fixed-angle-huber-move-to-neutral_2017_07_20_21_45_58_0000--s-0/params.pkl'
-        },
+                'version': 'Original',
+                'arm_name':'left',
+                'safety_box':False,
+                'loss':'huber',
+                'huber_delta':10,
+                'safety_force_magnitude':1,
+                'temp':1.2,
+                'remove_action':False,
+                'experiment':experiments[0],
+                'es_min_sigma':.05,
+                'es_max_sigma':.05,
+                'num_epochs':30,
+                'batch_size':1024,
+                # 'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-21-ddpg-baxter-right-arm-fixed-angle-huber-safety-TEST/7-21-ddpg-baxter-right-arm-fixed-angle-huber-safety-TEST_2017_07_21_11_04_56_0000--s-0/params.pkl',
+                },
         use_gpu=True,
     )

@@ -11,28 +11,11 @@ def example(variant):
     load_policy_file = variant.get('load_policy_file', None)
     if not load_policy_file == None and exists(load_policy_file):
         data = joblib.load(load_policy_file)
-        # policy = data['policy']
-        # qf = data['qf']
-        # replay_buffer=data['replay_pool']
-        # env = data['env']
-        # es = data['es']
-        # epoch = data['epoch']
-        # num_epochs = variant['num_epochs']
-        # batch_size = variant['batch_size']
         algorithm = data['algorithm']
-        # algorithm.policy.cuda()
-        # algorithm.target_policy.cuda()
-        # algorithm.qf.cuda()
-        # algorithm.target_qf.cuda()
-        # algorithm = DDPG(
-        #     env,
-        #     qf,
-        #     policy,
-        #     es,
-        #     num_epochs=num_epochs-1-epoch,
-        #     batch_size=batch_size,
-        #     replay_buffer=replay_buffer
-        # )
+        algorithm.policy.cuda()
+        algorithm.target_policy.cuda()
+        algorithm.qf.cuda()
+        algorithm.target_qf.cuda()
         algorithm.train()
     else:
         arm_name = variant['arm_name']
@@ -97,16 +80,16 @@ experiments=[
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="7-21-ddpg-baxter-right-arm-fixed-angle-huber-safety-TEST",
+        exp_prefix="7-21-ddpg-baxter-right-arm-rollout-test",
         seed=0,
         mode='here',
         variant={
                 'version': 'Original',
                 'arm_name':'right',
-                'safety_box':True,
+                'safety_box':False,
                 'loss':'huber',
                 'huber_delta':10,
-                'safety_force_magnitude':2,
+                'safety_force_magnitude':1,
                 'temp':1.2,
                 'remove_action':False,
                 'experiment':experiments[0],
@@ -114,7 +97,7 @@ if __name__ == "__main__":
                 'es_max_sigma':.05,
                 'num_epochs':30,
                 'batch_size':1024,
-                'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-21-ddpg-baxter-right-arm-fixed-angle-huber-safety-TEST/7-21-ddpg-baxter-right-arm-fixed-angle-huber-safety-TEST_2017_07_21_11_04_56_0000--s-0/params.pkl',
+                # 'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-21-ddpg-baxter-right-arm-fixed-angle-huber-safety-TEST/7-21-ddpg-baxter-right-arm-fixed-angle-huber-safety-TEST_2017_07_21_11_04_56_0000--s-0/params.pkl',
                 },
         use_gpu=True,
     )

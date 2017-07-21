@@ -240,20 +240,7 @@ class BaxterEnv(Env, Serializable):
 
             if self.fixed_angle:
                 self.desired = np.zeros(NUM_JOINTS)
-                #neutral position angles
-                angles = {'right_e0': 0.0058401174525100075, 'right_w2': 0.008498705484235813, 'right_e1': 0.7551984762444244,
-                 'right_s0': -0.003207413265627679, 'right_s1': -0.552783958582717, 'right_w0': 0.008642540932560117,
-                 'right_w1': 1.2548222931846027}
-
-                self.desired = [
-                    q['right' + '_s0'],
-                    q['right' + '_s1'],
-                    q['right' + '_e0'],
-                    q['right' + '_e1'],
-                    q['right' + '_w0'],
-                    q['right' + '_w1'],
-                    q['right' + '_w2']
-                ]
+                angles = [0.0, -0.55, 0.0, 0.75, 0.0, 1.26, 0.0]
             else:
                 self._randomize_desired_angles()
 
@@ -341,9 +328,14 @@ class BaxterEnv(Env, Serializable):
 
     def _joint_angles(self):
         joint_to_angles = self.arm.joint_angles()
-        return np.array([
+        angles =  np.array([
             joint_to_angles[joint] for joint in self.arm_joint_names
         ])
+        angles = self._wrap_angles(angles)
+        return angles
+
+    def _wrap_angles(self, angles):
+        return angles % (2*np.pi)
 
     def _end_effector_pose(self):
         state_dict = self.arm.endpoint_pose()
@@ -366,17 +358,26 @@ class BaxterEnv(Env, Serializable):
                 pos.z
             ])
 
-    def _MSE_reward(self, current, desired):
-        reward = -np.mean((current-desired)**2)
+    def _MSE_reward(self, differences):
+        reward = -np.mean(differences**2)
         return reward
 
-    def _Huber_reward(self, current, desired):
-        a = np.mean(np.abs(current - desired))
+    def _Huber_reward(self, differences):
+        a = np.mean(differences)
         if a <= self.huber_delta:
             reward = -1 / 2 * a ** 2
         else:
             reward = -1 * self.huber_delta * (a - 1 / 2 * self.huber_delta)
         return reward
+
+    def compute_angle_difference(self, angles1, angles2):
+        """
+          :param angle1: A wrapped angle
+          :param angle2: A wrapped angle
+          """
+        deltas = np.abs(angles1 - angles2)
+        differences = np.array([min(2*np.pi-delta, delta) for delta in deltas])
+        return differences
 
     def step(self, action):
         """
@@ -386,10 +387,12 @@ class BaxterEnv(Env, Serializable):
         observation = self._get_observation()
         if self.joint_angle_experiment:
             current = self._joint_angles()
+            differences = self.compute_angle_difference(current, self.desired)
         elif self.end_effector_experiment_position or self.end_effector_experiment_total:
             current = self._end_effector_pose()
+            differences = np.abs(current - self.desired)
         reward_function = self.reward_function
-        reward = reward_function(current, self.desired)
+        reward = reward_function(differences)
         done = False
         info = {}
         return observation, reward, done, info
@@ -653,7 +656,8 @@ class BaxterEnv(Env, Serializable):
             angles = np.array(angles)
             desired_angles = np.array(desired_angles)
 
-            angle_distances = linalg.norm(angles - desired_angles, axis=1)
+            differences = np.array([self.compute_angle_difference(angle_obs, desired_angle_obs) for angle_obs, desired_angle_obs in zip(angles, desired_angles)])
+            angle_distances = linalg.norm(differences, axis=1)
             mean_distances_outside_box = np.array([self.compute_mean_distance_outside_box(pose) for pose in positions])
             return [angle_distances, mean_distances_outside_box]
 
