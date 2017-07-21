@@ -41,10 +41,12 @@ if __name__ == '__main__':
     mode = "here"
     exp_prefix = "7-19-dev-bptt-ddpg-check"
     run_mode = 'none'
+    version = "Our Method"
 
-    # n_seeds = 1
-    # mode = "ec2"
-    # exp_prefix = "7-19-bptt-ddpg-watermaze-memory-sweep-architecture"
+    n_seeds = 1
+    mode = "ec2"
+    exp_prefix = "7-20-timeit-c4xlarge-correct-price"
+    version = "Our Method - c4.xlarge-correct-price"
 
     # run_mode = 'grid'
     num_configurations = 25
@@ -53,13 +55,12 @@ if __name__ == '__main__':
         use_gpu = False
 
     H = 25
-    subtraj_length = 15
+    subtraj_length = 5
     num_steps_per_iteration = 100
     num_steps_per_eval = 1000
-    num_iterations = 50
+    num_iterations = 100
     batch_size = 100
     memory_dim = 100
-    version = "Our Method"
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -114,10 +115,10 @@ if __name__ == '__main__':
         policy_params=dict(
             fc1_size=400,
             fc2_size=300,
-            # cell_class=GRUCell,
+            cell_class=GRUCell,
             # cell_class=RWACell,
             # cell_class=BNLSTMCell,
-            cell_class=LSTMCell,
+            # cell_class=LSTMCell,
             output_activation=F.tanh,
             # output_activation=ptu.clip1,
             only_one_fc_for_action=True,
@@ -132,44 +133,51 @@ if __name__ == '__main__':
             memory_es_class=OUStrategy,
             memory_es_params=dict(
                 max_sigma=1,
-                # min_sigma=None,
+                min_sigma=None,
             ),
         ),
         version=version,
     )
     if run_mode == 'grid':
-        search_space = {
-            # 'algo_params.qf_learning_rate': [1e-3, 1e-5],
-            # 'algo_params.action_policy_learning_rate': [1e-3, 1e-5],
-            # 'algo_params.write_policy_learning_rate': [1e-5, 1e-7],
-            # 'algo_params.do_not_load_initial_memories': [True, False],
-            # 'algo_params.write_policy_optimizes': ['qf', 'bellman', 'both'],
-            # 'algo_params.refresh_entire_buffer_period': [None, 1],
-            # 'es_params.memory_es_params.max_sigma': [0, 1],
-            # 'qf_params.ignore_memory': [True, False],
-            # 'policy_params.hidden_init': [init.kaiming_normal, ptu.fanin_init],
-            # 'policy_params.feed_action_to_memory': [False, True],
-            # 'policy_params.cell_class': [LSTMCell, BNLSTMCell, RWACell],
-            'algo_params.subtraj_length': [1, 5, 10, 15, 20, 25],
-            # 'algo_params.bellman_error_loss_weight': [0.1, 1, 10, 100, 1000],
-            # 'algo_params.tau': [1, 0.1, 0.01, 0.001],
-            # 'env_params.give_time': [True, False],
-            # 'algo_params.discount': [1, .9, .5, 0],
-            # 'env_params.action_l2norm_penalty': [0, 1e-3, 1e-2, 1e-1, 1, 10],
-        }
-        sweeper = hyp.DeterministicHyperparameterSweeper(
-            search_space, default_parameters=variant,
-        )
-        for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-            for i in range(n_seeds):
-                run_experiment(
-                    bptt_ddpg_launcher,
-                    exp_prefix=exp_prefix,
-                    seed=i,
-                    mode=mode,
-                    variant=variant,
-                    exp_id=exp_id,
-                )
+        for fc1, fc2 in [
+            (32, 32),
+            (400, 300),
+        ]:
+            search_space = {
+                # 'algo_params.qf_learning_rate': [1e-3, 1e-5],
+                # 'algo_params.action_policy_learning_rate': [1e-3, 1e-5],
+                # 'algo_params.write_policy_learning_rate': [1e-5, 1e-7],
+                # 'algo_params.do_not_load_initial_memories': [True, False],
+                'algo_params.write_policy_optimizes': ['bellman', 'both'],
+                # 'algo_params.refresh_entire_buffer_period': [None, 1],
+                # 'es_params.memory_es_params.max_sigma': [0, 1],
+                # 'qf_params.ignore_memory': [True, False],
+                # 'policy_params.hidden_init': [init.kaiming_normal, ptu.fanin_init],
+                'policy_params.output_activation': [F.tanh, ptu.clip1],
+                'policy_params.cell_class': [LSTMCell, BNLSTMCell, GRUCell],
+                'policy_params.only_one_fc_for_action': [True, False],
+                # 'algo_params.subtraj_length': [1, 5, 10, 15, 20, 25],
+                # 'algo_params.bellman_error_loss_weight': [0.1, 1, 10, 100, 1000],
+                # 'algo_params.tau': [1, 0.1, 0.01, 0.001],
+                # 'env_params.give_time': [True, False],
+                # 'algo_params.discount': [1, .9, .5, 0],
+                # 'env_params.action_l2norm_penalty': [0, 1e-3, 1e-2, 1e-1, 1, 10],
+            }
+            variant['policy_params']['fc1_size'] = fc1
+            variant['policy_params']['fc2_size'] = fc2
+            sweeper = hyp.DeterministicHyperparameterSweeper(
+                search_space, default_parameters=variant,
+            )
+            for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+                for i in range(n_seeds):
+                    run_experiment(
+                        bptt_ddpg_launcher,
+                        exp_prefix=exp_prefix,
+                        seed=i,
+                        mode=mode,
+                        variant=variant,
+                        exp_id=exp_id,
+                    )
     if run_mode == 'custom_grid':
         for exp_id, (
             action_policy_optimize_bellman,
