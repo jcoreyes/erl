@@ -106,9 +106,9 @@ left_highs = [
 ]
 
 joint_names = [
-    '_upper_shoulder',
-    '_lower_shoulder',
-    '_upper_elbow',
+    # '_upper_shoulder',
+    # '_lower_shoulder',
+    # '_upper_elbow',
     '_lower_elbow',
     '_upper_forearm',
     '_lower_forearm',
@@ -243,23 +243,18 @@ class BaxterEnv(Env, Serializable):
             if self.fixed_angle:
                 self.desired = np.zeros(NUM_JOINTS)
                 #neutral position angles
-                q = {
-                    'left_w2': -0.008423861230665963,
-                    'left_e1': 0.7485673179130048,
-                    'left_w0': 0.0010680478081015465,
-                    'left_s1': -0.5413065631815099,
-                    'left_e0': 1.309886327405252e-06,
-                    'left_s0': 0.00024022051661010124,
-                    'left_w1': 1.2530310106476312
-                }
+                angles = {'right_e0': 0.0058401174525100075, 'right_w2': 0.008498705484235813, 'right_e1': 0.7551984762444244,
+                 'right_s0': -0.003207413265627679, 'right_s1': -0.552783958582717, 'right_w0': 0.008642540932560117,
+                 'right_w1': 1.2548222931846027}
+
                 self.desired = [
-                    q['left' + '_s0'],
-                    q['left' + '_s1'],
-                    q['left' + '_e0'],
-                    q['left' + '_e1'],
-                    q['left' + '_w0'],
-                    q['left' + '_w1'],
-                    q['left' + '_w2']
+                    q['right' + '_s0'],
+                    q['right' + '_s1'],
+                    q['right' + '_e0'],
+                    q['right' + '_e1'],
+                    q['right' + '_w0'],
+                    q['right' + '_w1'],
+                    q['right' + '_w2']
                 ]
             else:
                 self._randomize_desired_angles()
