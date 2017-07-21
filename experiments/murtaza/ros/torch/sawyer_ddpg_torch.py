@@ -12,23 +12,27 @@ def example(variant):
     load_policy_file = variant.get('load_policy_file', None)
     if load_policy_file is not None and exists(load_policy_file):
         data = joblib.load(load_policy_file)
-        policy = data['policy']
-        qf = data['qf']
-        replay_buffer = data['replay_pool']
-        env = data['env']
-        es = data['es']
-        epoch = data['epoch']
-        # algorithm = data['algorithm']
-        batch_size = variant['batch_size']
-        algorithm = DDPG(
-            env,
-            qf,
-            policy,
-            es,
-            num_epochs=30-epoch,
-            batch_size=batch_size,
-            replay_buffer=replay_buffer,
-        )
+        # policy = data['policy']
+        # qf = data['qf']
+        # replay_buffer = data['replay_pool']
+        # env = data['env']
+        # es = data['es']
+        # epoch = data['epoch']
+        algorithm = data['algorithm']
+        # batch_size = variant['batch_size']
+        # algorithm = DDPG(
+        #     env,
+        #     qf,
+        #     policy,
+        #     es,
+        #     num_epochs=30-epoch,
+        #     batch_size=batch_size,
+        #     replay_buffer=replay_buffer,
+        # )
+        algorithm.policy.cuda()
+        algorithm.target_policy.cuda()
+        algorithm.qf.cuda()
+        algorithm.target_qf.cuda()
         algorithm.train()
     else:
         arm_name = variant['arm_name']
@@ -105,11 +109,11 @@ if __name__ == "__main__":
             'temp': 1.05,
             'remove_action': False,
             'experiment': experiments[0],
-            'es_min_sigma': 1,
-            'es_max_sigma': 1,
+            'es_min_sigma': .1,
+            'es_max_sigma': .1,
             'num_epochs': 30,
             'batch_size': 1024,
-            'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-20-ddpg-sawyer-fixed-angle-huber-move-to-neutral/7-20-ddpg-sawyer-fixed-angle-huber-move-to-neutral_2017_07_20_12_25_05_0000--s-0/params.pkl'
+            'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-20-ddpg-sawyer-fixed-angle-huber-move-to-neutral/7-20-ddpg-sawyer-fixed-angle-huber-move-to-neutral_2017_07_20_21_45_58_0000--s-0/params.pkl'
         },
         use_gpu=True,
     )
