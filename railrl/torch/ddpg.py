@@ -255,6 +255,7 @@ class DDPG(OnlineAlgorithm):
             qf=self.qf,
             replay_pool=self.pool,
             algorithm=self,
+            batch_size=self.batch_size,
         )
 
 
