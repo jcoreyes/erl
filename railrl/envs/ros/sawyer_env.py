@@ -304,7 +304,6 @@ class SawyerEnv(Env, Serializable):
                 action = torques
             else:
                 action = action + torques
-            # ipdb.set_trace()
 
         # np.clip(action, -.5, .5, out=action)
         joint_to_values = dict(zip(self.arm_joint_names, action))

@@ -41,8 +41,8 @@ JOINT_ANGLES_LOW = np.array([
 JOINT_VEL_HIGH = 2*np.ones(7)
 JOINT_VEL_LOW = -2*np.ones(7)
 
-JOINT_TORQUE_HIGH = 10*np.ones(7)
-JOINT_TORQUE_LOW = -10*np.ones(7)
+JOINT_TORQUE_HIGH = 1*np.ones(7)
+JOINT_TORQUE_LOW = -1*np.ones(7)
 
 JOINT_VALUE_HIGH = {
     'position': JOINT_ANGLES_HIGH,
@@ -82,24 +82,25 @@ END_EFFECTOR_VALUE_HIGH = {
 }
 
 box_lows = [
-    0.3404830862298487,
-    -1.2633121086809487,
-    -0.5698485041484043
+    0.1628008448954529,
+    -0.33786487626917794,
+    0.20084391863426093,
 ]
 
 box_highs = [
-    1.1163239572333106,
-    0.003933425621414761,
-    0.795699462010194
+    0.7175958839273338,
+    0.3464466563902636,
+    0.7659791453416877,
 ]
 
 joint_names = [
-    '_l1'
-    '_l2'
-    '_l3'
-    '_l4'
-    '_l5'
-    '_l6'
+    # '_l0',
+    # '_l1',
+    '_l2',
+    '_l3',
+    '_l4',
+    '_l5',
+    '_l6',
     '_hand'
 ]
 
@@ -229,6 +230,9 @@ class SawyerEnv(Env, Serializable):
 
             if self.fixed_angle:
                 self.desired = np.zeros(NUM_JOINTS)
+                angles = {'right_j6': 3.312470703125, 'right_j5': 0.5715908203125, 'right_j4': 0.001154296875, 'right_j3': 2.1776962890625, 'right_j2': -0.0021767578125, 'right_j1': -1.1781728515625, 'right_j0': 0.00207421875}
+                angles = np.array([angles['right_j0'], angles['right_j1'], angles['right_j2'], angles['right_j3'], angles['right_j4'], angles['right_j5'], angles['right_j6']])
+            
             else:
                 self._randomize_desired_angles()
 
@@ -310,6 +314,7 @@ class SawyerEnv(Env, Serializable):
                 else:
                     action = action + torques
 
+        np.clip(action, -1, 1, out=action)
         joint_to_values = dict(zip(self.arm_joint_names, action))
         self._set_joint_values(joint_to_values)
         self.rate.sleep()
@@ -438,7 +443,6 @@ class SawyerEnv(Env, Serializable):
 
         for key in keys_to_remove:
             joint_dict.pop(key)
-
         return joint_dict
 
     def is_in_box(self, endpoint_pose):

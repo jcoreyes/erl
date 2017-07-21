@@ -254,6 +254,7 @@ class DDPG(OnlineAlgorithm):
             es=self.exploration_strategy,
             qf=self.qf,
             replay_pool=self.pool,
+            algorithm=self,
         )
 
 
