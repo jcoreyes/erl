@@ -79,6 +79,18 @@ class DDPG(OnlineAlgorithm):
             self.qf.cuda()
             self.target_qf.cuda()
 
+    # def __getstate__(self):
+    #     d = super().__getstate__(self)
+    #     return d
+
+    def __setstate__(self, d):
+        super().__setstate__(self, d)
+        if ptu.gpu_enabled():
+            self.policy.cuda()
+            self.target_policy.cuda()
+            self.qf.cuda()
+            self.target_qf.cuda()
+
     def _do_training(self, n_steps_total):
         batch = self.get_batch()
         train_dict = self.get_train_dict(batch)

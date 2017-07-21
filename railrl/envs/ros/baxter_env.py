@@ -162,7 +162,6 @@ class BaxterEnv(Env, Serializable):
         self.end_effector_experiment_total = False
         self.fixed_end_effector = False
         self.safety_box = False
-        self.safety_end_effector_box = False
 
 
         if experiment == experiments[0]:
@@ -181,7 +180,6 @@ class BaxterEnv(Env, Serializable):
             self.end_effector_experiment_total = True
             self.fixed_end_effector=False
 
-        self.safety_end_effector_box = safety_end_effector_box
         self.safety_box = safety_box
         self.remove_action = remove_action
         self.arm_name = arm_name
@@ -388,7 +386,7 @@ class BaxterEnv(Env, Serializable):
         observation = self._get_observation()
         if self.joint_angle_experiment:
             current = self._joint_angles()
-        if self.end_effector_experiment_position or self.end_effector_experiment_total:
+        elif self.end_effector_experiment_position or self.end_effector_experiment_total:
             current = self._end_effector_pose()
         reward_function = self.reward_function
         reward = reward_function(current, self.desired)
@@ -397,7 +395,6 @@ class BaxterEnv(Env, Serializable):
         return observation, reward, done, info
 
     def _get_observation(self):
-        # joint_values_dict = self._get_joint_to_value_dict()
         positions_dict = self._get_joint_to_value_func_list[0]()
         velocities_dict = self._get_joint_to_value_func_list[1]()
         torques_dict = self._get_joint_to_value_func_list[2]()
@@ -606,12 +603,12 @@ class BaxterEnv(Env, Serializable):
                 'Distance from Desired End Effector Position'
             ))
 
-            if self.safety_end_effector_box:
+            if self.safety_box:
                 distances_outside_box = np.array([self.compute_mean_distance_outside_box(pose) for pose in positions])
                 statistics.update(self._statistics_from_observations(
                     distances_outside_box,
                     stat_prefix,
-                    'Distance Outside Box'
+                    'End Effector Distance Outside Box'
                 ))
 
             if self.end_effector_experiment_total:
@@ -623,7 +620,7 @@ class BaxterEnv(Env, Serializable):
                 ))
 
         if self.joint_angle_experiment:
-            angle_distances, positions = self._get_angle_obs(paths)
+            angle_distances, mean_distances_outside_box = self._joint_angle_exp_info(paths)
             distances_from_desired_angle = angle_distances
             statistics.update(self._statistics_from_observations(
                 distances_from_desired_angle,
@@ -631,19 +628,17 @@ class BaxterEnv(Env, Serializable):
                 'Distance from Desired Joint Angle'
             ))
 
-            if self.safety_end_effector_box:
-                distances_outside_box = np.array([self.compute_mean_distance_outside_box(pose) for pose in positions])
+            if self.safety_box:
                 statistics.update(self._statistics_from_observations(
-                    distances_outside_box,
+                    mean_distances_outside_box,
                     stat_prefix,
-                    'Distance Outside Box'
+                    'End Effector Distance Outside Box'
                 ))
 
         for key, value in statistics.items():
             logger.record_tabular(key, value)
 
-
-    def _get_angle_obs(self, paths):
+    def _joint_angle_exp_info(self, paths):
         obsSets = [path["observations"] for path in paths]
         if self.joint_angle_experiment:
             angles = []
@@ -659,9 +654,8 @@ class BaxterEnv(Env, Serializable):
             desired_angles = np.array(desired_angles)
 
             angle_distances = linalg.norm(angles - desired_angles, axis=1)
-            positions = np.array([self.compute_mean_distance_outside_box(pose) for pose in positions])
-            return [angle_distances, positions]
-
+            mean_distances_outside_box = np.array([self.compute_mean_distance_outside_box(pose) for pose in positions])
+            return [angle_distances, mean_distances_outside_box]
 
     def _statistics_from_observations(self, observation, stat_prefix, log_title):
         statistics = OrderedDict()
