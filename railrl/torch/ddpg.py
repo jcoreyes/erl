@@ -259,7 +259,7 @@ class DDPG(OnlineAlgorithm):
             env=self.training_env,
             es=self.exploration_strategy,
             qf=self.qf,
-            replay_replay_buffer=self.replay_buffer,
+            replay_buffer=self.replay_buffer,
             algorithm=self,
             batch_size=self.batch_size,
         )

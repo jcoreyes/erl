@@ -57,7 +57,7 @@ def example(variant):
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="7-24-reacher-algorithm-restart-test",
+        exp_prefix="7-24-ddpg-reacher-algorithm-restart-test",
         seed=0,
         mode='here',
         variant={
@@ -67,7 +67,7 @@ if __name__ == "__main__":
             'num_epochs': 50,
             'batch_size': 1024,
             'use_gpu': True,
-            # 'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-21-ddpg-baxter-right-arm-fixed-angle-huber-safety-TEST/7-21-ddpg-baxter-right-arm-fixed-angle-huber-safety-TEST_2017_07_21_11_04_56_0000--s-0/params.pkl',
+            'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-24-reacher-algorithm-restart-test/7-24-reacher-algorithm-restart-test_2017_07_24_12_20_54_0000--s-0/params.pkl'
         },
         use_gpu=True,
     )
