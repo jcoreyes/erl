@@ -22,11 +22,14 @@ class StateDistanceQLearning(DDPG):
             pool=None,
             num_batches=100,
             num_batches_per_epoch=100,
+            sample_goals_from='environment',
             **kwargs
     ):
         super().__init__(*args, exploration_strategy=None, **kwargs)
         self.num_batches = num_batches
         self.num_batches_per_epoch = num_batches_per_epoch
+        assert sample_goals_from in ['environment', 'replay_buffer']
+        self.sample_goals_from = sample_goals_from
         self.pool = pool
 
     def train(self):
@@ -51,7 +54,7 @@ class StateDistanceQLearning(DDPG):
             self.batch_size
         )
         batch = pool.random_batch(batch_size)
-        goal_states = self.env.sample_goal_states(batch_size)
+        goal_states = self.sample_goal_states(batch_size)
         new_rewards = self.env.compute_rewards(
             batch['observations'],
             batch['actions'],
@@ -66,6 +69,14 @@ class StateDistanceQLearning(DDPG):
         torch_batch = np_to_pytorch_batch(batch)
         return torch_batch
 
+    def sample_goal_states(self, batch_size):
+        if self.sample_goals_from == 'environment':
+            return self.env.sample_goal_states(batch_size)
+        elif self.sample_goals_from == 'replay_buffer':
+            pool = self.pool.get_replay_buffer(training=True)
+            batch = pool.random_batch(batch_size)
+            return batch['observations']
+
     def reset_env(self):
         self.exploration_strategy.reset()
         self.exploration_policy.reset()
@@ -75,7 +86,7 @@ class StateDistanceQLearning(DDPG):
     def _paths_to_np_batch(self, paths):
         batch = super()._paths_to_np_batch(paths)
         batch_size = len(batch['observations'])
-        goal_states = self.env.sample_goal_states(batch_size)
+        goal_states = self.sample_goal_states(batch_size)
         new_rewards = self.env.compute_rewards(
             batch['observations'],
             batch['actions'],
