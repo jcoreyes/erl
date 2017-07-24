@@ -79,13 +79,13 @@ experiments=[
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="7-21-ddpg-baxter-right-arm-algorithm-continuation-test",
+        exp_prefix="7-21-ddpg-baxter-right-arm-move-to-neutral-no-safety",
         seed=0,
         mode='here',
         variant={
                 'version': 'Original',
                 'arm_name':'right',
-                'safety_box':True,
+                'safety_box':False,
                 'loss':'huber',
                 'huber_delta':10,
                 'safety_force_magnitude':1,
@@ -97,7 +97,8 @@ if __name__ == "__main__":
                 'num_epochs':30,
                 'batch_size':1024,
                 'use_gpu':True,
-                'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-21-ddpg-baxter-right-arm-algorithm-continuation-test/7-21-ddpg-baxter-right-arm-algorithm-continuation-test_2017_07_23_20_49_02_0000--s-0/params.pkl'
+                'use_reset':True,
+                'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-21-ddpg-baxter-right-arm-move-to-neutral-no-safety/7-21-ddpg-baxter-right-arm-move-to-neutral-no-safety_2017_07_24_10_11_13_0000--s-0/params.pkl'
                 },
         use_gpu=True,
     )

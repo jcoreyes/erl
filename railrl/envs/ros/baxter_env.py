@@ -10,6 +10,10 @@ from robot_info.srv import *
 from railrl.misc.data_processing import create_stats_ordered_dict
 from collections import OrderedDict
 import ipdb
+import joblib
+from rllab.sampler.utils import rollout
+from railrl.torch.pytorch_util import set_gpu_mode
+from railrl.torch.core import PyTorchModule
 
 NUM_JOINTS = 7
 
@@ -149,6 +153,10 @@ class BaxterEnv(Env, Serializable):
             huber_delta=10,
             safety_force_magnitude=2,
             temp=1.05,
+            neutral_policy_file=None,
+            neutral_steps_to_run=5,
+            gpu=True,
+            use_reset=True,
     ):
 
         Serializable.quick_init(self, locals())
@@ -183,6 +191,10 @@ class BaxterEnv(Env, Serializable):
         self.safety_box = safety_box
         self.remove_action = remove_action
         self.arm_name = arm_name
+        self.neutral_policy_file = neutral_policy_file
+        self.neutral_steps_to_run = neutral_steps_to_run
+        self.gpu = gpu
+        self.use_reset = use_reset
 
         if loss == 'MSE':
             self.reward_function = self._MSE_reward
@@ -240,7 +252,11 @@ class BaxterEnv(Env, Serializable):
 
             if self.fixed_angle:
                 self.desired = np.zeros(NUM_JOINTS)
-                angles = [0.0, -0.55, 0.0, 0.75, 0.0, 1.26, 0.0]
+                # angles = {'right_s0': -0.0049903943346150115, 'right_e0': 0.007773590752427673, 'right_w2': 0.0083526057004919, 'right_w0': 0.008741701187912732, 'right_s1': -0.5451848158718935, 'right_w1': 1.2560255299115681, 'right_e1': 0.7475769104563383}
+                # # angles = [0.0, -0.55, 0.0, 0.75, 0.0, 1.26, 0.0]
+                # angles = np.array(
+                #     [angles['right_s0'], angles['right_s1'], angles['right_e0'], angles['right_e1'], angles['right_w0'],
+                #      angles['right_w1'], angles['right_w2']])
             else:
                 self._randomize_desired_angles()
 
@@ -409,6 +425,30 @@ class BaxterEnv(Env, Serializable):
         temp = np.hstack((temp, self.desired))
         return temp
 
+    # def move_to_neutral(self):
+    #     if self.neutral_policy_file:
+    #         data = joblib.load(self.neutral_policy_file)
+    #         policy = data['policy']
+    #         env = data['env']
+    #         if self.gpu:
+    #             set_gpu_mode(True)
+    #             policy.cuda()
+    #         if isinstance(policy, PyTorchModule):
+    #             policy.train(False)
+    #
+    #         for _ in range(self.neutral_steps_to_run):
+    #             path = rollout(
+    #                 env,
+    #                 policy,
+    #                 max_path_length=args.max_path_length,
+    #                 animated=True,
+    #                 speedup=args.speedup,
+    #                 always_return_paths=True,
+    #             )
+    #             self.log_diagnostics([path])
+    #             policy.log_diagnostics([path])
+    #             logger.dump_tabular()
+
     def reset(self):
         """
         Resets the state of the environment, returning an initial observation.
@@ -421,8 +461,8 @@ class BaxterEnv(Env, Serializable):
         elif self.end_effector_experiment_position \
                 or self.end_effector_experiment_total and not self.fixed_end_effector:
             self._randomize_desired_end_effector_pose()
-
-        self.arm.move_to_neutral()
+        if self.use_reset:
+            self.arm.move_to_neutral()
         return self._get_observation()
 
     def _randomize_desired_angles(self):
@@ -526,7 +566,7 @@ class BaxterEnv(Env, Serializable):
 
         return np.array([x, y, z])
 
-    def compute_mean_distance_outside_box(self, pose):
+    def compute_distances_outside_box(self, pose):
         curr_x = pose[0]
         curr_y = pose[1]
         curr_z = pose[2]
@@ -607,7 +647,7 @@ class BaxterEnv(Env, Serializable):
             ))
 
             if self.safety_box:
-                distances_outside_box = np.array([self.compute_mean_distance_outside_box(pose) for pose in positions])
+                distances_outside_box = np.array([self.compute_distances_outside_box(pose) for pose in positions])
                 statistics.update(self._statistics_from_observations(
                     distances_outside_box,
                     stat_prefix,
@@ -623,7 +663,7 @@ class BaxterEnv(Env, Serializable):
                 ))
 
         if self.joint_angle_experiment:
-            angle_distances, mean_distances_outside_box = self._joint_angle_exp_info(paths)
+            angle_distances, distances_outside_box = self._joint_angle_exp_info(paths)
             distances_from_desired_angle = angle_distances
             statistics.update(self._statistics_from_observations(
                 distances_from_desired_angle,
@@ -633,7 +673,7 @@ class BaxterEnv(Env, Serializable):
 
             if self.safety_box:
                 statistics.update(self._statistics_from_observations(
-                    mean_distances_outside_box,
+                    distances_outside_box,
                     stat_prefix,
                     'End Effector Distance Outside Box'
                 ))
@@ -657,9 +697,9 @@ class BaxterEnv(Env, Serializable):
             desired_angles = np.array(desired_angles)
 
             differences = np.array([self.compute_angle_difference(angle_obs, desired_angle_obs) for angle_obs, desired_angle_obs in zip(angles, desired_angles)])
-            angle_distances = linalg.norm(differences, axis=1)
-            mean_distances_outside_box = np.array([self.compute_mean_distance_outside_box(pose) for pose in positions])
-            return [angle_distances, mean_distances_outside_box]
+            angle_distances = np.mean(differences, axis=1)
+            distances_outside_box = np.array([self.compute_distances_outside_box(pose) for pose in positions])
+            return [angle_distances, distances_outside_box]
 
     def _statistics_from_observations(self, observation, stat_prefix, log_title):
         statistics = OrderedDict()
@@ -675,7 +715,7 @@ class BaxterEnv(Env, Serializable):
         raise NotImplementedError
 
     def terminate(self):
-        self.reset()
+        self.use_reset()
 
     def get_param_values(self):
         return None
