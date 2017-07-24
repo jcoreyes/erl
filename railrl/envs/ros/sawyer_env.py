@@ -370,6 +370,9 @@ class SawyerEnv(Env, Serializable):
           """
         deltas = np.abs(angles1 - angles2)
         differences = np.array([min(2*np.pi-delta, delta) for delta in deltas])
+        # print("deltas:", deltas)
+        # print("differences", differences)
+        print(np.mean(differences))
         return differences
 
     def step(self, action):
@@ -610,7 +613,8 @@ class SawyerEnv(Env, Serializable):
             desired_angles = np.array(desired_angles)
 
             differences = np.array([self.compute_angle_difference(angle_obs, desired_angle_obs) for angle_obs, desired_angle_obs in zip(angles, desired_angles)])
-            angle_distances = linalg.norm(differences, axis=1)
+            # angle_distances = linalg.norm(differences, axis=1)
+            angle_distances = np.mean(differences, axis=1)
             mean_distances_outside_box = np.array([self.compute_mean_distance_outside_box(pose) for pose in positions])
             return [angle_distances, mean_distances_outside_box]
 

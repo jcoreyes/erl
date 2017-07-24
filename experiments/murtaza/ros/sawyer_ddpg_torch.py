@@ -8,7 +8,6 @@ from railrl.exploration_strategies.ou_strategy import OUStrategy
 import joblib
 
 def example(variant):
-    #TODO: Fix the loading code to actually work!
     load_policy_file = variant.get('load_policy_file', None)
     if load_policy_file is not None and exists(load_policy_file):
         data = joblib.load(load_policy_file)
@@ -79,7 +78,7 @@ experiments=[
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="7-21-ddpg-sawyer-fixed-angle-huber-move-to-neutral-improved-angle-measurement",
+        exp_prefix="7-24-ddpg-sawyer-fixed-angle-huber-move-to-neutral-improved-angle-measurement-test",
         seed=0,
         mode='here',
         variant={
@@ -97,7 +96,7 @@ if __name__ == "__main__":
             'num_epochs': 30,
             'batch_size': 1024,
             'use_gpu':True,
-            # 'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-20-ddpg-sawyer-fixed-angle-huber-move-to-neutral/7-20-ddpg-sawyer-fixed-angle-huber-move-to-neutral_2017_07_20_21_45_58_0000--s-0/params.pkl'
+            'load_policy_file':'~/Documents/rllab/data/local/7-23-ddpg-sawyer-fixed-angle-huber-move-to-neutral-improved-angle-measurement/7-23-ddpg-sawyer-fixed-angle-huber-move-to-neutral-improved-angle-measurement_2017_07_23_21_37_42_0000--s-0/params.pkl'
         },
         use_gpu=True,
     )
