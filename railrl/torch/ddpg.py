@@ -160,9 +160,7 @@ class DDPG(OnlineAlgorithm):
         """
         logger.log("Collecting samples for evaluation")
         # paths = self._sample_paths(epoch)
-        paths = []
-        for _ in range (self.num_steps_per_eval):
-            paths.append(rollout(self.env, self.policy, max_path_length=self.max_path_length))
+        paths = [rollout(self.env, self.policy, max_path_length=self.max_path_length)]
 
         statistics = OrderedDict()
 
