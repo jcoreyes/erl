@@ -37,6 +37,7 @@ class Rdpg(DDPG):
         )
         self.subtraj_length = self.env.horizon
         self.num_subtrajs_per_batch = self.batch_size // self.subtraj_length
+        assert self.num_subtrajs_per_batch > 0, "# subtrajs per batch is 0!"
 
         self.pool = SplitReplayBuffer(
             SubtrajReplayBuffer(
@@ -95,7 +96,7 @@ class Rdpg(DDPG):
     """
     def _statistics_from_paths(self, paths, stat_prefix):
         eval_pool = SubtrajReplayBuffer(
-            len(paths) * self.max_path_length,
+            len(paths) * (self.max_path_length + 1),
             self.env,
             self.subtraj_length,
         )

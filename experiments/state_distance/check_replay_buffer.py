@@ -5,7 +5,7 @@ import numpy as np
 import argparse
 import pickle
 
-from railrl.envs.multitask.reacher_simple_state import SimpleReacherEnv
+from railrl.envs.multitask.reacher_env import SimpleReacherEnv
 import matplotlib.pyplot as plt
 
 

@@ -413,10 +413,10 @@ def _rdpg_launcher(variant):
     algorithm.train()
 
 
-def our_method_launcher(variant):
+def our_method_launcher_add_defaults(variant):
     from railrl.pythonplusplus import identity
     from railrl.torch.rnn import GRUCell, BNLSTMCell
-    from railrl.policies.torch import RWACell
+    from railrl.policies.torch import RWACell, LSTMCell
     from railrl.qfunctions.torch import MemoryQFunction
     from railrl.exploration_strategies.ou_strategy import OUStrategy
     from railrl.envs.memory.high_low import HighLow
@@ -467,7 +467,7 @@ def our_method_launcher(variant):
                 fc2_size=300,
                 # cell_class=GRUCell,
                 # cell_class=BNLSTMCell,
-                cell_class=RWACell,
+                cell_class=LSTMCell,
                 output_activation=F.tanh,
             ),
             es_params=dict(
@@ -485,10 +485,10 @@ def our_method_launcher(variant):
             version=version,
         )
     )
-    _our_method_launcher(new_variant)
+    bptt_ddpg_launcher(new_variant)
 
 
-def _our_method_launcher(variant):
+def bptt_ddpg_launcher(variant):
     from railrl.torch.bptt_ddpg import BpttDdpg
     from railrl.launchers.launcher_util import (
         set_seed,

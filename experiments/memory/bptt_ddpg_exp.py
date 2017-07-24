@@ -23,6 +23,7 @@ from railrl.launchers.launcher_util import (
     run_experiment,
 )
 import railrl.misc.hyperparameter as hyp
+from railrl.launchers.memory_bptt_launchers import bptt_ddpg_launcher
 from railrl.policies.torch import MemoryPolicy, RWACell
 from railrl.pythonplusplus import identity
 from railrl.qfunctions.torch import MemoryQFunction, RecurrentMemoryQFunction
@@ -35,93 +36,31 @@ from torch.nn import functional as F
 import railrl.torch.pytorch_util as ptu
 
 
-def experiment(variant):
-    from railrl.torch.bptt_ddpg import BpttDdpg
-    from railrl.launchers.launcher_util import (
-        set_seed,
-    )
-    from railrl.exploration_strategies.product_strategy import ProductStrategy
-    seed = variant['seed']
-    algo_params = variant['algo_params']
-    memory_dim = variant['memory_dim']
-    rnn_cell = variant['policy_params']['cell_class']
-    memory_dim -= memory_dim % rnn_cell.state_num_split()
-    env_class = variant['env_class']
-    env_params = variant['env_params']
-    memory_aug_params = variant['memory_aug_params']
-
-    qf_class = variant['qf_class']
-    qf_params = variant['qf_params']
-    policy_params = variant['policy_params']
-
-    es_params = variant['es_params']
-    env_es_class = es_params['env_es_class']
-    env_es_params = es_params['env_es_params']
-    memory_es_class = es_params['memory_es_class']
-    memory_es_params = es_params['memory_es_params']
-
-    set_seed(seed)
-    raw_env = env_class(**env_params)
-    env = ContinuousMemoryAugmented(
-        raw_env,
-        num_memory_states=memory_dim,
-        **memory_aug_params
-    )
-    env_strategy = env_es_class(
-        action_space=raw_env.action_space,
-        **env_es_params
-    )
-    write_strategy = memory_es_class(
-        action_space=env.memory_state_space,
-        **memory_es_params
-    )
-    es = ProductStrategy([env_strategy, write_strategy])
-    qf = qf_class(
-        int(raw_env.observation_space.flat_dim),
-        int(raw_env.action_space.flat_dim),
-        memory_dim,
-        **qf_params,
-    )
-    policy = MemoryPolicy(
-        int(raw_env.observation_space.flat_dim),
-        int(raw_env.action_space.flat_dim),
-        memory_dim=memory_dim,
-        **policy_params
-    )
-    algorithm = BpttDdpg(
-        env,
-        qf,
-        policy,
-        es,
-        **algo_params
-    )
-    algorithm.train()
-
-
 if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
-    exp_prefix = "7-14-dev-bptt-ddpg-check"
+    exp_prefix = "7-19-dev-bptt-ddpg-check"
     run_mode = 'none'
+    version = "Our Method"
 
-    n_seeds = 5
+    n_seeds = 1
     mode = "ec2"
-    exp_prefix = "7-14-bptt-ddpg-watermaze-memory-sweep-traj-with-loaded-dldm"
+    exp_prefix = "7-20-timeit-c4xlarge-correct-price"
+    version = "Our Method - c4.xlarge-correct-price"
 
-    run_mode = 'grid'
+    # run_mode = 'grid'
     num_configurations = 25
     use_gpu = True
     if mode != "here":
         use_gpu = False
 
     H = 25
-    subtraj_length = 25
-    num_steps_per_iteration = 1000
+    subtraj_length = 5
+    num_steps_per_iteration = 100
     num_steps_per_eval = 1000
-    num_iterations = 50
-    batch_size = 200
+    num_iterations = 100
+    batch_size = 100
     memory_dim = 100
-    version = "Our Method"
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -135,7 +74,7 @@ if __name__ == '__main__':
         env_params=dict(
             horizon=H,
             give_time=True,
-            action_l2norm_penalty=0,
+            # action_l2norm_penalty=0,
         ),
         memory_aug_params=dict(
             max_magnitude=1,
@@ -149,7 +88,7 @@ if __name__ == '__main__':
             discount=0.9,
             use_action_policy_params_for_entire_policy=False,
             action_policy_optimize_bellman=False,
-            write_policy_optimizes='bellman',
+            write_policy_optimizes='both',
             action_policy_learning_rate=0.001,
             write_policy_learning_rate=0.0005,
             qf_learning_rate=0.002,
@@ -159,7 +98,6 @@ if __name__ == '__main__':
             write_policy_weight_decay=0,
             action_policy_weight_decay=0,
             do_not_load_initial_memories=False,
-            do_not_load_memories=False,
             save_memory_gradients=False,
             # tau=0.001,
             # use_soft_update=False,
@@ -183,6 +121,7 @@ if __name__ == '__main__':
             # cell_class=LSTMCell,
             output_activation=F.tanh,
             # output_activation=ptu.clip1,
+            only_one_fc_for_action=True,
         ),
         es_params=dict(
             env_es_class=OUStrategy,
@@ -190,48 +129,55 @@ if __name__ == '__main__':
                 max_sigma=1,
                 min_sigma=None,
             ),
-            memory_es_class=NoopStrategy,
-            # memory_es_class=OUStrategy,
+            # memory_es_class=NoopStrategy,
+            memory_es_class=OUStrategy,
             memory_es_params=dict(
-                # max_sigma=1,
-                # min_sigma=None,
+                max_sigma=1,
+                min_sigma=None,
             ),
         ),
         version=version,
     )
     if run_mode == 'grid':
-        search_space = {
-            # 'algo_params.qf_learning_rate': [1e-3, 1e-5],
-            # 'algo_params.action_policy_learning_rate': [1e-3, 1e-5],
-            # 'algo_params.write_policy_learning_rate': [1e-5, 1e-7],
-            # 'algo_params.do_not_load_initial_memories': [True, False],
-            # 'algo_params.write_policy_optimizes': ['qf', 'bellman', 'both'],
-            # 'algo_params.refresh_entire_buffer_period': [None, 1],
-            # 'es_params.memory_es_params.max_sigma': [0, 1],
-            # 'qf_params.ignore_memory': [True, False],
-            # 'policy_params.hidden_init': [init.kaiming_normal, ptu.fanin_init],
-            # 'policy_params.feed_action_to_memory': [False, True],
-            # 'policy_params.cell_class': [LSTMCell, BNLSTMCell, RWACell],
-            'algo_params.subtraj_length': [1, 5, 10, 15, 20, 25],
-            # 'algo_params.bellman_error_loss_weight': [0.1, 1, 10, 100, 1000],
-            # 'algo_params.tau': [1, 0.1, 0.01, 0.001],
-            # 'env_params.give_time': [True, False],
-            # 'algo_params.discount': [1, .9, .5, 0],
-            # 'env_params.action_l2norm_penalty': [0, 1e-3, 1e-2, 1e-1, 1, 10],
-        }
-        sweeper = hyp.DeterministicHyperparameterSweeper(
-            search_space, default_parameters=variant,
-        )
-        for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-            for i in range(n_seeds):
-                run_experiment(
-                    experiment,
-                    exp_prefix=exp_prefix,
-                    seed=i,
-                    mode=mode,
-                    variant=variant,
-                    exp_id=exp_id,
-                )
+        for fc1, fc2 in [
+            (32, 32),
+            (400, 300),
+        ]:
+            search_space = {
+                # 'algo_params.qf_learning_rate': [1e-3, 1e-5],
+                # 'algo_params.action_policy_learning_rate': [1e-3, 1e-5],
+                # 'algo_params.write_policy_learning_rate': [1e-5, 1e-7],
+                # 'algo_params.do_not_load_initial_memories': [True, False],
+                'algo_params.write_policy_optimizes': ['bellman', 'both'],
+                # 'algo_params.refresh_entire_buffer_period': [None, 1],
+                # 'es_params.memory_es_params.max_sigma': [0, 1],
+                # 'qf_params.ignore_memory': [True, False],
+                # 'policy_params.hidden_init': [init.kaiming_normal, ptu.fanin_init],
+                'policy_params.output_activation': [F.tanh, ptu.clip1],
+                'policy_params.cell_class': [LSTMCell, BNLSTMCell, GRUCell],
+                'policy_params.only_one_fc_for_action': [True, False],
+                # 'algo_params.subtraj_length': [1, 5, 10, 15, 20, 25],
+                # 'algo_params.bellman_error_loss_weight': [0.1, 1, 10, 100, 1000],
+                # 'algo_params.tau': [1, 0.1, 0.01, 0.001],
+                # 'env_params.give_time': [True, False],
+                # 'algo_params.discount': [1, .9, .5, 0],
+                # 'env_params.action_l2norm_penalty': [0, 1e-3, 1e-2, 1e-1, 1, 10],
+            }
+            variant['policy_params']['fc1_size'] = fc1
+            variant['policy_params']['fc2_size'] = fc2
+            sweeper = hyp.DeterministicHyperparameterSweeper(
+                search_space, default_parameters=variant,
+            )
+            for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+                for i in range(n_seeds):
+                    run_experiment(
+                        bptt_ddpg_launcher,
+                        exp_prefix=exp_prefix,
+                        seed=i,
+                        mode=mode,
+                        variant=variant,
+                        exp_id=exp_id,
+                    )
     if run_mode == 'custom_grid':
         for exp_id, (
             action_policy_optimize_bellman,
@@ -255,7 +201,7 @@ if __name__ == '__main__':
             for _ in range(n_seeds):
                 seed = random.randint(0, 10000)
                 run_experiment(
-                    experiment,
+                    bptt_ddpg_launcher,
                     exp_prefix=exp_prefix,
                     seed=seed,
                     mode=mode,
@@ -324,7 +270,7 @@ if __name__ == '__main__':
                 for _ in range(n_seeds):
                     seed = random.randint(0, 10000)
                     run_experiment(
-                        experiment,
+                        bptt_ddpg_launcher,
                         exp_prefix=exp_prefix,
                         seed=seed,
                         mode=mode,
@@ -338,7 +284,7 @@ if __name__ == '__main__':
         for _ in range(n_seeds):
             seed = random.randint(0, 10000)
             run_experiment(
-                experiment,
+                bptt_ddpg_launcher,
                 exp_prefix=exp_prefix,
                 seed=seed,
                 mode=mode,

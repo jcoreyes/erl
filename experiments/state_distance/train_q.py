@@ -11,11 +11,16 @@ import os.path as osp
 
 from railrl.algos.qlearning.state_distance_q_learning import (
     StateDistanceQLearning,
-    MultitaskPathSampler, StateDistanceQLearningSimple)
+    StateDistanceQLearningSimple,
+)
+from railrl.samplers.path_sampler import MultitaskPathSampler
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
-from railrl.envs.multitask.reacher_env import MultitaskReacherEnv
-from railrl.envs.multitask.reacher_simple_state import SimpleReacherEnv
+from railrl.envs.multitask.reacher_env import (
+    MultitaskReacherEnv,
+    SimpleReacherEnv,
+    GoalStateReacherEnv,
+)
 from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
@@ -28,8 +33,8 @@ import matplotlib.pyplot as plt
 
 
 def main(variant):
-    env = SimpleReacherEnv()
-    action_space = convert_gym_space(env.action_space)
+    env_class = variant['env_class']
+    env = env_class()
     dataset_path = variant['dataset_path']
     with open(dataset_path, 'rb') as handle:
         pool = pickle.load(handle)
@@ -47,6 +52,7 @@ def main(variant):
     #
     # import ipdb; ipdb.set_trace()
     observation_space = convert_gym_space(env.observation_space)
+    action_space = convert_gym_space(env.action_space)
     qf = FeedForwardQFunction(
         int(observation_space.flat_dim) + env.goal_dim,
         int(action_space.flat_dim),
@@ -60,10 +66,12 @@ def main(variant):
         400,
         300,
     )
-    algo = StateDistanceQLearningSimple(
+    algo = StateDistanceQLearning(
+    # algo = StateDistanceQLearningSimple(
         env=env,
         qf=qf,
         policy=policy,
+        # exploration_strategy=es,
         pool=pool,
         exploration_policy=None,
         **variant['algo_params']
@@ -118,7 +126,8 @@ if __name__ == '__main__':
 
     n_seeds = 1
     mode = "here"
-    exp_prefix = "7-13-state-distance-train-one-goal"
+    # exp_prefix = "7-17-dev-state-distance-train-multiple-goals-nonzero-gamma"
+    exp_prefix = "7-18-dev-sdql-train-goal-state-reacher-env-10k-only-joints"
     snapshot_mode = 'all'
 
     # out_dir = Path(LOG_DIR) / 'datasets/generated'
@@ -133,12 +142,14 @@ if __name__ == '__main__':
             num_batches=100000,
             num_batches_per_epoch=1000,
             use_soft_update=True,
-            tau=1e-2,
+            tau=1e-3,
             batch_size=1024,
             discount=0.,
-            qf_learning_rate=1e-2,
-            policy_learning_rate=1e-4,
+            qf_learning_rate=1e-4,
+            policy_learning_rate=1e-5,
         ),
+        env_class=GoalStateReacherEnv,
+        # env_class=SimpleReacherEnv,
     )
 
     seed = random.randint(0, 10000)
