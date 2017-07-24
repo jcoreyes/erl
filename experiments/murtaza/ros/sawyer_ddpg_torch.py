@@ -13,10 +13,9 @@ def example(variant):
     if load_policy_file is not None and exists(load_policy_file):
         data = joblib.load(load_policy_file)
         algorithm = data['algorithm']
-        algorithm.policy.cuda()
-        algorithm.target_policy.cuda()
-        algorithm.qf.cuda()
-        algorithm.target_qf.cuda()
+        use_gpu = variant['use_gpu']
+        if use_gpu:
+            algorithm.cuda()
         algorithm.train()
     else:
         arm_name = variant['arm_name']
@@ -97,6 +96,7 @@ if __name__ == "__main__":
             'es_max_sigma': .1,
             'num_epochs': 30,
             'batch_size': 1024,
+            'use_gpu':True,
             # 'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-20-ddpg-sawyer-fixed-angle-huber-move-to-neutral/7-20-ddpg-sawyer-fixed-angle-huber-move-to-neutral_2017_07_20_21_45_58_0000--s-0/params.pkl'
         },
         use_gpu=True,

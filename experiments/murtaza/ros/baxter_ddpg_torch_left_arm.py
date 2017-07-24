@@ -12,10 +12,9 @@ def example(variant):
     if not load_policy_file == None and exists(load_policy_file):
         data = joblib.load(load_policy_file)
         algorithm = data['algorithm']
-        algorithm.policy.cuda()
-        algorithm.target_policy.cuda()
-        algorithm.qf.cuda()
-        algorithm.target_qf.cuda()
+        use_gpu = variant['use_gpu']
+        if use_gpu:
+            algorithm.cuda()
         algorithm.train()
     else:
         arm_name = variant['arm_name']
@@ -57,6 +56,7 @@ def example(variant):
             int(env.action_space.flat_dim),
             100,
             100,
+
         )
         algorithm = DDPG(
             env,
@@ -66,7 +66,7 @@ def example(variant):
             num_epochs=num_epochs,
             batch_size=batch_size,
         )
-    algorithm.train()
+        algorithm.train()
 
 experiments=[
     'joint_angle|fixed_angle', 
@@ -97,6 +97,7 @@ if __name__ == "__main__":
                 'es_max_sigma':.05,
                 'num_epochs':30,
                 'batch_size':1024,
+                'use_gpu':True,
                 # 'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-21-ddpg-baxter-right-arm-fixed-angle-huber-safety-TEST/7-21-ddpg-baxter-right-arm-fixed-angle-huber-safety-TEST_2017_07_21_11_04_56_0000--s-0/params.pkl',
                 },
         use_gpu=True,

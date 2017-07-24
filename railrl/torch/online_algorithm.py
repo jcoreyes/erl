@@ -82,6 +82,10 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
 
         self.final_score = 0
 
+    @abc.abstractmethod
+    def cuda(self):
+        pass
+
     def reset_env(self):
         self.exploration_strategy.reset()
         self.exploration_policy.reset()

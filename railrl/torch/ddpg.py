@@ -74,23 +74,14 @@ class DDPG(OnlineAlgorithm):
             )
         else:
             self.pool = replay_buffer
+        self.cuda()
+
+    def cuda(self):
         if ptu.gpu_enabled():
             self.policy.cuda()
             self.target_policy.cuda()
             self.qf.cuda()
             self.target_qf.cuda()
-
-    # def __getstate__(self):
-    #     d = super().__getstate__(self)
-    #     return d
-
-    # def __setstate__(self, d):
-    #     super().__setstate__(self, d)
-    #     if ptu.gpu_enabled():
-    #         self.policy.cuda()
-    #         self.target_policy.cuda()
-    #         self.qf.cuda()
-    #         self.target_qf.cuda()
 
     def _do_training(self, n_steps_total):
         batch = self.get_batch()
@@ -169,7 +160,9 @@ class DDPG(OnlineAlgorithm):
         """
         logger.log("Collecting samples for evaluation")
         # paths = self._sample_paths(epoch)
-        paths = rollout(self.env, self.policy, max_path_length=self.max_path_length)
+        paths = []
+        for _ in range (self.num_steps_per_eval):
+            paths.append(rollout(self.env, self.policy, max_path_length=self.max_path_length))
 
         statistics = OrderedDict()
 

@@ -12,10 +12,9 @@ def example(variant):
     if not load_policy_file == None and exists(load_policy_file):
         data = joblib.load(load_policy_file)
         algorithm = data['algorithm']
-        algorithm.policy.cuda()
-        algorithm.target_policy.cuda()
-        algorithm.qf.cuda()
-        algorithm.target_qf.cuda()
+        use_gpu = variant['use_gpu']
+        if use_gpu:
+            algorithm.cuda()
         algorithm.train()
     else:
         arm_name = variant['arm_name']
@@ -80,13 +79,13 @@ experiments=[
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="7-21-ddpg-baxter-right-arm-rollout-test",
+        exp_prefix="7-21-ddpg-baxter-right-arm-algorithm-continuation-test",
         seed=0,
         mode='here',
         variant={
                 'version': 'Original',
                 'arm_name':'right',
-                'safety_box':False,
+                'safety_box':True,
                 'loss':'huber',
                 'huber_delta':10,
                 'safety_force_magnitude':1,
@@ -97,7 +96,8 @@ if __name__ == "__main__":
                 'es_max_sigma':.05,
                 'num_epochs':30,
                 'batch_size':1024,
-                # 'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-21-ddpg-baxter-right-arm-fixed-angle-huber-safety-TEST/7-21-ddpg-baxter-right-arm-fixed-angle-huber-safety-TEST_2017_07_21_11_04_56_0000--s-0/params.pkl',
+                'use_gpu':True,
+                'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-21-ddpg-baxter-right-arm-algorithm-continuation-test/7-21-ddpg-baxter-right-arm-algorithm-continuation-test_2017_07_23_20_49_02_0000--s-0/params.pkl'
                 },
         use_gpu=True,
     )
