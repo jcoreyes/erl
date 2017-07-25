@@ -136,6 +136,7 @@ class SawyerEnv(Env, Serializable):
             huber_delta=10,
             safety_force_magnitude=2,
             temp=1.05,
+            use_reset=True,
     ):
 
         Serializable.quick_init(self, locals())
@@ -170,6 +171,7 @@ class SawyerEnv(Env, Serializable):
         self.safety_box = safety_box
         self.remove_action = remove_action
         self.arm_name = arm_name
+        self.use_reset = use_reset
 
         if loss == 'MSE':
             self.reward_function = self._MSE_reward
@@ -227,9 +229,9 @@ class SawyerEnv(Env, Serializable):
 
             if self.fixed_angle:
                 self.desired = np.zeros(NUM_JOINTS)
-                angles = {'right_j6': 3.312470703125, 'right_j5': 0.5715908203125, 'right_j4': 0.001154296875, 'right_j3': 2.1776962890625, 'right_j2': -0.0021767578125, 'right_j1': -1.1781728515625, 'right_j0': 0.00207421875}
+                angles = {'right_j6': 3.23098828125, 'right_j5': -2.976708984375, 'right_j4': -0.100001953125, 'right_j3': 1.59925, 'right_j2': -1.6326630859375, 'right_j1': -0.3456298828125, 'right_j0': 0.0382529296875}
                 angles = np.array([angles['right_j0'], angles['right_j1'], angles['right_j2'], angles['right_j3'], angles['right_j4'], angles['right_j5'], angles['right_j6']])
-            
+                self.desired = angles
             else:
                 self._randomize_desired_angles()
 
@@ -251,10 +253,11 @@ class SawyerEnv(Env, Serializable):
             ))
 
             if self.fixed_end_effector:
+                des_pos = Point(x=0.44562573898386176, y=-0.055317682301721766, z=0.4950886597008108)
                 self.desired = np.array([
-                    0.1485434521312332,
-                    -0.43227588084273644,
-                    -0.7116727296474704
+                    des_pos.x,
+                    des_pos.y,
+                    des_pos.z,
                 ])
 
             else:
@@ -282,14 +285,15 @@ class SawyerEnv(Env, Serializable):
             ))
 
             if self.fixed_end_effector:
+                des = {'position': Point(x=0.44562573898386176, y=-0.055317682301721766, z=0.4950886597008108), 'orientation': Quaternion(x=-0.5417504106748736, y=0.46162598289085305, z=0.35800013141940035, w=0.6043540769758675)}
                 self.desired = np.array([
-                    0.14854234521312332,
-                    -0.43227588084273644,
-                    -0.7116727296474704,
-                    0.46800638382243764,
-                    0.8837008622125236,
-                    -0.005641180126528841,
-                    -0.0033148021158782666
+                    des['position'].x,
+                    des['position'].y,
+                    des['position'].z,
+                    des['orientation'].x,
+                    des['orientation'].y,
+                    des['orientation'].z,
+                    des['orientation'].w,
                 ])
             else:
                 self._randomize_desired_end_effector_pose()
@@ -413,7 +417,9 @@ class SawyerEnv(Env, Serializable):
                 or self.end_effector_experiment_total and not self.fixed_end_effector:
             self._randomize_desired_end_effector_pose()
 
-        self.arm.move_to_neutral()
+        if self.use_reset:
+            self.arm.move_to_neutral()
+
         return self._get_observation()
 
     def _randomize_desired_angles(self):
