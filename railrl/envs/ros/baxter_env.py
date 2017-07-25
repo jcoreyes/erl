@@ -86,26 +86,26 @@ END_EFFECTOR_VALUE_HIGH = {
 }
 
 right_safety_box_lows = [
-    0.3404830862298487,
-    -1.2633121086809487,
+    0.08615153069561253,
+    -1.406381785756028,
     -0.5698485041484043
 ]
 
 right_safety_box_highs = [
     1.463239572333106,
-    0.003933425621414761,
-    0.795699462010194
+    0.3499125815982429,
+    0.9771420218394952,
 ]
 
 left_safety_box_lows = [
     0.3404830862298487,
-    -0.003933425621414761,
+    -0.3499125815982429,
     -0.5698485041484043
 ]
 
 left_safety_box_highs = [
     1.1163239572333106,
-    1.2633121086809487,
+    1.406381785756028,
     0.795699462010194
 ]
 
@@ -156,6 +156,7 @@ class BaxterEnv(Env, Serializable):
             neutral_steps_to_run=5,
             gpu=True,
             use_reset=True,
+            random_reset_length=100, 
     ):
 
         Serializable.quick_init(self, locals())
@@ -194,7 +195,8 @@ class BaxterEnv(Env, Serializable):
         self.neutral_steps_to_run = neutral_steps_to_run
         self.gpu = gpu
         self.use_reset = use_reset
-
+        self.random_reset_length = random_reset_length
+        
         if loss == 'MSE':
             self.reward_function = self._MSE_reward
         elif loss == 'huber':
@@ -452,6 +454,9 @@ class BaxterEnv(Env, Serializable):
     #             self.log_diagnostics([path])
     #             policy.log_diagnostics([path])
     #             logger.dump_tabular()
+    def random_reset(self):
+        for _ in range(self.random_reset_length):
+            self._act(np.random.rand(1, 7)[0])
 
     def reset(self):
         """
