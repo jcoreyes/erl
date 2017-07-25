@@ -65,7 +65,7 @@ def example(variant):
             num_epochs=num_epochs,
             batch_size=batch_size,
         )
-    algorithm.train()
+        algorithm.train()
 
 experiments=[
     'joint_angle|fixed_angle', 
@@ -79,26 +79,26 @@ experiments=[
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="7-21-ddpg-baxter-right-arm-move-to-neutral-no-safety",
+        exp_prefix="7-24-ddpg-baxter-right-arm-fixed-end-effector-no-reset",
         seed=0,
         mode='here',
         variant={
                 'version': 'Original',
                 'arm_name':'right',
-                'safety_box':False,
+                'safety_box':True,
                 'loss':'huber',
                 'huber_delta':10,
                 'safety_force_magnitude':1,
                 'temp':1.2,
                 'remove_action':False,
-                'experiment':experiments[0],
-                'es_min_sigma':.05,
-                'es_max_sigma':.05,
+                'experiment':experiments[2],
+                'es_min_sigma':.1,
+                'es_max_sigma':.1,
                 'num_epochs':30,
                 'batch_size':1024,
                 'use_gpu':True,
-                'use_reset':True,
-                'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-21-ddpg-baxter-right-arm-move-to-neutral-no-safety/7-21-ddpg-baxter-right-arm-move-to-neutral-no-safety_2017_07_24_10_11_13_0000--s-0/params.pkl'
+                'use_reset':False,
+                # 'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-21-ddpg-baxter-right-arm-move-to-neutral-no-safety/7-21-ddpg-baxter-right-arm-move-to-neutral-no-safety_2017_07_24_10_11_13_0000--s-0/params.pkl'
                 },
         use_gpu=True,
     )

@@ -85,25 +85,25 @@ END_EFFECTOR_VALUE_HIGH = {
     'angle': END_EFFECTOR_ANGLE_HIGH,
 }
 
-right_lows = [
+right_safety_box_lows = [
     0.3404830862298487,
     -1.2633121086809487,
     -0.5698485041484043
 ]
 
-right_highs = [
-    1.1163239572333106,
+right_safety_box_highs = [
+    1.463239572333106,
     0.003933425621414761,
     0.795699462010194
 ]
 
-left_lows = [
+left_safety_box_lows = [
     0.3404830862298487,
     -0.003933425621414761,
     -0.5698485041484043
 ]
 
-left_highs = [
+left_safety_box_highs = [
     1.1163239572333106,
     1.2633121086809487,
     0.795699462010194
@@ -148,7 +148,6 @@ class BaxterEnv(Env, Serializable):
             action_mode='torque',
             remove_action=False,
             safety_box=False,
-            safety_end_effector_box=False,
             loss='huber',
             huber_delta=10,
             safety_force_magnitude=2,
@@ -174,19 +173,19 @@ class BaxterEnv(Env, Serializable):
 
         if experiment == experiments[0]:
             self.joint_angle_experiment=True
+            self.fixed_angle = True
         elif experiment == experiments[1]:
             self.joint_angle_experiment=True
-            self.fixed_angle=False
         elif experiment == experiments[2]:
             self.end_effector_experiment_position=True
+            self.fixed_end_effector = True
         elif experiment == experiments[3]:
-            self.end_effector_experiment_position=False
-            self.fixed_end_effector = False
+            self.end_effector_experiment_position=True
         elif experiment == experiments[4]:
             self.end_effector_experiment_total=True
+            self.fixed_end_effector = True
         elif experiment == experiments[5]:
             self.end_effector_experiment_total = True
-            self.fixed_end_effector=False
 
         self.safety_box = safety_box
         self.remove_action = remove_action
@@ -278,10 +277,15 @@ class BaxterEnv(Env, Serializable):
             ))
 
             if self.fixed_end_effector:
+                # self.desired = np.array([
+                #     0.1485434521312332,
+                #     -0.43227588084273644,
+                #     -0.7116727296474704
+                # ])
                 self.desired = np.array([
-                    0.1485434521312332,
-                    -0.43227588084273644,
-                    -0.7116727296474704
+                    1.1349147779210946,
+                    -0.7649915111535125,
+                    0.5545338667382815
                 ])
 
             else:
@@ -512,11 +516,11 @@ class BaxterEnv(Env, Serializable):
         if self.arm_name == 'right':
             within_box = [curr_pose > lower_pose and curr_pose < higher_pose
                 for curr_pose, lower_pose, higher_pose
-                in zip(endpoint_pose, right_lows, right_highs)]
+                in zip(endpoint_pose, right_safety_box_lows, right_safety_box_highs)]
         else:
             within_box = [curr_pose > lower_pose and curr_pose < higher_pose
                 for curr_pose, lower_pose, higher_pose
-                in zip(endpoint_pose, left_lows, left_highs)]
+                in zip(endpoint_pose, left_safety_box_lows, left_safety_box_highs)]
         return all(within_box)
 
     def get_adjustment_forces_per_joint_dict(self, joint_dict):
@@ -533,35 +537,35 @@ class BaxterEnv(Env, Serializable):
         curr_y = endpoint_pose[1]
         curr_z = endpoint_pose[2]
         if self.arm_name == 'right':
-            if curr_x > right_highs[0]:
-                x = -1 * np.exp(np.abs(curr_x - right_highs[0]) * self.temp) * self.safety_force_magnitude
-            elif curr_x < right_lows[0]:
-                x = np.exp(np.abs(curr_x - right_lows[0]) * self.temp) * self.safety_force_magnitude
+            if curr_x > right_safety_box_highs[0]:
+                x = -1 * np.exp(np.abs(curr_x - right_safety_box_highs[0]) * self.temp) * self.safety_force_magnitude
+            elif curr_x < right_safety_box_lows[0]:
+                x = np.exp(np.abs(curr_x - right_safety_box_lows[0]) * self.temp) * self.safety_force_magnitude
 
-            if curr_y > right_highs[1]:
-                y = -1 * np.exp(np.abs(curr_y - right_highs[1]) * self.temp) * self.safety_force_magnitude
-            elif curr_y < right_lows[1]:
-                y = np.exp(np.abs(curr_y - right_lows[1]) * self.temp) * self.safety_force_magnitude
+            if curr_y > right_safety_box_highs[1]:
+                y = -1 * np.exp(np.abs(curr_y - right_safety_box_highs[1]) * self.temp) * self.safety_force_magnitude
+            elif curr_y < right_safety_box_lows[1]:
+                y = np.exp(np.abs(curr_y - right_safety_box_lows[1]) * self.temp) * self.safety_force_magnitude
 
-            if curr_z > right_highs[2]:
-                z = -1 * np.exp(np.abs(curr_z - right_highs[2]) * self.temp) * self.safety_force_magnitude
-            elif curr_z < right_lows[2]:
-                z = np.exp(np.abs(curr_z - right_highs[2]) * self.temp) * self.safety_force_magnitude
+            if curr_z > right_safety_box_highs[2]:
+                z = -1 * np.exp(np.abs(curr_z - right_safety_box_highs[2]) * self.temp) * self.safety_force_magnitude
+            elif curr_z < right_safety_box_lows[2]:
+                z = np.exp(np.abs(curr_z - right_safety_box_highs[2]) * self.temp) * self.safety_force_magnitude
         else:
-            if curr_x > left_highs[0]:
-                x = -1 * np.exp(np.abs(curr_x - left_highs[0]) * self.temp) * self.safety_force_magnitude
-            elif curr_x < left_lows[0]:
-                x = np.exp(np.abs(curr_x - left_lows[0]) * self.temp) * self.safety_force_magnitude
+            if curr_x > left_safety_box_highs[0]:
+                x = -1 * np.exp(np.abs(curr_x - left_safety_box_highs[0]) * self.temp) * self.safety_force_magnitude
+            elif curr_x < left_safety_box_lows[0]:
+                x = np.exp(np.abs(curr_x - left_safety_box_lows[0]) * self.temp) * self.safety_force_magnitude
 
-            if curr_y > left_highs[1]:
-                y = -1 * np.exp(np.abs(curr_y - left_highs[1]) * self.temp) * self.safety_force_magnitude
-            elif curr_y < left_lows[1]:
-                y = np.exp(np.abs(curr_y - left_lows[1]) * self.temp) * self.safety_force_magnitude
+            if curr_y > left_safety_box_highs[1]:
+                y = -1 * np.exp(np.abs(curr_y - left_safety_box_highs[1]) * self.temp) * self.safety_force_magnitude
+            elif curr_y < left_safety_box_lows[1]:
+                y = np.exp(np.abs(curr_y - left_safety_box_lows[1]) * self.temp) * self.safety_force_magnitude
 
-            if curr_z > left_highs[2]:
-                z = -1 * np.exp(np.abs(curr_z - left_highs[2]) * self.temp) * self.safety_force_magnitude
-            elif curr_z < left_lows[2]:
-                z = np.exp(np.abs(curr_z - left_highs[2]) * self.temp) * self.safety_force_magnitude
+            if curr_z > left_safety_box_highs[2]:
+                z = -1 * np.exp(np.abs(curr_z - left_safety_box_highs[2]) * self.temp) * self.safety_force_magnitude
+            elif curr_z < left_safety_box_lows[2]:
+                z = np.exp(np.abs(curr_z - left_safety_box_highs[2]) * self.temp) * self.safety_force_magnitude
 
 
         return np.array([x, y, z])
@@ -575,35 +579,35 @@ class BaxterEnv(Env, Serializable):
         else:
             x, y, z = 0, 0, 0
             if self.arm_name == 'right':
-                if curr_x > right_highs[0]:
-                    x = np.abs(curr_x - right_highs[0])
-                elif curr_x < right_lows[0]:
-                    x = np.abs(curr_x - right_lows[0])
+                if curr_x > right_safety_box_highs[0]:
+                    x = np.abs(curr_x - right_safety_box_highs[0])
+                elif curr_x < right_safety_box_lows[0]:
+                    x = np.abs(curr_x - right_safety_box_lows[0])
 
-                if curr_y > right_highs[1]:
-                    y = np.abs(curr_y - right_highs[1])
-                elif curr_y < right_lows[1]:
-                    y = np.abs(curr_y - right_lows[1])
+                if curr_y > right_safety_box_highs[1]:
+                    y = np.abs(curr_y - right_safety_box_highs[1])
+                elif curr_y < right_safety_box_lows[1]:
+                    y = np.abs(curr_y - right_safety_box_lows[1])
 
-                if curr_z > right_highs[2]:
-                    z = np.abs(curr_z - right_highs[2])
-                elif curr_z < right_lows[2]:
-                    z = np.abs(curr_z - right_lows[2])
+                if curr_z > right_safety_box_highs[2]:
+                    z = np.abs(curr_z - right_safety_box_highs[2])
+                elif curr_z < right_safety_box_lows[2]:
+                    z = np.abs(curr_z - right_safety_box_lows[2])
             else:
-                if curr_x > right_highs[0]:
-                    x = np.abs(curr_x - left_highs[0])
-                elif curr_x < left_lows[0]:
-                    x = np.abs(curr_x - left_lows[0])
+                if curr_x > right_safety_box_highs[0]:
+                    x = np.abs(curr_x - left_safety_box_highs[0])
+                elif curr_x < left_safety_box_lows[0]:
+                    x = np.abs(curr_x - left_safety_box_lows[0])
 
-                if curr_y > left_highs[1]:
-                    y = np.abs(curr_y - left_highs[1])
-                elif curr_y < left_lows[1]:
-                    y = np.abs(curr_y - left_lows[1])
+                if curr_y > left_safety_box_highs[1]:
+                    y = np.abs(curr_y - left_safety_box_highs[1])
+                elif curr_y < left_safety_box_lows[1]:
+                    y = np.abs(curr_y - left_safety_box_lows[1])
 
-                if curr_z > left_highs[2]:
-                    z = np.abs(curr_z - left_highs[2])
-                elif curr_z < left_lows[2]:
-                    z = np.abs(curr_z - left_lows[2])
+                if curr_z > left_safety_box_highs[2]:
+                    z = np.abs(curr_z - left_safety_box_highs[2])
+                elif curr_z < left_safety_box_lows[2]:
+                    z = np.abs(curr_z - left_safety_box_lows[2])
         return np.linalg.norm([x, y, z])
 
     @property
@@ -663,12 +667,11 @@ class BaxterEnv(Env, Serializable):
                 ))
 
         if self.joint_angle_experiment:
-            angle_distances, distances_outside_box = self._joint_angle_exp_info(paths)
-            distances_from_desired_angle = angle_distances
+            angle_differences, distances_outside_box = self._joint_angle_exp_info(paths)
             statistics.update(self._statistics_from_observations(
-                distances_from_desired_angle,
+                angle_differences,
                 stat_prefix,
-                'Distance from Desired Joint Angle'
+                'Difference from Desired Joint Angle'
             ))
 
             if self.safety_box:
@@ -697,9 +700,9 @@ class BaxterEnv(Env, Serializable):
             desired_angles = np.array(desired_angles)
 
             differences = np.array([self.compute_angle_difference(angle_obs, desired_angle_obs) for angle_obs, desired_angle_obs in zip(angles, desired_angles)])
-            angle_distances = np.mean(differences, axis=1)
+            angle_differences = np.mean(differences, axis=1)
             distances_outside_box = np.array([self.compute_distances_outside_box(pose) for pose in positions])
-            return [angle_distances, distances_outside_box]
+            return [angle_differences, distances_outside_box]
 
     def _statistics_from_observations(self, observation, stat_prefix, log_title):
         statistics = OrderedDict()

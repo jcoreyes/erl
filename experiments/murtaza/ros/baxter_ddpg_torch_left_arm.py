@@ -30,6 +30,7 @@ def example(variant):
         num_epochs = variant['num_epochs']
         batch_size = variant['batch_size']
         use_reset = variant['use_reset']
+
         env = BaxterEnv(
             experiment=experiment,
             arm_name=arm_name,
@@ -81,7 +82,7 @@ experiments=[
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="7-24-ddpg-baxter-left-arm-no-use_reset-fixed-angle-all-zeros",
+        exp_prefix="7-24-ddpg-baxter-left-arm-varying-end-effector-no-reset",
         seed=0,
         mode='here',
         variant={
@@ -93,9 +94,9 @@ if __name__ == "__main__":
                 'safety_force_magnitude':1,
                 'temp':1.2,
                 'remove_action':False,
-                'experiment':experiments[0],
-                'es_min_sigma':.05,
-                'es_max_sigma':.05,
+                'experiment':experiments[3],
+                'es_min_sigma':.1,
+                'es_max_sigma':.1,
                 'num_epochs':30,
                 'batch_size':1024,
                 'use_gpu':True,

@@ -132,7 +132,6 @@ class SawyerEnv(Env, Serializable):
             action_mode='torque',
             remove_action=False,
             safety_box=False,
-            safety_end_effector_box=False,
             loss='huber',
             huber_delta=10,
             safety_force_magnitude=2,
@@ -150,26 +149,24 @@ class SawyerEnv(Env, Serializable):
         self.end_effector_experiment_total = False
         self.fixed_end_effector = False
         self.safety_box = False
-        self.safety_end_effector_box = False
 
 
         if experiment == experiments[0]:
             self.joint_angle_experiment=True
+            self.fixed_angle = True
         elif experiment == experiments[1]:
             self.joint_angle_experiment=True
-            self.fixed_angle=False
         elif experiment == experiments[2]:
             self.end_effector_experiment_position=True
+            self.fixed_end_effector = True
         elif experiment == experiments[3]:
-            self.end_effector_experiment_position=False
-            self.fixed_end_effector = False
+            self.end_effector_experiment_position=True
         elif experiment == experiments[4]:
             self.end_effector_experiment_total=True
+            self.fixed_end_effector = True
         elif experiment == experiments[5]:
             self.end_effector_experiment_total = True
-            self.fixed_end_effector=False
 
-        self.safety_end_effector_box = safety_end_effector_box
         self.safety_box = safety_box
         self.remove_action = remove_action
         self.arm_name = arm_name
@@ -497,7 +494,7 @@ class SawyerEnv(Env, Serializable):
 
         return np.array([x, y, z])
 
-    def compute_mean_distance_outside_box(self, pose):
+    def compute_distances_outside_box(self, pose):
         curr_x = pose[0]
         curr_y = pose[1]
         curr_z = pose[2]
@@ -560,7 +557,7 @@ class SawyerEnv(Env, Serializable):
             ))
 
             if self.safety_box:
-                distances_outside_box = np.array([self.compute_mean_distance_outside_box(pose) for pose in positions])
+                distances_outside_box = np.array([self.compute_distances_outside_box(pose) for pose in positions])
                 statistics.update(self._statistics_from_observations(
                     distances_outside_box,
                     stat_prefix,
@@ -576,23 +573,22 @@ class SawyerEnv(Env, Serializable):
                 ))
 
         if self.joint_angle_experiment:
-            angle_distances, mean_distances_outside_box = self._joint_angle_exp_info(paths)
-            distances_from_desired_angle = angle_distances
+            angle_differences, distances_outside_box = self._joint_angle_exp_info(paths)
             statistics.update(self._statistics_from_observations(
-                distances_from_desired_angle,
+                angle_differences,
                 stat_prefix,
-                'Distance from Desired Joint Angle'
+                'Difference from Desired Joint Angle'
             ))
 
             if self.safety_box:
                 statistics.update(self._statistics_from_observations(
-                    mean_distances_outside_box,
+                    distances_outside_box,
                     stat_prefix,
                     'End Effector Distance Outside Box'
                 ))
+
         for key, value in statistics.items():
             logger.record_tabular(key, value)
-
 
     def _joint_angle_exp_info(self, paths):
         obsSets = [path["observations"] for path in paths]
@@ -610,9 +606,9 @@ class SawyerEnv(Env, Serializable):
             desired_angles = np.array(desired_angles)
 
             differences = np.array([self.compute_angle_difference(angle_obs, desired_angle_obs) for angle_obs, desired_angle_obs in zip(angles, desired_angles)])
-            angle_distances = linalg.norm(differences, axis=1)
-            mean_distances_outside_box = np.array([self.compute_mean_distance_outside_box(pose) for pose in positions])
-            return [angle_distances, mean_distances_outside_box]
+            angle_differences = np.mean(differences, axis=1)
+            distances_outside_box = np.array([self.compute_distances_outside_box(pose) for pose in positions])
+            return [angle_differences, distances_outside_box]
 
 
     def _statistics_from_observations(self, observation, stat_prefix, log_title):
