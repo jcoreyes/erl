@@ -82,7 +82,7 @@ experiments=[
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="7-24-ddpg-baxter-left-arm-varying-end-effector-no-reset",
+        exp_prefix="7-25-ddpg-baxter-left-arm-varying-joint-angle-no-reset",
         seed=0,
         mode='here',
         variant={
@@ -94,7 +94,7 @@ if __name__ == "__main__":
                 'safety_force_magnitude':1,
                 'temp':1.2,
                 'remove_action':False,
-                'experiment':experiments[3],
+                'experiment':experiments[1],
                 'es_min_sigma':.1,
                 'es_max_sigma':.1,
                 'num_epochs':30,

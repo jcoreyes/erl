@@ -30,6 +30,7 @@ def example(variant):
         num_epochs = variant['num_epochs']
         batch_size = variant['batch_size']
         use_reset = variant['use_reset']
+
         env = BaxterEnv(
             experiment=experiment,
             arm_name=arm_name,
@@ -80,7 +81,7 @@ experiments=[
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="7-24-ddpg-baxter-right-arm-fixed-end-effector-no-reset",
+        exp_prefix="7-25-ddpg-baxter-right-arm-fixed-angle-random-reset-enlarged-safety-box",
         seed=0,
         mode='here',
         variant={
@@ -92,7 +93,7 @@ if __name__ == "__main__":
                 'safety_force_magnitude':1,
                 'temp':1.2,
                 'remove_action':False,
-                'experiment':experiments[2],
+                'experiment':experiments[0],
                 'es_min_sigma':.1,
                 'es_max_sigma':.1,
                 'num_epochs':30,
