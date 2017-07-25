@@ -188,20 +188,20 @@ class SawyerEnv(Env, Serializable):
 
         #create a dictionary whose values are functions that set the appropriate values
         action_mode_dict = {
-            'position': self.arm.set_joint_positions,
+            'angle': self.arm.set_joint_positions,
             'velocity': self.arm.set_joint_velocities,
             'torque': self.arm.set_joint_torques,
         }
 
         #create a dictionary whose values are functions that return the appropriate values
         observation_mode_dict = {
-            'position': self.arm.joint_angles,
+            'angle': self._joint_angles,
             'velocity': self.arm.joint_velocities,
             'torque': self.arm.joint_efforts,
         }
 
         self._set_joint_values = action_mode_dict[action_mode]
-        self._get_joint_to_value_func_list = list(observation_mode_dict.values())
+        self._get_joint_values = observation_mode_dict
 
         self._action_space = Box(
             JOINT_VALUE_LOW[action_mode],
@@ -228,9 +228,10 @@ class SawyerEnv(Env, Serializable):
             ))
 
             if self.fixed_angle:
-                self.desired = np.zeros(NUM_JOINTS)
+                # self.desired = np.zeros(NUM_JOINTS)
                 angles = {'right_j6': 3.23098828125, 'right_j5': -2.976708984375, 'right_j4': -0.100001953125, 'right_j3': 1.59925, 'right_j2': -1.6326630859375, 'right_j1': -0.3456298828125, 'right_j0': 0.0382529296875}
                 angles = np.array([angles['right_j0'], angles['right_j1'], angles['right_j2'], angles['right_j3'], angles['right_j4'], angles['right_j5'], angles['right_j6']])
+                angles = self._wrap_angles(angles)
                 self.desired = angles
             else:
                 self._randomize_desired_angles()
@@ -315,10 +316,13 @@ class SawyerEnv(Env, Serializable):
                 else:
                     action = action + torques
 
-        np.clip(action, -1, 1, out=action)
+        # np.clip(action, -1, 1, out=action)
         joint_to_values = dict(zip(self.arm_joint_names, action))
         self._set_joint_values(joint_to_values)
         self.rate.sleep()
+
+    def _wrap_angles(self, angles):
+        return angles % (2*np.pi)
 
     def _joint_angles(self):
         joint_to_angles = self.arm.joint_angles()
@@ -326,10 +330,10 @@ class SawyerEnv(Env, Serializable):
             joint_to_angles[joint] for joint in self.arm_joint_names
         ])
         angles = self._wrap_angles(angles)
+        for angle in angles:
+            if angle < 0:
+                ipdb.set_trace()
         return angles
-
-    def _wrap_angles(self, angles):
-        return angles % (2*np.pi)
 
     def _end_effector_pose(self):
         state_dict = self.arm.endpoint_pose()
@@ -369,6 +373,8 @@ class SawyerEnv(Env, Serializable):
           :param angle1: A wrapped angle
           :param angle2: A wrapped angle
           """
+        self._wrap_angles(angles1)
+        self._wrap_angles(angles2)
         deltas = np.abs(angles1 - angles2)
         differences = np.array([min(2*np.pi-delta, delta) for delta in deltas])
         return differences
@@ -392,14 +398,12 @@ class SawyerEnv(Env, Serializable):
         return observation, reward, done, info
 
     def _get_observation(self):
-        # joint_values_dict = self._get_joint_to_value_dict()
-        positions_dict = self._get_joint_to_value_func_list[0]()
-        velocities_dict = self._get_joint_to_value_func_list[1]()
-        torques_dict = self._get_joint_to_value_func_list[2]()
-        positions = [positions_dict[joint] for joint in self.arm_joint_names]
-        velocities = [velocities_dict[joint] for joint in self.arm_joint_names]
-        torques = [torques_dict[joint] for joint in self.arm_joint_names]
-        temp = positions + velocities + torques
+        angles = self._get_joint_values['angle']()
+        velocities_dict = self._get_joint_values['velocity']()
+        torques_dict = self._get_joint_values['torque']()
+        velocities = np.array([velocities_dict[joint] for joint in self.arm_joint_names])
+        torques = np.array([torques_dict[joint] for joint in self.arm_joint_names])
+        temp = np.hstack((angles, velocities, torques))
         temp = np.hstack((temp, self._end_effector_pose()))
         temp = np.hstack((temp, self.desired))
         return temp
