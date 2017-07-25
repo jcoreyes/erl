@@ -119,6 +119,7 @@ if __name__ == "__main__":
     resolution = 10
     if args.load:
         policy = data['policy']
+        policy.train(False)
     else:
         if args.grid:
             policy = GridPolicy(qf, resolution)
