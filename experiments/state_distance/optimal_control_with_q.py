@@ -27,9 +27,9 @@ class OptimalControlPolicy(object):
     R1 = 0.1  # from reacher.xml
     R2 = 0.11
 
-    def __init__(self, qf, lagrange_constant=10):
+    def __init__(self, qf, constraint_weight=10):
         self.qf = qf
-        self.lagrange_constant = lagrange_constant
+        self.constraint_weight = constraint_weight
         self._goal_pos = None
 
     def set_goal(self, goal):
@@ -41,7 +41,7 @@ class OptimalControlPolicy(object):
 
     def reward(self, state, action, next_state):
         ee_pos = self.position(next_state)
-        return torch.norm(ee_pos - self._goal_pos)
+        return -torch.norm(ee_pos - self._goal_pos)
 
     def position(self, obs):
         c1 = obs[:, 0:1]  # cosine of angle 1
@@ -66,44 +66,61 @@ class OptimalControlPolicy(object):
         """
         Naive implementation where I just do gradient ascent on
 
-        f(a, s') = r(s, a, s') - lambda Q(s, a, s')
+            f(a, s') = r(s, a, s') - lambda Q(s, a, s')^2
 
         i.e. gradient descent on
 
-        f(a, s') = lambda Q(s, a, s') - r(s, a, s')
-        :param obs:
-        :return:
+            f(a, s') = lambda Q(s, a, s')^2 - r(s, a, s')
+
+        :param obs: np.array, state/observation
+        :return: np.array, action to take
         """
-        action = ptu.Variable(ptu.FloatTensor(1, 2), requires_grad=True)
+        action_np = np.random.uniform(-1, 1, (1, 2))
+        theta = np.random.uniform(
+            low=-math.pi,
+            high=math.pi,
+            size=(1, 2)
+        )
+        next_state_np = np.hstack([
+            np.cos(theta),
+            np.sin(theta),
+            np.random.uniform(-1, 1, (1, 2)),
+        ])
+        action = ptu.Variable(
+            ptu.from_numpy(action_np).float(),
+            requires_grad=True,
+        )
         obs_expanded = np.expand_dims(obs, 0)
         next_state = ptu.Variable(
-            ptu.from_numpy(np.zeros_like(obs_expanded)).float(),
+            ptu.from_numpy(next_state_np).float(),
             requires_grad=True,
         )
         obs = Variable(ptu.from_numpy(obs_expanded).float(),
                        requires_grad=False)
         optimizer = SGD(
             [action, next_state],
-            lr=1e-4,
+            lr=1e-1,
         )
         for _ in range(100):
             augmented_obs = torch.cat((obs, next_state), dim=1)
-            objective_reward = self.reward(obs, action, next_state)
+            objective_loss = -self.reward(obs, action, next_state)
             q_value = self.qf(augmented_obs, action)
+            constraint_loss = q_value.sum()**2
             loss = (
-                self.lagrange_constant * q_value
-                - objective_reward
+                self.constraint_weight * constraint_loss
+                + objective_loss
             )
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             # TODO(vitchyr): check this
-            action.clamp(-1, 1)
-            next_state.clamp(-1, 1)
+            action.data = torch.clamp(action.data, -1, 1)
+            # action = torch.clamp(-1, 1)
+            # next_state = next_state.clamp(-1, 1)
 
         print("")
-        print("Q value", ptu.get_numpy(q_value))
-        print("objective reward", ptu.get_numpy(objective_reward))
+        print("constraint loss", ptu.get_numpy(constraint_loss)[0])
+        print("objective loss", ptu.get_numpy(objective_loss)[0])
         print("action", ptu.get_numpy(action))
         print("next_state", ptu.get_numpy(next_state))
         return ptu.get_numpy(action), {}
@@ -172,7 +189,10 @@ if __name__ == "__main__":
 
     num_samples = 1000
     resolution = 10
-    policy = OptimalControlPolicy(qf)
+    policy = OptimalControlPolicy(
+        qf,
+        constraint_weight=1,
+    )
     for _ in range(args.num_rollouts):
         paths = []
         for _ in range(5):
