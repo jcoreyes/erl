@@ -100,7 +100,7 @@ if __name__ == "__main__":
     parser.add_argument('--H', type=int, default=100,
                         help='Max length of rollout')
     parser.add_argument('--num_rollouts', type=int, default=100,
-                        help='Max length of rollout')
+                        help='Total number of rollout')
     parser.add_argument('--grid', action='store_true')
     parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--load', action='store_true')
