@@ -73,7 +73,8 @@ class MultitaskPathSampler(object):
                         n_steps_total,
                         self.min_num_steps_to_collect,
                         100 * n_steps_total / self.min_num_steps_to_collect,
-                    )
+                    ),
+                    with_timestamp=False,
                 )
             else:
                 obs = next_ob
