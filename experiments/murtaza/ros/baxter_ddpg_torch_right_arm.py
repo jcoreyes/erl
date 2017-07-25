@@ -29,7 +29,7 @@ def example(variant):
         es_max_sigma = variant['es_max_sigma']
         num_epochs = variant['num_epochs']
         batch_size = variant['batch_size']
-        
+        use_reset = variant['use_reset']
         env = BaxterEnv(
             experiment=experiment,
             arm_name=arm_name,
@@ -39,6 +39,7 @@ def example(variant):
             safety_force_magnitude=safety_force_magnitude,
             temp=temp,
             huber_delta=huber_delta,
+            use_reset=use_reset,
         )
         es = OUStrategy(
             max_sigma=es_max_sigma,
