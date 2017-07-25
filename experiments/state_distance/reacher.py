@@ -4,7 +4,7 @@ from railrl.algos.qlearning.state_distance_q_learning import (
     StateDistanceQLearning
 )
 from railrl.envs.env_utils import gym_env
-from railrl.envs.multitask.reacher_env import MultitaskReacherEnv
+from railrl.envs.multitask.reacher_env import XyMultitaskReacherEnv
 from railrl.envs.wrappers import convert_to_tf_env, normalize, convert_gym_space
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
@@ -16,7 +16,7 @@ from gym.envs.mujoco.reacher import ReacherEnv
 
 
 def experiment(variant):
-    env = MultitaskReacherEnv()
+    env = XyMultitaskReacherEnv()
     # env = gym_env("Reacher-v1")
     # env = convert_to_tf_env(env)
     # env = normalize(env)

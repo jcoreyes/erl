@@ -1,3 +1,34 @@
+"""
+Extensions to the base ReacherEnv. Basically, these classes add the following
+functions:
+    - sample_goal_states
+    - compute_rewards
+Typical usage:
+
+```
+    batch = get_batch(batch_size)
+    goal_states = env.sample_goal_states(batch_size)
+    new_rewards = env.compute_rewards(
+        batch['observations'],
+        batch['actions'],
+        batch['next_observations'],
+        goal_states,
+    )
+    # Update batch to use new rewards and maybe add goal states
+```
+
+One example of how I do the last step is I do:
+
+```
+    batch['observations'] = np.hstack((batch['observations'], goal_states))
+    batch['next_observations'] = np.hstack((
+        batch['next_observations'], goal_states
+    ))
+    batch['rewards'] = new_rewards
+```
+
+:author: Vitchyr Pong
+"""
 import math
 from collections import OrderedDict
 
@@ -6,16 +37,17 @@ from gym import utils
 from gym.envs.mujoco import ReacherEnv, mujoco_env
 
 from railrl.misc.data_processing import create_stats_ordered_dict
-from rllab.envs.gym_env import convert_gym_space
 from rllab.misc import logger
 
 
-class MultitaskReacherEnv(ReacherEnv):
+class XyMultitaskReacherEnv(ReacherEnv):
+    """
+    The goal states are xy-coordinates.
+    """
     R1 = 0.1  # from reacher.xml
     R2 = 0.11
 
     def sample_goal_states(self, batch_size):
-        # return 0.2 * np.ones((batch_size, 2))
         return self.np_random.uniform(
             low=-0.2,
             high=0.2,
@@ -54,11 +86,43 @@ class MultitaskReacherEnv(ReacherEnv):
         return 2
 
 
-class SimpleReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
+class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
+    """
+    The goal states are xy-coordinates.
+
+    Furthermore, the actual state space is simplified. ReacherEnv has the
+    following state space:
+        - cos(angle 1)
+        - cos(angle 2)
+        - sin(angle 1)
+        - sin(angle 2)
+        - goal x-coordinate
+        - goal y-coordinate
+        - angle 1 velocity
+        - angle 2 velocity
+        - x-coordinate distance from end effector to goal
+        - y-coordinate distance from end effector to goal
+        - z-coordinate distance from end effector to goal (always zero)
+
+    This environment only has the following:
+        - cos(angle 1)
+        - cos(angle 2)
+        - sin(angle 1)
+        - sin(angle 2)
+        - angle 1 velocity
+        - angle 2 velocity
+
+    since the goal will constantly change.
+    """
     R1 = 0.1  # from reacher.xml
     R2 = 0.11
 
     def __init__(self, add_noop_action=True):
+        """
+        :param add_noop_action: If True, add an extra no-op after every call to
+        the simulator. The reason this is done is so that your current action
+        (torque) will affect your next position.
+        """
         self.add_noop_action = add_noop_action
         utils.EzPickle.__init__(self, add_noop_action=add_noop_action)
         mujoco_env.MujocoEnv.__init__(self, 'reacher.xml', 2)
@@ -66,6 +130,13 @@ class SimpleReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self.goal = None
 
     def set_goal(self, goal):
+        """
+        Add option to set the goal. Really only used for debugging. If None (
+        by default), then the goal is randomly sampled each time the
+        environment is reset.
+        :param goal:
+        :return:
+        """
         self._fixed_goal = goal
 
     def _step(self, a):
@@ -74,9 +145,9 @@ class SimpleReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         reward_ctrl = - np.square(a).sum()
         reward = reward_dist + reward_ctrl
         self.do_simulation(a, self.frame_skip)
-        # Make it so that your actions (torque) actually affect the next
-        # observation position.
         if self.add_noop_action:
+            # Make it so that your actions (torque) actually affect the next
+            # observation position.
             self.do_simulation(np.zeros_like(a), self.frame_skip)
         ob = self._get_obs()
         done = False
@@ -155,7 +226,11 @@ class SimpleReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         return 2
 
 
-class GoalStateReacherEnv(SimpleReacherEnv):
+class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
+    """
+    The goal state is an actual state (6 dimensions--see parent class), rather
+    than just the XY-coordinate of the target end effector.
+    """
     def set_goal(self, goal_state):
         c1 = goal_state[0:1]
         c2 = goal_state[1:2]
@@ -182,7 +257,6 @@ class GoalStateReacherEnv(SimpleReacherEnv):
         ])
 
     def compute_rewards(self, obs, action, next_obs, goal_states):
-        # return -np.linalg.norm(next_obs[:, :4] - goal_states[:, :4], axis=1)
         return -np.linalg.norm(next_obs - goal_states, axis=1)
 
     def log_diagnostics(self, paths):
@@ -191,8 +265,16 @@ class GoalStateReacherEnv(SimpleReacherEnv):
         goal_states = np.vstack([path['observations'][:, -6:] for path in
                                     paths])
         rewards = self.compute_rewards(None, None, observations, goal_states)
+        positions = self.position(observations)
+        goal_positions = self.position(
+            np.vstack([path['observations'][:, -6:] for path in paths])
+        )
+        distances = np.linalg.norm(positions - goal_positions, axis=1)
 
         statistics = OrderedDict()
+        statistics.update(create_stats_ordered_dict(
+            'Distance to target', distances
+        ))
         statistics.update(create_stats_ordered_dict(
             'Rewards', rewards,
         ))

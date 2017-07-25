@@ -1,9 +1,9 @@
 import argparse
 import numpy as np
 
-from railrl.envs.multitask.reacher_env import MultitaskReacherEnv
+from railrl.envs.multitask.reacher_env import XyMultitaskReacherEnv
 
-env = MultitaskReacherEnv()
+env = XyMultitaskReacherEnv()
 
 
 def set_state(target_pos, joint_angles, velocity):
@@ -49,7 +49,7 @@ if __name__ == "__main__":
     goal = np.array([args.x, args.y])
     num_samples = 10
 
-    eval_env = MultitaskReacherEnv()
+    eval_env = XyMultitaskReacherEnv()
     obs = eval_env.reset()
     for _ in range(1000):
         new_obs = np.hstack((obs, goal))

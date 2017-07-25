@@ -6,7 +6,8 @@ from railrl.algos.qlearning.state_distance_q_learning import (
     StateDistanceQLearning,
 )
 from railrl.envs.multitask.reacher_env import (
-    GoalStateReacherEnv,
+    GoalStateSimpleStateReacherEnv,
+    XyMultitaskSimpleStateReacherEnv,
 )
 from railrl.envs.wrappers import convert_gym_space
 from railrl.launchers.launcher_util import run_experiment
@@ -28,7 +29,7 @@ def main(variant):
         int(action_space.flat_dim),
         400,
         300,
-        batchnorm_obs=True,
+        batchnorm_obs=False,
     )
     policy = FeedForwardPolicy(
         int(observation_space.flat_dim) + env.goal_dim,
@@ -49,17 +50,17 @@ def main(variant):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('replay_pkl_path', type=str,
+    parser.add_argument('--replay_path', type=str,
                         help='path to the snapshot file')
     args = parser.parse_args()
 
     n_seeds = 1
     mode = "here"
-    exp_prefix = "7-24-dev-sdql-reacher"
+    exp_prefix = "7-25-sdql-reacher-xy-no-bn-add-noop"
     snapshot_mode = 'gap'
-    snapshot_gap = 10
+    snapshot_gap = 5
 
-    dataset_path = args.replay_pkl_path
+    dataset_path = args.replay_path
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -75,8 +76,8 @@ if __name__ == '__main__':
             policy_learning_rate=1e-5,
             sample_goals_from='replay_buffer',
         ),
-        env_class=GoalStateReacherEnv,
-        # env_class=SimpleReacherEnv,
+        # env_class=GoalStateSimpleStateReacherEnv,
+        env_class=XyMultitaskSimpleStateReacherEnv,
     )
 
     seed = random.randint(0, 10000)

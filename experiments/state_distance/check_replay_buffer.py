@@ -5,7 +5,7 @@ import numpy as np
 import argparse
 import pickle
 
-from railrl.envs.multitask.reacher_env import SimpleReacherEnv
+from railrl.envs.multitask.reacher_env import XyMultitaskSimpleStateReacherEnv
 import matplotlib.pyplot as plt
 
 
@@ -34,7 +34,7 @@ def main(dataset_path):
     plt.title("observation")
     plt.show()
 
-    env = SimpleReacherEnv()
+    env = XyMultitaskSimpleStateReacherEnv()
     batch = train_pool.random_batch(1)
     computed_rewards = env.compute_rewards(
         batch['observations'],

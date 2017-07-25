@@ -6,7 +6,7 @@ import numpy as np
 from torch.autograd import Variable
 
 import railrl.torch.pytorch_util as ptu
-from railrl.envs.multitask.reacher_env import SimpleReacherEnv
+from railrl.envs.multitask.reacher_env import XyMultitaskSimpleStateReacherEnv
 from railrl.torch.pytorch_util import set_gpu_mode
 from rllab.misc import logger
 
