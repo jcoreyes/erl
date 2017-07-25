@@ -1,11 +1,12 @@
 from pathlib import Path
 
-from railrl.algos.qlearning.state_distance_q_learning import (
-    MultitaskPathSampler)
+from railrl.samplers.path_sampler import MultitaskPathSampler
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
-from railrl.envs.multitask.reacher_env import MultitaskReacherEnv
-from railrl.envs.multitask.reacher_simple_state import SimpleReacherEnv
+from railrl.envs.multitask.reacher_env import (
+    MultitaskReacherEnv,
+    SimpleReacherEnv,
+)
 from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.launchers.launcher_util import run_experiment
@@ -53,8 +54,8 @@ def main(variant):
 
 if __name__ == '__main__':
     out_dir = Path(LOG_DIR) / 'datasets/generated'
-    out_dir /= '7-13-simple-reacher-gaussian-frame-skip'
-    min_num_steps_to_collect = 100000
+    out_dir /= '7-17-simple-reacher-gaussian-frame-skip-10k-reach-env-py'
+    min_num_steps_to_collect = 10000
     max_path_length = 1000
     pool_size = min_num_steps_to_collect + max_path_length
 

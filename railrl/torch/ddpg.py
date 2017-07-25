@@ -58,22 +58,22 @@ class DDPG(OnlineAlgorithm):
                                        lr=self.qf_learning_rate)
         self.policy_optimizer = optim.Adam(self.policy.parameters(),
                                            lr=self.policy_learning_rate)
-        if replay_buffer == None:
-            self.pool = SplitReplayBuffer(
+        if replay_buffer is None:
+            self.replay_buffer = SplitReplayBuffer(
                 EnvReplayBuffer(
-                    self.pool_size,
+                    self.replay_buffer_size,
                     self.env,
                     flatten=True,
                 ),
                 EnvReplayBuffer(
-                    self.pool_size,
+                    self.replay_buffer_size,
                     self.env,
                     flatten=True,
                 ),
                 fraction_paths_in_train=0.8,
             )
         else:
-            self.pool = replay_buffer
+            self.replay_buffer = replay_buffer
         self.cuda()
 
     def cuda(self):
@@ -196,12 +196,12 @@ class DDPG(OnlineAlgorithm):
         self.log_diagnostics(paths)
 
     def get_batch(self, training=True):
-        pool = self.pool.get_replay_buffer(training)
+        replay_buffer = self.replay_buffer.get_replay_buffer(training)
         sample_size = min(
-            pool.num_steps_can_sample(),
+            replay_buffer.num_steps_can_sample(),
             self.batch_size
         )
-        batch = pool.random_batch(sample_size)
+        batch = replay_buffer.random_batch(sample_size)
         return np_to_pytorch_batch(batch)
 
     def _statistics_from_paths(self, paths, stat_prefix):
@@ -249,7 +249,7 @@ class DDPG(OnlineAlgorithm):
     def _can_evaluate(self, exploration_paths):
         return (
             len(exploration_paths) > 0
-            and self.pool.num_steps_can_sample() > 0
+            and self.replay_buffer.num_steps_can_sample() > 0
         )
 
     def get_epoch_snapshot(self, epoch):
@@ -259,23 +259,15 @@ class DDPG(OnlineAlgorithm):
             env=self.training_env,
             es=self.exploration_strategy,
             qf=self.qf,
-            replay_pool=self.pool,
+            replay_buffer=self.replay_buffer,
             algorithm=self,
             batch_size=self.batch_size,
         )
 
 
-def array_or_tuple_to_variable(array_or_tuple):
-    if isinstance(array_or_tuple, tuple):
-        return tuple(
-            array_or_tuple_to_variable(elem) for elem in array_or_tuple
-        )
-    return Variable(ptu.from_numpy(array_or_tuple).float(), requires_grad=False)
-
-
 def np_to_pytorch_batch(np_batch):
     torch_batch = {
-        k: array_or_tuple_to_variable(elem)
+        k: Variable(ptu.from_numpy(elem).float(), requires_grad=False)
         for k, elem in np_batch.items()
     }
     torch_batch['rewards'] = torch_batch['rewards'].unsqueeze(-1)

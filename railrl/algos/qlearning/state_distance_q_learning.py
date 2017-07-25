@@ -1,175 +1,21 @@
+import random
 from collections import OrderedDict
 
-import pickle
-import random
-import os
 import numpy as np
 import torch
-import torch.optim as optim
 from torch import nn as nn
 from torch.autograd import Variable
 from torch.nn import functional as F
 
-from railrl.data_management.env_replay_buffer import EnvReplayBuffer
-from railrl.data_management.split_buffer import SplitReplayBuffer
+import railrl.torch.pytorch_util as ptu
 from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.misc.rllab_util import get_average_returns, split_paths
 from railrl.pythonplusplus import identity
 from railrl.torch.core import PyTorchModule
 from railrl.torch.ddpg import DDPG, np_to_pytorch_batch
-from railrl.torch.online_algorithm import OnlineAlgorithm
-import railrl.torch.pytorch_util as ptu
-from rllab.misc import logger, special
+from rllab.misc import logger
 
 
 class StateDistanceQLearning(DDPG):
-    def __init__(
-            self,
-            *args,
-            **kwargs
-    ):
-        super().__init__(*args, **kwargs)
-
-    def get_batch(self, training=True):
-        pool = self.pool.get_replay_buffer(training)
-        batch_size = min(
-            pool.num_steps_can_sample(),
-            self.batch_size
-        )
-        batch = pool.random_batch(batch_size)
-        goal_states = self.env.sample_goal_states(batch_size)
-        new_rewards = self.env.compute_rewards(
-            batch['observations'],
-            batch['actions'],
-            batch['next_observations'],
-            goal_states,
-        )
-        batch['observations'] = batch['observations'], goal_states
-        batch['next_observations'] = (
-            batch['next_observations'], goal_states
-        )
-        batch['rewards'] = new_rewards
-        torch_batch = np_to_pytorch_batch(batch)
-        torch_batch['observations'] = torch.cat(
-            torch_batch['observations'], dim=1
-        )
-        torch_batch['next_observations'] = torch.cat(
-            torch_batch['next_observations'], dim=1
-        )
-        return torch_batch
-
-    def reset_env(self):
-        self.exploration_strategy.reset()
-        self.exploration_policy.reset()
-        self.policy.reset()
-        return self.training_env.reset()
-
-    def _paths_to_np_batch(self, paths):
-        batch = super()._paths_to_np_batch(paths)
-        batch_size = len(batch['observations'])
-        goal_states = self.env.sample_goal_states(batch_size)
-        new_rewards = self.env.compute_rewards(
-            batch['observations'],
-            batch['actions'],
-            batch['next_observations'],
-            goal_states,
-        )
-        batch['observations'] = np.hstack((batch['observations'], goal_states))
-        batch['next_observations'] = np.hstack((
-            batch['next_observations'], goal_states
-        ))
-        batch['rewards'] = new_rewards
-        return batch
-
-
-class MultitaskPathSampler(object):
-    def __init__(
-            self,
-            env,
-            exploration_policy,
-            exploration_strategy,
-            pool,
-            min_num_steps_to_collect=1000,
-            max_path_length=None,
-            render=False,
-    ):
-        self.env = env
-        self.exploration_policy = exploration_policy
-        self.exploration_strategy = exploration_strategy
-        self.min_num_steps_to_collect = min_num_steps_to_collect
-        self.pool = pool
-        if max_path_length is None:
-            max_path_length = np.inf
-        self.max_path_length = max_path_length
-        self.render = render
-
-    def collect_data(self):
-        obs = self.env.reset()
-        n_steps_total = 0
-        path_length = 0
-        while True:
-            action, agent_info = (
-                self.exploration_strategy.get_action(
-                    n_steps_total,
-                    obs,
-                    self.exploration_policy,
-                )
-            )
-
-            next_ob, raw_reward, terminal, env_info = (
-                self.env.step(action)
-            )
-            if self.render:
-                self.env.render()
-            n_steps_total += 1
-            path_length += 1
-            reward = raw_reward
-
-            self.pool.add_sample(
-                obs,
-                action,
-                reward,
-                terminal,
-                agent_info=agent_info,
-                env_info=env_info,
-            )
-            if terminal or path_length >= self.max_path_length:
-                if n_steps_total >= self.min_num_steps_to_collect:
-                    break
-                self.pool.terminate_episode(
-                    next_ob,
-                    terminal,
-                    agent_info=agent_info,
-                    env_info=env_info,
-                )
-                obs = self.reset_env()
-                path_length = 0
-                logger.log(
-                    "Episode Done. # steps done = {}/{} ({:2.2f} %)".format(
-                        n_steps_total,
-                        self.min_num_steps_to_collect,
-                        100 * n_steps_total / self.min_num_steps_to_collect,
-                    )
-                )
-            else:
-                obs = next_ob
-
-    def save_pool(self):
-        # train_file = os.path.join(dir_name, 'train.pkl')
-        # validation_file = os.path.join(dir_name, 'validation.pkl')
-        out_dir = logger.get_snapshot_dir()
-        filename = os.path.join(out_dir, 'data.pkl')
-        with open(filename, 'wb') as handle:
-            pickle.dump(self.pool, handle, protocol=pickle.HIGHEST_PROTOCOL)
-        print("Saved to {}".format(filename))
-
-    def reset_env(self):
-        self.exploration_strategy.reset()
-        self.exploration_policy.reset()
-        return self.env.reset()
-
-
-class StateDistanceQLearningSimple(StateDistanceQLearning):
     def __init__(
             self,
             *args,
@@ -198,6 +44,51 @@ class StateDistanceQLearningSimple(StateDistanceQLearning):
                 logger.pop_prefix()
                 epoch += 1
 
+    def get_batch(self, training=True):
+        pool = self.pool.get_replay_buffer(training)
+        batch_size = min(
+            pool.num_steps_can_sample(),
+            self.batch_size
+        )
+        batch = pool.random_batch(batch_size)
+        goal_states = self.env.sample_goal_states(batch_size)
+        new_rewards = self.env.compute_rewards(
+            batch['observations'],
+            batch['actions'],
+            batch['next_observations'],
+            goal_states,
+        )
+        batch['observations'] = np.hstack((batch['observations'], goal_states))
+        batch['next_observations'] = np.hstack((
+            batch['next_observations'], goal_states
+        ))
+        batch['rewards'] = new_rewards
+        torch_batch = np_to_pytorch_batch(batch)
+        return torch_batch
+
+    def reset_env(self):
+        self.exploration_strategy.reset()
+        self.exploration_policy.reset()
+        self.policy.reset()
+        return self.training_env.reset()
+
+    def _paths_to_np_batch(self, paths):
+        batch = super()._paths_to_np_batch(paths)
+        batch_size = len(batch['observations'])
+        goal_states = self.env.sample_goal_states(batch_size)
+        new_rewards = self.env.compute_rewards(
+            batch['observations'],
+            batch['actions'],
+            batch['next_observations'],
+            goal_states,
+        )
+        batch['observations'] = np.hstack((batch['observations'], goal_states))
+        batch['next_observations'] = np.hstack((
+            batch['next_observations'], goal_states
+        ))
+        batch['rewards'] = new_rewards
+        return batch
+
     def evaluate(self, epoch, _):
         """
         Perform evaluation for this algorithm.
@@ -221,6 +112,8 @@ class StateDistanceQLearningSimple(StateDistanceQLearning):
             logger.record_tabular(key, value)
         logger.dump_tabular(with_prefix=False, with_timestamp=False)
 
+
+class StateDistanceQLearningSimple(StateDistanceQLearning):
     def _do_training(self, n_steps_total):
         batch = self.get_batch()
         train_dict = self.get_train_dict(batch)

@@ -45,7 +45,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             batch_size=1024,
             max_path_length=1000,
             discount=0.99,
-            pool_size=1000000,
+            replay_buffer_size=1000000,
             scale_reward=1,
             render=False,
             save_exploration_path_period=1,
@@ -59,7 +59,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         self.batch_size = batch_size
         self.max_path_length = max_path_length
         self.discount = discount
-        self.pool_size = pool_size
+        self.replay_buffer_size = replay_buffer_size
         self.scale_reward = scale_reward
         self.render = render
         self.save_exploration_path_period = save_exploration_path_period
@@ -67,8 +67,8 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         self.env = pickle.loads(pickle.dumps(self.training_env))
         self.action_space = convert_gym_space(env.action_space)
         self.obs_space = convert_gym_space(env.observation_space)
-        self.pool = EnvReplayBuffer(
-            self.pool_size,
+        self.replay_buffer = EnvReplayBuffer(
+            self.replay_buffer_size,
             self.env,
         )
 
@@ -138,7 +138,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                     agent_infos.append(agent_info)
                     env_infos.append(env_info)
 
-                self.pool.add_sample(
+                self.replay_buffer.add_sample(
                     observation,
                     action,
                     reward,
@@ -147,7 +147,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                     env_info=env_info,
                 )
                 if terminal or path_length >= self.max_path_length:
-                    self.pool.terminate_episode(
+                    self.replay_buffer.terminate_episode(
                         next_ob,
                         terminal,
                         agent_info=agent_info,
@@ -234,7 +234,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         pass
 
     def _can_train(self):
-        return self.pool.num_steps_can_sample() >= self.batch_size
+        return self.replay_buffer.num_steps_can_sample() >= self.batch_size
 
     def get_epoch_snapshot(self, epoch):
         return dict(

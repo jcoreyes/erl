@@ -132,11 +132,11 @@ class SawyerEnv(Env, Serializable):
             action_mode='torque',
             remove_action=False,
             safety_box=False,
-            safety_end_effector_box=False,
             loss='huber',
             huber_delta=10,
             safety_force_magnitude=2,
             temp=1.05,
+            use_reset=True,
     ):
 
         Serializable.quick_init(self, locals())
@@ -150,29 +150,28 @@ class SawyerEnv(Env, Serializable):
         self.end_effector_experiment_total = False
         self.fixed_end_effector = False
         self.safety_box = False
-        self.safety_end_effector_box = False
 
 
         if experiment == experiments[0]:
             self.joint_angle_experiment=True
+            self.fixed_angle = True
         elif experiment == experiments[1]:
             self.joint_angle_experiment=True
-            self.fixed_angle=False
         elif experiment == experiments[2]:
             self.end_effector_experiment_position=True
+            self.fixed_end_effector = True
         elif experiment == experiments[3]:
-            self.end_effector_experiment_position=False
-            self.fixed_end_effector = False
+            self.end_effector_experiment_position=True
         elif experiment == experiments[4]:
             self.end_effector_experiment_total=True
+            self.fixed_end_effector = True
         elif experiment == experiments[5]:
             self.end_effector_experiment_total = True
-            self.fixed_end_effector=False
 
-        self.safety_end_effector_box = safety_end_effector_box
         self.safety_box = safety_box
         self.remove_action = remove_action
         self.arm_name = arm_name
+        self.use_reset = use_reset
 
         if loss == 'MSE':
             self.reward_function = self._MSE_reward
@@ -230,9 +229,9 @@ class SawyerEnv(Env, Serializable):
 
             if self.fixed_angle:
                 self.desired = np.zeros(NUM_JOINTS)
-                angles = {'right_j6': 3.312470703125, 'right_j5': 0.5715908203125, 'right_j4': 0.001154296875, 'right_j3': 2.1776962890625, 'right_j2': -0.0021767578125, 'right_j1': -1.1781728515625, 'right_j0': 0.00207421875}
+                angles = {'right_j6': 3.23098828125, 'right_j5': -2.976708984375, 'right_j4': -0.100001953125, 'right_j3': 1.59925, 'right_j2': -1.6326630859375, 'right_j1': -0.3456298828125, 'right_j0': 0.0382529296875}
                 angles = np.array([angles['right_j0'], angles['right_j1'], angles['right_j2'], angles['right_j3'], angles['right_j4'], angles['right_j5'], angles['right_j6']])
-            
+                self.desired = angles
             else:
                 self._randomize_desired_angles()
 
@@ -254,10 +253,11 @@ class SawyerEnv(Env, Serializable):
             ))
 
             if self.fixed_end_effector:
+                des_pos = Point(x=0.44562573898386176, y=-0.055317682301721766, z=0.4950886597008108)
                 self.desired = np.array([
-                    0.1485434521312332,
-                    -0.43227588084273644,
-                    -0.7116727296474704
+                    des_pos.x,
+                    des_pos.y,
+                    des_pos.z,
                 ])
 
             else:
@@ -285,14 +285,15 @@ class SawyerEnv(Env, Serializable):
             ))
 
             if self.fixed_end_effector:
+                des = {'position': Point(x=0.44562573898386176, y=-0.055317682301721766, z=0.4950886597008108), 'orientation': Quaternion(x=-0.5417504106748736, y=0.46162598289085305, z=0.35800013141940035, w=0.6043540769758675)}
                 self.desired = np.array([
-                    0.14854234521312332,
-                    -0.43227588084273644,
-                    -0.7116727296474704,
-                    0.46800638382243764,
-                    0.8837008622125236,
-                    -0.005641180126528841,
-                    -0.0033148021158782666
+                    des['position'].x,
+                    des['position'].y,
+                    des['position'].z,
+                    des['orientation'].x,
+                    des['orientation'].y,
+                    des['orientation'].z,
+                    des['orientation'].w,
                 ])
             else:
                 self._randomize_desired_end_effector_pose()
@@ -370,9 +371,6 @@ class SawyerEnv(Env, Serializable):
           """
         deltas = np.abs(angles1 - angles2)
         differences = np.array([min(2*np.pi-delta, delta) for delta in deltas])
-        # print("deltas:", deltas)
-        # print("differences", differences)
-        print(np.mean(differences))
         return differences
 
     def step(self, action):
@@ -419,7 +417,9 @@ class SawyerEnv(Env, Serializable):
                 or self.end_effector_experiment_total and not self.fixed_end_effector:
             self._randomize_desired_end_effector_pose()
 
-        self.arm.move_to_neutral()
+        if self.use_reset:
+            self.arm.move_to_neutral()
+
         return self._get_observation()
 
     def _randomize_desired_angles(self):
@@ -500,7 +500,7 @@ class SawyerEnv(Env, Serializable):
 
         return np.array([x, y, z])
 
-    def compute_mean_distance_outside_box(self, pose):
+    def compute_distances_outside_box(self, pose):
         curr_x = pose[0]
         curr_y = pose[1]
         curr_z = pose[2]
@@ -563,7 +563,7 @@ class SawyerEnv(Env, Serializable):
             ))
 
             if self.safety_box:
-                distances_outside_box = np.array([self.compute_mean_distance_outside_box(pose) for pose in positions])
+                distances_outside_box = np.array([self.compute_distances_outside_box(pose) for pose in positions])
                 statistics.update(self._statistics_from_observations(
                     distances_outside_box,
                     stat_prefix,
@@ -579,23 +579,22 @@ class SawyerEnv(Env, Serializable):
                 ))
 
         if self.joint_angle_experiment:
-            angle_distances, mean_distances_outside_box = self._joint_angle_exp_info(paths)
-            distances_from_desired_angle = angle_distances
+            angle_differences, distances_outside_box = self._joint_angle_exp_info(paths)
             statistics.update(self._statistics_from_observations(
-                distances_from_desired_angle,
+                angle_differences,
                 stat_prefix,
-                'Distance from Desired Joint Angle'
+                'Difference from Desired Joint Angle'
             ))
 
             if self.safety_box:
                 statistics.update(self._statistics_from_observations(
-                    mean_distances_outside_box,
+                    distances_outside_box,
                     stat_prefix,
                     'End Effector Distance Outside Box'
                 ))
+
         for key, value in statistics.items():
             logger.record_tabular(key, value)
-
 
     def _joint_angle_exp_info(self, paths):
         obsSets = [path["observations"] for path in paths]
@@ -613,10 +612,9 @@ class SawyerEnv(Env, Serializable):
             desired_angles = np.array(desired_angles)
 
             differences = np.array([self.compute_angle_difference(angle_obs, desired_angle_obs) for angle_obs, desired_angle_obs in zip(angles, desired_angles)])
-            # angle_distances = linalg.norm(differences, axis=1)
-            angle_distances = np.mean(differences, axis=1)
-            mean_distances_outside_box = np.array([self.compute_mean_distance_outside_box(pose) for pose in positions])
-            return [angle_distances, mean_distances_outside_box]
+            angle_differences = np.mean(differences, axis=1)
+            distances_outside_box = np.array([self.compute_distances_outside_box(pose) for pose in positions])
+            return [angle_differences, distances_outside_box]
 
 
     def _statistics_from_observations(self, observation, stat_prefix, log_title):

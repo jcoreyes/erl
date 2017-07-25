@@ -9,37 +9,20 @@ $ python analyze_variants.py path/to/data/folder --ylabel="AverageReturn"
 ```
 """
 import argparse
-import matplotlib.pyplot as plt
-import numpy as np
-import os
-from os.path import join
-import json
 from collections import defaultdict
 
-from railrl.misc.data_processing import get_data_and_variants
-from railrl.pythonplusplus import nested_dict_to_dot_map_dict, is_numeric
-import seaborn
+import matplotlib.pyplot as plt
+import numpy as np
+
+from railrl.misc.data_processing import get_data_and_variants, \
+    get_unique_param_to_values
+from railrl.pythonplusplus import is_numeric
 
 
 def sort_by_first(*lists):
     combined = zip(*lists)
     sorted_lists = sorted(combined, key=lambda x: x[0])
     return zip(*sorted_lists)
-
-
-def get_unique_param_to_values(all_variants):
-    variant_key_to_values = defaultdict(set)
-    for variant in all_variants:
-        for k, v in variant.items():
-            if type(v) == list:
-                v = str(v)
-            variant_key_to_values[k].add(v)
-    unique_key_to_values = {
-        k: variant_key_to_values[k]
-        for k in variant_key_to_values
-        if len(variant_key_to_values[k]) > 1
-    }
-    return unique_key_to_values
 
 
 def main():

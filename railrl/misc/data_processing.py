@@ -5,10 +5,91 @@ import json
 import numpy as np
 import os
 import os.path as osp
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict, namedtuple
 from numbers import Number
 
 from railrl.pythonplusplus import nested_dict_to_dot_map_dict
+
+
+Trial = namedtuple("Trial", ["data", "variant"])
+
+
+def matches_dict(criteria_dict, test_dict, ignore_missing_keys=False):
+    for k, v in criteria_dict.items():
+        if k not in test_dict:
+            if not ignore_missing_keys:
+                raise KeyError("Key '{}' not in dictionary".format(k))
+        else:
+            if test_dict[k] != v:
+                return False
+    return True
+
+
+class Experiment(object):
+    """
+    Represents an experiment, which consists of many Trials.
+    """
+    def __init__(self, base_dir):
+        """
+        :param base_dir: A path. Directory structure should be something like:
+        ```
+        base_dir/
+            foo/
+                bar/
+                    arbtrarily_deep/
+                        trial_one/
+                            variant.json
+                            progress.csv
+                        trial_two/
+                            variant.json
+                            progress.csv
+                    trial_three/
+                        variant.json
+                        progress.csv
+                        ...
+                    variant.json  # <-- base_dir/foo/bar has its own Trial
+                    progress.csv
+                variant.json  # <-- base_dir/foo has its own Trial
+                progress.csv
+            variant.json  # <-- base_dir has its own Trial
+            progress.csv
+        ```
+
+        The important thing is that `variant.json` and `progress.csv` are
+        in the same sub-directory for each Trial.
+        """
+        self.trials = []
+        for data, variant in get_data_and_variants(base_dir):
+            self.trials.append(Trial(data, variant))
+        assert len(self.trials) > 0, "Nothing loaded."
+        self.label = 'AverageReturn'
+
+    def get_trials(self, criteria=None, ignore_missing_keys=False):
+        """
+        Return a list of Trials that match a criteria.
+        :param criteria: A dictionary from key to value that must be matches
+        in the trial's variant. e.g.
+        ```
+        >>> print(exp.trials)
+        [
+            (X, {'a': True, ...})
+            (Y, {'a': False, ...})
+            (Z, {'a': True, ...})
+        ]
+        >>> print(exp.get_trials({'a': True}))
+        [
+            (X, {'a': True, ...})
+            (Z, {'a': True, ...})
+        ]
+        ```
+        :param ignore_missing_keys: If a trial does not have a key that
+        criteria provides, ignore it. Otherwise, raise an error.
+        :return:
+        """
+        if criteria is None:
+            criteria = {}
+        return [trial for trial in self.trials
+                if matches_dict(criteria, trial.variant, ignore_missing_keys)]
 
 
 def create_stats_ordered_dict(name, data, stat_prefix=None):
@@ -79,3 +160,18 @@ def get_data_and_variants(base_dir):
         )
         data_and_variants.append((data, variant))
     return data_and_variants
+
+
+def get_unique_param_to_values(all_variants):
+    variant_key_to_values = defaultdict(set)
+    for variant in all_variants:
+        for k, v in variant.items():
+            if type(v) == list:
+                v = str(v)
+            variant_key_to_values[k].add(v)
+    unique_key_to_values = {
+        k: variant_key_to_values[k]
+        for k in variant_key_to_values
+        if len(variant_key_to_values[k]) > 1
+    }
+    return unique_key_to_values

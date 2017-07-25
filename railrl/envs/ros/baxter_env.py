@@ -10,6 +10,10 @@ from robot_info.srv import *
 from railrl.misc.data_processing import create_stats_ordered_dict
 from collections import OrderedDict
 import ipdb
+import joblib
+from rllab.sampler.utils import rollout
+from railrl.torch.pytorch_util import set_gpu_mode
+from railrl.torch.core import PyTorchModule
 
 NUM_JOINTS = 7
 
@@ -81,25 +85,25 @@ END_EFFECTOR_VALUE_HIGH = {
     'angle': END_EFFECTOR_ANGLE_HIGH,
 }
 
-right_lows = [
+right_safety_box_lows = [
     0.3404830862298487,
     -1.2633121086809487,
     -0.5698485041484043
 ]
 
-right_highs = [
-    1.1163239572333106,
+right_safety_box_highs = [
+    1.463239572333106,
     0.003933425621414761,
     0.795699462010194
 ]
 
-left_lows = [
+left_safety_box_lows = [
     0.3404830862298487,
     -0.003933425621414761,
     -0.5698485041484043
 ]
 
-left_highs = [
+left_safety_box_highs = [
     1.1163239572333106,
     1.2633121086809487,
     0.795699462010194
@@ -144,11 +148,14 @@ class BaxterEnv(Env, Serializable):
             action_mode='torque',
             remove_action=False,
             safety_box=False,
-            safety_end_effector_box=False,
             loss='huber',
             huber_delta=10,
             safety_force_magnitude=2,
             temp=1.05,
+            neutral_policy_file=None,
+            neutral_steps_to_run=5,
+            gpu=True,
+            use_reset=True,
     ):
 
         Serializable.quick_init(self, locals())
@@ -166,23 +173,27 @@ class BaxterEnv(Env, Serializable):
 
         if experiment == experiments[0]:
             self.joint_angle_experiment=True
+            self.fixed_angle = True
         elif experiment == experiments[1]:
             self.joint_angle_experiment=True
-            self.fixed_angle=False
         elif experiment == experiments[2]:
             self.end_effector_experiment_position=True
+            self.fixed_end_effector = True
         elif experiment == experiments[3]:
-            self.end_effector_experiment_position=False
-            self.fixed_end_effector = False
+            self.end_effector_experiment_position=True
         elif experiment == experiments[4]:
             self.end_effector_experiment_total=True
+            self.fixed_end_effector = True
         elif experiment == experiments[5]:
             self.end_effector_experiment_total = True
-            self.fixed_end_effector=False
 
         self.safety_box = safety_box
         self.remove_action = remove_action
         self.arm_name = arm_name
+        self.neutral_policy_file = neutral_policy_file
+        self.neutral_steps_to_run = neutral_steps_to_run
+        self.gpu = gpu
+        self.use_reset = use_reset
 
         if loss == 'MSE':
             self.reward_function = self._MSE_reward
@@ -240,7 +251,11 @@ class BaxterEnv(Env, Serializable):
 
             if self.fixed_angle:
                 self.desired = np.zeros(NUM_JOINTS)
-                angles = [0.0, -0.55, 0.0, 0.75, 0.0, 1.26, 0.0]
+                # angles = {'right_s0': -0.0049903943346150115, 'right_e0': 0.007773590752427673, 'right_w2': 0.0083526057004919, 'right_w0': 0.008741701187912732, 'right_s1': -0.5451848158718935, 'right_w1': 1.2560255299115681, 'right_e1': 0.7475769104563383}
+                # # angles = [0.0, -0.55, 0.0, 0.75, 0.0, 1.26, 0.0]
+                # angles = np.array(
+                #     [angles['right_s0'], angles['right_s1'], angles['right_e0'], angles['right_e1'], angles['right_w0'],
+                #      angles['right_w1'], angles['right_w2']])
             else:
                 self._randomize_desired_angles()
 
@@ -262,10 +277,15 @@ class BaxterEnv(Env, Serializable):
             ))
 
             if self.fixed_end_effector:
+                # self.desired = np.array([
+                #     0.1485434521312332,
+                #     -0.43227588084273644,
+                #     -0.7116727296474704
+                # ])
                 self.desired = np.array([
-                    0.1485434521312332,
-                    -0.43227588084273644,
-                    -0.7116727296474704
+                    1.1349147779210946,
+                    -0.7649915111535125,
+                    0.5545338667382815
                 ])
 
             else:
@@ -409,6 +429,30 @@ class BaxterEnv(Env, Serializable):
         temp = np.hstack((temp, self.desired))
         return temp
 
+    # def move_to_neutral(self):
+    #     if self.neutral_policy_file:
+    #         data = joblib.load(self.neutral_policy_file)
+    #         policy = data['policy']
+    #         env = data['env']
+    #         if self.gpu:
+    #             set_gpu_mode(True)
+    #             policy.cuda()
+    #         if isinstance(policy, PyTorchModule):
+    #             policy.train(False)
+    #
+    #         for _ in range(self.neutral_steps_to_run):
+    #             path = rollout(
+    #                 env,
+    #                 policy,
+    #                 max_path_length=args.max_path_length,
+    #                 animated=True,
+    #                 speedup=args.speedup,
+    #                 always_return_paths=True,
+    #             )
+    #             self.log_diagnostics([path])
+    #             policy.log_diagnostics([path])
+    #             logger.dump_tabular()
+
     def reset(self):
         """
         Resets the state of the environment, returning an initial observation.
@@ -421,8 +465,8 @@ class BaxterEnv(Env, Serializable):
         elif self.end_effector_experiment_position \
                 or self.end_effector_experiment_total and not self.fixed_end_effector:
             self._randomize_desired_end_effector_pose()
-
-        self.arm.move_to_neutral()
+        if self.use_reset:
+            self.arm.move_to_neutral()
         return self._get_observation()
 
     def _randomize_desired_angles(self):
@@ -472,11 +516,11 @@ class BaxterEnv(Env, Serializable):
         if self.arm_name == 'right':
             within_box = [curr_pose > lower_pose and curr_pose < higher_pose
                 for curr_pose, lower_pose, higher_pose
-                in zip(endpoint_pose, right_lows, right_highs)]
+                in zip(endpoint_pose, right_safety_box_lows, right_safety_box_highs)]
         else:
             within_box = [curr_pose > lower_pose and curr_pose < higher_pose
                 for curr_pose, lower_pose, higher_pose
-                in zip(endpoint_pose, left_lows, left_highs)]
+                in zip(endpoint_pose, left_safety_box_lows, left_safety_box_highs)]
         return all(within_box)
 
     def get_adjustment_forces_per_joint_dict(self, joint_dict):
@@ -493,40 +537,40 @@ class BaxterEnv(Env, Serializable):
         curr_y = endpoint_pose[1]
         curr_z = endpoint_pose[2]
         if self.arm_name == 'right':
-            if curr_x > right_highs[0]:
-                x = -1 * np.exp(np.abs(curr_x - right_highs[0]) * self.temp) * self.safety_force_magnitude
-            elif curr_x < right_lows[0]:
-                x = np.exp(np.abs(curr_x - right_lows[0]) * self.temp) * self.safety_force_magnitude
+            if curr_x > right_safety_box_highs[0]:
+                x = -1 * np.exp(np.abs(curr_x - right_safety_box_highs[0]) * self.temp) * self.safety_force_magnitude
+            elif curr_x < right_safety_box_lows[0]:
+                x = np.exp(np.abs(curr_x - right_safety_box_lows[0]) * self.temp) * self.safety_force_magnitude
 
-            if curr_y > right_highs[1]:
-                y = -1 * np.exp(np.abs(curr_y - right_highs[1]) * self.temp) * self.safety_force_magnitude
-            elif curr_y < right_lows[1]:
-                y = np.exp(np.abs(curr_y - right_lows[1]) * self.temp) * self.safety_force_magnitude
+            if curr_y > right_safety_box_highs[1]:
+                y = -1 * np.exp(np.abs(curr_y - right_safety_box_highs[1]) * self.temp) * self.safety_force_magnitude
+            elif curr_y < right_safety_box_lows[1]:
+                y = np.exp(np.abs(curr_y - right_safety_box_lows[1]) * self.temp) * self.safety_force_magnitude
 
-            if curr_z > right_highs[2]:
-                z = -1 * np.exp(np.abs(curr_z - right_highs[2]) * self.temp) * self.safety_force_magnitude
-            elif curr_z < right_lows[2]:
-                z = np.exp(np.abs(curr_z - right_highs[2]) * self.temp) * self.safety_force_magnitude
+            if curr_z > right_safety_box_highs[2]:
+                z = -1 * np.exp(np.abs(curr_z - right_safety_box_highs[2]) * self.temp) * self.safety_force_magnitude
+            elif curr_z < right_safety_box_lows[2]:
+                z = np.exp(np.abs(curr_z - right_safety_box_highs[2]) * self.temp) * self.safety_force_magnitude
         else:
-            if curr_x > left_highs[0]:
-                x = -1 * np.exp(np.abs(curr_x - left_highs[0]) * self.temp) * self.safety_force_magnitude
-            elif curr_x < left_lows[0]:
-                x = np.exp(np.abs(curr_x - left_lows[0]) * self.temp) * self.safety_force_magnitude
+            if curr_x > left_safety_box_highs[0]:
+                x = -1 * np.exp(np.abs(curr_x - left_safety_box_highs[0]) * self.temp) * self.safety_force_magnitude
+            elif curr_x < left_safety_box_lows[0]:
+                x = np.exp(np.abs(curr_x - left_safety_box_lows[0]) * self.temp) * self.safety_force_magnitude
 
-            if curr_y > left_highs[1]:
-                y = -1 * np.exp(np.abs(curr_y - left_highs[1]) * self.temp) * self.safety_force_magnitude
-            elif curr_y < left_lows[1]:
-                y = np.exp(np.abs(curr_y - left_lows[1]) * self.temp) * self.safety_force_magnitude
+            if curr_y > left_safety_box_highs[1]:
+                y = -1 * np.exp(np.abs(curr_y - left_safety_box_highs[1]) * self.temp) * self.safety_force_magnitude
+            elif curr_y < left_safety_box_lows[1]:
+                y = np.exp(np.abs(curr_y - left_safety_box_lows[1]) * self.temp) * self.safety_force_magnitude
 
-            if curr_z > left_highs[2]:
-                z = -1 * np.exp(np.abs(curr_z - left_highs[2]) * self.temp) * self.safety_force_magnitude
-            elif curr_z < left_lows[2]:
-                z = np.exp(np.abs(curr_z - left_highs[2]) * self.temp) * self.safety_force_magnitude
+            if curr_z > left_safety_box_highs[2]:
+                z = -1 * np.exp(np.abs(curr_z - left_safety_box_highs[2]) * self.temp) * self.safety_force_magnitude
+            elif curr_z < left_safety_box_lows[2]:
+                z = np.exp(np.abs(curr_z - left_safety_box_highs[2]) * self.temp) * self.safety_force_magnitude
 
 
         return np.array([x, y, z])
 
-    def compute_mean_distance_outside_box(self, pose):
+    def compute_distances_outside_box(self, pose):
         curr_x = pose[0]
         curr_y = pose[1]
         curr_z = pose[2]
@@ -535,35 +579,35 @@ class BaxterEnv(Env, Serializable):
         else:
             x, y, z = 0, 0, 0
             if self.arm_name == 'right':
-                if curr_x > right_highs[0]:
-                    x = np.abs(curr_x - right_highs[0])
-                elif curr_x < right_lows[0]:
-                    x = np.abs(curr_x - right_lows[0])
+                if curr_x > right_safety_box_highs[0]:
+                    x = np.abs(curr_x - right_safety_box_highs[0])
+                elif curr_x < right_safety_box_lows[0]:
+                    x = np.abs(curr_x - right_safety_box_lows[0])
 
-                if curr_y > right_highs[1]:
-                    y = np.abs(curr_y - right_highs[1])
-                elif curr_y < right_lows[1]:
-                    y = np.abs(curr_y - right_lows[1])
+                if curr_y > right_safety_box_highs[1]:
+                    y = np.abs(curr_y - right_safety_box_highs[1])
+                elif curr_y < right_safety_box_lows[1]:
+                    y = np.abs(curr_y - right_safety_box_lows[1])
 
-                if curr_z > right_highs[2]:
-                    z = np.abs(curr_z - right_highs[2])
-                elif curr_z < right_lows[2]:
-                    z = np.abs(curr_z - right_lows[2])
+                if curr_z > right_safety_box_highs[2]:
+                    z = np.abs(curr_z - right_safety_box_highs[2])
+                elif curr_z < right_safety_box_lows[2]:
+                    z = np.abs(curr_z - right_safety_box_lows[2])
             else:
-                if curr_x > right_highs[0]:
-                    x = np.abs(curr_x - left_highs[0])
-                elif curr_x < left_lows[0]:
-                    x = np.abs(curr_x - left_lows[0])
+                if curr_x > right_safety_box_highs[0]:
+                    x = np.abs(curr_x - left_safety_box_highs[0])
+                elif curr_x < left_safety_box_lows[0]:
+                    x = np.abs(curr_x - left_safety_box_lows[0])
 
-                if curr_y > left_highs[1]:
-                    y = np.abs(curr_y - left_highs[1])
-                elif curr_y < left_lows[1]:
-                    y = np.abs(curr_y - left_lows[1])
+                if curr_y > left_safety_box_highs[1]:
+                    y = np.abs(curr_y - left_safety_box_highs[1])
+                elif curr_y < left_safety_box_lows[1]:
+                    y = np.abs(curr_y - left_safety_box_lows[1])
 
-                if curr_z > left_highs[2]:
-                    z = np.abs(curr_z - left_highs[2])
-                elif curr_z < left_lows[2]:
-                    z = np.abs(curr_z - left_lows[2])
+                if curr_z > left_safety_box_highs[2]:
+                    z = np.abs(curr_z - left_safety_box_highs[2])
+                elif curr_z < left_safety_box_lows[2]:
+                    z = np.abs(curr_z - left_safety_box_lows[2])
         return np.linalg.norm([x, y, z])
 
     @property
@@ -607,7 +651,7 @@ class BaxterEnv(Env, Serializable):
             ))
 
             if self.safety_box:
-                distances_outside_box = np.array([self.compute_mean_distance_outside_box(pose) for pose in positions])
+                distances_outside_box = np.array([self.compute_distances_outside_box(pose) for pose in positions])
                 statistics.update(self._statistics_from_observations(
                     distances_outside_box,
                     stat_prefix,
@@ -623,17 +667,16 @@ class BaxterEnv(Env, Serializable):
                 ))
 
         if self.joint_angle_experiment:
-            angle_distances, mean_distances_outside_box = self._joint_angle_exp_info(paths)
-            distances_from_desired_angle = angle_distances
+            angle_differences, distances_outside_box = self._joint_angle_exp_info(paths)
             statistics.update(self._statistics_from_observations(
-                distances_from_desired_angle,
+                angle_differences,
                 stat_prefix,
-                'Distance from Desired Joint Angle'
+                'Difference from Desired Joint Angle'
             ))
 
             if self.safety_box:
                 statistics.update(self._statistics_from_observations(
-                    mean_distances_outside_box,
+                    distances_outside_box,
                     stat_prefix,
                     'End Effector Distance Outside Box'
                 ))
@@ -657,9 +700,9 @@ class BaxterEnv(Env, Serializable):
             desired_angles = np.array(desired_angles)
 
             differences = np.array([self.compute_angle_difference(angle_obs, desired_angle_obs) for angle_obs, desired_angle_obs in zip(angles, desired_angles)])
-            angle_distances = linalg.norm(differences, axis=1)
-            mean_distances_outside_box = np.array([self.compute_mean_distance_outside_box(pose) for pose in positions])
-            return [angle_distances, mean_distances_outside_box]
+            angle_differences = np.mean(differences, axis=1)
+            distances_outside_box = np.array([self.compute_distances_outside_box(pose) for pose in positions])
+            return [angle_differences, distances_outside_box]
 
     def _statistics_from_observations(self, observation, stat_prefix, log_title):
         statistics = OrderedDict()
@@ -675,7 +718,7 @@ class BaxterEnv(Env, Serializable):
         raise NotImplementedError
 
     def terminate(self):
-        self.reset()
+        self.use_reset()
 
     def get_param_values(self):
         return None

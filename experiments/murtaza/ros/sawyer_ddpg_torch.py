@@ -29,7 +29,7 @@ def example(variant):
         es_max_sigma = variant['es_max_sigma']
         num_epochs = variant['num_epochs']
         batch_size = variant['batch_size']
-
+        use_reset = variant['use_reset']
         env = SawyerEnv(
             experiment=experiment,
             arm_name=arm_name,
@@ -39,6 +39,7 @@ def example(variant):
             safety_force_magnitude=safety_force_magnitude,
             temp=temp,
             huber_delta=huber_delta,
+            use_reset=use_reset
         )
         es = OUStrategy(
             max_sigma=es_max_sigma,
@@ -78,7 +79,7 @@ experiments=[
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="7-24-ddpg-sawyer-fixed-angle-huber-move-to-neutral-improved-angle-measurement-test",
+        exp_prefix="7-25-ddpg-sawyer-fixed-angle-no-reset",
         seed=0,
         mode='here',
         variant={
@@ -96,7 +97,8 @@ if __name__ == "__main__":
             'num_epochs': 30,
             'batch_size': 1024,
             'use_gpu':True,
-            'load_policy_file':'~/Documents/rllab/data/local/7-23-ddpg-sawyer-fixed-angle-huber-move-to-neutral-improved-angle-measurement/7-23-ddpg-sawyer-fixed-angle-huber-move-to-neutral-improved-angle-measurement_2017_07_23_21_37_42_0000--s-0/params.pkl'
+            'use_reset':False,
+            # 'load_policy_file':'~/Documents/rllab/data/local/7-23-ddpg-sawyer-fixed-angle-huber-move-to-neutral-improved-angle-measurement/7-23-ddpg-sawyer-fixed-angle-huber-move-to-neutral-improved-angle-measurement_2017_07_23_21_37_42_0000--s-0/params.pkl'
         },
         use_gpu=True,
     )
