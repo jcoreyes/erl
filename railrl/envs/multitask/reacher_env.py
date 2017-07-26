@@ -40,12 +40,37 @@ from railrl.misc.data_processing import create_stats_ordered_dict
 from rllab.misc import logger
 
 
+R1 = 0.1  # from reacher.xml
+R2 = 0.11
+
+
+def position_from_angles(angles):
+    """
+    :param angles: np.ndarray [batch_size x feature]
+    where the first four entries (along dimesion 1) are
+        - cosine of angle 1
+        - cosine of angle 2
+        - sine of angle 1
+        - sine of angle 2
+    :return: np.ndarray [batch_size x 2]
+    """
+    c1 = angles[:, 0:1]  # cosine of angle 1
+    c2 = angles[:, 1:2]
+    s1 = angles[:, 2:3]
+    s2 = angles[:, 3:4]
+    return (  # forward kinematics equation for 2-link robot
+        R1 * np.hstack([c1, s1])
+        + R2 * np.hstack([
+            c1 * c2 - s1 * s2,
+            s1 * c2 + c1 * s2,
+        ])
+    )
+
+
 class XyMultitaskReacherEnv(ReacherEnv):
     """
     The goal states are xy-coordinates.
     """
-    R1 = 0.1  # from reacher.xml
-    R2 = 0.11
 
     def sample_goal_states(self, batch_size):
         return self.np_random.uniform(
@@ -55,17 +80,7 @@ class XyMultitaskReacherEnv(ReacherEnv):
         )
 
     def compute_rewards(self, obs, action, next_obs, goal_states):
-        c1 = next_obs[:, 0:1]  # cosine of angle 1
-        c2 = next_obs[:, 1:2]
-        s1 = next_obs[:, 2:3]
-        s2 = next_obs[:, 3:4]
-        next_qpos = (  # forward kinematics equation for 2-link robot
-            self.R1 * np.hstack([c1, s1])
-            + self.R2 * np.hstack([
-                c1 * c2 - s1 * s2,
-                s1 * c2 + c1 * s2,
-            ])
-        )
+        next_qpos = position_from_angles(next_obs)
         return -np.linalg.norm(next_qpos - goal_states, axis=1)
 
     def log_diagnostics(self, paths):
@@ -80,6 +95,9 @@ class XyMultitaskReacherEnv(ReacherEnv):
         ))
         for key, value in statistics.items():
             logger.record_tabular(key, value)
+
+    def convert_obs_to_goal_states(self, obs):
+        return position_from_angles(obs)
 
     @property
     def goal_dim(self):
@@ -114,9 +132,6 @@ class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
     since the goal will constantly change.
     """
-    R1 = 0.1  # from reacher.xml
-    R2 = 0.11
-
     def __init__(self, add_noop_action=True):
         """
         :param add_noop_action: If True, add an extra no-op after every call to
@@ -190,26 +205,13 @@ class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         )
 
     def compute_rewards(self, obs, action, next_obs, goal_states):
-        next_endeffector_positions = self.position(next_obs)
+        next_endeffector_positions = position_from_angles(next_obs)
         return -np.linalg.norm(next_endeffector_positions - goal_states, axis=1)
-
-    def position(self, obs):
-        c1 = obs[:, 0:1]  # cosine of angle 1
-        c2 = obs[:, 1:2]
-        s1 = obs[:, 2:3]
-        s2 = obs[:, 3:4]
-        return (  # forward kinematics equation for 2-link robot
-            self.R1 * np.hstack([c1, s1])
-            + self.R2 * np.hstack([
-                c1 * c2 - s1 * s2,
-                s1 * c2 + c1 * s2,
-            ])
-        )
 
     def log_diagnostics(self, paths):
         observations = np.vstack([path['observations'][:, :4] for path in
                                   paths])
-        positions = self.position(observations)
+        positions = position_from_angles(observations)
         goal_positions = np.vstack([path['observations'][:, -2:] for path in
                                    paths])
         distances = np.linalg.norm(positions - goal_positions, axis=1)
@@ -220,6 +222,9 @@ class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         ))
         for key, value in statistics.items():
             logger.record_tabular(key, value)
+
+    def convert_obs_to_goal_state(self, obs):
+        return position_from_angles(obs)
 
     @property
     def goal_dim(self):
@@ -232,17 +237,9 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
     than just the XY-coordinate of the target end effector.
     """
     def set_goal(self, goal_state):
-        c1 = goal_state[0:1]
-        c2 = goal_state[1:2]
-        s1 = goal_state[2:3]
-        s2 = goal_state[3:4]
-        self._fixed_goal = (  # forward kinematics equation for 2-link robot
-            self.R1 * np.hstack([c1, s1])
-            + self.R2 * np.hstack([
-                c1 * c2 - s1 * s2,
-                s1 * c2 + c1 * s2,
-            ])
-        )
+        self._fixed_goal = position_from_angles(
+            np.expand_dims(goal_state, 0)
+        )[0]
 
     def sample_goal_states(self, batch_size):
         theta = self.np_random.uniform(
@@ -265,10 +262,11 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
         goal_states = np.vstack([path['observations'][:, -6:] for path in
                                     paths])
         rewards = self.compute_rewards(None, None, observations, goal_states)
-        positions = self.position(observations)
-        goal_positions = self.position(
+        positions = position_from_angles(observations)
+        goal_positions = position_from_angles(
             np.vstack([path['observations'][:, -6:] for path in paths])
         )
+        import ipdb; ipdb.set_trace()
         distances = np.linalg.norm(positions - goal_positions, axis=1)
 
         statistics = OrderedDict()
@@ -280,6 +278,9 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
         ))
         for key, value in statistics.items():
             logger.record_tabular(key, value)
+
+    def convert_obs_to_goal_state(self, obs):
+        return obs
 
     @property
     def goal_dim(self):

@@ -75,7 +75,8 @@ class StateDistanceQLearning(DDPG):
         elif self.sample_goals_from == 'replay_buffer':
             pool = self.pool.get_replay_buffer(training=True)
             batch = pool.random_batch(batch_size)
-            return batch['observations']
+            obs = batch['observations']
+            return self.env.convert_obs_to_goal_state(obs)
 
     def reset_env(self):
         self.exploration_strategy.reset()
