@@ -236,6 +236,28 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
     The goal state is an actual state (6 dimensions--see parent class), rather
     than just the XY-coordinate of the target end effector.
     """
+
+    def __init__(self, add_noop_action=True, reward_weights=None):
+        """
+        :param add_noop_action: If True, add an extra no-op after every call to
+        the simulator. The reason this is done is so that your current action
+        (torque) will affect your next position.
+        :param reward_weights: Weights for when taking the L2-norm to compute
+        the reward.
+        """
+        self.add_noop_action = add_noop_action
+        utils.EzPickle.__init__(
+            self,
+            add_noop_action=add_noop_action,
+            reward_weights=reward_weights,
+        )
+        mujoco_env.MujocoEnv.__init__(self, 'reacher.xml', 2)
+        if reward_weights is not None:
+            reward_weights = np.array(reward_weights)
+        self.reward_weights = reward_weights
+        self._fixed_goal = None
+        self.goal = None
+
     def set_goal(self, goal_state):
         self._fixed_goal = position_from_angles(
             np.expand_dims(goal_state, 0)
@@ -254,7 +276,12 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
         ])
 
     def compute_rewards(self, obs, action, next_obs, goal_states):
-        return -np.linalg.norm(next_obs - goal_states, axis=1)
+        if self.reward_weights is None:
+            return -np.linalg.norm(next_obs - goal_states, axis=1)
+        else:
+            difference = next_obs - goal_states
+            difference *= self.reward_weights
+            return -np.linalg.norm(difference, axis=1)
 
     def log_diagnostics(self, paths):
         observations = np.vstack([path['observations'][:, :6] for path in
@@ -266,7 +293,6 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
         goal_positions = position_from_angles(
             np.vstack([path['observations'][:, -6:] for path in paths])
         )
-        import ipdb; ipdb.set_trace()
         distances = np.linalg.norm(positions - goal_positions, axis=1)
 
         statistics = OrderedDict()

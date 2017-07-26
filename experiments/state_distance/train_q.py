@@ -1,13 +1,13 @@
 import argparse
 import pickle
 import random
+import numpy as np
 
 from railrl.algos.qlearning.state_distance_q_learning import (
     StateDistanceQLearning,
 )
 from railrl.envs.multitask.reacher_env import (
     GoalStateSimpleStateReacherEnv,
-    XyMultitaskSimpleStateReacherEnv,
 )
 from railrl.envs.wrappers import convert_gym_space
 from railrl.launchers.launcher_util import run_experiment
@@ -17,7 +17,7 @@ from railrl.qfunctions.torch import FeedForwardQFunction
 
 def main(variant):
     env_class = variant['env_class']
-    env = env_class()
+    env = env_class(**variant['env_params'])
     dataset_path = variant['dataset_path']
     with open(dataset_path, 'rb') as handle:
         pool = pickle.load(handle)
@@ -56,7 +56,7 @@ if __name__ == '__main__':
 
     n_seeds = 1
     mode = "here"
-    exp_prefix = "7-25-sdql-reacher-xy-no-bn-add-noop"
+    exp_prefix = "7-26-dev-sdql-reacher-full-state-no-bn-add-noop"
     snapshot_mode = 'gap'
     snapshot_gap = 5
 
@@ -76,8 +76,12 @@ if __name__ == '__main__':
             policy_learning_rate=1e-5,
             sample_goals_from='replay_buffer',
         ),
-        # env_class=GoalStateSimpleStateReacherEnv,
-        env_class=XyMultitaskSimpleStateReacherEnv,
+        env_class=GoalStateSimpleStateReacherEnv,
+        env_params=dict(
+            add_noop_action=True,
+            reward_weights=[1, 1, 1, 1, 0, 0],
+        ),
+        # env_class=XyMultitaskSimpleStateReacherEnv,
     )
 
     seed = random.randint(0, 10000)
