@@ -16,7 +16,8 @@ from torch.autograd import Variable
 from torch.optim import SGD, Adam
 
 import railrl.torch.pytorch_util as ptu
-from railrl.envs.multitask.reacher_env import XyMultitaskSimpleStateReacherEnv
+from railrl.envs.multitask.reacher_env import XyMultitaskSimpleStateReacherEnv, \
+    GoalStateSimpleStateReacherEnv
 from railrl.pythonplusplus import line_logger
 from railrl.torch.pytorch_util import set_gpu_mode
 from rllab.misc import logger
@@ -29,21 +30,35 @@ class SampleOptimalControlPolicy(object):
     R1 = 0.1  # from reacher.xml
     R2 = 0.11
 
-    def __init__(self, qf, constraint_weight=10, sample_size=100):
+    def __init__(
+            self,
+            qf,
+            constraint_weight=10,
+            sample_size=100,
+            goal_is_full_state=True,
+            verbose=False,
+    ):
         self.qf = qf
         self.constraint_weight = constraint_weight
         self._goal_pos = None
         self.sample_size = sample_size
+        self.goal_is_full_state = goal_is_full_state
+        self.verbose = verbose
 
     def set_goal(self, goal):
-        self._goal = ptu.Variable(ptu.from_numpy(
-            np.expand_dims(goal, 0).repeat(self.sample_size, 0)
-        ).float())
-        self._goal_pos = self.position(self._goal)
+        if self.goal_is_full_state:
+            self._goal = ptu.Variable(ptu.from_numpy(
+                np.expand_dims(goal, 0).repeat(self.sample_size, 0)
+            ).float())
+            self._goal_pos = self.position(self._goal)
+        else:
+            self._goal_pos = ptu.Variable(ptu.from_numpy(
+                np.expand_dims(goal, 0).repeat(self.sample_size, 0)
+            ).float())
 
     def reward(self, state, action, next_state):
         ee_pos = self.position(next_state)
-        return -torch.norm(ee_pos - self._goal_pos)
+        return -torch.norm(ee_pos - self._goal_pos, dim=1)
 
     def position(self, obs):
         c1 = obs[:, 0:1]  # cosine of angle 1
@@ -102,14 +117,27 @@ class SampleOptimalControlPolicy(object):
             dim=1,
         )
         objective_loss = -self.reward(obs, action, next_state)
-        augmented_obs = torch.cat((obs, next_state), dim=1)
-        q_value = self.qf(augmented_obs, action)
-        constraint_loss = q_value.sum()**2
+        if self.goal_is_full_state:
+            augmented_obs = torch.cat((obs, next_state), dim=1)
+        else:
+            augmented_obs = torch.cat((
+                obs,
+                self.position(next_state),
+            ), dim=1)
+        constraint_loss = - self.qf(augmented_obs, action)
         loss = (
             self.constraint_weight * constraint_loss
             + objective_loss
         )
         min_i = np.argmin(ptu.get_numpy(loss))
+        if self.verbose:
+            logger.log("")
+            logger.log("constraint loss", ptu.get_numpy(constraint_loss)[min_i])
+            logger.log("objective loss", ptu.get_numpy(objective_loss)[min_i])
+            logger.log("action", ptu.get_numpy(action)[min_i])
+            logger.log("next_state", ptu.get_numpy(next_state[min_i]))
+            logger.log("next_state_pos", ptu.get_numpy(self.position(next_state))[min_i])
+            logger.log("goal_pos", ptu.get_numpy(self._goal_pos)[min_i])
         return sampled_actions[min_i], {}
 
 
@@ -287,12 +315,14 @@ if __name__ == "__main__":
         qf.cuda()
     qf.train(False)
     print("Env type:", type(env))
+    goal_is_full_state = isinstance(env, GoalStateSimpleStateReacherEnv)
 
     resolution = 10
     policy = SampleOptimalControlPolicy(
         qf,
         constraint_weight=1,
         sample_size=1000,
+        goal_is_full_state=goal_is_full_state,
     )
     for _ in range(args.num_rollouts):
         paths = []
