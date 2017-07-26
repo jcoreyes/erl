@@ -81,17 +81,41 @@ END_EFFECTOR_VALUE_HIGH = {
     'angle': END_EFFECTOR_ANGLE_HIGH,
 }
 
+# box_lows = [
+#     0.1628008448954529,
+#     -0.33786487626917794,
+#     0.20084391863426093,
+# ]
+#
+# box_highs = [
+#     0.7175958839273338,
+#     0.3464466563902636,
+#     0.7659791453416877,
+# ]
+
 box_lows = [
-    0.1628008448954529,
-    -0.33786487626917794,
-    0.20084391863426093,
+    0.2628008448954529,
+    -0.23786487626917794,
+    0.40084391863426093,
 ]
 
 box_highs = [
-    0.7175958839273338,
-    0.3464466563902636,
-    0.7659791453416877,
+    0.6175958839273338,
+    0.2464466563902636,
+    0.6659791453416877,
 ]
+
+# box_lows = [
+#     0.5229248368361292,
+#     -0.18738329161934256,
+#     0.5247724684655974
+# ]
+#
+# box_highs = [
+#     0.7229248368361292,
+#     0.2056984254930084,
+#     0.7668282486663502,
+# ]
 
 joint_names = [
     # '_l0',
@@ -414,7 +438,9 @@ class SawyerEnv(Env, Serializable):
 
     def random_reset(self):
         for _ in range(self.random_reset_length):
-            self._act(np.random.rand(1, 7)[0])
+            action = np.random.rand(1, 7)[0] * 2 - 1
+            print(action)
+            self._act(action)
 
     def reset(self):
         """
@@ -436,13 +462,13 @@ class SawyerEnv(Env, Serializable):
         return self._get_observation()
 
     def _randomize_desired_angles(self):
-        self.desired = np.random.rand(1, 7)[0]
+        self.desired = np.random.rand(1, 7)[0] * 2 - 1
 
     def _randomize_desired_end_effector_pose(self):
         if self.end_effector_experiment_position:
-            self.desired = np.random.rand(1, 3)[0]
+            self.desired = np.random.rand(1, 3)[0] * 2 - 1
         else:
-            self.desired = np.random.rand(1, 7)[0]
+            self.desired = np.random.rand(1, 7)[0] * 2 - 1
 
 
     def _get_robot_pose_jacobian_client(self, name, tip):
