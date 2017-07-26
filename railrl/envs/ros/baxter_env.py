@@ -156,7 +156,8 @@ class BaxterEnv(Env, Serializable):
             neutral_steps_to_run=5,
             gpu=True,
             use_reset=True,
-            random_reset_length=100, 
+            random_reset_length=100,
+            use_random_reset=False,
     ):
 
         Serializable.quick_init(self, locals())
@@ -195,6 +196,7 @@ class BaxterEnv(Env, Serializable):
         self.neutral_steps_to_run = neutral_steps_to_run
         self.gpu = gpu
         self.use_reset = use_reset
+        self.use_random_reset = use_random_reset
         self.random_reset_length = random_reset_length
         
         if loss == 'MSE':
@@ -219,13 +221,13 @@ class BaxterEnv(Env, Serializable):
 
         #create a dictionary whose values are functions that return the appropriate values
         observation_mode_dict = {
-            'position': self.arm.joint_angles,
+            'angle': self._joint_angles,
             'velocity': self.arm.joint_velocities,
             'torque': self.arm.joint_efforts,
         }
 
         self._set_joint_values = action_mode_dict[action_mode]
-        self._get_joint_to_value_func_list = list(observation_mode_dict.values())
+        self._get_joint_values = observation_mode_dict
 
         self._action_space = Box(
             JOINT_VALUE_LOW[action_mode],
@@ -348,16 +350,19 @@ class BaxterEnv(Env, Serializable):
         self._set_joint_values(joint_to_values)
         self.rate.sleep()
 
+    def _wrap_angles(self, angles):
+        return angles % (2*np.pi)
+
     def _joint_angles(self):
         joint_to_angles = self.arm.joint_angles()
         angles =  np.array([
             joint_to_angles[joint] for joint in self.arm_joint_names
         ])
         angles = self._wrap_angles(angles)
+        for angle in angles:
+            if angle < 0:
+                ipdb.set_trace()
         return angles
-
-    def _wrap_angles(self, angles):
-        return angles % (2*np.pi)
 
     def _end_effector_pose(self):
         state_dict = self.arm.endpoint_pose()
@@ -397,6 +402,8 @@ class BaxterEnv(Env, Serializable):
           :param angle1: A wrapped angle
           :param angle2: A wrapped angle
           """
+        self._wrap_angles(angles1)
+        self._wrap_angles(angles2)
         deltas = np.abs(angles1 - angles2)
         differences = np.array([min(2*np.pi-delta, delta) for delta in deltas])
         return differences
@@ -420,13 +427,12 @@ class BaxterEnv(Env, Serializable):
         return observation, reward, done, info
 
     def _get_observation(self):
-        positions_dict = self._get_joint_to_value_func_list[0]()
-        velocities_dict = self._get_joint_to_value_func_list[1]()
-        torques_dict = self._get_joint_to_value_func_list[2]()
-        positions = [positions_dict[joint] for joint in self.arm_joint_names]
-        velocities = [velocities_dict[joint] for joint in self.arm_joint_names]
-        torques = [torques_dict[joint] for joint in self.arm_joint_names]
-        temp = positions + velocities + torques
+        angles = self._get_joint_values['angle']()
+        velocities_dict = self._get_joint_values['velocity']()
+        torques_dict = self._get_joint_values['torque']()
+        velocities = np.array([velocities_dict[joint] for joint in self.arm_joint_names])
+        torques = np.array([torques_dict[joint] for joint in self.arm_joint_names])
+        temp = np.hstack((angles, velocities, torques))
         temp = np.hstack((temp, self._end_effector_pose()))
         temp = np.hstack((temp, self.desired))
         return temp
@@ -472,6 +478,8 @@ class BaxterEnv(Env, Serializable):
             self._randomize_desired_end_effector_pose()
         if self.use_reset:
             self.arm.move_to_neutral()
+        if self.use_random_reset:
+            self.random_reset()
         return self._get_observation()
 
     def _randomize_desired_angles(self):
