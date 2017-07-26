@@ -45,11 +45,6 @@ class GridPolicy(object):
         obs = Variable(ptu.from_numpy(obs_expanded).float(), requires_grad=False)
         q_values = ptu.get_numpy(self.qf(obs, actions))
         max_i = np.argmax(q_values)
-        # vals = q_values.reshape(resolution, resolution)
-        # heatmap = vals, x, y, _
-        # fig, ax = plt.subplots(1, 1)
-        # plot_heatmap(fig, ax, heatmap)
-        # plt.show()
         return sampled_actions[max_i], {}
 
 

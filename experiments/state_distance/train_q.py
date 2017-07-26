@@ -50,7 +50,7 @@ def main(variant):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--replay_path', type=str,
+    parser.add_argument('replay_path', type=str,
                         help='path to the snapshot file')
     args = parser.parse_args()
 
@@ -90,5 +90,5 @@ if __name__ == '__main__':
         exp_id=0,
         use_gpu=True,
         snapshot_mode=snapshot_mode,
-        snapshot_gap=10,
+        snapshot_gap=snapshot_gap,
     )

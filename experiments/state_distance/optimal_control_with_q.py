@@ -305,6 +305,8 @@ if __name__ == "__main__":
             print("Goal = ", goal)
             print("angle 1 (degrees) = ", np.arctan2(s1, c1) / math.pi * 180)
             print("angle 2 (degrees) = ", np.arctan2(s2, c2) / math.pi * 180)
+            print("angle 1 (radians) = ", np.arctan2(s1, c1))
+            print("angle 2 (radians) = ", np.arctan2(s2, c2))
             env.set_goal(goal)
             policy.set_goal(goal)
             paths.append(rollout(
