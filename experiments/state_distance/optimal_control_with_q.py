@@ -131,13 +131,13 @@ class SampleOptimalControlPolicy(object):
         )
         min_i = np.argmin(ptu.get_numpy(loss))
         if self.verbose:
-            logger.log("")
-            logger.log("constraint loss", ptu.get_numpy(constraint_loss)[min_i])
-            logger.log("objective loss", ptu.get_numpy(objective_loss)[min_i])
-            logger.log("action", ptu.get_numpy(action)[min_i])
-            logger.log("next_state", ptu.get_numpy(next_state[min_i]))
-            logger.log("next_state_pos", ptu.get_numpy(self.position(next_state))[min_i])
-            logger.log("goal_pos", ptu.get_numpy(self._goal_pos)[min_i])
+            print("")
+            print("constraint loss", ptu.get_numpy(constraint_loss)[min_i])
+            print("objective loss", ptu.get_numpy(objective_loss)[min_i])
+            print("action", ptu.get_numpy(action)[min_i])
+            print("next_state", ptu.get_numpy(next_state[min_i]))
+            print("next_state_pos", ptu.get_numpy(self.position(next_state))[min_i])
+            print("goal_pos", ptu.get_numpy(self._goal_pos)[min_i])
         return sampled_actions[min_i], {}
 
 
@@ -305,6 +305,7 @@ if __name__ == "__main__":
     parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--load', action='store_true')
     parser.add_argument('--hide', action='store_true')
+    parser.add_argument('--verbose', action='store_true')
     args = parser.parse_args()
 
     data = joblib.load(args.file)
@@ -323,6 +324,7 @@ if __name__ == "__main__":
         constraint_weight=1,
         sample_size=1000,
         goal_is_full_state=goal_is_full_state,
+        verbose=args.verbose,
     )
     for _ in range(args.num_rollouts):
         paths = []
@@ -346,7 +348,10 @@ if __name__ == "__main__":
                 max_path_length=args.H,
                 animated=not args.hide,
             )
-            path['goal_states'] = goals.repeat(len(path['observations']), 0)
+            path['observations'] = np.hstack((
+                path['observations'],
+                goals.repeat(len(path['observations']), 0),
+            ))
             paths.append(path)
         env.log_diagnostics(paths)
         logger.dump_tabular()

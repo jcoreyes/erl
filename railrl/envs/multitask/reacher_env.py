@@ -39,7 +39,6 @@ from gym.envs.mujoco import ReacherEnv, mujoco_env
 from railrl.misc.data_processing import create_stats_ordered_dict
 from rllab.misc import logger
 
-
 R1 = 0.1  # from reacher.xml
 R2 = 0.11
 
@@ -132,6 +131,7 @@ class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
     since the goal will constantly change.
     """
+
     def __init__(self, add_noop_action=True):
         """
         :param add_noop_action: If True, add an extra no-op after every call to
@@ -211,18 +211,18 @@ class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def log_diagnostics(self, paths):
         observations = np.vstack([path['observations'][:, :4] for path in
                                   paths])
+        goal_states = np.vstack([path['observations'][:, -2:] for path in
+                                 paths])
         positions = position_from_angles(observations)
-        if 'goal_states' in paths[0]:
-            goal_positions = np.vstack([path['goal_states']
-                                        for path in paths])
-        else:
-            goal_positions = np.vstack([path['observations'][:, -2:] for path in
-                                       paths])
-        distances = np.linalg.norm(positions - goal_positions, axis=1)
+        distances = np.linalg.norm(positions - goal_states, axis=1)
 
         statistics = OrderedDict()
         statistics.update(create_stats_ordered_dict(
             'Distance to target', distances
+        ))
+        rewards = self.compute_rewards(None, None, observations, goal_states)
+        statistics.update(create_stats_ordered_dict(
+            'Rewards', rewards,
         ))
         for key, value in statistics.items():
             logger.record_tabular(key, value)
@@ -291,23 +291,17 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
         observations = np.vstack([path['observations'][:, :6] for path in
                                   paths])
         goal_states = np.vstack([path['observations'][:, -6:] for path in
-                                    paths])
-        rewards = self.compute_rewards(None, None, observations, goal_states)
+                                 paths])
         positions = position_from_angles(observations)
-        if 'goal_states' in paths[0]:
-            goal_positions = position_from_angles(
-                np.vstack([path['goal_states'] for path in paths])
-            )
-        else:
-            goal_positions = position_from_angles(
-                np.vstack([path['observations'][:, -6:] for path in paths])
-            )
+        goal_positions = position_from_angles(goal_states)
         distances = np.linalg.norm(positions - goal_positions, axis=1)
 
         statistics = OrderedDict()
         statistics.update(create_stats_ordered_dict(
             'Distance to target', distances
         ))
+
+        rewards = self.compute_rewards(None, None, observations, goal_states)
         statistics.update(create_stats_ordered_dict(
             'Rewards', rewards,
         ))
