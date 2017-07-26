@@ -12,7 +12,6 @@ import numpy as np
 from torch.autograd import Variable
 
 import railrl.torch.pytorch_util as ptu
-from railrl.samplers.path_sampler import rollout_simple
 from railrl.torch.pytorch_util import set_gpu_mode
 from rllab.misc import logger
 
