@@ -19,6 +19,7 @@ import railrl.torch.pytorch_util as ptu
 from railrl.envs.multitask.reacher_env import XyMultitaskSimpleStateReacherEnv, \
     GoalStateSimpleStateReacherEnv
 from railrl.pythonplusplus import line_logger
+from railrl.samplers.util import rollout
 from railrl.torch.pytorch_util import set_gpu_mode
 from rllab.misc import logger
 
@@ -254,42 +255,6 @@ class GDOptimalControlPolicy(object):
         # print("goal_pos", ptu.get_numpy(self._goal_pos))
         return ptu.get_numpy(action), {}
 
-
-def rollout(env, agent, max_path_length=np.inf, animated=False):
-    observations = []
-    actions = []
-    rewards = []
-    terminals = []
-    agent_infos = []
-    env_infos = []
-    o = env.reset()
-    path_length = 0
-    if animated:
-        env.render()
-    while path_length < max_path_length:
-        a, agent_info = agent.get_action(o)
-        next_o, r, d, env_info = env.step(a)
-        observations.append(o)
-        rewards.append(r)
-        terminals.append(d)
-        actions.append(a)
-        agent_infos.append(agent_info)
-        env_infos.append(env_info)
-        path_length += 1
-        if d:
-            break
-        o = next_o
-        if animated:
-            env.render()
-
-    return dict(
-        observations=np.array(observations),
-        actions=np.array(actions),
-        rewards=np.array(rewards),
-        terminals=np.array(terminals),
-        agent_infos=np.array(agent_infos),
-        env_infos=np.array(env_infos),
-    )
 
 
 if __name__ == "__main__":

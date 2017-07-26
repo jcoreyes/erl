@@ -173,3 +173,42 @@ class StateDistanceQLearningSimple(StateDistanceQLearning):
             ))
 
         return statistics
+
+
+def rollout_with_goal(env, agent, goal, max_path_length=np.inf, animated=False):
+    observations = []
+    actions = []
+    rewards = []
+    terminals = []
+    agent_infos = []
+    env_infos = []
+    o = env.reset()
+    o = np.hstack((o, goal))
+    path_length = 0
+    if animated:
+        env.render()
+    while path_length < max_path_length:
+        a, agent_info = agent.get_action(o)
+        next_o, r, d, env_info = env.step(a)
+        observations.append(o)
+        rewards.append(r)
+        terminals.append(d)
+        actions.append(a)
+        agent_infos.append(agent_info)
+        env_infos.append(env_info)
+        path_length += 1
+        if d:
+            break
+        o = next_o
+        o = np.hstack((o, goal))
+        if animated:
+            env.render()
+
+    return dict(
+        observations=np.array(observations),
+        actions=np.array(actions),
+        rewards=np.array(rewards),
+        terminals=np.array(terminals),
+        agent_infos=np.array(agent_infos),
+        env_infos=np.array(env_infos),
+    )

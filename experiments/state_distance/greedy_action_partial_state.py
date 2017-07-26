@@ -12,6 +12,8 @@ import numpy as np
 from torch.autograd import Variable
 
 import railrl.torch.pytorch_util as ptu
+from railrl.algos.state_distance.state_distance_q_learning import \
+    rollout_with_goal
 from railrl.torch.pytorch_util import set_gpu_mode
 from rllab.misc import logger
 
@@ -44,45 +46,6 @@ class SamplePolicyFixedJoints(object):
 
     def reset(self):
         pass
-
-
-def rollout(env, agent, goal, max_path_length=np.inf, animated=False):
-    observations = []
-    actions = []
-    rewards = []
-    terminals = []
-    agent_infos = []
-    env_infos = []
-    o = env.reset()
-    o = np.hstack((o, goal))
-    path_length = 0
-    if animated:
-        env.render()
-    while path_length < max_path_length:
-        a, agent_info = agent.get_action(o)
-        next_o, r, d, env_info = env.step(a)
-        observations.append(o)
-        rewards.append(r)
-        terminals.append(d)
-        actions.append(a)
-        agent_infos.append(agent_info)
-        env_infos.append(env_info)
-        path_length += 1
-        if d:
-            break
-        o = next_o
-        o = np.hstack((o, goal))
-        if animated:
-            env.render()
-
-    return dict(
-        observations=np.array(observations),
-        actions=np.array(actions),
-        rewards=np.array(rewards),
-        terminals=np.array(terminals),
-        agent_infos=np.array(agent_infos),
-        env_infos=np.array(env_infos),
-    )
 
 
 if __name__ == "__main__":
@@ -122,7 +85,7 @@ if __name__ == "__main__":
             print("angle 2 (degrees) = ", np.arctan2(c2, s2) / math.pi * 180)
             env.set_goal(goal)
             policy.set_goal(goal)
-            paths.append(rollout(
+            paths.append(rollout_with_goal(
                 env,
                 policy,
                 goal,
