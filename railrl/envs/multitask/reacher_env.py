@@ -212,8 +212,12 @@ class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         observations = np.vstack([path['observations'][:, :4] for path in
                                   paths])
         positions = position_from_angles(observations)
-        goal_positions = np.vstack([path['observations'][:, -2:] for path in
-                                   paths])
+        if 'goal_states' in paths[0]:
+            goal_positions = np.vstack([path['goal_states']
+                                        for path in paths])
+        else:
+            goal_positions = np.vstack([path['observations'][:, -2:] for path in
+                                       paths])
         distances = np.linalg.norm(positions - goal_positions, axis=1)
 
         statistics = OrderedDict()
@@ -290,9 +294,14 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
                                     paths])
         rewards = self.compute_rewards(None, None, observations, goal_states)
         positions = position_from_angles(observations)
-        goal_positions = position_from_angles(
-            np.vstack([path['observations'][:, -6:] for path in paths])
-        )
+        if 'goal_states' in paths[0]:
+            goal_positions = position_from_angles(
+                np.vstack([path['goal_states'] for path in paths])
+            )
+        else:
+            goal_positions = position_from_angles(
+                np.vstack([path['observations'][:, -6:] for path in paths])
+            )
         distances = np.linalg.norm(positions - goal_positions, axis=1)
 
         statistics = OrderedDict()

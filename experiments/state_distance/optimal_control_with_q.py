@@ -327,7 +327,8 @@ if __name__ == "__main__":
     for _ in range(args.num_rollouts):
         paths = []
         for _ in range(5):
-            goal = env.sample_goal_states(1)[0]
+            goals = env.sample_goal_states(1)
+            goal = goals[0]
             c1 = goal[0:1]
             c2 = goal[1:2]
             s1 = goal[2:3]
@@ -339,11 +340,13 @@ if __name__ == "__main__":
             print("angle 2 (radians) = ", np.arctan2(s2, c2))
             env.set_goal(goal)
             policy.set_goal(goal)
-            paths.append(rollout(
+            path = rollout(
                 env,
                 policy,
                 max_path_length=args.H,
                 animated=not args.hide,
-            ))
+            )
+            path['goal_states'] = goals.repeat(len(path['observations']), 0)
+            paths.append(path)
         env.log_diagnostics(paths)
         logger.dump_tabular()
