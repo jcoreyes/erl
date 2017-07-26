@@ -58,7 +58,6 @@ def example(variant):
             int(env.action_space.flat_dim),
             100,
             100,
-
         )
         algorithm = DDPG(
             env,

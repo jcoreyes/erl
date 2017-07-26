@@ -30,6 +30,7 @@ def example(variant):
         num_epochs = variant['num_epochs']
         batch_size = variant['batch_size']
         use_reset = variant['use_reset']
+        use_random_reset = variant['use_random_reset']
 
         env = BaxterEnv(
             experiment=experiment,
@@ -41,6 +42,7 @@ def example(variant):
             temp=temp,
             huber_delta=huber_delta,
             use_reset=use_reset,
+            use_random_reset=use_random_reset,
         )
         es = OUStrategy(
             max_sigma=es_max_sigma,
@@ -81,7 +83,7 @@ experiments=[
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="7-25-ddpg-baxter-right-arm-fixed-angle-random-reset-enlarged-safety-box",
+        exp_prefix="7-25-ddpg-baxter-right-arm-fixed-angle-random-reset",
         seed=0,
         mode='here',
         variant={
@@ -100,6 +102,7 @@ if __name__ == "__main__":
                 'batch_size':1024,
                 'use_gpu':True,
                 'use_reset':False,
+                'use_random_reset':True,
                 # 'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-21-ddpg-baxter-right-arm-move-to-neutral-no-safety/7-21-ddpg-baxter-right-arm-move-to-neutral-no-safety_2017_07_24_10_11_13_0000--s-0/params.pkl'
                 },
         use_gpu=True,
