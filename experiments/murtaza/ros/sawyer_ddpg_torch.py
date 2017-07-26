@@ -79,7 +79,7 @@ experiments=[
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="7-25-ddpg-sawyer-fixed-angle-no-reset",
+        exp_prefix="7-25-ddpg-sawyer-fixed-angle-no-reset-bug-fixed-start-from-neutral",
         seed=0,
         mode='here',
         variant={
