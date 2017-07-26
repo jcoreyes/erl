@@ -731,7 +731,7 @@ class BaxterEnv(Env, Serializable):
         raise NotImplementedError
 
     def terminate(self):
-        self.use_reset()
+        self.reset()
 
     def get_param_values(self):
         return None
