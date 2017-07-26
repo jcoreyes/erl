@@ -1,6 +1,6 @@
 import random
 
-from railrl.algos.qlearning.state_distance_q_learning import (
+from railrl.algos.state_distance.state_distance_q_learning import (
     StateDistanceQLearning
 )
 from railrl.envs.env_utils import gym_env

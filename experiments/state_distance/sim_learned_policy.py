@@ -10,43 +10,6 @@ from railrl.torch.pytorch_util import set_gpu_mode
 from rllab.misc import logger
 
 
-class SamplePolicy(object):
-    def __init__(self, qf, num_samples):
-        self.qf = qf
-        self.num_samples = num_samples
-
-    def get_action(self, obs):
-        sampled_actions = np.random.uniform(-.2, .2, size=(self.num_samples, 2))
-        obs_expanded = np.repeat(
-            np.expand_dims(obs, 0),
-            self.num_samples,
-            axis=0
-        )
-        actions = Variable(ptu.from_numpy(sampled_actions).float(), requires_grad=False)
-        obs = Variable(ptu.from_numpy(obs_expanded).float(), requires_grad=False)
-        q_values = ptu.get_numpy(self.qf(obs, actions))
-        max_i = np.argmax(q_values)
-        return sampled_actions[max_i], {}
-
-
-class GridPolicy(object):
-    def __init__(self, qf, resolution):
-        self.qf = qf
-        self.resolution = resolution
-
-    def get_action(self, obs):
-        x = np.linspace(-1, 1, self.resolution)
-        y = np.linspace(-1, 1, self.resolution)
-        sampled_actions = np.transpose([np.tile(x, len(y)), np.repeat(y, len(x))])
-        num_samples = resolution**2
-        obs_expanded = np.repeat(np.expand_dims(obs, 0), num_samples, axis=0)
-        actions = Variable(ptu.from_numpy(sampled_actions).float(), requires_grad=False)
-        obs = Variable(ptu.from_numpy(obs_expanded).float(), requires_grad=False)
-        q_values = ptu.get_numpy(self.qf(obs, actions))
-        max_i = np.argmax(q_values)
-        return sampled_actions[max_i], {}
-
-
 def rollout(env, agent, goal, max_path_length=np.inf, animated=False):
     observations = []
     actions = []
@@ -114,6 +77,7 @@ if __name__ == "__main__":
     if args.load:
         policy = data['policy']
         policy.train(False)
+        import ipdb; ipdb.set_trace()
     else:
         if args.grid:
             policy = GridPolicy(qf, resolution)

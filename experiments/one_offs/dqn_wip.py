@@ -3,7 +3,7 @@ State distance test.
 """
 import random
 
-from railrl.algos.qlearning.state_distance_q_learning import DQN, \
+from railrl.algos.state_distance.state_distance_q_learning import DQN, \
     StateDistanceQLearning
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
