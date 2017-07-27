@@ -43,6 +43,7 @@ from intera_interface import CHECK_VERSION
 import pdb
 from std_msgs.msg import Float32
 from std_msgs.msg import Int64
+import numpy as np
 
 class JointSprings(object):
     """
@@ -55,7 +56,7 @@ class JointSprings(object):
     moving the limb to a neutral location, entering torque mode, and attaching
     virtual springs.
     """
-    def __init__(self, des_angles_dict, limb = "right"):
+    def __init__(self, limb = "right"):
 
         # control parameters
         self._rate = 1000.0  # Hz
@@ -73,18 +74,15 @@ class JointSprings(object):
         cuff_ns = 'robot/limb/' + limb + '/suppress_cuff_interaction'
         self._pub_cuff_disable = rospy.Publisher(cuff_ns, Empty, queue_size=1)
 
-        # # verify robot is enabled
-        # print("Getting robot state... ")
-        # self._rs = intera_interface.RobotEnable(CHECK_VERSION)
-        # self._init_state = self._rs.state().enabled
-        # print("Enabling robot... ")
-        # self._rs.enable()
-        # print("Running. Ctrl-c to quit")
-
-        # rospy.Subscriber("desired_joint_pos", JointState, self._set_des_pos)
-        self._set_des_pos(des_angles_dict)
-        # rospy.Subscriber("release_spring", Float32, self._release)
-        # rospy.Subscriber("imp_ctrl_active", Int64, self._imp_ctrl_active)
+        self._des_angles = {
+            'right_j1': -1.1778642578125,
+            'right_j0': 0.0018681640625,
+            'right_j3': 2.1776962890625,
+            'right_j2': -0.00246484375,
+            'right_j6': 3.31884765625,
+            'right_j4': 0.0015673828125,
+            'right_j5': 0.5689052734375
+        }
 
         self.max_stiffness = 20
         self.time_to_maxstiffness = .3  ######### 0.68
@@ -152,10 +150,9 @@ class JointSprings(object):
                                                  cur_pos[joint])
             # damping portion
             cmd[joint] -= self._damping[joint] * cur_vel[joint]
-
-        # # command new joint torques
-        # if self._imp_ctrl_is_active:
-        #     self._limb.set_joint_torques(cmd)
+            cmd = np.array(
+                [cmd['right_j0'], cmd['right_j1'], cmd['right_j2'], cmd['right_j3'], cmd['right_j4'],
+                 cmd['right_j5'], cmd['right_j6']])
         return cmd
 
     def move_to_neutral(self):
@@ -237,8 +234,7 @@ def main():
     print("Initializing node... ")
     rospy.init_node("sdk_joint_torque_springs_{0}".format(args.limb))
     dynamic_cfg_srv = Server(cfg, lambda config, level: config)
-    des_angles_dict = {'right_j1': -1.1778642578125, 'right_j0': 0.0018681640625, 'right_j3': 2.1776962890625, 'right_j2': -0.00246484375, 'right_j6': 3.31884765625, 'right_j4': 0.0015673828125, 'right_j5': 0.5689052734375}
-    js = JointSprings(des_angles_dict, limb=args.limb)
+    js = JointSprings()
     # register shutdown callback
     rospy.on_shutdown(js.clean_shutdown)
     js.attach_springs()

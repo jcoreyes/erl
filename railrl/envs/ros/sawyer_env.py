@@ -10,6 +10,7 @@ from robot_info.srv import *
 from railrl.misc.data_processing import create_stats_ordered_dict
 from collections import OrderedDict
 import ipdb
+from joint_space_impedance import JointSprings
 
 NUM_JOINTS = 7
 
@@ -163,6 +164,7 @@ class SawyerEnv(Env, Serializable):
             use_reset=True,
             random_reset_length=100,
             use_random_reset=False,
+            safe_reset_length=50,
     ):
 
         Serializable.quick_init(self, locals())
@@ -200,6 +202,7 @@ class SawyerEnv(Env, Serializable):
         self.use_reset = use_reset
         self.use_random_reset = use_random_reset
         self.random_reset_length = random_reset_length
+        self.safe_reset_length=safe_reset_length
 
         if loss == 'MSE':
             self.reward_function = self._MSE_reward
@@ -213,6 +216,7 @@ class SawyerEnv(Env, Serializable):
         self.arm = ii.Limb(self.arm_name)
         self.arm_joint_names = self.arm.joint_names()
 
+        self.PDController = JointSprings()
 
         #create a dictionary whose values are functions that set the appropriate values
         action_mode_dict = {
@@ -346,7 +350,7 @@ class SawyerEnv(Env, Serializable):
                 else:
                     action = action + torques
 
-        # np.clip(action, -1, 1, out=action)
+        np.clip(action, -10, 10, out=action)
         joint_to_values = dict(zip(self.arm_joint_names, action))
         self._set_joint_values(joint_to_values)
         self.rate.sleep()
@@ -439,6 +443,11 @@ class SawyerEnv(Env, Serializable):
         for _ in range(self.random_reset_length):
             action = np.random.rand(1, 7)[0] * 2 - 1
             self._act(action)
+
+    def safe_move_to_neutral(self):
+        for _ in range(self.safe_reset_length):
+            torques = self.PDController._update_forces()
+            self._act(torques)
 
     def reset(self):
         """
