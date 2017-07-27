@@ -163,66 +163,6 @@ class TestSubtrajReplayBuffer(TFTestCase):
             ])
         )
 
-    def test_num_can_sample_validation(self):
-        env = StubEnv()
-        subtraj_length = 2
-        buff = SubtrajReplayBuffer(
-            100,
-            env,
-            subtraj_length,
-            save_period=1,
-        )
-        observation = np.array([[0.5]])
-        action = np.array([[0.5]])
-        buff.add_sample(observation, action, 1, False)
-        buff.add_sample(observation, action, 1, False)
-        buff.add_sample(observation, action, 1, False)
-        self.assertEqual(buff.num_steps_can_sample(validation=False), 0)
-        self.assertEqual(buff.num_steps_can_sample(validation=True),
-                         1 * subtraj_length)
-
-    def test_validation_splitter(self):
-        def create_random_generator():
-            numbers = [0.1, 0.9, 0.1, 0.1]
-            i = 0
-            def random_generator():
-                nonlocal i
-                number = numbers[i]
-                i += 1
-                return number
-            return random_generator
-
-        env = StubEnv()
-        buff = SubtrajReplayBuffer(
-            100,
-            env,
-            2,
-            save_period=2,
-            random_generator=create_random_generator(),
-        )
-        observation = np.array([[0.5]])
-        action = np.array([[0.5]])
-        buff.add_sample(observation, action, 1, False)
-        buff.add_sample(observation, action, 1, False)
-        buff.terminate_episode(observation, True)
-        action = np.array([[-0.5]])
-        buff.add_sample(observation, action, 1, False)
-        buff.add_sample(observation, action, 1, False)
-        buff.terminate_episode(observation, True)
-        action = np.array([[1]])
-        buff.add_sample(observation, action, 1, False)
-        buff.add_sample(observation, action, 1, False)
-        buff.terminate_episode(observation, True)
-        train_trajs = buff.get_valid_subtrajectories(validation=False)
-        validation_trajs = buff.get_valid_subtrajectories(validation=True)
-        train_actions = train_trajs['actions']
-        valid_actions = validation_trajs['actions']
-        self.assertEqual(len(valid_actions), 2)
-        self.assertEqual(len(train_actions), 1)
-        self.assertNpEqual(valid_actions[0], np.array([[0.5], [0.5]]))
-        self.assertNpEqual(valid_actions[1], np.array([[1], [1]]))
-        self.assertNpEqual(train_actions[0], np.array([[-0.5], [-0.5]]))
-
 
 if __name__ == '__main__':
     unittest.main()

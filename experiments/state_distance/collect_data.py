@@ -25,15 +25,15 @@ def main(variant):
     exploration_policy = ZeroPolicy(
         int(action_space.flat_dim),
     )
-    pool_size = variant['pool_size']
-    pool = SplitReplayBuffer(
+    replay_buffer_size = variant['replay_buffer_size']
+    replay_buffer = SplitReplayBuffer(
         EnvReplayBuffer(
-            pool_size,
+            replay_buffer_size,
             env,
             flatten=True,
         ),
         EnvReplayBuffer(
-            pool_size,
+            replay_buffer_size,
             env,
             flatten=True,
         ),
@@ -43,11 +43,11 @@ def main(variant):
         env,
         exploration_strategy=es,
         exploration_policy=exploration_policy,
-        pool=pool,
+        replay_buffer=replay_buffer,
         **variant['algo_params']
     )
     sampler.collect_data()
-    sampler.save_pool()
+    sampler.save_replay_buffer()
 
 
 if __name__ == '__main__':
@@ -55,7 +55,7 @@ if __name__ == '__main__':
     out_dir /= '7-25--xy-multitask-simple-state--100k--add-no-op'
     min_num_steps_to_collect = 100000
     max_path_length = 1000
-    pool_size = min_num_steps_to_collect + max_path_length
+    replay_buffer_size = min_num_steps_to_collect + max_path_length
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -65,10 +65,10 @@ if __name__ == '__main__':
             max_path_length=max_path_length,
             render=False,
         ),
-        pool_size=pool_size,
+        replay_buffer_size=replay_buffer_size,
         env_params=dict(
             add_noop_action=True,
-        )
+        ),
     )
     # main(variant)
     run_experiment(

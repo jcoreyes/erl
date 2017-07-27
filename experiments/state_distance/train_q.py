@@ -20,7 +20,7 @@ def main(variant):
     env = env_class(**variant['env_params'])
     dataset_path = variant['dataset_path']
     with open(dataset_path, 'rb') as handle:
-        pool = pickle.load(handle)
+        replay_buffer = pickle.load(handle)
 
     observation_space = convert_gym_space(env.observation_space)
     action_space = convert_gym_space(env.action_space)
@@ -41,7 +41,7 @@ def main(variant):
         env=env,
         qf=qf,
         policy=policy,
-        pool=pool,
+        replay_buffer=replay_buffer,
         exploration_policy=None,
         **variant['algo_params']
     )

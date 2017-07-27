@@ -11,7 +11,7 @@ from railrl.data_management.subtraj_replay_buffer import SubtrajReplayBuffer
 class UpdatableSubtrajReplayBuffer(SubtrajReplayBuffer):
     def __init__(
             self,
-            max_pool_size,
+            max_replay_buffer_size,
             env: ContinuousMemoryAugmented,
             subtraj_length,
             memory_dim,
@@ -19,7 +19,7 @@ class UpdatableSubtrajReplayBuffer(SubtrajReplayBuffer):
             **kwargs
     ):
         super().__init__(
-            max_pool_size=max_pool_size,
+            max_replay_buffer_size=max_replay_buffer_size,
             env=env,
             subtraj_length=subtraj_length,
             **kwargs
@@ -32,15 +32,15 @@ class UpdatableSubtrajReplayBuffer(SubtrajReplayBuffer):
         """
         self._dloss_dwrite[t] = dL/dw_t     (zero-indexed)
         """
-        self._dloss_dmemories = np.zeros((self._max_pool_size,
+        self._dloss_dmemories = np.zeros((self._max_replay_buffer_size,
                                           self.memory_dim))
         self._env_obs_dim = env.wrapped_env.observation_space.flat_dim
         self._env_action_dim = env.wrapped_env.action_space.flat_dim
-        self._env_obs = np.zeros((max_pool_size, self._env_obs_dim))
-        self._env_actions = np.zeros((max_pool_size, self._env_action_dim))
+        self._env_obs = np.zeros((max_replay_buffer_size, self._env_obs_dim))
+        self._env_actions = np.zeros((max_replay_buffer_size, self._env_action_dim))
 
         self._memory_dim = env.memory_dim
-        self._memories = np.zeros((max_pool_size, self._memory_dim))
+        self._memories = np.zeros((max_replay_buffer_size, self._memory_dim))
         self.keep_old_fraction = keep_old_fraction
 
     def random_subtrajectories(self, batch_size, replace=False,
