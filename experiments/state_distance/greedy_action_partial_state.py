@@ -22,22 +22,16 @@ class SamplePolicyFixedJoints(object):
     def __init__(self, qf, num_samples):
         self.qf = qf
         self.num_samples = num_samples
-        self.goal_joint_angles = None
-
-    def set_goal(self, goal):
-        self.goal_joint_angles = goal[:4]
 
     def get_action(self, obs):
         sampled_actions = np.random.uniform(-.2, .2, size=(self.num_samples, 2))
         sampled_velocities = np.random.uniform(-1, 1, size=(self.num_samples, 2))
-        # obs = np.hstack((obs, self.goal_joint_angles))
         obs_expanded = np.repeat(
             np.expand_dims(obs, 0),
             self.num_samples,
             axis=0
         )
         obs_expanded[:, -2:] = sampled_velocities
-        # obs_sampled = np.hstack((obs_expanded, sampled_velocities))
         actions = Variable(ptu.from_numpy(sampled_actions).float(), requires_grad=False)
         obs = Variable(ptu.from_numpy(obs_expanded).float(), requires_grad=False)
         q_values = ptu.get_numpy(self.qf(obs, actions))
@@ -81,10 +75,11 @@ if __name__ == "__main__":
             s1 = goal[2:3]
             s2 = goal[3:4]
             print("Goal = ", goal)
-            print("angle 1 (degrees) = ", np.arctan2(c1, s1) / math.pi * 180)
-            print("angle 2 (degrees) = ", np.arctan2(c2, s2) / math.pi * 180)
+            print("angle 1 (degrees) = ", np.arctan2(s1, c1) / math.pi * 180)
+            print("angle 2 (degrees) = ", np.arctan2(s2, c2) / math.pi * 180)
+            print("angle 1 (radians) = ", np.arctan2(s1, c1))
+            print("angle 2 (radians) = ", np.arctan2(s2, c2))
             env.set_goal(goal)
-            policy.set_goal(goal)
             paths.append(rollout_with_goal(
                 env,
                 policy,
