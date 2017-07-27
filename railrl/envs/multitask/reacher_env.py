@@ -308,6 +308,16 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
         for key, value in statistics.items():
             logger.record_tabular(key, value)
 
+    @staticmethod
+    def print_goal_state_info(goal):
+        c1 = goal[0:1]
+        c2 = goal[1:2]
+        s1 = goal[2:3]
+        s2 = goal[3:4]
+        print("Goal = ", goal)
+        print("angle 1 (degrees) = ", np.arctan2(s1, c1) / math.pi * 180)
+        print("angle 2 (degrees) = ", np.arctan2(s2, c2) / math.pi * 180)
+
     def convert_obs_to_goal_state(self, obs):
         return obs
 
@@ -331,6 +341,11 @@ class FullStateVaryingWeightReacherEnv(GoalStateSimpleStateReacherEnv):
         mujoco_env.MujocoEnv.__init__(self, 'reacher.xml', 2)
         self._fixed_goal = None
         self.goal = None
+
+    def set_goal(self, goal_state):
+        self._fixed_goal = position_from_angles(
+            np.expand_dims(goal_state[6:10], 0)
+        )[0]
 
     def sample_goal_states(self, batch_size):
         goal_states = super().sample_goal_states(batch_size)
@@ -374,7 +389,16 @@ class FullStateVaryingWeightReacherEnv(GoalStateSimpleStateReacherEnv):
     def convert_obs_to_goal_state(self, obs):
         weights = self._sample_reward_weights(len(obs))
         return np.hstack((obs, weights))
-        # return obs
+
+    @staticmethod
+    def print_goal_state_info(goal):
+        c1 = goal[6]
+        c2 = goal[7]
+        s1 = goal[8]
+        s2 = goal[9]
+        print("Goal = ", goal)
+        print("angle 1 (degrees) = ", np.arctan2(s1, c1) / math.pi * 180)
+        print("angle 2 (degrees) = ", np.arctan2(s2, c2) / math.pi * 180)
 
     @property
     def goal_dim(self):

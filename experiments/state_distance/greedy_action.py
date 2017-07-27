@@ -87,13 +87,8 @@ if __name__ == "__main__":
         paths = []
         for _ in range(5):
             goal = env.sample_goal_states(1)[0]
-            c1 = goal[0:1]
-            c2 = goal[1:2]
-            s1 = goal[2:3]
-            s2 = goal[3:4]
-            print("Goal = ", goal)
-            print("angle 1 (degrees) = ", np.arctan2(c1, s1) / math.pi * 180)
-            print("angle 2 (degrees) = ", np.arctan2(c2, s2) / math.pi * 180)
+            goal[:6] = np.array([1, 1, 1, 1, 0, 0])
+            env.print_goal_state_info(goal)
             env.set_goal(goal)
             paths.append(rollout_with_goal(
                 env,
