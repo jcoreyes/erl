@@ -114,7 +114,7 @@ class SampleOptimalControlPolicy(object):
             ),
             dim=1,
         )
-        reward = -self.reward(obs, action, next_state)
+        reward = self.reward(obs, action, next_state)
         if self.goal_is_full_state:
             augmented_obs = torch.cat((obs, next_state), dim=1)
         else:
@@ -131,7 +131,7 @@ class SampleOptimalControlPolicy(object):
         if self.verbose:
             print("")
             print("constraint penalty", ptu.get_numpy(constraint_penalty)[max_i])
-            print("reward", ptu.get_numpy(score)[max_i])
+            print("reward", ptu.get_numpy(reward)[max_i])
             print("action", ptu.get_numpy(action)[max_i])
             print("next_state", ptu.get_numpy(next_state[max_i]))
             print("next_state_pos", ptu.get_numpy(self.position(next_state))[max_i])
@@ -163,10 +163,9 @@ if __name__ == "__main__":
     print("Env type:", type(env))
     goal_is_full_state = isinstance(env, GoalStateSimpleStateReacherEnv)
 
-    resolution = 10
     policy = SampleOptimalControlPolicy(
         qf,
-        constraint_weight=1,
+        constraint_weight=10,
         sample_size=1000,
         goal_is_full_state=goal_is_full_state,
         verbose=args.verbose,
