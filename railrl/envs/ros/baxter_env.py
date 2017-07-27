@@ -152,8 +152,6 @@ class BaxterEnv(Env, Serializable):
             huber_delta=10,
             safety_force_magnitude=2,
             temp=1.05,
-            neutral_policy_file=None,
-            neutral_steps_to_run=5,
             gpu=True,
             use_reset=True,
             random_reset_length=100,
@@ -192,8 +190,6 @@ class BaxterEnv(Env, Serializable):
         self.safety_box = safety_box
         self.remove_action = remove_action
         self.arm_name = arm_name
-        self.neutral_policy_file = neutral_policy_file
-        self.neutral_steps_to_run = neutral_steps_to_run
         self.gpu = gpu
         self.use_reset = use_reset
         self.use_random_reset = use_random_reset
@@ -281,11 +277,6 @@ class BaxterEnv(Env, Serializable):
             ))
 
             if self.fixed_end_effector:
-                # self.desired = np.array([
-                #     0.1485434521312332,
-                #     -0.43227588084273644,
-                #     -0.7116727296474704
-                # ])
                 self.desired = np.array([
                     1.1349147779210946,
                     -0.7649915111535125,
@@ -359,9 +350,6 @@ class BaxterEnv(Env, Serializable):
             joint_to_angles[joint] for joint in self.arm_joint_names
         ])
         angles = self._wrap_angles(angles)
-        for angle in angles:
-            if angle < 0:
-                ipdb.set_trace()
         return angles
 
     def _end_effector_pose(self):
@@ -436,30 +424,6 @@ class BaxterEnv(Env, Serializable):
         temp = np.hstack((temp, self._end_effector_pose()))
         temp = np.hstack((temp, self.desired))
         return temp
-
-    # def move_to_neutral(self):
-    #     if self.neutral_policy_file:
-    #         data = joblib.load(self.neutral_policy_file)
-    #         policy = data['policy']
-    #         env = data['env']
-    #         if self.gpu:
-    #             set_gpu_mode(True)
-    #             policy.cuda()
-    #         if isinstance(policy, PyTorchModule):
-    #             policy.train(False)
-    #
-    #         for _ in range(self.neutral_steps_to_run):
-    #             path = rollout(
-    #                 env,
-    #                 policy,
-    #                 max_path_length=args.max_path_length,
-    #                 animated=True,
-    #                 speedup=args.speedup,
-    #                 always_return_paths=True,
-    #             )
-    #             self.log_diagnostics([path])
-    #             policy.log_diagnostics([path])
-    #             logger.dump_tabular()
 
     def random_reset(self):
         for _ in range(self.random_reset_length):

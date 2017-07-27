@@ -1,26 +1,12 @@
 from collections import OrderedDict
 
-import numpy as np
-import torch
-# noinspection PyPep8Naming
-import torch.optim as optim
-from torch.autograd import Variable
-
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.data_management.subtraj_replay_buffer import SubtrajReplayBuffer
 from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.misc.rllab_util import get_average_returns
-from railrl.policies.torch import MemoryPolicy
-from railrl.pythonplusplus import batch, ConditionTimer
-from railrl.qfunctions.torch import MemoryQFunction
 from railrl.torch.bptt_ddpg import create_torch_subtraj_batch
 from railrl.torch.ddpg import DDPG
-from railrl.torch.online_algorithm import OnlineAlgorithm
-import railrl.torch.pytorch_util as ptu
-from rllab.misc import logger, special
 
 
-# noinspection PyCallingNonCallable
 class Rdpg(DDPG):
     """
     Recurrent DPG.
@@ -39,14 +25,14 @@ class Rdpg(DDPG):
         self.num_subtrajs_per_batch = self.batch_size // self.subtraj_length
         assert self.num_subtrajs_per_batch > 0, "# subtrajs per batch is 0!"
 
-        self.pool = SplitReplayBuffer(
+        self.replay_buffer = SplitReplayBuffer(
             SubtrajReplayBuffer(
-                self.pool_size,
+                self.replay_buffer,
                 self.env,
                 self.subtraj_length,
             ),
             SubtrajReplayBuffer(
-                self.pool_size,
+                self.replay_buffer,
                 self.env,
                 self.subtraj_length,
             ),
@@ -95,14 +81,14 @@ class Rdpg(DDPG):
     Eval functions
     """
     def _statistics_from_paths(self, paths, stat_prefix):
-        eval_pool = SubtrajReplayBuffer(
+        eval_replay_buffer = SubtrajReplayBuffer(
             len(paths) * (self.max_path_length + 1),
             self.env,
             self.subtraj_length,
         )
         for path in paths:
-            eval_pool.add_trajectory(path)
-        raw_subtraj_batch = eval_pool.get_all_valid_subtrajectories()
+            eval_replay_buffer.add_trajectory(path)
+        raw_subtraj_batch = eval_replay_buffer.get_all_valid_subtrajectories()
         assert raw_subtraj_batch is not None
         subtraj_batch = create_torch_subtraj_batch(raw_subtraj_batch)
 

@@ -314,7 +314,9 @@ class SawyerEnv(Env, Serializable):
             ))
 
             if self.fixed_end_effector:
-                des = {'position': Point(x=0.44562573898386176, y=-0.055317682301721766, z=0.4950886597008108), 'orientation': Quaternion(x=-0.5417504106748736, y=0.46162598289085305, z=0.35800013141940035, w=0.6043540769758675)}
+                des = {
+                    'position': Point(x=0.44562573898386176, y=-0.055317682301721766, z=0.4950886597008108),
+                    'orientation': Quaternion(x=-0.5417504106748736, y=0.46162598289085305, z=0.35800013141940035, w=0.6043540769758675)}
                 self.desired = np.array([
                     des['position'].x,
                     des['position'].y,
@@ -358,9 +360,6 @@ class SawyerEnv(Env, Serializable):
             joint_to_angles[joint] for joint in self.arm_joint_names
         ])
         angles = self._wrap_angles(angles)
-        for angle in angles:
-            if angle < 0:
-                ipdb.set_trace()
         return angles
 
     def _end_effector_pose(self):

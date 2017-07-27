@@ -7,8 +7,8 @@ This library requires rllab to be installed. See [rllab's installation docs](htt
 
 One important difference: use my anaconda environment instead of rllab's conda environment. It can be installed and used with
 ```
-$ conda env create -f railrl-env.yml
-$ source activate railrl
+$ conda env create -f docker/rllab-vitchyr/rllab-vitchyr-env.yml
+$ source activate rllab-vitchyr
 (railrl) $ # Ready to run example.py
 ```
 

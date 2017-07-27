@@ -12,7 +12,7 @@ class MultitaskPathSampler(object):
             env,
             exploration_policy,
             exploration_strategy,
-            pool,
+            replay_buffer,
             min_num_steps_to_collect=1000,
             max_path_length=None,
             render=False,
@@ -21,7 +21,7 @@ class MultitaskPathSampler(object):
         self.exploration_policy = exploration_policy
         self.exploration_strategy = exploration_strategy
         self.min_num_steps_to_collect = min_num_steps_to_collect
-        self.pool = pool
+        self.replay_buffer = replay_buffer
         if max_path_length is None:
             max_path_length = np.inf
         self.max_path_length = max_path_length
@@ -49,7 +49,7 @@ class MultitaskPathSampler(object):
             path_length += 1
             reward = raw_reward
 
-            self.pool.add_sample(
+            self.replay_buffer.add_sample(
                 obs,
                 action,
                 reward,
@@ -60,7 +60,7 @@ class MultitaskPathSampler(object):
             if terminal or path_length >= self.max_path_length:
                 if n_steps_total >= self.min_num_steps_to_collect:
                     break
-                self.pool.terminate_episode(
+                self.replay_buffer.terminate_episode(
                     next_ob,
                     terminal,
                     agent_info=agent_info,
@@ -73,18 +73,19 @@ class MultitaskPathSampler(object):
                         n_steps_total,
                         self.min_num_steps_to_collect,
                         100 * n_steps_total / self.min_num_steps_to_collect,
-                    )
+                    ),
+                    with_timestamp=False,
                 )
             else:
                 obs = next_ob
 
-    def save_pool(self):
+    def save_replay_buffer(self):
         # train_file = os.path.join(dir_name, 'train.pkl')
         # validation_file = os.path.join(dir_name, 'validation.pkl')
         out_dir = logger.get_snapshot_dir()
         filename = os.path.join(out_dir, 'data.pkl')
         with open(filename, 'wb') as handle:
-            pickle.dump(self.pool, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self.replay_buffer, handle, protocol=pickle.HIGHEST_PROTOCOL)
         print("Saved to {}".format(filename))
 
     def reset_env(self):

@@ -1,8 +1,8 @@
 from math import pi
 import numpy as np
-from railrl.envs.multitask.reacher_env import MultitaskReacherEnv
+from railrl.envs.multitask.reacher_env import XyMultitaskReacherEnv
 
-env = MultitaskReacherEnv()
+env = XyMultitaskReacherEnv()
 env.reset()
 qpos = np.array([
     pi/2,  # arm-x

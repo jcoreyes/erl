@@ -31,6 +31,7 @@ def example(variant):
         batch_size = variant['batch_size']
         use_reset = variant['use_reset']
         use_random_reset = variant['use_random_reset']
+        use_gpu = variant['use_gpu']
 
         env = SawyerEnv(
             experiment=experiment,
@@ -69,7 +70,9 @@ def example(variant):
             num_epochs=num_epochs,
             batch_size=batch_size,
         )
-    algorithm.train()
+        if use_gpu:
+            algorithm.cuda()
+        algorithm.train()
 
 experiments=[
     'joint_angle|fixed_angle',

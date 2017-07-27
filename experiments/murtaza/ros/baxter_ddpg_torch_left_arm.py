@@ -30,6 +30,7 @@ def example(variant):
         num_epochs = variant['num_epochs']
         batch_size = variant['batch_size']
         use_reset = variant['use_reset']
+        use_gpu = variant['use_gpu']
 
         env = BaxterEnv(
             experiment=experiment,
@@ -67,6 +68,8 @@ def example(variant):
             num_epochs=num_epochs,
             batch_size=batch_size,
         )
+        if use_gpu:
+            algorithm.cuda()
         algorithm.train()
 
 experiments=[
