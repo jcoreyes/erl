@@ -31,6 +31,7 @@ def example(variant):
         batch_size = variant['batch_size']
         use_reset = variant['use_reset']
         use_random_reset = variant['use_random_reset']
+        use_gpu = variant['use_gpu']
 
         env = SawyerEnv(
             experiment=experiment,
@@ -69,7 +70,9 @@ def example(variant):
             num_epochs=num_epochs,
             batch_size=batch_size,
         )
-    algorithm.train()
+        if use_gpu:
+            algorithm.cuda()
+        algorithm.train()
 
 experiments=[
     'joint_angle|fixed_angle',
@@ -103,7 +106,7 @@ if __name__ == "__main__":
             'use_gpu':True,
             'use_reset':False,
             'use_random_reset':True,
-            # 'load_policy_file':'~/Documents/rllab/data/local/7-23-ddpg-sawyer-fixed-angle-huber-move-to-neutral-improved-angle-measurement/7-23-ddpg-sawyer-fixed-angle-huber-move-to-neutral-improved-angle-measurement_2017_07_23_21_37_42_0000--s-0/params.pkl'
+            'load_policy_file':'~/Documents/rllab/data/local/7-23-ddpg-sawyer-fixed-angle-huber-move-to-neutral-improved-angle-measurement/7-23-ddpg-sawyer-fixed-angle-huber-move-to-neutral-improved-angle-measurement_2017_07_23_21_37_42_0000--s-0/params.pkl'
         },
         use_gpu=True,
     )

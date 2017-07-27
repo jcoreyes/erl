@@ -5,22 +5,22 @@ from railrl.data_management.replay_buffer import ReplayBuffer
 
 class SimpleReplayBuffer(ReplayBuffer):
     def __init__(
-            self, max_pool_size, observation_dim, action_dim,
+            self, max_replay_buffer_size, observation_dim, action_dim,
     ):
         self._observation_dim = observation_dim
         self._action_dim = action_dim
-        self._max_pool_size = max_pool_size
-        self._observations = np.zeros((max_pool_size, observation_dim))
-        self._actions = np.zeros((max_pool_size, action_dim))
-        self._rewards = np.zeros(max_pool_size)
+        self._max_replay_buffer_size = max_replay_buffer_size
+        self._observations = np.zeros((max_replay_buffer_size, observation_dim))
+        self._actions = np.zeros((max_replay_buffer_size, action_dim))
+        self._rewards = np.zeros(max_replay_buffer_size)
         # self._terminals[i] = a terminal was received at time i
-        self._terminals = np.zeros(max_pool_size, dtype='uint8')
+        self._terminals = np.zeros(max_replay_buffer_size, dtype='uint8')
         # self._final_state[i] = state i was the final state in a rollout,
         # so it should never be sampled since it has no correspond next state
         # In other words, we're saving the s_{t+1} after sampling a tuple of
         # (s_t, a_t, r_t, s_{t+1}) and the episode terminated (either because
         # terminal=True or for some other reason, e.g. a time limit)
-        self._final_state = np.zeros(max_pool_size, dtype='uint8')
+        self._final_state = np.zeros(max_replay_buffer_size, dtype='uint8')
         self._bottom = 0
         self._top = 0
         self._size = 0
@@ -66,9 +66,9 @@ class SimpleReplayBuffer(ReplayBuffer):
         if self._top in self._valid_transition_indices:
             self._valid_transition_indices.remove(self._top)
 
-        self._top = (self._top + 1) % self._max_pool_size
-        if self._size >= self._max_pool_size:
-            self._bottom = (self._bottom + 1) % self._max_pool_size
+        self._top = (self._top + 1) % self._max_replay_buffer_size
+        if self._size >= self._max_replay_buffer_size:
+            self._bottom = (self._bottom + 1) % self._max_replay_buffer_size
         else:
             self._size += 1
 

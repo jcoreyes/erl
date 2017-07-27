@@ -30,6 +30,7 @@ def example(variant):
         num_epochs = variant['num_epochs']
         batch_size = variant['batch_size']
         use_reset = variant['use_reset']
+        use_gpu = variant['use_gpu']
 
         env = BaxterEnv(
             experiment=experiment,
@@ -67,6 +68,8 @@ def example(variant):
             num_epochs=num_epochs,
             batch_size=batch_size,
         )
+        if use_gpu:
+            algorithm.cuda()
         algorithm.train()
 
 experiments=[
@@ -81,7 +84,7 @@ experiments=[
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="7-25-ddpg-baxter-left-arm-varying-joint-angle-no-reset",
+        exp_prefix="7-26-ddpg-baxter-left-arm-varying-joint-angle-random-reset",
         seed=0,
         mode='here',
         variant={
@@ -100,6 +103,7 @@ if __name__ == "__main__":
                 'batch_size':1024,
                 'use_gpu':True,
                 'use_reset':False,
+                'use_random_reset':True,
                 # 'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-21-ddpg-baxter-right-arm-fixed-angle-huber-safety-TEST/7-21-ddpg-baxter-right-arm-fixed-angle-huber-safety-TEST_2017_07_21_11_04_56_0000--s-0/params.pkl',
                 },
         use_gpu=True,

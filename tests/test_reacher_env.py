@@ -2,16 +2,16 @@ import unittest
 import numpy as np
 
 from railrl.envs.multitask.reacher_env import (
-    MultitaskReacherEnv,
-    SimpleReacherEnv,
-    GoalStateReacherEnv,
+    XyMultitaskReacherEnv,
+    XyMultitaskSimpleStateReacherEnv,
+    GoalStateSimpleStateReacherEnv,
 )
 from railrl.testing.np_test_case import NPTestCase
 
 
 class TestMultitaskReacherEnv(NPTestCase):
     def test_compute_rewards(self):
-        env = MultitaskReacherEnv()
+        env = XyMultitaskReacherEnv()
         for _ in range(10):
             obs = env.reset()
             for _ in range(10):
@@ -32,7 +32,7 @@ class TestMultitaskReacherEnv(NPTestCase):
 
 class TestSimpleReacherEnv(NPTestCase):
     def test_compute_rewards(self):
-        env = SimpleReacherEnv()
+        env = XyMultitaskSimpleStateReacherEnv()
         for _ in range(10):
             obs = env.reset()
             for _ in range(10):
@@ -51,7 +51,7 @@ class TestSimpleReacherEnv(NPTestCase):
 
 class TestGoalStateReacherEnv(NPTestCase):
     def test_compute_rewards(self):
-        env = GoalStateReacherEnv()
+        env = GoalStateSimpleStateReacherEnv()
         for _ in range(10):
             obs = env.reset()
             goal = np.expand_dims(obs, 0)
