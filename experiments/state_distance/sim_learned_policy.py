@@ -34,15 +34,8 @@ if __name__ == "__main__":
 
     num_samples = 1000
     resolution = 10
-    if args.load:
-        policy = data['policy']
-        policy.train(False)
-        import ipdb; ipdb.set_trace()
-    else:
-        if args.grid:
-            policy = GridPolicy(qf, resolution)
-        else:
-            policy = SamplePolicy(qf, num_samples)
+    policy = data['policy']
+    policy.train(False)
 
     for _ in range(args.num_rollouts):
         paths = []
