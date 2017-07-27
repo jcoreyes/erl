@@ -9,9 +9,14 @@ from railrl.policies.base import SerializablePolicy
 from rllab.algos.base import RLAlgorithm
 from rllab.misc import logger, tensor_utils
 from rllab.sampler import parallel_sampler
+from rllab.sampler.utils import rollout
 
 
 class SimplePathSampler(object):
+    """
+    Sample things in another thread by serializing the policy and environment.
+    Only one thread is used.
+    """
     def __init__(self, env, policy, max_samples, max_path_length):
         self.env = env
         self.policy = policy
@@ -33,6 +38,37 @@ class SimplePathSampler(object):
         )
 
 
+class InPlacePathSampler(object):
+    """
+    A sampler that does not serialization for sampling. Instead, it just uses
+    the current policy and environment as-is.
+
+    WARNING: This will affect the environment! So
+    ```
+    sampler = InPlacePathSampler(env, ...)
+    sampler.obtain_samples  # this has side-effects: env will change!
+    ```
+    """
+    def __init__(self, env, policy, max_samples, max_path_length):
+        self.env = env
+        self.policy = policy
+        self.max_path_length = max_path_length
+        self.num_rollouts = max_samples // self.max_path_length
+        assert self.num_rollouts > 0, "Need max_samples >= max_path_length"
+
+    def start_worker(self):
+        pass
+
+    def shutdown_worker(self):
+        pass
+
+    def obtain_samples(self):
+        return [
+            rollout(self.env, self.policy, max_path_length=self.max_path_length)
+            for _ in range(self.num_rollouts)
+        ]
+
+
 class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
     def __init__(
             self,
@@ -49,6 +85,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             scale_reward=1,
             render=False,
             save_exploration_path_period=1,
+            sample_with_training_env=False,
     ):
         self.training_env = env
         self.exploration_policy = exploration_policy
@@ -63,8 +100,8 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         self.scale_reward = scale_reward
         self.render = render
         self.save_exploration_path_period = save_exploration_path_period
+        self.sample_with_training_env = sample_with_training_env
 
-        self.env = pickle.loads(pickle.dumps(self.training_env))
         self.action_space = convert_gym_space(env.action_space)
         self.obs_space = convert_gym_space(env.observation_space)
         self.replay_buffer = EnvReplayBuffer(
@@ -73,12 +110,22 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         )
 
         # noinspection PyTypeChecker
-        self.eval_sampler = SimplePathSampler(
-            self.env,
-            self.exploration_policy,
-            self.num_steps_per_eval,
-            self.max_path_length,
-        )
+        if self.sample_with_training_env:
+            self.env = pickle.loads(pickle.dumps(self.training_env))
+            self.eval_sampler = SimplePathSampler(
+                self.env,
+                self.exploration_policy,
+                self.num_steps_per_eval,
+                self.max_path_length,
+            )
+        else:
+            self.env = env
+            self.eval_sampler = InPlacePathSampler(
+                self.env,
+                self.exploration_policy,
+                self.num_steps_per_eval,
+                self.max_path_length,
+            )
 
         self.final_score = 0
 

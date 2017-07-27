@@ -12,7 +12,6 @@ from railrl.misc.rllab_util import get_average_returns, split_paths
 from railrl.torch.online_algorithm import OnlineAlgorithm
 import railrl.torch.pytorch_util as ptu
 from rllab.misc import logger, special
-from rllab.sampler.utils import rollout
 
 
 class DDPG(OnlineAlgorithm):
@@ -74,14 +73,12 @@ class DDPG(OnlineAlgorithm):
             )
         else:
             self.replay_buffer = replay_buffer
-        self.cuda()
 
     def cuda(self):
-        if ptu.gpu_enabled():
-            self.policy.cuda()
-            self.target_policy.cuda()
-            self.qf.cuda()
-            self.target_qf.cuda()
+        self.policy.cuda()
+        self.target_policy.cuda()
+        self.qf.cuda()
+        self.target_qf.cuda()
 
     def _do_training(self, n_steps_total):
         batch = self.get_batch()
@@ -159,8 +156,7 @@ class DDPG(OnlineAlgorithm):
         :param exploration_paths: List of dicts, each representing a path.
         """
         logger.log("Collecting samples for evaluation")
-        # paths = self._sample_paths(epoch)
-        paths = [rollout(self.env, self.policy, max_path_length=self.max_path_length)]
+        paths = self._sample_paths(epoch)
 
         statistics = OrderedDict()
 
