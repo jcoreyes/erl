@@ -38,13 +38,14 @@ def main(variant):
         300,
     )
     algo = StateDistanceQLearning(
-        env=env,
-        qf=qf,
-        policy=policy,
+        env,
+        qf,
+        policy,
         replay_buffer=replay_buffer,
         exploration_policy=None,
         **variant['algo_params']
     )
+    algo.cuda()
     algo.train()
 
 
@@ -56,7 +57,7 @@ if __name__ == '__main__':
 
     n_seeds = 1
     mode = "here"
-    exp_prefix = "7-26-dev-sdql-reacher-full-state-no-bn-add-noop"
+    exp_prefix = "7-26-sdql-reacher-full-state-ignore-vel"
     snapshot_mode = 'gap'
     snapshot_gap = 5
 
