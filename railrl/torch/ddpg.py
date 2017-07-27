@@ -31,8 +31,7 @@ class DDPG(OnlineAlgorithm):
             target_hard_update_period=1000,
             tau=1e-2,
             use_soft_update=False,
-            use_target_policy=True,
-            pool=None,  # TODO(vitchyr): rename pool to replay_buffer
+            replay_buffer=None,
             **kwargs
     ):
         if exploration_policy is None:
@@ -58,27 +57,28 @@ class DDPG(OnlineAlgorithm):
                                        lr=self.qf_learning_rate)
         self.policy_optimizer = optim.Adam(self.policy.parameters(),
                                            lr=self.policy_learning_rate)
-        if pool is None:
-            self.pool = SplitReplayBuffer(
+        if replay_buffer is None:
+            self.replay_buffer = SplitReplayBuffer(
                 EnvReplayBuffer(
-                    self.pool_size,
+                    self.replay_buffer_size,
                     self.env,
                     flatten=True,
                 ),
                 EnvReplayBuffer(
-                    self.pool_size,
+                    self.replay_buffer_size,
                     self.env,
                     flatten=True,
                 ),
                 fraction_paths_in_train=0.8,
             )
         else:
-            self.pool = pool
-        if ptu.gpu_enabled():
-            self.policy.cuda()
-            self.target_policy.cuda()
-            self.qf.cuda()
-            self.target_qf.cuda()
+            self.replay_buffer = replay_buffer
+
+    def cuda(self):
+        self.policy.cuda()
+        self.target_policy.cuda()
+        self.qf.cuda()
+        self.target_qf.cuda()
 
     def _do_training(self, n_steps_total):
         batch = self.get_batch()
@@ -157,6 +157,7 @@ class DDPG(OnlineAlgorithm):
         """
         logger.log("Collecting samples for evaluation")
         paths = self._sample_paths(epoch)
+
         statistics = OrderedDict()
 
         statistics.update(self._statistics_from_paths(exploration_paths,
@@ -191,12 +192,12 @@ class DDPG(OnlineAlgorithm):
         self.log_diagnostics(paths)
 
     def get_batch(self, training=True):
-        pool = self.pool.get_replay_buffer(training)
+        replay_buffer = self.replay_buffer.get_replay_buffer(training)
         sample_size = min(
-            pool.num_steps_can_sample(),
+            replay_buffer.num_steps_can_sample(),
             self.batch_size
         )
-        batch = pool.random_batch(sample_size)
+        batch = replay_buffer.random_batch(sample_size)
         return np_to_pytorch_batch(batch)
 
     def _statistics_from_paths(self, paths, stat_prefix):
@@ -244,7 +245,7 @@ class DDPG(OnlineAlgorithm):
     def _can_evaluate(self, exploration_paths):
         return (
             len(exploration_paths) > 0
-            and self.pool.num_steps_can_sample() > 0
+            and self.replay_buffer.num_steps_can_sample() > 0
         )
 
     def get_epoch_snapshot(self, epoch):
@@ -254,7 +255,9 @@ class DDPG(OnlineAlgorithm):
             env=self.training_env,
             es=self.exploration_strategy,
             qf=self.qf,
-            replay_pool=self.pool,
+            replay_buffer=self.replay_buffer,
+            algorithm=self,
+            batch_size=self.batch_size,
         )
 
 

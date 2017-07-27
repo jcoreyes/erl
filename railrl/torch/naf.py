@@ -103,7 +103,7 @@ class NAF(OnlineAlgorithm):
         self.log_diagnostics(paths)
 
     def get_batch(self):
-        batch = self.pool.random_batch(self.batch_size)
+        batch = self.replay_buffer.random_batch(self.batch_size)
         torch_batch = {
             k: Variable(ptu.from_numpy(array).float(), requires_grad=False)
             for k, array in batch.items()

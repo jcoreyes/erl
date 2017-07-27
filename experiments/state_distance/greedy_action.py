@@ -6,7 +6,8 @@ import numpy as np
 from torch.autograd import Variable
 
 import railrl.torch.pytorch_util as ptu
-from railrl.envs.multitask.reacher_env import SimpleReacherEnv
+from railrl.algos.state_distance.state_distance_q_learning import \
+    rollout_with_goal
 from railrl.torch.pytorch_util import set_gpu_mode
 from rllab.misc import logger
 
@@ -45,51 +46,7 @@ class GridPolicy(object):
         obs = Variable(ptu.from_numpy(obs_expanded).float(), requires_grad=False)
         q_values = ptu.get_numpy(self.qf(obs, actions))
         max_i = np.argmax(q_values)
-        # vals = q_values.reshape(resolution, resolution)
-        # heatmap = vals, x, y, _
-        # fig, ax = plt.subplots(1, 1)
-        # plot_heatmap(fig, ax, heatmap)
-        # plt.show()
         return sampled_actions[max_i], {}
-
-
-def rollout(env, agent, goal, max_path_length=np.inf, animated=False):
-    observations = []
-    actions = []
-    rewards = []
-    terminals = []
-    agent_infos = []
-    env_infos = []
-    o = env.reset()
-    o = np.hstack((o, goal))
-    path_length = 0
-    if animated:
-        env.render()
-    while path_length < max_path_length:
-        a, agent_info = agent.get_action(o)
-        next_o, r, d, env_info = env.step(a)
-        observations.append(o)
-        rewards.append(r)
-        terminals.append(d)
-        actions.append(a)
-        agent_infos.append(agent_info)
-        env_infos.append(env_info)
-        path_length += 1
-        if d:
-            break
-        o = next_o
-        o = np.hstack((o, goal))
-        if animated:
-            env.render()
-
-    return dict(
-        observations=np.array(observations),
-        actions=np.array(actions),
-        rewards=np.array(rewards),
-        terminals=np.array(terminals),
-        agent_infos=np.array(agent_infos),
-        env_infos=np.array(env_infos),
-    )
 
 
 if __name__ == "__main__":
@@ -100,7 +57,7 @@ if __name__ == "__main__":
     parser.add_argument('--H', type=int, default=100,
                         help='Max length of rollout')
     parser.add_argument('--num_rollouts', type=int, default=100,
-                        help='Max length of rollout')
+                        help='Total number of rollout')
     parser.add_argument('--grid', action='store_true')
     parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--load', action='store_true')
@@ -119,6 +76,7 @@ if __name__ == "__main__":
     resolution = 10
     if args.load:
         policy = data['policy']
+        policy.train(False)
     else:
         if args.grid:
             policy = GridPolicy(qf, resolution)
@@ -137,7 +95,7 @@ if __name__ == "__main__":
             print("angle 1 (degrees) = ", np.arctan2(c1, s1) / math.pi * 180)
             print("angle 2 (degrees) = ", np.arctan2(c2, s2) / math.pi * 180)
             env.set_goal(goal)
-            paths.append(rollout(
+            paths.append(rollout_with_goal(
                 env,
                 policy,
                 goal,

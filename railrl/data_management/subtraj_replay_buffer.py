@@ -17,30 +17,35 @@ class SubtrajReplayBuffer(ReplayBuffer):
 
     def __init__(
             self,
-            max_pool_size,
+            max_replay_buffer_size,
             env,
             subtraj_length,
             only_sample_at_start_of_episode=False,
     ):
-        self._max_pool_size = max_pool_size
+        self._max_replay_buffer_size = max_replay_buffer_size
         self._env = env
         self._subtraj_length = subtraj_length
         observation_dim = env.observation_space.flat_dim
         action_dim = env.action_space.flat_dim
         self._observation_dim = observation_dim
         self._action_dim = action_dim
-        self._observations = np.zeros((self._max_pool_size,
+        self._observations = np.zeros((self._max_replay_buffer_size,
                                        self._observation_dim))
-        self._actions = np.zeros((self._max_pool_size, self._action_dim))
-        self._rewards = np.zeros(self._max_pool_size)
+        self._actions = np.zeros(
+            (self._max_replay_buffer_size, self._action_dim)
+        )
+        self._rewards = np.zeros(self._max_replay_buffer_size)
         # self._terminals[i] = a terminal was received at time i
-        self._terminals = np.zeros(self._max_pool_size, dtype='uint8')
+        self._terminals = np.zeros(self._max_replay_buffer_size, dtype='uint8')
         # self._final_state[i] = state i was the final state in a rollout,
         # so it should never be sampled since it has no correspond next state
         # In other words, we're saving the s_{t+1} after sampling a tuple of
         # (s_t, a_t, r_t, s_{t+1}) and the episode terminated (either because
         # terminal=True or for some other reason, e.g. a time limit)
-        self._final_state = np.zeros(self._max_pool_size, dtype='uint8')
+        self._final_state = np.zeros(
+            self._max_replay_buffer_size,
+            dtype='uint8',
+        )
 
         # placeholder for when saving a terminal observation
         self._bottom = 0
@@ -51,7 +56,10 @@ class SubtrajReplayBuffer(ReplayBuffer):
         self._previous_indices = deque(maxlen=self._subtraj_length)
 
         self._only_sample_at_start_of_episode = only_sample_at_start_of_episode
-        self._episode_start_indices = np.zeros(max_pool_size, dtype='uint8')
+        self._episode_start_indices = np.zeros(
+            max_replay_buffer_size,
+            dtype='uint8',
+        )
         self._starting_episode = True
 
     @cached_property
@@ -104,8 +112,9 @@ class SubtrajReplayBuffer(ReplayBuffer):
             #
             # The second check is needed to avoid duplicate entries in
             # `self._all_valid_start_indices`, which may break som code.
-            if (previous_idx + self._subtraj_length < self._max_pool_size and
-                    previous_idx not in self._all_valid_start_indices):
+            if (previous_idx + self._subtraj_length
+                    < self._max_replay_buffer_size
+                    and previous_idx not in self._all_valid_start_indices):
                 self._all_valid_start_indices.append(previous_idx)
         # Current self._top is NOT a valid transition index since the next time
         # step is either garbage or from another episode
@@ -117,9 +126,9 @@ class SubtrajReplayBuffer(ReplayBuffer):
 
         self._previous_indices.append(self._top)
 
-        self._top = (self._top + 1) % self._max_pool_size
-        if self._size >= self._max_pool_size:
-            self._bottom = (self._bottom + 1) % self._max_pool_size
+        self._top = (self._top + 1) % self._max_replay_buffer_size
+        if self._size >= self._max_replay_buffer_size:
+            self._bottom = (self._bottom + 1) % self._max_replay_buffer_size
         else:
             self._size += 1
 

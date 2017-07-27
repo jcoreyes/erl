@@ -9,9 +9,14 @@ from railrl.policies.base import SerializablePolicy
 from rllab.algos.base import RLAlgorithm
 from rllab.misc import logger, tensor_utils
 from rllab.sampler import parallel_sampler
+from rllab.sampler.utils import rollout
 
 
 class SimplePathSampler(object):
+    """
+    Sample things in another thread by serializing the policy and environment.
+    Only one thread is used.
+    """
     def __init__(self, env, policy, max_samples, max_path_length):
         self.env = env
         self.policy = policy
@@ -33,6 +38,37 @@ class SimplePathSampler(object):
         )
 
 
+class InPlacePathSampler(object):
+    """
+    A sampler that does not serialization for sampling. Instead, it just uses
+    the current policy and environment as-is.
+
+    WARNING: This will affect the environment! So
+    ```
+    sampler = InPlacePathSampler(env, ...)
+    sampler.obtain_samples  # this has side-effects: env will change!
+    ```
+    """
+    def __init__(self, env, policy, max_samples, max_path_length):
+        self.env = env
+        self.policy = policy
+        self.max_path_length = max_path_length
+        self.num_rollouts = max_samples // self.max_path_length
+        assert self.num_rollouts > 0, "Need max_samples >= max_path_length"
+
+    def start_worker(self):
+        pass
+
+    def shutdown_worker(self):
+        pass
+
+    def obtain_samples(self):
+        return [
+            rollout(self.env, self.policy, max_path_length=self.max_path_length)
+            for _ in range(self.num_rollouts)
+        ]
+
+
 class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
     def __init__(
             self,
@@ -45,10 +81,11 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             batch_size=1024,
             max_path_length=1000,
             discount=0.99,
-            pool_size=1000000,
+            replay_buffer_size=1000000,
             scale_reward=1,
             render=False,
             save_exploration_path_period=1,
+            sample_with_training_env=False,
     ):
         self.training_env = env
         self.exploration_policy = exploration_policy
@@ -59,28 +96,42 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         self.batch_size = batch_size
         self.max_path_length = max_path_length
         self.discount = discount
-        self.pool_size = pool_size
+        self.replay_buffer_size = replay_buffer_size
         self.scale_reward = scale_reward
         self.render = render
         self.save_exploration_path_period = save_exploration_path_period
+        self.sample_with_training_env = sample_with_training_env
 
-        self.env = pickle.loads(pickle.dumps(self.training_env))
         self.action_space = convert_gym_space(env.action_space)
         self.obs_space = convert_gym_space(env.observation_space)
-        self.pool = EnvReplayBuffer(
-            self.pool_size,
-            self.env,
-        )
 
         # noinspection PyTypeChecker
-        self.eval_sampler = SimplePathSampler(
+        if self.sample_with_training_env:
+            self.env = pickle.loads(pickle.dumps(self.training_env))
+            self.eval_sampler = SimplePathSampler(
+                self.env,
+                self.exploration_policy,
+                self.num_steps_per_eval,
+                self.max_path_length,
+            )
+        else:
+            self.env = env
+            self.eval_sampler = InPlacePathSampler(
+                self.env,
+                self.exploration_policy,
+                self.num_steps_per_eval,
+                self.max_path_length,
+            )
+        self.replay_buffer = EnvReplayBuffer(
+            self.replay_buffer_size,
             self.env,
-            self.exploration_policy,
-            self.num_steps_per_eval,
-            self.max_path_length,
         )
 
         self.final_score = 0
+
+    @abc.abstractmethod
+    def cuda(self):
+        pass
 
     def reset_env(self):
         self.exploration_strategy.reset()
@@ -134,7 +185,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                     agent_infos.append(agent_info)
                     env_infos.append(env_info)
 
-                self.pool.add_sample(
+                self.replay_buffer.add_sample(
                     observation,
                     action,
                     reward,
@@ -143,7 +194,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                     env_info=env_info,
                 )
                 if terminal or path_length >= self.max_path_length:
-                    self.pool.terminate_episode(
+                    self.replay_buffer.terminate_episode(
                         next_ob,
                         terminal,
                         agent_info=agent_info,
@@ -230,7 +281,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         pass
 
     def _can_train(self):
-        return self.pool.num_steps_can_sample() >= self.batch_size
+        return self.replay_buffer.num_steps_can_sample() >= self.batch_size
 
     def get_epoch_snapshot(self, epoch):
         return dict(

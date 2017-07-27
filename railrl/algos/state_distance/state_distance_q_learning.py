@@ -19,15 +19,18 @@ class StateDistanceQLearning(DDPG):
     def __init__(
             self,
             *args,
-            pool=None,
+            replay_buffer=None,
             num_batches=100,
             num_batches_per_epoch=100,
+            sample_goals_from='environment',
             **kwargs
     ):
         super().__init__(*args, exploration_strategy=None, **kwargs)
         self.num_batches = num_batches
         self.num_batches_per_epoch = num_batches_per_epoch
-        self.pool = pool
+        assert sample_goals_from in ['environment', 'replay_buffer']
+        self.sample_goals_from = sample_goals_from
+        self.replay_buffer = replay_buffer
 
     def train(self):
         epoch = 0
@@ -45,13 +48,13 @@ class StateDistanceQLearning(DDPG):
                 epoch += 1
 
     def get_batch(self, training=True):
-        pool = self.pool.get_replay_buffer(training)
+        replay_buffer = self.replay_buffer.get_replay_buffer(training)
         batch_size = min(
-            pool.num_steps_can_sample(),
+            replay_buffer.num_steps_can_sample(),
             self.batch_size
         )
-        batch = pool.random_batch(batch_size)
-        goal_states = self.env.sample_goal_states(batch_size)
+        batch = replay_buffer.random_batch(batch_size)
+        goal_states = self.sample_goal_states(batch_size)
         new_rewards = self.env.compute_rewards(
             batch['observations'],
             batch['actions'],
@@ -66,6 +69,15 @@ class StateDistanceQLearning(DDPG):
         torch_batch = np_to_pytorch_batch(batch)
         return torch_batch
 
+    def sample_goal_states(self, batch_size):
+        if self.sample_goals_from == 'environment':
+            return self.env.sample_goal_states(batch_size)
+        elif self.sample_goals_from == 'replay_buffer':
+            pool = self.pool.get_replay_buffer(training=True)
+            batch = pool.random_batch(batch_size)
+            obs = batch['observations']
+            return self.env.convert_obs_to_goal_state(obs)
+
     def reset_env(self):
         self.exploration_strategy.reset()
         self.exploration_policy.reset()
@@ -75,7 +87,7 @@ class StateDistanceQLearning(DDPG):
     def _paths_to_np_batch(self, paths):
         batch = super()._paths_to_np_batch(paths)
         batch_size = len(batch['observations'])
-        goal_states = self.env.sample_goal_states(batch_size)
+        goal_states = self.sample_goal_states(batch_size)
         new_rewards = self.env.compute_rewards(
             batch['observations'],
             batch['actions'],
@@ -162,67 +174,41 @@ class StateDistanceQLearningSimple(StateDistanceQLearning):
 
         return statistics
 
-class ArgmaxPolicy(PyTorchModule):
-    def __init__(
-            self,
-            qf,
-            num_actions,
-            prob_random_action=0.1,
-    ):
-        self.save_init_params(locals())
-        super().__init__()
-        self.qf = qf
-        self.num_actions = num_actions
-        self.prob_random_action = prob_random_action
 
-    def get_action(self, obs):
-        if random.random() <= self.prob_random_action:
-            return random.randint(0, self.num_actions)
-        obs = np.expand_dims(obs, axis=0)
-        obs = Variable(ptu.from_numpy(obs).float(), requires_grad=False)
-        qvalues = self.qf(obs)
-        action = torch.max(qvalues)[1]
-        return action, {}
+def rollout_with_goal(env, agent, goal, max_path_length=np.inf, animated=False):
+    observations = []
+    actions = []
+    rewards = []
+    terminals = []
+    agent_infos = []
+    env_infos = []
+    o = env.reset()
+    o = np.hstack((o, goal))
+    path_length = 0
+    if animated:
+        env.render()
+    while path_length < max_path_length:
+        a, agent_info = agent.get_action(o)
+        next_o, r, d, env_info = env.step(a)
+        observations.append(o)
+        rewards.append(r)
+        terminals.append(d)
+        actions.append(a)
+        agent_infos.append(agent_info)
+        env_infos.append(env_info)
+        path_length += 1
+        if d:
+            break
+        o = next_o
+        o = np.hstack((o, goal))
+        if animated:
+            env.render()
 
-
-class DQN(PyTorchModule):
-    def __init__(
-            self,
-            obs_dim,
-            action_dim,
-            fc1_size,
-            fc2_size,
-            init_w=3e-3,
-            output_activation=identity,
-            hidden_init=ptu.fanin_init,
-    ):
-        self.save_init_params(locals())
-        super().__init__()
-
-        self.obs_dim = obs_dim
-        self.action_dim = action_dim
-        self.output_activation = output_activation
-        self.hidden_init = hidden_init
-
-        self.fc1 = nn.Linear(obs_dim, fc1_size)
-        self.fc2 = nn.Linear(fc1_size, fc2_size)
-        self.last_fc = nn.Linear(fc2_size, action_dim)
-
-        self.hidden_init(self.obs_fc.weight)
-        self.obs_fc.bias.data.fill_(0)
-        self.hidden_init(self.embedded_fc.weight)
-        self.embedded_fc.bias.data.fill_(0)
-        self.last_fc.weight.data.uniform_(-init_w, init_w)
-        self.last_fc.bias.data.uniform_(-init_w, init_w)
-
-    def forward(self, obs, action):
-        h = obs
-        h = F.relu(self.obs_fc(h))
-        h = torch.cat((h, action), dim=1)
-        h = F.relu(self.embedded_fc(h))
-        return self.output_activation(self.last_fc(h))
-
-
-class EvalQ(object):
-    def __init__(self, qf):
-        self.qf = qf
+    return dict(
+        observations=np.array(observations),
+        actions=np.array(actions),
+        rewards=np.array(rewards),
+        terminals=np.array(terminals),
+        agent_infos=np.array(agent_infos),
+        env_infos=np.array(env_infos),
+    )

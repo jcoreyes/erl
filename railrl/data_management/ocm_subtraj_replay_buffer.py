@@ -14,17 +14,17 @@ class OcmSubtrajReplayBuffer(UpdatableSubtrajReplayBuffer):
 
     def __init__(
             self,
-            max_pool_size,
+            max_replay_buffer_size,
             env,
             subtraj_length,
             *args,
             **kwargs
     ):
         # TODO(vitchyr): Move this logic to environment
-        self._target_numbers = np.zeros(max_pool_size, dtype='uint8')
-        self._times = np.zeros(max_pool_size, dtype='uint8')
+        self._target_numbers = np.zeros(max_replay_buffer_size, dtype='uint8')
+        self._times = np.zeros(max_replay_buffer_size, dtype='uint8')
         super().__init__(
-            max_pool_size,
+            max_replay_buffer_size,
             env,
             subtraj_length,
             *args,
