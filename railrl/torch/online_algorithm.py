@@ -104,10 +104,6 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
 
         self.action_space = convert_gym_space(env.action_space)
         self.obs_space = convert_gym_space(env.observation_space)
-        self.replay_buffer = EnvReplayBuffer(
-            self.replay_buffer_size,
-            self.env,
-        )
 
         # noinspection PyTypeChecker
         if self.sample_with_training_env:
@@ -126,6 +122,10 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                 self.num_steps_per_eval,
                 self.max_path_length,
             )
+        self.replay_buffer = EnvReplayBuffer(
+            self.replay_buffer_size,
+            self.env,
+        )
 
         self.final_score = 0
 
