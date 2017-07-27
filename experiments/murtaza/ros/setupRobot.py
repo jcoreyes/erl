@@ -5,3 +5,4 @@ arm = ii.Limb('right')
 arm.move_to_neutral()
 # pos = arm.endpoint_pose()['position']
 # print([pos.x, pos.y, pos.z])
+print(arm.joint_angles())

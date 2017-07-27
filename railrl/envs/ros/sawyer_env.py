@@ -439,7 +439,6 @@ class SawyerEnv(Env, Serializable):
     def random_reset(self):
         for _ in range(self.random_reset_length):
             action = np.random.rand(1, 7)[0] * 2 - 1
-            print(action)
             self._act(action)
 
     def reset(self):
