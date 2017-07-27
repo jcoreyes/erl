@@ -32,6 +32,7 @@ def example(variant):
         use_reset = variant['use_reset']
         use_random_reset = variant['use_random_reset']
         use_gpu = variant['use_gpu']
+        safe_reset = variant['safe_reset']
 
         env = SawyerEnv(
             experiment=experiment,
@@ -44,6 +45,7 @@ def example(variant):
             huber_delta=huber_delta,
             use_reset=use_reset,
             use_random_reset=use_random_reset,
+            safe_reset=safe_reset,
         )
         es = OUStrategy(
             max_sigma=es_max_sigma,
@@ -86,7 +88,7 @@ experiments=[
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="7-26-ddpg-sawyer-fixed-angle-random-reset",
+        exp_prefix="7-26-ddpg-sawyer-fixed-angle-PD-TEST",
         seed=0,
         mode='here',
         variant={
@@ -105,8 +107,9 @@ if __name__ == "__main__":
             'batch_size': 1024,
             'use_gpu':True,
             'use_reset':False,
-            'use_random_reset':True,
-            'load_policy_file':'~/Documents/rllab/data/local/7-23-ddpg-sawyer-fixed-angle-huber-move-to-neutral-improved-angle-measurement/7-23-ddpg-sawyer-fixed-angle-huber-move-to-neutral-improved-angle-measurement_2017_07_23_21_37_42_0000--s-0/params.pkl'
+            'use_random_reset':False,
+            'safe_reset':True,
+            # 'load_policy_file':'~/Documents/rllab/data/local/7-23-ddpg-sawyer-fixed-angle-huber-move-to-neutral-improved-angle-measurement/7-23-ddpg-sawyer-fixed-angle-huber-move-to-neutral-improved-angle-measurement_2017_07_23_21_37_42_0000--s-0/params.pkl'
         },
         use_gpu=True,
     )

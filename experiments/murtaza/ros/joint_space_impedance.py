@@ -59,7 +59,7 @@ class JointSprings(object):
     def __init__(self, limb = "right"):
 
         # control parameters
-        self._rate = 1000.0  # Hz
+        self._rate = 1000  # Hz
         self._missed_cmds = 20.0  # Missed cycles before triggering timeout
 
         # create our limb instance
@@ -150,9 +150,10 @@ class JointSprings(object):
                                                  cur_pos[joint])
             # damping portion
             cmd[joint] -= self._damping[joint] * cur_vel[joint]
-            cmd = np.array(
-                [cmd['right_j0'], cmd['right_j1'], cmd['right_j2'], cmd['right_j3'], cmd['right_j4'],
-                 cmd['right_j5'], cmd['right_j6']])
+
+        cmd = np.array(
+            [cmd['right_j0'], cmd['right_j1'], cmd['right_j2'], cmd['right_j3'], cmd['right_j4'],
+             cmd['right_j5'], cmd['right_j6']])
         return cmd
 
     def move_to_neutral(self):

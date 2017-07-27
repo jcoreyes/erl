@@ -164,7 +164,8 @@ class SawyerEnv(Env, Serializable):
             use_reset=True,
             random_reset_length=100,
             use_random_reset=False,
-            safe_reset_length=50,
+            safe_reset_length=30,
+            safe_reset=False,
     ):
 
         Serializable.quick_init(self, locals())
@@ -203,6 +204,7 @@ class SawyerEnv(Env, Serializable):
         self.use_random_reset = use_random_reset
         self.random_reset_length = random_reset_length
         self.safe_reset_length=safe_reset_length
+        self.safe_reset = safe_reset
 
         if loss == 'MSE':
             self.reward_function = self._MSE_reward
@@ -466,6 +468,8 @@ class SawyerEnv(Env, Serializable):
             self.arm.move_to_neutral()
         if self.use_random_reset:
             self.random_reset()
+        if self.safe_reset:
+            self.safe_move_to_neutral()
         return self._get_observation()
 
     def _randomize_desired_angles(self):
