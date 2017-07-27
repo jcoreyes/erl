@@ -103,7 +103,7 @@ if __name__ == "__main__":
             'use_gpu':True,
             'use_reset':False,
             'use_random_reset':True,
-            # 'load_policy_file':'~/Documents/rllab/data/local/7-23-ddpg-sawyer-fixed-angle-huber-move-to-neutral-improved-angle-measurement/7-23-ddpg-sawyer-fixed-angle-huber-move-to-neutral-improved-angle-measurement_2017_07_23_21_37_42_0000--s-0/params.pkl'
+            'load_policy_file':'~/Documents/rllab/data/local/7-23-ddpg-sawyer-fixed-angle-huber-move-to-neutral-improved-angle-measurement/7-23-ddpg-sawyer-fixed-angle-huber-move-to-neutral-improved-angle-measurement_2017_07_23_21_37_42_0000--s-0/params.pkl'
         },
         use_gpu=True,
     )

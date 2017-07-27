@@ -83,7 +83,7 @@ experiments=[
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="7-25-ddpg-baxter-right-arm-fixed-angle-random-reset",
+        exp_prefix="7-26-ddpg-baxter-right-arm-load-algorithm-test",
         seed=0,
         mode='here',
         variant={
@@ -103,7 +103,7 @@ if __name__ == "__main__":
                 'use_gpu':True,
                 'use_reset':False,
                 'use_random_reset':True,
-                # 'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-21-ddpg-baxter-right-arm-move-to-neutral-no-safety/7-21-ddpg-baxter-right-arm-move-to-neutral-no-safety_2017_07_24_10_11_13_0000--s-0/params.pkl'
+                'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-25-ddpg-baxter-right-arm-fixed-angle-random-reset/7-25-ddpg-baxter-right-arm-fixed-angle-random-reset_2017_07_25_13_07_16_0000--s-0/params.pkl'
                 },
         use_gpu=True,
     )

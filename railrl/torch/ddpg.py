@@ -164,8 +164,11 @@ class DDPG(OnlineAlgorithm):
 
         statistics = OrderedDict()
 
+        statistics.update(get_generic_path_information(paths, self.discount, stat_prefix="Test"))
+
         statistics.update(self._statistics_from_paths(exploration_paths,
                                                       "Exploration"))
+        
         statistics.update(self._statistics_from_paths(paths, "Test"))
 
         train_batch = self.get_batch(training=True)
@@ -298,3 +301,5 @@ def get_generic_path_information(paths, discount, stat_prefix):
     statistics.update(create_stats_ordered_dict(
         'Actions', actions, stat_prefix=stat_prefix
     ))
+
+    return statistics

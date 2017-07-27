@@ -460,9 +460,11 @@ class BaxterEnv(Env, Serializable):
     #             self.log_diagnostics([path])
     #             policy.log_diagnostics([path])
     #             logger.dump_tabular()
+
     def random_reset(self):
         for _ in range(self.random_reset_length):
-            self._act(np.random.rand(1, 7)[0])
+            action = np.random.rand(1, 7)[0] * 2 - 1
+            self._act(action)
 
     def reset(self):
         """
@@ -483,13 +485,13 @@ class BaxterEnv(Env, Serializable):
         return self._get_observation()
 
     def _randomize_desired_angles(self):
-        self.desired = np.random.rand(1, 7)[0]
+        self.desired = np.random.rand(1, 7)[0] * 2 - 1
 
     def _randomize_desired_end_effector_pose(self):
         if self.end_effector_experiment_position:
-            self.desired = np.random.rand(1, 3)[0]
+            self.desired = np.random.rand(1, 3)[0] * 2 - 1
         else:
-            self.desired = np.random.rand(1, 7)[0]
+            self.desired = np.random.rand(1, 7)[0] * 2 - 1
 
 
     def _get_robot_pose_jacobian_client(self, name, tip):
