@@ -82,13 +82,14 @@ class SampleOptimalControlPolicy(object):
 
     def get_action(self, obs):
         """
-        Naive implementation where I just do gradient ascent on
+        Naive implementation where I just sample a bunch of a and s' and take
+        the one that maximizes
 
-            f(a, s') = r(s, a, s') - lambda Q(s, a, s')^2
+            f(a, s') = r(s, a, s') - C * Q_d(s, a, s')
 
-        i.e. gradient descent on
+        i.e. minimizes
 
-            f(a, s') = lambda Q(s, a, s')^2 - r(s, a, s')
+            f(a, s') = C * Q_d(s, a, s') - r(s, a, s')
 
         :param obs: np.array, state/observation
         :return: np.array, action to take
@@ -101,7 +102,7 @@ class SampleOptimalControlPolicy(object):
             2 * torch.rand(self.sample_size, 2) - 1,
             requires_grad=True,
             )
-        sampled_actions = np.random.uniform(-.2, .2, size=(self.sample_size, 2))
+        sampled_actions = np.random.uniform(-1, 1, size=(self.sample_size, 2))
         action = ptu.Variable(
             ptu.from_numpy(sampled_actions).float(),
             requires_grad=True,
@@ -142,121 +143,6 @@ class SampleOptimalControlPolicy(object):
         return sampled_actions[min_i], {}
 
 
-class GDOptimalControlPolicy(object):
-    """
-    Do the argmax with a gradient descent method.
-    """
-    R1 = 0.1  # from reacher.xml
-    R2 = 0.11
-
-    def __init__(self, qf, constraint_weight=10):
-        self.qf = qf
-        self.constraint_weight = constraint_weight
-        self._goal_pos = None
-
-    def set_goal(self, goal):
-        self._goal = ptu.Variable(ptu.from_numpy(
-            np.expand_dims(goal, 0)
-        ).float())
-        self._goal_pos = self.position(self._goal)
-
-    def reward(self, state, action, next_state):
-        # return -torch.norm(next_state[:, :4] - self._goal[:, :4])
-        ee_pos = self.position(next_state)
-        return -torch.norm(ee_pos - self._goal_pos)
-
-    def position(self, obs):
-        c1 = obs[:, 0:1]  # cosine of angle 1
-        c2 = obs[:, 1:2]
-        s1 = obs[:, 2:3]
-        s2 = obs[:, 3:4]
-        return (  # forward kinematics equation for 2-link robot
-            self.R1 * torch.cat((c1, s1), dim=1)
-            + self.R2 * torch.cat(
-                (
-                    c1 * c2 - s1 * s2,
-                    s1 * c2 + c1 * s2,
-                ),
-                dim=1,
-            )
-        )
-
-    def reset(self):
-        pass
-
-    def get_action(self, obs):
-        """
-        Naive implementation where I just do gradient ascent on
-
-            f(a, s') = r(s, a, s') - lambda Q(s, a, s')^2
-
-        i.e. gradient descent on
-
-            f(a, s') = lambda Q(s, a, s')^2 - r(s, a, s')
-
-        :param obs: np.array, state/observation
-        :return: np.array, action to take
-        """
-        theta = ptu.Variable(
-            np.pi * (2 * torch.rand(1, 2) - 1),
-            requires_grad=True,
-        )
-        velocity = ptu.Variable(
-            2 * torch.rand(1, 2) - 1,
-            requires_grad=True,
-        )
-        action = ptu.Variable(
-            2 * torch.rand(1, 2) - 1,
-            requires_grad=True,
-        )
-        obs_expanded = np.expand_dims(obs, 0)
-        obs = Variable(ptu.from_numpy(obs_expanded).float(),
-                       requires_grad=False)
-        # optimizer = SGD(
-        optimizer = Adam(
-            [action, theta, velocity],
-            lr=1e-2,
-        )
-        for _ in range(1000):
-            next_state = torch.cat(
-                (
-                    torch.cos(theta),
-                    torch.sin(theta),
-                    velocity,
-                ),
-                dim=1,
-            )
-            objective_loss = -self.reward(obs, action, next_state)
-            augmented_obs = torch.cat((obs, next_state), dim=1)
-            q_value = self.qf(augmented_obs, action)
-            constraint_loss = q_value.sum()**2
-            loss = (
-                self.constraint_weight * constraint_loss
-                + objective_loss
-            )
-            # loss = objective_loss
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            action.data = torch.clamp(action.data, -1, 1)
-            # loss_np = ptu.get_numpy(loss)[0]
-            # if loss_np < 1:
-            #     break
-        #     line_logger.print_over("Loss = {}".format(ptu.get_numpy(loss)[0]))
-        # line_logger.newline()
-        #
-        # print("")
-        # print("constraint loss", ptu.get_numpy(constraint_loss)[0])
-        # print("objective loss", ptu.get_numpy(objective_loss)[0])
-        # print("action", ptu.get_numpy(action))
-        # next_state_np = ptu.get_numpy(next_state)
-        # print("next_state", next_state_np)
-        # print("next_state_pos", ptu.get_numpy(self.position(next_state)))
-        # print("goal_pos", ptu.get_numpy(self._goal_pos))
-        return ptu.get_numpy(action), {}
-
-
-
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
@@ -266,9 +152,7 @@ if __name__ == "__main__":
                         help='Max length of rollout')
     parser.add_argument('--num_rollouts', type=int, default=100,
                         help='Max length of rollout')
-    parser.add_argument('--grid', action='store_true')
     parser.add_argument('--gpu', action='store_true')
-    parser.add_argument('--load', action='store_true')
     parser.add_argument('--hide', action='store_true')
     parser.add_argument('--verbose', action='store_true')
     args = parser.parse_args()
@@ -287,7 +171,7 @@ if __name__ == "__main__":
     policy = SampleOptimalControlPolicy(
         qf,
         constraint_weight=1,
-        sample_size=1000,
+        sample_size=10000,
         goal_is_full_state=goal_is_full_state,
         verbose=args.verbose,
     )
