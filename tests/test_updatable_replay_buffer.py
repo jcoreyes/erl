@@ -51,8 +51,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
         action = rand(), rand()
         for _ in range(10):
             buff.add_sample(observation, action, 1, False)
-        # First trajectory always goes in validation set
-        subtrajs, _ = buff.random_subtrajectories(5, validation=True)
+        subtrajs, _ = buff.random_subtrajectories(5)
         self.assertEqual(subtrajs['env_obs'].shape, (5, 2, 1))
         self.assertEqual(subtrajs['env_actions'].shape, (5, 2, 1))
         self.assertEqual(subtrajs['next_env_obs'].shape, (5, 2, 1))
@@ -77,8 +76,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
             action = rand(), write
             last_write = write
             buff.add_sample(observation, action, 1, False)
-        # First trajectory always goes in validation set
-        subtrajs, _ = buff.random_subtrajectories(5, validation=True)
+        subtrajs, _ = buff.random_subtrajectories(5)
         self.assertNpEqual(subtrajs['next_memories'], subtrajs['writes'])
 
     def test_next_memory_equals_write_after_overflow(self):
@@ -96,8 +94,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
             action = rand(), write
             last_write = write
             buff.add_sample(observation, action, 1, False)
-        # First trajectory always goes in validation set
-        subtrajs, _ = buff.random_subtrajectories(5, validation=True)
+        subtrajs, _ = buff.random_subtrajectories(5)
         self.assertNpEqual(subtrajs['next_memories'], subtrajs['writes'])
 
     def test_dloss_dwrites_are_zero_initially(self):
@@ -115,8 +112,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
             action = rand(), write
             last_write = write
             buff.add_sample(observation, action, 1, False)
-        # First trajectory always goes in validation set
-        subtrajs, _ = buff.random_subtrajectories(5, validation=True)
+        subtrajs, _ = buff.random_subtrajectories(5)
         self.assertNpEqual(subtrajs['dloss_dwrites'], np.zeros((5, 2, 1)))
 
     def test__fixed_start_indices(self):
@@ -131,10 +127,9 @@ class TestSubtrajReplayBuffer(TFTestCase):
             observation = rand(), rand()
             action = rand(), rand()
             buff.add_sample(observation, action, 1, False)
-        _, start_indices = buff.random_subtrajectories(15, validation=True)
+        _, start_indices = buff.random_subtrajectories(15)
         _, new_start_indices = buff.random_subtrajectories(
             15,
-            validation=True,
             _fixed_start_indices=start_indices,
         )
         self.assertNpEqual(start_indices, new_start_indices)
@@ -160,7 +155,6 @@ class TestSubtrajReplayBuffer(TFTestCase):
         buff.update_write_subtrajectories(new_writes, start_indices)
         new_subtrajs, _ = buff.random_subtrajectories(
             len(start_indices),
-            validation=True,
             _fixed_start_indices=start_indices,
         )
         self.assertNpEqual(new_subtrajs['writes'], new_writes)
@@ -180,13 +174,11 @@ class TestSubtrajReplayBuffer(TFTestCase):
             action = rand(), write
             last_write = write
             buff.add_sample(observation, action, 1, False)
-        # First trajectory always goes in validation set
         start_indices = [0, 4, 8]
         new_writes = np.random.rand(len(start_indices), 2, 2)
         buff.update_write_subtrajectories(new_writes, start_indices)
         new_subtrajs, _ = buff.random_subtrajectories(
             len(start_indices),
-            validation=True,
             _fixed_start_indices=start_indices,
         )
         self.assertNpEqual(new_subtrajs['writes'], new_writes)
@@ -200,7 +192,6 @@ class TestSubtrajReplayBuffer(TFTestCase):
             memory_dim=1,
         )
         last_write = rand()
-        # First trajectory always goes in validation set
         buff.terminate_episode((rand(), rand()), True)
         for _ in range(5):
             observation = rand(), last_write
@@ -251,7 +242,6 @@ class TestSubtrajReplayBuffer(TFTestCase):
             action = rand(), write
             last_write = write
             buff.add_sample(observation, action, 1, False)
-        # First trajectory always goes in validation set
         """
         internal
         dL/dm idx   dL/dw idx   changed?
@@ -275,7 +265,6 @@ class TestSubtrajReplayBuffer(TFTestCase):
         buff.update_dloss_dmemories_subtrajectories(dloss_dmem, start_indices)
         new_subtrajs, _ = buff.random_subtrajectories(
             len(start_indices),
-            validation=True,
             _fixed_start_indices=start_indices,
         )
         expected_dloss_dwrite = np.zeros_like(dloss_dmem)
@@ -291,8 +280,6 @@ class TestSubtrajReplayBuffer(TFTestCase):
             subtraj_length=2,
             memory_dim=1,
         )
-        # First trajectory always goes in validation set
-        buff.terminate_episode((rand(), rand()), True)
         last_write = rand()
         for _ in range(13):
             observation = rand(), last_write
