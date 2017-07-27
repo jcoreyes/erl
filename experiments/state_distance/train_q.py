@@ -8,11 +8,13 @@ from railrl.algos.state_distance.state_distance_q_learning import (
 )
 from railrl.envs.multitask.reacher_env import (
     GoalStateSimpleStateReacherEnv,
+    XyMultitaskSimpleStateReacherEnv,
 )
 from railrl.envs.wrappers import convert_gym_space
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.qfunctions.torch import FeedForwardQFunction
+import railrl.torch.pytorch_util as ptu
 
 
 def main(variant):
@@ -45,7 +47,8 @@ def main(variant):
         exploration_policy=None,
         **variant['algo_params']
     )
-    algo.cuda()
+    if ptu.gpu_enabled():
+        algo.cuda()
     algo.train()
 
 
@@ -57,7 +60,7 @@ if __name__ == '__main__':
 
     n_seeds = 1
     mode = "here"
-    exp_prefix = "7-26-sdql-reacher-full-state-ignore-vel"
+    exp_prefix = "7-27-sdqlr-xy-10k--add-noop"
     snapshot_mode = 'gap'
     snapshot_gap = 5
 
@@ -77,12 +80,12 @@ if __name__ == '__main__':
             policy_learning_rate=1e-5,
             sample_goals_from='replay_buffer',
         ),
-        env_class=GoalStateSimpleStateReacherEnv,
+        # env_class=GoalStateSimpleStateReacherEnv,
+        env_class=XyMultitaskSimpleStateReacherEnv,
         env_params=dict(
-            add_noop_action=True,
-            reward_weights=[1, 1, 1, 1, 0, 0],
+            add_noop_action=False,
+            # reward_weights=[1, 1, 1, 1, 0, 0],
         ),
-        # env_class=XyMultitaskSimpleStateReacherEnv,
     )
 
     seed = random.randint(0, 10000)
