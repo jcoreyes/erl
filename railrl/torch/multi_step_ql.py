@@ -7,9 +7,7 @@ import railrl.torch.pytorch_util as ptu
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.data_management.subtraj_replay_buffer import SubtrajReplayBuffer
 from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.misc.rllab_util import get_average_returns
-from railrl.torch.ddpg import DDPG, np_to_pytorch_batch
-from rllab.misc import logger
+from railrl.torch.ddpg import DDPG
 from railrl.misc import np_util
 
 
@@ -30,14 +28,14 @@ class MultiStepDdpg(DDPG):
             discount_factors.view(-1, 1),
             requires_grad=False,
         )
-        self.pool = SplitReplayBuffer(
+        self.replay_buffer = SplitReplayBuffer(
             SubtrajReplayBuffer(
-                max_pool_size=self.pool_size,
+                max_replay_buffer_size=self.replay_buffer_size,
                 env=self.env,
                 subtraj_length=self.subtraj_length,
             ),
             SubtrajReplayBuffer(
-                max_pool_size=self.pool_size,
+                max_replay_buffer_size=self.replay_buffer_size,
                 env=self.env,
                 subtraj_length=self.subtraj_length,
             ),
@@ -130,22 +128,22 @@ class MultiStepDdpg(DDPG):
         return statistics
 
     def _paths_to_np_batch(self, paths):
-        eval_pool = SubtrajReplayBuffer(
+        eval_replay_buffer = SubtrajReplayBuffer(
             len(paths) * (self.max_path_length + 1),
             self.env,
             self.subtraj_length,
         )
         for path in paths:
-            eval_pool.add_trajectory(path)
-        return eval_pool.get_all_valid_subtrajectories()
+            eval_replay_buffer.add_trajectory(path)
+        return eval_replay_buffer.get_all_valid_subtrajectories()
 
     def get_batch(self, training=True):
-        pool = self.pool.get_replay_buffer(training)
+        replay_buffer = self.replay_buffer.get_replay_buffer(training)
         sample_size = min(
-            pool.num_steps_can_sample(),
+            replay_buffer.num_steps_can_sample(),
             self.batch_size
         )
-        batch = pool.random_batch(sample_size)
+        batch = replay_buffer.random_batch(sample_size)
         torch_batch = {
             k: ptu.Variable(ptu.from_numpy(array).float(), requires_grad=False)
             for k, array in batch.items()

@@ -7,19 +7,19 @@ from rllab.misc.overrides import overrides
 class EnvReplayBuffer(SimpleReplayBuffer):
     def __init__(
             self,
-            max_pool_size,
+            max_replay_buffer_size,
             env,
             flatten=False,
     ):
         """
-        :param max_pool_size:
+        :param max_replay_buffer_size:
         :param env:
         :param flatten: Flatten action, obs, and next_obs when returning samples
         """
         self._obs_space = convert_gym_space(env.observation_space)
         self._action_space = convert_gym_space(env.action_space)
         super().__init__(
-            max_pool_size=max_pool_size,
+            max_replay_buffer_size=max_replay_buffer_size,
             observation_dim=self._obs_space.flat_dim,
             action_dim=self._action_space.flat_dim,
         )

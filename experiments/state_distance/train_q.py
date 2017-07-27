@@ -37,16 +37,16 @@ def main(variant):
     env = env_class()
     dataset_path = variant['dataset_path']
     with open(dataset_path, 'rb') as handle:
-        pool = pickle.load(handle)
+        replay_buffer = pickle.load(handle)
 
-    # train_pool = pool.train_replay_buffer
-    # actions = train_pool._actions
-    # obs = train_pool._observations
+    # train_replay_buffer = replay_buffer.train_replay_buffer
+    # actions = train_replay_buffer._actions
+    # obs = train_replay_buffer._observations
     # num_features = obs.shape[-1]
     # fig, axes = plt.subplots(num_features)
     # for i in range(num_features):
     #     ax = axes[i]
-    #     x = obs[:train_pool._size, i]
+    #     x = obs[:train_replay_buffer._size, i]
     #     ax.hist(x)
     # plt.show()
     #
@@ -72,7 +72,7 @@ def main(variant):
         qf=qf,
         policy=policy,
         # exploration_strategy=es,
-        pool=pool,
+        replay_buffer=replay_buffer,
         exploration_policy=None,
         **variant['algo_params']
     )

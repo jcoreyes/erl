@@ -19,7 +19,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
     def test_size_add_none(self):
         env = StubMemoryEnv()
         buff = UpdatableSubtrajReplayBuffer(
-            max_pool_size=100,
+            max_replay_buffer_size=100,
             env=env,
             subtraj_length=2,
             memory_dim=1,
@@ -29,7 +29,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
     def test_size_add_one(self):
         env = StubMemoryEnv()
         buff = UpdatableSubtrajReplayBuffer(
-            max_pool_size=100,
+            max_replay_buffer_size=100,
             env=env,
             subtraj_length=2,
             memory_dim=1,
@@ -42,7 +42,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
     def test_random_subtraj_shape(self):
         env = StubMemoryEnv()
         buff = UpdatableSubtrajReplayBuffer(
-            max_pool_size=100,
+            max_replay_buffer_size=100,
             env=env,
             subtraj_length=2,
             memory_dim=1,
@@ -65,7 +65,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
     def test_next_memory_equals_write(self):
         env = StubMemoryEnv()
         buff = UpdatableSubtrajReplayBuffer(
-            max_pool_size=100,
+            max_replay_buffer_size=100,
             env=env,
             subtraj_length=2,
             memory_dim=1,
@@ -84,7 +84,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
     def test_next_memory_equals_write_after_overflow(self):
         env = StubMemoryEnv()
         buff = UpdatableSubtrajReplayBuffer(
-            max_pool_size=10,
+            max_replay_buffer_size=10,
             env=env,
             subtraj_length=2,
             memory_dim=1,
@@ -103,7 +103,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
     def test_dloss_dwrites_are_zero_initially(self):
         env = StubMemoryEnv()
         buff = UpdatableSubtrajReplayBuffer(
-            max_pool_size=100,
+            max_replay_buffer_size=100,
             env=env,
             subtraj_length=2,
             memory_dim=1,
@@ -122,7 +122,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
     def test__fixed_start_indices(self):
         env = StubMemoryEnv()
         buff = UpdatableSubtrajReplayBuffer(
-            max_pool_size=100,
+            max_replay_buffer_size=100,
             env=env,
             subtraj_length=2,
             memory_dim=1,
@@ -142,7 +142,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
     def test_update_memories_updates_memories(self):
         env = StubMemoryEnv()
         buff = UpdatableSubtrajReplayBuffer(
-            max_pool_size=100,
+            max_replay_buffer_size=100,
             env=env,
             subtraj_length=2,
             memory_dim=1,
@@ -168,7 +168,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
     def test_update_memories_updates_memories_2d(self):
         env = StubMemoryEnv(2)
         buff = UpdatableSubtrajReplayBuffer(
-            max_pool_size=100,
+            max_replay_buffer_size=100,
             env=env,
             subtraj_length=2,
             memory_dim=2,
@@ -194,7 +194,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
     def test_update_memories_does_not_update_other_memories(self):
         env = StubMemoryEnv()
         buff = UpdatableSubtrajReplayBuffer(
-            max_pool_size=100,
+            max_replay_buffer_size=100,
             env=env,
             subtraj_length=2,
             memory_dim=1,
@@ -239,7 +239,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
     def test_update_dloss_dmemories_works(self):
         env = StubMemoryEnv()
         buff = UpdatableSubtrajReplayBuffer(
-            max_pool_size=100,
+            max_replay_buffer_size=100,
             env=env,
             subtraj_length=2,
             memory_dim=1,
@@ -286,7 +286,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
     def test_update_dloss_dmemories_works_overlap(self):
         env = StubMemoryEnv()
         buff = UpdatableSubtrajReplayBuffer(
-            max_pool_size=100,
+            max_replay_buffer_size=100,
             env=env,
             subtraj_length=2,
             memory_dim=1,

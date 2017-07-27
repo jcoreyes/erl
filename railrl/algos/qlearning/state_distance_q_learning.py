@@ -19,7 +19,7 @@ class StateDistanceQLearning(DDPG):
     def __init__(
             self,
             *args,
-            pool=None,
+            replay_buffer=None,
             num_batches=100,
             num_batches_per_epoch=100,
             **kwargs
@@ -27,7 +27,7 @@ class StateDistanceQLearning(DDPG):
         super().__init__(*args, exploration_strategy=None, **kwargs)
         self.num_batches = num_batches
         self.num_batches_per_epoch = num_batches_per_epoch
-        self.pool = pool
+        self.replay_buffer = replay_buffer
 
     def train(self):
         epoch = 0
@@ -45,12 +45,12 @@ class StateDistanceQLearning(DDPG):
                 epoch += 1
 
     def get_batch(self, training=True):
-        pool = self.pool.get_replay_buffer(training)
+        replay_buffer = self.replay_buffer.get_replay_buffer(training)
         batch_size = min(
-            pool.num_steps_can_sample(),
+            replay_buffer.num_steps_can_sample(),
             self.batch_size
         )
-        batch = pool.random_batch(batch_size)
+        batch = replay_buffer.random_batch(batch_size)
         goal_states = self.env.sample_goal_states(batch_size)
         new_rewards = self.env.compute_rewards(
             batch['observations'],
