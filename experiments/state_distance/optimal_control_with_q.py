@@ -85,11 +85,7 @@ class SampleOptimalControlPolicy(object):
         Naive implementation where I just sample a bunch of a and s' and take
         the one that maximizes
 
-            f(a, s') = r(s, a, s') - C * Q_d(s, a, s')
-
-        i.e. minimizes
-
-            f(a, s') = C * Q_d(s, a, s') - r(s, a, s')
+            f(a, s') = r(s, a, s') - C * Q_d(s, a, s')**2
 
         :param obs: np.array, state/observation
         :return: np.array, action to take
@@ -99,9 +95,9 @@ class SampleOptimalControlPolicy(object):
             requires_grad=True,
         )
         velocity = ptu.Variable(
-            2 * torch.rand(self.sample_size, 2) - 1,
+            5 * torch.rand(self.sample_size, 2) - 1,
             requires_grad=True,
-            )
+        )
         sampled_actions = np.random.uniform(-1, 1, size=(self.sample_size, 2))
         action = ptu.Variable(
             ptu.from_numpy(sampled_actions).float(),
@@ -118,7 +114,7 @@ class SampleOptimalControlPolicy(object):
             ),
             dim=1,
         )
-        objective_loss = -self.reward(obs, action, next_state)
+        reward = -self.reward(obs, action, next_state)
         if self.goal_is_full_state:
             augmented_obs = torch.cat((obs, next_state), dim=1)
         else:
@@ -126,21 +122,21 @@ class SampleOptimalControlPolicy(object):
                 obs,
                 self.position(next_state),
             ), dim=1)
-        constraint_loss = - self.qf(augmented_obs, action)
-        loss = (
-            self.constraint_weight * constraint_loss
-            + objective_loss
+        constraint_penalty = self.qf(augmented_obs, action)**2
+        score = (
+            reward
+            - self.constraint_weight * constraint_penalty
         )
-        min_i = np.argmin(ptu.get_numpy(loss))
+        max_i = np.argmax(ptu.get_numpy(score))
         if self.verbose:
             print("")
-            print("constraint loss", ptu.get_numpy(constraint_loss)[min_i])
-            print("objective loss", ptu.get_numpy(objective_loss)[min_i])
-            print("action", ptu.get_numpy(action)[min_i])
-            print("next_state", ptu.get_numpy(next_state[min_i]))
-            print("next_state_pos", ptu.get_numpy(self.position(next_state))[min_i])
-            print("goal_pos", ptu.get_numpy(self._goal_pos)[min_i])
-        return sampled_actions[min_i], {}
+            print("constraint penalty", ptu.get_numpy(constraint_penalty)[max_i])
+            print("reward", ptu.get_numpy(score)[max_i])
+            print("action", ptu.get_numpy(action)[max_i])
+            print("next_state", ptu.get_numpy(next_state[max_i]))
+            print("next_state_pos", ptu.get_numpy(self.position(next_state))[max_i])
+            print("goal_pos", ptu.get_numpy(self._goal_pos)[max_i])
+        return sampled_actions[max_i], {}
 
 
 if __name__ == "__main__":
@@ -171,7 +167,7 @@ if __name__ == "__main__":
     policy = SampleOptimalControlPolicy(
         qf,
         constraint_weight=1,
-        sample_size=10000,
+        sample_size=1000,
         goal_is_full_state=goal_is_full_state,
         verbose=args.verbose,
     )
