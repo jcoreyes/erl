@@ -39,9 +39,10 @@ class NAF(OnlineAlgorithm):
         self.qf_criterion = nn.MSELoss()
         self.qf_optimizer = optim.Adam(self.qf.parameters(),
                                        lr=self.qf_learning_rate)
-        if ptu.gpu_enabled():
-            self.qf.cuda()
-            self.target_qf.cuda()
+    def cuda(self):
+        self.policy.cuda()
+        self.qf.cuda()
+        self.target_qf.cuda()
 
     def _do_training(self, n_steps_total):
         batch = self.get_batch()
