@@ -1,28 +1,69 @@
 import argparse
 import pickle
 import random
-import numpy as np
 
+import railrl.torch.pytorch_util as ptu
 from railrl.algos.state_distance.state_distance_q_learning import (
     StateDistanceQLearning,
 )
+from railrl.data_management.env_replay_buffer import EnvReplayBuffer
+from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.multitask.reacher_env import (
-    GoalStateSimpleStateReacherEnv,
-    XyMultitaskSimpleStateReacherEnv,
+    FullStateVaryingWeightReacherEnv,
 )
 from railrl.envs.wrappers import convert_gym_space
+from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
+from railrl.policies.zero_policy import ZeroPolicy
 from railrl.qfunctions.torch import FeedForwardQFunction
-import railrl.torch.pytorch_util as ptu
+from railrl.samplers.path_sampler import MultitaskPathSampler
 
 
 def main(variant):
     env_class = variant['env_class']
     env = env_class(**variant['env_params'])
-    dataset_path = variant['dataset_path']
-    with open(dataset_path, 'rb') as handle:
-        replay_buffer = pickle.load(handle)
+    if variant['generate_data']:
+        action_space = convert_gym_space(env.action_space)
+        es = GaussianStrategy(
+            action_space=action_space,
+            max_sigma=0.2,
+            min_sigma=0.2,
+        )
+        exploration_policy = ZeroPolicy(
+            int(action_space.flat_dim),
+        )
+        sampler_params = variant['sampler_params']
+        replay_buffer_size = (
+            sampler_params['min_num_steps_to_collect']
+            + sampler_params['max_path_length']
+        )
+        replay_buffer = SplitReplayBuffer(
+            EnvReplayBuffer(
+                replay_buffer_size,
+                env,
+                flatten=True,
+            ),
+            EnvReplayBuffer(
+                replay_buffer_size,
+                env,
+                flatten=True,
+            ),
+            fraction_paths_in_train=0.8,
+        )
+        sampler = MultitaskPathSampler(
+            env,
+            exploration_strategy=es,
+            exploration_policy=exploration_policy,
+            replay_buffer=replay_buffer,
+            **variant['sampler_params']
+        )
+        sampler.collect_data()
+        replay_buffer = sampler.replay_buffer
+    else:
+        dataset_path = variant['dataset_path']
+        with open(dataset_path, 'rb') as handle:
+            replay_buffer = pickle.load(handle)
 
     observation_space = convert_gym_space(env.observation_space)
     action_space = convert_gym_space(env.action_space)
@@ -56,11 +97,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('replay_path', type=str,
                         help='path to the snapshot file')
+    parser.add_argument('--generate_data', action='store_true')
     args = parser.parse_args()
 
     n_seeds = 1
     mode = "here"
-    exp_prefix = "7-27-sdqlr-xy-10k--add-noop"
+    exp_prefix = "7-27-dev-test-full-state-sample-correct"
     snapshot_mode = 'gap'
     snapshot_gap = 5
 
@@ -79,13 +121,21 @@ if __name__ == '__main__':
             qf_learning_rate=1e-4,
             policy_learning_rate=1e-5,
             sample_goals_from='replay_buffer',
+            num_epochs=101,
         ),
         # env_class=GoalStateSimpleStateReacherEnv,
-        env_class=XyMultitaskSimpleStateReacherEnv,
+        # env_class=XyMultitaskSimpleStateReacherEnv,
+        env_class=FullStateVaryingWeightReacherEnv,
         env_params=dict(
             add_noop_action=False,
             # reward_weights=[1, 1, 1, 1, 0, 0],
         ),
+        sampler_params=dict(
+            min_num_steps_to_collect=10000,
+            max_path_length=1000,
+            render=False,
+        ),
+        generate_data=False,
     )
 
     seed = random.randint(0, 10000)
