@@ -14,6 +14,7 @@ from torch.autograd import Variable
 import railrl.torch.pytorch_util as ptu
 from railrl.algos.state_distance.state_distance_q_learning import \
     rollout_with_goal
+from railrl.envs.multitask.reacher_env import FullStateVaryingWeightReacherEnv
 from railrl.torch.pytorch_util import set_gpu_mode
 from rllab.misc import logger
 
@@ -70,7 +71,8 @@ if __name__ == "__main__":
         paths = []
         for _ in range(5):
             goal = env.sample_goal_states(1)[0]
-            # goal[:6] = np.array([1, 1, 1, 1, 0, 0])
+            if isinstance(env, FullStateVaryingWeightReacherEnv):
+                goal[:6] = np.array([1, 1, 1, 1, 0, 0])
             env.print_goal_state_info(goal)
             env.set_goal(goal)
             paths.append(rollout_with_goal(
