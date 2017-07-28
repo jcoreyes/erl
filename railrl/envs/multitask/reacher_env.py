@@ -388,7 +388,7 @@ class FullStateVaryingWeightReacherEnv(GoalStateSimpleStateReacherEnv):
 
     def convert_obs_to_goal_state(self, obs):
         weights = self._sample_reward_weights(len(obs))
-        return np.hstack((obs, weights))
+        return np.hstack((weights, obs))
 
     @staticmethod
     def print_goal_state_info(goal):
