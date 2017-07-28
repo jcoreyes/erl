@@ -101,10 +101,14 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     n_seeds = 1
-    mode = "here"
-    exp_prefix = "7-27-dev-test-full-state-sample-correct"
+    mode = "ec2"
+    use_gpu = True
+    exp_prefix = "7-27-full-state-vary-reward-weight-3"
     snapshot_mode = 'gap'
     snapshot_gap = 5
+
+    if mode == 'ec2':
+        use_gpu = False
 
     dataset_path = args.replay_path
 
@@ -135,7 +139,7 @@ if __name__ == '__main__':
             max_path_length=1000,
             render=False,
         ),
-        generate_data=False,
+        generate_data=args.generate_data,
     )
 
     seed = random.randint(0, 10000)
@@ -146,7 +150,7 @@ if __name__ == '__main__':
         mode=mode,
         variant=variant,
         exp_id=0,
-        use_gpu=True,
+        use_gpu=use_gpu,
         snapshot_mode=snapshot_mode,
         snapshot_gap=snapshot_gap,
     )
