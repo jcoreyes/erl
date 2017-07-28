@@ -156,16 +156,17 @@ class DDPG(OnlineAlgorithm):
         :param exploration_paths: List of dicts, each representing a path.
         """
         logger.log("Collecting samples for evaluation")
-        paths = self._sample_paths(epoch)
+        test_paths = self._sample_paths(epoch)
 
         statistics = OrderedDict()
 
-        statistics.update(get_generic_path_information(paths, self.discount, stat_prefix="Test"))
+        statistics.update(get_generic_path_information(exploration_paths, self.discount, stat_prefix="Exploration"))
+        statistics.update(get_generic_path_information(test_paths, self.discount, stat_prefix="Test"))
 
         statistics.update(self._statistics_from_paths(exploration_paths,
                                                       "Exploration"))
-        
-        statistics.update(self._statistics_from_paths(paths, "Test"))
+
+        statistics.update(self._statistics_from_paths(test_paths, "Test"))
 
         train_batch = self.get_batch(training=True)
         statistics.update(self._statistics_from_batch(train_batch, "Train"))
@@ -182,7 +183,7 @@ class DDPG(OnlineAlgorithm):
             statistics['Validation Policy Loss Mean']
             - statistics['Train Policy Loss Mean']
         )
-        average_returns = get_average_returns(paths)
+        average_returns = get_average_returns(test_paths)
         statistics['AverageReturn'] = average_returns
 
         statistics['Epoch'] = epoch
@@ -192,7 +193,7 @@ class DDPG(OnlineAlgorithm):
         for key, value in statistics.items():
             logger.record_tabular(key, value)
 
-        self.log_diagnostics(paths)
+        self.log_diagnostics(test_paths)
 
     def get_batch(self, training=True):
         replay_buffer = self.replay_buffer.get_replay_buffer(training)

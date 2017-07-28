@@ -5,6 +5,7 @@ from railrl.torch.ddpg import DDPG
 from os.path import exists
 from railrl.envs.ros.baxter_env import BaxterEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
+from railrl.torch import pytorch_util as ptu
 import joblib
 
 def example(variant):
@@ -12,8 +13,10 @@ def example(variant):
     if not load_policy_file == None and exists(load_policy_file):
         data = joblib.load(load_policy_file)
         algorithm = data['algorithm']
+        epochs = algorithm.num_epochs - data['epoch']
+        algorithm.num_epochs = epochs
         use_gpu = variant['use_gpu']
-        if use_gpu:
+        if use_gpu and ptu.gpu_enabled():
             algorithm.cuda()
         algorithm.train()
     else:

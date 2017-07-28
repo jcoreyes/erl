@@ -5,6 +5,7 @@ from railrl.torch.ddpg import DDPG
 from os.path import exists
 from railrl.envs.ros.sawyer_env import SawyerEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
+from railrl.torch import pytorch_util as ptu
 import joblib
 
 def example(variant):
@@ -12,8 +13,10 @@ def example(variant):
     if load_policy_file is not None and exists(load_policy_file):
         data = joblib.load(load_policy_file)
         algorithm = data['algorithm']
+        epochs = algorithm.num_epochs - data['epoch']
+        algorithm.num_epochs = epochs
         use_gpu = variant['use_gpu']
-        if use_gpu:
+        if use_gpu and ptu.gpu_enabled():
             algorithm.cuda()
         algorithm.train()
     else:
@@ -72,7 +75,7 @@ def example(variant):
             num_epochs=num_epochs,
             batch_size=batch_size,
         )
-        if use_gpu:
+        if use_gpu and ptu.gpu_enabled():
             algorithm.cuda()
         algorithm.train()
 
@@ -88,7 +91,7 @@ experiments=[
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="7-26-ddpg-sawyer-fixed-angle-PD-TEST",
+        exp_prefix="7-28-ddpg-sawyer-fixed-angle",
         seed=0,
         mode='here',
         variant={
@@ -109,7 +112,7 @@ if __name__ == "__main__":
             'use_reset':False,
             'use_random_reset':False,
             'safe_reset':True,
-            # 'load_policy_file':'~/Documents/rllab/data/local/7-23-ddpg-sawyer-fixed-angle-huber-move-to-neutral-improved-angle-measurement/7-23-ddpg-sawyer-fixed-angle-huber-move-to-neutral-improved-angle-measurement_2017_07_23_21_37_42_0000--s-0/params.pkl'
+            # 'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-26-ddpg-sawyer-fixed-angle-PD-TEST/7-26-ddpg-sawyer-fixed-angle-PD-TEST_2017_07_28_15_02_31_0000--s-0/params.pkl'
         },
         use_gpu=True,
     )

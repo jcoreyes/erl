@@ -10,7 +10,7 @@ from robot_info.srv import *
 from railrl.misc.data_processing import create_stats_ordered_dict
 from collections import OrderedDict
 import ipdb
-from joint_space_impedance import JointSprings
+from experiments.murtaza.ros.joint_space_impedance import JointSprings
 
 NUM_JOINTS = 7
 
@@ -156,7 +156,7 @@ class SawyerEnv(Env, Serializable):
             update_hz=20,
             action_mode='torque',
             remove_action=False,
-            safety_box=False,
+            safety_box=True,
             loss='huber',
             huber_delta=10,
             safety_force_magnitude=2,
