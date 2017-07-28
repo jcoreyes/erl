@@ -117,7 +117,7 @@ if __name__ == '__main__':
     variant = dict(
         dataset_path=str(dataset_path),
         algo_params=dict(
-            num_batches=100000,
+            num_batches=101000,
             num_batches_per_epoch=1000,
             use_soft_update=True,
             tau=1e-3,
@@ -126,7 +126,6 @@ if __name__ == '__main__':
             qf_learning_rate=1e-4,
             policy_learning_rate=1e-5,
             sample_goals_from='replay_buffer',
-            num_epochs=101,
         ),
         # env_class=GoalStateSimpleStateReacherEnv,
         # env_class=XyMultitaskSimpleStateReacherEnv,
