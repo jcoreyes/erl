@@ -16,6 +16,8 @@ from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.policies.zero_policy import ZeroPolicy
+from railrl.qfunctions.state_distance.outer_product_qfunction import \
+    OuterProductQFunction
 from railrl.qfunctions.torch import FeedForwardQFunction
 from railrl.samplers.path_sampler import MultitaskPathSampler
 
@@ -67,11 +69,11 @@ def main(variant):
 
     observation_space = convert_gym_space(env.observation_space)
     action_space = convert_gym_space(env.action_space)
-    qf = FeedForwardQFunction(
+    qf = variant['qf_class'](
         int(observation_space.flat_dim) + env.goal_dim,
         int(action_space.flat_dim),
-        400,
-        300,
+        32,
+        32,
         batchnorm_obs=False,
     )
     policy = FeedForwardPolicy(
@@ -95,15 +97,14 @@ def main(variant):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('replay_path', type=str,
+    parser.add_argument('--replay_path', type=str,
                         help='path to the snapshot file')
-    parser.add_argument('--generate_data', action='store_true')
     args = parser.parse_args()
 
     n_seeds = 1
-    mode = "ec2"
+    mode = "here"
     use_gpu = True
-    exp_prefix = "7-27-full-state-vary-reward-weight-3"
+    exp_prefix = "7-27-full-state-vary-reward-weight-outer-prod-qf"
     snapshot_mode = 'gap'
     snapshot_gap = 5
 
@@ -139,7 +140,8 @@ if __name__ == '__main__':
             max_path_length=1000,
             render=False,
         ),
-        generate_data=args.generate_data,
+        generate_data=args.replay_path is None,
+        qf_class=OuterProductQFunction,
     )
 
     seed = random.randint(0, 10000)
