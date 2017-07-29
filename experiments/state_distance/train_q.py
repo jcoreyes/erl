@@ -104,7 +104,7 @@ if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
     use_gpu = True
-    exp_prefix = "7-27-full-state-vary-reward-weight-outer-prod-qf"
+    exp_prefix = "7-27-full-state-vary-reward-weight-outer-prod-qf-last-fc"
     snapshot_mode = 'gap'
     snapshot_gap = 5
 

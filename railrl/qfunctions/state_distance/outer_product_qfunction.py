@@ -34,7 +34,7 @@ class OuterProductQFunction(PyTorchModule):
             observation_hidden_size + action_dim,
             embedded_hidden_size,
         )
-        self.last_sop = SelfOuterProductLinear(embedded_hidden_size, 1)
+        self.last_fc = nn.Linear(embedded_hidden_size, 1)
         self.output_activation = output_activation
 
         self.init_weights(init_w)
@@ -47,8 +47,8 @@ class OuterProductQFunction(PyTorchModule):
         self.obs_sop.fc.bias.data.fill_(0)
         self.hidden_init(self.embedded_sop.fc.weight)
         self.embedded_sop.fc.bias.data.fill_(0)
-        self.last_sop.fc.weight.data.uniform_(-init_w, init_w)
-        self.last_sop.fc.bias.data.uniform_(-init_w, init_w)
+        self.last_fc.weight.data.uniform_(-init_w, init_w)
+        self.last_fc.bias.data.uniform_(-init_w, init_w)
 
     def forward(self, obs, action):
         if self.batchnorm_obs:
@@ -57,4 +57,28 @@ class OuterProductQFunction(PyTorchModule):
         h = F.relu(self.obs_sop(h))
         h = torch.cat((h, action), dim=1)
         h = F.relu(self.embedded_sop(h))
-        return self.output_activation(self.last_sop(h))
+        return self.output_activation(self.last_fc(h))
+    #     self.last_sop = SelfOuterProductLinear(embedded_hidden_size, 1)
+    #     self.output_activation = output_activation
+    #
+    #     self.init_weights(init_w)
+    #     self.batchnorm_obs = batchnorm_obs
+    #     if self.batchnorm_obs:
+    #         self.bn_obs = nn.BatchNorm1d(obs_dim)
+    #
+    # def init_weights(self, init_w):
+    #     self.hidden_init(self.obs_sop.fc.weight)
+    #     self.obs_sop.fc.bias.data.fill_(0)
+    #     self.hidden_init(self.embedded_sop.fc.weight)
+    #     self.embedded_sop.fc.bias.data.fill_(0)
+    #     self.last_sop.fc.weight.data.uniform_(-init_w, init_w)
+    #     self.last_sop.fc.bias.data.uniform_(-init_w, init_w)
+    #
+    # def forward(self, obs, action):
+    #     if self.batchnorm_obs:
+    #         obs = self.bn_obs(obs)
+    #     h = obs
+    #     h = F.relu(self.obs_sop(h))
+    #     h = torch.cat((h, action), dim=1)
+    #     h = F.relu(self.embedded_sop(h))
+    #     return self.output_activation(self.last_sop(h))
