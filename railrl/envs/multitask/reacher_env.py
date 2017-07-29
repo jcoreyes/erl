@@ -36,6 +36,7 @@ import numpy as np
 from gym import utils
 from gym.envs.mujoco import ReacherEnv, mujoco_env
 
+from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc.data_processing import create_stats_ordered_dict
 from rllab.misc import logger
 
@@ -66,7 +67,7 @@ def position_from_angles(angles):
     )
 
 
-class XyMultitaskReacherEnv(ReacherEnv):
+class XyMultitaskReacherEnv(ReacherEnv, MultitaskEnv):
     """
     The goal states are xy-coordinates.
     """
@@ -101,6 +102,10 @@ class XyMultitaskReacherEnv(ReacherEnv):
     @property
     def goal_dim(self):
         return 2
+
+    @staticmethod
+    def print_goal_state_info(goal):
+        print(goal)
 
 
 class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
@@ -234,6 +239,10 @@ class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def goal_dim(self):
         return 2
 
+    @staticmethod
+    def print_goal_state_info(goal):
+        print("Goal = ", goal)
+
 
 class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
     """
@@ -330,7 +339,6 @@ class FullStateVaryingWeightReacherEnv(GoalStateSimpleStateReacherEnv):
     def __init__(self, add_noop_action=True):
         """
         :param add_noop_action: See parent
-        :param reward_weights: See parent
         the reward.
         """
         self.add_noop_action = add_noop_action
