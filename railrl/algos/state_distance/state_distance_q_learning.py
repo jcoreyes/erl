@@ -125,56 +125,6 @@ class StateDistanceQLearning(DDPG):
         logger.dump_tabular(with_prefix=False, with_timestamp=False)
 
 
-class StateDistanceQLearningSimple(StateDistanceQLearning):
-    def _do_training(self, n_steps_total):
-        batch = self.get_batch()
-        train_dict = self.get_train_dict(batch)
-
-        self.qf_optimizer.zero_grad()
-        qf_loss = train_dict['QF Loss']
-        qf_loss.backward()
-        self.qf_optimizer.step()
-
-    def get_train_dict(self, batch):
-        rewards = batch['rewards']
-        obs = batch['observations']
-        actions = batch['actions']
-
-        y_pred = self.qf(obs, actions)
-        bellman_errors = (y_pred - rewards)**2
-        qf_loss = bellman_errors.mean()
-
-        return OrderedDict([
-            ('Bellman Errors', bellman_errors),
-            ('Y predictions', y_pred),
-            ('QF Loss', qf_loss),
-            ('Target Rewards', rewards),
-        ])
-
-    def _statistics_from_batch(self, batch, stat_prefix):
-        statistics = OrderedDict()
-
-        train_dict = self.get_train_dict(batch)
-        for name in [
-            'QF Loss',
-        ]:
-            tensor = train_dict[name]
-            statistics_name = "{} {} Mean".format(stat_prefix, name)
-            statistics[statistics_name] = np.mean(ptu.get_numpy(tensor))
-
-        for name in [
-            'Bellman Errors',
-            'Target Rewards',
-        ]:
-            tensor = train_dict[name]
-            statistics.update(create_stats_ordered_dict(
-                '{} {}'.format(stat_prefix, name),
-                ptu.get_numpy(tensor)
-            ))
-
-        return statistics
-
-
 def rollout_with_goal(env, agent, goal, max_path_length=np.inf, animated=False):
     observations = []
     actions = []
