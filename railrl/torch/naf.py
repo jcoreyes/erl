@@ -97,20 +97,21 @@ class NAF(OnlineAlgorithm):
         :param exploration_paths: List of dicts, each representing a path.
         """
         logger.log("Collecting samples for evaluation")
-        paths = self._sample_paths(epoch)
+        test_paths = self._sample_paths(epoch)
         statistics = OrderedDict()
 
         statistics.update(self._statistics_from_paths(exploration_paths,
                                                       "Exploration"))
-        statistics.update(self._statistics_from_paths(paths, "Test"))
+        statistics.update(self._statistics_from_paths(test_paths, "Test"))
 
-        statistics['AverageReturn'] = get_average_returns(paths)
+        statistics['AverageReturn'] = get_average_returns(test_paths)
         statistics['Epoch'] = epoch
 
         for key, value in statistics.items():
             logger.record_tabular(key, value)
 
-        self.log_diagnostics(paths)
+        self.log_diagnostics(test_paths)
+
 
     def get_batch(self):
         batch = self.replay_buffer.random_batch(self.batch_size)
@@ -158,7 +159,30 @@ class NAF(OnlineAlgorithm):
             env=self.training_env,
             qf=self.qf,
             policy=self.policy,
+            replay_buffer=self.replay_buffer,
+            algorithm=self,
         )
+
+def get_generic_path_information(paths, discount, stat_prefix):
+    """
+    Get an OrderedDict with a bunch of statistic names and values.
+    """
+    statistics = OrderedDict()
+    returns = [sum(path["rewards"]) for path in paths]
+
+    discounted_returns = [
+        special.discount_return(path["rewards"], discount)
+        for path in paths
+    ]
+    rewards = np.hstack([path["rewards"] for path in paths])
+
+    statistics.update(create_stats_ordered_dict('Rewards', rewards, stat_prefix=stat_prefix))
+    statistics.update(create_stats_ordered_dict('Returns', returns, stat_prefix=stat_prefix))
+    statistics.update(create_stats_ordered_dict('DiscountedReturns', discounted_returns, stat_prefix=stat_prefix))
+    actions = np.vstack([path["actions"] for path in paths])
+    statistics.update(create_stats_ordered_dict('Actions', actions, stat_prefix=stat_prefix))
+
+    return statistics
 
 
 # class NormalizedAdvantageFunction(PyTorchModule):
