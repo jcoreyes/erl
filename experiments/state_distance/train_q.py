@@ -74,8 +74,8 @@ def main(variant):
     qf = variant['qf_class'](
         int(observation_space.flat_dim) + env.goal_dim,
         int(action_space.flat_dim),
-        32,
-        32,
+        400,
+        300,
         batchnorm_obs=False,
     )
     policy = FeedForwardPolicy(
@@ -113,7 +113,7 @@ if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
     use_gpu = True
-    exp_prefix = "7-28-dev-sdqlr-xy-increase-gamma"
+    exp_prefix = "7-28-sdqlr-xy-increase-gamma-long"
     snapshot_mode = 'gap'
     snapshot_gap = 5
 
@@ -127,7 +127,7 @@ if __name__ == '__main__':
         dataset_path=str(dataset_path),
         algo_params=dict(
             num_epochs=101,
-            num_batches_per_epoch=1000,
+            num_batches_per_epoch=10000,
             use_soft_update=True,
             tau=1e-3,
             batch_size=1024,
@@ -138,8 +138,8 @@ if __name__ == '__main__':
         ),
         epoch_discount_schedule_class=RampUpSchedule,
         epoch_discount_schedule_params=dict(
-            min_value=0,
-            max_value=0.9,
+            min_value=0.,
+            max_value=0.99,
             ramp_duration=100,
         ),
         # env_class=GoalStateSimpleStateReacherEnv,
