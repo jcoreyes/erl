@@ -1,14 +1,15 @@
 """
-Exampling of running DDPG on Double Reacher.
+Exampling of running Naf on Double Reacher.
 """
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.policies.torch import FeedForwardPolicy
-from railrl.qfunctions.torch import FeedForwardQFunction
+from railrl.torch.naf import NAF, NafPolicy
+
 from railrl.envs.env_utils import gym_env
+from rllab.envs.normalized_env import normalize
 from railrl.torch import pytorch_util as ptu
-from railrl.torch.ddpg import DDPG
 from os.path import exists
+
 import joblib
 
 def example(variant):
@@ -33,23 +34,14 @@ def example(variant):
             min_sigma=es_min_sigma,
             action_space=env.action_space,
         )
-        qf = FeedForwardQFunction(
+        qf = NafPolicy(
             int(env.observation_space.flat_dim),
             int(env.action_space.flat_dim),
-            100,
-            100,
+            400,
         )
-        policy = FeedForwardPolicy(
-            int(env.observation_space.flat_dim),
-            int(env.action_space.flat_dim),
-            100,
-            100,
-
-        )
-        algorithm = DDPG(
+        algorithm = NAF(
             env,
             qf,
-            policy,
             es,
             num_epochs=num_epochs,
             batch_size=batch_size,
@@ -60,7 +52,7 @@ def example(variant):
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="7-24-ddpg-reacher-algorithm-restart-test",
+        exp_prefix="7-28-NAF-reacher-algorithm",
         seed=0,
         mode='here',
         variant={
@@ -68,9 +60,9 @@ if __name__ == "__main__":
             'es_min_sigma': .05,
             'es_max_sigma': .05,
             'num_epochs': 50,
-            'batch_size': 1024,
+            'batch_size': 128,
             'use_gpu': True,
-            'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-24-reacher-algorithm-restart-test/7-24-ddpg-reacher-algorithm-restart-test_2017_07_24_12_35_59_0000--s-0/params.pkl'
+            # 'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-24-reacher-algorithm-restart-test/7-24-ddpg-reacher-algorithm-restart-test_2017_07_24_12_35_59_0000--s-0/params.pkl'
         },
         use_gpu=True,
     )

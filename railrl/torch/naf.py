@@ -21,13 +21,22 @@ class NAF(OnlineAlgorithm):
             self,
             env,
             qf,
+            exploration_strategy,
+            exploration_policy=None,
             qf_learning_rate=1e-3,
             target_hard_update_period=1000,
             tau=0.001,
             use_soft_update=False,
             **kwargs
     ):
-        super().__init__(env, **kwargs)
+        if exploration_policy is None:
+            exploration_policy = qf
+        super().__init__(
+            env,
+            exploration_policy,
+            exploration_strategy,
+            **kwargs
+        )
         self.qf = qf
         self.policy = self.qf
         self.qf_learning_rate = qf_learning_rate

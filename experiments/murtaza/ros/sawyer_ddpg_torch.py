@@ -99,7 +99,7 @@ if __name__ == "__main__":
             'arm_name': 'right',
             'safety_box': True,
             'loss': 'huber',
-            'huber_delta': 10,
+            'huber_delta': .2,
             'safety_force_magnitude': 2,
             'temp': 1.05,
             'remove_action': False,
