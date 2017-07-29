@@ -10,10 +10,12 @@ from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.multitask.reacher_env import (
     FullStateVaryingWeightReacherEnv,
+    XyMultitaskSimpleStateReacherEnv,
 )
 from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.launchers.launcher_util import run_experiment
+from railrl.misc.ml_util import RampUpSchedule
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.policies.zero_policy import ZeroPolicy
 from railrl.qfunctions.state_distance.outer_product_qfunction import \
@@ -82,12 +84,19 @@ def main(variant):
         400,
         300,
     )
+    epoch_discount_schedule = None
+    epoch_discount_schedule_class = variant['epoch_discount_schedule_class']
+    if epoch_discount_schedule_class is not None:
+        epoch_discount_schedule = epoch_discount_schedule_class(
+            **variant['epoch_discount_schedule_params']
+        )
     algo = StateDistanceQLearning(
         env,
         qf,
         policy,
         replay_buffer=replay_buffer,
         exploration_policy=None,
+        epoch_discount_schedule=epoch_discount_schedule,
         **variant['algo_params']
     )
     if ptu.gpu_enabled():
@@ -104,7 +113,7 @@ if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
     use_gpu = True
-    exp_prefix = "7-27-full-state-vary-reward-weight-outer-prod-qf-last-fc"
+    exp_prefix = "7-28-dev-sdqlr-xy-increase-gamma"
     snapshot_mode = 'gap'
     snapshot_gap = 5
 
@@ -117,7 +126,7 @@ if __name__ == '__main__':
     variant = dict(
         dataset_path=str(dataset_path),
         algo_params=dict(
-            num_batches=101000,
+            num_epochs=101,
             num_batches_per_epoch=1000,
             use_soft_update=True,
             tau=1e-3,
@@ -127,9 +136,15 @@ if __name__ == '__main__':
             policy_learning_rate=1e-5,
             sample_goals_from='replay_buffer',
         ),
+        epoch_discount_schedule_class=RampUpSchedule,
+        epoch_discount_schedule_params=dict(
+            min_value=0,
+            max_value=0.9,
+            ramp_duration=100,
+        ),
         # env_class=GoalStateSimpleStateReacherEnv,
-        # env_class=XyMultitaskSimpleStateReacherEnv,
-        env_class=FullStateVaryingWeightReacherEnv,
+        env_class=XyMultitaskSimpleStateReacherEnv,
+        # env_class=FullStateVaryingWeightReacherEnv,
         env_params=dict(
             add_noop_action=False,
             # reward_weights=[1, 1, 1, 1, 0, 0],
@@ -140,7 +155,7 @@ if __name__ == '__main__':
             render=False,
         ),
         generate_data=args.replay_path is None,
-        qf_class=OuterProductQFunction,
+        qf_class=FeedForwardQFunction,
     )
 
     seed = random.randint(0, 10000)

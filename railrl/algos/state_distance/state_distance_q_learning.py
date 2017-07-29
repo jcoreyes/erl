@@ -9,6 +9,7 @@ from torch.nn import functional as F
 
 import railrl.torch.pytorch_util as ptu
 from railrl.misc.data_processing import create_stats_ordered_dict
+from railrl.misc.ml_util import ConstantSchedule
 from railrl.pythonplusplus import identity
 from railrl.torch.core import PyTorchModule
 from railrl.torch.ddpg import DDPG, np_to_pytorch_batch
@@ -20,32 +21,37 @@ class StateDistanceQLearning(DDPG):
             self,
             *args,
             replay_buffer=None,
-            num_batches=100,
+            num_epochs=100,
             num_batches_per_epoch=100,
             sample_goals_from='environment',
+            epoch_discount_schedule=None,
             **kwargs
     ):
         super().__init__(*args, exploration_strategy=None, **kwargs)
-        self.num_batches = num_batches
+        self.num_epochs = num_epochs
         self.num_batches_per_epoch = num_batches_per_epoch
         assert sample_goals_from in ['environment', 'replay_buffer']
         self.sample_goals_from = sample_goals_from
         self.replay_buffer = replay_buffer
+        if epoch_discount_schedule is None:
+            epoch_discount_schedule = ConstantSchedule(self.discount)
+        self.epoch_discount_schedule = epoch_discount_schedule
 
     def train(self):
-        epoch = 0
-        for n_steps_total in range(self.num_batches):
-            self.training_mode(True)
-            self._do_training(n_steps_total=n_steps_total)
-            if n_steps_total % self.num_batches_per_epoch == 0:
-                logger.push_prefix('Iteration #%d | ' % epoch)
-                self.training_mode(False)
-                self.evaluate(epoch, None)
-                params = self.get_epoch_snapshot(epoch)
-                logger.save_itr_params(epoch, params)
-                logger.log("Done evaluating")
-                logger.pop_prefix()
-                epoch += 1
+        num_batches_total = 0
+        for epoch in range(self.num_epochs):
+            for _ in range(self.num_batches_per_epoch):
+                self.discount = self.epoch_discount_schedule.get_value(epoch)
+                self.training_mode(True)
+                self._do_training(n_steps_total=num_batches_total)
+                num_batches_total += 1
+            logger.push_prefix('Iteration #%d | ' % epoch)
+            self.training_mode(False)
+            self.evaluate(epoch, None)
+            params = self.get_epoch_snapshot(epoch)
+            logger.save_itr_params(epoch, params)
+            logger.log("Done evaluating")
+            logger.pop_prefix()
 
     def get_batch(self, training=True):
         replay_buffer = self.replay_buffer.get_replay_buffer(training)
@@ -120,6 +126,7 @@ class StateDistanceQLearning(DDPG):
             statistics['Validation QF Loss Mean']
             - statistics['Train QF Loss Mean']
         )
+        statistics['Discount Factor'] = self.discount
         for key, value in statistics.items():
             logger.record_tabular(key, value)
         logger.dump_tabular(with_prefix=False, with_timestamp=False)
