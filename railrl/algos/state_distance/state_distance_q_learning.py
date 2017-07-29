@@ -25,6 +25,7 @@ class StateDistanceQLearning(DDPG):
             num_batches_per_epoch=100,
             sample_goals_from='environment',
             epoch_discount_schedule=None,
+            sample_discount=False,
             **kwargs
     ):
         super().__init__(*args, exploration_strategy=None, **kwargs)
@@ -36,6 +37,7 @@ class StateDistanceQLearning(DDPG):
         if epoch_discount_schedule is None:
             epoch_discount_schedule = ConstantSchedule(self.discount)
         self.epoch_discount_schedule = epoch_discount_schedule
+        self.sample_discount = sample_discount
 
     def train(self):
         num_batches_total = 0
@@ -130,6 +132,53 @@ class StateDistanceQLearning(DDPG):
         for key, value in statistics.items():
             logger.record_tabular(key, value)
         logger.dump_tabular(with_prefix=False, with_timestamp=False)
+
+    def get_train_dict(self, batch):
+        if not self.sample_discount:
+            return super().get_train_dict(batch)
+
+        rewards = batch['rewards']
+        terminals = batch['terminals']
+        obs = batch['observations']
+        actions = batch['actions']
+        next_obs = batch['next_observations']
+
+        batch_size = obs.size()[0]
+        discount_np = np.random.uniform(0, 1, (batch_size, 1))
+        discount = ptu.Variable(ptu.from_numpy(discount_np).float())
+        """
+        Policy operations.
+        """
+        policy_actions = self.policy(obs)
+        q_output = self.qf(obs, policy_actions, discount)
+        policy_loss = - q_output.mean()
+
+        """
+        Critic operations.
+        """
+        next_actions = self.target_policy(next_obs)
+        target_q_values = self.target_qf(
+            next_obs,
+            next_actions,
+            discount,
+        )
+        y_target = rewards + (1. - terminals) * discount * target_q_values
+
+        # noinspection PyUnresolvedReferences
+        y_target = y_target.detach()
+        y_pred = self.qf(obs, actions, discount)
+        bellman_errors = (y_pred - y_target)**2
+        qf_loss = self.qf_criterion(y_pred, y_target)
+
+        return OrderedDict([
+            ('Policy Actions', policy_actions),
+            ('Policy Loss', policy_loss),
+            ('QF Outputs', q_output),
+            ('Bellman Errors', bellman_errors),
+            ('Y targets', y_target),
+            ('Y predictions', y_pred),
+            ('QF Loss', qf_loss),
+        ])
 
 
 def rollout_with_goal(env, agent, goal, max_path_length=np.inf, animated=False):

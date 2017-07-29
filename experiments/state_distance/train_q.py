@@ -18,9 +18,7 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import RampUpSchedule
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.policies.zero_policy import ZeroPolicy
-from railrl.qfunctions.state_distance.outer_product_qfunction import \
-    OuterProductQFunction
-from railrl.qfunctions.torch import FeedForwardQFunction
+from railrl.predictors.torch import TwoLayerMlp
 from railrl.samplers.path_sampler import MultitaskPathSampler
 
 
@@ -71,12 +69,17 @@ def main(variant):
 
     observation_space = convert_gym_space(env.observation_space)
     action_space = convert_gym_space(env.action_space)
-    qf = variant['qf_class'](
-        int(observation_space.flat_dim) + env.goal_dim,
-        int(action_space.flat_dim),
+    input_dim = (
+        int(observation_space.flat_dim) + int(action_space.flat_dim)
+        + env.goal_dim
+    )
+    if variant['algo_params']['sample_discount']:
+        input_dim += 1
+    qf = TwoLayerMlp(
+        input_dim,
+        1,
         400,
         300,
-        batchnorm_obs=False,
     )
     policy = FeedForwardPolicy(
         int(observation_space.flat_dim) + env.goal_dim,
@@ -113,7 +116,8 @@ if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
     use_gpu = True
-    exp_prefix = "7-28-sdqlr-xy-increase-gamma-long"
+    # exp_prefix = "7-28-dev-sdqlr-xy-sample-gamma"
+    exp_prefix = "7-28-dev-sdqlr-xy-zero-gamma-check-flat-qf"
     snapshot_mode = 'gap'
     snapshot_gap = 5
 
@@ -127,7 +131,7 @@ if __name__ == '__main__':
         dataset_path=str(dataset_path),
         algo_params=dict(
             num_epochs=101,
-            num_batches_per_epoch=10000,
+            num_batches_per_epoch=1000,
             use_soft_update=True,
             tau=1e-3,
             batch_size=1024,
@@ -135,11 +139,12 @@ if __name__ == '__main__':
             qf_learning_rate=1e-4,
             policy_learning_rate=1e-5,
             sample_goals_from='replay_buffer',
+            sample_discount=False,
         ),
         epoch_discount_schedule_class=RampUpSchedule,
         epoch_discount_schedule_params=dict(
             min_value=0.,
-            max_value=0.99,
+            max_value=0.,
             ramp_duration=100,
         ),
         # env_class=GoalStateSimpleStateReacherEnv,
@@ -155,7 +160,6 @@ if __name__ == '__main__':
             render=False,
         ),
         generate_data=args.replay_path is None,
-        qf_class=FeedForwardQFunction,
     )
 
     seed = random.randint(0, 10000)
