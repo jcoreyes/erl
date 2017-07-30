@@ -20,8 +20,6 @@ from rllab.envs.normalized_env import normalize
 
 
 def example(variant):
-    # env_settings = get_env_settings(variant['env_id'])
-    # env = env_settings['env']
     env_class = variant['env_class']
     env = env_class()
     env = normalize(env)
@@ -39,9 +37,6 @@ def example(variant):
         es,
         policy,
         qf,
-        # n_epochs=5,
-        # epoch_length=1000,
-        # batch_size=32,
         n_epochs=100,
         epoch_length=10000,
         batch_size=1024,
@@ -50,22 +45,19 @@ def example(variant):
 
 
 if __name__ == "__main__":
-    # for env_id in get_standard_env_ids():
     for env_class in [
-        # SwimmerEnv,
+        SwimmerEnv,
         HalfCheetahEnv,
-        # AntEnv,
-        # HopperEnv,
+        AntEnv,
+        HopperEnv,
     ]:
-        # for _ in range(5):
-        for _ in range(1):
+        for _ in range(5):
             seed = random.randint(0, 100000)
             run_experiment(
                 example,
-                exp_prefix="7-26-ddpg-benchmark-timeit-half-cheetah-c4-2xlarge",
+                exp_prefix="tf-ddpg-benchmark",
                 seed=seed,
-                mode='ec2',
-                # mode='here',
+                mode='here',
                 variant={
                     'env_class': env_class,
                     'version': str(env_class),
