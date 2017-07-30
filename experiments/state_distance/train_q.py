@@ -11,6 +11,7 @@ from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.multitask.reacher_env import (
     FullStateVaryingWeightReacherEnv,
     XyMultitaskSimpleStateReacherEnv,
+    GoalStateSimpleStateReacherEnv,
 )
 from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
@@ -116,8 +117,7 @@ if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
     use_gpu = True
-    # exp_prefix = "7-28-dev-sdqlr-xy-sample-gamma"
-    exp_prefix = "7-28-dev-sdqlr-xy-zero-gamma-check-flat-qf"
+    exp_prefix = "dev-sdqlr-full-rampup-gamma"
     snapshot_mode = 'gap'
     snapshot_gap = 5
 
@@ -144,11 +144,11 @@ if __name__ == '__main__':
         epoch_discount_schedule_class=RampUpSchedule,
         epoch_discount_schedule_params=dict(
             min_value=0.,
-            max_value=0.,
+            max_value=0.99,
             ramp_duration=100,
         ),
-        # env_class=GoalStateSimpleStateReacherEnv,
-        env_class=XyMultitaskSimpleStateReacherEnv,
+        env_class=GoalStateSimpleStateReacherEnv,
+        # env_class=XyMultitaskSimpleStateReacherEnv,
         # env_class=FullStateVaryingWeightReacherEnv,
         env_params=dict(
             add_noop_action=False,
