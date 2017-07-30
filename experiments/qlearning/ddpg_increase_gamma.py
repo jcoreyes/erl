@@ -56,15 +56,12 @@ if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
             num_epochs=100,
-            # num_steps_per_epoch=10000,
-            # num_steps_per_eval=1000,
-            num_steps_per_epoch=100,
-            num_steps_per_eval=100,
+            num_steps_per_epoch=10000,
+            num_steps_per_eval=1000,
             use_soft_update=True,
             tau=1e-2,
             batch_size=128,
-            # max_path_length=1000,
-            max_path_length=10,
+            max_path_length=1000,
             discount=0.99,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
@@ -74,7 +71,7 @@ if __name__ == "__main__":
         epoch_discount_schedule_params=dict(
             min_value=0.,
             max_value=0.99,
-            ramp_duration=100,
+            ramp_duration=99,
         ),
     )
     for env_class in [
@@ -91,7 +88,7 @@ if __name__ == "__main__":
                 experiment,
                 exp_prefix="ddpg-increase-gamma",
                 seed=seed,
-                mode='here',
+                mode='ec2',
                 variant=variant,
-                use_gpu=True,
+                use_gpu=False,
             )
