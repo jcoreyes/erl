@@ -1,17 +1,8 @@
-import random
 from collections import OrderedDict
 
 import numpy as np
-import torch
-from torch import nn as nn
-from torch.autograd import Variable
-from torch.nn import functional as F
 
 import railrl.torch.pytorch_util as ptu
-from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.misc.ml_util import ConstantSchedule
-from railrl.pythonplusplus import identity
-from railrl.torch.core import PyTorchModule
 from railrl.torch.ddpg import DDPG, np_to_pytorch_batch
 from rllab.misc import logger
 
@@ -24,7 +15,6 @@ class StateDistanceQLearning(DDPG):
             num_epochs=100,
             num_batches_per_epoch=100,
             sample_goals_from='environment',
-            epoch_discount_schedule=None,
             sample_discount=False,
             **kwargs
     ):
@@ -34,16 +24,13 @@ class StateDistanceQLearning(DDPG):
         assert sample_goals_from in ['environment', 'replay_buffer']
         self.sample_goals_from = sample_goals_from
         self.replay_buffer = replay_buffer
-        if epoch_discount_schedule is None:
-            epoch_discount_schedule = ConstantSchedule(self.discount)
-        self.epoch_discount_schedule = epoch_discount_schedule
         self.sample_discount = sample_discount
 
     def train(self):
         num_batches_total = 0
         for epoch in range(self.num_epochs):
+            self.discount = self.epoch_discount_schedule.get_value(epoch)
             for _ in range(self.num_batches_per_epoch):
-                self.discount = self.epoch_discount_schedule.get_value(epoch)
                 self.training_mode(True)
                 self._do_training(n_steps_total=num_batches_total)
                 num_batches_total += 1
