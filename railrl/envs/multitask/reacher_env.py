@@ -36,6 +36,7 @@ import numpy as np
 from gym import utils
 from gym.envs.mujoco import ReacherEnv, mujoco_env
 
+from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc.data_processing import create_stats_ordered_dict
 from rllab.misc import logger
 
@@ -66,7 +67,7 @@ def position_from_angles(angles):
     )
 
 
-class XyMultitaskReacherEnv(ReacherEnv):
+class XyMultitaskReacherEnv(ReacherEnv, MultitaskEnv):
     """
     The goal states are xy-coordinates.
     """
@@ -101,6 +102,10 @@ class XyMultitaskReacherEnv(ReacherEnv):
     @property
     def goal_dim(self):
         return 2
+
+    @staticmethod
+    def print_goal_state_info(goal):
+        print(goal)
 
 
 class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
@@ -234,6 +239,10 @@ class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def goal_dim(self):
         return 2
 
+    @staticmethod
+    def print_goal_state_info(goal):
+        print("Goal = ", goal)
+
 
 class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
     """
@@ -308,9 +317,97 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
         for key, value in statistics.items():
             logger.record_tabular(key, value)
 
+    @staticmethod
+    def print_goal_state_info(goal):
+        c1 = goal[0:1]
+        c2 = goal[1:2]
+        s1 = goal[2:3]
+        s2 = goal[3:4]
+        print("Goal = ", goal)
+        print("angle 1 (degrees) = ", np.arctan2(s1, c1) / math.pi * 180)
+        print("angle 2 (degrees) = ", np.arctan2(s2, c2) / math.pi * 180)
+
     def convert_obs_to_goal_state(self, obs):
         return obs
 
     @property
     def goal_dim(self):
         return 6
+
+
+class FullStateVaryingWeightReacherEnv(GoalStateSimpleStateReacherEnv):
+    def __init__(self, add_noop_action=True):
+        """
+        :param add_noop_action: See parent
+        the reward.
+        """
+        self.add_noop_action = add_noop_action
+        utils.EzPickle.__init__(
+            self,
+            add_noop_action=add_noop_action,
+        )
+        mujoco_env.MujocoEnv.__init__(self, 'reacher.xml', 2)
+        self._fixed_goal = None
+        self.goal = None
+
+    def set_goal(self, goal_state):
+        self._fixed_goal = position_from_angles(
+            np.expand_dims(goal_state[6:10], 0)
+        )[0]
+
+    def sample_goal_states(self, batch_size):
+        goal_states = super().sample_goal_states(batch_size)
+        weights = self._sample_reward_weights(batch_size)
+        return np.hstack([
+            weights,
+            goal_states,
+        ])
+
+    def _sample_reward_weights(self, batch_size):
+        return np.random.uniform(0, 1, (batch_size, 6))
+
+    def compute_rewards(self, obs, action, next_obs, goal_states):
+        reward_weights = goal_states[:, -12:-6]
+        env_goal_state = goal_states[:, -6:]
+        difference = next_obs - env_goal_state
+        difference *= reward_weights
+        return -np.linalg.norm(difference, axis=1)
+
+    def log_diagnostics(self, paths):
+        observations = np.vstack([path['observations'][:, :6] for path in
+                                  paths])
+        goal_states = np.vstack([path['observations'][:, -12:] for path in
+                                 paths])
+        positions = position_from_angles(observations)
+        goal_positions = position_from_angles(goal_states[:, -6:-2])
+        distances = np.linalg.norm(positions - goal_positions, axis=1)
+
+        statistics = OrderedDict()
+        statistics.update(create_stats_ordered_dict(
+            'Distance to target', distances
+        ))
+
+        rewards = self.compute_rewards(None, None, observations, goal_states)
+        statistics.update(create_stats_ordered_dict(
+            'Rewards', rewards,
+        ))
+        for key, value in statistics.items():
+            logger.record_tabular(key, value)
+
+    def convert_obs_to_goal_state(self, obs):
+        weights = self._sample_reward_weights(len(obs))
+        return np.hstack((weights, obs))
+
+    @staticmethod
+    def print_goal_state_info(goal):
+        c1 = goal[6]
+        c2 = goal[7]
+        s1 = goal[8]
+        s2 = goal[9]
+        print("Goal = ", goal)
+        print("angle 1 (degrees) = ", np.arctan2(s1, c1) / math.pi * 180)
+        print("angle 2 (degrees) = ", np.arctan2(s2, c2) / math.pi * 180)
+
+    @property
+    def goal_dim(self):
+        return 12
