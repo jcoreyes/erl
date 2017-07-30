@@ -19,7 +19,7 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import RampUpSchedule
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.policies.zero_policy import ZeroPolicy
-from railrl.predictors.torch import TwoLayerMlp
+from railrl.predictors.torch import Mlp
 from railrl.samplers.path_sampler import MultitaskPathSampler
 
 
@@ -76,11 +76,11 @@ def main(variant):
     )
     if variant['algo_params']['sample_discount']:
         input_dim += 1
-    qf = TwoLayerMlp(
+    qf = Mlp(
         input_dim,
         1,
-        400,
-        300,
+        [400, 300, 200],
+        bn_input=True,
     )
     policy = FeedForwardPolicy(
         int(observation_space.flat_dim) + env.goal_dim,
@@ -117,7 +117,8 @@ if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
     use_gpu = True
-    exp_prefix = "dev-sdqlr-full-rampup-gamma"
+    # exp_prefix = "dev-sdqlr-xy-rampup-gamma"
+    exp_prefix = "dev-sdqlr-rampup-gamma"
     snapshot_mode = 'gap'
     snapshot_gap = 5
 
@@ -134,7 +135,7 @@ if __name__ == '__main__':
             num_batches_per_epoch=1000,
             use_soft_update=True,
             tau=1e-3,
-            batch_size=1024,
+            batch_size=1000,
             discount=0.,
             qf_learning_rate=1e-4,
             policy_learning_rate=1e-5,
@@ -144,7 +145,7 @@ if __name__ == '__main__':
         epoch_discount_schedule_class=RampUpSchedule,
         epoch_discount_schedule_params=dict(
             min_value=0.,
-            max_value=0.99,
+            max_value=0.,
             ramp_duration=100,
         ),
         env_class=GoalStateSimpleStateReacherEnv,
@@ -155,7 +156,7 @@ if __name__ == '__main__':
             # reward_weights=[1, 1, 1, 1, 0, 0],
         ),
         sampler_params=dict(
-            min_num_steps_to_collect=10000,
+            min_num_steps_to_collect=20000,
             max_path_length=1000,
             render=False,
         ),
