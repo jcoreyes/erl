@@ -1,3 +1,4 @@
+import time
 import sys
 import datetime
 import os
@@ -144,12 +145,13 @@ def run_experiment(
         exp_prefix='default',
         seed=None,
         variant=None,
-        time=True,
+        time_it=True,
         save_profile=False,
         profile_file='time_log.prof',
         mode='here',
         exp_id=0,
         unique_id=None,
+        prepend_date_to_exp_prefix=True,
         use_gpu=False,
         snapshot_mode='last',
         snapshot_gap=1,
@@ -165,7 +167,7 @@ def run_experiment(
     :param exp_prefix:
     :param seed:
     :param variant:
-    :param time: Add a "time" command to the python command?
+    :param time_it: Add a "time" command to the python command?
     :param save_profile: Create a cProfile log?
     :param profile_file: Where to save the cProfile log.
     :param mode: 'here' will run the code in line, without any serialization
@@ -175,6 +177,8 @@ def run_experiment(
     experiments. Note that one experiment may correspond to multiple seeds.
     :param unique_id: Unique ID should be unique across all runs--even different
     seeds!
+    :param prepend_date_to_exp_prefix: If True, prefix "month-day_" to
+    exp_prefix
     :param run_experiment_lite_kwargs: kwargs to be passed to
     `run_experiment_lite`
     :return:
@@ -185,13 +189,15 @@ def run_experiment(
         variant = {}
     if unique_id is None:
         unique_id = str(uuid.uuid4())
+    if prepend_date_to_exp_prefix:
+        exp_prefix = time.strftime("%m-%d") + "_" + exp_prefix
     variant['seed'] = str(seed)
     variant['exp_id'] = str(exp_id)
     variant['unique_id'] = str(unique_id)
     logger.log("Variant:")
     logger.log(json.dumps(dict_to_safe_json(variant), indent=2))
     command_words = []
-    if time:
+    if time_it:
         command_words.append('time')
     command_words.append('python')
     if save_profile:
