@@ -72,19 +72,19 @@ if __name__ == "__main__":
                         help='Max length of rollout')
     parser.add_argument('--num_rollouts', type=int, default=100,
                         help='Total number of rollout')
-    parser.add_argument('--nogpu', action='store_true')
+    parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--hide', action='store_true')
     args = parser.parse_args()
 
     data = joblib.load(args.file)
     env = data['env']
     qf = data['qf']
-    if not args.nogpu:
+    if args.gpu:
         set_gpu_mode(True)
         qf.cuda()
     qf.train(False)
 
-    num_samples = 1000
+    num_samples = 10000
     policy = SamplePolicyFixedJoints(qf, num_samples)
 
     for _ in range(args.num_rollouts):
