@@ -178,7 +178,7 @@ class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self.viewer.cam.trackbodyid = 0
 
     def reset_model(self):
-        qpos = self.np_random.uniform(low=-0.1, high=0.1,
+        qpos = self.np_random.uniform(low=-np.pi, high=np.pi,
                                       size=self.model.nq) + self.init_qpos
         if self._fixed_goal is None:
             while True:
