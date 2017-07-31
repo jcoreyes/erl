@@ -262,9 +262,24 @@ class SawyerEnv(Env, Serializable):
             ))
 
             if self.fixed_angle:
-                # self.desired = np.zeros(NUM_JOINTS)
-                angles = {'right_j6': 3.23098828125, 'right_j5': -2.976708984375, 'right_j4': -0.100001953125, 'right_j3': 1.59925, 'right_j2': -1.6326630859375, 'right_j1': -0.3456298828125, 'right_j0': 0.0382529296875}
-                angles = np.array([angles['right_j0'], angles['right_j1'], angles['right_j2'], angles['right_j3'], angles['right_j4'], angles['right_j5'], angles['right_j6']])
+                angles = {
+                    'right_j6': 3.23098828125,
+                    'right_j5': -2.976708984375,
+                    'right_j4': -0.100001953125,
+                    'right_j3': 1.59925,
+                    'right_j2': -1.6326630859375,
+                    'right_j1': -0.3456298828125,
+                    'right_j0': 0.0382529296875
+                }
+                angles = np.array([
+                    angles['right_j0'],
+                    angles['right_j1'],
+                    angles['right_j2'],
+                    angles['right_j3'],
+                    angles['right_j4'],
+                    angles['right_j5'],
+                    angles['right_j6']
+                ])
                 angles = self._wrap_angles(angles)
                 self.desired = angles
             else:

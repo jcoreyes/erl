@@ -13,11 +13,11 @@ def example(variant):
     if load_policy_file is not None and exists(load_policy_file):
         data = joblib.load(load_policy_file)
         algorithm = data['algorithm']
-        epochs = data['epoch']
+        epoch = data['epoch']
         use_gpu = variant['use_gpu']
         if use_gpu and ptu.gpu_enabled():
             algorithm.cuda()
-        algorithm.train(start_epoch = epochs)
+        algorithm.train(start_epoch=epoch)
     else:
         arm_name = variant['arm_name']
         experiment = variant['experiment']
@@ -90,7 +90,7 @@ experiments=[
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="7-28-ddpg-sawyer-fixed-angle",
+        exp_prefix="7-30-ddpg-sawyer-fixed-angle",
         seed=0,
         mode='here',
         variant={
