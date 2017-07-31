@@ -214,10 +214,8 @@ class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         return -np.linalg.norm(next_endeffector_positions - goal_states, axis=1)
 
     def log_diagnostics(self, paths):
-        observations = np.vstack([path['observations'][:, :4] for path in
-                                  paths])
-        goal_states = np.vstack([path['observations'][:, -2:] for path in
-                                 paths])
+        observations = np.vstack([path['observations'] for path in paths])
+        goal_states = np.vstack([path['goal_states'] for path in paths])
         positions = position_from_angles(observations)
         distances = np.linalg.norm(positions - goal_states, axis=1)
 
@@ -295,10 +293,8 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
         return -np.linalg.norm(difference, axis=1)
 
     def log_diagnostics(self, paths):
-        observations = np.vstack([path['observations'][:, :6] for path in
-                                  paths])
-        goal_states = np.vstack([path['observations'][:, -6:] for path in
-                                 paths])
+        observations = np.vstack([path['observations'] for path in paths])
+        goal_states = np.vstack([path['goal_states'] for path in paths])
         positions = position_from_angles(observations)
         goal_positions = position_from_angles(goal_states)
         distances = np.linalg.norm(positions - goal_positions, axis=1)
@@ -372,10 +368,8 @@ class FullStateVaryingWeightReacherEnv(GoalStateSimpleStateReacherEnv):
         return -np.linalg.norm(difference, axis=1)
 
     def log_diagnostics(self, paths):
-        observations = np.vstack([path['observations'][:, :6] for path in
-                                  paths])
-        goal_states = np.vstack([path['observations'][:, -12:] for path in
-                                 paths])
+        observations = np.vstack([path['observations'] for path in paths])
+        goal_states = np.vstack([path['goal_states'] for path in paths])
         positions = position_from_angles(observations)
         goal_positions = position_from_angles(goal_states[:, -6:-2])
         distances = np.linalg.norm(positions - goal_positions, axis=1)
