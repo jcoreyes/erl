@@ -164,6 +164,15 @@ class StateDistanceQLearning(DDPG):
             ('QF Loss', qf_loss),
         ])
 
+    def get_epoch_snapshot(self, epoch):
+        return dict(
+            epoch=epoch,
+            policy=self.policy,
+            env=self.training_env,
+            qf=self.qf,
+            replay_buffer=self.replay_buffer,
+        )
+
 
 def rollout_with_goal(env, agent, goal, max_path_length=np.inf, animated=False):
     observations = []
