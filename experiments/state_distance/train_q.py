@@ -117,7 +117,7 @@ if __name__ == '__main__':
 
     n_seeds = 1
     mode = "here"
-    exp_prefix = "dev-sdqlr"
+    exp_prefix = "sdqlr-no-regularization"
     run_mode = "none"
 
     # n_seeds = 3
@@ -140,19 +140,21 @@ if __name__ == '__main__':
         dataset_path=str(dataset_path),
         algo_params=dict(
             num_epochs=101,
-            num_batches_per_epoch=1000,
+            num_batches_per_epoch=2000,
             use_soft_update=True,
             tau=1e-3,
             batch_size=1000,
             discount=0.,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-5,
-            sample_goals_from='replay_buffer',
-            # sample_goals_from='environment',
+            # sample_goals_from='replay_buffer',
+            sample_goals_from='environment',
             sample_discount=False,
+            # qf_weight_decay=1e-3,
         ),
         qf_params=dict(
-            hidden_sizes=[400, 300],
+            hidden_sizes=[400, 300, 200],
+            dropout=False,
         ),
         epoch_discount_schedule_class=RampUpSchedule,
         epoch_discount_schedule_params=dict(
