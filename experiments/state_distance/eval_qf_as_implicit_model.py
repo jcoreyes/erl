@@ -41,12 +41,12 @@ def check_qf(qf, replay_buffer: SplitReplayBuffer, env: MultitaskEnv):
     discount = Variable(torch.zeros(1, 1))
 
     lr = 1e-1
-    min_num_steps_between_drops = 1000
+    min_num_steps_between_drops = 10000
     optim = Adam([best_goal_state], lr=lr)
 
     last_loss = np.inf
     last_drop = 0
-    for i in range(10000):
+    for i in range(100000):
         optim.zero_grad()
         loss = -qf(state, action, best_goal_state, discount)
         loss.backward()
