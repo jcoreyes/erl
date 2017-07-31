@@ -161,11 +161,10 @@ class DDPG(OnlineAlgorithm):
         statistics = OrderedDict()
 
         statistics.update(get_generic_path_information(exploration_paths, self.discount, stat_prefix="Exploration"))
-        statistics.update(get_generic_path_information(test_paths, self.discount, stat_prefix="Test"))
-
         statistics.update(self._statistics_from_paths(exploration_paths,
                                                       "Exploration"))
 
+        statistics.update(get_generic_path_information(test_paths, self.discount, stat_prefix="Test"))
         statistics.update(self._statistics_from_paths(test_paths, "Test"))
 
         train_batch = self.get_batch(training=True)

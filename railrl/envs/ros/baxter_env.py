@@ -10,10 +10,7 @@ from robot_info.srv import *
 from railrl.misc.data_processing import create_stats_ordered_dict
 from collections import OrderedDict
 import ipdb
-import joblib
-from rllab.sampler.utils import rollout
-from railrl.torch.pytorch_util import set_gpu_mode
-from railrl.torch.core import PyTorchModule
+from experiments.murtaza.ros.joint_space_impedance import PDController
 
 NUM_JOINTS = 7
 
@@ -153,9 +150,7 @@ class BaxterEnv(Env, Serializable):
             safety_force_magnitude=2,
             temp=1.05,
             gpu=True,
-            use_reset=True,
-            random_reset_length=100,
-            use_random_reset=False,
+            safe_reset_length=30,
     ):
 
         Serializable.quick_init(self, locals())
@@ -191,10 +186,8 @@ class BaxterEnv(Env, Serializable):
         self.remove_action = remove_action
         self.arm_name = arm_name
         self.gpu = gpu
-        self.use_reset = use_reset
-        self.use_random_reset = use_random_reset
-        self.random_reset_length = random_reset_length
-        
+        self.safe_reset_length = safe_reset_length
+
         if loss == 'MSE':
             self.reward_function = self._MSE_reward
         elif loss == 'huber':
@@ -207,6 +200,7 @@ class BaxterEnv(Env, Serializable):
         self.arm = bi.Limb(self.arm_name)
         self.arm_joint_names = self.arm.joint_names()
 
+        self.PDController = PDController(robot="baxter", limb_name=self.arm_name)
 
         #create a dictionary whose values are functions that set the appropriate values
         action_mode_dict = {
@@ -425,10 +419,10 @@ class BaxterEnv(Env, Serializable):
         temp = np.hstack((temp, self.desired))
         return temp
 
-    def random_reset(self):
-        for _ in range(self.random_reset_length):
-            action = np.random.rand(1, 7)[0] * 2 - 1
-            self._act(action)
+    def safe_move_to_neutral(self):
+        for _ in range(self.safe_reset_length):
+            torques = self.PDController._update_forces()
+            self._act(torques)
 
     def reset(self):
         """
@@ -442,10 +436,8 @@ class BaxterEnv(Env, Serializable):
         elif self.end_effector_experiment_position \
                 or self.end_effector_experiment_total and not self.fixed_end_effector:
             self._randomize_desired_end_effector_pose()
-        if self.use_reset:
-            self.arm.move_to_neutral()
-        if self.use_random_reset:
-            self.random_reset()
+
+        self.safe_move_to_neutral()
         return self._get_observation()
 
     def _randomize_desired_angles(self):
