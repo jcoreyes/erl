@@ -24,13 +24,16 @@ class UniversalQfunction(PyTorchModule):
             output_activation=identity,
             hidden_init=ptu.fanin_init,
             bn_input=False,
+            dropout=False,
     ):
         self.save_init_params(locals())
         super().__init__()
 
         self.hidden_activation = hidden_activation
         self.output_activation = output_activation
+        self.dropout = dropout
         self.fcs = []
+        self.dropouts = []
         in_size = observation_dim + action_dim + goal_state_dim + 1
         if bn_input:
             self.process_input = nn.BatchNorm1d(in_size)
@@ -44,6 +47,10 @@ class UniversalQfunction(PyTorchModule):
             fc.bias.data.fill_(0)
             self.__setattr__("fc{}".format(i), fc)
             self.fcs.append(fc)
+            if dropout:
+                drop = nn.Dropout()
+                self.__setattr__("dropout{}".format(i), drop)
+                self.dropouts.append(drop)
 
         self.last_fc = nn.Linear(in_size, 1)
         self.last_fc.weight.data.uniform_(-init_w, init_w)
@@ -52,8 +59,10 @@ class UniversalQfunction(PyTorchModule):
     def forward(self, obs, action, goal_state, discount):
         h = torch.cat((obs, action, goal_state, discount), dim=1)
         h = self.process_input(h)
-        for fc in self.fcs:
+        for i, fc in enumerate(self.fcs):
             h = self.hidden_activation(fc(h))
+            if self.dropout:
+                h = self.dropouts[i](h)
         return self.output_activation(self.last_fc(h))
 
 
