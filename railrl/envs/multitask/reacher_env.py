@@ -281,10 +281,13 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
             high=math.pi,
             size=(batch_size, 2)
         )
+        velocities = self.np_random.normal(
+            size=(batch_size, 2)
+        )
         return np.hstack([
             np.cos(theta),
             np.sin(theta),
-            np.zeros((batch_size, 2))
+            velocities
         ])
 
     def compute_rewards(self, obs, action, next_obs, goal_states):
