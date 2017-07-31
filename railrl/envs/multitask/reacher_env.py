@@ -289,12 +289,10 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
         ])
 
     def compute_rewards(self, obs, action, next_obs, goal_states):
-        if self.reward_weights is None:
-            return -np.linalg.norm(next_obs - goal_states, axis=1)
-        else:
-            difference = next_obs - goal_states
+        difference = next_obs - goal_states
+        if self.reward_weights is not None:
             difference *= self.reward_weights
-            return -np.linalg.norm(difference, axis=1)
+        return -np.linalg.norm(difference, axis=1)
 
     def log_diagnostics(self, paths):
         observations = np.vstack([path['observations'][:, :6] for path in
