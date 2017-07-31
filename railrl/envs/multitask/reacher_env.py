@@ -263,8 +263,9 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
             reward_weights=reward_weights,
         )
         mujoco_env.MujocoEnv.__init__(self, 'reacher.xml', 2)
-        if reward_weights is not None:
-            reward_weights = np.array(reward_weights)
+        if reward_weights is None:
+            reward_weights = np.ones(self.observation_space.low.size)
+        reward_weights = np.array(reward_weights)
         self.reward_weights = reward_weights
         self._fixed_goal = None
         self.goal = None
@@ -288,9 +289,8 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
 
     def compute_rewards(self, obs, action, next_obs, goal_states):
         difference = next_obs - goal_states
-        if self.reward_weights is not None:
-            difference *= self.reward_weights
-        return -np.linalg.norm(difference, axis=1)
+        difference *= self.reward_weights
+        return -np.linalg.norm(difference, axis=1) / sum(self.reward_weights)
 
     def log_diagnostics(self, paths):
         observations = np.vstack([path['observations'] for path in paths])
