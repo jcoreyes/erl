@@ -90,18 +90,21 @@ if __name__ == "__main__":
     for _ in range(args.num_rollouts):
         paths = []
         for _ in range(5):
-            goal = env.sample_goal_states(1)[0]
+            goals = env.sample_goal_states(1)
+            goal = goals[0]
             if isinstance(env, FullStateVaryingWeightReacherEnv):
                 goal[:6] = np.array([1, 1, 1, 1, 0, 0])
             env.print_goal_state_info(goal)
             env.set_goal(goal)
-            paths.append(rollout(
+            path = rollout(
                 env,
                 policy,
                 goal,
                 discount=0,
                 max_path_length=args.H,
                 animated=not args.hide,
-            ))
+            )
+            path['goal_states'] = goals.repeat(len(path['observations']), 0)
+            paths.append(path)
         env.log_diagnostics(paths)
         logger.dump_tabular()
