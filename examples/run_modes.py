@@ -3,7 +3,7 @@ import numpy as np
 from hyperopt import hp
 from railrl.misc.hypopt import optimize_and_save
 from railrl.launchers.launcher_util import (
-    create_base_log_dir,
+    create_log_dir,
     create_run_experiment_multiple_seeds,
 )
 from railrl.launchers.launcher_util import run_experiment
@@ -71,7 +71,7 @@ if __name__ == '__main__':
             'seed': hp.randint('seed', 10000),
         }
 
-        base_log_dir = create_base_log_dir(exp_prefix=exp_prefix)
+        base_log_dir = create_log_dir(exp_prefix=exp_prefix)
 
         optimize_and_save(
             base_log_dir,
