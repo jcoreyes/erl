@@ -67,7 +67,7 @@ class SampleOptimalControlPolicy(object):
             self._goal_pos_batch = self._goal_batch
 
     def set_discount(self, discount):
-        self._discount_batch = self.expand_np_to_var(discount)
+        self._discount_batch = self.expand_np_to_var(np.array([discount]))
 
     def reward(self, state, action, next_state):
         ee_pos = self.position(next_state)
@@ -138,11 +138,24 @@ class SampleOptimalControlPolicy(object):
         max_i = np.argmax(ptu.get_numpy(score))
         if self.verbose:
             print("")
-            print("constraint penalty", ptu.get_numpy(constraint_penalty)[max_i])
+            print("constraint penalty", ptu.get_numpy(
+                constraint_penalty)[
+                max_i])
             print("reward", ptu.get_numpy(reward)[max_i])
             print("action", ptu.get_numpy(action)[max_i])
+            print("--")
+            print("state_diff", ptu.get_numpy(next_state[max_i] - obs[max_i]))
+            print("current_state", ptu.get_numpy(obs[max_i]))
             print("next_state", ptu.get_numpy(next_state[max_i]))
-            print("next_state_pos", ptu.get_numpy(self.position(next_state))[max_i])
+            print("goal", ptu.get_numpy(self._goal_batch)[max_i])
+            print("--")
+            print("state_diff_pos", ptu.get_numpy(
+                self.position(next_state - obs)[max_i]
+            ))
+            print("current_state_pos", ptu.get_numpy(self.position(obs)[max_i]))
+            print("next_state_pos", ptu.get_numpy(
+                self.position(next_state)[max_i]
+            ))
             print("goal_pos", ptu.get_numpy(self._goal_pos_batch)[max_i])
         return sampled_actions[max_i], {}
 
@@ -156,15 +169,16 @@ if __name__ == "__main__":
                         help='Max length of rollout')
     parser.add_argument('--num_rollouts', type=int, default=100,
                         help='Max length of rollout')
-    parser.add_argument('--nogpu', action='store_true')
+    parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--hide', action='store_true')
     parser.add_argument('--verbose', action='store_true')
     args = parser.parse_args()
 
     data = joblib.load(args.file)
+    print("Done loading")
     env = data['env']
     qf = data['qf']
-    if not args.nogpu:
+    if args.gpu:
         set_gpu_mode(True)
         qf.cuda()
     qf.train(False)
@@ -173,11 +187,12 @@ if __name__ == "__main__":
 
     policy = SampleOptimalControlPolicy(
         qf,
-        constraint_weight=10,
+        constraint_weight=10000,
         sample_size=1000,
         goal_is_full_state=goal_is_full_state,
         verbose=args.verbose,
     )
+    policy.set_discount(0)
     for _ in range(args.num_rollouts):
         paths = []
         for _ in range(5):
@@ -200,10 +215,7 @@ if __name__ == "__main__":
                 max_path_length=args.H,
                 animated=not args.hide,
             )
-            path['observations'] = np.hstack((
-                path['observations'],
-                goals.repeat(len(path['observations']), 0),
-            ))
+            path['goal_states'] = goals.repeat(len(path['observations']), 0)
             paths.append(path)
         env.log_diagnostics(paths)
         logger.dump_tabular()
