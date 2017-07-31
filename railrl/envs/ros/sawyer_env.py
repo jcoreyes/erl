@@ -1,4 +1,5 @@
 import rospy
+import time
 from rllab.core.serializable import Serializable
 from rllab.spaces.box import Box
 import intera_interface as ii
@@ -42,8 +43,8 @@ JOINT_ANGLES_LOW = np.array([
 JOINT_VEL_HIGH = 2*np.ones(7)
 JOINT_VEL_LOW = -2*np.ones(7)
 
-JOINT_TORQUE_HIGH = 1*np.ones(7)
-JOINT_TORQUE_LOW = -1*np.ones(7)
+JOINT_TORQUE_HIGH = 5*np.ones(7)
+JOINT_TORQUE_LOW = -5*np.ones(7)
 
 JOINT_VALUE_HIGH = {
     'position': JOINT_ANGLES_HIGH,
@@ -164,7 +165,7 @@ class SawyerEnv(Env, Serializable):
             use_reset=True,
             random_reset_length=100,
             use_random_reset=False,
-            safe_reset_length=30,
+            safe_reset_length=50,
             safe_reset=False,
     ):
 
@@ -179,6 +180,7 @@ class SawyerEnv(Env, Serializable):
         self.end_effector_experiment_total = False
         self.fixed_end_effector = False
         self.safety_box = False
+        self.last_time = 0
 
 
         if experiment == experiments[0]:
@@ -351,7 +353,6 @@ class SawyerEnv(Env, Serializable):
                 self._randomize_desired_end_effector_pose()
 
         self._observation_space = Box(lows, highs)
-
     @safe
     def _act(self, action):
         if self.safety_box:
@@ -367,10 +368,23 @@ class SawyerEnv(Env, Serializable):
                 else:
                     action = action + torques
 
+
         np.clip(action, -10, 10, out=action)
+        # print(action)
+        # action += np.array([
+        #     -0.449687,
+        #     1.01695054,
+        #     0.53895123,
+        #     -0.07395327,
+        #     -0.34682007,
+        #     -0.66789448,
+        #     -0.58566776,
+        # ])
         joint_to_values = dict(zip(self.arm_joint_names, action))
         self._set_joint_values(joint_to_values)
         self.rate.sleep()
+        print(time.time() - self.last_time)
+        self.last_time = time.time()
 
     def _wrap_angles(self, angles):
         return angles % (2*np.pi)
@@ -410,6 +424,7 @@ class SawyerEnv(Env, Serializable):
 
     def _Huber_reward(self, differences):
         a = np.mean(differences)
+        # print(a)
         if a <= self.huber_delta:
             reward = -1 / 2 * a ** 2
         else:
@@ -485,6 +500,7 @@ class SawyerEnv(Env, Serializable):
             self.random_reset()
         if self.safe_reset:
             self.safe_move_to_neutral()
+
         return self._get_observation()
 
     def _randomize_desired_angles(self):

@@ -329,6 +329,7 @@ class FeedForwardPolicy(PyTorchModule):
         h = F.relu(self.fc1(obs))
         h = F.relu(self.fc2(h))
         return F.tanh(self.last_fc(h))
+        # return self.last_fc(h)
 
     def get_action(self, obs):
         obs = np.expand_dims(obs, axis=0)

@@ -90,7 +90,7 @@ experiments=[
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="7-30-ddpg-sawyer-fixed-angle",
+        exp_prefix="7-31-ddpg-sawyer-amplified-torque-test",
         seed=0,
         mode='here',
         variant={
@@ -98,9 +98,9 @@ if __name__ == "__main__":
             'arm_name': 'right',
             'safety_box': True,
             'loss': 'huber',
-            'huber_delta': .2,
+            'huber_delta': 1,
             'safety_force_magnitude': 2,
-            'temp': 1.05,
+            'temp': 1.2,
             'remove_action': False,
             'experiment': experiments[0],
             'es_min_sigma': 1,
