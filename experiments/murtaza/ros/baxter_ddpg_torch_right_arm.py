@@ -31,8 +31,6 @@ def example(variant):
         es_max_sigma = variant['es_max_sigma']
         num_epochs = variant['num_epochs']
         batch_size = variant['batch_size']
-        use_reset = variant['use_reset']
-        use_random_reset = variant['use_random_reset']
         use_gpu = variant['use_gpu']
 
         env = BaxterEnv(
@@ -44,8 +42,6 @@ def example(variant):
             safety_force_magnitude=safety_force_magnitude,
             temp=temp,
             huber_delta=huber_delta,
-            use_reset=use_reset,
-            use_random_reset=use_random_reset,
         )
         es = OUStrategy(
             max_sigma=es_max_sigma,
@@ -106,8 +102,6 @@ if __name__ == "__main__":
                 'num_epochs':30,
                 'batch_size':1024,
                 'use_gpu':True,
-                'use_reset':True,
-                'use_random_reset':False,
                 # 'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-25-ddpg-baxter-right-arm-fixed-angle-random-reset/7-25-ddpg-baxter-right-arm-fixed-angle-random-reset_2017_07_25_13_07_16_0000--s-0/params.pkl'
                 },
         use_gpu=True,

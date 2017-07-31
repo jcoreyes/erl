@@ -31,7 +31,6 @@ def example(variant):
         es_max_sigma = variant['es_max_sigma']
         num_epochs = variant['num_epochs']
         batch_size = variant['batch_size']
-        use_reset = variant['use_reset']
         use_gpu = variant['use_gpu']
 
         env = BaxterEnv(
@@ -43,7 +42,6 @@ def example(variant):
             safety_force_magnitude=safety_force_magnitude,
             temp=temp,
             huber_delta=huber_delta,
-            use_reset=use_reset,
         )
         es = OUStrategy(
             max_sigma=es_max_sigma,
@@ -86,7 +84,7 @@ experiments=[
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="7-26-ddpg-baxter-left-arm-varying-joint-angle-random-reset",
+        exp_prefix="7-30-ddpg-baxter-left-arm-load-algo-test",
         seed=0,
         mode='here',
         variant={
@@ -98,14 +96,12 @@ if __name__ == "__main__":
                 'safety_force_magnitude':1,
                 'temp':1.2,
                 'remove_action':False,
-                'experiment':experiments[1],
+                'experiment':experiments[0],
                 'es_min_sigma':.1,
                 'es_max_sigma':.1,
                 'num_epochs':30,
                 'batch_size':1024,
                 'use_gpu':True,
-                'use_reset':False,
-                'use_random_reset':True,
                 # 'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-21-ddpg-baxter-right-arm-fixed-angle-huber-safety-TEST/7-21-ddpg-baxter-right-arm-fixed-angle-huber-safety-TEST_2017_07_21_11_04_56_0000--s-0/params.pkl',
                 },
         use_gpu=True,
