@@ -41,25 +41,37 @@ class SampleOptimalControlPolicy(object):
     ):
         self.qf = qf
         self.constraint_weight = constraint_weight
-        self._goal_pos = None
         self.sample_size = sample_size
-        self.goal_is_full_state = goal_is_full_state
         self.verbose = verbose
+        self.goal_is_full_state = goal_is_full_state
+        self._goal_pos_batch = None
+        self._goal_batch = None
+        self._discount_batch = None
+
+    def expand_np_to_var(self, array):
+        array_expanded = np.repeat(
+            np.expand_dims(array, 0),
+            self.sample_size,
+            axis=0
+        )
+        return Variable(
+            ptu.from_numpy(array_expanded).float(),
+            requires_grad=False,
+        )
 
     def set_goal(self, goal):
+        self._goal_batch = self.expand_np_to_var(goal)
         if self.goal_is_full_state:
-            self._goal = ptu.Variable(ptu.from_numpy(
-                np.expand_dims(goal, 0).repeat(self.sample_size, 0)
-            ).float())
-            self._goal_pos = self.position(self._goal)
+            self._goal_pos_batch = self.position(self._goal_batch)
         else:
-            self._goal_pos = ptu.Variable(ptu.from_numpy(
-                np.expand_dims(goal, 0).repeat(self.sample_size, 0)
-            ).float())
+            self._goal_pos_batch = self._goal_batch
+
+    def set_discount(self, discount):
+        self._discount_batch = self.expand_np_to_var(discount)
 
     def reward(self, state, action, next_state):
         ee_pos = self.position(next_state)
-        return -torch.norm(ee_pos - self._goal_pos, dim=1)
+        return -torch.norm(ee_pos - self._goal_pos_batch, dim=1)
 
     def position(self, obs):
         c1 = obs[:, 0:1]  # cosine of angle 1
@@ -103,9 +115,7 @@ class SampleOptimalControlPolicy(object):
             ptu.from_numpy(sampled_actions).float(),
             requires_grad=True,
         )
-        obs_expanded = np.expand_dims(obs, 0).repeat(self.sample_size, 0)
-        obs = Variable(ptu.from_numpy(obs_expanded).float(),
-                       requires_grad=False)
+        obs = self.expand_np_to_var(obs)
         next_state = torch.cat(
             (
                 torch.cos(theta),
@@ -115,14 +125,12 @@ class SampleOptimalControlPolicy(object):
             dim=1,
         )
         reward = self.reward(obs, action, next_state)
-        if self.goal_is_full_state:
-            augmented_obs = torch.cat((obs, next_state), dim=1)
-        else:
-            augmented_obs = torch.cat((
-                obs,
-                self.position(next_state),
-            ), dim=1)
-        constraint_penalty = self.qf(augmented_obs, action)**2
+        constraint_penalty = self.qf(
+            obs,
+            action,
+            self._goal_batch,
+            self._discount_batch,
+        )**2
         score = (
             reward
             - self.constraint_weight * constraint_penalty
@@ -135,7 +143,7 @@ class SampleOptimalControlPolicy(object):
             print("action", ptu.get_numpy(action)[max_i])
             print("next_state", ptu.get_numpy(next_state[max_i]))
             print("next_state_pos", ptu.get_numpy(self.position(next_state))[max_i])
-            print("goal_pos", ptu.get_numpy(self._goal_pos)[max_i])
+            print("goal_pos", ptu.get_numpy(self._goal_pos_batch)[max_i])
         return sampled_actions[max_i], {}
 
 
@@ -148,7 +156,7 @@ if __name__ == "__main__":
                         help='Max length of rollout')
     parser.add_argument('--num_rollouts', type=int, default=100,
                         help='Max length of rollout')
-    parser.add_argument('--gpu', action='store_true')
+    parser.add_argument('--nogpu', action='store_true')
     parser.add_argument('--hide', action='store_true')
     parser.add_argument('--verbose', action='store_true')
     args = parser.parse_args()
@@ -156,7 +164,7 @@ if __name__ == "__main__":
     data = joblib.load(args.file)
     env = data['env']
     qf = data['qf']
-    if args.gpu:
+    if not args.nogpu:
         set_gpu_mode(True)
         qf.cuda()
     qf.train(False)
