@@ -84,7 +84,7 @@ experiments=[
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="7-30-ddpg-baxter-right-arm-load-algorithm-test",
+        exp_prefix="7-31-ddpg-baxter-right-arm-load-algorithm-test",
         seed=0,
         mode='here',
         variant={
