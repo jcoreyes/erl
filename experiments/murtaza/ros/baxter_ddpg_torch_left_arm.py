@@ -13,12 +13,11 @@ def example(variant):
     if not load_policy_file == None and exists(load_policy_file):
         data = joblib.load(load_policy_file)
         algorithm = data['algorithm']
-        epochs = algorithm.num_epochs - data['epoch']
-        algorithm.num_epochs = epochs
+        epochs = data['epoch']
         use_gpu = variant['use_gpu']
         if use_gpu and ptu.gpu_enabled():
             algorithm.cuda()
-        algorithm.train()
+        algorithm.train(start_epoch=epochs)
     else:
         arm_name = variant['arm_name']
         experiment = variant['experiment']

@@ -13,12 +13,11 @@ def example(variant):
     if not load_policy_file == None and exists(load_policy_file):
         data = joblib.load(load_policy_file)
         algorithm = data['algorithm']
-        epochs = algorithm.num_epochs - data['epoch']
-        algorithm.num_epochs = epochs
+        epochs = data['epoch']
         use_gpu = variant['use_gpu']
         if use_gpu and ptu.gpu_enabled():
             algorithm.cuda()
-        algorithm.train()
+        algorithm.train(start_epoch=epochs)
     else:
         arm_name = variant['arm_name']
         experiment = variant['experiment']
@@ -89,7 +88,7 @@ experiments=[
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="7-26-ddpg-baxter-right-arm-load-algorithm-test",
+        exp_prefix="7-30-ddpg-baxter-right-arm-load-algorithm-test",
         seed=0,
         mode='here',
         variant={
@@ -107,9 +106,9 @@ if __name__ == "__main__":
                 'num_epochs':30,
                 'batch_size':1024,
                 'use_gpu':True,
-                'use_reset':False,
-                'use_random_reset':True,
-                'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-25-ddpg-baxter-right-arm-fixed-angle-random-reset/7-25-ddpg-baxter-right-arm-fixed-angle-random-reset_2017_07_25_13_07_16_0000--s-0/params.pkl'
+                'use_reset':True,
+                'use_random_reset':False,
+                # 'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-25-ddpg-baxter-right-arm-fixed-angle-random-reset/7-25-ddpg-baxter-right-arm-fixed-angle-random-reset_2017_07_25_13_07_16_0000--s-0/params.pkl'
                 },
         use_gpu=True,
     )
