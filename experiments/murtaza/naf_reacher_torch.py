@@ -55,7 +55,7 @@ def example(variant):
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="7-30-NAF-reacher-algorithm",
+        exp_prefix="7-31-NAF-reacher",
         seed=0,
         mode='here',
         variant={
@@ -63,7 +63,7 @@ if __name__ == "__main__":
             'es_min_sigma': .05,
             'es_max_sigma': .05,
             'num_epochs': 50,
-            'batch_size': 128,
+            'batch_size': 1024,
             'use_gpu': True,
         },
         use_gpu=True,

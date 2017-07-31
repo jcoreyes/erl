@@ -343,7 +343,6 @@ class SawyerEnv(Env, Serializable):
                 self._randomize_desired_end_effector_pose()
 
         self._observation_space = Box(lows, highs)
-
     @safe
     def _act(self, action):
         if self.safety_box:
@@ -359,7 +358,6 @@ class SawyerEnv(Env, Serializable):
                 else:
                     action = action + torques
 
-        np.clip(action, -10, 10, out=action)
         joint_to_values = dict(zip(self.arm_joint_names, action))
         self._set_joint_values(joint_to_values)
         self.rate.sleep()
@@ -402,6 +400,7 @@ class SawyerEnv(Env, Serializable):
 
     def _Huber_reward(self, differences):
         a = np.mean(differences)
+        print(a)
         if a <= self.huber_delta:
             reward = -1 / 2 * a ** 2
         else:
@@ -465,7 +464,6 @@ class SawyerEnv(Env, Serializable):
         elif self.end_effector_experiment_position \
                 or self.end_effector_experiment_total and not self.fixed_end_effector:
             self._randomize_desired_end_effector_pose()
-
         self.safe_move_to_neutral()
         return self._get_observation()
 

@@ -31,6 +31,8 @@ if __name__ == "__main__":
         data = joblib.load(args.file)
         if 'policy' in data:
             policy = data['policy']
+        elif 'naf_policy' in data:
+            policy = data['naf_policy']
         else:
             qf = data['optimizable_qfunction']
             policy = qf.implicit_policy

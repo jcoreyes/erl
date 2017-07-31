@@ -84,7 +84,7 @@ experiments=[
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="7-30-ddpg-baxter-left-arm-load-algo-test",
+        exp_prefix="7-31-ddpg-baxter-left-arm-test",
         seed=0,
         mode='here',
         variant={
@@ -92,7 +92,7 @@ if __name__ == "__main__":
                 'arm_name':'left',
                 'safety_box':True,
                 'loss':'huber',
-                'huber_delta':10,
+                'huber_delta':.8,
                 'safety_force_magnitude':1,
                 'temp':1.2,
                 'remove_action':False,
@@ -102,7 +102,7 @@ if __name__ == "__main__":
                 'num_epochs':30,
                 'batch_size':1024,
                 'use_gpu':True,
-                # 'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-21-ddpg-baxter-right-arm-fixed-angle-huber-safety-TEST/7-21-ddpg-baxter-right-arm-fixed-angle-huber-safety-TEST_2017_07_21_11_04_56_0000--s-0/params.pkl',
+                'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-31-ddpg-baxter-left-arm-test/7-31-ddpg-baxter-left-arm-test_2017_07_31_10_08_14_0000--s-0/params.pkl',
                 },
         use_gpu=True,
     )

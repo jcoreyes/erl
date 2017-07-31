@@ -1,5 +1,5 @@
 from railrl.envs.ros.sawyer_env import SawyerEnv
-from numpy import np
+import numpy as np
 
 def create_action(mag):
     action = np.random.rand((1, 7))[0]
