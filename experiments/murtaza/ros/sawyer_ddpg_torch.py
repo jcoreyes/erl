@@ -31,10 +31,7 @@ def example(variant):
         es_max_sigma = variant['es_max_sigma']
         num_epochs = variant['num_epochs']
         batch_size = variant['batch_size']
-        use_reset = variant['use_reset']
-        use_random_reset = variant['use_random_reset']
         use_gpu = variant['use_gpu']
-        safe_reset = variant['safe_reset']
 
         env = SawyerEnv(
             experiment=experiment,
@@ -45,9 +42,6 @@ def example(variant):
             safety_force_magnitude=safety_force_magnitude,
             temp=temp,
             huber_delta=huber_delta,
-            use_reset=use_reset,
-            use_random_reset=use_random_reset,
-            safe_reset=safe_reset,
         )
         es = OUStrategy(
             max_sigma=es_max_sigma,
@@ -90,7 +84,7 @@ experiments=[
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="7-31-ddpg-sawyer-amplified-torque-test",
+        exp_prefix="7-31-ddpg-sawyer-test",
         seed=0,
         mode='here',
         variant={
@@ -98,7 +92,7 @@ if __name__ == "__main__":
             'arm_name': 'right',
             'safety_box': True,
             'loss': 'huber',
-            'huber_delta': 1,
+            'huber_delta': .8,
             'safety_force_magnitude': 2,
             'temp': 1.2,
             'remove_action': False,
@@ -108,9 +102,6 @@ if __name__ == "__main__":
             'num_epochs': 30,
             'batch_size': 1024,
             'use_gpu':True,
-            'use_reset':False,
-            'use_random_reset':False,
-            'safe_reset':True,
             # 'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-26-ddpg-sawyer-fixed-angle-PD-TEST/7-26-ddpg-sawyer-fixed-angle-PD-TEST_2017_07_28_15_02_31_0000--s-0/params.pkl'
         },
         use_gpu=True,

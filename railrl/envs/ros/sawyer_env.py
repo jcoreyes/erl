@@ -1,5 +1,4 @@
 import rospy
-import time
 from rllab.core.serializable import Serializable
 from rllab.spaces.box import Box
 import intera_interface as ii
@@ -11,7 +10,7 @@ from robot_info.srv import *
 from railrl.misc.data_processing import create_stats_ordered_dict
 from collections import OrderedDict
 import ipdb
-from experiments.murtaza.ros.joint_space_impedance import JointSprings
+from experiments.murtaza.ros.joint_space_impedance import PDController
 
 NUM_JOINTS = 7
 
@@ -43,8 +42,8 @@ JOINT_ANGLES_LOW = np.array([
 JOINT_VEL_HIGH = 2*np.ones(7)
 JOINT_VEL_LOW = -2*np.ones(7)
 
-JOINT_TORQUE_HIGH = 5*np.ones(7)
-JOINT_TORQUE_LOW = -5*np.ones(7)
+JOINT_TORQUE_HIGH = 1*np.ones(7)
+JOINT_TORQUE_LOW = -1*np.ones(7)
 
 JOINT_VALUE_HIGH = {
     'position': JOINT_ANGLES_HIGH,
@@ -162,11 +161,7 @@ class SawyerEnv(Env, Serializable):
             huber_delta=10,
             safety_force_magnitude=2,
             temp=1.05,
-            use_reset=True,
-            random_reset_length=100,
-            use_random_reset=False,
-            safe_reset_length=50,
-            safe_reset=False,
+            safe_reset_length=30,
     ):
 
         Serializable.quick_init(self, locals())
@@ -180,7 +175,6 @@ class SawyerEnv(Env, Serializable):
         self.end_effector_experiment_total = False
         self.fixed_end_effector = False
         self.safety_box = False
-        self.last_time = 0
 
 
         if experiment == experiments[0]:
@@ -202,11 +196,7 @@ class SawyerEnv(Env, Serializable):
         self.safety_box = safety_box
         self.remove_action = remove_action
         self.arm_name = arm_name
-        self.use_reset = use_reset
-        self.use_random_reset = use_random_reset
-        self.random_reset_length = random_reset_length
         self.safe_reset_length=safe_reset_length
-        self.safe_reset = safe_reset
 
         if loss == 'MSE':
             self.reward_function = self._MSE_reward
@@ -220,7 +210,7 @@ class SawyerEnv(Env, Serializable):
         self.arm = ii.Limb(self.arm_name)
         self.arm_joint_names = self.arm.joint_names()
 
-        self.PDController = JointSprings()
+        self.PDController = PDController()
 
         #create a dictionary whose values are functions that set the appropriate values
         action_mode_dict = {
@@ -368,23 +358,9 @@ class SawyerEnv(Env, Serializable):
                 else:
                     action = action + torques
 
-
-        np.clip(action, -10, 10, out=action)
-        # print(action)
-        # action += np.array([
-        #     -0.449687,
-        #     1.01695054,
-        #     0.53895123,
-        #     -0.07395327,
-        #     -0.34682007,
-        #     -0.66789448,
-        #     -0.58566776,
-        # ])
         joint_to_values = dict(zip(self.arm_joint_names, action))
         self._set_joint_values(joint_to_values)
         self.rate.sleep()
-        print(time.time() - self.last_time)
-        self.last_time = time.time()
 
     def _wrap_angles(self, angles):
         return angles % (2*np.pi)
@@ -424,7 +400,7 @@ class SawyerEnv(Env, Serializable):
 
     def _Huber_reward(self, differences):
         a = np.mean(differences)
-        # print(a)
+        print(a)
         if a <= self.huber_delta:
             reward = -1 / 2 * a ** 2
         else:
@@ -471,11 +447,6 @@ class SawyerEnv(Env, Serializable):
         temp = np.hstack((temp, self.desired))
         return temp
 
-    def random_reset(self):
-        for _ in range(self.random_reset_length):
-            action = np.random.rand(1, 7)[0] * 2 - 1
-            self._act(action)
-
     def safe_move_to_neutral(self):
         for _ in range(self.safe_reset_length):
             torques = self.PDController._update_forces()
@@ -493,14 +464,7 @@ class SawyerEnv(Env, Serializable):
         elif self.end_effector_experiment_position \
                 or self.end_effector_experiment_total and not self.fixed_end_effector:
             self._randomize_desired_end_effector_pose()
-
-        if self.use_reset:
-            self.arm.move_to_neutral()
-        if self.use_random_reset:
-            self.random_reset()
-        if self.safe_reset:
-            self.safe_move_to_neutral()
-
+        self.safe_move_to_neutral()
         return self._get_observation()
 
     def _randomize_desired_angles(self):

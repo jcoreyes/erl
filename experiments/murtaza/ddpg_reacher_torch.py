@@ -27,6 +27,8 @@ def example(variant):
         es_max_sigma = variant['es_max_sigma']
         num_epochs = variant['num_epochs']
         batch_size = variant['batch_size']
+        use_gpu = variant['use_gpu']
+
         env = normalize(gym_env('Reacher-v1'))
         es = OUStrategy(
             max_sigma=es_max_sigma,
@@ -54,6 +56,9 @@ def example(variant):
             num_epochs=num_epochs,
             batch_size=batch_size,
         )
+        if use_gpu:
+            algorithm.cuda()
+        algorithm.train()
         algorithm.train()
 
 

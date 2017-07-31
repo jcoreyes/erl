@@ -1,69 +1,31 @@
-#!/usr/bin/env python
-
-# Copyright (c) 2013-2016, Rethink Robotics
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# 1. Redistributions of source code must retain the above copyright notice,
-#    this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in the
-#    documentation and/or other materials provided with the distribution.
-# 3. Neither the name of the Rethink Robotics nor the names of its
-#    contributors may be used to endorse or promote products derived from
-#    this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
-# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-"""
-Intera SDK Joint Torque Example: joint springs
-"""
-
-import argparse
-import importlib
-
 import rospy
-from dynamic_reconfigure.server import Server
 from std_msgs.msg import Empty
-from sensor_msgs.msg import JointState
 
 import intera_interface
-from intera_interface import CHECK_VERSION
-import pdb
-from std_msgs.msg import Float32
-from std_msgs.msg import Int64
+import baxter_interface
 import numpy as np
 
-class JointSprings(object):
+class PDController(object):
     """
-    Virtual Joint Springs class for torque example.
+    Modified PD Controller for Moving to Neutral
 
-    @param limb: limb on which to run joint springs example
-    @param reconfig_server: dynamic reconfigure server
+    @param robot: the name of the robot to run the pd controller
+    @param limb_name: limb on which to run the pd controller
 
-    JointSprings class contains methods for the joint torque example allowing
-    moving the limb to a neutral location, entering torque mode, and attaching
-    virtual springs.
     """
-    def __init__(self, limb = "right"):
+    def __init__(self, robot="sawyer", limb_name="right"):
 
         # control parameters
         self._rate = 1000  # Hz
         self._missed_cmds = 20.0  # Missed cycles before triggering timeout
 
         # create our limb instance
-        self._limb = intera_interface.Limb(limb)
+        self.robot = robot
+        self._limb_name = limb_name
+        if self.robot == "sawyer":
+            self._limb = intera_interface.Limb(self._limb_name)
+        else:
+            self._limb = baxter_interface.Limb(self._limb_name)
 
         # initialize parameters
         self._springs = dict()
@@ -71,18 +33,42 @@ class JointSprings(object):
         self._des_angles = dict()
 
         # create cuff disable publisher
-        cuff_ns = 'robot/limb/' + limb + '/suppress_cuff_interaction'
+        cuff_ns = 'robot/limb/' + self._limb_name + '/suppress_cuff_interaction'
         self._pub_cuff_disable = rospy.Publisher(cuff_ns, Empty, queue_size=1)
 
-        self._des_angles = {
-            'right_j1': -1.1778642578125,
-            'right_j0': 0.0018681640625,
-            'right_j3': 2.1776962890625,
-            'right_j2': -0.00246484375,
-            'right_j6': 3.31884765625,
-            'right_j4': 0.0015673828125,
-            'right_j5': 0.5689052734375
-        }
+        if self.robot == "sawyer":
+            self._des_angles = {
+                'right_j1': -1.1778642578125,
+                'right_j0': 0.0018681640625,
+                'right_j3': 2.1776962890625,
+                'right_j2': -0.00246484375,
+                'right_j6': 3.31884765625,
+                'right_j4': 0.0015673828125,
+                'right_j5': 0.5689052734375
+            }
+        else:
+            if self._limb_name == "right":
+                self._des_angles = {
+                    'right_s0': -3.60374974839317e-06,
+                    'right_s1': -0.12870475882087096,
+                    'right_w0': -0.00016863030052416406,
+                    'right_w1': 1.2587168606832257,
+                    'right_w2': 3.554180033837895e-06,
+                    'right_e0': -7.417427355882467e-06,
+                    'right_e1': 0.7519094513387055
+                }
+
+            elif self._limb_name == "left":
+                self._des_angles = {
+                    'left_w0': -0.00016828709045402235,
+                    'left_w1': 1.2587240607357284,
+                    'left_w2': 3.395214502432964e-06,
+                    'left_e0': -7.772197207600584e-06,
+                    'left_e1': 0.7519133586749298,
+                    'left_s0': -3.857765271675362e-07,
+                    'left_s1': -0.13160254316056808
+                }
+
 
         self.max_stiffness = 20
         self.time_to_maxstiffness = .3  ######### 0.68
@@ -94,23 +80,9 @@ class JointSprings(object):
             self._springs[joint] = 30
             self._damping[joint] = 4
 
-    def _imp_ctrl_active(self, inp):
-        if inp.data == 1:
-            print('impedance ctrl activated')
-            self._imp_ctrl_is_active = True
-        if inp.data == 0:
-            print('impedance ctrl deactivated')
-            self._imp_ctrl_is_active = False
 
     def _set_des_pos(self, des_angles_dict):
         self._des_angles = des_angles_dict
-
-    def _release(self, maxstiff):
-        maxstiff = maxstiff.data
-        self.max_stiffness = float(maxstiff)
-
-        print("setting maxstiffness to", maxstiff)
-        self.t_release = rospy.get_time()
 
     def adjust_springs(self):
         for joint in list(self._des_angles.keys()):
@@ -151,95 +123,18 @@ class JointSprings(object):
             # damping portion
             cmd[joint] -= self._damping[joint] * cur_vel[joint]
 
-        cmd = np.array(
-            [cmd['right_j0'], cmd['right_j1'], cmd['right_j2'], cmd['right_j3'], cmd['right_j4'],
-             cmd['right_j5'], cmd['right_j6']])
+        if self.robot == 'sawyer':
+            cmd = np.array(
+                [cmd['right_j0'], cmd['right_j1'], cmd['right_j2'], cmd['right_j3'], cmd['right_j4'],
+                cmd['right_j5'], cmd['right_j6']])
+        else:
+            if self._limb_name == "right":
+                cmd = np.array(
+                    [cmd['right_s0'], cmd['right_s1'], cmd['right_e0'], cmd['right_e1'], cmd['right_w0'],
+                     cmd['right_w1'], cmd['right_w2']])
+            elif self._limb_name == "left":
+                cmd = np.array(
+                    [cmd['left_s0'], cmd['left_s1'], cmd['left_e0'], cmd['left_e1'], cmd['left_w0'],
+                     cmd['left_w1'], cmd['left_w2']])
         return cmd
 
-    def move_to_neutral(self):
-        """
-        Moves the limb to neutral location.
-        """
-        self._limb.move_to_neutral()
-
-    def attach_springs(self):
-        """
-        Switches to joint torque mode and attached joint springs to current
-        joint positions.
-        """
-        # record initial joint angles
-        # self._des_angles = self._limb.joint_angles()
-
-        # set control rate
-        control_rate = rospy.Rate(self._rate)
-
-        # for safety purposes, set the control rate command timeout.
-        # if the specified number of command cycles are missed, the robot
-        # will timeout and disable
-        self._limb.set_command_timeout((1.0 / self._rate) * self._missed_cmds)
-
-        # loop at specified rate commanding new joint torques
-        while not rospy.is_shutdown():
-            if not self._rs.state().enabled:
-                rospy.logerr("Joint torque example failed to meet "
-                             "specified control rate timeout.")
-                break
-            self._update_forces()
-            control_rate.sleep()
-
-    def clean_shutdown(self):
-        """
-        Switches out of joint torque mode to exit cleanly
-        """
-        print("\nExiting example...")
-        self._limb.exit_control_mode()
-        if not self._init_state and self._rs.state().enabled:
-            print("Disabling robot...")
-            self._rs.disable()
-
-
-def main():
-    """RSDK Joint Torque Example: Joint Springs
-
-    Moves the default limb to a neutral location and enters
-    torque control mode, attaching virtual springs (Hooke's Law)
-    to each joint maintaining the start position.
-
-    Run this example and interact by grabbing, pushing, and rotating
-    each joint to feel the torques applied that represent the
-    virtual springs attached. You can adjust the spring
-    constant and damping coefficient for each joint using
-    dynamic_reconfigure.
-    """
-    # Querying the parameter server to determine Robot model and limb name(s)
-    rp = intera_interface.RobotParams()
-    valid_limbs = rp.get_limb_names()
-    if not valid_limbs:
-        rp.log_message(("Cannot detect any limb parameters on this robot. "
-                        "Exiting."), "ERROR")
-    robot_name = intera_interface.RobotParams().get_robot_name().lower().capitalize()
-    # Parsing Input Arguments
-    arg_fmt = argparse.ArgumentDefaultsHelpFormatter
-    parser = argparse.ArgumentParser(formatter_class=arg_fmt)
-    parser.add_argument(
-        "-l", "--limb", dest="limb", default=valid_limbs[0],
-        choices=valid_limbs,
-        help='limb on which to attach joint springs'
-        )
-    args = parser.parse_args(rospy.myargv()[1:])
-    # Grabbing Robot-specific parameters for Dynamic Reconfigure
-    config_name = ''.join([robot_name,"JointSpringsExampleConfig"])
-    config_module = "intera_examples.cfg"
-    cfg = importlib.import_module('.'.join([config_module,config_name]))
-    # Starting node connection to ROS
-    print("Initializing node... ")
-    rospy.init_node("sdk_joint_torque_springs_{0}".format(args.limb))
-    dynamic_cfg_srv = Server(cfg, lambda config, level: config)
-    js = JointSprings()
-    # register shutdown callback
-    rospy.on_shutdown(js.clean_shutdown)
-    js.attach_springs()
-
-
-if __name__ == "__main__":
-    main()
