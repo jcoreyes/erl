@@ -71,24 +71,11 @@ def main(variant):
 
     observation_space = convert_gym_space(env.observation_space)
     action_space = convert_gym_space(env.action_space)
-    input_dim = (
-        int(observation_space.flat_dim) + int(action_space.flat_dim)
-        + env.goal_dim
-    )
-    if variant['algo_params']['sample_discount']:
-        input_dim += 1
-    # qf = Mlp(
-    #     input_dim,
-    #     1,
-    #     [400, 300, 200],
-    #     bn_input=True,
-    # )
     qf = UniversalQfunction(
         int(observation_space.flat_dim),
         int(action_space.flat_dim),
         env.goal_dim,
         [400, 300, 200],
-        structure_qf=True,
     )
     policy = UniversalPolicy(
         int(observation_space.flat_dim),
@@ -157,12 +144,13 @@ if __name__ == '__main__':
             max_value=0.,
             ramp_duration=100,
         ),
-        # env_class=GoalStateSimpleStateReacherEnv,
-        env_class=XyMultitaskSimpleStateReacherEnv,
+        env_class=GoalStateSimpleStateReacherEnv,
+        # env_class=XyMultitaskSimpleStateReacherEnv,
         # env_class=FullStateVaryingWeightReacherEnv,
         env_params=dict(
             add_noop_action=False,
-            # reward_weights=[1, 1, 1, 1, 1, 1],
+            # reward_weights=[0, 0, 1, 1, 1, 1],
+            reward_weights=[1, 1, 1, 1, 0.01, 0.01],
         ),
         sampler_params=dict(
             min_num_steps_to_collect=20000,
