@@ -12,8 +12,7 @@ import numpy as np
 from torch.autograd import Variable
 
 import railrl.torch.pytorch_util as ptu
-from railrl.algos.state_distance.state_distance_q_learning import \
-    rollout_with_goal
+from railrl.algos.state_distance.state_distance_q_learning import rollout
 from railrl.envs.multitask.reacher_env import FullStateVaryingWeightReacherEnv
 from railrl.torch.pytorch_util import set_gpu_mode
 from rllab.misc import logger
@@ -24,18 +23,39 @@ class SamplePolicyFixedJoints(object):
         self.qf = qf
         self.num_samples = num_samples
 
-    def get_action(self, obs):
-        sampled_actions = np.random.uniform(-.2, .2, size=(self.num_samples, 2))
-        sampled_velocities = np.random.uniform(-1, 1, size=(self.num_samples, 2))
-        obs_expanded = np.repeat(
-            np.expand_dims(obs, 0),
+    def expand_np_to_var(self, array):
+        array_expanded = np.repeat(
+            np.expand_dims(array, 0),
             self.num_samples,
             axis=0
         )
-        obs_expanded[:, -2:] = sampled_velocities
+        return Variable(
+            ptu.from_numpy(array_expanded).float(),
+            requires_grad=False,
+        )
+
+    def get_action(self, obs, goal, discount):
+        sampled_actions = np.random.uniform(-.2, .2, size=(self.num_samples, 2))
         actions = Variable(ptu.from_numpy(sampled_actions).float(), requires_grad=False)
-        obs = Variable(ptu.from_numpy(obs_expanded).float(), requires_grad=False)
-        q_values = ptu.get_numpy(self.qf(obs, actions))
+
+        sampled_velocities = np.random.uniform(-1, 1, size=(self.num_samples, 2))
+        goals = np.repeat(
+            np.expand_dims(goal, 0),
+            self.num_samples,
+            axis=0
+        )
+        goals[:, -2:] = sampled_velocities
+        goals = Variable(
+            ptu.from_numpy(goals).float(),
+            requires_grad=False,
+        )
+
+        q_values = ptu.get_numpy(self.qf(
+            self.expand_np_to_var(obs),
+            actions,
+            goals,
+            self.expand_np_to_var(np.array([discount])),
+        ))
         max_i = np.argmax(q_values)
         return sampled_actions[max_i], {}
 
@@ -75,10 +95,11 @@ if __name__ == "__main__":
                 goal[:6] = np.array([1, 1, 1, 1, 0, 0])
             env.print_goal_state_info(goal)
             env.set_goal(goal)
-            paths.append(rollout_with_goal(
+            paths.append(rollout(
                 env,
                 policy,
                 goal,
+                discount=0,
                 max_path_length=args.H,
                 animated=not args.hide,
             ))

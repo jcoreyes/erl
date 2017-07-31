@@ -56,10 +56,7 @@ class StateDistanceQLearning(DDPG):
             batch['next_observations'],
             goal_states,
         )
-        batch['observations'] = np.hstack((batch['observations'], goal_states))
-        batch['next_observations'] = np.hstack((
-            batch['next_observations'], goal_states
-        ))
+        batch['goal_states'] = goal_states
         batch['rewards'] = new_rewards
         torch_batch = np_to_pytorch_batch(batch)
         return torch_batch
@@ -89,10 +86,7 @@ class StateDistanceQLearning(DDPG):
             batch['next_observations'],
             goal_states,
         )
-        batch['observations'] = np.hstack((batch['observations'], goal_states))
-        batch['next_observations'] = np.hstack((
-            batch['next_observations'], goal_states
-        ))
+        batch['goal_states'] = goal_states
         batch['rewards'] = new_rewards
         return batch
 
@@ -121,39 +115,42 @@ class StateDistanceQLearning(DDPG):
         logger.dump_tabular(with_prefix=False, with_timestamp=False)
 
     def get_train_dict(self, batch):
-        if not self.sample_discount:
-            return super().get_train_dict(batch)
-
         rewards = batch['rewards']
         terminals = batch['terminals']
         obs = batch['observations']
         actions = batch['actions']
         next_obs = batch['next_observations']
+        goal_states = batch['goal_states']
 
         batch_size = obs.size()[0]
-        discount_np = np.random.uniform(0, 1, (batch_size, 1))
+        if self.sample_discount:
+            discount_np = np.random.uniform(0, 1, (batch_size, 1))
+        else:
+            discount_np = self.discount * np.ones((batch_size, 1))
         discount = ptu.Variable(ptu.from_numpy(discount_np).float())
+
         """
         Policy operations.
         """
-        policy_actions = self.policy(obs)
-        q_output = self.qf(obs, policy_actions, discount)
+        policy_actions = self.policy(obs, goal_states, discount)
+        q_output = self.qf(obs, policy_actions, goal_states, discount)
         policy_loss = - q_output.mean()
 
         """
         Critic operations.
         """
-        next_actions = self.target_policy(next_obs)
+        next_actions = self.target_policy(next_obs, goal_states, discount)
         target_q_values = self.target_qf(
             next_obs,
             next_actions,
+            goal_states,
             discount,
         )
         y_target = rewards + (1. - terminals) * discount * target_q_values
 
         # noinspection PyUnresolvedReferences
         y_target = y_target.detach()
-        y_pred = self.qf(obs, actions, discount)
+        y_pred = self.qf(obs, actions, goal_states, discount)
         bellman_errors = (y_pred - y_target)**2
         qf_loss = self.qf_criterion(y_pred, y_target)
 
@@ -176,7 +173,8 @@ def rollout_with_goal(env, agent, goal, max_path_length=np.inf, animated=False):
     agent_infos = []
     env_infos = []
     o = env.reset()
-    o = np.hstack((o, goal))
+    # o = np.hstack((o, goal))
+    # o = (o, goal)
     path_length = 0
     if animated:
         env.render()
@@ -193,7 +191,45 @@ def rollout_with_goal(env, agent, goal, max_path_length=np.inf, animated=False):
         if d:
             break
         o = next_o
-        o = np.hstack((o, goal))
+        # o = np.hstack((o, goal))
+        # o = (o, goal)
+        if animated:
+            env.render()
+
+    return dict(
+        observations=np.array(observations),
+        actions=np.array(actions),
+        rewards=np.array(rewards),
+        terminals=np.array(terminals),
+        agent_infos=np.array(agent_infos),
+        env_infos=np.array(env_infos),
+    )
+
+
+def rollout(env, agent, goal, discount, max_path_length=np.inf, animated=False):
+    observations = []
+    actions = []
+    rewards = []
+    terminals = []
+    agent_infos = []
+    env_infos = []
+    o = env.reset()
+    path_length = 0
+    if animated:
+        env.render()
+    while path_length < max_path_length:
+        a, agent_info = agent.get_action(o, goal, discount)
+        next_o, r, d, env_info = env.step(a)
+        observations.append(o)
+        rewards.append(r)
+        terminals.append(d)
+        actions.append(a)
+        agent_infos.append(agent_info)
+        env_infos.append(env_info)
+        path_length += 1
+        if d:
+            break
+        o = next_o
         if animated:
             env.render()
 

@@ -17,6 +17,7 @@ from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import RampUpSchedule
+from railrl.networks.state_distance import UniversalPolicy, UniversalQfunction
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.policies.zero_policy import ZeroPolicy
 from railrl.predictors.torch import Mlp
@@ -76,15 +77,23 @@ def main(variant):
     )
     if variant['algo_params']['sample_discount']:
         input_dim += 1
-    qf = Mlp(
-        input_dim,
-        1,
-        [400, 300, 200],
-        bn_input=True,
-    )
-    policy = FeedForwardPolicy(
-        int(observation_space.flat_dim) + env.goal_dim,
+    # qf = Mlp(
+    #     input_dim,
+    #     1,
+    #     [400, 300, 200],
+    #     bn_input=True,
+    # )
+    qf = UniversalQfunction(
+        int(observation_space.flat_dim),
         int(action_space.flat_dim),
+        env.goal_dim,
+        [400, 300, 200],
+        structure_qf=True,
+    )
+    policy = UniversalPolicy(
+        int(observation_space.flat_dim),
+        int(action_space.flat_dim),
+        env.goal_dim,
         400,
         300,
     )
@@ -117,8 +126,7 @@ if __name__ == '__main__':
     n_seeds = 1
     mode = "here"
     use_gpu = True
-    # exp_prefix = "dev-sdqlr-xy-rampup-gamma"
-    exp_prefix = "dev-sdqlr-rampup-gamma"
+    exp_prefix = "dev-sdqlr-split-qf-input"
     snapshot_mode = 'gap'
     snapshot_gap = 5
 
@@ -140,6 +148,7 @@ if __name__ == '__main__':
             qf_learning_rate=1e-4,
             policy_learning_rate=1e-5,
             sample_goals_from='replay_buffer',
+            # sample_goals_from='environment',
             sample_discount=False,
         ),
         epoch_discount_schedule_class=RampUpSchedule,
@@ -148,12 +157,12 @@ if __name__ == '__main__':
             max_value=0.,
             ramp_duration=100,
         ),
-        env_class=GoalStateSimpleStateReacherEnv,
-        # env_class=XyMultitaskSimpleStateReacherEnv,
+        # env_class=GoalStateSimpleStateReacherEnv,
+        env_class=XyMultitaskSimpleStateReacherEnv,
         # env_class=FullStateVaryingWeightReacherEnv,
         env_params=dict(
             add_noop_action=False,
-            # reward_weights=[1, 1, 1, 1, 0, 0],
+            # reward_weights=[1, 1, 1, 1, 1, 1],
         ),
         sampler_params=dict(
             min_num_steps_to_collect=20000,
