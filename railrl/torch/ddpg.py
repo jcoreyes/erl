@@ -29,6 +29,7 @@ class DDPG(OnlineAlgorithm):
             exploration_policy=None,
             policy_learning_rate=1e-4,
             qf_learning_rate=1e-3,
+            qf_weight_decay=0,
             target_hard_update_period=1000,
             tau=1e-2,
             use_soft_update=False,
@@ -47,6 +48,7 @@ class DDPG(OnlineAlgorithm):
         self.policy = policy
         self.policy_learning_rate = policy_learning_rate
         self.qf_learning_rate = qf_learning_rate
+        self.qf_weight_decay = qf_weight_decay
         self.target_qf = self.qf.copy()
         self.target_policy = self.policy.copy()
         self.target_hard_update_period = target_hard_update_period
@@ -54,8 +56,11 @@ class DDPG(OnlineAlgorithm):
         self.use_soft_update = use_soft_update
 
         self.qf_criterion = nn.MSELoss()
-        self.qf_optimizer = optim.Adam(self.qf.parameters(),
-                                       lr=self.qf_learning_rate)
+        self.qf_optimizer = optim.Adam(
+            self.qf.parameters(),
+            lr=self.qf_learning_rate,
+            weight_decay=self.qf_weight_decay,
+       )
         self.policy_optimizer = optim.Adam(self.policy.parameters(),
                                            lr=self.policy_learning_rate)
         if replay_buffer is None:
