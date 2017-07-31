@@ -12,10 +12,11 @@ import joblib
 import numpy as np
 import torch
 from torch.autograd import Variable
-from torch.optim import Adam, SGD
+from torch.optim import Adam
 
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.split_buffer import SplitReplayBuffer
+from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.pythonplusplus import line_logger
 
 
@@ -26,7 +27,7 @@ def to_var(array):
     )
 
 
-def check_qf(qf, replay_buffer: SplitReplayBuffer):
+def check_qf(qf, replay_buffer: SplitReplayBuffer, env: MultitaskEnv):
     replay_buffer = replay_buffer.train_replay_buffer
     batch = replay_buffer.random_batch(1)
     state = to_var(batch['observations'])
@@ -34,15 +35,14 @@ def check_qf(qf, replay_buffer: SplitReplayBuffer):
     next_state_np = batch['next_observations']
 
     best_goal_state = Variable(
-        torch.zeros(state.size()),
+        torch.zeros(1, env.goal_dim),
         requires_grad=True,
     )
     discount = Variable(torch.zeros(1, 1))
 
-    lr = 1e-2
+    lr = 1e-1
     min_num_steps_between_drops = 1000
     optim = Adam([best_goal_state], lr=lr)
-    # optim = SGD([best_goal_state], lr=1e-2)
 
     last_loss = np.inf
     last_drop = 0
@@ -57,7 +57,6 @@ def check_qf(qf, replay_buffer: SplitReplayBuffer):
         difference = best_goal_state_np - next_state_np
         loss = np.linalg.norm(difference)
         line_logger.print_over(
-        # print(
             "Distance to true next state:",
             loss,
         )
@@ -68,6 +67,7 @@ def check_qf(qf, replay_buffer: SplitReplayBuffer):
             print("Lowering LR to", lr)
             optim = Adam([best_goal_state], lr=lr)
         last_loss = loss
+    line_logger.newline()
     print("Difference:", difference)
 
 
@@ -86,4 +86,4 @@ if __name__ == "__main__":
     qf.train(False)
     replay_buffer = data['replay_buffer']
 
-    check_qf(qf, replay_buffer)
+    check_qf(qf, replay_buffer, env)
