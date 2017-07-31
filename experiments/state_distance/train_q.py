@@ -115,20 +115,20 @@ if __name__ == '__main__':
                         help='path to the snapshot file')
     args = parser.parse_args()
 
-    num_configurations = 1  # for random mode
-    n_seeds = 3
+    n_seeds = 1
     mode = "here"
-    exp_prefix = "dev-sdqlr-sweep-lr"
-    version = "Dev"
+    exp_prefix = "dev-sdqlr"
     run_mode = "none"
+
+    # n_seeds = 3
+    # mode = "ec2"
+    # exp_prefix = "sdqlr-sweep-lr-2"
+    # run_mode = 'grid'
+
+    version = "Dev"
+    num_configurations = 1  # for random mode
     snapshot_mode = "gap"
     snapshot_gap = 5
-
-    n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "sdqlr-sweep-lr-2"
-
-    run_mode = 'grid'
     use_gpu = True
     if mode != "here":
         use_gpu = False
@@ -140,12 +140,12 @@ if __name__ == '__main__':
         dataset_path=str(dataset_path),
         algo_params=dict(
             num_epochs=101,
-            num_batches_per_epoch=5000,
+            num_batches_per_epoch=1000,
             use_soft_update=True,
             tau=1e-3,
             batch_size=1000,
             discount=0.,
-            qf_learning_rate=1e-4,
+            qf_learning_rate=1e-3,
             policy_learning_rate=1e-5,
             sample_goals_from='replay_buffer',
             # sample_goals_from='environment',
