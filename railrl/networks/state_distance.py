@@ -164,7 +164,9 @@ class UniversalPolicy(PyTorchModule):
         obs = elem_or_tuple_to_variable(obs)
         goal_state = np.expand_dims(goal_state, 0)
         goal_state = elem_or_tuple_to_variable(goal_state)
-        action, state = self.__call__(
+        discount = np.array([[discount]])
+        discount = elem_or_tuple_to_variable(discount)
+        action = self.__call__(
             obs,
             goal_state,
             discount,
