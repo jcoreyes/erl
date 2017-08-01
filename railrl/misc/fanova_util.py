@@ -28,6 +28,12 @@ def get_fanova_info(
     data_and_variants = get_data_and_variants(base_dir)
     data, variants_list = zip(*data_and_variants)
     ylabel = ylabel.replace(' ', '_')
+    ylabel = ylabel.replace('-', '')
+    if ylabel not in data[0].dtype.names:
+        print("Possible ylabels:")
+        for name in data[0].dtype.names:
+            print(" - {}".format(name))
+        raise ValueError("Invalid ylabel: {}".format(ylabel))
     good_indices = [i for i, exp in enumerate(data)
                     if exp[ylabel].size > 1]
     if len(good_indices) != len(data):
