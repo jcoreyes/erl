@@ -14,15 +14,15 @@ from railrl.envs.multitask.reacher_env import (
 import matplotlib.pyplot as plt
 
 
-def main(dataset_path, load_joblib=True):
-    if load_joblib:
-        data = joblib.load(dataset_path)
-        replay_buffer = data['replay_buffer']
-        env = data['env']
-    else:
+def main(dataset_path, only_load_buffer=False):
+    if only_load_buffer:
         env = XyMultitaskSimpleStateReacherEnv()
         with open(dataset_path, 'rb') as handle:
             replay_buffer = pickle.load(handle)
+    else:
+        data = joblib.load(dataset_path)
+        replay_buffer = data['replay_buffer']
+        env = data['env']
 
     train_replay_buffer = replay_buffer.train_replay_buffer
     actions = train_replay_buffer._actions
@@ -76,7 +76,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('replay_pkl_path', type=str,
                         help='path to the snapshot file')
+    parser.add_argument('--buffer', action='store_true')
     args = parser.parse_args()
 
     dataset_path = args.replay_pkl_path
-    main(dataset_path)
+    main(dataset_path, args.buffer)
