@@ -360,7 +360,24 @@ class SawyerEnv(Env, Serializable):
 
         joint_to_values = dict(zip(self.arm_joint_names, action))
         self._set_joint_values(joint_to_values)
+        torques_dict = self._get_joint_values['torque']()
+        observed_torques = np.array([torques_dict[joint] for joint in self.arm_joint_names])
+        print(np.mean(observed_torques-action))
         self.rate.sleep()
+
+    def is_in_correct_position(self):
+        desired_neutral = np.array([
+            0.0018681640625,
+            -1.1778642578125,
+            -0.00246484375,
+            2.1776962890625,
+            0.0015673828125,
+            0.5689052734375,
+            3.31884765625
+        ])
+        actual_neutral = self._joint_angles()
+        errors = np.abs(desired_neutral - actual_neutral)
+        print(errors)
 
     def _wrap_angles(self, angles):
         return angles % (2*np.pi)
@@ -400,7 +417,6 @@ class SawyerEnv(Env, Serializable):
 
     def _Huber_reward(self, differences):
         a = np.mean(differences)
-        print(a)
         if a <= self.huber_delta:
             reward = -1 / 2 * a ** 2
         else:
@@ -451,6 +467,7 @@ class SawyerEnv(Env, Serializable):
         for _ in range(self.safe_reset_length):
             torques = self.PDController._update_forces()
             self._act(torques)
+        self.is_in_correct_position()
 
     def reset(self):
         """
