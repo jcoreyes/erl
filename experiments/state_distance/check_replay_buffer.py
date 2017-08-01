@@ -1,17 +1,28 @@
 """
 Plot histogram of the actions and observations in a replay buffer.
 """
+import joblib
+
 import numpy as np
 import argparse
 import pickle
 
-from railrl.envs.multitask.reacher_env import XyMultitaskSimpleStateReacherEnv
+from railrl.envs.multitask.reacher_env import (
+    XyMultitaskSimpleStateReacherEnv,
+    GoalStateSimpleStateReacherEnv,
+)
 import matplotlib.pyplot as plt
 
 
-def main(dataset_path):
-    with open(dataset_path, 'rb') as handle:
-        replay_buffer = pickle.load(handle)
+def main(dataset_path, load_joblib=True):
+    if load_joblib:
+        data = joblib.load(dataset_path)
+        replay_buffer = data['replay_buffer']
+        env = data['env']
+    else:
+        env = XyMultitaskSimpleStateReacherEnv()
+        with open(dataset_path, 'rb') as handle:
+            replay_buffer = pickle.load(handle)
 
     train_replay_buffer = replay_buffer.train_replay_buffer
     actions = train_replay_buffer._actions
@@ -21,7 +32,7 @@ def main(dataset_path):
         ax = axes[i]
         x = actions[:train_replay_buffer._size, i]
         ax.hist(x)
-    plt.title("actions")
+        ax.set_title("actions, dim #{}".format(i+1))
     plt.show()
 
     obs = train_replay_buffer._observations
@@ -31,17 +42,33 @@ def main(dataset_path):
         ax = axes[i]
         x = obs[:train_replay_buffer._size, i]
         ax.hist(x)
-    plt.title("observation")
+        ax.set_title("observations, dim #{}".format(i+1))
     plt.show()
 
-    env = XyMultitaskSimpleStateReacherEnv()
-    batch = train_replay_buffer.random_batch(1)
+    batch_size = 100
+    batch = train_replay_buffer.random_batch(batch_size)
+    sampled_goal_states = env.sample_goal_states(batch_size)
     computed_rewards = env.compute_rewards(
         batch['observations'],
         batch['actions'],
         batch['next_observations'],
-        0.2 * np.ones((1, 2)),
+        sampled_goal_states
     )
+    fig, ax = plt.subplots(1)
+    ax.hist(computed_rewards)
+    ax.set_title("computed rewards")
+    plt.show()
+
+    if isinstance(env, GoalStateSimpleStateReacherEnv):
+        differences = batch['next_observations'] - sampled_goal_states
+        num_features = differences.shape[-1]
+        fig, axes = plt.subplots(num_features)
+        for i in range(num_features):
+            ax = axes[i]
+            x = differences[:, i]
+            ax.hist(x)
+            ax.set_title("next_obs - goal state, dim #{}".format(i+1))
+        plt.show()
     import ipdb; ipdb.set_trace()
     pass
 
