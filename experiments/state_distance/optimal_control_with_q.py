@@ -102,20 +102,19 @@ class SampleOptimalControlPolicy(object):
         :param obs: np.array, state/observation
         :return: np.array, action to take
         """
-        theta = ptu.Variable(
-            np.pi * (2 * torch.rand(self.sample_size, 2) - 1),
-            requires_grad=True,
-        )
-        velocity = ptu.Variable(
-            5 * torch.rand(self.sample_size, 2) - 1,
-            requires_grad=True,
-        )
         sampled_actions = np.random.uniform(-1, 1, size=(self.sample_size, 2))
         action = ptu.Variable(
             ptu.from_numpy(sampled_actions).float(),
             requires_grad=True,
         )
-        obs = self.expand_np_to_var(obs)
+        theta = ptu.Variable(
+            np.pi * (2 * torch.rand(self.sample_size, 2) - 1),
+            requires_grad=True,
+        )
+        velocity = ptu.Variable(
+            10 * (2 * torch.rand(self.sample_size, 2) - 1),
+            requires_grad=True,
+        )
         next_state = torch.cat(
             (
                 torch.cos(theta),
@@ -124,6 +123,7 @@ class SampleOptimalControlPolicy(object):
             ),
             dim=1,
         )
+        obs = self.expand_np_to_var(obs)
         reward = self.reward(obs, action, next_state)
         constraint_penalty = self.qf(
             obs,
@@ -187,8 +187,8 @@ if __name__ == "__main__":
 
     policy = SampleOptimalControlPolicy(
         qf,
-        constraint_weight=10000,
-        sample_size=1000,
+        constraint_weight=1,
+        sample_size=10000,
         goal_is_full_state=goal_is_full_state,
         verbose=args.verbose,
     )
