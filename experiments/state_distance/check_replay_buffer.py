@@ -1,9 +1,9 @@
 """
-Plot histogram of the actions and observations in a replay buffer.
+Plot histogram of the actions, observations, computed rewards, and whatever
+else I might find useful in a replay buffer.
 """
 import joblib
 
-import numpy as np
 import argparse
 import pickle
 
@@ -15,6 +15,13 @@ import matplotlib.pyplot as plt
 
 
 def main(dataset_path, only_load_buffer=False):
+    """
+    :param dataset_path: Path to serialized data.
+    :param only_load_buffer: If True, then the path is to a pickle'd version
+    of a replay buffer. If False, then the path is to joblib'd version of a
+    epoch snapshot.
+    :return:
+    """
     if only_load_buffer:
         env = XyMultitaskSimpleStateReacherEnv()
         with open(dataset_path, 'rb') as handle:
@@ -25,6 +32,20 @@ def main(dataset_path, only_load_buffer=False):
         env = data['env']
 
     train_replay_buffer = replay_buffer.train_replay_buffer
+
+    obs = train_replay_buffer._observations[:train_replay_buffer._size, :]
+    num_features = obs.shape[-1]
+    fig, axes = plt.subplots(num_features)
+    for i in range(num_features):
+        ax = axes[i]
+        diff = obs[:-1, i] - obs[1:, i]
+        diff *= (
+            1-train_replay_buffer._final_state[:train_replay_buffer._size-1]
+        )
+        ax.hist(diff)
+        ax.set_title("Next obs - obs, dim #{}".format(i+1))
+    plt.show()
+
     actions = train_replay_buffer._actions
     action_dim = actions.shape[-1]
     fig, axes = plt.subplots(action_dim)
