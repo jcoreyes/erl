@@ -148,6 +148,34 @@ def fanin_init(tensor):
     return tensor.uniform_(-bound, bound)
 
 
+def fanin_init_weights_like(tensor):
+    if isinstance(tensor, TorchVariable):
+        return fanin_init(tensor.data)
+    size = tensor.size()
+    if len(size) == 2:
+        fan_in = size[0]
+    elif len(size) > 2:
+        fan_in = np.prod(size[1:])
+    else:
+        raise Exception("Shape must be have dimension at least 2.")
+    bound = 1. / np.sqrt(fan_in)
+    new_tensor = FloatTensor(tensor.size())
+    new_tensor.uniform_(-bound, bound)
+    return new_tensor
+
+
+def almost_identity_weights_like(tensor):
+    """
+    Set W = I + lambda * Gaussian no
+    :param tensor:
+    :return:
+    """
+    shape = tensor.size()
+    init_value = np.eye(*shape)
+    init_value += 0.01 * np.random.rand(*shape)
+    return FloatTensor(init_value)
+
+
 def clip1(x):
     return torch.clamp(x, -1, 1)
 

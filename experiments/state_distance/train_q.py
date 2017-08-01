@@ -11,7 +11,7 @@ from railrl.algos.state_distance.state_distance_q_learning import (
 )
 from railrl.algos.state_distance.util import get_replay_buffer
 from railrl.envs.multitask.reacher_env import (
-    GoalStateSimpleStateReacherEnv)
+    GoalStateSimpleStateReacherEnv, XyMultitaskSimpleStateReacherEnv)
 from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.launchers.launcher_util import (
@@ -77,7 +77,7 @@ if __name__ == '__main__':
 
     # n_seeds = 3
     # mode = "ec2"
-    # exp_prefix = "sdqlr-sweep-random"
+    # exp_prefix = "sdqlr-sample-discount"
     # run_mode = 'random'
 
     version = "Dev"
@@ -110,38 +110,45 @@ if __name__ == '__main__':
         qf_params=dict(
             hidden_sizes=[100, 100],
             dropout=False,
+            w_weight_generator=ptu.almost_identity_weights_like,
         ),
         epoch_discount_schedule_class=RampUpSchedule,
         epoch_discount_schedule_params=dict(
             min_value=0.,
             max_value=0.,
-            ramp_duration=100,
+            ramp_duration=99,
         ),
-        env_class=GoalStateSimpleStateReacherEnv,
-        # env_class=XyMultitaskSimpleStateReacherEnv,
-        # env_class=FullStateVaryingWeightReacherEnv,
+        # env_class=GoalStateSimpleStateReacherEnv,
+        env_class=XyMultitaskSimpleStateReacherEnv,
         env_params=dict(
             add_noop_action=False,
+            obs_scales=[1, 1, 1, 1, 0.04, 0.01],
             # reward_weights=[1, 1, 1, 1, 1, 0],
         ),
         sampler_params=dict(
-            min_num_steps_to_collect=10000,
+            min_num_steps_to_collect=20000,
             max_path_length=1000,
             render=False,
         ),
         sampler_es_class=GaussianStrategy,
         sampler_es_params=dict(
-            max_sigma=0.1,
-            min_sigma=0.1,
+            max_sigma=0.2,
+            min_sigma=0.2,
         ),
         generate_data=args.replay_path is None,
     )
     if run_mode == 'grid':
         search_space = {
             'algo_params.qf_learning_rate': [1e-2, 5e-3, 1e-5],
-            'qf_params.hidden_sizes': [
-                [100, 100],
-                [800, 600, 400],
+            'algo_params.sample_goals_from': ['replay_buffer', 'environment'],
+            'env_params.obs_scale': [
+                [1, 1, 1, 1, 0.04, 0.01],
+                [1, 1, 1, 1, 1, 1],
+            ],
+            'qf_params.bn_input': [True, False],
+            'qf_params.w_weight_generator': [
+                ptu.fanin_init_weights_like,
+                ptu.almost_identity_weights_like,
             ],
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(

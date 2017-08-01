@@ -22,7 +22,8 @@ class UniversalQfunction(PyTorchModule):
             init_w=3e-3,
             hidden_activation=F.relu,
             output_activation=identity,
-            hidden_init=ptu.fanin_init,
+            w_weight_generator=ptu.fanin_init_weights_like,
+            b_init_value=0.01,
             bn_input=False,
             dropout=False,
     ):
@@ -42,9 +43,10 @@ class UniversalQfunction(PyTorchModule):
 
         for i, next_size in enumerate(hidden_sizes):
             fc = nn.Linear(in_size, next_size)
+            new_weight = w_weight_generator(fc.weight.data)
+            fc.weight.data.copy_(new_weight)
             in_size = next_size
-            hidden_init(fc.weight)
-            fc.bias.data.fill_(0)
+            fc.bias.data.fill_(b_init_value)
             self.__setattr__("fc{}".format(i), fc)
             self.fcs.append(fc)
             if dropout:
@@ -54,7 +56,7 @@ class UniversalQfunction(PyTorchModule):
 
         self.last_fc = nn.Linear(in_size, 1)
         self.last_fc.weight.data.uniform_(-init_w, init_w)
-        self.last_fc.bias.data.uniform_(-init_w, init_w)
+        self.last_fc.bias.data.fill_(b_init_value)
 
     def forward(self, obs, action, goal_state, discount):
         h = torch.cat((obs, action, goal_state, discount), dim=1)
