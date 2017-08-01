@@ -281,7 +281,9 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
             high=math.pi,
             size=(batch_size, 2)
         )
-        velocities = self.np_random.normal(
+        velocities = self.np_random.uniform(
+            low=-10,
+            high=10,
             size=(batch_size, 2)
         )
         return np.hstack([
