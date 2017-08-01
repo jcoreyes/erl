@@ -89,7 +89,7 @@ if __name__ == '__main__':
             num_epochs=101,
             num_batches_per_epoch=1000,
             num_unique_batches=1000,
-            batch_size=2,
+            batch_size=100,
             learning_rate=1e-4,
         ),
         model_params=dict(
@@ -101,8 +101,8 @@ if __name__ == '__main__':
             add_noop_action=False,
         ),
         sampler_params=dict(
-            min_num_steps_to_collect=200,
-            max_path_length=10,
+            min_num_steps_to_collect=20000,
+            max_path_length=1000,
             render=False,
         ),
         generate_data=args.replay_path is None,
