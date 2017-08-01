@@ -82,9 +82,6 @@ class ModelLearning(object):
 
         next_obs_pred = self.model(obs, actions)
         errors = (next_obs - next_obs_pred)**2
-        # delta = next_obs - obs
-        # delta_pred = self.model(obs, actions)
-        # errors = (delta - delta_pred)**2
         loss = errors.mean()
 
         return OrderedDict([
