@@ -39,9 +39,7 @@ def main(dataset_path, only_load_buffer=False):
     for i in range(num_features):
         ax = axes[i]
         diff = obs[:-1, i] - obs[1:, i]
-        diff *= (
-            1-train_replay_buffer._final_state[:train_replay_buffer._size-1]
-        )
+        diff = diff[train_replay_buffer._final_state[:train_replay_buffer._size-1] == 0]
         ax.hist(diff)
         ax.set_title("Next obs - obs, dim #{}".format(i+1))
     plt.show()
