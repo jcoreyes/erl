@@ -79,7 +79,7 @@ experiments=[
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="8-1-naf-baxter-right-arm-fixed-angle",
+        exp_prefix="naf-baxter-right-arm-fixed-angle",
         seed=0,
         mode='here',
         variant={

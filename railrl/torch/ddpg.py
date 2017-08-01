@@ -8,6 +8,7 @@ from torch.autograd import Variable
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.misc.data_processing import create_stats_ordered_dict
+from railrl.misc.ml_util import ConstantSchedule
 from railrl.misc.rllab_util import get_average_returns, split_paths
 from railrl.torch.online_algorithm import OnlineAlgorithm
 import railrl.torch.pytorch_util as ptu
@@ -159,6 +160,8 @@ class DDPG(OnlineAlgorithm):
         test_paths = self._sample_paths(epoch)
 
         statistics = OrderedDict()
+        if not isinstance(self.epoch_discount_schedule, ConstantSchedule):
+            statistics['Discount Factor'] = self.discount
 
         statistics.update(get_generic_path_information(exploration_paths, self.discount, stat_prefix="Exploration"))
         statistics.update(self._statistics_from_paths(exploration_paths,
@@ -264,10 +267,18 @@ class DDPG(OnlineAlgorithm):
         )
 
 
+def elem_or_tuple_to_variable(elem_or_tuple):
+    if isinstance(elem_or_tuple, tuple):
+        return tuple(
+            elem_or_tuple_to_variable(e) for e in elem_or_tuple
+        )
+    return Variable(ptu.from_numpy(elem_or_tuple).float(), requires_grad=False)
+
+
 def np_to_pytorch_batch(np_batch):
     torch_batch = {
-        k: Variable(ptu.from_numpy(elem).float(), requires_grad=False)
-        for k, elem in np_batch.items()
+        k: elem_or_tuple_to_variable(x)
+        for k, x in np_batch.items()
     }
     torch_batch['rewards'] = torch_batch['rewards'].unsqueeze(-1)
     torch_batch['terminals'] = torch_batch['terminals'].unsqueeze(-1)

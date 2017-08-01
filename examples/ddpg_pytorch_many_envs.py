@@ -10,12 +10,15 @@ from railrl.qfunctions.torch import FeedForwardQFunction
 from railrl.torch.ddpg import DDPG
 import railrl.torch.pytorch_util as ptu
 
+from rllab.envs.mujoco.ant_env import AntEnv
+from rllab.envs.mujoco.hopper_env import HopperEnv
+from rllab.envs.mujoco.swimmer_env import SwimmerEnv
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 from rllab.envs.normalized_env import normalize
 
 
 def example(variant):
-    env = HalfCheetahEnv()
+    env = variant['env_class']()
     env = normalize(env)
     es = OUStrategy(action_space=env.action_space)
     qf = FeedForwardQFunction(
@@ -57,14 +60,23 @@ if __name__ == "__main__":
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
         ),
-        version="PyTorch - bigger networks",
+        version="DDPG",
     )
-    seed = random.randint(0, 999999)
-    run_experiment(
-        example,
-        exp_prefix="ddpg-half-cheetah-pytorch",
-        seed=seed,
-        mode='here',
-        variant=variant,
-        use_gpu=True,
-    )
+    for env_class in [
+        SwimmerEnv,
+        HalfCheetahEnv,
+        AntEnv,
+        HopperEnv,
+    ]:
+        variant['env_class'] = env_class
+        variant['version'] = str(env_class)
+        for _ in range(5):
+            seed = random.randint(0, 999999)
+            run_experiment(
+                example,
+                exp_prefix="ddpg-benchmarks-envs-pytorch",
+                seed=seed,
+                mode='here',
+                variant=variant,
+                use_gpu=True,
+            )

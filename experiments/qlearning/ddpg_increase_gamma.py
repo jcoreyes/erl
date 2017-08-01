@@ -1,21 +1,25 @@
 """
-Run PyTorch DDPG on HalfCheetah.
+Try increasing gamma slowly to see how it affects DDPG.
 """
 import random
 
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
+from railrl.misc.ml_util import RampUpSchedule
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.qfunctions.torch import FeedForwardQFunction
 from railrl.torch.ddpg import DDPG
 import railrl.torch.pytorch_util as ptu
 
+from rllab.envs.mujoco.ant_env import AntEnv
+from rllab.envs.mujoco.hopper_env import HopperEnv
+from rllab.envs.mujoco.swimmer_env import SwimmerEnv
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 from rllab.envs.normalized_env import normalize
 
 
-def example(variant):
-    env = HalfCheetahEnv()
+def experiment(variant):
+    env = variant['env_class']()
     env = normalize(env)
     es = OUStrategy(action_space=env.action_space)
     qf = FeedForwardQFunction(
@@ -30,11 +34,16 @@ def example(variant):
         400,
         300,
     )
+    epoch_discount_schedule_class = variant['epoch_discount_schedule_class']
+    epoch_discount_schedule = epoch_discount_schedule_class(
+        **variant['epoch_discount_schedule_params']
+    )
     algorithm = DDPG(
         env,
         exploration_strategy=es,
         qf=qf,
         policy=policy,
+        epoch_discount_schedule=epoch_discount_schedule,
         **variant['algo_params']
     )
     if ptu.gpu_enabled():
@@ -57,14 +66,29 @@ if __name__ == "__main__":
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
         ),
-        version="PyTorch - bigger networks",
+        version="DDPG",
+        epoch_discount_schedule_class=RampUpSchedule,
+        epoch_discount_schedule_params=dict(
+            min_value=0.,
+            max_value=0.99,
+            ramp_duration=99,
+        ),
     )
-    seed = random.randint(0, 999999)
-    run_experiment(
-        example,
-        exp_prefix="ddpg-half-cheetah-pytorch",
-        seed=seed,
-        mode='here',
-        variant=variant,
-        use_gpu=True,
-    )
+    for env_class in [
+        SwimmerEnv,
+        HalfCheetahEnv,
+        AntEnv,
+        HopperEnv,
+    ]:
+        variant['env_class'] = env_class
+        variant['version'] = str(env_class)
+        for _ in range(5):
+            seed = random.randint(0, 999999)
+            run_experiment(
+                experiment,
+                exp_prefix="ddpg-increase-gamma",
+                seed=seed,
+                mode='ec2',
+                variant=variant,
+                use_gpu=False,
+            )

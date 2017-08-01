@@ -4,6 +4,7 @@ import time
 
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.envs.wrappers import convert_gym_space
+from railrl.misc.ml_util import ConstantSchedule
 from railrl.misc.rllab_util import get_table_key_set
 from railrl.policies.base import SerializablePolicy
 from rllab.algos.base import RLAlgorithm
@@ -86,6 +87,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             render=False,
             save_exploration_path_period=1,
             sample_with_training_env=False,
+            epoch_discount_schedule=None,
     ):
         self.training_env = env
         self.exploration_policy = exploration_policy
@@ -101,6 +103,9 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         self.render = render
         self.save_exploration_path_period = save_exploration_path_period
         self.sample_with_training_env = sample_with_training_env
+        if epoch_discount_schedule is None:
+            epoch_discount_schedule = ConstantSchedule(self.discount)
+        self.epoch_discount_schedule = epoch_discount_schedule
 
         self.action_space = convert_gym_space(env.action_space)
         self.obs_space = convert_gym_space(env.observation_space)
@@ -155,6 +160,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         params = self.get_epoch_snapshot(-1)
         logger.save_itr_params(-1, params)
         for epoch in range(start_epoch, self.num_epochs):
+            self.discount = self.epoch_discount_schedule.get_value(epoch)
             logger.push_prefix('Iteration #%d | ' % epoch)
             start_time = time.time()
             exploration_paths = []
