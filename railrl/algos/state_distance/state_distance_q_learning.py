@@ -1,16 +1,8 @@
-import random
 from collections import OrderedDict
 
 import numpy as np
-import torch
-from torch import nn as nn
-from torch.autograd import Variable
-from torch.nn import functional as F
 
 import railrl.torch.pytorch_util as ptu
-from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.pythonplusplus import identity
-from railrl.torch.core import PyTorchModule
 from railrl.torch.ddpg import DDPG, np_to_pytorch_batch
 from rllab.misc import logger
 
@@ -20,32 +12,35 @@ class StateDistanceQLearning(DDPG):
             self,
             *args,
             replay_buffer=None,
-            num_batches=100,
+            num_epochs=100,
             num_batches_per_epoch=100,
             sample_goals_from='environment',
+            sample_discount=False,
             **kwargs
     ):
         super().__init__(*args, exploration_strategy=None, **kwargs)
-        self.num_batches = num_batches
+        self.num_epochs = num_epochs
         self.num_batches_per_epoch = num_batches_per_epoch
         assert sample_goals_from in ['environment', 'replay_buffer']
         self.sample_goals_from = sample_goals_from
         self.replay_buffer = replay_buffer
+        self.sample_discount = sample_discount
 
     def train(self):
-        epoch = 0
-        for n_steps_total in range(self.num_batches):
-            self.training_mode(True)
-            self._do_training(n_steps_total=n_steps_total)
-            if n_steps_total % self.num_batches_per_epoch == 0:
-                logger.push_prefix('Iteration #%d | ' % epoch)
-                self.training_mode(False)
-                self.evaluate(epoch, None)
-                params = self.get_epoch_snapshot(epoch)
-                logger.save_itr_params(epoch, params)
-                logger.log("Done evaluating")
-                logger.pop_prefix()
-                epoch += 1
+        num_batches_total = 0
+        for epoch in range(self.num_epochs):
+            self.discount = self.epoch_discount_schedule.get_value(epoch)
+            for _ in range(self.num_batches_per_epoch):
+                self.training_mode(True)
+                self._do_training(n_steps_total=num_batches_total)
+                num_batches_total += 1
+            logger.push_prefix('Iteration #%d | ' % epoch)
+            self.training_mode(False)
+            self.evaluate(epoch, None)
+            params = self.get_epoch_snapshot(epoch)
+            logger.save_itr_params(epoch, params)
+            logger.log("Done evaluating")
+            logger.pop_prefix()
 
     def get_batch(self, training=True):
         replay_buffer = self.replay_buffer.get_replay_buffer(training)
@@ -61,10 +56,7 @@ class StateDistanceQLearning(DDPG):
             batch['next_observations'],
             goal_states,
         )
-        batch['observations'] = np.hstack((batch['observations'], goal_states))
-        batch['next_observations'] = np.hstack((
-            batch['next_observations'], goal_states
-        ))
+        batch['goal_states'] = goal_states
         batch['rewards'] = new_rewards
         torch_batch = np_to_pytorch_batch(batch)
         return torch_batch
@@ -73,8 +65,8 @@ class StateDistanceQLearning(DDPG):
         if self.sample_goals_from == 'environment':
             return self.env.sample_goal_states(batch_size)
         elif self.sample_goals_from == 'replay_buffer':
-            pool = self.pool.get_replay_buffer(training=True)
-            batch = pool.random_batch(batch_size)
+            replay_buffer = self.replay_buffer.get_replay_buffer(training=True)
+            batch = replay_buffer.random_batch(batch_size)
             obs = batch['observations']
             return self.env.convert_obs_to_goal_state(obs)
 
@@ -94,10 +86,7 @@ class StateDistanceQLearning(DDPG):
             batch['next_observations'],
             goal_states,
         )
-        batch['observations'] = np.hstack((batch['observations'], goal_states))
-        batch['next_observations'] = np.hstack((
-            batch['next_observations'], goal_states
-        ))
+        batch['goal_states'] = goal_states
         batch['rewards'] = new_rewards
         return batch
 
@@ -120,59 +109,60 @@ class StateDistanceQLearning(DDPG):
             statistics['Validation QF Loss Mean']
             - statistics['Train QF Loss Mean']
         )
+        statistics['Discount Factor'] = self.discount
         for key, value in statistics.items():
             logger.record_tabular(key, value)
         logger.dump_tabular(with_prefix=False, with_timestamp=False)
 
-
-class StateDistanceQLearningSimple(StateDistanceQLearning):
-    def _do_training(self, n_steps_total):
-        batch = self.get_batch()
-        train_dict = self.get_train_dict(batch)
-
-        self.qf_optimizer.zero_grad()
-        qf_loss = train_dict['QF Loss']
-        qf_loss.backward()
-        self.qf_optimizer.step()
-
     def get_train_dict(self, batch):
         rewards = batch['rewards']
+        terminals = batch['terminals']
         obs = batch['observations']
         actions = batch['actions']
+        next_obs = batch['next_observations']
+        goal_states = batch['goal_states']
 
-        y_pred = self.qf(obs, actions)
-        bellman_errors = (y_pred - rewards)**2
-        qf_loss = bellman_errors.mean()
+        batch_size = obs.size()[0]
+        if self.sample_discount:
+            discount_np = np.random.uniform(0, 1, (batch_size, 1))
+        else:
+            discount_np = self.discount * np.ones((batch_size, 1))
+        discount = ptu.Variable(ptu.from_numpy(discount_np).float())
+
+        """
+        Policy operations.
+        """
+        policy_actions = self.policy(obs, goal_states, discount)
+        q_output = self.qf(obs, policy_actions, goal_states, discount)
+        policy_loss = - q_output.mean()
+
+        """
+        Critic operations.
+        """
+        next_actions = self.target_policy(next_obs, goal_states, discount)
+        target_q_values = self.target_qf(
+            next_obs,
+            next_actions,
+            goal_states,
+            discount,
+        )
+        y_target = rewards + (1. - terminals) * discount * target_q_values
+
+        # noinspection PyUnresolvedReferences
+        y_target = y_target.detach()
+        y_pred = self.qf(obs, actions, goal_states, discount)
+        bellman_errors = (y_pred - y_target)**2
+        qf_loss = self.qf_criterion(y_pred, y_target)
 
         return OrderedDict([
+            ('Policy Actions', policy_actions),
+            ('Policy Loss', policy_loss),
+            ('QF Outputs', q_output),
             ('Bellman Errors', bellman_errors),
+            ('Y targets', y_target),
             ('Y predictions', y_pred),
             ('QF Loss', qf_loss),
-            ('Target Rewards', rewards),
         ])
-
-    def _statistics_from_batch(self, batch, stat_prefix):
-        statistics = OrderedDict()
-
-        train_dict = self.get_train_dict(batch)
-        for name in [
-            'QF Loss',
-        ]:
-            tensor = train_dict[name]
-            statistics_name = "{} {} Mean".format(stat_prefix, name)
-            statistics[statistics_name] = np.mean(ptu.get_numpy(tensor))
-
-        for name in [
-            'Bellman Errors',
-            'Target Rewards',
-        ]:
-            tensor = train_dict[name]
-            statistics.update(create_stats_ordered_dict(
-                '{} {}'.format(stat_prefix, name),
-                ptu.get_numpy(tensor)
-            ))
-
-        return statistics
 
 
 def rollout_with_goal(env, agent, goal, max_path_length=np.inf, animated=False):
@@ -183,7 +173,8 @@ def rollout_with_goal(env, agent, goal, max_path_length=np.inf, animated=False):
     agent_infos = []
     env_infos = []
     o = env.reset()
-    o = np.hstack((o, goal))
+    # o = np.hstack((o, goal))
+    # o = (o, goal)
     path_length = 0
     if animated:
         env.render()
@@ -200,7 +191,45 @@ def rollout_with_goal(env, agent, goal, max_path_length=np.inf, animated=False):
         if d:
             break
         o = next_o
-        o = np.hstack((o, goal))
+        # o = np.hstack((o, goal))
+        # o = (o, goal)
+        if animated:
+            env.render()
+
+    return dict(
+        observations=np.array(observations),
+        actions=np.array(actions),
+        rewards=np.array(rewards),
+        terminals=np.array(terminals),
+        agent_infos=np.array(agent_infos),
+        env_infos=np.array(env_infos),
+    )
+
+
+def rollout(env, agent, goal, discount, max_path_length=np.inf, animated=False):
+    observations = []
+    actions = []
+    rewards = []
+    terminals = []
+    agent_infos = []
+    env_infos = []
+    o = env.reset()
+    path_length = 0
+    if animated:
+        env.render()
+    while path_length < max_path_length:
+        a, agent_info = agent.get_action(o, goal, discount)
+        next_o, r, d, env_info = env.step(a)
+        observations.append(o)
+        rewards.append(r)
+        terminals.append(d)
+        actions.append(a)
+        agent_infos.append(agent_info)
+        env_infos.append(env_info)
+        path_length += 1
+        if d:
+            break
+        o = next_o
         if animated:
             env.render()
 

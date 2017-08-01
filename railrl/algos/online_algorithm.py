@@ -205,7 +205,7 @@ class OnlineAlgorithm(RLAlgorithm):
                             observation,
                             self.policy,
                         )
-                    )
+                    ), {}
                     if self.render:
                         self.training_env.render()
 
