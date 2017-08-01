@@ -1,5 +1,4 @@
 import argparse
-import pickle
 import random
 
 import numpy as np
@@ -11,11 +10,8 @@ from railrl.algos.state_distance.state_distance_q_learning import (
     StateDistanceQLearning,
 )
 from railrl.algos.state_distance.util import get_replay_buffer
-from railrl.data_management.env_replay_buffer import EnvReplayBuffer
-from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.multitask.reacher_env import (
-    GoalStateSimpleStateReacherEnv,
-    XyMultitaskSimpleStateReacherEnv)
+    GoalStateSimpleStateReacherEnv)
 from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.launchers.launcher_util import (
@@ -26,8 +22,6 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.hypopt import optimize_and_save
 from railrl.misc.ml_util import RampUpSchedule
 from railrl.networks.state_distance import UniversalPolicy, UniversalQfunction
-from railrl.policies.zero_policy import ZeroPolicy
-from railrl.samplers.path_sampler import MultitaskPathSampler
 
 
 def experiment(variant):
@@ -123,17 +117,22 @@ if __name__ == '__main__':
             max_value=0.,
             ramp_duration=100,
         ),
-        # env_class=GoalStateSimpleStateReacherEnv,
-        env_class=XyMultitaskSimpleStateReacherEnv,
+        env_class=GoalStateSimpleStateReacherEnv,
+        # env_class=XyMultitaskSimpleStateReacherEnv,
         # env_class=FullStateVaryingWeightReacherEnv,
         env_params=dict(
             add_noop_action=False,
-            # reward_weights=[1, 1, 1, 1, 0, 0],
+            # reward_weights=[1, 1, 1, 1, 1, 0],
         ),
         sampler_params=dict(
             min_num_steps_to_collect=10000,
             max_path_length=1000,
             render=False,
+        ),
+        sampler_es_class=GaussianStrategy,
+        sampler_es_params=dict(
+            max_sigma=0.1,
+            min_sigma=0.1,
         ),
         generate_data=args.replay_path is None,
     )

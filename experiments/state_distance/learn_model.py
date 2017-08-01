@@ -1,36 +1,15 @@
 import argparse
-import pickle
 import random
 
-import numpy as np
-from hyperopt import hp
-
-import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.algos.state_distance.model_learning import ModelLearning
-from railrl.algos.state_distance.state_distance_q_learning import (
-    StateDistanceQLearning,
-)
-from railrl.algos.state_distance.supervised_learning import SupervisedLearning
 from railrl.algos.state_distance.util import get_replay_buffer
-from railrl.data_management.env_replay_buffer import EnvReplayBuffer
-from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.multitask.reacher_env import (
-    GoalStateSimpleStateReacherEnv,
-    XyMultitaskSimpleStateReacherEnv)
+    GoalStateSimpleStateReacherEnv)
 from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
-from railrl.launchers.launcher_util import (
-    create_log_dir,
-    create_run_experiment_multiple_seeds,
-)
 from railrl.launchers.launcher_util import run_experiment
-from railrl.misc.hypopt import optimize_and_save
-from railrl.misc.ml_util import RampUpSchedule
-from railrl.networks.state_distance import UniversalQfunction
-from railrl.policies.zero_policy import ZeroPolicy
 from railrl.predictors.torch import Mlp
-from railrl.samplers.path_sampler import MultitaskPathSampler
 
 
 def experiment(variant):
@@ -60,11 +39,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--replay_path', type=str,
                         help='path to the snapshot file')
+    parser.add_argument('--render', action='store_true')
     args = parser.parse_args()
 
     n_seeds = 1
     mode = "here"
-    exp_prefix = "reacher-model-learning"
+    exp_prefix = "dev-reacher-model-learning"
     version = "Dev"
     run_mode = "none"
 
@@ -103,7 +83,12 @@ if __name__ == '__main__':
         sampler_params=dict(
             min_num_steps_to_collect=20000,
             max_path_length=1000,
-            render=False,
+            render=args.render,
+        ),
+        sampler_es_class=GaussianStrategy,
+        sampler_es_params=dict(
+            max_sigma=0.1,
+            min_sigma=0.1,
         ),
         generate_data=args.replay_path is None,
     )

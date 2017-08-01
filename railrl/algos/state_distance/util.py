@@ -3,20 +3,18 @@ import pickle
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.wrappers import convert_gym_space
-from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.policies.zero_policy import ZeroPolicy
 from railrl.samplers.path_sampler import MultitaskPathSampler
 
 
-def get_replay_buffer(variant):
+def get_replay_buffer(variant, save_replay_buffer=False):
     env_class = variant['env_class']
     env = env_class(**variant['env_params'])
     if variant['generate_data']:
         action_space = convert_gym_space(env.action_space)
-        es = GaussianStrategy(
+        es = variant['sampler_es_class'](
             action_space=action_space,
-            max_sigma=0.2,
-            min_sigma=0.2,
+            **variant['sampler_es_params']
         )
         exploration_policy = ZeroPolicy(
             int(action_space.flat_dim),
@@ -47,6 +45,8 @@ def get_replay_buffer(variant):
             **variant['sampler_params']
         )
         sampler.collect_data()
+        if save_replay_buffer:
+            sampler.save_replay_buffer()
         return sampler.replay_buffer
     else:
         dataset_path = variant['dataset_path']
