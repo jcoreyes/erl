@@ -167,8 +167,12 @@ def generate_report(fanova_info: FanovaInfo, base_dir, param_name_to_log=None):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("expdir", help="experiment dir, e.g., /tmp/experiments")
+    parser.add_argument("--ylabel", help="Column in process.csv to look at")
     args = parser.parse_args()
-    fanova_info = get_fanova_info(args.expdir)
+    fanova_info = get_fanova_info(
+        args.expdir,
+        ylabel=args.ylabel,
+    )
     are_logs = {
     }
 

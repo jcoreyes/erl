@@ -22,19 +22,21 @@ FanovaInfo = namedtuple(
 
 def get_fanova_info(
         base_dir,
-        params_to_ignore=('seed', 'exp_id', 'unique_id', 'exp_name')
+        params_to_ignore=('seed', 'exp_id', 'unique_id', 'exp_name'),
+        ylabel='AverageReturn',
 ):
     data_and_variants = get_data_and_variants(base_dir)
     data, variants_list = zip(*data_and_variants)
+    ylabel = ylabel.replace(' ', '_')
     good_indices = [i for i, exp in enumerate(data)
-                    if exp['AverageReturn'].size > 1]
+                    if exp[ylabel].size > 1]
     if len(good_indices) != len(data):
         print("WARNING: Skipping some experiments. Probably because they only "
               "have one data point.")
     data = [d for i, d in enumerate(data) if i in good_indices]
     variants_list = [v for i, v in enumerate(variants_list)
                      if i in good_indices]
-    Y = np.array([exp['AverageReturn'][-1] for exp in data])
+    Y = np.array([exp[ylabel][-1] for exp in data])
     filtered_variants_list = remove_keys_with_nonunique_values(
         variants_list, params_to_ignore=params_to_ignore
     )
@@ -139,7 +141,7 @@ def _get_config_space_and_new_features(Xs, names, name_to_possible_values):
             )
             id_map = ppp.IntIdDict()
             categorical_remappings[name] = id_map
-            new_Xs.append([id_map[x] for x in X])
+            new_Xs.append([id_map[str(x)] for x in X])
 
     return config_space, new_Xs, categorical_remappings
 
