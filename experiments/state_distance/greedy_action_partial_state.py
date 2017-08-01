@@ -35,10 +35,16 @@ class SamplePolicyFixedJoints(object):
         )
 
     def get_action(self, obs, goal, discount):
-        sampled_actions = np.random.uniform(-.2, .2, size=(self.num_samples, 2))
-        actions = Variable(ptu.from_numpy(sampled_actions).float(), requires_grad=False)
+        sampled_actions = np.random.uniform(-1, 1, size=(self.num_samples, 2))
+        actions = Variable(
+            ptu.from_numpy(sampled_actions).float(), requires_grad=False
+        )
 
-        sampled_velocities = np.random.uniform(-1, 1, size=(self.num_samples, 2))
+        sampled_velocities = np.random.uniform(
+            -10,
+            10,
+            size=(self.num_samples, 2),
+        )
         goals = np.repeat(
             np.expand_dims(goal, 0),
             self.num_samples,
