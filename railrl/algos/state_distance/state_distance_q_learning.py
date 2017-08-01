@@ -128,7 +128,7 @@ class StateDistanceQLearning(DDPG):
 
         batch_size = obs.size()[0]
         if self.sample_discount:
-            discount_np = np.random.uniform(0, 1, (batch_size, 1))
+            discount_np = np.random.uniform(0, 0.99, (batch_size, 1))
         else:
             discount_np = self.discount * np.ones((batch_size, 1))
         discount = ptu.Variable(ptu.from_numpy(discount_np).float())
