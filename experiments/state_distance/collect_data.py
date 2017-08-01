@@ -55,7 +55,7 @@ if __name__ == '__main__':
     # out_dir /= '7-25--xy-multitask-simple-state--100k--add-no-op'
     # out_dir = str(out_dir)
     out_dir = None
-    min_num_steps_to_collect = 100000
+    min_num_steps_to_collect = 1000000
     max_path_length = 1000
     replay_buffer_size = min_num_steps_to_collect + max_path_length
 
@@ -72,7 +72,7 @@ if __name__ == '__main__':
     # main(variant)
     run_experiment(
         main,
-        exp_prefix='gaussian',
+        exp_prefix='gaussian-1m',
         seed=0,
         mode='here',
         variant=variant,
