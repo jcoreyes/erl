@@ -105,9 +105,13 @@ class StateDistanceQLearning(DDPG):
             self._statistics_from_batch(validation_batch, "Validation")
         )
 
-        statistics['QF Loss Validation - Train Gap'] = (
+        statistics['QF Loss Mean Validation - Train Gap'] = (
             statistics['Validation QF Loss Mean']
             - statistics['Train QF Loss Mean']
+        )
+        statistics['Bellman Errors Max Validation - Train Gap'] = (
+            statistics['Validation Bellman Errors Max']
+            - statistics['Train Bellman Errors Max']
         )
         statistics['Discount Factor'] = self.discount
         for key, value in statistics.items():
