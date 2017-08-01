@@ -137,13 +137,14 @@ class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     since the goal will constantly change.
     """
 
-    def __init__(self, add_noop_action=True):
+    def __init__(self, add_noop_action=True, obs_scales=None):
         """
         :param add_noop_action: If True, add an extra no-op after every call to
         the simulator. The reason this is done is so that your current action
         (torque) will affect your next position.
         """
         self.add_noop_action = add_noop_action
+        self.obs_scales = np.array(obs_scales)
         utils.EzPickle.__init__(self, add_noop_action=add_noop_action)
         mujoco_env.MujocoEnv.__init__(self, 'reacher.xml', 2)
         self._fixed_goal = None
@@ -196,11 +197,14 @@ class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
     def _get_obs(self):
         theta = self.model.data.qpos.flat[:2]
-        return np.concatenate([
+        obs = np.concatenate([
             np.cos(theta),
             np.sin(theta),
             self.model.data.qvel.flat[:2],
         ])
+        if self.obs_scales is not None:
+            obs *= self.obs_scales
+        return obs
 
     def sample_goal_states(self, batch_size):
         return self.np_random.uniform(
@@ -248,7 +252,8 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
     than just the XY-coordinate of the target end effector.
     """
 
-    def __init__(self, add_noop_action=True, reward_weights=None):
+    def __init__(self, add_noop_action=True, reward_weights=None,
+                 obs_scales=None):
         """
         :param add_noop_action: If True, add an extra no-op after every call to
         the simulator. The reason this is done is so that your current action
@@ -257,6 +262,7 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
         the reward.
         """
         self.add_noop_action = add_noop_action
+        self.obs_scales = np.array(obs_scales)
         utils.EzPickle.__init__(
             self,
             add_noop_action=add_noop_action,
@@ -282,11 +288,14 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
             size=(batch_size, 2)
         )
         velocities = 5 * np.random.rand(batch_size, 2)
-        return np.hstack([
+        obs = np.hstack([
             np.cos(theta),
             np.sin(theta),
             velocities
         ])
+        if self.obs_scales is not None:
+            obs *= self.obs_scales
+        return obs
 
     def compute_rewards(self, obs, action, next_obs, goal_states):
         difference = next_obs - goal_states
@@ -331,12 +340,13 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
 
 
 class FullStateVaryingWeightReacherEnv(GoalStateSimpleStateReacherEnv):
-    def __init__(self, add_noop_action=True):
+    def __init__(self, add_noop_action=True, obs_scales=None):
         """
         :param add_noop_action: See parent
         the reward.
         """
         self.add_noop_action = add_noop_action
+        self.obs_scales = np.array(obs_scales)
         utils.EzPickle.__init__(
             self,
             add_noop_action=add_noop_action,
