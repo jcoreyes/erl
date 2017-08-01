@@ -82,6 +82,9 @@ class ModelLearning(object):
 
         next_obs_pred = self.model(obs, actions)
         errors = (next_obs - next_obs_pred)**2
+        # delta = next_obs - obs
+        # delta_pred = self.model(obs, actions)
+        # errors = (delta - delta_pred)**2
         loss = errors.mean()
 
         return OrderedDict([
@@ -117,6 +120,10 @@ class ModelLearning(object):
             statistics['Validation Loss Mean']
             - statistics['Train Loss Mean']
         )
+        statistics['Errors Max Validation - Train Gap'] = (
+            statistics['Validation Errors Max']
+            - statistics['Train Errors Max']
+        )
         statistics['Epoch'] = epoch
         for key, value in statistics.items():
             logger.record_tabular(key, value)
@@ -138,6 +145,10 @@ class ModelLearning(object):
         ]:
             tensor = train_dict[name]
             data = ptu.get_numpy(tensor)
+            statistics.update(create_stats_ordered_dict(
+                '{} {}'.format(stat_prefix, name),
+                data,
+            ))
             for dim_i in range(data.shape[-1]):
                 statistics.update(create_stats_ordered_dict(
                     '{} {} Dim {}'.format(stat_prefix, name, dim_i),
