@@ -14,7 +14,7 @@ from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.multitask.reacher_env import (
     GoalStateSimpleStateReacherEnv,
-)
+    XyMultitaskSimpleStateReacherEnv)
 from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.launchers.launcher_util import (
@@ -117,16 +117,16 @@ if __name__ == '__main__':
 
     n_seeds = 1
     mode = "here"
-    exp_prefix = "sdqlr-no-regularization"
+    exp_prefix = "dev-sdqlr"
     run_mode = "none"
 
     # n_seeds = 3
     # mode = "ec2"
-    # exp_prefix = "sdqlr-sweep-lr-2"
-    # run_mode = 'grid'
+    # exp_prefix = "sdqlr-sweep-random"
+    # run_mode = 'random'
 
     version = "Dev"
-    num_configurations = 1  # for random mode
+    num_configurations = 50  # for random mode
     snapshot_mode = "gap"
     snapshot_gap = 5
     use_gpu = True
@@ -140,7 +140,7 @@ if __name__ == '__main__':
         dataset_path=str(dataset_path),
         algo_params=dict(
             num_epochs=101,
-            num_batches_per_epoch=2000,
+            num_batches_per_epoch=1000,
             use_soft_update=True,
             tau=1e-3,
             batch_size=1000,
@@ -153,7 +153,7 @@ if __name__ == '__main__':
             # qf_weight_decay=1e-3,
         ),
         qf_params=dict(
-            hidden_sizes=[400, 300, 200],
+            hidden_sizes=[100, 100],
             dropout=False,
         ),
         epoch_discount_schedule_class=RampUpSchedule,
@@ -162,15 +162,15 @@ if __name__ == '__main__':
             max_value=0.,
             ramp_duration=100,
         ),
-        env_class=GoalStateSimpleStateReacherEnv,
-        # env_class=XyMultitaskSimpleStateReacherEnv,
+        # env_class=GoalStateSimpleStateReacherEnv,
+        env_class=XyMultitaskSimpleStateReacherEnv,
         # env_class=FullStateVaryingWeightReacherEnv,
         env_params=dict(
             add_noop_action=False,
             # reward_weights=[1, 1, 1, 1, 0, 0],
         ),
         sampler_params=dict(
-            min_num_steps_to_collect=20000,
+            min_num_steps_to_collect=10000,
             max_path_length=1000,
             render=False,
         ),
@@ -178,11 +178,10 @@ if __name__ == '__main__':
     )
     if run_mode == 'grid':
         search_space = {
-            'algo_params.qf_learning_rate': [1e-2, 1e-3, 1e-4, 1e-5, 1e-6],
+            'algo_params.qf_learning_rate': [1e-2, 5e-3, 1e-5],
             'qf_params.hidden_sizes': [
                 [100, 100],
-                [400, 300],
-                [400, 300, 200],
+                [800, 600, 400],
             ],
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -238,8 +237,13 @@ if __name__ == '__main__':
         )
     if run_mode == 'random':
         hyperparameters = [
-            hyp.LinearFloatParam('foo', 0, 1),
-            hyp.LogFloatParam('bar', 1e-5, 1e2),
+            # hyp.EnumParam('qf_params.dropout', [True, False]),
+            hyp.EnumParam('qf_params.hidden_sizes', [
+                [100, 100],
+                [800, 600, 400],
+            ]),
+            hyp.LogFloatParam('algo_params.qf_learning_rate', 1e-5, 1e-2),
+            hyp.LogFloatParam('algo_params.qf_weight_decay', 1e-5, 1e-2),
         ]
         sweeper = hyp.RandomHyperparameterSweeper(
             hyperparameters,
