@@ -17,6 +17,10 @@ from torch.optim import Adam
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.multitask.multitask_env import MultitaskEnv
+from railrl.envs.multitask.reacher_env import (
+    XyMultitaskSimpleStateReacherEnv,
+    position_from_angles,
+)
 from railrl.pythonplusplus import line_logger
 
 
@@ -32,7 +36,9 @@ def check_qf(qf, replay_buffer: SplitReplayBuffer, env: MultitaskEnv):
     batch = replay_buffer.random_batch(1)
     state = to_var(batch['observations'])
     action = to_var(batch['actions'])
-    next_state_np = batch['next_observations']
+    target_goal_state_np = batch['next_observations']
+    if isinstance(env, XyMultitaskSimpleStateReacherEnv):
+        target_goal_state_np = position_from_angles(target_goal_state_np)
 
     best_goal_state = Variable(
         torch.zeros(1, env.goal_dim),
@@ -54,7 +60,7 @@ def check_qf(qf, replay_buffer: SplitReplayBuffer, env: MultitaskEnv):
 
         best_goal_state_np = ptu.get_numpy(best_goal_state)
 
-        difference = best_goal_state_np - next_state_np
+        difference = best_goal_state_np - target_goal_state_np
         loss = np.linalg.norm(difference)
         line_logger.print_over(
             "Distance to true next state:",
