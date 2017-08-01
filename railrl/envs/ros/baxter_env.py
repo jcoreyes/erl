@@ -437,7 +437,8 @@ class BaxterEnv(Env, Serializable):
                 or self.end_effector_experiment_total and not self.fixed_end_effector:
             self._randomize_desired_end_effector_pose()
 
-        self.safe_move_to_neutral()
+        # self.safe_move_to_neutral()
+        self.arm.move_to_neutral()
         return self._get_observation()
 
     def _randomize_desired_angles(self):
