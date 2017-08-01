@@ -187,7 +187,7 @@ if __name__ == "__main__":
 
     policy = SampleOptimalControlPolicy(
         qf,
-        constraint_weight=1,
+        constraint_weight=10000,
         sample_size=10000,
         goal_is_full_state=goal_is_full_state,
         verbose=args.verbose,
@@ -202,11 +202,12 @@ if __name__ == "__main__":
             c2 = goal[1:2]
             s1 = goal[2:3]
             s2 = goal[3:4]
-            print("Goal = ", goal)
-            print("angle 1 (degrees) = ", np.arctan2(s1, c1) / math.pi * 180)
-            print("angle 2 (degrees) = ", np.arctan2(s2, c2) / math.pi * 180)
-            print("angle 1 (radians) = ", np.arctan2(s1, c1))
-            print("angle 2 (radians) = ", np.arctan2(s2, c2))
+            if args.verbose:
+                print("Goal = ", goal)
+                print("angle 1 (degrees) = ", np.arctan2(s1, c1) / math.pi * 180)
+                print("angle 2 (degrees) = ", np.arctan2(s2, c2) / math.pi * 180)
+                print("angle 1 (radians) = ", np.arctan2(s1, c1))
+                print("angle 2 (radians) = ", np.arctan2(s2, c2))
             env.set_goal(goal)
             policy.set_goal(goal)
             path = rollout(
