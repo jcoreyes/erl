@@ -75,10 +75,10 @@ if __name__ == '__main__':
     exp_prefix = "dev-sdqlr"
     run_mode = "none"
 
-    # n_seeds = 3
-    # mode = "ec2"
-    # exp_prefix = "sdqlr-sample-discount"
-    # run_mode = 'random'
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "sdqlr-grid-sarch-lr-sampling-bn-scale-weightinit"
+    run_mode = 'grid'
 
     version = "Dev"
     num_configurations = 50  # for random mode
@@ -141,7 +141,7 @@ if __name__ == '__main__':
         search_space = {
             'algo_params.qf_learning_rate': [1e-2, 5e-3, 1e-5],
             'algo_params.sample_goals_from': ['replay_buffer', 'environment'],
-            'env_params.obs_scale': [
+            'env_params.obs_scales': [
                 [1, 1, 1, 1, 0.04, 0.01],
                 [1, 1, 1, 1, 1, 1],
             ],
@@ -166,7 +166,7 @@ if __name__ == '__main__':
                     exp_id=exp_id,
                     sync_s3_log=True,
                     sync_s3_pkl=True,
-                    periodic_sync_interval=3600,
+                    periodic_sync_interval=300,
                     snapshot_mode=snapshot_mode,
                     snapshot_gap=snapshot_gap,
                 )
@@ -229,7 +229,7 @@ if __name__ == '__main__':
                     exp_id=exp_id,
                     sync_s3_log=True,
                     sync_s3_pkl=True,
-                    periodic_sync_interval=3600,
+                    periodic_sync_interval=300,
                     snapshot_mode=snapshot_mode,
                     snapshot_gap=snapshot_gap,
                 )
@@ -246,7 +246,7 @@ if __name__ == '__main__':
                 use_gpu=use_gpu,
                 sync_s3_log=True,
                 sync_s3_pkl=True,
-                periodic_sync_interval=3600,
+                periodic_sync_interval=300,
                 snapshot_mode=snapshot_mode,
                 snapshot_gap=snapshot_gap,
             )
