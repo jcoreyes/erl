@@ -21,8 +21,9 @@ class SimpleGaussianStrategy(RawExplorationStrategy, Serializable):
         self._sigma = sigma
         self._action_space = action_space
 
-    def get_action(self, t, observation, policy, **kwargs):
-        action, agent_info = policy.get_action(observation)
-        return np.clip(action + np.random.normal(size=len(action))*self._sigma,
-                       self._action_space.low,
-                       self._action_space.high), agent_info
+    def get_action_from_raw_action(self, action, **kwargs):
+        return np.clip(
+            action + np.random.normal(size=len(action))*self._sigma,
+            self._action_space.low,
+            self._action_space.high,
+        )
