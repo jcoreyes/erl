@@ -11,6 +11,7 @@ from railrl.algos.state_distance.state_distance_q_learning import (
     StateDistanceQLearning,
 )
 from railrl.algos.state_distance.supervised_learning import SupervisedLearning
+from railrl.algos.state_distance.util import get_replay_buffer
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.multitask.reacher_env import (
@@ -33,47 +34,7 @@ from railrl.samplers.path_sampler import MultitaskPathSampler
 def experiment(variant):
     env_class = variant['env_class']
     env = env_class(**variant['env_params'])
-    if variant['generate_data']:
-        action_space = convert_gym_space(env.action_space)
-        es = GaussianStrategy(
-            action_space=action_space,
-            max_sigma=0.2,
-            min_sigma=0.2,
-        )
-        exploration_policy = ZeroPolicy(
-            int(action_space.flat_dim),
-        )
-        sampler_params = variant['sampler_params']
-        replay_buffer_size = (
-            sampler_params['min_num_steps_to_collect']
-            + sampler_params['max_path_length']
-        )
-        replay_buffer = SplitReplayBuffer(
-            EnvReplayBuffer(
-                replay_buffer_size,
-                env,
-                flatten=True,
-            ),
-            EnvReplayBuffer(
-                replay_buffer_size,
-                env,
-                flatten=True,
-            ),
-            fraction_paths_in_train=0.8,
-        )
-        sampler = MultitaskPathSampler(
-            env,
-            exploration_strategy=es,
-            exploration_policy=exploration_policy,
-            replay_buffer=replay_buffer,
-            **variant['sampler_params']
-        )
-        sampler.collect_data()
-        replay_buffer = sampler.replay_buffer
-    else:
-        dataset_path = variant['dataset_path']
-        with open(dataset_path, 'rb') as handle:
-            replay_buffer = pickle.load(handle)
+    replay_buffer = get_replay_buffer(variant)
 
     observation_space = convert_gym_space(env.observation_space)
     action_space = convert_gym_space(env.action_space)
