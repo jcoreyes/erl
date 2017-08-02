@@ -10,6 +10,7 @@ from railrl.algos.state_distance.state_distance_q_learning import (
     StateDistanceQLearning,
 )
 from railrl.algos.state_distance.util import get_replay_buffer
+from railrl.envs.multitask.pusher import MultitaskPusherEnv
 from railrl.envs.multitask.reacher_env import (
     GoalStateSimpleStateReacherEnv, XyMultitaskSimpleStateReacherEnv)
 from railrl.envs.wrappers import convert_gym_space
@@ -72,12 +73,12 @@ if __name__ == '__main__':
 
     n_seeds = 1
     mode = "here"
-    exp_prefix = "dev-sdqlr"
+    exp_prefix = "dev-sdqlp"
     run_mode = "none"
 
-    n_seeds = 5
-    mode = "ec2"
-    exp_prefix = "sdqlr-sample-discount-ramp-up-max-discount"
+    # n_seeds = 5
+    # mode = "ec2"
+    # exp_prefix = "sdqlr-sample-discount-ramp-up-max-discount"
     # run_mode = 'grid'
 
     version = "Dev"
@@ -102,8 +103,8 @@ if __name__ == '__main__':
             discount=0.,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-5,
-            # sample_goals_from='replay_buffer',
-            sample_goals_from='environment',
+            sample_goals_from='replay_buffer',
+            # sample_goals_from='environment',
             sample_discount=True,
             # qf_weight_decay=1e-3,
         ),
@@ -119,10 +120,11 @@ if __name__ == '__main__':
             ramp_duration=99,
         ),
         # env_class=GoalStateSimpleStateReacherEnv,
-        env_class=XyMultitaskSimpleStateReacherEnv,
+        # env_class=XyMultitaskSimpleStateReacherEnv,
+        env_class=MultitaskPusherEnv,
         env_params=dict(
-            add_noop_action=False,
-            obs_scales=[1, 1, 1, 1, 0.04, 0.01],
+            # add_noop_action=False,
+            # obs_scales=[1, 1, 1, 1, 0.04, 0.01],
             # reward_weights=[1, 1, 1, 1, 1, 0],
         ),
         sampler_params=dict(
