@@ -78,6 +78,8 @@ if __name__ == "__main__":
                         help='Max length of rollout')
     parser.add_argument('--num_rollouts', type=int, default=100,
                         help='Total number of rollout')
+    parser.add_argument('--discount', type=float, default=0.,
+                        help='Discount Factor')
     parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--hide', action='store_true')
     args = parser.parse_args()
@@ -106,7 +108,7 @@ if __name__ == "__main__":
                 env,
                 policy,
                 goal,
-                discount=0,
+                discount=args.discount,
                 max_path_length=args.H,
                 animated=not args.hide,
             )
