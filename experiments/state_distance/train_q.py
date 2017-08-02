@@ -75,10 +75,10 @@ if __name__ == '__main__':
     exp_prefix = "dev-sdqlr"
     run_mode = "none"
 
-    n_seeds = 3
+    n_seeds = 5
     mode = "ec2"
-    exp_prefix = "sdqlr-grid-sarch-lr-sampling-bn-scale-weightinit"
-    run_mode = 'grid'
+    exp_prefix = "sdqlr-sample-discount-ramp-up-max-discount"
+    # run_mode = 'grid'
 
     version = "Dev"
     num_configurations = 50  # for random mode
@@ -104,7 +104,7 @@ if __name__ == '__main__':
             policy_learning_rate=1e-5,
             # sample_goals_from='replay_buffer',
             sample_goals_from='environment',
-            sample_discount=False,
+            sample_discount=True,
             # qf_weight_decay=1e-3,
         ),
         qf_params=dict(
@@ -115,7 +115,7 @@ if __name__ == '__main__':
         epoch_discount_schedule_class=RampUpSchedule,
         epoch_discount_schedule_params=dict(
             min_value=0.,
-            max_value=0.,
+            max_value=0.99,
             ramp_duration=99,
         ),
         # env_class=GoalStateSimpleStateReacherEnv,
