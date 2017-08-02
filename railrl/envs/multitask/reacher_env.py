@@ -237,7 +237,7 @@ class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         for key, value in statistics.items():
             logger.record_tabular(key, value)
 
-    def convert_obs_to_goal_state(self, obs):
+    def convert_obs_to_goal_states(self, obs):
         return position_from_angles(obs)
 
     @property
@@ -337,7 +337,7 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
         print("angle 1 (degrees) = ", np.arctan2(s1, c1) / math.pi * 180)
         print("angle 2 (degrees) = ", np.arctan2(s2, c2) / math.pi * 180)
 
-    def convert_obs_to_goal_state(self, obs):
+    def convert_obs_to_goal_states(self, obs):
         return obs
 
     @property
@@ -406,7 +406,7 @@ class FullStateVaryingWeightReacherEnv(GoalStateSimpleStateReacherEnv):
         for key, value in statistics.items():
             logger.record_tabular(key, value)
 
-    def convert_obs_to_goal_state(self, obs):
+    def convert_obs_to_goal_states(self, obs):
         weights = self._sample_reward_weights(len(obs))
         return np.hstack((weights, obs))
 
