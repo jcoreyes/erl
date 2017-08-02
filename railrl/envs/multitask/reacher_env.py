@@ -144,7 +144,10 @@ class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         (torque) will affect your next position.
         """
         self.add_noop_action = add_noop_action
-        self.obs_scales = np.array(obs_scales)
+        if obs_scales is None:
+            self.obs_scales = None
+        else:
+            self.obs_scales = np.array(obs_scales)
         utils.EzPickle.__init__(self, add_noop_action=add_noop_action)
         mujoco_env.MujocoEnv.__init__(self, 'reacher.xml', 2)
         self._fixed_goal = None
