@@ -178,6 +178,8 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                 next_ob, raw_reward, terminal, env_info = (
                     self.training_env.step(action)
                 )
+                if self.env.terminate_experiment:
+                    return
                 n_steps_total += 1
                 reward = raw_reward * self.scale_reward
                 # path_return += reward

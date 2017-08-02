@@ -11,6 +11,7 @@ from railrl.misc.data_processing import create_stats_ordered_dict
 from collections import OrderedDict
 import ipdb
 from experiments.murtaza.ros.joint_space_impedance import PDController
+import datetime
 
 NUM_JOINTS = 7
 
@@ -97,7 +98,7 @@ END_EFFECTOR_VALUE_HIGH = {
 box_lows = [
     0.2628008448954529,
     -0.23786487626917794,
-    0.40084391863426093,
+    0.30084391863426093,
 ]
 
 box_highs = [
@@ -343,6 +344,10 @@ class SawyerEnv(Env, Serializable):
                 self._randomize_desired_end_effector_pose()
 
         self._observation_space = Box(lows, highs)
+        self.previous_torques = np.zeros(7)
+        self.terminate_episode = False
+        self.terminate_experiment = False
+
     @safe
     def _act(self, action):
         if self.safety_box:
@@ -358,26 +363,43 @@ class SawyerEnv(Env, Serializable):
                 else:
                     action = action + torques
 
+        if self.terminate_episode:
+            self.terminate()
+        np.clip(action, -10, 10, out=action)
         joint_to_values = dict(zip(self.arm_joint_names, action))
+        # a = datetime.datetime.now().replace(minute=0)
+        # torques_dict = self._get_joint_values['torque']()
+        # observed_torques = np.array([torques_dict[joint] for joint in self.arm_joint_names])
+        # print(observed_torques)
         self._set_joint_values(joint_to_values)
+        # b = datetime.datetime.now().replace(minute=0)
         torques_dict = self._get_joint_values['torque']()
         observed_torques = np.array([torques_dict[joint] for joint in self.arm_joint_names])
-        print(np.mean(observed_torques-action))
+        diffs = np.abs(self.previous_torques - observed_torques)
+        ERROR_THRESHOLD = 4*np.ones(7)
+        bool = (diffs < ERROR_THRESHOLD).all()
+        # print(bool)
+        self.previous_torques = observed_torques
+        # print(np.mean(observed_torques-action))
+        # print(b-a)
         self.rate.sleep()
 
     def is_in_correct_position(self):
         desired_neutral = np.array([
-            0.0018681640625,
-            -1.1778642578125,
-            -0.00246484375,
-            2.1776962890625,
-            0.0015673828125,
-            0.5689052734375,
-            3.31884765625
+            6.28094996e+00,
+            5.10171949e+00,
+            6.28086402e+00,
+            2.17755176e+00,
+            3.23339844e-03,
+            5.67240234e-01,
+            3.31391504e+00
         ])
+
         actual_neutral = self._joint_angles()
         errors = np.abs(desired_neutral - actual_neutral)
-        print(errors)
+        ERROR_THRESHOLD = 1.5*np.ones(7)
+        is_within_threshold = (errors < ERROR_THRESHOLD).all()
+        return is_within_threshold
 
     def _wrap_angles(self, angles):
         return angles % (2*np.pi)
@@ -450,7 +472,19 @@ class SawyerEnv(Env, Serializable):
         reward = reward_function(differences)
         done = False
         info = {}
+
+        self.safety_check()
         return observation, reward, done, info
+
+    def safety_check(self):
+        joint_dict = self.getRobotPoseAndJacobian()
+        self.check_joints_in_box(joint_dict)
+        if len(joint_dict) > 0:
+            for joint in joint_dict.keys():
+                dist = self.compute_distances_outside_box(joint_dict[joint][0])
+                if dist > .18:
+                    print(joint, dist)
+                    self.terminate_experiment = True
 
     def _get_observation(self):
         angles = self._get_joint_values['angle']()
@@ -467,7 +501,12 @@ class SawyerEnv(Env, Serializable):
         for _ in range(self.safe_reset_length):
             torques = self.PDController._update_forces()
             self._act(torques)
-        self.is_in_correct_position()
+            self.safety_check()
+            if self.terminate_experiment:
+                return
+        print(self.is_in_correct_position())
+        # if not self.is_in_correct_position():
+            # terminate_exp()
 
     def reset(self):
         """
@@ -482,6 +521,8 @@ class SawyerEnv(Env, Serializable):
                 or self.end_effector_experiment_total and not self.fixed_end_effector:
             self._randomize_desired_end_effector_pose()
         self.safe_move_to_neutral()
+        # self.arm.move_to_neutral()
+        self.terminate_episode = False
         return self._get_observation()
 
     def _randomize_desired_angles(self):

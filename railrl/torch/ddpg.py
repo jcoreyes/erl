@@ -158,6 +158,8 @@ class DDPG(OnlineAlgorithm):
         """
         logger.log("Collecting samples for evaluation")
         test_paths = self._sample_paths(epoch)
+        if self.env.terminate_experiment:
+            return
 
         statistics = OrderedDict()
         if not isinstance(self.epoch_discount_schedule, ConstantSchedule):
