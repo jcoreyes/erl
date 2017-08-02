@@ -55,13 +55,14 @@ if __name__ == "__main__":
     parser.add_argument('--H', type=int, default=100,
                         help='Max length of rollout')
     parser.add_argument('--num_rollouts', type=int, default=100,
-                        help='Total number of rollout')
+                        help='Number of rollouts per eval')
     parser.add_argument('--discount', type=float, default=0.,
                         help='Discount Factor')
     parser.add_argument('--grid', action='store_true')
     parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--load', action='store_true')
     parser.add_argument('--hide', action='store_true')
+    parser.add_argument('--verbose', action='store_true')
     args = parser.parse_args()
 
     data = joblib.load(args.file)
@@ -79,14 +80,15 @@ if __name__ == "__main__":
         policy.train(False)
     else:
         policy = SamplePolicy(qf, num_samples)
-    for _ in range(args.num_rollouts):
+    while True:
         paths = []
-        for _ in range(5):
+        for _ in range(args.num_rollouts):
             goals = env.sample_goal_states(1)
             goal = goals[0]
             if isinstance(env, FullStateVaryingWeightReacherEnv):
                 goal[:6] = np.array([1, 1, 1, 1, 0, 0])
-            env.print_goal_state_info(goal)
+            if args.verbose:
+                env.print_goal_state_info(goal)
             env.set_goal(goal)
             path = rollout(
                 env,

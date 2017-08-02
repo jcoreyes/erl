@@ -168,7 +168,7 @@ if __name__ == "__main__":
     parser.add_argument('--H', type=int, default=100,
                         help='Max length of rollout')
     parser.add_argument('--num_rollouts', type=int, default=100,
-                        help='Max length of rollout')
+                        help='Number of rollouts per eval')
     parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--hide', action='store_true')
     parser.add_argument('--verbose', action='store_true')
@@ -193,21 +193,13 @@ if __name__ == "__main__":
         verbose=args.verbose,
     )
     policy.set_discount(0)
-    for _ in range(args.num_rollouts):
+    while True:
         paths = []
-        for _ in range(5):
+        for _ in range(args.num_rollouts):
             goals = env.sample_goal_states(1)
             goal = goals[0]
-            c1 = goal[0:1]
-            c2 = goal[1:2]
-            s1 = goal[2:3]
-            s2 = goal[3:4]
             if args.verbose:
-                print("Goal = ", goal)
-                print("angle 1 (degrees) = ", np.arctan2(s1, c1) / math.pi * 180)
-                print("angle 2 (degrees) = ", np.arctan2(s2, c2) / math.pi * 180)
-                print("angle 1 (radians) = ", np.arctan2(s1, c1))
-                print("angle 2 (radians) = ", np.arctan2(s2, c2))
+                env.print_goal_state_info(goal)
             env.set_goal(goal)
             policy.set_goal(goal)
             path = rollout(
