@@ -265,7 +265,10 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
         the reward.
         """
         self.add_noop_action = add_noop_action
-        self.obs_scales = np.array(obs_scales)
+        if obs_scales is None:
+            self.obs_scales = None
+        else:
+            self.obs_scales = np.array(obs_scales)
         utils.EzPickle.__init__(
             self,
             add_noop_action=add_noop_action,
@@ -349,7 +352,10 @@ class FullStateVaryingWeightReacherEnv(GoalStateSimpleStateReacherEnv):
         the reward.
         """
         self.add_noop_action = add_noop_action
-        self.obs_scales = np.array(obs_scales)
+        if obs_scales is None:
+            self.obs_scales = None
+        else:
+            self.obs_scales = np.array(obs_scales)
         utils.EzPickle.__init__(
             self,
             add_noop_action=add_noop_action,
