@@ -13,7 +13,10 @@ from torch.autograd import Variable
 
 import railrl.torch.pytorch_util as ptu
 from railrl.algos.state_distance.state_distance_q_learning import rollout
-from railrl.envs.multitask.reacher_env import FullStateVaryingWeightReacherEnv
+from railrl.envs.multitask.reacher_env import (
+    XyMultitaskSimpleStateReacherEnv,
+    FullStateVaryingWeightReacherEnv,
+)
 from railrl.torch.pytorch_util import set_gpu_mode
 from rllab.misc import logger
 
@@ -86,6 +89,10 @@ if __name__ == "__main__":
 
     data = joblib.load(args.file)
     env = data['env']
+    if type(env) == XyMultitaskSimpleStateReacherEnv:
+        print("Cannot do this for XY-goal state")
+        print("Exiting...")
+        return
     qf = data['qf']
     if args.gpu:
         set_gpu_mode(True)
