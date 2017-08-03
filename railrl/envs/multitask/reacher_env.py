@@ -353,7 +353,7 @@ class FullStateWithXYStateReacherEnv(GoalStateSimpleStateReacherEnv):
             size=(batch_size, 2)
         )
         velocities = 5 * np.random.rand(batch_size, 2)
-        ee_pos = np.random.uniform(-.2, .2, (batch_size, 2))
+        ee_pos = position_from_angles(np.hstack([np.cos(theta), np.sin(theta)]))
         obs = np.hstack([
             np.cos(theta),
             np.sin(theta),
