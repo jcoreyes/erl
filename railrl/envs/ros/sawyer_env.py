@@ -11,6 +11,7 @@ from railrl.misc.data_processing import create_stats_ordered_dict
 from collections import OrderedDict
 import ipdb
 from experiments.murtaza.ros.joint_space_impedance import PDController
+from intera_core_msgs.msg import SEAJointState
 import datetime
 
 NUM_JOINTS = 7
@@ -346,8 +347,8 @@ class SawyerEnv(Env, Serializable):
         self._observation_space = Box(lows, highs)
         self.previous_torques = np.zeros(7)
         self.terminate_episode = False
-        self.terminate_experiment = False
-
+        self.train_eval_active = False
+        self.reset_active = False
     @safe
     def _act(self, action):
         if self.safety_box:
@@ -373,8 +374,7 @@ class SawyerEnv(Env, Serializable):
         # print(observed_torques)
         self._set_joint_values(joint_to_values)
         # b = datetime.datetime.now().replace(minute=0)
-        torques_dict = self._get_joint_values['torque']()
-        observed_torques = np.array([torques_dict[joint] for joint in self.arm_joint_names])
+        observed_torques = self.get_torques()
         diffs = np.abs(self.previous_torques - observed_torques)
         ERROR_THRESHOLD = 4*np.ones(7)
         bool = (diffs < ERROR_THRESHOLD).all()
@@ -382,24 +382,43 @@ class SawyerEnv(Env, Serializable):
         self.previous_torques = observed_torques
         # print(np.mean(observed_torques-action))
         # print(b-a)
+        self.high_torque_check(action)
+        self.unexpected_torque_check(observed_torques)
         self.rate.sleep()
 
     def is_in_correct_position(self):
         desired_neutral = np.array([
-            6.28094996e+00,
-            5.10171949e+00,
-            6.28086402e+00,
+            6.28115601e+00,
+            5.10141089e+00,
+            6.28014234e+00,
             2.17755176e+00,
-            3.23339844e-03,
-            5.67240234e-01,
-            3.31391504e+00
+            9.48242187e-04,
+            5.73669922e-01,
+            3.31514160e+00
         ])
-
         actual_neutral = self._joint_angles()
         errors = np.abs(desired_neutral - actual_neutral)
-        ERROR_THRESHOLD = 1.5*np.ones(7)
+        print(errors)
+        ERROR_THRESHOLD = 1*np.ones(7)
         is_within_threshold = (errors < ERROR_THRESHOLD).all()
         return is_within_threshold
+
+    def get_torques(self):
+        self._get_gravity_compensation_torques()
+        torques_dict = self._get_joint_values['torque']()
+        observed_torques = np.array([torques_dict[joint] for joint in self.arm_joint_names])
+        actual_torques = observed_torques - self.gravity_torques
+        return actual_torques
+
+    def gravity_torques_callback(self, data):
+        self.gravity_torques = data.actual_effort
+
+    def _get_gravity_compensation_torques(self):
+        rospy.Subscriber("robot/limb/right/gravity_compensation_torques", SEAJointState, self.gravity_torques_callback)
+        rospy.wait_for_message("robot/limb/right/gravity_compensation_torques", SEAJointState)
+
+    def torques_callback(self, data):
+        rospy.loginfo(data.data)
 
     def _wrap_angles(self, angles):
         return angles % (2*np.pi)
@@ -460,6 +479,8 @@ class SawyerEnv(Env, Serializable):
         """
         :param huber_deltas: a change joint angles
         """
+        self.terminate_episode = False
+        self.train_eval_active = True
         self._act(action)
         observation = self._get_observation()
         if self.joint_angle_experiment:
@@ -470,13 +491,14 @@ class SawyerEnv(Env, Serializable):
             differences = np.abs(current - self.desired)
         reward_function = self.reward_function
         reward = reward_function(differences)
-        done = False
+        done = self.terminate_episode
         info = {}
 
-        self.safety_check()
+        self.safety_check(True)
+        self.train_eval_active = False
         return observation, reward, done, info
 
-    def safety_check(self):
+    def safety_check(self, reset_on_error):
         joint_dict = self.getRobotPoseAndJacobian()
         self.check_joints_in_box(joint_dict)
         if len(joint_dict) > 0:
@@ -484,7 +506,46 @@ class SawyerEnv(Env, Serializable):
                 dist = self.compute_distances_outside_box(joint_dict[joint][0])
                 if dist > .18:
                     print(joint, dist)
-                    self.terminate_experiment = True
+                    if reset_on_error:
+                        print('safety_box_failure: ', joint)
+                        self.terminate()
+                    else:
+                        raise EnvironmentError('greater than .18 outside box')
+
+    def unexpected_torque_check(self, new_torques):
+        #we care about the torque that was applied to make sure it hasn't gone too high
+        self.moving_avg_torques = .9 * self.moving_avg_torques + .1 * new_torques
+        ERROR_THRESHOLD = np.ones(7)
+        is_peaks = (self.moving_avg_torques > ERROR_THRESHOLD).all()
+        if is_peaks and self.train_eval_active:
+            print(self.moving_avg_torques)
+            print('unexpected_torque_check')
+            self.terminate()
+        elif is_peaks and self.reset_active:
+            print(self.moving_avg_torques)
+            raise EnvironmentError('torque level peaked too high during reset: ', self.moving_avg_torques)
+
+        #if the new_torque is significantly greater than the previous one
+
+    def high_torque_check(self, new_torques):
+        #we care if about the torque that we are trying to apply
+        current_angles = self._joint_angles()
+        position_deltas = np.abs(current_angles - self.previous_angles) #self.previous_angles can be a moving average of the previous angles
+        DELTA_THRESHOLD = .5 * np.ones(7)
+        if self.train_eval_active and (np.abs(new_torques) > 1).any() and (position_deltas > DELTA_THRESHOLD).any():
+            print('high_torque_check')
+            print(position_deltas)
+            print(new_torques)
+            # self.terminate()
+
+        # elif self.reset_active and (np.abs(new_torques) > 5).any() and (position_deltas > DELTA_THRESHOLD).any():
+        #     print(current_angles)
+        #     print(position_deltas)
+        #     print(self.previous_angles)
+        #     raise EnvironmentError('ERROR: Applying large torques and not moving')
+        #TODO: make the position deltas based on actual positions of the joints not joint angles
+
+        self.previous_angles = .2 * self.previous_angles + .8 * self._joint_angles()
 
     def _get_observation(self):
         angles = self._get_joint_values['angle']()
@@ -501,10 +562,8 @@ class SawyerEnv(Env, Serializable):
         for _ in range(self.safe_reset_length):
             torques = self.PDController._update_forces()
             self._act(torques)
-            self.safety_check()
-            if self.terminate_experiment:
-                return
-        print(self.is_in_correct_position())
+            # self.safety_check(False)
+        # print(self.is_in_correct_position())
         # if not self.is_in_correct_position():
             # terminate_exp()
 
@@ -515,14 +574,20 @@ class SawyerEnv(Env, Serializable):
         -------
         observation : the initial observation of the space. (Initial reward is assumed to be 0.)
         """
+        self.reset_active = True
+        self.train_eval_active = False
+        self.previous_angles = self._joint_angles()
+        self.moving_avg_torques = self.get_torques()
         if self.joint_angle_experiment and not self.fixed_angle:
             self._randomize_desired_angles()
         elif self.end_effector_experiment_position \
                 or self.end_effector_experiment_total and not self.fixed_end_effector:
             self._randomize_desired_end_effector_pose()
         self.safe_move_to_neutral()
-        # self.arm.move_to_neutral()
         self.terminate_episode = False
+        self.reset_active = False
+        self.previous_angles = self._joint_angles()
+        self.moving_avg_torques = self.get_torques()
         return self._get_observation()
 
     def _randomize_desired_angles(self):
