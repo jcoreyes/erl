@@ -18,23 +18,20 @@ import seaborn
 def main():
     # matplotlib.rcParams.update({'font.size': 39})
     # base_dir = "/home/vitchyr/git/rllab-rail/railrl/data/papers/icml2017/watermaze/ablation"
-    base_dir = "/home/vitchyr/git/rllab-rail/railrl/data/papers/icml2017/watermaze/ablation2"
+    base_dir = "/home/vitchyr/git/rllab-rail/railrl/data/s3/08-03-generate-bellman-ablation-figure-data/"
     experiment = Experiment(base_dir)
 
     version_to_list_of_final_scores = OrderedDict()
     subtraj_lengths = [1, 5, 10, 15, 20, 25]
-    for do_not_load_memories, ignore_memories, name in [
-        [False, False, 'Our Method'],
-        [True, False, 'No Memory State Loaded'],
-        [False, True, 'No Memory State for Critic'],
-        [True, True, 'No Memory State (Truncated BPTT)'],
+    for write_policy_optimizes,  name in [
+        ['both', 'Both'],
+        ['bellman', 'Bellman'],
+        ['qf', 'Q Function'],
     ]:
         version_to_list_of_final_scores[name] = []
         for subtraj_length in subtraj_lengths:
             trials = experiment.get_trials({
-                'algo_params.do_not_load_initial_memories':
-                    do_not_load_memories,
-                'qf_params.ignore_memory': ignore_memories,
+                'algo_params.write_policy_optimizes': write_policy_optimizes,
                 'algo_params.subtraj_length': subtraj_length,
             })
             final_scores = np.array([t.data['AverageReturn'][-1] for t in
