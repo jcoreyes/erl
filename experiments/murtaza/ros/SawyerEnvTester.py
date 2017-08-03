@@ -16,12 +16,17 @@ experiments=[
 
 env = SawyerEnv('right', experiment=experiments[0])
 
-# env.reset()
-env.arm.move_to_neutral()
+env.reset()
+# env.arm.move_to_neutral()
 #
 # for _ in range(10):
 #     action = create_action(.1)
 #     env.step(action)
 
-while True:
-    env.safety_check()
+# while True:
+    # env.safety_check()
+    # print(env.get_torques())
+angles = env.arm.joint_angles()
+angles = np.array([angles['right_j0'], angles['right_j1'], angles['right_j2'], angles['right_j3'], angles['right_j4'], angles['right_j5'], angles['right_j6']])
+
+print(env._wrap_angles(angles))
