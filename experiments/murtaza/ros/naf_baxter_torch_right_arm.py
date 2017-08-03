@@ -51,7 +51,7 @@ def example(variant):
         naf_policy = NafPolicy(
             int(env.observation_space.flat_dim),
             int(env.action_space.flat_dim),
-            400,
+            100,
         )
         algorithm = NAF(
             env,
@@ -76,7 +76,7 @@ experiments=[
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="naf-baxter-right-arm-fixed-angle",
+        exp_prefix="naf-baxter-right-arm-varying-angle",
         seed=0,
         mode='here',
         variant={
@@ -88,7 +88,7 @@ if __name__ == "__main__":
             'safety_force_magnitude': 1,
             'temp': 1.2,
             'remove_action': False,
-            'experiment': experiments[0],
+            'experiment': experiments[1],
             'es_min_sigma': .1,
             'es_max_sigma': .1,
             'num_epochs': 30,

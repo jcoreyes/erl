@@ -156,7 +156,7 @@ class BaxterEnv(Env, Serializable):
         Serializable.quick_init(self, locals())
         rospy.init_node('baxter_env', anonymous=True)
         self.rate = rospy.Rate(update_hz)
-
+        self.terminate_experiment = False
         #defaults:
         self.joint_angle_experiment = False
         self.fixed_angle = False

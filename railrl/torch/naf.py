@@ -258,8 +258,8 @@ class NafPolicy(PyTorchModule):
     def forward(self, state, action):
         state = self.bn_state(state)
         x = state
-        x = torch.tanh(self.linear1(x))
-        x = torch.tanh(self.linear2(x))
+        x = F.relu(self.linear1(x))
+        x = F.relu(self.linear2(x))
 
         V = self.V(x)
         mu = torch.tanh(self.mu(x))

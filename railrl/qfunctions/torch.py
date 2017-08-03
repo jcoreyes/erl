@@ -60,6 +60,11 @@ class FeedForwardQFunction(PyTorchModule):
         h = torch.cat((h, action), dim=1)
         h = F.relu(self.embedded_fc(h))
         return self.output_activation(self.last_fc(h))
+        # v = #
+        # a = #
+        # a_average = compute_running_average(a)
+        # return v + a - a_average
+        # return self.output_activation(self.last_fc(h))
 
 
 class MemoryQFunction(PyTorchModule):
