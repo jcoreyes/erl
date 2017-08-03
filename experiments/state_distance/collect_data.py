@@ -7,6 +7,7 @@ from railrl.envs.multitask.reacher_env import (
     XyMultitaskSimpleStateReacherEnv,
 )
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
+from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 
 
@@ -34,10 +35,15 @@ if __name__ == '__main__':
         env_params=dict(
             # add_noop_action=False,
         ),
-        sampler_es_class=GaussianStrategy,
+        # sampler_es_class=GaussianStrategy,
+        # sampler_es_params=dict(
+        #     max_sigma=0.1,
+        #     min_sigma=0.1,
+        # ),
+        sampler_es_class=OUStrategy,
         sampler_es_params=dict(
-            max_sigma=0.1,
-            min_sigma=0.1,
+            max_sigma=0.3,
+            min_sigma=0.3,
         ),
         generate_data=True,
         replay_buffer_size=replay_buffer_size,
@@ -45,7 +51,7 @@ if __name__ == '__main__':
     # main(variant)
     run_experiment(
         main,
-        exp_prefix='pusher-100k',
+        exp_prefix='pusher-ou-sigma-0p3-100k',
         seed=0,
         mode='here',
         variant=variant,
