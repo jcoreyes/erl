@@ -1,6 +1,8 @@
 import argparse
 import random
 
+from gym.envs.mujoco import ReacherEnv, PusherEnv
+
 import railrl.torch.pytorch_util as ptu
 from railrl.algos.state_distance.model_learning import ModelLearning
 from railrl.algos.state_distance.util import get_replay_buffer
@@ -70,15 +72,16 @@ if __name__ == '__main__':
             num_batches_per_epoch=1000,
             num_unique_batches=1000,
             batch_size=100,
-            learning_rate=1e-4,
+            learning_rate=1e-3,
         ),
         model_params=dict(
             hidden_sizes=[400, 300],
         ),
-        env_class=GoalStateSimpleStateReacherEnv,
+        # env_class=GoalStateSimpleStateReacherEnv,
+        env_class=PusherEnv,
         # env_class=XyMultitaskSimpleStateReacherEnv,
         env_params=dict(
-            add_noop_action=False,
+            # add_noop_action=False,
         ),
         sampler_params=dict(
             min_num_steps_to_collect=20000,
@@ -87,8 +90,8 @@ if __name__ == '__main__':
         ),
         sampler_es_class=GaussianStrategy,
         sampler_es_params=dict(
-            max_sigma=0.1,
-            min_sigma=0.1,
+            max_sigma=0.2,
+            min_sigma=0.2,
         ),
         generate_data=args.replay_path is None,
     )
