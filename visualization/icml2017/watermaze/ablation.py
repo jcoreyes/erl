@@ -22,8 +22,7 @@ def main():
     experiment = Experiment(base_dir)
 
     version_to_list_of_final_scores = OrderedDict()
-    # subtraj_lengths = [1, 5, 10, 15, 20, 25]
-    subtraj_lengths = [1, 10, 20, 25]
+    subtraj_lengths = [1, 5, 10, 15, 20, 25]
     for do_not_load_memories, ignore_memories, name in [
         [False, False, 'Our Method'],
         [True, False, 'No Memory State Loaded'],
