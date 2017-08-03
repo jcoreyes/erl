@@ -11,7 +11,10 @@ from railrl.algos.state_distance.state_distance_q_learning import (
 )
 from railrl.algos.state_distance.util import get_replay_buffer
 from railrl.envs.multitask.reacher_env import (
-    GoalStateSimpleStateReacherEnv, XyMultitaskSimpleStateReacherEnv)
+    GoalStateSimpleStateReacherEnv,
+    XyMultitaskSimpleStateReacherEnv,
+    FullStateWithXYStateReacherEnv,
+)
 from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.launchers.launcher_util import (
@@ -75,9 +78,9 @@ if __name__ == '__main__':
     exp_prefix = "dev-sdqlr"
     run_mode = "none"
 
-    n_seeds = 5
-    mode = "ec2"
-    exp_prefix = "sdqlr-sample-discount-ramp-up-max-discount"
+    # n_seeds = 5
+    # mode = "ec2"
+    # exp_prefix = "sdqlr-sample-discount-ramp-up-max-discount"
     # run_mode = 'grid'
 
     version = "Dev"
@@ -110,19 +113,20 @@ if __name__ == '__main__':
         qf_params=dict(
             hidden_sizes=[100, 100],
             dropout=False,
-            w_weight_generator=ptu.almost_identity_weights_like,
+            # w_weight_generator=ptu.almost_identity_weights_like,
         ),
         epoch_discount_schedule_class=RampUpSchedule,
         epoch_discount_schedule_params=dict(
             min_value=0.,
-            max_value=0.99,
+            max_value=0.,
             ramp_duration=99,
         ),
         # env_class=GoalStateSimpleStateReacherEnv,
-        env_class=XyMultitaskSimpleStateReacherEnv,
+        # env_class=XyMultitaskSimpleStateReacherEnv,
+        env_class=FullStateWithXYStateReacherEnv,
         env_params=dict(
             add_noop_action=False,
-            obs_scales=[1, 1, 1, 1, 0.04, 0.01],
+            # obs_scales=[1, 1, 1, 1, 0.04, 0.01],
             # reward_weights=[1, 1, 1, 1, 1, 0],
         ),
         sampler_params=dict(

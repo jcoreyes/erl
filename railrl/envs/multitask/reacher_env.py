@@ -345,6 +345,41 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
         return 6
 
 
+class FullStateWithXYStateReacherEnv(GoalStateSimpleStateReacherEnv):
+    def sample_goal_states(self, batch_size):
+        theta = self.np_random.uniform(
+            low=-math.pi,
+            high=math.pi,
+            size=(batch_size, 2)
+        )
+        velocities = 5 * np.random.rand(batch_size, 2)
+        ee_pos = np.random.uniform(-.2, .2, (batch_size, 2))
+        obs = np.hstack([
+            np.cos(theta),
+            np.sin(theta),
+            velocities,
+            ee_pos
+        ])
+        if self.obs_scales is not None:
+            obs *= self.obs_scales
+        return obs
+
+    def _get_obs(self):
+        theta = self.model.data.qpos.flat[:2]
+        obs = np.concatenate([
+            np.cos(theta),
+            np.sin(theta),
+            self.model.data.qvel.flat[:2],
+            self.model.data.qpos.flat[:2],
+        ])
+        if self.obs_scales is not None:
+            obs *= self.obs_scales
+        return obs
+
+    @property
+    def goal_dim(self):
+        return 8
+
 class FullStateVaryingWeightReacherEnv(GoalStateSimpleStateReacherEnv):
     def __init__(self, add_noop_action=True, obs_scales=None):
         """
