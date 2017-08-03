@@ -10,6 +10,7 @@ from railrl.algos.state_distance.state_distance_q_learning import (
     StateDistanceQLearning,
 )
 from railrl.algos.state_distance.util import get_replay_buffer
+from railrl.envs.multitask.pusher import MultitaskPusherEnv
 from railrl.envs.multitask.reacher_env import (
     GoalStateSimpleStateReacherEnv,
     XyMultitaskSimpleStateReacherEnv,
@@ -75,7 +76,7 @@ if __name__ == '__main__':
 
     n_seeds = 1
     mode = "here"
-    exp_prefix = "dev-sdqlr"
+    exp_prefix = "dev-sdqlp"
     run_mode = "none"
 
     # n_seeds = 5
@@ -105,8 +106,8 @@ if __name__ == '__main__':
             discount=0.,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-5,
-            # sample_goals_from='replay_buffer',
-            sample_goals_from='environment',
+            sample_goals_from='replay_buffer',
+            # sample_goals_from='environment',
             sample_discount=True,
             # qf_weight_decay=1e-3,
         ),

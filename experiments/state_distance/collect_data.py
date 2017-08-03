@@ -1,10 +1,13 @@
 import argparse
 
+from gym.envs.mujoco import PusherEnv
+
 from railrl.algos.state_distance.util import get_replay_buffer
 from railrl.envs.multitask.reacher_env import (
     XyMultitaskSimpleStateReacherEnv,
 )
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
+from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 
 
@@ -16,7 +19,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--render', action='store_true')
     args = parser.parse_args()
-    min_num_steps_to_collect = 10000
+    min_num_steps_to_collect = 100000
     max_path_length = 1000
     replay_buffer_size = min_num_steps_to_collect + max_path_length
 
@@ -27,14 +30,20 @@ if __name__ == '__main__':
             max_path_length=max_path_length,
             render=args.render,
         ),
-        env_class=XyMultitaskSimpleStateReacherEnv,
+        # env_class=XyMultitaskSimpleStateReacherEnv,
+        env_class=PusherEnv,
         env_params=dict(
-            add_noop_action=False,
+            # add_noop_action=False,
         ),
-        sampler_es_class=GaussianStrategy,
+        # sampler_es_class=GaussianStrategy,
+        # sampler_es_params=dict(
+        #     max_sigma=0.1,
+        #     min_sigma=0.1,
+        # ),
+        sampler_es_class=OUStrategy,
         sampler_es_params=dict(
-            max_sigma=0.1,
-            min_sigma=0.1,
+            max_sigma=0.3,
+            min_sigma=0.3,
         ),
         generate_data=True,
         replay_buffer_size=replay_buffer_size,
@@ -42,7 +51,7 @@ if __name__ == '__main__':
     # main(variant)
     run_experiment(
         main,
-        exp_prefix='dev-uniform-10k',
+        exp_prefix='pusher-ou-sigma-0p3-100k',
         seed=0,
         mode='here',
         variant=variant,

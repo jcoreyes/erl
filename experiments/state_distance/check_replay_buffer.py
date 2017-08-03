@@ -2,6 +2,7 @@
 Plot histogram of the actions, observations, computed rewards, and whatever
 else I might find useful in a replay buffer.
 """
+from itertools import chain
 import joblib
 
 import argparse
@@ -35,9 +36,14 @@ def main(dataset_path, only_load_buffer=False):
 
     obs = train_replay_buffer._observations[:train_replay_buffer._size, :]
     num_features = obs.shape[-1]
-    fig, axes = plt.subplots(num_features)
+    if num_features > 8:
+        fig, axes = plt.subplots((num_features+1)//2, 2)
+        ax_iter = chain(*axes)
+    else:
+        fig, axes = plt.subplots(num_features)
+        ax_iter = chain(axes)
     for i in range(num_features):
-        ax = axes[i]
+        ax = next(ax_iter)
         diff = obs[:-1, i] - obs[1:, i]
         diff = diff[train_replay_buffer._final_state[:train_replay_buffer._size-1] == 0]
         ax.hist(diff)
@@ -56,11 +62,18 @@ def main(dataset_path, only_load_buffer=False):
 
     obs = train_replay_buffer._observations
     num_features = obs.shape[-1]
-    fig, axes = plt.subplots(num_features)
+    if num_features > 8:
+        fig, axes = plt.subplots((num_features+1)//2, 2)
+        ax_iter = chain(*axes)
+    else:
+        fig, axes = plt.subplots(num_features)
+        ax_iter = chain(axes)
+    print("(Min, max) obs")
     for i in range(num_features):
-        ax = axes[i]
+        ax = next(ax_iter)
         x = obs[:train_replay_buffer._size, i]
         ax.hist(x)
+        print((min(x), max(x)), ",")
         ax.set_title("observations, dim #{}".format(i+1))
     plt.show()
 
