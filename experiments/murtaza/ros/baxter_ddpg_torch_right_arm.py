@@ -32,6 +32,7 @@ def example(variant):
         num_epochs = variant['num_epochs']
         batch_size = variant['batch_size']
         use_gpu = variant['use_gpu']
+        include_torque_penalty = variant['include_torque_penalty']
 
         env = BaxterEnv(
             experiment=experiment,
@@ -42,6 +43,7 @@ def example(variant):
             safety_force_magnitude=safety_force_magnitude,
             temp=temp,
             huber_delta=huber_delta,
+            include_torque_penalty=include_torque_penalty
         )
         es = OUStrategy(
             max_sigma=es_max_sigma,
@@ -84,13 +86,13 @@ experiments=[
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="7-31-ddpg-baxter-right-arm-load-algorithm-test",
+        exp_prefix="ddpg-baxter-right-arm-torque-penalty-test",
         seed=0,
         mode='here',
         variant={
                 'version': 'Original',
                 'arm_name':'right',
-                'safety_box':True,
+                'safety_box':False,
                 'loss':'huber',
                 'huber_delta':10,
                 'safety_force_magnitude':1,
@@ -102,6 +104,7 @@ if __name__ == "__main__":
                 'num_epochs':30,
                 'batch_size':1024,
                 'use_gpu':True,
+                'include_torque_penalty': True,
                 # 'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-25-ddpg-baxter-right-arm-fixed-angle-random-reset/7-25-ddpg-baxter-right-arm-fixed-angle-random-reset_2017_07_25_13_07_16_0000--s-0/params.pkl'
                 },
         use_gpu=True,

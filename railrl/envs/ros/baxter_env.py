@@ -151,6 +151,7 @@ class BaxterEnv(Env, Serializable):
             temp=1.05,
             gpu=True,
             safe_reset_length=30,
+            include_torque_penalty=False,
     ):
 
         Serializable.quick_init(self, locals())
@@ -163,8 +164,6 @@ class BaxterEnv(Env, Serializable):
         self.end_effector_experiment_position = False
         self.end_effector_experiment_total = False
         self.fixed_end_effector = False
-        self.safety_box = False
-
 
         if experiment == experiments[0]:
             self.joint_angle_experiment=True
@@ -187,6 +186,7 @@ class BaxterEnv(Env, Serializable):
         self.arm_name = arm_name
         self.gpu = gpu
         self.safe_reset_length = safe_reset_length
+        self.include_torque_penalty = include_torque_penalty
 
         if loss == 'MSE':
             self.reward_function = self._MSE_reward
@@ -404,6 +404,9 @@ class BaxterEnv(Env, Serializable):
             differences = np.abs(current - self.desired)
         reward_function = self.reward_function
         reward = reward_function(differences)
+        if self.include_torque_penalty:
+            self.penalty_lambda = 5
+            reward -= self.penalty_lambda * np.linalg.norm(action)
         done = False
         info = {}
         return observation, reward, done, info

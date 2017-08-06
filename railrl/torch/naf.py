@@ -3,7 +3,7 @@ from collections import OrderedDict
 import numpy as np
 import torch
 import torch.optim as optim
-import torch.functional as F
+from torch.nn import functional as F
 from torch import nn as nn
 from torch.autograd import Variable
 

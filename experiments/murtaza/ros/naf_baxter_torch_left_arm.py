@@ -54,7 +54,7 @@ def example(variant):
         naf_policy = NafPolicy(
             int(env.observation_space.flat_dim),
             int(env.action_space.flat_dim),
-            400,
+            100,
         )
         algorithm = NAF(
             env,
@@ -79,13 +79,13 @@ experiments=[
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="naf-baxter-left-arm-fixed-angle",
+        exp_prefix="naf-baxter-left-arm-fixed-angle-smaller-network-with-relu",
         seed=0,
         mode='here',
         variant={
             'version': 'Original',
             'arm_name': 'left',
-            'safety_box': True,
+            'safety_box': False,
             'loss': 'huber',
             'huber_delta': .8,
             'safety_force_magnitude': 1,
