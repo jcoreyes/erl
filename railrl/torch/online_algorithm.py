@@ -143,7 +143,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         self.exploration_policy.reset()
         return self.training_env.reset()
 
-    def train(self):
+    def train(self, start_epoch=0):
         n_steps_total = 0
         observations = []
         actions = []
@@ -159,7 +159,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         old_table_keys = None
         params = self.get_epoch_snapshot(-1)
         logger.save_itr_params(-1, params)
-        for epoch in range(self.num_epochs):
+        for epoch in range(start_epoch, self.num_epochs):
             self.discount = self.epoch_discount_schedule.get_value(epoch)
             logger.push_prefix('Iteration #%d | ' % epoch)
             start_time = time.time()

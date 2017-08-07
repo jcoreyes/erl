@@ -1,12 +1,15 @@
-from railrl.launchers.launcher_util import run_experiment
-from railrl.policies.torch import FeedForwardPolicy
-from railrl.qfunctions.torch import FeedForwardQFunction
-from railrl.torch.ddpg import DDPG
-from os.path import exists
-from railrl.envs.ros.baxter_env import BaxterEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
+from railrl.launchers.launcher_util import run_experiment
+from railrl.torch.naf import NAF, NafPolicy
+
+from railrl.envs.env_utils import gym_env
+from rllab.envs.normalized_env import normalize
 from railrl.torch import pytorch_util as ptu
+from os.path import exists
 import joblib
+from railrl.envs.ros.baxter_env import BaxterEnv
+from railrl.torch import pytorch_util as ptu
+
 
 def example(variant):
     load_policy_file = variant.get('load_policy_file', None)
@@ -22,7 +25,7 @@ def example(variant):
         arm_name = variant['arm_name']
         experiment = variant['experiment']
         loss = variant['loss']
-        huber_delta= variant['huber_delta']
+        huber_delta = variant['huber_delta']
         safety_box = variant['safety_box']
         remove_action = variant['remove_action']
         safety_force_magnitude = variant['safety_force_magnitude']
@@ -48,22 +51,14 @@ def example(variant):
             min_sigma=es_min_sigma,
             action_space=env.action_space,
         )
-        qf = FeedForwardQFunction(
+        naf_policy = NafPolicy(
             int(env.observation_space.flat_dim),
             int(env.action_space.flat_dim),
-            100,
-            100,
+            400,
         )
-        policy = FeedForwardPolicy(
-            int(env.observation_space.flat_dim),
-            int(env.action_space.flat_dim),
-            100,
-            100,
-        )
-        algorithm = DDPG(
+        algorithm = NAF(
             env,
-            qf,
-            policy,
+            naf_policy,
             es,
             num_epochs=num_epochs,
             batch_size=batch_size,
@@ -73,36 +68,35 @@ def example(variant):
         algorithm.train()
 
 experiments=[
-    'joint_angle|fixed_angle', 
-    'joint_angle|varying_angle', 
-    'end_effector_position|fixed_ee', 
-    'end_effector_position|varying_ee', 
-    'end_effector_position_orientation|fixed_ee', 
+    'joint_angle|fixed_angle',
+    'joint_angle|varying_angle',
+    'end_effector_position|fixed_ee',
+    'end_effector_position|varying_ee',
+    'end_effector_position_orientation|fixed_ee',
     'end_effector_position_orientation|varying_ee'
 ]
 
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="7-31-ddpg-baxter-right-arm-load-algorithm-test",
+        exp_prefix="naf-baxter-right-arm-fixed-angle",
         seed=0,
         mode='here',
         variant={
-                'version': 'Original',
-                'arm_name':'right',
-                'safety_box':True,
-                'loss':'huber',
-                'huber_delta':10,
-                'safety_force_magnitude':1,
-                'temp':1.2,
-                'remove_action':False,
-                'experiment':experiments[0],
-                'es_min_sigma':.1,
-                'es_max_sigma':.1,
-                'num_epochs':30,
-                'batch_size':1024,
-                'use_gpu':True,
-                # 'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-25-ddpg-baxter-right-arm-fixed-angle-random-reset/7-25-ddpg-baxter-right-arm-fixed-angle-random-reset_2017_07_25_13_07_16_0000--s-0/params.pkl'
-                },
+            'version': 'Original',
+            'arm_name': 'right',
+            'safety_box': True,
+            'loss': 'huber',
+            'huber_delta': .8,
+            'safety_force_magnitude': 1,
+            'temp': 1.2,
+            'remove_action': False,
+            'experiment': experiments[0],
+            'es_min_sigma': .1,
+            'es_max_sigma': .1,
+            'num_epochs': 30,
+            'batch_size': 1024,
+            'use_gpu': True,
+        },
         use_gpu=True,
     )

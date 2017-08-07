@@ -20,28 +20,36 @@ class NAF(OnlineAlgorithm):
     def __init__(
             self,
             env,
-            qf,
-            qf_learning_rate=1e-3,
+            naf_policy,
+            exploration_strategy,
+            exploration_policy=None,
+            naf_policy_learning_rate=1e-3,
             target_hard_update_period=1000,
             tau=0.001,
             use_soft_update=False,
             **kwargs
     ):
-        super().__init__(env, **kwargs)
-        self.qf = qf
-        self.policy = self.qf
-        self.qf_learning_rate = qf_learning_rate
-        self.target_qf = self.qf.copy()
+        if exploration_policy is None:
+            exploration_policy = naf_policy
+        super().__init__(
+            env,
+            exploration_policy,
+            exploration_strategy,
+            **kwargs
+        )
+        self.naf_policy = naf_policy
+        self.naf_policy_learning_rate = naf_policy_learning_rate
+        self.target_naf_policy = self.naf_policy.copy()
         self.target_hard_update_period = target_hard_update_period
         self.tau = tau
         self.use_soft_update = use_soft_update
 
-        self.qf_criterion = nn.MSELoss()
-        self.qf_optimizer = optim.Adam(self.qf.parameters(),
-                                       lr=self.qf_learning_rate)
-        if ptu.gpu_enabled():
-            self.qf.cuda()
-            self.target_qf.cuda()
+        self.naf_policy_criterion = nn.MSELoss()
+        self.naf_policy_optimizer = optim.Adam(self.naf_policy.parameters(),
+                                       lr=self.naf_policy_learning_rate)
+    def cuda(self):
+        self.naf_policy.cuda()
+        self.target_naf_policy.cuda()
 
     def _do_training(self, n_steps_total):
         batch = self.get_batch()
@@ -55,29 +63,29 @@ class NAF(OnlineAlgorithm):
         Optimize Critic.
         """
         # Generate y target using target policies
-        _, _, v_pred = self.target_qf(next_obs, None)
+        _, _, v_pred = self.target_naf_policy(next_obs, None)
         y_target = rewards + (1. - terminals) * self.discount * v_pred
         # noinspection PyUnresolvedReferences
         y_target = y_target.detach()
-        _, y_pred, _ = self.qf(obs, actions)
-        qf_loss = self.qf_criterion(y_pred, y_target)
+        _, y_pred, _ = self.naf_policy(obs, actions)
+        naf_policy_loss = self.naf_policy_criterion(y_pred, y_target)
 
-        self.qf_optimizer.zero_grad()
-        qf_loss.backward()
-        self.qf_optimizer.step()
+        self.naf_policy_optimizer.zero_grad()
+        naf_policy_loss.backward()
+        self.naf_policy_optimizer.step()
 
         """
         Update Target Networks
         """
         if self.use_soft_update:
-            ptu.soft_update_from_to(self.target_qf, self.qf, self.tau)
+            ptu.soft_update_from_to(self.target_naf_policy, self.naf_policy, self.tau)
         else:
             if n_steps_total % self.target_hard_update_period == 0:
-                ptu.copy_model_params_from_to(self.qf, self.target_qf)
+                ptu.copy_model_params_from_to(self.naf_policy, self.target_naf_policy)
 
     def training_mode(self, mode):
-        self.qf.train(mode)
-        self.target_qf.train(mode)
+        self.naf_policy.train(mode)
+        self.target_naf_policy.train(mode)
 
     def evaluate(self, epoch, exploration_paths):
         """
@@ -87,20 +95,21 @@ class NAF(OnlineAlgorithm):
         :param exploration_paths: List of dicts, each representing a path.
         """
         logger.log("Collecting samples for evaluation")
-        paths = self._sample_paths(epoch)
+        test_paths = self._sample_paths(epoch)
         statistics = OrderedDict()
 
         statistics.update(self._statistics_from_paths(exploration_paths,
                                                       "Exploration"))
-        statistics.update(self._statistics_from_paths(paths, "Test"))
+        statistics.update(self._statistics_from_paths(test_paths, "Test"))
 
-        statistics['AverageReturn'] = get_average_returns(paths)
+        statistics['AverageReturn'] = get_average_returns(test_paths)
         statistics['Epoch'] = epoch
 
         for key, value in statistics.items():
             logger.record_tabular(key, value)
 
-        self.log_diagnostics(paths)
+        self.log_diagnostics(test_paths)
+
 
     def get_batch(self):
         batch = self.replay_buffer.random_batch(self.batch_size)
@@ -146,9 +155,31 @@ class NAF(OnlineAlgorithm):
         return dict(
             epoch=epoch,
             env=self.training_env,
-            qf=self.qf,
-            policy=self.policy,
+            naf_policy=self.naf_policy,
+            replay_buffer=self.replay_buffer,
+            algorithm=self,
         )
+
+def get_generic_path_information(paths, discount, stat_prefix):
+    """
+    Get an OrderedDict with a bunch of statistic names and values.
+    """
+    statistics = OrderedDict()
+    returns = [sum(path["rewards"]) for path in paths]
+
+    discounted_returns = [
+        special.discount_return(path["rewards"], discount)
+        for path in paths
+    ]
+    rewards = np.hstack([path["rewards"] for path in paths])
+
+    statistics.update(create_stats_ordered_dict('Rewards', rewards, stat_prefix=stat_prefix))
+    statistics.update(create_stats_ordered_dict('Returns', returns, stat_prefix=stat_prefix))
+    statistics.update(create_stats_ordered_dict('DiscountedReturns', discounted_returns, stat_prefix=stat_prefix))
+    actions = np.vstack([path["actions"] for path in paths])
+    statistics.update(create_stats_ordered_dict('Actions', actions, stat_prefix=stat_prefix))
+
+    return statistics
 
 
 # class NormalizedAdvantageFunction(PyTorchModule):
