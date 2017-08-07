@@ -9,7 +9,10 @@ from railrl.algos.state_distance.state_distance_q_learning import (
     rollout_with_goal,
     rollout,
 )
-from railrl.envs.multitask.reacher_env import FullStateVaryingWeightReacherEnv
+from railrl.envs.multitask.reacher_env import (
+    FullStateVaryingWeightReacherEnv,
+    FullStateWithXYStateReacherEnv,
+)
 # from railrl.samplers.util import rollout
 from railrl.torch.pytorch_util import set_gpu_mode
 from rllab.misc import logger
@@ -87,6 +90,8 @@ if __name__ == "__main__":
             goal = goals[0]
             if isinstance(env, FullStateVaryingWeightReacherEnv):
                 goal[:6] = np.array([1, 1, 1, 1, 0, 0])
+            if isinstance(env, FullStateWithXYStateReacherEnv):
+                goal[4:6] = 0
             if args.verbose:
                 env.print_goal_state_info(goal)
             env.set_goal(goal)

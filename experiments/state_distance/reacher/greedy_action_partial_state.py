@@ -54,7 +54,7 @@ class SamplePolicyFixedJoints(object):
             self.num_samples,
             axis=0
         )
-        goals[:, -2:] = sampled_velocities
+        goals[:, 4:6] = sampled_velocities
         goals = Variable(
             ptu.from_numpy(goals).float(),
             requires_grad=False,

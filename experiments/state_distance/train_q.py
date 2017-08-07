@@ -76,13 +76,13 @@ if __name__ == '__main__':
 
     n_seeds = 1
     mode = "here"
-    exp_prefix = "dev-sdqlp"
+    exp_prefix = "dev-sdqlr-gamma0p99"
     run_mode = "none"
 
-    # n_seeds = 5
-    # mode = "ec2"
-    # exp_prefix = "sdqlr-sample-discount-ramp-up-max-discount"
-    # run_mode = 'grid'
+    n_seeds = 5
+    mode = "ec2"
+    exp_prefix = "sdqlr-discount0p99-full-with-xy"
+    run_mode = 'grid'
 
     version = "Dev"
     num_configurations = 50  # for random mode
@@ -99,7 +99,7 @@ if __name__ == '__main__':
         dataset_path=str(dataset_path),
         algo_params=dict(
             num_epochs=101,
-            num_batches_per_epoch=1000,
+            num_batches_per_epoch=10000,
             use_soft_update=True,
             tau=1e-3,
             batch_size=1000,
@@ -108,18 +108,18 @@ if __name__ == '__main__':
             policy_learning_rate=1e-5,
             sample_goals_from='replay_buffer',
             # sample_goals_from='environment',
-            sample_discount=True,
+            sample_discount=False,
             # qf_weight_decay=1e-3,
         ),
         qf_params=dict(
-            hidden_sizes=[100, 100],
+            hidden_sizes=[400, 300],
             dropout=False,
             # w_weight_generator=ptu.almost_identity_weights_like,
         ),
         epoch_discount_schedule_class=RampUpSchedule,
         epoch_discount_schedule_params=dict(
-            min_value=0.,
-            max_value=0.,
+            min_value=0.99,
+            max_value=0.99,
             ramp_duration=99,
         ),
         # env_class=GoalStateSimpleStateReacherEnv,
@@ -144,17 +144,17 @@ if __name__ == '__main__':
     )
     if run_mode == 'grid':
         search_space = {
-            'algo_params.qf_learning_rate': [1e-2, 5e-3, 1e-5],
+            'algo_params.qf_learning_rate': [1e-2, 1e-3, 1e-4],
             'algo_params.sample_goals_from': ['replay_buffer', 'environment'],
-            'env_params.obs_scales': [
-                [1, 1, 1, 1, 0.04, 0.01],
-                [1, 1, 1, 1, 1, 1],
-            ],
-            'qf_params.bn_input': [True, False],
-            'qf_params.w_weight_generator': [
-                ptu.fanin_init_weights_like,
-                ptu.almost_identity_weights_like,
-            ],
+            # 'env_params.obs_scales': [
+            #     [1, 1, 1, 1, 0.04, 0.01],
+            #     [1, 1, 1, 1, 1, 1],
+            # ],
+            # 'qf_params.bn_input': [True, False],
+            # 'qf_params.w_weight_generator': [
+            #     ptu.fanin_init_weights_like,
+            #     ptu.almost_identity_weights_like,
+            # ],
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
             search_space, default_parameters=variant,
