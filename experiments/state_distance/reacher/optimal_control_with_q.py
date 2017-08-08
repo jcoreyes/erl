@@ -208,7 +208,6 @@ if __name__ == "__main__":
                 max_path_length=args.H,
                 animated=not args.hide,
             )
-            path['goal_states'] = goals.repeat(len(path['observations']), 0)
             paths.append(path)
         env.log_diagnostics(paths)
         logger.dump_tabular()
