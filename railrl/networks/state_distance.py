@@ -71,8 +71,8 @@ class UniversalQfunction(PyTorchModule):
             h = self.obs_dropout(h)
         h = torch.cat((h, action), dim=1)
         h = self.hidden_activation(self.embed_fc(h))
-        for i, fc in enumerate(self.fcs):
-            h = self.hidden_activation(fc(h))
+        if self.dropout:
+            h = self.embed_dropout(h)
         return self.output_activation(self.last_fc(h))
 
 
