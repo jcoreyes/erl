@@ -84,7 +84,7 @@ experiments=[
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="ddpg-sawyer-test",
+        exp_prefix="ddpg-sawyer-fixed-angle",
         seed=0,
         mode='here',
         variant={
