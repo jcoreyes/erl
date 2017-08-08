@@ -19,6 +19,7 @@ from railrl.envs.multitask.reacher_env import (
 )
 from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
+from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import (
     create_log_dir,
     create_run_experiment_multiple_seeds,
@@ -47,8 +48,7 @@ def experiment(variant):
         int(observation_space.flat_dim),
         int(action_space.flat_dim),
         env.goal_dim,
-        400,
-        300,
+        **variant['policy_params'],
     )
     epoch_discount_schedule = None
     epoch_discount_schedule_class = variant['epoch_discount_schedule_class']
@@ -85,9 +85,9 @@ if __name__ == '__main__':
     exp_prefix = "dev-sdqlr"
     run_mode = "none"
 
-    # n_seeds = 5
-    # mode = "ec2"
-    # exp_prefix = "sdqlr-discount0p99-full-with-xy"
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "sdqlr-shane-settings-no-control-cost"
     # run_mode = 'grid'
 
     version = "Dev"
@@ -105,23 +105,27 @@ if __name__ == '__main__':
         dataset_path=str(dataset_path),
         algo_params=dict(
             num_epochs=101,
-            num_batches_per_epoch=100,
+            num_batches_per_epoch=1000,
             use_soft_update=True,
-            tau=1e-3,
-            batch_size=1000,
+            tau=0.001,
+            batch_size=100,
             discount=0.,
             qf_learning_rate=1e-3,
-            policy_learning_rate=1e-5,
+            policy_learning_rate=1e-4,
             sample_goals_from='replay_buffer',
             # sample_goals_from='environment',
             sample_discount=False,
-            # qf_weight_decay=1e-3,
+            qf_weight_decay=0.01,
         ),
         qf_params=dict(
             obs_hidden_size=400,
-            embed_hidden_size=400,
+            embed_hidden_size=300,
             dropout=False,
             # w_weight_generator=ptu.almost_identity_weights_like,
+        ),
+        policy_params=dict(
+            fc1_size=400,
+            fc2_size=300,
         ),
         epoch_discount_schedule_class=RampUpSchedule,
         epoch_discount_schedule_params=dict(
@@ -130,29 +134,30 @@ if __name__ == '__main__':
             ramp_duration=99,
         ),
         # env_class=GoalStateSimpleStateReacherEnv,
-        # env_class=XyMultitaskSimpleStateReacherEnv,
-        env_class=FullStateWithXYStateReacherEnv,
+        env_class=XyMultitaskSimpleStateReacherEnv,
+        # env_class=FullStateWithXYStateReacherEnv,
         env_params=dict(
             add_noop_action=False,
             # obs_scales=[1, 1, 1, 1, 0.04, 0.01],
             # reward_weights=[1, 1, 1, 1, 1, 0],
         ),
         sampler_params=dict(
-            # min_num_steps_to_collect=20000,
-            # max_path_length=1000,
-            min_num_steps_to_collect=2000,
-            max_path_length=100,
+            min_num_steps_to_collect=20000,
+            max_path_length=1000,
+            # min_num_steps_to_collect=2000,
+            # max_path_length=100,
             render=False,
         ),
-        sampler_es_class=GaussianStrategy,
+        sampler_es_class=OUStrategy,
         sampler_es_params=dict(
+            theta=0.15,
             max_sigma=0.2,
             min_sigma=0.2,
         ),
         generate_data=args.replay_path is None,
         qf_criterion_class=HuberLoss,
         qf_criterion_params=dict(
-            delta=10,
+            delta=1,
         )
     )
     if run_mode == 'grid':
