@@ -405,7 +405,7 @@ class BaxterEnv(Env, Serializable):
         reward_function = self.reward_function
         reward = reward_function(differences)
         if self.include_torque_penalty:
-            self.penalty_lambda = 5
+            self.penalty_lambda = 2
             reward -= self.penalty_lambda * np.linalg.norm(action)
         done = False
         info = {}
@@ -422,11 +422,6 @@ class BaxterEnv(Env, Serializable):
         temp = np.hstack((temp, self.desired))
         return temp
 
-    def safe_move_to_neutral(self):
-        for _ in range(self.safe_reset_length):
-            torques = self.PDController._update_forces()
-            self._act(torques)
-
     def reset(self):
         """
         Resets the state of the environment, returning an initial observation.
@@ -440,7 +435,6 @@ class BaxterEnv(Env, Serializable):
                 or self.end_effector_experiment_total and not self.fixed_end_effector:
             self._randomize_desired_end_effector_pose()
 
-        # self.safe_move_to_neutral()
         self.arm.move_to_neutral()
         return self._get_observation()
 

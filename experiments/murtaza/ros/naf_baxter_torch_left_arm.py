@@ -54,7 +54,7 @@ def example(variant):
         naf_policy = NafPolicy(
             int(env.observation_space.flat_dim),
             int(env.action_space.flat_dim),
-            100,
+            400,
         )
         algorithm = NAF(
             env,
@@ -79,7 +79,7 @@ experiments=[
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="naf-baxter-left-arm-fixed-angle-smaller-network-with-relu",
+        exp_prefix="naf-baxter-left-arm-fixed-angle-larger-network-with-relu",
         seed=0,
         mode='here',
         variant={
