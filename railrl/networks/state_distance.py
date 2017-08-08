@@ -19,7 +19,7 @@ class UniversalQfunction(PyTorchModule):
             action_dim,
             goal_state_dim,
             obs_hidden_size,
-            embedded_hidden_size,
+            embed_hidden_size,
             init_w=3e-3,
             hidden_activation=F.relu,
             output_activation=identity,
@@ -47,7 +47,7 @@ class UniversalQfunction(PyTorchModule):
 
         self.embed_fc = nn.Linear(
             obs_hidden_size + action_dim,
-            embedded_hidden_size,
+            embed_hidden_size,
         )
         new_weight = w_weight_generator(self.embed_fc.weight.data)
         self.embed_fc.weight.data.copy_(new_weight)
@@ -59,7 +59,7 @@ class UniversalQfunction(PyTorchModule):
             self.obs_dropout = nn.Dropout()
             self.embed_dropout = nn.Dropout()
 
-        self.last_fc = nn.Linear(embedded_hidden_size, 1)
+        self.last_fc = nn.Linear(embed_hidden_size, 1)
         self.last_fc.weight.data.uniform_(-init_w, init_w)
         self.last_fc.bias.data.fill_(b_init_value)
 
