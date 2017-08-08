@@ -3,6 +3,7 @@ import random
 
 import numpy as np
 from hyperopt import hp
+from torch import nn as nn
 
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
@@ -26,6 +27,7 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.hypopt import optimize_and_save
 from railrl.misc.ml_util import RampUpSchedule
 from railrl.networks.state_distance import UniversalPolicy, UniversalQfunction
+from railrl.torch.modules import HuberLoss
 
 
 def experiment(variant):
@@ -54,6 +56,9 @@ def experiment(variant):
         epoch_discount_schedule = epoch_discount_schedule_class(
             **variant['epoch_discount_schedule_params']
         )
+    qf_criterion = variant['qf_criterion_class'](
+        **variant['qf_criterion_params']
+    )
     algo = StateDistanceQLearning(
         env,
         qf,
@@ -61,6 +66,7 @@ def experiment(variant):
         replay_buffer=replay_buffer,
         exploration_policy=None,
         epoch_discount_schedule=epoch_discount_schedule,
+        qf_criterion=qf_criterion,
         **variant['algo_params']
     )
     if ptu.gpu_enabled():
@@ -76,19 +82,19 @@ if __name__ == '__main__':
 
     n_seeds = 1
     mode = "here"
-    exp_prefix = "dev-sdqlr-gamma0p99"
+    exp_prefix = "dev-sdqlr"
     run_mode = "none"
 
-    n_seeds = 5
-    mode = "ec2"
-    exp_prefix = "sdqlr-discount0p99-full-with-xy"
-    run_mode = 'grid'
+    # n_seeds = 5
+    # mode = "ec2"
+    # exp_prefix = "sdqlr-discount0p99-full-with-xy"
+    # run_mode = 'grid'
 
     version = "Dev"
     num_configurations = 50  # for random mode
     snapshot_mode = "gap"
     snapshot_gap = 5
-    use_gpu = True
+    use_gpu = False
     if mode != "here":
         use_gpu = False
 
@@ -99,7 +105,7 @@ if __name__ == '__main__':
         dataset_path=str(dataset_path),
         algo_params=dict(
             num_epochs=101,
-            num_batches_per_epoch=10000,
+            num_batches_per_epoch=100,
             use_soft_update=True,
             tau=1e-3,
             batch_size=1000,
@@ -112,7 +118,8 @@ if __name__ == '__main__':
             # qf_weight_decay=1e-3,
         ),
         qf_params=dict(
-            hidden_sizes=[400, 300],
+            obs_hidden_size=400,
+            embed_hidden_size=400,
             dropout=False,
             # w_weight_generator=ptu.almost_identity_weights_like,
         ),
@@ -131,8 +138,10 @@ if __name__ == '__main__':
             # reward_weights=[1, 1, 1, 1, 1, 0],
         ),
         sampler_params=dict(
-            min_num_steps_to_collect=20000,
-            max_path_length=1000,
+            # min_num_steps_to_collect=20000,
+            # max_path_length=1000,
+            min_num_steps_to_collect=2000,
+            max_path_length=100,
             render=False,
         ),
         sampler_es_class=GaussianStrategy,
@@ -141,6 +150,10 @@ if __name__ == '__main__':
             min_sigma=0.2,
         ),
         generate_data=args.replay_path is None,
+        qf_criterion_class=HuberLoss,
+        qf_criterion_params=dict(
+            delta=10,
+        )
     )
     if run_mode == 'grid':
         search_space = {

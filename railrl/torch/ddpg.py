@@ -34,6 +34,7 @@ class DDPG(OnlineAlgorithm):
             tau=1e-2,
             use_soft_update=False,
             replay_buffer=None,
+            qf_criterion=None,
             **kwargs
     ):
         if exploration_policy is None:
@@ -55,7 +56,9 @@ class DDPG(OnlineAlgorithm):
         self.tau = tau
         self.use_soft_update = use_soft_update
 
-        self.qf_criterion = nn.MSELoss()
+        if qf_criterion is None:
+            qf_criterion = nn.MSELoss()
+        self.qf_criterion = qf_criterion
         self.qf_optimizer = optim.Adam(
             self.qf.parameters(),
             lr=self.qf_learning_rate,
