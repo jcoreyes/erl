@@ -1,3 +1,4 @@
+import pickle
 from collections import OrderedDict
 
 import numpy as np
@@ -7,18 +8,69 @@ from railrl.torch.ddpg import DDPG, np_to_pytorch_batch
 from rllab.misc import logger
 
 
+class MultigoalSimplePathSampler(object):
+    def __init__(self, env, policy, max_samples, max_path_length, discount):
+        self.env = env
+        self.policy = policy
+        self.max_samples = max_samples
+        self.max_path_length = max_path_length
+        self.discount = discount
+
+    def start_worker(self):
+        pass
+
+    def shutdown_worker(self):
+        pass
+
+    def obtain_samples(self):
+        paths = []
+        goal = self.env.sample_goal_states(1)[0]
+        for _ in range(self.max_samples // self.max_path_length):
+            paths.append(multitask_rollout(
+                self.env,
+                self.policy,
+                goal,
+                self.discount,
+                max_path_length=self.max_path_length,
+            ))
+        return paths
+
+
 class StateDistanceQLearning(DDPG):
     def __init__(
             self,
-            *args,
+            env,
+            qf,
+            policy,
             replay_buffer=None,
             num_epochs=100,
             num_batches_per_epoch=100,
             sample_goals_from='environment',
             sample_discount=False,
+            num_steps_per_eval=1000,
+            max_path_length=1000,
+            discount=0.99,
             **kwargs
     ):
-        super().__init__(*args, exploration_strategy=None, **kwargs)
+        env = pickle.loads(pickle.dumps(env))
+        eval_sampler = MultigoalSimplePathSampler(
+            env=env,
+            policy=policy,
+            max_samples=num_steps_per_eval,
+            max_path_length=max_path_length,
+            discount=discount,
+        )
+        super().__init__(
+            env,
+            qf,
+            policy,
+            exploration_strategy=None,
+            eval_sampler=eval_sampler,
+            num_steps_per_eval=num_steps_per_eval,
+            discount=discount,
+            max_path_length=max_path_length,
+            **kwargs,
+        )
         self.num_epochs = num_epochs
         self.num_batches_per_epoch = num_batches_per_epoch
         assert sample_goals_from in ['environment', 'replay_buffer']
@@ -117,6 +169,9 @@ class StateDistanceQLearning(DDPG):
         for key, value in statistics.items():
             logger.record_tabular(key, value)
         logger.dump_tabular(with_prefix=False, with_timestamp=False)
+
+        paths = self._sample_paths(epoch)
+        self.log_diagnostics(paths)
 
     def get_train_dict(self, batch):
         rewards = batch['rewards']
@@ -219,7 +274,7 @@ def rollout_with_goal(env, agent, goal, max_path_length=np.inf, animated=False):
     )
 
 
-def rollout(env, agent, goal, discount, max_path_length=np.inf, animated=False):
+def multitask_rollout(env, agent, goal, discount, max_path_length=np.inf, animated=False):
     observations = []
     actions = []
     rewards = []
@@ -246,6 +301,10 @@ def rollout(env, agent, goal, discount, max_path_length=np.inf, animated=False):
         if animated:
             env.render()
 
+    goal_expanded = np.expand_dims(goal, axis=0)
+    # goal_expanded.shape == 1 x goal_dim
+    goal_states = goal_expanded.repeat(len(observations), 0)
+    # goal_states.shape == path_length x goal_dim
     return dict(
         observations=np.array(observations),
         actions=np.array(actions),
@@ -253,4 +312,5 @@ def rollout(env, agent, goal, discount, max_path_length=np.inf, animated=False):
         terminals=np.array(terminals),
         agent_infos=np.array(agent_infos),
         env_infos=np.array(env_infos),
+        goal_states=goal_states,
     )

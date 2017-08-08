@@ -88,6 +88,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             save_exploration_path_period=1,
             sample_with_training_env=False,
             epoch_discount_schedule=None,
+            eval_sampler=None,
     ):
         self.training_env = env
         self.exploration_policy = exploration_policy
@@ -110,23 +111,27 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         self.action_space = convert_gym_space(env.action_space)
         self.obs_space = convert_gym_space(env.observation_space)
 
-        # noinspection PyTypeChecker
-        if self.sample_with_training_env:
-            self.env = pickle.loads(pickle.dumps(self.training_env))
-            self.eval_sampler = SimplePathSampler(
-                self.env,
-                self.exploration_policy,
-                self.num_steps_per_eval,
-                self.max_path_length,
-            )
+        if eval_sampler is None:
+            # TODO: Remove flag and force to set eval_sampler
+            if self.sample_with_training_env:
+                self.env = pickle.loads(pickle.dumps(self.training_env))
+                self.eval_sampler = SimplePathSampler(
+                    env=env,
+                    policy=exploration_policy,
+                    max_samples=num_steps_per_eval,
+                    max_path_length=max_path_length,
+                )
+            else:
+                self.env = env
+                self.eval_sampler = InPlacePathSampler(
+                    env=env,
+                    policy=exploration_policy,
+                    max_samples=num_steps_per_eval,
+                    max_path_length=max_path_length,
+                )
         else:
-            self.env = env
-            self.eval_sampler = InPlacePathSampler(
-                self.env,
-                self.exploration_policy,
-                self.num_steps_per_eval,
-                self.max_path_length,
-            )
+            self.eval_sampler = eval_sampler
+            self.env = eval_sampler.env
         self.replay_buffer = EnvReplayBuffer(
             self.replay_buffer_size,
             self.env,
