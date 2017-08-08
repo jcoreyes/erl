@@ -37,15 +37,16 @@ class PDController(object):
         self._pub_cuff_disable = rospy.Publisher(cuff_ns, Empty, queue_size=1)
 
         if self.robot == "sawyer":
-            self._des_angles = {
-                'right_j1': -1.1778642578125,
-                'right_j0': 0.0018681640625,
-                'right_j3': 2.1776962890625,
-                'right_j2': -0.00246484375,
-                'right_j6': 3.31884765625,
-                'right_j4': 0.0015673828125,
-                'right_j5': 0.5689052734375
-            }
+            # self._des_angles = {
+            #     'right_j1': -1.1778642578125,
+            #     'right_j0': 0.0018681640625,
+            #     'right_j3': 2.1776962890625,
+            #     'right_j2': -0.00246484375,
+            #     'right_j6': 3.31884765625,
+            #     'right_j4': 0.0015673828125,
+            #     'right_j5': 0.5689052734375
+            # }
+            self._des_angles = {'right_j4': 0.0082041015625, 'right_j5': 0.5668271484375, 'right_j6': 3.318640625, 'right_j1': -1.180951171875, 'right_j2': -0.0023212890625, 'right_j0': -0.0003896484375, 'right_j3': 2.1798525390625}
         else:
             if self._limb_name == "right":
                 self._des_angles = {
