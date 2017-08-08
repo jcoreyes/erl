@@ -6,7 +6,7 @@ import numpy as np
 
 from railrl.algos.state_distance.state_distance_q_learning import (
     rollout_with_goal,
-    rollout,
+    multitask_rollout,
 )
 from railrl.envs.multitask.reacher_env import FullStateVaryingWeightReacherEnv
 import railrl.torch.pytorch_util as ptu
@@ -51,7 +51,7 @@ if __name__ == "__main__":
                 goal[:6] = np.array([1, 1, 1, 1, 0, 0])
             env.print_goal_state_info(goal)
             env.set_goal(goal)
-            path = rollout(
+            path = multitask_rollout(
                 env,
                 policy,
                 goal,

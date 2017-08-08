@@ -7,7 +7,7 @@ from torch.autograd import Variable
 import railrl.torch.pytorch_util as ptu
 from railrl.algos.state_distance.state_distance_q_learning import (
     rollout_with_goal,
-    rollout,
+    multitask_rollout,
 )
 from railrl.envs.multitask.reacher_env import (
     FullStateVaryingWeightReacherEnv,
@@ -95,7 +95,7 @@ if __name__ == "__main__":
             if args.verbose:
                 env.print_goal_state_info(goal)
             env.set_goal(goal)
-            path = rollout(
+            path = multitask_rollout(
                 env,
                 policy,
                 goal,
