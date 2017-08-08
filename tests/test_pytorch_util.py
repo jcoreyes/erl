@@ -1,11 +1,10 @@
 import unittest
 
 import numpy as np
-import torch
 
 from railrl.testing.np_test_case import NPTestCase
 from railrl.torch import pytorch_util as ptu
-from railrl.torch import modules
+
 
 class TestBatchDiag(NPTestCase):
     def test_batch_diag_one(self):
@@ -158,25 +157,6 @@ class TestBatchSquareVector(NPTestCase):
         x_var = ptu.from_numpy(x).float()
         M_var = ptu.from_numpy(M).float()
         result_var = ptu.batch_square_vector(vector=x_var, M=M_var)
-        result = ptu.get_numpy(result_var)
-
-        self.assertNpAlmostEqual(expected, result)
-
-    def test_batch_square_diagonal_module(self):
-        x = np.array([
-            [2, 7],
-        ])
-        diag_vals = np.array([
-            [2, 1],
-        ])
-        expected = np.array([
-            [57]  # 2^2 * 2 + 7^2 * 1 = 8 + 49 = 57
-        ])
-
-        x_var = ptu.Variable(ptu.from_numpy(x).float())
-        diag_var = ptu.Variable(ptu.from_numpy(diag_vals).float())
-        net = modules.BatchSquareDiagonal(2)
-        result_var = net(vector=x_var, diag_values=diag_var)
         result = ptu.get_numpy(result_var)
 
         self.assertNpAlmostEqual(expected, result)
