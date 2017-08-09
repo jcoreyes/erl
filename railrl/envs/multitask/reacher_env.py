@@ -81,7 +81,9 @@ class XyMultitaskReacherEnv(ReacherEnv, MultitaskEnv):
 
     def compute_rewards(self, obs, action, next_obs, goal_states):
         next_qpos = position_from_angles(next_obs)
-        return -np.linalg.norm(next_qpos - goal_states, axis=1)
+        reward_dist = -np.linalg.norm(next_qpos - goal_states, axis=1)
+        reward_ctrl = - np.square(action).sum()
+        return reward_ctrl + reward_dist
 
     def log_diagnostics(self, paths):
         distance = [
@@ -218,7 +220,11 @@ class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
     def compute_rewards(self, obs, action, next_obs, goal_states):
         next_endeffector_positions = position_from_angles(next_obs)
-        return -np.linalg.norm(next_endeffector_positions - goal_states, axis=1)
+        reward_dist = -np.linalg.norm(
+            next_endeffector_positions - goal_states, axis=1
+        )
+        reward_ctrl = - np.square(action).sum()
+        return reward_ctrl + reward_dist
 
     def log_diagnostics(self, paths):
         observations = np.vstack([path['observations'] for path in paths])
@@ -306,7 +312,11 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
     def compute_rewards(self, obs, action, next_obs, goal_states):
         difference = next_obs - goal_states
         difference *= self.reward_weights
-        return -np.linalg.norm(difference, axis=1) / sum(self.reward_weights)
+        reward_dist = -np.linalg.norm(difference, axis=1) / sum(
+            self.reward_weights
+        )
+        reward_ctrl = - np.square(action).sum()
+        return reward_ctrl + reward_dist
 
     def log_diagnostics(self, paths):
         observations = np.vstack([path['observations'] for path in paths])
@@ -420,7 +430,9 @@ class FullStateVaryingWeightReacherEnv(GoalStateSimpleStateReacherEnv):
         env_goal_state = goal_states[:, -6:]
         difference = next_obs - env_goal_state
         difference *= reward_weights
-        return -np.linalg.norm(difference, axis=1)
+        reward_dist = -np.linalg.norm(difference, axis=1)
+        reward_ctrl = - np.square(action).sum()
+        return reward_dist + reward_ctrl
 
     def log_diagnostics(self, paths):
         observations = np.vstack([path['observations'] for path in paths])
