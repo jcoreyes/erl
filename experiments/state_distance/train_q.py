@@ -85,10 +85,10 @@ if __name__ == '__main__':
     exp_prefix = "dev-sdqlr"
     run_mode = "none"
 
-    n_seeds = 5
-    mode = "ec2"
-    exp_prefix = "sdqlr-shane-settings-sweep-loss-decay-goal-state-2"
-    run_mode = 'grid'
+    # n_seeds = 5
+    # mode = "ec2"
+    # exp_prefix = "sdqlr-shane-settings-sweep-loss-decay-goal-state-2"
+    # run_mode = 'grid'
 
     version = "Dev"
     num_configurations = 50  # for random mode
@@ -106,7 +106,7 @@ if __name__ == '__main__':
         dataset_path=str(dataset_path),
         algo_params=dict(
             num_epochs=101,
-            num_batches_per_epoch=10000,
+            num_batches_per_epoch=1000,
             # num_batches_per_epoch=100,
             num_steps_per_eval=1000,
             use_soft_update=True,
@@ -118,7 +118,7 @@ if __name__ == '__main__':
             sample_goals_from='replay_buffer',
             # sample_goals_from='environment',
             sample_discount=False,
-            qf_weight_decay=0.01,
+            qf_weight_decay=0.,
             max_path_length=max_path_length,
         ),
         qf_params=dict(
@@ -133,22 +133,23 @@ if __name__ == '__main__':
         ),
         epoch_discount_schedule_class=RampUpSchedule,
         epoch_discount_schedule_params=dict(
-            min_value=0.99,
-            max_value=0.99,
-            # min_value=0.,
-            # max_value=0.,
+            # min_value=0.99,
+            # max_value=0.99,
+            min_value=0.,
+            max_value=0.,
             ramp_duration=99,
         ),
         # env_class=GoalStateSimpleStateReacherEnv,
-        env_class=XyMultitaskSimpleStateReacherEnv,
-        # env_class=FullStateWithXYStateReacherEnv,
+        # env_class=XyMultitaskSimpleStateReacherEnv,
+        env_class=FullStateWithXYStateReacherEnv,
         env_params=dict(
             add_noop_action=False,
             # obs_scales=[1, 1, 1, 1, 0.04, 0.01],
             # reward_weights=[1, 1, 1, 1, 1, 0],
         ),
         sampler_params=dict(
-            min_num_steps_to_collect=100000,
+            # min_num_steps_to_collect=100000,
+            min_num_steps_to_collect=10000,
             max_path_length=max_path_length,
             # min_num_steps_to_collect=2000,
             # max_path_length=100,
@@ -161,7 +162,8 @@ if __name__ == '__main__':
             min_sigma=0.2,
         ),
         generate_data=args.replay_path is None,
-        qf_criterion_class=HuberLoss,
+        # qf_criterion_class=HuberLoss,
+        qf_criterion_class=nn.MSELoss,
         qf_criterion_params=dict(
             # delta=1,
         )
