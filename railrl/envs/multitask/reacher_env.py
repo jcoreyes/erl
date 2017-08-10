@@ -82,7 +82,7 @@ class XyMultitaskReacherEnv(ReacherEnv, MultitaskEnv):
     def compute_rewards(self, obs, action, next_obs, goal_states):
         next_qpos = position_from_angles(next_obs)
         reward_dist = -np.linalg.norm(next_qpos - goal_states, axis=1)
-        reward_ctrl = - np.square(action).sum()
+        reward_ctrl = - np.sum(action * action, axis=1)
         return reward_ctrl + reward_dist
 
     def log_diagnostics(self, paths):
@@ -168,7 +168,7 @@ class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def _step(self, a):
         vec = self.get_body_com("fingertip") - self.get_body_com("target")
         reward_dist = - np.linalg.norm(vec)
-        reward_ctrl = - np.square(a).sum()
+        reward_ctrl = - np.sum(a * a)
         reward = reward_dist + reward_ctrl
         self.do_simulation(a, self.frame_skip)
         if self.add_noop_action:
@@ -223,7 +223,7 @@ class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         reward_dist = -np.linalg.norm(
             next_endeffector_positions - goal_states, axis=1
         )
-        reward_ctrl = - np.square(action).sum()
+        reward_ctrl = - np.sum(action * action, axis=1)
         return reward_ctrl + reward_dist
 
     def log_diagnostics(self, paths):
@@ -315,13 +315,14 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
         reward_dist = -np.linalg.norm(difference, axis=1) / sum(
             self.reward_weights
         )
-        reward_ctrl = - np.square(action).sum()
+        reward_ctrl = - np.sum(action * action, axis=1)
         return reward_ctrl + reward_dist
 
     def log_diagnostics(self, paths):
-        observations = np.vstack([path['observations'] for path in paths])
+        actions = np.vstack([path['actions'] for path in paths])
+        obs = np.vstack([path['observations'] for path in paths])
         goal_states = np.vstack([path['goal_states'] for path in paths])
-        positions = position_from_angles(observations)
+        positions = position_from_angles(obs)
         goal_positions = position_from_angles(goal_states)
         distances = np.linalg.norm(positions - goal_positions, axis=1)
 
@@ -330,7 +331,12 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
             'Distance to target', distances
         ))
 
-        rewards = self.compute_rewards(None, None, observations, goal_states)
+        rewards = self.compute_rewards(
+            obs[:-1, ...],
+            actions[:-1, ...],
+            obs[1:, ...],
+            goal_states[:-1, ...],
+        )
         statistics.update(create_stats_ordered_dict(
             'Rewards', rewards,
         ))
@@ -390,6 +396,7 @@ class FullStateWithXYStateReacherEnv(GoalStateSimpleStateReacherEnv):
     def goal_dim(self):
         return 8
 
+
 class FullStateVaryingWeightReacherEnv(GoalStateSimpleStateReacherEnv):
     def __init__(self, add_noop_action=True, obs_scales=None):
         """
@@ -431,7 +438,7 @@ class FullStateVaryingWeightReacherEnv(GoalStateSimpleStateReacherEnv):
         difference = next_obs - env_goal_state
         difference *= reward_weights
         reward_dist = -np.linalg.norm(difference, axis=1)
-        reward_ctrl = - np.square(action).sum()
+        reward_ctrl = - np.sum(action * action, axis=1)
         return reward_dist + reward_ctrl
 
     def log_diagnostics(self, paths):
