@@ -87,7 +87,7 @@ if __name__ == '__main__':
 
     n_seeds = 5
     mode = "ec2"
-    exp_prefix = "sdqlr-shane-settings-sweep-loss-decay-goal-state"
+    exp_prefix = "sdqlr-shane-settings-sweep-loss-decay-goal-state-2"
     run_mode = 'grid'
 
     version = "Dev"
