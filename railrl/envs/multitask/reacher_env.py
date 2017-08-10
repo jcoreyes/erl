@@ -228,6 +228,7 @@ class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
     def log_diagnostics(self, paths):
         observations = np.vstack([path['observations'] for path in paths])
+        actions = np.vstack([path['actions'] for path in paths])
         goal_states = np.vstack([path['goal_states'] for path in paths])
         positions = position_from_angles(observations)
         distances = np.linalg.norm(positions - goal_states, axis=1)
@@ -236,7 +237,12 @@ class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         statistics.update(create_stats_ordered_dict(
             'Distance to target', distances
         ))
-        rewards = self.compute_rewards(None, None, observations, goal_states)
+        rewards = self.compute_rewards(
+            observations[:-1, ...],
+            actions[:-1, ...],
+            observations[1:, ...],
+            goal_states[:-1, ...],
+        )
         statistics.update(create_stats_ordered_dict(
             'Rewards', rewards,
         ))
@@ -319,10 +325,10 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
         return reward_ctrl + reward_dist
 
     def log_diagnostics(self, paths):
+        observations = np.vstack([path['observations'] for path in paths])
         actions = np.vstack([path['actions'] for path in paths])
-        obs = np.vstack([path['observations'] for path in paths])
         goal_states = np.vstack([path['goal_states'] for path in paths])
-        positions = position_from_angles(obs)
+        positions = position_from_angles(observations)
         goal_positions = position_from_angles(goal_states)
         distances = np.linalg.norm(positions - goal_positions, axis=1)
 
@@ -332,9 +338,9 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
         ))
 
         rewards = self.compute_rewards(
-            obs[:-1, ...],
+            observations[:-1, ...],
             actions[:-1, ...],
-            obs[1:, ...],
+            observations[1:, ...],
             goal_states[:-1, ...],
         )
         statistics.update(create_stats_ordered_dict(
@@ -443,6 +449,7 @@ class FullStateVaryingWeightReacherEnv(GoalStateSimpleStateReacherEnv):
 
     def log_diagnostics(self, paths):
         observations = np.vstack([path['observations'] for path in paths])
+        actions = np.vstack([path['actions'] for path in paths])
         goal_states = np.vstack([path['goal_states'] for path in paths])
         positions = position_from_angles(observations)
         goal_positions = position_from_angles(goal_states[:, -6:-2])
@@ -453,7 +460,12 @@ class FullStateVaryingWeightReacherEnv(GoalStateSimpleStateReacherEnv):
             'Distance to target', distances
         ))
 
-        rewards = self.compute_rewards(None, None, observations, goal_states)
+        rewards = self.compute_rewards(
+            observations[:-1, ...],
+            actions[:-1, ...],
+            observations[1:, ...],
+            goal_states[:-1, ...],
+        )
         statistics.update(create_stats_ordered_dict(
             'Rewards', rewards,
         ))
