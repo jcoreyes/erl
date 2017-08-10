@@ -168,10 +168,11 @@ class StateDistanceQLearning(DDPG):
         statistics['Discount Factor'] = self.discount
         for key, value in statistics.items():
             logger.record_tabular(key, value)
-        logger.dump_tabular(with_prefix=False, with_timestamp=False)
 
         paths = self._sample_paths(epoch)
         self.log_diagnostics(paths)
+
+        logger.dump_tabular(with_prefix=False, with_timestamp=False)
 
     def get_train_dict(self, batch):
         rewards = batch['rewards']
