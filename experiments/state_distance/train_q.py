@@ -85,9 +85,10 @@ if __name__ == '__main__':
     exp_prefix = "dev-sdqlr"
     run_mode = "none"
 
-    n_seeds = 3
+    # n_seeds = 3
     mode = "ec2"
-    exp_prefix = "sdqlr-shane-settings-no-control-cost"
+    # exp_prefix = "sdqlr-shane-settings-no-control-cost-shane-env"
+    exp_prefix = "reacher-test-diagonistics-2"
     # run_mode = 'grid'
 
     version = "Dev"
@@ -105,7 +106,8 @@ if __name__ == '__main__':
         dataset_path=str(dataset_path),
         algo_params=dict(
             num_epochs=101,
-            num_batches_per_epoch=1000,
+            # num_batches_per_epoch=10000,
+            num_batches_per_epoch=100,
             use_soft_update=True,
             tau=0.001,
             batch_size=100,
@@ -134,8 +136,8 @@ if __name__ == '__main__':
             ramp_duration=99,
         ),
         # env_class=GoalStateSimpleStateReacherEnv,
-        env_class=XyMultitaskSimpleStateReacherEnv,
-        # env_class=FullStateWithXYStateReacherEnv,
+        # env_class=XyMultitaskSimpleStateReacherEnv,
+        env_class=FullStateWithXYStateReacherEnv,
         env_params=dict(
             add_noop_action=False,
             # obs_scales=[1, 1, 1, 1, 0.04, 0.01],
