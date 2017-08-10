@@ -69,7 +69,7 @@ class Concat(nn.Module):
 
 
 class HuberLoss(nn.Module):
-    def __init__(self, delta):
+    def __init__(self, delta=1):
         super().__init__()
         self.huber_loss_delta1 = nn.SmoothL1Loss()
         self.delta = delta
