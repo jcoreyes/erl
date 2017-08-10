@@ -101,6 +101,7 @@ if __name__ == '__main__':
 
     dataset_path = args.replay_path
 
+    max_path_length = 50
     # noinspection PyTypeChecker
     variant = dict(
         dataset_path=str(dataset_path),
@@ -118,6 +119,7 @@ if __name__ == '__main__':
             # sample_goals_from='environment',
             sample_discount=False,
             qf_weight_decay=0.01,
+            max_path_length=max_path_length,
         ),
         qf_params=dict(
             obs_hidden_size=400,
@@ -145,7 +147,7 @@ if __name__ == '__main__':
         ),
         sampler_params=dict(
             min_num_steps_to_collect=20000,
-            max_path_length=1000,
+            max_path_length=max_path_length,
             # min_num_steps_to_collect=2000,
             # max_path_length=100,
             render=False,
