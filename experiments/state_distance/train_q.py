@@ -48,7 +48,7 @@ def experiment(variant):
         int(observation_space.flat_dim),
         int(action_space.flat_dim),
         env.goal_dim,
-        **variant['policy_params'],
+        **variant['policy_params']
     )
     epoch_discount_schedule = None
     epoch_discount_schedule_class = variant['epoch_discount_schedule_class']
@@ -85,11 +85,10 @@ if __name__ == '__main__':
     exp_prefix = "dev-sdqlr"
     run_mode = "none"
 
-    # n_seeds = 3
+    n_seeds = 5
     mode = "ec2"
-    # exp_prefix = "sdqlr-shane-settings-no-control-cost-shane-env"
-    exp_prefix = "reacher-test-diagonistics-2"
-    # run_mode = 'grid'
+    exp_prefix = "sdqlr-shane-settings-sweep-loss-decay-goal-state"
+    run_mode = 'grid'
 
     version = "Dev"
     num_configurations = 50  # for random mode
@@ -107,8 +106,9 @@ if __name__ == '__main__':
         dataset_path=str(dataset_path),
         algo_params=dict(
             num_epochs=101,
-            # num_batches_per_epoch=10000,
-            num_batches_per_epoch=100,
+            num_batches_per_epoch=10000,
+            # num_batches_per_epoch=100,
+            num_steps_per_eval=1000,
             use_soft_update=True,
             tau=0.001,
             batch_size=100,
@@ -135,18 +135,20 @@ if __name__ == '__main__':
         epoch_discount_schedule_params=dict(
             min_value=0.99,
             max_value=0.99,
+            # min_value=0.,
+            # max_value=0.,
             ramp_duration=99,
         ),
         # env_class=GoalStateSimpleStateReacherEnv,
-        # env_class=XyMultitaskSimpleStateReacherEnv,
-        env_class=FullStateWithXYStateReacherEnv,
+        env_class=XyMultitaskSimpleStateReacherEnv,
+        # env_class=FullStateWithXYStateReacherEnv,
         env_params=dict(
             add_noop_action=False,
             # obs_scales=[1, 1, 1, 1, 0.04, 0.01],
             # reward_weights=[1, 1, 1, 1, 1, 0],
         ),
         sampler_params=dict(
-            min_num_steps_to_collect=20000,
+            min_num_steps_to_collect=100000,
             max_path_length=max_path_length,
             # min_num_steps_to_collect=2000,
             # max_path_length=100,
@@ -161,22 +163,13 @@ if __name__ == '__main__':
         generate_data=args.replay_path is None,
         qf_criterion_class=HuberLoss,
         qf_criterion_params=dict(
-            delta=1,
+            # delta=1,
         )
     )
     if run_mode == 'grid':
         search_space = {
-            'algo_params.qf_learning_rate': [1e-2, 1e-3, 1e-4],
-            'algo_params.sample_goals_from': ['replay_buffer', 'environment'],
-            # 'env_params.obs_scales': [
-            #     [1, 1, 1, 1, 0.04, 0.01],
-            #     [1, 1, 1, 1, 1, 1],
-            # ],
-            # 'qf_params.bn_input': [True, False],
-            # 'qf_params.w_weight_generator': [
-            #     ptu.fanin_init_weights_like,
-            #     ptu.almost_identity_weights_like,
-            # ],
+            'algo_params.qf_weight_decay': [0, 0.01],
+            'qf_criterion_class': [nn.MSELoss, HuberLoss],
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
             search_space, default_parameters=variant,
@@ -232,11 +225,14 @@ if __name__ == '__main__':
     if run_mode == 'random':
         hyperparameters = [
             # hyp.EnumParam('qf_params.dropout', [True, False]),
+            hyp.EnumParam('algo_params.qf_criterion_class', [
+                HuberLoss,
+                nn.MSELoss,
+            ]),
             hyp.EnumParam('qf_params.hidden_sizes', [
                 [100, 100],
                 [800, 600, 400],
             ]),
-            hyp.LogFloatParam('algo_params.qf_learning_rate', 1e-5, 1e-2),
             hyp.LogFloatParam('algo_params.qf_weight_decay', 1e-5, 1e-2),
         ]
         sweeper = hyp.RandomHyperparameterSweeper(
