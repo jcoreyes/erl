@@ -386,6 +386,17 @@ class FullStateWithXYStateReacherEnv(GoalStateSimpleStateReacherEnv):
             obs *= self.obs_scales
         return obs
 
+    def compute_rewards(self, obs, action, next_obs, goal_states):
+        difference = next_obs - goal_states
+        difference = difference[:, :6]
+        reward_weights = self.reward_weights[:6]
+        difference *= reward_weights
+        reward_dist = -np.linalg.norm(difference, axis=1) / sum(
+            reward_weights
+        )
+        reward_ctrl = - np.sum(action * action, axis=1)
+        return reward_ctrl + reward_dist
+
     def _get_obs(self):
         theta = self.model.data.qpos.flat[:2]
         obs = np.concatenate([
