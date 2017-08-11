@@ -51,14 +51,14 @@ def example(variant):
         qf = FeedForwardQFunction(
             int(env.observation_space.flat_dim),
             int(env.action_space.flat_dim),
-            100,
-            100,
+            400,
+            300,
         )
         policy = FeedForwardPolicy(
             int(env.observation_space.flat_dim),
             int(env.action_space.flat_dim),
-            100,
-            100,
+            400,
+            300,
         )
         algorithm = DDPG(
             env,
@@ -84,7 +84,7 @@ experiments=[
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="ddpg-sawyer-fixed-angle",
+        exp_prefix="ddpg-sawyer-fixed-angle-larger-network",
         seed=0,
         mode='here',
         variant={
@@ -92,7 +92,7 @@ if __name__ == "__main__":
             'arm_name': 'right',
             'safety_box': True,
             'loss': 'huber',
-            'huber_delta': .8,
+            'huber_delta': .5,
             'safety_force_magnitude': 2,
             'temp': 1.5,
             'remove_action': False,
