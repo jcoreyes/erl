@@ -521,7 +521,7 @@ class SawyerEnv(Env, Serializable):
         if len(self.pose_jacobian_dict) > 0:
             for joint in self.pose_jacobian_dict.keys():
                 dist = self.compute_distances_outside_box(self.pose_jacobian_dict[joint][0])
-                if dist > .18:
+                if dist > .185:
                     if reset_on_error:
                         print('safety box failure during train/eval: ', joint, dist)
                         terminate_episode = True
@@ -854,7 +854,6 @@ class SawyerEnv(Env, Serializable):
             grav_j5 = [torque[5] for torque in grav_torques]
             grav_j6 = [torque[6] for torque in grav_torques]
 
-            ipdb.set_trace()
             statistics.update(
                 obs_j0,
                 stat_prefix,

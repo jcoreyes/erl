@@ -16,9 +16,10 @@ experiments=[
     'end_effector_position_orientation|varying_ee'
 ]
 
-# env = SawyerEnv('right', experiment=experiments[0], safety_force_magnitude=5)
+env = SawyerEnv('right', experiment=experiments[0], safety_force_magnitude=5)
 
 # env.reset()
+env.arm.move_to_neutral()
 # ja = env._joint_angles()
 # # ja =np.array([-2.13281250e-03, -1.18177441e+00, -2.75390625e-03, 2.17755176e+00,
 # #          2.20019531e-03, 5.67653320e-01, 3.31843457e+00])
@@ -51,10 +52,10 @@ experiments=[
 # angles = np.array([angles['right_j0'], angles['right_j1'], angles['right_j2'], angles['right_j3'], angles['right_j4'], angles['right_j5'], angles['right_j6']])
 
 # print(env._wrap_angles(angles))
-
-import rospy
-rospy.init_node('saw')
-rs = intera_interface.RobotEnable(CHECK_VERSION)
-init_state = rs.state().enabled
-import ipdb; ipdb.set_trace(    )
-rs.state()
+#
+# import rospy
+# rospy.init_node('saw')
+# rs = intera_interface.RobotEnable(CHECK_VERSION)
+# init_state = rs.state().enabled
+# import ipdb; ipdb.set_trace(    )
+# rs.state()

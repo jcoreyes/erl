@@ -94,7 +94,7 @@ if __name__ == "__main__":
             'safety_box': True,
             'loss': 'huber',
             'huber_delta': .5,
-            'safety_force_magnitude': 2,
+            'safety_force_magnitude': 3,
             'temp': 1.5,
             'remove_action': False,
             'experiment': experiments[0],
