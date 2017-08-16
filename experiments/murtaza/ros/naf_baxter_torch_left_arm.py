@@ -79,7 +79,7 @@ experiments=[
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="naf-baxter-left-arm-fixed-angle-larger-network-with-relu",
+        exp_prefix="naf-baxter-left-arm-fixed-end-effector",
         seed=0,
         mode='here',
         variant={
@@ -91,7 +91,7 @@ if __name__ == "__main__":
             'safety_force_magnitude': 1,
             'temp': 1.2,
             'remove_action': False,
-            'experiment': experiments[0],
+            'experiment': experiments[2],
             'es_min_sigma': .1,
             'es_max_sigma': .1,
             'num_epochs': 30,

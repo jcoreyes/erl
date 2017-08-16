@@ -405,7 +405,7 @@ class BaxterEnv(Env, Serializable):
         reward_function = self.reward_function
         reward = reward_function(differences)
         if self.include_torque_penalty:
-            self.penalty_lambda = 2
+            self.penalty_lambda = 1
             reward -= self.penalty_lambda * np.linalg.norm(action)
         done = False
         info = {}
