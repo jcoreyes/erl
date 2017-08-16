@@ -7,6 +7,7 @@ from railrl.envs.ros.sawyer_env import SawyerEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.torch import pytorch_util as ptu
 import joblib
+import cProfile
 
 def example(variant):
     load_policy_file = variant.get('load_policy_file', None)
@@ -84,7 +85,7 @@ experiments=[
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="ddpg-sawyer-fixed-angle",
+        exp_prefix="ddpg-sawyer-fixed-angle-gravity-vs-observed-test",
         seed=0,
         mode='here',
         variant={
@@ -92,8 +93,8 @@ if __name__ == "__main__":
             'arm_name': 'right',
             'safety_box': True,
             'loss': 'huber',
-            'huber_delta': .8,
-            'safety_force_magnitude': 2,
+            'huber_delta': .5,
+            'safety_force_magnitude': 3,
             'temp': 1.5,
             'remove_action': False,
             'experiment': experiments[0],
