@@ -81,13 +81,15 @@ class DistributionalDDPG(DDPG):
         self.num_bins = num_bins
         self.returns_min = returns_min
         self.returns_max = returns_max
-        self.bin_width = (returns_max - returns_min ) / num_bins
+        assert num_bins > 1, "Need at least two bins"
+        self.bin_width = (returns_max - returns_min) / (num_bins - 1)
+
+    def create_atom_values(self, batch_size):
         atom_values_batch = np.expand_dims(
-            np.linspace(returns_min, returns_max, num_bins),
+            np.linspace(self.returns_min, self.returns_max, self.num_bins),
             0,
-        ).repeat(self.batch_size, 0)
-        self.atom_values = ptu.np_to_var(atom_values_batch[0:1, :])
-        self.atom_values_batch = ptu.np_to_var(atom_values_batch)
+        ).repeat(batch_size, 0)
+        return ptu.np_to_var(atom_values_batch)
 
     def get_train_dict(self, batch):
         rewards = batch['rewards']
@@ -96,12 +98,14 @@ class DistributionalDDPG(DDPG):
         actions = batch['actions']
         next_obs = batch['next_observations']
 
+        batch_size = obs.size()[0]
+
         """
         Policy operations.
         """
         policy_actions = self.policy(obs)
         z_output = self.qf(obs, policy_actions)  # BATCH_SIZE x NUM_BINS
-        q_output = (z_output * self.atom_values).sum(1)
+        q_output = (z_output * self.create_atom_values(batch_size)).sum(1)
         policy_loss = - q_output.mean()
 
         """
@@ -112,26 +116,67 @@ class DistributionalDDPG(DDPG):
             next_obs,
             next_actions,
         )
-        z_target = ptu.Variable(self.batch_size, 1)
-        for j in range(self.num_bins):
-            atom_value = self.atom_values[:, j:]
-            projected_returns = rewards + (1. - terminals) * self.discount * (
-                atom_value
-            )
-            bin_values = (projected_returns - self.returns_min) / self.bin_width
-            lower_bin_indices = torch.floor(bin_values)
-            upper_bin_indices = torch.ceil(bin_values)
-            z_target[lower_bin_indices] += target_qf_histogram[j] * (
-                upper_bin_indices - bin_values
-            )
-            z_target[upper_bin_indices] += target_qf_histogram[j] * (
-                bin_values - lower_bin_indices
-            )
+        # z_target = ptu.Variable(torch.zeros(self.batch_size, self.num_bins))
+
+        rewards_batch = rewards.repeat(1, self.num_bins)
+        terminals_batch = terminals.repeat(1, self.num_bins)
+        projected_returns = (
+            rewards_batch
+            + (1. - terminals_batch) * self.discount *
+            self.create_atom_values(batch_size)
+        )
+        projected_returns = torch.min(projected_returns, self.returns_max)
+        projected_returns = torch.max(projected_returns, self.returns_min)
+        bin_values = (projected_returns - self.returns_min) / self.bin_width
+        lower_bin_indices = torch.floor(bin_values)
+        upper_bin_indices = torch.ceil(bin_values)
+        lower_bin_deltas = target_qf_histogram * (
+            upper_bin_indices - bin_values
+        )
+        upper_bin_deltas = target_qf_histogram * (
+            bin_values - lower_bin_indices
+        )
+
+        z_target_np = np.zeros((batch_size, self.num_bins))
+        lower_deltas_np = lower_bin_deltas.data.numpy()
+        upper_deltas_np = upper_bin_deltas.data.numpy()
+        lower_idxs_np = lower_bin_indices.data.numpy().astype(int)
+        upper_idxs_np = upper_bin_indices.data.numpy().astype(int)
+        for batch_i in range(self.batch_size):
+            for bin_i in range(self.num_bins):
+                z_target_np[batch_i, bin_i] += (
+                    lower_deltas_np[batch_i, lower_idxs_np[batch_i, bin_i]]
+                )
+                z_target_np[batch_i, bin_i] += (
+                    upper_deltas_np[batch_i, upper_idxs_np[batch_i, bin_i]]
+                )
+        z_target = ptu.Variable(ptu.from_numpy(z_target_np).float())
+
+        # for j in range(self.num_bins):
+        #     import ipdb; ipdb.set_trace()
+        #     atom_value = self.atom_values_batch[:, j:j+1]
+        #     projected_returns = rewards + (1. - terminals) * self.discount * (
+        #         atom_value
+        #     )
+        #     bin_values = (projected_returns - self.returns_min) / self.bin_width
+        #     lower_bin_indices = torch.floor(bin_values)
+        #     upper_bin_indices = torch.ceil(bin_values)
+        #     lower_bin_deltas = target_qf_histogram[:, j:j+1] * (
+        #         upper_bin_indices - bin_values
+        #     )
+        #     upper_bin_deltas = target_qf_histogram[:, j:j+1] * (
+        #         bin_values - lower_bin_indices
+        #     )
+        #     new_lower_bin_values = torch.gather(
+        #         z_target, 1, lower_bin_indices.long().data
+        #     ) + lower_bin_deltas
+        #     new_upper_bin_values = torch.gather(
+        #         z_target, 1, upper_bin_indices.long().data
+        #     ) + upper_bin_deltas
 
         # noinspection PyUnresolvedReferences
-        z_target = z_target.detach()
         z_pred = self.qf(obs, actions)
-        qf_loss = self.qf_criterion(z_pred, z_target)
+        qf_loss = - (z_target * torch.log(z_pred)).sum(1).mean(0)
 
         return OrderedDict([
             ('Policy Actions', policy_actions),
