@@ -125,8 +125,9 @@ class DistributionalDDPG(DDPG):
             + (1. - terminals_batch) * self.discount *
             self.create_atom_values(batch_size)
         )
-        projected_returns = torch.min(projected_returns, self.returns_max)
-        projected_returns = torch.max(projected_returns, self.returns_min)
+        projected_returns = torch.clamp(
+            projected_returns, self.returns_min, self.returns_max
+        )
         bin_values = (projected_returns - self.returns_min) / self.bin_width
         lower_bin_indices = torch.floor(bin_values)
         upper_bin_indices = torch.ceil(bin_values)

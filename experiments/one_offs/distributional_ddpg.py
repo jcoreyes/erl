@@ -72,8 +72,8 @@ if __name__ == "__main__":
         version="DDPG",
     )
     for env_class in [
-        PointEnv,
-        # SwimmerEnv,
+        # PointEnv,
+        SwimmerEnv,
         # HalfCheetahEnv,
         # AntEnv,
         # HopperEnv,
