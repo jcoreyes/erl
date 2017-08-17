@@ -285,8 +285,10 @@ def np_to_pytorch_batch(np_batch):
         k: elem_or_tuple_to_variable(x)
         for k, x in np_batch.items()
     }
-    torch_batch['rewards'] = torch_batch['rewards'].unsqueeze(-1)
-    torch_batch['terminals'] = torch_batch['terminals'].unsqueeze(-1)
+    if len(torch_batch['rewards'].size()) == 1:
+        torch_batch['rewards'] = torch_batch['rewards'].unsqueeze(-1)
+    if len(torch_batch['terminals'].size()) == 1:
+        torch_batch['terminals'] = torch_batch['terminals'].unsqueeze(-1)
     return torch_batch
 
 

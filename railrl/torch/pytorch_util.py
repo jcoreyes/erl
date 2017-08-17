@@ -225,3 +225,7 @@ def get_numpy(tensor):
     if _use_gpu:
         return tensor.cpu().numpy()
     return tensor.numpy()
+
+
+def np_to_var(np_array):
+    return Variable(from_numpy(np_array).float())
