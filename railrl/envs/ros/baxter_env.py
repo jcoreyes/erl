@@ -591,7 +591,6 @@ class BaxterEnv(Env, Serializable):
         pass
 
     def log_diagnostics(self, paths):
-        pass
         statistics = OrderedDict()
         stat_prefix = 'Test'
         if self.end_effector_experiment_total or self.end_effector_experiment_position:
