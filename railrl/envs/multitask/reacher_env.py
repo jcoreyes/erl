@@ -169,8 +169,7 @@ class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         vec = self.get_body_com("fingertip") - self.get_body_com("target")
         reward_dist = - np.linalg.norm(vec)
         reward_ctrl = - np.sum(a * a)
-        # reward = reward_dist + reward_ctrl
-        reward = reward_dist
+        reward = reward_dist + reward_ctrl
         self.do_simulation(a, self.frame_skip)
         if self.add_noop_action:
             # Make it so that your actions (torque) actually affect the next
@@ -225,7 +224,8 @@ class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             next_endeffector_positions - goal_states, axis=1
         )
         reward_ctrl = - np.sum(action * action, axis=1)
-        return reward_ctrl + reward_dist
+        # return reward_ctrl + reward_dist
+        return reward_dist
 
     def log_diagnostics(self, paths):
         observations = np.vstack([path['observations'] for path in paths])
