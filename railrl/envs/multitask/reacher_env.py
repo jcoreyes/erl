@@ -140,7 +140,7 @@ class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     """
 
     def __init__(self, add_noop_action=True, obs_scales=None,
-                 ctrl_penalty_weight=1):
+                 ctrl_penalty_weight=0):
         """
         :param add_noop_action: If True, add an extra no-op after every call to
         the simulator. The reason this is done is so that your current action
@@ -176,7 +176,7 @@ class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         vec = self.get_body_com("fingertip") - self.get_body_com("target")
         reward_dist = - np.linalg.norm(vec)
         reward_ctrl = - np.sum(a * a)
-        reward = reward_dist + reward_ctrl
+        reward = reward_dist + reward_ctrl * self.ctrl_penalty_weight
         self.do_simulation(a, self.frame_skip)
         if self.add_noop_action:
             # Make it so that your actions (torque) actually affect the next
@@ -275,7 +275,8 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
     """
 
     def __init__(self, add_noop_action=True, reward_weights=None,
-                 obs_scales=None):
+                 obs_scales=None,
+                 ctrl_penalty_weight=0):
         """
         :param add_noop_action: If True, add an extra no-op after every call to
         the simulator. The reason this is done is so that your current action
@@ -288,10 +289,12 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
             self.obs_scales = None
         else:
             self.obs_scales = np.array(obs_scales)
+        self.ctrl_penalty_weight = ctrl_penalty_weight
         utils.EzPickle.__init__(
             self,
             add_noop_action=add_noop_action,
             reward_weights=reward_weights,
+            ctrl_penalty_weight=ctrl_penalty_weight,
         )
         mujoco_env.MujocoEnv.__init__(self, 'reacher.xml', 2)
         if reward_weights is None:
@@ -329,7 +332,7 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
             self.reward_weights
         )
         reward_ctrl = - np.sum(action * action, axis=1)
-        return reward_ctrl + reward_dist
+        return reward_dist + reward_ctrl + self.ctrl_penalty_weight
 
     def log_diagnostics(self, paths):
         observations = np.vstack([path['observations'] for path in paths])
@@ -402,7 +405,7 @@ class FullStateWithXYStateReacherEnv(GoalStateSimpleStateReacherEnv):
             reward_weights
         )
         reward_ctrl = - np.sum(action * action, axis=1)
-        return reward_ctrl + reward_dist
+        return reward_dist + reward_ctrl + self.ctrl_penalty_weight
 
     def _get_obs(self):
         theta = self.model.data.qpos.flat[:2]
@@ -463,7 +466,7 @@ class FullStateVaryingWeightReacherEnv(GoalStateSimpleStateReacherEnv):
         difference *= reward_weights
         reward_dist = -np.linalg.norm(difference, axis=1)
         reward_ctrl = - np.sum(action * action, axis=1)
-        return reward_dist + reward_ctrl
+        return reward_dist + reward_ctrl + self.ctrl_penalty_weight
 
     def log_diagnostics(self, paths):
         observations = np.vstack([path['observations'] for path in paths])
