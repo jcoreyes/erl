@@ -4,8 +4,6 @@ Greedy-action-partial-state implementation.
 See https://paper.dropbox.com/doc/State-Distance-QF-Results-Summary-flRwbIxt0bbUbVXVdkKzr
 for details.
 """
-import sys
-import math
 import argparse
 
 import joblib
@@ -13,18 +11,20 @@ import numpy as np
 from torch.autograd import Variable
 
 import railrl.torch.pytorch_util as ptu
-from railrl.algos.state_distance.state_distance_q_learning import multitask_rollout
+from railrl.algos.state_distance.state_distance_q_learning import (
+    multitask_rollout
+)
 from railrl.envs.multitask.reacher_env import (
-    XyMultitaskSimpleStateReacherEnv,
     FullStateVaryingWeightReacherEnv,
 )
 from railrl.torch.pytorch_util import set_gpu_mode
 from rllab.misc import logger
 
 
-class SamplePolicyFixedJoints(object):
-    def __init__(self, qf, num_samples):
+class SamplePolicyPartialOptimizer(object):
+    def __init__(self, qf, env, num_samples):
         self.qf = qf
+        self.env = env
         self.num_samples = num_samples
 
     def expand_np_to_var(self, array):
@@ -40,24 +40,9 @@ class SamplePolicyFixedJoints(object):
 
     def get_action(self, obs, goal, discount):
         sampled_actions = np.random.uniform(-1, 1, size=(self.num_samples, 2))
-        actions = Variable(
-            ptu.from_numpy(sampled_actions).float(), requires_grad=False
-        )
-
-        sampled_velocities = np.random.uniform(
-            -10,
-            10,
-            size=(self.num_samples, 2),
-        )
-        goals = np.repeat(
-            np.expand_dims(goal, 0),
-            self.num_samples,
-            axis=0
-        )
-        goals[:, 4:6] = sampled_velocities
-        goals = Variable(
-            ptu.from_numpy(goals).float(),
-            requires_grad=False,
+        actions = ptu.np_to_var(sampled_actions)
+        goals = ptu.np_to_var(
+            self.env.sample_goal_partially(goal, self.num_samples)
         )
 
         q_values = ptu.get_numpy(self.qf(
@@ -91,18 +76,15 @@ if __name__ == "__main__":
 
     data = joblib.load(args.file)
     env = data['env']
-    if type(env) == XyMultitaskSimpleStateReacherEnv:
-        print("Cannot do this for XY-goal state")
-        print("Exiting...")
-        sys.exit()
+    print("Environment Type = ", type(env))
     qf = data['qf']
     if args.gpu:
         set_gpu_mode(True)
         qf.cuda()
     qf.train(False)
 
-    num_samples = 10000
-    policy = SamplePolicyFixedJoints(qf, num_samples)
+    num_samples = 1000
+    policy = SamplePolicyPartialOptimizer(qf, env, num_samples)
 
     while True:
         paths = []
