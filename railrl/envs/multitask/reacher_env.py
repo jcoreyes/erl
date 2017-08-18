@@ -139,7 +139,8 @@ class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     since the goal will constantly change.
     """
 
-    def __init__(self, add_noop_action=True, obs_scales=None):
+    def __init__(self, add_noop_action=True, obs_scales=None,
+                 ctrl_penalty_weight=1):
         """
         :param add_noop_action: If True, add an extra no-op after every call to
         the simulator. The reason this is done is so that your current action
@@ -150,7 +151,13 @@ class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             self.obs_scales = None
         else:
             self.obs_scales = np.array(obs_scales)
-        utils.EzPickle.__init__(self, add_noop_action=add_noop_action)
+        self.ctrl_penalty_weight = ctrl_penalty_weight
+        utils.EzPickle.__init__(
+            self,
+            add_noop_action=add_noop_action,
+            obs_scales=obs_scales,
+            ctrl_penalty_weight=ctrl_penalty_weight,
+        )
         mujoco_env.MujocoEnv.__init__(self, 'reacher.xml', 2)
         self._fixed_goal = None
         self.goal = None
@@ -224,8 +231,7 @@ class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             next_endeffector_positions - goal_states, axis=1
         )
         reward_ctrl = - np.sum(action * action, axis=1)
-        # return reward_ctrl + reward_dist
-        return reward_dist
+        return self.ctrl_penalty_weight * reward_ctrl + reward_dist
 
     def log_diagnostics(self, paths):
         observations = np.vstack([path['observations'] for path in paths])
