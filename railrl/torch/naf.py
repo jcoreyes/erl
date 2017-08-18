@@ -231,9 +231,9 @@ class NafPolicy(PyTorchModule):
         self.obs_dim = obs_dim
         self.action_dim = action_dim
 
-        self.bn_state = nn.BatchNorm1d(obs_dim)
-        self.bn_state.weight.data.fill_(1)
-        self.bn_state.bias.data.fill_(0)
+        # self.bn_state = nn.BatchNorm1d(obs_dim)
+        # self.bn_state.weight.data.fill_(1)
+        # self.bn_state.bias.data.fill_(0)
 
         self.linear1 = nn.Linear(obs_dim, hidden_size)
         self.linear2 = nn.Linear(hidden_size, hidden_size)
@@ -256,7 +256,7 @@ class NafPolicy(PyTorchModule):
             torch.ones(action_dim, action_dim))).unsqueeze(0))
 
     def forward(self, state, action):
-        state = self.bn_state(state)
+        # state = self.bn_state(state)
         x = state
         # x = F.relu(self.linear1(x))
         # x = F.relu(self.linear2(x))

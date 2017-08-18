@@ -114,7 +114,6 @@ joint_names = [
     '_upper_forearm',
     '_lower_forearm',
     '_wrist',
-    '_gripper',
 ]
 
 experiments=[
@@ -199,6 +198,7 @@ class BaxterEnv(Env, Serializable):
 
         self.arm = bi.Limb(self.arm_name)
         self.arm_joint_names = self.arm.joint_names()
+        self.gripper = bi.Gripper(self.arm_name)
 
         self.PDController = PDController(robot="baxter", limb_name=self.arm_name)
 
@@ -394,6 +394,11 @@ class BaxterEnv(Env, Serializable):
         """
         :param huber_deltas: a change joint angles
         """
+        import math
+        for act in action:
+            if math.isnan(act):
+                print(act)
+                action = np.zeros(7)
         self._act(action)
         observation = self._get_observation()
         if self.joint_angle_experiment:
