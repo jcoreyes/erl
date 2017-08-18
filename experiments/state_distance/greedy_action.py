@@ -102,6 +102,7 @@ if __name__ == "__main__":
                 discount=args.discount,
                 max_path_length=args.H,
                 animated=not args.hide,
+                combine_goal_and_obs=True,
             )
             paths.append(path)
         env.log_diagnostics(paths)

@@ -59,12 +59,18 @@ def experiment(variant):
     qf_criterion = variant['qf_criterion_class'](
         **variant['qf_criterion_params']
     )
+    es = variant['sampler_es_class'](
+        action_space=action_space,
+        **variant['sampler_es_params']
+    )
     algo = StateDistanceQLearning(
         env,
         qf,
         policy,
+        exploration_strategy=es,
         replay_buffer=replay_buffer,
-        exploration_policy=None,
+        # exploration_policy=None,
+        exploration_policy=policy,
         epoch_discount_schedule=epoch_discount_schedule,
         qf_criterion=qf_criterion,
         **variant['algo_params']
@@ -140,8 +146,8 @@ if __name__ == '__main__':
             ramp_duration=99,
         ),
         # env_class=GoalStateSimpleStateReacherEnv,
-        # env_class=XyMultitaskSimpleStateReacherEnv,
-        env_class=FullStateWithXYStateReacherEnv,
+        env_class=XyMultitaskSimpleStateReacherEnv,
+        # env_class=FullStateWithXYStateReacherEnv,
         env_params=dict(
             add_noop_action=False,
             # obs_scales=[1, 1, 1, 1, 0.04, 0.01],
