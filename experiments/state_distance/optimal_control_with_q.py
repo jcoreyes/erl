@@ -34,12 +34,14 @@ class SampleOptimalControlPolicy(object):
     def __init__(
             self,
             qf,
+            env,
             constraint_weight=10,
             sample_size=100,
             goal_is_full_state=True,
             verbose=False,
     ):
         self.qf = qf
+        self.env = env
         self.constraint_weight = constraint_weight
         self.sample_size = sample_size
         self.verbose = verbose
@@ -102,27 +104,9 @@ class SampleOptimalControlPolicy(object):
         :param obs: np.array, state/observation
         :return: np.array, action to take
         """
-        sampled_actions = np.random.uniform(-1, 1, size=(self.sample_size, 2))
-        action = ptu.Variable(
-            ptu.from_numpy(sampled_actions).float(),
-            requires_grad=True,
-        )
-        theta = ptu.Variable(
-            np.pi * (2 * torch.rand(self.sample_size, 2) - 1),
-            requires_grad=True,
-        )
-        velocity = ptu.Variable(
-            10 * (2 * torch.rand(self.sample_size, 2) - 1),
-            requires_grad=True,
-        )
-        next_state = torch.cat(
-            (
-                torch.cos(theta),
-                torch.sin(theta),
-                velocity,
-            ),
-            dim=1,
-        )
+        sampled_actions = self.env.sample_actions(self.sample_size)
+        action = ptu.np_to_var(sampled_actions)
+        next_state = ptu.np_to_var(self.env.sample_states(self.sample_size))
         obs = self.expand_np_to_var(obs)
         reward = self.reward(obs, action, next_state)
         constraint_penalty = self.qf(
@@ -187,8 +171,9 @@ if __name__ == "__main__":
 
     policy = SampleOptimalControlPolicy(
         qf,
-        constraint_weight=10000,
-        sample_size=10000,
+        env,
+        constraint_weight=1000,
+        sample_size=1000,
         goal_is_full_state=goal_is_full_state,
         verbose=args.verbose,
     )

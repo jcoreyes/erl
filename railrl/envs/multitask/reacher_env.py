@@ -267,6 +267,18 @@ class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def print_goal_state_info(goal):
         print("Goal = ", goal)
 
+    def sample_actions(self, sample_size):
+        return np.random.uniform(-1, 1, size=(sample_size, 2))
+
+    def sample_states(self, sample_size):
+        theta = np.pi * (2 * np.random.rand(sample_size, 2) - 1)
+        velocity = 10 * (2 * np.random.rand(sample_size, 2) - 1)
+        return np.hstack((
+                np.cos(theta),
+                np.sin(theta),
+                velocity,
+        ))
+
 
 class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
     """
