@@ -377,6 +377,63 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
         return 6
 
 
+class XYAndGoalStateReacherEnv(GoalStateSimpleStateReacherEnv):
+    """"
+    The goal state is a concatenation of the XY position and a full state
+    that achieves that XY position.
+
+    However, the reward is just the end effector distance to goal.
+    """
+    def sample_goal_states(self, batch_size):
+        theta = self.np_random.uniform(
+            low=-math.pi,
+            high=math.pi,
+            size=(batch_size, 2)
+        )
+        velocities = 5 * np.random.rand(batch_size, 2)
+        obs = np.hstack([
+            np.cos(theta),
+            np.sin(theta),
+            velocities
+        ])
+        goal_positions = position_from_angles(obs)
+        return np.hstack((obs, goal_positions))
+
+    def convert_obs_to_goal_states(self, obs):
+        goal_positions = position_from_angles(obs)
+        return np.hstack((obs, goal_positions))
+
+    def compute_rewards(self, obs, action, next_obs, goal_states):
+        next_endeffector_positions = position_from_angles(next_obs)
+        goal_positions = goal_states[:, -2:]
+        reward_dist = -np.linalg.norm(
+            next_endeffector_positions - goal_positions, axis=1
+        )
+        reward_ctrl = - np.sum(action * action, axis=1)
+        return self.ctrl_penalty_weight * reward_ctrl + reward_dist
+
+    @property
+    def goal_dim(self):
+        return 8
+
+
+class GoalStateXYRewardReacherEnv(GoalStateSimpleStateReacherEnv):
+    """"
+    The goal state is an actual state.
+    However, the reward is just the end effector distance to goal.
+
+    Purpose: See if the problem is the reward or processing the goal state.
+    """
+    def compute_rewards(self, obs, action, next_obs, goal_states):
+        next_endeffector_positions = position_from_angles(next_obs)
+        goal_positions = position_from_angles(goal_states)
+        reward_dist = -np.linalg.norm(
+            next_endeffector_positions - goal_positions, axis=1
+        )
+        reward_ctrl = - np.sum(action * action, axis=1)
+        return self.ctrl_penalty_weight * reward_ctrl + reward_dist
+
+
 class FullStateWithXYStateReacherEnv(GoalStateSimpleStateReacherEnv):
     def sample_goal_states(self, batch_size):
         theta = self.np_random.uniform(
