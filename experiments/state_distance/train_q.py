@@ -16,6 +16,8 @@ from railrl.envs.multitask.reacher_env import (
     GoalStateSimpleStateReacherEnv,
     XyMultitaskSimpleStateReacherEnv,
     FullStateWithXYStateReacherEnv,
+    GoalStateXYRewardReacherEnv,
+    XYAndGoalStateReacherEnv
 )
 from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
@@ -93,7 +95,7 @@ if __name__ == '__main__':
 
     # n_seeds = 5
     mode = "ec2"
-    exp_prefix = "check-I-can-solve-xy-state"
+    exp_prefix = "compare-envs-ramp-up-and-sample-gamma"
     run_mode = 'grid'
 
     version = "Dev"
@@ -118,10 +120,10 @@ if __name__ == '__main__':
             tau=0.001,
             batch_size=1000,
             discount=0.,
-            qf_learning_rate=1e-4,
-            policy_learning_rate=1e-5,
+            qf_learning_rate=1e-3,
+            policy_learning_rate=1e-4,
             sample_goals_from='replay_buffer',
-            sample_discount=False,
+            sample_discount=True,
             qf_weight_decay=0.,
             max_path_length=max_path_length,
         ),
@@ -137,22 +139,25 @@ if __name__ == '__main__':
         ),
         epoch_discount_schedule_class=RampUpSchedule,
         epoch_discount_schedule_params=dict(
-            # min_value=0.99,
-            # max_value=0.99,
             min_value=0.,
-            max_value=0.,
+            max_value=0.99,
+            # min_value=0.,
+            # max_value=0.,
             ramp_duration=99,
         ),
         # env_class=GoalStateSimpleStateReacherEnv,
-        env_class=XyMultitaskSimpleStateReacherEnv,
+        # env_class=GoalStateXYRewardReacherEnv,
+        env_class=XYAndGoalStateReacherEnv,
+        # env_class=XyMultitaskSimpleStateReacherEnv,
         # env_class=FullStateWithXYStateReacherEnv,
         env_params=dict(
             add_noop_action=False,
+            ctrl_penalty_weight=0,
             # obs_scales=[1, 1, 1, 1, 0.04, 0.01],
             # reward_weights=[1, 1, 1, 1, 1, 0],
         ),
         sampler_params=dict(
-            min_num_steps_to_collect=100000,
+            min_num_steps_to_collect=10000,
             max_path_length=max_path_length,
             # min_num_steps_to_collect=2000,
             # max_path_length=100,
@@ -174,13 +179,19 @@ if __name__ == '__main__':
     )
     if run_mode == 'grid':
         search_space = {
-            'sampler_es_class': [GaussianStrategy, OUStrategy],
-            'algo_params.qf_learning_rate': [1e-3, 1e-4],
-            'algo_params.policy_learning_rate': [1e-4, 1e-5],
-            'algo_params.batch_size': [100, 1000],
-            'algo_params.sample_goals_from': ['environment', 'replay_buffer'],
-            'qf_criterion_class': [nn.MSELoss, HuberLoss],
-            'env_params.ctrl_penalty_weight': [1., 0.],
+            'env_class': [
+                GoalStateSimpleStateReacherEnv,
+                GoalStateXYRewardReacherEnv,
+                XyMultitaskSimpleStateReacherEnv,
+                FullStateWithXYStateReacherEnv,
+                XYAndGoalStateReacherEnv,
+            ],
+            # 'algo_params.qf_learning_rate': [1e-3, 1e-4],
+            # 'algo_params.policy_learning_rate': [1e-4, 1e-5],
+            # 'algo_params.batch_size': [100, 1000],
+            # 'algo_params.sample_goals_from': ['environment', 'replay_buffer'],
+            # 'qf_criterion_class': [nn.MSELoss, HuberLoss],
+            # 'env_params.ctrl_penalty_weight': [1., 0.],
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
             search_space, default_parameters=variant,
