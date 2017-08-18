@@ -3,7 +3,7 @@ from collections import OrderedDict
 import numpy as np
 import torch
 import torch.optim as optim
-import torch.functional as F
+from torch.nn import functional as F
 from torch import nn as nn
 from torch.autograd import Variable
 
@@ -258,8 +258,10 @@ class NafPolicy(PyTorchModule):
     def forward(self, state, action):
         state = self.bn_state(state)
         x = state
-        x = F.relu(self.linear1(x))
-        x = F.relu(self.linear2(x))
+        # x = F.relu(self.linear1(x))
+        # x = F.relu(self.linear2(x))
+        x = torch.tanh(self.linear1(x))
+        x = torch.tanh(self.linear2(x))
 
         V = self.V(x)
         mu = torch.tanh(self.mu(x))
