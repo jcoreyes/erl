@@ -85,7 +85,7 @@ experiments=[
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="ddpg-sawyer-fixed-angle-gravity-vs-observed-test",
+        exp_prefix="ddpg-sawyer-fixed-angle-safety-check-test",
         seed=0,
         mode='here',
         variant={
@@ -95,7 +95,7 @@ if __name__ == "__main__":
             'loss': 'huber',
             'huber_delta': .5,
             'safety_force_magnitude': 3,
-            'temp': 1.5,
+            'temp': 2,
             'remove_action': False,
             'experiment': experiments[0],
             'es_min_sigma': 1,
@@ -103,7 +103,7 @@ if __name__ == "__main__":
             'num_epochs': 30,
             'batch_size': 1024,
             'use_gpu':True,
-            # 'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-26-ddpg-sawyer-fixed-angle-PD-TEST/7-26-ddpg-sawyer-fixed-angle-PD-TEST_2017_07_28_15_02_31_0000--s-0/params.pkl'
+            'load_policy_file':'/home/murtaza/Documents/rllab/data/local/08-17-ddpg-sawyer-fixed-angle-safety-check-test/08-17_ddpg-sawyer-fixed-angle-safety-check-test_2017_08_17_11_56_55_0000--s-0/params.pkl'
         },
         use_gpu=True,
     )

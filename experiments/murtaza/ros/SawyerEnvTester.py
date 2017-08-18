@@ -18,8 +18,8 @@ experiments=[
 
 env = SawyerEnv('right', experiment=experiments[0], safety_force_magnitude=5)
 
-# env.reset()
-env.arm.move_to_neutral()
+env.reset()
+# env.arm.move_to_neutral()
 # ja = env._joint_angles()
 # # ja =np.array([-2.13281250e-03, -1.18177441e+00, -2.75390625e-03, 2.17755176e+00,
 # #          2.20019531e-03, 5.67653320e-01, 3.31843457e+00])
@@ -38,6 +38,9 @@ env.arm.move_to_neutral()
 #     import ipdb; ipdb.set_trace()
 
 # while True:
+    # env.safety_box_check(reset_on_error=False)
+    # env.unexpected_velocity_check(reset_on_error=True)
+    # env.high_torque_check()
     # print('je;;p')
     # print('gravity subtracted torques: ', env.get_observed_torques_minus_gravity())
     # env.unexpected_torque_check(reset_on_error=False)
