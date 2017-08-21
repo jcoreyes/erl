@@ -36,7 +36,10 @@ from railrl.torch.modules import HuberLoss
 def experiment(variant):
     env_class = variant['env_class']
     env = env_class(**variant['env_params'])
-    replay_buffer = get_replay_buffer(variant)
+    if variant['algo_params']['use_new_data']:
+        replay_buffer = None
+    else:
+        replay_buffer = get_replay_buffer(variant)
 
     observation_space = convert_gym_space(env.observation_space)
     action_space = convert_gym_space(env.action_space)
@@ -93,9 +96,9 @@ if __name__ == '__main__':
     exp_prefix = "dev-sdqlr"
     run_mode = "none"
 
-    # n_seeds = 5
+    n_seeds = 3
     mode = "ec2"
-    exp_prefix = "compare-envs-ramp-up-and-sample-gamma"
+    exp_prefix = "compare-envs-and-using-new-data-with-ou"
     run_mode = 'grid'
 
     version = "Dev"
@@ -114,7 +117,7 @@ if __name__ == '__main__':
         dataset_path=str(dataset_path),
         algo_params=dict(
             num_epochs=101,
-            num_batches_per_epoch=1000,
+            num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             use_soft_update=True,
             tau=0.001,
@@ -126,6 +129,7 @@ if __name__ == '__main__':
             sample_discount=True,
             qf_weight_decay=0.,
             max_path_length=max_path_length,
+            use_new_data=True,
         ),
         qf_params=dict(
             obs_hidden_size=400,
@@ -143,7 +147,7 @@ if __name__ == '__main__':
             max_value=0.99,
             # min_value=0.,
             # max_value=0.,
-            ramp_duration=99,
+            ramp_duration=49,
         ),
         # env_class=GoalStateSimpleStateReacherEnv,
         # env_class=GoalStateXYRewardReacherEnv,
@@ -163,10 +167,10 @@ if __name__ == '__main__':
             # max_path_length=100,
             render=False,
         ),
-        # sampler_es_class=OUStrategy,
-        sampler_es_class=GaussianStrategy,
+        sampler_es_class=OUStrategy,
+        # sampler_es_class=GaussianStrategy,
         sampler_es_params=dict(
-            # theta=0.15,
+            theta=0.15,
             max_sigma=0.2,
             min_sigma=0.2,
         ),
@@ -186,7 +190,8 @@ if __name__ == '__main__':
                 FullStateWithXYStateReacherEnv,
                 XYAndGoalStateReacherEnv,
             ],
-            # 'algo_params.qf_learning_rate': [1e-3, 1e-4],
+            'algo_params.use_new_data': [True, False],
+            'epoch_discount_schedule_params.max_value': [0, 0.99],
             # 'algo_params.policy_learning_rate': [1e-4, 1e-5],
             # 'algo_params.batch_size': [100, 1000],
             # 'algo_params.sample_goals_from': ['environment', 'replay_buffer'],
@@ -212,7 +217,7 @@ if __name__ == '__main__':
                     snapshot_mode=snapshot_mode,
                     snapshot_gap=snapshot_gap,
                 )
-    if run_mode == 'hyperopt':
+    elif run_mode == 'hyperopt':
         search_space = {
             'float_param': hp.uniform(
                 'float_param',
@@ -244,7 +249,7 @@ if __name__ == '__main__':
             num_rounds=500,
             num_evals_per_round=1,
         )
-    if run_mode == 'random':
+    elif run_mode == 'random':
         hyperparameters = [
             # hyp.EnumParam('qf_params.dropout', [True, False]),
             hyp.EnumParam('algo_params.qf_criterion_class', [
