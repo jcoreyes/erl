@@ -46,13 +46,14 @@ class StateDistanceQLearning(DDPG):
             policy,
             replay_buffer=None,
             num_epochs=100,
-            num_batches_per_epoch=100,
+            num_steps_per_epoch=100,
             sample_goals_from='environment',
             sample_discount=False,
             num_steps_per_eval=1000,
             max_path_length=1000,
             discount=0.99,
             exploration_strategy=None,
+            use_new_data=False,
             **kwargs
     ):
         env = pickle.loads(pickle.dumps(env))
@@ -75,143 +76,47 @@ class StateDistanceQLearning(DDPG):
             **kwargs,
         )
         self.num_epochs = num_epochs
-        self.num_batches_per_epoch = num_batches_per_epoch
+        self.num_steps_per_epoch = num_steps_per_epoch
         assert sample_goals_from in ['environment', 'replay_buffer']
         self.sample_goals_from = sample_goals_from
-        self.replay_buffer = replay_buffer
         self.sample_discount = sample_discount
 
-    def train(self):
-        num_batches_total = 0
-        for epoch in range(self.num_epochs):
-            self.discount = self.epoch_discount_schedule.get_value(epoch)
-            for _ in range(self.num_batches_per_epoch):
-                self.training_mode(True)
-                self._do_training(n_steps_total=num_batches_total)
-                num_batches_total += 1
-            logger.push_prefix('Iteration #%d | ' % epoch)
-            self.training_mode(False)
-            self.evaluate(epoch, None)
-            params = self.get_epoch_snapshot(epoch)
-            logger.save_itr_params(epoch, params)
-            logger.log("Done evaluating")
-            logger.pop_prefix()
+        self.use_new_data = use_new_data
+        if not self.use_new_data:
+            self.replay_buffer = replay_buffer
+        self.goal_state = None
 
-    # def train(self):
-    #     n_steps_total = 0
-    #     observations = []
-    #     actions = []
-    #     rewards = []
-    #     terminals = []
-    #     agent_infos = []
-    #     env_infos = []
-    #     observation = self.reset_env()
-    #     goal_state = self.env.sample_goal_states(1)[0]
-    #     path_length = 0
-    #     num_paths_total = 0
-    #     self._start_worker()
-    #     self.training_mode(False)
-    #     old_table_keys = None
-    #     params = self.get_epoch_snapshot(-1)
-    #     logger.save_itr_params(-1, params)
-    #     for epoch in range(self.num_epochs):
-    #         self.discount = self.epoch_discount_schedule.get_value(epoch)
-    #         logger.push_prefix('Iteration #%d | ' % epoch)
-    #         start_time = time.time()
-    #         exploration_paths = []
-    #         for _ in range(self.num_steps_per_epoch):
-    #             action, agent_info = (
-    #                 self.exploration_strategy.get_action(
-    #                     n_steps_total,
-    #                     (observation, goal_state, self.discount),
-    #                     self.exploration_policy,
-    #                 )
-    #             )
-    #             if self.render:
-    #                 self.training_env.render()
-    #
-    #             next_ob, raw_reward, terminal, env_info = (
-    #                 self.training_env.step(action)
-    #             )
-    #             n_steps_total += 1
-    #             reward = raw_reward * self.scale_reward
-    #             # path_return += reward
-    #             path_length += 1
-    #
-    #             if num_paths_total % self.save_exploration_path_period == 0:
-    #                 observations.append(self.obs_space.flatten(observation))
-    #                 rewards.append(reward)
-    #                 terminals.append(terminal)
-    #                 actions.append(self.action_space.flatten(action))
-    #                 agent_infos.append(agent_info)
-    #                 env_infos.append(env_info)
-    #
-    #             self.replay_buffer.add_sample(
-    #                 observation,
-    #                 action,
-    #                 reward,
-    #                 terminal,
-    #                 agent_info=agent_info,
-    #                 env_info=env_info,
-    #             )
-    #             if terminal or path_length >= self.max_path_length:
-    #                 self.replay_buffer.terminate_episode(
-    #                     next_ob,
-    #                     terminal,
-    #                     agent_info=agent_info,
-    #                     env_info=env_info,
-    #                 )
-    #                 observation = self.reset_env()
-    #                 path_length = 0
-    #                 num_paths_total += 1
-    #                 self.handle_rollout_ending(n_steps_total)
-    #                 if len(observations) > 0:
-    #                     exploration_paths.append(dict(
-    #                         observations=tensor_utils.stack_tensor_list(
-    #                             observations),
-    #                         actions=tensor_utils.stack_tensor_list(actions),
-    #                         rewards=tensor_utils.stack_tensor_list(rewards),
-    #                         terminals=tensor_utils.stack_tensor_list(terminals),
-    #                         agent_infos=tensor_utils.stack_tensor_dict_list(
-    #                             agent_infos),
-    #                         env_infos=tensor_utils.stack_tensor_dict_list(
-    #                             env_infos),
-    #                     ))
-    #                     observations = []
-    #                     actions = []
-    #                     rewards = []
-    #                     terminals = []
-    #                     agent_infos = []
-    #                     env_infos = []
-    #             else:
-    #                 observation = next_ob
-    #
-    #             if self._can_train():
-    #                 self.training_mode(True)
-    #                 self._do_training(n_steps_total=n_steps_total)
-    #                 self.training_mode(False)
-    #
-    #         train_time = time.time() - start_time
-    #         if self._can_evaluate(exploration_paths):
-    #             start_time = time.time()
-    #             self.evaluate(epoch, exploration_paths)
-    #             params = self.get_epoch_snapshot(epoch)
-    #             logger.save_itr_params(epoch, params)
-    #             table_keys = get_table_key_set(logger)
-    #             if old_table_keys is not None:
-    #                 assert table_keys == old_table_keys, (
-    #                     "Table keys cannot change from iteration to iteration."
-    #                 )
-    #             old_table_keys = table_keys
-    #             logger.dump_tabular(with_prefix=False, with_timestamp=False)
-    #             logger.log("Eval Time: {0}".format(time.time() - start_time))
-    #         else:
-    #             logger.log("Skipping eval for now.")
-    #         if self._can_train():
-    #             logger.log("Training Time: {0}".format(train_time))
-    #         else:
-    #             logger.log("Not training yet. Time: {}".format(train_time))
-    #         logger.pop_prefix()
+    def train(self):
+        if self.use_new_data:
+            return super().train()
+        else:
+            num_batches_total = 0
+            for epoch in range(self.num_epochs):
+                self.discount = self.epoch_discount_schedule.get_value(epoch)
+                for _ in range(self.num_steps_per_epoch):
+                    self.training_mode(True)
+                    self._do_training(n_steps_total=num_batches_total)
+                    num_batches_total += 1
+                logger.push_prefix('Iteration #%d | ' % epoch)
+                self.training_mode(False)
+                self.evaluate(epoch, None)
+                params = self.get_epoch_snapshot(epoch)
+                logger.save_itr_params(epoch, params)
+                logger.log("Done evaluating")
+                logger.pop_prefix()
+
+    def reset_env(self):
+        self.exploration_strategy.reset()
+        self.exploration_policy.reset()
+        self.goal_state = self.training_env.sample_goal_states(1)[0]
+        return self.training_env.reset()
+
+    def get_action_and_info(self, n_steps_total, observation):
+        return self.exploration_strategy.get_action(
+            n_steps_total,
+            (observation, self.goal_state, self.discount),
+            self.exploration_policy,
+        )
 
     def get_batch(self, training=True):
         replay_buffer = self.replay_buffer.get_replay_buffer(training)
@@ -240,12 +145,6 @@ class StateDistanceQLearning(DDPG):
             batch = replay_buffer.random_batch(batch_size)
             obs = batch['observations']
             return self.env.convert_obs_to_goal_states(obs)
-
-    def reset_env(self):
-        self.exploration_strategy.reset()
-        self.exploration_policy.reset()
-        self.policy.reset()
-        return self.training_env.reset()
 
     def _paths_to_np_batch(self, paths):
         batch = super()._paths_to_np_batch(paths)

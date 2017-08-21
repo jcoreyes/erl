@@ -148,6 +148,13 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         self.exploration_policy.reset()
         return self.training_env.reset()
 
+    def get_action_and_info(self, n_steps_total, observation):
+        return self.exploration_strategy.get_action(
+            n_steps_total,
+            observation,
+            self.exploration_policy,
+        )
+
     def train(self):
         n_steps_total = 0
         observations = []
@@ -170,12 +177,9 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             start_time = time.time()
             exploration_paths = []
             for _ in range(self.num_steps_per_epoch):
-                action, agent_info = (
-                    self.exploration_strategy.get_action(
-                        n_steps_total,
-                        observation,
-                        self.exploration_policy,
-                    )
+                action, agent_info = self.get_action_and_info(
+                    n_steps_total,
+                    observation,
                 )
                 if self.render:
                     self.training_env.render()
