@@ -35,6 +35,7 @@ class DDPG(OnlineAlgorithm):
             use_soft_update=False,
             replay_buffer=None,
             qf_criterion=None,
+            differentiate_through_target=False,
             **kwargs
     ):
         if exploration_policy is None:
@@ -55,6 +56,7 @@ class DDPG(OnlineAlgorithm):
         self.target_hard_update_period = target_hard_update_period
         self.tau = tau
         self.use_soft_update = use_soft_update
+        self.differentiate_through_target = differentiate_through_target
 
         if qf_criterion is None:
             qf_criterion = nn.MSELoss()
@@ -128,18 +130,29 @@ class DDPG(OnlineAlgorithm):
         """
         Critic operations.
         """
-        next_actions = self.target_policy(next_obs)
-        target_q_values = self.target_qf(
-            next_obs,
-            next_actions,
-        )
-        y_target = rewards + (1. - terminals) * self.discount * target_q_values
 
-        # noinspection PyUnresolvedReferences
-        y_target = y_target.detach()
-        y_pred = self.qf(obs, actions)
-        bellman_errors = (y_pred - y_target)**2
-        qf_loss = self.qf_criterion(y_pred, y_target)
+        if self.differentiate_through_target:
+            next_actions = self.target_policy(next_obs)
+            target_q_values = self.qf(
+                next_obs,
+                next_actions,
+            )
+            y_target = rewards + (1. - terminals) * self.discount * target_q_values
+            y_pred = self.qf(obs, actions)
+            bellman_errors = (y_pred - y_target)**2
+            # noinspection PyUnresolvedReferences
+            qf_loss = bellman_errors.mean()
+        else:
+            next_actions = self.target_policy(next_obs)
+            target_q_values = self.target_qf(
+                next_obs,
+                next_actions,
+            )
+            y_target = rewards + (1. - terminals) * self.discount * target_q_values
+            y_target = y_target.detach()
+            y_pred = self.qf(obs, actions)
+            bellman_errors = (y_pred - y_target)**2
+            qf_loss = self.qf_criterion(y_pred, y_target)
 
         return OrderedDict([
             ('Policy Actions', policy_actions),
