@@ -8,6 +8,7 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.qfunctions.torch import FeedForwardQFunction
 from railrl.torch.ddpg import DDPG
+import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 
 from rllab.envs.mujoco.ant_env import AntEnv
@@ -25,8 +26,7 @@ def example(variant):
     qf = FeedForwardQFunction(
         int(env.observation_space.flat_dim),
         int(env.action_space.flat_dim),
-        400,
-        300,
+        **variant['qf_params'],
     )
     policy = FeedForwardPolicy(
         int(env.observation_space.flat_dim),
@@ -47,6 +47,10 @@ def example(variant):
 
 
 if __name__ == "__main__":
+    n_seeds = 5
+    exp_prefix = "ddpg-residual-gradient-comparison-sweep-params"
+    mode = 'here'
+
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
@@ -60,29 +64,36 @@ if __name__ == "__main__":
             discount=0.99,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
+            differentiate_through_target=True,
         ),
         version="DDPG",
+        env_class=InvertedDoublePendulumEnv,
     )
-    for differentiate_through_target in [True, False]:
-        variant['algo_params']['differentiate_through_target'] = (
-            differentiate_through_target
-        )
-        for env_class in [
-            SwimmerEnv,
-            HalfCheetahEnv,
-            AntEnv,
-            HopperEnv,
-            InvertedDoublePendulumEnv,
-        ]:
-            variant['env_class'] = env_class
-            variant['version'] = str(env_class)
-            for _ in range(5):
-                seed = random.randint(0, 999999)
-                run_experiment(
-                    example,
-                    exp_prefix="ddpg-residual-gradient-comparison",
-                    seed=seed,
-                    mode='ec2',
-                    variant=variant,
-                    use_gpu=False,
-                )
+    search_space = {
+        'algo_params.qf_learning_rate': [1e-2, 1e-3, 1e-4],
+        'algo_params.policy_learning_rate': [1e-2, 1e-3, 1e-4],
+        'qf_params': [
+            dict(
+                observation_hidden_size=1000,
+                embedded_hidden_size=1000,
+            ),
+            dict(
+                observation_hidden_size=400,
+                embedded_hidden_size=300,
+            ),
+        ],
+    }
+    sweeper = hyp.DeterministicHyperparameterSweeper(
+        search_space, default_parameters=variant,
+    )
+    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+        for i in range(n_seeds):
+            seed = random.randint(0, 10000)
+            run_experiment(
+                example,
+                exp_prefix=exp_prefix,
+                seed=seed,
+                mode=mode,
+                variant=variant,
+                exp_id=exp_id,
+            )
