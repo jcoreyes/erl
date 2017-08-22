@@ -49,7 +49,7 @@ def example(variant):
 if __name__ == "__main__":
     n_seeds = 5
     exp_prefix = "ddpg-residual-gradient-comparison-sweep-params"
-    mode = 'here'
+    mode = 'ec2'
 
     # noinspection PyTypeChecker
     variant = dict(
