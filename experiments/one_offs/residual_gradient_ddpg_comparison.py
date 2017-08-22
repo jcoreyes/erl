@@ -48,7 +48,7 @@ def example(variant):
 
 if __name__ == "__main__":
     n_seeds = 5
-    exp_prefix = "ddpg-residual-gradient-comparison-sweep-params"
+    exp_prefix = "ddpg-tau-is-one"
     mode = 'ec2'
 
     # noinspection PyTypeChecker
@@ -58,13 +58,13 @@ if __name__ == "__main__":
             num_steps_per_epoch=1000,
             num_steps_per_eval=100,
             use_soft_update=True,
-            tau=1e-2,
+            tau=1,
             batch_size=128,
             max_path_length=100,
             discount=0.99,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
-            differentiate_through_target=True,
+            differentiate_through_target=False,
         ),
         version="DDPG",
         env_class=InvertedDoublePendulumEnv,
@@ -73,10 +73,10 @@ if __name__ == "__main__":
         'algo_params.qf_learning_rate': [1e-2, 1e-3, 1e-4],
         'algo_params.policy_learning_rate': [1e-2, 1e-3, 1e-4],
         'qf_params': [
-            dict(
-                observation_hidden_size=1000,
-                embedded_hidden_size=1000,
-            ),
+            # dict(
+            #     observation_hidden_size=1000,
+            #     embedded_hidden_size=1000,
+            # ),
             dict(
                 observation_hidden_size=400,
                 embedded_hidden_size=300,
