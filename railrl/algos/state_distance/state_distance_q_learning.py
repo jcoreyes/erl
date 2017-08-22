@@ -18,6 +18,7 @@ class MultigoalSimplePathSampler(object):
         self.max_samples = max_samples
         self.max_path_length = max_path_length
         self.discount = discount
+        self.goals = None
 
     def start_worker(self):
         pass
@@ -25,10 +26,16 @@ class MultigoalSimplePathSampler(object):
     def shutdown_worker(self):
         pass
 
+    def set_discount(self, discount):
+        self.discount = discount
+
+    def set_goals(self, goals):
+        self.goals = goals
+
     def obtain_samples(self):
         paths = []
-        goal = self.env.sample_goal_states(1)[0]
-        for _ in range(self.max_samples // self.max_path_length):
+        for i in range(self.max_samples // self.max_path_length):
+            goal = self.goals[i & len(self.goals)]
             paths.append(multitask_rollout(
                 self.env,
                 self.policy,
@@ -65,6 +72,7 @@ class StateDistanceQLearning(DDPG):
             max_path_length=max_path_length,
             discount=discount,
         )
+        self.num_goals_for_eval = num_steps_per_eval // max_path_length + 1
         super().__init__(
             env,
             qf,
@@ -132,7 +140,7 @@ class StateDistanceQLearning(DDPG):
     def reset_env(self):
         self.exploration_strategy.reset()
         self.exploration_policy.reset()
-        self.goal_state = self.training_env.sample_goal_states(1)[0]
+        self.goal_state = self.sample_goal_states(1)[0]
         return self.training_env.reset()
 
     def get_action_and_info(self, n_steps_total, observation):
@@ -215,6 +223,13 @@ class StateDistanceQLearning(DDPG):
         self.log_diagnostics(paths)
 
         logger.dump_tabular(with_prefix=False, with_timestamp=False)
+
+    def _sample_paths(self, epoch):
+        self.eval_sampler.set_discount(self.discount)
+        self.eval_sampler.set_goals(
+            self.sample_goal_states(self.num_goals_for_eval)
+        )
+        return super()._sample_paths(epoch)
 
     def get_train_dict(self, batch):
         rewards = batch['rewards']
