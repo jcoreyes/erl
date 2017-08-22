@@ -111,7 +111,7 @@ if __name__ == '__main__':
 
     dataset_path = args.replay_path
 
-    max_path_length = 50
+    max_path_length = 150
     # noinspection PyTypeChecker
     variant = dict(
         dataset_path=str(dataset_path),
@@ -121,7 +121,7 @@ if __name__ == '__main__':
             num_steps_per_eval=1000,
             use_soft_update=True,
             tau=0.001,
-            batch_size=1000,
+            batch_size=100,
             discount=0.,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
@@ -130,6 +130,7 @@ if __name__ == '__main__':
             qf_weight_decay=0.,
             max_path_length=max_path_length,
             use_new_data=True,
+            replay_buffer_size=200000,
         ),
         qf_params=dict(
             obs_hidden_size=400,
@@ -144,14 +145,14 @@ if __name__ == '__main__':
         epoch_discount_schedule_class=RampUpSchedule,
         epoch_discount_schedule_params=dict(
             min_value=0.,
-            max_value=0.99,
+            max_value=0.,
             # min_value=0.,
             # max_value=0.,
             ramp_duration=49,
         ),
-        # env_class=GoalStateSimpleStateReacherEnv,
+        env_class=GoalStateSimpleStateReacherEnv,
         # env_class=GoalStateXYRewardReacherEnv,
-        env_class=XYAndGoalStateReacherEnv,
+        # env_class=XYAndGoalStateReacherEnv,
         # env_class=XyMultitaskSimpleStateReacherEnv,
         # env_class=FullStateWithXYStateReacherEnv,
         env_params=dict(
@@ -175,8 +176,8 @@ if __name__ == '__main__':
             min_sigma=0.2,
         ),
         generate_data=args.replay_path is None,
-        # qf_criterion_class=HuberLoss,
-        qf_criterion_class=nn.MSELoss,
+        qf_criterion_class=HuberLoss,
+        # qf_criterion_class=nn.MSELoss,
         qf_criterion_params=dict(
             # delta=1,
         )

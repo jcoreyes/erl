@@ -24,7 +24,7 @@ class UniversalQfunction(PyTorchModule):
             hidden_activation=F.relu,
             output_activation=identity,
             w_weight_generator=ptu.fanin_init_weights_like,
-            b_init_value=0.01,
+            b_init_value=0.1,
             bn_input=False,
             dropout=False,
     ):
@@ -139,7 +139,8 @@ class UniversalPolicy(PyTorchModule):
             goal_state_dim,
             fc1_size,
             fc2_size,
-            init_w=1e-3,
+            init_w=3e-3,
+            b_init_value=0.1,
             hidden_init=ptu.fanin_init,
     ):
         self.save_init_params(locals())
@@ -156,12 +157,12 @@ class UniversalPolicy(PyTorchModule):
         self.last_fc = nn.Linear(fc2_size, action_dim)
 
         hidden_init(self.fc1.weight)
-        self.fc1.bias.data.fill_(0)
+        self.fc1.bias.data.fill_(b_init_value)
         hidden_init(self.fc2.weight)
-        self.fc2.bias.data.fill_(0)
+        self.fc2.bias.data.fill_(b_init_value)
 
         self.last_fc.weight.data.uniform_(-init_w, init_w)
-        self.last_fc.bias.data.uniform_(-init_w, init_w)
+        self.last_fc.bias.data.fill_(b_init_value)
 
     def forward(self, obs, goal_state, discount):
         h = torch.cat((obs, goal_state, discount), dim=1)
