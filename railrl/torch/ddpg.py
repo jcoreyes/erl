@@ -257,12 +257,19 @@ class DDPG(OnlineAlgorithm):
 
         for name in [
             'Bellman Errors',
+            'QF Outputs',
+            'Policy Actions',
         ]:
             tensor = train_dict[name]
             statistics.update(create_stats_ordered_dict(
                 '{} {}'.format(stat_prefix, name),
                 ptu.get_numpy(tensor)
             ))
+
+        statistics.update(create_stats_ordered_dict(
+            "{} Env Actions".format(stat_prefix),
+            ptu.get_numpy(batch['actions'])
+        ))
 
         return statistics
 
