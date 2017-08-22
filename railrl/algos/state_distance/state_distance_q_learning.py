@@ -7,6 +7,7 @@ import numpy as np
 
 import railrl.torch.pytorch_util as ptu
 from railrl.torch.ddpg import DDPG, np_to_pytorch_batch
+from railrl.misc.tensorboard_logger import TensorboardLogger
 from rllab.misc import logger, tensor_utils
 
 
@@ -17,6 +18,7 @@ class MultigoalSimplePathSampler(object):
         self.max_samples = max_samples
         self.max_path_length = max_path_length
         self.discount = discount
+        self.goals = None
 
     def start_worker(self):
         pass
@@ -24,10 +26,16 @@ class MultigoalSimplePathSampler(object):
     def shutdown_worker(self):
         pass
 
+    def set_discount(self, discount):
+        self.discount = discount
+
+    def set_goals(self, goals):
+        self.goals = goals
+
     def obtain_samples(self):
         paths = []
-        goal = self.env.sample_goal_states(1)[0]
-        for _ in range(self.max_samples // self.max_path_length):
+        for i in range(self.max_samples // self.max_path_length):
+            goal = self.goals[i & len(self.goals)]
             paths.append(multitask_rollout(
                 self.env,
                 self.policy,
@@ -64,6 +72,7 @@ class StateDistanceQLearning(DDPG):
             max_path_length=max_path_length,
             discount=discount,
         )
+        self.num_goals_for_eval = num_steps_per_eval // max_path_length + 1
         super().__init__(
             env,
             qf,
@@ -85,6 +94,7 @@ class StateDistanceQLearning(DDPG):
         if not self.use_new_data:
             self.replay_buffer = replay_buffer
         self.goal_state = None
+        self.tb_logger = TensorboardLogger(logger.get_snapshot_dir())
 
     def train(self):
         if self.use_new_data:
@@ -105,10 +115,32 @@ class StateDistanceQLearning(DDPG):
                 logger.log("Done evaluating")
                 logger.pop_prefix()
 
+    def _do_training(self, n_steps_total):
+        super()._do_training(n_steps_total)
+
+        if n_steps_total % self.num_steps_per_epoch == 0:
+            for name, network in [
+                ("QF", self.qf),
+                ("Policy", self.policy),
+            ]:
+                for param_tag, value in network.named_parameters():
+                    param_tag = param_tag.replace('.', '/')
+                    tag = "{}/{}".format(name, param_tag)
+                    self.tb_logger.histo_summary(
+                        tag,
+                        ptu.get_numpy(value),
+                        n_steps_total + 1,
+                    )
+                    self.tb_logger.histo_summary(
+                        tag + '/grad',
+                        ptu.get_numpy(value.grad),
+                        n_steps_total + 1,
+                    )
+
     def reset_env(self):
         self.exploration_strategy.reset()
         self.exploration_policy.reset()
-        self.goal_state = self.training_env.sample_goal_states(1)[0]
+        self.goal_state = self.sample_goal_states(1)[0]
         return self.training_env.reset()
 
     def get_action_and_info(self, n_steps_total, observation):
@@ -191,6 +223,13 @@ class StateDistanceQLearning(DDPG):
         self.log_diagnostics(paths)
 
         logger.dump_tabular(with_prefix=False, with_timestamp=False)
+
+    def _sample_paths(self, epoch):
+        self.eval_sampler.set_discount(self.discount)
+        self.eval_sampler.set_goals(
+            self.sample_goal_states(self.num_goals_for_eval)
+        )
+        return super()._sample_paths(epoch)
 
     def get_train_dict(self, batch):
         rewards = batch['rewards']
