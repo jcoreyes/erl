@@ -110,12 +110,14 @@ class StateDistanceQLearning(DDPG):
     def _do_training(self, n_steps_total):
         super()._do_training(n_steps_total)
 
-        if n_steps_total % (self.num_steps_per_epoch *
-                                logger.get_snapshot_gap()) == 0:
-            print("UPDATE HISTOGRAM")
-            for network in [self.qf, self.policy]:
-                for tag, value in network:
-                    tag = tag.replace('.', '/')
+        if n_steps_total % self.num_steps_per_epoch == 0:
+            for name, network in [
+                ("QF", self.qf),
+                ("Policy", self.policy),
+            ]:
+                for param_tag, value in network.named_parameters():
+                    param_tag = param_tag.replace('.', '/')
+                    tag = "{}/{}".format(name, param_tag)
                     self.tb_logger.histo_summary(
                         tag,
                         ptu.get_numpy(value),
