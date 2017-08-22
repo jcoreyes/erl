@@ -7,6 +7,7 @@ import numpy as np
 
 import railrl.torch.pytorch_util as ptu
 from railrl.torch.ddpg import DDPG, np_to_pytorch_batch
+from railrl.misc.tensorboard_logger import TensorboardLogger
 from rllab.misc import logger, tensor_utils
 
 
@@ -85,6 +86,7 @@ class StateDistanceQLearning(DDPG):
         if not self.use_new_data:
             self.replay_buffer = replay_buffer
         self.goal_state = None
+        self.tb_logger = TensorboardLogger(logger.get_snapshot_dir())
 
     def train(self):
         if self.use_new_data:
@@ -104,6 +106,26 @@ class StateDistanceQLearning(DDPG):
                 logger.save_itr_params(epoch, params)
                 logger.log("Done evaluating")
                 logger.pop_prefix()
+
+    def _do_training(self, n_steps_total):
+        super()._do_training(n_steps_total)
+
+        if n_steps_total % (self.num_steps_per_epoch *
+                                logger.get_snapshot_gap()) == 0:
+            print("UPDATE HISTOGRAM")
+            for network in [self.qf, self.policy]:
+                for tag, value in network:
+                    tag = tag.replace('.', '/')
+                    self.tb_logger.histo_summary(
+                        tag,
+                        ptu.get_numpy(value),
+                        n_steps_total + 1,
+                    )
+                    self.tb_logger.histo_summary(
+                        tag + '/grad',
+                        ptu.get_numpy(value.grad),
+                        n_steps_total + 1,
+                    )
 
     def reset_env(self):
         self.exploration_strategy.reset()
