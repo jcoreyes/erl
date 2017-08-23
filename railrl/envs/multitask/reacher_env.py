@@ -298,15 +298,13 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
     than just the XY-coordinate of the target end effector.
     """
 
-    def __init__(self, add_noop_action=True, reward_weights=None,
+    def __init__(self, add_noop_action=True,
                  obs_scales=None,
                  ctrl_penalty_weight=0):
         """
         :param add_noop_action: If True, add an extra no-op after every call to
         the simulator. The reason this is done is so that your current action
         (torque) will affect your next position.
-        :param reward_weights: Weights for when taking the L2-norm to compute
-        the reward.
         """
         self.add_noop_action = add_noop_action
         if obs_scales is None:
@@ -317,14 +315,9 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
         utils.EzPickle.__init__(
             self,
             add_noop_action=add_noop_action,
-            reward_weights=reward_weights,
             ctrl_penalty_weight=ctrl_penalty_weight,
         )
         mujoco_env.MujocoEnv.__init__(self, 'reacher.xml', 2)
-        if reward_weights is None:
-            reward_weights = np.ones(self.observation_space.low.size)
-        reward_weights = np.array(reward_weights)
-        self.reward_weights = reward_weights
         self._fixed_goal = None
         self.goal = None
 
@@ -351,7 +344,6 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
 
     def compute_rewards(self, obs, action, next_obs, goal_states):
         difference = next_obs - goal_states
-        difference *= self.reward_weights
         reward_dist = -np.linalg.norm(difference, axis=1)
         reward_ctrl = - np.sum(action * action, axis=1)
         return reward_dist + reward_ctrl + self.ctrl_penalty_weight
@@ -500,11 +492,6 @@ class FullStateWithXYStateReacherEnv(GoalStateSimpleStateReacherEnv):
     def compute_rewards(self, obs, action, next_obs, goal_states):
         difference = next_obs - goal_states
         difference = difference[:, :6]
-        reward_weights = self.reward_weights[:6]
-        difference *= reward_weights
-        reward_dist = -np.linalg.norm(difference, axis=1) / sum(
-            reward_weights
-        )
         reward_ctrl = - np.sum(action * action, axis=1)
         return reward_dist + reward_ctrl + self.ctrl_penalty_weight
 
@@ -523,91 +510,3 @@ class FullStateWithXYStateReacherEnv(GoalStateSimpleStateReacherEnv):
     @property
     def goal_dim(self):
         return 8
-
-
-class FullStateVaryingWeightReacherEnv(GoalStateSimpleStateReacherEnv):
-    def __init__(self, add_noop_action=True, obs_scales=None):
-        """
-        :param add_noop_action: See parent
-        the reward.
-        """
-        self.add_noop_action = add_noop_action
-        if obs_scales is None:
-            self.obs_scales = None
-        else:
-            self.obs_scales = np.array(obs_scales)
-        utils.EzPickle.__init__(
-            self,
-            add_noop_action=add_noop_action,
-        )
-        mujoco_env.MujocoEnv.__init__(self, 'reacher.xml', 2)
-        self._fixed_goal = None
-        self.goal = None
-
-    def set_goal(self, goal_state):
-        self._fixed_goal = position_from_angles(
-            np.expand_dims(goal_state[6:10], 0)
-        )[0]
-
-    def sample_goal_states(self, batch_size):
-        goal_states = super().sample_goal_states(batch_size)
-        weights = self._sample_reward_weights(batch_size)
-        return np.hstack([
-            weights,
-            goal_states,
-        ])
-
-    def _sample_reward_weights(self, batch_size):
-        return np.random.uniform(0, 1, (batch_size, 6))
-
-    def compute_rewards(self, obs, action, next_obs, goal_states):
-        reward_weights = goal_states[:, -12:-6]
-        env_goal_state = goal_states[:, -6:]
-        difference = next_obs - env_goal_state
-        difference *= reward_weights
-        reward_dist = -np.linalg.norm(difference, axis=1)
-        reward_ctrl = - np.sum(action * action, axis=1)
-        return reward_dist + reward_ctrl + self.ctrl_penalty_weight
-
-    def log_diagnostics(self, paths):
-        observations = np.vstack([path['observations'] for path in paths])
-        actions = np.vstack([path['actions'] for path in paths])
-        goal_states = np.vstack([path['goal_states'] for path in paths])
-        positions = position_from_angles(observations)
-        goal_positions = position_from_angles(goal_states[:, -6:-2])
-        distances = np.linalg.norm(positions - goal_positions, axis=1)
-
-        statistics = OrderedDict()
-        statistics.update(create_stats_ordered_dict(
-            'Distance to target', distances
-        ))
-
-        rewards = self.compute_rewards(
-            observations[:-1, ...],
-            actions[:-1, ...],
-            observations[1:, ...],
-            goal_states[:-1, ...],
-        )
-        statistics.update(create_stats_ordered_dict(
-            'Rewards', rewards,
-        ))
-        for key, value in statistics.items():
-            logger.record_tabular(key, value)
-
-    def convert_obs_to_goal_states(self, obs):
-        weights = self._sample_reward_weights(len(obs))
-        return np.hstack((weights, obs))
-
-    @staticmethod
-    def print_goal_state_info(goal):
-        c1 = goal[6]
-        c2 = goal[7]
-        s1 = goal[8]
-        s2 = goal[9]
-        print("Goal = ", goal)
-        print("angle 1 (degrees) = ", np.arctan2(s1, c1) / math.pi * 180)
-        print("angle 2 (degrees) = ", np.arctan2(s2, c2) / math.pi * 180)
-
-    @property
-    def goal_dim(self):
-        return 12
