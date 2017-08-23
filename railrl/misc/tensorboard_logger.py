@@ -41,11 +41,20 @@ class TensorboardLogger(object):
         summary = tf.Summary(value=img_summaries)
         self.writer.add_summary(summary, step)
 
+
     def histo_summary(self, tag, values, step, bins=1000):
         """Log a histogram of the tensor of values."""
 
         # Create a histogram using numpy
-        counts, bin_edges = np.histogram(values, bins=bins)
+        # Original code:
+        # counts, bin_edges = np.histogram(values, bins=bins)
+        #
+        # Now I use the following to get more detailed data
+        # https://stackoverflow.com/questions/39418380/histogram-with-equal-number-of-points-in-each-bin
+        counts, bin_edges = np.histogram(
+            values,
+            bins=histedges_equalN(values.flatten(), bins)
+        )
 
         # Fill the fields of the histogram proto
         hist = tf.HistogramProto()
@@ -68,3 +77,10 @@ class TensorboardLogger(object):
         summary = tf.Summary(value=[tf.Summary.Value(tag=tag, histo=hist)])
         self.writer.add_summary(summary, step)
         self.writer.flush()
+
+
+def histedges_equalN(x, nbin):
+    npt = len(x)
+    return np.interp(np.linspace(0, npt, nbin + 1),
+                     np.arange(npt),
+                     np.sort(x))
