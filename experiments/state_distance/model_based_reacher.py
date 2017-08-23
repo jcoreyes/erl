@@ -86,8 +86,7 @@ if __name__ == "__main__":
 
     data = joblib.load(args.file)
     print("Done loading")
-    # env = data['env']
-    env = GoalStateSimpleStateReacherEnv()
+    env = data['env']
     model = data['model']
     model.train(False)
     print("Env type:", type(env))
@@ -95,7 +94,7 @@ if __name__ == "__main__":
     policy = GreedyModelBasedPolicy(
         model,
         env,
-        # sample_size=1000,
+        sample_size=1000,
     )
     while True:
         paths = []
