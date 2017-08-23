@@ -156,7 +156,7 @@ if __name__ == '__main__':
         # env_class=XyMultitaskSimpleStateReacherEnv,
         # env_class=FullStateWithXYStateReacherEnv,
         env_params=dict(
-            add_noop_action=False,
+            add_noop_action=False,  # TODO(vitchyr): Figure out if this matters
             ctrl_penalty_weight=0,
             # obs_scales=[1, 1, 1, 1, 0.04, 0.01],
             # reward_weights=[1, 1, 1, 1, 1, 0],
