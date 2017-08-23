@@ -97,13 +97,13 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "shane-settings-again-sweep-sample-from-env"
+    exp_prefix = "shane-settings-again-sweep-sample-from-env-2"
     run_mode = 'grid'
 
     version = "Dev"
     num_configurations = 50  # for random mode
     snapshot_mode = "gap"
-    snapshot_gap = 25
+    snapshot_gap = 5
     use_gpu = False
     if mode != "here":
         use_gpu = False
