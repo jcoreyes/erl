@@ -14,9 +14,7 @@ import railrl.torch.pytorch_util as ptu
 from railrl.algos.state_distance.state_distance_q_learning import (
     multitask_rollout
 )
-from railrl.envs.multitask.reacher_env import (
-    FullStateVaryingWeightReacherEnv,
-)
+from railrl.envs.multitask.reacher_env import GoalStateSimpleStateReacherEnv
 from railrl.torch.pytorch_util import set_gpu_mode
 from rllab.misc import logger
 
@@ -65,7 +63,7 @@ if __name__ == "__main__":
                         help='path to the snapshot file')
     parser.add_argument('--H', type=int, default=100,
                         help='Max length of rollout')
-    parser.add_argument('--num_rollouts', type=int, default=100,
+    parser.add_argument('--num_rollouts', type=int, default=5,
                         help='Number of rollouts per eval')
     parser.add_argument('--discount', type=float, default=0.,
                         help='Discount Factor')
@@ -90,8 +88,8 @@ if __name__ == "__main__":
         paths = []
         for _ in range(args.num_rollouts):
             goal = env.sample_goal_states(1)[0]
-            if isinstance(env, FullStateVaryingWeightReacherEnv):
-                goal[:6] = np.array([1, 1, 1, 1, 0, 0])
+            if isinstance(env, GoalStateSimpleStateReacherEnv):
+                goal[4:6] = 0
             if args.verbose:
                 env.print_goal_state_info(goal)
             env.set_goal(goal)

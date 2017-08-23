@@ -8,8 +8,8 @@ from railrl.algos.state_distance.state_distance_q_learning import (
     rollout_with_goal,
     multitask_rollout,
 )
-from railrl.envs.multitask.reacher_env import FullStateVaryingWeightReacherEnv
 import railrl.torch.pytorch_util as ptu
+from railrl.envs.multitask.reacher_env import GoalStateSimpleStateReacherEnv
 from rllab.misc import logger
 
 if __name__ == "__main__":
@@ -19,8 +19,9 @@ if __name__ == "__main__":
                         help='path to the snapshot file')
     parser.add_argument('--H', type=int, default=100,
                         help='Max length of rollout')
-    parser.add_argument('--num_rollouts', type=int, default=100,
-                        help='Total number of rollout')
+    parser.add_argument('--num_rollouts', type=int, default=5,
+                        help='Number of rollout per eval')
+    parser.add_argument('--verbose', action='store_true')
     parser.add_argument('--discount', type=float, default=0.,
                         help='Discount Factor')
     parser.add_argument('--grid', action='store_true')
@@ -42,13 +43,14 @@ if __name__ == "__main__":
     policy = data['policy']
     policy.train(False)
 
-    for _ in range(args.num_rollouts):
+    while True:
         paths = []
-        for _ in range(5):
+        for _ in range(args.num_rollouts):
             goal = env.sample_goal_states(1)[0]
-            if isinstance(env, FullStateVaryingWeightReacherEnv):
-                goal[:6] = np.array([1, 1, 1, 1, 0, 0])
-            env.print_goal_state_info(goal)
+            if isinstance(env, GoalStateSimpleStateReacherEnv):
+                goal[4:6] = 0
+            if args.verbose:
+                env.print_goal_state_info(goal)
             env.set_goal(goal)
             path = multitask_rollout(
                 env,
