@@ -46,7 +46,7 @@ if __name__ == '__main__':
 
     n_seeds = 1
     mode = "here"
-    exp_prefix = "dev-reacher-goal-model-learning"
+    exp_prefix = "reacher-goal-model-learning-no-noop"
     version = "Dev"
     run_mode = "none"
 
@@ -77,10 +77,10 @@ if __name__ == '__main__':
         model_params=dict(
             hidden_sizes=[400, 300],
         ),
-        # env_class=GoalStateSimpleStateReacherEnv,
-        env_class=XyMultitaskSimpleStateReacherEnv,
+        env_class=GoalStateSimpleStateReacherEnv,
+        # env_class=XyMultitaskSimpleStateReacherEnv,
         env_params=dict(
-            # add_noop_action=False,
+            add_noop_action=False,
         ),
         sampler_params=dict(
             min_num_steps_to_collect=20000,
