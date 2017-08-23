@@ -74,7 +74,6 @@ def experiment(variant):
         policy,
         exploration_strategy=es,
         replay_buffer=replay_buffer,
-        # exploration_policy=None,
         exploration_policy=policy,
         epoch_discount_schedule=epoch_discount_schedule,
         qf_criterion=qf_criterion,
@@ -96,15 +95,15 @@ if __name__ == '__main__':
     exp_prefix = "dev-sdqlr"
     run_mode = "none"
 
-    # n_seeds = 3
-    # mode = "ec2"
-    # exp_prefix = "compare-envs-and-using-new-data-with-ou"
-    # run_mode = 'grid'
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "shane-settings-again-sweep-sample-from-env"
+    run_mode = 'grid'
 
     version = "Dev"
     num_configurations = 50  # for random mode
     snapshot_mode = "gap"
-    snapshot_gap = 5
+    snapshot_gap = 25
     use_gpu = False
     if mode != "here":
         use_gpu = False
@@ -125,8 +124,8 @@ if __name__ == '__main__':
             discount=0.,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
-            sample_goals_from='replay_buffer',
-            sample_discount=True,
+            sample_goals_from='environment',
+            sample_discount=False,
             qf_weight_decay=0.,
             max_path_length=max_path_length,
             use_new_data=True,
@@ -159,10 +158,9 @@ if __name__ == '__main__':
             add_noop_action=False,  # TODO(vitchyr): Figure out if this matters
             ctrl_penalty_weight=0,
             # obs_scales=[1, 1, 1, 1, 0.04, 0.01],
-            # reward_weights=[1, 1, 1, 1, 1, 0],
         ),
         sampler_params=dict(
-            min_num_steps_to_collect=10000,
+            min_num_steps_to_collect=100000,
             max_path_length=max_path_length,
             # min_num_steps_to_collect=2000,
             # max_path_length=100,
@@ -185,19 +183,33 @@ if __name__ == '__main__':
     if run_mode == 'grid':
         search_space = {
             'env_class': [
-                GoalStateSimpleStateReacherEnv,
-                GoalStateXYRewardReacherEnv,
-                XyMultitaskSimpleStateReacherEnv,
                 FullStateWithXYStateReacherEnv,
-                XYAndGoalStateReacherEnv,
+                GoalStateSimpleStateReacherEnv,
+                # GoalStateXYRewardReacherEnv,
+                # XyMultitaskSimpleStateReacherEnv,
+                # XYAndGoalStateReacherEnv,
             ],
-            'algo_params.use_new_data': [True, False],
-            'epoch_discount_schedule_params.max_value': [0, 0.99],
+            'algo_params.tau': [0.01, 0.001],
+            'algo_params.qf_weight_decay': [0, 0.01],
+            # 'algo_params.qf_learning_rate': [1e-3, 1e-4],
             # 'algo_params.policy_learning_rate': [1e-4, 1e-5],
-            # 'algo_params.batch_size': [100, 1000],
-            # 'algo_params.sample_goals_from': ['environment', 'replay_buffer'],
-            # 'qf_criterion_class': [nn.MSELoss, HuberLoss],
-            # 'env_params.ctrl_penalty_weight': [1., 0.],
+            'epoch_discount_schedule_params': [
+                dict(
+                    min_value=0.,
+                    max_value=0.,
+                    ramp_duration=49,
+                ),
+                dict(
+                    min_value=0.,
+                    max_value=0.99,
+                    ramp_duration=49,
+                ),
+                dict(
+                    min_value=0.99,
+                    max_value=0.99,
+                    ramp_duration=49,
+                ),
+            ]
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
             search_space, default_parameters=variant,
