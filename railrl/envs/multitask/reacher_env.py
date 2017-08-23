@@ -492,6 +492,8 @@ class FullStateWithXYStateReacherEnv(GoalStateSimpleStateReacherEnv):
     def compute_rewards(self, obs, action, next_obs, goal_states):
         difference = next_obs - goal_states
         difference = difference[:, :6]
+        reward_dist = -np.linalg.norm(difference, axis=1)
+
         reward_ctrl = - np.sum(action * action, axis=1)
         return reward_dist + reward_ctrl + self.ctrl_penalty_weight
 
