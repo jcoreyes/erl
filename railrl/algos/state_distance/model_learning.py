@@ -61,6 +61,7 @@ class ModelLearning(object):
             epoch=epoch,
             model=self.model,
             replay_buffer=self.replay_buffer,
+            env=self.env,
         )
 
     def cuda(self):

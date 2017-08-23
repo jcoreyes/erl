@@ -1,15 +1,13 @@
 import argparse
 import random
 
-from gym.envs.mujoco import ReacherEnv, PusherEnv
-
 import railrl.torch.pytorch_util as ptu
 from railrl.algos.state_distance.model_learning import ModelLearning
 from railrl.algos.state_distance.util import get_replay_buffer
 from railrl.envs.multitask.reacher_env import (
     GoalStateSimpleStateReacherEnv)
 from railrl.envs.wrappers import convert_gym_space
-from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
+from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.predictors.torch import Mlp
 
@@ -56,7 +54,7 @@ if __name__ == '__main__':
 
     # run_mode = 'grid'
     num_configurations = 1  # for random mode
-    snapshot_mode = "last"
+    snapshot_mode = "gap"
     snapshot_gap = 5
     use_gpu = True
     if mode != "here":
@@ -77,18 +75,18 @@ if __name__ == '__main__':
         model_params=dict(
             hidden_sizes=[400, 300],
         ),
-        # env_class=GoalStateSimpleStateReacherEnv,
-        env_class=PusherEnv,
+        env_class=GoalStateSimpleStateReacherEnv,
+        # env_class=PusherEnv,
         # env_class=XyMultitaskSimpleStateReacherEnv,
         env_params=dict(
             # add_noop_action=False,
         ),
         sampler_params=dict(
             min_num_steps_to_collect=20000,
-            max_path_length=1000,
+            max_path_length=150,
             render=args.render,
         ),
-        sampler_es_class=GaussianStrategy,
+        sampler_es_class=OUStrategy,
         sampler_es_params=dict(
             max_sigma=0.2,
             min_sigma=0.2,
