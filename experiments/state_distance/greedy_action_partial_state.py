@@ -83,14 +83,13 @@ if __name__ == "__main__":
         qf.cuda()
     qf.train(False)
 
-    num_samples = 1000
+    num_samples = 100
     policy = SamplePolicyPartialOptimizer(qf, env, num_samples)
 
     while True:
         paths = []
         for _ in range(args.num_rollouts):
-            goals = env.sample_goal_states(1)
-            goal = goals[0]
+            goal = env.sample_goal_states(1)[0]
             if isinstance(env, FullStateVaryingWeightReacherEnv):
                 goal[:6] = np.array([1, 1, 1, 1, 0, 0])
             if args.verbose:

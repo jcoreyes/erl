@@ -181,8 +181,7 @@ if __name__ == "__main__":
     while True:
         paths = []
         for _ in range(args.num_rollouts):
-            goals = env.sample_goal_states(1)
-            goal = goals[0]
+            goal = env.sample_goal_states(1)[0]
             if args.verbose:
                 env.print_goal_state_info(goal)
             env.set_goal(goal)

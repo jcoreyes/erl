@@ -140,7 +140,10 @@ class StateDistanceQLearning(DDPG):
     def reset_env(self):
         self.exploration_strategy.reset()
         self.exploration_policy.reset()
-        self.goal_state = self.sample_goal_states(1)[0]
+        if self.replay_buffer.num_steps_can_sample() == 0:
+            self.goal_state = self.env.sample_goal_states(1)[0]
+        else:
+            self.goal_state = self.sample_goal_states(1)[0]
         return self.training_env.reset()
 
     def get_action_and_info(self, n_steps_total, observation):
