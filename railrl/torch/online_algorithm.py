@@ -5,7 +5,8 @@ import time
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.envs.wrappers import convert_gym_space
 from railrl.misc.ml_util import ConstantSchedule
-from railrl.misc.rllab_util import get_table_key_set
+from railrl.misc.rllab_util import get_table_key_set, \
+    save_extra_data_to_snapshot_dir
 from railrl.policies.base import SerializablePolicy
 from rllab.algos.base import RLAlgorithm
 from rllab.misc import logger, tensor_utils
@@ -251,6 +252,9 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                 self.evaluate(epoch, exploration_paths)
                 params = self.get_epoch_snapshot(epoch)
                 logger.save_itr_params(epoch, params)
+                save_extra_data_to_snapshot_dir(
+                    self.get_extra_data_to_save(epoch),
+                )
                 table_keys = get_table_key_set(logger)
                 if old_table_keys is not None:
                     assert table_keys == old_table_keys, (
@@ -266,6 +270,17 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             else:
                 logger.log("Not training yet. Time: {}".format(train_time))
             logger.pop_prefix()
+
+    def get_extra_data_to_save(self, epoch):
+        """
+        Save things that shouldn't be saved every snapshot but rather
+        overwritten every time.
+        :param epoch:
+        :return:
+        """
+        return dict(
+            epoch=epoch,
+        )
 
     def _start_worker(self):
         self.eval_sampler.start_worker()

@@ -1,5 +1,3 @@
-import time
-
 import pickle
 from collections import OrderedDict
 
@@ -8,7 +6,7 @@ import numpy as np
 import railrl.torch.pytorch_util as ptu
 from railrl.torch.ddpg import DDPG, np_to_pytorch_batch
 from railrl.misc.tensorboard_logger import TensorboardLogger
-from rllab.misc import logger, tensor_utils
+from rllab.misc import logger
 
 
 class MultigoalSimplePathSampler(object):
@@ -290,6 +288,12 @@ class StateDistanceQLearning(DDPG):
             policy=self.policy,
             env=self.training_env,
             qf=self.qf,
+            discount=self.discount,
+        )
+
+    def get_extra_data_to_save(self, epoch):
+        return dict(
+            epoch=epoch,
             replay_buffer=self.replay_buffer,
         )
 
