@@ -178,7 +178,6 @@ class DDPG(OnlineAlgorithm):
         :param exploration_paths: List of dicts, each representing a path.
         """
         logger.log("Collecting samples for evaluation")
-        paths = self._sample_paths(epoch)
 
         statistics = OrderedDict()
         if not isinstance(self.epoch_discount_schedule, ConstantSchedule):
@@ -186,7 +185,6 @@ class DDPG(OnlineAlgorithm):
 
         statistics.update(self._statistics_from_paths(exploration_paths,
                                                       "Exploration"))
-        statistics.update(self._statistics_from_paths(paths, "Test"))
 
         train_batch = self.get_batch(training=True)
         statistics.update(self._statistics_from_batch(train_batch, "Train"))
@@ -203,6 +201,8 @@ class DDPG(OnlineAlgorithm):
             statistics['Validation Policy Loss Mean']
             - statistics['Train Policy Loss Mean']
         )
+        paths = self._sample_paths(epoch)
+        statistics.update(self._statistics_from_paths(paths, "Test"))
         average_returns = get_average_returns(paths)
         statistics['AverageReturn'] = average_returns
 
