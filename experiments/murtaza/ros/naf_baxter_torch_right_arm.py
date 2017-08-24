@@ -76,13 +76,13 @@ experiments=[
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="naf-baxter-right-arm-fixed-angle",
+        exp_prefix="naf-baxter-right-arm-fixed-angle-increased-learning-rate",
         seed=0,
         mode='here',
         variant={
             'version': 'Original',
             'arm_name': 'right',
-            'safety_box': True,
+            'safety_box': False,
             'loss': 'huber',
             'huber_delta': .8,
             'safety_force_magnitude': 1,
