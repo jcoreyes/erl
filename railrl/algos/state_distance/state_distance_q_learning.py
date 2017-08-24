@@ -4,6 +4,7 @@ from collections import OrderedDict
 import numpy as np
 
 import railrl.torch.pytorch_util as ptu
+from railrl.misc.rllab_util import get_average_returns
 from railrl.torch.ddpg import DDPG, np_to_pytorch_batch
 from railrl.misc.tensorboard_logger import TensorboardLogger
 from rllab.misc import logger
@@ -34,14 +35,25 @@ class MultigoalSimplePathSampler(object):
         paths = []
         for i in range(self.max_samples // self.max_path_length):
             goal = self.goals[i & len(self.goals)]
-            paths.append(multitask_rollout(
+            path = multitask_rollout(
                 self.env,
                 self.policy,
                 goal,
                 self.discount,
                 max_path_length=self.max_path_length,
-            ))
+            )
+            path_length = len(path['observations'])
+            path['goal_states'] = expand_goal(goal, path_length)
+            paths.append(path)
         return paths
+
+
+def expand_goal(goal, path_length):
+    return np.repeat(
+        np.expand_dims(goal, 0),
+        path_length,
+        0,
+    )
 
 
 class StateDistanceQLearning(DDPG):
@@ -108,6 +120,7 @@ class StateDistanceQLearning(DDPG):
                 logger.push_prefix('Iteration #%d | ' % epoch)
                 self.training_mode(False)
                 self.evaluate(epoch, None)
+                logger.dump_tabular(with_prefix=False, with_timestamp=False)
                 params = self.get_epoch_snapshot(epoch)
                 logger.save_itr_params(epoch, params)
                 logger.log("Done evaluating")
@@ -180,18 +193,10 @@ class StateDistanceQLearning(DDPG):
             return self.env.convert_obs_to_goal_states(obs)
 
     def _paths_to_np_batch(self, paths):
-        batch = super()._paths_to_np_batch(paths)
-        batch_size = len(batch['observations'])
-        goal_states = self.sample_goal_states(batch_size)
-        new_rewards = self.env.compute_rewards(
-            batch['observations'],
-            batch['actions'],
-            batch['next_observations'],
-            goal_states,
-        )
-        batch['goal_states'] = goal_states
-        batch['rewards'] = new_rewards
-        return batch
+        np_batch = super()._paths_to_np_batch(paths)
+        goal_states = [path["goal_states"] for path in paths]
+        np_batch['goal_states'] = np.vstack(goal_states)
+        return np_batch
 
     def evaluate(self, epoch, _):
         """
@@ -212,18 +217,17 @@ class StateDistanceQLearning(DDPG):
             statistics['Validation QF Loss Mean']
             - statistics['Train QF Loss Mean']
         )
-        statistics['Bellman Errors Max Validation - Train Gap'] = (
-            statistics['Validation Bellman Errors Max']
-            - statistics['Train Bellman Errors Max']
-        )
         statistics['Discount Factor'] = self.discount
+
+        paths = self._sample_paths(epoch)
+        statistics.update(self._statistics_from_paths(paths, "Test"))
+        average_returns = get_average_returns(paths)
+        statistics['AverageReturn'] = average_returns
+
         for key, value in statistics.items():
             logger.record_tabular(key, value)
 
-        paths = self._sample_paths(epoch)
         self.log_diagnostics(paths)
-
-        logger.dump_tabular(with_prefix=False, with_timestamp=False)
 
     def _sample_paths(self, epoch):
         self.eval_sampler.set_discount(self.discount)
