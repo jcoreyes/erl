@@ -72,6 +72,8 @@ class StateDistanceQLearning(DDPG):
             discount=0.99,
             exploration_strategy=None,
             use_new_data=False,
+            num_updates_per_env_step=1,
+            num_steps_per_tensorboard_update=None,
             **kwargs
     ):
         env = pickle.loads(pickle.dumps(env))
@@ -99,12 +101,15 @@ class StateDistanceQLearning(DDPG):
         assert sample_goals_from in ['environment', 'replay_buffer']
         self.sample_goals_from = sample_goals_from
         self.sample_discount = sample_discount
+        self.num_updates_per_env_step = num_updates_per_env_step
+        self.num_steps_per_tensorboard_update = num_steps_per_tensorboard_update
 
         self.use_new_data = use_new_data
         if not self.use_new_data:
             self.replay_buffer = replay_buffer
         self.goal_state = None
-        self.tb_logger = TensorboardLogger(logger.get_snapshot_dir())
+        if self.num_steps_per_tensorboard_update is not None:
+            self.tb_logger = TensorboardLogger(logger.get_snapshot_dir())
 
     def train(self):
         if self.use_new_data:
@@ -127,9 +132,13 @@ class StateDistanceQLearning(DDPG):
                 logger.pop_prefix()
 
     def _do_training(self, n_steps_total):
-        super()._do_training(n_steps_total)
+        for _ in range(self.num_updates_per_env_step):
+            super()._do_training(n_steps_total)
 
-        if n_steps_total % self.num_steps_per_epoch == 0:
+        if self.num_steps_per_tensorboard_update is None:
+            return
+
+        if n_steps_total % self.num_steps_per_tensorboard_update == 0:
             for name, network in [
                 ("QF", self.qf),
                 ("Policy", self.policy),
@@ -141,11 +150,13 @@ class StateDistanceQLearning(DDPG):
                         tag,
                         ptu.get_numpy(value),
                         n_steps_total + 1,
+                        bins=100,
                     )
                     self.tb_logger.histo_summary(
                         tag + '/grad',
                         ptu.get_numpy(value.grad),
                         n_steps_total + 1,
+                        bins=100,
                     )
 
     def reset_env(self):
