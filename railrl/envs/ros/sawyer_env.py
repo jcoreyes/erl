@@ -11,7 +11,7 @@ from railrl.misc.data_processing import create_stats_ordered_dict
 from collections import OrderedDict
 import ipdb
 from experiments.murtaza.ros.joint_space_impedance import PDController
-    from intera_core_msgs.msg import SEAJointState
+from intera_core_msgs.msg import SEAJointState
 import datetime
 from gravity_torques.srv import *
 import time
@@ -181,7 +181,7 @@ class SawyerEnv(Env, Serializable):
         self.end_effector_experiment_total = False
         self.fixed_end_effector = False
         self.safety_box = False
-
+        self.use_safety_checks = False
 
         if experiment == experiments[0]:
             self.joint_angle_experiment=True
@@ -366,8 +366,8 @@ class SawyerEnv(Env, Serializable):
         self._rs = ii.RobotEnable(CHECK_VERSION)
         self.q = []
         self.update_pose_and_jacobian_dict()
-        self.filter_actions = True
-        self.filter_observations = True
+        self.filter_actions = False
+        self.filter_observations = False
         self.previous_action = np.zeros(7)
         self.previous_temp = np.zeros(38)
 
@@ -505,13 +505,14 @@ class SawyerEnv(Env, Serializable):
             differences = np.abs(current - self.desired)
 
         reward = self.reward_function(differences)
-        out_of_box = self.safety_box_check(reset_on_error=True)
-        high_torque = self.high_torque_check(actual_commanded_action, reset_on_error=True)
-        # unexpected_torque = self.unexpected_torque_check(reset_on_error=True)
-        unexpected_velocity = self.unexpected_velocity_check(reset_on_error=True)
-        done = out_of_box  or unexpected_velocity
-
-        # done = False
+        if self.use_safety_checks:
+            out_of_box = self.safety_box_check(reset_on_error=True)
+            high_torque = self.high_torque_check(actual_commanded_action, reset_on_error=True)
+            # unexpected_torque = self.unexpected_torque_check(reset_on_error=True)
+            unexpected_velocity = self.unexpected_velocity_check(reset_on_error=True)
+            done = out_of_box  or unexpected_velocity
+        else:
+            done = False
         info = {}
         return observation, reward, done, info
 
@@ -532,12 +533,11 @@ class SawyerEnv(Env, Serializable):
 
     def jacobian_check(self):
         ee_jac = self.pose_jacobian_dict['right_hand'](1)
-        ipdb.set_trace()
         if np.linalg.det(ee_jac) == 0:
             self._act(self._randomize_desired_angles())
 
     def update_pose_and_jacobian_dict(self):
-        self.pose_jacobian_dict = self.getRobotPoseAndJacobian()
+        self.pose_jacobian_dict = self._get_robot_pose_jacobian_client('right')
 
     def unexpected_torque_check(self, reset_on_error=True):
         #we care about the torque that was applied to make sure it hasn't gone too high
@@ -634,25 +634,33 @@ class SawyerEnv(Env, Serializable):
         for _ in range(self.safe_reset_length):
             torques = self.PDController._update_forces()
             actual_commanded_actions = self._act(torques)
-            self.safety_box_check(reset_on_error=False)
-            # self.unexpected_torque_check(reset_on_error=False)
-            self.high_torque_check(actual_commanded_actions, reset_on_error=False)
-            self.unexpected_velocity_check(reset_on_error=False)
+            if self.use_safety_checks:
+                self.safety_box_check(reset_on_error=False)
+                # self.unexpected_torque_check(reset_on_error=False)
+                self.high_torque_check(actual_commanded_actions, reset_on_error=False)
+                self.unexpected_velocity_check(reset_on_error=False)
 
     def update_n_step_buffer(self, obs, action, delay):
-        obs_dict = {
-            # 'angles': obs[:7],
-            # 'velocities':obs[7:14],
-            'observed_torques':obs[14:21],
-            # 'ee_pose':obs[21:24],
-            # 'desired':obs[24:31],
-            'applied_torques':action,
-            'delay':delay,
-        }
+        # obs_dict = {
+        #     # 'angles': obs[:7],
+        #     # 'velocities':obs[7:14],
+        #     'observed_torques':obs[14:21],
+        #     # 'ee_pose':obs[21:24],
+        #     # 'desired':obs[24:31],
+        #     'applied_torques':action,
+        #     'delay':delay,
+        # }
 
+        gravity_torques, actual, subtracted = self._get_gravity_compensation_torques()
+        obs_dict = {
+            'observed':obs[14:21],
+            'gravity':gravity_torques,
+            'subtracted':subtracted,
+            'applied':action,
+        }
         self.q.append(obs_dict)
-        if len(self.q) == self.N:
-            self.q = self.q[1:]
+        # if len(self.q) == self.N:
+        #     self.q = self.q[1:]
 
     def reset(self):
         """
@@ -684,38 +692,44 @@ class SawyerEnv(Env, Serializable):
         else:
             self.desired = np.random.rand(1, 7)[0] * 2 - 1
 
+    def get_pose_jacobian(self, poses, jacobians):
+        pose_jacobian_dict = {}
+        counter = 0
+        pose_counter = 0
+        jac_counter = 0
+        poses = np.array(poses)
+        jacobians = np.array(jacobians)
+        for i in range(len(joint_names)):
+            pose = poses[pose_counter:pose_counter + 3]
+            jacobian = np.array([
+                jacobians[jac_counter:jac_counter + 7],
+                jacobians[jac_counter + 7:jac_counter + 14],
+                jacobians[jac_counter + 14:jac_counter + 21],
+            ])
+            pose_counter += 3
+            jac_counter += 21
+            pose_jacobian_dict['right' + joint_names[counter]] = [pose, jacobian]
+            counter += 1
+        return pose_jacobian_dict
 
-    def _get_robot_pose_jacobian_client(self, name, tip):
+    def _get_robot_pose_jacobian_client(self, name):
         rospy.wait_for_service('get_robot_pose_jacobian')
         try:
             get_robot_pose_jacobian = rospy.ServiceProxy('get_robot_pose_jacobian', getRobotPoseAndJacobian,
                                                          persistent=True)
-            resp = get_robot_pose_jacobian(name, tip)
-            jacobian = np.array([
-                    resp.jacobianr1,
-                    resp.jacobianr2,
-                    resp.jacobianr3
-                    ])
-            pose = np.array(resp.pose)
-            return pose, jacobian
+            resp = get_robot_pose_jacobian(name)
+            pose_jac_dict = self.get_pose_jacobian(resp.poses, resp.jacobians)
+            return pose_jac_dict
         except rospy.ServiceException as e:
             print(e)
-
-    def getRobotPoseAndJacobian(self):
-        dictionary = {}
-        for joint in joint_names:
-            pose, jacobian = self._get_robot_pose_jacobian_client(self.arm_name, joint)
-            dictionary[self.arm_name+joint] = [pose, jacobian]
-        return dictionary
 
     def check_joints_in_box(self, joint_dict):
         keys_to_remove = []
         for joint in joint_dict.keys():
             if self.is_in_box(joint_dict[joint][0]):
                keys_to_remove.append(joint)
-
         for key in keys_to_remove:
-            joint_dict.pop(key)
+            del joint_dict[key]
         return joint_dict
 
     def is_in_box(self, endpoint_pose):
@@ -788,6 +802,7 @@ class SawyerEnv(Env, Serializable):
         pass
 
     def log_diagnostics(self, paths):
+        np.save('training_buffer.npy', self.q)
         statistics = OrderedDict()
         stat_prefix = 'Test'
         if self.end_effector_experiment_total or self.end_effector_experiment_position:
