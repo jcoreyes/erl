@@ -5,8 +5,19 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
     """
     An environment with a task that can be specified with a goal state.
     """
+
     @abc.abstractmethod
     def sample_goal_states(self, batch_size):
+        pass
+
+    @abc.abstractmethod
+    def sample_goal_states_for_rollouts(self, batch_size):
+        """
+        These goal states are fed to a policy when the policy wants to actually
+        do rollouts.
+        :param batch_size:
+        :return:
+        """
         pass
 
     @abc.abstractmethod

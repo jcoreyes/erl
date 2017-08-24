@@ -151,10 +151,7 @@ class StateDistanceQLearning(DDPG):
     def reset_env(self):
         self.exploration_strategy.reset()
         self.exploration_policy.reset()
-        if self.replay_buffer.num_steps_can_sample() == 0:
-            self.goal_state = self.env.sample_goal_states(1)[0]
-        else:
-            self.goal_state = self.sample_goal_states(1)[0]
+        self.goal_state = self.env.sample_goal_states_for_rollouts(1)[0]
         return self.training_env.reset()
 
     def get_action_and_info(self, n_steps_total, observation):
@@ -213,16 +210,29 @@ class StateDistanceQLearning(DDPG):
             self._statistics_from_batch(validation_batch, "Validation")
         )
 
-        statistics['QF Loss Mean Validation - Train Gap'] = (
-            statistics['Validation QF Loss Mean']
-            - statistics['Train QF Loss Mean']
-        )
         statistics['Discount Factor'] = self.discount
 
         paths = self._sample_paths(epoch)
         statistics.update(self._statistics_from_paths(paths, "Test"))
         average_returns = get_average_returns(paths)
         statistics['AverageReturn'] = average_returns
+
+        statistics['QF Loss Mean Validation - Train Gap'] = (
+            statistics['Validation QF Loss Mean']
+            - statistics['Train QF Loss Mean']
+        )
+        statistics['QF Loss Mean Test - Validation Gap'] = (
+            statistics['Test QF Loss Mean']
+            - statistics['Validation QF Loss Mean']
+        )
+        statistics['Policy Loss Mean Validation - Train Gap'] = (
+            statistics['Validation Policy Loss Mean']
+            - statistics['Train Policy Loss Mean']
+        )
+        statistics['Policy Loss Mean Test - Validation Gap'] = (
+            statistics['Test Policy Loss Mean']
+            - statistics['Validation Policy Loss Mean']
+        )
 
         for key, value in statistics.items():
             logger.record_tabular(key, value)
@@ -232,7 +242,7 @@ class StateDistanceQLearning(DDPG):
     def _sample_paths(self, epoch):
         self.eval_sampler.set_discount(self.discount)
         self.eval_sampler.set_goals(
-            self.sample_goal_states(self.num_goals_for_eval)
+            self.env.sample_goal_states_for_rollouts(self.num_goals_for_eval)
         )
         return super()._sample_paths(epoch)
 

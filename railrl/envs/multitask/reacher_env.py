@@ -332,7 +332,23 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
             high=math.pi,
             size=(batch_size, 2)
         )
-        velocities = 5 * np.random.rand(batch_size, 2)
+        velocities = np.random.uniform(-1, 1, (batch_size, 2))
+        obs = np.hstack([
+            np.cos(theta),
+            np.sin(theta),
+            velocities
+        ])
+        if self.obs_scales is not None:
+            obs *= self.obs_scales
+        return obs
+
+    def sample_goal_states_for_rollouts(self, batch_size):
+        theta = self.np_random.uniform(
+            low=-math.pi,
+            high=math.pi,
+            size=(batch_size, 2)
+        )
+        velocities = np.zeros((batch_size, 2))
         obs = np.hstack([
             np.cos(theta),
             np.sin(theta),
