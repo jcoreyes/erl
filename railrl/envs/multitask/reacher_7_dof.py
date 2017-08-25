@@ -16,45 +16,26 @@ class Reacher7DofXyzGoalState(PusherEnv, MultitaskEnv):
         return self.sample_goal_states(batch_size)
 
     def sample_goal_states(self, batch_size):
-        return self.np_random.uniform(
-            low=-0.25,
-            high=0.25,
-            size=(batch_size, 3)
-        )
-        # if batch_size != 1:
-        #     raise NotImplementedError("Sample from replay buffer for now.")
-        # goal = np.concatenate([
-        #     self.model.data.qpos.flat[:7],
-        #     self.model.data.qvel.flat[:7],
-        #     # self.get_body_com("tips_arm"),
-        #     # self.get_body_com("goal"),  # try to move the arm to the goal
-        #     self.get_body_com("object"),  # try to move the arm to the object
-        #     self.get_body_com("object"),
-        #     self.get_body_com("goal"),
-        # ])
-        # return np.array([goal])
+        # Number taken from running a random policy and seeing what XYZ values
+        # are reached
+        return np.hstack((
+            self.np_random.uniform(low=-0.75, high=0.75, size=(batch_size, 1)),
+            self.np_random.uniform(low=-1.25, high=0.25, size=(batch_size, 1)),
+            self.np_random.uniform(low=-0.2, high=0.6, size=(batch_size, 1)),
+        ))
 
     @property
     def goal_dim(self):
         return 3
 
     def convert_obs_to_goal_states(self, obs):
-        return obs[:, 14:17]
-
-    def compute_rewards(self, obs, action, next_obs, goal_states):
-        return - np.linalg.norm(
-            self.convert_obs_to_goal_states(next_obs) - goal_states,
-            axis=1,
-            )
-        # return - np.linalg.norm(next_obs[:, 14:17] - goal_states, axis=1)
+        return positions_from_observations(obs)
 
     def _get_obs(self):
         return np.concatenate([
             self.model.data.qpos.flat[:7],
             self.model.data.qvel.flat[:7],
             self.get_body_com("tips_arm"),
-            # self.get_body_com("object"),
-            # self.get_body_com("goal"),
         ])
 
     def _step(self, a):
@@ -73,8 +54,8 @@ class Reacher7DofXyzGoalState(PusherEnv, MultitaskEnv):
     def log_diagnostics(self, paths):
         observations = np.vstack([path['observations'] for path in paths])
         goal_states = np.vstack([path['goal_states'] for path in paths])
-        positions = positions_from_observations(observations):
-        distances = np.linalg.norm(positions - goal_positions, axis=1)
+        positions = positions_from_observations(observations)
+        distances = np.linalg.norm(positions - goal_states, axis=1)
 
         statistics = OrderedDict()
         statistics.update(create_stats_ordered_dict(
@@ -92,6 +73,7 @@ class Reacher7DofXyzGoalState(PusherEnv, MultitaskEnv):
         ))
         for key, value in statistics.items():
             logger.record_tabular(key, value)
+
 
 def positions_from_observations(obs):
     return obs[:, -3:]

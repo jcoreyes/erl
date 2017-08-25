@@ -92,15 +92,15 @@ if __name__ == '__main__':
     exp_prefix = "dev-sdqlr"
     run_mode = "none"
 
-    # n_seeds = 3
-    # mode = "ec2"
-    # exp_prefix = "fix-exploration-eval"
-    # run_mode = 'grid'
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "reacher-7-dof-xyz-goal-state"
+    run_mode = 'grid'
 
     version = "Dev"
     num_configurations = 50  # for random mode
     snapshot_mode = "gap"
-    snapshot_gap = 10
+    snapshot_gap = 50
     use_gpu = True
     if mode != "here":
         use_gpu = False
@@ -112,7 +112,7 @@ if __name__ == '__main__':
     variant = dict(
         dataset_path=str(dataset_path),
         algo_params=dict(
-            num_epochs=101,
+            num_epochs=1001,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             use_soft_update=True,
@@ -174,28 +174,28 @@ if __name__ == '__main__':
     )
     if run_mode == 'grid':
         search_space = {
-            'algo_params.tau': [0.01, 0.001],
-            'algo_params.qf_weight_decay': [0, 0.01],
-            'algo_params.batch_size': [100, 500],
-            'algo_params.num_updates_per_env_step': [1, 10],
+            'algo_params.tau': [0.0001, 0.001],
+            'algo_params.batch_size': [500, 1000],
+            'algo_params.max_path_length': [300, 1000],
+            # 'algo_params.num_updates_per_env_step': [1, 10],
             # 'algo_params.policy_learning_rate': [1e-4, 1e-5],
-            'epoch_discount_schedule_params': [
-                dict(
-                    min_value=0.,
-                    max_value=0.,
-                    ramp_duration=49,
-                ),
-                dict(
-                    min_value=0.,
-                    max_value=0.99,
-                    ramp_duration=49,
-                ),
-                dict(
-                    min_value=0.99,
-                    max_value=0.99,
-                    ramp_duration=49,
-                ),
-            ]
+            # 'epoch_discount_schedule_params': [
+            #     dict(
+            #         min_value=0.,
+            #         max_value=0.,
+            #         ramp_duration=49,
+            #     ),
+            #     dict(
+            #         min_value=0.,
+            #         max_value=0.99,
+            #         ramp_duration=49,
+            #     ),
+            #     dict(
+            #         min_value=0.99,
+            #         max_value=0.99,
+            #         ramp_duration=49,
+            #     ),
+            # ]
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
             search_space, default_parameters=variant,
