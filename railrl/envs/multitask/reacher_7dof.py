@@ -103,11 +103,12 @@ class Reacher7DofXyzGoalState(MultitaskEnv, mujoco_env.MujocoEnv, utils.EzPickle
 
 class Reacher7DofFullGloalState(Reacher7DofXyzGoalState):
     def sample_goal_states_for_rollouts(self, batch_size):
-        return self.sample_goal_states(batch_size)
+        goal_states = self.sample_goal_states(batch_size)
+        goal_states[:, 7:] = 0
+        return goal_states
 
     def sample_goal_states(self, batch_size):
-        # Number taken from running a random policy and seeing what XYZ values
-        # are reached
+        # Number taken from range specified in XML
         return np.hstack((
             # From the xml
             self.np_random.uniform(low=-2.28, high=1.71, size=(batch_size, 1)),
@@ -133,3 +134,27 @@ class Reacher7DofFullGloalState(Reacher7DofXyzGoalState):
 
     def convert_obs_to_goal_states(self, obs):
         return obs
+
+    def reset_model(self):
+        """
+        I don't want to manually compute the forward dynamics to compute the
+        goal state XYZ coordinate.
+
+        Instead, I just put the arm in the desired goal state. Then I measure
+        the end-effector XYZ coordinate.
+        """
+        qpos_tmp = self.init_qpos
+        qpos_tmp[:14] = self.multitask_goal
+        qvel_tmp = np.zeros(self.model.nv)
+        self.set_state(qpos_tmp, qvel_tmp)
+        goal_xyz = self.get_body_com("tips_arm")
+
+        # Now we actually set the goal position
+        qpos = self.init_qpos
+        qpos[7:10] = goal_xyz
+        qvel = self.init_qvel + self.np_random.uniform(
+            low=-0.005, high=0.005, size=self.model.nv,
+        )
+        qvel[7:] = 0
+        self.set_state(qpos_tmp, qvel)
+        return self._get_obs()
