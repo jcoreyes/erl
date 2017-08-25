@@ -8,6 +8,7 @@ from railrl.testing.testing_utils import are_np_arrays_equal
 
 def create_path(offset):
     return dict(
+        terminals=np.array([False, False, True]),
         rewards=np.array([-1, 0, 1]) + offset,
         actions=np.array([[5], [7], [9]]) + offset,
         observations=np.array([[2], [4], [8]]) + offset,
