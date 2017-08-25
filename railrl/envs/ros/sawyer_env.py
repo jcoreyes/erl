@@ -16,6 +16,7 @@ import datetime
 from gravity_torques.srv import *
 import time
 from queue import Queue
+import math
 from intera_interface import CHECK_VERSION
 
 NUM_JOINTS = 7
@@ -370,9 +371,12 @@ class SawyerEnv(Env, Serializable):
         self.filter_observations = False
         self.previous_action = np.zeros(7)
         self.previous_temp = np.zeros(38)
-
+        self.in_reset = True
+        self.amplify = 2
     @safe
     def _act(self, action):
+        # if not self.in_reset:
+        #     action = self.amplify*action
         if self.safety_box:
             self.update_pose_and_jacobian_dict()
             self.check_joints_in_box(self.pose_jacobian_dict)
@@ -487,6 +491,7 @@ class SawyerEnv(Env, Serializable):
     def step(self, action):
         if self._rs.state().stopped:
             ipdb.set_trace()
+        self.nan_check(action)
         actual_commanded_action = self._act(action)
 
         curr_time = time.time()
@@ -611,7 +616,10 @@ class SawyerEnv(Env, Serializable):
         self.previous_angles = current_angles
         # self.previous_positions = .1 * self.previous_positions + .9 * current_positions
         return False
-
+    def nan_check(self, action):
+        for val in action:
+            if math.isnan(val):
+                raise EnvironmentError('ERROR: NaN action attempted')
     def _get_observation(self):
         angles = self._get_joint_values['angle']()
         torques_dict = self._get_joint_values['torque']()
@@ -658,6 +666,7 @@ class SawyerEnv(Env, Serializable):
             'subtracted':subtracted,
             'applied':action,
         }
+
         self.q.append(obs_dict)
         # if len(self.q) == self.N:
         #     self.q = self.q[1:]
@@ -669,6 +678,7 @@ class SawyerEnv(Env, Serializable):
         -------
         observation : the initial observation of the space. (Initial reward is assumed to be 0.)
         """
+        self.in_reset = True
         self.previous_angles = self._joint_angles()
         # self.previous_positions = self.get_positions_from_pose_jacobian_dict()
 
@@ -681,6 +691,7 @@ class SawyerEnv(Env, Serializable):
         self.safe_move_to_neutral()
         # self.previous_positions = self.get_positions_from_pose_jacobian_dict()
         self.previous_angles = self._joint_angles()
+        self.in_reset = False
         return self._get_observation()
 
     def _randomize_desired_angles(self):
@@ -802,7 +813,7 @@ class SawyerEnv(Env, Serializable):
         pass
 
     def log_diagnostics(self, paths):
-        np.save('training_buffer.npy', self.q)
+        np.save('training_buffer_with_pushes.npy', self.q)
         statistics = OrderedDict()
         stat_prefix = 'Test'
         if self.end_effector_experiment_total or self.end_effector_experiment_position:

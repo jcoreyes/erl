@@ -85,7 +85,7 @@ experiments=[
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="ddpg-sawyer-fixed-angle-get-torque-data",
+        exp_prefix="ddpg-sawyer-fixed-angle-one-shot-jacobian",
         seed=0,
         mode='here',
         variant={

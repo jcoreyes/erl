@@ -37,7 +37,8 @@ env.reset()
 # except Exception as e:
 #     import ipdb; ipdb.set_trace()
 
-# while True:
+for i in range(10000):
+    env.update_n_step_buffer(env._get_observation(), np.zeros(7), 0)
     # env.safety_box_check(reset_on_error=False)
     # env.unexpected_velocity_check(reset_on_error=True)
     # env.high_torque_check()
@@ -51,6 +52,7 @@ env.reset()
 #     env.unexpected_torque_check(reset_on_error=False)
 #     if (env.get_observed_torques_minus_gravity() > 5).any():
 #         print(env.get_observed_torques_minus_gravity())
+np.save('buffer_with_pushes.npy', env.q)
 # angles = env.arm.joint_angles()
 # angles = np.array([angles['right_j0'], angles['right_j1'], angles['right_j2'], angles['right_j3'], angles['right_j4'], angles['right_j5'], angles['right_j6']])
 
