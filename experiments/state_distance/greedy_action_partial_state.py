@@ -81,7 +81,7 @@ if __name__ == "__main__":
         qf.cuda()
     qf.train(False)
 
-    num_samples = 100
+    num_samples = 1000
     policy = SamplePolicyPartialOptimizer(qf, env, num_samples)
 
     while True:
