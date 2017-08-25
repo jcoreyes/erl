@@ -209,7 +209,7 @@ class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle,
                 velocity,
         ))
 
-    def sample_goal_partially(self, goal, sample_size):
+    def sample_irrelevant_goal_dimensions(self, goal, sample_size):
         """
         :param goal: np.ndarray, shape GOAL_DIM
         :param sample_size:
@@ -309,7 +309,7 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
     def goal_dim(self):
         return 6
 
-    def sample_goal_partially(self, goal, sample_size):
+    def sample_irrelevant_goal_dimensions(self, goal, sample_size):
         """
         Sample the goal a bunch of time, but fill in the desired position with
         what you care about.

@@ -36,10 +36,10 @@ class SamplePolicyPartialOptimizer(object):
         )
 
     def get_action(self, obs, goal, discount):
-        sampled_actions = np.random.uniform(-1, 1, size=(self.num_samples, 2))
+        sampled_actions = self.env.sample_actions(self.num_samples)
         actions = ptu.np_to_var(sampled_actions)
         goals = ptu.np_to_var(
-            self.env.sample_goal_partially(goal, self.num_samples)
+            self.env.sample_irrelevant_goal_dimensions(goal, self.num_samples)
         )
 
         q_values = ptu.get_numpy(self.qf(

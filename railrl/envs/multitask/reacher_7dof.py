@@ -48,6 +48,25 @@ class Reacher7DofXyzGoalState(MultitaskEnv, mujoco_env.MujocoEnv, utils.EzPickle
             self.np_random.uniform(low=-0.2, high=0.6, size=(batch_size, 1)),
         ))
 
+    def sample_actions(self, sample_size):
+        return np.random.uniform(
+            -1, 1, size=(sample_size, self.action_space.low.size)
+        )
+
+    def sample_states(self, sample_size):
+        return np.hstack((
+            # From the xml
+            self.np_random.uniform(low=-2.28, high=1.71, size=(sample_size, 1)),
+            self.np_random.uniform(low=-0.52, high=1.39, size=(sample_size, 1)),
+            self.np_random.uniform(low=-1.4, high=1.7, size=(sample_size, 1)),
+            self.np_random.uniform(low=-2.32, high=0, size=(sample_size, 1)),
+            self.np_random.uniform(low=-1.5, high=1.5, size=(sample_size, 1)),
+            self.np_random.uniform(low=-1.094, high=0, size=(sample_size, 1)),
+            self.np_random.uniform(low=-1.5, high=1.5, size=(sample_size, 1)),
+            # velocities
+            self.np_random.uniform(low=-1, high=1, size=(sample_size, 7)),
+        ))
+
     @property
     def goal_dim(self):
         return 3
@@ -108,19 +127,16 @@ class Reacher7DofFullGloalState(Reacher7DofXyzGoalState):
         return goal_states
 
     def sample_goal_states(self, batch_size):
-        # Number taken from range specified in XML
-        return np.hstack((
-            # From the xml
-            self.np_random.uniform(low=-2.28, high=1.71, size=(batch_size, 1)),
-            self.np_random.uniform(low=-0.52, high=1.39, size=(batch_size, 1)),
-            self.np_random.uniform(low=-1.4, high=1.7, size=(batch_size, 1)),
-            self.np_random.uniform(low=-2.32, high=0, size=(batch_size, 1)),
-            self.np_random.uniform(low=-1.5, high=1.5, size=(batch_size, 1)),
-            self.np_random.uniform(low=-1.094, high=0, size=(batch_size, 1)),
-            self.np_random.uniform(low=-1.5, high=1.5, size=(batch_size, 1)),
-            # velocities
-            self.np_random.uniform(low=-1, high=1, size=(batch_size, 7)),
-        ))
+        return self.sample_states(batch_size)
+
+    def sample_irrelevant_goal_dimensions(self, goal, sample_size):
+        new_goal_states = super().sample_irrelevant_goal_dimensions(
+            goal, sample_size
+        )
+        new_goal_states[:, 7:] = (
+            self.np_random.uniform(low=-1, high=1, size=(sample_size, 7))
+        )
+        return new_goal_states
 
     def _get_obs(self):
         return np.concatenate([
@@ -143,6 +159,7 @@ class Reacher7DofFullGloalState(Reacher7DofXyzGoalState):
         Instead, I just put the arm in the desired goal state. Then I measure
         the end-effector XYZ coordinate.
         """
+        saved_init_qpos = self.init_qpos.copy()
         qpos_tmp = self.init_qpos
         qpos_tmp[:14] = self.multitask_goal
         qvel_tmp = np.zeros(self.model.nv)
@@ -150,11 +167,12 @@ class Reacher7DofFullGloalState(Reacher7DofXyzGoalState):
         goal_xyz = self.get_body_com("tips_arm")
 
         # Now we actually set the goal position
-        qpos = self.init_qpos
+        qpos = saved_init_qpos
         qpos[7:10] = goal_xyz
         qvel = self.init_qvel + self.np_random.uniform(
             low=-0.005, high=0.005, size=self.model.nv,
         )
         qvel[7:] = 0
-        self.set_state(qpos_tmp, qvel)
+        self.set_state(qpos, qvel)
+
         return self._get_obs()
