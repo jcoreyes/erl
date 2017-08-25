@@ -5,6 +5,9 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
     """
     An environment with a task that can be specified with a goal state.
     """
+    @abc.abstractmethod
+    def set_goal(self, goal):
+        pass
 
     @abc.abstractmethod
     def sample_goal_states(self, batch_size):
