@@ -139,15 +139,10 @@ class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     since the goal will constantly change.
     """
 
-    def __init__(self, obs_scales=None, ctrl_penalty_weight=0):
-        if obs_scales is None:
-            self.obs_scales = None
-        else:
-            self.obs_scales = np.array(obs_scales)
+    def __init__(self, ctrl_penalty_weight=0):
         self.ctrl_penalty_weight = ctrl_penalty_weight
         utils.EzPickle.__init__(
             self,
-            obs_scales=obs_scales,
             ctrl_penalty_weight=ctrl_penalty_weight,
         )
         mujoco_env.MujocoEnv.__init__(self, 'reacher.xml', 2)
@@ -202,8 +197,6 @@ class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             np.sin(theta),
             self.model.data.qvel.flat[:2],
         ])
-        if self.obs_scales is not None:
-            obs *= self.obs_scales
         return obs
 
     def sample_goal_states(self, batch_size):
@@ -286,11 +279,7 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
     than just the XY-coordinate of the target end effector.
     """
 
-    def __init__(self, obs_scales=None, ctrl_penalty_weight=0):
-        if obs_scales is None:
-            self.obs_scales = None
-        else:
-            self.obs_scales = np.array(obs_scales)
+    def __init__(self, ctrl_penalty_weight=0):
         self.ctrl_penalty_weight = ctrl_penalty_weight
         utils.EzPickle.__init__(
             self,
@@ -317,8 +306,6 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
             np.sin(theta),
             velocities
         ])
-        if self.obs_scales is not None:
-            obs *= self.obs_scales
         return obs
 
     def sample_goal_states_for_rollouts(self, batch_size):
@@ -333,8 +320,6 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
             np.sin(theta),
             velocities
         ])
-        if self.obs_scales is not None:
-            obs *= self.obs_scales
         return obs
 
     def compute_rewards(self, obs, action, next_obs, goal_states):
@@ -480,8 +465,6 @@ class FullStateWithXYStateReacherEnv(GoalStateSimpleStateReacherEnv):
             velocities,
             ee_pos
         ])
-        if self.obs_scales is not None:
-            obs *= self.obs_scales
         return obs
 
     def compute_rewards(self, obs, action, next_obs, goal_states):
@@ -500,8 +483,6 @@ class FullStateWithXYStateReacherEnv(GoalStateSimpleStateReacherEnv):
             self.model.data.qvel.flat[:2],
             self.model.data.qpos.flat[:2],
         ])
-        if self.obs_scales is not None:
-            obs *= self.obs_scales
         return obs
 
     @property
