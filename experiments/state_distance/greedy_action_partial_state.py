@@ -14,7 +14,6 @@ import railrl.torch.pytorch_util as ptu
 from railrl.algos.state_distance.state_distance_q_learning import (
     multitask_rollout
 )
-from railrl.envs.multitask.reacher_env import GoalStateSimpleStateReacherEnv
 from railrl.torch.pytorch_util import set_gpu_mode
 from rllab.misc import logger
 
@@ -65,7 +64,7 @@ if __name__ == "__main__":
                         help='Max length of rollout')
     parser.add_argument('--num_rollouts', type=int, default=5,
                         help='Number of rollouts per eval')
-    parser.add_argument('--discount', type=float, default=0.,
+    parser.add_argument('--discount', type=float,
                         help='Discount Factor')
     parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--hide', action='store_true')
@@ -81,23 +80,28 @@ if __name__ == "__main__":
         qf.cuda()
     qf.train(False)
 
+    if 'discount' in data:
+        discount = data['discount']
+        if args.discount is not None:
+            print("WARNING: you are overriding the saved discount factor.")
+            discount = args.discount
+    else:
+        discount = args.discount
+
     num_samples = 1000
     policy = SamplePolicyPartialOptimizer(qf, env, num_samples)
 
     while True:
         paths = []
         for _ in range(args.num_rollouts):
-            goal = env.sample_goal_states(1)[0]
-            if isinstance(env, GoalStateSimpleStateReacherEnv):
-                goal[4:6] = 0
+            goal = env.sample_goal_states_for_rollouts(1)[0]
             if args.verbose:
                 env.print_goal_state_info(goal)
-            env.set_goal(goal)
             path = multitask_rollout(
                 env,
                 policy,
                 goal,
-                discount=args.discount,
+                discount=discount,
                 max_path_length=args.H,
                 animated=not args.hide,
             )

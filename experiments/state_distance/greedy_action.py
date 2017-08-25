@@ -6,14 +6,8 @@ from torch.autograd import Variable
 
 import railrl.torch.pytorch_util as ptu
 from railrl.algos.state_distance.state_distance_q_learning import (
-    rollout_with_goal,
     multitask_rollout,
 )
-from railrl.envs.multitask.reacher_env import (
-    FullStateVaryingWeightReacherEnv,
-    FullStateWithXYStateReacherEnv,
-)
-# from railrl.samplers.util import rollout
 from railrl.torch.pytorch_util import set_gpu_mode
 from rllab.misc import logger
 
@@ -59,7 +53,7 @@ if __name__ == "__main__":
                         help='Max length of rollout')
     parser.add_argument('--num_rollouts', type=int, default=100,
                         help='Number of rollouts per eval')
-    parser.add_argument('--discount', type=float, default=0.,
+    parser.add_argument('--discount', type=float,
                         help='Discount Factor')
     parser.add_argument('--grid', action='store_true')
     parser.add_argument('--gpu', action='store_true')
@@ -77,29 +71,31 @@ if __name__ == "__main__":
     qf.train(False)
 
     num_samples = 1000
-    resolution = 10
     if args.load:
         policy = data['policy']
         policy.train(False)
     else:
         policy = SamplePolicy(qf, num_samples)
+
+    if 'discount' in data:
+        discount = data['discount']
+        if args.discount is not None:
+            print("WARNING: you are overriding the saved discount factor.")
+            discount = args.discount
+    else:
+        discount = args.discount
+
     while True:
         paths = []
         for _ in range(args.num_rollouts):
-            goals = env.sample_goal_states(1)
-            goal = goals[0]
-            if isinstance(env, FullStateVaryingWeightReacherEnv):
-                goal[:6] = np.array([1, 1, 1, 1, 0, 0])
-            if isinstance(env, FullStateWithXYStateReacherEnv):
-                goal[4:6] = 0
+            goal = env.sample_goal_states_for_rollouts(1)[0]
             if args.verbose:
                 env.print_goal_state_info(goal)
-            env.set_goal(goal)
             path = multitask_rollout(
                 env,
                 policy,
                 goal,
-                discount=args.discount,
+                discount=discount,
                 max_path_length=args.H,
                 animated=not args.hide,
             )
