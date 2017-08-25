@@ -11,7 +11,7 @@ from railrl.algos.state_distance.state_distance_q_learning import (
     StateDistanceQLearning,
 )
 from railrl.algos.state_distance.util import get_replay_buffer
-from railrl.envs.multitask.reacher_7_dof import Reacher7DofXyzGoalState
+from railrl.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState
 from railrl.envs.multitask.reacher_env import (
     GoalStateSimpleStateReacherEnv,
     XyMultitaskSimpleStateReacherEnv,
@@ -89,13 +89,13 @@ if __name__ == '__main__':
 
     n_seeds = 1
     mode = "here"
-    exp_prefix = "dev-sdqlr"
+    exp_prefix = "dev-sdql"
     run_mode = "none"
 
-    n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "reacher-7-dof-xyz-goal-state"
-    run_mode = 'grid'
+    # n_seeds = 3
+    # mode = "ec2"
+    # exp_prefix = "reacher-7-dof-xyz-goal-state"
+    # run_mode = 'grid'
 
     version = "Dev"
     num_configurations = 50  # for random mode
