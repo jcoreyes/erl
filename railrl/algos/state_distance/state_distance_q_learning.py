@@ -163,6 +163,7 @@ class StateDistanceQLearning(DDPG):
         self.exploration_strategy.reset()
         self.exploration_policy.reset()
         self.goal_state = self.env.sample_goal_states_for_rollouts(1)[0]
+        self.training_env.set_goal(self.goal_state)
         return self.training_env.reset()
 
     def get_action_and_info(self, n_steps_total, observation):
@@ -376,6 +377,7 @@ def multitask_rollout(
     terminals = []
     agent_infos = []
     env_infos = []
+    env.set_goal(goal)
     o = env.reset()
     path_length = 0
     if animated:
