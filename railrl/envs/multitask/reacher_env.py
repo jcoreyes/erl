@@ -67,7 +67,8 @@ def position_from_angles(angles):
     )
 
 
-class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
+class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle,
+                                       MultitaskEnv):
     """
     The goal states are xy-coordinates.
 
@@ -163,10 +164,12 @@ class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             size=(batch_size, 2)
         )
 
+    def sample_goal_states_for_rollouts(self, batch_size):
+        return self.sample_goal_states(batch_size)
+
     def compute_rewards(self, obs, action, next_obs, goal_states):
-        next_endeffector_positions = position_from_angles(next_obs)
         reward_dist = -np.linalg.norm(
-            next_endeffector_positions - goal_states, axis=1
+            self.convert_obs_to_goal_states(next_obs) - goal_states, axis=1
         )
         reward_ctrl = - np.sum(action * action, axis=1)
         return self.ctrl_penalty_weight * reward_ctrl + reward_dist
@@ -278,12 +281,6 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
             velocities
         ])
         return obs
-
-    def compute_rewards(self, obs, action, next_obs, goal_states):
-        difference = next_obs - goal_states
-        reward_dist = -np.linalg.norm(difference, axis=1)
-        reward_ctrl = - np.sum(action * action, axis=1)
-        return reward_dist + reward_ctrl + self.ctrl_penalty_weight
 
     def log_diagnostics(self, paths):
         observations = np.vstack([path['observations'] for path in paths])
