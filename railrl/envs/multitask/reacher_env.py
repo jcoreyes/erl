@@ -97,12 +97,8 @@ class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle,
     since the goal will constantly change.
     """
 
-    def __init__(self, ctrl_penalty_weight=0):
-        self.ctrl_penalty_weight = ctrl_penalty_weight
-        utils.EzPickle.__init__(
-            self,
-            ctrl_penalty_weight=ctrl_penalty_weight,
-        )
+    def __init__(self):
+        utils.EzPickle.__init__(self)
         mujoco_env.MujocoEnv.__init__(self, 'reacher.xml', 2)
         self._fixed_goal = None
         self.goal = None
@@ -121,7 +117,7 @@ class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle,
         vec = self.get_body_com("fingertip") - self.get_body_com("target")
         reward_dist = - np.linalg.norm(vec)
         reward_ctrl = - np.sum(a * a)
-        reward = reward_dist + reward_ctrl * self.ctrl_penalty_weight
+        reward = reward_dist
         self.do_simulation(a, self.frame_skip)
         ob = self._get_obs()
         done = False
@@ -166,13 +162,6 @@ class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle,
 
     def sample_goal_states_for_rollouts(self, batch_size):
         return self.sample_goal_states(batch_size)
-
-    def compute_rewards(self, obs, action, next_obs, goal_states):
-        reward_dist = -np.linalg.norm(
-            self.convert_obs_to_goal_states(next_obs) - goal_states, axis=1
-        )
-        reward_ctrl = - np.sum(action * action, axis=1)
-        return self.ctrl_penalty_weight * reward_ctrl + reward_dist
 
     def log_diagnostics(self, paths):
         observations = np.vstack([path['observations'] for path in paths])
@@ -239,12 +228,8 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
     than just the XY-coordinate of the target end effector.
     """
 
-    def __init__(self, ctrl_penalty_weight=0):
-        self.ctrl_penalty_weight = ctrl_penalty_weight
-        utils.EzPickle.__init__(
-            self,
-            ctrl_penalty_weight=ctrl_penalty_weight,
-        )
+    def __init__(self):
+        utils.EzPickle.__init__(self)
         mujoco_env.MujocoEnv.__init__(self, 'reacher.xml', 2)
         self._fixed_goal = None
         self.goal = None

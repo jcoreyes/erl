@@ -1,4 +1,5 @@
 import abc
+import numpy as np
 
 
 class MultitaskEnv(object, metaclass=abc.ABCMeta):
@@ -23,9 +24,11 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         """
         pass
 
-    @abc.abstractmethod
     def compute_rewards(self, obs, action, next_obs, goal_states):
-        pass
+        return - np.linalg.norm(
+            self.convert_obs_to_goal_states(next_obs) - goal_states,
+            axis=1,
+        )
 
     @abc.abstractmethod
     def convert_obs_to_goal_states(self, obs):
