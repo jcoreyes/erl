@@ -67,49 +67,6 @@ def position_from_angles(angles):
     )
 
 
-class XyMultitaskReacherEnv(ReacherEnv, MultitaskEnv):
-    """
-    The goal states are xy-coordinates.
-    """
-
-    def sample_goal_states(self, batch_size):
-        return self.np_random.uniform(
-            low=-0.2,
-            high=0.2,
-            size=(batch_size, 2)
-        )
-
-    def compute_rewards(self, obs, action, next_obs, goal_states):
-        next_qpos = position_from_angles(next_obs)
-        reward_dist = -np.linalg.norm(next_qpos - goal_states, axis=1)
-        reward_ctrl = - np.sum(action * action, axis=1)
-        return reward_ctrl + reward_dist
-
-    def log_diagnostics(self, paths):
-        distance = [
-            np.linalg.norm(path["observations"][-1][-3:])
-            for path in paths
-        ]
-
-        statistics = OrderedDict()
-        statistics.update(create_stats_ordered_dict(
-            'Distance to target', distance
-        ))
-        for key, value in statistics.items():
-            logger.record_tabular(key, value)
-
-    def convert_obs_to_goal_states(self, obs):
-        return position_from_angles(obs)
-
-    @property
-    def goal_dim(self):
-        return 2
-
-    @staticmethod
-    def print_goal_state_info(goal):
-        print(goal)
-
-
 class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     """
     The goal states are xy-coordinates.
