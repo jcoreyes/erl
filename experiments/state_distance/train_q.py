@@ -11,7 +11,7 @@ from railrl.algos.state_distance.state_distance_q_learning import (
     StateDistanceQLearning,
 )
 from railrl.algos.state_distance.util import get_replay_buffer
-from railrl.envs.multitask.pusher import MultitaskPusherEnv
+from railrl.envs.multitask.reacher_7_dof import Reacher7DofXyzGoalState
 from railrl.envs.multitask.reacher_env import (
     GoalStateSimpleStateReacherEnv,
     XyMultitaskSimpleStateReacherEnv,
@@ -94,7 +94,7 @@ if __name__ == '__main__':
 
     # n_seeds = 3
     # mode = "ec2"
-    exp_prefix = "fix-exploration-eval"
+    # exp_prefix = "fix-exploration-eval"
     # run_mode = 'grid'
 
     version = "Dev"
@@ -107,7 +107,7 @@ if __name__ == '__main__':
 
     dataset_path = args.replay_path
 
-    max_path_length = 150
+    max_path_length = 300
     # noinspection PyTypeChecker
     variant = dict(
         dataset_path=str(dataset_path),
@@ -145,10 +145,11 @@ if __name__ == '__main__':
             max_value=0.99,
             ramp_duration=49,
         ),
-        env_class=GoalStateSimpleStateReacherEnv,
+        env_class=Reacher7DofXyzGoalState,
+        # env_class=GoalStateSimpleStateReacherEnv,
         # env_class=XyMultitaskSimpleStateReacherEnv,
         env_params=dict(
-            ctrl_penalty_weight=0,
+            # ctrl_penalty_weight=0,
         ),
         sampler_params=dict(
             min_num_steps_to_collect=100000,
