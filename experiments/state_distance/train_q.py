@@ -15,9 +15,6 @@ from railrl.envs.multitask.pusher import MultitaskPusherEnv
 from railrl.envs.multitask.reacher_env import (
     GoalStateSimpleStateReacherEnv,
     XyMultitaskSimpleStateReacherEnv,
-    FullStateWithXYStateReacherEnv,
-    GoalStateXYRewardReacherEnv,
-    XYAndGoalStateReacherEnv
 )
 from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
@@ -95,16 +92,16 @@ if __name__ == '__main__':
     exp_prefix = "dev-sdqlr"
     run_mode = "none"
 
-    n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "hp-sweep-fixed-sampling-goal-state"
-    run_mode = 'grid'
+    # n_seeds = 3
+    # mode = "ec2"
+    exp_prefix = "fix-exploration-eval"
+    # run_mode = 'grid'
 
     version = "Dev"
     num_configurations = 50  # for random mode
     snapshot_mode = "gap"
-    snapshot_gap = 20
-    use_gpu = False
+    snapshot_gap = 10
+    use_gpu = True
     if mode != "here":
         use_gpu = False
 
@@ -115,12 +112,12 @@ if __name__ == '__main__':
     variant = dict(
         dataset_path=str(dataset_path),
         algo_params=dict(
-            num_epochs=501,
+            num_epochs=101,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             use_soft_update=True,
             tau=0.001,
-            batch_size=100,
+            batch_size=500,
             discount=0.,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
@@ -149,14 +146,9 @@ if __name__ == '__main__':
             ramp_duration=49,
         ),
         env_class=GoalStateSimpleStateReacherEnv,
-        # env_class=GoalStateXYRewardReacherEnv,
-        # env_class=XYAndGoalStateReacherEnv,
         # env_class=XyMultitaskSimpleStateReacherEnv,
-        # env_class=FullStateWithXYStateReacherEnv,
         env_params=dict(
-            add_noop_action=False,  # TODO(vitchyr): Figure out if this matters
             ctrl_penalty_weight=0,
-            # obs_scales=[1, 1, 1, 1, 0.04, 0.01],
         ),
         sampler_params=dict(
             min_num_steps_to_collect=100000,
