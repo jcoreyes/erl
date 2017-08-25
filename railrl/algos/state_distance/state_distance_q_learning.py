@@ -10,52 +10,6 @@ from railrl.misc.tensorboard_logger import TensorboardLogger
 from rllab.misc import logger
 
 
-class MultigoalSimplePathSampler(object):
-    def __init__(self, env, policy, max_samples, max_path_length, discount):
-        self.env = env
-        self.policy = policy
-        self.max_samples = max_samples
-        self.max_path_length = max_path_length
-        self.discount = discount
-        self.goals = None
-
-    def start_worker(self):
-        pass
-
-    def shutdown_worker(self):
-        pass
-
-    def set_discount(self, discount):
-        self.discount = discount
-
-    def set_goals(self, goals):
-        self.goals = goals
-
-    def obtain_samples(self):
-        paths = []
-        for i in range(self.max_samples // self.max_path_length):
-            goal = self.goals[i & len(self.goals)]
-            path = multitask_rollout(
-                self.env,
-                self.policy,
-                goal,
-                self.discount,
-                max_path_length=self.max_path_length,
-            )
-            path_length = len(path['observations'])
-            path['goal_states'] = expand_goal(goal, path_length)
-            paths.append(path)
-        return paths
-
-
-def expand_goal(goal, path_length):
-    return np.repeat(
-        np.expand_dims(goal, 0),
-        path_length,
-        0,
-    )
-
-
 class StateDistanceQLearning(DDPG):
     def __init__(
             self,
@@ -324,44 +278,49 @@ class StateDistanceQLearning(DDPG):
         )
 
 
-def rollout_with_goal(env, agent, goal, max_path_length=np.inf, animated=False):
-    observations = []
-    actions = []
-    rewards = []
-    terminals = []
-    agent_infos = []
-    env_infos = []
-    o = env.reset()
-    # o = np.hstack((o, goal))
-    # o = (o, goal)
-    path_length = 0
-    if animated:
-        env.render()
-    while path_length < max_path_length:
-        a, agent_info = agent.get_action(o)
-        next_o, r, d, env_info = env.step(a)
-        observations.append(o)
-        rewards.append(r)
-        terminals.append(d)
-        actions.append(a)
-        agent_infos.append(agent_info)
-        env_infos.append(env_info)
-        path_length += 1
-        if d:
-            break
-        o = next_o
-        # o = np.hstack((o, goal))
-        # o = (o, goal)
-        if animated:
-            env.render()
+class MultigoalSimplePathSampler(object):
+    def __init__(self, env, policy, max_samples, max_path_length, discount):
+        self.env = env
+        self.policy = policy
+        self.max_samples = max_samples
+        self.max_path_length = max_path_length
+        self.discount = discount
+        self.goals = None
 
-    return dict(
-        observations=np.array(observations),
-        actions=np.array(actions),
-        rewards=np.array(rewards),
-        terminals=np.array(terminals),
-        agent_infos=np.array(agent_infos),
-        env_infos=np.array(env_infos),
+    def start_worker(self):
+        pass
+
+    def shutdown_worker(self):
+        pass
+
+    def set_discount(self, discount):
+        self.discount = discount
+
+    def set_goals(self, goals):
+        self.goals = goals
+
+    def obtain_samples(self):
+        paths = []
+        for i in range(self.max_samples // self.max_path_length):
+            goal = self.goals[i & len(self.goals)]
+            path = multitask_rollout(
+                self.env,
+                self.policy,
+                goal,
+                self.discount,
+                max_path_length=self.max_path_length,
+            )
+            path_length = len(path['observations'])
+            path['goal_states'] = expand_goal(goal, path_length)
+            paths.append(path)
+        return paths
+
+
+def expand_goal(goal, path_length):
+    return np.repeat(
+        np.expand_dims(goal, 0),
+        path_length,
+        0,
     )
 
 
