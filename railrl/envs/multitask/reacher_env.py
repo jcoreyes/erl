@@ -139,14 +139,7 @@ class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     since the goal will constantly change.
     """
 
-    def __init__(self, add_noop_action=True, obs_scales=None,
-                 ctrl_penalty_weight=0):
-        """
-        :param add_noop_action: If True, add an extra no-op after every call to
-        the simulator. The reason this is done is so that your current action
-        (torque) will affect your next position.
-        """
-        self.add_noop_action = add_noop_action
+    def __init__(self, obs_scales=None, ctrl_penalty_weight=0):
         if obs_scales is None:
             self.obs_scales = None
         else:
@@ -154,7 +147,6 @@ class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self.ctrl_penalty_weight = ctrl_penalty_weight
         utils.EzPickle.__init__(
             self,
-            add_noop_action=add_noop_action,
             obs_scales=obs_scales,
             ctrl_penalty_weight=ctrl_penalty_weight,
         )
@@ -178,10 +170,6 @@ class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         reward_ctrl = - np.sum(a * a)
         reward = reward_dist + reward_ctrl * self.ctrl_penalty_weight
         self.do_simulation(a, self.frame_skip)
-        if self.add_noop_action:
-            # Make it so that your actions (torque) actually affect the next
-            # observation position.
-            self.do_simulation(np.zeros_like(a), self.frame_skip)
         ob = self._get_obs()
         done = False
         return ob, reward, done, dict(reward_dist=reward_dist,
@@ -298,15 +286,7 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
     than just the XY-coordinate of the target end effector.
     """
 
-    def __init__(self, add_noop_action=True,
-                 obs_scales=None,
-                 ctrl_penalty_weight=0):
-        """
-        :param add_noop_action: If True, add an extra no-op after every call to
-        the simulator. The reason this is done is so that your current action
-        (torque) will affect your next position.
-        """
-        self.add_noop_action = add_noop_action
+    def __init__(self, obs_scales=None, ctrl_penalty_weight=0):
         if obs_scales is None:
             self.obs_scales = None
         else:
@@ -314,7 +294,6 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
         self.ctrl_penalty_weight = ctrl_penalty_weight
         utils.EzPickle.__init__(
             self,
-            add_noop_action=add_noop_action,
             ctrl_penalty_weight=ctrl_penalty_weight,
         )
         mujoco_env.MujocoEnv.__init__(self, 'reacher.xml', 2)
