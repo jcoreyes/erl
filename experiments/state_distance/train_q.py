@@ -97,13 +97,13 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "shane-settings-again-sweep-sample-from-env-2"
+    exp_prefix = "hp-sweep-fixed-sampling-goal-state"
     run_mode = 'grid'
 
     version = "Dev"
     num_configurations = 50  # for random mode
     snapshot_mode = "gap"
-    snapshot_gap = 5
+    snapshot_gap = 20
     use_gpu = False
     if mode != "here":
         use_gpu = False
@@ -115,7 +115,7 @@ if __name__ == '__main__':
     variant = dict(
         dataset_path=str(dataset_path),
         algo_params=dict(
-            num_epochs=101,
+            num_epochs=501,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             use_soft_update=True,
@@ -130,6 +130,7 @@ if __name__ == '__main__':
             max_path_length=max_path_length,
             use_new_data=True,
             replay_buffer_size=200000,
+            num_updates_per_env_step=1,
         ),
         qf_params=dict(
             obs_hidden_size=400,
@@ -143,10 +144,8 @@ if __name__ == '__main__':
         ),
         epoch_discount_schedule_class=RampUpSchedule,
         epoch_discount_schedule_params=dict(
-            min_value=0.,
-            max_value=0.,
-            # min_value=0.,
-            # max_value=0.,
+            min_value=0.99,
+            max_value=0.99,
             ramp_duration=49,
         ),
         env_class=GoalStateSimpleStateReacherEnv,
@@ -182,16 +181,10 @@ if __name__ == '__main__':
     )
     if run_mode == 'grid':
         search_space = {
-            'env_class': [
-                FullStateWithXYStateReacherEnv,
-                GoalStateSimpleStateReacherEnv,
-                # GoalStateXYRewardReacherEnv,
-                # XyMultitaskSimpleStateReacherEnv,
-                # XYAndGoalStateReacherEnv,
-            ],
             'algo_params.tau': [0.01, 0.001],
             'algo_params.qf_weight_decay': [0, 0.01],
-            # 'algo_params.qf_learning_rate': [1e-3, 1e-4],
+            'algo_params.batch_size': [100, 500],
+            'algo_params.num_updates_per_env_step': [1, 10],
             # 'algo_params.policy_learning_rate': [1e-4, 1e-5],
             'epoch_discount_schedule_params': [
                 dict(
