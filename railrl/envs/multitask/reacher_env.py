@@ -416,8 +416,8 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
         :return: ndarray, shape SAMPLE_SIZE x GOAL_DIM
         """
         sampled_velocities = np.random.uniform(
-            -10,
-            10,
+            -1,
+            1,
             size=(sample_size, 2),
         )
         goals = np.repeat(
