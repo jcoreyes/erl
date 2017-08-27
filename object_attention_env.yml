@@ -1,0 +1,20 @@
+name: objectattention-test
+channels:
+    - defaults
+dependencies:
+    - python==2.7.13
+    - Cython==0.26
+    - IPython
+    - matplotlib
+    - pip:
+        # Tensorflow 1.0, GPU only
+        - easydict
+        - pyyaml
+        - rospy
+        - rospkg
+        - catkin-pkg
+        # - tkinter
+        - pillow
+        - opencv-python
+        - tensorflow-gpu==1.0.1
+        - numpy==1.13.1
