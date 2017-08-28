@@ -178,6 +178,15 @@ class Reacher7DofFullGoalState(Reacher7DofXyzGoalState):
         return self._get_obs()
 
 
+class Reacher7DofFullGloalState(Reacher7DofFullGoalState):
+    """
+    Kept so that loading old envs works still. Used to have this type in the
+    class name.
+    """
+    pass
+
+
+
 class Reacher7DofCosSinFullGoalState(Reacher7DofFullGoalState):
     def _get_obs(self):
         angles = self.model.data.qpos.flat[:7]
