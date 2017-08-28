@@ -1,10 +1,12 @@
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.qfunctions.torch import FeedForwardQFunction
+from railrl.qfunctions.torch import FeedForwardDuelingQFunction
 from railrl.torch.ddpg import DDPG
 from os.path import exists
 from railrl.envs.ros.baxter_env import BaxterEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
+from railrl.torch import pytorch_util as ptu
 import joblib
 
 def example(variant):
@@ -12,10 +14,11 @@ def example(variant):
     if not load_policy_file == None and exists(load_policy_file):
         data = joblib.load(load_policy_file)
         algorithm = data['algorithm']
+        epochs = data['epoch']
         use_gpu = variant['use_gpu']
-        if use_gpu:
+        if use_gpu and ptu.gpu_enabled():
             algorithm.cuda()
-        algorithm.train()
+        algorithm.train(start_epoch=epochs)
     else:
         arm_name = variant['arm_name']
         experiment = variant['experiment']
@@ -29,7 +32,8 @@ def example(variant):
         es_max_sigma = variant['es_max_sigma']
         num_epochs = variant['num_epochs']
         batch_size = variant['batch_size']
-        use_reset = variant['use_reset']
+        use_gpu = variant['use_gpu']
+
         env = BaxterEnv(
             experiment=experiment,
             arm_name=arm_name,
@@ -39,14 +43,19 @@ def example(variant):
             safety_force_magnitude=safety_force_magnitude,
             temp=temp,
             huber_delta=huber_delta,
-            use_reset=use_reset,
         )
         es = OUStrategy(
             max_sigma=es_max_sigma,
             min_sigma=es_min_sigma,
             action_space=env.action_space,
         )
-        qf = FeedForwardQFunction(
+        # qf = FeedForwardQFunction(
+        #     int(env.observation_space.flat_dim),
+        #     int(env.action_space.flat_dim),
+        #     100,
+        #     100,
+        # )
+        qf = FeedForwardDuelingQFunction(
             int(env.observation_space.flat_dim),
             int(env.action_space.flat_dim),
             100,
@@ -57,7 +66,6 @@ def example(variant):
             int(env.action_space.flat_dim),
             100,
             100,
-
         )
         algorithm = DDPG(
             env,
@@ -67,6 +75,8 @@ def example(variant):
             num_epochs=num_epochs,
             batch_size=batch_size,
         )
+        if use_gpu:
+            algorithm.cuda()
         algorithm.train()
 
 experiments=[
@@ -81,7 +91,7 @@ experiments=[
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="7-24-ddpg-baxter-left-arm-no-use_reset-fixed-angle-all-zeros",
+        exp_prefix="7-31-ddpg-baxter-left-arm-dueling-q-network",
         seed=0,
         mode='here',
         variant={
@@ -89,18 +99,17 @@ if __name__ == "__main__":
                 'arm_name':'left',
                 'safety_box':True,
                 'loss':'huber',
-                'huber_delta':10,
+                'huber_delta':.8,
                 'safety_force_magnitude':1,
                 'temp':1.2,
                 'remove_action':False,
                 'experiment':experiments[0],
-                'es_min_sigma':.05,
-                'es_max_sigma':.05,
+                'es_min_sigma':.1,
+                'es_max_sigma':.1,
                 'num_epochs':30,
                 'batch_size':1024,
                 'use_gpu':True,
-                'use_reset':False,
-                # 'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-21-ddpg-baxter-right-arm-fixed-angle-huber-safety-TEST/7-21-ddpg-baxter-right-arm-fixed-angle-huber-safety-TEST_2017_07_21_11_04_56_0000--s-0/params.pkl',
+                # 'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-31-ddpg-baxter-left-arm-test/7-31-ddpg-baxter-left-arm-test_2017_07_31_10_08_14_0000--s-0/params.pkl',
                 },
         use_gpu=True,
     )

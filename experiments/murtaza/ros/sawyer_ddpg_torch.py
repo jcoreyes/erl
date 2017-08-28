@@ -5,18 +5,20 @@ from railrl.torch.ddpg import DDPG
 from os.path import exists
 from railrl.envs.ros.sawyer_env import SawyerEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
+from railrl.torch import pytorch_util as ptu
 import joblib
+import cProfile
 
 def example(variant):
-    #TODO: Fix the loading code to actually work!
     load_policy_file = variant.get('load_policy_file', None)
     if load_policy_file is not None and exists(load_policy_file):
         data = joblib.load(load_policy_file)
         algorithm = data['algorithm']
+        epoch = data['epoch']
         use_gpu = variant['use_gpu']
-        if use_gpu:
+        if use_gpu and ptu.gpu_enabled():
             algorithm.cuda()
-        algorithm.train()
+        algorithm.train(start_epoch=epoch)
     else:
         arm_name = variant['arm_name']
         experiment = variant['experiment']
@@ -30,6 +32,7 @@ def example(variant):
         es_max_sigma = variant['es_max_sigma']
         num_epochs = variant['num_epochs']
         batch_size = variant['batch_size']
+        use_gpu = variant['use_gpu']
 
         env = SawyerEnv(
             experiment=experiment,
@@ -66,7 +69,9 @@ def example(variant):
             num_epochs=num_epochs,
             batch_size=batch_size,
         )
-    algorithm.train()
+        if use_gpu and ptu.gpu_enabled():
+            algorithm.cuda()
+        algorithm.train()
 
 experiments=[
     'joint_angle|fixed_angle',
@@ -76,10 +81,11 @@ experiments=[
     'end_effector_position_orientation|fixed_ee',
     'end_effector_position_orientation|varying_ee'
 ]
+
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="7-21-ddpg-sawyer-fixed-angle-huber-move-to-neutral-improved-angle-measurement",
+        exp_prefix="ddpg-sawyer-fixed-angle-one-shot-jacobian",
         seed=0,
         mode='here',
         variant={
@@ -87,17 +93,17 @@ if __name__ == "__main__":
             'arm_name': 'right',
             'safety_box': True,
             'loss': 'huber',
-            'huber_delta': 10,
-            'safety_force_magnitude': 2,
-            'temp': 1.05,
+            'huber_delta': .5,
+            'safety_force_magnitude': 3,
+            'temp': 3,
             'remove_action': False,
             'experiment': experiments[0],
-            'es_min_sigma': .1,
-            'es_max_sigma': .1,
+            'es_min_sigma': 1,
+            'es_max_sigma': 1,
             'num_epochs': 30,
             'batch_size': 1024,
             'use_gpu':True,
-            # 'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-20-ddpg-sawyer-fixed-angle-huber-move-to-neutral/7-20-ddpg-sawyer-fixed-angle-huber-move-to-neutral_2017_07_20_21_45_58_0000--s-0/params.pkl'
+            # 'load_policy_file':'/home/murtaza/Documents/rllab/data/local/08-17-ddpg-sawyer-fixed-angle-safety-check-test/08-17_ddpg-sawyer-fixed-angle-safety-check-test_2017_08_17_11_56_55_0000--s-0/params.pkl'
         },
         use_gpu=True,
     )

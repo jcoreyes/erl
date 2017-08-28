@@ -5,6 +5,7 @@ from railrl.torch.ddpg import DDPG
 from os.path import exists
 from railrl.envs.ros.baxter_env import BaxterEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
+from railrl.torch import pytorch_util as ptu
 import joblib
 
 def example(variant):
@@ -12,10 +13,11 @@ def example(variant):
     if not load_policy_file == None and exists(load_policy_file):
         data = joblib.load(load_policy_file)
         algorithm = data['algorithm']
+        epochs = data['epoch']
         use_gpu = variant['use_gpu']
-        if use_gpu:
+        if use_gpu and ptu.gpu_enabled():
             algorithm.cuda()
-        algorithm.train()
+        algorithm.train(start_epoch=epochs)
     else:
         arm_name = variant['arm_name']
         experiment = variant['experiment']
@@ -29,7 +31,9 @@ def example(variant):
         es_max_sigma = variant['es_max_sigma']
         num_epochs = variant['num_epochs']
         batch_size = variant['batch_size']
-        
+        use_gpu = variant['use_gpu']
+        include_torque_penalty = variant['include_torque_penalty']
+
         env = BaxterEnv(
             experiment=experiment,
             arm_name=arm_name,
@@ -39,6 +43,7 @@ def example(variant):
             safety_force_magnitude=safety_force_magnitude,
             temp=temp,
             huber_delta=huber_delta,
+            include_torque_penalty=include_torque_penalty
         )
         es = OUStrategy(
             max_sigma=es_max_sigma,
@@ -65,7 +70,9 @@ def example(variant):
             num_epochs=num_epochs,
             batch_size=batch_size,
         )
-    algorithm.train()
+        if use_gpu:
+            algorithm.cuda()
+        algorithm.train()
 
 experiments=[
     'joint_angle|fixed_angle', 
@@ -79,7 +86,7 @@ experiments=[
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="7-21-ddpg-baxter-right-arm-move-to-neutral-no-safety",
+        exp_prefix="ddpg-baxter-right-arm-torque-penaltyn-test",
         seed=0,
         mode='here',
         variant={
@@ -92,13 +99,13 @@ if __name__ == "__main__":
                 'temp':1.2,
                 'remove_action':False,
                 'experiment':experiments[0],
-                'es_min_sigma':.05,
-                'es_max_sigma':.05,
+                'es_min_sigma':.1,
+                'es_max_sigma':.1,
                 'num_epochs':30,
                 'batch_size':1024,
                 'use_gpu':True,
-                'use_reset':True,
-                'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-21-ddpg-baxter-right-arm-move-to-neutral-no-safety/7-21-ddpg-baxter-right-arm-move-to-neutral-no-safety_2017_07_24_10_11_13_0000--s-0/params.pkl'
+                'include_torque_penalty': True,
+                # 'load_policy_file':'/home/murtaza/Documents/rllab/data/local/7-25-ddpg-baxter-right-arm-fixed-angle-random-reset/7-25-ddpg-baxter-right-arm-fixed-angle-random-reset_2017_07_25_13_07_16_0000--s-0/params.pkl'
                 },
         use_gpu=True,
     )
