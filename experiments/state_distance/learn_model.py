@@ -5,7 +5,9 @@ import railrl.torch.pytorch_util as ptu
 from railrl.algos.state_distance.model_learning import ModelLearning
 from railrl.algos.state_distance.util import get_replay_buffer
 from railrl.envs.multitask.reacher_env import (
-    GoalStateSimpleStateReacherEnv)
+    GoalStateSimpleStateReacherEnv,
+    XyMultitaskSimpleStateReacherEnv,
+)
 from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
@@ -50,7 +52,7 @@ if __name__ == '__main__':
 
     # n_seeds = 3
     # mode = "ec2"
-    # exp_prefix = "tmp"
+    exp_prefix = "reacher-2d-full-goal-learn-model-longer"
 
     # run_mode = 'grid'
     num_configurations = 1  # for random mode
@@ -66,7 +68,7 @@ if __name__ == '__main__':
     variant = dict(
         dataset_path=str(dataset_path),
         algo_params=dict(
-            num_epochs=101,
+            num_epochs=100,
             num_batches_per_epoch=1000,
             num_unique_batches=1000,
             batch_size=100,
@@ -82,7 +84,7 @@ if __name__ == '__main__':
             # add_noop_action=False,
         ),
         sampler_params=dict(
-            min_num_steps_to_collect=20000,
+            min_num_steps_to_collect=10000,
             max_path_length=150,
             render=args.render,
         ),

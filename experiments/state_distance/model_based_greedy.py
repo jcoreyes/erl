@@ -6,21 +6,14 @@ a = argmin_a ||f(s, a) - GOAL||^2
 where f is a learned forward dynamics model.
 """
 
-import math
 import argparse
 
 import joblib
 import numpy as np
-import torch
 from torch.autograd import Variable
-from torch.optim import SGD, Adam
 
 import railrl.torch.pytorch_util as ptu
-from railrl.envs.multitask.reacher_env import XyMultitaskSimpleStateReacherEnv, \
-    GoalStateSimpleStateReacherEnv
-from railrl.pythonplusplus import line_logger
 from railrl.samplers.util import rollout
-from railrl.torch.pytorch_util import set_gpu_mode
 from rllab.misc import logger
 
 
@@ -64,7 +57,14 @@ class GreedyModelBasedPolicy(object):
             obs,
             action,
         )
-        errors = (next_state_predicted - self._goal_batch)**2
+        next_goal_state_predicted = ptu.np_to_var(
+            self.env.convert_obs_to_goal_states(
+                ptu.get_numpy(
+                    next_state_predicted
+                )
+            )
+        )
+        errors = (next_goal_state_predicted - self._goal_batch)**2
         mean_errors = errors.mean(dim=1)
         min_i = np.argmin(ptu.get_numpy(mean_errors))
         return sampled_actions[min_i], {}
