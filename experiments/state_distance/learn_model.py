@@ -68,7 +68,7 @@ if __name__ == '__main__':
     variant = dict(
         dataset_path=str(dataset_path),
         algo_params=dict(
-            num_epochs=100,
+            num_epochs=101,
             num_batches_per_epoch=1000,
             num_unique_batches=1000,
             batch_size=100,
