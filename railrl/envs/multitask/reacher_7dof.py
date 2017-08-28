@@ -120,10 +120,10 @@ class Reacher7DofXyzGoalState(MultitaskEnv, mujoco_env.MujocoEnv, utils.EzPickle
             logger.record_tabular(key, value)
 
 
-class Reacher7DofFullGloalState(Reacher7DofXyzGoalState):
+class Reacher7DofFullGoalState(Reacher7DofXyzGoalState):
     def sample_goal_states_for_rollouts(self, batch_size):
         goal_states = self.sample_goal_states(batch_size)
-        goal_states[:, 7:] = 0
+        goal_states[:, -7:] = 0
         return goal_states
 
     def sample_goal_states(self, batch_size):
@@ -133,7 +133,7 @@ class Reacher7DofFullGloalState(Reacher7DofXyzGoalState):
         new_goal_states = super().sample_irrelevant_goal_dimensions(
             goal, sample_size
         )
-        new_goal_states[:, 7:] = (
+        new_goal_states[:, -7:] = (
             self.np_random.uniform(low=-1, high=1, size=(sample_size, 7))
         )
         return new_goal_states
@@ -162,6 +162,56 @@ class Reacher7DofFullGloalState(Reacher7DofXyzGoalState):
         saved_init_qpos = self.init_qpos.copy()
         qpos_tmp = self.init_qpos
         qpos_tmp[:14] = self.multitask_goal
+        qvel_tmp = np.zeros(self.model.nv)
+        self.set_state(qpos_tmp, qvel_tmp)
+        goal_xyz = self.get_body_com("tips_arm")
+
+        # Now we actually set the goal position
+        qpos = saved_init_qpos
+        qpos[7:10] = goal_xyz
+        qvel = self.init_qvel + self.np_random.uniform(
+            low=-0.005, high=0.005, size=self.model.nv,
+        )
+        qvel[7:] = 0
+        self.set_state(qpos, qvel)
+
+        return self._get_obs()
+
+
+class Reacher7DofCosSinFullGoalState(Reacher7DofFullGoalState):
+    def _get_obs(self):
+        angles = self.model.data.qpos.flat[:7]
+        return np.concatenate([
+            np.cos(angles),
+            np.sin(angles),
+            self.model.data.qvel.flat[:7],
+        ])
+
+    def sample_states(self, batch_size):
+        full_states = super().sample_states(batch_size)
+        angles = full_states[:, 7:]
+        velocities = full_states[:, :7]
+        return np.hstack((
+            np.cos(angles),
+            np.sin(angles),
+            velocities
+        ))
+
+    @property
+    def goal_dim(self):
+        return 21
+
+    def convert_obs_to_goal_states(self, obs):
+        return obs
+
+    def reset_model(self):
+        saved_init_qpos = self.init_qpos.copy()
+        qpos_tmp = self.init_qpos
+        cos = self.multitask_goal[:7]
+        sin = self.multitask_goal[7:14]
+        angles = np.arctan2(sin, cos)
+        qpos_tmp[:7] = angles
+        qpos_tmp[7:] = self.multitask_goal[14:]
         qvel_tmp = np.zeros(self.model.nv)
         self.set_state(qpos_tmp, qvel_tmp)
         goal_xyz = self.get_body_com("tips_arm")

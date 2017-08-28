@@ -13,7 +13,8 @@ from railrl.algos.state_distance.state_distance_q_learning import (
 from railrl.algos.state_distance.util import get_replay_buffer
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState,
-    Reacher7DofFullGloalState,
+    Reacher7DofFullGoalState,
+    Reacher7DofCosSinFullGoalState,
 )
 from railrl.envs.multitask.reacher_env import (
     GoalStateSimpleStateReacherEnv,
@@ -97,7 +98,7 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "reacher-7dof-gamma-tricks"
+    exp_prefix = "compare-reacher-7dof-variants"
     run_mode = 'grid'
 
     version = "Dev"
@@ -149,7 +150,8 @@ if __name__ == '__main__':
             ramp_duration=49,
         ),
         # env_class=Reacher7DofXyzGoalState,
-        env_class=Reacher7DofFullGloalState,
+        # env_class=Reacher7DofFullGloalState,
+        env_class=Reacher7DofCosSinFullGoalState,
         # env_class=GoalStateSimpleStateReacherEnv,
         # env_class=XyMultitaskSimpleStateReacherEnv,
         env_params=dict(
@@ -178,13 +180,17 @@ if __name__ == '__main__':
     )
     if run_mode == 'grid':
         search_space = {
-            'algo_params.sample_discount': [True, False],
+            'env_class': [
+                Reacher7DofCosSinFullGoalState,
+                Reacher7DofXyzGoalState,
+                Reacher7DofFullGoalState,
+            ],
             'algo_params.num_updates_per_env_step': [1, 10],
             'epoch_discount_schedule_params': [
                 dict(
                     min_value=0.99,
                     max_value=0.99,
-                    ramp_duration=10,
+                    ramp_duration=1,
                 ),
                 dict(
                     min_value=0.,
@@ -193,13 +199,8 @@ if __name__ == '__main__':
                 ),
                 dict(
                     min_value=0.,
-                    max_value=0.99,
-                    ramp_duration=20,
-                ),
-                dict(
-                    min_value=0.,
-                    max_value=0.99,
-                    ramp_duration=50,
+                    max_value=0.,
+                    ramp_duration=1,
                 ),
             ]
         }
