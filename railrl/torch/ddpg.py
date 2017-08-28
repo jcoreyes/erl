@@ -29,10 +29,13 @@ class DDPG(OnlineAlgorithm):
             exploration_policy=None,
             policy_learning_rate=1e-4,
             qf_learning_rate=1e-3,
+            qf_weight_decay=0,
             target_hard_update_period=1000,
             tau=1e-2,
             use_soft_update=False,
             replay_buffer=None,
+            qf_criterion=None,
+            differentiate_through_target=False,
             **kwargs
     ):
         if exploration_policy is None:
@@ -47,15 +50,22 @@ class DDPG(OnlineAlgorithm):
         self.policy = policy
         self.policy_learning_rate = policy_learning_rate
         self.qf_learning_rate = qf_learning_rate
+        self.qf_weight_decay = qf_weight_decay
         self.target_qf = self.qf.copy()
         self.target_policy = self.policy.copy()
         self.target_hard_update_period = target_hard_update_period
         self.tau = tau
         self.use_soft_update = use_soft_update
+        self.differentiate_through_target = differentiate_through_target
 
-        self.qf_criterion = nn.MSELoss()
-        self.qf_optimizer = optim.Adam(self.qf.parameters(),
-                                       lr=self.qf_learning_rate)
+        if qf_criterion is None:
+            qf_criterion = nn.MSELoss()
+        self.qf_criterion = qf_criterion
+        self.qf_optimizer = optim.Adam(
+            self.qf.parameters(),
+            lr=self.qf_learning_rate,
+            weight_decay=self.qf_weight_decay,
+       )
         self.policy_optimizer = optim.Adam(self.policy.parameters(),
                                            lr=self.policy_learning_rate)
         if replay_buffer is None:
@@ -120,18 +130,29 @@ class DDPG(OnlineAlgorithm):
         """
         Critic operations.
         """
-        next_actions = self.target_policy(next_obs)
-        target_q_values = self.target_qf(
-            next_obs,
-            next_actions,
-        )
-        y_target = rewards + (1. - terminals) * self.discount * target_q_values
 
-        # noinspection PyUnresolvedReferences
-        y_target = y_target.detach()
-        y_pred = self.qf(obs, actions)
-        bellman_errors = (y_pred - y_target)**2
-        qf_loss = self.qf_criterion(y_pred, y_target)
+        if self.differentiate_through_target:
+            next_actions = self.target_policy(next_obs)
+            target_q_values = self.qf(
+                next_obs,
+                next_actions,
+            )
+            y_target = rewards + (1. - terminals) * self.discount * target_q_values
+            y_pred = self.qf(obs, actions)
+            bellman_errors = (y_pred - y_target)**2
+            # noinspection PyUnresolvedReferences
+            qf_loss = bellman_errors.mean()
+        else:
+            next_actions = self.target_policy(next_obs)
+            target_q_values = self.target_qf(
+                next_obs,
+                next_actions,
+            )
+            y_target = rewards + (1. - terminals) * self.discount * target_q_values
+            y_target = y_target.detach()
+            y_pred = self.qf(obs, actions)
+            bellman_errors = (y_pred - y_target)**2
+            qf_loss = self.qf_criterion(y_pred, y_target)
 
         return OrderedDict([
             ('Policy Actions', policy_actions),
@@ -239,12 +260,19 @@ class DDPG(OnlineAlgorithm):
 
         for name in [
             'Bellman Errors',
+            'QF Outputs',
+            'Policy Actions',
         ]:
             tensor = train_dict[name]
             statistics.update(create_stats_ordered_dict(
                 '{} {}'.format(stat_prefix, name),
                 ptu.get_numpy(tensor)
             ))
+
+        statistics.update(create_stats_ordered_dict(
+            "{} Env Actions".format(stat_prefix),
+            ptu.get_numpy(batch['actions'])
+        ))
 
         return statistics
 
@@ -280,8 +308,10 @@ def np_to_pytorch_batch(np_batch):
         k: elem_or_tuple_to_variable(x)
         for k, x in np_batch.items()
     }
-    torch_batch['rewards'] = torch_batch['rewards'].unsqueeze(-1)
-    torch_batch['terminals'] = torch_batch['terminals'].unsqueeze(-1)
+    if len(torch_batch['rewards'].size()) == 1:
+        torch_batch['rewards'] = torch_batch['rewards'].unsqueeze(-1)
+    if len(torch_batch['terminals'].size()) == 1:
+        torch_batch['terminals'] = torch_batch['terminals'].unsqueeze(-1)
     return torch_batch
 
 

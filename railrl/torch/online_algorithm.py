@@ -5,7 +5,8 @@ import time
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.envs.wrappers import convert_gym_space
 from railrl.misc.ml_util import ConstantSchedule
-from railrl.misc.rllab_util import get_table_key_set
+from railrl.misc.rllab_util import get_table_key_set, \
+    save_extra_data_to_snapshot_dir
 from railrl.policies.base import SerializablePolicy
 from rllab.algos.base import RLAlgorithm
 from rllab.misc import logger, tensor_utils
@@ -88,6 +89,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             save_exploration_path_period=1,
             sample_with_training_env=False,
             epoch_discount_schedule=None,
+            eval_sampler=None,
     ):
         self.training_env = env
         self.exploration_policy = exploration_policy
@@ -110,23 +112,27 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         self.action_space = convert_gym_space(env.action_space)
         self.obs_space = convert_gym_space(env.observation_space)
 
-        # noinspection PyTypeChecker
-        if self.sample_with_training_env:
-            self.env = pickle.loads(pickle.dumps(self.training_env))
-            self.eval_sampler = SimplePathSampler(
-                self.env,
-                self.exploration_policy,
-                self.num_steps_per_eval,
-                self.max_path_length,
-            )
+        if eval_sampler is None:
+            # TODO: Remove flag and force to set eval_sampler
+            if self.sample_with_training_env:
+                self.env = pickle.loads(pickle.dumps(self.training_env))
+                self.eval_sampler = SimplePathSampler(
+                    env=env,
+                    policy=exploration_policy,
+                    max_samples=num_steps_per_eval,
+                    max_path_length=max_path_length,
+                )
+            else:
+                self.env = env
+                self.eval_sampler = InPlacePathSampler(
+                    env=env,
+                    policy=exploration_policy,
+                    max_samples=num_steps_per_eval,
+                    max_path_length=max_path_length,
+                )
         else:
-            self.env = env
-            self.eval_sampler = InPlacePathSampler(
-                self.env,
-                self.exploration_policy,
-                self.num_steps_per_eval,
-                self.max_path_length,
-            )
+            self.eval_sampler = eval_sampler
+            self.env = eval_sampler.env
         self.replay_buffer = EnvReplayBuffer(
             self.replay_buffer_size,
             self.env,
@@ -142,6 +148,13 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         self.exploration_strategy.reset()
         self.exploration_policy.reset()
         return self.training_env.reset()
+
+    def get_action_and_info(self, n_steps_total, observation):
+        return self.exploration_strategy.get_action(
+            n_steps_total,
+            observation,
+            self.exploration_policy,
+        )
 
     def train(self, start_epoch=0):
         n_steps_total = 0
@@ -165,12 +178,9 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             start_time = time.time()
             exploration_paths = []
             for _ in range(self.num_steps_per_epoch):
-                action, agent_info = (
-                    self.exploration_strategy.get_action(
-                        n_steps_total,
-                        observation,
-                        self.exploration_policy,
-                    )
+                action, agent_info = self.get_action_and_info(
+                    n_steps_total,
+                    observation,
                 )
                 if self.render:
                     self.training_env.render()
@@ -241,6 +251,9 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                 self.evaluate(epoch, exploration_paths)
                 params = self.get_epoch_snapshot(epoch)
                 logger.save_itr_params(epoch, params)
+                save_extra_data_to_snapshot_dir(
+                    self.get_extra_data_to_save(epoch),
+                )
                 table_keys = get_table_key_set(logger)
                 if old_table_keys is not None:
                     assert table_keys == old_table_keys, (
@@ -256,6 +269,17 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             else:
                 logger.log("Not training yet. Time: {}".format(train_time))
             logger.pop_prefix()
+
+    def get_extra_data_to_save(self, epoch):
+        """
+        Save things that shouldn't be saved every snapshot but rather
+        overwritten every time.
+        :param epoch:
+        :return:
+        """
+        return dict(
+            epoch=epoch,
+        )
 
     def _start_worker(self):
         self.eval_sampler.start_worker()
