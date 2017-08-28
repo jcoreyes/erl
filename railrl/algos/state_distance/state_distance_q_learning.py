@@ -1,5 +1,5 @@
 import pickle
-from collections import OrderedDict
+from collections import OrderedDict, Iterable
 
 import numpy as np
 
@@ -37,6 +37,7 @@ class StateDistanceQLearning(DDPG):
             max_samples=num_steps_per_eval,
             max_path_length=max_path_length,
             discount=discount,
+            sample_discount=sample_discount,
         )
         self.num_goals_for_eval = num_steps_per_eval // max_path_length + 1
         super().__init__(
@@ -279,12 +280,16 @@ class StateDistanceQLearning(DDPG):
 
 
 class MultigoalSimplePathSampler(object):
-    def __init__(self, env, policy, max_samples, max_path_length, discount):
+    def __init__(
+            self, env, policy, max_samples, max_path_length, discount,
+            sample_discount=False,
+    ):
         self.env = env
         self.policy = policy
         self.max_samples = max_samples
         self.max_path_length = max_path_length
         self.discount = discount
+        self.sample_discount = sample_discount
         self.goals = None
 
     def start_worker(self):
@@ -302,12 +307,16 @@ class MultigoalSimplePathSampler(object):
     def obtain_samples(self):
         paths = []
         for i in range(self.max_samples // self.max_path_length):
+            if self.sample_discount:
+                discount = np.random.uniform(0, self.discount, 1)[0]
+            else:
+                discount = self.discount
             goal = self.goals[i & len(self.goals)]
             path = multitask_rollout(
                 self.env,
                 self.policy,
                 goal,
-                self.discount,
+                discount,
                 max_path_length=self.max_path_length,
             )
             path_length = len(path['observations'])

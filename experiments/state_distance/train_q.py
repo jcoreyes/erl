@@ -11,7 +11,10 @@ from railrl.algos.state_distance.state_distance_q_learning import (
     StateDistanceQLearning,
 )
 from railrl.algos.state_distance.util import get_replay_buffer
-from railrl.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState
+from railrl.envs.multitask.reacher_7dof import (
+    Reacher7DofXyzGoalState,
+    Reacher7DofFullGloalState,
+)
 from railrl.envs.multitask.reacher_env import (
     GoalStateSimpleStateReacherEnv,
     XyMultitaskSimpleStateReacherEnv,
@@ -92,15 +95,15 @@ if __name__ == '__main__':
     exp_prefix = "dev-sdql"
     run_mode = "none"
 
-    # n_seeds = 3
-    # mode = "ec2"
-    # exp_prefix = "reacher-7-dof-xyz-goal-state"
-    # run_mode = 'grid'
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "reacher-7dof-gamma-tricks"
+    run_mode = 'grid'
 
     version = "Dev"
     num_configurations = 50  # for random mode
     snapshot_mode = "gap"
-    snapshot_gap = 50
+    snapshot_gap = 5
     use_gpu = True
     if mode != "here":
         use_gpu = False
@@ -112,7 +115,7 @@ if __name__ == '__main__':
     variant = dict(
         dataset_path=str(dataset_path),
         algo_params=dict(
-            num_epochs=1001,
+            num_epochs=101,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             use_soft_update=True,
@@ -145,7 +148,8 @@ if __name__ == '__main__':
             max_value=0.99,
             ramp_duration=49,
         ),
-        env_class=Reacher7DofXyzGoalState,
+        # env_class=Reacher7DofXyzGoalState,
+        env_class=Reacher7DofFullGloalState,
         # env_class=GoalStateSimpleStateReacherEnv,
         # env_class=XyMultitaskSimpleStateReacherEnv,
         env_params=dict(
@@ -174,28 +178,30 @@ if __name__ == '__main__':
     )
     if run_mode == 'grid':
         search_space = {
-            'algo_params.tau': [0.0001, 0.001],
-            'algo_params.batch_size': [500, 1000],
-            'algo_params.max_path_length': [300, 1000],
-            # 'algo_params.num_updates_per_env_step': [1, 10],
-            # 'algo_params.policy_learning_rate': [1e-4, 1e-5],
-            # 'epoch_discount_schedule_params': [
-            #     dict(
-            #         min_value=0.,
-            #         max_value=0.,
-            #         ramp_duration=49,
-            #     ),
-            #     dict(
-            #         min_value=0.,
-            #         max_value=0.99,
-            #         ramp_duration=49,
-            #     ),
-            #     dict(
-            #         min_value=0.99,
-            #         max_value=0.99,
-            #         ramp_duration=49,
-            #     ),
-            # ]
+            'algo_params.sample_discount': [True, False],
+            'algo_params.num_updates_per_env_step': [1, 10],
+            'epoch_discount_schedule_params': [
+                dict(
+                    min_value=0.99,
+                    max_value=0.99,
+                    ramp_duration=10,
+                ),
+                dict(
+                    min_value=0.,
+                    max_value=0.99,
+                    ramp_duration=10,
+                ),
+                dict(
+                    min_value=0.,
+                    max_value=0.99,
+                    ramp_duration=20,
+                ),
+                dict(
+                    min_value=0.,
+                    max_value=0.99,
+                    ramp_duration=50,
+                ),
+            ]
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
             search_space, default_parameters=variant,
@@ -215,6 +221,29 @@ if __name__ == '__main__':
                     periodic_sync_interval=300,
                     snapshot_mode=snapshot_mode,
                     snapshot_gap=snapshot_gap,
+                )
+    elif run_mode == 'custom_grid':
+        for exp_id, (
+                nupo,
+                min_num_steps_to_collect,
+                version,
+        ) in enumerate([
+            (1, 100000, "semi_off_policy_nupo1_nsteps100k"),
+            (10, 100000, "semi_off_policy_nupo10_nsteps100k"),
+        ]):
+            variant['algo_params']['num_updates_per_env_step'] = nupo
+            variant['sampler_params']['min_num_steps_to_collect'] = (
+                min_num_steps_to_collect
+            )
+            for _ in range(n_seeds):
+                seed = random.randint(0, 10000)
+                run_experiment(
+                    experiment,
+                    exp_prefix=exp_prefix,
+                    seed=seed,
+                    mode=mode,
+                    variant=variant,
+                    exp_id=exp_id,
                 )
     elif run_mode == 'hyperopt':
         search_space = {
