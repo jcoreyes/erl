@@ -16,9 +16,6 @@ from torch.autograd import Variable
 from torch.optim import SGD, Adam
 
 import railrl.torch.pytorch_util as ptu
-from railrl.envs.multitask.reacher_env import XyMultitaskSimpleStateReacherEnv, \
-    GoalStateSimpleStateReacherEnv
-from railrl.pythonplusplus import line_logger
 from railrl.samplers.util import rollout
 from railrl.torch.pytorch_util import set_gpu_mode
 from rllab.misc import logger
@@ -28,16 +25,12 @@ class SampleOptimalControlPolicy(object):
     """
     Do the argmax by sampling a bunch of states and acitons
     """
-    R1 = 0.1  # from reacher.xml
-    R2 = 0.11
-
     def __init__(
             self,
             qf,
             env,
             constraint_weight=10,
             sample_size=100,
-            goal_is_full_state=True,
             verbose=False,
     ):
         self.qf = qf
@@ -45,7 +38,6 @@ class SampleOptimalControlPolicy(object):
         self.constraint_weight = constraint_weight
         self.sample_size = sample_size
         self.verbose = verbose
-        self.goal_is_full_state = goal_is_full_state
         self._goal_pos_batch = None
         self._goal_batch = None
         self._discount_batch = None
@@ -63,33 +55,18 @@ class SampleOptimalControlPolicy(object):
 
     def set_goal(self, goal):
         self._goal_batch = self.expand_np_to_var(goal)
-        if self.goal_is_full_state:
-            self._goal_pos_batch = self.position(self._goal_batch)
-        else:
-            self._goal_pos_batch = self._goal_batch
 
     def set_discount(self, discount):
         self._discount_batch = self.expand_np_to_var(np.array([discount]))
 
     def reward(self, state, action, next_state):
-        ee_pos = self.position(next_state)
-        return -torch.norm(ee_pos - self._goal_pos_batch, dim=1)
-
-    def position(self, obs):
-        c1 = obs[:, 0:1]  # cosine of angle 1
-        c2 = obs[:, 1:2]
-        s1 = obs[:, 2:3]
-        s2 = obs[:, 3:4]
-        return (  # forward kinematics equation for 2-link robot
-            self.R1 * torch.cat((c1, s1), dim=1)
-            + self.R2 * torch.cat(
-                (
-                    c1 * c2 - s1 * s2,
-                    s1 * c2 + c1 * s2,
-                ),
-                dim=1,
-            )
+        rewards_np = self.env.compute_rewards(
+            ptu.get_numpy(state),
+            ptu.get_numpy(action),
+            ptu.get_numpy(next_state),
+            ptu.get_numpy(self._goal_batch),
         )
+        return ptu.np_to_var(np.expand_dims(rewards_np, 1))
 
     def reset(self):
         pass
@@ -120,27 +97,6 @@ class SampleOptimalControlPolicy(object):
             - self.constraint_weight * constraint_penalty
         )
         max_i = np.argmax(ptu.get_numpy(score))
-        if self.verbose:
-            print("")
-            print("constraint penalty", ptu.get_numpy(
-                constraint_penalty)[
-                max_i])
-            print("reward", ptu.get_numpy(reward)[max_i])
-            print("action", ptu.get_numpy(action)[max_i])
-            print("--")
-            print("state_diff", ptu.get_numpy(next_state[max_i] - obs[max_i]))
-            print("current_state", ptu.get_numpy(obs[max_i]))
-            print("next_state", ptu.get_numpy(next_state[max_i]))
-            print("goal", ptu.get_numpy(self._goal_batch)[max_i])
-            print("--")
-            print("state_diff_pos", ptu.get_numpy(
-                self.position(next_state - obs)[max_i]
-            ))
-            print("current_state_pos", ptu.get_numpy(self.position(obs)[max_i]))
-            print("next_state_pos", ptu.get_numpy(
-                self.position(next_state)[max_i]
-            ))
-            print("goal_pos", ptu.get_numpy(self._goal_pos_batch)[max_i])
         return sampled_actions[max_i], {}
 
 
@@ -167,14 +123,12 @@ if __name__ == "__main__":
         qf.cuda()
     qf.train(False)
     print("Env type:", type(env))
-    goal_is_full_state = isinstance(env, GoalStateSimpleStateReacherEnv)
 
     policy = SampleOptimalControlPolicy(
         qf,
         env,
         constraint_weight=1000,
         sample_size=1000,
-        goal_is_full_state=goal_is_full_state,
         verbose=args.verbose,
     )
     policy.set_discount(0)
