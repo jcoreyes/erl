@@ -98,7 +98,8 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "compare-reacher-7dof-variants"
+    # exp_prefix = "compare-reacher-7dof-variants"
+    exp_prefix = "check-sampling-from-replay-buffer"
     run_mode = 'grid'
 
     version = "Dev"
@@ -183,26 +184,26 @@ if __name__ == '__main__':
             'env_class': [
                 Reacher7DofCosSinFullGoalState,
                 Reacher7DofXyzGoalState,
-                Reacher7DofFullGoalState,
+                XyMultitaskSimpleStateReacherEnv,
             ],
-            'algo_params.num_updates_per_env_step': [1, 10],
-            'epoch_discount_schedule_params': [
-                dict(
-                    min_value=0.99,
-                    max_value=0.99,
-                    ramp_duration=1,
-                ),
-                dict(
-                    min_value=0.,
-                    max_value=0.99,
-                    ramp_duration=10,
-                ),
-                dict(
-                    min_value=0.,
-                    max_value=0.,
-                    ramp_duration=1,
-                ),
-            ]
+            'algo_params.qf_weight_decay': ['environment', 'replay_buffer'],
+            # 'epoch_discount_schedule_params': [
+            #     dict(
+            #         min_value=0.99,
+            #         max_value=0.99,
+            #         ramp_duration=1,
+            #     ),
+            #     dict(
+            #         min_value=0.,
+            #         max_value=0.99,
+            #         ramp_duration=10,
+            #     ),
+            #     dict(
+            #         min_value=0.,
+            #         max_value=0.,
+            #         ramp_duration=1,
+            #     ),
+            # ]
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
             search_space, default_parameters=variant,
