@@ -89,7 +89,7 @@ class SampleOptimalControlPolicy(object):
         constraint_penalty = self.qf(
             obs,
             action,
-            self._goal_batch,
+            next_state,
             self._discount_batch,
         )**2
         score = (
@@ -100,6 +100,53 @@ class SampleOptimalControlPolicy(object):
         return sampled_actions[max_i], {}
 
 
+class MultiStepSampleOptimalControlPolicy(SampleOptimalControlPolicy):
+    def __init__(
+            self,
+            qf,
+            env,
+            horizon,
+            **kwargs
+    ):
+        super().__init__(qf, env, **kwargs)
+        self.horizon = horizon
+
+    def get_action(self, obs):
+        """
+        Naive implementation where I just sample a bunch of a and s' and take
+        the one that maximizes
+
+            f(a, s') = \sum_{t=now}^{now+H} r(s_t, a_t, s_{t+1})
+                        - C * Q_d(s_t, a_t, s_{t+1})**2
+
+        :param obs: np.array, state/observation
+        :return: np.array, action to take
+        """
+        sampled_actions = self.env.sample_actions(self.sample_size)
+        scores = []
+        for i in range(self.horizon):
+            action = ptu.np_to_var(sampled_actions)
+            next_state = ptu.np_to_var(self.env.sample_states(self.sample_size))
+            obs = self.expand_np_to_var(obs)
+            reward = self.reward(obs, action, next_state)
+            constraint_penalty = self.qf(
+                obs,
+                action,
+                self._goal_batch,
+                self._discount_batch,
+            )**2
+            score = (
+                reward
+                - self.constraint_weight * constraint_penalty
+            )
+            scores.append(score)
+
+            sampled_actions = self.env.sample_actions(self.sample_size)
+        final_score = sum(scores)
+        max_i = np.argmax(ptu.get_numpy(final_score))
+        return first_sampled_actions[max_i], {}
+
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
@@ -107,11 +154,12 @@ if __name__ == "__main__":
                         help='path to the snapshot file')
     parser.add_argument('--H', type=int, default=100,
                         help='Max length of rollout')
-    parser.add_argument('--num_rollouts', type=int, default=100,
+    parser.add_argument('--num_rollouts', type=int, default=10,
                         help='Number of rollouts per eval')
     parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--hide', action='store_true')
     parser.add_argument('--verbose', action='store_true')
+    parser.add_argument('--discount', type=float, help='Discount Factor')
     args = parser.parse_args()
 
     data = joblib.load(args.file)
@@ -127,15 +175,33 @@ if __name__ == "__main__":
     policy = SampleOptimalControlPolicy(
         qf,
         env,
-        constraint_weight=1000,
+        constraint_weight=0,
         sample_size=1000,
         verbose=args.verbose,
     )
-    policy.set_discount(0)
+
+    # policy = MultiStepSampleOptimalControlPolicy(
+    #     qf,
+    #     env,
+    #     horizon=2,
+    #     constraint_weight=1000,
+    #     sample_size=100,
+    #     verbose=args.verbose,
+    # )
+
+    if 'discount' in data:
+        discount = data['discount']
+        if args.discount is not None:
+            print("WARNING: you are overriding the saved discount factor.")
+            discount = args.discount
+    else:
+        discount = args.discount
+    policy.set_discount(discount)
     while True:
         paths = []
         for _ in range(args.num_rollouts):
-            goal = env.sample_goal_states(1)[0]
+            goals = env.sample_goal_states(1)
+            goal = goals[0]
             if args.verbose:
                 env.print_goal_state_info(goal)
             env.set_goal(goal)
@@ -145,6 +211,11 @@ if __name__ == "__main__":
                 policy,
                 max_path_length=args.H,
                 animated=not args.hide,
+            )
+            path['goal_states'] = np.repeat(
+                goals,
+                len(path['observations']),
+                0,
             )
             paths.append(path)
         env.log_diagnostics(paths)
