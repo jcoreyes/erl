@@ -52,7 +52,7 @@ if __name__ == '__main__':
 
     # n_seeds = 3
     # mode = "ec2"
-    exp_prefix = "reacher-2d-full-goal-learn-model-longer"
+    exp_prefix = "reacher-2d-xy-goal-learn-model-more-data"
 
     # run_mode = 'grid'
     num_configurations = 1  # for random mode
@@ -77,14 +77,14 @@ if __name__ == '__main__':
         model_params=dict(
             hidden_sizes=[400, 300],
         ),
-        env_class=GoalStateSimpleStateReacherEnv,
+        # env_class=GoalStateSimpleStateReacherEnv,
         # env_class=PusherEnv,
-        # env_class=XyMultitaskSimpleStateReacherEnv,
+        env_class=XyMultitaskSimpleStateReacherEnv,
         env_params=dict(
             # add_noop_action=False,
         ),
         sampler_params=dict(
-            min_num_steps_to_collect=10000,
+            min_num_steps_to_collect=100000,
             max_path_length=150,
             render=args.render,
         ),
