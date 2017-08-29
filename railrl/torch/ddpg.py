@@ -36,7 +36,7 @@ class DDPG(OnlineAlgorithm):
             replay_buffer=None,
             number_of_gradient_steps=1,
             qf_criterion=None,
-            differentiate_through_target=False,
+            residual_gradient_weight=0,
             **kwargs
     ):
         if exploration_policy is None:
@@ -58,7 +58,7 @@ class DDPG(OnlineAlgorithm):
         self.tau = tau
         self.use_soft_update = use_soft_update
         self.number_of_gradient_steps=number_of_gradient_steps
-        self.differentiate_through_target = differentiate_through_target
+        self.residual_gradient_weight = residual_gradient_weight
         if qf_criterion is None:
             qf_criterion = nn.MSELoss()
         self.qf_criterion = qf_criterion
@@ -133,8 +133,18 @@ class DDPG(OnlineAlgorithm):
         Critic operations.
         """
 
-        if self.differentiate_through_target:
-            next_actions = self.target_policy(next_obs)
+        next_actions = self.target_policy(next_obs)
+        target_q_values = self.target_qf(
+            next_obs,
+            next_actions,
+        )
+        y_target = rewards + (1. - terminals) * self.discount * target_q_values
+        y_target = y_target.detach()
+        y_pred = self.qf(obs, actions)
+        bellman_errors = (y_pred - y_target)**2
+        qf_loss = self.qf_criterion(y_pred, y_target)
+
+        if self.residual_gradient_weight > 0:
             target_q_values = self.qf(
                 next_obs,
                 next_actions,
@@ -143,18 +153,11 @@ class DDPG(OnlineAlgorithm):
             y_pred = self.qf(obs, actions)
             bellman_errors = (y_pred - y_target)**2
             # noinspection PyUnresolvedReferences
-            qf_loss = bellman_errors.mean()
-        else:
-            next_actions = self.target_policy(next_obs)
-            target_q_values = self.target_qf(
-                next_obs,
-                next_actions,
+            residual_qf_loss = bellman_errors.mean()
+            qf_loss = (
+                self.residual_gradient_weight * residual_qf_loss
+                + (1 - self.residual_gradient_weight) * qf_loss
             )
-            y_target = rewards + (1. - terminals) * self.discount * target_q_values
-            y_target = y_target.detach()
-            y_pred = self.qf(obs, actions)
-            bellman_errors = (y_pred - y_target)**2
-            qf_loss = self.qf_criterion(y_pred, y_target)
 
         return OrderedDict([
             ('Policy Actions', policy_actions),
