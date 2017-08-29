@@ -94,7 +94,7 @@ if __name__ == "__main__":
     policy = GreedyModelBasedPolicy(
         model,
         env,
-        sample_size=1000,
+        sample_size=10000,
     )
     while True:
         paths = []
