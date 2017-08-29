@@ -95,16 +95,24 @@ class Reacher7DofXyzGoalState(MultitaskEnv, mujoco_env.MujocoEnv, utils.EzPickle
         self.multitask_goal = goal
 
     def log_diagnostics(self, paths):
+        statistics = OrderedDict()
+
         observations = np.vstack([path['observations'] for path in paths])
         goal_states = np.vstack([path['goal_states'] for path in paths])
         distances = np.linalg.norm(
             self.convert_obs_to_goal_states(observations) - goal_states,
             axis=1,
         )
-
-        statistics = OrderedDict()
         statistics.update(create_stats_ordered_dict(
-            'Distance to target', distances
+            'State distance to target', distances
+        ))
+
+        euclidean_distances = np.vstack([
+            [info['distance'] for info in path['env_infos']]
+            for path in paths
+        ])
+        statistics.update(create_stats_ordered_dict(
+            'Euclidean distance to goal', euclidean_distances
         ))
 
         rewards = self.compute_rewards(
