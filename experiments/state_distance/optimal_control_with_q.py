@@ -122,17 +122,18 @@ class MultiStepSampleOptimalControlPolicy(SampleOptimalControlPolicy):
         :param obs: np.array, state/observation
         :return: np.array, action to take
         """
-        sampled_actions = self.env.sample_actions(self.sample_size)
+        state = self.expand_np_to_var(obs)
+        first_sampled_actions = self.env.sample_actions(self.sample_size)
+        action = ptu.np_to_var(first_sampled_actions)
+        next_state = ptu.np_to_var(self.env.sample_states(self.sample_size))
+
         scores = []
         for i in range(self.horizon):
-            action = ptu.np_to_var(sampled_actions)
-            next_state = ptu.np_to_var(self.env.sample_states(self.sample_size))
-            obs = self.expand_np_to_var(obs)
-            reward = self.reward(obs, action, next_state)
+            reward = self.reward(state, action, next_state)
             constraint_penalty = self.qf(
-                obs,
+                state,
                 action,
-                self._goal_batch,
+                self.env.convert_obs_to_goal_states_pytorch(next_state),
                 self._discount_batch,
             )**2
             score = (
@@ -141,7 +142,11 @@ class MultiStepSampleOptimalControlPolicy(SampleOptimalControlPolicy):
             )
             scores.append(score)
 
-            sampled_actions = self.env.sample_actions(self.sample_size)
+            action = ptu.np_to_var(
+                self.env.sample_actions(self.sample_size)
+            )
+            state = next_state
+            next_state = ptu.np_to_var(self.env.sample_states(self.sample_size))
         final_score = sum(scores)
         max_i = np.argmax(ptu.get_numpy(final_score))
         return first_sampled_actions[max_i], {}
@@ -159,6 +164,8 @@ if __name__ == "__main__":
     parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--hide', action='store_true')
     parser.add_argument('--verbose', action='store_true')
+    parser.add_argument('--plan_h', type=int, default=1,
+                        help='Planning horizon')
     parser.add_argument('--discount', type=float, help='Discount Factor')
     args = parser.parse_args()
 
@@ -172,22 +179,23 @@ if __name__ == "__main__":
     qf.train(False)
     print("Env type:", type(env))
 
-    policy = SampleOptimalControlPolicy(
-        qf,
-        env,
-        constraint_weight=100,
-        sample_size=1000,
-        verbose=args.verbose,
-    )
-
-    # policy = MultiStepSampleOptimalControlPolicy(
-    #     qf,
-    #     env,
-    #     horizon=2,
-    #     constraint_weight=1000,
-    #     sample_size=100,
-    #     verbose=args.verbose,
-    # )
+    if args.plan_h == 1:
+        policy = SampleOptimalControlPolicy(
+            qf,
+            env,
+            constraint_weight=100,
+            sample_size=1000,
+            verbose=args.verbose,
+        )
+    else:
+        policy = MultiStepSampleOptimalControlPolicy(
+            qf,
+            env,
+            horizon=args.plan_h,
+            constraint_weight=1000,
+            sample_size=100,
+            verbose=args.verbose,
+        )
 
     if 'discount' in data:
         discount = data['discount']
