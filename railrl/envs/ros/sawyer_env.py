@@ -183,7 +183,7 @@ class SawyerEnv(Env, Serializable):
         self.fixed_end_effector = False
         self.safety_box = False
         self.use_safety_checks = False
-        self.use_angle_wrapping = False
+        self.use_angle_wrapping = True
         self.use_angle_parameterization = False
 
         if experiment == experiments[0]:
