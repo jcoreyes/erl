@@ -69,6 +69,13 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         """
         pass
 
+    @abc.abstractmethod
+    def convert_obs_to_goal_states_pytorch(self, obs):
+        """
+        PyTorch version of `convert_obs_to_goal_state`.
+        """
+        return self.convert_obs_to_goal_states(obs)
+
     @property
     @abc.abstractmethod
     def goal_dim(self):

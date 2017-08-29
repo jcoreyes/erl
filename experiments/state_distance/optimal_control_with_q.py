@@ -89,7 +89,7 @@ class SampleOptimalControlPolicy(object):
         constraint_penalty = self.qf(
             obs,
             action,
-            next_state,
+            self.env.convert_obs_to_goal_states_pytorch(next_state),
             self._discount_batch,
         )**2
         score = (
@@ -175,7 +175,7 @@ if __name__ == "__main__":
     policy = SampleOptimalControlPolicy(
         qf,
         env,
-        constraint_weight=0,
+        constraint_weight=100,
         sample_size=1000,
         verbose=args.verbose,
     )

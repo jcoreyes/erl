@@ -39,6 +39,7 @@ from gym.envs.mujoco import ReacherEnv, mujoco_env
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc.data_processing import create_stats_ordered_dict
 from rllab.misc import logger
+import torch
 
 R1 = 0.1  # from reacher.xml
 R2 = 0.11
@@ -64,6 +65,31 @@ def position_from_angles(angles):
             c1 * c2 - s1 * s2,
             s1 * c2 + c1 * s2,
         ])
+    )
+
+
+def position_from_angles_pytorch(angles):
+    """
+    :param angles: torch.FloatTensor [batch_size x feature]
+    where the first four entries (along dimesion 1) are
+        - cosine of angle 1
+        - cosine of angle 2
+        - sine of angle 1
+        - sine of angle 2
+    :return: torch.FloatTensor [batch_size x 2]
+    """
+    c1 = angles[:, 0:1]  # cosine of angle 1
+    c2 = angles[:, 1:2]
+    s1 = angles[:, 2:3]
+    s2 = angles[:, 3:4]
+    return (  # forward kinematics equation for 2-link robot
+        R1 * torch.cat([c1, s1], dim=1)
+        + R2 * torch.cat([
+            c1 * c2 - s1 * s2,
+            s1 * c2 + c1 * s2,
+            ],
+            dim=1,
+        )
     )
 
 
@@ -188,6 +214,9 @@ class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle,
 
     def convert_obs_to_goal_states(self, obs):
         return position_from_angles(obs)
+
+    def convert_obs_to_goal_states_pytorch(self, obs):
+        return position_from_angles_pytorch(obs)
 
     @property
     def goal_dim(self):
