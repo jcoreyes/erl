@@ -89,18 +89,6 @@ END_EFFECTOR_VALUE_HIGH = {
     'angle': END_EFFECTOR_ANGLE_HIGH,
 }
 
-# box_lows = [
-#     0.1628008448954529,
-#     -0.33786487626917794,
-#     0.20084391863426093,
-# ]
-#
-# box_highs = [
-#     0.7175958839273338,
-#     0.3464466563902636,
-#     0.7659791453416877,
-# ]
-
 box_lows = [
     0.1328008448954529,
     -0.23786487626917794,
@@ -113,21 +101,7 @@ box_highs = [
     0.8659791453416877,
 ]
 
-# box_lows = [
-#     0.5229248368361292,
-#     -0.18738329161934256,
-#     0.5247724684655974
-# ]
-#
-# box_highs = [
-#     0.7229248368361292,
-#     0.2056984254930084,
-#     0.7668282486663502,
-# ]
-
 joint_names = [
-    # '_l0',
-    # '_l1',
     '_l2',
     '_l3',
     '_l4',
@@ -181,7 +155,6 @@ class SawyerEnv(Env, Serializable):
         self.end_effector_experiment_position = False
         self.end_effector_experiment_total = False
         self.fixed_end_effector = False
-        self.safety_box = False
         self.use_safety_checks = False
         self.use_angle_wrapping = True
         self.use_angle_parameterization = False
@@ -381,15 +354,7 @@ class SawyerEnv(Env, Serializable):
 
         self._observation_space = Box(lows, highs)
         self.previous_torques = np.zeros(7)
-        self.previous_positions = np.array([
-            np.ones(3),
-            np.ones(3),
-            np.ones(3),
-            np.ones(3),
-            np.ones(3),
-            np.ones(3),
-            np.ones(3),
-        ])
+        self.previous_positions = np.ones(7, 3)
         self.N = 1000
         self.init_delay = time.time()
         self._rs = ii.RobotEnable(CHECK_VERSION)
@@ -400,12 +365,12 @@ class SawyerEnv(Env, Serializable):
         self.previous_action = np.zeros(7)
         self.previous_temp = np.zeros(38)
         self.in_reset = True
-        self.amplify = 2
+        self.amplify = np.array([3, 3, 2, 2, 2, 1, 1])
 
     @safe
     def _act(self, action):
-        # if not self.in_reset:
-        #     action = self.amplify*action
+        if not self.in_reset:
+            action = self.amplify*action
         if self.safety_box:
             self.update_pose_and_jacobian_dict()
             self.check_joints_in_box(self.pose_jacobian_dict)
@@ -557,9 +522,8 @@ class SawyerEnv(Env, Serializable):
         if self.use_safety_checks:
             out_of_box = self.safety_box_check(reset_on_error=True)
             high_torque = self.high_torque_check(actual_commanded_action, reset_on_error=True)
-            # unexpected_torque = self.unexpected_torque_check(reset_on_error=True)
             unexpected_velocity = self.unexpected_velocity_check(reset_on_error=True)
-            done = out_of_box  or unexpected_velocity
+            done = out_of_box or high_torque or unexpected_velocity
         else:
             done = False
         info = {}
@@ -596,14 +560,11 @@ class SawyerEnv(Env, Serializable):
         if is_peaks:
             print('unexpected_torque: ', new_torques)
             if reset_on_error:
-                # print('gravity torques', self._get_gravity_compensation_torques())
-                # raise EnvironmentError('unexpected torques: ', new_torques)
                 return True
             else:
-                # print('gravity torques', self._get_gravity_compensation_torques())
                 raise EnvironmentError('unexpected torques: ', new_torques)
         return False
-        #if the new_torque is significantly greater than the previous one
+
 
     def unexpected_velocity_check(self, reset_on_error=True):
         velocities_dict = self._get_joint_values['velocity']()
@@ -613,14 +574,12 @@ class SawyerEnv(Env, Serializable):
         if is_peaks:
             print('unexpected_velocities: ', velocities)
             if reset_on_error:
-                # raise EnvironmentError('unexpected velocities: ', velocities)
                 return True
             else:
                 print('unexpected_velocities: ', velocities)
                 self._rs.disable()
                 self._rs.reset()
                 self._rs.enable()
-                # raise EnvironmentError('unexpected velocities: ', velocities)
         return False
 
     def get_positions_from_pose_jacobian_dict(self):
@@ -630,35 +589,26 @@ class SawyerEnv(Env, Serializable):
         return np.array(poses)
 
     def high_torque_check(self, commanded_torques, reset_on_error=True):
-        #we care about the torque that we are trying to apply
         new_torques = commanded_torques
         current_angles = self._joint_angles()
-        # current_positions = self.get_positions_from_pose_jacobian_dict()
-        # position_deltas = np.abs(current_positions - self.previous_positions)
-        position_deltas = np.abs(current_angles - self.previous_angles) #self.previous_angles can be a moving average of the previous angles
+        position_deltas = np.abs(current_angles - self.previous_angles)
         deltas = []
         for joint_position in position_deltas:
             deltas = deltas + joint_position
-        # DELTA_THRESHOLD = .1 * np.ones(21)
-        DELTA_THRESHOLD = .1 * np.ones(7)
+        DELTA_THRESHOLD = .05 * np.ones(7)
         ERROR_THRESHOLD = np.array([10, 13, 12, 12, 10, 10, 10])
         violation = False
         for i in range(len(new_torques)):
             if new_torques[i] > ERROR_THRESHOLD[i] and position_deltas[i] < DELTA_THRESHOLD[i]:
                 violation=True
-        if reset_on_error and violation:
+        if violation:
             print('high_torque:', new_torques)
             print('positions', position_deltas)
-            # terminate_episode = True
-            # raise EnvironmentError('ERROR: Applying large torques and not moving')
-            return True
-        elif violation:
-            print('high_torque:', new_torques)
-            print('positions', position_deltas)
-            raise EnvironmentError('ERROR: Applying large torques and not moving')
-
+            if reset_on_error:
+                return True
+            else:
+                raise EnvironmentError('ERROR: Applying large torques and not moving')
         self.previous_angles = current_angles
-        # self.previous_positions = .1 * self.previous_positions + .9 * current_positions
         return False
 
     def nan_check(self, action):
@@ -726,7 +676,6 @@ class SawyerEnv(Env, Serializable):
         """
         self.in_reset = True
         self.previous_angles = self._joint_angles()
-        # self.previous_positions = self.get_positions_from_pose_jacobian_dict()
 
         if self.joint_angle_experiment and not self.fixed_angle:
             self._randomize_desired_angles()
@@ -735,7 +684,6 @@ class SawyerEnv(Env, Serializable):
             self._randomize_desired_end_effector_pose()
 
         self.safe_move_to_neutral()
-        # self.previous_positions = self.get_positions_from_pose_jacobian_dict()
         self.previous_angles = self._joint_angles()
         self.in_reset = False
         return self._get_observation()
@@ -917,115 +865,6 @@ class SawyerEnv(Env, Serializable):
                     stat_prefix,
                     'End Effector Distance Outside Box'
                 ))
-            # obs_torques = []
-            # grav_torques = []
-            # obsSets = [path["observations"] for path in paths]
-            # for obsSet in obsSets:
-            #     for observation in obsSet:
-            #         obs_torques.append(observation[14:21])
-            #         grav_torques.append(observation[24:31])
-            #
-            # obs_j0 = [torque[0] for torque in obs_torques]
-            # obs_j1 = [torque[1] for torque in obs_torques]
-            # obs_j2 = [torque[2] for torque in obs_torques]
-            # obs_j3 = [torque[3] for torque in obs_torques]
-            # obs_j4 = [torque[4] for torque in obs_torques]
-            # obs_j5 = [torque[5] for torque in obs_torques]
-            # obs_j6 = [torque[6] for torque in obs_torques]
-            #
-            # grav_j0 = [torque[0] for torque in grav_torques]
-            # grav_j1 = [torque[1] for torque in grav_torques]
-            # grav_j2 = [torque[2] for torque in grav_torques]
-            # grav_j3 = [torque[3] for torque in grav_torques]
-            # grav_j4 = [torque[4] for torque in grav_torques]
-            # grav_j5 = [torque[5] for torque in grav_torques]
-            # grav_j6 = [torque[6] for torque in grav_torques]
-            #
-            # statistics.update(self._statistics_from_observations(
-            #     obs_j0,
-            #     stat_prefix,
-            #     'Observation Torque: j0'
-            # ))
-            #
-            # statistics.update(self._statistics_from_observations(
-            #     obs_j1,
-            #     stat_prefix,
-            #     'Observation Torque: j1'
-            # ))
-            #
-            # statistics.update(self._statistics_from_observations(
-            #     obs_j2,
-            #     stat_prefix,
-            #     'Observation Torque: j2'
-            # ))
-            #
-            # statistics.update(self._statistics_from_observations(
-            #     obs_j3,
-            #     stat_prefix,
-            #     'Observation Torque: j3'
-            # ))
-            #
-            # statistics.update(self._statistics_from_observations(
-            #     obs_j4,
-            #     stat_prefix,
-            #     'Observation Torque: j4'
-            # ))
-            #
-            # statistics.update(self._statistics_from_observations(
-            #     obs_j5,
-            #     stat_prefix,
-            #     'Observation Torque: j5'
-            # ))
-            #
-            # statistics.update(self._statistics_from_observations(
-            #     obs_j6,
-            #     stat_prefix,
-            #     'Observation Torque: j6'
-            # ))
-            #
-            #
-            # statistics.update(self._statistics_from_observations(
-            #     grav_j0,
-            #     stat_prefix,
-            #     'Gravity Torque: j0'
-            # ))
-            #
-            # statistics.update(self._statistics_from_observations(
-            #     grav_j1,
-            #     stat_prefix,
-            #     'Gravity Torque: j1'
-            # ))
-            #
-            # statistics.update(self._statistics_from_observations(
-            #     grav_j2,
-            #     stat_prefix,
-            #     'Gravity Torque: j2'
-            # ))
-            #
-            # statistics.update(self._statistics_from_observations(
-            #     grav_j3,
-            #     stat_prefix,
-            #     'Gravity Torque: j3'
-            # ))
-            #
-            # statistics.update(self._statistics_from_observations(
-            #     grav_j4,
-            #     stat_prefix,
-            #     'Gravity Torque: j4'
-            # ))
-            #
-            # statistics.update(self._statistics_from_observations(
-            #     grav_j5,
-            #     stat_prefix,
-            #     'Gravity Torque: j5'
-            # ))
-            #
-            # statistics.update(self._statistics_from_observations(
-            #     grav_j6,
-            #     stat_prefix,
-            #     'Gravity Torque: j6'
-            # ))
-
         for key, value in statistics.items():
             logger.record_tabular(key, value)
 
