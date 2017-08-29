@@ -48,23 +48,23 @@ class Reacher7DofXyzGoalState(MultitaskEnv, mujoco_env.MujocoEnv, utils.EzPickle
             self.np_random.uniform(low=-0.2, high=0.6, size=(batch_size, 1)),
         ))
 
-    def sample_actions(self, sample_size):
+    def sample_actions(self, batch_size):
         return np.random.uniform(
-            -1, 1, size=(sample_size, self.action_space.low.size)
+            -1, 1, size=(batch_size, self.action_space.low.size)
         )
 
-    def sample_states(self, sample_size):
+    def sample_states(self, batch_size):
         return np.hstack((
             # From the xml
-            self.np_random.uniform(low=-2.28, high=1.71, size=(sample_size, 1)),
-            self.np_random.uniform(low=-0.52, high=1.39, size=(sample_size, 1)),
-            self.np_random.uniform(low=-1.4, high=1.7, size=(sample_size, 1)),
-            self.np_random.uniform(low=-2.32, high=0, size=(sample_size, 1)),
-            self.np_random.uniform(low=-1.5, high=1.5, size=(sample_size, 1)),
-            self.np_random.uniform(low=-1.094, high=0, size=(sample_size, 1)),
-            self.np_random.uniform(low=-1.5, high=1.5, size=(sample_size, 1)),
+            self.np_random.uniform(low=-2.28, high=1.71, size=(batch_size, 1)),
+            self.np_random.uniform(low=-0.52, high=1.39, size=(batch_size, 1)),
+            self.np_random.uniform(low=-1.4, high=1.7, size=(batch_size, 1)),
+            self.np_random.uniform(low=-2.32, high=0, size=(batch_size, 1)),
+            self.np_random.uniform(low=-1.5, high=1.5, size=(batch_size, 1)),
+            self.np_random.uniform(low=-1.094, high=0, size=(batch_size, 1)),
+            self.np_random.uniform(low=-1.5, high=1.5, size=(batch_size, 1)),
             # velocities
-            self.np_random.uniform(low=-1, high=1, size=(sample_size, 7)),
+            self.np_random.uniform(low=-1, high=1, size=(batch_size, 7)),
         ))
 
     @property
@@ -137,12 +137,12 @@ class Reacher7DofFullGoalState(Reacher7DofXyzGoalState):
     def sample_goal_states(self, batch_size):
         return self.sample_states(batch_size)
 
-    def sample_irrelevant_goal_dimensions(self, goal, sample_size):
+    def sample_irrelevant_goal_dimensions(self, goal, batch_size):
         new_goal_states = super().sample_irrelevant_goal_dimensions(
-            goal, sample_size
+            goal, batch_size
         )
         new_goal_states[:, -7:] = (
-            self.np_random.uniform(low=-1, high=1, size=(sample_size, 7))
+            self.np_random.uniform(low=-1, high=1, size=(batch_size, 7))
         )
         return new_goal_states
 

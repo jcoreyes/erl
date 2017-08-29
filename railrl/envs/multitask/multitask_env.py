@@ -24,34 +24,34 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         """
         pass
 
-    def sample_irrelevant_goal_dimensions(self, goal, sample_size):
+    def sample_irrelevant_goal_dimensions(self, goal, batch_size):
         """
         Copy the goal a bunch of time, but replace irrelevant goal dimensions
         with sampled values.
 
         For example, if you care about the position but not about the velocity,
-        copy the velocity `sample_size` number of times, and then sample a bunch
+        copy the velocity `batch_size` number of times, and then sample a bunch
         of velocity values.
 
         This default implementation assumes every dimension in the goal state
         is important.
 
         :param goal: np.ndarray, shape GOAL_DIM
-        :param sample_size:
+        :param batch_size:
         :return: ndarray, shape SAMPLE_SIZE x GOAL_DIM
         """
         return np.repeat(
             np.expand_dims(goal, 0),
-            sample_size,
+            batch_size,
             axis=0
         )
 
     @abc.abstractmethod
-    def sample_actions(self, sample_size):
+    def sample_actions(self, batch_size):
         pass
 
     @abc.abstractmethod
-    def sample_states(self, sample_size):
+    def sample_states(self, batch_size):
         pass
 
     def compute_rewards(self, obs, action, next_obs, goal_states):

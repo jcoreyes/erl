@@ -226,27 +226,27 @@ class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle,
     def print_goal_state_info(goal):
         print("Goal = ", goal)
 
-    def sample_actions(self, sample_size):
-        return np.random.uniform(-1, 1, size=(sample_size, 2))
+    def sample_actions(self, batch_size):
+        return np.random.uniform(-1, 1, size=(batch_size, 2))
 
-    def sample_states(self, sample_size):
-        theta = np.pi * (2 * np.random.rand(sample_size, 2) - 1)
-        velocity = 10 * (2 * np.random.rand(sample_size, 2) - 1)
+    def sample_states(self, batch_size):
+        theta = np.pi * (2 * np.random.rand(batch_size, 2) - 1)
+        velocity = 10 * (2 * np.random.rand(batch_size, 2) - 1)
         return np.hstack((
                 np.cos(theta),
                 np.sin(theta),
                 velocity,
         ))
 
-    def sample_irrelevant_goal_dimensions(self, goal, sample_size):
+    def sample_irrelevant_goal_dimensions(self, goal, batch_size):
         """
         :param goal: np.ndarray, shape GOAL_DIM
-        :param sample_size:
+        :param batch_size:
         :return: ndarray, shape SAMPLE_SIZE x GOAL_DIM
         """
         return np.repeat(
             np.expand_dims(goal, 0),
-            sample_size,
+            batch_size,
             axis=0
         )
 
@@ -338,23 +338,23 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
     def goal_dim(self):
         return 6
 
-    def sample_irrelevant_goal_dimensions(self, goal, sample_size):
+    def sample_irrelevant_goal_dimensions(self, goal, batch_size):
         """
         Sample the goal a bunch of time, but fill in the desired position with
         what you care about.
 
         :param goal: np.ndarray, shape GOAL_DIM
-        :param sample_size:
+        :param batch_size:
         :return: ndarray, shape SAMPLE_SIZE x GOAL_DIM
         """
         sampled_velocities = np.random.uniform(
             -1,
             1,
-            size=(sample_size, 2),
+            size=(batch_size, 2),
         )
         goals = np.repeat(
             np.expand_dims(goal, 0),
-            sample_size,
+            batch_size,
             axis=0
         )
         goals[:, 4:6] = sampled_velocities
