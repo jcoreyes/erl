@@ -134,6 +134,7 @@ class FeedForwardDuelingQFunction(PyTorchModule):
         if self.training:
             self.advantage_avg = .9 * self.advantage_avg + .1 * update
         return avg
+
 class MemoryQFunction(PyTorchModule):
     def __init__(
             self,

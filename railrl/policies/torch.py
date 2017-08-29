@@ -297,8 +297,7 @@ class FeedForwardPolicy(PyTorchModule):
             action_dim,
             fc1_size,
             fc2_size,
-            # init_w=1e-3,
-            init_w=1e-1,
+            init_w=1e-3,
             hidden_init=ptu.fanin_init,
     ):
         self.save_init_params(locals())

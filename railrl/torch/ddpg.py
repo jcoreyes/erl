@@ -34,6 +34,7 @@ class DDPG(OnlineAlgorithm):
             tau=1e-2,
             use_soft_update=False,
             replay_buffer=None,
+            number_of_gradient_steps=1,
             qf_criterion=None,
             differentiate_through_target=False,
             **kwargs
@@ -56,8 +57,8 @@ class DDPG(OnlineAlgorithm):
         self.target_hard_update_period = target_hard_update_period
         self.tau = tau
         self.use_soft_update = use_soft_update
+        self.number_of_gradient_steps=number_of_gradient_steps
         self.differentiate_through_target = differentiate_through_target
-
         if qf_criterion is None:
             qf_criterion = nn.MSELoss()
         self.qf_criterion = qf_criterion
@@ -92,26 +93,27 @@ class DDPG(OnlineAlgorithm):
         self.target_qf.cuda()
 
     def _do_training(self, n_steps_total):
-        batch = self.get_batch()
-        train_dict = self.get_train_dict(batch)
+        for i in range(self.number_of_gradient_steps):
+            batch = self.get_batch()
+            train_dict = self.get_train_dict(batch)
 
-        self.policy_optimizer.zero_grad()
-        policy_loss = train_dict['Policy Loss']
-        policy_loss.backward()
-        self.policy_optimizer.step()
+            self.policy_optimizer.zero_grad()
+            policy_loss = train_dict['Policy Loss']
+            policy_loss.backward()
+            self.policy_optimizer.step()
 
-        self.qf_optimizer.zero_grad()
-        qf_loss = train_dict['QF Loss']
-        qf_loss.backward()
-        self.qf_optimizer.step()
+            self.qf_optimizer.zero_grad()
+            qf_loss = train_dict['QF Loss']
+            qf_loss.backward()
+            self.qf_optimizer.step()
 
-        if self.use_soft_update:
-            ptu.soft_update_from_to(self.target_policy, self.policy, self.tau)
-            ptu.soft_update_from_to(self.target_qf, self.qf, self.tau)
-        else:
-            if n_steps_total % self.target_hard_update_period == 0:
-                ptu.copy_model_params_from_to(self.qf, self.target_qf)
-                ptu.copy_model_params_from_to(self.policy, self.target_policy)
+            if self.use_soft_update:
+                ptu.soft_update_from_to(self.target_policy, self.policy, self.tau)
+                ptu.soft_update_from_to(self.target_qf, self.qf, self.tau)
+            else:
+                if n_steps_total % self.target_hard_update_period == 0:
+                    ptu.copy_model_params_from_to(self.qf, self.target_qf)
+                    ptu.copy_model_params_from_to(self.policy, self.target_policy)
 
     def get_train_dict(self, batch):
         rewards = batch['rewards']
