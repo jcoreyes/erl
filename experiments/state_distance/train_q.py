@@ -96,11 +96,10 @@ if __name__ == '__main__':
     exp_prefix = "dev-sdql"
     run_mode = "none"
 
-    # n_seeds = 3
-    # mode = "ec2"
-    # exp_prefix = "compare-reacher-7dof-variants"
-    exp_prefix = "gamma-zero-reacher-2d-xy-full-state"
-    # run_mode = 'grid'
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "try-oversampling-and-epsilon-terminal"
+    run_mode = 'grid'
 
     version = "Dev"
     num_configurations = 50  # for random mode
@@ -123,7 +122,7 @@ if __name__ == '__main__':
             use_soft_update=True,
             tau=0.001,
             batch_size=500,
-            discount=0.,
+            discount=0.99,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
             sample_goals_from='environment',
@@ -133,6 +132,8 @@ if __name__ == '__main__':
             use_new_data=True,
             replay_buffer_size=200000,
             num_updates_per_env_step=1,
+            prob_goal_state_is_next_state=0,
+            termination_threshold=0,
         ),
         qf_params=dict(
             obs_hidden_size=400,
@@ -146,8 +147,8 @@ if __name__ == '__main__':
         ),
         epoch_discount_schedule_class=RampUpSchedule,
         epoch_discount_schedule_params=dict(
-            min_value=0.,
-            max_value=0.,
+            min_value=0.99,
+            max_value=0.99,
             ramp_duration=49,
         ),
         # env_class=Reacher7DofXyzGoalState,
@@ -182,11 +183,12 @@ if __name__ == '__main__':
     if run_mode == 'grid':
         search_space = {
             'env_class': [
-                Reacher7DofCosSinFullGoalState,
-                Reacher7DofXyzGoalState,
-                XyMultitaskSimpleStateReacherEnv,
+                Reacher7DofFullGoalState,
+                # Reacher7DofXyzGoalState,
+                GoalStateSimpleStateReacherEnv,
             ],
-            'algo_params.qf_weight_decay': ['environment', 'replay_buffer'],
+            'algo_params.prob_goal_state_is_next_state': [0.5, 0],
+            'algo_params.termination_threshold': [1e-4, 0]
             # 'epoch_discount_schedule_params': [
             #     dict(
             #         min_value=0.99,

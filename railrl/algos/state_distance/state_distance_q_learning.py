@@ -4,6 +4,7 @@ from collections import OrderedDict, Iterable
 import numpy as np
 
 import railrl.torch.pytorch_util as ptu
+from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc.rllab_util import get_average_returns
 from railrl.torch.ddpg import DDPG, np_to_pytorch_batch
 from railrl.misc.tensorboard_logger import TensorboardLogger
@@ -13,7 +14,7 @@ from rllab.misc import logger
 class StateDistanceQLearning(DDPG):
     def __init__(
             self,
-            env,
+            env: MultitaskEnv,
             qf,
             policy,
             replay_buffer=None,
@@ -28,6 +29,8 @@ class StateDistanceQLearning(DDPG):
             use_new_data=False,
             num_updates_per_env_step=1,
             num_steps_per_tensorboard_update=None,
+            prob_goal_state_is_next_state=0,
+            termination_threshold=0,
             **kwargs
     ):
         env = pickle.loads(pickle.dumps(env))
@@ -58,6 +61,8 @@ class StateDistanceQLearning(DDPG):
         self.sample_discount = sample_discount
         self.num_updates_per_env_step = num_updates_per_env_step
         self.num_steps_per_tensorboard_update = num_steps_per_tensorboard_update
+        self.prob_goal_state_is_next_state = prob_goal_state_is_next_state
+        self.termination_threshold = termination_threshold
 
         self.use_new_data = use_new_data
         if not self.use_new_data:
@@ -136,14 +141,27 @@ class StateDistanceQLearning(DDPG):
         )
         batch = replay_buffer.random_batch(batch_size)
         goal_states = self.sample_goal_states(batch_size)
-        new_rewards = self.env.compute_rewards(
+        if self.prob_goal_state_is_next_state > 0:
+            num_next_states_as_goal_states = int(
+                self.prob_goal_state_is_next_state * batch_size
+            )
+            goal_states[:num_next_states_as_goal_states] = (
+                batch['next_observations'][:num_next_states_as_goal_states]
+            )
+        batch['goal_states'] = goal_states
+        if self.termination_threshold > 0:
+            batch['terminals'] = np.linalg.norm(
+                self.env.convert_obs_to_goal_states(
+                    batch['next_observations']
+                ) - goal_states,
+                axis=1,
+            ) <= self.termination_threshold
+        batch['rewards'] = self.env.compute_rewards(
             batch['observations'],
             batch['actions'],
             batch['next_observations'],
             goal_states,
         )
-        batch['goal_states'] = goal_states
-        batch['rewards'] = new_rewards
         torch_batch = np_to_pytorch_batch(batch)
         return torch_batch
 
