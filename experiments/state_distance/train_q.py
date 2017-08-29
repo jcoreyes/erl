@@ -96,11 +96,11 @@ if __name__ == '__main__':
     exp_prefix = "dev-sdql"
     run_mode = "none"
 
-    n_seeds = 3
-    mode = "ec2"
+    # n_seeds = 3
+    # mode = "ec2"
     # exp_prefix = "compare-reacher-7dof-variants"
-    exp_prefix = "check-sampling-from-replay-buffer"
-    run_mode = 'grid'
+    exp_prefix = "gamma-zero-reacher-2d-xy-full-state"
+    # run_mode = 'grid'
 
     version = "Dev"
     num_configurations = 50  # for random mode
@@ -146,15 +146,15 @@ if __name__ == '__main__':
         ),
         epoch_discount_schedule_class=RampUpSchedule,
         epoch_discount_schedule_params=dict(
-            min_value=0.99,
-            max_value=0.99,
+            min_value=0.,
+            max_value=0.,
             ramp_duration=49,
         ),
         # env_class=Reacher7DofXyzGoalState,
         # env_class=Reacher7DofFullGloalState,
-        env_class=Reacher7DofCosSinFullGoalState,
+        # env_class=Reacher7DofCosSinFullGoalState,
         # env_class=GoalStateSimpleStateReacherEnv,
-        # env_class=XyMultitaskSimpleStateReacherEnv,
+        env_class=XyMultitaskSimpleStateReacherEnv,
         env_params=dict(
             # ctrl_penalty_weight=0,
         ),
