@@ -183,6 +183,8 @@ class SawyerEnv(Env, Serializable):
         self.fixed_end_effector = False
         self.safety_box = False
         self.use_safety_checks = False
+        self.use_angle_wrapping = False
+        self.use_angle_parameterization = False
 
         if experiment == experiments[0]:
             self.joint_angle_experiment=True
@@ -244,23 +246,46 @@ class SawyerEnv(Env, Serializable):
         #set up lows and highs for observation space based on which experiment we are running
         #additionally set up the desired angle as well
         if self.joint_angle_experiment:
-            lows = np.hstack((
-                JOINT_VALUE_LOW['position'],
-                JOINT_VALUE_LOW['velocity'],
-                JOINT_VALUE_LOW['torque'],
-                END_EFFECTOR_VALUE_LOW['position'],
-                JOINT_VALUE_LOW['position'],
-                JOINT_VALUE_LOW['torque'],
-            ))
+            if self.use_angle_parameterization:
+                lows = np.hstack((
+                    np.cos(JOINT_VALUE_LOW['position']),
+                    np.sin(JOINT_VALUE_LOW['position']),
+                    JOINT_VALUE_LOW['velocity'],
+                    JOINT_VALUE_LOW['torque'],
+                    END_EFFECTOR_VALUE_LOW['position'],
+                    np.cos(JOINT_VALUE_LOW['position']),
+                    np.sin(JOINT_VALUE_LOW['position']),
+                    JOINT_VALUE_LOW['torque'],
+                ))
 
-            highs = np.hstack((
-                JOINT_VALUE_HIGH['position'],
-                JOINT_VALUE_HIGH['velocity'],
-                JOINT_VALUE_HIGH['torque'],
-                END_EFFECTOR_VALUE_HIGH['position'],
-                JOINT_VALUE_HIGH['position'],
-                JOINT_VALUE_HIGH['torque'],
-            ))
+                highs = np.hstack((
+                    np.cos(JOINT_VALUE_HIGH['position']),
+                    np.sin(JOINT_VALUE_HIGH['position']),
+                    JOINT_VALUE_HIGH['velocity'],
+                    JOINT_VALUE_HIGH['torque'],
+                    END_EFFECTOR_VALUE_HIGH['position'],
+                    np.cos(JOINT_VALUE_HIGH['position']),
+                    np.sin(JOINT_VALUE_HIGH['position']),
+                    JOINT_VALUE_HIGH['torque'],
+                ))
+            else:
+                lows = np.hstack((
+                    JOINT_VALUE_LOW['position'],
+                    JOINT_VALUE_LOW['velocity'],
+                    JOINT_VALUE_LOW['torque'],
+                    END_EFFECTOR_VALUE_LOW['position'],
+                    JOINT_VALUE_LOW['position'],
+                    JOINT_VALUE_LOW['torque'],
+                ))
+
+                highs = np.hstack((
+                    JOINT_VALUE_HIGH['position'],
+                    JOINT_VALUE_HIGH['velocity'],
+                    JOINT_VALUE_HIGH['torque'],
+                    END_EFFECTOR_VALUE_HIGH['position'],
+                    JOINT_VALUE_HIGH['position'],
+                    JOINT_VALUE_HIGH['torque'],
+                ))
 
             if self.fixed_angle:
                 angles = {
@@ -281,7 +306,10 @@ class SawyerEnv(Env, Serializable):
                     angles['right_j5'],
                     angles['right_j6']
                 ])
-                angles = self._wrap_angles(angles)
+                if self.use_angle_wrapping:
+                    angles = self._wrap_angles(angles)
+                if self.use_angle_parameterization:
+                    angles = self.parameterize_angles(angles)
                 self.desired = angles
             else:
                 self._randomize_desired_angles()
@@ -373,6 +401,7 @@ class SawyerEnv(Env, Serializable):
         self.previous_temp = np.zeros(38)
         self.in_reset = True
         self.amplify = 2
+
     @safe
     def _act(self, action):
         # if not self.in_reset:
@@ -441,7 +470,16 @@ class SawyerEnv(Env, Serializable):
         angles =  np.array([
             joint_to_angles[joint] for joint in self.arm_joint_names
         ])
-        angles = self._wrap_angles(angles)
+        if self.use_angle_wrapping:
+            angles = self._wrap_angles(angles)
+        if self.use_angle_parameterization:
+            angles = self.parameterize_angles(angles)
+        return angles
+
+    def parameterize_angles(self, angles):
+        cosines = np.cos(angles)
+        sines = np.sin(angles)
+        angles = np.hstack((cosines, sines))
         return angles
 
     def _end_effector_pose(self):
@@ -478,14 +516,20 @@ class SawyerEnv(Env, Serializable):
         return reward
 
     def compute_angle_difference(self, angles1, angles2):
-        """
-          :param angle1: A wrapped angle
-          :param angle2: A wrapped angle
-          """
-        self._wrap_angles(angles1)
-        self._wrap_angles(angles2)
-        deltas = np.abs(angles1 - angles2)
-        differences = np.array([min(2*np.pi-delta, delta) for delta in deltas])
+        if self.use_angle_wrapping:
+            self._wrap_angles(angles1)
+            self._wrap_angles(angles2)
+            deltas = np.abs(angles1 - angles2)
+            differences = np.array([min(2*np.pi-delta, delta) for delta in deltas])
+        else:
+            #angles1 and 2 are already parameterized
+            cosines1 = angles1[:7]
+            cosines2 = angles2[:7]
+            sines1 = angles1[7:]
+            sines2 = angles2[7:]
+            cos_diffs = cosines1-cosines2
+            sin_diffs = sines1-sines2
+            differences = cos_diffs ** 2 + sin_diffs ** 2
         return differences
 
     def step(self, action):
@@ -616,12 +660,14 @@ class SawyerEnv(Env, Serializable):
         self.previous_angles = current_angles
         # self.previous_positions = .1 * self.previous_positions + .9 * current_positions
         return False
+
     def nan_check(self, action):
         for val in action:
             if math.isnan(val):
                 raise EnvironmentError('ERROR: NaN action attempted')
+
     def _get_observation(self):
-        angles = self._get_joint_values['angle']()
+        angles = self._joint_angles()
         torques_dict = self._get_joint_values['torque']()
         velocities_dict = self._get_joint_values['velocity']()
         velocities = np.array([velocities_dict[joint] for joint in self.arm_joint_names])
@@ -991,9 +1037,14 @@ class SawyerEnv(Env, Serializable):
             positions = []
             for obsSet in obsSets:
                 for observation in obsSet:
-                    angles.append(observation[:7])
-                    desired_angles.append(observation[24:31])
-                    positions.append(observation[21:24])
+                    if self.use_angle_parameterization:
+                        angles.append(observation[:14])
+                        desired_angles.append(observation[31:38])
+                        positions.append(observation[28:31])
+                    else:
+                        angles.append(observation[:7])
+                        desired_angles.append(observation[24:31])
+                        positions.append(observation[21:24])
 
             angles = np.array(angles)
             desired_angles = np.array(desired_angles)
