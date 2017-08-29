@@ -1,9 +1,12 @@
 """
 Utility functions built around rllab functions/objects/classes.
 """
+import os.path as osp
+import joblib
 import numpy as np
 
 from rllab.spaces.product import Product
+from rllab.misc import logger
 
 
 def split_paths(paths):
@@ -97,3 +100,15 @@ def get_average_returns(paths):
 
 def get_table_key_set(logger):
     return set(key for key, value in logger._tabular)
+
+
+def save_extra_data_to_snapshot_dir(data):
+    """
+    Save extra data to the snapshot dir.
+
+    :param logger:
+    :param data:
+    :return:
+    """
+    file_name = osp.join(logger._snapshot_dir, 'extra_data.pkl')
+    joblib.dump(data, file_name, compress=3)

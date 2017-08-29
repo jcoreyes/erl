@@ -336,14 +336,26 @@ class ConditionTimer(object):
         return self.trigger_period == 0
 
 
+def string_tuple_to_string(strings):
+    if len(strings) == 0:
+        string = ""
+    elif len(strings) == 1:
+        string = strings[0]
+    else:
+        string = " ".join([str(s) for s in strings])
+    return string
+
+
 class _Logger(object):
     def __init__(self):
         self.n_chars = 0
+        self.lines = []
 
-    def print_over(self, string):
+    def print_over(self, *strings):
         """
         Remove anything printed in the last printover call. Then print `string`
         """
+        string = string_tuple_to_string(strings)
         sys.stdout.write("\r" * self.n_chars)
         sys.stdout.write(string)
         sys.stdout.flush()

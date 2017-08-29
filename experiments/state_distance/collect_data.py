@@ -1,83 +1,61 @@
-from pathlib import Path
+import argparse
 
-from railrl.samplers.path_sampler import MultitaskPathSampler
-from railrl.data_management.env_replay_buffer import EnvReplayBuffer
-from railrl.data_management.split_buffer import SplitReplayBuffer
+from gym.envs.mujoco import PusherEnv
+
+from railrl.algos.state_distance.util import get_replay_buffer
 from railrl.envs.multitask.reacher_env import (
-    XyMultitaskReacherEnv,
     XyMultitaskSimpleStateReacherEnv,
 )
-from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
+from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.policies.zero_policy import ZeroPolicy
-from rllab.config import LOG_DIR
 
 
 def main(variant):
-    env = XyMultitaskSimpleStateReacherEnv()
-    action_space = convert_gym_space(env.action_space)
-    es = GaussianStrategy(
-        action_space=action_space,
-        max_sigma=0.2,
-        min_sigma=0.2,
-    )
-    exploration_policy = ZeroPolicy(
-        int(action_space.flat_dim),
-    )
-    replay_buffer_size = variant['replay_buffer_size']
-    replay_buffer = SplitReplayBuffer(
-        EnvReplayBuffer(
-            replay_buffer_size,
-            env,
-            flatten=True,
-        ),
-        EnvReplayBuffer(
-            replay_buffer_size,
-            env,
-            flatten=True,
-        ),
-        fraction_paths_in_train=0.8,
-    )
-    sampler = MultitaskPathSampler(
-        env,
-        exploration_strategy=es,
-        exploration_policy=exploration_policy,
-        replay_buffer=replay_buffer,
-        **variant['algo_params']
-    )
-    sampler.collect_data()
-    sampler.save_replay_buffer()
+    get_replay_buffer(variant, save_replay_buffer=True)
 
 
 if __name__ == '__main__':
-    # out_dir = Path(LOG_DIR) / 'datasets/generated'
-    # out_dir /= '7-25--xy-multitask-simple-state--100k--add-no-op'
-    # out_dir = str(out_dir)
-    out_dir = None
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--render', action='store_true')
+    args = parser.parse_args()
     min_num_steps_to_collect = 100000
     max_path_length = 1000
     replay_buffer_size = min_num_steps_to_collect + max_path_length
 
     # noinspection PyTypeChecker
     variant = dict(
-        out_dir=str(out_dir),
-        algo_params=dict(
+        sampler_params=dict(
             min_num_steps_to_collect=min_num_steps_to_collect,
             max_path_length=max_path_length,
-            render=False,
+            render=args.render,
         ),
+        # env_class=XyMultitaskSimpleStateReacherEnv,
+        env_class=PusherEnv,
+        env_params=dict(
+            # add_noop_action=False,
+        ),
+        # sampler_es_class=GaussianStrategy,
+        # sampler_es_params=dict(
+        #     max_sigma=0.1,
+        #     min_sigma=0.1,
+        # ),
+        sampler_es_class=OUStrategy,
+        sampler_es_params=dict(
+            max_sigma=0.3,
+            min_sigma=0.3,
+        ),
+        generate_data=True,
         replay_buffer_size=replay_buffer_size,
     )
     # main(variant)
     run_experiment(
         main,
-        exp_prefix='gaussian',
+        exp_prefix='pusher-ou-sigma-0p3-100k',
         seed=0,
         mode='here',
         variant=variant,
         exp_id=0,
         use_gpu=True,
         snapshot_mode='last',
-        base_log_dir=out_dir,
     )

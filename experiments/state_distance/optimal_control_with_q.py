@@ -34,32 +34,46 @@ class SampleOptimalControlPolicy(object):
     def __init__(
             self,
             qf,
+            env,
             constraint_weight=10,
             sample_size=100,
             goal_is_full_state=True,
             verbose=False,
     ):
         self.qf = qf
+        self.env = env
         self.constraint_weight = constraint_weight
-        self._goal_pos = None
         self.sample_size = sample_size
-        self.goal_is_full_state = goal_is_full_state
         self.verbose = verbose
+        self.goal_is_full_state = goal_is_full_state
+        self._goal_pos_batch = None
+        self._goal_batch = None
+        self._discount_batch = None
+
+    def expand_np_to_var(self, array):
+        array_expanded = np.repeat(
+            np.expand_dims(array, 0),
+            self.sample_size,
+            axis=0
+        )
+        return Variable(
+            ptu.from_numpy(array_expanded).float(),
+            requires_grad=False,
+        )
 
     def set_goal(self, goal):
+        self._goal_batch = self.expand_np_to_var(goal)
         if self.goal_is_full_state:
-            self._goal = ptu.Variable(ptu.from_numpy(
-                np.expand_dims(goal, 0).repeat(self.sample_size, 0)
-            ).float())
-            self._goal_pos = self.position(self._goal)
+            self._goal_pos_batch = self.position(self._goal_batch)
         else:
-            self._goal_pos = ptu.Variable(ptu.from_numpy(
-                np.expand_dims(goal, 0).repeat(self.sample_size, 0)
-            ).float())
+            self._goal_pos_batch = self._goal_batch
+
+    def set_discount(self, discount):
+        self._discount_batch = self.expand_np_to_var(np.array([discount]))
 
     def reward(self, state, action, next_state):
         ee_pos = self.position(next_state)
-        return -torch.norm(ee_pos - self._goal_pos, dim=1)
+        return -torch.norm(ee_pos - self._goal_pos_batch, dim=1)
 
     def position(self, obs):
         c1 = obs[:, 0:1]  # cosine of angle 1
@@ -90,39 +104,17 @@ class SampleOptimalControlPolicy(object):
         :param obs: np.array, state/observation
         :return: np.array, action to take
         """
-        theta = ptu.Variable(
-            np.pi * (2 * torch.rand(self.sample_size, 2) - 1),
-            requires_grad=True,
-        )
-        velocity = ptu.Variable(
-            5 * torch.rand(self.sample_size, 2) - 1,
-            requires_grad=True,
-        )
-        sampled_actions = np.random.uniform(-1, 1, size=(self.sample_size, 2))
-        action = ptu.Variable(
-            ptu.from_numpy(sampled_actions).float(),
-            requires_grad=True,
-        )
-        obs_expanded = np.expand_dims(obs, 0).repeat(self.sample_size, 0)
-        obs = Variable(ptu.from_numpy(obs_expanded).float(),
-                       requires_grad=False)
-        next_state = torch.cat(
-            (
-                torch.cos(theta),
-                torch.sin(theta),
-                velocity,
-            ),
-            dim=1,
-        )
+        sampled_actions = self.env.sample_actions(self.sample_size)
+        action = ptu.np_to_var(sampled_actions)
+        next_state = ptu.np_to_var(self.env.sample_states(self.sample_size))
+        obs = self.expand_np_to_var(obs)
         reward = self.reward(obs, action, next_state)
-        if self.goal_is_full_state:
-            augmented_obs = torch.cat((obs, next_state), dim=1)
-        else:
-            augmented_obs = torch.cat((
-                obs,
-                self.position(next_state),
-            ), dim=1)
-        constraint_penalty = self.qf(augmented_obs, action)**2
+        constraint_penalty = self.qf(
+            obs,
+            action,
+            self._goal_batch,
+            self._discount_batch,
+        )**2
         score = (
             reward
             - self.constraint_weight * constraint_penalty
@@ -130,12 +122,25 @@ class SampleOptimalControlPolicy(object):
         max_i = np.argmax(ptu.get_numpy(score))
         if self.verbose:
             print("")
-            print("constraint penalty", ptu.get_numpy(constraint_penalty)[max_i])
+            print("constraint penalty", ptu.get_numpy(
+                constraint_penalty)[
+                max_i])
             print("reward", ptu.get_numpy(reward)[max_i])
             print("action", ptu.get_numpy(action)[max_i])
+            print("--")
+            print("state_diff", ptu.get_numpy(next_state[max_i] - obs[max_i]))
+            print("current_state", ptu.get_numpy(obs[max_i]))
             print("next_state", ptu.get_numpy(next_state[max_i]))
-            print("next_state_pos", ptu.get_numpy(self.position(next_state))[max_i])
-            print("goal_pos", ptu.get_numpy(self._goal_pos)[max_i])
+            print("goal", ptu.get_numpy(self._goal_batch)[max_i])
+            print("--")
+            print("state_diff_pos", ptu.get_numpy(
+                self.position(next_state - obs)[max_i]
+            ))
+            print("current_state_pos", ptu.get_numpy(self.position(obs)[max_i]))
+            print("next_state_pos", ptu.get_numpy(
+                self.position(next_state)[max_i]
+            ))
+            print("goal_pos", ptu.get_numpy(self._goal_pos_batch)[max_i])
         return sampled_actions[max_i], {}
 
 
@@ -147,13 +152,14 @@ if __name__ == "__main__":
     parser.add_argument('--H', type=int, default=100,
                         help='Max length of rollout')
     parser.add_argument('--num_rollouts', type=int, default=100,
-                        help='Max length of rollout')
+                        help='Number of rollouts per eval')
     parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--hide', action='store_true')
     parser.add_argument('--verbose', action='store_true')
     args = parser.parse_args()
 
     data = joblib.load(args.file)
+    print("Done loading")
     env = data['env']
     qf = data['qf']
     if args.gpu:
@@ -165,25 +171,19 @@ if __name__ == "__main__":
 
     policy = SampleOptimalControlPolicy(
         qf,
-        constraint_weight=10,
+        env,
+        constraint_weight=1000,
         sample_size=1000,
         goal_is_full_state=goal_is_full_state,
         verbose=args.verbose,
     )
-    for _ in range(args.num_rollouts):
+    policy.set_discount(0)
+    while True:
         paths = []
-        for _ in range(5):
-            goals = env.sample_goal_states(1)
-            goal = goals[0]
-            c1 = goal[0:1]
-            c2 = goal[1:2]
-            s1 = goal[2:3]
-            s2 = goal[3:4]
-            print("Goal = ", goal)
-            print("angle 1 (degrees) = ", np.arctan2(s1, c1) / math.pi * 180)
-            print("angle 2 (degrees) = ", np.arctan2(s2, c2) / math.pi * 180)
-            print("angle 1 (radians) = ", np.arctan2(s1, c1))
-            print("angle 2 (radians) = ", np.arctan2(s2, c2))
+        for _ in range(args.num_rollouts):
+            goal = env.sample_goal_states(1)[0]
+            if args.verbose:
+                env.print_goal_state_info(goal)
             env.set_goal(goal)
             policy.set_goal(goal)
             path = rollout(
@@ -192,10 +192,6 @@ if __name__ == "__main__":
                 max_path_length=args.H,
                 animated=not args.hide,
             )
-            path['observations'] = np.hstack((
-                path['observations'],
-                goals.repeat(len(path['observations']), 0),
-            ))
             paths.append(path)
         env.log_diagnostics(paths)
         logger.dump_tabular()
