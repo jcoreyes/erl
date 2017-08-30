@@ -9,7 +9,7 @@ import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.algos.state_distance.state_distance_q_learning import (
     StateDistanceQLearning,
-)
+    HorizonFedStateDistanceQLearning)
 from railrl.algos.state_distance.util import get_replay_buffer
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState,
@@ -73,7 +73,7 @@ def experiment(variant):
         action_space=action_space,
         **variant['sampler_es_params']
     )
-    algo = StateDistanceQLearning(
+    algo = HorizonFedStateDistanceQLearning(
         env,
         qf,
         policy,
@@ -100,10 +100,10 @@ if __name__ == '__main__':
     exp_prefix = "dev-sdql"
     run_mode = "none"
 
-    n_seeds = 5
-    mode = "ec2"
-    exp_prefix = "flat-vs-normal-qf"
-    run_mode = 'grid'
+    # n_seeds = 5
+    # mode = "ec2"
+    # exp_prefix = "flat-vs-normal-qf"
+    # run_mode = 'grid'
 
     version = "Dev"
     num_configurations = 50  # for random mode
@@ -138,7 +138,9 @@ if __name__ == '__main__':
             num_updates_per_env_step=1,
             prob_goal_state_is_next_state=0,
             termination_threshold=0,
+            max_num_steps_left=2,
         ),
+        qf_class=UniversalQfunction,
         qf_params=dict(
             obs_hidden_size=400,
             embed_hidden_size=300,
@@ -151,13 +153,13 @@ if __name__ == '__main__':
         ),
         epoch_discount_schedule_class=RampUpSchedule,
         epoch_discount_schedule_params=dict(
-            min_value=0.99,
-            max_value=0.99,
+            min_value=1,
+            max_value=100,
             ramp_duration=49,
         ),
         # env_class=Reacher7DofXyzGoalState,
-        # env_class=Reacher7DofFullGoalState,
-        env_class=MultitaskPusherEnv,
+        env_class=Reacher7DofFullGoalState,
+        # env_class=MultitaskPusherEnv,
         # env_class=Reacher7DofCosSinFullGoalState,
         # env_class=GoalStateSimpleStateReacherEnv,
         # env_class=XyMultitaskSimpleStateReacherEnv,

@@ -299,6 +299,29 @@ class StateDistanceQLearning(DDPG):
 
 
 class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
+    def __init__(
+            self,
+            env: MultitaskEnv,
+            qf,
+            policy,
+            max_num_steps_left=1,
+            **kwargs
+    ):
+        """
+        Instead of using a discount, give as input the number of steps left in
+        the episode.
+
+        :param env:
+        :param qf:
+        :param policy:
+        :param max_num_steps_left: Maximum number of steps left sampled when
+        training the QF
+        :param kwargs:
+        """
+        super().__init__(env, qf, policy, **kwargs)
+        assert max_num_steps_left >= 1
+        self.max_num_steps_left = max_num_steps_left
+
     def get_train_dict(self, batch):
         rewards = batch['rewards']
         obs = batch['observations']
@@ -307,10 +330,10 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
         goal_states = batch['goal_states']
 
         batch_size = obs.size()[0]
-        num_steps_left_np = np.random.randint(1, self.max_num_steps_left,
-                                           (batch_size, 1))
+        num_steps_left_np = np.random.randint(1, self.max_num_steps_left+1,
+                                              (batch_size, 1))
         num_steps_left = ptu.np_to_var(num_steps_left_np)
-        terminals_np = num_steps_left_np == 1
+        terminals_np = (num_steps_left_np == 1).astype(int)
         terminals = ptu.np_to_var(terminals_np)
 
         """
@@ -328,7 +351,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             next_obs,
             next_actions,
             goal_states,
-            num_steps_left,
+            num_steps_left - 1,  # Important! Else QF will (probably) blow up
         )
         y_target = rewards + (1. - terminals) * target_q_values
 
