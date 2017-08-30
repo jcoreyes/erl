@@ -47,8 +47,8 @@ def example(variant):
 
 
 if __name__ == "__main__":
-    n_seeds = 5
-    exp_prefix = "ddpg-residual-gradient-weight"
+    n_seeds = 4
+    exp_prefix = "ddpg-residual-gradient-weight-tau-sensitivity"
     mode = 'ec2'
 
     # noinspection PyTypeChecker
@@ -70,8 +70,12 @@ if __name__ == "__main__":
         env_class=InvertedDoublePendulumEnv,
     )
     search_space = {
+        'env_class': [SwimmerEnv, InvertedDoublePendulumEnv],
         'algo_params.residual_gradient_weight': [
-            1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0,
+            1, 0.99, 0.9, 0.5, 0.1, 0
+        ],
+        'algo_params.tau': [
+            1, 1e-1, 1e-2, 1e-3,
         ],
         'qf_params': [
             # dict(
