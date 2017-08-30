@@ -32,7 +32,7 @@ from railrl.launchers.launcher_util import (
 )
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.hypopt import optimize_and_save
-from railrl.misc.ml_util import RampUpSchedule
+from railrl.misc.ml_util import RampUpSchedule, IntRampUpSchedule
 from railrl.networks.state_distance import UniversalPolicy, UniversalQfunction, \
     FlatUniversalQfunction
 from railrl.torch.modules import HuberLoss
@@ -100,15 +100,15 @@ if __name__ == '__main__':
     exp_prefix = "dev-sdql"
     run_mode = "none"
 
-    # n_seeds = 5
-    # mode = "ec2"
-    # exp_prefix = "flat-vs-normal-qf"
-    # run_mode = 'grid'
+    n_seeds = 5
+    mode = "ec2"
+    exp_prefix = "feed-horizon-test-reacher"
+    run_mode = 'grid'
 
     version = "Dev"
     num_configurations = 50  # for random mode
     snapshot_mode = "gap"
-    snapshot_gap = 20
+    snapshot_gap = 10
     use_gpu = True
     if mode != "here":
         use_gpu = False
@@ -120,7 +120,7 @@ if __name__ == '__main__':
     variant = dict(
         dataset_path=str(dataset_path),
         algo_params=dict(
-            num_epochs=501,
+            num_epochs=301,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             use_soft_update=True,
@@ -138,39 +138,29 @@ if __name__ == '__main__':
             num_updates_per_env_step=1,
             prob_goal_state_is_next_state=0,
             termination_threshold=0,
-            max_num_steps_left=2,
         ),
         qf_class=UniversalQfunction,
         qf_params=dict(
             obs_hidden_size=400,
             embed_hidden_size=300,
-            dropout=False,
-            # w_weight_generator=ptu.almost_identity_weights_like,
         ),
         policy_params=dict(
             fc1_size=400,
             fc2_size=300,
         ),
-        epoch_discount_schedule_class=RampUpSchedule,
+        epoch_discount_schedule_class=IntRampUpSchedule,
         epoch_discount_schedule_params=dict(
             min_value=1,
             max_value=100,
             ramp_duration=49,
         ),
-        # env_class=Reacher7DofXyzGoalState,
         env_class=Reacher7DofFullGoalState,
         # env_class=MultitaskPusherEnv,
-        # env_class=Reacher7DofCosSinFullGoalState,
         # env_class=GoalStateSimpleStateReacherEnv,
-        # env_class=XyMultitaskSimpleStateReacherEnv,
-        env_params=dict(
-            # ctrl_penalty_weight=0,
-        ),
+        env_params=dict(),
         sampler_params=dict(
             min_num_steps_to_collect=100000,
             max_path_length=max_path_length,
-            # min_num_steps_to_collect=2000,
-            # max_path_length=100,
             render=False,
         ),
         sampler_es_class=OUStrategy,
@@ -190,31 +180,35 @@ if __name__ == '__main__':
     if run_mode == 'grid':
         search_space = {
             'env_class': [
-                Reacher7DofFullGoalState,
-                # Reacher7DofXyzGoalState,
                 GoalStateSimpleStateReacherEnv,
+                Reacher7DofFullGoalState,
             ],
-            'qf_class': [
-                FlatUniversalQfunction, UniversalQfunction,
-            ],
+            'qf_class': [UniversalQfunction],
+            'algo_params.tau': [0.001, 0.0005],
+            'algo_params.batch_size': [500, 1000],
             # 'algo_params.termination_threshold': [1e-4, 0]
-            # 'epoch_discount_schedule_params': [
-            #     dict(
-            #         min_value=0.99,
-            #         max_value=0.99,
-            #         ramp_duration=1,
-            #     ),
-            #     dict(
-            #         min_value=0.,
-            #         max_value=0.99,
-            #         ramp_duration=10,
-            #     ),
-            #     dict(
-            #         min_value=0.,
-            #         max_value=0.,
-            #         ramp_duration=1,
-            #     ),
-            # ]
+            'epoch_discount_schedule_params': [
+                dict(
+                    min_value=10,
+                    max_value=10,
+                    ramp_duration=1,
+                ),
+                dict(
+                    min_value=1,
+                    max_value=1,
+                    ramp_duration=1,
+                ),
+                dict(
+                    min_value=100,
+                    max_value=100,
+                    ramp_duration=1,
+                ),
+                dict(
+                    min_value=1,
+                    max_value=100,
+                    ramp_duration=49,
+                ),
+            ]
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
             search_space, default_parameters=variant,
