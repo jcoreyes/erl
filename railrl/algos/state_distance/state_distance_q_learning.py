@@ -294,7 +294,59 @@ class StateDistanceQLearning(DDPG):
         return dict(
             epoch=epoch,
             replay_buffer=self.replay_buffer,
+            env=self.training_env,
         )
+
+
+class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
+    def get_train_dict(self, batch):
+        rewards = batch['rewards']
+        obs = batch['observations']
+        actions = batch['actions']
+        next_obs = batch['next_observations']
+        goal_states = batch['goal_states']
+
+        batch_size = obs.size()[0]
+        num_steps_left_np = np.random.randint(1, self.max_num_steps_left,
+                                           (batch_size, 1))
+        num_steps_left = ptu.np_to_var(num_steps_left_np)
+        terminals_np = num_steps_left_np == 1
+        terminals = ptu.np_to_var(terminals_np)
+
+        """
+        Policy operations.
+        """
+        policy_actions = self.policy(obs, goal_states, num_steps_left)
+        q_output = self.qf(obs, policy_actions, goal_states, num_steps_left)
+        policy_loss = - q_output.mean()
+
+        """
+        Critic operations.
+        """
+        next_actions = self.target_policy(next_obs, goal_states, num_steps_left)
+        target_q_values = self.target_qf(
+            next_obs,
+            next_actions,
+            goal_states,
+            num_steps_left,
+        )
+        y_target = rewards + (1. - terminals) * target_q_values
+
+        # noinspection PyUnresolvedReferences
+        y_target = y_target.detach()
+        y_pred = self.qf(obs, actions, goal_states, num_steps_left)
+        bellman_errors = (y_pred - y_target)**2
+        qf_loss = self.qf_criterion(y_pred, y_target)
+
+        return OrderedDict([
+            ('Policy Actions', policy_actions),
+            ('Policy Loss', policy_loss),
+            ('QF Outputs', q_output),
+            ('Bellman Errors', bellman_errors),
+            ('Y targets', y_target),
+            ('Y predictions', y_pred),
+            ('QF Loss', qf_loss),
+        ])
 
 
 class MultigoalSimplePathSampler(object):
