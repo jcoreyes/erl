@@ -46,7 +46,7 @@ def split_paths(paths):
     return rewards, terminals, obs, actions, next_obs
 
 
-def get_scalar_in_dict(paths, dict_name, scalar_name):
+def get_stat_in_dict(paths, dict_name, scalar_name):
     return np.vstack([
         [info[scalar_name] for info in path[dict_name]]
         for path in paths

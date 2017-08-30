@@ -5,7 +5,7 @@ from gym.envs.mujoco import PusherEnv
 
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.misc.rllab_util import get_scalar_in_dict
+from railrl.misc.rllab_util import get_stat_in_dict
 from rllab.misc import logger
 
 
@@ -43,9 +43,9 @@ class MultitaskPusherEnv(PusherEnv, MultitaskEnv):
             self.get_body_com("tips_arm") - self.get_body_com("goal")
         )
         obs, reward, done, info_dict = super()._step(a)
-        info_dict['arm to object distance'] = arm_to_object
-        info_dict['object to goal distance'] = object_to_goal
-        info_dict['arm to goal distance'] = arm_to_goal
+        info_dict['arm to object distance'] = np.linalg.norm(arm_to_object)
+        info_dict['object to goal distance'] = np.linalg.norm(object_to_goal)
+        info_dict['arm to goal distance'] = np.linalg.norm(arm_to_goal)
         return obs, reward, done, info_dict
 
     def sample_actions(self, batch_size):
@@ -106,7 +106,7 @@ class MultitaskPusherEnv(PusherEnv, MultitaskEnv):
             'object to goal distance',
             'arm to goal distance',
         ]:
-            stat = get_scalar_in_dict(
+            stat = get_stat_in_dict(
                 paths, 'env_infos', stat_name
             )
             statistics.update(create_stats_ordered_dict(
