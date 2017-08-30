@@ -102,7 +102,7 @@ if __name__ == '__main__':
 
     n_seeds = 5
     mode = "ec2"
-    exp_prefix = "feed-horizon-test-reacher"
+    exp_prefix = "feed-horizon-reacher-7dof"
     run_mode = 'grid'
 
     version = "Dev"
@@ -180,14 +180,23 @@ if __name__ == '__main__':
     if run_mode == 'grid':
         search_space = {
             'env_class': [
-                GoalStateSimpleStateReacherEnv,
+                # GoalStateSimpleStateReacherEnv,
                 Reacher7DofFullGoalState,
             ],
             'qf_class': [UniversalQfunction],
-            'algo_params.tau': [0.001, 0.0005],
-            'algo_params.batch_size': [500, 1000],
+            'algo_params.tau': [0.01, 0.001, 0.0005],
             # 'algo_params.termination_threshold': [1e-4, 0]
             'epoch_discount_schedule_params': [
+                dict(
+                    min_value=1,
+                    max_value=100,
+                    ramp_duration=49,
+                ),
+                dict(
+                    min_value=1,
+                    max_value=100,
+                    ramp_duration=10,
+                ),
                 dict(
                     min_value=10,
                     max_value=10,
@@ -202,11 +211,6 @@ if __name__ == '__main__':
                     min_value=100,
                     max_value=100,
                     ramp_duration=1,
-                ),
-                dict(
-                    min_value=1,
-                    max_value=100,
-                    ramp_duration=49,
                 ),
             ]
         }
