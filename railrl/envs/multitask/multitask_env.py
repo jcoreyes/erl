@@ -1,9 +1,8 @@
 import abc
 import numpy as np
-from rllab.envs.base import Env
 
 
-class MultitaskEnv(Env, metaclass=abc.ABCMeta):
+class MultitaskEnv(object, metaclass=abc.ABCMeta):
     """
     An environment with a task that can be specified with a goal state.
     """
