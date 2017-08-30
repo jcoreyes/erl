@@ -46,6 +46,13 @@ def split_paths(paths):
     return rewards, terminals, obs, actions, next_obs
 
 
+def get_scalar_in_dict(paths, dict_name, scalar_name):
+    return np.vstack([
+        [info[scalar_name] for info in path[dict_name]]
+        for path in paths
+    ])
+
+
 def get_action_dim(**kwargs):
     env_spec = kwargs.get('env_spec', None)
     action_dim = kwargs.get('action_dim', None)
