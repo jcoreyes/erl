@@ -20,6 +20,9 @@ from railrl.envs.multitask.reacher_env import (
     GoalStateSimpleStateReacherEnv,
     XyMultitaskSimpleStateReacherEnv,
 )
+from railrl.envs.multitask.pusher import (
+    MultitaskPusherEnv,
+)
 from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
@@ -98,13 +101,13 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "try-oversampling-and-epsilon-terminal"
-    run_mode = 'grid'
+    exp_prefix = "pusher-first-try"
+    # run_mode = 'grid'
 
     version = "Dev"
     num_configurations = 50  # for random mode
     snapshot_mode = "gap"
-    snapshot_gap = 5
+    snapshot_gap = 20
     use_gpu = True
     if mode != "here":
         use_gpu = False
@@ -116,7 +119,7 @@ if __name__ == '__main__':
     variant = dict(
         dataset_path=str(dataset_path),
         algo_params=dict(
-            num_epochs=101,
+            num_epochs=501,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             use_soft_update=True,
@@ -152,10 +155,11 @@ if __name__ == '__main__':
             ramp_duration=49,
         ),
         # env_class=Reacher7DofXyzGoalState,
-        # env_class=Reacher7DofFullGloalState,
+        # env_class=Reacher7DofFullGoalState,
+        env_class=MultitaskPusherEnv,
         # env_class=Reacher7DofCosSinFullGoalState,
         # env_class=GoalStateSimpleStateReacherEnv,
-        env_class=XyMultitaskSimpleStateReacherEnv,
+        # env_class=XyMultitaskSimpleStateReacherEnv,
         env_params=dict(
             # ctrl_penalty_weight=0,
         ),
