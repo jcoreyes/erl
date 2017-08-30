@@ -7,6 +7,7 @@ from gym.envs.mujoco import mujoco_env
 from railrl.envs.env_utils import get_asset_xml
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc.data_processing import create_stats_ordered_dict
+from railrl.misc.rllab_util import get_stat_in_dict
 from rllab.misc import logger
 
 
@@ -107,10 +108,9 @@ class Reacher7DofXyzGoalState(MultitaskEnv, mujoco_env.MujocoEnv, utils.EzPickle
             'State distance to target', distances
         ))
 
-        euclidean_distances = np.vstack([
-            [info['distance'] for info in path['env_infos']]
-            for path in paths
-        ])
+        euclidean_distances = get_stat_in_dict(
+            paths, 'env_infos', 'distance'
+        )
         statistics.update(create_stats_ordered_dict(
             'Euclidean distance to goal', euclidean_distances
         ))
