@@ -76,6 +76,55 @@ class UniversalQfunction(PyTorchModule):
         return self.output_activation(self.last_fc(h))
 
 
+class FlatUniversalQfunction(PyTorchModule):
+    """
+    Represent Q(s, a, s_g, \gamma) with a two-alyer FF network.
+    """
+    def __init__(
+            self,
+            observation_dim,
+            action_dim,
+            goal_state_dim,
+            obs_hidden_size,
+            embed_hidden_size,
+            init_w=3e-3,
+            hidden_activation=F.relu,
+            output_activation=identity,
+            w_weight_generator=ptu.fanin_init_weights_like,
+            b_init_value=0.1,
+            **kwargs
+    ):
+        self.save_init_params(locals())
+        super().__init__()
+
+        self.hidden_activation = hidden_activation
+        self.output_activation = output_activation
+        next_layer_size = observation_dim + goal_state_dim + + action_dim + 1
+
+        self.obs_fc = nn.Linear(next_layer_size, obs_hidden_size)
+        new_weight = w_weight_generator(self.obs_fc.weight.data)
+        self.obs_fc.weight.data.copy_(new_weight)
+        self.obs_fc.bias.data.fill_(b_init_value)
+
+        self.embed_fc = nn.Linear(
+            obs_hidden_size,
+            embed_hidden_size,
+        )
+        new_weight = w_weight_generator(self.embed_fc.weight.data)
+        self.embed_fc.weight.data.copy_(new_weight)
+        self.embed_fc.bias.data.fill_(b_init_value)
+
+        self.last_fc = nn.Linear(embed_hidden_size, 1)
+        self.last_fc.weight.data.uniform_(-init_w, init_w)
+        self.last_fc.bias.data.fill_(b_init_value)
+
+    def forward(self, *inputs):
+        h = torch.cat(inputs, dim=1)
+        h = self.hidden_activation(self.obs_fc(h))
+        h = self.hidden_activation(self.embed_fc(h))
+        return self.output_activation(self.last_fc(h))
+
+
 class StructuredUniversalQfunction(PyTorchModule):
     """
     Parameterize QF as

@@ -33,7 +33,8 @@ from railrl.launchers.launcher_util import (
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.hypopt import optimize_and_save
 from railrl.misc.ml_util import RampUpSchedule
-from railrl.networks.state_distance import UniversalPolicy, UniversalQfunction
+from railrl.networks.state_distance import UniversalPolicy, UniversalQfunction, \
+    FlatUniversalQfunction
 from railrl.torch.modules import HuberLoss
 
 
@@ -47,7 +48,7 @@ def experiment(variant):
 
     observation_space = convert_gym_space(env.observation_space)
     action_space = convert_gym_space(env.action_space)
-    qf = UniversalQfunction(
+    qf = variant['qf_class'](
         int(observation_space.flat_dim),
         int(action_space.flat_dim),
         env.goal_dim,
@@ -99,10 +100,10 @@ if __name__ == '__main__':
     exp_prefix = "dev-sdql"
     run_mode = "none"
 
-    n_seeds = 3
+    n_seeds = 5
     mode = "ec2"
-    exp_prefix = "pusher-first-try"
-    # run_mode = 'grid'
+    exp_prefix = "flat-vs-normal-qf"
+    run_mode = 'grid'
 
     version = "Dev"
     num_configurations = 50  # for random mode
@@ -191,8 +192,10 @@ if __name__ == '__main__':
                 # Reacher7DofXyzGoalState,
                 GoalStateSimpleStateReacherEnv,
             ],
-            'algo_params.prob_goal_state_is_next_state': [0.5, 0],
-            'algo_params.termination_threshold': [1e-4, 0]
+            'qf_class': [
+                FlatUniversalQfunction, UniversalQfunction,
+            ],
+            # 'algo_params.termination_threshold': [1e-4, 0]
             # 'epoch_discount_schedule_params': [
             #     dict(
             #         min_value=0.99,
