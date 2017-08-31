@@ -37,9 +37,6 @@ class Reacher7DofXyzGoalState(MultitaskEnv, mujoco_env.MujocoEnv, utils.EzPickle
         self.set_state(qpos, qvel)
         return self._get_obs()
 
-    def sample_goal_states_for_rollouts(self, batch_size):
-        return self.sample_goal_states(batch_size)
-
     def sample_goal_states(self, batch_size):
         # Number taken from running a random policy and seeing what XYZ values
         # are reached
@@ -129,8 +126,8 @@ class Reacher7DofXyzGoalState(MultitaskEnv, mujoco_env.MujocoEnv, utils.EzPickle
 
 
 class Reacher7DofFullGoalState(Reacher7DofXyzGoalState):
-    def sample_goal_states_for_rollouts(self, batch_size):
-        goal_states = self.sample_goal_states(batch_size)
+    def sample_goal_state_for_rollout(self):
+        goal_states = self.sample_goal_states(0)[1]
         goal_states[:, -7:] = 0
         return goal_states
 

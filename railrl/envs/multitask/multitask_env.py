@@ -14,15 +14,13 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
     def sample_goal_states(self, batch_size):
         pass
 
-    @abc.abstractmethod
-    def sample_goal_states_for_rollouts(self, batch_size):
+    def sample_goal_state_for_rollout(self):
         """
         These goal states are fed to a policy when the policy wants to actually
         do rollouts.
-        :param batch_size:
         :return:
         """
-        pass
+        return self.sample_goal_states(1)[0]
 
     def sample_irrelevant_goal_dimensions(self, goal, batch_size):
         """

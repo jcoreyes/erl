@@ -88,7 +88,7 @@ if __name__ == "__main__":
     while True:
         paths = []
         for _ in range(args.num_rollouts):
-            goal = env.sample_goal_states_for_rollouts(1)[0]
+            goal = env.sample_goal_state_for_rollout()
             if args.verbose:
                 env.print_goal_state_info(goal)
             path = multitask_rollout(

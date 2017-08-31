@@ -56,9 +56,6 @@ class MultitaskPusherEnv(PusherEnv, MultitaskEnv):
     def sample_states(self, batch_size):
         raise NotImplementedError("Would need to do forward kinematics...")
 
-    def sample_goal_states_for_rollouts(self, batch_size):
-        return self.sample_goal_states(batch_size=batch_size)
-
     def set_goal(self, goal):
         self.multitask_goal = goal
 

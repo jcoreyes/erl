@@ -186,9 +186,6 @@ class XyMultitaskSimpleStateReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle,
             size=(batch_size, 2)
         )
 
-    def sample_goal_states_for_rollouts(self, batch_size):
-        return self.sample_goal_states(batch_size)
-
     def log_diagnostics(self, paths):
         observations = np.vstack([path['observations'] for path in paths])
         actions = np.vstack([path['actions'] for path in paths])
@@ -282,14 +279,14 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
         ])
         return obs
 
-    def sample_goal_states_for_rollouts(self, batch_size):
+    def sample_goal_state_for_rollout(self):
         theta = self.np_random.uniform(
             low=-math.pi,
             high=math.pi,
-            size=(batch_size, 2)
+            size=2,
         )
-        velocities = np.zeros((batch_size, 2))
-        obs = np.hstack([
+        velocities = np.zeros(2)
+        obs = np.vstack([
             np.cos(theta),
             np.sin(theta),
             velocities

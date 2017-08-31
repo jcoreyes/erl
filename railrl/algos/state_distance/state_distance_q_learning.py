@@ -122,7 +122,7 @@ class StateDistanceQLearning(DDPG):
     def reset_env(self):
         self.exploration_strategy.reset()
         self.exploration_policy.reset()
-        self.goal_state = self.env.sample_goal_states_for_rollouts(1)[0]
+        self.goal_state = self.env.sample_goal_state_for_rollout()
         self.training_env.set_goal(self.goal_state)
         return self.training_env.reset()
 
@@ -226,9 +226,6 @@ class StateDistanceQLearning(DDPG):
 
     def _sample_paths(self, epoch):
         self.eval_sampler.set_discount(self.discount)
-        self.eval_sampler.set_goals(
-            self.env.sample_goal_states_for_rollouts(self.num_goals_for_eval)
-        )
         return super()._sample_paths(epoch)
 
     def get_train_dict(self, batch):
@@ -364,7 +361,6 @@ class MultigoalSimplePathSampler(object):
         self.max_path_length = max_path_length
         self.discount = discount
         self.sample_discount = sample_discount
-        self.goals = None
 
     def start_worker(self):
         pass
@@ -375,9 +371,6 @@ class MultigoalSimplePathSampler(object):
     def set_discount(self, discount):
         self.discount = discount
 
-    def set_goals(self, goals):
-        self.goals = goals
-
     def obtain_samples(self):
         paths = []
         for i in range(self.max_samples // self.max_path_length):
@@ -385,7 +378,7 @@ class MultigoalSimplePathSampler(object):
                 discount = np.random.uniform(0, self.discount, 1)[0]
             else:
                 discount = self.discount
-            goal = self.goals[i & len(self.goals)]
+            goal = self.env.sample_goal_state_for_rollout()
             path = multitask_rollout(
                 self.env,
                 self.policy,
