@@ -48,19 +48,19 @@ def example(variant):
 
 if __name__ == "__main__":
     n_seeds = 4
-    exp_prefix = "ddpg-residual-gradient-weight-tau-sensitivity"
+    exp_prefix = "ddpg-rg-weight-tau-sensitivity-harder-tasks-actually"
     mode = 'ec2'
 
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
             num_epochs=100,
-            num_steps_per_epoch=1000,
-            num_steps_per_eval=100,
+            num_steps_per_epoch=10000,
+            num_steps_per_eval=10000,
             use_soft_update=True,
             tau=1e-2,
             batch_size=128,
-            max_path_length=100,
+            max_path_length=1000,
             discount=0.99,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
@@ -70,7 +70,7 @@ if __name__ == "__main__":
         env_class=InvertedDoublePendulumEnv,
     )
     search_space = {
-        'env_class': [SwimmerEnv, InvertedDoublePendulumEnv],
+        'env_class': [AntEnv, HalfCheetahEnv, HopperEnv],
         'algo_params.residual_gradient_weight': [
             1, 0.99, 0.9, 0.5, 0.1, 0
         ],
