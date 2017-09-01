@@ -153,8 +153,7 @@ class JointOnlyPusherEnv(MultitaskPusherEnv):
             -0.275 * np.ones((batch_size, 1)),
         ))
 
-    def sample_goal_state_for_rollout(self):
-        goal_state = self.sample_goal_states(1)[0]
+    def modify_goal_state_for_rollout(self, goal_state):
         # set desired velocity to zero
         goal_state[7:14] = 0
         return goal_state

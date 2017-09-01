@@ -279,22 +279,10 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
         ])
         return obs
 
-    def sample_goal_state_for_rollout(self):
-        theta = self.np_random.uniform(
-            low=-math.pi,
-            high=math.pi,
-            size=2,
-        )
-        velocities = np.zeros(2)
-        obs = np.concatenate(
-            [
-                np.cos(theta),
-                np.sin(theta),
-                velocities
-            ],
-            axis=0,
-        )
-        return obs
+    def modify_goal_state_for_rollout(self, goal_state):
+        # set desired velocity to zero
+        goal_state[4:6] = 0
+        return goal_state
 
     def log_diagnostics(self, paths):
         observations = np.vstack([path['observations'] for path in paths])

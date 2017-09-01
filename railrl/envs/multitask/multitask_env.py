@@ -20,7 +20,18 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         do rollouts.
         :return:
         """
-        return self.sample_goal_states(1)[0]
+        goal_state = self.sample_goal_states(1)[0]
+        return self.modify_goal_state_for_rollout(goal_state)
+
+    def modify_goal_state_for_rollout(self, goal_state):
+        """
+        Modify a goal state so that it's appropriate for doing a rollout.
+
+        Common use case: zero out the goal velocities.
+        :param goal_state:
+        :return:
+        """
+        return goal_state
 
     def sample_irrelevant_goal_dimensions(self, goal, batch_size):
         """
