@@ -103,7 +103,7 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "feed-horizon-pusher-goal-state-is-full-state"
+    exp_prefix = "feed-horizon-reacher-ramp-tests"
     run_mode = 'grid'
 
     version = "Dev"
@@ -121,7 +121,7 @@ if __name__ == '__main__':
     variant = dict(
         dataset_path=str(dataset_path),
         algo_params=dict(
-            num_epochs=501,
+            num_epochs=201,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             use_soft_update=True,
@@ -184,18 +184,18 @@ if __name__ == '__main__':
     if run_mode == 'grid':
         search_space = {
             'env_class': [
-                # Reacher7DofFullGoalState,
-                # GoalStateSimpleStateReacherEnv,
-                ArmEEInStatePusherEnv,
+                Reacher7DofFullGoalState,
+                GoalStateSimpleStateReacherEnv,
+                # ArmEEInStatePusherEnv,
                 # JointOnlyPusherEnv,
             ],
             'qf_class': [UniversalQfunction],
-            'algo_params.sample_goals_from': ['replay_buffer'],
-            # 'algo_params.sample_goals_from': ['environment', 'replay_buffer'],
+            # 'algo_params.sample_goals_from': ['replay_buffer'],
+            'algo_params.sample_goals_from': ['environment', 'replay_buffer'],
             # 'algo_params.termination_threshold': [1e-4, 0]
             'epoch_discount_schedule_params.max_value': [100, 1000],
             'epoch_discount_schedule_params.ramp_duration': [
-                1, 20, 100, 500,
+                1, 20, 50, 200,
             ],
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
