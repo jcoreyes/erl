@@ -90,7 +90,7 @@ if __name__ == "__main__":
             'arm_name': 'right',
             'loss': 'huber',
             'huber_delta': .8,
-            'safety_force_magnitude': 2,
+            'safety_force_magnitude': 3,
             'temp': 5,
             'experiment': experiments[2],
             'es_min_sigma': 1,
