@@ -127,7 +127,7 @@ class Reacher7DofXyzGoalState(MultitaskEnv, mujoco_env.MujocoEnv, utils.EzPickle
 
 class Reacher7DofFullGoalState(Reacher7DofXyzGoalState):
     def sample_goal_state_for_rollout(self):
-        goal_states = self.sample_goal_states(0)[1]
+        goal_states = self.sample_goal_states(1)[0]
         goal_states[:, -7:] = 0
         return goal_states
 
