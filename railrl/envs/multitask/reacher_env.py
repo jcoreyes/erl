@@ -286,11 +286,14 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
             size=2,
         )
         velocities = np.zeros(2)
-        obs = np.vstack([
-            np.cos(theta),
-            np.sin(theta),
-            velocities
-        ])
+        obs = np.concatenate(
+            [
+                np.cos(theta),
+                np.sin(theta),
+                velocities
+            ],
+            axis=0,
+        )
         return obs
 
     def log_diagnostics(self, paths):
