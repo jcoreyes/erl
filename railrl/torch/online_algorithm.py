@@ -269,6 +269,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             else:
                 logger.log("Not training yet. Time: {}".format(train_time))
             logger.pop_prefix()
+        self.env.turn_off_robot()
 
     def get_extra_data_to_save(self, epoch):
         """

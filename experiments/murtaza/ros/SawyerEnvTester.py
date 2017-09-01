@@ -4,8 +4,8 @@ import intera_interface
 from intera_interface import CHECK_VERSION
 
 def create_action(mag):
-    action = np.random.rand((1, 7))[0]
-
+    action = mag*np.random.rand(1, 7)[0] - mag / 2
+    return action
 
 experiments=[
     'joint_angle|fixed_angle',
@@ -37,7 +37,11 @@ env.reset()
 # except Exception as e:
 #     import ipdb; ipdb.set_trace()
 
-# for i in range(10000):
+for i in range(100000):
+    action = create_action(2)
+    env._act(action)
+    if i % 200 == 0:
+        env.reset()
 #     env.update_n_step_buffer(env._get_observation(), np.zeros(7), 0)
     # env.safety_box_check(reset_on_error=False)
     # env.unexpected_velocity_check(reset_on_error=True)

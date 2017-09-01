@@ -37,6 +37,9 @@ from rllab.envs.normalized_env import normalize
 from rllab.misc import logger
 from rllab.misc.instrument import run_experiment_lite, query_yes_no
 
+import joblib
+from os.path import exists
+import pickle
 
 def get_standard_env(normalized=True):
     envs = [
@@ -205,6 +208,7 @@ def run_experiment(
     repo = git.Repo(os.getcwd())
     diff_string = repo.git.diff(None)
     commit_hash = repo.head.commit.hexsha
+    # save experiment_params dictionary
     if mode == 'here':
         run_experiment_here(
             task,
@@ -246,7 +250,57 @@ def run_experiment(
             n_parallel=n_parallel,
             **run_experiment_lite_kwargs
         )
+def save_experiment_data(dict):
+    with open('experiment.pkl', 'wb') as handle:
+        pickle.dump(dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
+def resume_algorithm(variant):
+    load_file = variant.get('saved_algorithm', None)
+    if load_file is not None and exists(load_file):
+        data = joblib.load(load_file)
+        algorithm = data['algorithm']
+        epoch = data['epoch']
+        use_gpu = variant['use_gpu']
+        if use_gpu and ptu.gpu_enabled():
+            algorithm.cuda()
+        algorithm.train(start_epoch=epoch)
+
+def continue_experiment(load_experiment_dir, resume_function):
+    if exists(load_experiment_dir + 'experiment.pkl'):
+        data = joblib.load(load_experiment_dir + 'experiment.pkl')
+        mode = data['mode']
+        task = data['task']
+        exp_prefix = data['exp_prefix']
+        variant = data['variant']
+        variant['load_policy_file'] = load_experiment_dir + 'params.pkl' # load from snapshot directory
+        exp_id = data['exp_id']
+        seed = data['seed']
+        use_gpu = data['use_gpu']
+        snapshot_mode = data['snapshot_mode']
+        snapshot_gap = data['snapshot_gap']
+        diff_string = data['diff_string']
+        commit_hash = data['commit_hash']
+        n_parallel = data['n_parallel']
+        base_log_dir = data['base_log_dir']
+
+        if mode == 'here':
+            run_experiment_here(
+                task, # replace with resume_experiment
+                exp_prefix=exp_prefix,
+                variant=variant,
+                exp_id=exp_id,
+                seed=seed,
+                use_gpu=use_gpu,
+                snapshot_mode=snapshot_mode,
+                snapshot_gap=snapshot_gap,
+                code_diff=diff_string,
+                commit_hash=commit_hash,
+                n_parallel=n_parallel,
+                base_log_dir=base_log_dir,
+            )
+
+    else:
+        raise Exception('invalid experiment_file')
 
 def run_experiment_here(
         experiment_function,

@@ -1,4 +1,5 @@
 from railrl.launchers.launcher_util import run_experiment
+from railrl.launchers.launcher_util import continue_experiment
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.qfunctions.torch import FeedForwardQFunction
 from railrl.torch.ddpg import DDPG
@@ -24,8 +25,6 @@ def example(variant):
         experiment = variant['experiment']
         loss = variant['loss']
         huber_delta = variant['huber_delta']
-        safety_box = variant['safety_box']
-        remove_action = variant['remove_action']
         safety_force_magnitude = variant['safety_force_magnitude']
         temp = variant['temp']
         es_min_sigma = variant['es_min_sigma']
@@ -38,8 +37,6 @@ def example(variant):
             experiment=experiment,
             arm_name=arm_name,
             loss=loss,
-            safety_box=safety_box,
-            remove_action=remove_action,
             safety_force_magnitude=safety_force_magnitude,
             temp=temp,
             huber_delta=huber_delta,
@@ -85,19 +82,17 @@ experiments=[
 if __name__ == "__main__":
     run_experiment(
         example,
-        exp_prefix="ddpg-sawyer-fixed-angle-one-shot-jacobian",
+        exp_prefix="ddpg-sawyer-fixed-end-effector",
         seed=0,
         mode='here',
         variant={
             'version': 'Original',
             'arm_name': 'right',
-            'safety_box': True,
             'loss': 'huber',
-            'huber_delta': .5,
-            'safety_force_magnitude': 3,
-            'temp': 3,
-            'remove_action': False,
-            'experiment': experiments[0],
+            'huber_delta': .8,
+            'safety_force_magnitude': 2,
+            'temp': 5,
+            'experiment': experiments[2],
             'es_min_sigma': 1,
             'es_max_sigma': 1,
             'num_epochs': 30,
@@ -107,3 +102,17 @@ if __name__ == "__main__":
         },
         use_gpu=True,
     )
+    # continue_experiment(
+    #     exp_prefix='/home/murtaza/Documents/rllab/data/local/08-17-ddpg-sawyer-fixed-angle-safety-check-test/08-17_ddpg-sawyer-fixed-angle-safety-check-test_2017_08_17_11_56_55_0000--s-0/'
+    # )
+    # continue_experiment(
+    #     exp_dir='/home/murtaza/Documents/rllab/data/local/08-17-ddpg-sawyer-fixed-angle-safety-check-test/08-17_ddpg-sawyer-fixed-angle-safety-check-test_2017_08_17_11_56_55_0000--s-0/'
+    #     resume_function=resume_algorithm,
+    # )
+"""
+If i want to continue experiment:
+have mod = 'continue'
+need to pass in directories too I'm assuming
+"""
+
+#set up the argparse for exp directory
