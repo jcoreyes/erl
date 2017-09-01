@@ -8,7 +8,6 @@ from railrl.envs.ros.sawyer_env import SawyerEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.torch import pytorch_util as ptu
 import joblib
-import cProfile
 
 def example(variant):
     load_policy_file = variant.get('load_policy_file', None)
