@@ -7,38 +7,6 @@ from torch.autograd import Variable
 from railrl.torch import pytorch_util as ptu
 
 
-class SamplePolicy(object):
-    def __init__(self, qf, num_samples):
-        self.qf = qf
-        self.num_samples = num_samples
-
-    def expand_np_to_var(self, array):
-        array_expanded = np.repeat(
-            np.expand_dims(array, 0),
-            self.num_samples,
-            axis=0
-        )
-        return Variable(
-            ptu.from_numpy(array_expanded).float(),
-            requires_grad=False,
-        )
-
-    def get_action(self, obs, goal, discount):
-        sampled_actions = np.random.uniform(-.2, .2, size=(self.num_samples, 2))
-        actions = Variable(ptu.from_numpy(sampled_actions).float(), requires_grad=False)
-        q_values = ptu.get_numpy(self.qf(
-            self.expand_np_to_var(obs),
-            actions,
-            self.expand_np_to_var(goal),
-            self.expand_np_to_var(np.array([discount])),
-        ))
-        max_i = np.argmax(q_values)
-        return sampled_actions[max_i], {}
-
-    def reset(self):
-        pass
-
-
 class SamplePolicyPartialOptimizer(object):
     """
     Greedy-action-partial-state implementation.
