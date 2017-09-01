@@ -1,3 +1,4 @@
+import abc
 from collections import OrderedDict
 
 import numpy as np
@@ -9,7 +10,7 @@ from railrl.misc.rllab_util import get_stat_in_dict
 from rllab.misc import logger
 
 
-class MultitaskPusherEnv(PusherEnv, MultitaskEnv):
+class MultitaskPusherEnv(PusherEnv, MultitaskEnv, metaclass=abc.ABCMeta):
     def __init__(self):
         super().__init__()
         self.multitask_goal = None
@@ -21,13 +22,14 @@ class MultitaskPusherEnv(PusherEnv, MultitaskEnv):
             self.cylinder_pos = np.concatenate([
                 self.np_random.uniform(low=-0.3, high=0, size=1),
                 self.np_random.uniform(low=-0.2, high=0.2, size=1)])
-            if np.linalg.norm(self.cylinder_pos - self.multitask_goal) > 0.17:
+            if np.linalg.norm(self.cylinder_pos - self.goal_cylinder_xy) > 0.17:
                 break
 
         qpos[-4:-2] = self.cylinder_pos
-        qpos[-2:] = self.multitask_goal
+        qpos[-2:] = self.goal_cylinder_xy
         qvel = self.init_qvel + self.np_random.uniform(low=-0.005,
-                                                       high=0.005, size=self.model.nv)
+                                                       high=0.005,
+                                                       size=self.model.nv)
         qvel[-4:] = 0
         self.set_state(qpos, qvel)
         return self._get_obs()
@@ -53,11 +55,19 @@ class MultitaskPusherEnv(PusherEnv, MultitaskEnv):
             -1, 1, size=(batch_size, self.action_space.low.size)
         )
 
-    def sample_states(self, batch_size):
-        raise NotImplementedError("Would need to do forward kinematics...")
-
     def set_goal(self, goal):
         self.multitask_goal = goal
+
+    def convert_obs_to_goal_states(self, obs):
+        return obs
+
+    @property
+    def goal_cylinder_xy(self):
+        return self.goal_state_to_cylinder_xy(self.multitask_goal)
+
+    @abc.abstractmethod
+    def goal_state_to_cylinder_xy(self, goal_state):
+        pass
 
     def _get_obs(self):
         return np.concatenate([
@@ -68,22 +78,11 @@ class MultitaskPusherEnv(PusherEnv, MultitaskEnv):
         ])
 
     def sample_goal_states(self, batch_size):
-        return np.concatenate(
-            (
-                self.np_random.uniform(low=-0.3, high=0, size=(batch_size, 1)),
-                self.np_random.uniform(
-                    low=-0.2, high=0.2, size=(batch_size, 1),
-                ),
-            ),
-            axis=1
-        )
+        return self.sample_states(batch_size)
 
     @property
     def goal_dim(self):
-        return 2
-
-    def convert_obs_to_goal_states(self, obs):
-        return obs[:, 17:19]
+        return self.observation_space.low.size
 
     def log_diagnostics(self, paths):
         statistics = OrderedDict()
@@ -93,7 +92,7 @@ class MultitaskPusherEnv(PusherEnv, MultitaskEnv):
         distances = np.linalg.norm(
             self.convert_obs_to_goal_states(observations) - goal_states,
             axis=1,
-            )
+        )
         statistics.update(create_stats_ordered_dict(
             'State distance to target', distances
         ))
@@ -121,3 +120,48 @@ class MultitaskPusherEnv(PusherEnv, MultitaskEnv):
         ))
         for key, value in statistics.items():
             logger.record_tabular(key, value)
+
+
+class ArmEEInStatePusherEnv(MultitaskPusherEnv):
+    def goal_state_to_cylinder_xy(self, goal_state):
+        return goal_state[17:19]
+
+    def sample_states(self, batch_size):
+        raise NotImplementedError("Would need to do forward kinematics...")
+
+
+class JointOnlyPusherEnv(MultitaskPusherEnv):
+    def goal_state_to_cylinder_xy(self, goal_state):
+        return goal_state[14:16]
+
+    def sample_states(self, batch_size):
+        return np.hstack((
+            # From the xml
+            self.np_random.uniform(low=-2.28, high=1.71, size=(batch_size, 1)),
+            self.np_random.uniform(low=-0.52, high=1.39, size=(batch_size, 1)),
+            self.np_random.uniform(low=-1.4, high=1.7, size=(batch_size, 1)),
+            self.np_random.uniform(low=-2.32, high=0, size=(batch_size, 1)),
+            self.np_random.uniform(low=-1.5, high=1.5, size=(batch_size, 1)),
+            self.np_random.uniform(low=-1.094, high=0, size=(batch_size, 1)),
+            self.np_random.uniform(low=-1.5, high=1.5, size=(batch_size, 1)),
+            # velocities
+            self.np_random.uniform(low=-1, high=1, size=(batch_size, 7)),
+            # cylinder xy location
+            self.np_random.uniform(low=-0.3, high=0, size=(batch_size, 1)),
+            self.np_random.uniform(low=-0.2, high=0.2, size=(batch_size, 1)),
+            # cylinder z location is always fixed. Taken from xml.
+            -0.275 * np.ones((batch_size, 1)),
+        ))
+
+    def sample_goal_state_for_rollout(self):
+        goal_state = self.sample_goal_states(1)[0]
+        # set desired velocity to zero
+        goal_state[7:14] = 0
+        return goal_state
+
+    def _get_obs(self):
+        return np.concatenate([
+            self.model.data.qpos.flat[:7],
+            self.model.data.qvel.flat[:7],
+            self.get_body_com("object"),
+        ])

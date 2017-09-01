@@ -21,7 +21,8 @@ from railrl.envs.multitask.reacher_env import (
     XyMultitaskSimpleStateReacherEnv,
 )
 from railrl.envs.multitask.pusher import (
-    MultitaskPusherEnv,
+    ArmEEInStatePusherEnv,
+    JointOnlyPusherEnv,
 )
 from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
@@ -100,10 +101,10 @@ if __name__ == '__main__':
     exp_prefix = "dev-train-q"
     run_mode = "none"
 
-    n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "feed-horizon-reacher-ramp-up-tests"
-    run_mode = 'grid'
+    # n_seeds = 3
+    # mode = "ec2"
+    # exp_prefix = "feed-horizon-reacher-ramp-up-tests-2"
+    # run_mode = 'grid'
 
     version = "Dev"
     num_configurations = 50  # for random mode
@@ -130,6 +131,7 @@ if __name__ == '__main__':
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
             sample_goals_from='environment',
+            # sample_goals_from='replay_buffer',
             sample_discount=False,
             qf_weight_decay=0.,
             max_path_length=max_path_length,
@@ -156,7 +158,8 @@ if __name__ == '__main__':
         ),
         algo_class=HorizonFedStateDistanceQLearning,
         # env_class=Reacher7DofFullGoalState,
-        env_class=MultitaskPusherEnv,
+        # env_class=ArmEEInStatePusherEnv,
+        env_class=JointOnlyPusherEnv,
         # env_class=GoalStateSimpleStateReacherEnv,
         env_params=dict(),
         sampler_params=dict(
@@ -181,8 +184,8 @@ if __name__ == '__main__':
     if run_mode == 'grid':
         search_space = {
             'env_class': [
-                GoalStateSimpleStateReacherEnv,
                 Reacher7DofFullGoalState,
+                GoalStateSimpleStateReacherEnv,
                 # MultitaskPusherEnv,
             ],
             'qf_class': [UniversalQfunction],
