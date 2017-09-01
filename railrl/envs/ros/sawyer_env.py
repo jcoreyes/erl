@@ -378,13 +378,14 @@ class SawyerEnv(Env, Serializable):
                 torques = np.zeros(7)
                 for joint in forces_dict:
                     torques = torques + np.dot(self.pose_jacobian_dict[joint][1].T, forces_dict[joint]).T
+                # print(max(torques))
                 if self.remove_action:
                     action = torques
                 else:
                     action = action + torques
         if self.filter_actions:
             action = self.filter_action(action)
-        np.clip(action, -12, 12, out=action)
+        np.clip(action, -10, 10, out=action)
         joint_to_values = dict(zip(self.arm_joint_names, action))
         self._set_joint_values(joint_to_values)
         self.rate.sleep()
@@ -556,13 +557,13 @@ class SawyerEnv(Env, Serializable):
         #we care about the torque that was observed to make sure it hasn't gone too high
         new_torques = self.get_observed_torques_minus_gravity()
         if reset_on_error:
-            ERROR_THRESHOLD = np.array([10, 15, 15, 15, 666, 666, 5])
+            ERROR_THRESHOLD = np.array([10, 15, 15, 15, 666, 666, 10])
             is_peaks = (np.abs(new_torques) > ERROR_THRESHOLD).any()
             if is_peaks:
                 print('unexpected_torque: ', new_torques)
                 return True
         else:
-            ERROR_THRESHOLD = np.array([20, 20, 20, 20, 666, 666, 5])
+            ERROR_THRESHOLD = np.array([20, 20, 20, 20, 666, 666, 10])
             is_peaks = (np.abs(new_torques) > ERROR_THRESHOLD).any()
             if is_peaks:
                 print('unexpected_torque: ', new_torques)
@@ -766,7 +767,6 @@ class SawyerEnv(Env, Serializable):
             z = -1 * np.exp(np.abs(curr_z - box_highs[2]) * self.temp) * self.safety_force_magnitude
         elif curr_z < box_lows[2]:
             z = np.exp(np.abs(curr_z - box_highs[2]) * self.temp) * self.safety_force_magnitude
-
         return np.array([x, y, z])
 
     def compute_distances_outside_box(self, pose):
