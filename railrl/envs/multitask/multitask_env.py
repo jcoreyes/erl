@@ -14,6 +14,33 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
     def sample_goal_states(self, batch_size):
         pass
 
+    @property
+    @abc.abstractmethod
+    def goal_dim(self):
+        """
+        :return: int, dimension of goal state
+        """
+        pass
+
+    @staticmethod
+    def print_goal_state_info(goal):
+        """
+        Used for debugging.
+        """
+        pass
+
+    @abc.abstractmethod
+    def sample_actions(self, batch_size):
+        pass
+
+    @abc.abstractmethod
+    def sample_states(self, batch_size):
+        pass
+
+    """
+    Functions you probably don't need to override.
+    """
+
     def sample_goal_state_for_rollout(self):
         """
         These goal states are fed to a policy when the policy wants to actually
@@ -22,6 +49,30 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         """
         goal_state = self.sample_goal_states(1)[0]
         return self.modify_goal_state_for_rollout(goal_state)
+
+    """
+    Check out these default functions below! You may want to override them.
+    """
+
+    def compute_rewards(self, obs, action, next_obs, goal_states):
+        return - np.linalg.norm(
+            self.convert_obs_to_goal_states(next_obs) - goal_states,
+            axis=1,
+            )
+
+    def convert_obs_to_goal_states(self, obs):
+        """
+        Convert a raw environment observation into a goal state (if possible).
+
+        This observation should NOT include the goal state.
+        """
+        return obs
+
+    def convert_obs_to_goal_states_pytorch(self, obs):
+        """
+        PyTorch version of `convert_obs_to_goal_state`.
+        """
+        return self.convert_obs_to_goal_states(obs)
 
     def modify_goal_state_for_rollout(self, goal_state):
         """
@@ -54,47 +105,3 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
             batch_size,
             axis=0
         )
-
-    @abc.abstractmethod
-    def sample_actions(self, batch_size):
-        pass
-
-    @abc.abstractmethod
-    def sample_states(self, batch_size):
-        pass
-
-    def compute_rewards(self, obs, action, next_obs, goal_states):
-        return - np.linalg.norm(
-            self.convert_obs_to_goal_states(next_obs) - goal_states,
-            axis=1,
-        )
-
-    @abc.abstractmethod
-    def convert_obs_to_goal_states(self, obs):
-        """
-        Convert a raw environment observation into a goal state (if possible).
-
-        This observation should NOT include the goal state.
-        """
-        pass
-
-    def convert_obs_to_goal_states_pytorch(self, obs):
-        """
-        PyTorch version of `convert_obs_to_goal_state`.
-        """
-        return self.convert_obs_to_goal_states(obs)
-
-    @property
-    @abc.abstractmethod
-    def goal_dim(self):
-        """
-        :return: int, dimension of goal state
-        """
-        pass
-
-    @staticmethod
-    def print_goal_state_info(goal):
-        """
-        Used for debugging.
-        """
-        pass

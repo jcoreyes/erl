@@ -14,7 +14,15 @@ class MultitaskPusherEnv(PusherEnv, MultitaskEnv, metaclass=abc.ABCMeta):
     def __init__(self):
         super().__init__()
         self.multitask_goal = None
+        self.cylinder_pos = None
 
+    @abc.abstractmethod
+    def goal_state_to_cylinder_xy(self, goal_state):
+        pass
+
+    """
+    Env Functions
+    """
     def reset_model(self):
         qpos = self.init_qpos
 
@@ -49,40 +57,6 @@ class MultitaskPusherEnv(PusherEnv, MultitaskEnv, metaclass=abc.ABCMeta):
         info_dict['object to goal distance'] = np.linalg.norm(object_to_goal)
         info_dict['arm to goal distance'] = np.linalg.norm(arm_to_goal)
         return obs, reward, done, info_dict
-
-    def sample_actions(self, batch_size):
-        return np.random.uniform(
-            -1, 1, size=(batch_size, self.action_space.low.size)
-        )
-
-    def set_goal(self, goal):
-        self.multitask_goal = goal
-
-    def convert_obs_to_goal_states(self, obs):
-        return obs
-
-    @property
-    def goal_cylinder_xy(self):
-        return self.goal_state_to_cylinder_xy(self.multitask_goal)
-
-    @abc.abstractmethod
-    def goal_state_to_cylinder_xy(self, goal_state):
-        pass
-
-    def _get_obs(self):
-        return np.concatenate([
-            self.model.data.qpos.flat[:7],
-            self.model.data.qvel.flat[:7],
-            self.get_body_com("tips_arm"),
-            self.get_body_com("object"),
-        ])
-
-    def sample_goal_states(self, batch_size):
-        return self.sample_states(batch_size)
-
-    @property
-    def goal_dim(self):
-        return self.observation_space.low.size
 
     def log_diagnostics(self, paths):
         statistics = OrderedDict()
@@ -121,6 +95,33 @@ class MultitaskPusherEnv(PusherEnv, MultitaskEnv, metaclass=abc.ABCMeta):
         for key, value in statistics.items():
             logger.record_tabular(key, value)
 
+    """
+    MultitaskEnv Functions
+    """
+    def set_goal(self, goal):
+        self.multitask_goal = goal
+
+    def sample_actions(self, batch_size):
+        return np.random.uniform(
+            -1, 1, size=(batch_size, self.action_space.low.size)
+        )
+
+    def sample_goal_states(self, batch_size):
+        return self.sample_states(batch_size)
+
+    @property
+    def goal_cylinder_xy(self):
+        return self.goal_state_to_cylinder_xy(self.multitask_goal)
+
+    def modify_goal_state_for_rollout(self, goal_state):
+        # set desired velocity to zero
+        goal_state[7:14] = 0
+        return goal_state
+
+    @property
+    def goal_dim(self):
+        return self.observation_space.low.size
+
 
 class ArmEEInStatePusherEnv(MultitaskPusherEnv):
     def goal_state_to_cylinder_xy(self, goal_state):
@@ -128,6 +129,14 @@ class ArmEEInStatePusherEnv(MultitaskPusherEnv):
 
     def sample_states(self, batch_size):
         raise NotImplementedError("Would need to do forward kinematics...")
+
+    def _get_obs(self):
+        return np.concatenate([
+            self.model.data.qpos.flat[:7],
+            self.model.data.qvel.flat[:7],
+            self.get_body_com("tips_arm"),
+            self.get_body_com("object"),
+        ])
 
 
 class JointOnlyPusherEnv(MultitaskPusherEnv):
@@ -152,11 +161,6 @@ class JointOnlyPusherEnv(MultitaskPusherEnv):
             # cylinder z location is always fixed. Taken from xml.
             -0.275 * np.ones((batch_size, 1)),
         ))
-
-    def modify_goal_state_for_rollout(self, goal_state):
-        # set desired velocity to zero
-        goal_state[7:14] = 0
-        return goal_state
 
     def _get_obs(self):
         return np.concatenate([

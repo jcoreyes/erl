@@ -153,9 +153,6 @@ class Reacher7DofFullGoalState(Reacher7DofXyzGoalState):
     def goal_dim(self):
         return 14
 
-    def convert_obs_to_goal_states(self, obs):
-        return obs
-
     def reset_model(self):
         """
         I don't want to manually compute the forward dynamics to compute the
@@ -214,9 +211,6 @@ class Reacher7DofCosSinFullGoalState(Reacher7DofFullGoalState):
     @property
     def goal_dim(self):
         return 21
-
-    def convert_obs_to_goal_states(self, obs):
-        return obs
 
     def reset_model(self):
         saved_init_qpos = self.init_qpos.copy()

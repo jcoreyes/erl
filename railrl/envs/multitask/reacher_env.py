@@ -319,9 +319,6 @@ class GoalStateSimpleStateReacherEnv(XyMultitaskSimpleStateReacherEnv):
         print("angle 1 (degrees) = ", np.arctan2(s1, c1) / math.pi * 180)
         print("angle 2 (degrees) = ", np.arctan2(s2, c2) / math.pi * 180)
 
-    def convert_obs_to_goal_states(self, obs):
-        return obs
-
     @property
     def goal_dim(self):
         return 6
