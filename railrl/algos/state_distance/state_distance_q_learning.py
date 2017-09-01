@@ -31,6 +31,7 @@ class StateDistanceQLearning(DDPG):
             num_steps_per_tensorboard_update=None,
             prob_goal_state_is_next_state=0,
             termination_threshold=0,
+            save_replay_buffer=False,
             **kwargs
     ):
         env = pickle.loads(pickle.dumps(env))
@@ -63,6 +64,7 @@ class StateDistanceQLearning(DDPG):
         self.num_steps_per_tensorboard_update = num_steps_per_tensorboard_update
         self.prob_goal_state_is_next_state = prob_goal_state_is_next_state
         self.termination_threshold = termination_threshold
+        self.save_replay_buffer = save_replay_buffer
 
         self.use_new_data = use_new_data
         if not self.use_new_data:
@@ -288,11 +290,13 @@ class StateDistanceQLearning(DDPG):
         )
 
     def get_extra_data_to_save(self, epoch):
-        return dict(
+        data_to_save = dict(
             epoch=epoch,
-            replay_buffer=self.replay_buffer,
             env=self.training_env,
         )
+        if self.save_replay_buffer:
+            data_to_save['replay_buffer'] = self.replay_buffer
+        return data_to_save
 
 
 class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
