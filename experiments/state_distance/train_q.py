@@ -73,7 +73,7 @@ def experiment(variant):
         action_space=action_space,
         **variant['sampler_es_params']
     )
-    algo = HorizonFedStateDistanceQLearning(
+    algo = variant['algo_class'](
         env,
         qf,
         policy,
@@ -97,17 +97,17 @@ if __name__ == '__main__':
 
     n_seeds = 1
     mode = "here"
-    exp_prefix = "dev-sdql"
+    exp_prefix = "dev-train-q"
     run_mode = "none"
 
-    n_seeds = 5
+    n_seeds = 3
     mode = "ec2"
-    exp_prefix = "feed-horizon-reacher-7dof"
+    exp_prefix = "feed-horizon-reacher-ramp-up-tests"
     run_mode = 'grid'
 
     version = "Dev"
     num_configurations = 50  # for random mode
-    snapshot_mode = "gap"
+    snapshot_mode = "last"
     snapshot_gap = 10
     use_gpu = True
     if mode != "here":
@@ -120,7 +120,7 @@ if __name__ == '__main__':
     variant = dict(
         dataset_path=str(dataset_path),
         algo_params=dict(
-            num_epochs=301,
+            num_epochs=101,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             use_soft_update=True,
@@ -134,7 +134,7 @@ if __name__ == '__main__':
             qf_weight_decay=0.,
             max_path_length=max_path_length,
             use_new_data=True,
-            replay_buffer_size=200000,
+            replay_buffer_size=100000,
             num_updates_per_env_step=1,
             prob_goal_state_is_next_state=0,
             termination_threshold=0,
@@ -154,8 +154,9 @@ if __name__ == '__main__':
             max_value=100,
             ramp_duration=49,
         ),
-        env_class=Reacher7DofFullGoalState,
-        # env_class=MultitaskPusherEnv,
+        algo_class=HorizonFedStateDistanceQLearning,
+        # env_class=Reacher7DofFullGoalState,
+        env_class=MultitaskPusherEnv,
         # env_class=GoalStateSimpleStateReacherEnv,
         env_params=dict(),
         sampler_params=dict(
@@ -180,39 +181,15 @@ if __name__ == '__main__':
     if run_mode == 'grid':
         search_space = {
             'env_class': [
-                # GoalStateSimpleStateReacherEnv,
+                GoalStateSimpleStateReacherEnv,
                 Reacher7DofFullGoalState,
+                # MultitaskPusherEnv,
             ],
             'qf_class': [UniversalQfunction],
-            'algo_params.tau': [0.01, 0.001, 0.0005],
+            # 'algo_params.sample_goals_from': ['replay_buffer', 'environment'],
             # 'algo_params.termination_threshold': [1e-4, 0]
-            'epoch_discount_schedule_params': [
-                dict(
-                    min_value=1,
-                    max_value=100,
-                    ramp_duration=49,
-                ),
-                dict(
-                    min_value=1,
-                    max_value=100,
-                    ramp_duration=10,
-                ),
-                dict(
-                    min_value=10,
-                    max_value=10,
-                    ramp_duration=1,
-                ),
-                dict(
-                    min_value=1,
-                    max_value=1,
-                    ramp_duration=1,
-                ),
-                dict(
-                    min_value=100,
-                    max_value=100,
-                    ramp_duration=1,
-                ),
-            ]
+            'epoch_discount_schedule_params.max_value': [100, 1000],
+            'epoch_discount_schedule_params.ramp_duration': [1, 5, 10, 20, 30],
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
             search_space, default_parameters=variant,
