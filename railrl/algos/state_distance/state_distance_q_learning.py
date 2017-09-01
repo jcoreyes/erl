@@ -41,6 +41,7 @@ class StateDistanceQLearning(DDPG):
             max_samples=num_steps_per_eval,
             max_path_length=max_path_length,
             discount=discount,
+            goal_sampling_function=self.sample_goal_state_for_rollout,
             sample_discount=sample_discount,
         )
         self.num_goals_for_eval = num_steps_per_eval // max_path_length + 1
@@ -124,7 +125,7 @@ class StateDistanceQLearning(DDPG):
     def reset_env(self):
         self.exploration_strategy.reset()
         self.exploration_policy.reset()
-        self.goal_state = self.env.sample_goal_state_for_rollout()
+        self.goal_state = self.sample_goal_state_for_rollout()
         self.training_env.set_goal(self.goal_state)
         return self.training_env.reset()
 
@@ -172,9 +173,21 @@ class StateDistanceQLearning(DDPG):
             return self.env.sample_goal_states(batch_size)
         elif self.sample_goals_from == 'replay_buffer':
             replay_buffer = self.replay_buffer.get_replay_buffer(training=True)
+            if replay_buffer.num_steps_can_sample() == 0:
+                # If there's nothing in the replay...just give all zeros
+                return np.zeros((batch_size, self.env.goal_dim))
             batch = replay_buffer.random_batch(batch_size)
             obs = batch['observations']
             return self.env.convert_obs_to_goal_states(obs)
+        else:
+            raise Exception("Invalid `sample_goals_from`: {}".format(
+                self.sample_goals_from
+            ))
+
+    def sample_goal_state_for_rollout(self):
+        goal_state = self.sample_goal_states(1)[0]
+        goal_state = self.env.modify_goal_state_for_rollout(goal_state)
+        return goal_state
 
     def _paths_to_np_batch(self, paths):
         np_batch = super()._paths_to_np_batch(paths)
@@ -357,6 +370,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
 class MultigoalSimplePathSampler(object):
     def __init__(
             self, env, policy, max_samples, max_path_length, discount,
+            goal_sampling_function,
             sample_discount=False,
     ):
         self.env = env
@@ -364,6 +378,7 @@ class MultigoalSimplePathSampler(object):
         self.max_samples = max_samples
         self.max_path_length = max_path_length
         self.discount = discount
+        self.goal_sampling_function = goal_sampling_function
         self.sample_discount = sample_discount
 
     def start_worker(self):
@@ -382,7 +397,7 @@ class MultigoalSimplePathSampler(object):
                 discount = np.random.uniform(0, self.discount, 1)[0]
             else:
                 discount = self.discount
-            goal = self.env.sample_goal_state_for_rollout()
+            goal = self.goal_sampling_function()
             path = multitask_rollout(
                 self.env,
                 self.policy,
