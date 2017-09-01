@@ -5,7 +5,7 @@ Run DDPG on things.
 from railrl.algos.ddpg import DDPG, TargetUpdateMode
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.policies.nn_policy import FeedForwardPolicy
+from railrl.policies.tensorflow.nn_policy import FeedForwardPolicy
 from railrl.qfunctions.nn_qfunction import FeedForwardCritic
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.envs.normalized_env import normalize

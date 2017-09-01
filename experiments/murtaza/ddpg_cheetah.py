@@ -1,15 +1,18 @@
 """
 Exampling of running DDPG on HalfCheetah.
 """
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import run_experiment
-from railrl.policies.nn_policy import FeedForwardPolicy
-from railrl.qfunctions.nn_qfunction import FeedForwardCritic
-from railrl.algos.ddpg import DDPG
 from os.path import exists
-from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
+
 import joblib
 import tensorflow as tf
+
+from railrl.algos.ddpg import DDPG
+from railrl.exploration_strategies.ou_strategy import OUStrategy
+from railrl.launchers.launcher_util import run_experiment
+from railrl.policies.tensorflow.nn_policy import FeedForwardPolicy
+from railrl.qfunctions.nn_qfunction import FeedForwardCritic
+from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
+
 
 def example(variant):
     load_policy_file = variant.get('load_policy_file', None)

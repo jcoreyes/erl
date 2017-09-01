@@ -1,5 +1,6 @@
-from railrl.policies.nn_policy import NNPolicy
 import tensorflow as tf
+
+from railrl.policies.tensorflow.nn_policy import NNPolicy
 
 
 class LstmPolicy(NNPolicy):

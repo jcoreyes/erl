@@ -2,26 +2,24 @@
 :author: Vitchyr Pong
 """
 from collections import OrderedDict
+from enum import Enum
+
+import tensorflow as tf
 from typing import List
 
-import numpy as np
-import tensorflow as tf
-
-from railrl.core.neuralnet import NeuralNetwork
+from railrl.algos.online_algorithm import OnlineAlgorithm
 from railrl.core import tf_util
+from railrl.core.neuralnet import NeuralNetwork
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import (
     split_paths,
     split_flat_product_space_into_components_n,
 )
-from railrl.algos.online_algorithm import OnlineAlgorithm
-from railrl.policies.memory.lstm_memory_policy import SeparateLstmLinearCell
-from railrl.policies.nn_policy import NNPolicy
+from railrl.policies.tensorflow.nn_policy import NNPolicy
 from railrl.pythonplusplus import filter_recursive
 from railrl.qfunctions.nn_qfunction import NNQFunction
 from rllab.misc.overrides import overrides
 from rllab.spaces.product import Product
-from enum import Enum
 
 TARGET_PREFIX = "target_"
 

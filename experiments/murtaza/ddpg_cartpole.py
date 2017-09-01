@@ -1,13 +1,14 @@
 """
 Exampling of running DDPG on Double Pendulum.
 """
+from railrl.algos.ddpg import DDPG
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.policies.nn_policy import FeedForwardPolicy
+from railrl.policies.tensorflow.nn_policy import FeedForwardPolicy
 from railrl.qfunctions.nn_qfunction import FeedForwardCritic
-from railrl.algos.ddpg import DDPG
-from rllab.envs.normalized_env import normalize
 from rllab.envs.box2d.double_pendulum_env import DoublePendulumEnv
+
+
 def example(*_):
     env = DoublePendulumEnv()
     es = OUStrategy(env_spec=env.spec)

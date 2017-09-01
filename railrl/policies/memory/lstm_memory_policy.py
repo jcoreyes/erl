@@ -1,15 +1,12 @@
 import numpy as np
 import tensorflow as tf
-
-from railrl.core import tf_util
-from railrl.core.rnn.rnn import RWACell
-from railrl.policies.memory.rnn_cell_policy import RnnCellPolicy
-from tensorflow.contrib.rnn import RNNCell, LSTMCell
-from tensorflow.contrib.layers import layer_norm
-from railrl.core.rnn.rnn import LNLSTMCell
 from tensorflow.contrib.rnn import RNNCell, LSTMCell, GRUCell
 
-from railrl.policies.nn_policy import NNPolicy
+from railrl.core import tf_util
+from railrl.core.rnn.rnn import LNLSTMCell
+from railrl.core.rnn.rnn import RWACell
+from railrl.policies.memory.rnn_cell_policy import RnnCellPolicy
+from railrl.policies.tensorflow.nn_policy import NNPolicy
 
 
 class SplitterCell(RNNCell):

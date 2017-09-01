@@ -1,12 +1,11 @@
 """
 Exampling of running the TensorFlow version of DDPG on HalfCheetah.
 """
+from railrl.algos.ddpg import DDPG
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.policies.nn_policy import FeedForwardPolicy
+from railrl.policies.tensorflow.nn_policy import FeedForwardPolicy
 from railrl.qfunctions.nn_qfunction import FeedForwardCritic
-from railrl.algos.ddpg import DDPG, TargetUpdateMode
-
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 from rllab.envs.normalized_env import normalize
 
