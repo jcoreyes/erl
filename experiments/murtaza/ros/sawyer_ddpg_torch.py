@@ -1,5 +1,6 @@
 from railrl.launchers.launcher_util import run_experiment
 from railrl.launchers.launcher_util import continue_experiment
+from railrl.launchers.launcher_util import resume_torch_algorithm
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.qfunctions.torch import FeedForwardQFunction
 from railrl.torch.ddpg import DDPG
@@ -68,6 +69,7 @@ def example(variant):
         if use_gpu and ptu.gpu_enabled():
             algorithm.cuda()
         algorithm.train()
+        env.turn_off_robot()
 
 experiments=[
     'joint_angle|fixed_angle',
@@ -79,38 +81,34 @@ experiments=[
 ]
 
 if __name__ == "__main__":
-    run_experiment(
-        example,
-        exp_prefix="ddpg-sawyer-fixed-end-effector",
-        seed=0,
-        mode='here',
-        variant={
-            'version': 'Original',
-            'arm_name': 'right',
-            'loss': 'huber',
-            'huber_delta': .8,
-            'safety_force_magnitude': 4,
-            'temp': 10,
-            'experiment': experiments[2],
-            'es_min_sigma': 1,
-            'es_max_sigma': 1,
-            'num_epochs': 30,
-            'batch_size': 1024,
-            'use_gpu':True,
-            # 'load_policy_file':'/home/murtaza/Documents/rllab/data/local/08-17-ddpg-sawyer-fixed-angle-safety-check-test/08-17_ddpg-sawyer-fixed-angle-safety-check-test_2017_08_17_11_56_55_0000--s-0/params.pkl'
-        },
-        use_gpu=True,
-    )
-    # continue_experiment(
-    #     exp_prefix='/home/murtaza/Documents/rllab/data/local/08-17-ddpg-sawyer-fixed-angle-safety-check-test/08-17_ddpg-sawyer-fixed-angle-safety-check-test_2017_08_17_11_56_55_0000--s-0/'
-    # )
-    # continue_experiment(
-    #     exp_dir='/home/murtaza/Documents/rllab/data/local/08-17-ddpg-sawyer-fixed-angle-safety-check-test/08-17_ddpg-sawyer-fixed-angle-safety-check-test_2017_08_17_11_56_55_0000--s-0/'
-    #     resume_function=resume_algorithm,
-    # )
+    exp_dir = '/home/murtaza/Documents/rllab/data/local/09-01-ddpg-sawyer-fixed-end-effector-restart-test/09-01_ddpg-sawyer-fixed-end-effector-restart-test_2017_09_01_13_45_34_0000--s-0'
+    if exp_dir == None:
+        run_experiment(
+            example,
+            exp_prefix="ddpg-sawyer-fixed-end-effector-restart-test",
+            seed=0,
+            mode='here',
+            variant={
+                'version': 'Original',
+                'arm_name': 'right',
+                'loss': 'huber',
+                'huber_delta': .8,
+                'safety_force_magnitude': 6,
+                'temp': 15,
+                'experiment': experiments[2],
+                'es_min_sigma': 1,
+                'es_max_sigma': 1,
+                'num_epochs': 30,
+                'batch_size': 1024,
+                'use_gpu':True,
+            },
+            use_gpu=True,
+        )
+    else:
+        continue_experiment(exp_dir, resume_torch_algorithm)
 """
 If i want to continue experiment:
-have mod = 'continue'
+have mode = 'continue'
 need to pass in directories too I'm assuming
 """
 

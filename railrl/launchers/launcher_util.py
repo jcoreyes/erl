@@ -208,7 +208,25 @@ def run_experiment(
     repo = git.Repo(os.getcwd())
     diff_string = repo.git.diff(None)
     commit_hash = repo.head.commit.hexsha
-    # save experiment_params dictionary
+
+    data = dict(
+        mode=mode,
+        variant=variant,
+        exp_id=exp_id,
+        exp_prefix=exp_prefix,
+        seed=seed,
+        use_gpu=use_gpu,
+        snapshot_mode=snapshot_mode,
+        snapshot_gap=snapshot_gap,
+        diff_string=diff_string,
+        commit_hash=commit_hash,
+        n_parallel=n_parallel,
+        base_log_dir=base_log_dir
+    )
+    log_dir, _ = create_log_dir(exp_prefix, exp_id, seed, base_log_dir)
+    save_experiment_data(data, log_dir)
+
+
     if mode == 'here':
         run_experiment_here(
             task,
@@ -250,12 +268,14 @@ def run_experiment(
             n_parallel=n_parallel,
             **run_experiment_lite_kwargs
         )
-def save_experiment_data(dict):
-    with open('experiment.pkl', 'wb') as handle:
-        pickle.dump(dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-def resume_algorithm(variant):
-    load_file = variant.get('saved_algorithm', None)
+def save_experiment_data(dictionary, log_dir):
+    with open(log_dir + '/experiment.pkl', 'wb') as handle:
+        pickle.dump(dictionary, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+def resume_torch_algorithm(variant):
+    from railrl.torch import pytorch_util as ptu
+    load_file = variant.get('params_file', None)
     if load_file is not None and exists(load_file):
         data = joblib.load(load_file)
         algorithm = data['algorithm']
@@ -266,13 +286,12 @@ def resume_algorithm(variant):
         algorithm.train(start_epoch=epoch)
 
 def continue_experiment(load_experiment_dir, resume_function):
-    if exists(load_experiment_dir + 'experiment.pkl'):
-        data = joblib.load(load_experiment_dir + 'experiment.pkl')
+    if exists(load_experiment_dir + '/experiment.pkl'):
+        data = joblib.load(load_experiment_dir + '/experiment.pkl')
         mode = data['mode']
-        task = data['task']
         exp_prefix = data['exp_prefix']
         variant = data['variant']
-        variant['load_policy_file'] = load_experiment_dir + 'params.pkl' # load from snapshot directory
+        variant['params_file'] = load_experiment_dir + '/params.pkl' # load from snapshot directory
         exp_id = data['exp_id']
         seed = data['seed']
         use_gpu = data['use_gpu']
@@ -285,7 +304,7 @@ def continue_experiment(load_experiment_dir, resume_function):
 
         if mode == 'here':
             run_experiment_here(
-                task, # replace with resume_experiment
+                resume_function, # replace with resume_experiment
                 exp_prefix=exp_prefix,
                 variant=variant,
                 exp_id=exp_id,
@@ -298,7 +317,6 @@ def continue_experiment(load_experiment_dir, resume_function):
                 n_parallel=n_parallel,
                 base_log_dir=base_log_dir,
             )
-
     else:
         raise Exception('invalid experiment_file')
 
@@ -389,12 +407,12 @@ def create_log_dir(exp_prefix="default", exp_id=0, seed=0, base_log_dir=None):
             exp_prefix.replace("_", "-"),
         )
     log_dir = osp.join(base_log_dir, exp_name)
-    if osp.exists(log_dir):
-        raise Exception(
-            "Log directory already exists. Will no overwrite: {0}".format(
-                log_dir
-            )
-        )
+    # if osp.exists(log_dir):
+    #     raise Exception(
+    #         "Log directory already exists. Will not overwrite: {0}".format(
+    #             log_dir
+    #         )
+    #     )
     os.makedirs(log_dir, exist_ok=True)
     return log_dir, exp_name
 

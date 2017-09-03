@@ -16,6 +16,7 @@ from gravity_torques.srv import *
 import time
 import math
 from intera_interface import CHECK_VERSION
+from objectattention_ros.srv import *
 
 NUM_JOINTS = 7
 
@@ -87,6 +88,8 @@ END_EFFECTOR_VALUE_HIGH = {
     'angle': END_EFFECTOR_ANGLE_HIGH,
 }
 
+TORQUE_MAX = 5
+
 box_lows = [
     0.1328008448954529,
     -0.23786487626917794,
@@ -140,7 +143,7 @@ class SawyerEnv(Env, Serializable):
             huber_delta=10,
             safety_force_magnitude=2,
             temp=1.05,
-            safe_reset_length=50,
+            safe_reset_length=100,
     ):
 
         Serializable.quick_init(self, locals())
@@ -365,7 +368,6 @@ class SawyerEnv(Env, Serializable):
         # self.amplify = np.array([3, 3, 2, 2, 2, 1, 1])
         # self.amplify = np.array([2, 2, 1.5, 1.5, 1.25, 1, 1])
         self.amplify = np.ones(7)
-
     @safe
     def _act(self, action):
         if not self.in_reset:
@@ -385,7 +387,8 @@ class SawyerEnv(Env, Serializable):
                     action = action + torques
         if self.filter_actions:
             action = self.filter_action(action)
-        np.clip(action, -10, 10, out=action)
+
+        np.clip(action, -TORQUE_MAX, TORQUE_MAX, out=action)
         joint_to_values = dict(zip(self.arm_joint_names, action))
         self._set_joint_values(joint_to_values)
         self.rate.sleep()
@@ -426,6 +429,22 @@ class SawyerEnv(Env, Serializable):
     def _get_gravity_compensation_torques(self):
         gravity_torques, actual_torques, subtracted_torques = self.gravity_torques_client()
         return gravity_torques, actual_torques, subtracted_torques
+
+    def bbox_client(self):
+        rospy.wait_for_service('bbox')
+        try:
+            bbox = rospy.ServiceProxy('bbox', BBox)
+            resp1 = bbox()
+            return np.array(resp1.bbox)
+        except rospy.ServiceException as e:
+            print(e)
+
+    def _get_bboxes(self):
+        bboxes = self.bbox_client()
+        top_left = np.array(bboxes[0])
+        bottom_right = np.array(bboxes[1])
+        bboxes = np.hstack((top_left, bottom_right))
+        return bboxes
 
     def _wrap_angles(self, angles):
         return angles % (2*np.pi)
@@ -537,7 +556,7 @@ class SawyerEnv(Env, Serializable):
         if len(self.pose_jacobian_dict) > 0:
             for joint in self.pose_jacobian_dict.keys():
                 dist = self.compute_distances_outside_box(self.pose_jacobian_dict[joint][0])
-                if dist > .2:
+                if dist > .18:
                     if reset_on_error:
                         print('safety box failure during train/eval: ', joint, dist)
                         terminate_episode = True
@@ -557,7 +576,7 @@ class SawyerEnv(Env, Serializable):
         #we care about the torque that was observed to make sure it hasn't gone too high
         new_torques = self.get_observed_torques_minus_gravity()
         if reset_on_error:
-            ERROR_THRESHOLD = np.array([10, 15, 15, 15, 666, 666, 10])
+            ERROR_THRESHOLD = np.array([11, 15, 15, 15, 666, 666, 10])
             is_peaks = (np.abs(new_torques) > ERROR_THRESHOLD).any()
             if is_peaks:
                 print('unexpected_torque: ', new_torques)
@@ -596,7 +615,7 @@ class SawyerEnv(Env, Serializable):
         current_angles = self._joint_angles()
         position_deltas = np.abs(current_angles - self.previous_angles)
         DELTA_THRESHOLD = .05 * np.ones(7)
-        ERROR_THRESHOLD = [10, 15, 15, 15, 666, 666, 5]
+        ERROR_THRESHOLD = [11, 15, 15, 15, 666, 666, 10]
         violation = False
         for i in range(len(new_torques)):
             if new_torques[i] > ERROR_THRESHOLD[i] and position_deltas[i] < DELTA_THRESHOLD[i]:
@@ -636,7 +655,7 @@ class SawyerEnv(Env, Serializable):
             actual_commanded_actions = self._act(torques)
             if self.use_safety_checks:
                 self.safety_box_check(reset_on_error=False)
-                self.unexpected_torque_check(reset_on_error=False)
+                # self.unexpected_torque_check(reset_on_error=False)
                 # self.high_torque_check(actual_commanded_actions, reset_on_error=False)
                 self.unexpected_velocity_check(reset_on_error=False)
 
