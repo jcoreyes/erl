@@ -67,6 +67,9 @@ def run_experiment(argv):
     parser.add_argument('--use_cloudpickle', type=ast.literal_eval, default=False)
     parser.add_argument('--code_diff', type=str, help='A string of the code diff to save.')
     parser.add_argument('--commit_hash', type=str, help='A string of the commit hash')
+    parser.add_argument('--script_name',
+                        type=str,
+                        help='Name of the launched script')
 
     args = parser.parse_args(argv[1:])
 
@@ -111,6 +114,9 @@ def run_experiment(argv):
     logger.set_log_tabular_only(args.log_tabular_only)
     logger.push_prefix("[%s] " % args.exp_name)
 
+    """
+    Save information for code reproducibility.
+    """
     if args.code_diff is not None:
         code_diff_str = cloudpickle.loads(base64.b64decode(args.code_diff))
         with open(osp.join(log_dir, "code.diff"), "w") as f:
@@ -118,6 +124,9 @@ def run_experiment(argv):
     if args.commit_hash is not None:
         with open(osp.join(log_dir, "commit_hash.txt"), "w") as f:
             f.write(args.commit_hash)
+    if args.script_name is not None:
+        with open(osp.join(log_dir, "script_name.txt"), "w") as f:
+            f.write(args.script_name)
 
     if args.resume_from is not None:
         data = joblib.load(args.resume_from)

@@ -205,6 +205,7 @@ def run_experiment(
     repo = git.Repo(os.getcwd())
     diff_string = repo.git.diff(None)
     commit_hash = repo.head.commit.hexsha
+    script_name = __file__
     if mode == 'here':
         run_experiment_here(
             task,
@@ -217,6 +218,7 @@ def run_experiment(
             snapshot_gap=snapshot_gap,
             code_diff=diff_string,
             commit_hash=commit_hash,
+            script_name=script_name,
             n_parallel=n_parallel,
             base_log_dir=base_log_dir,
         )
@@ -243,6 +245,7 @@ def run_experiment(
             script="railrl/scripts/run_experiment_lite.py",
             code_diff=code_diff,
             commit_hash=commit_hash,
+            script_name=script_name,
             n_parallel=n_parallel,
             **run_experiment_lite_kwargs
         )
@@ -259,6 +262,7 @@ def run_experiment_here(
         snapshot_gap=1,
         code_diff=None,
         commit_hash=None,
+        script_name=None,
         n_parallel=0,
         base_log_dir=None,
 ):
@@ -273,6 +277,7 @@ def run_experiment_here(
     experiments. Note that one experiment may correspond to multiple seeds,.
     :param seed: Seed used for this experiment.
     :param use_gpu: Run with GPU. By default False.
+    :param script_name: Name of the running script
     :return:
     """
     if variant is None:
@@ -294,10 +299,18 @@ def run_experiment_here(
         seed=seed,
         snapshot_mode=snapshot_mode,
         snapshot_gap=snapshot_gap,
-        code_diff=code_diff,
-        commit_hash=commit_hash,
         base_log_dir=base_log_dir,
     )
+    log_dir = logger.get_snapshot_dir()
+    if code_diff is not None:
+        with open(osp.join(log_dir, "code.diff"), "w") as f:
+            f.write(code_diff)
+    if commit_hash is not None:
+        with open(osp.join(log_dir, "commit_hash.txt"), "w") as f:
+            f.write(commit_hash)
+    if script_name is not None:
+        with open(osp.join(log_dir, "script_name.txt"), "w") as f:
+            f.write(script_name)
     if not use_gpu:
         os.environ['CUDA_VISIBLE_DEVICES'] = ""
     else:
@@ -357,8 +370,6 @@ def setup_logger(
         snapshot_mode="last",
         snapshot_gap=1,
         log_tabular_only=False,
-        code_diff=None,
-        commit_hash=None,
 ):
     """
     Set up logger to have some reasonable default settings.
@@ -391,12 +402,6 @@ def setup_logger(
     logger.set_snapshot_gap(snapshot_gap)
     logger.set_log_tabular_only(log_tabular_only)
     logger.push_prefix("[%s] " % exp_name)
-    if code_diff is not None:
-        with open(osp.join(log_dir, "code.diff"), "w") as f:
-            f.write(code_diff)
-    if commit_hash is not None:
-        with open(osp.join(log_dir, "commit_hash.txt"), "w") as f:
-            f.write(commit_hash)
 
 
 def set_seed(seed):
