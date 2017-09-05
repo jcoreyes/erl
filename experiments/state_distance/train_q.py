@@ -101,9 +101,9 @@ if __name__ == '__main__':
     exp_prefix = "dev-train-q"
     run_mode = "none"
 
-    # n_seeds = 3
-    # mode = "ec2"
-    # exp_prefix = "feed-horizon-reacher-ramp-tests"
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "feed-horizon-reacher-net-size"
     # run_mode = 'grid'
 
     version = "Dev"
@@ -121,7 +121,7 @@ if __name__ == '__main__':
     variant = dict(
         dataset_path=str(dataset_path),
         algo_params=dict(
-            num_epochs=501,
+            num_epochs=101,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             use_soft_update=True,
@@ -190,13 +190,32 @@ if __name__ == '__main__':
                 # JointOnlyPusherEnv,
             ],
             # 'qf_class': [UniversalQfunction],
-            # 'algo_params.sample_goals_from': ['replay_buffer'],
-            # 'algo_params.sample_goals_from': ['environment', 'replay_buffer'],
+            'algo_params.sample_goals_from': ['environment', 'replay_buffer'],
             # 'algo_params.termination_threshold': [1e-4, 0]
             # 'epoch_discount_schedule_params.max_value': [100, 1000],
             # 'epoch_discount_schedule_params.ramp_duration': [
             #     1, 20, 50, 200,
             # ],
+            'qf_params': [
+                dict(
+                    obs_hidden_size=400,
+                    embed_hidden_size=300,
+                ),
+                dict(
+                    obs_hidden_size=100,
+                    embed_hidden_size=100,
+                ),
+            ],
+            'policy_params': [
+                dict(
+                    fc1_size=400,
+                    fc2_size=300,
+                ),
+                dict(
+                    fc1_size=100,
+                    fc2_size=100,
+                ),
+            ],
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
             search_space, default_parameters=variant,
@@ -211,6 +230,7 @@ if __name__ == '__main__':
                     mode=mode,
                     variant=variant,
                     exp_id=exp_id,
+                    use_gpu=use_gpu,
                     sync_s3_log=True,
                     sync_s3_pkl=True,
                     periodic_sync_interval=300,
@@ -300,6 +320,7 @@ if __name__ == '__main__':
                     mode=mode,
                     variant=variant,
                     exp_id=exp_id,
+                    use_gpu=use_gpu,
                     sync_s3_log=True,
                     sync_s3_pkl=True,
                     periodic_sync_interval=300,
