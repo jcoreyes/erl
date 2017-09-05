@@ -2,6 +2,7 @@ import argparse
 import random
 
 import railrl.torch.pytorch_util as ptu
+import railrl.misc.hyperparameter as hyp
 from railrl.algos.state_distance.model_learning import ModelLearning
 from railrl.algos.state_distance.util import get_replay_buffer
 from railrl.envs.multitask.reacher_env import (
@@ -59,9 +60,9 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "reacher-2d-xy-goal-learn-model-more-data"
+    exp_prefix = "reacher-2d-xy-goal-learn-model-sweep-net-numdata"
+    run_mode = 'grid'
 
-    # run_mode = 'grid'
     num_configurations = 1  # for random mode
     snapshot_mode = "gap"
     snapshot_gap = 5
@@ -102,18 +103,55 @@ if __name__ == '__main__':
         ),
         generate_data=args.replay_path is None,
     )
-    seed = random.randint(0, 10000)
-    run_experiment(
-        experiment,
-        exp_prefix=exp_prefix,
-        seed=seed,
-        mode=mode,
-        variant=variant,
-        exp_id=0,
-        use_gpu=use_gpu,
-        sync_s3_log=True,
-        sync_s3_pkl=True,
-        periodic_sync_interval=3600,
-        snapshot_mode=snapshot_mode,
-        snapshot_gap=snapshot_gap,
-    )
+    if run_mode == 'grid':
+        search_space = {
+            'sampler_params.min_num_steps_to_collect': [
+                10000,
+                100000,
+            ],
+            'model_params': [
+                dict(
+                    hidden_sizes=[400, 300],
+                ),
+                dict(
+                    hidden_sizes=[100, 100],
+                ),
+            ]
+        }
+        sweeper = hyp.DeterministicHyperparameterSweeper(
+            search_space, default_parameters=variant,
+        )
+        for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+            for i in range(n_seeds):
+                seed = random.randint(0, 10000)
+                run_experiment(
+                    experiment,
+                    exp_prefix=exp_prefix,
+                    seed=seed,
+                    mode=mode,
+                    variant=variant,
+                    exp_id=exp_id,
+                    use_gpu=use_gpu,
+                    sync_s3_log=True,
+                    sync_s3_pkl=True,
+                    periodic_sync_interval=300,
+                    snapshot_mode=snapshot_mode,
+                    snapshot_gap=snapshot_gap,
+                )
+    else:
+        for _ in range(n_seeds):
+            seed = random.randint(0, 10000)
+            run_experiment(
+                experiment,
+                exp_prefix=exp_prefix,
+                seed=seed,
+                mode=mode,
+                variant=variant,
+                exp_id=0,
+                use_gpu=use_gpu,
+                sync_s3_log=True,
+                sync_s3_pkl=True,
+                periodic_sync_interval=300,
+                snapshot_mode=snapshot_mode,
+                snapshot_gap=snapshot_gap,
+            )
