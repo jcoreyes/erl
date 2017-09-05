@@ -11,6 +11,7 @@ from railrl.envs.multitask.reacher_env import (
 from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
+from railrl.policies.model_based import GreedyModelBasedPolicy
 from railrl.predictors.torch import Mlp
 
 
@@ -26,10 +27,16 @@ def experiment(variant):
         int(observation_space.flat_dim),
         **variant['model_params']
     )
+    policy = GreedyModelBasedPolicy(
+        model,
+        env,
+        sample_size=10000,
+    )
     algo = ModelLearning(
         env,
         model,
         replay_buffer=replay_buffer,
+        eval_policy=policy,
         **variant['algo_params']
     )
     if ptu.gpu_enabled():
@@ -50,8 +57,8 @@ if __name__ == '__main__':
     version = "Dev"
     run_mode = "none"
 
-    # n_seeds = 3
-    # mode = "ec2"
+    n_seeds = 3
+    mode = "ec2"
     exp_prefix = "reacher-2d-xy-goal-learn-model-more-data"
 
     # run_mode = 'grid'
@@ -84,7 +91,7 @@ if __name__ == '__main__':
             # add_noop_action=False,
         ),
         sampler_params=dict(
-            min_num_steps_to_collect=100000,
+            min_num_steps_to_collect=10000,
             max_path_length=150,
             render=args.render,
         ),
