@@ -11,10 +11,9 @@ from railrl.misc.rllab_util import get_stat_in_dict
 from rllab.misc import logger
 
 
-class Reacher7DofXyzGoalState(MultitaskEnv, mujoco_env.MujocoEnv, utils.EzPickle):
-    """
-    The goal state is just the XYZ location of the end effector.
-    """
+class Reacher7DofMultitaskEnv(
+    MultitaskEnv, mujoco_env.MujocoEnv, utils.EzPickle
+):
     def __init__(self):
         utils.EzPickle.__init__(self)
         self.multitask_goal = np.zeros(self.goal_dim)
@@ -37,15 +36,6 @@ class Reacher7DofXyzGoalState(MultitaskEnv, mujoco_env.MujocoEnv, utils.EzPickle
         self.set_state(qpos, qvel)
         return self._get_obs()
 
-    def sample_goal_states(self, batch_size):
-        # Number taken from running a random policy and seeing what XYZ values
-        # are reached
-        return np.hstack((
-            self.np_random.uniform(low=-0.75, high=0.75, size=(batch_size, 1)),
-            self.np_random.uniform(low=-1.25, high=0.25, size=(batch_size, 1)),
-            self.np_random.uniform(low=-0.2, high=0.6, size=(batch_size, 1)),
-        ))
-
     def sample_actions(self, batch_size):
         return np.random.uniform(
             -1, 1, size=(batch_size, self.action_space.low.size)
@@ -64,13 +54,6 @@ class Reacher7DofXyzGoalState(MultitaskEnv, mujoco_env.MujocoEnv, utils.EzPickle
             # velocities
             self.np_random.uniform(low=-1, high=1, size=(batch_size, 7)),
         ))
-
-    @property
-    def goal_dim(self):
-        return 3
-
-    def convert_obs_to_goal_states(self, obs):
-        return obs[:, -3:]
 
     def _get_obs(self):
         return np.concatenate([
@@ -125,7 +108,31 @@ class Reacher7DofXyzGoalState(MultitaskEnv, mujoco_env.MujocoEnv, utils.EzPickle
             logger.record_tabular(key, value)
 
 
-class Reacher7DofFullGoalState(Reacher7DofXyzGoalState):
+class Reacher7DofXyzGoalState(Reacher7DofMultitaskEnv):
+    """
+    The goal state is just the XYZ location of the end effector.
+    """
+    def sample_goal_states(self, batch_size):
+        # Number taken from running a random policy and seeing what XYZ values
+        # are reached
+        return np.hstack((
+            self.np_random.uniform(low=-0.75, high=0.75, size=(batch_size, 1)),
+            self.np_random.uniform(low=-1.25, high=0.25, size=(batch_size, 1)),
+            self.np_random.uniform(low=-0.2, high=0.6, size=(batch_size, 1)),
+        ))
+
+    @property
+    def goal_dim(self):
+        return 3
+
+    def convert_obs_to_goal_states(self, obs):
+        return obs[:, -3:]
+
+
+class Reacher7DofFullGoalState(Reacher7DofMultitaskEnv):
+    """
+    The goal state is the full state: joint angles and velocities.
+    """
     def modify_goal_state_for_rollout(self, goal_state):
         # set desired velocity to zero
         goal_state[-7:] = 0
@@ -180,16 +187,11 @@ class Reacher7DofFullGoalState(Reacher7DofXyzGoalState):
         return self._get_obs()
 
 
-class Reacher7DofFullGloalState(Reacher7DofFullGoalState):
-    """
-    Kept so that loading old envs works still. Used to have this type in the
-    class name.
-    """
-    pass
-
-
-
 class Reacher7DofCosSinFullGoalState(Reacher7DofFullGoalState):
+    """
+    The goal state is the full state: joint angles (in cos/sin parameterization)
+    and velocities.
+    """
     def _get_obs(self):
         angles = self.model.data.qpos.flat[:7]
         return np.concatenate([

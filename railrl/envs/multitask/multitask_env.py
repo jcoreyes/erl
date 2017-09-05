@@ -27,7 +27,7 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         """
         Used for debugging.
         """
-        pass
+        print("Goal = ", goal)
 
     @abc.abstractmethod
     def sample_actions(self, batch_size):
@@ -58,7 +58,7 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         return - np.linalg.norm(
             self.convert_obs_to_goal_states(next_obs) - goal_states,
             axis=1,
-            )
+        )
 
     def convert_obs_to_goal_states(self, obs):
         """
