@@ -32,6 +32,10 @@ if __name__ == "__main__":
     parser.add_argument('--plan_h', type=int, default=1,
                         help='Planning horizon')
     parser.add_argument('--discount', type=float, help='Discount Factor')
+    parser.add_argument('--weight', type=float, default=1000.,
+                        help='Constraint penalty weight')
+    parser.add_argument('--nsamples', type=int, default=1000,
+                        help='Number of samples for optimization')
     args = parser.parse_args()
 
     data = joblib.load(args.file)
@@ -48,8 +52,8 @@ if __name__ == "__main__":
         policy = SampleOptimalControlPolicy(
             qf,
             env,
-            constraint_weight=100,
-            sample_size=1000,
+            constraint_weight=args.weight,
+            sample_size=args.nsamples,
             verbose=args.verbose,
         )
     else:
@@ -57,8 +61,8 @@ if __name__ == "__main__":
             qf,
             env,
             horizon=args.plan_h,
-            constraint_weight=1000,
-            sample_size=100,
+            constraint_weight=args.weight,
+            sample_size=args.nsamples,
             verbose=args.verbose,
         )
 
