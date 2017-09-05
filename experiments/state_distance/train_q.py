@@ -101,10 +101,10 @@ if __name__ == '__main__':
     exp_prefix = "dev-train-q"
     run_mode = "none"
 
-    n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "feed-horizon-reacher-ramp-tests"
-    run_mode = 'grid'
+    # n_seeds = 3
+    # mode = "ec2"
+    # exp_prefix = "feed-horizon-reacher-ramp-tests"
+    # run_mode = 'grid'
 
     version = "Dev"
     num_configurations = 50  # for random mode
@@ -121,7 +121,7 @@ if __name__ == '__main__':
     variant = dict(
         dataset_path=str(dataset_path),
         algo_params=dict(
-            num_epochs=201,
+            num_epochs=501,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             use_soft_update=True,
@@ -130,8 +130,8 @@ if __name__ == '__main__':
             discount=0.99,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
-            sample_goals_from='environment',
-            # sample_goals_from='replay_buffer',
+            # sample_goals_from='environment',
+            sample_goals_from='replay_buffer',
             sample_discount=False,
             qf_weight_decay=0.,
             max_path_length=max_path_length,
@@ -152,9 +152,9 @@ if __name__ == '__main__':
         ),
         epoch_discount_schedule_class=IntRampUpSchedule,
         epoch_discount_schedule_params=dict(
-            min_value=1,
+            min_value=100,
             max_value=100,
-            ramp_duration=49,
+            ramp_duration=1,
         ),
         algo_class=HorizonFedStateDistanceQLearning,
         # env_class=Reacher7DofFullGoalState,
@@ -189,14 +189,14 @@ if __name__ == '__main__':
                 # ArmEEInStatePusherEnv,
                 # JointOnlyPusherEnv,
             ],
-            'qf_class': [UniversalQfunction],
+            # 'qf_class': [UniversalQfunction],
             # 'algo_params.sample_goals_from': ['replay_buffer'],
-            'algo_params.sample_goals_from': ['environment', 'replay_buffer'],
+            # 'algo_params.sample_goals_from': ['environment', 'replay_buffer'],
             # 'algo_params.termination_threshold': [1e-4, 0]
-            'epoch_discount_schedule_params.max_value': [100, 1000],
-            'epoch_discount_schedule_params.ramp_duration': [
-                1, 20, 50, 200,
-            ],
+            # 'epoch_discount_schedule_params.max_value': [100, 1000],
+            # 'epoch_discount_schedule_params.ramp_duration': [
+            #     1, 20, 50, 200,
+            # ],
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
             search_space, default_parameters=variant,
