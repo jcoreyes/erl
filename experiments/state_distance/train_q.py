@@ -104,7 +104,7 @@ if __name__ == '__main__':
     n_seeds = 3
     mode = "ec2"
     exp_prefix = "feed-horizon-reacher-net-size"
-    # run_mode = 'grid'
+    run_mode = 'grid'
 
     version = "Dev"
     num_configurations = 50  # for random mode
