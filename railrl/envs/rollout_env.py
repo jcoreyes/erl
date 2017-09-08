@@ -30,10 +30,14 @@ class RayEnv(object):
             env_params,
             policy_class,
             policy_params,
+            # exploration_strategy_class,
+            # exploration_strategy_params,
             max_path_length,
     ):
         self._env = env_class(**env_params)
         self._policy = policy_class(**policy_params)
+        # TODO
+        # self._es = exploration_strategy_class(**exploration_strategy_params)
         self._max_path_length = max_path_length
 
     def rollout(self, policy_params):
@@ -53,9 +57,8 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
             self,
             env_class,
             env_params,
-            policy_class,
-            policy_params,
-            max_path_length
+            *ray_env_args,
+            **ray_env_kwargs
     ):
         Serializable.quick_init(self, locals())
         super().__init__(env_class(**env_params))
@@ -63,9 +66,8 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
         self._ray_env_id = RayEnv.remote(
             env_class,
             env_params,
-            policy_class,
-            policy_params,
-            max_path_length,
+            *ray_env_args,
+            **ray_env_kwargs
         )
         self._rollout_promise = None
 
@@ -81,7 +83,10 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
         paths, _ = ray.wait([self._rollout_promise], timeout=0)
 
         if len(paths):
-            self._rollout_promise = None
+            policy_params = policy.get_param_values_np()
+            self._rollout_promise = self._ray_env_id.rollout.remote(
+                policy_params
+            )
             return ray.get(paths[0])
 
         return None

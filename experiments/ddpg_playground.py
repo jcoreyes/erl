@@ -1,23 +1,25 @@
 """
 Run DDPG on things.
 """
-# from gym.envs.mujoco import HalfCheetahEnv
-
 from railrl.envs.rollout_env import RemoteRolloutEnv
 from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.qfunctions.torch import FeedForwardQFunction
+from railrl.torch.algos.parallel_ddpg import ParallelDDPG
 from railrl.torch.ddpg import DDPG
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
+from rllab.envs.mujoco.inverted_double_pendulum_env import \
+    InvertedDoublePendulumEnv
 from rllab.envs.normalized_env import normalize
 
 
 
 def example(variant):
+    # env = InvertedDoublePendulumEnv()
     env = HalfCheetahEnv()
-    # env = normalize(env)
+    env = normalize(env)
     obs_space = convert_gym_space(env.observation_space)
     action_space = convert_gym_space(env.action_space)
     es = OUStrategy(action_space=action_space)
@@ -42,10 +44,8 @@ def example(variant):
         policy_params,
         100,
     )
-    path = remote_env.rollout(policy)
-    import ipdb; ipdb.set_trace()
-    algorithm = DDPG(
-        env,
+    algorithm = ParallelDDPG(
+        remote_env,
         exploration_strategy=es,
         qf=qf,
         policy=policy,
@@ -57,9 +57,9 @@ def example(variant):
 if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
-            num_epochs=2,
-            num_steps_per_epoch=100,
-            num_steps_per_eval=100,
+            num_epochs=100,
+            num_steps_per_epoch=1000,
+            num_steps_per_eval=1000,
             max_path_length=100,
             batch_size=32,
         ),
