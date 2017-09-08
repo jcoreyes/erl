@@ -287,7 +287,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
     def _shutdown_worker(self):
         self.eval_sampler.shutdown_worker()
 
-    def _sample_paths(self, epoch):
+    def _sample_eval_paths(self, epoch):
         """
         Returns flattened paths.
 

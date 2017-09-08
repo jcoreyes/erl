@@ -95,7 +95,7 @@ class NAF(OnlineAlgorithm):
         :param exploration_paths: List of dicts, each representing a path.
         """
         logger.log("Collecting samples for evaluation")
-        test_paths = self._sample_paths(epoch)
+        test_paths = self._sample_eval_paths(epoch)
         statistics = OrderedDict()
 
         statistics.update(self._statistics_from_paths(exploration_paths,

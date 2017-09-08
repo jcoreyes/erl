@@ -212,7 +212,7 @@ class StateDistanceQLearning(DDPG):
 
         statistics['Discount Factor'] = self.discount
 
-        paths = self._sample_paths(epoch)
+        paths = self._sample_eval_paths(epoch)
         statistics.update(self._statistics_from_paths(paths, "Test"))
         average_returns = get_average_returns(paths)
         statistics['AverageReturn'] = average_returns
@@ -239,9 +239,9 @@ class StateDistanceQLearning(DDPG):
 
         self.log_diagnostics(paths)
 
-    def _sample_paths(self, epoch):
+    def _sample_eval_paths(self, epoch):
         self.eval_sampler.set_discount(self.discount)
-        return super()._sample_paths(epoch)
+        return super()._sample_eval_paths(epoch)
 
     def get_train_dict(self, batch):
         rewards = batch['rewards']

@@ -207,7 +207,7 @@ class DDPG(OnlineAlgorithm):
             - statistics['Train Policy Loss Mean']
         )
 
-        test_paths = self._sample_paths(epoch)
+        test_paths = self._sample_eval_paths(epoch)
         statistics.update(get_generic_path_information(
             test_paths, self.discount, stat_prefix="Test",
         ))
