@@ -60,7 +60,7 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "reacher-2d-xy-goal-learn-model-sweep-net-numdata"
+    exp_prefix = "reacher-2d-xy-goal-learn-model-sweep-numdata"
     run_mode = 'grid'
 
     num_configurations = 1  # for random mode
@@ -107,16 +107,16 @@ if __name__ == '__main__':
         search_space = {
             'sampler_params.min_num_steps_to_collect': [
                 10000,
+                20000,
+                30000,
+                40000,
+                50000,
+                60000,
+                70000,
+                80000,
+                90000,
                 100000,
             ],
-            'model_params': [
-                dict(
-                    hidden_sizes=[400, 300],
-                ),
-                dict(
-                    hidden_sizes=[100, 100],
-                ),
-            ]
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
             search_space, default_parameters=variant,
