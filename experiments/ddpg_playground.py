@@ -83,7 +83,7 @@ if __name__ == "__main__":
     for seed in range(3):
         run_experiment(
             example,
-            exp_prefix="parallel-ddpg-half-cheetah-3-seeds",
+            exp_prefix="dev-parallel-ddpg",
             seed=seed,
             mode='here',
             variant=variant,
