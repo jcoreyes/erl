@@ -8,7 +8,6 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.qfunctions.torch import FeedForwardQFunction
 from railrl.torch.algos.parallel_ddpg import ParallelDDPG
-from railrl.torch.ddpg import DDPG
 import railrl.torch.pytorch_util as ptu
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 from rllab.envs.mujoco.inverted_double_pendulum_env import \
@@ -16,11 +15,10 @@ from rllab.envs.mujoco.inverted_double_pendulum_env import \
 from rllab.envs.normalized_env import normalize
 
 
-
 def example(variant):
-    # env_class = InvertedDoublePendulumEnv
-    env_class = HalfCheetahEnv
+    env_class = variant['env_class']
     env_params = {}
+    # Only create an env for the obs/action spaces
     env = env_class(**env_params)
     if variant['normalize_env']:
         env = normalize(env)
@@ -34,10 +32,7 @@ def example(variant):
     )
     es_class = OUStrategy
     es_params = dict(
-        # action_space=action_space,
-        dim=action_space.flat_dim,
-        low=action_space.low.copy(),
-        high=action_space.high.copy(),
+        action_space=action_space,
     )
     policy_class = FeedForwardPolicy
     policy_params = dict(
@@ -65,14 +60,6 @@ def example(variant):
         policy=policy,
         **variant['algo_params']
     )
-    if not variant['parallel']:
-        algorithm = DDPG(
-            env,
-            exploration_strategy=es,
-            qf=qf,
-            policy=policy,
-            **variant['algo_params']
-        )
     if ptu.gpu_enabled():
         algorithm.cuda()
     algorithm.train()
@@ -82,44 +69,23 @@ if __name__ == "__main__":
     max_path_length = 1000
     variant = dict(
         algo_params=dict(
-            num_epochs=10000,
+            num_epochs=1000,
             num_steps_per_epoch=10000,
             num_steps_per_eval=1000,
             max_path_length=max_path_length,
             batch_size=128,
         ),
         max_path_length=max_path_length,
+        env_class=HalfCheetahEnv,
         parallel=True,
         normalize_env=True,
     )
-    run_experiment(
-        example,
-        exp_prefix="parallel-ddpg-cheetah",
-        seed=0,
-        mode='here',
-        variant=variant,
-        use_gpu=False,
-    )
-    # for seed in range(3):
-    #     for parallel in [True, False]:
-    #         for normalize_env in [True, False]:
-    #             variant = dict(
-    #                 algo_params=dict(
-    #                     num_epochs=100,
-    #                     num_steps_per_epoch=1000,
-    #                     num_steps_per_eval=1000,
-    #                     max_path_length=max_path_length,
-    #                     batch_size=32,
-    #                 ),
-    #                 max_path_length=max_path_length,
-    #                 parallel=parallel,
-    #                 normalize_env=normalize_env,
-    #             )
-    #             run_experiment(
-    #                 example,
-    #                 exp_prefix="compare-parallel-and-norm",
-    #                 seed=seed,
-    #                 mode='here',
-    #                 variant=variant,
-    #                 use_gpu=True,
-    #             )
+    for seed in range(3):
+        run_experiment(
+            example,
+            exp_prefix="parallel-ddpg-half-cheetah-3-seeds",
+            seed=seed,
+            mode='here',
+            variant=variant,
+            use_gpu=True,
+        )
