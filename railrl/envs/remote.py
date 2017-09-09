@@ -1,32 +1,20 @@
-import abc
 import ray
 
-from rllab.envs.normalized_env import normalize
-from railrl.exploration_strategies.base import \
+from railrl.envs.base import RolloutEnv
+from railrl.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
+)
 from railrl.samplers.util import rollout
 from rllab.core.serializable import Serializable
+from rllab.envs.normalized_env import normalize
 from rllab.envs.proxy_env import ProxyEnv
-
-
-class RolloutEnv(object):
-    """ Environment that support only full rollouts. """
-
-    @abc.abstractmethod
-    def rollout(self, *args, **kwargs):
-        """
-        Non-blocking method for doing rollouts.
-
-        :param args:
-        :param kwargs:
-        :return: None if no complete paths has been collected.
-        Otherwise return a path.
-        """
-        pass
 
 
 @ray.remote
 class RayEnv(object):
+    """
+    Perform rollouts asynchronously using ray.
+    """
     def __init__(
             self,
             env_class,
@@ -60,11 +48,47 @@ class RayEnv(object):
 
 class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
     """
-    A synchronous interface for a remote rollout environment.
+    An interface for a rollout environment where the rollouts are performed
+    asynchronously.
 
-    This "environment" basically just talkst o the remote environment.
-    The main difference is that rollout will return None if the a path is not
-    ready, rather than
+    This "environment" just talks to the remote environment. The advantage of
+    this environment over calling RayEnv directly is that rollout will return
+    `None` if a path is not ready, rather than returning a promise (an
+    `ObjectID` in Ray-terminology).
+
+    Rather than doing
+    ```
+    env = CarEnv(foo=1)
+    path = env.rollout()  # blocks until rollout is done
+    # do some computation
+    ```
+    you can do
+    ```
+    remote_env = RemoteRolloutEnv(CarEnv, {'foo': 1})
+    path = remote_env.rollout()
+    while path is None:
+        # do other computation asynchronously
+        path = remote_env.rollout() ```
+    ```
+    So you pass the environment class (CarEnv) and parameters to create the
+    environment to RemoteRolloutEnv. What happens under the door is that the
+    RemoteRolloutEnv will create its own instance of CarEnv with those
+    parameters.
+
+    Note that you could use use RayEnv directly like this:
+    ```
+    env = CarEnv(foo=1)
+    ray_env = RayEnv(CarEnv, {'foo': 1})
+    path = ray_env.rollout.remote()
+
+    # Do some computation asyncronously, but eventually call
+    path = ray.get(path)  # blocks
+    # or
+    paths, _ = ray.wait([path])  # polls
+    ```
+    The main issue is that the caller then has to call `ray` directly, which is
+    breaks some abstractions around ray. Plus, then things like
+    `ray_env.action_space` wouldn't work
     """
     def __init__(
             self,

@@ -1,7 +1,7 @@
 """
 Run DDPG on things.
 """
-from railrl.envs.rollout_env import RemoteRolloutEnv
+from railrl.envs.remote import RemoteRolloutEnv
 from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
