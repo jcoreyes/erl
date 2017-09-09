@@ -1,6 +1,9 @@
 import abc
 import ray
 
+from rllab.envs.normalized_env import normalize
+from railrl.exploration_strategies.base import \
+    PolicyWrappedWithExplorationStrategy
 from railrl.samplers.util import rollout
 from rllab.core.serializable import Serializable
 from rllab.envs.proxy_env import ProxyEnv
@@ -30,19 +33,29 @@ class RayEnv(object):
             env_params,
             policy_class,
             policy_params,
-            # exploration_strategy_class,
-            # exploration_strategy_params,
+            exploration_strategy_class,
+            exploration_strategy_params,
             max_path_length,
+            normalize_env
     ):
         self._env = env_class(**env_params)
+        if normalize_env:
+            self._env = normalize(self._env)
         self._policy = policy_class(**policy_params)
-        # TODO
-        # self._es = exploration_strategy_class(**exploration_strategy_params)
+        self._es = exploration_strategy_class(**exploration_strategy_params)
+        self._exploration_policy = PolicyWrappedWithExplorationStrategy(
+            self._es,
+            self._policy,
+        )
         self._max_path_length = max_path_length
 
-    def rollout(self, policy_params):
+    def rollout(self, policy_params, use_exploration_strategy):
         self._policy.set_param_values_np(policy_params)
-        return rollout(self._env, self._policy, self._max_path_length)
+        if use_exploration_strategy:
+            policy = self._exploration_policy
+        else:
+            policy = self._policy
+        return rollout(self._env, policy, self._max_path_length)
 
 
 class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
@@ -71,11 +84,12 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
         )
         self._rollout_promise = None
 
-    def rollout(self, policy):
+    def rollout(self, policy, use_exploration_strategy):
         if self._rollout_promise is None:
             policy_params = policy.get_param_values_np()
             self._rollout_promise = self._ray_env_id.rollout.remote(
-                policy_params
+                policy_params,
+                use_exploration_strategy,
             )
             return None
 
@@ -85,7 +99,8 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
         if len(paths):
             policy_params = policy.get_param_values_np()
             self._rollout_promise = self._ray_env_id.rollout.remote(
-                policy_params
+                policy_params,
+                use_exploration_strategy,
             )
             return ray.get(paths[0])
 
