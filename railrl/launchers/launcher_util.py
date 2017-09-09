@@ -208,26 +208,25 @@ def run_experiment(
     repo = git.Repo(os.getcwd())
     diff_string = repo.git.diff(None)
     commit_hash = repo.head.commit.hexsha
-
-    data = dict(
-        mode=mode,
-        variant=variant,
-        exp_id=exp_id,
-        exp_prefix=exp_prefix,
-        seed=seed,
-        use_gpu=use_gpu,
-        snapshot_mode=snapshot_mode,
-        snapshot_gap=snapshot_gap,
-        diff_string=diff_string,
-        commit_hash=commit_hash,
-        n_parallel=n_parallel,
-        base_log_dir=base_log_dir
-    )
-    log_dir, _ = create_log_dir(exp_prefix, exp_id, seed, base_log_dir)
-    save_experiment_data(data, log_dir)
-
-
-    if mode == 'here':
+    if mode=='here':
+        log_dir, exp_name = create_log_dir(exp_prefix, exp_id, seed, base_log_dir)
+        data = dict(
+            log_dir=log_dir,
+            exp_name=exp_name,
+            mode=mode,
+            variant=variant,
+            exp_id=exp_id,
+            exp_prefix=exp_prefix,
+            seed=seed,
+            use_gpu=use_gpu,
+            snapshot_mode=snapshot_mode,
+            snapshot_gap=snapshot_gap,
+            diff_string=diff_string,
+            commit_hash=commit_hash,
+            n_parallel=n_parallel,
+            base_log_dir=base_log_dir
+        )
+        save_experiment_data(data, log_dir)
         run_experiment_here(
             task,
             exp_prefix=exp_prefix,
@@ -283,11 +282,13 @@ def resume_torch_algorithm(variant):
         use_gpu = variant['use_gpu']
         if use_gpu and ptu.gpu_enabled():
             algorithm.cuda()
-        algorithm.train(start_epoch=epoch)
+        algorithm.train(start_epoch=epoch+1)
 
 def continue_experiment(load_experiment_dir, resume_function):
-    if exists(load_experiment_dir + '/experiment.pkl'):
-        data = joblib.load(load_experiment_dir + '/experiment.pkl')
+    path = os.path.join(load_experiment_dir, 'experiment.pkl')
+    # import ipdb; ipdb.set_trace()
+    if exists(path):
+        data = joblib.load(path)
         mode = data['mode']
         exp_prefix = data['exp_prefix']
         variant = data['variant']
@@ -301,12 +302,13 @@ def continue_experiment(load_experiment_dir, resume_function):
         commit_hash = data['commit_hash']
         n_parallel = data['n_parallel']
         base_log_dir = data['base_log_dir']
-
+        log_dir = data['log_dir']
+        exp_name = data['exp_name']
         if mode == 'here':
             run_experiment_here(
-                resume_function, # replace with resume_experiment
-                exp_prefix=exp_prefix,
+                resume_function,
                 variant=variant,
+                exp_prefix=exp_prefix,
                 exp_id=exp_id,
                 seed=seed,
                 use_gpu=use_gpu,
@@ -316,6 +318,8 @@ def continue_experiment(load_experiment_dir, resume_function):
                 commit_hash=commit_hash,
                 n_parallel=n_parallel,
                 base_log_dir=base_log_dir,
+                log_dir=log_dir,
+                exp_name=exp_name,
             )
     else:
         raise Exception('invalid experiment_file')
@@ -333,6 +337,8 @@ def run_experiment_here(
         commit_hash=None,
         n_parallel=0,
         base_log_dir=None,
+        log_dir=None,
+        exp_name=None,
 ):
     """
     Run an experiment locally without any serialization.
@@ -369,6 +375,8 @@ def run_experiment_here(
         code_diff=code_diff,
         commit_hash=commit_hash,
         base_log_dir=base_log_dir,
+        log_dir=log_dir,
+        exp_name=exp_name,
     )
     if not use_gpu:
         os.environ['CUDA_VISIBLE_DEVICES'] = ""
@@ -431,6 +439,9 @@ def setup_logger(
         log_tabular_only=False,
         code_diff=None,
         commit_hash=None,
+        continue_exp=False,
+        log_dir=None,
+        exp_name=None,
 ):
     """
     Set up logger to have some reasonable default settings.
@@ -447,8 +458,11 @@ def setup_logger(
     :param snapshot_gap:
     :return:
     """
-    log_dir, exp_name = create_log_dir(exp_prefix, exp_id=exp_id, seed=seed,
-                                       base_log_dir=base_log_dir)
+    first_time = log_dir is None
+    if log_dir is None:
+        log_dir, exp_name = create_log_dir(exp_prefix, exp_id=exp_id, seed=seed,
+                                           base_log_dir=base_log_dir)
+
     tabular_log_path = osp.join(log_dir, tabular_log_file)
     text_log_path = osp.join(log_dir, text_log_file)
 
@@ -457,7 +471,12 @@ def setup_logger(
         logger.log_variant(variant_log_path, variant)
 
     logger.add_text_output(text_log_path)
-    logger.add_tabular_output(tabular_log_path)
+    if first_time:
+        logger.add_tabular_output(tabular_log_path)
+    else:
+        logger._add_output(tabular_log_path, logger._tabular_outputs, logger._tabular_fds, mode='a')
+        for tabular_fd in logger._tabular_fds:
+            logger._tabular_header_written.add(tabular_fd)
     logger.set_snapshot_dir(log_dir)
     logger.set_snapshot_mode(snapshot_mode)
     logger.set_snapshot_gap(snapshot_gap)
@@ -469,7 +488,6 @@ def setup_logger(
     if commit_hash is not None:
         with open(osp.join(log_dir, "commit_hash.txt"), "w") as f:
             f.write(commit_hash)
-
 
 def set_seed(seed):
     """

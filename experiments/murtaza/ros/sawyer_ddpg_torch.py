@@ -9,67 +9,63 @@ from railrl.envs.ros.sawyer_env import SawyerEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.torch import pytorch_util as ptu
 import joblib
+import argparse
+import sys
 
 def example(variant):
-    load_policy_file = variant.get('load_policy_file', None)
-    if load_policy_file is not None and exists(load_policy_file):
-        data = joblib.load(load_policy_file)
-        algorithm = data['algorithm']
-        epoch = data['epoch']
-        use_gpu = variant['use_gpu']
-        if use_gpu and ptu.gpu_enabled():
-            algorithm.cuda()
-        algorithm.train(start_epoch=epoch)
-    else:
-        arm_name = variant['arm_name']
-        experiment = variant['experiment']
-        loss = variant['loss']
-        huber_delta = variant['huber_delta']
-        safety_force_magnitude = variant['safety_force_magnitude']
-        temp = variant['temp']
-        es_min_sigma = variant['es_min_sigma']
-        es_max_sigma = variant['es_max_sigma']
-        num_epochs = variant['num_epochs']
-        batch_size = variant['batch_size']
-        use_gpu = variant['use_gpu']
+    arm_name = variant['arm_name']
+    experiment = variant['experiment']
+    loss = variant['loss']
+    huber_delta = variant['huber_delta']
+    safety_force_magnitude = variant['safety_force_magnitude']
+    temp = variant['temp']
+    es_min_sigma = variant['es_min_sigma']
+    es_max_sigma = variant['es_max_sigma']
+    num_epochs = variant['num_epochs']
+    batch_size = variant['batch_size']
+    use_gpu = variant['use_gpu']
+    max_path_length = variant['max_path_length']
+    reward_magnitude = variant['reward_magnitude']
 
-        env = SawyerEnv(
-            experiment=experiment,
-            arm_name=arm_name,
-            loss=loss,
-            safety_force_magnitude=safety_force_magnitude,
-            temp=temp,
-            huber_delta=huber_delta,
-        )
-        es = OUStrategy(
-            max_sigma=es_max_sigma,
-            min_sigma=es_min_sigma,
-            action_space=env.action_space,
-        )
-        qf = FeedForwardQFunction(
-            int(env.observation_space.flat_dim),
-            int(env.action_space.flat_dim),
-            100,
-            100,
-        )
-        policy = FeedForwardPolicy(
-            int(env.observation_space.flat_dim),
-            int(env.action_space.flat_dim),
-            100,
-            100,
-        )
-        algorithm = DDPG(
-            env,
-            qf,
-            policy,
-            es,
-            num_epochs=num_epochs,
-            batch_size=batch_size,
-        )
-        if use_gpu and ptu.gpu_enabled():
-            algorithm.cuda()
-        algorithm.train()
-        env.turn_off_robot()
+    env = SawyerEnv(
+        experiment=experiment,
+        arm_name=arm_name,
+        loss=loss,
+        safety_force_magnitude=safety_force_magnitude,
+        temp=temp,
+        huber_delta=huber_delta,
+        reward_magnitude=reward_magnitude
+    )
+    es = OUStrategy(
+        max_sigma=es_max_sigma,
+        min_sigma=es_min_sigma,
+        action_space=env.action_space,
+    )
+    qf = FeedForwardQFunction(
+        int(env.observation_space.flat_dim),
+        int(env.action_space.flat_dim),
+        100,
+        100,
+    )
+    policy = FeedForwardPolicy(
+        int(env.observation_space.flat_dim),
+        int(env.action_space.flat_dim),
+        100,
+        100,
+    )
+    algorithm = DDPG(
+        env,
+        qf,
+        policy,
+        es,
+        num_epochs=num_epochs,
+        batch_size=batch_size,
+        max_path_length=max_path_length,
+    )
+    if use_gpu and ptu.gpu_enabled():
+        algorithm.cuda()
+    algorithm.train()
+    env.turn_off_robot()
 
 experiments=[
     'joint_angle|fixed_angle',
@@ -81,35 +77,34 @@ experiments=[
 ]
 
 if __name__ == "__main__":
-    exp_dir = '/home/murtaza/Documents/rllab/data/local/09-01-ddpg-sawyer-fixed-end-effector-restart-test/09-01_ddpg-sawyer-fixed-end-effector-restart-test_2017_09_01_13_45_34_0000--s-0'
+    try:
+        exp_dir = sys.argv[1]
+    except:
+        exp_dir = None
+
     if exp_dir == None:
         run_experiment(
             example,
-            exp_prefix="ddpg-sawyer-fixed-end-effector-restart-test",
+            exp_prefix="ddpg-sawyer-fixed-end-effector-magnified-reward-amplified-actions",
             seed=0,
             mode='here',
             variant={
                 'version': 'Original',
                 'arm_name': 'right',
                 'loss': 'huber',
-                'huber_delta': .8,
-                'safety_force_magnitude': 6,
+                'huber_delta': 1,
+                'safety_force_magnitude': 5,
                 'temp': 15,
                 'experiment': experiments[2],
                 'es_min_sigma': 1,
                 'es_max_sigma': 1,
-                'num_epochs': 30,
+                'num_epochs': 10,
                 'batch_size': 1024,
                 'use_gpu':True,
+                'max_path_length':100,
+                'reward_magnitude':10,
             },
             use_gpu=True,
         )
     else:
         continue_experiment(exp_dir, resume_torch_algorithm)
-"""
-If i want to continue experiment:
-have mode = 'continue'
-need to pass in directories too I'm assuming
-"""
-
-#set up the argparse for exp directory

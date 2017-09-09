@@ -36,12 +36,13 @@ env.reset()
 #         print(1)
 # except Exception as e:
 #     import ipdb; ipdb.set_trace()
-
-for i in range(100000):
-    action = create_action(2)
-    env._act(action)
-    if i % 200 == 0:
-        env.reset()
+# print(env.is_in_box(env.arm.endpoint_pose))
+print(env.arm.endpoint_pose())
+# for i in range(100000):
+#     action = create_action(2)
+#     env._act(action)
+#     if i % 200 == 0:
+#         env.reset()
 #     env.update_n_step_buffer(env._get_observation(), np.zeros(7), 0)
     # env.safety_box_check(reset_on_error=False)
     # env.unexpected_velocity_check(reset_on_error=True)
