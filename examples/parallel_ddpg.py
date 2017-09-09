@@ -15,7 +15,6 @@ from rllab.envs.mujoco.inverted_double_pendulum_env import \
 from rllab.envs.normalized_env import normalize
 
 
-
 def example(variant):
     env_class = variant['env_class']
     env_params = {}
