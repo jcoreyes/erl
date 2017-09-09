@@ -71,19 +71,19 @@ if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
             num_epochs=100,
-            num_steps_per_epoch=1000,
+            num_steps_per_epoch=10000,
             num_steps_per_eval=1000,
             max_path_length=max_path_length,
             batch_size=128,
         ),
         max_path_length=max_path_length,
-        env_class = InvertedDoublePendulumEnv,
+        env_class=InvertedDoublePendulumEnv,
         parallel=True,
         normalize_env=True,
     )
     run_experiment(
         example,
-        exp_prefix="parallel-ddpg-xample",
+        exp_prefix="parallel-ddpg-example",
         seed=0,
         mode='here',
         variant=variant,
