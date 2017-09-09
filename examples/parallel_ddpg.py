@@ -33,10 +33,7 @@ def example(variant):
     )
     es_class = OUStrategy
     es_params = dict(
-        # action_space=action_space,
-        dim=action_space.flat_dim,
-        low=action_space.low.copy(),
-        high=action_space.high.copy(),
+        action_space=action_space,
     )
     policy_class = FeedForwardPolicy
     policy_params = dict(

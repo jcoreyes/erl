@@ -19,19 +19,14 @@ class OUStrategy(RawExplorationStrategy, Serializable):
 
     def __init__(
             self,
-            # action_space,
-            dim,
-            low,
-            high,
+            action_space,
             mu=0,
             theta=0.15,
             max_sigma=0.3,
             min_sigma=0.3,
             decay_period=100000,
-            # **kwargs
     ):
-        # assert isinstance(action_space, Box)
-        # assert len(action_space.shape) == 1
+        assert len(action_space.shape) == 1
         Serializable.quick_init(self, locals())
         if min_sigma is None:
             min_sigma = max_sigma
@@ -43,22 +38,11 @@ class OUStrategy(RawExplorationStrategy, Serializable):
             min_sigma = max_sigma
         self._min_sigma = min_sigma
         self._decay_period = decay_period
-        self.dim = dim
-        self.low = low
-        self.high = high
-        # self.action_space = action_space
-        # self.state = np.ones(self.action_space.flat_dim) * self.mu
-        self.state = np.ones(dim) * self.mu
+        self.dim = np.prod(action_space.low.shape)
+        self.low = action_space.low
+        self.high = action_space.high
+        self.state = np.ones(self.dim) * self.mu
         self.reset()
-
-    # def __getstate__(self):
-    #     d = Serializable.__getstate__(self)
-    #     d["state"] = self.state
-    #     return d
-    #
-    # def __setstate__(self, d):
-    #     Serializable.__setstate__(self, d)
-    #     self.state = d["state"]
 
     def reset(self):
         self.state = np.ones(self.dim) * self.mu
