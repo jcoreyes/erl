@@ -76,7 +76,7 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
         Serializable.quick_init(self, locals())
         super().__init__(env_class(**env_params))
         ray.init()
-        self._ray_env_id = RayEnv.remote(
+        self._ray_env = RayEnv.remote(
             env_class,
             env_params,
             *ray_env_args,
@@ -87,7 +87,7 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
     def rollout(self, policy, use_exploration_strategy):
         if self._rollout_promise is None:
             policy_params = policy.get_param_values_np()
-            self._rollout_promise = self._ray_env_id.rollout.remote(
+            self._rollout_promise = self._ray_env.rollout.remote(
                 policy_params,
                 use_exploration_strategy,
             )
@@ -98,7 +98,7 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
 
         if len(paths):
             policy_params = policy.get_param_values_np()
-            self._rollout_promise = self._ray_env_id.rollout.remote(
+            self._rollout_promise = self._ray_env.rollout.remote(
                 policy_params,
                 use_exploration_strategy,
             )
