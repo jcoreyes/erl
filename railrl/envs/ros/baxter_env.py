@@ -151,6 +151,7 @@ class BaxterEnv(Env, Serializable):
             gpu=True,
             safe_reset_length=30,
             include_torque_penalty=False,
+            reward_magnitude=1,
     ):
 
         Serializable.quick_init(self, locals())
@@ -186,6 +187,7 @@ class BaxterEnv(Env, Serializable):
         self.gpu = gpu
         self.safe_reset_length = safe_reset_length
         self.include_torque_penalty = include_torque_penalty
+        self.reward_magnitude = reward_magnitude
 
         if loss == 'MSE':
             self.reward_function = self._MSE_reward
@@ -374,9 +376,9 @@ class BaxterEnv(Env, Serializable):
     def _Huber_reward(self, differences):
         a = np.mean(differences)
         if a <= self.huber_delta:
-            reward = -1 / 2 * a ** 2
+            reward = -1 / 2 * a ** 2 * self.reward_magnitude
         else:
-            reward = -1 * self.huber_delta * (a - 1 / 2 * self.huber_delta)
+            reward = -1 * self.huber_delta * (a - 1 / 2 * self.huber_delta) * self.reward_magnitude
         return reward
 
     def compute_angle_difference(self, angles1, angles2):
