@@ -18,6 +18,11 @@ class Policy(object, metaclass=abc.ABCMeta):
         pass
 
 
+class ExplorationPolicy(Policy):
+    def set_num_steps_total(self, t):
+        pass
+
+
 class SerializablePolicy(Policy, metaclass=abc.ABCMeta):
     """
     Policy that can be serialized.

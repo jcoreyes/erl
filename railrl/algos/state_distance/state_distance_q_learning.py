@@ -25,7 +25,6 @@ class StateDistanceQLearning(DDPG):
             num_steps_per_eval=1000,
             max_path_length=1000,
             discount=0.99,
-            exploration_strategy=None,
             use_new_data=False,
             num_updates_per_env_step=1,
             num_steps_per_tensorboard_update=None,
@@ -49,7 +48,6 @@ class StateDistanceQLearning(DDPG):
             env,
             qf,
             policy,
-            exploration_strategy=exploration_strategy,
             eval_sampler=eval_sampler,
             num_steps_per_eval=num_steps_per_eval,
             discount=discount,
@@ -74,7 +72,7 @@ class StateDistanceQLearning(DDPG):
         if self.num_steps_per_tensorboard_update is not None:
             self.tb_logger = TensorboardLogger(logger.get_snapshot_dir())
 
-    def train(self):
+    def train(self, **kwargs):
         if self.use_new_data:
             return super().train()
         else:
@@ -123,17 +121,15 @@ class StateDistanceQLearning(DDPG):
                     )
 
     def reset_env(self):
-        self.exploration_strategy.reset()
         self.exploration_policy.reset()
         self.goal_state = self.sample_goal_state_for_rollout()
         self.training_env.set_goal(self.goal_state)
         return self.training_env.reset()
 
     def get_action_and_info(self, n_steps_total, observation):
-        return self.exploration_strategy.get_action(
-            n_steps_total,
+        self.exploration_policy.set_num_steps_total(n_steps_total)
+        return self.exploration_policy.get_action(
             (observation, self.goal_state, self.discount),
-            self.exploration_policy,
         )
 
     def get_batch(self, training=True):

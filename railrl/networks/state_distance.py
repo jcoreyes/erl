@@ -3,6 +3,7 @@ import torch
 from torch import nn as nn
 from torch.nn import functional as F
 
+from railrl.policies.base import Policy
 from railrl.pythonplusplus import identity
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.core import PyTorchModule
@@ -180,7 +181,7 @@ class StructuredUniversalQfunction(PyTorchModule):
         return out
 
 
-class UniversalPolicy(PyTorchModule):
+class UniversalPolicy(PyTorchModule, Policy):
     def __init__(
             self,
             obs_dim,

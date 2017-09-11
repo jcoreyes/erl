@@ -25,6 +25,8 @@ from railrl.envs.multitask.pusher import (
     JointOnlyPusherEnv,
 )
 from railrl.envs.wrappers import convert_gym_space
+from railrl.exploration_strategies.base import \
+    PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import (
@@ -74,13 +76,16 @@ def experiment(variant):
         action_space=action_space,
         **variant['sampler_es_params']
     )
+    exploration_policy = PolicyWrappedWithExplorationStrategy(
+        exploration_strategy=es,
+        policy=policy,
+    )
     algo = variant['algo_class'](
         env,
         qf,
         policy,
-        exploration_strategy=es,
+        exploration_policy=exploration_policy,
         replay_buffer=replay_buffer,
-        exploration_policy=policy,
         epoch_discount_schedule=epoch_discount_schedule,
         qf_criterion=qf_criterion,
         **variant['algo_params']
@@ -101,10 +106,10 @@ if __name__ == '__main__':
     exp_prefix = "dev-train-q"
     run_mode = "none"
 
-    n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "do-tau-correctly"
-    run_mode = 'grid'
+    # n_seeds = 3
+    # mode = "ec2"
+    # exp_prefix = "do-tau-correctly"
+    # run_mode = 'grid'
 
     version = "Dev"
     num_configurations = 50  # for random mode
@@ -130,8 +135,8 @@ if __name__ == '__main__':
             discount=0.99,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
-            # sample_goals_from='environment',
-            sample_goals_from='replay_buffer',
+            sample_goals_from='environment',
+            # sample_goals_from='replay_buffer',
             sample_discount=False,
             qf_weight_decay=0.,
             max_path_length=max_path_length,

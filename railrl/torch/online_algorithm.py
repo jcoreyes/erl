@@ -7,7 +7,7 @@ from railrl.envs.wrappers import convert_gym_space
 from railrl.misc.ml_util import ConstantSchedule
 from railrl.misc.rllab_util import get_table_key_set, \
     save_extra_data_to_snapshot_dir
-from railrl.policies.base import SerializablePolicy
+from railrl.policies.base import SerializablePolicy, ExplorationPolicy
 from rllab.algos.base import RLAlgorithm
 from rllab.misc import logger, tensor_utils
 from rllab.sampler import parallel_sampler
@@ -75,8 +75,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
     def __init__(
             self,
             env,
-            exploration_policy: SerializablePolicy,
-            exploration_strategy,
+            exploration_policy: ExplorationPolicy,
             num_epochs=100,
             num_steps_per_epoch=10000,
             num_steps_per_eval=1000,
@@ -93,7 +92,6 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
     ):
         self.training_env = env
         self.exploration_policy = exploration_policy
-        self.exploration_strategy = exploration_strategy
         self.num_epochs = num_epochs
         self.num_steps_per_epoch = num_steps_per_epoch
         self.num_steps_per_eval = num_steps_per_eval
@@ -145,15 +143,13 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         pass
 
     def reset_env(self):
-        self.exploration_strategy.reset()
         self.exploration_policy.reset()
         return self.training_env.reset()
 
     def get_action_and_info(self, n_steps_total, observation):
-        return self.exploration_strategy.get_action(
-            n_steps_total,
+        self.exploration_policy.set_num_steps_total(n_steps_total)
+        return self.exploration_policy.get_action(
             observation,
-            self.exploration_policy,
         )
 
     def train(self, start_epoch=0):

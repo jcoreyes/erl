@@ -27,12 +27,12 @@ class PolicyWrappedWithExplorationStrategy(Policy):
         self.policy = policy
         self.t = 0
 
+    def set_num_steps_total(self, t):
+        self.t = t
+
     def get_action(self, obs):
-        action, agent_info = self.es.get_action(self.t, obs, self.policy)
-        self.t += 1
-        return action, agent_info
+        return self.es.get_action(self.t, obs, self.policy)
 
     def reset(self):
-        self.t = 0
         self.es.reset()
         self.policy.reset()

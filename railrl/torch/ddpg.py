@@ -25,8 +25,7 @@ class DDPG(OnlineAlgorithm):
             env,
             qf,
             policy,
-            exploration_strategy,
-            exploration_policy=None,
+            exploration_policy,
             policy_learning_rate=1e-4,
             qf_learning_rate=1e-3,
             qf_weight_decay=0,
@@ -39,12 +38,9 @@ class DDPG(OnlineAlgorithm):
             differentiate_through_target=False,
             **kwargs
     ):
-        if exploration_policy is None:
-            exploration_policy = policy
         super().__init__(
             env,
             exploration_policy,
-            exploration_strategy,
             **kwargs
         )
         self.qf = qf
@@ -293,7 +289,7 @@ class DDPG(OnlineAlgorithm):
             epoch=epoch,
             policy=self.policy,
             env=self.training_env,
-            es=self.exploration_strategy,
+            exploration_policy=self.exploration_policy,
             qf=self.qf,
             replay_buffer=self.replay_buffer,
             algorithm=self,
