@@ -328,10 +328,10 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
 
         batch_size = obs.size()[0]
         num_steps_left_np = np.random.randint(
-            1, self.discount+1, (batch_size, 1)
+            0, self.discount, (batch_size, 1)
         )
         num_steps_left = ptu.np_to_var(num_steps_left_np)
-        terminals_np = (num_steps_left_np == 1).astype(int)
+        terminals_np = (num_steps_left_np == 0).astype(int)
         terminals = ptu.np_to_var(terminals_np)
 
         """
