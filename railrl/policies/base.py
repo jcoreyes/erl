@@ -18,7 +18,7 @@ class Policy(object, metaclass=abc.ABCMeta):
         pass
 
 
-class ExplorationPolicy(Policy):
+class ExplorationPolicy(Policy, metaclass=abc.ABCMeta):
     def set_num_steps_total(self, t):
         pass
 
@@ -31,11 +31,4 @@ class SerializablePolicy(Policy, metaclass=abc.ABCMeta):
         return None
 
     def set_param_values(self, values):
-        pass
-
-    @abc.abstractmethod
-    def get_action(self, obs):
-        pass
-
-    def reset(self):
         pass

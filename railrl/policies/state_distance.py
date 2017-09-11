@@ -1,75 +1,29 @@
 """
 Policies to be used with a state-distance Q function.
 """
+import abc
 import numpy as np
 from torch.autograd import Variable
 
+from railrl.policies.base import ExplorationPolicy
 from railrl.torch import pytorch_util as ptu
 
 
-class SamplePolicyPartialOptimizer(object):
-    """
-    Greedy-action-partial-state implementation.
-
-    See https://paper.dropbox.com/doc/State-Distance-QF-Results-Summary-flRwbIxt0bbUbVXVdkKzr
-    for details.
-    """
-    def __init__(self, qf, env, num_samples):
-        self.qf = qf
-        self.env = env
-        self.num_samples = num_samples
-
-    def expand_np_to_var(self, array):
-        array_expanded = np.repeat(
-            np.expand_dims(array, 0),
-            self.num_samples,
-            axis=0
-        )
-        return Variable(
-            ptu.from_numpy(array_expanded).float(),
-            requires_grad=False,
-        )
-
-    def get_action(self, obs, goal, discount):
-        sampled_actions = self.env.sample_actions(self.num_samples)
-        actions = ptu.np_to_var(sampled_actions)
-        goals = ptu.np_to_var(
-            self.env.sample_irrelevant_goal_dimensions(goal, self.num_samples)
-        )
-
-        q_values = ptu.get_numpy(self.qf(
-            self.expand_np_to_var(obs),
-            actions,
-            goals,
-            self.expand_np_to_var(np.array([discount])),
-        ))
-        max_i = np.argmax(q_values)
-        return sampled_actions[max_i], {}
-
-    def reset(self):
-        pass
-
-
-class SampleOptimalControlPolicy(object):
-    """
-    Do the argmax by sampling a bunch of states and acitons
-    """
-    def __init__(
-            self,
-            qf,
-            env,
-            constraint_weight=10,
-            sample_size=100,
-            verbose=False,
-    ):
-        self.qf = qf
-        self.env = env
-        self.constraint_weight = constraint_weight
+class SampleBasedUniversalPolicy(ExplorationPolicy, metaclass=abc.ABCMeta):
+    def __init__(self, sample_size):
         self.sample_size = sample_size
-        self.verbose = verbose
-        self._goal_pos_batch = None
+        self._goal_np = None
         self._goal_batch = None
+        self._discount_np = None
         self._discount_batch = None
+
+    def set_goal(self, goal):
+        self._goal_np = goal
+        self._goal_batch = self.expand_np_to_var(goal)
+
+    def set_discount(self, discount):
+        self._discount_np = discount
+        self._discount_batch = self.expand_np_to_var(np.array([discount]))
 
     def expand_np_to_var(self, array):
         array_expanded = np.repeat(
@@ -82,11 +36,56 @@ class SampleOptimalControlPolicy(object):
             requires_grad=False,
         )
 
-    def set_goal(self, goal):
-        self._goal_batch = self.expand_np_to_var(goal)
 
-    def set_discount(self, discount):
-        self._discount_batch = self.expand_np_to_var(np.array([discount]))
+class SamplePolicyPartialOptimizer(SampleBasedUniversalPolicy):
+    """
+    Greedy-action-partial-state implementation.
+
+    See https://paper.dropbox.com/doc/State-Distance-QF-Results-Summary-flRwbIxt0bbUbVXVdkKzr
+    for details.
+    """
+    def __init__(self, qf, env, sample_size=100):
+        super().__init__(sample_size)
+        self.qf = qf
+        self.env = env
+
+    def get_action(self, obs):
+        sampled_actions = self.env.sample_actions(self.sample_size)
+        actions = ptu.np_to_var(sampled_actions)
+        goals = ptu.np_to_var(
+            self.env.sample_irrelevant_goal_dimensions(
+                self._goal_np, self.sample_size
+            )
+        )
+
+        q_values = ptu.get_numpy(self.qf(
+            self.expand_np_to_var(obs),
+            actions,
+            goals,
+            self.expand_np_to_var(np.array([self._discount_np])),
+        ))
+        max_i = np.argmax(q_values)
+        return sampled_actions[max_i], {}
+
+
+class SampleOptimalControlPolicy(SampleBasedUniversalPolicy):
+    """
+    Do the argmax by sampling a bunch of states and acitons
+    """
+    def __init__(
+            self,
+            qf,
+            env,
+            constraint_weight=10,
+            sample_size=100,
+            verbose=False,
+    ):
+        super().__init__(sample_size)
+        self.qf = qf
+        self.env = env
+        self.constraint_weight = constraint_weight
+        self.sample_size = sample_size
+        self.verbose = verbose
 
     def reward(self, state, action, next_state):
         rewards_np = self.env.compute_rewards(
@@ -96,9 +95,6 @@ class SampleOptimalControlPolicy(object):
             ptu.get_numpy(self._goal_batch),
         )
         return ptu.np_to_var(np.expand_dims(rewards_np, 1))
-
-    def reset(self):
-        pass
 
     def get_action(self, obs):
         """

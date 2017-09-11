@@ -165,7 +165,8 @@ if __name__ == '__main__':
         # env_class=Reacher7DofFullGoalState,
         # env_class=ArmEEInStatePusherEnv,
         # env_class=JointOnlyPusherEnv,
-        env_class=GoalStateSimpleStateReacherEnv,
+        # env_class=GoalStateSimpleStateReacherEnv,
+        env_class=XyMultitaskSimpleStateReacherEnv,
         env_params=dict(),
         sampler_params=dict(
             min_num_steps_to_collect=100000,

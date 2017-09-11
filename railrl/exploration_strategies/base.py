@@ -30,7 +30,7 @@ class PolicyWrappedWithExplorationStrategy(Policy):
     def set_num_steps_total(self, t):
         self.t = t
 
-    def get_action(self, obs):
+    def get_action(self, obs, *args, **kwargs):
         return self.es.get_action(self.t, obs, self.policy)
 
     def reset(self):

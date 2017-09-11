@@ -2,10 +2,9 @@ import argparse
 
 import joblib
 
-from railrl.algos.state_distance.state_distance_q_learning import (
-    multitask_rollout
-)
+import numpy as np
 from railrl.policies.state_distance import SamplePolicyPartialOptimizer
+from railrl.samplers.util import rollout
 from railrl.torch.pytorch_util import set_gpu_mode
 from rllab.misc import logger
 
@@ -45,19 +44,26 @@ if __name__ == "__main__":
     num_samples = 1000
     policy = SamplePolicyPartialOptimizer(qf, env, num_samples)
 
+    policy.set_discount(discount)
     while True:
         paths = []
         for _ in range(args.num_rollouts):
-            goal = env.sample_goal_state_for_rollout()
+            goals = env.sample_goal_states(1)
+            goal = goals[0]
             if args.verbose:
                 env.print_goal_state_info(goal)
-            path = multitask_rollout(
+            env.set_goal(goal)
+            policy.set_goal(goal)
+            path = rollout(
                 env,
                 policy,
-                goal,
-                discount=discount,
                 max_path_length=args.H,
                 animated=not args.hide,
+            )
+            path['goal_states'] = np.repeat(
+                goals,
+                len(path['observations']),
+                0,
             )
             paths.append(path)
         env.log_diagnostics(paths)
