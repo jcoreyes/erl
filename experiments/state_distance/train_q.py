@@ -103,7 +103,7 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "feed-horizon-reacher-net-size"
+    exp_prefix = "do-tau-correctly"
     run_mode = 'grid'
 
     version = "Dev"
@@ -196,26 +196,26 @@ if __name__ == '__main__':
             # 'epoch_discount_schedule_params.ramp_duration': [
             #     1, 20, 50, 200,
             # ],
-            'qf_params': [
-                dict(
-                    obs_hidden_size=400,
-                    embed_hidden_size=300,
-                ),
-                dict(
-                    obs_hidden_size=100,
-                    embed_hidden_size=100,
-                ),
-            ],
-            'policy_params': [
-                dict(
-                    fc1_size=400,
-                    fc2_size=300,
-                ),
-                dict(
-                    fc1_size=100,
-                    fc2_size=100,
-                ),
-            ],
+            # 'qf_params': [
+            #     dict(
+            #         obs_hidden_size=400,
+            #         embed_hidden_size=300,
+            #     ),
+            #     dict(
+            #         obs_hidden_size=100,
+            #         embed_hidden_size=100,
+            #     ),
+            # ],
+            # 'policy_params': [
+            #     dict(
+            #         fc1_size=400,
+            #         fc2_size=300,
+            #     ),
+            #     dict(
+            #         fc1_size=100,
+            #         fc2_size=100,
+            #     ),
+            # ],
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
             search_space, default_parameters=variant,
