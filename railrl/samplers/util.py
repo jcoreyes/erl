@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def rollout(env, agent, max_path_length=np.inf, animated=False):
     """
     Like rllab's rollout, but do not flatten actions/observations.
@@ -16,6 +17,7 @@ def rollout(env, agent, max_path_length=np.inf, animated=False):
     agent_infos = []
     env_infos = []
     o = env.reset()
+    next_o = None
     path_length = 0
     if animated:
         env.render()
@@ -42,4 +44,5 @@ def rollout(env, agent, max_path_length=np.inf, animated=False):
         terminals=np.array(terminals),
         agent_infos=np.array(agent_infos),
         env_infos=np.array(env_infos),
+        final_observation=next_o,
     )

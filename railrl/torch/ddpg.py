@@ -180,18 +180,16 @@ class DDPG(OnlineAlgorithm):
         :param exploration_paths: List of dicts, each representing a path.
         """
         logger.log("Collecting samples for evaluation")
-        test_paths = self._sample_paths(epoch)
 
         statistics = OrderedDict()
         if not isinstance(self.epoch_discount_schedule, ConstantSchedule):
             statistics['Discount Factor'] = self.discount
 
-        statistics.update(get_generic_path_information(exploration_paths, self.discount, stat_prefix="Exploration"))
+        statistics.update(get_generic_path_information(
+            exploration_paths, self.discount, stat_prefix="Exploration",
+        ))
         statistics.update(self._statistics_from_paths(exploration_paths,
                                                       "Exploration"))
-
-        statistics.update(get_generic_path_information(test_paths, self.discount, stat_prefix="Test"))
-        statistics.update(self._statistics_from_paths(test_paths, "Test"))
 
         train_batch = self.get_batch(training=True)
         statistics.update(self._statistics_from_batch(train_batch, "Train"))
@@ -208,6 +206,12 @@ class DDPG(OnlineAlgorithm):
             statistics['Validation Policy Loss Mean']
             - statistics['Train Policy Loss Mean']
         )
+
+        test_paths = self._sample_eval_paths(epoch)
+        statistics.update(get_generic_path_information(
+            test_paths, self.discount, stat_prefix="Test",
+        ))
+        statistics.update(self._statistics_from_paths(test_paths, "Test"))
         average_returns = get_average_returns(test_paths)
         statistics['AverageReturn'] = average_returns
 
@@ -305,10 +309,19 @@ def elem_or_tuple_to_variable(elem_or_tuple):
     return Variable(ptu.from_numpy(elem_or_tuple).float(), requires_grad=False)
 
 
+def filter_batch(np_batch):
+    for k, v in np_batch.items():
+        if v.dtype == np.bool:
+            yield k, v.astype(int)
+        else:
+            yield k, v
+
+
 def np_to_pytorch_batch(np_batch):
     torch_batch = {
         k: elem_or_tuple_to_variable(x)
-        for k, x in np_batch.items()
+        for k, x in filter_batch(np_batch)
+        if x.dtype != np.dtype('O')  # ignore object (e.g. dictionaries)
     }
     if len(torch_batch['rewards'].size()) == 1:
         torch_batch['rewards'] = torch_batch['rewards'].unsqueeze(-1)

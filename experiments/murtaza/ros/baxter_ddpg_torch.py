@@ -10,6 +10,7 @@ import joblib
 import sys
 from railrl.launchers.launcher_util import continue_experiment
 from railrl.launchers.launcher_util import resume_torch_algorithm
+from rllab.envs.normalized_env import normalize
 
 def example(variant):
     load_policy_file = variant.get('load_policy_file', None)
@@ -117,7 +118,7 @@ left_exp = dict(
         )
 right_exp = dict(
     example=example,
-    exp_prefix="ddpg-baxter-right-arm-increased-gradient-steps",
+    exp_prefix="ddpg-baxter-right-arm-merged-test",
     seed=0,
     mode='here',
     variant={

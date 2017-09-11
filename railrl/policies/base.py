@@ -1,7 +1,24 @@
 import abc
 
 
-class SerializablePolicy(object, metaclass=abc.ABCMeta):
+class Policy(object, metaclass=abc.ABCMeta):
+    """
+    General policy interface.
+    """
+    @abc.abstractmethod
+    def get_action(self, obs):
+        """
+
+        :param obs:
+        :return: action, debug_dictionary
+        """
+        pass
+
+    def reset(self):
+        pass
+
+
+class SerializablePolicy(Policy, metaclass=abc.ABCMeta):
     """
     Policy that can be serialized.
     """

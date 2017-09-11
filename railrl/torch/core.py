@@ -1,4 +1,5 @@
 import abc
+from collections import OrderedDict
 
 from torch import nn as nn
 
@@ -13,6 +14,19 @@ class PyTorchModule(nn.Module, Serializable, metaclass=abc.ABCMeta):
 
     def set_param_values(self, param_values):
         self.load_state_dict(param_values)
+
+    def get_param_values_np(self):
+        state_dict = self.state_dict()
+        np_dict = OrderedDict()
+        for key, tensor in state_dict.items():
+            np_dict[key] = ptu.get_numpy(tensor)
+        return np_dict
+
+    def set_param_values_np(self, param_values):
+        torch_dict = OrderedDict()
+        for key, tensor in param_values.items():
+            torch_dict[key] = ptu.from_numpy(tensor)
+        self.load_state_dict(torch_dict)
 
     def copy(self):
         copy = Serializable.clone(self)
@@ -30,8 +44,8 @@ class PyTorchModule(nn.Module, Serializable, metaclass=abc.ABCMeta):
             self.init_serialization(locals())
             ...
         ```
-        :param locals: 
-        :return: 
+        :param locals:
+        :return:
         """
         Serializable.quick_init(self, locals)
 

@@ -88,7 +88,7 @@ def my_ddpg_launcher(variant):
     :return:
     """
     from railrl.algos.ddpg import DDPG
-    from railrl.policies.nn_policy import FeedForwardPolicy
+    from railrl.policies.tensorflow.nn_policy import FeedForwardPolicy
     from railrl.qfunctions.nn_qfunction import FeedForwardCritic
     from rllab.exploration_strategies.ou_strategy import OUStrategy
     from railrl.launchers.launcher_util import get_env_settings
@@ -135,7 +135,7 @@ def quadratic_ddpg_launcher(variant):
     :return:
     """
     from railrl.algos.ddpg import DDPG as MyDDPG
-    from railrl.policies.nn_policy import FeedForwardPolicy
+    from railrl.policies.tensorflow.nn_policy import FeedForwardPolicy
     from rllab.exploration_strategies.ou_strategy import OUStrategy
     from railrl.qfunctions.quadratic_naf_qfunction import QuadraticNAF
     from railrl.launchers.launcher_util import get_env_settings
@@ -177,7 +177,7 @@ def oat_qddpg_launcher(variant):
     """
     from railrl.algos.optimal_action_target_ddpg import \
         OptimalActionTargetDDPG as OAT
-    from railrl.policies.nn_policy import FeedForwardPolicy
+    from railrl.policies.tensorflow.nn_policy import FeedForwardPolicy
     from railrl.qfunctions.quadratic_naf_qfunction import QuadraticNAF
     from rllab.exploration_strategies.ou_strategy import OUStrategy
     from railrl.launchers.launcher_util import get_env_settings

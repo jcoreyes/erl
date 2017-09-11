@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from railrl.policies.nn_policy import FeedForwardPolicy
+from railrl.policies.tensorflow.nn_policy import FeedForwardPolicy
 from railrl.predictors.mlp_state_network import MlpStateNetwork
 from railrl.qfunctions.naf_qfunction import NAFQFunction
 from railrl.qfunctions.quadratic_qf import QuadraticQF

@@ -1,13 +1,12 @@
 """
 Exampling of running DDPG on HalfCheetah.
 """
-from railrl.launchers.launcher_util import run_experiment
-from railrl.policies.nn_policy import FeedForwardPolicy
-from railrl.qfunctions.nn_qfunction import FeedForwardCritic
 from railrl.algos.ddpg import DDPG
-
 from railrl.envs.ros.baxter_env import BaxterEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
+from railrl.launchers.launcher_util import run_experiment
+from railrl.policies.tensorflow.nn_policy import FeedForwardPolicy
+from railrl.qfunctions.nn_qfunction import FeedForwardCritic
 
 
 def example(variant):

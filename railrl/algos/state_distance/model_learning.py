@@ -8,6 +8,7 @@ from collections import OrderedDict
 import numpy as np
 from torch import optim as optim
 
+from railrl.samplers.util import rollout
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.ddpg import np_to_pytorch_batch
@@ -20,20 +21,26 @@ class ModelLearning(object):
             env,
             model,
             replay_buffer,
+            eval_policy,
             num_epochs=100,
             num_batches_per_epoch=100,
             learning_rate=1e-3,
             batch_size=100,
             num_unique_batches=1000,
+            num_rollouts_per_eval=10,
+            max_path_length_for_eval=100,
     ):
         self.model = model
         self.replay_buffer = replay_buffer
         self.env = env
+        self.eval_policy = eval_policy
         self.num_epochs = num_epochs
         self.num_batches_per_epoch = num_batches_per_epoch
         self.learning_rate = learning_rate
         self.batch_size = batch_size
         self.num_unique_batches = num_unique_batches
+        self.num_rollouts_per_eval = num_rollouts_per_eval
+        self.max_path_length_for_eval = max_path_length_for_eval
 
         self.optimizer = optim.Adam(self.model.parameters(),
                                     lr=self.learning_rate)
@@ -114,7 +121,7 @@ class ModelLearning(object):
             self._statistics_from_batch(validation_batch, "Validation")
         )
 
-        statistics['Loss Validation - Train Gap'] = (
+        statistics['Loss Mean Validation - Train Gap'] = (
             statistics['Validation Loss Mean']
             - statistics['Train Loss Mean']
         )
@@ -125,6 +132,22 @@ class ModelLearning(object):
         statistics['Epoch'] = epoch
         for key, value in statistics.items():
             logger.record_tabular(key, value)
+
+        # Eval using policy
+        paths = []
+        for _ in range(self.num_rollouts_per_eval):
+            goal = self.env.sample_goal_state_for_rollout()
+            self.env.set_goal(goal)
+            self.eval_policy.set_goal(goal)
+            path = rollout(
+                self.env,
+                self.eval_policy,
+                max_path_length=self.max_path_length_for_eval,
+            )
+            path['goal_states'] = np.tile(goal, (len(path['observations']), 1))
+            paths.append(path)
+        self.env.log_diagnostics(paths)
+
         logger.dump_tabular(with_prefix=False, with_timestamp=False)
 
     def _statistics_from_batch(self, batch, stat_prefix):

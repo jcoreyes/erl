@@ -1,5 +1,5 @@
 """
-Run DDPG on things.
+Run DDPG where the training happens in parallel of the environment.
 """
 from railrl.envs.remote import RemoteRolloutEnv
 from railrl.envs.wrappers import convert_gym_space
@@ -69,23 +69,22 @@ if __name__ == "__main__":
     max_path_length = 1000
     variant = dict(
         algo_params=dict(
-            num_epochs=1000,
+            num_epochs=100,
             num_steps_per_epoch=10000,
             num_steps_per_eval=1000,
             max_path_length=max_path_length,
             batch_size=128,
         ),
         max_path_length=max_path_length,
-        env_class=HalfCheetahEnv,
+        env_class=InvertedDoublePendulumEnv,
         parallel=True,
         normalize_env=True,
     )
-    for seed in range(3):
-        run_experiment(
-            example,
-            exp_prefix="dev-parallel-ddpg",
-            seed=seed,
-            mode='here',
-            variant=variant,
-            use_gpu=True,
-        )
+    run_experiment(
+        example,
+        exp_prefix="parallel-ddpg-example",
+        seed=0,
+        mode='here',
+        variant=variant,
+        use_gpu=False,
+    )

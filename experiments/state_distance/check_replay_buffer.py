@@ -30,10 +30,17 @@ def main(dataset_path, only_load_buffer=False):
     else:
         data = joblib.load(dataset_path)
         replay_buffer = data['replay_buffer']
-        env = data['env']
+        if 'env' in data:
+            env = data['env']
+        else:
+            # Hack for now...
+            env = replay_buffer.train_replay_buffer._env
 
     train_replay_buffer = replay_buffer.train_replay_buffer
 
+    """
+    Plot s_{t+1} - s_t
+    """
     obs = train_replay_buffer._observations[:train_replay_buffer._size, :]
     num_features = obs.shape[-1]
     if num_features > 8:
@@ -46,20 +53,26 @@ def main(dataset_path, only_load_buffer=False):
         ax = next(ax_iter)
         diff = obs[:-1, i] - obs[1:, i]
         diff = diff[train_replay_buffer._final_state[:train_replay_buffer._size-1] == 0]
-        ax.hist(diff)
+        ax.hist(diff, bins=100)
         ax.set_title("Next obs - obs, dim #{}".format(i+1))
     plt.show()
 
+    """
+    Plot actions
+    """
     actions = train_replay_buffer._actions
     action_dim = actions.shape[-1]
     fig, axes = plt.subplots(action_dim)
     for i in range(action_dim):
         ax = axes[i]
         x = actions[:train_replay_buffer._size, i]
-        ax.hist(x)
+        ax.hist(x, bins=100)
         ax.set_title("actions, dim #{}".format(i+1))
     plt.show()
 
+    """
+    Plot observations
+    """
     obs = train_replay_buffer._observations
     num_features = obs.shape[-1]
     if num_features > 8:
@@ -72,10 +85,14 @@ def main(dataset_path, only_load_buffer=False):
     for i in range(num_features):
         ax = next(ax_iter)
         x = obs[:train_replay_buffer._size, i]
-        ax.hist(x)
+        ax.hist(x, bins=100)
         print((min(x), max(x)), ",")
         ax.set_title("observations, dim #{}".format(i+1))
     plt.show()
+
+    """
+    Plot rewards
+    """
 
     batch_size = 100
     batch = train_replay_buffer.random_batch(batch_size)
@@ -87,7 +104,7 @@ def main(dataset_path, only_load_buffer=False):
         sampled_goal_states
     )
     fig, ax = plt.subplots(1)
-    ax.hist(computed_rewards)
+    ax.hist(computed_rewards, bins=100)
     ax.set_title("computed rewards")
     plt.show()
 

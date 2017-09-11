@@ -39,23 +39,43 @@ class ConvertEnv(ProxyEnv, Serializable):
     @property
     def observation_space(self):
         return TfBox(super().observation_space.low,
-                   super().observation_space.high)
+                     super().observation_space.high)
 
     def __str__(self):
         return "TfConverted: %s" % self._wrapped_env
 
-    # def get_param_values(self):
-    #     return None
-    #
-    # def log_diagnostics(self, paths, *args, **kwargs):
-    #     if hasattr(self.wrapped_env, "log_diagnostics"):
-    #         self.wrapped_env.log_diagnostics(paths, *args, **kwargs)
-    #
-    # def terminate(self):
-    #     pass
+    def get_param_values(self):
+        if hasattr(self.wrapped_env, "get_param_values"):
+            return self.wrapped_env.get_param_values()
+        return None
+
+    def log_diagnostics(self, paths, *args, **kwargs):
+        if hasattr(self.wrapped_env, "log_diagnostics"):
+            self.wrapped_env.log_diagnostics(paths, *args, **kwargs)
+
+    def terminate(self):
+        if hasattr(self.wrapped_env, "terminate"):
+            self.wrapped_env.terminate()
 
 
 convert_to_tf_env = ConvertEnv
+
+
+class NormalizeAndConvertEnv(NormalizedBoxEnv, ConvertEnv):
+    @property
+    def action_space(self):
+        return TfBox(super().action_space.low,
+                     super().action_space.high)
+
+    @property
+    def observation_space(self):
+        return TfBox(super().observation_space.low,
+                     super().observation_space.high)
+
+    def __str__(self):
+        return "TfNormalizedAndConverted: %s" % self._wrapped_env
+
+normalize_and_convert_to_tf_env = ConvertEnv
 
 
 def convert_gym_space(space):

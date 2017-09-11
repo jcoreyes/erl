@@ -2,13 +2,17 @@ import argparse
 import random
 
 import railrl.torch.pytorch_util as ptu
+import railrl.misc.hyperparameter as hyp
 from railrl.algos.state_distance.model_learning import ModelLearning
 from railrl.algos.state_distance.util import get_replay_buffer
 from railrl.envs.multitask.reacher_env import (
-    GoalStateSimpleStateReacherEnv)
+    GoalStateSimpleStateReacherEnv,
+    XyMultitaskSimpleStateReacherEnv,
+)
 from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
+from railrl.policies.model_based import GreedyModelBasedPolicy
 from railrl.predictors.torch import Mlp
 
 
@@ -24,10 +28,16 @@ def experiment(variant):
         int(observation_space.flat_dim),
         **variant['model_params']
     )
+    policy = GreedyModelBasedPolicy(
+        model,
+        env,
+        sample_size=10000,
+    )
     algo = ModelLearning(
         env,
         model,
         replay_buffer=replay_buffer,
+        eval_policy=policy,
         **variant['algo_params']
     )
     if ptu.gpu_enabled():
@@ -48,11 +58,11 @@ if __name__ == '__main__':
     version = "Dev"
     run_mode = "none"
 
-    # n_seeds = 3
-    # mode = "ec2"
-    # exp_prefix = "tmp"
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "reacher-2d-xy-goal-learn-model-sweep-numdata"
+    run_mode = 'grid'
 
-    # run_mode = 'grid'
     num_configurations = 1  # for random mode
     snapshot_mode = "gap"
     snapshot_gap = 5
@@ -75,14 +85,14 @@ if __name__ == '__main__':
         model_params=dict(
             hidden_sizes=[400, 300],
         ),
-        env_class=GoalStateSimpleStateReacherEnv,
+        # env_class=GoalStateSimpleStateReacherEnv,
         # env_class=PusherEnv,
-        # env_class=XyMultitaskSimpleStateReacherEnv,
+        env_class=XyMultitaskSimpleStateReacherEnv,
         env_params=dict(
             # add_noop_action=False,
         ),
         sampler_params=dict(
-            min_num_steps_to_collect=20000,
+            min_num_steps_to_collect=10000,
             max_path_length=150,
             render=args.render,
         ),
@@ -93,18 +103,55 @@ if __name__ == '__main__':
         ),
         generate_data=args.replay_path is None,
     )
-    seed = random.randint(0, 10000)
-    run_experiment(
-        experiment,
-        exp_prefix=exp_prefix,
-        seed=seed,
-        mode=mode,
-        variant=variant,
-        exp_id=0,
-        use_gpu=use_gpu,
-        sync_s3_log=True,
-        sync_s3_pkl=True,
-        periodic_sync_interval=3600,
-        snapshot_mode=snapshot_mode,
-        snapshot_gap=snapshot_gap,
-    )
+    if run_mode == 'grid':
+        search_space = {
+            'sampler_params.min_num_steps_to_collect': [
+                10000,
+                20000,
+                30000,
+                40000,
+                50000,
+                60000,
+                70000,
+                80000,
+                90000,
+                100000,
+            ],
+        }
+        sweeper = hyp.DeterministicHyperparameterSweeper(
+            search_space, default_parameters=variant,
+        )
+        for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+            for i in range(n_seeds):
+                seed = random.randint(0, 10000)
+                run_experiment(
+                    experiment,
+                    exp_prefix=exp_prefix,
+                    seed=seed,
+                    mode=mode,
+                    variant=variant,
+                    exp_id=exp_id,
+                    use_gpu=use_gpu,
+                    sync_s3_log=True,
+                    sync_s3_pkl=True,
+                    periodic_sync_interval=300,
+                    snapshot_mode=snapshot_mode,
+                    snapshot_gap=snapshot_gap,
+                )
+    else:
+        for _ in range(n_seeds):
+            seed = random.randint(0, 10000)
+            run_experiment(
+                experiment,
+                exp_prefix=exp_prefix,
+                seed=seed,
+                mode=mode,
+                variant=variant,
+                exp_id=0,
+                use_gpu=use_gpu,
+                sync_s3_log=True,
+                sync_s3_pkl=True,
+                periodic_sync_interval=300,
+                snapshot_mode=snapshot_mode,
+                snapshot_gap=snapshot_gap,
+            )

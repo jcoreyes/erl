@@ -52,11 +52,34 @@ if __name__ == '__main__':
                     mode=mode,
                     variant=variant,
                     exp_id=exp_id,
+                    use_gpu=use_gpu,
                     sync_s3_log=True,
                     sync_s3_pkl=True,
                     periodic_sync_interval=600,
                 )
-    if run_mode == 'hyperopt':
+    elif run_mode == 'custom_grid':
+        for exp_id, (
+                hp1,
+                hp2,
+        ) in enumerate([
+            (True, 5),
+            (False, 0),
+            (True, 0),
+            (False, 5),
+        ]):
+            variant['hp1'] = hp1
+            variant['hp2'] = hp2
+            for _ in range(n_seeds):
+                seed = random.randint(0, 10000)
+                run_experiment(
+                    experiment,
+                    exp_prefix=exp_prefix,
+                    seed=seed,
+                    mode=mode,
+                    variant=variant,
+                    exp_id=exp_id,
+                )
+    elif run_mode == 'hyperopt':
         search_space = {
             'float_param': hp.uniform(
                 'float_param',
@@ -88,7 +111,7 @@ if __name__ == '__main__':
             num_rounds=500,
             num_evals_per_round=1,
         )
-    if run_mode == 'random':
+    elif run_mode == 'random':
         hyperparameters = [
             hyp.LinearFloatParam('foo', 0, 1),
             hyp.LogFloatParam('bar', 1e-5, 1e2),
@@ -108,6 +131,7 @@ if __name__ == '__main__':
                     mode=mode,
                     variant=variant,
                     exp_id=exp_id,
+                    use_gpu=use_gpu,
                     sync_s3_log=True,
                     sync_s3_pkl=True,
                     periodic_sync_interval=600,
