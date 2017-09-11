@@ -69,23 +69,29 @@ if __name__ == "__main__":
     max_path_length = 1000
     variant = dict(
         algo_params=dict(
-            num_epochs=1000,
+            num_epochs=20,
             num_steps_per_epoch=10000,
             num_steps_per_eval=1000,
             max_path_length=max_path_length,
+            use_soft_update=True,
+            tau=1e-2,
             batch_size=128,
+            discount=0.99,
+            qf_learning_rate=1e-3,
+            policy_learning_rate=1e-4,
         ),
         max_path_length=max_path_length,
         env_class=HalfCheetahEnv,
         parallel=True,
         normalize_env=True,
     )
-    for seed in range(3):
+    for seed in range(1):
         run_experiment(
             example,
-            exp_prefix="dev-parallel-ddpg",
+            # exp_prefix="parallel-ddpg-half-cheetah",
+            exp_prefix="test-ec2-ray",
             seed=seed,
-            mode='here',
+            mode='ec2',
             variant=variant,
-            use_gpu=True,
+            use_gpu=False,
         )
