@@ -48,8 +48,7 @@ if __name__ == "__main__":
     while True:
         paths = []
         for _ in range(args.num_rollouts):
-            goals = env.sample_goal_states(1)
-            goal = goals[0]
+            goal = env.sample_goal_state_for_rollout(1)
             if args.verbose:
                 env.print_goal_state_info(goal)
             env.set_goal(goal)
@@ -61,7 +60,7 @@ if __name__ == "__main__":
                 animated=not args.hide,
             )
             path['goal_states'] = np.repeat(
-                goals,
+                np.expand_dims(goal, 0),
                 len(path['observations']),
                 0,
             )
