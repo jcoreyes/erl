@@ -8,10 +8,10 @@ from railrl.misc.ml_util import ConstantSchedule
 from railrl.misc.rllab_util import get_table_key_set, \
     save_extra_data_to_snapshot_dir
 from railrl.policies.base import SerializablePolicy
+from railrl.samplers.util import rollout
 from rllab.algos.base import RLAlgorithm
 from rllab.misc import logger, tensor_utils
 from rllab.sampler import parallel_sampler
-from rllab.sampler.utils import rollout
 
 
 class SimplePathSampler(object):
