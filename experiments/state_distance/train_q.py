@@ -84,7 +84,7 @@ def experiment(variant):
         env,
         qf,
         policy,
-        exploration_policy=exploration_policy,
+        exploration_policy,
         replay_buffer=replay_buffer,
         epoch_discount_schedule=epoch_discount_schedule,
         qf_criterion=qf_criterion,
