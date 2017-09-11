@@ -419,7 +419,6 @@ def multitask_rollout(
         env, agent, goal, discount,
         max_path_length=np.inf,
         animated=False,
-        combine_goal_and_obs=False,
 ):
     observations = []
     actions = []
@@ -433,10 +432,7 @@ def multitask_rollout(
     if animated:
         env.render()
     while path_length < max_path_length:
-        if combine_goal_and_obs:
-            a, agent_info = agent.get_action(np.hstack((o, goal)))
-        else:
-            a, agent_info = agent.get_action(o, goal, discount)
+        a, agent_info = agent.get_action((o, goal, discount))
         next_o, r, d, env_info = env.step(a)
         observations.append(o)
         rewards.append(r)

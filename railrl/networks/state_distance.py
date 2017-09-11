@@ -220,11 +220,8 @@ class UniversalPolicy(PyTorchModule, Policy):
         h = F.relu(self.fc2(h))
         return F.tanh(self.last_fc(h))
 
-    def get_action(self, *inputs):
-        if len(inputs) == 1:
-            obs, goal_state, discount = inputs[0]
-        else:
-            obs, goal_state, discount = inputs
+    def get_action(self, all_inputs):
+        obs, goal_state, discount = all_inputs
         obs = np.expand_dims(obs, 0)
         obs = elem_or_tuple_to_variable(obs)
         goal_state = np.expand_dims(goal_state, 0)
