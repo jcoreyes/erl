@@ -1,6 +1,6 @@
 import abc
 
-from railrl.policies.base import Policy
+from railrl.policies.base import Policy, ExplorationPolicy
 from rllab.exploration_strategies.base import ExplorationStrategy
 
 
@@ -17,7 +17,7 @@ class RawExplorationStrategy(ExplorationStrategy, metaclass=abc.ABCMeta):
         pass
 
 
-class PolicyWrappedWithExplorationStrategy(Policy):
+class PolicyWrappedWithExplorationStrategy(ExplorationPolicy):
     def __init__(
             self,
             exploration_strategy: ExplorationStrategy,

@@ -1,13 +1,16 @@
 import pickle
-from collections import OrderedDict, Iterable
+from collections import OrderedDict
 
 import numpy as np
 
 import railrl.torch.pytorch_util as ptu
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc.rllab_util import get_average_returns
+from railrl.policies.state_distance import UniversalPolicy
+from railrl.samplers.util import rollout
 from railrl.torch.ddpg import DDPG, np_to_pytorch_batch
 from railrl.misc.tensorboard_logger import TensorboardLogger
+from railrl.torch.state_distance.exploration import UniversalExplorationPolicy
 from rllab.misc import logger
 
 
@@ -17,6 +20,7 @@ class StateDistanceQLearning(DDPG):
             env: MultitaskEnv,
             qf,
             policy,
+            exploration_policy: UniversalExplorationPolicy=None,
             replay_buffer=None,
             num_epochs=100,
             num_steps_per_epoch=100,
@@ -48,6 +52,7 @@ class StateDistanceQLearning(DDPG):
             env,
             qf,
             policy,
+            exploration_policy=exploration_policy,
             eval_sampler=eval_sampler,
             num_steps_per_eval=num_steps_per_eval,
             discount=discount,
@@ -124,12 +129,14 @@ class StateDistanceQLearning(DDPG):
         self.exploration_policy.reset()
         self.goal_state = self.sample_goal_state_for_rollout()
         self.training_env.set_goal(self.goal_state)
+        self.exploration_policy.set_goal(self.goal_state)
+        self.exploration_policy.set_discount(self.discount)
         return self.training_env.reset()
 
     def get_action_and_info(self, n_steps_total, observation):
         self.exploration_policy.set_num_steps_total(n_steps_total)
         return self.exploration_policy.get_action(
-            (observation, self.goal_state, self.discount),
+            observation
         )
 
     def get_batch(self, training=True):
@@ -416,47 +423,23 @@ def expand_goal(goal, path_length):
 
 
 def multitask_rollout(
-        env, agent, goal, discount,
+        env,
+        agent: UniversalPolicy,
+        goal,
+        discount,
         max_path_length=np.inf,
         animated=False,
 ):
-    observations = []
-    actions = []
-    rewards = []
-    terminals = []
-    agent_infos = []
-    env_infos = []
-    env.set_goal(goal)
-    o = env.reset()
-    path_length = 0
-    if animated:
-        env.render()
-    while path_length < max_path_length:
-        a, agent_info = agent.get_action((o, goal, discount))
-        next_o, r, d, env_info = env.step(a)
-        observations.append(o)
-        rewards.append(r)
-        terminals.append(d)
-        actions.append(a)
-        agent_infos.append(agent_info)
-        env_infos.append(env_info)
-        path_length += 1
-        if d:
-            break
-        o = next_o
-        if animated:
-            env.render()
-
+    agent.set_goal(goal)
+    agent.set_discount(discount)
+    path = rollout(
+        env,
+        agent,
+        max_path_length=max_path_length,
+        animated=animated,
+    )
     goal_expanded = np.expand_dims(goal, axis=0)
     # goal_expanded.shape == 1 x goal_dim
-    goal_states = goal_expanded.repeat(len(observations), 0)
+    path['goal_states'] = goal_expanded.repeat(len(path['observations']), 0)
     # goal_states.shape == path_length x goal_dim
-    return dict(
-        observations=np.array(observations),
-        actions=np.array(actions),
-        rewards=np.array(rewards),
-        terminals=np.array(terminals),
-        agent_infos=np.array(agent_infos),
-        env_infos=np.array(env_infos),
-        goal_states=goal_states,
-    )
+    return path

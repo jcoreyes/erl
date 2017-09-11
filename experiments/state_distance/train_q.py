@@ -25,8 +25,6 @@ from railrl.envs.multitask.pusher import (
     JointOnlyPusherEnv,
 )
 from railrl.envs.wrappers import convert_gym_space
-from railrl.exploration_strategies.base import \
-    PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import (
@@ -36,9 +34,11 @@ from railrl.launchers.launcher_util import (
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.hypopt import optimize_and_save
 from railrl.misc.ml_util import RampUpSchedule, IntRampUpSchedule
-from railrl.networks.state_distance import UniversalPolicy, UniversalQfunction, \
+from railrl.networks.state_distance import FFUniversalPolicy, UniversalQfunction, \
     FlatUniversalQfunction
 from railrl.torch.modules import HuberLoss
+from railrl.torch.state_distance.exploration import \
+    UniversalPolicyWrappedWithExplorationStrategy
 
 
 def experiment(variant):
@@ -57,7 +57,7 @@ def experiment(variant):
         env.goal_dim,
         **variant['qf_params']
     )
-    policy = UniversalPolicy(
+    policy = FFUniversalPolicy(
         int(observation_space.flat_dim),
         int(action_space.flat_dim),
         env.goal_dim,
@@ -76,7 +76,7 @@ def experiment(variant):
         action_space=action_space,
         **variant['sampler_es_params']
     )
-    exploration_policy = PolicyWrappedWithExplorationStrategy(
+    exploration_policy = UniversalPolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
         policy=policy,
     )

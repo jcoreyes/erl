@@ -5,24 +5,46 @@ import abc
 import numpy as np
 from torch.autograd import Variable
 
-from railrl.policies.base import ExplorationPolicy
+from railrl.policies.base import ExplorationPolicy, Policy
 from railrl.torch import pytorch_util as ptu
+from railrl.torch.ddpg import elem_or_tuple_to_variable
 
 
-class SampleBasedUniversalPolicy(ExplorationPolicy, metaclass=abc.ABCMeta):
-    def __init__(self, sample_size):
-        self.sample_size = sample_size
+class UniversalPolicy(Policy, metaclass=abc.ABCMeta):
+    def __init__(self):
         self._goal_np = None
-        self._goal_batch = None
+        self._goal_expanded_torch = None
         self._discount_np = None
-        self._discount_batch = None
+        self._discount_expanded_torch = None
 
-    def set_goal(self, goal):
-        self._goal_np = goal
-        self._goal_batch = self.expand_np_to_var(goal)
+    def set_goal(self, goal_np):
+        self._goal_np = goal_np
+        self._goal_expanded_torch = elem_or_tuple_to_variable(
+            np.expand_dims(goal_np, 0)
+        )
 
     def set_discount(self, discount):
         self._discount_np = discount
+        self._discount_expanded_torch = elem_or_tuple_to_variable(
+            np.array([[discount]])
+        )
+
+
+class SampleBasedUniversalPolicy(
+    UniversalPolicy, ExplorationPolicy, metaclass=abc.ABCMeta
+):
+    def __init__(self, sample_size):
+        super().__init__()
+        self.sample_size = sample_size
+        self._goal_batch = None
+        self._discount_batch = None
+
+    def set_goal(self, goal_np):
+        super().set_goal(goal_np)
+        self._goal_batch = self.expand_np_to_var(goal_np)
+
+    def set_discount(self, discount):
+        super().set_discount(discount)
         self._discount_batch = self.expand_np_to_var(np.array([discount]))
 
     def expand_np_to_var(self, array):

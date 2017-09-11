@@ -4,6 +4,7 @@ from torch import nn as nn
 from torch.nn import functional as F
 
 from railrl.policies.base import Policy
+from railrl.policies.state_distance import UniversalPolicy
 from railrl.pythonplusplus import identity
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.core import PyTorchModule
@@ -181,7 +182,7 @@ class StructuredUniversalQfunction(PyTorchModule):
         return out
 
 
-class UniversalPolicy(PyTorchModule, Policy):
+class FFUniversalPolicy(PyTorchModule, UniversalPolicy):
     def __init__(
             self,
             obs_dim,
@@ -220,18 +221,14 @@ class UniversalPolicy(PyTorchModule, Policy):
         h = F.relu(self.fc2(h))
         return F.tanh(self.last_fc(h))
 
-    def get_action(self, all_inputs):
-        obs, goal_state, discount = all_inputs
-        obs = np.expand_dims(obs, 0)
-        obs = elem_or_tuple_to_variable(obs)
-        goal_state = np.expand_dims(goal_state, 0)
-        goal_state = elem_or_tuple_to_variable(goal_state)
-        discount = np.array([[discount]])
-        discount = elem_or_tuple_to_variable(discount)
+    def get_action(self, obs_np):
+        obs = elem_or_tuple_to_variable(
+            np.expand_dims(obs_np, 0)
+        )
         action = self.__call__(
             obs,
-            goal_state,
-            discount,
+            self._goal_expanded_torch,
+            self._discount_expanded_torch,
         )
         action = action.squeeze(0)
         return ptu.get_numpy(action), {}
