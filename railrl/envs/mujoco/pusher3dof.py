@@ -42,8 +42,8 @@ class PusherEnv3DOF(TuomasMujocoEnv, Serializable):
         obj_pos_xy = obss[:, -3:-1]
         obj_pos_masked = obj_pos_xy[:, self._goal_mask]
 
-        goal_dists = np.linalg.norm(self._goal[None] - obj_pos_masked, 1)
-        arm_dists = np.linalg.norm(arm_pos - obj_pos, 1)
+        goal_dists = np.linalg.norm(self._goal[None] - obj_pos_masked, axis=1)
+        arm_dists = np.linalg.norm(arm_pos - obj_pos, axis=1)
         ctrl_costs = np.sum(actions**2, 1)
 
         rewards = - self._action_cost_coeff * ctrl_costs - goal_dists

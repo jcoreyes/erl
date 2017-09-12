@@ -51,9 +51,9 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "pusher-3dof-vertical-2"
+    exp_prefix = "pusher-3dof-horizontal-l2"
     # version = "Dev"
-    run_mode = 'grid'
+    # run_mode = 'grid'
 
     use_gpu = True
     if mode != "here":
@@ -65,11 +65,11 @@ if __name__ == '__main__':
     variant = dict(
         version=version,
         algo_params=dict(
-            num_epochs=500,
+            num_epochs=50,
             num_steps_per_epoch=10000,
             num_steps_per_eval=1500,
             use_soft_update=True,
-            tau=1e-2,
+            tau=1e-3,
             batch_size=128,
             max_path_length=300,
             discount=0.99,
@@ -77,16 +77,16 @@ if __name__ == '__main__':
             policy_learning_rate=1e-4,
         ),
         env_params=dict(
-            # goal=(np.nan, -1),
-            goal=(0, np.nan),
+            goal=(np.nan, -1),
+            # goal=(0, np.nan),
         ),
     )
     if run_mode == 'grid':
         search_space = {
-            'algo_params.use_soft_update': [True, False],
-            'algo_params.tau': [1e-2, 1e-3],
-            'algo_params.batch_size': [128, 512],
-            'algo_params.scale_reward': [0.1, 1, 10, 100, 1000],
+            # 'algo_params.use_soft_update': [True, False],
+            # 'algo_params.tau': [1e-2, 1e-3],
+            # 'algo_params.batch_size': [128, 512],
+            # 'algo_params.scale_reward': [0.1, 1, 10, 100, 1000],
             # 'env_params.goal': [
             #     (0, np.nan),
             #     (np.nan, -1)
