@@ -4,12 +4,9 @@ from railrl.launchers.launcher_util import resume_torch_algorithm
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.qfunctions.torch import FeedForwardQFunction
 from railrl.torch.ddpg import DDPG
-from os.path import exists
 from railrl.envs.ros.sawyer_env import SawyerEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.torch import pytorch_util as ptu
-import joblib
-import argparse
 import sys
 
 def example(variant):
@@ -26,7 +23,7 @@ def example(variant):
     use_gpu = variant['use_gpu']
     max_path_length = variant['max_path_length']
     reward_magnitude = variant['reward_magnitude']
-
+    safety_box = variant['safety_box']
     env = SawyerEnv(
         experiment=experiment,
         arm_name=arm_name,
@@ -34,7 +31,8 @@ def example(variant):
         safety_force_magnitude=safety_force_magnitude,
         temp=temp,
         huber_delta=huber_delta,
-        reward_magnitude=reward_magnitude
+        reward_magnitude=reward_magnitude,
+        safety_box=safety_box,
     )
     es = OUStrategy(
         max_sigma=es_max_sigma,
@@ -85,22 +83,23 @@ if __name__ == "__main__":
     if exp_dir == None:
         run_experiment(
             example,
-            exp_prefix="ddpg-sawyer-fixed-end-effector-magnified-reward-amplified-actions",
-            seed=0,
+            exp_prefix="ddpg-sawyer-fixed-end-effector-lowered-exploration",
+            seed=3,
             mode='here',
             variant={
                 'version': 'Original',
                 'arm_name': 'right',
                 'loss': 'huber',
-                'huber_delta': 1,
-                'safety_force_magnitude': 5,
-                'temp': 15,
+                'huber_delta': 10,
+                'safety_force_magnitude': 50,
+                'temp': 1,
                 'experiment': experiments[2],
-                'es_min_sigma': 1,
-                'es_max_sigma': 1,
-                'num_epochs': 10,
+                'es_min_sigma': .5,
+                'es_max_sigma': .5,
+                'num_epochs': 30,
                 'batch_size': 1024,
                 'use_gpu':True,
+                'safety_box':True,
                 'max_path_length':100,
                 'reward_magnitude':10,
             },
