@@ -188,9 +188,5 @@ class DdpgQfCombiner(RLAlgorithm):
             epoch=epoch,
             policy=self.policy,
             env=self.env,
-            # qf1=self.qf1,
-            # qf2=self.qf2,
-            # replay_buffer1=self.replay_buffer1,
-            # replay_buffer2=self.replay_buffer2,
             algo=self,
         )
