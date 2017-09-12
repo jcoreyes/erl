@@ -51,7 +51,7 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "pusher-3dof-horizontal-l2"
+    exp_prefix = "pusher-3dof-horizontal-l2-top"
     # version = "Dev"
     # run_mode = 'grid'
 
@@ -77,8 +77,8 @@ if __name__ == '__main__':
             policy_learning_rate=1e-4,
         ),
         env_params=dict(
-            goal=(np.nan, -1),
-            # goal=(0, np.nan),
+            goal=(np.nan, 1),
+            # goal=(1, np.nan),
         ),
     )
     if run_mode == 'grid':
