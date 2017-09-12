@@ -49,24 +49,25 @@ if __name__ == '__main__':
     version = "Dev"
     run_mode = "none"
 
-    # n_seeds = 10
-    # mode = "ec2"
-    # exp_prefix = "dev"
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "pusher-3dof-vertical-2"
     # version = "Dev"
-
     run_mode = 'grid'
+
     use_gpu = True
     if mode != "here":
         use_gpu = False
 
     snapshot_mode = "gap"
-    snapshot_gap = 100
+    snapshot_gap = 10
+    periodic_sync_interval = 600  # 10 minutes
     variant = dict(
         version=version,
         algo_params=dict(
-            num_epochs=100,
-            num_steps_per_epoch=300,
-            num_steps_per_eval=300,
+            num_epochs=500,
+            num_steps_per_epoch=10000,
+            num_steps_per_eval=1500,
             use_soft_update=True,
             tau=1e-2,
             batch_size=128,
@@ -76,16 +77,20 @@ if __name__ == '__main__':
             policy_learning_rate=1e-4,
         ),
         env_params=dict(
+            # goal=(np.nan, -1),
             goal=(0, np.nan),
         ),
     )
     if run_mode == 'grid':
         search_space = {
             'algo_params.use_soft_update': [True, False],
-            'env_params.goal': [
-                (0, np.nan),
-                (np.nan, -1)
-            ]
+            'algo_params.tau': [1e-2, 1e-3],
+            'algo_params.batch_size': [128, 512],
+            'algo_params.scale_reward': [0.1, 1, 10, 100, 1000],
+            # 'env_params.goal': [
+            #     (0, np.nan),
+            #     (np.nan, -1)
+            # ]
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
             search_space, default_parameters=variant,
@@ -105,7 +110,7 @@ if __name__ == '__main__':
                     sync_s3_pkl=True,
                     snapshot_mode=snapshot_mode,
                     snapshot_gap=snapshot_gap,
-                    periodic_sync_interval=300,
+                    periodic_sync_interval=periodic_sync_interval,
                 )
     else:
         for _ in range(n_seeds):
@@ -122,5 +127,5 @@ if __name__ == '__main__':
                 sync_s3_pkl=True,
                 snapshot_mode=snapshot_mode,
                 snapshot_gap=snapshot_gap,
-                periodic_sync_interval=300,
+                periodic_sync_interval=periodic_sync_interval,
             )
