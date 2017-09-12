@@ -351,7 +351,8 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             goal_states,
             num_steps_left - 1,  # Important! Else QF will (probably) blow up
         )
-        y_target = terminals * rewards + (1. - terminals) * target_q_values
+        # y_target = terminals * rewards + (1. - terminals) * target_q_values
+        y_target = rewards + (1. - terminals) * target_q_values
 
         # noinspection PyUnresolvedReferences
         y_target = y_target.detach()
