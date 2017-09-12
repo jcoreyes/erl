@@ -51,7 +51,7 @@ if __name__ == '__main__':
 
     # n_seeds = 10
     # mode = "ec2"
-    # exp_prefix = "dev"
+    exp_prefix = "combine-policies--lr1e-4"
     # version = "Dev"
     # run_mode = 'grid'
 
@@ -62,23 +62,21 @@ if __name__ == '__main__':
     variant = dict(
         version=version,
         ddpg1_snapshot_path=(
-            '/home/vitchyr/git/rllab-rail/railrl/data/local/'
-            '09-11-dev-separate-policies/'
-            '09-11_dev-separate-policies_2017_09_11_22_40_42_0000--s-2173/'
-            'params.pkl'
+            '/home/vitchyr/git/rllab-rail/railrl/data/papers/icra2017/'
+            '09-11_pusher-3dof-horizontal-2_2017_09_11_23_23_50_0039/'
+            'itr_80.pkl'
         ),
         ddpg2_snapshot_path=(
-            '/home/vitchyr/git/rllab-rail/railrl/data/local/'
-            '09-11-dev-separate-policies/'
-            '09-11_dev-separate-policies_2017_09_11_22_40_42_0000--s-2173/'
-            'params.pkl'
+            '/home/vitchyr/git/rllab-rail/railrl/data/papers/icra2017/'
+            '09-11_pusher-3dof-vertical-2_2017_09_11_23_24_08_0017/'
+            'itr_80.pkl'
         ),
         algo_params=dict(
             num_epochs=1000,
             num_steps_per_epoch=1000,
             policy_learning_rate=1e-4,
             batch_size=128,
-            num_steps_per_eval=3000,
+            num_steps_per_eval=900,
             max_path_length=300,
             discount=0.99
         ),
