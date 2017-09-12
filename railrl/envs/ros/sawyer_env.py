@@ -90,13 +90,14 @@ END_EFFECTOR_VALUE_HIGH = {
 
 TORQUE_MAX = 3.5
 TORQUE_MAX_TRAIN = 5
+MAX_TORQUES = 0.5 * np.array([8, 7, 6, 5, 4, 3, 2])
 
 box_lows = [
     # 0.034684203112358175,
     # -0.37725774554005753,
     # 0.2084391863426093,
     0.1328008448954529,
-    -0.33786487626917794,
+    -0.23786487626917794,
     0.1084391863426093,
 ]
 
@@ -106,7 +107,7 @@ box_highs = [
     # 0.8603685884374678,
     0.7175958839273338,
     0.3464466563902636,
-    0.8659791453416877,
+    0.7659791453416877,
 ]
 
 joint_names = [
@@ -150,7 +151,7 @@ class SawyerEnv(Env, Serializable):
             huber_delta=10,
             safety_force_magnitude=2,
             temp=1.05,
-            safe_reset_length=125,
+            safe_reset_length=150,
             reward_magnitude=1,
     ):
 
@@ -164,7 +165,7 @@ class SawyerEnv(Env, Serializable):
         self.end_effector_experiment_position = False
         self.end_effector_experiment_total = False
         self.fixed_end_effector = False
-        self.use_safety_checks = True
+        self.use_safety_checks = False
         self.use_angle_wrapping = False
         self.use_angle_parameterization = False
         self.wrap_reward_angle_computation = True
@@ -389,7 +390,7 @@ class SawyerEnv(Env, Serializable):
         self.in_reset = True
         # self.amplify = np.array([3, 3, 2, 2, 2, 1, 1])
         # self.amplify = np.array([3, 3, 1, 1, 1, 1, 1])
-        self.amplify = np.ones(7)
+        self.amplify = 0.5 * np.array([8, 7, 6, 5, 4, 3, 2])
         self.previous = self.pose_jacobian_dict
     @safe
     def _act(self, action):
@@ -405,11 +406,16 @@ class SawyerEnv(Env, Serializable):
                     action = torques
                 else:
                     action = action + torques
+        # if self.in_reset:
+        #     np.clip(action, -TORQUE_MAX, TORQUE_MAX, out=action)
+        # else:
+        #     action = self.amplify * action
+        #     np.clip(action, -TORQUE_MAX_TRAIN, TORQUE_MAX_TRAIN, out=action)
         if self.in_reset:
-            np.clip(action, -TORQUE_MAX, TORQUE_MAX, out=action)
-        else:
+            np.clip(action, -5, 5, out=action)
+        if not self.in_reset:
             action = self.amplify * action
-            np.clip(action, -TORQUE_MAX_TRAIN, TORQUE_MAX_TRAIN, out=action)
+            action = np.clip(np.asarray(action),-MAX_TORQUES, MAX_TORQUES)
         joint_to_values = dict(zip(self.arm_joint_names, action))
         self._set_joint_values(joint_to_values)
         self.rate.sleep()
@@ -555,11 +561,12 @@ class SawyerEnv(Env, Serializable):
         if self.joint_angle_experiment:
             current = self._joint_angles()
             differences = self.compute_angle_difference(current, self.desired)
+            reward = self.reward_function(differences)
+
         elif self.end_effector_experiment_position or self.end_effector_experiment_total:
             current = self._end_effector_pose()
-            differences = np.abs(current - self.desired)
+            reward = np.linalg.norm(self.desired-current) + sum(action**2)*.003
 
-        reward = self.reward_function(differences)
         if self.use_safety_checks:
             out_of_box = self.safety_box_check()
             high_torque = self.high_torque_check(actual_commanded_action)
