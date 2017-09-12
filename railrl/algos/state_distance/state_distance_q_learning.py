@@ -430,6 +430,7 @@ def multitask_rollout(
         max_path_length=np.inf,
         animated=False,
 ):
+    env.set_goal(goal)
     agent.set_goal(goal)
     agent.set_discount(discount)
     path = rollout(
