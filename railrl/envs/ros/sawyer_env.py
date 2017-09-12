@@ -89,14 +89,21 @@ END_EFFECTOR_VALUE_HIGH = {
 }
 
 TORQUE_MAX = 3.5
+TORQUE_MAX_TRAIN = 5
 
 box_lows = [
+    # 0.034684203112358175,
+    # -0.37725774554005753,
+    # 0.2084391863426093,
     0.1328008448954529,
     -0.33786487626917794,
     0.1084391863426093,
 ]
 
 box_highs = [
+    # 0.5970398592436077,
+    # 0.36098369299366356,
+    # 0.8603685884374678,
     0.7175958839273338,
     0.3464466563902636,
     0.8659791453416877,
@@ -218,7 +225,7 @@ class SawyerEnv(Env, Serializable):
         self._action_space = Box(
             JOINT_VALUE_LOW[action_mode],
             JOINT_VALUE_HIGH[action_mode]
-            )
+        )
 
         #set up lows and highs for observation space based on which experiment we are running
         #additionally set up the desired angle as well
@@ -232,7 +239,6 @@ class SawyerEnv(Env, Serializable):
                     END_EFFECTOR_VALUE_LOW['position'],
                     np.cos(JOINT_VALUE_LOW['position']),
                     np.sin(JOINT_VALUE_LOW['position']),
-                    JOINT_VALUE_LOW['torque'],
                 ))
 
                 highs = np.hstack((
@@ -243,7 +249,6 @@ class SawyerEnv(Env, Serializable):
                     END_EFFECTOR_VALUE_HIGH['position'],
                     np.cos(JOINT_VALUE_HIGH['position']),
                     np.sin(JOINT_VALUE_HIGH['position']),
-                    JOINT_VALUE_HIGH['torque'],
                 ))
             else:
                 lows = np.hstack((
@@ -290,21 +295,40 @@ class SawyerEnv(Env, Serializable):
                 self._randomize_desired_angles()
 
         elif self.end_effector_experiment_position:
-            lows = np.hstack((
-                JOINT_VALUE_LOW['position'],
-                JOINT_VALUE_LOW['velocity'],
-                JOINT_VALUE_LOW['torque'],
-                END_EFFECTOR_VALUE_LOW['position'],
-                END_EFFECTOR_VALUE_LOW['position'],
-            ))
+            if self.use_angle_parameterization:
+                lows = np.hstack((
+                    np.cos(JOINT_VALUE_LOW['position']),
+                    np.sin(JOINT_VALUE_LOW['position']),
+                    JOINT_VALUE_LOW['velocity'],
+                    JOINT_VALUE_LOW['torque'],
+                    END_EFFECTOR_VALUE_LOW['position'],
+                    END_EFFECTOR_VALUE_LOW['position'],
+                ))
 
-            highs = np.hstack((
-                JOINT_VALUE_HIGH['position'],
-                JOINT_VALUE_HIGH['velocity'],
-                JOINT_VALUE_HIGH['torque'],
-                END_EFFECTOR_VALUE_HIGH['position'],
-                END_EFFECTOR_VALUE_HIGH['position'],
-            ))
+                highs = np.hstack((
+                    np.cos(JOINT_VALUE_HIGH['position']),
+                    np.sin(JOINT_VALUE_HIGH['position']),
+                    JOINT_VALUE_HIGH['velocity'],
+                    JOINT_VALUE_HIGH['torque'],
+                    END_EFFECTOR_VALUE_LOW['position'],
+                    END_EFFECTOR_VALUE_LOW['position'],
+                ))
+            else:
+                lows = np.hstack((
+                    JOINT_VALUE_LOW['position'],
+                    JOINT_VALUE_LOW['velocity'],
+                    JOINT_VALUE_LOW['torque'],
+                    END_EFFECTOR_VALUE_LOW['position'],
+                    END_EFFECTOR_VALUE_LOW['position'],
+                ))
+
+                highs = np.hstack((
+                    JOINT_VALUE_HIGH['position'],
+                    JOINT_VALUE_HIGH['velocity'],
+                    JOINT_VALUE_HIGH['torque'],
+                    END_EFFECTOR_VALUE_HIGH['position'],
+                    END_EFFECTOR_VALUE_HIGH['position'],
+                ))
 
             if self.fixed_end_effector:
                 des = [0.49769472921756647, 0.031977172139977056, 0.4708391209982404]
@@ -364,8 +388,9 @@ class SawyerEnv(Env, Serializable):
         self.update_pose_and_jacobian_dict()
         self.in_reset = True
         # self.amplify = np.array([3, 3, 2, 2, 2, 1, 1])
-        self.amplify = np.array([2, 2, 1.5, 1.5, 1.25, 1, 1])
-        # self.amplify = np.ones(7)
+        # self.amplify = np.array([3, 3, 1, 1, 1, 1, 1])
+        self.amplify = np.ones(7)
+        self.previous = self.pose_jacobian_dict
     @safe
     def _act(self, action):
         if self.safety_box:
@@ -380,9 +405,11 @@ class SawyerEnv(Env, Serializable):
                     action = torques
                 else:
                     action = action + torques
-        if not self.in_reset:
-            action = self.amplify*action
-        np.clip(action, -TORQUE_MAX, TORQUE_MAX, out=action)
+        if self.in_reset:
+            np.clip(action, -TORQUE_MAX, TORQUE_MAX, out=action)
+        else:
+            action = self.amplify * action
+            np.clip(action, -TORQUE_MAX_TRAIN, TORQUE_MAX_TRAIN, out=action)
         joint_to_values = dict(zip(self.arm_joint_names, action))
         self._set_joint_values(joint_to_values)
         self.rate.sleep()
@@ -398,6 +425,8 @@ class SawyerEnv(Env, Serializable):
             5.73669922e-01,
             3.31514160e+00
         ])
+        if self.use_angle_parameterization:
+            desired_neutral = np.hstack((np.cos(desired_neutral), np.sin(desired_neutral)))
         desired_neutral = (desired_neutral)
         actual_neutral = (self._joint_angles())
         errors = self.compute_angle_difference(desired_neutral, actual_neutral)
@@ -510,7 +539,8 @@ class SawyerEnv(Env, Serializable):
 
     def step(self, action):
         if self._rs.state().stopped:
-            ipdb.set_trace()
+            print('VIBRATION')
+            self._rs.enable()
         self.nan_check(action)
         actual_commanded_action = self._act(action)
 
@@ -531,25 +561,25 @@ class SawyerEnv(Env, Serializable):
 
         reward = self.reward_function(differences)
         if self.use_safety_checks:
-            out_of_box = self.safety_box_check(reset_on_error=True)
-            high_torque = self.high_torque_check(actual_commanded_action, reset_on_error=True)
-            unexpected_velocity = self.unexpected_velocity_check(reset_on_error=True)
-            unexpected_torque = self.unexpected_torque_check(reset_on_error=True)
+            out_of_box = self.safety_box_check()
+            high_torque = self.high_torque_check(actual_commanded_action)
+            unexpected_velocity = self.unexpected_velocity_check()
+            unexpected_torque = self.unexpected_torque_check()
             done = out_of_box or high_torque or unexpected_velocity or unexpected_torque
         else:
             done = False
         info = {}
         return observation, reward, done, info
 
-    def safety_box_check(self, reset_on_error=True):
+    def safety_box_check(self):
+        self.update_pose_and_jacobian_dict()
         self.check_joints_in_box(self.pose_jacobian_dict)
         terminate_episode = False
-        # print(self.pose_jacobian_dict.values())
         if len(self.pose_jacobian_dict) > 0:
             for joint in self.pose_jacobian_dict.keys():
                 dist = self.compute_distances_outside_box(self.pose_jacobian_dict[joint][0])
                 if dist > .185:
-                    if reset_on_error:
+                    if not self.in_reset:
                         print('safety box failure during train/eval: ', joint, dist)
                         terminate_episode = True
                     else:
@@ -564,10 +594,10 @@ class SawyerEnv(Env, Serializable):
     def update_pose_and_jacobian_dict(self):
         self.pose_jacobian_dict = self._get_robot_pose_jacobian_client('right')
 
-    def unexpected_torque_check(self, reset_on_error=True):
+    def unexpected_torque_check(self):
         #we care about the torque that was observed to make sure it hasn't gone too high
         new_torques = self.get_observed_torques_minus_gravity()
-        if reset_on_error:
+        if not self.in_reset:
             ERROR_THRESHOLD = np.array([11, 15, 15, 15, 666, 666, 10])
             is_peaks = (np.abs(new_torques) > ERROR_THRESHOLD).any()
             if is_peaks:
@@ -582,14 +612,14 @@ class SawyerEnv(Env, Serializable):
         return False
 
 
-    def unexpected_velocity_check(self, reset_on_error=True):
+    def unexpected_velocity_check(self):
         velocities_dict = self._get_joint_values['velocity']()
         velocities = np.array([velocities_dict[joint] for joint in self.arm_joint_names])
         ERROR_THRESHOLD = 7 * np.ones(7)
         is_peaks = (np.abs(velocities) > ERROR_THRESHOLD).any()
         if is_peaks:
             print('unexpected_velocities: ', velocities)
-            if reset_on_error:
+            if not self.in_reset:
                 return True
             else:
                 print('unexpected_velocities: ', velocities)
@@ -602,7 +632,7 @@ class SawyerEnv(Env, Serializable):
             poses.append(self.pose_jacobian_dict[joint][0])
         return np.array(poses)
 
-    def high_torque_check(self, commanded_torques, reset_on_error=True):
+    def high_torque_check(self, commanded_torques):
         new_torques = np.abs(commanded_torques)
         current_angles = self._joint_angles()
         position_deltas = np.abs(current_angles - self.previous_angles)
@@ -616,7 +646,7 @@ class SawyerEnv(Env, Serializable):
         if violation:
             print('high_torque:', new_torques)
             print('positions', position_deltas)
-            if reset_on_error:
+            if not self.in_reset:
                 return True
             else:
                 raise EnvironmentError('ERROR: Applying large torques and not moving')
@@ -646,10 +676,10 @@ class SawyerEnv(Env, Serializable):
             if self.previous_angles_reset_check():
                 break
             if self.use_safety_checks:
-                self.safety_box_check(reset_on_error=False)
-                self.unexpected_torque_check(reset_on_error=False)
-                self.high_torque_check(actual_commanded_actions, reset_on_error=False)
-                self.unexpected_velocity_check(reset_on_error=False)
+                self.safety_box_check()
+                self.unexpected_torque_check()
+                self.high_torque_check(actual_commanded_actions)
+                self.unexpected_velocity_check()
 
     def previous_angles_reset_check(self):
         close_to_desired_reset_pos = self.is_in_correct_position()
@@ -748,15 +778,15 @@ class SawyerEnv(Env, Serializable):
         keys_to_remove = []
         for joint in joint_dict.keys():
             if self.is_in_box(joint_dict[joint][0]):
-               keys_to_remove.append(joint)
+                keys_to_remove.append(joint)
         for key in keys_to_remove:
             del joint_dict[key]
         return joint_dict
 
     def is_in_box(self, endpoint_pose):
         within_box = [curr_pose > lower_pose and curr_pose < higher_pose
-            for curr_pose, lower_pose, higher_pose
-            in zip(endpoint_pose, box_lows, box_highs)]
+                      for curr_pose, lower_pose, higher_pose
+                      in zip(endpoint_pose, box_lows, box_highs)]
         return all(within_box)
 
     def get_adjustment_forces_per_joint_dict(self, joint_dict):
@@ -834,8 +864,12 @@ class SawyerEnv(Env, Serializable):
                 desired_orientations = []
             for obsSet in obsSets:
                 for observation in obsSet:
-                    positions.append(observation[21:24])
-                    desired_positions.append(observation[24:27])
+                    if self.use_angle_parameterization:
+                        positions.append(observation[28:31])
+                        desired_positions.append(observation[31:34])
+                    else:
+                        positions.append(observation[21:24])
+                        desired_positions.append(observation[24:27])
 
                     if self.end_effector_experiment_total:
                         orientations.append(observation[24:28])
