@@ -1,3 +1,4 @@
+import time
 import numpy as np
 import railrl.torch.pytorch_util as ptu
 from collections import OrderedDict
@@ -54,6 +55,8 @@ class DdpgQfCombiner(RLAlgorithm):
     def train(self):
         for epoch in range(self.num_epochs):
             logger.push_prefix('Iteration #%d | ' % epoch)
+
+            start_time = time.time()
             for _ in range(self.num_steps_per_epoch):
                 batch = self.get_batch()
                 train_dict = self.get_train_dict(batch)
@@ -62,10 +65,14 @@ class DdpgQfCombiner(RLAlgorithm):
                 policy_loss = train_dict['Policy Loss']
                 policy_loss.backward()
                 self.policy_optimizer.step()
+            logger.log("Train time: {}".format(time.time() - start_time))
+
+            start_time = time.time()
             self.evaluate(epoch)
+            logger.log("Eval time: {}".format(time.time() - start_time))
+
             params = self.get_epoch_snapshot(epoch)
             logger.save_itr_params(epoch, params)
-            logger.dump_tabular(with_prefix=False, with_timestamp=False)
             logger.pop_prefix()
 
     def cuda(self):
@@ -135,6 +142,7 @@ class DdpgQfCombiner(RLAlgorithm):
             logger.record_tabular(key, value)
 
         self.env.log_diagnostics(test_paths)
+        logger.dump_tabular(with_prefix=False, with_timestamp=False)
 
     def _statistics_from_paths(self, paths, stat_prefix):
         rewards, terminals, obs, actions, next_obs = split_paths(paths)
