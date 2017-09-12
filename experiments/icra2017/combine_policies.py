@@ -51,7 +51,7 @@ if __name__ == '__main__':
 
     # n_seeds = 10
     # mode = "ec2"
-    exp_prefix = "combine-policies--lr1e-4"
+    exp_prefix = "combine-policies--lr1e-3"
     # version = "Dev"
     # run_mode = 'grid'
 
@@ -74,7 +74,7 @@ if __name__ == '__main__':
         algo_params=dict(
             num_epochs=1000,
             num_steps_per_epoch=1000,
-            policy_learning_rate=1e-4,
+            policy_learning_rate=1e-3,
             batch_size=128,
             num_steps_per_eval=900,
             max_path_length=300,
