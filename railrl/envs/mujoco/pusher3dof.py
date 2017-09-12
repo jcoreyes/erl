@@ -1,11 +1,11 @@
 import numpy as np
 
+from railrl.envs.mujoco.tuomas_mujoco_env import TuomasMujocoEnv
 from rllab.core.serializable import Serializable
-from .mujoco_env import MujocoEnv
-from softqlearning.misc import logger
+from rllab.misc import logger
 
 
-class PusherEnv3DOF(MujocoEnv, Serializable):
+class PusherEnv3DOF(TuomasMujocoEnv, Serializable):
 
     FILE = '3link_gripper_push_2d.xml'
 
@@ -39,7 +39,8 @@ class PusherEnv3DOF(MujocoEnv, Serializable):
 
         arm_pos = obss[:, -6:-3]
         obj_pos = obss[:, -3:]
-        obj_pos_masked = obj_pos[:, self._goal_mask]
+        obj_pos_xy = obss[:, -3:-1]
+        obj_pos_masked = obj_pos_xy[:, self._goal_mask]
 
         goal_dists = np.linalg.norm(self._goal[None] - obj_pos_masked, 1)
         arm_dists = np.linalg.norm(arm_pos - obj_pos, 1)
