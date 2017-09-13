@@ -142,7 +142,7 @@ def get_snapshots_and_goal(vertical_pos, horizontal_pos):
         top=(
             '/home/vitchyr/git/rllab-rail/railrl/data/s3/'
             '09-12-pusher-3dof-horizontal-l2-top/'
-            '09-12_pusher-3dof-horizontal-l2-top_2017_09_12_15_57_52_0001'
+            '09-12_pusher-3dof-horizontal-l2-top_2017_09_12_15_57_52_0001/'
             'itr_40.pkl'
         ),
     )
