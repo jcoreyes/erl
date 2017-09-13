@@ -1,7 +1,6 @@
 import random
-import numpy as np
 
-from railrl.envs.mujoco.pusher3dof import PusherEnv3DOF
+from railrl.envs.mujoco.pusher3dof import PusherEnv3DOF, get_snapshots_and_goal
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
@@ -59,13 +58,21 @@ if __name__ == '__main__':
     if mode != "here":
         use_gpu = False
 
-    snapshot_mode = "gap"
+    vertical_pos = 'middle'
+    horizontal_pos = 'bottom'
+    ddpg1_snapshot_path, ddpg2_snapshot_path, x_goal, y_goal = (
+        get_snapshots_and_goal(
+            vertical_pos=vertical_pos,
+            horizontal_pos=horizontal_pos,
+        )
+    )
+    snapshot_mode = "last"
     snapshot_gap = 10
     periodic_sync_interval = 600  # 10 minutes
     variant = dict(
         version=version,
         algo_params=dict(
-            num_epochs=50,
+            num_epochs=101,
             num_steps_per_epoch=10000,
             num_steps_per_eval=1500,
             use_soft_update=True,
@@ -77,8 +84,8 @@ if __name__ == '__main__':
             policy_learning_rate=1e-4,
         ),
         env_params=dict(
-            goal=(np.nan, 1),
-            # goal=(1, np.nan),
+            # goal=(np.nan, -1),
+            goal=(x_goal, y_goal),
         ),
     )
     if run_mode == 'grid':

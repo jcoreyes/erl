@@ -124,3 +124,62 @@ class PusherEnv3DOF(TuomasMujocoEnv, Serializable):
         logger.record_tabular('FinalGoalDistanceMax',  np.max(goal_dists))
         logger.record_tabular('FinalGoalDistanceMin',  np.min(goal_dists))
         logger.record_tabular('FinalGoalDistanceStd',  np.std(goal_dists))
+
+
+def get_snapshots_and_goal(vertical_pos, horizontal_pos):
+    horizontal_path = dict(
+        bottom=(
+            '/home/vitchyr/git/rllab-rail/railrl/data/papers/icra2017/'
+            '09-11_pusher-3dof-horizontal-2_2017_09_11_23_23_50_0039/'
+            'itr_50.pkl'
+        ),
+        middle=(
+            '/home/vitchyr/git/rllab-rail/railrl/data/s3/'
+            '09-12-pusher-3dof-horizontal-l2-middle/'
+            '09-12_pusher-3dof-horizontal-l2-middle_2017_09_12_15_57_36_0001/'
+            'itr_40.pkl'
+        ),
+        top=(
+            '/home/vitchyr/git/rllab-rail/railrl/data/s3/'
+            '09-12-pusher-3dof-horizontal-l2-top/'
+            '09-12_pusher-3dof-horizontal-l2-top_2017_09_12_15_57_52_0001'
+            'itr_40.pkl'
+        ),
+    )
+    vertical_path = dict(
+        middle=(
+            '/home/vitchyr/git/rllab-rail/railrl/data/papers/icra2017/'
+            '09-11_pusher-3dof-vertical-2_2017_09_11_23_24_08_0017/'
+            'itr_50.pkl'
+        ),
+        left=(
+            '/home/vitchyr/git/rllab-rail/railrl/data/s3/'
+            '09-12-pusher-3dof-vertical-l2-left/'
+            '09-12_pusher-3dof-vertical-l2-left_2017_09_12_15_56_43_0001/'
+            'itr_40.pkl'
+        ),
+        right=(
+            '/home/vitchyr/git/rllab-rail/railrl/data/s3/'
+            '09-12-pusher-3dof-vertical-l2-right/'
+            '09-12_pusher-3dof-vertical-l2-right_2017_09_12_15_57_16_0001/'
+            'itr_40.pkl'
+        ),
+    )
+    ddpg1_snapshot_path = horizontal_path[horizontal_pos]
+    ddpg2_snapshot_path = vertical_path[vertical_pos]
+    x_goal = 0
+    if vertical_pos == 'left':
+        x_goal = -1
+    elif vertical_pos == 'right':
+        x_goal = 1
+    y_goal = 0
+    if horizontal_pos == 'bottom':
+        y_goal = -1
+    elif horizontal_pos == 'top':
+        y_goal = 1
+    return (
+        ddpg1_snapshot_path,
+        ddpg2_snapshot_path,
+        x_goal,
+        y_goal,
+    )

@@ -2,7 +2,7 @@ import argparse
 
 import joblib
 
-from railrl.envs.mujoco.pusher3dof import PusherEnv3DOF
+from railrl.envs.mujoco.pusher3dof import PusherEnv3DOF, get_snapshots_and_goal
 from railrl.policies.base import Policy
 from railrl.samplers.util import rollout
 from rllab.envs.normalized_env import normalize
@@ -32,18 +32,17 @@ if __name__ == '__main__':
     parser.add_argument('--pause', action='store_true')
     args = parser.parse_args()
 
-    ddpg1_snapshot_path = (
-        '/home/vitchyr/git/rllab-rail/railrl/data/papers/icra2017/'
-        '09-11_pusher-3dof-horizontal-2_2017_09_11_23_23_50_0039/'
-        'itr_50.pkl'
-    )
-    ddpg2_snapshot_path = (
-        '/home/vitchyr/git/rllab-rail/railrl/data/papers/icra2017/'
-        '09-11_pusher-3dof-vertical-2_2017_09_11_23_24_08_0017/'
-        'itr_50.pkl'
+    vertical_pos = 'middle'
+    horizontal_pos = 'bottom'
+
+    ddpg1_snapshot_path, ddpg2_snapshot_path, x_goal, y_goal = (
+        get_snapshots_and_goal(
+            vertical_pos=vertical_pos,
+            horizontal_pos=horizontal_pos,
+        )
     )
     env_params = dict(
-        goal=(0, -1),
+        goal=(x_goal, y_goal),
     )
     env = PusherEnv3DOF(**env_params)
     env = normalize(env)
