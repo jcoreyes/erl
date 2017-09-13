@@ -3,7 +3,7 @@ import random
 import joblib
 import numpy as np
 
-from railrl.envs.mujoco.pusher3dof import PusherEnv3DOF
+from railrl.envs.mujoco.pusher3dof import PusherEnv3DOF, get_snapshots_and_goal
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
@@ -51,7 +51,7 @@ if __name__ == '__main__':
 
     # n_seeds = 10
     # mode = "ec2"
-    exp_prefix = "combine-policies--lr1e-3"
+    exp_prefix = "combine-policies--top-right"
     # version = "Dev"
     # run_mode = 'grid'
 
@@ -59,20 +59,20 @@ if __name__ == '__main__':
     if mode != "here":
         use_gpu = False
 
+    vertical_pos = 'right'
+    horizontal_pos = 'top'
+    ddpg1_snapshot_path, ddpg2_snapshot_path, x_goal, y_goal = (
+        get_snapshots_and_goal(
+            vertical_pos=vertical_pos,
+            horizontal_pos=horizontal_pos,
+        )
+    )
     variant = dict(
         version=version,
-        ddpg1_snapshot_path=(
-            '/home/vitchyr/git/rllab-rail/railrl/data/papers/icra2017/'
-            '09-11_pusher-3dof-horizontal-2_2017_09_11_23_23_50_0039/'
-            'itr_80.pkl'
-        ),
-        ddpg2_snapshot_path=(
-            '/home/vitchyr/git/rllab-rail/railrl/data/papers/icra2017/'
-            '09-11_pusher-3dof-vertical-2_2017_09_11_23_24_08_0017/'
-            'itr_80.pkl'
-        ),
+        ddpg1_snapshot_path=ddpg1_snapshot_path,
+        ddpg2_snapshot_path=ddpg2_snapshot_path,
         algo_params=dict(
-            num_epochs=1000,
+            num_epochs=100,
             num_steps_per_epoch=1000,
             policy_learning_rate=1e-3,
             batch_size=128,
@@ -81,7 +81,7 @@ if __name__ == '__main__':
             discount=0.99
         ),
         env_params=dict(
-            goal=(0, -1),
+            goal=(x_goal, y_goal),
         ),
     )
     if run_mode == 'grid':
