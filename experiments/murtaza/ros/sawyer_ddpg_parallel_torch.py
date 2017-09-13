@@ -86,7 +86,7 @@ if __name__ == "__main__":
     if exp_dir == None:
         run_experiment(
             example,
-            exp_prefix="ddpg-parallel-sawyer",
+            exp_prefix="ddpg-parallel-sawyer-no-amplification-tuomas-params",
             seed=3123,
             mode='here',
             variant={
@@ -102,20 +102,23 @@ if __name__ == "__main__":
                     'safety_box': True,
                     'loss': 'huber',
                     'huber_delta': 10,
-                    'safety_force_magnitude': 50,
+                    'safety_force_magnitude': 5,
                     'temp': 1,
                     'remove_action': False,
                     'experiment': experiments[2],
                     'reward_magnitude': 10,
                 },
                 'es_params': {
-                    'max_sigma':.5,
-                    'min_sigma':.5,
+                    'max_sigma':.25,
+                    'min_sigma':.25,
                 },
                 'algo_params': dict(
-                    batch_size=2,
-                    num_epochs=30,
+                    batch_size=64,
+                    num_epochs=1000,
                     number_of_gradient_steps=1,
+                    num_steps_per_epoch=500,
+                    max_path_length=max_path_length,
+                    num_steps_per_eval=500,
                 ),
             },
             use_gpu=True,
