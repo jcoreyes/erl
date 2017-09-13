@@ -209,7 +209,8 @@ def run_experiment(
     repo = git.Repo(os.getcwd())
     diff_string = repo.git.diff(None)
     commit_hash = repo.head.commit.hexsha
-    script_name = main.__file__
+    # script_name = main.__file__
+    script_name = "tmp"
     if mode=='here':
         log_dir, exp_name = create_log_dir(exp_prefix, exp_id, seed, base_log_dir)
         data = dict(

@@ -16,9 +16,9 @@ experiments=[
     'end_effector_position_orientation|varying_ee'
 ]
 
-env = SawyerEnv('right', experiment=experiments[0], safety_force_magnitude=5)
+env = SawyerEnv('right', experiment=experiments[0], safety_force_magnitude=5, temp=15, safety_box=True)
 
-env.reset()
+# env.reset()
 # env.arm.move_to_neutral()
 # ja = env._joint_angles()
 # # ja =np.array([-2.13281250e-03, -1.18177441e+00, -2.75390625e-03, 2.17755176e+00,
@@ -37,8 +37,19 @@ env.reset()
 # except Exception as e:
 #     import ipdb; ipdb.set_trace()
 # print(env.is_in_box(env.arm.endpoint_pose))
-print(env.arm.endpoint_pose())
+# while True:
+pose = env.arm.endpoint_pose()['position']
+pose = np.array([pose.x, pose.y, pose.z])
+print(pose)
+env.update_pose_and_jacobian_dict()
+env.check_joints_in_box(env.pose_jacobian_dict)
+print(env.pose_jacobian_dict)
+
+des = np.array([0.3103441506689085, -0.010549035732281596, 1.2463074746529437])
+
+print(np.linalg.norm(pose-des))
 # for i in range(100000):
+#     env._act(np.zeros(7))
 #     action = create_action(2)
 #     env._act(action)
 #     if i % 200 == 0:

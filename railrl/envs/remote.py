@@ -94,8 +94,12 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
             self,
             env_class,
             env_params,
-            *ray_env_args,
-            **ray_env_kwargs
+            policy_class,
+            policy_params,
+            exploration_strategy_class,
+            exploration_strategy_params,
+            max_path_length,
+            normalize_env,
     ):
         Serializable.quick_init(self, locals())
         super().__init__(env_class(**env_params))
@@ -103,8 +107,12 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
         self._ray_env = RayEnv.remote(
             env_class,
             env_params,
-            *ray_env_args,
-            **ray_env_kwargs
+            policy_class,
+            policy_params,
+            exploration_strategy_class,
+            exploration_strategy_params,
+            max_path_length,
+            normalize_env,
         )
         self._rollout_promise = None
 
