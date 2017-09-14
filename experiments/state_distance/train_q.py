@@ -113,10 +113,10 @@ if __name__ == '__main__':
     exp_prefix = "dev-train-q"
     run_mode = "none"
 
-    # n_seeds = 3
-    # mode = "ec2"
-    # exp_prefix = "reacher-7dof-full-state"
-    # run_mode = 'grid'
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "train-oc-exploration-tau-always-zero"
+    run_mode = 'grid'
 
     version = "Dev"
     num_configurations = 50  # for random mode
@@ -205,7 +205,7 @@ if __name__ == '__main__':
                 # JointOnlyPusherEnv,
             ],
             # 'qf_class': [UniversalQfunction],
-            'algo_params.sample_goals_from': ['environment', 'replay_buffer'],
+            # 'algo_params.sample_goals_from': ['environment', 'replay_buffer'],
             # 'algo_params.termination_threshold': [1e-4, 0]
             # 'epoch_discount_schedule_params.max_value': [100, 1000],
             # 'epoch_discount_schedule_params.ramp_duration': [
