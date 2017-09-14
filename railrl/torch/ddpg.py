@@ -295,9 +295,20 @@ class DDPG(OnlineAlgorithm):
             env=self.training_env,
             es=self.exploration_strategy,
             qf=self.qf,
+            batch_size=self.batch_size,
+        )
+
+    def get_extra_data_to_save(self, epoch):
+        """
+        Save things that shouldn't be saved every snapshot but rather
+        overwritten every time.
+        :param epoch:
+        :return:
+        """
+        return dict(
+            epoch=epoch,
             replay_buffer=self.replay_buffer,
             algorithm=self,
-            batch_size=self.batch_size,
         )
 
 
