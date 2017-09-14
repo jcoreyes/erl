@@ -185,26 +185,24 @@ class TerminalRewardSampleOCPolicy(SampleOptimalControlPolicy):
         action = ptu.np_to_var(first_sampled_actions)
         next_state = ptu.np_to_var(self.env.sample_states(self.sample_size))
 
-        scores = []
+        penalties = []
         for i in range(self.horizon):
-            reward = self.reward(state, action, next_state)
             constraint_penalty = self.qf(
                 state,
                 action,
                 self.env.convert_obs_to_goal_states_pytorch(next_state),
                 self._tau_batch,
             )**2
-            score = (
-                reward
+            penalties.append(
                 - self.constraint_weight * constraint_penalty
             )
-            scores.append(score)
 
             action = ptu.np_to_var(
                 self.env.sample_actions(self.sample_size)
             )
             state = next_state
             next_state = ptu.np_to_var(self.env.sample_states(self.sample_size))
-        final_score = sum(scores)
+        reward = self.reward(state, action, next_state)
+        final_score = reward + sum(penalties)
         max_i = np.argmax(ptu.get_numpy(final_score))
         return first_sampled_actions[max_i], {}
