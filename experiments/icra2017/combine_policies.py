@@ -4,6 +4,7 @@ import joblib
 import numpy as np
 
 from railrl.envs.mujoco.pusher3dof import PusherEnv3DOF, get_snapshots_and_goal
+from railrl.envs.mujoco.pusher_avoider_3dof import PusherAvoiderEnv3DOF
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
@@ -17,10 +18,12 @@ from rllab.envs.normalized_env import normalize
 
 
 def experiment(variant):
-    env = PusherEnv3DOF(**variant['env_params'])
+    env = variant['env_class'](**variant['env_params'])
     env = normalize(env)
     ddpg1_snapshot_dict = joblib.load(variant['ddpg1_snapshot_path'])
     ddpg2_snapshot_dict = joblib.load(variant['ddpg2_snapshot_path'])
+    replay_buffer1 = joblib.load(variant['replay_buffer1_path'])['replay_buffer']
+    replay_buffer2 = joblib.load(variant['replay_buffer2_path'])['replay_buffer']
     policy = FeedForwardPolicy(
         int(env.observation_space.flat_dim),
         int(env.action_space.flat_dim),
@@ -32,8 +35,8 @@ def experiment(variant):
         qf1=ddpg1_snapshot_dict['qf'],
         qf2=ddpg2_snapshot_dict['qf'],
         policy=policy,
-        replay_buffer1=ddpg1_snapshot_dict['replay_buffer'],
-        replay_buffer2=ddpg2_snapshot_dict['replay_buffer'],
+        replay_buffer1=replay_buffer1,
+        replay_buffer2=replay_buffer2,
         **variant['algo_params']
     )
     if ptu.gpu_enabled():
@@ -69,10 +72,22 @@ if __name__ == '__main__':
             horizontal_pos=horizontal_pos,
         )
     )
+    ddpg1_snapshot_path = (
+        '/home/vitchyr/git/rllab-rail/railrl/data/local/09-14-dev-separate-policies/09-14_dev-separate-policies_2017_09_14_15_24_06_0000--s-7544/'
+        'params.pkl'
+    )
+    replay_buffer1_path = (
+        '/home/vitchyr/git/rllab-rail/railrl/data/local/09-14-dev-separate-policies/09-14_dev-separate-policies_2017_09_14_15_24_06_0000--s-7544/'
+        'extra_data.pkl'
+    )
+    ddpg2_snapshot_path = ddpg1_snapshot_path
+    replay_buffer2_path = replay_buffer1_path
     variant = dict(
         version=version,
         ddpg1_snapshot_path=ddpg1_snapshot_path,
         ddpg2_snapshot_path=ddpg2_snapshot_path,
+        replay_buffer1_path=replay_buffer1_path,
+        replay_buffer2_path=replay_buffer2_path,
         algo_params=dict(
             num_epochs=100,
             num_steps_per_epoch=1000,
@@ -82,8 +97,9 @@ if __name__ == '__main__':
             max_path_length=300,
             discount=0.99
         ),
+        env_class=PusherAvoiderEnv3DOF,
         env_params=dict(
-            goal=(x_goal, y_goal),
+            task='both',
         ),
     )
     if run_mode == 'grid':
