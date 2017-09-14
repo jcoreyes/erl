@@ -319,6 +319,31 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
     """
     Hacky solution: just use discount in place of max_num_steps_left.
     """
+
+    def __init__(
+            self,
+            env: MultitaskEnv,
+            qf,
+            policy,
+            exploration_policy: UniversalExplorationPolicy=None,
+            do_tau_correctly=True,
+            **kwargs
+    ):
+        """
+        :param do_tau_correctly:  The correct interpretation of tau is
+        "how far you are from the goal state after tau steps."
+        The wrong version just uses tau as a timer.
+        :param kwargs:
+        """
+        super().__init__(
+            env,
+            qf,
+            policy,
+            exploration_policy,
+            **kwargs
+        )
+        self.do_tau_correctly = do_tau_correctly
+
     def get_train_dict(self, batch):
         rewards = batch['rewards']
         obs = batch['observations']
@@ -351,8 +376,10 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             goal_states,
             num_steps_left - 1,  # Important! Else QF will (probably) blow up
         )
-        # y_target = terminals * rewards + (1. - terminals) * target_q_values
-        y_target = rewards + (1. - terminals) * target_q_values
+        if self.do_tau_correctly:
+            y_target = terminals * rewards + (1. - terminals) * target_q_values
+        else:
+            y_target = rewards + (1. - terminals) * target_q_values
 
         # noinspection PyUnresolvedReferences
         y_target = y_target.detach()

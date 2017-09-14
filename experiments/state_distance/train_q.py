@@ -108,8 +108,8 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "check-if-things-work-after-fixing-multitask-rollout"
-    run_mode = 'grid'
+    exp_prefix = "reacher-7dof-full-state"
+    # run_mode = 'grid'
 
     version = "Dev"
     num_configurations = 50  # for random mode
@@ -145,6 +145,7 @@ if __name__ == '__main__':
             num_updates_per_env_step=1,
             prob_goal_state_is_next_state=0,
             termination_threshold=0,
+            do_tau_correctly=False,
         ),
         qf_class=UniversalQfunction,
         qf_params=dict(
@@ -162,11 +163,11 @@ if __name__ == '__main__':
             ramp_duration=1,
         ),
         algo_class=HorizonFedStateDistanceQLearning,
-        # env_class=Reacher7DofFullGoalState,
+        env_class=Reacher7DofFullGoalState,
         # env_class=ArmEEInStatePusherEnv,
         # env_class=JointOnlyPusherEnv,
         # env_class=GoalStateSimpleStateReacherEnv,
-        env_class=XyMultitaskSimpleStateReacherEnv,
+        # env_class=XyMultitaskSimpleStateReacherEnv,
         env_params=dict(),
         sampler_params=dict(
             min_num_steps_to_collect=100000,
