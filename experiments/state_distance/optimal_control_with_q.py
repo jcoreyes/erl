@@ -12,7 +12,7 @@ import joblib
 import numpy as np
 
 from railrl.policies.state_distance import SampleOptimalControlPolicy, \
-    MultiStepSampleOptimalControlPolicy
+    TerminalRewardSampleOCPolicy
 from railrl.samplers.util import rollout
 from railrl.torch.pytorch_util import set_gpu_mode
 from rllab.misc import logger
@@ -57,7 +57,7 @@ if __name__ == "__main__":
             verbose=args.verbose,
         )
     else:
-        policy = MultiStepSampleOptimalControlPolicy(
+        policy = TerminalRewardSampleOCPolicy(
             qf,
             env,
             horizon=args.plan_h,

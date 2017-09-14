@@ -147,7 +147,7 @@ class SampleOptimalControlPolicy(SampleBasedUniversalPolicy):
         return sampled_actions[max_i], {}
 
 
-class MultiStepSampleOptimalControlPolicy(SampleOptimalControlPolicy):
+class TerminalRewardSampleOCPolicy(SampleOptimalControlPolicy):
     """
     Want to implement:
 

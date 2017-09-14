@@ -36,7 +36,7 @@ from railrl.misc.hypopt import optimize_and_save
 from railrl.misc.ml_util import RampUpSchedule, IntRampUpSchedule
 from railrl.networks.state_distance import FFUniversalPolicy, UniversalQfunction, \
     FlatUniversalQfunction
-from railrl.policies.state_distance import MultiStepSampleOptimalControlPolicy
+from railrl.policies.state_distance import TerminalRewardSampleOCPolicy
 from railrl.torch.modules import HuberLoss
 from railrl.torch.state_distance.exploration import \
     UniversalPolicyWrappedWithExplorationStrategy
@@ -77,7 +77,7 @@ def experiment(variant):
         action_space=action_space,
         **variant['sampler_es_params']
     )
-    raw_exploration_policy = MultiStepSampleOptimalControlPolicy(
+    raw_exploration_policy = TerminalRewardSampleOCPolicy(
         qf,
         env,
         5,
