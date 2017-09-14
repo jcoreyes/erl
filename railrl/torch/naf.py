@@ -250,10 +250,16 @@ class NafPolicy(PyTorchModule):
         self.L.weight.data.mul_(0.1)
         self.L.bias.data.mul_(0.1)
 
-        self.tril_mask = ptu.Variable(torch.tril(torch.ones(
-            action_dim, action_dim), k=-1).unsqueeze(0))
-        self.diag_mask = ptu.Variable(torch.diag(torch.diag(
-            torch.ones(action_dim, action_dim))).unsqueeze(0))
+        self.tril_mask = ptu.Variable(
+            torch.tril(
+                torch.ones(action_dim, action_dim),
+            ).unsqueeze(0)
+        )
+        self.diag_mask = ptu.Variable(torch.diag(
+            torch.diag(
+                torch.ones(action_dim, action_dim)
+            )
+        ).unsqueeze(0))
 
     def forward(self, state, action):
         state = self.bn_state(state)
