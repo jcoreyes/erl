@@ -45,7 +45,7 @@ env.update_pose_and_jacobian_dict()
 env.check_joints_in_box(env.pose_jacobian_dict)
 print(env.pose_jacobian_dict)
 
-des = np.array([0.3103441506689085, -0.010549035732281596, 1.2463074746529437])
+des = np.array([0.68998028, -0.2285752, 0.3477])
 
 print(np.linalg.norm(pose-des))
 # for i in range(100000):
