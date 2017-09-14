@@ -7,6 +7,7 @@ from railrl.torch.naf import NAF
 from rllab.misc import logger
 
 
+# TODO(vitchyr): make parallel DDPG and parallel NAF share code
 class ParallelNAF(NAF):
     def __init__(
             self,
