@@ -51,7 +51,7 @@ if __name__ == '__main__':
 
     # n_seeds = 10
     # mode = "ec2"
-    exp_prefix = "combine-policies--top-right"
+    exp_prefix = "combine-policies"
     # version = "Dev"
     # run_mode = 'grid'
 
@@ -59,8 +59,10 @@ if __name__ == '__main__':
     if mode != "here":
         use_gpu = False
 
-    vertical_pos = 'right'
-    horizontal_pos = 'top'
+    vertical_pos = 'left'
+    horizontal_pos = 'bottom'
+
+    exp_prefix += "--{}-{}".format(vertical_pos, horizontal_pos)
     ddpg1_snapshot_path, ddpg2_snapshot_path, x_goal, y_goal = (
         get_snapshots_and_goal(
             vertical_pos=vertical_pos,
