@@ -148,6 +148,26 @@ class SampleOptimalControlPolicy(SampleBasedUniversalPolicy):
 
 
 class MultiStepSampleOptimalControlPolicy(SampleOptimalControlPolicy):
+    """
+    Want to implement:
+
+        a = \argmax_{a_T} \max_{a_{1:T-1}, s_{1:T+1}} r(s_{T+1})
+
+        s.t.  Q(s_t, a_t, s_g=s_{t+1}, tau=0) = 0, t=1, T
+
+    Softened version of this:
+
+        a = \argmax_{a_T} \max_{a_{1:T-1}, s_{1:T+1}} r(s_{T+1})
+         - C * \sum_{t=1}^T Q(s_t, a_t, s_g=s_{t+1}, tau=0)^2
+
+          = \argmax_{a_T} \max_{a_{1:T-1}, s_{1:T+1}} f(a_{1:T}, s_{1:T+1})
+
+    Naive implementation where I just sample a bunch of a's and s's and take
+    the max of this function f.
+
+    :param obs: np.array, state/observation
+    :return: np.array, action to take
+    """
     def __init__(
             self,
             qf,
@@ -157,18 +177,9 @@ class MultiStepSampleOptimalControlPolicy(SampleOptimalControlPolicy):
     ):
         super().__init__(qf, env, **kwargs)
         self.horizon = horizon
+        self._tau_batch = self.expand_np_to_var(np.array([0]))
 
     def get_action(self, obs):
-        """
-        Naive implementation where I just sample a bunch of a and s' and take
-        the one that maximizes
-
-            f(a, s') = \sum_{t=now}^{now+H} r(s_t, a_t, s_{t+1})
-                        - C * Q_d(s_t, a_t, s_{t+1})**2
-
-        :param obs: np.array, state/observation
-        :return: np.array, action to take
-        """
         state = self.expand_np_to_var(obs)
         first_sampled_actions = self.env.sample_actions(self.sample_size)
         action = ptu.np_to_var(first_sampled_actions)
@@ -181,7 +192,7 @@ class MultiStepSampleOptimalControlPolicy(SampleOptimalControlPolicy):
                 state,
                 action,
                 self.env.convert_obs_to_goal_states_pytorch(next_state),
-                self._discount_batch,
+                self._tau_batch,
             )**2
             score = (
                 reward
