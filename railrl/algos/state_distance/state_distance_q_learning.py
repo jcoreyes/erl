@@ -133,12 +133,6 @@ class StateDistanceQLearning(DDPG):
         self.exploration_policy.set_discount(self.discount)
         return self.training_env.reset()
 
-    def get_action_and_info(self, n_steps_total, observation):
-        self.exploration_policy.set_num_steps_total(n_steps_total)
-        return self.exploration_policy.get_action(
-            observation
-        )
-
     def get_batch(self, training=True):
         replay_buffer = self.replay_buffer.get_replay_buffer(training)
         batch_size = min(
