@@ -104,10 +104,12 @@ experiments=[
 ]
 
 max_path_length = 100
-policy_learning_rates = [1e-3, 1e-4]
-taus = [1e-3, 1e-4]
-cart_prod = list(itertools.product((policy_learning_rates, taus)))
+policy_learning_rates = [1e-2, 1e-3, 1e-4]
+taus = [1e-2, 1e-3, 1e-4]
+cart_prod = list(itertools.product(policy_learning_rates, taus))
+import ipdb; ipdb.set_trace()
 if __name__ == "__main__":
+    ray.init()
     try:
         exp_dir = sys.argv[1]
     except:
@@ -155,11 +157,34 @@ if __name__ == "__main__":
         max_path_length,
         False,
     )
-
-    for i in range(0, len(cart_prod)):
+    # import ipdb; ipdb.set_trace()
+    # for i in range(0, len(cart_prod)):
+    #     run_experiment(
+    #         example,
+    #         exp_prefix="ddpg-parallel-sawyer-fixed-end-effector-hyper-param-search" + str(cart_prod[0]),
+    #         seed=random.randint(0, 666),
+    #         mode='here',
+    #         variant={
+    #             'version': 'Original',
+    #             'max_path_length': max_path_length,
+    #             'use_gpu': True,
+    #             'algo_params': dict(
+    #                 batch_size=64,
+    #                 num_epochs=30,
+    #                 number_of_gradient_steps=1,
+    #                 num_steps_per_epoch=1000,
+    #                 max_path_length=max_path_length,
+    #                 num_steps_per_eval=300,
+    #                 policy_learning_rate=cart_prod[i][0],
+    #                 tau=cart_prod[i][1],
+    #             ),
+    #         },
+    #         use_gpu=True,
+    #     )
+    for i in range(0, 1):
         run_experiment(
             example,
-            exp_prefix="ddpg-parallel-sawyer-fixed-end-effector-hyper-param-search",
+            exp_prefix="ddpg-parallel-sawyer-fixed-end-effector-TEST",
             seed=random.randint(0, 666),
             mode='here',
             variant={
@@ -168,38 +193,15 @@ if __name__ == "__main__":
                 'use_gpu': True,
                 'algo_params': dict(
                     batch_size=64,
-                    num_epochs=30,
+                    num_epochs=10,
                     number_of_gradient_steps=1,
-                    num_steps_per_epoch=500,
+                    num_steps_per_epoch=1000,
                     max_path_length=max_path_length,
-                    num_steps_per_eval=500,
-                    policy_learning_rate=cart_prod[i][0],
-                    tau=cart_prod[i][1],
+                    num_steps_per_eval=300,
                 ),
             },
             use_gpu=True,
         )
-        for i in range(0, 3):
-            run_experiment(
-                example,
-                exp_prefix="ddpg-parallel-sawyer-fixed-end-effector-task",
-                seed=random.randint(0, 666),
-                mode='here',
-                variant={
-                    'version': 'Original',
-                    'max_path_length': max_path_length,
-                    'use_gpu': True,
-                    'algo_params': dict(
-                        batch_size=64,
-                        num_epochs=30,
-                        number_of_gradient_steps=1,
-                        num_steps_per_epoch=500,
-                        max_path_length=max_path_length,
-                        num_steps_per_eval=500,
-                    ),
-                },
-                use_gpu=True,
-            )
     #  env.turn_off_robot()
 
 def run():

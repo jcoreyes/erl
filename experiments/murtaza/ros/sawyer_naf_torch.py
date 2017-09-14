@@ -1,3 +1,5 @@
+import ray
+
 from railrl.envs.remote import RemoteRolloutEnv
 from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.ou_strategy import OUStrategy
@@ -10,6 +12,7 @@ import joblib
 from railrl.envs.ros.sawyer_env import SawyerEnv
 from railrl.torch import pytorch_util as ptu
 import random
+import itertools
 
 def example(variant):
     env_class = variant['env_class']
@@ -45,7 +48,7 @@ def example(variant):
         remote_env,
         naf_policy=naf_policy,
         exploration_strategy=es,
-        **variant['algo_params'],
+        **variant['algo_params']
     )
     if use_gpu and ptu.gpu_enabled():
         algorithm.cuda()
@@ -60,8 +63,13 @@ experiments=[
     'end_effector_position_orientation|varying_ee'
 ]
 max_path_length = 100
+learning_rates=[1e-2, 1e-3, 1e-4]
+use_batch_norm=[True,False]
+cart_prod = list(itertools.product(learning_rates, use_batch_norm))
+
 if __name__ == "__main__":
-    for i in range(10):
+    ray.init()
+    for i in range(5):
         run_experiment(
             example,
             exp_prefix="naf-parallel-sawyer-fixed-end-effector",
@@ -87,12 +95,12 @@ if __name__ == "__main__":
                     'reward_magnitude': 10,
                 },
                 'es_params': {
-                    'max_sigma': .25,
-                    'min_sigma': .25,
+                    'max_sigma': .5,
+                    'min_sigma': .5,
                 },
                 'algo_params': dict(
                     batch_size=64,
-                    num_epochs=30,
+                    num_epochs=60,
                     num_steps_per_epoch=1000,
                     max_path_length=max_path_length,
                     num_steps_per_eval=300,
