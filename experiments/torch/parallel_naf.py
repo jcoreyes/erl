@@ -1,15 +1,13 @@
 """
-Run DDPG on things.
+Experiment with NAF.
 """
+import railrl.torch.pytorch_util as ptu
 from railrl.envs.remote import RemoteRolloutEnv
 from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.policies.torch import FeedForwardPolicy
-from railrl.qfunctions.torch import FeedForwardQFunction
-from railrl.torch.algos.parallel_ddpg import ParallelDDPG
-import railrl.torch.pytorch_util as ptu
-from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
+from railrl.torch.algos.parallel_naf import ParallelNAF
+from railrl.torch.naf import NafPolicy
 from rllab.envs.mujoco.inverted_double_pendulum_env import \
     InvertedDoublePendulumEnv
 from rllab.envs.normalized_env import normalize
@@ -24,22 +22,15 @@ def example(variant):
         env = normalize(env)
     obs_space = convert_gym_space(env.observation_space)
     action_space = convert_gym_space(env.action_space)
-    qf = FeedForwardQFunction(
-        int(obs_space.flat_dim),
-        int(action_space.flat_dim),
-        400,
-        300,
-    )
     es_class = OUStrategy
     es_params = dict(
         action_space=action_space,
     )
-    policy_class = FeedForwardPolicy
+    policy_class = NafPolicy
     policy_params = dict(
         obs_dim=int(obs_space.flat_dim),
         action_dim=int(action_space.flat_dim),
-        fc1_size=400,
-        fc2_size=300,
+        hidden_size=400,
     )
     es = es_class(**es_params)
     policy = policy_class(**policy_params)
@@ -53,11 +44,10 @@ def example(variant):
         variant['max_path_length'],
         variant['normalize_env'],
     )
-    algorithm = ParallelDDPG(
+    algorithm = ParallelNAF(
         remote_env,
+        naf_policy=policy,
         exploration_strategy=es,
-        qf=qf,
-        policy=policy,
         **variant['algo_params']
     )
     if ptu.gpu_enabled():
@@ -66,32 +56,26 @@ def example(variant):
 
 
 if __name__ == "__main__":
-    max_path_length = 1000
+    max_path_length = 100
     variant = dict(
         algo_params=dict(
-            num_epochs=20,
-            num_steps_per_epoch=10000,
+            num_epochs=50,
+            num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
+            batch_size=1024,
+            replay_buffer_size=50000,
             max_path_length=max_path_length,
-            use_soft_update=True,
-            tau=1e-2,
-            batch_size=128,
-            discount=0.99,
-            qf_learning_rate=1e-3,
-            policy_learning_rate=1e-4,
         ),
         max_path_length=max_path_length,
-        env_class=HalfCheetahEnv,
+        env_class=InvertedDoublePendulumEnv,
         parallel=True,
         normalize_env=True,
     )
-    for seed in range(1):
-        run_experiment(
-            example,
-            # exp_prefix="parallel-ddpg-half-cheetah",
-            exp_prefix="test-ec2-ray",
-            seed=seed,
-            mode='ec2',
-            variant=variant,
-            use_gpu=False,
-        )
+    run_experiment(
+        example,
+        exp_prefix="parallel-naf-example",
+        seed=0,
+        mode='here',
+        variant=variant,
+        use_gpu=False,
+    )

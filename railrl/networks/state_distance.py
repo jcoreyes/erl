@@ -61,7 +61,7 @@ class UniversalQfunction(PyTorchModule):
 
         self.last_fc = nn.Linear(embed_hidden_size, 1)
         self.last_fc.weight.data.uniform_(-init_w, init_w)
-        self.last_fc.bias.data.fill_(b_init_value)
+        self.last_fc.bias.data.uniform_(-init_w, init_w)
 
     def forward(self, obs, action, goal_state, discount):
         h = torch.cat((obs, goal_state, discount), dim=1)
@@ -116,7 +116,7 @@ class FlatUniversalQfunction(PyTorchModule):
 
         self.last_fc = nn.Linear(embed_hidden_size, 1)
         self.last_fc.weight.data.uniform_(-init_w, init_w)
-        self.last_fc.bias.data.fill_(b_init_value)
+        self.last_fc.bias.data.uniform_(-init_w, init_w)
 
     def forward(self, *inputs):
         h = torch.cat(inputs, dim=1)
@@ -211,7 +211,7 @@ class UniversalPolicy(PyTorchModule):
         self.fc2.bias.data.fill_(b_init_value)
 
         self.last_fc.weight.data.uniform_(-init_w, init_w)
-        self.last_fc.bias.data.fill_(b_init_value)
+        self.last_fc.bias.data.uniform_(-init_w, init_w)
 
     def forward(self, obs, goal_state, discount):
         h = torch.cat((obs, goal_state, discount), dim=1)
