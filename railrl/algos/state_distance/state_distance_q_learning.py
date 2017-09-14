@@ -324,6 +324,8 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             **kwargs
     ):
         """
+        I'm reusing discount as tau. Don't feel like renaming everything.
+
         :param do_tau_correctly:  The correct interpretation of tau is
         "how far you are from the goal state after tau steps."
         The wrong version just uses tau as a timer.
@@ -346,9 +348,12 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
         goal_states = batch['goal_states']
 
         batch_size = obs.size()[0]
-        num_steps_left_np = np.random.randint(
-            0, self.discount, (batch_size, 1)
-        )
+        if self.discount == 0:
+            num_steps_left_np = np.zeros((batch_size, 1))
+        else:
+            num_steps_left_np = np.random.randint(
+                0, self.discount, (batch_size, 1)
+            )
         num_steps_left = ptu.np_to_var(num_steps_left_np)
         terminals_np = (num_steps_left_np == 0).astype(int)
         terminals = ptu.np_to_var(terminals_np)

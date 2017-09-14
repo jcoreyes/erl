@@ -166,8 +166,8 @@ if __name__ == '__main__':
         ),
         epoch_discount_schedule_class=IntRampUpSchedule,
         epoch_discount_schedule_params=dict(
-            min_value=100,
-            max_value=100,
+            min_value=0,
+            max_value=0,
             ramp_duration=1,
         ),
         algo_class=HorizonFedStateDistanceQLearning,
