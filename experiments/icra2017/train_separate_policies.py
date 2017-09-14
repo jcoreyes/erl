@@ -51,8 +51,8 @@ if __name__ == '__main__':
     run_mode = "none"
 
     n_seeds = 3
-    # mode = "ec2"
-    # exp_prefix = "pusher-3dof-avoid-grid--task-hitpenalty"
+    mode = "ec2"
+    exp_prefix = "pusher-3dof-avoid-grid--task-hitpenalty"
     # version = "Dev"
     run_mode = 'grid'
 
@@ -67,7 +67,7 @@ if __name__ == '__main__':
         version=version,
         algo_params=dict(
             num_epochs=201,
-            num_steps_per_epoch=1000,
+            num_steps_per_epoch=10000,
             num_steps_per_eval=1500,
             use_soft_update=True,
             tau=1e-3,
