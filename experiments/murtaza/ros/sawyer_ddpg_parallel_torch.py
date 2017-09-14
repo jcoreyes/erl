@@ -12,7 +12,10 @@ from railrl.policies.torch import FeedForwardPolicy
 from railrl.qfunctions.torch import FeedForwardQFunction
 from railrl.torch.algos.parallel_ddpg import ParallelDDPG
 from rllab.envs.normalized_env import normalize
+import random
 import ray
+import itertools
+
 
 def example(variant):
     # env_class = variant['env_class']
@@ -101,6 +104,9 @@ experiments=[
 ]
 
 max_path_length = 100
+policy_learning_rates = [1e-3, 1e-4]
+taus = [1e-3, 1e-4]
+cart_prod = list(itertools.product((policy_learning_rates, taus)))
 if __name__ == "__main__":
     try:
         exp_dir = sys.argv[1]
@@ -150,12 +156,11 @@ if __name__ == "__main__":
         False,
     )
 
-    for i in range(0, 1):
-        print('SEED ', i)
+    for i in range(0, len(cart_prod)):
         run_experiment(
             example,
-            exp_prefix="ddpg-parallel-sawyer-fixed-end-effector-REFACTOR-TEST",
-            seed=i,
+            exp_prefix="ddpg-parallel-sawyer-fixed-end-effector-hyper-param-search",
+            seed=random.randint(0, 666),
             mode='here',
             variant={
                 'version': 'Original',
@@ -168,17 +173,40 @@ if __name__ == "__main__":
                     num_steps_per_epoch=500,
                     max_path_length=max_path_length,
                     num_steps_per_eval=500,
+                    policy_learning_rate=cart_prod[i][0],
+                    tau=cart_prod[i][1],
                 ),
             },
             use_gpu=True,
         )
+        for i in range(0, 3):
+            run_experiment(
+                example,
+                exp_prefix="ddpg-parallel-sawyer-fixed-end-effector-task",
+                seed=random.randint(0, 666),
+                mode='here',
+                variant={
+                    'version': 'Original',
+                    'max_path_length': max_path_length,
+                    'use_gpu': True,
+                    'algo_params': dict(
+                        batch_size=64,
+                        num_epochs=30,
+                        number_of_gradient_steps=1,
+                        num_steps_per_epoch=500,
+                        max_path_length=max_path_length,
+                        num_steps_per_eval=500,
+                    ),
+                },
+                use_gpu=True,
+            )
     #  env.turn_off_robot()
 
 def run():
     run_experiment(
         example,
         exp_prefix="ddpg-parallel-sawyer-fixed-end-effector-10-seeds",
-        seed=i,
+        seed=random.randint(0, 666),
         mode='here',
         variant={
             'version': 'Original',
