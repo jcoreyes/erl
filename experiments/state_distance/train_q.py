@@ -36,6 +36,7 @@ from railrl.misc.hypopt import optimize_and_save
 from railrl.misc.ml_util import RampUpSchedule, IntRampUpSchedule
 from railrl.networks.state_distance import FFUniversalPolicy, UniversalQfunction, \
     FlatUniversalQfunction
+from railrl.policies.state_distance import MultiStepSampleOptimalControlPolicy
 from railrl.torch.modules import HuberLoss
 from railrl.torch.state_distance.exploration import \
     UniversalPolicyWrappedWithExplorationStrategy
@@ -76,9 +77,14 @@ def experiment(variant):
         action_space=action_space,
         **variant['sampler_es_params']
     )
+    raw_exploration_policy = MultiStepSampleOptimalControlPolicy(
+        qf,
+        env,
+        5,
+    )
     exploration_policy = UniversalPolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
-        policy=policy,
+        policy=raw_exploration_policy,
     )
     algo = variant['algo_class'](
         env,
@@ -99,6 +105,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--replay_path', type=str,
                         help='path to the snapshot file')
+    parser.add_argument('--render', action='store_true')
     args = parser.parse_args()
 
     n_seeds = 1
@@ -106,9 +113,9 @@ if __name__ == '__main__':
     exp_prefix = "dev-train-q"
     run_mode = "none"
 
-    n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "reacher-7dof-full-state"
+    # n_seeds = 3
+    # mode = "ec2"
+    # exp_prefix = "reacher-7dof-full-state"
     # run_mode = 'grid'
 
     version = "Dev"
@@ -146,6 +153,7 @@ if __name__ == '__main__':
             prob_goal_state_is_next_state=0,
             termination_threshold=0,
             do_tau_correctly=False,
+            render=args.render,
         ),
         qf_class=UniversalQfunction,
         qf_params=dict(
@@ -163,10 +171,10 @@ if __name__ == '__main__':
             ramp_duration=1,
         ),
         algo_class=HorizonFedStateDistanceQLearning,
-        env_class=Reacher7DofFullGoalState,
+        # env_class=Reacher7DofFullGoalState,
         # env_class=ArmEEInStatePusherEnv,
         # env_class=JointOnlyPusherEnv,
-        # env_class=GoalStateSimpleStateReacherEnv,
+        env_class=GoalStateSimpleStateReacherEnv,
         # env_class=XyMultitaskSimpleStateReacherEnv,
         env_params=dict(),
         sampler_params=dict(
