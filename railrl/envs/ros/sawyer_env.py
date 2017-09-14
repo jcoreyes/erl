@@ -332,7 +332,8 @@ class SawyerEnv(Env, Serializable):
 
             if self.fixed_end_effector:
                 # des = [0.49769472921756647, 0.031977172139977056, 0.4708391209982404]
-                self.desired = np.array([0.3103441506689085, -0.010549035732281596, 1.2463074746529437])
+                # self.desired = np.array([0.3103441506689085, -0.010549035732281596, 1.2463074746529437])
+                self.desired = np.array([0.68998028, -0.2285752, 0.3477])
                 # self.desired = np.array([
                 #     0.49769472921756647,
                 #     0.031977172139977056,
@@ -608,7 +609,7 @@ class SawyerEnv(Env, Serializable):
                 print('unexpected_torque during train/eval: ', new_torques)
                 return True
         else:
-            ERROR_THRESHOLD = np.array([25, 25, 25, 25, 666, 666, 10])
+            ERROR_THRESHOLD = np.array([25, 25, 25, 30, 666, 666, 10])
             is_peaks = (np.abs(new_torques) > ERROR_THRESHOLD).any()
             if is_peaks:
                 raise EnvironmentError('unexpected torques during reset: ', new_torques)
@@ -687,7 +688,7 @@ class SawyerEnv(Env, Serializable):
                 break
             if self.use_safety_checks:
                 self.safety_box_check()
-                self.unexpected_torque_check()
+                # self.unexpected_torque_check()
                 self.high_torque_check(actual_commanded_actions)
                 self.unexpected_velocity_check()
 
@@ -873,6 +874,7 @@ class SawyerEnv(Env, Serializable):
             if self.end_effector_experiment_total:
                 orientations = []
                 desired_orientations = []
+            last_n_distances = []
             for obsSet in obsSets:
                 for observation in obsSet:
                     if self.use_angle_parameterization:
@@ -888,6 +890,16 @@ class SawyerEnv(Env, Serializable):
                         positions.append(pos)
                         desired_positions.append(des)
 
+                    for observation in obsSet[len(obsSet)-10:len(obsSet)]:
+                        if self.use_angle_parameterization:
+                            pos = np.array(observation[28:31])
+                            des = np.array(observation[31:34])
+                            last_n_distances.append(np.linalg.norm(pos - des))
+                        else:
+                            pos = np.array(observation[21:24])
+                            des = np.array(observation[24:27])
+                            last_n_distances.append(np.linalg.norm(pos - des))
+
                     if self.end_effector_experiment_total:
                         orientations.append(observation[24:28])
                         desired_orientations.append(observation[28:32])
@@ -898,13 +910,19 @@ class SawyerEnv(Env, Serializable):
                 'Distance from Desired End Effector Position'
             ))
 
-            if self.safety_box:
-                distances_outside_box = np.array([self.compute_distances_outside_box(pose) for pose in positions])
-                statistics.update(self._statistics_from_observations(
-                    distances_outside_box,
-                    stat_prefix,
-                    'End Effector Distance Outside Box'
-                ))
+            statistics.update(self._statistics_from_observations(
+                last_n_distances,
+                stat_prefix,
+                'Last N Step Distance from Desired End Effector Position'
+            ))
+
+            # if self.safety_box:
+            #     distances_outside_box = np.array([self.compute_distances_outside_box(pose) for pose in positions])
+            #     statistics.update(self._statistics_from_observations(
+            #         distances_outside_box,
+            #         stat_prefix,
+            #         'End Effector Distance Outside Box'
+            #     ))
 
             if self.end_effector_experiment_total:
                 orientations_distance = linalg.norm(orientations-desired_orientations, axis=1)
