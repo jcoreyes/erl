@@ -34,7 +34,7 @@ files = dict(
         '/home/vitchyr/git/rllab-rail/railrl/data/s3/09-14-pusher-3dof-reacher-naf-yolo-bottom-right/09-14_pusher-3dof-reacher-naf-yolo_bottom-right_2017_09_14_17_52_45_0007/params.pkl'
     ),
     reach_bottom_middle=(
-        '/home/vitchyr/git/rllab-rail/railrl/data/s3/09-14-pusher-3dof-reacher-naf-yolo-bottom-middle/09-14_pusher-3dof-reacher-naf-yolo_bottom-middle_2017_09_14_17_52_45_0004/params.pkl'
+        '/home/vitchyr/git/rllab-rail/railrl/data/s3/09-14-pusher-3dof-reacher-naf-yolo-bottom-middle/09-14_pusher-3dof-reacher-naf-yolo_bottom-middle_2017_09_14_17_52_45_0005/params.pkl'
     ),
 )
 
