@@ -54,7 +54,7 @@ if __name__ == '__main__':
 
     # n_seeds = 10
     # mode = "ec2"
-    exp_prefix = "combine-policies"
+    # exp_prefix = "combine-policies"
     # version = "Dev"
     # run_mode = 'grid'
 
@@ -72,34 +72,37 @@ if __name__ == '__main__':
             horizontal_pos=horizontal_pos,
         )
     )
-    ddpg1_snapshot_path = (
-        '/home/vitchyr/git/rllab-rail/railrl/data/local/09-14-dev-separate-policies/09-14_dev-separate-policies_2017_09_14_15_24_06_0000--s-7544/'
-        'params.pkl'
-    )
-    replay_buffer1_path = (
-        '/home/vitchyr/git/rllab-rail/railrl/data/local/09-14-dev-separate-policies/09-14_dev-separate-policies_2017_09_14_15_24_06_0000--s-7544/'
-        'extra_data.pkl'
-    )
-    ddpg2_snapshot_path = ddpg1_snapshot_path
-    replay_buffer2_path = replay_buffer1_path
+    # ddpg1_snapshot_path = (
+    #     '/home/vitchyr/git/rllab-rail/railrl/data/local/09-14-dev-separate-policies/09-14_dev-separate-policies_2017_09_14_15_24_06_0000--s-7544/'
+    #     'params.pkl'
+    # )
+    # replay_buffer1_path = (
+    #     '/home/vitchyr/git/rllab-rail/railrl/data/local/09-14-dev-separate-policies/09-14_dev-separate-policies_2017_09_14_15_24_06_0000--s-7544/'
+    #     'extra_data.pkl'
+    # )
+    # ddpg2_snapshot_path = ddpg1_snapshot_path
+    # replay_buffer2_path = replay_buffer1_path
     variant = dict(
         version=version,
         ddpg1_snapshot_path=ddpg1_snapshot_path,
         ddpg2_snapshot_path=ddpg2_snapshot_path,
-        replay_buffer1_path=replay_buffer1_path,
-        replay_buffer2_path=replay_buffer2_path,
+        replay_buffer1_path=ddpg1_snapshot_path,
+        replay_buffer2_path=ddpg2_snapshot_path,
         algo_params=dict(
             num_epochs=100,
-            num_steps_per_epoch=1000,
+            num_steps_per_epoch=10,
             policy_learning_rate=1e-3,
             batch_size=128,
             num_steps_per_eval=900,
             max_path_length=300,
-            discount=0.99
+            discount=0.99,
+            # render=True,
         ),
-        env_class=PusherAvoiderEnv3DOF,
+        # env_class=PusherAvoiderEnv3DOF,
+        env_class=PusherEnv3DOF,
         env_params=dict(
-            task='both',
+            # task='both',
+            goal=(np.inf, -1),
         ),
     )
     if run_mode == 'grid':
