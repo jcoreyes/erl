@@ -54,7 +54,7 @@ if __name__ == '__main__':
 
     # n_seeds = 10
     # mode = "ec2"
-    # exp_prefix = "combine-policies"
+    exp_prefix = "combine-policies-right-bottom-maybe-changes"
     # version = "Dev"
     # run_mode = 'grid'
 
@@ -62,7 +62,7 @@ if __name__ == '__main__':
     if mode != "here":
         use_gpu = False
 
-    vertical_pos = 'left'
+    vertical_pos = 'right'
     horizontal_pos = 'bottom'
 
     exp_prefix += "--{}-{}".format(vertical_pos, horizontal_pos)
