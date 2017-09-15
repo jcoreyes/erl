@@ -1,13 +1,8 @@
 import joblib
-import numpy as np
-import torch
 
 from railrl.launchers.launcher_util import run_experiment
-from railrl.policies.base import Policy, SerializablePolicy
+from railrl.policies.composition import AveragerPolicy, CombinedNafPolicy
 from railrl.samplers.util import rollout
-from railrl.torch.naf import NafPolicy
-from rllab.core.serializable import Serializable
-from rllab.envs.normalized_env import normalize
 from rllab.misc import logger
 
 column_to_path = dict(
@@ -26,30 +21,12 @@ bottom_path = (
 )
 
 
-class CombinedNafPolicy(SerializablePolicy, Serializable):
-    def __init__(
-            self,
-            naf_policy_1: NafPolicy,
-            naf_policy_2: NafPolicy,
-    ):
-        Serializable.quick_init(self, locals())
-        self.naf_policy_1 = naf_policy_1
-        self.naf_policy_2 = naf_policy_2
-
-    # noinspection PyCallingNonCallable
-    def get_action(self, obs):
-        mu1, P1 = self.naf_policy_1.get_action_and_P_matrix(obs)
-        mu2, P2 = self.naf_policy_2.get_action_and_P_matrix(obs)
-        inv = np.linalg.inv(P1 + P2)
-        return inv * (P1 @ mu1 + P2 @ mu2), {}
-
-
 def create_policy(variant):
     bottom_snapshot = joblib.load(variant['bottom_path'])
     column_snapshot = joblib.load(variant['column_path'])
-    policy = CombinedNafPolicy(
-        naf_policy_1=bottom_snapshot['naf_policy'],
-        naf_policy_2=column_snapshot['naf_policy'],
+    policy = variant['combiner_class'](
+        policy1=bottom_snapshot['naf_policy'],
+        policy2=column_snapshot['naf_policy'],
     )
     env = bottom_snapshot['env']
     logger.save_itr_params(
@@ -63,27 +40,34 @@ def create_policy(variant):
         env,
         policy,
         max_path_length=variant['max_path_length'],
-        animated=True,
+        animated=variant['render'],
     )
     env.log_diagnostics([path])
     logger.dump_tabular()
 
 
 if __name__ == '__main__':
-    # exp_prefix = "dev-naf-combine-policies"
-    for column in ['left', 'middle', 'right']:
-        column = 'right'
-        exp_prefix = "combine-naf-policies-bottom-" + column
+    exp_prefix = "dev-naf-combine-policies"
+    # exp_prefix = "average-naf-policies-bottom"
+    for column in [
+        'left',
+        'middle',
+        'right',
+    ]:
+        new_exp_prefix = "{}-{}".format(exp_prefix, column)
 
         variant = dict(
             column=column,
             column_path=column_to_path[column],
             bottom_path=bottom_path,
             max_path_length=300,
+            combiner_class=CombinedNafPolicy,
+            # combiner_class=AveragerPolicy,
+            render=False,
         )
         run_experiment(
             create_policy,
-            exp_prefix=exp_prefix,
+            exp_prefix=new_exp_prefix,
             mode='here',
             variant=variant,
         )
