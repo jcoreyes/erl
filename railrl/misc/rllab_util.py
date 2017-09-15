@@ -45,6 +45,16 @@ def split_paths(paths):
     assert len(next_obs.shape) == 2
     return rewards, terminals, obs, actions, next_obs
 
+def split_paths_to_dict(paths):
+    rewards, terminals, obs, actions, next_obs = split_paths(paths)
+    return dict(
+        rewards=rewards,
+        terminals=terminals,
+        observations=obs,
+        actions=actions,
+        next_observations=next_obs,
+    )
+
 
 def get_stat_in_dict(paths, dict_name, scalar_name):
     return np.vstack([
