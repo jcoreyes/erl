@@ -23,10 +23,10 @@ class NAF(OnlineAlgorithm):
     def __init__(
             self,
             env,
-            naf_policy,
+            policy,
             exploration_strategy,
             exploration_policy=None,
-            naf_policy_learning_rate=1e-3,
+            policy_learning_rate=1e-3,
             target_hard_update_period=1000,
             tau=0.001,
             use_soft_update=False,
@@ -34,24 +34,24 @@ class NAF(OnlineAlgorithm):
             **kwargs
     ):
         if exploration_policy is None:
-            exploration_policy = naf_policy
+            exploration_policy = policy
         super().__init__(
             env,
             exploration_policy,
             exploration_strategy,
             **kwargs
         )
-        self.naf_policy = naf_policy
-        self.naf_policy_learning_rate = naf_policy_learning_rate
-        self.target_naf_policy = self.naf_policy.copy()
+        self.policy = policy
+        self.policy_learning_rate = policy_learning_rate
+        self.target_policy = self.policy.copy()
         self.target_hard_update_period = target_hard_update_period
         self.tau = tau
         self.use_soft_update = use_soft_update
 
-        self.naf_policy_criterion = nn.MSELoss()
-        self.naf_policy_optimizer = optim.Adam(
-            self.naf_policy.parameters(),
-            lr=self.naf_policy_learning_rate,
+        self.policy_criterion = nn.MSELoss()
+        self.policy_optimizer = optim.Adam(
+            self.policy.parameters(),
+            lr=self.policy_learning_rate,
         )
 
         if replay_buffer is None:
@@ -72,8 +72,8 @@ class NAF(OnlineAlgorithm):
             self.replay_buffer = replay_buffer
 
     def cuda(self):
-        self.naf_policy.cuda()
-        self.target_naf_policy.cuda()
+        self.policy.cuda()
+        self.target_policy.cuda()
 
     def _do_training(self, n_steps_total):
         batch = self.get_batch()
@@ -82,20 +82,20 @@ class NAF(OnlineAlgorithm):
         Optimize Critic.
         """
         train_dict = self.get_train_dict(batch)
-        naf_policy_loss = train_dict['NAF Policy Loss']
+        policy_loss = train_dict['Policy Loss']
 
-        self.naf_policy_optimizer.zero_grad()
-        naf_policy_loss.backward()
-        self.naf_policy_optimizer.step()
+        self.policy_optimizer.zero_grad()
+        policy_loss.backward()
+        self.policy_optimizer.step()
 
         """
         Update Target Networks
         """
         if self.use_soft_update:
-            ptu.soft_update_from_to(self.target_naf_policy, self.naf_policy, self.tau)
+            ptu.soft_update_from_to(self.target_policy, self.policy, self.tau)
         else:
             if n_steps_total % self.target_hard_update_period == 0:
-                ptu.copy_model_params_from_to(self.naf_policy, self.target_naf_policy)
+                ptu.copy_model_params_from_to(self.policy, self.target_policy)
 
     def get_train_dict(self, batch):
         rewards = batch['rewards']
@@ -104,24 +104,24 @@ class NAF(OnlineAlgorithm):
         actions = batch['actions']
         next_obs = batch['next_observations']
 
-        _, _, v_pred = self.target_naf_policy(next_obs, None)
+        _, _, v_pred = self.target_policy(next_obs, None)
         y_target = rewards + (1. - terminals) * self.discount * v_pred
         # noinspection PyUnresolvedReferences
         y_target = y_target.detach()
-        mu, y_pred, v = self.naf_policy(obs, actions)
-        naf_policy_loss = self.naf_policy_criterion(y_pred, y_target)
+        mu, y_pred, v = self.policy(obs, actions)
+        policy_loss = self.policy_criterion(y_pred, y_target)
 
         return OrderedDict([
-            ('NAF Policy v', v),
-            ('NAF Policy mu', mu),
-            ('NAF Policy Loss', naf_policy_loss),
+            ('Policy v', v),
+            ('Policy mu', mu),
+            ('Policy Loss', policy_loss),
             ('Y targets', y_target),
             ('Y predictions', y_pred),
         ])
 
     def training_mode(self, mode):
-        self.naf_policy.train(mode)
-        self.target_naf_policy.train(mode)
+        self.policy.train(mode)
+        self.target_policy.train(mode)
 
     def evaluate(self, epoch, exploration_paths):
         """
@@ -175,15 +175,15 @@ class NAF(OnlineAlgorithm):
 
         train_dict = self.get_train_dict(batch)
         for name in [
-            'NAF Policy Loss',
+            'Policy Loss',
         ]:
             tensor = train_dict[name]
             statistics_name = "{} {} Mean".format(stat_prefix, name)
             statistics[statistics_name] = np.mean(ptu.get_numpy(tensor))
 
         for name in [
-            'NAF Policy v',
-            'NAF Policy mu',
+            'Policy v',
+            'Policy mu',
             'Y targets',
             'Y predictions',
         ]:
@@ -207,7 +207,7 @@ class NAF(OnlineAlgorithm):
         return dict(
             epoch=epoch,
             env=self.training_env,
-            naf_policy=self.naf_policy,
+            policy=self.policy,
             replay_buffer=self.replay_buffer,
             algorithm=self,
         )
