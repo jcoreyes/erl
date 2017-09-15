@@ -47,8 +47,9 @@ def create_policy(variant):
 
 
 if __name__ == '__main__':
-    exp_prefix = "dev-naf-combine-policies"
+    # exp_prefix = "dev-naf-combine-policies"
     # exp_prefix = "average-naf-policies-bottom"
+    exp_prefix = "1-combine-naf-policies"
     for column in [
         'left',
         'middle',

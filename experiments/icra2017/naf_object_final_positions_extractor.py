@@ -19,13 +19,13 @@ files = dict(
         '/home/vitchyr/git/rllab-rail/railrl/data/s3/09-14-pusher-3dof-reacher-naf-yolo-bottom/09-14_pusher-3dof-reacher-naf-yolo_bottom_2017_09_14_17_52_45_0019/params.pkl'
     ),
     merge_bottom_left=(
-        ''
+        '/home/vitchyr/git/rllab-rail/railrl/data/local/09-14-1-combine-naf-policies-left/09-14_1-combine-naf-policies-left_2017_09_14_21_42_24_0000--s-68077/params.pkl'
     ),
     merge_bottom_right=(
-        ''
+        '/home/vitchyr/git/rllab-rail/railrl/data/local/09-14-1-combine-naf-policies-right/09-14_1-combine-naf-policies-right_2017_09_14_21_42_29_0000--s-42677/params.pkl'
     ),
     merge_bottom_middle=(
-        ''
+        '/home/vitchyr/git/rllab-rail/railrl/data/local/09-14-1-combine-naf-policies-middle/09-14_1-combine-naf-policies-middle_2017_09_14_21_42_27_0000--s-91696/params.pkl'
     ),
     reach_bottom_left=(
         '/home/vitchyr/git/rllab-rail/railrl/data/s3/09-14-pusher-3dof-reacher-naf-yolo-bottom-left/09-14_pusher-3dof-reacher-naf-yolo_bottom-left_2017_09_14_17_52_45_0001/params.pkl'
@@ -43,7 +43,10 @@ for name, full_path in files.items():
     name = name.replace('_', '-')  # in case Tuomas's script cares
 
     data = joblib.load(full_path)
-    policy = data['policy']
+    if 'policy' in data:
+        policy = data['policy']
+    else:
+        policy = data['naf_policy']
     env = data['env']
 
     print(name)
