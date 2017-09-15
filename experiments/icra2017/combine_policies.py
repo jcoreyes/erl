@@ -90,7 +90,7 @@ if __name__ == '__main__':
         replay_buffer2_path=ddpg2_snapshot_path,
         algo_params=dict(
             num_epochs=100,
-            num_steps_per_epoch=10,
+            num_steps_per_epoch=300,
             policy_learning_rate=1e-3,
             batch_size=128,
             num_steps_per_eval=900,
