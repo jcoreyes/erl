@@ -51,10 +51,10 @@ if __name__ == '__main__':
     run_mode = "none"
 
     n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "pusher-3dof-avoid-grid--task-hitpenalty"
+    # mode = "ec2"
+    exp_prefix = "pusher-3dof-reacher-bottom-right"
     # version = "Dev"
-    run_mode = 'grid'
+    # run_mode = 'grid'
 
     use_gpu = True
     if mode != "here":
@@ -77,11 +77,13 @@ if __name__ == '__main__':
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
         ),
-        env_class=PusherAvoiderEnv3DOF,
+        # env_class=PusherAvoiderEnv3DOF,
+        # env_params=dict(
+        #     task='push',
+        # ),
+        env_class=PusherEnv3DOF,
         env_params=dict(
-            # goal=(np.nan, -1),
-            # goal=(1, np.nan),
-            task='push',
+            goal=(1, -1),
         ),
     )
     if run_mode == 'grid':
@@ -89,12 +91,15 @@ if __name__ == '__main__':
             # 'algo_params.use_soft_update': [True, False],
             # 'algo_params.tau': [1e-2, 1e-3],
             # 'algo_params.batch_size': [128, 512],
-            'env_params.hit_penalty': [0.05, 0.1, 1, 5],
-            'env_params.task': [
-                'push',
-                'avoid',
-                'both',
-            ]
+            # 'env_params.hit_penalty': [0.05, 0.1, 1, 5],
+            # 'env_params.task': [
+            #     'push',
+            #     'avoid',
+            #     'both',
+            # ]
+            # 'env_params.goal': [
+            #     (-1, -1),
+            # ]
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
             search_space, default_parameters=variant,
