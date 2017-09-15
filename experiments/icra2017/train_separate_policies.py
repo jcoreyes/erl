@@ -72,8 +72,8 @@ if __name__ == '__main__':
     run_mode = "none"
 
     n_seeds = 3
-    # mode = "ec2"
-    # exp_prefix = "pusher-3dof-reacher-bottom-right"
+    mode = "ec2"
+    exp_prefix = "pusher-3dof-reacher-naf-yolo"
     # version = "Dev"
     run_mode = 'custom_grid'
 
@@ -170,7 +170,7 @@ if __name__ == '__main__':
                 seed = random.randint(0, 10000)
                 run_experiment(
                     experiment,
-                    exp_prefix=exp_prefix,
+                    exp_prefix=new_exp_prefix,
                     seed=seed,
                     mode=mode,
                     variant=variant,
