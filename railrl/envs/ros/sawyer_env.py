@@ -543,7 +543,6 @@ class SawyerEnv(Env, Serializable):
             print('VIBRATION')
             print(self.in_reset)
             np.save('vibrations.npy', [self.q, self.reset_q])
-            ipdb.set_trace()
             self._rs.enable()
         self.nan_check(action)
         actual_commanded_action = self._act(action)

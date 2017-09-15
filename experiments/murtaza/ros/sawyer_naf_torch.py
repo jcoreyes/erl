@@ -71,10 +71,51 @@ cart_prod = list(itertools.product(learning_rates, use_batch_norm))
 
 if __name__ == "__main__":
     ray.init()
-    for i in range(0, len(cart_prod)):
+    # for i in range(1, len(cart_prod)):
+    #     run_experiment(
+    #         example,
+    #         exp_prefix="naf-parallel-sawyer-fixed-end-effector-hyper-param-search",
+    #         seed=random.randint(0, 666),
+    #         mode='here',
+    #         variant={
+    #             'version': 'Original',
+    #             'max_path_length': max_path_length,
+    #             'use_gpu': True,
+    #             'es_class': OUStrategy,
+    #             'env_class': SawyerEnv,
+    #             'policy_class': NafPolicy,
+    #             'normalize_env': False,
+    #             'use_batch_norm':cart_prod[i][1],
+    #             'env_params': {
+    #                 'arm_name': 'right',
+    #                 'safety_box': True,
+    #                 'loss': 'huber',
+    #                 'huber_delta': 10,
+    #                 'safety_force_magnitude': 5,
+    #                 'temp': 1,
+    #                 'remove_action': False,
+    #                 'experiment': experiments[2],
+    #                 'reward_magnitude': 10,
+    #             },
+    #             'es_params': {
+    #                 'max_sigma': .5,
+    #                 'min_sigma': .5,
+    #             },
+    #             'algo_params': dict(
+    #                 batch_size=64,
+    #                 num_epochs=30,
+    #                 num_steps_per_epoch=1000,
+    #                 max_path_length=max_path_length,
+    #                 num_steps_per_eval=300,
+    #                 naf_policy_learning_rate=cart_prod[i][0],
+    #             ),
+    #         },
+    #         use_gpu=True,
+    #     )
+    for i in range(0, 3):
         run_experiment(
             example,
-            exp_prefix="naf-parallel-sawyer-fixed-end-effector",
+            exp_prefix="naf-parallel-sawyer-fixed-end-effector-final",
             seed=random.randint(0, 666),
             mode='here',
             variant={
@@ -85,7 +126,7 @@ if __name__ == "__main__":
                 'env_class': SawyerEnv,
                 'policy_class': NafPolicy,
                 'normalize_env': False,
-                'use_batch_norm':cart_prod[i][1],
+                'use_batch_norm':True,
                 'env_params': {
                     'arm_name': 'right',
                     'safety_box': True,
@@ -103,11 +144,11 @@ if __name__ == "__main__":
                 },
                 'algo_params': dict(
                     batch_size=64,
-                    num_epochs=60,
+                    num_epochs=30,
                     num_steps_per_epoch=1000,
                     max_path_length=max_path_length,
                     num_steps_per_eval=300,
-                    naf_policy_learning_rate=cart_prod[i][0],
+                    naf_policy_learning_rate=0.001,
                 ),
             },
             use_gpu=True,
