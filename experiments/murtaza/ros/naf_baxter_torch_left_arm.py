@@ -45,6 +45,7 @@ def example(variant):
             safety_force_magnitude=safety_force_magnitude,
             temp=temp,
             huber_delta=huber_delta,
+            reward_magnitude=10,
         )
         es = OUStrategy(
             max_sigma=es_max_sigma,
@@ -60,8 +61,13 @@ def example(variant):
             env,
             naf_policy,
             es,
-            num_epochs=num_epochs,
-            batch_size=batch_size,
+            batch_size=64,
+            num_epochs=60,
+            num_steps_per_epoch=1000,
+            target_hard_update_period=1000,
+            max_path_length=100,
+            num_steps_per_eval=300,
+            naf_policy_learning_rate=1e-3,
         )
         if use_gpu and ptu.gpu_enabled():
             algorithm.cuda()

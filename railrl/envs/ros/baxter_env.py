@@ -42,8 +42,8 @@ JOINT_ANGLES_LOW = np.array([
 JOINT_VEL_HIGH = 2*np.ones(7)
 JOINT_VEL_LOW = -2*np.ones(7)
 
-JOINT_TORQUE_HIGH = 10*np.ones(7)
-JOINT_TORQUE_LOW = -10*np.ones(7)
+JOINT_TORQUE_HIGH = 1*np.ones(7)
+JOINT_TORQUE_LOW = -1*np.ones(7)
 
 JOINT_VALUE_HIGH = {
     'position': JOINT_ANGLES_HIGH,
@@ -399,6 +399,8 @@ class BaxterEnv(Env, Serializable):
         import math
         for act in action:
             if math.isnan(act):
+                import ipdb;
+                ipdb.set_trace()
                 print(act)
                 action = np.zeros(7)
         self._act(action)

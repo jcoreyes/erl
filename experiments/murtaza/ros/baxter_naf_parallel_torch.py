@@ -29,7 +29,7 @@ def example(variant):
         obs_dim=int(obs_space.flat_dim),
         action_dim=int(action_space.flat_dim),
         hidden_size=100,
-        use_batchnorm=True,
+        use_batchnorm=False,
     )
     naf_policy = NafPolicy(**policy_params)
     remote_env = RemoteRolloutEnv(
@@ -84,18 +84,20 @@ if __name__ == "__main__":
                     'huber_delta': 10,
                     'remove_action': False,
                     'experiment': experiments[0],
-                    'reward_magnitude': 10,
+                    'reward_magnitude': 1,
                 },
                 'es_params': {
-                    'max_sigma': .25,
-                    'min_sigma': .25,
+                    'max_sigma': .1,
+                    'min_sigma': .1,
                 },
                 'algo_params': dict(
                     batch_size=64,
                     num_epochs=60,
-                    num_steps_per_epoch=1000,
+                    num_steps_per_epoch=1000, # can you lower this if it keeps crashing?
+                    target_hard_update_period=10000,
                     max_path_length=max_path_length,
-                    num_steps_per_eval=300,
+                    num_steps_per_eval=300, # maybe lower this too.
+                    naf_policy_learning_rate=1e-3,
                 ),
             },
             use_gpu=True,

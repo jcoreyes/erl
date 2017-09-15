@@ -335,9 +335,13 @@ class NafPolicy(PyTorchModule):
         if action is not None:
             num_outputs = mu.size(1)
             raw_L = self.L(x).view(-1, num_outputs, num_outputs)
+            # L = (
+            #     raw_L * self.tril_mask.expand_as(raw_L)
+            #     + torch.exp(raw_L) * self.diag_mask.expand_as(raw_L) # here
+            # )
             L = (
                 raw_L * self.tril_mask.expand_as(raw_L)
-                + torch.exp(raw_L) * self.diag_mask.expand_as(raw_L)
+                + torch.pow(raw_L, 2) * self.diag_mask.expand_as(raw_L)  # here
             )
             P = torch.bmm(L, L.transpose(2, 1))
 
