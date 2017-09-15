@@ -225,43 +225,55 @@ class NafPolicy(PyTorchModule):
             obs_dim,
             action_dim,
             hidden_size,
+            use_batchnorm=False,
+            b_init_value=0.1,
+            hidden_init=ptu.fanin_init,
     ):
         self.save_init_params(locals())
         super(NafPolicy, self).__init__()
         self.obs_dim = obs_dim
         self.action_dim = action_dim
+        self.use_batchnorm = use_batchnorm
 
-        self.bn_state = nn.BatchNorm1d(obs_dim)
-        self.bn_state.weight.data.fill_(1)
-        self.bn_state.bias.data.fill_(0)
+        if use_batchnorm:
+            self.bn_state = nn.BatchNorm1d(obs_dim)
+            self.bn_state.weight.data.fill_(1)
+            self.bn_state.bias.data.fill_(0)
 
         self.linear1 = nn.Linear(obs_dim, hidden_size)
         self.linear2 = nn.Linear(hidden_size, hidden_size)
-
         self.V = nn.Linear(hidden_size, 1)
-        self.V.weight.data.mul_(0.1)
-        self.V.bias.data.mul_(0.1)
-
         self.mu = nn.Linear(hidden_size, action_dim)
-        self.mu.weight.data.mul_(0.1)
-        self.mu.bias.data.mul_(0.1)
-
         self.L = nn.Linear(hidden_size, action_dim ** 2)
-        self.L.weight.data.mul_(0.1)
-        self.L.bias.data.mul_(0.1)
 
-        self.tril_mask = ptu.Variable(torch.tril(torch.ones(
-            action_dim, action_dim), k=-1).unsqueeze(0))
-        self.diag_mask = ptu.Variable(torch.diag(torch.diag(
-            torch.ones(action_dim, action_dim))).unsqueeze(0))
+        self.tril_mask = ptu.Variable(
+            torch.tril(
+                torch.ones(action_dim, action_dim),
+            ).unsqueeze(0)
+        )
+        self.diag_mask = ptu.Variable(torch.diag(
+            torch.diag(
+                torch.ones(action_dim, action_dim)
+            )
+        ).unsqueeze(0))
+
+        hidden_init(self.linear1.weight)
+        self.linear1.bias.data.fill_(b_init_value)
+        hidden_init(self.linear2.weight)
+        self.linear2.bias.data.fill_(b_init_value)
+        hidden_init(self.V.weight)
+        self.V.bias.data.fill_(b_init_value)
+        hidden_init(self.L.weight)
+        self.L.bias.data.fill_(b_init_value)
+        hidden_init(self.mu.weight)
+        self.mu.bias.data.fill_(b_init_value)
 
     def forward(self, state, action):
-        state = self.bn_state(state)
+        if self.use_batchnorm:
+            state = self.bn_state(state)
         x = state
-        # x = F.relu(self.linear1(x))
-        # x = F.relu(self.linear2(x))
-        x = torch.tanh(self.linear1(x))
-        x = torch.tanh(self.linear2(x))
+        x = F.relu(self.linear1(x))
+        x = F.relu(self.linear2(x))
 
         V = self.V(x)
         mu = torch.tanh(self.mu(x))
@@ -270,9 +282,10 @@ class NafPolicy(PyTorchModule):
         if action is not None:
             num_outputs = mu.size(1)
             L = self.L(x).view(-1, num_outputs, num_outputs)
-            L = L * \
-                self.tril_mask.expand_as(
-                    L) + torch.exp(L) * self.diag_mask.expand_as(L)
+            L = (
+                L * self.tril_mask.expand_as(L)
+                + torch.exp(L) * self.diag_mask.expand_as(L)
+            )
             P = torch.bmm(L, L.transpose(2, 1))
 
             u_mu = (action - mu).unsqueeze(2)
