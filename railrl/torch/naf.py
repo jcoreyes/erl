@@ -7,9 +7,12 @@ from torch.nn import functional as F
 from torch import nn as nn
 from torch.autograd import Variable
 
+from railrl.data_management.env_replay_buffer import EnvReplayBuffer
+from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.misc.rllab_util import get_average_returns
+from railrl.misc.rllab_util import get_average_returns, split_paths_to_dict
 from railrl.torch.core import PyTorchModule
+from railrl.torch.ddpg import np_to_pytorch_batch
 from railrl.torch.online_algorithm import OnlineAlgorithm
 from railrl.torch import pytorch_util as ptu
 from rllab.misc import logger, special
@@ -27,6 +30,7 @@ class NAF(OnlineAlgorithm):
             target_hard_update_period=1000,
             tau=0.001,
             use_soft_update=False,
+            replay_buffer=None,
             **kwargs
     ):
         if exploration_policy is None:
@@ -45,30 +49,40 @@ class NAF(OnlineAlgorithm):
         self.use_soft_update = use_soft_update
 
         self.naf_policy_criterion = nn.MSELoss()
-        self.naf_policy_optimizer = optim.Adam(self.naf_policy.parameters(),
-                                       lr=self.naf_policy_learning_rate)
+        self.naf_policy_optimizer = optim.Adam(
+            self.naf_policy.parameters(),
+            lr=self.naf_policy_learning_rate,
+        )
+
+        if replay_buffer is None:
+            self.replay_buffer = SplitReplayBuffer(
+                EnvReplayBuffer(
+                    self.replay_buffer_size,
+                    self.env,
+                    flatten=True,
+                ),
+                EnvReplayBuffer(
+                    self.replay_buffer_size,
+                    self.env,
+                    flatten=True,
+                ),
+                fraction_paths_in_train=0.8,
+            )
+        else:
+            self.replay_buffer = replay_buffer
+
     def cuda(self):
         self.naf_policy.cuda()
         self.target_naf_policy.cuda()
 
     def _do_training(self, n_steps_total):
         batch = self.get_batch()
-        rewards = batch['rewards']
-        terminals = batch['terminals']
-        obs = batch['observations']
-        actions = batch['actions']
-        next_obs = batch['next_observations']
 
         """
         Optimize Critic.
         """
-        # Generate y target using target policies
-        _, _, v_pred = self.target_naf_policy(next_obs, None)
-        y_target = rewards + (1. - terminals) * self.discount * v_pred
-        # noinspection PyUnresolvedReferences
-        y_target = y_target.detach()
-        _, y_pred, _ = self.naf_policy(obs, actions)
-        naf_policy_loss = self.naf_policy_criterion(y_pred, y_target)
+        train_dict = self.get_train_dict(batch)
+        naf_policy_loss = train_dict['NAF Policy Loss']
 
         self.naf_policy_optimizer.zero_grad()
         naf_policy_loss.backward()
@@ -83,6 +97,28 @@ class NAF(OnlineAlgorithm):
             if n_steps_total % self.target_hard_update_period == 0:
                 ptu.copy_model_params_from_to(self.naf_policy, self.target_naf_policy)
 
+    def get_train_dict(self, batch):
+        rewards = batch['rewards']
+        terminals = batch['terminals']
+        obs = batch['observations']
+        actions = batch['actions']
+        next_obs = batch['next_observations']
+
+        _, _, v_pred = self.target_naf_policy(next_obs, None)
+        y_target = rewards + (1. - terminals) * self.discount * v_pred
+        # noinspection PyUnresolvedReferences
+        y_target = y_target.detach()
+        mu, y_pred, v = self.naf_policy(obs, actions)
+        naf_policy_loss = self.naf_policy_criterion(y_pred, y_target)
+
+        return OrderedDict([
+            ('NAF Policy v', v),
+            ('NAF Policy mu', mu),
+            ('NAF Policy Loss', naf_policy_loss),
+            ('Y targets', y_target),
+            ('Y predictions', y_pred),
+        ])
+
     def training_mode(self, mode):
         self.naf_policy.train(mode)
         self.target_naf_policy.train(mode)
@@ -96,12 +132,18 @@ class NAF(OnlineAlgorithm):
         """
         logger.log("Collecting samples for evaluation")
         test_paths = self._sample_eval_paths(epoch)
+        train_batch = self.get_batch(training=True)
+        validation_batch = self.get_batch(training=False)
+
         statistics = OrderedDict()
-
-        statistics.update(self._statistics_from_paths(exploration_paths,
-                                                      "Exploration"))
+        statistics.update(
+            self._statistics_from_paths(exploration_paths, "Exploration")
+        )
         statistics.update(self._statistics_from_paths(test_paths, "Test"))
-
+        statistics.update(self._statistics_from_batch(train_batch, "Train"))
+        statistics.update(
+            self._statistics_from_batch(validation_batch, "Validation")
+        )
         statistics['AverageReturn'] = get_average_returns(test_paths)
         statistics['Epoch'] = epoch
 
@@ -110,42 +152,52 @@ class NAF(OnlineAlgorithm):
 
         self.log_diagnostics(test_paths)
 
-
-    def get_batch(self):
-        batch = self.replay_buffer.random_batch(self.batch_size)
-        torch_batch = {
-            k: Variable(ptu.from_numpy(array).float(), requires_grad=False)
-            for k, array in batch.items()
-        }
-        rewards = torch_batch['rewards']
-        terminals = torch_batch['terminals']
-        torch_batch['rewards'] = rewards.unsqueeze(-1)
-        torch_batch['terminals'] = terminals.unsqueeze(-1)
-        return torch_batch
+    def get_batch(self, training=True):
+        replay_buffer = self.replay_buffer.get_replay_buffer(training)
+        sample_size = min(
+            replay_buffer.num_steps_can_sample(),
+            self.batch_size
+        )
+        batch = replay_buffer.random_batch(sample_size)
+        return np_to_pytorch_batch(batch)
 
     def _statistics_from_paths(self, paths, stat_prefix):
-        statistics = OrderedDict()
-        returns = [sum(path["rewards"]) for path in paths]
-
-        discounted_returns = [
-            special.discount_return(path["rewards"], self.discount)
-            for path in paths
-        ]
-        rewards = np.hstack([path["rewards"] for path in paths])
-        statistics.update(create_stats_ordered_dict('Rewards', rewards,
-                                                    stat_prefix=stat_prefix))
-        statistics.update(create_stats_ordered_dict('Returns', returns,
-                                                    stat_prefix=stat_prefix))
-        statistics.update(create_stats_ordered_dict('DiscountedReturns',
-                                                    discounted_returns,
-                                                    stat_prefix=stat_prefix))
-        actions = np.vstack([path["actions"] for path in paths])
-        statistics.update(create_stats_ordered_dict(
-            'Actions', actions, stat_prefix=stat_prefix
-        ))
+        np_batch = split_paths_to_dict(paths)
+        batch = np_to_pytorch_batch(np_batch)
+        statistics = self._statistics_from_batch(batch, stat_prefix)
         statistics.update(create_stats_ordered_dict(
             'Num Paths', len(paths), stat_prefix=stat_prefix
         ))
+        return statistics
+
+    def _statistics_from_batch(self, batch, stat_prefix):
+        statistics = OrderedDict()
+
+        train_dict = self.get_train_dict(batch)
+        for name in [
+            'NAF Policy Loss',
+        ]:
+            tensor = train_dict[name]
+            statistics_name = "{} {} Mean".format(stat_prefix, name)
+            statistics[statistics_name] = np.mean(ptu.get_numpy(tensor))
+
+        for name in [
+            'NAF Policy v',
+            'NAF Policy mu',
+            'Y targets',
+            'Y predictions',
+        ]:
+            tensor = train_dict[name]
+            statistics.update(create_stats_ordered_dict(
+                '{} {}'.format(stat_prefix, name),
+                ptu.get_numpy(tensor)
+            ))
+
+        statistics.update(create_stats_ordered_dict(
+            "{} Env Actions".format(stat_prefix),
+            ptu.get_numpy(batch['actions'])
+        ))
+
         return statistics
 
     def _can_evaluate(self, exploration_paths):
@@ -226,7 +278,7 @@ class NafPolicy(PyTorchModule):
             action_dim,
             hidden_size,
             use_batchnorm=False,
-            b_init_value=0.1,
+            b_init_value=0.01,
             hidden_init=ptu.fanin_init,
     ):
         self.save_init_params(locals())
@@ -249,6 +301,7 @@ class NafPolicy(PyTorchModule):
         self.tril_mask = ptu.Variable(
             torch.tril(
                 torch.ones(action_dim, action_dim),
+                -1
             ).unsqueeze(0)
         )
         self.diag_mask = ptu.Variable(torch.diag(
@@ -281,16 +334,17 @@ class NafPolicy(PyTorchModule):
         Q = None
         if action is not None:
             num_outputs = mu.size(1)
-            L = self.L(x).view(-1, num_outputs, num_outputs)
+            raw_L = self.L(x).view(-1, num_outputs, num_outputs)
             L = (
-                L * self.tril_mask.expand_as(L)
-                + torch.exp(L) * self.diag_mask.expand_as(L)
+                raw_L * self.tril_mask.expand_as(raw_L)
+                + torch.exp(raw_L) * self.diag_mask.expand_as(raw_L)
             )
             P = torch.bmm(L, L.transpose(2, 1))
 
             u_mu = (action - mu).unsqueeze(2)
-            A = -0.5 * \
-                torch.bmm(torch.bmm(u_mu.transpose(2, 1), P), u_mu)[:, :, 0]
+            A = - 0.5 * torch.bmm(
+                torch.bmm(u_mu.transpose(2, 1), P), u_mu
+            ).squeeze(2)
 
             Q = A + V
 
