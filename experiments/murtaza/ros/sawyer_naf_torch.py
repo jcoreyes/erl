@@ -17,6 +17,7 @@ import itertools
 def example(variant):
     env_class = variant['env_class']
     env_params = variant['env_params']
+    use_batch_norm=variant['use_batch_norm']
     env = env_class(**env_params)
     obs_space = convert_gym_space(env.observation_space)
     action_space = convert_gym_space(env.action_space)
@@ -32,6 +33,7 @@ def example(variant):
         obs_dim=int(obs_space.flat_dim),
         action_dim=int(action_space.flat_dim),
         hidden_size=100,
+        use_batchnorm=use_batch_norm
     )
     naf_policy = NafPolicy(**policy_params)
     remote_env = RemoteRolloutEnv(
@@ -69,7 +71,7 @@ cart_prod = list(itertools.product(learning_rates, use_batch_norm))
 
 if __name__ == "__main__":
     ray.init()
-    for i in range(5):
+    for i in range(0, len(cart_prod)):
         run_experiment(
             example,
             exp_prefix="naf-parallel-sawyer-fixed-end-effector",
@@ -83,6 +85,7 @@ if __name__ == "__main__":
                 'env_class': SawyerEnv,
                 'policy_class': NafPolicy,
                 'normalize_env': False,
+                'use_batch_norm':cart_prod[i][1],
                 'env_params': {
                     'arm_name': 'right',
                     'safety_box': True,
@@ -104,6 +107,7 @@ if __name__ == "__main__":
                     num_steps_per_epoch=1000,
                     max_path_length=max_path_length,
                     num_steps_per_eval=300,
+                    naf_policy_learning_rate=cart_prod[i][0],
                 ),
             },
             use_gpu=True,
