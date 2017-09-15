@@ -102,7 +102,7 @@ if __name__ == '__main__':
         env_class=PusherEnv3DOF,
         env_params=dict(
             # task='both',
-            goal=(np.inf, -1),
+            goal=(np.nan, -1),
         ),
     )
     if run_mode == 'grid':
