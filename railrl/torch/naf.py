@@ -226,7 +226,7 @@ class NafPolicy(PyTorchModule):
             action_dim,
             hidden_size,
             use_batchnorm=False,
-            b_init_value=0.1,
+            b_init_value=0.01,
             hidden_init=ptu.fanin_init,
     ):
         self.save_init_params(locals())
@@ -249,6 +249,7 @@ class NafPolicy(PyTorchModule):
         self.tril_mask = ptu.Variable(
             torch.tril(
                 torch.ones(action_dim, action_dim),
+                -1
             ).unsqueeze(0)
         )
         self.diag_mask = ptu.Variable(torch.diag(
@@ -281,16 +282,17 @@ class NafPolicy(PyTorchModule):
         Q = None
         if action is not None:
             num_outputs = mu.size(1)
-            L = self.L(x).view(-1, num_outputs, num_outputs)
+            raw_L = self.L(x).view(-1, num_outputs, num_outputs)
             L = (
-                L * self.tril_mask.expand_as(L)
-                + torch.exp(L) * self.diag_mask.expand_as(L)
+                raw_L * self.tril_mask.expand_as(raw_L)
+                + torch.exp(raw_L) * self.diag_mask.expand_as(raw_L)
             )
             P = torch.bmm(L, L.transpose(2, 1))
 
             u_mu = (action - mu).unsqueeze(2)
-            A = -0.5 * \
-                torch.bmm(torch.bmm(u_mu.transpose(2, 1), P), u_mu)[:, :, 0]
+            A = - 0.5 * torch.bmm(
+                torch.bmm(u_mu.transpose(2, 1), P), u_mu
+            ).squeeze(2)
 
             Q = A + V
 
