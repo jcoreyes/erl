@@ -573,6 +573,7 @@ class SawyerEnv(Env, Serializable):
             done = out_of_box or high_torque or unexpected_velocity or unexpected_torque
         else:
             done = False
+        # info = {'distance_from_goal':np.linalg.norm(self.desired-current)}
         info = {}
         return observation, reward, done, info
 
