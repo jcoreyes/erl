@@ -397,10 +397,10 @@ class BaxterEnv(Env, Serializable):
         :param huber_deltas: a change joint angles
         """
         import math
-        # for act in action:
-        #     if math.isnan(act):
-        #         print(act)
-        #         action = np.zeros(7)
+        for act in action:
+            if math.isnan(act):
+                print(act)
+                action = np.zeros(7)
         self._act(action)
         observation = self._get_observation()
         if self.joint_angle_experiment:

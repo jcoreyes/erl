@@ -103,7 +103,7 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
     ):
         Serializable.quick_init(self, locals())
         super().__init__(env_class(**env_params))
-        ray.init()
+        # ray.init()
         self._ray_env = RayEnv.remote(
             env_class,
             env_params,
