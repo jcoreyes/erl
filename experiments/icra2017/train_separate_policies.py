@@ -72,8 +72,8 @@ if __name__ == '__main__':
     run_mode = "none"
 
     n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "pusher-3dof-reacher-naf-yolo"
+    # mode = "ec2"
+    exp_prefix = "pusher-3dof-reacher-naf-local"
     # version = "Dev"
     run_mode = 'custom_grid'
 
@@ -81,13 +81,13 @@ if __name__ == '__main__':
     if mode != "here":
         use_gpu = False
 
-    snapshot_mode = "last"
-    snapshot_gap = 20
+    snapshot_mode = "gap"
+    snapshot_gap = 10
     periodic_sync_interval = 600  # 10 minutes
     variant = dict(
         version=version,
         algo_params=dict(
-            num_epochs=201,
+            num_epochs=101,
             num_steps_per_epoch=10000,
             num_steps_per_eval=1500,
             use_soft_update=True,
@@ -156,12 +156,12 @@ if __name__ == '__main__':
                 version,
         ) in enumerate([
             ((-1, -1), 'bottom-left'),
-            ((0, -1), 'bottom-middle'),
-            ((1, -1), 'bottom-right'),
-            ((-1, np.nan), 'left'),
-            ((0, np.nan), 'middle'),
-            ((1, np.nan), 'right'),
-            ((np.nan, -1), 'bottom'),
+            # ((0, -1), 'bottom-middle'),
+            # ((1, -1), 'bottom-right'),
+            # ((-1, np.nan), 'left'),
+            # ((0, np.nan), 'middle'),
+            # ((1, np.nan), 'right'),
+            # ((np.nan, -1), 'bottom'),
         ]):
             variant['version'] = version
             variant['env_params']['goal'] = goal
