@@ -86,7 +86,7 @@ class PusherAvoiderEnv3DOF(TuomasMujocoEnv, Serializable):
     def _check_collisions(self, objs):
         for i, obj in enumerate(objs):
             # Too close or too far.
-            if not (0.4 < np.linalg.norm(obj) < 1.2):
+            if not (0.4 < np.linalg.norm(obj) < 2):
                 return True
 
             # Touching the arm.
@@ -109,16 +109,16 @@ class PusherAvoiderEnv3DOF(TuomasMujocoEnv, Serializable):
         while True:
             obj_pos_all = (
                 np.stack((  # obj1
-                    np.random.uniform(-1, 0),
+                    np.random.uniform(-1, 1),
                     np.random.uniform(-1, 1),
                 )),
-                np.stack((  # obj2
-                    np.random.uniform(0, 1),
-                    np.random.uniform(-1, 0),
+                np.stack((  # obj2 want to avoid
+                    np.random.uniform(0.2, 1.5),
+                    np.random.uniform(-0.5, 0.5),
                 )),
                 np.stack((  # target
-                    np.random.uniform(0, 1),
-                    np.random.uniform(0, 1),
+                    np.random.uniform(-1, 1),
+                    np.random.uniform(-1, 1),
                 ))
             )
             # obj_pos_all = np.random.uniform(-1, 1, (3, 2))
