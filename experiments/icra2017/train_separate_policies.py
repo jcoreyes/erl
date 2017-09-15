@@ -18,22 +18,26 @@ from rllab.envs.normalized_env import normalize
 def experiment(variant):
     env = variant['env_class'](**variant['env_params'])
     env = normalize(env)
-    es = OUStrategy(action_space=env.action_space)
+    es = OUStrategy(
+        action_space=env.action_space,
+        **variant['es_params']
+    )
     algo_class = variant['algo_class']
     algo_params = variant['algo_params']
+    hidden_size = variant['hidden_size']
     if algo_class == DDPG:
-        algo_params.pop('naf_policy_learning_rate')
+        # algo_params.pop('naf_policy_learning_rate')
         qf = FeedForwardQFunction(
             int(env.observation_space.flat_dim),
             int(env.action_space.flat_dim),
-            100,
-            100,
+            hidden_size,
+            hidden_size,
         )
         policy = FeedForwardPolicy(
             int(env.observation_space.flat_dim),
             int(env.action_space.flat_dim),
-            100,
-            100,
+            hidden_size,
+            hidden_size,
         )
         algorithm = DDPG(
             env,
@@ -44,15 +48,15 @@ def experiment(variant):
         )
     elif algo_class == NAF:
         algo_params.pop('qf_learning_rate')
-        algo_params.pop('policy_learning_rate')
+        # algo_params.pop('policy_learning_rate')
         qf = NafPolicy(
             int(env.observation_space.flat_dim),
             int(env.action_space.flat_dim),
-            100,
+            hidden_size,
         )
         algorithm = NAF(
             env,
-            naf_policy=qf,
+            policy=qf,
             exploration_strategy=es,
             **variant['algo_params']
         )
@@ -71,23 +75,23 @@ if __name__ == '__main__':
     version = "Dev"
     run_mode = "none"
 
-    n_seeds = 3
-    # mode = "ec2"
-    exp_prefix = "pusher-3dof-reacher-naf-local"
+    # n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "pusher-avoid-modified-naf-bigger-longer-noisier"
     # version = "Dev"
-    run_mode = 'custom_grid'
+    run_mode = 'grid'
 
     use_gpu = True
     if mode != "here":
         use_gpu = False
 
-    snapshot_mode = "gap"
+    snapshot_mode = "last"
     snapshot_gap = 10
     periodic_sync_interval = 600  # 10 minutes
     variant = dict(
         version=version,
         algo_params=dict(
-            num_epochs=101,
+            num_epochs=501,
             num_steps_per_epoch=10000,
             num_steps_per_eval=1500,
             use_soft_update=True,
@@ -97,38 +101,44 @@ if __name__ == '__main__':
             discount=0.99,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
-            naf_policy_learning_rate=1e-4,
+            # naf_policy_learning_rate=1e-4,
         ),
         algo_class=NAF,
-        # env_class=PusherAvoiderEnv3DOF,
-        # env_params=dict(
-        #     task='push',
-        # ),
-        env_class=PusherEnv3DOF,
+        # algo_class=DDPG,
+        env_class=PusherAvoiderEnv3DOF,
         env_params=dict(
-            goal=(1, -1),
+            task='both',
         ),
+        hidden_size=400,
+        es_params=dict(
+            min_sigma=None,
+            max_sigma=0.2,
+        )
+        # env_class=PusherEnv3DOF,
+        # env_params=dict(
+        #     goal=(1, -1),
+        # ),
     )
     if run_mode == 'grid':
         search_space = {
             # 'algo_params.use_soft_update': [True, False],
-            # 'algo_params.tau': [1e-2, 1e-3],
-            # 'algo_params.batch_size': [128, 512],
-            # 'env_params.hit_penalty': [0.05, 0.1, 1, 5],
-            # 'env_params.task': [
-            #     'push',
-            #     'avoid',
-            #     'both',
-            # ]
-            'env_params.goal': [
-                (-1, -1),
-                (0, -1),
-                (1, -1),
-                (-1, np.nan),
-                (0, np.nan),
-                (1, np.nan),
-                (np.nan, -1),
+            'hidden_size': [100, 400],
+            'es_params.max_sigma': [0.1, 0.3, 0.5, 1],
+            # 'env_params.hit_penalty': [0.05, 0.1, 0.5, 1],
+            'env_params.task': [
+                'push',
+                'avoid',
+                'both',
             ]
+            # 'env_params.goal': [
+            #     (-1, -1),
+            #     (0, -1),
+            #     (1, -1),
+            #     (-1, np.nan),
+            #     (0, np.nan),
+            #     (1, np.nan),
+            #     (np.nan, -1),
+            # ]
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
             search_space, default_parameters=variant,
@@ -155,7 +165,7 @@ if __name__ == '__main__':
                 goal,
                 version,
         ) in enumerate([
-            ((-1, -1), 'bottom-left'),
+            # ((-1, -1), 'bottom-left'),
             # ((0, -1), 'bottom-middle'),
             # ((1, -1), 'bottom-right'),
             # ((-1, np.nan), 'left'),
