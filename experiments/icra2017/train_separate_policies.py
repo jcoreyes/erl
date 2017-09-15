@@ -10,6 +10,7 @@ from railrl.qfunctions.torch import FeedForwardQFunction
 from railrl.torch.ddpg import DDPG
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
+from railrl.torch.naf import NafPolicy, NAF
 
 from rllab.envs.normalized_env import normalize
 
@@ -18,25 +19,45 @@ def experiment(variant):
     env = variant['env_class'](**variant['env_params'])
     env = normalize(env)
     es = OUStrategy(action_space=env.action_space)
-    qf = FeedForwardQFunction(
-        int(env.observation_space.flat_dim),
-        int(env.action_space.flat_dim),
-        100,
-        100,
-    )
-    policy = FeedForwardPolicy(
-        int(env.observation_space.flat_dim),
-        int(env.action_space.flat_dim),
-        100,
-        100,
-    )
-    algorithm = DDPG(
-        env,
-        exploration_strategy=es,
-        qf=qf,
-        policy=policy,
-        **variant['algo_params']
-    )
+    algo_class = variant['algo_class']
+    algo_params = variant['algo_params']
+    if algo_class == DDPG:
+        algo_params.pop('naf_policy_learning_rate')
+        qf = FeedForwardQFunction(
+            int(env.observation_space.flat_dim),
+            int(env.action_space.flat_dim),
+            100,
+            100,
+        )
+        policy = FeedForwardPolicy(
+            int(env.observation_space.flat_dim),
+            int(env.action_space.flat_dim),
+            100,
+            100,
+        )
+        algorithm = DDPG(
+            env,
+            exploration_strategy=es,
+            qf=qf,
+            policy=policy,
+            **variant['algo_params']
+        )
+    elif algo_class == NAF:
+        algo_params.pop('qf_learning_rate')
+        algo_params.pop('policy_learning_rate')
+        qf = NafPolicy(
+            int(env.observation_space.flat_dim),
+            int(env.action_space.flat_dim),
+            100,
+        )
+        algorithm = NAF(
+            env,
+            naf_policy=qf,
+            exploration_strategy=es,
+            **variant['algo_params']
+        )
+    else:
+        raise Exception("Invalid algo class: {}".format(algo_class))
     if ptu.gpu_enabled():
         algorithm.cuda()
     algorithm.train()
@@ -52,9 +73,9 @@ if __name__ == '__main__':
 
     n_seeds = 3
     # mode = "ec2"
-    exp_prefix = "pusher-3dof-reacher-bottom-right"
+    # exp_prefix = "pusher-3dof-reacher-bottom-right"
     # version = "Dev"
-    # run_mode = 'grid'
+    run_mode = 'custom_grid'
 
     use_gpu = True
     if mode != "here":
@@ -76,7 +97,9 @@ if __name__ == '__main__':
             discount=0.99,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
+            naf_policy_learning_rate=1e-4,
         ),
+        algo_class=NAF,
         # env_class=PusherAvoiderEnv3DOF,
         # env_params=dict(
         #     task='push',
@@ -97,15 +120,53 @@ if __name__ == '__main__':
             #     'avoid',
             #     'both',
             # ]
-            # 'env_params.goal': [
-            #     (-1, -1),
-            # ]
+            'env_params.goal': [
+                (-1, -1),
+                (0, -1),
+                (1, -1),
+                (-1, np.nan),
+                (0, np.nan),
+                (1, np.nan),
+                (np.nan, -1),
+            ]
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
             search_space, default_parameters=variant,
         )
         for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
             for i in range(n_seeds):
+                seed = random.randint(0, 10000)
+                run_experiment(
+                    experiment,
+                    exp_prefix=exp_prefix,
+                    seed=seed,
+                    mode=mode,
+                    variant=variant,
+                    exp_id=exp_id,
+                    use_gpu=use_gpu,
+                    sync_s3_log=True,
+                    sync_s3_pkl=True,
+                    snapshot_mode=snapshot_mode,
+                    snapshot_gap=snapshot_gap,
+                    periodic_sync_interval=periodic_sync_interval,
+                )
+    elif run_mode == 'custom_grid':
+        for exp_id, (
+                goal,
+                version,
+        ) in enumerate([
+            ((-1, -1), 'bottom-left'),
+            ((0, -1), 'bottom-middle'),
+            ((1, -1), 'bottom-right'),
+            ((-1, np.nan), 'left'),
+            ((0, np.nan), 'middle'),
+            ((1, np.nan), 'right'),
+            ((np.nan, -1), 'bottom'),
+        ]):
+            variant['version'] = version
+            variant['env_params']['goal'] = goal
+            new_exp_prefix = "{}_{}".format(exp_prefix, version)
+            for _ in range(n_seeds):
                 seed = random.randint(0, 10000)
                 run_experiment(
                     experiment,
