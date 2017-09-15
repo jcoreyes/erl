@@ -321,7 +321,7 @@ class NafPolicy(PyTorchModule):
         hidden_init(self.mu.weight)
         self.mu.bias.data.fill_(b_init_value)
 
-    def forward(self, state, action):
+    def forward(self, state, action, return_P=False):
         if self.use_batchnorm:
             state = self.bn_state(state)
         x = state
@@ -332,6 +332,7 @@ class NafPolicy(PyTorchModule):
         mu = torch.tanh(self.mu(x))
 
         Q = None
+        P = None
         if action is not None:
             num_outputs = mu.size(1)
             raw_L = self.L(x).view(-1, num_outputs, num_outputs)
@@ -348,6 +349,16 @@ class NafPolicy(PyTorchModule):
 
             Q = A + V
 
+        if return_P:
+            if P is None:
+                num_outputs = mu.size(1)
+                raw_L = self.L(x).view(-1, num_outputs, num_outputs)
+                L = (
+                    raw_L * self.tril_mask.expand_as(raw_L)
+                    + torch.exp(raw_L) * self.diag_mask.expand_as(raw_L)
+                )
+                P = torch.bmm(L, L.transpose(2, 1))
+            return mu, Q, V, P
         return mu, Q, V
 
     def get_action(self, obs):
@@ -356,3 +367,11 @@ class NafPolicy(PyTorchModule):
         action, _, _ = self.__call__(obs, None)
         action = action.squeeze(0)
         return ptu.get_numpy(action), {}
+
+    def get_action_and_P_matrix(self, obs):
+        obs = np.expand_dims(obs, axis=0)
+        obs = Variable(ptu.from_numpy(obs).float(), requires_grad=False)
+        action, _, _, P = self.__call__(obs, None, return_P=True)
+        action = action.squeeze(0)
+        P = P.squeeze(0)
+        return ptu.get_numpy(action), ptu.get_numpy(P)
