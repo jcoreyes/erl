@@ -14,7 +14,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('file', type=str,
                         help='path to the snapshot file')
-    parser.add_argument('--max_path_length', type=int, default=1000,
+    parser.add_argument('--H', type=int, default=300,
                         help='Max length of rollout')
     parser.add_argument('--speedup', type=float, default=1,
                         help='Speedup')
@@ -50,7 +50,7 @@ if __name__ == "__main__":
                 path = rollout(
                     env,
                     policy,
-                    max_path_length=args.max_path_length,
+                    max_path_length=args.H,
                     animated=True,
                     speedup=args.speedup,
                     always_return_paths=True,
