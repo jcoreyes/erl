@@ -32,3 +32,12 @@ class SerializablePolicy(Policy, metaclass=abc.ABCMeta):
 
     def set_param_values(self, values):
         pass
+
+    """
+    Parameters should be passed as np arrays in the two functions below.
+    """
+    def get_param_values_np(self):
+        return None
+
+    def set_param_values_np(self, values):
+        pass
