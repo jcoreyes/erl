@@ -6,7 +6,8 @@ import torch.optim as optim
 
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import get_average_returns, split_paths
-from railrl.torch.ddpg import np_to_pytorch_batch, get_generic_path_information
+from railrl.torch.algos.util import np_to_pytorch_batch, \
+    get_generic_path_information
 from railrl.torch.online_algorithm import InPlacePathSampler
 from rllab.algos.base import RLAlgorithm
 from rllab.misc import logger

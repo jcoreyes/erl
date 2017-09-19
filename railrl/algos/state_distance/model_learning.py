@@ -11,11 +11,20 @@ from torch import optim as optim
 from railrl.samplers.util import rollout
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.torch import pytorch_util as ptu
-from railrl.torch.ddpg import np_to_pytorch_batch
+from railrl.torch.algos.util import get_statistics_from_pytorch_dict, \
+    np_to_pytorch_batch
 from rllab.misc import logger
 
 
 class ModelLearning(object):
+    """
+    Train a model to learn the difference between the current state and next
+    state, given an action. So, predict
+
+    s' - f(s, a)
+
+    where f is the true dynamics model.
+    """
     def __init__(
             self,
             env,
@@ -62,17 +71,6 @@ class ModelLearning(object):
             logger.save_itr_params(epoch, params)
             logger.log("Done evaluating")
             logger.pop_prefix()
-
-    def get_epoch_snapshot(self, epoch):
-        return dict(
-            epoch=epoch,
-            model=self.model,
-            replay_buffer=self.replay_buffer,
-            env=self.env,
-        )
-
-    def cuda(self):
-        self.model.cuda()
 
     def _do_training(self):
         batch = self.get_batch()
@@ -151,29 +149,21 @@ class ModelLearning(object):
         logger.dump_tabular(with_prefix=False, with_timestamp=False)
 
     def _statistics_from_batch(self, batch, stat_prefix):
-        statistics = OrderedDict()
-
         train_dict = self.get_train_dict(batch)
-        for name in [
-            'Loss',
-        ]:
-            tensor = train_dict[name]
-            statistics_name = "{} {} Mean".format(stat_prefix, name)
-            statistics[statistics_name] = np.mean(ptu.get_numpy(tensor))
+        return get_statistics_from_pytorch_dict(
+            train_dict,
+            ['Loss'],
+            ['Errors'],
+            stat_prefix
+        )
 
-        for name in [
-            'Errors',
-        ]:
-            tensor = train_dict[name]
-            data = ptu.get_numpy(tensor)
-            statistics.update(create_stats_ordered_dict(
-                '{} {}'.format(stat_prefix, name),
-                data,
-            ))
-            for dim_i in range(data.shape[-1]):
-                statistics.update(create_stats_ordered_dict(
-                    '{} {} Dim {}'.format(stat_prefix, name, dim_i),
-                    data[:, dim_i],
-                ))
+    def get_epoch_snapshot(self, epoch):
+        return dict(
+            epoch=epoch,
+            model=self.model,
+            replay_buffer=self.replay_buffer,
+            env=self.env,
+        )
 
-        return statistics
+    def cuda(self):
+        self.model.cuda()

@@ -11,11 +11,12 @@ from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import get_average_returns, split_paths_to_dict
+from railrl.torch.algos.util import get_statistics_from_pytorch_dict, \
+    np_to_pytorch_batch
 from railrl.torch.core import PyTorchModule
-from railrl.torch.ddpg import np_to_pytorch_batch
 from railrl.torch.online_algorithm import OnlineAlgorithm
 from railrl.torch import pytorch_util as ptu
-from rllab.misc import logger, special
+from rllab.misc import logger
 
 
 # noinspection PyCallingNonCallable
@@ -169,28 +170,12 @@ class NAF(OnlineAlgorithm):
         return statistics
 
     def _statistics_from_batch(self, batch, stat_prefix):
-        statistics = OrderedDict()
-
-        train_dict = self.get_train_dict(batch)
-        for name in [
-            'Policy Loss',
-        ]:
-            tensor = train_dict[name]
-            statistics_name = "{} {} Mean".format(stat_prefix, name)
-            statistics[statistics_name] = np.mean(ptu.get_numpy(tensor))
-
-        for name in [
-            'Policy v',
-            'Policy mu',
-            'Y targets',
-            'Y predictions',
-        ]:
-            tensor = train_dict[name]
-            statistics.update(create_stats_ordered_dict(
-                '{} {}'.format(stat_prefix, name),
-                ptu.get_numpy(tensor)
-            ))
-
+        statistics = get_statistics_from_pytorch_dict(
+            self.get_train_dict(batch),
+            ['Policy Loss'],
+            ['Policy v', 'Policy mu', 'Y targets', 'Y predictions'],
+            stat_prefix
+        )
         statistics.update(create_stats_ordered_dict(
             "{} Env Actions".format(stat_prefix),
             ptu.get_numpy(batch['actions'])
@@ -212,29 +197,6 @@ class NAF(OnlineAlgorithm):
             replay_buffer=self.replay_buffer,
             algorithm=self,
         )
-
-def get_generic_path_information(paths, discount, stat_prefix):
-    """
-    Get an OrderedDict with a bunch of statistic names and values.
-    """
-    statistics = OrderedDict()
-    returns = [sum(path["rewards"]) for path in paths]
-
-    discounted_returns = [
-        special.discount_return(path["rewards"], discount)
-        for path in paths
-    ]
-    rewards = np.hstack([path["rewards"] for path in paths])
-
-    statistics.update(create_stats_ordered_dict('Rewards', rewards, stat_prefix=stat_prefix))
-    statistics.update(create_stats_ordered_dict('Returns', returns, stat_prefix=stat_prefix))
-    statistics.update(create_stats_ordered_dict('DiscountedReturns', discounted_returns, stat_prefix=stat_prefix))
-    actions = np.vstack([path["actions"] for path in paths])
-    statistics.update(create_stats_ordered_dict('Actions', actions, stat_prefix=stat_prefix))
-
-    return statistics
-
-
 # class NormalizedAdvantageFunction(PyTorchModule):
 #     def __init__(
 #             self,

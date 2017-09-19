@@ -8,7 +8,7 @@ from railrl.policies.state_distance import UniversalPolicy
 from railrl.pythonplusplus import identity
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.core import PyTorchModule
-from railrl.torch.ddpg import elem_or_tuple_to_variable
+from railrl.torch.algos.util import elem_or_tuple_to_variable
 
 
 class UniversalQfunction(PyTorchModule):

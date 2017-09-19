@@ -8,7 +8,8 @@ from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc.rllab_util import get_average_returns
 from railrl.policies.state_distance import UniversalPolicy
 from railrl.samplers.util import rollout
-from railrl.torch.ddpg import DDPG, np_to_pytorch_batch
+from railrl.torch.ddpg import DDPG
+from railrl.torch.algos.util import np_to_pytorch_batch
 from railrl.misc.tensorboard_logger import TensorboardLogger
 from railrl.torch.state_distance.exploration import UniversalExplorationPolicy
 from rllab.misc import logger

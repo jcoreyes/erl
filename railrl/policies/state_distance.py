@@ -7,7 +7,7 @@ from torch.autograd import Variable
 
 from railrl.policies.base import ExplorationPolicy, Policy
 from railrl.torch import pytorch_util as ptu
-from railrl.torch.ddpg import elem_or_tuple_to_variable
+from railrl.torch.algos.util import elem_or_tuple_to_variable
 
 
 class UniversalPolicy(Policy, metaclass=abc.ABCMeta):
