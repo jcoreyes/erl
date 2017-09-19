@@ -9,7 +9,8 @@ from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.ml_util import ConstantSchedule
-from railrl.misc.rllab_util import get_average_returns, split_paths
+from railrl.misc.rllab_util import get_average_returns, split_paths, \
+    split_paths_to_dict
 from railrl.torch.online_algorithm import OnlineAlgorithm
 import railrl.torch.pytorch_util as ptu
 from rllab.misc import logger, special
@@ -230,23 +231,13 @@ class DDPG(OnlineAlgorithm):
         return np_to_pytorch_batch(batch)
 
     def _statistics_from_paths(self, paths, stat_prefix):
-        np_batch = self._paths_to_np_batch(paths)
+        np_batch = split_paths_to_dict(paths)
         batch = np_to_pytorch_batch(np_batch)
         statistics = self._statistics_from_batch(batch, stat_prefix)
         statistics.update(create_stats_ordered_dict(
             'Num Paths', len(paths), stat_prefix=stat_prefix
         ))
         return statistics
-
-    def _paths_to_np_batch(self, paths):
-        rewards, terminals, obs, actions, next_obs = split_paths(paths)
-        return dict(
-            rewards=rewards,
-            terminals=terminals,
-            observations=obs,
-            actions=actions,
-            next_observations=next_obs,
-        )
 
     def _statistics_from_batch(self, batch, stat_prefix):
         statistics = OrderedDict()
@@ -291,9 +282,20 @@ class DDPG(OnlineAlgorithm):
             env=self.training_env,
             exploration_policy=self.exploration_policy,
             qf=self.qf,
+            batch_size=self.batch_size,
+        )
+
+    def get_extra_data_to_save(self, epoch):
+        """
+        Save things that shouldn't be saved every snapshot but rather
+        overwritten every time.
+        :param epoch:
+        :return:
+        """
+        return dict(
+            epoch=epoch,
             replay_buffer=self.replay_buffer,
             algorithm=self,
-            batch_size=self.batch_size,
         )
 
 

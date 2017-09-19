@@ -7,6 +7,7 @@ from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment, set_seed
 from railrl.torch.naf import NAF, NafPolicy
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
+import railrl.torch.pytorch_util as ptu
 
 
 def example(variant):
@@ -25,10 +26,12 @@ def example(variant):
     )
     algorithm = NAF(
         env,
+        naf_policy=qf,
         exploration_strategy=es,
-        qf=qf,
         **algo_params
     )
+    if ptu.gpu_enabled():
+        algorithm.cuda()
     algorithm.train()
 
 
@@ -43,19 +46,18 @@ if __name__ == "__main__":
         ),
         algo_params=dict(
             num_epochs=50,
-            num_steps_per_epoch=10000,
+            num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             batch_size=1024,
-            pool_size=50000,
+            replay_buffer_size=50000,
             max_path_length=horizon,
-            render=False,
         ),
         version="Normal",
     )
     seed = random.randint(0, 10000)
     run_experiment(
         example,
-        exp_prefix="6-21-naf-dev",
+        exp_prefix="naf-dev",
         seed=seed,
         mode='here',
         variant=variant,

@@ -16,7 +16,7 @@ if __name__ == "__main__":
                         help='path to the snapshot file')
     parser.add_argument('--H', type=int, default=300,
                         help='Max length of rollout')
-    parser.add_argument('--speedup', type=float, default=1,
+    parser.add_argument('--speedup', type=float, default=10,
                         help='Speedup')
     parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--pause', action='store_true')
