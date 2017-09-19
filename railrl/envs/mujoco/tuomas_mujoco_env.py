@@ -15,7 +15,7 @@ import mako.lookup
 MODEL_DIR = osp.abspath(
     osp.join(
         osp.dirname(__file__),
-        '../assets'
+        '../assets/'
     )
 )
 
@@ -188,19 +188,25 @@ class TuomasMujocoEnv(Env):
         self.dcom = new_com - self.current_com
         self.current_com = new_com
 
-    def get_viewer(self):
+    def get_viewer(self, kwargs=None):
+        if kwargs is None:
+            kwargs = dict()
         if self.viewer is None:
             self.viewer = MjViewer()
             self.viewer.start()
             self.viewer.set_model(self.model)
+            for k, v in kwargs.items():
+                setattr(self.viewer.cam, k, v)
         return self.viewer
 
-    def render(self, close=False, mode='human'):
+    def render(self, close=False, mode='human', viewer_kwargs=None):
+        if viewer_kwargs is None:
+            viewer_kwargs = dict()
         if mode == 'human':
             viewer = self.get_viewer()
             viewer.loop_once()
         elif mode == 'rgb_array':
-            viewer = self.get_viewer()
+            viewer = self.get_viewer(viewer_kwargs)
             viewer.loop_once()
             # self.get_viewer(config=config).render()
             data, width, height = self.get_viewer().get_image()
