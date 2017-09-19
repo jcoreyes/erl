@@ -177,35 +177,3 @@ class ModelLearning(object):
                 ))
 
         return statistics
-
-
-class GoalModelRegression(ModelLearning):
-    """
-    Instead of learning a forward dynamics, learn to predict the goal state
-    associated with the next state.
-    """
-    def get_batch(self, training=True):
-        replay_buffer = self.replay_buffer.get_replay_buffer(training)
-        batch_size = min(
-            replay_buffer.num_steps_can_sample(),
-            self.batch_size
-        )
-        batch = replay_buffer.random_batch(batch_size)
-        batch['next_goal_states'] = self.env.convert_obs_to_goal_states(
-            batch['next_observations']
-        )
-        return np_to_pytorch_batch(batch)
-
-    def get_train_dict(self, batch):
-        obs = batch['observations']
-        actions = batch['actions']
-        next_goal_state = batch['next_goal_states']
-
-        next_goal_state_pred = self.model(obs, actions)
-        errors = (next_goal_state - next_goal_state_pred)**2
-        loss = errors.mean()
-
-        return OrderedDict([
-            ('Errors', errors),
-            ('Loss', loss),
-        ])
