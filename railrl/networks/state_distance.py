@@ -3,12 +3,10 @@ import torch
 from torch import nn as nn
 from torch.nn import functional as F
 
-from railrl.policies.base import Policy
 from railrl.policies.state_distance import UniversalPolicy
 from railrl.pythonplusplus import identity
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.core import PyTorchModule
-from railrl.torch.algos.util import elem_or_tuple_to_variable
 
 
 class UniversalQfunction(PyTorchModule):
@@ -222,7 +220,7 @@ class FFUniversalPolicy(PyTorchModule, UniversalPolicy):
         return F.tanh(self.last_fc(h))
 
     def get_action(self, obs_np):
-        obs = elem_or_tuple_to_variable(
+        obs = ptu.np_to_var(
             np.expand_dims(obs_np, 0)
         )
         action = self.__call__(

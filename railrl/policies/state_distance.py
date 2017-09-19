@@ -7,7 +7,6 @@ from torch.autograd import Variable
 
 from railrl.policies.base import ExplorationPolicy, Policy
 from railrl.torch import pytorch_util as ptu
-from railrl.torch.algos.util import elem_or_tuple_to_variable
 
 
 class UniversalPolicy(Policy, metaclass=abc.ABCMeta):
@@ -19,13 +18,13 @@ class UniversalPolicy(Policy, metaclass=abc.ABCMeta):
 
     def set_goal(self, goal_np):
         self._goal_np = goal_np
-        self._goal_expanded_torch = elem_or_tuple_to_variable(
+        self._goal_expanded_torch = ptu.np_to_var(
             np.expand_dims(goal_np, 0)
         )
 
     def set_discount(self, discount):
         self._discount_np = discount
-        self._discount_expanded_torch = elem_or_tuple_to_variable(
+        self._discount_expanded_torch = ptu.np_to_var(
             np.array([[discount]])
         )
 
