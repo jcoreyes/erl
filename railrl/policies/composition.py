@@ -19,7 +19,7 @@ class CombinedNafPolicy(SerializablePolicy, Serializable):
         mu1, P1 = self.policy1.get_action_and_P_matrix(obs)
         mu2, P2 = self.policy2.get_action_and_P_matrix(obs)
         inv = np.linalg.inv(P1 + P2)
-        return inv * (P1 @ mu1 + P2 @ mu2), {}
+        return inv @ (P1 @ mu1 + P2 @ mu2), {}
 
     def log_diagnostics(self, paths):
         pass
