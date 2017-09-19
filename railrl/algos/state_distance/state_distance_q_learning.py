@@ -20,7 +20,7 @@ class StateDistanceQLearning(DDPG):
             env: MultitaskEnv,
             qf,
             policy,
-            exploration_policy: UniversalExplorationPolicy=None,
+            exploration_policy: UniversalExplorationPolicy = None,
             replay_buffer=None,
             num_epochs=100,
             num_steps_per_epoch=100,
@@ -277,7 +277,7 @@ class StateDistanceQLearning(DDPG):
         # noinspection PyUnresolvedReferences
         y_target = y_target.detach()
         y_pred = self.qf(obs, actions, goal_states, discount)
-        bellman_errors = (y_pred - y_target)**2
+        bellman_errors = (y_pred - y_target) ** 2
         qf_loss = self.qf_criterion(y_pred, y_target)
 
         return OrderedDict([
@@ -308,6 +308,30 @@ class StateDistanceQLearning(DDPG):
             data_to_save['replay_buffer'] = self.replay_buffer
         return data_to_save
 
+    @staticmethod
+    def paths_to_batch(paths):
+        rewards = [path["rewards"].reshape(-1, 1) for path in paths]
+        terminals = [path["terminals"].reshape(-1, 1) for path in paths]
+        actions = [path["actions"] for path in paths]
+        obs = [path["observations"] for path in paths]
+        goal_states = [path["goal_states"] for path in paths]
+        next_obs = []
+        for path in paths:
+            next_obs_i = np.vstack((
+                path["observations"][1:, :],
+                path["final_observation"],
+            ))
+            next_obs.append(next_obs_i)
+        np_batch = dict(
+            rewards=np.vstack(rewards),
+            terminals=np.vstack(terminals),
+            observations=np.vstack(obs),
+            actions=np.vstack(actions),
+            next_observations=np.vstack(next_obs),
+            goal_states=np.vstack(goal_states),
+        )
+        return np_to_pytorch_batch(np_batch)
+
 
 class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
     """
@@ -319,7 +343,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             env: MultitaskEnv,
             qf,
             policy,
-            exploration_policy: UniversalExplorationPolicy=None,
+            exploration_policy: UniversalExplorationPolicy = None,
             do_tau_correctly=True,
             **kwargs
     ):
@@ -383,7 +407,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
         # noinspection PyUnresolvedReferences
         y_target = y_target.detach()
         y_pred = self.qf(obs, actions, goal_states, num_steps_left)
-        bellman_errors = (y_pred - y_target)**2
+        bellman_errors = (y_pred - y_target) ** 2
         qf_loss = self.qf_criterion(y_pred, y_target)
 
         return OrderedDict([

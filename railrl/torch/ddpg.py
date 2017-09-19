@@ -231,13 +231,17 @@ class DDPG(OnlineAlgorithm):
         return np_to_pytorch_batch(batch)
 
     def _statistics_from_paths(self, paths, stat_prefix):
-        np_batch = split_paths_to_dict(paths)
-        batch = np_to_pytorch_batch(np_batch)
+        batch = self.paths_to_batch(paths)
         statistics = self._statistics_from_batch(batch, stat_prefix)
         statistics.update(create_stats_ordered_dict(
             'Num Paths', len(paths), stat_prefix=stat_prefix
         ))
         return statistics
+
+    @staticmethod
+    def paths_to_batch(paths):
+        np_batch = split_paths_to_dict(paths)
+        return np_to_pytorch_batch(np_batch)
 
     def _statistics_from_batch(self, batch, stat_prefix):
         statistics = OrderedDict()

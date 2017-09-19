@@ -44,7 +44,7 @@ def rollout(env, agent, max_path_length=np.inf, animated=False):
         actions=np.array(actions),
         rewards=np.array(rewards),
         terminals=np.array(terminals),
-        agent_infos=tensor_utils.stack_tensor_dict_list(agent_infos),
-        env_infos=tensor_utils.stack_tensor_dict_list(env_infos),
+        agent_infos=np.array(agent_infos),
+        env_infos=np.array(env_infos),
         final_observation=next_o,
     )
