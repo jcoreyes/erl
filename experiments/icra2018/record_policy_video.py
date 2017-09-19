@@ -27,18 +27,18 @@ ddpg_name_to_snapshot_path = {
     'merge-bottom-right': '/home/vitchyr/git/rllab-rail/railrl/data/local/09-14-combine-policies--right-bottom/09-14_combine-policies--right-bottom_2017_09_14_14_38_47_0000--s-984/params.pkl',
 }
 naf_name_to_snapshot_path = dict(
-    # push_left=(
-    #     '/home/vitchyr/git/rllab-rail/railrl/data/s3/09-14-pusher-3dof-reacher-naf-yolo-left/09-14_pusher-3dof-reacher-naf-yolo_left_2017_09_14_17_52_45_0010/params.pkl'
-    # ),
-    # push_right=(
-    #     '/home/vitchyr/git/rllab-rail/railrl/data/s3/09-14-pusher-3dof-reacher-naf-yolo-right/09-14_pusher-3dof-reacher-naf-yolo_right_2017_09_14_17_52_45_0016/params.pkl'
-    # ),
-    # push_middle=(
-    #     '/home/vitchyr/git/rllab-rail/railrl/data/s3/09-14-pusher-3dof-reacher-naf-yolo-middle/09-14_pusher-3dof-reacher-naf-yolo_middle_2017_09_14_17_52_45_0013/params.pkl'
-    # ),
-    # push_bottom=(
-    #     '/home/vitchyr/git/rllab-rail/railrl/data/s3/09-14-pusher-3dof-reacher-naf-yolo-bottom/09-14_pusher-3dof-reacher-naf-yolo_bottom_2017_09_14_17_52_45_0019/params.pkl'
-    # ),
+    push_left=(
+        '/home/vitchyr/git/rllab-rail/railrl/data/s3/09-14-pusher-3dof-reacher-naf-yolo-left/09-14_pusher-3dof-reacher-naf-yolo_left_2017_09_14_17_52_45_0010/params.pkl'
+    ),
+    push_right=(
+        '/home/vitchyr/git/rllab-rail/railrl/data/s3/09-14-pusher-3dof-reacher-naf-yolo-right/09-14_pusher-3dof-reacher-naf-yolo_right_2017_09_14_17_52_45_0016/params.pkl'
+    ),
+    push_middle=(
+        '/home/vitchyr/git/rllab-rail/railrl/data/s3/09-14-pusher-3dof-reacher-naf-yolo-middle/09-14_pusher-3dof-reacher-naf-yolo_middle_2017_09_14_17_52_45_0013/params.pkl'
+    ),
+    push_bottom=(
+        '/home/vitchyr/git/rllab-rail/railrl/data/s3/09-14-pusher-3dof-reacher-naf-yolo-bottom/09-14_pusher-3dof-reacher-naf-yolo_bottom_2017_09_14_17_52_45_0019/params.pkl'
+    ),
     merge_bottom_left=(
         '/home/vitchyr/git/rllab-rail/railrl/data/local/09-14-1-combine-naf-policies-left/09-14_1-combine-naf-policies-left_2017_09_14_21_42_24_0000--s-68077/params.pkl'
     ),
@@ -48,19 +48,19 @@ naf_name_to_snapshot_path = dict(
     merge_bottom_middle=(
         '/home/vitchyr/git/rllab-rail/railrl/data/local/09-14-1-combine-naf-policies-middle/09-14_1-combine-naf-policies-middle_2017_09_14_21_42_27_0000--s-91696/params.pkl'
     ),
-    # push_bottom_left=(
-    #     '/home/vitchyr/git/rllab-rail/railrl/data/s3/09-14-pusher-3dof-reacher-naf-yolo-bottom-left/09-14_pusher-3dof-reacher-naf-yolo_bottom-left_2017_09_14_17_52_45_0001/params.pkl'
-    # ),
-    # push_bottom_right=(
-    #     '/home/vitchyr/git/rllab-rail/railrl/data/s3/09-14-pusher-3dof-reacher-naf-yolo-bottom-right/09-14_pusher-3dof-reacher-naf-yolo_bottom-right_2017_09_14_17_52_45_0007/params.pkl'
-    # ),
-    # push_bottom_middle=(
-    #     '/home/vitchyr/git/rllab-rail/railrl/data/s3/09-14-pusher-3dof-reacher-naf-yolo-bottom-middle/09-14_pusher-3dof-reacher-naf-yolo_bottom-middle_2017_09_14_17_52_45_0005/params.pkl'
-    # ),
+    push_bottom_left=(
+        '/home/vitchyr/git/rllab-rail/railrl/data/s3/09-14-pusher-3dof-reacher-naf-yolo-bottom-left/09-14_pusher-3dof-reacher-naf-yolo_bottom-left_2017_09_14_17_52_45_0001/params.pkl'
+    ),
+    push_bottom_right=(
+        '/home/vitchyr/git/rllab-rail/railrl/data/s3/09-14-pusher-3dof-reacher-naf-yolo-bottom-right/09-14_pusher-3dof-reacher-naf-yolo_bottom-right_2017_09_14_17_52_45_0007/params.pkl'
+    ),
+    push_bottom_middle=(
+        '/home/vitchyr/git/rllab-rail/railrl/data/s3/09-14-pusher-3dof-reacher-naf-yolo-bottom-middle/09-14_pusher-3dof-reacher-naf-yolo_bottom-middle_2017_09_14_17_52_45_0005/params.pkl'
+    ),
 )
 
-naf_output_path = '/home/vitchyr/git/rllab-rail/railrl/data/papers/icra2017/results/pusher/naf/videos/'
-ddpg_output_path = '/home/vitchyr/git/rllab-rail/railrl/data/papers/icra2017/results/pusher/ddpg/videos/'
+naf_output_path = '/home/vitchyr/git/rllab-rail/railrl/data/papers/icra2018/results/pusher/naf/videos/'
+ddpg_output_path = '/home/vitchyr/git/rllab-rail/railrl/data/papers/icra2018/results/pusher/ddpg/videos/'
 
 
 def rollout(env, policy, path_length, render=False, speedup=10, callback=None,
@@ -94,7 +94,6 @@ def rollout(env, policy, path_length, render=False, speedup=10, callback=None,
 
         all_infos.append(info)
 
-        import ipdb; ipdb.set_trace()
         actions[t, :] = action
         terminals[t] = terminal
         rewards[t] = reward
@@ -150,9 +149,8 @@ def rollouts(env, policy, path_length, n_paths, render=False):
 
 name_to_snapshot_path = ddpg_name_to_snapshot_path
 output_path = ddpg_output_path
-name_to_snapshot_path = naf_name_to_snapshot_path
+# name_to_snapshot_path = naf_name_to_snapshot_path
 # output_path = naf_output_path
-output_path = '/tmp'
 
 for name, snapshot_path in name_to_snapshot_path.items():
     data = joblib.load(snapshot_path)

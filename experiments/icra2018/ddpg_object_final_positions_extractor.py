@@ -98,6 +98,6 @@ for full_path, name in files:
 
     pos_all = np.stack(pos_lst)
 
-    outfile = os.path.join('data/papers/icra2017/results/pusher/ddpg',
+    outfile = os.path.join('data/papers/icra2018/results/pusher/ddpg',
                            name + '.txt')
     np.savetxt(outfile, pos_all)
