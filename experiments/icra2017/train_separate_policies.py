@@ -75,9 +75,9 @@ if __name__ == '__main__':
     version = "Dev"
     run_mode = "none"
 
-    # n_seeds = 3
+    n_seeds = 3
     mode = "ec2"
-    exp_prefix = "pusher-avoid-modified-naf-bigger-longer-noisier"
+    exp_prefix = "pusher-avoid-hardcoded-naf"
     # version = "Dev"
     run_mode = 'grid'
 
@@ -102,6 +102,7 @@ if __name__ == '__main__':
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
             # naf_policy_learning_rate=1e-4,
+            # render=True,
         ),
         algo_class=NAF,
         # algo_class=DDPG,
@@ -123,13 +124,14 @@ if __name__ == '__main__':
         search_space = {
             # 'algo_params.use_soft_update': [True, False],
             'hidden_size': [100, 400],
-            'es_params.max_sigma': [0.1, 0.3, 0.5, 1],
+            # 'es_params.max_sigma': [0.1, 0.3, 0.5, 1],
             # 'env_params.hit_penalty': [0.05, 0.1, 0.5, 1],
             'env_params.task': [
                 'push',
                 'avoid',
                 'both',
-            ]
+            ],
+            'env_params.init_config': list(range(5)),
             # 'env_params.goal': [
             #     (-1, -1),
             #     (0, -1),
