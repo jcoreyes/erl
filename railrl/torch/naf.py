@@ -24,7 +24,6 @@ class NAF(OnlineAlgorithm):
             self,
             env,
             policy,
-            exploration_strategy,
             exploration_policy=None,
             policy_learning_rate=1e-3,
             target_hard_update_period=1000,
@@ -38,7 +37,6 @@ class NAF(OnlineAlgorithm):
         super().__init__(
             env,
             exploration_policy,
-            exploration_strategy,
             **kwargs
         )
         self.policy = policy
