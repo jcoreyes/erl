@@ -4,12 +4,12 @@ Experiment with NAF.
 import railrl.torch.pytorch_util as ptu
 from railrl.envs.remote import RemoteRolloutEnv
 from railrl.envs.wrappers import convert_gym_space
+from railrl.exploration_strategies.base import \
+    PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.algos.parallel_naf import ParallelNAF
 from railrl.torch.naf import NafPolicy
-from railrl.torch.state_distance.exploration import \
-    UniversalPolicyWrappedWithExplorationStrategy
 from rllab.envs.mujoco.inverted_double_pendulum_env import \
     InvertedDoublePendulumEnv
 from rllab.envs.normalized_env import normalize
@@ -36,7 +36,7 @@ def example(variant):
     )
     es = es_class(**es_params)
     policy = policy_class(**policy_params)
-    exploration_policy = UniversalPolicyWrappedWithExplorationStrategy(
+    exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
         policy=policy,
     )

@@ -3,15 +3,14 @@ Run DDPG where the training happens in parallel of the environment.
 """
 from railrl.envs.remote import RemoteRolloutEnv
 from railrl.envs.wrappers import convert_gym_space
+from railrl.exploration_strategies.base import \
+    PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.qfunctions.torch import FeedForwardQFunction
 from railrl.torch.algos.parallel_ddpg import ParallelDDPG
 import railrl.torch.pytorch_util as ptu
-from railrl.torch.state_distance.exploration import (
-    UniversalPolicyWrappedWithExplorationStrategy
-)
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 from rllab.envs.mujoco.inverted_double_pendulum_env import (
     InvertedDoublePendulumEnv
@@ -47,7 +46,7 @@ def example(variant):
     )
     es = es_class(**es_params)
     policy = policy_class(**policy_params)
-    exploration_policy = UniversalPolicyWrappedWithExplorationStrategy(
+    exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
         policy=policy,
     )
