@@ -11,17 +11,45 @@ TGT_INDS = np.array([7, 8])
 
 DIMS = 9
 
+all_init_position = [
+    (
+        np.array([0.3, -0.5]),
+        np.array([0.9, -0.3]),
+        np.array([0, -1]),
+    ),
+    (
+        np.array([0.6, -0.5]),
+        np.array([0.9, -0.3]),
+        np.array([0, -1]),
+    ),
+    (
+        np.array([0.6, -0.6]),
+        np.array([1, -0.5]),
+        np.array([0, -1]),
+    ),
+    (
+        np.array([0., -0.8]),
+        np.array([0.5, -0.8]),
+        np.array([-0.5, -1]),
+    ),
+    (
+        np.array([0., -0.8]),
+        np.array([0.7, -0.8]),
+        np.array([-0.5, -1]),
+    ),
+]
 
 class PusherAvoiderEnv3DOF(TuomasMujocoEnv, Serializable):
-
     FILE = '3link_gripper_push_avoid_2d.xml'
 
-    def __init__(self, task='avoid', hit_penalty=1.0, action_cost_coeff=0.1):
+    def __init__(self, task='avoid', hit_penalty=1.0, action_cost_coeff=0.1,
+                 init_config=None):
         Serializable.quick_init(self, locals())
         self._task = task
 
         self._action_cost_coeff = action_cost_coeff
         self._hit_penalty = hit_penalty
+        self._init_config = init_config
 
         super(PusherAvoiderEnv3DOF, self).__init__()
 
@@ -57,7 +85,7 @@ class PusherAvoiderEnv3DOF(TuomasMujocoEnv, Serializable):
         if self._task == 'both' or self._task == 'push':
             rewards -= tgt_dist
 
-        rewards -= self._action_cost_coeff * np.sum(actions**2, axis=1)
+        rewards -= self._action_cost_coeff * np.sum(actions ** 2, axis=1)
 
         if return_env_info:
             return rewards, dict(
@@ -93,9 +121,9 @@ class PusherAvoiderEnv3DOF(TuomasMujocoEnv, Serializable):
             if obj[0] > 0 and np.abs(obj[1]) < 0.4:
                 return True
 
-            for j in range(i+1, len(objs)):
+            for j in range(i + 1, len(objs)):
                 obj2 = objs[j]
-                if np.linalg.norm(obj-obj2) < 0.2:
+                if np.linalg.norm(obj - obj2) < 0.2:
                     return True
 
         return False
@@ -106,25 +134,28 @@ class PusherAvoiderEnv3DOF(TuomasMujocoEnv, Serializable):
         qacc = np.zeros(DIMS)
         ctrl = np.zeros(DIMS)
 
-        while True:
-            obj_pos_all = (
-                np.stack((  # obj1
-                    np.random.uniform(-1, 1),
-                    np.random.uniform(-1, 1),
-                )),
-                np.stack((  # obj2 want to avoid
-                    np.random.uniform(0.2, 1.5),
-                    np.random.uniform(-0.5, 0.5),
-                )),
-                np.stack((  # target
-                    np.random.uniform(-1, 1),
-                    np.random.uniform(-1, 1),
-                ))
-            )
-            # obj_pos_all = np.random.uniform(-1, 1, (3, 2))
+        if self._init_config is None:
+            while True:
+                obj_pos_all = (
+                    np.stack((  # obj1
+                        np.random.uniform(-1, 1),
+                        np.random.uniform(-1, 1),
+                    )),
+                    np.stack((  # obj2 want to avoid
+                        np.random.uniform(0.2, 1.5),
+                        np.random.uniform(-0.5, 0.5),
+                    )),
+                    np.stack((  # target
+                        np.random.uniform(-1, 1),
+                        np.random.uniform(-1, 1),
+                    ))
+                )
+                # obj_pos_all = np.random.uniform(-1, 1, (3, 2))
 
-            if not self._check_collisions(obj_pos_all):
-                break
+                if not self._check_collisions(obj_pos_all):
+                    break
+        else:
+            obj_pos_all = all_init_position[self._init_config]
 
         qpos[OB1_INDS] = obj_pos_all[0]
         qpos[OB2_INDS] = obj_pos_all[1]
@@ -144,12 +175,13 @@ class PusherAvoiderEnv3DOF(TuomasMujocoEnv, Serializable):
         ])
 
     def log_diagnostics(self, paths):
-        obj2_speed = np.concatenate([p['env_infos']['obj2_speed'] for p in paths])
+        obj2_speed = np.concatenate(
+            [p['env_infos']['obj2_speed'] for p in paths])
         goal_dists = [p['env_infos']['goal_distance'][-1] for p in paths]
 
         logger.record_tabular('obj2Speed', np.mean(obj2_speed))
 
         logger.record_tabular('FinalGoalDistanceAvg', np.mean(goal_dists))
-        logger.record_tabular('FinalGoalDistanceMax',  np.max(goal_dists))
-        logger.record_tabular('FinalGoalDistanceMin',  np.min(goal_dists))
-        logger.record_tabular('FinalGoalDistanceStd',  np.std(goal_dists))
+        logger.record_tabular('FinalGoalDistanceMax', np.max(goal_dists))
+        logger.record_tabular('FinalGoalDistanceMin', np.min(goal_dists))
+        logger.record_tabular('FinalGoalDistanceStd', np.std(goal_dists))
