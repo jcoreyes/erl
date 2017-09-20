@@ -13,18 +13,20 @@ class GreedyModelBasedPolicy(SampleBasedUniversalPolicy, nn.Module):
 
     where f is a learned forward dynamics model.
 
-    Do the argmax by sampling a bunch of acitons
+    Do the argmin by sampling a bunch of actions
     """
     def __init__(
             self,
             model,
             env,
             sample_size=100,
+            action_penalty=0,
     ):
         super().__init__(sample_size)
         nn.Module.__init__(self)
         self.model = model
         self.env = env
+        self.action_penalty = action_penalty
 
     def get_action(self, obs):
         sampled_actions = self.env.sample_actions(self.sample_size)
@@ -41,6 +43,10 @@ class GreedyModelBasedPolicy(SampleBasedUniversalPolicy, nn.Module):
             )
         )
         errors = (next_goal_state_predicted - self._goal_batch)**2
-        mean_errors = errors.mean(dim=1)
-        min_i = np.argmin(ptu.get_numpy(mean_errors))
+        mean_errors = ptu.get_numpy(errors.mean(dim=1))
+        score = mean_errors + self.action_penalty * np.linalg.norm(
+            sampled_actions,
+            axis=1
+        )
+        min_i = np.argmin(score)
         return sampled_actions[min_i], {}

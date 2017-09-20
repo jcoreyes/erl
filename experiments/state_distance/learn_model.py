@@ -38,7 +38,7 @@ def experiment(variant):
     policy = GreedyModelBasedPolicy(
         model,
         env,
-        sample_size=10000,
+        **variant['policy_params']
     )
     algo = ModelLearning(
         env,
@@ -65,9 +65,9 @@ if __name__ == '__main__':
     version = "Dev"
     run_mode = "none"
 
-    n_seeds = 3
+    n_seeds = 2
     mode = "ec2"
-    exp_prefix = "reacher-model-learning-grid-search"
+    exp_prefix = "reacher-model-learning-grid-search-corrected"
     run_mode = 'grid'
 
     num_configurations = 1  # for random mode
@@ -92,6 +92,10 @@ if __name__ == '__main__':
             learning_rate=1e-3,
             max_path_length=max_path_length,
             replay_buffer_size=replay_buffer_size,
+        ),
+        policy_params=dict(
+            sample_size=10000,
+            action_penalty=1,
         ),
         model_params=dict(
             hidden_sizes=[400, 300],
@@ -123,16 +127,15 @@ if __name__ == '__main__':
     if run_mode == 'grid':
         search_space = {
             'model_params.hidden_sizes': [
-                [400, 300],
                 [100, 100],
                 [32, 32],
             ],
-            'algo_params.weight_decay': [0, 1e-4, 1e-3, 1e-2],
+            'algo_params.weight_decay': [0, 1e-4, 5e-3],
             'normalize_params.obs_std': [
-                [0.7, 0.7, 0.7, 0.6, 47, 15],
                 None,
                 [0.7, 0.3, 0.7, 0.3, 25, 5],
             ],
+            'policy_params.action_penalty': [0, 0.01, 0.0001],
             'env_class': [
                 XyMultitaskSimpleStateReacherEnv,
                 GoalStateSimpleStateReacherEnv,
