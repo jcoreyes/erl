@@ -91,4 +91,4 @@ class SimpleReplayBuffer(ReplayBuffer):
         return len(self._valid_transition_indices)
 
     def num_steps_saved(self):
-        return self._top
+        return self._size
