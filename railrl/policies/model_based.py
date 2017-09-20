@@ -22,6 +22,7 @@ class GreedyModelBasedPolicy(SampleBasedUniversalPolicy, nn.Module):
             sample_size=100,
     ):
         super().__init__(sample_size)
+        nn.Module.__init__(self)
         self.model = model
         self.env = env
 
