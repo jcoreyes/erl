@@ -3,7 +3,6 @@ import argparse
 import joblib
 
 import railrl.torch.pytorch_util as ptu
-from torch import nn
 from railrl.algos.state_distance.state_distance_q_learning import (
     multitask_rollout,
 )
