@@ -8,8 +8,9 @@ from collections import OrderedDict
 import numpy as np
 from torch import optim as optim
 
+from railrl.algos.state_distance.state_distance_q_learning import \
+    multitask_rollout
 from railrl.samplers.util import rollout
-from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.algos.util import np_to_pytorch_batch
 from railrl.torch.algos.eval import get_statistics_from_pytorch_dict, \
@@ -50,7 +51,7 @@ class ModelLearning(object):
         self.batch_size = batch_size
         self.num_unique_batches = num_unique_batches
         self.num_rollouts_per_eval = num_rollouts_per_eval
-        self.max_path_length_for_eval = max_path_length
+        self.max_path_length = max_path_length
 
         self.optimizer = optim.Adam(self.model.parameters(),
                                     lr=self.learning_rate)
@@ -61,10 +62,20 @@ class ModelLearning(object):
     def train(self):
         num_batches_total = 0
         for epoch in range(self.num_epochs):
-
+            goal = self.env.sample_goal_state_for_rollout()
+            self.replay_buffer.add_path(
+                multitask_rollout(
+                    self.env,
+                    self.eval_policy,
+                    goal,
+                    0,
+                    max_path_length=self.max_path_length,
+                )
+            )
+            if self.replay_buffer.num_steps_can_sample() == 0:
+                continue
             for _ in range(self.num_batches_per_epoch):
                 self.model.train(True)
-                self._do_training()
                 num_batches_total += 1
             logger.push_prefix('Iteration #%d | ' % epoch)
             self.model.train(False)
@@ -121,7 +132,6 @@ class ModelLearning(object):
         statistics.update(
             self._statistics_from_batch(validation_batch, "Validation")
         )
-
         statistics.update(
             get_difference_statistics(
                 statistics,
@@ -129,6 +139,7 @@ class ModelLearning(object):
                 include_test_validation_gap=False,
             )
         )
+
         statistics['Epoch'] = epoch
         for key, value in statistics.items():
             logger.record_tabular(key, value)
@@ -142,7 +153,7 @@ class ModelLearning(object):
             path = rollout(
                 self.env,
                 self.eval_policy,
-                max_path_length=self.max_path_length_for_eval,
+                max_path_length=self.max_path_length,
             )
             path['goal_states'] = np.tile(goal, (len(path['observations']), 1))
             paths.append(path)

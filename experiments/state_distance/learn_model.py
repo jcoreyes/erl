@@ -73,6 +73,7 @@ if __name__ == '__main__':
     dataset_path = args.replay_path
 
     # noinspection PyTypeChecker
+    max_path_length = 300
     variant = dict(
         dataset_path=str(dataset_path),
         algo_params=dict(
@@ -81,6 +82,7 @@ if __name__ == '__main__':
             num_unique_batches=1000,
             batch_size=100,
             learning_rate=1e-3,
+            max_path_length=max_path_length,
         ),
         model_params=dict(
             hidden_sizes=[400, 300],
@@ -92,8 +94,8 @@ if __name__ == '__main__':
             # add_noop_action=False,
         ),
         sampler_params=dict(
-            min_num_steps_to_collect=10000,
-            max_path_length=150,
+            min_num_steps_to_collect=1000,
+            max_path_length=max_path_length,
             render=args.render,
         ),
         sampler_es_class=OUStrategy,
