@@ -21,6 +21,9 @@ class SplitReplayBuffer(ReplayBuffer):
     def add_sample(self, *args, **kwargs):
         self.replay_buffer.add_sample(*args, **kwargs)
 
+    def add_path(self, path):
+        self.replay_buffer.add_path(path)
+
     def num_steps_can_sample(self):
         return min(
             self.train_replay_buffer.num_steps_can_sample(),
