@@ -2,6 +2,7 @@
 Plot histogram of the actions, observations, computed rewards, and whatever
 else I might find useful in a replay buffer.
 """
+import numpy as np
 from itertools import chain
 import joblib
 
@@ -39,17 +40,48 @@ def main(dataset_path, only_load_buffer=False):
     train_replay_buffer = replay_buffer.train_replay_buffer
 
     """
-    Plot s_{t+1} - s_t
+    Print general statistics
     """
     obs = train_replay_buffer._observations[:train_replay_buffer._size, :]
-    num_features = obs.shape[-1]
-    if num_features > 8:
-        fig, axes = plt.subplots((num_features+1)//2, 2)
+    obs_dim = obs.shape[-1]
+    actions = train_replay_buffer._actions
+    action_dim = actions.shape[-1]
+    print("# data points = {}".format(train_replay_buffer._size))
+    print("(Min, max, mean, std) obs")
+    for i in range(obs_dim):
+        o = obs[:train_replay_buffer._size, i]
+        print(
+            "Dimension {}".format(i),
+            (min(o), max(o), np.mean(o), np.std(o))
+        )
+    print("(Min, max, mean, std) delta obs")
+    for i in range(obs_dim):
+        delta = (
+            obs[1:train_replay_buffer._size, i]
+            - obs[:train_replay_buffer._size-1, i]
+        )
+        print(
+            "Dimension {}".format(i),
+            (min(delta), max(delta), np.mean(delta), np.std(delta))
+        )
+    print("(Min, max, mean, std) action")
+    for i in range(action_dim):
+        a = obs[:train_replay_buffer._size, i]
+        print(
+            "Dimension {}".format(i),
+            (min(a), max(a), np.mean(a), np.std(a))
+        )
+
+    """
+    Plot s_{t+1} - s_t
+    """
+    if obs_dim > 8:
+        fig, axes = plt.subplots((obs_dim+1)//2, 2)
         ax_iter = chain(*axes)
     else:
-        fig, axes = plt.subplots(num_features)
+        fig, axes = plt.subplots(obs_dim)
         ax_iter = chain(axes)
-    for i in range(num_features):
+    for i in range(obs_dim):
         ax = next(ax_iter)
         diff = obs[:-1, i] - obs[1:, i]
         diff = diff[train_replay_buffer._final_state[:train_replay_buffer._size-1] == 0]
@@ -60,8 +92,6 @@ def main(dataset_path, only_load_buffer=False):
     """
     Plot actions
     """
-    actions = train_replay_buffer._actions
-    action_dim = actions.shape[-1]
     fig, axes = plt.subplots(action_dim)
     for i in range(action_dim):
         ax = axes[i]
@@ -73,20 +103,16 @@ def main(dataset_path, only_load_buffer=False):
     """
     Plot observations
     """
-    obs = train_replay_buffer._observations
-    num_features = obs.shape[-1]
-    if num_features > 8:
-        fig, axes = plt.subplots((num_features+1)//2, 2)
+    if obs_dim > 8:
+        fig, axes = plt.subplots((obs_dim+1)//2, 2)
         ax_iter = chain(*axes)
     else:
-        fig, axes = plt.subplots(num_features)
+        fig, axes = plt.subplots(obs_dim)
         ax_iter = chain(axes)
-    print("(Min, max) obs")
-    for i in range(num_features):
+    for i in range(obs_dim):
         ax = next(ax_iter)
         x = obs[:train_replay_buffer._size, i]
         ax.hist(x, bins=100)
-        print((min(x), max(x)), ",")
         ax.set_title("observations, dim #{}".format(i+1))
     plt.show()
 
@@ -110,9 +136,9 @@ def main(dataset_path, only_load_buffer=False):
 
     if isinstance(env, GoalStateSimpleStateReacherEnv):
         differences = batch['next_observations'] - sampled_goal_states
-        num_features = differences.shape[-1]
-        fig, axes = plt.subplots(num_features)
-        for i in range(num_features):
+        obs_dim = differences.shape[-1]
+        fig, axes = plt.subplots(obs_dim)
+        for i in range(obs_dim):
             ax = axes[i]
             x = differences[:, i]
             ax.hist(x)
