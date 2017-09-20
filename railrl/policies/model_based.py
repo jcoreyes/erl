@@ -35,11 +35,9 @@ class GreedyModelBasedPolicy(SampleBasedUniversalPolicy, nn.Module):
             action,
         )
         next_state_predicted = obs + state_delta_predicted
-        next_goal_state_predicted = ptu.np_to_var(
-            self.env.convert_obs_to_goal_states(
-                ptu.get_numpy(
+        next_goal_state_predicted = (
+            self.env.convert_obs_to_goal_states_pytorch(
                     next_state_predicted
-                )
             )
         )
         errors = (next_goal_state_predicted - self._goal_batch)**2
