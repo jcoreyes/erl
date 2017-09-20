@@ -10,6 +10,7 @@ from railrl.policies.state_distance import UniversalPolicy
 from railrl.samplers.util import rollout
 from railrl.torch.ddpg import DDPG
 from railrl.torch.algos.util import np_to_pytorch_batch
+from railrl.torch.algos.eval import get_difference_statistics
 from railrl.misc.tensorboard_logger import TensorboardLogger
 from railrl.torch.state_distance.exploration import UniversalExplorationPolicy
 from rllab.misc import logger
@@ -200,42 +201,34 @@ class StateDistanceQLearning(DDPG):
         :param epoch: The epoch number.
         :param exploration_paths: List of dicts, each representing a path.
         """
+        logger.log("Collecting samples for evaluation")
         statistics = OrderedDict()
         train_batch = self.get_batch(training=True)
-        statistics.update(self._statistics_from_batch(train_batch, "Train"))
         validation_batch = self.get_batch(training=False)
+        test_paths = self._sample_eval_paths(epoch)
+
+        statistics.update(self._statistics_from_batch(train_batch, "Train"))
         statistics.update(
             self._statistics_from_batch(validation_batch, "Validation")
+        )
+        statistics.update(self._statistics_from_paths(test_paths, "Test"))
+        statistics.update(
+            get_difference_statistics(
+                statistics,
+                ['QF Loss Mean', 'Policy Loss Mean'],
+            )
         )
 
         statistics['Discount Factor'] = self.discount
 
-        paths = self._sample_eval_paths(epoch)
-        statistics.update(self._statistics_from_paths(paths, "Test"))
-        average_returns = get_average_returns(paths)
+        average_returns = get_average_returns(test_paths)
         statistics['AverageReturn'] = average_returns
 
-        statistics['QF Loss Mean Validation - Train Gap'] = (
-            statistics['Validation QF Loss Mean']
-            - statistics['Train QF Loss Mean']
-        )
-        statistics['QF Loss Mean Test - Validation Gap'] = (
-            statistics['Test QF Loss Mean']
-            - statistics['Validation QF Loss Mean']
-        )
-        statistics['Policy Loss Mean Validation - Train Gap'] = (
-            statistics['Validation Policy Loss Mean']
-            - statistics['Train Policy Loss Mean']
-        )
-        statistics['Policy Loss Mean Test - Validation Gap'] = (
-            statistics['Test Policy Loss Mean']
-            - statistics['Validation Policy Loss Mean']
-        )
 
         for key, value in statistics.items():
             logger.record_tabular(key, value)
 
-        self.log_diagnostics(paths)
+        self.log_diagnostics(test_paths)
 
     def _sample_eval_paths(self, epoch):
         self.eval_sampler.set_discount(self.discount)
