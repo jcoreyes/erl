@@ -3,6 +3,7 @@ Use supervised learning to learn
 
 f(s, a) = s'
 """
+import time
 from collections import OrderedDict
 
 import numpy as np
@@ -58,6 +59,7 @@ class ModelLearning(object):
         self.discount = ptu.Variable(
             ptu.from_numpy(np.zeros((batch_size, 1))).float()
         )
+        self.start_time = time.time()
 
     def train(self):
         num_batches_total = 0
@@ -135,11 +137,13 @@ class ModelLearning(object):
         statistics.update(
             get_difference_statistics(
                 statistics,
-                ['Loss Mean', 'Errors Max'],
+                ['Loss Mean', 'Errors Mean', 'Errors Max'],
                 include_test_validation_gap=False,
             )
         )
 
+        statistics['Num steps collected'] = self.replay_buffer.num_steps_saved()
+        statistics['Total Wallclock Time (s)'] = time.time() - self.start_time
         statistics['Epoch'] = epoch
         for key, value in statistics.items():
             logger.record_tabular(key, value)

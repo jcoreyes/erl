@@ -42,6 +42,13 @@ class ReplayBuffer(object, metaclass=abc.ABCMeta):
         """
         pass
 
+    @abc.abstractmethod
+    def num_steps_saved(self):
+        """
+        :return: # of unique items that are saved.
+        """
+        pass
+
     def add_path(self, path):
         """
         Add a path to the replay buffer.

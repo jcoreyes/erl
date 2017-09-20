@@ -42,3 +42,9 @@ class SplitReplayBuffer(ReplayBuffer):
             return self.train_replay_buffer
         else:
             return self.validation_replay_buffer
+
+    def num_steps_saved(self):
+        return (
+            self.train_replay_buffer.num_steps_saved()
+            + self.validation_replay_buffer.num_steps_saved()
+        )
