@@ -81,6 +81,7 @@ if __name__ == '__main__':
 
     # noinspection PyTypeChecker
     max_path_length = 300
+    replay_buffer_size = 100000
     variant = dict(
         dataset_path=str(dataset_path),
         algo_params=dict(
@@ -90,7 +91,7 @@ if __name__ == '__main__':
             batch_size=100,
             learning_rate=1e-3,
             max_path_length=max_path_length,
-            replay_buffer_size=100000,
+            replay_buffer_size=replay_buffer_size,
         ),
         model_params=dict(
             hidden_sizes=[400, 300],
@@ -110,6 +111,7 @@ if __name__ == '__main__':
             max_path_length=max_path_length,
             render=args.render,
         ),
+        replay_buffer_size=replay_buffer_size,
         sampler_es_class=OUStrategy,
         sampler_es_params=dict(
             max_sigma=0.2,
