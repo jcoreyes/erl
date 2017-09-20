@@ -16,8 +16,18 @@ class NormalizedBoxEnv(ProxyEnv, Serializable):
             obs_mean=None,
             obs_std=None,
     ):
+        # self._wrapped_env needs to be called first because
+        # Serializable.quick_init calls getattr, on this class. And the
+        # implementation of getattr (see below) calls self._wrapped_env.
+        # Without setting this first, the call to self._wrapped_env would call
+        # getattr again (since it's not set yet) and therefore loop forever.
+        self._wrapped_env = env
         Serializable.quick_init(self, locals())
         ProxyEnv.__init__(self, env)
+        if obs_mean is not None:
+            obs_mean = np.array(obs_mean)
+        if obs_std is not None:
+            obs_std = np.array(obs_std)
         self._scale_reward = scale_reward
         self._obs_mean = obs_mean
         self._obs_std = obs_std
@@ -56,7 +66,8 @@ class NormalizedBoxEnv(ProxyEnv, Serializable):
                    super().observation_space.high)
 
     def step(self, action):
-        lb, ub = self._wrapped_env.action_space.bounds
+        lb = self._wrapped_env.action_space.low
+        ub = self._wrapped_env.action_space.high
         scaled_action = lb + (action + 1.) * 0.5 * (ub - lb)
         scaled_action = np.clip(scaled_action, lb, ub)
 
@@ -73,23 +84,10 @@ class NormalizedBoxEnv(ProxyEnv, Serializable):
     def log_diagnostics(self, paths, **kwargs):
         return self._wrapped_env.log_diagnostics(paths, **kwargs)
 
+    def __getattr__(self, attrname):
+        return getattr(self._wrapped_env, attrname)
 
-# class NormalizedBoxEnv(NormalizedEnv):
-#     @property
-#     def action_space(self):
-#         return Box(super().action_space.low,
-#                    super().action_space.high)
-#
-#     @property
-#     def observation_space(self):
-#         return Box(super().observation_space.low,
-#                    super().observation_space.high)
-#
-#     def log_diagnostics(self, paths, **kwargs):
-#         return self._wrapped_env.log_diagnostics(paths, **kwargs)
-
-
-normalize = NormalizedBoxEnv
+normalize_box = NormalizedBoxEnv
 
 
 class ConvertEnv(ProxyEnv, Serializable):

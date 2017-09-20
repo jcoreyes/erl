@@ -1,5 +1,6 @@
 import argparse
 import random
+import numpy as np
 
 import railrl.torch.pytorch_util as ptu
 import railrl.misc.hyperparameter as hyp
@@ -9,7 +10,7 @@ from railrl.envs.multitask.reacher_env import (
     GoalStateSimpleStateReacherEnv,
     XyMultitaskSimpleStateReacherEnv,
 )
-from railrl.envs.wrappers import convert_gym_space
+from railrl.envs.wrappers import convert_gym_space, normalize_box
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.model_based import GreedyModelBasedPolicy
@@ -19,6 +20,10 @@ from railrl.predictors.torch import Mlp
 def experiment(variant):
     env_class = variant['env_class']
     env = env_class(**variant['env_params'])
+    env = normalize_box(
+        env,
+        **variant['normalize_params']
+    )
     replay_buffer = get_replay_buffer(variant)
 
     observation_space = convert_gym_space(env.observation_space)
@@ -60,7 +65,7 @@ if __name__ == '__main__':
 
     # n_seeds = 3
     # mode = "ec2"
-    # exp_prefix = "reacher-2d-xy-goal-learn-model-sweep-numdata"
+    exp_prefix = "reacher-model-learning-normalized"
     # run_mode = 'grid'
 
     num_configurations = 1  # for random mode
@@ -92,6 +97,10 @@ if __name__ == '__main__':
         env_class=XyMultitaskSimpleStateReacherEnv,
         env_params=dict(
             # add_noop_action=False,
+        ),
+        normalize_params=dict(
+            obs_mean=None,
+            obs_std=[0.7, 0.7, 0.7, 0.6, 47, 15],
         ),
         sampler_params=dict(
             min_num_steps_to_collect=1000,
