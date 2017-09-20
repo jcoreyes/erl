@@ -65,7 +65,7 @@ if __name__ == '__main__':
 
     # n_seeds = 3
     # mode = "ec2"
-    exp_prefix = "reacher-model-learning-normalized"
+    exp_prefix = "reacher-model-learning-normalized-with-beta"
     # run_mode = 'grid'
 
     num_configurations = 1  # for random mode
