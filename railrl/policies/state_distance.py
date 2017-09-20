@@ -3,6 +3,7 @@ Policies to be used with a state-distance Q function.
 """
 import abc
 import numpy as np
+from torch import nn
 from torch.autograd import Variable
 
 from railrl.policies.base import ExplorationPolicy, Policy
@@ -58,9 +59,12 @@ class SampleBasedUniversalPolicy(
         )
 
 
-class SamplePolicyPartialOptimizer(SampleBasedUniversalPolicy):
+class SamplePolicyPartialOptimizer(SampleBasedUniversalPolicy, nn.Module):
     """
     Greedy-action-partial-state implementation.
+
+    Make it sublcass nn.Module so that calls to `train` and `cuda` get
+    propagated to the sub-networks
 
     See https://paper.dropbox.com/doc/State-Distance-QF-Results-Summary-flRwbIxt0bbUbVXVdkKzr
     for details.
@@ -89,9 +93,12 @@ class SamplePolicyPartialOptimizer(SampleBasedUniversalPolicy):
         return sampled_actions[max_i], {}
 
 
-class SampleOptimalControlPolicy(SampleBasedUniversalPolicy):
+class SampleOptimalControlPolicy(SampleBasedUniversalPolicy, nn.Module):
     """
     Do the argmax by sampling a bunch of states and acitons
+
+    Make it sublcass nn.Module so that calls to `train` and `cuda` get
+    propagated to the sub-networks
     """
     def __init__(
             self,
@@ -146,7 +153,7 @@ class SampleOptimalControlPolicy(SampleBasedUniversalPolicy):
         return sampled_actions[max_i], {}
 
 
-class TerminalRewardSampleOCPolicy(SampleOptimalControlPolicy):
+class TerminalRewardSampleOCPolicy(SampleOptimalControlPolicy, nn.Module):
     """
     Want to implement:
 
@@ -163,6 +170,9 @@ class TerminalRewardSampleOCPolicy(SampleOptimalControlPolicy):
 
     Naive implementation where I just sample a bunch of a's and s's and take
     the max of this function f.
+
+    Make it sublcass nn.Module so that calls to `train` and `cuda` get
+    propagated to the sub-networks
 
     :param obs: np.array, state/observation
     :return: np.array, action to take

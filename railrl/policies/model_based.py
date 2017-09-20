@@ -1,10 +1,11 @@
 import numpy as np
-from torch.autograd import Variable
+from torch import nn
 
+from railrl.policies.state_distance import SampleBasedUniversalPolicy
 from railrl.torch import pytorch_util as ptu
 
 
-class GreedyModelBasedPolicy(object):
+class GreedyModelBasedPolicy(SampleBasedUniversalPolicy, nn.Module):
     """
     Choose action according to
 
@@ -20,27 +21,9 @@ class GreedyModelBasedPolicy(object):
             env,
             sample_size=100,
     ):
+        super().__init__(sample_size)
         self.model = model
         self.env = env
-        self.sample_size = sample_size
-        self._goal_batch = None
-
-    def expand_np_to_var(self, array):
-        array_expanded = np.repeat(
-            np.expand_dims(array, 0),
-            self.sample_size,
-            axis=0
-        )
-        return Variable(
-            ptu.from_numpy(array_expanded).float(),
-            requires_grad=False,
-        )
-
-    def set_goal(self, goal):
-        self._goal_batch = self.expand_np_to_var(goal)
-
-    def reset(self):
-        pass
 
     def get_action(self, obs):
         sampled_actions = self.env.sample_actions(self.sample_size)
