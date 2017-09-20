@@ -38,7 +38,7 @@ class ModelLearning(object):
             batch_size=100,
             num_unique_batches=1000,
             num_rollouts_per_eval=10,
-            max_path_length_for_eval=100,
+            max_path_length=100,
     ):
         self.model = model
         self.replay_buffer = replay_buffer
@@ -50,7 +50,7 @@ class ModelLearning(object):
         self.batch_size = batch_size
         self.num_unique_batches = num_unique_batches
         self.num_rollouts_per_eval = num_rollouts_per_eval
-        self.max_path_length_for_eval = max_path_length_for_eval
+        self.max_path_length_for_eval = max_path_length
 
         self.optimizer = optim.Adam(self.model.parameters(),
                                     lr=self.learning_rate)
@@ -61,6 +61,7 @@ class ModelLearning(object):
     def train(self):
         num_batches_total = 0
         for epoch in range(self.num_epochs):
+
             for _ in range(self.num_batches_per_epoch):
                 self.model.train(True)
                 self._do_training()
@@ -87,8 +88,9 @@ class ModelLearning(object):
         actions = batch['actions']
         next_obs = batch['next_observations']
 
-        next_obs_pred = self.model(obs, actions)
-        errors = (next_obs - next_obs_pred)**2
+        next_obs_delta_pred = self.model(obs, actions)
+        next_obs_delta = next_obs - obs
+        errors = (next_obs_delta_pred - next_obs_delta)**2
         loss = errors.mean()
 
         return OrderedDict([
@@ -121,7 +123,11 @@ class ModelLearning(object):
         )
 
         statistics.update(
-            get_difference_statistics(statistics, ['Loss Mean', 'Errors Max'])
+            get_difference_statistics(
+                statistics,
+                ['Loss Mean', 'Errors Max'],
+                include_test_validation_gap=False,
+            )
         )
         statistics['Epoch'] = epoch
         for key, value in statistics.items():
@@ -159,6 +165,7 @@ class ModelLearning(object):
             model=self.model,
             replay_buffer=self.replay_buffer,
             env=self.env,
+            policy=self.eval_policy,
         )
 
     def cuda(self):

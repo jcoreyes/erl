@@ -46,10 +46,11 @@ class GreedyModelBasedPolicy(object):
         sampled_actions = self.env.sample_actions(self.sample_size)
         action = ptu.np_to_var(sampled_actions)
         obs = self.expand_np_to_var(obs)
-        next_state_predicted = self.model(
+        state_delta_predicted = self.model(
             obs,
             action,
         )
+        next_state_predicted = obs + state_delta_predicted
         next_goal_state_predicted = ptu.np_to_var(
             self.env.convert_obs_to_goal_states(
                 ptu.get_numpy(
