@@ -58,13 +58,13 @@ if __name__ == '__main__':
     version = "Dev"
     run_mode = "none"
 
-    n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "reacher-2d-xy-goal-learn-model-sweep-numdata"
-    run_mode = 'grid'
+    # n_seeds = 3
+    # mode = "ec2"
+    # exp_prefix = "reacher-2d-xy-goal-learn-model-sweep-numdata"
+    # run_mode = 'grid'
 
     num_configurations = 1  # for random mode
-    snapshot_mode = "gap"
+    snapshot_mode = "last"
     snapshot_gap = 5
     use_gpu = True
     if mode != "here":

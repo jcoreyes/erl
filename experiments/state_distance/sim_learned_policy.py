@@ -3,6 +3,7 @@ import argparse
 import joblib
 
 import railrl.torch.pytorch_util as ptu
+from torch import nn
 from railrl.algos.state_distance.state_distance_q_learning import (
     multitask_rollout,
 )
@@ -18,7 +19,7 @@ if __name__ == "__main__":
     parser.add_argument('--num_rollouts', type=int, default=5,
                         help='Number of rollout per eval')
     parser.add_argument('--verbose', action='store_true')
-    parser.add_argument('--discount', type=float,
+    parser.add_argument('--discount', type=float, default=0.99,
                         help='Discount Factor')
     parser.add_argument('--grid', action='store_true')
     parser.add_argument('--gpu', action='store_true')
@@ -28,16 +29,14 @@ if __name__ == "__main__":
 
     data = joblib.load(args.file)
     env = data['env']
-    qf = data['qf']
-    if args.gpu:
-        ptu.set_gpu_mode(True)
-        qf.cuda()
-    qf.train(False)
-
     num_samples = 1000
     resolution = 10
     policy = data['policy']
     policy.train(False)
+
+    if args.gpu:
+        ptu.set_gpu_mode(True)
+        policy.cuda()
 
     if 'discount' in data:
         discount = data['discount']
