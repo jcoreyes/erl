@@ -227,5 +227,5 @@ def get_numpy(tensor):
     return tensor.numpy()
 
 
-def np_to_var(np_array):
-    return Variable(from_numpy(np_array).float())
+def np_to_var(np_array, *args, **kwargs):
+    return Variable(from_numpy(np_array).float(), *args, **kwargs)
