@@ -1,6 +1,5 @@
 import argparse
 import random
-import numpy as np
 
 import railrl.torch.pytorch_util as ptu
 import railrl.misc.hyperparameter as hyp
@@ -24,7 +23,10 @@ def experiment(variant):
         env,
         **variant['normalize_params']
     )
-    replay_buffer = get_replay_buffer(variant)
+    if variant['start_with_empty_replay_buffer']:
+        replay_buffer = None
+    else:
+        replay_buffer = get_replay_buffer(variant)
 
     observation_space = convert_gym_space(env.observation_space)
     action_space = convert_gym_space(env.action_space)
@@ -63,10 +65,10 @@ if __name__ == '__main__':
     version = "Dev"
     run_mode = "none"
 
-    # n_seeds = 3
-    # mode = "ec2"
-    exp_prefix = "reacher-model-learning-normalized-with-beta"
-    # run_mode = 'grid'
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "reacher-model-learning-grid-search"
+    run_mode = 'grid'
 
     num_configurations = 1  # for random mode
     snapshot_mode = "last"
@@ -88,22 +90,23 @@ if __name__ == '__main__':
             batch_size=100,
             learning_rate=1e-3,
             max_path_length=max_path_length,
+            replay_buffer_size=100000,
         ),
         model_params=dict(
             hidden_sizes=[400, 300],
         ),
-        # env_class=GoalStateSimpleStateReacherEnv,
+        env_class=GoalStateSimpleStateReacherEnv,
         # env_class=PusherEnv,
-        env_class=XyMultitaskSimpleStateReacherEnv,
+        # env_class=XyMultitaskSimpleStateReacherEnv,
         env_params=dict(
             # add_noop_action=False,
         ),
         normalize_params=dict(
             obs_mean=None,
-            obs_std=[0.7, 0.7, 0.7, 0.6, 47, 15],
+            obs_std=[0.7, 0.7, 0.7, 0.6, 40, 5],
         ),
         sampler_params=dict(
-            min_num_steps_to_collect=1000,
+            min_num_steps_to_collect=10000,
             max_path_length=max_path_length,
             render=args.render,
         ),
@@ -113,20 +116,24 @@ if __name__ == '__main__':
             min_sigma=0.2,
         ),
         generate_data=args.replay_path is None,
+        start_with_empty_replay_buffer=True,
     )
     if run_mode == 'grid':
         search_space = {
-            'sampler_params.min_num_steps_to_collect': [
-                10000,
-                20000,
-                30000,
-                40000,
-                50000,
-                60000,
-                70000,
-                80000,
-                90000,
-                100000,
+            'model_params.hidden_sizes': [
+                [400, 300],
+                [100, 100],
+                [32, 32],
+            ],
+            'algo_params.weight_decay': [0, 1e-4, 1e-3, 1e-2],
+            'normalize_params.obs_std': [
+                [0.7, 0.7, 0.7, 0.6, 47, 15],
+                None,
+                [0.7, 0.3, 0.7, 0.3, 25, 5],
+            ],
+            'env_class': [
+                XyMultitaskSimpleStateReacherEnv,
+                GoalStateSimpleStateReacherEnv,
             ],
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(

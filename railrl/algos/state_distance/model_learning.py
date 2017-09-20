@@ -11,6 +11,8 @@ from torch import optim as optim
 
 from railrl.algos.state_distance.state_distance_q_learning import \
     multitask_rollout
+from railrl.data_management.env_replay_buffer import EnvReplayBuffer
+from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.samplers.util import rollout
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.algos.util import np_to_pytorch_batch
@@ -37,11 +39,28 @@ class ModelLearning(object):
             num_epochs=100,
             num_batches_per_epoch=100,
             learning_rate=1e-3,
+            weight_decay=0,
             batch_size=100,
             num_unique_batches=1000,
             num_rollouts_per_eval=10,
             max_path_length=100,
+            replay_buffer_size=100000,
     ):
+        if replay_buffer is None:
+            replay_buffer = SplitReplayBuffer(
+                EnvReplayBuffer(
+                    replay_buffer_size,
+                    env,
+                    flatten=True,
+                ),
+                EnvReplayBuffer(
+                    replay_buffer_size,
+                    env,
+                    flatten=True,
+                ),
+                fraction_paths_in_train=0.8,
+            )
+
         self.model = model
         self.replay_buffer = replay_buffer
         self.env = env
@@ -49,13 +68,17 @@ class ModelLearning(object):
         self.num_epochs = num_epochs
         self.num_batches_per_epoch = num_batches_per_epoch
         self.learning_rate = learning_rate
+        self.weight_decay = weight_decay
         self.batch_size = batch_size
         self.num_unique_batches = num_unique_batches
         self.num_rollouts_per_eval = num_rollouts_per_eval
         self.max_path_length = max_path_length
 
-        self.optimizer = optim.Adam(self.model.parameters(),
-                                    lr=self.learning_rate)
+        self.optimizer = optim.Adam(
+            self.model.parameters(),
+            lr=self.learning_rate,
+            weight_decay=weight_decay,
+        )
         self.discount = ptu.Variable(
             ptu.from_numpy(np.zeros((batch_size, 1))).float()
         )
