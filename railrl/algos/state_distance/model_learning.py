@@ -11,8 +11,9 @@ from torch import optim as optim
 from railrl.samplers.util import rollout
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.torch import pytorch_util as ptu
-from railrl.torch.algos.util import get_statistics_from_pytorch_dict, \
-    np_to_pytorch_batch
+from railrl.torch.algos.util import np_to_pytorch_batch
+from railrl.torch.algos.eval import get_statistics_from_pytorch_dict, \
+    get_difference_statistics
 from rllab.misc import logger
 
 
@@ -119,13 +120,8 @@ class ModelLearning(object):
             self._statistics_from_batch(validation_batch, "Validation")
         )
 
-        statistics['Loss Mean Validation - Train Gap'] = (
-            statistics['Validation Loss Mean']
-            - statistics['Train Loss Mean']
-        )
-        statistics['Errors Max Validation - Train Gap'] = (
-            statistics['Validation Errors Max']
-            - statistics['Train Errors Max']
+        statistics.update(
+            get_difference_statistics(statistics, ['Loss Mean', 'Errors Max'])
         )
         statistics['Epoch'] = epoch
         for key, value in statistics.items():

@@ -11,8 +11,9 @@ from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import get_average_returns, split_paths_to_dict
-from railrl.torch.algos.util import get_statistics_from_pytorch_dict, \
-    np_to_pytorch_batch
+from railrl.torch.algos.util import np_to_pytorch_batch
+from railrl.torch.algos.eval import get_statistics_from_pytorch_dict, \
+    get_difference_statistics
 from railrl.torch.core import PyTorchModule
 from railrl.torch.online_algorithm import OnlineAlgorithm
 from railrl.torch import pytorch_util as ptu
@@ -130,9 +131,9 @@ class NAF(OnlineAlgorithm):
         :param exploration_paths: List of dicts, each representing a path.
         """
         logger.log("Collecting samples for evaluation")
-        test_paths = self._sample_eval_paths(epoch)
         train_batch = self.get_batch(training=True)
         validation_batch = self.get_batch(training=False)
+        test_paths = self._sample_eval_paths(epoch)
 
         statistics = OrderedDict()
         statistics.update(
@@ -142,6 +143,9 @@ class NAF(OnlineAlgorithm):
         statistics.update(self._statistics_from_batch(train_batch, "Train"))
         statistics.update(
             self._statistics_from_batch(validation_batch, "Validation")
+        )
+        statistics.update(
+            get_difference_statistics(statistics, ['Policy Loss Mean'])
         )
         statistics['AverageReturn'] = get_average_returns(test_paths)
         statistics['Epoch'] = epoch

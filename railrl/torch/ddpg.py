@@ -9,8 +9,9 @@ from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.ml_util import ConstantSchedule
 from railrl.misc.rllab_util import get_average_returns, split_paths_to_dict
-from railrl.torch.algos.util import get_statistics_from_pytorch_dict, \
-    np_to_pytorch_batch, get_generic_path_information
+from railrl.torch.algos.util import np_to_pytorch_batch
+from railrl.torch.algos.eval import get_statistics_from_pytorch_dict, \
+    get_difference_statistics, get_generic_path_information
 from railrl.torch.online_algorithm import OnlineAlgorithm
 from rllab.misc import logger
 
@@ -176,8 +177,11 @@ class DDPG(OnlineAlgorithm):
         :param exploration_paths: List of dicts, each representing a path.
         """
         logger.log("Collecting samples for evaluation")
-
         statistics = OrderedDict()
+        train_batch = self.get_batch(training=True)
+        validation_batch = self.get_batch(training=False)
+        test_paths = self._sample_eval_paths(epoch)
+
         if not isinstance(self.epoch_discount_schedule, ConstantSchedule):
             statistics['Discount Factor'] = self.discount
 
@@ -186,28 +190,21 @@ class DDPG(OnlineAlgorithm):
         ))
         statistics.update(self._statistics_from_paths(exploration_paths,
                                                       "Exploration"))
-
-        train_batch = self.get_batch(training=True)
         statistics.update(self._statistics_from_batch(train_batch, "Train"))
-        validation_batch = self.get_batch(training=False)
         statistics.update(
             self._statistics_from_batch(validation_batch, "Validation")
         )
-
-        statistics['QF Loss Validation - Train Gap'] = (
-            statistics['Validation QF Loss Mean']
-            - statistics['Train QF Loss Mean']
-        )
-        statistics['Policy Loss Validation - Train Gap'] = (
-            statistics['Validation Policy Loss Mean']
-            - statistics['Train Policy Loss Mean']
-        )
-
-        test_paths = self._sample_eval_paths(epoch)
         statistics.update(get_generic_path_information(
             test_paths, self.discount, stat_prefix="Test",
         ))
         statistics.update(self._statistics_from_paths(test_paths, "Test"))
+        statistics.update(
+            get_difference_statistics(
+                statistics,
+                ['QF Loss Mean', 'Policy Loss Mean'],
+            )
+        )
+
         average_returns = get_average_returns(test_paths)
         statistics['AverageReturn'] = average_returns
 
