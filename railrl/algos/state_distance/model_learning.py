@@ -78,10 +78,12 @@ class ModelLearning(object):
                 continue
             for _ in range(self.num_batches_per_epoch):
                 self.model.train(True)
+                self._do_training()
                 num_batches_total += 1
             logger.push_prefix('Iteration #%d | ' % epoch)
             self.model.train(False)
             self.evaluate(epoch)
+            logger.dump_tabular(with_prefix=False, with_timestamp=False)
             params = self.get_epoch_snapshot(epoch)
             logger.save_itr_params(epoch, params)
             logger.log("Done evaluating")
@@ -162,8 +164,6 @@ class ModelLearning(object):
             path['goal_states'] = np.tile(goal, (len(path['observations']), 1))
             paths.append(path)
         self.env.log_diagnostics(paths)
-
-        logger.dump_tabular(with_prefix=False, with_timestamp=False)
 
     def _statistics_from_batch(self, batch, stat_prefix):
         train_dict = self.get_train_dict(batch)
