@@ -201,44 +201,9 @@ class NAF(OnlineAlgorithm):
             replay_buffer=self.replay_buffer,
             algorithm=self,
         )
-# class NormalizedAdvantageFunction(PyTorchModule):
-#     def __init__(
-#             self,
-#             obs_dim,
-#             action_dim,
-#     ):
-#         self.save_init_params(locals())
-#         super().__init__()
-#
-#         self.obs_dim = obs_dim
-#         self.action_dim = action_dim
-#         self.observation_hidden_size = observation_hidden_size
-#         self.embedded_hidden_size = embedded_hidden_size
-#
-#         self.obs_fc = nn.Linear(obs_dim, observation_hidden_size)
-#         self.embedded_fc = nn.Linear(observation_hidden_size + action_dim,
-#                                      embedded_hidden_size)
-#         self.last_fc = nn.Linear(embedded_hidden_size, 1)
-#         self.output_activation = output_activation
-#
-#         self.init_weights(init_w)
-#
-#     def init_weights(self, init_w):
-#         init.kaiming_normal(self.obs_fc.weight)
-#         self.obs_fc.bias.data.fill_(0)
-#         init.kaiming_normal(self.embedded_fc.weight)
-#         self.embedded_fc.bias.data.fill_(0)
-#         self.last_fc.weight.data.uniform_(-init_w, init_w)
-#         self.last_fc.bias.data.uniform_(-init_w, init_w)
-#
-#     def forward(self, obs, action):
-#         h = obs
-#         h = F.relu(self.obs_fc(h))
-#         h = torch.cat((h, action), dim=1)
-#         h = F.relu(self.embedded_fc(h))
-#         return self.output_activation(self.last_fc(h))
-class NafPolicy(PyTorchModule):
 
+
+class NafPolicy(PyTorchModule):
     def __init__(
             self,
             obs_dim,
@@ -247,12 +212,14 @@ class NafPolicy(PyTorchModule):
             use_batchnorm=False,
             b_init_value=0.01,
             hidden_init=ptu.fanin_init,
+            use_exp_for_diagonal_not_square=True,
     ):
         self.save_init_params(locals())
         super(NafPolicy, self).__init__()
         self.obs_dim = obs_dim
         self.action_dim = action_dim
         self.use_batchnorm = use_batchnorm
+        self.use_exp_for_diagonal_not_square = use_exp_for_diagonal_not_square
 
         if use_batchnorm:
             self.bn_state = nn.BatchNorm1d(obs_dim)
@@ -300,31 +267,25 @@ class NafPolicy(PyTorchModule):
 
         Q = None
         P = None
-        if action is not None:
+        if action is not None or return_P:
             num_outputs = mu.size(1)
             raw_L = self.L(x).view(-1, num_outputs, num_outputs)
-            L = (
-                raw_L * self.tril_mask.expand_as(raw_L)
-                + torch.exp(raw_L) * self.diag_mask.expand_as(raw_L)
-            )
+            L = raw_L * self.tril_mask.expand_as(raw_L)
+            if self.use_exp_for_diagonal_not_square:
+                L += torch.exp(raw_L) * self.diag_mask.expand_as(raw_L)
+            else:
+                L += torch.pow(raw_L, 2) * self.diag_mask.expand_as(raw_L)
             P = torch.bmm(L, L.transpose(2, 1))
 
-            u_mu = (action - mu).unsqueeze(2)
-            A = - 0.5 * torch.bmm(
-                torch.bmm(u_mu.transpose(2, 1), P), u_mu
-            ).squeeze(2)
+            if action is not None:
+                u_mu = (action - mu).unsqueeze(2)
+                A = - 0.5 * torch.bmm(
+                    torch.bmm(u_mu.transpose(2, 1), P), u_mu
+                ).squeeze(2)
 
-            Q = A + V
+                Q = A + V
 
         if return_P:
-            if P is None:
-                num_outputs = mu.size(1)
-                raw_L = self.L(x).view(-1, num_outputs, num_outputs)
-                L = (
-                    raw_L * self.tril_mask.expand_as(raw_L)
-                    + torch.exp(raw_L) * self.diag_mask.expand_as(raw_L)
-                )
-                P = torch.bmm(L, L.transpose(2, 1))
             return mu, Q, V, P
         return mu, Q, V
 
