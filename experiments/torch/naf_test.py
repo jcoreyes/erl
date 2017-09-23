@@ -1,34 +1,43 @@
 """
-Experiment with NAF.
+Experiments with NAF.
 """
 import random
-from railrl.envs.pygame.water_maze import WaterMazeEasy1D, WaterMazeEasy
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import run_experiment, set_seed
-from railrl.torch.naf import NAF, NafPolicy
-from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
+
 import railrl.torch.pytorch_util as ptu
+from railrl.exploration_strategies.base import (
+    PolicyWrappedWithExplorationStrategy
+)
+from railrl.exploration_strategies.ou_strategy import OUStrategy
+from railrl.launchers.launcher_util import run_experiment
+from railrl.torch.naf import NafPolicy, NAF
+from rllab.envs.mujoco.ant_env import AntEnv
+from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
+from rllab.envs.mujoco.hopper_env import HopperEnv
+from rllab.envs.mujoco.inverted_double_pendulum_env import \
+    InvertedDoublePendulumEnv
+from rllab.envs.mujoco.swimmer_env import SwimmerEnv
+from rllab.envs.normalized_env import normalize
+import railrl.misc.hyperparameter as hyp
 
 
-def example(variant):
-    env_class = variant['env_class']
-    seed = variant['seed']
-    env_params = variant['env_params']
-    algo_params = variant['algo_params']
-
-    set_seed(seed)
-    env = env_class(**env_params)
+def experiment(variant):
+    env = variant['env_class']()
+    env = normalize(env)
     es = OUStrategy(action_space=env.action_space)
-    qf = NafPolicy(
+    policy = NafPolicy(
         int(env.observation_space.flat_dim),
         int(env.action_space.flat_dim),
-        400,
+        **variant['policy_params']
+    )
+    exploration_policy = PolicyWrappedWithExplorationStrategy(
+        exploration_strategy=es,
+        policy=policy,
     )
     algorithm = NAF(
         env,
-        naf_policy=qf,
-        exploration_strategy=es,
-        **algo_params
+        policy=policy,
+        exploration_policy=exploration_policy,
+        **variant['algo_params']
     )
     if ptu.gpu_enabled():
         algorithm.cuda()
@@ -36,30 +45,66 @@ def example(variant):
 
 
 if __name__ == "__main__":
+    num_configurations = 1  # for random mode
+    n_seeds = 1
+    mode = "here"
+    exp_prefix = "dev"
+    version = "Dev"
+    run_mode = "none"
+
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "benchmark-naf-many-envs"
+    # version = "Dev"
+
+    # run_mode = 'grid'
     use_gpu = True
-    horizon = 1000
+    if mode != "here":
+        use_gpu = False
+
     # noinspection PyTypeChecker
     variant = dict(
-        env_class=HalfCheetahEnv,
-        env_params=dict(
-            # horizon=horizon,
-        ),
         algo_params=dict(
-            num_epochs=50,
-            num_steps_per_epoch=1000,
+            num_epochs=100,
+            num_steps_per_epoch=10000,
             num_steps_per_eval=1000,
-            batch_size=1024,
-            replay_buffer_size=50000,
-            max_path_length=horizon,
+            use_soft_update=True,
+            tau=1e-3,
+            batch_size=128,
+            max_path_length=1000,
+            discount=0.99,
+            policy_learning_rate=1e-4,
         ),
-        version="Normal",
+        version="NAF",
     )
-    seed = random.randint(0, 10000)
-    run_experiment(
-        example,
-        exp_prefix="naf-dev",
-        seed=seed,
-        mode='here',
-        variant=variant,
-        use_gpu=use_gpu,
+    search_space = {
+        'env_class': [
+            InvertedDoublePendulumEnv,
+            SwimmerEnv,
+            HalfCheetahEnv,
+            HopperEnv,
+            AntEnv,
+        ],
+        'policy_params.use_batchnorm': [False, True],
+        'policy_params.hidden_size': [32, 100],
+        'policy_params.use_exp_for_diagonal_not_square': [False, True],
+        'algo_params.tau': [1e-2, 1e-3],
+    }
+    sweeper = hyp.DeterministicHyperparameterSweeper(
+        search_space, default_parameters=variant,
     )
+    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+        for i in range(n_seeds):
+            seed = random.randint(0, 10000)
+            run_experiment(
+                experiment,
+                exp_prefix=exp_prefix,
+                seed=seed,
+                mode=mode,
+                variant=variant,
+                exp_id=exp_id,
+                use_gpu=use_gpu,
+                sync_s3_log=True,
+                sync_s3_pkl=True,
+                periodic_sync_interval=600,
+            )
