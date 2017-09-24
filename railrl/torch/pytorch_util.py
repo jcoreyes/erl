@@ -214,9 +214,9 @@ def Variable(*args, **kwargs):
 
 def from_numpy(*args, **kwargs):
     if _use_gpu:
-        return torch.from_numpy(*args, **kwargs).cuda()
+        return torch.from_numpy(*args, **kwargs).float().cuda()
     else:
-        return torch.from_numpy(*args, **kwargs)
+        return torch.from_numpy(*args, **kwargs).float()
 
 
 def get_numpy(tensor):
@@ -228,4 +228,4 @@ def get_numpy(tensor):
 
 
 def np_to_var(np_array, *args, **kwargs):
-    return Variable(from_numpy(np_array).float(), *args, **kwargs)
+    return Variable(from_numpy(np_array), *args, **kwargs)
