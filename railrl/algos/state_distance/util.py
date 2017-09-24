@@ -3,7 +3,7 @@ import pickle
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.wrappers import convert_gym_space
-from railrl.policies.zero_policy import ZeroPolicy
+from railrl.policies.simple import ZeroPolicy
 from railrl.samplers.path_sampler import MultitaskPathSampler
 
 

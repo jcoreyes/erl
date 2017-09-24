@@ -27,7 +27,7 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.hypopt import optimize_and_save
 from railrl.misc.ml_util import RampUpSchedule
 from railrl.networks.state_distance import UniversalQfunction
-from railrl.policies.zero_policy import ZeroPolicy
+from railrl.policies.simple import ZeroPolicy
 from railrl.samplers.path_sampler import MultitaskPathSampler
 
 
