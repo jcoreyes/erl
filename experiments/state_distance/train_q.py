@@ -24,7 +24,7 @@ from railrl.envs.multitask.pusher import (
     ArmEEInStatePusherEnv,
     JointOnlyPusherEnv,
 )
-from railrl.envs.wrappers import convert_gym_space
+from railrl.envs.wrappers import convert_gym_space, normalize_box
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import (
@@ -45,6 +45,10 @@ from railrl.torch.state_distance.exploration import \
 def experiment(variant):
     env_class = variant['env_class']
     env = env_class(**variant['env_params'])
+    env = normalize_box(
+        env,
+        **variant['normalize_params']
+    )
     if variant['algo_params']['use_new_data']:
         replay_buffer = None
     else:
@@ -177,6 +181,10 @@ if __name__ == '__main__':
         env_class=GoalStateSimpleStateReacherEnv,
         # env_class=XyMultitaskSimpleStateReacherEnv,
         env_params=dict(),
+        normalize_params=dict(
+            obs_mean=None,
+            obs_std=[0.7, 0.7, 0.7, 0.6, 40, 5],
+        ),
         sampler_params=dict(
             min_num_steps_to_collect=100000,
             max_path_length=max_path_length,
