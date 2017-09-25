@@ -11,6 +11,7 @@ from railrl.envs.multitask.reacher_env import (
 )
 from railrl.envs.wrappers import convert_gym_space, normalize_box
 from railrl.exploration_strategies.ou_strategy import OUStrategy
+from railrl.exploration_strategies.uniform_strategy import UniformStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.model_based import MultistepModelBasedPolicy
 from railrl.predictors.torch import Mlp
@@ -65,10 +66,10 @@ if __name__ == '__main__':
     version = "Dev"
     run_mode = "none"
 
-    n_seeds = 2
-    mode = "ec2"
-    exp_prefix = "reacher-model-learning-grid-search-corrected"
-    run_mode = 'grid'
+    # n_seeds = 2
+    # mode = "ec2"
+    # exp_prefix = "reacher-model-learning-grid-search-corrected"
+    # run_mode = 'grid'
 
     num_configurations = 1  # for random mode
     snapshot_mode = "last"
@@ -117,13 +118,14 @@ if __name__ == '__main__':
             render=args.render,
         ),
         replay_buffer_size=replay_buffer_size,
-        sampler_es_class=OUStrategy,
+        # sampler_es_class=OUStrategy,
+        sampler_es_class=UniformStrategy,
         sampler_es_params=dict(
-            max_sigma=0.2,
-            min_sigma=0.2,
+            # max_sigma=0.2,
+            # min_sigma=0.2,
         ),
         generate_data=args.replay_path is None,
-        start_with_empty_replay_buffer=True,
+        start_with_empty_replay_buffer=False,
     )
     if run_mode == 'grid':
         search_space = {
