@@ -68,7 +68,7 @@ if __name__ == '__main__':
 
     # n_seeds = 2
     # mode = "ec2"
-    # exp_prefix = "reacher-model-learning-grid-search-corrected"
+    exp_prefix = "reacher-model-learning-all-off-policy"
     # run_mode = 'grid'
 
     num_configurations = 1  # for random mode
@@ -93,6 +93,7 @@ if __name__ == '__main__':
             learning_rate=1e-3,
             max_path_length=max_path_length,
             replay_buffer_size=replay_buffer_size,
+            add_on_policy_data=False,
         ),
         policy_params=dict(
             sample_size=1000,

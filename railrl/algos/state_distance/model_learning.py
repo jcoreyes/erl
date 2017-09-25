@@ -45,6 +45,7 @@ class ModelLearning(object):
             num_rollouts_per_eval=10,
             max_path_length=100,
             replay_buffer_size=100000,
+            add_on_policy_data=True,
     ):
         if replay_buffer is None:
             replay_buffer = SplitReplayBuffer(
@@ -73,6 +74,7 @@ class ModelLearning(object):
         self.num_unique_batches = num_unique_batches
         self.num_rollouts_per_eval = num_rollouts_per_eval
         self.max_path_length = max_path_length
+        self.add_on_policy_data = add_on_policy_data
 
         self.optimizer = optim.Adam(
             self.model.parameters(),
@@ -88,16 +90,21 @@ class ModelLearning(object):
         num_batches_total = 0
         for epoch in range(self.num_epochs):
             goal = self.env.sample_goal_state_for_rollout()
-            self.replay_buffer.add_path(
-                multitask_rollout(
-                    self.env,
-                    self.eval_policy,
-                    goal,
-                    0,
-                    max_path_length=self.max_path_length,
+            if self.add_on_policy_data:
+                self.replay_buffer.add_path(
+                    multitask_rollout(
+                        self.env,
+                        self.eval_policy,
+                        goal,
+                        0,
+                        max_path_length=self.max_path_length,
+                    )
                 )
-            )
             if self.replay_buffer.num_steps_can_sample() == 0:
+                if self.add_on_policy_data:
+                    raise Exception("If you're not going to add on-policy "
+                                    "data, make sure your replay buffer is "
+                                    "large enough.")
                 continue
             for _ in range(self.num_batches_per_epoch):
                 self.model.train(True)
