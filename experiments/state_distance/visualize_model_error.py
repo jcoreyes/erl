@@ -27,22 +27,20 @@ def get_np_prediction(model, state, action):
 
 def visualize_policy_error(model, env, horizon):
     policy = UniformRandomPolicy(env.action_space)
-    state = env.reset()
+    actual_state = env.reset()
 
     predicted_states = []
-    actions = []
     actual_states = []
 
-    predicted_state = state
+    predicted_state = actual_state
     for _ in range(horizon):
-        action, _ = policy.get_action(state)
+        predicted_states.append(predicted_state.copy())
+        actual_states.append(actual_state.copy())
+
+        action, _ = policy.get_action(actual_state)
         delta = get_np_prediction(model, predicted_state, action)
-        predicted_state = state + delta
-
-        actions.append(action)
-        predicted_states.append(predicted_state)
-
-        actual_states.append(env.step(action)[0])
+        predicted_state += delta
+        actual_state = env.step(action)[0]
 
     predicted_states = np.array(predicted_states)
     actual_states = np.array(actual_states)
