@@ -71,6 +71,7 @@ class SamplePolicyPartialOptimizer(SampleBasedUniversalPolicy, nn.Module):
     """
     def __init__(self, qf, env, sample_size=100):
         super().__init__(sample_size)
+        nn.Module.__init__(self)
         self.qf = qf
         self.env = env
 
@@ -95,7 +96,7 @@ class SamplePolicyPartialOptimizer(SampleBasedUniversalPolicy, nn.Module):
 
 class SampleOptimalControlPolicy(SampleBasedUniversalPolicy, nn.Module):
     """
-    Do the argmax by sampling a bunch of states and acitons
+    Do the argmax by sampling a bunch of states and actions
 
     Make it sublcass nn.Module so that calls to `train` and `cuda` get
     propagated to the sub-networks
@@ -109,10 +110,10 @@ class SampleOptimalControlPolicy(SampleBasedUniversalPolicy, nn.Module):
             verbose=False,
     ):
         super().__init__(sample_size)
+        nn.Module.__init__(self)
         self.qf = qf
         self.env = env
         self.constraint_weight = constraint_weight
-        self.sample_size = sample_size
         self.verbose = verbose
 
     def reward(self, state, action, next_state):
@@ -185,6 +186,7 @@ class TerminalRewardSampleOCPolicy(SampleOptimalControlPolicy, nn.Module):
             **kwargs
     ):
         super().__init__(qf, env, **kwargs)
+        nn.Module.__init__(self)
         self.horizon = horizon
         self._tau_batch = self.expand_np_to_var(np.array([0]))
 
