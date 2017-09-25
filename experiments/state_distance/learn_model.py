@@ -94,8 +94,9 @@ if __name__ == '__main__':
             replay_buffer_size=replay_buffer_size,
         ),
         policy_params=dict(
-            sample_size=10000,
-            action_penalty=1,
+            sample_size=1000,
+            planning_horizon=6,
+            action_penalty=0,
         ),
         model_params=dict(
             hidden_sizes=[400, 300],

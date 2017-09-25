@@ -26,14 +26,14 @@ class MultistepModelBasedPolicy(SampleBasedUniversalPolicy, nn.Module):
             env,
             sample_size=100,
             action_penalty=0,
-            horizon=1,
+            planning_horizon=1,
     ):
         super().__init__(sample_size)
         nn.Module.__init__(self)
         self.model = model
         self.env = env
         self.action_penalty = action_penalty
-        self.horizon = horizon
+        self.planning_horizon = planning_horizon
 
     def get_action(self, obs):
         sampled_actions = self.env.sample_actions(self.sample_size)
@@ -41,7 +41,7 @@ class MultistepModelBasedPolicy(SampleBasedUniversalPolicy, nn.Module):
         action = ptu.np_to_var(sampled_actions)
         obs = self.expand_np_to_var(obs)
         obs_predicted = obs
-        for i in range(self.horizon):
+        for i in range(self.planning_horizon):
             if i > 0:
                 sampled_actions = self.env.sample_actions(self.sample_size)
                 action = ptu.np_to_var(sampled_actions)

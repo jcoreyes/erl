@@ -33,7 +33,7 @@ if __name__ == "__main__":
         model,
         env,
         sample_size=1000,
-        horizon=5,
+        planning_horizon=5,
     )
     while True:
         paths = []
