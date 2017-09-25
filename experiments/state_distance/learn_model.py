@@ -28,6 +28,7 @@ def experiment(variant):
         replay_buffer = None
     else:
         replay_buffer = get_replay_buffer(variant)
+    model_learns_deltas = variant['model_learns_deltas']
 
     observation_space = convert_gym_space(env.observation_space)
     action_space = convert_gym_space(env.action_space)
@@ -39,6 +40,7 @@ def experiment(variant):
     policy = MultistepModelBasedPolicy(
         model,
         env,
+        model_learns_deltas=model_learns_deltas,
         **variant['policy_params']
     )
     algo = ModelLearning(
@@ -46,6 +48,7 @@ def experiment(variant):
         model,
         replay_buffer=replay_buffer,
         eval_policy=policy,
+        model_learns_deltas=model_learns_deltas,
         **variant['algo_params']
     )
     if ptu.gpu_enabled():
@@ -66,10 +69,10 @@ if __name__ == '__main__':
     version = "Dev"
     run_mode = "none"
 
-    # n_seeds = 2
-    # mode = "ec2"
-    exp_prefix = "reacher-model-learning-all-off-policy"
-    # run_mode = 'grid'
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "reacher-model-learning-working-sweep-decay-addingdata-deltas"
+    run_mode = 'grid'
 
     num_configurations = 1  # for random mode
     snapshot_mode = "last"
@@ -93,13 +96,14 @@ if __name__ == '__main__':
             learning_rate=1e-3,
             max_path_length=max_path_length,
             replay_buffer_size=replay_buffer_size,
-            add_on_policy_data=False,
+            add_on_policy_data=True,
         ),
         policy_params=dict(
             sample_size=1000,
             planning_horizon=6,
             action_penalty=0,
         ),
+        model_learns_deltas=True,
         model_params=dict(
             hidden_sizes=[400, 300],
         ),
@@ -130,20 +134,13 @@ if __name__ == '__main__':
     )
     if run_mode == 'grid':
         search_space = {
-            'model_params.hidden_sizes': [
-                [100, 100],
-                [32, 32],
-            ],
-            'algo_params.weight_decay': [0, 1e-4, 5e-3],
-            'normalize_params.obs_std': [
-                None,
-                [0.7, 0.3, 0.7, 0.3, 25, 5],
-            ],
-            'policy_params.action_penalty': [0, 0.01, 0.0001],
-            'env_class': [
-                XyMultitaskSimpleStateReacherEnv,
-                GoalStateSimpleStateReacherEnv,
-            ],
+            'algo_params.add_on_policy_data': [True, False],
+            'algo_params.weight_decay': [0, 1e-4, 1e-3, 1e-2],
+            # 'normalize_params.obs_std': [
+            #     None,
+            #     [0.7, 0.3, 0.7, 0.3, 25, 5],
+            # ],
+            'model_learns_deltas': [True, False],
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
             search_space, default_parameters=variant,

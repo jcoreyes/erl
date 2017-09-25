@@ -27,6 +27,7 @@ class MultistepModelBasedPolicy(SampleBasedUniversalPolicy, nn.Module):
             sample_size=100,
             action_penalty=0,
             planning_horizon=1,
+            model_learns_deltas=True,
     ):
         super().__init__(sample_size)
         nn.Module.__init__(self)
@@ -34,6 +35,7 @@ class MultistepModelBasedPolicy(SampleBasedUniversalPolicy, nn.Module):
         self.env = env
         self.action_penalty = action_penalty
         self.planning_horizon = planning_horizon
+        self.model_learned_deltas = model_learns_deltas
 
     def get_action(self, obs):
         sampled_actions = self.env.sample_actions(self.sample_size)
@@ -45,12 +47,17 @@ class MultistepModelBasedPolicy(SampleBasedUniversalPolicy, nn.Module):
             if i > 0:
                 sampled_actions = self.env.sample_actions(self.sample_size)
                 action = ptu.np_to_var(sampled_actions)
-            obs_delta_predicted = self.model(
-                obs_predicted,
-                action,
-            )
-            obs_predicted += obs_delta_predicted
-
+            if self.model_learned_deltas:
+                obs_delta_predicted = self.model(
+                    obs_predicted,
+                    action,
+                )
+                obs_predicted += obs_delta_predicted
+            else:
+                obs_predicted = self.model(
+                    obs_predicted,
+                    action,
+                )
         next_goal_state_predicted = (
             self.env.convert_obs_to_goal_states_pytorch(
                 obs_predicted

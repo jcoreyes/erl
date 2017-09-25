@@ -46,6 +46,7 @@ class ModelLearning(object):
             max_path_length=100,
             replay_buffer_size=100000,
             add_on_policy_data=True,
+            model_learns_deltas=True,
     ):
         if replay_buffer is None:
             replay_buffer = SplitReplayBuffer(
@@ -75,6 +76,7 @@ class ModelLearning(object):
         self.num_rollouts_per_eval = num_rollouts_per_eval
         self.max_path_length = max_path_length
         self.add_on_policy_data = add_on_policy_data
+        self.model_learns_deltas = model_learns_deltas
 
         self.optimizer = optim.Adam(
             self.model.parameters(),
@@ -133,9 +135,13 @@ class ModelLearning(object):
         actions = batch['actions']
         next_obs = batch['next_observations']
 
-        next_obs_delta_pred = self.model(obs, actions)
-        next_obs_delta = next_obs - obs
-        errors = (next_obs_delta_pred - next_obs_delta)**2
+        if self.model_learns_deltas:
+            next_obs_delta_pred = self.model(obs, actions)
+            next_obs_delta = next_obs - obs
+            errors = (next_obs_delta_pred - next_obs_delta)**2
+        else:
+            next_obs_pred = self.model(obs, actions)
+            errors = (next_obs_pred - next_obs)**2
         loss = errors.mean()
 
         return OrderedDict([

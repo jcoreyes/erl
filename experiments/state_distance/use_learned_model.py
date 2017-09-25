@@ -34,6 +34,7 @@ if __name__ == "__main__":
         env,
         sample_size=1000,
         planning_horizon=5,
+        model_learns_deltas=True,
     )
     while True:
         paths = []
