@@ -12,7 +12,7 @@ from railrl.envs.multitask.reacher_env import (
 from railrl.envs.wrappers import convert_gym_space, normalize_box
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.policies.model_based import GreedyModelBasedPolicy
+from railrl.policies.model_based import MultistepModelBasedPolicy
 from railrl.predictors.torch import Mlp
 
 
@@ -35,7 +35,7 @@ def experiment(variant):
         int(observation_space.flat_dim),
         **variant['model_params']
     )
-    policy = GreedyModelBasedPolicy(
+    policy = MultistepModelBasedPolicy(
         model,
         env,
         **variant['policy_params']
