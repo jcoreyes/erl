@@ -5,6 +5,7 @@ import abc
 import numpy as np
 from torch import nn
 from torch.autograd import Variable
+from torch import optim
 
 from railrl.policies.base import ExplorationPolicy, Policy
 from railrl.torch import pytorch_util as ptu
@@ -217,3 +218,55 @@ class TerminalRewardSampleOCPolicy(SampleOptimalControlPolicy, nn.Module):
         final_score = reward + sum(penalties)
         max_i = np.argmax(ptu.get_numpy(final_score))
         return first_sampled_actions[max_i], {}
+
+
+class ArgmaxQFPolicy(SampleBasedUniversalPolicy, nn.Module):
+    """
+    pi(s, g) = \argmax_a Q(s, a, g)
+
+    Implemented by initializing a bunch of actions and doing gradient descent on
+    them.
+
+    This should be the same as a policy learned in DDPG.
+    This is basically a sanity check.
+    """
+    def __init__(
+            self,
+            qf,
+            env,
+            sample_size=100,
+            learning_rate=1e-1,
+            num_gradient_steps=10,
+    ):
+        nn.Module.__init__(self)
+        super().__init__(sample_size)
+        self.qf = qf
+        self.env = env
+        self.learning_rate = learning_rate
+        self.num_gradient_steps = num_gradient_steps
+
+    def get_action(self, obs):
+        sampled_actions = self.env.sample_actions(self.sample_size)
+        actions = ptu.np_to_var(sampled_actions, requires_grad=True)
+        obs = self.expand_np_to_var(obs)
+        optimizer = optim.SGD([actions], self.learning_rate)
+        losses = -self.qf(
+            obs,
+            actions,
+            self._goal_batch,
+            self._discount_batch,
+        )
+        for _ in range(self.num_gradient_steps):
+            loss = losses.mean()
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            losses = -self.qf(
+                obs,
+                actions,
+                self._goal_batch,
+                self._discount_batch,
+            )
+        losses_np = ptu.get_numpy(losses)
+        best_action_i = np.argmin(losses_np)
+        return ptu.get_numpy(actions[best_action_i, :]), {}

@@ -12,7 +12,7 @@ import joblib
 import numpy as np
 
 from railrl.policies.state_distance import SampleOptimalControlPolicy, \
-    TerminalRewardSampleOCPolicy
+    TerminalRewardSampleOCPolicy, ArgmaxQFPolicy
 from railrl.samplers.util import rollout
 from railrl.torch.pytorch_util import set_gpu_mode
 from rllab.misc import logger
@@ -27,6 +27,7 @@ if __name__ == "__main__":
     parser.add_argument('--num_rollouts', type=int, default=10,
                         help='Number of rollouts per eval')
     parser.add_argument('--gpu', action='store_true')
+    parser.add_argument('--argmax', action='store_true')
     parser.add_argument('--hide', action='store_true')
     parser.add_argument('--verbose', action='store_true')
     parser.add_argument('--plan_h', type=int, default=1,
@@ -48,7 +49,12 @@ if __name__ == "__main__":
     qf.train(False)
     print("Env type:", type(env))
 
-    if args.plan_h == 1:
+    if args.argmax:
+        policy = ArgmaxQFPolicy(
+            qf,
+            env,
+        )
+    elif args.plan_h == 1:
         policy = SampleOptimalControlPolicy(
             qf,
             env,
