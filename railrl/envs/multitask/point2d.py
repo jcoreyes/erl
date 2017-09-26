@@ -25,7 +25,9 @@ class MultitaskPoint2DEnv(WaterMaze, MultitaskEnv, Serializable):
             give_time=give_time,
             action_l2norm_penalty=action_l2norm_penalty,
         )
-        self._multitask_goal = None
+        self._multitask_goal = np.random.uniform(
+            size=2, low=-self.MAX_TARGET_DISTANCE, high=self.MAX_TARGET_DISTANCE
+        )
 
     def set_goal(self, goal):
         self._multitask_goal = goal
