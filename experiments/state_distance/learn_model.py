@@ -5,6 +5,7 @@ import railrl.torch.pytorch_util as ptu
 import railrl.misc.hyperparameter as hyp
 from railrl.algos.state_distance.model_learning import ModelLearning
 from railrl.algos.state_distance.util import get_replay_buffer
+from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
 from railrl.envs.multitask.reacher_env import (
     GoalStateSimpleStateReacherEnv,
     XyMultitaskSimpleStateReacherEnv,
@@ -69,10 +70,10 @@ if __name__ == '__main__':
     version = "Dev"
     run_mode = "none"
 
-    n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "reacher-model-learning-working-sweep-decay-addingdata-deltas"
-    run_mode = 'grid'
+    # n_seeds = 3
+    # mode = "ec2"
+    exp_prefix = "point2d-learn-model"
+    # run_mode = 'grid'
 
     num_configurations = 1  # for random mode
     snapshot_mode = "last"
@@ -94,6 +95,7 @@ if __name__ == '__main__':
             num_unique_batches=1000,
             batch_size=100,
             learning_rate=1e-3,
+            weight_decay=0,
             max_path_length=max_path_length,
             replay_buffer_size=replay_buffer_size,
             add_on_policy_data=True,
@@ -105,17 +107,19 @@ if __name__ == '__main__':
         ),
         model_learns_deltas=True,
         model_params=dict(
-            hidden_sizes=[400, 300],
+            hidden_sizes=[32, 32],
         ),
-        env_class=GoalStateSimpleStateReacherEnv,
+        # env_class=GoalStateSimpleStateReacherEnv,
         # env_class=PusherEnv,
         # env_class=XyMultitaskSimpleStateReacherEnv,
+        env_class=MultitaskPoint2DEnv,
         env_params=dict(
             # add_noop_action=False,
         ),
         normalize_params=dict(
             obs_mean=None,
-            obs_std=[0.7, 0.7, 0.7, 0.6, 40, 5],
+            # obs_std=[0.7, 0.7, 0.7, 0.6, 40, 5],
+            obs_std=[3, 3],
         ),
         sampler_params=dict(
             min_num_steps_to_collect=10000,
