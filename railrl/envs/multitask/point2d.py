@@ -76,10 +76,16 @@ class MultitaskPoint2DEnv(WaterMaze, MultitaskEnv, Serializable):
         actions = np.vstack([path['actions'] for path in paths])
         statistics = OrderedDict()
         for name, stat in [
-            ('distance_to_target', distance_to_target),
+            ('Euclidean distance to goal', distance_to_target),
             ('Actions', actions),
         ]:
             statistics.update(create_stats_ordered_dict(name, stat))
+        statistics.update(create_stats_ordered_dict(
+            'Final Euclidean distance to goal',
+            distance_to_target[:, -1],
+            always_show_all_stats=True,
+        ))
+
 
         for key, value in statistics.items():
             logger.record_tabular(key, value)

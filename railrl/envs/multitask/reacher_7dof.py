@@ -94,6 +94,11 @@ class Reacher7DofMultitaskEnv(
         statistics.update(create_stats_ordered_dict(
             'Euclidean distance to goal', euclidean_distances
         ))
+        statistics.update(create_stats_ordered_dict(
+            'Final Euclidean distance to goal',
+            euclidean_distances[:, -1],
+            always_show_all_stats=True,
+        ))
 
         rewards = self.compute_rewards(
             None,

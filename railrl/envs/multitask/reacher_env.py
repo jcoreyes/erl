@@ -174,6 +174,11 @@ class MultitaskReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle, MultitaskEnv,
         statistics.update(create_stats_ordered_dict(
             'Euclidean distance to goal', euclidean_distances
         ))
+        statistics.update(create_stats_ordered_dict(
+            'Final Euclidean distance to goal',
+            euclidean_distances[:, -1],
+            always_show_all_stats=True,
+        ))
 
         actions = np.vstack([path['actions'] for path in paths])
         rewards = self.compute_rewards(
