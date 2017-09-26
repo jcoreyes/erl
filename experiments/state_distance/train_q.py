@@ -11,6 +11,7 @@ from railrl.algos.state_distance.state_distance_q_learning import (
     StateDistanceQLearning,
     HorizonFedStateDistanceQLearning)
 from railrl.algos.state_distance.util import get_replay_buffer
+from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState,
     Reacher7DofFullGoalState,
@@ -178,12 +179,13 @@ if __name__ == '__main__':
         # env_class=Reacher7DofFullGoalState,
         # env_class=ArmEEInStatePusherEnv,
         # env_class=JointOnlyPusherEnv,
-        env_class=GoalStateSimpleStateReacherEnv,
+        # env_class=GoalStateSimpleStateReacherEnv,
         # env_class=XyMultitaskSimpleStateReacherEnv,
+        env_class=MultitaskPoint2DEnv,
         env_params=dict(),
         normalize_params=dict(
             obs_mean=None,
-            obs_std=[0.7, 0.7, 0.7, 0.6, 40, 5],
+            # obs_std=[0.7, 0.7, 0.7, 0.6, 40, 5],
         ),
         sampler_params=dict(
             min_num_steps_to_collect=100000,
