@@ -70,8 +70,8 @@ class SamplePolicyPartialOptimizer(SampleBasedUniversalPolicy, nn.Module):
     for details.
     """
     def __init__(self, qf, env, sample_size=100):
-        super().__init__(sample_size)
         nn.Module.__init__(self)
+        super().__init__(sample_size)
         self.qf = qf
         self.env = env
 
@@ -109,8 +109,8 @@ class SampleOptimalControlPolicy(SampleBasedUniversalPolicy, nn.Module):
             sample_size=100,
             verbose=False,
     ):
-        super().__init__(sample_size)
         nn.Module.__init__(self)
+        super().__init__(sample_size)
         self.qf = qf
         self.env = env
         self.constraint_weight = constraint_weight
@@ -185,8 +185,8 @@ class TerminalRewardSampleOCPolicy(SampleOptimalControlPolicy, nn.Module):
             horizon,
             **kwargs
     ):
-        super().__init__(qf, env, **kwargs)
         nn.Module.__init__(self)
+        super().__init__(qf, env, **kwargs)
         self.horizon = horizon
         self._tau_batch = self.expand_np_to_var(np.array([0]))
 
