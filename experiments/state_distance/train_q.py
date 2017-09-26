@@ -82,11 +82,14 @@ def experiment(variant):
         action_space=action_space,
         **variant['sampler_es_params']
     )
-    raw_exploration_policy = TerminalRewardSampleOCPolicy(
-        qf,
-        env,
-        5,
-    )
+    if variant['explore_with_ddpg_policy']:
+        raw_exploration_policy = policy
+    else:
+        raw_exploration_policy = TerminalRewardSampleOCPolicy(
+            qf,
+            env,
+            5,
+        )
     exploration_policy = UniversalPolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
         policy=raw_exploration_policy,
@@ -118,9 +121,9 @@ if __name__ == '__main__':
     exp_prefix = "dev-train-q"
     run_mode = "none"
 
-    # n_seeds = 3
-    # mode = "ec2"
-    exp_prefix = "reacher-full-state-train-sdvf"
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "reacher-full-state-train-sdvf-1M-steps"
     # run_mode = 'grid'
 
     version = "Dev"
@@ -139,7 +142,7 @@ if __name__ == '__main__':
         dataset_path=str(dataset_path),
         algo_params=dict(
             num_epochs=101,
-            num_steps_per_epoch=1000,
+            num_steps_per_epoch=10000,
             num_steps_per_eval=1000,
             use_soft_update=True,
             tau=0.001,
@@ -147,19 +150,21 @@ if __name__ == '__main__':
             discount=0.99,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
-            sample_goals_from='environment',
+            # sample_goals_from='environment',
             # sample_goals_from='replay_buffer',
             sample_discount=False,
             qf_weight_decay=0.,
             max_path_length=max_path_length,
             use_new_data=True,
-            replay_buffer_size=100000,
+            replay_buffer_size=1000000,
             num_updates_per_env_step=1,
             prob_goal_state_is_next_state=0,
             termination_threshold=0,
             do_tau_correctly=False,
             render=args.render,
+            save_replay_buffer=True,
         ),
+        explore_with_ddpg_policy=True,
         qf_class=UniversalQfunction,
         qf_params=dict(
             obs_hidden_size=400,
@@ -185,7 +190,7 @@ if __name__ == '__main__':
         env_params=dict(),
         normalize_params=dict(
             obs_mean=None,
-            # obs_std=[0.7, 0.7, 0.7, 0.6, 40, 5],
+            obs_std=[0.7, 0.7, 0.7, 0.6, 40, 5],
         ),
         sampler_params=dict(
             min_num_steps_to_collect=100000,
