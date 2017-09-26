@@ -1,4 +1,5 @@
 import pickle
+import time
 from collections import OrderedDict
 
 import numpy as np
@@ -78,8 +79,10 @@ class StateDistanceQLearning(DDPG):
         self.goal_state = None
         if self.num_steps_per_tensorboard_update is not None:
             self.tb_logger = TensorboardLogger(logger.get_snapshot_dir())
+        self.start_time = time.time()
 
     def train(self, **kwargs):
+        self.start_time = time.time()
         if self.use_new_data:
             return super().train()
         else:
@@ -223,6 +226,8 @@ class StateDistanceQLearning(DDPG):
 
         average_returns = get_average_returns(test_paths)
         statistics['AverageReturn'] = average_returns
+        statistics['Total Wallclock Time (s)'] = time.time() - self.start_time
+        statistics['Epoch'] = epoch
 
 
         for key, value in statistics.items():
