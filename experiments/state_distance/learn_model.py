@@ -70,10 +70,10 @@ if __name__ == '__main__':
     version = "Dev"
     run_mode = "none"
 
-    # n_seeds = 3
-    # mode = "ec2"
-    exp_prefix = "point2d-learn-model"
-    # run_mode = 'grid'
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "reacher-learn-model-normalizing-test"
+    run_mode = 'grid'
 
     num_configurations = 1  # for random mode
     snapshot_mode = "last"
@@ -109,17 +109,17 @@ if __name__ == '__main__':
         model_params=dict(
             hidden_sizes=[32, 32],
         ),
-        # env_class=GoalStateSimpleStateReacherEnv,
+        env_class=GoalStateSimpleStateReacherEnv,
         # env_class=PusherEnv,
         # env_class=XyMultitaskSimpleStateReacherEnv,
-        env_class=MultitaskPoint2DEnv,
+        # env_class=MultitaskPoint2DEnv,
         env_params=dict(
             # add_noop_action=False,
         ),
         normalize_params=dict(
             obs_mean=None,
-            # obs_std=[0.7, 0.7, 0.7, 0.6, 40, 5],
-            obs_std=[3, 3],
+            obs_std=[0.7, 0.7, 0.7, 0.6, 40, 5],
+            # obs_std=[3, 3],
         ),
         sampler_params=dict(
             min_num_steps_to_collect=10000,
@@ -139,12 +139,12 @@ if __name__ == '__main__':
     if run_mode == 'grid':
         search_space = {
             'algo_params.add_on_policy_data': [True, False],
-            'algo_params.weight_decay': [0, 1e-4, 1e-3, 1e-2],
-            # 'normalize_params.obs_std': [
-            #     None,
-            #     [0.7, 0.3, 0.7, 0.3, 25, 5],
-            # ],
-            'model_learns_deltas': [True, False],
+            # 'algo_params.weight_decay': [0, 1e-4, 1e-3, 1e-2],
+            'normalize_params.obs_std': [
+                None,
+                [0.7, 0.3, 0.7, 0.3, 25, 5],
+            ],
+            # 'model_learns_deltas': [True, False],
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
             search_space, default_parameters=variant,
