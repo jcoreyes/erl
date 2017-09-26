@@ -26,6 +26,9 @@ class NormalizedBoxEnv(ProxyEnv, Serializable):
         # Without setting this first, the call to self._wrapped_env would call
         # getattr again (since it's not set yet) and therefore loop forever.
         self._wrapped_env = env
+        # Or else serialization gets delegated to the wrapped_env. Serialize
+        # this env separately from the wrapped_env.
+        self._serializable_initialized = False
         Serializable.quick_init(self, locals())
         ProxyEnv.__init__(self, env)
         self._should_normalize = not (obs_mean is None and obs_std is None)
