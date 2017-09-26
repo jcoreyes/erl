@@ -15,7 +15,7 @@ if __name__ == "__main__":
                         help='path to the snapshot file')
     parser.add_argument('--H', type=int, default=100,
                         help='Max length of rollout')
-    parser.add_argument('--num_rollouts', type=int, default=5,
+    parser.add_argument('--num_rollouts', type=int, default=1,
                         help='Number of rollout per eval')
     parser.add_argument('--verbose', action='store_true')
     parser.add_argument('--discount', type=float,

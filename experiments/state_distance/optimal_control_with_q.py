@@ -24,7 +24,7 @@ if __name__ == "__main__":
                         help='path to the snapshot file')
     parser.add_argument('--H', type=int, default=100,
                         help='Max length of rollout')
-    parser.add_argument('--num_rollouts', type=int, default=10,
+    parser.add_argument('--num_rollouts', type=int, default=1,
                         help='Number of rollouts per eval')
     parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--argmax', action='store_true')

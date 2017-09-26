@@ -122,7 +122,7 @@ if __name__ == '__main__':
     run_mode = "none"
 
     n_seeds = 3
-    mode = "ec2"
+    # mode = "ec2"
     exp_prefix = "reacher-full-state-train-sdvf-1M-steps"
     # run_mode = 'grid'
 
