@@ -120,7 +120,7 @@ if __name__ == '__main__':
 
     # n_seeds = 3
     # mode = "ec2"
-    # exp_prefix = "train-oc-exploration-tau-always-zero"
+    exp_prefix = "reacher-full-state-train-sdvf"
     # run_mode = 'grid'
 
     version = "Dev"
@@ -179,9 +179,9 @@ if __name__ == '__main__':
         # env_class=Reacher7DofFullGoalState,
         # env_class=ArmEEInStatePusherEnv,
         # env_class=JointOnlyPusherEnv,
-        # env_class=GoalStateSimpleStateReacherEnv,
+        env_class=GoalStateSimpleStateReacherEnv,
         # env_class=XyMultitaskSimpleStateReacherEnv,
-        env_class=MultitaskPoint2DEnv,
+        # env_class=MultitaskPoint2DEnv,
         env_params=dict(),
         normalize_params=dict(
             obs_mean=None,
