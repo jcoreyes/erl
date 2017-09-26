@@ -12,7 +12,7 @@ import joblib
 import numpy as np
 
 from railrl.policies.state_distance import SampleOptimalControlPolicy, \
-    TerminalRewardSampleOCPolicy, ArgmaxQFPolicy
+    TerminalRewardSampleOCPolicy, ArgmaxQFPolicy, BeamSearchMultistepSampler
 from railrl.samplers.util import rollout
 from railrl.torch.pytorch_util import set_gpu_mode
 from rllab.misc import logger
@@ -28,6 +28,7 @@ if __name__ == "__main__":
                         help='Number of rollouts per eval')
     parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--argmax', action='store_true')
+    parser.add_argument('--beam', action='store_true')
     parser.add_argument('--hide', action='store_true')
     parser.add_argument('--verbose', action='store_true')
     parser.add_argument('--plan_h', type=int, default=1,
@@ -53,6 +54,12 @@ if __name__ == "__main__":
         policy = ArgmaxQFPolicy(
             qf,
             env,
+        )
+    elif args.beam:
+        policy = BeamSearchMultistepSampler(
+            qf,
+            env,
+            args.plan_h,
         )
     elif args.plan_h == 1:
         policy = SampleOptimalControlPolicy(

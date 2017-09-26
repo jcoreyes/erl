@@ -147,6 +147,8 @@ class SampleOptimalControlPolicy(SampleBasedUniversalPolicy, nn.Module):
             self.env.convert_obs_to_goal_states_pytorch(next_state),
             self._discount_batch,
         )**2
+        print("reward", reward)
+        print("constraint_penalty", constraint_penalty)
         score = (
             reward
             - self.constraint_weight * constraint_penalty
@@ -270,3 +272,44 @@ class ArgmaxQFPolicy(SampleBasedUniversalPolicy, nn.Module):
         losses_np = ptu.get_numpy(losses)
         best_action_i = np.argmin(losses_np)
         return ptu.get_numpy(actions[best_action_i, :]), {}
+
+
+class BeamSearchMultistepSampler(SampleBasedUniversalPolicy, nn.Module):
+    def __init__(
+            self,
+            qf,
+            env,
+            horizon,
+            num_particles=10,
+            sample_size=100,
+    ):
+        nn.Module.__init__(self)
+        super().__init__(sample_size)
+        self.qf = qf
+        self.env = env
+        self.horizon = horizon
+        self.num_particles = num_particles
+
+    def get_action(self, obs):
+        obs = self.expand_np_to_var(obs)
+        first_sampled_actions = self.env.sample_actions(self.sample_size)
+        action = ptu.np_to_var(first_sampled_actions)
+        next_state = ptu.np_to_var(self.env.sample_states(self.sample_size))
+
+        penalties = []
+        for i in range(self.horizon):
+            q_values = self.qf(
+                state,
+                action,
+                self._goal_batch,
+                self._discount_batch,
+            )
+            penalties.append(
+                - self.constraint_weight * constraint_penalty
+            )
+
+            action = ptu.np_to_var(
+                self.env.sample_actions(self.sample_size)
+            )
+            state = next_state
+            next_state = ptu.np_to_var(self.env.sample_states(self.sample_size))
