@@ -122,9 +122,9 @@ if __name__ == '__main__':
     run_mode = "none"
 
     n_seeds = 3
-    # mode = "ec2"
-    exp_prefix = "reacher-full-state-train-sdvf-1M-steps"
-    # run_mode = 'grid'
+    mode = "ec2"
+    exp_prefix = "reacher-full-state-train-sdvf-sweep-various-things"
+    run_mode = 'custom_grid'
 
     version = "Dev"
     num_configurations = 50  # for random mode
@@ -220,7 +220,8 @@ if __name__ == '__main__':
                 # JointOnlyPusherEnv,
             ],
             # 'qf_class': [UniversalQfunction],
-            # 'algo_params.sample_goals_from': ['environment', 'replay_buffer'],
+            'algo_params.sample_goals_from': ['environment', 'replay_buffer'],
+            'algo_params.num_steps_per_epoch': [1, 10],
             # 'algo_params.termination_threshold': [1e-4, 0]
             # 'epoch_discount_schedule_params.max_value': [100, 1000],
             # 'epoch_discount_schedule_params.ramp_duration': [
@@ -270,26 +271,38 @@ if __name__ == '__main__':
     elif run_mode == 'custom_grid':
         for exp_id, (
                 nupo,
-                min_num_steps_to_collect,
+                num_steps_per_epoch,
                 version,
         ) in enumerate([
-            (1, 100000, "semi_off_policy_nupo1_nsteps100k"),
-            (10, 100000, "semi_off_policy_nupo10_nsteps100k"),
+            (1, 10000, "1000k_env_steps"),
+            (10, 1000, "100k_env_steps"),
+            (100, 100, "10k_env_steps"),
         ]):
             variant['algo_params']['num_updates_per_env_step'] = nupo
-            variant['sampler_params']['min_num_steps_to_collect'] = (
-                min_num_steps_to_collect
+            variant['algo_params']['num_steps_per_epoch'] = num_steps_per_epoch
+            variant['version'] = version
+            search_space = {
+                'algo_params.sample_goals_from': ['environment', 'replay_buffer'],
+                'explore_with_ddpg_policy': [True, False],
+                'normalize_params.obs_std': [
+                    [0.7, 0.7, 0.7, 0.6, 40, 5],
+                    None,
+                ],
+            }
+            sweeper = hyp.DeterministicHyperparameterSweeper(
+                search_space, default_parameters=variant.copy(),
             )
-            for _ in range(n_seeds):
-                seed = random.randint(0, 10000)
-                run_experiment(
-                    experiment,
-                    exp_prefix=exp_prefix,
-                    seed=seed,
-                    mode=mode,
-                    variant=variant,
-                    exp_id=exp_id,
-                )
+            for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+                for i in range(n_seeds):
+                    seed = random.randint(0, 10000)
+                    run_experiment(
+                        experiment,
+                        exp_prefix=exp_prefix,
+                        seed=seed,
+                        mode=mode,
+                        variant=variant,
+                        exp_id=exp_id,
+                    )
     elif run_mode == 'hyperopt':
         search_space = {
             'float_param': hp.uniform(
