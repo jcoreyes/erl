@@ -3,6 +3,7 @@ Policies to be used with a state-distance Q function.
 """
 import abc
 import numpy as np
+from itertools import product
 from torch import nn
 from torch.autograd import Variable
 from torch import optim
@@ -239,6 +240,7 @@ class ArgmaxQFPolicy(SampleBasedUniversalPolicy, nn.Module):
             sample_size=100,
             learning_rate=1e-1,
             num_gradient_steps=10,
+            sample_actions_on_grid=False,
     ):
         nn.Module.__init__(self)
         super().__init__(sample_size)
@@ -246,9 +248,12 @@ class ArgmaxQFPolicy(SampleBasedUniversalPolicy, nn.Module):
         self.env = env
         self.learning_rate = learning_rate
         self.num_gradient_steps = num_gradient_steps
+        self.sample_actions_on_grid = sample_actions_on_grid
+        self.action_low = self.env.action_space.low
+        self.action_high = self.env.action_space.high
 
     def get_action(self, obs):
-        sampled_actions = self.env.sample_actions(self.sample_size)
+        sampled_actions = self.sample_actions()
         actions = ptu.np_to_var(sampled_actions, requires_grad=True)
         obs = self.expand_np_to_var(obs)
         optimizer = optim.SGD([actions], self.learning_rate)
@@ -272,6 +277,35 @@ class ArgmaxQFPolicy(SampleBasedUniversalPolicy, nn.Module):
         losses_np = ptu.get_numpy(losses)
         best_action_i = np.argmin(losses_np)
         return ptu.get_numpy(actions[best_action_i, :]), {}
+
+    def sample_actions(self):
+        if self.sample_actions_on_grid:
+            action_dim = self.env.action_dim
+            resolution = int(np.power(self.sample_size, 1./action_dim))
+            values = []
+            for dim in range(action_dim):
+                values.append(np.linspace(
+                    self.action_low[dim],
+                    self.action_high[dim],
+                    num=resolution
+                ))
+            actions = np.array(list(product(*values)))
+            if len(actions) < self.sample_size:
+                # Add extra actions in case the grid can't perfectly create
+                # `self.sample_size` actions. e.g. sample_size is 30, but the
+                # grid is 5x5.
+                actions = np.concatenate(
+                    (
+                        actions,
+                        self.env.sample_actions(
+                            self.sample_size - len(actions)
+                        ),
+                    ),
+                    axis=0,
+                )
+            return actions
+        else:
+            return self.env.sample_actions(self.sample_size)
 
 
 class BeamSearchMultistepSampler(SampleBasedUniversalPolicy, nn.Module):
