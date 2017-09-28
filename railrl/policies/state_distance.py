@@ -4,9 +4,12 @@ Policies to be used with a state-distance Q function.
 import abc
 import numpy as np
 from itertools import product
+import torch
 from torch import nn
 from torch.autograd import Variable
 from torch import optim
+
+from scipy import optimize
 
 from railrl.policies.base import ExplorationPolicy, Policy
 from railrl.torch import pytorch_util as ptu
@@ -142,7 +145,7 @@ class SampleOptimalControlPolicy(SampleBasedUniversalPolicy, nn.Module):
             self,
             qf,
             env,
-            constraint_weight=10,
+            constraint_weight=1,
             sample_size=100,
             verbose=False,
             **kwargs
@@ -174,7 +177,7 @@ class SampleOptimalControlPolicy(SampleBasedUniversalPolicy, nn.Module):
         """
         sampled_actions = self.sample_actions()
         action = ptu.np_to_var(sampled_actions)
-        next_state = ptu.np_to_var(self.env.sample_states(self.sample_size))
+        next_state = ptu.np_to_var(self.sample_states())
         obs = self.expand_np_to_var(obs)
         reward = self.reward(obs, action, next_state)
         constraint_penalty = self.qf(
@@ -182,12 +185,12 @@ class SampleOptimalControlPolicy(SampleBasedUniversalPolicy, nn.Module):
             action,
             self.env.convert_obs_to_goal_states_pytorch(next_state),
             self._discount_batch,
-        )**2
+        )
         print("reward", reward)
         print("constraint_penalty", constraint_penalty)
         score = (
             reward
-            - self.constraint_weight * constraint_penalty
+            + self.constraint_weight * constraint_penalty
         )
         max_i = np.argmax(ptu.get_numpy(score))
         return sampled_actions[max_i], {}
@@ -320,22 +323,85 @@ class PseudoModelBasedPolicy(SampleBasedUniversalPolicy, nn.Module):
             self,
             qf,
             env,
-            horizon,
-            num_particles=10,
             sample_size=100,
+            learning_rate=1e-1,
+            num_gradient_steps=100,
             **kwargs
     ):
         nn.Module.__init__(self)
         super().__init__(sample_size, env, **kwargs)
         self.qf = qf
-        self.horizon = horizon
-        self.num_particles = num_particles
+        self.learning_rate = learning_rate
+        self.num_gradient_steps = num_gradient_steps
+
+    def get_next_state_torch(self, states, actions):
+        # next_states_np = self.sample_states()
+        next_states_np = np.zeros((self.sample_size, 6))
+        next_states = ptu.np_to_var(next_states_np, requires_grad=True)
+        optimizer = optim.Adam([next_states], self.learning_rate)
+
+        for _ in range(self.num_gradient_steps):
+            losses = -self.qf(
+                states,
+                actions,
+                next_states,
+                self._discount_batch,
+            )
+            loss = losses.mean()
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+        return next_states
+
+    def create_loss(self, state, action):
+        def f(next_state_np):
+            next_state = ptu.np_to_var(
+                np.expand_dims(next_state_np, 0),
+                requires_grad=True,
+            )
+            loss = - self.qf(
+                state,
+                action,
+                next_state,
+                self._discount_expanded_torch
+            )
+            loss.backward()
+            loss_np = ptu.get_numpy(loss)
+            gradient_np = ptu.get_numpy(next_state.grad)
+            return loss_np, gradient_np.astype('double')
+        return f
 
     def get_action(self, obs):
         sampled_actions = self.sample_actions()
-        next_states_np = self.sample_states()
-        next_states = ptu.np_to_var(next_states_np, requires_grad=True)
-        return sampled_acti, {}
+        states = self.expand_np_to_var(obs)
+        actions = ptu.np_to_var(sampled_actions)
+        next_states = []
+        for i in range(len(states)):
+            state = states[i:i+1, :]
+            action = actions[i:i+1, :]
+            loss_f = self.create_loss(state, action)
+            results = optimize.fmin_l_bfgs_b(
+                loss_f,
+                np.zeros((1, 6)),
+                maxiter=100,
+            )
+            next_state = results[0]
+            next_states.append(next_state)
+        # next_states = self.get_next_state_torch(states, actions)
+        # import ipdb; ipdb.set_trace()
+        next_states = np.array(next_states)
+
+        # distances = torch.sum(
+        #     (next_states - self._goal_expanded_torch) ** 2,
+        #     dim=1
+        # )
+        # best_action = np.argmin(ptu.get_numpy(distances))
+        distances = np.sum(
+            (next_states - self._goal_np)**2,
+            axis=1
+        )
+        best_action = np.argmin(distances)
+        return sampled_actions[best_action, :], {}
 
 
 class BeamSearchMultistepSampler(SampleBasedUniversalPolicy, nn.Module):
