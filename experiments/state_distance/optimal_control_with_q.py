@@ -11,8 +11,13 @@ import argparse
 import joblib
 import numpy as np
 
-from railrl.policies.state_distance import SampleOptimalControlPolicy, \
-    TerminalRewardSampleOCPolicy, ArgmaxQFPolicy, BeamSearchMultistepSampler
+from railrl.policies.state_distance import (
+    SampleOptimalControlPolicy,
+    TerminalRewardSampleOCPolicy,
+    ArgmaxQFPolicy,
+    BeamSearchMultistepSampler,
+    PseudoModelBasedPolicy,
+)
 from railrl.samplers.util import rollout
 from railrl.torch.pytorch_util import set_gpu_mode
 from rllab.misc import logger
@@ -40,6 +45,10 @@ if __name__ == "__main__":
                         help='Number of samples for optimization')
     parser.add_argument('--ngrad', type=int, default=100,
                         help='Number of gradient steps for respective policy.')
+    parser.add_argument('--mb', action='store_true',
+                        help='Use (pseudo-)model-based policy')
+    parser.add_argument('--grid', action='store_true',
+                        help='Sample actions from a grid')
     args = parser.parse_args()
 
     data = joblib.load(args.file)
@@ -58,7 +67,13 @@ if __name__ == "__main__":
             env,
             sample_size=args.nsamples,
             num_gradient_steps=args.ngrad,
-            sample_actions_from_grid=True,
+            sample_actions_from_grid=args.grid,
+        )
+    elif args.mb:
+        policy = PseudoModelBasedPolicy(
+            qf,
+            env,
+            sample_size=args.nsamples,
         )
     elif args.beam:
         policy = BeamSearchMultistepSampler(
@@ -73,6 +88,7 @@ if __name__ == "__main__":
             constraint_weight=args.weight,
             sample_size=args.nsamples,
             verbose=args.verbose,
+            sample_actions_from_grid=args.grid,
         )
     else:
         policy = TerminalRewardSampleOCPolicy(
