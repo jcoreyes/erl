@@ -72,8 +72,8 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "reacher-learn-model-normalizing-test"
-    run_mode = 'grid'
+    exp_prefix = "reacher-learn-model-on-vs-off-policy-sweep"
+    run_mode = 'custom_grid'
 
     num_configurations = 1  # for random mode
     snapshot_mode = "last"
@@ -92,7 +92,6 @@ if __name__ == '__main__':
         algo_params=dict(
             num_epochs=101,
             num_batches_per_epoch=1000,
-            num_unique_batches=1000,
             batch_size=100,
             learning_rate=1e-3,
             weight_decay=0,
@@ -151,6 +150,45 @@ if __name__ == '__main__':
         )
         for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
             for i in range(n_seeds):
+                seed = random.randint(0, 10000)
+                run_experiment(
+                    experiment,
+                    exp_prefix=exp_prefix,
+                    seed=seed,
+                    mode=mode,
+                    variant=variant,
+                    exp_id=exp_id,
+                    use_gpu=use_gpu,
+                    sync_s3_log=True,
+                    sync_s3_pkl=True,
+                    periodic_sync_interval=300,
+                    snapshot_mode=snapshot_mode,
+                    snapshot_gap=snapshot_gap,
+                )
+    elif run_mode == 'custom_grid':
+        for exp_id, (
+                add_on_policy_data,
+                on_policy_num_steps,
+                off_policy_num_steps,
+        ) in enumerate([
+            (False, 0, 10000),
+            (False, 0, 100000),
+            (True, 50000, 50000),
+            (True, 90000, 10000),
+            (True, 10000, 10000),
+        ]):
+            variant['algo_params.add_on_policy_data'] = add_on_policy_data
+            variant['algo_params.max_num_on_policy_steps_to_add'] = (
+                on_policy_num_steps
+            )
+            variant['sampler_params.min_num_steps_to_collect'] = (
+                off_policy_num_steps
+            )
+            variant['version'] = "off{}k_on{}k".format(
+                off_policy_num_steps // 1000,
+                on_policy_num_steps // 1000,
+            )
+            for _ in range(n_seeds):
                 seed = random.randint(0, 10000)
                 run_experiment(
                     experiment,

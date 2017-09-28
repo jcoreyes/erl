@@ -30,6 +30,7 @@ class ModelLearning(object):
 
     where f is the true dynamics model.
     """
+
     def __init__(
             self,
             env,
@@ -41,12 +42,12 @@ class ModelLearning(object):
             learning_rate=1e-3,
             weight_decay=0,
             batch_size=100,
-            num_unique_batches=1000,
             num_rollouts_per_eval=10,
             max_path_length=100,
             replay_buffer_size=100000,
             add_on_policy_data=True,
             model_learns_deltas=True,
+            max_num_on_policy_steps_to_add=None,
     ):
         if replay_buffer is None:
             replay_buffer = SplitReplayBuffer(
@@ -72,12 +73,15 @@ class ModelLearning(object):
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
         self.batch_size = batch_size
-        self.num_unique_batches = num_unique_batches
         self.num_rollouts_per_eval = num_rollouts_per_eval
         self.max_path_length = max_path_length
         self.add_on_policy_data = add_on_policy_data
         self.model_learns_deltas = model_learns_deltas
+        if max_num_on_policy_steps_to_add is None:
+            max_num_on_policy_steps_to_add = np.inf
+        self.max_num_on_policy_steps_to_add = max_num_on_policy_steps_to_add
 
+        self.num_on_policy_steps_added = 0
         self.optimizer = optim.Adam(
             self.model.parameters(),
             lr=self.learning_rate,
@@ -92,16 +96,18 @@ class ModelLearning(object):
         num_batches_total = 0
         for epoch in range(self.num_epochs):
             goal = self.env.sample_goal_state_for_rollout()
-            if self.add_on_policy_data:
-                self.replay_buffer.add_path(
-                    multitask_rollout(
-                        self.env,
-                        self.eval_policy,
-                        goal,
-                        0,
-                        max_path_length=self.max_path_length,
-                    )
+            if (self.add_on_policy_data
+                    and self.num_on_policy_steps_added <
+                    self.max_num_on_policy_steps_to_add):
+                path = multitask_rollout(
+                    self.env,
+                    self.eval_policy,
+                    goal,
+                    0,
+                    max_path_length=self.max_path_length,
                 )
+                self.num_on_policy_steps_added += len(path['observations'])
+                self.replay_buffer.add_path(path)
             if self.replay_buffer.num_steps_can_sample() == 0:
                 if self.add_on_policy_data:
                     raise Exception("If you're not going to add on-policy "
@@ -138,10 +144,10 @@ class ModelLearning(object):
         if self.model_learns_deltas:
             next_obs_delta_pred = self.model(obs, actions)
             next_obs_delta = next_obs - obs
-            errors = (next_obs_delta_pred - next_obs_delta)**2
+            errors = (next_obs_delta_pred - next_obs_delta) ** 2
         else:
             next_obs_pred = self.model(obs, actions)
-            errors = (next_obs_pred - next_obs)**2
+            errors = (next_obs_pred - next_obs) ** 2
         loss = errors.mean()
 
         return OrderedDict([
