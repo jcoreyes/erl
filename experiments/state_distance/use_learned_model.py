@@ -2,6 +2,7 @@
 Use a learned dynamics model to solve a task.
 """
 import argparse
+import numpy as np
 
 import joblib
 
@@ -16,7 +17,7 @@ if __name__ == "__main__":
                         help='path to the snapshot file')
     parser.add_argument('--H', type=int, default=100,
                         help='Max length of rollout')
-    parser.add_argument('--num_rollouts', type=int, default=100,
+    parser.add_argument('--num_rollouts', type=int, default=1,
                         help='Number of rollouts per eval')
     parser.add_argument('--hide', action='store_true')
     parser.add_argument('--verbose', action='store_true')
@@ -49,6 +50,11 @@ if __name__ == "__main__":
                 policy,
                 max_path_length=args.H,
                 animated=not args.hide,
+            )
+            path['goal_states'] = np.repeat(
+                np.expand_dims(goal, 0),
+                len(path['observations']),
+                axis=0,
             )
             paths.append(path)
         env.log_diagnostics(paths)
