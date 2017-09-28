@@ -58,7 +58,7 @@ if __name__ == "__main__":
             env,
             sample_size=args.nsamples,
             num_gradient_steps=args.ngrad,
-            sample_actions_on_grid=True,
+            sample_actions_from_grid=True,
         )
     elif args.beam:
         policy = BeamSearchMultistepSampler(

@@ -35,9 +35,13 @@ class UniversalPolicy(Policy, metaclass=abc.ABCMeta):
 class SampleBasedUniversalPolicy(
     UniversalPolicy, ExplorationPolicy, metaclass=abc.ABCMeta
 ):
-    def __init__(self, sample_size):
+    def __init__(self, sample_size, env, sample_actions_from_grid=False):
         super().__init__()
         self.sample_size = sample_size
+        self.env = env
+        self.sample_actions_from_grid = sample_actions_from_grid
+        self.action_low = self.env.action_space.low
+        self.action_high = self.env.action_space.high
         self._goal_batch = None
         self._discount_batch = None
 
@@ -60,6 +64,38 @@ class SampleBasedUniversalPolicy(
             requires_grad=False,
         )
 
+    def sample_actions(self):
+        if self.sample_actions_from_grid:
+            action_dim = self.env.action_dim
+            resolution = int(np.power(self.sample_size, 1./action_dim))
+            values = []
+            for dim in range(action_dim):
+                values.append(np.linspace(
+                    self.action_low[dim],
+                    self.action_high[dim],
+                    num=resolution
+                ))
+            actions = np.array(list(product(*values)))
+            if len(actions) < self.sample_size:
+                # Add extra actions in case the grid can't perfectly create
+                # `self.sample_size` actions. e.g. sample_size is 30, but the
+                # grid is 5x5.
+                actions = np.concatenate(
+                    (
+                        actions,
+                        self.env.sample_actions(
+                            self.sample_size - len(actions)
+                        ),
+                    ),
+                    axis=0,
+                )
+            return actions
+        else:
+            return self.env.sample_actions(self.sample_size)
+
+    def sample_states(self):
+        return self.env.sample_states(self.sample_size)
+
 
 class SamplePolicyPartialOptimizer(SampleBasedUniversalPolicy, nn.Module):
     """
@@ -71,14 +107,13 @@ class SamplePolicyPartialOptimizer(SampleBasedUniversalPolicy, nn.Module):
     See https://paper.dropbox.com/doc/State-Distance-QF-Results-Summary-flRwbIxt0bbUbVXVdkKzr
     for details.
     """
-    def __init__(self, qf, env, sample_size=100):
+    def __init__(self, qf, env, sample_size=100, **kwargs):
         nn.Module.__init__(self)
-        super().__init__(sample_size)
+        super().__init__(sample_size, env, **kwargs)
         self.qf = qf
-        self.env = env
 
     def get_action(self, obs):
-        sampled_actions = self.env.sample_actions(self.sample_size)
+        sampled_actions = self.sample_actions()
         actions = ptu.np_to_var(sampled_actions)
         goals = ptu.np_to_var(
             self.env.sample_irrelevant_goal_dimensions(
@@ -110,11 +145,11 @@ class SampleOptimalControlPolicy(SampleBasedUniversalPolicy, nn.Module):
             constraint_weight=10,
             sample_size=100,
             verbose=False,
+            **kwargs
     ):
         nn.Module.__init__(self)
-        super().__init__(sample_size)
+        super().__init__(sample_size, env, **kwargs)
         self.qf = qf
-        self.env = env
         self.constraint_weight = constraint_weight
         self.verbose = verbose
 
@@ -137,7 +172,7 @@ class SampleOptimalControlPolicy(SampleBasedUniversalPolicy, nn.Module):
         :param obs: np.array, state/observation
         :return: np.array, action to take
         """
-        sampled_actions = self.env.sample_actions(self.sample_size)
+        sampled_actions = self.sample_actions()
         action = ptu.np_to_var(sampled_actions)
         next_state = ptu.np_to_var(self.env.sample_states(self.sample_size))
         obs = self.expand_np_to_var(obs)
@@ -196,7 +231,7 @@ class TerminalRewardSampleOCPolicy(SampleOptimalControlPolicy, nn.Module):
 
     def get_action(self, obs):
         state = self.expand_np_to_var(obs)
-        first_sampled_actions = self.env.sample_actions(self.sample_size)
+        first_sampled_actions = self.sample_actions()
         action = ptu.np_to_var(first_sampled_actions)
         next_state = ptu.np_to_var(self.env.sample_states(self.sample_size))
 
@@ -240,23 +275,19 @@ class ArgmaxQFPolicy(SampleBasedUniversalPolicy, nn.Module):
             sample_size=100,
             learning_rate=1e-1,
             num_gradient_steps=10,
-            sample_actions_on_grid=False,
+            **kwargs
     ):
         nn.Module.__init__(self)
-        super().__init__(sample_size)
+        super().__init__(sample_size, env, **kwargs)
         self.qf = qf
-        self.env = env
         self.learning_rate = learning_rate
         self.num_gradient_steps = num_gradient_steps
-        self.sample_actions_on_grid = sample_actions_on_grid
-        self.action_low = self.env.action_space.low
-        self.action_high = self.env.action_space.high
 
     def get_action(self, obs):
-        sampled_actions = self.sample_actions()
-        actions = ptu.np_to_var(sampled_actions, requires_grad=True)
+        action_inits = self.sample_actions()
+        actions = ptu.np_to_var(action_inits, requires_grad=True)
         obs = self.expand_np_to_var(obs)
-        optimizer = optim.SGD([actions], self.learning_rate)
+        optimizer = optim.Adam([actions], self.learning_rate)
         losses = -self.qf(
             obs,
             actions,
@@ -278,34 +309,33 @@ class ArgmaxQFPolicy(SampleBasedUniversalPolicy, nn.Module):
         best_action_i = np.argmin(losses_np)
         return ptu.get_numpy(actions[best_action_i, :]), {}
 
-    def sample_actions(self):
-        if self.sample_actions_on_grid:
-            action_dim = self.env.action_dim
-            resolution = int(np.power(self.sample_size, 1./action_dim))
-            values = []
-            for dim in range(action_dim):
-                values.append(np.linspace(
-                    self.action_low[dim],
-                    self.action_high[dim],
-                    num=resolution
-                ))
-            actions = np.array(list(product(*values)))
-            if len(actions) < self.sample_size:
-                # Add extra actions in case the grid can't perfectly create
-                # `self.sample_size` actions. e.g. sample_size is 30, but the
-                # grid is 5x5.
-                actions = np.concatenate(
-                    (
-                        actions,
-                        self.env.sample_actions(
-                            self.sample_size - len(actions)
-                        ),
-                    ),
-                    axis=0,
-                )
-            return actions
-        else:
-            return self.env.sample_actions(self.sample_size)
+
+class PseudoModelBasedPolicy(SampleBasedUniversalPolicy, nn.Module):
+    """
+    1. Sample actions
+    2. Optimize over next state (according to a Q function)
+    3. Compare next state with desired next state to choose action
+    """
+    def __init__(
+            self,
+            qf,
+            env,
+            horizon,
+            num_particles=10,
+            sample_size=100,
+            **kwargs
+    ):
+        nn.Module.__init__(self)
+        super().__init__(sample_size, env, **kwargs)
+        self.qf = qf
+        self.horizon = horizon
+        self.num_particles = num_particles
+
+    def get_action(self, obs):
+        sampled_actions = self.sample_actions()
+        next_states_np = self.sample_states()
+        next_states = ptu.np_to_var(next_states_np, requires_grad=True)
+        return sampled_acti, {}
 
 
 class BeamSearchMultistepSampler(SampleBasedUniversalPolicy, nn.Module):
