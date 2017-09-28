@@ -38,6 +38,8 @@ if __name__ == "__main__":
                         help='Constraint penalty weight')
     parser.add_argument('--nsamples', type=int, default=1000,
                         help='Number of samples for optimization')
+    parser.add_argument('--ngrad', type=int, default=100,
+                        help='Number of gradient steps for respective policy.')
     args = parser.parse_args()
 
     data = joblib.load(args.file)
@@ -54,6 +56,8 @@ if __name__ == "__main__":
         policy = ArgmaxQFPolicy(
             qf,
             env,
+            sample_size=args.nsamples,
+            num_gradient_steps=args.ngrad,
         )
     elif args.beam:
         policy = BeamSearchMultistepSampler(
