@@ -8,7 +8,7 @@ def run_task(variant):
 
 run_experiment_doodad(
     run_task,
-    mode='ec2',
+    mode='local_docker',
     variant=dict(
         test=2
     ),

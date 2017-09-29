@@ -38,6 +38,9 @@ from rllab.envs.normalized_env import normalize
 from rllab.misc import logger
 from rllab.misc.instrument import run_experiment_lite, query_yes_no
 
+import doodad as dd
+import doodad.mount as mount
+from doodad.utils import REPO_DIR
 
 def get_standard_env(normalized=True):
     envs = [
@@ -142,16 +145,11 @@ def get_env_settings(
 
 def run_experiment_doodad(
         method_call,
-        mode='local',
+        mode='here',
         **run_experiment_kwargs
 ):
-    import doodad as dd
-    import doodad.ec2 as ec2
-    import doodad.ssh as ssh
-    import doodad.mount as mount
-    from doodad.utils import EXAMPLES_DIR, REPO_DIR
     mode_str_to_doodad_mode = {
-        'local': dd.mode.Local(),
+        'here': dd.mode.Local(),
         'local_docker': dd.mode.LocalDocker(
             # image='python:3.5',
             image='vitchyr/rllab-vitchyr',
@@ -175,6 +173,15 @@ def run_experiment_doodad(
     ]
 
     if mode == 'ec2':
+        if not query_yes_no(
+                "EC2 costs money. Are you sure you want to run?"
+        ):
+            sys.exit(1)
+            # if use_gpu:
+            #     if not query_yes_no(
+            #             "EC2 is more expensive with GPUs. Confirm?"
+            #     ):
+            #         sys.exit(1)
         output_mount = mount.MountS3(
             s3_path='outputs',
             mount_point=OUTPUT_DIR_FOR_TARGET,
@@ -190,11 +197,11 @@ def run_experiment_doodad(
 
     repo = git.Repo(os.getcwd())
     run_experiment_kwargs.update(dict(
-        diff_string=repo.git.diff(None),
+        code_diff=repo.git.diff(None),
         commit_hash=repo.head.commit.hexsha,
     ))
     dd.launch_python(
-        target='/home/vitchyr/git/rllab-rail/railrl/experiments/doodad_test/run_experiment_from_doodad.py',
+        target='/home/vitchyr/git/rllab-rail/railrl/scripts/run_experiment_from_doodad.py',
         mode=mode_str_to_doodad_mode[mode],
         mount_points=mounts,
         args={
@@ -221,8 +228,6 @@ def run_experiment(
         snapshot_gap=1,
         n_parallel=0,
         base_log_dir=None,
-        diff_string=None,
-        commit_hash=None,
         **run_experiment_lite_kwargs
 ):
     """
@@ -268,12 +273,9 @@ def run_experiment(
     command_words.append('python')
     if save_profile:
         command_words += ['-m cProfile -o', profile_file]
-    if diff_string is None or commit_hash is None:
-        repo = git.Repo(os.getcwd())
-        if diff_string is None:
-            diff_string = repo.git.diff(None)
-        if commit_hash is None:
-            commit_hash = repo.head.commit.hexsha
+    repo = git.Repo(os.getcwd())
+    diff_string = repo.git.diff(None)
+    commit_hash = repo.head.commit.hexsha
     script_name = main.__file__
     if mode == 'here':
         run_experiment_here(
