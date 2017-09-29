@@ -27,7 +27,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('file', type=str,
                         help='path to the snapshot file')
-    parser.add_argument('--H', type=int, default=100,
+    parser.add_argument('--H', type=int, default=500,
                         help='Max length of rollout')
     parser.add_argument('--num_rollouts', type=int, default=1,
                         help='Number of rollouts per eval')
@@ -39,11 +39,11 @@ if __name__ == "__main__":
     parser.add_argument('--plan_h', type=int, default=1,
                         help='Planning horizon')
     parser.add_argument('--discount', type=float, help='Discount Factor')
-    parser.add_argument('--weight', type=float, default=1000.,
+    parser.add_argument('--weight', type=float, default=1.,
                         help='Constraint penalty weight')
-    parser.add_argument('--nsamples', type=int, default=1000,
+    parser.add_argument('--nsamples', type=int, default=100,
                         help='Number of samples for optimization')
-    parser.add_argument('--ngrad', type=int, default=100,
+    parser.add_argument('--ngrad', type=int, default=0,
                         help='Number of gradient steps for respective policy.')
     parser.add_argument('--mb', action='store_true',
                         help='Use (pseudo-)model-based policy')
