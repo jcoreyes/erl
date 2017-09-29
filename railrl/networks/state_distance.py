@@ -177,7 +177,7 @@ class StructuredUniversalQfunction(PyTorchModule):
             h = self.hidden_activation(fc(h))
         next_state = self.output_activation(self.last_fc(h))
         out = - torch.norm(goal_state - next_state, p=2, dim=1)
-        return out
+        return out.unsqueeze(1)
 
 
 class FFUniversalPolicy(PyTorchModule, UniversalPolicy):

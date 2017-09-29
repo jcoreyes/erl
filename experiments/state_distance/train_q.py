@@ -35,8 +35,12 @@ from railrl.launchers.launcher_util import (
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.hypopt import optimize_and_save
 from railrl.misc.ml_util import RampUpSchedule, IntRampUpSchedule
-from railrl.networks.state_distance import FFUniversalPolicy, UniversalQfunction, \
-    FlatUniversalQfunction
+from railrl.networks.state_distance import (
+    FFUniversalPolicy,
+    UniversalQfunction,
+    FlatUniversalQfunction,
+    StructuredUniversalQfunction,
+)
 from railrl.policies.state_distance import TerminalRewardSampleOCPolicy
 from railrl.torch.modules import HuberLoss
 from railrl.torch.state_distance.exploration import \
@@ -123,7 +127,7 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "reacher-full-state-train-sdvf-sweep-various-things"
+    exp_prefix = "reacher-full-state-train-structured-qf"
     run_mode = 'custom_grid'
 
     version = "Dev"
@@ -150,7 +154,7 @@ if __name__ == '__main__':
             discount=0.99,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
-            # sample_goals_from='environment',
+            sample_goals_from='environment',
             # sample_goals_from='replay_buffer',
             sample_discount=False,
             qf_weight_decay=0.,
@@ -165,10 +169,12 @@ if __name__ == '__main__':
             save_replay_buffer=True,
         ),
         explore_with_ddpg_policy=True,
-        qf_class=UniversalQfunction,
+        # qf_class=UniversalQfunction,
+        qf_class=StructuredUniversalQfunction,
         qf_params=dict(
-            obs_hidden_size=400,
-            embed_hidden_size=300,
+            hidden_sizes=[400, 300],
+            # obs_hidden_size=400,
+            # embed_hidden_size=300,
         ),
         policy_params=dict(
             fc1_size=400,
@@ -274,35 +280,35 @@ if __name__ == '__main__':
                 num_steps_per_epoch,
                 version,
         ) in enumerate([
-            (1, 10000, "1000k_env_steps"),
-            (10, 1000, "100k_env_steps"),
-            (100, 100, "10k_env_steps"),
+            # (1, 10000, "500k_env_steps"),
+            (10, 500, "50k_env_steps"),
+            (50, 100, "10k_env_steps"),
         ]):
             variant['algo_params']['num_updates_per_env_step'] = nupo
             variant['algo_params']['num_steps_per_epoch'] = num_steps_per_epoch
             variant['version'] = version
-            search_space = {
-                'algo_params.sample_goals_from': ['environment', 'replay_buffer'],
-                'explore_with_ddpg_policy': [True, False],
-                'normalize_params.obs_std': [
-                    [0.7, 0.7, 0.7, 0.6, 40, 5],
-                    None,
-                ],
-            }
-            sweeper = hyp.DeterministicHyperparameterSweeper(
-                search_space, default_parameters=variant.copy(),
-            )
-            for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-                for i in range(n_seeds):
-                    seed = random.randint(0, 10000)
-                    run_experiment(
-                        experiment,
-                        exp_prefix=exp_prefix,
-                        seed=seed,
-                        mode=mode,
-                        variant=variant,
-                        exp_id=exp_id,
-                    )
+            # search_space = {
+            #     'algo_params.sample_goals_from': ['environment', 'replay_buffer'],
+            #     'explore_with_ddpg_policy': [True, False],
+            #     'normalize_params.obs_std': [
+            #         [0.7, 0.7, 0.7, 0.6, 40, 5],
+            #         None,
+            #     ],
+            # }
+            # sweeper = hyp.DeterministicHyperparameterSweeper(
+            #     search_space, default_parameters=variant.copy(),
+            # )
+            # for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+            for i in range(n_seeds):
+                seed = random.randint(0, 10000)
+                run_experiment(
+                    experiment,
+                    exp_prefix=exp_prefix,
+                    seed=seed,
+                    mode=mode,
+                    variant=variant,
+                    exp_id=exp_id,
+                )
     elif run_mode == 'hyperopt':
         search_space = {
             'float_param': hp.uniform(
