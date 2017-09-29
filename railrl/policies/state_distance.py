@@ -326,34 +326,70 @@ class PseudoModelBasedPolicy(SampleBasedUniversalPolicy, nn.Module):
             sample_size=100,
             learning_rate=1e-1,
             num_gradient_steps=100,
+            state_optimizer='adam',
             **kwargs
     ):
         nn.Module.__init__(self)
         super().__init__(sample_size, env, **kwargs)
         self.qf = qf
         self.learning_rate = learning_rate
-        self.num_gradient_steps = num_gradient_steps
+        self.num_optimization_steps = num_gradient_steps
+        self.state_optimizer = state_optimizer
 
-    def get_next_state_torch(self, states, actions):
-        # next_states_np = self.sample_states()
-        next_states_np = np.zeros((self.sample_size, 6))
-        next_states = ptu.np_to_var(next_states_np, requires_grad=True)
-        optimizer = optim.Adam([next_states], self.learning_rate)
+    def get_next_states_np(self, states, actions):
+        if self.state_optimizer == 'adam':
+            next_states_np = np.zeros((self.sample_size, 6))
+            next_states = ptu.np_to_var(next_states_np, requires_grad=True)
+            optimizer = optim.Adam([next_states], self.learning_rate)
 
-        for _ in range(self.num_gradient_steps):
-            losses = -self.qf(
-                states,
-                actions,
-                next_states,
-                self._discount_batch,
+            for _ in range(self.num_optimization_steps):
+                losses = -self.qf(
+                    states,
+                    actions,
+                    next_states,
+                    self._discount_batch,
+                )
+                loss = losses.mean()
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+            return ptu.get_numpy(next_states)
+        elif self.state_optimizer == 'lbfgs':
+            next_states = []
+            for i in range(len(states)):
+                state = states[i:i+1, :]
+                action = actions[i:i+1, :]
+                loss_f = self.create_loss(state, action, return_gradient=True)
+                results = optimize.fmin_l_bfgs_b(
+                    loss_f,
+                    np.zeros((1, 6)),
+                    maxiter=self.num_optimization_steps,
+                )
+                next_state = results[0]
+                next_states.append(next_state)
+            next_states = np.array(next_states)
+            return next_states
+        elif self.state_optimizer == 'fmin':
+            next_states = []
+            for i in range(len(states)):
+                state = states[i:i+1, :]
+                action = actions[i:i+1, :]
+                loss_f = self.create_loss(state, action)
+                results = optimize.fmin(
+                    loss_f,
+                    np.zeros((1, 6)),
+                    maxiter=self.num_optimization_steps,
+                )
+                next_state = results[0]
+                next_states.append(next_state)
+            next_states = np.array(next_states)
+            return next_states
+        else:
+            raise Exception(
+                "Unknown state optimizer mode: {}".format(self.state_optimizer)
             )
-            loss = losses.mean()
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-        return next_states
 
-    def create_loss(self, state, action):
+    def create_loss(self, state, action, return_gradient=False):
         def f(next_state_np):
             next_state = ptu.np_to_var(
                 np.expand_dims(next_state_np, 0),
@@ -368,34 +404,18 @@ class PseudoModelBasedPolicy(SampleBasedUniversalPolicy, nn.Module):
             loss.backward()
             loss_np = ptu.get_numpy(loss)
             gradient_np = ptu.get_numpy(next_state.grad)
-            return loss_np, gradient_np.astype('double')
+            if return_gradient:
+                return loss_np, gradient_np.astype('double')
+            else:
+                return loss_np
         return f
 
     def get_action(self, obs):
         sampled_actions = self.sample_actions()
         states = self.expand_np_to_var(obs)
         actions = ptu.np_to_var(sampled_actions)
-        next_states = []
-        for i in range(len(states)):
-            state = states[i:i+1, :]
-            action = actions[i:i+1, :]
-            loss_f = self.create_loss(state, action)
-            results = optimize.fmin_l_bfgs_b(
-                loss_f,
-                np.zeros((1, 6)),
-                maxiter=100,
-            )
-            next_state = results[0]
-            next_states.append(next_state)
-        # next_states = self.get_next_state_torch(states, actions)
-        # import ipdb; ipdb.set_trace()
-        next_states = np.array(next_states)
+        next_states = self.get_next_states_np(states, actions)
 
-        # distances = torch.sum(
-        #     (next_states - self._goal_expanded_torch) ** 2,
-        #     dim=1
-        # )
-        # best_action = np.argmin(ptu.get_numpy(distances))
         distances = np.sum(
             (next_states - self._goal_np)**2,
             axis=1
