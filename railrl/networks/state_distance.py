@@ -170,12 +170,21 @@ class StructuredUniversalQfunction(PyTorchModule):
         self.last_fc.weight.data.uniform_(-init_w, init_w)
         self.last_fc.bias.data.uniform_(-init_w, init_w)
 
-    def forward(self, obs, action, goal_state, discount):
+    def forward(
+            self,
+            obs,
+            action,
+            goal_state,
+            discount,
+            only_return_next_state=False,
+    ):
         h = torch.cat((obs, action, discount), dim=1)
         h = self.process_input(h)
         for fc in self.fcs:
             h = self.hidden_activation(fc(h))
         next_state = self.output_activation(self.last_fc(h))
+        if only_return_next_state:
+            return next_state
         out = - torch.norm(goal_state - next_state, p=2, dim=1)
         return out.unsqueeze(1)
 
