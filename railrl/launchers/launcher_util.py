@@ -140,6 +140,69 @@ def get_env_settings(
         was_env_normalized=normalize_env,
     )
 
+def run_experiment_doodad(
+        method_call,
+        mode='local',
+        **run_experiment_kwargs
+):
+    import doodad as dd
+    import doodad.ec2 as ec2
+    import doodad.ssh as ssh
+    import doodad.mount as mount
+    from doodad.utils import EXAMPLES_DIR, REPO_DIR
+    mode_str_to_doodad_mode = {
+        'local': dd.mode.Local(),
+        'local_docker': dd.mode.LocalDocker(
+            # image='python:3.5',
+            image='vitchyr/rllab-vitchyr',
+        ),
+        'ec2': dd.mode.EC2AutoconfigDocker(
+            image='vitchyr/rllab-vitchyr',
+            region='us-west-1',
+            instance_type='c4.large',
+            spot_price=0.03,
+        ),
+    }
+    LOCAL_OUTPUT_DIR = '/home/vitchyr/git/rllab-rail/railrl/data/local/'
+    OUTPUT_DIR_FOR_TARGET = '/tmp/outputs'
+    rail_dir = '/home/vitchyr/git/rllab-rail/railrl/'
+    rllab_dir = '/home/vitchyr/git/rllab-rail/'
+    # EXAMPLES_DIR = '/tmp'
+    mounts = [
+        mount.MountLocal(local_dir=REPO_DIR, pythonpath=True),
+        mount.MountLocal(local_dir=rail_dir, pythonpath=True),
+        mount.MountLocal(local_dir=rllab_dir, pythonpath=True),
+    ]
+
+    if mode == 'ec2':
+        output_mount = mount.MountS3(
+            s3_path='outputs',
+            mount_point=OUTPUT_DIR_FOR_TARGET,
+            output=True,
+        )
+    else:
+        output_mount = mount.MountLocal(
+            local_dir=LOCAL_OUTPUT_DIR,
+            mount_point=OUTPUT_DIR_FOR_TARGET,
+            output=True,
+        )
+    mounts.append(output_mount)
+
+    repo = git.Repo(os.getcwd())
+    run_experiment_kwargs.update(dict(
+        diff_string=repo.git.diff(None),
+        commit_hash=repo.head.commit.hexsha,
+    ))
+    dd.launch_python(
+        target='/home/vitchyr/git/rllab-rail/railrl/experiments/doodad_test/run_experiment_from_doodad.py',
+        mode=mode_str_to_doodad_mode[mode],
+        mount_points=mounts,
+        args={
+            'method_call': method_call,
+            'output_dir': OUTPUT_DIR_FOR_TARGET,
+            'run_experiment_kwargs': run_experiment_kwargs,
+        }
+    )
 
 def run_experiment(
         task,
@@ -158,6 +221,8 @@ def run_experiment(
         snapshot_gap=1,
         n_parallel=0,
         base_log_dir=None,
+        diff_string=None,
+        commit_hash=None,
         **run_experiment_lite_kwargs
 ):
     """
@@ -203,9 +268,12 @@ def run_experiment(
     command_words.append('python')
     if save_profile:
         command_words += ['-m cProfile -o', profile_file]
-    repo = git.Repo(os.getcwd())
-    diff_string = repo.git.diff(None)
-    commit_hash = repo.head.commit.hexsha
+    if diff_string is None or commit_hash is None:
+        repo = git.Repo(os.getcwd())
+        if diff_string is None:
+            diff_string = repo.git.diff(None)
+        if commit_hash is None:
+            commit_hash = repo.head.commit.hexsha
     script_name = main.__file__
     if mode == 'here':
         run_experiment_here(
