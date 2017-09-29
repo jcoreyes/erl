@@ -375,7 +375,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             num_steps_left_np = np.zeros((batch_size, 1))
         else:
             num_steps_left_np = np.random.randint(
-                0, self.discount, (batch_size, 1)
+                0, self.discount + 1, (batch_size, 1)
             )
         num_steps_left = ptu.np_to_var(num_steps_left_np)
         terminals_np = (num_steps_left_np == 0).astype(int)

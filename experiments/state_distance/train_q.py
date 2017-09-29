@@ -125,9 +125,9 @@ if __name__ == '__main__':
     exp_prefix = "dev-train-q"
     run_mode = "none"
 
-    n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "reacher-full-state-train-structured-qf"
+    # n_seeds = 3
+    # mode = "ec2"
+    exp_prefix = "reacher-full-state-train-normal-qf-max-tau-1"
     run_mode = 'custom_grid'
 
     version = "Dev"
@@ -169,12 +169,12 @@ if __name__ == '__main__':
             save_replay_buffer=True,
         ),
         explore_with_ddpg_policy=True,
-        # qf_class=UniversalQfunction,
-        qf_class=StructuredUniversalQfunction,
+        qf_class=UniversalQfunction,
+        # qf_class=StructuredUniversalQfunction,
         qf_params=dict(
-            hidden_sizes=[400, 300],
-            # obs_hidden_size=400,
-            # embed_hidden_size=300,
+            # hidden_sizes=[400, 300],
+            obs_hidden_size=400,
+            embed_hidden_size=300,
         ),
         policy_params=dict(
             fc1_size=400,
@@ -182,8 +182,8 @@ if __name__ == '__main__':
         ),
         epoch_discount_schedule_class=IntRampUpSchedule,
         epoch_discount_schedule_params=dict(
-            min_value=0,
-            max_value=0,
+            min_value=1,
+            max_value=1,
             ramp_duration=1,
         ),
         algo_class=HorizonFedStateDistanceQLearning,
