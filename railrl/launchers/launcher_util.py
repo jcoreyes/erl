@@ -199,8 +199,10 @@ def run_experiment(
     ]
     for code_dir in config.CODE_DIRS_TO_MOUNT:
         mounts.append(mount.MountLocal(local_dir=code_dir, pythonpath=True))
-    for non_code_mapping in config.DIR_AND_MOUNT_POINT_MAPPINGS:
-        mounts.append(mount.MountLocal(**non_code_mapping))
+
+    if mode != 'local':
+        for non_code_mapping in config.DIR_AND_MOUNT_POINT_MAPPINGS:
+            mounts.append(mount.MountLocal(**non_code_mapping))
 
     if mode == 'ec2':
         if not query_yes_no(
@@ -430,7 +432,7 @@ def run_experiment_here(
     return experiment_function(variant)
 
 
-def create_exp_name(exp_prefix="default", exp_id=0, seed=0):
+def create_exp_name(exp_prefix, exp_id=0, seed=0):
     """
     Create a semi-unique experiment name that has a timestamp
     :param exp_prefix:
@@ -442,7 +444,7 @@ def create_exp_name(exp_prefix="default", exp_id=0, seed=0):
     return "%s_%s_%04d--s-%d" % (exp_prefix, timestamp, exp_id, seed)
 
 
-def create_log_dir(exp_prefix="default", exp_id=0, seed=0, base_log_dir=None):
+def create_log_dir(exp_prefix, exp_id=0, seed=0, base_log_dir=None):
     """
     Creates and returns a unique log directory.
 
@@ -451,14 +453,11 @@ def create_log_dir(exp_prefix="default", exp_id=0, seed=0, base_log_dir=None):
     :param exp_id: Different exp_ids will be in different directories.
     :return:
     """
-    exp_name = create_exp_name(exp_prefix=exp_prefix, exp_id=exp_id,
+    exp_name = create_exp_name(exp_prefix, exp_id=exp_id,
                                seed=seed)
     if base_log_dir is None:
-        base_log_dir = osp.join(
-            config.LOG_DIR,
-            exp_prefix.replace("_", "-"),
-        )
-    log_dir = osp.join(base_log_dir, exp_name)
+        base_log_dir = config.LOCAL_LOG_DIR
+    log_dir = osp.join(base_log_dir, exp_prefix.replace("_", "-"), exp_name)
     if osp.exists(log_dir):
         raise Exception(
             "Log directory already exists. Will no overwrite: {0}".format(
@@ -470,7 +469,7 @@ def create_log_dir(exp_prefix="default", exp_id=0, seed=0, base_log_dir=None):
 
 
 def setup_logger(
-        exp_prefix=None,
+        exp_prefix="default",
         exp_id=0,
         seed=0,
         variant=None,
@@ -485,10 +484,15 @@ def setup_logger(
     """
     Set up logger to have some reasonable default settings.
 
-    :param exp_prefix:
-    :param exp_id:
+    Will save log output to
+
+    based_log_dir/exp_prefix/exp_name.
+
+    :param exp_prefix: The sub-directory for this specific experiment.
+    :param exp_id: The number of the specific experiment run within this
+    experiment.
     :param variant:
-    :param log_dir:
+    :param base_log_dir: The directory where all log should be saved.
     :param text_log_file:
     :param variant_log_file:
     :param tabular_log_file:
