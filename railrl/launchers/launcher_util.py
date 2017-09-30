@@ -145,7 +145,7 @@ def get_env_settings(
     )
 
 
-def run_experiment_doodad(
+def run_experiment(
         method_call,
         mode='local',
         exp_prefix='default',
@@ -159,6 +159,7 @@ def run_experiment_doodad(
         snapshot_gap=1,
         n_parallel=0,
         base_log_dir=None,
+        sync_interval=180,
 ):
     # Modify some of the inputs
     if seed is None:
@@ -218,6 +219,7 @@ def run_experiment_doodad(
             s3_path='outputs',
             mount_point=OUTPUT_DIR_FOR_TARGET,
             output=True,
+            sync_interval=sync_interval,
         )
     else:
         output_mount = mount.MountLocal(
@@ -253,7 +255,7 @@ def run_experiment_doodad(
     )
 
 
-def run_experiment(
+def run_experiment_old(
         task,
         exp_prefix='default',
         seed=None,
