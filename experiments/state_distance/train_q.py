@@ -128,7 +128,7 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "reacher-full-state-train-sweep-structure-and-max-tau"
+    exp_prefix = "reacher-7dof-train-sweep-structure-and-max-tau"
     run_mode = 'grid'
 
     version = "Dev"
@@ -170,12 +170,12 @@ if __name__ == '__main__':
             save_replay_buffer=True,
         ),
         explore_with_ddpg_policy=True,
-        # qf_class=UniversalQfunction,
-        qf_class=StructuredUniversalQfunction,
+        qf_class=UniversalQfunction,
+        # qf_class=StructuredUniversalQfunction,
         qf_params=dict(
-            hidden_sizes=[400, 300],
-            # obs_hidden_size=400,
-            # embed_hidden_size=300,
+            # hidden_sizes=[400, 300],
+            obs_hidden_size=400,
+            embed_hidden_size=300,
         ),
         policy_params=dict(
             fc1_size=400,
@@ -190,16 +190,16 @@ if __name__ == '__main__':
             # ramp_duration=1,
         ),
         algo_class=HorizonFedStateDistanceQLearning,
-        # env_class=Reacher7DofFullGoalState,
+        env_class=Reacher7DofFullGoalState,
         # env_class=ArmEEInStatePusherEnv,
         # env_class=JointOnlyPusherEnv,
-        env_class=GoalStateSimpleStateReacherEnv,
+        # env_class=GoalStateSimpleStateReacherEnv,
         # env_class=XyMultitaskSimpleStateReacherEnv,
         # env_class=MultitaskPoint2DEnv,
         env_params=dict(),
         normalize_params=dict(
             obs_mean=None,
-            obs_std=[0.7, 0.7, 0.7, 0.6, 40, 5],
+            # obs_std=[0.7, 0.7, 0.7, 0.6, 40, 5],
         ),
         sampler_params=dict(
             min_num_steps_to_collect=100000,
@@ -229,7 +229,7 @@ if __name__ == '__main__':
             #     # JointOnlyPusherEnv,
             # ],
             # 'qf_class': [UniversalQfunction],
-            'epoch_discount_schedule_params.value': [0, 1, 2, 3, 4, 5],
+            'epoch_discount_schedule_params.value': [0, 1, 5, 10, 50, 100],
             # 'algo_params.sample_goals_from': ['environment', 'replay_buffer'],
             # 'algo_params.num_steps_per_epoch': [1, 10],
             # 'algo_params.termination_threshold': [1e-4, 0]
