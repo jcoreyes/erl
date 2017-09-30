@@ -24,9 +24,9 @@ from railrl.envs.memory.one_char_memory import (
     OneCharMemoryEndOnly,
     OneCharMemoryOutputRewardMag,
 )
+from railrl.launchers import config
 from railrl.pythonplusplus import dict_to_safe_json
 from railrl.torch.pytorch_util import set_gpu_mode
-from rllab import config
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.envs.mujoco.ant_env import AntEnv
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
@@ -179,10 +179,10 @@ def run_experiment(
     mode_str_to_doodad_mode = {
         'local': doodad.mode.Local(),
         'local_docker': doodad.mode.LocalDocker(
-            image='vitchyr/rllab-vitchyr',
+            image=config.DOODAD_DOCKER_IMAGE,
         ),
         'ec2': doodad.mode.EC2AutoconfigDocker(
-            image='vitchyr/rllab-vitchyr',
+            image=config.DOODAD_DOCKER_IMAGE,
             region='us-west-1',
             instance_type='c4.large',
             spot_price=0.03,
@@ -191,19 +191,15 @@ def run_experiment(
     }
 
     if base_log_dir is None:
-        local_output_dir = (
-            '/home/vitchyr/git/rllab-rail/railrl/data/local/{}'.format(exp_prefix)
-        )
+        local_output_dir = config.LOCAL_LOG_DIR
     else:
         local_output_dir = '{}/{}'.format(base_log_dir, exp_prefix)
     OUTPUT_DIR_FOR_TARGET = '/tmp/outputs'
-    rail_dir = '/home/vitchyr/git/rllab-rail/railrl/'
-    rllab_dir = '/home/vitchyr/git/rllab-rail/'
     mounts = [
         mount.MountLocal(local_dir=REPO_DIR, pythonpath=True),
-        mount.MountLocal(local_dir=rail_dir, pythonpath=True),
-        mount.MountLocal(local_dir=rllab_dir, pythonpath=True),
     ]
+    for code_dir in config.CODE_DIRS_TO_MOUNT:
+        mounts.append(mount.MountLocal(local_dir=code_dir, pythonpath=True))
 
     if mode == 'ec2':
         if not query_yes_no(
@@ -245,7 +241,7 @@ def run_experiment(
         base_log_dir=OUTPUT_DIR_FOR_TARGET,
     )
     doodad.launch_python(
-        target='/home/vitchyr/git/rllab-rail/railrl/scripts/run_experiment_from_doodad.py',
+        target=config.RUN_DOODAD_EXPERIMENT_SCRIPT_PATH,
         mode=mode_str_to_doodad_mode[mode],
         mount_points=mounts,
         args={
@@ -459,7 +455,6 @@ def create_log_dir(exp_prefix="default", exp_id=0, seed=0, base_log_dir=None):
     if base_log_dir is None:
         base_log_dir = osp.join(
             config.LOG_DIR,
-            'local',
             exp_prefix.replace("_", "-"),
         )
     log_dir = osp.join(base_log_dir, exp_name)
