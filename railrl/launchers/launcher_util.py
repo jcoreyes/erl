@@ -194,12 +194,13 @@ def run_experiment(
         local_output_dir = config.LOCAL_LOG_DIR
     else:
         local_output_dir = '{}/{}'.format(base_log_dir, exp_prefix)
-    OUTPUT_DIR_FOR_TARGET = '/tmp/outputs'
     mounts = [
         mount.MountLocal(local_dir=REPO_DIR, pythonpath=True),
     ]
     for code_dir in config.CODE_DIRS_TO_MOUNT:
         mounts.append(mount.MountLocal(local_dir=code_dir, pythonpath=True))
+    for non_code_mapping in config.DIR_AND_MOUNT_POINT_MAPPINGS:
+        mounts.append(mount.MountLocal(**non_code_mapping))
 
     if mode == 'ec2':
         if not query_yes_no(
@@ -213,14 +214,14 @@ def run_experiment(
                 sys.exit(1)
         output_mount = mount.MountS3(
             s3_path='outputs',
-            mount_point=OUTPUT_DIR_FOR_TARGET,
+            mount_point=config.OUTPUT_DIR_FOR_DOODAD_TARGET,
             output=True,
             sync_interval=sync_interval,
         )
     else:
         output_mount = mount.MountLocal(
             local_dir=local_output_dir,
-            mount_point=OUTPUT_DIR_FOR_TARGET,
+            mount_point=config.OUTPUT_DIR_FOR_DOODAD_TARGET,
             output=True,
         )
     mounts.append(output_mount)
@@ -238,7 +239,7 @@ def run_experiment(
         commit_hash=repo.head.commit.hexsha,
         script_name=main.__file__,
         n_parallel=n_parallel,
-        base_log_dir=OUTPUT_DIR_FOR_TARGET,
+        base_log_dir=config.OUTPUT_DIR_FOR_DOODAD_TARGET,
     )
     doodad.launch_python(
         target=config.RUN_DOODAD_EXPERIMENT_SCRIPT_PATH,
