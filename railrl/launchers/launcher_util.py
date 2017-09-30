@@ -38,7 +38,8 @@ from rllab.envs.normalized_env import normalize
 from rllab.misc import logger
 from rllab.misc.instrument import run_experiment_lite, query_yes_no
 
-import doodad as dd
+import doodad
+import doodad.mode
 import doodad.mount as mount
 from doodad.utils import REPO_DIR
 
@@ -143,29 +144,60 @@ def get_env_settings(
         was_env_normalized=normalize_env,
     )
 
+
 def run_experiment_doodad(
         method_call,
-        mode='here',
-        **run_experiment_kwargs
+        mode='local',
+        exp_prefix='default',
+        seed=None,
+        variant=None,
+        exp_id=0,
+        unique_id=None,
+        prepend_date_to_exp_prefix=True,
+        use_gpu=False,
+        snapshot_mode='last',
+        snapshot_gap=1,
+        n_parallel=0,
+        base_log_dir=None,
 ):
+    # Modify some of the inputs
+    if seed is None:
+        seed = random.randint(0, 100000)
+    if variant is None:
+        variant = {}
+    if unique_id is None:
+        unique_id = str(uuid.uuid4())
+    if prepend_date_to_exp_prefix:
+        exp_prefix = time.strftime("%m-%d") + "-" + exp_prefix
+    variant['seed'] = str(seed)
+    variant['exp_id'] = str(exp_id)
+    variant['unique_id'] = str(unique_id)
+    logger.log("Variant:")
+    logger.log(json.dumps(dict_to_safe_json(variant), indent=2))
+
     mode_str_to_doodad_mode = {
-        'here': dd.mode.Local(),
-        'local_docker': dd.mode.LocalDocker(
-            # image='python:3.5',
+        'local': doodad.mode.Local(),
+        'local_docker': doodad.mode.LocalDocker(
             image='vitchyr/rllab-vitchyr',
         ),
-        'ec2': dd.mode.EC2AutoconfigDocker(
+        'ec2': doodad.mode.EC2AutoconfigDocker(
             image='vitchyr/rllab-vitchyr',
             region='us-west-1',
             instance_type='c4.large',
             spot_price=0.03,
+            s3_log_prefix=exp_prefix,
         ),
     }
-    LOCAL_OUTPUT_DIR = '/home/vitchyr/git/rllab-rail/railrl/data/local/'
+
+    if base_log_dir is None:
+        local_output_dir = (
+            '/home/vitchyr/git/rllab-rail/railrl/data/local/{}'.format(exp_prefix)
+        )
+    else:
+        local_output_dir = '{}/{}'.format(base_log_dir, exp_prefix)
     OUTPUT_DIR_FOR_TARGET = '/tmp/outputs'
     rail_dir = '/home/vitchyr/git/rllab-rail/railrl/'
     rllab_dir = '/home/vitchyr/git/rllab-rail/'
-    # EXAMPLES_DIR = '/tmp'
     mounts = [
         mount.MountLocal(local_dir=REPO_DIR, pythonpath=True),
         mount.MountLocal(local_dir=rail_dir, pythonpath=True),
@@ -177,11 +209,11 @@ def run_experiment_doodad(
                 "EC2 costs money. Are you sure you want to run?"
         ):
             sys.exit(1)
-            # if use_gpu:
-            #     if not query_yes_no(
-            #             "EC2 is more expensive with GPUs. Confirm?"
-            #     ):
-            #         sys.exit(1)
+        if use_gpu:
+            if not query_yes_no(
+                    "EC2 is more expensive with GPUs. Confirm?"
+            ):
+                sys.exit(1)
         output_mount = mount.MountS3(
             s3_path='outputs',
             mount_point=OUTPUT_DIR_FOR_TARGET,
@@ -189,27 +221,37 @@ def run_experiment_doodad(
         )
     else:
         output_mount = mount.MountLocal(
-            local_dir=LOCAL_OUTPUT_DIR,
+            local_dir=local_output_dir,
             mount_point=OUTPUT_DIR_FOR_TARGET,
             output=True,
         )
     mounts.append(output_mount)
 
     repo = git.Repo(os.getcwd())
-    run_experiment_kwargs.update(dict(
+    run_experiment_kwargs = dict(
+        exp_prefix=exp_prefix,
+        variant=variant,
+        exp_id=exp_id,
+        seed=seed,
+        use_gpu=use_gpu,
+        snapshot_mode=snapshot_mode,
+        snapshot_gap=snapshot_gap,
         code_diff=repo.git.diff(None),
         commit_hash=repo.head.commit.hexsha,
-    ))
-    dd.launch_python(
+        script_name=main.__file__,
+        n_parallel=n_parallel,
+        base_log_dir=OUTPUT_DIR_FOR_TARGET,
+    )
+    doodad.launch_python(
         target='/home/vitchyr/git/rllab-rail/railrl/scripts/run_experiment_from_doodad.py',
         mode=mode_str_to_doodad_mode[mode],
         mount_points=mounts,
         args={
             'method_call': method_call,
-            'output_dir': OUTPUT_DIR_FOR_TARGET,
             'run_experiment_kwargs': run_experiment_kwargs,
         }
     )
+
 
 def run_experiment(
         task,
