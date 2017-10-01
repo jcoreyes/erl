@@ -119,7 +119,7 @@ if __name__ == '__main__':
     mode = "ec2"
     # exp_prefix = "config-output-dir-has-local"
     # exp_prefix = "doodad-dd-log-dir-is-expt-plus--log-dir-is-expt"
-    exp_prefix = "doodad-5137-tmp-config-dir"
+    exp_prefix = "doodad-0e5f-config-dir"
     # run_mode = 'grid'
 
     version = "Dev"
