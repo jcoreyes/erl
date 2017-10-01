@@ -249,6 +249,7 @@ def run_experiment(
         mount_points=mounts,
         args={
             'method_call': method_call,
+            'output_dir': config.OUTPUT_DIR_FOR_DOODAD_TARGET,
             'run_experiment_kwargs': run_experiment_kwargs,
         }
     )
@@ -379,6 +380,7 @@ def run_experiment_here(
         script_name=None,
         n_parallel=0,
         base_log_dir=None,
+        snapshot_dir=None,
 ):
     """
     Run an experiment locally without any serialization.
@@ -414,6 +416,7 @@ def run_experiment_here(
         snapshot_mode=snapshot_mode,
         snapshot_gap=snapshot_gap,
         base_log_dir=base_log_dir,
+        snapshot_dir=snapshot_dir,
     )
     log_dir = logger.get_snapshot_dir()
     if code_diff is not None:
@@ -480,6 +483,7 @@ def setup_logger(
         snapshot_mode="last",
         snapshot_gap=1,
         log_tabular_only=False,
+        snapshot_dir=None,
 ):
     """
     Set up logger to have some reasonable default settings.
@@ -503,6 +507,8 @@ def setup_logger(
     """
     log_dir, exp_name = create_log_dir(exp_prefix, exp_id=exp_id, seed=seed,
                                        base_log_dir=base_log_dir)
+    if snapshot_dir is not None:
+        log_dir = snapshot_dir
     tabular_log_path = osp.join(log_dir, tabular_log_file)
     text_log_path = osp.join(log_dir, text_log_file)
 

@@ -15,4 +15,5 @@ RUN_DOODAD_EXPERIMENT_SCRIPT_PATH = (
 DOODAD_DOCKER_IMAGE = 'vitchyr/rllab-vitchyr'
 
 # This really shouldn't matter and in theory could be whatever
-OUTPUT_DIR_FOR_DOODAD_TARGET = '/tmp/doodad_outputs'
+OUTPUT_DIR_FOR_DOODAD_TARGET = '/tmp/config/'
+# OUTPUT_DIR_FOR_DOODAD_TARGET = '/tmp/dir/from/railrl-config/'
