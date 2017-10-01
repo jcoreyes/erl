@@ -10,6 +10,9 @@ from railrl.envs.multitask.reacher_env import (
     GoalStateSimpleStateReacherEnv,
     XyMultitaskSimpleStateReacherEnv,
 )
+from railrl.envs.multitask.reacher_7dof import (
+    Reacher7DofFullGoalState,
+)
 from railrl.envs.wrappers import convert_gym_space, normalize_box
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.exploration_strategies.uniform_strategy import UniformStrategy
@@ -72,8 +75,8 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "reacher-learn-model-on-vs-off-policy-sweep"
-    run_mode = 'custom_grid'
+    exp_prefix = "reacher-7dof-learn-model-net-ngradsteps-sweep"
+    run_mode = 'grid'
 
     num_configurations = 1  # for random mode
     snapshot_mode = "last"
@@ -106,9 +109,10 @@ if __name__ == '__main__':
         ),
         model_learns_deltas=True,
         model_params=dict(
-            hidden_sizes=[32, 32],
+            hidden_sizes=[500, 500],
         ),
-        env_class=GoalStateSimpleStateReacherEnv,
+        # env_class=GoalStateSimpleStateReacherEnv,
+        env_class=Reacher7DofFullGoalState,
         # env_class=PusherEnv,
         # env_class=XyMultitaskSimpleStateReacherEnv,
         # env_class=MultitaskPoint2DEnv,
@@ -117,7 +121,7 @@ if __name__ == '__main__':
         ),
         normalize_params=dict(
             obs_mean=None,
-            obs_std=[0.7, 0.7, 0.7, 0.6, 40, 5],
+            # obs_std=[0.7, 0.7, 0.7, 0.6, 40, 5],
             # obs_std=[3, 3],
         ),
         sampler_params=dict(
@@ -137,12 +141,16 @@ if __name__ == '__main__':
     )
     if run_mode == 'grid':
         search_space = {
-            'algo_params.add_on_policy_data': [True, False],
-            # 'algo_params.weight_decay': [0, 1e-4, 1e-3, 1e-2],
-            'normalize_params.obs_std': [
-                None,
-                [0.7, 0.3, 0.7, 0.3, 25, 5],
+            'model_params.hidden_sizes':[
+                [100, 100],
+                [500, 500],
             ],
+            'algo_params.num_batches_per_epoch': [1000, 10000],
+            # 'algo_params.weight_decay': [0, 1e-4, 1e-3, 1e-2],
+            # 'normalize_params.obs_std': [
+                # None,
+                # [0.7, 0.3, 0.7, 0.3, 25, 5],
+            # ],
             # 'model_learns_deltas': [True, False],
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(

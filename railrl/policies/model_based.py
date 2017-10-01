@@ -29,7 +29,7 @@ class MultistepModelBasedPolicy(SampleBasedUniversalPolicy, nn.Module):
             planning_horizon=1,
             model_learns_deltas=True,
     ):
-        super().__init__(sample_size)
+        super().__init__(sample_size, env)
         nn.Module.__init__(self)
         self.model = model
         self.env = env
