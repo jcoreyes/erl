@@ -119,7 +119,7 @@ if __name__ == '__main__':
     mode = "ec2"
     # exp_prefix = "config-output-dir-has-local"
     # exp_prefix = "doodad-dd-log-dir-is-expt-plus--log-dir-is-expt"
-    exp_prefix = "doodad-82fd-quick-check-no-output-dir-and-set-exp-name"
+    exp_prefix = "doodad-82fd-longer-final-check"
     # run_mode = 'grid'
 
     version = "Dev"
@@ -137,12 +137,12 @@ if __name__ == '__main__':
     variant = dict(
         dataset_path=str(dataset_path),
         algo_params=dict(
-            # num_epochs=101,
-            # num_steps_per_epoch=1000,
-            # num_steps_per_eval=1000,
-            num_epochs=5,
-            num_steps_per_epoch=100,
-            num_steps_per_eval=100,
+            num_epochs=30,
+            num_steps_per_epoch=1000,
+            num_steps_per_eval=1000,
+            # num_epochs=5,
+            # num_steps_per_epoch=100,
+            # num_steps_per_eval=100,
             num_updates_per_env_step=1,
             use_soft_update=True,
             tau=0.001,
