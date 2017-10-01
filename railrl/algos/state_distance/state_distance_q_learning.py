@@ -391,7 +391,11 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
         """
         Critic operations.
         """
-        next_actions = self.target_policy(next_obs, goal_states, num_steps_left)
+        next_actions = self.target_policy(
+            next_obs,
+            goal_states,
+            num_steps_left - 1,
+        )
         target_q_values = self.target_qf(
             next_obs,
             next_actions,
