@@ -187,6 +187,7 @@ def run_experiment(
             instance_type='c4.large',
             spot_price=0.03,
             s3_log_prefix=exp_prefix,
+            s3_log_name="{}-id{}-s{}".format(exp_prefix, exp_id, seed),
         ),
     }
 
@@ -215,7 +216,7 @@ def run_experiment(
             ):
                 sys.exit(1)
         output_mount = mount.MountS3(
-            s3_path='outputs',
+            s3_path='',
             mount_point=config.OUTPUT_DIR_FOR_DOODAD_TARGET,
             output=True,
             sync_interval=sync_interval,
