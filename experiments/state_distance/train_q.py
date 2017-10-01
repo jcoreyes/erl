@@ -128,7 +128,7 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "sdql-reacher-2d-tau-correct-structured-sweep-tau-and-wd-2"
+    exp_prefix = "sdql-reacher-2d-sweep-normalization-structure-nsteps-tau-incorrect-tau-0"
     run_mode = 'grid'
 
     version = "Dev"
@@ -147,9 +147,9 @@ if __name__ == '__main__':
         dataset_path=str(dataset_path),
         algo_params=dict(
             num_epochs=101,
-            num_steps_per_epoch=600,
+            num_steps_per_epoch=300,
             num_steps_per_eval=900,
-            num_updates_per_env_step=10,
+            num_updates_per_env_step=20,
             use_soft_update=True,
             tau=0.001,
             batch_size=500,
@@ -165,17 +165,17 @@ if __name__ == '__main__':
             replay_buffer_size=1000000,
             prob_goal_state_is_next_state=0,
             termination_threshold=0,
-            do_tau_correctly=True,
+            do_tau_correctly=False,
             render=args.render,
             save_replay_buffer=True,
         ),
         explore_with_ddpg_policy=True,
         # qf_class=UniversalQfunction,
-        qf_class=StructuredUniversalQfunction,
+        # qf_class=StructuredUniversalQfunction,
         qf_params=dict(
-            hidden_sizes=[400, 300],
-            # obs_hidden_size=400,
-            # embed_hidden_size=300,
+            # hidden_sizes=[400, 300],
+            obs_hidden_size=400,
+            embed_hidden_size=300,
         ),
         policy_params=dict(
             fc1_size=400,
@@ -229,8 +229,13 @@ if __name__ == '__main__':
             #     # JointOnlyPusherEnv,
             # ],
             # 'qf_class': [UniversalQfunction],
-            'epoch_discount_schedule_params.value': [0, 1, 5, 50],
-            'algo_params.qf_weight_decay': [0, 1e-5, 5e-3, 1e-2],
+            # 'epoch_discount_schedule_params.value': [0, 1, 5, 50],
+            # 'algo_params.do_tau_correctly': [True, False],
+            'normalize_params.obs_std': [
+                [0.7, 0.7, 0.7, 0.6, 40, 5],
+                None,
+            ],
+            # 'algo_params.qf_weight_decay': [0, 1e-5, 5e-3, 1e-2],
             # 'algo_params.sample_goals_from': ['environment', 'replay_buffer'],
             # 'algo_params.num_steps_per_epoch': [1, 10],
             # 'algo_params.termination_threshold': [1e-4, 0]
