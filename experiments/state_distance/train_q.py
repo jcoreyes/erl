@@ -128,7 +128,7 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "sdql-reacher-2d-tau-correct-structured-sweep-tau-and-wd"
+    exp_prefix = "sdql-reacher-2d-tau-correct-structured-sweep-tau-and-wd-2"
     run_mode = 'grid'
 
     version = "Dev"
@@ -230,7 +230,7 @@ if __name__ == '__main__':
             # ],
             # 'qf_class': [UniversalQfunction],
             'epoch_discount_schedule_params.value': [0, 1, 5, 50],
-            'algo_params.weight_decay': [0, 1e-5, 5e-3, 1e-2],
+            'algo_params.qf_weight_decay': [0, 1e-5, 5e-3, 1e-2],
             # 'algo_params.sample_goals_from': ['environment', 'replay_buffer'],
             # 'algo_params.num_steps_per_epoch': [1, 10],
             # 'algo_params.termination_threshold': [1e-4, 0]
