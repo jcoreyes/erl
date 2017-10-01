@@ -128,7 +128,7 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "reacher-7dof-train-sweep-structure-and-max-tau"
+    exp_prefix = "sdql-reacher-7dof-tau-correct-compare-structure"
     run_mode = 'grid'
 
     version = "Dev"
@@ -165,7 +165,7 @@ if __name__ == '__main__':
             replay_buffer_size=1000000,
             prob_goal_state_is_next_state=0,
             termination_threshold=0,
-            do_tau_correctly=False,
+            do_tau_correctly=True,
             render=args.render,
             save_replay_buffer=True,
         ),
@@ -229,7 +229,8 @@ if __name__ == '__main__':
             #     # JointOnlyPusherEnv,
             # ],
             # 'qf_class': [UniversalQfunction],
-            'epoch_discount_schedule_params.value': [0, 1, 5, 10, 50, 100],
+            'epoch_discount_schedule_params.value': [0, 1, 2],
+            # 'algo_params.weight_decay': [0, 1e-5, 5e-3, 1e-2],
             # 'algo_params.sample_goals_from': ['environment', 'replay_buffer'],
             # 'algo_params.num_steps_per_epoch': [1, 10],
             # 'algo_params.termination_threshold': [1e-4, 0]
