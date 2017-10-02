@@ -192,9 +192,8 @@ def run_experiment(
     }
 
     if base_log_dir is None:
-        local_output_dir = config.LOCAL_LOG_DIR
-    else:
-        local_output_dir = '{}/{}'.format(base_log_dir, exp_prefix)
+        base_log_dir = config.LOCAL_LOG_DIR
+    output_mount_point = config.OUTPUT_DIR_FOR_DOODAD_TARGET
     mounts = [
         mount.MountLocal(local_dir=REPO_DIR, pythonpath=True),
     ]
@@ -217,16 +216,34 @@ def run_experiment(
                 sys.exit(1)
         output_mount = mount.MountS3(
             s3_path='',
-            mount_point=config.OUTPUT_DIR_FOR_DOODAD_TARGET,
+            mount_point=output_mount_point,
             output=True,
             sync_interval=sync_interval,
         )
-    else:
+        # This will be over-written by the snapshot dir, but I'm setting it for
+        # good measure.
+        base_log_dir_for_script = output_mount_point
+        # The snapshot dir needs to be specified for S3 because S3 will
+        # automatically create the experiment director and sub-directory.
+        snapshot_dir_for_script = output_mount_point
+    elif mode == 'local':
         output_mount = mount.MountLocal(
-            local_dir=local_output_dir,
-            mount_point=config.OUTPUT_DIR_FOR_DOODAD_TARGET,
+            local_dir=base_log_dir,
+            mount_point=None,  # For purely local mode, skip mounting.
             output=True,
         )
+        base_log_dir_for_script = base_log_dir
+        # The snapshot dir will be automatically created
+        snapshot_dir_for_script = None
+    else:
+        output_mount = mount.MountLocal(
+            local_dir=base_log_dir,
+            mount_point=output_mount_point,
+            output=True,
+        )
+        base_log_dir_for_script = output_mount_point
+        # The snapshot dir will be automatically created
+        snapshot_dir_for_script = None
     mounts.append(output_mount)
 
     repo = git.Repo(os.getcwd())
@@ -242,7 +259,7 @@ def run_experiment(
         commit_hash=repo.head.commit.hexsha,
         script_name=main.__file__,
         n_parallel=n_parallel,
-        base_log_dir=config.OUTPUT_DIR_FOR_DOODAD_TARGET,
+        base_log_dir=base_log_dir_for_script,
     )
     doodad.launch_python(
         target=config.RUN_DOODAD_EXPERIMENT_SCRIPT_PATH,
@@ -250,7 +267,7 @@ def run_experiment(
         mount_points=mounts,
         args={
             'method_call': method_call,
-            'output_dir': config.OUTPUT_DIR_FOR_DOODAD_TARGET,
+            'output_dir': snapshot_dir_for_script,
             'run_experiment_kwargs': run_experiment_kwargs,
         }
     )
