@@ -186,8 +186,6 @@ class SampleOptimalControlPolicy(SampleBasedUniversalPolicy, nn.Module):
             self.env.convert_obs_to_goal_states_pytorch(next_state),
             self._discount_batch,
         )
-        print("reward", reward)
-        print("constraint_penalty", constraint_penalty)
         score = (
             reward
             + self.constraint_weight * constraint_penalty
