@@ -124,14 +124,14 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     n_seeds = 1
-    mode = "local_docker"
+    mode = "local"
     exp_prefix = "dev-train-q"
     run_mode = "none"
 
-    n_seeds = 3
+    # n_seeds = 3
     mode = "ec2"
-    exp_prefix = "sdql-pusher-haha-compare-correct-incorrect-tau-diff-tau-values-and-net-structure-2"
-    run_mode = 'grid'
+    exp_prefix = "test-get-oc-working-after-doodad-merge"
+    # run_mode = 'grid'
 
     version = "Dev"
     num_configurations = 50  # for random mode
@@ -148,10 +148,10 @@ if __name__ == '__main__':
     variant = dict(
         dataset_path=str(dataset_path),
         algo_params=dict(
-            num_epochs=101,
+            num_epochs=20,
             num_steps_per_epoch=300,
-            num_steps_per_eval=900,
-            num_updates_per_env_step=20,
+            num_steps_per_eval=300,
+            num_updates_per_env_step=1,
             use_soft_update=True,
             tau=0.001,
             batch_size=500,
@@ -195,8 +195,8 @@ if __name__ == '__main__':
         algo_class=HorizonFedStateDistanceQLearning,
         # env_class=Reacher7DofFullGoalState,
         # env_class=ArmEEInStatePusherEnv,
-        env_class=JointOnlyPusherEnv,
-        # env_class=GoalStateSimpleStateReacherEnv,
+        # env_class=JointOnlyPusherEnv,
+        env_class=GoalStateSimpleStateReacherEnv,
         # env_class=XyMultitaskSimpleStateReacherEnv,
         # env_class=MultitaskPoint2DEnv,
         env_params=dict(),
