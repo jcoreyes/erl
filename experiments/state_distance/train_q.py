@@ -128,7 +128,7 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "sdql-reacher-2d-sweep-normalization-structure-nsteps-tau-incorrect-tau-0"
+    exp_prefix = "sdql-pusher-haha-compare-correct-incorrect-tau-diff-tau-values-and-net-structure-2"
     run_mode = 'grid'
 
     version = "Dev"
@@ -165,17 +165,18 @@ if __name__ == '__main__':
             replay_buffer_size=1000000,
             prob_goal_state_is_next_state=0,
             termination_threshold=0,
-            do_tau_correctly=False,
+            do_tau_correctly=True,
             render=args.render,
             save_replay_buffer=True,
         ),
         explore_with_ddpg_policy=True,
         # qf_class=UniversalQfunction,
+        qf_class=FlatUniversalQfunction,
         # qf_class=StructuredUniversalQfunction,
         qf_params=dict(
-            # hidden_sizes=[400, 300],
-            obs_hidden_size=400,
-            embed_hidden_size=300,
+            hidden_sizes=[400, 300],
+            # obs_hidden_size=400,
+            # embed_hidden_size=300,
         ),
         policy_params=dict(
             fc1_size=400,
@@ -192,8 +193,8 @@ if __name__ == '__main__':
         algo_class=HorizonFedStateDistanceQLearning,
         # env_class=Reacher7DofFullGoalState,
         # env_class=ArmEEInStatePusherEnv,
-        # env_class=JointOnlyPusherEnv,
-        env_class=GoalStateSimpleStateReacherEnv,
+        env_class=JointOnlyPusherEnv,
+        # env_class=GoalStateSimpleStateReacherEnv,
         # env_class=XyMultitaskSimpleStateReacherEnv,
         # env_class=MultitaskPoint2DEnv,
         env_params=dict(),
@@ -228,13 +229,9 @@ if __name__ == '__main__':
             #     # ArmEEInStatePusherEnv,
             #     # JointOnlyPusherEnv,
             # ],
-            # 'qf_class': [UniversalQfunction],
-            # 'epoch_discount_schedule_params.value': [0, 1, 5, 50],
-            # 'algo_params.do_tau_correctly': [True, False],
-            'normalize_params.obs_std': [
-                [0.7, 0.7, 0.7, 0.6, 40, 5],
-                None,
-            ],
+            'qf_class': [FlatUniversalQfunction, StructuredUniversalQfunction],
+            'epoch_discount_schedule_params.value': [0, 1, 5],
+            'algo_params.do_tau_correctly': [True, False],
             # 'algo_params.qf_weight_decay': [0, 1e-5, 5e-3, 1e-2],
             # 'algo_params.sample_goals_from': ['environment', 'replay_buffer'],
             # 'algo_params.num_steps_per_epoch': [1, 10],
