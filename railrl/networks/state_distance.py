@@ -235,3 +235,16 @@ class FFUniversalPolicy(PyTorchModule, UniversalPolicy):
         )
         action = action.squeeze(0)
         return ptu.get_numpy(action), {}
+
+
+class PerfectPoint2DQF(PyTorchModule):
+    """
+    Give the perfect QF for MultitaskPoint2D for discount/tau = 0.
+
+    state = [x, y]
+    action = [dx, dy]
+    next_state = clip(state + action, -1, 1)
+    """
+    def forward(self, obs, action, goal_state, discount):
+        next_state = torch.clamp(obs + action, -1, 1)
+        return - torch.norm(next_state - goal_state, p=2, dim=1)
