@@ -2,9 +2,8 @@ import random
 
 from railrl.algos.state_distance.state_distance_q_learning import \
     multitask_rollout
-from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
+from railrl.envs.multitask.point2d import MultitaskPoint2DEnv, PerfectPoint2DQF
 from railrl.launchers.launcher_util import run_experiment
-from railrl.networks.state_distance import PerfectPoint2DQF
 from railrl.policies.state_distance import ArgmaxQFPolicy
 from rllab.misc import logger
 
@@ -44,7 +43,7 @@ if __name__ == '__main__':
     variant = dict(
         num_rollouts=10,
         H=300,
-        render=False,
+        render=True,
         policy_class=ArgmaxQFPolicy,
         policy_params=dict(
             sample_size=100,

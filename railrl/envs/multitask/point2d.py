@@ -1,10 +1,13 @@
 from collections import OrderedDict
 
 import numpy as np
+import torch
+
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.envs.pygame.water_maze import WaterMaze
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import get_stat_in_dict
+from railrl.torch.core import PyTorchModule
 from rllab.core.serializable import Serializable
 from rllab.misc import logger
 from rllab.spaces import Box
@@ -89,3 +92,20 @@ class MultitaskPoint2DEnv(WaterMaze, MultitaskEnv, Serializable):
 
         for key, value in statistics.items():
             logger.record_tabular(key, value)
+
+
+class PerfectPoint2DQF(PyTorchModule):
+    """
+    Give the perfect QF for MultitaskPoint2D for discount/tau = 0.
+
+    state = [x, y]
+    action = [dx, dy]
+    next_state = clip(state + action, -boundary, boundary)
+    """
+    def forward(self, obs, action, goal_state, discount):
+        next_state = torch.clamp(
+            obs + action,
+            -WaterMaze.BOUNDARY_DIST,
+            WaterMaze.BOUNDARY_DIST,
+        )
+        return - torch.norm(next_state - goal_state, p=2, dim=1)
