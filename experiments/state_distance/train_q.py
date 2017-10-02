@@ -55,6 +55,8 @@ def experiment(variant):
     else:
         replay_buffer = get_replay_buffer(variant)
 
+    from rllab.misc import logger
+    logger.log("Log dir: {}".format(logger.get_snapshot_dir()))
     observation_space = convert_gym_space(env.observation_space)
     action_space = convert_gym_space(env.action_space)
     qf = variant['qf_class'](
@@ -117,7 +119,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     n_seeds = 1
-    mode = "here"
+    mode = "local_docker"
     exp_prefix = "dev-train-q"
     run_mode = "none"
 
@@ -131,12 +133,12 @@ if __name__ == '__main__':
     snapshot_mode = "last"
     snapshot_gap = 10
     use_gpu = True
-    if mode != "here":
+    if mode != "local":
         use_gpu = False
 
     dataset_path = args.replay_path
 
-    max_path_length = 300
+    max_path_length = 10
     # noinspection PyTypeChecker
     variant = dict(
         dataset_path=str(dataset_path),
@@ -144,6 +146,10 @@ if __name__ == '__main__':
             num_epochs=101,
             num_steps_per_epoch=10000,
             num_steps_per_eval=1000,
+            # num_epochs=5,
+            # num_steps_per_epoch=100,
+            # num_steps_per_eval=100,
+            num_updates_per_env_step=1,
             use_soft_update=True,
             tau=0.001,
             batch_size=500,
@@ -156,8 +162,7 @@ if __name__ == '__main__':
             qf_weight_decay=0.,
             max_path_length=max_path_length,
             use_new_data=True,
-            replay_buffer_size=1000000,
-            num_updates_per_env_step=1,
+            replay_buffer_size=100000,
             prob_goal_state_is_next_state=0,
             termination_threshold=0,
             do_tau_correctly=False,
@@ -262,9 +267,6 @@ if __name__ == '__main__':
                     variant=variant,
                     exp_id=exp_id,
                     use_gpu=use_gpu,
-                    sync_s3_log=True,
-                    sync_s3_pkl=True,
-                    periodic_sync_interval=300,
                     snapshot_mode=snapshot_mode,
                     snapshot_gap=snapshot_gap,
                 )
@@ -364,9 +366,6 @@ if __name__ == '__main__':
                     variant=variant,
                     exp_id=exp_id,
                     use_gpu=use_gpu,
-                    sync_s3_log=True,
-                    sync_s3_pkl=True,
-                    periodic_sync_interval=300,
                     snapshot_mode=snapshot_mode,
                     snapshot_gap=snapshot_gap,
                 )
@@ -381,9 +380,6 @@ if __name__ == '__main__':
                 variant=variant,
                 exp_id=0,
                 use_gpu=use_gpu,
-                sync_s3_log=True,
-                sync_s3_pkl=True,
-                periodic_sync_interval=300,
                 snapshot_mode=snapshot_mode,
                 snapshot_gap=snapshot_gap,
             )
