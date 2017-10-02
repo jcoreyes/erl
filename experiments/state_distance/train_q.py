@@ -60,6 +60,8 @@ def experiment(variant):
     else:
         replay_buffer = get_replay_buffer(variant)
 
+    from rllab.misc import logger
+    logger.log("Log dir: {}".format(logger.get_snapshot_dir()))
     observation_space = convert_gym_space(env.observation_space)
     action_space = convert_gym_space(env.action_space)
     qf = variant['qf_class'](
@@ -122,7 +124,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     n_seeds = 1
-    mode = "here"
+    mode = "local_docker"
     exp_prefix = "dev-train-q"
     run_mode = "none"
 
@@ -136,12 +138,12 @@ if __name__ == '__main__':
     snapshot_mode = "last"
     snapshot_gap = 10
     use_gpu = True
-    if mode != "here":
+    if mode != "local":
         use_gpu = False
 
     dataset_path = args.replay_path
 
-    max_path_length = 300
+    max_path_length = 10
     # noinspection PyTypeChecker
     variant = dict(
         dataset_path=str(dataset_path),
@@ -275,9 +277,6 @@ if __name__ == '__main__':
                     variant=variant,
                     exp_id=exp_id,
                     use_gpu=use_gpu,
-                    sync_s3_log=True,
-                    sync_s3_pkl=True,
-                    periodic_sync_interval=300,
                     snapshot_mode=snapshot_mode,
                     snapshot_gap=snapshot_gap,
                 )
@@ -377,9 +376,6 @@ if __name__ == '__main__':
                     variant=variant,
                     exp_id=exp_id,
                     use_gpu=use_gpu,
-                    sync_s3_log=True,
-                    sync_s3_pkl=True,
-                    periodic_sync_interval=300,
                     snapshot_mode=snapshot_mode,
                     snapshot_gap=snapshot_gap,
                 )
@@ -394,9 +390,6 @@ if __name__ == '__main__':
                 variant=variant,
                 exp_id=0,
                 use_gpu=use_gpu,
-                sync_s3_log=True,
-                sync_s3_pkl=True,
-                periodic_sync_interval=300,
                 snapshot_mode=snapshot_mode,
                 snapshot_gap=snapshot_gap,
             )
