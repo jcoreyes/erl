@@ -1,4 +1,7 @@
+import argparse
 import random
+import joblib
+import os
 
 from railrl.algos.state_distance.state_distance_q_learning import \
     multitask_rollout
@@ -10,13 +13,21 @@ from railrl.policies.state_distance import (
     ConstrainedOptimizationOCPolicy,
 )
 from rllab.misc import logger
+import railrl.torch.pytorch_util as ptu
+
 
 def experiment(variant):
     num_rollouts = variant['num_rollouts']
     H = variant['H']
     render = variant['render']
     env = MultitaskPoint2DEnv()
-    qf = PerfectPoint2DQF()
+    if 'qf_path' in variant:
+        data = joblib.load(variant['qf_path'])
+        qf = data['qf']
+        if ptu.gpu_enabled():
+            qf.cuda()
+    else:
+        qf = PerfectPoint2DQF()
     policy = variant['policy_class'](
         qf,
         env,
@@ -37,12 +48,19 @@ def experiment(variant):
     env.log_diagnostics(paths)
     logger.dump_tabular(with_timestamp=False)
 
+
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--file', type=str,
+                        help='path to the snapshot file with a QF')
+    args = parser.parse_args()
+
     n_seeds = 1
     mode = "local"
     exp_prefix = "dev"
     run_mode = 'none'
     # exp_prefix = "compare-model-based-with-argmax-2"
+    use_gpu = True
 
     variant = dict(
         num_rollouts=1,
@@ -57,8 +75,10 @@ if __name__ == '__main__':
                 disp=False,
                 maxiter=10,
             )
-        )
+        ),
     )
+    if args.file is not None:
+        variant['qf_path'] = os.path.abspath(args.file)
     if run_mode == 'none':
         for exp_id in range(n_seeds):
             seed = random.randint(0, 999999)
@@ -69,6 +89,7 @@ if __name__ == '__main__':
                 mode=mode,
                 variant=variant,
                 exp_id=exp_id,
+                use_gpu=use_gpu,
             )
     elif run_mode == 'custom':
         for (policy_class, policy_params) in [
@@ -112,4 +133,5 @@ if __name__ == '__main__':
                     mode=mode,
                     variant=variant,
                     exp_id=exp_id,
+                    use_gpu=use_gpu,
                 )
