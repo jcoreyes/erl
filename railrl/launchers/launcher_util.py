@@ -160,7 +160,10 @@ def run_experiment(
         n_parallel=0,
         base_log_dir=None,
         sync_interval=180,
+        local_input_dir_to_mount_point_dict=None,  # TODO(vitchyr): test this
 ):
+    if local_input_dir_to_mount_point_dict is None:
+        local_input_dir_to_mount_point_dict = {}
     # Modify some of the inputs
     if seed is None:
         seed = random.randint(0, 100000)
@@ -199,6 +202,12 @@ def run_experiment(
     ]
     for code_dir in config.CODE_DIRS_TO_MOUNT:
         mounts.append(mount.MountLocal(local_dir=code_dir, pythonpath=True))
+    for dir, mount_point in local_input_dir_to_mount_point_dict.items():
+        mounts.append(mount.MountLocal(
+            local_dir=dir,
+            mount_point=mount_point,
+            pythonpath=False,
+        ))
 
     if mode != 'local':
         for non_code_mapping in config.DIR_AND_MOUNT_POINT_MAPPINGS:
