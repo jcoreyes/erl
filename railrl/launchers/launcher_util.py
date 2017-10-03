@@ -455,10 +455,7 @@ def run_experiment_here(
     if script_name is not None:
         with open(osp.join(log_dir, "script_name.txt"), "w") as f:
             f.write(script_name)
-    if not use_gpu:
-        os.environ['CUDA_VISIBLE_DEVICES'] = ""
-    else:
-        set_gpu_mode(use_gpu)
+    set_gpu_mode(use_gpu)
     return experiment_function(variant)
 
 
