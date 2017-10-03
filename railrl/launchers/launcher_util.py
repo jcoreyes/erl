@@ -285,7 +285,8 @@ def run_experiment(
             'method_call': method_call,
             'output_dir': snapshot_dir_for_script,
             'run_experiment_kwargs': run_experiment_kwargs,
-        }
+        },
+        use_cloudpickle=True,
     )
 
 
