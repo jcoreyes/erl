@@ -91,6 +91,7 @@ class FlatUniversalQfunction(PyTorchModule):
             output_activation=identity,
             hidden_init=ptu.fanin_init,
             b_init_value=0.1,
+            dropout_prob=0,
             **kwargs
     ):
         self.save_init_params(locals())
@@ -98,9 +99,11 @@ class FlatUniversalQfunction(PyTorchModule):
 
         self.hidden_activation = hidden_activation
         self.output_activation = output_activation
+        self.dropout_prob = dropout_prob
+        self.dropouts = []
+        self.fcs = []
         in_size = observation_dim + goal_state_dim + + action_dim + 1
 
-        self.fcs = []
 
         for i, next_size in enumerate(hidden_sizes):
             fc = nn.Linear(in_size, next_size)
@@ -109,6 +112,10 @@ class FlatUniversalQfunction(PyTorchModule):
             fc.bias.data.fill_(b_init_value)
             self.__setattr__("fc{}".format(i), fc)
             self.fcs.append(fc)
+            if self.dropout_prob > 0:
+                dropout = nn.Dropout(p=self.dropout_prob)
+                self.__setattr__("dropout{}".format(i), dropout)
+                self.dropouts.append(dropout)
 
         self.last_fc = nn.Linear(in_size, 1)
         self.last_fc.weight.data.uniform_(-init_w, init_w)
@@ -116,8 +123,10 @@ class FlatUniversalQfunction(PyTorchModule):
 
     def forward(self, obs, action, goal_state, discount):
         h = torch.cat((obs, action, goal_state, discount), dim=1)
-        for fc in self.fcs:
+        for i, fc in enumerate(self.fcs):
             h = self.hidden_activation(fc(h))
+            if self.dropout_prob > 0:
+                h = self.dropouts[i](h)
         return self.output_activation(self.last_fc(h))
 
 
@@ -141,12 +150,15 @@ class StructuredUniversalQfunction(PyTorchModule):
             output_activation=identity,
             hidden_init=ptu.fanin_init,
             bn_input=False,
+            dropout_prob=0,
     ):
         self.save_init_params(locals())
         super().__init__()
 
         self.hidden_activation = hidden_activation
         self.output_activation = output_activation
+        self.dropout_prob = dropout_prob
+        self.dropouts = []
         self.fcs = []
         in_size = observation_dim + action_dim + 1
         if bn_input:
@@ -161,6 +173,10 @@ class StructuredUniversalQfunction(PyTorchModule):
             fc.bias.data.fill_(0)
             self.__setattr__("fc{}".format(i), fc)
             self.fcs.append(fc)
+            if self.dropout_prob > 0:
+                dropout = nn.Dropout(p=self.dropout_prob)
+                self.__setattr__("dropout{}".format(i), dropout)
+                self.dropouts.append(dropout)
 
         self.last_fc = nn.Linear(in_size, goal_state_dim)
         self.last_fc.weight.data.uniform_(-init_w, init_w)
@@ -176,8 +192,10 @@ class StructuredUniversalQfunction(PyTorchModule):
     ):
         h = torch.cat((obs, action, discount), dim=1)
         h = self.process_input(h)
-        for fc in self.fcs:
+        for i, fc in enumerate(self.fcs):
             h = self.hidden_activation(fc(h))
+            if self.dropout_prob > 0:
+                h = self.dropouts[i](h)
         next_state = self.output_activation(self.last_fc(h))
         if only_return_next_state:
             return next_state
