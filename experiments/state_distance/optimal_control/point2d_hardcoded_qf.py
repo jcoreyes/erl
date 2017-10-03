@@ -54,8 +54,8 @@ if __name__ == '__main__':
             # num_gradient_steps=100,
             # state_optimizer='lbfgs',
             solver_params=dict(
-                # display=True,
-                # maxiter=10,
+                disp=False,
+                maxiter=10,
             )
         )
     )
