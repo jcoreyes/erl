@@ -333,10 +333,11 @@ class PseudoModelBasedPolicy(SampleBasedUniversalPolicy, nn.Module):
         self.learning_rate = learning_rate
         self.num_optimization_steps = num_gradient_steps
         self.state_optimizer = state_optimizer
+        self.observation_dim = self.env.observation_space.low.size
 
     def get_next_states_np(self, states, actions):
         if self.state_optimizer == 'adam':
-            next_states_np = np.zeros((self.sample_size, 6))
+            next_states_np = np.zeros((self.sample_size, self.observation_dim))
             next_states = ptu.np_to_var(next_states_np, requires_grad=True)
             optimizer = optim.Adam([next_states], self.learning_rate)
 
@@ -360,7 +361,7 @@ class PseudoModelBasedPolicy(SampleBasedUniversalPolicy, nn.Module):
                 loss_f = self.create_loss(state, action, return_gradient=True)
                 results = optimize.fmin_l_bfgs_b(
                     loss_f,
-                    np.zeros((1, 6)),
+                    np.zeros((1, self.observation_dim)),
                     maxiter=self.num_optimization_steps,
                 )
                 next_state = results[0]
@@ -375,7 +376,7 @@ class PseudoModelBasedPolicy(SampleBasedUniversalPolicy, nn.Module):
                 loss_f = self.create_loss(state, action)
                 results = optimize.fmin(
                     loss_f,
-                    np.zeros((1, 6)),
+                    np.zeros((1, self.observation_dim)),
                     maxiter=self.num_optimization_steps,
                 )
                 next_state = results[0]
