@@ -462,3 +462,100 @@ class BeamSearchMultistepSampler(SampleBasedUniversalPolicy, nn.Module):
             )
             state = next_state
             next_state = ptu.np_to_var(self.env.sample_states(self.sample_size))
+
+
+class ConstrainedOptimizationOCPolicy(UniversalPolicy, nn.Module):
+    """
+    Solve
+
+    \pi(s, g) = argmin_a min_{s'} ||s' - g||^2
+        subject to Q(s, a, s') =0
+
+    with sequential quadratic programming.
+    """
+    def __init__(
+            self,
+            qf,
+            env,
+            solver_params=None,
+    ):
+        nn.Module.__init__(self)
+        super().__init__()
+        self.qf = qf
+        self.env = env
+        self.solver_params = solver_params
+        self.action_dim = self.env.action_space.low.size
+        self.observation_dim = self.env.observation_space.low.size
+        self.last_solution = np.zeros(self.action_dim + self.observation_dim)
+        self.bounds = (
+            np.hstack((
+                self.env.action_space.low,
+                self.env.observation_space.low,
+            )),
+            np.hstack((
+                self.env.action_space.high,
+                self.env.observation_space.high,
+            )),
+        )
+        self.constraints = {
+            'type': 'eq',
+            'fun': self.constraint,
+            'jac': self.constraint_jacobian,
+        }
+
+    def cost_function(self, action_and_next_state_flat):
+        next_state = action_and_next_state_flat[self.action_dim:]
+        return np.linalg.norm(next_state - self._goal_np)
+
+    def constraint(self, action_next_state_flat, state=None):
+        state = ptu.np_to_var(state)
+        action_next_state_flat = ptu.np_to_var(
+            action_next_state_flat,
+            requires_grad=True,
+        )
+        action = action_next_state_flat[0:self.action_dim]
+        next_state = action_next_state_flat[self.action_dim:]
+
+        qvalue = ptu.get_numpy(
+            self.qf(
+                state.unsqueeze(0),
+                action.unsqueeze(0),
+                next_state.unsqueeze(0),
+                self._discount_expanded_torch
+            ).squeeze(0)
+        )
+        return qvalue[0]
+
+    def constraint_jacobian(self, action_next_state_flat, state=None):
+        state = ptu.np_to_var(state)
+        action_next_state_flat = ptu.np_to_var(
+            action_next_state_flat,
+            requires_grad=True,
+        )
+        action = action_next_state_flat[0:self.action_dim]
+        next_state = action_next_state_flat[self.action_dim:]
+
+        q_value = self.qf(
+            state.unsqueeze(0),
+            action.unsqueeze(0),
+            next_state.unsqueeze(0),
+            self._discount_expanded_torch
+        )
+        q_value.backward()
+        return ptu.get_numpy(action_next_state_flat.grad)
+
+    def reset(self):
+        self.last_solution = np.zeros(self.action_dim + self.observation_dim)
+
+    def get_action(self, obs):
+        self.constraints['args'] = (obs, )
+        result = optimize.minimize(
+            self.cost_function,
+            self.last_solution,
+            constraints=self.constraints,
+            method='SLSQP',
+            options=self.solver_params,
+        )
+        self.last_solution = result.x
+        action = result.x[:self.action_dim]
+        return action, {}

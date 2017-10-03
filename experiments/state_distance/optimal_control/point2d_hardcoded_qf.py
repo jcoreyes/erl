@@ -4,7 +4,11 @@ from railrl.algos.state_distance.state_distance_q_learning import \
     multitask_rollout
 from railrl.envs.multitask.point2d import MultitaskPoint2DEnv, PerfectPoint2DQF
 from railrl.launchers.launcher_util import run_experiment
-from railrl.policies.state_distance import ArgmaxQFPolicy
+from railrl.policies.state_distance import (
+    ArgmaxQFPolicy,
+    PseudoModelBasedPolicy,
+    ConstrainedOptimizationOCPolicy,
+)
 from rllab.misc import logger
 
 def experiment(variant):
@@ -37,27 +41,75 @@ if __name__ == '__main__':
     n_seeds = 1
     mode = "local"
     exp_prefix = "dev"
-    version = "Dev"
-    run_mode = "none"
+    run_mode = 'none'
+    # exp_prefix = "compare-model-based-with-argmax-2"
 
     variant = dict(
-        num_rollouts=10,
-        H=300,
+        num_rollouts=1,
+        H=50,
         render=True,
-        policy_class=ArgmaxQFPolicy,
+        policy_class=ConstrainedOptimizationOCPolicy,
         policy_params=dict(
-            sample_size=100,
-            num_gradient_steps=0,
-            sample_actions_from_grid=False,
+            # sample_size=1,
+            # num_gradient_steps=100,
+            # state_optimizer='lbfgs',
+            solver_params=dict(
+                # display=True,
+                # maxiter=10,
+            )
         )
     )
-    for exp_id in range(n_seeds):
-        seed = random.randint(0, 999999)
-        run_experiment(
-            experiment,
-            exp_prefix=exp_prefix,
-            seed=seed,
-            mode=mode,
-            variant=variant,
-            exp_id=exp_id,
-        )
+    if run_mode == 'none':
+        for exp_id in range(n_seeds):
+            seed = random.randint(0, 999999)
+            run_experiment(
+                experiment,
+                exp_prefix=exp_prefix,
+                seed=seed,
+                mode=mode,
+                variant=variant,
+                exp_id=exp_id,
+            )
+    elif run_mode == 'custom':
+        for (policy_class, policy_params) in [
+            (
+                PseudoModelBasedPolicy,
+                dict(
+                    sample_size=1,
+                    num_gradient_steps=100,
+                )
+            ),
+            (
+                PseudoModelBasedPolicy,
+                dict(
+                    sample_size=100,
+                    num_gradient_steps=1,
+                )
+            ),
+            (
+                ArgmaxQFPolicy,
+                dict(
+                    sample_size=1,
+                    num_gradient_steps=100,
+                )
+            ),
+            (
+                ArgmaxQFPolicy,
+                dict(
+                    sample_size=100,
+                    num_gradient_steps=1,
+                )
+            ),
+        ]:
+            variant['policy_class'] = policy_class
+            variant['policy_params'] = policy_params
+            for exp_id in range(n_seeds):
+                seed = random.randint(0, 999999)
+                run_experiment(
+                    experiment,
+                    exp_prefix=exp_prefix,
+                    seed=seed,
+                    mode=mode,
+                    variant=variant,
+                    exp_id=exp_id,
+                )
