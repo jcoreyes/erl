@@ -90,8 +90,8 @@ class StateDistanceQLearning(DDPG):
             num_batches_total = 0
             for epoch in range(self.num_epochs):
                 self.discount = self.epoch_discount_schedule.get_value(epoch)
+                self.training_mode(True)
                 for _ in range(self.num_steps_per_epoch):
-                    self.training_mode(True)
                     self._do_training(n_steps_total=num_batches_total)
                     num_batches_total += 1
                 logger.push_prefix('Iteration #%d | ' % epoch)
