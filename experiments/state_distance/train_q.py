@@ -128,10 +128,10 @@ if __name__ == '__main__':
     exp_prefix = "dev-train-q"
     run_mode = "none"
 
-    # n_seeds = 3
-    # mode = "ec2"
-    exp_prefix = "train-q-point2d-next-state-is-goal-50p"
-    # run_mode = 'grid'
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "train-q-reacher2d-sweep-wd-and-next-state-is-goal-prob"
+    run_mode = 'grid'
 
     version = "Dev"
     num_configurations = 50  # for random mode
@@ -148,10 +148,10 @@ if __name__ == '__main__':
     variant = dict(
         dataset_path=str(dataset_path),
         algo_params=dict(
-            num_epochs=100,
+            num_epochs=101,
             num_steps_per_epoch=300,
-            num_steps_per_eval=300,
-            num_updates_per_env_step=1,
+            num_steps_per_eval=600,
+            num_updates_per_env_step=20,
             use_soft_update=True,
             tau=0.001,
             batch_size=500,
@@ -165,7 +165,7 @@ if __name__ == '__main__':
             max_path_length=max_path_length,
             use_new_data=True,
             replay_buffer_size=1000000,
-            prob_goal_state_is_next_state=0.5,
+            prob_goal_state_is_next_state=0,
             termination_threshold=0,
             do_tau_correctly=True,
             render=args.render,
@@ -196,9 +196,9 @@ if __name__ == '__main__':
         # env_class=Reacher7DofFullGoalState,
         # env_class=ArmEEInStatePusherEnv,
         # env_class=JointOnlyPusherEnv,
-        # env_class=GoalStateSimpleStateReacherEnv,
+        env_class=GoalStateSimpleStateReacherEnv,
         # env_class=XyMultitaskSimpleStateReacherEnv,
-        env_class=MultitaskPoint2DEnv,
+        # env_class=MultitaskPoint2DEnv,
         env_params=dict(),
         normalize_params=dict(
             obs_mean=None,
@@ -231,10 +231,11 @@ if __name__ == '__main__':
             #     # ArmEEInStatePusherEnv,
             #     # JointOnlyPusherEnv,
             # ],
-            'qf_class': [FlatUniversalQfunction, StructuredUniversalQfunction],
-            'epoch_discount_schedule_params.value': [0, 1, 5],
-            'algo_params.do_tau_correctly': [True, False],
-            # 'algo_params.qf_weight_decay': [0, 1e-5, 5e-3, 1e-2],
+            # 'qf_class': [FlatUniversalQfunction, StructuredUniversalQfunction],
+            # 'epoch_discount_schedule_params.value': [0, 1, 5],
+            # 'algo_params.do_tau_correctly': [True, False],
+            'algo_params.prob_goal_state_is_next_state': [0, 0.5, 0.99],
+            'algo_params.qf_weight_decay': [10, 1, 0, 1e-1, 1e-2, 1e-3, 1e-4],
             # 'algo_params.sample_goals_from': ['environment', 'replay_buffer'],
             # 'algo_params.num_steps_per_epoch': [1, 10],
             # 'algo_params.termination_threshold': [1e-4, 0]
