@@ -212,7 +212,6 @@ class DDPG(OnlineAlgorithm):
             get_difference_statistics(
                 statistics,
                 [
-                    'Unregularized QF Loss Mean',
                     'QF Loss Mean',
                     'Policy Loss Mean',
                 ],
