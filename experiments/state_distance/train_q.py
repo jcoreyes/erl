@@ -129,8 +129,8 @@ if __name__ == '__main__':
     run_mode = "none"
 
     # n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "test-get-oc-working-after-doodad-merge"
+    # mode = "ec2"
+    exp_prefix = "train-q-point2d-next-state-is-goal-50p"
     # run_mode = 'grid'
 
     version = "Dev"
@@ -148,7 +148,7 @@ if __name__ == '__main__':
     variant = dict(
         dataset_path=str(dataset_path),
         algo_params=dict(
-            num_epochs=20,
+            num_epochs=100,
             num_steps_per_epoch=300,
             num_steps_per_eval=300,
             num_updates_per_env_step=1,
@@ -165,7 +165,7 @@ if __name__ == '__main__':
             max_path_length=max_path_length,
             use_new_data=True,
             replay_buffer_size=1000000,
-            prob_goal_state_is_next_state=0,
+            prob_goal_state_is_next_state=0.5,
             termination_threshold=0,
             do_tau_correctly=True,
             render=args.render,
@@ -196,9 +196,9 @@ if __name__ == '__main__':
         # env_class=Reacher7DofFullGoalState,
         # env_class=ArmEEInStatePusherEnv,
         # env_class=JointOnlyPusherEnv,
-        env_class=GoalStateSimpleStateReacherEnv,
+        # env_class=GoalStateSimpleStateReacherEnv,
         # env_class=XyMultitaskSimpleStateReacherEnv,
-        # env_class=MultitaskPoint2DEnv,
+        env_class=MultitaskPoint2DEnv,
         env_params=dict(),
         normalize_params=dict(
             obs_mean=None,
