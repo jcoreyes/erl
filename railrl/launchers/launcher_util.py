@@ -43,6 +43,9 @@ import doodad.mode
 import doodad.mount as mount
 from doodad.utils import REPO_DIR
 
+ec2_okayed = False
+gpu_ec2_okayed = False
+
 def get_standard_env(normalized=True):
     envs = [
         HalfCheetahEnv(),
@@ -162,6 +165,8 @@ def run_experiment(
         sync_interval=180,
         local_input_dir_to_mount_point_dict=None,  # TODO(vitchyr): test this
 ):
+    global ec2_okayed
+    global gpu_ec2_okayed
     if local_input_dir_to_mount_point_dict is None:
         local_input_dir_to_mount_point_dict = {}
     # Modify some of the inputs
@@ -214,15 +219,17 @@ def run_experiment(
             mounts.append(mount.MountLocal(**non_code_mapping))
 
     if mode == 'ec2':
-        if not query_yes_no(
+        if not ec2_okayed and not query_yes_no(
                 "EC2 costs money. Are you sure you want to run?"
         ):
             sys.exit(1)
-        if use_gpu:
+        if not gpu_ec2_okayed and use_gpu:
             if not query_yes_no(
                     "EC2 is more expensive with GPUs. Confirm?"
             ):
                 sys.exit(1)
+            gpu_ec2_okayed = True
+        ec2_okayed = True
         output_mount = mount.MountS3(
             s3_path='',
             mount_point=output_mount_point,
