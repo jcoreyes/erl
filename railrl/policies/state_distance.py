@@ -464,6 +464,35 @@ class BeamSearchMultistepSampler(SampleBasedUniversalPolicy, nn.Module):
             next_state = ptu.np_to_var(self.env.sample_states(self.sample_size))
 
 
+def scale_input_output(function):
+    def new_function(self, normalized_x):
+        actual_output = function(actual_x)
+        normalized_output = (
+            (actual_output - self.lower_bounds) * 2 /
+            (self.upper_bounds - self.lower_bounds)
+            - 1
+        )
+        return normalized_output
+    return new_function
+
+
+def scale_inputs_outputs(function):
+    def new_function(self, normalized_x, optional=None):
+        actual_x = (
+            self.lower_bounds + (normalized_x + 1) * 0.5 * (
+                self.upper_bounds - self.lower_bounds
+            )
+        )
+        actual_output = function(actual_x)
+        normalized_output = (
+            (actual_output - self.lower_bounds) * 2 /
+            (self.upper_bounds - self.lower_bounds)
+            - 1
+        )
+        return normalized_output
+    return new_function
+
+
 class ConstrainedOptimizationOCPolicy(UniversalPolicy, nn.Module):
     """
     Solve
@@ -487,27 +516,82 @@ class ConstrainedOptimizationOCPolicy(UniversalPolicy, nn.Module):
         self.action_dim = self.env.action_space.low.size
         self.observation_dim = self.env.observation_space.low.size
         self.last_solution = np.zeros(self.action_dim + self.observation_dim)
-        self.bounds = (
-            np.hstack((
-                self.env.action_space.low,
-                self.env.observation_space.low,
-            )),
-            np.hstack((
+        self.lower_bounds = np.hstack((
+            self.env.action_space.low,
+            self.env.observation_space.low,
+        ))
+        self.upper_bounds = np.hstack((
                 self.env.action_space.high,
                 self.env.observation_space.high,
-            )),
-        )
+        ))
+        self.lb_obs = self.env.observation_space.low
+        self.ub_obs = self.env.observation_space.high
+        self.bounds = (-1, 1)
+        import ipdb; ipdb.set_trace()
+        self.bounds = list(zip(self.lower_bounds, self.upper_bounds))
         self.constraints = {
             'type': 'eq',
-            'fun': self.constraint,
+            'fun': self.constraint_fctn,
             'jac': self.constraint_jacobian,
         }
+        # for i, lb in enumerate(self.lower_bounds):
+        #     constraints.append({
+        #         'type': 'ineq',
+        #         'fun': lambda x: x[i] - lb.copy(),
+        #         'jac': lambda x: 1,
+        #     })
+        # for i, ub in enumerate(self.upper_bounds):
+        #     constraints.append({
+        #         'type': 'ineq',
+        #         'fun': lambda x: ub.copy() - x,
+        #         'jac': lambda x: -1,
+        #     })
+        # import ipdb; ipdb.set_trace()
+
+        self.actual_to_normalized_gradient = (
+            2 / (self.upper_bounds - self.lower_bounds)
+        )
+
+    def normalized_to_actual(self, normalized):
+        if len(normalized) == self.observation_dim + self.action_dim:
+            return (
+                self.lower_bounds + (normalized + 1) * 0.5 * (
+                    self.upper_bounds - self.lower_bounds
+                )
+            )
+        elif len(normalized) == self.observation_dim:
+            return (
+                self.lb_obs + (normalized + 1) * 0.5 * (
+                    self.ub_obs - self.lb_obs
+                )
+            )
+        else:
+            raise Exception(
+                "Do not know how to un-normalize array of shape {}".format(
+                    normalized.shape
+                )
+            )
+
+    def actual_to_normalized(self, actual):
+        return (
+            (actual - self.lower_bounds) * 2 /
+            (self.upper_bounds - self.lower_bounds)
+            - 1
+        )
 
     def cost_function(self, action_and_next_state_flat):
+        # action_and_next_state_flat = self.normalized_to_actual(
+        #     action_and_next_state_flat
+        # )
         next_state = action_and_next_state_flat[self.action_dim:]
         return np.linalg.norm(next_state - self._goal_np)
 
-    def constraint(self, action_next_state_flat, state=None):
+    def constraint_fctn(self, action_next_state_flat, state=None):
+        # action_next_state_flat = self.normalized_to_actual(
+        #     action_next_state_flat
+        # )
+        # state = self.normalized_to_actual(state)
+
         state = ptu.np_to_var(state)
         action_next_state_flat = ptu.np_to_var(
             action_next_state_flat,
@@ -527,6 +611,11 @@ class ConstrainedOptimizationOCPolicy(UniversalPolicy, nn.Module):
         return qvalue[0]
 
     def constraint_jacobian(self, action_next_state_flat, state=None):
+        # action_next_state_flat = self.normalized_to_actual(
+        #     action_next_state_flat
+        # )
+        # state = self.normalized_to_actual(state)
+
         state = ptu.np_to_var(state)
         action_next_state_flat = ptu.np_to_var(
             action_next_state_flat,
@@ -542,7 +631,10 @@ class ConstrainedOptimizationOCPolicy(UniversalPolicy, nn.Module):
             self._discount_expanded_torch
         )
         q_value.backward()
-        return ptu.get_numpy(action_next_state_flat.grad)
+        return (
+            ptu.get_numpy(action_next_state_flat.grad)
+            # * self.actual_to_normalized_gradient
+        )
 
     def reset(self):
         self.last_solution = np.zeros(self.action_dim + self.observation_dim)
@@ -555,7 +647,11 @@ class ConstrainedOptimizationOCPolicy(UniversalPolicy, nn.Module):
             constraints=self.constraints,
             method='SLSQP',
             options=self.solver_params,
+            bounds=self.bounds,
         )
-        self.last_solution = result.x
+        # action = self.normalize_to_actual(result.x)[:self.action_dim]
         action = result.x[:self.action_dim]
+        if np.isnan(action).any():
+            import ipdb; ipdb.set_trace()
+        self.last_solution = result.x
         return action, {}
