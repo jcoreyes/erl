@@ -205,11 +205,11 @@ def FloatTensor(*args, **kwargs):
         return torch.FloatTensor(*args, **kwargs)
 
 
-def Variable(*args, **kwargs):
-    var = TorchVariable(*args, **kwargs)
-    if _use_gpu:
-        var = var.cuda()
-    return var
+def Variable(tensor, **kwargs):
+    if _use_gpu and not tensor.is_cuda:
+        return TorchVariable(tensor.cuda(), **kwargs)
+    else:
+        return TorchVariable(tensor, **kwargs)
 
 
 def from_numpy(*args, **kwargs):
@@ -227,5 +227,5 @@ def get_numpy(tensor):
     return tensor.numpy()
 
 
-def np_to_var(np_array, *args, **kwargs):
-    return Variable(from_numpy(np_array), *args, **kwargs)
+def np_to_var(np_array, **kwargs):
+    return Variable(from_numpy(np_array), **kwargs)
