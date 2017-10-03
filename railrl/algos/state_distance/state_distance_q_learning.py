@@ -1,5 +1,6 @@
 import pickle
 import time
+import torch
 from collections import OrderedDict
 
 import numpy as np
@@ -218,7 +219,11 @@ class StateDistanceQLearning(DDPG):
         statistics.update(
             get_difference_statistics(
                 statistics,
-                ['QF Loss Mean', 'Policy Loss Mean'],
+                [
+                    'Unregularized QF Loss Mean',
+                    'QF Loss Mean',
+                    'Policy Loss Mean',
+                ],
             )
         )
 
@@ -277,7 +282,16 @@ class StateDistanceQLearning(DDPG):
         y_target = y_target.detach()
         y_pred = self.qf(obs, actions, goal_states, discount)
         bellman_errors = (y_pred - y_target) ** 2
-        qf_loss = self.qf_criterion(y_pred, y_target)
+        raw_qf_loss = self.qf_criterion(y_pred, y_target)
+
+        if self.qf_weight_decay > 0:
+            reg_loss = self.qf_weight_decay * sum(
+                torch.sum(param**2)
+                for param in self.qf.regularizable_parameters()
+            )
+            qf_loss = raw_qf_loss + reg_loss
+        else:
+            qf_loss = raw_qf_loss
 
         return OrderedDict([
             ('Policy Actions', policy_actions),
@@ -286,6 +300,7 @@ class StateDistanceQLearning(DDPG):
             ('Bellman Errors', bellman_errors),
             ('Y targets', y_target),
             ('Y predictions', y_pred),
+            ('Unregularized QF Loss', raw_qf_loss),
             ('QF Loss', qf_loss),
         ])
 
@@ -411,7 +426,16 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
         y_target = y_target.detach()
         y_pred = self.qf(obs, actions, goal_states, num_steps_left)
         bellman_errors = (y_pred - y_target) ** 2
-        qf_loss = self.qf_criterion(y_pred, y_target)
+        raw_qf_loss = self.qf_criterion(y_pred, y_target)
+
+        if self.qf_weight_decay > 0:
+            reg_loss = self.qf_weight_decay * sum(
+                torch.sum(param**2)
+                for param in self.qf.regularizable_parameters()
+            )
+            qf_loss = raw_qf_loss + reg_loss
+        else:
+            qf_loss = raw_qf_loss
 
         return OrderedDict([
             ('Policy Actions', policy_actions),
@@ -420,6 +444,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             ('Bellman Errors', bellman_errors),
             ('Y targets', y_target),
             ('Y predictions', y_pred),
+            ('Unregularized QF Loss', raw_qf_loss),
             ('QF Loss', qf_loss),
         ])
 
