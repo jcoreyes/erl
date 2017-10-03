@@ -128,10 +128,11 @@ if __name__ == '__main__':
     exp_prefix = "dev-train-q"
     run_mode = "none"
 
-    n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "train-q-reacher2d-sweep-wd-and-next-state-is-goal-prob"
-    run_mode = 'grid'
+    # n_seeds = 3
+    # mode = "ec2"
+    # exp_prefix = "train-q-reacher2d-sweep-wd-and-next-state-is-goal-prob-2"
+    exp_prefix = "train-q-reacher2d-quickly"
+    # run_mode = 'grid'
 
     version = "Dev"
     num_configurations = 50  # for random mode
@@ -165,7 +166,7 @@ if __name__ == '__main__':
             max_path_length=max_path_length,
             use_new_data=True,
             replay_buffer_size=1000000,
-            prob_goal_state_is_next_state=0,
+            prob_goal_state_is_next_state=0.5,
             termination_threshold=0,
             do_tau_correctly=True,
             render=args.render,
@@ -202,7 +203,7 @@ if __name__ == '__main__':
         env_params=dict(),
         normalize_params=dict(
             obs_mean=None,
-            # obs_std=[0.7, 0.7, 0.7, 0.6, 40, 5],
+            obs_std=[0.7, 0.7, 0.7, 0.6, 40, 5],
         ),
         sampler_params=dict(
             min_num_steps_to_collect=100000,
