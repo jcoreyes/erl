@@ -5,7 +5,6 @@ import os
 
 from railrl.algos.state_distance.state_distance_q_learning import \
     multitask_rollout
-from railrl.envs.multitask.point2d import MultitaskPoint2DEnv, PerfectPoint2DQF
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.state_distance import (
     ArgmaxQFPolicy,
@@ -13,14 +12,18 @@ from railrl.policies.state_distance import (
     ConstrainedOptimizationOCPolicy,
 )
 from rllab.misc import logger
+import railrl.torch.pytorch_util as ptu
 
 
 def experiment(variant):
     num_rollouts = variant['num_rollouts']
     H = variant['H']
     render = variant['render']
-    env = MultitaskPoint2DEnv()
-    qf = PerfectPoint2DQF()
+    data = joblib.load(variant['qf_path'])
+    qf = data['qf']
+    env = data['env']
+    if ptu.gpu_enabled():
+        qf.cuda()
     policy = variant['policy_class'](
         qf,
         env,
@@ -44,8 +47,13 @@ def experiment(variant):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--file', type=str,
+    parser.add_argument('file', type=str,
                         help='path to the snapshot file with a QF')
+    parser.add_argument('--nrolls', type=int, default=5,
+                        help='Number of rollouts to do.')
+    parser.add_argument('--H', type=int, default=100, help='Horizon.')
+    parser.add_argument('--verbose', action='store_true')
+    parser.add_argument('--hide', action='store_true')
     args = parser.parse_args()
 
     n_seeds = 1
@@ -55,16 +63,17 @@ if __name__ == '__main__':
     use_gpu = True
 
     variant = dict(
-        num_rollouts=1,
-        H=50,
-        render=True,
+        num_rollouts=args.nrolls,
+        H=args.H,
+        render=not args.hide,
         policy_class=ConstrainedOptimizationOCPolicy,
         policy_params=dict(
             solver_params=dict(
-                disp=False,
+                disp=args.verbose,
                 maxiter=10,
             )
         ),
+        qf_path=os.path.abspath(args.file),
     )
     if run_mode == 'none':
         for exp_id in range(n_seeds):
@@ -81,32 +90,32 @@ if __name__ == '__main__':
     elif run_mode == 'custom':
         for (policy_class, policy_params) in [
             (
-                PseudoModelBasedPolicy,
-                dict(
-                    sample_size=1,
-                    num_gradient_steps=100,
-                )
+                    PseudoModelBasedPolicy,
+                    dict(
+                        sample_size=1,
+                        num_gradient_steps=100,
+                    )
             ),
             (
-                PseudoModelBasedPolicy,
-                dict(
-                    sample_size=100,
-                    num_gradient_steps=1,
-                )
+                    PseudoModelBasedPolicy,
+                    dict(
+                        sample_size=100,
+                        num_gradient_steps=1,
+                    )
             ),
             (
-                ArgmaxQFPolicy,
-                dict(
-                    sample_size=1,
-                    num_gradient_steps=100,
-                )
+                    ArgmaxQFPolicy,
+                    dict(
+                        sample_size=1,
+                        num_gradient_steps=100,
+                    )
             ),
             (
-                ArgmaxQFPolicy,
-                dict(
-                    sample_size=100,
-                    num_gradient_steps=1,
-                )
+                    ArgmaxQFPolicy,
+                    dict(
+                        sample_size=100,
+                        num_gradient_steps=1,
+                    )
             ),
         ]:
             variant['policy_class'] = policy_class
