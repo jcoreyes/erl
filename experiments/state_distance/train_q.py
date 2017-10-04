@@ -9,15 +9,20 @@ import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.algos.state_distance.state_distance_q_learning import (
     StateDistanceQLearning,
-)
+    HorizonFedStateDistanceQLearning)
 from railrl.algos.state_distance.util import get_replay_buffer
-from railrl.envs.multitask.pusher import MultitaskPusherEnv
+from railrl.envs.multitask.reacher_7dof import (
+    Reacher7DofXyzGoalState,
+    Reacher7DofFullGoalState,
+    Reacher7DofCosSinFullGoalState,
+)
 from railrl.envs.multitask.reacher_env import (
     GoalStateSimpleStateReacherEnv,
     XyMultitaskSimpleStateReacherEnv,
-    FullStateWithXYStateReacherEnv,
-    GoalStateXYRewardReacherEnv,
-    XYAndGoalStateReacherEnv
+)
+from railrl.envs.multitask.pusher import (
+    ArmEEInStatePusherEnv,
+    JointOnlyPusherEnv,
 )
 from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
@@ -28,9 +33,13 @@ from railrl.launchers.launcher_util import (
 )
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.hypopt import optimize_and_save
-from railrl.misc.ml_util import RampUpSchedule
-from railrl.networks.state_distance import UniversalPolicy, UniversalQfunction
+from railrl.misc.ml_util import RampUpSchedule, IntRampUpSchedule
+from railrl.networks.state_distance import FFUniversalPolicy, UniversalQfunction, \
+    FlatUniversalQfunction
+from railrl.policies.state_distance import TerminalRewardSampleOCPolicy
 from railrl.torch.modules import HuberLoss
+from railrl.torch.state_distance.exploration import \
+    UniversalPolicyWrappedWithExplorationStrategy
 
 
 def experiment(variant):
@@ -41,15 +50,17 @@ def experiment(variant):
     else:
         replay_buffer = get_replay_buffer(variant)
 
+    from rllab.misc import logger
+    logger.log("Log dir: {}".format(logger.get_snapshot_dir()))
     observation_space = convert_gym_space(env.observation_space)
     action_space = convert_gym_space(env.action_space)
-    qf = UniversalQfunction(
+    qf = variant['qf_class'](
         int(observation_space.flat_dim),
         int(action_space.flat_dim),
         env.goal_dim,
         **variant['qf_params']
     )
-    policy = UniversalPolicy(
+    policy = FFUniversalPolicy(
         int(observation_space.flat_dim),
         int(action_space.flat_dim),
         env.goal_dim,
@@ -68,13 +79,21 @@ def experiment(variant):
         action_space=action_space,
         **variant['sampler_es_params']
     )
-    algo = StateDistanceQLearning(
+    raw_exploration_policy = TerminalRewardSampleOCPolicy(
+        qf,
+        env,
+        5,
+    )
+    exploration_policy = UniversalPolicyWrappedWithExplorationStrategy(
+        exploration_strategy=es,
+        policy=raw_exploration_policy,
+    )
+    algo = variant['algo_class'](
         env,
         qf,
         policy,
-        exploration_strategy=es,
+        exploration_policy,
         replay_buffer=replay_buffer,
-        exploration_policy=policy,
         epoch_discount_schedule=epoch_discount_schedule,
         qf_criterion=qf_criterion,
         **variant['algo_params']
@@ -88,82 +107,86 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--replay_path', type=str,
                         help='path to the snapshot file')
+    parser.add_argument('--render', action='store_true')
     args = parser.parse_args()
 
     n_seeds = 1
-    mode = "here"
-    exp_prefix = "dev-sdqlr"
+    mode = "local_docker"
+    exp_prefix = "dev-train-q"
     run_mode = "none"
 
-    n_seeds = 3
+    # n_seeds = 3
     mode = "ec2"
-    exp_prefix = "shane-settings-again-sweep-sample-from-env"
-    run_mode = 'grid'
+    # exp_prefix = "config-output-dir-has-local"
+    # exp_prefix = "doodad-dd-log-dir-is-expt-plus--log-dir-is-expt"
+    exp_prefix = "doodad-82fd-longer-final-check"
+    # run_mode = 'grid'
 
     version = "Dev"
     num_configurations = 50  # for random mode
-    snapshot_mode = "gap"
-    snapshot_gap = 25
-    use_gpu = False
-    if mode != "here":
+    snapshot_mode = "last"
+    snapshot_gap = 10
+    use_gpu = True
+    if mode != "local":
         use_gpu = False
 
     dataset_path = args.replay_path
 
-    max_path_length = 150
+    max_path_length = 10
     # noinspection PyTypeChecker
     variant = dict(
         dataset_path=str(dataset_path),
         algo_params=dict(
-            num_epochs=101,
+            num_epochs=30,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
+            # num_epochs=5,
+            # num_steps_per_epoch=100,
+            # num_steps_per_eval=100,
+            num_updates_per_env_step=1,
             use_soft_update=True,
             tau=0.001,
-            batch_size=100,
-            discount=0.,
+            batch_size=500,
+            discount=0.99,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
             sample_goals_from='environment',
+            # sample_goals_from='replay_buffer',
             sample_discount=False,
             qf_weight_decay=0.,
             max_path_length=max_path_length,
             use_new_data=True,
-            replay_buffer_size=200000,
+            replay_buffer_size=100000,
+            prob_goal_state_is_next_state=0,
+            termination_threshold=0,
+            do_tau_correctly=False,
+            render=args.render,
         ),
+        qf_class=UniversalQfunction,
         qf_params=dict(
             obs_hidden_size=400,
             embed_hidden_size=300,
-            dropout=False,
-            # w_weight_generator=ptu.almost_identity_weights_like,
         ),
         policy_params=dict(
             fc1_size=400,
             fc2_size=300,
         ),
-        epoch_discount_schedule_class=RampUpSchedule,
+        epoch_discount_schedule_class=IntRampUpSchedule,
         epoch_discount_schedule_params=dict(
-            min_value=0.,
-            max_value=0.,
-            # min_value=0.,
-            # max_value=0.,
-            ramp_duration=49,
+            min_value=0,
+            max_value=0,
+            ramp_duration=1,
         ),
+        algo_class=HorizonFedStateDistanceQLearning,
+        # env_class=Reacher7DofFullGoalState,
+        # env_class=ArmEEInStatePusherEnv,
+        # env_class=JointOnlyPusherEnv,
         env_class=GoalStateSimpleStateReacherEnv,
-        # env_class=GoalStateXYRewardReacherEnv,
-        # env_class=XYAndGoalStateReacherEnv,
         # env_class=XyMultitaskSimpleStateReacherEnv,
-        # env_class=FullStateWithXYStateReacherEnv,
-        env_params=dict(
-            add_noop_action=False,  # TODO(vitchyr): Figure out if this matters
-            ctrl_penalty_weight=0,
-            # obs_scales=[1, 1, 1, 1, 0.04, 0.01],
-        ),
+        env_params=dict(),
         sampler_params=dict(
             min_num_steps_to_collect=100000,
             max_path_length=max_path_length,
-            # min_num_steps_to_collect=2000,
-            # max_path_length=100,
             render=False,
         ),
         sampler_es_class=OUStrategy,
@@ -183,33 +206,38 @@ if __name__ == '__main__':
     if run_mode == 'grid':
         search_space = {
             'env_class': [
-                FullStateWithXYStateReacherEnv,
+                Reacher7DofFullGoalState,
                 GoalStateSimpleStateReacherEnv,
-                # GoalStateXYRewardReacherEnv,
-                # XyMultitaskSimpleStateReacherEnv,
-                # XYAndGoalStateReacherEnv,
+                # ArmEEInStatePusherEnv,
+                # JointOnlyPusherEnv,
             ],
-            'algo_params.tau': [0.01, 0.001],
-            'algo_params.qf_weight_decay': [0, 0.01],
-            # 'algo_params.qf_learning_rate': [1e-3, 1e-4],
-            # 'algo_params.policy_learning_rate': [1e-4, 1e-5],
-            'epoch_discount_schedule_params': [
-                dict(
-                    min_value=0.,
-                    max_value=0.,
-                    ramp_duration=49,
-                ),
-                dict(
-                    min_value=0.,
-                    max_value=0.99,
-                    ramp_duration=49,
-                ),
-                dict(
-                    min_value=0.99,
-                    max_value=0.99,
-                    ramp_duration=49,
-                ),
-            ]
+            # 'qf_class': [UniversalQfunction],
+            # 'algo_params.sample_goals_from': ['environment', 'replay_buffer'],
+            # 'algo_params.termination_threshold': [1e-4, 0]
+            # 'epoch_discount_schedule_params.max_value': [100, 1000],
+            # 'epoch_discount_schedule_params.ramp_duration': [
+            #     1, 20, 50, 200,
+            # ],
+            # 'qf_params': [
+            #     dict(
+            #         obs_hidden_size=400,
+            #         embed_hidden_size=300,
+            #     ),
+            #     dict(
+            #         obs_hidden_size=100,
+            #         embed_hidden_size=100,
+            #     ),
+            # ],
+            # 'policy_params': [
+            #     dict(
+            #         fc1_size=400,
+            #         fc2_size=300,
+            #     ),
+            #     dict(
+            #         fc1_size=100,
+            #         fc2_size=100,
+            #     ),
+            # ],
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
             search_space, default_parameters=variant,
@@ -224,11 +252,32 @@ if __name__ == '__main__':
                     mode=mode,
                     variant=variant,
                     exp_id=exp_id,
-                    sync_s3_log=True,
-                    sync_s3_pkl=True,
-                    periodic_sync_interval=300,
+                    use_gpu=use_gpu,
                     snapshot_mode=snapshot_mode,
                     snapshot_gap=snapshot_gap,
+                )
+    elif run_mode == 'custom_grid':
+        for exp_id, (
+                nupo,
+                min_num_steps_to_collect,
+                version,
+        ) in enumerate([
+            (1, 100000, "semi_off_policy_nupo1_nsteps100k"),
+            (10, 100000, "semi_off_policy_nupo10_nsteps100k"),
+        ]):
+            variant['algo_params']['num_updates_per_env_step'] = nupo
+            variant['sampler_params']['min_num_steps_to_collect'] = (
+                min_num_steps_to_collect
+            )
+            for _ in range(n_seeds):
+                seed = random.randint(0, 10000)
+                run_experiment(
+                    experiment,
+                    exp_prefix=exp_prefix,
+                    seed=seed,
+                    mode=mode,
+                    variant=variant,
+                    exp_id=exp_id,
                 )
     elif run_mode == 'hyperopt':
         search_space = {
@@ -290,9 +339,7 @@ if __name__ == '__main__':
                     mode=mode,
                     variant=variant,
                     exp_id=exp_id,
-                    sync_s3_log=True,
-                    sync_s3_pkl=True,
-                    periodic_sync_interval=300,
+                    use_gpu=use_gpu,
                     snapshot_mode=snapshot_mode,
                     snapshot_gap=snapshot_gap,
                 )
@@ -307,9 +354,6 @@ if __name__ == '__main__':
                 variant=variant,
                 exp_id=0,
                 use_gpu=use_gpu,
-                sync_s3_log=True,
-                sync_s3_pkl=True,
-                periodic_sync_interval=300,
                 snapshot_mode=snapshot_mode,
                 snapshot_gap=snapshot_gap,
             )

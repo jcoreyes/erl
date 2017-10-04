@@ -1,3 +1,4 @@
+import __main__ as main
 import time
 import sys
 import datetime
@@ -23,9 +24,9 @@ from railrl.envs.memory.one_char_memory import (
     OneCharMemoryEndOnly,
     OneCharMemoryOutputRewardMag,
 )
+from railrl.launchers import config
 from railrl.pythonplusplus import dict_to_safe_json
 from railrl.torch.pytorch_util import set_gpu_mode
-from rllab import config
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.envs.mujoco.ant_env import AntEnv
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
@@ -37,6 +38,10 @@ from rllab.envs.normalized_env import normalize
 from rllab.misc import logger
 from rllab.misc.instrument import run_experiment_lite, query_yes_no
 
+import doodad
+import doodad.mode
+import doodad.mount as mount
+from doodad.utils import REPO_DIR
 
 def get_standard_env(normalized=True):
     envs = [
@@ -141,6 +146,117 @@ def get_env_settings(
 
 
 def run_experiment(
+        method_call,
+        mode='local',
+        exp_prefix='default',
+        seed=None,
+        variant=None,
+        exp_id=0,
+        unique_id=None,
+        prepend_date_to_exp_prefix=True,
+        use_gpu=False,
+        snapshot_mode='last',
+        snapshot_gap=1,
+        n_parallel=0,
+        base_log_dir=None,
+        sync_interval=180,
+):
+    # Modify some of the inputs
+    if seed is None:
+        seed = random.randint(0, 100000)
+    if variant is None:
+        variant = {}
+    if unique_id is None:
+        unique_id = str(uuid.uuid4())
+    if prepend_date_to_exp_prefix:
+        exp_prefix = time.strftime("%m-%d") + "-" + exp_prefix
+    variant['seed'] = str(seed)
+    variant['exp_id'] = str(exp_id)
+    variant['unique_id'] = str(unique_id)
+    logger.log("Variant:")
+    logger.log(json.dumps(dict_to_safe_json(variant), indent=2))
+
+    mode_str_to_doodad_mode = {
+        'local': doodad.mode.Local(),
+        'local_docker': doodad.mode.LocalDocker(
+            image=config.DOODAD_DOCKER_IMAGE,
+        ),
+        'ec2': doodad.mode.EC2AutoconfigDocker(
+            image=config.DOODAD_DOCKER_IMAGE,
+            region='us-west-1',
+            instance_type='c4.large',
+            spot_price=0.03,
+            s3_log_prefix=exp_prefix,
+            s3_log_name="{}-id{}-s{}".format(exp_prefix, exp_id, seed),
+        ),
+    }
+
+    if base_log_dir is None:
+        local_output_dir = config.LOCAL_LOG_DIR
+    else:
+        local_output_dir = '{}/{}'.format(base_log_dir, exp_prefix)
+    mounts = [
+        mount.MountLocal(local_dir=REPO_DIR, pythonpath=True),
+    ]
+    for code_dir in config.CODE_DIRS_TO_MOUNT:
+        mounts.append(mount.MountLocal(local_dir=code_dir, pythonpath=True))
+
+    if mode != 'local':
+        for non_code_mapping in config.DIR_AND_MOUNT_POINT_MAPPINGS:
+            mounts.append(mount.MountLocal(**non_code_mapping))
+
+    if mode == 'ec2':
+        if not query_yes_no(
+                "EC2 costs money. Are you sure you want to run?"
+        ):
+            sys.exit(1)
+        if use_gpu:
+            if not query_yes_no(
+                    "EC2 is more expensive with GPUs. Confirm?"
+            ):
+                sys.exit(1)
+        output_mount = mount.MountS3(
+            s3_path='',
+            mount_point=config.OUTPUT_DIR_FOR_DOODAD_TARGET,
+            output=True,
+            sync_interval=sync_interval,
+        )
+    else:
+        output_mount = mount.MountLocal(
+            local_dir=local_output_dir,
+            mount_point=config.OUTPUT_DIR_FOR_DOODAD_TARGET,
+            output=True,
+        )
+    mounts.append(output_mount)
+
+    repo = git.Repo(os.getcwd())
+    run_experiment_kwargs = dict(
+        exp_prefix=exp_prefix,
+        variant=variant,
+        exp_id=exp_id,
+        seed=seed,
+        use_gpu=use_gpu,
+        snapshot_mode=snapshot_mode,
+        snapshot_gap=snapshot_gap,
+        code_diff=repo.git.diff(None),
+        commit_hash=repo.head.commit.hexsha,
+        script_name=main.__file__,
+        n_parallel=n_parallel,
+        base_log_dir=config.OUTPUT_DIR_FOR_DOODAD_TARGET,
+    )
+    doodad.launch_python(
+        target=config.RUN_DOODAD_EXPERIMENT_SCRIPT_PATH,
+        mode=mode_str_to_doodad_mode[mode],
+        mount_points=mounts,
+        args={
+            'method_call': method_call,
+            'output_dir': config.OUTPUT_DIR_FOR_DOODAD_TARGET,
+            'run_experiment_kwargs': run_experiment_kwargs,
+        }
+    )
+
+
+def run_experiment_old(
         task,
         exp_prefix='default',
         seed=None,
@@ -205,6 +321,7 @@ def run_experiment(
     repo = git.Repo(os.getcwd())
     diff_string = repo.git.diff(None)
     commit_hash = repo.head.commit.hexsha
+    script_name = main.__file__
     if mode == 'here':
         run_experiment_here(
             task,
@@ -217,6 +334,7 @@ def run_experiment(
             snapshot_gap=snapshot_gap,
             code_diff=diff_string,
             commit_hash=commit_hash,
+            script_name=script_name,
             n_parallel=n_parallel,
             base_log_dir=base_log_dir,
         )
@@ -243,6 +361,7 @@ def run_experiment(
             script="railrl/scripts/run_experiment_lite.py",
             code_diff=code_diff,
             commit_hash=commit_hash,
+            script_name=script_name,
             n_parallel=n_parallel,
             **run_experiment_lite_kwargs
         )
@@ -259,8 +378,10 @@ def run_experiment_here(
         snapshot_gap=1,
         code_diff=None,
         commit_hash=None,
+        script_name=None,
         n_parallel=0,
         base_log_dir=None,
+        snapshot_dir=None,
 ):
     """
     Run an experiment locally without any serialization.
@@ -273,6 +394,7 @@ def run_experiment_here(
     experiments. Note that one experiment may correspond to multiple seeds,.
     :param seed: Seed used for this experiment.
     :param use_gpu: Run with GPU. By default False.
+    :param script_name: Name of the running script
     :return:
     """
     if variant is None:
@@ -294,10 +416,19 @@ def run_experiment_here(
         seed=seed,
         snapshot_mode=snapshot_mode,
         snapshot_gap=snapshot_gap,
-        code_diff=code_diff,
-        commit_hash=commit_hash,
         base_log_dir=base_log_dir,
+        snapshot_dir=snapshot_dir,
     )
+    log_dir = logger.get_snapshot_dir()
+    if code_diff is not None:
+        with open(osp.join(log_dir, "code.diff"), "w") as f:
+            f.write(code_diff)
+    if commit_hash is not None:
+        with open(osp.join(log_dir, "commit_hash.txt"), "w") as f:
+            f.write(commit_hash)
+    if script_name is not None:
+        with open(osp.join(log_dir, "script_name.txt"), "w") as f:
+            f.write(script_name)
     if not use_gpu:
         os.environ['CUDA_VISIBLE_DEVICES'] = ""
     else:
@@ -305,7 +436,7 @@ def run_experiment_here(
     return experiment_function(variant)
 
 
-def create_exp_name(exp_prefix="default", exp_id=0, seed=0):
+def create_exp_name(exp_prefix, exp_id=0, seed=0):
     """
     Create a semi-unique experiment name that has a timestamp
     :param exp_prefix:
@@ -317,7 +448,7 @@ def create_exp_name(exp_prefix="default", exp_id=0, seed=0):
     return "%s_%s_%04d--s-%d" % (exp_prefix, timestamp, exp_id, seed)
 
 
-def create_log_dir(exp_prefix="default", exp_id=0, seed=0, base_log_dir=None):
+def create_log_dir(exp_prefix, exp_id=0, seed=0, base_log_dir=None):
     """
     Creates and returns a unique log directory.
 
@@ -326,15 +457,11 @@ def create_log_dir(exp_prefix="default", exp_id=0, seed=0, base_log_dir=None):
     :param exp_id: Different exp_ids will be in different directories.
     :return:
     """
-    exp_name = create_exp_name(exp_prefix=exp_prefix, exp_id=exp_id,
+    exp_name = create_exp_name(exp_prefix, exp_id=exp_id,
                                seed=seed)
     if base_log_dir is None:
-        base_log_dir = osp.join(
-            config.LOG_DIR,
-            'local',
-            exp_prefix.replace("_", "-"),
-        )
-    log_dir = osp.join(base_log_dir, exp_name)
+        base_log_dir = config.LOCAL_LOG_DIR
+    log_dir = osp.join(base_log_dir, exp_prefix.replace("_", "-"), exp_name)
     if osp.exists(log_dir):
         raise Exception(
             "Log directory already exists. Will no overwrite: {0}".format(
@@ -346,7 +473,7 @@ def create_log_dir(exp_prefix="default", exp_id=0, seed=0, base_log_dir=None):
 
 
 def setup_logger(
-        exp_prefix=None,
+        exp_prefix="default",
         exp_id=0,
         seed=0,
         variant=None,
@@ -357,16 +484,20 @@ def setup_logger(
         snapshot_mode="last",
         snapshot_gap=1,
         log_tabular_only=False,
-        code_diff=None,
-        commit_hash=None,
+        snapshot_dir=None,
 ):
     """
     Set up logger to have some reasonable default settings.
 
-    :param exp_prefix:
-    :param exp_id:
+    Will save log output to
+
+    based_log_dir/exp_prefix/exp_name.
+
+    :param exp_prefix: The sub-directory for this specific experiment.
+    :param exp_id: The number of the specific experiment run within this
+    experiment.
     :param variant:
-    :param log_dir:
+    :param base_log_dir: The directory where all log should be saved.
     :param text_log_file:
     :param variant_log_file:
     :param tabular_log_file:
@@ -377,6 +508,8 @@ def setup_logger(
     """
     log_dir, exp_name = create_log_dir(exp_prefix, exp_id=exp_id, seed=seed,
                                        base_log_dir=base_log_dir)
+    if snapshot_dir is not None:
+        log_dir = snapshot_dir
     tabular_log_path = osp.join(log_dir, tabular_log_file)
     text_log_path = osp.join(log_dir, text_log_file)
 
@@ -391,12 +524,6 @@ def setup_logger(
     logger.set_snapshot_gap(snapshot_gap)
     logger.set_log_tabular_only(log_tabular_only)
     logger.push_prefix("[%s] " % exp_name)
-    if code_diff is not None:
-        with open(osp.join(log_dir, "code.diff"), "w") as f:
-            f.write(code_diff)
-    if commit_hash is not None:
-        with open(osp.join(log_dir, "commit_hash.txt"), "w") as f:
-            f.write(commit_hash)
 
 
 def set_seed(seed):

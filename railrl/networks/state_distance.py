@@ -3,10 +3,10 @@ import torch
 from torch import nn as nn
 from torch.nn import functional as F
 
+from railrl.policies.state_distance import UniversalPolicy
 from railrl.pythonplusplus import identity
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.core import PyTorchModule
-from railrl.torch.ddpg import elem_or_tuple_to_variable
 
 
 class UniversalQfunction(PyTorchModule):
@@ -61,7 +61,7 @@ class UniversalQfunction(PyTorchModule):
 
         self.last_fc = nn.Linear(embed_hidden_size, 1)
         self.last_fc.weight.data.uniform_(-init_w, init_w)
-        self.last_fc.bias.data.fill_(b_init_value)
+        self.last_fc.bias.data.uniform_(-init_w, init_w)
 
     def forward(self, obs, action, goal_state, discount):
         h = torch.cat((obs, goal_state, discount), dim=1)
@@ -73,6 +73,55 @@ class UniversalQfunction(PyTorchModule):
         h = self.hidden_activation(self.embed_fc(h))
         if self.dropout:
             h = self.embed_dropout(h)
+        return self.output_activation(self.last_fc(h))
+
+
+class FlatUniversalQfunction(PyTorchModule):
+    """
+    Represent Q(s, a, s_g, \gamma) with a two-alyer FF network.
+    """
+    def __init__(
+            self,
+            observation_dim,
+            action_dim,
+            goal_state_dim,
+            obs_hidden_size,
+            embed_hidden_size,
+            init_w=3e-3,
+            hidden_activation=F.relu,
+            output_activation=identity,
+            w_weight_generator=ptu.fanin_init_weights_like,
+            b_init_value=0.1,
+            **kwargs
+    ):
+        self.save_init_params(locals())
+        super().__init__()
+
+        self.hidden_activation = hidden_activation
+        self.output_activation = output_activation
+        next_layer_size = observation_dim + goal_state_dim + + action_dim + 1
+
+        self.obs_fc = nn.Linear(next_layer_size, obs_hidden_size)
+        new_weight = w_weight_generator(self.obs_fc.weight.data)
+        self.obs_fc.weight.data.copy_(new_weight)
+        self.obs_fc.bias.data.fill_(b_init_value)
+
+        self.embed_fc = nn.Linear(
+            obs_hidden_size,
+            embed_hidden_size,
+        )
+        new_weight = w_weight_generator(self.embed_fc.weight.data)
+        self.embed_fc.weight.data.copy_(new_weight)
+        self.embed_fc.bias.data.fill_(b_init_value)
+
+        self.last_fc = nn.Linear(embed_hidden_size, 1)
+        self.last_fc.weight.data.uniform_(-init_w, init_w)
+        self.last_fc.bias.data.uniform_(-init_w, init_w)
+
+    def forward(self, *inputs):
+        h = torch.cat(inputs, dim=1)
+        h = self.hidden_activation(self.obs_fc(h))
+        h = self.hidden_activation(self.embed_fc(h))
         return self.output_activation(self.last_fc(h))
 
 
@@ -131,7 +180,7 @@ class StructuredUniversalQfunction(PyTorchModule):
         return out
 
 
-class UniversalPolicy(PyTorchModule):
+class FFUniversalPolicy(PyTorchModule, UniversalPolicy):
     def __init__(
             self,
             obs_dim,
@@ -162,7 +211,7 @@ class UniversalPolicy(PyTorchModule):
         self.fc2.bias.data.fill_(b_init_value)
 
         self.last_fc.weight.data.uniform_(-init_w, init_w)
-        self.last_fc.bias.data.fill_(b_init_value)
+        self.last_fc.bias.data.uniform_(-init_w, init_w)
 
     def forward(self, obs, goal_state, discount):
         h = torch.cat((obs, goal_state, discount), dim=1)
@@ -170,21 +219,14 @@ class UniversalPolicy(PyTorchModule):
         h = F.relu(self.fc2(h))
         return F.tanh(self.last_fc(h))
 
-    def get_action(self, *inputs):
-        if len(inputs) == 1:
-            obs, goal_state, discount = inputs[0]
-        else:
-            obs, goal_state, discount = inputs
-        obs = np.expand_dims(obs, 0)
-        obs = elem_or_tuple_to_variable(obs)
-        goal_state = np.expand_dims(goal_state, 0)
-        goal_state = elem_or_tuple_to_variable(goal_state)
-        discount = np.array([[discount]])
-        discount = elem_or_tuple_to_variable(discount)
+    def get_action(self, obs_np):
+        obs = ptu.np_to_var(
+            np.expand_dims(obs_np, 0)
+        )
         action = self.__call__(
             obs,
-            goal_state,
-            discount,
+            self._goal_expanded_torch,
+            self._discount_expanded_torch,
         )
         action = action.squeeze(0)
         return ptu.get_numpy(action), {}

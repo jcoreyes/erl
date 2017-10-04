@@ -415,7 +415,7 @@ class BpttDdpg(OnlineAlgorithm):
         :param exploration_paths: List of dicts, each representing a path.
         """
         logger.log("Collecting samples for evaluation")
-        paths = self._sample_paths(epoch)
+        paths = self._sample_eval_paths(epoch)
         statistics = OrderedDict()
 
         statistics.update(self._statistics_from_paths(paths, "Test"))
@@ -538,7 +538,7 @@ class BpttDdpg(OnlineAlgorithm):
             >= self.num_subtrajs_per_batch
         )
 
-    def _sample_paths(self, epoch):
+    def _sample_eval_paths(self, epoch):
         """
         Returns flattened paths.
 

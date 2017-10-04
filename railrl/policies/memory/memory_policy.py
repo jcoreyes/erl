@@ -1,7 +1,8 @@
 import abc
+
 import numpy as np
 
-from railrl.policies.nn_policy import NNPolicy
+from railrl.policies.tensorflow.nn_policy import NNPolicy
 
 
 class MemoryPolicy(NNPolicy, metaclass=abc.ABCMeta):

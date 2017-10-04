@@ -24,20 +24,15 @@ def split_paths(paths):
      - rewards
     """
     rewards = [path["rewards"].reshape(-1, 1) for path in paths]
+    terminals = [path["terminals"].reshape(-1, 1) for path in paths]
     actions = [path["actions"] for path in paths]
     obs = [path["observations"] for path in paths]
     next_obs = []
-    terminals = []
     for path in paths:
-        path_length = len(path["rewards"])
         next_obs_i = path["observations"][1:, :]
         next_obs_i = np.vstack((next_obs_i,
                                 np.zeros_like(path["observations"][0:1])))
         next_obs.append(next_obs_i)
-
-        terminal_i = np.zeros((path_length, 1))
-        terminal_i[-1] = 1
-        terminals.append(terminal_i)
     rewards = np.vstack(rewards)
     terminals = np.vstack(terminals)
     obs = np.vstack(obs)
@@ -49,6 +44,23 @@ def split_paths(paths):
     assert len(actions.shape) == 2
     assert len(next_obs.shape) == 2
     return rewards, terminals, obs, actions, next_obs
+
+def split_paths_to_dict(paths):
+    rewards, terminals, obs, actions, next_obs = split_paths(paths)
+    return dict(
+        rewards=rewards,
+        terminals=terminals,
+        observations=obs,
+        actions=actions,
+        next_observations=next_obs,
+    )
+
+
+def get_stat_in_dict(paths, dict_name, scalar_name):
+    return np.vstack([
+        [info[scalar_name] for info in path[dict_name]]
+        for path in paths
+    ])
 
 
 def get_action_dim(**kwargs):

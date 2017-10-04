@@ -1,4 +1,6 @@
 import abc
+
+from railrl.policies.base import Policy, ExplorationPolicy, SerializablePolicy
 from rllab.exploration_strategies.base import ExplorationStrategy
 
 
@@ -13,3 +15,36 @@ class RawExplorationStrategy(ExplorationStrategy, metaclass=abc.ABCMeta):
 
     def reset(self):
         pass
+
+
+class PolicyWrappedWithExplorationStrategy(ExplorationPolicy, SerializablePolicy):
+    def __init__(
+            self,
+            exploration_strategy: ExplorationStrategy,
+            policy: SerializablePolicy,
+    ):
+        self.es = exploration_strategy
+        self.policy = policy
+        self.t = 0
+
+    def set_num_steps_total(self, t):
+        self.t = t
+
+    def get_action(self, obs, *args, **kwargs):
+        return self.es.get_action(self.t, obs, self.policy)
+
+    def reset(self):
+        self.es.reset()
+        self.policy.reset()
+
+    def get_param_values(self):
+        return self.policy.get_param_values()
+
+    def set_param_values(self, param_values):
+        self.policy.set_param_values(param_values)
+
+    def get_param_values_np(self):
+        return self.policy.get_param_values_np()
+
+    def set_param_values_np(self, param_values):
+        self.policy.set_param_values_np(param_values)

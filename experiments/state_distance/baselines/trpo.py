@@ -1,10 +1,11 @@
 import random
-from railrl.envs.env_utils import gym_env
-from railrl.envs.wrappers import convert_to_tf_env
+
+from gym.envs.mujoco import PusherEnv
+
+from railrl.envs.wrappers import normalize_and_convert_to_tf_env
 from railrl.launchers.launcher_util import run_experiment
 from sandbox.rocky.tf.algos.trpo import TRPO
 from rllab.baselines.linear_feature_baseline import LinearFeatureBaseline
-from rllab.envs.normalized_env import normalize
 from sandbox.rocky.tf.policies.gaussian_mlp_policy import GaussianMLPPolicy
 from sandbox.rocky.tf.optimizers.conjugate_gradient_optimizer import (
     ConjugateGradientOptimizer,
@@ -13,14 +14,13 @@ from sandbox.rocky.tf.optimizers.conjugate_gradient_optimizer import (
 
 
 def experiment(variant):
-    env = gym_env("Reacher-v1")
-    env = normalize(env)
-    env = convert_to_tf_env(env)
+    env = PusherEnv()
+    env = normalize_and_convert_to_tf_env(env)
 
     policy = GaussianMLPPolicy(
         name="policy",
         env_spec=env.spec,
-        hidden_sizes=(32, 32)
+        hidden_sizes=(400, 300)
     )
 
     baseline = LinearFeatureBaseline(env_spec=env.spec)
@@ -41,11 +41,11 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = "here"
-    exp_prefix = "7-8-dev-state-distance-trpo-baseline"
+    exp_prefix = "pusher-env-trpo-baseline"
 
-    n_seeds = 10
-    mode = "ec2"
-    exp_prefix = "7-8-state-distance-trpo-baseline-2"
+    # n_seeds = 3
+    # mode = "ec2"
+    # exp_prefix = "pusher-env-trpo-baseline"
 
     num_steps_per_iteration = 100000
     H = 1000
@@ -73,4 +73,6 @@ if __name__ == "__main__":
             mode=mode,
             variant=variant,
             use_gpu=False,
+            snapshot_mode='gap',
+            snapshot_gap=5,
         )

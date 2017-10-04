@@ -2,26 +2,25 @@
 :author: Vitchyr Pong
 """
 import abc
-from collections import OrderedDict
 import pickle
 import time
+from collections import OrderedDict
 from contextlib import contextmanager
-from typing import Iterable
 
 import numpy as np
 import tensorflow as tf
+from typing import Iterable
 
-from railrl.data_management.replay_buffer import ReplayBuffer
-from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.policies.nn_policy import NNPolicy
+import railrl.core.neuralnet
 from railrl.core.neuralnet import NeuralNetwork
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
+from railrl.data_management.replay_buffer import ReplayBuffer
+from railrl.misc.data_processing import create_stats_ordered_dict
+from railrl.policies.tensorflow.nn_policy import NNPolicy
 from rllab.algos.base import RLAlgorithm
 from rllab.misc import logger, special
 from rllab.misc.overrides import overrides
 from sandbox.rocky.tf.samplers.batch_sampler import BatchSampler
-import railrl.core.neuralnet
-
 
 
 class OnlineAlgorithm(RLAlgorithm):

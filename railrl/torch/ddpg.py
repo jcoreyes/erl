@@ -1,18 +1,19 @@
 from collections import OrderedDict
 
-import numpy as np
 import torch.optim as optim
 from torch import nn as nn
-from torch.autograd import Variable
 
+import railrl.torch.pytorch_util as ptu
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.ml_util import ConstantSchedule
-from railrl.misc.rllab_util import get_average_returns, split_paths
+from railrl.misc.rllab_util import get_average_returns, split_paths_to_dict
+from railrl.torch.algos.util import np_to_pytorch_batch
+from railrl.torch.algos.eval import get_statistics_from_pytorch_dict, \
+    get_difference_statistics, get_generic_path_information
 from railrl.torch.online_algorithm import OnlineAlgorithm
-import railrl.torch.pytorch_util as ptu
-from rllab.misc import logger, special
+from rllab.misc import logger
 
 
 class DDPG(OnlineAlgorithm):
@@ -25,8 +26,7 @@ class DDPG(OnlineAlgorithm):
             env,
             qf,
             policy,
-            exploration_strategy,
-            exploration_policy=None,
+            exploration_policy,
             policy_learning_rate=1e-4,
             qf_learning_rate=1e-3,
             qf_weight_decay=0,
@@ -39,12 +39,9 @@ class DDPG(OnlineAlgorithm):
             residual_gradient_weight=0,
             **kwargs
     ):
-        if exploration_policy is None:
-            exploration_policy = policy
         super().__init__(
             env,
             exploration_policy,
-            exploration_strategy,
             **kwargs
         )
         self.qf = qf
@@ -183,34 +180,34 @@ class DDPG(OnlineAlgorithm):
         :param exploration_paths: List of dicts, each representing a path.
         """
         logger.log("Collecting samples for evaluation")
-        test_paths = self._sample_paths(epoch)
-
         statistics = OrderedDict()
+        train_batch = self.get_batch(training=True)
+        validation_batch = self.get_batch(training=False)
+        test_paths = self._sample_eval_paths(epoch)
+
         if not isinstance(self.epoch_discount_schedule, ConstantSchedule):
             statistics['Discount Factor'] = self.discount
 
-        statistics.update(get_generic_path_information(exploration_paths, self.discount, stat_prefix="Exploration"))
+        statistics.update(get_generic_path_information(
+            exploration_paths, self.discount, stat_prefix="Exploration",
+        ))
         statistics.update(self._statistics_from_paths(exploration_paths,
                                                       "Exploration"))
-
-        statistics.update(get_generic_path_information(test_paths, self.discount, stat_prefix="Test"))
-        statistics.update(self._statistics_from_paths(test_paths, "Test"))
-
-        train_batch = self.get_batch(training=True)
         statistics.update(self._statistics_from_batch(train_batch, "Train"))
-        validation_batch = self.get_batch(training=False)
         statistics.update(
             self._statistics_from_batch(validation_batch, "Validation")
         )
+        statistics.update(get_generic_path_information(
+            test_paths, self.discount, stat_prefix="Test",
+        ))
+        statistics.update(self._statistics_from_paths(test_paths, "Test"))
+        statistics.update(
+            get_difference_statistics(
+                statistics,
+                ['QF Loss Mean', 'Policy Loss Mean'],
+            )
+        )
 
-        statistics['QF Loss Validation - Train Gap'] = (
-            statistics['Validation QF Loss Mean']
-            - statistics['Train QF Loss Mean']
-        )
-        statistics['Policy Loss Validation - Train Gap'] = (
-            statistics['Validation Policy Loss Mean']
-            - statistics['Train Policy Loss Mean']
-        )
         average_returns = get_average_returns(test_paths)
         statistics['AverageReturn'] = average_returns
 
@@ -233,47 +230,25 @@ class DDPG(OnlineAlgorithm):
         return np_to_pytorch_batch(batch)
 
     def _statistics_from_paths(self, paths, stat_prefix):
-        np_batch = self._paths_to_np_batch(paths)
-        batch = np_to_pytorch_batch(np_batch)
+        batch = self.paths_to_batch(paths)
         statistics = self._statistics_from_batch(batch, stat_prefix)
         statistics.update(create_stats_ordered_dict(
             'Num Paths', len(paths), stat_prefix=stat_prefix
         ))
         return statistics
 
-    def _paths_to_np_batch(self, paths):
-        rewards, terminals, obs, actions, next_obs = split_paths(paths)
-        return dict(
-            rewards=rewards,
-            terminals=terminals,
-            observations=obs,
-            actions=actions,
-            next_observations=next_obs,
-        )
+    @staticmethod
+    def paths_to_batch(paths):
+        np_batch = split_paths_to_dict(paths)
+        return np_to_pytorch_batch(np_batch)
 
     def _statistics_from_batch(self, batch, stat_prefix):
-        statistics = OrderedDict()
-
-        train_dict = self.get_train_dict(batch)
-        for name in [
-            'QF Loss',
-            'Policy Loss',
-        ]:
-            tensor = train_dict[name]
-            statistics_name = "{} {} Mean".format(stat_prefix, name)
-            statistics[statistics_name] = np.mean(ptu.get_numpy(tensor))
-
-        for name in [
-            'Bellman Errors',
-            'QF Outputs',
-            'Policy Actions',
-        ]:
-            tensor = train_dict[name]
-            statistics.update(create_stats_ordered_dict(
-                '{} {}'.format(stat_prefix, name),
-                ptu.get_numpy(tensor)
-            ))
-
+        statistics = get_statistics_from_pytorch_dict(
+            self.get_train_dict(batch),
+            ['QF Loss', 'Policy Loss'],
+            ['Bellman Errors', 'QF Outputs', 'Policy Actions'],
+            stat_prefix
+        )
         statistics.update(create_stats_ordered_dict(
             "{} Env Actions".format(stat_prefix),
             ptu.get_numpy(batch['actions'])
@@ -292,56 +267,20 @@ class DDPG(OnlineAlgorithm):
             epoch=epoch,
             policy=self.policy,
             env=self.training_env,
-            es=self.exploration_strategy,
+            exploration_policy=self.exploration_policy,
             qf=self.qf,
-            replay_buffer=self.replay_buffer,
-            algorithm=self,
             batch_size=self.batch_size,
         )
 
-
-def elem_or_tuple_to_variable(elem_or_tuple):
-    if isinstance(elem_or_tuple, tuple):
-        return tuple(
-            elem_or_tuple_to_variable(e) for e in elem_or_tuple
+    def get_extra_data_to_save(self, epoch):
+        """
+        Save things that shouldn't be saved every snapshot but rather
+        overwritten every time.
+        :param epoch:
+        :return:
+        """
+        return dict(
+            epoch=epoch,
+            replay_buffer=self.replay_buffer,
+            algorithm=self,
         )
-    return Variable(ptu.from_numpy(elem_or_tuple).float(), requires_grad=False)
-
-
-def np_to_pytorch_batch(np_batch):
-    torch_batch = {
-        k: elem_or_tuple_to_variable(x)
-        for k, x in np_batch.items()
-    }
-    if len(torch_batch['rewards'].size()) == 1:
-        torch_batch['rewards'] = torch_batch['rewards'].unsqueeze(-1)
-    if len(torch_batch['terminals'].size()) == 1:
-        torch_batch['terminals'] = torch_batch['terminals'].unsqueeze(-1)
-    return torch_batch
-
-
-def get_generic_path_information(paths, discount, stat_prefix):
-    """
-    Get an OrderedDict with a bunch of statistic names and values.
-    """
-    statistics = OrderedDict()
-    returns = [sum(path["rewards"]) for path in paths]
-
-    discounted_returns = [
-        special.discount_return(path["rewards"], discount)
-        for path in paths
-    ]
-    rewards = np.hstack([path["rewards"] for path in paths])
-    statistics.update(create_stats_ordered_dict('Rewards', rewards,
-                                                stat_prefix=stat_prefix))
-    statistics.update(create_stats_ordered_dict('Returns', returns,
-                                                stat_prefix=stat_prefix))
-    statistics.update(create_stats_ordered_dict('DiscountedReturns',
-                                                discounted_returns,
-                                                stat_prefix=stat_prefix))
-    actions = np.vstack([path["actions"] for path in paths])
-    statistics.update(create_stats_ordered_dict(
-        'Actions', actions, stat_prefix=stat_prefix
-    ))
-
-    return statistics

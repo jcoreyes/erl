@@ -8,14 +8,11 @@ from railrl.launchers.launcher_util import (
 )
 from railrl.policies.memory.action_aware_memory_policy import \
     ActionAwareMemoryPolicy
-from railrl.policies.nn_policy import FeedForwardPolicy
 from railrl.qfunctions.memory.mlp_memory_qfunction import MlpMemoryQFunction
-from railrl.qfunctions.nn_qfunction import FeedForwardCritic
 
 
 def run_linear_ocm_exp(variant):
     from railrl.algos.ddpg import DDPG
-    from railrl.envs.flattened_product_box import FlattenedProductBox
     from railrl.envs.memory.continuous_memory_augmented import (
         ContinuousMemoryAugmented
     )

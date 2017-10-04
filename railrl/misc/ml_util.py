@@ -19,6 +19,9 @@ class ConstantSchedule(ScalarSchedule):
 
 
 class RampUpSchedule(ScalarSchedule):
+    """
+    Ramp up linearly and then stop at a max value.
+    """
     def __init__(
             self,
             min_value,
@@ -36,3 +39,10 @@ class RampUpSchedule(ScalarSchedule):
             * min(1.0, t * 1.0 / self._ramp_duration)
         )
 
+
+class IntRampUpSchedule(RampUpSchedule):
+    """
+    Same as RampUpSchedule but round output to an int
+    """
+    def get_value(self, t):
+        return int(super().get_value(t))
