@@ -80,6 +80,7 @@ if __name__ == "__main__":
                 disp=args.verbose,
                 maxiter=10,
             ),
+            planning_horizon=args.planh,
         )
     else:
         policy_class = MultistepModelBasedPolicy

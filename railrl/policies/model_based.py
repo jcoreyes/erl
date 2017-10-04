@@ -86,6 +86,7 @@ class SQPModelBasedPolicy(UniversalPolicy, nn.Module):
             env,
             model_learns_deltas=True,
             solver_params=None,
+            planning_horizon=1,
     ):
         super().__init__()
         nn.Module.__init__(self)
@@ -93,17 +94,20 @@ class SQPModelBasedPolicy(UniversalPolicy, nn.Module):
         self.env = env
         self.model_learns_deltas = model_learns_deltas
         self.solver_params = solver_params
+        self.planning_horizon = planning_horizon
 
         self.action_dim = self.env.action_space.low.size
         self.observation_dim = self.env.observation_space.low.size
-        self.last_solution = np.zeros(self.action_dim + self.observation_dim)
+        self.last_solution = np.zeros(
+            (self.action_dim + self.observation_dim) * self.planning_horizon
+        )
         self.lower_bounds = np.hstack((
-            self.env.action_space.low,
-            self.env.observation_space.low,
+            np.tile(self.env.action_space.low, self.planning_horizon),
+            np.tile(self.env.observation_space.low, self.planning_horizon),
         ))
         self.upper_bounds = np.hstack((
-            self.env.action_space.high,
-            self.env.observation_space.high,
+            np.tile(self.env.action_space.high, self.planning_horizon),
+            np.tile(self.env.observation_space.high, self.planning_horizon),
         ))
         self.bounds = list(zip(self.lower_bounds, self.upper_bounds))
         self.constraints = {
@@ -112,60 +116,89 @@ class SQPModelBasedPolicy(UniversalPolicy, nn.Module):
             'jac': self.constraint_jacobian,
         }
 
-    def cost_function(self, action_and_next_state_flat):
-        next_state = action_and_next_state_flat[self.action_dim:]
-        return np.sum((next_state - self._goal_np)**2)
-
-    def cost_jacobian(self, action_and_next_state_flat):
-        next_state = action_and_next_state_flat[self.action_dim:]
-        jac = 2 * (next_state - self._goal_np)
-        newjac = np.hstack((np.zeros(self.action_dim), jac))
-        return newjac
-
-    def constraint_fctn(self, action_next_state_flat, state=None):
-        state = ptu.np_to_var(state)
-        action_next_state_flat = ptu.np_to_var(
-            action_next_state_flat,
-            requires_grad=False,
-        )
-        action = action_next_state_flat[0:self.action_dim]
-        next_state = action_next_state_flat[self.action_dim:]
-
-        if self.model_learns_deltas:
-            next_state_predicted = state + self.model(
-                state.unsqueeze(0),
-                action.unsqueeze(0),
+    def split(self, x):
+        """
+        :param x: vector passed to optimization
+        :return: tuple
+            - actions np.array, shape [planning_horizon X action_dim]
+            - next_states np.array, shape [planning_horizon X obs_dim]
+        """
+        all_actions = x[:self.action_dim * self.planning_horizon]
+        all_next_states = x[self.action_dim * self.planning_horizon:]
+        if isinstance(x, np.ndarray):
+            return (
+                all_actions.reshape(self.planning_horizon, self.action_dim),
+                all_next_states.reshape(self.planning_horizon, self.observation_dim)
             )
         else:
-            next_state_predicted = self.model(
-                state.unsqueeze(0),
-                action.unsqueeze(0),
+            return (
+                all_actions.view(self.planning_horizon, self.action_dim),
+                all_next_states.view(self.planning_horizon, self.observation_dim)
             )
-        loss = torch.norm(next_state - next_state_predicted, p=2)
+
+    def cost_function(self, x):
+        _, all_next_states = self.split(x)
+        last_state = all_next_states[-1, :]
+        return np.sum((last_state - self._goal_np)**2)
+
+    def cost_jacobian(self, x):
+        jacobian = np.zeros_like(x)
+        _, all_next_states = self.split(x)
+        last_state = all_next_states[-1, :]
+        # Assuming the last  `self.observation_dim` part of x is the last state
+        jacobian[-self.observation_dim:] = (
+            2 * (last_state - self._goal_np)
+        )
+        return jacobian
+
+    def constraint_fctn(self, x, state=None):
+        state = ptu.np_to_var(state)
+        x = ptu.np_to_var(x, requires_grad=False)
+        all_actions, all_next_states = self.split(x)
+
+        loss = 0
+        state_predicted = state.unsqueeze(0)
+        for i in range(self.planning_horizon):
+            action = all_actions[i:i+1, :]
+            if self.model_learns_deltas:
+                next_state_predicted = state_predicted + self.model(
+                    state_predicted,
+                    action,
+                )
+            else:
+                next_state_predicted = self.model(
+                    state_predicted,
+                    action,
+                )
+            next_state = all_next_states[i:i+1, :]
+            loss += torch.norm(next_state - next_state_predicted, p=2)
+            state_predicted = next_state_predicted
         return ptu.get_numpy(loss)
 
-    def constraint_jacobian(self, action_next_state_flat, state=None):
+    def constraint_jacobian(self, x, state=None):
         state = ptu.np_to_var(state)
-        action_next_state_flat = ptu.np_to_var(
-            action_next_state_flat,
-            requires_grad=True,
-        )
-        action = action_next_state_flat[0:self.action_dim]
-        next_state = action_next_state_flat[self.action_dim:]
+        x = ptu.np_to_var(x, requires_grad=True)
+        all_actions, all_next_states = self.split(x)
 
-        if self.model_learns_deltas:
-            next_state_predicted = state + self.model(
-                state.unsqueeze(0),
-                action.unsqueeze(0),
-            )
-        else:
-            next_state_predicted = self.model(
-                state.unsqueeze(0),
-                action.unsqueeze(0),
-            )
-        loss = torch.norm(next_state - next_state_predicted, p=2)
+        loss = 0
+        state_predicted = state.unsqueeze(0)
+        for i in range(self.planning_horizon):
+            action = all_actions[i:i+1, :]
+            if self.model_learns_deltas:
+                next_state_predicted = state_predicted + self.model(
+                    state_predicted,
+                    action,
+                )
+            else:
+                next_state_predicted = self.model(
+                    state_predicted,
+                    action,
+                )
+            next_state = all_next_states[i:i+1, :]
+            loss += torch.norm(next_state - next_state_predicted, p=2)
+            state_predicted = next_state_predicted
         loss.squeeze(0).backward()
-        return ptu.get_numpy(action_next_state_flat.grad)
+        return ptu.get_numpy(x.grad)
 
     def reset(self):
         self.last_solution = np.zeros(self.action_dim + self.observation_dim)
