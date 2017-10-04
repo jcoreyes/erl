@@ -62,6 +62,8 @@ if __name__ == "__main__":
                         help='Number of rollouts to do.')
     parser.add_argument('--nsamples', type=int, default=1000,
                         help='Number of sample for sampled-based optimizer')
+    parser.add_argument('--maxi', type=int, default=10,
+                        help='Max number of iterations for sqp')
     parser.add_argument('--hide', action='store_true')
     parser.add_argument('--sqp', action='store_true')
     parser.add_argument('--verbose', action='store_true')
@@ -78,7 +80,7 @@ if __name__ == "__main__":
             model_learns_deltas=True,
             solver_params=dict(
                 disp=args.verbose,
-                maxiter=10,
+                maxiter=args.maxi,
             ),
             planning_horizon=args.planh,
         )
