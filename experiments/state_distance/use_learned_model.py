@@ -7,10 +7,14 @@ import random
 
 import joblib
 
-from railrl.algos.state_distance.state_distance_q_learning import \
+from railrl.algos.state_distance.state_distance_q_learning import (
     multitask_rollout
+)
 from railrl.launchers.launcher_util import run_experiment
-from railrl.policies.model_based import MultistepModelBasedPolicy
+from railrl.policies.model_based import (
+    MultistepModelBasedPolicy,
+    SQPModelBasedPolicy,
+)
 from rllab.misc import logger
 import railrl.torch.pytorch_util as ptu
 
@@ -52,10 +56,12 @@ if __name__ == "__main__":
                         help='path to the snapshot file')
     parser.add_argument('--H', type=int, default=100,
                         help='Max length of rollout')
+    parser.add_argument('--planh', type=int, default=5,
+                        help='Planning horizon')
     parser.add_argument('--nrolls', type=int, default=5,
                         help='Number of rollouts to do.')
-    parser.add_argument('--num_rollouts', type=int, default=1,
-                        help='Number of rollouts per eval')
+    parser.add_argument('--nsamples', type=int, default=1000,
+                        help='Number of sample for sampled-based optimizer')
     parser.add_argument('--hide', action='store_true')
     parser.add_argument('--sqp', action='store_true')
     parser.add_argument('--verbose', action='store_true')
@@ -66,18 +72,30 @@ if __name__ == "__main__":
     exp_prefix = "dev-use-learned-model"
     run_mode = 'none'
     use_gpu = True
+    if args.sqp:
+        policy_class = SQPModelBasedPolicy
+        policy_params = dict(
+            model_learns_deltas=True,
+            solver_params=dict(
+                disp=args.verbose,
+                maxiter=10,
+            ),
+        )
+    else:
+        policy_class = MultistepModelBasedPolicy
+        policy_params = dict(
+            model_learns_deltas=True,
+            sample_size=args.nsamples,
+            planning_horizon=args.planh,
+        )
 
     variant = dict(
         num_rollouts=args.nrolls,
         H=args.H,
         render=not args.hide,
-        policy_class=MultistepModelBasedPolicy,
-        policy_params=dict(
-            model_learns_deltas=True,
-            sample_size=1000,
-            planning_horizon=5,
-        ),
         qf_path=os.path.abspath(args.file),
+        policy_class=policy_class,
+        policy_params=policy_params,
     )
 
     for exp_id in range(n_seeds):

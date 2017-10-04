@@ -1,8 +1,14 @@
 import numpy as np
+import torch
 from torch import nn
+from scipy import optimize
 
-from railrl.policies.state_distance import SampleBasedUniversalPolicy
+from railrl.policies.state_distance import (
+    UniversalPolicy,
+    SampleBasedUniversalPolicy,
+)
 from railrl.torch import pytorch_util as ptu
+from rllab.misc import logger
 
 
 class MultistepModelBasedPolicy(SampleBasedUniversalPolicy, nn.Module):
@@ -71,3 +77,118 @@ class MultistepModelBasedPolicy(SampleBasedUniversalPolicy, nn.Module):
         )
         min_i = np.argmin(score)
         return first_sampled_action[min_i], {}
+
+
+class SQPModelBasedPolicy(UniversalPolicy, nn.Module):
+    def __init__(
+            self,
+            model,
+            env,
+            model_learns_deltas=True,
+            solver_params=None,
+    ):
+        super().__init__()
+        nn.Module.__init__(self)
+        self.model = model
+        self.env = env
+        self.model_learns_deltas = model_learns_deltas
+        self.solver_params = solver_params
+
+        self.action_dim = self.env.action_space.low.size
+        self.observation_dim = self.env.observation_space.low.size
+        self.last_solution = np.zeros(self.action_dim + self.observation_dim)
+        self.lower_bounds = np.hstack((
+            self.env.action_space.low,
+            self.env.observation_space.low,
+        ))
+        self.upper_bounds = np.hstack((
+            self.env.action_space.high,
+            self.env.observation_space.high,
+        ))
+        self.bounds = list(zip(self.lower_bounds, self.upper_bounds))
+        self.constraints = {
+            'type': 'eq',
+            'fun': self.constraint_fctn,
+            'jac': self.constraint_jacobian,
+        }
+
+    def cost_function(self, action_and_next_state_flat):
+        next_state = action_and_next_state_flat[self.action_dim:]
+        return np.sum((next_state - self._goal_np)**2)
+
+    def cost_jacobian(self, action_and_next_state_flat):
+        next_state = action_and_next_state_flat[self.action_dim:]
+        jac = 2 * (next_state - self._goal_np)
+        newjac = np.hstack((np.zeros(self.action_dim), jac))
+        return newjac
+
+    def constraint_fctn(self, action_next_state_flat, state=None):
+        state = ptu.np_to_var(state)
+        action_next_state_flat = ptu.np_to_var(
+            action_next_state_flat,
+            requires_grad=False,
+        )
+        action = action_next_state_flat[0:self.action_dim]
+        next_state = action_next_state_flat[self.action_dim:]
+
+        if self.model_learns_deltas:
+            next_state_predicted = state + self.model(
+                state.unsqueeze(0),
+                action.unsqueeze(0),
+            )
+        else:
+            next_state_predicted = self.model(
+                state.unsqueeze(0),
+                action.unsqueeze(0),
+            )
+        loss = torch.norm(next_state - next_state_predicted, p=2)
+        return ptu.get_numpy(loss)
+
+    def constraint_jacobian(self, action_next_state_flat, state=None):
+        state = ptu.np_to_var(state)
+        action_next_state_flat = ptu.np_to_var(
+            action_next_state_flat,
+            requires_grad=True,
+        )
+        action = action_next_state_flat[0:self.action_dim]
+        next_state = action_next_state_flat[self.action_dim:]
+
+        if self.model_learns_deltas:
+            next_state_predicted = state + self.model(
+                state.unsqueeze(0),
+                action.unsqueeze(0),
+            )
+        else:
+            next_state_predicted = self.model(
+                state.unsqueeze(0),
+                action.unsqueeze(0),
+            )
+        loss = torch.norm(next_state - next_state_predicted, p=2)
+        loss.squeeze(0).backward()
+        return ptu.get_numpy(action_next_state_flat.grad)
+
+    def reset(self):
+        self.last_solution = np.zeros(self.action_dim + self.observation_dim)
+
+    def get_action(self, obs):
+        self.constraints['args'] = (obs, )
+        result = optimize.minimize(
+            self.cost_function,
+            self.last_solution,
+            jac=self.cost_jacobian,
+            constraints=self.constraints,
+            method='SLSQP',
+            options=self.solver_params,
+            bounds=self.bounds,
+        )
+        action = result.x[:self.action_dim]
+        if np.isnan(action).any():
+            logger.log("WARNING: SLSQP returned nan. Adding noise to last "
+                       "action")
+            action = self.last_solution[:self.action_dim] + np.random.uniform(
+                self.env.action_space.low,
+                self.env.action_space.high,
+            ) / 100
+        else:
+            self.last_solution = result.x
+        return action, {}
