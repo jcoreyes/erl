@@ -131,6 +131,8 @@ class DDPG(OnlineAlgorithm):
         """
 
         next_actions = self.target_policy(next_obs)
+        # speed up computation by not backpropping these gradients
+        next_actions.detach()
         target_q_values = self.target_qf(
             next_obs,
             next_actions,
@@ -142,15 +144,20 @@ class DDPG(OnlineAlgorithm):
         qf_loss = self.qf_criterion(y_pred, y_target)
 
         if self.residual_gradient_weight > 0:
-            target_q_values = self.qf(
+            residual_next_actions = self.policy(next_obs)
+            # speed up computation by not backpropping these gradients
+            residual_next_actions.detach()
+            residual_target_q_values = self.qf(
                 next_obs,
-                next_actions,
+                residual_next_actions,
             )
-            y_target = rewards + (1. - terminals) * self.discount * target_q_values
-            y_pred = self.qf(obs, actions)
-            bellman_errors = (y_pred - y_target)**2
+            residual_y_target = (
+                rewards
+                + (1. - terminals) * self.discount * residual_target_q_values
+            )
+            residual_bellman_errors = (y_pred - residual_y_target)**2
             # noinspection PyUnresolvedReferences
-            residual_qf_loss = bellman_errors.mean()
+            residual_qf_loss = residual_bellman_errors.mean()
             qf_loss = (
                 self.residual_gradient_weight * residual_qf_loss
                 + (1 - self.residual_gradient_weight) * qf_loss
