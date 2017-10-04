@@ -43,6 +43,9 @@ import doodad.mode
 import doodad.mount as mount
 from doodad.utils import REPO_DIR
 
+ec2_okayed = False
+gpu_ec2_okayed = False
+
 def get_standard_env(normalized=True):
     envs = [
         HalfCheetahEnv(),
@@ -160,7 +163,12 @@ def run_experiment(
         n_parallel=0,
         base_log_dir=None,
         sync_interval=180,
+        local_input_dir_to_mount_point_dict=None,  # TODO(vitchyr): test this
 ):
+    global ec2_okayed
+    global gpu_ec2_okayed
+    if local_input_dir_to_mount_point_dict is None:
+        local_input_dir_to_mount_point_dict = {}
     # Modify some of the inputs
     if seed is None:
         seed = random.randint(0, 100000)
@@ -192,41 +200,66 @@ def run_experiment(
     }
 
     if base_log_dir is None:
-        local_output_dir = config.LOCAL_LOG_DIR
-    else:
-        local_output_dir = '{}/{}'.format(base_log_dir, exp_prefix)
+        base_log_dir = config.LOCAL_LOG_DIR
+    output_mount_point = config.OUTPUT_DIR_FOR_DOODAD_TARGET
     mounts = [
         mount.MountLocal(local_dir=REPO_DIR, pythonpath=True),
     ]
     for code_dir in config.CODE_DIRS_TO_MOUNT:
         mounts.append(mount.MountLocal(local_dir=code_dir, pythonpath=True))
+    for dir, mount_point in local_input_dir_to_mount_point_dict.items():
+        mounts.append(mount.MountLocal(
+            local_dir=dir,
+            mount_point=mount_point,
+            pythonpath=False,
+        ))
 
     if mode != 'local':
         for non_code_mapping in config.DIR_AND_MOUNT_POINT_MAPPINGS:
             mounts.append(mount.MountLocal(**non_code_mapping))
 
     if mode == 'ec2':
-        if not query_yes_no(
+        if not ec2_okayed and not query_yes_no(
                 "EC2 costs money. Are you sure you want to run?"
         ):
             sys.exit(1)
-        if use_gpu:
+        if not gpu_ec2_okayed and use_gpu:
             if not query_yes_no(
                     "EC2 is more expensive with GPUs. Confirm?"
             ):
                 sys.exit(1)
+            gpu_ec2_okayed = True
+        ec2_okayed = True
         output_mount = mount.MountS3(
             s3_path='',
-            mount_point=config.OUTPUT_DIR_FOR_DOODAD_TARGET,
+            mount_point=output_mount_point,
             output=True,
             sync_interval=sync_interval,
         )
-    else:
+        # This will be over-written by the snapshot dir, but I'm setting it for
+        # good measure.
+        base_log_dir_for_script = output_mount_point
+        # The snapshot dir needs to be specified for S3 because S3 will
+        # automatically create the experiment director and sub-directory.
+        snapshot_dir_for_script = output_mount_point
+    elif mode == 'local':
         output_mount = mount.MountLocal(
-            local_dir=local_output_dir,
-            mount_point=config.OUTPUT_DIR_FOR_DOODAD_TARGET,
+            local_dir=base_log_dir,
+            mount_point=None,  # For purely local mode, skip mounting.
             output=True,
         )
+        base_log_dir_for_script = base_log_dir
+        # The snapshot dir will be automatically created
+        snapshot_dir_for_script = None
+    else:
+        output_mount = mount.MountLocal(
+            local_dir=base_log_dir,
+            mount_point=output_mount_point,
+            output=True,
+        )
+        base_log_dir_for_script = output_mount_point
+        # The snapshot dir will be automatically created
+        snapshot_dir_for_script = None
     mounts.append(output_mount)
 
     repo = git.Repo(os.getcwd())
@@ -242,7 +275,7 @@ def run_experiment(
         commit_hash=repo.head.commit.hexsha,
         script_name=main.__file__,
         n_parallel=n_parallel,
-        base_log_dir=config.OUTPUT_DIR_FOR_DOODAD_TARGET,
+        base_log_dir=base_log_dir_for_script,
     )
     doodad.launch_python(
         target=config.RUN_DOODAD_EXPERIMENT_SCRIPT_PATH,
@@ -250,9 +283,10 @@ def run_experiment(
         mount_points=mounts,
         args={
             'method_call': method_call,
-            'output_dir': config.OUTPUT_DIR_FOR_DOODAD_TARGET,
+            'output_dir': snapshot_dir_for_script,
             'run_experiment_kwargs': run_experiment_kwargs,
-        }
+        },
+        use_cloudpickle=True,
     )
 
 
@@ -429,10 +463,7 @@ def run_experiment_here(
     if script_name is not None:
         with open(osp.join(log_dir, "script_name.txt"), "w") as f:
             f.write(script_name)
-    if not use_gpu:
-        os.environ['CUDA_VISIBLE_DEVICES'] = ""
-    else:
-        set_gpu_mode(use_gpu)
+    set_gpu_mode(use_gpu)
     return experiment_function(variant)
 
 

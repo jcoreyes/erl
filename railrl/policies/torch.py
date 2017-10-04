@@ -1,13 +1,13 @@
-import torch
 import numpy as np
+import torch
 from torch import nn as nn
 from torch.autograd import Variable
 from torch.nn import functional as F
 from torch.nn import init
 
-from railrl.torch.rnn import BNLSTMCell, LSTM, LSTMCell
-from railrl.torch.core import PyTorchModule
 from railrl.torch import pytorch_util as ptu
+from railrl.torch.core import PyTorchModule
+from railrl.torch.rnn import LSTMCell
 
 
 class FlattenLSTMCell(nn.Module):

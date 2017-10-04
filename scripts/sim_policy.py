@@ -16,9 +16,14 @@ def simulate_policy(args):
         policy = data['policy']
     elif 'naf_policy' in data:
         policy = data['naf_policy']
-    else:
+    elif 'optimizable_qfunction' in data:
         qf = data['optimizable_qfunction']
         policy = qf.implicit_policy
+    else:
+        raise Exception("No policy found in loaded dict. Keys: {}".format(
+            data.keys()
+        ))
+
     env = data['env']
     if isinstance(env, RemoteRolloutEnv):
         env = env._wrapped_env

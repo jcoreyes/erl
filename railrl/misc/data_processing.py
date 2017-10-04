@@ -92,7 +92,8 @@ class Experiment(object):
                 if matches_dict(criteria, trial.variant, ignore_missing_keys)]
 
 
-def create_stats_ordered_dict(name, data, stat_prefix=None):
+def create_stats_ordered_dict(name, data, stat_prefix=None,
+                              always_show_all_stats=False):
     if stat_prefix is not None:
         name = "{} {}".format(stat_prefix, name)
     if isinstance(data, Number):
@@ -111,7 +112,8 @@ def create_stats_ordered_dict(name, data, stat_prefix=None):
             ordered_dict.update(sub_dict)
         return ordered_dict
 
-    if isinstance(data, np.ndarray) and data.size == 1:
+    if (isinstance(data, np.ndarray) and data.size == 1
+            and not always_show_all_stats):
         return OrderedDict({name: float(data)})
 
     return OrderedDict([

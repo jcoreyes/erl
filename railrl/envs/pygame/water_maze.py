@@ -54,6 +54,9 @@ class WaterMaze(Serializable, Env):
     def _step(self, velocities):
         self._t += 1
         velocities = np.clip(velocities, a_min=-1, a_max=1)
+        distance_to_target = np.linalg.norm(
+            self._target_position - self._position
+        )
         self._position += velocities
         self._position = np.clip(
             self._position,
@@ -67,6 +70,7 @@ class WaterMaze(Serializable, Env):
         info = {
             'radius': self.TARGET_RADIUS,
             'target_position': self._target_position,
+            'distance_to_target': distance_to_target,
         }
         return observation, reward, done, info
 

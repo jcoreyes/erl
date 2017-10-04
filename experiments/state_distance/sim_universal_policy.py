@@ -15,7 +15,7 @@ if __name__ == "__main__":
                         help='path to the snapshot file')
     parser.add_argument('--H', type=int, default=100,
                         help='Max length of rollout')
-    parser.add_argument('--num_rollouts', type=int, default=5,
+    parser.add_argument('--num_rollouts', type=int, default=1,
                         help='Number of rollout per eval')
     parser.add_argument('--verbose', action='store_true')
     parser.add_argument('--discount', type=float,
@@ -28,16 +28,14 @@ if __name__ == "__main__":
 
     data = joblib.load(args.file)
     env = data['env']
-    qf = data['qf']
-    if args.gpu:
-        ptu.set_gpu_mode(True)
-        qf.cuda()
-    qf.train(False)
-
     num_samples = 1000
     resolution = 10
     policy = data['policy']
     policy.train(False)
+
+    if args.gpu:
+        ptu.set_gpu_mode(True)
+        policy.cuda()
 
     if 'discount' in data:
         discount = data['discount']
@@ -45,7 +43,11 @@ if __name__ == "__main__":
             print("WARNING: you are overriding the saved discount factor.")
             discount = args.discount
     else:
-        discount = args.discount
+        if args.discount is None:
+            print("Default discount to 0.")
+            discount = 0.
+        else:
+            discount = args.discount
 
     while True:
         paths = []

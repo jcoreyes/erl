@@ -1,5 +1,6 @@
 from collections import OrderedDict
 
+import torch
 import torch.optim as optim
 from torch import nn as nn
 
@@ -62,8 +63,7 @@ class DDPG(OnlineAlgorithm):
         self.qf_optimizer = optim.Adam(
             self.qf.parameters(),
             lr=self.qf_learning_rate,
-            weight_decay=self.qf_weight_decay,
-       )
+        )
         self.policy_optimizer = optim.Adam(self.policy.parameters(),
                                            lr=self.policy_learning_rate)
         if replay_buffer is None:
@@ -141,7 +141,7 @@ class DDPG(OnlineAlgorithm):
         y_target = y_target.detach()
         y_pred = self.qf(obs, actions)
         bellman_errors = (y_pred - y_target)**2
-        qf_loss = self.qf_criterion(y_pred, y_target)
+        raw_qf_loss = self.qf_criterion(y_pred, y_target)
 
         if self.residual_gradient_weight > 0:
             residual_next_actions = self.policy(next_obs)
@@ -158,10 +158,19 @@ class DDPG(OnlineAlgorithm):
             residual_bellman_errors = (y_pred - residual_y_target)**2
             # noinspection PyUnresolvedReferences
             residual_qf_loss = residual_bellman_errors.mean()
-            qf_loss = (
+            raw_qf_loss = (
                 self.residual_gradient_weight * residual_qf_loss
-                + (1 - self.residual_gradient_weight) * qf_loss
+                + (1 - self.residual_gradient_weight) * raw_qf_loss
             )
+
+        if self.qf_weight_decay > 0:
+            reg_loss = self.qf_weight_decay * sum(
+                torch.sum(param**2)
+                for param in self.qf.regularizable_parameters()
+            )
+            qf_loss = raw_qf_loss + reg_loss
+        else:
+            qf_loss = raw_qf_loss
 
         return OrderedDict([
             ('Policy Actions', policy_actions),
@@ -170,6 +179,7 @@ class DDPG(OnlineAlgorithm):
             ('Bellman Errors', bellman_errors),
             ('Y targets', y_target),
             ('Y predictions', y_pred),
+            ('Unregularized QF Loss', raw_qf_loss),
             ('QF Loss', qf_loss),
         ])
 
@@ -211,7 +221,10 @@ class DDPG(OnlineAlgorithm):
         statistics.update(
             get_difference_statistics(
                 statistics,
-                ['QF Loss Mean', 'Policy Loss Mean'],
+                [
+                    'QF Loss Mean',
+                    'Policy Loss Mean',
+                ],
             )
         )
 
@@ -252,7 +265,7 @@ class DDPG(OnlineAlgorithm):
     def _statistics_from_batch(self, batch, stat_prefix):
         statistics = get_statistics_from_pytorch_dict(
             self.get_train_dict(batch),
-            ['QF Loss', 'Policy Loss'],
+            ['Unregularized QF Loss', 'QF Loss', 'Policy Loss'],
             ['Bellman Errors', 'QF Outputs', 'Policy Actions'],
             stat_prefix
         )

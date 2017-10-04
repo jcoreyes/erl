@@ -9,7 +9,7 @@ from railrl.envs.wrappers import convert_to_tf_env, normalize, convert_gym_space
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
-from railrl.policies.zero_policy import ZeroPolicy
+from railrl.policies.simple import ZeroPolicy
 from railrl.qfunctions.torch import FeedForwardQFunction
 
 from gym.envs.mujoco.reacher import ReacherEnv

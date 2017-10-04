@@ -1,4 +1,6 @@
 import pickle
+import time
+import torch
 from collections import OrderedDict
 
 import numpy as np
@@ -78,16 +80,18 @@ class StateDistanceQLearning(DDPG):
         self.goal_state = None
         if self.num_steps_per_tensorboard_update is not None:
             self.tb_logger = TensorboardLogger(logger.get_snapshot_dir())
+        self.start_time = time.time()
 
     def train(self, **kwargs):
+        self.start_time = time.time()
         if self.use_new_data:
             return super().train()
         else:
             num_batches_total = 0
             for epoch in range(self.num_epochs):
                 self.discount = self.epoch_discount_schedule.get_value(epoch)
+                self.training_mode(True)
                 for _ in range(self.num_steps_per_epoch):
-                    self.training_mode(True)
                     self._do_training(n_steps_total=num_batches_total)
                     num_batches_total += 1
                 logger.push_prefix('Iteration #%d | ' % epoch)
@@ -215,7 +219,10 @@ class StateDistanceQLearning(DDPG):
         statistics.update(
             get_difference_statistics(
                 statistics,
-                ['QF Loss Mean', 'Policy Loss Mean'],
+                [
+                    'QF Loss Mean',
+                    'Policy Loss Mean',
+                ],
             )
         )
 
@@ -223,6 +230,8 @@ class StateDistanceQLearning(DDPG):
 
         average_returns = get_average_returns(test_paths)
         statistics['AverageReturn'] = average_returns
+        statistics['Total Wallclock Time (s)'] = time.time() - self.start_time
+        statistics['Epoch'] = epoch
 
 
         for key, value in statistics.items():
@@ -272,7 +281,16 @@ class StateDistanceQLearning(DDPG):
         y_target = y_target.detach()
         y_pred = self.qf(obs, actions, goal_states, discount)
         bellman_errors = (y_pred - y_target) ** 2
-        qf_loss = self.qf_criterion(y_pred, y_target)
+        raw_qf_loss = self.qf_criterion(y_pred, y_target)
+
+        if self.qf_weight_decay > 0:
+            reg_loss = self.qf_weight_decay * sum(
+                torch.sum(param**2)
+                for param in self.qf.regularizable_parameters()
+            )
+            qf_loss = raw_qf_loss + reg_loss
+        else:
+            qf_loss = raw_qf_loss
 
         return OrderedDict([
             ('Policy Actions', policy_actions),
@@ -281,6 +299,7 @@ class StateDistanceQLearning(DDPG):
             ('Bellman Errors', bellman_errors),
             ('Y targets', y_target),
             ('Y predictions', y_pred),
+            ('Unregularized QF Loss', raw_qf_loss),
             ('QF Loss', qf_loss),
         ])
 
@@ -370,7 +389,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             num_steps_left_np = np.zeros((batch_size, 1))
         else:
             num_steps_left_np = np.random.randint(
-                0, self.discount, (batch_size, 1)
+                0, self.discount + 1, (batch_size, 1)
             )
         num_steps_left = ptu.np_to_var(num_steps_left_np)
         terminals_np = (num_steps_left_np == 0).astype(int)
@@ -386,7 +405,11 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
         """
         Critic operations.
         """
-        next_actions = self.target_policy(next_obs, goal_states, num_steps_left)
+        next_actions = self.target_policy(
+            next_obs,
+            goal_states,
+            num_steps_left - 1,
+        )
         target_q_values = self.target_qf(
             next_obs,
             next_actions,
@@ -402,7 +425,16 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
         y_target = y_target.detach()
         y_pred = self.qf(obs, actions, goal_states, num_steps_left)
         bellman_errors = (y_pred - y_target) ** 2
-        qf_loss = self.qf_criterion(y_pred, y_target)
+        raw_qf_loss = self.qf_criterion(y_pred, y_target)
+
+        if self.qf_weight_decay > 0:
+            reg_loss = self.qf_weight_decay * sum(
+                torch.sum(param**2)
+                for param in self.qf.regularizable_parameters()
+            )
+            qf_loss = raw_qf_loss + reg_loss
+        else:
+            qf_loss = raw_qf_loss
 
         return OrderedDict([
             ('Policy Actions', policy_actions),
@@ -411,6 +443,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             ('Bellman Errors', bellman_errors),
             ('Y targets', y_target),
             ('Y predictions', y_pred),
+            ('Unregularized QF Loss', raw_qf_loss),
             ('QF Loss', qf_loss),
         ])
 

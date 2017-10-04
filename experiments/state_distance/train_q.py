@@ -11,6 +11,7 @@ from railrl.algos.state_distance.state_distance_q_learning import (
     StateDistanceQLearning,
     HorizonFedStateDistanceQLearning)
 from railrl.algos.state_distance.util import get_replay_buffer
+from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState,
     Reacher7DofFullGoalState,
@@ -24,7 +25,7 @@ from railrl.envs.multitask.pusher import (
     ArmEEInStatePusherEnv,
     JointOnlyPusherEnv,
 )
-from railrl.envs.wrappers import convert_gym_space
+from railrl.envs.wrappers import convert_gym_space, normalize_box
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import (
@@ -33,9 +34,14 @@ from railrl.launchers.launcher_util import (
 )
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.hypopt import optimize_and_save
-from railrl.misc.ml_util import RampUpSchedule, IntRampUpSchedule
-from railrl.networks.state_distance import FFUniversalPolicy, UniversalQfunction, \
-    FlatUniversalQfunction
+from railrl.misc.ml_util import RampUpSchedule, IntRampUpSchedule, \
+    ConstantSchedule
+from railrl.networks.state_distance import (
+    FFUniversalPolicy,
+    UniversalQfunction,
+    FlatUniversalQfunction,
+    StructuredUniversalQfunction,
+)
 from railrl.policies.state_distance import TerminalRewardSampleOCPolicy
 from railrl.torch.modules import HuberLoss
 from railrl.torch.state_distance.exploration import \
@@ -45,6 +51,10 @@ from railrl.torch.state_distance.exploration import \
 def experiment(variant):
     env_class = variant['env_class']
     env = env_class(**variant['env_params'])
+    env = normalize_box(
+        env,
+        **variant['normalize_params']
+    )
     if variant['algo_params']['use_new_data']:
         replay_buffer = None
     else:
@@ -79,11 +89,14 @@ def experiment(variant):
         action_space=action_space,
         **variant['sampler_es_params']
     )
-    raw_exploration_policy = TerminalRewardSampleOCPolicy(
-        qf,
-        env,
-        5,
-    )
+    if variant['explore_with_ddpg_policy']:
+        raw_exploration_policy = policy
+    else:
+        raw_exploration_policy = TerminalRewardSampleOCPolicy(
+            qf,
+            env,
+            5,
+        )
     exploration_policy = UniversalPolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
         policy=raw_exploration_policy,
@@ -111,16 +124,14 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     n_seeds = 1
-    mode = "local_docker"
+    mode = "local"
     exp_prefix = "dev-train-q"
     run_mode = "none"
 
-    # n_seeds = 3
+    n_seeds = 3
     mode = "ec2"
-    # exp_prefix = "config-output-dir-has-local"
-    # exp_prefix = "doodad-dd-log-dir-is-expt-plus--log-dir-is-expt"
-    exp_prefix = "doodad-82fd-longer-final-check"
-    # run_mode = 'grid'
+    exp_prefix = "train-q-reacher2d-sweep-next-state-goal-prob-and-wd"
+    run_mode = 'grid'
 
     version = "Dev"
     num_configurations = 50  # for random mode
@@ -132,18 +143,15 @@ if __name__ == '__main__':
 
     dataset_path = args.replay_path
 
-    max_path_length = 10
+    max_path_length = 300
     # noinspection PyTypeChecker
     variant = dict(
         dataset_path=str(dataset_path),
         algo_params=dict(
-            num_epochs=30,
-            num_steps_per_epoch=1000,
-            num_steps_per_eval=1000,
-            # num_epochs=5,
-            # num_steps_per_epoch=100,
-            # num_steps_per_eval=100,
-            num_updates_per_env_step=1,
+            num_epochs=101,
+            num_steps_per_epoch=300,
+            num_steps_per_eval=600,
+            num_updates_per_env_step=20,
             use_soft_update=True,
             tau=0.001,
             batch_size=500,
@@ -156,26 +164,33 @@ if __name__ == '__main__':
             qf_weight_decay=0.,
             max_path_length=max_path_length,
             use_new_data=True,
-            replay_buffer_size=100000,
+            replay_buffer_size=1000000,
             prob_goal_state_is_next_state=0,
             termination_threshold=0,
-            do_tau_correctly=False,
+            do_tau_correctly=True,
             render=args.render,
+            save_replay_buffer=True,
         ),
-        qf_class=UniversalQfunction,
+        explore_with_ddpg_policy=True,
+        # qf_class=UniversalQfunction,
+        qf_class=FlatUniversalQfunction,
+        # qf_class=StructuredUniversalQfunction,
         qf_params=dict(
-            obs_hidden_size=400,
-            embed_hidden_size=300,
+            hidden_sizes=[400, 300],
+            # obs_hidden_size=400,
+            # embed_hidden_size=300,
         ),
         policy_params=dict(
             fc1_size=400,
             fc2_size=300,
         ),
-        epoch_discount_schedule_class=IntRampUpSchedule,
+        # epoch_discount_schedule_class=IntRampUpSchedule,
+        epoch_discount_schedule_class=ConstantSchedule,
         epoch_discount_schedule_params=dict(
-            min_value=0,
-            max_value=0,
-            ramp_duration=1,
+            value=0
+            # min_value=1,
+            # max_value=1,
+            # ramp_duration=1,
         ),
         algo_class=HorizonFedStateDistanceQLearning,
         # env_class=Reacher7DofFullGoalState,
@@ -183,7 +198,12 @@ if __name__ == '__main__':
         # env_class=JointOnlyPusherEnv,
         env_class=GoalStateSimpleStateReacherEnv,
         # env_class=XyMultitaskSimpleStateReacherEnv,
+        # env_class=MultitaskPoint2DEnv,
         env_params=dict(),
+        normalize_params=dict(
+            obs_mean=None,
+            obs_std=[0.7, 0.7, 0.7, 0.6, 40, 5],
+        ),
         sampler_params=dict(
             min_num_steps_to_collect=100000,
             max_path_length=max_path_length,
@@ -205,14 +225,20 @@ if __name__ == '__main__':
     )
     if run_mode == 'grid':
         search_space = {
-            'env_class': [
-                Reacher7DofFullGoalState,
-                GoalStateSimpleStateReacherEnv,
-                # ArmEEInStatePusherEnv,
-                # JointOnlyPusherEnv,
-            ],
-            # 'qf_class': [UniversalQfunction],
+            # 'env_class': [
+            #     Reacher7DofFullGoalState,
+            #     GoalStateSimpleStateReacherEnv,
+            #     # ArmEEInStatePusherEnv,
+            #     # JointOnlyPusherEnv,
+            # ],
+            # 'qf_class': [FlatUniversalQfunction, StructuredUniversalQfunction],
+            # 'epoch_discount_schedule_params.value': [0, 1, 5],
+            # 'algo_params.do_tau_correctly': [True, False],
+            'algo_params.prob_goal_state_is_next_state': [0, 0.5, 0.99],
+            # 'qf_params.dropout_prob': [0.5, 0],
+            'algo_params.qf_weight_decay': [1e-3, 1e-4, 1e-5, 0],
             # 'algo_params.sample_goals_from': ['environment', 'replay_buffer'],
+            # 'algo_params.num_steps_per_epoch': [1, 10],
             # 'algo_params.termination_threshold': [1e-4, 0]
             # 'epoch_discount_schedule_params.max_value': [100, 1000],
             # 'epoch_discount_schedule_params.ramp_duration': [
@@ -259,17 +285,29 @@ if __name__ == '__main__':
     elif run_mode == 'custom_grid':
         for exp_id, (
                 nupo,
-                min_num_steps_to_collect,
+                num_steps_per_epoch,
                 version,
         ) in enumerate([
-            (1, 100000, "semi_off_policy_nupo1_nsteps100k"),
-            (10, 100000, "semi_off_policy_nupo10_nsteps100k"),
+            # (1, 10000, "500k_env_steps"),
+            (10, 500, "50k_env_steps"),
+            (50, 100, "10k_env_steps"),
         ]):
             variant['algo_params']['num_updates_per_env_step'] = nupo
-            variant['sampler_params']['min_num_steps_to_collect'] = (
-                min_num_steps_to_collect
-            )
-            for _ in range(n_seeds):
+            variant['algo_params']['num_steps_per_epoch'] = num_steps_per_epoch
+            variant['version'] = version
+            # search_space = {
+            #     'algo_params.sample_goals_from': ['environment', 'replay_buffer'],
+            #     'explore_with_ddpg_policy': [True, False],
+            #     'normalize_params.obs_std': [
+            #         [0.7, 0.7, 0.7, 0.6, 40, 5],
+            #         None,
+            #     ],
+            # }
+            # sweeper = hyp.DeterministicHyperparameterSweeper(
+            #     search_space, default_parameters=variant.copy(),
+            # )
+            # for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+            for i in range(n_seeds):
                 seed = random.randint(0, 10000)
                 run_experiment(
                     experiment,
