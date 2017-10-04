@@ -1,14 +1,49 @@
 """
 Use a learned dynamics model to solve a task.
 """
+import os
 import argparse
-import numpy as np
+import random
 
 import joblib
 
+from railrl.algos.state_distance.state_distance_q_learning import \
+    multitask_rollout
+from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.model_based import MultistepModelBasedPolicy
-from railrl.samplers.util import rollout
 from rllab.misc import logger
+import railrl.torch.pytorch_util as ptu
+
+
+def experiment(variant):
+    num_rollouts = variant['num_rollouts']
+    H = variant['H']
+    render = variant['render']
+    data = joblib.load(variant['qf_path'])
+    model = data['model']
+    env = data['env']
+    if ptu.gpu_enabled():
+        model.cuda()
+    policy = variant['policy_class'](
+        model,
+        env,
+        **variant['policy_params']
+    )
+    paths = []
+    for _ in range(num_rollouts):
+        goal = env.sample_goal_state_for_rollout()
+        path = multitask_rollout(
+            env,
+            policy,
+            goal,
+            discount=0,
+            max_path_length=H,
+            animated=render,
+        )
+        paths.append(path)
+    env.log_diagnostics(paths)
+    logger.dump_tabular(with_timestamp=False)
+
 
 if __name__ == "__main__":
 
@@ -17,45 +52,42 @@ if __name__ == "__main__":
                         help='path to the snapshot file')
     parser.add_argument('--H', type=int, default=100,
                         help='Max length of rollout')
+    parser.add_argument('--nrolls', type=int, default=5,
+                        help='Number of rollouts to do.')
     parser.add_argument('--num_rollouts', type=int, default=1,
                         help='Number of rollouts per eval')
     parser.add_argument('--hide', action='store_true')
+    parser.add_argument('--sqp', action='store_true')
     parser.add_argument('--verbose', action='store_true')
     args = parser.parse_args()
 
-    data = joblib.load(args.file)
-    print("Done loading")
-    env = data['env']
-    model = data['model']
-    model.train(False)
-    print("Env:", env)
+    n_seeds = 1
+    mode = "local"
+    exp_prefix = "dev-use-learned-model"
+    run_mode = 'none'
+    use_gpu = True
 
-    policy = MultistepModelBasedPolicy(
-        model,
-        env,
-        sample_size=1000,
-        planning_horizon=5,
-        model_learns_deltas=True,
+    variant = dict(
+        num_rollouts=args.nrolls,
+        H=args.H,
+        render=not args.hide,
+        policy_class=MultistepModelBasedPolicy,
+        policy_params=dict(
+            model_learns_deltas=True,
+            sample_size=1000,
+            planning_horizon=5,
+        ),
+        qf_path=os.path.abspath(args.file),
     )
-    while True:
-        paths = []
-        for _ in range(args.num_rollouts):
-            goal = env.sample_goal_state_for_rollout()
-            if args.verbose:
-                env.print_goal_state_info(goal)
-            env.set_goal(goal)
-            policy.set_goal(goal)
-            path = rollout(
-                env,
-                policy,
-                max_path_length=args.H,
-                animated=not args.hide,
-            )
-            path['goal_states'] = np.repeat(
-                np.expand_dims(goal, 0),
-                len(path['observations']),
-                axis=0,
-            )
-            paths.append(path)
-        env.log_diagnostics(paths)
-        logger.dump_tabular()
+
+    for exp_id in range(n_seeds):
+        seed = random.randint(0, 999999)
+        run_experiment(
+            experiment,
+            exp_prefix=exp_prefix,
+            seed=seed,
+            mode=mode,
+            variant=variant,
+            exp_id=exp_id,
+            use_gpu=use_gpu,
+        )
