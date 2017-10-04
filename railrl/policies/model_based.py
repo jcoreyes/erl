@@ -145,7 +145,7 @@ class SQPModelBasedPolicy(UniversalPolicy, nn.Module):
         jacobian = np.zeros_like(x)
         _, all_next_states = self.split(x)
         last_state = all_next_states[-1, :]
-        # Assuming the last  `self.observation_dim` part of x is the last state
+        # Assuming the last `self.observation_dim` part of x is the last state
         jacobian[-self.observation_dim:] = (
             2 * (last_state - self._goal_np)
         )
