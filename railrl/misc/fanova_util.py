@@ -51,7 +51,7 @@ def get_fanova_info(
     Y = np.array([
         exp[ylabel][-1]
             if exp[ylabel].size > 1
-            else np.array([float(exp[ylabel])])
+            else np.array(float(exp[ylabel]), dtype=np.double)
         for exp in valid_experiment_data_list
     ])
     filtered_variants_list = remove_keys_with_nonunique_values(
