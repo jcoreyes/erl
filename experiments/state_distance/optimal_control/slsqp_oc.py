@@ -62,6 +62,7 @@ if __name__ == '__main__':
     run_mode = 'none'
     use_gpu = True
 
+    # TODO(vitchyr): Make this multistep!
     variant = dict(
         num_rollouts=args.nrolls,
         H=args.H,
@@ -71,6 +72,7 @@ if __name__ == '__main__':
             solver_params=dict(
                 disp=args.verbose,
                 maxiter=10,
+                ftol=1e-2,
             )
         ),
         qf_path=os.path.abspath(args.file),
