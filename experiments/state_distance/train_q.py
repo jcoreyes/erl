@@ -4,6 +4,7 @@ import random
 import numpy as np
 from hyperopt import hp
 from torch import nn as nn
+from torch.nn import functional as F
 
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
@@ -130,7 +131,7 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "train-me-a-good-qf-reacher2d-sample-tau-one-and-zero"
+    exp_prefix = "train-me-a-good-tanh-qf-reacher2d-sweep-prob-next-state"
     run_mode = 'grid'
 
     version = "Dev"
@@ -179,6 +180,7 @@ if __name__ == '__main__':
             hidden_sizes=[400, 300],
             # obs_hidden_size=400,
             # embed_hidden_size=300,
+            hidden_activation=F.tanh,
         ),
         policy_params=dict(
             fc1_size=400,
@@ -232,9 +234,9 @@ if __name__ == '__main__':
             #     # JointOnlyPusherEnv,
             # ],
             # 'qf_class': [FlatUniversalQfunction, StructuredUniversalQfunction],
-            'epoch_discount_schedule_params.value': [0, 1],
+            # 'epoch_discount_schedule_params.value': [0, 1],
             # 'algo_params.do_tau_correctly': [True, False],
-            # 'algo_params.prob_goal_state_is_next_state': [0, 0.5, 0.99],
+            'algo_params.prob_goal_state_is_next_state': [0.5, 0.99, 0],
             # 'qf_params.dropout_prob': [0.5, 0],
             # 'algo_params.qf_weight_decay': [1e-3, 1e-4, 1e-5, 0],
             # 'algo_params.sample_goals_from': ['environment', 'replay_buffer'],
@@ -244,6 +246,11 @@ if __name__ == '__main__':
             # 'epoch_discount_schedule_params.ramp_duration': [
             #     1, 20, 50, 200,
             # ],
+            'qf_params.hidden_activation': [
+                F.tanh,
+                F.relu,
+                F.softplus
+            ]
             # 'qf_params': [
             #     dict(
             #         obs_hidden_size=400,
