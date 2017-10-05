@@ -424,47 +424,6 @@ class PseudoModelBasedPolicy(SampleBasedUniversalPolicy, nn.Module):
         return sampled_actions[best_action, :], {}
 
 
-class BeamSearchMultistepSampler(SampleBasedUniversalPolicy, nn.Module):
-    def __init__(
-            self,
-            qf,
-            env,
-            horizon,
-            num_particles=10,
-            sample_size=100,
-    ):
-        nn.Module.__init__(self)
-        super().__init__(sample_size)
-        self.qf = qf
-        self.env = env
-        self.horizon = horizon
-        self.num_particles = num_particles
-
-    def get_action(self, obs):
-        obs = self.expand_np_to_var(obs)
-        first_sampled_actions = self.env.sample_actions(self.sample_size)
-        action = ptu.np_to_var(first_sampled_actions)
-        next_state = ptu.np_to_var(self.env.sample_states(self.sample_size))
-
-        penalties = []
-        for i in range(self.horizon):
-            q_values = self.qf(
-                state,
-                action,
-                self._goal_batch,
-                self._discount_batch,
-            )
-            penalties.append(
-                - self.constraint_weight * constraint_penalty
-            )
-
-            action = ptu.np_to_var(
-                self.env.sample_actions(self.sample_size)
-            )
-            state = next_state
-            next_state = ptu.np_to_var(self.env.sample_states(self.sample_size))
-
-
 class SdqBasedSqpOcPolicy(UniversalPolicy, nn.Module):
     """
     Implement
