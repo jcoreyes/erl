@@ -74,6 +74,8 @@ if __name__ == "__main__":
     exp_prefix = "dev-use-learned-model"
     run_mode = 'none'
     use_gpu = True
+
+    exp_prefix = "compare-learned-model-reacher2d-200rollouts"
     if args.sqp:
         policy_class = SQPModelBasedPolicy
         policy_params = dict(
