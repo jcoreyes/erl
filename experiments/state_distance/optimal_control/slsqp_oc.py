@@ -54,6 +54,10 @@ if __name__ == '__main__':
     parser.add_argument('--H', type=int, default=100, help='Horizon.')
     parser.add_argument('--verbose', action='store_true')
     parser.add_argument('--hide', action='store_true')
+    parser.add_argument('--planh', type=int, default=5,
+                        help='Planning horizon.')
+    parser.add_argument('--maxi', type=int, default=10,
+                        help='Max SLSQP steps per env step.')
     args = parser.parse_args()
 
     n_seeds = 1
@@ -71,10 +75,11 @@ if __name__ == '__main__':
         policy_params=dict(
             solver_params=dict(
                 disp=args.verbose,
-                maxiter=10,
+                maxiter=args.maxi,
                 ftol=1e-2,
+                iprint=1,
             ),
-            planning_horizon=5,
+            planning_horizon=args.planh,
         ),
         qf_path=os.path.abspath(args.file),
     )
