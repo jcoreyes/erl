@@ -109,7 +109,7 @@ class ModelLearning(object):
                 self.num_on_policy_steps_added += len(path['observations'])
                 self.replay_buffer.add_path(path)
             if self.replay_buffer.num_steps_can_sample() == 0:
-                if self.add_on_policy_data:
+                if not self.add_on_policy_data:
                     raise Exception("If you're not going to add on-policy "
                                     "data, make sure your replay buffer is "
                                     "large enough.")
