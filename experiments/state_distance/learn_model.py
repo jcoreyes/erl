@@ -68,21 +68,21 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     n_seeds = 1
-    mode = "here"
+    mode = "local"
     exp_prefix = "dev-reacher-model-learning"
     version = "Dev"
     run_mode = "none"
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "reacher-7dof-learn-model-net-ngradsteps-sweep"
-    run_mode = 'grid'
+    exp_prefix = "reacher-2d-learn-model-net-on-off-sweep-correct"
+    run_mode = 'custom_grid'
 
     num_configurations = 1  # for random mode
     snapshot_mode = "last"
     snapshot_gap = 5
     use_gpu = True
-    if mode != "here":
+    if mode != "local":
         use_gpu = False
 
     dataset_path = args.replay_path
@@ -111,8 +111,8 @@ if __name__ == '__main__':
         model_params=dict(
             hidden_sizes=[500, 500],
         ),
-        # env_class=GoalStateSimpleStateReacherEnv,
-        env_class=Reacher7DofFullGoalState,
+        env_class=GoalStateSimpleStateReacherEnv,
+        # env_class=Reacher7DofFullGoalState,
         # env_class=PusherEnv,
         # env_class=XyMultitaskSimpleStateReacherEnv,
         # env_class=MultitaskPoint2DEnv,
@@ -167,9 +167,6 @@ if __name__ == '__main__':
                     variant=variant,
                     exp_id=exp_id,
                     use_gpu=use_gpu,
-                    sync_s3_log=True,
-                    sync_s3_pkl=True,
-                    periodic_sync_interval=300,
                     snapshot_mode=snapshot_mode,
                     snapshot_gap=snapshot_gap,
                 )
@@ -184,12 +181,13 @@ if __name__ == '__main__':
             (True, 50000, 50000),
             (True, 90000, 10000),
             (True, 10000, 10000),
+            (True, 10000, 0),
         ]):
-            variant['algo_params.add_on_policy_data'] = add_on_policy_data
-            variant['algo_params.max_num_on_policy_steps_to_add'] = (
+            variant['algo_params']['add_on_policy_data'] = add_on_policy_data
+            variant['algo_params']['max_num_on_policy_steps_to_add'] = (
                 on_policy_num_steps
             )
-            variant['sampler_params.min_num_steps_to_collect'] = (
+            variant['sampler_params']['min_num_steps_to_collect'] = (
                 off_policy_num_steps
             )
             variant['version'] = "off{}k_on{}k".format(
@@ -206,9 +204,6 @@ if __name__ == '__main__':
                     variant=variant,
                     exp_id=exp_id,
                     use_gpu=use_gpu,
-                    sync_s3_log=True,
-                    sync_s3_pkl=True,
-                    periodic_sync_interval=300,
                     snapshot_mode=snapshot_mode,
                     snapshot_gap=snapshot_gap,
                 )
@@ -223,9 +218,6 @@ if __name__ == '__main__':
                 variant=variant,
                 exp_id=0,
                 use_gpu=use_gpu,
-                sync_s3_log=True,
-                sync_s3_pkl=True,
-                periodic_sync_interval=300,
                 snapshot_mode=snapshot_mode,
                 snapshot_gap=snapshot_gap,
             )
