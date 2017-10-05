@@ -130,7 +130,7 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "train-q-reacher2d-sweep-next-state-goal-prob-and-wd"
+    exp_prefix = "train-me-a-good-qf-reacher2d-sample-tau-one-and-zero"
     run_mode = 'grid'
 
     version = "Dev"
@@ -151,7 +151,7 @@ if __name__ == '__main__':
             num_epochs=101,
             num_steps_per_epoch=300,
             num_steps_per_eval=600,
-            num_updates_per_env_step=20,
+            num_updates_per_env_step=50,
             use_soft_update=True,
             tau=0.001,
             batch_size=500,
@@ -160,7 +160,7 @@ if __name__ == '__main__':
             policy_learning_rate=1e-4,
             sample_goals_from='environment',
             # sample_goals_from='replay_buffer',
-            sample_discount=False,
+            sample_discount=True,
             qf_weight_decay=0.,
             max_path_length=max_path_length,
             use_new_data=True,
@@ -232,11 +232,11 @@ if __name__ == '__main__':
             #     # JointOnlyPusherEnv,
             # ],
             # 'qf_class': [FlatUniversalQfunction, StructuredUniversalQfunction],
-            # 'epoch_discount_schedule_params.value': [0, 1, 5],
+            'epoch_discount_schedule_params.value': [0, 1],
             # 'algo_params.do_tau_correctly': [True, False],
-            'algo_params.prob_goal_state_is_next_state': [0, 0.5, 0.99],
+            # 'algo_params.prob_goal_state_is_next_state': [0, 0.5, 0.99],
             # 'qf_params.dropout_prob': [0.5, 0],
-            'algo_params.qf_weight_decay': [1e-3, 1e-4, 1e-5, 0],
+            # 'algo_params.qf_weight_decay': [1e-3, 1e-4, 1e-5, 0],
             # 'algo_params.sample_goals_from': ['environment', 'replay_buffer'],
             # 'algo_params.num_steps_per_epoch': [1, 10],
             # 'algo_params.termination_threshold': [1e-4, 0]
@@ -288,7 +288,7 @@ if __name__ == '__main__':
                 num_steps_per_epoch,
                 version,
         ) in enumerate([
-            # (1, 10000, "500k_env_steps"),
+            (1, 10000, "500k_env_steps"),
             (10, 500, "50k_env_steps"),
             (50, 100, "10k_env_steps"),
         ]):
