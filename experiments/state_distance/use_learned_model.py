@@ -83,6 +83,8 @@ if __name__ == "__main__":
             solver_params=dict(
                 disp=args.verbose,
                 maxiter=args.maxi,
+                ftol=1e-2,
+                iprint=1,
             ),
             planning_horizon=args.planh,
         )
