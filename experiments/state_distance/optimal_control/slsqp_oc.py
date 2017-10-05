@@ -9,7 +9,7 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.state_distance import (
     ArgmaxQFPolicy,
     PseudoModelBasedPolicy,
-    ConstrainedOptimizationOCPolicy,
+    SdqBasedSqpOcPolicy,
 )
 from rllab.misc import logger
 import railrl.torch.pytorch_util as ptu
@@ -67,13 +67,14 @@ if __name__ == '__main__':
         num_rollouts=args.nrolls,
         H=args.H,
         render=not args.hide,
-        policy_class=ConstrainedOptimizationOCPolicy,
+        policy_class=SdqBasedSqpOcPolicy,
         policy_params=dict(
             solver_params=dict(
                 disp=args.verbose,
                 maxiter=10,
                 ftol=1e-2,
-            )
+            ),
+            planning_horizon=5,
         ),
         qf_path=os.path.abspath(args.file),
     )
