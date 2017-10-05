@@ -98,9 +98,7 @@ class SQPModelBasedPolicy(UniversalPolicy, nn.Module):
 
         self.action_dim = self.env.action_space.low.size
         self.observation_dim = self.env.observation_space.low.size
-        self.last_solution = np.zeros(
-            (self.action_dim + self.observation_dim) * self.planning_horizon
-        )
+        self.last_solution = None
         self.lower_bounds = np.hstack((
             np.tile(self.env.action_space.low, self.planning_horizon),
             np.tile(self.env.observation_space.low, self.planning_horizon),
@@ -201,9 +199,14 @@ class SQPModelBasedPolicy(UniversalPolicy, nn.Module):
         return ptu.get_numpy(x.grad)
 
     def reset(self):
-        self.last_solution = np.zeros(self.action_dim + self.observation_dim)
+        self.last_solution = None
 
     def get_action(self, obs):
+        if self.last_solution is None:
+            self.last_solution = np.hstack((
+                np.zeros(self.action_dim * self.planning_horizon),
+                np.tile(obs, self.planning_horizon),
+            ))
         self.constraints['args'] = (obs, )
         result = optimize.minimize(
             self.cost_function,
