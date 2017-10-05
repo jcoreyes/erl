@@ -13,7 +13,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('file', type=str,
                         help='path to the snapshot file')
-    parser.add_argument('--H', type=int, default=100,
+    parser.add_argument('--H', type=int, default=300,
                         help='Max length of rollout')
     parser.add_argument('--num_rollouts', type=int, default=1,
                         help='Number of rollout per eval')
