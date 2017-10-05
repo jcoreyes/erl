@@ -1,10 +1,9 @@
 """
 General purpose Python functions.
 
-TODO(vpong): probably move this to its own module, not under railrl
+TODO(vitchyr): probably move this to its own module, not under railrl
 """
 import math
-import random
 import sys
 import collections
 import itertools
@@ -29,17 +28,6 @@ def is_numeric(x):
     return not isinstance(x, bool) and (
         isinstance(x, int) or isinstance(x, float)
     )
-
-
-def are_values_close(value, target, epsilon=1e-3):
-    return abs(value - target) <= epsilon
-
-
-def sample_with_replacement(iterable, num_samples):
-    return [random.choice(iterable) for _ in range(num_samples)]
-
-
-# TODO(vpong): test this
 
 
 """
@@ -124,6 +112,21 @@ def merge_recursive_dicts(a, b, path=None,
 
 
 def dict_of_list__to__list_of_dicts(dict, n_items):
+    """
+    ```
+    x = {'foo': [3, 4, 5], 'bar': [1, 2, 3]}
+    ppp.dict_of_list__to__list_of_dicts(x, 3)
+    # Output:
+    # [
+    #     {'foo': 3, 'bar': 1},
+    #     {'foo': 4, 'bar': 2},
+    #     {'foo': 5, 'bar': 3},
+    # ]
+    ```
+    :param dict:
+    :param n_items:
+    :return:
+    """
     new_dicts = [{} for _ in range(n_items)]
     for key, values in dict.items():
         for i in range(n_items):
@@ -144,6 +147,11 @@ def safe_json(data):
 
 
 def dict_to_safe_json(d):
+    """
+    Convert each value in the dictionary into a JSON'able primitive.
+    :param d:
+    :return:
+    """
     new_d = {}
     for key, item in d.items():
         if safe_json(item):
@@ -154,6 +162,35 @@ def dict_to_safe_json(d):
             else:
                 new_d[key] = str(item)
     return new_d
+
+
+def recursive_items(dictionary):
+    """
+    Get all (key, item) recursively in a potentially recursive dictionary.
+    Usage:
+
+    ```
+    x = {
+        'foo' : {
+            'bar' : 5
+        }
+    }
+    recursive_items(x)
+    # output:
+    # ('foo', {'bar' : 5})
+    # ('bar', 5)
+    ```
+    :param dictionary:
+    :return:
+    """
+    for key, value in dictionary.items():
+        yield key, value
+        if type(value) is dict:
+            yield from recursive_items(value)
+
+
+# TODO(vitchyr): test methods/classes below
+
 
 """
 Itertools++

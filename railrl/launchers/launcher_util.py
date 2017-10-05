@@ -15,6 +15,7 @@ import dateutil.tz
 import numpy as np
 import tensorflow as tf
 
+import railrl.pythonplusplus as ppp
 from railrl.envs.env_utils import gym_env
 from railrl.envs.memory.continuous_memory_augmented import (
     ContinuousMemoryAugmented
@@ -25,7 +26,6 @@ from railrl.envs.memory.one_char_memory import (
     OneCharMemoryOutputRewardMag,
 )
 from railrl.launchers import config
-from railrl.pythonplusplus import dict_to_safe_json
 from railrl.torch.pytorch_util import set_gpu_mode
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.envs.mujoco.ant_env import AntEnv
@@ -174,6 +174,14 @@ def run_experiment(
         seed = random.randint(0, 100000)
     if variant is None:
         variant = {}
+    for key, value in ppp.recursive_items(variant):
+        # This check isn't really necessary, but it's to prevent myself from
+        # forgetting to pass a variant through dot_map_dict_to_nested_dict.
+        if "." in key:
+            raise Exception(
+                "Variants should not have periods in keys. Did you mean to "
+                "convert {} into a nested dictionary?".format(key)
+            )
     if unique_id is None:
         unique_id = str(uuid.uuid4())
     if prepend_date_to_exp_prefix:
@@ -182,7 +190,7 @@ def run_experiment(
     variant['exp_id'] = str(exp_id)
     variant['unique_id'] = str(unique_id)
     logger.log("Variant:")
-    logger.log(json.dumps(dict_to_safe_json(variant), indent=2))
+    logger.log(json.dumps(ppp.dict_to_safe_json(variant), indent=2))
 
     mode_str_to_doodad_mode = {
         'local': doodad.mode.Local(),
@@ -345,7 +353,7 @@ def run_experiment_old(
     variant['exp_id'] = str(exp_id)
     variant['unique_id'] = str(unique_id)
     logger.log("Variant:")
-    logger.log(json.dumps(dict_to_safe_json(variant), indent=2))
+    logger.log(json.dumps(ppp.dict_to_safe_json(variant), indent=2))
     command_words = []
     if time_it:
         command_words.append('time')
