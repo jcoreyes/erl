@@ -58,14 +58,14 @@ if __name__ == "__main__":
     mode = 'local'
 
     n_seeds = 3
-    exp_prefix = "optimize-target-policy-different-envs-sweep"
+    exp_prefix = "optimize-target-policy-different-envs-sweep-3"
     mode = 'ec2'
 
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
             num_epochs=100,
-            num_steps_per_epoch=1000,
+            num_steps_per_epoch=10000,
             num_steps_per_eval=1000,
             use_soft_update=True,
             tau=1e-2,
