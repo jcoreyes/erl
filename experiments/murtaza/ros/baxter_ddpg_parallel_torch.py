@@ -1,6 +1,6 @@
 import sys
 from railrl.envs.remote import RemoteRolloutEnv
-from railrl.envs.ros.sawyer_env import SawyerEnv
+from railrl.envs.ros.baxter_env import BaxterEnv
 from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import continue_experiment
@@ -37,8 +37,8 @@ def example(variant):
     policy_params = dict(
         obs_dim=int(obs_space.flat_dim),
         action_dim=int(action_space.flat_dim),
-        hidden_size=100,
-        use_batchnorm=False,
+        fc1_size=100,
+        fc2_size=100,
     )
     policy = policy_class(**policy_params)
     exploration_policy = PolicyWrappedWithExplorationStrategy(
@@ -61,6 +61,7 @@ def example(variant):
     )
     if use_gpu and ptu.gpu_enabled():
         algorithm.cuda()
+    import ipdb; ipdb.set_trace()
     algorithm.train()
 
 experiments=[
@@ -83,7 +84,7 @@ if __name__ == "__main__":
     else:
         run_experiment(
             example,
-            exp_prefix="ddpg-parallel-sawyer-fixed-end-effector-10-seeds",
+            exp_prefix="ddpg-parallel-baxter-fixed-end-effector-10-seeds",
             seed=random.randint(0, 666),
             mode='here',
             variant={
@@ -91,7 +92,7 @@ if __name__ == "__main__":
                 'max_path_length': max_path_length,
                 'use_gpu': True,
                 'es_class': OUStrategy,
-                'env_class': SawyerEnv,
+                'env_class': BaxterEnv,
                 'policy_class': FeedForwardPolicy,
                 'normalize_env': False,
                 'env_params': {

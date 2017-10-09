@@ -4,6 +4,8 @@ Experiment with NAF.
 import railrl.torch.pytorch_util as ptu
 from railrl.envs.remote import RemoteRolloutEnv
 from railrl.envs.wrappers import convert_gym_space
+from railrl.exploration_strategies.base import \
+    PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.algos.parallel_naf import ParallelNAF
@@ -34,20 +36,21 @@ def example(variant):
     )
     es = es_class(**es_params)
     policy = policy_class(**policy_params)
+    exploration_policy = PolicyWrappedWithExplorationStrategy(
+        exploration_strategy=es,
+        policy=policy,
+    )
     remote_env = RemoteRolloutEnv(
-        env_class,
-        env_params,
-        policy_class,
-        policy_params,
-        es_class,
-        es_params,
+        env,
+        policy,
+        exploration_policy,
         variant['max_path_length'],
         variant['normalize_env'],
     )
     algorithm = ParallelNAF(
         remote_env,
-        naf_policy=policy,
-        exploration_strategy=es,
+        policy=policy,
+        exploration_policy=exploration_policy,
         **variant['algo_params']
     )
     if ptu.gpu_enabled():

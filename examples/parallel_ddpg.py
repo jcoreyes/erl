@@ -3,6 +3,8 @@ Run DDPG where the training happens in parallel of the environment.
 """
 from railrl.envs.remote import RemoteRolloutEnv
 from railrl.envs.wrappers import convert_gym_space
+from railrl.exploration_strategies.base import \
+    PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
@@ -10,8 +12,9 @@ from railrl.qfunctions.torch import FeedForwardQFunction
 from railrl.torch.algos.parallel_ddpg import ParallelDDPG
 import railrl.torch.pytorch_util as ptu
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
-from rllab.envs.mujoco.inverted_double_pendulum_env import \
+from rllab.envs.mujoco.inverted_double_pendulum_env import (
     InvertedDoublePendulumEnv
+)
 from rllab.envs.normalized_env import normalize
 
 
@@ -43,21 +46,22 @@ def example(variant):
     )
     es = es_class(**es_params)
     policy = policy_class(**policy_params)
+    exploration_policy = PolicyWrappedWithExplorationStrategy(
+        exploration_strategy=es,
+        policy=policy,
+    )
     remote_env = RemoteRolloutEnv(
-        env_class,
-        env_params,
-        policy_class,
-        policy_params,
-        es_class,
-        es_params,
+        env,
+        policy,
+        exploration_policy,
         variant['max_path_length'],
         variant['normalize_env'],
     )
     algorithm = ParallelDDPG(
         remote_env,
-        exploration_strategy=es,
         qf=qf,
         policy=policy,
+        exploration_policy=exploration_policy,
         **variant['algo_params']
     )
     if ptu.gpu_enabled():

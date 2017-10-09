@@ -1,13 +1,18 @@
 import pickle
-from collections import OrderedDict, Iterable
+from collections import OrderedDict
 
 import numpy as np
 
 import railrl.torch.pytorch_util as ptu
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc.rllab_util import get_average_returns
-from railrl.torch.ddpg import DDPG, np_to_pytorch_batch
+from railrl.policies.state_distance import UniversalPolicy
+from railrl.samplers.util import rollout
+from railrl.torch.ddpg import DDPG
+from railrl.torch.algos.util import np_to_pytorch_batch
+from railrl.torch.algos.eval import get_difference_statistics
 from railrl.misc.tensorboard_logger import TensorboardLogger
+from railrl.torch.state_distance.exploration import UniversalExplorationPolicy
 from rllab.misc import logger
 
 
@@ -17,6 +22,7 @@ class StateDistanceQLearning(DDPG):
             env: MultitaskEnv,
             qf,
             policy,
+            exploration_policy: UniversalExplorationPolicy = None,
             replay_buffer=None,
             num_epochs=100,
             num_steps_per_epoch=100,
@@ -25,7 +31,6 @@ class StateDistanceQLearning(DDPG):
             num_steps_per_eval=1000,
             max_path_length=1000,
             discount=0.99,
-            exploration_strategy=None,
             use_new_data=False,
             num_updates_per_env_step=1,
             num_steps_per_tensorboard_update=None,
@@ -49,7 +54,7 @@ class StateDistanceQLearning(DDPG):
             env,
             qf,
             policy,
-            exploration_strategy=exploration_strategy,
+            exploration_policy=exploration_policy,
             eval_sampler=eval_sampler,
             num_steps_per_eval=num_steps_per_eval,
             discount=discount,
@@ -74,7 +79,7 @@ class StateDistanceQLearning(DDPG):
         if self.num_steps_per_tensorboard_update is not None:
             self.tb_logger = TensorboardLogger(logger.get_snapshot_dir())
 
-    def train(self):
+    def train(self, **kwargs):
         if self.use_new_data:
             return super().train()
         else:
@@ -123,18 +128,12 @@ class StateDistanceQLearning(DDPG):
                     )
 
     def reset_env(self):
-        self.exploration_strategy.reset()
         self.exploration_policy.reset()
         self.goal_state = self.sample_goal_state_for_rollout()
         self.training_env.set_goal(self.goal_state)
+        self.exploration_policy.set_goal(self.goal_state)
+        self.exploration_policy.set_discount(self.discount)
         return self.training_env.reset()
-
-    def get_action_and_info(self, n_steps_total, observation):
-        return self.exploration_strategy.get_action(
-            n_steps_total,
-            (observation, self.goal_state, self.discount),
-            self.exploration_policy,
-        )
 
     def get_batch(self, training=True):
         replay_buffer = self.replay_buffer.get_replay_buffer(training)
@@ -202,42 +201,34 @@ class StateDistanceQLearning(DDPG):
         :param epoch: The epoch number.
         :param exploration_paths: List of dicts, each representing a path.
         """
+        logger.log("Collecting samples for evaluation")
         statistics = OrderedDict()
         train_batch = self.get_batch(training=True)
-        statistics.update(self._statistics_from_batch(train_batch, "Train"))
         validation_batch = self.get_batch(training=False)
+        test_paths = self._sample_eval_paths(epoch)
+
+        statistics.update(self._statistics_from_batch(train_batch, "Train"))
         statistics.update(
             self._statistics_from_batch(validation_batch, "Validation")
+        )
+        statistics.update(self._statistics_from_paths(test_paths, "Test"))
+        statistics.update(
+            get_difference_statistics(
+                statistics,
+                ['QF Loss Mean', 'Policy Loss Mean'],
+            )
         )
 
         statistics['Discount Factor'] = self.discount
 
-        paths = self._sample_eval_paths(epoch)
-        statistics.update(self._statistics_from_paths(paths, "Test"))
-        average_returns = get_average_returns(paths)
+        average_returns = get_average_returns(test_paths)
         statistics['AverageReturn'] = average_returns
 
-        statistics['QF Loss Mean Validation - Train Gap'] = (
-            statistics['Validation QF Loss Mean']
-            - statistics['Train QF Loss Mean']
-        )
-        statistics['QF Loss Mean Test - Validation Gap'] = (
-            statistics['Test QF Loss Mean']
-            - statistics['Validation QF Loss Mean']
-        )
-        statistics['Policy Loss Mean Validation - Train Gap'] = (
-            statistics['Validation Policy Loss Mean']
-            - statistics['Train Policy Loss Mean']
-        )
-        statistics['Policy Loss Mean Test - Validation Gap'] = (
-            statistics['Test Policy Loss Mean']
-            - statistics['Validation Policy Loss Mean']
-        )
 
         for key, value in statistics.items():
             logger.record_tabular(key, value)
 
-        self.log_diagnostics(paths)
+        self.log_diagnostics(test_paths)
 
     def _sample_eval_paths(self, epoch):
         self.eval_sampler.set_discount(self.discount)
@@ -280,7 +271,7 @@ class StateDistanceQLearning(DDPG):
         # noinspection PyUnresolvedReferences
         y_target = y_target.detach()
         y_pred = self.qf(obs, actions, goal_states, discount)
-        bellman_errors = (y_pred - y_target)**2
+        bellman_errors = (y_pred - y_target) ** 2
         qf_loss = self.qf_criterion(y_pred, y_target)
 
         return OrderedDict([
@@ -311,11 +302,62 @@ class StateDistanceQLearning(DDPG):
             data_to_save['replay_buffer'] = self.replay_buffer
         return data_to_save
 
+    @staticmethod
+    def paths_to_batch(paths):
+        rewards = [path["rewards"].reshape(-1, 1) for path in paths]
+        terminals = [path["terminals"].reshape(-1, 1) for path in paths]
+        actions = [path["actions"] for path in paths]
+        obs = [path["observations"] for path in paths]
+        goal_states = [path["goal_states"] for path in paths]
+        next_obs = []
+        for path in paths:
+            next_obs_i = np.vstack((
+                path["observations"][1:, :],
+                path["final_observation"],
+            ))
+            next_obs.append(next_obs_i)
+        np_batch = dict(
+            rewards=np.vstack(rewards),
+            terminals=np.vstack(terminals),
+            observations=np.vstack(obs),
+            actions=np.vstack(actions),
+            next_observations=np.vstack(next_obs),
+            goal_states=np.vstack(goal_states),
+        )
+        return np_to_pytorch_batch(np_batch)
+
 
 class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
     """
     Hacky solution: just use discount in place of max_num_steps_left.
     """
+
+    def __init__(
+            self,
+            env: MultitaskEnv,
+            qf,
+            policy,
+            exploration_policy: UniversalExplorationPolicy = None,
+            do_tau_correctly=True,
+            **kwargs
+    ):
+        """
+        I'm reusing discount as tau. Don't feel like renaming everything.
+
+        :param do_tau_correctly:  The correct interpretation of tau is
+        "how far you are from the goal state after tau steps."
+        The wrong version just uses tau as a timer.
+        :param kwargs:
+        """
+        super().__init__(
+            env,
+            qf,
+            policy,
+            exploration_policy,
+            **kwargs
+        )
+        self.do_tau_correctly = do_tau_correctly
+
     def get_train_dict(self, batch):
         rewards = batch['rewards']
         obs = batch['observations']
@@ -324,11 +366,14 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
         goal_states = batch['goal_states']
 
         batch_size = obs.size()[0]
-        num_steps_left_np = np.random.randint(
-            1, self.discount+1, (batch_size, 1)
-        )
+        if self.discount == 0:
+            num_steps_left_np = np.zeros((batch_size, 1))
+        else:
+            num_steps_left_np = np.random.randint(
+                0, self.discount, (batch_size, 1)
+            )
         num_steps_left = ptu.np_to_var(num_steps_left_np)
-        terminals_np = (num_steps_left_np == 1).astype(int)
+        terminals_np = (num_steps_left_np == 0).astype(int)
         terminals = ptu.np_to_var(terminals_np)
 
         """
@@ -348,12 +393,15 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             goal_states,
             num_steps_left - 1,  # Important! Else QF will (probably) blow up
         )
-        y_target = rewards + (1. - terminals) * target_q_values
+        if self.do_tau_correctly:
+            y_target = terminals * rewards + (1. - terminals) * target_q_values
+        else:
+            y_target = rewards + (1. - terminals) * target_q_values
 
         # noinspection PyUnresolvedReferences
         y_target = y_target.detach()
         y_pred = self.qf(obs, actions, goal_states, num_steps_left)
-        bellman_errors = (y_pred - y_target)**2
+        bellman_errors = (y_pred - y_target) ** 2
         qf_loss = self.qf_criterion(y_pred, y_target)
 
         return OrderedDict([
@@ -420,51 +468,24 @@ def expand_goal(goal, path_length):
 
 
 def multitask_rollout(
-        env, agent, goal, discount,
+        env,
+        agent: UniversalPolicy,
+        goal,
+        discount,
         max_path_length=np.inf,
         animated=False,
-        combine_goal_and_obs=False,
 ):
-    observations = []
-    actions = []
-    rewards = []
-    terminals = []
-    agent_infos = []
-    env_infos = []
     env.set_goal(goal)
-    o = env.reset()
-    path_length = 0
-    if animated:
-        env.render()
-    while path_length < max_path_length:
-        if combine_goal_and_obs:
-            a, agent_info = agent.get_action(np.hstack((o, goal)))
-        else:
-            a, agent_info = agent.get_action(o, goal, discount)
-        next_o, r, d, env_info = env.step(a)
-        observations.append(o)
-        rewards.append(r)
-        terminals.append(d)
-        actions.append(a)
-        agent_infos.append(agent_info)
-        env_infos.append(env_info)
-        path_length += 1
-        if d:
-            break
-        o = next_o
-        if animated:
-            env.render()
-
+    agent.set_goal(goal)
+    agent.set_discount(discount)
+    path = rollout(
+        env,
+        agent,
+        max_path_length=max_path_length,
+        animated=animated,
+    )
     goal_expanded = np.expand_dims(goal, axis=0)
     # goal_expanded.shape == 1 x goal_dim
-    goal_states = goal_expanded.repeat(len(observations), 0)
+    path['goal_states'] = goal_expanded.repeat(len(path['observations']), 0)
     # goal_states.shape == path_length x goal_dim
-    return dict(
-        observations=np.array(observations),
-        actions=np.array(actions),
-        rewards=np.array(rewards),
-        terminals=np.array(terminals),
-        agent_infos=np.array(agent_infos),
-        env_infos=np.array(env_infos),
-        goal_states=goal_states,
-    )
+    return path

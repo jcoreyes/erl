@@ -6,7 +6,8 @@ from railrl.misc.rllab_util import (
     save_extra_data_to_snapshot_dir,
     get_table_key_set,
 )
-from railrl.torch.ddpg import DDPG, get_generic_path_information
+from railrl.torch.ddpg import DDPG
+from railrl.torch.algos.eval import get_generic_path_information
 from rllab.misc import logger
 
 

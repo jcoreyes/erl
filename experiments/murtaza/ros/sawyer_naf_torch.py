@@ -7,8 +7,7 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.algos.parallel_naf import ParallelNAF
 from railrl.torch.naf import NAF, NafPolicy
 from railrl.torch import pytorch_util as ptu
-from os.path import exists
-import joblib
+from railrl.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
 from railrl.envs.ros.sawyer_env import SawyerEnv
 from railrl.torch import pytorch_util as ptu
 import random
@@ -17,7 +16,6 @@ import itertools
 def example(variant):
     env_class = variant['env_class']
     env_params = variant['env_params']
-    use_batch_norm=variant['use_batch_norm']
     env = env_class(**env_params)
     obs_space = convert_gym_space(env.observation_space)
     action_space = convert_gym_space(env.action_space)
@@ -33,26 +31,27 @@ def example(variant):
         obs_dim=int(obs_space.flat_dim),
         action_dim=int(action_space.flat_dim),
         hidden_size=100,
-        use_batchnorm=use_batch_norm
+        use_batchnorm=False,
     )
-    naf_policy = NafPolicy(**policy_params)
+    policy = policy_class(**policy_params)
+    exploration_policy = PolicyWrappedWithExplorationStrategy(
+        exploration_strategy=es,
+        policy=policy,
+    )
     remote_env = RemoteRolloutEnv(
-            env_class,
-            env_params,
-            policy_class,
-            policy_params,
-            es_class,
-            es_params,
-            variant['max_path_length'],
-            variant['normalize_env'],
+        env,
+        policy,
+        exploration_policy,
+        variant['max_path_length'],
+        variant['normalize_env'],
     )
     algorithm = ParallelNAF(
         remote_env,
-        naf_policy=naf_policy,
-        exploration_strategy=es,
-        **variant['algo_params']
+        policy=policy,
+        exploration_policy=exploration_policy,
+        **variant['algo_params'],
     )
-    if use_gpu and ptu.gpu_enabled():
+    if ptu.gpu_enabled() and use_gpu:
         algorithm.cuda()
     algorithm.train()
 
@@ -71,47 +70,6 @@ cart_prod = list(itertools.product(learning_rates, use_batch_norm))
 
 if __name__ == "__main__":
     ray.init()
-    # for i in range(1, len(cart_prod)):
-    #     run_experiment(
-    #         example,
-    #         exp_prefix="naf-parallel-sawyer-fixed-end-effector-hyper-param-search",
-    #         seed=random.randint(0, 666),
-    #         mode='here',
-    #         variant={
-    #             'version': 'Original',
-    #             'max_path_length': max_path_length,
-    #             'use_gpu': True,
-    #             'es_class': OUStrategy,
-    #             'env_class': SawyerEnv,
-    #             'policy_class': NafPolicy,
-    #             'normalize_env': False,
-    #             'use_batch_norm':cart_prod[i][1],
-    #             'env_params': {
-    #                 'arm_name': 'right',
-    #                 'safety_box': True,
-    #                 'loss': 'huber',
-    #                 'huber_delta': 10,
-    #                 'safety_force_magnitude': 5,
-    #                 'temp': 1,
-    #                 'remove_action': False,
-    #                 'experiment': experiments[2],
-    #                 'reward_magnitude': 10,
-    #             },
-    #             'es_params': {
-    #                 'max_sigma': .5,
-    #                 'min_sigma': .5,
-    #             },
-    #             'algo_params': dict(
-    #                 batch_size=64,
-    #                 num_epochs=30,
-    #                 num_steps_per_epoch=1000,
-    #                 max_path_length=max_path_length,
-    #                 num_steps_per_eval=300,
-    #                 naf_policy_learning_rate=cart_prod[i][0],
-    #             ),
-    #         },
-    #         use_gpu=True,
-    #     )
     for i in range(0, 3):
         run_experiment(
             example,
@@ -148,7 +106,6 @@ if __name__ == "__main__":
                     num_steps_per_epoch=1000,
                     max_path_length=max_path_length,
                     num_steps_per_eval=300,
-                    naf_policy_learning_rate=0.001,
                 ),
             },
             use_gpu=True,

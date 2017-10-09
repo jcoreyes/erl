@@ -3,14 +3,12 @@ from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.algos.parallel_naf import ParallelNAF
-from railrl.torch.naf import NAF, NafPolicy
+from railrl.torch.naf import NafPolicy
+from railrl.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
 from railrl.torch import pytorch_util as ptu
-from os.path import exists
-import joblib
 from railrl.envs.ros.baxter_env import BaxterEnv
 from railrl.torch import pytorch_util as ptu
 import random
-import ray
 def example(variant):
     env_class = variant['env_class']
     env_params = variant['env_params']
@@ -31,21 +29,22 @@ def example(variant):
         hidden_size=100,
         use_batchnorm=False,
     )
-    naf_policy = NafPolicy(**policy_params)
+    policy = policy_class(**policy_params)
+    exploration_policy = PolicyWrappedWithExplorationStrategy(
+        exploration_strategy=es,
+        policy=policy,
+    )
     remote_env = RemoteRolloutEnv(
-            env_class,
-            env_params,
-            policy_class,
-            policy_params,
-            es_class,
-            es_params,
-            variant['max_path_length'],
-            variant['normalize_env'],
+        env,
+        policy,
+        exploration_policy,
+        variant['max_path_length'],
+        variant['normalize_env'],
     )
     algorithm = ParallelNAF(
         remote_env,
-        naf_policy=naf_policy,
-        exploration_strategy=es,
+        policy=policy,
+        exploration_policy=exploration_policy,
         **variant['algo_params'],
     )
     if use_gpu and ptu.gpu_enabled():
@@ -66,7 +65,6 @@ learning_rates=[1e-3, 5e-3, 1e-4]
 use_batch_norm=[True,False]
 cart_prod = list(itertools.product(learning_rates, use_batch_norm))
 if __name__ == "__main__":
-    ray.init()
     for _ in range(5):
         for i in range(3):
             run_experiment(
@@ -98,11 +96,10 @@ if __name__ == "__main__":
                     'algo_params': dict(
                         batch_size=64,
                         num_epochs=30,
-                        num_steps_per_epoch=1000, # can you lower this if it keeps crashing?
+                        num_steps_per_epoch=300,
                         target_hard_update_period=10000,
                         max_path_length=max_path_length,
-                        num_steps_per_eval=100, # maybe lower this too.
-                        naf_policy_learning_rate=1e-3,
+                        num_steps_per_eval=100,
                     ),
                 },
                 use_gpu=True,

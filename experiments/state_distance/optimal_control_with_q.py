@@ -12,7 +12,7 @@ import joblib
 import numpy as np
 
 from railrl.policies.state_distance import SampleOptimalControlPolicy, \
-    MultiStepSampleOptimalControlPolicy
+    TerminalRewardSampleOCPolicy
 from railrl.samplers.util import rollout
 from railrl.torch.pytorch_util import set_gpu_mode
 from rllab.misc import logger
@@ -57,7 +57,7 @@ if __name__ == "__main__":
             verbose=args.verbose,
         )
     else:
-        policy = MultiStepSampleOptimalControlPolicy(
+        policy = TerminalRewardSampleOCPolicy(
             qf,
             env,
             horizon=args.plan_h,
@@ -66,19 +66,16 @@ if __name__ == "__main__":
             verbose=args.verbose,
         )
 
-    if 'discount' in data:
-        discount = data['discount']
-        if args.discount is not None:
-            print("WARNING: you are overriding the saved discount factor.")
-            discount = args.discount
-    else:
+    discount = 0
+    if args.discount is not None:
+        print("WARNING: you are overriding the discount factor. Right now "
+              "only discount = 0 really makes sense.")
         discount = args.discount
     policy.set_discount(discount)
     while True:
         paths = []
         for _ in range(args.num_rollouts):
-            goals = env.sample_goal_states(1)
-            goal = goals[0]
+            goal = env.sample_goal_state_for_rollout()
             if args.verbose:
                 env.print_goal_state_info(goal)
             env.set_goal(goal)
@@ -90,7 +87,7 @@ if __name__ == "__main__":
                 animated=not args.hide,
             )
             path['goal_states'] = np.repeat(
-                goals,
+                np.expand_dims(goal, 0),
                 len(path['observations']),
                 0,
             )

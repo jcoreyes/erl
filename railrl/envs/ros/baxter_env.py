@@ -273,13 +273,10 @@ class BaxterEnv(Env, Serializable):
             ))
 
             if self.fixed_end_effector:
-                # self.desired = np.array([
-                #     1.1349147779210946,
-                #     -0.7649915111535125,
-                #     0.5545338667382815
-                # ])
                 self.desired = np.array([
-
+                    1.1349147779210946,
+                    -0.7649915111535125,
+                    0.5545338667382815
                 ])
 
             else:
@@ -335,7 +332,7 @@ class BaxterEnv(Env, Serializable):
                     action = torques
                 else:
                     action = action + torques
-
+        print(action)
         joint_to_values = dict(zip(self.arm_joint_names, action))
         self._set_joint_values(joint_to_values)
         self.rate.sleep()

@@ -1,5 +1,7 @@
 import numpy as np
 
+from rllab.misc import tensor_utils
+
 
 def rollout(env, agent, max_path_length=np.inf, animated=False):
     """

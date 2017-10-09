@@ -209,7 +209,6 @@ def run_experiment(
     repo = git.Repo(os.getcwd())
     diff_string = repo.git.diff(None)
     commit_hash = repo.head.commit.hexsha
-    # script_name = main.__file__
     script_name = "tmp"
     if mode=='here':
         log_dir, exp_name = create_log_dir(exp_prefix, exp_id, seed, base_log_dir)
@@ -293,7 +292,6 @@ def resume_torch_algorithm(variant):
 
 def continue_experiment(load_experiment_dir, resume_function):
     path = os.path.join(load_experiment_dir, 'experiment.pkl')
-    # import ipdb; ipdb.set_trace()
     if exists(path):
         data = joblib.load(path)
         mode = data['mode']

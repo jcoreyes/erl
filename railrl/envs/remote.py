@@ -1,9 +1,7 @@
 import ray
 
 from railrl.envs.base import RolloutEnv
-from railrl.exploration_strategies.base import (
-    PolicyWrappedWithExplorationStrategy
-)
+from railrl.misc.ray_util import set_serialization_mode_to_pickle
 from railrl.samplers.util import rollout
 from rllab.core.serializable import Serializable
 from rllab.envs.normalized_env import normalize
@@ -17,24 +15,17 @@ class RayEnv(object):
     """
     def __init__(
             self,
-            env_class,
-            env_params,
-            policy_class,
-            policy_params,
-            exploration_strategy_class,
-            exploration_strategy_params,
+            env,
+            policy,
+            exploration_policy,
             max_path_length,
-            normalize_env
+            normalize_env,
     ):
-        self._env = env_class(**env_params)
+        self._env = env
         if normalize_env:
             self._env = normalize(self._env)
-        self._policy = policy_class(**policy_params)
-        self._es = exploration_strategy_class(**exploration_strategy_params)
-        self._exploration_policy = PolicyWrappedWithExplorationStrategy(
-            self._es,
-            self._policy,
-        )
+        self._policy = policy
+        self._exploration_policy = exploration_policy
         self._max_path_length = max_path_length
 
     def rollout(self, policy_params, use_exploration_strategy):
@@ -92,25 +83,22 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
     """
     def __init__(
             self,
-            env_class,
-            env_params,
-            policy_class,
-            policy_params,
-            exploration_strategy_class,
-            exploration_strategy_params,
+            env,
+            policy,
+            exploration_policy,
             max_path_length,
             normalize_env,
     ):
         Serializable.quick_init(self, locals())
-        super().__init__(env_class(**env_params))
-        # ray.init()
+        super().__init__(env)
+        ray.init()
+        set_serialization_mode_to_pickle(type(env))
+        set_serialization_mode_to_pickle(type(policy))
+        set_serialization_mode_to_pickle(type(exploration_policy))
         self._ray_env = RayEnv.remote(
-            env_class,
-            env_params,
-            policy_class,
-            policy_params,
-            exploration_strategy_class,
-            exploration_strategy_params,
+            env,
+            policy,
+            exploration_policy,
             max_path_length,
             normalize_env,
         )
