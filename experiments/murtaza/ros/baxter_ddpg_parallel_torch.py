@@ -27,12 +27,6 @@ def example(variant):
     )
     use_gpu = variant['use_gpu']
     es = es_class(**es_params)
-    qf = FeedForwardQFunction(
-        int(env.observation_space.flat_dim),
-        int(env.action_space.flat_dim),
-        100,
-        100,
-    )
     policy_class = variant['policy_class']
     policy_params = dict(
         obs_dim=int(obs_space.flat_dim),
@@ -52,6 +46,12 @@ def example(variant):
         variant['max_path_length'],
         variant['normalize_env'],
     )
+    qf = FeedForwardQFunction(
+        int(remote_env.observation_space.flat_dim),
+        int(remote_env.action_space.flat_dim),
+        100,
+        100,
+    )
     algorithm = ParallelDDPG(
         remote_env,
         qf=qf,
@@ -61,7 +61,6 @@ def example(variant):
     )
     if use_gpu and ptu.gpu_enabled():
         algorithm.cuda()
-    import ipdb; ipdb.set_trace()
     algorithm.train()
 
 experiments=[
@@ -96,8 +95,8 @@ if __name__ == "__main__":
                 'policy_class': FeedForwardPolicy,
                 'normalize_env': False,
                 'env_params': {
-                    'arm_name': 'right',
-                    'safety_box': True,
+                    'arm_name': 'left',
+                    'safety_box': False,
                     'loss': 'huber',
                     'huber_delta': 10,
                     'safety_force_magnitude': 5,
@@ -114,7 +113,7 @@ if __name__ == "__main__":
                     batch_size=64,
                     num_epochs=30,
                     number_of_gradient_steps=1,
-                    num_steps_per_epoch=500,
+                    num_steps_per_epoch=1000,
                     max_path_length=max_path_length,
                     num_steps_per_eval=500,
                 ),
