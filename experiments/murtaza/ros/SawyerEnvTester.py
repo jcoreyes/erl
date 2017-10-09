@@ -18,7 +18,7 @@ experiments=[
 
 env = SawyerEnv('right', experiment=experiments[0], safety_force_magnitude=5, temp=15, safety_box=True)
 
-# env.reset()
+env.reset()
 # env.arm.move_to_neutral()
 # ja = env._joint_angles()
 # # ja =np.array([-2.13281250e-03, -1.18177441e+00, -2.75390625e-03, 2.17755176e+00,
@@ -44,10 +44,10 @@ print(pose)
 env.update_pose_and_jacobian_dict()
 env.check_joints_in_box(env.pose_jacobian_dict)
 print(env.pose_jacobian_dict)
-
-des = np.array([0.68998028, -0.2285752, 0.3477])
-
-print(np.linalg.norm(pose-des))
+#
+# des = np.array([0.68998028, -0.2285752, 0.3477])
+#
+# print(np.linalg.norm(pose-des))
 # for i in range(100000):
 #     env._act(np.zeros(7))
 #     action = create_action(2)
