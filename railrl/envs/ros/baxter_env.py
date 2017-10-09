@@ -273,10 +273,13 @@ class BaxterEnv(Env, Serializable):
             ))
 
             if self.fixed_end_effector:
+                # self.desired = np.array([
+                #     1.1349147779210946,
+                #     -0.7649915111535125,
+                #     0.5545338667382815
+                # ])
                 self.desired = np.array([
-                    1.1349147779210946,
-                    -0.7649915111535125,
-                    0.5545338667382815
+
                 ])
 
             else:

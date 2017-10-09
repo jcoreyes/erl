@@ -60,45 +60,50 @@ experiments=[
     'end_effector_position_orientation|fixed_ee',
     'end_effector_position_orientation|varying_ee'
 ]
+import itertools
 max_path_length = 100
+learning_rates=[1e-3, 5e-3, 1e-4]
+use_batch_norm=[True,False]
+cart_prod = list(itertools.product(learning_rates, use_batch_norm))
 if __name__ == "__main__":
     ray.init()
-    for i in range(10):
-        run_experiment(
-            example,
-            exp_prefix="naf-parallel-baxter-fixed-joint-angle",
-            seed=random.randint(0, 666),
-            mode='here',
-            variant={
-                'version': 'Original',
-                'max_path_length': max_path_length,
-                'use_gpu': True,
-                'es_class': OUStrategy,
-                'env_class': BaxterEnv,
-                'policy_class': NafPolicy,
-                'normalize_env': False,
-                'env_params': {
-                    'arm_name': 'right',
-                    'safety_box': False,
-                    'loss': 'huber',
-                    'huber_delta': 10,
-                    'remove_action': False,
-                    'experiment': experiments[0],
-                    'reward_magnitude': 1,
+    for _ in range(5):
+        for i in range(3):
+            run_experiment(
+                example,
+                exp_prefix="naf-parallel-baxter-fixed-end-effector",
+                seed=random.randint(0, 666),
+                mode='here',
+                variant={
+                    'version': 'Original',
+                    'max_path_length': max_path_length,
+                    'use_gpu': True,
+                    'es_class': OUStrategy,
+                    'env_class': BaxterEnv,
+                    'policy_class': NafPolicy,
+                    'normalize_env': False,
+                    'env_params': {
+                        'arm_name': 'left',
+                        'safety_box': False,
+                        'loss': 'huber',
+                        'huber_delta': 10,
+                        'remove_action': False,
+                        'experiment': experiments[2],
+                        'reward_magnitude': 1,
+                    },
+                    'es_params': {
+                        'max_sigma': .1,
+                        'min_sigma': .1,
+                    },
+                    'algo_params': dict(
+                        batch_size=64,
+                        num_epochs=30,
+                        num_steps_per_epoch=1000, # can you lower this if it keeps crashing?
+                        target_hard_update_period=10000,
+                        max_path_length=max_path_length,
+                        num_steps_per_eval=100, # maybe lower this too.
+                        naf_policy_learning_rate=1e-3,
+                    ),
                 },
-                'es_params': {
-                    'max_sigma': .1,
-                    'min_sigma': .1,
-                },
-                'algo_params': dict(
-                    batch_size=64,
-                    num_epochs=60,
-                    num_steps_per_epoch=1000, # can you lower this if it keeps crashing?
-                    target_hard_update_period=10000,
-                    max_path_length=max_path_length,
-                    num_steps_per_eval=300, # maybe lower this too.
-                    naf_policy_learning_rate=1e-3,
-                ),
-            },
-            use_gpu=True,
-        )
+                use_gpu=True,
+            )
