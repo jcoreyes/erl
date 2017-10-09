@@ -107,7 +107,6 @@ max_path_length = 100
 policy_learning_rates = [1e-2, 1e-3, 1e-4]
 taus = [1e-2, 1e-3, 1e-4]
 cart_prod = list(itertools.product(policy_learning_rates, taus))
-import ipdb; ipdb.set_trace()
 if __name__ == "__main__":
     ray.init()
     try:
@@ -120,11 +119,12 @@ if __name__ == "__main__":
                     'safety_box': True,
                     'loss': 'huber',
                     'huber_delta': 10,
-                    'safety_force_magnitude': 5,
+                    'safety_force_magnitude': 15,
                     'temp': 1,
                     'remove_action': False,
                     'experiment': experiments[2],
                     'reward_magnitude': 10,
+		    'use_safety_checks':True,
                 }
     env = env_class(**env_params)
 
@@ -181,10 +181,10 @@ if __name__ == "__main__":
     #         },
     #         use_gpu=True,
     #     )
-    for i in range(0, 1):
+    for i in range(0, 10):
         run_experiment(
             example,
-            exp_prefix="ddpg-parallel-sawyer-fixed-end-effector-TEST",
+            exp_prefix="ddpg-parallel-sawyer-fixed-end-effector-benchmarks",
             seed=random.randint(0, 666),
             mode='here',
             variant={
@@ -193,7 +193,7 @@ if __name__ == "__main__":
                 'use_gpu': True,
                 'algo_params': dict(
                     batch_size=64,
-                    num_epochs=10,
+                    num_epochs=30,
                     number_of_gradient_steps=1,
                     num_steps_per_epoch=1000,
                     max_path_length=max_path_length,

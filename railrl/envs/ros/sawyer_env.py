@@ -92,9 +92,9 @@ TORQUE_MAX_TRAIN = 5
 MAX_TORQUES = 0.5 * np.array([8, 7, 6, 5, 4, 3, 2])
 
 box_lows = [
-    0.1328008448954529,
+    0.1228008448954529,
     -0.31815782,
-    0.2084391863426093,
+    0.2284391863426093,
 ]
 
 box_highs = [
@@ -388,7 +388,7 @@ class SawyerEnv(Env, Serializable):
         self.reset_q = []
         self.update_pose_and_jacobian_dict()
         self.in_reset = True
-        # self.amplify = 0.5 * np.array([8, 7, 6, 5, 4, 3, 2])
+        #self.amplify = 0.5 * np.array([8, 7, 6, 5, 4, 3, 2])
         self.amplify = np.ones(7)
         # self.amplify = 2*np.ones(7)
         import ipdb
