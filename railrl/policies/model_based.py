@@ -3,6 +3,7 @@ import torch
 from torch import nn
 from scipy import optimize
 
+from railrl.networks.state_distance import StructuredUniversalQfunction
 from railrl.policies.state_distance import (
     UniversalPolicy,
     SampleBasedUniversalPolicy,
@@ -86,6 +87,7 @@ class SQPModelBasedPolicy(UniversalPolicy, nn.Module):
             env,
             model_learns_deltas=True,
             solver_params=None,
+            model_is_structured_qf=False,
             planning_horizon=1,
     ):
         super().__init__()
@@ -95,6 +97,7 @@ class SQPModelBasedPolicy(UniversalPolicy, nn.Module):
         self.model_learns_deltas = model_learns_deltas
         self.solver_params = solver_params
         self.planning_horizon = planning_horizon
+        self.model_is_structured_qf = model_is_structured_qf
 
         self.action_dim = self.env.action_space.low.size
         self.observation_dim = self.env.observation_space.low.size
@@ -158,16 +161,10 @@ class SQPModelBasedPolicy(UniversalPolicy, nn.Module):
         state_predicted = state.unsqueeze(0)
         for i in range(self.planning_horizon):
             action = all_actions[i:i+1, :]
-            if self.model_learns_deltas:
-                next_state_predicted = state_predicted + self.model(
-                    state_predicted,
-                    action,
-                )
-            else:
-                next_state_predicted = self.model(
-                    state_predicted,
-                    action,
-                )
+            next_state_predicted = self.get_next_state_predicted(
+                state_predicted,
+                action,
+            )
             next_state = all_next_states[i:i+1, :]
             loss += torch.norm(next_state - next_state_predicted, p=2)
             state_predicted = next_state_predicted
@@ -182,21 +179,26 @@ class SQPModelBasedPolicy(UniversalPolicy, nn.Module):
         state_predicted = state.unsqueeze(0)
         for i in range(self.planning_horizon):
             action = all_actions[i:i+1, :]
-            if self.model_learns_deltas:
-                next_state_predicted = state_predicted + self.model(
-                    state_predicted,
-                    action,
-                )
-            else:
-                next_state_predicted = self.model(
-                    state_predicted,
-                    action,
-                )
+            next_state_predicted = self.get_next_state_predicted(
+                state_predicted,
+                action,
+            )
             next_state = all_next_states[i:i+1, :]
             loss += torch.norm(next_state - next_state_predicted, p=2)
             state_predicted = next_state_predicted
         loss.squeeze(0).backward()
         return ptu.get_numpy(x.grad)
+
+    def get_next_state_predicted(self, state, action):
+        if self.model_is_structured_qf:
+            discount = ptu.np_to_var(
+                np.array([[0]])
+            )
+            return self.model(state, action, None, discount, True)
+        if self.model_learns_deltas:
+            return state + self.model(state, action)
+        else:
+            return self.model(state, action)
 
     def reset(self):
         self.last_solution = None

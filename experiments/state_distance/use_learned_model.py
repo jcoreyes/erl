@@ -24,13 +24,19 @@ def experiment(variant):
     H = variant['H']
     render = variant['render']
     data = joblib.load(variant['qf_path'])
-    model = data['model']
+    if 'model' in data:
+        model = data['model']
+        model_is_structured_qf = False
+    else:
+        model = data['qf']
+        model_is_structured_qf = True
     env = data['env']
     if ptu.gpu_enabled():
         model.cuda()
     policy = variant['policy_class'](
         model,
         env,
+        model_is_structured_qf=model_is_structured_qf,
         **variant['policy_params']
     )
     paths = []
@@ -65,7 +71,7 @@ if __name__ == "__main__":
     parser.add_argument('--maxi', type=int, default=10,
                         help='Max number of iterations for sqp')
     parser.add_argument('--hide', action='store_true')
-    parser.add_argument('--sqp', action='store_true')
+    parser.add_argument('--nosqp', action='store_true')
     parser.add_argument('--verbose', action='store_true')
     args = parser.parse_args()
 
@@ -75,8 +81,14 @@ if __name__ == "__main__":
     run_mode = 'none'
     use_gpu = True
 
-    exp_prefix = "compare-learned-model-reacher2d-200rollouts"
-    if args.sqp:
+    if args.nosqp:
+        policy_class = MultistepModelBasedPolicy
+        policy_params = dict(
+            model_learns_deltas=True,
+            sample_size=args.nsamples,
+            planning_horizon=args.planh,
+        )
+    else:
         policy_class = SQPModelBasedPolicy
         policy_params = dict(
             model_learns_deltas=True,
@@ -86,13 +98,6 @@ if __name__ == "__main__":
                 ftol=1e-2,
                 iprint=1,
             ),
-            planning_horizon=args.planh,
-        )
-    else:
-        policy_class = MultistepModelBasedPolicy
-        policy_params = dict(
-            model_learns_deltas=True,
-            sample_size=args.nsamples,
             planning_horizon=args.planh,
         )
 
