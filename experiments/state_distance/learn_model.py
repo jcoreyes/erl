@@ -20,6 +20,7 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.model_based import MultistepModelBasedPolicy
 from railrl.predictors.torch import Mlp
 
+from torch.nn import functional as F
 
 def experiment(variant):
     env_class = variant['env_class']
@@ -75,7 +76,7 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "reacher-2d-learn-model-net-on-off-sweep-correct"
+    exp_prefix = "reacher-2d-learn-small-model-softplus"
     run_mode = 'custom_grid'
 
     num_configurations = 1  # for random mode
@@ -109,7 +110,8 @@ if __name__ == '__main__':
         ),
         model_learns_deltas=True,
         model_params=dict(
-            hidden_sizes=[500, 500],
+            hidden_activation=F.softplus,
+            hidden_sizes=[100, 100],
         ),
         env_class=GoalStateSimpleStateReacherEnv,
         # env_class=Reacher7DofFullGoalState,
@@ -178,10 +180,10 @@ if __name__ == '__main__':
         ) in enumerate([
             (False, 0, 10000),
             (False, 0, 100000),
-            (True, 50000, 50000),
+            # (True, 50000, 50000),
             (True, 90000, 10000),
-            (True, 10000, 10000),
-            (True, 10000, 0),
+            # (True, 10000, 10000),
+            # (True, 10000, 0),
         ]):
             variant['algo_params']['add_on_policy_data'] = add_on_policy_data
             variant['algo_params']['max_num_on_policy_steps_to_add'] = (
