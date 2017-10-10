@@ -56,7 +56,7 @@ if __name__ == '__main__':
     parser.add_argument('--hide', action='store_true')
     parser.add_argument('--planh', type=int, default=5,
                         help='Planning horizon.')
-    parser.add_argument('--maxi', type=int, default=100,
+    parser.add_argument('--maxi', type=int, default=5,
                         help='Max SLSQP steps per env step.')
     args = parser.parse_args()
 

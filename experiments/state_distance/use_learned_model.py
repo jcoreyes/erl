@@ -68,7 +68,7 @@ if __name__ == "__main__":
                         help='Number of rollouts to do.')
     parser.add_argument('--nsamples', type=int, default=1000,
                         help='Number of sample for sampled-based optimizer')
-    parser.add_argument('--maxi', type=int, default=10,
+    parser.add_argument('--maxi', type=int, default=5,
                         help='Max number of iterations for sqp')
     parser.add_argument('--hide', action='store_true')
     parser.add_argument('--nosqp', action='store_true')
