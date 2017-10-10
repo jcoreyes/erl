@@ -129,10 +129,10 @@ if __name__ == '__main__':
     exp_prefix = "dev-train-q"
     run_mode = "none"
 
-    # n_seeds = 3
-    # mode = "ec2"
-    exp_prefix = "local-train-structured-qf-reacher2d-small-net"
-    # run_mode = 'grid'
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "just-try-correct-tau-again-reacher2d"
+    run_mode = 'grid'
 
     version = "Dev"
     num_configurations = 50  # for random mode
@@ -174,11 +174,11 @@ if __name__ == '__main__':
         ),
         explore_with_ddpg_policy=True,
         # qf_class=UniversalQfunction,
-        # qf_class=FlatUniversalQfunction,
-        qf_class=StructuredUniversalQfunction,
+        qf_class=FlatUniversalQfunction,
+        # qf_class=StructuredUniversalQfunction,
         qf_params=dict(
-            hidden_sizes=[32, 32],
-            hidden_activation=F.tanh,
+            hidden_sizes=[64, 64],
+            hidden_activation=F.softplus,
         ),
         policy_params=dict(
             fc1_size=400,
@@ -232,12 +232,13 @@ if __name__ == '__main__':
             #     # JointOnlyPusherEnv,
             # ],
             # 'qf_class': [FlatUniversalQfunction, StructuredUniversalQfunction],
-            # 'epoch_discount_schedule_params.value': [0, 1],
+            'epoch_discount_schedule_params.value': [0, 5, 10, 100],
             # 'algo_params.do_tau_correctly': [True, False],
-            'algo_params.prob_goal_state_is_next_state': [0.5, 0.99, 0],
+            # 'algo_params.prob_goal_state_is_next_state': [0.5, 0.99, 0],
             # 'qf_params.dropout_prob': [0.5, 0],
             # 'algo_params.qf_weight_decay': [1e-3, 1e-4, 1e-5, 0],
             # 'algo_params.sample_goals_from': ['environment', 'replay_buffer'],
+            'algo_params.sample_discount': [True, False],
             # 'algo_params.num_steps_per_epoch': [1, 10],
             # 'algo_params.termination_threshold': [1e-4, 0]
             # 'epoch_discount_schedule_params.max_value': [100, 1000],
