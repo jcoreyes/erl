@@ -131,7 +131,7 @@ if __name__ == '__main__':
 
     # n_seeds = 3
     # mode = "ec2"
-    exp_prefix = "local-train-structured-qf-reacher2d"
+    exp_prefix = "local-train-structured-qf-reacher2d-small-net"
     # run_mode = 'grid'
 
     version = "Dev"
@@ -177,7 +177,7 @@ if __name__ == '__main__':
         # qf_class=FlatUniversalQfunction,
         qf_class=StructuredUniversalQfunction,
         qf_params=dict(
-            hidden_sizes=[400, 300],
+            hidden_sizes=[32, 32],
             hidden_activation=F.tanh,
         ),
         policy_params=dict(
