@@ -11,6 +11,7 @@ from railrl.algos.state_distance.state_distance_q_learning import (
     multitask_rollout
 )
 from railrl.launchers.launcher_util import run_experiment
+from railrl.networks.state_distance import ModelExtractor
 from railrl.policies.model_based import (
     MultistepModelBasedPolicy,
     SQPModelBasedPolicy,
@@ -24,20 +25,20 @@ def experiment(variant):
     H = variant['H']
     render = variant['render']
     data = joblib.load(variant['qf_path'])
+    policy_params = variant['policy_params']
     if 'model' in data:
         model = data['model']
-        model_is_structured_qf = False
     else:
-        model = data['qf']
-        model_is_structured_qf = True
+        qf = data['qf']
+        model = ModelExtractor(qf)
+        policy_params['model_learns_deltas'] = False
     env = data['env']
     if ptu.gpu_enabled():
         model.cuda()
     policy = variant['policy_class'](
         model,
         env,
-        model_is_structured_qf=model_is_structured_qf,
-        **variant['policy_params']
+        **policy_params
     )
     paths = []
     for _ in range(num_rollouts):

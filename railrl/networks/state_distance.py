@@ -203,6 +203,19 @@ class StructuredUniversalQfunction(PyTorchModule):
         return out.unsqueeze(1)
 
 
+class ModelExtractor(PyTorchModule):
+    def __init__(self, qf, discount=0.):
+        super().__init__()
+        assert isinstance(qf, StructuredUniversalQfunction)
+        self.qf = qf
+        self.discount = discount
+
+    def forward(self, state, action):
+        batch_size = state.size()[0]
+        discount = ptu.np_to_var(self.discount + np.zeros((batch_size, 1)))
+        return self.qf(state, action, None, discount, True)
+
+
 class FFUniversalPolicy(PyTorchModule, UniversalPolicy):
     def __init__(
             self,
