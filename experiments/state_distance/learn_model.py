@@ -74,10 +74,10 @@ if __name__ == '__main__':
     version = "Dev"
     run_mode = "none"
 
-    n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "reacher-2d-learn-small-model-softplus"
-    run_mode = 'custom_grid'
+    # n_seeds = 3
+    # mode = "ec2"
+    exp_prefix = "local-reacher-2d-learn-small-model-softplus"
+    # run_mode = 'custom_grid'
 
     num_configurations = 1  # for random mode
     snapshot_mode = "last"
@@ -101,7 +101,7 @@ if __name__ == '__main__':
             weight_decay=0,
             max_path_length=max_path_length,
             replay_buffer_size=replay_buffer_size,
-            add_on_policy_data=True,
+            add_on_policy_data=False,
         ),
         policy_params=dict(
             sample_size=1000,
@@ -123,7 +123,7 @@ if __name__ == '__main__':
         ),
         normalize_params=dict(
             obs_mean=None,
-            # obs_std=[0.7, 0.7, 0.7, 0.6, 40, 5],
+            obs_std=[0.7, 0.7, 0.7, 0.6, 40, 5],
             # obs_std=[3, 3],
         ),
         sampler_params=dict(
