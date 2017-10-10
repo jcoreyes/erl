@@ -56,7 +56,7 @@ if __name__ == '__main__':
     parser.add_argument('--hide', action='store_true')
     parser.add_argument('--planh', type=int, default=5,
                         help='Planning horizon.')
-    parser.add_argument('--maxi', type=int, default=10,
+    parser.add_argument('--maxi', type=int, default=100,
                         help='Max SLSQP steps per env step.')
     args = parser.parse_args()
 
@@ -66,7 +66,6 @@ if __name__ == '__main__':
     run_mode = 'none'
     use_gpu = True
 
-    # TODO(vitchyr): Make this multistep!
     variant = dict(
         num_rollouts=args.nrolls,
         H=args.H,
