@@ -129,10 +129,10 @@ if __name__ == '__main__':
     exp_prefix = "dev-train-q"
     run_mode = "none"
 
-    n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "train-me-a-good-tanh-qf-reacher2d-sweep-prob-next-state"
-    run_mode = 'grid'
+    # n_seeds = 3
+    # mode = "ec2"
+    exp_prefix = "local-train-structured-qf-reacher2d"
+    # run_mode = 'grid'
 
     version = "Dev"
     num_configurations = 50  # for random mode
@@ -174,12 +174,10 @@ if __name__ == '__main__':
         ),
         explore_with_ddpg_policy=True,
         # qf_class=UniversalQfunction,
-        qf_class=FlatUniversalQfunction,
-        # qf_class=StructuredUniversalQfunction,
+        # qf_class=FlatUniversalQfunction,
+        qf_class=StructuredUniversalQfunction,
         qf_params=dict(
             hidden_sizes=[400, 300],
-            # obs_hidden_size=400,
-            # embed_hidden_size=300,
             hidden_activation=F.tanh,
         ),
         policy_params=dict(
@@ -246,11 +244,11 @@ if __name__ == '__main__':
             # 'epoch_discount_schedule_params.ramp_duration': [
             #     1, 20, 50, 200,
             # ],
-            'qf_params.hidden_activation': [
-                F.tanh,
-                F.relu,
-                F.softplus
-            ]
+            # 'qf_params.hidden_activation': [
+            #     F.tanh,
+            #     F.relu,
+            #     F.softplus
+            # ]
             # 'qf_params': [
             #     dict(
             #         obs_hidden_size=400,
