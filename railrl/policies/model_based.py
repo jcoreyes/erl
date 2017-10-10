@@ -81,6 +81,10 @@ class MultistepModelBasedPolicy(SampleBasedUniversalPolicy, nn.Module):
 
 
 class SQPModelBasedPolicy(UniversalPolicy, nn.Module):
+    """
+    \pi(s_1, g) = \argmin_{a_1} \min_{a_{2:T}, s_{2:T+1}} ||s_{T+1} - g||_2^2
+    subject to $f(s_i, a_i) = s_{i+1}$ for $i=1,..., T$
+    """
     def __init__(
             self,
             model,
@@ -161,11 +165,11 @@ class SQPModelBasedPolicy(UniversalPolicy, nn.Module):
         state_predicted = state.unsqueeze(0)
         for i in range(self.planning_horizon):
             action = all_actions[i:i+1, :]
+            next_state = all_next_states[i:i+1, :]
             next_state_predicted = self.get_next_state_predicted(
                 state_predicted,
                 action,
             )
-            next_state = all_next_states[i:i+1, :]
             loss += torch.norm(next_state - next_state_predicted, p=2)
             state_predicted = next_state_predicted
         return ptu.get_numpy(loss)
@@ -176,16 +180,16 @@ class SQPModelBasedPolicy(UniversalPolicy, nn.Module):
         all_actions, all_next_states = self.split(x)
 
         loss = 0
-        state_predicted = state.unsqueeze(0)
+        state = state.unsqueeze(0)
         for i in range(self.planning_horizon):
             action = all_actions[i:i+1, :]
+            next_state = all_next_states[i:i+1, :]
             next_state_predicted = self.get_next_state_predicted(
-                state_predicted,
+                state,
                 action,
             )
-            next_state = all_next_states[i:i+1, :]
             loss += torch.norm(next_state - next_state_predicted, p=2)
-            state_predicted = next_state_predicted
+            state = next_state
         loss.squeeze(0).backward()
         return ptu.get_numpy(x.grad)
 
