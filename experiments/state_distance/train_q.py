@@ -131,10 +131,10 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "just-try-correct-tau-again-reacher2d"
-    run_mode = 'grid'
+    exp_prefix = "correct-tau-reacher2d-schedule-tests"
+    # run_mode = 'grid'
 
-    version = "Dev"
+    version = "0-to-100--in-50"
     num_configurations = 50  # for random mode
     snapshot_mode = "last"
     snapshot_gap = 10
@@ -184,13 +184,13 @@ if __name__ == '__main__':
             fc1_size=400,
             fc2_size=300,
         ),
-        # epoch_discount_schedule_class=IntRampUpSchedule,
-        epoch_discount_schedule_class=ConstantSchedule,
+        epoch_discount_schedule_class=IntRampUpSchedule,
+        # epoch_discount_schedule_class=ConstantSchedule,
         epoch_discount_schedule_params=dict(
-            value=0
-            # min_value=1,
-            # max_value=1,
-            # ramp_duration=1,
+            # value=0
+            min_value=0,
+            max_value=100,
+            ramp_duration=50,
         ),
         algo_class=HorizonFedStateDistanceQLearning,
         # env_class=Reacher7DofFullGoalState,
