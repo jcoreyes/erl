@@ -131,10 +131,10 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "correct-tau-reacher2d-schedule-tests"
-    # run_mode = 'grid'
+    exp_prefix = "sdql-softplus-reacher2d"
+    run_mode = 'grid'
 
-    version = "0-to-100--in-50"
+    version = "na"
     num_configurations = 50  # for random mode
     snapshot_mode = "last"
     snapshot_gap = 10
@@ -147,10 +147,11 @@ if __name__ == '__main__':
     max_path_length = 300
     # noinspection PyTypeChecker
     variant = dict(
+        version=version,
         dataset_path=str(dataset_path),
         algo_params=dict(
             num_epochs=101,
-            num_steps_per_epoch=300,
+            num_steps_per_epoch=900,
             num_steps_per_eval=600,
             num_updates_per_env_step=50,
             use_soft_update=True,
@@ -177,20 +178,21 @@ if __name__ == '__main__':
         qf_class=FlatUniversalQfunction,
         # qf_class=StructuredUniversalQfunction,
         qf_params=dict(
-            hidden_sizes=[64, 64],
+            hidden_sizes=[100, 100],
             hidden_activation=F.softplus,
+            output_activation=F.softplus,
         ),
         policy_params=dict(
-            fc1_size=400,
-            fc2_size=300,
+            fc1_size=100,
+            fc2_size=100,
         ),
-        epoch_discount_schedule_class=IntRampUpSchedule,
-        # epoch_discount_schedule_class=ConstantSchedule,
+        # epoch_discount_schedule_class=IntRampUpSchedule,
+        epoch_discount_schedule_class=ConstantSchedule,
         epoch_discount_schedule_params=dict(
-            # value=0
-            min_value=0,
-            max_value=100,
-            ramp_duration=50,
+            value=0
+            # min_value=0,
+            # max_value=100,
+            # ramp_duration=50,
         ),
         algo_class=HorizonFedStateDistanceQLearning,
         # env_class=Reacher7DofFullGoalState,
@@ -231,14 +233,14 @@ if __name__ == '__main__':
             #     # ArmEEInStatePusherEnv,
             #     # JointOnlyPusherEnv,
             # ],
-            # 'qf_class': [FlatUniversalQfunction, StructuredUniversalQfunction],
-            'epoch_discount_schedule_params.value': [0, 5, 10, 100],
+            'qf_class': [StructuredUniversalQfunction, FlatUniversalQfunction],
+            # 'epoch_discount_schedule_params.value': [0, 5, 10, 100],
             # 'algo_params.sparse_reward': [True, False],
-            # 'algo_params.prob_goal_state_is_next_state': [0.5, 0.99, 0],
+            'algo_params.prob_goal_state_is_next_state': [0.5, 0.99, 0],
             # 'qf_params.dropout_prob': [0.5, 0],
             # 'algo_params.qf_weight_decay': [1e-3, 1e-4, 1e-5, 0],
             # 'algo_params.sample_goals_from': ['environment', 'replay_buffer'],
-            'algo_params.sample_discount': [True, False],
+            # 'algo_params.sample_discount': [True, False],
             # 'algo_params.num_steps_per_epoch': [1, 10],
             # 'algo_params.termination_threshold': [1e-4, 0]
             # 'epoch_discount_schedule_params.max_value': [100, 1000],
