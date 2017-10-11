@@ -1,21 +1,22 @@
-import rospy
-from rllab.core.serializable import Serializable
-from rllab.spaces.box import Box
+import math
+import time
+from collections import OrderedDict
+
 import intera_interface as ii
 import numpy as np
+import rospy
+from gravity_torques.srv import *
+from intera_interface import CHECK_VERSION
+from numpy import linalg
+from objectattention_ros.srv import *
+from robot_info.srv import *
+
+from experiments.murtaza.ros.Sawyer.joint_space_impedance import PDController
+from railrl.misc.data_processing import create_stats_ordered_dict
+from rllab.core.serializable import Serializable
 from rllab.envs.base import Env
 from rllab.misc import logger
-from numpy import linalg
-from robot_info.srv import *
-from railrl.misc.data_processing import create_stats_ordered_dict
-from collections import OrderedDict
-from experiments.murtaza.ros.joint_space_impedance import PDController
-from gravity_torques.srv import *
-import time
-import math
-from intera_interface import CHECK_VERSION
-from objectattention_ros.srv import *
-import ipdb
+from rllab.spaces.box import Box
 
 NUM_JOINTS = 7
 
@@ -331,14 +332,7 @@ class SawyerEnv(Env, Serializable):
                 ))
 
             if self.fixed_end_effector:
-                # des = [0.49769472921756647, 0.031977172139977056, 0.4708391209982404]
-                # self.desired = np.array([0.3103441506689085, -0.010549035732281596, 1.2463074746529437])
                 self.desired = np.array([0.68998028, -0.2285752, 0.3477])
-                # self.desired = np.array([
-                #     0.49769472921756647,
-                #     0.031977172139977056,
-                #     0.4708391209982404
-                # ])
 
             else:
                 self._randomize_desired_end_effector_pose()
@@ -381,17 +375,11 @@ class SawyerEnv(Env, Serializable):
                 self._randomize_desired_end_effector_pose()
 
         self._observation_space = Box(lows, highs)
-        self.N = 1000
-        self.init_delay = time.time()
         self._rs = ii.RobotEnable(CHECK_VERSION)
-        self.q = []
-        self.reset_q = []
         self.update_pose_and_jacobian_dict()
         self.in_reset = True
-        #self.amplify = 0.5 * np.array([8, 7, 6, 5, 4, 3, 2])
-        self.amplify = np.ones(7)
-        # self.amplify = 2*np.ones(7)
-        import ipdb
+        self.amplify = 0.5 * np.array([8, 7, 6, 5, 4, 3, 2])
+
     @safe
     def _act(self, action):
         if self.safety_box:
@@ -542,18 +530,11 @@ class SawyerEnv(Env, Serializable):
         if self._rs.state().stopped:
             print('VIBRATION')
             print(self.in_reset)
-            np.save('vibrations.npy', [self.q, self.reset_q])
             self._rs.enable()
         self.nan_check(action)
         actual_commanded_action = self._act(action)
 
-        curr_time = time.time()
-        delay = curr_time - self.init_delay
-        self.init_delay = curr_time
-
         observation = self._get_observation()
-
-        self.update_n_step_buffer(observation, action, delay)
 
         if self.joint_angle_experiment:
             current = self._joint_angles()
@@ -572,7 +553,6 @@ class SawyerEnv(Env, Serializable):
             done = out_of_box or high_torque or unexpected_velocity or unexpected_torque
         else:
             done = False
-        # info = {'distance_from_goal':np.linalg.norm(self.desired-current)}
         info = {}
         return observation, reward, done, info
 
@@ -626,8 +606,7 @@ class SawyerEnv(Env, Serializable):
             if not self.in_reset:
                 return True
             else:
-                # raise EnvironmentError('unexpected velocities during reset: ', velocities)
-                return True
+                raise EnvironmentError('unexpected velocities during reset: ', velocities)
         return False
 
     def get_positions_from_pose_jacobian_dict(self):
@@ -678,17 +657,12 @@ class SawyerEnv(Env, Serializable):
             torques = self.PDController._update_forces()
             actual_commanded_actions = self._act(torques)
             curr_time = time.time()
-            delay = curr_time - self.init_delay
             self.init_delay = curr_time
-
-            observation = self._get_observation()
-
-            self.update_n_step_buffer(observation, actual_commanded_actions, delay)
             if self.previous_angles_reset_check():
                 break
             if self.use_safety_checks:
                 self.safety_box_check()
-                # self.unexpected_torque_check()
+                self.unexpected_torque_check()
                 self.high_torque_check(actual_commanded_actions)
                 self.unexpected_velocity_check()
 
@@ -699,30 +673,6 @@ class SawyerEnv(Env, Serializable):
         VELOCITY_THRESHOLD = .002 * np.ones(7)
         no_velocity = (velocities < VELOCITY_THRESHOLD).all()
         return close_to_desired_reset_pos and no_velocity
-
-    def update_n_step_buffer(self, obs, action, delay):
-        obs_dict = {
-            # 'angles': obs[:7],
-            # 'velocities':obs[7:14],
-            'observed_torques':obs[14:21],
-            # 'ee_pose':obs[21:24],
-            # 'desired':obs[24:31],
-            'applied_torques':action,
-            'delay':delay,
-        }
-        # gravity_torques, actual, subtracted = self._get_gravity_compensation_torques()
-        # obs_dict = {
-        #     'observed': obs[14:21],
-        #     'gravity': gravity_torques,
-        #     'subtracted': subtracted,
-        #     'applied': action,
-        # }
-        if not self.in_reset:
-            self.q.append(obs_dict)
-        else:
-            self.reset_q.append(obs_dict)
-        if len(self.q) == self.N:
-            self.q = self.q[1:]
 
     def reset(self):
         """
@@ -863,7 +813,6 @@ class SawyerEnv(Env, Serializable):
         pass
 
     def log_diagnostics(self, paths):
-        # np.save('training_buffer_maybe_v2.npy', [self.q, self.reset_q])
         statistics = OrderedDict()
         stat_prefix = 'Test'
         if self.end_effector_experiment_total or self.end_effector_experiment_position:
@@ -916,14 +865,6 @@ class SawyerEnv(Env, Serializable):
                 'Last N Step Distance from Desired End Effector Position'
             ))
 
-            # if self.safety_box:
-            #     distances_outside_box = np.array([self.compute_distances_outside_box(pose) for pose in positions])
-            #     statistics.update(self._statistics_from_observations(
-            #         distances_outside_box,
-            #         stat_prefix,
-            #         'End Effector Distance Outside Box'
-            #     ))
-
             if self.end_effector_experiment_total:
                 orientations_distance = linalg.norm(orientations-desired_orientations, axis=1)
                 statistics.update(self._statistics_from_observations(
@@ -969,7 +910,8 @@ class SawyerEnv(Env, Serializable):
             angles = np.array(angles)
             desired_angles = np.array(desired_angles)
 
-            differences = np.array([self.compute_angle_difference(angle_obs, desired_angle_obs) for angle_obs, desired_angle_obs in zip(angles, desired_angles)])
+            differences = np.array([self.compute_angle_difference(angle_obs, desired_angle_obs)
+                                    for angle_obs, desired_angle_obs in zip(angles, desired_angles)])
             angle_differences = np.mean(differences, axis=1)
             distances_outside_box = np.array([self.compute_distances_outside_box(pose) for pose in positions])
             return [angle_differences, distances_outside_box]
