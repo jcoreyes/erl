@@ -1,15 +1,18 @@
+import sys
 from railrl.envs.remote import RemoteRolloutEnv
+from railrl.envs.ros.baxter_env import BaxterEnv
 from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.ou_strategy import OUStrategy
+from railrl.launchers.launcher_util import continue_experiment
+from railrl.launchers.launcher_util import resume_torch_algorithm
 from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.algos.parallel_naf import ParallelNAF
-from railrl.torch.naf import NafPolicy
-from railrl.torch import pytorch_util as ptu
+from railrl.policies.torch import FeedForwardPolicy
+from railrl.qfunctions.torch import FeedForwardQFunction
+from railrl.torch.algos.parallel_ddpg import ParallelDDPG
 from railrl.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
-from railrl.envs.ros.sawyer_env import SawyerEnv
 from railrl.torch import pytorch_util as ptu
 import random
-import itertools
+
 
 def example(variant):
     env_class = variant['env_class']
@@ -28,8 +31,8 @@ def example(variant):
     policy_params = dict(
         obs_dim=int(obs_space.flat_dim),
         action_dim=int(action_space.flat_dim),
-        hidden_size=100,
-        use_batchnorm=False,
+        fc1_size=100,
+        fc2_size=100,
     )
     policy = policy_class(**policy_params)
     exploration_policy = PolicyWrappedWithExplorationStrategy(
@@ -43,13 +46,20 @@ def example(variant):
         variant['max_path_length'],
         variant['normalize_env'],
     )
-    algorithm = ParallelNAF(
+    qf = FeedForwardQFunction(
+        int(remote_env.observation_space.flat_dim),
+        int(remote_env.action_space.flat_dim),
+        100,
+        100,
+    )
+    algorithm = ParallelDDPG(
         remote_env,
+        qf=qf,
         policy=policy,
         exploration_policy=exploration_policy,
         **variant['algo_params'],
     )
-    if ptu.gpu_enabled() and use_gpu:
+    if use_gpu and ptu.gpu_enabled():
         algorithm.cuda()
     algorithm.train()
 
@@ -61,16 +71,19 @@ experiments=[
     'end_effector_position_orientation|fixed_ee',
     'end_effector_position_orientation|varying_ee'
 ]
-max_path_length = 100
-learning_rates=[1e-2, 1e-3, 1e-4]
-use_batch_norm=[True,False]
-cart_prod = list(itertools.product(learning_rates, use_batch_norm))
 
+max_path_length = 100
 if __name__ == "__main__":
-    for i in range(0, 3):
+    try:
+        exp_dir = sys.argv[1]
+    except:
+        exp_dir = None
+    if exp_dir:
+        continue_experiment(exp_dir, resume_function=resume_torch_algorithm)
+    else:
         run_experiment(
             example,
-            exp_prefix="naf-parallel-sawyer-fixed-end-effector-final",
+            exp_prefix="ddpg-parallel-baxter-fixed-end-effector-10-seeds",
             seed=random.randint(0, 666),
             mode='here',
             variant={
@@ -78,13 +91,12 @@ if __name__ == "__main__":
                 'max_path_length': max_path_length,
                 'use_gpu': True,
                 'es_class': OUStrategy,
-                'env_class': SawyerEnv,
-                'policy_class': NafPolicy,
+                'env_class': BaxterEnv,
+                'policy_class': FeedForwardPolicy,
                 'normalize_env': False,
-                'use_batch_norm':True,
                 'env_params': {
-                    'arm_name': 'right',
-                    'safety_box': True,
+                    'arm_name': 'left',
+                    'safety_box': False,
                     'loss': 'huber',
                     'huber_delta': 10,
                     'safety_force_magnitude': 5,
@@ -94,15 +106,16 @@ if __name__ == "__main__":
                     'reward_magnitude': 10,
                 },
                 'es_params': {
-                    'max_sigma': .5,
-                    'min_sigma': .5,
+                    'max_sigma': .25,
+                    'min_sigma': .25,
                 },
                 'algo_params': dict(
                     batch_size=64,
                     num_epochs=30,
+                    number_of_gradient_steps=1,
                     num_steps_per_epoch=1000,
                     max_path_length=max_path_length,
-                    num_steps_per_eval=300,
+                    num_steps_per_eval=500,
                 ),
             },
             use_gpu=True,

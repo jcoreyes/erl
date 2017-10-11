@@ -37,8 +37,8 @@ def example(variant):
     policy_params = dict(
         obs_dim=int(obs_space.flat_dim),
         action_dim=int(action_space.flat_dim),
-        hidden_size=100,
-        use_batchnorm=False,
+        fc1_size=100,
+        fc2_size=100,
     )
     policy = policy_class(**policy_params)
     exploration_policy = PolicyWrappedWithExplorationStrategy(
@@ -104,6 +104,7 @@ if __name__ == "__main__":
                     'remove_action': False,
                     'experiment': experiments[2],
                     'reward_magnitude': 10,
+                    'use_safety_checks':False,
                 },
                 'es_params': {
                     'max_sigma': .25,
