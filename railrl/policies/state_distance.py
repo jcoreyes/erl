@@ -502,9 +502,9 @@ class SdqBasedSqpOcPolicy(UniversalPolicy, nn.Module):
         )
         return jacobian
 
-    def constraint_fctn(self, x, state=None):
+    def _constraint_fctn(self, x, state, return_grad):
         state = ptu.np_to_var(state)
-        x = ptu.np_to_var(x, requires_grad=False)
+        x = ptu.np_to_var(x, requires_grad=return_grad)
         all_actions, all_next_states = self.split(x)
 
         loss = 0
@@ -516,24 +516,17 @@ class SdqBasedSqpOcPolicy(UniversalPolicy, nn.Module):
                 state, action, next_state, self._discount_expanded_torch
             )
             state = next_state
-        return ptu.get_numpy(loss.squeeze(0))[0]
+        if return_grad:
+            loss.squeeze(0).backward()
+            return ptu.get_numpy(x.grad)
+        else:
+            return ptu.get_numpy(loss.squeeze(0))[0]
+
+    def constraint_fctn(self, x, state=None):
+        return self._constraint_fctn(x, state, False)
 
     def constraint_jacobian(self, x, state=None):
-        state = ptu.np_to_var(state)
-        x = ptu.np_to_var(x, requires_grad=True)
-        all_actions, all_next_states = self.split(x)
-
-        loss = 0
-        state = state.unsqueeze(0)
-        for i in range(self.planning_horizon):
-            action = all_actions[i:i+1, :]
-            next_state = all_next_states[i:i+1, :]
-            loss += self.qf(
-                state, action, next_state, self._discount_expanded_torch
-            )
-            state = next_state
-        loss.squeeze(0).backward()
-        return ptu.get_numpy(x.grad)
+        return self._constraint_fctn(x, state, True)
 
     def reset(self):
         self.last_solution = None
