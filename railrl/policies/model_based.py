@@ -91,7 +91,6 @@ class SQPModelBasedPolicy(UniversalPolicy, nn.Module):
             env,
             model_learns_deltas=True,
             solver_params=None,
-            model_is_structured_qf=False,
             planning_horizon=1,
     ):
         super().__init__()
@@ -101,7 +100,6 @@ class SQPModelBasedPolicy(UniversalPolicy, nn.Module):
         self.model_learns_deltas = model_learns_deltas
         self.solver_params = solver_params
         self.planning_horizon = planning_horizon
-        self.model_is_structured_qf = model_is_structured_qf
 
         self.action_dim = self.env.action_space.low.size
         self.observation_dim = self.env.observation_space.low.size
@@ -156,9 +154,9 @@ class SQPModelBasedPolicy(UniversalPolicy, nn.Module):
         )
         return jacobian
 
-    def constraint_fctn(self, x, state=None):
+    def _constraint_fctn(self, x, state, return_grad):
         state = ptu.np_to_var(state)
-        x = ptu.np_to_var(x, requires_grad=False)
+        x = ptu.np_to_var(x, requires_grad=return_grad)
         all_actions, all_next_states = self.split(x)
 
         loss = 0
@@ -171,34 +169,20 @@ class SQPModelBasedPolicy(UniversalPolicy, nn.Module):
                 action,
             )
             loss += torch.norm(next_state - next_state_predicted, p=2)
-            state_predicted = next_state_predicted
-        return ptu.get_numpy(loss)
+            state_predicted = next_state
+        if return_grad:
+            loss.squeeze(0).backward()
+            return ptu.get_numpy(x.grad)
+        else:
+            return ptu.get_numpy(loss)
+
+    def constraint_fctn(self, x, state=None):
+        return self._constraint_fctn(x, state, False)
 
     def constraint_jacobian(self, x, state=None):
-        state = ptu.np_to_var(state)
-        x = ptu.np_to_var(x, requires_grad=True)
-        all_actions, all_next_states = self.split(x)
-
-        loss = 0
-        state = state.unsqueeze(0)
-        for i in range(self.planning_horizon):
-            action = all_actions[i:i+1, :]
-            next_state = all_next_states[i:i+1, :]
-            next_state_predicted = self.get_next_state_predicted(
-                state,
-                action,
-            )
-            loss += torch.norm(next_state - next_state_predicted, p=2)
-            state = next_state
-        loss.squeeze(0).backward()
-        return ptu.get_numpy(x.grad)
+        return self._constraint_fctn(x, state, True)
 
     def get_next_state_predicted(self, state, action):
-        if self.model_is_structured_qf:
-            discount = ptu.np_to_var(
-                np.array([[0]])
-            )
-            return self.model(state, action, None, discount, True)
         if self.model_learns_deltas:
             return state + self.model(state, action)
         else:
