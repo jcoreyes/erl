@@ -357,13 +357,14 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             qf,
             policy,
             exploration_policy: UniversalExplorationPolicy = None,
-            do_tau_correctly=True,
+            sparse_reward=True,
             **kwargs
     ):
         """
         I'm reusing discount as tau. Don't feel like renaming everything.
 
-        :param do_tau_correctly:  The correct interpretation of tau is
+        :param sparse_reward:  The correct interpretation of tau (
+        sparse_reward = True) is
         "how far you are from the goal state after tau steps."
         The wrong version just uses tau as a timer.
         :param kwargs:
@@ -375,7 +376,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             exploration_policy,
             **kwargs
         )
-        self.do_tau_correctly = do_tau_correctly
+        self.sparse_reward = sparse_reward
 
     def get_train_dict(self, batch):
         rewards = batch['rewards']
@@ -416,7 +417,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             goal_states,
             num_steps_left - 1,  # Important! Else QF will (probably) blow up
         )
-        if self.do_tau_correctly:
+        if self.sparse_reward:
             y_target = terminals * rewards + (1. - terminals) * target_q_values
         else:
             y_target = rewards + (1. - terminals) * target_q_values
