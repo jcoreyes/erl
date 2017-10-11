@@ -46,3 +46,12 @@ class IntRampUpSchedule(RampUpSchedule):
     """
     def get_value(self, t):
         return int(super().get_value(t))
+
+
+# TODO(vitchyr)
+class PiecewiseLinearSchedule(ScalarSchedule):
+    """
+    Given a list of (x, t) value-time pairs, return value x at time t,
+    and linearly interpolate between the two
+    """
+    pass
