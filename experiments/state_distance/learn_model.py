@@ -76,7 +76,7 @@ if __name__ == '__main__':
 
     # n_seeds = 3
     # mode = "ec2"
-    exp_prefix = "local-reacher-2d-learn-small-model-softplus"
+    exp_prefix = "local-reacher-2d-learn-small-model-softplus-match-magic-params"
     # run_mode = 'custom_grid'
 
     num_configurations = 1  # for random mode
@@ -94,19 +94,19 @@ if __name__ == '__main__':
     variant = dict(
         dataset_path=str(dataset_path),
         algo_params=dict(
-            num_epochs=101,
+            num_epochs=100,
             num_batches_per_epoch=1000,
             batch_size=100,
             learning_rate=1e-3,
-            weight_decay=0,
+            weight_decay=0.0001,
             max_path_length=max_path_length,
             replay_buffer_size=replay_buffer_size,
-            add_on_policy_data=False,
+            add_on_policy_data=True,
         ),
         policy_params=dict(
-            sample_size=1000,
+            sample_size=10000,
             planning_horizon=6,
-            action_penalty=0,
+            action_penalty=0.0001,
         ),
         model_learns_deltas=True,
         model_params=dict(
@@ -123,7 +123,7 @@ if __name__ == '__main__':
         ),
         normalize_params=dict(
             obs_mean=None,
-            obs_std=[0.7, 0.7, 0.7, 0.6, 40, 5],
+            obs_std=[0.7, 0.3, 0.7, 0.3, 25, 5],
             # obs_std=[3, 3],
         ),
         sampler_params=dict(
@@ -132,11 +132,11 @@ if __name__ == '__main__':
             render=args.render,
         ),
         replay_buffer_size=replay_buffer_size,
-        # sampler_es_class=OUStrategy,
-        sampler_es_class=UniformStrategy,
+        sampler_es_class=OUStrategy,
+        # sampler_es_class=UniformStrategy,
         sampler_es_params=dict(
-            # max_sigma=0.2,
-            # min_sigma=0.2,
+            max_sigma=0.2,
+            min_sigma=0.2,
         ),
         generate_data=args.replay_path is None,
         start_with_empty_replay_buffer=False,
