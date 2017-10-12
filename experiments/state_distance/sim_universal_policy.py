@@ -15,7 +15,7 @@ if __name__ == "__main__":
                         help='path to the snapshot file')
     parser.add_argument('--H', type=int, default=300,
                         help='Max length of rollout')
-    parser.add_argument('--num_rollouts', type=int, default=1,
+    parser.add_argument('--nrolls', type=int, default=1,
                         help='Number of rollout per eval')
     parser.add_argument('--verbose', action='store_true')
     parser.add_argument('--discount', type=float,
@@ -51,7 +51,7 @@ if __name__ == "__main__":
 
     while True:
         paths = []
-        for _ in range(args.num_rollouts):
+        for _ in range(args.nrolls):
             goal = env.sample_goal_state_for_rollout()
             if args.verbose:
                 env.print_goal_state_info(goal)

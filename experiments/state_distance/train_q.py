@@ -62,8 +62,6 @@ def experiment(variant):
     else:
         replay_buffer = get_replay_buffer(variant)
 
-    from rllab.misc import logger
-    logger.log("Log dir: {}".format(logger.get_snapshot_dir()))
     observation_space = convert_gym_space(env.observation_space)
     action_space = convert_gym_space(env.action_space)
     qf = variant['qf_class'](
