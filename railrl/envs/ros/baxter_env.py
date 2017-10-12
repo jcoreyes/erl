@@ -1,16 +1,17 @@
-import rospy
-from rllab.core.serializable import Serializable
-from rllab.spaces.box import Box
-import baxter_interface as bi
+from collections import OrderedDict
+
 import numpy as np
-from rllab.envs.base import Env
-from rllab.misc import logger
+import rospy
 from numpy import linalg
 from robot_info.srv import *
+
+import baxter_interface as bi
+from experiments.murtaza.ros.Sawyer.joint_space_impedance import PDController
 from railrl.misc.data_processing import create_stats_ordered_dict
-from collections import OrderedDict
-import ipdb
-from experiments.murtaza.ros.joint_space_impedance import PDController
+from rllab.core.serializable import Serializable
+from rllab.envs.base import Env
+from rllab.misc import logger
+from rllab.spaces.box import Box
 
 NUM_JOINTS = 7
 
