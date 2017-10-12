@@ -332,7 +332,6 @@ class BaxterEnv(Env, Serializable):
                     action = torques
                 else:
                     action = action + torques
-        print(action)
         joint_to_values = dict(zip(self.arm_joint_names, action))
         self._set_joint_values(joint_to_values)
         self.rate.sleep()

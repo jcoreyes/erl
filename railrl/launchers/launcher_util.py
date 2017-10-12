@@ -297,7 +297,7 @@ def continue_experiment(load_experiment_dir, resume_function):
         mode = data['mode']
         exp_prefix = data['exp_prefix']
         variant = data['variant']
-        variant['params_file'] = load_experiment_dir + '/params.pkl' # load from snapshot directory
+        variant['params_file'] = load_experiment_dir + '/extra_data.pkl' # load from snapshot directory
         exp_id = data['exp_id']
         seed = data['seed']
         use_gpu = data['use_gpu']
