@@ -65,30 +65,37 @@ class ConditionalSchedule(ScalarSchedule, metaclass=abc.ABCMeta):
         pass
 
 
-class LossFollowingIntSchedule(ConditionalSchedule):
+class StatFollowingIntSchedule(ConditionalSchedule):
     """
-    Every time the (running average of the) loss dips below a value, decrease
+    Every time a (running average of the) statistic dips below a value, decrease
     the outputted scalar by one.
 
-    If the loss increases above a value, increase the output by one.
+    If the statistic increases above a value, increase the output by one.
     """
     def __init__(
             self,
             init_value,
-            loss_bounds,
+            stat_bounds,
             running_average_length,
             value_bounds=None,
+            invert=False,
+            statistic_name=None,
     ):
         """
         :param init_value: Initial value outputted
-        :param loss_bounds: (min, max) values for the loss. When the running
-        average of the loss exceeds this threshold, the outputted value changes.
-        :param running_average_length: How many losses to average.
+        :param stat_bounds: (min, max) values for the stat. When the running
+        average of the stat exceeds this threshold, the outputted value changes.
+        :param running_average_length: How many stat values to average.
+        :param statistic_name: Name of the statistic to follow.
+        :param invert: If True, increase the output when the statistic dips
+        below a value.
         :param value_bounds: (min, max) ints for the value. If None, then the
         outputted value can grow and shrink arbitrarily.
         """
         self._value = init_value
-        self.loss_lb, self.loss_ub = loss_bounds
+        self.stat_lb, self.stat_ub = stat_bounds
+        self.invert = invert
+        self.statistic_name = statistic_name
         if value_bounds is None:
             value_bounds = None, None
             self.value_lb, self.value_ub = value_bounds
@@ -97,43 +104,28 @@ class LossFollowingIntSchedule(ConditionalSchedule):
             assert self.value_lb < self.value_ub
             assert isinstance(self.value_lb, int)
             assert isinstance(self.value_ub, int)
-        self._losses = deque(maxlen=running_average_length)
+        self._stats = deque(maxlen=running_average_length)
 
-        assert self.loss_lb < self.loss_ub
+        assert self.stat_lb < self.stat_ub
 
     def get_value(self, t):
         return self._value
 
-    def update(self, loss):
-        self._losses.append(loss)
+    def update(self, stat):
+        self._stats.append(stat)
 
-        mean_loss = np.mean(self._losses)
+        mean = np.mean(self._stats)
 
-        if mean_loss < self.loss_lb:
-            self._value -= 1
-        if mean_loss > self.loss_ub:
-            self._value += 1
-
-        if self.value_ub is not None:
-            self._value = min(self.value_ub, max(self.value_lb, self._value))
-
-
-class LossInverseFollowingIntSchedule(LossFollowingIntSchedule):
-    """
-    Every time the (running average of the) loss dips below a value, increase
-    the outputted scalar by one.
-
-    If the loss increases above a value, decrease the output by one.
-    """
-    def update(self, loss):
-        self._losses.append(loss)
-
-        mean_loss = np.mean(self._losses)
-
-        if mean_loss < self.loss_lb:
-            self._value += 1
-        if mean_loss > self.loss_ub:
-            self._value -= 1
+        if self.invert:
+            if mean < self.stat_lb:
+                self._value += 1
+            if mean > self.stat_ub:
+                self._value -= 1
+        else:
+            if mean < self.stat_lb:
+                self._value -= 1
+            if mean > self.stat_ub:
+                self._value += 1
 
         if self.value_ub is not None:
             self._value = min(self.value_ub, max(self.value_lb, self._value))
