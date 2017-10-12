@@ -5,9 +5,11 @@ import time
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.envs.wrappers import convert_gym_space
 from railrl.misc.ml_util import ConstantSchedule
-from railrl.misc.rllab_util import get_table_key_set, \
-    save_extra_data_to_snapshot_dir
-from railrl.policies.base import SerializablePolicy, ExplorationPolicy
+from railrl.misc.rllab_util import (
+    get_table_key_set,
+    save_extra_data_to_snapshot_dir,
+)
+from railrl.policies.base import  ExplorationPolicy
 from rllab.algos.base import RLAlgorithm
 from rllab.misc import logger, tensor_utils
 from rllab.sampler import parallel_sampler
