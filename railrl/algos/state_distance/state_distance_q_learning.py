@@ -52,6 +52,7 @@ class StateDistanceQLearning(DDPG):
             max_path_length=max_path_length,
             discount=discount,
             goal_sampling_function=self.sample_goal_state_for_rollout,
+            # TODO(vitchyr): create a sample_discount_for_rollout function
             sample_discount=sample_discount,
         )
         self.num_goals_for_eval = num_steps_per_eval // max_path_length + 1
@@ -192,7 +193,10 @@ class StateDistanceQLearning(DDPG):
             ))
 
     def sample_goal_state_for_rollout(self):
-        goal_state = self.sample_goal_states(1)[0]
+        # Always sample goal states from the environment to prevent the
+        # degenerate solution where the policy just learns to stay at a fixed
+        # location.
+        goal_state = self.env.sample_goal_states(1)[0]
         goal_state = self.env.modify_goal_state_for_rollout(goal_state)
         return goal_state
 

@@ -130,8 +130,8 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "sdql-reacher2d-residual-and-train-target"
-    run_mode = 'grid'
+    exp_prefix = "sdql-reacher2d-sample-from-replay"
+    # run_mode = 'grid'
 
     version = "na"
     num_configurations = 50  # for random mode
@@ -159,8 +159,8 @@ if __name__ == '__main__':
             discount=0.99,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
-            sample_goals_from='environment',
-            # sample_goals_from='replay_buffer',
+            # sample_goals_from='environment',
+            sample_goals_from='replay_buffer',
             sample_discount=True,
             qf_weight_decay=0.,
             max_path_length=max_path_length,
@@ -189,7 +189,7 @@ if __name__ == '__main__':
         # epoch_discount_schedule_class=IntRampUpSchedule,
         epoch_discount_schedule_class=ConstantSchedule,
         epoch_discount_schedule_params=dict(
-            value=0
+            value=5,
             # min_value=0,
             # max_value=100,
             # ramp_duration=50,
@@ -223,7 +223,8 @@ if __name__ == '__main__':
         # qf_criterion_class=nn.MSELoss,
         qf_criterion_params=dict(
             # delta=1,
-        )
+        ),
+        exp_prefix=exp_prefix,
     )
     if run_mode == 'grid':
         search_space = {
