@@ -40,6 +40,7 @@ class StateDistanceQLearning(DDPG):
             prob_goal_state_is_next_state=0,
             termination_threshold=0,
             save_replay_buffer=False,
+            save_algorithm=False,
             **kwargs
     ):
         env = pickle.loads(pickle.dumps(env))
@@ -74,6 +75,7 @@ class StateDistanceQLearning(DDPG):
         self.prob_goal_state_is_next_state = prob_goal_state_is_next_state
         self.termination_threshold = termination_threshold
         self.save_replay_buffer = save_replay_buffer
+        self.save_algorithm = save_algorithm
 
         self.use_new_data = use_new_data
         if not self.use_new_data:
@@ -339,9 +341,12 @@ class StateDistanceQLearning(DDPG):
         data_to_save = dict(
             epoch=epoch,
             env=self.training_env,
+            algorithm=self,
         )
         if self.save_replay_buffer:
             data_to_save['replay_buffer'] = self.replay_buffer
+        if self.save_algorithm:
+            data_to_save['algorithm'] = self
         return data_to_save
 
     @staticmethod
