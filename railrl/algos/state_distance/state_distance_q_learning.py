@@ -8,6 +8,7 @@ import numpy as np
 
 import railrl.torch.pytorch_util as ptu
 from railrl.envs.multitask.multitask_env import MultitaskEnv
+from railrl.misc.ml_util import StatConditionalSchedule
 from railrl.misc.rllab_util import get_average_returns
 from railrl.policies.state_distance import UniversalPolicy
 from railrl.samplers.util import rollout
@@ -236,9 +237,13 @@ class StateDistanceQLearning(DDPG):
         statistics['Total Wallclock Time (s)'] = time.time() - self.start_time
         statistics['Epoch'] = epoch
 
-
         for key, value in statistics.items():
             logger.record_tabular(key, value)
+
+        if isinstance(self.epoch_discount_schedule, StatConditionalSchedule):
+            self.epoch_discount_schedule.update(
+                statistics[self.epoch_discount_schedule.statistic_name]
+            )
 
         self.log_diagnostics(test_paths)
 
