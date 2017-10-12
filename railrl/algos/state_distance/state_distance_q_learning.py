@@ -297,8 +297,17 @@ class StateDistanceQLearning(DDPG):
         Target Policy operations if needed
         """
         if self.optimize_target_policy:
-            target_policy_actions = self.target_policy(obs)
-            target_q_output = self.target_qf(obs, target_policy_actions)
+            target_policy_actions = self.target_policy(
+                obs,
+                goal_states,
+                discount,
+            )
+            target_q_output = self.target_qf(
+                obs,
+                target_policy_actions,
+                goal_states,
+                discount,
+            )
             target_policy_loss = - target_q_output.mean()
         else:
             # Always include the target policy loss so that different
@@ -468,8 +477,17 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
         Target Policy operations if needed
         """
         if self.optimize_target_policy:
-            target_policy_actions = self.target_policy(obs)
-            target_q_output = self.target_qf(obs, target_policy_actions)
+            target_policy_actions = self.target_policy(
+                obs,
+                goal_states,
+                num_steps_left,
+            )
+            target_q_output = self.target_qf(
+                obs,
+                target_policy_actions,
+                goal_states,
+                num_steps_left,
+            )
             target_policy_loss = - target_q_output.mean()
         else:
             # Always include the target policy loss so that different
