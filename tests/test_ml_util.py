@@ -1,12 +1,12 @@
 import unittest
 
-from railrl.misc.ml_util import StatFollowingIntSchedule
+from railrl.misc.ml_util import StatConditionalSchedule
 
 
 class TestLossFollowingIntSchedule(unittest.TestCase):
 
     def test_value_changes_average_1(self):
-        schedule = StatFollowingIntSchedule(
+        schedule = StatConditionalSchedule(
             0,
             (-1, 1),
             1,
@@ -20,7 +20,7 @@ class TestLossFollowingIntSchedule(unittest.TestCase):
         self.assertEqual(values, expected)
 
     def test_value_changes_average_3(self):
-        schedule = StatFollowingIntSchedule(
+        schedule = StatConditionalSchedule(
             0,
             (-1, 1),
             3,
@@ -34,11 +34,11 @@ class TestLossFollowingIntSchedule(unittest.TestCase):
         self.assertEqual(values, expected)
 
     def test_value_changes_average_1_inverse(self):
-        schedule = StatFollowingIntSchedule(
+        schedule = StatConditionalSchedule(
             0,
             (-1, 1),
             1,
-            invert=True,
+            delta=-1,
         )
         values = []
         for stat in [0, 0, 2, 2, -2]:
@@ -49,11 +49,11 @@ class TestLossFollowingIntSchedule(unittest.TestCase):
         self.assertEqual(values, expected)
 
     def test_value_changes_average_3_inverse(self):
-        schedule = StatFollowingIntSchedule(
+        schedule = StatConditionalSchedule(
             0,
             (-1, 1),
             3,
-            invert=True,
+            delta=-1,
         )
         values = []
         for stat in [0, 0, 2, 2, -2, -2, -2]:
@@ -64,7 +64,7 @@ class TestLossFollowingIntSchedule(unittest.TestCase):
         self.assertEqual(values, expected)
 
     def test_value_clipped(self):
-        schedule = StatFollowingIntSchedule(
+        schedule = StatConditionalSchedule(
             0,
             (-1, 1),
             1,

@@ -59,26 +59,21 @@ class PiecewiseLinearSchedule(ScalarSchedule):
     pass
 
 
-class ConditionalSchedule(ScalarSchedule, metaclass=abc.ABCMeta):
-    @abc.abstractmethod
-    def update(self, score):
-        pass
-
-
-class StatFollowingIntSchedule(ConditionalSchedule):
+class StatConditionalSchedule(ScalarSchedule):
     """
-    Every time a (running average of the) statistic dips below a value, decrease
-    the outputted scalar by one.
+    Every time a (running average of the) statistic dips is above a threshold,
+    add `delta` to the outputted value.
 
-    If the statistic increases above a value, increase the output by one.
+    If the statistic is below a threshold, subtract `delta` to the
+    outputted value.
     """
     def __init__(
             self,
             init_value,
             stat_bounds,
             running_average_length,
+            delta=1,
             value_bounds=None,
-            invert=False,
             statistic_name=None,
     ):
         """
@@ -87,14 +82,14 @@ class StatFollowingIntSchedule(ConditionalSchedule):
         average of the stat exceeds this threshold, the outputted value changes.
         :param running_average_length: How many stat values to average.
         :param statistic_name: Name of the statistic to follow.
-        :param invert: If True, increase the output when the statistic dips
-        below a value.
+        :param delta: How much to add to the output value when the statistic
+        is above the threshold.
         :param value_bounds: (min, max) ints for the value. If None, then the
         outputted value can grow and shrink arbitrarily.
         """
         self._value = init_value
         self.stat_lb, self.stat_ub = stat_bounds
-        self.invert = invert
+        self.delta = delta
         self.statistic_name = statistic_name
         if value_bounds is None:
             value_bounds = None, None
@@ -102,8 +97,6 @@ class StatFollowingIntSchedule(ConditionalSchedule):
         else:
             self.value_lb, self.value_ub = value_bounds
             assert self.value_lb < self.value_ub
-            assert isinstance(self.value_lb, int)
-            assert isinstance(self.value_ub, int)
         self._stats = deque(maxlen=running_average_length)
 
         assert self.stat_lb < self.stat_ub
@@ -113,19 +106,12 @@ class StatFollowingIntSchedule(ConditionalSchedule):
 
     def update(self, stat):
         self._stats.append(stat)
-
         mean = np.mean(self._stats)
 
-        if self.invert:
-            if mean < self.stat_lb:
-                self._value += 1
-            if mean > self.stat_ub:
-                self._value -= 1
-        else:
-            if mean < self.stat_lb:
-                self._value -= 1
-            if mean > self.stat_ub:
-                self._value += 1
+        if mean > self.stat_ub:
+            self._value += self.delta
+        if mean < self.stat_lb:
+            self._value -= self.delta
 
         if self.value_ub is not None:
             self._value = min(self.value_ub, max(self.value_lb, self._value))
