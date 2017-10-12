@@ -78,6 +78,21 @@ class TestLossFollowingIntSchedule(unittest.TestCase):
         expected = [1, 2, 2, 2, 1, 0, -1, -2, -2]
         self.assertEqual(values, expected)
 
+    def test_value_clipped_one_way(self):
+        schedule = StatConditionalSchedule(
+            0,
+            (-1, 1),
+            1,
+            value_bounds=(None, 2),
+        )
+        values = []
+        for stat in [2, 2, 2, 2, -2, -2, -2, -2, -2, -2]:
+            schedule.update(stat)
+            values.append(schedule.get_value(0))
+
+        expected = [1, 2, 2, 2, 1, 0, -1, -2, -3, -4]
+        self.assertEqual(values, expected)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -2,6 +2,7 @@
 General utility functions for machine learning.
 """
 import abc
+import math
 from collections import deque
 import numpy as np
 
@@ -89,17 +90,20 @@ class StatConditionalSchedule(ScalarSchedule):
         """
         self._value = init_value
         self.stat_lb, self.stat_ub = stat_bounds
+        assert self.stat_lb < self.stat_ub
         self.delta = delta
         self.statistic_name = statistic_name
+
         if value_bounds is None:
             value_bounds = None, None
-            self.value_lb, self.value_ub = value_bounds
-        else:
-            self.value_lb, self.value_ub = value_bounds
-            assert self.value_lb < self.value_ub
-        self._stats = deque(maxlen=running_average_length)
+        self.value_lb, self.value_ub = value_bounds
+        if self.value_lb is None:
+            self.value_lb = -math.inf
+        if self.value_ub is None:
+            self.value_ub = math.inf
+        assert self.value_lb < self.value_ub
 
-        assert self.stat_lb < self.stat_ub
+        self._stats = deque(maxlen=running_average_length)
 
     def get_value(self, t):
         return self._value
