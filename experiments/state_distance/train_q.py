@@ -4,6 +4,8 @@ import random
 import numpy as np
 from hyperopt import hp
 from torch import nn as nn
+from torch.nn import functional as F
+from railrl.pythonplusplus import identity
 
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
@@ -130,10 +132,10 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "train-q-reacher2d-sweep-next-state-goal-prob-and-wd"
+    exp_prefix = "sdql-softplus-reacher2d"
     run_mode = 'grid'
 
-    version = "Dev"
+    version = "na"
     num_configurations = 50  # for random mode
     snapshot_mode = "last"
     snapshot_gap = 10
@@ -146,11 +148,12 @@ if __name__ == '__main__':
     max_path_length = 300
     # noinspection PyTypeChecker
     variant = dict(
+        version=version,
         dataset_path=str(dataset_path),
         algo_params=dict(
             num_epochs=101,
             num_steps_per_epoch=300,
-            num_steps_per_eval=600,
+            num_steps_per_eval=3000,
             num_updates_per_env_step=20,
             use_soft_update=True,
             tau=0.001,
@@ -160,14 +163,14 @@ if __name__ == '__main__':
             policy_learning_rate=1e-4,
             sample_goals_from='environment',
             # sample_goals_from='replay_buffer',
-            sample_discount=False,
+            sample_discount=True,
             qf_weight_decay=0.,
             max_path_length=max_path_length,
             use_new_data=True,
             replay_buffer_size=1000000,
             prob_goal_state_is_next_state=0,
             termination_threshold=0,
-            do_tau_correctly=True,
+            sparse_reward=True,
             render=args.render,
             save_replay_buffer=True,
         ),
@@ -176,21 +179,22 @@ if __name__ == '__main__':
         qf_class=FlatUniversalQfunction,
         # qf_class=StructuredUniversalQfunction,
         qf_params=dict(
-            hidden_sizes=[400, 300],
-            # obs_hidden_size=400,
-            # embed_hidden_size=300,
+            hidden_sizes=[100, 100],
+            hidden_activation=F.softplus,
+            output_activation=F.softplus,
+            output_multiplier=-1,
         ),
         policy_params=dict(
-            fc1_size=400,
-            fc2_size=300,
+            fc1_size=100,
+            fc2_size=100,
         ),
         # epoch_discount_schedule_class=IntRampUpSchedule,
         epoch_discount_schedule_class=ConstantSchedule,
         epoch_discount_schedule_params=dict(
             value=0
-            # min_value=1,
-            # max_value=1,
-            # ramp_duration=1,
+            # min_value=0,
+            # max_value=100,
+            # ramp_duration=50,
         ),
         algo_class=HorizonFedStateDistanceQLearning,
         # env_class=Reacher7DofFullGoalState,
@@ -231,19 +235,24 @@ if __name__ == '__main__':
             #     # ArmEEInStatePusherEnv,
             #     # JointOnlyPusherEnv,
             # ],
-            # 'qf_class': [FlatUniversalQfunction, StructuredUniversalQfunction],
-            # 'epoch_discount_schedule_params.value': [0, 1, 5],
-            # 'algo_params.do_tau_correctly': [True, False],
-            'algo_params.prob_goal_state_is_next_state': [0, 0.5, 0.99],
+            # 'qf_class': [StructuredUniversalQfunction, FlatUniversalQfunction],
+            # 'epoch_discount_schedule_params.value': [0, 5, 10, 100],
+            # 'algo_params.sparse_reward': [True, False],
+            'algo_params.prob_goal_state_is_next_state': [0.5, 0.99, 0],
             # 'qf_params.dropout_prob': [0.5, 0],
-            'algo_params.qf_weight_decay': [1e-3, 1e-4, 1e-5, 0],
+            # 'algo_params.qf_weight_decay': [1e-3, 1e-4, 1e-5, 0],
             # 'algo_params.sample_goals_from': ['environment', 'replay_buffer'],
+            # 'algo_params.sample_discount': [True, False],
             # 'algo_params.num_steps_per_epoch': [1, 10],
             # 'algo_params.termination_threshold': [1e-4, 0]
             # 'epoch_discount_schedule_params.max_value': [100, 1000],
             # 'epoch_discount_schedule_params.ramp_duration': [
             #     1, 20, 50, 200,
             # ],
+            'qf_params.output_activation': [
+                identity,
+                F.softplus,
+            ]
             # 'qf_params': [
             #     dict(
             #         obs_hidden_size=400,
@@ -288,7 +297,7 @@ if __name__ == '__main__':
                 num_steps_per_epoch,
                 version,
         ) in enumerate([
-            # (1, 10000, "500k_env_steps"),
+            (1, 10000, "500k_env_steps"),
             (10, 500, "50k_env_steps"),
             (50, 100, "10k_env_steps"),
         ]):

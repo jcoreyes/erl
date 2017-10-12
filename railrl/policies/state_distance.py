@@ -424,77 +424,41 @@ class PseudoModelBasedPolicy(SampleBasedUniversalPolicy, nn.Module):
         return sampled_actions[best_action, :], {}
 
 
-class BeamSearchMultistepSampler(SampleBasedUniversalPolicy, nn.Module):
-    def __init__(
-            self,
-            qf,
-            env,
-            horizon,
-            num_particles=10,
-            sample_size=100,
-    ):
-        nn.Module.__init__(self)
-        super().__init__(sample_size)
-        self.qf = qf
-        self.env = env
-        self.horizon = horizon
-        self.num_particles = num_particles
-
-    def get_action(self, obs):
-        obs = self.expand_np_to_var(obs)
-        first_sampled_actions = self.env.sample_actions(self.sample_size)
-        action = ptu.np_to_var(first_sampled_actions)
-        next_state = ptu.np_to_var(self.env.sample_states(self.sample_size))
-
-        penalties = []
-        for i in range(self.horizon):
-            q_values = self.qf(
-                state,
-                action,
-                self._goal_batch,
-                self._discount_batch,
-            )
-            penalties.append(
-                - self.constraint_weight * constraint_penalty
-            )
-
-            action = ptu.np_to_var(
-                self.env.sample_actions(self.sample_size)
-            )
-            state = next_state
-            next_state = ptu.np_to_var(self.env.sample_states(self.sample_size))
-
-
-class ConstrainedOptimizationOCPolicy(UniversalPolicy, nn.Module):
+class SdqBasedSqpOcPolicy(UniversalPolicy, nn.Module):
     """
-    Solve
+    Implement
 
-    \pi(s, g) = argmin_a min_{s'} ||s' - g||^2
-        subject to Q(s, a, s') =0
+        pi(s_1, g) = argmin_{a_1} min_{a_{2:T}, s_{2:T+1}} ||s_{T+1} - g||_2^2
+        subject to Q(s_i, a_i, s_{i+1}) = 0
 
-    with sequential quadratic programming.
+    for i = 1, ..., T
+
+    using SLSQP
     """
     def __init__(
             self,
             qf,
             env,
             solver_params=None,
+            planning_horizon=1,
     ):
-        nn.Module.__init__(self)
         super().__init__()
+        nn.Module.__init__(self)
         self.qf = qf
         self.env = env
         self.solver_params = solver_params
+        self.planning_horizon = planning_horizon
+
         self.action_dim = self.env.action_space.low.size
         self.observation_dim = self.env.observation_space.low.size
-        self.last_solution = np.zeros(self.action_dim + self.observation_dim)
+        self.last_solution = None
         self.lower_bounds = np.hstack((
-            self.env.action_space.low,
-            self.env.observation_space.low,
+            np.tile(self.env.action_space.low, self.planning_horizon),
+            np.tile(self.env.observation_space.low, self.planning_horizon),
         ))
         self.upper_bounds = np.hstack((
-                self.env.action_space.high,
-                self.env.observation_space.high,
+            np.tile(self.env.action_space.high, self.planning_horizon),
+            np.tile(self.env.observation_space.high, self.planning_horizon),
         ))
         self.bounds = list(zip(self.lower_bounds, self.upper_bounds))
         self.constraints = {
@@ -503,57 +467,76 @@ class ConstrainedOptimizationOCPolicy(UniversalPolicy, nn.Module):
             'jac': self.constraint_jacobian,
         }
 
-    def cost_function(self, action_and_next_state_flat):
-        next_state = action_and_next_state_flat[self.action_dim:]
-        return np.sum((next_state - self._goal_np)**2)
+    def split(self, x):
+        """
+        :param x: vector passed to optimization
+        :return: tuple
+            - actions np.array, shape [planning_horizon X action_dim]
+            - next_states np.array, shape [planning_horizon X obs_dim]
+        """
+        all_actions = x[:self.action_dim * self.planning_horizon]
+        all_next_states = x[self.action_dim * self.planning_horizon:]
+        if isinstance(x, np.ndarray):
+            return (
+                all_actions.reshape(self.planning_horizon, self.action_dim),
+                all_next_states.reshape(self.planning_horizon, self.observation_dim)
+            )
+        else:
+            return (
+                all_actions.view(self.planning_horizon, self.action_dim),
+                all_next_states.view(self.planning_horizon, self.observation_dim)
+            )
 
-    def cost_jacobian(self, action_and_next_state_flat):
-        next_state = action_and_next_state_flat[self.action_dim:]
-        jac = 2 * (next_state - self._goal_np)
-        newjac = np.hstack((np.zeros(self.action_dim), jac))
-        return newjac
+    def cost_function(self, x):
+        _, all_next_states = self.split(x)
+        last_state = all_next_states[-1, :]
+        return np.sum((last_state - self._goal_np)**2)
 
-    def constraint_fctn(self, action_next_state_flat, state=None):
+    def cost_jacobian(self, x):
+        jacobian = np.zeros_like(x)
+        _, all_next_states = self.split(x)
+        last_state = all_next_states[-1, :]
+        # Assuming the last `self.observation_dim` part of x is the last state
+        jacobian[-self.observation_dim:] = (
+            2 * (last_state - self._goal_np)
+        )
+        return jacobian
+
+    def _constraint_fctn(self, x, state, return_grad):
         state = ptu.np_to_var(state)
-        action_next_state_flat = ptu.np_to_var(
-            action_next_state_flat,
-            requires_grad=True,
-        )
-        action = action_next_state_flat[0:self.action_dim]
-        next_state = action_next_state_flat[self.action_dim:]
+        x = ptu.np_to_var(x, requires_grad=return_grad)
+        all_actions, all_next_states = self.split(x)
 
-        qvalue = ptu.get_numpy(
-            self.qf(
-                state.unsqueeze(0),
-                action.unsqueeze(0),
-                next_state.unsqueeze(0),
-                self._discount_expanded_torch
-            ).squeeze(0)
-        )
-        return qvalue[0]
+        loss = 0
+        state = state.unsqueeze(0)
+        for i in range(self.planning_horizon):
+            action = all_actions[i:i+1, :]
+            next_state = all_next_states[i:i+1, :]
+            loss += self.qf(
+                state, action, next_state, self._discount_expanded_torch
+            )
+            state = next_state
+        if return_grad:
+            loss.squeeze(0).backward()
+            return ptu.get_numpy(x.grad)
+        else:
+            return ptu.get_numpy(loss.squeeze(0))[0]
 
-    def constraint_jacobian(self, action_next_state_flat, state=None):
-        state = ptu.np_to_var(state)
-        action_next_state_flat = ptu.np_to_var(
-            action_next_state_flat,
-            requires_grad=True,
-        )
-        action = action_next_state_flat[0:self.action_dim]
-        next_state = action_next_state_flat[self.action_dim:]
+    def constraint_fctn(self, x, state=None):
+        return self._constraint_fctn(x, state, False)
 
-        q_value = self.qf(
-            state.unsqueeze(0),
-            action.unsqueeze(0),
-            next_state.unsqueeze(0),
-            self._discount_expanded_torch
-        )
-        q_value.backward()
-        return ptu.get_numpy(action_next_state_flat.grad)
+    def constraint_jacobian(self, x, state=None):
+        return self._constraint_fctn(x, state, True)
 
     def reset(self):
-        self.last_solution = np.zeros(self.action_dim + self.observation_dim)
+        self.last_solution = None
 
     def get_action(self, obs):
+        if self.last_solution is None:
+            self.last_solution = np.hstack((
+                np.zeros(self.action_dim * self.planning_horizon),
+                np.tile(obs, self.planning_horizon),
+            ))
         self.constraints['args'] = (obs, )
         result = optimize.minimize(
             self.cost_function,

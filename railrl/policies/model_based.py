@@ -3,6 +3,7 @@ import torch
 from torch import nn
 from scipy import optimize
 
+from railrl.networks.state_distance import StructuredUniversalQfunction
 from railrl.policies.state_distance import (
     UniversalPolicy,
     SampleBasedUniversalPolicy,
@@ -80,6 +81,10 @@ class MultistepModelBasedPolicy(SampleBasedUniversalPolicy, nn.Module):
 
 
 class SQPModelBasedPolicy(UniversalPolicy, nn.Module):
+    """
+    \pi(s_1, g) = \argmin_{a_1} \min_{a_{2:T}, s_{2:T+1}} ||s_{T+1} - g||_2^2
+    subject to $f(s_i, a_i) = s_{i+1}$ for $i=1,..., T$
+    """
     def __init__(
             self,
             model,
@@ -98,9 +103,7 @@ class SQPModelBasedPolicy(UniversalPolicy, nn.Module):
 
         self.action_dim = self.env.action_space.low.size
         self.observation_dim = self.env.observation_space.low.size
-        self.last_solution = np.zeros(
-            (self.action_dim + self.observation_dim) * self.planning_horizon
-        )
+        self.last_solution = None
         self.lower_bounds = np.hstack((
             np.tile(self.env.action_space.low, self.planning_horizon),
             np.tile(self.env.observation_space.low, self.planning_horizon),
@@ -151,59 +154,49 @@ class SQPModelBasedPolicy(UniversalPolicy, nn.Module):
         )
         return jacobian
 
-    def constraint_fctn(self, x, state=None):
+    def _constraint_fctn(self, x, state, return_grad):
         state = ptu.np_to_var(state)
-        x = ptu.np_to_var(x, requires_grad=False)
+        x = ptu.np_to_var(x, requires_grad=return_grad)
         all_actions, all_next_states = self.split(x)
 
         loss = 0
         state_predicted = state.unsqueeze(0)
         for i in range(self.planning_horizon):
             action = all_actions[i:i+1, :]
-            if self.model_learns_deltas:
-                next_state_predicted = state_predicted + self.model(
-                    state_predicted,
-                    action,
-                )
-            else:
-                next_state_predicted = self.model(
-                    state_predicted,
-                    action,
-                )
             next_state = all_next_states[i:i+1, :]
+            next_state_predicted = self.get_next_state_predicted(
+                state_predicted,
+                action,
+            )
             loss += torch.norm(next_state - next_state_predicted, p=2)
-            state_predicted = next_state_predicted
-        return ptu.get_numpy(loss)
+            state_predicted = next_state
+        if return_grad:
+            loss.squeeze(0).backward()
+            return ptu.get_numpy(x.grad)
+        else:
+            return ptu.get_numpy(loss)
+
+    def constraint_fctn(self, x, state=None):
+        return self._constraint_fctn(x, state, False)
 
     def constraint_jacobian(self, x, state=None):
-        state = ptu.np_to_var(state)
-        x = ptu.np_to_var(x, requires_grad=True)
-        all_actions, all_next_states = self.split(x)
+        return self._constraint_fctn(x, state, True)
 
-        loss = 0
-        state_predicted = state.unsqueeze(0)
-        for i in range(self.planning_horizon):
-            action = all_actions[i:i+1, :]
-            if self.model_learns_deltas:
-                next_state_predicted = state_predicted + self.model(
-                    state_predicted,
-                    action,
-                )
-            else:
-                next_state_predicted = self.model(
-                    state_predicted,
-                    action,
-                )
-            next_state = all_next_states[i:i+1, :]
-            loss += torch.norm(next_state - next_state_predicted, p=2)
-            state_predicted = next_state_predicted
-        loss.squeeze(0).backward()
-        return ptu.get_numpy(x.grad)
+    def get_next_state_predicted(self, state, action):
+        if self.model_learns_deltas:
+            return state + self.model(state, action)
+        else:
+            return self.model(state, action)
 
     def reset(self):
-        self.last_solution = np.zeros(self.action_dim + self.observation_dim)
+        self.last_solution = None
 
     def get_action(self, obs):
+        if self.last_solution is None:
+            self.last_solution = np.hstack((
+                np.zeros(self.action_dim * self.planning_horizon),
+                np.tile(obs, self.planning_horizon),
+            ))
         self.constraints['args'] = (obs, )
         result = optimize.minimize(
             self.cost_function,

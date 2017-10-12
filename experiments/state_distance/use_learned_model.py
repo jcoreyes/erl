@@ -11,6 +11,7 @@ from railrl.algos.state_distance.state_distance_q_learning import (
     multitask_rollout
 )
 from railrl.launchers.launcher_util import run_experiment
+from railrl.networks.state_distance import ModelExtractor
 from railrl.policies.model_based import (
     MultistepModelBasedPolicy,
     SQPModelBasedPolicy,
@@ -24,14 +25,20 @@ def experiment(variant):
     H = variant['H']
     render = variant['render']
     data = joblib.load(variant['qf_path'])
-    model = data['model']
+    policy_params = variant['policy_params']
+    if 'model' in data:
+        model = data['model']
+    else:
+        qf = data['qf']
+        model = ModelExtractor(qf)
+        policy_params['model_learns_deltas'] = False
     env = data['env']
     if ptu.gpu_enabled():
         model.cuda()
     policy = variant['policy_class'](
         model,
         env,
-        **variant['policy_params']
+        **policy_params
     )
     paths = []
     for _ in range(num_rollouts):
@@ -62,10 +69,10 @@ if __name__ == "__main__":
                         help='Number of rollouts to do.')
     parser.add_argument('--nsamples', type=int, default=1000,
                         help='Number of sample for sampled-based optimizer')
-    parser.add_argument('--maxi', type=int, default=10,
+    parser.add_argument('--maxi', type=int, default=5,
                         help='Max number of iterations for sqp')
     parser.add_argument('--hide', action='store_true')
-    parser.add_argument('--sqp', action='store_true')
+    parser.add_argument('--nosqp', action='store_true')
     parser.add_argument('--verbose', action='store_true')
     args = parser.parse_args()
 
@@ -74,21 +81,24 @@ if __name__ == "__main__":
     exp_prefix = "dev-use-learned-model"
     run_mode = 'none'
     use_gpu = True
-    if args.sqp:
+
+    if args.nosqp:
+        policy_class = MultistepModelBasedPolicy
+        policy_params = dict(
+            model_learns_deltas=True,
+            sample_size=args.nsamples,
+            planning_horizon=args.planh,
+        )
+    else:
         policy_class = SQPModelBasedPolicy
         policy_params = dict(
             model_learns_deltas=True,
             solver_params=dict(
                 disp=args.verbose,
                 maxiter=args.maxi,
+                ftol=1e-2,
+                iprint=1,
             ),
-            planning_horizon=args.planh,
-        )
-    else:
-        policy_class = MultistepModelBasedPolicy
-        policy_params = dict(
-            model_learns_deltas=True,
-            sample_size=args.nsamples,
             planning_horizon=args.planh,
         )
 

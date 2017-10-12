@@ -20,6 +20,7 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.model_based import MultistepModelBasedPolicy
 from railrl.predictors.torch import Mlp
 
+from torch.nn import functional as F
 
 def experiment(variant):
     env_class = variant['env_class']
@@ -68,21 +69,21 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     n_seeds = 1
-    mode = "here"
+    mode = "local"
     exp_prefix = "dev-reacher-model-learning"
     version = "Dev"
     run_mode = "none"
 
-    n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "reacher-7dof-learn-model-net-ngradsteps-sweep"
-    run_mode = 'grid'
+    # n_seeds = 3
+    # mode = "ec2"
+    exp_prefix = "local-reacher-2d-learn-small-model-softplus-match-magic-params"
+    # run_mode = 'custom_grid'
 
     num_configurations = 1  # for random mode
     snapshot_mode = "last"
     snapshot_gap = 5
     use_gpu = True
-    if mode != "here":
+    if mode != "local":
         use_gpu = False
 
     dataset_path = args.replay_path
@@ -93,26 +94,27 @@ if __name__ == '__main__':
     variant = dict(
         dataset_path=str(dataset_path),
         algo_params=dict(
-            num_epochs=101,
+            num_epochs=100,
             num_batches_per_epoch=1000,
             batch_size=100,
             learning_rate=1e-3,
-            weight_decay=0,
+            weight_decay=0.0001,
             max_path_length=max_path_length,
             replay_buffer_size=replay_buffer_size,
             add_on_policy_data=True,
         ),
         policy_params=dict(
-            sample_size=1000,
+            sample_size=10000,
             planning_horizon=6,
-            action_penalty=0,
+            action_penalty=0.0001,
         ),
         model_learns_deltas=True,
         model_params=dict(
-            hidden_sizes=[500, 500],
+            hidden_activation=F.softplus,
+            hidden_sizes=[100, 100],
         ),
-        # env_class=GoalStateSimpleStateReacherEnv,
-        env_class=Reacher7DofFullGoalState,
+        env_class=GoalStateSimpleStateReacherEnv,
+        # env_class=Reacher7DofFullGoalState,
         # env_class=PusherEnv,
         # env_class=XyMultitaskSimpleStateReacherEnv,
         # env_class=MultitaskPoint2DEnv,
@@ -121,7 +123,7 @@ if __name__ == '__main__':
         ),
         normalize_params=dict(
             obs_mean=None,
-            # obs_std=[0.7, 0.7, 0.7, 0.6, 40, 5],
+            obs_std=[0.7, 0.3, 0.7, 0.3, 25, 5],
             # obs_std=[3, 3],
         ),
         sampler_params=dict(
@@ -130,11 +132,11 @@ if __name__ == '__main__':
             render=args.render,
         ),
         replay_buffer_size=replay_buffer_size,
-        # sampler_es_class=OUStrategy,
-        sampler_es_class=UniformStrategy,
+        sampler_es_class=OUStrategy,
+        # sampler_es_class=UniformStrategy,
         sampler_es_params=dict(
-            # max_sigma=0.2,
-            # min_sigma=0.2,
+            max_sigma=0.2,
+            min_sigma=0.2,
         ),
         generate_data=args.replay_path is None,
         start_with_empty_replay_buffer=False,
@@ -167,9 +169,6 @@ if __name__ == '__main__':
                     variant=variant,
                     exp_id=exp_id,
                     use_gpu=use_gpu,
-                    sync_s3_log=True,
-                    sync_s3_pkl=True,
-                    periodic_sync_interval=300,
                     snapshot_mode=snapshot_mode,
                     snapshot_gap=snapshot_gap,
                 )
@@ -181,15 +180,16 @@ if __name__ == '__main__':
         ) in enumerate([
             (False, 0, 10000),
             (False, 0, 100000),
-            (True, 50000, 50000),
+            # (True, 50000, 50000),
             (True, 90000, 10000),
-            (True, 10000, 10000),
+            # (True, 10000, 10000),
+            # (True, 10000, 0),
         ]):
-            variant['algo_params.add_on_policy_data'] = add_on_policy_data
-            variant['algo_params.max_num_on_policy_steps_to_add'] = (
+            variant['algo_params']['add_on_policy_data'] = add_on_policy_data
+            variant['algo_params']['max_num_on_policy_steps_to_add'] = (
                 on_policy_num_steps
             )
-            variant['sampler_params.min_num_steps_to_collect'] = (
+            variant['sampler_params']['min_num_steps_to_collect'] = (
                 off_policy_num_steps
             )
             variant['version'] = "off{}k_on{}k".format(
@@ -206,9 +206,6 @@ if __name__ == '__main__':
                     variant=variant,
                     exp_id=exp_id,
                     use_gpu=use_gpu,
-                    sync_s3_log=True,
-                    sync_s3_pkl=True,
-                    periodic_sync_interval=300,
                     snapshot_mode=snapshot_mode,
                     snapshot_gap=snapshot_gap,
                 )
@@ -223,9 +220,6 @@ if __name__ == '__main__':
                 variant=variant,
                 exp_id=0,
                 use_gpu=use_gpu,
-                sync_s3_log=True,
-                sync_s3_pkl=True,
-                periodic_sync_interval=300,
                 snapshot_mode=snapshot_mode,
                 snapshot_gap=snapshot_gap,
             )

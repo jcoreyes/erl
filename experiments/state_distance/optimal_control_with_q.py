@@ -15,7 +15,6 @@ from railrl.policies.state_distance import (
     SampleOptimalControlPolicy,
     TerminalRewardSampleOCPolicy,
     ArgmaxQFPolicy,
-    BeamSearchMultistepSampler,
     PseudoModelBasedPolicy,
 )
 from railrl.samplers.util import rollout
@@ -33,7 +32,6 @@ if __name__ == "__main__":
                         help='Number of rollouts per eval')
     parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--argmax', action='store_true')
-    parser.add_argument('--beam', action='store_true')
     parser.add_argument('--hide', action='store_true')
     parser.add_argument('--verbose', action='store_true')
     parser.add_argument('--plan_h', type=int, default=1,
@@ -74,12 +72,6 @@ if __name__ == "__main__":
             qf,
             env,
             sample_size=args.nsamples,
-        )
-    elif args.beam:
-        policy = BeamSearchMultistepSampler(
-            qf,
-            env,
-            args.plan_h,
         )
     elif args.plan_h == 1:
         policy = SampleOptimalControlPolicy(

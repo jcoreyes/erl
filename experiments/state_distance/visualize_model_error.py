@@ -74,7 +74,7 @@ def visualize_policy_error(model, env, horizon):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('file', type=str, help='path to the snapshot file')
-    parser.add_argument('--H', type=int, default=10, help='Horizon for eval')
+    parser.add_argument('--H', type=int, default=30, help='Horizon for eval')
     args = parser.parse_args()
 
     data = joblib.load(args.file)
