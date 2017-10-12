@@ -1,3 +1,4 @@
+import math
 import pickle
 import time
 import torch
@@ -371,6 +372,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             exploration_policy: UniversalExplorationPolicy = None,
             sparse_reward=True,
             fraction_of_taus_set_to_zero=0,
+            clamp_q_target_values=False,
             **kwargs
     ):
         """
@@ -394,6 +396,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
         assert 1 >= fraction_of_taus_set_to_zero >= 0
         self.sparse_reward = sparse_reward
         self.fraction_of_taus_set_to_zero = fraction_of_taus_set_to_zero
+        self.clamp_q_target_values = clamp_q_target_values
 
     def get_train_dict(self, batch):
         rewards = batch['rewards']
@@ -439,6 +442,8 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             goal_states,
             num_steps_left - 1,  # Important! Else QF will (probably) blow up
         )
+        if self.clamp_q_target_values:
+            target_q_values = torch.clamp(target_q_values, -math.inf, 0)
         if self.sparse_reward:
             y_target = terminals * rewards + (1. - terminals) * target_q_values
         else:

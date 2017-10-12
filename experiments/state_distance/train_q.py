@@ -132,7 +132,7 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "sdql-reacher4d-oversample-tau-zero"
+    exp_prefix = "sdql-reacher2d-clamp-target-q"
     run_mode = 'grid'
 
     version = "na"
@@ -154,7 +154,7 @@ if __name__ == '__main__':
             num_epochs=101,
             num_steps_per_epoch=300,
             num_steps_per_eval=3000,
-            num_updates_per_env_step=20,
+            num_updates_per_env_step=50,
             use_soft_update=True,
             tau=0.001,
             batch_size=500,
@@ -236,16 +236,17 @@ if __name__ == '__main__':
             #     # JointOnlyPusherEnv,
             # ],
             # 'qf_class': [StructuredUniversalQfunction, FlatUniversalQfunction],
-            'epoch_discount_schedule_params.value': [100, 5, 10, 25, 50, 0],
+            'epoch_discount_schedule_params.value': [5, 10, 25, 50, 0],
             # 'algo_params.sparse_reward': [True, False],
-            'algo_params.prob_goal_state_is_next_state': [0.5, 0.99, 0],
+            'algo_params.clamp_q_target_values': [True, False],
+            'algo_params.prob_goal_state_is_next_state': [0.5, 0],
             # 'qf_params.dropout_prob': [0.5, 0],
             # 'algo_params.qf_weight_decay': [1e-3, 1e-4, 1e-5, 0],
             # 'algo_params.sample_goals_from': ['environment', 'replay_buffer'],
             # 'algo_params.sample_discount': [True, False],
             # 'algo_params.num_steps_per_epoch': [1, 10],
             # 'algo_params.termination_threshold': [1e-4, 0]
-            'algo_params.fraction_of_taus_set_to_zero': [0.5, 0],
+            # 'algo_params.fraction_of_taus_set_to_zero': [0.5, 0],
             # 'epoch_discount_schedule_params.max_value': [100, 1000],
             # 'epoch_discount_schedule_params.ramp_duration': [
             #     1, 20, 50, 200,
