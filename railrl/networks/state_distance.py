@@ -92,18 +92,21 @@ class FlatUniversalQfunction(PyTorchModule):
             hidden_init=ptu.fanin_init,
             b_init_value=0.1,
             dropout_prob=0,
-            **kwargs
+            output_multiplier=1,
     ):
+        if output_activation == F.selu or output_activation == F.relu:
+            assert output_multiplier < 0, "Q function should output negative #s"
+
         self.save_init_params(locals())
         super().__init__()
 
         self.hidden_activation = hidden_activation
         self.output_activation = output_activation
         self.dropout_prob = dropout_prob
+        self.output_multiplier = output_multiplier
         self.dropouts = []
         self.fcs = []
-        in_size = observation_dim + goal_state_dim + + action_dim + 1
-
+        in_size = observation_dim + goal_state_dim + action_dim + 1
 
         for i, next_size in enumerate(hidden_sizes):
             fc = nn.Linear(in_size, next_size)
@@ -127,7 +130,7 @@ class FlatUniversalQfunction(PyTorchModule):
             h = self.hidden_activation(fc(h))
             if self.dropout_prob > 0:
                 h = self.dropouts[i](h)
-        return self.output_activation(self.last_fc(h))
+        return self.output_activation(self.last_fc(h)) * self.output_multiplier
 
 
 class StructuredUniversalQfunction(PyTorchModule):
@@ -147,21 +150,15 @@ class StructuredUniversalQfunction(PyTorchModule):
             hidden_sizes,
             init_w=3e-3,
             hidden_activation=F.relu,
-            output_activation=identity,
             hidden_init=ptu.fanin_init,
             bn_input=False,
             dropout_prob=0,
-            output_multiplier=1,
     ):
-        if output_activation == F.selu or output_activation == F.relu:
-            assert output_multiplier < 0, "Q function should output negative #s"
         self.save_init_params(locals())
         super().__init__()
 
         self.hidden_activation = hidden_activation
-        self.output_activation = output_activation
         self.dropout_prob = dropout_prob
-        self.output_multiplier = output_multiplier
         self.dropouts = []
         self.fcs = []
         in_size = observation_dim + action_dim + 1
@@ -200,11 +197,11 @@ class StructuredUniversalQfunction(PyTorchModule):
             h = self.hidden_activation(fc(h))
             if self.dropout_prob > 0:
                 h = self.dropouts[i](h)
-        next_state = self.output_activation(self.last_fc(h))
+        next_state = self.last_fc(h)
         if only_return_next_state:
             return next_state
         out = - torch.norm(goal_state - next_state, p=2, dim=1)
-        return out.unsqueeze(1) * self.output_multiplier
+        return out.unsqueeze(1)
 
 
 class ModelExtractor(PyTorchModule):

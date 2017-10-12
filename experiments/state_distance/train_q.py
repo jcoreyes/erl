@@ -5,6 +5,7 @@ import numpy as np
 from hyperopt import hp
 from torch import nn as nn
 from torch.nn import functional as F
+from railrl.pythonplusplus import identity
 
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
@@ -151,9 +152,9 @@ if __name__ == '__main__':
         dataset_path=str(dataset_path),
         algo_params=dict(
             num_epochs=101,
-            num_steps_per_epoch=900,
-            num_steps_per_eval=600,
-            num_updates_per_env_step=50,
+            num_steps_per_epoch=300,
+            num_steps_per_eval=3000,
+            num_updates_per_env_step=20,
             use_soft_update=True,
             tau=0.001,
             batch_size=500,
@@ -181,6 +182,7 @@ if __name__ == '__main__':
             hidden_sizes=[100, 100],
             hidden_activation=F.softplus,
             output_activation=F.softplus,
+            output_multiplier=-1,
         ),
         policy_params=dict(
             fc1_size=100,
@@ -233,7 +235,7 @@ if __name__ == '__main__':
             #     # ArmEEInStatePusherEnv,
             #     # JointOnlyPusherEnv,
             # ],
-            'qf_class': [StructuredUniversalQfunction, FlatUniversalQfunction],
+            # 'qf_class': [StructuredUniversalQfunction, FlatUniversalQfunction],
             # 'epoch_discount_schedule_params.value': [0, 5, 10, 100],
             # 'algo_params.sparse_reward': [True, False],
             'algo_params.prob_goal_state_is_next_state': [0.5, 0.99, 0],
@@ -247,11 +249,10 @@ if __name__ == '__main__':
             # 'epoch_discount_schedule_params.ramp_duration': [
             #     1, 20, 50, 200,
             # ],
-            # 'qf_params.hidden_activation': [
-            #     F.tanh,
-            #     F.relu,
-            #     F.softplus
-            # ]
+            'qf_params.output_activation': [
+                identity,
+                F.softplus,
+            ]
             # 'qf_params': [
             #     dict(
             #         obs_hidden_size=400,
