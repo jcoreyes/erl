@@ -292,6 +292,18 @@ class StateDistanceQLearning(DDPG):
         else:
             qf_loss = raw_qf_loss
 
+        """
+        Target Policy operations if needed
+        """
+        if self.optimize_target_policy:
+            target_policy_actions = self.target_policy(obs)
+            target_q_output = self.target_qf(obs, target_policy_actions)
+            target_policy_loss = - target_q_output.mean()
+        else:
+            # Always include the target policy loss so that different
+            # experiments are easily comparable.
+            target_policy_loss = ptu.FloatTensor([0])
+
         return OrderedDict([
             ('Policy Actions', policy_actions),
             ('Policy Loss', policy_loss),
@@ -301,6 +313,7 @@ class StateDistanceQLearning(DDPG):
             ('Y predictions', y_pred),
             ('Unregularized QF Loss', raw_qf_loss),
             ('QF Loss', qf_loss),
+            ('Target Policy Loss', target_policy_loss),
         ])
 
     def get_epoch_snapshot(self, epoch):
@@ -350,7 +363,6 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
     """
     Hacky solution: just use discount in place of max_num_steps_left.
     """
-
     def __init__(
             self,
             env: MultitaskEnv,
@@ -358,6 +370,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             policy,
             exploration_policy: UniversalExplorationPolicy = None,
             sparse_reward=True,
+            fraction_of_taus_set_to_zero=0,
             **kwargs
     ):
         """
@@ -367,6 +380,8 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
         sparse_reward = True) is
         "how far you are from the goal state after tau steps."
         The wrong version just uses tau as a timer.
+        :param fraction_of_taus_set_to_zero: This proportion of samples
+        taus will be set to zero.
         :param kwargs:
         """
         super().__init__(
@@ -376,7 +391,9 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             exploration_policy,
             **kwargs
         )
+        assert 1 >= fraction_of_taus_set_to_zero >= 0
         self.sparse_reward = sparse_reward
+        self.fraction_of_taus_set_to_zero = fraction_of_taus_set_to_zero
 
     def get_train_dict(self, batch):
         rewards = batch['rewards']
@@ -392,6 +409,11 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             num_steps_left_np = np.random.randint(
                 0, self.discount + 1, (batch_size, 1)
             )
+        if self.fraction_of_taus_set_to_zero > 0:
+            num_taus_set_to_zero = int(
+                batch_size * self.fraction_of_taus_set_to_zero
+            )
+            num_steps_left_np[:num_taus_set_to_zero] = 0
         num_steps_left = ptu.np_to_var(num_steps_left_np)
         terminals_np = (num_steps_left_np == 0).astype(int)
         terminals = ptu.np_to_var(terminals_np)
@@ -437,6 +459,18 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
         else:
             qf_loss = raw_qf_loss
 
+        """
+        Target Policy operations if needed
+        """
+        if self.optimize_target_policy:
+            target_policy_actions = self.target_policy(obs)
+            target_q_output = self.target_qf(obs, target_policy_actions)
+            target_policy_loss = - target_q_output.mean()
+        else:
+            # Always include the target policy loss so that different
+            # experiments are easily comparable.
+            target_policy_loss = ptu.FloatTensor([0])
+
         return OrderedDict([
             ('Policy Actions', policy_actions),
             ('Policy Loss', policy_loss),
@@ -446,6 +480,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             ('Y predictions', y_pred),
             ('Unregularized QF Loss', raw_qf_loss),
             ('QF Loss', qf_loss),
+            ('Target Policy Loss', target_policy_loss),
         ])
 
 
