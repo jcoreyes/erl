@@ -67,9 +67,9 @@ if __name__ == '__main__':
     exp_prefix = "dev-sdql-fine-tune"
     run_mode = "none"
 
-    # n_seeds = 3
+    n_seeds = 1
     # mode = "ec2"
-    # exp_prefix = "sdql-fine-tune"
+    exp_prefix = "sdql-fine-tune"
     # run_mode = 'grid'
 
     num_configurations = 50  # for random mode
@@ -111,11 +111,11 @@ if __name__ == '__main__':
         epoch_discount_schedule_class=StatConditionalSchedule,
         epoch_discount_schedule_params=dict(
             init_value=5,
-            stat_bounds=(-40, -30),
-            running_average_length=5,
-            delta=1,
+            stat_bounds=(0.06, 0.09),
+            running_average_length=1,
+            delta=-1,
             value_bounds=(5, None),
-            statistic_name="AverageReturn",
+            statistic_name="Final Euclidean distance to goal Mean",
             # min_value=0,
             # max_value=100,
             # ramp_duration=50,

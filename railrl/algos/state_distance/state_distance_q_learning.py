@@ -9,7 +9,7 @@ import numpy as np
 import railrl.torch.pytorch_util as ptu
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc.ml_util import StatConditionalSchedule
-from railrl.misc.rllab_util import get_average_returns
+from railrl.misc import rllab_util
 from railrl.policies.state_distance import UniversalPolicy
 from railrl.samplers.util import rollout
 from railrl.torch.ddpg import DDPG
@@ -232,7 +232,7 @@ class StateDistanceQLearning(DDPG):
 
         statistics['Discount Factor'] = self.discount
 
-        average_returns = get_average_returns(test_paths)
+        average_returns = rllab_util.get_average_returns(test_paths)
         statistics['AverageReturn'] = average_returns
         statistics['Total Wallclock Time (s)'] = time.time() - self.start_time
         statistics['Epoch'] = epoch
@@ -240,12 +240,15 @@ class StateDistanceQLearning(DDPG):
         for key, value in statistics.items():
             logger.record_tabular(key, value)
 
-        if isinstance(self.epoch_discount_schedule, StatConditionalSchedule):
-            self.epoch_discount_schedule.update(
-                statistics[self.epoch_discount_schedule.statistic_name]
-            )
-
         self.log_diagnostics(test_paths)
+
+        if isinstance(self.epoch_discount_schedule, StatConditionalSchedule):
+            table_dict = rllab_util.get_logger_table_dict()
+            # rllab converts things to strings for some reason
+            value = float(
+                table_dict[self.epoch_discount_schedule.statistic_name]
+            )
+            self.epoch_discount_schedule.update(value)
 
     def _sample_eval_paths(self, epoch):
         self.eval_sampler.set_discount(self.discount)
