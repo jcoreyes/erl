@@ -10,7 +10,7 @@ from railrl.policies.state_distance import (
     ArgmaxQFPolicy,
     PseudoModelBasedPolicy,
     SdqBasedSqpOcPolicy,
-)
+    StateOnlySdqBasedSqpOcPolicy)
 from rllab.misc import logger
 import railrl.torch.pytorch_util as ptu
 
@@ -22,13 +22,24 @@ def experiment(variant):
     data = joblib.load(variant['qf_path'])
     qf = data['qf']
     env = data['env']
+    qf_policy = data['policy']
     if ptu.gpu_enabled():
         qf.cuda()
-    policy = variant['policy_class'](
-        qf,
-        env,
-        **variant['policy_params']
-    )
+        qf_policy.cuda()
+    policy_class = variant['policy_class']
+    if policy_class == StateOnlySdqBasedSqpOcPolicy:
+        policy = policy_class(
+            qf,
+            env,
+            qf_policy,
+            **variant['policy_params']
+        )
+    else:
+        policy = policy_class(
+            qf,
+            env,
+            **variant['policy_params']
+        )
     paths = []
     for _ in range(num_rollouts):
         goal = env.sample_goal_state_for_rollout()
@@ -60,6 +71,7 @@ if __name__ == '__main__':
                         help='Max SLSQP steps per env step.')
     parser.add_argument('--ftol', type=float, default=1e-2,
                         help='Tolerance for constraint optimizer')
+    parser.add_argument('--discount', type=float, help='Discount Factor')
     args = parser.parse_args()
 
     n_seeds = 1
@@ -68,11 +80,18 @@ if __name__ == '__main__':
     run_mode = 'none'
     use_gpu = True
 
+    discount = 0
+    if args.discount is not None:
+        print("WARNING: you are overriding the discount factor. Right now "
+              "only discount = 0 really makes sense.")
+        discount = args.discount
+
     variant = dict(
         num_rollouts=args.nrolls,
         H=args.H,
         render=not args.hide,
-        policy_class=SdqBasedSqpOcPolicy,
+        # policy_class=SdqBasedSqpOcPolicy,
+        policy_class=StateOnlySdqBasedSqpOcPolicy,
         policy_params=dict(
             solver_params=dict(
                 disp=args.verbose,
@@ -83,7 +102,7 @@ if __name__ == '__main__':
             planning_horizon=args.planh,
         ),
         qf_path=os.path.abspath(args.file),
-        discount=0,
+        discount=discount,
     )
     if run_mode == 'none':
         for exp_id in range(n_seeds):

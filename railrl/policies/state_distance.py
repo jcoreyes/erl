@@ -559,3 +559,151 @@ class SdqBasedSqpOcPolicy(UniversalPolicy, nn.Module):
         else:
             self.last_solution = result.x
         return action, {}
+
+
+class StateOnlySdqBasedSqpOcPolicy(UniversalPolicy, nn.Module):
+    """
+    Implement
+
+        pi(s_1, g) = pi_{distance}(s_1, s_2)
+
+    where pi_{distance} is the SDQL policy and
+
+        s_2 = argmin_{s_2} min_{s_{3:T+1}} ||s_{T+1} - g||_2^2
+        subject to Q(s_i, pi_{distance}(s_i, s_{i+1}), s_{i+1}) = 0
+
+    for i = 1, ..., T
+
+    using SLSQP
+    """
+    def __init__(
+            self,
+            qf,
+            env,
+            policy,
+            solver_params=None,
+            planning_horizon=1,
+    ):
+        super().__init__()
+        nn.Module.__init__(self)
+        self.qf = qf
+        self.env = env
+        self.policy = policy
+        self.solver_params = solver_params
+        self.planning_horizon = planning_horizon
+
+        self.observation_dim = self.env.observation_space.low.size
+        self.last_solution = None
+        self.lower_bounds = np.hstack((
+            np.tile(self.env.observation_space.low, self.planning_horizon),
+        ))
+        self.upper_bounds = np.hstack((
+            np.tile(self.env.observation_space.high, self.planning_horizon),
+        ))
+        # TODO(vitchyr): figure out what to do if the state bounds are infinity
+        self.lower_bounds = - np.ones_like(self.lower_bounds)
+        self.upper_bounds = np.ones_like(self.upper_bounds)
+        self.bounds = list(zip(self.lower_bounds, self.upper_bounds))
+        self.constraints = {
+            'type': 'eq',
+            'fun': self.constraint_fctn,
+            'jac': self.constraint_jacobian,
+        }
+
+    def split(self, x):
+        """
+        :param x: vector passed to optimization (np array or pytorch)
+        :return: next_states shape [planning_horizon X obs_dim]
+        """
+        if isinstance(x, np.ndarray):
+            return x.reshape(self.planning_horizon, self.observation_dim)
+        else:
+            return x.view(
+                self.planning_horizon,
+                self.observation_dim,
+            )
+
+    def cost_function(self, x):
+        all_next_states = self.split(x)
+        last_state = all_next_states[-1, :]
+        return np.sum((last_state - self._goal_np)**2)
+
+    def cost_jacobian(self, x):
+        jacobian = np.zeros_like(x)
+        all_next_states = self.split(x)
+        last_state = all_next_states[-1, :]
+        # Assuming the last `self.observation_dim` part of x is the last state
+        jacobian[-self.observation_dim:] = (
+            2 * (last_state - self._goal_np)
+        )
+        return jacobian
+
+    def _constraint_fctn(self, x, state, return_grad):
+        state = ptu.np_to_var(state)
+        x = ptu.np_to_var(x, requires_grad=return_grad)
+        all_next_states = self.split(x)
+
+        loss = 0
+        state = state.unsqueeze(0)
+        for i in range(self.planning_horizon):
+            next_state = all_next_states[i:i+1, :]
+            action = self.policy(
+                state, next_state, self._discount_expanded_torch
+            )
+            loss += self.qf(
+                state, action, next_state, self._discount_expanded_torch
+            )
+            state = next_state
+        if return_grad:
+            loss.squeeze(0).backward()
+            return ptu.get_numpy(x.grad)
+        else:
+            return ptu.get_numpy(loss.squeeze(0))[0]
+
+    def constraint_fctn(self, x, state=None):
+        return self._constraint_fctn(x, state, False)
+
+    def constraint_jacobian(self, x, state=None):
+        return self._constraint_fctn(x, state, True)
+
+    def reset(self):
+        self.last_solution = None
+
+    def get_action(self, obs):
+        if self.last_solution is None:
+            self.last_solution = np.hstack((
+                np.tile(obs, self.planning_horizon),
+            ))
+        self.constraints['args'] = (obs, )
+        result = optimize.minimize(
+            self.cost_function,
+            self.last_solution,
+            jac=self.cost_jacobian,
+            constraints=self.constraints,
+            method='SLSQP',
+            options=self.solver_params,
+            bounds=self.bounds,
+        )
+        next_goal_state = result.x[:self.observation_dim]
+        print("next goal - current state", next_goal_state - obs)
+        print("actual goal - next goal", self._goal_np - next_goal_state)
+        action = self.get_np_action(obs, next_goal_state)
+        if np.isnan(action).any():
+            logger.log("WARNING: SLSQP returned nan. Adding noise to last "
+                       "action")
+            action = self.last_solution[:self.action_dim] + np.random.uniform(
+                self.env.action_space.low,
+                self.env.action_space.high,
+            ) / 100
+        else:
+            self.last_solution = result.x
+        return action, {}
+
+    def get_np_action(self, state_np, goal_state_np):
+        return ptu.get_numpy(
+            self.policy(
+                ptu.np_to_var(np.expand_dims(state_np, 0)),
+                ptu.np_to_var(np.expand_dims(goal_state_np, 0)),
+                self._discount_expanded_torch,
+            ).squeeze(0)
+        )
