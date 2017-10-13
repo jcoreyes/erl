@@ -40,11 +40,6 @@ from rllab.envs.normalized_env import normalize
 from rllab.misc import logger
 from rllab.misc.instrument import run_experiment_lite, query_yes_no
 
-import doodad
-import doodad.mode
-import doodad.mount as mount
-from doodad.utils import REPO_DIR
-
 ec2_okayed = False
 gpu_ec2_okayed = False
 
@@ -168,6 +163,29 @@ def run_experiment(
         sync_interval=180,
         local_input_dir_to_mount_point_dict=None,  # TODO(vitchyr): test this
 ):
+    try:
+        import doodad
+        import doodad.mode
+        import doodad.mount as mount
+        from doodad.utils import REPO_DIR
+    except ImportError:
+        return run_experiment_old(
+            method_call,
+            exp_prefix=exp_prefix,
+            seed=seed,
+            variant=variant,
+            time_it=True,
+            mode=mode,
+            exp_id=exp_id,
+            unique_id=unique_id,
+            prepend_date_to_exp_prefix=prepend_date_to_exp_prefix,
+            use_gpu=use_gpu,
+            snapshot_mode=snapshot_mode,
+            snapshot_gap=snapshot_gap,
+            n_parallel=n_parallel,
+            base_log_dir=base_log_dir,
+            sync_interval=sync_interval,
+        )
     global ec2_okayed
     global gpu_ec2_okayed
     if local_input_dir_to_mount_point_dict is None:
@@ -506,7 +524,6 @@ def run_experiment_here(
         script_name=None,
         n_parallel=0,
         base_log_dir=None,
-        snapshot_dir=None,
         log_dir=None,
         exp_name=None,
 ):
@@ -522,6 +539,8 @@ def run_experiment_here(
     :param seed: Seed used for this experiment.
     :param use_gpu: Run with GPU. By default False.
     :param script_name: Name of the running script
+    :param log_dir: If set, set the log directory to this. Otherwise,
+    the directory will be auto-generated based on the exp_prefix.
     :return:
     """
     if variant is None:
@@ -544,7 +563,6 @@ def run_experiment_here(
         snapshot_mode=snapshot_mode,
         snapshot_gap=snapshot_gap,
         base_log_dir=base_log_dir,
-        snapshot_dir=snapshot_dir,
         log_dir=log_dir,
         exp_name=exp_name,
     )
@@ -606,7 +624,6 @@ def setup_logger(
         snapshot_mode="last",
         snapshot_gap=1,
         log_tabular_only=False,
-        snapshot_dir=None,
         log_dir=None,
         exp_name=None,
 ):
@@ -634,9 +651,6 @@ def setup_logger(
     if first_time:
         log_dir, exp_name = create_log_dir(exp_prefix, exp_id=exp_id, seed=seed,
                                            base_log_dir=base_log_dir)
-
-    if snapshot_dir is not None:
-        log_dir = snapshot_dir
 
     tabular_log_path = osp.join(log_dir, tabular_log_file)
     text_log_path = osp.join(log_dir, text_log_file)
