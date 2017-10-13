@@ -177,15 +177,20 @@ class SampleOptimalControlPolicy(SampleBasedUniversalPolicy, nn.Module):
         next_state = ptu.np_to_var(self.sample_states())
         obs = self.expand_np_to_var(obs)
         reward = self.reward(obs, action, next_state)
-        constraint_penalty = self.qf(
+        constraint_reward = self.qf(
             obs,
             action,
             self.env.convert_obs_to_goal_states_pytorch(next_state),
             self._discount_batch,
         )
+        if self.verbose:
+            print("reward mean:", reward.mean())
+            print("reward max:", reward.max())
+            print("constraint reward mean:", constraint_reward.mean())
+            print("constraint reward max:", constraint_reward.max())
         score = (
             reward
-            + self.constraint_weight * constraint_penalty
+            + self.constraint_weight * constraint_reward
         )
         max_i = np.argmax(ptu.get_numpy(score))
         return sampled_actions[max_i], {}

@@ -34,7 +34,7 @@ if __name__ == "__main__":
     parser.add_argument('--argmax', action='store_true')
     parser.add_argument('--hide', action='store_true')
     parser.add_argument('--verbose', action='store_true')
-    parser.add_argument('--plan_h', type=int, default=1,
+    parser.add_argument('--planh', type=int, default=1,
                         help='Planning horizon')
     parser.add_argument('--discount', type=float, help='Discount Factor')
     parser.add_argument('--weight', type=float, default=1.,
@@ -73,7 +73,7 @@ if __name__ == "__main__":
             env,
             sample_size=args.nsamples,
         )
-    elif args.plan_h == 1:
+    elif args.planh == 1:
         policy = SampleOptimalControlPolicy(
             qf,
             env,
@@ -86,7 +86,7 @@ if __name__ == "__main__":
         policy = TerminalRewardSampleOCPolicy(
             qf,
             env,
-            horizon=args.plan_h,
+            horizon=args.planh,
             constraint_weight=args.weight,
             sample_size=args.nsamples,
             verbose=args.verbose,

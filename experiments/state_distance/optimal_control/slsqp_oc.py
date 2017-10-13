@@ -36,7 +36,7 @@ def experiment(variant):
             env,
             policy,
             goal,
-            discount=0,
+            discount=variant['discount'],
             max_path_length=H,
             animated=render,
         )
@@ -83,6 +83,7 @@ if __name__ == '__main__':
             planning_horizon=args.planh,
         ),
         qf_path=os.path.abspath(args.file),
+        discount=0,
     )
     if run_mode == 'none':
         for exp_id in range(n_seeds):
