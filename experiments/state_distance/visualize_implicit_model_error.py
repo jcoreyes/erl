@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 from matplotlib import colors
 import matplotlib.cm as cm
 
-
+from railrl.networks.state_distance import ModelExtractor, ModelExtractorGeneral
 from railrl.policies.simple import UniformRandomPolicy
 import railrl.torch.pytorch_util as ptu
 
@@ -23,14 +23,18 @@ import railrl.torch.pytorch_util as ptu
 discount = ptu.np_to_var(np.array([[0]]))
 
 
-def get_np_predicted_next_state(qf, state, action):
+def get_np_predicted_next_state(model, state, action):
     state = ptu.np_to_var(np.expand_dims(state, 0))
     action = ptu.np_to_var(np.expand_dims(action, 0))
-    prediction = qf(state, action, None, discount, only_return_next_state=True)
+    # prediction = qf(state, action, None, discount, only_return_next_state=True)
+    prediction = model(state, action)
     return ptu.get_numpy(prediction.squeeze(0))
 
 
 def visualize_policy_error(qf, env, horizon):
+    model = ModelExtractorGeneral(
+        qf
+    )
     policy = UniformRandomPolicy(env.action_space)
     actual_state = env.reset()
 
@@ -43,8 +47,11 @@ def visualize_policy_error(qf, env, horizon):
         actual_states.append(actual_state.copy())
 
         action, _ = policy.get_action(actual_state)
+        # predicted_state = get_np_predicted_next_state(
+        #     qf, predicted_state, action,
+        # )
         predicted_state = get_np_predicted_next_state(
-            qf, predicted_state, action,
+            model, predicted_state, action,
         )
         actual_state = env.step(action)[0]
 
