@@ -14,27 +14,12 @@ import matplotlib.pyplot as plt
 from matplotlib import colors
 import matplotlib.cm as cm
 
-from railrl.networks.state_distance import ModelExtractor, ModelExtractorGeneral
+from railrl.networks.state_distance import NumpyModelExtractor
 from railrl.policies.simple import UniformRandomPolicy
-import railrl.torch.pytorch_util as ptu
-
-
-# Since we're evaluating the implicit model, always do tau = 0
-discount = ptu.np_to_var(np.array([[0]]))
-
-
-def get_np_predicted_next_state(model, state, action):
-    state = ptu.np_to_var(np.expand_dims(state, 0))
-    action = ptu.np_to_var(np.expand_dims(action, 0))
-    # prediction = qf(state, action, None, discount, only_return_next_state=True)
-    prediction = model(state, action)
-    return ptu.get_numpy(prediction.squeeze(0))
 
 
 def visualize_policy_error(qf, env, horizon):
-    model = ModelExtractorGeneral(
-        qf
-    )
+    model = NumpyModelExtractor(qf)
     policy = UniformRandomPolicy(env.action_space)
     actual_state = env.reset()
 
@@ -47,12 +32,7 @@ def visualize_policy_error(qf, env, horizon):
         actual_states.append(actual_state.copy())
 
         action, _ = policy.get_action(actual_state)
-        # predicted_state = get_np_predicted_next_state(
-        #     qf, predicted_state, action,
-        # )
-        predicted_state = get_np_predicted_next_state(
-            model, predicted_state, action,
-        )
+        predicted_state = model.next_state(predicted_state, action)
         actual_state = env.step(action)[0]
 
     predicted_states = np.array(predicted_states)

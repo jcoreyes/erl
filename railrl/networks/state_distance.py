@@ -219,7 +219,7 @@ class ModelExtractor(PyTorchModule):
         return self.qf(state, action, None, discount, True)
 
 
-class ModelExtractorGeneral(PyTorchModule):
+class NumpyModelExtractor(PyTorchModule):
     def __init__(
             self,
             qf,
@@ -249,19 +249,22 @@ class ModelExtractorGeneral(PyTorchModule):
         )
         return ptu.np_to_var(array_expanded, requires_grad=False)
 
-    def forward(self, states, actions):
-        batch_size, obs_dim = states.size()
-        assert batch_size == 1
+    def next_state(self, state, action):
         if self._is_structured_qf:
-            discount = ptu.np_to_var(self.discount + np.zeros((batch_size, 1)))
-            return self.qf(states, actions, None, discount, True)
+            states = ptu.np_to_var(np.expand_dims(state, 0))
+            actions = ptu.np_to_var(np.expand_dims(action, 0))
+            discount = ptu.np_to_var(self.discount + np.zeros((1, 1)))
+            return ptu.get_numpy(
+                self.qf(states, actions, None, discount, True).squeeze(0)
+            )
 
         if self.state_optimizer == 'adam':
             discount = ptu.np_to_var(
                 self.discount * np.ones((self.sample_size, 1))
             )
-            states = self.expand_to_sample_size(states)
-            actions = self.expand_to_sample_size(actions)
+            obs_dim = state.shape[0]
+            states = self.expand_np_to_var(state)
+            actions = self.expand_np_to_var(action)
             next_states_np = np.zeros((self.sample_size, obs_dim))
             next_states = ptu.np_to_var(next_states_np, requires_grad=True)
             optimizer = optim.Adam([next_states], self.learning_rate)
@@ -277,10 +280,9 @@ class ModelExtractorGeneral(PyTorchModule):
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
-            # return ptu.get_numpy(next_states)
             losses_np = ptu.get_numpy(losses)
             best_action_i = np.argmin(losses_np)
-            return next_states[best_action_i:best_action_i+1, :]
+            return ptu.get_numpy(next_states[best_action_i, :])
         elif self.state_optimizer == 'lbfgs':
             next_states = []
             for i in range(len(states)):
