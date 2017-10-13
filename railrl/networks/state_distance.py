@@ -219,7 +219,7 @@ class ModelExtractor(PyTorchModule):
         return self.qf(state, action, None, discount, True)
 
 
-class NpModelExtractorGeneral(PyTorchModule):
+class ModelExtractorGeneral(PyTorchModule):
     def __init__(
             self,
             qf,
@@ -238,34 +238,35 @@ class NpModelExtractorGeneral(PyTorchModule):
         self.num_optimization_steps = num_gradient_steps
         self.state_optimizer = state_optimizer
 
-    def expand_to_sample_size(self, array):
+    def expand_to_sample_size(self, torch_array):
+        return torch_array.repeat(self.sample_size, 1)
+
+    def expand_np_to_var(self, array):
         array_expanded = np.repeat(
             np.expand_dims(array, 0),
             self.sample_size,
             axis=0
         )
-        return Variable(
-            ptu.from_numpy(array_expanded).float(),
-            requires_grad=False,
-        )
+        return ptu.np_to_var(array_expanded, requires_grad=False)
 
     def forward(self, states, actions):
+        batch_size, obs_dim = states.size()
+        assert batch_size == 1
         if self._is_structured_qf:
-            batch_size = states.size()[0]
             discount = ptu.np_to_var(self.discount + np.zeros((batch_size, 1)))
             return self.qf(states, actions, None, discount, True)
 
-        batch_size, obs_dim = states.size()
-        discount = ptu.np_to_var(
-            self.discount * np.ones((batch_size, 1))
-        )
         if self.state_optimizer == 'adam':
+            discount = ptu.np_to_var(
+                self.discount * np.ones((self.sample_size, 1))
+            )
+            states = self.expand_to_sample_size(states)
+            actions = self.expand_to_sample_size(actions)
             next_states_np = np.zeros((self.sample_size, obs_dim))
             next_states = ptu.np_to_var(next_states_np, requires_grad=True)
             optimizer = optim.Adam([next_states], self.learning_rate)
 
             for _ in range(self.num_optimization_steps):
-                import ipdb; ipdb.set_trace()
                 losses = -self.qf(
                     states,
                     actions,
@@ -277,7 +278,9 @@ class NpModelExtractorGeneral(PyTorchModule):
                 loss.backward()
                 optimizer.step()
             # return ptu.get_numpy(next_states)
-            return next_states
+            losses_np = ptu.get_numpy(losses)
+            best_action_i = np.argmin(losses_np)
+            return next_states[best_action_i:best_action_i+1, :]
         elif self.state_optimizer == 'lbfgs':
             next_states = []
             for i in range(len(states)):

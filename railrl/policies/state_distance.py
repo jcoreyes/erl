@@ -6,7 +6,6 @@ import numpy as np
 from itertools import product
 import torch
 from torch import nn
-from torch.autograd import Variable
 from torch import optim
 
 from scipy import optimize
@@ -63,10 +62,7 @@ class SampleBasedUniversalPolicy(
             self.sample_size,
             axis=0
         )
-        return Variable(
-            ptu.from_numpy(array_expanded).float(),
-            requires_grad=False,
-        )
+        return ptu.np_to_var(array_expanded, requires_grad=False)
 
     def sample_actions(self):
         if self.sample_actions_from_grid:
