@@ -130,7 +130,7 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "sdql-reacher2d-sample-from-replay"
+    exp_prefix = "sdql-reacher2d-get-good-softplus-output-qf"
     # run_mode = 'grid'
 
     version = "na"
@@ -179,7 +179,7 @@ if __name__ == '__main__':
         qf_params=dict(
             hidden_sizes=[100, 100],
             hidden_activation=F.softplus,
-            # output_activation=F.softplus,
+            output_activation=F.softplus,
             # output_multiplier=-1,
         ),
         policy_params=dict(
