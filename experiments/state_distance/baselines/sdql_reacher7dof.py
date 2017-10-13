@@ -14,6 +14,7 @@ from railrl.envs.multitask.reacher_7dof import Reacher7DofFullGoalState
 from railrl.envs.wrappers import convert_gym_space, normalize_box
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
+from railrl.misc.ml_util import ConstantSchedule
 from railrl.networks.state_distance import (
     FFUniversalPolicy,
     FlatUniversalQfunction,
@@ -53,11 +54,15 @@ def experiment(variant):
         exploration_strategy=es,
         policy=policy,
     )
+    epoch_discount_schedule = variant['epoch_discount_schedule_class'](
+        **variant['epoch_discount_schedule_params']
+    )
     algo = variant['algo_class'](
         env,
         qf,
         policy,
         exploration_policy,
+        epoch_discount_schedule=epoch_discount_schedule,
         qf_criterion=HuberLoss(),
         **variant['algo_params']
     )
@@ -84,8 +89,8 @@ if __name__ == '__main__':
             tau=0.001,
             batch_size=500,
             # discount=0.99,
-            discount=100,
-            sparse_reward=False,
+            discount=5,
+            sparse_reward=True,
             sample_goals_from='environment',
             sample_discount=True,
             qf_weight_decay=0.,
@@ -102,7 +107,9 @@ if __name__ == '__main__':
         qf_class=FlatUniversalQfunction,
         qf_params=dict(
             hidden_sizes=[100, 100],
-            hidden_activation=F.softplus,
+            hidden_activation=F.tanh,
+            output_activation=F.softplus,
+            output_multiplier=-1,
         ),
         policy_class=FFUniversalPolicy,
         policy_params=dict(
@@ -114,6 +121,10 @@ if __name__ == '__main__':
             theta=0.15,
             max_sigma=0.2,
             min_sigma=0.2,
+        ),
+        epoch_discount_schedule_class=ConstantSchedule,
+        epoch_discount_schedule_params=dict(
+            value=5,
         ),
     )
     run_experiment(
