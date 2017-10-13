@@ -130,7 +130,7 @@ if __name__ == '__main__':
 
     # n_seeds = 3
     # mode = "ec2"
-    exp_prefix = "sdql-reacher2d-structured-qf"
+    exp_prefix = "sdql-reacher2d-tanh-softplus-qf"
     # run_mode = 'grid'
 
     version = "na"
@@ -174,13 +174,13 @@ if __name__ == '__main__':
         ),
         explore_with_ddpg_policy=True,
         # qf_class=UniversalQfunction,
-        # qf_class=FlatUniversalQfunction,
-        qf_class=StructuredUniversalQfunction,
+        qf_class=FlatUniversalQfunction,
+        # qf_class=StructuredUniversalQfunction,
         qf_params=dict(
             hidden_sizes=[100, 100],
-            hidden_activation=F.softplus,
-            # output_activation=F.softplus,
-            # output_multiplier=-1,
+            hidden_activation=F.tanh,
+            output_activation=F.softplus,
+            output_multiplier=-1,
         ),
         policy_params=dict(
             fc1_size=100,
