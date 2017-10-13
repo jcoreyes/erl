@@ -184,7 +184,7 @@ def run_experiment(
             snapshot_gap=snapshot_gap,
             n_parallel=n_parallel,
             base_log_dir=base_log_dir,
-            sync_interval=sync_interval,
+            periodic_sync_interval=sync_interval,
         )
     global ec2_okayed
     global gpu_ec2_okayed
