@@ -130,7 +130,7 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "sdql-reacher2d-get-good-softplus-output-qf"
+    exp_prefix = "sdql-reacher2d-get-good-softplus-output-qf-2"
     # run_mode = 'grid'
 
     version = "na"
@@ -180,7 +180,7 @@ if __name__ == '__main__':
             hidden_sizes=[100, 100],
             hidden_activation=F.softplus,
             output_activation=F.softplus,
-            # output_multiplier=-1,
+            output_multiplier=-1,
         ),
         policy_params=dict(
             fc1_size=100,
