@@ -21,14 +21,14 @@ def experiment(variant):
     qf = FeedForwardQFunction(
         int(env.observation_space.flat_dim),
         int(env.action_space.flat_dim),
-        100,
-        100,
+        400,
+        300,
     )
     policy = FeedForwardPolicy(
         int(env.observation_space.flat_dim),
         int(env.action_space.flat_dim),
-        100,
-        100,
+        400,
+        300,
     )
     exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
@@ -51,7 +51,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "10-12-ddpg-reacher-nupo-sweep"
+    exp_prefix = "ddpg-reacher-nupo-sweep-old-net-size-no-normalization"
 
     num_steps_per_iteration = 900
     H = 300
@@ -74,7 +74,7 @@ if __name__ == "__main__":
         version="DDPG",
         normalize_params=dict(
             obs_mean=None,
-            obs_std=[0.7, 0.7, 0.7, 0.6, 40, 5, 1, 1, 1, 1, 1],
+            obs_std=None,
         ),
     )
     for i, nupo in enumerate([1, 10, 50]):
