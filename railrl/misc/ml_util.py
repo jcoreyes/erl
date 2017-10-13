@@ -109,7 +109,7 @@ class StatConditionalSchedule(ScalarSchedule):
         if value_bounds is None:
             value_bounds = -math.inf, math.inf
         value_lb, value_ub = none_to_infty(value_bounds)
-        stat_lb, stat_ub = stat_bounds
+        stat_lb, stat_ub = none_to_infty(stat_bounds)
 
         assert min_num_stats <= running_average_length
         assert stat_lb < stat_ub

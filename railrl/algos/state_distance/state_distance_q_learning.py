@@ -35,7 +35,6 @@ class StateDistanceQLearning(DDPG):
             num_steps_per_eval=1000,
             max_path_length=1000,
             discount=0.99,
-            use_new_data=False,
             num_updates_per_env_step=1,
             num_steps_per_tensorboard_update=None,
             prob_goal_state_is_next_state=0,
@@ -65,6 +64,7 @@ class StateDistanceQLearning(DDPG):
             num_steps_per_eval=num_steps_per_eval,
             discount=discount,
             max_path_length=max_path_length,
+            replay_buffer=replay_buffer,
             **kwargs,
         )
         self.num_epochs = num_epochs
@@ -79,34 +79,10 @@ class StateDistanceQLearning(DDPG):
         self.save_replay_buffer = save_replay_buffer
         self.save_algorithm = save_algorithm
 
-        self.use_new_data = use_new_data
-        if not self.use_new_data:
-            self.replay_buffer = replay_buffer
         self.goal_state = None
         if self.num_steps_per_tensorboard_update is not None:
             self.tb_logger = TensorboardLogger(logger.get_snapshot_dir())
         self.start_time = time.time()
-
-    def train(self, **kwargs):
-        self.start_time = time.time()
-        if self.use_new_data:
-            return super().train()
-        else:
-            num_batches_total = 0
-            for epoch in range(self.num_epochs):
-                self.discount = self.epoch_discount_schedule.get_value(epoch)
-                self.training_mode(True)
-                for _ in range(self.num_steps_per_epoch):
-                    self._do_training(n_steps_total=num_batches_total)
-                    num_batches_total += 1
-                logger.push_prefix('Iteration #%d | ' % epoch)
-                self.training_mode(False)
-                self.evaluate(epoch, None)
-                logger.dump_tabular(with_prefix=False, with_timestamp=False)
-                params = self.get_epoch_snapshot(epoch)
-                logger.save_itr_params(epoch, params)
-                logger.log("Done evaluating")
-                logger.pop_prefix()
 
     def _do_training(self, n_steps_total):
         for _ in range(self.num_updates_per_env_step):

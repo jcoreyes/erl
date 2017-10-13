@@ -165,7 +165,6 @@ if __name__ == '__main__':
             sample_discount=True,
             qf_weight_decay=0.,
             max_path_length=max_path_length,
-            use_new_data=True,
             replay_buffer_size=1000000,
             prob_goal_state_is_next_state=0,
             termination_threshold=0,

@@ -5,6 +5,7 @@ import argparse
 import random
 
 import joblib
+from pathlib import Path
 
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
@@ -42,6 +43,9 @@ def experiment(variant):
     epoch_discount_schedule = epoch_discount_schedule_class(
         **variant['epoch_discount_schedule_params']
     )
+    newpath = Path(path).parent / 'extra_data.pkl'
+    extra_data = joblib.load(str(newpath))
+    replay_buffer = extra_data.get('replay_buffer', None)
     algo = variant['algo_class'](
         env,
         qf,
@@ -49,6 +53,7 @@ def experiment(variant):
         exploration_policy,
         epoch_discount_schedule=epoch_discount_schedule,
         qf_criterion=qf_criterion,
+        replay_buffer=replay_buffer,
         **variant['algo_params']
     )
     if ptu.gpu_enabled():
@@ -69,7 +74,7 @@ if __name__ == '__main__':
 
     n_seeds = 1
     # mode = "ec2"
-    exp_prefix = "sdql-fine-tune"
+    exp_prefix = "sdql-fine-tune-no-decrease"
     # run_mode = 'grid'
 
     num_configurations = 50  # for random mode
@@ -99,7 +104,6 @@ if __name__ == '__main__':
             sample_discount=True,
             qf_weight_decay=0.,
             max_path_length=max_path_length,
-            use_new_data=True,
             replay_buffer_size=1000000,
             prob_goal_state_is_next_state=0,
             termination_threshold=0,
@@ -111,11 +115,12 @@ if __name__ == '__main__':
         epoch_discount_schedule_class=StatConditionalSchedule,
         epoch_discount_schedule_params=dict(
             init_value=5,
-            stat_bounds=(0.06, 0.09),
+            stat_bounds=(0.06, None),
             running_average_length=1,
             delta=-1,
             value_bounds=(5, None),
             statistic_name="Final Euclidean distance to goal Mean",
+            min_time_gap_between_value_changes=3,
             # min_value=0,
             # max_value=100,
             # ramp_duration=50,
