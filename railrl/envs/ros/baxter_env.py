@@ -154,7 +154,7 @@ class BaxterEnv(Env, Serializable):
             include_torque_penalty=False,
             reward_magnitude=1,
     ):
-
+        import ipdb; ipdb.set_trace()
         Serializable.quick_init(self, locals())
         rospy.init_node('baxter_env', anonymous=True)
         self.rate = rospy.Rate(update_hz)
