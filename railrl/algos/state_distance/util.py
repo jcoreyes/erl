@@ -3,7 +3,7 @@ import pickle
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.wrappers import convert_gym_space
-from railrl.policies.zero_policy import ZeroPolicy
+from railrl.policies.simple import ZeroPolicy
 from railrl.samplers.path_sampler import MultitaskPathSampler
 
 
@@ -19,11 +19,7 @@ def get_replay_buffer(variant, save_replay_buffer=False):
         exploration_policy = ZeroPolicy(
             int(action_space.flat_dim),
         )
-        sampler_params = variant['sampler_params']
-        replay_buffer_size = (
-            sampler_params['min_num_steps_to_collect']
-            + sampler_params['max_path_length']
-        )
+        replay_buffer_size = variant['replay_buffer_size']
         replay_buffer = SplitReplayBuffer(
             EnvReplayBuffer(
                 replay_buffer_size,

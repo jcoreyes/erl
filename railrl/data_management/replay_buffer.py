@@ -41,3 +41,49 @@ class ReplayBuffer(object, metaclass=abc.ABCMeta):
         :return: # of unique items that can be sampled.
         """
         pass
+
+    @abc.abstractmethod
+    def num_steps_saved(self):
+        """
+        :return: # of unique items that are saved.
+        """
+        pass
+
+    def add_path(self, path):
+        """
+        Add a path to the replay buffer.
+
+        This default implementation naively goes through every step, but you
+        may want to optimize this.
+
+        :param path: Dict like on outputted by railrl.samplers.util.rollout
+        """
+        for (
+                reward,
+                terminal,
+                action,
+                obs,
+                agent_info,
+                env_info
+        ) in zip(
+            path["rewards"].reshape(-1, 1),
+            path["terminals"].reshape(-1, 1),
+            path["actions"],
+            path["observations"],
+            path["agent_infos"],
+            path["env_infos"],
+        ):
+            self.add_sample(
+                obs,
+                action,
+                reward,
+                terminal,
+                agent_info=agent_info,
+                env_info=env_info,
+            )
+        self.terminate_episode(
+            path["final_observation"],
+            path["terminals"][-1],
+            agent_info=path["agent_infos"][-1],
+            env_info=path["env_infos"][-1],
+        )

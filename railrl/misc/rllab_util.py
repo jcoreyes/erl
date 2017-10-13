@@ -110,8 +110,16 @@ def get_average_returns(paths):
     return np.mean(returns)
 
 
+"""
+Logger Util
+"""
+
 def get_table_key_set(logger):
     return set(key for key, value in logger._tabular)
+
+
+def get_logger_table_dict():
+    return dict(logger._tabular)
 
 
 def save_extra_data_to_snapshot_dir(data):

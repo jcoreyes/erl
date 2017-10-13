@@ -1,6 +1,8 @@
+"""
+Prototype new ideas on cartpole.
+"""
 import random
 
-from railrl.envs.env_utils import gym_env
 from railrl.envs.wrappers import normalize_box
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
@@ -9,20 +11,20 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.qfunctions.torch import FeedForwardQFunction
 from railrl.torch.ddpg import DDPG
+import railrl.misc.hyperparameter as hyp
+import railrl.torch.pytorch_util as ptu
+
+from rllab.envs.box2d.cartpole_env import CartpoleEnv
 
 
-def experiment(variant):
-    env = gym_env("Reacher-v1")
-    env = normalize_box(
-        env,
-        **variant['normalize_params']
-    )
+def example(variant):
+    env = CartpoleEnv()
+    env = normalize_box(env)
     es = OUStrategy(action_space=env.action_space)
     qf = FeedForwardQFunction(
         int(env.observation_space.flat_dim),
         int(env.action_space.flat_dim),
-        400,
-        300,
+        **variant['qf_params'],
     )
     policy = FeedForwardPolicy(
         int(env.observation_space.flat_dim),
@@ -41,52 +43,60 @@ def experiment(variant):
         exploration_policy,
         **variant['algo_params']
     )
+    if ptu.gpu_enabled():
+        algorithm.cuda()
     algorithm.train()
 
 
 if __name__ == "__main__":
     n_seeds = 1
-    mode = "local"
-    exp_prefix = "dev-state-distance-ddpg-baseline"
+    exp_prefix = "dev-cartpole-playground"
+    mode = 'local'
 
     n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "ddpg-reacher-nupo-sweep-old-net-size-no-normalization"
+    exp_prefix = "optimize-target-policy-quick-test-cartpole-playground"
+    mode = 'ec2'
 
-    num_steps_per_iteration = 900
-    H = 300
-    num_iterations = 100
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
-            num_epochs=num_iterations,
-            num_steps_per_epoch=num_steps_per_iteration,
+            num_epochs=100,
+            num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             use_soft_update=True,
             tau=1e-2,
             batch_size=128,
-            max_path_length=H,
+            max_path_length=100,
             discount=0.99,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
-            number_of_gradient_steps=1,
+            residual_gradient_weight=0,
         ),
-        version="DDPG",
-        normalize_params=dict(
-            obs_mean=None,
-            obs_std=None,
+        qf_params=dict(
+            observation_hidden_size=400,
+            embedded_hidden_size=300,
         ),
+        exp_prefix=exp_prefix,
     )
-    for i, nupo in enumerate([1, 10, 50]):
-        variant['algo_params']['number_of_gradient_steps'] = nupo
-        for _ in range(n_seeds):
-            seed = random.randint(0, 999999)
+    search_space = {
+        'algo_params.residual_gradient_weight': [
+            0,
+        ],
+        'algo_params.optimize_target_policy': [
+            True, False,
+        ],
+    }
+    sweeper = hyp.DeterministicHyperparameterSweeper(
+        search_space, default_parameters=variant,
+    )
+    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+        for i in range(n_seeds):
+            seed = random.randint(0, 10000)
             run_experiment(
-                experiment,
+                example,
                 exp_prefix=exp_prefix,
-                exp_id=i,
                 seed=seed,
                 mode=mode,
                 variant=variant,
-                use_gpu=False,
+                exp_id=exp_id,
             )

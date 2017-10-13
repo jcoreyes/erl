@@ -67,3 +67,15 @@ class PyTorchModule(nn.Module, Serializable, metaclass=abc.ABCMeta):
 
     def reset(self):
         pass
+
+    def regularizable_parameters(self):
+        """
+        Return generator of regularizable parameters. Right now, all non-flat
+        vectors are assumed to be regularizabled, presumably because only
+        biases are flat.
+
+        :return:
+        """
+        for param in self.parameters():
+            if len(param.size()) > 1:
+                yield param

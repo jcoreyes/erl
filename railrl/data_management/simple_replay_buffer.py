@@ -89,3 +89,6 @@ class SimpleReplayBuffer(ReplayBuffer):
 
     def num_steps_can_sample(self):
         return len(self._valid_transition_indices)
+
+    def num_steps_saved(self):
+        return self._size

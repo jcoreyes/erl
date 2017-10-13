@@ -5,21 +5,35 @@ import railrl.torch.pytorch_util as ptu
 import railrl.misc.hyperparameter as hyp
 from railrl.algos.state_distance.model_learning import ModelLearning
 from railrl.algos.state_distance.util import get_replay_buffer
+from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
 from railrl.envs.multitask.reacher_env import (
     GoalStateSimpleStateReacherEnv,
     XyMultitaskSimpleStateReacherEnv,
 )
-from railrl.envs.wrappers import convert_gym_space
+from railrl.envs.multitask.reacher_7dof import (
+    Reacher7DofFullGoalState,
+)
+from railrl.envs.wrappers import convert_gym_space, normalize_box
 from railrl.exploration_strategies.ou_strategy import OUStrategy
+from railrl.exploration_strategies.uniform_strategy import UniformStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.policies.model_based import GreedyModelBasedPolicy
+from railrl.policies.model_based import MultistepModelBasedPolicy
 from railrl.predictors.torch import Mlp
 
+from torch.nn import functional as F
 
 def experiment(variant):
     env_class = variant['env_class']
     env = env_class(**variant['env_params'])
-    replay_buffer = get_replay_buffer(variant)
+    env = normalize_box(
+        env,
+        **variant['normalize_params']
+    )
+    if variant['start_with_empty_replay_buffer']:
+        replay_buffer = None
+    else:
+        replay_buffer = get_replay_buffer(variant)
+    model_learns_deltas = variant['model_learns_deltas']
 
     observation_space = convert_gym_space(env.observation_space)
     action_space = convert_gym_space(env.action_space)
@@ -28,16 +42,18 @@ def experiment(variant):
         int(observation_space.flat_dim),
         **variant['model_params']
     )
-    policy = GreedyModelBasedPolicy(
+    policy = MultistepModelBasedPolicy(
         model,
         env,
-        sample_size=10000,
+        model_learns_deltas=model_learns_deltas,
+        **variant['policy_params']
     )
     algo = ModelLearning(
         env,
         model,
         replay_buffer=replay_buffer,
         eval_policy=policy,
+        model_learns_deltas=model_learns_deltas,
         **variant['algo_params']
     )
     if ptu.gpu_enabled():
@@ -53,70 +69,91 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     n_seeds = 1
-    mode = "here"
+    mode = "local"
     exp_prefix = "dev-reacher-model-learning"
     version = "Dev"
     run_mode = "none"
 
-    n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "reacher-2d-xy-goal-learn-model-sweep-numdata"
-    run_mode = 'grid'
+    # n_seeds = 3
+    # mode = "ec2"
+    exp_prefix = "local-reacher-2d-learn-small-model-softplus-match-magic-params"
+    # run_mode = 'custom_grid'
 
     num_configurations = 1  # for random mode
-    snapshot_mode = "gap"
+    snapshot_mode = "last"
     snapshot_gap = 5
     use_gpu = True
-    if mode != "here":
+    if mode != "local":
         use_gpu = False
 
     dataset_path = args.replay_path
 
     # noinspection PyTypeChecker
+    max_path_length = 300
+    replay_buffer_size = 100000
     variant = dict(
         dataset_path=str(dataset_path),
         algo_params=dict(
-            num_epochs=101,
+            num_epochs=100,
             num_batches_per_epoch=1000,
-            num_unique_batches=1000,
             batch_size=100,
             learning_rate=1e-3,
+            weight_decay=0.0001,
+            max_path_length=max_path_length,
+            replay_buffer_size=replay_buffer_size,
+            add_on_policy_data=True,
         ),
+        policy_params=dict(
+            sample_size=10000,
+            planning_horizon=6,
+            action_penalty=0.0001,
+        ),
+        model_learns_deltas=True,
         model_params=dict(
-            hidden_sizes=[400, 300],
+            hidden_activation=F.softplus,
+            hidden_sizes=[100, 100],
         ),
-        # env_class=GoalStateSimpleStateReacherEnv,
+        env_class=GoalStateSimpleStateReacherEnv,
+        # env_class=Reacher7DofFullGoalState,
         # env_class=PusherEnv,
-        env_class=XyMultitaskSimpleStateReacherEnv,
+        # env_class=XyMultitaskSimpleStateReacherEnv,
+        # env_class=MultitaskPoint2DEnv,
         env_params=dict(
             # add_noop_action=False,
         ),
+        normalize_params=dict(
+            obs_mean=None,
+            obs_std=[0.7, 0.3, 0.7, 0.3, 25, 5],
+            # obs_std=[3, 3],
+        ),
         sampler_params=dict(
             min_num_steps_to_collect=10000,
-            max_path_length=150,
+            max_path_length=max_path_length,
             render=args.render,
         ),
+        replay_buffer_size=replay_buffer_size,
         sampler_es_class=OUStrategy,
+        # sampler_es_class=UniformStrategy,
         sampler_es_params=dict(
             max_sigma=0.2,
             min_sigma=0.2,
         ),
         generate_data=args.replay_path is None,
+        start_with_empty_replay_buffer=False,
     )
     if run_mode == 'grid':
         search_space = {
-            'sampler_params.min_num_steps_to_collect': [
-                10000,
-                20000,
-                30000,
-                40000,
-                50000,
-                60000,
-                70000,
-                80000,
-                90000,
-                100000,
+            'model_params.hidden_sizes':[
+                [100, 100],
+                [500, 500],
             ],
+            'algo_params.num_batches_per_epoch': [1000, 10000],
+            # 'algo_params.weight_decay': [0, 1e-4, 1e-3, 1e-2],
+            # 'normalize_params.obs_std': [
+                # None,
+                # [0.7, 0.3, 0.7, 0.3, 25, 5],
+            # ],
+            # 'model_learns_deltas': [True, False],
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
             search_space, default_parameters=variant,
@@ -132,9 +169,43 @@ if __name__ == '__main__':
                     variant=variant,
                     exp_id=exp_id,
                     use_gpu=use_gpu,
-                    sync_s3_log=True,
-                    sync_s3_pkl=True,
-                    periodic_sync_interval=300,
+                    snapshot_mode=snapshot_mode,
+                    snapshot_gap=snapshot_gap,
+                )
+    elif run_mode == 'custom_grid':
+        for exp_id, (
+                add_on_policy_data,
+                on_policy_num_steps,
+                off_policy_num_steps,
+        ) in enumerate([
+            (False, 0, 10000),
+            (False, 0, 100000),
+            # (True, 50000, 50000),
+            (True, 90000, 10000),
+            # (True, 10000, 10000),
+            # (True, 10000, 0),
+        ]):
+            variant['algo_params']['add_on_policy_data'] = add_on_policy_data
+            variant['algo_params']['max_num_on_policy_steps_to_add'] = (
+                on_policy_num_steps
+            )
+            variant['sampler_params']['min_num_steps_to_collect'] = (
+                off_policy_num_steps
+            )
+            variant['version'] = "off{}k_on{}k".format(
+                off_policy_num_steps // 1000,
+                on_policy_num_steps // 1000,
+            )
+            for _ in range(n_seeds):
+                seed = random.randint(0, 10000)
+                run_experiment(
+                    experiment,
+                    exp_prefix=exp_prefix,
+                    seed=seed,
+                    mode=mode,
+                    variant=variant,
+                    exp_id=exp_id,
+                    use_gpu=use_gpu,
                     snapshot_mode=snapshot_mode,
                     snapshot_gap=snapshot_gap,
                 )
@@ -149,9 +220,6 @@ if __name__ == '__main__':
                 variant=variant,
                 exp_id=0,
                 use_gpu=use_gpu,
-                sync_s3_log=True,
-                sync_s3_pkl=True,
-                periodic_sync_interval=300,
                 snapshot_mode=snapshot_mode,
                 snapshot_gap=snapshot_gap,
             )

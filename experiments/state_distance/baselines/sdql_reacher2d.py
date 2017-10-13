@@ -1,11 +1,15 @@
+"""
+You should be able to run this and get a reacher that gets within ~0.08 of
+the final distance.
+"""
 import argparse
 
 from torch.nn import functional as F
 
 import railrl.torch.pytorch_util as ptu
 from railrl.algos.state_distance.state_distance_q_learning import (
-    StateDistanceQLearning
-)
+    StateDistanceQLearning,
+    HorizonFedStateDistanceQLearning)
 from railrl.envs.multitask.reacher_env import GoalStateSimpleStateReacherEnv
 from railrl.envs.wrappers import convert_gym_space, normalize_box
 from railrl.exploration_strategies.ou_strategy import OUStrategy
@@ -29,13 +33,13 @@ def experiment(variant):
 
     observation_space = convert_gym_space(env.observation_space)
     action_space = convert_gym_space(env.action_space)
-    qf = FlatUninversalQfunction(
+    qf = variant['qf_class'](
         int(observation_space.flat_dim),
         int(action_space.flat_dim),
         env.goal_dim,
         **variant['qf_params']
     )
-    policy = FFUniversalPolicy(
+    policy = variant['policy_class'](
         int(observation_space.flat_dim),
         int(action_space.flat_dim),
         env.goal_dim,
@@ -49,7 +53,7 @@ def experiment(variant):
         exploration_strategy=es,
         policy=policy,
     )
-    algo = StateDistanceQLearning(
+    algo = variant['algo_class'](
         env,
         qf,
         policy,
@@ -73,13 +77,15 @@ if __name__ == '__main__':
     variant = dict(
         algo_params=dict(
             num_epochs=101,
-            num_steps_per_epoch=600,
-            num_steps_per_eval=600,
-            num_updates_per_env_step=10,
+            num_steps_per_epoch=300,
+            num_steps_per_eval=3000,
+            num_updates_per_env_step=50,
             use_soft_update=True,
             tau=0.001,
             batch_size=500,
-            discount=0.99,
+            # discount=0.99,
+            discount=100,
+            sparse_reward=False,
             sample_goals_from='environment',
             sample_discount=True,
             qf_weight_decay=0.,
@@ -91,10 +97,14 @@ if __name__ == '__main__':
             render=args.render,
             save_replay_buffer=True,
         ),
+        # algo_class=StateDistanceQLearning,
+        algo_class=HorizonFedStateDistanceQLearning,
+        qf_class=FlatUniversalQfunction,
         qf_params=dict(
             hidden_sizes=[100, 100],
             hidden_activation=F.softplus,
         ),
+        policy_class=FFUniversalPolicy,
         policy_params=dict(
             fc1_size=100,
             fc2_size=100,
@@ -108,10 +118,9 @@ if __name__ == '__main__':
     )
     run_experiment(
         experiment,
-        exp_prefix="sdql-example",
+        # exp_prefix="dev-sdql-reacher2d-reference",
+        exp_prefix="loca-sdql-reacher2d-reference",
         mode="local",
         variant=variant,
-        exp_id=0,
         use_gpu=use_gpu,
-        snapshot_mode="last",
     )

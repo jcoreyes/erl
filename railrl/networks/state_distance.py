@@ -2,6 +2,8 @@ import numpy as np
 import torch
 from torch import nn as nn
 from torch.nn import functional as F
+from torch import optim
+from scipy import optimize
 
 from railrl.policies.state_distance import UniversalPolicy
 from railrl.pythonplusplus import identity
@@ -85,44 +87,52 @@ class FlatUniversalQfunction(PyTorchModule):
             observation_dim,
             action_dim,
             goal_state_dim,
-            obs_hidden_size,
-            embed_hidden_size,
+            hidden_sizes,
             init_w=3e-3,
             hidden_activation=F.relu,
             output_activation=identity,
-            w_weight_generator=ptu.fanin_init_weights_like,
+            hidden_init=ptu.fanin_init,
             b_init_value=0.1,
-            **kwargs
+            dropout_prob=0,
+            output_multiplier=1,
     ):
+        if output_activation == F.softplus or output_activation == F.relu:
+            assert output_multiplier < 0, "Q function should output negative #s"
+
         self.save_init_params(locals())
         super().__init__()
 
         self.hidden_activation = hidden_activation
         self.output_activation = output_activation
-        next_layer_size = observation_dim + goal_state_dim + + action_dim + 1
+        self.dropout_prob = dropout_prob
+        self.output_multiplier = output_multiplier
+        self.dropouts = []
+        self.fcs = []
+        in_size = observation_dim + goal_state_dim + action_dim + 1
 
-        self.obs_fc = nn.Linear(next_layer_size, obs_hidden_size)
-        new_weight = w_weight_generator(self.obs_fc.weight.data)
-        self.obs_fc.weight.data.copy_(new_weight)
-        self.obs_fc.bias.data.fill_(b_init_value)
+        for i, next_size in enumerate(hidden_sizes):
+            fc = nn.Linear(in_size, next_size)
+            in_size = next_size
+            hidden_init(fc.weight)
+            fc.bias.data.fill_(b_init_value)
+            self.__setattr__("fc{}".format(i), fc)
+            self.fcs.append(fc)
+            if self.dropout_prob > 0:
+                dropout = nn.Dropout(p=self.dropout_prob)
+                self.__setattr__("dropout{}".format(i), dropout)
+                self.dropouts.append(dropout)
 
-        self.embed_fc = nn.Linear(
-            obs_hidden_size,
-            embed_hidden_size,
-        )
-        new_weight = w_weight_generator(self.embed_fc.weight.data)
-        self.embed_fc.weight.data.copy_(new_weight)
-        self.embed_fc.bias.data.fill_(b_init_value)
-
-        self.last_fc = nn.Linear(embed_hidden_size, 1)
+        self.last_fc = nn.Linear(in_size, 1)
         self.last_fc.weight.data.uniform_(-init_w, init_w)
         self.last_fc.bias.data.uniform_(-init_w, init_w)
 
-    def forward(self, *inputs):
-        h = torch.cat(inputs, dim=1)
-        h = self.hidden_activation(self.obs_fc(h))
-        h = self.hidden_activation(self.embed_fc(h))
-        return self.output_activation(self.last_fc(h))
+    def forward(self, obs, action, goal_state, discount):
+        h = torch.cat((obs, action, goal_state, discount), dim=1)
+        for i, fc in enumerate(self.fcs):
+            h = self.hidden_activation(fc(h))
+            if self.dropout_prob > 0:
+                h = self.dropouts[i](h)
+        return self.output_activation(self.last_fc(h)) * self.output_multiplier
 
 
 class StructuredUniversalQfunction(PyTorchModule):
@@ -142,15 +152,16 @@ class StructuredUniversalQfunction(PyTorchModule):
             hidden_sizes,
             init_w=3e-3,
             hidden_activation=F.relu,
-            output_activation=identity,
             hidden_init=ptu.fanin_init,
             bn_input=False,
+            dropout_prob=0,
     ):
         self.save_init_params(locals())
         super().__init__()
 
         self.hidden_activation = hidden_activation
-        self.output_activation = output_activation
+        self.dropout_prob = dropout_prob
+        self.dropouts = []
         self.fcs = []
         in_size = observation_dim + action_dim + 1
         if bn_input:
@@ -165,19 +176,147 @@ class StructuredUniversalQfunction(PyTorchModule):
             fc.bias.data.fill_(0)
             self.__setattr__("fc{}".format(i), fc)
             self.fcs.append(fc)
+            if self.dropout_prob > 0:
+                dropout = nn.Dropout(p=self.dropout_prob)
+                self.__setattr__("dropout{}".format(i), dropout)
+                self.dropouts.append(dropout)
 
         self.last_fc = nn.Linear(in_size, goal_state_dim)
         self.last_fc.weight.data.uniform_(-init_w, init_w)
         self.last_fc.bias.data.uniform_(-init_w, init_w)
 
-    def forward(self, obs, action, goal_state, discount):
+    def forward(
+            self,
+            obs,
+            action,
+            goal_state,
+            discount,
+            only_return_next_state=False,
+    ):
         h = torch.cat((obs, action, discount), dim=1)
         h = self.process_input(h)
-        for fc in self.fcs:
+        for i, fc in enumerate(self.fcs):
             h = self.hidden_activation(fc(h))
-        next_state = self.output_activation(self.last_fc(h))
+            if self.dropout_prob > 0:
+                h = self.dropouts[i](h)
+        next_state = self.last_fc(h)
+        if only_return_next_state:
+            return next_state
         out = - torch.norm(goal_state - next_state, p=2, dim=1)
-        return out
+        return out.unsqueeze(1)
+
+
+class ModelExtractor(PyTorchModule):
+    def __init__(self, qf, discount=0.):
+        super().__init__()
+        assert isinstance(qf, StructuredUniversalQfunction)
+        self.qf = qf
+        self.discount = discount
+
+    def forward(self, state, action):
+        batch_size = state.size()[0]
+        discount = ptu.np_to_var(self.discount + np.zeros((batch_size, 1)))
+        return self.qf(state, action, None, discount, True)
+
+
+class NumpyModelExtractor(PyTorchModule):
+    def __init__(
+            self,
+            qf,
+            discount=0.,
+            sample_size=100,
+            learning_rate=1e-1,
+            num_gradient_steps=100,
+            state_optimizer='adam',
+    ):
+        super().__init__()
+        self._is_structured_qf = isinstance(qf, StructuredUniversalQfunction)
+        self.qf = qf
+        self.discount = discount
+        self.sample_size = sample_size
+        self.learning_rate = learning_rate
+        self.num_optimization_steps = num_gradient_steps
+        self.state_optimizer = state_optimizer
+
+    def expand_to_sample_size(self, torch_array):
+        return torch_array.repeat(self.sample_size, 1)
+
+    def expand_np_to_var(self, array):
+        array_expanded = np.repeat(
+            np.expand_dims(array, 0),
+            self.sample_size,
+            axis=0
+        )
+        return ptu.np_to_var(array_expanded, requires_grad=False)
+
+    def next_state(self, state, action):
+        if self._is_structured_qf:
+            states = ptu.np_to_var(np.expand_dims(state, 0))
+            actions = ptu.np_to_var(np.expand_dims(action, 0))
+            discount = ptu.np_to_var(self.discount + np.zeros((1, 1)))
+            return ptu.get_numpy(
+                self.qf(states, actions, None, discount, True).squeeze(0)
+            )
+
+        if self.state_optimizer == 'adam':
+            discount = ptu.np_to_var(
+                self.discount * np.ones((self.sample_size, 1))
+            )
+            obs_dim = state.shape[0]
+            states = self.expand_np_to_var(state)
+            actions = self.expand_np_to_var(action)
+            next_states_np = np.zeros((self.sample_size, obs_dim))
+            next_states = ptu.np_to_var(next_states_np, requires_grad=True)
+            optimizer = optim.Adam([next_states], self.learning_rate)
+
+            for _ in range(self.num_optimization_steps):
+                losses = -self.qf(
+                    states,
+                    actions,
+                    next_states,
+                    discount,
+                )
+                loss = losses.mean()
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+            losses_np = ptu.get_numpy(losses)
+            best_action_i = np.argmin(losses_np)
+            return ptu.get_numpy(next_states[best_action_i, :])
+        elif self.state_optimizer == 'lbfgs':
+            next_states = []
+            for i in range(len(states)):
+                state = states[i:i+1, :]
+                action = actions[i:i+1, :]
+                loss_f = self.create_loss(state, action, return_gradient=True)
+                results = optimize.fmin_l_bfgs_b(
+                    loss_f,
+                    np.zeros((1, obs_dim)),
+                    maxiter=self.num_optimization_steps,
+                )
+                next_state = results[0]
+                next_states.append(next_state)
+            next_states = np.array(next_states)
+            return next_states
+        elif self.state_optimizer == 'fmin':
+            next_states = []
+            for i in range(len(states)):
+                state = states[i:i+1, :]
+                action = actions[i:i+1, :]
+                loss_f = self.create_loss(state, action)
+                results = optimize.fmin(
+                    loss_f,
+                    np.zeros((1, obs_dim)),
+                    maxiter=self.num_optimization_steps,
+                )
+                next_state = results[0]
+                next_states.append(next_state)
+            next_states = np.array(next_states)
+            return next_states
+        else:
+            raise Exception(
+                "Unknown state optimizer mode: {}".format(self.state_optimizer)
+            )
 
 
 class FFUniversalPolicy(PyTorchModule, UniversalPolicy):
@@ -230,3 +369,5 @@ class FFUniversalPolicy(PyTorchModule, UniversalPolicy):
         )
         action = action.squeeze(0)
         return ptu.get_numpy(action), {}
+
+

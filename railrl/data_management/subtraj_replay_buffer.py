@@ -155,6 +155,9 @@ class SubtrajReplayBuffer(ReplayBuffer):
     def num_subtrajs_can_sample(self, return_all=False):
         return len(self._valid_start_indices(return_all=return_all))
 
+    def num_steps_saved(self):
+        return self._size
+
     def add_trajectory(self, path):
         agent_infos = path['agent_infos']
         env_infos = path['env_infos']
