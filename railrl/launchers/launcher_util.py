@@ -10,6 +10,8 @@ import git
 import json
 import base64
 import cloudpickle
+import joblib
+import pickle
 
 import dateutil.tz
 import numpy as np
@@ -45,6 +47,7 @@ from doodad.utils import REPO_DIR
 
 ec2_okayed = False
 gpu_ec2_okayed = False
+
 
 def get_standard_env(normalized=True):
     envs = [
@@ -363,7 +366,28 @@ def run_experiment_old(
     repo = git.Repo(os.getcwd())
     diff_string = repo.git.diff(None)
     commit_hash = repo.head.commit.hexsha
-    script_name = main.__file__
+    script_name = "tmp"
+    if mode == 'here':
+        log_dir, exp_name = create_log_dir(exp_prefix, exp_id, seed,
+                                           base_log_dir)
+        data = dict(
+            log_dir=log_dir,
+            exp_name=exp_name,
+            mode=mode,
+            variant=variant,
+            exp_id=exp_id,
+            exp_prefix=exp_prefix,
+            seed=seed,
+            use_gpu=use_gpu,
+            snapshot_mode=snapshot_mode,
+            snapshot_gap=snapshot_gap,
+            diff_string=diff_string,
+            commit_hash=commit_hash,
+            n_parallel=n_parallel,
+            base_log_dir=base_log_dir,
+            script_name=script_name,
+        )
+        save_experiment_data(data, log_dir)
     if mode == 'here':
         run_experiment_here(
             task,
@@ -383,7 +407,7 @@ def run_experiment_old(
     else:
         if mode == "ec2" and use_gpu:
             if not query_yes_no(
-                "EC2 is more expensive with GPUs. Confirm?"
+                    "EC2 is more expensive with GPUs. Confirm?"
             ):
                 sys.exit(1)
         code_diff = (
@@ -409,6 +433,65 @@ def run_experiment_old(
         )
 
 
+def save_experiment_data(dictionary, log_dir):
+    with open(log_dir + '/experiment.pkl', 'wb') as handle:
+        pickle.dump(dictionary, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+def resume_torch_algorithm(variant):
+    from railrl.torch import pytorch_util as ptu
+    load_file = variant.get('params_file', None)
+    if load_file is not None and osp.exists(load_file):
+        data = joblib.load(load_file)
+        algorithm = data['algorithm']
+        epoch = data['epoch']
+        use_gpu = variant['use_gpu']
+        if use_gpu and ptu.gpu_enabled():
+            algorithm.cuda()
+        algorithm.train(start_epoch=epoch + 1)
+
+
+def continue_experiment(load_experiment_dir, resume_function):
+    path = os.path.join(load_experiment_dir, 'experiment.pkl')
+    if osp.exists(path):
+        data = joblib.load(path)
+        mode = data['mode']
+        exp_prefix = data['exp_prefix']
+        variant = data['variant']
+        variant[
+            'params_file'] = load_experiment_dir + '/params.pkl'  # load from snapshot directory
+        exp_id = data['exp_id']
+        seed = data['seed']
+        use_gpu = data['use_gpu']
+        snapshot_mode = data['snapshot_mode']
+        snapshot_gap = data['snapshot_gap']
+        diff_string = data['diff_string']
+        commit_hash = data['commit_hash']
+        n_parallel = data['n_parallel']
+        base_log_dir = data['base_log_dir']
+        log_dir = data['log_dir']
+        exp_name = data['exp_name']
+        if mode == 'here':
+            run_experiment_here(
+                resume_function,
+                variant=variant,
+                exp_prefix=exp_prefix,
+                exp_id=exp_id,
+                seed=seed,
+                use_gpu=use_gpu,
+                snapshot_mode=snapshot_mode,
+                snapshot_gap=snapshot_gap,
+                code_diff=diff_string,
+                commit_hash=commit_hash,
+                n_parallel=n_parallel,
+                base_log_dir=base_log_dir,
+                log_dir=log_dir,
+                exp_name=exp_name,
+            )
+    else:
+        raise Exception('invalid experiment_file')
+
+
 def run_experiment_here(
         experiment_function,
         exp_prefix="default",
@@ -424,6 +507,8 @@ def run_experiment_here(
         n_parallel=0,
         base_log_dir=None,
         snapshot_dir=None,
+        log_dir=None,
+        exp_name=None,
 ):
     """
     Run an experiment locally without any serialization.
@@ -460,6 +545,8 @@ def run_experiment_here(
         snapshot_gap=snapshot_gap,
         base_log_dir=base_log_dir,
         snapshot_dir=snapshot_dir,
+        log_dir=log_dir,
+        exp_name=exp_name,
     )
     log_dir = logger.get_snapshot_dir()
     if code_diff is not None:
@@ -502,11 +589,7 @@ def create_log_dir(exp_prefix, exp_id=0, seed=0, base_log_dir=None):
         base_log_dir = config.LOCAL_LOG_DIR
     log_dir = osp.join(base_log_dir, exp_prefix.replace("_", "-"), exp_name)
     if osp.exists(log_dir):
-        raise Exception(
-            "Log directory already exists. Will no overwrite: {0}".format(
-                log_dir
-            )
-        )
+        print("WARNING: Log directory already exists {}".format(log_dir))
     os.makedirs(log_dir, exist_ok=True)
     return log_dir, exp_name
 
@@ -524,6 +607,8 @@ def setup_logger(
         snapshot_gap=1,
         log_tabular_only=False,
         snapshot_dir=None,
+        log_dir=None,
+        exp_name=None,
 ):
     """
     Set up logger to have some reasonable default settings.
@@ -545,10 +630,14 @@ def setup_logger(
     :param snapshot_gap:
     :return:
     """
-    log_dir, exp_name = create_log_dir(exp_prefix, exp_id=exp_id, seed=seed,
-                                       base_log_dir=base_log_dir)
+    first_time = log_dir is None and exp_name is None
+    if first_time:
+        log_dir, exp_name = create_log_dir(exp_prefix, exp_id=exp_id, seed=seed,
+                                           base_log_dir=base_log_dir)
+
     if snapshot_dir is not None:
         log_dir = snapshot_dir
+
     tabular_log_path = osp.join(log_dir, tabular_log_file)
     text_log_path = osp.join(log_dir, text_log_file)
 
@@ -557,7 +646,13 @@ def setup_logger(
         logger.log_variant(variant_log_path, variant)
 
     logger.add_text_output(text_log_path)
-    logger.add_tabular_output(tabular_log_path)
+    if first_time:
+        logger.add_tabular_output(tabular_log_path)
+    else:
+        logger._add_output(tabular_log_path, logger._tabular_outputs,
+                           logger._tabular_fds, mode='a')
+        for tabular_fd in logger._tabular_fds:
+            logger._tabular_header_written.add(tabular_fd)
     logger.set_snapshot_dir(log_dir)
     logger.set_snapshot_mode(snapshot_mode)
     logger.set_snapshot_gap(snapshot_gap)
@@ -597,6 +692,7 @@ def create_run_experiment_multiple_seeds(n_seeds, experiment, **kwargs):
     :param kwargs: keyword arguements to pass to experiment.
     :return: Average score across `n_seeds`.
     """
+
     def run_experiment_with_multiple_seeds(variant):
         seed = int(variant['seed'])
         scores = []

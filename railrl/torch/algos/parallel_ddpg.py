@@ -31,6 +31,7 @@ class ParallelDDPG(DDPG):
         epoch = 0
         logger.push_prefix('Epoch #%d | ' % epoch)
         while n_steps_total <= self.num_epochs * self.num_steps_per_epoch:
+            # import ipdb; ipdb.set_trace()
             path = self.training_env.rollout(
                 self.exploration_policy,
                 use_exploration_strategy=True,

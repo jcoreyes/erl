@@ -46,7 +46,7 @@ class PDController(object):
             #     'right_j4': 0.0015673828125,
             #     'right_j5': 0.5689052734375
             # }
-            self._des_angles = {'right_j4': 0.0082041015625, 'right_j5': 0.5668271484375, 'right_j6': 3.318640625, 'right_j1': -1.180951171875, 'right_j2': -0.0023212890625, 'right_j0': -0.0003896484375, 'right_j3': 2.1798525390625}
+            self._des_angles = {'right_j0': -0.0024404296875, 'right_j6': 3.3174140625, 'right_j1': -1.178275390625, 'right_j4': 0.0028203125, 'right_j3': 2.1775517578125, 'right_j5': 0.5707646484375, 'right_j2': -0.0023212890625}
         else:
             if self._limb_name == "right":
                 self._des_angles = {

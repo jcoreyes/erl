@@ -13,7 +13,6 @@ from railrl.policies.base import  ExplorationPolicy
 from rllab.algos.base import RLAlgorithm
 from rllab.misc import logger, tensor_utils
 from rllab.sampler import parallel_sampler
-from rllab.sampler.utils import rollout
 
 
 class SimplePathSampler(object):

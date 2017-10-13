@@ -42,8 +42,8 @@ JOINT_ANGLES_LOW = np.array([
 JOINT_VEL_HIGH = 2*np.ones(7)
 JOINT_VEL_LOW = -2*np.ones(7)
 
-JOINT_TORQUE_HIGH = 10*np.ones(7)
-JOINT_TORQUE_LOW = -10*np.ones(7)
+JOINT_TORQUE_HIGH = 1*np.ones(7)
+JOINT_TORQUE_LOW = -1*np.ones(7)
 
 JOINT_VALUE_HIGH = {
     'position': JOINT_ANGLES_HIGH,
@@ -151,6 +151,7 @@ class BaxterEnv(Env, Serializable):
             gpu=True,
             safe_reset_length=30,
             include_torque_penalty=False,
+            reward_magnitude=1,
     ):
 
         Serializable.quick_init(self, locals())
@@ -186,6 +187,7 @@ class BaxterEnv(Env, Serializable):
         self.gpu = gpu
         self.safe_reset_length = safe_reset_length
         self.include_torque_penalty = include_torque_penalty
+        self.reward_magnitude = reward_magnitude
 
         if loss == 'MSE':
             self.reward_function = self._MSE_reward
@@ -330,7 +332,7 @@ class BaxterEnv(Env, Serializable):
                     action = torques
                 else:
                     action = action + torques
-
+        print(action)
         joint_to_values = dict(zip(self.arm_joint_names, action))
         self._set_joint_values(joint_to_values)
         self.rate.sleep()
@@ -374,9 +376,9 @@ class BaxterEnv(Env, Serializable):
     def _Huber_reward(self, differences):
         a = np.mean(differences)
         if a <= self.huber_delta:
-            reward = -1 / 2 * a ** 2
+            reward = -1 / 2 * a ** 2 * self.reward_magnitude
         else:
-            reward = -1 * self.huber_delta * (a - 1 / 2 * self.huber_delta)
+            reward = -1 * self.huber_delta * (a - 1 / 2 * self.huber_delta) * self.reward_magnitude
         return reward
 
     def compute_angle_difference(self, angles1, angles2):
@@ -395,10 +397,12 @@ class BaxterEnv(Env, Serializable):
         :param huber_deltas: a change joint angles
         """
         import math
-        # for act in action:
-        #     if math.isnan(act):
-        #         print(act)
-        #         action = np.zeros(7)
+        for act in action:
+            if math.isnan(act):
+                import ipdb;
+                ipdb.set_trace()
+                print(act)
+                action = np.zeros(7)
         self._act(action)
         observation = self._get_observation()
         if self.joint_angle_experiment:
