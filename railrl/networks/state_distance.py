@@ -96,7 +96,7 @@ class FlatUniversalQfunction(PyTorchModule):
             dropout_prob=0,
             output_multiplier=1,
     ):
-        if output_activation == F.selu or output_activation == F.relu:
+        if output_activation == F.softplus or output_activation == F.relu:
             assert output_multiplier < 0, "Q function should output negative #s"
 
         self.save_init_params(locals())
