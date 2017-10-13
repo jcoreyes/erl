@@ -462,7 +462,7 @@ def resume_torch_algorithm(variant):
     if load_file is not None and osp.exists(load_file):
         data = joblib.load(load_file)
         algorithm = data['algorithm']
-        epoch = data['epoch']
+        epoch = data['epoch']+1
         use_gpu = variant['use_gpu']
         if use_gpu and ptu.gpu_enabled():
             algorithm.cuda()
