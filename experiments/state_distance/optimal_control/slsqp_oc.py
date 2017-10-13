@@ -58,6 +58,8 @@ if __name__ == '__main__':
                         help='Planning horizon.')
     parser.add_argument('--maxi', type=int, default=5,
                         help='Max SLSQP steps per env step.')
+    parser.add_argument('--ftol', type=float, default=1e-2,
+                        help='Tolerance for constraint optimizer')
     args = parser.parse_args()
 
     n_seeds = 1
@@ -75,7 +77,7 @@ if __name__ == '__main__':
             solver_params=dict(
                 disp=args.verbose,
                 maxiter=args.maxi,
-                ftol=1e-2,
+                ftol=args.ftol,
                 iprint=1,
             ),
             planning_horizon=args.planh,
