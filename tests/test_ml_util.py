@@ -122,6 +122,37 @@ class TestLossFollowingIntSchedule(unittest.TestCase):
         expected = [0, 0, 1, 2]
         self.assertEqual(values, expected)
 
+    def test_min_time_between_updates(self):
+        schedule = StatConditionalSchedule(
+            0,
+            (-1, 1),
+            3,
+            min_num_stats=0,
+            min_time_gap_between_value_changes=3,
+        )
+        values = []
+        for t, stat in enumerate([2] * 10):
+            schedule.update(stat)
+            values.append(schedule.get_value(t))
+
+        expected = [1, 1, 1, 2, 2, 2, 3, 3, 3, 4]
+        self.assertEqual(values, expected)
+
+        schedule = StatConditionalSchedule(
+            0,
+            (-1, 1),
+            3,
+            min_num_stats=0,
+            min_time_gap_between_value_changes=3,
+        )
+        values = []
+        for t, stat in enumerate([2] * 10):
+            values.append(schedule.get_value(t))  # swapped
+            schedule.update(stat)
+
+        expected = [0, 1, 1, 1, 2, 2, 2, 3, 3, 3]
+        self.assertEqual(values, expected)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -88,6 +88,7 @@ class StatConditionalSchedule(ScalarSchedule):
             value_bounds=None,
             statistic_name=None,
             min_num_stats=None,
+            min_time_gap_between_value_changes=0,
     ):
         """
         :param init_value: Initial value outputted
@@ -100,6 +101,8 @@ class StatConditionalSchedule(ScalarSchedule):
         is above the threshold.
         :param value_bounds: (min, max) ints for the value. If None, then the
         outputted value can grow and shrink arbitrarily.
+        :param min_time_gap_between_value_changes: At least this much time
+        must pass before updating the outputted value again.
         """
         if min_num_stats is None:
             min_num_stats = running_average_length
@@ -111,6 +114,7 @@ class StatConditionalSchedule(ScalarSchedule):
         assert min_num_stats <= running_average_length
         assert stat_lb < stat_ub
         assert value_lb < value_ub
+        assert isinstance(min_time_gap_between_value_changes, int)
 
         self._value = init_value
         self.stat_lb, self.stat_ub = stat_lb, stat_ub
@@ -119,8 +123,12 @@ class StatConditionalSchedule(ScalarSchedule):
         self.value_lb, self.value_ub = value_lb, value_ub
         self.statistic_name = statistic_name
         self.min_number_stats = min_num_stats
+        self.min_gap_between_updates = min_time_gap_between_value_changes
+        self._t = -1
+        self._last_update_t = None
 
     def get_value(self, t):
+        self._t = t
         return self._value
 
     def update(self, stat):
@@ -128,11 +136,17 @@ class StatConditionalSchedule(ScalarSchedule):
         if len(self._stats) < self.min_number_stats:
             return
 
+        if self._last_update_t is not None:
+            if self._t - self._last_update_t < self.min_gap_between_updates:
+                return
+
         mean = np.mean(self._stats)
         if mean > self.stat_ub:
             self._value += self.delta
+            self._last_update_t = self._t
         if mean < self.stat_lb:
             self._value -= self.delta
+            self._last_update_t = self._t
 
         if self.value_ub is not None:
             self._value = min(self.value_ub, max(self.value_lb, self._value))
