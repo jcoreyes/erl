@@ -129,9 +129,9 @@ if __name__ == '__main__':
     exp_prefix = "dev-train-q"
     run_mode = "none"
 
-    n_seeds = 3
+    # n_seeds = 3
     # mode = "ec2"
-    exp_prefix = "local-sdql-reacher2d-goal-structured-qf"
+    exp_prefix = "local-sdql-reacher7dof-goal-structured-qf"
     # run_mode = 'grid'
 
     version = "na"
@@ -197,16 +197,16 @@ if __name__ == '__main__':
             # ramp_duration=50,
         ),
         algo_class=HorizonFedStateDistanceQLearning,
-        # env_class=Reacher7DofFullGoalState,
+        env_class=Reacher7DofFullGoalState,
         # env_class=ArmEEInStatePusherEnv,
         # env_class=JointOnlyPusherEnv,
-        env_class=GoalStateSimpleStateReacherEnv,
+        # env_class=GoalStateSimpleStateReacherEnv,
         # env_class=XyMultitaskSimpleStateReacherEnv,
         # env_class=MultitaskPoint2DEnv,
         env_params=dict(),
         normalize_params=dict(
-            obs_mean=None,
-            obs_std=[0.7, 0.7, 0.7, 0.6, 40, 5],
+            # obs_mean=None,
+            # obs_std=[0.7, 0.7, 0.7, 0.6, 40, 5],
         ),
         sampler_params=dict(
             min_num_steps_to_collect=100000,
