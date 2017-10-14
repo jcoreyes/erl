@@ -184,7 +184,7 @@ def run_experiment(
             snapshot_gap=snapshot_gap,
             n_parallel=n_parallel,
             base_log_dir=base_log_dir,
-            sync_interval=sync_interval,
+            periodic_sync_interval=sync_interval,
         )
     global ec2_okayed
     global gpu_ec2_okayed
@@ -476,8 +476,7 @@ def continue_experiment(load_experiment_dir, resume_function):
         mode = data['mode']
         exp_prefix = data['exp_prefix']
         variant = data['variant']
-        variant[
-            'params_file'] = load_experiment_dir + '/params.pkl'  # load from snapshot directory
+        variant['params_file'] = load_experiment_dir + '/extra_data.pkl' # load from snapshot directory
         exp_id = data['exp_id']
         seed = data['seed']
         use_gpu = data['use_gpu']

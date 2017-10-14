@@ -154,7 +154,6 @@ class BaxterEnv(Env, Serializable):
             include_torque_penalty=False,
             reward_magnitude=1,
     ):
-
         Serializable.quick_init(self, locals())
         rospy.init_node('baxter_env', anonymous=True)
         self.rate = rospy.Rate(update_hz)
@@ -201,7 +200,6 @@ class BaxterEnv(Env, Serializable):
 
         self.arm = bi.Limb(self.arm_name)
         self.arm_joint_names = self.arm.joint_names()
-        self.gripper = bi.Gripper(self.arm_name)
 
         self.PDController = PDController(robot="baxter", limb_name=self.arm_name)
 
@@ -248,11 +246,6 @@ class BaxterEnv(Env, Serializable):
 
             if self.fixed_angle:
                 self.desired = np.zeros(NUM_JOINTS)
-                # angles = {'right_s0': -0.0049903943346150115, 'right_e0': 0.007773590752427673, 'right_w2': 0.0083526057004919, 'right_w0': 0.008741701187912732, 'right_s1': -0.5451848158718935, 'right_w1': 1.2560255299115681, 'right_e1': 0.7475769104563383}
-                # # angles = [0.0, -0.55, 0.0, 0.75, 0.0, 1.26, 0.0]
-                # angles = np.array(
-                #     [angles['right_s0'], angles['right_s1'], angles['right_e0'], angles['right_e1'], angles['right_w0'],
-                #      angles['right_w1'], angles['right_w2']])
             else:
                 self._randomize_desired_angles()
 
@@ -333,7 +326,6 @@ class BaxterEnv(Env, Serializable):
                     action = torques
                 else:
                     action = action + torques
-        print(action)
         joint_to_values = dict(zip(self.arm_joint_names, action))
         self._set_joint_values(joint_to_values)
         self.rate.sleep()
