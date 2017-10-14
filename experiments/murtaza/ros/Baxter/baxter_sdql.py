@@ -29,8 +29,6 @@ def experiment(variant):
         int(observation_space.flat_dim),
         int(action_space.flat_dim),
         env.goal_dim,
-        100,
-        100,
         **variant['qf_params'],
     )
 

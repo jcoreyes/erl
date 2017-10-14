@@ -108,21 +108,22 @@ experiments=[
 
 
 class MultiTaskBaxterEnv(BaxterEnv, MultitaskEnv):
-    #this will only run on ee tasks
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
+    #TODO: correct sampling code to have proper ranges for each measurement
     def set_goal(self, goal):
         self.desired = goal
 
+    @property
     def goal_dim(self):
         return self.desired.size
 
     def sample_goal_states(self, batch_size):
-        return np.random.rand(batch_size, self.desired.size)
+        return np.random.rand(batch_size, self.desired.size)[0]
 
     def sample_actions(self, batch_size):
         return np.random.uniform(-1, 1, (batch_size, 7))
 
     def sample_states(self, batch_size):
         return np.random.rand(batch_size, self.observation_space.flat_dim)[0]
+
+    def convert_obs_to_goal_states(self, obs):
+        return obs[:, 21:24]
