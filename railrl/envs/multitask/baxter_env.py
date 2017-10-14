@@ -114,16 +114,38 @@ class MultiTaskBaxterEnv(BaxterEnv, MultitaskEnv):
 
     @property
     def goal_dim(self):
+        # You might as well hard-code that the goal dim is 3 since you hard
+        # code it in convert_obs_to_goal_states. What if someone calls
+        # goal_dim without first calling set_goal?
         return self.desired.size
 
     def sample_goal_states(self, batch_size):
-        return np.random.rand(batch_size, self.desired.size)[0]
+        # Did you mean to use right_safety_box_lows/highs?
+        raise NotImplementedError()
+        # return np.random.rand(batch_size, self.desired.size)[0]
 
     def sample_actions(self, batch_size):
-        return np.random.uniform(-1, 1, (batch_size, 7))
+        raise NotImplementedError()
+        # Just to double check: are you sure all torques should be between -1
+        # and 1? It looks like this would be a good place to use
+        # `END_EFFECTOR_VALUE_LOW`
+        # return np.random.uniform(-1, 1, (batch_size, 7))
 
     def sample_states(self, batch_size):
-        return np.random.rand(batch_size, self.observation_space.flat_dim)[0]
+        raise NotImplementedError()
+        # Did you mean to use right_safety_box_lows/highs?
+        # You can leave this unimplemented for now. I'm guessing if you
+        # sample something from a Gaussian distribution, it won't be a valid
+        # state
+        # return np.random.rand(batch_size, self.observation_space.flat_dim)[0]
 
     def convert_obs_to_goal_states(self, obs):
         return obs[:, 21:24]
+
+    def modify_goal_state_for_rollout(self, goal_state):
+        # TODO(mdalal)
+        raise NotImplementedError()
+        # set desired velocity to zero
+        # e.g.:
+        # goal_state[<FILL IN>] = 0
+        # return goal_state
