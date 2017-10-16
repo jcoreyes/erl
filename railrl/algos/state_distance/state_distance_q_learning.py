@@ -49,10 +49,8 @@ class StateDistanceQLearning(DDPG):
             policy=policy,
             max_samples=num_steps_per_eval,
             max_path_length=max_path_length,
-            discount=discount,
+            discount_sampling_function=self._sample_discount_for_rollout,
             goal_sampling_function=self.sample_goal_state_for_rollout,
-            # TODO(vitchyr): create a sample_discount_for_rollout function
-            sample_discount=sample_discount,
         )
         self.num_goals_for_eval = num_steps_per_eval // max_path_length + 1
         super().__init__(
@@ -176,6 +174,15 @@ class StateDistanceQLearning(DDPG):
         goal_state = self.env.modify_goal_state_for_rollout(goal_state)
         return goal_state
 
+    def _sample_discount(self, batch_size):
+        if self.sample_discount:
+            return np.random.uniform(0, self.discount, (batch_size, 1))
+        else:
+            return self.discount * np.ones((batch_size, 1))
+
+    def _sample_discount_for_rollout(self):
+        return self._sample_discount(1)[0, 0]
+
     def _paths_to_np_batch(self, paths):
         np_batch = super()._paths_to_np_batch(paths)
         goal_states = [path["goal_states"] for path in paths]
@@ -243,10 +250,7 @@ class StateDistanceQLearning(DDPG):
         goal_states = batch['goal_states']
 
         batch_size = obs.size()[0]
-        if self.sample_discount:
-            discount_np = np.random.uniform(0, self.discount, (batch_size, 1))
-        else:
-            discount_np = self.discount * np.ones((batch_size, 1))
+        discount_np  = self._sample_discount(batch_size)
         discount = ptu.Variable(ptu.from_numpy(discount_np).float())
 
         """
@@ -400,6 +404,12 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
         self.fraction_of_taus_set_to_zero = fraction_of_taus_set_to_zero
         self.clamp_q_target_values = clamp_q_target_values
 
+    def _sample_discount(self, batch_size):
+        if self.sample_discount:
+            return np.random.randint(0, self.discount + 1, (batch_size, 1))
+        else:
+            return self.discount * np.ones((batch_size, 1))
+
     def get_train_dict(self, batch):
         rewards = batch['rewards']
         obs = batch['observations']
@@ -502,17 +512,16 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
 
 class MultigoalSimplePathSampler(object):
     def __init__(
-            self, env, policy, max_samples, max_path_length, discount,
+            self, env, policy, max_samples, max_path_length,
+            discount_sampling_function,
             goal_sampling_function,
-            sample_discount=False,
     ):
         self.env = env
         self.policy = policy
         self.max_samples = max_samples
         self.max_path_length = max_path_length
-        self.discount = discount
+        self.discount_sampling_function = discount_sampling_function
         self.goal_sampling_function = goal_sampling_function
-        self.sample_discount = sample_discount
 
     def start_worker(self):
         pass
@@ -526,10 +535,7 @@ class MultigoalSimplePathSampler(object):
     def obtain_samples(self):
         paths = []
         for i in range(self.max_samples // self.max_path_length):
-            if self.sample_discount:
-                discount = np.random.uniform(0, self.discount, 1)[0]
-            else:
-                discount = self.discount
+            discount = self.discount_sampling_function()
             goal = self.goal_sampling_function()
             path = multitask_rollout(
                 self.env,
