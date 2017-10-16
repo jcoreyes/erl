@@ -60,8 +60,8 @@ def main():
     """
     Try varying the action
     """
-    # state = env.sample_states(1)[0]
-    state = env.sample_goal_state_for_rollout()
+    state = env.sample_states(1)[0]
+    # state = env.sample_goal_state_for_rollout()
     states = expand_np_to_var(state, sample_size)
 
     q_value_maxs = []
