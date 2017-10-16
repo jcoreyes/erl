@@ -74,7 +74,7 @@ if __name__ == '__main__':
 
     n_seeds = 1
     # mode = "ec2"
-    exp_prefix = "sdql-fine-tune-reacher2d-structured"
+    exp_prefix = "sdql-fine-tune-reacher7dof-structured"
     # run_mode = 'grid'
 
     num_configurations = 50  # for random mode
@@ -114,13 +114,13 @@ if __name__ == '__main__':
         # epoch_discount_schedule_class=IntRampUpSchedule,
         epoch_discount_schedule_class=StatConditionalSchedule,
         epoch_discount_schedule_params=dict(
-            init_value=7,
-            stat_bounds=(0.06, None),
-            running_average_length=5,
+            init_value=5,
+            stat_bounds=(0.4, None),
+            running_average_length=3,
             delta=-1,
             value_bounds=(5, None),
             statistic_name="Final Euclidean distance to goal Mean",
-            min_time_gap_between_value_changes=5,
+            min_time_gap_between_value_changes=3,
             # min_value=0,
             # max_value=100,
             # ramp_duration=50,
