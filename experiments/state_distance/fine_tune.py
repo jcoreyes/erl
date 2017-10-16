@@ -14,7 +14,7 @@ from railrl.algos.state_distance.state_distance_q_learning import (
 from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.misc.ml_util import ConstantSchedule, StatConditionalSchedule
+from railrl.misc.ml_util import StatConditionalSchedule
 from railrl.torch.modules import HuberLoss
 from railrl.torch.state_distance.exploration import \
     UniversalPolicyWrappedWithExplorationStrategy
@@ -74,11 +74,11 @@ if __name__ == '__main__':
 
     n_seeds = 1
     # mode = "ec2"
-    exp_prefix = "sdql-fine-tune-no-decrease"
+    exp_prefix = "sdql-fine-tune-no-decrease-continued"
     # run_mode = 'grid'
 
     num_configurations = 50  # for random mode
-    snapshot_mode = "gap"
+    snapshot_mode = "gap_and_last"
     snapshot_gap = 25
     use_gpu = True
     if mode != "local":
@@ -89,9 +89,9 @@ if __name__ == '__main__':
     variant = dict(
         path=args.path,
         algo_params=dict(
-            num_epochs=101,
+            num_epochs=1001,
             num_steps_per_epoch=300,
-            num_steps_per_eval=3000,
+            num_steps_per_eval=6000,
             num_updates_per_env_step=50,
             use_soft_update=True,
             tau=0.001,
@@ -114,9 +114,9 @@ if __name__ == '__main__':
         # epoch_discount_schedule_class=IntRampUpSchedule,
         epoch_discount_schedule_class=StatConditionalSchedule,
         epoch_discount_schedule_params=dict(
-            init_value=5,
+            init_value=7,
             stat_bounds=(0.06, None),
-            running_average_length=1,
+            running_average_length=3,
             delta=-1,
             value_bounds=(5, None),
             statistic_name="Final Euclidean distance to goal Mean",
