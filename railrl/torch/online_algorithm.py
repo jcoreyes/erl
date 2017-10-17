@@ -145,10 +145,6 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
     def cuda(self):
         pass
 
-    def reset_env(self):
-        self.exploration_policy.reset()
-        return self.training_env.reset()
-
     def get_action_and_info(self, n_steps_total, observation):
         self.exploration_policy.set_num_steps_total(n_steps_total)
         return self.exploration_policy.get_action(
@@ -158,7 +154,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
     def train(self, start_epoch=0):
         n_steps_total = 0
         path = Path()
-        observation = self.reset_env()
+        observation = self._start_new_rollout()
         num_paths_total = 0
         self._start_worker()
         self.training_mode(False)
@@ -181,6 +177,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                 )
                 n_steps_total += 1
                 reward = raw_reward * self.scale_reward
+                self._handle_step()
 
                 if num_paths_total % self.save_exploration_path_period == 0:
                     path.add_all(
@@ -207,7 +204,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                         agent_info=agent_info,
                         env_info=env_info,
                     )
-                    observation = self.reset_env()
+                    observation = self._start_new_rollout()
                     num_paths_total += 1
                     self.handle_rollout_ending(n_steps_total)
                     if len(path) > 0:
@@ -307,9 +304,6 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
     def training_mode(self, mode):
         self.exploration_policy.train(mode)
 
-    def handle_rollout_ending(self, n_steps_total):
-        pass
-
     def _can_evaluate(self, exploration_paths):
         """
         One annoying thing about the logger table is that the keys at each
@@ -324,3 +318,20 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         :return:
         """
         return True
+
+    def _start_new_rollout(self):
+        self.exploration_policy.reset()
+        return self.training_env.reset()
+
+    def _handle_step(self):
+        """
+        Implement anything that needs to happen after every step
+        :return:
+        """
+        pass
+
+    def handle_rollout_ending(self, n_steps_total):
+        """
+        Implement anything that needs to happen after every rollout.
+        """
+        pass

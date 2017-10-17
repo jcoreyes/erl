@@ -111,7 +111,7 @@ class StateDistanceQLearning(DDPG):
                         bins=100,
                     )
 
-    def reset_env(self):
+    def _start_new_rollout(self):
         self.exploration_policy.reset()
         self.goal_state = self.sample_goal_state_for_rollout()
         self.training_env.set_goal(self.goal_state)
@@ -423,6 +423,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
         self.fraction_of_taus_set_to_zero = fraction_of_taus_set_to_zero
         self.clamp_q_target_values = clamp_q_target_values
         self.cycle_taus_for_rollout = cycle_taus_for_rollout
+        self._rollout_tau = self.discount
 
     def _sample_discount(self, batch_size):
         if self.sample_discount:
@@ -435,6 +436,32 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             return self.discount
         else:
             return self._sample_discount(1)[0, 0]
+
+    def _start_new_rollout(self):
+        """
+        Implement anything that needs to happen before every rollout.
+        :return:
+        """
+        if not self.cycle_taus_for_rollout:
+            return super()._start_new_rollout()
+
+        self._rollout_discount = self.discount
+        self.policy.set_discount(self._rollout_discount)
+        return super()._start_new_rollout()
+
+    def _handle_step(self):
+        """
+        Implement anything that needs to happen after every step
+        :return:
+        """
+        if not self.cycle_taus_for_rollout:
+            return super()._handle_step()
+
+        self._rollout_discount -= 1
+        if self._rollout_discount < 0:
+            self._rollout_discount = self.discount
+        self.policy.set_discount(self._rollout_discount)
+        return super()._handle_step()
 
     def get_train_dict(self, batch):
         rewards = batch['rewards']
