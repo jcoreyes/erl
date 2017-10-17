@@ -565,18 +565,83 @@ def multitask_rollout(
         discount,
         max_path_length=np.inf,
         animated=False,
+        decrement_discount=False,
 ):
     env.set_goal(goal)
     agent.set_goal(goal)
     agent.set_discount(discount)
-    path = rollout(
-        env,
-        agent,
-        max_path_length=max_path_length,
-        animated=animated,
-    )
+    if decrement_discount:
+        assert max_path_length >= discount
+        path = rollout_decrement_tau(
+            env,
+            agent,
+            discount,
+            # max_path_length=discount,
+            max_path_length=max_path_length,
+            animated=animated,
+        )
+    else:
+        path = rollout(
+            env,
+            agent,
+            max_path_length=max_path_length,
+            animated=animated,
+        )
     goal_expanded = np.expand_dims(goal, axis=0)
     # goal_expanded.shape == 1 x goal_dim
     path['goal_states'] = goal_expanded.repeat(len(path['observations']), 0)
     # goal_states.shape == path_length x goal_dim
     return path
+
+
+def rollout_decrement_tau(env, agent, init_tau, max_path_length=np.inf,
+                          animated=False):
+    """
+    Like rllab's rollout, but do not flatten actions/observations.
+    :param env:
+    :param agent:
+    :param max_path_length:
+    :param animated:
+    :return:
+    """
+    observations = []
+    actions = []
+    rewards = []
+    terminals = []
+    agent_infos = []
+    env_infos = []
+    o = env.reset()
+    next_o = None
+    path_length = 0
+    tau = init_tau
+    if animated:
+        env.render()
+    while path_length < max_path_length:
+        a, agent_info = agent.get_action(o)
+        next_o, r, d, env_info = env.step(a)
+        tau -= 1
+        tau = max(tau, 0)
+        agent.set_discount(tau)
+        observations.append(o)
+        rewards.append(r)
+        terminals.append(d)
+        actions.append(a)
+        agent_infos.append(agent_info)
+        env_infos.append(env_info)
+        path_length += 1
+        if d:
+            break
+        o = next_o
+        if animated:
+            env.render()
+            # input("Press Enter to continue...")
+
+    return dict(
+        observations=np.array(observations),
+        actions=np.array(actions),
+        rewards=np.array(rewards),
+        terminals=np.array(terminals),
+        agent_infos=np.array(agent_infos),
+        env_infos=np.array(env_infos),
+        final_observation=next_o,
+    )

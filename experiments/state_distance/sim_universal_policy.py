@@ -24,6 +24,7 @@ if __name__ == "__main__":
     parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--load', action='store_true')
     parser.add_argument('--hide', action='store_true')
+    parser.add_argument('--dt', help='decrement tau', action='store_true')
     args = parser.parse_args()
 
     data = joblib.load(args.file)
@@ -62,6 +63,7 @@ if __name__ == "__main__":
                 discount=discount,
                 max_path_length=args.H,
                 animated=not args.hide,
+                decrement_discount=args.dt,
             )
             paths.append(path)
         env.log_diagnostics(paths)
