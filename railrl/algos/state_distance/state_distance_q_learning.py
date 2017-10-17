@@ -597,7 +597,9 @@ def multitask_rollout(
 def rollout_decrement_tau(env, agent, init_tau, max_path_length=np.inf,
                           animated=False):
     """
-    Like rllab's rollout, but do not flatten actions/observations.
+    Decrement tau by one at each time step. If tau < 0, reset it to the init
+    tau.
+
     :param env:
     :param agent:
     :param max_path_length:
@@ -610,6 +612,7 @@ def rollout_decrement_tau(env, agent, init_tau, max_path_length=np.inf,
     terminals = []
     agent_infos = []
     env_infos = []
+    taus = []
     o = env.reset()
     next_o = None
     path_length = 0
@@ -619,8 +622,6 @@ def rollout_decrement_tau(env, agent, init_tau, max_path_length=np.inf,
     while path_length < max_path_length:
         a, agent_info = agent.get_action(o)
         next_o, r, d, env_info = env.step(a)
-        tau -= 1
-        tau = max(tau, 0)
         agent.set_discount(tau)
         observations.append(o)
         rewards.append(r)
@@ -628,7 +629,11 @@ def rollout_decrement_tau(env, agent, init_tau, max_path_length=np.inf,
         actions.append(a)
         agent_infos.append(agent_info)
         env_infos.append(env_info)
+        taus.append(tau)
         path_length += 1
+        tau -= 1
+        if tau < 0:
+            tau = init_tau
         if d:
             break
         o = next_o
@@ -644,4 +649,5 @@ def rollout_decrement_tau(env, agent, init_tau, max_path_length=np.inf,
         agent_infos=np.array(agent_infos),
         env_infos=np.array(env_infos),
         final_observation=next_o,
+        taus=np.array(taus),
     )

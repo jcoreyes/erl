@@ -42,6 +42,25 @@ class TestMultitaskRollout(unittest.TestCase):
         self.assertTrue(np.all(path['terminals'] == False))
         self.assertTrue(len(path['terminals']) == tau)
 
+    def test_tau_cycles(self):
+        env = StubMultitaskEnv()
+        policy = StubUniversalPolicy()
+        goal = None
+        tau = 5
+        path = multitask_rollout(
+            env,
+            policy,
+            goal,
+            tau,
+            max_path_length=10,
+            animated=False,
+            decrement_discount=True,
+        )
+        self.assertEqual(
+            list(path['taus']),
+            [5, 4, 3, 2, 1, 0, 5, 4, 3, 2]
+        )
+
 
 class StubUniversalPolicy(UniversalPolicy):
     def set_discount(self, discount):
