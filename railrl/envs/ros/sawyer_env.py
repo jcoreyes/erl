@@ -647,9 +647,13 @@ class SawyerEnv(Env, Serializable):
         velocities_dict = self._get_joint_values['velocity']()
         velocities = np.array([velocities_dict[joint] for joint in self.arm_joint_names])
         torques = np.array([torques_dict[joint] for joint in self.arm_joint_names])
-        temp = np.hstack((angles, velocities, torques))
-        temp = np.hstack((temp, self._end_effector_pose()))
-        temp = np.hstack((temp, self.desired))
+        temp = np.hstack((
+            angles,
+            velocities,
+            torques,
+            self._end_effector_pose(),
+            self.desired
+        ))
         return temp
 
     def safe_move_to_neutral(self):
