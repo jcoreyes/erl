@@ -449,19 +449,51 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
         self.policy.set_discount(self._rollout_discount)
         return super()._start_new_rollout()
 
-    def _handle_step(self):
-        """
-        Implement anything that needs to happen after every step
-        :return:
-        """
+    def _handle_step(
+            self,
+            num_paths_total,
+            observation,
+            action,
+            reward,
+            terminal,
+            agent_info,
+            env_info,
+    ):
         if not self.cycle_taus_for_rollout:
-            return super()._handle_step()
+            return super()._handle_step(
+                num_paths_total,
+                observation,
+                action,
+                reward,
+                terminal,
+                agent_info=agent_info,
+                env_info=env_info,
+            )
+
+        if num_paths_total % self.save_exploration_path_period == 0:
+            self._current_path.add_all(
+                observations=self.obs_space.flatten(observation),
+                rewards=reward,
+                terminals=terminal,
+                actions=self.action_space.flatten(action),
+                agent_infos=agent_info,
+                env_infos=env_info,
+                taus=self._rollout_discount,
+            )
+
+        self.replay_buffer.add_sample(
+            observation,
+            action,
+            reward,
+            terminal,
+            agent_info=agent_info,
+            env_info=env_info,
+        )
 
         self._rollout_discount -= 1
         if self._rollout_discount < 0:
             self._rollout_discount = self.discount
         self.policy.set_discount(self._rollout_discount)
-        return super()._handle_step()
 
     def get_train_dict(self, batch):
         rewards = batch['rewards']

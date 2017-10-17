@@ -124,9 +124,9 @@ if __name__ == '__main__':
     exp_prefix = "dev-train-q"
     run_mode = "none"
 
-    # n_seeds = 3
-    # mode = "ec2"
-    # exp_prefix = "local-sdql-reacher7dof-goal-structured-qf"
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "sdql-reacher2d-train-with-decreasing-tau"
     # run_mode = 'grid'
 
     version = "na"
@@ -139,7 +139,7 @@ if __name__ == '__main__':
 
     dataset_path = args.replay_path
 
-    max_path_length = 300
+    max_path_length = 10
     # noinspection PyTypeChecker
     variant = dict(
         version=version,
@@ -148,11 +148,11 @@ if __name__ == '__main__':
             num_epochs=101,
             num_steps_per_epoch=300,
             num_steps_per_eval=3000,
-            num_updates_per_env_step=1,
+            num_updates_per_env_step=50,
             use_soft_update=True,
             tau=0.001,
             batch_size=500,
-            discount=0.99,
+            discount=max_path_length-1,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
             sample_goals_from='environment',
@@ -186,7 +186,7 @@ if __name__ == '__main__':
         # epoch_discount_schedule_class=IntRampUpSchedule,
         epoch_discount_schedule_class=ConstantSchedule,
         epoch_discount_schedule_params=dict(
-            value=5,
+            value=max_path_length-1,
             # min_value=0,
             # max_value=100,
             # ramp_duration=50,

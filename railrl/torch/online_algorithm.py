@@ -140,6 +140,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
 
         self.final_score = 0
         self._old_table_keys = None
+        self._current_path = Path()
 
     @abc.abstractmethod
     def cuda(self):
@@ -153,7 +154,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
 
     def train(self, start_epoch=0):
         n_steps_total = 0
-        path = Path()
+        self._current_path = Path()
         observation = self._start_new_rollout()
         num_paths_total = 0
         self._start_worker()
@@ -177,19 +178,8 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                 )
                 n_steps_total += 1
                 reward = raw_reward * self.scale_reward
-                self._handle_step()
-
-                if num_paths_total % self.save_exploration_path_period == 0:
-                    path.add_all(
-                        observations=self.obs_space.flatten(observation),
-                        rewards=reward,
-                        terminals=terminal,
-                        actions=self.action_space.flatten(action),
-                        agent_infos=agent_info,
-                        env_infos=env_info,
-                    )
-
-                self.replay_buffer.add_sample(
+                self._handle_step(
+                    num_paths_total,
                     observation,
                     action,
                     reward,
@@ -197,7 +187,8 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                     agent_info=agent_info,
                     env_info=env_info,
                 )
-                if terminal or len(path) >= self.max_path_length:
+                if terminal or len(self._current_path) >= self.max_path_length:
+                    # TODO(vitchyr): Move everything into handle_rollout_end
                     self.replay_buffer.terminate_episode(
                         next_ob,
                         terminal,
@@ -207,9 +198,9 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                     observation = self._start_new_rollout()
                     num_paths_total += 1
                     self.handle_rollout_ending(n_steps_total)
-                    if len(path) > 0:
-                        exploration_paths.append(path.get_all_stacked())
-                        path = Path()
+                    if len(self._current_path) > 0:
+                        exploration_paths.append(self._current_path.get_all_stacked())
+                        self._current_path = Path()
                 else:
                     observation = next_ob
 
@@ -219,16 +210,16 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                     self.training_mode(False)
 
             train_time = time.time() - start_time
-            self._try_to_eval(exploration_paths, path, epoch)
+            self._try_to_eval(exploration_paths, epoch)
             if self._can_train():
                 logger.log("Training Time: {0}".format(train_time))
             else:
                 logger.log("Not training yet. Time: {}".format(train_time))
             logger.pop_prefix()
 
-    def _try_to_eval(self, exploration_paths, current_path, epoch):
+    def _try_to_eval(self, exploration_paths, epoch):
         if len(exploration_paths) == 0:
-            exploration_paths = [current_path.get_all_stacked()]
+            exploration_paths = [self._current_path.get_all_stacked()]
         if self._can_evaluate(exploration_paths):
             start_time = time.time()
             self.evaluate(epoch, exploration_paths)
@@ -323,12 +314,38 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         self.exploration_policy.reset()
         return self.training_env.reset()
 
-    def _handle_step(self):
+    def _handle_step(
+            self,
+            num_paths_total,
+            observation,
+            action,
+            reward,
+            terminal,
+            agent_info,
+            env_info,
+    ):
         """
         Implement anything that needs to happen after every step
         :return:
         """
-        pass
+        if num_paths_total % self.save_exploration_path_period == 0:
+            self._current_path.add_all(
+                observations=self.obs_space.flatten(observation),
+                rewards=reward,
+                terminals=terminal,
+                actions=self.action_space.flatten(action),
+                agent_infos=agent_info,
+                env_infos=env_info,
+            )
+
+        self.replay_buffer.add_sample(
+            observation,
+            action,
+            reward,
+            terminal,
+            agent_info=agent_info,
+            env_info=env_info,
+        )
 
     def handle_rollout_ending(self, n_steps_total):
         """
