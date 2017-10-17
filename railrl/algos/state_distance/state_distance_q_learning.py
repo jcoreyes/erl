@@ -41,10 +41,11 @@ class StateDistanceQLearning(DDPG):
             termination_threshold=0,
             save_replay_buffer=False,
             save_algorithm=False,
+            eval_sampler=None,
             **kwargs
     ):
         env = pickle.loads(pickle.dumps(env))
-        eval_sampler = MultigoalSimplePathSampler(
+        eval_sampler = eval_sampler or MultigoalSimplePathSampler(
             env=env,
             policy=policy,
             max_samples=num_steps_per_eval,
@@ -237,10 +238,6 @@ class StateDistanceQLearning(DDPG):
             )
             self.epoch_discount_schedule.update(value)
 
-    def _sample_eval_paths(self, epoch):
-        self.eval_sampler.set_discount(self.discount)
-        return super()._sample_eval_paths(epoch)
-
     def get_train_dict(self, batch):
         rewards = batch['rewards']
         terminals = batch['terminals']
@@ -250,7 +247,7 @@ class StateDistanceQLearning(DDPG):
         goal_states = batch['goal_states']
 
         batch_size = obs.size()[0]
-        discount_np  = self._sample_discount(batch_size)
+        discount_np = self._sample_discount(batch_size)
         discount = ptu.Variable(ptu.from_numpy(discount_np).float())
 
         """
@@ -280,7 +277,7 @@ class StateDistanceQLearning(DDPG):
 
         if self.qf_weight_decay > 0:
             reg_loss = self.qf_weight_decay * sum(
-                torch.sum(param**2)
+                torch.sum(param ** 2)
                 for param in self.qf.regularizable_parameters()
             )
             qf_loss = raw_qf_loss + reg_loss
@@ -370,6 +367,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
     """
     Hacky solution: just use discount in place of max_num_steps_left.
     """
+
     def __init__(
             self,
             env: MultitaskEnv,
@@ -379,6 +377,9 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             sparse_reward=True,
             fraction_of_taus_set_to_zero=0,
             clamp_q_target_values=False,
+            num_steps_per_eval=1000,
+            max_path_length=1000,
+            cycle_taus_for_rollout=True,
             **kwargs
     ):
         """
@@ -390,13 +391,25 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
         The wrong version just uses tau as a timer.
         :param fraction_of_taus_set_to_zero: This proportion of samples
         taus will be set to zero.
+        :param cycle_taus_for_rollout: Decrement tau at each time step when
+        collecting data.
         :param kwargs:
         """
+        eval_sampler = MultigoalSimplePathSampler(
+            env=env,
+            policy=policy,
+            max_samples=num_steps_per_eval,
+            max_path_length=max_path_length,
+            discount_sampling_function=self._sample_discount_for_rollout,
+            goal_sampling_function=self.sample_goal_state_for_rollout,
+            cycle_taus_for_rollout=cycle_taus_for_rollout,
+        )
         super().__init__(
             env,
             qf,
             policy,
             exploration_policy,
+            eval_sampler=eval_sampler,
             **kwargs
         )
         assert 1 >= fraction_of_taus_set_to_zero >= 0
@@ -469,7 +482,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
 
         if self.qf_weight_decay > 0:
             reg_loss = self.qf_weight_decay * sum(
-                torch.sum(param**2)
+                torch.sum(param ** 2)
                 for param in self.qf.regularizable_parameters()
             )
             qf_loss = raw_qf_loss + reg_loss
@@ -512,9 +525,14 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
 
 class MultigoalSimplePathSampler(object):
     def __init__(
-            self, env, policy, max_samples, max_path_length,
+            self,
+            env,
+            policy,
+            max_samples,
+            max_path_length,
             discount_sampling_function,
             goal_sampling_function,
+            cycle_taus_for_rollout=True,
     ):
         self.env = env
         self.policy = policy
@@ -522,6 +540,7 @@ class MultigoalSimplePathSampler(object):
         self.max_path_length = max_path_length
         self.discount_sampling_function = discount_sampling_function
         self.goal_sampling_function = goal_sampling_function
+        self.cycle_taus_for_rollout = cycle_taus_for_rollout
 
     def start_worker(self):
         pass
@@ -529,20 +548,22 @@ class MultigoalSimplePathSampler(object):
     def shutdown_worker(self):
         pass
 
-    def set_discount(self, discount):
-        self.discount = discount
-
     def obtain_samples(self):
         paths = []
         for i in range(self.max_samples // self.max_path_length):
             discount = self.discount_sampling_function()
             goal = self.goal_sampling_function()
+            if self.cycle_taus_for_rollout:
+                max_path_length = discount
+            else:
+                max_path_length = self.max_path_length
             path = multitask_rollout(
                 self.env,
                 self.policy,
                 goal,
                 discount,
-                max_path_length=self.max_path_length,
+                max_path_length=max_path_length,
+                decrement_discount=self.cycle_taus_for_rollout,
             )
             path_length = len(path['observations'])
             path['goal_states'] = expand_goal(goal, path_length)
@@ -576,7 +597,6 @@ def multitask_rollout(
             env,
             agent,
             discount,
-            # max_path_length=discount,
             max_path_length=max_path_length,
             animated=animated,
         )

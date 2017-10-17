@@ -58,10 +58,6 @@ def experiment(variant):
         env,
         **variant['normalize_params']
     )
-    if variant['algo_params']['use_new_data']:
-        replay_buffer = None
-    else:
-        replay_buffer = get_replay_buffer(variant)
 
     observation_space = convert_gym_space(env.observation_space)
     action_space = convert_gym_space(env.action_space)
@@ -107,7 +103,6 @@ def experiment(variant):
         qf,
         policy,
         exploration_policy,
-        replay_buffer=replay_buffer,
         epoch_discount_schedule=epoch_discount_schedule,
         qf_criterion=qf_criterion,
         **variant['algo_params']
@@ -131,7 +126,7 @@ if __name__ == '__main__':
 
     # n_seeds = 3
     # mode = "ec2"
-    exp_prefix = "local-sdql-reacher7dof-goal-structured-qf"
+    # exp_prefix = "local-sdql-reacher7dof-goal-structured-qf"
     # run_mode = 'grid'
 
     version = "na"
@@ -153,7 +148,7 @@ if __name__ == '__main__':
             num_epochs=101,
             num_steps_per_epoch=300,
             num_steps_per_eval=3000,
-            num_updates_per_env_step=50,
+            num_updates_per_env_step=1,
             use_soft_update=True,
             tau=0.001,
             batch_size=500,
@@ -171,6 +166,7 @@ if __name__ == '__main__':
             sparse_reward=True,
             render=args.render,
             save_replay_buffer=True,
+            cycle_taus_for_rollout=True,
         ),
         explore_with_ddpg_policy=True,
         # qf_class=UniversalQfunction,
@@ -196,10 +192,10 @@ if __name__ == '__main__':
             # ramp_duration=50,
         ),
         algo_class=HorizonFedStateDistanceQLearning,
-        env_class=Reacher7DofFullGoalState,
+        # env_class=Reacher7DofFullGoalState,
         # env_class=ArmEEInStatePusherEnv,
         # env_class=JointOnlyPusherEnv,
-        # env_class=GoalStateSimpleStateReacherEnv,
+        env_class=GoalStateSimpleStateReacherEnv,
         # env_class=XyMultitaskSimpleStateReacherEnv,
         # env_class=MultitaskPoint2DEnv,
         env_params=dict(),
