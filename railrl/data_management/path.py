@@ -1,5 +1,4 @@
 from rllab.misc import tensor_utils
-import numpy as np
 
 
 class Path(dict):
@@ -25,7 +24,6 @@ class Path(dict):
             output_dict[k] = stack_list(v)
         return output_dict
 
-    # @property
     def __len__(self):
         return self._path_length
 
