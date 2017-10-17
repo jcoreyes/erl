@@ -21,6 +21,10 @@ class SplitReplayBuffer(ReplayBuffer):
     def add_sample(self, *args, **kwargs):
         self.replay_buffer.add_sample(*args, **kwargs)
 
+    def add_path(self, path):
+        self.replay_buffer.add_path(path)
+        self._randomly_set_replay_buffer()
+
     def num_steps_can_sample(self):
         return min(
             self.train_replay_buffer.num_steps_can_sample(),
@@ -29,6 +33,9 @@ class SplitReplayBuffer(ReplayBuffer):
 
     def terminate_episode(self, *args, **kwargs):
         self.replay_buffer.terminate_episode(*args, **kwargs)
+        self._randomly_set_replay_buffer()
+
+    def _randomly_set_replay_buffer(self):
         if random.random() <= self.fraction_paths_in_train:
             self.replay_buffer = self.train_replay_buffer
         else:
@@ -39,3 +46,9 @@ class SplitReplayBuffer(ReplayBuffer):
             return self.train_replay_buffer
         else:
             return self.validation_replay_buffer
+
+    def num_steps_saved(self):
+        return (
+            self.train_replay_buffer.num_steps_saved()
+            + self.validation_replay_buffer.num_steps_saved()
+        )

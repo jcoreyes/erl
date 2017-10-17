@@ -1,5 +1,6 @@
 from collections import OrderedDict
 
+import torch
 import torch.optim as optim
 from torch import nn as nn
 
@@ -36,36 +37,76 @@ class DDPG(OnlineAlgorithm):
             replay_buffer=None,
             number_of_gradient_steps=1,
             qf_criterion=None,
-            differentiate_through_target=False,
+            residual_gradient_weight=0,
+            optimize_target_policy=None,
+            target_policy_learning_rate=None,
             **kwargs
     ):
+        """
+
+        :param env:
+        :param qf:
+        :param policy:
+        :param exploration_policy:
+        :param policy_learning_rate:
+        :param qf_learning_rate:
+        :param qf_weight_decay:
+        :param target_hard_update_period:
+        :param tau:
+        :param use_soft_update:
+        :param replay_buffer:
+        :param number_of_gradient_steps: Number of gradient steps per
+        environment step.
+        :param qf_criterion: Loss function to use for the q function. Should
+        be a function that takes in two inputs (y_predicted, y_target).
+        :param residual_gradient_weight: c, float between 0 and 1. The gradient
+        used for training the Q function is then
+            (1-c) * normal td gradient + c * residual gradient
+        :param optimize_target_policy: If False, the target policy is
+        updated as in the original DDPG paper. Otherwise, the target policy
+        is optimizes the target QF.
+        :param target_policy_learning_rate: If None, use the policy_learning
+        rate. This parameter is ignored if `optimize_target_policy` is False.
+        :param kwargs:
+        """
         super().__init__(
             env,
             exploration_policy,
             **kwargs
         )
+        if qf_criterion is None:
+            qf_criterion = nn.MSELoss()
+        if target_policy_learning_rate is None:
+            target_policy_learning_rate = policy_learning_rate
         self.qf = qf
         self.policy = policy
         self.policy_learning_rate = policy_learning_rate
         self.qf_learning_rate = qf_learning_rate
         self.qf_weight_decay = qf_weight_decay
-        self.target_qf = self.qf.copy()
-        self.target_policy = self.policy.copy()
         self.target_hard_update_period = target_hard_update_period
         self.tau = tau
         self.use_soft_update = use_soft_update
         self.number_of_gradient_steps=number_of_gradient_steps
-        self.differentiate_through_target = differentiate_through_target
-        if qf_criterion is None:
-            qf_criterion = nn.MSELoss()
+        self.residual_gradient_weight = residual_gradient_weight
         self.qf_criterion = qf_criterion
+        self.optimize_target_policy = optimize_target_policy
+        self.target_policy_learning_rate = target_policy_learning_rate
+
+        self.target_qf = self.qf.copy()
+        self.target_policy = self.policy.copy()
         self.qf_optimizer = optim.Adam(
             self.qf.parameters(),
             lr=self.qf_learning_rate,
-            weight_decay=self.qf_weight_decay,
-       )
+        )
         self.policy_optimizer = optim.Adam(self.policy.parameters(),
                                            lr=self.policy_learning_rate)
+        if self.optimize_target_policy:
+            self.target_policy_optimizer = optim.Adam(
+                self.target_policy.parameters(),
+                lr=self.target_policy_learning_rate,
+            )
+        else:
+            self.target_policy_optimizer = None
         if replay_buffer is None:
             self.replay_buffer = SplitReplayBuffer(
                 EnvReplayBuffer(
@@ -104,13 +145,21 @@ class DDPG(OnlineAlgorithm):
             qf_loss.backward()
             self.qf_optimizer.step()
 
+            if self.optimize_target_policy:
+                self.target_policy_optimizer.zero_grad()
+                target_policy_loss = train_dict['Target Policy Loss']
+                target_policy_loss.backward()
+                self.target_policy_optimizer.step()
+
             if self.use_soft_update:
-                ptu.soft_update_from_to(self.target_policy, self.policy, self.tau)
+                if not self.optimize_target_policy:
+                    ptu.soft_update_from_to(self.target_policy, self.policy, self.tau)
                 ptu.soft_update_from_to(self.target_qf, self.qf, self.tau)
             else:
                 if n_steps_total % self.target_hard_update_period == 0:
                     ptu.copy_model_params_from_to(self.qf, self.target_qf)
-                    ptu.copy_model_params_from_to(self.policy, self.target_policy)
+                    if not self.optimize_target_policy:
+                        ptu.copy_model_params_from_to(self.policy, self.target_policy)
 
     def get_train_dict(self, batch):
         rewards = batch['rewards']
@@ -130,28 +179,56 @@ class DDPG(OnlineAlgorithm):
         Critic operations.
         """
 
-        if self.differentiate_through_target:
-            next_actions = self.target_policy(next_obs)
-            target_q_values = self.qf(
+        next_actions = self.target_policy(next_obs)
+        # speed up computation by not backpropping these gradients
+        next_actions.detach()
+        target_q_values = self.target_qf(
+            next_obs,
+            next_actions,
+        )
+        y_target = rewards + (1. - terminals) * self.discount * target_q_values
+        y_target = y_target.detach()
+        y_pred = self.qf(obs, actions)
+        bellman_errors = (y_pred - y_target)**2
+        raw_qf_loss = self.qf_criterion(y_pred, y_target)
+
+        if self.residual_gradient_weight > 0:
+            residual_next_actions = self.policy(next_obs)
+            # speed up computation by not backpropping these gradients
+            residual_next_actions.detach()
+            residual_target_q_values = self.qf(
                 next_obs,
-                next_actions,
+                residual_next_actions,
             )
-            y_target = rewards + (1. - terminals) * self.discount * target_q_values
-            y_pred = self.qf(obs, actions)
-            bellman_errors = (y_pred - y_target)**2
+            residual_y_target = (
+                rewards
+                + (1. - terminals) * self.discount * residual_target_q_values
+            )
+            residual_bellman_errors = (y_pred - residual_y_target)**2
             # noinspection PyUnresolvedReferences
-            qf_loss = bellman_errors.mean()
-        else:
-            next_actions = self.target_policy(next_obs)
-            target_q_values = self.target_qf(
-                next_obs,
-                next_actions,
+            residual_qf_loss = residual_bellman_errors.mean()
+            raw_qf_loss = (
+                self.residual_gradient_weight * residual_qf_loss
+                + (1 - self.residual_gradient_weight) * raw_qf_loss
             )
-            y_target = rewards + (1. - terminals) * self.discount * target_q_values
-            y_target = y_target.detach()
-            y_pred = self.qf(obs, actions)
-            bellman_errors = (y_pred - y_target)**2
-            qf_loss = self.qf_criterion(y_pred, y_target)
+
+        if self.qf_weight_decay > 0:
+            reg_loss = self.qf_weight_decay * sum(
+                torch.sum(param**2)
+                for param in self.qf.regularizable_parameters()
+            )
+            qf_loss = raw_qf_loss + reg_loss
+        else:
+            qf_loss = raw_qf_loss
+
+        if self.optimize_target_policy:
+            target_policy_actions = self.target_policy(obs)
+            target_q_output = self.target_qf(obs, target_policy_actions)
+            target_policy_loss = - target_q_output.mean()
+        else:
+            # Always include the target policy loss so that different
+            # experiments are easily comparable.
+            target_policy_loss = ptu.FloatTensor([0])
 
         return OrderedDict([
             ('Policy Actions', policy_actions),
@@ -160,7 +237,9 @@ class DDPG(OnlineAlgorithm):
             ('Bellman Errors', bellman_errors),
             ('Y targets', y_target),
             ('Y predictions', y_pred),
+            ('Unregularized QF Loss', raw_qf_loss),
             ('QF Loss', qf_loss),
+            ('Target Policy Loss', target_policy_loss),
         ])
 
     def training_mode(self, mode):
@@ -201,7 +280,11 @@ class DDPG(OnlineAlgorithm):
         statistics.update(
             get_difference_statistics(
                 statistics,
-                ['QF Loss Mean', 'Policy Loss Mean'],
+                [
+                    'QF Loss Mean',
+                    'Policy Loss Mean',
+                    'Target Policy Loss Mean',
+                ],
             )
         )
 
@@ -242,7 +325,12 @@ class DDPG(OnlineAlgorithm):
     def _statistics_from_batch(self, batch, stat_prefix):
         statistics = get_statistics_from_pytorch_dict(
             self.get_train_dict(batch),
-            ['QF Loss', 'Policy Loss'],
+            [
+                'Unregularized QF Loss',
+                'QF Loss',
+                'Policy Loss',
+                'Target Policy Loss',
+            ],
             ['Bellman Errors', 'QF Outputs', 'Policy Actions'],
             stat_prefix
         )

@@ -4,7 +4,7 @@ sys.path.append(".")
 
 from rllab.misc.ext import is_iterable, set_seed
 from rllab.misc.instrument import concretize
-from rllab import config
+from railrl.launchers import config
 import rllab.misc.logger as logger
 import argparse
 import os.path as osp
@@ -21,7 +21,7 @@ import logging
 
 
 def run_experiment(argv):
-    default_log_dir = config.LOG_DIR
+    default_log_dir = config.LOCAL_LOG_DIR
     now = datetime.datetime.now(dateutil.tz.tzlocal())
 
     # avoid name clashes when running distributed jobs

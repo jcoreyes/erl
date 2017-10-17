@@ -17,7 +17,7 @@ def experiment(variant):
 if __name__ == '__main__':
     num_configurations = 1  # for random mode
     n_seeds = 1
-    mode = "here"
+    mode = "local"
     exp_prefix = "dev"
     version = "Dev"
     run_mode = "none"
@@ -29,7 +29,7 @@ if __name__ == '__main__':
 
     # run_mode = 'grid'
     use_gpu = True
-    if mode != "here":
+    if mode != "local":
         use_gpu = False
 
     variant = dict(
@@ -53,9 +53,6 @@ if __name__ == '__main__':
                     variant=variant,
                     exp_id=exp_id,
                     use_gpu=use_gpu,
-                    sync_s3_log=True,
-                    sync_s3_pkl=True,
-                    periodic_sync_interval=600,
                 )
     elif run_mode == 'custom_grid':
         for exp_id, (
@@ -132,9 +129,6 @@ if __name__ == '__main__':
                     variant=variant,
                     exp_id=exp_id,
                     use_gpu=use_gpu,
-                    sync_s3_log=True,
-                    sync_s3_pkl=True,
-                    periodic_sync_interval=600,
                 )
     else:
         for _ in range(n_seeds):
@@ -147,7 +141,4 @@ if __name__ == '__main__':
                 variant=variant,
                 exp_id=0,
                 use_gpu=use_gpu,
-                sync_s3_log=True,
-                sync_s3_pkl=True,
-                periodic_sync_interval=600,
             )

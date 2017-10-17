@@ -174,6 +174,11 @@ class MultitaskReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle, MultitaskEnv,
         statistics.update(create_stats_ordered_dict(
             'Euclidean distance to goal', euclidean_distances
         ))
+        statistics.update(create_stats_ordered_dict(
+            'Final Euclidean distance to goal',
+            euclidean_distances[:, -1],
+            always_show_all_stats=True,
+        ))
 
         actions = np.vstack([path['actions'] for path in paths])
         rewards = self.compute_rewards(
@@ -189,7 +194,7 @@ class MultitaskReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle, MultitaskEnv,
             logger.record_tabular(key, value)
 
     def sample_actions(self, batch_size):
-        return np.random.uniform(-1, 1, size=(batch_size, 2))
+        return 2 * np.random.beta(5, 5, size=(batch_size, 2)) - 1
 
     def sample_states(self, batch_size):
         theta = np.pi * (2 * np.random.rand(batch_size, 2) - 1)

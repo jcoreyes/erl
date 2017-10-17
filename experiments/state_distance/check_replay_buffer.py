@@ -2,6 +2,7 @@
 Plot histogram of the actions, observations, computed rewards, and whatever
 else I might find useful in a replay buffer.
 """
+import numpy as np
 from itertools import chain
 import joblib
 
@@ -15,7 +16,7 @@ from railrl.envs.multitask.reacher_env import (
 import matplotlib.pyplot as plt
 
 
-def main(dataset_path, only_load_buffer=False):
+def main(dataset_path, only_load_buffer=False, pause_at_end=False):
     """
     :param dataset_path: Path to serialized data.
     :param only_load_buffer: If True, then the path is to a pickle'd version
@@ -37,19 +38,79 @@ def main(dataset_path, only_load_buffer=False):
             env = replay_buffer.train_replay_buffer._env
 
     train_replay_buffer = replay_buffer.train_replay_buffer
+    obs = train_replay_buffer._observations[:train_replay_buffer._size, :]
+    obs_dim = obs.shape[-1]
+    obs_delta = (
+        obs[1:train_replay_buffer._size, :]
+        - obs[:train_replay_buffer._size-1, :]
+    )
+    actions = train_replay_buffer._actions
+    action_dim = actions.shape[-1]
+
+    """
+    Print general statistics
+    """
+    print("(Min, max, mean, std) obs")
+    for i in range(obs_dim):
+        o = obs[:train_replay_buffer._size, i]
+        print(
+            "Dimension {}".format(i),
+            (min(o), max(o), np.mean(o), np.std(o))
+        )
+
+    print("")
+    print("(Min, max, mean, std) delta obs")
+    for i in range(obs_dim):
+        delta = obs_delta[:, i]
+        print(
+            "Dimension {}".format(i),
+            (min(delta), max(delta), np.mean(delta), np.std(delta))
+        )
+    print("")
+    print("(Min, max, mean, std) action")
+    for i in range(action_dim):
+        a = obs[:train_replay_buffer._size, i]
+        print(
+            "Dimension {}".format(i),
+            (min(a), max(a), np.mean(a), np.std(a))
+        )
+
+    """
+    Print everything again but in transpose
+    """
+    print("")
+    print("")
+    print("")
+    print("obs", list(range(obs_dim)))
+    print("mean", repr(np.mean(obs, axis=0)))
+    print("std", repr(np.std(obs, axis=0)))
+    print("min", repr(np.min(obs, axis=0)))
+    print("max", repr(np.max(obs, axis=0)))
+    print("")
+    print("delta obs", list(range(obs_dim)))
+    print("mean", repr(np.mean(obs_delta, axis=0)))
+    print("std", repr(np.std(obs_delta, axis=0)))
+    print("min", repr(np.min(obs_delta, axis=0)))
+    print("max", repr(np.max(obs_delta, axis=0)))
+    print("")
+    print("actions", list(range(action_dim)))
+    print("mean", repr(np.mean(actions, axis=0)))
+    print("std", repr(np.std(actions, axis=0)))
+    print("min", repr(np.min(actions, axis=0)))
+    print("max", repr(np.max(actions, axis=0)))
+
+    print("# data points = {}".format(train_replay_buffer._size))
 
     """
     Plot s_{t+1} - s_t
     """
-    obs = train_replay_buffer._observations[:train_replay_buffer._size, :]
-    num_features = obs.shape[-1]
-    if num_features > 8:
-        fig, axes = plt.subplots((num_features+1)//2, 2)
+    if obs_dim > 8:
+        fig, axes = plt.subplots((obs_dim+1)//2, 2)
         ax_iter = chain(*axes)
     else:
-        fig, axes = plt.subplots(num_features)
+        fig, axes = plt.subplots(obs_dim)
         ax_iter = chain(axes)
-    for i in range(num_features):
+    for i in range(obs_dim):
         ax = next(ax_iter)
         diff = obs[:-1, i] - obs[1:, i]
         diff = diff[train_replay_buffer._final_state[:train_replay_buffer._size-1] == 0]
@@ -60,8 +121,6 @@ def main(dataset_path, only_load_buffer=False):
     """
     Plot actions
     """
-    actions = train_replay_buffer._actions
-    action_dim = actions.shape[-1]
     fig, axes = plt.subplots(action_dim)
     for i in range(action_dim):
         ax = axes[i]
@@ -73,20 +132,16 @@ def main(dataset_path, only_load_buffer=False):
     """
     Plot observations
     """
-    obs = train_replay_buffer._observations
-    num_features = obs.shape[-1]
-    if num_features > 8:
-        fig, axes = plt.subplots((num_features+1)//2, 2)
+    if obs_dim > 8:
+        fig, axes = plt.subplots((obs_dim+1)//2, 2)
         ax_iter = chain(*axes)
     else:
-        fig, axes = plt.subplots(num_features)
+        fig, axes = plt.subplots(obs_dim)
         ax_iter = chain(axes)
-    print("(Min, max) obs")
-    for i in range(num_features):
+    for i in range(obs_dim):
         ax = next(ax_iter)
         x = obs[:train_replay_buffer._size, i]
         ax.hist(x, bins=100)
-        print((min(x), max(x)), ",")
         ax.set_title("observations, dim #{}".format(i+1))
     plt.show()
 
@@ -110,15 +165,16 @@ def main(dataset_path, only_load_buffer=False):
 
     if isinstance(env, GoalStateSimpleStateReacherEnv):
         differences = batch['next_observations'] - sampled_goal_states
-        num_features = differences.shape[-1]
-        fig, axes = plt.subplots(num_features)
-        for i in range(num_features):
+        obs_dim = differences.shape[-1]
+        fig, axes = plt.subplots(obs_dim)
+        for i in range(obs_dim):
             ax = axes[i]
             x = differences[:, i]
             ax.hist(x)
             ax.set_title("next_obs - goal state, dim #{}".format(i+1))
         plt.show()
-    import ipdb; ipdb.set_trace()
+    if pause_at_end:
+        import ipdb; ipdb.set_trace()
     pass
 
 if __name__ == '__main__':
@@ -126,7 +182,8 @@ if __name__ == '__main__':
     parser.add_argument('replay_pkl_path', type=str,
                         help='path to the snapshot file')
     parser.add_argument('--buffer', action='store_true')
+    parser.add_argument('--pause', action='store_true')
     args = parser.parse_args()
 
     dataset_path = args.replay_pkl_path
-    main(dataset_path, args.buffer)
+    main(dataset_path, args.buffer, args.pause)

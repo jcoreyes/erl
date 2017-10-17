@@ -47,31 +47,36 @@ def example(variant):
 
 
 if __name__ == "__main__":
-    n_seeds = 5
-    exp_prefix = "ddpg-tau-is-one"
+    n_seeds = 4
+    exp_prefix = "ddpg-rg-weight-tau-sensitivity-harder-tasks-actually"
     mode = 'ec2'
 
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
             num_epochs=100,
-            num_steps_per_epoch=1000,
-            num_steps_per_eval=100,
+            num_steps_per_epoch=10000,
+            num_steps_per_eval=10000,
             use_soft_update=True,
-            tau=1,
+            tau=1e-2,
             batch_size=128,
-            max_path_length=100,
+            max_path_length=1000,
             discount=0.99,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
-            differentiate_through_target=False,
+            residual_gradient_weight=0,
         ),
         version="DDPG",
         env_class=InvertedDoublePendulumEnv,
     )
     search_space = {
-        'algo_params.qf_learning_rate': [1e-2, 1e-3, 1e-4],
-        'algo_params.policy_learning_rate': [1e-2, 1e-3, 1e-4],
+        'env_class': [AntEnv, HalfCheetahEnv, HopperEnv],
+        'algo_params.residual_gradient_weight': [
+            1, 0.99, 0.9, 0.5, 0.1, 0
+        ],
+        'algo_params.tau': [
+            1, 1e-1, 1e-2, 1e-3,
+        ],
         'qf_params': [
             # dict(
             #     observation_hidden_size=1000,

@@ -1,14 +1,11 @@
-import numpy as np
 import torch
 from torch import nn as nn
-from torch.nn import functional as F
-from torch.nn import init
 from torch.autograd import Variable
+from torch.nn import functional as F
 
 from railrl.pythonplusplus import identity
-from railrl.torch.core import PyTorchModule
 from railrl.torch import pytorch_util as ptu
-
+from railrl.torch.core import PyTorchModule
 from railrl.torch.rnn import BNLSTMCell, LSTM
 
 
@@ -35,7 +32,7 @@ class FeedForwardQFunction(PyTorchModule):
         self.obs_fc = nn.Linear(obs_dim, observation_hidden_size)
         self.embedded_fc = nn.Linear(observation_hidden_size + action_dim,
                                  embedded_hidden_size)
-            
+
         self.last_fc = nn.Linear(embedded_hidden_size, 1)
         self.output_activation = output_activation
 
@@ -43,7 +40,7 @@ class FeedForwardQFunction(PyTorchModule):
         self.batchnorm_obs = batchnorm_obs
         if self.batchnorm_obs:
             self.bn_obs = nn.BatchNorm1d(obs_dim)
-        
+
     def init_weights(self, init_w):
         self.hidden_init(self.obs_fc.weight)
         self.obs_fc.bias.data.fill_(0)
@@ -51,7 +48,7 @@ class FeedForwardQFunction(PyTorchModule):
         self.embedded_fc.bias.data.fill_(0)
         self.last_fc.weight.data.uniform_(-init_w, init_w)
         self.last_fc.bias.data.uniform_(-init_w, init_w)
-    
+
     def forward(self, obs, action):
         if self.batchnorm_obs:
             obs = self.bn_obs(obs)

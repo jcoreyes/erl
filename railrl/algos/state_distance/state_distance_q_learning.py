@@ -1,11 +1,15 @@
+import math
 import pickle
+import time
+import torch
 from collections import OrderedDict
 
 import numpy as np
 
 import railrl.torch.pytorch_util as ptu
 from railrl.envs.multitask.multitask_env import MultitaskEnv
-from railrl.misc.rllab_util import get_average_returns
+from railrl.misc.ml_util import StatConditionalSchedule
+from railrl.misc import rllab_util
 from railrl.policies.state_distance import UniversalPolicy
 from railrl.samplers.util import rollout
 from railrl.torch.ddpg import DDPG
@@ -37,6 +41,7 @@ class StateDistanceQLearning(DDPG):
             prob_goal_state_is_next_state=0,
             termination_threshold=0,
             save_replay_buffer=False,
+            save_algorithm=False,
             **kwargs
     ):
         env = pickle.loads(pickle.dumps(env))
@@ -47,6 +52,7 @@ class StateDistanceQLearning(DDPG):
             max_path_length=max_path_length,
             discount=discount,
             goal_sampling_function=self.sample_goal_state_for_rollout,
+            # TODO(vitchyr): create a sample_discount_for_rollout function
             sample_discount=sample_discount,
         )
         self.num_goals_for_eval = num_steps_per_eval // max_path_length + 1
@@ -71,6 +77,7 @@ class StateDistanceQLearning(DDPG):
         self.prob_goal_state_is_next_state = prob_goal_state_is_next_state
         self.termination_threshold = termination_threshold
         self.save_replay_buffer = save_replay_buffer
+        self.save_algorithm = save_algorithm
 
         self.use_new_data = use_new_data
         if not self.use_new_data:
@@ -78,16 +85,18 @@ class StateDistanceQLearning(DDPG):
         self.goal_state = None
         if self.num_steps_per_tensorboard_update is not None:
             self.tb_logger = TensorboardLogger(logger.get_snapshot_dir())
+        self.start_time = time.time()
 
     def train(self, **kwargs):
+        self.start_time = time.time()
         if self.use_new_data:
             return super().train()
         else:
             num_batches_total = 0
             for epoch in range(self.num_epochs):
                 self.discount = self.epoch_discount_schedule.get_value(epoch)
+                self.training_mode(True)
                 for _ in range(self.num_steps_per_epoch):
-                    self.training_mode(True)
                     self._do_training(n_steps_total=num_batches_total)
                     num_batches_total += 1
                 logger.push_prefix('Iteration #%d | ' % epoch)
@@ -184,7 +193,10 @@ class StateDistanceQLearning(DDPG):
             ))
 
     def sample_goal_state_for_rollout(self):
-        goal_state = self.sample_goal_states(1)[0]
+        # Always sample goal states from the environment to prevent the
+        # degenerate solution where the policy just learns to stay at a fixed
+        # location.
+        goal_state = self.env.sample_goal_states(1)[0]
         goal_state = self.env.modify_goal_state_for_rollout(goal_state)
         return goal_state
 
@@ -215,20 +227,32 @@ class StateDistanceQLearning(DDPG):
         statistics.update(
             get_difference_statistics(
                 statistics,
-                ['QF Loss Mean', 'Policy Loss Mean'],
+                [
+                    'QF Loss Mean',
+                    'Policy Loss Mean',
+                ],
             )
         )
 
         statistics['Discount Factor'] = self.discount
 
-        average_returns = get_average_returns(test_paths)
+        average_returns = rllab_util.get_average_returns(test_paths)
         statistics['AverageReturn'] = average_returns
-
+        statistics['Total Wallclock Time (s)'] = time.time() - self.start_time
+        statistics['Epoch'] = epoch
 
         for key, value in statistics.items():
             logger.record_tabular(key, value)
 
         self.log_diagnostics(test_paths)
+
+        if isinstance(self.epoch_discount_schedule, StatConditionalSchedule):
+            table_dict = rllab_util.get_logger_table_dict()
+            # rllab converts things to strings for some reason
+            value = float(
+                table_dict[self.epoch_discount_schedule.statistic_name]
+            )
+            self.epoch_discount_schedule.update(value)
 
     def _sample_eval_paths(self, epoch):
         self.eval_sampler.set_discount(self.discount)
@@ -272,7 +296,37 @@ class StateDistanceQLearning(DDPG):
         y_target = y_target.detach()
         y_pred = self.qf(obs, actions, goal_states, discount)
         bellman_errors = (y_pred - y_target) ** 2
-        qf_loss = self.qf_criterion(y_pred, y_target)
+        raw_qf_loss = self.qf_criterion(y_pred, y_target)
+
+        if self.qf_weight_decay > 0:
+            reg_loss = self.qf_weight_decay * sum(
+                torch.sum(param**2)
+                for param in self.qf.regularizable_parameters()
+            )
+            qf_loss = raw_qf_loss + reg_loss
+        else:
+            qf_loss = raw_qf_loss
+
+        """
+        Target Policy operations if needed
+        """
+        if self.optimize_target_policy:
+            target_policy_actions = self.target_policy(
+                obs,
+                goal_states,
+                discount,
+            )
+            target_q_output = self.target_qf(
+                obs,
+                target_policy_actions,
+                goal_states,
+                discount,
+            )
+            target_policy_loss = - target_q_output.mean()
+        else:
+            # Always include the target policy loss so that different
+            # experiments are easily comparable.
+            target_policy_loss = ptu.FloatTensor([0])
 
         return OrderedDict([
             ('Policy Actions', policy_actions),
@@ -281,7 +335,9 @@ class StateDistanceQLearning(DDPG):
             ('Bellman Errors', bellman_errors),
             ('Y targets', y_target),
             ('Y predictions', y_pred),
+            ('Unregularized QF Loss', raw_qf_loss),
             ('QF Loss', qf_loss),
+            ('Target Policy Loss', target_policy_loss),
         ])
 
     def get_epoch_snapshot(self, epoch):
@@ -297,9 +353,12 @@ class StateDistanceQLearning(DDPG):
         data_to_save = dict(
             epoch=epoch,
             env=self.training_env,
+            algorithm=self,
         )
         if self.save_replay_buffer:
             data_to_save['replay_buffer'] = self.replay_buffer
+        if self.save_algorithm:
+            data_to_save['algorithm'] = self
         return data_to_save
 
     @staticmethod
@@ -331,22 +390,26 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
     """
     Hacky solution: just use discount in place of max_num_steps_left.
     """
-
     def __init__(
             self,
             env: MultitaskEnv,
             qf,
             policy,
             exploration_policy: UniversalExplorationPolicy = None,
-            do_tau_correctly=True,
+            sparse_reward=True,
+            fraction_of_taus_set_to_zero=0,
+            clamp_q_target_values=False,
             **kwargs
     ):
         """
         I'm reusing discount as tau. Don't feel like renaming everything.
 
-        :param do_tau_correctly:  The correct interpretation of tau is
+        :param sparse_reward:  The correct interpretation of tau (
+        sparse_reward = True) is
         "how far you are from the goal state after tau steps."
         The wrong version just uses tau as a timer.
+        :param fraction_of_taus_set_to_zero: This proportion of samples
+        taus will be set to zero.
         :param kwargs:
         """
         super().__init__(
@@ -356,7 +419,10 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             exploration_policy,
             **kwargs
         )
-        self.do_tau_correctly = do_tau_correctly
+        assert 1 >= fraction_of_taus_set_to_zero >= 0
+        self.sparse_reward = sparse_reward
+        self.fraction_of_taus_set_to_zero = fraction_of_taus_set_to_zero
+        self.clamp_q_target_values = clamp_q_target_values
 
     def get_train_dict(self, batch):
         rewards = batch['rewards']
@@ -370,8 +436,13 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             num_steps_left_np = np.zeros((batch_size, 1))
         else:
             num_steps_left_np = np.random.randint(
-                0, self.discount, (batch_size, 1)
+                0, self.discount + 1, (batch_size, 1)
             )
+        if self.fraction_of_taus_set_to_zero > 0:
+            num_taus_set_to_zero = int(
+                batch_size * self.fraction_of_taus_set_to_zero
+            )
+            num_steps_left_np[:num_taus_set_to_zero] = 0
         num_steps_left = ptu.np_to_var(num_steps_left_np)
         terminals_np = (num_steps_left_np == 0).astype(int)
         terminals = ptu.np_to_var(terminals_np)
@@ -386,14 +457,20 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
         """
         Critic operations.
         """
-        next_actions = self.target_policy(next_obs, goal_states, num_steps_left)
+        next_actions = self.target_policy(
+            next_obs,
+            goal_states,
+            num_steps_left - 1,
+        )
         target_q_values = self.target_qf(
             next_obs,
             next_actions,
             goal_states,
             num_steps_left - 1,  # Important! Else QF will (probably) blow up
         )
-        if self.do_tau_correctly:
+        if self.clamp_q_target_values:
+            target_q_values = torch.clamp(target_q_values, -math.inf, 0)
+        if self.sparse_reward:
             y_target = terminals * rewards + (1. - terminals) * target_q_values
         else:
             y_target = rewards + (1. - terminals) * target_q_values
@@ -402,7 +479,37 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
         y_target = y_target.detach()
         y_pred = self.qf(obs, actions, goal_states, num_steps_left)
         bellman_errors = (y_pred - y_target) ** 2
-        qf_loss = self.qf_criterion(y_pred, y_target)
+        raw_qf_loss = self.qf_criterion(y_pred, y_target)
+
+        if self.qf_weight_decay > 0:
+            reg_loss = self.qf_weight_decay * sum(
+                torch.sum(param**2)
+                for param in self.qf.regularizable_parameters()
+            )
+            qf_loss = raw_qf_loss + reg_loss
+        else:
+            qf_loss = raw_qf_loss
+
+        """
+        Target Policy operations if needed
+        """
+        if self.optimize_target_policy:
+            target_policy_actions = self.target_policy(
+                obs,
+                goal_states,
+                num_steps_left,
+            )
+            target_q_output = self.target_qf(
+                obs,
+                target_policy_actions,
+                goal_states,
+                num_steps_left,
+            )
+            target_policy_loss = - target_q_output.mean()
+        else:
+            # Always include the target policy loss so that different
+            # experiments are easily comparable.
+            target_policy_loss = ptu.FloatTensor([0])
 
         return OrderedDict([
             ('Policy Actions', policy_actions),
@@ -411,7 +518,9 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             ('Bellman Errors', bellman_errors),
             ('Y targets', y_target),
             ('Y predictions', y_pred),
+            ('Unregularized QF Loss', raw_qf_loss),
             ('QF Loss', qf_loss),
+            ('Target Policy Loss', target_policy_loss),
         ])
 
 
