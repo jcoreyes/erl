@@ -3,6 +3,7 @@ import pickle
 import time
 
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
+from railrl.data_management.path import Path
 from railrl.envs.wrappers import convert_gym_space
 from railrl.misc.ml_util import ConstantSchedule
 from railrl.misc.rllab_util import (
@@ -138,6 +139,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         )
 
         self.final_score = 0
+        self._old_table_keys = None
 
     @abc.abstractmethod
     def cuda(self):
@@ -155,18 +157,11 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
 
     def train(self, start_epoch=0):
         n_steps_total = 0
-        observations = []
-        actions = []
-        rewards = []
-        terminals = []
-        agent_infos = []
-        env_infos = []
+        path = Path()
         observation = self.reset_env()
-        path_length = 0
         num_paths_total = 0
         self._start_worker()
         self.training_mode(False)
-        old_table_keys = None
         params = self.get_epoch_snapshot(-1)
         logger.save_itr_params(-1, params)
         for epoch in range(start_epoch, self.num_epochs):
@@ -186,16 +181,16 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                 )
                 n_steps_total += 1
                 reward = raw_reward * self.scale_reward
-                # path_return += reward
-                path_length += 1
 
                 if num_paths_total % self.save_exploration_path_period == 0:
-                    observations.append(self.obs_space.flatten(observation))
-                    rewards.append(reward)
-                    terminals.append(terminal)
-                    actions.append(self.action_space.flatten(action))
-                    agent_infos.append(agent_info)
-                    env_infos.append(env_info)
+                    path.add_all(
+                        observations=self.obs_space.flatten(observation),
+                        rewards=reward,
+                        terminals=terminal,
+                        actions=self.action_space.flatten(action),
+                        agent_infos=agent_info,
+                        env_infos=env_info,
+                    )
 
                 self.replay_buffer.add_sample(
                     observation,
@@ -205,7 +200,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                     agent_info=agent_info,
                     env_info=env_info,
                 )
-                if terminal or path_length >= self.max_path_length:
+                if terminal or len(path) >= self.max_path_length:
                     self.replay_buffer.terminate_episode(
                         next_ob,
                         terminal,
@@ -213,27 +208,11 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                         env_info=env_info,
                     )
                     observation = self.reset_env()
-                    path_length = 0
                     num_paths_total += 1
                     self.handle_rollout_ending(n_steps_total)
-                    if len(observations) > 0:
-                        exploration_paths.append(dict(
-                            observations=tensor_utils.stack_tensor_list(
-                                observations),
-                            actions=tensor_utils.stack_tensor_list(actions),
-                            rewards=tensor_utils.stack_tensor_list(rewards),
-                            terminals=tensor_utils.stack_tensor_list(terminals),
-                            agent_infos=tensor_utils.stack_tensor_dict_list(
-                                agent_infos),
-                            env_infos=tensor_utils.stack_tensor_dict_list(
-                                env_infos),
-                        ))
-                        observations = []
-                        actions = []
-                        rewards = []
-                        terminals = []
-                        agent_infos = []
-                        env_infos = []
+                    if len(path) > 0:
+                        exploration_paths.append(path.get_all_stacked())
+                        path = Path()
                 else:
                     observation = next_ob
 
@@ -243,29 +222,34 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                     self.training_mode(False)
 
             train_time = time.time() - start_time
-            if self._can_evaluate(exploration_paths):
-                start_time = time.time()
-                self.evaluate(epoch, exploration_paths)
-                params = self.get_epoch_snapshot(epoch)
-                logger.save_itr_params(epoch, params)
-                save_extra_data_to_snapshot_dir(
-                    self.get_extra_data_to_save(epoch),
-                )
-                table_keys = get_table_key_set(logger)
-                if old_table_keys is not None:
-                    assert table_keys == old_table_keys, (
-                        "Table keys cannot change from iteration to iteration."
-                    )
-                old_table_keys = table_keys
-                logger.dump_tabular(with_prefix=False, with_timestamp=False)
-                logger.log("Eval Time: {0}".format(time.time() - start_time))
-            else:
-                logger.log("Skipping eval for now.")
+            self._try_to_eval(exploration_paths, path, epoch)
             if self._can_train():
                 logger.log("Training Time: {0}".format(train_time))
             else:
                 logger.log("Not training yet. Time: {}".format(train_time))
             logger.pop_prefix()
+
+    def _try_to_eval(self, exploration_paths, current_path, epoch):
+        if len(exploration_paths) == 0:
+            exploration_paths = [current_path.get_all_stacked()]
+        if self._can_evaluate(exploration_paths):
+            start_time = time.time()
+            self.evaluate(epoch, exploration_paths)
+            params = self.get_epoch_snapshot(epoch)
+            logger.save_itr_params(epoch, params)
+            save_extra_data_to_snapshot_dir(
+                self.get_extra_data_to_save(epoch),
+            )
+            table_keys = get_table_key_set(logger)
+            if self._old_table_keys is not None:
+                assert table_keys == self._old_table_keys, (
+                    "Table keys cannot change from iteration to iteration."
+                )
+            self._old_table_keys = table_keys
+            logger.dump_tabular(with_prefix=False, with_timestamp=False)
+            logger.log("Eval Time: {0}".format(time.time() - start_time))
+        else:
+            logger.log("Skipping eval for now.")
 
     def get_extra_data_to_save(self, epoch):
         """
