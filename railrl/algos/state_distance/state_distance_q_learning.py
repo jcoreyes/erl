@@ -374,11 +374,12 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             qf,
             policy,
             exploration_policy: UniversalExplorationPolicy = None,
+            num_steps_per_eval=1000,
+            discount=1,
+            max_path_length=1000,
             sparse_reward=True,
             fraction_of_taus_set_to_zero=0,
             clamp_q_target_values=False,
-            num_steps_per_eval=1000,
-            max_path_length=1000,
             cycle_taus_for_rollout=True,
             **kwargs
     ):
@@ -395,6 +396,8 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
         collecting data.
         :param kwargs:
         """
+        if cycle_taus_for_rollout:
+            assert discount > 0
         eval_sampler = MultigoalSimplePathSampler(
             env=env,
             policy=policy,
@@ -410,18 +413,28 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             policy,
             exploration_policy,
             eval_sampler=eval_sampler,
+            num_steps_per_eval=num_steps_per_eval,
+            discount=discount,
+            max_path_length=max_path_length,
             **kwargs
         )
         assert 1 >= fraction_of_taus_set_to_zero >= 0
         self.sparse_reward = sparse_reward
         self.fraction_of_taus_set_to_zero = fraction_of_taus_set_to_zero
         self.clamp_q_target_values = clamp_q_target_values
+        self.cycle_taus_for_rollout = cycle_taus_for_rollout
 
     def _sample_discount(self, batch_size):
         if self.sample_discount:
             return np.random.randint(0, self.discount + 1, (batch_size, 1))
         else:
             return self.discount * np.ones((batch_size, 1))
+
+    def _sample_discount_for_rollout(self):
+        if self.cycle_taus_for_rollout:
+            return self.discount
+        else:
+            return self._sample_discount(1)[0, 0]
 
     def get_train_dict(self, batch):
         rewards = batch['rewards']
