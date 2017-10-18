@@ -5,20 +5,16 @@ import argparse
 import random
 
 import joblib
-from pathlib import Path
 
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.algos.state_distance.state_distance_q_learning import (
     HorizonFedStateDistanceQLearning)
-from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.misc.ml_util import StatConditionalSchedule
+from railrl.misc.ml_util import StatConditionalSchedule, ConstantSchedule
 from railrl.policies.state_distance import SoftOcOneStepRewardPolicy
 from railrl.torch.modules import HuberLoss
-from railrl.torch.state_distance.exploration import \
-    UniversalPolicyWrappedWithExplorationStrategy
 
 
 def experiment(variant):
@@ -27,11 +23,6 @@ def experiment(variant):
     env = data['env']
     qf = data['qf']
     policy = data['policy']
-    action_space = convert_gym_space(env.action_space)
-    # es = variant['es_class'](
-    #     action_space=action_space,
-    #     **variant['es_params']
-    # )
     exploration_policy = SoftOcOneStepRewardPolicy(
         qf,
         env,
@@ -47,17 +38,14 @@ def experiment(variant):
     epoch_discount_schedule = epoch_discount_schedule_class(
         **variant['epoch_discount_schedule_params']
     )
-    newpath = Path(path).parent / 'extra_data.pkl'
-    extra_data = joblib.load(str(newpath))
-    replay_buffer = extra_data.get('replay_buffer', None)
     algo = variant['algo_class'](
         env,
         qf,
         policy,
         exploration_policy,
+        eval_policy=exploration_policy,
         epoch_discount_schedule=epoch_discount_schedule,
         qf_criterion=qf_criterion,
-        replay_buffer=replay_buffer,
         **variant['algo_params']
     )
     if ptu.gpu_enabled():
@@ -78,7 +66,7 @@ if __name__ == '__main__':
 
     # n_seeds = 1
     # mode = "ec2"
-    # exp_prefix = "sdql-reacher2d-collect-oc-data"
+    exp_prefix = "sdql-reacher2d-collect-and-only-use-oc-data-eval-with-oc"
     # run_mode = 'grid'
 
     snapshot_mode = "gap_and_last"
@@ -114,20 +102,20 @@ if __name__ == '__main__':
             save_replay_buffer=True,
         ),
         algo_class=HorizonFedStateDistanceQLearning,
-        # epoch_discount_schedule_class=IntRampUpSchedule,
-        epoch_discount_schedule_class=StatConditionalSchedule,
+        epoch_discount_schedule_class=ConstantSchedule,
         epoch_discount_schedule_params=dict(
-            init_value=5,
-            stat_bounds=(0.4, None),
-            running_average_length=3,
-            delta=-1,
-            value_bounds=(5, None),
-            statistic_name="Final Euclidean distance to goal Mean",
-            min_time_gap_between_value_changes=3,
-            # min_value=0,
-            # max_value=100,
-            # ramp_duration=50,
+            value=10,
         ),
+        # epoch_discount_schedule_class=StatConditionalSchedule,
+        # epoch_discount_schedule_params=dict(
+        #     init_value=5,
+        #     stat_bounds=(0.4, None),
+        #     running_average_length=3,
+        #     delta=-1,
+        #     value_bounds=(5, None),
+        #     statistic_name="Final Euclidean distance to goal Mean",
+        #     min_time_gap_between_value_changes=3,
+        # ),
         qf_criterion_class=HuberLoss,
         qf_criterion_params=dict(),
         es_class=OUStrategy,
