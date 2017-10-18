@@ -1,12 +1,18 @@
 import abc
+from collections import OrderedDict
 
 import numpy as np
 
 from railrl.envs.mujoco.mujoco_env import MujocoEnv
+from railrl.misc.data_processing import create_stats_ordered_dict
+from railrl.misc.rllab_util import get_stat_in_dict
 from rllab.misc import logger
 
 
 class Pusher2DEnv(MujocoEnv, metaclass=abc.ABCMeta):
+    """
+
+    """
 
     FILE = '3link_gripper_push_2d.xml'
 
@@ -21,20 +27,20 @@ class Pusher2DEnv(MujocoEnv, metaclass=abc.ABCMeta):
         )
 
     def _step(self, a):
-        vec = self.get_body_com("distal_4") - self.get_body_com("object")
-        distance = np.linalg.norm(vec)
-        reward = - distance
-        goal_distance = np.linalg.norm(
-            self.get_body_com("object")[:2] - self._goal
+        arm_to_object_distance = np.linalg.norm(
+            self.get_body_com("distal_4") - self.get_body_com("object")
         )
+        object_to_goal_distance = np.linalg.norm(
+            self.get_body_com("goal") - self.get_body_com("object")
+        )
+        reward = - arm_to_object_distance - object_to_goal_distance
 
         self.do_simulation(a, self.frame_skip)
         ob = self._get_obs()
         done = False
         return ob, reward, done, dict(
-            distance=distance,
-            arm_distance=distance,
-            goal_distance=goal_distance,
+            arm_to_object_distance=arm_to_object_distance,
+            object_to_goal_distance=object_to_goal_distance,
         )
 
     def viewer_setup(self):
@@ -56,16 +62,15 @@ class Pusher2DEnv(MujocoEnv, metaclass=abc.ABCMeta):
             + self.init_qpos.squeeze()
         )
         qpos[-3:] = self.init_qpos.squeeze()[-3:]
-        while True:
-            object_ = [np.random.uniform(low=-1.0, high=-0.4),
-                       np.random.uniform(low=0.3, high=1.0)]
-            # x and y are flipped
-            goal = np.array([-1, 1])  # Not actual goal
-            if np.linalg.norm(np.array(object_)-np.array(goal)) > 0.45:
-                break
-        self.object = np.array(object_)
+        # x and y are flipped
+        object_pos = np.random.uniform(
+            np.array([-1, 0.3]),
+            np.array([-0.4, 1.0]),
+        )
+        self.object = object_pos
 
         qpos[-4:-2] = self.object
+        qpos[-2:] = self._goal
         qvel = self.init_qvel.copy().squeeze()
         qvel[-4:] = 0
 
@@ -76,21 +81,29 @@ class Pusher2DEnv(MujocoEnv, metaclass=abc.ABCMeta):
 
     def _get_obs(self):
         return np.concatenate([
-            self.model.data.qpos.flat[:-4],
-            self.model.data.qvel.flat[:-4],
-            self.get_body_com("object"),
+            self.model.data.qpos.flat[:3],
+            self.model.data.qvel.flat[:3],
+            self.get_body_com("object")[:2],
         ])
 
     def log_diagnostics(self, paths):
-        arm_dists = [p['env_infos']['arm_distance'][-1] for p in paths]
-        goal_dists = [p['env_infos']['goal_distance'][-1] for p in paths]
+        final_arm_to_object_dist = get_stat_in_dict(
+            paths, 'env_infos', 'arm_to_object_distance'
+        )[:, -1]
+        final_object_to_goal_dist = get_stat_in_dict(
+            paths, 'env_infos', 'object_to_goal_distance'
+        )[:, -1]
 
-        logger.record_tabular('FinalArmDistanceAvg', np.mean(arm_dists))
-        logger.record_tabular('FinalArmDistanceMax',  np.max(arm_dists))
-        logger.record_tabular('FinalArmDistanceMin',  np.min(arm_dists))
-        logger.record_tabular('FinalArmDistanceStd',  np.std(arm_dists))
-
-        logger.record_tabular('FinalGoalDistanceAvg', np.mean(goal_dists))
-        logger.record_tabular('FinalGoalDistanceMax',  np.max(goal_dists))
-        logger.record_tabular('FinalGoalDistanceMin',  np.min(goal_dists))
-        logger.record_tabular('FinalGoalDistanceStd',  np.std(goal_dists))
+        statistics = OrderedDict()
+        statistics.update(create_stats_ordered_dict(
+            'Final Euclidean distance to goal',
+            final_object_to_goal_dist,
+            always_show_all_stats=True,
+        ))
+        statistics.update(create_stats_ordered_dict(
+            'Final Euclidean distance arm to object',
+            final_arm_to_object_dist,
+            always_show_all_stats=True,
+        ))
+        for key, value in statistics.items():
+            logger.record_tabular(key, value)
