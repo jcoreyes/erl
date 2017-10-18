@@ -74,12 +74,12 @@ if __name__ == '__main__':
 
     n_seeds = 1
     # mode = "ec2"
-    exp_prefix = "sdql-fine-tune-reacher7dof-structured"
+    exp_prefix = "sdql-fine-tune-reacher7dof-structured-tau-50"
     # run_mode = 'grid'
 
     num_configurations = 50  # for random mode
     snapshot_mode = "gap_and_last"
-    snapshot_gap = 25
+    snapshot_gap = 20
     use_gpu = True
     if mode != "local":
         use_gpu = False
@@ -91,7 +91,7 @@ if __name__ == '__main__':
         algo_params=dict(
             num_epochs=1001,
             num_steps_per_epoch=300,
-            num_steps_per_eval=6000,
+            num_steps_per_eval=3000,
             num_updates_per_env_step=50,
             use_soft_update=True,
             tau=0.001,
@@ -109,16 +109,17 @@ if __name__ == '__main__':
             termination_threshold=0,
             sparse_reward=True,
             save_replay_buffer=True,
+            cycle_taus_for_rollout=True,
         ),
         algo_class=HorizonFedStateDistanceQLearning,
         # epoch_discount_schedule_class=IntRampUpSchedule,
         epoch_discount_schedule_class=StatConditionalSchedule,
         epoch_discount_schedule_params=dict(
-            init_value=5,
+            init_value=50,
             stat_bounds=(0.4, None),
             running_average_length=3,
             delta=-1,
-            value_bounds=(5, None),
+            value_bounds=(50, None),
             statistic_name="Final Euclidean distance to goal Mean",
             min_time_gap_between_value_changes=3,
             # min_value=0,
