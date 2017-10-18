@@ -78,7 +78,6 @@ class Pusher2DEnv(MujocoEnv, metaclass=abc.ABCMeta):
         return np.concatenate([
             self.model.data.qpos.flat[:-4],
             self.model.data.qvel.flat[:-4],
-            self.get_body_com("distal_4"),
             self.get_body_com("object"),
         ])
 
