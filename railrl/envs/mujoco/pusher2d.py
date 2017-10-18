@@ -23,6 +23,7 @@ class Pusher2DEnv(MujocoEnv, metaclass=abc.ABCMeta):
         self._goal = goal
         super().__init__(
             '3link_gripper_push_2d.xml',
+            frame_skip=5,
             automatically_set_obs_and_action_space=True,
         )
 
