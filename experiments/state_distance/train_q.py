@@ -5,6 +5,8 @@ import numpy as np
 from hyperopt import hp
 from torch import nn as nn
 from torch.nn import functional as F
+
+from railrl.envs.multitask.pusher2d import MultitaskPusher2DEnv
 from railrl.pythonplusplus import identity
 
 import railrl.misc.hyperparameter as hyp
@@ -126,8 +128,8 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "sdql-reacher2d-train-with-decreasing-tau"
-    # run_mode = 'grid'
+    exp_prefix = "sdql-reacher7dof-train-with-decreasing-tau"
+    run_mode = 'grid'
 
     version = "na"
     num_configurations = 50  # for random mode
@@ -139,7 +141,7 @@ if __name__ == '__main__':
 
     dataset_path = args.replay_path
 
-    max_path_length = 10
+    max_path_length = 100
     # noinspection PyTypeChecker
     variant = dict(
         version=version,
@@ -174,14 +176,14 @@ if __name__ == '__main__':
         # qf_class=StructuredUniversalQfunction,
         qf_class=GoalStructuredUniversalQfunction,
         qf_params=dict(
-            hidden_sizes=[100, 100],
+            hidden_sizes=[300, 300],
             hidden_activation=F.softplus,
             # output_activation=F.softplus,
             # output_multiplier=-1,
         ),
         policy_params=dict(
-            fc1_size=100,
-            fc2_size=100,
+            fc1_size=300,
+            fc2_size=300,
         ),
         # epoch_discount_schedule_class=IntRampUpSchedule,
         epoch_discount_schedule_class=ConstantSchedule,
@@ -192,10 +194,11 @@ if __name__ == '__main__':
             # ramp_duration=50,
         ),
         algo_class=HorizonFedStateDistanceQLearning,
-        # env_class=Reacher7DofFullGoalState,
+        env_class=Reacher7DofFullGoalState,
         # env_class=ArmEEInStatePusherEnv,
         # env_class=JointOnlyPusherEnv,
-        env_class=GoalStateSimpleStateReacherEnv,
+        # env_class=GoalStateSimpleStateReacherEnv,
+        # env_class=MultitaskPusher2DEnv,
         # env_class=XyMultitaskSimpleStateReacherEnv,
         # env_class=MultitaskPoint2DEnv,
         env_params=dict(),
@@ -232,7 +235,7 @@ if __name__ == '__main__':
             #     # JointOnlyPusherEnv,
             # ],
             # 'qf_class': [StructuredUniversalQfunction, FlatUniversalQfunction],
-            'epoch_discount_schedule_params.value': [10, 50, 0],
+            'epoch_discount_schedule_params.value': [5, 10, 50, 0],
             # 'algo_params.sparse_reward': [True, False],
             # 'algo_params.clamp_q_target_values': [True, False],
             # 'algo_params.prob_goal_state_is_next_state': [0.5, 0],
@@ -243,8 +246,8 @@ if __name__ == '__main__':
             # 'algo_params.num_steps_per_epoch': [1, 10],
             # 'algo_params.termination_threshold': [1e-4, 0]
             # 'algo_params.fraction_of_taus_set_to_zero': [0.5, 0],
-            'algo_params.optimize_target_policy': [True, False],
-            'algo_params.residual_gradient_weight': [0.5, 0],
+            # 'algo_params.optimize_target_policy': [True, False],
+            # 'algo_params.residual_gradient_weight': [0.5, 0],
             # 'epoch_discount_schedule_params.max_value': [100, 1000],
             # 'epoch_discount_schedule_params.ramp_duration': [
             #     1, 20, 50, 200,
