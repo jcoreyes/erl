@@ -128,7 +128,7 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "sdql-reacher7dof-train-with-decreasing-tau"
+    exp_prefix = "sdql-pusher2d-train-with-decreasing-tau"
     run_mode = 'grid'
 
     version = "na"
@@ -141,14 +141,14 @@ if __name__ == '__main__':
 
     dataset_path = args.replay_path
 
-    max_path_length = 100
+    max_path_length = 500
     # noinspection PyTypeChecker
     variant = dict(
         version=version,
         dataset_path=str(dataset_path),
         algo_params=dict(
             num_epochs=101,
-            num_steps_per_epoch=300,
+            num_steps_per_epoch=500,
             num_steps_per_eval=3000,
             num_updates_per_env_step=50,
             use_soft_update=True,
@@ -194,11 +194,11 @@ if __name__ == '__main__':
             # ramp_duration=50,
         ),
         algo_class=HorizonFedStateDistanceQLearning,
-        env_class=Reacher7DofFullGoalState,
+        # env_class=Reacher7DofFullGoalState,
         # env_class=ArmEEInStatePusherEnv,
         # env_class=JointOnlyPusherEnv,
         # env_class=GoalStateSimpleStateReacherEnv,
-        # env_class=MultitaskPusher2DEnv,
+        env_class=MultitaskPusher2DEnv,
         # env_class=XyMultitaskSimpleStateReacherEnv,
         # env_class=MultitaskPoint2DEnv,
         env_params=dict(),
