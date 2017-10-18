@@ -570,8 +570,6 @@ class StateOnlySdqBasedSqpOcPolicy(UniversalPolicy, nn.Module):
             bounds=self.bounds,
         )
         next_goal_state = result.x[:self.observation_dim]
-        print("next goal - current state", next_goal_state - obs)
-        print("actual goal - next goal", self._goal_np - next_goal_state)
         action = self.get_np_action(obs, next_goal_state)
         if np.isnan(action).any():
             logger.log("WARNING: SLSQP returned nan. Adding noise to last "
