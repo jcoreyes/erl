@@ -12,14 +12,17 @@ import joblib
 import numpy as np
 
 from railrl.policies.state_distance import (
-    SampleOptimalControlPolicy,
+    SoftOcOneStepRewardPolicy,
     TerminalRewardSampleOCPolicy,
     ArgmaxQFPolicy,
     PseudoModelBasedPolicy,
-)
+    SamplePolicyPartialOptimizer)
 from railrl.samplers.util import rollout
 from railrl.torch.pytorch_util import set_gpu_mode
 from rllab.misc import logger
+
+def experiment(variant):
+    pass
 
 if __name__ == "__main__":
 
@@ -45,6 +48,8 @@ if __name__ == "__main__":
                         help='Number of gradient steps for respective policy.')
     parser.add_argument('--mb', action='store_true',
                         help='Use (pseudo-)model-based policy')
+    parser.add_argument('--partial', action='store_true',
+                        help='Use partial state optimizer')
     parser.add_argument('--grid', action='store_true',
                         help='Sample actions from a grid')
     args = parser.parse_args()
@@ -73,10 +78,18 @@ if __name__ == "__main__":
             env,
             sample_size=args.nsamples,
         )
-    elif args.planh == 1:
-        policy = SampleOptimalControlPolicy(
+    elif args.partial:
+        policy = SamplePolicyPartialOptimizer(
             qf,
             env,
+            data['policy'],
+            sample_size=args.nsamples,
+        )
+    elif args.planh == 1:
+        policy = SoftOcOneStepRewardPolicy(
+            qf,
+            env,
+            data['policy'],
             constraint_weight=args.weight,
             sample_size=args.nsamples,
             verbose=args.verbose,
