@@ -295,6 +295,7 @@ class ArgmaxQFPolicy(SampleBasedUniversalPolicy, nn.Module):
             self,
             qf,
             env,
+            policy,
             sample_size=100,
             learning_rate=1e-1,
             num_gradient_steps=10,
