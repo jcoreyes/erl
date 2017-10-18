@@ -10,8 +10,9 @@ from rllab.spaces.product import Product
 
 class NormalizedBoxEnv(ProxyEnv, Serializable):
     """
-    Normalize action to in [0, 1].
-    Optionally normalize STD.
+    Normalize action to in [-1, 1].
+
+    Optionally normalize observations and scale reward.
     """
     def __init__(
             self,
