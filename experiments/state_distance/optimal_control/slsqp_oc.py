@@ -9,7 +9,6 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.state_distance import (
     ArgmaxQFPolicy,
     PseudoModelBasedPolicy,
-    SdqBasedSqpOcPolicy,
     StateOnlySdqBasedSqpOcPolicy)
 from rllab.misc import logger
 import railrl.torch.pytorch_util as ptu
@@ -90,7 +89,6 @@ if __name__ == '__main__':
         num_rollouts=args.nrolls,
         H=args.H,
         render=not args.hide,
-        # policy_class=SdqBasedSqpOcPolicy,
         policy_class=StateOnlySdqBasedSqpOcPolicy,
         policy_params=dict(
             solver_params=dict(
