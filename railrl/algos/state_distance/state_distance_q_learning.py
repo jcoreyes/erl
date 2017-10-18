@@ -446,7 +446,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             return super()._start_new_rollout()
 
         self._rollout_discount = self.discount
-        self.policy.set_discount(self._rollout_discount)
+        self.exploration_policy.set_discount(self._rollout_discount)
         return super()._start_new_rollout()
 
     def _handle_step(
@@ -493,7 +493,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
         self._rollout_discount -= 1
         if self._rollout_discount < 0:
             self._rollout_discount = self.discount
-        self.policy.set_discount(self._rollout_discount)
+        self.exploration_policy.set_discount(self._rollout_discount)
 
     def get_train_dict(self, batch):
         rewards = batch['rewards']
