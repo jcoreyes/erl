@@ -22,7 +22,6 @@ class MultitaskPusher2DEnv(Pusher2DEnv, MultitaskEnv):
         qpos = self.model.data.qpos.flat.copy()
         qvel = self.model.data.qvel.flat.copy()
         qpos[-2:] = self._goal
-        print("goal=", goal)
         self.set_state(qpos, qvel)
 
     @property
