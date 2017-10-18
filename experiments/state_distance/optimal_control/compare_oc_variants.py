@@ -14,9 +14,8 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.rllab_util import get_logger_table_dict
 from railrl.policies.state_distance import (
     SoftOcOneStepRewardPolicy,
-    TerminalRewardSampleOCPolicy,
     ArgmaxQFPolicy,
-    PseudoModelBasedPolicy,
+    StateOnlySdqBasedSqpOcPolicy,
     SamplePolicyPartialOptimizer,
 )
 import railrl.misc.hyperparameter as hyp
@@ -50,6 +49,17 @@ def get_class_params_to_try(policy_class):
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(search_space)
         return sweeper.iterate_hyperparameters()
+    if policy_class == StateOnlySdqBasedSqpOcPolicy:
+        search_space = {
+            'solver_params': [dict(
+                maxiter=5,
+                ftol=0.1
+            )],
+            'planning_horizon': [1, 5],
+        }
+        sweeper = hyp.DeterministicHyperparameterSweeper(search_space)
+        return sweeper.iterate_hyperparameters()
+
 
 
 def experiment(variant):
@@ -84,11 +94,6 @@ def experiment(variant):
             animated=False,
             decrement_discount=False,
         )
-        path['goal_states'] = np.repeat(
-            np.expand_dims(goal, 0),
-            len(path['observations']),
-            0,
-        )
         paths.append(path)
     env.log_diagnostics(paths)
     results = get_logger_table_dict()
@@ -102,12 +107,13 @@ if __name__ == '__main__':
                         help='path to the snapshot file with a QF')
     args = parser.parse_args()
 
-    exp_prefix = 'sdql-compare-ocs'
+    # exp_prefix = 'dev-sdql-compare-ocs'
+    exp_prefix = 'sdql-reacher2d-long-compare-ocs'
     variant = dict(
         path=args.file,
         stat_name='Final Euclidean distance to goal Mean',
         horizon=50,
-        num_rollouts=1,
+        num_rollouts=100,
         discount=5,
     )
 
@@ -117,6 +123,7 @@ if __name__ == '__main__':
         SoftOcOneStepRewardPolicy,
         SamplePolicyPartialOptimizer,
         ArgmaxQFPolicy,
+        StateOnlySdqBasedSqpOcPolicy,
     ]:
         variant['policy_class'] = policy_class
         for policy_params in get_class_params_to_try(policy_class):
@@ -128,10 +135,3 @@ if __name__ == '__main__':
                 exp_id=exp_id,
             )
             exp_id += 1
-            # score = get_score(env, policy, stat_name, horizon, num_rollouts,
-            #                   discount)
-            # policy_to_scores[policy_class].append(score)
-    # import ipdb;
-    #
-    # ipdb.set_trace()
-    # print(policy_to_scores)
