@@ -25,6 +25,7 @@ if __name__ == "__main__":
     parser.add_argument('--load', action='store_true')
     parser.add_argument('--hide', action='store_true')
     parser.add_argument('--dt', help='decrement tau', action='store_true')
+    parser.add_argument('--cycle', help='cycle tau', action='store_true')
     args = parser.parse_args()
 
     data = joblib.load(args.file)
@@ -64,6 +65,7 @@ if __name__ == "__main__":
                 max_path_length=args.H,
                 animated=not args.hide,
                 decrement_discount=args.dt,
+                cycle_tau=args.cycle,
             )
             paths.append(path)
         env.log_diagnostics(paths)

@@ -374,6 +374,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             qf,
             policy,
             exploration_policy: UniversalExplorationPolicy = None,
+            eval_policy: UniversalPolicy = None,
             num_steps_per_eval=1000,
             discount=1,
             max_path_length=1000,
@@ -386,6 +387,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
         """
         I'm reusing discount as tau. Don't feel like renaming everything.
 
+        :param eval_policy: If None, default to using the DDPG policy for eval
         :param sparse_reward:  The correct interpretation of tau (
         sparse_reward = True) is
         "how far you are from the goal state after tau steps."
@@ -398,9 +400,11 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
         """
         if cycle_taus_for_rollout:
             assert discount > 0
+        if eval_policy is None:
+            eval_policy = policy
         eval_sampler = MultigoalSimplePathSampler(
             env=env,
-            policy=policy,
+            policy=eval_policy,
             max_samples=num_steps_per_eval,
             max_path_length=max_path_length,
             discount_sampling_function=self._sample_discount_for_rollout,
@@ -636,6 +640,7 @@ class MultigoalSimplePathSampler(object):
                 discount,
                 max_path_length=max_path_length,
                 decrement_discount=self.cycle_taus_for_rollout,
+                cycle_tau=self.cycle_taus_for_rollout,
             )
             path_length = len(path['observations'])
             path['goal_states'] = expand_goal(goal, path_length)
@@ -659,6 +664,7 @@ def multitask_rollout(
         max_path_length=np.inf,
         animated=False,
         decrement_discount=False,
+        cycle_tau=False,
 ):
     env.set_goal(goal)
     agent.set_goal(goal)
@@ -671,6 +677,7 @@ def multitask_rollout(
             discount,
             max_path_length=max_path_length,
             animated=animated,
+            cycle_tau=cycle_tau,
         )
     else:
         path = rollout(
@@ -687,15 +694,17 @@ def multitask_rollout(
 
 
 def rollout_decrement_tau(env, agent, init_tau, max_path_length=np.inf,
-                          animated=False):
+                          animated=False, cycle_tau=False):
     """
-    Decrement tau by one at each time step. If tau < 0, reset it to the init
-    tau.
+    Decrement tau by one at each time step. If tau < 0, keep it at zero or
+    reset it to the init tau.
 
     :param env:
     :param agent:
     :param max_path_length:
     :param animated:
+    :param cycle_tau: If False, just keep tau equal to zero once it reaches
+    zero. Otherwise cycle it.
     :return:
     """
     observations = []
@@ -725,7 +734,10 @@ def rollout_decrement_tau(env, agent, init_tau, max_path_length=np.inf,
         path_length += 1
         tau -= 1
         if tau < 0:
-            tau = init_tau
+            if cycle_tau:
+                tau = init_tau
+            else:
+                tau = 0
         if d:
             break
         o = next_o
