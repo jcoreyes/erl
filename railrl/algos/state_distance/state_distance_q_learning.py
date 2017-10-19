@@ -18,6 +18,7 @@ from railrl.torch.algos.eval import get_difference_statistics
 from railrl.misc.tensorboard_logger import TensorboardLogger
 from railrl.torch.state_distance.exploration import UniversalExplorationPolicy
 from rllab.misc import logger
+import time
 
 
 class StateDistanceQLearning(DDPG):
@@ -86,8 +87,9 @@ class StateDistanceQLearning(DDPG):
 
     def _do_training(self, n_steps_total):
         for _ in range(self.num_updates_per_env_step):
+            # prev = time.time()
             super()._do_training(n_steps_total)
-
+            # print(time.time()-prev)
         if self.num_steps_per_tensorboard_update is None:
             return
 

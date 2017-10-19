@@ -83,22 +83,21 @@ if __name__ == '__main__':
 
     n_seeds = 1
     use_gpu = True
-    max_path_length = 300
+    max_path_length = 100
     variant = dict(
         algo_params=dict(
-            num_epochs=101,
+            num_epochs=30,
             num_steps_per_epoch=1000,
-            num_steps_per_eval=1000,
+            num_steps_per_eval=1024,
             num_updates_per_env_step=1,
             use_soft_update=True,
             tau=0.001,
             batch_size=500,
             discount=0.99,
-            sample_goals_from='environment',
+            sample_goals_from='replay_buffer',
             sample_discount=False,
             qf_weight_decay=0.,
             max_path_length=max_path_length,
-            use_new_data=True,
             replay_buffer_size=1000000,
             prob_goal_state_is_next_state=0,
             termination_threshold=0,
@@ -122,7 +121,7 @@ if __name__ == '__main__':
             min_sigma=0.2,
         ),
         env_params=dict(
-            arm_name='left',
+            arm_name='right',
             safety_box=False,
             loss='huber',
             huber_delta=10,
@@ -136,7 +135,7 @@ if __name__ == '__main__':
     )
     run_experiment(
         experiment,
-        exp_prefix="sdql-example",
+        exp_prefix="baxter-sdql",
         mode="local",
         variant=variant,
         exp_id=0,

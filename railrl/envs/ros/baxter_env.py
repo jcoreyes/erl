@@ -58,15 +58,27 @@ JOINT_VALUE_LOW = {
 }
 
 #not sure what the min/max angle and pos are supposed to be
-END_EFFECTOR_POS_LOW = [
+RIGHT_END_EFFECTOR_POS_LOW = [
     0.3404830862298487,
     -1.2633121086809487,
     -0.5698485041484043
 ]
 
-END_EFFECTOR_POS_HIGH = [
-    1.1163239572333106,
+RIGHT_END_EFFECTOR_POS_HIGH = [
+    1.4042843059147565,
     0.003933425621414761,
+    0.795699462010194
+]
+
+LEFT_END_EFFECTOR_POS_LOW = [
+    0.3404830862298487,
+    -1.2633121086809487,
+    -0.5698485041484043
+]
+
+LEFT_END_EFFECTOR_POS_HIGH = [
+    1.360514343667115,
+    0.4383921665010369,
     0.795699462010194
 ]
 
@@ -74,13 +86,25 @@ END_EFFECTOR_ANGLE_LOW = -1*np.ones(4)
 END_EFFECTOR_ANGLE_HIGH = np.ones(4)
 
 END_EFFECTOR_VALUE_LOW = {
-    'position': END_EFFECTOR_POS_LOW,
-    'angle': END_EFFECTOR_ANGLE_LOW,
+    'right': {
+        'position': RIGHT_END_EFFECTOR_POS_LOW,
+        'angle': END_EFFECTOR_ANGLE_LOW,
+        },
+    'left': {
+        'position': LEFT_END_EFFECTOR_POS_LOW,
+        'angle': END_EFFECTOR_ANGLE_LOW,
+    }
 }
 
 END_EFFECTOR_VALUE_HIGH = {
-    'position': END_EFFECTOR_POS_HIGH,
-    'angle': END_EFFECTOR_ANGLE_HIGH,
+    'right': {
+        'position': RIGHT_END_EFFECTOR_POS_HIGH,
+        'angle': END_EFFECTOR_ANGLE_HIGH,
+        },
+    'left': {
+        'position': LEFT_END_EFFECTOR_POS_HIGH,
+        'angle': END_EFFECTOR_ANGLE_HIGH,
+    }
 }
 
 right_safety_box_lows = [
@@ -232,7 +256,7 @@ class BaxterEnv(Env, Serializable):
                 JOINT_VALUE_LOW['position'],
                 JOINT_VALUE_LOW['velocity'],
                 JOINT_VALUE_LOW['torque'],
-                END_EFFECTOR_VALUE_LOW['position'],
+                END_EFFECTOR_VALUE_LOW[self.arm_name]['position'],
                 JOINT_VALUE_LOW['position'],
             ))
 
@@ -240,7 +264,7 @@ class BaxterEnv(Env, Serializable):
                 JOINT_VALUE_HIGH['position'],
                 JOINT_VALUE_HIGH['velocity'],
                 JOINT_VALUE_HIGH['torque'],
-                END_EFFECTOR_VALUE_HIGH['position'],
+                END_EFFECTOR_VALUE_HIGH[self.arm_name]['position'],
                 JOINT_VALUE_HIGH['position'],
             ))
 
@@ -254,25 +278,23 @@ class BaxterEnv(Env, Serializable):
                 JOINT_VALUE_LOW['position'],
                 JOINT_VALUE_LOW['velocity'],
                 JOINT_VALUE_LOW['torque'],
-                END_EFFECTOR_VALUE_LOW['position'],
-                END_EFFECTOR_VALUE_LOW['position'],
+                END_EFFECTOR_VALUE_LOW[self.arm_name]['position'],
+                END_EFFECTOR_VALUE_LOW[self.arm_name]['position'],
             ))
 
             highs = np.hstack((
                 JOINT_VALUE_HIGH['position'],
                 JOINT_VALUE_HIGH['velocity'],
                 JOINT_VALUE_HIGH['torque'],
-                END_EFFECTOR_VALUE_HIGH['position'],
-                END_EFFECTOR_VALUE_HIGH['position'],
+                END_EFFECTOR_VALUE_HIGH[self.arm_name]['position'],
+                END_EFFECTOR_VALUE_HIGH[self.arm_name]['position'],
             ))
 
             if self.fixed_end_effector:
-                self.desired = np.array([
-                    1.1349147779210946,
-                    -0.7649915111535125,
-                    0.5545338667382815
-                ])
-
+                if self.arm_name == 'right':
+                    self.desired = [1.2042843059147565, -0.5996823547145944, 0.4512758791000766]
+                elif self.arm_name == 'left':
+                    self.desired = [1.260514343667115, 0.2383921665010369, 0.3387014480798653]
             else:
                 self._randomize_desired_end_effector_pose()
 
@@ -281,20 +303,20 @@ class BaxterEnv(Env, Serializable):
                 JOINT_VALUE_LOW['position'],
                 JOINT_VALUE_LOW['velocity'],
                 JOINT_VALUE_LOW['torque'],
-                END_EFFECTOR_VALUE_LOW['position'],
-                END_EFFECTOR_VALUE_LOW['angle'],
-                END_EFFECTOR_VALUE_LOW['position'],
-                END_EFFECTOR_VALUE_LOW['angle'],
+                END_EFFECTOR_VALUE_LOW[self.arm_name]['position'],
+                END_EFFECTOR_VALUE_LOW[self.arm_name]['angle'],
+                END_EFFECTOR_VALUE_LOW[self.arm_name]['position'],
+                END_EFFECTOR_VALUE_LOW[self.arm_name]['angle'],
             ))
 
             highs = np.hstack((
                 JOINT_VALUE_HIGH['position'],
                 JOINT_VALUE_HIGH['velocity'],
                 JOINT_VALUE_HIGH['torque'],
-                END_EFFECTOR_VALUE_HIGH['position'],
-                END_EFFECTOR_VALUE_HIGH['angle'],
-                END_EFFECTOR_VALUE_HIGH['position'],
-                END_EFFECTOR_VALUE_HIGH['angle'],
+                END_EFFECTOR_VALUE_HIGH[self.arm_name]['position'],
+                END_EFFECTOR_VALUE_HIGH[self.arm_name]['angle'],
+                END_EFFECTOR_VALUE_HIGH[self.arm_name]['position'],
+                END_EFFECTOR_VALUE_HIGH[self.arm_name]['angle'],
             ))
 
             if self.fixed_end_effector:

@@ -55,7 +55,7 @@ if __name__ == "__main__":
                 example,
                 exp_prefix="tf-ddpg-benchmark",
                 seed=seed,
-                mode='here',
+                mode='local',
                 variant={
                     'env_class': env_class,
                     'version': str(env_class),

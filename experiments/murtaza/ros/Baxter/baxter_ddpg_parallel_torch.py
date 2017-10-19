@@ -83,9 +83,9 @@ if __name__ == "__main__":
     else:
         run_experiment(
             example,
-            exp_prefix="ddpg-parallel-baxter-fixed-end-effector-10-seeds",
+            exp_prefix="ddpg-parallel-baxter-fixed-end-effector",
             seed=random.randint(0, 666),
-            mode='here',
+            mode='local',
             variant={
                 'version': 'Original',
                 'max_path_length': max_path_length,
@@ -110,7 +110,7 @@ if __name__ == "__main__":
                     'min_sigma': .25,
                 },
                 'algo_params': dict(
-                    batch_size=64,
+                    batch_size=1024,
                     num_epochs=30,
                     number_of_gradient_steps=1,
                     num_steps_per_epoch=1000,

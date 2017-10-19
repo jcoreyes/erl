@@ -10,8 +10,7 @@ import joblib
 import sys
 from railrl.launchers.launcher_util import continue_experiment
 from railrl.launchers.launcher_util import resume_torch_algorithm
-from rllab.envs.normalized_env import normalize
-
+from railrl.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
 def example(variant):
     load_policy_file = variant.get('load_policy_file', None)
     if not load_policy_file == None and exists(load_policy_file):
@@ -68,16 +67,20 @@ def example(variant):
             100,
             100,
         )
+        exploration_policy = PolicyWrappedWithExplorationStrategy(
+            exploration_strategy=es,
+            policy=policy,
+        )
         algorithm = DDPG(
             env,
             qf,
             policy,
-            es,
+            exploration_policy=exploration_policy,
             num_epochs=num_epochs,
             batch_size=batch_size,
             number_of_gradient_steps=number_of_gradient_steps,
         )
-        if use_gpu:
+        if use_gpu and ptu.gpu_enabled():
             algorithm.cuda()
         algorithm.train()
 
@@ -94,7 +97,7 @@ left_exp = dict(
             example=example,
             exp_prefix="ddpg-baxter-left-arm-increased-reward-magnitude",
             seed=0,
-            mode='here',
+            mode='local',
             variant={
                     'version': 'Original',
                     'arm_name':'left',
@@ -120,7 +123,7 @@ right_exp = dict(
     example=example,
     exp_prefix="ddpg-baxter-right-arm-merged-test",
     seed=0,
-    mode='here',
+    mode='local',
     variant={
         'version': 'Original',
         'arm_name': 'right',
