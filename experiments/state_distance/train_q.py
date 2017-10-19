@@ -46,6 +46,7 @@ from railrl.networks.state_distance import (
     FlatUniversalQfunction,
     StructuredUniversalQfunction,
     GoalStructuredUniversalQfunction,
+    DuelingStructuredUniversalQfunction,
 )
 from railrl.policies.state_distance import TerminalRewardSampleOCPolicy
 from railrl.torch.modules import HuberLoss
@@ -128,7 +129,7 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "sdql-reacher2d-train-with-decreasing-tau-sample-all-from-replay"
+    exp_prefix = "sdql-reacher2d-dueling-architecture"
     run_mode = 'grid'
 
     version = "na"
@@ -174,7 +175,8 @@ if __name__ == '__main__':
         # qf_class=UniversalQfunction,
         # qf_class=FlatUniversalQfunction,
         # qf_class=StructuredUniversalQfunction,
-        qf_class=GoalStructuredUniversalQfunction,
+        # qf_class=GoalStructuredUniversalQfunction,
+        qf_class=DuelingStructuredUniversalQfunction,
         qf_params=dict(
             hidden_sizes=[300, 300],
             hidden_activation=F.softplus,

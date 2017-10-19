@@ -10,6 +10,7 @@ import railrl.torch.pytorch_util as ptu
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc.ml_util import StatConditionalSchedule
 from railrl.misc import rllab_util
+from railrl.networks.state_distance import DuelingStructuredUniversalQfunction
 from railrl.policies.state_distance import UniversalPolicy
 from railrl.samplers.util import rollout
 from railrl.torch.ddpg import DDPG
@@ -66,6 +67,9 @@ class StateDistanceQLearning(DDPG):
             replay_buffer=replay_buffer,
             **kwargs,
         )
+        if isinstance(self.qf, DuelingStructuredUniversalQfunction):
+            self.qf.set_argmax_policy(self.policy)
+            self.target_qf.set_argmax_policy(self.target_policy)
         self.num_epochs = num_epochs
         self.num_steps_per_epoch = num_steps_per_epoch
         assert sample_goals_from in ['environment', 'replay_buffer']

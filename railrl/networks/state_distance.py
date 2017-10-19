@@ -206,6 +206,89 @@ class StructuredUniversalQfunction(PyTorchModule):
         return out.unsqueeze(1)
 
 
+class DuelingStructuredUniversalQfunction(PyTorchModule):
+    """
+    Parameterize QF as
+
+    Q(s, a, s_g) = V(s, s_g) + A(s, a, s_g) - A(s, pi(s))
+
+    where
+
+    V(s) = -||f(s, s_g) - s_g)||^2
+    A(s, a) = -||f(s, a, s_g) - s_g)||^2
+    pi(s) = argmax_a A(s, a)
+
+    WARNING: this is only valid for when the reward is l2-norm (as opposed to a
+    weighted l2-norm)
+    """
+    def __init__(
+            self,
+            observation_dim,
+            action_dim,
+            goal_state_dim,
+            hidden_sizes,
+            init_w=3e-3,
+            hidden_activation=F.relu,
+            hidden_init=ptu.fanin_init,
+    ):
+        self.save_init_params(locals())
+        super().__init__()
+
+        # Put it in a list so that it does not count as a sub-module
+        self.argmax_policy_lst = None
+        self.hidden_activation = hidden_activation
+
+        self.v_fcs = []
+
+        in_size = observation_dim + goal_state_dim + 1
+        for i, next_size in enumerate(hidden_sizes):
+            fc = nn.Linear(in_size, next_size)
+            in_size = next_size
+            hidden_init(fc.weight)
+            fc.bias.data.fill_(0)
+            self.__setattr__("v_fc{}".format(i), fc)
+            self.v_fcs.append(fc)
+
+        self.v_last_fc = nn.Linear(in_size, goal_state_dim)
+        self.v_last_fc.weight.data.uniform_(-init_w, init_w)
+        self.v_last_fc.bias.data.uniform_(-init_w, init_w)
+
+        self.a_function = StructuredUniversalQfunction(
+            observation_dim,
+            action_dim,
+            goal_state_dim,
+            hidden_sizes,
+            init_w=init_w,
+            hidden_activation=hidden_activation,
+            hidden_init=hidden_init,
+        )
+
+    def set_argmax_policy(self, argmax_policy):
+        self.argmax_policy_lst = [argmax_policy]
+
+    def forward(
+            self,
+            obs,
+            action,
+            goal_state,
+            discount,
+    ):
+        a = self.a_function(obs, action, goal_state, discount)
+        a_max = self.a_function(
+            obs,
+            self.argmax_policy_lst[0](obs, goal_state, discount),
+            goal_state,
+            discount,
+        )
+
+        h = torch.cat((obs, discount, goal_state), dim=1)
+        for i, fc in enumerate(self.v_fcs):
+            h = self.hidden_activation(fc(h))
+        next_state = self.v_last_fc(h)
+        v = - torch.norm(goal_state - next_state, p=2, dim=1)
+        return v.unsqueeze(1) + a - a_max
+
+
 class GoalStructuredUniversalQfunction(PyTorchModule):
     """
     Parameterize QF as
