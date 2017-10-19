@@ -96,12 +96,8 @@ if __name__ == "__main__":
                 'normalize_env': False,
                 'env_params': {
                     'arm_name': 'left',
-                    'safety_box': False,
                     'loss': 'huber',
                     'huber_delta': 10,
-                    'safety_force_magnitude': 5,
-                    'temp': 1,
-                    'remove_action': False,
                     'experiment': experiments[2],
                     'reward_magnitude': 10,
                 },

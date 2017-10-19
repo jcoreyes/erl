@@ -10,6 +10,7 @@ from railrl.misc.rllab_util import (
     save_extra_data_to_snapshot_dir,
 )
 from railrl.policies.base import  ExplorationPolicy
+from railrl.samplers.util import rollout
 from rllab.algos.base import RLAlgorithm
 from rllab.misc import logger, tensor_utils
 from rllab.sampler import parallel_sampler

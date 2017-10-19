@@ -58,11 +58,11 @@ def experiment(variant):
         env,
         **variant['normalize_params']
     )
-    if variant['algo_params']['use_new_data']:
-        replay_buffer = None
-    else:
-        replay_buffer = get_replay_buffer(variant)
-
+    # if variant['algo_params']['use_new_data']:
+    #     replay_buffer = None
+    # else:
+    #     replay_buffer = get_replay_buffer(variant)
+    replay_buffer = None
     observation_space = convert_gym_space(env.observation_space)
     action_space = convert_gym_space(env.action_space)
     qf = variant['qf_class'](
