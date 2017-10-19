@@ -1,3 +1,4 @@
+from railrl.envs.wrappers import convert_gym_space
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.qfunctions.torch import FeedForwardQFunction
@@ -11,78 +12,48 @@ import sys
 from railrl.launchers.launcher_util import continue_experiment
 from railrl.launchers.launcher_util import resume_torch_algorithm
 from railrl.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
+
 def example(variant):
-    load_policy_file = variant.get('load_policy_file', None)
-    if not load_policy_file == None and exists(load_policy_file):
-        data = joblib.load(load_policy_file)
-        algorithm = data['algorithm']
-        epochs = data['epoch']
-        use_gpu = variant['use_gpu']
-        if use_gpu and ptu.gpu_enabled():
-            algorithm.cuda()
-        algorithm.train(start_epoch=epochs)
-    else:
-        arm_name = variant['arm_name']
-        experiment = variant['experiment']
-        loss = variant['loss']
-        huber_delta= variant['huber_delta']
-        safety_box = variant['safety_box']
-        remove_action = variant['remove_action']
-        safety_force_magnitude = variant['safety_force_magnitude']
-        temp = variant['temp']
-        es_min_sigma = variant['es_min_sigma']
-        es_max_sigma = variant['es_max_sigma']
-        num_epochs = variant['num_epochs']
-        batch_size = variant['batch_size']
-        use_gpu = variant['use_gpu']
-        include_torque_penalty = variant['include_torque_penalty']
-        number_of_gradient_steps = variant['number_of_gradient_steps']
-        reward_magnitude = variant['reward_magnitude']
-        env = BaxterEnv(
-            experiment=experiment,
-            arm_name=arm_name,
-            loss=loss,
-            safety_box=safety_box,
-            remove_action=remove_action,
-            safety_force_magnitude=safety_force_magnitude,
-            temp=temp,
-            huber_delta=huber_delta,
-            include_torque_penalty=include_torque_penalty,
-            reward_magnitude=reward_magnitude,
-        )
-        es = OUStrategy(
-            max_sigma=es_max_sigma,
-            min_sigma=es_min_sigma,
-            action_space=env.action_space,
-        )
-        qf = FeedForwardQFunction(
-            int(env.observation_space.flat_dim),
-            int(env.action_space.flat_dim),
-            100,
-            100,
-        )
-        policy = FeedForwardPolicy(
-            int(env.observation_space.flat_dim),
-            int(env.action_space.flat_dim),
-            100,
-            100,
-        )
-        exploration_policy = PolicyWrappedWithExplorationStrategy(
-            exploration_strategy=es,
-            policy=policy,
-        )
-        algorithm = DDPG(
-            env,
-            qf,
-            policy,
-            exploration_policy=exploration_policy,
-            num_epochs=num_epochs,
-            batch_size=batch_size,
-            number_of_gradient_steps=number_of_gradient_steps,
-        )
-        if use_gpu and ptu.gpu_enabled():
-            algorithm.cuda()
-        algorithm.train()
+    env_class = variant['env_class']
+    env_params = variant['env_params']
+    env = env_class(**env_params)
+    obs_space = convert_gym_space(env.observation_space)
+    action_space = convert_gym_space(env.action_space)
+    es_class = variant['es_class']
+    es_params = dict(
+        action_space=action_space,
+        **variant['es_params']
+    )
+    use_gpu = variant['use_gpu']
+    es = es_class(**es_params)
+    policy_class = variant['policy_class']
+    policy_params = dict(
+        obs_dim=int(obs_space.flat_dim),
+        action_dim=int(action_space.flat_dim),
+        fc1_size=100,
+        fc2_size=100,
+    )
+    policy = policy_class(**policy_params)
+    exploration_policy = PolicyWrappedWithExplorationStrategy(
+        exploration_strategy=es,
+        policy=policy,
+    )
+    qf = FeedForwardQFunction(
+        int(env.observation_space.flat_dim),
+        int(env.action_space.flat_dim),
+        100,
+        100,
+    )
+    algorithm = DDPG(
+        env,
+        qf,
+        policy,
+        exploration_policy=exploration_policy,
+        **variant['algo_params']
+    )
+    if use_gpu and ptu.gpu_enabled():
+        algorithm.cuda()
+    algorithm.train()
 
 experiments=[
     'joint_angle|fixed_angle', 
@@ -92,36 +63,45 @@ experiments=[
     'end_effector_position_orientation|fixed_ee', 
     'end_effector_position_orientation|varying_ee'
 ]
-
+max_path_length = 1000
 left_exp = dict(
-            example=example,
-            exp_prefix="ddpg-baxter-left-arm-increased-reward-magnitude",
-            seed=0,
-            mode='local',
-            variant={
-                    'version': 'Original',
-                    'arm_name':'left',
-                    'safety_box':False,
-                    'loss':'huber',
-                    'huber_delta':10,
-                    'safety_force_magnitude':1,
-                    'temp':1.2,
-                    'remove_action':False,
-                    'experiment':experiments[0],
-                    'es_min_sigma':.1,
-                    'es_max_sigma':.1,
-                    'num_epochs':30,
-                    'batch_size':1024,
-                    'use_gpu':True,
-                    'include_torque_penalty': False,
-                    'number_of_gradient_steps': 1,
-                    'reward_magnitude':10,
-                    },
-            use_gpu=True,
-        )
+    example=example,
+    exp_prefix="ddpg-baxter-left-arm-fixed-end-effector-task",
+    seed=0,
+    mode='local',
+    variant={
+            'version': 'Original',
+            'es_class': OUStrategy,
+            'env_class': BaxterEnv,
+            'policy_class': FeedForwardPolicy,
+            'env_params':{
+                'arm_name':'left',
+                'safety_box':False,
+                'loss':'huber',
+                'huber_delta':10,
+                'experiment':experiments[2],
+                'reward_magnitude':10,
+            },
+            'es_params': {
+                'max_sigma': .1,
+                'min_sigma': .1,
+            },
+            'use_gpu':True,
+            'number_of_gradient_steps': 1,
+            'algo_params': dict(
+                batch_size=1024,
+                num_epochs=30,
+                number_of_gradient_steps=1,
+                num_steps_per_epoch=10000,
+                max_path_length=max_path_length,
+                num_steps_per_eval=1000,
+                ),
+            },
+    use_gpu=True,
+)
 right_exp = dict(
     example=example,
-    exp_prefix="ddpg-baxter-right-arm-merged-test",
+    exp_prefix="ddpg-baxter-right-arm-fixed-end-effector",
     seed=0,
     mode='local',
     variant={
@@ -142,6 +122,14 @@ right_exp = dict(
         'include_torque_penalty': False,
         'number_of_gradient_steps': 10,
         'reward_magnitude': 1,
+        'algo_params': dict(
+            batch_size=1024,
+            num_epochs=30,
+            number_of_gradient_steps=1,
+            num_steps_per_epoch=1000,
+            max_path_length=max_path_length,
+            num_steps_per_eval=500,
+        ),
     },
     use_gpu=True,
 )
