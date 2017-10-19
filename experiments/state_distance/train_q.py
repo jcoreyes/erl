@@ -127,9 +127,9 @@ if __name__ == '__main__':
     exp_prefix = "dev-train-q"
     run_mode = "none"
 
-    n_seeds = 1
-    # mode = "ec2"
-    exp_prefix = "local-sdql-reacher2d-dueling-architecture"
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "sdql-reacher3d"
     run_mode = 'grid'
 
     version = "na"
@@ -149,9 +149,9 @@ if __name__ == '__main__':
         dataset_path=str(dataset_path),
         algo_params=dict(
             num_epochs=101,
-            num_steps_per_epoch=100,
-            num_steps_per_eval=1000,
-            num_updates_per_env_step=50,
+            num_steps_per_epoch=10000,
+            num_steps_per_eval=10000,
+            num_updates_per_env_step=1,
             use_soft_update=True,
             tau=0.001,
             batch_size=500,
@@ -175,8 +175,8 @@ if __name__ == '__main__':
         # qf_class=UniversalQfunction,
         # qf_class=FlatUniversalQfunction,
         # qf_class=StructuredUniversalQfunction,
-        # qf_class=GoalStructuredUniversalQfunction,
-        qf_class=DuelingStructuredUniversalQfunction,
+        qf_class=GoalStructuredUniversalQfunction,
+        # qf_class=DuelingStructuredUniversalQfunction,
         qf_params=dict(
             hidden_sizes=[300, 300],
             hidden_activation=F.softplus,
@@ -196,10 +196,10 @@ if __name__ == '__main__':
             # ramp_duration=50,
         ),
         algo_class=HorizonFedStateDistanceQLearning,
-        # env_class=Reacher7DofFullGoalState,
+        env_class=Reacher7DofFullGoalState,
         # env_class=ArmEEInStatePusherEnv,
         # env_class=JointOnlyPusherEnv,
-        env_class=GoalStateSimpleStateReacherEnv,
+        # env_class=GoalStateSimpleStateReacherEnv,
         # env_class=MultitaskPusher2DEnv,
         # env_class=XyMultitaskSimpleStateReacherEnv,
         # env_class=MultitaskPoint2DEnv,
@@ -237,7 +237,7 @@ if __name__ == '__main__':
             #     # JointOnlyPusherEnv,
             # ],
             # 'qf_class': [StructuredUniversalQfunction, FlatUniversalQfunction],
-            'epoch_discount_schedule_params.value': [5, 10, 50, 0],
+            'epoch_discount_schedule_params.value': [5, 10, 50],
             # 'algo_params.sparse_reward': [True, False],
             # 'algo_params.clamp_q_target_values': [True, False],
             # 'algo_params.prob_goal_state_is_next_state': [0.5, 0],
