@@ -341,12 +341,6 @@ class DDPG(OnlineAlgorithm):
 
         return statistics
 
-    def _can_evaluate(self, exploration_paths):
-        return (
-            len(exploration_paths) > 0
-            and self.replay_buffer.num_steps_can_sample() > 0
-        )
-
     def get_epoch_snapshot(self, epoch):
         return dict(
             epoch=epoch,
