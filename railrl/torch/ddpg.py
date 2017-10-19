@@ -349,7 +349,6 @@ class DDPG(OnlineAlgorithm):
             exploration_policy=self.exploration_policy,
             qf=self.qf,
             batch_size=self.batch_size,
-            algorithm=self,
         )
 
     def get_extra_data_to_save(self, epoch):
