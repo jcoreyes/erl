@@ -635,7 +635,7 @@ class MultigoalSimplePathSampler(object):
             discount = self.discount_sampling_function()
             goal = self.goal_sampling_function()
             if self.cycle_taus_for_rollout:
-                max_path_length = discount
+                max_path_length = discount + 1
             else:
                 max_path_length = self.max_path_length
             path = multitask_rollout(
