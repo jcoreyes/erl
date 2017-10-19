@@ -168,12 +168,13 @@ class StateDistanceQLearning(DDPG):
             ))
 
     def sample_goal_state_for_rollout(self):
+        return self.sample_goal_states(1)[0]
         # Always sample goal states from the environment to prevent the
         # degenerate solution where the policy just learns to stay at a fixed
         # location.
-        goal_state = self.env.sample_goal_states(1)[0]
-        goal_state = self.env.modify_goal_state_for_rollout(goal_state)
-        return goal_state
+        # goal_state = self.sample_goal_states(1)[0]
+        # goal_state = self.env.modify_goal_state_for_rollout(goal_state)
+        # return goal_state
 
     def _sample_discount(self, batch_size):
         if self.sample_discount:

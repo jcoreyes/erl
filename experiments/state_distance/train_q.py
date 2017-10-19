@@ -128,7 +128,7 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "sdql-pusher2d-train-with-decreasing-tau"
+    exp_prefix = "sdql-reacher2d-train-with-decreasing-tau-sample-all-from-replay"
     run_mode = 'grid'
 
     version = "na"
@@ -141,15 +141,15 @@ if __name__ == '__main__':
 
     dataset_path = args.replay_path
 
-    max_path_length = 500
+    max_path_length = 100
     # noinspection PyTypeChecker
     variant = dict(
         version=version,
         dataset_path=str(dataset_path),
         algo_params=dict(
             num_epochs=101,
-            num_steps_per_epoch=500,
-            num_steps_per_eval=3000,
+            num_steps_per_epoch=100,
+            num_steps_per_eval=1000,
             num_updates_per_env_step=50,
             use_soft_update=True,
             tau=0.001,
@@ -157,8 +157,8 @@ if __name__ == '__main__':
             discount=max_path_length-1,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
-            sample_goals_from='environment',
-            # sample_goals_from='replay_buffer',
+            # sample_goals_from='environment',
+            sample_goals_from='replay_buffer',
             sample_discount=True,
             qf_weight_decay=0.,
             max_path_length=max_path_length,
@@ -197,8 +197,8 @@ if __name__ == '__main__':
         # env_class=Reacher7DofFullGoalState,
         # env_class=ArmEEInStatePusherEnv,
         # env_class=JointOnlyPusherEnv,
-        # env_class=GoalStateSimpleStateReacherEnv,
-        env_class=MultitaskPusher2DEnv,
+        env_class=GoalStateSimpleStateReacherEnv,
+        # env_class=MultitaskPusher2DEnv,
         # env_class=XyMultitaskSimpleStateReacherEnv,
         # env_class=MultitaskPoint2DEnv,
         env_params=dict(),
@@ -214,9 +214,9 @@ if __name__ == '__main__':
         sampler_es_class=OUStrategy,
         # sampler_es_class=GaussianStrategy,
         sampler_es_params=dict(
-            theta=0.15,
-            max_sigma=0.2,
-            min_sigma=0.2,
+            theta=0.1,
+            max_sigma=0.02,
+            min_sigma=0.02,
         ),
         generate_data=args.replay_path is None,
         qf_criterion_class=HuberLoss,
