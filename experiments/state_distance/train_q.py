@@ -127,9 +127,9 @@ if __name__ == '__main__':
     exp_prefix = "dev-train-q"
     run_mode = "none"
 
-    n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "sdql-reacher2d-dueling-architecture"
+    n_seeds = 1
+    # mode = "ec2"
+    exp_prefix = "local-sdql-reacher2d-dueling-architecture"
     run_mode = 'grid'
 
     version = "na"
