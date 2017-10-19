@@ -83,16 +83,16 @@ if __name__ == '__main__':
 
     n_seeds = 1
     use_gpu = True
-    max_path_length = 100
+    max_path_length = 1000
     variant = dict(
         algo_params=dict(
             num_epochs=30,
-            num_steps_per_epoch=1000,
+            num_steps_per_epoch=10000,
             num_steps_per_eval=1024,
             num_updates_per_env_step=1,
             use_soft_update=True,
             tau=0.001,
-            batch_size=500,
+            batch_size=1024,
             discount=0.99,
             sample_goals_from='replay_buffer',
             sample_discount=False,
@@ -107,18 +107,18 @@ if __name__ == '__main__':
         ),
         algo_class=HorizonFedStateDistanceQLearning,
         qf_params=dict(
-            hidden_sizes=[400, 300],
+            hidden_sizes=[100, 100],
             hidden_activation=F.softplus,
         ),
         policy_params=dict(
-            fc1_size=400,
-            fc2_size=300,
+            fc1_size=100,
+            fc2_size=100,
         ),
         sampler_es_class=OUStrategy,
         sampler_es_params=dict(
             theta=0.15,
-            max_sigma=0.2,
-            min_sigma=0.2,
+            max_sigma=0.1,
+            min_sigma=0.1,
         ),
         env_params=dict(
             arm_name='right',
