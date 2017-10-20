@@ -311,7 +311,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         """
         return (
             len(exploration_paths) > 0
-            and self.replay_buffer.num_steps_can_sample() > self.batch_size
+            and self.replay_buffer.num_steps_can_sample() >= self.batch_size
         )
 
     def _start_new_rollout(self):
