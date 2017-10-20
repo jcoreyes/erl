@@ -1,14 +1,19 @@
+from collections import OrderedDict
+
 import numpy as np
 
 from railrl.envs.mujoco.pusher2d import Pusher2DEnv
 from railrl.envs.multitask.multitask_env import MultitaskEnv
+from railrl.misc.data_processing import create_stats_ordered_dict
+from railrl.misc.rllab_util import get_stat_in_dict
+from rllab.misc import logger
 
 
 class MultitaskPusher2DEnv(Pusher2DEnv, MultitaskEnv):
     def __init__(self, goal=(0, -1)):
+        self._multitask_goal = np.zeros(8)
         self.init_serialization(locals())
         super().__init__(goal=goal)
-        self._multitask_goal = goal
 
     def sample_actions(self, batch_size):
         return np.random.uniform(self.action_space.low, self.action_space.high)
@@ -18,6 +23,7 @@ class MultitaskPusher2DEnv(Pusher2DEnv, MultitaskEnv):
 
     def set_goal(self, goal):
         self._goal = goal[-2:]
+        self._multitask_goal = goal
 
         qpos = self.model.data.qpos.flat.copy()
         qvel = self.model.data.qvel.flat.copy()
@@ -53,3 +59,27 @@ class MultitaskPusher2DEnv(Pusher2DEnv, MultitaskEnv):
     def modify_goal_state_for_rollout(self, goal_state):
         goal_state[3:6] = 0
         return goal_state
+
+    def log_diagnostics(self, paths):
+        super().log_diagnostics(paths)
+        full_state_go_goal_distance = get_stat_in_dict(
+            paths, 'env_infos', 'full_state_to_goal_distance'
+        )[:, -1]
+        statistics = OrderedDict()
+        statistics.update(create_stats_ordered_dict(
+            'Final state to goal state distance',
+            full_state_go_goal_distance,
+            always_show_all_stats=True,
+        ))
+        for key, value in statistics.items():
+            logger.record_tabular(key, value)
+
+    def _step(self, a):
+        full_state_to_goal_distance = np.linalg.norm(
+            self._get_obs() - self._multitask_goal
+        )
+        ob, reward, done, info_dict = super()._step(a)
+        info_dict['full_state_to_goal_distance'] = (
+            full_state_to_goal_distance
+        )
+        return ob, reward, done, info_dict
