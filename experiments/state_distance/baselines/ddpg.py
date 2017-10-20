@@ -25,8 +25,8 @@ from railrl.envs.multitask.reacher_env import (
 
 
 def experiment(variant):
-    # env = gym_env("Reacher-v1")
-    env = variant['env_class']()
+    env = gym_env("Reacher-v1")
+    # env = variant['env_class']()
     env = normalize_box(
         env,
         **variant['normalize_params']
@@ -96,8 +96,9 @@ if __name__ == "__main__":
             # JointOnlyPusherEnv,
             # Reacher7DofFullGoalState,
             # GoalStateSimpleStateReacherEnv,
-            MultitaskPusher2DEnv,
+            # MultitaskPusher2DEnv,
             # MultitaskPoint2DEnv,
+            "ignored",
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
