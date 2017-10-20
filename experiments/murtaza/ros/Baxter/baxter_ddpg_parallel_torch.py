@@ -95,7 +95,7 @@ if __name__ == "__main__":
                 'policy_class': FeedForwardPolicy,
                 'normalize_env': False,
                 'env_params': {
-                    'arm_name': 'left',
+                    'arm_name': 'right',
                     'loss': 'huber',
                     'huber_delta': 10,
                     'experiment': experiments[2],

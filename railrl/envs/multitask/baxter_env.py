@@ -108,7 +108,6 @@ experiments=[
 
 
 class MultiTaskBaxterEnv(BaxterEnv, MultitaskEnv):
-    #TODO: correct sampling code to have proper ranges for each measurement
     def set_goal(self, goal):
         self.desired = goal
 
