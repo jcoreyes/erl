@@ -121,11 +121,11 @@ if __name__ == '__main__':
     exp_prefix = "dev-vectorized-train-q"
     run_mode = "none"
 
-    # n_seeds = 3
-    # mode = "ec2"
-    # exp_prefix = "vectorized-train-q-replaybuffer"
-    exp_prefix = "vectorized-train-q-env"
-    # run_mode = 'grid'
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "vectorized-train-many-envs-lots-of-data"
+    # exp_prefix = "vectorized-train-q-env"
+    run_mode = 'grid'
 
     version = "na"
     num_configurations = 50  # for random mode
@@ -138,23 +138,24 @@ if __name__ == '__main__':
     dataset_path = args.replay_path
 
     max_path_length = 100
+    max_tau = 10
     # noinspection PyTypeChecker
     variant = dict(
         version=version,
         dataset_path=str(dataset_path),
         algo_params=dict(
             num_epochs=101,
-            num_steps_per_epoch=100,
-            num_steps_per_eval=1000,
-            num_updates_per_env_step=50,
+            num_steps_per_epoch=10000,
+            num_steps_per_eval=10000,
+            num_updates_per_env_step=10,
             use_soft_update=True,
             tau=0.001,
             batch_size=500,
-            discount=0.99,
+            discount=max_tau,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
-            sample_goals_from='environment',
-            # sample_goals_from='replay_buffer',
+            # sample_goals_from='environment',
+            sample_goals_from='replay_buffer',
             sample_discount=True,
             qf_weight_decay=0.,
             max_path_length=max_path_length,
@@ -180,7 +181,7 @@ if __name__ == '__main__':
         epoch_discount_schedule_class=ConstantSchedule,
         epoch_discount_schedule_params=dict(
             # value=0.99,
-            value=5,
+            value=max_tau,
             # min_value=0,
             # max_value=100,
             # ramp_duration=50,
@@ -190,8 +191,8 @@ if __name__ == '__main__':
         # env_class=Reacher7DofFullGoalState,
         # env_class=ArmEEInStatePusherEnv,
         # env_class=JointOnlyPusherEnv,
-        env_class=GoalStateSimpleStateReacherEnv,
-        # env_class=MultitaskPusher2DEnv,
+        # env_class=GoalStateSimpleStateReacherEnv,
+        env_class=MultitaskPusher2DEnv,
         # env_class=XyMultitaskSimpleStateReacherEnv,
         # env_class=MultitaskPoint2DEnv,
         env_params=dict(),
@@ -208,8 +209,8 @@ if __name__ == '__main__':
         # sampler_es_class=GaussianStrategy,
         sampler_es_params=dict(
             theta=0.1,
-            max_sigma=0.02,
-            min_sigma=0.02,
+            max_sigma=0.1,
+            min_sigma=0.1,
         ),
         qf_criterion_class=HuberLoss,
         qf_criterion_params=dict(),
@@ -217,7 +218,13 @@ if __name__ == '__main__':
     )
     if run_mode == 'grid':
         search_space = {
-            'epoch_discount_schedule_params.value': [5, 10, 50],
+            'env_class': [
+                JointOnlyPusherEnv,
+                Reacher7DofFullGoalState,
+                GoalStateSimpleStateReacherEnv,
+                MultitaskPusher2DEnv,
+                MultitaskPoint2DEnv,
+            ],
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
             search_space, default_parameters=variant,
