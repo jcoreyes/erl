@@ -9,7 +9,8 @@ from torch.nn import functional as F
 
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
-from railrl.algos.state_distance.vectorized_sdql import VectorizedSdql
+from railrl.algos.state_distance.vectorized_sdql import VectorizedSdql, \
+    VectorizedTauSdql
 
 from railrl.envs.multitask.pusher2d import MultitaskPusher2DEnv
 from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
@@ -122,7 +123,8 @@ if __name__ == '__main__':
 
     # n_seeds = 3
     # mode = "ec2"
-    # exp_prefix = "sdql-reacher3d"
+    # exp_prefix = "vectorized-train-q-replaybuffer"
+    exp_prefix = "vectorized-train-q-env"
     # run_mode = 'grid'
 
     version = "na"
@@ -144,23 +146,25 @@ if __name__ == '__main__':
             num_epochs=101,
             num_steps_per_epoch=100,
             num_steps_per_eval=1000,
-            num_updates_per_env_step=10,
+            num_updates_per_env_step=50,
             use_soft_update=True,
             tau=0.001,
             batch_size=500,
             discount=0.99,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
-            sample_goals_from='replay_buffer',
+            sample_goals_from='environment',
+            # sample_goals_from='replay_buffer',
             sample_discount=True,
             qf_weight_decay=0.,
             max_path_length=max_path_length,
-            replay_buffer_size=1000000,
+            replay_buffer_size=200000,
             prob_goal_state_is_next_state=0,
             termination_threshold=0,
             render=args.render,
             save_replay_buffer=True,
-            # sparse_reward=True,
+            sparse_reward=True,
+            cycle_taus_for_rollout=True,
         ),
         explore_with_ddpg_policy=True,
         qf_class=VectorizedGoalStructuredUniversalQfunction,
@@ -175,12 +179,14 @@ if __name__ == '__main__':
         # epoch_discount_schedule_class=IntRampUpSchedule,
         epoch_discount_schedule_class=ConstantSchedule,
         epoch_discount_schedule_params=dict(
-            value=0.99,
+            # value=0.99,
+            value=5,
             # min_value=0,
             # max_value=100,
             # ramp_duration=50,
         ),
-        algo_class=VectorizedSdql,
+        # algo_class=VectorizedSdql,
+        algo_class=VectorizedTauSdql,
         # env_class=Reacher7DofFullGoalState,
         # env_class=ArmEEInStatePusherEnv,
         # env_class=JointOnlyPusherEnv,
@@ -191,7 +197,7 @@ if __name__ == '__main__':
         env_params=dict(),
         normalize_params=dict(
             # obs_mean=None,
-            obs_std=[1, 1, 1, 1, 20, 20],
+            # obs_std=[1, 1, 1, 1, 20, 20],
         ),
         sampler_params=dict(
             min_num_steps_to_collect=100000,
