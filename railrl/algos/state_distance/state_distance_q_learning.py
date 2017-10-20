@@ -52,6 +52,7 @@ class StateDistanceQLearning(DDPG):
             max_path_length=max_path_length,
             discount_sampling_function=self._sample_discount_for_rollout,
             goal_sampling_function=self.sample_goal_state_for_rollout,
+            cycle_taus_for_rollout=False,
         )
         self.num_goals_for_eval = num_steps_per_eval // max_path_length + 1
         super().__init__(
@@ -145,7 +146,7 @@ class StateDistanceQLearning(DDPG):
                 ) - goal_states,
                 axis=1,
             ) <= self.termination_threshold
-        batch['rewards'] = self.env.compute_rewards(
+        batch['rewards'] = self.compute_rewards(
             batch['observations'],
             batch['actions'],
             batch['next_observations'],
@@ -153,6 +154,14 @@ class StateDistanceQLearning(DDPG):
         )
         torch_batch = np_to_pytorch_batch(batch)
         return torch_batch
+
+    def compute_rewards(self, obs, actions, next_obs, goal_states):
+        return self.env.compute_rewards(
+            obs,
+            actions,
+            next_obs,
+            goal_states,
+        )
 
     def sample_goal_states(self, batch_size):
         if self.sample_goals_from == 'environment':
