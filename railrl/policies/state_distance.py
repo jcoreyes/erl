@@ -170,8 +170,6 @@ class SoftOcOneStepRewardPolicy(SampleBasedUniversalPolicy, nn.Module):
 
     def reward(self, state, action, next_state):
         rewards_np = self.env.compute_rewards(
-            # ptu.get_numpy(state),
-            # ptu.get_numpy(action),
             None,
             None,
             ptu.get_numpy(next_state),
@@ -194,6 +192,8 @@ class SoftOcOneStepRewardPolicy(SampleBasedUniversalPolicy, nn.Module):
             self.env.convert_obs_to_goal_states_pytorch(sampled_goal_states),
             self._discount_batch,
         )
+        if constraint_reward.size()[1] > 1:
+            constraint_reward = constraint_reward.sum(dim=1, keepdim=True)
         if self.verbose:
             print("reward mean:", reward.mean())
             print("reward max:", reward.max())
