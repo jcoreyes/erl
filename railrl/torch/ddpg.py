@@ -132,7 +132,7 @@ class DDPG(OnlineAlgorithm):
 
     def _do_training(self, n_steps_total):
         for i in range(self.number_of_gradient_steps):
-            batch = self.get_batch()
+            batch = self.get_batch(training=True)
             train_dict = self.get_train_dict(batch)
 
             self.policy_optimizer.zero_grad()
