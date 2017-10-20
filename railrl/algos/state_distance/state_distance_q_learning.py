@@ -123,12 +123,7 @@ class StateDistanceQLearning(DDPG):
         self.exploration_policy.set_discount(self.discount)
         return self.training_env.reset()
 
-    def get_batch(self, training=True):
-        np_batch = self._get_batch_np(training=training)
-        torch_batch = np_to_pytorch_batch(np_batch)
-        return torch_batch
-
-    def _get_batch_np(self, training=True):
+    def get_batch_np(self, training=True):
         replay_buffer = self.replay_buffer.get_replay_buffer(training)
         batch_size = min(
             replay_buffer.num_steps_can_sample(),
@@ -157,7 +152,8 @@ class StateDistanceQLearning(DDPG):
             batch['next_observations'],
             goal_states,
         )
-        return batch
+        torch_batch = np_to_pytorch_batch(batch)
+        return torch_batch
 
     def compute_rewards(self, obs, actions, next_obs, goal_states):
         return self.env.compute_rewards(
@@ -516,10 +512,9 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             self._rollout_discount = self.discount
         self.exploration_policy.set_discount(self._rollout_discount)
 
-    def _get_batch_np(self, training=True):
-        np_batch = super()._get_batch_np()
-        obs = np_batch['observations']
-        batch_size = obs.shape[0]
+    def _modify_batch_for_training(self, batch):
+        obs = batch['observations']
+        batch_size = obs.size()[0]
         if self.discount == 0:
             num_steps_left = np.zeros((batch_size, 1))
         else:
@@ -532,13 +527,14 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             )
             num_steps_left[:num_taus_set_to_zero] = 0
         terminals = (num_steps_left == 0).astype(int)
-        np_batch['num_steps_left'] = num_steps_left
-        np_batch['terminals'] = terminals
+        batch['num_steps_left'] = ptu.np_to_var(num_steps_left)
+        batch['terminals'] = ptu.np_to_var(terminals)
         if self.sparse_reward:
-            np_batch['rewards'] *= terminals
-        return np_batch
+            batch['rewards'] = batch['rewards'] * batch['terminals']
+        return batch
 
     def get_train_dict(self, batch):
+        batch = self._modify_batch_for_training(batch)
         rewards = batch['rewards']
         obs = batch['observations']
         actions = batch['actions']
