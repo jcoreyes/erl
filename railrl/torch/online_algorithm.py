@@ -93,7 +93,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             epoch_discount_schedule=None,
             eval_sampler=None,
     ):
-        self.training_env = env
+        self.training_env = pickle.loads(pickle.dumps(env))
         self.exploration_policy = exploration_policy
         self.num_epochs = num_epochs
         self.num_steps_per_epoch = num_steps_per_epoch

@@ -45,7 +45,6 @@ class StateDistanceQLearning(DDPG):
             eval_sampler=None,
             **kwargs
     ):
-        env = pickle.loads(pickle.dumps(env))
         eval_sampler = eval_sampler or MultigoalSimplePathSampler(
             env=env,
             policy=policy,
