@@ -9,10 +9,24 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.qfunctions.torch import FeedForwardQFunction
 from railrl.torch.ddpg import DDPG
+import railrl.misc.hyperparameter as hyp
+
+from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
+from railrl.envs.multitask.pusher import (
+    JointOnlyPusherEnv,
+)
+from railrl.envs.multitask.reacher_7dof import (
+    Reacher7DofFullGoalState,
+)
+from railrl.envs.multitask.pusher2d import MultitaskPusher2DEnv
+from railrl.envs.multitask.reacher_env import (
+    GoalStateSimpleStateReacherEnv,
+)
 
 
 def experiment(variant):
-    env = gym_env("Reacher-v1")
+    # env = gym_env("Reacher-v1")
+    env = variant['env_class']()
     env = normalize_box(
         env,
         **variant['normalize_params']
@@ -49,13 +63,13 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-state-distance-ddpg-baseline"
 
-    n_seeds = 3
+    n_seeds = 5
     mode = "ec2"
-    exp_prefix = "ddpg-reacher-nupo-sweep-old-net-size-no-normalization"
+    exp_prefix = "ddpg-reacher-baseline"
 
-    num_steps_per_iteration = 900
-    H = 300
-    num_iterations = 100
+    num_steps_per_iteration = 1000
+    H = 250
+    num_iterations = 1000
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
@@ -77,9 +91,20 @@ if __name__ == "__main__":
             obs_std=None,
         ),
     )
-    for i, nupo in enumerate([1, 10, 50]):
-        variant['algo_params']['number_of_gradient_steps'] = nupo
-        for _ in range(n_seeds):
+    search_space = {
+        'env_class': [
+            # JointOnlyPusherEnv,
+            # Reacher7DofFullGoalState,
+            # GoalStateSimpleStateReacherEnv,
+            MultitaskPusher2DEnv,
+            # MultitaskPoint2DEnv,
+        ],
+    }
+    sweeper = hyp.DeterministicHyperparameterSweeper(
+        search_space, default_parameters=variant,
+    )
+    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+        for i in range(n_seeds):
             seed = random.randint(0, 999999)
             run_experiment(
                 experiment,
@@ -89,4 +114,6 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 use_gpu=False,
+                snapshot_mode="gap_and_last",
+                snapshot_gap=50,
             )
