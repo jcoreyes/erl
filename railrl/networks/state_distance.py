@@ -360,6 +360,81 @@ class GoalStructuredUniversalQfunction(PyTorchModule):
         return out.unsqueeze(1)
 
 
+class VectorizedGoalStructuredUniversalQfunction(PyTorchModule):
+    """
+    Parameterize QF as
+
+    Q(s, a, s_g, discount) = - |f(s, a, s_g, discount) - s_g)|
+
+    element-wisze
+
+    WARNING: this is only valid for when the reward is the negative abs value
+    along each dimension.
+    """
+    def __init__(
+            self,
+            observation_dim,
+            action_dim,
+            goal_dim,
+            hidden_sizes,
+            init_w=3e-3,
+            hidden_activation=F.relu,
+            hidden_init=ptu.fanin_init,
+            bn_input=False,
+            dropout_prob=0,
+    ):
+        # Keeping it as a separate argument to have same interface
+        assert observation_dim == goal_dim
+        self.save_init_params(locals())
+        super().__init__()
+
+        self.hidden_activation = hidden_activation
+        self.dropout_prob = dropout_prob
+        self.dropouts = []
+        self.fcs = []
+        in_size = 2 * observation_dim + action_dim + 1
+        if bn_input:
+            self.process_input = nn.BatchNorm1d(in_size)
+        else:
+            self.process_input = identity
+
+        for i, next_size in enumerate(hidden_sizes):
+            fc = nn.Linear(in_size, next_size)
+            in_size = next_size
+            hidden_init(fc.weight)
+            fc.bias.data.fill_(0)
+            self.__setattr__("fc{}".format(i), fc)
+            self.fcs.append(fc)
+            if self.dropout_prob > 0:
+                dropout = nn.Dropout(p=self.dropout_prob)
+                self.__setattr__("dropout{}".format(i), dropout)
+                self.dropouts.append(dropout)
+
+        self.last_fc = nn.Linear(in_size, observation_dim)
+        self.last_fc.weight.data.uniform_(-init_w, init_w)
+        self.last_fc.bias.data.uniform_(-init_w, init_w)
+
+    def forward(
+            self,
+            obs,
+            action,
+            goal_state,
+            discount,
+            only_return_next_state=False,
+    ):
+        h = torch.cat((obs, action, goal_state, discount), dim=1)
+        h = self.process_input(h)
+        for i, fc in enumerate(self.fcs):
+            h = self.hidden_activation(fc(h))
+            if self.dropout_prob > 0:
+                h = self.dropouts[i](h)
+        next_state = self.last_fc(h)
+        if only_return_next_state:
+            return next_state
+        out = - torch.abs(goal_state - next_state)
+        return out
+
+
 class ModelExtractor(PyTorchModule):
     def __init__(self, qf, discount=0.):
         super().__init__()
