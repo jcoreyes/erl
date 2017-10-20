@@ -124,6 +124,11 @@ class StateDistanceQLearning(DDPG):
         return self.training_env.reset()
 
     def get_batch(self, training=True):
+        np_batch = self._get_batch_np(training=training)
+        torch_batch = np_to_pytorch_batch(np_batch)
+        return torch_batch
+
+    def _get_batch_np(self, training=True):
         replay_buffer = self.replay_buffer.get_replay_buffer(training)
         batch_size = min(
             replay_buffer.num_steps_can_sample(),
@@ -152,8 +157,7 @@ class StateDistanceQLearning(DDPG):
             batch['next_observations'],
             goal_states,
         )
-        torch_batch = np_to_pytorch_batch(batch)
-        return torch_batch
+        return batch
 
     def compute_rewards(self, obs, actions, next_obs, goal_states):
         return self.env.compute_rewards(
@@ -512,28 +516,36 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             self._rollout_discount = self.discount
         self.exploration_policy.set_discount(self._rollout_discount)
 
-    def get_train_dict(self, batch):
-        rewards = batch['rewards']
-        obs = batch['observations']
-        actions = batch['actions']
-        next_obs = batch['next_observations']
-        goal_states = batch['goal_states']
-
-        batch_size = obs.size()[0]
+    def _get_batch_np(self, training=True):
+        np_batch = super()._get_batch_np()
+        obs = np_batch['observations']
+        batch_size = obs.shape[0]
         if self.discount == 0:
-            num_steps_left_np = np.zeros((batch_size, 1))
+            num_steps_left = np.zeros((batch_size, 1))
         else:
-            num_steps_left_np = np.random.randint(
+            num_steps_left = np.random.randint(
                 0, self.discount + 1, (batch_size, 1)
             )
         if self.fraction_of_taus_set_to_zero > 0:
             num_taus_set_to_zero = int(
                 batch_size * self.fraction_of_taus_set_to_zero
             )
-            num_steps_left_np[:num_taus_set_to_zero] = 0
-        num_steps_left = ptu.np_to_var(num_steps_left_np)
-        terminals_np = (num_steps_left_np == 0).astype(int)
-        terminals = ptu.np_to_var(terminals_np)
+            num_steps_left[:num_taus_set_to_zero] = 0
+        terminals = (num_steps_left == 0).astype(int)
+        np_batch['num_steps_left'] = num_steps_left
+        np_batch['terminals'] = terminals
+        if self.sparse_reward:
+            np_batch['rewards'] *= terminals
+        return np_batch
+
+    def get_train_dict(self, batch):
+        rewards = batch['rewards']
+        obs = batch['observations']
+        actions = batch['actions']
+        next_obs = batch['next_observations']
+        goal_states = batch['goal_states']
+        terminals = batch['terminals']
+        num_steps_left = batch['num_steps_left']
 
         """
         Policy operations.
@@ -558,10 +570,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
         )
         if self.clamp_q_target_values:
             target_q_values = torch.clamp(target_q_values, -math.inf, 0)
-        if self.sparse_reward:
-            y_target = terminals * rewards + (1. - terminals) * target_q_values
-        else:
-            y_target = rewards + (1. - terminals) * target_q_values
+        y_target = rewards + (1. - terminals) * target_q_values
 
         # noinspection PyUnresolvedReferences
         y_target = y_target.detach()
