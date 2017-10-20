@@ -177,7 +177,7 @@ class SoftOcOneStepRewardPolicy(SampleBasedUniversalPolicy, nn.Module):
             ptu.get_numpy(next_state),
             ptu.get_numpy(self._goal_batch),
         )
-        return ptu.np_to_var(np.expand_dims(rewards_np, 1))
+        return ptu.np_to_var(rewards_np)
 
     def get_action(self, obs):
         goal_state_np = self._get_goal_state_np(obs)
