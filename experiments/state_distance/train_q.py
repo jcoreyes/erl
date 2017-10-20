@@ -127,10 +127,10 @@ if __name__ == '__main__':
     exp_prefix = "dev-train-q"
     run_mode = "none"
 
-    n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "sdql-reacher3d"
-    run_mode = 'grid'
+    # n_seeds = 3
+    # mode = "ec2"
+    exp_prefix = "sdql-reacher2d-eval-fix"
+    # run_mode = 'grid'
 
     version = "na"
     num_configurations = 50  # for random mode
@@ -143,19 +143,20 @@ if __name__ == '__main__':
     dataset_path = args.replay_path
 
     max_path_length = 100
+    max_tau = 10
     # noinspection PyTypeChecker
     variant = dict(
         version=version,
         dataset_path=str(dataset_path),
         algo_params=dict(
             num_epochs=101,
-            num_steps_per_epoch=10000,
-            num_steps_per_eval=10000,
-            num_updates_per_env_step=1,
+            num_steps_per_epoch=1000,
+            num_steps_per_eval=1000,
+            num_updates_per_env_step=10,
             use_soft_update=True,
             tau=0.001,
             batch_size=500,
-            discount=max_path_length-1,
+            discount=5,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
             # sample_goals_from='environment',
@@ -163,7 +164,7 @@ if __name__ == '__main__':
             sample_discount=True,
             qf_weight_decay=0.,
             max_path_length=max_path_length,
-            replay_buffer_size=1000000,
+            replay_buffer_size=200000,
             prob_goal_state_is_next_state=0,
             termination_threshold=0,
             sparse_reward=True,
@@ -190,16 +191,16 @@ if __name__ == '__main__':
         # epoch_discount_schedule_class=IntRampUpSchedule,
         epoch_discount_schedule_class=ConstantSchedule,
         epoch_discount_schedule_params=dict(
-            value=max_path_length-1,
+            value=5,
             # min_value=0,
             # max_value=100,
             # ramp_duration=50,
         ),
         algo_class=HorizonFedStateDistanceQLearning,
-        env_class=Reacher7DofFullGoalState,
+        # env_class=Reacher7DofFullGoalState,
         # env_class=ArmEEInStatePusherEnv,
         # env_class=JointOnlyPusherEnv,
-        # env_class=GoalStateSimpleStateReacherEnv,
+        env_class=GoalStateSimpleStateReacherEnv,
         # env_class=MultitaskPusher2DEnv,
         # env_class=XyMultitaskSimpleStateReacherEnv,
         # env_class=MultitaskPoint2DEnv,
@@ -230,6 +231,13 @@ if __name__ == '__main__':
     )
     if run_mode == 'grid':
         search_space = {
+            'env_class': [
+                JointOnlyPusherEnv,
+                Reacher7DofFullGoalState,
+                GoalStateSimpleStateReacherEnv,
+                MultitaskPusher2DEnv,
+                MultitaskPoint2DEnv,
+            ],
             # 'env_class': [
             #     Reacher7DofFullGoalState,
             #     GoalStateSimpleStateReacherEnv,
@@ -237,7 +245,7 @@ if __name__ == '__main__':
             #     # JointOnlyPusherEnv,
             # ],
             # 'qf_class': [StructuredUniversalQfunction, FlatUniversalQfunction],
-            'epoch_discount_schedule_params.value': [5, 10, 50],
+            # 'epoch_discount_schedule_params.value': [5, 10, 50],
             # 'algo_params.sparse_reward': [True, False],
             # 'algo_params.clamp_q_target_values': [True, False],
             # 'algo_params.prob_goal_state_is_next_state': [0.5, 0],
