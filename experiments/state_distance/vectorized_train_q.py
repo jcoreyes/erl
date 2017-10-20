@@ -9,6 +9,8 @@ from torch.nn import functional as F
 
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
+from railrl.algos.state_distance.state_distance_q_learning import \
+    HorizonFedStateDistanceQLearning
 from railrl.algos.state_distance.vectorized_sdql import VectorizedSdql, \
     VectorizedTauSdql
 
@@ -41,7 +43,8 @@ from railrl.misc.ml_util import RampUpSchedule, IntRampUpSchedule, \
     ConstantSchedule
 from railrl.networks.state_distance import (
     FFUniversalPolicy,
-    VectorizedGoalStructuredUniversalQfunction)
+    VectorizedGoalStructuredUniversalQfunction,
+    GoalStructuredUniversalQfunction)
 from railrl.policies.state_distance import TerminalRewardSampleOCPolicy
 from railrl.torch.modules import HuberLoss
 from railrl.torch.state_distance.exploration import \
@@ -123,7 +126,8 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "vectorized-train-many-envs-lots-of-data"
+    # exp_prefix = "vectorized-train-many-envs-lots-of-data"
+    exp_prefix = "sdql-compare-vectorized"
     # exp_prefix = "vectorized-train-q-env"
     run_mode = 'grid'
 
@@ -169,6 +173,7 @@ if __name__ == '__main__':
         ),
         explore_with_ddpg_policy=True,
         qf_class=VectorizedGoalStructuredUniversalQfunction,
+        # qf_class=GoalStructuredUniversalQfunction,
         qf_params=dict(
             hidden_sizes=[300, 300],
             hidden_activation=F.softplus,
@@ -186,8 +191,8 @@ if __name__ == '__main__':
             # max_value=100,
             # ramp_duration=50,
         ),
-        # algo_class=VectorizedSdql,
         algo_class=VectorizedTauSdql,
+        # algo_class=HorizonFedStateDistanceQLearning,
         # env_class=Reacher7DofFullGoalState,
         # env_class=ArmEEInStatePusherEnv,
         # env_class=JointOnlyPusherEnv,
@@ -219,12 +224,12 @@ if __name__ == '__main__':
     if run_mode == 'grid':
         search_space = {
             'env_class': [
-                JointOnlyPusherEnv,
                 Reacher7DofFullGoalState,
+                JointOnlyPusherEnv,
                 GoalStateSimpleStateReacherEnv,
                 MultitaskPusher2DEnv,
-                MultitaskPoint2DEnv,
             ],
+            'epoch_discount_schedule_params.value': [5, 10, 50],
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
             search_space, default_parameters=variant,
