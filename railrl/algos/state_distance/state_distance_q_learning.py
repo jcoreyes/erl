@@ -123,7 +123,7 @@ class StateDistanceQLearning(DDPG):
         self.exploration_policy.set_discount(self.discount)
         return self.training_env.reset()
 
-    def get_batch_np(self, training=True):
+    def get_batch(self, training=True):
         replay_buffer = self.replay_buffer.get_replay_buffer(training)
         batch_size = min(
             replay_buffer.num_steps_can_sample(),
@@ -180,13 +180,9 @@ class StateDistanceQLearning(DDPG):
             ))
 
     def sample_goal_state_for_rollout(self):
-        return self.sample_goal_states(1)[0]
-        # Always sample goal states from the environment to prevent the
-        # degenerate solution where the policy just learns to stay at a fixed
-        # location.
-        # goal_state = self.sample_goal_states(1)[0]
-        # goal_state = self.env.modify_goal_state_for_rollout(goal_state)
-        # return goal_state
+        goal_state = self.sample_goal_states(1)[0]
+        goal_state = self.env.modify_goal_state_for_rollout(goal_state)
+        return goal_state
 
     def _sample_discount(self, batch_size):
         if self.sample_discount:
