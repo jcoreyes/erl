@@ -75,7 +75,7 @@ class HER(DDPG):
             self.env.convert_obs_to_goal_states(batch['next_observations'])
             - self.env.convert_obs_to_goal_states(batch['goal_states'])
         )
-        diff_sum = diff.sum(dim=1, keepdim=True)
+        diff_sum = diff.sum(dim=1)
         batch['rewards'] = -(diff_sum >= self.epsilon).float()
         return batch
 

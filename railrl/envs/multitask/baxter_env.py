@@ -122,8 +122,8 @@ class MultiTaskBaxterEnv(BaxterEnv, MultitaskEnv):
         return np.random.uniform(JOINT_VALUE_LOW['torque'], JOINT_VALUE_HIGH['torque'], (batch_size, 7))
 
     def sample_states(self, batch_size):
-        return np.hstack((np.zeros(batch_size, 21), self.sample_goal_state(batch_size)))
+        return np.hstack((np.zeros(batch_size, 21), self.sample_goal_states(batch_size)))
 
     def convert_obs_to_goal_states(self, obs):
         return obs[:, 21:24]
-
+x
