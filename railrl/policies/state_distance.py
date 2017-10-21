@@ -46,11 +46,17 @@ class SampleBasedUniversalPolicy(
         self.action_low = self.env.action_space.low
         self.action_high = self.env.action_space.high
         self._goal_batch = None
+        self._goal_batch_np = None
         self._discount_batch = None
 
     def set_goal(self, goal_np):
         super().set_goal(goal_np)
         self._goal_batch = self.expand_np_to_var(goal_np)
+        self._goal_batch_np = np.repeat(
+            np.expand_dims(goal_np, 0),
+            self.sample_size,
+            axis=0
+        )
 
     def set_discount(self, discount):
         super().set_discount(discount)
@@ -590,3 +596,46 @@ class StateOnlySdqBasedSqpOcPolicy(UniversalPolicy, nn.Module):
                 self._discount_expanded_torch,
             ).squeeze(0)
         )
+
+class UnconstrainedOcWithGoalConditionedModel(SampleBasedUniversalPolicy, nn.Module):
+    """
+    Make it sublcass nn.Module so that calls to `train` and `cuda` get
+    propagated to the sub-networks
+    """
+    def __init__(self, goal_conditioned_model, env, argmax_q, sample_size=100,
+                 **kwargs):
+        nn.Module.__init__(self)
+        super().__init__(sample_size, env, **kwargs)
+        self.model = goal_conditioned_model
+        self.argmax_q = argmax_q
+        self.env = env
+
+    def rewards_np(self, states):
+        # For now just use the env reward
+        # rewards_np = self.env.compute_rewards(
+        #     None,
+        #     None,
+        #     ptu.get_numpy(states),
+        #     self._goal_batch_np
+        # )
+        diff = ptu.get_numpy(states)[:, :4] - self._goal_batch_np[:, :4]
+        rewards_np = - np.linalg.norm(diff, axis=1)
+        return rewards_np
+
+    def get_action(self, obs):
+        obs_pytorch = self.expand_np_to_var(obs)
+        sampled_goal_state = ptu.np_to_var(self.sample_states())
+        actions = self.argmax_q(
+            obs_pytorch,
+            sampled_goal_state,
+            self._discount_batch,
+        )
+        final_state_predicted = self.model(
+            obs_pytorch,
+            actions,
+            sampled_goal_state,
+            self._discount_batch,
+        ) + obs_pytorch
+        rewards = self.rewards_np(final_state_predicted)
+        max_i = np.argmax(rewards)
+        return ptu.get_numpy(actions[max_i]), {}

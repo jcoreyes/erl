@@ -601,6 +601,28 @@ class NumpyGoalConditionedModelExtractor(PyTorchModule):
         )
 
 
+class NumpyGoalConditionedDeltaModelExtractor(PyTorchModule):
+    """
+    Extract a goal-conditioned model
+    """
+    def __init__(
+            self,
+            qf,
+    ):
+        super().__init__()
+        assert isinstance(qf, GoalConditionedDeltaModel)
+        self.qf = qf
+
+    def next_state(self, state, action, goal_state, discount):
+        state = ptu.np_to_var(np.expand_dims(state, 0))
+        action = ptu.np_to_var(np.expand_dims(action, 0))
+        goal_state = ptu.np_to_var(np.expand_dims(goal_state, 0))
+        discount = ptu.np_to_var(np.array([[discount]]))
+        return ptu.get_numpy(
+            self.qf(state, action, goal_state, discount) + state
+        )[0]
+
+
 class FFUniversalPolicy(PyTorchModule, UniversalPolicy):
     def __init__(
             self,
