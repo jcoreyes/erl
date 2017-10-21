@@ -15,9 +15,10 @@ class HerNetwork(PyTorchModule):
             self,
             observation_dim,
             action_dim,
-            goal_state_dim,
+            goal_dim,
             hidden_sizes,
             output_size,
+            input_size,
             init_w=3e-3,
             hidden_activation=F.relu,
             output_activation=identity,
@@ -30,7 +31,7 @@ class HerNetwork(PyTorchModule):
         self.hidden_activation = hidden_activation
         self.output_activation = output_activation
         self.fcs = []
-        in_size = observation_dim + goal_state_dim + action_dim
+        in_size = input_size
 
         for i, next_size in enumerate(hidden_sizes):
             fc = nn.Linear(in_size, next_size)
@@ -50,7 +51,7 @@ class HerQFunction(HerNetwork):
             self,
             observation_dim,
             action_dim,
-            goal_state_dim,
+            goal_dim,
             hidden_sizes,
             init_w=3e-3,
             hidden_activation=F.relu,
@@ -62,9 +63,10 @@ class HerQFunction(HerNetwork):
         super().__init__(
             observation_dim,
             action_dim,
-            goal_state_dim,
+            goal_dim,
             hidden_sizes,
             output_size=1,
+            input_size=observation_dim + goal_dim + action_dim,
             init_w=init_w,
             hidden_activation=hidden_activation,
             output_activation=output_activation,
@@ -84,7 +86,7 @@ class HerPolicy(HerNetwork, UniversalPolicy):
             self,
             observation_dim,
             action_dim,
-            goal_state_dim,
+            goal_dim,
             hidden_sizes,
             init_w=3e-3,
             hidden_activation=F.relu,
@@ -96,9 +98,10 @@ class HerPolicy(HerNetwork, UniversalPolicy):
         super().__init__(
             observation_dim,
             action_dim,
-            goal_state_dim,
+            goal_dim,
             hidden_sizes,
             output_size=action_dim,
+            input_size=observation_dim + goal_dim,
             init_w=init_w,
             hidden_activation=hidden_activation,
             output_activation=output_activation,

@@ -1,55 +1,21 @@
 import argparse
 import random
 
-import numpy as np
-from hyperopt import hp
-from torch import nn as nn
 from torch.nn import functional as F
 
+import railrl.torch.pytorch_util as ptu
 from railrl.algos.state_distance.her import HER
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.envs.multitask.pusher2d import MultitaskPusher2DEnv
-from railrl.networks.her import HerPolicy, HerQFunction
-from railrl.pythonplusplus import identity
-
-import railrl.misc.hyperparameter as hyp
-import railrl.torch.pytorch_util as ptu
-from railrl.algos.state_distance.state_distance_q_learning import (
-    StateDistanceQLearning,
-    HorizonFedStateDistanceQLearning)
-from railrl.algos.state_distance.util import get_replay_buffer
-from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
-from railrl.envs.multitask.reacher_7dof import (
-    Reacher7DofXyzGoalState,
-    Reacher7DofFullGoalState,
-    Reacher7DofCosSinFullGoalState,
-)
+from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.multitask.reacher_env import (
-    GoalStateSimpleStateReacherEnv,
     XyMultitaskSimpleStateReacherEnv,
-)
-from railrl.envs.multitask.pusher import (
-    ArmEEInStatePusherEnv,
-    JointOnlyPusherEnv,
-)
+    JointAngleMultitaskSimpleStateReacherEnv)
 from railrl.envs.wrappers import convert_gym_space, normalize_box
-from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import (
-    create_log_dir,
-    create_run_experiment_multiple_seeds,
-)
 from railrl.launchers.launcher_util import run_experiment
-from railrl.misc.hypopt import optimize_and_save
-from railrl.misc.ml_util import RampUpSchedule, IntRampUpSchedule, \
-    ConstantSchedule
+from railrl.networks.her import HerPolicy, HerQFunction
 from railrl.networks.state_distance import (
     FFUniversalPolicy,
-    UniversalQfunction,
-    FlatUniversalQfunction,
-    StructuredUniversalQfunction,
-    GoalStructuredUniversalQfunction,
-    DuelingStructuredUniversalQfunction,
 )
 from railrl.policies.state_distance import TerminalRewardSampleOCPolicy
 from railrl.torch.modules import HuberLoss
@@ -73,18 +39,12 @@ def experiment(variant):
         env.goal_dim,
         **variant['qf_params']
     )
-    policy = FFUniversalPolicy(
+    policy = variant['policy_class'](
         int(observation_space.flat_dim),
         int(action_space.flat_dim),
         env.goal_dim,
         **variant['policy_params']
     )
-    epoch_discount_schedule = None
-    epoch_discount_schedule_class = variant['epoch_discount_schedule_class']
-    if epoch_discount_schedule_class is not None:
-        epoch_discount_schedule = epoch_discount_schedule_class(
-            **variant['epoch_discount_schedule_params']
-        )
     qf_criterion = variant['qf_criterion_class'](
         **variant['qf_criterion_params']
     )
@@ -92,22 +52,22 @@ def experiment(variant):
         action_space=action_space,
         **variant['es_params']
     )
-    if variant['explore_with_ddpg_policy']:
-        raw_exploration_policy = policy
-    else:
-        raw_exploration_policy = TerminalRewardSampleOCPolicy(
-            qf,
-            env,
-            5,
-        )
     exploration_policy = UniversalPolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
-        policy=raw_exploration_policy,
+        policy=policy,
     )
-    replay_buffer = HerReplayBuffer(
-        observation_dim=convert_gym_space(env.observation_space).flat_dim,
-        action_dim=convert_gym_space(env.action_space).flat_dim,
-        **variant['replay_buffer_params'],
+    replay_buffer = SplitReplayBuffer(
+        HerReplayBuffer(
+            observation_dim=convert_gym_space(env.observation_space).flat_dim,
+            action_dim=convert_gym_space(env.action_space).flat_dim,
+            **variant['replay_buffer_params'],
+        ),
+        HerReplayBuffer(
+            observation_dim=convert_gym_space(env.observation_space).flat_dim,
+            action_dim=convert_gym_space(env.action_space).flat_dim,
+            **variant['replay_buffer_params'],
+        ),
+        fraction_paths_in_train=0.8,
     )
     algo = HER(
         env,
@@ -145,14 +105,11 @@ if __name__ == '__main__':
     if mode != "local":
         use_gpu = False
 
-    dataset_path = args.replay_path
-
     max_path_length = 100
     max_tau = 10
     # noinspection PyTypeChecker
     variant = dict(
         version=version,
-        dataset_path=str(dataset_path),
         algo_params=dict(
             num_epochs=101,
             num_steps_per_epoch=1000,
@@ -166,9 +123,7 @@ if __name__ == '__main__':
             policy_learning_rate=1e-4,
             qf_weight_decay=0.,
             max_path_length=max_path_length,
-            replay_buffer_size=200000,
             render=args.render,
-            goal_sample_strategy='store',
         ),
         qf_class=HerQFunction,
         qf_params=dict(
@@ -181,16 +136,11 @@ if __name__ == '__main__':
             hidden_activation=F.softplus,
         ),
         replay_buffer_params=dict(
+            max_size=200000,
             num_goals_to_sample=4,
             goal_sample_strategy='store',
         ),
-        # env_class=Reacher7DofFullGoalState,
-        # env_class=ArmEEInStatePusherEnv,
-        # env_class=JointOnlyPusherEnv,
-        env_class=XyMultitaskSimpleStateReacherEnv,
-        # env_class=MultitaskPusher2DEnv,
-        # env_class=XyMultitaskSimpleStateReacherEnv,
-        # env_class=MultitaskPoint2DEnv,
+        env_class=JointAngleMultitaskSimpleStateReacherEnv,
         env_params=dict(),
         normalize_params=dict(),
         es_class=OUStrategy,
@@ -199,7 +149,6 @@ if __name__ == '__main__':
             max_sigma=0.02,
             min_sigma=0.02,
         ),
-        generate_data=args.replay_path is None,
         qf_criterion_class=HuberLoss,
         # qf_criterion_class=nn.MSELoss,
         qf_criterion_params=dict(
