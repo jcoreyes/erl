@@ -75,7 +75,7 @@ def example(variant):
             es,
             num_epochs=num_epochs,
             batch_size=batch_size,
-            number_of_gradient_steps=number_of_gradient_steps,
+            num_updates_per_env_step=number_of_gradient_steps,
         )
         if use_gpu:
             algorithm.cuda()
