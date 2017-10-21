@@ -1,23 +1,20 @@
 """
-Fine tune a trained policy/qf
+Collected more data with a OC policy.
 """
 import argparse
 import random
 
 import joblib
-from pathlib import Path
 
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.algos.state_distance.state_distance_q_learning import (
     HorizonFedStateDistanceQLearning)
-from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.misc.ml_util import ConstantSchedule, StatConditionalSchedule
+from railrl.misc.ml_util import StatConditionalSchedule, ConstantSchedule
+from railrl.policies.state_distance import SoftOcOneStepRewardPolicy
 from railrl.torch.modules import HuberLoss
-from railrl.torch.state_distance.exploration import \
-    UniversalPolicyWrappedWithExplorationStrategy
 
 
 def experiment(variant):
@@ -26,14 +23,12 @@ def experiment(variant):
     env = data['env']
     qf = data['qf']
     policy = data['policy']
-    action_space = convert_gym_space(env.action_space)
-    es = variant['es_class'](
-        action_space=action_space,
-        **variant['es_params']
-    )
-    exploration_policy = UniversalPolicyWrappedWithExplorationStrategy(
-        exploration_strategy=es,
-        policy=policy,
+    exploration_policy = SoftOcOneStepRewardPolicy(
+        qf,
+        env,
+        policy,
+        1,
+        sample_size=100,
     )
 
     qf_criterion = variant['qf_criterion_class'](
@@ -43,17 +38,14 @@ def experiment(variant):
     epoch_discount_schedule = epoch_discount_schedule_class(
         **variant['epoch_discount_schedule_params']
     )
-    newpath = Path(path).parent / 'extra_data.pkl'
-    extra_data = joblib.load(str(newpath))
-    replay_buffer = extra_data.get('replay_buffer', None)
     algo = variant['algo_class'](
         env,
         qf,
         policy,
         exploration_policy,
+        eval_policy=exploration_policy,
         epoch_discount_schedule=epoch_discount_schedule,
         qf_criterion=qf_criterion,
-        replay_buffer=replay_buffer,
         **variant['algo_params']
     )
     if ptu.gpu_enabled():
@@ -69,17 +61,16 @@ if __name__ == '__main__':
 
     n_seeds = 1
     mode = "local"
-    exp_prefix = "dev-sdql-fine-tune"
+    exp_prefix = "dev-sdql-fine-tune-collect-oc-data"
     run_mode = "none"
 
-    n_seeds = 1
+    # n_seeds = 1
     # mode = "ec2"
-    exp_prefix = "sdql-fine-tune-no-decrease"
+    exp_prefix = "sdql-reacher2d-collect-and-only-use-oc-data-eval-with-oc"
     # run_mode = 'grid'
 
-    num_configurations = 50  # for random mode
-    snapshot_mode = "gap"
-    snapshot_gap = 25
+    snapshot_mode = "gap_and_last"
+    snapshot_gap = 10
     use_gpu = True
     if mode != "local":
         use_gpu = False
@@ -89,9 +80,9 @@ if __name__ == '__main__':
     variant = dict(
         path=args.path,
         algo_params=dict(
-            num_epochs=101,
+            num_epochs=100,
             num_steps_per_epoch=300,
-            num_steps_per_eval=3000,
+            num_steps_per_eval=900,
             num_updates_per_env_step=50,
             use_soft_update=True,
             tau=0.001,
@@ -111,20 +102,20 @@ if __name__ == '__main__':
             save_replay_buffer=True,
         ),
         algo_class=HorizonFedStateDistanceQLearning,
-        # epoch_discount_schedule_class=IntRampUpSchedule,
-        epoch_discount_schedule_class=StatConditionalSchedule,
+        epoch_discount_schedule_class=ConstantSchedule,
         epoch_discount_schedule_params=dict(
-            init_value=5,
-            stat_bounds=(0.06, None),
-            running_average_length=1,
-            delta=-1,
-            value_bounds=(5, None),
-            statistic_name="Final Euclidean distance to goal Mean",
-            min_time_gap_between_value_changes=3,
-            # min_value=0,
-            # max_value=100,
-            # ramp_duration=50,
+            value=10,
         ),
+        # epoch_discount_schedule_class=StatConditionalSchedule,
+        # epoch_discount_schedule_params=dict(
+        #     init_value=5,
+        #     stat_bounds=(0.4, None),
+        #     running_average_length=3,
+        #     delta=-1,
+        #     value_bounds=(5, None),
+        #     statistic_name="Final Euclidean distance to goal Mean",
+        #     min_time_gap_between_value_changes=3,
+        # ),
         qf_criterion_class=HuberLoss,
         qf_criterion_params=dict(),
         es_class=OUStrategy,

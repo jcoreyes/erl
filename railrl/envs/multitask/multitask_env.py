@@ -58,6 +58,7 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         return - np.linalg.norm(
             self.convert_obs_to_goal_states(next_obs) - goal_states,
             axis=1,
+            keepdims=True,
         )
 
     def convert_obs_to_goal_states(self, obs):

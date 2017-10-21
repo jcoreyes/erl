@@ -107,33 +107,46 @@ class SamplePolicyPartialOptimizer(SampleBasedUniversalPolicy, nn.Module):
     See https://paper.dropbox.com/doc/State-Distance-QF-Results-Summary-flRwbIxt0bbUbVXVdkKzr
     for details.
     """
-    def __init__(self, qf, env, sample_size=100, **kwargs):
+    def __init__(self, qf, env, argmax_q, sample_size=100, **kwargs):
         nn.Module.__init__(self)
         super().__init__(sample_size, env, **kwargs)
         self.qf = qf
+        self.argmax_q = argmax_q
 
     def get_action(self, obs):
-        sampled_actions = self.sample_actions()
-        actions = ptu.np_to_var(sampled_actions)
+        obs_pytorch = self.expand_np_to_var(obs)
+        # sampled_actions = self.sample_actions()
+        # actions = ptu.np_to_var(sampled_actions)
         goals = ptu.np_to_var(
             self.env.sample_irrelevant_goal_dimensions(
                 self._goal_np, self.sample_size
             )
         )
+        actions = self.argmax_q(
+            obs_pytorch,
+            goals,
+            self._discount_batch,
+        )
 
         q_values = ptu.get_numpy(self.qf(
-            self.expand_np_to_var(obs),
+            obs_pytorch,
             actions,
             goals,
             self.expand_np_to_var(np.array([self._discount_np])),
         ))
         max_i = np.argmax(q_values)
-        return sampled_actions[max_i], {}
+        # return sampled_actions[max_i], {}
+        return ptu.get_numpy(actions[max_i]), {}
 
 
-class SampleOptimalControlPolicy(SampleBasedUniversalPolicy, nn.Module):
+class SoftOcOneStepRewardPolicy(SampleBasedUniversalPolicy, nn.Module):
     """
-    Do the argmax by sampling a bunch of states and actions
+    Optimize over goal state
+
+        g* = \argmax_g R(g) + \lambda Q(s, \pi(s), g)
+        a = \pi(s, g*)
+
+    Do the argmax by sampling.
 
     Make it sublcass nn.Module so that calls to `train` and `cuda` get
     propagated to the sub-networks
@@ -142,6 +155,7 @@ class SampleOptimalControlPolicy(SampleBasedUniversalPolicy, nn.Module):
             self,
             qf,
             env,
+            policy,
             constraint_weight=1,
             sample_size=100,
             verbose=False,
@@ -150,39 +164,36 @@ class SampleOptimalControlPolicy(SampleBasedUniversalPolicy, nn.Module):
         nn.Module.__init__(self)
         super().__init__(sample_size, env, **kwargs)
         self.qf = qf
+        self.policy = policy
         self.constraint_weight = constraint_weight
         self.verbose = verbose
 
     def reward(self, state, action, next_state):
         rewards_np = self.env.compute_rewards(
-            ptu.get_numpy(state),
-            ptu.get_numpy(action),
+            None,
+            None,
             ptu.get_numpy(next_state),
             ptu.get_numpy(self._goal_batch),
         )
-        return ptu.np_to_var(np.expand_dims(rewards_np, 1))
+        return ptu.np_to_var(rewards_np)
 
     def get_action(self, obs):
-        """
-        Naive implementation where I just sample a bunch of a and s' and take
-        the one that maximizes
+        goal_state_np = self._get_goal_state_np(obs)
+        return self._get_np_action(obs, goal_state_np), {}
 
-            f(a, s') = r(s, a, s') - C * Q_d(s, a, s')**2
-
-        :param obs: np.array, state/observation
-        :return: np.array, action to take
-        """
-        sampled_actions = self.sample_actions()
-        action = ptu.np_to_var(sampled_actions)
-        next_state = ptu.np_to_var(self.sample_states())
+    def _get_goal_state_np(self, obs):
+        sampled_goal_states_np = self.sample_states()
+        sampled_goal_states = ptu.np_to_var(sampled_goal_states_np)
         obs = self.expand_np_to_var(obs)
-        reward = self.reward(obs, action, next_state)
+        reward = self.reward(None, None, sampled_goal_states)
         constraint_reward = self.qf(
             obs,
-            action,
-            self.env.convert_obs_to_goal_states_pytorch(next_state),
+            self.policy(obs, sampled_goal_states, self._discount_batch),
+            self.env.convert_obs_to_goal_states_pytorch(sampled_goal_states),
             self._discount_batch,
         )
+        if constraint_reward.size()[1] > 1:
+            constraint_reward = constraint_reward.sum(dim=1, keepdim=True)
         if self.verbose:
             print("reward mean:", reward.mean())
             print("reward max:", reward.max())
@@ -193,10 +204,19 @@ class SampleOptimalControlPolicy(SampleBasedUniversalPolicy, nn.Module):
             + self.constraint_weight * constraint_reward
         )
         max_i = np.argmax(ptu.get_numpy(score))
-        return sampled_actions[max_i], {}
+        return sampled_goal_states_np[max_i]
+
+    def _get_np_action(self, state_np, goal_state_np):
+        return ptu.get_numpy(
+            self.policy(
+                ptu.np_to_var(np.expand_dims(state_np, 0)),
+                ptu.np_to_var(np.expand_dims(goal_state_np, 0)),
+                self._discount_expanded_torch,
+            ).squeeze(0)
+        )
 
 
-class TerminalRewardSampleOCPolicy(SampleOptimalControlPolicy, nn.Module):
+class TerminalRewardSampleOCPolicy(SoftOcOneStepRewardPolicy, nn.Module):
     """
     Want to implement:
 
@@ -275,6 +295,7 @@ class ArgmaxQFPolicy(SampleBasedUniversalPolicy, nn.Module):
             self,
             qf,
             env,
+            policy,
             sample_size=100,
             learning_rate=1e-1,
             num_gradient_steps=10,
@@ -425,142 +446,6 @@ class PseudoModelBasedPolicy(SampleBasedUniversalPolicy, nn.Module):
         return sampled_actions[best_action, :], {}
 
 
-class SdqBasedSqpOcPolicy(UniversalPolicy, nn.Module):
-    """
-    Implement
-
-        pi(s_1, g) = argmin_{a_1} min_{a_{2:T}, s_{2:T+1}} ||s_{T+1} - g||_2^2
-        subject to Q(s_i, a_i, s_{i+1}) = 0
-
-    for i = 1, ..., T
-
-    using SLSQP
-    """
-    def __init__(
-            self,
-            qf,
-            env,
-            solver_params=None,
-            planning_horizon=1,
-    ):
-        super().__init__()
-        nn.Module.__init__(self)
-        self.qf = qf
-        self.env = env
-        self.solver_params = solver_params
-        self.planning_horizon = planning_horizon
-
-        self.action_dim = self.env.action_space.low.size
-        self.observation_dim = self.env.observation_space.low.size
-        self.last_solution = None
-        self.lower_bounds = np.hstack((
-            np.tile(self.env.action_space.low, self.planning_horizon),
-            np.tile(self.env.observation_space.low, self.planning_horizon),
-        ))
-        self.upper_bounds = np.hstack((
-            np.tile(self.env.action_space.high, self.planning_horizon),
-            np.tile(self.env.observation_space.high, self.planning_horizon),
-        ))
-        self.bounds = list(zip(self.lower_bounds, self.upper_bounds))
-        self.constraints = {
-            'type': 'eq',
-            'fun': self.constraint_fctn,
-            'jac': self.constraint_jacobian,
-        }
-
-    def split(self, x):
-        """
-        :param x: vector passed to optimization
-        :return: tuple
-            - actions np.array, shape [planning_horizon X action_dim]
-            - next_states np.array, shape [planning_horizon X obs_dim]
-        """
-        all_actions = x[:self.action_dim * self.planning_horizon]
-        all_next_states = x[self.action_dim * self.planning_horizon:]
-        if isinstance(x, np.ndarray):
-            return (
-                all_actions.reshape(self.planning_horizon, self.action_dim),
-                all_next_states.reshape(self.planning_horizon, self.observation_dim)
-            )
-        else:
-            return (
-                all_actions.view(self.planning_horizon, self.action_dim),
-                all_next_states.view(self.planning_horizon, self.observation_dim)
-            )
-
-    def cost_function(self, x):
-        _, all_next_states = self.split(x)
-        last_state = all_next_states[-1, :]
-        return np.sum((last_state - self._goal_np)**2)
-
-    def cost_jacobian(self, x):
-        jacobian = np.zeros_like(x)
-        _, all_next_states = self.split(x)
-        last_state = all_next_states[-1, :]
-        # Assuming the last `self.observation_dim` part of x is the last state
-        jacobian[-self.observation_dim:] = (
-            2 * (last_state - self._goal_np)
-        )
-        return jacobian
-
-    def _constraint_fctn(self, x, state, return_grad):
-        state = ptu.np_to_var(state)
-        x = ptu.np_to_var(x, requires_grad=return_grad)
-        all_actions, all_next_states = self.split(x)
-
-        loss = 0
-        state = state.unsqueeze(0)
-        for i in range(self.planning_horizon):
-            action = all_actions[i:i+1, :]
-            next_state = all_next_states[i:i+1, :]
-            loss += self.qf(
-                state, action, next_state, self._discount_expanded_torch
-            )
-            state = next_state
-        if return_grad:
-            loss.squeeze(0).backward()
-            return ptu.get_numpy(x.grad)
-        else:
-            return ptu.get_numpy(loss.squeeze(0))[0]
-
-    def constraint_fctn(self, x, state=None):
-        return self._constraint_fctn(x, state, False)
-
-    def constraint_jacobian(self, x, state=None):
-        return self._constraint_fctn(x, state, True)
-
-    def reset(self):
-        self.last_solution = None
-
-    def get_action(self, obs):
-        if self.last_solution is None:
-            self.last_solution = np.hstack((
-                np.zeros(self.action_dim * self.planning_horizon),
-                np.tile(obs, self.planning_horizon),
-            ))
-        self.constraints['args'] = (obs, )
-        result = optimize.minimize(
-            self.cost_function,
-            self.last_solution,
-            jac=self.cost_jacobian,
-            constraints=self.constraints,
-            method='SLSQP',
-            options=self.solver_params,
-            bounds=self.bounds,
-        )
-        action = result.x[:self.action_dim]
-        if np.isnan(action).any():
-            logger.log("WARNING: SLSQP returned nan. Adding noise to last "
-                       "action")
-            action = self.last_solution[:self.action_dim] + np.random.uniform(
-                self.env.action_space.low,
-                self.env.action_space.high,
-            ) / 100
-        else:
-            self.last_solution = result.x
-        return action, {}
-
-
 class StateOnlySdqBasedSqpOcPolicy(UniversalPolicy, nn.Module):
     """
     Implement
@@ -685,8 +570,6 @@ class StateOnlySdqBasedSqpOcPolicy(UniversalPolicy, nn.Module):
             bounds=self.bounds,
         )
         next_goal_state = result.x[:self.observation_dim]
-        print("next goal - current state", next_goal_state - obs)
-        print("actual goal - next goal", self._goal_np - next_goal_state)
         action = self.get_np_action(obs, next_goal_state)
         if np.isnan(action).any():
             logger.log("WARNING: SLSQP returned nan. Adding noise to last "

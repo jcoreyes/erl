@@ -132,7 +132,7 @@ class DDPG(OnlineAlgorithm):
 
     def _do_training(self, n_steps_total):
         for i in range(self.number_of_gradient_steps):
-            batch = self.get_batch()
+            batch = self.get_batch(training=True)
             train_dict = self.get_train_dict(batch)
 
             self.policy_optimizer.zero_grad()
@@ -341,12 +341,6 @@ class DDPG(OnlineAlgorithm):
 
         return statistics
 
-    def _can_evaluate(self, exploration_paths):
-        return (
-            len(exploration_paths) > 0
-            and self.replay_buffer.num_steps_can_sample() > 0
-        )
-
     def get_epoch_snapshot(self, epoch):
         return dict(
             epoch=epoch,
@@ -355,7 +349,6 @@ class DDPG(OnlineAlgorithm):
             exploration_policy=self.exploration_policy,
             qf=self.qf,
             batch_size=self.batch_size,
-            algorithm=self,
         )
 
     def get_extra_data_to_save(self, epoch):

@@ -80,7 +80,7 @@ left_exp = dict(
                 'loss':'huber',
                 'huber_delta':10,
                 'experiment':experiments[2],
-                'reward_magnitude':10,
+                'reward_magnitude':1,
             },
             'es_params': {
                 'max_sigma': .1,

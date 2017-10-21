@@ -12,14 +12,17 @@ import joblib
 import numpy as np
 
 from railrl.policies.state_distance import (
-    SampleOptimalControlPolicy,
+    SoftOcOneStepRewardPolicy,
     TerminalRewardSampleOCPolicy,
     ArgmaxQFPolicy,
     PseudoModelBasedPolicy,
-)
+    SamplePolicyPartialOptimizer)
 from railrl.samplers.util import rollout
 from railrl.torch.pytorch_util import set_gpu_mode
 from rllab.misc import logger
+
+def experiment(variant):
+    pass
 
 if __name__ == "__main__":
 
@@ -45,8 +48,12 @@ if __name__ == "__main__":
                         help='Number of gradient steps for respective policy.')
     parser.add_argument('--mb', action='store_true',
                         help='Use (pseudo-)model-based policy')
+    parser.add_argument('--partial', action='store_true',
+                        help='Use partial state optimizer')
     parser.add_argument('--grid', action='store_true',
                         help='Sample actions from a grid')
+    parser.add_argument('--dt', help='decrement tau', action='store_true')
+    parser.add_argument('--cycle', help='cycle tau', action='store_true')
     args = parser.parse_args()
 
     data = joblib.load(args.file)
@@ -73,10 +80,18 @@ if __name__ == "__main__":
             env,
             sample_size=args.nsamples,
         )
-    elif args.planh == 1:
-        policy = SampleOptimalControlPolicy(
+    elif args.partial:
+        policy = SamplePolicyPartialOptimizer(
             qf,
             env,
+            data['policy'],
+            sample_size=args.nsamples,
+        )
+    elif args.planh == 1:
+        policy = SoftOcOneStepRewardPolicy(
+            qf,
+            env,
+            data['policy'],
             constraint_weight=args.weight,
             sample_size=args.nsamples,
             verbose=args.verbose,
@@ -97,9 +112,11 @@ if __name__ == "__main__":
         print("WARNING: you are overriding the discount factor. Right now "
               "only discount = 0 really makes sense.")
         discount = args.discount
-    policy.set_discount(discount)
+    init_tau = discount
     while True:
         paths = []
+        tau = init_tau
+        policy.set_discount(tau)
         for _ in range(args.num_rollouts):
             goal = env.sample_goal_state_for_rollout()
             if args.verbose:
@@ -118,5 +135,12 @@ if __name__ == "__main__":
                 0,
             )
             paths.append(path)
+            tau -= 1
+            if tau < 0:
+                if args.cycle:
+                    tau = init_tau
+                else:
+                    tau = 0
+            policy.set_discount(tau)
         env.log_diagnostics(paths)
         logger.dump_tabular()
