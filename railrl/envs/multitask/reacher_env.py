@@ -276,6 +276,68 @@ class XyMultitaskSimpleStateReacherEnv(MultitaskReacherEnv):
         )
 
 
+class JointAngleMultitaskSimpleStateReacherEnv(MultitaskReacherEnv):
+    """
+    The goal states are xy-coordinates.
+
+    Furthermore, the actual state space is simplified. ReacherEnv has the
+    following state space:
+        - cos(angle 1)
+        - cos(angle 2)
+        - sin(angle 1)
+        - sin(angle 2)
+        - goal x-coordinate
+        - goal y-coordinate
+        - angle 1 velocity
+        - angle 2 velocity
+        - x-coordinate distance from end effector to goal
+        - y-coordinate distance from end effector to goal
+        - z-coordinate distance from end effector to goal (always zero)
+
+    This environment only has the following:
+        - cos(angle 1)
+        - cos(angle 2)
+        - sin(angle 1)
+        - sin(angle 2)
+        - angle 1 velocity
+        - angle 2 velocity
+
+    since the goal will constantly change.
+    """
+    def sample_goal_states(self, batch_size):
+        angle1 = self.np_random.uniform(-1, 1, size=(batch_size, 1))
+        angle2 = self.np_random.uniform(-1, 1, size=(batch_size, 1))
+        return np.concatenate(
+            (
+                np.cos(angle1),
+                np.cos(angle2),
+                np.sin(angle1),
+                np.sin(angle2),
+            ),
+            axis=1,
+        )
+
+    def convert_obs_to_goal_states(self, obs):
+        return obs[:, :4]
+
+    def set_goal(self, goal_state):
+        self._fixed_goal = position_from_angles(
+            np.expand_dims(goal_state, 0)
+        )[0]
+
+    @property
+    def goal_dim(self):
+        return 4
+
+    def sample_irrelevant_goal_dimensions(self, goal, batch_size):
+        """
+        :param goal: np.ndarray, shape GOAL_DIM
+        :param batch_size:
+        :return: ndarray, shape SAMPLE_SIZE x GOAL_DIM
+        """
+        raise NotImplementedError()
+
+
 class GoalStateSimpleStateReacherEnv(MultitaskReacherEnv):
     """
     The goal state is an actual state (6 dimensions--see parent class), rather
