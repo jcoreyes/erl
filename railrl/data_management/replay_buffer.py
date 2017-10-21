@@ -87,3 +87,12 @@ class ReplayBuffer(object, metaclass=abc.ABCMeta):
             agent_info=path["agent_infos"][-1],
             env_info=path["env_infos"][-1],
         )
+
+    @abc.abstractmethod
+    def random_batch(self, batch_size):
+        """
+        Return a batch of size `batch_size`.
+        :param batch_size:
+        :return:
+        """
+        pass
