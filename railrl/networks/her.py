@@ -27,7 +27,7 @@ class HerQFunction(Mlp):
             **kwargs
         )
 
-    def forward(self, obs, action, goal_state):
+    def forward(self, obs, action, goal_state, _ignored_discount=None):
         h = torch.cat((obs, action, goal_state), dim=1)
         for i, fc in enumerate(self.fcs):
             h = self.hidden_activation(fc(h))
@@ -54,7 +54,7 @@ class HerPolicy(Mlp, UniversalPolicy):
             **kwargs
         )
 
-    def forward(self, obs, goal_state):
+    def forward(self, obs, goal_state, _ignored_discount=None):
         h = torch.cat((obs, goal_state), dim=1)
         for i, fc in enumerate(self.fcs):
             h = self.hidden_activation(fc(h))
