@@ -345,8 +345,8 @@ class GoalStateSimpleStateReacherEnv(MultitaskReacherEnv):
     """
 
     def __init__(self):
-        super().__init__()
         self.multitask_goal = np.zeros(self.goal_dim)
+        super().__init__()
 
     def set_goal(self, goal_state):
         self._fixed_goal = position_from_angles(
