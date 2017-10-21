@@ -143,13 +143,13 @@ if __name__ == '__main__':
     run_mode = "none"
 
     n_seeds = 3
-    # mode = "ec2"
-    # exp_prefix = "sdql-test-vectorized-delta"
+    mode = "ec2"
+    exp_prefix = "sdql-compare-vectorized-delta-normal-big-sweep"
     run_mode = 'grid'
 
     version = "na"
     num_configurations = 50  # for random mode
-    snapshot_mode = "last"
+    snapshot_mode = "gap_and_last"
     snapshot_gap = 10
     use_gpu = True
     if mode != "local":
@@ -164,9 +164,9 @@ if __name__ == '__main__':
     variant = dict(
         version=version,
         algo_params=dict(
-            num_epochs=1001,
-            num_steps_per_epoch=100,
-            num_steps_per_eval=100,
+            num_epochs=101,
+            num_steps_per_epoch=1000,
+            num_steps_per_eval=1000,
             num_updates_per_env_step=10,
             use_soft_update=True,
             tau=0.001,
@@ -225,13 +225,19 @@ if __name__ == '__main__':
     )
     if run_mode == 'grid':
         search_space = {
+            'algo_class': [
+                VectorizedTauSdql,
+                VectorizedDeltaTauSdql,
+                HorizonFedStateDistanceQLearning,
+            ],
             'env_class': [
+                GoalStateSimpleStateReacherEnv,
                 Reacher7DofFullGoalState,
                 JointOnlyPusherEnv,
-                GoalStateSimpleStateReacherEnv,
                 MultitaskPusher2DEnv,
             ],
             'epoch_discount_schedule_params.value': [5, 10, 50],
+            'algo_params.cycle_taus_for_rollout': [True, False],
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
             search_space, default_parameters=variant,
