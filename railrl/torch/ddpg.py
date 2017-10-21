@@ -35,7 +35,7 @@ class DDPG(OnlineAlgorithm):
             tau=1e-2,
             use_soft_update=False,
             replay_buffer=None,
-            number_of_gradient_steps=1,
+            num_updates_per_env_step=1,
             qf_criterion=None,
             residual_gradient_weight=0,
             optimize_target_policy=None,
@@ -55,7 +55,7 @@ class DDPG(OnlineAlgorithm):
         :param tau:
         :param use_soft_update:
         :param replay_buffer:
-        :param number_of_gradient_steps: Number of gradient steps per
+        :param num_updates_per_env_step: Number of gradient steps per
         environment step.
         :param qf_criterion: Loss function to use for the q function. Should
         be a function that takes in two inputs (y_predicted, y_target).
@@ -86,7 +86,7 @@ class DDPG(OnlineAlgorithm):
         self.target_hard_update_period = target_hard_update_period
         self.tau = tau
         self.use_soft_update = use_soft_update
-        self.number_of_gradient_steps=number_of_gradient_steps
+        self.num_updates_per_env_step = num_updates_per_env_step
         self.residual_gradient_weight = residual_gradient_weight
         self.qf_criterion = qf_criterion
         self.optimize_target_policy = optimize_target_policy
@@ -131,7 +131,7 @@ class DDPG(OnlineAlgorithm):
         self.target_qf.cuda()
 
     def _do_training(self, n_steps_total):
-        for i in range(self.number_of_gradient_steps):
+        for i in range(self.num_updates_per_env_step):
             batch = self.get_batch(training=True)
             train_dict = self.get_train_dict(batch)
 
@@ -153,13 +153,15 @@ class DDPG(OnlineAlgorithm):
 
             if self.use_soft_update:
                 if not self.optimize_target_policy:
-                    ptu.soft_update_from_to(self.target_policy, self.policy, self.tau)
+                    ptu.soft_update_from_to(self.target_policy, self.policy,
+                                            self.tau)
                 ptu.soft_update_from_to(self.target_qf, self.qf, self.tau)
             else:
                 if n_steps_total % self.target_hard_update_period == 0:
                     ptu.copy_model_params_from_to(self.qf, self.target_qf)
                     if not self.optimize_target_policy:
-                        ptu.copy_model_params_from_to(self.policy, self.target_policy)
+                        ptu.copy_model_params_from_to(self.policy,
+                                                      self.target_policy)
 
     def get_train_dict(self, batch):
         rewards = batch['rewards']
@@ -189,7 +191,7 @@ class DDPG(OnlineAlgorithm):
         y_target = rewards + (1. - terminals) * self.discount * target_q_values
         y_target = y_target.detach()
         y_pred = self.qf(obs, actions)
-        bellman_errors = (y_pred - y_target)**2
+        bellman_errors = (y_pred - y_target) ** 2
         raw_qf_loss = self.qf_criterion(y_pred, y_target)
 
         if self.residual_gradient_weight > 0:
@@ -204,7 +206,7 @@ class DDPG(OnlineAlgorithm):
                 rewards
                 + (1. - terminals) * self.discount * residual_target_q_values
             )
-            residual_bellman_errors = (y_pred - residual_y_target)**2
+            residual_bellman_errors = (y_pred - residual_y_target) ** 2
             # noinspection PyUnresolvedReferences
             residual_qf_loss = residual_bellman_errors.mean()
             raw_qf_loss = (
@@ -214,7 +216,7 @@ class DDPG(OnlineAlgorithm):
 
         if self.qf_weight_decay > 0:
             reg_loss = self.qf_weight_decay * sum(
-                torch.sum(param**2)
+                torch.sum(param ** 2)
                 for param in self.qf.regularizable_parameters()
             )
             qf_loss = raw_qf_loss + reg_loss
