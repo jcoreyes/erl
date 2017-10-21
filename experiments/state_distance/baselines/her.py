@@ -21,6 +21,7 @@ from railrl.policies.state_distance import TerminalRewardSampleOCPolicy
 from railrl.torch.modules import HuberLoss
 from railrl.torch.state_distance.exploration import \
     UniversalPolicyWrappedWithExplorationStrategy
+import railrl.misc.hyperparameter as hyp
 
 
 def experiment(variant):
@@ -93,10 +94,10 @@ if __name__ == '__main__':
     exp_prefix = "dev-baseline-her"
     run_mode = "none"
 
-    # n_seeds = 3
-    # mode = "ec2"
-    # exp_prefix = "sdql-reacher2d-eval-fix"
-    # run_mode = 'grid'
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "her-baseline-reacher-terminate-when-goal-reached"
+    run_mode = 'grid'
 
     version = "na"
     snapshot_mode = "last"
@@ -106,12 +107,11 @@ if __name__ == '__main__':
         use_gpu = False
 
     max_path_length = 100
-    max_tau = 10
     # noinspection PyTypeChecker
     variant = dict(
         version=version,
         algo_params=dict(
-            num_epochs=101,
+            num_epochs=1001,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             num_updates_per_env_step=10,
@@ -124,6 +124,7 @@ if __name__ == '__main__':
             qf_weight_decay=0.,
             max_path_length=max_path_length,
             render=args.render,
+            terminate_when_goal_reached=True,
         ),
         qf_class=HerQFunction,
         qf_params=dict(
@@ -156,16 +157,41 @@ if __name__ == '__main__':
         ),
         exp_prefix=exp_prefix,
     )
-    for _ in range(n_seeds):
-        seed = random.randint(0, 10000)
-        run_experiment(
-            experiment,
-            exp_prefix=exp_prefix,
-            seed=seed,
-            mode=mode,
-            variant=variant,
-            exp_id=0,
-            use_gpu=use_gpu,
-            snapshot_mode=snapshot_mode,
-            snapshot_gap=snapshot_gap,
+    if run_mode == 'grid':
+        search_space = {
+            'replay_buffer_params.goal_sample_strategy': [
+                'online',
+                'store',
+            ],
+        }
+        sweeper = hyp.DeterministicHyperparameterSweeper(
+            search_space, default_parameters=variant,
         )
+        for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+            for i in range(n_seeds):
+                seed = random.randint(0, 10000)
+                run_experiment(
+                    experiment,
+                    exp_prefix=exp_prefix,
+                    seed=seed,
+                    mode=mode,
+                    variant=variant,
+                    exp_id=0,
+                    use_gpu=use_gpu,
+                    snapshot_mode=snapshot_mode,
+                    snapshot_gap=snapshot_gap,
+                )
+    else:
+        for _ in range(n_seeds):
+            seed = random.randint(0, 10000)
+            run_experiment(
+                experiment,
+                exp_prefix=exp_prefix,
+                seed=seed,
+                mode=mode,
+                variant=variant,
+                exp_id=0,
+                use_gpu=use_gpu,
+                snapshot_mode=snapshot_mode,
+                snapshot_gap=snapshot_gap,
+            )
