@@ -5,6 +5,7 @@ from torch.nn import functional as F
 from torch import optim
 from scipy import optimize
 
+from railrl.networks.base import Mlp
 from railrl.policies.state_distance import UniversalPolicy
 from railrl.pythonplusplus import identity
 from railrl.torch import pytorch_util as ptu
@@ -433,6 +434,33 @@ class VectorizedGoalStructuredUniversalQfunction(PyTorchModule):
             return next_state
         out = - torch.abs(goal_state - next_state)
         return out
+
+
+class GoalConditionedDeltaModel(Mlp):
+    def __init__(
+            self,
+            observation_dim,
+            action_dim,
+            goal_dim,
+            hidden_sizes,
+            **kwargs
+    ):
+        self.save_init_params(locals())
+        super().__init__(
+            observation_dim,
+            action_dim,
+            goal_dim,
+            hidden_sizes,
+            output_size=observation_dim,
+            input_size=observation_dim + goal_dim + action_dim + 1,
+            **kwargs
+        )
+
+    def forward(self, obs, action, goal_state, discount):
+        h = torch.cat((obs, action, goal_state, discount), dim=1)
+        for i, fc in enumerate(self.fcs):
+            h = self.hidden_activation(fc(h))
+        return self.output_activation(self.last_fc(h))
 
 
 class ModelExtractor(PyTorchModule):

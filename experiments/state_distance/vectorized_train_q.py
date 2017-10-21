@@ -11,9 +11,11 @@ import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.algos.state_distance.state_distance_q_learning import \
     HorizonFedStateDistanceQLearning
-from railrl.algos.state_distance.vectorized_sdql import VectorizedSdql, \
-    VectorizedTauSdql
-
+from railrl.algos.state_distance.vectorized_sdql import (
+    VectorizedSdql,
+    VectorizedTauSdql,
+    VectorizedDeltaTauSdql,
+)
 from railrl.envs.multitask.pusher2d import MultitaskPusher2DEnv
 from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
 from railrl.envs.multitask.reacher_7dof import (
@@ -44,7 +46,7 @@ from railrl.misc.ml_util import RampUpSchedule, IntRampUpSchedule, \
 from railrl.networks.state_distance import (
     FFUniversalPolicy,
     VectorizedGoalStructuredUniversalQfunction,
-    GoalStructuredUniversalQfunction)
+    GoalStructuredUniversalQfunction, GoalConditionedDeltaModel)
 from railrl.policies.state_distance import TerminalRewardSampleOCPolicy
 from railrl.torch.modules import HuberLoss
 from railrl.torch.state_distance.exploration import \
@@ -112,6 +114,22 @@ def experiment(variant):
     algo.train()
 
 
+algo_class_to_qf_class = {
+    VectorizedTauSdql: VectorizedGoalStructuredUniversalQfunction,
+    VectorizedDeltaTauSdql: GoalConditionedDeltaModel,
+    HorizonFedStateDistanceQLearning: GoalStructuredUniversalQfunction,
+}
+
+
+def complete_variant(variant):
+    algo_class = variant['algo_class']
+    variant['qf_class'] = algo_class_to_qf_class[algo_class]
+    variant['algo_params']['sparse_reward'] = not (
+        algo_class == VectorizedDeltaTauSdql
+    )
+    return variant
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--replay_path', type=str,
@@ -125,10 +143,8 @@ if __name__ == '__main__':
     run_mode = "none"
 
     n_seeds = 3
-    mode = "ec2"
-    # exp_prefix = "vectorized-train-many-envs-lots-of-data"
-    exp_prefix = "sdql-compare-vectorized"
-    # exp_prefix = "vectorized-train-q-env"
+    # mode = "ec2"
+    # exp_prefix = "sdql-test-vectorized-delta"
     run_mode = 'grid'
 
     version = "na"
@@ -139,22 +155,22 @@ if __name__ == '__main__':
     if mode != "local":
         use_gpu = False
 
-    dataset_path = args.replay_path
-
     max_path_length = 100
     max_tau = 10
     # noinspection PyTypeChecker
+    algo_class = VectorizedTauSdql
+
+    qf_class = algo_class_to_qf_class[algo_class]
     variant = dict(
         version=version,
-        dataset_path=str(dataset_path),
         algo_params=dict(
-            num_epochs=101,
-            num_steps_per_epoch=10000,
-            num_steps_per_eval=10000,
+            num_epochs=1001,
+            num_steps_per_epoch=100,
+            num_steps_per_eval=100,
             num_updates_per_env_step=10,
             use_soft_update=True,
             tau=0.001,
-            batch_size=500,
+            batch_size=64,
             discount=max_tau,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
@@ -172,8 +188,6 @@ if __name__ == '__main__':
             cycle_taus_for_rollout=True,
         ),
         explore_with_ddpg_policy=True,
-        qf_class=VectorizedGoalStructuredUniversalQfunction,
-        # qf_class=GoalStructuredUniversalQfunction,
         qf_params=dict(
             hidden_sizes=[300, 300],
             hidden_activation=F.softplus,
@@ -182,33 +196,21 @@ if __name__ == '__main__':
             fc1_size=300,
             fc2_size=300,
         ),
-        # epoch_discount_schedule_class=IntRampUpSchedule,
         epoch_discount_schedule_class=ConstantSchedule,
         epoch_discount_schedule_params=dict(
-            # value=0.99,
             value=max_tau,
-            # min_value=0,
-            # max_value=100,
-            # ramp_duration=50,
         ),
-        algo_class=VectorizedTauSdql,
+        # algo_class=VectorizedTauSdql,
+        algo_class=VectorizedDeltaTauSdql,
         # algo_class=HorizonFedStateDistanceQLearning,
         # env_class=Reacher7DofFullGoalState,
-        # env_class=ArmEEInStatePusherEnv,
         # env_class=JointOnlyPusherEnv,
-        # env_class=GoalStateSimpleStateReacherEnv,
-        env_class=MultitaskPusher2DEnv,
-        # env_class=XyMultitaskSimpleStateReacherEnv,
-        # env_class=MultitaskPoint2DEnv,
+        env_class=GoalStateSimpleStateReacherEnv,
+        # env_class=MultitaskPusher2DEnv,
         env_params=dict(),
         normalize_params=dict(
             # obs_mean=None,
             # obs_std=[1, 1, 1, 1, 20, 20],
-        ),
-        sampler_params=dict(
-            min_num_steps_to_collect=100000,
-            max_path_length=max_path_length,
-            render=False,
         ),
         sampler_es_class=OUStrategy,
         # sampler_es_class=GaussianStrategy,
@@ -237,6 +239,7 @@ if __name__ == '__main__':
         for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
             for i in range(n_seeds):
                 seed = random.randint(0, 10000)
+                variant = complete_variant(variant)
                 run_experiment(
                     experiment,
                     exp_prefix=exp_prefix,
@@ -251,6 +254,7 @@ if __name__ == '__main__':
     else:
         for _ in range(n_seeds):
             seed = random.randint(0, 10000)
+            variant = complete_variant(variant)
             run_experiment(
                 experiment,
                 exp_prefix=exp_prefix,
