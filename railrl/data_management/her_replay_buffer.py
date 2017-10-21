@@ -14,22 +14,47 @@ class HerReplayBuffer(SimpleReplayBuffer):
      _valid_transition_indices after the corresponding trajectory terminates
     """
     def __init__(
-            self, max_replay_buffer_size, observation_dim, action_dim,
+            self,
+            max_size,
+            observation_dim,
+            action_dim,
             num_goals_to_sample=8,
+            fraction_goal_states_are_rollout_goal_states=None,
+            goal_sample_strategy='store',
     ):
-        super().__init__(max_replay_buffer_size, observation_dim, action_dim)
+        """
+
+        :param max_size:
+        :param observation_dim:
+        :param action_dim:
+        :param num_goals_to_sample:
+        :param fraction_goal_states_are_rollout_goal_states:
+        :param goal_sample_strategy:
+            'store': Just sample `num_goals_to_sample` when you save the
+            tuple as in HER
+            'online': Sample on the fly with every batch
+        """
+        super().__init__(max_size, observation_dim, action_dim)
         self._current_episode_start_index = 0
         # Sample any value in this list
         self._index_to_sampled_goal_states_idxs = (
-            [None] * max_replay_buffer_size
+            [None] * max_size
         )
         # Do NOT sample self._index_to_goal_states_interval[i][1].
         # It's exclusive, like how range(3, 10) does not return 10.
         self._index_to_goal_states_interval = (
-            [None] * max_replay_buffer_size
+            [None] * max_size
         )
         self.num_goals_to_sample = num_goals_to_sample
-        self._goal_states = np.zeros((max_replay_buffer_size, observation_dim))
+        self._goal_states = np.zeros((max_size, observation_dim))
+        if fraction_goal_states_are_rollout_goal_states is None:
+            fraction_goal_states_are_rollout_goal_states = (
+                1. / num_goals_to_sample
+            )
+        self.fraction_goal_states_are_rollout_goal_states = (
+            fraction_goal_states_are_rollout_goal_states
+        )
+        self.goal_sample_strategy = goal_sample_strategy
 
     def _add_sample(self, observation, action, reward, terminal,
                     final_state, goal_state=None, **kwargs):
@@ -108,9 +133,29 @@ class HerReplayBuffer(SimpleReplayBuffer):
             replace=False
         )
         next_indices = (indices + 1) % self._size
-        goal_state_indices = [
-            np.random.choice(self._index_to_sampled_goal_states_idxs[i])
-            for i in indices
+        if self.goal_sample_strategy == 'store':
+            goal_state_indices = [
+                np.random.choice(self._index_to_sampled_goal_states_idxs[i])
+                for i in indices
+            ]
+        else:
+            goal_state_indices = [
+                np.random.choice(list(range(
+                    *self._index_to_goal_states_interval[i]
+                )))
+                for i in indices
+            ]
+        goal_states = self._observations[goal_state_indices]
+        num_rollout_goal_states = int(
+            batch_size * self.fraction_goal_states_are_rollout_goal_states
+        )
+        use_rollout_goal_state_idxs = np.random.choice(
+            list(range(0, batch_size)),
+            size=num_rollout_goal_states,
+            replace=False
+        )
+        goal_states[use_rollout_goal_state_idxs] = self._goal_states[
+            indices[use_rollout_goal_state_idxs]
         ]
         return dict(
             observations=self._observations[indices],
