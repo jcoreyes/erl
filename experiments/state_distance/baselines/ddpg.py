@@ -63,11 +63,11 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-state-distance-ddpg-baseline"
 
-    n_seeds = 5
-    mode = "ec2"
-    exp_prefix = "ddpg-reacher-baseline"
+    # n_seeds = 5
+    # mode = "ec2"
+    # exp_prefix = "ddpg-reacher-baseline"
 
-    num_steps_per_iteration = 1000
+    num_steps_per_iteration = 100
     H = 250
     num_iterations = 1000
     # noinspection PyTypeChecker
@@ -83,7 +83,7 @@ if __name__ == "__main__":
             discount=0.99,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
-            number_of_gradient_steps=1,
+            num_updates_per_env_step=1,
         ),
         version="DDPG",
         normalize_params=dict(
