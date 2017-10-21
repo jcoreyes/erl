@@ -61,7 +61,6 @@ def experiment(variant):
         env,
         **variant['normalize_params']
     )
-
     observation_space = convert_gym_space(env.observation_space)
     action_space = convert_gym_space(env.action_space)
     qf = variant['qf_class'](
@@ -167,7 +166,6 @@ if __name__ == '__main__':
             replay_buffer_size=200000,
             prob_goal_state_is_next_state=0,
             termination_threshold=0,
-            sparse_reward=True,
             render=args.render,
             save_replay_buffer=True,
             cycle_taus_for_rollout=True,

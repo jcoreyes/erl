@@ -81,7 +81,7 @@ class UniversalQfunction(PyTorchModule):
 
 class FlatUniversalQfunction(PyTorchModule):
     """
-    Represent Q(s, a, s_g, \gamma) with a two-alyer FF network.
+    Represent Q(s, a, s_g, \gamma) with a two-layer FF network.
     """
     def __init__(
             self,
