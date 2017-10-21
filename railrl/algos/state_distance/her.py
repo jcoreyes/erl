@@ -60,13 +60,6 @@ class HER(DDPG):
     def _sample_discount_for_rollout(self):
         return self.discount
 
-    def _start_new_rollout(self):
-        self.exploration_policy.reset()
-        self.goal_state = self._sample_goal_state_for_rollout()
-        self.training_env.set_goal(self.goal_state)
-        self.exploration_policy.set_goal(self.goal_state)
-        return self.training_env.reset()
-
     def get_batch(self, training=True):
         batch = super().get_batch(training=training)
         # The original HER paper says to use obs - goal state, but that doesn't
@@ -78,6 +71,14 @@ class HER(DDPG):
         diff_sum = diff.sum(dim=1, keepdim=True)
         batch['rewards'] = -(diff_sum >= self.epsilon).float()
         return batch
+
+    def evaluate(self, epoch, exploration_paths):
+        super().evaluate(epoch, exploration_paths)
+        exploration_batch = self.paths_to_batch(exploration_paths)
+        # TODO(murtaza): add reward to eval code
+        # Compute reward for this batch
+        logger.record_tabular("reward", 123)
+        logger.record_tabular("Returns", 123)
 
     def get_train_dict(self, batch):
         rewards = batch['rewards']
@@ -127,10 +128,41 @@ class HER(DDPG):
 
     @staticmethod
     def paths_to_batch(paths):
+        """
+        Converts
+        [
+            {
+                'rewards': [1, 2],
+                'goal_states': [3, 4],
+                ...
+            },
+            {
+                'rewards': [5, 6],
+                'goal_states': [7, 8],
+                ...
+            },
+        ]
+        into
+        {
+            'rewards': [1, 2, 5, 6],
+            'goal_states': [3, 4, 7, 8],
+            ...
+        },
+
+        :param paths:
+        :return:
+        """
         np_batch = split_paths_to_dict(paths)
         goal_states = [path["goal_states"] for path in paths]
         np_batch['goal_states'] = np.vstack(goal_states)
         return np_to_pytorch_batch(np_batch)
+
+    def _start_new_rollout(self):
+        self.exploration_policy.reset()
+        self.goal_state = self._sample_goal_state_for_rollout()
+        self.training_env.set_goal(self.goal_state)
+        self.exploration_policy.set_goal(self.goal_state)
+        return self.training_env.reset()
 
     def _handle_step(
             self,
@@ -150,7 +182,8 @@ class HER(DDPG):
                 actions=self.action_space.flatten(action),
                 agent_infos=agent_info,
                 env_infos=env_info,
-                goal_states=self.goal_state,
+                goal_states=self.goal_state,  # <- this is where we save the
+                                              # current goal state
             )
 
         self.replay_buffer.add_sample(

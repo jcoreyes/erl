@@ -127,3 +127,14 @@ class MultiTaskBaxterEnv(BaxterEnv, MultitaskEnv):
     def convert_obs_to_goal_states(self, obs):
         return obs[:, 21:24]
 
+    def _get_observation(self):
+        # Just take out desired component
+        # TODO(murtaza)
+        raise NotImplementedError()
+
+    def log_diagnostics(self, paths):
+        # See multitask/reacher_env.py for example
+        # TODO(murtaza)
+        observations = np.vstack([path['observations'] for path in paths])
+        goal_states = np.vstack([path['goal_states'] for path in paths])
+        raise NotImplementedError()
