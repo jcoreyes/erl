@@ -196,9 +196,9 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                         agent_info=agent_info,
                         env_info=env_info,
                     )
+                    self.handle_rollout_ending(n_steps_total, next_ob)
                     observation = self._start_new_rollout()
                     num_paths_total += 1
-                    self.handle_rollout_ending(n_steps_total)
                     if len(self._current_path) > 0:
                         exploration_paths.append(self._current_path.get_all_stacked())
                         self._current_path = Path()
@@ -351,8 +351,11 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             env_info=env_info,
         )
 
-    def handle_rollout_ending(self, n_steps_total):
+    def handle_rollout_ending(self, n_steps_total, final_obs):
         """
         Implement anything that needs to happen after every rollout.
         """
-        pass
+        self._current_path.add_all(
+            final_observation=final_obs,
+            increment_path_length=False,
+        )

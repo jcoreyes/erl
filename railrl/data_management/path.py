@@ -10,13 +10,14 @@ class Path(dict):
         super().__init__()
         self._path_length = 0
 
-    def add_all(self, **key_to_value):
+    def add_all(self, increment_path_length=True, **key_to_value):
         for k, v in key_to_value.items():
             if k not in self:
                 self[k] = [v]
             else:
                 self[k].append(v)
-        self._path_length += 1
+        if increment_path_length:
+            self._path_length += 1
 
     def get_all_stacked(self):
         output_dict = dict()

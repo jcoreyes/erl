@@ -54,7 +54,7 @@ def example(variant):
     if use_gpu and ptu.gpu_enabled():
         algorithm.cuda()
     algorithm.train()
-
+    
 experiments=[
     'joint_angle|fixed_angle', 
     'joint_angle|varying_angle', 

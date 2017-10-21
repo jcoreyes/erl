@@ -128,7 +128,7 @@ if __name__ == '__main__':
 
     # n_seeds = 3
     # mode = "ec2"
-    exp_prefix = "sdql-reacher2d-eval-fix"
+    # exp_prefix = "sdql-reacher2d-eval-fix"
     # run_mode = 'grid'
 
     version = "na"
@@ -149,12 +149,12 @@ if __name__ == '__main__':
         dataset_path=str(dataset_path),
         algo_params=dict(
             num_epochs=101,
-            num_steps_per_epoch=1000,
-            num_steps_per_eval=1000,
+            num_steps_per_epoch=100,
+            num_steps_per_eval=100,
             num_updates_per_env_step=10,
             use_soft_update=True,
             tau=0.001,
-            batch_size=500,
+            batch_size=64,
             discount=5,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
@@ -195,10 +195,10 @@ if __name__ == '__main__':
             # ramp_duration=50,
         ),
         algo_class=HorizonFedStateDistanceQLearning,
-        # env_class=Reacher7DofFullGoalState,
+        env_class=Reacher7DofFullGoalState,
         # env_class=ArmEEInStatePusherEnv,
         # env_class=JointOnlyPusherEnv,
-        env_class=GoalStateSimpleStateReacherEnv,
+        # env_class=GoalStateSimpleStateReacherEnv,
         # env_class=MultitaskPusher2DEnv,
         # env_class=XyMultitaskSimpleStateReacherEnv,
         # env_class=MultitaskPoint2DEnv,

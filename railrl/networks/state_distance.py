@@ -548,7 +548,7 @@ class NumpyModelExtractor(PyTorchModule):
             )
 
 
-class NumpyGoalDirectedModelExtractor(PyTorchModule):
+class NumpyGoalConditionedModelExtractor(PyTorchModule):
     """
     Extract a goal-conditioned model
     """

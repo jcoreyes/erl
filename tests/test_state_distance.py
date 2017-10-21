@@ -55,10 +55,31 @@ class TestMultitaskRollout(unittest.TestCase):
             max_path_length=10,
             animated=False,
             decrement_discount=True,
+            cycle_tau=True,
         )
         self.assertEqual(
             list(path['taus']),
             [5, 4, 3, 2, 1, 0, 5, 4, 3, 2]
+        )
+
+    def test_decrement_tau(self):
+        env = StubMultitaskEnv()
+        policy = StubUniversalPolicy()
+        goal = None
+        tau = 5
+        path = multitask_rollout(
+            env,
+            policy,
+            goal,
+            tau,
+            max_path_length=10,
+            animated=False,
+            decrement_discount=True,
+            cycle_tau=False,
+        )
+        self.assertEqual(
+            list(path['taus']),
+            [5, 4, 3, 2, 1, 0, 0, 0, 0, 0]
         )
 
 

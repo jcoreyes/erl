@@ -17,11 +17,6 @@ def split_paths(paths):
     :param paths:
     :return: Tuple. Every element will have shape batch_size X DIM, including
     the rewards and terminal flags.
-     - rewards
-     - terminal
-     - rewards
-     - rewards
-     - rewards
     """
     rewards = [path["rewards"].reshape(-1, 1) for path in paths]
     terminals = [path["terminals"].reshape(-1, 1) for path in paths]
@@ -30,8 +25,7 @@ def split_paths(paths):
     next_obs = []
     for path in paths:
         next_obs_i = path["observations"][1:, :]
-        next_obs_i = np.vstack((next_obs_i,
-                                np.zeros_like(path["observations"][0:1])))
+        next_obs_i = np.vstack((next_obs_i, path["final_observation"]))
         next_obs.append(next_obs_i)
     rewards = np.vstack(rewards)
     terminals = np.vstack(terminals)
@@ -44,6 +38,7 @@ def split_paths(paths):
     assert len(actions.shape) == 2
     assert len(next_obs.shape) == 2
     return rewards, terminals, obs, actions, next_obs
+
 
 def split_paths_to_dict(paths):
     rewards, terminals, obs, actions, next_obs = split_paths(paths)
@@ -113,6 +108,7 @@ def get_average_returns(paths):
 """
 Logger Util
 """
+
 
 def get_table_key_set(logger):
     return set(key for key, value in logger._tabular)

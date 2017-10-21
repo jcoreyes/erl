@@ -1,5 +1,4 @@
 import math
-import pickle
 import time
 import torch
 from collections import OrderedDict
@@ -10,12 +9,16 @@ import railrl.torch.pytorch_util as ptu
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc.ml_util import StatConditionalSchedule
 from railrl.misc import rllab_util
+from railrl.misc.rllab_util import split_paths_to_dict
 from railrl.networks.state_distance import DuelingStructuredUniversalQfunction
 from railrl.policies.state_distance import UniversalPolicy
 from railrl.samplers.util import rollout
 from railrl.torch.ddpg import DDPG
 from railrl.torch.algos.util import np_to_pytorch_batch
-from railrl.torch.algos.eval import get_difference_statistics
+from railrl.torch.algos.eval import (
+    get_difference_statistics,
+    get_generic_path_information,
+)
 from railrl.misc.tensorboard_logger import TensorboardLogger
 from railrl.torch.state_distance.exploration import UniversalExplorationPolicy
 from rllab.misc import logger
@@ -195,13 +198,7 @@ class StateDistanceQLearning(DDPG):
     def _sample_discount_for_rollout(self):
         return self._sample_discount(1)[0, 0]
 
-    def _paths_to_np_batch(self, paths):
-        np_batch = super()._paths_to_np_batch(paths)
-        goal_states = [path["goal_states"] for path in paths]
-        np_batch['goal_states'] = np.vstack(goal_states)
-        return np_batch
-
-    def evaluate(self, epoch, _):
+    def evaluate(self, epoch, exploration_paths):
         """
         Perform evaluation for this algorithm.
 
@@ -228,6 +225,11 @@ class StateDistanceQLearning(DDPG):
                 ],
             )
         )
+        statistics.update(get_generic_path_information(
+            exploration_paths, self.discount, stat_prefix="Exploration",
+        ))
+        statistics.update(self._statistics_from_paths(exploration_paths,
+                                                      "Exploration"))
 
         statistics['Discount Factor'] = self.discount
 
@@ -351,26 +353,9 @@ class StateDistanceQLearning(DDPG):
 
     @staticmethod
     def paths_to_batch(paths):
-        rewards = [path["rewards"].reshape(-1, 1) for path in paths]
-        terminals = [path["terminals"].reshape(-1, 1) for path in paths]
-        actions = [path["actions"] for path in paths]
-        obs = [path["observations"] for path in paths]
+        np_batch = split_paths_to_dict(paths)
         goal_states = [path["goal_states"] for path in paths]
-        next_obs = []
-        for path in paths:
-            next_obs_i = np.vstack((
-                path["observations"][1:, :],
-                path["final_observation"],
-            ))
-            next_obs.append(next_obs_i)
-        np_batch = dict(
-            rewards=np.vstack(rewards),
-            terminals=np.vstack(terminals),
-            observations=np.vstack(obs),
-            actions=np.vstack(actions),
-            next_observations=np.vstack(next_obs),
-            goal_states=np.vstack(goal_states),
-        )
+        np_batch['goal_states'] = np.vstack(goal_states)
         return np_to_pytorch_batch(np_batch)
 
 
@@ -474,17 +459,6 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             agent_info,
             env_info,
     ):
-        if not self.cycle_taus_for_rollout:
-            return super()._handle_step(
-                num_paths_total,
-                observation,
-                action,
-                reward,
-                terminal,
-                agent_info=agent_info,
-                env_info=env_info,
-            )
-
         if num_paths_total % self.save_exploration_path_period == 0:
             self._current_path.add_all(
                 observations=self.obs_space.flatten(observation),
@@ -493,6 +467,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
                 actions=self.action_space.flatten(action),
                 agent_infos=agent_info,
                 env_infos=env_info,
+                goal_states=self.goal_state,
                 taus=self._rollout_discount,
             )
 
@@ -505,10 +480,11 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             env_info=env_info,
         )
 
-        self._rollout_discount -= 1
-        if self._rollout_discount < 0:
-            self._rollout_discount = self.discount
-        self.exploration_policy.set_discount(self._rollout_discount)
+        if self.cycle_taus_for_rollout:
+            self._rollout_discount -= 1
+            if self._rollout_discount < 0:
+                self._rollout_discount = self.discount
+            self.exploration_policy.set_discount(self._rollout_discount)
 
     def _modify_batch_for_training(self, batch):
         obs = batch['observations']
