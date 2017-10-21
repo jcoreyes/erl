@@ -9,6 +9,7 @@ import railrl.torch.pytorch_util as ptu
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc.ml_util import StatConditionalSchedule
 from railrl.misc import rllab_util
+from railrl.misc.rllab_util import split_paths_to_dict
 from railrl.networks.state_distance import DuelingStructuredUniversalQfunction
 from railrl.policies.state_distance import UniversalPolicy
 from railrl.samplers.util import rollout
@@ -350,27 +351,9 @@ class StateDistanceQLearning(DDPG):
 
     @staticmethod
     def paths_to_batch(paths):
-        # import ipdb; ipdb.set_trace()
-        rewards = [path["rewards"].reshape(-1, 1) for path in paths]
-        terminals = [path["terminals"].reshape(-1, 1) for path in paths]
-        actions = [path["actions"] for path in paths]
-        obs = [path["observations"] for path in paths]
+        np_batch = split_paths_to_dict(paths)
         goal_states = [path["goal_states"] for path in paths]
-        next_obs = []
-        for path in paths:
-            next_obs_i = np.vstack((
-                path["observations"][1:, :],
-                path["final_observation"],
-            ))
-            next_obs.append(next_obs_i)
-        np_batch = dict(
-            rewards=np.vstack(rewards),
-            terminals=np.vstack(terminals),
-            observations=np.vstack(obs),
-            actions=np.vstack(actions),
-            next_observations=np.vstack(next_obs),
-            goal_states=np.vstack(goal_states),
-        )
+        np_batch['goal_states'] = np.vstack(goal_states)
         return np_to_pytorch_batch(np_batch)
 
 
