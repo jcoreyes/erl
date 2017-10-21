@@ -442,10 +442,10 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
         Implement anything that needs to happen before every rollout.
         :return:
         """
+        self._rollout_discount = self.discount
         if not self.cycle_taus_for_rollout:
             return super()._start_new_rollout()
 
-        self._rollout_discount = self.discount
         self.exploration_policy.set_discount(self._rollout_discount)
         return super()._start_new_rollout()
 
