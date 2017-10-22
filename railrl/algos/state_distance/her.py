@@ -78,16 +78,6 @@ class HER(DDPG):
             batch['terminals'] = 1 - (1 - batch['terminals']) * goal_not_reached
         return batch
 
-    def evaluate(self, epoch, exploration_paths):
-        # TODO(murtaza): add reward to eval code
-        super().evaluate(epoch, exploration_paths)
-        rewards = self.get_batch()['rewards']
-        returns = [sum(reward) for reward in rewards]
-        avg_returns = np.mean(returns)
-        logger.record_tabular("reward", rewards)
-        logger.record_tabular("Returns", avg_returns)
-
-
     def get_train_dict(self, batch):
         rewards = batch['rewards']
         terminals = batch['terminals']
