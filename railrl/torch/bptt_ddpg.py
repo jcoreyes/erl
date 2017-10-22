@@ -567,7 +567,7 @@ class BpttDdpg(OnlineAlgorithm):
             qf=self.qf,
         )
 
-    def handle_rollout_ending(self, n_steps_total):
+    def _handle_rollout_ending(self, n_steps_total):
         if not self._can_train():
             return
 
