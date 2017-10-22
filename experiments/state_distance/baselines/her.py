@@ -115,7 +115,7 @@ if __name__ == '__main__':
             num_updates_per_env_step=10,
             use_soft_update=True,
             tau=0.001,
-            batch_size=500,
+            batch_size=64,
             discount=5,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,

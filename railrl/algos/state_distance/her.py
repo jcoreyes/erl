@@ -214,5 +214,25 @@ class HER(DDPG):
             terminal,
             agent_info=agent_info,
             env_info=env_info,
-            goal_states=self.goal_state,
+            goal_state=self.goal_state,
+        )
+
+    def _handle_rollout_ending(
+            self,
+            n_steps_total,
+            final_obs,
+            terminal,
+            agent_info,
+            env_info,
+    ):
+        self._current_path.add_all(
+            final_observation=final_obs,
+            increment_path_length=False,
+        )
+        self.replay_buffer.terminate_episode(
+            final_obs,
+            terminal,
+            agent_info=agent_info,
+            env_info=env_info,
+            goal_state=self.goal_state,
         )

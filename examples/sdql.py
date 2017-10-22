@@ -93,7 +93,8 @@ if __name__ == '__main__':
     use_gpu = True
     max_path_length = 100
     # noinspection PyTypeChecker
-    algo_class = VectorizedDeltaTauSdql
+    algo_class = VectorizedDeltaTauSdql  # <-- should work well enough
+    # algo_class = VectorizedTauSdql # <-- Try this if Delta version does not work
     variant = dict(
         algo_params=dict(
             num_epochs=101,
