@@ -6,7 +6,6 @@ from numpy import linalg
 from robot_info.srv import *
 
 import baxter_interface as bi
-from experiments.murtaza.ros.Sawyer.joint_space_impedance import PDController
 from railrl.misc.data_processing import create_stats_ordered_dict
 from rllab.core.serializable import Serializable
 from rllab.envs.base import Env
@@ -132,9 +131,6 @@ left_safety_box_highs = [
 ]
 
 joint_names = [
-    # '_upper_shoulder',
-    # '_lower_shoulder',
-    # '_upper_elbow',
     '_lower_elbow',
     '_upper_forearm',
     '_lower_forearm',
@@ -224,8 +220,6 @@ class BaxterEnv(Env, Serializable):
 
         self.arm = bi.Limb(self.arm_name)
         self.arm_joint_names = self.arm.joint_names()
-
-        self.PDController = PDController(robot="baxter", limb_name=self.arm_name)
 
         #create a dictionary whose values are functions that set the appropriate values
         action_mode_dict = {

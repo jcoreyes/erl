@@ -142,7 +142,13 @@ if __name__ == '__main__':
         ),
         env_class=JointAngleMultitaskSimpleStateReacherEnv,
         env_params=dict(),
-        normalize_params=dict(),
+        normalize_params=dict(
+            # TODO(murtaz): figure out good values
+            # Give it list not np array!
+            # std=[1,1,1,1,1,20,20,20,20,20]
+            # obs_mean=None,
+            # obs_std=None,
+        ),
         es_class=OUStrategy,
         es_params=dict(
             theta=0.1,
