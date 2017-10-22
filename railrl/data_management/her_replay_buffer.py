@@ -57,6 +57,7 @@ class HerReplayBuffer(EnvReplayBuffer):
 
     def _add_sample(self, observation, action, reward, terminal,
                     final_state, goal_state=None, **kwargs):
+        assert goal_state is not None
         self._observations[self._top] = observation
         self._actions[self._top] = action
         self._rewards[self._top] = reward
@@ -165,25 +166,18 @@ class HerReplayBuffer(EnvReplayBuffer):
             goal_i_minus_obs_i=np.expand_dims(taus, 1),
         )
 
-    def random_batch_all_goal_states_from_trajectory(self, batch_size):
+    def random_batch_for_sl(self, batch_size, max_i_diff):
         indices = np.random.choice(
             self._valid_transition_indices,
             batch_size,
             replace=False
         )
         next_indices = (indices + 1) % self._size
-        if self.goal_sample_strategy == 'store':
-            goal_state_indices = [
-                np.random.choice(self._index_to_sampled_goal_states_idxs[i])
-                for i in indices
-            ]
-        else:
-            goal_state_indices = [
-                np.random.choice(list(range(
-                    *self._index_to_goal_states_interval[i]
-                )))
-                for i in indices
-            ]
+        goal_state_indices = []
+        for i in indices:
+            min_i, max_i = self._index_to_goal_states_interval[i]
+            max_i = min(max_i, i + max_i_diff)
+            goal_state_indices.append(np.random.randint(min_i, max_i+1))
         goal_states = self._observations[goal_state_indices]
         taus = np.array(goal_state_indices) - np.array(indices)
         return dict(

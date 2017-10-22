@@ -189,14 +189,13 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                     env_info=env_info,
                 )
                 if terminal or len(self._current_path) >= self.max_path_length:
-                    # TODO(vitchyr): Move everything into handle_rollout_end
-                    self.replay_buffer.terminate_episode(
+                    self._handle_rollout_ending(
+                        n_steps_total,
                         next_ob,
                         terminal,
                         agent_info=agent_info,
                         env_info=env_info,
                     )
-                    self.handle_rollout_ending(n_steps_total, next_ob)
                     observation = self._start_new_rollout()
                     num_paths_total += 1
                     if len(self._current_path) > 0:
@@ -351,11 +350,24 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             env_info=env_info,
         )
 
-    def handle_rollout_ending(self, n_steps_total, final_obs):
+    def _handle_rollout_ending(
+            self,
+            n_steps_total,
+            final_obs,
+            terminal,
+            agent_info,
+            env_info,
+    ):
         """
         Implement anything that needs to happen after every rollout.
         """
         self._current_path.add_all(
             final_observation=final_obs,
             increment_path_length=False,
+        )
+        self.replay_buffer.terminate_episode(
+            final_obs,
+            terminal,
+            agent_info=agent_info,
+            env_info=env_info,
         )
