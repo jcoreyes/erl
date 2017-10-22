@@ -76,13 +76,11 @@ class HER(DDPG):
     def evaluate(self, epoch, exploration_paths):
         # TODO(murtaza): add reward to eval code
         super().evaluate(epoch, exploration_paths)
-        # exploration_batch = self.paths_to_batch(exploration_paths)
-        # Compute reward for this batch
-        # rewards = self.get_batch()['rewards']
-        # returns = [sum(reward) for reward in rewards]
-        # avg_returns = np.mean(returns)
-        # logger.record_tabular("reward", rewards)
-        # logger.record_tabular("Returns", avg_returns)
+        rewards = self.get_batch()['rewards']
+        returns = [sum(reward) for reward in rewards]
+        avg_returns = np.mean(returns)
+        logger.record_tabular("reward", rewards)
+        logger.record_tabular("Returns", avg_returns)
 
 
     def get_train_dict(self, batch):
