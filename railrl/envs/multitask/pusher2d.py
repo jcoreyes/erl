@@ -27,11 +27,13 @@ class MultitaskPusher2DEnv(Pusher2DEnv, MultitaskEnv):
 
     def set_goal(self, goal):
         self._target_cylinder_position = goal[-2:]
+        self._target_hand_position = goal[-4:-2]
         self._multitask_goal = goal
 
         qpos = self.model.data.qpos.flat.copy()
         qvel = self.model.data.qvel.flat.copy()
-        qpos[-2:] = self._target_cylinder_position
+        qpos[-4:-2] = self._target_cylinder_position
+        qpos[-2:] = self._target_hand_position
         self.set_state(qpos, qvel)
 
     @property
@@ -43,10 +45,6 @@ class MultitaskPusher2DEnv(Pusher2DEnv, MultitaskEnv):
 
     def sample_states(self, batch_size):
         raise NotImplementedError()
-
-    def modify_goal_state_for_rollout(self, goal_state):
-        goal_state[3:6] = 0
-        return goal_state
 
     def log_diagnostics(self, paths):
         super().log_diagnostics(paths)

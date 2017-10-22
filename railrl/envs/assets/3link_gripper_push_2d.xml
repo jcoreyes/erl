@@ -54,6 +54,15 @@
             <joint name="goal_slidex" type="slide" pos="0 0 0" axis="1 0 0" range="-10.3213 10.3" damping="0.5"/>
         </body>
 
+        <body name="hand_goal" pos="0 0 -0.145">
+            <geom rgba="0. 1. 0. 1" type="cylinder" size="0.17 0.005 0.2" density='0.00001' contype="0" conaffinity="0"/>
+            <joint name="hand_goal_slidey" type="slide" pos="0 0 0" axis="0 1
+             0" range="-5 5" damping="0.5"/>
+            <joint name="hand_goal_slidex" type="slide" pos="0 0 0" axis="1 0
+             0"
+                   range="-5 5" damping="0.5"/>
+        </body>
+
     <!-- <geom conaffinity="0" contype="0" density="0.00001" name="object0" pos="-0.384949 0.226851 -0.1" rgba="0.551315 0.719469 0.423106 1" size="0.1 0.1 0.1" type="cylinder" /><geom conaffinity="0" contype="0" density="0.00001" name="object1" pos="0.865376 0.684830 -0.1" rgba="0.480932 0.392118 0.343178 1" size="0.1 0.1 0.1" type="cylinder" /><geom conaffinity="0" contype="0" density="0.00001" name="object2" pos="0.412289 0.438572 -0.1" rgba="0.059678 0.398044 0.737995 1" size="0.1 0.1 0.1" type="cylinder" /><geom conaffinity="0" contype="0" density="0.00001" name="object3" pos="-0.571515 0.175452 -0.1" rgba="0.531551 0.531828 0.634401 1" size="0.1 0.1 0.1" type="cylinder" /><geom conaffinity="0" contype="0" density="0.00001" name="object4" pos="-0.71515 0.075452 -0.1" rgba="0.531551 0.531828 0.634401 1" size="0.1 0.1 0.1" type="cylinder" /> -->
     </worldbody>
 
