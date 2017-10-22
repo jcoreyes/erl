@@ -9,9 +9,10 @@ import numpy as np
 from pathlib import Path
 
 from railrl.algos.state_distance.amortized_oc import \
-    train_amortized_goal_chooser, AmortizedPolicy
-from railrl.envs.multitask.reacher_env import reach_a_point_reward, \
-    REACH_A_POINT_GOAL
+    train_amortized_goal_chooser, AmortizedPolicy, ReacherGoalChooser
+from railrl.envs.multitask.reacher_env import reach_a_joint_config_reward, \
+    REACH_A_POINT_GOAL, reach_a_point_and_move_joints_reward, \
+    reach_a_point_reward
 from railrl.launchers.launcher_util import run_experiment
 from railrl.networks.base import Mlp
 from railrl.samplers.util import rollout
@@ -34,10 +35,13 @@ def experiment(variant):
     """
     Train amortized policy
     """
-    goal_chooser = Mlp(
-        hidden_sizes=[64, 64],
-        output_size=env.goal_dim,
-        input_size=int(env.observation_space.flat_dim),
+    # goal_chooser = Mlp(
+    #     hidden_sizes=[100, 100],
+    #     output_size=env.goal_dim,
+    #     input_size=int(env.observation_space.flat_dim),
+    # )
+    goal_chooser = ReacherGoalChooser(
+        hidden_sizes=[100, 100],
     )
     tau = 5
     if ptu.gpu_enabled():
@@ -48,11 +52,14 @@ def experiment(variant):
         goal_chooser,
         goal_conditioned_model,
         argmax_qf_policy,
-        env,
+        # reach_a_joint_config_reward,
+        # reach_a_point_and_move_joints_reward,
         reach_a_point_reward,
         tau,
         replay_buffer,
-        learning_rate=1e-3
+        learning_rate=1e-3,
+        batch_size=32,
+        num_updates=10000,
     )
     policy = AmortizedPolicy(argmax_qf_policy, goal_chooser, tau)
 
@@ -73,6 +80,11 @@ def experiment(variant):
         paths.append(path)
     env.log_diagnostics(paths)
     logger.dump_tabular(with_timestamp=False)
+    logger.save_itr_params(0, dict(
+        env=env,
+        policy=policy,
+        goal_chooser=goal_chooser,
+    ))
 
 
 if __name__ == '__main__':

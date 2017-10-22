@@ -1,9 +1,13 @@
 import numpy as np
+import torch
 from torch import optim
+from torch.nn import functional as F
 
+from railrl.networks.base import Mlp
 from railrl.policies.base import Policy
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.core import PyTorchModule
+
 
 class AmortizedPolicy(PyTorchModule, Policy):
     def __init__(
@@ -35,22 +39,53 @@ class AmortizedPolicy(PyTorchModule, Policy):
         return ptu.get_numpy(action), {}
 
 
+class ReacherGoalChooser(Mlp):
+    def __init__(
+            self,
+            **kwargs
+    ):
+        self.save_init_params(locals())
+        super().__init__(
+            input_size=6,
+            output_size=4,
+            output_activation=None,
+            **kwargs
+        )
+
+    def forward(self, input):
+        h = input
+        for i, fc in enumerate(self.fcs):
+            h = self.hidden_activation(fc(h))
+        output = self.last_fc(h)
+        output_theta_pre_activation = output[:, :2]
+        theta = np.pi * F.tanh(output_theta_pre_activation)
+        output_vel = output[:, 2:]
+
+        return torch.cat(
+            (
+                torch.cos(theta),
+                torch.sin(theta),
+                output_vel,
+            ),
+            dim=1
+        )
+
+
 def train_amortized_goal_chooser(
         goal_chooser,
         goal_conditioned_model,
         argmax_q,
-        env,
         rewards_py_fctn,
         discount,
         replay_buffer,
-        learning_rate=1e-3
+        learning_rate=1e-3,
+        batch_size=32,
+        num_updates=1000,
 ):
-    batch_size = 32
     discount = ptu.np_to_var(discount * np.ones((batch_size, 1)))
     optimizer = optim.Adam(goal_chooser.parameters(), learning_rate)
-    for _ in range(1000):
+    for _ in range(num_updates):
         obs = replay_buffer.random_batch(batch_size)['observations']
-        # obs = env.sample_states(batch_size)
         obs = ptu.np_to_var(obs, requires_grad=False)
         goal = goal_chooser(obs)
         actions = argmax_q(
