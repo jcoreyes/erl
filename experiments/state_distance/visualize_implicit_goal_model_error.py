@@ -13,12 +13,16 @@ import matplotlib.pyplot as plt
 from matplotlib import colors
 import matplotlib.cm as cm
 
-from railrl.networks.state_distance import NumpyGoalConditionedModelExtractor
+from railrl.networks.state_distance import NumpyGoalConditionedModelExtractor, \
+    GoalConditionedDeltaModel, NumpyGoalConditionedDeltaModelExtractor
 from railrl.policies.simple import UniformRandomPolicy
 
 
 def visualize_error_vs_tau(qf, policy, env, horizon):
-    model = NumpyGoalConditionedModelExtractor(qf)
+    if isinstance(qf, GoalConditionedDeltaModel):
+        model = NumpyGoalConditionedDeltaModelExtractor(qf)
+    else:
+        model = NumpyGoalConditionedModelExtractor(qf)
     actual_state = env.reset()
 
     tau_max = 10
@@ -71,7 +75,10 @@ def visualize_error_vs_tau(qf, policy, env, horizon):
 
 
 def visualize_accumulated_error(qf, policy, env, horizon):
-    model = NumpyGoalConditionedModelExtractor(qf)
+    if isinstance(qf, GoalConditionedDeltaModel):
+        model = NumpyGoalConditionedDeltaModelExtractor(qf)
+    else:
+        model = NumpyGoalConditionedModelExtractor(qf)
     # policy = UniformRandomPolicy(env.action_space)
     actual_state = env.reset()
 

@@ -26,6 +26,7 @@ class HER(DDPG):
             epsilon=1e-4,
             num_steps_per_eval=1000,
             max_path_length=1000,
+            terminate_when_goal_reached=False,
             **kwargs
     ):
         assert isinstance(replay_buffer, SplitReplayBuffer)
@@ -54,6 +55,7 @@ class HER(DDPG):
         assert self.qf_weight_decay == 0
         assert not self.optimize_target_policy
         assert self.residual_gradient_weight == 0
+        self.terminate_when_goal_reached = terminate_when_goal_reached
 
     def _sample_goal_state_for_rollout(self):
         return self.env.sample_goal_state_for_rollout()
@@ -69,8 +71,11 @@ class HER(DDPG):
             self.env.convert_obs_to_goal_states(batch['next_observations'])
             - self.env.convert_obs_to_goal_states(batch['goal_states'])
         )
-        diff_sum = diff.sum(dim=1)
-        batch['rewards'] = -(diff_sum >= self.epsilon).float()
+        diff_sum = diff.sum(dim=1, keepdim=True)
+        goal_not_reached = (diff_sum >= self.epsilon).float()
+        batch['rewards'] = - goal_not_reached
+        if self.terminate_when_goal_reached:
+            batch['terminals'] = 1 - (1 - batch['terminals']) * goal_not_reached
         return batch
 
     def evaluate(self, epoch, exploration_paths):

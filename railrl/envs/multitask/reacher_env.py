@@ -343,6 +343,11 @@ class GoalStateSimpleStateReacherEnv(MultitaskReacherEnv):
     The goal state is an actual state (6 dimensions--see parent class), rather
     than just the XY-coordinate of the target end effector.
     """
+
+    def __init__(self):
+        self.multitask_goal = np.zeros(self.goal_dim)
+        super().__init__()
+
     def set_goal(self, goal_state):
         self._fixed_goal = position_from_angles(
             np.expand_dims(goal_state, 0)
@@ -402,3 +407,27 @@ class GoalStateSimpleStateReacherEnv(MultitaskReacherEnv):
         )
         goals[:, 4:6] = sampled_velocities
         return goals
+
+    def log_diagnostics(self, paths):
+        super().log_diagnostics(paths)
+        statistics = OrderedDict()
+        full_state_go_goal_distance = get_stat_in_dict(
+            paths, 'env_infos', 'full_state_to_goal_distance'
+        )
+        statistics.update(create_stats_ordered_dict(
+            'Final state to goal state distance',
+            full_state_go_goal_distance[:, -1],
+            always_show_all_stats=True,
+        ))
+        for key, value in statistics.items():
+            logger.record_tabular(key, value)
+
+    def _step(self, a):
+        full_state_to_goal_distance = np.linalg.norm(
+            self._get_obs() - self.multitask_goal
+        )
+        ob, reward, done, info_dict = super()._step(a)
+        info_dict['full_state_to_goal_distance'] = (
+            full_state_to_goal_distance
+        )
+        return ob, reward, done, info_dict

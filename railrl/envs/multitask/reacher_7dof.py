@@ -191,6 +191,31 @@ class Reacher7DofFullGoalState(Reacher7DofMultitaskEnv):
 
         return self._get_obs()
 
+    # TODO(vitchyr): get rid of this duplicate code
+    def log_diagnostics(self, paths):
+        super().log_diagnostics(paths)
+        statistics = OrderedDict()
+        full_state_go_goal_distance = get_stat_in_dict(
+            paths, 'env_infos', 'full_state_to_goal_distance'
+        )
+        statistics.update(create_stats_ordered_dict(
+            'Final state to goal state distance',
+            full_state_go_goal_distance[:, -1],
+            always_show_all_stats=True,
+        ))
+        for key, value in statistics.items():
+            logger.record_tabular(key, value)
+
+    def _step(self, a):
+        full_state_to_goal_distance = np.linalg.norm(
+            self._get_obs() - self.multitask_goal
+        )
+        ob, reward, done, info_dict = super()._step(a)
+        info_dict['full_state_to_goal_distance'] = (
+            full_state_to_goal_distance
+        )
+        return ob, reward, done, info_dict
+
 
 class Reacher7DofCosSinFullGoalState(Reacher7DofFullGoalState):
     """

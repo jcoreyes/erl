@@ -62,13 +62,13 @@ class MultitaskPusher2DEnv(Pusher2DEnv, MultitaskEnv):
 
     def log_diagnostics(self, paths):
         super().log_diagnostics(paths)
+        statistics = OrderedDict()
         full_state_go_goal_distance = get_stat_in_dict(
             paths, 'env_infos', 'full_state_to_goal_distance'
-        )[:, -1]
-        statistics = OrderedDict()
+        )
         statistics.update(create_stats_ordered_dict(
             'Final state to goal state distance',
-            full_state_go_goal_distance,
+            full_state_go_goal_distance[:, -1],
             always_show_all_stats=True,
         ))
         for key, value in statistics.items():
