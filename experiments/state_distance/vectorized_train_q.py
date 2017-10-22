@@ -159,10 +159,10 @@ if __name__ == '__main__':
     exp_prefix = "dev-vectorized-train-q"
     run_mode = "none"
 
-    # n_seeds = 3
-    # mode = "ec2"
-    # exp_prefix = "sdql-her-vs-normal-sampling"
-    # run_mode = 'grid'
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "sdql-sweep-sl-num-grads"
+    run_mode = 'grid'
 
     version = "na"
     num_configurations = 50  # for random mode
@@ -227,9 +227,9 @@ if __name__ == '__main__':
         # algo_class=VectorizedTauSdql,
         algo_class=VectorizedDeltaTauSdql,
         # algo_class=HorizonFedStateDistanceQLearning,
-        # env_class=Reacher7DofFullGoalState,
+        env_class=Reacher7DofFullGoalState,
         # env_class=JointOnlyPusherEnv,
-        env_class=GoalStateSimpleStateReacherEnv,
+        # env_class=GoalStateSimpleStateReacherEnv,
         # env_class=MultitaskPusher2DEnv,
         env_params=dict(),
         normalize_params=dict(
@@ -260,11 +260,18 @@ if __name__ == '__main__':
                 # JointOnlyPusherEnv,
                 # MultitaskPusher2DEnv,
             ],
-            'epoch_discount_schedule_params.value': [5, 25],
-            'algo_params.sample_train_goals_from': [
-                'her',
-                'replay_buffer',
-            ]
+            'epoch_discount_schedule_params.value': [10, 25],
+            # 'algo_params.sample_train_goals_from': [
+            #     'her',
+            #     'replay_buffer',
+            # ],
+            'algo_params.num_sl_batches_per_rl_batch': [
+                0,
+                1,
+                2,
+                5,
+                10,
+            ],
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
             search_space, default_parameters=variant,
