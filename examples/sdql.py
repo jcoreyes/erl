@@ -76,6 +76,12 @@ algo_class_to_sparse_reward = {
     HorizonFedStateDistanceQLearning: True,
     StateDistanceQLearning: True,
 }
+algo_class_to_discount = {
+    VectorizedTauSdql: 10,
+    VectorizedDeltaTauSdql: 10,
+    HorizonFedStateDistanceQLearning: 10,
+    StateDistanceQLearning: 0.99,
+}
 
 
 if __name__ == '__main__':
@@ -97,17 +103,18 @@ if __name__ == '__main__':
             use_soft_update=True,
             tau=0.001,
             batch_size=64,
-            discount=0.99,
+            discount=algo_class_to_discount[algo_class],
             sample_goals_from='replay_buffer',
             sample_discount=True,
             qf_weight_decay=0.,
             max_path_length=max_path_length,
-            replay_buffer_size=1000000,
+            replay_buffer_size=200000,
             prob_goal_state_is_next_state=0,
             termination_threshold=0,
             render=args.render,
             save_replay_buffer=True,
             sparse_reward=algo_class_to_sparse_reward[algo_class],
+            cycle_taus_for_rollout=True,
         ),
         qf_params=dict(
             hidden_sizes=[300, 300],
