@@ -109,9 +109,9 @@ if __name__ == '__main__':
     variant = dict(
         version=version,
         algo_params=dict(
-            num_epochs=1001,
+            num_epochs=101,
             num_steps_per_epoch=1000,
-            num_steps_per_eval=1000,
+            num_steps_per_eval=100,
             num_updates_per_env_step=10,
             use_soft_update=True,
             tau=0.001,

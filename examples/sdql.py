@@ -141,8 +141,8 @@ if __name__ == '__main__':
     algo_class = variant['algo_class']
     run_experiment(
         experiment,
-        exp_prefix="sdql-example-check-delta-2",
-        mode="local",
+        exp_prefix="sdql-example-murtaza",
+        mode="ec2",
         variant=variant,
         exp_id=0,
         use_gpu=use_gpu,

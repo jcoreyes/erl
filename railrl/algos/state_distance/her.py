@@ -71,7 +71,8 @@ class HER(DDPG):
             self.env.convert_obs_to_goal_states(batch['next_observations'])
             - self.env.convert_obs_to_goal_states(batch['goal_states'])
         )
-        diff_sum = diff.sum(dim=1, keepdim=True)
+        # diff_sum = diff.sum(dim=1, keepdim=True)
+        diff_sum = diff.sum(dim=1)
         goal_not_reached = (diff_sum >= self.epsilon).float()
         batch['rewards'] = - goal_not_reached
         if self.terminate_when_goal_reached:
@@ -81,8 +82,19 @@ class HER(DDPG):
     def evaluate(self, epoch, exploration_paths):
         # TODO(murtaza): add reward to eval code
         super().evaluate(epoch, exploration_paths)
-        rewards = self.get_batch()['rewards']
-        returns = [sum(reward) for reward in rewards]
+        exploration_batch = self.paths_to_batch(exploration_paths)
+        diff = torch.abs(
+            self.env.convert_obs_to_goal_states(exploration_batch['next_observations'])
+            - self.env.convert_obs_to_goal_states(exploration_batch['goal_states'])
+        )
+        # diff_sum = diff.sum(dim=1, keepdim=True)
+        diff_sum = diff.sum(dim=1)
+        goal_not_reached = (diff_sum >= self.epsilon).float()
+        exploration_batch['rewards'] = - goal_not_reached
+        if self.terminate_when_goal_reached:
+            exploration_batch['terminals'] = 1 - (1 - exploration_batch['terminals']) * goal_not_reached
+        rewards = exploration_batch['rewards']
+        returns = sum(rewards)
         avg_returns = np.mean(returns)
         logger.record_tabular("reward", rewards)
         logger.record_tabular("Returns", avg_returns)

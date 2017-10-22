@@ -1,3 +1,5 @@
+import random
+
 from railrl.envs.wrappers import convert_gym_space
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
@@ -66,8 +68,8 @@ experiments=[
 max_path_length = 1000
 left_exp = dict(
     example=example,
-    exp_prefix="ddpg-baxter-left-arm-fixed-end-effector-task",
-    seed=0,
+    exp_prefix="ddpg-baxter-left-arm-fixed-end-effector-huber-delta-1",
+    seed=random.randint(0, 666),
     mode='local',
     variant={
             'version': 'Original',
@@ -78,7 +80,7 @@ left_exp = dict(
                 'arm_name':'left',
                 'safety_box':False,
                 'loss':'huber',
-                'huber_delta':10,
+                'huber_delta':1,
                 'experiment':experiments[2],
                 'reward_magnitude':1,
             },
@@ -87,11 +89,10 @@ left_exp = dict(
                 'min_sigma': .1,
             },
             'use_gpu':True,
-            'number_of_gradient_steps': 1,
             'algo_params': dict(
                 batch_size=1024,
                 num_epochs=30,
-                number_of_gradient_steps=1,
+                num_updates_per_env_step=1,
                 num_steps_per_epoch=10000,
                 max_path_length=max_path_length,
                 num_steps_per_eval=1000,
@@ -101,34 +102,34 @@ left_exp = dict(
 )
 right_exp = dict(
     example=example,
-    exp_prefix="ddpg-baxter-right-arm-fixed-end-effector",
-    seed=0,
+    exp_prefix="ddpg-baxter-right-arm-fixed-end-effector-MSE",
+    seed=random.randint(0, 666),
     mode='local',
     variant={
         'version': 'Original',
-        'arm_name': 'right',
-        'safety_box': False,
-        'loss': 'huber',
-        'huber_delta': 10,
-        'safety_force_magnitude': 1,
-        'temp': 1.2,
-        'remove_action': False,
-        'experiment': experiments[0],
-        'es_min_sigma': .1,
-        'es_max_sigma': .1,
-        'num_epochs': 30,
-        'batch_size': 1024,
+        'es_class': OUStrategy,
+        'env_class': BaxterEnv,
+        'policy_class': FeedForwardPolicy,
+        'env_params': {
+            'arm_name': 'right',
+            'safety_box': False,
+            'loss': 'MSE',
+            'huber_delta': 1,
+            'experiment': experiments[2],
+            'reward_magnitude': 1,
+        },
+        'es_params': {
+            'max_sigma': .1,
+            'min_sigma': .1,
+        },
         'use_gpu': True,
-        'include_torque_penalty': False,
-        'number_of_gradient_steps': 10,
-        'reward_magnitude': 1,
         'algo_params': dict(
             batch_size=1024,
             num_epochs=30,
-            number_of_gradient_steps=1,
-            num_steps_per_epoch=1000,
+            num_updates_per_env_step=1,
+            num_steps_per_epoch=10000,
             max_path_length=max_path_length,
-            num_steps_per_eval=500,
+            num_steps_per_eval=1000,
         ),
     },
     use_gpu=True,
@@ -140,7 +141,7 @@ if __name__ == "__main__":
     except:
         exp_dir = None
 
-    dictionary = left_exp
+    dictionary = right_exp
     if exp_dir == None:
         run_experiment(
             dictionary['example'],
