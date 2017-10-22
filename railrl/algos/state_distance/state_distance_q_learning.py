@@ -37,7 +37,7 @@ class StateDistanceQLearning(DDPG):
             replay_buffer=None,
             num_epochs=100,
             num_steps_per_epoch=100,
-            sample_train_goals_from='environment',
+            sample_train_goals_from='replay_buffer',
             sample_rollout_goals_from='environment',
             sample_discount=False,
             num_steps_per_eval=1000,
