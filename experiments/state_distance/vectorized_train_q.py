@@ -161,7 +161,7 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "sdql-her-vs-normal-sampling"
+    exp_prefix = "sdql-her-vs-normal-sampling-fixed-her"
     run_mode = 'grid'
 
     version = "na"
@@ -260,10 +260,10 @@ if __name__ == '__main__':
                 # MultitaskPusher2DEnv,
             ],
             'epoch_discount_schedule_params.value': [5, 25],
-            # 'algo_params.sample_train_goals_from': [
-            #     'her',
-            #     'replay_buffer',
-            # ]
+            'algo_params.sample_train_goals_from': [
+                'her',
+                'replay_buffer',
+            ]
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
             search_space, default_parameters=variant,
