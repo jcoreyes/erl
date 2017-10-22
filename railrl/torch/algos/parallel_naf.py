@@ -70,7 +70,7 @@ class ParallelNAF(NAF):
                     agent_info=path["agent_infos"][-1],
                     env_info=path["env_infos"][-1],
                 )
-                self.handle_rollout_ending(n_steps_total)
+                self._handle_rollout_ending(n_steps_total)
 
             if self._can_train():
                 self._do_training(n_steps_total=n_steps_total)
