@@ -447,9 +447,6 @@ class GoalConditionedDeltaModel(Mlp):
     ):
         self.save_init_params(locals())
         super().__init__(
-            observation_dim,
-            action_dim,
-            goal_dim,
             hidden_sizes,
             output_size=observation_dim,
             input_size=observation_dim + goal_dim + action_dim + 1,

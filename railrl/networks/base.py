@@ -9,9 +9,6 @@ from railrl.torch.core import PyTorchModule
 class Mlp(PyTorchModule):
     def __init__(
             self,
-            observation_dim,
-            action_dim,
-            goal_dim,
             hidden_sizes,
             output_size,
             input_size,
