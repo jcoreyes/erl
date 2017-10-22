@@ -42,6 +42,7 @@ from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import get_stat_in_dict
 from rllab.misc import logger
 import torch
+import railrl.torch.pytorch_util as ptu
 
 R1 = 0.1  # from reacher.xml
 R2 = 0.11
@@ -431,3 +432,23 @@ class GoalStateSimpleStateReacherEnv(MultitaskReacherEnv):
             full_state_to_goal_distance
         )
         return ob, reward, done, info_dict
+
+
+"""
+Reward functions for optimal control
+"""
+theta1 = np.pi / 2
+theta2 = np.pi / 2
+REACH_A_POINT_GOAL = np.array([
+    np.cos(theta1),
+    np.cos(theta2),
+    np.sin(theta1),
+    np.sin(theta2),
+    0,
+    0,
+])
+
+
+def reach_a_point_reward(state):
+    goal_pos_pytorch = ptu.np_to_var(REACH_A_POINT_GOAL, requires_grad=False)
+    return - torch.norm(state[:, :4] - goal_pos_pytorch[:4], p=2, dim=1)

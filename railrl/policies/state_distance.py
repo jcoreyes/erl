@@ -2,13 +2,12 @@
 Policies to be used with a state-distance Q function.
 """
 import abc
-import numpy as np
 from itertools import product
-import torch
+
+import numpy as np
+from scipy import optimize
 from torch import nn
 from torch import optim
-
-from scipy import optimize
 
 from railrl.policies.base import ExplorationPolicy, Policy
 from railrl.torch import pytorch_util as ptu
@@ -597,6 +596,7 @@ class StateOnlySdqBasedSqpOcPolicy(UniversalPolicy, nn.Module):
             ).squeeze(0)
         )
 
+
 class UnconstrainedOcWithGoalConditionedModel(SampleBasedUniversalPolicy, nn.Module):
     """
     Make it sublcass nn.Module so that calls to `train` and `cuda` get
@@ -611,6 +611,10 @@ class UnconstrainedOcWithGoalConditionedModel(SampleBasedUniversalPolicy, nn.Mod
         self.env = env
 
     def rewards_np(self, states):
+        # from railrl.envs.multitask.reacher_env import reach_a_point_reward
+        # return ptu.get_numpy(
+        #     reach_a_point_reward(states)
+        # )
         diff = ptu.get_numpy(states) - self._goal_batch_np
         # Uncomment stuff to hardcode OC reward
         # diff = ptu.get_numpy(states)[:, :7] - self._goal_batch_np[:, :7]
