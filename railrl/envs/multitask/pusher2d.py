@@ -11,7 +11,7 @@ from rllab.misc import logger
 
 class MultitaskPusher2DEnv(Pusher2DEnv, MultitaskEnv):
     def __init__(self, goal=(0, -1)):
-        self._multitask_goal = np.zeros(8)
+        self._multitask_goal = np.zeros(self.goal_dim)
         self.init_serialization(locals())
         super().__init__(goal=goal)
 
@@ -19,42 +19,30 @@ class MultitaskPusher2DEnv(Pusher2DEnv, MultitaskEnv):
         return np.random.uniform(self.action_space.low, self.action_space.high)
 
     def sample_goal_states(self, batch_size):
-        return self.sample_states(batch_size)
+        return np.random.uniform(
+            np.array([-1, -1, -1., -1]),
+            np.array([0, 1, 0, 1]),
+            (batch_size, 4)
+        )
 
     def set_goal(self, goal):
-        self._goal = goal[-2:]
+        self._target_cylinder_position = goal[-2:]
         self._multitask_goal = goal
 
         qpos = self.model.data.qpos.flat.copy()
         qvel = self.model.data.qvel.flat.copy()
-        qpos[-2:] = self._goal
+        qpos[-2:] = self._target_cylinder_position
         self.set_state(qpos, qvel)
 
     @property
     def goal_dim(self):
-        return 8
+        return 4
+
+    def convert_obs_to_goal_states(self, obs):
+        return obs[-4:]
 
     def sample_states(self, batch_size):
-        """
-        From XML. Also setting the goal to always be on bottom half.
-        dimension meanings:
-        1. joint 1 angle
-        2. joint 2 angle
-        3. joint 3 angle
-        4. joint 1 angular velocity
-        5. joint 2 angular velocity
-        6. joint 3 angular velocity
-        7. cyclinder y position (not x)
-        8. cyclinder x position
-
-        :param batch_size:
-        :return:
-        """
-        return np.random.uniform(
-            np.array([-2.5, -2.3213, -2.3213, -1, -1, -1, -1., -1]),
-            np.array([2.5, 2.3, 2.3, 1, 1, 1, 0, 1]),
-            (batch_size, 8)
-        )
+        raise NotImplementedError()
 
     def modify_goal_state_for_rollout(self, goal_state):
         goal_state[3:6] = 0
@@ -76,7 +64,8 @@ class MultitaskPusher2DEnv(Pusher2DEnv, MultitaskEnv):
 
     def _step(self, a):
         full_state_to_goal_distance = np.linalg.norm(
-            self._get_obs() - self._multitask_goal
+            self.convert_obs_to_goal_states(self._get_obs())
+            - self._multitask_goal
         )
         ob, reward, done, info_dict = super()._step(a)
         info_dict['full_state_to_goal_distance'] = (
