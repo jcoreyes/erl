@@ -70,6 +70,12 @@ algo_class_to_qf_class = {
     HorizonFedStateDistanceQLearning: GoalStructuredUniversalQfunction,
     StateDistanceQLearning: FlatUniversalQfunction,
 }
+algo_class_to_sparse_reward = {
+    VectorizedTauSdql: False,
+    VectorizedDeltaTauSdql: False,
+    HorizonFedStateDistanceQLearning: True,
+    StateDistanceQLearning: True,
+}
 
 
 if __name__ == '__main__':
@@ -81,6 +87,7 @@ if __name__ == '__main__':
     use_gpu = True
     max_path_length = 100
     # noinspection PyTypeChecker
+    algo_class = VectorizedDeltaTauSdql
     variant = dict(
         algo_params=dict(
             num_epochs=101,
@@ -89,9 +96,9 @@ if __name__ == '__main__':
             num_updates_per_env_step=5,
             use_soft_update=True,
             tau=0.001,
-            batch_size=500,
+            batch_size=64,
             discount=0.99,
-            sample_goals_from='environment',
+            sample_goals_from='replay_buffer',
             sample_discount=True,
             qf_weight_decay=0.,
             max_path_length=max_path_length,
@@ -100,6 +107,7 @@ if __name__ == '__main__':
             termination_threshold=0,
             render=args.render,
             save_replay_buffer=True,
+            sparse_reward=algo_class_to_sparse_reward[algo_class],
         ),
         qf_params=dict(
             hidden_sizes=[300, 300],
@@ -110,8 +118,8 @@ if __name__ == '__main__':
             fc2_size=300,
         ),
         normalize_params=dict(
-            obs_mean=None,
-            obs_std=[0.7, 0.7, 0.7, 0.6, 40, 5],
+            # # obs_mean=None,
+            # obs_std=[0.7, 0.7, 0.7, 0.6, 40, 5],
         ),
         sampler_es_class=OUStrategy,
         sampler_es_params=dict(
@@ -119,13 +127,13 @@ if __name__ == '__main__':
             max_sigma=0.1,
             min_sigma=0.1,
         ),
-        algo_class=VectorizedTauSdql,
+        algo_class=algo_class,
+        qf_class=algo_class_to_qf_class[algo_class]
     )
     algo_class = variant['algo_class']
-    variant['qf_class'] = algo_class_to_qf_class[algo_class]
     run_experiment(
         experiment,
-        exp_prefix="sdql-example",
+        exp_prefix="sdql-example-check-delta-2",
         mode="local",
         variant=variant,
         exp_id=0,
