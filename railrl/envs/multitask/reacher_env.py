@@ -447,8 +447,26 @@ REACH_A_POINT_GOAL = np.array([
     0,
     0,
 ])
+SPEED_GOAL = 1
+DESIRED_POSITION = np.array([-R2, R1])
 
 
-def reach_a_point_reward(state):
+def reach_a_point_reward(states):
+    pos = position_from_angles_pytorch(states)
+    desired_pos = ptu.np_to_var(DESIRED_POSITION, requires_grad=False)
+    return - torch.norm(pos - desired_pos, p=2, dim=1)
+
+
+def reach_a_joint_config_reward(states):
     goal_pos_pytorch = ptu.np_to_var(REACH_A_POINT_GOAL, requires_grad=False)
-    return - torch.norm(state[:, :4] - goal_pos_pytorch[:4], p=2, dim=1)
+    return - torch.norm(states[:, :4] - goal_pos_pytorch[:4], p=2, dim=1)
+
+
+def reach_a_point_and_move_joints_reward(states):
+    pos = position_from_angles_pytorch(states)
+    desired_pos = ptu.np_to_var(DESIRED_POSITION, requires_grad=False)
+    speed = torch.norm(states[:, 2:], p=2, dim=1)
+    return (
+        - torch.abs(speed - SPEED_GOAL)
+        - torch.norm(pos - desired_pos, p=2, dim=1)
+    )
