@@ -6,6 +6,8 @@ from collections import OrderedDict
 import numpy as np
 
 import railrl.torch.pytorch_util as ptu
+from railrl.data_management.her_replay_buffer import HerReplayBuffer
+from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc.ml_util import StatConditionalSchedule
 from railrl.misc import rllab_util
@@ -35,7 +37,8 @@ class StateDistanceQLearning(DDPG):
             replay_buffer=None,
             num_epochs=100,
             num_steps_per_epoch=100,
-            sample_goals_from='environment',
+            sample_train_goals_from='replay_buffer',
+            sample_rollout_goals_from='environment',
             sample_discount=False,
             num_steps_per_eval=1000,
             max_path_length=1000,
@@ -58,6 +61,12 @@ class StateDistanceQLearning(DDPG):
             goal_sampling_function=self.sample_goal_state_for_rollout,
             cycle_taus_for_rollout=False,
         )
+        if sample_train_goals_from == 'her':
+            assert isinstance(replay_buffer, SplitReplayBuffer)
+            assert isinstance(replay_buffer.train_replay_buffer,
+                              HerReplayBuffer)
+            assert isinstance(replay_buffer.validation_replay_buffer,
+                              HerReplayBuffer)
         self.num_goals_for_eval = num_steps_per_eval // max_path_length + 1
         super().__init__(
             env,
@@ -76,8 +85,10 @@ class StateDistanceQLearning(DDPG):
             self.target_qf.set_argmax_policy(self.target_policy)
         self.num_epochs = num_epochs
         self.num_steps_per_epoch = num_steps_per_epoch
-        assert sample_goals_from in ['environment', 'replay_buffer']
-        self.sample_goals_from = sample_goals_from
+        assert sample_train_goals_from in ['environment', 'replay_buffer', 'her']
+        assert sample_rollout_goals_from in ['environment', 'replay_buffer']
+        self.sample_train_goals_from = sample_train_goals_from
+        self.sample_rollout_goals_from = sample_rollout_goals_from
         self.sample_discount = sample_discount
         self.num_updates_per_env_step = num_updates_per_env_step
         self.num_steps_per_tensorboard_update = num_steps_per_tensorboard_update
@@ -135,27 +146,28 @@ class StateDistanceQLearning(DDPG):
             self.batch_size
         )
         batch = replay_buffer.random_batch(batch_size)
-        goal_states = self.sample_goal_states(batch_size)
-        if self.prob_goal_state_is_next_state > 0:
-            num_next_states_as_goal_states = int(
-                self.prob_goal_state_is_next_state * batch_size
-            )
-            goal_states[:num_next_states_as_goal_states] = (
-                batch['next_observations'][:num_next_states_as_goal_states]
-            )
-        batch['goal_states'] = goal_states
+        if self.sample_train_goals_from != 'her':
+            goal_states = self.sample_goal_states_for_training(batch_size)
+            if self.prob_goal_state_is_next_state > 0:
+                num_next_states_as_goal_states = int(
+                    self.prob_goal_state_is_next_state * batch_size
+                )
+                goal_states[:num_next_states_as_goal_states] = (
+                    batch['next_observations'][:num_next_states_as_goal_states]
+                )
+            batch['goal_states'] = goal_states
         if self.termination_threshold > 0:
             batch['terminals'] = np.linalg.norm(
                 self.env.convert_obs_to_goal_states(
                     batch['next_observations']
-                ) - goal_states,
+                ) - batch['goal_states'],
                 axis=1,
             ) <= self.termination_threshold
         batch['rewards'] = self.compute_rewards(
             batch['observations'],
             batch['actions'],
             batch['next_observations'],
-            goal_states,
+            batch['goal_states'],
         )
         torch_batch = np_to_pytorch_batch(batch)
         return torch_batch
@@ -168,10 +180,10 @@ class StateDistanceQLearning(DDPG):
             goal_states,
         )
 
-    def sample_goal_states(self, batch_size):
-        if self.sample_goals_from == 'environment':
+    def sample_goal_states_for_training(self, batch_size):
+        if self.sample_train_goals_from == 'environment':
             return self.env.sample_goal_states(batch_size)
-        elif self.sample_goals_from == 'replay_buffer':
+        elif self.sample_train_goals_from == 'replay_buffer':
             replay_buffer = self.replay_buffer.get_replay_buffer(training=True)
             if replay_buffer.num_steps_can_sample() == 0:
                 # If there's nothing in the replay...just give all zeros
@@ -179,15 +191,29 @@ class StateDistanceQLearning(DDPG):
             batch = replay_buffer.random_batch(batch_size)
             obs = batch['observations']
             return self.env.convert_obs_to_goal_states(obs)
+        elif self.sample_train_goals_from == 'her':
+            raise Exception("Take samples from replay buffer.")
         else:
             raise Exception("Invalid `sample_goals_from`: {}".format(
-                self.sample_goals_from
+                self.sample_train_goals_from
             ))
 
     def sample_goal_state_for_rollout(self):
-        goal_state = self.sample_goal_states(1)[0]
-        goal_state = self.env.modify_goal_state_for_rollout(goal_state)
-        return goal_state
+        if self.sample_rollout_goals_from == 'environment':
+            goal_state = self.env.sample_goal_states(1)[0]
+        elif self.sample_rollout_goals_from == 'replay_buffer':
+            replay_buffer = self.replay_buffer.get_replay_buffer(training=True)
+            if replay_buffer.num_steps_can_sample() == 0:
+                # If there's nothing in the replay...just give all zeros
+                return np.zeros(self.env.goal_dim)
+            batch = replay_buffer.random_batch(0)
+            obs = batch['observations']
+            goal_state = self.env.convert_obs_to_goal_states(obs)[0]
+        else:
+            raise Exception("Invalid `sample_goals_from`: {}".format(
+                self.sample_rollout_goals_from
+            ))
+        return self.env.modify_goal_state_for_rollout(goal_state)
 
     def _sample_discount(self, batch_size):
         if self.sample_discount:
@@ -407,6 +433,8 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             goal_sampling_function=self.sample_goal_state_for_rollout,
             cycle_taus_for_rollout=cycle_taus_for_rollout,
         )
+        assert 1 >= fraction_of_taus_set_to_zero >= 0
+        assert isinstance(discount, int)
         super().__init__(
             env,
             qf,
@@ -418,7 +446,6 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             max_path_length=max_path_length,
             **kwargs
         )
-        assert 1 >= fraction_of_taus_set_to_zero >= 0
         self.sparse_reward = sparse_reward
         self.fraction_of_taus_set_to_zero = fraction_of_taus_set_to_zero
         self.clamp_q_target_values = clamp_q_target_values
