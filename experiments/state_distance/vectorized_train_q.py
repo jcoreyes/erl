@@ -164,11 +164,11 @@ if __name__ == '__main__':
     run_mode = "none"
 
     # n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "sdql-sl-sweep-sum-grad-before-apply-weight"
-    run_mode = 'grid'
+    # mode = "ec2"
+    exp_prefix = "local-sdql-check-l1-norm-works"
+    # run_mode = 'grid'
 
-    version = "na"
+    version = "l2"
     num_configurations = 50  # for random mode
     snapshot_mode = "last"
     snapshot_gap = 10
@@ -186,7 +186,7 @@ if __name__ == '__main__':
     variant = dict(
         version=version,
         algo_params=dict(
-            num_epochs=101,
+            num_epochs=51,
             num_steps_per_epoch=100,
             num_steps_per_eval=100,
             num_updates_per_env_step=5,
@@ -230,12 +230,12 @@ if __name__ == '__main__':
             value=max_tau,
         ),
         algo_class=algo_class,
-        # env_class=Reacher7DofFullGoalState,
+        env_class=Reacher7DofFullGoalState,
         # env_class=JointOnlyPusherEnv,
         # env_class=GoalStateSimpleStateReacherEnv,
         # env_class=HandCylinderXYPusher2DEnv,
         # env_class=CylinderXYPusher2DEnv,
-        env_class=FullStatePusher2DEnv,
+        # env_class=FullStatePusher2DEnv,
         env_params=dict(),
         normalize_params=dict(
             # obs_mean=None,
@@ -260,7 +260,7 @@ if __name__ == '__main__':
                 # HorizonFedStateDistanceQLearning,
             ],
             'env_class': [
-                # GoalStateSimpleStateReacherEnv,
+                GoalStateSimpleStateReacherEnv,
                 Reacher7DofFullGoalState,
                 # JointOnlyPusherEnv,
                 # MultitaskPusher2DEnv,
@@ -278,16 +278,16 @@ if __name__ == '__main__':
             #     'her',
             #     'replay_buffer',
             # ],
-            'algo_params.num_sl_batches_per_rl_batch': [
-                1,
-                0,
-                5,
-            ],
-            'algo_params.sl_grad_weight': [
-                0.01,
-                1,
-                0.1,
-            ],
+            # 'algo_params.num_sl_batches_per_rl_batch': [
+            #     1,
+            #     0,
+            #     5,
+            # ],
+            # 'algo_params.sl_grad_weight': [
+            #     0.01,
+            #     1,
+            #     0.1,
+            # ],
             # 'her_replay_buffer_params'
             # '.fraction_goal_states_are_rollout_goal_states': [
             #     None,
