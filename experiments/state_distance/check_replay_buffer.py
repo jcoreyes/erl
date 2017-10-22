@@ -38,13 +38,14 @@ def main(dataset_path, only_load_buffer=False, pause_at_end=False):
             env = replay_buffer.train_replay_buffer._env
 
     train_replay_buffer = replay_buffer.train_replay_buffer
-    obs = train_replay_buffer._observations[:train_replay_buffer._size, :]
+    size = train_replay_buffer._size
+    obs = train_replay_buffer._observations[:size, :]
+    obs_delta = obs[1:size, :] - obs[:size-1, :]
+    actions = train_replay_buffer._actions[:size]
+    # Actions corresponding to final_state=True are nans
+    actions = actions[~np.isnan(actions).any(axis=1)]
+
     obs_dim = obs.shape[-1]
-    obs_delta = (
-        obs[1:train_replay_buffer._size, :]
-        - obs[:train_replay_buffer._size-1, :]
-    )
-    actions = train_replay_buffer._actions
     action_dim = actions.shape[-1]
 
     """
@@ -99,7 +100,7 @@ def main(dataset_path, only_load_buffer=False, pause_at_end=False):
     print("min", repr(np.min(actions, axis=0)))
     print("max", repr(np.max(actions, axis=0)))
 
-    print("# data points = {}".format(train_replay_buffer._size))
+    print("# data points = {}".format(size))
 
     """
     Plot s_{t+1} - s_t
