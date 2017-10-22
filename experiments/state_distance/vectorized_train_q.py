@@ -144,7 +144,7 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "sdql-compare-vectorized-delta-normal-big-sweep"
+    exp_prefix = "sdql-short-cycle-check"
     run_mode = 'grid'
 
     version = "na"
@@ -165,9 +165,9 @@ if __name__ == '__main__':
         version=version,
         algo_params=dict(
             num_epochs=101,
-            num_steps_per_epoch=1000,
+            num_steps_per_epoch=100,
             num_steps_per_eval=1000,
-            num_updates_per_env_step=10,
+            num_updates_per_env_step=5,
             use_soft_update=True,
             tau=0.001,
             batch_size=64,
@@ -203,9 +203,9 @@ if __name__ == '__main__':
         # algo_class=VectorizedTauSdql,
         algo_class=VectorizedDeltaTauSdql,
         # algo_class=HorizonFedStateDistanceQLearning,
-        # env_class=Reacher7DofFullGoalState,
+        env_class=Reacher7DofFullGoalState,
         # env_class=JointOnlyPusherEnv,
-        env_class=GoalStateSimpleStateReacherEnv,
+        # env_class=GoalStateSimpleStateReacherEnv,
         # env_class=MultitaskPusher2DEnv,
         env_params=dict(),
         normalize_params=dict(
@@ -228,16 +228,16 @@ if __name__ == '__main__':
             'algo_class': [
                 VectorizedTauSdql,
                 VectorizedDeltaTauSdql,
-                HorizonFedStateDistanceQLearning,
+                # HorizonFedStateDistanceQLearning,
             ],
             'env_class': [
-                GoalStateSimpleStateReacherEnv,
+                # GoalStateSimpleStateReacherEnv,
                 Reacher7DofFullGoalState,
-                JointOnlyPusherEnv,
-                MultitaskPusher2DEnv,
+                # JointOnlyPusherEnv,
+                # MultitaskPusher2DEnv,
             ],
-            'epoch_discount_schedule_params.value': [5, 10, 50],
-            'algo_params.cycle_taus_for_rollout': [True, False],
+            'epoch_discount_schedule_params.value': [5, 10, 25],
+            'algo_params.cycle_taus_for_rollout': [False, True],
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
             search_space, default_parameters=variant,
