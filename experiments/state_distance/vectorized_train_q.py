@@ -161,7 +161,7 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "sdql-sweep-sl-num-grads"
+    exp_prefix = "sdql-her-sweep-frac-from-rollout"
     run_mode = 'grid'
 
     version = "na"
@@ -181,10 +181,10 @@ if __name__ == '__main__':
     variant = dict(
         version=version,
         algo_params=dict(
-            num_epochs=101,
+            num_epochs=51,
             num_steps_per_epoch=100,
             num_steps_per_eval=1000,
-            num_updates_per_env_step=5,
+            num_updates_per_env_step=1,
             use_soft_update=True,
             tau=0.001,
             batch_size=64,
@@ -204,7 +204,7 @@ if __name__ == '__main__':
             save_replay_buffer=True,
             sparse_reward=True,
             cycle_taus_for_rollout=True,
-            num_sl_batches_per_rl_batch=1,
+            num_sl_batches_per_rl_batch=0,
         ),
         her_replay_buffer_params=dict(
             max_size=replay_buffer_size,
@@ -250,7 +250,7 @@ if __name__ == '__main__':
     if run_mode == 'grid':
         search_space = {
             'algo_class': [
-                VectorizedTauSdql,
+                # VectorizedTauSdql,
                 VectorizedDeltaTauSdql,
                 # HorizonFedStateDistanceQLearning,
             ],
@@ -265,13 +265,20 @@ if __name__ == '__main__':
             #     'her',
             #     'replay_buffer',
             # ],
-            'algo_params.num_sl_batches_per_rl_batch': [
+            # 'algo_params.num_sl_batches_per_rl_batch': [
+            #     0,
+            #     1,
+            #     2,
+            #     5,
+            #     10,
+            # ],
+            'her_replay_buffer_params'
+            '.fraction_goal_states_are_rollout_goal_states': [
+                None,
                 0,
+                0.5,
                 1,
-                2,
-                5,
-                10,
-            ],
+            ]
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
             search_space, default_parameters=variant,
