@@ -145,22 +145,53 @@ class HerReplayBuffer(EnvReplayBuffer):
                 for i in indices
             ]
         goal_states = self._observations[goal_state_indices]
-        num_rollout_goal_states = int(
+        taus = np.array(goal_state_indices) - np.array(indices)
+        taus = taus.astype(float)
+        num_goal_states_are_from_rollout = int(
             batch_size * self.fraction_goal_states_are_rollout_goal_states
         )
-        use_rollout_goal_state_idxs = np.random.choice(
-            list(range(0, batch_size)),
-            size=num_rollout_goal_states,
-            replace=False
-        )
-        goal_states[use_rollout_goal_state_idxs] = self._goal_states[
-            indices[use_rollout_goal_state_idxs]
-        ]
+        if num_goal_states_are_from_rollout > 0:
+            goal_states[:num_goal_states_are_from_rollout] = self._goal_states[
+                indices[:num_goal_states_are_from_rollout]
+            ]
+            taus[:num_goal_states_are_from_rollout] = None
         return dict(
             observations=self._observations[indices],
             actions=self._actions[indices],
             rewards=self._rewards[indices],
             terminals=self._terminals[indices],
             next_observations=self._observations[next_indices],
-            goal_states=self._observations[goal_state_indices],
+            goal_states=goal_states,
+            goal_i_minus_obs_i=np.expand_dims(taus, 1),
+        )
+
+    def random_batch_all_goal_states_from_trajectory(self, batch_size):
+        indices = np.random.choice(
+            self._valid_transition_indices,
+            batch_size,
+            replace=False
+        )
+        next_indices = (indices + 1) % self._size
+        if self.goal_sample_strategy == 'store':
+            goal_state_indices = [
+                np.random.choice(self._index_to_sampled_goal_states_idxs[i])
+                for i in indices
+            ]
+        else:
+            goal_state_indices = [
+                np.random.choice(list(range(
+                    *self._index_to_goal_states_interval[i]
+                )))
+                for i in indices
+            ]
+        goal_states = self._observations[goal_state_indices]
+        taus = np.array(goal_state_indices) - np.array(indices)
+        return dict(
+            observations=self._observations[indices],
+            actions=self._actions[indices],
+            rewards=self._rewards[indices],
+            terminals=self._terminals[indices],
+            next_observations=self._observations[next_indices],
+            goal_states=goal_states,
+            goal_i_minus_obs_i=np.expand_dims(taus, 1),
         )
