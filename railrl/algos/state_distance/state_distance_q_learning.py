@@ -408,6 +408,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             clamp_q_target_values=False,
             cycle_taus_for_rollout=True,
             num_sl_batches_per_rl_batch=0,
+            sl_grad_weight=1,
             **kwargs
     ):
         """
@@ -458,6 +459,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
         self.cycle_taus_for_rollout = cycle_taus_for_rollout
         self._rollout_tau = self.discount
         self.num_sl_batches_per_rl_batch = num_sl_batches_per_rl_batch
+        self.sl_grad_weight = sl_grad_weight
         if self.num_sl_batches_per_rl_batch > 0:
             assert self.sample_train_goals_from == 'her'
         assert isinstance(self.discount, int)
@@ -658,7 +660,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
                 requires_grad=False,
             )
             sl_loss = self.qf_criterion(y_pred, y_target)
-            qf_loss += sl_loss
+            qf_loss += sl_loss * self.sl_grad_weight
 
         return OrderedDict([
             ('Policy Actions', policy_actions),

@@ -163,9 +163,9 @@ if __name__ == '__main__':
     exp_prefix = "dev-vectorized-train-q"
     run_mode = "none"
 
-    n_seeds = 3
+    # n_seeds = 3
     mode = "ec2"
-    exp_prefix = "sdql-delta-pusher2d-envs-sweep"
+    exp_prefix = "sdql-sl-sweep-sum-grad-before-apply-weight"
     run_mode = 'grid'
 
     version = "na"
@@ -176,19 +176,19 @@ if __name__ == '__main__':
     if mode != "local":
         use_gpu = False
 
-    max_path_length = 300
+    max_path_length = 100
     max_tau = 25
     # noinspection PyTypeChecker
-    # algo_class = VectorizedTauSdql
-    algo_class = VectorizedDeltaTauSdql
+    algo_class = VectorizedTauSdql
+    # algo_class = VectorizedDeltaTauSdql
     qf_class = algo_class_to_qf_class[algo_class]
     replay_buffer_size = 200000
     variant = dict(
         version=version,
         algo_params=dict(
             num_epochs=101,
-            num_steps_per_epoch=3000,
-            num_steps_per_eval=3000,
+            num_steps_per_epoch=100,
+            num_steps_per_eval=100,
             num_updates_per_env_step=5,
             use_soft_update=True,
             tau=0.001,
@@ -209,6 +209,7 @@ if __name__ == '__main__':
             save_replay_buffer=True,
             cycle_taus_for_rollout=True,
             num_sl_batches_per_rl_batch=0,
+            sl_grad_weight=1,
         ),
         her_replay_buffer_params=dict(
             max_size=replay_buffer_size,
@@ -254,31 +255,39 @@ if __name__ == '__main__':
     if run_mode == 'grid':
         search_space = {
             'algo_class': [
-                # VectorizedTauSdql,
+                VectorizedTauSdql,
                 VectorizedDeltaTauSdql,
                 # HorizonFedStateDistanceQLearning,
             ],
             'env_class': [
                 # GoalStateSimpleStateReacherEnv,
-                # Reacher7DofFullGoalState,
+                Reacher7DofFullGoalState,
                 # JointOnlyPusherEnv,
                 # MultitaskPusher2DEnv,
-                HandCylinderXYPusher2DEnv,
-                CylinderXYPusher2DEnv,
-                FullStatePusher2DEnv,
+                # HandCylinderXYPusher2DEnv,
+                # CylinderXYPusher2DEnv,
+                # FullStatePusher2DEnv,
             ],
-            'epoch_discount_schedule_params.value': [5, 10, 25, 50],
+            'epoch_discount_schedule_params.value': [
+                5,
+                # 10,
+                25,
+                # 50,
+            ],
             # 'algo_params.sample_train_goals_from': [
             #     'her',
             #     'replay_buffer',
             # ],
-            # 'algo_params.num_sl_batches_per_rl_batch': [
-            #     1,
-            #     2,
-            #     5,
-            #     0,
-            #     10,
-            # ],
+            'algo_params.num_sl_batches_per_rl_batch': [
+                1,
+                0,
+                5,
+            ],
+            'algo_params.sl_grad_weight': [
+                0.01,
+                1,
+                0.1,
+            ],
             # 'her_replay_buffer_params'
             # '.fraction_goal_states_are_rollout_goal_states': [
             #     None,
