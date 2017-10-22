@@ -16,6 +16,8 @@ from railrl.algos.state_distance.vectorized_sdql import (
     VectorizedTauSdql,
     VectorizedDeltaTauSdql,
 )
+from railrl.data_management.her_replay_buffer import HerReplayBuffer
+from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.multitask.pusher2d import MultitaskPusher2DEnv
 from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
 from railrl.envs.multitask.reacher_7dof import (
@@ -100,6 +102,17 @@ def experiment(variant):
         exploration_strategy=es,
         policy=raw_exploration_policy,
     )
+    replay_buffer = SplitReplayBuffer(
+        HerReplayBuffer(
+            env=env,
+            **variant['replay_buffer_params'],
+        ),
+        HerReplayBuffer(
+            env=env,
+            **variant['replay_buffer_params'],
+        ),
+        fraction_paths_in_train=0.8,
+    )
     algo = variant['algo_class'](
         env,
         qf,
@@ -107,6 +120,7 @@ def experiment(variant):
         exploration_policy,
         epoch_discount_schedule=epoch_discount_schedule,
         qf_criterion=qf_criterion,
+        replay_buffer=replay_buffer,
         **variant['algo_params']
     )
     if ptu.gpu_enabled():
@@ -142,10 +156,10 @@ if __name__ == '__main__':
     exp_prefix = "dev-vectorized-train-q"
     run_mode = "none"
 
-    n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "sdql-short-cycle-check"
-    run_mode = 'grid'
+    # n_seeds = 3
+    # mode = "ec2"
+    # exp_prefix = "sdql-short-cycle-check"
+    # run_mode = 'grid'
 
     version = "na"
     num_configurations = 50  # for random mode
@@ -175,7 +189,7 @@ if __name__ == '__main__':
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
             # sample_goals_from='environment',
-            sample_goals_from='replay_buffer',
+            sample_goals_from='her',
             sample_discount=True,
             qf_weight_decay=0.,
             max_path_length=max_path_length,
@@ -186,6 +200,11 @@ if __name__ == '__main__':
             save_replay_buffer=True,
             sparse_reward=True,
             cycle_taus_for_rollout=True,
+        ),
+        replay_buffer_params=dict(
+            max_size=200000,
+            num_goals_to_sample=4,
+            goal_sample_strategy='online',
         ),
         explore_with_ddpg_policy=True,
         qf_params=dict(
@@ -203,9 +222,9 @@ if __name__ == '__main__':
         # algo_class=VectorizedTauSdql,
         algo_class=VectorizedDeltaTauSdql,
         # algo_class=HorizonFedStateDistanceQLearning,
-        env_class=Reacher7DofFullGoalState,
+        # env_class=Reacher7DofFullGoalState,
         # env_class=JointOnlyPusherEnv,
-        # env_class=GoalStateSimpleStateReacherEnv,
+        env_class=GoalStateSimpleStateReacherEnv,
         # env_class=MultitaskPusher2DEnv,
         env_params=dict(),
         normalize_params=dict(
