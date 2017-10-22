@@ -2,7 +2,7 @@ from collections import OrderedDict
 
 from numpy.linalg import linalg
 
-from railrl.envs.ros.baxter_env import BaxterEnv
+from railrl.envs.ros.baxter_env import SawyerEnv
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 import numpy as np
 import baxter_interface as bi
@@ -152,7 +152,7 @@ experiments=[
 ]
 
 
-class MultiTaskBaxterEnv(BaxterEnv, MultitaskEnv):
+class MultiTaskBaxterEnv(SawyerEnv, MultitaskEnv):
     def __init__(
             self,
             arm_name,
@@ -160,7 +160,7 @@ class MultiTaskBaxterEnv(BaxterEnv, MultitaskEnv):
             update_hz=20,
             action_mode='torque',
             remove_action=False,
-            safety_box=False,
+            safety_box=True,
             loss='huber',
             huber_delta=10,
             safety_force_magnitude=2,
