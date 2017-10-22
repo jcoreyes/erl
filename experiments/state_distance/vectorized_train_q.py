@@ -163,10 +163,10 @@ if __name__ == '__main__':
     exp_prefix = "dev-vectorized-train-q"
     run_mode = "none"
 
-    # n_seeds = 3
-    # mode = "ec2"
-    # exp_prefix = "local-sdql-sl-num-grad-sweep"
-    # run_mode = 'grid'
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "sdql-delta-pusher2d-envs-sweep"
+    run_mode = 'grid'
 
     version = "na"
     num_configurations = 50  # for random mode
@@ -186,9 +186,9 @@ if __name__ == '__main__':
     variant = dict(
         version=version,
         algo_params=dict(
-            num_epochs=51,
-            num_steps_per_epoch=300,
-            num_steps_per_eval=900,
+            num_epochs=101,
+            num_steps_per_epoch=3000,
+            num_steps_per_eval=3000,
             num_updates_per_env_step=5,
             use_soft_update=True,
             tau=0.001,
@@ -260,22 +260,25 @@ if __name__ == '__main__':
             ],
             'env_class': [
                 # GoalStateSimpleStateReacherEnv,
-                Reacher7DofFullGoalState,
+                # Reacher7DofFullGoalState,
                 # JointOnlyPusherEnv,
                 # MultitaskPusher2DEnv,
+                HandCylinderXYPusher2DEnv,
+                CylinderXYPusher2DEnv,
+                FullStatePusher2DEnv,
             ],
-            # 'epoch_discount_schedule_params.value': [10, 25],
+            'epoch_discount_schedule_params.value': [5, 10, 25, 50],
             # 'algo_params.sample_train_goals_from': [
             #     'her',
             #     'replay_buffer',
             # ],
-            'algo_params.num_sl_batches_per_rl_batch': [
-                # 1,
-                # 2,
-                5,
-                0,
-                # 10,
-            ],
+            # 'algo_params.num_sl_batches_per_rl_batch': [
+            #     1,
+            #     2,
+            #     5,
+            #     0,
+            #     10,
+            # ],
             # 'her_replay_buffer_params'
             # '.fraction_goal_states_are_rollout_goal_states': [
             #     None,
