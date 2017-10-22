@@ -58,3 +58,18 @@ class SplitReplayBuffer(ReplayBuffer):
 
     def __getattr__(self, attrname):
         return getattr(self.replay_buffer, attrname)
+
+    def __getstate__(self):
+        # Do not save self.replay_buffer since it's a duplicate and seems to
+        # cause joblib recursion issues.
+        return dict(
+            train_replay_buffer=self.train_replay_buffer,
+            validation_replay_buffer=self.validation_replay_buffer,
+            fraction_paths_in_train=self.fraction_paths_in_train,
+        )
+
+    def __setstate__(self, d):
+        self.train_replay_buffer = d['train_replay_buffer']
+        self.validation_replay_buffer = d['validation_replay_buffer']
+        self.fraction_paths_in_train = d['fraction_paths_in_train']
+        self.replay_buffer = self.train_replay_buffer

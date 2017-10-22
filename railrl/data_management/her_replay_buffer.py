@@ -45,7 +45,7 @@ class HerReplayBuffer(EnvReplayBuffer):
             [None] * max_size
         )
         self.num_goals_to_sample = num_goals_to_sample
-        self._goal_states = np.zeros((max_size, self._observation_dim))
+        self._goal_states = np.zeros((max_size, self._env.goal_dim))
         if fraction_goal_states_are_rollout_goal_states is None:
             fraction_goal_states_are_rollout_goal_states = (
                 1. / num_goals_to_sample
@@ -145,7 +145,9 @@ class HerReplayBuffer(EnvReplayBuffer):
                 )))
                 for i in indices
             ]
-        goal_states = self._observations[goal_state_indices]
+        goal_states = self._env.convert_obs_to_goal_states(
+            self._observations[goal_state_indices]
+        )
         taus = np.array(goal_state_indices) - np.array(indices)
         taus = taus.astype(float)
         num_goal_states_are_from_rollout = int(
@@ -178,7 +180,9 @@ class HerReplayBuffer(EnvReplayBuffer):
             min_i, max_i = self._index_to_goal_states_interval[i]
             max_i = min(max_i, i + max_i_diff)
             goal_state_indices.append(np.random.randint(min_i, max_i+1))
-        goal_states = self._observations[goal_state_indices]
+        goal_states = self._env.convert_obs_to_goal_states(
+            self._observations[goal_state_indices]
+        )
         taus = np.array(goal_state_indices) - np.array(indices)
         return dict(
             observations=self._observations[indices],

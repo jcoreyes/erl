@@ -6,7 +6,7 @@ from hyperopt import hp
 from torch import nn as nn
 from torch.nn import functional as F
 
-from railrl.envs.multitask.pusher2d import MultitaskPusher2DEnv
+from railrl.envs.multitask.pusher2d import HandCylinderXYPusher2DEnv
 from railrl.pythonplusplus import identity
 
 import railrl.misc.hyperparameter as hyp
@@ -233,7 +233,7 @@ if __name__ == '__main__':
                 JointOnlyPusherEnv,
                 Reacher7DofFullGoalState,
                 GoalStateSimpleStateReacherEnv,
-                MultitaskPusher2DEnv,
+                HandCylinderXYPusher2DEnv,
                 MultitaskPoint2DEnv,
             ],
             # 'env_class': [

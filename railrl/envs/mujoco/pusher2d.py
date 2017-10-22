@@ -10,17 +10,14 @@ from rllab.misc import logger
 
 
 class Pusher2DEnv(MujocoEnv, metaclass=abc.ABCMeta):
-    """
-
-    """
-
     FILE = '3link_gripper_push_2d.xml'
 
     def __init__(self, goal=(0, -1)):
         self.init_serialization(locals())
         if not isinstance(goal, np.ndarray):
             goal = np.array(goal)
-        self._goal = goal
+        self._target_cylinder_position = goal
+        self._target_hand_position = goal
         super().__init__(
             '3link_gripper_push_2d.xml',
             frame_skip=5,
@@ -28,19 +25,23 @@ class Pusher2DEnv(MujocoEnv, metaclass=abc.ABCMeta):
         )
 
     def _step(self, a):
-        arm_to_object_distance = np.linalg.norm(
+        hand_to_object_distance = np.linalg.norm(
             self.get_body_com("distal_4") - self.get_body_com("object")
         )
         object_to_goal_distance = np.linalg.norm(
             self.get_body_com("goal") - self.get_body_com("object")
         )
-        reward = - arm_to_object_distance - object_to_goal_distance
+        hand_to_hand_goal_distance = np.linalg.norm(
+            self.get_body_com("distal_4") - self.get_body_com("hand_goal")
+        )
+        reward = - hand_to_object_distance - object_to_goal_distance
 
         self.do_simulation(a, self.frame_skip)
         ob = self._get_obs()
         done = False
         return ob, reward, done, dict(
-            arm_to_object_distance=arm_to_object_distance,
+            hand_to_hand_goal_distance=hand_to_hand_goal_distance,
+            hand_to_object_distance=hand_to_object_distance,
             object_to_goal_distance=object_to_goal_distance,
         )
 
@@ -63,18 +64,17 @@ class Pusher2DEnv(MujocoEnv, metaclass=abc.ABCMeta):
             + self.init_qpos.squeeze()
         )
         qpos[-3:] = self.init_qpos.squeeze()[-3:]
-        # x and y are flipped
-        object_pos = np.random.uniform(
-            np.array([-1, 0.3]),
-            np.array([-0.4, 1.0]),
+        # Object position
+        obj_pos = np.random.uniform(
+            #         y      x
+            np.array([-0.8, 0.3]),
+            np.array([-0.3, 0.8]),
         )
-        self.object = object_pos
-
-        qpos[-4:-2] = self.object
-        qpos[-2:] = self._goal
+        qpos[-6:-4] = obj_pos
+        qpos[-4:-2] = self._target_cylinder_position
+        qpos[-2:] = self._target_hand_position
         qvel = self.init_qvel.copy().squeeze()
-        qvel[-4:] = 0
-
+        qvel[:] = 0
 
         self.set_state(qpos, qvel)
 
@@ -84,12 +84,13 @@ class Pusher2DEnv(MujocoEnv, metaclass=abc.ABCMeta):
         return np.concatenate([
             self.model.data.qpos.flat[:3],
             self.model.data.qvel.flat[:3],
+            self.get_body_com("distal_4")[:2],
             self.get_body_com("object")[:2],
         ])
 
     def log_diagnostics(self, paths):
-        final_arm_to_object_dist = get_stat_in_dict(
-            paths, 'env_infos', 'arm_to_object_distance'
+        final_hand_to_object_dist = get_stat_in_dict(
+            paths, 'env_infos', 'hand_to_object_distance'
         )[:, -1]
         final_object_to_goal_dist = get_stat_in_dict(
             paths, 'env_infos', 'object_to_goal_distance'
@@ -102,8 +103,8 @@ class Pusher2DEnv(MujocoEnv, metaclass=abc.ABCMeta):
             always_show_all_stats=True,
         ))
         statistics.update(create_stats_ordered_dict(
-            'Final Euclidean distance arm to object',
-            final_arm_to_object_dist,
+            'Final Euclidean distance hand to object',
+            final_hand_to_object_dist,
             always_show_all_stats=True,
         ))
         for key, value in statistics.items():
