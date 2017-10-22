@@ -18,7 +18,7 @@ from railrl.envs.multitask.pusher import (
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofFullGoalState,
 )
-from railrl.envs.multitask.pusher2d import MultitaskPusher2DEnv
+from railrl.envs.multitask.pusher2d import HandCylinderXYPusher2DEnv
 from railrl.envs.multitask.reacher_env import (
     GoalStateSimpleStateReacherEnv,
 )

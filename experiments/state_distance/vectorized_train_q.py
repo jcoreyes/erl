@@ -18,7 +18,11 @@ from railrl.algos.state_distance.vectorized_sdql import (
 )
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
-from railrl.envs.multitask.pusher2d import MultitaskPusher2DEnv
+from railrl.envs.multitask.pusher2d import (
+    HandCylinderXYPusher2DEnv,
+    CylinderXYPusher2DEnv,
+    FullStatePusher2DEnv,
+)
 from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState,
@@ -68,13 +72,13 @@ def experiment(variant):
     qf = variant['qf_class'](
         int(observation_space.flat_dim),
         int(action_space.flat_dim),
-        int(observation_space.flat_dim),
+        env.goal_dim,
         **variant['qf_params']
     )
     policy = FFUniversalPolicy(
         int(observation_space.flat_dim),
         int(action_space.flat_dim),
-        int(observation_space.flat_dim),
+        env.goal_dim,
         **variant['policy_params']
     )
     epoch_discount_schedule = None
@@ -161,8 +165,8 @@ if __name__ == '__main__':
 
     # n_seeds = 3
     # mode = "ec2"
-    exp_prefix = "local-sdql-sl-num-grad-sweep"
-    run_mode = 'grid'
+    # exp_prefix = "local-sdql-sl-num-grad-sweep"
+    # run_mode = 'grid'
 
     version = "na"
     num_configurations = 50  # for random mode
@@ -172,7 +176,7 @@ if __name__ == '__main__':
     if mode != "local":
         use_gpu = False
 
-    max_path_length = 100
+    max_path_length = 300
     max_tau = 25
     # noinspection PyTypeChecker
     # algo_class = VectorizedTauSdql
@@ -183,8 +187,8 @@ if __name__ == '__main__':
         version=version,
         algo_params=dict(
             num_epochs=51,
-            num_steps_per_epoch=100,
-            num_steps_per_eval=1000,
+            num_steps_per_epoch=300,
+            num_steps_per_eval=900,
             num_updates_per_env_step=5,
             use_soft_update=True,
             tau=0.001,
@@ -225,10 +229,12 @@ if __name__ == '__main__':
             value=max_tau,
         ),
         algo_class=algo_class,
-        env_class=Reacher7DofFullGoalState,
+        # env_class=Reacher7DofFullGoalState,
         # env_class=JointOnlyPusherEnv,
         # env_class=GoalStateSimpleStateReacherEnv,
-        # env_class=MultitaskPusher2DEnv,
+        # env_class=HandCylinderXYPusher2DEnv,
+        # env_class=CylinderXYPusher2DEnv,
+        env_class=FullStatePusher2DEnv,
         env_params=dict(),
         normalize_params=dict(
             # obs_mean=None,
