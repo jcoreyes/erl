@@ -100,7 +100,6 @@ class HER(DDPG):
         logger.record_tabular("reward", rewards)
         logger.record_tabular("Returns", avg_returns)
 
-
     def get_train_dict(self, batch):
         rewards = batch['rewards']
         terminals = batch['terminals']

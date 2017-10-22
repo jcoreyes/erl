@@ -87,25 +87,25 @@ if __name__ == '__main__':
     n_seeds = 1
     use_gpu = True
     max_path_length = 100
-    # noinspection PyTypeChecker
     algo_class = VectorizedDeltaTauSdql  # <-- should work well enough
     # algo_class = VectorizedTauSdql # <-- Try this if Delta version does not work
+    replay_buffer_size = 200000
     variant = dict(
         algo_params=dict(
             num_epochs=101,
             num_steps_per_epoch=1000,
-            num_steps_per_eval=100,
+            num_steps_per_eval=1000,
             num_updates_per_env_step=1,
             use_soft_update=True,
             tau=0.001,
             batch_size=64,
             discount=algo_class_to_discount[algo_class],
-            sample_train_goals_from='replay_buffer',
+            sample_train_goals_from='her',
             sample_rollout_goals_from='environment',
             sample_discount=True,
             qf_weight_decay=0.,
             max_path_length=max_path_length,
-            replay_buffer_size=200000,
+            replay_buffer_size=replay_buffer_size,
             prob_goal_state_is_next_state=0,
             termination_threshold=0,
             render=args.render,
@@ -132,7 +132,12 @@ if __name__ == '__main__':
             min_sigma=0.1,
         ),
         algo_class=algo_class,
-        qf_class=algo_class_to_qf_class[algo_class]
+        qf_class=algo_class_to_qf_class[algo_class],
+        her_replay_buffer_params=dict(
+            max_size=replay_buffer_size,
+            num_goals_to_sample=4,
+            goal_sample_strategy='store',
+        ),
     )
     algo_class = variant['algo_class']
     run_experiment(
