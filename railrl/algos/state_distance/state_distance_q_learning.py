@@ -200,20 +200,20 @@ class StateDistanceQLearning(DDPG):
 
     def sample_goal_state_for_rollout(self):
         if self.sample_rollout_goals_from == 'environment':
-            goal_state = self.env.sample_goal_states(1)[0]
+            return self.env.sample_goal_state_for_rollout()
         elif self.sample_rollout_goals_from == 'replay_buffer':
             replay_buffer = self.replay_buffer.get_replay_buffer(training=True)
             if replay_buffer.num_steps_can_sample() == 0:
                 # If there's nothing in the replay...just give all zeros
                 return np.zeros(self.env.goal_dim)
-            batch = replay_buffer.random_batch(0)
+            batch = replay_buffer.random_batch(1)
             obs = batch['observations']
             goal_state = self.env.convert_obs_to_goal_states(obs)[0]
+            return self.env.modify_goal_state_for_rollout(goal_state)
         else:
             raise Exception("Invalid `sample_goals_from`: {}".format(
                 self.sample_rollout_goals_from
             ))
-        return self.env.modify_goal_state_for_rollout(goal_state)
 
     def _sample_discount(self, batch_size):
         if self.sample_discount:
