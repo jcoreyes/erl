@@ -159,9 +159,9 @@ if __name__ == '__main__':
     exp_prefix = "dev-vectorized-train-q"
     run_mode = "none"
 
-    n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "sdql-her-sweep-frac-from-rollout"
+    # n_seeds = 3
+    # mode = "ec2"
+    exp_prefix = "local-sdql-sl-num-grad-sweep"
     run_mode = 'grid'
 
     version = "na"
@@ -175,7 +175,8 @@ if __name__ == '__main__':
     max_path_length = 100
     max_tau = 25
     # noinspection PyTypeChecker
-    algo_class = VectorizedTauSdql
+    # algo_class = VectorizedTauSdql
+    algo_class = VectorizedDeltaTauSdql
     qf_class = algo_class_to_qf_class[algo_class]
     replay_buffer_size = 200000
     variant = dict(
@@ -184,7 +185,7 @@ if __name__ == '__main__':
             num_epochs=51,
             num_steps_per_epoch=100,
             num_steps_per_eval=1000,
-            num_updates_per_env_step=1,
+            num_updates_per_env_step=5,
             use_soft_update=True,
             tau=0.001,
             batch_size=64,
@@ -202,7 +203,6 @@ if __name__ == '__main__':
             termination_threshold=0,
             render=args.render,
             save_replay_buffer=True,
-            sparse_reward=True,
             cycle_taus_for_rollout=True,
             num_sl_batches_per_rl_batch=0,
         ),
@@ -224,9 +224,7 @@ if __name__ == '__main__':
         epoch_discount_schedule_params=dict(
             value=max_tau,
         ),
-        # algo_class=VectorizedTauSdql,
-        algo_class=VectorizedDeltaTauSdql,
-        # algo_class=HorizonFedStateDistanceQLearning,
+        algo_class=algo_class,
         env_class=Reacher7DofFullGoalState,
         # env_class=JointOnlyPusherEnv,
         # env_class=GoalStateSimpleStateReacherEnv,
@@ -260,25 +258,25 @@ if __name__ == '__main__':
                 # JointOnlyPusherEnv,
                 # MultitaskPusher2DEnv,
             ],
-            'epoch_discount_schedule_params.value': [10, 25],
+            # 'epoch_discount_schedule_params.value': [10, 25],
             # 'algo_params.sample_train_goals_from': [
             #     'her',
             #     'replay_buffer',
             # ],
-            # 'algo_params.num_sl_batches_per_rl_batch': [
-            #     0,
-            #     1,
-            #     2,
-            #     5,
-            #     10,
-            # ],
-            'her_replay_buffer_params'
-            '.fraction_goal_states_are_rollout_goal_states': [
-                None,
+            'algo_params.num_sl_batches_per_rl_batch': [
+                # 1,
+                # 2,
+                5,
                 0,
-                0.5,
-                1,
-            ]
+                # 10,
+            ],
+            # 'her_replay_buffer_params'
+            # '.fraction_goal_states_are_rollout_goal_states': [
+            #     None,
+            #     0,
+            #     0.5,
+            #     1,
+            # ]
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
             search_space, default_parameters=variant,
