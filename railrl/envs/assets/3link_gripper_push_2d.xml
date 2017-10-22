@@ -54,7 +54,7 @@
             <joint name="goal_slidex" type="slide" pos="0 0 0" axis="1 0 0" range="-10.3213 10.3" damping="0.5"/>
         </body>
 
-        <body name="hand_goal" pos="0 0 -0.145">
+        <body name="hand_goal" pos="0 0 -0.13">
             <geom rgba="0. 1. 0. 1" type="cylinder" size="0.17 0.005 0.2" density='0.00001' contype="0" conaffinity="0"/>
             <joint name="hand_goal_slidey" type="slide" pos="0 0 0" axis="0 1
              0" range="-5 5" damping="0.5"/>
