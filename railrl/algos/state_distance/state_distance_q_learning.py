@@ -369,7 +369,6 @@ class StateDistanceQLearning(DDPG):
         data_to_save = dict(
             epoch=epoch,
             env=self.training_env,
-            algorithm=self,
         )
         if self.save_replay_buffer:
             data_to_save['replay_buffer'] = self.replay_buffer
