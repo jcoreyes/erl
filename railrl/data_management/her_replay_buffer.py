@@ -1,9 +1,9 @@
 import numpy as np
 
-from railrl.data_management.simple_replay_buffer import SimpleReplayBuffer
+from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 
 
-class HerReplayBuffer(SimpleReplayBuffer):
+class HerReplayBuffer(EnvReplayBuffer):
     """
     Save goal states from the same trajectory into the replay buffer
 
@@ -16,8 +16,7 @@ class HerReplayBuffer(SimpleReplayBuffer):
     def __init__(
             self,
             max_size,
-            observation_dim,
-            action_dim,
+            env,
             num_goals_to_sample=8,
             fraction_goal_states_are_rollout_goal_states=None,
             goal_sample_strategy='store',
@@ -34,7 +33,7 @@ class HerReplayBuffer(SimpleReplayBuffer):
             tuple as in HER
             'online': Sample on the fly with every batch
         """
-        super().__init__(max_size, observation_dim, action_dim)
+        super().__init__(max_size, env)
         self._current_episode_start_index = 0
         # Sample any value in this list
         self._index_to_sampled_goal_states_idxs = (
@@ -46,7 +45,7 @@ class HerReplayBuffer(SimpleReplayBuffer):
             [None] * max_size
         )
         self.num_goals_to_sample = num_goals_to_sample
-        self._goal_states = np.zeros((max_size, observation_dim))
+        self._goal_states = np.zeros((max_size, self._observation_dim))
         if fraction_goal_states_are_rollout_goal_states is None:
             fraction_goal_states_are_rollout_goal_states = (
                 1. / num_goals_to_sample

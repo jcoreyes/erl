@@ -59,13 +59,11 @@ def experiment(variant):
     )
     replay_buffer = SplitReplayBuffer(
         HerReplayBuffer(
-            observation_dim=convert_gym_space(env.observation_space).flat_dim,
-            action_dim=convert_gym_space(env.action_space).flat_dim,
+            env=env,
             **variant['replay_buffer_params'],
         ),
         HerReplayBuffer(
-            observation_dim=convert_gym_space(env.observation_space).flat_dim,
-            action_dim=convert_gym_space(env.action_space).flat_dim,
+            env=env,
             **variant['replay_buffer_params'],
         ),
         fraction_paths_in_train=0.8,
@@ -94,10 +92,10 @@ if __name__ == '__main__':
     exp_prefix = "dev-baseline-her"
     run_mode = "none"
 
-    n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "her-baseline-reacher-terminate-when-goal-reached"
-    run_mode = 'grid'
+    # n_seeds = 3
+    # mode = "ec2"
+    # exp_prefix = "her-baseline-reacher-terminate-when-goal-reached"
+    # run_mode = 'grid'
 
     version = "na"
     snapshot_mode = "last"
