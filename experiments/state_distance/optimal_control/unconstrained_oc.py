@@ -14,8 +14,6 @@ import railrl.torch.pytorch_util as ptu
 
 def experiment(variant):
     num_rollouts = variant['num_rollouts']
-    H = variant['H']
-    render = variant['render']
     data = joblib.load(variant['qf_path'])
     qf = data['qf']
     env = data['env']
@@ -36,9 +34,7 @@ def experiment(variant):
             env,
             policy,
             goal,
-            discount=variant['discount'],
-            max_path_length=H,
-            animated=render,
+            **variant['rollout_params']
         )
         paths.append(path)
     env.log_diagnostics(paths)
@@ -57,6 +53,10 @@ if __name__ == '__main__':
     parser.add_argument('--discount', type=float, help='Discount Factor')
     parser.add_argument('--nsamples', type=int, default=1000,
                         help='Number of samples for optimization')
+    parser.add_argument('--dt', help='decrement tau', action='store_true')
+    parser.add_argument('--cycle', help='cycle tau', action='store_true')
+    parser.add_argument('--dc', help='decrement and cycle tau',
+                        action='store_true')
     args = parser.parse_args()
 
     n_seeds = 1
@@ -73,13 +73,17 @@ if __name__ == '__main__':
 
     variant = dict(
         num_rollouts=args.nrolls,
-        H=args.H,
-        render=not args.hide,
+        rollout_params=dict(
+            max_path_length=args.H,
+            animated=not args.hide,
+            discount=discount,
+            cycle_tau=args.cycle or args.dc,
+            decrement_discount=args.dt or args.dc,
+        ),
         policy_params=dict(
             sample_size=args.nsamples,
         ),
         qf_path=os.path.abspath(args.file),
-        discount=discount,
     )
     if run_mode == 'none':
         for exp_id in range(n_seeds):

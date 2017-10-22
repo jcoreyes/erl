@@ -611,14 +611,12 @@ class UnconstrainedOcWithGoalConditionedModel(SampleBasedUniversalPolicy, nn.Mod
         self.env = env
 
     def rewards_np(self, states):
-        # For now just use the env reward
-        # rewards_np = self.env.compute_rewards(
-        #     None,
-        #     None,
-        #     ptu.get_numpy(states),
-        #     self._goal_batch_np
-        # )
-        diff = ptu.get_numpy(states)[:, :4] - self._goal_batch_np[:, :4]
+        diff = ptu.get_numpy(states) - self._goal_batch_np
+        # Uncomment stuff to hardcode OC reward
+        # diff = ptu.get_numpy(states)[:, :7] - self._goal_batch_np[:, :7]
+        # self._goal_batch_np[:, 7:8] = -1
+        # diff = ptu.get_numpy(states)[:, 7:] - self._goal_batch_np[:, 7:]
+        # print("goal: ", self._goal_batch_np[0, :])
         rewards_np = - np.linalg.norm(diff, axis=1)
         return rewards_np
 
