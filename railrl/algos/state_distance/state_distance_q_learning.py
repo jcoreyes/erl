@@ -387,7 +387,10 @@ class StateDistanceQLearning(DDPG):
 
 class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
     """
-    Hacky solution: just use discount in place of max_num_steps_left.
+    Hacky solution: just use discount in place of max_num_steps_left - 1.
+
+    So, the tau fed to the policy should range from [0, self.discount)
+    Note that tau = 0 corresponds to the episode ending at the next time step.
     """
 
     def __init__(
@@ -404,6 +407,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             fraction_of_taus_set_to_zero=0,
             clamp_q_target_values=False,
             cycle_taus_for_rollout=True,
+            num_sl_batches_per_rl_batch=0,
             **kwargs
     ):
         """
@@ -418,6 +422,8 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
         taus will be set to zero.
         :param cycle_taus_for_rollout: Decrement tau at each time step when
         collecting data.
+        :param num_sl_batches_per_rl_batch: Number of supervised learning
+        batches to do for every RL batch
         :param kwargs:
         """
         if cycle_taus_for_rollout:
@@ -451,6 +457,10 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
         self.clamp_q_target_values = clamp_q_target_values
         self.cycle_taus_for_rollout = cycle_taus_for_rollout
         self._rollout_tau = self.discount
+        self.num_sl_batches_per_rl_batch = num_sl_batches_per_rl_batch
+        if self.num_sl_batches_per_rl_batch > 0:
+            assert self.sample_train_goals_from == 'her'
+        assert isinstance(self.discount, int)
 
     def _sample_discount(self, batch_size):
         if self.sample_discount:
@@ -505,6 +515,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             terminal,
             agent_info=agent_info,
             env_info=env_info,
+            goal_state=self.goal_state,
         )
 
         if self.cycle_taus_for_rollout:
@@ -512,6 +523,29 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             if self._rollout_discount < 0:
                 self._rollout_discount = self.discount
             self.exploration_policy.set_discount(self._rollout_discount)
+
+    def _handle_rollout_ending(
+            self,
+            n_steps_total,
+            final_obs,
+            terminal,
+            agent_info,
+            env_info,
+    ):
+        """
+        Implement anything that needs to happen after every rollout.
+        """
+        self._current_path.add_all(
+            final_observation=final_obs,
+            increment_path_length=False,
+        )
+        self.replay_buffer.terminate_episode(
+            final_obs,
+            terminal,
+            agent_info=agent_info,
+            env_info=env_info,
+            goal_state=self.goal_state,
+        )
 
     def _modify_batch_for_training(self, batch):
         obs = batch['observations']
@@ -533,6 +567,32 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
         if self.sparse_reward:
             batch['rewards'] = batch['rewards'] * batch['terminals']
         return batch
+
+    def _do_training(self, n_steps_total):
+        super()._do_training(n_steps_total)
+        if self.num_sl_batches_per_rl_batch == 0:
+            return
+
+        for _ in range(self.num_sl_batches_per_rl_batch):
+            batch = self.replay_buffer.random_batch_for_sl(
+                self.batch_size,
+                self.discount,
+            )
+            batch = np_to_pytorch_batch(batch)
+            obs = batch['observations']
+            actions = batch['actions']
+            goal_states = batch['goal_states']
+            num_steps_left = batch['goal_i_minus_obs_i'] - 1
+            y_pred = self.qf(obs, actions, goal_states, num_steps_left)
+            y_target = ptu.Variable(
+                torch.zeros(y_pred.size()),
+                requires_grad=False,
+            )
+            qf_loss = self.qf_criterion(y_pred, y_target)
+            self.qf_optimizer.zero_grad()
+            qf_loss.backward()
+            self.qf_optimizer.step()
+
 
     def get_train_dict(self, batch):
         batch = self._modify_batch_for_training(batch)

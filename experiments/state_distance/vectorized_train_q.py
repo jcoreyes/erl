@@ -159,10 +159,10 @@ if __name__ == '__main__':
     exp_prefix = "dev-vectorized-train-q"
     run_mode = "none"
 
-    n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "sdql-her-vs-normal-sampling"
-    run_mode = 'grid'
+    # n_seeds = 3
+    # mode = "ec2"
+    # exp_prefix = "sdql-her-vs-normal-sampling"
+    # run_mode = 'grid'
 
     version = "na"
     num_configurations = 50  # for random mode
@@ -173,7 +173,7 @@ if __name__ == '__main__':
         use_gpu = False
 
     max_path_length = 100
-    max_tau = 10
+    max_tau = 25
     # noinspection PyTypeChecker
     algo_class = VectorizedTauSdql
     qf_class = algo_class_to_qf_class[algo_class]
@@ -204,6 +204,7 @@ if __name__ == '__main__':
             save_replay_buffer=True,
             sparse_reward=True,
             cycle_taus_for_rollout=True,
+            num_sl_batches_per_rl_batch=1,
         ),
         her_replay_buffer_params=dict(
             max_size=replay_buffer_size,
@@ -260,10 +261,10 @@ if __name__ == '__main__':
                 # MultitaskPusher2DEnv,
             ],
             'epoch_discount_schedule_params.value': [5, 25],
-            # 'algo_params.sample_train_goals_from': [
-            #     'her',
-            #     'replay_buffer',
-            # ]
+            'algo_params.sample_train_goals_from': [
+                'her',
+                'replay_buffer',
+            ]
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
             search_space, default_parameters=variant,
