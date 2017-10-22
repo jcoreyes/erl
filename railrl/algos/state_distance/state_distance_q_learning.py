@@ -593,7 +593,6 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             qf_loss.backward()
             self.qf_optimizer.step()
 
-
     def get_train_dict(self, batch):
         batch = self._modify_batch_for_training(batch)
         rewards = batch['rewards']
