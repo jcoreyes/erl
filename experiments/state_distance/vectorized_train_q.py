@@ -102,17 +102,20 @@ def experiment(variant):
         exploration_strategy=es,
         policy=raw_exploration_policy,
     )
-    replay_buffer = SplitReplayBuffer(
-        HerReplayBuffer(
-            env=env,
-            **variant['replay_buffer_params'],
-        ),
-        HerReplayBuffer(
-            env=env,
-            **variant['replay_buffer_params'],
-        ),
-        fraction_paths_in_train=0.8,
-    )
+    if variant['algo_params']['sample_train_goals_from'] == 'her':
+        replay_buffer = SplitReplayBuffer(
+            HerReplayBuffer(
+                env=env,
+                **variant['her_replay_buffer_params']
+            ),
+            HerReplayBuffer(
+                env=env,
+                **variant['her_replay_buffer_params']
+            ),
+            fraction_paths_in_train=0.8,
+        )
+    else:
+        replay_buffer = None
     algo = variant['algo_class'](
         env,
         qf,
@@ -156,14 +159,14 @@ if __name__ == '__main__':
     exp_prefix = "dev-vectorized-train-q"
     run_mode = "none"
 
-    # n_seeds = 3
-    # mode = "ec2"
-    # exp_prefix = "sdql-short-cycle-check"
-    # run_mode = 'grid'
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "sdql-her-vs-normal-sampling"
+    run_mode = 'grid'
 
     version = "na"
     num_configurations = 50  # for random mode
-    snapshot_mode = "gap_and_last"
+    snapshot_mode = "last"
     snapshot_gap = 10
     use_gpu = True
     if mode != "local":
@@ -173,8 +176,8 @@ if __name__ == '__main__':
     max_tau = 10
     # noinspection PyTypeChecker
     algo_class = VectorizedTauSdql
-
     qf_class = algo_class_to_qf_class[algo_class]
+    replay_buffer_size = 200000
     variant = dict(
         version=version,
         algo_params=dict(
@@ -188,12 +191,13 @@ if __name__ == '__main__':
             discount=max_tau,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
-            # sample_goals_from='environment',
-            sample_goals_from='her',
+            sample_rollout_goals_from='environment',
+            sample_train_goals_from='her',
+            # sample_train_goals_from='replay_buffer',
             sample_discount=True,
             qf_weight_decay=0.,
             max_path_length=max_path_length,
-            replay_buffer_size=200000,
+            replay_buffer_size=replay_buffer_size,
             prob_goal_state_is_next_state=0,
             termination_threshold=0,
             render=args.render,
@@ -201,10 +205,10 @@ if __name__ == '__main__':
             sparse_reward=True,
             cycle_taus_for_rollout=True,
         ),
-        replay_buffer_params=dict(
-            max_size=200000,
+        her_replay_buffer_params=dict(
+            max_size=replay_buffer_size,
             num_goals_to_sample=4,
-            goal_sample_strategy='online',
+            goal_sample_strategy='store',
         ),
         explore_with_ddpg_policy=True,
         qf_params=dict(
@@ -255,8 +259,11 @@ if __name__ == '__main__':
                 # JointOnlyPusherEnv,
                 # MultitaskPusher2DEnv,
             ],
-            'epoch_discount_schedule_params.value': [5, 10, 25],
-            'algo_params.cycle_taus_for_rollout': [False, True],
+            'epoch_discount_schedule_params.value': [5, 25],
+            # 'algo_params.sample_train_goals_from': [
+            #     'her',
+            #     'replay_buffer',
+            # ]
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
             search_space, default_parameters=variant,
