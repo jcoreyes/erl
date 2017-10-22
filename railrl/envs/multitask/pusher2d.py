@@ -41,7 +41,7 @@ class MultitaskPusher2DEnv(Pusher2DEnv, MultitaskEnv):
         return 4
 
     def convert_obs_to_goal_states(self, obs):
-        return obs[-4:]
+        return obs[:, -4:]
 
     def sample_states(self, batch_size):
         raise NotImplementedError()
@@ -62,7 +62,9 @@ class MultitaskPusher2DEnv(Pusher2DEnv, MultitaskEnv):
 
     def _step(self, a):
         full_state_to_goal_distance = np.linalg.norm(
-            self.convert_obs_to_goal_states(self._get_obs())
+            self.convert_obs_to_goal_states(
+                np.expand_dims(self._get_obs(), 0)
+            )[0]
             - self._multitask_goal
         )
         ob, reward, done, info_dict = super()._step(a)
