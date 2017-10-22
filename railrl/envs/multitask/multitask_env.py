@@ -50,6 +50,21 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         goal_state = self.sample_goal_states(1)[0]
         return self.modify_goal_state_for_rollout(goal_state)
 
+    def convert_ob_to_goal_state(self, obs):
+        """
+        Convert a raw environment observation into a goal state (if possible).
+
+        This observation should NOT include the goal state.
+        """
+        if isinstance(obs, np.ndarray):
+            return self.convert_obs_to_goal_states(
+                np.expand_dims(obs, 0)
+            )[0]
+        else:
+            return self.convert_obs_to_goal_states_pytorch(
+                obs.unsqueeze(0)
+            )[0]
+
     """
     Check out these default functions below! You may want to override them.
     """
