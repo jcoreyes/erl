@@ -8,6 +8,8 @@ from railrl.algos.state_distance.state_distance_q_learning import (
     HorizonFedStateDistanceQLearning)
 from railrl.algos.state_distance.vectorized_sdql import VectorizedDeltaTauSdql, \
     VectorizedTauSdql
+from railrl.data_management.her_replay_buffer import HerReplayBuffer
+from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.multitask.reacher_env import GoalStateSimpleStateReacherEnv
 from railrl.envs.wrappers import convert_gym_space, normalize_box
 from railrl.exploration_strategies.ou_strategy import OUStrategy
@@ -51,12 +53,27 @@ def experiment(variant):
         exploration_strategy=es,
         policy=policy,
     )
+    if variant['algo_params']['sample_train_goals_from'] == 'her':
+        replay_buffer = SplitReplayBuffer(
+            HerReplayBuffer(
+                env=env,
+                **variant['her_replay_buffer_params']
+            ),
+            HerReplayBuffer(
+                env=env,
+                **variant['her_replay_buffer_params']
+            ),
+            fraction_paths_in_train=0.8,
+        )
+    else:
+        replay_buffer = None
     algo = variant['algo_class'](
         env,
         qf,
         policy,
         exploration_policy,
         qf_criterion=HuberLoss(),
+        replay_buffer=replay_buffer,
         **variant['algo_params']
     )
     if ptu.gpu_enabled():
@@ -94,6 +111,7 @@ if __name__ == '__main__':
     max_path_length = 100
     # noinspection PyTypeChecker
     algo_class = VectorizedDeltaTauSdql
+    replay_buffer_size = 200000
     variant = dict(
         algo_params=dict(
             num_epochs=101,
@@ -104,12 +122,12 @@ if __name__ == '__main__':
             tau=0.001,
             batch_size=64,
             discount=algo_class_to_discount[algo_class],
-            sample_train_goals_from='replay_buffer',
+            sample_train_goals_from='her',
             sample_rollout_goals_from='environment',
             sample_discount=True,
             qf_weight_decay=0.,
             max_path_length=max_path_length,
-            replay_buffer_size=200000,
+            replay_buffer_size=replay_buffer_size,
             prob_goal_state_is_next_state=0,
             termination_threshold=0,
             render=args.render,
@@ -136,12 +154,17 @@ if __name__ == '__main__':
             min_sigma=0.1,
         ),
         algo_class=algo_class,
-        qf_class=algo_class_to_qf_class[algo_class]
+        qf_class=algo_class_to_qf_class[algo_class],
+        her_replay_buffer_params=dict(
+            max_size=replay_buffer_size,
+            num_goals_to_sample=4,
+            goal_sample_strategy='store',
+        ),
     )
     algo_class = variant['algo_class']
     run_experiment(
         experiment,
-        exp_prefix="sdql-example-check-delta-2",
+        exp_prefix="sdql-example",
         mode="local",
         variant=variant,
         exp_id=0,
