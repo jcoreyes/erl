@@ -200,20 +200,20 @@ class StateDistanceQLearning(DDPG):
 
     def sample_goal_state_for_rollout(self):
         if self.sample_rollout_goals_from == 'environment':
-            goal_state = self.env.sample_goal_states(1)[0]
+            return self.env.sample_goal_state_for_rollout()
         elif self.sample_rollout_goals_from == 'replay_buffer':
             replay_buffer = self.replay_buffer.get_replay_buffer(training=True)
             if replay_buffer.num_steps_can_sample() == 0:
                 # If there's nothing in the replay...just give all zeros
                 return np.zeros(self.env.goal_dim)
-            batch = replay_buffer.random_batch(0)
+            batch = replay_buffer.random_batch(1)
             obs = batch['observations']
             goal_state = self.env.convert_obs_to_goal_states(obs)[0]
+            return self.env.modify_goal_state_for_rollout(goal_state)
         else:
             raise Exception("Invalid `sample_goals_from`: {}".format(
                 self.sample_rollout_goals_from
             ))
-        return self.env.modify_goal_state_for_rollout(goal_state)
 
     def _sample_discount(self, batch_size):
         if self.sample_discount:
@@ -369,7 +369,6 @@ class StateDistanceQLearning(DDPG):
         data_to_save = dict(
             epoch=epoch,
             env=self.training_env,
-            algorithm=self,
         )
         if self.save_replay_buffer:
             data_to_save['replay_buffer'] = self.replay_buffer
@@ -408,6 +407,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             clamp_q_target_values=False,
             cycle_taus_for_rollout=True,
             num_sl_batches_per_rl_batch=0,
+            sl_grad_weight=1,
             **kwargs
     ):
         """
@@ -458,6 +458,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
         self.cycle_taus_for_rollout = cycle_taus_for_rollout
         self._rollout_tau = self.discount
         self.num_sl_batches_per_rl_batch = num_sl_batches_per_rl_batch
+        self.sl_grad_weight = sl_grad_weight
         if self.num_sl_batches_per_rl_batch > 0:
             assert self.sample_train_goals_from == 'her'
         assert isinstance(self.discount, int)
@@ -568,32 +569,6 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             batch['rewards'] = batch['rewards'] * batch['terminals']
         return batch
 
-    def _do_training(self, n_steps_total):
-        super()._do_training(n_steps_total)
-        if self.num_sl_batches_per_rl_batch == 0:
-            return
-
-        for _ in range(self.num_sl_batches_per_rl_batch):
-            batch = self.replay_buffer.random_batch_for_sl(
-                self.batch_size,
-                self.discount,
-            )
-            batch = np_to_pytorch_batch(batch)
-            obs = batch['observations']
-            actions = batch['actions']
-            goal_states = batch['goal_states']
-            num_steps_left = batch['goal_i_minus_obs_i'] - 1
-            y_pred = self.qf(obs, actions, goal_states, num_steps_left)
-            y_target = ptu.Variable(
-                torch.zeros(y_pred.size()),
-                requires_grad=False,
-            )
-            qf_loss = self.qf_criterion(y_pred, y_target)
-            self.qf_optimizer.zero_grad()
-            qf_loss.backward()
-            self.qf_optimizer.step()
-
-
     def get_train_dict(self, batch):
         batch = self._modify_batch_for_training(batch)
         rewards = batch['rewards']
@@ -664,6 +639,27 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             # Always include the target policy loss so that different
             # experiments are easily comparable.
             target_policy_loss = ptu.FloatTensor([0])
+
+        """
+        Do some SL supervision
+        """
+        for _ in range(self.num_sl_batches_per_rl_batch):
+            batch = self.replay_buffer.random_batch_for_sl(
+                self.batch_size,
+                self.discount,
+            )
+            batch = np_to_pytorch_batch(batch)
+            obs = batch['observations']
+            actions = batch['actions']
+            goal_states = batch['goal_states']
+            num_steps_left = batch['goal_i_minus_obs_i'] - 1
+            y_pred = self.qf(obs, actions, goal_states, num_steps_left)
+            y_target = ptu.Variable(
+                torch.zeros(y_pred.size()),
+                requires_grad=False,
+            )
+            sl_loss = self.qf_criterion(y_pred, y_target)
+            qf_loss += sl_loss * self.sl_grad_weight
 
         return OrderedDict([
             ('Policy Actions', policy_actions),

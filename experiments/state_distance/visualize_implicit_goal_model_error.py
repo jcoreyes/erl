@@ -46,12 +46,14 @@ def visualize_error_vs_tau(qf, policy, env, horizon):
     predicted_final_states = np.array(predicted_final_states)
     errors = np.abs(final_state - predicted_final_states)
     distance_errors = np.abs(
-        np.abs(final_state - goal_state)
-        - np.abs(predicted_final_states - goal_state)
+        np.abs(
+            env.convert_ob_to_goal_state(final_state)
+            - goal_state
+        ) - np.abs(
+            env.convert_obs_to_goal_states(predicted_final_states) - goal_state
+        )
     )
-
     num_state_dims = env.observation_space.low.size
-    dims = list(range(num_state_dims))
     norm = colors.Normalize(vmin=0, vmax=num_state_dims)
     mapper = cm.ScalarMappable(norm=norm, cmap=cm.hsv)
 
@@ -60,7 +62,7 @@ def visualize_error_vs_tau(qf, policy, env, horizon):
         (distance_errors, "State Distance Abs Error"),
     ]:
         plt.figure()
-        for dim in dims:
+        for dim in range(data.shape[1]):
             plt.plot(
                 taus,
                 data[:, dim],

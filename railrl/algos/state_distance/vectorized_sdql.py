@@ -49,7 +49,11 @@ class VectorizedDeltaTauSdql(HorizonFedStateDistanceQLearning):
         policy_actions = self.policy(obs, goal_states, num_steps_left)
         # qf isn't really a qf anymore. It's a goal-conditioned (delta) model
         q_output = self.qf(obs, policy_actions, goal_states, num_steps_left)
-        predicted_distance_to_goal = q_output + obs - goal_states
+        predicted_state = q_output + obs
+        predicted_goal = self.env.convert_obs_to_goal_states_pytorch(
+            predicted_state
+        )
+        predicted_distance_to_goal = predicted_goal - goal_states
         policy_loss = (predicted_distance_to_goal**2).mean()
 
         """
