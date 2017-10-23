@@ -23,7 +23,7 @@ from railrl.networks.state_distance import (
 from railrl.torch.modules import HuberLoss
 from railrl.torch.state_distance.exploration import \
     UniversalPolicyWrappedWithExplorationStrategy
-
+import random
 
 def experiment(variant):
     env = MultiTaskSawyerEnv(**variant['env_params'])
@@ -49,11 +49,26 @@ def experiment(variant):
         exploration_strategy=es,
         policy=policy,
     )
+    if variant['algo_params']['sample_train_goals_from'] == 'her':
+        replay_buffer = SplitReplayBuffer(
+            HerReplayBuffer(
+                env=env,
+                **variant['her_replay_buffer_params']
+            ),
+            HerReplayBuffer(
+                env=env,
+                **variant['her_replay_buffer_params']
+            ),
+            fraction_paths_in_train=0.8,
+        )
+    else:
+        replay_buffer = None
     algo = variant['algo_class'](
         env,
         qf,
         policy,
         exploration_policy,
+        replay_buffer=replay_buffer,
         qf_criterion=HuberLoss(),
         **variant['algo_params']
     )

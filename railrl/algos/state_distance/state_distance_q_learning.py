@@ -62,6 +62,7 @@ class StateDistanceQLearning(DDPG):
             cycle_taus_for_rollout=False,
         )
         if sample_train_goals_from == 'her':
+            import ipdb; ipdb.set_trace()
             assert isinstance(replay_buffer, SplitReplayBuffer)
             assert isinstance(replay_buffer.train_replay_buffer,
                               HerReplayBuffer)
