@@ -83,7 +83,7 @@ class HER(DDPG):
         # TODO(murtaza): add reward to eval code
         super().evaluate(epoch, exploration_paths)
         exploration_batch = self.paths_to_batch(exploration_paths)
-        import ipdb; ipdb.set_trace()
+        # import ipdb; ipdb.set_trace()
         diff = torch.abs(
             self.env.convert_obs_to_goal_states(exploration_batch['next_observations'])
             - self.env.convert_obs_to_goal_states(exploration_batch['goal_states'])
@@ -95,10 +95,10 @@ class HER(DDPG):
         if self.terminate_when_goal_reached:
             exploration_batch['terminals'] = 1 - (1 - exploration_batch['terminals']) * goal_not_reached
         rewards = exploration_batch['rewards']
-        returns = sum(rewards)
-        avg_returns = np.mean(returns)
+        # returns = sum(rewards)
+        # avg_returns = np.mean(returns)
         logger.record_tabular("reward", rewards)
-        logger.record_tabular("Returns", avg_returns)
+        # logger.record_tabular("Returns", avg_returns)
 
     def get_train_dict(self, batch):
         rewards = batch['rewards']
