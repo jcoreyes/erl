@@ -7,6 +7,7 @@ from railrl.networks.base import Mlp
 from railrl.policies.base import Policy
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.core import PyTorchModule
+from rllab.misc import logger
 
 
 class AmortizedPolicy(PyTorchModule, Policy):
@@ -29,7 +30,7 @@ class AmortizedPolicy(PyTorchModule, Policy):
             np.expand_dims(obs_np, 0)
         )
         goal = self.goal_chooser(obs)
-        print("Goal chosen: {}".format(ptu.get_numpy(goal)))
+        # print("Goal chosen: {}".format(ptu.get_numpy(goal)))
         action = self.goal_reaching_policy(
             obs,
             goal,
@@ -82,10 +83,9 @@ def train_amortized_goal_chooser(
         batch_size=32,
         num_updates=1000,
 ):
-    discount = ptu.np_to_var(discount * np.ones((batch_size, 1)))
-    optimizer = optim.Adam(goal_chooser.parameters(), learning_rate)
-    for _ in range(num_updates):
-        obs = replay_buffer.random_batch(batch_size)['observations']
+    def get_loss(training=False):
+        buffer = replay_buffer.get_replay_buffer(training)
+        obs = buffer.random_batch(batch_size)['observations']
         obs = ptu.np_to_var(obs, requires_grad=False)
         goal = goal_chooser(obs)
         actions = argmax_q(
@@ -100,8 +100,20 @@ def train_amortized_goal_chooser(
             discount,
         ) + obs
         rewards = rewards_py_fctn(final_state_predicted)
+        return -rewards.mean()
 
+    discount = ptu.np_to_var(discount * np.ones((batch_size, 1)))
+    optimizer = optim.Adam(goal_chooser.parameters(), learning_rate)
+    for i in range(num_updates):
         optimizer.zero_grad()
-        loss = -rewards.mean()
+        loss = get_loss()
         loss.backward()
         optimizer.step()
+        if i % 100 == 0:
+            logger.log("Number updates: {}".format(i))
+            logger.log("Train loss: {}".format(
+                float(ptu.get_numpy(loss)))
+            )
+            logger.log("Validation loss: {}".format(
+                float(ptu.get_numpy(get_loss(training=False))))
+            )
