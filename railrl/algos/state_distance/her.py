@@ -9,6 +9,7 @@ from railrl.algos.state_distance.state_distance_q_learning import (
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.misc.rllab_util import split_paths_to_dict
+from railrl.torch.algos.eval import get_generic_path_information
 from railrl.torch.algos.util import np_to_pytorch_batch
 from railrl.torch.ddpg import DDPG
 from rllab.misc import logger
@@ -83,7 +84,7 @@ class HER(DDPG):
         # TODO(murtaza): add reward to eval code
         super().evaluate(epoch, exploration_paths)
         exploration_batch = self.paths_to_batch(exploration_paths)
-        # import ipdb; ipdb.set_trace()
+        import ipdb; ipdb.set_trace()
         diff = torch.abs(
             self.env.convert_obs_to_goal_states(exploration_batch['next_observations'])
             - self.env.convert_obs_to_goal_states(exploration_batch['goal_states'])
@@ -98,6 +99,7 @@ class HER(DDPG):
         # returns = sum(rewards)
         # avg_returns = np.mean(returns)
         logger.record_tabular("reward", rewards)
+        get_generic_path_information(exploration_paths)
         # logger.record_tabular("Returns", avg_returns)
 
     def get_train_dict(self, batch):
