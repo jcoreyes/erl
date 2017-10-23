@@ -23,7 +23,7 @@ from railrl.torch.state_distance.exploration import \
 
 
 def experiment(variant):
-    env = SawyerEnv()
+    env = SawyerEnv(**variant['env_params'])
     observation_space = convert_gym_space(env.observation_space)
     action_space = convert_gym_space(env.action_space)
     qf = variant['qf_class'](
@@ -78,6 +78,14 @@ algo_class_to_discount = {
     StateDistanceQLearning: 0.99,
 }
 
+experiments=[
+    'joint_angle|fixed_angle',
+    'joint_angle|varying_angle',
+    'end_effector_position|fixed_ee',
+    'end_effector_position|varying_ee',
+    'end_effector_position_orientation|fixed_ee',
+    'end_effector_position_orientation|varying_ee'
+]
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -138,6 +146,18 @@ if __name__ == '__main__':
             num_goals_to_sample=4,
             goal_sample_strategy='store',
         ),
+        env_params={
+                      'arm_name': 'right',
+                      'safety_box': True,
+                      'loss': 'huber',
+                      'huber_delta': 10,
+                      'safety_force_magnitude': 5,
+                      'temp': 1,
+                      'remove_action': False,
+                      'experiment': experiments[2],
+                      'reward_magnitude': 10,
+                      'use_safety_checks': False,
+            },
     )
     algo_class = variant['algo_class']
     run_experiment(
