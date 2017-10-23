@@ -122,7 +122,7 @@ if __name__ == '__main__':
             qf_weight_decay=0.,
             max_path_length=max_path_length,
             render=args.render,
-            terminate_when_goal_reached=True,
+            terminate_when_goal_reached=False,
         ),
         qf_class=HerQFunction,
         qf_params=dict(
