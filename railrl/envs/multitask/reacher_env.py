@@ -447,7 +447,7 @@ REACH_A_POINT_GOAL = np.array([
     0,
     0,
 ])
-SPEED_GOAL = 1
+SPEED_GOAL = 5
 DESIRED_POSITION = np.array([-R2, R1])
 
 
@@ -469,4 +469,17 @@ def reach_a_point_and_move_joints_reward(states):
     return (
         - torch.abs(speed - SPEED_GOAL)
         - torch.norm(pos - desired_pos, p=2, dim=1)
+    )
+
+
+def hold_first_joint_and_move_second_joint_reward(states):
+    second_joint_speed = states[:, 5]
+    second_theta_is_large = (states[:, 1] > 0).float()
+    second_joint_desired_speed = (
+        SPEED_GOAL * (1-second_theta_is_large)
+        - SPEED_GOAL * second_theta_is_large
+    )
+    return (
+        - torch.abs(states[:, 4])
+        - torch.abs(second_joint_speed - second_joint_desired_speed)
     )
