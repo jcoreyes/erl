@@ -5,6 +5,7 @@ import os
 
 from railrl.algos.state_distance.state_distance_q_learning import \
     multitask_rollout
+from railrl.envs.multitask.reacher_7dof import reach_a_joint_config_reward
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.state_distance import (
     UnconstrainedOcWithGoalConditionedModel,
@@ -25,6 +26,7 @@ def experiment(variant):
         qf,
         env,
         qf_policy,
+        # reward_function_pytorch=reach_a_joint_config_reward,
         **variant['policy_params']
     )
     paths = []

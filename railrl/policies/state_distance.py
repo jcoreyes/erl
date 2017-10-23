@@ -602,25 +602,24 @@ class UnconstrainedOcWithGoalConditionedModel(SampleBasedUniversalPolicy, nn.Mod
     Make it sublcass nn.Module so that calls to `train` and `cuda` get
     propagated to the sub-networks
     """
-    def __init__(self, goal_conditioned_model, env, argmax_q, sample_size=100,
+    def __init__(
+            self,
+            goal_conditioned_model, env, argmax_q, sample_size=100,
+            reward_function_pytorch=None,
                  **kwargs):
         nn.Module.__init__(self)
         super().__init__(sample_size, env, **kwargs)
         self.model = goal_conditioned_model
         self.argmax_q = argmax_q
         self.env = env
+        self.reward_function_pytorch = reward_function_pytorch
 
     def rewards_np(self, states):
-        # from railrl.envs.multitask.reacher_env import reach_a_point_reward
-        # return ptu.get_numpy(
-        #     reach_a_point_reward(states)
-        # )
+        if self.reward_function_pytorch is not None:
+            return ptu.get_numpy(
+                self.reward_function_pytorch(states)
+            )
         diff = ptu.get_numpy(states) - self._goal_batch_np
-        # Uncomment stuff to hardcode OC reward
-        # diff = ptu.get_numpy(states)[:, :7] - self._goal_batch_np[:, :7]
-        # self._goal_batch_np[:, 7:8] = -1
-        # diff = ptu.get_numpy(states)[:, 7:] - self._goal_batch_np[:, 7:]
-        # print("goal: ", self._goal_batch_np[0, :])
         rewards_np = - np.linalg.norm(diff, axis=1)
         return rewards_np
 
