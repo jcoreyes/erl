@@ -20,7 +20,7 @@ from railrl.envs.multitask.reacher_env import (
 from railrl.envs.multitask.reacher_7dof import (
     reach_a_joint_config_reward as reach_a_joint_config_reward_7dof,
     DESIRED_JOINT_CONFIG,
-)
+    DESIRED_XYZ)
 from railrl.launchers.launcher_util import run_experiment
 from railrl.networks.base import Mlp
 from railrl.samplers.util import rollout
@@ -44,14 +44,14 @@ def experiment(variant):
     Train amortized policy
     """
     goal_chooser = Mlp(
-        hidden_sizes=[64, 64],
         output_size=env.goal_dim,
         input_size=int(env.observation_space.flat_dim),
+        hidden_sizes=[100, 100],
     )
     # goal_chooser = ReacherGoalChooser(
     #     hidden_sizes=[64, 64],
     # )
-    tau = 5
+    tau = variant['tau']
     if ptu.gpu_enabled():
         goal_chooser.cuda()
         goal_conditioned_model.cuda()
@@ -139,6 +139,7 @@ if __name__ == '__main__':
         ),
         reward_function=reach_a_joint_config_reward_7dof,
         goal=list(DESIRED_JOINT_CONFIG),
+        tau=args.discount,
         # goal=list(REACH_A_POINT_GOAL),
         # reward_function=reach_a_point_reward,
         # reward_function=reach_a_joint_config_reward,
