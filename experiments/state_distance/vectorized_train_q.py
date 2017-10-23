@@ -138,8 +138,8 @@ def experiment(variant):
 
 algo_class_to_qf_class = {
     VectorizedTauSdql: VectorizedGoalStructuredUniversalQfunction,
-    # VectorizedDeltaTauSdql: GoalConditionedDeltaModel,
-    VectorizedDeltaTauSdql: TauBinaryGoalConditionedDeltaModel,
+    VectorizedDeltaTauSdql: GoalConditionedDeltaModel,
+    # VectorizedDeltaTauSdql: TauBinaryGoalConditionedDeltaModel,
     HorizonFedStateDistanceQLearning: GoalStructuredUniversalQfunction,
 }
 
@@ -167,7 +167,7 @@ if __name__ == '__main__':
 
     # n_seeds = 3
     # mode = "ec2"
-    exp_prefix = "sdql-binary-tau-reacher2d-normal"
+    # exp_prefix = "sdql-binary-tau-reacher2d-normal"
     # run_mode = 'grid'
 
     version = "l2"
