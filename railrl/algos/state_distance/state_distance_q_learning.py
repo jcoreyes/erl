@@ -9,6 +9,7 @@ import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.multitask.multitask_env import MultitaskEnv
+from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.ml_util import StatConditionalSchedule
 from railrl.misc import rllab_util
 from railrl.misc.rllab_util import split_paths_to_dict
@@ -276,6 +277,33 @@ class StateDistanceQLearning(DDPG):
                 table_dict[self.epoch_discount_schedule.statistic_name]
             )
             self.epoch_discount_schedule.update(value)
+
+    def log_diagnostics(self, paths):
+        super().log_diagnostics(paths)
+        statistics = OrderedDict()
+        for l in [1, 2]:
+            goal_distances = []
+            for path in paths:
+                obs = np.array(path['observations'])
+                reached_goals = self.env.convert_obs_to_goal_states(obs)
+                goals = np.array(path['goal_states'])
+                goal_distances.append(
+                    np.linalg.norm(reached_goals - goals, axis=1, ord=l)
+                )
+            final_goal_distances = [d[-1] for d in goal_distances]
+            import ipdb; ipdb.set_trace()
+            statistics.update(create_stats_ordered_dict(
+                'SDQL L{} Goal Distance'.format(l),
+                goal_distances,
+                always_show_all_stats=True,
+            ))
+            statistics.update(create_stats_ordered_dict(
+                'SDQL Final L{} Goal Distance'.format(l),
+                final_goal_distances,
+                always_show_all_stats=True,
+            ))
+        for key, value in statistics.items():
+            logger.record_tabular(key, value)
 
     def get_train_dict(self, batch):
         rewards = batch['rewards']
