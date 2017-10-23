@@ -146,10 +146,15 @@ algo_class_to_qf_class = {
 
 def complete_variant(variant):
     algo_class = variant['algo_class']
-    variant['qf_class'] = algo_class_to_qf_class[algo_class]
+    # variant['qf_class'] = algo_class_to_qf_class[algo_class]
     variant['algo_params']['sparse_reward'] = not (
         algo_class == VectorizedDeltaTauSdql
     )
+    if variant['epoch_discount_schedule_class'] == ConstantSchedule:
+        discount = variant['epoch_discount_schedule_params']['value']
+        variant['algo_params']['discount'] = discount
+        if variant['qf_class'] == TauBinaryGoalConditionedDeltaModel:
+            variant['qf_params']['max_tau'] = discount
     return variant
 
 
@@ -165,10 +170,10 @@ if __name__ == '__main__':
     exp_prefix = "dev-vectorized-train-q"
     run_mode = "none"
 
-    # n_seeds = 3
-    # mode = "ec2"
-    # exp_prefix = "sdql-binary-tau-reacher2d-normal"
-    # run_mode = 'grid'
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "sdql-no-sl-compare-binary-vs-not-3"
+    run_mode = 'grid'
 
     version = "l2"
     num_configurations = 50  # for random mode
@@ -179,7 +184,7 @@ if __name__ == '__main__':
         use_gpu = False
 
     max_path_length = 100
-    max_tau = 25
+    max_tau = 10
     # noinspection PyTypeChecker
     # algo_class = VectorizedTauSdql
     algo_class = VectorizedDeltaTauSdql
@@ -190,7 +195,7 @@ if __name__ == '__main__':
         algo_params=dict(
             num_epochs=51,
             num_steps_per_epoch=100,
-            num_steps_per_eval=100,
+            num_steps_per_eval=1000,
             num_updates_per_env_step=5,
             use_soft_update=True,
             tau=0.001,
@@ -210,9 +215,10 @@ if __name__ == '__main__':
             render=args.render,
             save_replay_buffer=True,
             cycle_taus_for_rollout=True,
-            # sl_grad_weight=1,
+            sl_grad_weight=1,
             num_sl_batches_per_rl_batch=0,
             only_do_sl=False,
+            # cycle_taus_for_rollout=False,
             # num_sl_batches_per_rl_batch=1,
             # only_do_sl=True,
         ),
@@ -225,7 +231,7 @@ if __name__ == '__main__':
         qf_params=dict(
             hidden_sizes=[300, 300],
             hidden_activation=F.softplus,
-            max_tau=max_tau,
+            # max_tau=max_tau,
         ),
         policy_params=dict(
             fc1_size=300,
@@ -265,9 +271,13 @@ if __name__ == '__main__':
                 VectorizedDeltaTauSdql,
                 # HorizonFedStateDistanceQLearning,
             ],
-            'algo_params.only_do_sl': [
-                True,
+            'qf_class': [
+                GoalConditionedDeltaModel,
+                TauBinaryGoalConditionedDeltaModel,
             ],
+            # 'algo_params.only_do_sl': [
+            #     True,
+            # ],
             'env_class': [
                 GoalStateSimpleStateReacherEnv,
                 Reacher7DofFullGoalState,
@@ -277,24 +287,23 @@ if __name__ == '__main__':
                 # CylinderXYPusher2DEnv,
                 # FullStatePusher2DEnv,
             ],
-            # 'epoch_discount_schedule_params.value': [
-                # 5,
-                # 10,
-                # 25,
-                # 50,
-            # ],
+            'epoch_discount_schedule_params.value': [
+                5,
+                25,
+                50,
+            ],
             # 'algo_params.sample_train_goals_from': [
             #     'her',
             #     'replay_buffer',
             # ],
-            'algo_params.num_sl_batches_per_rl_batch': [
-                1,
-            ],
+            # 'algo_params.num_sl_batches_per_rl_batch': [
+            #     1,
+            # ],
             # 'algo_params.sl_grad_weight': [
-                # 0.01,
-                # 0.1,
-                # 1,
-                # 10,
+            #     0.01,
+            #     0.1,
+            #     1,
+            #     10,
             # ],
             # 'her_replay_buffer_params'
             # '.fraction_goal_states_are_rollout_goal_states': [
