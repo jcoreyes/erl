@@ -645,7 +645,10 @@ class NumpyGoalConditionedDeltaModelExtractor(PyTorchModule):
             qf,
     ):
         super().__init__()
-        assert isinstance(qf, GoalConditionedDeltaModel)
+        assert (
+            isinstance(qf, GoalConditionedDeltaModel)
+            or isinstance(qf, TauBinaryGoalConditionedDeltaModel)
+        )
         self.qf = qf
 
     def next_state(self, state, action, goal_state, discount):
