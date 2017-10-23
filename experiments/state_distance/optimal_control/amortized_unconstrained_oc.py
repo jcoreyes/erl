@@ -10,9 +10,17 @@ from pathlib import Path
 
 from railrl.algos.state_distance.amortized_oc import \
     train_amortized_goal_chooser, AmortizedPolicy, ReacherGoalChooser
-from railrl.envs.multitask.reacher_env import reach_a_joint_config_reward, \
-    REACH_A_POINT_GOAL, reach_a_point_and_move_joints_reward, \
-    reach_a_point_reward
+from railrl.envs.multitask.reacher_env import (
+    reach_a_joint_config_reward,
+    REACH_A_POINT_GOAL,
+    reach_a_point_and_move_joints_reward,
+    reach_a_point_reward,
+    hold_first_joint_and_move_second_joint_reward,
+)
+from railrl.envs.multitask.reacher_7dof import (
+    reach_a_joint_config_reward as reach_a_joint_config_reward_7dof,
+    DESIRED_JOINT_CONFIG,
+)
 from railrl.launchers.launcher_util import run_experiment
 from railrl.networks.base import Mlp
 from railrl.samplers.util import rollout
@@ -35,14 +43,14 @@ def experiment(variant):
     """
     Train amortized policy
     """
-    # goal_chooser = Mlp(
-    #     hidden_sizes=[100, 100],
-    #     output_size=env.goal_dim,
-    #     input_size=int(env.observation_space.flat_dim),
-    # )
-    goal_chooser = ReacherGoalChooser(
-        hidden_sizes=[100, 100],
+    goal_chooser = Mlp(
+        hidden_sizes=[64, 64],
+        output_size=env.goal_dim,
+        input_size=int(env.observation_space.flat_dim),
     )
+    # goal_chooser = ReacherGoalChooser(
+    #     hidden_sizes=[64, 64],
+    # )
     tau = 5
     if ptu.gpu_enabled():
         goal_chooser.cuda()
@@ -52,24 +60,26 @@ def experiment(variant):
         goal_chooser,
         goal_conditioned_model,
         argmax_qf_policy,
-        # reach_a_joint_config_reward,
-        # reach_a_point_and_move_joints_reward,
-        reach_a_point_reward,
+        variant['reward_function'],
         tau,
         replay_buffer,
-        learning_rate=1e-3,
-        batch_size=32,
-        num_updates=10000,
+        **variant['train_params']
     )
     policy = AmortizedPolicy(argmax_qf_policy, goal_chooser, tau)
 
+    goal = np.array(variant['goal'])
+    logger.save_itr_params(0, dict(
+        env=env,
+        policy=policy,
+        goal_chooser=goal_chooser,
+        goal=goal,
+    ))
     """
     Eval policy.
     """
     paths = []
+    env.set_goal(goal)
     for _ in range(num_rollouts):
-        goal = REACH_A_POINT_GOAL
-        env.set_goal(goal)
         path = rollout(
             env,
             policy,
@@ -80,11 +90,6 @@ def experiment(variant):
         paths.append(path)
     env.log_diagnostics(paths)
     logger.dump_tabular(with_timestamp=False)
-    logger.save_itr_params(0, dict(
-        env=env,
-        policy=policy,
-        goal_chooser=goal_chooser,
-    ))
 
 
 if __name__ == '__main__':
@@ -127,6 +132,17 @@ if __name__ == '__main__':
             sample_size=args.nsamples,
         ),
         qf_path=os.path.abspath(args.file),
+        train_params=dict(
+            learning_rate=1e-3,
+            batch_size=32,
+            num_updates=10000,
+        ),
+        reward_function=reach_a_joint_config_reward_7dof,
+        goal=list(DESIRED_JOINT_CONFIG),
+        # goal=list(REACH_A_POINT_GOAL),
+        # reward_function=reach_a_point_reward,
+        # reward_function=reach_a_joint_config_reward,
+        # reward_function=hold_first_joint_and_move_second_joint_reward,
     )
     if run_mode == 'none':
         for exp_id in range(n_seeds):
