@@ -1,4 +1,5 @@
 import numpy as np
+import math
 import torch
 from torch import nn as nn
 from torch.nn import functional as F
@@ -455,6 +456,43 @@ class GoalConditionedDeltaModel(Mlp):
 
     def forward(self, obs, action, goal_state, discount):
         h = torch.cat((obs, action, goal_state, discount), dim=1)
+        for i, fc in enumerate(self.fcs):
+            h = self.hidden_activation(fc(h))
+        return self.output_activation(self.last_fc(h))
+
+
+class TauBinaryGoalConditionedDeltaModel(Mlp):
+    def __init__(
+            self,
+            observation_dim,
+            action_dim,
+            goal_dim,
+            hidden_sizes,
+            max_tau,
+            **kwargs
+    ):
+        self.save_init_params(locals())
+        self.word_len = math.ceil(np.log2(max_tau))
+        super().__init__(
+            hidden_sizes,
+            output_size=observation_dim,
+            input_size=observation_dim + goal_dim + action_dim + self.word_len,
+            **kwargs
+        )
+
+    def forward(self, obs, action, goal_state, tau):
+        """
+        tau isn't differentiated through anyways, so I do the conversion in np.
+
+        """
+        tau_np = ptu.get_numpy(tau.int().squeeze(1))
+        tau_binary_np = (
+            (
+                ((tau_np[:, None] & (1 << np.arange(self.word_len)))) > 0
+            ).astype(float)
+        )
+        tau_binary = ptu.np_to_var(tau_binary_np)
+        h = torch.cat((obs, action, goal_state, tau_binary), dim=1)
         for i, fc in enumerate(self.fcs):
             h = self.hidden_activation(fc(h))
         return self.output_activation(self.last_fc(h))

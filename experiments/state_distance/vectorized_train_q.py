@@ -52,7 +52,8 @@ from railrl.misc.ml_util import RampUpSchedule, IntRampUpSchedule, \
 from railrl.networks.state_distance import (
     FFUniversalPolicy,
     VectorizedGoalStructuredUniversalQfunction,
-    GoalStructuredUniversalQfunction, GoalConditionedDeltaModel)
+    GoalStructuredUniversalQfunction, GoalConditionedDeltaModel,
+    TauBinaryGoalConditionedDeltaModel)
 from railrl.policies.state_distance import TerminalRewardSampleOCPolicy
 from railrl.torch.modules import HuberLoss
 from railrl.torch.state_distance.exploration import \
@@ -137,7 +138,8 @@ def experiment(variant):
 
 algo_class_to_qf_class = {
     VectorizedTauSdql: VectorizedGoalStructuredUniversalQfunction,
-    VectorizedDeltaTauSdql: GoalConditionedDeltaModel,
+    # VectorizedDeltaTauSdql: GoalConditionedDeltaModel,
+    VectorizedDeltaTauSdql: TauBinaryGoalConditionedDeltaModel,
     HorizonFedStateDistanceQLearning: GoalStructuredUniversalQfunction,
 }
 
@@ -165,8 +167,8 @@ if __name__ == '__main__':
 
     # n_seeds = 3
     # mode = "ec2"
-    # exp_prefix = "sdql-fix-sl-only-do-sl"
-    run_mode = 'grid'
+    exp_prefix = "sdql-binary-tau-reacher2d-normal"
+    # run_mode = 'grid'
 
     version = "l2"
     num_configurations = 50  # for random mode
@@ -179,8 +181,8 @@ if __name__ == '__main__':
     max_path_length = 100
     max_tau = 25
     # noinspection PyTypeChecker
-    algo_class = VectorizedTauSdql
-    # algo_class = VectorizedDeltaTauSdql
+    # algo_class = VectorizedTauSdql
+    algo_class = VectorizedDeltaTauSdql
     qf_class = algo_class_to_qf_class[algo_class]
     replay_buffer_size = 200000
     variant = dict(
@@ -208,9 +210,11 @@ if __name__ == '__main__':
             render=args.render,
             save_replay_buffer=True,
             cycle_taus_for_rollout=True,
+            # sl_grad_weight=1,
             num_sl_batches_per_rl_batch=0,
-            sl_grad_weight=1,
             only_do_sl=False,
+            # num_sl_batches_per_rl_batch=1,
+            # only_do_sl=True,
         ),
         her_replay_buffer_params=dict(
             max_size=replay_buffer_size,
@@ -221,6 +225,7 @@ if __name__ == '__main__':
         qf_params=dict(
             hidden_sizes=[300, 300],
             hidden_activation=F.softplus,
+            max_tau=max_tau,
         ),
         policy_params=dict(
             fc1_size=300,
@@ -231,9 +236,9 @@ if __name__ == '__main__':
             value=max_tau,
         ),
         algo_class=algo_class,
-        env_class=Reacher7DofFullGoalState,
+        # env_class=Reacher7DofFullGoalState,
         # env_class=JointOnlyPusherEnv,
-        # env_class=GoalStateSimpleStateReacherEnv,
+        env_class=GoalStateSimpleStateReacherEnv,
         # env_class=HandCylinderXYPusher2DEnv,
         # env_class=CylinderXYPusher2DEnv,
         # env_class=FullStatePusher2DEnv,
