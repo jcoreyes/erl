@@ -165,8 +165,8 @@ if __name__ == '__main__':
 
     # n_seeds = 3
     # mode = "ec2"
-    exp_prefix = "local-sdql-check-l1-norm-works"
-    # run_mode = 'grid'
+    # exp_prefix = "sdql-fix-sl-only-do-sl"
+    run_mode = 'grid'
 
     version = "l2"
     num_configurations = 50  # for random mode
@@ -210,6 +210,7 @@ if __name__ == '__main__':
             cycle_taus_for_rollout=True,
             num_sl_batches_per_rl_batch=0,
             sl_grad_weight=1,
+            only_do_sl=False,
         ),
         her_replay_buffer_params=dict(
             max_size=replay_buffer_size,
@@ -255,9 +256,12 @@ if __name__ == '__main__':
     if run_mode == 'grid':
         search_space = {
             'algo_class': [
-                VectorizedTauSdql,
+                # VectorizedTauSdql,
                 VectorizedDeltaTauSdql,
                 # HorizonFedStateDistanceQLearning,
+            ],
+            'algo_params.only_do_sl': [
+                True,
             ],
             'env_class': [
                 GoalStateSimpleStateReacherEnv,
@@ -268,25 +272,24 @@ if __name__ == '__main__':
                 # CylinderXYPusher2DEnv,
                 # FullStatePusher2DEnv,
             ],
-            'epoch_discount_schedule_params.value': [
-                5,
+            # 'epoch_discount_schedule_params.value': [
+                # 5,
                 # 10,
-                25,
+                # 25,
                 # 50,
-            ],
+            # ],
             # 'algo_params.sample_train_goals_from': [
             #     'her',
             #     'replay_buffer',
             # ],
-            # 'algo_params.num_sl_batches_per_rl_batch': [
-            #     1,
-            #     0,
-            #     5,
-            # ],
+            'algo_params.num_sl_batches_per_rl_batch': [
+                1,
+            ],
             # 'algo_params.sl_grad_weight': [
-            #     0.01,
-            #     1,
-            #     0.1,
+                # 0.01,
+                # 0.1,
+                # 1,
+                # 10,
             # ],
             # 'her_replay_buffer_params'
             # '.fraction_goal_states_are_rollout_goal_states': [

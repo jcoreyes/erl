@@ -5,6 +5,7 @@ import numpy as np
 import torch
 
 from railrl.torch import pytorch_util as ptu
+from railrl.torch.algos.util import np_to_pytorch_batch
 from railrl.algos.state_distance.state_distance_q_learning import (
     StateDistanceQLearning,
     HorizonFedStateDistanceQLearning,
@@ -25,10 +26,13 @@ class VectorizedDeltaTauSdql(HorizonFedStateDistanceQLearning):
     """
     Just.... look at the reward
     """
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, only_do_sl=False, **kwargs):
         super().__init__(*args, **kwargs)
         assert not self.sparse_reward
         assert self.qf_weight_decay == 0
+        self.only_do_sl = only_do_sl
+        if self.only_do_sl:
+            assert self.num_sl_batches_per_rl_batch > 0
 
     def compute_rewards(self, obs, actions, next_obs, goal_states):
         return next_obs - obs
@@ -59,30 +63,56 @@ class VectorizedDeltaTauSdql(HorizonFedStateDistanceQLearning):
         """
         Critic operations.
         """
-        next_actions = self.target_policy(
-            next_obs,
-            goal_states,
-            num_steps_left - 1,
-        )
-        target_q_values = self.target_qf(
-            next_obs,
-            next_actions,
-            goal_states,
-            num_steps_left - 1,  # Important! Else QF will (probably) blow up
-        )
-        if self.clamp_q_target_values:
-            target_q_values = torch.clamp(target_q_values, -math.inf, 0)
-        y_target = rewards + (1. - terminals) * target_q_values
+        if self.only_do_sl:
+            qf_loss = 0
+            raw_qf_loss = ptu.FloatTensor([0])
+            y_target = ptu.FloatTensor([0])
+            y_pred = ptu.FloatTensor([0])
+            bellman_errors = ptu.FloatTensor([0])
+        else:
+            next_actions = self.target_policy(
+                next_obs,
+                goal_states,
+                num_steps_left - 1,
+            )
+            target_q_values = self.target_qf(
+                next_obs,
+                next_actions,
+                goal_states,
+                num_steps_left - 1,  # Important! Else QF will (probably) blow up
+            )
+            if self.clamp_q_target_values:
+                target_q_values = torch.clamp(target_q_values, -math.inf, 0)
+            y_target = rewards + (1. - terminals) * target_q_values
 
-        # noinspection PyUnresolvedReferences
-        y_target = y_target.detach()
-        y_pred = self.qf(obs, actions, goal_states, num_steps_left)
-        bellman_errors = (y_pred - y_target) ** 2
-        raw_qf_loss = self.qf_criterion(y_pred, y_target)
+            # noinspection PyUnresolvedReferences
+            y_target = y_target.detach()
+            y_pred = self.qf(obs, actions, goal_states, num_steps_left)
+            bellman_errors = (y_pred - y_target) ** 2
+            raw_qf_loss = self.qf_criterion(y_pred, y_target)
 
-        qf_loss = raw_qf_loss
+            qf_loss = raw_qf_loss
 
         target_policy_loss = ptu.FloatTensor([0])
+
+        """
+        Do some SL supervision
+        """
+        for _ in range(self.num_sl_batches_per_rl_batch):
+            batch = self.replay_buffer.random_batch_for_sl(
+                self.batch_size,
+                self.discount,
+            )
+            batch = np_to_pytorch_batch(batch)
+            obs = batch['observations']
+            actions = batch['actions']
+            goal_states = batch['goal_states']
+            num_steps_left = batch['goal_i_minus_obs_i'] - 1
+            y_pred = self.qf(obs, actions, goal_states, num_steps_left)
+
+            y_target = goal_states - obs
+            sl_loss = self.qf_criterion(y_pred, y_target)
+            qf_loss = qf_loss + sl_loss * self.sl_grad_weight
 
         return OrderedDict([
             ('Policy Actions', policy_actions),
