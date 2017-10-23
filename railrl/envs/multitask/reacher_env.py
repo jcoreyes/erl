@@ -299,11 +299,7 @@ class GoalXYStateXYAndCosSinReacher2D(MultitaskReacherEnv):
         return obs
 
     def convert_obs_to_goal_states(self, obs):
-        try:
-            return obs[:, 4:6]
-        except:
-            import ipdb; ipdb.set_trace()
-            print(obs)
+        return obs[:, 4:6]
 
     def set_goal(self, goal):
         super().set_goal(goal)
