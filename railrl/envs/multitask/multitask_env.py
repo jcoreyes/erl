@@ -1,14 +1,22 @@
 import abc
+from collections import OrderedDict
+
 import numpy as np
+
+from railrl.misc.data_processing import create_stats_ordered_dict
+from rllab.misc import logger
 
 
 class MultitaskEnv(object, metaclass=abc.ABCMeta):
     """
     An environment with a task that can be specified with a goal state.
     """
-    @abc.abstractmethod
+
+    def __init__(self):
+        self.multitask_goal = np.zeros(self.goal_dim)
+
     def set_goal(self, goal):
-        pass
+        self.multitask_goal = goal
 
     @abc.abstractmethod
     def sample_goal_states(self, batch_size):
@@ -16,7 +24,7 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
 
     @property
     @abc.abstractmethod
-    def goal_dim(self):
+    def goal_dim(self) -> int:
         """
         :return: int, dimension of goal state
         """
@@ -122,3 +130,40 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
             batch_size,
             axis=0
         )
+
+    def log_diagnostics(self, paths):
+        statistics = OrderedDict()
+
+        observations = np.vstack([path['observations'] for path in paths])
+        goal_states = np.vstack([path['goal_states'] for path in paths])
+        actions = np.vstack([path['actions'] for path in paths])
+        final_distances = []
+        for path in paths:
+            reached = self.convert_ob_to_goal_state(path['observations'][-1])
+            goal = path['goal_states'][-1]
+            final_distances.append(
+                np.linalg.norm(reached - goal)
+            )
+        final_distances = np.array(final_distances)
+
+        goal_distances = np.linalg.norm(
+            self.convert_obs_to_goal_states(observations) - goal_states,
+            axis=1,
+        )
+        statistics.update(create_stats_ordered_dict(
+            'Multitask distance to goal', goal_distances
+        ))
+        statistics.update(create_stats_ordered_dict(
+            'Multitask final distance to goal', final_distances
+        ))
+        rewards = self.compute_rewards(
+            observations[:-1, ...],
+            actions[:-1, ...],
+            observations[1:, ...],
+            goal_states[:-1, ...],
+        )
+        statistics.update(create_stats_ordered_dict(
+            'Multitask Env Rewards', rewards,
+        ))
+        for key, value in statistics.items():
+            logger.record_tabular(key, value)

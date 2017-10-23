@@ -99,20 +99,10 @@ def position_from_angles_pytorch(angles):
 class MultitaskReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle, MultitaskEnv,
                           metaclass=abc.ABCMeta):
     def __init__(self):
-        self.multitask_goal = np.zeros(self.goal_dim)
         self._xy_desired_pos = None
+        MultitaskEnv.__init__(self)
         utils.EzPickle.__init__(self)
         mujoco_env.MujocoEnv.__init__(self, 'reacher.xml', 2)
-
-    def set_goal(self, goal):
-        """
-        Add option to set the goal. Really only used for debugging. If None (
-        by default), then the goal is randomly sampled each time the
-        environment is reset.
-        :param goal:
-        :return:
-        """
-        self.multitask_goal = goal
 
     def _step(self, a):
         vec = self.get_body_com("fingertip") - self.get_body_com("target")
@@ -162,39 +152,19 @@ class MultitaskReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle, MultitaskEnv,
         return obs
 
     def log_diagnostics(self, paths):
+        super().log_diagnostics(paths)
         statistics = OrderedDict()
 
-        observations = np.vstack([path['observations'] for path in paths])
-        goal_states = np.vstack([path['goal_states'] for path in paths])
-        state_distances = np.linalg.norm(
-            self.convert_obs_to_goal_states(observations) - goal_states,
-            axis=1,
-        )
-        statistics.update(create_stats_ordered_dict(
-            'State distance to target', state_distances
-        ))
-
-        euclidean_distances = get_stat_in_dict(
+        xy_distance_to_goal = get_stat_in_dict(
             paths, 'env_infos', 'distance'
         )
         statistics.update(create_stats_ordered_dict(
-            'Euclidean distance to goal', euclidean_distances
+            'Euclidean distance to desired XY', xy_distance_to_goal
         ))
         statistics.update(create_stats_ordered_dict(
-            'Final Euclidean distance to goal',
-            euclidean_distances[:, -1],
+            'Final Euclidean distance to desired XY',
+            xy_distance_to_goal[:, -1],
             always_show_all_stats=True,
-        ))
-
-        actions = np.vstack([path['actions'] for path in paths])
-        rewards = self.compute_rewards(
-            observations[:-1, ...],
-            actions[:-1, ...],
-            observations[1:, ...],
-            goal_states[:-1, ...],
-        )
-        statistics.update(create_stats_ordered_dict(
-            'Rewards', rewards,
         ))
 
         full_state_go_goal_distance = get_stat_in_dict(
@@ -307,7 +277,16 @@ class GoalStateSimpleStateReacherEnv(MultitaskReacherEnv):
 
 class GoalXYStateXYAndCosSinReacher2D(MultitaskReacherEnv):
     def sample_goal_states(self, batch_size):
-        raise NotImplementedError()
+        theta = self.np_random.uniform(
+            low=-math.pi,
+            high=math.pi,
+            size=(batch_size, 2)
+        )
+        obs = np.hstack([
+            np.cos(theta),
+            np.sin(theta),
+        ])
+        return position_from_angles(obs)
 
     def _get_obs(self):
         theta = self.model.data.qpos.flat[:2]
