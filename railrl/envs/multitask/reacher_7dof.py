@@ -301,13 +301,14 @@ Reward functions for optimal control
 #         np.zeros(7),
 #     ))
 
-DESIRED_JOINT_CONFIG = np.array([  5.92362888e-01,  -7.74627671e-02,
-                              -1.50309161e+00,
-        -2.10249801e+00,  -1.50462487e+00,  -4.96640519e-02,
-         1.50096772e+00,  -2.60583393e-01,   5.75143354e-01,
-         6.43329677e-03,  -1.41355238e-01,   1.30170821e-01,
-         3.73738073e+00,   1.18810308e-03])
+DESIRED_JOINT_CONFIG = np.array([  1.71470162e+00,  -5.23811120e-01,  -1.50068033e+00,
+        -2.32198699e+00,  -6.56896692e-01,  -1.09489007e+00,
+        -1.50093060e+00,  -4.39383377e-10,  -6.37245902e-10,
+         8.24265517e-10,   4.09298618e-10,  -2.36288518e-06,
+        -1.88265218e-10,   5.96086776e-10])
 DESIRED_JOINT_CONFIG[7:] = 0
+DESIRED_XYZ = np.array([-0.29606909, -0.18205661, -0.42400648])
+
 
 def reach_a_joint_config_reward(states):
     goal_pos = ptu.np_to_var(DESIRED_JOINT_CONFIG, requires_grad=False)
