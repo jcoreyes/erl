@@ -94,6 +94,23 @@ class VectorizedDeltaTauSdql(HorizonFedStateDistanceQLearning):
             qf_loss = raw_qf_loss
 
         target_policy_loss = ptu.FloatTensor([0])
+        """
+        Train optimal control policy
+        """
+        goal = goal_chooser(obs)
+        actions = policy(
+            obs,
+            goal,
+            num_steps_left
+        )
+        final_state_predicted = goal_conditioned_model(
+            obs,
+            actions,
+            goal,
+            discount,
+        ) + obs
+        rewards = rewards_py_fctn(final_state_predicted)
+        return -rewards.mean()
 
         """
         Do some SL supervision
