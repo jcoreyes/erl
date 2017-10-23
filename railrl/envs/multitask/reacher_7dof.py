@@ -82,23 +82,6 @@ class Reacher7DofMultitaskEnv(
 
         observations = np.vstack([path['observations'] for path in paths])
         goal_states = np.vstack([path['goal_states'] for path in paths])
-        differences = observations - goal_states
-        angle_differences = differences[:, :7]
-        vel_differences = differences[:, 7:]
-        for l in [1, 2]:
-            statistics.update(create_stats_ordered_dict(
-                'L{} full goal distance to target'.format(l),
-                np.linalg.norm(differences, axis=1, ord=l)
-            ))
-            statistics.update(create_stats_ordered_dict(
-                'L{} angle goal distance to target'.format(l),
-                np.linalg.norm(angle_differences, axis=1, ord=l)
-            ))
-            statistics.update(create_stats_ordered_dict(
-                'L{} vel goal distance to target'.format(l),
-                np.linalg.norm(vel_differences, axis=1, ord=l)
-            ))
-
         euclidean_distances = get_stat_in_dict(
             paths, 'env_infos', 'distance'
         )
@@ -226,6 +209,32 @@ class Reacher7DofFullGoalState(Reacher7DofMultitaskEnv):
             full_state_to_goal_distance
         )
         return ob, reward, done, info_dict
+
+    def log_diagnostics(self, paths):
+        super().log_diagnostics(paths)
+        statistics = OrderedDict()
+
+        observations = np.vstack([path['observations'] for path in paths])
+        goal_states = np.vstack([path['goal_states'] for path in paths])
+        differences = observations - goal_states
+        angle_differences = differences[:, :7]
+        vel_differences = differences[:, 7:]
+        for l in [1, 2]:
+            statistics.update(create_stats_ordered_dict(
+                'L{} full goal distance to target'.format(l),
+                np.linalg.norm(differences, axis=1, ord=l)
+            ))
+            statistics.update(create_stats_ordered_dict(
+                'L{} angle goal distance to target'.format(l),
+                np.linalg.norm(angle_differences, axis=1, ord=l)
+            ))
+            statistics.update(create_stats_ordered_dict(
+                'L{} vel goal distance to target'.format(l),
+                np.linalg.norm(vel_differences, axis=1, ord=l)
+            ))
+
+        for key, value in statistics.items():
+            logger.record_tabular(key, value)
 
 
 class Reacher7DofCosSinFullGoalState(Reacher7DofFullGoalState):
