@@ -208,37 +208,19 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
             JOINT_VALUE_LOW[action_mode],
             JOINT_VALUE_HIGH[action_mode]
         )
+        lows = np.hstack((
+            JOINT_VALUE_LOW['position'],
+            JOINT_VALUE_LOW['velocity'],
+            JOINT_VALUE_LOW['torque'],
+            END_EFFECTOR_VALUE_LOW['position'],
+        ))
 
-        if self.use_angle_parameterization:
-            lows = np.hstack((
-                np.cos(JOINT_VALUE_LOW['position']),
-                np.sin(JOINT_VALUE_LOW['position']),
-                JOINT_VALUE_LOW['velocity'],
-                JOINT_VALUE_LOW['torque'],
-                END_EFFECTOR_VALUE_LOW['position'],
-            ))
-
-            highs = np.hstack((
-                np.cos(JOINT_VALUE_HIGH['position']),
-                np.sin(JOINT_VALUE_HIGH['position']),
-                JOINT_VALUE_HIGH['velocity'],
-                JOINT_VALUE_HIGH['torque'],
-                END_EFFECTOR_VALUE_LOW['position'],
-            ))
-        else:
-            lows = np.hstack((
-                JOINT_VALUE_LOW['position'],
-                JOINT_VALUE_LOW['velocity'],
-                JOINT_VALUE_LOW['torque'],
-                END_EFFECTOR_VALUE_LOW['position'],
-            ))
-
-            highs = np.hstack((
-                JOINT_VALUE_HIGH['position'],
-                JOINT_VALUE_HIGH['velocity'],
-                JOINT_VALUE_HIGH['torque'],
-                END_EFFECTOR_VALUE_HIGH['position'],
-            ))
+        highs = np.hstack((
+            JOINT_VALUE_HIGH['position'],
+            JOINT_VALUE_HIGH['velocity'],
+            JOINT_VALUE_HIGH['torque'],
+            END_EFFECTOR_VALUE_HIGH['position'],
+        ))
 
         self._observation_space = Box(lows, highs)
         self._rs = ii.RobotEnable(CHECK_VERSION)
