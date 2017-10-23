@@ -82,33 +82,22 @@ class Reacher7DofMultitaskEnv(
 
         observations = np.vstack([path['observations'] for path in paths])
         goal_states = np.vstack([path['goal_states'] for path in paths])
-        l2_distance = np.linalg.norm(
-            self.convert_obs_to_goal_states(observations) - goal_states,
-            axis=1,
-        )
-        l1_distance = np.linalg.norm(
-            self.convert_obs_to_goal_states(observations) - goal_states,
-            axis=1,
-            ord=1,
-        )
-        statistics.update(create_stats_ordered_dict(
-            'L2 full goal distance to target', l2_distance
-        ))
-        statistics.update(create_stats_ordered_dict(
-            'L1 full goal distance to target', l1_distance
-        ))
-        statistics.update(create_stats_ordered_dict(
-            'L2 angle goal distance to target', l2_distance[:7]
-        ))
-        statistics.update(create_stats_ordered_dict(
-            'L1 angle goal distance to target', l1_distance[:7]
-        ))
-        statistics.update(create_stats_ordered_dict(
-            'L2 vel goal distance to target', l2_distance[7:]
-        ))
-        statistics.update(create_stats_ordered_dict(
-            'L1 vel goal distance to target', l1_distance[7:]
-        ))
+        differences = observations - goal_states
+        angle_differences = differences[:, :7]
+        vel_differences = differences[:, 7:]
+        for l in [1, 2]:
+            statistics.update(create_stats_ordered_dict(
+                'L{} full goal distance to target'.format(l),
+                np.linalg.norm(differences, axis=1, ord=l)
+            ))
+            statistics.update(create_stats_ordered_dict(
+                'L{} angle goal distance to target'.format(l),
+                np.linalg.norm(angle_differences, axis=1, ord=l)
+            ))
+            statistics.update(create_stats_ordered_dict(
+                'L{} vel goal distance to target'.format(l),
+                np.linalg.norm(vel_differences, axis=1, ord=l)
+            ))
 
         euclidean_distances = get_stat_in_dict(
             paths, 'env_infos', 'distance'
