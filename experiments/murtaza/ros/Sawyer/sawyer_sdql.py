@@ -1,5 +1,4 @@
 import argparse
-import random
 
 from torch.nn import functional as F
 
@@ -9,6 +8,9 @@ from railrl.algos.state_distance.state_distance_q_learning import (
     HorizonFedStateDistanceQLearning)
 from railrl.algos.state_distance.vectorized_sdql import VectorizedDeltaTauSdql, \
     VectorizedTauSdql
+from railrl.data_management.her_replay_buffer import HerReplayBuffer
+from railrl.data_management.split_buffer import SplitReplayBuffer
+from railrl.envs.multitask.reacher_env import GoalStateSimpleStateReacherEnv
 from railrl.envs.multitask.sawyer_env import MultiTaskSawyerEnv
 from railrl.envs.wrappers import convert_gym_space, normalize_box
 from railrl.exploration_strategies.ou_strategy import OUStrategy

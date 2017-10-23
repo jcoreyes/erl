@@ -22,10 +22,10 @@ from railrl.networks.state_distance import (
 from railrl.torch.modules import HuberLoss
 from railrl.torch.state_distance.exploration import \
     UniversalPolicyWrappedWithExplorationStrategy
-
+from railrl.envs.multitask.reacher_env import JointAngleMultitaskSimpleStateReacherEnv
 
 def experiment(variant):
-    env = GoalStateSimpleStateReacherEnv()
+    env = JointAngleMultitaskSimpleStateReacherEnv()
     env = normalize_box(
         env,
         **variant['normalize_params']
@@ -109,8 +109,8 @@ if __name__ == '__main__':
     n_seeds = 1
     use_gpu = True
     max_path_length = 100
-    algo_class = VectorizedDeltaTauSdql  # <-- should work well enough
-    # algo_class = VectorizedTauSdql # <-- Try this if Delta version does not work
+    # algo_class = VectorizedDeltaTauSdql  # <-- should work well enough
+    algo_class = VectorizedTauSdql # <-- Try this if Delta version does not work
     replay_buffer_size = 200000
     variant = dict(
         algo_params=dict(
