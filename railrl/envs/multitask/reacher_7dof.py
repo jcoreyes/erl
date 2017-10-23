@@ -1,5 +1,6 @@
 from collections import OrderedDict
 
+import torch
 import numpy as np
 from gym import utils
 from gym.envs.mujoco import mujoco_env
@@ -8,6 +9,7 @@ from railrl.envs.env_utils import get_asset_xml
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import get_stat_in_dict
+import railrl.torch.pytorch_util as ptu
 from rllab.misc import logger
 
 
@@ -80,12 +82,32 @@ class Reacher7DofMultitaskEnv(
 
         observations = np.vstack([path['observations'] for path in paths])
         goal_states = np.vstack([path['goal_states'] for path in paths])
-        distances = np.linalg.norm(
+        l2_distance = np.linalg.norm(
             self.convert_obs_to_goal_states(observations) - goal_states,
             axis=1,
         )
+        l1_distance = np.linalg.norm(
+            self.convert_obs_to_goal_states(observations) - goal_states,
+            axis=1,
+            ord=1,
+        )
         statistics.update(create_stats_ordered_dict(
-            'State distance to target', distances
+            'L2 full goal distance to target', l2_distance
+        ))
+        statistics.update(create_stats_ordered_dict(
+            'L1 full goal distance to target', l1_distance
+        ))
+        statistics.update(create_stats_ordered_dict(
+            'L2 angle goal distance to target', l2_distance[:7]
+        ))
+        statistics.update(create_stats_ordered_dict(
+            'L1 angle goal distance to target', l1_distance[:7]
+        ))
+        statistics.update(create_stats_ordered_dict(
+            'L2 vel goal distance to target', l2_distance[7:]
+        ))
+        statistics.update(create_stats_ordered_dict(
+            'L1 vel goal distance to target', l1_distance[7:]
         ))
 
         euclidean_distances = get_stat_in_dict(
@@ -266,3 +288,27 @@ class Reacher7DofCosSinFullGoalState(Reacher7DofFullGoalState):
         self.set_state(qpos, qvel)
 
         return self._get_obs()
+
+
+"""
+Reward functions for optimal control
+"""
+# DESIRED_JOINT_CONFIG = np.hstack((
+#         np.random.uniform(
+#             np.array([-2.28, -0.52, -1.4, -2.32, -1.5, -1.094, -1.5]),
+#             np.array([1.71, 1.39, 1.7, 0, 1.5, 0, 1.5]),
+#         ),
+#         np.zeros(7),
+#     ))
+
+DESIRED_JOINT_CONFIG = np.array([  5.92362888e-01,  -7.74627671e-02,
+                              -1.50309161e+00,
+        -2.10249801e+00,  -1.50462487e+00,  -4.96640519e-02,
+         1.50096772e+00,  -2.60583393e-01,   5.75143354e-01,
+         6.43329677e-03,  -1.41355238e-01,   1.30170821e-01,
+         3.73738073e+00,   1.18810308e-03])
+DESIRED_JOINT_CONFIG[7:] = 0
+
+def reach_a_joint_config_reward(states):
+    goal_pos = ptu.np_to_var(DESIRED_JOINT_CONFIG, requires_grad=False)
+    return - torch.norm(states[:, :7] - goal_pos[:7], p=2, dim=1)
