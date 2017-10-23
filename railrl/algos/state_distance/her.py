@@ -95,10 +95,10 @@ class HER(DDPG):
         exploration_batch['rewards'] = - goal_not_reached
         if self.terminate_when_goal_reached:
             exploration_batch['terminals'] = 1 - (1 - exploration_batch['terminals']) * goal_not_reached
-        rewards = exploration_batch['rewards']
+        rewards = exploration_batch['rewards'].numpy()
         # returns = sum(rewards)
         # avg_returns = np.mean(returns)
-        logger.record_tabular("reward", rewards)
+        # logger.record_tabular("reward", rewards)
         get_generic_path_information(exploration_paths)
         # logger.record_tabular("Returns", avg_returns)
 
