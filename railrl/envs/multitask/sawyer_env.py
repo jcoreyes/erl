@@ -112,7 +112,7 @@ experiments=[
     'end_effector_position_orientation|varying_ee'
 ]
 
-class MultiTaskBaxterEnv(SawyerEnv, MultitaskEnv):
+class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
     def __init__(
             self,
             arm_name,

@@ -9,7 +9,7 @@ from railrl.algos.state_distance.state_distance_q_learning import (
     HorizonFedStateDistanceQLearning)
 from railrl.algos.state_distance.vectorized_sdql import VectorizedDeltaTauSdql, \
     VectorizedTauSdql
-from railrl.envs.multitask.sawyer_env import SawyerEnv
+from railrl.envs.multitask.sawyer_env import MultiTaskSawyerEnv
 from railrl.envs.wrappers import convert_gym_space, normalize_box
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
@@ -24,7 +24,7 @@ from railrl.torch.state_distance.exploration import \
 
 
 def experiment(variant):
-    env = SawyerEnv(**variant['env_params'])
+    env = MultiTaskSawyerEnv(**variant['env_params'])
     observation_space = convert_gym_space(env.observation_space)
     action_space = convert_gym_space(env.action_space)
     qf = variant['qf_class'](
