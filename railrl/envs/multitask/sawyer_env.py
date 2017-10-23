@@ -11,6 +11,7 @@ import intera_interface as ii
 import rospy
 
 from rllab.core.serializable import Serializable
+from rllab.misc import logger
 from rllab.spaces import Box
 
 NUM_JOINTS = 7
@@ -243,7 +244,6 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
         self._rs = ii.RobotEnable(CHECK_VERSION)
         self.update_pose_and_jacobian_dict()
         self.in_reset = True
-        # self.amplify = 0.5 * np.array([8, 7, 6, 5, 4, 3, 2])
         self.amplify = np.ones(7)
         self._observation_space = Box(lows, highs)
 
@@ -294,3 +294,5 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
                 stat_prefix,
                 'Distance from Desired End Effector Position'
             ))
+        for key, value in statistics.items():
+            logger.record_tabular(key, value)
