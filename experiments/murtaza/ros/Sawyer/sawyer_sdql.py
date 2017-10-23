@@ -1,4 +1,5 @@
 import argparse
+import random
 
 from torch.nn import functional as F
 
@@ -100,7 +101,7 @@ if __name__ == '__main__':
     replay_buffer_size = 200000
     variant = dict(
         algo_params=dict(
-            num_epochs=101,
+            num_epochs=50,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             num_updates_per_env_step=1,
@@ -162,6 +163,7 @@ if __name__ == '__main__':
     algo_class = variant['algo_class']
     run_experiment(
         experiment,
+        seed=random.randint(0, 666),
         exp_prefix="sdql-sawyer",
         mode="local",
         variant=variant,

@@ -3,8 +3,8 @@ from collections import OrderedDict
 from numpy.linalg import linalg
 
 from experiments.murtaza.ros.Sawyer.joint_space_impedance import PDController
-from intera_sdk.intera_interface.src.intera_interface import CHECK_VERSION
-from railrl.envs.ros.baxter_env import SawyerEnv
+from intera_interface import CHECK_VERSION
+from railrl.envs.ros.sawyer_env import SawyerEnv
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 import numpy as np
 import intera_interface as ii
