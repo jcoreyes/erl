@@ -17,8 +17,8 @@ class Reacher7DofMultitaskEnv(
     MultitaskEnv, mujoco_env.MujocoEnv, utils.EzPickle
 ):
     def __init__(self):
+        MultitaskEnv.__init__(self)
         utils.EzPickle.__init__(self)
-        self.multitask_goal = np.zeros(self.goal_dim)
         mujoco_env.MujocoEnv.__init__(
             self,
             get_asset_xml('reacher_7dof.xml'),
@@ -74,14 +74,10 @@ class Reacher7DofMultitaskEnv(
         done = False
         return ob, reward, done, dict(distance=distance)
 
-    def set_goal(self, goal):
-        self.multitask_goal = goal
-
     def log_diagnostics(self, paths):
+        super().log_diagnostics(paths)
         statistics = OrderedDict()
 
-        observations = np.vstack([path['observations'] for path in paths])
-        goal_states = np.vstack([path['goal_states'] for path in paths])
         euclidean_distances = get_stat_in_dict(
             paths, 'env_infos', 'distance'
         )
@@ -92,16 +88,6 @@ class Reacher7DofMultitaskEnv(
             'Final Euclidean distance to goal',
             euclidean_distances[:, -1],
             always_show_all_stats=True,
-        ))
-
-        rewards = self.compute_rewards(
-            None,
-            None,
-            observations,
-            goal_states,
-        )
-        statistics.update(create_stats_ordered_dict(
-            'Rewards', rewards,
         ))
         for key, value in statistics.items():
             logger.record_tabular(key, value)
@@ -184,21 +170,6 @@ class Reacher7DofFullGoalState(Reacher7DofMultitaskEnv):
         self.set_state(qpos, qvel)
 
         return self._get_obs()
-
-    # TODO(vitchyr): get rid of this duplicate code
-    def log_diagnostics(self, paths):
-        super().log_diagnostics(paths)
-        statistics = OrderedDict()
-        full_state_go_goal_distance = get_stat_in_dict(
-            paths, 'env_infos', 'full_state_to_goal_distance'
-        )
-        statistics.update(create_stats_ordered_dict(
-            'Final state to goal state distance',
-            full_state_go_goal_distance[:, -1],
-            always_show_all_stats=True,
-        ))
-        for key, value in statistics.items():
-            logger.record_tabular(key, value)
 
     def _step(self, a):
         full_state_to_goal_distance = np.linalg.norm(
