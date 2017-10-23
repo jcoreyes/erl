@@ -31,8 +31,7 @@ from railrl.envs.multitask.reacher_7dof import (
 )
 from railrl.envs.multitask.reacher_env import (
     GoalStateSimpleStateReacherEnv,
-    XyMultitaskSimpleStateReacherEnv,
-)
+    GoalXYStateXYAndCosSinReacher2D)
 from railrl.envs.multitask.pusher import (
     ArmEEInStatePusherEnv,
     JointOnlyPusherEnv,
@@ -173,7 +172,7 @@ if __name__ == '__main__':
 
     # n_seeds = 3
     # mode = "ec2"
-    # exp_prefix = "sdql-no-sl-compare-binary-vs-not-3"
+    exp_prefix = "sdql-reacher2d-goal-just-xy"
     # run_mode = 'grid'
 
     version = "l2"
@@ -194,7 +193,7 @@ if __name__ == '__main__':
     variant = dict(
         version=version,
         algo_params=dict(
-            num_epochs=51,
+            num_epochs=101,
             num_steps_per_epoch=100,
             num_steps_per_eval=1000,
             num_updates_per_env_step=5,
@@ -245,7 +244,9 @@ if __name__ == '__main__':
         algo_class=algo_class,
         # env_class=Reacher7DofFullGoalState,
         # env_class=JointOnlyPusherEnv,
-        env_class=GoalStateSimpleStateReacherEnv,
+        # env_class=GoalStateSimpleStateReacherEnv,
+        # env_class=Reacher7DofXyzGoalState,
+        env_class=GoalXYStateXYAndCosSinReacher2D,
         # env_class=HandCylinderXYPusher2DEnv,
         # env_class=CylinderXYPusher2DEnv,
         # env_class=FullStatePusher2DEnv,
