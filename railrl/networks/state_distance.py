@@ -385,7 +385,8 @@ class VectorizedGoalStructuredUniversalQfunction(PyTorchModule):
             dropout_prob=0,
     ):
         # Keeping it as a separate argument to have same interface
-        assert observation_dim == goal_dim
+        # import ipdb; ipdb.set_trace()
+        # assert observation_dim == goal_dim
         self.save_init_params(locals())
         super().__init__()
 
@@ -393,7 +394,7 @@ class VectorizedGoalStructuredUniversalQfunction(PyTorchModule):
         self.dropout_prob = dropout_prob
         self.dropouts = []
         self.fcs = []
-        in_size = 2 * observation_dim + action_dim + 1
+        in_size = goal_dim + observation_dim + action_dim + 1
         if bn_input:
             self.process_input = nn.BatchNorm1d(in_size)
         else:
@@ -411,7 +412,7 @@ class VectorizedGoalStructuredUniversalQfunction(PyTorchModule):
                 self.__setattr__("dropout{}".format(i), dropout)
                 self.dropouts.append(dropout)
 
-        self.last_fc = nn.Linear(in_size, observation_dim)
+        self.last_fc = nn.Linear(in_size, goal_dim)
         self.last_fc.weight.data.uniform_(-init_w, init_w)
         self.last_fc.bias.data.uniform_(-init_w, init_w)
 

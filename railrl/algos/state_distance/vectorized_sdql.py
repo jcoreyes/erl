@@ -13,12 +13,17 @@ from railrl.algos.state_distance.state_distance_q_learning import (
 
 class VectorizedSdql(StateDistanceQLearning):
     def compute_rewards(self, obs, actions, next_obs, goal_states):
-        return -np.abs(next_obs - goal_states)
+        return -np.abs(
+            self.env.convert_obs_to_goal_states_pytorch(next_obs)
+            - goal_states
+        )
 
 
 class VectorizedTauSdql(HorizonFedStateDistanceQLearning):
     def compute_rewards(self, obs, actions, next_obs, goal_states):
-        return -np.abs(next_obs - goal_states)
+        return -np.abs(
+            self.env.convert_obs_to_goal_states_pytorch(next_obs)
+            - goal_states)
 
 
 class VectorizedDeltaTauSdql(HorizonFedStateDistanceQLearning):
@@ -72,6 +77,7 @@ class VectorizedDeltaTauSdql(HorizonFedStateDistanceQLearning):
         )
         if self.clamp_q_target_values:
             target_q_values = torch.clamp(target_q_values, -math.inf, 0)
+        import ipdb; ipdb.set_trace()
         y_target = rewards + (1. - terminals) * target_q_values
 
         # noinspection PyUnresolvedReferences

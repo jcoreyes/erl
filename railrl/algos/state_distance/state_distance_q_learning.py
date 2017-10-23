@@ -377,11 +377,16 @@ class StateDistanceQLearning(DDPG):
             data_to_save['algorithm'] = self
         return data_to_save
 
-    @staticmethod
-    def paths_to_batch(paths):
+    def paths_to_batch(self, paths):
         np_batch = split_paths_to_dict(paths)
         goal_states = [path["goal_states"] for path in paths]
         np_batch['goal_states'] = np.vstack(goal_states)
+        np_batch['rewards'] = self.compute_rewards(
+            np_batch['observations'],
+            np_batch['actions'],
+            np_batch['next_observations'],
+            np_batch['goal_states'],
+        )
         return np_to_pytorch_batch(np_batch)
 
 
@@ -594,7 +599,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             next_obs,
             goal_states,
             num_steps_left - 1,
-        )
+            )
         target_q_values = self.target_qf(
             next_obs,
             next_actions,
@@ -603,7 +608,13 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
         )
         if self.clamp_q_target_values:
             target_q_values = torch.clamp(target_q_values, -math.inf, 0)
-        y_target = rewards + (1. - terminals) * target_q_values
+        if terminals.size()[1] != target_q_values.size()[1]:
+            terminals = terminals.repeat(1, target_q_values.size()[1])
+        try:
+            y_target = rewards + (1. - terminals) * target_q_values
+        except:
+            import ipdb; ipdb.set_trace()
+
 
         # noinspection PyUnresolvedReferences
         y_target = y_target.detach()
