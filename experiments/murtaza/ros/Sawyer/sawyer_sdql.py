@@ -113,15 +113,15 @@ if __name__ == '__main__':
     n_seeds = 1
     use_gpu = True
     max_path_length = 100
-    algo_class = VectorizedDeltaTauSdql  # <-- should work well enough
-    # algo_class = VectorizedTauSdql # <-- Try this if Delta version does not work
+    # algo_class = VectorizedDeltaTauSdql  # <-- should work well enough
+    algo_class = VectorizedTauSdql # <-- Try this if Delta version does not work
     replay_buffer_size = 200000
     variant = dict(
         algo_params=dict(
-            num_epochs=50,
+            num_epochs=100,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
-            num_updates_per_env_step=1,
+            num_updates_per_env_step=2,
             use_soft_update=True,
             tau=0.001,
             batch_size=64,
@@ -154,8 +154,8 @@ if __name__ == '__main__':
         sampler_es_class=OUStrategy,
         sampler_es_params=dict(
             theta=0.1,
-            max_sigma=0.1,
-            min_sigma=0.1,
+            max_sigma=0.25,
+            min_sigma=0.25,
         ),
         algo_class=algo_class,
         qf_class=algo_class_to_qf_class[algo_class],
@@ -170,7 +170,7 @@ if __name__ == '__main__':
                       'loss': 'huber',
                       'huber_delta': 10,
                       'safety_force_magnitude': 5,
-                      'temp': 1,
+                      'temp': 15,
                       'remove_action': False,
                       'experiment': experiments[2],
                       'reward_magnitude': 10,

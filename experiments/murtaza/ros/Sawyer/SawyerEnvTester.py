@@ -16,9 +16,9 @@ experiments=[
     'end_effector_position_orientation|varying_ee'
 ]
 
-env = SawyerEnv('right', experiment=experiments[0], safety_force_magnitude=5, temp=15, safety_box=True)
+env = SawyerEnv('right', experiment=experiments[0], safety_force_magnitude=5, temp=15, safety_box=True, use_safety_checks=False)
 
-# env.reset()
+env.reset()
 # env.arm.move_to_neutral()
 # ja = env._joint_angles()
 # # ja =np.array([-2.13281250e-03, -1.18177441e+00, -2.75390625e-03, 2.17755176e+00,

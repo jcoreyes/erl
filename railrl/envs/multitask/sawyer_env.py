@@ -125,7 +125,7 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
             huber_delta=10,
             safety_force_magnitude=2,
             temp=1.05,
-            safe_reset_length=150,
+            safe_reset_length=200,
             reward_magnitude=1,
             use_safety_checks=True,
             use_angle_wrapping=False,
@@ -215,7 +215,6 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
                 JOINT_VALUE_LOW['velocity'],
                 JOINT_VALUE_LOW['torque'],
                 END_EFFECTOR_VALUE_LOW['position'],
-                END_EFFECTOR_VALUE_LOW['position'],
             ))
 
             highs = np.hstack((
@@ -224,14 +223,12 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
                 JOINT_VALUE_HIGH['velocity'],
                 JOINT_VALUE_HIGH['torque'],
                 END_EFFECTOR_VALUE_LOW['position'],
-                END_EFFECTOR_VALUE_LOW['position'],
             ))
         else:
             lows = np.hstack((
                 JOINT_VALUE_LOW['position'],
                 JOINT_VALUE_LOW['velocity'],
                 JOINT_VALUE_LOW['torque'],
-                END_EFFECTOR_VALUE_LOW['position'],
                 END_EFFECTOR_VALUE_LOW['position'],
             ))
 
@@ -240,21 +237,14 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
                 JOINT_VALUE_HIGH['velocity'],
                 JOINT_VALUE_HIGH['torque'],
                 END_EFFECTOR_VALUE_HIGH['position'],
-                END_EFFECTOR_VALUE_HIGH['position'],
             ))
-
-        if self.fixed_end_effector:
-            self.desired = np.array([0.68998028, -0.2285752, 0.3477])
-
-        else:
-            self._randomize_desired_end_effector_pose()
 
         self._observation_space = Box(lows, highs)
         self._rs = ii.RobotEnable(CHECK_VERSION)
         self.update_pose_and_jacobian_dict()
         self.in_reset = True
-        self.amplify = 0.5 * np.array([8, 7, 6, 5, 4, 3, 2])
-
+        # self.amplify = 0.5 * np.array([8, 7, 6, 5, 4, 3, 2])
+        self.amplify = np.ones(7)
         self._observation_space = Box(lows, highs)
 
     def set_goal(self, goal):
@@ -296,7 +286,6 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
             for obsSet in obsSets:
                 for observation in obsSet:
                     positions.append(observation[21:24])
-            import ipdb; ipdb.set_trace()
             positions = np.array(positions)
             desired_positions = goal_states
             position_distances = linalg.norm(positions - desired_positions, axis=1)

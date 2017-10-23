@@ -395,7 +395,7 @@ class SawyerEnv(Env, Serializable):
                 else:
                     action = action + torques
         if self.in_reset:
-            np.clip(action, -3.5, 3.5, out=action)
+            np.clip(action, -5, 5, out=action)
         if not self.in_reset:
             action = self.amplify * action
             action = np.clip(np.asarray(action),-MAX_TORQUES, MAX_TORQUES)
