@@ -22,7 +22,7 @@ from railrl.envs.multitask.pusher2d import (
     HandCylinderXYPusher2DEnv,
     CylinderXYPusher2DEnv,
     FullStatePusher2DEnv,
-)
+    HandXYPusher2DEnv)
 from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState,
@@ -31,7 +31,7 @@ from railrl.envs.multitask.reacher_7dof import (
 )
 from railrl.envs.multitask.reacher_env import (
     GoalStateSimpleStateReacherEnv,
-    GoalXYStateXYAndCosSinReacher2D)
+    GoalXYStateXYAndCosSinReacher2D, GoalCosSinStateXYAndCosSinReacher2D)
 from railrl.envs.multitask.pusher import (
     ArmEEInStatePusherEnv,
     JointOnlyPusherEnv,
@@ -172,7 +172,7 @@ if __name__ == '__main__':
 
     # n_seeds = 3
     # mode = "ec2"
-    exp_prefix = "sdql-reacher2d-goal-just-xy"
+    exp_prefix = "sdql-reacher2d-state-xycs-goal-just-cs-2"
     # run_mode = 'grid'
 
     version = "l2"
@@ -243,11 +243,13 @@ if __name__ == '__main__':
         ),
         algo_class=algo_class,
         # env_class=Reacher7DofFullGoalState,
+        env_class=GoalCosSinStateXYAndCosSinReacher2D,
         # env_class=JointOnlyPusherEnv,
         # env_class=GoalStateSimpleStateReacherEnv,
         # env_class=Reacher7DofXyzGoalState,
-        env_class=GoalXYStateXYAndCosSinReacher2D,
+        # env_class=GoalXYStateXYAndCosSinReacher2D,
         # env_class=HandCylinderXYPusher2DEnv,
+        # env_class=HandXYPusher2DEnv,
         # env_class=CylinderXYPusher2DEnv,
         # env_class=FullStatePusher2DEnv,
         env_params=dict(),

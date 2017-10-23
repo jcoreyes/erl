@@ -310,6 +310,42 @@ class GoalXYStateXYAndCosSinReacher2D(MultitaskReacherEnv):
         return 2
 
 
+class GoalCosSinStateXYAndCosSinReacher2D(MultitaskReacherEnv):
+    def sample_goal_states(self, batch_size):
+        theta = self.np_random.uniform(
+            low=-math.pi,
+            high=math.pi,
+            size=(batch_size, 2)
+        )
+        return np.hstack([
+            np.cos(theta),
+            np.sin(theta),
+        ])
+
+    def _get_obs(self):
+        theta = self.model.data.qpos.flat[:2]
+        obs = np.concatenate([
+            np.cos(theta),
+            np.sin(theta),
+            self.get_body_com("fingertip"),
+            self.model.data.qvel.flat[:2],
+        ])
+        return obs
+
+    def convert_obs_to_goal_states(self, obs):
+        return obs[:, :4]
+
+    def set_goal(self, goal):
+        super().set_goal(goal)
+        self._xy_desired_pos = position_from_angles(
+            np.expand_dims(goal, 0)
+        )[0]
+
+    @property
+    def goal_dim(self):
+        return 4
+
+
 """
 Reward functions for optimal control
 """
