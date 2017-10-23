@@ -106,11 +106,14 @@ class VectorizedDeltaTauSdql(HorizonFedStateDistanceQLearning):
             batch = np_to_pytorch_batch(batch)
             obs = batch['observations']
             actions = batch['actions']
-            goal_states = batch['goal_states']
-            num_steps_left = batch['goal_i_minus_obs_i'] - 1
+            states_after_tau_steps = batch['states_after_tau_steps']
+            goal_states = self.env.convert_obs_to_goal_states_pytorch(
+                states_after_tau_steps
+            )
+            num_steps_left = batch['taus']
             y_pred = self.qf(obs, actions, goal_states, num_steps_left)
 
-            y_target = goal_states - obs
+            y_target = states_after_tau_steps - obs
             sl_loss = self.qf_criterion(y_pred, y_target)
             qf_loss = qf_loss + sl_loss * self.sl_grad_weight
 
