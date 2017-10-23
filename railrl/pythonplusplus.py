@@ -63,6 +63,12 @@ def dot_map_dict_to_nested_dict(dot_map_dict):
             for sub_key in split_keys[:-1]:
                 t = t.setdefault(sub_key, {})
             last_key = split_keys[-1]
+            if not isinstance(t, dict):
+                raise TypeError(
+                    "Key inside dot map must point to dictionary: {}".format(
+                        key
+                    )
+                )
             t[last_key] = item
     return tree
 
