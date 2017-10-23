@@ -12,17 +12,17 @@ from rllab.misc import logger
 
 class MultitaskPusher2DEnv(Pusher2DEnv, MultitaskEnv, metaclass=abc.ABCMeta):
     def __init__(self, goal=(0, -1)):
-        self._multitask_goal = np.zeros(self.goal_dim)
         self.init_serialization(locals())
         super().__init__(goal=goal)
+        MultitaskEnv.__init__(self)
 
     def sample_actions(self, batch_size):
         return np.random.uniform(self.action_space.low, self.action_space.high)
 
     def set_goal(self, goal):
+        super().set_goal(goal)
         self._target_cylinder_position = goal[-2:]
         self._target_hand_position = goal[-4:-2]
-        self._multitask_goal = goal
 
         qpos = self.model.data.qpos.flat.copy()
         qvel = self.model.data.qvel.flat.copy()
@@ -35,30 +35,7 @@ class MultitaskPusher2DEnv(Pusher2DEnv, MultitaskEnv, metaclass=abc.ABCMeta):
 
     def log_diagnostics(self, paths):
         super().log_diagnostics(paths)
-        statistics = OrderedDict()
-        full_state_go_goal_distance = get_stat_in_dict(
-            paths, 'env_infos', 'full_state_to_goal_distance'
-        )
-        statistics.update(create_stats_ordered_dict(
-            'Final state to goal state distance',
-            full_state_go_goal_distance[:, -1],
-            always_show_all_stats=True,
-        ))
-        for key, value in statistics.items():
-            logger.record_tabular(key, value)
-
-    def _step(self, a):
-        full_state_to_goal_distance = np.linalg.norm(
-            self.convert_obs_to_goal_states(
-                np.expand_dims(self._get_obs(), 0)
-            )[0]
-            - self._multitask_goal
-        )
-        ob, reward, done, info_dict = super()._step(a)
-        info_dict['full_state_to_goal_distance'] = (
-            full_state_to_goal_distance
-        )
-        return ob, reward, done, info_dict
+        MultitaskEnv.log_diagnostics(self, paths)
 
 
 class FullStatePusher2DEnv(MultitaskPusher2DEnv):
@@ -94,6 +71,34 @@ class HandCylinderXYPusher2DEnv(MultitaskPusher2DEnv):
         return obs[:, -4:]
 
 
+class HandXYPusher2DEnv(MultitaskPusher2DEnv):
+    """
+    Only care about the hand position! This is really just for debugging.
+    """
+    def sample_goal_states(self, batch_size):
+        return np.random.uniform(
+            np.array([-1, -1]),
+            np.array([0, 1]),
+            (batch_size, self.goal_dim)
+        )
+
+    @property
+    def goal_dim(self):
+        return 2
+
+    def convert_obs_to_goal_states(self, obs):
+        return obs[:, -4:-2]
+
+    def set_goal(self, goal):
+        self._target_hand_position = goal
+
+        qpos = self.model.data.qpos.flat.copy()
+        qvel = self.model.data.qvel.flat.copy()
+        qpos[-4:-2] = self._target_cylinder_position
+        qpos[-2:] = self._target_hand_position
+        self.set_state(qpos, qvel)
+
+
 class CylinderXYPusher2DEnv(MultitaskPusher2DEnv):
     def sample_goal_states(self, batch_size):
         return np.random.uniform(
@@ -110,8 +115,7 @@ class CylinderXYPusher2DEnv(MultitaskPusher2DEnv):
         return obs[:, -2:]
 
     def set_goal(self, goal):
-        self._target_cylinder_position = goal[-2:]
-        self._multitask_goal = goal
+        self._target_cylinder_position = goal
 
         qpos = self.model.data.qpos.flat.copy()
         qvel = self.model.data.qvel.flat.copy()
