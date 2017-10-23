@@ -291,7 +291,6 @@ class StateDistanceQLearning(DDPG):
                     np.linalg.norm(reached_goals - goals, axis=1, ord=l)
                 )
             final_goal_distances = [d[-1] for d in goal_distances]
-            import ipdb; ipdb.set_trace()
             statistics.update(create_stats_ordered_dict(
                 'SDQL L{} Goal Distance'.format(l),
                 goal_distances,
