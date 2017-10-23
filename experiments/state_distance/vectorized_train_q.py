@@ -146,10 +146,11 @@ algo_class_to_qf_class = {
 
 def complete_variant(variant):
     algo_class = variant['algo_class']
-    # variant['qf_class'] = algo_class_to_qf_class[algo_class]
     variant['algo_params']['sparse_reward'] = not (
         algo_class == VectorizedDeltaTauSdql
     )
+    if 'qf_class' not in variant:
+        variant['qf_class'] = algo_class_to_qf_class[algo_class]
     if variant['epoch_discount_schedule_class'] == ConstantSchedule:
         discount = variant['epoch_discount_schedule_params']['value']
         variant['algo_params']['discount'] = discount
@@ -170,10 +171,10 @@ if __name__ == '__main__':
     exp_prefix = "dev-vectorized-train-q"
     run_mode = "none"
 
-    n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "sdql-no-sl-compare-binary-vs-not-3"
-    run_mode = 'grid'
+    # n_seeds = 3
+    # mode = "ec2"
+    # exp_prefix = "sdql-no-sl-compare-binary-vs-not-3"
+    # run_mode = 'grid'
 
     version = "l2"
     num_configurations = 50  # for random mode
