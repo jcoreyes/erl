@@ -181,11 +181,11 @@ if __name__ == '__main__':
     mode = "local"
     exp_prefix = "dev-vectorized-train-q"
     run_mode = "none"
-    snapshot_mode = "gap"
+    snapshot_mode = "last"
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "sdql-reacher7everything-vtau"
+    exp_prefix = "sdql-reacher7everything-gcm"
     run_mode = 'grid'
     # snapshot_mode = "gap_and_last"
 
@@ -199,8 +199,8 @@ if __name__ == '__main__':
     max_path_length = 100
     max_tau = 10
     # noinspection PyTypeChecker
-    algo_class = VectorizedTauSdql
-    # algo_class = VectorizedDeltaTauSdql
+    # algo_class = VectorizedTauSdql
+    algo_class = VectorizedDeltaTauSdql
     qf_class = algo_class_to_qf_class[algo_class]
 
     # env_class = Reacher7DofAngleGoalState
@@ -294,8 +294,8 @@ if __name__ == '__main__':
     if run_mode == 'grid':
         search_space = {
             'raw_explore_policy': [
-                'oc',
                 'ddpg',
+                'oc',
             ],
             # 'algo_class': [
             #     VectorizedTauSdql,
