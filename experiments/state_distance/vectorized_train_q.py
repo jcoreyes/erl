@@ -178,7 +178,7 @@ if __name__ == '__main__':
 
     # n_seeds = 3
     # mode = "ec2"
-    exp_prefix = "local-sdql-reacher7dof-sparse-delta"
+    exp_prefix = "local-sdql-reacher7dof-nodelta-goal-xyz"
     # run_mode = 'grid'
     # snapshot_mode = "gap_and_last"
 
@@ -189,21 +189,21 @@ if __name__ == '__main__':
     if mode != "local":
         use_gpu = False
 
-    max_path_length = 300
+    max_path_length = 100
     max_tau = 10
     # noinspection PyTypeChecker
-    # algo_class = VectorizedTauSdql
-    algo_class = VectorizedDeltaTauSdql
+    algo_class = VectorizedTauSdql
+    # algo_class = VectorizedDeltaTauSdql
     qf_class = algo_class_to_qf_class[algo_class]
 
     # env_class = Reacher7DofAngleGoalState
     # env_class = GoalCosSinStateXYAndCosSinReacher2D
-    # env_class = Reacher7DofXyzGoalState
+    env_class = Reacher7DofXyzGoalState
     # env_class = JointOnlyPusherEnv
     # env_class = GoalStateSimpleStateReacherEnv
     # env_class = GoalXYStateXYAndCosSinReacher2D
     # env_class = HandCylinderXYPusher2DEnv
-    env_class = Reacher7DofFullGoalState
+    # env_class = Reacher7DofFullGoalState
     # env_class = HandXYPusher2DEnv
     # env_class = FixedHandXYPusher2DEnv
     # env_class = CylinderXYPusher2DEnv
@@ -213,8 +213,8 @@ if __name__ == '__main__':
         version=version,
         algo_params=dict(
             num_epochs=101,
-            num_steps_per_epoch=3000,
-            num_steps_per_eval=3000,
+            num_steps_per_epoch=100,
+            num_steps_per_eval=1000,
             num_updates_per_env_step=5,
             use_soft_update=True,
             tau=0.001,
@@ -236,7 +236,7 @@ if __name__ == '__main__':
             cycle_taus_for_rollout=True,
             sl_grad_weight=1,
             num_sl_batches_per_rl_batch=0,
-            only_do_sl=False,
+            # only_do_sl=False,
             # cycle_taus_for_rollout=False,
             # num_sl_batches_per_rl_batch=1,
             # only_do_sl=True,
@@ -246,11 +246,11 @@ if __name__ == '__main__':
             num_goals_to_sample=4,
             goal_sample_strategy='store',
         ),
-        raw_explore_policy='oc',
-        oc_policy_params=dict(
-            sample_size=1000,
-            reward_function=env_class.oc_reward,
-        ),
+        raw_explore_policy='ddpg',
+        # oc_policy_params=dict(
+        #     sample_size=1000,
+        #     reward_function=env_class.oc_reward,
+        # ),
         qf_params=dict(
             hidden_sizes=[300, 300],
             hidden_activation=F.softplus,
