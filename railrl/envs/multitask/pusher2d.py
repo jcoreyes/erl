@@ -114,7 +114,11 @@ class HandXYPusher2DEnv(MultitaskPusher2DEnv):
         :param goals:
         :return:
         """
-        return - torch.norm(states[:, 6:8] - goals)
+        return HandXYPusher2DEnv.oc_reward_on_goals(states[:, 6:8], goals)
+
+    @staticmethod
+    def oc_reward_on_goals(goals_predicted, goals):
+        return - torch.norm(goals_predicted - goals)
 
 
 class FixedHandXYPusher2DEnv(HandXYPusher2DEnv):
