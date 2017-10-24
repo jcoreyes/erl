@@ -19,7 +19,10 @@ class VectorizedSdql(StateDistanceQLearning):
 
 class VectorizedTauSdql(HorizonFedStateDistanceQLearning):
     def compute_rewards(self, obs, actions, next_obs, goal_states):
-        return -np.abs(next_obs - goal_states)
+        return -np.abs(
+            self.env.convert_obs_to_goal_states(next_obs)
+            - goal_states
+        )
 
 
 class VectorizedDeltaTauSdql(HorizonFedStateDistanceQLearning):
