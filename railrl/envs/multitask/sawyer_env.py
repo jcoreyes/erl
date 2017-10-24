@@ -83,17 +83,17 @@ TORQUE_MAX = 3.5
 TORQUE_MAX_TRAIN = 5
 MAX_TORQUES = 0.5 * np.array([8, 7, 6, 5, 4, 3, 2])
 
-box_lows = [
+box_lows = np.array([
     0.1228008448954529,
     -0.31815782,
     0.2284391863426093,
-]
+])
 
-box_highs = [
+box_highs = np.array([
     0.7175958839273338,
     0.3064466563902636,
     1.3,
-]
+])
 
 joint_names = [
     '_l2',
@@ -237,7 +237,7 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
         return 3
 
     def sample_goal_states(self, batch_size):
-        return np.random.uniform(END_EFFECTOR_POS_LOW, END_EFFECTOR_POS_HIGH, size=(batch_size, 3))
+        return np.random.uniform(box_lows, box_highs, size=(batch_size, 3))
 
     def sample_actions(self, batch_size):
         return np.random.uniform(JOINT_VALUE_LOW['torque'], JOINT_VALUE_HIGH['torque'], (batch_size, 7))
@@ -251,10 +251,8 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
     def _get_observation(self):
         angles = self._get_joint_values['angle']()
         velocities_dict = self._get_joint_values['velocity']()
-        torques_dict = self._get_joint_values['torque']()
         velocities = np.array([velocities_dict[joint] for joint in self.arm_joint_names])
-        # torques = np.array([torques_dict[joint] for joint in self.arm_joint_names])
-        torques = np.zeros(7) #TODO: clean this up later
+        torques = np.zeros(7)
         temp = np.hstack((angles, velocities, torques))
         temp = np.hstack((temp, self._end_effector_pose()))
         return temp

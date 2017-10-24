@@ -92,17 +92,17 @@ TORQUE_MAX = 3.5
 TORQUE_MAX_TRAIN = 5
 MAX_TORQUES = 0.5 * np.array([8, 7, 6, 5, 4, 3, 2])
 
-box_lows = [
-    0.0228008448954529,
+box_lows = np.array([
+    0.1228008448954529,
     -0.31815782,
     0.2284391863426093,
-]
+])
 
-box_highs = [
+box_highs = np.array([
     0.7175958839273338,
     0.3064466563902636,
     1.3,
-]
+])
 
 joint_names = [
     '_l2',

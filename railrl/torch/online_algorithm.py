@@ -235,7 +235,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                 self.training_mode(False)
 
             train_time = time.time() - start_time
-            self._offline_evaluate(epoch)
+            self.offline_evaluate(epoch)
             if self._can_train():
                 logger.log("Training Time: {0}".format(train_time))
             else:
