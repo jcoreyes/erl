@@ -28,24 +28,15 @@ from railrl.torch.state_distance.exploration import \
 import random
 
 def experiment(variant):
-    env = MultiTaskSawyerEnv(**variant['env_params'])
-    observation_space = convert_gym_space(env.observation_space)
+    path = variant['path']
+    data = joblib.load(path)
+    env = data['env']
+    qf = data['qf']
+    policy = data['policy']
     action_space = convert_gym_space(env.action_space)
-    qf = variant['qf_class'](
-        int(observation_space.flat_dim),
-        int(action_space.flat_dim),
-        env.goal_dim,
-        **variant['qf_params']
-    )
-    policy = FFUniversalPolicy(
-        int(observation_space.flat_dim),
-        int(action_space.flat_dim),
-        env.goal_dim,
-        **variant['policy_params']
-    )
-    es = variant['sampler_es_class'](
+    es = variant['es_class'](
         action_space=action_space,
-        **variant['sampler_es_params']
+        **variant['es_params']
     )
     exploration_policy = UniversalPolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
@@ -54,20 +45,6 @@ def experiment(variant):
     newpath = Path(path).parent / 'extra_data.pkl'
     extra_data = joblib.load(str(newpath))
     replay_buffer = extra_data.get('replay_buffer', None)
-    if variant['algo_params']['sample_train_goals_from'] == 'her':
-        replay_buffer = SplitReplayBuffer(
-            HerReplayBuffer(
-                env=env,
-                **variant['her_replay_buffer_params']
-            ),
-            HerReplayBuffer(
-                env=env,
-                **variant['her_replay_buffer_params']
-            ),
-            fraction_paths_in_train=0.8,
-        )
-    else:
-        replay_buffer = None
     algo = variant['algo_class'](
         env,
         qf,
@@ -113,6 +90,8 @@ experiments=[
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--render', action='store_true')
+    parser.add_argument('path', type=str,
+                        help='Path to snapshot file to fine tune.')
     args = parser.parse_args()
 
     n_seeds = 1
@@ -122,8 +101,9 @@ if __name__ == '__main__':
     algo_class = VectorizedTauSdql # <-- Try this if Delta version does not work
     replay_buffer_size = 200000
     variant = dict(
+        path=args.path,
         algo_params=dict(
-            num_epochs=5,
+            num_epochs=100,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             num_updates_per_env_step=1,

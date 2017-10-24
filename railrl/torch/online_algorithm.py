@@ -217,6 +217,31 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                 logger.log("Not training yet. Time: {}".format(train_time))
             logger.pop_prefix()
 
+    def train_offline(self, start_epoch=0):
+        n_steps_total = 0
+        self._current_path = Path()
+        self._start_worker()
+        self.training_mode(False)
+        params = self.get_epoch_snapshot(-1)
+        logger.save_itr_params(-1, params)
+        for epoch in range(start_epoch, self.num_epochs):
+            self.discount = self.epoch_discount_schedule.get_value(epoch)
+            logger.push_prefix('Iteration #%d | ' % epoch)
+            start_time = time.time()
+            n_steps_total += 1
+            if self._can_train():
+                self.training_mode(True)
+                self._do_training(n_steps_total=n_steps_total)
+                self.training_mode(False)
+
+            train_time = time.time() - start_time
+            self._offline_evaluate(epoch)
+            if self._can_train():
+                logger.log("Training Time: {0}".format(train_time))
+            else:
+                logger.log("Not training yet. Time: {}".format(train_time))
+            logger.pop_prefix()
+
     def _try_to_eval(self, exploration_paths, epoch):
         if len(exploration_paths) == 0:
             exploration_paths = [self._current_path.get_all_stacked()]
@@ -276,6 +301,10 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def evaluate(self, epoch, es_path_returns):
+        pass
+
+    @abc.abstractmethod
+    def offline_evaluate(epoch):
         pass
 
     def _can_train(self):

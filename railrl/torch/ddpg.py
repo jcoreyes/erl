@@ -302,6 +302,47 @@ class DDPG(OnlineAlgorithm):
 
         self.log_diagnostics(test_paths)
 
+    def offline_evaluate(self, epoch):
+        logger.log("Collecting samples for evaluation")
+        statistics = OrderedDict()
+        train_batch = self.get_batch(training=True)
+        validation_batch = self.get_batch(training=False)
+        test_paths = self._sample_eval_paths(epoch)
+
+        if not isinstance(self.epoch_discount_schedule, ConstantSchedule):
+            statistics['Discount Factor'] = self.discount
+
+        statistics.update(self._statistics_from_batch(train_batch, "Train"))
+        statistics.update(
+            self._statistics_from_batch(validation_batch, "Validation")
+        )
+        statistics.update(get_generic_path_information(
+            test_paths, self.discount, stat_prefix="Test",
+        ))
+        statistics.update(self._statistics_from_paths(test_paths, "Test"))
+        statistics.update(
+            get_difference_statistics(
+                statistics,
+                [
+                    'QF Loss Mean',
+                    'Policy Loss Mean',
+                    'Target Policy Loss Mean',
+                ],
+            )
+        )
+
+        average_returns = get_average_returns(test_paths)
+        statistics['AverageReturn'] = average_returns
+
+        statistics['Epoch'] = epoch
+
+        self.final_score = average_returns
+
+        for key, value in statistics.items():
+            logger.record_tabular(key, value)
+
+        self.log_diagnostics(test_paths)
+
     def get_batch(self, training=True):
         replay_buffer = self.replay_buffer.get_replay_buffer(training)
         sample_size = min(
