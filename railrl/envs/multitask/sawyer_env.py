@@ -226,7 +226,7 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
         self._rs = ii.RobotEnable(CHECK_VERSION)
         self.update_pose_and_jacobian_dict()
         self.in_reset = True
-        self.amplify = np.ones(7)
+        self.amplify = 5*np.ones(7)
         self._observation_space = Box(lows, highs)
 
     def set_goal(self, goal):
@@ -253,7 +253,8 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
         velocities_dict = self._get_joint_values['velocity']()
         torques_dict = self._get_joint_values['torque']()
         velocities = np.array([velocities_dict[joint] for joint in self.arm_joint_names])
-        torques = np.array([torques_dict[joint] for joint in self.arm_joint_names])
+        # torques = np.array([torques_dict[joint] for joint in self.arm_joint_names])
+        torques = np.zeros(7) #TODO: clean this up later
         temp = np.hstack((angles, velocities, torques))
         temp = np.hstack((temp, self._end_effector_pose()))
         return temp

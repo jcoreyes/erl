@@ -1,5 +1,6 @@
 import argparse
 
+import joblib
 from torch.nn import functional as F
 
 import railrl.torch.pytorch_util as ptu
@@ -9,6 +10,7 @@ from railrl.algos.state_distance.state_distance_q_learning import (
 from railrl.algos.state_distance.vectorized_sdql import VectorizedDeltaTauSdql, \
     VectorizedTauSdql
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
+from railrl.data_management.path import Path
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.multitask.reacher_env import GoalStateSimpleStateReacherEnv
 from railrl.envs.multitask.sawyer_env import MultiTaskSawyerEnv
@@ -49,6 +51,9 @@ def experiment(variant):
         exploration_strategy=es,
         policy=policy,
     )
+    newpath = Path(path).parent / 'extra_data.pkl'
+    extra_data = joblib.load(str(newpath))
+    replay_buffer = extra_data.get('replay_buffer', None)
     if variant['algo_params']['sample_train_goals_from'] == 'her':
         replay_buffer = SplitReplayBuffer(
             HerReplayBuffer(
@@ -121,13 +126,13 @@ if __name__ == '__main__':
             num_epochs=100,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
-            num_updates_per_env_step=2,
+            num_updates_per_env_step=1,
             use_soft_update=True,
             tau=0.001,
             batch_size=64,
             discount=algo_class_to_discount[algo_class],
             sample_train_goals_from='her',
-            sample_rollout_goals_from='environment',
+            sample_rollout_goals_from='replay_buffer',
             sample_discount=True,
             qf_weight_decay=0.,
             max_path_length=max_path_length,
