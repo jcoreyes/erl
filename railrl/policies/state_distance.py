@@ -604,20 +604,27 @@ class UnconstrainedOcWithGoalConditionedModel(SampleBasedUniversalPolicy, nn.Mod
     """
     def __init__(
             self,
-            goal_conditioned_model, env, argmax_q, sample_size=100,
-            reward_function_pytorch=None,
-                 **kwargs):
+            goal_conditioned_model,
+            env,
+            argmax_q,
+            sample_size=100,
+            reward_function=None,
+            **kwargs
+    ):
         nn.Module.__init__(self)
         super().__init__(sample_size, env, **kwargs)
         self.model = goal_conditioned_model
         self.argmax_q = argmax_q
         self.env = env
-        self.reward_function_pytorch = reward_function_pytorch
+        self.reward_function = reward_function
 
     def rewards_np(self, states):
-        if self.reward_function_pytorch is not None:
+        if self.reward_function is not None:
             return ptu.get_numpy(
-                self.reward_function_pytorch(states)
+                self.reward_function(
+                    states,
+                    self._goal_batch,
+                )
             )
         diff = ptu.get_numpy(states) - self._goal_batch_np
         rewards_np = - np.linalg.norm(diff, axis=1)
