@@ -26,13 +26,20 @@ class VectorizedDeltaTauSdql(HorizonFedStateDistanceQLearning):
     """
     Just.... look at the reward
     """
-    def __init__(self, *args, only_do_sl=False, **kwargs):
+    def __init__(
+            self,
+            *args,
+            only_do_sl=False,
+            goal_chooser=None,
+            **kwargs
+    ):
         super().__init__(*args, **kwargs)
         assert not self.sparse_reward
         assert self.qf_weight_decay == 0
         self.only_do_sl = only_do_sl
         if self.only_do_sl:
             assert self.num_sl_batches_per_rl_batch > 0
+        self.goal_chooser = goal_chooser
 
     def compute_rewards(self, obs, actions, next_obs, goal_states):
         return next_obs - obs
@@ -97,20 +104,19 @@ class VectorizedDeltaTauSdql(HorizonFedStateDistanceQLearning):
         """
         Train optimal control policy
         """
-        goal = goal_chooser(obs)
-        actions = policy(
+        goal = self.goal_chooser(obs)
+        actions = self.policy(
             obs,
             goal,
             num_steps_left
         )
-        final_state_predicted = goal_conditioned_model(
+        final_state_predicted = self.qf(
             obs,
             actions,
             goal,
-            discount,
+            num_steps_left,
         ) + obs
-        rewards = rewards_py_fctn(final_state_predicted)
-        return -rewards.mean()
+        rewards = self.goal_chooser.reward_function(final_state_predicted)
 
         """
         Do some SL supervision
