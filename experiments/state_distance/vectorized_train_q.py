@@ -28,7 +28,7 @@ from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState,
     Reacher7DofFullGoalState,
     Reacher7DofCosSinFullGoalState,
-)
+    Reacher7DofAngleGoalState)
 from railrl.envs.multitask.reacher_env import (
     GoalStateSimpleStateReacherEnv,
     GoalXYStateXYAndCosSinReacher2D, GoalCosSinStateXYAndCosSinReacher2D)
@@ -172,7 +172,7 @@ if __name__ == '__main__':
 
     # n_seeds = 3
     # mode = "ec2"
-    exp_prefix = "sdql-reacher2d-state-xycs-goal-just-cs-2"
+    exp_prefix = "sdql-check-reacher7dof-goal-only-angles"
     # run_mode = 'grid'
 
     version = "l2"
@@ -243,10 +243,11 @@ if __name__ == '__main__':
         ),
         algo_class=algo_class,
         # env_class=Reacher7DofFullGoalState,
-        env_class=GoalCosSinStateXYAndCosSinReacher2D,
+        env_class=Reacher7DofAngleGoalState,
+        # env_class=GoalCosSinStateXYAndCosSinReacher2D,
+        # env_class=Reacher7DofXyzGoalState,
         # env_class=JointOnlyPusherEnv,
         # env_class=GoalStateSimpleStateReacherEnv,
-        # env_class=Reacher7DofXyzGoalState,
         # env_class=GoalXYStateXYAndCosSinReacher2D,
         # env_class=HandCylinderXYPusher2DEnv,
         # env_class=HandXYPusher2DEnv,
