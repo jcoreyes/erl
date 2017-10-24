@@ -22,7 +22,7 @@ from railrl.envs.multitask.pusher2d import (
     HandCylinderXYPusher2DEnv,
     CylinderXYPusher2DEnv,
     FullStatePusher2DEnv,
-    HandXYPusher2DEnv)
+    HandXYPusher2DEnv, FixedHandXYPusher2DEnv)
 from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState,
@@ -173,15 +173,16 @@ if __name__ == '__main__':
     mode = "local"
     exp_prefix = "dev-vectorized-train-q"
     run_mode = "none"
+    snapshot_mode = "gap"
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "sdql-pusher-2d-hand-oc-exploration"
-    # run_mode = 'grid'
+    exp_prefix = "sdql-pusher-2d-fixed-hand-goal-oc-exploration-correct-sweep"
+    run_mode = 'grid'
+    snapshot_mode = "gap_and_last"
 
     version = "l2"
     num_configurations = 50  # for random mode
-    snapshot_mode = "last"
     snapshot_gap = 10
     use_gpu = True
     if mode != "local":
@@ -202,7 +203,8 @@ if __name__ == '__main__':
     # env_class = GoalXYStateXYAndCosSinReacher2D
     # env_class = HandCylinderXYPusher2DEnv
     # env_class = Reacher7DofFullGoalState
-    env_class = HandXYPusher2DEnv
+    # env_class = HandXYPusher2DEnv
+    env_class = FixedHandXYPusher2DEnv
     # env_class = CylinderXYPusher2DEnv
     # env_class = FullStatePusher2DEnv
     replay_buffer_size = 200000
@@ -210,7 +212,7 @@ if __name__ == '__main__':
         version=version,
         algo_params=dict(
             num_epochs=101,
-            num_steps_per_epoch=300,
+            num_steps_per_epoch=3000,
             num_steps_per_eval=3000,
             num_updates_per_env_step=5,
             use_soft_update=True,
@@ -281,31 +283,37 @@ if __name__ == '__main__':
     )
     if run_mode == 'grid':
         search_space = {
-            'algo_class': [
+            # 'algo_class': [
                 # VectorizedTauSdql,
-                VectorizedDeltaTauSdql,
+                # VectorizedDeltaTauSdql,
                 # HorizonFedStateDistanceQLearning,
+            # ],
+            'qf_params.hidden_sizes': [
+                [64, 64],
+                [300, 300],
+                [100, 100, 100],
             ],
-            'qf_class': [
-                GoalConditionedDeltaModel,
-                TauBinaryGoalConditionedDeltaModel,
-            ],
+            # 'qf_class': [
+                # GoalConditionedDeltaModel,
+                # TauBinaryGoalConditionedDeltaModel,
+            # ],
             # 'algo_params.only_do_sl': [
             #     True,
             # ],
-            'env_class': [
-                GoalStateSimpleStateReacherEnv,
-                Reacher7DofFullGoalState,
+            # 'env_class': [
+                # GoalStateSimpleStateReacherEnv,
+                # Reacher7DofFullGoalState,
                 # JointOnlyPusherEnv,
                 # MultitaskPusher2DEnv,
                 # HandCylinderXYPusher2DEnv,
                 # CylinderXYPusher2DEnv,
                 # FullStatePusher2DEnv,
-            ],
+            # ],
             'epoch_discount_schedule_params.value': [
+                1,
                 5,
+                10,
                 25,
-                50,
             ],
             # 'algo_params.sample_train_goals_from': [
             #     'her',

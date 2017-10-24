@@ -117,6 +117,11 @@ class HandXYPusher2DEnv(MultitaskPusher2DEnv):
         return - torch.norm(states[:, 6:8] - goals)
 
 
+class FixedHandXYPusher2DEnv(HandXYPusher2DEnv):
+    def sample_goal_state_for_rollout(self):
+        return np.array([-1, 0])
+
+
 class CylinderXYPusher2DEnv(MultitaskPusher2DEnv):
     def sample_goal_states(self, batch_size):
         return np.random.uniform(
