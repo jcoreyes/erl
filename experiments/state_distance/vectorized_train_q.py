@@ -27,9 +27,8 @@ from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState,
     Reacher7DofFullGoalState,
-    Reacher7DofCosSinFullGoalState,
     Reacher7DofAngleGoalState,
-)
+    Reacher7DofGoalStateEverything)
 from railrl.envs.multitask.reacher_env import (
     GoalStateSimpleStateReacherEnv,
     GoalXYStateXYAndCosSinReacher2D, GoalCosSinStateXYAndCosSinReacher2D)
@@ -186,7 +185,8 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "sdql-reacher7dof-delta-sparse-rewards-correctly-done"
+    exp_prefix = "sdql-reacher7dof-delta-sparse-rewards-correctly-done-check" \
+                 "-learning-diff"
     run_mode = 'grid'
     # snapshot_mode = "gap_and_last"
 
@@ -212,6 +212,7 @@ if __name__ == '__main__':
     # env_class = GoalXYStateXYAndCosSinReacher2D
     # env_class = HandCylinderXYPusher2DEnv
     env_class = Reacher7DofFullGoalState
+    # env_class = Reacher7DofGoalStateEverything
     # env_class = HandXYPusher2DEnv
     # env_class = FixedHandXYPusher2DEnv
     # env_class = CylinderXYPusher2DEnv
@@ -294,8 +295,8 @@ if __name__ == '__main__':
     if run_mode == 'grid':
         search_space = {
             'raw_explore_policy': [
-                'ddpg',
                 'oc',
+                'ddpg',
             ],
             # 'algo_class': [
             #     VectorizedTauSdql,
@@ -333,6 +334,10 @@ if __name__ == '__main__':
             #     'her',
             #     'replay_buffer',
             # ],
+            'algo_params.sparse_rewards_learn_diff': [
+                False,
+                True,
+            ],
             # 'algo_params.num_sl_batches_per_rl_batch': [
             #     1,
             # ],

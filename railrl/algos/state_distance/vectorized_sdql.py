@@ -34,6 +34,7 @@ class VectorizedDeltaTauSdql(HorizonFedStateDistanceQLearning):
             *args,
             only_do_sl=False,
             goal_chooser=None,
+            sparse_rewards_learn_diff=True,
             **kwargs
     ):
         super().__init__(*args, **kwargs)
@@ -43,10 +44,16 @@ class VectorizedDeltaTauSdql(HorizonFedStateDistanceQLearning):
         if self.only_do_sl:
             assert self.num_sl_batches_per_rl_batch > 0
         self.goal_chooser = goal_chooser
+        self.sparse_rewards_learn_diff = sparse_rewards_learn_diff
 
     def compute_rewards(self, obs, actions, next_obs, goal_states):
         if self.sparse_reward:
-            return next_obs
+            if self.sparse_rewards_learn_diff:
+                return self.env.convert_obs_to_goal_states(
+                    next_obs
+                ) - goal_states
+            else:
+                return next_obs
         else:
             return next_obs - obs
 
@@ -67,13 +74,20 @@ class VectorizedDeltaTauSdql(HorizonFedStateDistanceQLearning):
         # qf isn't really a qf anymore. It's a goal-conditioned (delta) model
         q_output = self.qf(obs, policy_actions, goal_states, num_steps_left)
         if self.sparse_reward:
-            predicted_state = q_output
+            if self.sparse_rewards_learn_diff:
+                predicted_distance_to_goal = q_output
+            else:
+                predicted_state = q_output
+                predicted_goal = self.env.convert_obs_to_goal_states_pytorch(
+                    predicted_state
+                )
+                predicted_distance_to_goal = predicted_goal - goal_states
         else:
             predicted_state = q_output + obs
-        predicted_goal = self.env.convert_obs_to_goal_states_pytorch(
-            predicted_state
-        )
-        predicted_distance_to_goal = predicted_goal - goal_states
+            predicted_goal = self.env.convert_obs_to_goal_states_pytorch(
+                predicted_state
+            )
+            predicted_distance_to_goal = predicted_goal - goal_states
         policy_loss = (predicted_distance_to_goal**2).mean()
 
         """
