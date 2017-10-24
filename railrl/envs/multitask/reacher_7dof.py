@@ -45,18 +45,7 @@ class Reacher7DofMultitaskEnv(
         )
 
     def sample_states(self, batch_size):
-        return np.hstack((
-            # From the xml
-            self.np_random.uniform(low=-2.28, high=1.71, size=(batch_size, 1)),
-            self.np_random.uniform(low=-0.52, high=1.39, size=(batch_size, 1)),
-            self.np_random.uniform(low=-1.4, high=1.7, size=(batch_size, 1)),
-            self.np_random.uniform(low=-2.32, high=0, size=(batch_size, 1)),
-            self.np_random.uniform(low=-1.5, high=1.5, size=(batch_size, 1)),
-            self.np_random.uniform(low=-1.094, high=0, size=(batch_size, 1)),
-            self.np_random.uniform(low=-1.5, high=1.5, size=(batch_size, 1)),
-            # velocities
-            self.np_random.uniform(low=-1, high=1, size=(batch_size, 7)),
-        ))
+        raise NotImplementedError()
 
     def _get_obs(self):
         return np.concatenate([
@@ -162,6 +151,20 @@ class Reacher7DofFullGoalState(Reacher7DofMultitaskEnv):
         goal_state[-7:] = 0
         return goal_state
 
+    def sample_states(self, batch_size):
+        return np.hstack((
+            # From the xml
+            self.np_random.uniform(low=-2.28, high=1.71, size=(batch_size, 1)),
+            self.np_random.uniform(low=-0.52, high=1.39, size=(batch_size, 1)),
+            self.np_random.uniform(low=-1.4, high=1.7, size=(batch_size, 1)),
+            self.np_random.uniform(low=-2.32, high=0, size=(batch_size, 1)),
+            self.np_random.uniform(low=-1.5, high=1.5, size=(batch_size, 1)),
+            self.np_random.uniform(low=-1.094, high=0, size=(batch_size, 1)),
+            self.np_random.uniform(low=-1.5, high=1.5, size=(batch_size, 1)),
+            # velocities
+            self.np_random.uniform(low=-1, high=1, size=(batch_size, 7)),
+        ))
+
     def sample_goal_states(self, batch_size):
         return self.sample_states(batch_size)
 
@@ -235,7 +238,7 @@ class Reacher7DofFullGoalState(Reacher7DofMultitaskEnv):
         return - torch.norm(states[:, :7] - goal_states[:, :7], p=2, dim=1)
 
 
-class Reacher7DofCosSinFullGoalState(Reacher7DofFullGoalState):
+class Reacher7DofGoalStateEverything(Reacher7DofMultitaskEnv):
     """
     The goal state is the full state: joint angles (in cos/sin parameterization)
     and velocities.
@@ -248,42 +251,48 @@ class Reacher7DofCosSinFullGoalState(Reacher7DofFullGoalState):
             self.model.data.qvel.flat[:7],
         ])
 
-    def sample_states(self, batch_size):
-        full_states = super().sample_states(batch_size)
-        angles = full_states[:, 7:]
-        velocities = full_states[:, :7]
-        return np.hstack((
-            np.cos(angles),
-            np.sin(angles),
-            velocities
-        ))
-
     @property
     def goal_dim(self):
-        return 21
+        return 18
 
-    def reset_model(self):
-        saved_init_qpos = self.init_qpos.copy()
-        qpos_tmp = self.init_qpos
-        cos = self.multitask_goal[:7]
-        sin = self.multitask_goal[7:14]
-        angles = np.arctan2(sin, cos)
-        qpos_tmp[:7] = angles
-        qpos_tmp[7:] = self.multitask_goal[14:]
-        qvel_tmp = np.zeros(self.model.nv)
-        self.set_state(qpos_tmp, qvel_tmp)
-        goal_xyz = self.get_body_com("tips_arm")
+    def set_goal(self, goal):
+        super().set_goal(goal)
+        self._desired_xyz = goal[14:17]
 
-        # Now we actually set the goal position
-        qpos = saved_init_qpos
-        qpos[7:10] = goal_xyz
-        qvel = self.init_qvel + self.np_random.uniform(
-            low=-0.005, high=0.005, size=self.model.nv,
+    def modify_goal_state_for_rollout(self, goal_state):
+        goal_state[7:14] = 0  # set desired velocity to zero
+        return goal_state
+
+    def sample_goal_state_for_rollout(self):
+        angles = np.random.uniform(
+            np.array([-2.28, -0.52, -1.4, -2.32, -1.5, -1.094 -1.5]),
+            np.array([1.71, 1.39, 1.7, 0,   1.5, 0,   1.5, ]),
         )
-        qvel[7:] = 0
-        self.set_state(qpos, qvel)
 
-        return self._get_obs()
+        saved_qpos = self.init_qpos.copy()
+        saved_qvel = self.init_qvel.copy()
+        qpos_tmp = saved_qpos.copy()
+        qpos_tmp[:7] = np.zeros(3)
+        self.set_state(qpos_tmp, saved_qvel)
+        ee_pos = self.get_body_com("tips_arm")
+        self.set_state(saved_qpos, saved_qvel)
+        velocities = np.zeros(7)
+        return np.hstack((
+            angles,
+            velocities,
+            ee_pos,
+        ))
+
+    def sample_goal_states(self, batch_size):
+        return self.sample_states(batch_size)
+
+    @staticmethod
+    def oc_reward(states, goal_states):
+        return - torch.norm(
+            states[:, 14:17] - goal_states[:, 14:17],
+            p=2,
+            dim=1,
+        )
 
 
 """
