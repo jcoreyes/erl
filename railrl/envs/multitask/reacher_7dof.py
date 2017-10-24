@@ -240,20 +240,11 @@ class Reacher7DofFullGoalState(Reacher7DofMultitaskEnv):
 
 class Reacher7DofGoalStateEverything(Reacher7DofMultitaskEnv):
     """
-    The goal state is the full state: joint angles (in cos/sin parameterization)
-    and velocities.
+    The goal state is the full state: joint angles, velocities, and XYZ.
     """
-    def _get_obs(self):
-        angles = self.model.data.qpos.flat[:7]
-        return np.concatenate([
-            np.cos(angles),
-            np.sin(angles),
-            self.model.data.qvel.flat[:7],
-        ])
-
     @property
     def goal_dim(self):
-        return 18
+        return 17
 
     def set_goal(self, goal):
         super().set_goal(goal)
@@ -263,16 +254,34 @@ class Reacher7DofGoalStateEverything(Reacher7DofMultitaskEnv):
         goal_state[7:14] = 0  # set desired velocity to zero
         return goal_state
 
+    def sample_states(self, batch_size):
+        return np.hstack((
+            # From the xml
+            self.np_random.uniform(low=-2.28, high=1.71, size=(batch_size, 1)),
+            self.np_random.uniform(low=-0.52, high=1.39, size=(batch_size, 1)),
+            self.np_random.uniform(low=-1.4, high=1.7, size=(batch_size, 1)),
+            self.np_random.uniform(low=-2.32, high=0, size=(batch_size, 1)),
+            self.np_random.uniform(low=-1.5, high=1.5, size=(batch_size, 1)),
+            self.np_random.uniform(low=-1.094, high=0, size=(batch_size, 1)),
+            self.np_random.uniform(low=-1.5, high=1.5, size=(batch_size, 1)),
+            # velocities
+            self.np_random.uniform(low=-1, high=1, size=(batch_size, 7)),
+            # XYZ EE. Won't be consiste with angles, but oh well
+            self.np_random.uniform(low=-0.75, high=0.75, size=(batch_size, 1)),
+            self.np_random.uniform(low=-1.25, high=0.25, size=(batch_size, 1)),
+            self.np_random.uniform(low=-0.2, high=0.6, size=(batch_size, 1)),
+        ))
+
     def sample_goal_state_for_rollout(self):
         angles = np.random.uniform(
-            np.array([-2.28, -0.52, -1.4, -2.32, -1.5, -1.094 -1.5]),
+            np.array([-2.28, -0.52, -1.4, -2.32, -1.5, -1.094, -1.5]),
             np.array([1.71, 1.39, 1.7, 0,   1.5, 0,   1.5, ]),
         )
 
         saved_qpos = self.init_qpos.copy()
         saved_qvel = self.init_qvel.copy()
         qpos_tmp = saved_qpos.copy()
-        qpos_tmp[:7] = np.zeros(3)
+        qpos_tmp[:7] = angles
         self.set_state(qpos_tmp, saved_qvel)
         ee_pos = self.get_body_com("tips_arm")
         self.set_state(saved_qpos, saved_qvel)

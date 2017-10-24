@@ -185,8 +185,7 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "sdql-reacher7dof-delta-sparse-rewards-correctly-done-check" \
-                 "-learning-diff"
+    exp_prefix = "sdql-reacher7everything-vtau"
     run_mode = 'grid'
     # snapshot_mode = "gap_and_last"
 
@@ -200,8 +199,8 @@ if __name__ == '__main__':
     max_path_length = 100
     max_tau = 10
     # noinspection PyTypeChecker
-    # algo_class = VectorizedTauSdql
-    algo_class = VectorizedDeltaTauSdql
+    algo_class = VectorizedTauSdql
+    # algo_class = VectorizedDeltaTauSdql
     qf_class = algo_class_to_qf_class[algo_class]
 
     # env_class = Reacher7DofAngleGoalState
@@ -211,8 +210,8 @@ if __name__ == '__main__':
     # env_class = GoalStateSimpleStateReacherEnv
     # env_class = GoalXYStateXYAndCosSinReacher2D
     # env_class = HandCylinderXYPusher2DEnv
-    env_class = Reacher7DofFullGoalState
-    # env_class = Reacher7DofGoalStateEverything
+    # env_class = Reacher7DofFullGoalState
+    env_class = Reacher7DofGoalStateEverything
     # env_class = HandXYPusher2DEnv
     # env_class = FixedHandXYPusher2DEnv
     # env_class = CylinderXYPusher2DEnv
@@ -334,10 +333,10 @@ if __name__ == '__main__':
             #     'her',
             #     'replay_buffer',
             # ],
-            'algo_params.sparse_rewards_learn_diff': [
-                False,
-                True,
-            ],
+            # 'algo_params.sparse_rewards_learn_diff': [
+            #     False,
+            #     True,
+            # ],
             # 'algo_params.num_sl_batches_per_rl_batch': [
             #     1,
             # ],
