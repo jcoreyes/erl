@@ -107,6 +107,10 @@ class Reacher7DofXyzGoalState(Reacher7DofMultitaskEnv):
             self.np_random.uniform(low=-0.2, high=0.6, size=(batch_size, 1)),
         ))
 
+    def set_goal(self, goal):
+        super().set_goal(goal)
+        self._desired_xyz = goal
+
     @property
     def goal_dim(self):
         return 3
