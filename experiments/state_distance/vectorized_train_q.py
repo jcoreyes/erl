@@ -149,9 +149,10 @@ algo_class_to_qf_class = {
 
 def complete_variant(variant):
     algo_class = variant['algo_class']
-    variant['algo_params']['sparse_reward'] = not (
-        algo_class == VectorizedDeltaTauSdql
-    )
+    # variant['algo_params']['sparse_reward'] = not (
+    #     algo_class == VectorizedDeltaTauSdql
+    # )
+    variant['algo_params']['sparse_reward'] = True
     if 'qf_class' not in variant:
         variant['qf_class'] = algo_class_to_qf_class[algo_class]
     if variant['epoch_discount_schedule_class'] == ConstantSchedule:
@@ -175,11 +176,11 @@ if __name__ == '__main__':
     run_mode = "none"
     snapshot_mode = "gap"
 
-    n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "sdql-pusher-2d-fixed-hand-goal-oc-exploration-correct-sweep"
-    run_mode = 'grid'
-    snapshot_mode = "gap_and_last"
+    # n_seeds = 3
+    # mode = "ec2"
+    exp_prefix = "local-sdql-reacher7dof-sparse-delta"
+    # run_mode = 'grid'
+    # snapshot_mode = "gap_and_last"
 
     version = "l2"
     num_configurations = 50  # for random mode
@@ -202,9 +203,9 @@ if __name__ == '__main__':
     # env_class = GoalStateSimpleStateReacherEnv
     # env_class = GoalXYStateXYAndCosSinReacher2D
     # env_class = HandCylinderXYPusher2DEnv
-    # env_class = Reacher7DofFullGoalState
+    env_class = Reacher7DofFullGoalState
     # env_class = HandXYPusher2DEnv
-    env_class = FixedHandXYPusher2DEnv
+    # env_class = FixedHandXYPusher2DEnv
     # env_class = CylinderXYPusher2DEnv
     # env_class = FullStatePusher2DEnv
     replay_buffer_size = 200000

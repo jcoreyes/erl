@@ -34,8 +34,8 @@ class VectorizedDeltaTauSdql(HorizonFedStateDistanceQLearning):
             **kwargs
     ):
         super().__init__(*args, **kwargs)
-        assert not self.sparse_reward
         assert self.qf_weight_decay == 0
+        assert not self.clamp_q_target_values
         self.only_do_sl = only_do_sl
         if self.only_do_sl:
             assert self.num_sl_batches_per_rl_batch > 0
@@ -88,8 +88,6 @@ class VectorizedDeltaTauSdql(HorizonFedStateDistanceQLearning):
                 goal_states,
                 num_steps_left - 1,  # Important! Else QF will (probably) blow up
             )
-            if self.clamp_q_target_values:
-                target_q_values = torch.clamp(target_q_values, -math.inf, 0)
             y_target = rewards + (1. - terminals) * target_q_values
 
             # noinspection PyUnresolvedReferences
