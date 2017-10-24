@@ -157,10 +157,10 @@ algo_class_to_qf_class = {
 
 def complete_variant(variant):
     algo_class = variant['algo_class']
-    variant['algo_params']['sparse_reward'] = not (
-        algo_class == VectorizedDeltaTauSdql
-    )
-    # variant['algo_params']['sparse_reward'] = True
+    # variant['algo_params']['sparse_reward'] = not (
+    #     algo_class == VectorizedDeltaTauSdql
+    # )
+    variant['algo_params']['sparse_reward'] = True
     if 'qf_class' not in variant:
         variant['qf_class'] = algo_class_to_qf_class[algo_class]
     if variant['epoch_discount_schedule_class'] == ConstantSchedule:
@@ -186,7 +186,7 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "sdql-reacher7dof-full-compare-exploration-delta"
+    exp_prefix = "sdql-reacher7dof-delta-sparse-rewards-correctly-done"
     run_mode = 'grid'
     # snapshot_mode = "gap_and_last"
 
@@ -294,8 +294,8 @@ if __name__ == '__main__':
     if run_mode == 'grid':
         search_space = {
             'raw_explore_policy': [
-                'oc',
                 'ddpg',
+                'oc',
             ],
             # 'algo_class': [
             #     VectorizedTauSdql,

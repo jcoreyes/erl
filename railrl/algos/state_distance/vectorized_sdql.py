@@ -45,7 +45,10 @@ class VectorizedDeltaTauSdql(HorizonFedStateDistanceQLearning):
         self.goal_chooser = goal_chooser
 
     def compute_rewards(self, obs, actions, next_obs, goal_states):
-        return next_obs - obs
+        if self.sparse_reward:
+            return next_obs
+        else:
+            return next_obs - obs
 
     def get_train_dict(self, batch):
         batch = self._modify_batch_for_training(batch)
@@ -63,7 +66,10 @@ class VectorizedDeltaTauSdql(HorizonFedStateDistanceQLearning):
         policy_actions = self.policy(obs, goal_states, num_steps_left)
         # qf isn't really a qf anymore. It's a goal-conditioned (delta) model
         q_output = self.qf(obs, policy_actions, goal_states, num_steps_left)
-        predicted_state = q_output + obs
+        if self.sparse_reward:
+            predicted_state = q_output
+        else:
+            predicted_state = q_output + obs
         predicted_goal = self.env.convert_obs_to_goal_states_pytorch(
             predicted_state
         )
