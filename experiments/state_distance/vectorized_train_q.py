@@ -172,7 +172,7 @@ if __name__ == '__main__':
 
     # n_seeds = 3
     # mode = "ec2"
-    exp_prefix = "sdql-check-reacher7dof-goal-only-angles"
+    # exp_prefix = "sdql-check-reacher7dof-goal-only-angles"
     # run_mode = 'grid'
 
     version = "l2"
