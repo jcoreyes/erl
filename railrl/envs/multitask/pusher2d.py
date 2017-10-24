@@ -1,13 +1,10 @@
 import abc
-from collections import OrderedDict
 
 import numpy as np
+import torch
 
 from railrl.envs.mujoco.pusher2d import Pusher2DEnv
 from railrl.envs.multitask.multitask_env import MultitaskEnv
-from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.misc.rllab_util import get_stat_in_dict
-from rllab.misc import logger
 
 
 class MultitaskPusher2DEnv(Pusher2DEnv, MultitaskEnv, metaclass=abc.ABCMeta):
@@ -98,6 +95,27 @@ class HandXYPusher2DEnv(MultitaskPusher2DEnv):
         qpos[-2:] = self._target_hand_position
         self.set_state(qpos, qvel)
 
+    @staticmethod
+    def oc_reward(states, goals):
+        """
+        Reminder:
+
+        ```
+        def _get_obs(self):
+            return np.concatenate([
+                self.model.data.qpos.flat[:3],
+                self.model.data.qvel.flat[:3],
+                self.get_body_com("distal_4")[:2],
+                self.get_body_com("object")[:2],
+            ])
+        ```
+
+        :param states:
+        :param goals:
+        :return:
+        """
+        return - torch.norm(states[:, 6:8] - goals)
+
 
 class CylinderXYPusher2DEnv(MultitaskPusher2DEnv):
     def sample_goal_states(self, batch_size):
@@ -122,3 +140,7 @@ class CylinderXYPusher2DEnv(MultitaskPusher2DEnv):
         qpos[-4:-2] = self._target_cylinder_position
         qpos[-2:] = self._target_hand_position
         self.set_state(qpos, qvel)
+
+"""
+Optimal control rewards
+"""

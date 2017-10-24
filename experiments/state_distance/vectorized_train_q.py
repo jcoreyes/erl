@@ -175,7 +175,7 @@ if __name__ == '__main__':
 
     # n_seeds = 3
     # mode = "ec2"
-    exp_prefix = "local-sdql-reacher7dof-oc-exploration"
+    # exp_prefix = "local-sdql-reacher7dof-oc-exploration"
     # run_mode = 'grid'
 
     version = "l2"
@@ -192,6 +192,18 @@ if __name__ == '__main__':
     # algo_class = VectorizedTauSdql
     algo_class = VectorizedDeltaTauSdql
     qf_class = algo_class_to_qf_class[algo_class]
+
+    # env_class = Reacher7DofAngleGoalState
+    # env_class = GoalCosSinStateXYAndCosSinReacher2D
+    # env_class = Reacher7DofXyzGoalState
+    # env_class = JointOnlyPusherEnv
+    # env_class = GoalStateSimpleStateReacherEnv
+    # env_class = GoalXYStateXYAndCosSinReacher2D
+    # env_class = HandCylinderXYPusher2DEnv
+    # env_class = Reacher7DofFullGoalState
+    env_class = HandXYPusher2DEnv
+    # env_class = CylinderXYPusher2DEnv
+    # env_class = FullStatePusher2DEnv
     replay_buffer_size = 200000
     variant = dict(
         version=version,
@@ -233,7 +245,7 @@ if __name__ == '__main__':
         raw_explore_policy='oc',
         oc_policy_params=dict(
             sample_size=1000,
-            reward_function=reach_parameterized_joint_config,
+            reward_function=env_class.oc_reward,
         ),
         qf_params=dict(
             hidden_sizes=[300, 300],
@@ -249,17 +261,7 @@ if __name__ == '__main__':
             value=max_tau,
         ),
         algo_class=algo_class,
-        env_class=Reacher7DofFullGoalState,
-        # env_class=Reacher7DofAngleGoalState,
-        # env_class=GoalCosSinStateXYAndCosSinReacher2D,
-        # env_class=Reacher7DofXyzGoalState,
-        # env_class=JointOnlyPusherEnv,
-        # env_class=GoalStateSimpleStateReacherEnv,
-        # env_class=GoalXYStateXYAndCosSinReacher2D,
-        # env_class=HandCylinderXYPusher2DEnv,
-        # env_class=HandXYPusher2DEnv,
-        # env_class=CylinderXYPusher2DEnv,
-        # env_class=FullStatePusher2DEnv,
+        env_class=env_class,
         env_params=dict(),
         normalize_params=dict(
             # obs_mean=None,

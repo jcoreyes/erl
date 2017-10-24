@@ -222,6 +222,11 @@ class Reacher7DofFullGoalState(Reacher7DofMultitaskEnv):
             logger.record_tabular(key, value)
 
 
+    @staticmethod
+    def oc_reward(states, goal_states):
+        return - torch.norm(states[:, :7] - goal_states[:, :7], p=2, dim=1)
+
+
 class Reacher7DofCosSinFullGoalState(Reacher7DofFullGoalState):
     """
     The goal state is the full state: joint angles (in cos/sin parameterization)
@@ -296,7 +301,3 @@ DESIRED_XYZ = np.array([-0.29606909, -0.18205661, -0.42400648])
 def reach_a_joint_config_reward(states, *ignored):
     goal_pos = ptu.np_to_var(DESIRED_JOINT_CONFIG, requires_grad=False)
     return - torch.norm(states[:, :7] - goal_pos[:7], p=2, dim=1)
-
-
-def reach_parameterized_joint_config(states, goal_states):
-    return - torch.norm(states[:, :7] - goal_states[:, :7], p=2, dim=1)
