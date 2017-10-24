@@ -58,8 +58,7 @@ def experiment(variant):
         input_goal_dim=7,
         output_goal_dim=env.goal_dim,
         obs_dim=int(env.observation_space.flat_dim),
-        hidden_sizes=[100, 100],
-        reward_function=variant['reward_function'],
+        **variant['goal_chooser_params']
     )
     tau = variant['tau']
     if ptu.gpu_enabled():
@@ -72,10 +71,9 @@ def experiment(variant):
         argmax_qf_policy,
         tau,
         replay_buffer,
-        reward_function=variant['reward_function'],
         **variant['train_params']
     )
-    policy = AmortizedPolicy(argmax_qf_policy, goal_chooser, tau)
+    policy = AmortizedPolicy(argmax_qf_policy, goal_chooser)
 
     goal = np.array(variant['goal'])
     logger.save_itr_params(0, dict(
@@ -88,7 +86,7 @@ def experiment(variant):
     Eval policy.
     """
     paths = []
-    env.set_goal(goal)
+    # env.set_goal(goal)
     for _ in range(num_rollouts):
         # path = rollout(
         #     env,
@@ -97,12 +95,12 @@ def experiment(variant):
         # )
         # goal_expanded = np.expand_dims(goal, axis=0)
         # path['goal_states'] = goal_expanded.repeat(len(path['observations']), 0)
+        goal = env.sample_goal_state_for_rollout()
         path = multitask_rollout(
             env,
             policy,
             goal,
-            0,
-            **variant['rollout_params'],
+            **variant['rollout_params']
         )
         paths.append(path)
     env.log_diagnostics(paths)
@@ -113,7 +111,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('file', type=str,
                         help='path to the snapshot file with a QF')
-    parser.add_argument('--nrolls', type=int, default=5,
+    parser.add_argument('--nrolls', type=int, default=10,
                         help='Number of rollouts to do.')
     parser.add_argument('--H', type=int, default=100, help='Horizon.')
     parser.add_argument('--verbose', action='store_true')
@@ -121,6 +119,8 @@ if __name__ == '__main__':
     parser.add_argument('--discount', type=float, help='Discount Factor')
     parser.add_argument('--nsamples', type=int, default=1000,
                         help='Number of samples for optimization')
+    parser.add_argument('--nups', type=int, default=10000,
+                        help='Number of gradient updates')
     parser.add_argument('--dt', help='decrement tau', action='store_true')
     parser.add_argument('--cycle', help='cycle tau', action='store_true')
     parser.add_argument('--dc', help='decrement and cycle tau',
@@ -144,6 +144,9 @@ if __name__ == '__main__':
         rollout_params=dict(
             max_path_length=args.H,
             animated=not args.hide,
+            discount=discount,
+            cycle_tau=args.cycle or args.dc,
+            decrement_discount=args.dt or args.dc,
         ),
         policy_params=dict(
             sample_size=args.nsamples,
@@ -152,12 +155,15 @@ if __name__ == '__main__':
         train_params=dict(
             learning_rate=1e-3,
             batch_size=32,
-            num_updates=100,
+            num_updates=args.nups,
         ),
         # reward_function=reach_a_joint_config_reward_7dof,
-        reward_function=reach_parameterized_joint_config,
+        goal_chooser_params=dict(
+            hidden_sizes=[100, 100],
+            reward_function=reach_parameterized_joint_config,
+        ),
         goal=list(DESIRED_JOINT_CONFIG),
-        tau=args.discount,
+        tau=5,
         # goal=list(REACH_A_POINT_GOAL),
         # reward_function=reach_a_point_reward,
         # reward_function=reach_a_joint_config_reward,

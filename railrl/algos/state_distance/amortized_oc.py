@@ -4,7 +4,6 @@ from torch import optim
 from torch.nn import functional as F
 
 from railrl.networks.base import Mlp
-from railrl.policies.base import Policy
 from railrl.policies.state_distance import UniversalPolicy
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.core import PyTorchModule
@@ -16,16 +15,12 @@ class AmortizedPolicy(PyTorchModule, UniversalPolicy):
             self,
             goal_reaching_policy,
             goal_chooser,
-            discount,
     ):
         self.save_init_params(locals())
         super().__init__()
         UniversalPolicy.__init__(self)
         self.goal_reaching_policy = goal_reaching_policy
         self.goal_chooser = goal_chooser
-        self._discount_expanded_torch = ptu.np_to_var(
-            np.array([[discount]])
-        )
 
     def get_action(self, obs_np):
         obs = ptu.np_to_var(
@@ -104,7 +99,6 @@ def train_amortized_goal_chooser(
         argmax_q,
         discount,
         replay_buffer,
-        reward_function,
         learning_rate=1e-3,
         batch_size=32,
         num_updates=1000,
