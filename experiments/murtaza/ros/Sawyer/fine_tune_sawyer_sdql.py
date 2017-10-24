@@ -1,20 +1,14 @@
 import argparse
 
 import joblib
-from torch.nn import functional as F
-
 import railrl.torch.pytorch_util as ptu
 from railrl.algos.state_distance.state_distance_q_learning import (
     StateDistanceQLearning,
     HorizonFedStateDistanceQLearning)
 from railrl.algos.state_distance.vectorized_sdql import VectorizedDeltaTauSdql, \
     VectorizedTauSdql
-from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.data_management.path import Path
-from railrl.data_management.split_buffer import SplitReplayBuffer
-from railrl.envs.multitask.reacher_env import GoalStateSimpleStateReacherEnv
-from railrl.envs.multitask.sawyer_env import MultiTaskSawyerEnv
-from railrl.envs.wrappers import convert_gym_space, normalize_box
+from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.networks.state_distance import (
@@ -56,7 +50,7 @@ def experiment(variant):
     )
     if ptu.gpu_enabled():
         algo.cuda()
-    algo.train()
+    algo.train_offline()
 
 
 algo_class_to_qf_class = {
@@ -124,43 +118,13 @@ if __name__ == '__main__':
             sparse_reward=algo_class_to_sparse_reward[algo_class],
             cycle_taus_for_rollout=True,
         ),
-        qf_params=dict(
-            hidden_sizes=[300, 300],
-            hidden_activation=F.softplus,
-        ),
-        policy_params=dict(
-            fc1_size=300,
-            fc2_size=300,
-        ),
-        normalize_params=dict(
-            # # obs_mean=None,
-            # obs_std=[0.7, 0.7, 0.7, 0.6, 40, 5],
-        ),
-        sampler_es_class=OUStrategy,
-        sampler_es_params=dict(
+        algo_class=algo_class,
+        es_class=OUStrategy,
+        es_params=dict(
             theta=0.1,
             max_sigma=0.25,
             min_sigma=0.25,
         ),
-        algo_class=algo_class,
-        qf_class=algo_class_to_qf_class[algo_class],
-        her_replay_buffer_params=dict(
-            max_size=replay_buffer_size,
-            num_goals_to_sample=4,
-            goal_sample_strategy='store',
-        ),
-        env_params={
-                      'arm_name': 'right',
-                      'safety_box': True,
-                      'loss': 'huber',
-                      'huber_delta': 10,
-                      'safety_force_magnitude': 5,
-                      'temp': 15,
-                      'remove_action': False,
-                      'experiment': experiments[2],
-                      'reward_magnitude': 10,
-                      'use_safety_checks': False,
-            },
     )
     algo_class = variant['algo_class']
     run_experiment(

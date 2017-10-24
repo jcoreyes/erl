@@ -10,11 +10,9 @@ from railrl.algos.state_distance.state_distance_q_learning import (
 from railrl.algos.state_distance.vectorized_sdql import VectorizedDeltaTauSdql, \
     VectorizedTauSdql
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.data_management.path import Path
 from railrl.data_management.split_buffer import SplitReplayBuffer
-from railrl.envs.multitask.reacher_env import GoalStateSimpleStateReacherEnv
 from railrl.envs.multitask.sawyer_env import MultiTaskSawyerEnv
-from railrl.envs.wrappers import convert_gym_space, normalize_box
+from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.networks.state_distance import (
@@ -51,9 +49,6 @@ def experiment(variant):
         exploration_strategy=es,
         policy=policy,
     )
-    newpath = Path(path).parent / 'extra_data.pkl'
-    extra_data = joblib.load(str(newpath))
-    replay_buffer = extra_data.get('replay_buffer', None)
     if variant['algo_params']['sample_train_goals_from'] == 'her':
         replay_buffer = SplitReplayBuffer(
             HerReplayBuffer(
@@ -152,10 +147,7 @@ if __name__ == '__main__':
             fc1_size=300,
             fc2_size=300,
         ),
-        normalize_params=dict(
-            # # obs_mean=None,
-            # obs_std=[0.7, 0.7, 0.7, 0.6, 40, 5],
-        ),
+        normalize_params=dict(),
         sampler_es_class=OUStrategy,
         sampler_es_params=dict(
             theta=0.1,
