@@ -24,6 +24,7 @@ class Reacher7DofMultitaskEnv(
             get_asset_xml('reacher_7dof.xml'),
             5,
         )
+        self._desired_xyz = np.zeros(3)
 
     def viewer_setup(self):
         self.viewer.cam.trackbodyid = -1
@@ -33,7 +34,7 @@ class Reacher7DofMultitaskEnv(
         qpos = self.init_qpos
         qvel = self.init_qvel + self.np_random.uniform(low=-0.005,
                                                        high=0.005, size=self.model.nv)
-        qpos[-7:-4] = self.multitask_goal
+        qpos[-7:-4] = self._desired_xyz
         qvel[-7:] = 0
         self.set_state(qpos, qvel)
         return self._get_obs()
@@ -114,6 +115,36 @@ class Reacher7DofXyzGoalState(Reacher7DofMultitaskEnv):
         return obs[:, -3:]
 
 
+class Reacher7DofAngleGoalState(Reacher7DofMultitaskEnv):
+    """
+    The goal state is joint angles
+    """
+    def sample_goal_states(self, batch_size):
+        # Number taken from running a random policy and seeing what XYZ values
+        # are reached
+        states = super().sample_states(batch_size)
+        return states[:, :7]
+
+    @property
+    def goal_dim(self):
+        return 7
+
+    def convert_obs_to_goal_states(self, obs):
+        return obs[:, :7]
+
+    def set_goal(self, goal):
+        super().set_goal(goal)
+
+        saved_qpos = self.model.data.qpos.flat
+        saved_qvel = self.model.data.qvel.flat
+        qpos_tmp = saved_qpos.copy()
+        qpos_tmp[:7] = goal
+        self.set_state(qpos_tmp, saved_qvel)
+        self._desired_xyz = self.get_body_com("tips_arm")
+        saved_qpos[7:10] = self._desired_xyz
+        self.set_state(saved_qpos, saved_qvel)
+
+
 class Reacher7DofFullGoalState(Reacher7DofMultitaskEnv):
     """
     The goal state is the full state: joint angles and velocities.
@@ -145,7 +176,7 @@ class Reacher7DofFullGoalState(Reacher7DofMultitaskEnv):
     def goal_dim(self):
         return 14
 
-    def reset_model(self):
+    def set_goal(self, goal):
         """
         I don't want to manually compute the forward dynamics to compute the
         goal state XYZ coordinate.
@@ -153,33 +184,16 @@ class Reacher7DofFullGoalState(Reacher7DofMultitaskEnv):
         Instead, I just put the arm in the desired goal state. Then I measure
         the end-effector XYZ coordinate.
         """
-        saved_init_qpos = self.init_qpos.copy()
-        qpos_tmp = self.init_qpos
-        qpos_tmp[:14] = self.multitask_goal
-        qvel_tmp = np.zeros(self.model.nv)
-        self.set_state(qpos_tmp, qvel_tmp)
-        goal_xyz = self.get_body_com("tips_arm")
+        super().set_goal(goal)
 
-        # Now we actually set the goal position
-        qpos = saved_init_qpos
-        qpos[7:10] = goal_xyz
-        qvel = self.init_qvel + self.np_random.uniform(
-            low=-0.005, high=0.005, size=self.model.nv,
-        )
-        qvel[7:] = 0
-        self.set_state(qpos, qvel)
-
-        return self._get_obs()
-
-    def _step(self, a):
-        full_state_to_goal_distance = np.linalg.norm(
-            self._get_obs() - self.multitask_goal
-        )
-        ob, reward, done, info_dict = super()._step(a)
-        info_dict['full_state_to_goal_distance'] = (
-            full_state_to_goal_distance
-        )
-        return ob, reward, done, info_dict
+        saved_qpos = self.init_qpos
+        saved_qvel = self.init_qvel
+        qpos_tmp = saved_qpos.copy()
+        qpos_tmp[:7] = goal[:7]
+        self.set_state(qpos_tmp, saved_qvel)
+        self._desired_xyz = self.get_body_com("tips_arm")
+        saved_qpos[7:10] = self._desired_xyz
+        self.set_state(saved_qpos, saved_qvel)
 
     def log_diagnostics(self, paths):
         super().log_diagnostics(paths)
