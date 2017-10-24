@@ -293,7 +293,7 @@ DESIRED_JOINT_CONFIG[7:] = 0
 DESIRED_XYZ = np.array([-0.29606909, -0.18205661, -0.42400648])
 
 
-def reach_a_joint_config_reward(states):
+def reach_a_joint_config_reward(states, *ignored):
     goal_pos = ptu.np_to_var(DESIRED_JOINT_CONFIG, requires_grad=False)
     return - torch.norm(states[:, :7] - goal_pos[:7], p=2, dim=1)
 
