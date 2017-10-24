@@ -28,7 +28,7 @@ from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState,
     Reacher7DofFullGoalState,
     Reacher7DofCosSinFullGoalState,
-    Reacher7DofAngleGoalState)
+    Reacher7DofAngleGoalState, reach_parameterized_joint_config)
 from railrl.envs.multitask.reacher_env import (
     GoalStateSimpleStateReacherEnv,
     GoalXYStateXYAndCosSinReacher2D, GoalCosSinStateXYAndCosSinReacher2D)
@@ -53,7 +53,8 @@ from railrl.networks.state_distance import (
     VectorizedGoalStructuredUniversalQfunction,
     GoalStructuredUniversalQfunction, GoalConditionedDeltaModel,
     TauBinaryGoalConditionedDeltaModel)
-from railrl.policies.state_distance import TerminalRewardSampleOCPolicy
+from railrl.policies.state_distance import TerminalRewardSampleOCPolicy, \
+    UnconstrainedOcWithGoalConditionedModel
 from railrl.torch.modules import HuberLoss
 from railrl.torch.state_distance.exploration import \
     UniversalPolicyWrappedWithExplorationStrategy
@@ -94,13 +95,15 @@ def experiment(variant):
         action_space=action_space,
         **variant['sampler_es_params']
     )
-    if variant['explore_with_ddpg_policy']:
+    raw_explore_policy = variant['raw_explore_policy']
+    if raw_explore_policy == 'ddpg':
         raw_exploration_policy = policy
     else:
-        raw_exploration_policy = TerminalRewardSampleOCPolicy(
+        raw_exploration_policy = UnconstrainedOcWithGoalConditionedModel(
             qf,
             env,
-            5,
+            policy,
+            **variant['oc_policy_params']
         )
     exploration_policy = UniversalPolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
@@ -172,7 +175,7 @@ if __name__ == '__main__':
 
     # n_seeds = 3
     # mode = "ec2"
-    # exp_prefix = "sdql-check-reacher7dof-goal-only-angles"
+    exp_prefix = "local-sdql-reacher7dof-oc-exploration"
     # run_mode = 'grid'
 
     version = "l2"
@@ -227,7 +230,11 @@ if __name__ == '__main__':
             num_goals_to_sample=4,
             goal_sample_strategy='store',
         ),
-        explore_with_ddpg_policy=True,
+        raw_explore_policy='oc',
+        oc_policy_params=dict(
+            sample_size=1000,
+            reward_function=reach_parameterized_joint_config,
+        ),
         qf_params=dict(
             hidden_sizes=[300, 300],
             hidden_activation=F.softplus,
@@ -242,8 +249,8 @@ if __name__ == '__main__':
             value=max_tau,
         ),
         algo_class=algo_class,
-        # env_class=Reacher7DofFullGoalState,
-        env_class=Reacher7DofAngleGoalState,
+        env_class=Reacher7DofFullGoalState,
+        # env_class=Reacher7DofAngleGoalState,
         # env_class=GoalCosSinStateXYAndCosSinReacher2D,
         # env_class=Reacher7DofXyzGoalState,
         # env_class=JointOnlyPusherEnv,

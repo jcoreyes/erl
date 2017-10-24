@@ -632,7 +632,9 @@ class UnconstrainedOcWithGoalConditionedModel(SampleBasedUniversalPolicy, nn.Mod
 
     def get_action(self, obs):
         obs_pytorch = self.expand_np_to_var(obs)
-        sampled_goal_state = ptu.np_to_var(self.sample_states())
+        sampled_goal_state = ptu.np_to_var(
+            self.env.sample_goal_states(self.sample_size)
+        )
         actions = self.argmax_q(
             obs_pytorch,
             sampled_goal_state,

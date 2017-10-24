@@ -104,19 +104,21 @@ class VectorizedDeltaTauSdql(HorizonFedStateDistanceQLearning):
         """
         Train optimal control policy
         """
-        goal = self.goal_chooser(obs)
-        actions = self.policy(
-            obs,
-            goal,
-            num_steps_left
-        )
-        final_state_predicted = self.qf(
-            obs,
-            actions,
-            goal,
-            num_steps_left,
-        ) + obs
-        rewards = self.goal_chooser.reward_function(final_state_predicted)
+        if self.goal_chooser is not None:
+            goal = self.goal_chooser(obs)
+            actions = self.policy(
+                obs,
+                goal,
+                num_steps_left
+            )
+            final_state_predicted = self.qf(
+                obs,
+                actions,
+                goal,
+                num_steps_left,
+            ) + obs
+            rewards = self.goal_chooser.reward_function(final_state_predicted)
+            raise NotImplementedError()
 
         """
         Do some SL supervision
