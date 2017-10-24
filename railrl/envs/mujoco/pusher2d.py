@@ -12,7 +12,7 @@ from rllab.misc import logger
 class Pusher2DEnv(MujocoEnv, metaclass=abc.ABCMeta):
     FILE = '3link_gripper_push_2d.xml'
 
-    def __init__(self, goal=(0, -1)):
+    def __init__(self, goal=(-1, 0)):
         self.init_serialization(locals())
         if not isinstance(goal, np.ndarray):
             goal = np.array(goal)
@@ -66,9 +66,9 @@ class Pusher2DEnv(MujocoEnv, metaclass=abc.ABCMeta):
         qpos[-3:] = self.init_qpos.squeeze()[-3:]
         # Object position
         obj_pos = np.random.uniform(
-            #         y      x
-            np.array([-0.8, 0.3]),
-            np.array([-0.3, 0.8]),
+            #         x      y
+            np.array([0.3, -0.8]),
+            np.array([0.8, -0.3]),
         )
         qpos[-6:-4] = obj_pos
         qpos[-4:-2] = self._target_cylinder_position

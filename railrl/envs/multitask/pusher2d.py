@@ -16,17 +16,6 @@ class MultitaskPusher2DEnv(Pusher2DEnv, MultitaskEnv, metaclass=abc.ABCMeta):
     def sample_actions(self, batch_size):
         return np.random.uniform(self.action_space.low, self.action_space.high)
 
-    def set_goal(self, goal):
-        super().set_goal(goal)
-        self._target_cylinder_position = goal[-2:]
-        self._target_hand_position = goal[-4:-2]
-
-        qpos = self.model.data.qpos.flat.copy()
-        qvel = self.model.data.qvel.flat.copy()
-        qpos[-4:-2] = self._target_cylinder_position
-        qpos[-2:] = self._target_hand_position
-        self.set_state(qpos, qvel)
-
     def sample_states(self, batch_size):
         raise NotImplementedError()
 
@@ -51,6 +40,18 @@ class FullStatePusher2DEnv(MultitaskPusher2DEnv):
     def convert_obs_to_goal_states(self, obs):
         return obs
 
+    def set_goal(self, goal):
+        super().set_goal(goal)
+        self._target_cylinder_position = goal[-2:]
+        self._target_hand_position = goal[-4:-2]
+
+        qpos = self.model.data.qpos.flat.copy()
+        qvel = self.model.data.qvel.flat.copy()
+        qpos[-4:-2] = self._target_cylinder_position
+        qpos[-2:] = self._target_hand_position
+        self.set_state(qpos, qvel)
+
+
 
 class HandCylinderXYPusher2DEnv(MultitaskPusher2DEnv):
     def sample_goal_states(self, batch_size):
@@ -66,6 +67,17 @@ class HandCylinderXYPusher2DEnv(MultitaskPusher2DEnv):
 
     def convert_obs_to_goal_states(self, obs):
         return obs[:, -4:]
+
+    def set_goal(self, goal):
+        super().set_goal(goal)
+        self._target_cylinder_position = goal[-2:]
+        self._target_hand_position = goal[-4:-2]
+
+        qpos = self.model.data.qpos.flat.copy()
+        qvel = self.model.data.qvel.flat.copy()
+        qpos[-4:-2] = self._target_cylinder_position
+        qpos[-2:] = self._target_hand_position
+        self.set_state(qpos, qvel)
 
 
 class HandXYPusher2DEnv(MultitaskPusher2DEnv):
@@ -87,11 +99,11 @@ class HandXYPusher2DEnv(MultitaskPusher2DEnv):
         return obs[:, -4:-2]
 
     def set_goal(self, goal):
+        super().set_goal(goal)
         self._target_hand_position = goal
 
         qpos = self.model.data.qpos.flat.copy()
         qvel = self.model.data.qvel.flat.copy()
-        qpos[-4:-2] = self._target_cylinder_position
         qpos[-2:] = self._target_hand_position
         self.set_state(qpos, qvel)
 
@@ -142,12 +154,12 @@ class CylinderXYPusher2DEnv(MultitaskPusher2DEnv):
         return obs[:, -2:]
 
     def set_goal(self, goal):
+        super().set_goal(goal)
         self._target_cylinder_position = goal
 
         qpos = self.model.data.qpos.flat.copy()
         qvel = self.model.data.qvel.flat.copy()
         qpos[-4:-2] = self._target_cylinder_position
-        qpos[-2:] = self._target_hand_position
         self.set_state(qpos, qvel)
 
 """
