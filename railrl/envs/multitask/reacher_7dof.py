@@ -118,6 +118,10 @@ class Reacher7DofXyzGoalState(Reacher7DofMultitaskEnv):
     def convert_obs_to_goal_states(self, obs):
         return obs[:, -3:]
 
+    @staticmethod
+    def oc_reward(states, goals):
+        return - torch.norm(states[:, -3:] - goals, p=2, dim=1)
+
 
 class Reacher7DofAngleGoalState(Reacher7DofMultitaskEnv):
     """

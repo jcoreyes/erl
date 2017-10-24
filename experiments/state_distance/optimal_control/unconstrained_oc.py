@@ -6,11 +6,13 @@ import os
 from railrl.algos.state_distance.state_distance_q_learning import \
     multitask_rollout
 from railrl.envs.multitask.reacher_7dof import reach_a_joint_config_reward, \
-    reach_parameterized_joint_config
+    Reacher7DofXyzGoalState
 from railrl.launchers.launcher_util import run_experiment
+from railrl.networks.state_distance import \
+    VectorizedGoalStructuredUniversalQfunction
 from railrl.policies.state_distance import (
     UnconstrainedOcWithGoalConditionedModel,
-)
+    UnconstrainedOcWithImplicitModel)
 from rllab.misc import logger
 import railrl.torch.pytorch_util as ptu
 
@@ -23,12 +25,21 @@ def experiment(variant):
     if ptu.gpu_enabled():
         qf.cuda()
         qf_policy.cuda()
-    policy = UnconstrainedOcWithGoalConditionedModel(
-        qf,
-        env,
-        qf_policy,
-        **variant['policy_params']
-    )
+    if isinstance(qf, VectorizedGoalStructuredUniversalQfunction):
+        import ipdb; ipdb.set_trace()
+        policy = UnconstrainedOcWithImplicitModel(
+            qf,
+            env,
+            qf_policy,
+            **variant['policy_params']
+        )
+    else:
+        policy = UnconstrainedOcWithGoalConditionedModel(
+            qf,
+            env,
+            qf_policy,
+            **variant['policy_params']
+        )
     paths = []
     for _ in range(num_rollouts):
         goal = env.sample_goal_state_for_rollout()
@@ -85,7 +96,8 @@ if __name__ == '__main__':
         policy_params=dict(
             sample_size=args.nsamples,
             # reward_function=reach_a_joint_config_reward,
-            reward_function=reach_parameterized_joint_config,
+            # reward_function=reach_parameterized_joint_config,
+            reward_function=Reacher7DofXyzGoalState.oc_reward,
         ),
         qf_path=os.path.abspath(args.file),
     )
