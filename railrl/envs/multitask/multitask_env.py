@@ -82,7 +82,7 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
             self.convert_obs_to_goal_states(next_obs) - goal_states,
             axis=1,
             keepdims=True,
-            # ord=1,
+            ord=1,
         )
 
     def convert_obs_to_goal_states(self, obs):
