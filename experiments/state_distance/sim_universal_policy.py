@@ -24,6 +24,7 @@ if __name__ == "__main__":
     parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--load', action='store_true')
     parser.add_argument('--hide', action='store_true')
+    parser.add_argument('--pause', action='store_true')
     parser.add_argument('--dt', help='decrement tau', action='store_true')
     parser.add_argument('--cycle', help='cycle tau', action='store_true')
     parser.add_argument('--dc', help='decrement and cycle tau',
@@ -36,6 +37,9 @@ if __name__ == "__main__":
     resolution = 10
     policy = data['policy']
     policy.train(False)
+
+    if args.pause:
+        import ipdb; ipdb.set_trace()
 
     if args.gpu:
         ptu.set_gpu_mode(True)
