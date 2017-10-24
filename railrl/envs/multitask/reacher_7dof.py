@@ -135,8 +135,8 @@ class Reacher7DofAngleGoalState(Reacher7DofMultitaskEnv):
     def set_goal(self, goal):
         super().set_goal(goal)
 
-        saved_qpos = self.model.data.qpos.flat
-        saved_qvel = self.model.data.qvel.flat
+        saved_qpos = self.init_qpos.copy()
+        saved_qvel = self.init_qvel.copy()
         qpos_tmp = saved_qpos.copy()
         qpos_tmp[:7] = goal
         self.set_state(qpos_tmp, saved_qvel)
@@ -186,8 +186,8 @@ class Reacher7DofFullGoalState(Reacher7DofMultitaskEnv):
         """
         super().set_goal(goal)
 
-        saved_qpos = self.init_qpos
-        saved_qvel = self.init_qvel
+        saved_qpos = self.init_qpos.copy()
+        saved_qvel = self.init_qvel.copy()
         qpos_tmp = saved_qpos.copy()
         qpos_tmp[:7] = goal[:7]
         self.set_state(qpos_tmp, saved_qvel)
