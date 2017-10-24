@@ -55,7 +55,7 @@ from railrl.networks.state_distance import (
     GoalStructuredUniversalQfunction, GoalConditionedDeltaModel,
     TauBinaryGoalConditionedDeltaModel)
 from railrl.policies.state_distance import TerminalRewardSampleOCPolicy, \
-    UnconstrainedOcWithGoalConditionedModel
+    UnconstrainedOcWithGoalConditionedModel, UnconstrainedOcWithImplicitModel
 from railrl.torch.modules import HuberLoss
 from railrl.torch.state_distance.exploration import \
     UniversalPolicyWrappedWithExplorationStrategy
@@ -100,12 +100,20 @@ def experiment(variant):
     if raw_explore_policy == 'ddpg':
         raw_exploration_policy = policy
     else:
-        raw_exploration_policy = UnconstrainedOcWithGoalConditionedModel(
-            qf,
-            env,
-            policy,
-            **variant['oc_policy_params']
-        )
+        if isinstance(qf, VectorizedGoalStructuredUniversalQfunction):
+            raw_exploration_policy = UnconstrainedOcWithImplicitModel(
+                qf,
+                env,
+                policy,
+                **variant['oc_policy_params']
+            )
+        else:
+            raw_exploration_policy = UnconstrainedOcWithGoalConditionedModel(
+                qf,
+                env,
+                policy,
+                **variant['oc_policy_params']
+            )
     exploration_policy = UniversalPolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
         policy=raw_exploration_policy,
@@ -149,10 +157,10 @@ algo_class_to_qf_class = {
 
 def complete_variant(variant):
     algo_class = variant['algo_class']
-    # variant['algo_params']['sparse_reward'] = not (
-    #     algo_class == VectorizedDeltaTauSdql
-    # )
-    variant['algo_params']['sparse_reward'] = True
+    variant['algo_params']['sparse_reward'] = not (
+        algo_class == VectorizedDeltaTauSdql
+    )
+    # variant['algo_params']['sparse_reward'] = True
     if 'qf_class' not in variant:
         variant['qf_class'] = algo_class_to_qf_class[algo_class]
     if variant['epoch_discount_schedule_class'] == ConstantSchedule:
@@ -176,13 +184,13 @@ if __name__ == '__main__':
     run_mode = "none"
     snapshot_mode = "gap"
 
-    # n_seeds = 3
-    # mode = "ec2"
-    exp_prefix = "local-sdql-reacher7dof-nodelta-goal-xyz"
-    # run_mode = 'grid'
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "sdql-reacher7dof-full-compare-exploration-delta"
+    run_mode = 'grid'
     # snapshot_mode = "gap_and_last"
 
-    version = "l2"
+    version = "na"
     num_configurations = 50  # for random mode
     snapshot_gap = 10
     use_gpu = True
@@ -192,18 +200,18 @@ if __name__ == '__main__':
     max_path_length = 100
     max_tau = 10
     # noinspection PyTypeChecker
-    algo_class = VectorizedTauSdql
-    # algo_class = VectorizedDeltaTauSdql
+    # algo_class = VectorizedTauSdql
+    algo_class = VectorizedDeltaTauSdql
     qf_class = algo_class_to_qf_class[algo_class]
 
     # env_class = Reacher7DofAngleGoalState
     # env_class = GoalCosSinStateXYAndCosSinReacher2D
-    env_class = Reacher7DofXyzGoalState
+    # env_class = Reacher7DofXyzGoalState
     # env_class = JointOnlyPusherEnv
     # env_class = GoalStateSimpleStateReacherEnv
     # env_class = GoalXYStateXYAndCosSinReacher2D
     # env_class = HandCylinderXYPusher2DEnv
-    # env_class = Reacher7DofFullGoalState
+    env_class = Reacher7DofFullGoalState
     # env_class = HandXYPusher2DEnv
     # env_class = FixedHandXYPusher2DEnv
     # env_class = CylinderXYPusher2DEnv
@@ -247,10 +255,11 @@ if __name__ == '__main__':
             goal_sample_strategy='store',
         ),
         raw_explore_policy='ddpg',
-        # oc_policy_params=dict(
-        #     sample_size=1000,
-        #     reward_function=env_class.oc_reward,
-        # ),
+        oc_policy_params=dict(
+            sample_size=10000,
+            # reward_function=env_class.oc_reward_on_goals,
+            reward_function=env_class.oc_reward,
+        ),
         qf_params=dict(
             hidden_sizes=[300, 300],
             hidden_activation=F.softplus,
@@ -284,16 +293,20 @@ if __name__ == '__main__':
     )
     if run_mode == 'grid':
         search_space = {
-            # 'algo_class': [
-                # VectorizedTauSdql,
-                # VectorizedDeltaTauSdql,
-                # HorizonFedStateDistanceQLearning,
-            # ],
-            'qf_params.hidden_sizes': [
-                [64, 64],
-                [300, 300],
-                [100, 100, 100],
+            'raw_explore_policy': [
+                'oc',
+                'ddpg',
             ],
+            # 'algo_class': [
+            #     VectorizedTauSdql,
+            #     VectorizedDeltaTauSdql,
+            #     HorizonFedStateDistanceQLearning,
+            # ],
+            # 'qf_params.hidden_sizes': [
+            #     [64, 64],
+            #     [300, 300],
+            #     [100, 100, 100],
+            # ],
             # 'qf_class': [
                 # GoalConditionedDeltaModel,
                 # TauBinaryGoalConditionedDeltaModel,
@@ -310,12 +323,12 @@ if __name__ == '__main__':
                 # CylinderXYPusher2DEnv,
                 # FullStatePusher2DEnv,
             # ],
-            'epoch_discount_schedule_params.value': [
-                1,
-                5,
-                10,
-                25,
-            ],
+            # 'epoch_discount_schedule_params.value': [
+            #     1,
+            #     5,
+            #     10,
+            #     25,
+            # ],
             # 'algo_params.sample_train_goals_from': [
             #     'her',
             #     'replay_buffer',
