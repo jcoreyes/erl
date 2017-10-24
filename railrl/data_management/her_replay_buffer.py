@@ -165,7 +165,6 @@ class HerReplayBuffer(EnvReplayBuffer):
             terminals=self._terminals[indices],
             next_observations=self._observations[next_indices],
             goal_states=goal_states,
-            goal_i_minus_obs_i=np.expand_dims(taus, 1),
         )
 
     def random_batch_for_sl(self, batch_size, max_tau):
