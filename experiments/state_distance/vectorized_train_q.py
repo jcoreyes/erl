@@ -23,7 +23,8 @@ from railrl.envs.multitask.pusher2d import (
     CylinderXYPusher2DEnv,
     FullStatePusher2DEnv,
     HandXYPusher2DEnv, FixedHandXYPusher2DEnv,
-    FullStatePusher2DEnv_move_hand_to_target_position_oc_reward_on_goals)
+    FullStatePusher2DEnv_move_hand_to_target_position_oc_reward_on_goals,
+    FullStatePusher2DEnv_move_hand_to_cylinder_oc_reward_on_goals)
 from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState,
@@ -184,10 +185,10 @@ if __name__ == '__main__':
     run_mode = "none"
     snapshot_mode = "last"
 
-    # n_seeds = 3
-    # mode = "ec2"
-    exp_prefix = "local-sdql-pusher-move-hand-to-target-vsdvf-oc"
-    # run_mode = 'grid'
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "local-sdql-pusher-move-hand-sweep-long"
+    run_mode = 'grid'
     # snapshot_mode = "gap_and_last"
 
     version = "na"
@@ -197,11 +198,11 @@ if __name__ == '__main__':
     if mode != "local":
         use_gpu = False
 
-    max_path_length = 100
+    max_path_length = 300
     max_tau = 10
     # noinspection PyTypeChecker
-    algo_class = VectorizedTauSdql
-    # algo_class = VectorizedDeltaTauSdql
+    # algo_class = VectorizedTauSdql
+    algo_class = VectorizedDeltaTauSdql
     qf_class = algo_class_to_qf_class[algo_class]
 
     # env_class = Reacher7DofAngleGoalState
@@ -222,8 +223,8 @@ if __name__ == '__main__':
         version=version,
         algo_params=dict(
             num_epochs=101,
-            num_steps_per_epoch=100,
-            num_steps_per_eval=1000,
+            num_steps_per_epoch=300,
+            num_steps_per_eval=3000,
             num_updates_per_env_step=5,
             use_soft_update=True,
             tau=0.001,
@@ -260,7 +261,8 @@ if __name__ == '__main__':
             sample_size=10000,
             # reward_function=env_class.oc_reward_on_goals,
             # reward_function=env_class.oc_reward,
-            reward_function=FullStatePusher2DEnv_move_hand_to_target_position_oc_reward_on_goals,
+            # reward_function=FullStatePusher2DEnv_move_hand_to_target_position_oc_reward_on_goals,
+            reward_function=FullStatePusher2DEnv_move_hand_to_cylinder_oc_reward_on_goals,
         ),
         qf_params=dict(
             hidden_sizes=[300, 300],
@@ -295,15 +297,18 @@ if __name__ == '__main__':
     )
     if run_mode == 'grid':
         search_space = {
-            'raw_explore_policy': [
-                'ddpg',
-                'oc',
-            ],
-            # 'algo_class': [
-            #     VectorizedTauSdql,
-            #     VectorizedDeltaTauSdql,
-            #     HorizonFedStateDistanceQLearning,
+            # 'raw_explore_policy': [
+            #     'ddpg',
+            #     'oc',
             # ],
+            'oc_policy_params.reward_function': [
+                FullStatePusher2DEnv_move_hand_to_target_position_oc_reward_on_goals,
+                FullStatePusher2DEnv_move_hand_to_cylinder_oc_reward_on_goals,
+            ],
+            'algo_class': [
+                VectorizedTauSdql,
+                VectorizedDeltaTauSdql,
+            ],
             # 'qf_params.hidden_sizes': [
             #     [64, 64],
             #     [300, 300],
