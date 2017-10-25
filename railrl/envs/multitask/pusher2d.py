@@ -67,9 +67,9 @@ class FullStatePusher2DEnv(MultitaskPusher2DEnv):
             - desired_cylinder_pos
         )
 
-    def sample_irrelevant_goal_dimensions(self, goal, batch_size):
+    def sample_dimensions_irrelevant_to_oc(self, goal, batch_size):
         goal_expanded = np.repeat(
-            np.expand_dims(goal, 0),
+            np.expand_dims(goal[:4], 0),
             batch_size,
             axis=0
         )
@@ -106,33 +106,6 @@ class FullStatePusher2DEnv(MultitaskPusher2DEnv):
             predicted_cylinder_pos
             - desired_cylinder_pos
         )
-
-# # Stupid pickle
-# def FullStatePusher2DEnv_move_hand_to_target_position_oc_reward_on_goals(
-#         predicted_states, goal_states, current_states
-# ):
-#     return -torch.norm(
-#         predicted_states[:, 6:8]
-#         - goal_states[:, 6:8]
-#     )
-#
-#
-# def FullStatePusher2DEnv_move_joints_to_target_joint(
-#         predicted_states, goal_states, current_states
-# ):
-#     return -torch.norm(
-#         predicted_states[:, :6]
-#         - goal_states[:, :6]
-#     )
-#
-#
-# def FullStatePusher2DEnv_move_hand_to_cylinder_oc_reward_on_goals(
-#         predicted_states, goal_states, current_states
-# ):
-#     return -torch.norm(
-#         predicted_states[:, 6:8]
-#         - current_states[:, 6:8]
-#     )
 
 
 class HandCylinderXYPusher2DEnv(MultitaskPusher2DEnv):
@@ -196,11 +169,6 @@ class HandCylinderXYPusher2DEnv(MultitaskPusher2DEnv):
             predicted_cylinder_pos
             - desired_cylinder_pos
         )
-
-# def HandCylinderXYPusher2DEnv_move_hand_to_cylinder(
-#     goals_predicted, goals, actual_states
-# ):
-#     return -torch.norm(goals_predicted[:, 0:2] - actual_states[:, -2:])
 
 
 class HandXYPusher2DEnv(MultitaskPusher2DEnv):
@@ -268,14 +236,6 @@ class HandXYPusher2DEnv(MultitaskPusher2DEnv):
         )
 
 
-# def HandXYPusher2DEnv_oc_reward(states_predicted, goals, ignored):
-#     return - torch.norm(states_predicted[:, 6:8] - goals)
-
-
-# def HandXYPusher2DEnv_oc_reward_on_goals(goals_predicted, goals, ignored):
-#     return - torch.norm(goals_predicted - goals)
-
-
 class FixedHandXYPusher2DEnv(HandXYPusher2DEnv):
     def sample_goal_state_for_rollout(self):
         return np.array([-1, 0])
@@ -304,7 +264,3 @@ class CylinderXYPusher2DEnv(MultitaskPusher2DEnv):
         qvel = self.model.data.qvel.flat.copy()
         qpos[-4:-2] = self._target_cylinder_position
         self.set_state(qpos, qvel)
-
-"""
-Optimal control rewards
-"""
