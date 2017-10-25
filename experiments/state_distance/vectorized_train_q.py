@@ -195,10 +195,10 @@ if __name__ == '__main__':
     run_mode = "none"
     snapshot_mode = "last"
 
-    n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "pusher-hand-cylinder-hacked-and-weighted-lots-of-data-sweep-small-tau"
-    run_mode = 'grid'
+    # n_seeds = 3
+    # mode = "ec2"
+    exp_prefix = "pusher-reproduce-handcyl-xy-results-mpl250"
+    # run_mode = 'grid'
     snapshot_mode = "gap_and_last"
 
     version = "na"
@@ -208,7 +208,7 @@ if __name__ == '__main__':
     if mode != "local":
         use_gpu = False
 
-    max_path_length = 100
+    max_path_length = 250
     max_tau = 10
     # noinspection PyTypeChecker
     algo_class = VectorizedTauSdql
@@ -233,7 +233,7 @@ if __name__ == '__main__':
         version=version,
         algo_params=dict(
             num_epochs=101,
-            num_steps_per_epoch=1000,
+            num_steps_per_epoch=100,
             num_steps_per_eval=1000,
             num_updates_per_env_step=5,
             use_soft_update=True,
@@ -260,6 +260,7 @@ if __name__ == '__main__':
             # cycle_taus_for_rollout=False,
             # num_sl_batches_per_rl_batch=1,
             # only_do_sl=True,
+            goal_dim_weights=(1, 1, 1, 1),
         ),
         eval_with_oc_policy=True,
         her_replay_buffer_params=dict(
@@ -269,7 +270,7 @@ if __name__ == '__main__':
         ),
         raw_explore_policy='oc',
         oc_policy_params=dict(
-            sample_size=10000,
+            sample_size=1,
             # reward_function=env_class.oc_reward_on_goals,
             # reward_function=env_class.oc_reward,
             # reward_function=FullStatePusher2DEnv_move_hand_to_target_position_oc_reward_on_goals,
