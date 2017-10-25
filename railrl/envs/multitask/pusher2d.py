@@ -188,6 +188,15 @@ class HandCylinderXYPusher2DEnv(MultitaskPusher2DEnv):
             batch_size,
             axis=0
         )
+        # cyl_pos_exp = np.repeat(
+        #     np.expand_dims(desired_cylinder_pos, 0),
+        #     batch_size,
+        #     axis=0
+        # )
+        # return np.hstack((
+        #     np.random.uniform(-1, 1, (batch_size, 2)),
+        #     cyl_pos_exp,
+        # ))
 
 
     @staticmethod
