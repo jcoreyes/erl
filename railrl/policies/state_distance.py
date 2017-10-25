@@ -668,12 +668,13 @@ class UnconstrainedOcWithImplicitModel(SampleBasedUniversalPolicy, nn.Module):
         self.env = env
         self.reward_function = reward_function
 
-    def rewards_np(self, goals):
+    def rewards_np(self, current_obs, goals):
         if self.reward_function is not None:
             return ptu.get_numpy(
                 self.reward_function(
                     goals,
                     self._goal_batch,
+                    current_obs,
                 )
             )
         diff = ptu.get_numpy(goals) - self._goal_batch_np
@@ -698,6 +699,9 @@ class UnconstrainedOcWithImplicitModel(SampleBasedUniversalPolicy, nn.Module):
             self._discount_batch,
             only_return_next_state=True,
         )
-        rewards = self.rewards_np(final_goal_predicted)
+        rewards = self.rewards_np(
+            obs_pytorch,
+            final_goal_predicted
+        )
         max_i = np.argmax(rewards)
         return ptu.get_numpy(actions[max_i]), {}

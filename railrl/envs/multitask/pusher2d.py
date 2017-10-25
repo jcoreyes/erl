@@ -51,6 +51,33 @@ class FullStatePusher2DEnv(MultitaskPusher2DEnv):
         qpos[-2:] = self._target_hand_position
         self.set_state(qpos, qvel)
 
+    @staticmethod
+    def move_hand_to_cylinder_oc_reward_on_goals(
+            predicted_states, ignored, current_states
+    ):
+        return -torch.norm(
+            predicted_states[:, 6:8]
+            - current_states[:, 8:10]
+        )
+
+    @staticmethod
+    def move_hand_to_target_position_oc_reward_on_goals(
+            predicted_states, goal_states, current_states
+    ):
+        return -torch.norm(
+            predicted_states[:, 6:8]
+            - goal_states[:, 6:8]
+        )
+
+
+# Stupid pickle
+def FullStatePusher2DEnv_move_hand_to_target_position_oc_reward_on_goals(
+        predicted_states, goal_states, current_states
+):
+    return -torch.norm(
+        predicted_states[:, 6:8]
+        - goal_states[:, 6:8]
+    )
 
 
 class HandCylinderXYPusher2DEnv(MultitaskPusher2DEnv):

@@ -22,7 +22,8 @@ from railrl.envs.multitask.pusher2d import (
     HandCylinderXYPusher2DEnv,
     CylinderXYPusher2DEnv,
     FullStatePusher2DEnv,
-    HandXYPusher2DEnv, FixedHandXYPusher2DEnv)
+    HandXYPusher2DEnv, FixedHandXYPusher2DEnv,
+    FullStatePusher2DEnv_move_hand_to_target_position_oc_reward_on_goals)
 from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState,
@@ -183,10 +184,10 @@ if __name__ == '__main__':
     run_mode = "none"
     snapshot_mode = "last"
 
-    n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "sdql-reacher7everything-gcm"
-    run_mode = 'grid'
+    # n_seeds = 3
+    # mode = "ec2"
+    exp_prefix = "local-sdql-pusher-move-hand-to-target-vsdvf-oc"
+    # run_mode = 'grid'
     # snapshot_mode = "gap_and_last"
 
     version = "na"
@@ -199,8 +200,8 @@ if __name__ == '__main__':
     max_path_length = 100
     max_tau = 10
     # noinspection PyTypeChecker
-    # algo_class = VectorizedTauSdql
-    algo_class = VectorizedDeltaTauSdql
+    algo_class = VectorizedTauSdql
+    # algo_class = VectorizedDeltaTauSdql
     qf_class = algo_class_to_qf_class[algo_class]
 
     # env_class = Reacher7DofAngleGoalState
@@ -211,11 +212,11 @@ if __name__ == '__main__':
     # env_class = GoalXYStateXYAndCosSinReacher2D
     # env_class = HandCylinderXYPusher2DEnv
     # env_class = Reacher7DofFullGoalState
-    env_class = Reacher7DofGoalStateEverything
+    # env_class = Reacher7DofGoalStateEverything
     # env_class = HandXYPusher2DEnv
     # env_class = FixedHandXYPusher2DEnv
     # env_class = CylinderXYPusher2DEnv
-    # env_class = FullStatePusher2DEnv
+    env_class = FullStatePusher2DEnv
     replay_buffer_size = 200000
     variant = dict(
         version=version,
@@ -254,11 +255,12 @@ if __name__ == '__main__':
             num_goals_to_sample=4,
             goal_sample_strategy='store',
         ),
-        raw_explore_policy='ddpg',
+        raw_explore_policy='oc',
         oc_policy_params=dict(
             sample_size=10000,
             # reward_function=env_class.oc_reward_on_goals,
-            reward_function=env_class.oc_reward,
+            # reward_function=env_class.oc_reward,
+            reward_function=FullStatePusher2DEnv_move_hand_to_target_position_oc_reward_on_goals,
         ),
         qf_params=dict(
             hidden_sizes=[300, 300],
