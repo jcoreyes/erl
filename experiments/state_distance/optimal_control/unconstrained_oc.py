@@ -5,9 +5,6 @@ import os
 
 from railrl.algos.state_distance.state_distance_q_learning import \
     multitask_rollout
-from railrl.envs.multitask.pusher2d import HandXYPusher2DEnv
-from railrl.envs.multitask.reacher_7dof import reach_a_joint_config_reward, \
-    Reacher7DofXyzGoalState, Reacher7DofGoalStateEverything
 from railrl.launchers.launcher_util import run_experiment
 from railrl.networks.state_distance import \
     VectorizedGoalStructuredUniversalQfunction
@@ -16,6 +13,7 @@ from railrl.policies.state_distance import (
     UnconstrainedOcWithImplicitModel)
 from rllab.misc import logger
 import railrl.torch.pytorch_util as ptu
+
 
 def experiment(variant):
     num_rollouts = variant['num_rollouts']
@@ -95,9 +93,6 @@ if __name__ == '__main__':
         ),
         policy_params=dict(
             sample_size=args.nsamples,
-            # reward_function=reach_a_joint_config_reward,
-            reward_function=HandXYPusher2DEnv.oc_reward_on_goals,
-            # reward_function=Reacher7DofGoalStateEverything.oc_reward,
         ),
         qf_path=os.path.abspath(args.file),
     )
