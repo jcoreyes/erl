@@ -390,6 +390,7 @@ class StateDistanceQLearning(DDPG):
             env=self.training_env,
             qf=self.qf,
             discount=self.discount,
+            exploration_policy=self.exploration_policy,
         )
 
     def get_extra_data_to_save(self, epoch):
