@@ -680,7 +680,7 @@ class UnconstrainedOcWithImplicitModel(SampleBasedUniversalPolicy, nn.Module):
         obs_pytorch = self.expand_np_to_var(obs)
         sampled_goal_state = ptu.np_to_var(
             self.env.sample_dimensions_irrelevant_to_oc(
-                self._goal_np, self.sample_size
+                self._goal_np, obs, self.sample_size
             )
         )
         actions = self.argmax_q(

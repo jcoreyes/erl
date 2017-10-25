@@ -67,9 +67,15 @@ class FullStatePusher2DEnv(MultitaskPusher2DEnv):
             - desired_cylinder_pos
         )
 
-    def sample_dimensions_irrelevant_to_oc(self, goal, batch_size):
+    def sample_dimensions_irrelevant_to_oc(self, goal, obs, batch_size):
+        desired_cylinder_pos = goal[2:4]
+        current_cylinder_pos = obs[8:10]
+        new_goal = np.hstack((
+            current_cylinder_pos,
+            desired_cylinder_pos,
+        ))
         goal_expanded = np.repeat(
-            np.expand_dims(goal[:4], 0),
+            np.expand_dims(new_goal, 0),
             batch_size,
             axis=0
         )
@@ -123,6 +129,10 @@ class HandCylinderXYPusher2DEnv(MultitaskPusher2DEnv):
     def convert_obs_to_goal_states(self, obs):
         return obs[:, -4:]
 
+    @property
+    def goal_dim_weights(self):
+        return np.array([5, 5, 1, 1])
+
     def set_goal(self, goal):
         super().set_goal(goal)
         self._target_cylinder_position = goal[-2:]
@@ -134,12 +144,24 @@ class HandCylinderXYPusher2DEnv(MultitaskPusher2DEnv):
         qpos[-2:] = self._target_hand_position
         self.set_state(qpos, qvel)
 
-    def sample_dimensions_irrelevant_to_oc(self, goal, batch_size):
-        """
-        Trivially just expand the goal
-        """
+    def sample_dimensions_irrelevant_to_oc(self, goal, obs, batch_size):
+        desired_cylinder_pos = goal[2:4]
+        current_cylinder_pos = obs[8:10]
+
+        hand_pos = obs[6:8]
+        if np.linalg.norm(hand_pos - current_cylinder_pos) <= 0.2:
+            new_goal = np.hstack((
+                desired_cylinder_pos,
+                desired_cylinder_pos,
+            ))
+        else:
+            new_goal = np.hstack((
+                current_cylinder_pos,
+                current_cylinder_pos,
+            ))
+
         return np.repeat(
-            np.expand_dims(goal, 0),
+            np.expand_dims(new_goal, 0),
             batch_size,
             axis=0
         )
@@ -192,6 +214,7 @@ class HandXYPusher2DEnv(MultitaskPusher2DEnv):
     def set_goal(self, goal):
         super().set_goal(goal)
         self._target_hand_position = goal
+        self._target_cylinder_position = np.random.uniform(-1, 1, 2)
 
         qpos = self.model.data.qpos.flat.copy()
         qvel = self.model.data.qvel.flat.copy()
@@ -225,12 +248,18 @@ class HandXYPusher2DEnv(MultitaskPusher2DEnv):
     def oc_reward_on_goals(goals_predicted, goals, current_states):
         return - torch.norm(goals_predicted - goals)
 
-    def sample_dimensions_irrelevant_to_oc(self, goal, batch_size):
-        """
-        Trivially just expand the goal
-        """
+    def sample_dimensions_irrelevant_to_oc(self, goal, obs, batch_size):
+        new_goal = obs[8:10]
+
+        # To cheat (e.g. for debugging):
+        # hand_pos = obs[6:8]
+        # cylinder_pos = obs[8:10]
+        # if np.linalg.norm(hand_pos - cylinder_pos) <= 0.2:
+        #     new_goal = self._target_cylinder_position
+        # else:
+        #     new_goal = obs[8:10]
         return np.repeat(
-            np.expand_dims(goal, 0),
+            np.expand_dims(new_goal, 0),
             batch_size,
             axis=0
         )
