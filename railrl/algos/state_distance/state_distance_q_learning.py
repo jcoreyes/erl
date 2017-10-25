@@ -52,6 +52,7 @@ class StateDistanceQLearning(DDPG):
             save_replay_buffer=False,
             save_algorithm=False,
             eval_sampler=None,
+            goal_dim_weights=None,
             **kwargs
     ):
         if eval_policy is None:
@@ -105,6 +106,9 @@ class StateDistanceQLearning(DDPG):
         if self.num_steps_per_tensorboard_update is not None:
             self.tb_logger = TensorboardLogger(logger.get_snapshot_dir())
         self.start_time = time.time()
+        self.goal_dim_weights = goal_dim_weights
+        if self.goal_dim_weights is not None:
+            self.env.goal_dim_weights = np.array(goal_dim_weights)
 
     def _do_training(self, n_steps_total):
         for _ in range(self.num_updates_per_env_step):

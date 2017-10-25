@@ -14,7 +14,7 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
 
     def __init__(self):
         self.multitask_goal = np.zeros(self.goal_dim)
-        self._goal_dim_weights = np.ones(self.goal_dim)
+        self.goal_dim_weights = np.ones(self.goal_dim)
 
     def set_goal(self, goal):
         self.multitask_goal = goal
@@ -193,7 +193,3 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         ))
         for key, value in statistics.items():
             logger.record_tabular(key, value)
-
-    @property
-    def goal_dim_weights(self):
-        return self._goal_dim_weights

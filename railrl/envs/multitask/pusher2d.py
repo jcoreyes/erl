@@ -25,6 +25,10 @@ class MultitaskPusher2DEnv(Pusher2DEnv, MultitaskEnv, metaclass=abc.ABCMeta):
 
 
 class FullStatePusher2DEnv(MultitaskPusher2DEnv):
+    def __init__(self, goal=(0, -1)):
+        super().__init__(goal=goal)
+        self.goal_dim_weights = np.array([0, 0, 0, 0, 0, 0, 5, 5, 1, 1])
+
     def sample_goal_states(self, batch_size):
         # Joint angle and xy position won't be consistent, but oh well!
         return np.random.uniform(
@@ -70,10 +74,18 @@ class FullStatePusher2DEnv(MultitaskPusher2DEnv):
     def sample_dimensions_irrelevant_to_oc(self, goal, obs, batch_size):
         desired_cylinder_pos = goal[2:4]
         current_cylinder_pos = obs[8:10]
-        new_goal = np.hstack((
-            current_cylinder_pos,
-            desired_cylinder_pos,
-        ))
+
+        hand_pos = obs[6:8]
+        if np.linalg.norm(hand_pos - current_cylinder_pos) <= 0.2:
+            new_goal = np.hstack((
+                desired_cylinder_pos,
+                desired_cylinder_pos,
+            ))
+        else:
+            new_goal = np.hstack((
+                current_cylinder_pos,
+                current_cylinder_pos,
+            ))
         goal_expanded = np.repeat(
             np.expand_dims(new_goal, 0),
             batch_size,
@@ -115,6 +127,10 @@ class FullStatePusher2DEnv(MultitaskPusher2DEnv):
 
 
 class HandCylinderXYPusher2DEnv(MultitaskPusher2DEnv):
+    def __init__(self, goal=(0, -1)):
+        super().__init__(goal=goal)
+        self.goal_dim_weights = np.array([5, 5, 1, 1])
+
     def sample_goal_states(self, batch_size):
         return np.random.uniform(
             np.array([-1, -1, -1., -1]),
@@ -128,10 +144,6 @@ class HandCylinderXYPusher2DEnv(MultitaskPusher2DEnv):
 
     def convert_obs_to_goal_states(self, obs):
         return obs[:, -4:]
-
-    @property
-    def goal_dim_weights(self):
-        return np.array([5, 5, 1, 1])
 
     def set_goal(self, goal):
         super().set_goal(goal)
@@ -151,20 +163,30 @@ class HandCylinderXYPusher2DEnv(MultitaskPusher2DEnv):
         hand_pos = obs[6:8]
         if np.linalg.norm(hand_pos - current_cylinder_pos) <= 0.2:
             new_goal = np.hstack((
-                desired_cylinder_pos,
+                current_cylinder_pos,
                 desired_cylinder_pos,
             ))
         else:
             new_goal = np.hstack((
                 current_cylinder_pos,
                 current_cylinder_pos,
+                # desired_cylinder_pos,
             ))
-
         return np.repeat(
             np.expand_dims(new_goal, 0),
             batch_size,
             axis=0
         )
+        # desired_cylinder_pos_expanded = np.repeat(
+        #     np.expand_dims(new_goal[2:4], 0),
+        #     batch_size,
+        #     axis=0
+        # )
+        # return np.hstack((
+        #     desired_cylinder_pos_expanded,
+        #     np.random.uniform(-1, 1, (batch_size, 2)),
+        # ))
+
 
     @staticmethod
     def oc_reward(
