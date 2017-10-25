@@ -14,7 +14,11 @@ class MultitaskPusher2DEnv(Pusher2DEnv, MultitaskEnv, metaclass=abc.ABCMeta):
         MultitaskEnv.__init__(self)
 
     def sample_actions(self, batch_size):
-        return np.random.uniform(self.action_space.low, self.action_space.high)
+        return np.random.uniform(
+            self.action_space.low,
+            self.action_space.high,
+            (batch_size, 3),
+        )
 
     def sample_states(self, batch_size):
         raise NotImplementedError()
@@ -64,11 +68,15 @@ class FullStatePusher2DEnv(MultitaskPusher2DEnv):
         current_cylinder_pos = current_states[:, 8:10]
         desired_cylinder_pos = goal_states[:, 8:10]
         return -torch.norm(
-            predicted_hand_pos
-            - current_cylinder_pos
+            predicted_hand_pos - current_cylinder_pos,
+            p=2,
+            dim=1,
+            keepdim=True,
         ) - torch.norm(
-            predicted_cylinder_pos
-            - desired_cylinder_pos
+            predicted_cylinder_pos - desired_cylinder_pos,
+            p=2,
+            dim=1,
+            keepdim=True,
         )
 
     def sample_dimensions_irrelevant_to_oc(self, goal, obs, batch_size):
@@ -118,11 +126,15 @@ class FullStatePusher2DEnv(MultitaskPusher2DEnv):
         current_cylinder_pos = current_states[:, 8:10]
         desired_cylinder_pos = goal_states[:, 8:10]
         return -torch.norm(
-            predicted_hand_pos
-            - current_cylinder_pos
+            predicted_hand_pos - current_cylinder_pos,
+            p=2,
+            dim=1,
+            keepdim=True,
         ) - torch.norm(
-            predicted_cylinder_pos
-            - desired_cylinder_pos
+            predicted_cylinder_pos - desired_cylinder_pos,
+            p=2,
+            dim=1,
+            keepdim=True,
         )
 
 
@@ -190,18 +202,22 @@ class HandCylinderXYPusher2DEnv(MultitaskPusher2DEnv):
 
     @staticmethod
     def oc_reward_on_goals(
-            predicted_states, goal_states, current_states
+            predicted_goals, goal_states, current_states
     ):
-        predicted_hand_pos = predicted_states[:, :2]
-        predicted_cylinder_pos = predicted_states[:, 2:4]
+        predicted_hand_pos = predicted_goals[:, :2]
+        predicted_cylinder_pos = predicted_goals[:, 2:4]
         current_cylinder_pos = current_states[:, 8:10]
         desired_cylinder_pos = goal_states[:, 2:4]
         return -torch.norm(
-            predicted_hand_pos
-            - current_cylinder_pos
+            predicted_hand_pos - current_cylinder_pos,
+            p=2,
+            dim=1,
+            keepdim=True,
         ) - torch.norm(
-            predicted_cylinder_pos
-            - desired_cylinder_pos
+            predicted_cylinder_pos - desired_cylinder_pos,
+            p=2,
+            dim=1,
+            keepdim=True,
         )
 
 
