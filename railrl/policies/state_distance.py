@@ -618,15 +618,16 @@ class UnconstrainedOcWithGoalConditionedModel(SampleBasedUniversalPolicy, nn.Mod
         self.env = env
         self.reward_function = reward_function
 
-    def rewards_np(self, states):
+    def rewards_np(self, current_obs, states_predicted):
         if self.reward_function is not None:
             return ptu.get_numpy(
                 self.reward_function(
-                    states,
+                    states_predicted,
                     self._goal_batch,
+                    current_obs,
                 )
             )
-        diff = ptu.get_numpy(states) - self._goal_batch_np
+        diff = ptu.get_numpy(states_predicted) - self._goal_batch_np
         rewards_np = - np.linalg.norm(diff, axis=1)
         return rewards_np
 
@@ -646,7 +647,7 @@ class UnconstrainedOcWithGoalConditionedModel(SampleBasedUniversalPolicy, nn.Mod
             sampled_goal_state,
             self._discount_batch,
         ) + obs_pytorch
-        rewards = self.rewards_np(final_state_predicted)
+        rewards = self.rewards_np(obs_pytorch, final_state_predicted)
         max_i = np.argmax(rewards)
         return ptu.get_numpy(actions[max_i]), {}
 
