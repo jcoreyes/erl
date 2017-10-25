@@ -1,6 +1,11 @@
+import argparse
 import random
 
 from railrl.envs.env_utils import gym_env
+from railrl.envs.mujoco.pusher2d import RandomGoalPusher2DEnv
+from railrl.envs.multitask.her_pusher_env import Pusher2DEnv
+from railrl.envs.multitask.her_reacher_7dof_env import Reacher7Dof
+from railrl.envs.multitask.multitask_env import multitask_to_flat_env
 from railrl.envs.wrappers import normalize_box
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
@@ -17,32 +22,35 @@ from railrl.envs.multitask.pusher import (
 )
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofFullGoalState,
-)
-from railrl.envs.multitask.pusher2d import HandCylinderXYPusher2DEnv
+    Reacher7DofMultitaskEnv, Reacher7DofGoalStateEverything,
+    Reacher7DofXyzGoalState)
+from railrl.envs.multitask.pusher2d import HandCylinderXYPusher2DEnv, \
+    MultitaskPusher2DEnv
 from railrl.envs.multitask.reacher_env import (
     GoalStateSimpleStateReacherEnv,
 )
 
 
 def experiment(variant):
-    env = gym_env("Reacher-v1")
-    # env = variant['env_class']()
+    env = variant['env_class']()
     env = normalize_box(
         env,
         **variant['normalize_params']
     )
-    es = OUStrategy(action_space=env.action_space)
+    # env = multitask_to_flat_env(env)
+    es = OUStrategy(
+        action_space=env.action_space,
+        **variant['ou_params']
+    )
     qf = FeedForwardQFunction(
         int(env.observation_space.flat_dim),
         int(env.action_space.flat_dim),
-        400,
-        300,
+        **variant['qf_params']
     )
     policy = FeedForwardPolicy(
         int(env.observation_space.flat_dim),
         int(env.action_space.flat_dim),
-        400,
-        300,
+        **variant['policy_params']
     )
     exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
@@ -59,27 +67,29 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--render', action='store_true')
+    args = parser.parse_args()
+
     n_seeds = 1
     mode = "local"
     exp_prefix = "dev-state-distance-ddpg-baseline"
 
-    # n_seeds = 5
-    # mode = "ec2"
-    # exp_prefix = "ddpg-reacher-baseline"
+    n_seeds = 5
+    mode = "ec2"
+    exp_prefix = "ddpg-reacher-pusher-baseline"
 
-    num_steps_per_iteration = 100
-    H = 250
-    num_iterations = 1000
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
-            num_epochs=num_iterations,
-            num_steps_per_epoch=num_steps_per_iteration,
+            render=args.render,
+            num_epochs=100,
+            num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             use_soft_update=True,
             tau=1e-2,
-            batch_size=128,
-            max_path_length=H,
+            batch_size=64,
+            max_path_length=100,
             discount=0.99,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
@@ -90,15 +100,39 @@ if __name__ == "__main__":
             obs_mean=None,
             obs_std=None,
         ),
+        ou_params=dict(
+            theta=0.1,
+            max_sigma=0.1,
+            min_sigma=0.1,
+        ),
+        policy_params=dict(
+            fc1_size=300,
+            fc2_size=300,
+        ),
+        qf_params=dict(
+            observation_hidden_size=300,
+            embedded_hidden_size=300,
+        ),
     )
     search_space = {
         'env_class': [
-            # JointOnlyPusherEnv,
-            # Reacher7DofFullGoalState,
             # GoalStateSimpleStateReacherEnv,
+            # Reacher7DofXyzGoalState,
+            # HandCylinderXYPusher2DEnv,
+            Pusher2DEnv,
+            Reacher7Dof,
+            # RandomGoalPusher2DEnv,
             # MultitaskPusher2DEnv,
-            # MultitaskPoint2DEnv,
-            "ignored",
+            # Reacher7DofMultitaskEnv,
+        ],
+        'algo_params.num_updates_per_env_step': [
+            1, 5,
+        ],
+        'algo_params.tau': [
+            1e-2, 1e-3,
+        ],
+        'algo_params.scale_reward': [
+            10, 1, 0.1,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
