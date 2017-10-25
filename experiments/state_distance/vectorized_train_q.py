@@ -197,7 +197,7 @@ if __name__ == '__main__':
 
     # n_seeds = 3
     # mode = "ec2"
-    exp_prefix = "pusher-reproduce-handcyl-xy-results-mpl250"
+    exp_prefix = "pusher-reproduce-handcyl-xy-results-mpl250-2"
     # run_mode = 'grid'
     snapshot_mode = "gap_and_last"
 
@@ -233,7 +233,7 @@ if __name__ == '__main__':
         version=version,
         algo_params=dict(
             num_epochs=101,
-            num_steps_per_epoch=100,
+            num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             num_updates_per_env_step=5,
             use_soft_update=True,
