@@ -125,12 +125,12 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         :param batch_size:
         :return: ndarray, shape SAMPLE_SIZE x GOAL_DIM
         """
-        # raise NotImplementedError()
-        return np.repeat(
-            np.expand_dims(goal, 0),
-            batch_size,
-            axis=0
-        )
+        raise NotImplementedError("Nothing should be using this")
+        # return np.repeat(
+        #     np.expand_dims(goal, 0),
+        #     batch_size,
+        #     axis=0
+        # )
 
     def sample_dimensions_irrelevant_to_oc(self, goal, batch_size):
         """
@@ -156,8 +156,6 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         # )
 
 
-n call
-        )
     def log_diagnostics(self, paths):
         statistics = OrderedDict()
 
