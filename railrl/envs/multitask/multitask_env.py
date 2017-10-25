@@ -125,12 +125,39 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         :param batch_size:
         :return: ndarray, shape SAMPLE_SIZE x GOAL_DIM
         """
+        # raise NotImplementedError()
         return np.repeat(
             np.expand_dims(goal, 0),
             batch_size,
             axis=0
         )
 
+    def sample_dimensions_irrelevant_to_oc(self, goal, batch_size):
+        """
+        Copy the goal a bunch of time, but replace irrelevant goal dimensions
+        with sampled values.
+
+        For example, if you care about the position but not about the velocity,
+        copy the velocity `batch_size` number of times, and then sample a bunch
+        of velocity values.
+
+        This default implementation assumes every dimension in the goal state
+        is important.
+
+        :param goal: np.ndarray, shape GOAL_DIM
+        :param batch_size:
+        :return: ndarray, shape SAMPLE_SIZE x GOAL_DIM
+        """
+        raise NotImplementedError()
+        # return np.repeat(
+        #     np.expand_dims(goal, 0),
+        #     batch_size,
+        #     axis=0
+        # )
+
+
+n call
+        )
     def log_diagnostics(self, paths):
         statistics = OrderedDict()
 

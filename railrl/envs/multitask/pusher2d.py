@@ -52,40 +52,87 @@ class FullStatePusher2DEnv(MultitaskPusher2DEnv):
         self.set_state(qpos, qvel)
 
     @staticmethod
-    def move_hand_to_cylinder_oc_reward_on_goals(
-            predicted_states, ignored, current_states
+    def oc_reward(
+            predicted_states, goal_states, current_states
     ):
+        predicted_hand_pos = predicted_states[:, 6:8]
+        predicted_cylinder_pos = predicted_states[:, 8:10]
+        current_cylinder_pos = current_states[:, 8:10]
+        desired_cylinder_pos = goal_states[:, 8:10]
         return -torch.norm(
-            predicted_states[:, 6:8]
-            - current_states[:, 8:10]
+            predicted_hand_pos
+            - current_cylinder_pos
+        ) - torch.norm(
+            predicted_cylinder_pos
+            - desired_cylinder_pos
+        )
+
+    def sample_irrelevant_goal_dimensions(self, goal, batch_size):
+        goal_expanded = np.repeat(
+            np.expand_dims(goal, 0),
+            batch_size,
+            axis=0
+        )
+        return np.hstack((
+            # From the xml
+            self.np_random.uniform(low=-2.5, high=2.5, size=(batch_size, 1)),
+            self.np_random.uniform(low=-2.32, high=2.3, size=(batch_size, 1)),
+            self.np_random.uniform(low=-2.32, high=2.3, size=(batch_size, 1)),
+            # velocities
+            self.np_random.uniform(low=-1, high=1, size=(batch_size, 3)),
+            goal_expanded,
+        ))
+
+    @staticmethod
+    def oc_reward(
+            predicted_states, goal_states, current_states
+    ):
+        return FullStatePusher2DEnv.oc_reward_on_goals(
+            predicted_states, goal_states, current_states
         )
 
     @staticmethod
-    def move_hand_to_target_position_oc_reward_on_goals(
+    def oc_reward_on_goals(
             predicted_states, goal_states, current_states
     ):
+        predicted_hand_pos = predicted_states[:, 6:8]
+        predicted_cylinder_pos = predicted_states[:, 8:10]
+        current_cylinder_pos = current_states[:, 8:10]
+        desired_cylinder_pos = goal_states[:, 8:10]
         return -torch.norm(
-            predicted_states[:, 6:8]
-            - goal_states[:, 6:8]
+            predicted_hand_pos
+            - current_cylinder_pos
+        ) - torch.norm(
+            predicted_cylinder_pos
+            - desired_cylinder_pos
         )
 
-
-# Stupid pickle
-def FullStatePusher2DEnv_move_hand_to_target_position_oc_reward_on_goals(
-        predicted_states, goal_states, current_states
-):
-    return -torch.norm(
-        predicted_states[:, 6:8]
-        - goal_states[:, 6:8]
-    )
-
-def FullStatePusher2DEnv_move_hand_to_cylinder_oc_reward_on_goals(
-        predicted_states, goal_states, current_states
-):
-    return -torch.norm(
-        predicted_states[:, 6:8]
-        - current_states[:, 6:8]
-    )
+# # Stupid pickle
+# def FullStatePusher2DEnv_move_hand_to_target_position_oc_reward_on_goals(
+#         predicted_states, goal_states, current_states
+# ):
+#     return -torch.norm(
+#         predicted_states[:, 6:8]
+#         - goal_states[:, 6:8]
+#     )
+#
+#
+# def FullStatePusher2DEnv_move_joints_to_target_joint(
+#         predicted_states, goal_states, current_states
+# ):
+#     return -torch.norm(
+#         predicted_states[:, :6]
+#         - goal_states[:, :6]
+#     )
+#
+#
+# def FullStatePusher2DEnv_move_hand_to_cylinder_oc_reward_on_goals(
+#         predicted_states, goal_states, current_states
+# ):
+#     return -torch.norm(
+#         predicted_states[:, 6:8]
+#         - current_states[:, 6:8]
+#     )
 
 
 class HandCylinderXYPusher2DEnv(MultitaskPusher2DEnv):
@@ -114,11 +161,46 @@ class HandCylinderXYPusher2DEnv(MultitaskPusher2DEnv):
         qpos[-2:] = self._target_hand_position
         self.set_state(qpos, qvel)
 
+    def sample_dimensions_irrelevant_to_oc(self, goal, batch_size):
+        """
+        Trivially just expand the goal
+        """
+        return np.repeat(
+            np.expand_dims(goal, 0),
+            batch_size,
+            axis=0
+        )
 
-def HandCylinderXYPusher2DEnv_move_hand_to_cylinder(
-    goals_predicted, goals, actual_states
-):
-    return -torch.norm(goals_predicted[:, 0:2] - actual_states[:, -2:])
+    @staticmethod
+    def oc_reward(
+            predicted_states, goal_states, current_states
+    ):
+        return HandCylinderXYPusher2DEnv.oc_reward_on_goals(
+            predicted_states[:, :4],
+            goal_states,
+            current_states,
+        )
+
+    @staticmethod
+    def oc_reward_on_goals(
+            predicted_states, goal_states, current_states
+    ):
+        predicted_hand_pos = predicted_states[:, :2]
+        predicted_cylinder_pos = predicted_states[:, 2:4]
+        current_cylinder_pos = current_states[:, 8:10]
+        desired_cylinder_pos = goal_states[:, 2:4]
+        return -torch.norm(
+            predicted_hand_pos
+            - current_cylinder_pos
+        ) - torch.norm(
+            predicted_cylinder_pos
+            - desired_cylinder_pos
+        )
+
+# def HandCylinderXYPusher2DEnv_move_hand_to_cylinder(
+#     goals_predicted, goals, actual_states
+# ):
+#     return -torch.norm(goals_predicted[:, 0:2] - actual_states[:, -2:])
 
 
 class HandXYPusher2DEnv(MultitaskPusher2DEnv):
@@ -149,7 +231,7 @@ class HandXYPusher2DEnv(MultitaskPusher2DEnv):
         self.set_state(qpos, qvel)
 
     @staticmethod
-    def oc_reward(states, goals, ignored):
+    def oc_reward(states, goals, current_states):
         """
         Reminder:
 
@@ -167,11 +249,31 @@ class HandXYPusher2DEnv(MultitaskPusher2DEnv):
         :param goals:
         :return:
         """
-        return HandXYPusher2DEnv.oc_reward_on_goals(states[:, 6:8], goals)
+        return HandXYPusher2DEnv.oc_reward_on_goals(
+            states[:, 6:8], goals, current_states
+        )
 
     @staticmethod
-    def oc_reward_on_goals(goals_predicted, goals, ignored):
+    def oc_reward_on_goals(goals_predicted, goals, current_states):
         return - torch.norm(goals_predicted - goals)
+
+    def sample_dimensions_irrelevant_to_oc(self, goal, batch_size):
+        """
+        Trivially just expand the goal
+        """
+        return np.repeat(
+            np.expand_dims(goal, 0),
+            batch_size,
+            axis=0
+        )
+
+
+# def HandXYPusher2DEnv_oc_reward(states_predicted, goals, ignored):
+#     return - torch.norm(states_predicted[:, 6:8] - goals)
+
+
+# def HandXYPusher2DEnv_oc_reward_on_goals(goals_predicted, goals, ignored):
+#     return - torch.norm(goals_predicted - goals)
 
 
 class FixedHandXYPusher2DEnv(HandXYPusher2DEnv):

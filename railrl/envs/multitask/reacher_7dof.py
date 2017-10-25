@@ -238,6 +238,10 @@ class Reacher7DofFullGoalState(Reacher7DofMultitaskEnv):
         return - torch.norm(states[:, :7] - goal_states[:, :7], p=2, dim=1)
 
 
+def Reacher7DofFullGoalState_oc_reward(states, goal_states, *ignored):
+    return - torch.norm(states[:, :7] - goal_states[:, :7], p=2, dim=1)
+
+
 class Reacher7DofGoalStateEverything(Reacher7DofMultitaskEnv):
     """
     The goal state is the full state: joint angles, velocities, and XYZ.
@@ -272,6 +276,26 @@ class Reacher7DofGoalStateEverything(Reacher7DofMultitaskEnv):
             self.np_random.uniform(low=-0.2, high=0.6, size=(batch_size, 1)),
         ))
 
+    def sample_irrelevant_goal_dimensions(self, goal, batch_size):
+        goal_expanded = np.repeat(
+            np.expand_dims(goal, 0),
+            batch_size,
+            axis=0
+        )
+        return np.hstack((
+            # From the xml
+            self.np_random.uniform(low=-2.28, high=1.71, size=(batch_size, 1)),
+            self.np_random.uniform(low=-0.52, high=1.39, size=(batch_size, 1)),
+            self.np_random.uniform(low=-1.4, high=1.7, size=(batch_size, 1)),
+            self.np_random.uniform(low=-2.32, high=0, size=(batch_size, 1)),
+            self.np_random.uniform(low=-1.5, high=1.5, size=(batch_size, 1)),
+            self.np_random.uniform(low=-1.094, high=0, size=(batch_size, 1)),
+            self.np_random.uniform(low=-1.5, high=1.5, size=(batch_size, 1)),
+            # velocities
+            self.np_random.uniform(low=-1, high=1, size=(batch_size, 7)),
+            goal_expanded,
+        ))
+
     def sample_goal_state_for_rollout(self):
         angles = np.random.uniform(
             np.array([-2.28, -0.52, -1.4, -2.32, -1.5, -1.094, -1.5]),
@@ -302,6 +326,12 @@ class Reacher7DofGoalStateEverything(Reacher7DofMultitaskEnv):
             p=2,
             dim=1,
         )
+
+
+def Reacher7DofGoalStateEverything_oc_reward(
+        states, goal_states, ignored_current_state
+):
+    return - torch.norm(states[:, 14:17] - goal_states[:, 14:17], p=2, dim=1)
 
 
 """
