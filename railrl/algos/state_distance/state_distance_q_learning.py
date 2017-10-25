@@ -35,6 +35,7 @@ class StateDistanceQLearning(DDPG):
             qf,
             policy,
             exploration_policy: UniversalExplorationPolicy = None,
+            eval_policy=None,
             replay_buffer=None,
             num_epochs=100,
             num_steps_per_epoch=100,
@@ -53,9 +54,11 @@ class StateDistanceQLearning(DDPG):
             eval_sampler=None,
             **kwargs
     ):
+        if eval_policy is None:
+            eval_policy = policy
         eval_sampler = eval_sampler or MultigoalSimplePathSampler(
             env=env,
-            policy=policy,
+            policy=eval_policy,
             max_samples=num_steps_per_eval,
             max_path_length=max_path_length,
             discount_sampling_function=self._sample_discount_for_rollout,
