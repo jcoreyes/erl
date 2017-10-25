@@ -237,6 +237,10 @@ class Reacher7DofFullGoalState(Reacher7DofMultitaskEnv):
     def oc_reward(states, goal_states):
         return - torch.norm(states[:, :7] - goal_states[:, :7], p=2, dim=1)
 
+    @staticmethod
+    def oc_reward_on_goals(predicted_goals, goal_states):
+        return - torch.norm(predicted_goals[:, :7] - goal_states[:, :7], p=2, dim=1)
+
 
 def Reacher7DofFullGoalState_oc_reward(states, goal_states, *ignored):
     return - torch.norm(states[:, :7] - goal_states[:, :7], p=2, dim=1)
@@ -323,6 +327,14 @@ class Reacher7DofGoalStateEverything(Reacher7DofMultitaskEnv):
     def oc_reward(states, goal_states, ignored_current_state):
         return - torch.norm(
             states[:, 14:17] - goal_states[:, 14:17],
+            p=2,
+            dim=1,
+        )
+
+    @staticmethod
+    def oc_reward_on_goals(predicted_goals, goal_states, ignored_current_state):
+        return - torch.norm(
+            predicted_goals[:, 14:17] - goal_states[:, 14:17],
             p=2,
             dim=1,
         )
