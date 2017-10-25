@@ -59,7 +59,7 @@ class MultistepModelBasedPolicy(SampleBasedUniversalPolicy, nn.Module):
                     obs_predicted,
                     action,
                 )
-                obs_predicted += obs_delta_predicted
+                obs_predicted = obs_predicted + obs_delta_predicted
             else:
                 obs_predicted = self.model(
                     obs_predicted,
