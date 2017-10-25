@@ -274,6 +274,17 @@ class GoalStateSimpleStateReacherEnv(MultitaskReacherEnv):
         goals[:, 4:6] = sampled_velocities
         return goals
 
+    @staticmethod
+    def oc_reward_on_goals(
+            predicted_states, goal_states, current_states
+    ):
+        return - torch.norm(
+            predicted_states - goal_states,
+            dim=1,
+            p=2,
+            keepdim=True,
+        )
+
 
 class GoalXYStateXYAndCosSinReacher2D(MultitaskReacherEnv):
     def sample_goal_states(self, batch_size):
