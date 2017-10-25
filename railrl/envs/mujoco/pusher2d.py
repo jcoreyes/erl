@@ -12,12 +12,13 @@ from rllab.misc import logger
 class Pusher2DEnv(MujocoEnv, metaclass=abc.ABCMeta):
     FILE = '3link_gripper_push_2d.xml'
 
-    def __init__(self, goal=(-1, 0)):
+    def __init__(self, goal=(-1, 0), randomize_goals=False):
         self.init_serialization(locals())
         if not isinstance(goal, np.ndarray):
             goal = np.array(goal)
         self._target_cylinder_position = goal
         self._target_hand_position = goal
+        self.randomize_goals = randomize_goals
         super().__init__(
             '3link_gripper_push_2d.xml',
             frame_skip=5,
@@ -26,13 +27,13 @@ class Pusher2DEnv(MujocoEnv, metaclass=abc.ABCMeta):
 
     def _step(self, a):
         hand_to_object_distance = np.linalg.norm(
-            self.get_body_com("distal_4") - self.get_body_com("object")
+            self.model.data.site_xpos[0][:2] - self.get_body_com("object")[:2]
         )
         object_to_goal_distance = np.linalg.norm(
             self.get_body_com("goal") - self.get_body_com("object")
         )
         hand_to_hand_goal_distance = np.linalg.norm(
-            self.get_body_com("distal_4") - self.get_body_com("hand_goal")
+            self.model.data.site_xpos[0][:2] - self.get_body_com("hand_goal")[:2]
         )
         reward = - hand_to_object_distance - object_to_goal_distance
 
@@ -71,6 +72,12 @@ class Pusher2DEnv(MujocoEnv, metaclass=abc.ABCMeta):
             np.array([0.8, -0.3]),
         )
         qpos[-6:-4] = obj_pos
+        if self.randomize_goals:
+            self._target_cylinder_position = np.random.uniform(
+                np.array([-1, -1]),
+                np.array([1, 0]),
+                2
+            )
         qpos[-4:-2] = self._target_cylinder_position
         qpos[-2:] = self._target_hand_position
         qvel = self.init_qvel.copy().squeeze()
@@ -84,7 +91,7 @@ class Pusher2DEnv(MujocoEnv, metaclass=abc.ABCMeta):
         return np.concatenate([
             self.model.data.qpos.flat[:3],
             self.model.data.qvel.flat[:3],
-            self.get_body_com("distal_4")[:2],
+            self.model.data.site_xpos[0][:2],
             self.get_body_com("object")[:2],
         ])
 
@@ -117,3 +124,9 @@ class Pusher2DEnv(MujocoEnv, metaclass=abc.ABCMeta):
         ))
         for key, value in statistics.items():
             logger.record_tabular(key, value)
+
+
+class RandomGoalPusher2DEnv(Pusher2DEnv):
+    def __init__(self, goal=(-1, 0)):
+        self.init_serialization(locals())
+        super().__init__(goal, randomize_goals=True)
