@@ -1,8 +1,13 @@
+from collections import OrderedDict
+
 import numpy as np
 from gym import utils
 from gym.envs.mujoco import mujoco_env
 
 from railrl.envs.env_utils import get_asset_xml
+from railrl.misc.data_processing import create_stats_ordered_dict
+from railrl.misc.rllab_util import get_stat_in_dict
+from rllab.misc import logger
 
 
 def obs_to_goal(obs):
@@ -69,3 +74,21 @@ class Reacher7Dof(
             self.get_body_com("tips_arm"),
             self.get_body_com("goal"),
         ])
+
+    def log_diagnostics(self, paths):
+        super().log_diagnostics(paths)
+        statistics = OrderedDict()
+
+        euclidean_distances = get_stat_in_dict(
+            paths, 'env_infos', 'distance'
+        )
+        statistics.update(create_stats_ordered_dict(
+            'Euclidean distance to goal', euclidean_distances
+        ))
+        statistics.update(create_stats_ordered_dict(
+            'Final Euclidean distance to goal',
+            euclidean_distances[:, -1],
+            always_show_all_stats=True,
+        ))
+        for key, value in statistics.items():
+            logger.record_tabular(key, value)
