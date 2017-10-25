@@ -218,8 +218,6 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             logger.pop_prefix()
 
     def _try_to_eval(self, exploration_paths, epoch):
-        if len(exploration_paths) == 0:
-            exploration_paths = [self._current_path.get_all_stacked()]
         if self._can_evaluate(exploration_paths):
             start_time = time.time()
             self.evaluate(epoch, exploration_paths)
