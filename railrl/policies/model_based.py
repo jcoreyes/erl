@@ -49,7 +49,7 @@ class MultistepModelBasedPolicy(SampleBasedUniversalPolicy, nn.Module):
         first_sampled_action = sampled_actions
         action = ptu.np_to_var(sampled_actions)
         obs = self.expand_np_to_var(obs)
-        obs_predicted = obs
+        obs_predicted = obs.clone()
         for i in range(self.planning_horizon):
             if i > 0:
                 sampled_actions = self.env.sample_actions(self.sample_size)
@@ -70,9 +70,14 @@ class MultistepModelBasedPolicy(SampleBasedUniversalPolicy, nn.Module):
                 obs_predicted
             )
         )
-        errors = (next_goal_state_predicted - self._goal_batch)**2
-        mean_errors = ptu.get_numpy(errors.mean(dim=1))
-        score = mean_errors + self.action_penalty * np.linalg.norm(
+        # errors = (next_goal_state_predicted - self._goal_batch)**2
+        rewards = self.env.oc_reward_on_goals(
+            next_goal_state_predicted,
+            self._goal_batch,
+            obs
+        )
+        errors = ptu.get_numpy(-rewards.squeeze(1))
+        score = errors + self.action_penalty * np.linalg.norm(
             sampled_actions,
             axis=1
         )

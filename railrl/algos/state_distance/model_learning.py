@@ -42,8 +42,9 @@ class ModelLearning(object):
             learning_rate=1e-3,
             weight_decay=0,
             batch_size=100,
-            num_rollouts_per_eval=10,
+            num_rollouts_for_eval=10,
             max_path_length=100,
+            min_num_steps_per_epoch=1000,
             replay_buffer_size=100000,
             add_on_policy_data=True,
             model_learns_deltas=True,
@@ -73,13 +74,16 @@ class ModelLearning(object):
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
         self.batch_size = batch_size
-        self.num_rollouts_per_eval = num_rollouts_per_eval
+        self.num_rollouts_for_eval = num_rollouts_for_eval
         self.max_path_length = max_path_length
         self.add_on_policy_data = add_on_policy_data
         self.model_learns_deltas = model_learns_deltas
+        assert max_num_on_policy_steps_to_add is None
+        assert add_on_policy_data
         if max_num_on_policy_steps_to_add is None:
             max_num_on_policy_steps_to_add = np.inf
         self.max_num_on_policy_steps_to_add = max_num_on_policy_steps_to_add
+        self.min_num_steps_per_epoch = min_num_steps_per_epoch
 
         self.num_on_policy_steps_added = 0
         self.optimizer = optim.Adam(
@@ -95,10 +99,9 @@ class ModelLearning(object):
     def train(self):
         num_batches_total = 0
         for epoch in range(self.num_epochs):
+            num_steps_this_epoch = 0
             goal = self.env.sample_goal_state_for_rollout()
-            if (self.add_on_policy_data
-                    and self.num_on_policy_steps_added <
-                    self.max_num_on_policy_steps_to_add):
+            while num_steps_this_epoch < self.min_num_steps_per_epoch:
                 path = multitask_rollout(
                     self.env,
                     self.eval_policy,
@@ -106,14 +109,8 @@ class ModelLearning(object):
                     0,
                     max_path_length=self.max_path_length,
                 )
-                self.num_on_policy_steps_added += len(path['observations'])
+                num_steps_this_epoch += len(path['observations'])
                 self.replay_buffer.add_path(path)
-            if self.replay_buffer.num_steps_can_sample() == 0:
-                if not self.add_on_policy_data:
-                    raise Exception("If you're not going to add on-policy "
-                                    "data, make sure your replay buffer is "
-                                    "large enough.")
-                continue
             for _ in range(self.num_batches_per_epoch):
                 self.model.train(True)
                 self._do_training()
@@ -194,7 +191,7 @@ class ModelLearning(object):
 
         # Eval using policy
         paths = []
-        for _ in range(self.num_rollouts_per_eval):
+        for _ in range(self.num_rollouts_for_eval):
             goal = self.env.sample_goal_state_for_rollout()
             self.env.set_goal(goal)
             self.eval_policy.set_goal(goal)
