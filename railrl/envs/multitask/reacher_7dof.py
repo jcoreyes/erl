@@ -296,7 +296,7 @@ class Reacher7DofGoalStateEverything(Reacher7DofMultitaskEnv):
         return self.sample_states(batch_size)
 
     @staticmethod
-    def oc_reward(states, goal_states):
+    def oc_reward(states, goal_states, ignored_current_state):
         return - torch.norm(
             states[:, 14:17] - goal_states[:, 14:17],
             p=2,

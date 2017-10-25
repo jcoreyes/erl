@@ -143,7 +143,7 @@ class HandXYPusher2DEnv(MultitaskPusher2DEnv):
         self.set_state(qpos, qvel)
 
     @staticmethod
-    def oc_reward(states, goals):
+    def oc_reward(states, goals, ignored):
         """
         Reminder:
 
@@ -164,7 +164,7 @@ class HandXYPusher2DEnv(MultitaskPusher2DEnv):
         return HandXYPusher2DEnv.oc_reward_on_goals(states[:, 6:8], goals)
 
     @staticmethod
-    def oc_reward_on_goals(goals_predicted, goals):
+    def oc_reward_on_goals(goals_predicted, goals, ignored):
         return - torch.norm(goals_predicted - goals)
 
 
