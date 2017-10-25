@@ -337,6 +337,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                 actions=self.action_space.flatten(action),
                 agent_infos=agent_info,
                 env_infos=env_info,
+                # goal_states=self.env.goal_state,  # TODO(vitchyr): remove
             )
 
         self.replay_buffer.add_sample(
@@ -346,6 +347,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             terminal,
             agent_info=agent_info,
             env_info=env_info,
+            # goal_states=self.env.goal_state,  # TODO(vitchyr): remove
         )
 
     def _handle_rollout_ending(
