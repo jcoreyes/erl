@@ -7,8 +7,10 @@ from railrl.algos.state_distance.model_learning import ModelLearning
 from railrl.algos.state_distance.util import get_replay_buffer
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofFullGoalState,
+    Reacher7DofGoalStateEverything,
 )
 from railrl.envs.multitask.pusher2d import HandCylinderXYPusher2DEnv
+from railrl.envs.multitask.reacher_env import GoalStateSimpleStateReacherEnv
 from railrl.envs.wrappers import convert_gym_space, normalize_box
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.exploration_strategies.uniform_strategy import UniformStrategy
@@ -66,10 +68,10 @@ if __name__ == '__main__':
     version = "Dev"
     run_mode = "none"
 
-    # n_seeds = 3
-    # mode = "ec2"
-    # exp_prefix = "local-reacher-2d-learn-small-model-softplus-match-magic-params"
-    # run_mode = 'custom_grid'
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "mb-baseline-sweep-many-take1"
+    run_mode = 'grid'
 
     num_configurations = 1  # for random mode
     snapshot_mode = "last"
@@ -143,7 +145,17 @@ if __name__ == '__main__':
             # None,
             # [0.7, 0.3, 0.7, 0.3, 25, 5],
             # ],
-            # 'model_learns_deltas': [True, False],
+            'policy_params.planning_horizon': [
+                1, 2, 5, 10,
+            ],
+            'policy_params.action_penalty': [
+                0, 0.01, 0.1,
+            ],
+            'env_class': [
+                GoalStateSimpleStateReacherEnv,
+                Reacher7DofGoalStateEverything,
+                HandCylinderXYPusher2DEnv,
+            ],
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
             search_space, default_parameters=variant,
