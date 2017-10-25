@@ -5,8 +5,9 @@ import os
 
 from railrl.algos.state_distance.state_distance_q_learning import \
     multitask_rollout
+from railrl.envs.multitask.pusher2d import HandXYPusher2DEnv
 from railrl.envs.multitask.reacher_7dof import reach_a_joint_config_reward, \
-    Reacher7DofXyzGoalState
+    Reacher7DofXyzGoalState, Reacher7DofGoalStateEverything
 from railrl.launchers.launcher_util import run_experiment
 from railrl.networks.state_distance import \
     VectorizedGoalStructuredUniversalQfunction
@@ -26,7 +27,6 @@ def experiment(variant):
         qf.cuda()
         qf_policy.cuda()
     if isinstance(qf, VectorizedGoalStructuredUniversalQfunction):
-        import ipdb; ipdb.set_trace()
         policy = UnconstrainedOcWithImplicitModel(
             qf,
             env,
@@ -96,8 +96,8 @@ if __name__ == '__main__':
         policy_params=dict(
             sample_size=args.nsamples,
             # reward_function=reach_a_joint_config_reward,
-            # reward_function=reach_parameterized_joint_config,
-            reward_function=Reacher7DofXyzGoalState.oc_reward,
+            reward_function=HandXYPusher2DEnv.oc_reward_on_goals,
+            # reward_function=Reacher7DofGoalStateEverything.oc_reward,
         ),
         qf_path=os.path.abspath(args.file),
     )
