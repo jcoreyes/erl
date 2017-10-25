@@ -27,7 +27,7 @@ if __name__ == "__main__":
     parser.add_argument('--pause', action='store_true')
     parser.add_argument('--dt', help='decrement tau', action='store_true')
     parser.add_argument('--cycle', help='cycle tau', action='store_true')
-    parser.add_argument('--dc', help='decrement and cycle tau',
+    parser.add_argument('--ndc', help='not (decrement and cycle tau)',
                         action='store_true')
     args = parser.parse_args()
 
@@ -53,7 +53,7 @@ if __name__ == "__main__":
     else:
         if args.discount is None:
             print("Default discount to 0.")
-            discount = 0.
+            discount = 10
         else:
             discount = args.discount
 
@@ -70,8 +70,8 @@ if __name__ == "__main__":
                 discount=discount,
                 max_path_length=args.H,
                 animated=not args.hide,
-                cycle_tau=args.cycle or args.dc,
-                decrement_discount=args.dt or args.dc,
+                cycle_tau=args.cycle or not args.ndc,
+                decrement_discount=args.dt or not args.ndc,
             )
             paths.append(path)
         env.log_diagnostics(paths)
