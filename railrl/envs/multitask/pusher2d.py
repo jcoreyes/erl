@@ -115,6 +115,12 @@ class HandCylinderXYPusher2DEnv(MultitaskPusher2DEnv):
         self.set_state(qpos, qvel)
 
 
+def HandCylinderXYPusher2DEnv_move_hand_to_cylinder(
+    goals_predicted, goals, actual_states
+):
+    return -torch.norm(goals_predicted[:, 0:2] - actual_states[:, -2:])
+
+
 class HandXYPusher2DEnv(MultitaskPusher2DEnv):
     """
     Only care about the hand position! This is really just for debugging.
