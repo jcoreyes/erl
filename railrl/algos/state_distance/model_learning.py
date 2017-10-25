@@ -111,6 +111,8 @@ class ModelLearning(object):
                 )
                 num_steps_this_epoch += len(path['observations'])
                 self.replay_buffer.add_path(path)
+            if self.replay_buffer.num_steps_can_sample() < self.batch_size:
+                continue
             for _ in range(self.num_batches_per_epoch):
                 self.model.train(True)
                 self._do_training()
