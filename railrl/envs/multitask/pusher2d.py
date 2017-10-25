@@ -79,6 +79,14 @@ def FullStatePusher2DEnv_move_hand_to_target_position_oc_reward_on_goals(
         - goal_states[:, 6:8]
     )
 
+def FullStatePusher2DEnv_move_hand_to_cylinder_oc_reward_on_goals(
+        predicted_states, goal_states, current_states
+):
+    return -torch.norm(
+        predicted_states[:, 6:8]
+        - current_states[:, 6:8]
+    )
+
 
 class HandCylinderXYPusher2DEnv(MultitaskPusher2DEnv):
     def sample_goal_states(self, batch_size):
