@@ -78,7 +78,7 @@ class FullStatePusher2DEnv(MultitaskPusher2DEnv):
         hand_pos = obs[6:8]
         if np.linalg.norm(hand_pos - current_cylinder_pos) <= 0.2:
             new_goal = np.hstack((
-                desired_cylinder_pos,
+                current_cylinder_pos,
                 desired_cylinder_pos,
             ))
         else:
@@ -170,22 +170,12 @@ class HandCylinderXYPusher2DEnv(MultitaskPusher2DEnv):
             new_goal = np.hstack((
                 current_cylinder_pos,
                 current_cylinder_pos,
-                # desired_cylinder_pos,
             ))
         return np.repeat(
             np.expand_dims(new_goal, 0),
             batch_size,
             axis=0
         )
-        # desired_cylinder_pos_expanded = np.repeat(
-        #     np.expand_dims(new_goal[2:4], 0),
-        #     batch_size,
-        #     axis=0
-        # )
-        # return np.hstack((
-        #     desired_cylinder_pos_expanded,
-        #     np.random.uniform(-1, 1, (batch_size, 2)),
-        # ))
 
 
     @staticmethod
