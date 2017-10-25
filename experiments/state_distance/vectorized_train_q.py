@@ -197,7 +197,7 @@ if __name__ == '__main__':
 
     # n_seeds = 3
     # mode = "ec2"
-    exp_prefix = "pusher-reproduce-handcyl-xy-results-mpl250-2"
+    exp_prefix = "local-pusher-full-again-with-correct-oc"
     # run_mode = 'grid'
     snapshot_mode = "gap_and_last"
 
@@ -223,9 +223,9 @@ if __name__ == '__main__':
     # env_class = GoalXYStateXYAndCosSinReacher2D
     # env_class = Reacher7DofFullGoalState
     # env_class = Reacher7DofGoalStateEverything
-    env_class = HandCylinderXYPusher2DEnv
+    # env_class = HandCylinderXYPusher2DEnv
     # env_class = HandXYPusher2DEnv
-    # env_class = FullStatePusher2DEnv
+    env_class = FullStatePusher2DEnv
     # env_class = FixedHandXYPusher2DEnv
     # env_class = CylinderXYPusher2DEnv
     replay_buffer_size = 200000
@@ -260,7 +260,8 @@ if __name__ == '__main__':
             # cycle_taus_for_rollout=False,
             # num_sl_batches_per_rl_batch=1,
             # only_do_sl=True,
-            goal_dim_weights=(1, 1, 1, 1),
+            # goal_dim_weights=(1, 1, 1, 1),
+            goal_dim_weights=(0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 1, 1, 1, 1),
         ),
         eval_with_oc_policy=True,
         her_replay_buffer_params=dict(
@@ -270,7 +271,7 @@ if __name__ == '__main__':
         ),
         raw_explore_policy='oc',
         oc_policy_params=dict(
-            sample_size=1,
+            sample_size=10000,
             # reward_function=env_class.oc_reward_on_goals,
             # reward_function=env_class.oc_reward,
             # reward_function=FullStatePusher2DEnv_move_hand_to_target_position_oc_reward_on_goals,
@@ -335,20 +336,19 @@ if __name__ == '__main__':
                 # GoalConditionedDeltaModel,
                 # TauBinaryGoalConditionedDeltaModel,
             # ],
-            # 'algo_params.goal_dim_weights': [
+            'algo_params.goal_dim_weights': [
                 # (.01, .01, 1, 1),
                 # (.1, .1, 1, 1),
                 # (0, 0, 1, 1),
                 # (1, 1, 1, 1),
                 # (1, 1, 0.1, 0.1),
                 # (1, 1, 0.01, 0.01),
-                # (0, 0, 0, 0, 0, 0, 5, 5, 1, 1),
-                # (1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
-                # (0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 5, 5, 1, 1),
-                # (0, 0, 0, 0, 0, 0, 1, 1, 1, 1),
-                # (0, 0, 0, 0, 0, 0, 1, 1, .1, .1),
-                # (0, 0, 0, 0, 0, 0, .1, .1, .1, .1),
-            # ],
+                (1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+                (0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 5, 5, 1, 1),
+                (0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 1, 1, 1, 1),
+                (0, 0, 0, 0, 0, 0, 1, 1, 1, 1),
+                (0, 0, 0, 0, 0, 0, 1, 1, .1, .1),
+            ],
             # 'env_class': [
                 # GoalStateSimpleStateReacherEnv,
                 # Reacher7DofFullGoalState,
