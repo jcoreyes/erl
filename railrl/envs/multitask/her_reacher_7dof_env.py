@@ -76,7 +76,6 @@ class Reacher7Dof(
         ])
 
     def log_diagnostics(self, paths):
-        super().log_diagnostics(paths)
         statistics = OrderedDict()
 
         euclidean_distances = get_stat_in_dict(

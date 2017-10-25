@@ -35,7 +35,7 @@ class Pusher2DEnv(
             5,  # frameskip
         )
         self.obs_to_goal = obs_to_goal
-        self.goal_idx = slice(17, 20)
+        self.goal_idx = slice(10, 12)
 
     def get_reward(self, obs):
         return get_sparse_reward(obs)
