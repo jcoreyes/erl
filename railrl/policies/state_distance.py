@@ -608,7 +608,6 @@ class UnconstrainedOcWithGoalConditionedModel(SampleBasedUniversalPolicy, nn.Mod
             env,
             argmax_q,
             sample_size=100,
-            reward_function=None,
             **kwargs
     ):
         nn.Module.__init__(self)
@@ -616,26 +615,24 @@ class UnconstrainedOcWithGoalConditionedModel(SampleBasedUniversalPolicy, nn.Mod
         self.model = goal_conditioned_model
         self.argmax_q = argmax_q
         self.env = env
-        self.reward_function = reward_function
 
     def rewards_np(self, current_obs, states_predicted):
-        if self.reward_function is not None:
-            return ptu.get_numpy(
-                self.reward_function(
-                    states_predicted,
-                    self._goal_batch,
-                    current_obs,
-                )
+        return ptu.get_numpy(
+            self.env.oc_reward(
+                states_predicted,
+                self._goal_batch,
+                current_obs,
             )
-        diff = ptu.get_numpy(states_predicted) - self._goal_batch_np
-        rewards_np = - np.linalg.norm(diff, axis=1)
-        return rewards_np
+        )
 
     def get_action(self, obs):
         obs_pytorch = self.expand_np_to_var(obs)
         sampled_goal_state = ptu.np_to_var(
-            self.env.sample_goal_states(self.sample_size)
+            self.env.sample_dimensions_irrelevant_to_oc(
+                self._goal_np, self.sample_size
+            )
         )
+        sampled_goal_state[:, :14] = self._goal_batch[:, :14]
         actions = self.argmax_q(
             obs_pytorch,
             sampled_goal_state,
@@ -650,6 +647,9 @@ class UnconstrainedOcWithGoalConditionedModel(SampleBasedUniversalPolicy, nn.Mod
         rewards = self.rewards_np(obs_pytorch, final_state_predicted)
         max_i = np.argmax(rewards)
         return ptu.get_numpy(actions[max_i]), {}
+        # self.argmax_q.set_goal(self._goal_np)
+        # self.argmax_q.set_discount(self._discount_np)
+        # return self.argmax_q.get_action(obs)
 
 
 class UnconstrainedOcWithImplicitModel(SampleBasedUniversalPolicy, nn.Module):
@@ -659,7 +659,6 @@ class UnconstrainedOcWithImplicitModel(SampleBasedUniversalPolicy, nn.Module):
             env,
             argmax_q,
             sample_size=100,
-            reward_function=None,
             **kwargs
     ):
         nn.Module.__init__(self)
@@ -667,25 +666,22 @@ class UnconstrainedOcWithImplicitModel(SampleBasedUniversalPolicy, nn.Module):
         self.implicit_model = implicit_model
         self.argmax_q = argmax_q
         self.env = env
-        self.reward_function = reward_function
 
     def rewards_np(self, current_obs, goals):
-        if self.reward_function is not None:
-            return ptu.get_numpy(
-                self.reward_function(
-                    goals,
-                    self._goal_batch,
-                    current_obs,
-                )
+        return ptu.get_numpy(
+            self.env.oc_reward_on_goals(
+                goals,
+                self._goal_batch,
+                current_obs,
             )
-        diff = ptu.get_numpy(goals) - self._goal_batch_np
-        rewards_np = - np.linalg.norm(diff, axis=1)
-        return rewards_np
+        )
 
     def get_action(self, obs):
         obs_pytorch = self.expand_np_to_var(obs)
         sampled_goal_state = ptu.np_to_var(
-            self.env.sample_goal_states(self.sample_size)
+            self.env.sample_dimensions_irrelevant_to_oc(
+                self._goal_np, self.sample_size
+            )
         )
         actions = self.argmax_q(
             obs_pytorch,
