@@ -61,12 +61,13 @@ if __name__ == '__main__':
     parser.add_argument('--H', type=int, default=100, help='Horizon.')
     parser.add_argument('--verbose', action='store_true')
     parser.add_argument('--hide', action='store_true')
-    parser.add_argument('--discount', type=float, help='Discount Factor')
+    parser.add_argument('--discount', type=float, help='Discount Factor',
+                        default=10)
     parser.add_argument('--nsamples', type=int, default=1000,
                         help='Number of samples for optimization')
     parser.add_argument('--dt', help='decrement tau', action='store_true')
     parser.add_argument('--cycle', help='cycle tau', action='store_true')
-    parser.add_argument('--dc', help='decrement and cycle tau',
+    parser.add_argument('--ndc', help='not (decrement and cycle tau)',
                         action='store_true')
     args = parser.parse_args()
 
@@ -76,11 +77,7 @@ if __name__ == '__main__':
     run_mode = 'none'
     use_gpu = True
 
-    discount = 0
-    if args.discount is not None:
-        print("WARNING: you are overriding the discount factor. Right now "
-              "only discount = 0 really makes sense.")
-        discount = args.discount
+    discount = args.discount
 
     variant = dict(
         num_rollouts=args.nrolls,
@@ -88,8 +85,8 @@ if __name__ == '__main__':
             max_path_length=args.H,
             animated=not args.hide,
             discount=discount,
-            cycle_tau=args.cycle or args.dc,
-            decrement_discount=args.dt or args.dc,
+            cycle_tau=args.cycle or not args.ndc,
+            decrement_discount=args.dt or not args.ndc,
         ),
         policy_params=dict(
             sample_size=args.nsamples,
