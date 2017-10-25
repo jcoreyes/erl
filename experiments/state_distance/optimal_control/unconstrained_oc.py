@@ -56,14 +56,14 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('file', type=str,
                         help='path to the snapshot file with a QF')
-    parser.add_argument('--nrolls', type=int, default=5,
+    parser.add_argument('--nrolls', type=int, default=10,
                         help='Number of rollouts to do.')
     parser.add_argument('--H', type=int, default=100, help='Horizon.')
     parser.add_argument('--verbose', action='store_true')
     parser.add_argument('--hide', action='store_true')
     parser.add_argument('--discount', type=float, help='Discount Factor',
                         default=10)
-    parser.add_argument('--nsamples', type=int, default=1000,
+    parser.add_argument('--nsamples', type=int, default=10000,
                         help='Number of samples for optimization')
     parser.add_argument('--dt', help='decrement tau', action='store_true')
     parser.add_argument('--cycle', help='cycle tau', action='store_true')
