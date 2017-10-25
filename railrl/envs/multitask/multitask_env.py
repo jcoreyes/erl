@@ -4,7 +4,10 @@ from collections import OrderedDict
 import numpy as np
 
 from railrl.misc.data_processing import create_stats_ordered_dict
+from rllab.core.serializable import Serializable
+from rllab.envs.proxy_env import ProxyEnv
 from rllab.misc import logger
+from rllab.spaces import Box
 
 
 class MultitaskEnv(object, metaclass=abc.ABCMeta):
@@ -193,3 +196,47 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         ))
         for key, value in statistics.items():
             logger.record_tabular(key, value)
+
+
+class MultitaskToFlatEnv(ProxyEnv, Serializable):
+    def __init__(
+            self,
+            env: MultitaskEnv,
+    ):
+        # self._wrapped_env needs to be called first because
+        # Serializable.quick_init calls getattr, on this class. And the
+        # implementation of getattr (see below) calls self._wrapped_env.
+        # Without setting this first, the call to self._wrapped_env would call
+        # getattr again (since it's not set yet) and therefore loop forever.
+        self._wrapped_env = env
+        # Or else serialization gets delegated to the wrapped_env. Serialize
+        # this env separately from the wrapped_env.
+        self._serializable_initialized = False
+        Serializable.quick_init(self, locals())
+        ProxyEnv.__init__(self, env)
+
+    @property
+    def observation_space(self):
+        wrapped_low = super().observation_space.low
+        low = np.hstack((
+            wrapped_low,
+            min(wrapped_low) * np.ones(self._wrapped_env.goal_dim)
+        ))
+        wrapped_high = super().observation_space.low
+        high = np.hstack((
+            wrapped_high,
+            max(wrapped_high) * np.ones(self._wrapped_env.goal_dim)
+        ))
+        return Box(low, high)
+
+    def step(self, action):
+        ob, reward, done, info_dict = self._wrapped_env.step(action)
+        ob = np.hstack((ob, self._wrapped_env.multitask_goal))
+        return ob, reward, done, info_dict
+
+    def reset(self):
+        ob = super().reset()
+        ob = np.hstack((ob, self._wrapped_env.multitask_goal))
+        return ob
+
+multitask_to_flat_env = MultitaskToFlatEnv
