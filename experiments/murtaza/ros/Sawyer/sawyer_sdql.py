@@ -127,7 +127,7 @@ if __name__ == '__main__':
             batch_size=64,
             discount=algo_class_to_discount[algo_class],
             sample_train_goals_from='her',
-            sample_rollout_goals_from='replay_buffer',
+            sample_rollout_goals_from='environment',
             sample_discount=True,
             qf_weight_decay=0.,
             max_path_length=max_path_length,
@@ -180,7 +180,7 @@ if __name__ == '__main__':
         run_experiment(
             experiment,
             seed=random.randint(0, 666),
-            exp_prefix="sdql-sawyer-data-collect",
+            exp_prefix="sdql-sawyer-goal-test",
             mode="local",
             variant=variant,
             exp_id=0,

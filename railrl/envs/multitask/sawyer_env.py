@@ -229,10 +229,8 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
         self.amplify = 5*np.ones(7)
         self._observation_space = Box(lows, highs)
         self.task = 'lego'
-        self.desired = np.ones(3)*.5
 
     def set_goal(self, goal):
-        assert (goal == np.ones(3)*.5).all()
         self.desired = goal
 
     @property
