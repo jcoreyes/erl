@@ -156,23 +156,7 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
         self.remove_action = remove_action
         self.arm_name = arm_name
         self.safe_reset_length = safe_reset_length
-
-        if experiment == experiments[0]:
-            self.joint_angle_experiment=True
-            self.fixed_angle = True
-        elif experiment == experiments[1]:
-            self.joint_angle_experiment=True
-        elif experiment == experiments[2]:
-            self.end_effector_experiment_position=True
-            self.fixed_end_effector = True
-        elif experiment == experiments[3]:
-            self.end_effector_experiment_position=True
-        elif experiment == experiments[4]:
-            self.end_effector_experiment_total=True
-            self.fixed_end_effector = True
-        elif experiment == experiments[5]:
-            self.end_effector_experiment_total = True
-
+        
         if self.task == 'reaching':
             self.end_effector_experiment_position = True
             self.fixed_end_effector = True
@@ -300,37 +284,65 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
         velocities_dict = self._get_joint_values['velocity']()
         velocities = np.array([velocities_dict[joint] for joint in self.arm_joint_names])
         torques = np.zeros(7)
-        temp = np.hstack((angles, velocities, torques))
-        temp = np.hstack((temp, self._end_effector_pose()))
+        temp = np.hstack((angles, velocities, torques, self._end_effector_pose()))
         return temp
 
     def log_diagnostics(self, paths):
         goal_states = np.vstack([path['goal_states'] for path in paths])
+        desired_positions = goal_states
         statistics = OrderedDict()
         stat_prefix = 'Test'
-        if self.end_effector_experiment_total or self.end_effector_experiment_position:
-            obsSets = [path["observations"] for path in paths]
-            positions = []
-            last_positions = []
-            for obsSet in obsSets:
-                for observation in obsSet:
-                    positions.append(observation[21:24])
- #               last_positions.append(obsSet[-1][21:24])
-            positions = np.array(positions)
-   #         last_positions = np.array(last_positions)
-            desired_positions = goal_states
-            position_distances = linalg.norm(positions - desired_positions, axis=1)
-#            last_position_distances = linalg.norm(last_positions - desired_positions, axis=1)
+        counter = 0
+        obsSets = [path["observations"] for path in paths]
+        positions = []
+        last_positions = []
+        last_desired_positions = []
 
+        if self.task == 'lego':
+            orientations = []
+            desired_orientations = []
+            desired_positions = []
+
+        for obsSet in obsSets:
+            for observation in obsSet:
+                positions.append(observation[21:24])
+                if self.task == 'lego':
+                    orientations.append(observation[24:28])
+                    desired_orientations.append(goal_states[counter+24:counter+28])
+                    desired_positions.append(goal_states[counter+21:counter+24])
+                if self.task == 'reaching':
+                    counter += 24
+                else:
+                    counter += 28
+            last_positions.append(obsSet[-1][21:24])
+            last_desired_positions.append(goal_states[counter+21:counter+24])
+
+        positions = np.array(positions)
+        position_distances = linalg.norm(positions - desired_positions, axis=1)
+        statistics.update(self._statistics_from_observations(
+            position_distances,
+            stat_prefix,
+            'Distance from Desired End Effector Position'
+        ))
+
+        last_positions = np.array(last_positions)
+        last_desired_positions = np.array(last_desired_positions)
+        last_position_distances = linalg.norm(last_positions - last_desired_positions, axis=1)
+        statistics.update(self._statistics_from_observations(
+           last_position_distances,
+           stat_prefix,
+            'Final Distance from Desired End Effector Position'
+        ))
+
+        if self.task == 'lego':
+            orientations = np.array(orientations)
+            desired_orientations = np.array(desired_orientations)
+            orientations_distance = linalg.norm(orientations - desired_orientations, axis=1)
             statistics.update(self._statistics_from_observations(
-                position_distances,
+                orientations_distance,
                 stat_prefix,
-                'Distance from Desired End Effector Position'
+                'Distance from Desired End Effector Orientation'
             ))
-#            statistics.update(self._statistics_from_observations(
-#                last_position_distances,
-#                stat_prefix,
-#                'Final Distance from Desired End Effector Position'
-#            ))
+
         for key, value in statistics.items():
             logger.record_tabular(key, value)
