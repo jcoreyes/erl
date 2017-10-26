@@ -127,14 +127,14 @@ def experiment(variant):
 
 env_class_to_goal_dim_weights = {
     HandCylinderXYPusher2DEnv: [
-        (0.1, 0.1, 1, 1),
+        # (0.1, 0.1, 1, 1),
         (1, 1, 1, 1),
-        (1, 1, 0.1, 0.1),
+        # (1, 1, 0.1, 0.1),
     ],
     Reacher7DofGoalStateEverything: [
         (1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
-        (1, 1, 1, 1, 1, 1, 1, .1, .1, .1, .1, .1, .1, .1, 5, 5, 5),
-        (.1, .1, .1, .1, .1, .1, .1, 1, 1, 1, 1, 1, 1, 1, 5, 5, 5),
+        # (1, 1, 1, 1, 1, 1, 1, .1, .1, .1, .1, .1, .1, .1, 5, 5, 5),
+        # (.1, .1, .1, .1, .1, .1, .1, 1, 1, 1, 1, 1, 1, 1, 5, 5, 5),
     ],
     FullStatePusher2DEnv: [
         (1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
@@ -159,7 +159,7 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "get-results-take2-fast"
+    exp_prefix = "get-results-take3-fast-sweep-nupo"
     run_mode = 'grid'
     # snapshot_mode = "gap_and_last"
 
@@ -254,11 +254,14 @@ if __name__ == '__main__':
                 'algo_params.goal_dim_weights': env_class_to_goal_dim_weights[env_class],
                 'env_class': [env_class],
                 'epoch_discount_schedule_params.value': [
-                    1,
-                    5,
-                    10,
-                    25,
+                    # 1,
+                    # 5,
+                    15,
+                    # 30,
                 ],
+                'algo_params.num_updates_per_env_step': [
+                    1, 5, 25,
+                ]
             }
             sweeper = hyp.DeterministicHyperparameterSweeper(
                 search_space, default_parameters=variant,
