@@ -300,6 +300,27 @@ class Reacher7DofGoalStateEverything(Reacher7DofMultitaskEnv):
             goal_expanded,
         ))
 
+    def sample_dimensions_irrelevant_to_oc(self, goal, obs, batch_size):
+        desired_xyz = goal[14:]
+        goal_expanded = np.repeat(
+            np.expand_dims(desired_xyz, 0),
+            batch_size,
+            axis=0
+        )
+        return np.hstack((
+            # From the xml
+            self.np_random.uniform(low=-2.28, high=1.71, size=(batch_size, 1)),
+            self.np_random.uniform(low=-0.52, high=1.39, size=(batch_size, 1)),
+            self.np_random.uniform(low=-1.4, high=1.7, size=(batch_size, 1)),
+            self.np_random.uniform(low=-2.32, high=0, size=(batch_size, 1)),
+            self.np_random.uniform(low=-1.5, high=1.5, size=(batch_size, 1)),
+            self.np_random.uniform(low=-1.094, high=0, size=(batch_size, 1)),
+            self.np_random.uniform(low=-1.5, high=1.5, size=(batch_size, 1)),
+            # velocities
+            self.np_random.uniform(low=-1, high=1, size=(batch_size, 7)),
+            goal_expanded,
+        ))
+
     def sample_goal_state_for_rollout(self):
         angles = np.random.uniform(
             np.array([-2.28, -0.52, -1.4, -2.32, -1.5, -1.094, -1.5]),
