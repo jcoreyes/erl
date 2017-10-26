@@ -103,23 +103,24 @@ def experiment(variant):
         **variant['sampler_es_params']
     )
     raw_explore_policy = variant['raw_explore_policy']
+    if isinstance(qf, VectorizedGoalStructuredUniversalQfunction):
+        oc_policy = UnconstrainedOcWithImplicitModel(
+            qf,
+            env,
+            policy,
+            **variant['oc_policy_params']
+        )
+    else:
+        oc_policy = UnconstrainedOcWithGoalConditionedModel(
+            qf,
+            env,
+            policy,
+            **variant['oc_policy_params']
+        )
     if raw_explore_policy == 'ddpg':
         raw_exploration_policy = policy
     else:
-        if isinstance(qf, VectorizedGoalStructuredUniversalQfunction):
-            raw_exploration_policy = UnconstrainedOcWithImplicitModel(
-                qf,
-                env,
-                policy,
-                **variant['oc_policy_params']
-            )
-        else:
-            raw_exploration_policy = UnconstrainedOcWithGoalConditionedModel(
-                qf,
-                env,
-                policy,
-                **variant['oc_policy_params']
-            )
+        raw_exploration_policy = oc_policy
     exploration_policy = UniversalPolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
         policy=raw_exploration_policy,
@@ -139,8 +140,7 @@ def experiment(variant):
     else:
         replay_buffer = None
     if variant['eval_with_oc_policy']:
-        assert raw_explore_policy == 'oc'
-        eval_policy = raw_exploration_policy
+        eval_policy = oc_policy
     else:
         eval_policy = policy
     algo = variant['algo_class'](
@@ -197,9 +197,9 @@ if __name__ == '__main__':
 
     # n_seeds = 3
     # mode = "ec2"
-    exp_prefix = "local-pusher-full-again-with-correct-oc"
+    exp_prefix = "sdql-try-full-push"
     # run_mode = 'grid'
-    snapshot_mode = "gap_and_last"
+    # snapshot_mode = "gap_and_last"
 
     version = "na"
     num_configurations = 50  # for random mode
@@ -208,7 +208,7 @@ if __name__ == '__main__':
     if mode != "local":
         use_gpu = False
 
-    max_path_length = 250
+    max_path_length = 100
     max_tau = 10
     # noinspection PyTypeChecker
     algo_class = VectorizedTauSdql
@@ -223,8 +223,8 @@ if __name__ == '__main__':
     # env_class = GoalXYStateXYAndCosSinReacher2D
     # env_class = Reacher7DofFullGoalState
     # env_class = Reacher7DofGoalStateEverything
-    # env_class = HandCylinderXYPusher2DEnv
     # env_class = HandXYPusher2DEnv
+    # env_class = HandCylinderXYPusher2DEnv
     env_class = FullStatePusher2DEnv
     # env_class = FixedHandXYPusher2DEnv
     # env_class = CylinderXYPusher2DEnv
@@ -233,9 +233,9 @@ if __name__ == '__main__':
         version=version,
         algo_params=dict(
             num_epochs=101,
-            num_steps_per_epoch=1000,
-            num_steps_per_eval=1000,
-            num_updates_per_env_step=5,
+            num_steps_per_epoch=100,
+            num_steps_per_eval=100,
+            num_updates_per_env_step=25,
             use_soft_update=True,
             tau=0.001,
             batch_size=64,
@@ -261,7 +261,7 @@ if __name__ == '__main__':
             # num_sl_batches_per_rl_batch=1,
             # only_do_sl=True,
             # goal_dim_weights=(1, 1, 1, 1),
-            goal_dim_weights=(0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 1, 1, 1, 1),
+            # goal_dim_weights=(0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 1, 1, 1, 1),
         ),
         eval_with_oc_policy=True,
         her_replay_buffer_params=dict(
@@ -316,8 +316,8 @@ if __name__ == '__main__':
     if run_mode == 'grid':
         search_space = {
             # 'raw_explore_policy': [
-            #     'ddpg',
             #     'oc',
+            #     'ddpg',
             # ],
             # 'oc_policy_params.reward_function': [
             #     FullStatePusher2DEnv_move_hand_to_target_position_oc_reward_on_goals,
@@ -336,44 +336,47 @@ if __name__ == '__main__':
                 # GoalConditionedDeltaModel,
                 # TauBinaryGoalConditionedDeltaModel,
             # ],
-            'algo_params.goal_dim_weights': [
+            # 'algo_params.goal_dim_weights': [
                 # (.01, .01, 1, 1),
                 # (.1, .1, 1, 1),
                 # (0, 0, 1, 1),
                 # (1, 1, 1, 1),
                 # (1, 1, 0.1, 0.1),
                 # (1, 1, 0.01, 0.01),
-                (1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
-                (0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 5, 5, 1, 1),
-                (0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 1, 1, 1, 1),
-                (0, 0, 0, 0, 0, 0, 1, 1, 1, 1),
-                (0, 0, 0, 0, 0, 0, 1, 1, .1, .1),
-            ],
+                # (1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+                # (0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 5, 5, 1, 1),
+                # (0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 1, 1, 1, 1),
+                # (0, 0, 0, 0, 0, 0, 1, 1, 1, 1),
+                # (0, 0, 0, 0, 0, 0, 1, 1, .1, .1),
+            # ],
             # 'env_class': [
                 # GoalStateSimpleStateReacherEnv,
+                # FullStatePusher2DEnv,
+                # HandCylinderXYPusher2DEnv,
                 # Reacher7DofFullGoalState,
+                # Reacher7DofGoalStateEverything,
                 # JointOnlyPusherEnv,
                 # MultitaskPusher2DEnv,
-                # HandCylinderXYPusher2DEnv,
                 # CylinderXYPusher2DEnv,
-                # FullStatePusher2DEnv,
             # ],
-            'epoch_discount_schedule_params.value': [
-                1,
-                2,
-                5,
-                10,
-            ],
+            # 'epoch_discount_schedule_params.value': [
+                # 1,
+                # 2,
+                # 5,
+                # 10,
+                # 15,
+            # ],
             # 'algo_params.sample_train_goals_from': [
-            #     'her',
+            #     'environment',
             #     'replay_buffer',
+            #     'her',
             # ],
-            # 'algo_params.sparse_rewards_learn_diff': [
+            # 'eval_with_oc_policy': [
             #     False,
             #     True,
             # ],
-            # 'algo_params.num_sl_batches_per_rl_batch': [
-            #     1,
+            # 'algo_params.num_updates_per_env_step': [
+                # 5, 25
             # ],
             # 'algo_params.sl_grad_weight': [
             #     0.01,
