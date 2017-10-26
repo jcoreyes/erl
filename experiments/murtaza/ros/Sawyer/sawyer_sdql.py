@@ -118,7 +118,7 @@ if __name__ == '__main__':
     replay_buffer_size = 200000
     variant = dict(
         algo_params=dict(
-            num_epochs=100,
+            num_epochs=50,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             num_updates_per_env_step=1,
@@ -138,6 +138,7 @@ if __name__ == '__main__':
             save_replay_buffer=True,
             sparse_reward=algo_class_to_sparse_reward[algo_class],
             cycle_taus_for_rollout=True,
+            collect_data=True,
         ),
         qf_params=dict(
             hidden_sizes=[300, 300],
@@ -166,22 +167,23 @@ if __name__ == '__main__':
                       'safety_box': True,
                       'loss': 'huber',
                       'huber_delta': 10,
-                      'safety_force_magnitude': 5,
+                      'safety_force_magnitude': 6,
                       'temp': 15,
                       'remove_action': False,
                       'experiment': experiments[2],
-                      'reward_magnitude': 10,
+                      'reward_magnitude': 1,
                       'use_safety_checks': False,
             },
     )
-    algo_class = variant['algo_class']
-    run_experiment(
-        experiment,
-        seed=random.randint(0, 666),
-        exp_prefix="sdql-sawyer",
-        mode="local",
-        variant=variant,
-        exp_id=0,
-        use_gpu=use_gpu,
-        snapshot_mode="last",
-    )
+    for i in range(1):
+        algo_class = variant['algo_class']
+        run_experiment(
+            experiment,
+            seed=random.randint(0, 666),
+            exp_prefix="sdql-sawyer-data-collect",
+            mode="local",
+            variant=variant,
+            exp_id=0,
+            use_gpu=use_gpu,
+            snapshot_mode="last",
+        )

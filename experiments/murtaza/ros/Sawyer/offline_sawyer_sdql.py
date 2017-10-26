@@ -100,7 +100,7 @@ if __name__ == '__main__':
             num_epochs=100,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
-            num_updates_per_env_step=1,
+            num_updates_per_env_step=100,
             use_soft_update=True,
             tau=0.001,
             batch_size=64,
@@ -130,7 +130,7 @@ if __name__ == '__main__':
     run_experiment(
         experiment,
         seed=random.randint(0, 666),
-        exp_prefix="offline-train-sdql-sawyer",
+        exp_prefix="offline-sdql-sawyer",
         mode="local",
         variant=variant,
         exp_id=0,
