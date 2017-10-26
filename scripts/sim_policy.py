@@ -1,7 +1,7 @@
 from railrl.envs.remote import RemoteRolloutEnv
+from railrl.samplers.util import rollout
 from railrl.torch.core import PyTorchModule
 from railrl.torch.pytorch_util import set_gpu_mode
-from rllab.sampler.utils import rollout
 import argparse
 import joblib
 import uuid
@@ -42,8 +42,6 @@ def simulate_policy(args):
                 policy,
                 max_path_length=args.H,
                 animated=True,
-                speedup=args.speedup,
-                always_return_paths=True,
             )
             env.log_diagnostics([path])
             policy.log_diagnostics([path])
