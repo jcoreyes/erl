@@ -13,6 +13,7 @@ from railrl.algos.state_distance.vectorized_sdql import (
 )
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
+from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
 from railrl.envs.multitask.pusher2d import (
     HandCylinderXYPusher2DEnv,
     FullStatePusher2DEnv,
@@ -159,13 +160,13 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "get-results-take3-fast-sweep-nupo"
+    exp_prefix = "half-cheetah-only-xvel"
     run_mode = 'grid'
-    # snapshot_mode = "gap_and_last"
+    snapshot_mode = "gap_and_last"
 
     version = "na"
     num_configurations = 50  # for random mode
-    snapshot_gap = 10
+    snapshot_gap = 50
     use_gpu = True
     if mode != "local":
         use_gpu = False
@@ -178,10 +179,10 @@ if __name__ == '__main__':
     variant = dict(
         version=version,
         algo_params=dict(
-            num_epochs=101,
+            num_epochs=1001,
             num_steps_per_epoch=100,
             num_steps_per_eval=1000,
-            num_updates_per_env_step=5,
+            num_updates_per_env_step=1,
             use_soft_update=True,
             tau=0.001,
             batch_size=64,
@@ -246,21 +247,22 @@ if __name__ == '__main__':
     )
     if run_mode == 'grid':
         for env_class in [
-            Reacher7DofGoalStateEverything,
-            HandCylinderXYPusher2DEnv,
-            FullStatePusher2DEnv,
+            # Reacher7DofGoalStateEverything,
+            # HandCylinderXYPusher2DEnv,
+            # FullStatePusher2DEnv,
+            GoalXVelHalfCheetah,
         ]:
             search_space = {
-                'algo_params.goal_dim_weights': env_class_to_goal_dim_weights[env_class],
+                # 'algo_params.goal_dim_weights': env_class_to_goal_dim_weights[env_class],
                 'env_class': [env_class],
                 'epoch_discount_schedule_params.value': [
-                    # 1,
-                    # 5,
+                    1,
+                    5,
                     15,
                     # 30,
                 ],
                 'algo_params.num_updates_per_env_step': [
-                    1, 5, 25,
+                    5, 1
                 ]
             }
             sweeper = hyp.DeterministicHyperparameterSweeper(

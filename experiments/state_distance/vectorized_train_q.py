@@ -18,6 +18,7 @@ from railrl.algos.state_distance.vectorized_sdql import (
 )
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
+from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
 from railrl.envs.multitask.pusher2d import (
     HandCylinderXYPusher2DEnv,
     CylinderXYPusher2DEnv,
@@ -197,7 +198,7 @@ if __name__ == '__main__':
 
     # n_seeds = 3
     # mode = "ec2"
-    exp_prefix = "sdql-try-push2d-xyxy-again"
+    # exp_prefix = "sdql-try-push2d-xyxy-again"
     # run_mode = 'grid'
     # snapshot_mode = "gap_and_last"
 
@@ -224,7 +225,8 @@ if __name__ == '__main__':
     # env_class = Reacher7DofFullGoalState
     # env_class = Reacher7DofGoalStateEverything
     # env_class = HandXYPusher2DEnv
-    env_class = HandCylinderXYPusher2DEnv
+    # env_class = HandCylinderXYPusher2DEnv
+    env_class = GoalXVelHalfCheetah
     # env_class = FullStatePusher2DEnv
     # env_class = FixedHandXYPusher2DEnv
     # env_class = CylinderXYPusher2DEnv
@@ -235,7 +237,7 @@ if __name__ == '__main__':
             num_epochs=101,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
-            num_updates_per_env_step=25,
+            num_updates_per_env_step=5,
             use_soft_update=True,
             tau=0.001,
             batch_size=64,
@@ -260,7 +262,7 @@ if __name__ == '__main__':
             # cycle_taus_for_rollout=False,
             # num_sl_batches_per_rl_batch=1,
             # only_do_sl=True,
-            goal_dim_weights=(1, 1, 1, 1),
+            # goal_dim_weights=(1, 1, 1, 1),
             # goal_dim_weights=(0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 1, 1, 1, 1),
         ),
         eval_with_oc_policy=True,
