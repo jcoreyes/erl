@@ -133,7 +133,7 @@ def get_dirs(root):
             yield os.path.join(root, directory)
 
 
-def get_data_and_variants(base_dir):
+def get_data_and_variants(base_dir, verbose=False):
     """
     Get a list of (data, variant) tuples, loaded from
         - process.csv
@@ -145,11 +145,18 @@ def get_data_and_variants(base_dir):
         2. Variant dictionary
     """
     data_and_variants = []
+    delimiter = ','
     for dir_name in get_dirs(base_dir):
         data_file_name = osp.join(dir_name, 'progress.csv')
-        if not os.path.exists(data_file_name):
-            continue
-        print("Reading {}".format(data_file_name))
+        # Hack for iclr 2018 deadline
+        if not os.path.exists(data_file_name) or os.stat(
+                data_file_name).st_size == 0:
+            data_file_name = osp.join(dir_name, 'log.txt')
+            if not os.path.exists(data_file_name):
+                continue
+            delimiter = '\t'
+        if verbose:
+            print("Reading {}".format(data_file_name))
         variant_file_name = osp.join(dir_name, 'variant.json')
         with open(variant_file_name) as variant_file:
             variant = json.load(variant_file)
@@ -158,7 +165,7 @@ def get_data_and_variants(base_dir):
         if num_lines < 2:
             continue
         data = np.genfromtxt(
-            data_file_name, delimiter=',', dtype=None, names=True
+            data_file_name, delimiter=delimiter, dtype=None, names=True
         )
         data_and_variants.append((data, variant))
     return data_and_variants
