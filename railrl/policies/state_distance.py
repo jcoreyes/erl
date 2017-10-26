@@ -688,6 +688,8 @@ class UnconstrainedOcWithImplicitModel(SampleBasedUniversalPolicy, nn.Module):
             sampled_goal_state,
             self._discount_batch,
         )
+        # actions = self.env.sample_actions(self.sample_size)
+        # actions = ptu.np_to_var(actions)
         # Implicit models only predict future goals
         final_goal_predicted = self.implicit_model(
             obs_pytorch,
