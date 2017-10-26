@@ -10,7 +10,6 @@ import argparse
 import pickle
 
 from railrl.envs.multitask.reacher_env import (
-    XyMultitaskSimpleStateReacherEnv,
     GoalStateSimpleStateReacherEnv,
 )
 import matplotlib.pyplot as plt
@@ -25,7 +24,7 @@ def main(dataset_path, only_load_buffer=False, pause_at_end=False):
     :return:
     """
     if only_load_buffer:
-        env = XyMultitaskSimpleStateReacherEnv()
+        # env = XyMultitaskSimpleStateReacherEnv()
         with open(dataset_path, 'rb') as handle:
             replay_buffer = pickle.load(handle)
     else:
