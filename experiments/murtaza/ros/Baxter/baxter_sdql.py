@@ -83,13 +83,13 @@ if __name__ == '__main__':
 
     n_seeds = 1
     use_gpu = True
-    max_path_length = 100
+    max_path_length = 1000
     variant = dict(
         algo_params=dict(
-            num_epochs=30,
-            num_steps_per_epoch=100,
-            num_steps_per_eval=100,
-            num_updates_per_env_step=1,
+            num_epochs=100,
+            num_steps_per_epoch=1000,
+            num_steps_per_eval=1000,
+            num_updates_per_env_step=5,
             use_soft_update=True,
             tau=0.001,
             batch_size=64,
@@ -124,9 +124,9 @@ if __name__ == '__main__':
             arm_name='right',
             safety_box=False,
             loss='huber',
-            huber_delta=10,
+            huber_delta=1,
             experiment=experiments[2],
-            reward_magnitude=10,
+            reward_magnitude=1,
         ),
         epoch_discount_schedule_class=ConstantSchedule,
         epoch_discount_schedule_params=dict(

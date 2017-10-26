@@ -84,7 +84,7 @@ class HER(DDPG):
         # TODO(murtaza): add reward to eval code
         super().evaluate(epoch, exploration_paths)
         exploration_batch = self.paths_to_batch(exploration_paths)
-        import ipdb; ipdb.set_trace()
+        # import ipdb; ipdb.set_trace()
         diff = torch.abs(
             self.env.convert_obs_to_goal_states(exploration_batch['next_observations'])
             - self.env.convert_obs_to_goal_states(exploration_batch['goal_states'])
