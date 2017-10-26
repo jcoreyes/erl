@@ -98,9 +98,7 @@ if __name__ == '__main__':
         path=args.path,
         algo_params=dict(
             num_epochs=100,
-            num_steps_per_epoch=1000,
-            num_steps_per_eval=1000,
-            num_updates_per_env_step=100,
+            num_updates_per_env_step=10000,
             use_soft_update=True,
             tau=0.001,
             batch_size=64,
@@ -130,10 +128,11 @@ if __name__ == '__main__':
     run_experiment(
         experiment,
         seed=random.randint(0, 666),
-        exp_prefix="offline-sdql-sawyer",
+        exp_prefix="offline-sdql-sawyer-10K-updatesperepoch",
         mode="local",
         variant=variant,
         exp_id=0,
         use_gpu=use_gpu,
-        snapshot_mode="last",
+        snapshot_mode="gap",
+        snapshot_gap=10000,
     )

@@ -273,7 +273,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
 
     def _try_to_offline_eval(self, epoch):
         start_time = time.time()
-        self.offline_evaluate()
+        self.offline_evaluate(epoch)
         params = self.get_epoch_snapshot(epoch)
         logger.save_itr_params(epoch, params)
         table_keys = get_table_key_set(logger)

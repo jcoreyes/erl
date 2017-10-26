@@ -1,8 +1,5 @@
 import argparse
-
-import joblib
 from torch.nn import functional as F
-
 import railrl.torch.pytorch_util as ptu
 from railrl.algos.state_distance.state_distance_q_learning import (
     StateDistanceQLearning,
@@ -118,7 +115,7 @@ if __name__ == '__main__':
     replay_buffer_size = 200000
     reaching_task_variant = dict(
         algo_params=dict(
-            num_epochs=15,
+            num_epochs=60,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             num_updates_per_env_step=1,
@@ -138,7 +135,7 @@ if __name__ == '__main__':
             save_replay_buffer=True,
             sparse_reward=algo_class_to_sparse_reward[algo_class],
             cycle_taus_for_rollout=True,
-            collect_data=True,
+            collect_data=False,
         ),
         qf_params=dict(
             hidden_sizes=[300, 300],
@@ -167,7 +164,7 @@ if __name__ == '__main__':
                       'safety_box': True,
                       'loss': 'huber',
                       'huber_delta': 10,
-                      'safety_force_magnitude': 6,
+                      'safety_force_magnitude': 7,
                       'temp': 15,
                       'remove_action': False,
                       'experiment': experiments[2],
@@ -234,12 +231,12 @@ if __name__ == '__main__':
                       'use_safety_checks': False,
             },
     )
-    for i in range(1):
+    for i in range(5):
         algo_class = reaching_task_variant['algo_class']
         run_experiment(
             experiment,
             seed=random.randint(0, 666),
-            exp_prefix="sdql-sawyer-goal-test",
+            exp_prefix="sdql-sawyer-final",
             mode="local",
             variant=reaching_task_variant,
             exp_id=0,
