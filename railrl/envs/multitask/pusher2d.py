@@ -31,7 +31,7 @@ class MultitaskPusher2DEnv(Pusher2DEnv, MultitaskEnv, metaclass=abc.ABCMeta):
 class FullStatePusher2DEnv(MultitaskPusher2DEnv):
     def __init__(self, goal=(0, -1)):
         super().__init__(goal=goal)
-        self.goal_dim_weights = np.array([.1, .1, .1, .1, .1, .1, 5, 5, 1, 1])
+        self.goal_dim_weights = np.array([.1, .1, .1, .1, .1, .1, 1, 1, 1, 1])
 
     def sample_goal_states(self, batch_size):
         # Joint angle and xy position won't be consistent, but oh well!
@@ -149,7 +149,7 @@ class FullStatePusher2DEnv(MultitaskPusher2DEnv):
 class HandCylinderXYPusher2DEnv(MultitaskPusher2DEnv):
     def __init__(self, goal=(0, -1)):
         super().__init__(goal=goal)
-        self.goal_dim_weights = np.array([5, 5, 1, 1])
+        self.goal_dim_weights = np.array([1, 1, 1, 1])
 
     def sample_goal_states(self, batch_size):
         return np.random.uniform(
