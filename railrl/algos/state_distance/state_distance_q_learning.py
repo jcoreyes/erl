@@ -103,7 +103,6 @@ class StateDistanceQLearning(DDPG):
         self.start_time = time.time()
 
     def _do_training(self, n_steps_total):
-        for _ in range(self.num_updates_per_env_step):
             # prev = time.time()
             super()._do_training(n_steps_total)
             # print(time.time()-prev)
