@@ -81,10 +81,9 @@ if __name__ == '__main__':
     run_mode = "none"
     snapshot_mode = "last"
 
-    n_seeds = 3
-    # mode = "ec2"
-    exp_prefix = "local-abhishek-mb-baseline-pusher-reacher-300-300-net"
-    run_mode = 'grid'
+    n_seeds = 5
+    mode = "ec2"
+    exp_prefix = "abhishek-mb-baseline-pusher-again-shaped"
     # snapshot_mode = "gap_and_last"
     snapshot_gap = 10
 
@@ -125,7 +124,7 @@ if __name__ == '__main__':
     search_space = {
         'env_name_or_class': [
             Pusher2DEnv,
-            Reacher7Dof,
+            # Reacher7Dof,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
