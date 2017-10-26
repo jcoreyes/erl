@@ -37,7 +37,7 @@ class FullStatePusher2DEnv(MultitaskPusher2DEnv):
         # Joint angle and xy position won't be consistent, but oh well!
         return np.random.uniform(
             np.array([-2.5, -2.3213, -2.3213, -1, -1, -1, -1, -1, -1, -1]),
-            np.array([2.5, 2.3, 2.3, 1, 1, 1, 0, 1, 0, 1]),
+            np.array([2.5, 2.3, 2.3, 1, 1, 1, 1, 0, 1, 0]),
             (batch_size, self.goal_dim)
         )
 
