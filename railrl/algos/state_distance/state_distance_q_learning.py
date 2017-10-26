@@ -45,7 +45,6 @@ class StateDistanceQLearning(DDPG):
             num_steps_per_eval=1000,
             max_path_length=1000,
             discount=0.99,
-            num_updates_per_env_step=1,
             num_steps_per_tensorboard_update=None,
             prob_goal_state_is_next_state=0,
             termination_threshold=0,
@@ -95,7 +94,6 @@ class StateDistanceQLearning(DDPG):
         self.sample_train_goals_from = sample_train_goals_from
         self.sample_rollout_goals_from = sample_rollout_goals_from
         self.sample_discount = sample_discount
-        self.num_updates_per_env_step = num_updates_per_env_step
         self.num_steps_per_tensorboard_update = num_steps_per_tensorboard_update
         self.prob_goal_state_is_next_state = prob_goal_state_is_next_state
         self.termination_threshold = termination_threshold
@@ -111,10 +109,7 @@ class StateDistanceQLearning(DDPG):
             self.env.goal_dim_weights = np.array(goal_dim_weights)
 
     def _do_training(self, n_steps_total):
-        for _ in range(self.num_updates_per_env_step):
-            # prev = time.time()
-            super()._do_training(n_steps_total)
-            # print(time.time()-prev)
+        super()._do_training(n_steps_total)
         if self.num_steps_per_tensorboard_update is None:
             return
 
