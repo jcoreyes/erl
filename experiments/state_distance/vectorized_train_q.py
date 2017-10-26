@@ -197,7 +197,7 @@ if __name__ == '__main__':
 
     # n_seeds = 3
     # mode = "ec2"
-    exp_prefix = "sdql-try-full-push"
+    exp_prefix = "sdql-try-push2d-xyxy-again"
     # run_mode = 'grid'
     # snapshot_mode = "gap_and_last"
 
@@ -224,8 +224,8 @@ if __name__ == '__main__':
     # env_class = Reacher7DofFullGoalState
     # env_class = Reacher7DofGoalStateEverything
     # env_class = HandXYPusher2DEnv
-    # env_class = HandCylinderXYPusher2DEnv
-    env_class = FullStatePusher2DEnv
+    env_class = HandCylinderXYPusher2DEnv
+    # env_class = FullStatePusher2DEnv
     # env_class = FixedHandXYPusher2DEnv
     # env_class = CylinderXYPusher2DEnv
     replay_buffer_size = 200000
@@ -233,8 +233,8 @@ if __name__ == '__main__':
         version=version,
         algo_params=dict(
             num_epochs=101,
-            num_steps_per_epoch=100,
-            num_steps_per_eval=100,
+            num_steps_per_epoch=1000,
+            num_steps_per_eval=1000,
             num_updates_per_env_step=25,
             use_soft_update=True,
             tau=0.001,
@@ -260,7 +260,7 @@ if __name__ == '__main__':
             # cycle_taus_for_rollout=False,
             # num_sl_batches_per_rl_batch=1,
             # only_do_sl=True,
-            # goal_dim_weights=(1, 1, 1, 1),
+            goal_dim_weights=(1, 1, 1, 1),
             # goal_dim_weights=(0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 1, 1, 1, 1),
         ),
         eval_with_oc_policy=True,
