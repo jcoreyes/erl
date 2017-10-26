@@ -77,7 +77,7 @@ if __name__ == "__main__":
 
     n_seeds = 5
     mode = "ec2"
-    exp_prefix = "ddpg-reacher-pusher-baseline"
+    exp_prefix = "ddpg-pusher-again-baseline-with-reward-bonus"
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -120,7 +120,7 @@ if __name__ == "__main__":
             # Reacher7DofXyzGoalState,
             # HandCylinderXYPusher2DEnv,
             Pusher2DEnv,
-            Reacher7Dof,
+            # Reacher7Dof,
             # RandomGoalPusher2DEnv,
             # MultitaskPusher2DEnv,
             # Reacher7DofMultitaskEnv,
