@@ -14,12 +14,17 @@ from railrl.algos.state_distance.state_distance_q_learning import (
 
 class VectorizedSdql(StateDistanceQLearning):
     def compute_rewards(self, obs, actions, next_obs, goal_states):
-        return -np.abs(next_obs - goal_states)
+        return -np.abs(
+            self.env.convert_obs_to_goal_states_pytorch(next_obs)
+            - goal_states
+        )
 
 
 class VectorizedTauSdql(HorizonFedStateDistanceQLearning):
     def compute_rewards(self, obs, actions, next_obs, goal_states):
-        return -np.abs(next_obs - goal_states)
+        return -np.abs(
+            self.env.convert_obs_to_goal_states_pytorch(next_obs)
+            - goal_states)
 
 
 class VectorizedDeltaTauSdql(HorizonFedStateDistanceQLearning):

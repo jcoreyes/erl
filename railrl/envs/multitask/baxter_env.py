@@ -9,6 +9,7 @@ import baxter_interface as bi
 import rospy
 
 from rllab.core.serializable import Serializable
+from rllab.misc import logger
 from rllab.spaces import Box
 
 NUM_JOINTS = 7
@@ -253,16 +254,8 @@ class MultiTaskBaxterEnv(BaxterEnv, MultitaskEnv):
             JOINT_VALUE_HIGH['torque'],
             END_EFFECTOR_VALUE_HIGH[self.arm_name]['position'],
         ))
-
-        if self.fixed_end_effector:
-            if self.arm_name == 'right':
-                self.desired = [1.2042843059147565, -0.5996823547145944, 0.4512758791000766]
-            elif self.arm_name == 'left':
-                self.desired = [1.260514343667115, 0.2383921665010369, 0.3387014480798653]
-        else:
-            self._randomize_desired_end_effector_pose()
-
         self._observation_space = Box(lows, highs)
+
     def set_goal(self, goal):
         self.desired = goal
 
@@ -296,18 +289,19 @@ class MultiTaskBaxterEnv(BaxterEnv, MultitaskEnv):
         goal_states = np.vstack([path['goal_states'] for path in paths])
         statistics = OrderedDict()
         stat_prefix = 'Test'
-        if self.end_effector_experiment_total or self.end_effector_experiment_position:
-            obsSets = [path["observations"] for path in paths]
-            positions = []
-            for obsSet in obsSets:
-                for observation in obsSet:
-                    positions.append(observation[21:24])
-            import ipdb; ipdb.set_trace()
-            positions = np.array(positions)
-            desired_positions = goal_states
-            position_distances = linalg.norm(positions - desired_positions, axis=1)
-            statistics.update(self._statistics_from_observations(
-                position_distances,
-                stat_prefix,
-                'Distance from Desired End Effector Position'
-            ))
+        obsSets = [path["observations"] for path in paths]
+        positions = []
+        for obsSet in obsSets:
+            for observation in obsSet:
+                positions.append(observation[21:24])
+        positions = np.array(positions)
+        desired_positions = goal_states
+        position_distances = linalg.norm(positions - desired_positions, axis=1)
+        statistics.update(self._statistics_from_observations(
+            position_distances,
+            stat_prefix,
+            'Distance from Desired End Effector Position'
+        ))
+        for key, value in statistics.items():
+            logger.record_tabular(key, value)
+

@@ -1,5 +1,6 @@
 import argparse
 
+import joblib
 from torch.nn import functional as F
 
 import railrl.torch.pytorch_util as ptu
@@ -10,8 +11,8 @@ from railrl.algos.state_distance.vectorized_sdql import VectorizedDeltaTauSdql, 
     VectorizedTauSdql
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
-from railrl.envs.multitask.reacher_env import GoalStateSimpleStateReacherEnv
-from railrl.envs.wrappers import convert_gym_space, normalize_box
+from railrl.envs.multitask.sawyer_env import MultiTaskSawyerEnv
+from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.networks.state_distance import (
@@ -22,19 +23,10 @@ from railrl.networks.state_distance import (
 from railrl.torch.modules import HuberLoss
 from railrl.torch.state_distance.exploration import \
     UniversalPolicyWrappedWithExplorationStrategy
-from railrl.envs.multitask.reacher_env import (
-    JointAngleMultitaskSimpleStateReacherEnv,
-    GoalStateSimpleStateReacherEnv,
-)
+import random
 
 def experiment(variant):
-    # env = JointAngleMultitaskSimpleStateReacherEnv()
-    env = GoalStateSimpleStateReacherEnv()
-    env = normalize_box(
-        env,
-        **variant['normalize_params']
-    )
-
+    env = MultiTaskSawyerEnv(**variant['env_params'])
     observation_space = convert_gym_space(env.observation_space)
     action_space = convert_gym_space(env.action_space)
     qf = variant['qf_class'](
@@ -71,14 +63,13 @@ def experiment(variant):
         )
     else:
         replay_buffer = None
-    # import ipdb; ipdb.set_trace()
     algo = variant['algo_class'](
         env,
         qf,
         policy,
         exploration_policy,
-        qf_criterion=HuberLoss(),
         replay_buffer=replay_buffer,
+        qf_criterion=HuberLoss(),
         **variant['algo_params']
     )
     if ptu.gpu_enabled():
@@ -105,6 +96,14 @@ algo_class_to_discount = {
     StateDistanceQLearning: 0.99,
 }
 
+experiments=[
+    'joint_angle|fixed_angle',
+    'joint_angle|varying_angle',
+    'end_effector_position|fixed_ee',
+    'end_effector_position|varying_ee',
+    'end_effector_position_orientation|fixed_ee',
+    'end_effector_position_orientation|varying_ee'
+]
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -113,19 +112,19 @@ if __name__ == '__main__':
 
     n_seeds = 1
     use_gpu = True
-    max_path_length = 10
+    max_path_length = 100
     # algo_class = VectorizedDeltaTauSdql  # <-- should work well enough
     algo_class = VectorizedTauSdql # <-- Try this if Delta version does not work
     replay_buffer_size = 200000
     variant = dict(
         algo_params=dict(
-            num_epochs=101,
-            num_steps_per_epoch=10,
-            num_steps_per_eval=100,
+            num_epochs=10, #5 epochs = 10 mins (with no eval)
+            num_steps_per_epoch=1000,
+            num_steps_per_eval=1000,
             num_updates_per_env_step=1,
             use_soft_update=True,
             tau=0.001,
-            batch_size=7,
+            batch_size=64,
             discount=algo_class_to_discount[algo_class],
             sample_train_goals_from='her',
             sample_rollout_goals_from='environment',
@@ -139,6 +138,7 @@ if __name__ == '__main__':
             save_replay_buffer=True,
             sparse_reward=algo_class_to_sparse_reward[algo_class],
             cycle_taus_for_rollout=True,
+            collect_data=True,
         ),
         qf_params=dict(
             hidden_sizes=[300, 300],
@@ -148,15 +148,12 @@ if __name__ == '__main__':
             fc1_size=300,
             fc2_size=300,
         ),
-        normalize_params=dict(
-            # # obs_mean=None,
-            # obs_std=[0.7, 0.7, 0.7, 0.6, 40, 5],
-        ),
+        normalize_params=dict(),
         sampler_es_class=OUStrategy,
         sampler_es_params=dict(
             theta=0.1,
-            max_sigma=0.1,
-            min_sigma=0.1,
+            max_sigma=0.25,
+            min_sigma=0.25,
         ),
         algo_class=algo_class,
         qf_class=algo_class_to_qf_class[algo_class],
@@ -165,14 +162,28 @@ if __name__ == '__main__':
             num_goals_to_sample=4,
             goal_sample_strategy='store',
         ),
+        env_params={
+                      'arm_name': 'right',
+                      'safety_box': True,
+                      'loss': 'huber',
+                      'huber_delta': 10,
+                      'safety_force_magnitude': 6,
+                      'temp': 15,
+                      'remove_action': False,
+                      'experiment': experiments[2],
+                      'reward_magnitude': 10,
+                      'use_safety_checks': False,
+            },
     )
-    algo_class = variant['algo_class']
-    run_experiment(
-        experiment,
-        exp_prefix="sdql-example",
-        mode="local",
-        variant=variant,
-        exp_id=0,
-        use_gpu=use_gpu,
-        snapshot_mode="last",
-    )
+    for i in range(1):
+        algo_class = variant['algo_class']
+        run_experiment(
+            experiment,
+            seed=random.randint(0, 666),
+            exp_prefix="sdql-sawyer-goal-test",
+            mode="local",
+            variant=variant,
+            exp_id=0,
+            use_gpu=use_gpu,
+            snapshot_mode="last",
+        )

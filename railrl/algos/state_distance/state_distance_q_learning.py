@@ -103,10 +103,9 @@ class StateDistanceQLearning(DDPG):
         self.start_time = time.time()
 
     def _do_training(self, n_steps_total):
-        for _ in range(self.num_updates_per_env_step):
-            # prev = time.time()
-            super()._do_training(n_steps_total)
-            # print(time.time()-prev)
+        # prev = time.time()
+        super()._do_training(n_steps_total)
+        # print(time.time()-prev)
         if self.num_steps_per_tensorboard_update is None:
             return
 
@@ -277,6 +276,46 @@ class StateDistanceQLearning(DDPG):
             )
             self.epoch_discount_schedule.update(value)
 
+    def offline_evaluate(self, epoch):
+        """
+                Perform evaluation for this algorithm.
+
+                :param epoch: The epoch number.
+                :param exploration_paths: List of dicts, each representing a path.
+                """
+        statistics = OrderedDict()
+        train_batch = self.get_batch(training=True)
+        validation_batch = self.get_batch(training=False)
+
+        statistics.update(self._statistics_from_batch(train_batch, "Train"))
+        statistics.update(
+            self._statistics_from_batch(validation_batch, "Validation")
+        )
+        statistics.update(
+            get_difference_statistics(
+                statistics,
+                [
+                    'QF Loss Mean',
+                    'Policy Loss Mean',
+                ],
+                include_test_validation_gap=False,
+            )
+        )
+        statistics['Discount Factor'] = self.discount
+
+        statistics['Total Wallclock Time (s)'] = time.time() - self.start_time
+        statistics['Epoch'] = epoch
+
+        for key, value in statistics.items():
+            logger.record_tabular(key, value)
+
+        if isinstance(self.epoch_discount_schedule, StatConditionalSchedule):
+            table_dict = rllab_util.get_logger_table_dict()
+            value = float(
+                table_dict[self.epoch_discount_schedule.statistic_name]
+            )
+            self.epoch_discount_schedule.update(value)
+
     def get_train_dict(self, batch):
         rewards = batch['rewards']
         terminals = batch['terminals']
@@ -376,11 +415,16 @@ class StateDistanceQLearning(DDPG):
             data_to_save['algorithm'] = self
         return data_to_save
 
-    @staticmethod
-    def paths_to_batch(paths):
+    def paths_to_batch(self, paths):
         np_batch = split_paths_to_dict(paths)
         goal_states = [path["goal_states"] for path in paths]
         np_batch['goal_states'] = np.vstack(goal_states)
+        np_batch['rewards'] = self.compute_rewards(
+            np_batch['observations'],
+            np_batch['actions'],
+            np_batch['next_observations'],
+            np_batch['goal_states'],
+        )
         return np_to_pytorch_batch(np_batch)
 
 
@@ -593,7 +637,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             next_obs,
             goal_states,
             num_steps_left - 1,
-        )
+            )
         target_q_values = self.target_qf(
             next_obs,
             next_actions,
@@ -602,7 +646,13 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
         )
         if self.clamp_q_target_values:
             target_q_values = torch.clamp(target_q_values, -math.inf, 0)
-        y_target = rewards + (1. - terminals) * target_q_values
+        if terminals.size()[1] != target_q_values.size()[1]:
+            terminals = terminals.repeat(1, target_q_values.size()[1])
+        try:
+            y_target = rewards + (1. - terminals) * target_q_values
+        except:
+            import ipdb; ipdb.set_trace()
+
 
         # noinspection PyUnresolvedReferences
         y_target = y_target.detach()

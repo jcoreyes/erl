@@ -89,7 +89,7 @@ if __name__ == '__main__':
 
     n_seeds = 1
     mode = "local"
-    exp_prefix = "dev-baseline-her"
+    exp_prefix = "murtaza-edits-baseline-her"
     run_mode = "none"
 
     # n_seeds = 3
@@ -109,13 +109,13 @@ if __name__ == '__main__':
     variant = dict(
         version=version,
         algo_params=dict(
-            num_epochs=1001,
+            num_epochs=10,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
-            num_updates_per_env_step=10,
+            num_updates_per_env_step=1,
             use_soft_update=True,
             tau=0.001,
-            batch_size=500,
+            batch_size=64,
             discount=5,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
@@ -142,7 +142,7 @@ if __name__ == '__main__':
         env_class=JointAngleMultitaskSimpleStateReacherEnv,
         env_params=dict(),
         normalize_params=dict(
-            # TODO(murtaz): figure out good values
+            # TODO(murtaza): figure out good values
             # Give it list not np array!
             # std=[1,1,1,1,1,20,20,20,20,20]
             # obs_mean=None,

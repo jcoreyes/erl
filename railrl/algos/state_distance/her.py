@@ -9,6 +9,7 @@ from railrl.algos.state_distance.state_distance_q_learning import (
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.misc.rllab_util import split_paths_to_dict
+from railrl.torch.algos.eval import get_generic_path_information
 from railrl.torch.algos.util import np_to_pytorch_batch
 from railrl.torch.ddpg import DDPG
 from rllab.misc import logger
@@ -71,12 +72,35 @@ class HER(DDPG):
             self.env.convert_obs_to_goal_states(batch['next_observations'])
             - self.env.convert_obs_to_goal_states(batch['goal_states'])
         )
-        diff_sum = diff.sum(dim=1, keepdim=True)
+        # diff_sum = diff.sum(dim=1, keepdim=True)
+        diff_sum = diff.sum(dim=1)
         goal_not_reached = (diff_sum >= self.epsilon).float()
         batch['rewards'] = - goal_not_reached
         if self.terminate_when_goal_reached:
             batch['terminals'] = 1 - (1 - batch['terminals']) * goal_not_reached
         return batch
+
+    def evaluate(self, epoch, exploration_paths):
+        # TODO(murtaza): add reward to eval code
+        super().evaluate(epoch, exploration_paths)
+        exploration_batch = self.paths_to_batch(exploration_paths)
+        # import ipdb; ipdb.set_trace()
+        diff = torch.abs(
+            self.env.convert_obs_to_goal_states(exploration_batch['next_observations'])
+            - self.env.convert_obs_to_goal_states(exploration_batch['goal_states'])
+        )
+        # diff_sum = diff.sum(dim=1, keepdim=True)
+        diff_sum = diff.sum(dim=1)
+        goal_not_reached = (diff_sum >= self.epsilon).float()
+        exploration_batch['rewards'] = - goal_not_reached
+        if self.terminate_when_goal_reached:
+            exploration_batch['terminals'] = 1 - (1 - exploration_batch['terminals']) * goal_not_reached
+        rewards = exploration_batch['rewards'].numpy()
+        # returns = sum(rewards)
+        # avg_returns = np.mean(returns)
+        # logger.record_tabular("reward", rewards)
+        get_generic_path_information(exploration_paths)
+        # logger.record_tabular("Returns", avg_returns)
 
     def get_train_dict(self, batch):
         rewards = batch['rewards']
@@ -191,5 +215,25 @@ class HER(DDPG):
             terminal,
             agent_info=agent_info,
             env_info=env_info,
-            goal_states=self.goal_state,
+            goal_state=self.goal_state,
+        )
+
+    def _handle_rollout_ending(
+            self,
+            n_steps_total,
+            final_obs,
+            terminal,
+            agent_info,
+            env_info,
+    ):
+        self._current_path.add_all(
+            final_observation=final_obs,
+            increment_path_length=False,
+        )
+        self.replay_buffer.terminate_episode(
+            final_obs,
+            terminal,
+            agent_info=agent_info,
+            env_info=env_info,
+            goal_state=self.goal_state,
         )
