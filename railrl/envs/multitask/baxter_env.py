@@ -254,8 +254,8 @@ class MultiTaskBaxterEnv(BaxterEnv, MultitaskEnv):
             JOINT_VALUE_HIGH['torque'],
             END_EFFECTOR_VALUE_HIGH[self.arm_name]['position'],
         ))
-
         self._observation_space = Box(lows, highs)
+
     def set_goal(self, goal):
         self.desired = goal
 

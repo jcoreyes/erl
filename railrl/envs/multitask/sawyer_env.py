@@ -228,8 +228,11 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
         self.in_reset = True
         self.amplify = 5*np.ones(7)
         self._observation_space = Box(lows, highs)
+        self.task = 'lego'
+        self.desired = np.ones(3)*.5
 
     def set_goal(self, goal):
+        assert (goal == np.ones(3)*.5).all()
         self.desired = goal
 
     @property
@@ -238,6 +241,13 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
 
     def sample_goal_states(self, batch_size):
         return np.random.uniform(box_lows, box_highs, size=(batch_size, 3))
+
+    def sample_goal_state_for_rollout(self):
+        if self.task == 'lego':
+            return self.desired
+        else:
+            goal_state = self.sample_goal_states(1)[0]
+            return self.modify_goal_state_for_rollout(goal_state)
 
     def sample_actions(self, batch_size):
         return np.random.uniform(JOINT_VALUE_LOW['torque'], JOINT_VALUE_HIGH['torque'], (batch_size, 7))
