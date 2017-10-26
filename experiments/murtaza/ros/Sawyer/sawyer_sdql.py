@@ -118,7 +118,7 @@ if __name__ == '__main__':
     replay_buffer_size = 200000
     variant = dict(
         algo_params=dict(
-            num_epochs=10, #5 epochs = 10 mins (with no eval)
+            num_epochs=15,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             num_updates_per_env_step=1,
