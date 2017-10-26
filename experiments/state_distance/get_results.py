@@ -160,7 +160,7 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "half-cheetah-only-xvel"
+    exp_prefix = "half-cheetah-only-xvel-longer"
     run_mode = 'grid'
     snapshot_mode = "gap_and_last"
 
@@ -171,7 +171,7 @@ if __name__ == '__main__':
     if mode != "local":
         use_gpu = False
 
-    max_path_length = 100
+    max_path_length = 1000
     max_tau = 10
     # noinspection PyTypeChecker
     algo_class = VectorizedTauSdql
@@ -180,9 +180,9 @@ if __name__ == '__main__':
         version=version,
         algo_params=dict(
             num_epochs=1001,
-            num_steps_per_epoch=100,
+            num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
-            num_updates_per_env_step=1,
+            num_updates_per_env_step=5,
             use_soft_update=True,
             tau=0.001,
             batch_size=64,
