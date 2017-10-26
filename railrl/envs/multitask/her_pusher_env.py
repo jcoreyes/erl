@@ -112,7 +112,9 @@ class Pusher2DEnv(
         hand_to_hand_goal_distance = np.linalg.norm(
             self.model.data.site_xpos[0][:2] - self.get_body_com("hand_goal")[:2]
         )
-        reward = - hand_to_object_distance - object_to_goal_distance
+        reward = - hand_to_object_distance
+        if hand_to_object_distance <= 0.1:
+            reward += 2 - object_to_goal_distance
 
         self.do_simulation(a, self.frame_skip)
         ob = self._get_obs()
