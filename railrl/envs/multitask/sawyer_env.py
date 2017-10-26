@@ -132,6 +132,7 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
             use_angle_wrapping=False,
             use_angle_parameterization=False,
             wrap_reward_angle_computation=True,
+            task='reaching',
     ):
 
         Serializable.quick_init(self, locals())
@@ -145,12 +146,16 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
         self.end_effector_experiment_total = False
         self.fixed_end_effector = False
 
-
+        self.task = task
         self.use_safety_checks = use_safety_checks
         self.use_angle_wrapping = use_angle_wrapping
         self.use_angle_parameterization = use_angle_parameterization
         self.wrap_reward_angle_computation = wrap_reward_angle_computation
         self.reward_magnitude = reward_magnitude
+        self.safety_box = safety_box
+        self.remove_action = remove_action
+        self.arm_name = arm_name
+        self.safe_reset_length = safe_reset_length
 
         if experiment == experiments[0]:
             self.joint_angle_experiment=True
@@ -168,10 +173,12 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
         elif experiment == experiments[5]:
             self.end_effector_experiment_total = True
 
-        self.safety_box = safety_box
-        self.remove_action = remove_action
-        self.arm_name = arm_name
-        self.safe_reset_length=safe_reset_length
+        if self.task == 'reaching':
+            self.end_effector_experiment_position = True
+            self.fixed_end_effector = True
+        elif self.task == 'lego':
+            self.end_effector_experiment_total = True
+            self.fixed_end_effector = True
 
         if loss == 'MSE':
             self.reward_function = self._MSE_reward
@@ -208,19 +215,53 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
             JOINT_VALUE_LOW[action_mode],
             JOINT_VALUE_HIGH[action_mode]
         )
-        lows = np.hstack((
-            JOINT_VALUE_LOW['position'],
-            JOINT_VALUE_LOW['velocity'],
-            JOINT_VALUE_LOW['torque'],
-            END_EFFECTOR_VALUE_LOW['position'],
-        ))
 
-        highs = np.hstack((
-            JOINT_VALUE_HIGH['position'],
-            JOINT_VALUE_HIGH['velocity'],
-            JOINT_VALUE_HIGH['torque'],
-            END_EFFECTOR_VALUE_HIGH['position'],
-        ))
+        if self.task == 'reaching':
+            lows = np.hstack((
+                JOINT_VALUE_LOW['position'],
+                JOINT_VALUE_LOW['velocity'],
+                JOINT_VALUE_LOW['torque'],
+                END_EFFECTOR_VALUE_LOW['position'],
+                END_EFFECTOR_VALUE_LOW['position'],
+            ))
+
+            highs = np.hstack((
+                JOINT_VALUE_HIGH['position'],
+                JOINT_VALUE_HIGH['velocity'],
+                JOINT_VALUE_HIGH['torque'],
+                END_EFFECTOR_VALUE_HIGH['position'],
+                END_EFFECTOR_VALUE_HIGH['position'],
+            ))
+
+        if self.task == 'lego':
+            lows = np.hstack((
+                JOINT_VALUE_LOW['position'],
+                JOINT_VALUE_LOW['velocity'],
+                JOINT_VALUE_LOW['torque'],
+                END_EFFECTOR_VALUE_LOW['position'],
+                END_EFFECTOR_VALUE_LOW['angle'],
+            ))
+
+            highs = np.hstack((
+                JOINT_VALUE_HIGH['position'],
+                JOINT_VALUE_HIGH['velocity'],
+                JOINT_VALUE_HIGH['torque'],
+                END_EFFECTOR_VALUE_HIGH['position'],
+                END_EFFECTOR_VALUE_HIGH['angle'],
+            ))
+            des = {
+                'position': Point(x=0.44562573898386176, y=-0.055317682301721766, z=0.4950886597008108),
+                'orientation': Quaternion(x=-0.5417504106748736, y=0.46162598289085305, z=0.35800013141940035,
+                                          w=0.6043540769758675)}
+            self.desired = np.array([
+                des['position'].x,
+                des['position'].y,
+                des['position'].z,
+                des['orientation'].x,
+                des['orientation'].y,
+                des['orientation'].z,
+                des['orientation'].w,
+            ])
 
         self._observation_space = Box(lows, highs)
         self._rs = ii.RobotEnable(CHECK_VERSION)
@@ -228,7 +269,6 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
         self.in_reset = True
         self.amplify = 5*np.ones(7)
         self._observation_space = Box(lows, highs)
-        self.task = 'lego'
 
     def set_goal(self, goal):
         self.desired = goal
