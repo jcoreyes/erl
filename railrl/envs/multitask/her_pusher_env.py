@@ -30,15 +30,19 @@ def pusher2d_cost_fn(states, actions, next_states):
     hand_pos = states[:, 6:8]
     cylinder_pos = states[:, 8:10]
     target_pos = states[:, 10:12]
-    costs = np.linalg.norm(
+    hand_to_puck_dist = np.linalg.norm(
         hand_pos - cylinder_pos,
         axis=1,
         ord=2
-    ) + np.linalg.norm(
+    )
+    costs = hand_to_puck_dist
+    hand_is_close_to_puck = hand_to_puck_dist <= 0.1
+    puck_to_goal_dist = np.linalg.norm(
         cylinder_pos - target_pos,
         axis=1,
         ord=2,
     )
+    costs += (puck_to_goal_dist - 2) * hand_is_close_to_puck
     if input_is_flat:
         costs = costs[0]
     return costs
