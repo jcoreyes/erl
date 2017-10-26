@@ -7,7 +7,7 @@ from gym.envs.mujoco import mujoco_env
 from railrl.envs.env_utils import get_asset_xml
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import get_stat_in_dict
-from rllab.misc import logger
+from rllab.misc import logger as rllab_logger
 
 
 def obs_to_goal(obs):
@@ -20,6 +20,16 @@ def get_sparse_reward(obs):
     goal_pos = obs[17:20]
     r = np.linalg.norm(hand_pos - goal_pos) < 0.1
     return (r - 1).astype(float)
+
+
+def reacher7dof_cost_fn(state, action, next_state):
+    hand_pos = state[14:17]
+    target_pos = state[17:20]
+    return np.linalg.norm(
+        hand_pos - target_pos,
+        axis=1,
+        ord=2
+    )
 
 
 class Reacher7Dof(
@@ -75,7 +85,7 @@ class Reacher7Dof(
             self.get_body_com("goal"),
         ])
 
-    def log_diagnostics(self, paths):
+    def log_diagnostics(self, paths, logger=None):
         statistics = OrderedDict()
 
         euclidean_distances = get_stat_in_dict(
@@ -90,4 +100,7 @@ class Reacher7Dof(
             always_show_all_stats=True,
         ))
         for key, value in statistics.items():
-            logger.record_tabular(key, value)
+            if logger is None:
+                rllab_logger.record_tabular(key, value)
+            else:
+                logger.log_tabular(key, value)

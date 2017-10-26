@@ -7,7 +7,7 @@ from gym.envs.mujoco import mujoco_env
 from railrl.envs.env_utils import get_asset_xml
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import get_stat_in_dict
-from rllab.misc import logger
+from rllab.misc import logger as rllab_logger
 
 
 def obs_to_goal(obs):
@@ -20,6 +20,21 @@ def get_sparse_reward(obs):
     goal_pos = obs[10:12]
     r = np.linalg.norm(cylinder_pos - goal_pos) < 0.1
     return (r - 1).astype(float)
+
+
+def pusher2d_cost_fn(state, action, next_state):
+    hand_pos = state[6:8]
+    cylinder_pos = state[8:10]
+    target_pos = state[10:12]
+    return np.linalg.norm(
+        hand_pos - cylinder_pos,
+        axis=1,
+        ord=2
+    ) + np.linalg.norm(
+        cylinder_pos - target_pos,
+        axis=1,
+        ord=2,
+    )
 
 
 class Pusher2DEnv(
@@ -110,7 +125,7 @@ class Pusher2DEnv(
             self._target_cylinder_position,
         ])
 
-    def log_diagnostics(self, paths):
+    def log_diagnostics(self, paths, logger=None):
         final_hand_to_object_dist = get_stat_in_dict(
             paths, 'env_infos', 'hand_to_object_distance'
         )[:, -1]
@@ -138,5 +153,8 @@ class Pusher2DEnv(
             always_show_all_stats=True,
         ))
         for key, value in statistics.items():
-            logger.record_tabular(key, value)
+            if logger is None:
+                rllab_logger.record_tabular(key, value)
+            else:
+                logger.log_tabular(key, value)
 
