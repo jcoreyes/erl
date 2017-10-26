@@ -277,6 +277,46 @@ class StateDistanceQLearning(DDPG):
             )
             self.epoch_discount_schedule.update(value)
 
+    def offline_evaluate(self, epoch):
+        """
+                Perform evaluation for this algorithm.
+
+                :param epoch: The epoch number.
+                :param exploration_paths: List of dicts, each representing a path.
+                """
+        statistics = OrderedDict()
+        train_batch = self.get_batch(training=True)
+        validation_batch = self.get_batch(training=False)
+
+        statistics.update(self._statistics_from_batch(train_batch, "Train"))
+        statistics.update(
+            self._statistics_from_batch(validation_batch, "Validation")
+        )
+        statistics.update(
+            get_difference_statistics(
+                statistics,
+                [
+                    'QF Loss Mean',
+                    'Policy Loss Mean',
+                ],
+                include_test_validation_gap=False,
+            )
+        )
+        statistics['Discount Factor'] = self.discount
+
+        statistics['Total Wallclock Time (s)'] = time.time() - self.start_time
+        statistics['Epoch'] = epoch
+
+        for key, value in statistics.items():
+            logger.record_tabular(key, value)
+
+        if isinstance(self.epoch_discount_schedule, StatConditionalSchedule):
+            table_dict = rllab_util.get_logger_table_dict()
+            value = float(
+                table_dict[self.epoch_discount_schedule.statistic_name]
+            )
+            self.epoch_discount_schedule.update(value)
+
     def get_train_dict(self, batch):
         rewards = batch['rewards']
         terminals = batch['terminals']

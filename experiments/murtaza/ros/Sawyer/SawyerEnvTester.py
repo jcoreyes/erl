@@ -19,6 +19,10 @@ experiments=[
 env = SawyerEnv('right', experiment=experiments[0], safety_force_magnitude=5, temp=15, safety_box=True, use_safety_checks=False)
 
 env.reset()
+for i in range(100000):
+    joint_to_values = dict(zip(env.arm_joint_names, np.zeros(7)))
+    env.arm.set_joint_torques(joint_to_values)
+    env.rate.sleep()
 # env.arm.move_to_neutral()
 # ja = env._joint_angles()
 # # ja =np.array([-2.13281250e-03, -1.18177441e+00, -2.75390625e-03, 2.17755176e+00,
@@ -37,14 +41,14 @@ env.reset()
 # except Exception as e:
 #     import ipdb; ipdb.set_trace()
 # print(env.is_in_box(env.arm.endpoint_pose))
-# while True:
+# # while True:
 pose = env.arm.endpoint_pose()['position']
 pose = np.array([pose.x, pose.y, pose.z])
 print(pose)
-env.update_pose_and_jacobian_dict()
-env.check_joints_in_box(env.pose_jacobian_dict)
-print(env.pose_jacobian_dict)
-#
+# env.update_pose_and_jacobian_dict()
+# env.check_joints_in_box(env.pose_jacobian_dict)
+# print(env.pose_jacobian_dict)
+# #
 # des = np.array([0.68998028, -0.2285752, 0.3477])
 #
 # print(np.linalg.norm(pose-des))
