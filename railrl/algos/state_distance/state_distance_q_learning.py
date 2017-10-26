@@ -103,9 +103,9 @@ class StateDistanceQLearning(DDPG):
         self.start_time = time.time()
 
     def _do_training(self, n_steps_total):
-            # prev = time.time()
-            super()._do_training(n_steps_total)
-            # print(time.time()-prev)
+        # prev = time.time()
+        super()._do_training(n_steps_total)
+        # print(time.time()-prev)
         if self.num_steps_per_tensorboard_update is None:
             return
 
