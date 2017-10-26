@@ -22,14 +22,21 @@ def get_sparse_reward(obs):
     return (r - 1).astype(float)
 
 
-def reacher7dof_cost_fn(state, action, next_state):
-    hand_pos = state[14:17]
-    target_pos = state[17:20]
-    return np.linalg.norm(
+def reacher7dof_cost_fn(states, actions, next_states):
+    input_is_flat = len(states.shape) == 1
+    if input_is_flat:
+        states = np.expand_dims(states, 0)
+
+    hand_pos = states[:, 14:17]
+    target_pos = states[:, 17:20]
+    costs = np.linalg.norm(
         hand_pos - target_pos,
         axis=1,
         ord=2
     )
+    if input_is_flat:
+        costs = costs[0]
+    return costs
 
 
 class Reacher7Dof(

@@ -22,11 +22,15 @@ def get_sparse_reward(obs):
     return (r - 1).astype(float)
 
 
-def pusher2d_cost_fn(state, action, next_state):
-    hand_pos = state[6:8]
-    cylinder_pos = state[8:10]
-    target_pos = state[10:12]
-    return np.linalg.norm(
+def pusher2d_cost_fn(states, actions, next_states):
+    input_is_flat = len(states.shape) == 1
+    if input_is_flat:
+        states = np.expand_dims(states, 0)
+
+    hand_pos = states[:, 6:8]
+    cylinder_pos = states[:, 8:10]
+    target_pos = states[:, 10:12]
+    costs = np.linalg.norm(
         hand_pos - cylinder_pos,
         axis=1,
         ord=2
@@ -35,6 +39,9 @@ def pusher2d_cost_fn(state, action, next_state):
         axis=1,
         ord=2,
     )
+    if input_is_flat:
+        costs = costs[0]
+    return costs
 
 
 class Pusher2DEnv(

@@ -63,15 +63,11 @@ if __name__ == '__main__':
     parser.add_argument('--dagger_iters', '-n', type=int, default=10)
     parser.add_argument('--dyn_iters', '-nd', type=int, default=60)
     parser.add_argument('--batch_size', '-b', type=int, default=512)
-    # Data collection
-    parser.add_argument('--random_paths', '-r', type=int, default=10)
-    parser.add_argument('--dagger_paths', '-d', type=int, default=10)
-    parser.add_argument('--simulated_paths', '-sp', type=int, default=512)
-    parser.add_argument('--ep_len', '-ep', type=int, default=500)
     # Neural network architecture args
     parser.add_argument('--n_layers', '-l', type=int, default=1)
     parser.add_argument('--size', '-s', type=int, default=300)
     # MPC Controller
+    parser.add_argument('--simulated_paths', '-sp', type=int, default=512)
     parser.add_argument('--mpc_horizon', '-m', type=int, default=15)
     args = parser.parse_args()
 
@@ -85,29 +81,33 @@ if __name__ == '__main__':
     run_mode = "none"
     snapshot_mode = "last"
 
-    # n_seeds = 3
+    n_seeds = 3
     # mode = "ec2"
-    # exp_prefix = "local-pusher-full-again-with-correct-oc"
-    # run_mode = 'grid'
-    snapshot_mode = "gap_and_last"
+    exp_prefix = "local-abhishek-mb-baseline-pusher-reacher-300-300-net"
+    run_mode = 'grid'
+    # snapshot_mode = "gap_and_last"
     snapshot_gap = 10
 
+    # Data collection
+    num_steps_per_epoch = 1000
+    max_path_length = 100
+    num_epochs = 100
     variant = dict(
         # env='HalfCheetah-v1',
         env_name_or_class='HalfCheetah-v1',
         dagger_params=dict(
             render=args.render,
             learning_rate=args.learning_rate,
-            dagger_iters=args.dagger_iters,
+            dagger_iters=num_epochs,
             dynamics_iters=args.dyn_iters,
             batch_size=args.batch_size,
-            num_paths_random=args.random_paths,
-            num_paths_dagger=args.dagger_paths,
+            num_paths_random=num_steps_per_epoch // max_path_length,
+            num_paths_dagger=num_steps_per_epoch // max_path_length,
             num_simulated_paths=args.simulated_paths,
-            env_horizon=args.ep_len,
+            env_horizon=max_path_length,
             mpc_horizon=args.mpc_horizon,
-            n_layers=args.n_layers,
-            size=args.size,
+            n_layers=2,
+            size=300,
             activation=tf.nn.relu,
             output_activation=None,
         ),
@@ -131,8 +131,8 @@ if __name__ == '__main__':
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        for i in range(n_seeds):
+    for i in range(n_seeds):
+        for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
             seed = random.randint(0, 999999)
             run_experiment(
                 experiment,
