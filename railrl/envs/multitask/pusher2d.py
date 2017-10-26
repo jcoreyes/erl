@@ -80,10 +80,10 @@ class FullStatePusher2DEnv(MultitaskPusher2DEnv):
         )
 
     def sample_dimensions_irrelevant_to_oc(self, goal, obs, batch_size):
-        desired_cylinder_pos = goal[2:4]
+        desired_cylinder_pos = goal[8:10]
         current_cylinder_pos = obs[8:10]
-
         hand_pos = obs[6:8]
+
         if np.linalg.norm(hand_pos - current_cylinder_pos) <= 0.1:
             new_goal = np.hstack((
                 current_cylinder_pos,
@@ -92,6 +92,7 @@ class FullStatePusher2DEnv(MultitaskPusher2DEnv):
         else:
             new_goal = np.hstack((
                 current_cylinder_pos,
+                # desired_cylinder_pos,
                 current_cylinder_pos,
             ))
         goal_expanded = np.repeat(
@@ -106,6 +107,7 @@ class FullStatePusher2DEnv(MultitaskPusher2DEnv):
             self.np_random.uniform(low=-2.32, high=2.3, size=(batch_size, 1)),
             # velocities
             self.np_random.uniform(low=-1, high=1, size=(batch_size, 3)),
+            # self.np_random.uniform(low=-1, high=1, size=(batch_size, 2)),
             goal_expanded,
         ))
 
@@ -136,6 +138,12 @@ class FullStatePusher2DEnv(MultitaskPusher2DEnv):
             dim=1,
             keepdim=True,
         )
+        # return -torch.norm(
+        #     predicted_states[:, 4:5] - 1,
+        #     p=2,
+        #     dim=1,
+        #     keepdim=True,
+        # )
 
 
 class HandCylinderXYPusher2DEnv(MultitaskPusher2DEnv):
