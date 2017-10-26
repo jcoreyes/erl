@@ -284,8 +284,7 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
         if self.task == 'lego':
             return self.desired
         else:
-            goal_state = self.sample_goal_states(1)[0]
-            return self.modify_goal_state_for_rollout(goal_state)
+            return super().sample_goal_state_for_rollout()
 
     def sample_actions(self, batch_size):
         return np.random.uniform(JOINT_VALUE_LOW['torque'], JOINT_VALUE_HIGH['torque'], (batch_size, 7))
@@ -312,16 +311,26 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
         if self.end_effector_experiment_total or self.end_effector_experiment_position:
             obsSets = [path["observations"] for path in paths]
             positions = []
+            last_positions = []
             for obsSet in obsSets:
                 for observation in obsSet:
                     positions.append(observation[21:24])
+ #               last_positions.append(obsSet[-1][21:24])
             positions = np.array(positions)
+   #         last_positions = np.array(last_positions)
             desired_positions = goal_states
             position_distances = linalg.norm(positions - desired_positions, axis=1)
+#            last_position_distances = linalg.norm(last_positions - desired_positions, axis=1)
+
             statistics.update(self._statistics_from_observations(
                 position_distances,
                 stat_prefix,
                 'Distance from Desired End Effector Position'
             ))
+#            statistics.update(self._statistics_from_observations(
+#                last_position_distances,
+#                stat_prefix,
+#                'Final Distance from Desired End Effector Position'
+#            ))
         for key, value in statistics.items():
             logger.record_tabular(key, value)

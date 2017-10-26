@@ -47,7 +47,7 @@ def main(dataset_path, only_load_buffer=False, pause_at_end=False):
 
     obs_dim = obs.shape[-1]
     action_dim = actions.shape[-1]
-
+    import ipdb; ipdb.set_trace()
     """
     Print general statistics
     """

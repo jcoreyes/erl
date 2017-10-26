@@ -1,8 +1,5 @@
 import argparse
-
-import joblib
 from torch.nn import functional as F
-
 import railrl.torch.pytorch_util as ptu
 from railrl.algos.state_distance.state_distance_q_learning import (
     StateDistanceQLearning,
@@ -116,7 +113,66 @@ if __name__ == '__main__':
     # algo_class = VectorizedDeltaTauSdql  # <-- should work well enough
     algo_class = VectorizedTauSdql # <-- Try this if Delta version does not work
     replay_buffer_size = 200000
-    variant = dict(
+    reaching_task_variant = dict(
+        algo_params=dict(
+            num_epochs=60,
+            num_steps_per_epoch=1000,
+            num_steps_per_eval=1000,
+            num_updates_per_env_step=1,
+            use_soft_update=True,
+            tau=0.001,
+            batch_size=64,
+            discount=algo_class_to_discount[algo_class],
+            sample_train_goals_from='her',
+            sample_rollout_goals_from='replay_buffer',
+            sample_discount=True,
+            qf_weight_decay=0.,
+            max_path_length=max_path_length,
+            replay_buffer_size=replay_buffer_size,
+            prob_goal_state_is_next_state=0,
+            termination_threshold=0,
+            render=args.render,
+            save_replay_buffer=True,
+            sparse_reward=algo_class_to_sparse_reward[algo_class],
+            cycle_taus_for_rollout=True,
+            collect_data=False,
+        ),
+        qf_params=dict(
+            hidden_sizes=[300, 300],
+            hidden_activation=F.softplus,
+        ),
+        policy_params=dict(
+            fc1_size=300,
+            fc2_size=300,
+        ),
+        normalize_params=dict(),
+        sampler_es_class=OUStrategy,
+        sampler_es_params=dict(
+            theta=0.1,
+            max_sigma=0.25,
+            min_sigma=0.25,
+        ),
+        algo_class=algo_class,
+        qf_class=algo_class_to_qf_class[algo_class],
+        her_replay_buffer_params=dict(
+            max_size=replay_buffer_size,
+            num_goals_to_sample=4,
+            goal_sample_strategy='store',
+        ),
+        env_params={
+                      'arm_name': 'right',
+                      'safety_box': True,
+                      'loss': 'huber',
+                      'huber_delta': 10,
+                      'safety_force_magnitude': 7,
+                      'temp': 15,
+                      'remove_action': False,
+                      'experiment': experiments[2],
+                      'reward_magnitude': 10,
+                      'use_safety_checks': False,
+            },
+    )
+    lego_block_task_variant = dict(
         algo_params=dict(
             num_epochs=15,
             num_steps_per_epoch=1000,
@@ -175,14 +231,14 @@ if __name__ == '__main__':
                       'use_safety_checks': False,
             },
     )
-    for i in range(1):
-        algo_class = variant['algo_class']
+    for i in range(5):
+        algo_class = reaching_task_variant['algo_class']
         run_experiment(
             experiment,
             seed=random.randint(0, 666),
-            exp_prefix="sdql-sawyer-goal-test",
+            exp_prefix="sdql-sawyer-final",
             mode="local",
-            variant=variant,
+            variant=reaching_task_variant,
             exp_id=0,
             use_gpu=use_gpu,
             snapshot_mode="last",
