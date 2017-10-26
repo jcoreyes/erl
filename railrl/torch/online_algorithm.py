@@ -237,7 +237,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                 self.training_mode(False)
 
             train_time = time.time() - start_time
-            self.offline_evaluate(epoch)
+            self._try_to_offline_eval(epoch)
             if self._can_train():
                 logger.log("Training Time: {0}".format(train_time))
             else:
@@ -270,6 +270,20 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                 logger.log("Eval Time: {0}".format(time.time() - start_time))
             else:
                 logger.log("Skipping eval for now.")
+
+    def _try_to_offline_eval(self, epoch):
+        start_time = time.time()
+        self.offline_evaluate()
+        params = self.get_epoch_snapshot(epoch)
+        logger.save_itr_params(epoch, params)
+        table_keys = get_table_key_set(logger)
+        if self._old_table_keys is not None:
+            assert table_keys == self._old_table_keys, (
+                "Table keys cannot change from iteration to iteration."
+            )
+        self._old_table_keys = table_keys
+        logger.dump_tabular(with_prefix=False, with_timestamp=False)
+        logger.log("Eval Time: {0}".format(time.time() - start_time))
 
     def get_extra_data_to_save(self, epoch):
         """
