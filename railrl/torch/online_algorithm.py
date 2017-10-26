@@ -92,7 +92,9 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             sample_with_training_env=False,
             epoch_discount_schedule=None,
             eval_sampler=None,
+            collect_data=False,
     ):
+        self.collect_data = collect_data
         self.training_env = pickle.loads(pickle.dumps(env))
         self.exploration_policy = exploration_policy
         self.num_epochs = num_epochs
@@ -245,24 +247,29 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
     def _try_to_eval(self, exploration_paths, epoch):
         if len(exploration_paths) == 0:
             exploration_paths = [self._current_path.get_all_stacked()]
-        if self._can_evaluate(exploration_paths):
-            start_time = time.time()
-            self.evaluate(epoch, exploration_paths)
-            params = self.get_epoch_snapshot(epoch)
-            logger.save_itr_params(epoch, params)
+        if self.collect_data:
             save_extra_data_to_snapshot_dir(
                 self.get_extra_data_to_save(epoch),
             )
-            table_keys = get_table_key_set(logger)
-            if self._old_table_keys is not None:
-                assert table_keys == self._old_table_keys, (
-                    "Table keys cannot change from iteration to iteration."
-                )
-            self._old_table_keys = table_keys
-            logger.dump_tabular(with_prefix=False, with_timestamp=False)
-            logger.log("Eval Time: {0}".format(time.time() - start_time))
         else:
-            logger.log("Skipping eval for now.")
+            if self._can_evaluate(exploration_paths):
+                start_time = time.time()
+                self.evaluate(epoch, exploration_paths)
+                params = self.get_epoch_snapshot(epoch)
+                logger.save_itr_params(epoch, params)
+                save_extra_data_to_snapshot_dir(
+                    self.get_extra_data_to_save(epoch),
+                )
+                table_keys = get_table_key_set(logger)
+                if self._old_table_keys is not None:
+                    assert table_keys == self._old_table_keys, (
+                        "Table keys cannot change from iteration to iteration."
+                    )
+                self._old_table_keys = table_keys
+                logger.dump_tabular(with_prefix=False, with_timestamp=False)
+                logger.log("Eval Time: {0}".format(time.time() - start_time))
+            else:
+                logger.log("Skipping eval for now.")
 
     def get_extra_data_to_save(self, epoch):
         """

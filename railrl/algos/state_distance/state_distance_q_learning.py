@@ -284,7 +284,6 @@ class StateDistanceQLearning(DDPG):
                 :param epoch: The epoch number.
                 :param exploration_paths: List of dicts, each representing a path.
                 """
-        logger.log("Collecting samples for evaluation")
         statistics = OrderedDict()
         train_batch = self.get_batch(training=True)
         validation_batch = self.get_batch(training=False)

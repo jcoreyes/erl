@@ -118,7 +118,7 @@ if __name__ == '__main__':
     replay_buffer_size = 200000
     variant = dict(
         algo_params=dict(
-            num_epochs=50,
+            num_epochs=10, #5 epochs = 10 mins (with no eval)
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             num_updates_per_env_step=1,
@@ -171,7 +171,7 @@ if __name__ == '__main__':
                       'temp': 15,
                       'remove_action': False,
                       'experiment': experiments[2],
-                      'reward_magnitude': 1,
+                      'reward_magnitude': 10,
                       'use_safety_checks': False,
             },
     )
