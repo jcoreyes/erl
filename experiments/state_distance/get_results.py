@@ -142,6 +142,11 @@ env_class_to_goal_dim_weights = {
         (0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 1, 1, 1, 1),
         (0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 5, 5, 1, 1),
     ],
+    GoalXVelHalfCheetah: [
+        (.1,),
+        (1,),
+        (10,),
+    ]
 }
 
 
@@ -160,7 +165,7 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "half-cheetah-only-xvel-longer-again-with-statistics"
+    exp_prefix = "get-results-half-cheetah-h100"
     run_mode = 'grid'
     snapshot_mode = "gap_and_last"
 
@@ -171,7 +176,7 @@ if __name__ == '__main__':
     if mode != "local":
         use_gpu = False
 
-    max_path_length = 1000
+    max_path_length = 100
     max_tau = 10
     # noinspection PyTypeChecker
     algo_class = VectorizedTauSdql
@@ -253,16 +258,17 @@ if __name__ == '__main__':
             GoalXVelHalfCheetah,
         ]:
             search_space = {
-                # 'algo_params.goal_dim_weights': env_class_to_goal_dim_weights[env_class],
+                'algo_params.goal_dim_weights': env_class_to_goal_dim_weights[env_class],
                 'env_class': [env_class],
                 'epoch_discount_schedule_params.value': [
                     # 1,
-                    5,
+                    # 5,
+                    10,
                     15,
-                    # 30,
+                    30,
                 ],
                 'algo_params.num_updates_per_env_step': [
-                    5, 1
+                    25, 5, 1
                 ]
             }
             sweeper = hyp.DeterministicHyperparameterSweeper(
