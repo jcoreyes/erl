@@ -20,25 +20,31 @@ our_criteria = {
     'algo_params.goal_dim_weights': [1, 1, 1, 1],
     'epoch_discount_schedule_params.value': 10,
 }
+her_dense_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-27-her-baseline-shaped-rewards-no-clipping-300-300-right-discount-and-tau/"
+her_dense_criteria = {
+    'algo_params.num_updates_per_env_step': 1,
+    'algo_params.scale_reward': 1,
+    'env_class.$class':
+        "railrl.envs.multitask.pusher2d.CylinderXYPusher2DEnv"
+}
 
 ddpg_exp = Experiment(ddpg_path)
 mb_exp = Experiment(mb_path)
 our_exp = Experiment(our_path)
+her_dense_exp = Experiment(her_dense_path)
 
 ddpg_trials = ddpg_exp.get_trials(ddpg_criteria)
 mb_trials = mb_exp.get_trials(mb_criteria)
 our_trials = our_exp.get_trials(our_criteria)
+her_dense_trials = her_dense_exp.get_trials(her_dense_criteria)
 
-print(len(ddpg_trials))
-print(len(mb_trials))
-print(len(our_trials))
-
-key = 'Final_Euclidean_distance_to_goal_Mean'
+base_key = 'Final_Euclidean_distance_to_goal_Mean'
 plt.figure()
-for trials, name in [
-    (ddpg_trials, 'DDPG'),
-    (mb_trials, 'Model Based'),
-    (our_trials, 'TDM'),
+for trials, name, key in [
+    (ddpg_trials, 'DDPG', base_key),
+    (mb_trials, 'Model Based', base_key),
+    (our_trials, 'TDM', base_key),
+    (her_dense_trials, 'HER - Dense', 'test_'+base_key),
 ]:
     all_values = []
     min_len = np.inf
@@ -62,10 +68,10 @@ her_data = her_data[:, :50]
 her_mean = np.mean(her_data, axis=0)
 her_std = np.mean(her_data, axis=0)
 epochs = 2 * np.arange(0, len(her_mean))
-plt.fill_between(epochs, her_mean - her_std, her_mean + her_std, alpha=0.1)
-plt.plot(epochs, her_mean, label="HER")
+# plt.fill_between(epochs, her_mean - her_std, her_mean + her_std, alpha=0.1)
+# plt.plot(epochs, her_mean, label="HER - Sparse")
 # for run in her_data:
-#     plt.plot(epochs, run, label="HER")
+#     plt.plot(epochs, run, label="HER - Sparse")
 
 # plt.xscale('log')
 plt.xlabel("Environment Samples (x1000)")

@@ -16,14 +16,23 @@ mb_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-26-abhishek-mb-c
 mb_criteria = None
 our_path = "/home/vitchyr/git/rllab-rail/railrl/data/local/10-26-sdql-cheetah-xvel/10-26-sdql-cheetah-xvel_2017_10_26_16_11_42_0000--s-5011/"
 our_criteria = None
+her_dense_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-27-her-baseline-shaped-rewards-no-clipping-300-300-right-discount-and-tau/"
+her_dense_criteria = {
+    'algo_params.num_updates_per_env_step': 1,
+    'algo_params.scale_reward': 10,
+    'env_class.$class':
+        "railrl.envs.multitask.half_cheetah.GoalXVelHalfCheetah"
+}
 
 ddpg_exp = Experiment(ddpg_path)
 mb_exp = Experiment(mb_path)
 our_exp = Experiment(our_path)
+her_dense_exp = Experiment(her_dense_path)
 
 ddpg_trials = ddpg_exp.get_trials(ddpg_criteria)
 mb_trials = mb_exp.get_trials(mb_criteria)
 our_trials = our_exp.get_trials(our_criteria)
+her_dense_trials = her_dense_exp.get_trials(her_dense_criteria)
 
 print(len(ddpg_trials))
 print(len(mb_trials))
@@ -41,6 +50,7 @@ for trials, name, key in [
     (ddpg_trials, 'DDPG', 'Final_xvel_errors_Mean'),
     (mb_trials, 'Model Based', 'Final_xvel_errors_Mean'),
     (our_trials, 'TDM', 'test_Multitask_distance_to_goal_Mean'),
+    (her_dense_trials, 'HER - dense', 'test_Final_xvel_errors_Mean'),
 ]:
     all_values = []
     min_len = np.inf
@@ -68,8 +78,8 @@ her_data = her_data[:, :100]
 her_mean = np.mean(her_data, axis=0)
 her_std = np.mean(her_data, axis=0)
 epochs = 2 * np.arange(0, len(her_mean))
-plt.fill_between(epochs, her_mean - her_std, her_mean + her_std, alpha=0.1)
-plt.plot(epochs, her_mean, label="HER")
+# plt.fill_between(epochs, her_mean - her_std, her_mean + her_std, alpha=0.1)
+# plt.plot(epochs, her_mean, label="HER")
 # for run in her_data:
 #     plt.plot(epochs, run, label="HER")
 
