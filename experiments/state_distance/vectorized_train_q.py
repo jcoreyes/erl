@@ -198,8 +198,8 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "sdql-reacher-get-long-results"
-    run_mode = 'grid'
+    exp_prefix = "sdql-reacher-vectorized-vs-not-again"
+    # run_mode = 'grid'
     # snapshot_mode = "gap_and_last"
 
     version = "na"
@@ -210,7 +210,7 @@ if __name__ == '__main__':
         use_gpu = False
 
     max_path_length = 100
-    max_tau = 10
+    max_tau = 25
     # noinspection PyTypeChecker
     algo_class = VectorizedTauSdql
     # algo_class = VectorizedDeltaTauSdql
@@ -234,8 +234,8 @@ if __name__ == '__main__':
     variant = dict(
         version=version,
         algo_params=dict(
-            num_epochs=101,
-            num_steps_per_epoch=1000,
+            num_epochs=1001,
+            num_steps_per_epoch=100,
             num_steps_per_eval=1000,
             num_updates_per_env_step=25,
             use_soft_update=True,
@@ -318,19 +318,19 @@ if __name__ == '__main__':
     )
     if run_mode == 'grid':
         search_space = {
-            'raw_explore_policy': [
-                'oc',
-                'ddpg',
-            ],
+            # 'raw_explore_policy': [
+            #     'oc',
+            #     'ddpg',
+            # ],
             # 'oc_policy_params.reward_function': [
             #     FullStatePusher2DEnv_move_hand_to_target_position_oc_reward_on_goals,
             #     FullStatePusher2DEnv_move_joints_to_target_joint,
             # ],
-            # 'algo_class': [
-            #     HorizonFedStateDistanceQLearning,
-            #     VectorizedDeltaTauSdql,
-                # VectorizedTauSdql,
-            # ],
+            'algo_class': [
+                HorizonFedStateDistanceQLearning,
+                # VectorizedDeltaTauSdql,
+                VectorizedTauSdql,
+            ],
             # 'qf_params.hidden_sizes': [
             #     [64, 64],
             #     [300, 300],
@@ -340,7 +340,7 @@ if __name__ == '__main__':
                 # GoalConditionedDeltaModel,
                 # TauBinaryGoalConditionedDeltaModel,
             # ],
-            # 'algo_params.goal_dim_weights': [
+            'algo_params.goal_dim_weights': [
                 # (.01, .01, 1, 1),
                 # (.1, .1, 1, 1),
                 # (0, 0, 1, 1),
@@ -349,12 +349,13 @@ if __name__ == '__main__':
                 # (10, 10, 10, 10),
                 # (1, 1, 0.1, 0.1),
                 # (1, 1, 0.01, 0.01),
-                # (1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+                (1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+                (5, 5, 5, 5, 5, 5, 5, 5, 5, 5),
                 # (0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 5, 5, 1, 1),
-                # (0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 1, 1, 1, 1),
+                (0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 1, 1, 1, 1),
                 # (0, 0, 0, 0, 0, 0, 1, 1, 1, 1),
                 # (0, 0, 0, 0, 0, 0, 1, 1, .1, .1),
-            # ],
+            ],
             # 'env_class': [
                 # GoalStateSimpleStateReacherEnv,
                 # FullStatePusher2DEnv,
@@ -367,9 +368,9 @@ if __name__ == '__main__':
                 # CylinderXYPusher2DEnv,
             # ],
             'epoch_discount_schedule_params.value': [
-                5,
+                1,
                 15,
-                25,
+                30,
             ],
             # 'algo_params.tau': [
             #     0.1,
