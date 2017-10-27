@@ -163,9 +163,9 @@ if __name__ == '__main__':
     run_mode = "none"
     snapshot_mode = "last"
 
-    n_seeds = 3
+    n_seeds = 5
     mode = "ec2"
-    exp_prefix = "get-results-half-cheetah-h100"
+    exp_prefix = "get-results-handxyxy-best-hp-no-oc-sampling-nspe1000"
     run_mode = 'grid'
     snapshot_mode = "gap_and_last"
 
@@ -184,7 +184,7 @@ if __name__ == '__main__':
     variant = dict(
         version=version,
         algo_params=dict(
-            num_epochs=1001,
+            num_epochs=101,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             num_updates_per_env_step=5,
@@ -218,7 +218,7 @@ if __name__ == '__main__':
         ),
         raw_explore_policy='oc',
         oc_policy_params=dict(
-            sample_size=10000,
+            sample_size=1,
         ),
         qf_params=dict(
             hidden_sizes=[300, 300],
@@ -253,19 +253,18 @@ if __name__ == '__main__':
     if run_mode == 'grid':
         for env_class in [
             # Reacher7DofGoalStateEverything,
-            # HandCylinderXYPusher2DEnv,
+            HandCylinderXYPusher2DEnv,
             # FullStatePusher2DEnv,
-            GoalXVelHalfCheetah,
+            # GoalXVelHalfCheetah,
         ]:
             search_space = {
-                'algo_params.goal_dim_weights': env_class_to_goal_dim_weights[env_class],
+                # 'algo_params.goal_dim_weights': env_class_to_goal_dim_weights[env_class],
                 'env_class': [env_class],
                 'epoch_discount_schedule_params.value': [
-                    # 1,
-                    # 5,
-                    10,
+                    1,
+                    5,
                     15,
-                    30,
+                    50,
                 ],
                 'algo_params.num_updates_per_env_step': [
                     25, 5, 1
