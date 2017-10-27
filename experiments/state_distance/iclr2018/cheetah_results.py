@@ -14,8 +14,13 @@ ddpg_criteria = {
 }
 mb_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-26-abhishek-mb-cheetah-target-reset/"
 mb_criteria = None
-our_path = "/home/vitchyr/git/rllab-rail/railrl/data/local/10-26-sdql-cheetah-xvel/10-26-sdql-cheetah-xvel_2017_10_26_16_11_42_0000--s-5011/"
-our_criteria = None
+# our_path = "/home/vitchyr/git/rllab-rail/railrl/data/local/10-26-sdql-cheetah-xvel/10-26-sdql-cheetah-xvel_2017_10_26_16_11_42_0000--s-5011/"
+# our_criteria = None
+our_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-27-get-results-half-cheetah-h100/"
+our_criteria = {
+    'algo_params.num_updates_per_env_step': 5,
+    'epoch_discount_schedule_params.value': 10,
+}
 her_dense_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-27-her-baseline-shaped-rewards-no-clipping-300-300-right-discount-and-tau/"
 her_dense_criteria = {
     'algo_params.num_updates_per_env_step': 1,
