@@ -2,19 +2,21 @@ from railrl.misc.data_processing import get_all_csv
 import matplotlib.pyplot as plt
 import numpy as np
 
-naf_path = "/home/vitchyr/git/rllab-rail/railrl/data/papers/iclr2018/sawyer/naf/"
-ddpg_path = "/home/vitchyr/git/rllab-rail/railrl/data/papers/iclr2018/sawyer/ddpg"
+# naf_path = "/home/vitchyr/git/rllab-rail/railrl/data/papers/iclr2018/sawyer/naf/"
+ddpg_path = "/home/vitchyr/git/rllab-rail/railrl/data/papers/iclr2018/sawyer" \
+            "/ddpg-new"
 tdm_path = "/home/vitchyr/git/rllab-rail/railrl/data/papers/iclr2018/sawyer/tdm/"
 
 ddpg_csvs = get_all_csv(ddpg_path)
-naf_csvs = get_all_csv(naf_path)
+# naf_csvs = get_all_csv(naf_path)
 tdm_csvs = get_all_csv(tdm_path)
 
 plt.figure()
 for trials, name, key in [
-    (ddpg_csvs, 'DDPG', 'Test_Last_N_Step_Distance_from_Desired_End_Effector_Position_Mean'),
-    (naf_csvs, 'NAF',
-     'Test_Last_N_Step_Distance_from_Desired_End_Effector_Position_Mean'),
+    (ddpg_csvs, 'DDPG',
+     'Test_Distance_from_Desired_End_Effector_Position_Mean'),
+    # (naf_csvs, 'NAF',
+    #  'Test_Last_N_Step_Distance_from_Desired_End_Effector_Position_Mean'),
     (tdm_csvs, 'TDM',
      'Test_Distance_from_Desired_End_Effector_Position_Mean'),
 ]:

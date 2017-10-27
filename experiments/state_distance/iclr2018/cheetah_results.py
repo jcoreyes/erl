@@ -59,8 +59,6 @@ for trials, name, key in [
     mean = np.mean(costs, axis=0)
     std = np.std(costs, axis=0)
     epochs = np.arange(0, len(costs[0]))
-    if name == 'TDM':
-        epochs = epochs / 10
     plt.fill_between(epochs, mean - std, mean + std, alpha=0.1)
     plt.plot(epochs, mean, label=name)
 

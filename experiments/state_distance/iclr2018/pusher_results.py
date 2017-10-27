@@ -58,7 +58,7 @@ for trials, name in [
 
 
 # Stop at 200 epochs
-her_data = her_data[:, :100]
+her_data = her_data[:, :50]
 her_mean = np.mean(her_data, axis=0)
 her_std = np.mean(her_data, axis=0)
 epochs = 2 * np.arange(0, len(her_mean))
