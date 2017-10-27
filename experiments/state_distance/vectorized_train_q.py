@@ -198,7 +198,7 @@ if __name__ == '__main__':
 
     # n_seeds = 3
     # mode = "ec2"
-    # exp_prefix = "sdql-try-push2d-xyxy-again"
+    exp_prefix = "sdql-cheetah-xvel"
     # run_mode = 'grid'
     # snapshot_mode = "gap_and_last"
 
