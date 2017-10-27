@@ -198,7 +198,7 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "sdql-reacher-vectorized-vs-none"
+    exp_prefix = "sdql-reacher-get-long-results"
     run_mode = 'grid'
     # snapshot_mode = "gap_and_last"
 
@@ -235,7 +235,7 @@ if __name__ == '__main__':
         version=version,
         algo_params=dict(
             num_epochs=101,
-            num_steps_per_epoch=100,
+            num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             num_updates_per_env_step=25,
             use_soft_update=True,
@@ -318,19 +318,19 @@ if __name__ == '__main__':
     )
     if run_mode == 'grid':
         search_space = {
-            # 'raw_explore_policy': [
-            #     'oc',
-            #     'ddpg',
-            # ],
+            'raw_explore_policy': [
+                'oc',
+                'ddpg',
+            ],
             # 'oc_policy_params.reward_function': [
             #     FullStatePusher2DEnv_move_hand_to_target_position_oc_reward_on_goals,
             #     FullStatePusher2DEnv_move_joints_to_target_joint,
             # ],
-            'algo_class': [
-                HorizonFedStateDistanceQLearning,
-                VectorizedDeltaTauSdql,
+            # 'algo_class': [
+            #     HorizonFedStateDistanceQLearning,
+            #     VectorizedDeltaTauSdql,
                 # VectorizedTauSdql,
-            ],
+            # ],
             # 'qf_params.hidden_sizes': [
             #     [64, 64],
             #     [300, 300],
@@ -366,23 +366,23 @@ if __name__ == '__main__':
                 # MultitaskPusher2DEnv,
                 # CylinderXYPusher2DEnv,
             # ],
-            # 'epoch_discount_schedule_params.value': [
-            #     1,
-            #     5,
-            #     15,
-            # ],
+            'epoch_discount_schedule_params.value': [
+                5,
+                15,
+                25,
+            ],
             # 'algo_params.tau': [
             #     0.1,
             #     0.01,
             #     0.001,
             # ],
-            # 'eval_with_oc_policy': [
-            #     False,
-            #     True,
-            # ],
-            # 'algo_params.num_updates_per_env_step': [
-            #     5, 25
-            # ],
+            'eval_with_oc_policy': [
+                False,
+                True,
+            ],
+            'algo_params.num_updates_per_env_step': [
+                5, 25
+            ],
             # 'algo_params.sl_grad_weight': [
             #     0.01,
             #     0.1,
