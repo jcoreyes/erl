@@ -61,7 +61,7 @@ class HER(DDPG):
         return self.env.sample_goal_state_for_rollout()
 
     def _sample_discount_for_rollout(self):
-        return self.discount
+        return 0  # Her does not vary the discount.
 
     def get_batch(self, training=True):
         batch = super().get_batch(training=training)
@@ -90,7 +90,7 @@ class HER(DDPG):
         obs = batch['observations']
         actions = batch['actions']
         next_obs = batch['next_observations']
-        goals = self.env.convert_obs_to_goal_states(batch['goal_states'])
+        goals = batch['goal_states']
 
         """
         Policy operations.

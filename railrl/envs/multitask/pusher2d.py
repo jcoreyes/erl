@@ -388,13 +388,14 @@ class CylinderXYPusher2DEnv(MultitaskPusher2DEnv):
         hand_pos = observations[:, 6:8]
         cylinder_pos = observations[:, 8:10]
         target_pos = goal_states
-        hand_to_puck_dist = np.linalg.norm(
+        hand_to_puck_dist = torch.norm(
             hand_pos - cylinder_pos,
-            axis=1,
-            ord=2
+            dim=1,
+            p=2,
+            keepdim=True,
         )
         costs = hand_to_puck_dist
-        hand_is_close_to_puck = hand_to_puck_dist <= 0.1
+        hand_is_close_to_puck = (hand_to_puck_dist <= 0.1).float()
         puck_to_goal_dist = torch.norm(
             cylinder_pos - target_pos,
             dim=1,

@@ -94,9 +94,9 @@ if __name__ == '__main__':
     exp_prefix = "dev-baseline-her"
     run_mode = "none"
 
-    # n_seeds = 3
-    # mode = "ec2"
-    # exp_prefix = "her-baseline-reacher-terminate-when-goal-reached"
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "her-baseline-shaped-rewards-2"
     run_mode = 'grid'
 
     version = "na"
@@ -114,10 +114,10 @@ if __name__ == '__main__':
             num_epochs=1001,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
-            num_updates_per_env_step=10,
+            num_updates_per_env_step=1,
             use_soft_update=True,
             tau=0.001,
-            batch_size=500,
+            batch_size=64,
             discount=5,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
@@ -163,9 +163,18 @@ if __name__ == '__main__':
             #     'store',
             # ],
             'env_class': [
-                Reacher7DofXyzGoalState,
-                HandCylinderXYPusher2DEnv,
                 CylinderXYPusher2DEnv,
+                GoalXVelHalfCheetah,
+                Reacher7DofXyzGoalState,
+            ],
+            'algo_params.num_updates_per_env_step': [
+                1, 5,
+            ],
+            # 'algo_params.tau': [
+            #     1e-2, 1e-3,
+            # ],
+            'algo_params.scale_reward': [
+                10, 1, 0.1,
             ],
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
