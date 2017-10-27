@@ -377,3 +377,29 @@ class CylinderXYPusher2DEnv(MultitaskPusher2DEnv):
         qvel = self.model.data.qvel.flat.copy()
         qpos[-4:-2] = self._target_cylinder_position
         self.set_state(qpos, qvel)
+
+    def compute_her_reward_pytorch(
+            self,
+            observations,
+            actions,
+            next_observations,
+            goal_states,
+    ):
+        hand_pos = observations[:, 6:8]
+        cylinder_pos = observations[:, 8:10]
+        target_pos = goal_states
+        hand_to_puck_dist = np.linalg.norm(
+            hand_pos - cylinder_pos,
+            axis=1,
+            ord=2
+        )
+        costs = hand_to_puck_dist
+        hand_is_close_to_puck = hand_to_puck_dist <= 0.1
+        puck_to_goal_dist = torch.norm(
+            cylinder_pos - target_pos,
+            dim=1,
+            p=2,
+            keepdim=True,
+        )
+        costs = costs + (puck_to_goal_dist - 2) * hand_is_close_to_puck
+        return - costs

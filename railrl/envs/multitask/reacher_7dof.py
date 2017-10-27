@@ -111,6 +111,24 @@ class Reacher7DofXyzGoalState(Reacher7DofMultitaskEnv):
     def oc_reward(states, goals):
         return - torch.norm(states[:, -3:] - goals, p=2, dim=1)
 
+    def compute_her_reward_pytorch(
+            self,
+            observations,
+            actions,
+            next_observations,
+            goal_states,
+    ):
+        hand_pos = observations[:, 14:17]
+        target_pos = goal_states
+        costs = torch.norm(
+            hand_pos - target_pos,
+            dim=1,
+            p=2,
+            keepdim=True,
+        )
+        return - costs
+
+
 
 class Reacher7DofAngleGoalState(Reacher7DofMultitaskEnv):
     """

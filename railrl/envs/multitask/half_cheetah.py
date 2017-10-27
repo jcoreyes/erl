@@ -139,3 +139,20 @@ class GoalXVelHalfCheetah(HalfCheetahEnv, MultitaskEnv):
 
     def oc_reward_on_goals(self, goals_predicted, goals, current_states):
         return - torch.norm(goals_predicted - goals, dim=1, p=2, keepdim=True)
+
+    def compute_her_reward_pytorch(
+            self,
+            observations,
+            actions,
+            next_observations,
+            goal_states,
+    ):
+        xvels = observations[:, 8:9]
+        target_xvels = goal_states
+        costs = torch.norm(
+            xvels - target_xvels,
+            dim=1,
+            p=2,
+            keepdim=True,
+        )
+        return - costs

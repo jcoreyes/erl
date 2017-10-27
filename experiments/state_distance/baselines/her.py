@@ -7,9 +7,11 @@ import railrl.torch.pytorch_util as ptu
 from railrl.algos.state_distance.her import HER
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
-from railrl.envs.multitask.reacher_env import (
-    XyMultitaskSimpleStateReacherEnv,
-    JointAngleMultitaskSimpleStateReacherEnv)
+from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
+from railrl.envs.multitask.pusher2d import HandCylinderXYPusher2DEnv, \
+    CylinderXYPusher2DEnv
+from railrl.envs.multitask.reacher_7dof import Reacher7DofGoalStateEverything, \
+    Reacher7DofXyzGoalState
 from railrl.envs.wrappers import convert_gym_space, normalize_box
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
@@ -95,7 +97,7 @@ if __name__ == '__main__':
     # n_seeds = 3
     # mode = "ec2"
     # exp_prefix = "her-baseline-reacher-terminate-when-goal-reached"
-    # run_mode = 'grid'
+    run_mode = 'grid'
 
     version = "na"
     snapshot_mode = "last"
@@ -139,15 +141,8 @@ if __name__ == '__main__':
             num_goals_to_sample=4,
             goal_sample_strategy='store',
         ),
-        env_class=JointAngleMultitaskSimpleStateReacherEnv,
         env_params=dict(),
-        normalize_params=dict(
-            # TODO(murtaz): figure out good values
-            # Give it list not np array!
-            # std=[1,1,1,1,1,20,20,20,20,20]
-            # obs_mean=None,
-            # obs_std=None,
-        ),
+        normalize_params=dict(),
         es_class=OUStrategy,
         es_params=dict(
             theta=0.1,
@@ -163,9 +158,14 @@ if __name__ == '__main__':
     )
     if run_mode == 'grid':
         search_space = {
-            'replay_buffer_params.goal_sample_strategy': [
-                'online',
-                'store',
+            # 'replay_buffer_params.goal_sample_strategy': [
+            #     'online',
+            #     'store',
+            # ],
+            'env_class': [
+                Reacher7DofXyzGoalState,
+                HandCylinderXYPusher2DEnv,
+                CylinderXYPusher2DEnv,
             ],
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(

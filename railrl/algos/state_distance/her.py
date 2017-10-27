@@ -67,15 +67,21 @@ class HER(DDPG):
         batch = super().get_batch(training=training)
         # The original HER paper says to use obs - goal state, but that doesn't
         # really make sense
-        diff = torch.abs(
-            self.env.convert_obs_to_goal_states(batch['next_observations'])
-            - self.env.convert_obs_to_goal_states(batch['goal_states'])
+        # diff = torch.abs(
+        #     self.env.convert_obs_to_goal_states(batch['next_observations'])
+        #     - self.env.convert_obs_to_goal_states(batch['goal_states'])
+        # )
+        # diff_sum = diff.sum(dim=1, keepdim=True)
+        # goal_not_reached = (diff_sum >= self.epsilon).float()
+        # batch['rewards'] = - goal_not_reached
+        # if self.terminate_when_goal_reached:
+        #     batch['terminals'] = 1 - (1 - batch['terminals']) * goal_not_reached
+        batch['rewards'] = self.env.compute_her_reward_pytorch(
+            batch['observations'],
+            batch['actions'],
+            batch['next_observations'],
+            batch['goal_states'],
         )
-        diff_sum = diff.sum(dim=1, keepdim=True)
-        goal_not_reached = (diff_sum >= self.epsilon).float()
-        batch['rewards'] = - goal_not_reached
-        if self.terminate_when_goal_reached:
-            batch['terminals'] = 1 - (1 - batch['terminals']) * goal_not_reached
         return batch
 
     def get_train_dict(self, batch):
@@ -191,5 +197,25 @@ class HER(DDPG):
             terminal,
             agent_info=agent_info,
             env_info=env_info,
-            goal_states=self.goal_state,
+            goal_state=self.goal_state,
+        )
+
+    def _handle_rollout_ending(
+            self,
+            n_steps_total,
+            final_obs,
+            terminal,
+            agent_info,
+            env_info,
+    ):
+        self._current_path.add_all(
+            final_observation=final_obs,
+            increment_path_length=False,
+        )
+        self.replay_buffer.terminate_episode(
+            final_obs,
+            terminal,
+            agent_info=agent_info,
+            env_info=env_info,
+            goal_state=self.goal_state,
         )
