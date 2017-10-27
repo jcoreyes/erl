@@ -196,9 +196,9 @@ if __name__ == '__main__':
     run_mode = "none"
     snapshot_mode = "last"
 
-    # n_seeds = 3
+    n_seeds = 3
     mode = "ec2"
-    exp_prefix = "sdql-pusher-xyxy-sweep-tau-scale-and-more"
+    exp_prefix = "sdql-reacher-vectorized-vs-none"
     run_mode = 'grid'
     # snapshot_mode = "gap_and_last"
 
@@ -223,10 +223,10 @@ if __name__ == '__main__':
     # env_class = GoalStateSimpleStateReacherEnv
     # env_class = GoalXYStateXYAndCosSinReacher2D
     # env_class = Reacher7DofFullGoalState
-    # env_class = Reacher7DofGoalStateEverything
+    env_class = Reacher7DofGoalStateEverything
     # env_class = HandXYPusher2DEnv
     # env_class = HandCylinderXYPusher2DEnv
-    env_class = GoalXVelHalfCheetah
+    # env_class = GoalXVelHalfCheetah
     # env_class = FullStatePusher2DEnv
     # env_class = FixedHandXYPusher2DEnv
     # env_class = CylinderXYPusher2DEnv
@@ -235,9 +235,9 @@ if __name__ == '__main__':
         version=version,
         algo_params=dict(
             num_epochs=101,
-            num_steps_per_epoch=1000,
+            num_steps_per_epoch=100,
             num_steps_per_eval=1000,
-            num_updates_per_env_step=5,
+            num_updates_per_env_step=25,
             use_soft_update=True,
             tau=0.001,
             batch_size=64,
@@ -265,13 +265,14 @@ if __name__ == '__main__':
             # goal_dim_weights=(1, 1, 1, 1),
             # goal_dim_weights=(0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 1, 1, 1, 1),
         ),
-        eval_with_oc_policy=True,
+        # eval_with_oc_policy=True,
+        eval_with_oc_policy=False,
         her_replay_buffer_params=dict(
             max_size=replay_buffer_size,
             num_goals_to_sample=4,
             goal_sample_strategy='store',
         ),
-        raw_explore_policy='oc',
+        raw_explore_policy='ddpg',
         oc_policy_params=dict(
             sample_size=10000,
             # reward_function=env_class.oc_reward_on_goals,
@@ -325,10 +326,11 @@ if __name__ == '__main__':
             #     FullStatePusher2DEnv_move_hand_to_target_position_oc_reward_on_goals,
             #     FullStatePusher2DEnv_move_joints_to_target_joint,
             # ],
-            # 'algo_class': [
-            #     VectorizedDeltaTauSdql,
-            #     VectorizedTauSdql,
-            # ],
+            'algo_class': [
+                HorizonFedStateDistanceQLearning,
+                VectorizedDeltaTauSdql,
+                # VectorizedTauSdql,
+            ],
             # 'qf_params.hidden_sizes': [
             #     [64, 64],
             #     [300, 300],
@@ -338,13 +340,13 @@ if __name__ == '__main__':
                 # GoalConditionedDeltaModel,
                 # TauBinaryGoalConditionedDeltaModel,
             # ],
-            'algo_params.goal_dim_weights': [
+            # 'algo_params.goal_dim_weights': [
                 # (.01, .01, 1, 1),
                 # (.1, .1, 1, 1),
                 # (0, 0, 1, 1),
-                (1, 1, 1, 1),
-                (.1, .1, .1, .1),
-                (10, 10, 10, 10),
+                # (1, 1, 1, 1),
+                # (.1, .1, .1, .1),
+                # (10, 10, 10, 10),
                 # (1, 1, 0.1, 0.1),
                 # (1, 1, 0.01, 0.01),
                 # (1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
@@ -352,35 +354,35 @@ if __name__ == '__main__':
                 # (0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 1, 1, 1, 1),
                 # (0, 0, 0, 0, 0, 0, 1, 1, 1, 1),
                 # (0, 0, 0, 0, 0, 0, 1, 1, .1, .1),
-            ],
-            'env_class': [
+            # ],
+            # 'env_class': [
                 # GoalStateSimpleStateReacherEnv,
                 # FullStatePusher2DEnv,
-                NoShapeHandCylinderXYPusher2DEnv,
-                HandCylinderXYPusher2DEnv,
+                # NoShapeHandCylinderXYPusher2DEnv,
+                # HandCylinderXYPusher2DEnv,
                 # Reacher7DofFullGoalState,
                 # Reacher7DofGoalStateEverything,
                 # JointOnlyPusherEnv,
                 # MultitaskPusher2DEnv,
                 # CylinderXYPusher2DEnv,
-            ],
-            'epoch_discount_schedule_params.value': [
-                1,
-                5,
-                15,
-            ],
-            'algo_params.tau': [
-                0.1,
-                0.01,
-                0.001,
-            ],
+            # ],
+            # 'epoch_discount_schedule_params.value': [
+            #     1,
+            #     5,
+            #     15,
+            # ],
+            # 'algo_params.tau': [
+            #     0.1,
+            #     0.01,
+            #     0.001,
+            # ],
             # 'eval_with_oc_policy': [
             #     False,
             #     True,
             # ],
-            'algo_params.num_updates_per_env_step': [
-                5, 25
-            ],
+            # 'algo_params.num_updates_per_env_step': [
+            #     5, 25
+            # ],
             # 'algo_params.sl_grad_weight': [
             #     0.01,
             #     0.1,
