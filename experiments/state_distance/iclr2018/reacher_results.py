@@ -1,10 +1,10 @@
 from railrl.misc.data_processing import Experiment
 import matplotlib.pyplot as plt
-import pandas as pd
-import seaborn as sns
 import numpy as np
 
 
+her_path = "/home/vitchyr/git/rllab-rail/railrl/data/papers/iclr2018/pusher2d/her-reacher/reacher_curve.npy"
+her_data = np.load(her_path)
 
 ddpg_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-25-ddpg" \
             "-reacher-pusher-baseline/"
@@ -62,6 +62,16 @@ for trials, name in [
     plt.fill_between(epochs, mean - std, mean + std, alpha=0.1)
     plt.plot(epochs, mean, label=name)
 
+
+# Stop at 200 epochs
+her_data = her_data[:, :100]
+her_mean = np.mean(her_data, axis=0)
+her_std = np.mean(her_data, axis=0)
+epochs = 2 * np.arange(0, len(her_mean))
+plt.fill_between(epochs, her_mean - her_std, her_mean + her_std, alpha=0.1)
+plt.plot(epochs, her_mean, label="HER")
+# for run in her_data:
+#     plt.plot(epochs, run, label="HER")
 
 # plt.xscale('log')
 plt.xlabel("Epoch (1000 steps)")
