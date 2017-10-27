@@ -41,6 +41,7 @@ def experiment(variant):
     paths = []
     for _ in range(num_rollouts):
         goal = env.sample_goal_state_for_rollout()
+        print("goal", goal)
         path = multitask_rollout(
             env,
             policy,
