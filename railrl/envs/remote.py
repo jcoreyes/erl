@@ -91,7 +91,6 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
     ):
         Serializable.quick_init(self, locals())
         super().__init__(env)
-        ray.init()
         set_serialization_mode_to_pickle(type(env))
         set_serialization_mode_to_pickle(type(policy))
         set_serialization_mode_to_pickle(type(exploration_policy))
