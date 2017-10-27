@@ -37,9 +37,9 @@ for trials, name, key in [
     plt.plot(epochs, mean, label=name)
 
 
-# plt.xscale('log')
-plt.xlabel("Epoch (1000 steps)")
+plt.xlabel("Environment Steps (x1000)")
 plt.ylabel("Mean Distance to Goal")
+plt.title(r"Mean Distance to Goal vs Environment Samples")
 plt.legend()
 plt.savefig('results/iclr2018/sawyer.jpg')
 plt.show()
