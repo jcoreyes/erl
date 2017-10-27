@@ -20,6 +20,16 @@ our_criteria = {
     'algo_params.goal_dim_weights': [1, 1, 1, 1],
     'epoch_discount_schedule_params.value': 10,
 }
+our_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-26-sdql-pusher-xyxy-sweep-tau-scale-and-more/"
+our_criteria = {
+    # 'env_class.$class':
+    #     "railrl.envs.multitask.pusher2d.HandCylinderXYPusher2DEnv",
+    'algo_params.goal_dim_weights': [1, 1, 1, 1],
+    'algo_params.num_updates_per_env_step': 25,
+    'algo_params.discount': 15,
+    'env_class.$class':
+        "railrl.envs.multitask.pusher2d.HandCylinderXYPusher2DEnv"
+}
 her_dense_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-27-her-baseline-shaped-rewards-no-clipping-300-300-right-discount-and-tau/"
 her_dense_criteria = {
     'algo_params.num_updates_per_env_step': 1,
@@ -43,7 +53,7 @@ plt.figure()
 for trials, name, key in [
     (ddpg_trials, 'DDPG', base_key),
     (mb_trials, 'Model Based', base_key),
-    (our_trials, 'TDM', base_key),
+    (our_trials, 'TDM', 'test_'+base_key),
     (her_dense_trials, 'HER - Dense', 'test_'+base_key),
 ]:
     all_values = []
