@@ -75,9 +75,7 @@ if __name__ == '__main__':
             'algo_params': dict(
                 batch_size=64,
                 num_epochs=100,
-                num_steps_per_epoch=1000,
                 max_path_length=max_path_length,
-                num_steps_per_eval=1000,
                 num_updates_per_env_step=10000,
             ),
         },

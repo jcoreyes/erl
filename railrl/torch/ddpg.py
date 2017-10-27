@@ -302,6 +302,7 @@ class DDPG(OnlineAlgorithm):
 
         self.log_diagnostics(test_paths)
 
+
     def offline_evaluate(self, epoch):
         logger.log("Collecting samples for evaluation")
         statistics = OrderedDict()

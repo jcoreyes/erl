@@ -160,27 +160,28 @@ if __name__ == '__main__':
             goal_sample_strategy='store',
         ),
         env_params={
-                      'arm_name': 'right',
-                      'safety_box': True,
-                      'loss': 'huber',
-                      'huber_delta': 10,
-                      'safety_force_magnitude': 7,
-                      'temp': 15,
-                      'remove_action': False,
-                      'experiment': experiments[2],
-                      'reward_magnitude': 10,
-                      'use_safety_checks': False,
-            },
+          'arm_name': 'right',
+          'safety_box': True,
+          'loss': 'huber',
+          'huber_delta': 10,
+          'safety_force_magnitude': 7,
+          'temp': 15,
+          'remove_action': False,
+          'experiment': experiments[2],
+          'reward_magnitude': 10,
+          'use_safety_checks': False,
+          'task':'reaching',
+        },
     )
     lego_block_task_variant = dict(
         algo_params=dict(
-            num_epochs=15,
-            num_steps_per_epoch=1000,
-            num_steps_per_eval=1000,
+            num_epochs=5,
+            num_steps_per_epoch=100,
+            num_steps_per_eval=100,
             num_updates_per_env_step=1,
             use_soft_update=True,
             tau=0.001,
-            batch_size=64,
+            batch_size=1,
             discount=algo_class_to_discount[algo_class],
             sample_train_goals_from='her',
             sample_rollout_goals_from='environment',
@@ -194,7 +195,7 @@ if __name__ == '__main__':
             save_replay_buffer=True,
             sparse_reward=algo_class_to_sparse_reward[algo_class],
             cycle_taus_for_rollout=True,
-            collect_data=True,
+            collect_data=False,
         ),
         qf_params=dict(
             hidden_sizes=[300, 300],
@@ -219,27 +220,44 @@ if __name__ == '__main__':
             goal_sample_strategy='store',
         ),
         env_params={
-                      'arm_name': 'right',
-                      'safety_box': True,
-                      'loss': 'huber',
-                      'huber_delta': 10,
-                      'safety_force_magnitude': 6,
-                      'temp': 15,
-                      'remove_action': False,
-                      'experiment': experiments[2],
-                      'reward_magnitude': 10,
-                      'use_safety_checks': False,
-            },
+          'arm_name': 'right',
+          'safety_box': True,
+          'loss': 'huber',
+          'huber_delta': 10,
+          'safety_force_magnitude': 7,
+          'temp': 15,
+          'remove_action': False,
+          'experiment': experiments[2],
+          'reward_magnitude': 10,
+          'use_safety_checks': False,
+          'task':'lego',
+        },
     )
-    for i in range(5):
-        algo_class = reaching_task_variant['algo_class']
-        run_experiment(
-            experiment,
-            seed=random.randint(0, 666),
-            exp_prefix="sdql-sawyer-final",
-            mode="local",
-            variant=reaching_task_variant,
-            exp_id=0,
-            use_gpu=use_gpu,
-            snapshot_mode="last",
-        )
+    do_reaching_task = False
+    if do_reaching_task:
+        for i in range(1):
+            algo_class = reaching_task_variant['algo_class']
+            run_experiment(
+                experiment,
+                seed=random.randint(0, 666),
+                exp_prefix="sdql-sawyer-reaching",
+                mode="local",
+                variant=reaching_task_variant,
+                exp_id=0,
+                use_gpu=use_gpu,
+                snapshot_mode="last",
+            )
+    else:
+        for i in range(1):
+            algo_class = lego_block_task_variant['algo_class']
+            run_experiment(
+                experiment,
+                seed=random.randint(0, 666),
+                exp_prefix="sdql-sawyer-lego-stack-TEST",
+                mode="local",
+                variant=lego_block_task_variant,
+                exp_id=0,
+                use_gpu=use_gpu,
+                snapshot_mode="last",
+            )
+

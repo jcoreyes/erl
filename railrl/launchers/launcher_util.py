@@ -385,6 +385,7 @@ def run_experiment_old(
     diff_string = repo.git.diff(None)
     commit_hash = repo.head.commit.hexsha
     script_name = "tmp"
+
     if mode == 'here':
         log_dir, exp_name = create_log_dir(exp_prefix, exp_id, seed,
                                            base_log_dir)
