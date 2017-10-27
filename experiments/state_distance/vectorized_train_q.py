@@ -29,7 +29,7 @@ from railrl.envs.multitask.pusher2d import (
     # HandCylinderXYPusher2DEnv_move_hand_to_cylinder,
     # FullStatePusher2DEnv_move_joints_to_target_joint,
     # HandXYPusher2DEnv_oc_reward_on_goals, HandXYPusher2DEnv_oc_reward)
-)
+    NoShapeHandCylinderXYPusher2DEnv)
 from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState,
@@ -197,9 +197,9 @@ if __name__ == '__main__':
     snapshot_mode = "last"
 
     # n_seeds = 3
-    # mode = "ec2"
-    exp_prefix = "sdql-cheetah-xvel"
-    # run_mode = 'grid'
+    mode = "ec2"
+    exp_prefix = "sdql-pusher-xyxy-sweep-tau-scale-and-more"
+    run_mode = 'grid'
     # snapshot_mode = "gap_and_last"
 
     version = "na"
@@ -338,11 +338,13 @@ if __name__ == '__main__':
                 # GoalConditionedDeltaModel,
                 # TauBinaryGoalConditionedDeltaModel,
             # ],
-            # 'algo_params.goal_dim_weights': [
+            'algo_params.goal_dim_weights': [
                 # (.01, .01, 1, 1),
                 # (.1, .1, 1, 1),
                 # (0, 0, 1, 1),
-                # (1, 1, 1, 1),
+                (1, 1, 1, 1),
+                (.1, .1, .1, .1),
+                (10, 10, 10, 10),
                 # (1, 1, 0.1, 0.1),
                 # (1, 1, 0.01, 0.01),
                 # (1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
@@ -350,36 +352,35 @@ if __name__ == '__main__':
                 # (0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 1, 1, 1, 1),
                 # (0, 0, 0, 0, 0, 0, 1, 1, 1, 1),
                 # (0, 0, 0, 0, 0, 0, 1, 1, .1, .1),
-            # ],
-            # 'env_class': [
+            ],
+            'env_class': [
                 # GoalStateSimpleStateReacherEnv,
                 # FullStatePusher2DEnv,
-                # HandCylinderXYPusher2DEnv,
+                NoShapeHandCylinderXYPusher2DEnv,
+                HandCylinderXYPusher2DEnv,
                 # Reacher7DofFullGoalState,
                 # Reacher7DofGoalStateEverything,
                 # JointOnlyPusherEnv,
                 # MultitaskPusher2DEnv,
                 # CylinderXYPusher2DEnv,
-            # ],
-            # 'epoch_discount_schedule_params.value': [
-                # 1,
-                # 2,
-                # 5,
-                # 10,
-                # 15,
-            # ],
-            # 'algo_params.sample_train_goals_from': [
-            #     'environment',
-            #     'replay_buffer',
-            #     'her',
-            # ],
+            ],
+            'epoch_discount_schedule_params.value': [
+                1,
+                5,
+                15,
+            ],
+            'algo_params.tau': [
+                0.1,
+                0.01,
+                0.001,
+            ],
             # 'eval_with_oc_policy': [
             #     False,
             #     True,
             # ],
-            # 'algo_params.num_updates_per_env_step': [
-                # 5, 25
-            # ],
+            'algo_params.num_updates_per_env_step': [
+                5, 25
+            ],
             # 'algo_params.sl_grad_weight': [
             #     0.01,
             #     0.1,
