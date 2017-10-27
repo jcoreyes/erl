@@ -9,10 +9,11 @@ from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import get_stat_in_dict
 from rllab.misc import logger
 
+MAX_SPEED = 10
 
 class GoalXVelHalfCheetah(HalfCheetahEnv, MultitaskEnv):
     def __init__(self):
-        self.target_x_vel = np.random.uniform(-10, 10)
+        self.target_x_vel = np.random.uniform(-MAX_SPEED, MAX_SPEED)
         super().__init__()
         MultitaskEnv.__init__(self)
 
@@ -24,7 +25,7 @@ class GoalXVelHalfCheetah(HalfCheetahEnv, MultitaskEnv):
         return 1
 
     def sample_goal_states(self, batch_size):
-        return np.random.uniform(-10, 10, (batch_size, 1))
+        return np.random.uniform(-MAX_SPEED, MAX_SPEED, (batch_size, 1))
 
     def sample_irrelevant_goal_dimensions(self, goal, batch_size):
         raise NotImplementedError()
