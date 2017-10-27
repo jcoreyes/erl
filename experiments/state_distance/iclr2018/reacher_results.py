@@ -31,6 +31,20 @@ our_criteria = {
 #     'algo_params.goal_dim_weights': [1 for _ in range(17)],
 #     'epoch_discount_schedule_params.value': 25,
 # }
+
+# our_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-26-sdql-compare-eval-expl-policy-all-envs/"
+# our_criteria = {
+#     'env_class.$class':
+#         "railrl.envs.multitask.reacher_7dof.Reacher7DofGoalStateEverything",
+#     'raw_explore_policy': 'oc',
+#     'eval_with_oc_policy': False,
+#     # 'algo_params.goal_dim_weights': [1 for _ in range(17)],
+#     # 'epoch_discount_schedule_params.value': 25,
+# }
+
+# our_path = "/home/vitchyr/git/rllab-rail/railrl/data/local/10-27-loca-sdql-reacher-get-long-results/"
+# our_criteria = None
+
 her_dense_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-27-her-baseline-shaped-rewards-no-clipping-300-300-right-discount-and-tau/"
 her_dense_criteria = {
     'algo_params.num_updates_per_env_step': 1,
@@ -58,7 +72,7 @@ plt.figure()
 for trials, name, key in [
     (ddpg_trials, 'DDPG', base_key),
     (mb_trials, 'Model Based', base_key),
-    (our_trials, 'TDM', base_key),
+    (our_trials, 'TDM', 'test_'+base_key),
     (her_dense_trials, 'HER - Dense', 'test_'+base_key),
 ]:
     all_values = []
