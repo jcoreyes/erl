@@ -112,7 +112,7 @@ class HER(DDPG):
         )
         y_target = rewards + (1. - terminals) * self.discount * target_q_values
         y_target = y_target.detach()
-        y_target = torch.clamp(y_target, -1./(1-self.discount), 0)
+        # y_target = torch.clamp(y_target, -1./(1-self.discount), 0)
         y_pred = self.qf(obs, actions, goals)
         bellman_errors = (y_pred - y_target)**2
         qf_loss = self.qf_criterion(y_pred, y_target)

@@ -96,7 +96,8 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "her-baseline-shaped-rewards-2"
+    exp_prefix = "her-baseline-shaped-rewards-no-clipping-300-300-right" \
+                 "-discount-and-tau"
     run_mode = 'grid'
 
     version = "na"
@@ -116,9 +117,9 @@ if __name__ == '__main__':
             num_steps_per_eval=1000,
             num_updates_per_env_step=1,
             use_soft_update=True,
-            tau=0.001,
+            tau=1e-3,
             batch_size=64,
-            discount=5,
+            discount=0.99,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
             qf_weight_decay=0.,
@@ -128,13 +129,13 @@ if __name__ == '__main__':
         ),
         qf_class=HerQFunction,
         qf_params=dict(
-            hidden_sizes=[64, 64, 64],
+            hidden_sizes=[300, 300],
             hidden_activation=F.softplus,
         ),
         policy_class=HerPolicy,
         policy_params=dict(
-            hidden_sizes=[64, 64, 64],
-            hidden_activation=F.softplus,
+            hidden_sizes=[300, 300],
+            hidden_activation=F.relu,
         ),
         replay_buffer_params=dict(
             max_size=200000,
@@ -168,7 +169,7 @@ if __name__ == '__main__':
                 Reacher7DofXyzGoalState,
             ],
             'algo_params.num_updates_per_env_step': [
-                1, 5,
+                1, 5, 25
             ],
             # 'algo_params.tau': [
             #     1e-2, 1e-3,
