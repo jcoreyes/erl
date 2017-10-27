@@ -33,15 +33,13 @@ for trials, name, key in [
     mean = np.mean(costs, axis=0)
     std = np.std(costs, axis=0)
     epochs = np.arange(0, len(costs[0]))
-    if name != "TDM":
-        epochs = epochs / 2
     plt.fill_between(epochs, mean - std, mean + std, alpha=0.1)
     plt.plot(epochs, mean, label=name)
 
 
 plt.xlabel("Environment Steps (x1000)")
 plt.ylabel("Mean Distance to Goal")
-plt.title(r"Mean Distance to Goal vs Environment Samples")
+# plt.title(r"Mean Distance to Goal vs Environment Samples")
 plt.legend()
 plt.savefig('results/iclr2018/sawyer.jpg')
 plt.show()

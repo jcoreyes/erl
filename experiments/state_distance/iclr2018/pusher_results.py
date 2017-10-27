@@ -30,6 +30,15 @@ our_criteria = {
     'env_class.$class':
         "railrl.envs.multitask.pusher2d.HandCylinderXYPusher2DEnv"
 }
+our_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-27-get" \
+          "-results-handxyxy-best-hp-no-oc-sampling-nspe1000/"
+our_criteria = {
+    'algo_params.num_updates_per_env_step': 25,
+    'epoch_discount_schedule_params.value': 15,
+    # 'algo_params.goal_dim_weights': [1] * 17,
+    # 'env_class.$class': "railrl.envs.multitask.reacher_7dof.Reacher7DofGoalStateEverything"
+}
+
 her_dense_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-27-her-baseline-shaped-rewards-no-clipping-300-300-right-discount-and-tau/"
 her_dense_criteria = {
     'algo_params.num_updates_per_env_step': 1,
@@ -47,6 +56,7 @@ ddpg_trials = ddpg_exp.get_trials(ddpg_criteria)
 mb_trials = mb_exp.get_trials(mb_criteria)
 our_trials = our_exp.get_trials(our_criteria)
 her_dense_trials = her_dense_exp.get_trials(her_dense_criteria)
+MAX_ITERS = 100
 
 base_key = 'Final_Euclidean_distance_to_goal_Mean'
 plt.figure()
@@ -66,6 +76,7 @@ for trials, name, key in [
         values[:min_len]
         for values in all_values
     ])
+    costs = costs[:, :min(costs.shape[1], MAX_ITERS)]
     mean = np.mean(costs, axis=0)
     std = np.std(costs, axis=0)
     epochs = np.arange(0, len(costs[0]))
@@ -86,7 +97,7 @@ epochs = 2 * np.arange(0, len(her_mean))
 # plt.xscale('log')
 plt.xlabel("Environment Samples (x1000)")
 plt.ylabel("Distance to Goal")
-plt.title(r"Distance to Goal vs Environment Samples")
+# plt.title(r"Pusher: Distance to Goal vs Environment Samples")
 plt.legend()
 plt.savefig('results/iclr2018/pusher.jpg')
 plt.show()

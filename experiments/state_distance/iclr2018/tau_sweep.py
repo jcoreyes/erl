@@ -10,7 +10,7 @@ exp = Experiment(path)
 #     'env_class.$class': "railrl.envs.multitask.reacher_7dof.Reacher7DofGoalStateEverything"
 # }
 base_criteria = {
-    'algo_params.num_updates_per_env_step': 5,
+    'algo_params.num_updates_per_env_step': 25,
     # 'algo_params.goal_dim_weights': [1] * 17,
     # 'env_class.$class': "railrl.envs.multitask.reacher_7dof.Reacher7DofGoalStateEverything"
 }
@@ -29,7 +29,9 @@ for tau in taus:
 
 # key = 'Final_Euclidean_distance_to_goal_Mean'
 key = 'test_Final_Euclidean_distance_to_goal_Mean'
-for tau, trials in tau_to_trials.items():
+MAX_ITERS = 35
+for tau in taus:
+    trials = tau_to_trials[tau]
     all_values = []
     min_len = np.inf
     for trial in trials:
@@ -40,16 +42,17 @@ for tau, trials in tau_to_trials.items():
         values[:min_len]
         for values in all_values
     ])
+    costs = costs[:, :min(costs.shape[1], MAX_ITERS)]
     mean = np.mean(costs, axis=0)
     std = np.std(costs, axis=0)
-    epochs = np.arange(0, len(costs[0])) / 10
+    epochs = np.arange(0, len(costs[0]))
     plt.fill_between(epochs, mean - std, mean + std, alpha=0.1)
     plt.plot(epochs, mean, label=r"$\tau = {}$".format(str(tau)))
 
 
 plt.xlabel("Environment Steps (x1000)")
 plt.ylabel("Distance to Goal")
-plt.title("Distance to Goal vs Environment Samples")
+# plt.title("Pusher: Distance to Goal vs Environment Samples for varying ")
 plt.legend()
-plt.savefig('results/iclr2018/tau_sweep.jpg')
+plt.savefig('results/iclr2018/tau-sweep.jpg')
 plt.show()

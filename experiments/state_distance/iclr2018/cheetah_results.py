@@ -43,6 +43,7 @@ her_dense_trials = her_dense_exp.get_trials(her_dense_criteria)
 print(len(ddpg_trials))
 print(len(mb_trials))
 print(len(our_trials))
+MAX_ITERS = 100
 
 def smooth(data):
     box = np.ones(5) / 5
@@ -72,6 +73,7 @@ for trials, name, key in [
         values[:min_len]
         for values in all_values
     ])
+    costs = costs[:, :min(costs.shape[1], MAX_ITERS)]
     if name != 'TDM':
         costs = smooth(costs)
     mean = np.mean(costs, axis=0)
@@ -94,7 +96,7 @@ epochs = 2 * np.arange(0, len(her_mean))
 # plt.xscale('log')
 plt.xlabel("Environment Samples (x1000)")
 plt.ylabel("Velocity Error")
-plt.title(r"Velocity Error vs Environment Samples")
+# plt.title(r"Half Cheetah: Velocity Error vs Environment Samples")
 plt.legend()
 plt.savefig('results/iclr2018/cheetah.jpg')
 plt.show()

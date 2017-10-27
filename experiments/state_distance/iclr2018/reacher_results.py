@@ -24,6 +24,13 @@ our_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-24-sdql-reacher
 our_criteria = {
     'raw_explore_policy': 'oc',
 }
+# our_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-25-get-results-take1/"
+# our_criteria = {
+#     # 'env_class.$class':
+#     #     "railrl.envs.multitask.reacher_7dof.Reacher7DofXyzGoalState",
+#     'algo_params.goal_dim_weights': [1 for _ in range(17)],
+#     'epoch_discount_schedule_params.value': 25,
+# }
 her_dense_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-27-her-baseline-shaped-rewards-no-clipping-300-300-right-discount-and-tau/"
 her_dense_criteria = {
     'algo_params.num_updates_per_env_step': 1,
@@ -32,18 +39,20 @@ her_dense_criteria = {
         "railrl.envs.multitask.reacher_7dof.Reacher7DofXyzGoalState"
 }
 
+our_exp = Experiment(our_path)
+our_trials = our_exp.get_trials(our_criteria)
+t1 = our_trials[0]
 
 ddpg_exp = Experiment(ddpg_path)
 mb_exp = Experiment(mb_path)
-our_exp = Experiment(our_path)
 her_dense_exp = Experiment(her_dense_path)
 
 ddpg_trials = ddpg_exp.get_trials(ddpg_criteria)
 mb_trials = mb_exp.get_trials(mb_criteria)
-our_trials = our_exp.get_trials(our_criteria)
 her_dense_trials = her_dense_exp.get_trials(her_dense_criteria)
 
-t1 = our_trials[0]
+MAX_ITERS = 100
+
 base_key = 'Final_Euclidean_distance_to_goal_Mean'
 plt.figure()
 for trials, name, key in [
@@ -62,11 +71,12 @@ for trials, name, key in [
         values[:min_len]
         for values in all_values
     ])
+    costs = costs[:, :min(costs.shape[1], MAX_ITERS)]
     mean = np.mean(costs, axis=0)
     std = np.std(costs, axis=0)
     epochs = np.arange(0, len(costs[0]))
-    if name == 'TDM':
-        epochs = epochs / 10
+    # if name == 'TDM':
+    #     epochs = epochs / 10
     plt.fill_between(epochs, mean - std, mean + std, alpha=0.1)
     plt.plot(epochs, mean, label=name)
 
@@ -84,7 +94,7 @@ epochs = 2 * np.arange(0, len(her_mean))
 # plt.xscale('log')
 plt.xlabel("Environment Steps (x1000)")
 plt.ylabel("Distance to Goal")
-plt.title(r"Distance to Goal vs Environment Samples")
+# plt.title(r"7-DoF Reacher: Distance to Goal vs Environment Samples")
 plt.legend()
 plt.savefig('results/iclr2018/reacher.jpg')
 plt.show()

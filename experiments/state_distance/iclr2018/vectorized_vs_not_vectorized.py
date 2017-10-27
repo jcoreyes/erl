@@ -22,6 +22,7 @@ for algo in algos:
     algo_to_trials[algo] = exp.get_trials(criteria)
 
 key = 'Final_Euclidean_distance_to_goal_Mean'
+MAX_ITERS = 50
 for algo, trials in algo_to_trials.items():
     if algo == 'railrl.algos.state_distance.state_distance_q_learning' \
                '.HorizonFedStateDistanceQLearning':
@@ -38,6 +39,7 @@ for algo, trials in algo_to_trials.items():
         values[:min_len]
         for values in all_values
     ])
+    costs = costs[:, :min(costs.shape[1], MAX_ITERS)]
     mean = np.mean(costs, axis=0)
     std = np.std(costs, axis=0)
     epochs = np.arange(0, len(costs[0])) / 10
@@ -47,8 +49,8 @@ for algo, trials in algo_to_trials.items():
 
 plt.xlabel("Environment Steps (x1000)")
 plt.ylabel("Distance to Goal")
-plt.title("Distance to Goal vs Environment Samples for Scalar and Vector "
-          "Supervision")
+# plt.title("Distance to Goal vs Environment Samples for Scalar and Vector "
+#           "Supervision")
 plt.legend()
 plt.savefig('results/iclr2018/vectorized-vs-scalar.jpg')
 plt.show()
