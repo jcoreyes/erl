@@ -1,6 +1,7 @@
 from railrl.misc.data_processing import Experiment
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.ndimage.filters import convolve1d
 
 her_path = "/home/vitchyr/git/rllab-rail/railrl/data/papers/iclr2018/pusher2d" \
            "/her-cheetah/cheetah_curve.npy"
@@ -18,12 +19,12 @@ mb_criteria = None
 # our_criteria = None
 our_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-27-get-results-half-cheetah-h100/"
 our_criteria = {
-    'algo_params.num_updates_per_env_step': 5,
+    'algo_params.num_updates_per_env_step': 25,
     'epoch_discount_schedule_params.value': 10,
 }
 her_dense_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-27-her-baseline-shaped-rewards-no-clipping-300-300-right-discount-and-tau/"
 her_dense_criteria = {
-    'algo_params.num_updates_per_env_step': 1,
+    'algo_params.num_updates_per_env_step': 5,
     'algo_params.scale_reward': 10,
     'env_class.$class':
         "railrl.envs.multitask.half_cheetah.GoalXVelHalfCheetah"
@@ -44,17 +45,18 @@ print(len(mb_trials))
 print(len(our_trials))
 
 def smooth(data):
-    box = np.ones(10) / 10
+    box = np.ones(5) / 5
     new_data = []
     for d in data:
-        new_data.append(np.convolve(d, box, mode='same'))
+        # new_data.append(np.convolve(d, box, mode='same'))
+        new_data.append(convolve1d(d, box, mode='constant', cval=d[-1]))
     return np.vstack(new_data)
 
 plt.figure()
 for trials, name, key in [
     (ddpg_trials, 'DDPG', 'Final_xvel_errors_Mean'),
     (mb_trials, 'Model Based', 'Final_xvel_errors_Mean'),
-    (our_trials, 'TDM', 'test_Multitask_distance_to_goal_Mean'),
+    (our_trials, 'TDM', 'test_Final_xvel_errors_Mean'),
     (her_dense_trials, 'HER - dense', 'test_Final_xvel_errors_Mean'),
 ]:
     all_values = []
@@ -70,7 +72,8 @@ for trials, name, key in [
         values[:min_len]
         for values in all_values
     ])
-    costs = smooth(costs)
+    if name != 'TDM':
+        costs = smooth(costs)
     mean = np.mean(costs, axis=0)
     std = np.std(costs, axis=0)
     epochs = np.arange(0, len(costs[0]))
@@ -90,8 +93,8 @@ epochs = 2 * np.arange(0, len(her_mean))
 
 # plt.xscale('log')
 plt.xlabel("Environment Samples (x1000)")
-plt.ylabel("Distance to Goal")
-plt.title(r"Distance to Goal vs Environment Samples")
+plt.ylabel("Velocity Error")
+plt.title(r"Velocity Error vs Environment Samples")
 plt.legend()
 plt.savefig('results/iclr2018/cheetah.jpg')
 plt.show()
