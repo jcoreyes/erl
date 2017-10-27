@@ -1,12 +1,18 @@
+from collections import OrderedDict
+
 import numpy as np
 import torch
 from gym.envs.mujoco import HalfCheetahEnv
 
 from railrl.envs.multitask.multitask_env import MultitaskEnv
+from railrl.misc.data_processing import create_stats_ordered_dict
+from railrl.misc.rllab_util import get_stat_in_dict
+from rllab.misc import logger
 
 
 class GoalXVelHalfCheetah(HalfCheetahEnv, MultitaskEnv):
     def __init__(self):
+        self.target_x_vel = np.random.uniform(-10, 10)
         super().__init__()
         MultitaskEnv.__init__(self)
 
@@ -33,6 +39,21 @@ class GoalXVelHalfCheetah(HalfCheetahEnv, MultitaskEnv):
 
     def convert_obs_to_goal_states(self, obs):
         return obs[:, 8:9]
+
+    def set_goal(self, goal):
+        MultitaskEnv.set_goal(self, goal)
+        self.target_x_vel = goal
+
+    def _step(self, action):
+        ob, _, done, info_dict = super()._step(action)
+        xvel = ob[8]
+        desired_xvel = self.target_x_vel
+        xvel_error = np.linalg.norm(xvel - desired_xvel)
+        reward = - xvel_error
+        info_dict['xvel'] = xvel
+        info_dict['desired_xvel'] = desired_xvel
+        info_dict['xvel_error'] = xvel_error
+        return ob, reward, done, info_dict
 
     def sample_states(self, batch_size):
         raise NotImplementedError()
@@ -80,6 +101,34 @@ class GoalXVelHalfCheetah(HalfCheetahEnv, MultitaskEnv):
     def log_diagnostics(self, paths):
         super().log_diagnostics(paths)
         MultitaskEnv.log_diagnostics(self, paths)
+        xvels = get_stat_in_dict(
+            paths, 'env_infos', 'xvel'
+        )
+        desired_xvels = get_stat_in_dict(
+            paths, 'env_infos', 'desired_xvel'
+        )
+        xvel_errors = get_stat_in_dict(
+            paths, 'env_infos', 'xvel_error'
+        )
+
+        statistics = OrderedDict()
+        for stat, name in [
+            (xvels, 'xvels'),
+            (desired_xvels, 'desired xvels'),
+            (xvel_errors, 'xvel errors'),
+        ]:
+            statistics.update(create_stats_ordered_dict(
+                '{}'.format(name),
+                stat,
+                always_show_all_stats=True,
+            ))
+            statistics.update(create_stats_ordered_dict(
+                'Final {}'.format(name),
+                stat[:, -1],
+                always_show_all_stats=True,
+            ))
+        for key, value in statistics.items():
+            logger.record_tabular(key, value)
 
     def oc_reward(self, states, goals, current_states):
         return self.oc_reward_on_goals(

@@ -160,7 +160,7 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "half-cheetah-only-xvel-longer"
+    exp_prefix = "half-cheetah-only-xvel-longer-again-with-statistics"
     run_mode = 'grid'
     snapshot_mode = "gap_and_last"
 
@@ -256,7 +256,7 @@ if __name__ == '__main__':
                 # 'algo_params.goal_dim_weights': env_class_to_goal_dim_weights[env_class],
                 'env_class': [env_class],
                 'epoch_discount_schedule_params.value': [
-                    1,
+                    # 1,
                     5,
                     15,
                     # 30,
