@@ -3,6 +3,7 @@ import random
 
 from railrl.envs.env_utils import gym_env
 from railrl.envs.mujoco.pusher2d import RandomGoalPusher2DEnv
+from railrl.envs.multitask.her_half_cheetah import HalfCheetah
 from railrl.envs.multitask.her_pusher_env import Pusher2DEnv
 from railrl.envs.multitask.her_reacher_7dof_env import Reacher7Dof
 from railrl.envs.multitask.multitask_env import multitask_to_flat_env
@@ -77,13 +78,13 @@ if __name__ == "__main__":
 
     n_seeds = 5
     mode = "ec2"
-    exp_prefix = "ddpg-pusher-again-baseline-with-reward-bonus"
+    exp_prefix = "ddpg-half-cheetah"
 
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
             render=args.render,
-            num_epochs=100,
+            num_epochs=1000,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             use_soft_update=True,
@@ -119,7 +120,8 @@ if __name__ == "__main__":
             # GoalStateSimpleStateReacherEnv,
             # Reacher7DofXyzGoalState,
             # HandCylinderXYPusher2DEnv,
-            Pusher2DEnv,
+            # Pusher2DEnv,
+            HalfCheetah,
             # Reacher7Dof,
             # RandomGoalPusher2DEnv,
             # MultitaskPusher2DEnv,

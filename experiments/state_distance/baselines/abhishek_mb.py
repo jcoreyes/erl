@@ -4,6 +4,8 @@ import numpy as np
 import tensorflow as tf
 
 import railrl.misc.hyperparameter as hyp
+from railrl.envs.multitask.her_half_cheetah import HalfCheetah, \
+    half_cheetah_cost_fn
 from railrl.envs.multitask.her_pusher_env import Pusher2DEnv, \
     pusher2d_cost_fn
 from railrl.envs.multitask.her_reacher_7dof_env import Reacher7Dof, \
@@ -40,6 +42,8 @@ def experiment(variant):
             cost_fn = pusher2d_cost_fn
         elif env_name_or_class == Reacher7Dof:
             cost_fn = reacher7dof_cost_fn
+        elif env_name_or_class == HalfCheetah:
+            cost_fn = half_cheetah_cost_fn
         else:
             raise NotImplementedError
 
@@ -83,14 +87,14 @@ if __name__ == '__main__':
 
     n_seeds = 5
     mode = "ec2"
-    exp_prefix = "abhishek-mb-baseline-pusher-again-shaped"
+    exp_prefix = "abhishek-mb-cheetah-target-reset"
     # snapshot_mode = "gap_and_last"
     snapshot_gap = 10
 
     # Data collection
     num_steps_per_epoch = 1000
-    max_path_length = 100
-    num_epochs = 100
+    max_path_length = 1000
+    num_epochs = 1000
     variant = dict(
         # env='HalfCheetah-v1',
         env_name_or_class='HalfCheetah-v1',
@@ -123,8 +127,9 @@ if __name__ == '__main__':
 
     search_space = {
         'env_name_or_class': [
-            Pusher2DEnv,
+            # Pusher2DEnv,
             # Reacher7Dof,
+            HalfCheetah,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
