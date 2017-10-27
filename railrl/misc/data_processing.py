@@ -128,6 +128,7 @@ def get_dirs(root):
     """
     Get a list of all the directories under this directory.
     """
+    yield root
     for root, directories, filenames in os.walk(root):
         for directory in directories:
             yield os.path.join(root, directory)
@@ -169,6 +170,25 @@ def get_data_and_variants(base_dir, verbose=False):
         )
         data_and_variants.append((data, variant))
     return data_and_variants
+
+
+def get_all_csv(base_dir, verbose=False):
+    """
+    Get a list of all csv data under a directory.
+    :param base_dir: root directory
+    """
+    data = []
+    delimiter = ','
+    for dir_name in get_dirs(base_dir):
+        for data_file_name in os.listdir(dir_name):
+            if data_file_name.endswith(".csv"):
+                full_path = os.path.join(dir_name, data_file_name)
+                if verbose:
+                    print("Reading {}".format(full_path))
+                data.append(np.genfromtxt(
+                    full_path, delimiter=delimiter, dtype=None, names=True
+                ))
+    return data
 
 
 def get_unique_param_to_values(all_variants):
