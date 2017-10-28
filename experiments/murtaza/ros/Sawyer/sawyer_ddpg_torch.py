@@ -73,44 +73,45 @@ if __name__ == "__main__":
     if exp_dir:
         continue_experiment(exp_dir, resume_function=resume_torch_algorithm)
     else:
-        run_experiment(
-            example,
-            exp_prefix="ddpg-sawyer-data-collect",
-            seed=random.randint(0, 666),
-            mode='local',
-            variant={
-                'version': 'Original',
-                'max_path_length': max_path_length,
-                'use_gpu': True,
-                'es_class': OUStrategy,
-                'env_class': SawyerEnv,
-                'policy_class': FeedForwardPolicy,
-                'normalize_env': False,
-                'env_params': {
-                    'arm_name': 'right',
-                    'safety_box': True,
-                    'loss': 'huber',
-                    'huber_delta': 10,
-                    'safety_force_magnitude': 8,
-                    'temp': 15,
-                    'remove_action': False,
-                    'experiment': experiments[3],
-                    'reward_magnitude': 1,
-                    'use_safety_checks':False,
-                },
-                'es_params': {
-                    'max_sigma': .25,
-                    'min_sigma': .25,
-                },
-                'algo_params': dict(
-                    batch_size=64,
-                    num_epochs=10,
-                    num_updates_per_env_step=1,
-                    num_steps_per_epoch=1000,
-                    max_path_length=max_path_length,
-                    num_steps_per_eval=1000,
-                    collect_data=True,
-                ),
-            },
-            use_gpu=True,
-        )
+        for i in range(5):
+            for update in range(1,4):
+                run_experiment(
+                    example,
+                    exp_prefix="ddpg-sawyer-varying-end-effector-update-"+str(update),
+                    seed=random.randint(0, 666),
+                    mode='local',
+                    variant={
+                        'version': 'Original',
+                        'max_path_length': max_path_length,
+                        'use_gpu': True,
+                        'es_class': OUStrategy,
+                        'env_class': SawyerEnv,
+                        'policy_class': FeedForwardPolicy,
+                        'normalize_env': False,
+                        'env_params': {
+                            'arm_name': 'right',
+                            'safety_box': True,
+                            'loss': 'huber',
+                            'huber_delta': 10,
+                            'safety_force_magnitude': 8,
+                            'temp': 15,
+                            'remove_action': False,
+                            'experiment': experiments[3],
+                            'reward_magnitude': 1,
+                            'use_safety_checks':False,
+                        },
+                        'es_params': {
+                            'max_sigma': .25,
+                            'min_sigma': .25,
+                        },
+                        'algo_params': dict(
+                            batch_size=64,
+                            num_epochs=50,
+                            num_updates_per_env_step=update,
+                            num_steps_per_epoch=1000,
+                            max_path_length=max_path_length,
+                            num_steps_per_eval=1000,
+                        ),
+                    },
+                    use_gpu=True,
+                )

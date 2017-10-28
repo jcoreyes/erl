@@ -1,4 +1,6 @@
 import argparse
+
+import sys
 from torch.nn import functional as F
 import railrl.torch.pytorch_util as ptu
 from railrl.algos.state_distance.state_distance_q_learning import (
@@ -11,7 +13,7 @@ from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.multitask.sawyer_env import MultiTaskSawyerEnv
 from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import run_experiment
+from railrl.launchers.launcher_util import run_experiment, continue_experiment, resume_torch_algorithm
 from railrl.networks.state_distance import (
     FFUniversalPolicy,
     FlatUniversalQfunction,
@@ -87,7 +89,7 @@ algo_class_to_sparse_reward = {
     StateDistanceQLearning: True,
 }
 algo_class_to_discount = {
-    VectorizedTauSdql: 10,
+    VectorizedTauSdql: 15,
     VectorizedDeltaTauSdql: 10,
     HorizonFedStateDistanceQLearning: 10,
     StateDistanceQLearning: 0.99,
@@ -118,7 +120,7 @@ if __name__ == '__main__':
             num_epochs=60,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
-            num_updates_per_env_step=1,
+            num_updates_per_env_step=3,
             use_soft_update=True,
             tau=0.001,
             batch_size=64,
@@ -233,31 +235,38 @@ if __name__ == '__main__':
           'task':'lego',
         },
     )
-    do_reaching_task = False
-    if do_reaching_task:
-        for i in range(1):
-            algo_class = reaching_task_variant['algo_class']
-            run_experiment(
-                experiment,
-                seed=random.randint(0, 666),
-                exp_prefix="sdql-sawyer-reaching",
-                mode="local",
-                variant=reaching_task_variant,
-                exp_id=0,
-                use_gpu=use_gpu,
-                snapshot_mode="last",
-            )
+    try:
+        exp_dir = sys.argv[1]
+    except:
+        exp_dir = None
+    if exp_dir:
+        continue_experiment(exp_dir, resume_function=resume_torch_algorithm)
     else:
-        for i in range(1):
-            algo_class = lego_block_task_variant['algo_class']
-            run_experiment(
-                experiment,
-                seed=random.randint(0, 666),
-                exp_prefix="sdql-sawyer-lego-stack-TEST",
-                mode="local",
-                variant=lego_block_task_variant,
-                exp_id=0,
-                use_gpu=use_gpu,
-                snapshot_mode="last",
-            )
+        do_reaching_task = True
+        if do_reaching_task:
+            for i in range(1):
+                algo_class = reaching_task_variant['algo_class']
+                run_experiment(
+                    experiment,
+                    seed=random.randint(0, 666),
+                    exp_prefix="sdql-sawyer-reaching-Final",
+                    mode="local",
+                    variant=reaching_task_variant,
+                    exp_id=0,
+                    use_gpu=use_gpu,
+                    snapshot_mode="last",
+                )
+        else:
+            for i in range(1):
+                algo_class = lego_block_task_variant['algo_class']
+                run_experiment(
+                    experiment,
+                    seed=random.randint(0, 666),
+                    exp_prefix="sdql-sawyer-lego-stack-TEST",
+                    mode="local",
+                    variant=lego_block_task_variant,
+                    exp_id=0,
+                    use_gpu=use_gpu,
+                    snapshot_mode="last",
+                )
 

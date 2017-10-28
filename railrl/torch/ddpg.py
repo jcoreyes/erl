@@ -1,5 +1,6 @@
 from collections import OrderedDict
 
+import time
 import torch
 import torch.optim as optim
 from torch import nn as nn
@@ -123,6 +124,7 @@ class DDPG(OnlineAlgorithm):
             )
         else:
             self.replay_buffer = replay_buffer
+        self.start_time = time.time()
 
     def cuda(self):
         self.policy.cuda()
@@ -292,7 +294,7 @@ class DDPG(OnlineAlgorithm):
 
         average_returns = get_average_returns(test_paths)
         statistics['AverageReturn'] = average_returns
-
+        statistics['Total Wallclock Time (s)'] = time.time() - self.start_time
         statistics['Epoch'] = epoch
 
         self.final_score = average_returns
@@ -306,26 +308,13 @@ class DDPG(OnlineAlgorithm):
     def offline_evaluate(self, epoch):
         logger.log("Collecting samples for evaluation")
         statistics = OrderedDict()
-        train_batch = self.get_batch(training=True)
-        validation_batch = self.get_batch(training=False)
-
-        if not isinstance(self.epoch_discount_schedule, ConstantSchedule):
-            statistics['Discount Factor'] = self.discount
-
-        statistics.update(self._statistics_from_batch(train_batch, "Train"))
-        statistics.update(
-            self._statistics_from_batch(validation_batch, "Validation")
-        )
-        statistics.update(
-            get_difference_statistics(
-                statistics,
-                [
-                    'QF Loss Mean',
-                    'Policy Loss Mean',
-                    'Target Policy Loss Mean',
-                ],
-            )
-        )
+        # train_batch = self.get_batch(training=True)
+        # validation_batch = self.get_batch(training=False)
+        #
+        # if not isinstance(self.epoch_discount_schedule, ConstantSchedule):
+        #     statistics['Discount Factor'] = self.discount
+        #
+        # statistics.update(self._statistics_from_batch(train_batch, "Train"))
 
         statistics['Epoch'] = epoch
 

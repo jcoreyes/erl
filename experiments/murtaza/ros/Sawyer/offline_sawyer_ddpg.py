@@ -5,6 +5,7 @@ from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
+from railrl.torch.ddpg import DDPG
 from railrl.torch.modules import HuberLoss
 import random
 from pathlib import Path
@@ -59,7 +60,7 @@ if __name__ == '__main__':
     max_path_length = 100
     run_experiment(
         experiment,
-        exp_prefix="offline-ddpg",
+        exp_prefix="offline-ddpg-final",
         seed=random.randint(0, 666),
         mode='local',
         variant={
@@ -72,6 +73,7 @@ if __name__ == '__main__':
                 'max_sigma': .25,
                 'min_sigma': .25,
             },
+            'algo_class':DDPG,
             'algo_params': dict(
                 batch_size=64,
                 num_epochs=100,

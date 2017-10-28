@@ -54,8 +54,8 @@ if __name__ == "__main__":
     # pose = env.arm.endpoint_pose()['position']
     # goal = np.array([pose.x, pose.y, pose.z])
     box_lows = np.array([-0.04304189, -0.43462352, 0.16761519])
-
     box_highs = np.array([0.84045825, 0.38408276, 0.8880568])
+
     while True:
         paths = []
         for _ in range(args.nrolls):
