@@ -386,7 +386,7 @@ def run_experiment_old(
     commit_hash = repo.head.commit.hexsha
     script_name = "tmp"
 
-    if mode == 'local':
+    if mode == 'here':
         log_dir, exp_name = create_log_dir(exp_prefix, exp_id, seed,
                                            base_log_dir)
         data = dict(
@@ -407,7 +407,7 @@ def run_experiment_old(
             script_name=script_name,
         )
         save_experiment_data(data, log_dir)
-    if mode == 'local':
+    if mode == 'here':
         run_experiment_here(
             task,
             exp_prefix=exp_prefix,

@@ -832,6 +832,9 @@ class SawyerEnv(Env, Serializable):
                 orientations = []
                 desired_orientations = []
             last_n_distances = []
+            final_counter = 0
+            final_positions = []
+            final_desired_positions = []
             for obsSet in obsSets:
                 for observation in obsSet:
                     if self.use_angle_parameterization:
@@ -861,6 +864,11 @@ class SawyerEnv(Env, Serializable):
                         orientations.append(observation[24:28])
                         desired_orientations.append(observation[28:32])
 
+                if self.end_effector_experiment_position:
+                    final_counter += len(obsSet)
+                    final_positions.append(obsSet[-1][21:24])
+                    final_desired_positions.append(obsSet[-1][24:27])
+
             statistics.update(self._statistics_from_observations(
                 distances,
                 stat_prefix,
@@ -880,6 +888,15 @@ class SawyerEnv(Env, Serializable):
                     stat_prefix,
                     'Distance from Desired End Effector Orientation'
                 ))
+
+            final_positions = np.array(final_positions)
+            final_desired_positions = np.array(final_desired_positions)
+            final_position_distances = linalg.norm(final_positions - final_desired_positions, axis=1)
+            statistics.update(self._statistics_from_observations(
+                final_position_distances,
+                stat_prefix,
+                'Final Distance from Desired End Effector Position'
+            ))
 
         if self.joint_angle_experiment:
             angle_differences, distances_outside_box = self._joint_angle_exp_info(paths)
