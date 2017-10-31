@@ -65,14 +65,15 @@ ddpg_trials = ddpg_exp.get_trials(ddpg_criteria)
 mb_trials = mb_exp.get_trials(mb_criteria)
 her_dense_trials = her_dense_exp.get_trials(her_dense_criteria)
 
-MAX_ITERS = 100
+MAX_ITERS = 10
 
 base_key = 'Final_Euclidean_distance_to_goal_Mean'
 plt.figure()
 for trials, name, key in [
     (ddpg_trials, 'DDPG', base_key),
     (mb_trials, 'Model Based', base_key),
-    (our_trials, 'TDM', 'test_'+base_key),
+    # (our_trials, 'TDM', 'test_'+base_key),
+    (our_trials, 'TDM', base_key),
     (her_dense_trials, 'HER - Dense', 'test_'+base_key),
 ]:
     all_values = []
@@ -85,12 +86,13 @@ for trials, name, key in [
         values[:min_len]
         for values in all_values
     ])
-    costs = costs[:, :min(costs.shape[1], MAX_ITERS)]
+    if name != 'TDM':
+        costs = costs[:, :min(costs.shape[1], MAX_ITERS)]
     mean = np.mean(costs, axis=0)
     std = np.std(costs, axis=0)
     epochs = np.arange(0, len(costs[0]))
-    # if name == 'TDM':
-    #     epochs = epochs / 10
+    if name == 'TDM':
+        epochs = epochs / 10
     plt.fill_between(epochs, mean - std, mean + std, alpha=0.1)
     plt.plot(epochs, mean, label=name)
 

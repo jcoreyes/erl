@@ -43,7 +43,7 @@ her_dense_trials = her_dense_exp.get_trials(her_dense_criteria)
 print(len(ddpg_trials))
 print(len(mb_trials))
 print(len(our_trials))
-MAX_ITERS = 100
+MAX_ITERS = 20
 
 def smooth(data):
     box = np.ones(5) / 5

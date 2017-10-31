@@ -56,7 +56,7 @@ ddpg_trials = ddpg_exp.get_trials(ddpg_criteria)
 mb_trials = mb_exp.get_trials(mb_criteria)
 our_trials = our_exp.get_trials(our_criteria)
 her_dense_trials = her_dense_exp.get_trials(her_dense_criteria)
-MAX_ITERS = 100
+MAX_ITERS = 40
 
 base_key = 'Final_Euclidean_distance_to_goal_Mean'
 plt.figure()
