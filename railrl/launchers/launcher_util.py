@@ -1,149 +1,30 @@
-import __main__ as main
-import time
-import sys
-import datetime
+import base64
+import json
 import os
 import os.path as osp
-import random
-import uuid
-import git
-import json
-import base64
-import cloudpickle
-import joblib
 import pickle
+import random
+import sys
+import time
+import uuid
 
+import __main__ as main
+import cloudpickle
+import datetime
 import dateutil.tz
+import git
+import joblib
 import numpy as np
 import tensorflow as tf
 
 import railrl.pythonplusplus as ppp
-from railrl.envs.env_utils import gym_env
-from railrl.envs.memory.continuous_memory_augmented import (
-    ContinuousMemoryAugmented
-)
-from railrl.envs.memory.one_char_memory import (
-    OneCharMemory,
-    OneCharMemoryEndOnly,
-    OneCharMemoryOutputRewardMag,
-)
 from railrl.launchers import config
 from railrl.torch.pytorch_util import set_gpu_mode
-from rllab.envs.box2d.cartpole_env import CartpoleEnv
-from rllab.envs.mujoco.ant_env import AntEnv
-from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
-from rllab.envs.mujoco.inverted_double_pendulum_env import (
-    InvertedDoublePendulumEnv
-)
-from rllab.envs.mujoco.swimmer_env import SwimmerEnv
-from rllab.envs.normalized_env import normalize
 from rllab.misc import logger
 from rllab.misc.instrument import run_experiment_lite, query_yes_no
 
 ec2_okayed = False
 gpu_ec2_okayed = False
-
-
-def get_standard_env(normalized=True):
-    envs = [
-        HalfCheetahEnv(),
-        CartpoleEnv(),
-        InvertedDoublePendulumEnv(),
-        HalfCheetahEnv(),
-        AntEnv(),
-        SwimmerEnv(),
-    ]
-    if normalized:
-        envs = [normalize(e) for e in envs]
-    return envs
-
-
-def get_standard_env_ids():
-    return [
-        'cart',
-        'cheetah',
-        'ant',
-        'reacher',
-        'idp',
-        'swimmer',
-    ]
-
-
-def get_env_settings(
-        env_id="",
-        normalize_env=True,
-        gym_name="",
-        init_env_params=None,
-        num_memory_states=0,
-):
-    """
-
-    :param env_id: Env ID. See code for acceptable IDs.
-    :param normalize_env: Boolean. If true, normalize the environment.
-    :param gym_name: Gym environment name if env_id is "gym".
-    :param init_env_params: Parameters to pass to the environment's constructor.
-    :param num_memory_states: Number of memory states. If positive, then the
-    environment is wrapped in a ContinuousMemoryAugmented env with this many
-    memory states.
-    :return:
-    """
-    if init_env_params is None:
-        init_env_params = {}
-    assert num_memory_states >= 0
-
-    if env_id == 'cart':
-        env = CartpoleEnv()
-        name = "Cartpole"
-    elif env_id == 'cheetah':
-        env = HalfCheetahEnv()
-        name = "HalfCheetah"
-    elif env_id == 'ant':
-        env = AntEnv()
-        name = "Ant"
-    elif env_id == 'point':
-        env = gym_env("OneDPoint-v0")
-        name = "OneDPoint"
-    elif env_id == 'random2d':
-        env = gym_env("TwoDPointRandomInit-v0")
-        name = "TwoDPoint-RandomInit"
-    elif env_id == 'reacher':
-        env = gym_env("Reacher-v1")
-        name = "Reacher"
-    elif env_id == 'idp':
-        env = InvertedDoublePendulumEnv()
-        name = "InvertedDoublePendulum"
-    elif env_id == 'swimmer':
-        env = SwimmerEnv()
-        name = "Swimmer"
-    elif env_id == 'ocm':
-        env = OneCharMemory(**init_env_params)
-        name = "OneCharMemory"
-    elif env_id == 'ocme':
-        env = OneCharMemoryEndOnly(**init_env_params)
-        name = "OneCharMemoryEndOnly"
-    elif env_id == 'ocmr':
-        env = OneCharMemoryOutputRewardMag(**init_env_params)
-        name = "OneCharMemoryOutputRewardMag"
-    elif env_id == 'gym':
-        if gym_name == "":
-            raise Exception("Must provide a gym name")
-        env = gym_env(gym_name)
-        name = gym_name
-    else:
-        raise Exception("Unknown env: {0}".format(env_id))
-    if normalize_env and env_id != 'ocm':
-        env = normalize(env)
-        name += "-normalized"
-    if num_memory_states > 0:
-        env = ContinuousMemoryAugmented(
-            env,
-            num_memory_states=num_memory_states,
-        )
-    return dict(
-        env=env,
-        name=name,
-        was_env_normalized=normalize_env,
-    )
 
 
 def run_experiment(
@@ -163,6 +44,46 @@ def run_experiment(
         sync_interval=180,
         local_input_dir_to_mount_point_dict=None,  # TODO(vitchyr): test this
 ):
+    """
+    Usage:
+
+    ```
+    def foo(variant):
+        x = variant['x']
+        y = variant['y']
+        logger.log("sum", x+y)
+
+    variant = {
+        'x': 4,
+        'y': 3,
+    }
+    run_experiment(foo, variant, exp_prefix="my-experiment")
+    ```
+
+    Results are saved to
+    `base_log_dir/<date>-my-experiment/<date>-my-experiment-<unique-id>`
+
+    By default, the base_log_dir is determined by
+    `config.LOCAL_LOG_DIR/`
+
+    :param method_call: a function that takes in a dictionary as argument
+    :param mode: 'local', 'local_docker', or 'ec2'
+    :param exp_prefix: name of experiment
+    :param seed: Seed for this specific trial.
+    :param variant: Dictionary
+    :param exp_id: One experiment = one variant setting + multiple seeds
+    :param unique_id: If not set, the unique id is generated.
+    :param prepend_date_to_exp_prefix: If False, do not prepend the date to
+    the experiment directory.
+    :param use_gpu:
+    :param snapshot_mode: See rllab.logger
+    :param snapshot_gap: See rllab.logger
+    :param n_parallel:
+    :param base_log_dir: Will over
+    :param sync_interval: How often to sync s3 data (in seconds).
+    :param local_input_dir_to_mount_point_dict: Dictionary for doodad.
+    :return:
+    """
     try:
         import doodad
         import doodad.mode
@@ -190,6 +111,8 @@ def run_experiment(
     global gpu_ec2_okayed
     if local_input_dir_to_mount_point_dict is None:
         local_input_dir_to_mount_point_dict = {}
+    else:
+        raise NotImplementedError("TODO(vitchyr): Implement this")
     # Modify some of the inputs
     if seed is None:
         seed = random.randint(0, 100000)
@@ -341,6 +264,8 @@ def run_experiment_old(
     """
     Run a task via the rllab interface, i.e. serialize it and then run it via
     the run_experiment_lite script.
+
+    This will soon be deprecated.
 
     :param task:
     :param exp_prefix:
