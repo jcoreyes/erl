@@ -196,10 +196,10 @@ if __name__ == '__main__':
     run_mode = "none"
     snapshot_mode = "last"
 
-    n_seeds = 3
+    n_seeds = 1
     mode = "ec2"
-    exp_prefix = "sdql-reacher-vectorized-vs-not-again"
-    # run_mode = 'grid'
+    exp_prefix = "tdm-sweep-for-cheetah"
+    run_mode = 'grid'
     # snapshot_mode = "gap_and_last"
 
     version = "na"
@@ -223,10 +223,10 @@ if __name__ == '__main__':
     # env_class = GoalStateSimpleStateReacherEnv
     # env_class = GoalXYStateXYAndCosSinReacher2D
     # env_class = Reacher7DofFullGoalState
-    env_class = Reacher7DofGoalStateEverything
+    # env_class = Reacher7DofGoalStateEverything
     # env_class = HandXYPusher2DEnv
     # env_class = HandCylinderXYPusher2DEnv
-    # env_class = GoalXVelHalfCheetah
+    env_class = GoalXVelHalfCheetah
     # env_class = FullStatePusher2DEnv
     # env_class = FixedHandXYPusher2DEnv
     # env_class = CylinderXYPusher2DEnv
@@ -234,10 +234,10 @@ if __name__ == '__main__':
     variant = dict(
         version=version,
         algo_params=dict(
-            num_epochs=1001,
+            num_epochs=101,
             num_steps_per_epoch=100,
             num_steps_per_eval=1000,
-            num_updates_per_env_step=25,
+            num_updates_per_env_step=5,
             use_soft_update=True,
             tau=0.001,
             batch_size=64,
@@ -326,11 +326,11 @@ if __name__ == '__main__':
             #     FullStatePusher2DEnv_move_hand_to_target_position_oc_reward_on_goals,
             #     FullStatePusher2DEnv_move_joints_to_target_joint,
             # ],
-            'algo_class': [
-                HorizonFedStateDistanceQLearning,
-                # VectorizedDeltaTauSdql,
-                VectorizedTauSdql,
-            ],
+            # 'algo_class': [
+            #     HorizonFedStateDistanceQLearning,
+            #     VectorizedDeltaTauSdql,
+            #     VectorizedTauSdql,
+            # ],
             # 'qf_params.hidden_sizes': [
             #     [64, 64],
             #     [300, 300],
@@ -341,6 +341,9 @@ if __name__ == '__main__':
                 # TauBinaryGoalConditionedDeltaModel,
             # ],
             'algo_params.goal_dim_weights': [
+                (.1, ),
+                (1, ),
+                (10, ),
                 # (.01, .01, 1, 1),
                 # (.1, .1, 1, 1),
                 # (0, 0, 1, 1),
@@ -349,10 +352,10 @@ if __name__ == '__main__':
                 # (10, 10, 10, 10),
                 # (1, 1, 0.1, 0.1),
                 # (1, 1, 0.01, 0.01),
-                (1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
-                (5, 5, 5, 5, 5, 5, 5, 5, 5, 5),
+                # (1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+                # (5, 5, 5, 5, 5, 5, 5, 5, 5, 5),
                 # (0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 5, 5, 1, 1),
-                (0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 1, 1, 1, 1),
+                # (0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 1, 1, 1, 1),
                 # (0, 0, 0, 0, 0, 0, 1, 1, 1, 1),
                 # (0, 0, 0, 0, 0, 0, 1, 1, .1, .1),
             ],
@@ -372,18 +375,21 @@ if __name__ == '__main__':
                 15,
                 30,
             ],
-            # 'algo_params.tau': [
-            #     0.1,
-            #     0.01,
-            #     0.001,
-            # ],
+            'algo_params.use_soft_update': [
+                False,
+            ],
+            'algo_params.target_hard_update_period': [
+                1,
+                100,
+                1000,
+            ],
             'eval_with_oc_policy': [
                 False,
                 True,
             ],
-            'algo_params.num_updates_per_env_step': [
-                5, 25
-            ],
+            # 'algo_params.num_updates_per_env_step': [
+            #     5, 25
+            # ],
             # 'algo_params.sl_grad_weight': [
             #     0.01,
             #     0.1,
