@@ -163,11 +163,11 @@ if __name__ == '__main__':
     run_mode = "none"
     snapshot_mode = "last"
 
-    n_seeds = 5
+    n_seeds = 3
     mode = "ec2"
-    exp_prefix = "get-results-handxyxy-best-hp-no-oc-sampling-nspe1000"
+    exp_prefix = "get-results-handxyxy-small-sweep"
     run_mode = 'grid'
-    snapshot_mode = "gap_and_last"
+    # snapshot_mode = "gap_and_last"
 
     version = "na"
     num_configurations = 50  # for random mode
@@ -261,14 +261,18 @@ if __name__ == '__main__':
                 # 'algo_params.goal_dim_weights': env_class_to_goal_dim_weights[env_class],
                 'env_class': [env_class],
                 'epoch_discount_schedule_params.value': [
-                    1,
                     5,
+                    10,
                     15,
-                    50,
                 ],
                 'algo_params.num_updates_per_env_step': [
-                    25, 5, 1
-                ]
+                    25, 5
+                ],
+                'algo_params.tau': [
+                    0.1,
+                    0.01,
+                    0.001,
+                ],
             }
             sweeper = hyp.DeterministicHyperparameterSweeper(
                 search_space, default_parameters=variant,
@@ -276,7 +280,6 @@ if __name__ == '__main__':
             for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
                 for i in range(n_seeds):
                     seed = random.randint(0, 10000)
-                    print("asd")
                     run_experiment(
                         experiment,
                         exp_prefix=exp_prefix,
