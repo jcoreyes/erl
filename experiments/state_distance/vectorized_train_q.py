@@ -196,10 +196,10 @@ if __name__ == '__main__':
     run_mode = "none"
     snapshot_mode = "last"
 
-    n_seeds = 1
-    mode = "ec2"
-    exp_prefix = "tdm-sweep-for-cheetah"
-    run_mode = 'grid'
+    # n_seeds = 3
+    # mode = "ec2"
+    exp_prefix = "test-git-commit-2"
+    # run_mode = 'grid'
     # snapshot_mode = "gap_and_last"
 
     version = "na"
@@ -234,7 +234,7 @@ if __name__ == '__main__':
     variant = dict(
         version=version,
         algo_params=dict(
-            num_epochs=101,
+            num_epochs=0,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             num_updates_per_env_step=25,
@@ -375,21 +375,21 @@ if __name__ == '__main__':
                 15,
                 30,
             ],
-            'algo_params.use_soft_update': [
-                True,
-            ],
+            # 'algo_params.use_soft_update': [
+            #     True,
+            # ],
             # 'algo_params.target_hard_update_period': [
             #     1,
             #     100,
             #     1000,
             # ],
-            'eval_with_oc_policy': [
-                False,
-                True,
-            ],
-            'algo_params.tau': [
-                1, 1e-1, 1e-2,
-            ],
+            # 'eval_with_oc_policy': [
+            #     False,
+            #     True,
+            # ],
+            # 'algo_params.tau': [
+            #     1, 1e-1, 1e-2,
+            # ],
             # 'algo_params.sl_grad_weight': [
             #     0.01,
             #     0.1,
