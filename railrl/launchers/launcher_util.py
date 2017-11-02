@@ -7,12 +7,12 @@ import random
 import sys
 import time
 import uuid
+from collections import namedtuple
 
 import __main__ as main
 import cloudpickle
 import datetime
 import dateutil.tz
-import git
 import joblib
 import numpy as np
 import tensorflow as tf
@@ -23,9 +23,31 @@ from railrl.torch.pytorch_util import set_gpu_mode
 from rllab.misc import logger
 from rllab.misc.instrument import run_experiment_lite, query_yes_no
 
+
+GitInfo = namedtuple('GitInfo', ['code_diff', 'commit_hash', 'branch_name'])
+
+
 ec2_okayed = False
 gpu_ec2_okayed = False
 
+try:
+    import doodad
+    import doodad.mode
+    import doodad.mount as mount
+    from doodad.utils import REPO_DIR
+    CODE_MOUNTS = [
+        mount.MountLocal(local_dir=REPO_DIR, pythonpath=True),
+    ]
+    for code_dir in config.CODE_DIRS_TO_MOUNT:
+        CODE_MOUNTS.append(mount.MountLocal(local_dir=code_dir, pythonpath=True))
+
+    NON_CODE_MOUNTS = []
+    for non_code_mapping in config.DIR_AND_MOUNT_POINT_MAPPINGS:
+        NON_CODE_MOUNTS.append(mount.MountLocal(**non_code_mapping))
+except ImportError:
+    print("doodad not detected")
+
+target_mount = None
 
 def run_experiment(
         method_call,
@@ -109,6 +131,7 @@ def run_experiment(
         )
     global ec2_okayed
     global gpu_ec2_okayed
+    global target_mount
     if local_input_dir_to_mount_point_dict is None:
         local_input_dir_to_mount_point_dict = {}
     else:
@@ -154,11 +177,7 @@ def run_experiment(
     if base_log_dir is None:
         base_log_dir = config.LOCAL_LOG_DIR
     output_mount_point = config.OUTPUT_DIR_FOR_DOODAD_TARGET
-    mounts = [
-        mount.MountLocal(local_dir=REPO_DIR, pythonpath=True),
-    ]
-    for code_dir in config.CODE_DIRS_TO_MOUNT:
-        mounts.append(mount.MountLocal(local_dir=code_dir, pythonpath=True))
+    mounts = [m for m in CODE_MOUNTS]
     for dir, mount_point in local_input_dir_to_mount_point_dict.items():
         mounts.append(mount.MountLocal(
             local_dir=dir,
@@ -167,8 +186,8 @@ def run_experiment(
         ))
 
     if mode != 'local':
-        for non_code_mapping in config.DIR_AND_MOUNT_POINT_MAPPINGS:
-            mounts.append(mount.MountLocal(**non_code_mapping))
+        for m in NON_CODE_MOUNTS:
+            mounts.append(m)
 
     if mode == 'ec2':
         if not ec2_okayed and not query_yes_no(
@@ -214,7 +233,16 @@ def run_experiment(
         snapshot_dir_for_script = None
     mounts.append(output_mount)
 
-    repo = git.Repo(os.getcwd())
+    try:
+        import git
+        repo = git.Repo(os.getcwd())
+        git_info = GitInfo(
+            code_diff=repo.git.diff(None),
+            commit_hash=repo.head.commit.hexsha,
+            branch_name=repo.active_branch.name,
+        )
+    except ImportError:
+        git_info = None
     run_experiment_kwargs = dict(
         exp_prefix=exp_prefix,
         variant=variant,
@@ -223,13 +251,12 @@ def run_experiment(
         use_gpu=use_gpu,
         snapshot_mode=snapshot_mode,
         snapshot_gap=snapshot_gap,
-        code_diff=repo.git.diff(None),
-        commit_hash=repo.head.commit.hexsha,
+        git_info=git_info,
         script_name=main.__file__,
         n_parallel=n_parallel,
         base_log_dir=base_log_dir_for_script,
     )
-    doodad.launch_python(
+    target_mount = doodad.launch_python(
         target=config.RUN_DOODAD_EXPERIMENT_SCRIPT_PATH,
         mode=mode_str_to_doodad_mode[mode],
         mount_points=mounts,
@@ -239,6 +266,7 @@ def run_experiment(
             'run_experiment_kwargs': run_experiment_kwargs,
         },
         use_cloudpickle=True,
+        target_mount=target_mount,
     )
 
 
@@ -306,9 +334,22 @@ def run_experiment_old(
     command_words.append('python')
     if save_profile:
         command_words += ['-m cProfile -o', profile_file]
-    repo = git.Repo(os.getcwd())
-    diff_string = repo.git.diff(None)
-    commit_hash = repo.head.commit.hexsha
+    try:
+        import git
+        repo = git.Repo(os.getcwd())
+        git_info = GitInfo(
+            code_diff=repo.git.diff(None),
+            commit_hash=repo.head.commit.hexsha,
+            branch_name=repo.active_branch.name,
+        )
+        diff_string, commit_hash, _ = git_info
+        code_diff = (
+            base64.b64encode(cloudpickle.dumps(diff_string)).decode("utf-8")
+        )
+    except ImportError:
+        git_info = None
+        code_diff = ''
+        commit_hash = ''
     script_name = "tmp"
     if mode == 'here':
         log_dir, exp_name = create_log_dir(exp_prefix, exp_id, seed,
@@ -324,8 +365,7 @@ def run_experiment_old(
             use_gpu=use_gpu,
             snapshot_mode=snapshot_mode,
             snapshot_gap=snapshot_gap,
-            diff_string=diff_string,
-            commit_hash=commit_hash,
+            git_info=git_info,
             n_parallel=n_parallel,
             base_log_dir=base_log_dir,
             script_name=script_name,
@@ -341,8 +381,7 @@ def run_experiment_old(
             use_gpu=use_gpu,
             snapshot_mode=snapshot_mode,
             snapshot_gap=snapshot_gap,
-            code_diff=diff_string,
-            commit_hash=commit_hash,
+            git_info=git_info,
             script_name=script_name,
             n_parallel=n_parallel,
             base_log_dir=base_log_dir,
@@ -353,9 +392,6 @@ def run_experiment_old(
                     "EC2 is more expensive with GPUs. Confirm?"
             ):
                 sys.exit(1)
-        code_diff = (
-            base64.b64encode(cloudpickle.dumps(diff_string)).decode("utf-8")
-        )
         run_experiment_lite(
             task,
             snapshot_mode=snapshot_mode,
@@ -443,8 +479,7 @@ def run_experiment_here(
         use_gpu=True,
         snapshot_mode='last',
         snapshot_gap=1,
-        code_diff=None,
-        commit_hash=None,
+        git_info=None,
         script_name=None,
         n_parallel=0,
         base_log_dir=None,
@@ -491,12 +526,15 @@ def run_experiment_here(
         exp_name=exp_name,
     )
     log_dir = logger.get_snapshot_dir()
-    if code_diff is not None:
-        with open(osp.join(log_dir, "code.diff"), "w") as f:
-            f.write(code_diff)
-    if commit_hash is not None:
-        with open(osp.join(log_dir, "commit_hash.txt"), "w") as f:
-            f.write(commit_hash)
+    if git_info is not None:
+        code_diff, commit_hash, branch_name = git_info
+        if code_diff is not None:
+            with open(osp.join(log_dir, "code.diff"), "w") as f:
+                f.write(code_diff)
+        with open(osp.join(log_dir, "git_info.txt"), "w") as f:
+            f.write("git hash: {}".format(commit_hash))
+            f.write('\n')
+            f.write("git branch name: {}".format(branch_name))
     if script_name is not None:
         with open(osp.join(log_dir, "script_name.txt"), "w") as f:
             f.write(script_name)
