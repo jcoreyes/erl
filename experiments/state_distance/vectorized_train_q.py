@@ -235,9 +235,9 @@ if __name__ == '__main__':
         version=version,
         algo_params=dict(
             num_epochs=101,
-            num_steps_per_epoch=100,
+            num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
-            num_updates_per_env_step=5,
+            num_updates_per_env_step=25,
             use_soft_update=True,
             tau=0.001,
             batch_size=64,
@@ -376,20 +376,20 @@ if __name__ == '__main__':
                 30,
             ],
             'algo_params.use_soft_update': [
-                False,
+                True,
             ],
-            'algo_params.target_hard_update_period': [
-                1,
-                100,
-                1000,
-            ],
+            # 'algo_params.target_hard_update_period': [
+            #     1,
+            #     100,
+            #     1000,
+            # ],
             'eval_with_oc_policy': [
                 False,
                 True,
             ],
-            # 'algo_params.num_updates_per_env_step': [
-            #     5, 25
-            # ],
+            'algo_params.tau': [
+                1, 1e-1, 1e-2,
+            ],
             # 'algo_params.sl_grad_weight': [
             #     0.01,
             #     0.1,
