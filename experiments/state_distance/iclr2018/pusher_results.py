@@ -25,19 +25,17 @@ our_criteria = {
     # 'env_class.$class':
     #     "railrl.envs.multitask.pusher2d.HandCylinderXYPusher2DEnv",
     'algo_params.goal_dim_weights': [1, 1, 1, 1],
-    'algo_params.num_updates_per_env_step': 25,
+    'algo_params.num_updates_per_env_step': 5,
     'algo_params.discount': 15,
     'env_class.$class':
         "railrl.envs.multitask.pusher2d.HandCylinderXYPusher2DEnv"
 }
-our_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-27-get" \
-          "-results-handxyxy-best-hp-no-oc-sampling-nspe1000/"
-our_criteria = {
-    'algo_params.num_updates_per_env_step': 25,
-    'epoch_discount_schedule_params.value': 15,
-    # 'algo_params.goal_dim_weights': [1] * 17,
-    # 'env_class.$class': "railrl.envs.multitask.reacher_7dof.Reacher7DofGoalStateEverything"
-}
+# our_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-27-get" \
+#           "-results-handxyxy-best-hp-no-oc-sampling-nspe1000/"
+# our_criteria = {
+#     'algo_params.num_updates_per_env_step': 25,
+#     'epoch_discount_schedule_params.value': 15,
+# }
 
 her_dense_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-27-her-baseline-shaped-rewards-no-clipping-300-300-right-discount-and-tau/"
 her_dense_criteria = {
