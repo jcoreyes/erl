@@ -44,6 +44,12 @@ our_criteria = {
 
 # our_path = "/home/vitchyr/git/rllab-rail/railrl/data/local/10-27-loca-sdql-reacher-get-long-results/"
 # our_criteria = None
+our_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-27-sdql-reacher-get-long-results"
+our_criteria = {
+    'epoch_discount_schedule_params.value': 15,
+    'eval_with_oc_policy': False,
+    'algo_params.num_updates_per_env_step': 25,
+}
 
 her_dense_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-27-her-baseline-shaped-rewards-no-clipping-300-300-right-discount-and-tau/"
 her_dense_criteria = {
@@ -65,15 +71,15 @@ ddpg_trials = ddpg_exp.get_trials(ddpg_criteria)
 mb_trials = mb_exp.get_trials(mb_criteria)
 her_dense_trials = her_dense_exp.get_trials(her_dense_criteria)
 
-MAX_ITERS = 10
+MAX_ITERS = 100
 
 base_key = 'Final_Euclidean_distance_to_goal_Mean'
 plt.figure()
 for trials, name, key in [
     (ddpg_trials, 'DDPG', base_key),
     (mb_trials, 'Model Based', base_key),
-    # (our_trials, 'TDM', 'test_'+base_key),
-    (our_trials, 'TDM', base_key),
+    (our_trials, 'TDM', 'test_'+base_key),
+    # (our_trials, 'TDM', base_key),
     (her_dense_trials, 'HER - Dense', 'test_'+base_key),
 ]:
     all_values = []
@@ -86,13 +92,12 @@ for trials, name, key in [
         values[:min_len]
         for values in all_values
     ])
-    if name != 'TDM':
-        costs = costs[:, :min(costs.shape[1], MAX_ITERS)]
+    costs = costs[:, :min(costs.shape[1], MAX_ITERS)]
     mean = np.mean(costs, axis=0)
     std = np.std(costs, axis=0)
     epochs = np.arange(0, len(costs[0]))
-    if name == 'TDM':
-        epochs = epochs / 10
+    # if name == 'TDM':
+    #     epochs = epochs / 10
     plt.fill_between(epochs, mean - std, mean + std, alpha=0.1)
     plt.plot(epochs, mean, label=name)
 
@@ -109,7 +114,7 @@ epochs = 2 * np.arange(0, len(her_mean))
 
 # plt.xscale('log')
 plt.xlabel("Environment Steps (x1000)")
-plt.ylabel("Distance to Goal")
+plt.ylabel("Final Distance to Goal")
 # plt.title(r"7-DoF Reacher: Distance to Goal vs Environment Samples")
 plt.legend()
 plt.savefig('results/iclr2018/reacher.jpg')

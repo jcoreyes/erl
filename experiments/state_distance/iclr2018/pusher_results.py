@@ -56,7 +56,7 @@ ddpg_trials = ddpg_exp.get_trials(ddpg_criteria)
 mb_trials = mb_exp.get_trials(mb_criteria)
 our_trials = our_exp.get_trials(our_criteria)
 her_dense_trials = her_dense_exp.get_trials(her_dense_criteria)
-MAX_ITERS = 40
+MAX_ITERS = 100
 
 base_key = 'Final_Euclidean_distance_to_goal_Mean'
 plt.figure()
@@ -96,7 +96,7 @@ epochs = 2 * np.arange(0, len(her_mean))
 
 # plt.xscale('log')
 plt.xlabel("Environment Samples (x1000)")
-plt.ylabel("Distance to Goal")
+plt.ylabel("Final Distance to Goal")
 # plt.title(r"Pusher: Distance to Goal vs Environment Samples")
 plt.legend()
 plt.savefig('results/iclr2018/pusher.jpg')

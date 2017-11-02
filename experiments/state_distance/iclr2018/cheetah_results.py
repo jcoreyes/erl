@@ -43,7 +43,7 @@ her_dense_trials = her_dense_exp.get_trials(her_dense_criteria)
 print(len(ddpg_trials))
 print(len(mb_trials))
 print(len(our_trials))
-MAX_ITERS = 20
+MAX_ITERS = 150
 
 def smooth(data):
     box = np.ones(5) / 5
@@ -74,8 +74,8 @@ for trials, name, key in [
         for values in all_values
     ])
     costs = costs[:, :min(costs.shape[1], MAX_ITERS)]
-    if name != 'TDM':
-        costs = smooth(costs)
+    # if name != 'TDM':
+    costs = smooth(costs)
     mean = np.mean(costs, axis=0)
     std = np.std(costs, axis=0)
     epochs = np.arange(0, len(costs[0]))

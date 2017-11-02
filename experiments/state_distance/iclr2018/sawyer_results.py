@@ -3,24 +3,26 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # naf_path = "/home/vitchyr/git/rllab-rail/railrl/data/papers/iclr2018/sawyer/naf/"
-ddpg_path = "/home/vitchyr/git/rllab-rail/railrl/data/papers/iclr2018/sawyer" \
-            "/ddpg-new"
-tdm_path = "/home/vitchyr/git/rllab-rail/railrl/data/papers/iclr2018/sawyer" \
-           "/tdm-new/"
+# ddpg_path = "/home/vitchyr/git/rllab-rail/railrl/data/papers/iclr2018/sawyer" \
+#             "/ddpg-new"
+# tdm_path = "/home/vitchyr/git/rllab-rail/railrl/data/papers/iclr2018/sawyer" \
+#            "/tdm-new/"
+ddpg_path = "/home/vitchyr/git/rllab-rail/railrl/data/papers/iclr2018/sawyer_new/ddpg/"
+tdm_path = "/home/vitchyr/git/rllab-rail/railrl/data/papers/iclr2018/sawyer_new/tdm/"
 
 ddpg_csvs = get_all_csv(ddpg_path)
 # naf_csvs = get_all_csv(naf_path)
 tdm_csvs = get_all_csv(tdm_path)
 
-MAX_ITERS = 50
+MAX_ITERS = 100
 plt.figure()
 for trials, name, key in [
     (ddpg_csvs, 'DDPG',
-     'Test_Distance_from_Desired_End_Effector_Position_Mean'),
+     'Test_Final_Distance_from_Desired_End_Effector_Position_Mean'),
     # (naf_csvs, 'NAF',
     #  'Test_Last_N_Step_Distance_from_Desired_End_Effector_Position_Mean'),
     (tdm_csvs, 'TDM',
-     'Test_Distance_from_Desired_End_Effector_Position_Mean'),
+     'Test_Final_Distance_from_Desired_End_Effector_Position_Mean'),
 ]:
     all_values = []
     min_len = np.inf
@@ -41,10 +43,13 @@ for trials, name, key in [
     epochs = np.arange(0, len(costs[0]))
     plt.fill_between(epochs, mean - std, mean + std, alpha=0.1)
     plt.plot(epochs, mean, label=name)
+    # plt.plot(epochs, costs[0, :], label=name)
+    # plt.plot(epochs, costs[1, :], label=name)
+    # plt.plot(epochs, costs[2, :], label=name)
 
 
 plt.xlabel("Environment Steps (x1000)")
-plt.ylabel("Mean Distance to Goal")
+plt.ylabel("Final Distance to Goal (m)")
 # plt.title(r"Mean Distance to Goal vs Environment Samples")
 plt.legend()
 plt.savefig('results/iclr2018/sawyer.jpg')
