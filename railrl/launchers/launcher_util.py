@@ -133,15 +133,16 @@ def run_experiment(
     global ec2_okayed
     global gpu_ec2_okayed
     global target_mount
-    if local_input_dir_to_mount_point_dict is None:
-        local_input_dir_to_mount_point_dict = {}
-    else:
-        raise NotImplementedError("TODO(vitchyr): Implement this")
-    # Modify some of the inputs
+
+    """
+    Sanitize inputs as needed
+    """
     if seed is None:
         seed = random.randint(0, 100000)
     if variant is None:
         variant = {}
+    if base_log_dir is None:
+        base_log_dir = config.LOCAL_LOG_DIR
     for key, value in ppp.recursive_items(variant):
         # This check isn't really necessary, but it's to prevent myself from
         # forgetting to pass a variant through dot_map_dict_to_nested_dict.
@@ -157,9 +158,27 @@ def run_experiment(
     variant['seed'] = str(seed)
     variant['exp_id'] = str(exp_id)
     variant['unique_id'] = str(unique_id)
-    logger.log("Variant:")
-    logger.log(json.dumps(ppp.dict_to_safe_json(variant), indent=2))
 
+    """
+    Safety Checks
+    """
+
+    if mode == 'ec2':
+        if not ec2_okayed and not query_yes_no(
+                "EC2 costs money. Are you sure you want to run?"
+        ):
+            sys.exit(1)
+        if not gpu_ec2_okayed and use_gpu:
+            if not query_yes_no(
+                    "EC2 is more expensive with GPUs. Confirm?"
+            ):
+                sys.exit(1)
+            gpu_ec2_okayed = True
+        ec2_okayed = True
+
+    """
+    Get the mode
+    """
     mode_str_to_doodad_mode = {
         'local': doodad.mode.Local(),
         'local_docker': doodad.mode.LocalDocker(
@@ -175,64 +194,34 @@ def run_experiment(
         ),
     }
 
-    if base_log_dir is None:
-        base_log_dir = config.LOCAL_LOG_DIR
-    output_mount_point = config.OUTPUT_DIR_FOR_DOODAD_TARGET
-    mounts = [m for m in CODE_MOUNTS]
-    for dir, mount_point in local_input_dir_to_mount_point_dict.items():
-        mounts.append(mount.MountLocal(
-            local_dir=dir,
-            mount_point=mount_point,
-            pythonpath=False,
-        ))
+    """
+    Get the mounts
+    """
+    mounts = create_mounts(
+        base_log_dir=base_log_dir,
+        mode=mode,
+        sync_interval=sync_interval,
+    )
 
-    if mode != 'local':
-        for m in NON_CODE_MOUNTS:
-            mounts.append(m)
-
+    """
+    Get the outputs
+    """
     if mode == 'ec2':
-        if not ec2_okayed and not query_yes_no(
-                "EC2 costs money. Are you sure you want to run?"
-        ):
-            sys.exit(1)
-        if not gpu_ec2_okayed and use_gpu:
-            if not query_yes_no(
-                    "EC2 is more expensive with GPUs. Confirm?"
-            ):
-                sys.exit(1)
-            gpu_ec2_okayed = True
-        ec2_okayed = True
-        output_mount = mount.MountS3(
-            s3_path='',
-            mount_point=output_mount_point,
-            output=True,
-            sync_interval=sync_interval,
-        )
-        # This will be over-written by the snapshot dir, but I'm setting it for
-        # good measure.
-        base_log_dir_for_script = output_mount_point
+        # Ignored since I'm setting the snapshot dir directly
+        base_log_dir_for_script = None
         # The snapshot dir needs to be specified for S3 because S3 will
         # automatically create the experiment director and sub-directory.
-        snapshot_dir_for_script = output_mount_point
+        snapshot_dir_for_script = config.OUTPUT_DIR_FOR_DOODAD_TARGET
     elif mode == 'local':
-        output_mount = mount.MountLocal(
-            local_dir=base_log_dir,
-            mount_point=None,  # For purely local mode, skip mounting.
-            output=True,
-        )
         base_log_dir_for_script = base_log_dir
         # The snapshot dir will be automatically created
         snapshot_dir_for_script = None
-    else:
-        output_mount = mount.MountLocal(
-            local_dir=base_log_dir,
-            mount_point=output_mount_point,
-            output=True,
-        )
-        base_log_dir_for_script = output_mount_point
+    elif mode == 'local_docker':
+        base_log_dir_for_script = config.OUTPUT_DIR_FOR_DOODAD_TARGET
         # The snapshot dir will be automatically created
         snapshot_dir_for_script = None
-    mounts.append(output_mount)
+    else:
+        raise NotImplementedError("Mode not supported: {}".format(mode))
 
     try:
         import git
@@ -269,6 +258,55 @@ def run_experiment(
         use_cloudpickle=True,
         target_mount=target_mount,
     )
+
+
+def create_mounts(
+        mode,
+        base_log_dir,
+        sync_interval=180,
+        local_input_dir_to_mount_point_dict=None,
+):
+    if local_input_dir_to_mount_point_dict is None:
+        local_input_dir_to_mount_point_dict = {}
+    else:
+        raise NotImplementedError("TODO(vitchyr): Implement this")
+
+    mounts = [m for m in CODE_MOUNTS]
+    for dir, mount_point in local_input_dir_to_mount_point_dict.items():
+        mounts.append(mount.MountLocal(
+            local_dir=dir,
+            mount_point=mount_point,
+            pythonpath=False,
+        ))
+
+    if mode != 'local':
+        for m in NON_CODE_MOUNTS:
+            mounts.append(m)
+
+    if mode == 'ec2':
+        output_mount = mount.MountS3(
+            s3_path='',
+            mount_point=config.OUTPUT_DIR_FOR_DOODAD_TARGET,
+            output=True,
+            sync_interval=sync_interval,
+        )
+    elif mode == 'local':
+        output_mount = mount.MountLocal(
+            local_dir=base_log_dir,
+            mount_point=None,  # For purely local mode, skip mounting.
+            output=True,
+        )
+    elif mode == 'local_docker':
+        output_mount = mount.MountLocal(
+            local_dir=base_log_dir,
+            mount_point=config.OUTPUT_DIR_FOR_DOODAD_TARGET,
+            output=True,
+        )
+    else:
+        raise NotImplementedError("Mode not supported: {}".format(mode))
+    mounts.append(output_mount)
+    return mounts
+
 
 
 def run_experiment_old(
@@ -327,8 +365,6 @@ def run_experiment_old(
     variant['seed'] = str(seed)
     variant['exp_id'] = str(exp_id)
     variant['unique_id'] = str(unique_id)
-    logger.log("Variant:")
-    logger.log(json.dumps(ppp.dict_to_safe_json(variant), indent=2))
     command_words = []
     if time_it:
         command_words.append('time')
@@ -651,6 +687,9 @@ def setup_logger(
     :param script_name: If set, save the script name to this.
     :return:
     """
+    logger.log("Variant:")
+    logger.log(json.dumps(ppp.dict_to_safe_json(variant), indent=2))
+
     first_time = log_dir is None
     if first_time:
         log_dir = create_log_dir(exp_prefix, exp_id=exp_id, seed=seed,
