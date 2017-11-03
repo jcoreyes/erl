@@ -468,18 +468,44 @@ def continue_experiment(load_experiment_dir, resume_function):
         raise Exception('invalid experiment_file')
 
 
+def continue_experiment_simple(load_experiment_dir, resume_function):
+    path = os.path.join(load_experiment_dir, 'experiment.pkl')
+    data = joblib.load(path)
+    run_experiment_here_kwargs = data['run_experiment_here_kwargs']
+    run_experiment_here_kwargs['log_dir'] = load_experiment_dir
+    run_experiment_here_kwargs['variant']['params_file'] = (
+        os.path.join(load_experiment_dir, 'extra_data.pkl')
+    )
+    run_experiment_here(
+        resume_function,
+        **run_experiment_here_kwargs
+    )
+
+def resume_torch_algorithm_simple(variant):
+    from railrl.torch import pytorch_util as ptu
+    load_file = variant.get('params_file', None)
+    if load_file is not None and osp.exists(load_file):
+        data = joblib.load(load_file)
+        algorithm = data['algorithm']
+        epoch = data['epoch']+1
+        if ptu.gpu_enabled():
+            algorithm.cuda()
+        algorithm.train(start_epoch=epoch + 1)
+
+
 def run_experiment_here(
         experiment_function,
-        exp_prefix="default",
         variant=None,
         exp_id=0,
         seed=0,
         use_gpu=True,
+        n_parallel=0,
+        # Logger params:
+        exp_prefix="default",
         snapshot_mode='last',
         snapshot_gap=1,
         git_info=None,
         script_name=None,
-        n_parallel=0,
         base_log_dir=None,
         log_dir=None,
 ):
@@ -506,8 +532,9 @@ def run_experiment_here(
     if seed is None and 'seed' not in variant:
         seed = random.randint(0, 100000)
         variant['seed'] = str(seed)
+    reset_execution_environment()
 
-    setup_logger(
+    actual_log_dir = setup_logger(
         exp_prefix=exp_prefix,
         variant=variant,
         exp_id=exp_id,
@@ -526,7 +553,26 @@ def run_experiment_here(
         parallel_sampler.set_seed(seed)
     set_seed(seed)
     set_gpu_mode(use_gpu)
-    reset_execution_environment()
+
+    run_experiment_here_kwargs = dict(
+        variant=variant,
+        exp_id=exp_id,
+        seed=seed,
+        use_gpu=use_gpu,
+        n_parallel=n_parallel,
+        exp_prefix=exp_prefix,
+        snapshot_mode=snapshot_mode,
+        snapshot_gap=snapshot_gap,
+        git_info=git_info,
+        script_name=script_name,
+        base_log_dir=base_log_dir,
+    )
+    save_experiment_data(
+        dict(
+            run_experiment_here_kwargs=run_experiment_here_kwargs
+        ),
+        actual_log_dir
+    )
     return experiment_function(variant)
 
 
@@ -644,6 +690,7 @@ def setup_logger(
     if script_name is not None:
         with open(osp.join(log_dir, "script_name.txt"), "w") as f:
             f.write(script_name)
+    return log_dir
 
 
 def set_seed(seed):
