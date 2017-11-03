@@ -2,13 +2,16 @@ from collections import OrderedDict
 
 from numpy.linalg import linalg
 
-from railrl.envs.ros.baxter_env import SawyerEnv
+from experiments.murtaza.ros.Sawyer.joint_space_impedance import PDController
+from intera_interface import CHECK_VERSION
+from railrl.envs.ros.sawyer_env import SawyerEnv
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 import numpy as np
-import baxter_interface as bi
+import intera_interface as ii
 import rospy
 
 from rllab.core.serializable import Serializable
+from rllab.misc import logger
 from rllab.spaces import Box
 
 NUM_JOINTS = 7
@@ -50,6 +53,7 @@ JOINT_VALUE_LOW = {
     'torque': JOINT_TORQUE_LOW,
 }
 
+#not sure what the min/max angle and pos are supposed to be
 END_EFFECTOR_POS_LOW = [
     0.3404830862298487,
     -1.2633121086809487,
@@ -65,81 +69,39 @@ END_EFFECTOR_POS_HIGH = [
 END_EFFECTOR_ANGLE_LOW = -1*np.ones(4)
 END_EFFECTOR_ANGLE_HIGH = np.ones(4)
 
-RIGHT_END_EFFECTOR_POS_LOW = [
-    0.3404830862298487,
-    -1.2633121086809487,
-    -0.5698485041484043
-]
-
-RIGHT_END_EFFECTOR_POS_HIGH = [
-    1.4042843059147565,
-    0.003933425621414761,
-    0.795699462010194
-]
-
-LEFT_END_EFFECTOR_POS_LOW = [
-    0.3404830862298487,
-    -1.2633121086809487,
-    -0.5698485041484043
-]
-
-LEFT_END_EFFECTOR_POS_HIGH = [
-    1.360514343667115,
-    0.4383921665010369,
-    0.795699462010194
-]
-
 END_EFFECTOR_VALUE_LOW = {
-    'right': {
-        'position': RIGHT_END_EFFECTOR_POS_LOW,
-        'angle': END_EFFECTOR_ANGLE_LOW,
-        },
-    'left': {
-        'position': LEFT_END_EFFECTOR_POS_LOW,
-        'angle': END_EFFECTOR_ANGLE_LOW,
-    }
+    'position': END_EFFECTOR_POS_LOW,
+    'angle': END_EFFECTOR_ANGLE_LOW,
 }
 
 END_EFFECTOR_VALUE_HIGH = {
-    'right': {
-        'position': RIGHT_END_EFFECTOR_POS_HIGH,
-        'angle': END_EFFECTOR_ANGLE_HIGH,
-        },
-    'left': {
-        'position': LEFT_END_EFFECTOR_POS_HIGH,
-        'angle': END_EFFECTOR_ANGLE_HIGH,
-    }
+    'position': END_EFFECTOR_POS_HIGH,
+    'angle': END_EFFECTOR_ANGLE_HIGH,
 }
 
-right_safety_box_lows = [
-    0.08615153069561253,
-    -1.406381785756028,
-    -0.5698485041484043
-]
+TORQUE_MAX = 3.5
+TORQUE_MAX_TRAIN = 5
+MAX_TORQUES = 0.5 * np.array([8, 7, 6, 5, 4, 3, 2])
 
-right_safety_box_highs = [
-    1.463239572333106,
-    0.3499125815982429,
-    0.9771420218394952,
-]
+box_lows = np.array([
+    0.1228008448954529,
+    -0.31815782,
+    0.2284391863426093,
+])
 
-left_safety_box_lows = [
-    0.3404830862298487,
-    -0.3499125815982429,
-    -0.5698485041484043
-]
-
-left_safety_box_highs = [
-    1.1163239572333106,
-    1.406381785756028,
-    0.795699462010194
-]
+box_highs = np.array([
+    0.7175958839273338,
+    0.3064466563902636,
+    1.3,
+])
 
 joint_names = [
-    '_lower_elbow',
-    '_upper_forearm',
-    '_lower_forearm',
-    '_wrist',
+    '_l2',
+    '_l3',
+    '_l4',
+    '_l5',
+    '_l6',
+    '_hand'
 ]
 
 experiments=[
@@ -151,8 +113,7 @@ experiments=[
     'end_effector_position_orientation|varying_ee'
 ]
 
-
-class MultiTaskBaxterEnv(SawyerEnv, MultitaskEnv):
+class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
     def __init__(
             self,
             arm_name,
@@ -165,21 +126,36 @@ class MultiTaskBaxterEnv(SawyerEnv, MultitaskEnv):
             huber_delta=10,
             safety_force_magnitude=2,
             temp=1.05,
-            gpu=True,
-            safe_reset_length=30,
-            include_torque_penalty=False,
+            safe_reset_length=200,
             reward_magnitude=1,
+            use_safety_checks=True,
+            use_angle_wrapping=False,
+            use_angle_parameterization=False,
+            wrap_reward_angle_computation=True,
+            task='reaching',
     ):
+
         Serializable.quick_init(self, locals())
-        rospy.init_node('baxter_env', anonymous=True)
+        rospy.init_node('sawyer_env', anonymous=True)
         self.rate = rospy.Rate(update_hz)
-        self.terminate_experiment = False
+
         #defaults:
         self.joint_angle_experiment = False
         self.fixed_angle = False
         self.end_effector_experiment_position = False
         self.end_effector_experiment_total = False
         self.fixed_end_effector = False
+
+        self.task = task
+        self.use_safety_checks = use_safety_checks
+        self.use_angle_wrapping = use_angle_wrapping
+        self.use_angle_parameterization = use_angle_parameterization
+        self.wrap_reward_angle_computation = wrap_reward_angle_computation
+        self.reward_magnitude = reward_magnitude
+        self.safety_box = safety_box
+        self.remove_action = remove_action
+        self.arm_name = arm_name
+        self.safe_reset_length = safe_reset_length
 
         if experiment == experiments[0]:
             self.joint_angle_experiment=True
@@ -197,13 +173,12 @@ class MultiTaskBaxterEnv(SawyerEnv, MultitaskEnv):
         elif experiment == experiments[5]:
             self.end_effector_experiment_total = True
 
-        self.safety_box = safety_box
-        self.remove_action = remove_action
-        self.arm_name = arm_name
-        self.gpu = gpu
-        self.safe_reset_length = safe_reset_length
-        self.include_torque_penalty = include_torque_penalty
-        self.reward_magnitude = reward_magnitude
+        if self.task == 'reaching':
+            self.end_effector_experiment_position = True
+            self.fixed_end_effector = True
+        elif self.task == 'lego':
+            self.end_effector_experiment_total = True
+            self.fixed_end_effector = True
 
         if loss == 'MSE':
             self.reward_function = self._MSE_reward
@@ -214,13 +189,14 @@ class MultiTaskBaxterEnv(SawyerEnv, MultitaskEnv):
         self.safety_force_magnitude = safety_force_magnitude
         self.temp = temp
 
-        self.arm = bi.Limb(self.arm_name)
+        self.arm = ii.Limb(self.arm_name)
         self.arm_joint_names = self.arm.joint_names()
 
+        self.PDController = PDController()
 
         #create a dictionary whose values are functions that set the appropriate values
         action_mode_dict = {
-            'position': self.arm.set_joint_positions,
+            'angle': self.arm.set_joint_positions,
             'velocity': self.arm.set_joint_velocities,
             'torque': self.arm.set_joint_torques,
         }
@@ -238,31 +214,62 @@ class MultiTaskBaxterEnv(SawyerEnv, MultitaskEnv):
         self._action_space = Box(
             JOINT_VALUE_LOW[action_mode],
             JOINT_VALUE_HIGH[action_mode]
-            )
+        )
 
-        lows = np.hstack((
-            JOINT_VALUE_LOW['position'],
-            JOINT_VALUE_LOW['velocity'],
-            JOINT_VALUE_LOW['torque'],
-            END_EFFECTOR_VALUE_LOW[self.arm_name]['position'],
-        ))
+        if self.task == 'reaching':
+            lows = np.hstack((
+                JOINT_VALUE_LOW['position'],
+                JOINT_VALUE_LOW['velocity'],
+                JOINT_VALUE_LOW['torque'],
+                END_EFFECTOR_VALUE_LOW['position'],
+                END_EFFECTOR_VALUE_LOW['position'],
+            ))
 
-        highs = np.hstack((
-            JOINT_VALUE_HIGH['position'],
-            JOINT_VALUE_HIGH['velocity'],
-            JOINT_VALUE_HIGH['torque'],
-            END_EFFECTOR_VALUE_HIGH[self.arm_name]['position'],
-        ))
+            highs = np.hstack((
+                JOINT_VALUE_HIGH['position'],
+                JOINT_VALUE_HIGH['velocity'],
+                JOINT_VALUE_HIGH['torque'],
+                END_EFFECTOR_VALUE_HIGH['position'],
+                END_EFFECTOR_VALUE_HIGH['position'],
+            ))
 
-        if self.fixed_end_effector:
-            if self.arm_name == 'right':
-                self.desired = [1.2042843059147565, -0.5996823547145944, 0.4512758791000766]
-            elif self.arm_name == 'left':
-                self.desired = [1.260514343667115, 0.2383921665010369, 0.3387014480798653]
-        else:
-            self._randomize_desired_end_effector_pose()
+        if self.task == 'lego':
+            lows = np.hstack((
+                JOINT_VALUE_LOW['position'],
+                JOINT_VALUE_LOW['velocity'],
+                JOINT_VALUE_LOW['torque'],
+                END_EFFECTOR_VALUE_LOW['position'],
+                END_EFFECTOR_VALUE_LOW['angle'],
+            ))
+
+            highs = np.hstack((
+                JOINT_VALUE_HIGH['position'],
+                JOINT_VALUE_HIGH['velocity'],
+                JOINT_VALUE_HIGH['torque'],
+                END_EFFECTOR_VALUE_HIGH['position'],
+                END_EFFECTOR_VALUE_HIGH['angle'],
+            ))
+            des = {
+                'position': Point(x=0.44562573898386176, y=-0.055317682301721766, z=0.4950886597008108),
+                'orientation': Quaternion(x=-0.5417504106748736, y=0.46162598289085305, z=0.35800013141940035,
+                                          w=0.6043540769758675)}
+            self.desired = np.array([
+                des['position'].x,
+                des['position'].y,
+                des['position'].z,
+                des['orientation'].x,
+                des['orientation'].y,
+                des['orientation'].z,
+                des['orientation'].w,
+            ])
 
         self._observation_space = Box(lows, highs)
+        self._rs = ii.RobotEnable(CHECK_VERSION)
+        self.update_pose_and_jacobian_dict()
+        self.in_reset = True
+        self.amplify = 5*np.ones(7)
+        self._observation_space = Box(lows, highs)
+
     def set_goal(self, goal):
         self.desired = goal
 
@@ -271,7 +278,13 @@ class MultiTaskBaxterEnv(SawyerEnv, MultitaskEnv):
         return 3
 
     def sample_goal_states(self, batch_size):
-        return np.random.uniform(END_EFFECTOR_POS_LOW, END_EFFECTOR_POS_HIGH, size=(batch_size, 3))
+        return np.random.uniform(box_lows, box_highs, size=(batch_size, 3))
+
+    def sample_goal_state_for_rollout(self):
+        if self.task == 'lego':
+            return self.desired
+        else:
+            return super().sample_goal_state_for_rollout()
 
     def sample_actions(self, batch_size):
         return np.random.uniform(JOINT_VALUE_LOW['torque'], JOINT_VALUE_HIGH['torque'], (batch_size, 7))
@@ -285,9 +298,8 @@ class MultiTaskBaxterEnv(SawyerEnv, MultitaskEnv):
     def _get_observation(self):
         angles = self._get_joint_values['angle']()
         velocities_dict = self._get_joint_values['velocity']()
-        torques_dict = self._get_joint_values['torque']()
         velocities = np.array([velocities_dict[joint] for joint in self.arm_joint_names])
-        torques = np.array([torques_dict[joint] for joint in self.arm_joint_names])
+        torques = np.zeros(7)
         temp = np.hstack((angles, velocities, torques))
         temp = np.hstack((temp, self._end_effector_pose()))
         return temp
@@ -299,15 +311,26 @@ class MultiTaskBaxterEnv(SawyerEnv, MultitaskEnv):
         if self.end_effector_experiment_total or self.end_effector_experiment_position:
             obsSets = [path["observations"] for path in paths]
             positions = []
+            last_positions = []
             for obsSet in obsSets:
                 for observation in obsSet:
                     positions.append(observation[21:24])
-            import ipdb; ipdb.set_trace()
+ #               last_positions.append(obsSet[-1][21:24])
             positions = np.array(positions)
+   #         last_positions = np.array(last_positions)
             desired_positions = goal_states
             position_distances = linalg.norm(positions - desired_positions, axis=1)
+#            last_position_distances = linalg.norm(last_positions - desired_positions, axis=1)
+
             statistics.update(self._statistics_from_observations(
                 position_distances,
                 stat_prefix,
                 'Distance from Desired End Effector Position'
             ))
+#            statistics.update(self._statistics_from_observations(
+#                last_position_distances,
+#                stat_prefix,
+#                'Final Distance from Desired End Effector Position'
+#            ))
+        for key, value in statistics.items():
+            logger.record_tabular(key, value)

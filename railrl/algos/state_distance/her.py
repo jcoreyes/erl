@@ -9,6 +9,7 @@ from railrl.algos.state_distance.state_distance_q_learning import (
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.misc.rllab_util import split_paths_to_dict
+from railrl.torch.algos.eval import get_generic_path_information
 from railrl.torch.algos.util import np_to_pytorch_batch
 from railrl.torch.ddpg import DDPG
 from rllab.misc import logger
