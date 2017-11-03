@@ -49,6 +49,7 @@ except ImportError:
 
 target_mount = None
 
+
 def run_experiment(
         method_call,
         mode='local',
@@ -352,11 +353,10 @@ def run_experiment_old(
         commit_hash = ''
     script_name = "tmp"
     if mode == 'here':
-        log_dir, exp_name = create_log_dir(exp_prefix, exp_id, seed,
+        log_dir = create_log_dir(exp_prefix, exp_id, seed,
                                            base_log_dir)
         data = dict(
             log_dir=log_dir,
-            exp_name=exp_name,
             mode=mode,
             variant=variant,
             exp_id=exp_id,
@@ -448,7 +448,6 @@ def continue_experiment(load_experiment_dir, resume_function):
         n_parallel = data['n_parallel']
         base_log_dir = data['base_log_dir']
         log_dir = data['log_dir']
-        exp_name = data['exp_name']
         if mode == 'here':
             run_experiment_here(
                 resume_function,
@@ -464,7 +463,6 @@ def continue_experiment(load_experiment_dir, resume_function):
                 n_parallel=n_parallel,
                 base_log_dir=base_log_dir,
                 log_dir=log_dir,
-                exp_name=exp_name,
             )
     else:
         raise Exception('invalid experiment_file')
@@ -484,7 +482,6 @@ def run_experiment_here(
         n_parallel=0,
         base_log_dir=None,
         log_dir=None,
-        exp_name=None,
 ):
     """
     Run an experiment locally without any serialization.
@@ -504,16 +501,12 @@ def run_experiment_here(
     """
     if variant is None:
         variant = {}
+    variant['exp_id'] = str(exp_id)
+
     if seed is None and 'seed' not in variant:
         seed = random.randint(0, 100000)
         variant['seed'] = str(seed)
-    if n_parallel > 0:
-        from rllab.sampler import parallel_sampler
-        parallel_sampler.initialize(n_parallel=n_parallel)
-        parallel_sampler.set_seed(seed)
-    variant['exp_id'] = str(exp_id)
-    reset_execution_environment()
-    set_seed(seed)
+
     setup_logger(
         exp_prefix=exp_prefix,
         variant=variant,
@@ -523,22 +516,17 @@ def run_experiment_here(
         snapshot_gap=snapshot_gap,
         base_log_dir=base_log_dir,
         log_dir=log_dir,
-        exp_name=exp_name,
+        git_info=git_info,
+        script_name=script_name,
     )
-    log_dir = logger.get_snapshot_dir()
-    if git_info is not None:
-        code_diff, commit_hash, branch_name = git_info
-        if code_diff is not None:
-            with open(osp.join(log_dir, "code.diff"), "w") as f:
-                f.write(code_diff)
-        with open(osp.join(log_dir, "git_info.txt"), "w") as f:
-            f.write("git hash: {}".format(commit_hash))
-            f.write('\n')
-            f.write("git branch name: {}".format(branch_name))
-    if script_name is not None:
-        with open(osp.join(log_dir, "script_name.txt"), "w") as f:
-            f.write(script_name)
+
+    if n_parallel > 0:
+        from rllab.sampler import parallel_sampler
+        parallel_sampler.initialize(n_parallel=n_parallel)
+        parallel_sampler.set_seed(seed)
+    set_seed(seed)
     set_gpu_mode(use_gpu)
+    reset_execution_environment()
     return experiment_function(variant)
 
 
@@ -571,7 +559,7 @@ def create_log_dir(exp_prefix, exp_id=0, seed=0, base_log_dir=None):
     if osp.exists(log_dir):
         print("WARNING: Log directory already exists {}".format(log_dir))
     os.makedirs(log_dir, exist_ok=True)
-    return log_dir, exp_name
+    return log_dir
 
 
 def setup_logger(
@@ -587,14 +575,19 @@ def setup_logger(
         snapshot_gap=1,
         log_tabular_only=False,
         log_dir=None,
-        exp_name=None,
+        git_info=None,
+        script_name=None,
 ):
     """
     Set up logger to have some reasonable default settings.
 
     Will save log output to
 
-    based_log_dir/exp_prefix/exp_name.
+        based_log_dir/exp_prefix/exp_name.
+
+    exp_name will be auto-generated to be unique.
+
+    If log_dir is specified, then that directory is used as the output dir.
 
     :param exp_prefix: The sub-directory for this specific experiment.
     :param exp_id: The number of the specific experiment run within this
@@ -607,11 +600,14 @@ def setup_logger(
     :param snapshot_mode:
     :param log_tabular_only:
     :param snapshot_gap:
+    :param log_dir:
+    :param git_info:
+    :param script_name: If set, save the script name to this.
     :return:
     """
-    first_time = log_dir is None and exp_name is None
+    first_time = log_dir is None
     if first_time:
-        log_dir, exp_name = create_log_dir(exp_prefix, exp_id=exp_id, seed=seed,
+        log_dir = create_log_dir(exp_prefix, exp_id=exp_id, seed=seed,
                                            base_log_dir=base_log_dir)
 
     tabular_log_path = osp.join(log_dir, tabular_log_file)
@@ -633,7 +629,21 @@ def setup_logger(
     logger.set_snapshot_mode(snapshot_mode)
     logger.set_snapshot_gap(snapshot_gap)
     logger.set_log_tabular_only(log_tabular_only)
+    exp_name = log_dir.split("/")[-1]
     logger.push_prefix("[%s] " % exp_name)
+
+    if git_info is not None:
+        code_diff, commit_hash, branch_name = git_info
+        if code_diff is not None:
+            with open(osp.join(log_dir, "code.diff"), "w") as f:
+                f.write(code_diff)
+        with open(osp.join(log_dir, "git_info.txt"), "w") as f:
+            f.write("git hash: {}".format(commit_hash))
+            f.write('\n')
+            f.write("git branch name: {}".format(branch_name))
+    if script_name is not None:
+        with open(osp.join(log_dir, "script_name.txt"), "w") as f:
+            f.write(script_name)
 
 
 def set_seed(seed):
