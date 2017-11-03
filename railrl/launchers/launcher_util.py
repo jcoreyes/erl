@@ -201,6 +201,7 @@ def run_experiment(
         base_log_dir=base_log_dir,
         mode=mode,
         sync_interval=sync_interval,
+        local_input_dir_to_mount_point_dict=local_input_dir_to_mount_point_dict,
     )
 
     """
