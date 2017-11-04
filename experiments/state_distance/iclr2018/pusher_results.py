@@ -36,6 +36,12 @@ our_criteria = {
 #     'algo_params.num_updates_per_env_step': 25,
 #     'epoch_discount_schedule_params.value': 15,
 # }
+our_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/11-02-get-results-handxyxy-small-sweep"
+our_criteria = {
+    'algo_params.num_updates_per_env_step': 5,
+    'epoch_discount_schedule_params.value': 5,
+    'algo_params.tau': 0.001,
+}
 
 her_dense_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-27-her-baseline-shaped-rewards-no-clipping-300-300-right-discount-and-tau/"
 her_dense_criteria = {
