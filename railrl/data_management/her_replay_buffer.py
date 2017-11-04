@@ -127,11 +127,14 @@ class HerReplayBuffer(EnvReplayBuffer):
                 self._index_to_sampled_goal_states_idxs[i] = None
 
     def random_batch(self, batch_size):
-        indices = np.random.choice(
-            self._valid_transition_indices,
-            batch_size,
-            replace=False
-        )
+        # This is *much* faster than np.random.choice, because np.random.choice
+        # converts the inputted array into a np.array internally. But
+        # self._valid_transition_indices may be huge!
+        length = len(self._valid_transition_indices)
+        indices = np.array([
+            self._valid_transition_indices[i]
+            for i in np.random.randint(0, length, batch_size)
+        ])
         next_indices = (indices + 1) % self._size
         if self.goal_sample_strategy == 'store':
             goal_state_indices = [
