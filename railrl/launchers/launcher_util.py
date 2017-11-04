@@ -688,20 +688,19 @@ def setup_logger(
     :param script_name: If set, save the script name to this.
     :return:
     """
-    logger.log("Variant:")
-    logger.log(json.dumps(ppp.dict_to_safe_json(variant), indent=2))
-
     first_time = log_dir is None
     if first_time:
         log_dir = create_log_dir(exp_prefix, exp_id=exp_id, seed=seed,
                                            base_log_dir=base_log_dir)
 
-    tabular_log_path = osp.join(log_dir, tabular_log_file)
-    text_log_path = osp.join(log_dir, text_log_file)
-
     if variant is not None:
+        logger.log("Variant:")
+        logger.log(json.dumps(ppp.dict_to_safe_json(variant), indent=2))
         variant_log_path = osp.join(log_dir, variant_log_file)
         logger.log_variant(variant_log_path, variant)
+
+    tabular_log_path = osp.join(log_dir, tabular_log_file)
+    text_log_path = osp.join(log_dir, text_log_file)
 
     logger.add_text_output(text_log_path)
     if first_time:
