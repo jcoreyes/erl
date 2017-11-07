@@ -13,29 +13,6 @@ ddpg_criteria = {
 }
 mb_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-25-abhishek-mb-baseline-pusher-again-shaped/"
 mb_criteria = None
-our_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-25-get-results-take1/"
-our_criteria = {
-    'env_class.$class':
-        "railrl.envs.multitask.pusher2d.HandCylinderXYPusher2DEnv",
-    'algo_params.goal_dim_weights': [1, 1, 1, 1],
-    'epoch_discount_schedule_params.value': 10,
-}
-our_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-26-sdql-pusher-xyxy-sweep-tau-scale-and-more/"
-our_criteria = {
-    # 'env_class.$class':
-    #     "railrl.envs.multitask.pusher2d.HandCylinderXYPusher2DEnv",
-    'algo_params.goal_dim_weights': [1, 1, 1, 1],
-    'algo_params.num_updates_per_env_step': 5,
-    'algo_params.discount': 15,
-    'env_class.$class':
-        "railrl.envs.multitask.pusher2d.HandCylinderXYPusher2DEnv"
-}
-# our_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-27-get" \
-#           "-results-handxyxy-best-hp-no-oc-sampling-nspe1000/"
-# our_criteria = {
-#     'algo_params.num_updates_per_env_step': 25,
-#     'epoch_discount_schedule_params.value': 15,
-# }
 our_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/11-02-get-results-handxyxy-small-sweep"
 our_criteria = {
     'algo_params.num_updates_per_env_step': 5,
