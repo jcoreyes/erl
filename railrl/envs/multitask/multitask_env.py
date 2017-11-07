@@ -19,9 +19,6 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         self.multitask_goal = np.zeros(self.goal_dim)
         self.goal_dim_weights = np.ones(self.goal_dim)
 
-    def set_goal(self, goal):
-        self.multitask_goal = goal
-
     @abc.abstractmethod
     def sample_goal_states(self, batch_size):
         pass
@@ -80,6 +77,8 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
     """
     Check out these default functions below! You may want to override them.
     """
+    def set_goal(self, goal):
+        self.multitask_goal = goal
 
     def compute_rewards(self, obs, action, next_obs, goal_states):
         return - np.linalg.norm(
