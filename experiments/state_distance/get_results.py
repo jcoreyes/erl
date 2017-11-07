@@ -165,7 +165,7 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "get-results-handxyxy-small-sweep"
+    exp_prefix = "replicate-half-cheetah-results"
     run_mode = 'grid'
     # snapshot_mode = "gap_and_last"
 
@@ -187,7 +187,7 @@ if __name__ == '__main__':
             num_epochs=101,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
-            num_updates_per_env_step=5,
+            num_updates_per_env_step=25,
             use_soft_update=True,
             tau=0.001,
             batch_size=64,
@@ -253,26 +253,26 @@ if __name__ == '__main__':
     if run_mode == 'grid':
         for env_class in [
             # Reacher7DofGoalStateEverything,
-            HandCylinderXYPusher2DEnv,
+            # HandCylinderXYPusher2DEnv,
             # FullStatePusher2DEnv,
-            # GoalXVelHalfCheetah,
+            GoalXVelHalfCheetah,
         ]:
             search_space = {
                 # 'algo_params.goal_dim_weights': env_class_to_goal_dim_weights[env_class],
                 'env_class': [env_class],
-                'epoch_discount_schedule_params.value': [
-                    5,
-                    10,
-                    15,
-                ],
-                'algo_params.num_updates_per_env_step': [
-                    25, 5
-                ],
-                'algo_params.tau': [
-                    0.1,
-                    0.01,
-                    0.001,
-                ],
+                # 'epoch_discount_schedule_params.value': [
+                #     5,
+                #     10,
+                #     15,
+                # ],
+                # 'algo_params.num_updates_per_env_step': [
+                #     25, 5
+                # ],
+                # 'algo_params.tau': [
+                #     0.1,
+                #     0.01,
+                #     0.001,
+                # ],
             }
             sweeper = hyp.DeterministicHyperparameterSweeper(
                 search_space, default_parameters=variant,
