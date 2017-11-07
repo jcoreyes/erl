@@ -41,7 +41,6 @@ class StateDistanceQLearning(DDPG):
             num_steps_per_epoch=100,
             sample_train_goals_from='replay_buffer',
             sample_rollout_goals_from='environment',
-            sample_discount=False,
             num_steps_per_eval=1000,
             max_path_length=1000,
             discount=0.99,
@@ -93,7 +92,6 @@ class StateDistanceQLearning(DDPG):
         assert sample_rollout_goals_from in ['environment', 'replay_buffer']
         self.sample_train_goals_from = sample_train_goals_from
         self.sample_rollout_goals_from = sample_rollout_goals_from
-        self.sample_discount = sample_discount
         self.num_steps_per_tensorboard_update = num_steps_per_tensorboard_update
         self.prob_goal_state_is_next_state = prob_goal_state_is_next_state
         self.termination_threshold = termination_threshold
@@ -219,10 +217,7 @@ class StateDistanceQLearning(DDPG):
             ))
 
     def _sample_discount(self, batch_size):
-        if self.sample_discount:
-            return np.random.uniform(0, self.discount, (batch_size, 1))
-        else:
-            return self.discount * np.ones((batch_size, 1))
+        return np.random.uniform(0, self.discount, (batch_size, 1))
 
     def _sample_discount_for_rollout(self):
         return self._sample_discount(1)[0, 0]
@@ -517,10 +512,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
         assert isinstance(self.discount, int)
 
     def _sample_discount(self, batch_size):
-        if self.sample_discount:
-            return np.random.randint(0, self.discount + 1, (batch_size, 1))
-        else:
-            return self.discount * np.ones((batch_size, 1))
+        return np.random.randint(0, self.discount + 1, (batch_size, 1))
 
     def _sample_discount_for_rollout(self):
         if self.cycle_taus_for_rollout:
