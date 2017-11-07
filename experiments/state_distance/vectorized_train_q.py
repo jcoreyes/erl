@@ -30,7 +30,7 @@ from railrl.envs.multitask.pusher2d import (
     # HandCylinderXYPusher2DEnv_move_hand_to_cylinder,
     # FullStatePusher2DEnv_move_joints_to_target_joint,
     # HandXYPusher2DEnv_oc_reward_on_goals, HandXYPusher2DEnv_oc_reward)
-    NoShapeHandCylinderXYPusher2DEnv)
+    NoShapeHandCylinderXYPusher2DEnv, LessShapeHandCylinderXYPusher2DEnv)
 from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState,
@@ -197,11 +197,11 @@ if __name__ == '__main__':
     run_mode = "none"
     snapshot_mode = "last"
 
-    n_seeds = 3
+    n_seeds = 1
     mode = "ec2"
-    exp_prefix = "tdm-ant-sweep"
+    exp_prefix = "tdm-pusher-sweep-less-shape"
     run_mode = 'grid'
-    snapshot_mode = "gap_and_last"
+    # snapshot_mode = "gap_and_last"
 
     version = "na"
     num_configurations = 50  # for random mode
@@ -210,8 +210,6 @@ if __name__ == '__main__':
     if mode != "local":
         use_gpu = False
 
-    max_path_length = 100
-    max_tau = 25
     # noinspection PyTypeChecker
     algo_class = VectorizedTauSdql
     # algo_class = VectorizedDeltaTauSdql
@@ -227,16 +225,20 @@ if __name__ == '__main__':
     # env_class = Reacher7DofGoalStateEverything
     # env_class = HandXYPusher2DEnv
     # env_class = HandCylinderXYPusher2DEnv
+    env_class = LessShapeHandCylinderXYPusher2DEnv
     # env_class = GoalXVelHalfCheetah
-    env_class = GoalXYVelAnt
+    # env_class = GoalXYVelAnt
     # env_class = FullStatePusher2DEnv
     # env_class = FixedHandXYPusher2DEnv
     # env_class = CylinderXYPusher2DEnv
+    max_path_length = 100
+    max_tau = 25
+    num_epochs = 101
     replay_buffer_size = 200000
     variant = dict(
         version=version,
         algo_params=dict(
-            num_epochs=1001,
+            num_epochs=num_epochs,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             num_updates_per_env_step=25,
@@ -248,8 +250,6 @@ if __name__ == '__main__':
             policy_learning_rate=1e-4,
             sample_rollout_goals_from='environment',
             sample_train_goals_from='her',
-            # sample_train_goals_from='replay_buffer',
-            sample_discount=True,
             qf_weight_decay=0.,
             max_path_length=max_path_length,
             replay_buffer_size=replay_buffer_size,
@@ -263,29 +263,17 @@ if __name__ == '__main__':
             # only_do_sl=False,
             # cycle_taus_for_rollout=False,
             # num_sl_batches_per_rl_batch=1,
-            # only_do_sl=True,
-            # goal_dim_weights=(1, 1, 1, 1),
-            # goal_dim_weights=(0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 1, 1, 1, 1),
         ),
-        # eval_with_oc_policy=True,
-        eval_with_oc_policy=False,
+        eval_with_oc_policy=True,
+        # eval_with_oc_policy=False,
         her_replay_buffer_params=dict(
             max_size=replay_buffer_size,
             num_goals_to_sample=4,
             goal_sample_strategy='store',
         ),
-        raw_explore_policy='ddpg',
+        raw_explore_policy='oc',
         oc_policy_params=dict(
-            sample_size=10000,
-            # reward_function=env_class.oc_reward_on_goals,
-            # reward_function=env_class.oc_reward,
-            # reward_function=FullStatePusher2DEnv_move_hand_to_target_position_oc_reward_on_goals,
-            # reward_function=HandCylinderXYPusher2DEnv_move_hand_to_cylinder,
-            # reward_function=Reacher7DofFullGoalState_oc_reward,
-            # reward_function=Reacher7DofGoalStateEverything_oc_reward,
-            # reward_function=HandCylinderXYPusher2DEnv_move_hand_to_cylinder,
-            # reward_function=HandXYPusher2DEnv_oc_reward,
-            # reward_function=HandXYPusher2DEnv_oc_reward_on_goals
+            sample_size=1,
         ),
         qf_params=dict(
             hidden_sizes=[300, 300],
@@ -296,9 +284,11 @@ if __name__ == '__main__':
             fc1_size=300,
             fc2_size=300,
         ),
-        epoch_discount_schedule_class=ConstantSchedule,
+        epoch_discount_schedule_class=IntRampUpSchedule,
         epoch_discount_schedule_params=dict(
-            value=max_tau,
+            min_value=0,
+            max_value=0,
+            ramp_duration=num_epochs,
         ),
         algo_class=algo_class,
         env_class=env_class,
@@ -342,25 +332,25 @@ if __name__ == '__main__':
                 # GoalConditionedDeltaModel,
                 # TauBinaryGoalConditionedDeltaModel,
             # ],
-            'algo_params.goal_dim_weights': [
-                (.1, .1),
-                (1, .1),
-                (10, 10),
-                # (.01, .01, 1, 1),
-                # (.1, .1, 1, 1),
-                # (0, 0, 1, 1),
-                # (1, 1, 1, 1),
-                # (.1, .1, .1, .1),
-                # (10, 10, 10, 10),
-                # (1, 1, 0.1, 0.1),
-                # (1, 1, 0.01, 0.01),
-                # (1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
-                # (5, 5, 5, 5, 5, 5, 5, 5, 5, 5),
-                # (0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 5, 5, 1, 1),
-                # (0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 1, 1, 1, 1),
-                # (0, 0, 0, 0, 0, 0, 1, 1, 1, 1),
-                # (0, 0, 0, 0, 0, 0, 1, 1, .1, .1),
-            ],
+            # 'algo_params.goal_dim_weights': [
+            #     (.1, .1),
+            #     (1, .1),
+            #     (10, 10),
+            #     (.01, .01, 1, 1),
+            #     (.1, .1, 1, 1),
+            #     (0, 0, 1, 1),
+            #     (1, 1, 1, 1),
+            #     (.1, .1, .1, .1),
+            #     (10, 10, 10, 10),
+            #     (1, 1, 0.1, 0.1),
+            #     (1, 1, 0.01, 0.01),
+            #     (1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+            #     (5, 5, 5, 5, 5, 5, 5, 5, 5, 5),
+            #     (0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 5, 5, 1, 1),
+            #     (0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 1, 1, 1, 1),
+            #     (0, 0, 0, 0, 0, 0, 1, 1, 1, 1),
+            #     (0, 0, 0, 0, 0, 0, 1, 1, .1, .1),
+            # ],
             # 'env_class': [
                 # GoalStateSimpleStateReacherEnv,
                 # FullStatePusher2DEnv,
@@ -372,7 +362,7 @@ if __name__ == '__main__':
                 # MultitaskPusher2DEnv,
                 # CylinderXYPusher2DEnv,
             # ],
-            'epoch_discount_schedule_params.value': [
+            'epoch_discount_schedule_params.max_value': [
                 1,
                 5,
                 10,
@@ -407,6 +397,10 @@ if __name__ == '__main__':
             #     0.5,
             #     1,
             # ]
+            'her_replay_buffer_params.goal_sample_strategy': [
+                'online',
+                'store',
+            ],
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
             search_space, default_parameters=variant,
