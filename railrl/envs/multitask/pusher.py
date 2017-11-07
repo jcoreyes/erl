@@ -2,11 +2,11 @@ import abc
 from collections import OrderedDict
 
 import numpy as np
-from gym.envs.mujoco import PusherEnv
+import torch
 
+from railrl.envs.mujoco.pusher import PusherEnv
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.misc.rllab_util import get_stat_in_dict
 from rllab.misc import logger
 
 
@@ -14,67 +14,16 @@ class MultitaskPusherEnv(PusherEnv, MultitaskEnv, metaclass=abc.ABCMeta):
     def __init__(self):
         super().__init__()
         MultitaskEnv.__init__(self)
-        self.cylinder_pos = None
-
-    @abc.abstractmethod
-    def goal_state_to_cylinder_xy(self, goal_state):
-        pass
 
     """
     Env Functions
     """
-    def reset_model(self):
-        qpos = self.init_qpos
-
-        while True:
-            self.cylinder_pos = np.concatenate([
-                self.np_random.uniform(low=-0.3, high=0, size=1),
-                self.np_random.uniform(low=-0.2, high=0.2, size=1)])
-            if np.linalg.norm(self.cylinder_pos - self.goal_cylinder_xy) > 0.17:
-                break
-
-        qpos[-4:-2] = self.cylinder_pos
-        qpos[-2:] = self.goal_cylinder_xy
-        qvel = self.init_qvel + self.np_random.uniform(low=-0.005,
-                                                       high=0.005,
-                                                       size=self.model.nv)
-        qvel[-4:] = 0
-        self.set_state(qpos, qvel)
-        return self._get_obs()
-
-    def _step(self, a):
-        arm_to_object = (
-            self.get_body_com("tips_arm") - self.get_body_com("object")
-        )
-        object_to_goal = (
-            self.get_body_com("object") - self.get_body_com("goal")
-        )
-        arm_to_goal = (
-            self.get_body_com("tips_arm") - self.get_body_com("goal")
-        )
-        obs, reward, done, info_dict = super()._step(a)
-        info_dict['arm to object distance'] = np.linalg.norm(arm_to_object)
-        info_dict['object to goal distance'] = np.linalg.norm(object_to_goal)
-        info_dict['arm to goal distance'] = np.linalg.norm(arm_to_goal)
-        return obs, reward, done, info_dict
-
     def log_diagnostics(self, paths):
+        super().log_diagnostics(paths)
         statistics = OrderedDict()
 
         observations = np.vstack([path['observations'] for path in paths])
         goal_states = np.vstack([path['goal_states'] for path in paths])
-
-        for stat_name in [
-            'arm to object distance',
-            'object to goal distance',
-            'arm to goal distance',
-        ]:
-            stat = get_stat_in_dict(
-                paths, 'env_infos', stat_name
-            )
-            statistics.update(create_stats_ordered_dict(
-                stat_name, stat
-            ))
 
         rewards = self.compute_rewards(
             None,
@@ -91,16 +40,9 @@ class MultitaskPusherEnv(PusherEnv, MultitaskEnv, metaclass=abc.ABCMeta):
     """
     MultitaskEnv Functions
     """
-    def set_goal(self, goal):
-        super().set_goal(goal)
-
-    def sample_actions(self, batch_size):
-        return np.random.uniform(
-            -1, 1, size=(batch_size, self.action_space.low.size)
-        )
-
-    def sample_goal_states(self, batch_size):
-        return self.sample_states(batch_size)
+    @abc.abstractmethod
+    def goal_state_to_cylinder_xy(self, goal_state):
+        pass
 
     @property
     def goal_cylinder_xy(self):
@@ -133,6 +75,25 @@ class HandPuckXYZPusher3DEnv(MultitaskPusherEnv):
             axis=0
         )
 
+    def oc_reward_on_goals(
+            self, predicted_goal_states, goal_states, current_states
+    ):
+        predicted_hand_pos = predicted_goal_states[:, -6:-3]
+        predicted_puck_pos = predicted_goal_states[:, -3:]
+        desired_hand_pos = goal_states[:, -6:-3]
+        desired_puck_pos = goal_states[:, -3:]
+        return -torch.norm(
+            predicted_hand_pos - desired_hand_pos,
+            p=2,
+            dim=1,
+            keepdim=True,
+        ) - torch.norm(
+            predicted_puck_pos - desired_puck_pos,
+            p=2,
+            dim=1,
+            keepdim=True,
+        )
+
     def sample_irrelevant_goal_dimensions(self, goal, batch_size):
         raise NotImplementedError()
 
@@ -152,9 +113,9 @@ class HandPuckXYZPusher3DEnv(MultitaskPusherEnv):
 
     def sample_goal_states(self, batch_size):
         return self.np_random.uniform(
-            np.array([-0.3, -0.2]),
-            np.array([0, 0.2]),
-            (batch_size, 2),
+            np.array([-0.75, -1.25, -0.2, -0.3, -0.2, -0.275]),
+            np.array([0.75, 0.25, 0.6, 0, 0.2, -0.275]),
+            (batch_size, 6),
         )
 
 

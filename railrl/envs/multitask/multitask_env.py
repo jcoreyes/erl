@@ -50,10 +50,23 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         """
         pass
 
+    @abc.abstractmethod
+    def oc_reward_on_goals(
+            self, predicted_goal_states, goal_states, current_states
+    ):
+        pass
 
     """
     Functions you probably don't need to override.
     """
+    def oc_reward(
+            self, predicted_states, goal_states, current_states
+    ):
+        return self.oc_reward_on_goals(
+            self.convert_obs_to_goal_states(predicted_states),
+            goal_states,
+            current_states
+        )
 
     def sample_goal_state_for_rollout(self):
         """
