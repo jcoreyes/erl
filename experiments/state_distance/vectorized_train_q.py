@@ -18,6 +18,7 @@ from railrl.algos.state_distance.vectorized_sdql import (
 )
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
+from railrl.envs.multitask.ant_env import GoalXYVelAnt
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
 from railrl.envs.multitask.pusher2d import (
     HandCylinderXYPusher2DEnv,
@@ -196,15 +197,15 @@ if __name__ == '__main__':
     run_mode = "none"
     snapshot_mode = "last"
 
-    # n_seeds = 3
-    # mode = "ec2"
-    exp_prefix = "test-git-commit-2"
-    # run_mode = 'grid'
-    # snapshot_mode = "gap_and_last"
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "tdm-ant-sweep"
+    run_mode = 'grid'
+    snapshot_mode = "gap_and_last"
 
     version = "na"
     num_configurations = 50  # for random mode
-    snapshot_gap = 10
+    snapshot_gap = 50
     use_gpu = True
     if mode != "local":
         use_gpu = False
@@ -226,7 +227,8 @@ if __name__ == '__main__':
     # env_class = Reacher7DofGoalStateEverything
     # env_class = HandXYPusher2DEnv
     # env_class = HandCylinderXYPusher2DEnv
-    env_class = GoalXVelHalfCheetah
+    # env_class = GoalXVelHalfCheetah
+    env_class = GoalXYVelAnt
     # env_class = FullStatePusher2DEnv
     # env_class = FixedHandXYPusher2DEnv
     # env_class = CylinderXYPusher2DEnv
@@ -234,7 +236,7 @@ if __name__ == '__main__':
     variant = dict(
         version=version,
         algo_params=dict(
-            num_epochs=0,
+            num_epochs=1001,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             num_updates_per_env_step=25,
@@ -287,7 +289,7 @@ if __name__ == '__main__':
         ),
         qf_params=dict(
             hidden_sizes=[300, 300],
-            hidden_activation=F.softplus,
+            hidden_activation=F.relu,
             # max_tau=max_tau,
         ),
         policy_params=dict(
@@ -341,9 +343,9 @@ if __name__ == '__main__':
                 # TauBinaryGoalConditionedDeltaModel,
             # ],
             'algo_params.goal_dim_weights': [
-                (.1, ),
-                (1, ),
-                (10, ),
+                (.1, .1),
+                (1, .1),
+                (10, 10),
                 # (.01, .01, 1, 1),
                 # (.1, .1, 1, 1),
                 # (0, 0, 1, 1),
@@ -372,8 +374,10 @@ if __name__ == '__main__':
             # ],
             'epoch_discount_schedule_params.value': [
                 1,
+                5,
+                10,
                 15,
-                30,
+                20,
             ],
             # 'algo_params.use_soft_update': [
             #     True,
