@@ -14,6 +14,8 @@ ddpg_criteria = {
     'algo_params.tau': 0.001,
     'env_class.$class': "railrl.envs.multitask.her_reacher_7dof_env.Reacher7Dof"
 }
+# Example DDPG policy: /home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-25-ddpg-reacher-pusher-baseline/10-25-ddpg-reacher-pusher-baseline-id4-s740143/
+
 mb_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-25-abhishek" \
           "-mb-baseline-pusher-reacher-300-300-net/"
 mb_criteria = {

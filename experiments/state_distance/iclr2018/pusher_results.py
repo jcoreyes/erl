@@ -11,6 +11,7 @@ ddpg_criteria = {
     'algo_params.scale_reward': 1,
     'algo_params.tau': 0.01,
 }
+# DDPG policy: /home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-25-ddpg-pusher-again-baseline-with-reward-bonus/10-25-ddpg-pusher-again-baseline-with-reward-bonus-id0-s362488/
 mb_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-25-abhishek-mb-baseline-pusher-again-shaped/"
 mb_criteria = None
 our_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/11-02-get-results-handxyxy-small-sweep"
