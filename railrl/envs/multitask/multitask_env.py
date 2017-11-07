@@ -19,10 +19,6 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         self.multitask_goal = np.zeros(self.goal_dim)
         self.goal_dim_weights = np.ones(self.goal_dim)
 
-    @abc.abstractmethod
-    def sample_goal_states(self, batch_size):
-        pass
-
     @property
     @abc.abstractmethod
     def goal_dim(self) -> int:
@@ -31,20 +27,29 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         """
         pass
 
-    @staticmethod
-    def print_goal_state_info(goal):
-        """
-        Used for debugging.
-        """
-        print("Goal = ", goal)
-
     @abc.abstractmethod
-    def sample_actions(self, batch_size):
+    def sample_goal_states(self, batch_size):
         pass
 
     @abc.abstractmethod
-    def sample_states(self, batch_size):
+    def convert_obs_to_goal_states(self, obs):
+        """
+        Convert a raw environment observation into a goal state (if possible).
+        """
         pass
+
+    @abc.abstractmethod
+    def sample_dimensions_irrelevant_to_oc(self, goal, obs, batch_size):
+        """
+        Create the OC goal state a bunch of time, but replace irrelevant goal
+        dimensions with sampled values.
+
+        :param goal: np.ndarray, shape GOAL_DIM
+        :param batch_size:
+        :return: ndarray, shape `batch_size` x GOAL_DIM
+        """
+        pass
+
 
     """
     Functions you probably don't need to override.
@@ -88,14 +93,6 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
             ord=1,
         )
 
-    def convert_obs_to_goal_states(self, obs):
-        """
-        Convert a raw environment observation into a goal state (if possible).
-
-        This observation should NOT include the goal state.
-        """
-        return obs
-
     def convert_obs_to_goal_states_pytorch(self, obs):
         """
         PyTorch version of `convert_obs_to_goal_state`.
@@ -111,53 +108,6 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         :return:
         """
         return goal_state
-
-    def sample_irrelevant_goal_dimensions(self, goal, batch_size):
-        """
-        Copy the goal a bunch of time, but replace irrelevant goal dimensions
-        with sampled values.
-
-        For example, if you care about the position but not about the velocity,
-        copy the velocity `batch_size` number of times, and then sample a bunch
-        of velocity values.
-
-        This default implementation assumes every dimension in the goal state
-        is important.
-
-        :param goal: np.ndarray, shape GOAL_DIM
-        :param batch_size:
-        :return: ndarray, shape SAMPLE_SIZE x GOAL_DIM
-        """
-        raise NotImplementedError("Nothing should be using this")
-        # return np.repeat(
-        #     np.expand_dims(goal, 0),
-        #     batch_size,
-        #     axis=0
-        # )
-
-    def sample_dimensions_irrelevant_to_oc(self, goal, obs, batch_size):
-        """
-        Copy the goal a bunch of time, but replace irrelevant goal dimensions
-        with sampled values.
-
-        For example, if you care about the position but not about the velocity,
-        copy the velocity `batch_size` number of times, and then sample a bunch
-        of velocity values.
-
-        This default implementation assumes every dimension in the goal state
-        is important.
-
-        :param goal: np.ndarray, shape GOAL_DIM
-        :param batch_size:
-        :return: ndarray, shape SAMPLE_SIZE x GOAL_DIM
-        """
-        raise NotImplementedError()
-        # return np.repeat(
-        #     np.expand_dims(goal, 0),
-        #     batch_size,
-        #     axis=0
-        # )
-
 
     def log_diagnostics(self, paths):
         statistics = OrderedDict()
@@ -202,6 +152,32 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         ))
         for key, value in statistics.items():
             logger.record_tabular(key, value)
+
+    """
+    Optional functions to implement, since most of my code doesn't use these
+    any more.
+    """
+    def sample_irrelevant_goal_dimensions(self, goal, batch_size):
+        """
+        Copy the goal a bunch of time, but replace irrelevant goal dimensions
+        with sampled values.
+
+        For example, if you care about the position but not about the velocity,
+        copy the velocity `batch_size` number of times, and then sample a bunch
+        of velocity values.
+
+        :param goal: np.ndarray, shape GOAL_DIM
+        :param batch_size:
+        :return: ndarray, shape SAMPLE_SIZE x GOAL_DIM
+        """
+        pass
+
+    def sample_actions(self, batch_size):
+        pass
+
+    def sample_states(self, batch_size):
+        pass
+
 
 
 class MultitaskToFlatEnv(ProxyEnv, Serializable):
