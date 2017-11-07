@@ -197,10 +197,10 @@ if __name__ == '__main__':
     run_mode = "none"
     snapshot_mode = "last"
 
-    # n_seeds = 1
-    # mode = "ec2"
-    # exp_prefix = "tdm-pusher-sweep-less-shape"
-    # run_mode = 'grid'
+    n_seeds = 1
+    mode = "ec2"
+    exp_prefix = "tdm-pusher3d"
+    run_mode = 'grid'
     # snapshot_mode = "gap_and_last"
 
     version = "na"
@@ -232,9 +232,9 @@ if __name__ == '__main__':
     # env_class = FullStatePusher2DEnv
     # env_class = FixedHandXYPusher2DEnv
     # env_class = CylinderXYPusher2DEnv
-    max_path_length = 100
+    max_path_length = 500
     max_tau = 25
-    num_epochs = 101
+    num_epochs = 501
     replay_buffer_size = 200000
     variant = dict(
         version=version,
@@ -382,9 +382,9 @@ if __name__ == '__main__':
             #     False,
             #     True,
             # ],
-            # 'algo_params.tau': [
-            #     1, 1e-1, 1e-2,
-            # ],
+            'algo_params.tau': [
+                1e-1, 1e-2, 1e-3, 1e-4
+            ],
             # 'algo_params.sl_grad_weight': [
             #     0.01,
             #     0.1,
@@ -398,10 +398,10 @@ if __name__ == '__main__':
             #     0.5,
             #     1,
             # ]
-            'her_replay_buffer_params.goal_sample_strategy': [
-                'online',
-                'store',
-            ],
+            # 'her_replay_buffer_params.goal_sample_strategy': [
+            #     'online',
+            #     'store',
+            # ],
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
             search_space, default_parameters=variant,
