@@ -165,25 +165,32 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         observations = np.vstack([path['observations'] for path in paths])
         goal_states = np.vstack([path['goal_states'] for path in paths])
         actions = np.vstack([path['actions'] for path in paths])
-        final_distances = []
+        final_differences = []
         for path in paths:
             reached = self.convert_ob_to_goal_state(path['observations'][-1])
             goal = path['goal_states'][-1]
-            final_distances.append(
-                np.linalg.norm(reached - goal)
+            final_differences.append(reached - goal)
+        for order in [1, 2]:
+            final_distances = np.linalg.norm(
+                np.array(final_differences),
+                axis=1,
+                ord=order,
             )
-        final_distances = np.array(final_distances)
-
-        goal_distances = np.linalg.norm(
-            self.convert_obs_to_goal_states(observations) - goal_states,
-            axis=1,
-        )
-        statistics.update(create_stats_ordered_dict(
-            'Multitask distance to goal', goal_distances
-        ))
-        statistics.update(create_stats_ordered_dict(
-            'Multitask final distance to goal', final_distances
-        ))
+            goal_distances = np.linalg.norm(
+                self.convert_obs_to_goal_states(observations) - goal_states,
+                axis=1,
+                ord=order,
+            )
+            statistics.update(create_stats_ordered_dict(
+                'Multitask L{} distance to goal'.format(order),
+                goal_distances,
+                always_show_all_stats=True,
+            ))
+            statistics.update(create_stats_ordered_dict(
+                'Multitask Final L{} distance to goal'.format(order),
+                final_distances,
+                always_show_all_stats=True,
+            ))
         rewards = self.compute_rewards(
             observations[:-1, ...],
             actions[:-1, ...],
