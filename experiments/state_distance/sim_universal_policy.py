@@ -57,8 +57,6 @@ if __name__ == "__main__":
         else:
             discount = args.discount
 
-    pose = env.arm.endpoint_pose()['position']
-    goal = np.array([pose.x, pose.y, pose.z])
     while True:
         paths = []
         for _ in range(args.nrolls):
