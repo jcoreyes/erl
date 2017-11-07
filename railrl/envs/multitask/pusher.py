@@ -12,8 +12,8 @@ from rllab.misc import logger
 
 class MultitaskPusherEnv(PusherEnv, MultitaskEnv, metaclass=abc.ABCMeta):
     def __init__(self):
-        self.multitask_goal = np.zeros(17)
         super().__init__()
+        MultitaskEnv.__init__(self)
         self.cylinder_pos = None
 
     @abc.abstractmethod
@@ -56,9 +56,6 @@ class MultitaskPusherEnv(PusherEnv, MultitaskEnv, metaclass=abc.ABCMeta):
         info_dict['arm to object distance'] = np.linalg.norm(arm_to_object)
         info_dict['object to goal distance'] = np.linalg.norm(object_to_goal)
         info_dict['arm to goal distance'] = np.linalg.norm(arm_to_goal)
-        info_dict['full_state_to_goal_distance'] = np.linalg.norm(
-            self._get_obs() - self.multitask_goal
-        )
         return obs, reward, done, info_dict
 
     def log_diagnostics(self, paths):
@@ -66,28 +63,11 @@ class MultitaskPusherEnv(PusherEnv, MultitaskEnv, metaclass=abc.ABCMeta):
 
         observations = np.vstack([path['observations'] for path in paths])
         goal_states = np.vstack([path['goal_states'] for path in paths])
-        distances = np.linalg.norm(
-            self.convert_obs_to_goal_states(observations) - goal_states,
-            axis=1,
-        )
-        statistics.update(create_stats_ordered_dict(
-            'State distance to target', distances
-        ))
-
-        full_state_go_goal_distance = get_stat_in_dict(
-            paths, 'env_infos', 'full_state_to_goal_distance'
-        )
-        statistics.update(create_stats_ordered_dict(
-            'Final state to goal state distance',
-            full_state_go_goal_distance[:, -1],
-            always_show_all_stats=True,
-        ))
 
         for stat_name in [
             'arm to object distance',
             'object to goal distance',
             'arm to goal distance',
-            'full_state_to_goal_distance',
         ]:
             stat = get_stat_in_dict(
                 paths, 'env_infos', stat_name
@@ -112,7 +92,7 @@ class MultitaskPusherEnv(PusherEnv, MultitaskEnv, metaclass=abc.ABCMeta):
     MultitaskEnv Functions
     """
     def set_goal(self, goal):
-        self.multitask_goal = goal
+        super().set_goal(goal)
 
     def sample_actions(self, batch_size):
         return np.random.uniform(
@@ -126,22 +106,41 @@ class MultitaskPusherEnv(PusherEnv, MultitaskEnv, metaclass=abc.ABCMeta):
     def goal_cylinder_xy(self):
         return self.goal_state_to_cylinder_xy(self.multitask_goal)
 
-    def modify_goal_state_for_rollout(self, goal_state):
-        # set desired velocity to zero
-        goal_state[7:14] = 0
-        return goal_state
 
+class HandPuckXYZPusher3DEnv(MultitaskPusherEnv):
     @property
-    def goal_dim(self):
-        return self.observation_space.low.size
+    def goal_dim(self) -> int:
+        return 6
 
+    def sample_dimensions_irrelevant_to_oc(self, goal, obs, batch_size):
+        desired_cylinder_pos = goal[-3:]
+        current_cylinder_pos = obs[-3:]
 
-class ArmEEInStatePusherEnv(MultitaskPusherEnv):
+        hand_pos = obs[-6:-3]
+        if np.linalg.norm(hand_pos - current_cylinder_pos) <= 0.1:
+            new_goal = np.hstack((
+                current_cylinder_pos,
+                desired_cylinder_pos,
+            ))
+        else:
+            new_goal = np.hstack((
+                current_cylinder_pos,
+                current_cylinder_pos,
+            ))
+        return np.repeat(
+            np.expand_dims(new_goal, 0),
+            batch_size,
+            axis=0
+        )
+
+    def sample_irrelevant_goal_dimensions(self, goal, batch_size):
+        raise NotImplementedError()
+
+    def convert_obs_to_goal_states(self, obs):
+        return obs[:, -6:]
+
     def goal_state_to_cylinder_xy(self, goal_state):
-        return goal_state[17:19]
-
-    def sample_states(self, batch_size):
-        raise NotImplementedError("Would need to do forward kinematics...")
+        return goal_state[-3:-1]
 
     def _get_obs(self):
         return np.concatenate([
@@ -150,6 +149,13 @@ class ArmEEInStatePusherEnv(MultitaskPusherEnv):
             self.get_body_com("tips_arm"),
             self.get_body_com("object"),
         ])
+
+    def sample_goal_states(self, batch_size):
+        return self.np_random.uniform(
+            np.array([-0.3, -0.2]),
+            np.array([0, 0.2]),
+            (batch_size, 2),
+        )
 
 
 class JointOnlyPusherEnv(MultitaskPusherEnv):

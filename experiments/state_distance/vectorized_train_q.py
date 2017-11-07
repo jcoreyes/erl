@@ -42,8 +42,8 @@ from railrl.envs.multitask.reacher_env import (
     GoalStateSimpleStateReacherEnv,
     GoalXYStateXYAndCosSinReacher2D, GoalCosSinStateXYAndCosSinReacher2D)
 from railrl.envs.multitask.pusher import (
-    ArmEEInStatePusherEnv,
     JointOnlyPusherEnv,
+    HandPuckXYZPusher3DEnv,
 )
 
 from railrl.envs.wrappers import convert_gym_space, normalize_box
@@ -197,10 +197,10 @@ if __name__ == '__main__':
     run_mode = "none"
     snapshot_mode = "last"
 
-    n_seeds = 1
-    mode = "ec2"
-    exp_prefix = "tdm-pusher-sweep-less-shape"
-    run_mode = 'grid'
+    # n_seeds = 1
+    # mode = "ec2"
+    # exp_prefix = "tdm-pusher-sweep-less-shape"
+    # run_mode = 'grid'
     # snapshot_mode = "gap_and_last"
 
     version = "na"
@@ -225,7 +225,8 @@ if __name__ == '__main__':
     # env_class = Reacher7DofGoalStateEverything
     # env_class = HandXYPusher2DEnv
     # env_class = HandCylinderXYPusher2DEnv
-    env_class = LessShapeHandCylinderXYPusher2DEnv
+    # env_class = LessShapeHandCylinderXYPusher2DEnv
+    env_class = HandPuckXYZPusher3DEnv
     # env_class = GoalXVelHalfCheetah
     # env_class = GoalXYVelAnt
     # env_class = FullStatePusher2DEnv
