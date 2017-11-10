@@ -456,6 +456,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             cycle_taus_for_rollout=True,
             num_sl_batches_per_rl_batch=0,
             sl_grad_weight=1,
+            only_do_sl=False,
             **kwargs
     ):
         """
@@ -474,8 +475,6 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
         batches to do for every RL batch
         :param kwargs:
         """
-        if cycle_taus_for_rollout:
-            assert discount > 0
         if eval_policy is None:
             eval_policy = policy
         eval_sampler = MultigoalSimplePathSampler(
@@ -509,6 +508,9 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
         self.sl_grad_weight = sl_grad_weight
         if self.num_sl_batches_per_rl_batch > 0:
             assert self.sample_train_goals_from == 'her'
+        self.only_do_sl = only_do_sl
+        if self.only_do_sl:
+            assert self.num_sl_batches_per_rl_batch > 0
         assert isinstance(self.discount, int)
 
     def _sample_discount(self, batch_size):
@@ -634,41 +636,48 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
         """
         Critic operations.
         """
-        next_actions = self.target_policy(
-            next_obs,
-            goal_states,
-            num_steps_left - 1,
-            )
-        target_q_values = self.target_qf(
-            next_obs,
-            next_actions,
-            goal_states,
-            num_steps_left - 1,  # Important! Else QF will (probably) blow up
-        )
-        if self.clamp_q_target_values:
-            target_q_values = torch.clamp(target_q_values, -math.inf, 0)
-        if terminals.size()[1] != target_q_values.size()[1]:
-            terminals = terminals.repeat(1, target_q_values.size()[1])
-        try:
-            y_target = rewards + (1. - terminals) * target_q_values
-        except:
-            import ipdb; ipdb.set_trace()
-
-
-        # noinspection PyUnresolvedReferences
-        y_target = y_target.detach()
-        y_pred = self.qf(obs, actions, goal_states, num_steps_left)
-        bellman_errors = (y_pred - y_target) ** 2
-        raw_qf_loss = self.qf_criterion(y_pred, y_target)
-
-        if self.qf_weight_decay > 0:
-            reg_loss = self.qf_weight_decay * sum(
-                torch.sum(param ** 2)
-                for param in self.qf.regularizable_parameters()
-            )
-            qf_loss = raw_qf_loss + reg_loss
+        if self.only_do_sl:
+            qf_loss = 0
+            raw_qf_loss = ptu.FloatTensor([0])
+            y_target = ptu.FloatTensor([0])
+            y_pred = ptu.FloatTensor([0])
+            bellman_errors = ptu.FloatTensor([0])
         else:
-            qf_loss = raw_qf_loss
+            next_actions = self.target_policy(
+                next_obs,
+                goal_states,
+                num_steps_left - 1,
+                )
+            target_q_values = self.target_qf(
+                next_obs,
+                next_actions,
+                goal_states,
+                num_steps_left - 1,  # Important! Else QF will (probably) blow up
+            )
+            if self.clamp_q_target_values:
+                target_q_values = torch.clamp(target_q_values, -math.inf, 0)
+            if terminals.size()[1] != target_q_values.size()[1]:
+                terminals = terminals.repeat(1, target_q_values.size()[1])
+            try:
+                y_target = rewards + (1. - terminals) * target_q_values
+            except:
+                import ipdb; ipdb.set_trace()
+
+
+            # noinspection PyUnresolvedReferences
+            y_target = y_target.detach()
+            y_pred = self.qf(obs, actions, goal_states, num_steps_left)
+            bellman_errors = (y_pred - y_target) ** 2
+            raw_qf_loss = self.qf_criterion(y_pred, y_target)
+
+            if self.qf_weight_decay > 0:
+                reg_loss = self.qf_weight_decay * sum(
+                    torch.sum(param ** 2)
+                    for param in self.qf.regularizable_parameters()
+                )
+                qf_loss = raw_qf_loss + reg_loss
+            else:
+                qf_loss = raw_qf_loss
 
         """
         Target Policy operations if needed
@@ -713,8 +722,24 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
                 torch.zeros(y_pred.size()),
                 requires_grad=False,
             )
-            sl_loss = self.qf_criterion(y_pred, y_target)
-            qf_loss = qf_loss + sl_loss * self.sl_grad_weight
+            sl_qf_loss = self.qf_criterion(y_pred, y_target)
+            qf_loss = qf_loss + sl_qf_loss * self.sl_grad_weight
+
+            next_obs_goal_state = self.env.convert_obs_to_goal_states_pytorch(
+                batch['next_observations']
+            )
+
+            sl_actions = self.policy(
+                obs,
+                next_obs_goal_state,
+                num_steps_left * 0,
+            )
+            sl_policy_loss = torch.norm(
+                    sl_actions - actions,
+                    dim=1,
+                    p=2
+            ).mean()
+            policy_loss = policy_loss + sl_policy_loss * self.sl_grad_weight
 
         return OrderedDict([
             ('Policy Actions', policy_actions),

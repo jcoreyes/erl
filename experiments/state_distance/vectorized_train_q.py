@@ -197,10 +197,10 @@ if __name__ == '__main__':
     run_mode = "none"
     snapshot_mode = "last"
 
-    n_seeds = 1
-    mode = "ec2"
-    exp_prefix = "tdm-pusher3d"
-    run_mode = 'grid'
+    # n_seeds = 1
+    # mode = "ec2"
+    # exp_prefix = "tdm-pusher3d"
+    # run_mode = 'grid'
     # snapshot_mode = "gap_and_last"
 
     version = "na"
@@ -219,28 +219,28 @@ if __name__ == '__main__':
     # env_class = GoalCosSinStateXYAndCosSinReacher2D
     # env_class = Reacher7DofXyzGoalState
     # env_class = JointOnlyPusherEnv
-    # env_class = GoalStateSimpleStateReacherEnv
+    env_class = GoalStateSimpleStateReacherEnv
     # env_class = GoalXYStateXYAndCosSinReacher2D
     # env_class = Reacher7DofFullGoalState
     # env_class = Reacher7DofGoalStateEverything
     # env_class = HandXYPusher2DEnv
     # env_class = HandCylinderXYPusher2DEnv
     # env_class = LessShapeHandCylinderXYPusher2DEnv
-    env_class = HandPuckXYZPusher3DEnv
+    # env_class = HandPuckXYZPusher3DEnv
     # env_class = GoalXVelHalfCheetah
     # env_class = GoalXYVelAnt
     # env_class = FullStatePusher2DEnv
     # env_class = FixedHandXYPusher2DEnv
     # env_class = CylinderXYPusher2DEnv
-    max_path_length = 500
-    max_tau = 25
-    num_epochs = 501
+    max_path_length = 100
+    max_tau = 10
+    num_epochs = 101
     replay_buffer_size = 200000
     variant = dict(
         version=version,
         algo_params=dict(
             num_epochs=num_epochs,
-            num_steps_per_epoch=1000,
+            num_steps_per_epoch=100,
             num_steps_per_eval=1000,
             num_updates_per_env_step=25,
             use_soft_update=True,
@@ -261,7 +261,7 @@ if __name__ == '__main__':
             cycle_taus_for_rollout=True,
             sl_grad_weight=1,
             num_sl_batches_per_rl_batch=0,
-            # only_do_sl=False,
+            only_do_sl=False,
             # cycle_taus_for_rollout=False,
             # num_sl_batches_per_rl_batch=1,
         ),
@@ -274,7 +274,7 @@ if __name__ == '__main__':
         ),
         raw_explore_policy='oc',
         oc_policy_params=dict(
-            sample_size=1,
+            sample_size=10000,
         ),
         qf_params=dict(
             hidden_sizes=[300, 300],
@@ -288,7 +288,7 @@ if __name__ == '__main__':
         epoch_discount_schedule_class=IntRampUpSchedule,
         epoch_discount_schedule_params=dict(
             min_value=0,
-            max_value=0,
+            max_value=20,
             ramp_duration=num_epochs,
         ),
         algo_class=algo_class,

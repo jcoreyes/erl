@@ -34,7 +34,6 @@ class VectorizedDeltaTauSdql(HorizonFedStateDistanceQLearning):
     def __init__(
             self,
             *args,
-            only_do_sl=False,
             goal_chooser=None,
             sparse_rewards_learn_diff=True,
             **kwargs
@@ -42,9 +41,6 @@ class VectorizedDeltaTauSdql(HorizonFedStateDistanceQLearning):
         super().__init__(*args, **kwargs)
         assert self.qf_weight_decay == 0
         assert not self.clamp_q_target_values
-        self.only_do_sl = only_do_sl
-        if self.only_do_sl:
-            assert self.num_sl_batches_per_rl_batch > 0
         self.goal_chooser = goal_chooser
         self.sparse_rewards_learn_diff = sparse_rewards_learn_diff
 
