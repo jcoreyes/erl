@@ -276,6 +276,9 @@ class Reacher7DofGoalStateEverything(Reacher7DofMultitaskEnv):
         super().set_goal(goal)
         self._desired_xyz = goal[14:17]
 
+    def convert_obs_to_goal_states(self, obs):
+        return obs
+
     def modify_goal_state_for_rollout(self, goal_state):
         goal_state[7:14] = 0  # set desired velocity to zero
         return goal_state
