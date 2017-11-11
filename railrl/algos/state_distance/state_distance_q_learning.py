@@ -1,5 +1,4 @@
 import math
-import time
 import torch
 from collections import OrderedDict
 
@@ -9,8 +8,6 @@ import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.multitask.multitask_env import MultitaskEnv
-from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.misc.ml_util import StatConditionalSchedule
 from railrl.misc import rllab_util
 from railrl.misc.rllab_util import split_paths_to_dict
 from railrl.networks.state_distance import DuelingStructuredUniversalQfunction
@@ -37,8 +34,6 @@ class StateDistanceQLearning(DDPG):
             exploration_policy: UniversalExplorationPolicy = None,
             eval_policy=None,
             replay_buffer=None,
-            num_epochs=100,
-            num_steps_per_epoch=100,
             sample_train_goals_from='replay_buffer',
             sample_rollout_goals_from='environment',
             num_steps_per_eval=1000,
@@ -47,8 +42,6 @@ class StateDistanceQLearning(DDPG):
             num_steps_per_tensorboard_update=None,
             prob_goal_state_is_next_state=0,
             termination_threshold=0,
-            save_replay_buffer=False,
-            save_algorithm=False,
             eval_sampler=None,
             goal_dim_weights=None,
             **kwargs
@@ -86,8 +79,6 @@ class StateDistanceQLearning(DDPG):
         if isinstance(self.qf, DuelingStructuredUniversalQfunction):
             self.qf.set_argmax_policy(self.policy)
             self.target_qf.set_argmax_policy(self.target_policy)
-        self.num_epochs = num_epochs
-        self.num_steps_per_epoch = num_steps_per_epoch
         assert sample_train_goals_from in ['environment', 'replay_buffer', 'her']
         assert sample_rollout_goals_from in ['environment', 'replay_buffer']
         self.sample_train_goals_from = sample_train_goals_from
@@ -95,8 +86,6 @@ class StateDistanceQLearning(DDPG):
         self.num_steps_per_tensorboard_update = num_steps_per_tensorboard_update
         self.prob_goal_state_is_next_state = prob_goal_state_is_next_state
         self.termination_threshold = termination_threshold
-        self.save_replay_buffer = save_replay_buffer
-        self.save_algorithm = save_algorithm
 
         self.goal_state = None
         if self.num_steps_per_tensorboard_update is not None:
@@ -106,12 +95,12 @@ class StateDistanceQLearning(DDPG):
         if self.goal_dim_weights is not None:
             self.env.goal_dim_weights = np.array(goal_dim_weights)
 
-    def _do_training(self, n_steps_total):
-        super()._do_training(n_steps_total)
+    def _do_training(self):
+        super()._do_training()
         if self.num_steps_per_tensorboard_update is None:
             return
 
-        if n_steps_total % self.num_steps_per_tensorboard_update == 0:
+        if self._n_env_steps_total % self.num_steps_per_tensorboard_update == 0:
             for name, network in [
                 ("QF", self.qf),
                 ("Policy", self.policy),
@@ -122,13 +111,13 @@ class StateDistanceQLearning(DDPG):
                     self.tb_logger.histo_summary(
                         tag,
                         ptu.get_numpy(value),
-                        n_steps_total + 1,
+                        self._n_env_steps_total + 1,
                         bins=100,
                     )
                     self.tb_logger.histo_summary(
                         tag + '/grad',
                         ptu.get_numpy(value.grad),
-                        n_steps_total + 1,
+                        self._n_env_steps_total + 1,
                         bins=100,
                     )
 
@@ -222,12 +211,11 @@ class StateDistanceQLearning(DDPG):
     def _sample_discount_for_rollout(self):
         return self._sample_discount(1)[0, 0]
 
-    def evaluate(self, epoch, exploration_paths):
+    def evaluate(self, epoch):
         """
         Perform evaluation for this algorithm.
 
         :param epoch: The epoch number.
-        :param exploration_paths: List of dicts, each representing a path.
         """
         logger.log("Collecting samples for evaluation")
         statistics = OrderedDict()
@@ -250,9 +238,9 @@ class StateDistanceQLearning(DDPG):
             )
         )
         statistics.update(get_generic_path_information(
-            exploration_paths, self.discount, stat_prefix="Exploration",
+            self._exploration_paths, self.discount, stat_prefix="Exploration",
         ))
-        statistics.update(self._statistics_from_paths(exploration_paths,
+        statistics.update(self._statistics_from_paths(self._exploration_paths,
                                                       "Exploration"))
 
         statistics['Discount Factor'] = self.discount
@@ -268,24 +256,10 @@ class StateDistanceQLearning(DDPG):
         logger.set_key_prefix('test ')
         self.log_diagnostics(test_paths)
         logger.set_key_prefix('expl ')
-        self.log_diagnostics(exploration_paths)
+        self.log_diagnostics(self._exploration_paths)
         logger.set_key_prefix('')
 
-        if isinstance(self.epoch_discount_schedule, StatConditionalSchedule):
-            table_dict = rllab_util.get_logger_table_dict()
-            # rllab converts things to strings for some reason
-            value = float(
-                table_dict[self.epoch_discount_schedule.statistic_name]
-            )
-            self.epoch_discount_schedule.update(value)
-
     def offline_evaluate(self, epoch):
-        """
-                Perform evaluation for this algorithm.
-
-                :param epoch: The epoch number.
-                :param exploration_paths: List of dicts, each representing a path.
-                """
         statistics = OrderedDict()
         train_batch = self.get_batch(training=True)
         validation_batch = self.get_batch(training=False)
@@ -311,13 +285,6 @@ class StateDistanceQLearning(DDPG):
 
         for key, value in statistics.items():
             logger.record_tabular(key, value)
-
-        if isinstance(self.epoch_discount_schedule, StatConditionalSchedule):
-            table_dict = rllab_util.get_logger_table_dict()
-            value = float(
-                table_dict[self.epoch_discount_schedule.statistic_name]
-            )
-            self.epoch_discount_schedule.update(value)
 
     def get_train_dict(self, batch):
         rewards = batch['rewards']
@@ -407,17 +374,6 @@ class StateDistanceQLearning(DDPG):
             discount=self.discount,
             exploration_policy=self.exploration_policy,
         )
-
-    def get_extra_data_to_save(self, epoch):
-        data_to_save = dict(
-            epoch=epoch,
-            env=self.training_env,
-        )
-        if self.save_replay_buffer:
-            data_to_save['replay_buffer'] = self.replay_buffer
-        if self.save_algorithm:
-            data_to_save['algorithm'] = self
-        return data_to_save
 
     def paths_to_batch(self, paths):
         np_batch = split_paths_to_dict(paths)
@@ -536,7 +492,6 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
 
     def _handle_step(
             self,
-            num_paths_total,
             observation,
             action,
             reward,
@@ -544,17 +499,16 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             agent_info,
             env_info,
     ):
-        if num_paths_total % self.save_exploration_path_period == 0:
-            self._current_path.add_all(
-                observations=self.obs_space.flatten(observation),
-                rewards=reward,
-                terminals=terminal,
-                actions=self.action_space.flatten(action),
-                agent_infos=agent_info,
-                env_infos=env_info,
-                goal_states=self.goal_state,
-                taus=self._rollout_discount,
-            )
+        self._current_path.add_all(
+            observations=self.obs_space.flatten(observation),
+            rewards=reward,
+            terminals=terminal,
+            actions=self.action_space.flatten(action),
+            agent_infos=agent_info,
+            env_infos=env_info,
+            goal_states=self.goal_state,
+            taus=self._rollout_discount,
+        )
 
         self.replay_buffer.add_sample(
             observation,
@@ -574,7 +528,6 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
 
     def _handle_rollout_ending(
             self,
-            n_steps_total,
             final_obs,
             terminal,
             agent_info,

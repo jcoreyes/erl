@@ -30,7 +30,7 @@ class ParallelNAF(NAF):
         exploration_paths = []
         epoch = 0
         logger.push_prefix('Epoch #%d | ' % epoch)
-        while n_steps_total <= self.num_epochs * self.num_steps_per_epoch:
+        while n_steps_total <= self.num_epochs * self.num_env_steps_per_epoch:
             path = self.training_env.rollout(
                 self.exploration_policy,
                 use_exploration_strategy=True,
@@ -75,7 +75,7 @@ class ParallelNAF(NAF):
             if self._can_train():
                 self._do_training(n_steps_total=n_steps_total)
 
-            if n_steps_current_epoch >= self.num_steps_per_epoch:
+            if n_steps_current_epoch >= self.num_env_steps_per_epoch:
                 if self._can_evaluate(exploration_paths):
                     start_time = time.time()
                     logger.record_tabular(
