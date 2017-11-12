@@ -9,9 +9,8 @@ from railrl.misc.rllab_util import (
     get_table_key_set,
     save_extra_data_to_snapshot_dir,
 )
-from railrl.policies.base import  ExplorationPolicy
+from railrl.policies.base import ExplorationPolicy
 from railrl.samplers.util import rollout
-from rllab.algos.base import RLAlgorithm
 from rllab.misc import logger
 from rllab.sampler import parallel_sampler
 
@@ -73,7 +72,7 @@ class InPlacePathSampler(object):
         ]
 
 
-class RLAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
+class RLAlgorithm(metaclass=abc.ABCMeta):
     def __init__(
             self,
             env,
@@ -154,7 +153,6 @@ class RLAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         )
 
     def train(self, start_epoch=0):
-        self._start_worker()
         if start_epoch == 0:
             params = self.get_epoch_snapshot(-1)
             logger.save_itr_params(-1, params)
@@ -299,27 +297,6 @@ class RLAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         self._old_table_keys = table_keys
         logger.dump_tabular(with_prefix=False, with_timestamp=False)
         logger.log("Eval Time: {0}".format(time.time() - start_time))
-
-    def _start_worker(self):
-        self.eval_sampler.start_worker()
-
-    def _shutdown_worker(self):
-        self.eval_sampler.shutdown_worker()
-
-    def _sample_eval_paths(self, epoch):
-        """
-        Returns flattened paths.
-
-        :param epoch: Epoch number
-        :return: List of dictionaries with these keys:
-            observations: np.ndarray, shape BATCH_SIZE x flat observation dim
-            actions: np.ndarray, shape BATCH_SIZE x flat action dim
-            rewards: np.ndarray, shape BATCH_SIZE
-            terminals: np.ndarray, shape BATCH_SIZE
-            agent_infos: unsure
-            env_infos: unsure
-        """
-        return self.eval_sampler.obtain_samples()
 
     def log_diagnostics(self, paths):
         self.env.log_diagnostics(paths)
