@@ -18,21 +18,28 @@ from railrl.algos.state_distance.vectorized_sdql import (
 )
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
+from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
 from railrl.envs.multitask.pusher2d import (
     HandCylinderXYPusher2DEnv,
     CylinderXYPusher2DEnv,
     FullStatePusher2DEnv,
-)
+    HandXYPusher2DEnv, FixedHandXYPusher2DEnv,
+    # FullStatePusher2DEnv_move_hand_to_target_position_oc_reward_on_goals,
+    # FullStatePusher2DEnv_move_hand_to_cylinder_oc_reward_on_goals,
+    # HandCylinderXYPusher2DEnv_move_hand_to_cylinder,
+    # FullStatePusher2DEnv_move_joints_to_target_joint,
+    # HandXYPusher2DEnv_oc_reward_on_goals, HandXYPusher2DEnv_oc_reward)
+    NoShapeHandCylinderXYPusher2DEnv)
 from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState,
     Reacher7DofFullGoalState,
-    Reacher7DofCosSinFullGoalState,
-)
+    Reacher7DofAngleGoalState,
+    Reacher7DofGoalStateEverything, Reacher7DofFullGoalState_oc_reward,
+    Reacher7DofGoalStateEverything_oc_reward)
 from railrl.envs.multitask.reacher_env import (
     GoalStateSimpleStateReacherEnv,
-    XyMultitaskSimpleStateReacherEnv,
-)
+    GoalXYStateXYAndCosSinReacher2D, GoalCosSinStateXYAndCosSinReacher2D)
 from railrl.envs.multitask.pusher import (
     ArmEEInStatePusherEnv,
     JointOnlyPusherEnv,
@@ -54,7 +61,8 @@ from railrl.networks.state_distance import (
     VectorizedGoalStructuredUniversalQfunction,
     GoalStructuredUniversalQfunction, GoalConditionedDeltaModel,
     TauBinaryGoalConditionedDeltaModel)
-from railrl.policies.state_distance import TerminalRewardSampleOCPolicy
+from railrl.policies.state_distance import TerminalRewardSampleOCPolicy, \
+    UnconstrainedOcWithGoalConditionedModel, UnconstrainedOcWithImplicitModel
 from railrl.torch.modules import HuberLoss
 from railrl.torch.state_distance.exploration import \
     UniversalPolicyWrappedWithExplorationStrategy
@@ -95,14 +103,25 @@ def experiment(variant):
         action_space=action_space,
         **variant['sampler_es_params']
     )
-    if variant['explore_with_ddpg_policy']:
-        raw_exploration_policy = policy
-    else:
-        raw_exploration_policy = TerminalRewardSampleOCPolicy(
+    raw_explore_policy = variant['raw_explore_policy']
+    if isinstance(qf, VectorizedGoalStructuredUniversalQfunction):
+        oc_policy = UnconstrainedOcWithImplicitModel(
             qf,
             env,
-            5,
+            policy,
+            **variant['oc_policy_params']
         )
+    else:
+        oc_policy = UnconstrainedOcWithGoalConditionedModel(
+            qf,
+            env,
+            policy,
+            **variant['oc_policy_params']
+        )
+    if raw_explore_policy == 'ddpg':
+        raw_exploration_policy = policy
+    else:
+        raw_exploration_policy = oc_policy
     exploration_policy = UniversalPolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
         policy=raw_exploration_policy,
@@ -121,6 +140,10 @@ def experiment(variant):
         )
     else:
         replay_buffer = None
+    if variant['eval_with_oc_policy']:
+        eval_policy = oc_policy
+    else:
+        eval_policy = policy
     algo = variant['algo_class'](
         env,
         qf,
@@ -129,6 +152,7 @@ def experiment(variant):
         epoch_discount_schedule=epoch_discount_schedule,
         qf_criterion=qf_criterion,
         replay_buffer=replay_buffer,
+        eval_policy=eval_policy,
         **variant['algo_params']
     )
     if ptu.gpu_enabled():
@@ -146,10 +170,16 @@ algo_class_to_qf_class = {
 
 def complete_variant(variant):
     algo_class = variant['algo_class']
-    variant['qf_class'] = algo_class_to_qf_class[algo_class]
     variant['algo_params']['sparse_reward'] = not (
         algo_class == VectorizedDeltaTauSdql
     )
+    if 'qf_class' not in variant:
+        variant['qf_class'] = algo_class_to_qf_class[algo_class]
+    if variant['epoch_discount_schedule_class'] == ConstantSchedule:
+        discount = variant['epoch_discount_schedule_params']['value']
+        variant['algo_params']['discount'] = discount
+        if variant['qf_class'] == TauBinaryGoalConditionedDeltaModel:
+            variant['qf_params']['max_tau'] = discount
     return variant
 
 
@@ -164,15 +194,16 @@ if __name__ == '__main__':
     mode = "local"
     exp_prefix = "dev-vectorized-train-q"
     run_mode = "none"
+    snapshot_mode = "last"
 
     # n_seeds = 3
     # mode = "ec2"
-    # exp_prefix = "sdql-binary-tau-reacher2d-normal"
+    exp_prefix = "test-git-commit-2"
     # run_mode = 'grid'
+    # snapshot_mode = "gap_and_last"
 
-    version = "l2"
+    version = "na"
     num_configurations = 50  # for random mode
-    snapshot_mode = "last"
     snapshot_gap = 10
     use_gpu = True
     if mode != "local":
@@ -181,17 +212,32 @@ if __name__ == '__main__':
     max_path_length = 100
     max_tau = 25
     # noinspection PyTypeChecker
-    # algo_class = VectorizedTauSdql
-    algo_class = VectorizedDeltaTauSdql
+    algo_class = VectorizedTauSdql
+    # algo_class = VectorizedDeltaTauSdql
     qf_class = algo_class_to_qf_class[algo_class]
+
+    # env_class = Reacher7DofAngleGoalState
+    # env_class = GoalCosSinStateXYAndCosSinReacher2D
+    # env_class = Reacher7DofXyzGoalState
+    # env_class = JointOnlyPusherEnv
+    # env_class = GoalStateSimpleStateReacherEnv
+    # env_class = GoalXYStateXYAndCosSinReacher2D
+    # env_class = Reacher7DofFullGoalState
+    # env_class = Reacher7DofGoalStateEverything
+    # env_class = HandXYPusher2DEnv
+    # env_class = HandCylinderXYPusher2DEnv
+    env_class = GoalXVelHalfCheetah
+    # env_class = FullStatePusher2DEnv
+    # env_class = FixedHandXYPusher2DEnv
+    # env_class = CylinderXYPusher2DEnv
     replay_buffer_size = 200000
     variant = dict(
         version=version,
         algo_params=dict(
-            num_epochs=51,
-            num_steps_per_epoch=100,
-            num_steps_per_eval=100,
-            num_updates_per_env_step=5,
+            num_epochs=0,
+            num_steps_per_epoch=1000,
+            num_steps_per_eval=1000,
+            num_updates_per_env_step=25,
             use_soft_update=True,
             tau=0.001,
             batch_size=64,
@@ -210,22 +256,39 @@ if __name__ == '__main__':
             render=args.render,
             save_replay_buffer=True,
             cycle_taus_for_rollout=True,
-            # sl_grad_weight=1,
+            sl_grad_weight=1,
             num_sl_batches_per_rl_batch=0,
-            only_do_sl=False,
+            # only_do_sl=False,
+            # cycle_taus_for_rollout=False,
             # num_sl_batches_per_rl_batch=1,
             # only_do_sl=True,
+            # goal_dim_weights=(1, 1, 1, 1),
+            # goal_dim_weights=(0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 1, 1, 1, 1),
         ),
+        # eval_with_oc_policy=True,
+        eval_with_oc_policy=False,
         her_replay_buffer_params=dict(
             max_size=replay_buffer_size,
             num_goals_to_sample=4,
             goal_sample_strategy='store',
         ),
-        explore_with_ddpg_policy=True,
+        raw_explore_policy='ddpg',
+        oc_policy_params=dict(
+            sample_size=10000,
+            # reward_function=env_class.oc_reward_on_goals,
+            # reward_function=env_class.oc_reward,
+            # reward_function=FullStatePusher2DEnv_move_hand_to_target_position_oc_reward_on_goals,
+            # reward_function=HandCylinderXYPusher2DEnv_move_hand_to_cylinder,
+            # reward_function=Reacher7DofFullGoalState_oc_reward,
+            # reward_function=Reacher7DofGoalStateEverything_oc_reward,
+            # reward_function=HandCylinderXYPusher2DEnv_move_hand_to_cylinder,
+            # reward_function=HandXYPusher2DEnv_oc_reward,
+            # reward_function=HandXYPusher2DEnv_oc_reward_on_goals
+        ),
         qf_params=dict(
             hidden_sizes=[300, 300],
             hidden_activation=F.softplus,
-            max_tau=max_tau,
+            # max_tau=max_tau,
         ),
         policy_params=dict(
             fc1_size=300,
@@ -236,12 +299,7 @@ if __name__ == '__main__':
             value=max_tau,
         ),
         algo_class=algo_class,
-        # env_class=Reacher7DofFullGoalState,
-        # env_class=JointOnlyPusherEnv,
-        env_class=GoalStateSimpleStateReacherEnv,
-        # env_class=HandCylinderXYPusher2DEnv,
-        # env_class=CylinderXYPusher2DEnv,
-        # env_class=FullStatePusher2DEnv,
+        env_class=env_class,
         env_params=dict(),
         normalize_params=dict(
             # obs_mean=None,
@@ -260,41 +318,83 @@ if __name__ == '__main__':
     )
     if run_mode == 'grid':
         search_space = {
-            'algo_class': [
-                # VectorizedTauSdql,
-                VectorizedDeltaTauSdql,
-                # HorizonFedStateDistanceQLearning,
+            # 'raw_explore_policy': [
+            #     'oc',
+            #     'ddpg',
+            # ],
+            # 'oc_policy_params.reward_function': [
+            #     FullStatePusher2DEnv_move_hand_to_target_position_oc_reward_on_goals,
+            #     FullStatePusher2DEnv_move_joints_to_target_joint,
+            # ],
+            # 'algo_class': [
+            #     HorizonFedStateDistanceQLearning,
+            #     VectorizedDeltaTauSdql,
+            #     VectorizedTauSdql,
+            # ],
+            # 'qf_params.hidden_sizes': [
+            #     [64, 64],
+            #     [300, 300],
+            #     [100, 100, 100],
+            # ],
+            # 'qf_class': [
+                # GoalConditionedDeltaModel,
+                # TauBinaryGoalConditionedDeltaModel,
+            # ],
+            'algo_params.goal_dim_weights': [
+                (.1, ),
+                (1, ),
+                (10, ),
+                # (.01, .01, 1, 1),
+                # (.1, .1, 1, 1),
+                # (0, 0, 1, 1),
+                # (1, 1, 1, 1),
+                # (.1, .1, .1, .1),
+                # (10, 10, 10, 10),
+                # (1, 1, 0.1, 0.1),
+                # (1, 1, 0.01, 0.01),
+                # (1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+                # (5, 5, 5, 5, 5, 5, 5, 5, 5, 5),
+                # (0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 5, 5, 1, 1),
+                # (0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 1, 1, 1, 1),
+                # (0, 0, 0, 0, 0, 0, 1, 1, 1, 1),
+                # (0, 0, 0, 0, 0, 0, 1, 1, .1, .1),
             ],
-            'algo_params.only_do_sl': [
-                True,
-            ],
-            'env_class': [
-                GoalStateSimpleStateReacherEnv,
-                Reacher7DofFullGoalState,
+            # 'env_class': [
+                # GoalStateSimpleStateReacherEnv,
+                # FullStatePusher2DEnv,
+                # NoShapeHandCylinderXYPusher2DEnv,
+                # HandCylinderXYPusher2DEnv,
+                # Reacher7DofFullGoalState,
+                # Reacher7DofGoalStateEverything,
                 # JointOnlyPusherEnv,
                 # MultitaskPusher2DEnv,
-                # HandCylinderXYPusher2DEnv,
                 # CylinderXYPusher2DEnv,
-                # FullStatePusher2DEnv,
-            ],
-            # 'epoch_discount_schedule_params.value': [
-                # 5,
-                # 10,
-                # 25,
-                # 50,
             # ],
-            # 'algo_params.sample_train_goals_from': [
-            #     'her',
-            #     'replay_buffer',
-            # ],
-            'algo_params.num_sl_batches_per_rl_batch': [
+            'epoch_discount_schedule_params.value': [
                 1,
+                15,
+                30,
             ],
+            # 'algo_params.use_soft_update': [
+            #     True,
+            # ],
+            # 'algo_params.target_hard_update_period': [
+            #     1,
+            #     100,
+            #     1000,
+            # ],
+            # 'eval_with_oc_policy': [
+            #     False,
+            #     True,
+            # ],
+            # 'algo_params.tau': [
+            #     1, 1e-1, 1e-2,
+            # ],
             # 'algo_params.sl_grad_weight': [
-                # 0.01,
-                # 0.1,
-                # 1,
-                # 10,
+            #     0.01,
+            #     0.1,
+            #     1,
+            #     10,
             # ],
             # 'her_replay_buffer_params'
             # '.fraction_goal_states_are_rollout_goal_states': [

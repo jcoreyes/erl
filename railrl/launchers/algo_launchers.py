@@ -9,10 +9,23 @@ This file contains classic RL launchers. See module docstring for more detail.
 import joblib
 import tensorflow as tf
 
+from railrl.envs.env_utils import gym_env
+from railrl.envs.memory.continuous_memory_augmented import \
+    ContinuousMemoryAugmented
+from railrl.envs.memory.one_char_memory import OneCharMemory, \
+    OneCharMemoryEndOnly, OneCharMemoryOutputRewardMag
+
 from railrl.exploration_strategies.action_aware_memory_strategy import \
     ActionAwareMemoryStrategy
 from railrl.policies.memory.action_aware_memory_policy import \
     ActionAwareMemoryPolicy
+from rllab.envs.box2d.cartpole_env import CartpoleEnv
+from rllab.envs.mujoco.ant_env import AntEnv
+from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
+from rllab.envs.mujoco.inverted_double_pendulum_env import \
+    InvertedDoublePendulumEnv
+from rllab.envs.mujoco.swimmer_env import SwimmerEnv
+from rllab.envs.normalized_env import normalize
 
 
 def mem_ddpg_launcher(variant):
@@ -29,7 +42,6 @@ def mem_ddpg_launcher(variant):
     from railrl.algos.ddpg_ocm import DdpgOcm
     from railrl.policies.memory.softmax_memory_policy import SoftmaxMemoryPolicy
     from railrl.qfunctions.memory.memory_qfunction import MlpMemoryQFunction
-    from railrl.launchers.launcher_util import get_env_settings
     from railrl.core.tf_util import BatchNormConfig
     from railrl.envs.memory.continuous_memory_augmented import (
         ContinuousMemoryAugmented,
@@ -91,7 +103,6 @@ def my_ddpg_launcher(variant):
     from railrl.policies.tensorflow.nn_policy import FeedForwardPolicy
     from railrl.qfunctions.nn_qfunction import FeedForwardCritic
     from rllab.exploration_strategies.ou_strategy import OUStrategy
-    from railrl.launchers.launcher_util import get_env_settings
     from railrl.core.tf_util import BatchNormConfig
     if ('batch_norm_params' in variant
         and variant['batch_norm_params'] is not None):
@@ -138,7 +149,6 @@ def quadratic_ddpg_launcher(variant):
     from railrl.policies.tensorflow.nn_policy import FeedForwardPolicy
     from rllab.exploration_strategies.ou_strategy import OUStrategy
     from railrl.qfunctions.quadratic_naf_qfunction import QuadraticNAF
-    from railrl.launchers.launcher_util import get_env_settings
     from railrl.core.tf_util import BatchNormConfig
     if ('batch_norm_params' in variant
         and variant['batch_norm_params'] is not None):
@@ -180,7 +190,6 @@ def oat_qddpg_launcher(variant):
     from railrl.policies.tensorflow.nn_policy import FeedForwardPolicy
     from railrl.qfunctions.quadratic_naf_qfunction import QuadraticNAF
     from rllab.exploration_strategies.ou_strategy import OUStrategy
-    from railrl.launchers.launcher_util import get_env_settings
     from railrl.core.tf_util import BatchNormConfig
     if ('batch_norm_params' in variant
         and variant['batch_norm_params'] is not None):
@@ -217,7 +226,6 @@ def naf_launcher(variant):
     from railrl.algos.naf import NAF
     from railrl.qfunctions.quadratic_naf_qfunction import QuadraticNAF
     from rllab.exploration_strategies.ou_strategy import OUStrategy
-    from railrl.launchers.launcher_util import get_env_settings
     from railrl.core.tf_util import BatchNormConfig
     if ('batch_norm_params' in variant
         and variant['batch_norm_params'] is not None):
@@ -284,7 +292,6 @@ def shane_ddpg_launcher(variant):
     from sandbox.rocky.tf.q_functions.continuous_mlp_q_function import (
         ContinuousMLPQFunction
     )
-    from railrl.launchers.launcher_util import get_env_settings
     env_settings = get_env_settings(**variant['env_params'])
     env = TfEnv(env_settings['env'])
     es = GaussianStrategy(env.spec)
@@ -315,7 +322,6 @@ def rllab_vpg_launcher(variant):
     from sandbox.rocky.tf.algos.vpg import VPG
     from sandbox.rocky.tf.envs.base import TfEnv
     from sandbox.rocky.tf.policies.gaussian_mlp_policy import GaussianMLPPolicy
-    from railrl.launchers.launcher_util import get_env_settings
     env_settings = get_env_settings(**variant['env_params'])
     env = TfEnv(env_settings['env'])
     policy = GaussianMLPPolicy(
@@ -340,7 +346,6 @@ def rllab_trpo_launcher(variant):
     from sandbox.rocky.tf.algos.trpo import TRPO
     from sandbox.rocky.tf.envs.base import TfEnv
     from sandbox.rocky.tf.policies.gaussian_mlp_policy import GaussianMLPPolicy
-    from railrl.launchers.launcher_util import get_env_settings
     env_settings = get_env_settings(**variant['env_params'])
     env = TfEnv(env_settings['env'])
     policy = GaussianMLPPolicy(
@@ -369,7 +374,6 @@ def rllab_ddpg_launcher(variant):
     from rllab.policies.deterministic_mlp_policy import (
         DeterministicMLPPolicy as TheanoDeterministicMLPPolicy
     )
-    from railrl.launchers.launcher_util import get_env_settings
     env_settings = get_env_settings(**variant['env_params'])
     env = env_settings['env']
     policy = TheanoDeterministicMLPPolicy(
@@ -395,7 +399,6 @@ def random_action_launcher(variant):
     from railrl.algos.noop_algo import NoOpAlgo
     from rllab.exploration_strategies.ou_strategy import OUStrategy
     from rllab.policies.uniform_control_policy import UniformControlPolicy
-    from railrl.launchers.launcher_util import get_env_settings
     env_settings = get_env_settings(**variant['env_params'])
     env = env_settings['env']
     es = OUStrategy(env)
@@ -479,7 +482,7 @@ def bptt_ddpg_launcher(variant):
             data = joblib.load(load_policy_file)
             policy = data['policy']
             qf = data['qf']
-            
+
     env_strategy = env_es_class(
         env_spec=raw_env.spec,
         **env_es_params
@@ -567,3 +570,80 @@ def bptt_ddpg_launcher(variant):
 
     algorithm.train()
     return algorithm
+
+
+def get_env_settings(
+        env_id="",
+        normalize_env=True,
+        gym_name="",
+        init_env_params=None,
+        num_memory_states=0,
+):
+    """
+
+    :param env_id: Env ID. See code for acceptable IDs.
+    :param normalize_env: Boolean. If true, normalize the environment.
+    :param gym_name: Gym environment name if env_id is "gym".
+    :param init_env_params: Parameters to pass to the environment's constructor.
+    :param num_memory_states: Number of memory states. If positive, then the
+    environment is wrapped in a ContinuousMemoryAugmented env with this many
+    memory states.
+    :return:
+    """
+    if init_env_params is None:
+        init_env_params = {}
+    assert num_memory_states >= 0
+
+    if env_id == 'cart':
+        env = CartpoleEnv()
+        name = "Cartpole"
+    elif env_id == 'cheetah':
+        env = HalfCheetahEnv()
+        name = "HalfCheetah"
+    elif env_id == 'ant':
+        env = AntEnv()
+        name = "Ant"
+    elif env_id == 'point':
+        env = gym_env("OneDPoint-v0")
+        name = "OneDPoint"
+    elif env_id == 'random2d':
+        env = gym_env("TwoDPointRandomInit-v0")
+        name = "TwoDPoint-RandomInit"
+    elif env_id == 'reacher':
+        env = gym_env("Reacher-v1")
+        name = "Reacher"
+    elif env_id == 'idp':
+        env = InvertedDoublePendulumEnv()
+        name = "InvertedDoublePendulum"
+    elif env_id == 'swimmer':
+        env = SwimmerEnv()
+        name = "Swimmer"
+    elif env_id == 'ocm':
+        env = OneCharMemory(**init_env_params)
+        name = "OneCharMemory"
+    elif env_id == 'ocme':
+        env = OneCharMemoryEndOnly(**init_env_params)
+        name = "OneCharMemoryEndOnly"
+    elif env_id == 'ocmr':
+        env = OneCharMemoryOutputRewardMag(**init_env_params)
+        name = "OneCharMemoryOutputRewardMag"
+    elif env_id == 'gym':
+        if gym_name == "":
+            raise Exception("Must provide a gym name")
+        env = gym_env(gym_name)
+        name = gym_name
+    else:
+        raise Exception("Unknown env: {0}".format(env_id))
+    if normalize_env and env_id != 'ocm':
+        env = normalize(env)
+        name += "-normalized"
+    if num_memory_states > 0:
+        env = ContinuousMemoryAugmented(
+            env,
+            num_memory_states=num_memory_states,
+        )
+    return dict(
+        env=env,
+        name=name,
+        was_env_normalized=normalize_env,
+    )

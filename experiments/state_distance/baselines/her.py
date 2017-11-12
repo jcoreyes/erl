@@ -7,9 +7,11 @@ import railrl.torch.pytorch_util as ptu
 from railrl.algos.state_distance.her import HER
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
-from railrl.envs.multitask.reacher_env import (
-    XyMultitaskSimpleStateReacherEnv,
-    JointAngleMultitaskSimpleStateReacherEnv)
+from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
+from railrl.envs.multitask.pusher2d import HandCylinderXYPusher2DEnv, \
+    CylinderXYPusher2DEnv
+from railrl.envs.multitask.reacher_7dof import Reacher7DofGoalStateEverything, \
+    Reacher7DofXyzGoalState
 from railrl.envs.wrappers import convert_gym_space, normalize_box
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
@@ -92,10 +94,11 @@ if __name__ == '__main__':
     exp_prefix = "murtaza-edits-baseline-her"
     run_mode = "none"
 
-    # n_seeds = 3
-    # mode = "ec2"
-    # exp_prefix = "her-baseline-reacher-terminate-when-goal-reached"
-    # run_mode = 'grid'
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "her-baseline-shaped-rewards-no-clipping-300-300-right" \
+                 "-discount-and-tau"
+    run_mode = 'grid'
 
     version = "na"
     snapshot_mode = "last"
@@ -126,28 +129,21 @@ if __name__ == '__main__':
         ),
         qf_class=HerQFunction,
         qf_params=dict(
-            hidden_sizes=[64, 64, 64],
+            hidden_sizes=[300, 300],
             hidden_activation=F.softplus,
         ),
         policy_class=HerPolicy,
         policy_params=dict(
-            hidden_sizes=[64, 64, 64],
-            hidden_activation=F.softplus,
+            hidden_sizes=[300, 300],
+            hidden_activation=F.relu,
         ),
         replay_buffer_params=dict(
             max_size=200000,
             num_goals_to_sample=4,
             goal_sample_strategy='store',
         ),
-        env_class=JointAngleMultitaskSimpleStateReacherEnv,
         env_params=dict(),
-        normalize_params=dict(
-            # TODO(murtaza): figure out good values
-            # Give it list not np array!
-            # std=[1,1,1,1,1,20,20,20,20,20]
-            # obs_mean=None,
-            # obs_std=None,
-        ),
+        normalize_params=dict(),
         es_class=OUStrategy,
         es_params=dict(
             theta=0.1,
@@ -163,9 +159,23 @@ if __name__ == '__main__':
     )
     if run_mode == 'grid':
         search_space = {
-            'replay_buffer_params.goal_sample_strategy': [
-                'online',
-                'store',
+            # 'replay_buffer_params.goal_sample_strategy': [
+            #     'online',
+            #     'store',
+            # ],
+            'env_class': [
+                CylinderXYPusher2DEnv,
+                GoalXVelHalfCheetah,
+                Reacher7DofXyzGoalState,
+            ],
+            'algo_params.num_updates_per_env_step': [
+                1, 5, 25
+            ],
+            # 'algo_params.tau': [
+            #     1e-2, 1e-3,
+            # ],
+            'algo_params.scale_reward': [
+                10, 1, 0.1,
             ],
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(

@@ -12,8 +12,8 @@ from railrl.launchers.algo_launchers import (
     my_ddpg_launcher,
     naf_launcher,
     random_action_launcher,
-)
-from railrl.launchers.launcher_util import get_env_settings, run_experiment
+    get_env_settings)
+from railrl.launchers.launcher_util import run_experiment
 from railrl.misc import hyperparameter as hp
 
 BATCH_SIZE = 32

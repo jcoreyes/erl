@@ -245,8 +245,6 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             logger.pop_prefix()
 
     def _try_to_eval(self, exploration_paths, epoch):
-        if len(exploration_paths) == 0:
-            exploration_paths = [self._current_path.get_all_stacked()]
         if self.collect_data:
             save_extra_data_to_snapshot_dir(
                 self.get_extra_data_to_save(epoch),
@@ -389,6 +387,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                 actions=self.action_space.flatten(action),
                 agent_infos=agent_info,
                 env_infos=env_info,
+                # goal_states=self.env.goal_state,  # TODO(vitchyr): remove
             )
 
         self.replay_buffer.add_sample(
@@ -398,6 +397,7 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             terminal,
             agent_info=agent_info,
             env_info=env_info,
+            # goal_states=self.env.goal_state,  # TODO(vitchyr): remove
         )
 
     def _handle_rollout_ending(

@@ -9,6 +9,7 @@ import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.multitask.multitask_env import MultitaskEnv
+from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.ml_util import StatConditionalSchedule
 from railrl.misc import rllab_util
 from railrl.misc.rllab_util import split_paths_to_dict
@@ -34,6 +35,7 @@ class StateDistanceQLearning(DDPG):
             qf,
             policy,
             exploration_policy: UniversalExplorationPolicy = None,
+            eval_policy=None,
             replay_buffer=None,
             num_epochs=100,
             num_steps_per_epoch=100,
@@ -43,18 +45,20 @@ class StateDistanceQLearning(DDPG):
             num_steps_per_eval=1000,
             max_path_length=1000,
             discount=0.99,
-            num_updates_per_env_step=1,
             num_steps_per_tensorboard_update=None,
             prob_goal_state_is_next_state=0,
             termination_threshold=0,
             save_replay_buffer=False,
             save_algorithm=False,
             eval_sampler=None,
+            goal_dim_weights=None,
             **kwargs
     ):
+        if eval_policy is None:
+            eval_policy = policy
         eval_sampler = eval_sampler or MultigoalSimplePathSampler(
             env=env,
-            policy=policy,
+            policy=eval_policy,
             max_samples=num_steps_per_eval,
             max_path_length=max_path_length,
             discount_sampling_function=self._sample_discount_for_rollout,
@@ -90,7 +94,6 @@ class StateDistanceQLearning(DDPG):
         self.sample_train_goals_from = sample_train_goals_from
         self.sample_rollout_goals_from = sample_rollout_goals_from
         self.sample_discount = sample_discount
-        self.num_updates_per_env_step = num_updates_per_env_step
         self.num_steps_per_tensorboard_update = num_steps_per_tensorboard_update
         self.prob_goal_state_is_next_state = prob_goal_state_is_next_state
         self.termination_threshold = termination_threshold
@@ -101,11 +104,12 @@ class StateDistanceQLearning(DDPG):
         if self.num_steps_per_tensorboard_update is not None:
             self.tb_logger = TensorboardLogger(logger.get_snapshot_dir())
         self.start_time = time.time()
+        self.goal_dim_weights = goal_dim_weights
+        if self.goal_dim_weights is not None:
+            self.env.goal_dim_weights = np.array(goal_dim_weights)
 
     def _do_training(self, n_steps_total):
-        # prev = time.time()
         super()._do_training(n_steps_total)
-        # print(time.time()-prev)
         if self.num_steps_per_tensorboard_update is None:
             return
 
@@ -266,7 +270,12 @@ class StateDistanceQLearning(DDPG):
         for key, value in statistics.items():
             logger.record_tabular(key, value)
 
+        logger.set_key_prefix('test ')
         self.log_diagnostics(test_paths)
+        logger.set_key_prefix('expl ')
+        self.log_diagnostics(exploration_paths)
+        logger.set_key_prefix('')
+
 
         if isinstance(self.epoch_discount_schedule, StatConditionalSchedule):
             table_dict = rllab_util.get_logger_table_dict()
@@ -275,6 +284,32 @@ class StateDistanceQLearning(DDPG):
                 table_dict[self.epoch_discount_schedule.statistic_name]
             )
             self.epoch_discount_schedule.update(value)
+
+    def log_diagnostics(self, paths):
+        super().log_diagnostics(paths)
+        statistics = OrderedDict()
+        for l in [1, 2]:
+            goal_distances = []
+            for path in paths:
+                obs = np.array(path['observations'])
+                reached_goals = self.env.convert_obs_to_goal_states(obs)
+                goals = np.array(path['goal_states'])
+                goal_distances.append(
+                    np.linalg.norm(reached_goals - goals, axis=1, ord=l)
+                )
+            final_goal_distances = [d[-1] for d in goal_distances]
+            statistics.update(create_stats_ordered_dict(
+                'SDQL L{} Goal Distance'.format(l),
+                goal_distances,
+                always_show_all_stats=True,
+            ))
+            statistics.update(create_stats_ordered_dict(
+                'SDQL Final L{} Goal Distance'.format(l),
+                final_goal_distances,
+                always_show_all_stats=True,
+            ))
+        for key, value in statistics.items():
+            logger.record_tabular(key, value)
 
     def offline_evaluate(self, epoch):
         """
@@ -402,6 +437,7 @@ class StateDistanceQLearning(DDPG):
             env=self.training_env,
             qf=self.qf,
             discount=self.discount,
+            exploration_policy=self.exploration_policy,
         )
 
     def get_extra_data_to_save(self, epoch):
@@ -701,15 +737,19 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             batch = np_to_pytorch_batch(batch)
             obs = batch['observations']
             actions = batch['actions']
-            goal_states = batch['goal_states']
-            num_steps_left = batch['goal_i_minus_obs_i'] - 1
+            states_after_tau_steps = batch['states_after_tau_steps']
+            goal_states = self.env.convert_obs_to_goal_states_pytorch(
+                states_after_tau_steps
+            )
+            num_steps_left = batch['taus']
             y_pred = self.qf(obs, actions, goal_states, num_steps_left)
+
             y_target = ptu.Variable(
                 torch.zeros(y_pred.size()),
                 requires_grad=False,
             )
             sl_loss = self.qf_criterion(y_pred, y_target)
-            qf_loss += sl_loss * self.sl_grad_weight
+            qf_loss = qf_loss + sl_loss * self.sl_grad_weight
 
         return OrderedDict([
             ('Policy Actions', policy_actions),

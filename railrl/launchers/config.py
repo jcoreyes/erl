@@ -1,6 +1,7 @@
 CODE_DIRS_TO_MOUNT = [
     '/home/vitchyr/git/rllab-rail/railrl/',
     '/home/vitchyr/git/rllab-rail/',
+    '/home/vitchyr/git/hw4_fall2017/',
 ]
 DIR_AND_MOUNT_POINT_MAPPINGS = [
     dict(

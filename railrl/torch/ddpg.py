@@ -302,7 +302,11 @@ class DDPG(OnlineAlgorithm):
         for key, value in statistics.items():
             logger.record_tabular(key, value)
 
+        logger.set_key_prefix('test ')
         self.log_diagnostics(test_paths)
+        logger.set_key_prefix('expl ')
+        self.log_diagnostics(exploration_paths)
+        logger.set_key_prefix('')
 
 
     def offline_evaluate(self, epoch):

@@ -165,10 +165,9 @@ class HerReplayBuffer(EnvReplayBuffer):
             terminals=self._terminals[indices],
             next_observations=self._observations[next_indices],
             goal_states=goal_states,
-            goal_i_minus_obs_i=np.expand_dims(taus, 1),
         )
 
-    def random_batch_for_sl(self, batch_size, max_i_diff):
+    def random_batch_for_sl(self, batch_size, max_tau):
         indices = np.random.choice(
             self._valid_transition_indices,
             batch_size,
@@ -176,20 +175,31 @@ class HerReplayBuffer(EnvReplayBuffer):
         )
         next_indices = (indices + 1) % self._size
         goal_state_indices = []
+        """
+        This +1 -1 business is because tau is defined as "the number of time
+        steps you have left AFTER taking the current action."
+
+        Say you're at state s_t and take action a_t. You end up at state
+        s_{t+1}. If tau = 2, then we want to look at s_{t+3}, not s_{t+2}.
+
+        The difference in indices is (t+3) - (t) = 3, but tau = 2.
+        """
         for i in indices:
             min_i, max_i = self._index_to_goal_states_interval[i]
-            max_i = min(max_i, i + max_i_diff)
+            # +1 for funny tau stuff. See above
+            max_i = min(max_i, i + max_tau + 1)
+            # This +1 is because randint exclused the last element
             goal_state_indices.append(np.random.randint(min_i, max_i+1))
         goal_states = self._env.convert_obs_to_goal_states(
             self._observations[goal_state_indices]
         )
-        taus = np.array(goal_state_indices) - np.array(indices)
+        taus = np.array(goal_state_indices) - np.array(indices) - 1
         return dict(
             observations=self._observations[indices],
             actions=self._actions[indices],
             rewards=self._rewards[indices],
             terminals=self._terminals[indices],
             next_observations=self._observations[next_indices],
-            goal_states=goal_states,
-            goal_i_minus_obs_i=np.expand_dims(taus, 1),
+            states_after_tau_steps=goal_states,
+            taus=np.expand_dims(taus, 1),
         )
