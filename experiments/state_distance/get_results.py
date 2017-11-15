@@ -163,9 +163,9 @@ if __name__ == '__main__':
     run_mode = "none"
     snapshot_mode = "last"
 
-    n_seeds = 3
+    n_seeds = 1
     mode = "ec2"
-    exp_prefix = "replicate-half-cheetah-results"
+    exp_prefix = "replicate-pusher-results-refactor"
     run_mode = 'grid'
     # snapshot_mode = "gap_and_last"
 
@@ -197,7 +197,6 @@ if __name__ == '__main__':
             sample_rollout_goals_from='environment',
             sample_train_goals_from='her',
             # sample_train_goals_from='replay_buffer',
-            sample_discount=True,
             qf_weight_decay=0.,
             max_path_length=max_path_length,
             replay_buffer_size=replay_buffer_size,
@@ -253,21 +252,21 @@ if __name__ == '__main__':
     if run_mode == 'grid':
         for env_class in [
             # Reacher7DofGoalStateEverything,
-            # HandCylinderXYPusher2DEnv,
+            HandCylinderXYPusher2DEnv,
             # FullStatePusher2DEnv,
-            GoalXVelHalfCheetah,
+            # GoalXVelHalfCheetah,
         ]:
             search_space = {
                 # 'algo_params.goal_dim_weights': env_class_to_goal_dim_weights[env_class],
                 'env_class': [env_class],
-                # 'epoch_discount_schedule_params.value': [
-                #     5,
-                #     10,
-                #     15,
-                # ],
-                # 'algo_params.num_updates_per_env_step': [
-                #     25, 5
-                # ],
+                'epoch_discount_schedule_params.value': [
+                    5,
+                    10,
+                    15,
+                ],
+                'algo_params.num_updates_per_env_step': [
+                    25, 5
+                ],
                 # 'algo_params.tau': [
                 #     0.1,
                 #     0.01,
