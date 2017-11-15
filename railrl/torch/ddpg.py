@@ -274,7 +274,7 @@ class DDPG(RLAlgorithm):
         statistics = OrderedDict()
         train_batch = self.get_batch(training=True)
         validation_batch = self.get_batch(training=False)
-        test_paths = self._sample_eval_paths(epoch)
+        test_paths = self.eval_sampler.obtain_samples()
 
         if not isinstance(self.epoch_discount_schedule, ConstantSchedule):
             statistics['Discount Factor'] = self.discount

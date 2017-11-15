@@ -221,7 +221,7 @@ class StateDistanceQLearning(DDPG):
         statistics = OrderedDict()
         train_batch = self.get_batch(training=True)
         validation_batch = self.get_batch(training=False)
-        test_paths = self._sample_eval_paths(epoch)
+        test_paths = self.eval_sampler.obtain_samples()
 
         statistics.update(self._statistics_from_batch(train_batch, "Train"))
         statistics.update(
