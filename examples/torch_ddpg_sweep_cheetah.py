@@ -2,6 +2,7 @@
 Run PyTorch DDPG on HalfCheetah.
 """
 import random
+
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
@@ -17,19 +18,20 @@ from rllab.envs.normalized_env import normalize
 
 def example(variant):
     env = HalfCheetahEnv()
-    env = normalize(env)
+    if variant['normalize']:
+        env = normalize(env)
     es = OUStrategy(action_space=env.action_space)
     qf = FeedForwardQFunction(
         int(env.observation_space.flat_dim),
         int(env.action_space.flat_dim),
-        400,
-        300,
+        32,
+        32,
     )
     policy = FeedForwardPolicy(
         int(env.observation_space.flat_dim),
         int(env.action_space.flat_dim),
-        400,
-        300,
+        32,
+        32,
     )
     exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
@@ -51,7 +53,7 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
-            num_epochs=100,
+            num_epochs=99,
             num_steps_per_epoch=10000,
             num_steps_per_eval=1000,
             use_soft_update=True,
@@ -63,13 +65,16 @@ if __name__ == "__main__":
             policy_learning_rate=1e-4,
         ),
         version="PyTorch - bigger networks",
+        normalize=False,
+        size='32',
     )
-    seed = random.randint(0, 999999)
-    run_experiment(
-        example,
-        exp_prefix="ddpg-half-cheetah-pytorch",
-        seed=seed,
-        mode='local',
-        variant=variant,
-        use_gpu=True,
-    )
+    for _ in range(3):
+        seed = random.randint(0, 999999)
+        run_experiment(
+            example,
+            exp_prefix="ddpg-half-cheetah-sweep-things",
+            seed=seed,
+            mode='ec2',
+            variant=variant,
+            use_gpu=False,
+        )

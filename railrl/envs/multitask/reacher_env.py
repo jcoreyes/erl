@@ -237,6 +237,9 @@ class GoalStateSimpleStateReacherEnv(MultitaskReacherEnv):
         goal_state[4:6] = 0
         return goal_state
 
+    def convert_obs_to_goal_states(self, obs):
+        return obs
+
     @property
     def goal_dim(self):
         return 6
@@ -252,12 +255,13 @@ class GoalStateSimpleStateReacherEnv(MultitaskReacherEnv):
         print("angle 2 (degrees) = ", np.arctan2(s2, c2) / math.pi * 180)
 
 
-    def sample_irrelevant_goal_dimensions(self, goal, batch_size):
+    def sample_dimensions_irrelevant_to_oc(self, goal, obs, batch_size):
         """
         Sample the goal a bunch of time, but fill in the desired position with
         what you care about.
 
         :param goal: np.ndarray, shape GOAL_DIM
+        :param obs: np.ndarray, shape obs_dim
         :param batch_size:
         :return: ndarray, shape SAMPLE_SIZE x GOAL_DIM
         """

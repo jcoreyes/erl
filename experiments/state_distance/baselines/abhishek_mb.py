@@ -85,16 +85,19 @@ if __name__ == '__main__':
     run_mode = "none"
     snapshot_mode = "last"
 
-    n_seeds = 5
-    mode = "ec2"
-    exp_prefix = "abhishek-mb-cheetah-target-reset"
+    # n_seeds = 5
+    # mode = "ec2"
+    # exp_prefix = "abhishek-mb-cheetah-target-reset"
     # snapshot_mode = "gap_and_last"
     snapshot_gap = 10
 
     # Data collection
-    num_steps_per_epoch = 1000
-    max_path_length = 1000
-    num_epochs = 1000
+    # num_steps_per_epoch = 1000
+    # max_path_length = 1000
+    # num_epochs = 1000
+    num_steps_per_epoch = 100
+    max_path_length = 50
+    num_epochs = 10
     variant = dict(
         # env='HalfCheetah-v1',
         env_name_or_class='HalfCheetah-v1',

@@ -19,13 +19,6 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         self.multitask_goal = np.zeros(self.goal_dim)
         self.goal_dim_weights = np.ones(self.goal_dim)
 
-    def set_goal(self, goal):
-        self.multitask_goal = goal
-
-    @abc.abstractmethod
-    def sample_goal_states(self, batch_size):
-        pass
-
     @property
     @abc.abstractmethod
     def goal_dim(self) -> int:
@@ -34,24 +27,46 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         """
         pass
 
-    @staticmethod
-    def print_goal_state_info(goal):
-        """
-        Used for debugging.
-        """
-        print("Goal = ", goal)
-
     @abc.abstractmethod
-    def sample_actions(self, batch_size):
+    def sample_goal_states(self, batch_size):
         pass
 
     @abc.abstractmethod
-    def sample_states(self, batch_size):
+    def convert_obs_to_goal_states(self, obs):
+        """
+        Convert a raw environment observation into a goal state (if possible).
+        """
+        pass
+
+    @abc.abstractmethod
+    def sample_dimensions_irrelevant_to_oc(self, goal, obs, batch_size):
+        """
+        Create the OC goal state a bunch of time, but replace irrelevant goal
+        dimensions with sampled values.
+
+        :param goal: np.ndarray, shape GOAL_DIM
+        :param batch_size:
+        :return: ndarray, shape `batch_size` x GOAL_DIM
+        """
+        pass
+
+    @abc.abstractmethod
+    def oc_reward_on_goals(
+            self, predicted_goal_states, goal_states, current_states
+    ):
         pass
 
     """
     Functions you probably don't need to override.
     """
+    def oc_reward(
+            self, predicted_states, goal_states, current_states
+    ):
+        return self.oc_reward_on_goals(
+            self.convert_obs_to_goal_states(predicted_states),
+            goal_states,
+            current_states
+        )
 
     def sample_goal_state_for_rollout(self):
         """
@@ -80,6 +95,8 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
     """
     Check out these default functions below! You may want to override them.
     """
+    def set_goal(self, goal):
+        self.multitask_goal = goal
 
     def compute_rewards(self, obs, action, next_obs, goal_states):
         return - np.linalg.norm(
@@ -88,14 +105,6 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
             keepdims=True,
             ord=1,
         )
-
-    def convert_obs_to_goal_states(self, obs):
-        """
-        Convert a raw environment observation into a goal state (if possible).
-
-        This observation should NOT include the goal state.
-        """
-        return obs
 
     def convert_obs_to_goal_states_pytorch(self, obs):
         """
@@ -113,78 +122,38 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         """
         return goal_state
 
-    def sample_irrelevant_goal_dimensions(self, goal, batch_size):
-        """
-        Copy the goal a bunch of time, but replace irrelevant goal dimensions
-        with sampled values.
-
-        For example, if you care about the position but not about the velocity,
-        copy the velocity `batch_size` number of times, and then sample a bunch
-        of velocity values.
-
-        This default implementation assumes every dimension in the goal state
-        is important.
-
-        :param goal: np.ndarray, shape GOAL_DIM
-        :param batch_size:
-        :return: ndarray, shape SAMPLE_SIZE x GOAL_DIM
-        """
-        raise NotImplementedError("Nothing should be using this")
-        # return np.repeat(
-        #     np.expand_dims(goal, 0),
-        #     batch_size,
-        #     axis=0
-        # )
-
-    def sample_dimensions_irrelevant_to_oc(self, goal, obs, batch_size):
-        """
-        Copy the goal a bunch of time, but replace irrelevant goal dimensions
-        with sampled values.
-
-        For example, if you care about the position but not about the velocity,
-        copy the velocity `batch_size` number of times, and then sample a bunch
-        of velocity values.
-
-        This default implementation assumes every dimension in the goal state
-        is important.
-
-        :param goal: np.ndarray, shape GOAL_DIM
-        :param batch_size:
-        :return: ndarray, shape SAMPLE_SIZE x GOAL_DIM
-        """
-        raise NotImplementedError()
-        # return np.repeat(
-        #     np.expand_dims(goal, 0),
-        #     batch_size,
-        #     axis=0
-        # )
-
-
     def log_diagnostics(self, paths):
         statistics = OrderedDict()
 
         observations = np.vstack([path['observations'] for path in paths])
         goal_states = np.vstack([path['goal_states'] for path in paths])
         actions = np.vstack([path['actions'] for path in paths])
-        final_distances = []
+        final_differences = []
         for path in paths:
             reached = self.convert_ob_to_goal_state(path['observations'][-1])
             goal = path['goal_states'][-1]
-            final_distances.append(
-                np.linalg.norm(reached - goal)
+            final_differences.append(reached - goal)
+        for order in [1, 2]:
+            final_distances = np.linalg.norm(
+                np.array(final_differences),
+                axis=1,
+                ord=order,
             )
-        final_distances = np.array(final_distances)
-
-        goal_distances = np.linalg.norm(
-            self.convert_obs_to_goal_states(observations) - goal_states,
-            axis=1,
-        )
-        statistics.update(create_stats_ordered_dict(
-            'Multitask distance to goal', goal_distances
-        ))
-        statistics.update(create_stats_ordered_dict(
-            'Multitask final distance to goal', final_distances
-        ))
+            goal_distances = np.linalg.norm(
+                self.convert_obs_to_goal_states(observations) - goal_states,
+                axis=1,
+                ord=order,
+            )
+            statistics.update(create_stats_ordered_dict(
+                'Multitask L{} distance to goal'.format(order),
+                goal_distances,
+                always_show_all_stats=True,
+            ))
+            statistics.update(create_stats_ordered_dict(
+                'Multitask Final L{} distance to goal'.format(order),
+                final_distances,
+                always_show_all_stats=True,
+            ))
         rewards = self.compute_rewards(
             observations[:-1, ...],
             actions[:-1, ...],
@@ -196,6 +165,32 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         ))
         for key, value in statistics.items():
             logger.record_tabular(key, value)
+
+    """
+    Optional functions to implement, since most of my code doesn't use these
+    any more.
+    """
+    def sample_irrelevant_goal_dimensions(self, goal, batch_size):
+        """
+        Copy the goal a bunch of time, but replace irrelevant goal dimensions
+        with sampled values.
+
+        For example, if you care about the position but not about the velocity,
+        copy the velocity `batch_size` number of times, and then sample a bunch
+        of velocity values.
+
+        :param goal: np.ndarray, shape GOAL_DIM
+        :param batch_size:
+        :return: ndarray, shape SAMPLE_SIZE x GOAL_DIM
+        """
+        pass
+
+    def sample_actions(self, batch_size):
+        pass
+
+    def sample_states(self, batch_size):
+        pass
+
 
 
 class MultitaskToFlatEnv(ProxyEnv, Serializable):

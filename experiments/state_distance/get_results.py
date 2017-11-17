@@ -163,9 +163,9 @@ if __name__ == '__main__':
     run_mode = "none"
     snapshot_mode = "last"
 
-    n_seeds = 3
+    n_seeds = 1
     mode = "ec2"
-    exp_prefix = "get-results-handxyxy-small-sweep"
+    exp_prefix = "replicate-pusher-results-refactor"
     run_mode = 'grid'
     # snapshot_mode = "gap_and_last"
 
@@ -187,7 +187,7 @@ if __name__ == '__main__':
             num_epochs=101,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
-            num_updates_per_env_step=5,
+            num_updates_per_env_step=25,
             use_soft_update=True,
             tau=0.001,
             batch_size=64,
@@ -197,7 +197,6 @@ if __name__ == '__main__':
             sample_rollout_goals_from='environment',
             sample_train_goals_from='her',
             # sample_train_goals_from='replay_buffer',
-            sample_discount=True,
             qf_weight_decay=0.,
             max_path_length=max_path_length,
             replay_buffer_size=replay_buffer_size,
@@ -268,11 +267,11 @@ if __name__ == '__main__':
                 'algo_params.num_updates_per_env_step': [
                     25, 5
                 ],
-                'algo_params.tau': [
-                    0.1,
-                    0.01,
-                    0.001,
-                ],
+                # 'algo_params.tau': [
+                #     0.1,
+                #     0.01,
+                #     0.001,
+                # ],
             }
             sweeper = hyp.DeterministicHyperparameterSweeper(
                 search_space, default_parameters=variant,

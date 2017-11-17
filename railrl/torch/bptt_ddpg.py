@@ -12,13 +12,13 @@ from railrl.data_management.updatable_subtraj_replay_buffer import (
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import get_average_returns
 from railrl.pythonplusplus import batch, ConditionTimer
-from railrl.torch.online_algorithm import OnlineAlgorithm
+from railrl.torch.online_algorithm import RLAlgorithm
 from railrl.torch import pytorch_util as ptu
 from rllab.misc import logger, special
 
 
 # noinspection PyCallingNonCallable
-class BpttDdpg(OnlineAlgorithm):
+class BpttDdpg(RLAlgorithm):
     """
     BPTT DDPG implemented in pytorch.
     """

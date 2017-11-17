@@ -239,6 +239,52 @@ class HandCylinderXYPusher2DEnv(MultitaskPusher2DEnv):
         )
 
 
+class LessShapeHandCylinderXYPusher2DEnv(HandCylinderXYPusher2DEnv):
+    def sample_dimensions_irrelevant_to_oc(self, goal, obs, batch_size):
+        desired_cylinder_pos = goal[2:4]
+        current_cylinder_pos = obs[8:10]
+
+        new_goal = np.hstack((
+            current_cylinder_pos,
+            desired_cylinder_pos,
+        ))
+        return np.repeat(
+            np.expand_dims(new_goal, 0),
+            batch_size,
+            axis=0
+        )
+
+    @staticmethod
+    def oc_reward(
+            predicted_states, goal_states, current_states
+    ):
+        return HandCylinderXYPusher2DEnv.oc_reward_on_goals(
+            predicted_states[:, :4],
+            goal_states,
+            current_states,
+        )
+
+    @staticmethod
+    def oc_reward_on_goals(
+            predicted_goals, goal_states, current_states
+    ):
+        predicted_hand_pos = predicted_goals[:, :2]
+        predicted_cylinder_pos = predicted_goals[:, 2:4]
+        current_cylinder_pos = current_states[:, 8:10]
+        desired_cylinder_pos = goal_states[:, 2:4]
+        return -torch.norm(
+            predicted_hand_pos - current_cylinder_pos,
+            p=2,
+            dim=1,
+            keepdim=True,
+        ) - torch.norm(
+            predicted_cylinder_pos - desired_cylinder_pos,
+            p=2,
+            dim=1,
+            keepdim=True,
+        )
+
+
 class NoShapeHandCylinderXYPusher2DEnv(HandCylinderXYPusher2DEnv):
     def sample_dimensions_irrelevant_to_oc(self, goal, obs, batch_size):
         desired_cylinder_pos = goal[2:4]

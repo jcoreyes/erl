@@ -1,24 +1,16 @@
 import argparse
-import random
-
-import numpy as np
-from hyperopt import hp
-from torch import nn as nn
 from torch.nn import functional as F
 
 
-import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.algos.state_distance.state_distance_q_learning import \
     HorizonFedStateDistanceQLearning
 from railrl.algos.state_distance.vectorized_sdql import (
-    VectorizedSdql,
     VectorizedTauSdql,
     VectorizedDeltaTauSdql,
 )
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
-from railrl.envs.multitask.ant_env import GoalXYVelAnt
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
 from railrl.envs.multitask.pusher2d import (
     HandCylinderXYPusher2DEnv,
@@ -30,7 +22,7 @@ from railrl.envs.multitask.pusher2d import (
     # HandCylinderXYPusher2DEnv_move_hand_to_cylinder,
     # FullStatePusher2DEnv_move_joints_to_target_joint,
     # HandXYPusher2DEnv_oc_reward_on_goals, HandXYPusher2DEnv_oc_reward)
-    NoShapeHandCylinderXYPusher2DEnv, LessShapeHandCylinderXYPusher2DEnv)
+    NoShapeHandCylinderXYPusher2DEnv)
 from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState,
@@ -42,8 +34,8 @@ from railrl.envs.multitask.reacher_env import (
     GoalStateSimpleStateReacherEnv,
     GoalXYStateXYAndCosSinReacher2D, GoalCosSinStateXYAndCosSinReacher2D)
 from railrl.envs.multitask.pusher import (
+    ArmEEInStatePusherEnv,
     JointOnlyPusherEnv,
-    HandPuckXYZPusher3DEnv,
 )
 
 from railrl.envs.wrappers import convert_gym_space, normalize_box
@@ -52,6 +44,7 @@ from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import (
     create_log_dir,
     create_run_experiment_multiple_seeds,
+    setup_logger,
 )
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.hypopt import optimize_and_save
@@ -197,19 +190,21 @@ if __name__ == '__main__':
     run_mode = "none"
     snapshot_mode = "last"
 
-    # n_seeds = 1
+    # n_seeds = 3
     # mode = "ec2"
-    # exp_prefix = "tdm-pusher3d"
+    exp_prefix = "test-git-commit-2"
     # run_mode = 'grid'
     # snapshot_mode = "gap_and_last"
 
     version = "na"
     num_configurations = 50  # for random mode
-    snapshot_gap = 50
+    snapshot_gap = 10
     use_gpu = True
     if mode != "local":
         use_gpu = False
 
+    max_path_length = 100
+    max_tau = 25
     # noinspection PyTypeChecker
     algo_class = VectorizedTauSdql
     # algo_class = VectorizedDeltaTauSdql
@@ -219,30 +214,24 @@ if __name__ == '__main__':
     # env_class = GoalCosSinStateXYAndCosSinReacher2D
     # env_class = Reacher7DofXyzGoalState
     # env_class = JointOnlyPusherEnv
-    env_class = GoalStateSimpleStateReacherEnv
+    # env_class = GoalStateSimpleStateReacherEnv
     # env_class = GoalXYStateXYAndCosSinReacher2D
     # env_class = Reacher7DofFullGoalState
     # env_class = Reacher7DofGoalStateEverything
     # env_class = HandXYPusher2DEnv
     # env_class = HandCylinderXYPusher2DEnv
-    # env_class = LessShapeHandCylinderXYPusher2DEnv
-    # env_class = HandPuckXYZPusher3DEnv
-    # env_class = GoalXVelHalfCheetah
-    # env_class = GoalXYVelAnt
+    env_class = GoalXVelHalfCheetah
     # env_class = FullStatePusher2DEnv
     # env_class = FixedHandXYPusher2DEnv
     # env_class = CylinderXYPusher2DEnv
-    max_path_length = 100
-    max_tau = 10
-    num_epochs = 101
     replay_buffer_size = 200000
     variant = dict(
         version=version,
         algo_params=dict(
-            num_epochs=num_epochs,
+            num_epochs=100,
             num_steps_per_epoch=100,
-            num_steps_per_eval=1000,
-            num_updates_per_env_step=25,
+            num_steps_per_eval=100,
+            num_updates_per_env_step=5,
             use_soft_update=True,
             tau=0.001,
             batch_size=64,
@@ -251,6 +240,8 @@ if __name__ == '__main__':
             policy_learning_rate=1e-4,
             sample_rollout_goals_from='environment',
             sample_train_goals_from='her',
+            # sample_train_goals_from='replay_buffer',
+            sample_discount=True,
             qf_weight_decay=0.,
             max_path_length=max_path_length,
             replay_buffer_size=replay_buffer_size,
@@ -261,20 +252,32 @@ if __name__ == '__main__':
             cycle_taus_for_rollout=True,
             sl_grad_weight=1,
             num_sl_batches_per_rl_batch=0,
-            only_do_sl=False,
+            # only_do_sl=False,
             # cycle_taus_for_rollout=False,
             # num_sl_batches_per_rl_batch=1,
+            # only_do_sl=True,
+            # goal_dim_weights=(1, 1, 1, 1),
+            # goal_dim_weights=(0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 1, 1, 1, 1),
         ),
-        eval_with_oc_policy=True,
-        # eval_with_oc_policy=False,
+        # eval_with_oc_policy=True,
+        eval_with_oc_policy=False,
         her_replay_buffer_params=dict(
             max_size=replay_buffer_size,
             num_goals_to_sample=4,
             goal_sample_strategy='store',
         ),
-        raw_explore_policy='oc',
+        raw_explore_policy='ddpg',
         oc_policy_params=dict(
             sample_size=10000,
+            # reward_function=env_class.oc_reward_on_goals,
+            # reward_function=env_class.oc_reward,
+            # reward_function=FullStatePusher2DEnv_move_hand_to_target_position_oc_reward_on_goals,
+            # reward_function=HandCylinderXYPusher2DEnv_move_hand_to_cylinder,
+            # reward_function=Reacher7DofFullGoalState_oc_reward,
+            # reward_function=Reacher7DofGoalStateEverything_oc_reward,
+            # reward_function=HandCylinderXYPusher2DEnv_move_hand_to_cylinder,
+            # reward_function=HandXYPusher2DEnv_oc_reward,
+            # reward_function=HandXYPusher2DEnv_oc_reward_on_goals
         ),
         qf_params=dict(
             hidden_sizes=[300, 300],
@@ -285,11 +288,9 @@ if __name__ == '__main__':
             fc1_size=300,
             fc2_size=300,
         ),
-        epoch_discount_schedule_class=IntRampUpSchedule,
+        epoch_discount_schedule_class=ConstantSchedule,
         epoch_discount_schedule_params=dict(
-            min_value=0,
-            max_value=20,
-            ramp_duration=num_epochs,
+            value=max_tau,
         ),
         algo_class=algo_class,
         env_class=env_class,
@@ -309,130 +310,6 @@ if __name__ == '__main__':
         qf_criterion_params=dict(),
         exp_prefix=exp_prefix,
     )
-    if run_mode == 'grid':
-        search_space = {
-            # 'raw_explore_policy': [
-            #     'oc',
-            #     'ddpg',
-            # ],
-            # 'oc_policy_params.reward_function': [
-            #     FullStatePusher2DEnv_move_hand_to_target_position_oc_reward_on_goals,
-            #     FullStatePusher2DEnv_move_joints_to_target_joint,
-            # ],
-            # 'algo_class': [
-            #     HorizonFedStateDistanceQLearning,
-            #     VectorizedDeltaTauSdql,
-            #     VectorizedTauSdql,
-            # ],
-            # 'qf_params.hidden_sizes': [
-            #     [64, 64],
-            #     [300, 300],
-            #     [100, 100, 100],
-            # ],
-            # 'qf_class': [
-                # GoalConditionedDeltaModel,
-                # TauBinaryGoalConditionedDeltaModel,
-            # ],
-            # 'algo_params.goal_dim_weights': [
-            #     (.1, .1),
-            #     (1, .1),
-            #     (10, 10),
-            #     (.01, .01, 1, 1),
-            #     (.1, .1, 1, 1),
-            #     (0, 0, 1, 1),
-            #     (1, 1, 1, 1),
-            #     (.1, .1, .1, .1),
-            #     (10, 10, 10, 10),
-            #     (1, 1, 0.1, 0.1),
-            #     (1, 1, 0.01, 0.01),
-            #     (1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
-            #     (5, 5, 5, 5, 5, 5, 5, 5, 5, 5),
-            #     (0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 5, 5, 1, 1),
-            #     (0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 1, 1, 1, 1),
-            #     (0, 0, 0, 0, 0, 0, 1, 1, 1, 1),
-            #     (0, 0, 0, 0, 0, 0, 1, 1, .1, .1),
-            # ],
-            # 'env_class': [
-                # GoalStateSimpleStateReacherEnv,
-                # FullStatePusher2DEnv,
-                # NoShapeHandCylinderXYPusher2DEnv,
-                # HandCylinderXYPusher2DEnv,
-                # Reacher7DofFullGoalState,
-                # Reacher7DofGoalStateEverything,
-                # JointOnlyPusherEnv,
-                # MultitaskPusher2DEnv,
-                # CylinderXYPusher2DEnv,
-            # ],
-            'epoch_discount_schedule_params.max_value': [
-                1,
-                5,
-                10,
-                15,
-                20,
-            ],
-            # 'algo_params.use_soft_update': [
-            #     True,
-            # ],
-            # 'algo_params.target_hard_update_period': [
-            #     1,
-            #     100,
-            #     1000,
-            # ],
-            # 'eval_with_oc_policy': [
-            #     False,
-            #     True,
-            # ],
-            'algo_params.tau': [
-                1e-1, 1e-2, 1e-3, 1e-4
-            ],
-            # 'algo_params.sl_grad_weight': [
-            #     0.01,
-            #     0.1,
-            #     1,
-            #     10,
-            # ],
-            # 'her_replay_buffer_params'
-            # '.fraction_goal_states_are_rollout_goal_states': [
-            #     None,
-            #     0,
-            #     0.5,
-            #     1,
-            # ]
-            # 'her_replay_buffer_params.goal_sample_strategy': [
-            #     'online',
-            #     'store',
-            # ],
-        }
-        sweeper = hyp.DeterministicHyperparameterSweeper(
-            search_space, default_parameters=variant,
-        )
-        for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-            for i in range(n_seeds):
-                seed = random.randint(0, 10000)
-                variant = complete_variant(variant)
-                run_experiment(
-                    experiment,
-                    exp_prefix=exp_prefix,
-                    seed=seed,
-                    mode=mode,
-                    variant=variant,
-                    exp_id=exp_id,
-                    use_gpu=use_gpu,
-                    snapshot_mode=snapshot_mode,
-                    snapshot_gap=snapshot_gap,
-                )
-    else:
-        for _ in range(n_seeds):
-            seed = random.randint(0, 10000)
-            variant = complete_variant(variant)
-            run_experiment(
-                experiment,
-                exp_prefix=exp_prefix,
-                seed=seed,
-                mode=mode,
-                variant=variant,
-                exp_id=0,
-                use_gpu=use_gpu,
-                snapshot_mode=snapshot_mode,
-                snapshot_gap=snapshot_gap,
-            )
+    variant = complete_variant(variant)
+    setup_logger(variant=variant)
+    experiment(variant)

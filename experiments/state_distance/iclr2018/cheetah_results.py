@@ -13,6 +13,7 @@ ddpg_criteria = {
     'algo_params.scale_reward': 1,
     'algo_params.tau': 0.001,
 }
+# DDPG policy: /home/vitchyr/git/rllab-rail/railrl/experiments/state_distance/iclr2018/cheetah_results.py
 mb_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-26-abhishek-mb-cheetah-target-reset/"
 mb_criteria = None
 # our_path = "/home/vitchyr/git/rllab-rail/railrl/data/local/10-26-sdql-cheetah-xvel/10-26-sdql-cheetah-xvel_2017_10_26_16_11_42_0000--s-5011/"
