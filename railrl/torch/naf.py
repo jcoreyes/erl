@@ -15,13 +15,13 @@ from railrl.torch.algos.util import np_to_pytorch_batch
 from railrl.torch.algos.eval import get_statistics_from_pytorch_dict, \
     get_difference_statistics
 from railrl.torch.core import PyTorchModule
-from railrl.torch.rl_algorithm import RLAlgorithm
 from railrl.torch import pytorch_util as ptu
+from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
 from rllab.misc import logger
 
 
 # noinspection PyCallingNonCallable
-class NAF(RLAlgorithm):
+class NAF(TorchRLAlgorithm):
     def __init__(
             self,
             env,
@@ -154,15 +154,6 @@ class NAF(RLAlgorithm):
             logger.record_tabular(key, value)
 
         self.log_diagnostics(test_paths)
-
-    def get_batch(self, training=True):
-        replay_buffer = self.replay_buffer.get_replay_buffer(training)
-        sample_size = min(
-            replay_buffer.num_steps_can_sample(),
-            self.batch_size
-        )
-        batch = replay_buffer.random_batch(sample_size)
-        return np_to_pytorch_batch(batch)
 
     def _statistics_from_paths(self, paths, stat_prefix):
         np_batch = split_paths_to_dict(paths)

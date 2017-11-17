@@ -16,11 +16,11 @@ from railrl.misc import rllab_util
 from railrl.torch.algos.util import np_to_pytorch_batch
 from railrl.torch.algos.eval import get_statistics_from_pytorch_dict, \
     get_difference_statistics, get_generic_path_information
-from railrl.torch.rl_algorithm import RLAlgorithm
+from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
 from rllab.misc import logger
 
 
-class DDPG(RLAlgorithm):
+class DDPG(TorchRLAlgorithm):
     """
     Online learning algorithm.
     """
@@ -356,15 +356,6 @@ class DDPG(RLAlgorithm):
 
         for key, value in statistics.items():
             logger.record_tabular(key, value)
-
-    def get_batch(self, training=True):
-        replay_buffer = self.replay_buffer.get_replay_buffer(training)
-        sample_size = min(
-            replay_buffer.num_steps_can_sample(),
-            self.batch_size
-        )
-        batch = replay_buffer.random_batch(sample_size)
-        return np_to_pytorch_batch(batch)
 
     def _statistics_from_paths(self, paths, stat_prefix):
         batch = self.paths_to_batch(paths)
