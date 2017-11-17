@@ -2,7 +2,8 @@
 Run PyTorch DDPG on HalfCheetah.
 """
 import random
-
+from railrl.exploration_strategies.base import \
+    PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
@@ -30,11 +31,15 @@ def example(variant):
         400,
         300,
     )
+    exploration_policy = PolicyWrappedWithExplorationStrategy(
+        exploration_strategy=es,
+        policy=policy,
+    )
     algorithm = DDPG(
         env,
-        exploration_strategy=es,
         qf=qf,
         policy=policy,
+        exploration_policy=exploration_policy,
         **variant['algo_params']
     )
     if ptu.gpu_enabled():
@@ -64,7 +69,7 @@ if __name__ == "__main__":
         example,
         exp_prefix="ddpg-half-cheetah-pytorch",
         seed=seed,
-        mode='here',
+        mode='local',
         variant=variant,
         use_gpu=True,
     )

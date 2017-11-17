@@ -386,7 +386,6 @@ class VectorizedGoalStructuredUniversalQfunction(PyTorchModule):
             dropout_prob=0,
     ):
         # Keeping it as a separate argument to have same interface
-        # import ipdb; ipdb.set_trace()
         # assert observation_dim == goal_dim
         self.save_init_params(locals())
         super().__init__()
@@ -646,7 +645,10 @@ class NumpyGoalConditionedDeltaModelExtractor(PyTorchModule):
             qf,
     ):
         super().__init__()
-        assert isinstance(qf, GoalConditionedDeltaModel)
+        assert (
+            isinstance(qf, GoalConditionedDeltaModel)
+            or isinstance(qf, TauBinaryGoalConditionedDeltaModel)
+        )
         self.qf = qf
 
     def next_state(self, state, action, goal_state, discount):

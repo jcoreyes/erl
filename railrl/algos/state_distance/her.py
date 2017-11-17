@@ -62,45 +62,28 @@ class HER(DDPG):
         return self.env.sample_goal_state_for_rollout()
 
     def _sample_discount_for_rollout(self):
-        return self.discount
+        return 0  # Her does not vary the discount.
 
     def get_batch(self, training=True):
         batch = super().get_batch(training=training)
         # The original HER paper says to use obs - goal state, but that doesn't
         # really make sense
-        diff = torch.abs(
-            self.env.convert_obs_to_goal_states(batch['next_observations'])
-            - self.env.convert_obs_to_goal_states(batch['goal_states'])
-        )
+        # diff = torch.abs(
+        #     self.env.convert_obs_to_goal_states(batch['next_observations'])
+        #     - self.env.convert_obs_to_goal_states(batch['goal_states'])
+        # )
         # diff_sum = diff.sum(dim=1, keepdim=True)
-        diff_sum = diff.sum(dim=1)
-        goal_not_reached = (diff_sum >= self.epsilon).float()
-        batch['rewards'] = - goal_not_reached
-        if self.terminate_when_goal_reached:
-            batch['terminals'] = 1 - (1 - batch['terminals']) * goal_not_reached
+        # goal_not_reached = (diff_sum >= self.epsilon).float()
+        # batch['rewards'] = - goal_not_reached
+        # if self.terminate_when_goal_reached:
+        #     batch['terminals'] = 1 - (1 - batch['terminals']) * goal_not_reached
+        batch['rewards'] = self.env.compute_her_reward_pytorch(
+            batch['observations'],
+            batch['actions'],
+            batch['next_observations'],
+            batch['goal_states'],
+        )
         return batch
-
-    def evaluate(self, epoch, exploration_paths):
-        # TODO(murtaza): add reward to eval code
-        super().evaluate(epoch, exploration_paths)
-        exploration_batch = self.paths_to_batch(exploration_paths)
-        # import ipdb; ipdb.set_trace()
-        diff = torch.abs(
-            self.env.convert_obs_to_goal_states(exploration_batch['next_observations'])
-            - self.env.convert_obs_to_goal_states(exploration_batch['goal_states'])
-        )
-        # diff_sum = diff.sum(dim=1, keepdim=True)
-        diff_sum = diff.sum(dim=1)
-        goal_not_reached = (diff_sum >= self.epsilon).float()
-        exploration_batch['rewards'] = - goal_not_reached
-        if self.terminate_when_goal_reached:
-            exploration_batch['terminals'] = 1 - (1 - exploration_batch['terminals']) * goal_not_reached
-        rewards = exploration_batch['rewards'].numpy()
-        # returns = sum(rewards)
-        # avg_returns = np.mean(returns)
-        # logger.record_tabular("reward", rewards)
-        get_generic_path_information(exploration_paths)
-        # logger.record_tabular("Returns", avg_returns)
 
     def get_train_dict(self, batch):
         rewards = batch['rewards']
@@ -108,7 +91,7 @@ class HER(DDPG):
         obs = batch['observations']
         actions = batch['actions']
         next_obs = batch['next_observations']
-        goals = self.env.convert_obs_to_goal_states(batch['goal_states'])
+        goals = batch['goal_states']
 
         """
         Policy operations.
@@ -130,7 +113,7 @@ class HER(DDPG):
         )
         y_target = rewards + (1. - terminals) * self.discount * target_q_values
         y_target = y_target.detach()
-        y_target = torch.clamp(y_target, -1./(1-self.discount), 0)
+        # y_target = torch.clamp(y_target, -1./(1-self.discount), 0)
         y_pred = self.qf(obs, actions, goals)
         bellman_errors = (y_pred - y_target)**2
         qf_loss = self.qf_criterion(y_pred, y_target)

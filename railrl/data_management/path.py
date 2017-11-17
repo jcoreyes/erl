@@ -1,4 +1,5 @@
 from rllab.misc import tensor_utils
+import numpy as np
 
 
 class Path(dict):
@@ -31,7 +32,8 @@ class Path(dict):
 
 def stack_list(lst):
     if isinstance(lst[0], dict):
-        return tensor_utils.stack_tensor_dict_list(lst)
+        # return tensor_utils.stack_tensor_dict_list(lst)
+        return np.array(lst)
     else:
         return tensor_utils.stack_tensor_list(lst)
 

@@ -99,20 +99,10 @@ def position_from_angles_pytorch(angles):
 class MultitaskReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle, MultitaskEnv,
                           metaclass=abc.ABCMeta):
     def __init__(self):
+        self._xy_desired_pos = None
+        MultitaskEnv.__init__(self)
         utils.EzPickle.__init__(self)
         mujoco_env.MujocoEnv.__init__(self, 'reacher.xml', 2)
-        self._fixed_goal = None
-        self.goal = None
-
-    def set_goal(self, goal):
-        """
-        Add option to set the goal. Really only used for debugging. If None (
-        by default), then the goal is randomly sampled each time the
-        environment is reset.
-        :param goal:
-        :return:
-        """
-        self._fixed_goal = goal
 
     def _step(self, a):
         vec = self.get_body_com("fingertip") - self.get_body_com("target")
@@ -123,9 +113,16 @@ class MultitaskReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle, MultitaskEnv,
         self.do_simulation(a, self.frame_skip)
         ob = self._get_obs()
         done = False
-        return ob, reward, done, dict(reward_dist=reward_dist,
-                                      reward_ctrl=reward_ctrl,
-                                      distance=distance)
+        full_state_to_goal_distance = np.linalg.norm(
+            self.convert_ob_to_goal_state(self._get_obs())
+            - self.multitask_goal
+        )
+        return ob, reward, done, dict(
+            reward_dist=reward_dist,
+            reward_ctrl=reward_ctrl,
+            distance=distance,
+            full_state_to_goal_distance=full_state_to_goal_distance,
+        )
 
     def viewer_setup(self):
         self.viewer.cam.trackbodyid = 0
@@ -133,14 +130,12 @@ class MultitaskReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle, MultitaskEnv,
     def reset_model(self):
         qpos = self.np_random.uniform(low=-np.pi, high=np.pi,
                                       size=self.model.nq) + self.init_qpos
-        if self._fixed_goal is None:
+        if self._xy_desired_pos is None:
             while True:
-                self.goal = self.np_random.uniform(low=-.2, high=.2, size=2)
-                if np.linalg.norm(self.goal) < 2:
+                self._xy_desired_pos = self.np_random.uniform(low=-.2, high=.2, size=2)
+                if np.linalg.norm(self._xy_desired_pos) < 2:
                     break
-        else:
-            self.goal = self._fixed_goal
-        qpos[-2:] = self.goal
+        qpos[-2:] = self._xy_desired_pos
         qvel = self.init_qvel + self.np_random.uniform(low=-.005, high=.005,
                                                        size=self.model.nv)
         qvel[-2:] = 0
@@ -157,39 +152,28 @@ class MultitaskReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle, MultitaskEnv,
         return obs
 
     def log_diagnostics(self, paths):
+        super().log_diagnostics(paths)
         statistics = OrderedDict()
 
-        observations = np.vstack([path['observations'] for path in paths])
-        goal_states = np.vstack([path['goal_states'] for path in paths])
-        state_distances = np.linalg.norm(
-            self.convert_obs_to_goal_states(observations) - goal_states,
-            axis=1,
-        )
-        statistics.update(create_stats_ordered_dict(
-            'State distance to target', state_distances
-        ))
-
-        euclidean_distances = get_stat_in_dict(
+        xy_distance_to_goal = get_stat_in_dict(
             paths, 'env_infos', 'distance'
         )
         statistics.update(create_stats_ordered_dict(
-            'Euclidean distance to goal', euclidean_distances
+            'Euclidean distance to desired XY', xy_distance_to_goal
         ))
         statistics.update(create_stats_ordered_dict(
-            'Final Euclidean distance to goal',
-            euclidean_distances[:, -1],
+            'Final Euclidean distance to desired XY',
+            xy_distance_to_goal[:, -1],
             always_show_all_stats=True,
         ))
 
-        actions = np.vstack([path['actions'] for path in paths])
-        rewards = self.compute_rewards(
-            observations[:-1, ...],
-            actions[:-1, ...],
-            observations[1:, ...],
-            goal_states[:-1, ...],
+        full_state_go_goal_distance = get_stat_in_dict(
+            paths, 'env_infos', 'full_state_to_goal_distance'
         )
         statistics.update(create_stats_ordered_dict(
-            'Rewards', rewards,
+            'Final state to goal state distance',
+            full_state_go_goal_distance[:, -1],
+            always_show_all_stats=True,
         ))
         for key, value in statistics.items():
             logger.record_tabular(key, value)
@@ -219,126 +203,6 @@ class MultitaskReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle, MultitaskEnv,
         )
 
 
-class XyMultitaskSimpleStateReacherEnv(MultitaskReacherEnv):
-    """
-    The goal states are xy-coordinates.
-
-    Furthermore, the actual state space is simplified. ReacherEnv has the
-    following state space:
-        - cos(angle 1)
-        - cos(angle 2)
-        - sin(angle 1)
-        - sin(angle 2)
-        - goal x-coordinate
-        - goal y-coordinate
-        - angle 1 velocity
-        - angle 2 velocity
-        - x-coordinate distance from end effector to goal
-        - y-coordinate distance from end effector to goal
-        - z-coordinate distance from end effector to goal (always zero)
-
-    This environment only has the following:
-        - cos(angle 1)
-        - cos(angle 2)
-        - sin(angle 1)
-        - sin(angle 2)
-        - angle 1 velocity
-        - angle 2 velocity
-
-    since the goal will constantly change.
-    """
-    def sample_goal_states(self, batch_size):
-        return self.np_random.uniform(
-            low=-0.2,
-            high=0.2,
-            size=(batch_size, 2)
-        )
-
-    def convert_obs_to_goal_states(self, obs):
-        return position_from_angles(obs)
-
-    def convert_obs_to_goal_states_pytorch(self, obs):
-        return position_from_angles_pytorch(obs)
-
-    @property
-    def goal_dim(self):
-        return 2
-
-    def sample_irrelevant_goal_dimensions(self, goal, batch_size):
-        """
-        :param goal: np.ndarray, shape GOAL_DIM
-        :param batch_size:
-        :return: ndarray, shape SAMPLE_SIZE x GOAL_DIM
-        """
-        return np.repeat(
-            np.expand_dims(goal, 0),
-            batch_size,
-            axis=0
-        )
-
-
-class JointAngleMultitaskSimpleStateReacherEnv(MultitaskReacherEnv):
-    """
-    The goal states are xy-coordinates.
-
-    Furthermore, the actual state space is simplified. ReacherEnv has the
-    following state space:
-        - cos(angle 1)
-        - cos(angle 2)
-        - sin(angle 1)
-        - sin(angle 2)
-        - goal x-coordinate
-        - goal y-coordinate
-        - angle 1 velocity
-        - angle 2 velocity
-        - x-coordinate distance from end effector to goal
-        - y-coordinate distance from end effector to goal
-        - z-coordinate distance from end effector to goal (always zero)
-
-    This environment only has the following:
-        - cos(angle 1)
-        - cos(angle 2)
-        - sin(angle 1)
-        - sin(angle 2)
-        - angle 1 velocity
-        - angle 2 velocity
-
-    since the goal will constantly change.
-    """
-    def sample_goal_states(self, batch_size):
-        angle1 = self.np_random.uniform(-1, 1, size=(batch_size, 1))
-        angle2 = self.np_random.uniform(-1, 1, size=(batch_size, 1))
-        return np.concatenate(
-            (
-                np.cos(angle1),
-                np.cos(angle2),
-                np.sin(angle1),
-                np.sin(angle2),
-            ),
-            axis=1,
-        )
-
-    def convert_obs_to_goal_states(self, obs):
-        return obs[:, :4]
-
-    def set_goal(self, goal_state):
-        self._fixed_goal = position_from_angles(
-            np.expand_dims(goal_state, 0)
-        )[0]
-
-    @property
-    def goal_dim(self):
-        return 4
-
-    def sample_irrelevant_goal_dimensions(self, goal, batch_size):
-        """
-        :param goal: np.ndarray, shape GOAL_DIM
-        :param batch_size:
-        :return: ndarray, shape SAMPLE_SIZE x GOAL_DIM
-        """
-        raise NotImplementedError()
-
-
 class GoalStateSimpleStateReacherEnv(MultitaskReacherEnv):
     """
     The goal state is an actual state (6 dimensions--see parent class), rather
@@ -346,12 +210,12 @@ class GoalStateSimpleStateReacherEnv(MultitaskReacherEnv):
     """
 
     def __init__(self):
-        self.multitask_goal = np.zeros(self.goal_dim)
         super().__init__()
 
-    def set_goal(self, goal_state):
-        self._fixed_goal = position_from_angles(
-            np.expand_dims(goal_state, 0)
+    def set_goal(self, goal):
+        super().set_goal(goal)
+        self._xy_desired_pos = position_from_angles(
+            np.expand_dims(goal, 0)
         )[0]
 
     def sample_goal_states(self, batch_size):
@@ -373,6 +237,13 @@ class GoalStateSimpleStateReacherEnv(MultitaskReacherEnv):
         goal_state[4:6] = 0
         return goal_state
 
+    def convert_obs_to_goal_states(self, obs):
+        return obs
+
+    @property
+    def goal_dim(self):
+        return 6
+
     @staticmethod
     def print_goal_state_info(goal):
         c1 = goal[0:1]
@@ -383,16 +254,14 @@ class GoalStateSimpleStateReacherEnv(MultitaskReacherEnv):
         print("angle 1 (degrees) = ", np.arctan2(s1, c1) / math.pi * 180)
         print("angle 2 (degrees) = ", np.arctan2(s2, c2) / math.pi * 180)
 
-    @property
-    def goal_dim(self):
-        return 6
 
-    def sample_irrelevant_goal_dimensions(self, goal, batch_size):
+    def sample_dimensions_irrelevant_to_oc(self, goal, obs, batch_size):
         """
         Sample the goal a bunch of time, but fill in the desired position with
         what you care about.
 
         :param goal: np.ndarray, shape GOAL_DIM
+        :param obs: np.ndarray, shape obs_dim
         :param batch_size:
         :return: ndarray, shape SAMPLE_SIZE x GOAL_DIM
         """
@@ -409,29 +278,87 @@ class GoalStateSimpleStateReacherEnv(MultitaskReacherEnv):
         goals[:, 4:6] = sampled_velocities
         return goals
 
-    def log_diagnostics(self, paths):
-        super().log_diagnostics(paths)
-        statistics = OrderedDict()
-        full_state_go_goal_distance = get_stat_in_dict(
-            paths, 'env_infos', 'full_state_to_goal_distance'
+    @staticmethod
+    def oc_reward_on_goals(
+            predicted_states, goal_states, current_states
+    ):
+        return - torch.norm(
+            predicted_states - goal_states,
+            dim=1,
+            p=2,
+            keepdim=True,
         )
-        statistics.update(create_stats_ordered_dict(
-            'Final state to goal state distance',
-            full_state_go_goal_distance[:, -1],
-            always_show_all_stats=True,
-        ))
-        for key, value in statistics.items():
-            logger.record_tabular(key, value)
 
-    def _step(self, a):
-        full_state_to_goal_distance = np.linalg.norm(
-            self._get_obs() - self.multitask_goal
+
+class GoalXYStateXYAndCosSinReacher2D(MultitaskReacherEnv):
+    def sample_goal_states(self, batch_size):
+        theta = self.np_random.uniform(
+            low=-math.pi,
+            high=math.pi,
+            size=(batch_size, 2)
         )
-        ob, reward, done, info_dict = super()._step(a)
-        info_dict['full_state_to_goal_distance'] = (
-            full_state_to_goal_distance
+        obs = np.hstack([
+            np.cos(theta),
+            np.sin(theta),
+        ])
+        return position_from_angles(obs)
+
+    def _get_obs(self):
+        theta = self.model.data.qpos.flat[:2]
+        obs = np.concatenate([
+            np.cos(theta),
+            np.sin(theta),
+            self.get_body_com("fingertip"),
+            self.model.data.qvel.flat[:2],
+        ])
+        return obs
+
+    def convert_obs_to_goal_states(self, obs):
+        return obs[:, 4:6]
+
+    def set_goal(self, goal):
+        super().set_goal(goal)
+        self._xy_desired_pos = goal
+
+    @property
+    def goal_dim(self):
+        return 2
+
+
+class GoalCosSinStateXYAndCosSinReacher2D(MultitaskReacherEnv):
+    def sample_goal_states(self, batch_size):
+        theta = self.np_random.uniform(
+            low=-math.pi,
+            high=math.pi,
+            size=(batch_size, 2)
         )
-        return ob, reward, done, info_dict
+        return np.hstack([
+            np.cos(theta),
+            np.sin(theta),
+        ])
+
+    def _get_obs(self):
+        theta = self.model.data.qpos.flat[:2]
+        obs = np.concatenate([
+            np.cos(theta),
+            np.sin(theta),
+            self.get_body_com("fingertip"),
+            self.model.data.qvel.flat[:2],
+        ])
+        return obs
+
+    def convert_obs_to_goal_states(self, obs):
+        return obs[:, :4]
+
+    def set_goal(self, goal):
+        super().set_goal(goal)
+        self._xy_desired_pos = position_from_angles(
+            np.expand_dims(goal, 0)
+        )[0]
+
+    @property
+    def goal_dim(self):
+        return 4
 
 
 """

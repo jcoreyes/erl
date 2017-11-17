@@ -5,15 +5,13 @@ import time
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.path import Path
 from railrl.envs.wrappers import convert_gym_space
-from railrl.misc.ml_util import ConstantSchedule
 from railrl.misc.rllab_util import (
     get_table_key_set,
     save_extra_data_to_snapshot_dir,
 )
-from railrl.policies.base import  ExplorationPolicy
+from railrl.policies.base import ExplorationPolicy
 from railrl.samplers.util import rollout
-from rllab.algos.base import RLAlgorithm
-from rllab.misc import logger, tensor_utils
+from rllab.misc import logger
 from rllab.sampler import parallel_sampler
 
 
@@ -74,7 +72,7 @@ class InPlacePathSampler(object):
         ]
 
 
-class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
+class RLAlgorithm(metaclass=abc.ABCMeta):
     def __init__(
             self,
             env,
@@ -88,17 +86,17 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             replay_buffer_size=1000000,
             scale_reward=1,
             render=False,
-            save_exploration_path_period=1,
             sample_with_training_env=False,
-            epoch_discount_schedule=None,
             eval_sampler=None,
-            collect_data=False,
+            save_replay_buffer=False,
+            save_algorithm=False,
+            collection_mode='online',
     ):
-        self.collect_data = collect_data
+        assert collection_mode in ['online', 'parallel', 'offline']
         self.training_env = pickle.loads(pickle.dumps(env))
         self.exploration_policy = exploration_policy
         self.num_epochs = num_epochs
-        self.num_steps_per_epoch = num_steps_per_epoch
+        self.num_env_steps_per_epoch = num_steps_per_epoch
         self.num_steps_per_eval = num_steps_per_eval
         self.batch_size = batch_size
         self.max_path_length = max_path_length
@@ -106,11 +104,10 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         self.replay_buffer_size = replay_buffer_size
         self.scale_reward = scale_reward
         self.render = render
-        self.save_exploration_path_period = save_exploration_path_period
         self.sample_with_training_env = sample_with_training_env
-        if epoch_discount_schedule is None:
-            epoch_discount_schedule = ConstantSchedule(self.discount)
-        self.epoch_discount_schedule = epoch_discount_schedule
+        self.collection_mode = collection_mode
+        self.save_replay_buffer = save_replay_buffer
+        self.save_algorithm = save_algorithm
 
         self.action_space = convert_gym_space(env.action_space)
         self.obs_space = convert_gym_space(env.observation_space)
@@ -141,37 +138,44 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             self.env,
         )
 
+        self._n_env_steps_total = 0
+        self._n_train_steps_total = 0
+        self._epoch_start_time = None
         self.final_score = 0
         self._old_table_keys = None
         self._current_path = Path()
+        self._exploration_paths = []
 
-    @abc.abstractmethod
-    def cuda(self):
-        pass
-
-    def get_action_and_info(self, n_steps_total, observation):
-        self.exploration_policy.set_num_steps_total(n_steps_total)
+    def get_action_and_info(self, observation):
+        self.exploration_policy.set_num_steps_total(self._n_env_steps_total)
         return self.exploration_policy.get_action(
             observation,
         )
 
     def train(self, start_epoch=0):
-        n_steps_total = 0
+        if start_epoch == 0:
+            params = self.get_epoch_snapshot(-1)
+            logger.save_itr_params(-1, params)
+        self.training_mode(False)
+        self._n_env_steps_total = start_epoch * self.num_env_steps_per_epoch
+        if self.collection_mode == 'online':
+            self.train_online(start_epoch=start_epoch)
+        elif self.collection_mode == 'parallel':
+            self.train_parallel(start_epoch=start_epoch)
+        elif self.collection_mode == 'offline':
+            self.train_offline(start_epoch=start_epoch)
+        else:
+            raise NotImplementedError("Invalid collection_mode: {}".format(
+                self.collection_mode
+            ))
+
+    def train_online(self, start_epoch=0):
         self._current_path = Path()
         observation = self._start_new_rollout()
-        num_paths_total = 0
-        self._start_worker()
-        self.training_mode(False)
-        params = self.get_epoch_snapshot(-1)
-        logger.save_itr_params(-1, params)
         for epoch in range(start_epoch, self.num_epochs):
-            self.discount = self.epoch_discount_schedule.get_value(epoch)
-            logger.push_prefix('Iteration #%d | ' % epoch)
-            start_time = time.time()
-            exploration_paths = []
-            for _ in range(self.num_steps_per_epoch):
+            self._start_epoch(epoch)
+            for _ in range(self.num_env_steps_per_epoch):
                 action, agent_info = self.get_action_and_info(
-                    n_steps_total,
                     observation,
                 )
                 if self.render:
@@ -179,10 +183,9 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                 next_ob, raw_reward, terminal, env_info = (
                     self.training_env.step(action)
                 )
-                n_steps_total += 1
+                self._n_env_steps_total += 1
                 reward = raw_reward * self.scale_reward
                 self._handle_step(
-                    num_paths_total,
                     observation,
                     action,
                     reward,
@@ -192,84 +195,94 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
                 )
                 if terminal or len(self._current_path) >= self.max_path_length:
                     self._handle_rollout_ending(
-                        n_steps_total,
                         next_ob,
                         terminal,
                         agent_info=agent_info,
                         env_info=env_info,
                     )
                     observation = self._start_new_rollout()
-                    num_paths_total += 1
                     if len(self._current_path) > 0:
-                        exploration_paths.append(self._current_path.get_all_stacked())
+                        self._exploration_paths.append(
+                            self._current_path.get_all_stacked()
+                        )
                         self._current_path = Path()
                 else:
                     observation = next_ob
 
-                if self._can_train():
-                    self.training_mode(True)
-                    self._do_training(n_steps_total=n_steps_total)
-                    self.training_mode(False)
+                self._try_to_train()
 
-            train_time = time.time() - start_time
-            self._try_to_eval(exploration_paths, epoch)
-            if self._can_train():
-                logger.log("Training Time: {0}".format(train_time))
-            else:
-                logger.log("Not training yet. Time: {}".format(train_time))
-            logger.pop_prefix()
+            self._try_to_eval(epoch)
+            self._end_epoch()
+
+    def train_parallel(self, start_epoch=0):
+        self.training_mode(False)
+        n_steps_current_epoch = 0
+        epoch = start_epoch
+        self._start_epoch(epoch)
+        while self._n_env_steps_total <= self.num_epochs * self.num_env_steps_per_epoch:
+            path = self.training_env.rollout(
+                self.exploration_policy,
+                use_exploration_strategy=True,
+            )
+            if path is not None:
+                path['rewards'] *= self.scale_reward
+                path_length = len(path['observations'])
+                self._n_env_steps_total += path_length
+                n_steps_current_epoch += path_length
+                self._handle_path(path)
+
+            self._try_to_train()
+
+            # Check if epoch is over
+            if n_steps_current_epoch >= self.num_env_steps_per_epoch:
+                self._try_to_eval(epoch)
+                if self._can_evaluate():
+                    logger.record_tabular(
+                        "Number of train steps total",
+                        self._n_train_steps_total,
+                    )
+                self._end_epoch()
+
+                epoch += 1
+                n_steps_current_epoch = 0
+                self._start_epoch(epoch)
 
     def train_offline(self, start_epoch=0):
-        n_steps_total = 0
-        self._current_path = Path()
-        self._start_worker()
         self.training_mode(False)
         params = self.get_epoch_snapshot(-1)
         logger.save_itr_params(-1, params)
         for epoch in range(start_epoch, self.num_epochs):
-            self.discount = self.epoch_discount_schedule.get_value(epoch)
-            logger.push_prefix('Iteration #%d | ' % epoch)
-            start_time = time.time()
-            n_steps_total += 1
-            if self._can_train():
-                self.training_mode(True)
-                self._do_training(n_steps_total=n_steps_total)
-                self.training_mode(False)
-
-            train_time = time.time() - start_time
+            self._start_epoch(epoch)
+            self._try_to_train()
             self._try_to_offline_eval(epoch)
-            if self._can_train():
-                logger.log("Training Time: {0}".format(train_time))
-            else:
-                logger.log("Not training yet. Time: {}".format(train_time))
-            logger.pop_prefix()
+            self._end_epoch()
 
-    def _try_to_eval(self, exploration_paths, epoch):
-        if len(exploration_paths) == 0:
-            exploration_paths = [self._current_path.get_all_stacked()]
-        if self.collect_data:
-            save_extra_data_to_snapshot_dir(
-                self.get_extra_data_to_save(epoch),
-            )
-        else:
-            if self._can_evaluate(exploration_paths):
-                start_time = time.time()
-                self.evaluate(epoch, exploration_paths)
-                params = self.get_epoch_snapshot(epoch)
-                logger.save_itr_params(epoch, params)
-                save_extra_data_to_snapshot_dir(
-                    self.get_extra_data_to_save(epoch),
+    def _try_to_train(self):
+        if self._can_train():
+            self.training_mode(True)
+            self._n_train_steps_total += 1
+            self._do_training()
+            self.training_mode(False)
+
+    def _try_to_eval(self, epoch):
+        save_extra_data_to_snapshot_dir(
+            self.get_extra_data_to_save(epoch),
+        )
+        if self._can_evaluate():
+            start_time = time.time()
+            self.evaluate(epoch)
+            params = self.get_epoch_snapshot(epoch)
+            logger.save_itr_params(epoch, params)
+            table_keys = get_table_key_set(logger)
+            if self._old_table_keys is not None:
+                assert table_keys == self._old_table_keys, (
+                    "Table keys cannot change from iteration to iteration."
                 )
-                table_keys = get_table_key_set(logger)
-                if self._old_table_keys is not None:
-                    assert table_keys == self._old_table_keys, (
-                        "Table keys cannot change from iteration to iteration."
-                    )
-                self._old_table_keys = table_keys
-                logger.dump_tabular(with_prefix=False, with_timestamp=False)
-                logger.log("Eval Time: {0}".format(time.time() - start_time))
-            else:
-                logger.log("Skipping eval for now.")
+            self._old_table_keys = table_keys
+            logger.dump_tabular(with_prefix=False, with_timestamp=False)
+            logger.log("Eval Time: {0}".format(time.time() - start_time))
+        else:
+            logger.log("Skipping eval for now.")
 
     def _try_to_offline_eval(self, epoch):
         start_time = time.time()
@@ -285,48 +298,8 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         logger.dump_tabular(with_prefix=False, with_timestamp=False)
         logger.log("Eval Time: {0}".format(time.time() - start_time))
 
-    def get_extra_data_to_save(self, epoch):
-        """
-        Save things that shouldn't be saved every snapshot but rather
-        overwritten every time.
-        :param epoch:
-        :return:
-        """
-        return dict(
-            epoch=epoch,
-        )
-
-    def _start_worker(self):
-        self.eval_sampler.start_worker()
-
-    def _shutdown_worker(self):
-        self.eval_sampler.shutdown_worker()
-
-    def _sample_eval_paths(self, epoch):
-        """
-        Returns flattened paths.
-
-        :param epoch: Epoch number
-        :return: List of dictionaries with these keys:
-            observations: np.ndarray, shape BATCH_SIZE x flat observation dim
-            actions: np.ndarray, shape BATCH_SIZE x flat action dim
-            rewards: np.ndarray, shape BATCH_SIZE
-            terminals: np.ndarray, shape BATCH_SIZE
-            agent_infos: unsure
-            env_infos: unsure
-        """
-        return self.eval_sampler.obtain_samples()
-
     def log_diagnostics(self, paths):
         self.env.log_diagnostics(paths)
-
-    @abc.abstractmethod
-    def evaluate(self, epoch, es_path_returns):
-        pass
-
-    @abc.abstractmethod
-    def offline_evaluate(epoch):
-        pass
 
     def _can_train(self):
         return self.replay_buffer.num_steps_can_sample() >= self.batch_size
@@ -338,14 +311,27 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             env=self.training_env,
         )
 
-    @abc.abstractmethod
-    def _do_training(self, n_steps_total):
-        pass
+    def get_extra_data_to_save(self, epoch):
+        """
+        Save things that shouldn't be saved every snapshot but rather
+        overwritten every time.
+        :param epoch:
+        :return:
+        """
+        data_to_save = dict(
+            epoch=epoch,
+            env=self.training_env,
+        )
+        if self.save_replay_buffer:
+            data_to_save['replay_buffer'] = self.replay_buffer
+        if self.save_algorithm:
+            data_to_save['algorithm'] = self
+        return data_to_save
 
     def training_mode(self, mode):
         self.exploration_policy.train(mode)
 
-    def _can_evaluate(self, exploration_paths):
+    def _can_evaluate(self):
         """
         One annoying thing about the logger table is that the keys at each
         iteration need to be the exact same. So unless you can compute
@@ -355,21 +341,73 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         the beginning of training, you may not have enough data for a
         validation and training set.
 
-        :param exploration_paths: List of paths taken while exploring.
         :return:
         """
         return (
-            len(exploration_paths) > 0
+            len(self._exploration_paths) > 0
             and self.replay_buffer.num_steps_can_sample() >= self.batch_size
         )
+
+    def _start_epoch(self, epoch):
+        self._epoch_start_time = time.time()
+        self._exploration_paths = []
+        logger.push_prefix('Iteration #%d | ' % epoch)
+
+    def _end_epoch(self):
+        logger.log("Epoch Duration: {0}".format(
+            time.time() - self._epoch_start_time
+        ))
+        logger.log("Started Training: {0}".format(self._can_train()))
+        logger.pop_prefix()
 
     def _start_new_rollout(self):
         self.exploration_policy.reset()
         return self.training_env.reset()
 
+    def _handle_path(self, path):
+        """
+        Naive implementation: just loop through each transition.
+        :param path:
+        :return:
+        """
+        for (
+            reward,
+            terminal,
+            action,
+            obs,
+            agent_info,
+            env_info
+        ) in zip(
+            path["rewards"].reshape(-1, 1),
+            path["terminals"].reshape(-1, 1),
+            path["actions"],
+            path["observations"],
+            path["agent_infos"],
+            path["env_infos"],
+        ):
+            self._handle_step(
+                obs,
+                action,
+                reward,
+                terminal,
+                agent_info=agent_info,
+                env_info=env_info,
+            )
+        self.replay_buffer.terminate_episode(
+            path["final_observation"],
+            path["terminals"][-1],
+            agent_info=path["agent_infos"][-1],
+            env_info=path["env_infos"][-1],
+        )
+        self._handle_rollout_ending(
+            path["final_observation"],
+            path["terminals"][-1],
+            agent_info=path["agent_infos"][-1],
+            env_info=path["env_infos"][-1],
+        )
+
     def _handle_step(
             self,
-            num_paths_total,
             observation,
             action,
             reward,
@@ -381,15 +419,14 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         Implement anything that needs to happen after every step
         :return:
         """
-        if num_paths_total % self.save_exploration_path_period == 0:
-            self._current_path.add_all(
-                observations=self.obs_space.flatten(observation),
-                rewards=reward,
-                terminals=terminal,
-                actions=self.action_space.flatten(action),
-                agent_infos=agent_info,
-                env_infos=env_info,
-            )
+        self._current_path.add_all(
+            observations=self.obs_space.flatten(observation),
+            rewards=reward,
+            terminals=terminal,
+            actions=self.action_space.flatten(action),
+            agent_infos=agent_info,
+            env_infos=env_info,
+        )
 
         self.replay_buffer.add_sample(
             observation,
@@ -402,7 +439,6 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
 
     def _handle_rollout_ending(
             self,
-            n_steps_total,
             final_obs,
             terminal,
             agent_info,
@@ -421,3 +457,19 @@ class OnlineAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
             agent_info=agent_info,
             env_info=env_info,
         )
+
+    @abc.abstractmethod
+    def cuda(self):
+        pass
+
+    @abc.abstractmethod
+    def evaluate(self, epoch, es_path_returns):
+        pass
+
+    @abc.abstractmethod
+    def offline_evaluate(epoch):
+        pass
+
+    @abc.abstractmethod
+    def _do_training(self):
+        pass

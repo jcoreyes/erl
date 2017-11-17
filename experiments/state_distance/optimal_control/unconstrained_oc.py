@@ -5,13 +5,15 @@ import os
 
 from railrl.algos.state_distance.state_distance_q_learning import \
     multitask_rollout
-from railrl.envs.multitask.reacher_7dof import reach_a_joint_config_reward
 from railrl.launchers.launcher_util import run_experiment
+from railrl.networks.state_distance import \
+    VectorizedGoalStructuredUniversalQfunction
 from railrl.policies.state_distance import (
     UnconstrainedOcWithGoalConditionedModel,
-)
+    UnconstrainedOcWithImplicitModel)
 from rllab.misc import logger
 import railrl.torch.pytorch_util as ptu
+
 
 def experiment(variant):
     num_rollouts = variant['num_rollouts']
@@ -22,16 +24,24 @@ def experiment(variant):
     if ptu.gpu_enabled():
         qf.cuda()
         qf_policy.cuda()
-    policy = UnconstrainedOcWithGoalConditionedModel(
-        qf,
-        env,
-        qf_policy,
-        # reward_function_pytorch=reach_a_joint_config_reward,
-        **variant['policy_params']
-    )
+    if isinstance(qf, VectorizedGoalStructuredUniversalQfunction):
+        policy = UnconstrainedOcWithImplicitModel(
+            qf,
+            env,
+            qf_policy,
+            **variant['policy_params']
+        )
+    else:
+        policy = UnconstrainedOcWithGoalConditionedModel(
+            qf,
+            env,
+            qf_policy,
+            **variant['policy_params']
+        )
     paths = []
     for _ in range(num_rollouts):
         goal = env.sample_goal_state_for_rollout()
+        print("goal", goal)
         path = multitask_rollout(
             env,
             policy,
@@ -47,17 +57,18 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('file', type=str,
                         help='path to the snapshot file with a QF')
-    parser.add_argument('--nrolls', type=int, default=5,
+    parser.add_argument('--nrolls', type=int, default=10,
                         help='Number of rollouts to do.')
     parser.add_argument('--H', type=int, default=100, help='Horizon.')
     parser.add_argument('--verbose', action='store_true')
     parser.add_argument('--hide', action='store_true')
-    parser.add_argument('--discount', type=float, help='Discount Factor')
-    parser.add_argument('--nsamples', type=int, default=1000,
+    parser.add_argument('--discount', type=float, help='Discount Factor',
+                        default=10)
+    parser.add_argument('--nsamples', type=int, default=10000,
                         help='Number of samples for optimization')
     parser.add_argument('--dt', help='decrement tau', action='store_true')
     parser.add_argument('--cycle', help='cycle tau', action='store_true')
-    parser.add_argument('--dc', help='decrement and cycle tau',
+    parser.add_argument('--ndc', help='not (decrement and cycle tau)',
                         action='store_true')
     args = parser.parse_args()
 
@@ -67,11 +78,7 @@ if __name__ == '__main__':
     run_mode = 'none'
     use_gpu = True
 
-    discount = 0
-    if args.discount is not None:
-        print("WARNING: you are overriding the discount factor. Right now "
-              "only discount = 0 really makes sense.")
-        discount = args.discount
+    discount = args.discount
 
     variant = dict(
         num_rollouts=args.nrolls,
@@ -79,8 +86,8 @@ if __name__ == '__main__':
             max_path_length=args.H,
             animated=not args.hide,
             discount=discount,
-            cycle_tau=args.cycle or args.dc,
-            decrement_discount=args.dt or args.dc,
+            cycle_tau=args.cycle or not args.ndc,
+            decrement_discount=args.dt or not args.ndc,
         ),
         policy_params=dict(
             sample_size=args.nsamples,

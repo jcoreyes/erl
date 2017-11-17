@@ -22,25 +22,38 @@ class VectorizedSdql(StateDistanceQLearning):
 
 class VectorizedTauSdql(HorizonFedStateDistanceQLearning):
     def compute_rewards(self, obs, actions, next_obs, goal_states):
-        return -np.abs(
-            self.env.convert_obs_to_goal_states_pytorch(next_obs)
-            - goal_states)
+        diff = self.env.convert_obs_to_goal_states(next_obs) - goal_states
+        weighted_diff = self.env.goal_dim_weights * diff
+        return -np.abs(weighted_diff)
 
 
 class VectorizedDeltaTauSdql(HorizonFedStateDistanceQLearning):
     """
     Just.... look at the reward
     """
-    def __init__(self, *args, only_do_sl=False, **kwargs):
+    def __init__(
+            self,
+            *args,
+            goal_chooser=None,
+            sparse_rewards_learn_diff=True,
+            **kwargs
+    ):
         super().__init__(*args, **kwargs)
-        assert not self.sparse_reward
         assert self.qf_weight_decay == 0
-        self.only_do_sl = only_do_sl
-        if self.only_do_sl:
-            assert self.num_sl_batches_per_rl_batch > 0
+        assert not self.clamp_q_target_values
+        self.goal_chooser = goal_chooser
+        self.sparse_rewards_learn_diff = sparse_rewards_learn_diff
 
     def compute_rewards(self, obs, actions, next_obs, goal_states):
-        return next_obs - obs
+        if self.sparse_reward:
+            if self.sparse_rewards_learn_diff:
+                return self.env.convert_obs_to_goal_states(
+                    next_obs
+                ) - goal_states
+            else:
+                return next_obs
+        else:
+            return next_obs - obs
 
     def get_train_dict(self, batch):
         batch = self._modify_batch_for_training(batch)
@@ -58,11 +71,21 @@ class VectorizedDeltaTauSdql(HorizonFedStateDistanceQLearning):
         policy_actions = self.policy(obs, goal_states, num_steps_left)
         # qf isn't really a qf anymore. It's a goal-conditioned (delta) model
         q_output = self.qf(obs, policy_actions, goal_states, num_steps_left)
-        predicted_state = q_output + obs
-        predicted_goal = self.env.convert_obs_to_goal_states_pytorch(
-            predicted_state
-        )
-        predicted_distance_to_goal = predicted_goal - goal_states
+        if self.sparse_reward:
+            if self.sparse_rewards_learn_diff:
+                predicted_distance_to_goal = q_output
+            else:
+                predicted_state = q_output
+                predicted_goal = self.env.convert_obs_to_goal_states_pytorch(
+                    predicted_state
+                )
+                predicted_distance_to_goal = predicted_goal - goal_states
+        else:
+            predicted_state = q_output + obs
+            predicted_goal = self.env.convert_obs_to_goal_states_pytorch(
+                predicted_state
+            )
+            predicted_distance_to_goal = predicted_goal - goal_states
         policy_loss = (predicted_distance_to_goal**2).mean()
 
         """
@@ -86,8 +109,6 @@ class VectorizedDeltaTauSdql(HorizonFedStateDistanceQLearning):
                 goal_states,
                 num_steps_left - 1,  # Important! Else QF will (probably) blow up
             )
-            if self.clamp_q_target_values:
-                target_q_values = torch.clamp(target_q_values, -math.inf, 0)
             y_target = rewards + (1. - terminals) * target_q_values
 
             # noinspection PyUnresolvedReferences
@@ -99,6 +120,24 @@ class VectorizedDeltaTauSdql(HorizonFedStateDistanceQLearning):
             qf_loss = raw_qf_loss
 
         target_policy_loss = ptu.FloatTensor([0])
+        """
+        Train optimal control policy
+        """
+        if self.goal_chooser is not None:
+            goal = self.goal_chooser(obs)
+            actions = self.policy(
+                obs,
+                goal,
+                num_steps_left
+            )
+            final_state_predicted = self.qf(
+                obs,
+                actions,
+                goal,
+                num_steps_left,
+            ) + obs
+            rewards = self.goal_chooser.reward_function(final_state_predicted)
+            raise NotImplementedError()
 
         """
         Do some SL supervision
@@ -111,11 +150,14 @@ class VectorizedDeltaTauSdql(HorizonFedStateDistanceQLearning):
             batch = np_to_pytorch_batch(batch)
             obs = batch['observations']
             actions = batch['actions']
-            goal_states = batch['goal_states']
-            num_steps_left = batch['goal_i_minus_obs_i'] - 1
+            states_after_tau_steps = batch['states_after_tau_steps']
+            goal_states = self.env.convert_obs_to_goal_states_pytorch(
+                states_after_tau_steps
+            )
+            num_steps_left = batch['taus']
             y_pred = self.qf(obs, actions, goal_states, num_steps_left)
 
-            y_target = goal_states - obs
+            y_target = states_after_tau_steps - obs
             sl_loss = self.qf_criterion(y_pred, y_target)
             qf_loss = qf_loss + sl_loss * self.sl_grad_weight
 

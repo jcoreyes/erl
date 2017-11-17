@@ -4,33 +4,29 @@ from torch import optim
 from torch.nn import functional as F
 
 from railrl.networks.base import Mlp
-from railrl.policies.base import Policy
+from railrl.policies.state_distance import UniversalPolicy
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.core import PyTorchModule
 from rllab.misc import logger
 
 
-class AmortizedPolicy(PyTorchModule, Policy):
+class AmortizedPolicy(PyTorchModule, UniversalPolicy):
     def __init__(
             self,
             goal_reaching_policy,
             goal_chooser,
-            discount,
     ):
         self.save_init_params(locals())
         super().__init__()
+        UniversalPolicy.__init__(self)
         self.goal_reaching_policy = goal_reaching_policy
         self.goal_chooser = goal_chooser
-        self._discount_expanded_torch = ptu.np_to_var(
-            np.array([[discount]])
-        )
 
     def get_action(self, obs_np):
         obs = ptu.np_to_var(
             np.expand_dims(obs_np, 0)
         )
-        goal = self.goal_chooser(obs)
-        # print("Goal chosen: {}".format(ptu.get_numpy(goal)))
+        goal = self.goal_chooser(obs, self._goal_expanded_torch)
         action = self.goal_reaching_policy(
             obs,
             goal,
@@ -49,7 +45,6 @@ class ReacherGoalChooser(Mlp):
         super().__init__(
             input_size=6,
             output_size=4,
-            output_activation=None,
             **kwargs
         )
 
@@ -72,11 +67,36 @@ class ReacherGoalChooser(Mlp):
         )
 
 
+class UniversalGoalChooser(Mlp):
+    def __init__(
+            self,
+            input_goal_dim,
+            output_goal_dim,
+            obs_dim,
+            reward_function,
+            **kwargs
+    ):
+        self.save_init_params(locals())
+        super().__init__(
+            input_size=obs_dim + input_goal_dim,
+            output_size=output_goal_dim,
+            **kwargs
+        )
+        self.reward_function = reward_function
+
+    def forward(self, obs, goal):
+        goal = goal[:, :7]
+        obs = torch.cat((obs, goal), dim=1)
+        h = obs
+        for i, fc in enumerate(self.fcs):
+            h = self.hidden_activation(fc(h))
+        return self.output_activation(self.last_fc(h))
+
+
 def train_amortized_goal_chooser(
         goal_chooser,
         goal_conditioned_model,
         argmax_q,
-        rewards_py_fctn,
         discount,
         replay_buffer,
         learning_rate=1e-3,
@@ -85,9 +105,10 @@ def train_amortized_goal_chooser(
 ):
     def get_loss(training=False):
         buffer = replay_buffer.get_replay_buffer(training)
-        obs = buffer.random_batch(batch_size)['observations']
-        obs = ptu.np_to_var(obs, requires_grad=False)
-        goal = goal_chooser(obs)
+        batch = buffer.random_batch(batch_size)
+        obs = ptu.np_to_var(batch['observations'], requires_grad=False)
+        goals = ptu.np_to_var(batch['goal_states'], requires_grad=False)
+        goal = goal_chooser(obs, goals)
         actions = argmax_q(
             obs,
             goal,
@@ -99,7 +120,7 @@ def train_amortized_goal_chooser(
             goal,
             discount,
         ) + obs
-        rewards = rewards_py_fctn(final_state_predicted)
+        rewards = goal_chooser.reward_function(final_state_predicted, goals)
         return -rewards.mean()
 
     discount = ptu.np_to_var(discount * np.ones((batch_size, 1)))

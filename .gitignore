@@ -12,3 +12,5 @@ examples/#ddpg_cheetah.here.py#
 examples/tmp.yml
 *.npy
 *.ipynb
+*.prof
+railrl/launchers/config.py

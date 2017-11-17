@@ -9,16 +9,19 @@ import railrl.torch.pytorch_util as ptu
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.misc.ml_util import ConstantSchedule
-from railrl.misc.rllab_util import get_average_returns, split_paths_to_dict
+from railrl.misc.ml_util import (
+    StatConditionalSchedule,
+    ConstantSchedule,
+)
+from railrl.misc import rllab_util
 from railrl.torch.algos.util import np_to_pytorch_batch
 from railrl.torch.algos.eval import get_statistics_from_pytorch_dict, \
     get_difference_statistics, get_generic_path_information
-from railrl.torch.online_algorithm import OnlineAlgorithm
+from railrl.torch.online_algorithm import RLAlgorithm
 from rllab.misc import logger
 
 
-class DDPG(OnlineAlgorithm):
+class DDPG(RLAlgorithm):
     """
     Online learning algorithm.
     """
@@ -41,6 +44,7 @@ class DDPG(OnlineAlgorithm):
             residual_gradient_weight=0,
             optimize_target_policy=None,
             target_policy_learning_rate=None,
+            epoch_discount_schedule=None,
             **kwargs
     ):
         """
@@ -68,6 +72,8 @@ class DDPG(OnlineAlgorithm):
         is optimizes the target QF.
         :param target_policy_learning_rate: If None, use the policy_learning
         rate. This parameter is ignored if `optimize_target_policy` is False.
+        :param epoch_discount_schedule: A schedule for the discount factor
+        that varies with the epoch.
         :param kwargs:
         """
         super().__init__(
@@ -92,6 +98,9 @@ class DDPG(OnlineAlgorithm):
         self.qf_criterion = qf_criterion
         self.optimize_target_policy = optimize_target_policy
         self.target_policy_learning_rate = target_policy_learning_rate
+        if epoch_discount_schedule is None:
+            epoch_discount_schedule = ConstantSchedule(self.discount)
+        self.epoch_discount_schedule = epoch_discount_schedule
 
         self.target_qf = self.qf.copy()
         self.target_policy = self.policy.copy()
@@ -126,13 +135,17 @@ class DDPG(OnlineAlgorithm):
             self.replay_buffer = replay_buffer
         self.start_time = time.time()
 
+    def _start_epoch(self, epoch):
+        super()._start_epoch(epoch)
+        self.discount = self.epoch_discount_schedule.get_value(epoch)
+
     def cuda(self):
         self.policy.cuda()
         self.target_policy.cuda()
         self.qf.cuda()
         self.target_qf.cuda()
 
-    def _do_training(self, n_steps_total):
+    def _do_training(self):
         for i in range(self.num_updates_per_env_step):
             batch = self.get_batch(training=True)
             train_dict = self.get_train_dict(batch)
@@ -159,7 +172,7 @@ class DDPG(OnlineAlgorithm):
                                             self.tau)
                 ptu.soft_update_from_to(self.target_qf, self.qf, self.tau)
             else:
-                if n_steps_total % self.target_hard_update_period == 0:
+                if self._n_env_steps_total % self.target_hard_update_period == 0:
                     ptu.copy_model_params_from_to(self.qf, self.target_qf)
                     if not self.optimize_target_policy:
                         ptu.copy_model_params_from_to(self.policy,
@@ -252,7 +265,7 @@ class DDPG(OnlineAlgorithm):
         self.target_policy.train(mode)
         self.target_qf.train(mode)
 
-    def evaluate(self, epoch, exploration_paths):
+    def evaluate(self, epoch):
         """
         Perform evaluation for this algorithm.
 
@@ -263,15 +276,15 @@ class DDPG(OnlineAlgorithm):
         statistics = OrderedDict()
         train_batch = self.get_batch(training=True)
         validation_batch = self.get_batch(training=False)
-        test_paths = self._sample_eval_paths(epoch)
+        test_paths = self.eval_sampler.obtain_samples()
 
         if not isinstance(self.epoch_discount_schedule, ConstantSchedule):
             statistics['Discount Factor'] = self.discount
 
         statistics.update(get_generic_path_information(
-            exploration_paths, self.discount, stat_prefix="Exploration",
+            self._exploration_paths, self.discount, stat_prefix="Exploration",
         ))
-        statistics.update(self._statistics_from_paths(exploration_paths,
+        statistics.update(self._statistics_from_paths(self._exploration_paths,
                                                       "Exploration"))
         statistics.update(self._statistics_from_batch(train_batch, "Train"))
         statistics.update(
@@ -292,7 +305,7 @@ class DDPG(OnlineAlgorithm):
             )
         )
 
-        average_returns = get_average_returns(test_paths)
+        average_returns = rllab_util.get_average_returns(test_paths)
         statistics['AverageReturn'] = average_returns
         statistics['Total Wallclock Time (s)'] = time.time() - self.start_time
         statistics['Epoch'] = epoch
@@ -302,8 +315,21 @@ class DDPG(OnlineAlgorithm):
         for key, value in statistics.items():
             logger.record_tabular(key, value)
 
+        # logger.set_key_prefix('test ')
+        logger.push_prefix('test ')
         self.log_diagnostics(test_paths)
-
+        logger.pop_prefix()
+        logger.push_prefix('expl ')
+        self.log_diagnostics(self._exploration_paths)
+        logger.pop_prefix()
+        logger.push_prefix('')
+        if isinstance(self.epoch_discount_schedule, StatConditionalSchedule):
+            table_dict = rllab_util.get_logger_table_dict()
+            # rllab converts things to strings for some reason
+            value = float(
+                table_dict[self.epoch_discount_schedule.statistic_name]
+            )
+            self.epoch_discount_schedule.update(value)
 
     def offline_evaluate(self, epoch):
         logger.log("Collecting samples for evaluation")
@@ -340,7 +366,7 @@ class DDPG(OnlineAlgorithm):
 
     @staticmethod
     def paths_to_batch(paths):
-        np_batch = split_paths_to_dict(paths)
+        np_batch = rllab_util.split_paths_to_dict(paths)
         return np_to_pytorch_batch(np_batch)
 
     def _statistics_from_batch(self, batch, stat_prefix):
