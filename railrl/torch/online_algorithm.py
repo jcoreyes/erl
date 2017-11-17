@@ -92,7 +92,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             save_algorithm=False,
             collection_mode='online',
     ):
-        assert collection_mode in ['online', 'parallel', 'offline']
+        assert collection_mode in ['online', 'online-parallel', 'offline']
         self.training_env = pickle.loads(pickle.dumps(env))
         self.exploration_policy = exploration_policy
         self.num_epochs = num_epochs
@@ -141,7 +141,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self._n_env_steps_total = 0
         self._n_train_steps_total = 0
         self._epoch_start_time = None
-        self.final_score = 0
         self._old_table_keys = None
         self._current_path = Path()
         self._exploration_paths = []
@@ -160,7 +159,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self._n_env_steps_total = start_epoch * self.num_env_steps_per_epoch
         if self.collection_mode == 'online':
             self.train_online(start_epoch=start_epoch)
-        elif self.collection_mode == 'parallel':
+        elif self.collection_mode == 'online-parallel':
             self.train_parallel(start_epoch=start_epoch)
         elif self.collection_mode == 'offline':
             self.train_offline(start_epoch=start_epoch)
