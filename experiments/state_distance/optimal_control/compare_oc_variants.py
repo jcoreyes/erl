@@ -8,9 +8,6 @@ from collections import defaultdict
 import joblib
 
 import railrl.misc.hyperparameter as hyp
-from railrl.algos.state_distance.state_distance_q_learning import (
-    multitask_rollout
-)
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.rllab_util import get_logger_table_dict
 from railrl.policies.state_distance import (
@@ -18,6 +15,9 @@ from railrl.policies.state_distance import (
     ArgmaxQFPolicy,
     StateOnlySdqBasedSqpOcPolicy,
     SamplePolicyPartialOptimizer,
+)
+from railrl.state_distance.state_distance_q_learning import (
+    multitask_rollout
 )
 from rllab.misc import logger
 

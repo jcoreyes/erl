@@ -9,15 +9,15 @@ from collections import OrderedDict
 import numpy as np
 from torch import optim as optim
 
-from railrl.algos.state_distance.state_distance_q_learning import \
-    multitask_rollout
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.samplers.util import rollout
+from railrl.state_distance.state_distance_q_learning import \
+    multitask_rollout
 from railrl.torch import pytorch_util as ptu
-from railrl.torch.algos.util import np_to_pytorch_batch
 from railrl.torch.algos.eval import get_statistics_from_pytorch_dict, \
     get_difference_statistics
+from railrl.torch.algos.util import np_to_pytorch_batch
 from rllab.misc import logger
 
 

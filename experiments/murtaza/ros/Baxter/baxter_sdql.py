@@ -3,10 +3,6 @@ import argparse
 from torch.nn import functional as F
 
 import railrl.torch.pytorch_util as ptu
-from railrl.algos.state_distance.state_distance_q_learning import (
-    StateDistanceQLearning,
-    HorizonFedStateDistanceQLearning,
-)
 from railrl.envs.multitask.baxter_env import MultiTaskBaxterEnv
 from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.ou_strategy import OUStrategy
@@ -16,9 +12,12 @@ from railrl.networks.state_distance import (
     FFUniversalPolicy,
     FlatUniversalQfunction,
 )
-from railrl.torch.modules import HuberLoss
-from railrl.torch.state_distance.exploration import \
+from railrl.state_distance.exploration import \
     UniversalPolicyWrappedWithExplorationStrategy
+from railrl.state_distance.state_distance_q_learning import (
+    HorizonFedStateDistanceQLearning,
+)
+from railrl.torch.modules import HuberLoss
 
 
 def experiment(variant):

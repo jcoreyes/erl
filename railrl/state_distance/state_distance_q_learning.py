@@ -1,8 +1,9 @@
 import math
-import torch
+import time
 from collections import OrderedDict
 
 import numpy as np
+import torch
 
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
@@ -10,19 +11,18 @@ from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc import rllab_util
 from railrl.misc.rllab_util import split_paths_to_dict
+from railrl.misc.tensorboard_logger import TensorboardLogger
 from railrl.networks.state_distance import DuelingStructuredUniversalQfunction
 from railrl.policies.state_distance import UniversalPolicy
 from railrl.samplers.util import rollout
-from railrl.torch.ddpg import DDPG
-from railrl.torch.algos.util import np_to_pytorch_batch
+from railrl.state_distance.exploration import UniversalExplorationPolicy
 from railrl.torch.algos.eval import (
     get_difference_statistics,
     get_generic_path_information,
 )
-from railrl.misc.tensorboard_logger import TensorboardLogger
-from railrl.torch.state_distance.exploration import UniversalExplorationPolicy
+from railrl.torch.algos.util import np_to_pytorch_batch
+from railrl.torch.ddpg import DDPG
 from rllab.misc import logger
-import time
 
 
 class StateDistanceQLearning(DDPG):

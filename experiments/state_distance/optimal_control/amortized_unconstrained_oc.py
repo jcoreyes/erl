@@ -2,33 +2,23 @@
 Amortized version of unconstrained_oc.py
 """
 import argparse
-import random
-import joblib
 import os
-import numpy as np
+import random
 from pathlib import Path
 
-from railrl.algos.state_distance.amortized_oc import \
-    train_amortized_goal_chooser, AmortizedPolicy, ReacherGoalChooser, \
-    UniversalGoalChooser
+import joblib
+import numpy as np
 from railrl.algos.state_distance.state_distance_q_learning import \
     multitask_rollout
-from railrl.envs.multitask.reacher_env import (
-    reach_a_joint_config_reward,
-    REACH_A_POINT_GOAL,
-    reach_a_point_and_move_joints_reward,
-    reach_a_point_reward,
-    hold_first_joint_and_move_second_joint_reward,
-)
-from railrl.envs.multitask.reacher_7dof import (
-    reach_a_joint_config_reward as reach_a_joint_config_reward_7dof,
-    DESIRED_JOINT_CONFIG,
-    DESIRED_XYZ, reach_parameterized_joint_config)
-from railrl.launchers.launcher_util import run_experiment
-from railrl.networks.base import Mlp
-from railrl.samplers.util import rollout
-from rllab.misc import logger
+
 import railrl.torch.pytorch_util as ptu
+from railrl.envs.multitask.reacher_7dof import (
+    DESIRED_JOINT_CONFIG,
+    reach_parameterized_joint_config)
+from railrl.launchers.launcher_util import run_experiment
+from railrl.state_distance.amortized_oc import \
+    train_amortized_goal_chooser, AmortizedPolicy, UniversalGoalChooser
+from rllab.misc import logger
 
 
 def experiment(variant):

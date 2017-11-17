@@ -1,29 +1,23 @@
 import argparse
 import random
 
+from railrl.algos.state_distance.her import HER
 from torch.nn import functional as F
 
+import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
-from railrl.algos.state_distance.her import HER
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
-from railrl.envs.multitask.pusher2d import HandCylinderXYPusher2DEnv, \
-    CylinderXYPusher2DEnv
-from railrl.envs.multitask.reacher_7dof import Reacher7DofGoalStateEverything, \
-    Reacher7DofXyzGoalState
+from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
+from railrl.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState
 from railrl.envs.wrappers import convert_gym_space, normalize_box
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.networks.her import HerPolicy, HerQFunction
-from railrl.networks.state_distance import (
-    FFUniversalPolicy,
-)
-from railrl.policies.state_distance import TerminalRewardSampleOCPolicy
-from railrl.torch.modules import HuberLoss
-from railrl.torch.state_distance.exploration import \
+from railrl.state_distance.exploration import \
     UniversalPolicyWrappedWithExplorationStrategy
-import railrl.misc.hyperparameter as hyp
+from railrl.torch.modules import HuberLoss
 
 
 def experiment(variant):
