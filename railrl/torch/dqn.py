@@ -22,7 +22,6 @@ class DQN(TorchRLAlgorithm):
             self,
             env,
             qf,
-            exploration_policy=None,
             learning_rate=1e-3,
             tau=0.001,
             epsilon=0.1,
@@ -32,23 +31,23 @@ class DQN(TorchRLAlgorithm):
 
         :param env: Env.
         :param qf: QFunction. Maps from state to action Q-values.
-        :param exploration_policy: If None, use an epsilon greedy policy.
         :param learning_rate: Learning rate for qf. Adam is used.
         :param tau: Soft target tau to update target QF.
         :param epsilon: Probability of taking a random action.
         :param kwargs: kwargs to pass onto TorchRLAlgorithm
         """
-        if exploration_policy is None:
-            es = EpsilonGreedy(
-                action_space=env.action_space,
-                prob_random_action=epsilon,
-            )
-            policy = ArgmaxDiscretePolicy(qf)
-            exploration_policy = PolicyWrappedWithExplorationStrategy(
-                exploration_strategy=es,
-                policy=policy,
-            )
-        super().__init__(env, exploration_policy, **kwargs)
+        exploration_strategy = EpsilonGreedy(
+            action_space=env.action_space,
+            prob_random_action=epsilon,
+        )
+        self.policy = ArgmaxDiscretePolicy(qf)
+        exploration_policy = PolicyWrappedWithExplorationStrategy(
+            exploration_strategy=exploration_strategy,
+            policy=self.policy,
+        )
+        super().__init__(
+            env, exploration_policy, eval_policy=self.policy, **kwargs
+        )
         self.qf = qf
         self.target_qf = self.qf.copy()
         self.learning_rate = learning_rate
@@ -121,3 +120,12 @@ class DQN(TorchRLAlgorithm):
 
     def offline_evaluate(self, epoch):
         raise NotImplementedError()
+
+    def get_epoch_snapshot(self, epoch):
+        self.training_env.render(close=True)
+        return dict(
+            epoch=epoch,
+            exploration_policy=self.exploration_policy,
+            policy=self.policy,
+            env=self.training_env,
+        )

@@ -31,6 +31,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             save_replay_buffer=False,
             save_algorithm=False,
             eval_sampler=None,
+            eval_policy=None,
             collection_mode='online',
     ):
         assert collection_mode in ['online', 'online-parallel', 'offline']
@@ -49,10 +50,12 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.save_replay_buffer = save_replay_buffer
         self.save_algorithm = save_algorithm
         if eval_sampler is None:
+            if eval_policy is None:
+                eval_policy = exploration_policy
             eval_sampler = InPlacePathSampler(
                 env=env,
-                policy=exploration_policy,
-                max_samples=self.num_steps_per_eval,
+                policy=eval_policy,
+                max_samples=self.num_steps_per_eval + self.max_path_length,
                 max_path_length=self.max_path_length,
             )
         self.eval_sampler = eval_sampler
@@ -363,6 +366,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.env.log_diagnostics(paths)
 
     def get_epoch_snapshot(self, epoch):
+        self.training_env.render(close=True)
         return dict(
             epoch=epoch,
             exploration_policy=self.exploration_policy,
@@ -376,6 +380,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         :param epoch:
         :return:
         """
+        self.training_env.render(close=True)
         data_to_save = dict(
             epoch=epoch,
             env=self.training_env,
