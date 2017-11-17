@@ -2,23 +2,24 @@ import numpy as np
 from gym import utils
 from gym.envs.mujoco import mujoco_env
 from gym import spaces
+
+from railrl.misc.rllab_util import get_stat_in_dict
 from rllab.misc import logger
 import itertools
 
 
 class DiscreteSwimmerEnv(mujoco_env.MujocoEnv, utils.EzPickle):
-    def __init__(self):
-        utils.EzPickle.__init__(self)
-
-        self.action_range = 4
+    def __init__(self, num_bins=5, ctrl_cost_coeff=0.0001):
+        self.num_bins = num_bins
+        self.ctrl_cost_coeff = ctrl_cost_coeff
+        utils.EzPickle.__init__(self, num_bins=num_bins)
         mujoco_env.MujocoEnv.__init__(self, 'swimmer.xml', 4)
+
         bounds = self.model.actuator_ctrlrange.copy()
-        self.low = bounds[:, 0] / 5
-        self.high = bounds[:, 1] / 5
-        joint0_range = np.arange(self.low[0], self.high[0]+0.1, 0.5)
-        joint1_range = np.arange(self.low[1], self.high[1] + 0.1, 0.5)
-        joint0_range = np.array([-0.1, 0, 0.1])
-        joint1_range = np.array([-0.1, 0, 0.1])
+        low = bounds[:, 0]
+        high = bounds[:, 1]
+        joint0_range = np.linspace(low[0], high[0], num_bins)
+        joint1_range = np.linspace(low[1], high[1], num_bins)
         self.continuous_actions = list(itertools.product(joint0_range, joint1_range))
         self.action_space = spaces.Discrete(len(self.continuous_actions))
 
@@ -28,13 +29,11 @@ class DiscreteSwimmerEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         else:
             continuous_action = self.continuous_actions[a]
 
-        ctrl_cost_coeff = 0.0001
-        # xposbefore = self.model.data.qpos[0, 0]
         self.do_simulation(continuous_action, self.frame_skip)
-        # xposafter = self.model.data.qpos[0, 0]
-        # reward_fwd = (xposafter - xposbefore) / self.dt
-        reward_fwd = self.get_body_comvel("torso")[0]
-        reward_ctrl = - ctrl_cost_coeff * np.square(continuous_action).sum()
+        reward_fwd = self.get_body_com("torso")[0]
+        reward_ctrl = - self.ctrl_cost_coeff * np.square(
+            continuous_action
+        ).sum()
         reward = reward_fwd + reward_ctrl
         ob = self._get_obs()
         return ob, reward, False, dict(reward_fwd=reward_fwd, reward_ctrl=reward_ctrl)
@@ -52,11 +51,25 @@ class DiscreteSwimmerEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         return self._get_obs()
 
     def log_diagnostics(self, paths):
-        forward_rew = np.array([np.mean(traj['env_infos']['reward_fwd']) for traj in paths])
-        reward_ctrl = np.array([np.mean(traj['env_infos']['reward_ctrl']) for traj in paths])
+        reward_fwd = get_stat_in_dict(paths, 'env_infos', 'reward_fwd')
+        reward_ctrl = get_stat_in_dict(paths, 'env_infos', 'reward_ctrl')
 
-        logger.record_tabular('AvgRewardDist', np.mean(forward_rew))
+        logger.record_tabular('AvgRewardDist', np.mean(reward_fwd))
         logger.record_tabular('AvgRewardCtrl', np.mean(reward_ctrl))
+        if len(paths) > 0:
+            progs = [
+                path["observations"][-1][-3] - path["observations"][0][-3]
+                for path in paths
+            ]
+            logger.record_tabular('AverageForwardProgress', np.mean(progs))
+            logger.record_tabular('MaxForwardProgress', np.max(progs))
+            logger.record_tabular('MinForwardProgress', np.min(progs))
+            logger.record_tabular('StdForwardProgress', np.std(progs))
+        else:
+            logger.record_tabular('AverageForwardProgress', np.nan)
+            logger.record_tabular('MaxForwardProgress', np.nan)
+            logger.record_tabular('MinForwardProgress', np.nan)
+            logger.record_tabular('StdForwardProgress', np.nan)
 
 
 def main():
