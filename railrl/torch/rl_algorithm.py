@@ -11,7 +11,6 @@ from railrl.misc.rllab_util import (
 )
 from railrl.policies.base import ExplorationPolicy
 from railrl.samplers.in_place import InPlacePathSampler
-from railrl.samplers.parallel import SimplePathSampler
 from rllab.misc import logger
 
 
@@ -29,10 +28,9 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             replay_buffer_size=1000000,
             scale_reward=1,
             render=False,
-            sample_with_training_env=False,
-            eval_sampler=None,
             save_replay_buffer=False,
             save_algorithm=False,
+            eval_sampler=None,
             collection_mode='online',
     ):
         assert collection_mode in ['online', 'online-parallel', 'offline']
@@ -47,35 +45,21 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.replay_buffer_size = replay_buffer_size
         self.scale_reward = scale_reward
         self.render = render
-        self.sample_with_training_env = sample_with_training_env
         self.collection_mode = collection_mode
         self.save_replay_buffer = save_replay_buffer
         self.save_algorithm = save_algorithm
+        if eval_sampler is None:
+            eval_sampler = InPlacePathSampler(
+                env=env,
+                policy=exploration_policy,
+                max_samples=self.num_steps_per_eval,
+                max_path_length=self.max_path_length,
+            )
+        self.eval_sampler = eval_sampler
 
         self.action_space = convert_gym_space(env.action_space)
         self.obs_space = convert_gym_space(env.observation_space)
-
-        if eval_sampler is None:
-            # TODO: Remove flag and force to set eval_sampler
-            if self.sample_with_training_env:
-                self.env = pickle.loads(pickle.dumps(self.training_env))
-                self.eval_sampler = SimplePathSampler(
-                    env=env,
-                    policy=exploration_policy,
-                    max_samples=num_steps_per_eval,
-                    max_path_length=max_path_length,
-                )
-            else:
-                self.env = env
-                self.eval_sampler = InPlacePathSampler(
-                    env=env,
-                    policy=exploration_policy,
-                    max_samples=num_steps_per_eval,
-                    max_path_length=max_path_length,
-                )
-        else:
-            self.eval_sampler = eval_sampler
-            self.env = eval_sampler.env
+        self.env = env
         self.replay_buffer = EnvReplayBuffer(
             self.replay_buffer_size,
             self.env,
