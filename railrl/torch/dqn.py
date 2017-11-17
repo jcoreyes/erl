@@ -1,5 +1,13 @@
+from collections import OrderedDict
+
+import torch
 import torch.optim as optim
+from torch import nn as nn
+
+from railrl.torch.algos.eval import get_statistics_from_pytorch_dict, \
+    get_generic_path_information
 from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
+from rllab.misc import logger
 
 
 class DQN(TorchRLAlgorithm):
@@ -19,6 +27,7 @@ class DQN(TorchRLAlgorithm):
             self.qf.parameters(),
             lr=self.learning_rate,
         )
+        self.qf_criterion = nn.MSELoss()
 
         self.eval_statistics = None
 
@@ -38,15 +47,14 @@ class DQN(TorchRLAlgorithm):
         Compute loss
         """
 
-        next_actions = self.target_policy(next_obs)
-        # speed up computation by not backpropping these gradients
-        next_actions.detach()
-        target_q_values = self.target_qf(next_obs).detach().max(1)
+        target_q_values = self.target_qf(next_obs).detach().max(
+            1, keepdim=True
+        )[0]
         y_target = rewards + (1. - terminals) * self.discount * target_q_values
         y_target = y_target.detach()
-        y_pred = self.qf(obs, actions)
-        bellman_errors = (y_pred - y_target) ** 2
-        raw_qf_loss = self.qf_criterion(y_pred, y_target)
+        # actions is a one-hot vector
+        y_pred = torch.sum(self.qf(obs) * actions, dim=1, keepdim=True)
+        qf_loss = self.qf_criterion(y_pred, y_target)
 
         """
         Take the gradient step
@@ -58,13 +66,35 @@ class DQN(TorchRLAlgorithm):
         """
         Save some statistics for eval
         """
+        stats = {
+            'QF Loss': qf_loss,
+            'Y Predictions': qf_loss,
+        }
+        self.eval_statistics = get_statistics_from_pytorch_dict(
+            stats,
+            [
+                'QF Loss',
+            ],
+            [
+                'Y Predictions',
+            ],
+            '',
+        )
 
     def cuda(self):
         self.qf.cuda()
         self.target_qf.cuda()
 
     def evaluate(self, epoch):
-        pass
+        statistics = OrderedDict()
+        statistics.update(self.eval_statistics)
+        test_paths = self.eval_sampler.obtain_samples()
+        statistics.update(get_generic_path_information(
+            test_paths, self.discount, stat_prefix="Test",
+        ))
+
+        for key, value in statistics.items():
+            logger.record_tabular(key, value)
 
     def offline_evaluate(self, epoch):
         raise NotImplementedError()
