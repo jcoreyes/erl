@@ -145,12 +145,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self._current_path = Path()
         self._exploration_paths = []
 
-    def get_action_and_info(self, observation):
-        self.exploration_policy.set_num_steps_total(self._n_env_steps_total)
-        return self.exploration_policy.get_action(
-            observation,
-        )
-
     def train(self, start_epoch=0):
         if start_epoch == 0:
             params = self.get_epoch_snapshot(-1)
@@ -174,7 +168,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         for epoch in range(start_epoch, self.num_epochs):
             self._start_epoch(epoch)
             for _ in range(self.num_env_steps_per_epoch):
-                action, agent_info = self.get_action_and_info(
+                action, agent_info = self._get_action_and_info(
                     observation,
                 )
                 if self.render:
@@ -297,39 +291,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         logger.dump_tabular(with_prefix=False, with_timestamp=False)
         logger.log("Eval Time: {0}".format(time.time() - start_time))
 
-    def log_diagnostics(self, paths):
-        self.env.log_diagnostics(paths)
-
-    def _can_train(self):
-        return self.replay_buffer.num_steps_can_sample() >= self.batch_size
-
-    def get_epoch_snapshot(self, epoch):
-        return dict(
-            epoch=epoch,
-            exploration_policy=self.exploration_policy,
-            env=self.training_env,
-        )
-
-    def get_extra_data_to_save(self, epoch):
-        """
-        Save things that shouldn't be saved every snapshot but rather
-        overwritten every time.
-        :param epoch:
-        :return:
-        """
-        data_to_save = dict(
-            epoch=epoch,
-            env=self.training_env,
-        )
-        if self.save_replay_buffer:
-            data_to_save['replay_buffer'] = self.replay_buffer
-        if self.save_algorithm:
-            data_to_save['algorithm'] = self
-        return data_to_save
-
-    def training_mode(self, mode):
-        self.exploration_policy.train(mode)
-
     def _can_evaluate(self):
         """
         One annoying thing about the logger table is that the keys at each
@@ -345,6 +306,20 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         return (
             len(self._exploration_paths) > 0
             and self.replay_buffer.num_steps_can_sample() >= self.batch_size
+        )
+
+    def _can_train(self):
+        return self.replay_buffer.num_steps_can_sample() >= self.batch_size
+
+    def _get_action_and_info(self, observation):
+        """
+        Get an action to take in the environment.
+        :param observation:
+        :return:
+        """
+        self.exploration_policy.set_num_steps_total(self._n_env_steps_total)
+        return self.exploration_policy.get_action(
+            observation,
         )
 
     def _start_epoch(self, epoch):
@@ -457,18 +432,72 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             env_info=env_info,
         )
 
+    def log_diagnostics(self, paths):
+        self.env.log_diagnostics(paths)
+
+    def get_epoch_snapshot(self, epoch):
+        return dict(
+            epoch=epoch,
+            exploration_policy=self.exploration_policy,
+            env=self.training_env,
+        )
+
+    def get_extra_data_to_save(self, epoch):
+        """
+        Save things that shouldn't be saved every snapshot but rather
+        overwritten every time.
+        :param epoch:
+        :return:
+        """
+        data_to_save = dict(
+            epoch=epoch,
+            env=self.training_env,
+        )
+        if self.save_replay_buffer:
+            data_to_save['replay_buffer'] = self.replay_buffer
+        if self.save_algorithm:
+            data_to_save['algorithm'] = self
+        return data_to_save
+
+    @abc.abstractmethod
+    def training_mode(self, mode):
+        """
+        Set training mode to `mode`.
+        :param mode: If True, training will happen (e.g. set the dropout
+        probabilities to not all ones).
+        """
+        pass
+
     @abc.abstractmethod
     def cuda(self):
+        """
+        Turn cuda on.
+        :return:
+        """
         pass
 
     @abc.abstractmethod
-    def evaluate(self, epoch, es_path_returns):
+    def evaluate(self, epoch):
+        """
+        Evaluate the policy, e.g. save/print progress.
+        :param epoch:
+        :return:
+        """
         pass
 
     @abc.abstractmethod
-    def offline_evaluate(epoch):
+    def offline_evaluate(self, epoch):
+        """
+        Evaluate without collecting new data.
+        :param epoch:
+        :return:
+        """
         pass
 
     @abc.abstractmethod
     def _do_training(self):
+        """
+        Perform some update, e.g. perform one gradient step.
+        :return:
+        """
         pass
