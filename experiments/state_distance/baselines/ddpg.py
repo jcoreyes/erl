@@ -133,7 +133,7 @@ if __name__ == "__main__":
         'algo_params.tau': [
             1e-2, 1e-3,
         ],
-        'algo_params.scale_reward': [
+        'algo_params.reward_scale': [
             10, 1, 0.1,
         ],
     }
