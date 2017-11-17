@@ -15,7 +15,7 @@ from railrl.torch.algos.util import np_to_pytorch_batch
 from railrl.torch.algos.eval import get_statistics_from_pytorch_dict, \
     get_difference_statistics
 from railrl.torch.core import PyTorchModule
-from railrl.torch.online_algorithm import RLAlgorithm
+from railrl.torch.rl_algorithm import RLAlgorithm
 from railrl.torch import pytorch_util as ptu
 from rllab.misc import logger
 
