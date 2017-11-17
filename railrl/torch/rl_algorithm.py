@@ -85,7 +85,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         elif self.collection_mode == 'offline':
             self.train_offline(start_epoch=start_epoch)
         else:
-            raise NotImplementedError("Invalid collection_mode: {}".format(
+            raise TypeError("Invalid collection_mode: {}".format(
                 self.collection_mode
             ))
 
