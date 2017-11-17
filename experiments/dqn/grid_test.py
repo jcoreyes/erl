@@ -38,12 +38,13 @@ if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
             num_epochs=100,
-            num_steps_per_epoch=100,
-            num_steps_per_eval=100,
+            num_steps_per_epoch=200,
+            num_steps_per_eval=200,
             batch_size=128,
-            max_path_length=100,
+            max_path_length=200,
             discount=0.99,
             epsilon=0.2,
+            tau=1,
         ),
     )
     seed = random.randint(0, 999999)
