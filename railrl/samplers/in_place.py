@@ -16,8 +16,11 @@ class InPlacePathSampler(object):
         self.env = env
         self.policy = policy
         self.max_path_length = max_path_length
-        self.num_rollouts = max_samples // self.max_path_length
-        assert self.num_rollouts > 0, "Need max_samples >= max_path_length"
+        self.max_samples = max_samples
+        assert (
+            max_samples >= max_path_length,
+            "Need max_samples >= max_path_length"
+        )
 
     def start_worker(self):
         pass
@@ -26,7 +29,12 @@ class InPlacePathSampler(object):
         pass
 
     def obtain_samples(self):
-        return [
-            rollout(self.env, self.policy, max_path_length=self.max_path_length)
-            for _ in range(self.num_rollouts)
-        ]
+        paths = []
+        n_steps_total = 0
+        while n_steps_total + self.max_path_length <= self.max_samples:
+            path = rollout(
+                self.env, self.policy, max_path_length=self.max_path_length
+            )
+            paths.append(path)
+            n_steps_total += len(path['observations'])
+        return paths
