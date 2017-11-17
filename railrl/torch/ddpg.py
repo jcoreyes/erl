@@ -37,7 +37,6 @@ class DDPG(TorchRLAlgorithm):
             target_hard_update_period=1000,
             tau=1e-2,
             use_soft_update=False,
-            replay_buffer=None,
             num_updates_per_env_step=1,
             qf_criterion=None,
             residual_gradient_weight=0,
@@ -58,7 +57,6 @@ class DDPG(TorchRLAlgorithm):
         :param target_hard_update_period:
         :param tau:
         :param use_soft_update:
-        :param replay_buffer:
         :param num_updates_per_env_step: Number of gradient steps per
         environment step.
         :param qf_criterion: Loss function to use for the q function. Should
@@ -116,22 +114,6 @@ class DDPG(TorchRLAlgorithm):
             )
         else:
             self.target_policy_optimizer = None
-        if replay_buffer is None:
-            self.replay_buffer = SplitReplayBuffer(
-                EnvReplayBuffer(
-                    self.replay_buffer_size,
-                    self.env,
-                    flatten=True,
-                ),
-                EnvReplayBuffer(
-                    self.replay_buffer_size,
-                    self.env,
-                    flatten=True,
-                ),
-                fraction_paths_in_train=0.8,
-            )
-        else:
-            self.replay_buffer = replay_buffer
 
     def _start_epoch(self, epoch):
         super()._start_epoch(epoch)

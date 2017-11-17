@@ -31,7 +31,6 @@ class NAF(TorchRLAlgorithm):
             target_hard_update_period=1000,
             tau=0.001,
             use_soft_update=False,
-            replay_buffer=None,
             **kwargs
     ):
         if exploration_policy is None:
@@ -53,23 +52,6 @@ class NAF(TorchRLAlgorithm):
             self.policy.parameters(),
             lr=self.policy_learning_rate,
         )
-
-        if replay_buffer is None:
-            self.replay_buffer = SplitReplayBuffer(
-                EnvReplayBuffer(
-                    self.replay_buffer_size,
-                    self.env,
-                    flatten=True,
-                ),
-                EnvReplayBuffer(
-                    self.replay_buffer_size,
-                    self.env,
-                    flatten=True,
-                ),
-                fraction_paths_in_train=0.8,
-            )
-        else:
-            self.replay_buffer = replay_buffer
 
     def cuda(self):
         self.policy.cuda()
