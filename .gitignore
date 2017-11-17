@@ -13,3 +13,4 @@ examples/tmp.yml
 *.npy
 *.ipynb
 *.prof
+railrl/launchers/config.py
