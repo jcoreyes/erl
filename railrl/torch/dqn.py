@@ -7,8 +7,12 @@ from torch import nn as nn
 
 import railrl.torch.pytorch_util as ptu
 from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.torch.algos.eval import get_statistics_from_pytorch_dict, \
-    get_generic_path_information
+from railrl.torch.algos import eval
+from railrl.exploration_strategies.base import (
+    PolicyWrappedWithExplorationStrategy
+)
+from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
+from railrl.policies.argmax import ArgmaxDiscretePolicy
 from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
 from rllab.misc import logger
 
@@ -17,16 +21,36 @@ class DQN(TorchRLAlgorithm):
     def __init__(
             self,
             env,
-            exploration_policy,
             qf,
+            exploration_policy=None,
             learning_rate=1e-3,
             tau=0.001,
+            epsilon=0.1,
             **kwargs
     ):
+        """
+
+        :param env: Env.
+        :param qf: QFunction. Maps from state to action Q-values.
+        :param exploration_policy: If None, use an epsilon greedy policy.
+        :param learning_rate: Learning rate for qf. Adam is used.
+        :param tau: Soft target tau to update target QF.
+        :param epsilon: Probability of taking a random action.
+        :param kwargs: kwargs to pass onto TorchRLAlgorithm
+        """
+        if exploration_policy is None:
+            es = EpsilonGreedy(
+                action_space=env.action_space,
+                prob_random_action=epsilon,
+            )
+            policy = ArgmaxDiscretePolicy(qf)
+            exploration_policy = PolicyWrappedWithExplorationStrategy(
+                exploration_strategy=es,
+                policy=policy,
+            )
         super().__init__(env, exploration_policy, **kwargs)
         self.qf = qf
         self.target_qf = self.qf.copy()
-        # self.target_qf = self.qf
         self.learning_rate = learning_rate
         self.tau = tau
         self.qf_optimizer = optim.Adam(
@@ -88,7 +112,7 @@ class DQN(TorchRLAlgorithm):
         statistics = OrderedDict()
         statistics.update(self.eval_statistics)
         test_paths = self.eval_sampler.obtain_samples()
-        statistics.update(get_generic_path_information(
+        statistics.update(eval.get_generic_path_information(
             test_paths, self.discount, stat_prefix="Test",
         ))
 
