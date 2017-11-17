@@ -64,7 +64,7 @@ if __name__ == "__main__":
         example,
         exp_prefix="ddpg-half-cheetah-pytorch",
         seed=seed,
-        mode='here',
+        mode='ec2',
         variant=variant,
         use_gpu=True,
     )

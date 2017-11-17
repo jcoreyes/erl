@@ -123,7 +123,7 @@ if __name__ == '__main__':
 
     n_seeds = 1
     mode = "local"
-    exp_prefix = "dev-train-q"
+    exp_prefix = "hyper-param-sweep"
     run_mode = "none"
 
     # n_seeds = 3
