@@ -3,7 +3,7 @@ import random
 from pathlib import Path
 
 import joblib
-from railrl.algos.state_distance.vectorized_sdql import VectorizedDeltaTauSdql, \
+from railrl.tf.state_distance.vectorized_sdql import VectorizedDeltaTauSdql, \
     VectorizedTauSdql
 
 import railrl.torch.pytorch_util as ptu

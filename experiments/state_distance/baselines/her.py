@@ -1,7 +1,7 @@
 import argparse
 import random
 
-from railrl.algos.state_distance.her import HER
+from railrl.tf.state_distance.her import HER
 from torch.nn import functional as F
 
 import railrl.misc.hyperparameter as hyp

@@ -3,8 +3,8 @@ import random
 
 import numpy as np
 from hyperopt import hp
-from railrl.algos.state_distance.supervised_learning import SupervisedLearning
-from railrl.algos.state_distance.util import get_replay_buffer
+from railrl.tf.state_distance.supervised_learning import SupervisedLearning
+from railrl.tf.state_distance.util import get_replay_buffer
 
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu

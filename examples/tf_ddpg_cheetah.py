@@ -1,7 +1,7 @@
 """
 Exampling of running the TensorFlow version of DDPG on HalfCheetah.
 """
-from railrl.algos.ddpg import DDPG
+from railrl.tf.ddpg import DDPG
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.tensorflow.nn_policy import FeedForwardPolicy

@@ -9,7 +9,7 @@ from railrl.launchers.launcher_util import (
 
 
 def run_linear_ocm_exp(variant):
-    from railrl.algos.ddpg import DDPG
+    from railrl.tf.ddpg import DDPG
     from railrl.envs.flattened_product_box import FlattenedProductBox
     from railrl.exploration_strategies.ou_strategy import OUStrategy
     from railrl.policies.tensorflow.nn_policy import FeedForwardPolicy

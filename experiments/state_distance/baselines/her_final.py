@@ -97,7 +97,7 @@ import random
 from torch.nn import functional as F
 
 import railrl.torch.pytorch_util as ptu
-from railrl.algos.state_distance.her import HER
+from railrl.tf.state_distance.her import HER
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah

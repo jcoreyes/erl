@@ -1,7 +1,7 @@
 import argparse
 import random
 
-from railrl.algos.state_distance.vectorized_sdql import VectorizedDeltaTauSdql, \
+from railrl.tf.state_distance.vectorized_sdql import VectorizedDeltaTauSdql, \
     VectorizedTauSdql
 from torch.nn import functional as F
 

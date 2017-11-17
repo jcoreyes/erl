@@ -2,7 +2,7 @@ import argparse
 
 from gym.envs.mujoco import PusherEnv
 
-from railrl.algos.state_distance.util import get_replay_buffer
+from railrl.tf.state_distance.util import get_replay_buffer
 from railrl.envs.multitask.reacher_env import (
     XyMultitaskSimpleStateReacherEnv,
 )

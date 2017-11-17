@@ -12,7 +12,7 @@ from railrl.qfunctions.memory.mlp_memory_qfunction import MlpMemoryQFunction
 
 
 def run_linear_ocm_exp(variant):
-    from railrl.algos.ddpg import DDPG
+    from railrl.tf.ddpg import DDPG
     from railrl.envs.memory.continuous_memory_augmented import (
         ContinuousMemoryAugmented
     )

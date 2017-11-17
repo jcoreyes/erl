@@ -1,4 +1,4 @@
-from railrl.algos.bptt_ddpg import BpttDDPG
+from railrl.tf.bptt_ddpg import BpttDDPG
 
 
 class NoOpIfyAlgo(object):

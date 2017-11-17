@@ -1,8 +1,8 @@
 from collections import OrderedDict
 
-from railrl.algos.bptt_ddpg import BpttDDPG
-from railrl.algos.oracle_bptt_ddpg import OracleBpttDdpg
-from railrl.algos.ddpg import TARGET_PREFIX, TargetUpdateMode
+from railrl.tf.bptt_ddpg import BpttDDPG
+from railrl.tf.oracle_bptt_ddpg import OracleBpttDdpg
+from railrl.tf.ddpg import TARGET_PREFIX, TargetUpdateMode
 import tensorflow as tf
 
 from railrl.core import tf_util

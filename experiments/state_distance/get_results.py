@@ -4,7 +4,7 @@ Script for launch the paper results.
 import argparse
 import random
 
-from railrl.algos.state_distance.vectorized_sdql import (
+from railrl.tf.state_distance.vectorized_sdql import (
     VectorizedTauSdql,
 )
 from torch.nn import functional as F

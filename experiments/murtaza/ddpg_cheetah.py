@@ -6,7 +6,7 @@ from os.path import exists
 import joblib
 import tensorflow as tf
 
-from railrl.algos.ddpg import DDPG
+from railrl.tf.ddpg import DDPG
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.tensorflow.nn_policy import FeedForwardPolicy

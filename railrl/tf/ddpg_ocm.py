@@ -5,7 +5,7 @@ from collections import OrderedDict
 
 import numpy as np
 
-from railrl.algos.ddpg import DDPG
+from railrl.tf.ddpg import DDPG
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import split_paths
 from rllab.misc import logger

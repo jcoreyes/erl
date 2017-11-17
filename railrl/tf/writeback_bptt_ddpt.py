@@ -3,7 +3,7 @@
 """
 import tensorflow as tf
 
-from railrl.algos.bptt_ddpg import BpttDDPG
+from railrl.tf.bptt_ddpg import BpttDDPG
 from railrl.core import tf_util
 
 

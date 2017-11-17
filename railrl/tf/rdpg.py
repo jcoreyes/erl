@@ -7,8 +7,8 @@ import tensorflow as tf
 from typing import Iterable
 import numpy as np
 
-from railrl.algos.bptt_ddpg import BpttDDPG
-from railrl.algos.ddpg import DDPG, TargetUpdateMode
+from railrl.tf.bptt_ddpg import BpttDDPG
+from railrl.tf.ddpg import DDPG, TargetUpdateMode
 from railrl.core import tf_util
 from railrl.core.rnn.rnn import OutputStateRnn
 from railrl.data_management.subtraj_replay_buffer import (
@@ -233,14 +233,14 @@ class RDPG(BpttDDPG):
             rnn_cell_scope,
     ):
         """
-        :param rnn_cell: 
-        :param obs_unstacked: List of length subsequence_length of Tensors 
+        :param rnn_cell:
+        :param obs_unstacked: List of length subsequence_length of Tensors
         with shape [None x observation dimension]
-        :param actions_unstacked: List of length subsequence_length of Tensors 
+        :param actions_unstacked: List of length subsequence_length of Tensors
         with shape [None x observation dimension]
-        :param rnn_init_state: 
-        :param rnn_cell_scope: 
-        :return: 
+        :param rnn_init_state:
+        :param rnn_cell_scope:
+        :return:
         """
         rnn_inputs = list(zip(obs_unstacked, actions_unstacked))
         rnn_cell_scope.reuse_variables()
@@ -397,8 +397,8 @@ class RDPG(BpttDDPG):
         """
         The batch is a bunch of subsequences. Flatten the subsequences so
         that they just look like normal (s, a, s') tuples.
-        
-        Also, the actions/observations are split into their respective 
+
+        Also, the actions/observations are split into their respective
         augmented parts.
         """
         rewards = batch['rewards']

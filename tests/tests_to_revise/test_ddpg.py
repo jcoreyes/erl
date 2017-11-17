@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 import tensorflow as tf
 
-from railrl.algos.ddpg import DDPG
+from railrl.tf.ddpg import DDPG
 from railrl.policies.tensorflow.sum_policy import SumPolicy
 from railrl.qfunctions.sum_qfunction import SumCritic
 from railrl.testing.railrl_test_case import RailRLTestCase

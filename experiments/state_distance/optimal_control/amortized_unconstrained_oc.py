@@ -8,7 +8,7 @@ from pathlib import Path
 
 import joblib
 import numpy as np
-from railrl.algos.state_distance.state_distance_q_learning import \
+from railrl.tf.state_distance.state_distance_q_learning import \
     multitask_rollout
 
 import railrl.torch.pytorch_util as ptu

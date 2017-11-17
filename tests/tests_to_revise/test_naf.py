@@ -4,7 +4,7 @@ import unittest
 import numpy as np
 import tensorflow as tf
 
-from railrl.algos.naf import NAF
+from railrl.tf.naf import NAF
 from railrl.qfunctions.quadratic_naf_qfunction import QuadraticNAF
 from railrl.testing.railrl_test_case import RailRLTestCase
 from rllab.envs.box2d.cartpole_env import CartpoleEnv

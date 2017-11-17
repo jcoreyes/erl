@@ -1,7 +1,7 @@
 """
 Test different target update modes.
 """
-from railrl.algos.ddpg import DDPG, TargetUpdateMode
+from railrl.tf.ddpg import DDPG, TargetUpdateMode
 from railrl.launchers.launcher_util import run_experiment
 from railrl.launchers.algo_launchers import get_env_settings
 from railrl.policies.tensorflow.nn_policy import FeedForwardPolicy
