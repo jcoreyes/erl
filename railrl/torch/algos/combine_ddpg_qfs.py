@@ -8,7 +8,7 @@ from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import get_average_returns, split_paths
 from railrl.torch.algos.util import np_to_pytorch_batch
 from railrl.torch.algos.eval import get_generic_path_information
-from railrl.torch.rl_algorithm import InPlacePathSampler
+from railrl.samplers.in_place import InPlacePathSampler
 from rllab.algos.base import RLAlgorithm
 from rllab.misc import logger
 

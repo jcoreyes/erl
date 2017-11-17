@@ -10,66 +10,9 @@ from railrl.misc.rllab_util import (
     save_extra_data_to_snapshot_dir,
 )
 from railrl.policies.base import ExplorationPolicy
-from railrl.samplers.util import rollout
+from railrl.samplers.in_place import InPlacePathSampler
+from railrl.samplers.parallel import SimplePathSampler
 from rllab.misc import logger
-from rllab.sampler import parallel_sampler
-
-
-class SimplePathSampler(object):
-    """
-    Sample things in another thread by serializing the policy and environment.
-    Only one thread is used.
-    """
-    def __init__(self, env, policy, max_samples, max_path_length):
-        self.env = env
-        self.policy = policy
-        self.max_samples = max_samples
-        self.max_path_length = max_path_length
-
-    def start_worker(self):
-        parallel_sampler.populate_task(self.env, self.policy)
-
-    def shutdown_worker(self):
-        parallel_sampler.terminate_task()
-
-    def obtain_samples(self):
-        cur_params = self.policy.get_param_values()
-        return parallel_sampler.sample_paths(
-            policy_params=cur_params,
-            max_samples=self.max_samples,
-            max_path_length=self.max_path_length,
-        )
-
-
-class InPlacePathSampler(object):
-    """
-    A sampler that does not serialization for sampling. Instead, it just uses
-    the current policy and environment as-is.
-
-    WARNING: This will affect the environment! So
-    ```
-    sampler = InPlacePathSampler(env, ...)
-    sampler.obtain_samples  # this has side-effects: env will change!
-    ```
-    """
-    def __init__(self, env, policy, max_samples, max_path_length):
-        self.env = env
-        self.policy = policy
-        self.max_path_length = max_path_length
-        self.num_rollouts = max_samples // self.max_path_length
-        assert self.num_rollouts > 0, "Need max_samples >= max_path_length"
-
-    def start_worker(self):
-        pass
-
-    def shutdown_worker(self):
-        pass
-
-    def obtain_samples(self):
-        return [
-            rollout(self.env, self.policy, max_path_length=self.max_path_length)
-            for _ in range(self.num_rollouts)
-        ]
 
 
 class RLAlgorithm(metaclass=abc.ABCMeta):
