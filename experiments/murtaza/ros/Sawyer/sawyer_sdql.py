@@ -177,16 +177,16 @@ if __name__ == '__main__':
     )
     lego_block_task_variant = dict(
         algo_params=dict(
-            num_epochs=5,
-            num_steps_per_epoch=100,
-            num_steps_per_eval=100,
-            num_updates_per_env_step=1,
+            num_epochs=60,
+            num_steps_per_epoch=1000,
+            num_steps_per_eval=1000,
+            num_updates_per_env_step=2,
             use_soft_update=True,
             tau=0.001,
-            batch_size=1,
+            batch_size=64,
             discount=algo_class_to_discount[algo_class],
             sample_train_goals_from='her',
-            sample_rollout_goals_from='environment',
+            sample_rollout_goals_from='replay_buffer',
             sample_discount=True,
             qf_weight_decay=0.,
             max_path_length=max_path_length,
@@ -242,21 +242,21 @@ if __name__ == '__main__':
     if exp_dir:
         continue_experiment(exp_dir, resume_function=resume_torch_algorithm)
     else:
-        do_reaching_task = True
+        do_reaching_task = False
         if do_reaching_task:
-            for i in range(1, 4):
+            for i in range(3):
                 algo_class = reaching_task_variant['algo_class']
                 run_experiment(
                     experiment,
                     seed=random.randint(0, 666),
-                    exp_prefix="sdql-sawyer-reaching",
+                    exp_prefix="sdql-sawyer-reaching-NIPS",
                     mode="local",
                     variant=dict(
                         algo_params=dict(
-                            num_epochs=60,
+                            num_epochs=50,
                             num_steps_per_epoch=1000,
                             num_steps_per_eval=1000,
-                            num_updates_per_env_step=i,
+                            num_updates_per_env_step=3,
                             use_soft_update=True,
                             tau=0.001,
                             batch_size=64,
@@ -302,7 +302,7 @@ if __name__ == '__main__':
                           'safety_box': True,
                           'loss': 'huber',
                           'huber_delta': 10,
-                          'safety_force_magnitude': 7,
+                          'safety_force_magnitude': 8,
                           'temp': 15,
                           'remove_action': False,
                           'experiment': experiments[2],
@@ -321,7 +321,7 @@ if __name__ == '__main__':
                 run_experiment(
                     experiment,
                     seed=random.randint(0, 666),
-                    exp_prefix="sdql-sawyer-lego-stack-TEST",
+                    exp_prefix="sdql-sawyer-orientation-TEST",
                     mode="local",
                     variant=lego_block_task_variant,
                     exp_id=0,

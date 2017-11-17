@@ -296,6 +296,8 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
             orientations = []
             desired_orientations = []
             desired_positions = []
+            last_orientations = []
+            last_desired_orientations = []
 
         last_counter = 0
         for obsSet in obsSets:
@@ -303,12 +305,15 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
                 positions.append(observation[21:24])
                 if self.task == 'lego':
                     orientations.append(observation[24:28])
-                    desired_orientations.append(goal_states[counter][24:28])
-                    desired_positions.append(goal_states[counter][21:28])
+                    desired_orientations.append(goal_states[counter][3:7])
+                    desired_positions.append(goal_states[counter][0:3])
                 counter += 1
             last_counter += len(obsSet)
             last_positions.append(obsSet[-1][21:24])
-            last_desired_positions.append(goal_states[last_counter-1])
+            last_desired_positions.append(goal_states[last_counter-1][0:3])
+            if self.task == 'lego':
+                last_orientations.append(obsSet[-1][24:28])
+                last_desired_orientations.append(goal_states[last_counter-1][3:7])
 
         positions = np.array(positions)
         position_distances = linalg.norm(positions - desired_positions, axis=1)
@@ -335,6 +340,15 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
                 orientations_distance,
                 stat_prefix,
                 'Distance from Desired End Effector Orientation'
+            ))
+
+            last_orientations = np.array(last_orientations)
+            last_desired_orientations = np.array(last_desired_orientations)
+            last_orientations_distances = linalg.norm(last_orientations - last_desired_orientations, axis=1)
+            statistics.update(self._statistics_from_observations(
+                last_orientations_distances,
+                stat_prefix,
+                'Final Orientation from Desired End Effector Position'
             ))
 
         for key, value in statistics.items():
