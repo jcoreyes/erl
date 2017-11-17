@@ -296,9 +296,9 @@ class DDPG(TorchRLAlgorithm):
             logger.record_tabular(key, value)
 
         logger.set_key_prefix('test ')
-        self.log_diagnostics(test_paths)
+        self.env.log_diagnostics(test_paths)
         logger.set_key_prefix('expl ')
-        self.log_diagnostics(self._exploration_paths)
+        self.env.log_diagnostics(self._exploration_paths)
         logger.set_key_prefix('')
 
         if isinstance(self.epoch_discount_schedule, StatConditionalSchedule):

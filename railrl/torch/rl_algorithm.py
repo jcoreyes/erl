@@ -362,9 +362,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             env_info=env_info,
         )
 
-    def log_diagnostics(self, paths):
-        self.env.log_diagnostics(paths)
-
     def get_epoch_snapshot(self, epoch):
         self.training_env.render(close=True)
         return dict(

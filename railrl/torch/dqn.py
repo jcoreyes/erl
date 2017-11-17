@@ -114,6 +114,7 @@ class DQN(TorchRLAlgorithm):
         statistics.update(eval.get_generic_path_information(
             test_paths, self.discount, stat_prefix="Test",
         ))
+        self.env.log_diagnostics(test_paths)
 
         for key, value in statistics.items():
             logger.record_tabular(key, value)
