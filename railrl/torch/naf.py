@@ -7,8 +7,6 @@ from torch.nn import functional as F
 from torch import nn as nn
 from torch.autograd import Variable
 
-from railrl.data_management.env_replay_buffer import EnvReplayBuffer
-from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import get_average_returns, split_paths_to_dict
 from railrl.torch.algos.util import np_to_pytorch_batch
@@ -57,7 +55,7 @@ class NAF(TorchRLAlgorithm):
         self.policy.cuda()
         self.target_policy.cuda()
 
-    def _do_training(self, n_steps_total):
+    def _do_training(self):
         batch = self.get_batch()
 
         """
@@ -76,7 +74,7 @@ class NAF(TorchRLAlgorithm):
         if self.use_soft_update:
             ptu.soft_update_from_to(self.target_policy, self.policy, self.tau)
         else:
-            if n_steps_total % self.target_hard_update_period == 0:
+            if self._n_train_steps_total% self.target_hard_update_period == 0:
                 ptu.copy_model_params_from_to(self.policy, self.target_policy)
 
     def get_train_dict(self, batch):
@@ -105,21 +103,20 @@ class NAF(TorchRLAlgorithm):
         self.policy.train(mode)
         self.target_policy.train(mode)
 
-    def evaluate(self, epoch, exploration_paths):
+    def evaluate(self, epoch):
         """
         Perform evaluation for this algorithm.
 
         :param epoch: The epoch number.
-        :param exploration_paths: List of dicts, each representing a path.
         """
         logger.log("Collecting samples for evaluation")
         train_batch = self.get_batch(training=True)
         validation_batch = self.get_batch(training=False)
-        test_paths = self._sample_eval_paths(epoch)
+        test_paths = self.eval_sampler.obtain_samples()
 
         statistics = OrderedDict()
         statistics.update(
-            self._statistics_from_paths(exploration_paths, "Exploration")
+            self._statistics_from_paths(self._exploration_paths, "Exploration")
         )
         statistics.update(self._statistics_from_paths(test_paths, "Test"))
         statistics.update(self._statistics_from_batch(train_batch, "Train"))
@@ -135,7 +132,7 @@ class NAF(TorchRLAlgorithm):
         for key, value in statistics.items():
             logger.record_tabular(key, value)
 
-        self.log_diagnostics(test_paths)
+        self.env.log_diagnostics(test_paths)
 
     def _statistics_from_paths(self, paths, stat_prefix):
         np_batch = split_paths_to_dict(paths)
@@ -159,12 +156,6 @@ class NAF(TorchRLAlgorithm):
         ))
 
         return statistics
-
-    def _can_evaluate(self, exploration_paths):
-        return (
-            len(exploration_paths) > 0
-            and self.replay_buffer.num_steps_can_sample() > 0
-        )
 
     def get_epoch_snapshot(self, epoch):
         return dict(
