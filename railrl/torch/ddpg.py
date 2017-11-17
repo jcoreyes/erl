@@ -315,11 +315,14 @@ class DDPG(RLAlgorithm):
         for key, value in statistics.items():
             logger.record_tabular(key, value)
 
-        logger.set_key_prefix('test ')
+        # logger.set_key_prefix('test ')
+        logger.push_prefix('test ')
         self.log_diagnostics(test_paths)
-        logger.set_key_prefix('expl ')
+        logger.pop_prefix()
+        logger.push_prefix('expl ')
         self.log_diagnostics(self._exploration_paths)
-        logger.set_key_prefix('')
+        logger.pop_prefix()
+        logger.push_prefix('')
         if isinstance(self.epoch_discount_schedule, StatConditionalSchedule):
             table_dict = rllab_util.get_logger_table_dict()
             # rllab converts things to strings for some reason
