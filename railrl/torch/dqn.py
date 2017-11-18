@@ -60,10 +60,6 @@ class DQN(TorchRLAlgorithm):
 
         self.eval_statistics = None
 
-    def training_mode(self, mode):
-        self.qf.train(mode)
-        self.target_qf.train(mode)
-
     def _do_training(self):
         batch = self.get_batch(training=True)
         rewards = batch['rewards']
@@ -91,7 +87,7 @@ class DQN(TorchRLAlgorithm):
         self.qf_optimizer.zero_grad()
         qf_loss.backward()
         self.qf_optimizer.step()
-        ptu.soft_update(self.target_qf, self.qf, self.tau)
+        self._update_target_network()
 
         """
         Save some statistics for eval
@@ -103,9 +99,8 @@ class DQN(TorchRLAlgorithm):
             ptu.get_numpy(y_pred),
         ))
 
-    def cuda(self):
-        self.qf.cuda()
-        self.target_qf.cuda()
+    def _update_target_network(self):
+        ptu.soft_update(self.target_qf, self.qf, self.tau)
 
     def evaluate(self, epoch):
         statistics = OrderedDict()
@@ -131,3 +126,10 @@ class DQN(TorchRLAlgorithm):
             policy=self.policy,
             env=self.training_env,
         )
+
+    @property
+    def networks(self):
+        return [
+            self.qf,
+            self.target_qf,
+        ]

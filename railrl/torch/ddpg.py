@@ -119,12 +119,6 @@ class DDPG(TorchRLAlgorithm):
         super()._start_epoch(epoch)
         self.discount = self.epoch_discount_schedule.get_value(epoch)
 
-    def cuda(self):
-        self.policy.cuda()
-        self.target_policy.cuda()
-        self.qf.cuda()
-        self.target_qf.cuda()
-
     def _do_training(self):
         for i in range(self.num_updates_per_env_step):
             batch = self.get_batch(training=True)
@@ -239,12 +233,6 @@ class DDPG(TorchRLAlgorithm):
             ('Target Policy Loss', target_policy_loss),
         ])
 
-    def training_mode(self, mode):
-        self.policy.train(mode)
-        self.qf.train(mode)
-        self.target_policy.train(mode)
-        self.target_qf.train(mode)
-
     def evaluate(self, epoch):
         """
         Perform evaluation for this algorithm.
@@ -308,7 +296,6 @@ class DDPG(TorchRLAlgorithm):
                 table_dict[self.epoch_discount_schedule.statistic_name]
             )
             self.epoch_discount_schedule.update(value)
-
 
     def offline_evaluate(self, epoch):
         logger.log("Collecting samples for evaluation")
@@ -393,3 +380,12 @@ class DDPG(TorchRLAlgorithm):
             replay_buffer=self.replay_buffer,
             algorithm=self,
         )
+
+    @property
+    def networks(self):
+        return [
+            self.policy,
+            self.qf,
+            self.target_policy,
+            self.target_qf,
+        ]

@@ -51,10 +51,6 @@ class NAF(TorchRLAlgorithm):
             lr=self.policy_learning_rate,
         )
 
-    def cuda(self):
-        self.policy.cuda()
-        self.target_policy.cuda()
-
     def _do_training(self):
         batch = self.get_batch()
 
@@ -98,10 +94,6 @@ class NAF(TorchRLAlgorithm):
             ('Y targets', y_target),
             ('Y predictions', y_pred),
         ])
-
-    def training_mode(self, mode):
-        self.policy.train(mode)
-        self.target_policy.train(mode)
 
     def evaluate(self, epoch):
         """
@@ -165,6 +157,13 @@ class NAF(TorchRLAlgorithm):
             replay_buffer=self.replay_buffer,
             algorithm=self,
         )
+
+    @property
+    def networks(self):
+        return [
+            self.policy,
+            self.target_policy,
+        ]
 
 
 class NafPolicy(PyTorchModule):
