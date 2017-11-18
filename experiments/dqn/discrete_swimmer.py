@@ -41,7 +41,6 @@ if __name__ == "__main__":
             discount=0.99,
             epsilon=0.5,
             tau=0.001,
-            # render=True,
         ),
     )
     search_space = {
