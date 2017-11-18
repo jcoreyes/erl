@@ -48,7 +48,6 @@ if __name__ == "__main__":
     search_space = {
         'env_id': [
             'Acrobot-v1',
-            'Pendulum-v0',
             'CartPole-v0',
             'CartPole-v1',
             'MountainCar-v0',
