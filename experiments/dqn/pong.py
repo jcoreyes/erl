@@ -38,20 +38,20 @@ if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
             num_epochs=100,
-            num_steps_per_epoch=10000,
-            num_steps_per_eval=10000,
+            num_steps_per_epoch=100000,
+            num_steps_per_eval=100000,
             batch_size=128,
-            max_path_length=np.inf,
+            max_path_length=10000,
             discount=0.99,
             epsilon=0.2,
-            tau=1,
+            tau=0.001,
         ),
     )
-    for _ in range(3):
+    for _ in range(1):
         seed = random.randint(0, 999999)
         run_experiment(
             experiment,
-            exp_prefix="try-dqn-pong-ram-2",
+            exp_prefix="try-dqn-pong-ram-4-long",
             seed=seed,
             variant=variant,
             mode='ec2',
