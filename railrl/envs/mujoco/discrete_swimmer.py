@@ -9,9 +9,11 @@ import itertools
 
 
 class DiscreteSwimmerEnv(mujoco_env.MujocoEnv, utils.EzPickle):
-    def __init__(self, num_bins=5, ctrl_cost_coeff=0.0001):
+    def __init__(self, num_bins=5, ctrl_cost_coeff=0.0001,
+                 reward_position=False):
         self.num_bins = num_bins
         self.ctrl_cost_coeff = ctrl_cost_coeff
+        self.reward_position = reward_position
         utils.EzPickle.__init__(self, num_bins=num_bins)
         mujoco_env.MujocoEnv.__init__(self, 'swimmer.xml', 4)
 
@@ -30,7 +32,10 @@ class DiscreteSwimmerEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             continuous_action = self.continuous_actions[a]
 
         self.do_simulation(continuous_action, self.frame_skip)
-        reward_fwd = self.get_body_com("torso")[0]
+        if self.reward_position:
+            reward_fwd = self.get_body_com("torso")[0]
+        else:
+            reward_fwd = self.get_body_comvel("torso")[0]
         reward_ctrl = - self.ctrl_cost_coeff * np.square(
             continuous_action
         ).sum()
