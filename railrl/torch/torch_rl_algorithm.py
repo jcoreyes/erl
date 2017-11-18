@@ -38,8 +38,8 @@ class TorchRLAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         batch = replay_buffer.random_batch(sample_size)
         return np_to_pytorch_batch(batch)
 
-    @abc.abstractmethod
     @property
+    @abc.abstractmethod
     def networks(self) -> Iterable[PyTorchModule]:
         pass
 
