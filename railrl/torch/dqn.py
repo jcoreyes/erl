@@ -91,7 +91,7 @@ class DQN(TorchRLAlgorithm):
         self.qf_optimizer.zero_grad()
         qf_loss.backward()
         self.qf_optimizer.step()
-        ptu.soft_update_from_to(self.target_qf, self.qf, self.tau)
+        ptu.soft_update(self.target_qf, self.qf, self.tau)
 
         """
         Save some statistics for eval

@@ -148,9 +148,9 @@ class DDPG(TorchRLAlgorithm):
 
             if self.use_soft_update:
                 if not self.optimize_target_policy:
-                    ptu.soft_update_from_to(self.target_policy, self.policy,
-                                            self.tau)
-                ptu.soft_update_from_to(self.target_qf, self.qf, self.tau)
+                    ptu.soft_update(self.target_policy, self.policy,
+                                    self.tau)
+                ptu.soft_update(self.target_qf, self.qf, self.tau)
             else:
                 if self._n_env_steps_total % self.target_hard_update_period == 0:
                     ptu.copy_model_params_from_to(self.qf, self.target_qf)
