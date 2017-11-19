@@ -109,10 +109,10 @@ class DQN(TorchRLAlgorithm):
 
     def _update_target_network(self):
         if self.use_hard_updates:
-            ptu.copy_model_params_from_to(self.qf, self.target_qf)
-        else:
             if self._n_train_steps_total % self.hard_update_period == 0:
-                ptu.soft_update(self.target_qf, self.qf, self.tau)
+                ptu.copy_model_params_from_to(self.qf, self.target_qf)
+        else:
+            ptu.soft_update(self.target_qf, self.qf, self.tau)
 
     def evaluate(self, epoch):
         statistics = OrderedDict()
