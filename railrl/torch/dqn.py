@@ -23,6 +23,8 @@ class DQN(TorchRLAlgorithm):
             env,
             qf,
             learning_rate=1e-3,
+            use_hard_updates=False,
+            hard_update_period=1000,
             tau=0.001,
             epsilon=0.1,
             **kwargs
@@ -32,7 +34,11 @@ class DQN(TorchRLAlgorithm):
         :param env: Env.
         :param qf: QFunction. Maps from state to action Q-values.
         :param learning_rate: Learning rate for qf. Adam is used.
-        :param tau: Soft target tau to update target QF.
+        :param use_hard_updates: Use a hard rather than soft update.
+        :param hard_update_period: How many gradient steps before copying the
+        parameters over. Used if `use_hard_updates` is True.
+        :param tau: Soft target tau to update target QF. Used if
+        `use_hard_updates` is False.
         :param epsilon: Probability of taking a random action.
         :param kwargs: kwargs to pass onto TorchRLAlgorithm
         """
@@ -51,6 +57,8 @@ class DQN(TorchRLAlgorithm):
         self.qf = qf
         self.target_qf = self.qf.copy()
         self.learning_rate = learning_rate
+        self.use_hard_updates = use_hard_updates
+        self.hard_update_period = hard_update_period
         self.tau = tau
         self.qf_optimizer = optim.Adam(
             self.qf.parameters(),
@@ -100,7 +108,11 @@ class DQN(TorchRLAlgorithm):
         ))
 
     def _update_target_network(self):
-        ptu.soft_update(self.target_qf, self.qf, self.tau)
+        if self.use_hard_updates:
+            ptu.copy_model_params_from_to(self.qf, self.target_qf)
+        else:
+            if self._n_train_steps_total % self.hard_update_period == 0:
+                ptu.soft_update(self.target_qf, self.qf, self.tau)
 
     def evaluate(self, epoch):
         statistics = OrderedDict()

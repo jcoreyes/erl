@@ -9,6 +9,7 @@ import numpy as np
 import railrl.torch.pytorch_util as ptu
 from railrl.launchers.launcher_util import run_experiment
 from railrl.networks.base import Mlp
+from railrl.torch.double_dqn import DoubleDQN
 from railrl.torch.dqn import DQN
 import railrl.misc.hyperparameter as hyp
 
@@ -21,7 +22,7 @@ def experiment(variant):
         input_size=int(np.prod(env.observation_space.shape)),
         output_size=env.action_space.n,
     )
-    algorithm = DQN(
+    algorithm = variant['algo_class'](
         env,
         qf=qf,
         **variant['algo_params']
@@ -36,14 +37,16 @@ if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
             num_epochs=100,
-            num_steps_per_epoch=10000,
-            num_steps_per_eval=10000,
+            num_steps_per_epoch=1000,
+            num_steps_per_eval=1000,
             batch_size=128,
             max_path_length=1000,
             discount=0.99,
             epsilon=0.2,
             tau=0.001,
+            hard_update_period=1000,
         ),
+        algo_class=DoubleDQN,
     )
     search_space = {
         'env_id': [
@@ -52,16 +55,22 @@ if __name__ == "__main__":
             'CartPole-v1',
             'MountainCar-v0',
         ],
+        'algo_class': [
+            DoubleDQN,
+            DQN,
+        ],
+        'algo_params.use_hard_updates': [True, False],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(3):
+        # for i in range(1):
             seed = random.randint(0, 10000)
             run_experiment(
                 experiment,
-                exp_prefix="dqn-try-many-classic-envs",
+                exp_prefix="double-vs-dqn-discrete-classic-envs",
                 seed=seed,
                 variant=variant,
                 mode='ec2',
