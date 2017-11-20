@@ -36,7 +36,7 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
-            num_epochs=100,
+            num_epochs=500,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             batch_size=128,
@@ -70,11 +70,12 @@ if __name__ == "__main__":
             seed = random.randint(0, 10000)
             run_experiment(
                 experiment,
-                exp_prefix="double-vs-dqn-discrete-classic-envs-fixed",
+                exp_prefix="double-vs-dqn-discrete-classic-envs-longer",
                 seed=seed,
                 variant=variant,
                 mode='ec2',
                 use_gpu=False,
+                exp_id=exp_id,
                 # mode='local',
                 # use_gpu=True,
             )
