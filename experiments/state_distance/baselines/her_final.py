@@ -1,35 +1,10 @@
 import argparse
-import random
 
-from railrl.envs.env_utils import gym_env
-from railrl.envs.mujoco.pusher2d import RandomGoalPusher2DEnv
-from railrl.envs.multitask.her_half_cheetah import HalfCheetah
-from railrl.envs.multitask.her_pusher_env import Pusher2DEnv
-from railrl.envs.multitask.her_reacher_7dof_env import Reacher7Dof
-from railrl.envs.multitask.multitask_env import multitask_to_flat_env
-from railrl.envs.wrappers import normalize_box
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.qfunctions.torch import FeedForwardQFunction
 from railrl.torch.ddpg import DDPG
-import railrl.misc.hyperparameter as hyp
-
-from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
-from railrl.envs.multitask.pusher import (
-    JointOnlyPusherEnv,
-)
-from railrl.envs.multitask.reacher_7dof import (
-    Reacher7DofFullGoalState,
-    Reacher7DofMultitaskEnv, Reacher7DofGoalStateEverything,
-    Reacher7DofXyzGoalState)
-from railrl.envs.multitask.pusher2d import HandCylinderXYPusher2DEnv, \
-    MultitaskPusher2DEnv
-from railrl.envs.multitask.reacher_env import (
-    GoalStateSimpleStateReacherEnv,
-)
 
 
 def experiment(variant):
@@ -122,26 +97,19 @@ import random
 from torch.nn import functional as F
 
 import railrl.torch.pytorch_util as ptu
-from railrl.algos.state_distance.her import HER
+from railrl.tf.state_distance.her import HER
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
-from railrl.envs.multitask.pusher2d import HandCylinderXYPusher2DEnv, \
-    CylinderXYPusher2DEnv
-from railrl.envs.multitask.reacher_7dof import Reacher7DofGoalStateEverything, \
-    Reacher7DofXyzGoalState
+from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
+from railrl.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState
 from railrl.envs.wrappers import convert_gym_space, normalize_box
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.networks.her import HerPolicy, HerQFunction
-from railrl.networks.state_distance import (
-    FFUniversalPolicy,
-)
-from railrl.policies.state_distance import TerminalRewardSampleOCPolicy
 from railrl.torch.modules import HuberLoss
-from railrl.torch.state_distance.exploration import \
+from railrl.state_distance.exploration import \
     UniversalPolicyWrappedWithExplorationStrategy
-import railrl.misc.hyperparameter as hyp
 
 
 def experiment(variant):

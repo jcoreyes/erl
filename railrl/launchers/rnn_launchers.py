@@ -12,7 +12,7 @@ def bptt_launcher(variant):
     from railrl.launchers.launcher_util import (
         set_seed,
     )
-    from railrl.algos.bptt import Bptt
+    from railrl.tf.bptt import Bptt
     H = variant['H']
     seed = variant['seed']
     env_class = variant['env_class']

@@ -104,7 +104,7 @@ if __name__ == "__main__":
                     discount=0.99,
                     qf_learning_rate=1e-3,
                     policy_learning_rate=1e-4,
-                    # collection_mode='parallel',
+                    collection_mode='online-parallel',
                 ),
             },
             use_gpu=True,

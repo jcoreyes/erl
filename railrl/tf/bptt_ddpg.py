@@ -7,7 +7,7 @@ import tensorflow as tf
 from typing import Iterable
 import numpy as np
 
-from railrl.algos.ddpg import DDPG
+from railrl.tf.ddpg import DDPG
 from railrl.core import tf_util
 from railrl.core.rnn.rnn import OutputStateRnn
 from railrl.data_management.updatable_subtraj_replay_buffer import (
@@ -68,8 +68,8 @@ def subtraj_batch_to_flat_augmented_batch(batch):
     """
     The batch is a bunch of subsequences. Flatten the subsequences so
     that they just look like normal (s, a, s') tuples.
-    
-    Also, the actions/observations are split into their respective 
+
+    Also, the actions/observations are split into their respective
     augmented parts.
     """
     rewards = batch['rewards']

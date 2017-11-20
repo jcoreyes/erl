@@ -4,7 +4,7 @@
 import tensorflow as tf
 import numpy as np
 
-from railrl.algos.bptt_ddpg import BpttDDPG
+from railrl.tf.bptt_ddpg import BpttDDPG
 from railrl.core.rnn.rnn import OutputStateRnn
 
 

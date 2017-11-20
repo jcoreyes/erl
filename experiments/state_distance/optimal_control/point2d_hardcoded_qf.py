@@ -1,10 +1,6 @@
 import argparse
 import random
-import joblib
-import os
 
-from railrl.algos.state_distance.state_distance_q_learning import \
-    multitask_rollout
 from railrl.envs.multitask.point2d import MultitaskPoint2DEnv, PerfectPoint2DQF
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.state_distance import (
@@ -12,6 +8,8 @@ from railrl.policies.state_distance import (
     PseudoModelBasedPolicy,
     ConstrainedOptimizationOCPolicy,
 )
+from railrl.state_distance.state_distance_q_learning import \
+    multitask_rollout
 from rllab.misc import logger
 
 

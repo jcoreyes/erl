@@ -1,25 +1,26 @@
 import argparse
+import random
+from pathlib import Path
 
 import joblib
-import railrl.torch.pytorch_util as ptu
-from railrl.algos.state_distance.state_distance_q_learning import (
-    StateDistanceQLearning,
-    HorizonFedStateDistanceQLearning)
-from railrl.algos.state_distance.vectorized_sdql import VectorizedDeltaTauSdql, \
+from railrl.tf.state_distance.vectorized_sdql import VectorizedDeltaTauSdql, \
     VectorizedTauSdql
+
+import railrl.torch.pytorch_util as ptu
 from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.networks.state_distance import (
-    FFUniversalPolicy,
     FlatUniversalQfunction,
     GoalConditionedDeltaModel, VectorizedGoalStructuredUniversalQfunction,
     GoalStructuredUniversalQfunction)
-from railrl.torch.modules import HuberLoss
-from railrl.torch.state_distance.exploration import \
+from railrl.state_distance.exploration import \
     UniversalPolicyWrappedWithExplorationStrategy
-import random
-from pathlib import Path
+from railrl.state_distance.state_distance_q_learning import (
+    StateDistanceQLearning,
+    HorizonFedStateDistanceQLearning)
+from railrl.torch.modules import HuberLoss
+
 
 def experiment(variant):
     path = variant['path']

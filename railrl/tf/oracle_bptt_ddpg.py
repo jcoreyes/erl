@@ -3,8 +3,8 @@ from collections import OrderedDict
 import numpy as np
 import tensorflow as tf
 
-from railrl.algos.bptt_ddpg import BpttDDPG
-from railrl.algos.ddpg import TargetUpdateMode
+from railrl.tf.bptt_ddpg import BpttDDPG
+from railrl.tf.ddpg import TargetUpdateMode
 from railrl.core import tf_util
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.pythonplusplus import filter_recursive, line_logger

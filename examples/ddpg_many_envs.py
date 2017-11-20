@@ -3,7 +3,7 @@ Run DDPG on many environments
 """
 import random
 
-from railrl.algos.ddpg import DDPG
+from railrl.tf.ddpg import DDPG
 from railrl.launchers.launcher_util import (
     run_experiment,
 )

@@ -3,8 +3,8 @@ import random
 
 import railrl.torch.pytorch_util as ptu
 import railrl.misc.hyperparameter as hyp
-from railrl.algos.state_distance.model_learning import ModelLearning
-from railrl.algos.state_distance.util import get_replay_buffer
+from railrl.tf.state_distance.model_learning import ModelLearning
+from railrl.tf.state_distance.util import get_replay_buffer
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofFullGoalState,
     Reacher7DofGoalStateEverything,

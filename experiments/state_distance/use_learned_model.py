@@ -7,7 +7,7 @@ import random
 
 import joblib
 
-from railrl.algos.state_distance.state_distance_q_learning import (
+from railrl.state_distance.state_distance_q_learning import (
     multitask_rollout
 )
 from railrl.launchers.launcher_util import run_experiment

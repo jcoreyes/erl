@@ -8,7 +8,7 @@ actions must be computable for a Q function (e.g. the Q function is quadratic).
 import tensorflow as tf
 from railrl.qfunctions.nn_qfunction import NNQFunction
 
-from railrl.algos.ddpg import DDPG
+from railrl.tf.ddpg import DDPG
 from railrl.qfunctions.optimizable_q_function import OptimizableQFunction
 from rllab.misc.overrides import overrides
 

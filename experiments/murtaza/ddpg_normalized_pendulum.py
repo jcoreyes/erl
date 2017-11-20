@@ -1,7 +1,7 @@
 """
 Exampling of running DDPG on Double Pendulum.
 """
-from railrl.algos.ddpg import DDPG
+from railrl.tf.ddpg import DDPG
 from railrl.envs.env_utils import gym_env
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment

@@ -1,15 +1,13 @@
-import math
 from collections import OrderedDict
 
 import numpy as np
-import torch
 
-from railrl.torch import pytorch_util as ptu
-from railrl.torch.algos.util import np_to_pytorch_batch
-from railrl.algos.state_distance.state_distance_q_learning import (
+from railrl.state_distance.state_distance_q_learning import (
     StateDistanceQLearning,
     HorizonFedStateDistanceQLearning,
 )
+from railrl.torch import pytorch_util as ptu
+from railrl.torch.algos.util import np_to_pytorch_batch
 
 
 class VectorizedSdql(StateDistanceQLearning):

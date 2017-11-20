@@ -7,7 +7,7 @@ from enum import Enum
 import tensorflow as tf
 from typing import List
 
-from railrl.algos.online_algorithm import OnlineAlgorithm
+from railrl.tf.online_algorithm import OnlineAlgorithm
 from railrl.core import tf_util
 from railrl.core.neuralnet import NeuralNetwork
 from railrl.misc.data_processing import create_stats_ordered_dict

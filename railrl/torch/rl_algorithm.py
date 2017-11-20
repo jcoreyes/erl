@@ -10,66 +10,8 @@ from railrl.misc.rllab_util import (
     save_extra_data_to_snapshot_dir,
 )
 from railrl.policies.base import ExplorationPolicy
-from railrl.samplers.util import rollout
+from railrl.samplers.in_place import InPlacePathSampler
 from rllab.misc import logger
-from rllab.sampler import parallel_sampler
-
-
-class SimplePathSampler(object):
-    """
-    Sample things in another thread by serializing the policy and environment.
-    Only one thread is used.
-    """
-    def __init__(self, env, policy, max_samples, max_path_length):
-        self.env = env
-        self.policy = policy
-        self.max_samples = max_samples
-        self.max_path_length = max_path_length
-
-    def start_worker(self):
-        parallel_sampler.populate_task(self.env, self.policy)
-
-    def shutdown_worker(self):
-        parallel_sampler.terminate_task()
-
-    def obtain_samples(self):
-        cur_params = self.policy.get_param_values()
-        return parallel_sampler.sample_paths(
-            policy_params=cur_params,
-            max_samples=self.max_samples,
-            max_path_length=self.max_path_length,
-        )
-
-
-class InPlacePathSampler(object):
-    """
-    A sampler that does not serialization for sampling. Instead, it just uses
-    the current policy and environment as-is.
-
-    WARNING: This will affect the environment! So
-    ```
-    sampler = InPlacePathSampler(env, ...)
-    sampler.obtain_samples  # this has side-effects: env will change!
-    ```
-    """
-    def __init__(self, env, policy, max_samples, max_path_length):
-        self.env = env
-        self.policy = policy
-        self.max_path_length = max_path_length
-        self.num_rollouts = max_samples // self.max_path_length
-        assert self.num_rollouts > 0, "Need max_samples >= max_path_length"
-
-    def start_worker(self):
-        pass
-
-    def shutdown_worker(self):
-        pass
-
-    def obtain_samples(self):
-        return [
-            rollout(self.env, self.policy, max_path_length=self.max_path_length)
-            for _ in range(self.num_rollouts)
-        ]
 
 
 class RLAlgorithm(metaclass=abc.ABCMeta):
@@ -86,14 +28,15 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             replay_buffer_size=1000000,
             scale_reward=1,
             render=False,
-            sample_with_training_env=False,
-            eval_sampler=None,
             save_replay_buffer=False,
             save_algorithm=False,
+            eval_sampler=None,
             collection_mode='online',
+            normalize_env=True,
     ):
-        assert collection_mode in ['online', 'parallel', 'offline']
+        assert collection_mode in ['online', 'online-parallel', 'offline']
         self.training_env = pickle.loads(pickle.dumps(env))
+        self.normalize_env = normalize_env
         self.exploration_policy = exploration_policy
         self.num_epochs = num_epochs
         self.num_env_steps_per_epoch = num_steps_per_epoch
@@ -104,35 +47,21 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.replay_buffer_size = replay_buffer_size
         self.scale_reward = scale_reward
         self.render = render
-        self.sample_with_training_env = sample_with_training_env
         self.collection_mode = collection_mode
         self.save_replay_buffer = save_replay_buffer
         self.save_algorithm = save_algorithm
+        if eval_sampler is None:
+            eval_sampler = InPlacePathSampler(
+                env=env,
+                policy=exploration_policy,
+                max_samples=self.num_steps_per_eval,
+                max_path_length=self.max_path_length,
+            )
+        self.eval_sampler = eval_sampler
 
         self.action_space = convert_gym_space(env.action_space)
         self.obs_space = convert_gym_space(env.observation_space)
-
-        if eval_sampler is None:
-            # TODO: Remove flag and force to set eval_sampler
-            if self.sample_with_training_env:
-                self.env = pickle.loads(pickle.dumps(self.training_env))
-                self.eval_sampler = SimplePathSampler(
-                    env=env,
-                    policy=exploration_policy,
-                    max_samples=num_steps_per_eval,
-                    max_path_length=max_path_length,
-                )
-            else:
-                self.env = env
-                self.eval_sampler = InPlacePathSampler(
-                    env=env,
-                    policy=exploration_policy,
-                    max_samples=num_steps_per_eval,
-                    max_path_length=max_path_length,
-                )
-        else:
-            self.eval_sampler = eval_sampler
-            self.env = eval_sampler.env
+        self.env = env
         self.replay_buffer = EnvReplayBuffer(
             self.replay_buffer_size,
             self.env,
@@ -141,16 +70,9 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self._n_env_steps_total = 0
         self._n_train_steps_total = 0
         self._epoch_start_time = None
-        self.final_score = 0
         self._old_table_keys = None
         self._current_path = Path()
         self._exploration_paths = []
-
-    def get_action_and_info(self, observation):
-        self.exploration_policy.set_num_steps_total(self._n_env_steps_total)
-        return self.exploration_policy.get_action(
-            observation,
-        )
 
     def train(self, start_epoch=0):
         if start_epoch == 0:
@@ -160,12 +82,12 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self._n_env_steps_total = start_epoch * self.num_env_steps_per_epoch
         if self.collection_mode == 'online':
             self.train_online(start_epoch=start_epoch)
-        elif self.collection_mode == 'parallel':
+        elif self.collection_mode == 'online-parallel':
             self.train_parallel(start_epoch=start_epoch)
         elif self.collection_mode == 'offline':
             self.train_offline(start_epoch=start_epoch)
         else:
-            raise NotImplementedError("Invalid collection_mode: {}".format(
+            raise TypeError("Invalid collection_mode: {}".format(
                 self.collection_mode
             ))
 
@@ -175,7 +97,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         for epoch in range(start_epoch, self.num_epochs):
             self._start_epoch(epoch)
             for _ in range(self.num_env_steps_per_epoch):
-                action, agent_info = self.get_action_and_info(
+                action, agent_info = self._get_action_and_info(
                     observation,
                 )
                 if self.render:
@@ -298,39 +220,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         logger.dump_tabular(with_prefix=False, with_timestamp=False)
         logger.log("Eval Time: {0}".format(time.time() - start_time))
 
-    def log_diagnostics(self, paths):
-        self.env.log_diagnostics(paths)
-
-    def _can_train(self):
-        return self.replay_buffer.num_steps_can_sample() >= self.batch_size
-
-    def get_epoch_snapshot(self, epoch):
-        return dict(
-            epoch=epoch,
-            exploration_policy=self.exploration_policy,
-            env=self.training_env,
-        )
-
-    def get_extra_data_to_save(self, epoch):
-        """
-        Save things that shouldn't be saved every snapshot but rather
-        overwritten every time.
-        :param epoch:
-        :return:
-        """
-        data_to_save = dict(
-            epoch=epoch,
-            env=self.training_env,
-        )
-        if self.save_replay_buffer:
-            data_to_save['replay_buffer'] = self.replay_buffer
-        if self.save_algorithm:
-            data_to_save['algorithm'] = self
-        return data_to_save
-
-    def training_mode(self, mode):
-        self.exploration_policy.train(mode)
-
     def _can_evaluate(self):
         """
         One annoying thing about the logger table is that the keys at each
@@ -346,6 +235,20 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         return (
             len(self._exploration_paths) > 0
             and self.replay_buffer.num_steps_can_sample() >= self.batch_size
+        )
+
+    def _can_train(self):
+        return self.replay_buffer.num_steps_can_sample() >= self.batch_size
+
+    def _get_action_and_info(self, observation):
+        """
+        Get an action to take in the environment.
+        :param observation:
+        :return:
+        """
+        self.exploration_policy.set_num_steps_total(self._n_env_steps_total)
+        return self.exploration_policy.get_action(
+            observation,
         )
 
     def _start_epoch(self, epoch):
@@ -458,18 +361,72 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             env_info=env_info,
         )
 
+    def log_diagnostics(self, paths):
+        self.env.log_diagnostics(paths)
+
+    def get_epoch_snapshot(self, epoch):
+        return dict(
+            epoch=epoch,
+            exploration_policy=self.exploration_policy,
+            env=self.training_env,
+        )
+
+    def get_extra_data_to_save(self, epoch):
+        """
+        Save things that shouldn't be saved every snapshot but rather
+        overwritten every time.
+        :param epoch:
+        :return:
+        """
+        data_to_save = dict(
+            epoch=epoch,
+            env=self.training_env,
+        )
+        if self.save_replay_buffer:
+            data_to_save['replay_buffer'] = self.replay_buffer
+        if self.save_algorithm:
+            data_to_save['algorithm'] = self
+        return data_to_save
+
+    @abc.abstractmethod
+    def training_mode(self, mode):
+        """
+        Set training mode to `mode`.
+        :param mode: If True, training will happen (e.g. set the dropout
+        probabilities to not all ones).
+        """
+        pass
+
     @abc.abstractmethod
     def cuda(self):
+        """
+        Turn cuda on.
+        :return:
+        """
         pass
 
     @abc.abstractmethod
-    def evaluate(self, epoch, es_path_returns):
+    def evaluate(self, epoch):
+        """
+        Evaluate the policy, e.g. save/print progress.
+        :param epoch:
+        :return:
+        """
         pass
 
     @abc.abstractmethod
-    def offline_evaluate(epoch):
+    def offline_evaluate(self, epoch):
+        """
+        Evaluate without collecting new data.
+        :param epoch:
+        :return:
+        """
         pass
 
     @abc.abstractmethod
     def _do_training(self):
+        """
+        Perform some update, e.g. perform one gradient step.
+        :return:
+        """
         pass

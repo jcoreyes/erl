@@ -3,11 +3,11 @@ import argparse
 import joblib
 
 import railrl.torch.pytorch_util as ptu
-from railrl.algos.state_distance.state_distance_q_learning import (
+from railrl.state_distance.state_distance_q_learning import (
     multitask_rollout,
 )
 from rllab.misc import logger
-import numpy as np
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()

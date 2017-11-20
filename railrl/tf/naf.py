@@ -11,7 +11,7 @@ from railrl.core.neuralnet import NeuralNetwork
 from railrl.core import tf_util
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import split_paths
-from railrl.algos.online_algorithm import OnlineAlgorithm
+from railrl.tf.online_algorithm import OnlineAlgorithm
 from rllab.misc import logger
 from rllab.misc import special
 from rllab.misc.overrides import overrides

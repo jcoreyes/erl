@@ -7,8 +7,8 @@ import numpy as np
 import tensorflow as tf
 from hyperopt import hp
 
-from railrl.algos.bptt_ddpg import BpttDDPG
-from railrl.algos.ddpg import TargetUpdateMode
+from railrl.tf.bptt_ddpg import BpttDDPG
+from railrl.tf.ddpg import TargetUpdateMode
 from railrl.data_management.ocm_subtraj_replay_buffer import (
     OcmSubtrajReplayBuffer
 )

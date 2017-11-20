@@ -91,9 +91,12 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
     ):
         Serializable.quick_init(self, locals())
         super().__init__(env)
-        set_serialization_mode_to_pickle(type(env))
-        set_serialization_mode_to_pickle(type(policy))
-        set_serialization_mode_to_pickle(type(exploration_policy))
+        # set_serialization_mode_to_pickle(type(env))
+        # set_serialization_mode_to_pickle(type(policy))
+        # set_serialization_mode_to_pickle(type(exploration_policy))
+        ray.register_custom_serializer(type(env), use_pickle=True)
+        ray.register_custom_serializer(type(policy), use_pickle=True)
+        ray.register_custom_serializer(type(exploration_policy), use_pickle=True)
         self._ray_env = RayEnv.remote(
             env,
             policy,

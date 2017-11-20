@@ -4,13 +4,13 @@ Script for launch the paper results.
 import argparse
 import random
 
+from railrl.tf.state_distance.vectorized_sdql import (
+    VectorizedTauSdql,
+)
 from torch.nn import functional as F
 
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
-from railrl.algos.state_distance.vectorized_sdql import (
-    VectorizedTauSdql,
-)
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
@@ -29,9 +29,9 @@ from railrl.networks.state_distance import (
     VectorizedGoalStructuredUniversalQfunction)
 from railrl.policies.state_distance import \
     UnconstrainedOcWithGoalConditionedModel, UnconstrainedOcWithImplicitModel
-from railrl.torch.modules import HuberLoss
-from railrl.torch.state_distance.exploration import \
+from railrl.state_distance.exploration import \
     UniversalPolicyWrappedWithExplorationStrategy
+from railrl.torch.modules import HuberLoss
 
 
 def experiment(variant):

@@ -1,18 +1,16 @@
-import torch
-import numpy as np
 from collections import OrderedDict
 
+import numpy as np
+
 import railrl.torch.pytorch_util as ptu
-from railrl.algos.state_distance.state_distance_q_learning import (
-    MultigoalSimplePathSampler
-)
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.misc.rllab_util import split_paths_to_dict
-from railrl.torch.algos.eval import get_generic_path_information
+from railrl.state_distance.state_distance_q_learning import (
+    MultigoalSimplePathSampler
+)
 from railrl.torch.algos.util import np_to_pytorch_batch
 from railrl.torch.ddpg import DDPG
-from rllab.misc import logger
 
 
 class HER(DDPG):
