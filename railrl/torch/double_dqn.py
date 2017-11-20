@@ -21,10 +21,12 @@ class DoubleDQN(DQN):
         Compute loss
         """
 
-        best_action_idxs = self.target_qf(next_obs).max(
+        best_action_idxs = self.qf(next_obs).max(
             1, keepdim=True
         )[1]
-        target_q_values = self.qf(next_obs).gather(1, best_action_idxs).detach()
+        target_q_values = self.target_qf(next_obs).gather(
+            1, best_action_idxs
+        ).detach()
         y_target = rewards + (1. - terminals) * self.discount * target_q_values
         y_target = y_target.detach()
         # actions is a one-hot vector

@@ -70,7 +70,7 @@ if __name__ == "__main__":
             seed = random.randint(0, 10000)
             run_experiment(
                 experiment,
-                exp_prefix="double-vs-dqn-discrete-classic-envs-longer",
+                exp_prefix="double-vs-dqn-discrete-classic-envs-longer-2",
                 seed=seed,
                 variant=variant,
                 mode='ec2',
