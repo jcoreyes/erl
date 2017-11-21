@@ -1,6 +1,7 @@
-from rllab.core.serializable import Serializable
 from railrl.core import tf_util
-from railrl.core.neuralnet import NeuralNetwork
+
+from railrl.tf.core.neuralnet import NeuralNetwork
+from rllab.core.serializable import Serializable
 from rllab.misc.overrides import overrides
 
 

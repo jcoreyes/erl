@@ -1,8 +1,8 @@
 import tensorflow as tf
 from tensorflow.contrib.rnn import LSTMCell
 
-from railrl.core import tf_util
-from railrl.policies.memory.rnn_cell_policy import RnnCellPolicy
+from railrl.tf.core import tf_util
+from railrl.tf.policies.memory.rnn_cell_policy import RnnCellPolicy
 
 
 class DecoupledLSTM(LSTMCell):

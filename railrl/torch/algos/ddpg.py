@@ -5,16 +5,14 @@ import torch.optim as optim
 from torch import nn as nn
 
 import railrl.torch.pytorch_util as ptu
-from railrl.data_management.env_replay_buffer import EnvReplayBuffer
-from railrl.data_management.split_buffer import SplitReplayBuffer
+from railrl.misc import rllab_util
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.ml_util import (
     StatConditionalSchedule,
     ConstantSchedule,
 )
-from railrl.misc import rllab_util
 from railrl.torch.algos.util import np_to_pytorch_batch
-from railrl.torch.algos.eval import get_statistics_from_pytorch_dict, \
+from railrl.torch.eval_util import get_statistics_from_pytorch_dict, \
     get_difference_statistics, get_generic_path_information
 from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
 from rllab.misc import logger

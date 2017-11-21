@@ -18,7 +18,7 @@ from railrl.launchers.launcher_util import (
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.hypopt import optimize_and_save
 from railrl.misc.ml_util import RampUpSchedule
-from railrl.networks.state_distance import UniversalQfunction
+from railrl.state_distance.networks import UniversalQfunction
 
 
 def experiment(variant):

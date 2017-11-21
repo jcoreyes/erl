@@ -1,15 +1,16 @@
-import numpy as np
 import math
-import torch
-from torch import nn as nn
-from torch.nn import functional as F
-from torch import optim
-from scipy import optimize
 
-from railrl.networks.base import Mlp
+import numpy as np
+import torch
+from scipy import optimize
+from torch import nn as nn
+from torch import optim
+from torch.nn import functional as F
+
 from railrl.policies.state_distance import UniversalPolicy
 from railrl.pythonplusplus import identity
 from railrl.torch import pytorch_util as ptu
+from railrl.torch.networks import Mlp
 from railrl.torch.core import PyTorchModule
 
 

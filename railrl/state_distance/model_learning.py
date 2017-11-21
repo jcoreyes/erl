@@ -15,9 +15,9 @@ from railrl.samplers.util import rollout
 from railrl.state_distance.state_distance_q_learning import \
     multitask_rollout
 from railrl.torch import pytorch_util as ptu
-from railrl.torch.algos.eval import get_statistics_from_pytorch_dict, \
-    get_difference_statistics
 from railrl.torch.algos.util import np_to_pytorch_batch
+from railrl.torch.eval_util import get_statistics_from_pytorch_dict, \
+    get_difference_statistics
 from rllab.misc import logger
 
 

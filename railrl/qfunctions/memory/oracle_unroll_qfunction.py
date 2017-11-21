@@ -1,8 +1,8 @@
 import tensorflow as tf
 
-from railrl.core.rnn.rnn import SaveEverythingRnn
-from railrl.policies.memory.rnn_cell_policy import RnnCellPolicy
 from railrl.qfunctions.nn_qfunction import NNQFunction
+from railrl.tf.core.rnn.rnn import SaveEverythingRnn
+from railrl.tf.policies.memory.rnn_cell_policy import RnnCellPolicy
 
 
 class OracleUnrollQFunction(NNQFunction):

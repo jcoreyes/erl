@@ -1,6 +1,6 @@
 import abc
 
-from railrl.policies.memory.memory_policy import MemoryPolicy
+from railrl.tf.policies.memory.memory_policy import MemoryPolicy
 
 
 class RnnCellPolicy(MemoryPolicy, metaclass=abc.ABCMeta):

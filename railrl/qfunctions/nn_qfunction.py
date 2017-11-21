@@ -2,7 +2,7 @@ import abc
 
 import tensorflow as tf
 
-from railrl.core.tf_util import he_uniform_initializer, mlp, linear
+from railrl.tf.core.tf_util import he_uniform_initializer, mlp, linear
 from railrl.tf.predictors.state_action_network import StateActionNetwork
 
 

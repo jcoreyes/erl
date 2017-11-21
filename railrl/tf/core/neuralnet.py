@@ -4,7 +4,7 @@ from contextlib import contextmanager
 import tensorflow as tf
 from typing import Iterable
 
-from railrl.core import tf_util
+from railrl.tf.core import tf_util
 from rllab.core.serializable import Serializable
 from rllab.misc.overrides import overrides
 from sandbox.rocky.tf.core.parameterized import Parameterized

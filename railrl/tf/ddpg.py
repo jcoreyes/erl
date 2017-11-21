@@ -5,10 +5,9 @@ from collections import OrderedDict
 from enum import Enum
 
 import tensorflow as tf
+from railrl.core import tf_util
 from typing import List
 
-from railrl.core import tf_util
-from railrl.core.neuralnet import NeuralNetwork
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import (
     split_paths,
@@ -16,6 +15,7 @@ from railrl.misc.rllab_util import (
 )
 from railrl.pythonplusplus import filter_recursive
 from railrl.qfunctions.nn_qfunction import NNQFunction
+from railrl.tf.core.neuralnet import NeuralNetwork
 from railrl.tf.online_algorithm import OnlineAlgorithm
 from railrl.tf.policies.nn_policy import NNPolicy
 from rllab.misc.overrides import overrides

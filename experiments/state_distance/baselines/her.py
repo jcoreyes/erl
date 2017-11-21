@@ -1,7 +1,7 @@
 import argparse
 import random
 
-from railrl.tf.state_distance.her import HER
+from railrl.state_distance.her import HER, HerQFunction, HerPolicy
 from torch.nn import functional as F
 
 import railrl.misc.hyperparameter as hyp
@@ -14,7 +14,6 @@ from railrl.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState
 from railrl.envs.wrappers import convert_gym_space, normalize_box
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.networks.her import HerPolicy, HerQFunction
 from railrl.state_distance.exploration import \
     UniversalPolicyWrappedWithExplorationStrategy
 from railrl.torch.modules import HuberLoss

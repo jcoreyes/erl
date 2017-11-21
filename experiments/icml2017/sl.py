@@ -1,18 +1,17 @@
 """
 Supervised learning with full BPTT.
 """
-import tensorflow as tf
 import random
-from tensorflow.contrib.rnn import LSTMCell
+
+import tensorflow as tf
 
 from railrl.envs.memory.high_low import HighLow
-from railrl.envs.memory.one_char_memory import OneCharMemory
 from railrl.launchers.launcher_util import (
     run_experiment,
     set_seed,
 )
 from railrl.launchers.rnn_launchers import bptt_launcher
-from railrl.policies.memory.lstm_memory_policy import (
+from railrl.tf.policies.memory.lstm_memory_policy import (
     SeparateLstmLinearCell)
 
 

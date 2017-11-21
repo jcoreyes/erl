@@ -1,7 +1,7 @@
 import tensorflow as tf
 
-from railrl.core import tf_util
-from railrl.core.tf_util import he_uniform_initializer
+from railrl.tf.core import tf_util
+from railrl.tf.core.tf_util import he_uniform_initializer
 from railrl.tf.predictors.state_network import StateNetwork
 
 

@@ -2,29 +2,15 @@ import tensorflow as tf
 from tensorflow.contrib.rnn import LSTMCell, LSTMStateTuple
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import clip_ops
-from tensorflow.python.ops import partitioned_variables
-from tensorflow.python.ops import variable_scope as vs
-
-from tensorflow.python.ops.math_ops import sigmoid
-from tensorflow.python.util import nest
-from tensorflow.python.framework import ops
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import clip_ops
-from tensorflow.python.ops import embedding_ops
 from tensorflow.python.ops import init_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import nn_ops
 from tensorflow.python.ops import partitioned_variables
 from tensorflow.python.ops import variable_scope as vs
-
 from tensorflow.python.ops.math_ops import sigmoid
-from tensorflow.python.ops.math_ops import tanh
-from tensorflow.python.ops.rnn_cell_impl import _RNNCell as RNNCell
-
-from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util import nest
-from tensorflow.contrib.layers import layer_norm
-from railrl.core.tf_util import layer_normalize
+
+from railrl.tf.core.tf_util import layer_normalize
 
 
 class SaveOutputRnn(tf.contrib.rnn.RNNCell):
@@ -141,7 +127,7 @@ class LNLSTMCell(LSTMCell):
 
     def __call__(self, inputs, state, scope=None):
         """Run one step of LSTM.
-    
+
         Args:
           inputs: input Tensor, 2D, batch x num_units.
           state: if `state_is_tuple` is False, this must be a state Tensor,
@@ -149,10 +135,10 @@ class LNLSTMCell(LSTMCell):
             tuple of state Tensors, both `2-D`, with column sizes `c_state` and
             `m_state`.
           scope: VariableScope for the created subgraph; defaults to "lstm_cell".
-    
+
         Returns:
           A tuple containing:
-    
+
           - A `2-D, [batch x output_dim]`, Tensor representing the output of the
             LSTM after reading `inputs` when previous state was `state`.
             Here output_dim is:
@@ -160,7 +146,7 @@ class LNLSTMCell(LSTMCell):
                num_units otherwise.
           - Tensor(s) representing the new state of LSTM after reading `inputs` when
             the previous state was `state`.  Same type and shape(s) as `state`.
-    
+
         Raises:
           ValueError: If input size cannot be inferred from inputs via
             static shape inference.
@@ -245,18 +231,18 @@ class LNLSTMCell(LSTMCell):
 
 def _linear(args, output_size, bias, bias_start=0.0, scope=None):
     """Linear map: sum_i(args[i] * W[i]), where W[i] is a variable.
-  
+
     Args:
       args: a 2D Tensor or a list of 2D, batch x n, Tensors.
       output_size: int, second dimension of W[i].
       bias: boolean, whether to add a bias term or not.
       bias_start: starting value to initialize the bias; 0 by default.
       scope: (optional) Variable scope to create parameters in.
-  
+
     Returns:
       A 2D Tensor with shape [batch x output_size] equal to
       sum_i(args[i] * W[i]), where W[i]s are newly created matrices.
-  
+
     Raises:
       ValueError: if some of the arguments has unspecified or wrong shape.
     """
