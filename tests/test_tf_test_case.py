@@ -2,8 +2,8 @@ import unittest
 
 import tensorflow as tf
 
-from railrl.predictors.perceptron import Perceptron
 from railrl.testing.tf_test_case import TFTestCase
+from railrl.tf.predictors.perceptron import Perceptron
 
 
 class TestTFTestCase(TFTestCase):

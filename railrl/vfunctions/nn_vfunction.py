@@ -1,4 +1,4 @@
-from railrl.predictors.state_network import StateNetwork
+from railrl.tf.predictors.state_network import StateNetwork
 
 
 class NNVFunction(StateNetwork):

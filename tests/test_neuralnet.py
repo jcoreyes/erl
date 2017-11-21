@@ -2,14 +2,14 @@ import unittest
 
 import numpy as np
 import tensorflow as tf
+from railrl.predictors.mlp import Mlp
 
 import railrl
 from railrl.core.neuralnet import NeuralNetwork
 from railrl.core.tf_util import BatchNormConfig
-from railrl.predictors.mlp import Mlp
-from railrl.predictors.perceptron import Perceptron
 from railrl.testing.testing_utils import is_binomial_trial_likely
 from railrl.testing.tf_test_case import TFTestCase
+from railrl.tf.predictors.perceptron import Perceptron
 from rllab.misc.overrides import overrides
 
 
