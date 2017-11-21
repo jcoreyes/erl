@@ -14,7 +14,7 @@ def run_linear_ocm_exp(variant):
         set_seed,
     )
     from railrl.exploration_strategies.ou_strategy import OUStrategy
-    from railrl.policies.tensorflow.nn_policy import FeedForwardPolicy
+    from railrl.tf.policies.nn_policy import FeedForwardPolicy
     from railrl.qfunctions.nn_qfunction import FeedForwardCritic
 
     """

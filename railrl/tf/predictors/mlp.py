@@ -1,10 +1,10 @@
 """
 A series of perceptrons. Implemented mostly for unittests.
 """
-from rllab.core.serializable import Serializable
 from railrl.core import tf_util
 from railrl.core.neuralnet import NeuralNetwork
-from railrl.predictors.perceptron import Perceptron
+from railrl.tf.predictors.perceptron import Perceptron
+from rllab.core.serializable import Serializable
 from rllab.misc.overrides import overrides
 
 

@@ -1,8 +1,8 @@
 import tensorflow as tf
-from railrl.predictors.state_action_network import StateActionNetwork
 
-from railrl.core.tf_util import he_uniform_initializer
 from railrl.core import tf_util
+from railrl.core.tf_util import he_uniform_initializer
+from railrl.tf.predictors.state_action_network import StateActionNetwork
 
 
 class MlpStateActionNetwork(StateActionNetwork):
