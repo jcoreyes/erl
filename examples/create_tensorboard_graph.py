@@ -1,9 +1,10 @@
 """
 Show an example of how to create a TensorBoard graph.
 """
-from railrl.launchers.launcher_util import run_experiment
 import tensorflow as tf
-from railrl.core.tf_util import linear
+
+from railrl.launchers.launcher_util import run_experiment
+from railrl.tf.core.tf_util import linear
 from rllab.misc import logger
 
 

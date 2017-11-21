@@ -1,7 +1,7 @@
 import tensorflow as tf
 
-from railrl.core.tf_util import he_uniform_initializer, mlp, linear
 from railrl.policies.memory.memory_policy import MemoryPolicy
+from railrl.tf.core.tf_util import he_uniform_initializer, mlp, linear
 
 
 class SoftmaxMemoryPolicy(MemoryPolicy):

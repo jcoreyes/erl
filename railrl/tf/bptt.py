@@ -1,18 +1,19 @@
+import time
 from collections import OrderedDict
+
 import numpy as np
 import tensorflow as tf
-import time
+from tensorflow.contrib.rnn import LSTMCell
 
-from railrl.core.tf_util import are_shapes_compatible
 from railrl.envs.memory.high_low import HighLow
 from railrl.envs.memory.one_char_memory import OneCharMemory
 from railrl.misc.data_processing import create_stats_ordered_dict
+from railrl.tf.core.tf_util import are_shapes_compatible
 from rllab.algos.base import RLAlgorithm
 from rllab.core.serializable import Serializable
 from rllab.misc import logger
 from rllab.misc.overrides import overrides
 from sandbox.rocky.tf.core.parameterized import Parameterized
-from tensorflow.contrib.rnn import LSTMCell
 
 __BPTT_VARIABLE_SCOPE__ = "bptt_variable_scope"
 

@@ -1,12 +1,12 @@
 import tensorflow as tf
 
-from railrl.core.tf_util import he_uniform_initializer, mlp, linear
 from railrl.qfunctions.nn_qfunction import NNQFunction
+from railrl.tf.core.tf_util import he_uniform_initializer, mlp, linear
 
 
 class HintMlpMemoryQFunction(NNQFunction):
     """
-    Same as MlpMemoryQFunction, except that this critic receives the true 
+    Same as MlpMemoryQFunction, except that this critic receives the true
     target as input.
     """
     def __init__(

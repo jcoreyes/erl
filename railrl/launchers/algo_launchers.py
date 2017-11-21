@@ -429,8 +429,8 @@ def bptt_ddpg_launcher(variant):
         HintMlpMemoryQFunction
     )
     from os.path import exists
-    import railrl.core.neuralnet
-    railrl.core.neuralnet.dropout_ph = tf.placeholder(tf.float32, name="dropout_keep_prob")
+    import railrl.tf.core.neuralnet
+    railrl.tf.core.neuralnet.dropout_ph = tf.placeholder(tf.float32, name="dropout_keep_prob")
 
     """
     Set up experiment variants.

@@ -1,12 +1,11 @@
 from collections import OrderedDict
 
-from railrl.tf.bptt_ddpg import BpttDDPG
-from railrl.tf.oracle_bptt_ddpg import OracleBpttDdpg
-from railrl.tf.ddpg import TARGET_PREFIX, TargetUpdateMode
 import tensorflow as tf
 
-from railrl.core import tf_util
 from railrl.misc.data_processing import create_stats_ordered_dict
+from railrl.tf.bptt_ddpg import BpttDDPG
+from railrl.tf.core import tf_util
+from railrl.tf.ddpg import TARGET_PREFIX, TargetUpdateMode
 
 
 class MetaBpttDdpg(BpttDDPG):

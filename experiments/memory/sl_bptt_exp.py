@@ -2,31 +2,14 @@
 Supervised learning BPTT on OCM.
 """
 from itertools import product
-import tensorflow as tf
-import random
 
-from railrl.core.rnn.rnn import RWACell
 from railrl.envs.memory.high_low import HighLow
-from railrl.launchers.rnn_launchers import bptt_launcher
 from railrl.launchers.launcher_util import (
     run_experiment,
     set_seed,
 )
-from tensorflow.contrib.rnn import (
-    LayerNormBasicLSTMCell,
-    LSTMCell,
-    BasicLSTMCell,
-    GRUCell,
-)
-from railrl.policies.memory.action_aware_memory_policy import DecoupledLSTM
+from railrl.launchers.rnn_launchers import bptt_launcher
 from railrl.policies.memory.lstm_memory_policy import (
-    LstmLinearCell,
-    LstmLinearCellNoiseAll,
-    LstmLinearCellSwapped,
-    LstmLinearCellNoiseAllNoiseLogit,
-    ResidualLstmLinearCell,
-    GRULinearCell,
-    SeparateLstmLinearCell,
     SeparateRWALinearCell,
 )
 
