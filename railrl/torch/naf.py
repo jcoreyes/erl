@@ -3,17 +3,17 @@ from collections import OrderedDict
 import numpy as np
 import torch
 import torch.optim as optim
-from torch.nn import functional as F
 from torch import nn as nn
 from torch.autograd import Variable
+from torch.nn import functional as F
 
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import get_average_returns, split_paths_to_dict
-from railrl.torch.algos.util import np_to_pytorch_batch
-from railrl.torch.algos.eval import get_statistics_from_pytorch_dict, \
-    get_difference_statistics
-from railrl.torch.core import PyTorchModule
 from railrl.torch import pytorch_util as ptu
+from railrl.torch.algos.util import np_to_pytorch_batch
+from railrl.torch.core import PyTorchModule
+from railrl.torch.eval_util import get_statistics_from_pytorch_dict, \
+    get_difference_statistics
 from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
 from rllab.misc import logger
 

@@ -1,18 +1,18 @@
 from collections import OrderedDict
-import numpy as np
 
+import numpy as np
 import torch
 import torch.optim as optim
 from torch import nn as nn
 
 import railrl.torch.pytorch_util as ptu
-from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.torch.algos import eval
 from railrl.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
 )
 from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
+from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.policies.argmax import ArgmaxDiscretePolicy
+from railrl.torch import eval_util
 from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
 from rllab.misc import logger
 
@@ -118,7 +118,7 @@ class DQN(TorchRLAlgorithm):
         statistics = OrderedDict()
         statistics.update(self.eval_statistics)
         test_paths = self.eval_sampler.obtain_samples()
-        statistics.update(eval.get_generic_path_information(
+        statistics.update(eval_util.get_generic_path_information(
             test_paths, self.discount, stat_prefix="Test",
         ))
         if hasattr(self.env, "log_diagnostics"):
