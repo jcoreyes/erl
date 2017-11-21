@@ -7,9 +7,8 @@ import gym
 import numpy as np
 
 import railrl.torch.pytorch_util as ptu
-from railrl.envs.gridcraft import register_grid_envs
 from railrl.launchers.launcher_util import run_experiment
-from railrl.networks.base import Mlp
+from railrl.torch.base import Mlp
 from railrl.torch.dqn import DQN
 
 

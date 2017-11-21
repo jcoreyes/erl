@@ -2,9 +2,9 @@ import numpy as np
 import torch
 from torch.nn import functional as F
 
-from railrl.networks.base import Mlp
 from railrl.policies.state_distance import UniversalPolicy
 from railrl.torch import pytorch_util as ptu
+from railrl.torch.base import Mlp
 
 
 class HerQFunction(Mlp):

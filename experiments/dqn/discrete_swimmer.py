@@ -2,12 +2,12 @@ import random
 
 import numpy as np
 
+import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.envs.mujoco.discrete_swimmer import DiscreteSwimmerEnv
 from railrl.launchers.launcher_util import run_experiment
-from railrl.networks.base import Mlp
+from railrl.torch.base import Mlp
 from railrl.torch.dqn import DQN
-import railrl.misc.hyperparameter as hyp
 
 
 def experiment(variant):
