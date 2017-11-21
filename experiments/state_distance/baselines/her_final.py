@@ -106,7 +106,7 @@ from railrl.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState
 from railrl.envs.wrappers import convert_gym_space, normalize_box
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.networks.her import HerPolicy, HerQFunction
+from railrl.state_distance.her import HerQFunction, HerPolicy
 from railrl.torch.modules import HuberLoss
 from railrl.state_distance.exploration import \
     UniversalPolicyWrappedWithExplorationStrategy
