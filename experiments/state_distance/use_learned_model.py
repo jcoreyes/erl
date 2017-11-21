@@ -1,23 +1,23 @@
 """
 Use a learned dynamics model to solve a task.
 """
-import os
 import argparse
+import os
 import random
 
 import joblib
 
-from railrl.state_distance.state_distance_q_learning import (
-    multitask_rollout
-)
+import railrl.torch.pytorch_util as ptu
 from railrl.launchers.launcher_util import run_experiment
-from railrl.networks.state_distance import ModelExtractor
 from railrl.policies.model_based import (
     MultistepModelBasedPolicy,
     SQPModelBasedPolicy,
 )
+from railrl.state_distance.networks import ModelExtractor
+from railrl.state_distance.state_distance_q_learning import (
+    multitask_rollout
+)
 from rllab.misc import logger
-import railrl.torch.pytorch_util as ptu
 
 
 def experiment(variant):

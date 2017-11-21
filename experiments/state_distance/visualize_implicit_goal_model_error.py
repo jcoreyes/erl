@@ -7,16 +7,16 @@ python ../this_script.py path/to/params.pkl
 ```
 """
 import argparse
-import numpy as np
-import joblib
-import matplotlib.pyplot as plt
-from matplotlib import colors
-import matplotlib.cm as cm
 
-from railrl.networks.state_distance import NumpyGoalConditionedModelExtractor, \
+import joblib
+import matplotlib.cm as cm
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib import colors
+
+from railrl.state_distance.networks import NumpyGoalConditionedModelExtractor, \
     GoalConditionedDeltaModel, NumpyGoalConditionedDeltaModelExtractor, \
     TauBinaryGoalConditionedDeltaModel
-from railrl.policies.simple import UniformRandomPolicy
 
 
 def visualize_error_vs_tau(qf, policy, env, horizon):

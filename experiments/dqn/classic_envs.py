@@ -9,7 +9,7 @@ import numpy as np
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.base import Mlp
+from railrl.torch.networks import Mlp
 from railrl.torch.double_dqn import DoubleDQN
 from railrl.torch.dqn import DQN
 

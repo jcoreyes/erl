@@ -6,11 +6,11 @@ import joblib
 
 import railrl.torch.pytorch_util as ptu
 from railrl.launchers.launcher_util import run_experiment
-from railrl.networks.state_distance import \
-    VectorizedGoalStructuredUniversalQfunction
 from railrl.policies.state_distance import (
     UnconstrainedOcWithGoalConditionedModel,
     UnconstrainedOcWithImplicitModel)
+from railrl.state_distance.networks import \
+    VectorizedGoalStructuredUniversalQfunction
 from railrl.state_distance.state_distance_q_learning import \
     multitask_rollout
 from rllab.misc import logger

@@ -6,7 +6,7 @@ import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.envs.mujoco.discrete_swimmer import DiscreteSwimmerEnv
 from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.base import Mlp
+from railrl.torch.networks import Mlp
 from railrl.torch.dqn import DQN
 
 

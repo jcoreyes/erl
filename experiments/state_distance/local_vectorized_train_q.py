@@ -16,15 +16,15 @@ from railrl.launchers.launcher_util import (
     setup_logger,
 )
 from railrl.misc.ml_util import ConstantSchedule
-from railrl.networks.state_distance import (
-    FFUniversalPolicy,
-    VectorizedGoalStructuredUniversalQfunction,
-    GoalStructuredUniversalQfunction, GoalConditionedDeltaModel,
-    TauBinaryGoalConditionedDeltaModel)
 from railrl.policies.state_distance import \
     UnconstrainedOcWithGoalConditionedModel, UnconstrainedOcWithImplicitModel
 from railrl.state_distance.exploration import \
     UniversalPolicyWrappedWithExplorationStrategy
+from railrl.state_distance.networks import (
+    FFUniversalPolicy,
+    VectorizedGoalStructuredUniversalQfunction,
+    GoalStructuredUniversalQfunction, GoalConditionedDeltaModel,
+    TauBinaryGoalConditionedDeltaModel)
 from railrl.state_distance.state_distance_q_learning import \
     HorizonFedStateDistanceQLearning
 from railrl.torch.modules import HuberLoss
