@@ -5,7 +5,7 @@ import tensorflow as tf
 
 from railrl.core.tf_util import he_uniform_initializer, mlp, linear
 from railrl.misc.rllab_util import get_action_dim
-from railrl.predictors.state_network import StateNetwork
+from railrl.tf.predictors.state_network import StateNetwork
 from rllab.policies.base import Policy
 
 

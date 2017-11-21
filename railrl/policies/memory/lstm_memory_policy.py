@@ -6,7 +6,7 @@ from railrl.core import tf_util
 from railrl.core.rnn.rnn import LNLSTMCell
 from railrl.core.rnn.rnn import RWACell
 from railrl.policies.memory.rnn_cell_policy import RnnCellPolicy
-from railrl.policies.tensorflow.nn_policy import NNPolicy
+from railrl.tf.policies.nn_policy import NNPolicy
 
 
 class SplitterCell(RNNCell):

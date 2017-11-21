@@ -1,12 +1,12 @@
 """
 Exampling of running DDPG on Double Pendulum.
 """
-from railrl.tf.ddpg import DDPG
 from railrl.envs.env_utils import gym_env
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.policies.tensorflow.nn_policy import FeedForwardPolicy
 from railrl.qfunctions.nn_qfunction import FeedForwardCritic
+from railrl.tf.ddpg import DDPG
+from railrl.tf.policies.nn_policy import FeedForwardPolicy
 from rllab.envs.normalized_env import normalize
 
 

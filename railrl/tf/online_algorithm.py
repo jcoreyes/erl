@@ -16,7 +16,7 @@ from railrl.core.neuralnet import NeuralNetwork
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.replay_buffer import ReplayBuffer
 from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.policies.tensorflow.nn_policy import NNPolicy
+from railrl.tf.policies.nn_policy import NNPolicy
 from rllab.algos.base import RLAlgorithm
 from rllab.misc import logger, special
 from rllab.misc.overrides import overrides
