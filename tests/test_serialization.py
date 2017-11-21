@@ -3,10 +3,10 @@ import unittest
 
 import tensorflow as tf
 
-from railrl.policies.tensorflow.nn_policy import FeedForwardPolicy
 from railrl.qfunctions.nn_qfunction import FeedForwardCritic
 from railrl.qfunctions.quadratic_naf_qfunction import QuadraticNAF
 from railrl.testing.tf_test_case import TFTestCase
+from railrl.tf.policies.nn_policy import FeedForwardPolicy
 
 
 class TestSerialization(TFTestCase):

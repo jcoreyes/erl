@@ -1,10 +1,10 @@
 """
 Exampling of running DDPG on HalfCheetah.
 """
-from railrl.tf.ddpg import DDPG
 from railrl.launchers.launcher_util import run_experiment_here
-from railrl.policies.tensorflow.nn_policy import FeedForwardPolicy
 from railrl.qfunctions.nn_qfunction import FeedForwardCritic
+from railrl.tf.ddpg import DDPG
+from railrl.tf.policies.nn_policy import FeedForwardPolicy
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 from rllab.exploration_strategies.ou_strategy import OUStrategy
 
