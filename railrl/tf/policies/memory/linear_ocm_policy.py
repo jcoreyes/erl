@@ -1,8 +1,8 @@
 import numpy as np
 import tensorflow as tf
 
-from railrl.policies.memory.memory_policy import MemoryPolicy
 from railrl.tf.core.tf_util import weight_variable
+from railrl.tf.policies.memory.memory_policy import MemoryPolicy
 
 
 class LinearOcmPolicy(MemoryPolicy):

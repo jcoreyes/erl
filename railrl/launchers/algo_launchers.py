@@ -16,7 +16,7 @@ from railrl.envs.memory.one_char_memory import OneCharMemory, \
     OneCharMemoryEndOnly, OneCharMemoryOutputRewardMag
 from railrl.exploration_strategies.action_aware_memory_strategy import \
     ActionAwareMemoryStrategy
-from railrl.policies.memory.action_aware_memory_policy import \
+from railrl.tf.policies.memory.action_aware_memory_policy import \
     ActionAwareMemoryPolicy
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.envs.mujoco.ant_env import AntEnv

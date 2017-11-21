@@ -9,7 +9,7 @@ from railrl.launchers.launcher_util import (
     set_seed,
 )
 from railrl.launchers.rnn_launchers import bptt_launcher
-from railrl.policies.memory.lstm_memory_policy import (
+from railrl.tf.policies.memory.lstm_memory_policy import (
     SeparateRWALinearCell,
 )
 

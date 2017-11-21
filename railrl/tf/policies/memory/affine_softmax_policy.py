@@ -1,7 +1,7 @@
 import tensorflow as tf
 
-from railrl.policies.memory.memory_policy import MemoryPolicy
 from railrl.tf.core.tf_util import linear
+from railrl.tf.policies.memory.memory_policy import MemoryPolicy
 
 
 class AffineSoftmaxPolicy(MemoryPolicy):

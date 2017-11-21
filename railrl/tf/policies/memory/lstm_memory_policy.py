@@ -3,9 +3,9 @@ import tensorflow as tf
 from railrl.core import tf_util
 from tensorflow.contrib.rnn import RNNCell, LSTMCell, GRUCell
 
-from railrl.policies.memory.rnn_cell_policy import RnnCellPolicy
 from railrl.tf.core.rnn.rnn import LNLSTMCell
 from railrl.tf.core.rnn.rnn import RWACell
+from railrl.tf.policies.memory.rnn_cell_policy import RnnCellPolicy
 from railrl.tf.policies.nn_policy import NNPolicy
 
 
