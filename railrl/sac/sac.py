@@ -85,30 +85,28 @@ class SoftActorCritic(TorchRLAlgorithm):
 
         q_pred = self.qf(obs, actions)
         v_pred = self.vf(obs)
-        log_pi = self.policy(obs, return_log_prob=True)
+        new_actions, log_pi = self.policy(obs, return_log_prob=True)
 
         """
         QF Loss
         """
         target_v_values = self.target_vf(next_obs)
         q_target = rewards + (1. - terminals) * self.discount * target_v_values
-        q_target = q_target.detach()
-        qf_loss = self.qf_criterion(q_pred, q_target)
+        qf_loss = self.qf_criterion(q_pred, q_target.detach())
 
         """
         VF Loss
         """
         # Make sure policy accounts for squashing functions like tanh correctly!
-        q_target_for_v = self.qf(obs, self.policy(obs))
+        q_target_for_v = self.qf(obs, new_actions)
         v_target = q_target_for_v - log_pi
-        v_target = v_target.detach()
-        vf_loss = self.vf_criterion(v_pred, v_target)
+        vf_loss = self.vf_criterion(v_pred, v_target.detach())
 
         """
         Policy Loss
         """
         log_policy_target = q_pred + v_pred
-        policy_loss = self.policy_criterion(log_pi, log_policy_target)
+        policy_loss = self.policy_criterion(log_pi, log_policy_target.detach())
 
         """
         Update networks

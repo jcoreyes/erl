@@ -1,0 +1,75 @@
+"""
+Run PyTorch Soft Actor Critic on Pendulum.
+"""
+import random
+
+import gym
+import numpy as np
+
+import railrl.torch.pytorch_util as ptu
+from railrl.launchers.launcher_util import run_experiment
+from railrl.sac.policies import TanhGaussianPolicy
+from railrl.sac.sac import SoftActorCritic
+from railrl.torch.algos.dqn import DQN
+from railrl.torch.networks import FlattenMlp
+
+
+def experiment(variant):
+    env = gym.make("Pendulum-v0")
+
+    obs_dim = int(np.prod(env.observation_space.shape))
+    action_dim = int(np.prod(env.action_space.shape))
+
+    qf = FlattenMlp(
+        hidden_sizes=[100, 100],
+        input_size=obs_dim + action_dim,
+        output_size=1,
+    )
+    vf = FlattenMlp(
+        hidden_sizes=[100, 100],
+        input_size=obs_dim + action_dim,
+        output_size=1,
+    )
+    policy = TanhGaussianPolicy(
+        hidden_sizes=[100, 100],
+        input_size=obs_dim,
+        output_size=action_dim,
+    )
+    algorithm = SoftActorCritic(
+        env=env,
+        policy=policy,
+        qf=qf,
+        vf=vf,
+        **variant['algo_params']
+    )
+    if ptu.gpu_enabled():
+        algorithm.cuda()
+    algorithm.train()
+
+
+if __name__ == "__main__":
+    # noinspection PyTypeChecker
+    variant = dict(
+        algo_params=dict(
+            num_epochs=100,
+            num_steps_per_epoch=100000,
+            num_steps_per_eval=100000,
+            batch_size=128,
+            max_path_length=10000,
+            discount=0.99,
+            epsilon=0.2,
+            tau=0.001,
+        ),
+    )
+    for _ in range(1):
+        seed = random.randint(0, 999999)
+        run_experiment(
+            experiment,
+            exp_prefix="try-dqn-pong-ram-4-long",
+            seed=seed,
+            variant=variant,
+            mode='ec2',
+            use_gpu=False,
+            # mode='local',
+            # use_gpu=True,
+        )
