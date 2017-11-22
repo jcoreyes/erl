@@ -1,11 +1,11 @@
 """
 :author: Vitchyr Pong
 """
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
 
 from railrl.tf.bptt_ddpg import BpttDDPG
-from railrl.core.rnn.rnn import OutputStateRnn
+from railrl.tf.core.rnn.rnn import OutputStateRnn
 
 
 class SumBpttDDPG(BpttDDPG):

@@ -1,14 +1,15 @@
 import time
-import numpy as np
-import railrl.torch.pytorch_util as ptu
 from collections import OrderedDict
+
+import numpy as np
 import torch.optim as optim
 
+import railrl.torch.pytorch_util as ptu
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import get_average_returns, split_paths
-from railrl.torch.algos.util import np_to_pytorch_batch
-from railrl.torch.algos.eval import get_generic_path_information
 from railrl.samplers.in_place import InPlacePathSampler
+from railrl.torch.algos.util import np_to_pytorch_batch
+from railrl.torch.eval_util import get_generic_path_information
 from rllab.algos.base import RLAlgorithm
 from rllab.misc import logger
 

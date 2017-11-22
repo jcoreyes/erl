@@ -11,12 +11,12 @@ import numpy as np
 import tensorflow as tf
 from typing import Iterable
 
-import railrl.core.neuralnet
-from railrl.core.neuralnet import NeuralNetwork
+import railrl.tf.core.neuralnet
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.replay_buffer import ReplayBuffer
 from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.policies.tensorflow.nn_policy import NNPolicy
+from railrl.tf.core.neuralnet import NeuralNetwork
+from railrl.tf.policies.nn_policy import NNPolicy
 from rllab.algos.base import RLAlgorithm
 from rllab.misc import logger, special
 from rllab.misc.overrides import overrides
@@ -144,7 +144,7 @@ class OnlineAlgorithm(RLAlgorithm):
         """
         def new_run(fetches, feed_dict=None, **kwargs):
             if feed_dict is not None:
-                feed_dict[railrl.core.neuralnet.dropout_ph] = (
+                feed_dict[railrl.tf.core.neuralnet.dropout_ph] = (
                     self.get_dropout_prob()
                 )
             return run(fetches, feed_dict=feed_dict, **kwargs)

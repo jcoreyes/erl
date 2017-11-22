@@ -5,7 +5,7 @@ from railrl.exploration_strategies.base import PolicyWrappedWithExplorationStrat
 from railrl.launchers.launcher_util import resume_torch_algorithm, continue_experiment, run_experiment
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.qfunctions.torch import FeedForwardQFunction
-from railrl.torch.ddpg import DDPG
+from railrl.torch.algos.ddpg import DDPG
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.torch import pytorch_util as ptu
@@ -104,7 +104,7 @@ if __name__ == "__main__":
                     discount=0.99,
                     qf_learning_rate=1e-3,
                     policy_learning_rate=1e-4,
-                    collection_mode='online-parallel',
+                    collection_mode='online',
                 ),
             },
             use_gpu=True,

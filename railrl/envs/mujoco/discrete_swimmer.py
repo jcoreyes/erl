@@ -22,14 +22,14 @@ class DiscreteSwimmerEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         high = bounds[:, 1]
         joint0_range = np.linspace(low[0], high[0], num_bins)
         joint1_range = np.linspace(low[1], high[1], num_bins)
-        self.continuous_actions = list(itertools.product(joint0_range, joint1_range))
-        self.action_space = spaces.Discrete(len(self.continuous_actions))
+        self.idx_to_continuous_action = list(itertools.product(joint0_range, joint1_range))
+        self.action_space = spaces.Discrete(len(self.idx_to_continuous_action))
 
     def _step(self, a):
         if not self.action_space or not self.action_space.contains(a):
             continuous_action = a
         else:
-            continuous_action = self.continuous_actions[a]
+            continuous_action = self.idx_to_continuous_action[a]
 
         self.do_simulation(continuous_action, self.frame_skip)
         if self.reward_position:

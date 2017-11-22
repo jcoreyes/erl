@@ -3,9 +3,9 @@ import torch
 from torch import optim
 from torch.nn import functional as F
 
-from railrl.networks.base import Mlp
 from railrl.policies.state_distance import UniversalPolicy
 from railrl.torch import pytorch_util as ptu
+from railrl.torch.networks import Mlp
 from railrl.torch.core import PyTorchModule
 from rllab.misc import logger
 

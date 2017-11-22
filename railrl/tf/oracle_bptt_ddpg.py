@@ -1,16 +1,12 @@
-from collections import OrderedDict
-
 import numpy as np
 import tensorflow as tf
 
-from railrl.tf.bptt_ddpg import BpttDDPG
-from railrl.tf.ddpg import TargetUpdateMode
-from railrl.core import tf_util
 from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.pythonplusplus import filter_recursive, line_logger
 from railrl.qfunctions.memory.oracle_unroll_qfunction import (
     OracleUnrollQFunction
 )
+from railrl.tf.bptt_ddpg import BpttDDPG
+from railrl.tf.core import tf_util
 from rllab.misc import logger
 
 

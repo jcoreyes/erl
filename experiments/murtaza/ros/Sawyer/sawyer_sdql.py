@@ -11,14 +11,14 @@ from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.multitask.sawyer_env import MultiTaskSawyerEnv
 from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import run_experiment, continue_experiment, resume_torch_algorithm
-from railrl.networks.state_distance import (
+from railrl.launchers.launcher_util import run_experiment
+from railrl.state_distance.exploration import \
+    UniversalPolicyWrappedWithExplorationStrategy
+from railrl.state_distance.networks import (
     FFUniversalPolicy,
     FlatUniversalQfunction,
     GoalConditionedDeltaModel, VectorizedGoalStructuredUniversalQfunction,
     GoalStructuredUniversalQfunction)
-from railrl.state_distance.exploration import \
-    UniversalPolicyWrappedWithExplorationStrategy
 from railrl.state_distance.state_distance_q_learning import (
     StateDistanceQLearning,
     HorizonFedStateDistanceQLearning)

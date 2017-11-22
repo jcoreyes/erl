@@ -28,13 +28,13 @@ from railrl.launchers.launcher_util import (
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.hypopt import optimize_and_save
 from railrl.misc.ml_util import ConstantSchedule
-from railrl.networks.state_distance import (
-    FFUniversalPolicy,
-    GoalStructuredUniversalQfunction,
-)
 from railrl.policies.state_distance import TerminalRewardSampleOCPolicy
 from railrl.state_distance.exploration import \
     UniversalPolicyWrappedWithExplorationStrategy
+from railrl.state_distance.networks import (
+    FFUniversalPolicy,
+    GoalStructuredUniversalQfunction,
+)
 from railrl.state_distance.state_distance_q_learning import (
     HorizonFedStateDistanceQLearning)
 from railrl.torch.modules import HuberLoss

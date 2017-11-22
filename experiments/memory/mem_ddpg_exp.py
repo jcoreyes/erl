@@ -6,9 +6,9 @@ from railrl.launchers.launcher_util import (
     run_experiment,
     set_seed,
 )
-from railrl.policies.memory.action_aware_memory_policy import \
-    ActionAwareMemoryPolicy
 from railrl.qfunctions.memory.mlp_memory_qfunction import MlpMemoryQFunction
+from railrl.tf.policies.memory.action_aware_memory_policy import \
+    ActionAwareMemoryPolicy
 
 
 def run_linear_ocm_exp(variant):
