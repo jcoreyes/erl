@@ -389,6 +389,7 @@ def run_experiment_old(
         code_diff = ''
         commit_hash = ''
     script_name = "tmp"
+
     if mode == 'here':
         log_dir = create_log_dir(exp_prefix, exp_id, seed,
                                            base_log_dir)
@@ -485,7 +486,8 @@ def continue_experiment(load_experiment_dir, resume_function):
         n_parallel = data['n_parallel']
         base_log_dir = data['base_log_dir']
         log_dir = data['log_dir']
-        if mode == 'here':
+        exp_name = data['exp_name']
+        if mode == 'local':
             run_experiment_here(
                 resume_function,
                 variant=variant,

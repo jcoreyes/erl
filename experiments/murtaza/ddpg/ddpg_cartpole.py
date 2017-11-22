@@ -36,5 +36,5 @@ if __name__ == "__main__":
         example,
         exp_prefix="ddpg-Pendulum",
         seed=0,
-        mode='here',
+        mode='ec2',
     )

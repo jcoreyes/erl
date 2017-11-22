@@ -134,6 +134,5 @@ if __name__ == '__main__':
         variant=variant,
         exp_id=0,
         use_gpu=use_gpu,
-        snapshot_mode="gap",
-        snapshot_gap=10000,
+        snapshot_mode="last",
     )

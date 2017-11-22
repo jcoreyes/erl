@@ -33,9 +33,14 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             eval_sampler=None,
             eval_policy=None,
             collection_mode='online',
+            sim_throttle=False,
+            normalize_env=True,
+            ratio=20,
+            replay_buffer=None,
     ):
         assert collection_mode in ['online', 'online-parallel', 'offline']
         self.training_env = pickle.loads(pickle.dumps(env))
+        self.normalize_env = normalize_env
         self.exploration_policy = exploration_policy
         self.num_epochs = num_epochs
         self.num_env_steps_per_epoch = num_steps_per_epoch
@@ -63,10 +68,13 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.action_space = convert_gym_space(env.action_space)
         self.obs_space = convert_gym_space(env.observation_space)
         self.env = env
-        self.replay_buffer = EnvReplayBuffer(
-            self.replay_buffer_size,
-            self.env,
-        )
+        if replay_buffer is None:
+            self.replay_buffer = EnvReplayBuffer(
+                self.replay_buffer_size,
+                self.env,
+            )
+        else:
+            self.replay_buffer = replay_buffer
 
         self._n_env_steps_total = 0
         self._n_train_steps_total = 0
@@ -74,6 +82,9 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self._old_table_keys = None
         self._current_path = Path()
         self._exploration_paths = []
+        self.parallel_sim_ratio = ratio
+        self.start_time = time.time()
+        self.sim_throttle = sim_throttle
 
     def train(self, start_epoch=0):
         if start_epoch == 0:
@@ -143,29 +154,34 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         epoch = start_epoch
         self._start_epoch(epoch)
         while self._n_env_steps_total <= self.num_epochs * self.num_env_steps_per_epoch:
-            path = self.training_env.rollout(
-                self.exploration_policy,
-                use_exploration_strategy=True,
-            )
+            if self.sim_throttle:
+                if epoch == 0 or self._n_env_steps_total//(self._n_train_steps_total+1) < self.parallel_sim_ratio:
+                    path = self.training_env.rollout(
+                        self.exploration_policy,
+                        use_exploration_strategy=True,
+                    )
+                else:
+                    path = None
+            else:
+                path = self.training_env.rollout(
+                    self.exploration_policy,
+                    use_exploration_strategy=True,
+                )
+
             if path is not None:
-                path['rewards'] *= self.scale_reward
+                path['rewards'] = path['rewards'] * self.scale_reward
                 path_length = len(path['observations'])
                 self._n_env_steps_total += path_length
                 n_steps_current_epoch += path_length
                 self._handle_path(path)
-
+                if len(path) > 0:
+                    self._exploration_paths.append(path)
             self._try_to_train()
 
             # Check if epoch is over
             if n_steps_current_epoch >= self.num_env_steps_per_epoch:
                 self._try_to_eval(epoch)
-                if self._can_evaluate():
-                    logger.record_tabular(
-                        "Number of train steps total",
-                        self._n_train_steps_total,
-                    )
                 self._end_epoch()
-
                 epoch += 1
                 n_steps_current_epoch = 0
                 self._start_epoch(epoch)
@@ -193,6 +209,10 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         )
         if self._can_evaluate():
             start_time = time.time()
+            logger.record_tabular(
+                "Number of train steps total",
+                self._n_train_steps_total,
+            )
             self.evaluate(epoch)
             params = self.get_epoch_snapshot(epoch)
             logger.save_itr_params(epoch, params)

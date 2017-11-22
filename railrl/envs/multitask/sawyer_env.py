@@ -83,17 +83,9 @@ TORQUE_MAX = 3.5
 TORQUE_MAX_TRAIN = 5
 MAX_TORQUES = 0.5 * np.array([8, 7, 6, 5, 4, 3, 2])
 
-box_lows = np.array([
-    0.1228008448954529,
-    -0.31815782,
-    0.2284391863426093,
-])
+box_lows = np.array([-0.04304189, -0.43462352, 0.16761519])
 
-box_highs = np.array([
-    0.7175958839273338,
-    0.3064466563902636,
-    1.3,
-])
+box_highs = np.array([ 0.84045825,  0.38408276, 0.8880568 ])
 
 joint_names = [
     '_l2',
@@ -156,23 +148,7 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
         self.remove_action = remove_action
         self.arm_name = arm_name
         self.safe_reset_length = safe_reset_length
-
-        if experiment == experiments[0]:
-            self.joint_angle_experiment=True
-            self.fixed_angle = True
-        elif experiment == experiments[1]:
-            self.joint_angle_experiment=True
-        elif experiment == experiments[2]:
-            self.end_effector_experiment_position=True
-            self.fixed_end_effector = True
-        elif experiment == experiments[3]:
-            self.end_effector_experiment_position=True
-        elif experiment == experiments[4]:
-            self.end_effector_experiment_total=True
-            self.fixed_end_effector = True
-        elif experiment == experiments[5]:
-            self.end_effector_experiment_total = True
-
+        
         if self.task == 'reaching':
             self.end_effector_experiment_position = True
             self.fixed_end_effector = True
@@ -222,14 +198,12 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
                 JOINT_VALUE_LOW['velocity'],
                 JOINT_VALUE_LOW['torque'],
                 END_EFFECTOR_VALUE_LOW['position'],
-                END_EFFECTOR_VALUE_LOW['position'],
             ))
 
             highs = np.hstack((
                 JOINT_VALUE_HIGH['position'],
                 JOINT_VALUE_HIGH['velocity'],
                 JOINT_VALUE_HIGH['torque'],
-                END_EFFECTOR_VALUE_HIGH['position'],
                 END_EFFECTOR_VALUE_HIGH['position'],
             ))
 
@@ -249,36 +223,37 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
                 END_EFFECTOR_VALUE_HIGH['position'],
                 END_EFFECTOR_VALUE_HIGH['angle'],
             ))
-            des = {
-                'position': Point(x=0.44562573898386176, y=-0.055317682301721766, z=0.4950886597008108),
-                'orientation': Quaternion(x=-0.5417504106748736, y=0.46162598289085305, z=0.35800013141940035,
-                                          w=0.6043540769758675)}
             self.desired = np.array([
-                des['position'].x,
-                des['position'].y,
-                des['position'].z,
-                des['orientation'].x,
-                des['orientation'].y,
-                des['orientation'].z,
-                des['orientation'].w,
+                0.44562573898386176,
+                -0.055317682301721766,
+                0.4950886597008108,
+                -0.5417504106748736,
+                0.46162598289085305,
+                0.35800013141940035,
+                0.6043540769758675,
             ])
 
         self._observation_space = Box(lows, highs)
         self._rs = ii.RobotEnable(CHECK_VERSION)
         self.update_pose_and_jacobian_dict()
         self.in_reset = True
-        self.amplify = 5*np.ones(7)
-        self._observation_space = Box(lows, highs)
+        self.amplify = 0.5 * np.array([8, 7, 6, 5, 4, 3, 2])
 
     def set_goal(self, goal):
         self.desired = goal
 
     @property
     def goal_dim(self):
-        return 3
+        if self.task == 'reaching':
+            return 3
+        else:
+            return 7
 
     def sample_goal_states(self, batch_size):
-        return np.random.uniform(box_lows, box_highs, size=(batch_size, 3))
+        if self.task == 'reaching':
+            return np.random.uniform(box_lows, box_highs, size=(batch_size, 3))[0]
+        else:
+            return np.hstack((np.random.uniform(box_lows, box_highs, size=(batch_size, 3))[0], np.random.uniform(END_EFFECTOR_ANGLE_LOW, END_EFFECTOR_ANGLE_HIGH, size=(batch_size, 4))[0]))
 
     def sample_goal_state_for_rollout(self):
         if self.task == 'lego':
@@ -287,50 +262,80 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
             return super().sample_goal_state_for_rollout()
 
     def sample_actions(self, batch_size):
-        return np.random.uniform(JOINT_VALUE_LOW['torque'], JOINT_VALUE_HIGH['torque'], (batch_size, 7))
+        return np.random.uniform(JOINT_VALUE_LOW['torque'], JOINT_VALUE_HIGH['torque'], (batch_size, 7))[0]
 
     def sample_states(self, batch_size):
         return np.hstack((np.zeros(batch_size, 21), self.sample_goal_states(batch_size)))
 
     def convert_obs_to_goal_states(self, obs):
-        return obs[:, 21:24]
+        if self.task == 'reaching':
+            return obs[:, 21:24]
+        else:
+            return obs[:, 21:28]
 
     def _get_observation(self):
         angles = self._get_joint_values['angle']()
         velocities_dict = self._get_joint_values['velocity']()
         velocities = np.array([velocities_dict[joint] for joint in self.arm_joint_names])
         torques = np.zeros(7)
-        temp = np.hstack((angles, velocities, torques))
-        temp = np.hstack((temp, self._end_effector_pose()))
+        temp = np.hstack((angles, velocities, torques, self._end_effector_pose()))
         return temp
 
     def log_diagnostics(self, paths):
         goal_states = np.vstack([path['goal_states'] for path in paths])
+        desired_positions = goal_states
         statistics = OrderedDict()
         stat_prefix = 'Test'
-        if self.end_effector_experiment_total or self.end_effector_experiment_position:
-            obsSets = [path["observations"] for path in paths]
-            positions = []
-            last_positions = []
-            for obsSet in obsSets:
-                for observation in obsSet:
-                    positions.append(observation[21:24])
- #               last_positions.append(obsSet[-1][21:24])
-            positions = np.array(positions)
-   #         last_positions = np.array(last_positions)
-            desired_positions = goal_states
-            position_distances = linalg.norm(positions - desired_positions, axis=1)
-#            last_position_distances = linalg.norm(last_positions - desired_positions, axis=1)
+        counter = 0
+        obsSets = [path["observations"] for path in paths]
+        positions = []
+        last_positions = []
+        last_desired_positions = []
 
+        if self.task == 'lego':
+            orientations = []
+            desired_orientations = []
+            desired_positions = []
+
+        last_counter = 0
+        for obsSet in obsSets:
+            for observation in obsSet:
+                positions.append(observation[21:24])
+                if self.task == 'lego':
+                    orientations.append(observation[24:28])
+                    desired_orientations.append(goal_states[counter][24:28])
+                    desired_positions.append(goal_states[counter][21:28])
+                counter += 1
+            last_counter += len(obsSet)
+            last_positions.append(obsSet[-1][21:24])
+            last_desired_positions.append(goal_states[last_counter-1])
+
+        positions = np.array(positions)
+        position_distances = linalg.norm(positions - desired_positions, axis=1)
+        statistics.update(self._statistics_from_observations(
+            position_distances,
+            stat_prefix,
+            'Distance from Desired End Effector Position'
+        ))
+
+        last_positions = np.array(last_positions)
+        last_desired_positions = np.array(last_desired_positions)
+        last_position_distances = linalg.norm(last_positions - last_desired_positions, axis=1)
+        statistics.update(self._statistics_from_observations(
+           last_position_distances,
+           stat_prefix,
+            'Final Distance from Desired End Effector Position'
+        ))
+
+        if self.task == 'lego':
+            orientations = np.array(orientations)
+            desired_orientations = np.array(desired_orientations)
+            orientations_distance = linalg.norm(orientations - desired_orientations, axis=1)
             statistics.update(self._statistics_from_observations(
-                position_distances,
+                orientations_distance,
                 stat_prefix,
-                'Distance from Desired End Effector Position'
+                'Distance from Desired End Effector Orientation'
             ))
-#            statistics.update(self._statistics_from_observations(
-#                last_position_distances,
-#                stat_prefix,
-#                'Final Distance from Desired End Effector Position'
-#            ))
+
         for key, value in statistics.items():
             logger.record_tabular(key, value)
