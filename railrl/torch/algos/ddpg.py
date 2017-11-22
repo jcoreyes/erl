@@ -78,6 +78,7 @@ class DDPG(TorchRLAlgorithm):
             exploration_policy,
             **kwargs
         )
+        import ipdb; ipdb.set_trace()
         if qf_criterion is None:
             qf_criterion = nn.MSELoss()
         if target_policy_learning_rate is None:
@@ -292,7 +293,6 @@ class DDPG(TorchRLAlgorithm):
         logger.push_prefix('expl ')
         self.env.log_diagnostics(self._exploration_paths)
         logger.pop_prefix()
-        logger.push_prefix('')
         if isinstance(self.epoch_discount_schedule, StatConditionalSchedule):
             table_dict = rllab_util.get_logger_table_dict()
             # rllab converts things to strings for some reason

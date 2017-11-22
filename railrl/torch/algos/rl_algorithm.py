@@ -34,7 +34,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             eval_policy=None,
             collection_mode='online',
             normalize_env=True,
-            ratio=100,
+            ratio=10,
     ):
         assert collection_mode in ['online', 'online-parallel', 'offline']
         self.training_env = pickle.loads(pickle.dumps(env))
@@ -149,17 +149,18 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self._start_epoch(epoch)
         while self._n_env_steps_total <= self.num_epochs * self.num_env_steps_per_epoch:
 
-            # if self._n_env_steps_total//(self._n_train_steps_total+1) > self.parallel_sim_ratio:
-            #     path = self.training_env.rollout(
-            #         self.exploration_policy,
-            #         use_exploration_strategy=True,
-            #     )
-            # else:
-            #     path = None
-            path = self.training_env.rollout(
-                self.exploration_policy,
-                use_exploration_strategy=True,
-            )
+            if self._n_env_steps_total//(self._n_train_steps_total+1) < self.parallel_sim_ratio:
+                path = self.training_env.rollout(
+                    self.exploration_policy,
+                    use_exploration_strategy=True,
+                )
+            else:
+                path = None
+            # print(self._n_env_steps_total//(self._n_train_steps_total+1), self._n_env_steps_total, self._n_train_steps_total)
+            # path = self.training_env.rollout(
+            #     self.exploration_policy,
+            #     use_exploration_strategy=True,
+            # )
             if path is not None:
                 path['rewards'] = path['rewards'] * self.scale_reward
                 path_length = len(path['observations'])
@@ -167,20 +168,12 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 n_steps_current_epoch += path_length
                 self._handle_path(path)
                 if len(path) > 0:
-                    self._exploration_paths.append(
-                        self._current_path.get_all_stacked()
-                    )
-                    self._current_path = Path()
+                    self._exploration_paths.append(path)
             self._try_to_train()
 
             # Check if epoch is over
             if n_steps_current_epoch >= self.num_env_steps_per_epoch:
                 self._try_to_eval(epoch)
-                if self._can_evaluate():
-                    logger.record_tabular(
-                        "Number of train steps total",
-                        self._n_train_steps_total,
-                    )
                 self._end_epoch()
                 epoch += 1
                 n_steps_current_epoch = 0
@@ -209,15 +202,15 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         )
         if self._can_evaluate():
             start_time = time.time()
+            logger.record_tabular(
+                "Number of train steps total",
+                self._n_train_steps_total,
+            )
             self.evaluate(epoch)
             params = self.get_epoch_snapshot(epoch)
             logger.save_itr_params(epoch, params)
             table_keys = get_table_key_set(logger)
             if self._old_table_keys is not None:
-                for old,new in zip(self._old_table_keys,table_keys):
-                    if old not in table_keys:
-                        import ipdb; ipdb.set_trace()
-                        print(old)
                 assert table_keys == self._old_table_keys, (
                     "Table keys cannot change from iteration to iteration."
                 )
@@ -317,6 +310,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 agent_info=agent_info,
                 env_info=env_info,
             )
+            print(self.replay_buffer.num_steps_can_sample())
         self.replay_buffer.terminate_episode(
             path["final_observation"],
             path["terminals"][-1],
