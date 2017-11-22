@@ -78,7 +78,6 @@ class DDPG(TorchRLAlgorithm):
             exploration_policy,
             **kwargs
         )
-        import ipdb; ipdb.set_trace()
         if qf_criterion is None:
             qf_criterion = nn.MSELoss()
         if target_policy_learning_rate is None:

@@ -33,8 +33,10 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             eval_sampler=None,
             eval_policy=None,
             collection_mode='online',
+            sim_throttle=False,
             normalize_env=True,
-            ratio=10,
+            ratio=20,
+            replay_buffer=None,
     ):
         assert collection_mode in ['online', 'online-parallel', 'offline']
         self.training_env = pickle.loads(pickle.dumps(env))
@@ -66,10 +68,13 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.action_space = convert_gym_space(env.action_space)
         self.obs_space = convert_gym_space(env.observation_space)
         self.env = env
-        self.replay_buffer = EnvReplayBuffer(
-            self.replay_buffer_size,
-            self.env,
-        )
+        if replay_buffer is None:
+            self.replay_buffer = EnvReplayBuffer(
+                self.replay_buffer_size,
+                self.env,
+            )
+        else:
+            self.replay_buffer = replay_buffer
 
         self._n_env_steps_total = 0
         self._n_train_steps_total = 0
@@ -79,6 +84,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self._exploration_paths = []
         self.parallel_sim_ratio = ratio
         self.start_time = time.time()
+        self.sim_throttle = sim_throttle
 
     def train(self, start_epoch=0):
         if start_epoch == 0:
@@ -148,19 +154,20 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         epoch = start_epoch
         self._start_epoch(epoch)
         while self._n_env_steps_total <= self.num_epochs * self.num_env_steps_per_epoch:
-
-            if self._n_env_steps_total//(self._n_train_steps_total+1) < self.parallel_sim_ratio:
+            if self.sim_throttle:
+                if epoch == 0 or self._n_env_steps_total//(self._n_train_steps_total+1) < self.parallel_sim_ratio:
+                    path = self.training_env.rollout(
+                        self.exploration_policy,
+                        use_exploration_strategy=True,
+                    )
+                else:
+                    path = None
+            else:
                 path = self.training_env.rollout(
                     self.exploration_policy,
                     use_exploration_strategy=True,
                 )
-            else:
-                path = None
-            # print(self._n_env_steps_total//(self._n_train_steps_total+1), self._n_env_steps_total, self._n_train_steps_total)
-            # path = self.training_env.rollout(
-            #     self.exploration_policy,
-            #     use_exploration_strategy=True,
-            # )
+
             if path is not None:
                 path['rewards'] = path['rewards'] * self.scale_reward
                 path_length = len(path['observations'])
@@ -310,7 +317,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 agent_info=agent_info,
                 env_info=env_info,
             )
-            print(self.replay_buffer.num_steps_can_sample())
         self.replay_buffer.terminate_episode(
             path["final_observation"],
             path["terminals"][-1],
