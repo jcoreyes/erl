@@ -1,5 +1,5 @@
 FROM ubuntu:16.04
-MAINTAINER Vitchyr Pong <vitchyr@berkeley.edu>
+MAINTAINER Vitchyr Pong <@berkeley.edu>
 
 # Remove apt-util warning for Ubuntu 16.05
 # https://github.com/phusion/baseimage-docker/issues/319
@@ -53,16 +53,16 @@ RUN alias ffmpeg="avconv"
 
 # ========== Add codebase stub ==========
 RUN mkdir /root/code
-ADD rllab-vitchyr-env.yml /root/code/environment.yml
+ADD railrl-env.yml /root/code/environment.yml
 RUN conda env create -f /root/code/environment.yml
 
 ENV PYTHONPATH /root/code/rllab:/root/code/rllab/railrl:$PYTHONPATH
-ENV PATH /opt/conda/envs/rllab-vitchyr/bin:$PATH
-RUN echo "source activate rllab-vitchyr" >> /root/.bashrc
+ENV PATH /opt/conda/envs/railrl-env/bin:$PATH
+RUN echo "source activate railrl-env" >> /root/.bashrc
 ENV BASH_ENV /root/.bashrc
 WORKDIR /root/code
 
 # gpu theanno
 ENV THEANO_FLAGS mode=FAST_RUN,device=gpu,floatX=float32
 
-ENV PATH /opt/conda/envs/rllab-vitchyr/bin:$PATH
+ENV PATH /opt/conda/envs/railrl-env/bin:$PATH
