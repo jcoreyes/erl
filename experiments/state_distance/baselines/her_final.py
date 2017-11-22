@@ -246,7 +246,7 @@ if __name__ == '__main__':
     """
     variant['env_class'] = GoalXVelHalfCheetah
     variant['algo_params']['num_updates_per_env_step'] = 5
-    variant['algo_params']['scale_reward'] = 10
+    variant['algo_params']['reward_scale'] = 10
     variant['algo_params']['num_epochs'] = 201
     for i in range(n_seeds):
         seed = random.randint(0, 999999)
@@ -267,7 +267,7 @@ if __name__ == '__main__':
     """
     variant['env_class'] = Reacher7DofXyzGoalState
     variant['algo_params']['num_updates_per_env_step'] = 1
-    variant['algo_params']['scale_reward'] = 1
+    variant['algo_params']['reward_scale'] = 1
     variant['algo_params']['num_epochs'] = 101
     for i in range(n_seeds):
         seed = random.randint(0, 999999)
@@ -288,7 +288,7 @@ if __name__ == '__main__':
     """
     variant['env_class'] = CylinderXYPusher2DEnv
     variant['algo_params']['num_updates_per_env_step'] = 1
-    variant['algo_params']['scale_reward'] = 1
+    variant['algo_params']['reward_scale'] = 1
     variant['algo_params']['num_epochs'] = 101
     for i in range(n_seeds):
         seed = random.randint(0, 999999)

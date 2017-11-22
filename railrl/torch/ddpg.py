@@ -18,11 +18,11 @@ from railrl.misc import rllab_util
 from railrl.torch.algos.util import np_to_pytorch_batch
 from railrl.torch.algos.eval import get_statistics_from_pytorch_dict, \
     get_difference_statistics, get_generic_path_information
-from railrl.torch.rl_algorithm import RLAlgorithm
+from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
 from rllab.misc import logger
 
 
-class DDPG(RLAlgorithm):
+class DDPG(TorchRLAlgorithm):
     """
     Online learning algorithm.
     """
@@ -39,7 +39,6 @@ class DDPG(RLAlgorithm):
             target_hard_update_period=1000,
             tau=1e-2,
             use_soft_update=False,
-            replay_buffer=None,
             num_updates_per_env_step=1,
             qf_criterion=None,
             residual_gradient_weight=0,
@@ -60,7 +59,6 @@ class DDPG(RLAlgorithm):
         :param target_hard_update_period:
         :param tau:
         :param use_soft_update:
-        :param replay_buffer:
         :param num_updates_per_env_step: Number of gradient steps per
         environment step.
         :param qf_criterion: Loss function to use for the q function. Should
@@ -121,33 +119,10 @@ class DDPG(RLAlgorithm):
             )
         else:
             self.target_policy_optimizer = None
-        if replay_buffer is None:
-            self.replay_buffer = SplitReplayBuffer(
-                EnvReplayBuffer(
-                    self.replay_buffer_size,
-                    self.env,
-                    flatten=True,
-                ),
-                EnvReplayBuffer(
-                    self.replay_buffer_size,
-                    self.env,
-                    flatten=True,
-                ),
-                fraction_paths_in_train=0.8,
-            )
-        else:
-            self.replay_buffer = replay_buffer
-        self.start_time = time.time()
 
     def _start_epoch(self, epoch):
         super()._start_epoch(epoch)
         self.discount = self.epoch_discount_schedule.get_value(epoch)
-
-    def cuda(self):
-        self.policy.cuda()
-        self.target_policy.cuda()
-        self.qf.cuda()
-        self.target_qf.cuda()
 
     def _do_training(self):
         for i in range(self.num_updates_per_env_step):
@@ -172,9 +147,9 @@ class DDPG(RLAlgorithm):
 
             if self.use_soft_update:
                 if not self.optimize_target_policy:
-                    ptu.soft_update_from_to(self.target_policy, self.policy,
-                                            self.tau)
-                ptu.soft_update_from_to(self.target_qf, self.qf, self.tau)
+                    ptu.soft_update(self.target_policy, self.policy,
+                                    self.tau)
+                ptu.soft_update(self.target_qf, self.qf, self.tau)
             else:
                 if self._n_env_steps_total % self.target_hard_update_period == 0:
                     ptu.copy_model_params_from_to(self.qf, self.target_qf)
@@ -263,12 +238,6 @@ class DDPG(RLAlgorithm):
             ('Target Policy Loss', target_policy_loss),
         ])
 
-    def training_mode(self, mode):
-        self.policy.train(mode)
-        self.qf.train(mode)
-        self.target_policy.train(mode)
-        self.target_qf.train(mode)
-
     def evaluate(self, epoch):
         """
         Perform evaluation for this algorithm.
@@ -319,12 +288,11 @@ class DDPG(RLAlgorithm):
         for key, value in statistics.items():
             logger.record_tabular(key, value)
 
-        # logger.set_key_prefix('test ')
         logger.push_prefix('test ')
-        self.log_diagnostics(test_paths)
+        self.env.log_diagnostics(test_paths)
         logger.pop_prefix()
         logger.push_prefix('expl ')
-        self.log_diagnostics(self._exploration_paths)
+        self.env.log_diagnostics(self._exploration_paths)
         logger.pop_prefix()
         logger.push_prefix('')
         if isinstance(self.epoch_discount_schedule, StatConditionalSchedule):
@@ -350,15 +318,6 @@ class DDPG(RLAlgorithm):
 
         for key, value in statistics.items():
             logger.record_tabular(key, value)
-
-    def get_batch(self, training=True):
-        replay_buffer = self.replay_buffer.get_replay_buffer(training)
-        sample_size = min(
-            replay_buffer.num_steps_can_sample(),
-            self.batch_size
-        )
-        batch = replay_buffer.random_batch(sample_size)
-        return np_to_pytorch_batch(batch)
 
     def _statistics_from_paths(self, paths, stat_prefix):
         batch = self.paths_to_batch(paths)
@@ -414,3 +373,12 @@ class DDPG(RLAlgorithm):
             replay_buffer=self.replay_buffer,
             algorithm=self,
         )
+
+    @property
+    def networks(self):
+        return [
+            self.policy,
+            self.qf,
+            self.target_policy,
+            self.target_qf,
+        ]

@@ -26,13 +26,15 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             max_path_length=1000,
             discount=0.99,
             replay_buffer_size=1000000,
-            scale_reward=1,
+            reward_scale=1,
             render=False,
             save_replay_buffer=False,
             save_algorithm=False,
             eval_sampler=None,
+            eval_policy=None,
             collection_mode='online',
             normalize_env=True,
+            ratio=100,
     ):
         assert collection_mode in ['online', 'online-parallel', 'offline']
         self.training_env = pickle.loads(pickle.dumps(env))
@@ -45,16 +47,18 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.max_path_length = max_path_length
         self.discount = discount
         self.replay_buffer_size = replay_buffer_size
-        self.scale_reward = scale_reward
+        self.scale_reward = reward_scale
         self.render = render
         self.collection_mode = collection_mode
         self.save_replay_buffer = save_replay_buffer
         self.save_algorithm = save_algorithm
         if eval_sampler is None:
+            if eval_policy is None:
+                eval_policy = exploration_policy
             eval_sampler = InPlacePathSampler(
                 env=env,
-                policy=exploration_policy,
-                max_samples=self.num_steps_per_eval,
+                policy=eval_policy,
+                max_samples=self.num_steps_per_eval + self.max_path_length,
                 max_path_length=self.max_path_length,
             )
         self.eval_sampler = eval_sampler
@@ -73,6 +77,8 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self._old_table_keys = None
         self._current_path = Path()
         self._exploration_paths = []
+        self.parallel_sim_ratio = ratio
+        self.start_time = time.time()
 
     def train(self, start_epoch=0):
         if start_epoch == 0:
@@ -142,17 +148,29 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         epoch = start_epoch
         self._start_epoch(epoch)
         while self._n_env_steps_total <= self.num_epochs * self.num_env_steps_per_epoch:
+
+            # if self._n_env_steps_total//(self._n_train_steps_total+1) > self.parallel_sim_ratio:
+            #     path = self.training_env.rollout(
+            #         self.exploration_policy,
+            #         use_exploration_strategy=True,
+            #     )
+            # else:
+            #     path = None
             path = self.training_env.rollout(
                 self.exploration_policy,
                 use_exploration_strategy=True,
             )
             if path is not None:
-                path['rewards'] *= self.scale_reward
+                path['rewards'] = path['rewards'] * self.scale_reward
                 path_length = len(path['observations'])
                 self._n_env_steps_total += path_length
                 n_steps_current_epoch += path_length
                 self._handle_path(path)
-
+                if len(path) > 0:
+                    self._exploration_paths.append(
+                        self._current_path.get_all_stacked()
+                    )
+                    self._current_path = Path()
             self._try_to_train()
 
             # Check if epoch is over
@@ -164,7 +182,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                         self._n_train_steps_total,
                     )
                 self._end_epoch()
-
                 epoch += 1
                 n_steps_current_epoch = 0
                 self._start_epoch(epoch)
@@ -197,6 +214,10 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             logger.save_itr_params(epoch, params)
             table_keys = get_table_key_set(logger)
             if self._old_table_keys is not None:
+                for old,new in zip(self._old_table_keys,table_keys):
+                    if old not in table_keys:
+                        import ipdb; ipdb.set_trace()
+                        print(old)
                 assert table_keys == self._old_table_keys, (
                     "Table keys cannot change from iteration to iteration."
                 )
@@ -361,10 +382,8 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             env_info=env_info,
         )
 
-    def log_diagnostics(self, paths):
-        self.env.log_diagnostics(paths)
-
     def get_epoch_snapshot(self, epoch):
+        self.training_env.render(close=True)
         return dict(
             epoch=epoch,
             exploration_policy=self.exploration_policy,
@@ -378,6 +397,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         :param epoch:
         :return:
         """
+        self.training_env.render(close=True)
         data_to_save = dict(
             epoch=epoch,
             env=self.training_env,

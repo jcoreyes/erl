@@ -1,8 +1,9 @@
 import random
+
+from gym.spaces import Discrete
+
 from railrl.exploration_strategies.base import RawExplorationStrategy
 from rllab.core.serializable import Serializable
-from rllab.spaces.discrete import Discrete
-import numpy as np
 
 
 class EpsilonGreedy(RawExplorationStrategy, Serializable):
@@ -10,6 +11,7 @@ class EpsilonGreedy(RawExplorationStrategy, Serializable):
     Take a random discrete action with some probability.
     """
     def __init__(self, action_space, prob_random_action=0.1):
+        Serializable.quick_init(self, locals())
         assert isinstance(action_space, Discrete)
         Serializable.quick_init(self, locals())
         self.prob_random_action = prob_random_action
@@ -21,5 +23,5 @@ class EpsilonGreedy(RawExplorationStrategy, Serializable):
 
     def get_action_from_raw_action(self, action, **kwargs):
         if random.random() <= self.prob_random_action:
-            return np.random.rand(self.action_space.flat_dim)
+            return self.action_space.sample()
         return action

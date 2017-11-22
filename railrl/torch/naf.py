@@ -7,21 +7,19 @@ from torch.nn import functional as F
 from torch import nn as nn
 from torch.autograd import Variable
 
-from railrl.data_management.env_replay_buffer import EnvReplayBuffer
-from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import get_average_returns, split_paths_to_dict
 from railrl.torch.algos.util import np_to_pytorch_batch
 from railrl.torch.algos.eval import get_statistics_from_pytorch_dict, \
     get_difference_statistics
 from railrl.torch.core import PyTorchModule
-from railrl.torch.rl_algorithm import RLAlgorithm
 from railrl.torch import pytorch_util as ptu
+from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
 from rllab.misc import logger
 
 
 # noinspection PyCallingNonCallable
-class NAF(RLAlgorithm):
+class NAF(TorchRLAlgorithm):
     def __init__(
             self,
             env,
@@ -31,7 +29,6 @@ class NAF(RLAlgorithm):
             target_hard_update_period=1000,
             tau=0.001,
             use_soft_update=False,
-            replay_buffer=None,
             **kwargs
     ):
         if exploration_policy is None:
@@ -54,28 +51,7 @@ class NAF(RLAlgorithm):
             lr=self.policy_learning_rate,
         )
 
-        if replay_buffer is None:
-            self.replay_buffer = SplitReplayBuffer(
-                EnvReplayBuffer(
-                    self.replay_buffer_size,
-                    self.env,
-                    flatten=True,
-                ),
-                EnvReplayBuffer(
-                    self.replay_buffer_size,
-                    self.env,
-                    flatten=True,
-                ),
-                fraction_paths_in_train=0.8,
-            )
-        else:
-            self.replay_buffer = replay_buffer
-
-    def cuda(self):
-        self.policy.cuda()
-        self.target_policy.cuda()
-
-    def _do_training(self, n_steps_total):
+    def _do_training(self):
         batch = self.get_batch()
 
         """
@@ -92,9 +68,9 @@ class NAF(RLAlgorithm):
         Update Target Networks
         """
         if self.use_soft_update:
-            ptu.soft_update_from_to(self.target_policy, self.policy, self.tau)
+            ptu.soft_update(self.target_policy, self.policy, self.tau)
         else:
-            if n_steps_total % self.target_hard_update_period == 0:
+            if self._n_train_steps_total% self.target_hard_update_period == 0:
                 ptu.copy_model_params_from_to(self.policy, self.target_policy)
 
     def get_train_dict(self, batch):
@@ -119,25 +95,20 @@ class NAF(RLAlgorithm):
             ('Y predictions', y_pred),
         ])
 
-    def training_mode(self, mode):
-        self.policy.train(mode)
-        self.target_policy.train(mode)
-
-    def evaluate(self, epoch, exploration_paths):
+    def evaluate(self, epoch):
         """
         Perform evaluation for this algorithm.
 
         :param epoch: The epoch number.
-        :param exploration_paths: List of dicts, each representing a path.
         """
         logger.log("Collecting samples for evaluation")
         train_batch = self.get_batch(training=True)
         validation_batch = self.get_batch(training=False)
-        test_paths = self._sample_eval_paths(epoch)
+        test_paths = self.eval_sampler.obtain_samples()
 
         statistics = OrderedDict()
         statistics.update(
-            self._statistics_from_paths(exploration_paths, "Exploration")
+            self._statistics_from_paths(self._exploration_paths, "Exploration")
         )
         statistics.update(self._statistics_from_paths(test_paths, "Test"))
         statistics.update(self._statistics_from_batch(train_batch, "Train"))
@@ -153,16 +124,7 @@ class NAF(RLAlgorithm):
         for key, value in statistics.items():
             logger.record_tabular(key, value)
 
-        self.log_diagnostics(test_paths)
-
-    def get_batch(self, training=True):
-        replay_buffer = self.replay_buffer.get_replay_buffer(training)
-        sample_size = min(
-            replay_buffer.num_steps_can_sample(),
-            self.batch_size
-        )
-        batch = replay_buffer.random_batch(sample_size)
-        return np_to_pytorch_batch(batch)
+        self.env.log_diagnostics(test_paths)
 
     def _statistics_from_paths(self, paths, stat_prefix):
         np_batch = split_paths_to_dict(paths)
@@ -187,12 +149,6 @@ class NAF(RLAlgorithm):
 
         return statistics
 
-    def _can_evaluate(self, exploration_paths):
-        return (
-            len(exploration_paths) > 0
-            and self.replay_buffer.num_steps_can_sample() > 0
-        )
-
     def get_epoch_snapshot(self, epoch):
         return dict(
             epoch=epoch,
@@ -201,6 +157,13 @@ class NAF(RLAlgorithm):
             replay_buffer=self.replay_buffer,
             algorithm=self,
         )
+
+    @property
+    def networks(self):
+        return [
+            self.policy,
+            self.target_policy,
+        ]
 
 
 class NafPolicy(PyTorchModule):
