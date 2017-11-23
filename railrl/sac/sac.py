@@ -168,6 +168,9 @@ class SoftActorCritic(TorchRLAlgorithm):
         for key, value in statistics.items():
             logger.record_tabular(key, value)
 
+        if self.render_eval_paths:
+            self.env.render_paths(test_paths)
+
         if self.plotter:
             self.plotter.draw()
 

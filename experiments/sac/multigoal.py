@@ -56,6 +56,7 @@ def experiment(variant):
         qf=qf,
         vf=vf,
         plotter=plotter,
+        render_eval_paths=True,
         **variant['algo_params']
     )
     if ptu.gpu_enabled():
