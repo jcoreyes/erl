@@ -127,7 +127,7 @@ class MultiGoalEnv(Env, Serializable):
             self._env_lines += self._ax.plot(xx, yy, 'b')
 
         plt.draw()
-        plt.pause(0.01)
+        plt.pause(0.001)
 
     def compute_reward(self, observation, action):
         # penalize the L2 norm of acceleration
