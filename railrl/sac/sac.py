@@ -89,7 +89,7 @@ class SoftActorCritic(TorchRLAlgorithm):
 
         q_pred = self.qf(obs, actions)
         v_pred = self.vf(obs)
-        new_actions, mean, log_std, log_pi = self.policy(
+        new_actions, policy_mean, policy_log_std, log_pi = self.policy(
             obs, return_log_prob=True
         )
 
@@ -115,7 +115,9 @@ class SoftActorCritic(TorchRLAlgorithm):
         policy_loss = (
             log_pi * (log_pi - log_policy_target).detach()
         ).sum()
-        policy_reg_loss = self.policy_reg_weight * (mean + log_std).mean() / 2
+        policy_reg_loss = self.policy_reg_weight * (
+            policy_mean + policy_log_std
+        ).mean() / 2
         policy_loss = policy_loss + policy_reg_loss
 
         """
@@ -155,6 +157,14 @@ class SoftActorCritic(TorchRLAlgorithm):
         self.eval_statistics.update(create_stats_ordered_dict(
             'Log Pis',
             ptu.get_numpy(log_pi),
+        ))
+        self.eval_statistics.update(create_stats_ordered_dict(
+            'Policy mu',
+            ptu.get_numpy(policy_mean),
+        ))
+        self.eval_statistics.update(create_stats_ordered_dict(
+            'Policy log std',
+            ptu.get_numpy(policy_log_std),
         ))
 
     def evaluate(self, epoch):
