@@ -84,10 +84,7 @@ if __name__ == "__main__":
             experiment,
             seed=seed,
             variant=variant,
-            # exp_prefix="sac-half-cheetah-with-action-hack",
-            # mode='ec2',
-            # use_gpu=False,
-            exp_prefix="dev-sac-half-cheetah",
+            exp_prefix="dev-sac-multigoal",
             mode='local',
             use_gpu=True,
         )
