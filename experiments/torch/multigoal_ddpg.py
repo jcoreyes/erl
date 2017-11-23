@@ -1,0 +1,91 @@
+import random
+import numpy as np
+
+import railrl.torch.pytorch_util as ptu
+from railrl.envs.multigoal import MultiGoalEnv
+from railrl.envs.wrappers import normalize_box
+from railrl.exploration_strategies.base import \
+    PolicyWrappedWithExplorationStrategy
+from railrl.exploration_strategies.ou_strategy import OUStrategy
+from railrl.launchers.launcher_util import run_experiment
+from railrl.misc.plotter import QFPolicyPlotter
+from railrl.policies.torch import FeedForwardPolicy
+from railrl.qfunctions.torch import FeedForwardQFunction
+from railrl.torch.algos.ddpg import DDPG
+
+
+def experiment(variant):
+    env = normalize_box(MultiGoalEnv(
+        actuation_cost_coeff=10,
+        distance_cost_coeff=1,
+        goal_reward=10,
+    ))
+
+    es = OUStrategy(action_space=env.action_space)
+    qf = FeedForwardQFunction(
+        int(env.observation_space.flat_dim),
+        int(env.action_space.flat_dim),
+        100,
+        100,
+    )
+    policy = FeedForwardPolicy(
+        int(env.observation_space.flat_dim),
+        int(env.action_space.flat_dim),
+        100,
+        100,
+    )
+    exploration_policy = PolicyWrappedWithExplorationStrategy(
+        exploration_strategy=es,
+        policy=policy,
+    )
+    plotter = QFPolicyPlotter(
+        qf=qf,
+        # policy=policy,
+        policy=exploration_policy,
+        obs_lst=np.array([[-2.5, 0.0],
+                          [0.0, 0.0],
+                          [2.5, 2.5]]),
+        default_action=[np.nan, np.nan],
+        n_samples=100
+    )
+    algorithm = DDPG(
+        env,
+        qf=qf,
+        policy=policy,
+        exploration_policy=exploration_policy,
+        render_eval_paths=True,
+        plotter=plotter,
+        **variant['algo_params']
+    )
+    if ptu.gpu_enabled():
+        algorithm.cuda()
+    algorithm.train()
+
+
+if __name__ == "__main__":
+    # noinspection PyTypeChecker
+    variant = dict(
+        algo_params=dict(
+            num_epochs=1000,
+            num_steps_per_epoch=1000,
+            num_steps_per_eval=300,
+            batch_size=64,
+            max_path_length=30,
+            reward_scale=0.3,
+            discount=0.99,
+            tau=0.001,
+        ),
+    )
+    for _ in range(1):
+        seed = random.randint(0, 999999)
+        run_experiment(
+            experiment,
+            seed=seed,
+            variant=variant,
+            # exp_prefix="sac-half-cheetah-with-action-hack",
+            # mode='ec2',
+            # use_gpu=False,
+            exp_prefix="dev-sac-half-cheetah",
+            mode='local',
+            use_gpu=True,
+        )
