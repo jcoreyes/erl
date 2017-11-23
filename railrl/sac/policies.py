@@ -1,16 +1,16 @@
+import numpy as np
 import torch
 from torch import nn as nn
-import numpy as np
 
+from railrl.policies.base import ExplorationPolicy
 from railrl.torch.distributions import TanhNormal
 from railrl.torch.networks import Mlp
-from railrl.policies.base import Policy, ExplorationPolicy
-import railrl.torch.pytorch_util as ptu
 
 LOG_SIG_MAX = 2
 LOG_SIG_MIN = -20
 
 
+# noinspection PyMethodOverriding
 class TanhGaussianPolicy(Mlp, ExplorationPolicy):
     """
     Usage:
