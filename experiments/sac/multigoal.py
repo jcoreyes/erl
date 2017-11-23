@@ -68,11 +68,12 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
-            num_epochs=100,
-            num_steps_per_epoch=100,
-            num_steps_per_eval=100,
-            batch_size=32,
-            max_path_length=10,
+            num_epochs=1000,
+            num_steps_per_epoch=1000,
+            num_steps_per_eval=300,
+            batch_size=64,
+            max_path_length=30,
+            reward_scale=0.3,
             discount=0.99,
             soft_target_tau=0.001,
         ),
