@@ -4,6 +4,7 @@ import time
 
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.path import Path
+from railrl.envs.remote import RemoteRolloutEnv
 from railrl.envs.wrappers import convert_gym_space
 from railrl.misc.rllab_util import (
     get_table_key_set,
@@ -85,6 +86,9 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.parallel_sim_ratio = ratio
         self.start_time = time.time()
         self.sim_throttle = sim_throttle
+        if self.collection_mode == 'online-parallel':
+            self.training_env = RemoteRolloutEnv(env=env, policy=eval_policy, exploration_policy=exploration_policy,
+                                                 max_path_length=self.max_path_length, normalize_env=self.normalize_env)
 
     def train(self, start_epoch=0):
         if start_epoch == 0:
