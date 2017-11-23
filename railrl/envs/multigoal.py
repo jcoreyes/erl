@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from railrl.misc.rllab_util import get_stat_in_dict
 from rllab.core.serializable import Serializable
 from rllab.spaces.box import Box
 from rllab.envs.base import Env
@@ -121,13 +120,11 @@ class MultiGoalEnv(Env, Serializable):
         [line.remove() for line in self._env_lines]
         self._env_lines = list()
 
-        # for path in paths:
-        #     import ipdb; ipdb.set_trace()
-        #     positions = path["env_infos"]["pos"]
-        positions = get_stat_in_dict(paths, "env_infos", "pos")
-        xx = positions[:, 0]
-        yy = positions[:, 1]
-        self._env_lines += self._ax.plot(xx, yy, 'b')
+        for path in paths:
+            positions = get_stat_in_path(path, "env_infos", "pos")
+            xx = positions[:, 0]
+            yy = positions[:, 1]
+            self._env_lines += self._ax.plot(xx, yy, 'b')
 
         plt.draw()
         plt.pause(0.01)
@@ -209,3 +206,7 @@ class PointDynamics(object):
         state_next = mu_next + self.sigma * \
             np.random.normal(size=self.s_dim)
         return state_next
+
+
+def get_stat_in_path(path, dict_name, scalar_name):
+    return np.array([info[scalar_name] for info in path[dict_name]])
