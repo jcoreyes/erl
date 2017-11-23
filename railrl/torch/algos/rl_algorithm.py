@@ -4,6 +4,7 @@ import time
 
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.path import Path
+from railrl.envs.remote import RemoteRolloutEnv
 from railrl.envs.wrappers import convert_gym_space
 from railrl.misc.rllab_util import (
     get_table_key_set,
@@ -79,12 +80,17 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self._n_env_steps_total = 0
         self._n_train_steps_total = 0
         self._epoch_start_time = None
+        self._train_start_time = None
         self._old_table_keys = None
         self._current_path = Path()
         self._exploration_paths = []
         self.parallel_sim_ratio = ratio
-        self.start_time = time.time()
         self.sim_throttle = sim_throttle
+        if self.collection_mode == 'online-parallel':
+            # TODO(murtaza): What happens to the eval env?
+            # see `eval_sampler` definition above.
+            self.training_env = RemoteRolloutEnv(env=env, policy=eval_policy, exploration_policy=exploration_policy,
+                                                 max_path_length=self.max_path_length, normalize_env=self.normalize_env)
 
     def train(self, start_epoch=0):
         if start_epoch == 0:
@@ -92,6 +98,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             logger.save_itr_params(-1, params)
         self.training_mode(False)
         self._n_env_steps_total = start_epoch * self.num_env_steps_per_epoch
+        self._train_start_time = time.time()
         if self.collection_mode == 'online':
             self.train_online(start_epoch=start_epoch)
         elif self.collection_mode == 'online-parallel':
@@ -222,6 +229,14 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                     "Table keys cannot change from iteration to iteration."
                 )
             self._old_table_keys = table_keys
+            logger.record_tabular(
+                'Epoch Duration (s)',
+                time.time() - self._epoch_start_time
+            )
+            logger.record_tabular(
+                'Total Train Time (s)',
+                time.time() - self._train_start_time
+            )
             logger.dump_tabular(with_prefix=False, with_timestamp=False)
             logger.log("Eval Time: {0}".format(time.time() - start_time))
         else:
