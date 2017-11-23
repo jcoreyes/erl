@@ -27,7 +27,7 @@ def experiment(variant):
     )
     vf = FlattenMlp(
         hidden_sizes=[100, 100],
-        input_size=obs_dim + action_dim,
+        input_size=obs_dim,
         output_size=1,
     )
     policy = TanhGaussianPolicy(
@@ -52,24 +52,24 @@ if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
             num_epochs=100,
-            num_steps_per_epoch=100000,
-            num_steps_per_eval=100000,
+            num_steps_per_epoch=1000,
+            num_steps_per_eval=1000,
             batch_size=128,
-            max_path_length=10000,
+            max_path_length=1000,
             discount=0.99,
-            epsilon=0.2,
-            tau=0.001,
+            soft_target_tau=0.001,
         ),
     )
     for _ in range(1):
         seed = random.randint(0, 999999)
         run_experiment(
             experiment,
-            exp_prefix="dev-sac-pendulum",
             seed=seed,
             variant=variant,
+            # exp_prefix="sac-pendulum-with-action-hack",
             # mode='ec2',
             # use_gpu=False,
+            exp_prefix="dev-sac-pendulum",
             mode='local',
             use_gpu=True,
         )

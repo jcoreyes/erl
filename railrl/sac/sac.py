@@ -41,6 +41,7 @@ class SoftActorCritic(TorchRLAlgorithm):
             policy_lr=1e-3,
             qf_lr=1e-3,
             vf_lr=1e-3,
+            policy_reg_weight=1e-3,
 
             soft_target_tau=1e-2,
             **kwargs
@@ -54,6 +55,7 @@ class SoftActorCritic(TorchRLAlgorithm):
         self.qf = qf
         self.vf = vf
         self.soft_target_tau = soft_target_tau
+        self.policy_reg_weight = policy_reg_weight
 
         self.target_vf = vf.copy()
         self.qf_criterion = nn.MSELoss()
@@ -83,7 +85,9 @@ class SoftActorCritic(TorchRLAlgorithm):
 
         q_pred = self.qf(obs, actions)
         v_pred = self.vf(obs)
-        new_actions, log_pi = self.policy(obs, return_log_prob=True)
+        new_actions, mean, log_std, log_pi = self.policy(
+            obs, return_log_prob=True
+        )
 
         """
         QF Loss
@@ -104,7 +108,11 @@ class SoftActorCritic(TorchRLAlgorithm):
         Policy Loss
         """
         log_policy_target = q_pred + v_pred
-        policy_loss = log_pi * (log_pi - log_policy_target).detach()
+        policy_loss = (
+            log_pi * (log_pi - log_policy_target).detach()
+        ).sum()
+        policy_reg_loss = self.policy_reg_weight * (mean + log_std).mean() / 2
+        policy_loss = policy_loss + policy_reg_loss
 
         """
         Update networks
