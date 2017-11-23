@@ -60,24 +60,11 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
             assert LOG_SIG_MIN <= self.log_std <= LOG_SIG_MAX
 
     def get_action(self, obs_np, deterministic=False):
-        obs = ptu.np_to_var(
-            np.expand_dims(obs_np, 0)
-        )
-        action = self.__call__(
-            obs,
-            deterministic=deterministic,
-        )[0]
-        action = action.squeeze(0)
-        action_np = ptu.get_numpy(action)
-        return action_np, {}
+        actions = self.get_actions(obs_np[None], deterministic=deterministic)
+        return actions[0, :], {}
 
     def get_actions(self, obs_np, deterministic=False):
-        obs = ptu.np_to_var(obs_np)
-        actions = self.__call__(
-            obs,
-            deterministic=deterministic,
-        )[0]
-        return ptu.get_numpy(actions)
+        return self.eval_np(obs_np, deterministic=deterministic)[0]
 
     def forward(
             self,

@@ -81,7 +81,7 @@ class PyTorchModule(nn.Module, Serializable, metaclass=abc.ABCMeta):
             if len(param.size()) > 1:
                 yield param
 
-    def eval(self, *inputs):
+    def eval_np(self, *args, **kwargs):
         """
         Eval this module with a numpy interface
 
@@ -90,18 +90,24 @@ class PyTorchModule(nn.Module, Serializable, metaclass=abc.ABCMeta):
 
         Assumes the output is either a single object or a tuple of objects.
         """
-        transformed_inputs = tuple(
-            ptu.np_to_var(x) if isinstance(x, np.ndarray) else x
-            for x in inputs
-        )
-        outputs = self.__call__(*transformed_inputs)
+        torch_args = tuple(torch_ify(x) for x in args)
+        torch_kwargs = {k: torch_ify(v) for k, v in kwargs.items()}
+        outputs = self.__call__(*torch_args, **torch_kwargs)
         if isinstance(outputs, tuple):
-            return tuple(
-                ptu.get_numpy(x) if isinstance(x, ptu.TorchVariable) else x
-                for x in outputs
-            )
+            return tuple(np_ify(x) for x in outputs)
         else:
-            if isinstance(outputs, ptu.TorchVariable):
-                return ptu.get_numpy(outputs)
-            else:
-                return outputs
+            return np_ify(outputs)
+
+
+def torch_ify(np_array_or_other):
+    if isinstance(np_array_or_other, np.ndarray):
+        return ptu.np_to_var(np_array_or_other)
+    else:
+        return np_array_or_other
+
+
+def np_ify(tensor_or_other):
+    if isinstance(tensor_or_other, ptu.TorchVariable):
+        return ptu.get_numpy(tensor_or_other)
+    else:
+        return tensor_or_other

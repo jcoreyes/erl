@@ -59,7 +59,7 @@ class QFPolicyPlotter(object):
                 actions.shape[0],
                 axis=0,
             )
-            qs = self._qf.eval(repeated_obs, actions)
+            qs = self._qf.eval_np(repeated_obs, actions)
             qs = qs.reshape(xgrid.shape)
 
             cs = ax.contour(xgrid, ygrid, qs, 20)
