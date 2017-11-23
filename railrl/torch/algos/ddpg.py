@@ -1,10 +1,12 @@
 from collections import OrderedDict
 
+import time
 import torch
 import torch.optim as optim
 from torch import nn as nn
 
 import railrl.torch.pytorch_util as ptu
+from railrl.envs.remote import RemoteRolloutEnv
 from railrl.misc import rllab_util
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.ml_util import (
@@ -14,7 +16,7 @@ from railrl.misc.ml_util import (
 from railrl.torch.algos.util import np_to_pytorch_batch
 from railrl.torch.eval_util import get_statistics_from_pytorch_dict, \
     get_difference_statistics, get_generic_path_information
-from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
+from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
 from rllab.misc import logger
 
 
@@ -80,6 +82,9 @@ class DDPG(TorchRLAlgorithm):
             qf_criterion = nn.MSELoss()
         if target_policy_learning_rate is None:
             target_policy_learning_rate = policy_learning_rate
+        if self.collection_mode == 'online-parallel':
+            self.training_env = RemoteRolloutEnv(env=env, policy=policy, exploration_policy=exploration_policy,
+                                                 max_path_length=self.max_path_length, normalize_env=self.normalize_env)
         self.qf = qf
         self.policy = policy
         self.policy_learning_rate = policy_learning_rate
@@ -273,7 +278,7 @@ class DDPG(TorchRLAlgorithm):
 
         average_returns = rllab_util.get_average_returns(test_paths)
         statistics['AverageReturn'] = average_returns
-
+        statistics['Total Wallclock Time (s)'] = time.time() - self.start_time
         statistics['Epoch'] = epoch
 
         self.final_score = average_returns
@@ -281,12 +286,12 @@ class DDPG(TorchRLAlgorithm):
         for key, value in statistics.items():
             logger.record_tabular(key, value)
 
-        logger.set_key_prefix('test ')
+        logger.push_prefix('test ')
         self.env.log_diagnostics(test_paths)
-        logger.set_key_prefix('expl ')
+        logger.pop_prefix()
+        logger.push_prefix('expl ')
         self.env.log_diagnostics(self._exploration_paths)
-        logger.set_key_prefix('')
-
+        logger.pop_prefix()
         if isinstance(self.epoch_discount_schedule, StatConditionalSchedule):
             table_dict = rllab_util.get_logger_table_dict()
             # rllab converts things to strings for some reason
@@ -298,26 +303,13 @@ class DDPG(TorchRLAlgorithm):
     def offline_evaluate(self, epoch):
         logger.log("Collecting samples for evaluation")
         statistics = OrderedDict()
-        train_batch = self.get_batch(training=True)
-        validation_batch = self.get_batch(training=False)
-
-        if not isinstance(self.epoch_discount_schedule, ConstantSchedule):
-            statistics['Discount Factor'] = self.discount
-
-        statistics.update(self._statistics_from_batch(train_batch, "Train"))
-        statistics.update(
-            self._statistics_from_batch(validation_batch, "Validation")
-        )
-        statistics.update(
-            get_difference_statistics(
-                statistics,
-                [
-                    'QF Loss Mean',
-                    'Policy Loss Mean',
-                    'Target Policy Loss Mean',
-                ],
-            )
-        )
+        # train_batch = self.get_batch(training=True)
+        # validation_batch = self.get_batch(training=False)
+        #
+        # if not isinstance(self.epoch_discount_schedule, ConstantSchedule):
+        #     statistics['Discount Factor'] = self.discount
+        #
+        # statistics.update(self._statistics_from_batch(train_batch, "Train"))
 
         statistics['Epoch'] = epoch
 

@@ -1,27 +1,24 @@
-import sys
+import random
 
-import ray
-
-from railrl.envs.remote import RemoteRolloutEnv
-from railrl.envs.ros.sawyer_env import SawyerEnv
 from railrl.envs.wrappers import convert_gym_space
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import continue_experiment
-from railrl.launchers.launcher_util import resume_torch_algorithm
-from railrl.launchers.launcher_util import run_experiment
+from railrl.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
+from railrl.launchers.launcher_util import resume_torch_algorithm, continue_experiment, run_experiment
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.qfunctions.torch import FeedForwardQFunction
-from railrl.torch.algos.parallel_ddpg import ParallelDDPG
-from railrl.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
+from railrl.torch.algos.ddpg import DDPG
+from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
+from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.torch import pytorch_util as ptu
-import random
+import sys
+
+from rllab.envs.normalized_env import normalize
 
 
 def example(variant):
-    ray.init()
     env_class = variant['env_class']
     env_params = variant['env_params']
     env = env_class(**env_params)
+    normalize(env)
     obs_space = convert_gym_space(env.observation_space)
     action_space = convert_gym_space(env.action_space)
     es_class = variant['es_class']
@@ -49,15 +46,8 @@ def example(variant):
         exploration_strategy=es,
         policy=policy,
     )
-    remote_env = RemoteRolloutEnv(
+    algorithm = DDPG(
         env,
-        policy,
-        exploration_policy,
-        variant['max_path_length'],
-        variant['normalize_env'],
-    )
-    algorithm = ParallelDDPG(
-        remote_env,
         qf=qf,
         policy=policy,
         exploration_policy=exploration_policy,
@@ -87,7 +77,7 @@ if __name__ == "__main__":
     else:
         run_experiment(
             example,
-            exp_prefix="ddpg-parallel-sawyer-varying-end-effector",
+            exp_prefix="ddpg-cheetah-parallel-TEST",
             seed=random.randint(0, 666),
             mode='local',
             variant={
@@ -95,32 +85,26 @@ if __name__ == "__main__":
                 'max_path_length': max_path_length,
                 'use_gpu': True,
                 'es_class': OUStrategy,
-                'env_class': SawyerEnv,
+                'env_class': HalfCheetahEnv,
                 'policy_class': FeedForwardPolicy,
                 'normalize_env': False,
-                'env_params': {
-                    'arm_name': 'right',
-                    'safety_box': True,
-                    'loss': 'huber',
-                    'huber_delta': 10,
-                    'safety_force_magnitude': 6,
-                    'temp': 15,
-                    'remove_action': False,
-                    'experiment': experiments[3],
-                    'reward_magnitude': 1,
-                    'use_safety_checks':False,
-                },
-                'es_params': {
+                'env_params': dict(),
+                'es_params':{
                     'max_sigma': .25,
                     'min_sigma': .25,
                 },
-                'algo_params': dict(
-                    batch_size=64,
-                    num_epochs=50,
-                    num_updates_per_env_step=1,
-                    num_steps_per_epoch=1000,
-                    max_path_length=max_path_length,
-                    num_steps_per_eval=1000,
+                'algo_params':dict(
+                    num_epochs=100,
+                    num_steps_per_epoch=10000,
+                    num_steps_per_eval=100,
+                    use_soft_update=True,
+                    tau=1e-2,
+                    batch_size=128,
+                    max_path_length=1000,
+                    discount=0.99,
+                    qf_learning_rate=1e-3,
+                    policy_learning_rate=1e-4,
+                    collection_mode='online-parallel',
                 ),
             },
             use_gpu=True,

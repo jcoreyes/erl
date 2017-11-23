@@ -76,7 +76,7 @@ if __name__ == "__main__":
         example,
         exp_prefix="ddpg-reacher-dueling-qf",
         seed=0,
-        mode='here',
+        mode='local',
         variant={
             'version': 'Original',
             'es_min_sigma': .05,

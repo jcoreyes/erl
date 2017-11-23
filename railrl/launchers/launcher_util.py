@@ -64,8 +64,12 @@ def run_experiment(
         snapshot_gap=1,
         n_parallel=0,
         base_log_dir=None,
-        sync_interval=180,
         local_input_dir_to_mount_point_dict=None,  # TODO(vitchyr): test this
+        # Settings for EC2 only
+        sync_interval=180,
+        region='us-west-1',
+        instance_type='c4.large',
+        spot_price=0.03,
 ):
     """
     Usage:
@@ -186,9 +190,9 @@ def run_experiment(
         ),
         'ec2': doodad.mode.EC2AutoconfigDocker(
             image=config.DOODAD_DOCKER_IMAGE,
-            region='us-west-1',
-            instance_type='c4.large',
-            spot_price=0.03,
+            region=region,
+            instance_type=instance_type,
+            spot_price=spot_price,
             s3_log_prefix=exp_prefix,
             s3_log_name="{}-id{}-s{}".format(exp_prefix, exp_id, seed),
         ),
@@ -389,6 +393,7 @@ def run_experiment_old(
         code_diff = ''
         commit_hash = ''
     script_name = "tmp"
+
     if mode == 'here':
         log_dir = create_log_dir(exp_prefix, exp_id, seed,
                                            base_log_dir)
@@ -485,7 +490,8 @@ def continue_experiment(load_experiment_dir, resume_function):
         n_parallel = data['n_parallel']
         base_log_dir = data['base_log_dir']
         log_dir = data['log_dir']
-        if mode == 'here':
+        exp_name = data['exp_name']
+        if mode == 'local':
             run_experiment_here(
                 resume_function,
                 variant=variant,
