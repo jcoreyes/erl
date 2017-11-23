@@ -189,6 +189,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 epoch += 1
                 n_steps_current_epoch = 0
                 self._start_epoch(epoch)
+                self.train_start_time = time.time()
 
     def train_offline(self, start_epoch=0):
         self.training_mode(False)
@@ -226,6 +227,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                     "Table keys cannot change from iteration to iteration."
                 )
             self._old_table_keys = table_keys
+            logger.record_tabular('Epoch Duration ', time.time() - self._epoch_start_time)
             logger.dump_tabular(with_prefix=False, with_timestamp=False)
             logger.log("Eval Time: {0}".format(time.time() - start_time))
         else:

@@ -283,12 +283,11 @@ class DDPG(TorchRLAlgorithm):
         for key, value in statistics.items():
             logger.record_tabular(key, value)
 
-        logger.push_prefix('test ')
+        logger.set_key_prefix('test ')
         self.env.log_diagnostics(test_paths)
-        logger.pop_prefix()
-        logger.push_prefix('expl ')
+        logger.set_key_prefix('expl ')
         self.env.log_diagnostics(self._exploration_paths)
-        logger.pop_prefix()
+        logger.set_key_prefix('')
         if isinstance(self.epoch_discount_schedule, StatConditionalSchedule):
             table_dict = rllab_util.get_logger_table_dict()
             # rllab converts things to strings for some reason
