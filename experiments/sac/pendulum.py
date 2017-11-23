@@ -32,8 +32,8 @@ def experiment(variant):
     )
     policy = TanhGaussianPolicy(
         hidden_sizes=[100, 100],
-        input_size=obs_dim,
-        output_size=action_dim,
+        obs_dim=obs_dim,
+        action_dim=action_dim,
     )
     algorithm = SoftActorCritic(
         env=env,
@@ -65,11 +65,11 @@ if __name__ == "__main__":
         seed = random.randint(0, 999999)
         run_experiment(
             experiment,
-            exp_prefix="try-dqn-pong-ram-4-long",
+            exp_prefix="dev-sac-pendulum",
             seed=seed,
             variant=variant,
-            mode='ec2',
-            use_gpu=False,
-            # mode='local',
-            # use_gpu=True,
+            # mode='ec2',
+            # use_gpu=False,
+            mode='local',
+            use_gpu=True,
         )
