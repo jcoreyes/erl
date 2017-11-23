@@ -64,8 +64,12 @@ def run_experiment(
         snapshot_gap=1,
         n_parallel=0,
         base_log_dir=None,
-        sync_interval=180,
         local_input_dir_to_mount_point_dict=None,  # TODO(vitchyr): test this
+        # Settings for EC2 only
+        sync_interval=180,
+        region='us-west-1',
+        instance_type='c4.large',
+        spot_price=0.03,
 ):
     """
     Usage:
@@ -186,9 +190,9 @@ def run_experiment(
         ),
         'ec2': doodad.mode.EC2AutoconfigDocker(
             image=config.DOODAD_DOCKER_IMAGE,
-            region='us-west-1',
-            instance_type='c4.large',
-            spot_price=0.03,
+            region=region,
+            instance_type=instance_type,
+            spot_price=spot_price,
             s3_log_prefix=exp_prefix,
             s3_log_name="{}-id{}-s{}".format(exp_prefix, exp_id, seed),
         ),
