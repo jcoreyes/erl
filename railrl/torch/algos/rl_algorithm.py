@@ -79,8 +79,9 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
 
         self._n_env_steps_total = 0
         self._n_train_steps_total = 0
+        self._n_rollouts_total = 0
         self._epoch_start_time = None
-        self._train_start_time = None
+        self._algo_start_time = None
         self._old_table_keys = None
         self._current_path = Path()
         self._exploration_paths = []
@@ -98,7 +99,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             logger.save_itr_params(-1, params)
         self.training_mode(False)
         self._n_env_steps_total = start_epoch * self.num_env_steps_per_epoch
-        self._train_start_time = time.time()
+        self._algo_start_time = time.time()
         if self.collection_mode == 'online':
             self.train_online(start_epoch=start_epoch)
         elif self.collection_mode == 'online-parallel':
@@ -215,12 +216,12 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             self.get_extra_data_to_save(epoch),
         )
         if self._can_evaluate():
-            start_time = time.time()
-            logger.record_tabular(
-                "Number of train steps total",
-                self._n_train_steps_total,
-            )
+            # Assuming rest of epoch was spent on training
+            train_duration = time.time() - self._epoch_start_time
+            eval_start_time = time.time()
             self.evaluate(epoch)
+            eval_duration = time.time() - eval_start_time
+
             params = self.get_epoch_snapshot(epoch)
             logger.save_itr_params(epoch, params)
             table_keys = get_table_key_set(logger)
@@ -229,16 +230,29 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                     "Table keys cannot change from iteration to iteration."
                 )
             self._old_table_keys = table_keys
-            logger.record_tabular(
-                'Epoch Duration (s)',
+
+            logger.record_tabular('Train Time (s)', train_duration)
+            logger.record_tabular('Eval Time (s)', eval_duration)
+            logger.record_tabular('Epoch Time (s)',
                 time.time() - self._epoch_start_time
             )
             logger.record_tabular(
                 'Total Train Time (s)',
-                time.time() - self._train_start_time
+                time.time() - self._algo_start_time
+            )
+            logger.record_tabular(
+                "Number of train steps total",
+                self._n_train_steps_total,
+            )
+            logger.record_tabular(
+                "Number of env steps total",
+                self._n_env_steps_total,
+            )
+            logger.record_tabular(
+                "Number of rollouts total",
+                self._n_rollouts_total,
             )
             logger.dump_tabular(with_prefix=False, with_timestamp=False)
-            logger.log("Eval Time: {0}".format(time.time() - start_time))
         else:
             logger.log("Skipping eval for now.")
 
@@ -396,6 +410,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             agent_info=agent_info,
             env_info=env_info,
         )
+        self._n_rollouts_total += 1
 
     def get_epoch_snapshot(self, epoch):
         if self.render:
