@@ -45,6 +45,7 @@ class SoftActorCritic(TorchRLAlgorithm):
 
             soft_target_tau=1e-2,
             plotter=None,
+            render_eval_paths=False,
             **kwargs
     ):
         super().__init__(
@@ -58,6 +59,7 @@ class SoftActorCritic(TorchRLAlgorithm):
         self.soft_target_tau = soft_target_tau
         self.policy_reg_weight = policy_reg_weight
         self.plotter = plotter
+        self.render_eval_paths = render_eval_paths
 
         self.target_vf = vf.copy()
         self.qf_criterion = nn.MSELoss()
