@@ -44,6 +44,7 @@ class SoftActorCritic(TorchRLAlgorithm):
             policy_reg_weight=1e-3,
 
             soft_target_tau=1e-2,
+            plotter=None,
             **kwargs
     ):
         super().__init__(
@@ -56,6 +57,7 @@ class SoftActorCritic(TorchRLAlgorithm):
         self.vf = vf
         self.soft_target_tau = soft_target_tau
         self.policy_reg_weight = policy_reg_weight
+        self.plotter = plotter
 
         self.target_vf = vf.copy()
         self.qf_criterion = nn.MSELoss()
@@ -165,6 +167,9 @@ class SoftActorCritic(TorchRLAlgorithm):
 
         for key, value in statistics.items():
             logger.record_tabular(key, value)
+
+        if self.plotter:
+            self.plotter.draw()
 
     @property
     def networks(self):

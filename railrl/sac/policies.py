@@ -71,6 +71,14 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
         action_np = ptu.get_numpy(action)
         return action_np, {}
 
+    def get_actions(self, obs_np, deterministic=False):
+        obs = ptu.np_to_var(obs_np)
+        actions = self.__call__(
+            obs,
+            deterministic=deterministic,
+        )[0]
+        return ptu.get_numpy(actions)
+
     def forward(
             self,
             obs,
