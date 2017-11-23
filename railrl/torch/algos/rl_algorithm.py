@@ -383,7 +383,8 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         )
 
     def get_epoch_snapshot(self, epoch):
-        self.training_env.render(close=True)
+        if self.render:
+            self.training_env.render(close=True)
         return dict(
             epoch=epoch,
             exploration_policy=self.exploration_policy,
@@ -397,7 +398,8 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         :param epoch:
         :return:
         """
-        self.training_env.render(close=True)
+        if self.render:
+            self.training_env.render(close=True)
         data_to_save = dict(
             epoch=epoch,
             env=self.training_env,
