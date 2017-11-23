@@ -96,6 +96,7 @@ class SoftActorCritic(TorchRLAlgorithm):
 
         q_pred = self.qf(obs, actions)
         v_pred = self.vf(obs)
+        # Make sure policy accounts for squashing functions like tanh correctly!
         new_actions, policy_mean, policy_log_std, log_pi = self.policy(
             obs, return_log_prob=True
         )
@@ -110,21 +111,22 @@ class SoftActorCritic(TorchRLAlgorithm):
         """
         VF Loss
         """
-        # Make sure policy accounts for squashing functions like tanh correctly!
-        q_target_for_v = self.qf(obs, new_actions)
-        v_target = q_target_for_v - log_pi
+        q_new_actions = self.qf(obs, new_actions)
+        v_target = q_new_actions - log_pi
         vf_loss = self.vf_criterion(v_pred, v_target.detach())
 
         """
         Policy Loss
         """
-        log_policy_target = q_pred + v_pred
+        # paper says to do + but apparently that's a typo. Do Q - V.
+        log_policy_target = q_new_actions - v_pred
         policy_loss = (
             log_pi * (log_pi - log_policy_target).detach()
-        ).sum()
+        ).mean()
         policy_reg_loss = self.policy_reg_weight * (
-            policy_mean + policy_log_std
-        ).mean() / 2
+            (policy_mean**2).mean()
+            + (policy_log_std**2).mean()
+        )
         policy_loss = policy_loss + policy_reg_loss
 
         """
