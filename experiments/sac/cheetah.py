@@ -1,21 +1,20 @@
 """
-Run PyTorch Soft Actor Critic on Pendulum.
+Run PyTorch Soft Actor Critic on HalfCheetahEnv.
 """
 import random
 
-import gym
 import numpy as np
 
 import railrl.torch.pytorch_util as ptu
 from railrl.launchers.launcher_util import run_experiment
 from railrl.sac.policies import TanhGaussianPolicy
 from railrl.sac.sac import SoftActorCritic
-from railrl.torch.algos.dqn import DQN
 from railrl.torch.networks import FlattenMlp
+from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 
 
 def experiment(variant):
-    env = gym.make("Pendulum-v0")
+    env = HalfCheetahEnv()
 
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
@@ -52,10 +51,10 @@ if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
             num_epochs=100,
-            num_steps_per_epoch=1000,
-            num_steps_per_eval=1000,
-            batch_size=128,
-            max_path_length=1000,
+            num_steps_per_epoch=100,
+            num_steps_per_eval=100,
+            batch_size=32,
+            max_path_length=10,
             discount=0.99,
             soft_target_tau=0.001,
         ),
@@ -66,10 +65,10 @@ if __name__ == "__main__":
             experiment,
             seed=seed,
             variant=variant,
-            # exp_prefix="sac-pendulum-with-action-hack",
+            # exp_prefix="sac-half-cheetah-with-action-hack",
             # mode='ec2',
             # use_gpu=False,
-            exp_prefix="dev-sac-pendulum",
+            exp_prefix="dev-sac-half-cheetah",
             mode='local',
             use_gpu=True,
         )
