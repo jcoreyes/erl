@@ -80,13 +80,15 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self._n_env_steps_total = 0
         self._n_train_steps_total = 0
         self._epoch_start_time = None
+        self._train_start_time = None
         self._old_table_keys = None
         self._current_path = Path()
         self._exploration_paths = []
         self.parallel_sim_ratio = ratio
-        self._train_start_time = None
         self.sim_throttle = sim_throttle
         if self.collection_mode == 'online-parallel':
+            # TODO(murtaza): What happens to the eval env?
+            # see `eval_sampler` definition above.
             self.training_env = RemoteRolloutEnv(env=env, policy=eval_policy, exploration_policy=exploration_policy,
                                                  max_path_length=self.max_path_length, normalize_env=self.normalize_env)
 
