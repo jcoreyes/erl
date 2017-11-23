@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from torch import nn as nn
 
-from railrl.policies.base import ExplorationPolicy
+from railrl.policies.base import ExplorationPolicy, Policy
 from railrl.torch.distributions import TanhNormal
 from railrl.torch.networks import Mlp
 
@@ -108,3 +108,16 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
                 action = tanh_normal.sample()
 
         return action, mean, log_std, log_prob
+
+
+class MakeDeterministic(Policy):
+    def __init__(self, stochastic_policy):
+        self.stochastic_policy = stochastic_policy
+
+    def get_action(self, observation):
+        return self.stochastic_policy.get_action(observation,
+                                                 deterministic=True)
+
+    def get_actions(self, observations):
+        return self.stochastic_policy.get_actions(observations,
+                                                  deterministic=True)

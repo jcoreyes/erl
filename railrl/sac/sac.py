@@ -25,6 +25,7 @@ from torch import nn as nn
 
 import railrl.torch.pytorch_util as ptu
 from railrl.misc.data_processing import create_stats_ordered_dict
+from railrl.sac.policies import MakeDeterministic
 from railrl.torch import eval_util
 from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
 from rllab.misc import logger
@@ -46,11 +47,17 @@ class SoftActorCritic(TorchRLAlgorithm):
             soft_target_tau=1e-2,
             plotter=None,
             render_eval_paths=False,
+            eval_deterministic=True,
             **kwargs
     ):
+        if eval_deterministic:
+            eval_policy = MakeDeterministic(policy)
+        else:
+            eval_policy = policy
         super().__init__(
             env=env,
             exploration_policy=policy,
+            eval_policy=eval_policy,
             **kwargs
         )
         self.policy = policy
