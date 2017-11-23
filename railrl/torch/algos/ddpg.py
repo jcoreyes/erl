@@ -6,7 +6,6 @@ import torch.optim as optim
 from torch import nn as nn
 
 import railrl.torch.pytorch_util as ptu
-from railrl.envs.remote import RemoteRolloutEnv
 from railrl.misc import rllab_util
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.ml_util import (
@@ -76,15 +75,13 @@ class DDPG(TorchRLAlgorithm):
         super().__init__(
             env,
             exploration_policy,
+            eval_policy=policy,
             **kwargs
         )
         if qf_criterion is None:
             qf_criterion = nn.MSELoss()
         if target_policy_learning_rate is None:
             target_policy_learning_rate = policy_learning_rate
-        if self.collection_mode == 'online-parallel':
-            self.training_env = RemoteRolloutEnv(env=env, policy=policy, exploration_policy=exploration_policy,
-                                                 max_path_length=self.max_path_length, normalize_env=self.normalize_env)
         self.qf = qf
         self.policy = policy
         self.policy_learning_rate = policy_learning_rate
@@ -286,12 +283,11 @@ class DDPG(TorchRLAlgorithm):
         for key, value in statistics.items():
             logger.record_tabular(key, value)
 
-        logger.push_prefix('test ')
+        logger.set_key_prefix('test ')
         self.env.log_diagnostics(test_paths)
-        logger.pop_prefix()
-        logger.push_prefix('expl ')
+        logger.set_key_prefix('expl ')
         self.env.log_diagnostics(self._exploration_paths)
-        logger.pop_prefix()
+        logger.set_key_prefix('')
         if isinstance(self.epoch_discount_schedule, StatConditionalSchedule):
             table_dict = rllab_util.get_logger_table_dict()
             # rllab converts things to strings for some reason
