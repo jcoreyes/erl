@@ -10,20 +10,28 @@ from railrl.torch.algos.rl_algorithm import RLAlgorithm
 
 
 class TorchRLAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
-    def __init__(self, env, *args, replay_buffer=None, replay_buffer_size=1000000, **kwargs):
-        replay_buffer = SplitReplayBuffer(
-            EnvReplayBuffer(
-                replay_buffer_size,
-                env,
-                flatten=True,
-            ),
-            EnvReplayBuffer(
-                replay_buffer_size,
-                env,
-                flatten=True,
-            ),
-            fraction_paths_in_train=0.8,
-        )
+    def __init__(
+            self,
+            env,
+            *args,
+            replay_buffer=None,
+            replay_buffer_size=1000000,
+            **kwargs
+    ):
+        if replay_buffer is None:
+            replay_buffer = SplitReplayBuffer(
+                EnvReplayBuffer(
+                    replay_buffer_size,
+                    env,
+                    flatten=True,
+                ),
+                EnvReplayBuffer(
+                    replay_buffer_size,
+                    env,
+                    flatten=True,
+                ),
+                fraction_paths_in_train=0.8,
+            )
         super().__init__(env, *args, replay_buffer=replay_buffer, **kwargs)
 
     def get_batch(self, training=True):
