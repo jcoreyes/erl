@@ -20,14 +20,13 @@ Covariance
 """
 from collections import OrderedDict
 import numpy as np
-import torch
 import torch.optim as optim
 from torch import nn as nn
 
 import railrl.torch.pytorch_util as ptu
 from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.torch.algos import eval
-from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
+from railrl.torch import eval_util
+from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
 from rllab.misc import logger
 
 
@@ -59,7 +58,6 @@ class SoftActorCritic(TorchRLAlgorithm):
         self.target_vf = vf.copy()
         self.qf_criterion = nn.MSELoss()
         self.vf_criterion = nn.MSELoss()
-        self.policy_criterion = nn.MSELoss()
         self.eval_statistics = None
 
         self.policy_optimizer = optim.Adam(
@@ -106,7 +104,7 @@ class SoftActorCritic(TorchRLAlgorithm):
         Policy Loss
         """
         log_policy_target = q_pred + v_pred
-        policy_loss = self.policy_criterion(log_pi, log_policy_target.detach())
+        policy_loss = log_pi * (log_pi - log_policy_target).detach()
 
         """
         Update networks
@@ -151,7 +149,7 @@ class SoftActorCritic(TorchRLAlgorithm):
         statistics = OrderedDict()
         statistics.update(self.eval_statistics)
         test_paths = self.eval_sampler.obtain_samples()
-        statistics.update(eval.get_generic_path_information(
+        statistics.update(eval_util.get_generic_path_information(
             test_paths, self.discount, stat_prefix="Test",
         ))
         if hasattr(self.env, "log_diagnostics"):
