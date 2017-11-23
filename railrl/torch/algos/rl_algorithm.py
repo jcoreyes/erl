@@ -252,6 +252,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 "Number of rollouts total",
                 self._n_rollouts_total,
             )
+            logger.record_tabular("Epoch", epoch)
             logger.dump_tabular(with_prefix=False, with_timestamp=False)
         else:
             logger.log("Skipping eval for now.")

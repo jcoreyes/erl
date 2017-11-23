@@ -30,6 +30,7 @@ class DDPG(TorchRLAlgorithm):
             qf,
             policy,
             exploration_policy,
+
             policy_learning_rate=1e-4,
             qf_learning_rate=1e-3,
             qf_weight_decay=0,
@@ -42,6 +43,10 @@ class DDPG(TorchRLAlgorithm):
             optimize_target_policy=None,
             target_policy_learning_rate=None,
             epoch_discount_schedule=None,
+
+            plotter=None,
+            render_eval_paths=False,
+
             **kwargs
     ):
         """
@@ -98,6 +103,8 @@ class DDPG(TorchRLAlgorithm):
         if epoch_discount_schedule is None:
             epoch_discount_schedule = ConstantSchedule(self.discount)
         self.epoch_discount_schedule = epoch_discount_schedule
+        self.plotter = plotter
+        self.render_eval_paths = render_eval_paths
 
         self.target_qf = self.qf.copy()
         self.target_policy = self.policy.copy()
@@ -275,10 +282,6 @@ class DDPG(TorchRLAlgorithm):
 
         average_returns = rllab_util.get_average_returns(test_paths)
         statistics['AverageReturn'] = average_returns
-        statistics['Total Wallclock Time (s)'] = time.time() - self.start_time
-        statistics['Epoch'] = epoch
-
-        self.final_score = average_returns
 
         for key, value in statistics.items():
             logger.record_tabular(key, value)
@@ -295,6 +298,12 @@ class DDPG(TorchRLAlgorithm):
                 table_dict[self.epoch_discount_schedule.statistic_name]
             )
             self.epoch_discount_schedule.update(value)
+
+        if self.render_eval_paths:
+            self.env.render_paths(test_paths)
+
+        if self.plotter:
+            self.plotter.draw()
 
     def offline_evaluate(self, epoch):
         logger.log("Collecting samples for evaluation")
