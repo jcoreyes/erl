@@ -29,32 +29,36 @@ See
 
 https://arxiv.org/pdf/1602.05610.pdf
 """
-from collections import defaultdict, OrderedDict
+from collections import OrderedDict
 
 import numpy as np
-from railrl.torch.core import PyTorchModule
-from railrl.torch.networks import Mlp
 import torch
+from torch import nn as nn
 from torch.autograd import Variable
 from torch.optim import Adam
-from torch import nn as nn
 
-from railrl.torch.pytorch_util import get_numpy
+from railrl.torch.networks import Mlp
+
+INPUT_SIZE = 10
+OUTPUT_SIZE = 2
+N = 10
+N_TRUTH = 100000
 
 
 def estimate_mean_naive(network):
-    return network.eval_np(np.array([[0]]))[0, 0]
+    return network.eval_np(np.zeros((1, INPUT_SIZE)))[0, 0]
 
 
 def estimate_mean_monte_carlo(network, num_samples):
-    samples = torch.randn(num_samples, 1)
+    samples = torch.randn(num_samples, INPUT_SIZE)
     res = network(Variable(samples)).data.numpy()
-    return np.mean(res)
+    return np.mean(res, axis=0)
 
 
 def estimate_mean_convolution(network):
-    bias = get_numpy(network.fcs[0].bias.unsqueeze(0))
-    return network.eval_np(bias, convolve=True)[0, 0]
+    # No need to input bias! That's because the network already accounts for
+    # that (duh)
+    return network.eval_np(np.zeros((1, INPUT_SIZE)), convolve=True)[0, 0]
 
 
 class TanhNetwork(Mlp):
@@ -62,30 +66,19 @@ class TanhNetwork(Mlp):
         h = input
         for i, fc in enumerate(self.fcs):
             if convolve:
-                row_norms = torch.sum(fc.weight * fc.weight, dim=1).unsqueeze(0)
-                conv_factor_inv = torch.sqrt(1 + np.pi / 2 * row_norms)
+                variance = torch.sum(fc.weight * fc.weight, dim=1).unsqueeze(0)
+                conv_factor_inv = torch.sqrt(1 + np.pi / 2 * variance)
                 h = torch.tanh(fc(h) / conv_factor_inv)
             else:
                 h = torch.tanh(fc(h))
         return self.last_fc(h)
 
 
-class ReLUNetwork(Mlp):
-    def forward(self, input, convolve=False):
-        h = input
-        for i, fc in enumerate(self.fcs):
-            if convolve:
-                h = torch.tanh(fc(h) - 0.4)
-            else:
-                h = torch.tanh(fc(h))
-        return h
-
-
 def train(network):
     optimizer = Adam(network.parameters())
     loss_fctn = nn.MSELoss()
     for _ in range(100):
-        x = torch.rand(64, 1) * 20 - 10
+        x = torch.rand(64, 1) * 10 - 5
         y = torch.sin(x)
 
         x = Variable(x)
@@ -117,13 +110,13 @@ def print_estimates(network):
 
 def run_exp(network_generator):
     name_to_errors = OrderedDict()
+    name_to_errors["truth"] = []
     estim_mc_1 = lambda x: estimate_mean_monte_carlo(x, 1)
     estim_mc_10 = lambda x: estimate_mean_monte_carlo(x, 10)
     estim_mc_100 = lambda x: estimate_mean_monte_carlo(x, 100)
-    N = 100
     for _ in range(N):
         network = network_generator()
-        truth = estimate_mean_monte_carlo(network, 100000)
+        truth = estimate_mean_monte_carlo(network, N_TRUTH)
         for name, estimator in [
             ("MC 1", estim_mc_1),
             ("MC 10", estim_mc_10),
@@ -133,11 +126,21 @@ def run_exp(network_generator):
         ]:
             estim = estimator(network)
             name_to_errors.setdefault(name, []).append(truth - estim)
+
+    # See how reliable "truth" is
+    network = network_generator()
+    for _ in range(N):
+        truth = estimate_mean_monte_carlo(network, N_TRUTH)
+        name_to_errors["truth"].append(truth)
+
+    for name, errors in name_to_errors.items():
+        print("{0}: {1} ({2})".format(
+            name, np.mean(errors, axis=0), np.std(errors, axis=0) / np.sqrt(N)
+        ))
     for name, errors in name_to_errors.items():
         print("{0}: {1} ({2})".format(
             name, np.mean(errors), np.std(errors) / np.sqrt(N)
         ))
-
 
 
 def get_network_generator(params, train_net=False):
@@ -146,16 +149,16 @@ def get_network_generator(params, train_net=False):
         if train_net:
             train(tanh_net)
         return tanh_net
-    return network_generator
 
+    return network_generator
 
 
 def main():
     params = dict(
-        hidden_sizes=[1],
-        input_size=1,
-        output_size=1,
-        # init_w=1,
+        hidden_sizes=[10],
+        input_size=INPUT_SIZE,
+        output_size=OUTPUT_SIZE,
+        init_w=1,
     )
     print("Tanh")
     run_exp(get_network_generator(
@@ -163,22 +166,6 @@ def main():
         # train_net=True,
         train_net=False,
     ))
-
-
-    # print("")
-    # print("")
-    # print("")
-    # print("One-off")
-    # tanh_net = TanhNetwork(**params)
-    # train(tanh_net)
-    # print_estimates(tanh_net)
-    #
-    # relu_net = ReLUNetwork(**params)
-    # train(relu_net)
-    #
-    # print("")
-    # print("ReLU")
-    # print_estimates(relu_net)
 
 
 if __name__ == '__main__':
