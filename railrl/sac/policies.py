@@ -111,7 +111,7 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
 
         if return_expected_log_prob:
             expected_log_prob = - (
-                1 + log_std + mean**2 / std**2 / 2 + np.log(2 * np.pi) / 2
+                log_std + 0.5 + np.log(2 * np.pi) / 2
             )
             expected_log_prob = expected_log_prob.sum(dim=1, keepdim=True)
         return action, mean, log_std, log_prob, expected_log_prob, std
