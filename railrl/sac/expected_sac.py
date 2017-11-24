@@ -16,6 +16,16 @@ class ExpectedSAC(SoftActorCritic):
 
     in closed form
     """
+
+    def __init__(
+            self,
+            *args,
+            naive_expectation=False,
+            **kwargs
+    ):
+        super().__init__(*args, **kwargs)
+        self.naive_expectation = naive_expectation
+
     def _do_training(self):
         batch = self.get_batch(training=True)
         rewards = batch['rewards']
@@ -48,8 +58,11 @@ class ExpectedSAC(SoftActorCritic):
         """
         # q_new_actions = self.qf(obs, new_actions)
         # v_target = q_new_actions - log_prob
-        expected_q = self.qf(obs, torch.zeros_like(new_actions),
-                             action_stds=policy_stds)
+        if self.naive_expectation:
+            expected_q = self.qf(obs, torch.zeros_like(new_actions))
+        else:
+            expected_q = self.qf(obs, torch.zeros_like(new_actions),
+                                 action_stds=policy_stds)
         v_target = expected_q - expected_log_prob
         vf_loss = self.vf_criterion(v_pred, v_target.detach())
 

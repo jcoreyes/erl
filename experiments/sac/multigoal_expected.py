@@ -83,6 +83,7 @@ if __name__ == "__main__":
             reward_scale=0.3,
             discount=0.99,
             soft_target_tau=0.001,
+            naive_expectation=True,
         ),
     )
     for _ in range(1):
