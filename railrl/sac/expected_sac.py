@@ -1,5 +1,6 @@
 from collections import OrderedDict
 
+import torch
 import numpy as np
 
 import railrl.torch.pytorch_util as ptu
@@ -26,12 +27,13 @@ class ExpectedSAC(SoftActorCritic):
         q_pred = self.qf(obs, actions)
         v_pred = self.vf(obs)
         # Make sure policy accounts for squashing functions like tanh correctly!
-        new_actions, policy_mean, policy_log_std, log_pi, expected_log_prob = (
-            self.policy(
-                obs,
-                return_log_prob=True,
-                return_expected_log_prob=True,
-            )
+        (
+            new_actions, policy_mean, policy_log_std, log_pi, expected_log_prob,
+            policy_stds
+        ) = self.policy(
+            obs,
+            return_log_prob=True,
+            return_expected_log_prob=True,
         )
 
         """
@@ -44,16 +46,18 @@ class ExpectedSAC(SoftActorCritic):
         """
         VF Loss
         """
-        # q_new_actions = self.qf(obs, torch.zeros_like(new_actions),
-        #                         convolve=True)
-        q_new_actions = self.qf(obs, new_actions)
-        v_target = q_new_actions - log_pi
+        # q_new_actions = self.qf(obs, new_actions)
+        # v_target = q_new_actions - log_prob
+        expected_q = self.qf(obs, torch.zeros_like(new_actions),
+                             action_stds=policy_stds)
+        v_target = expected_q - expected_log_prob
         vf_loss = self.vf_criterion(v_pred, v_target.detach())
 
         """
         Policy Loss
         """
-        # paper says to do + but apparently that's a typo. Do Q - V.
+        # paper says to do + but Tuomas said that's a typo. Do Q - V.
+        q_new_actions = self.qf(obs, new_actions)
         log_policy_target = q_new_actions - v_pred
         policy_loss = (
             log_pi * (log_pi - log_policy_target).detach()

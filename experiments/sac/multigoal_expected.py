@@ -28,16 +28,16 @@ def experiment(variant):
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
 
-    # qf = ExpectableQF(
-    #     obs_dim=obs_dim,
-    #     action_dim=action_dim,
-    #     hidden_size=100,
-    # )
-    qf = FlattenMlp(
-        hidden_sizes=[100],
-        input_size=obs_dim + action_dim,
-        output_size=1,
+    qf = ExpectableQF(
+        obs_dim=obs_dim,
+        action_dim=action_dim,
+        hidden_size=100,
     )
+    # qf = FlattenMlp(
+    #     hidden_sizes=[100],
+    #     input_size=obs_dim + action_dim,
+    #     output_size=1,
+    # )
     vf = FlattenMlp(
         hidden_sizes=[100],
         input_size=obs_dim,

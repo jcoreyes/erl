@@ -23,21 +23,27 @@ class ExpectableQF(PyTorchModule):
 
         self.obs_fc = nn.Linear(obs_dim, hidden_size)
         self.action_fc = nn.Linear(action_dim, hidden_size)
-        hidden_init(self.fc)
-        self.fc.bias.data.fill_(b_init_value)
+        hidden_init(self.obs_fc.weight)
+        hidden_init(self.action_fc.weight)
+        self.obs_fc.bias.data.fill_(b_init_value)
+        self.action_fc.bias.data.fill_(b_init_value)
 
         self.last_fc = nn.Linear(2*hidden_size, 1)
         self.last_fc.weight.data.uniform_(-init_w, init_w)
         self.last_fc.bias.data.uniform_(-init_w, init_w)
 
-    def forward(self, obs, action, convolve=False):
+    def forward(self, obs, action, action_stds=None):
         h_obs = torch.tanh(self.obs_fc(obs))
-        if convolve:
-            variance = torch.sum(self.action_fc.weight * self.action_fc.weight,
-                                 dim=1).unsqueeze(0)
+        if action_stds is not None:
+            variance = action_stds**2 @ (self.action_fc.weight**2).transpose(0, 1)
+            # variance = torch.sum(self.action_fc.weight**2, dim=1).unsqueeze(0)
+            # variance = variance + torch.sum(
+            #     action_stds * action_stds,
+            #     dim=1,
+            #     ).unsqueeze(0)
             conv_factor_inv = torch.sqrt(1 + np.pi / 2 * variance)
-            h_action = torch.tanh(self.obs_fc(action) / conv_factor_inv)
+            h_action = torch.tanh(self.action_fc(action) / conv_factor_inv)
         else:
-            h_action = torch.tanh(self.obs_fc(action))
-        h = torch.cat(h_obs, h_action)
+            h_action = torch.tanh(self.action_fc(action))
+        h = torch.cat((h_obs, h_action), dim=1)
         return self.last_fc(h)

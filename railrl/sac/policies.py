@@ -109,7 +109,12 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
             else:
                 action = tanh_normal.sample()
 
-        return action, mean, log_std, log_prob, expected_log_prob
+        if return_expected_log_prob:
+            expected_log_prob = - (
+                1 + log_std + mean**2 / std**2 / 2 + np.log(2 * np.pi) / 2
+            )
+            expected_log_prob = expected_log_prob.sum(dim=1, keepdim=True)
+        return action, mean, log_std, log_prob, expected_log_prob, std
 
 
 class MakeDeterministic(Policy):
