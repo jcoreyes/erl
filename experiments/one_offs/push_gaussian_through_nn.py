@@ -40,7 +40,7 @@ from torch.optim import Adam
 from railrl.torch.networks import Mlp
 
 INPUT_SIZE = 10
-OUTPUT_SIZE = 2
+OUTPUT_SIZE = 1
 N = 10
 N_TRUTH = 100000
 
