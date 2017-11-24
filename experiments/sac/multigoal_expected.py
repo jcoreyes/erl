@@ -1,5 +1,4 @@
-"""
-Run PyTorch Soft Actor Critic on Multigoal Env.
+""" Run PyTorch Soft Actor Critic on Multigoal Env.
 """
 import random
 
@@ -28,16 +27,16 @@ def experiment(variant):
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
 
-    qf = ExpectableQF(
-        obs_dim=obs_dim,
-        action_dim=action_dim,
-        hidden_size=100,
-    )
-    # qf = FlattenMlp(
-    #     hidden_sizes=[100],
-    #     input_size=obs_dim + action_dim,
-    #     output_size=1,
+    # qf = ExpectableQF(
+        # obs_dim=obs_dim,
+        # action_dim=action_dim,
+        # hidden_size=100,
     # )
+    qf = FlattenMlp(
+        hidden_sizes=[100],
+        input_size=obs_dim + action_dim,
+        output_size=1,
+    )
     vf = FlattenMlp(
         hidden_sizes=[100],
         input_size=obs_dim,
@@ -48,22 +47,23 @@ def experiment(variant):
         obs_dim=obs_dim,
         action_dim=action_dim,
     )
-    plotter = QFPolicyPlotter(
-        qf=qf,
-        policy=policy,
-        obs_lst=np.array([[-2.5, 0.0],
-                          [0.0, 0.0],
-                          [2.5, 2.5]]),
-        default_action=[np.nan, np.nan],
-        n_samples=100
-    )
+    # TODO(vitchyr): just creating the plotter crashes EC2
+    # plotter = QFPolicyPlotter(
+        # qf=qf,
+        # policy=policy,
+        # obs_lst=np.array([[-2.5, 0.0],
+                          # [0.0, 0.0],
+                          # [2.5, 2.5]]),
+        # default_action=[np.nan, np.nan],
+        # n_samples=100
+    # )
     algorithm = ExpectedSAC(
         env=env,
         policy=policy,
         qf=qf,
         vf=vf,
-        plotter=plotter,
-        render_eval_paths=True,
+        # plotter=plotter,
+        # render_eval_paths=True,
         **variant['algo_params']
     )
     if ptu.gpu_enabled():
@@ -75,7 +75,7 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
-            num_epochs=1000,
+            num_epochs=100,
             num_steps_per_epoch=1000,
             num_steps_per_eval=300,
             batch_size=64,
@@ -83,16 +83,18 @@ if __name__ == "__main__":
             reward_scale=0.3,
             discount=0.99,
             soft_target_tau=0.001,
-            naive_expectation=True,
+            expected_qf_estim_strategy='sample',
+            expected_log_pi_estim_strategy='sample',
         ),
+        version="original-normal-qf",
     )
-    for _ in range(1):
+    for _ in range(5):
         seed = random.randint(0, 999999)
         run_experiment(
             experiment,
             seed=seed,
             variant=variant,
-            exp_prefix="dev-sac-multigoal",
-            mode='local',
-            use_gpu=True,
+            exp_prefix="sac-multigoal-sweep",
+            mode='ec2',
+            use_gpu=False,
         )

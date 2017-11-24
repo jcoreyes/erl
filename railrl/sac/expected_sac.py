@@ -1,11 +1,14 @@
 from collections import OrderedDict
 
-import torch
 import numpy as np
 
 import railrl.torch.pytorch_util as ptu
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.sac.sac import SoftActorCritic
+
+EXACT = 'exact'
+MEAN_ACTION = 'mean_action'
+SAMPLE = 'sample'
 
 
 class ExpectedSAC(SoftActorCritic):
@@ -20,11 +23,30 @@ class ExpectedSAC(SoftActorCritic):
     def __init__(
             self,
             *args,
-            naive_expectation=False,
+            expected_qf_estim_strategy='exact',
+            expected_log_pi_estim_strategy='exact',
             **kwargs
     ):
+        """
+
+        :param args:
+        :param expected_qf_estim_strategy: String describing how to estimate
+            E[Q(s, A)]:
+                'exact': estimate exactly by convolving Q with Gaussian
+                'mean_action': estimate with Q(s, E[A])
+                'sample': estimate with one sample of Q(s, A)
+        :param expected_log_pi_estim_strategy: String describing how to
+            estimate E[log \pi(A | s)]
+                'exact': compute in closed form
+                'mean_action': estimate with log \pi(E[A] | s)
+                'sample': estimate with one sample of log \pi(A | s)
+        :param kwargs:
+        """
         super().__init__(*args, **kwargs)
-        self.naive_expectation = naive_expectation
+        assert expected_qf_estim_strategy in [EXACT, MEAN_ACTION, SAMPLE]
+        assert expected_log_pi_estim_strategy in [EXACT, MEAN_ACTION, SAMPLE]
+        self.expected_qf_estim_strategy = expected_qf_estim_strategy
+        self.expected_log_pi_estim_strategy = expected_log_pi_estim_strategy
 
     def _do_training(self):
         batch = self.get_batch(training=True)
@@ -38,12 +60,17 @@ class ExpectedSAC(SoftActorCritic):
         v_pred = self.vf(obs)
         # Make sure policy accounts for squashing functions like tanh correctly!
         (
-            new_actions, policy_mean, policy_log_std, log_pi, expected_log_prob,
-            policy_stds
+            new_actions, policy_mean, policy_log_std, log_pi, expected_log_pi,
+            policy_stds, log_pi_mean
         ) = self.policy(
             obs,
             return_log_prob=True,
-            return_expected_log_prob=True,
+            return_expected_log_prob=(
+                self.expected_log_pi_estim_strategy == EXACT
+            ),
+            return_log_prob_of_mean=(
+                self.expected_log_pi_estim_strategy == MEAN_ACTION
+            ),
         )
 
         """
@@ -56,27 +83,43 @@ class ExpectedSAC(SoftActorCritic):
         """
         VF Loss
         """
-        # q_new_actions = self.qf(obs, new_actions)
-        # v_target = q_new_actions - log_prob
-        if self.naive_expectation:
-            expected_q = self.qf(obs, policy_mean)
-        else:
+        q_new_actions = self.qf(obs, new_actions)
+        if self.expected_qf_estim_strategy == EXACT:
             expected_q = self.qf(obs, policy_mean, action_stds=policy_stds)
-        v_target = expected_q - expected_log_prob
+        elif self.expected_qf_estim_strategy == MEAN_ACTION:
+            expected_q = self.qf(obs, policy_mean)
+        elif self.expected_qf_estim_strategy == SAMPLE:
+            expected_q = q_new_actions
+        else:
+            raise TypeError("Invalid E[Q(s, a)] estimation strategy: {}".format(
+                self.expected_qf_estim_strategy
+            ))
+        if self.expected_log_pi_estim_strategy == EXACT:
+            expected_log_pi_target = expected_log_pi
+        elif self.expected_log_pi_estim_strategy == MEAN_ACTION:
+            expected_log_pi_target = log_pi_mean
+        elif self.expected_log_pi_estim_strategy == SAMPLE:
+            expected_log_pi_target = log_pi
+        else:
+            raise TypeError(
+                "Invalid E[log pi(a|s)] estimation strategy: {}".format(
+                    self.expected_log_pi_estim_strategy
+                )
+            )
+        v_target = expected_q - expected_log_pi_target
         vf_loss = self.vf_criterion(v_pred, v_target.detach())
 
         """
         Policy Loss
         """
         # paper says to do + but Tuomas said that's a typo. Do Q - V.
-        q_new_actions = self.qf(obs, new_actions)
         log_policy_target = q_new_actions - v_pred
         policy_loss = (
             log_pi * (log_pi - log_policy_target).detach()
         ).mean()
         policy_reg_loss = self.policy_reg_weight * (
-            (policy_mean**2).mean()
-            + (policy_log_std**2).mean()
+            (policy_mean ** 2).mean()
+            + (policy_log_std ** 2).mean()
         )
         policy_loss = policy_loss + policy_reg_loss
 
