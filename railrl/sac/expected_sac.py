@@ -59,10 +59,9 @@ class ExpectedSAC(SoftActorCritic):
         # q_new_actions = self.qf(obs, new_actions)
         # v_target = q_new_actions - log_prob
         if self.naive_expectation:
-            expected_q = self.qf(obs, torch.zeros_like(new_actions))
+            expected_q = self.qf(obs, policy_mean)
         else:
-            expected_q = self.qf(obs, torch.zeros_like(new_actions),
-                                 action_stds=policy_stds)
+            expected_q = self.qf(obs, policy_mean, action_stds=policy_stds)
         v_target = expected_q - expected_log_prob
         vf_loss = self.vf_criterion(v_pred, v_target.detach())
 
