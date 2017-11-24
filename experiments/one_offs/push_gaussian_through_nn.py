@@ -29,7 +29,7 @@ See
 
 https://arxiv.org/pdf/1602.05610.pdf
 """
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 
 import numpy as np
 from railrl.torch.core import PyTorchModule
@@ -38,6 +38,8 @@ import torch
 from torch.autograd import Variable
 from torch.optim import Adam
 from torch import nn as nn
+
+from railrl.torch.pytorch_util import get_numpy
 
 
 def estimate_mean_naive(network):
@@ -51,39 +53,21 @@ def estimate_mean_monte_carlo(network, num_samples):
 
 
 def estimate_mean_convolution(network):
-    return network.eval_np(np.array([[0]]), convolve=True)[0, 0]
-
-
-class OneLayerTanhNetwork(PyTorchModule):
-    def __init__(self, hidden_sizes, input_size, output_size):
-        super().__init__()
-        hidden_size = hidden_sizes[0]
-        self.fc = nn.Linear(input_size, hidden_size)
-        self.last_fc = nn.Linear(hidden_size, output_size)
-
-    def forward(self, input, convolve=False):
-        h = input
-        if convolve:
-            conv_factor_inv = torch.sqrt(1 + np.pi / 2 * self.fc.weight ** 2)
-            h = torch.tanh(self.fc(h) / conv_factor_inv)
-        else:
-            h = torch.tanh(self.fc(h))
-        # return h
-        return self.last_fc(h)
+    bias = get_numpy(network.fcs[0].bias.unsqueeze(0))
+    return network.eval_np(bias, convolve=True)[0, 0]
 
 
 class TanhNetwork(Mlp):
     def forward(self, input, convolve=False):
-        # import ipdb; ipdb.set_trace()
         h = input
         for i, fc in enumerate(self.fcs):
             if convolve:
-                conv_factor_inv = torch.sqrt(1 + np.pi / 2 * fc.weight ** 2)
+                row_norms = torch.sum(fc.weight * fc.weight, dim=1).unsqueeze(0)
+                conv_factor_inv = torch.sqrt(1 + np.pi / 2 * row_norms)
                 h = torch.tanh(fc(h) / conv_factor_inv)
             else:
                 h = torch.tanh(fc(h))
         return self.last_fc(h)
-        # return self.last_fc(h)
 
 
 class ReLUNetwork(Mlp):
@@ -95,13 +79,12 @@ class ReLUNetwork(Mlp):
             else:
                 h = torch.tanh(fc(h))
         return h
-        # return self.last_fc(h)
 
 
 def train(network):
     optimizer = Adam(network.parameters())
     loss_fctn = nn.MSELoss()
-    for _ in range(1000):
+    for _ in range(100):
         x = torch.rand(64, 1) * 20 - 10
         y = torch.sin(x)
 
@@ -115,14 +98,6 @@ def train(network):
         optimizer.step()
 
     return network
-
-
-def error_statistics(network, truth, estimator, N):
-    errors = []
-    for _ in range(N):
-        estim = estimator(network)
-        errors.append(estim - truth)
-    return errors
 
 
 def print_estimates(network):
@@ -141,24 +116,23 @@ def print_estimates(network):
 
 
 def run_exp(network_generator):
-    name_to_errors = defaultdict(list)
+    name_to_errors = OrderedDict()
     estim_mc_1 = lambda x: estimate_mean_monte_carlo(x, 1)
     estim_mc_10 = lambda x: estimate_mean_monte_carlo(x, 10)
     estim_mc_100 = lambda x: estimate_mean_monte_carlo(x, 100)
     N = 100
     for _ in range(N):
         network = network_generator()
-        truth = estimate_mean_monte_carlo(network, 10000)
+        truth = estimate_mean_monte_carlo(network, 100000)
         for name, estimator in [
-            ("Naive", estimate_mean_naive),
             ("MC 1", estim_mc_1),
             ("MC 10", estim_mc_10),
             ("MC 100", estim_mc_100),
+            ("Naive", estimate_mean_naive),
             ("Convolve", estimate_mean_convolution),
         ]:
             estim = estimator(network)
-            name_to_errors[name].append(truth - estim)
-            errors = error_statistics(network, truth, estimator, N)
+            name_to_errors.setdefault(name, []).append(truth - estim)
     for name, errors in name_to_errors.items():
         print("{0}: {1} ({2})".format(
             name, np.mean(errors), np.std(errors) / np.sqrt(N)
@@ -166,16 +140,13 @@ def run_exp(network_generator):
 
 
 
-def create_network():
-    params = dict(
-        hidden_sizes=[1],
-        input_size=1,
-        output_size=1,
-    )
-    tanh_net = TanhNetwork(**params)
-    # tanh_net = OneLayerTanhNetwork(**params)
-    train(tanh_net)
-    return tanh_net
+def get_network_generator(params, train_net=False):
+    def network_generator():
+        tanh_net = TanhNetwork(**params)
+        if train_net:
+            train(tanh_net)
+        return tanh_net
+    return network_generator
 
 
 
@@ -184,19 +155,30 @@ def main():
         hidden_sizes=[1],
         input_size=1,
         output_size=1,
+        # init_w=1,
     )
-    tanh_net = TanhNetwork(**params)
-    train(tanh_net)
     print("Tanh")
-    run_exp(create_network)
-    print_estimates(tanh_net)
+    run_exp(get_network_generator(
+        params,
+        # train_net=True,
+        train_net=False,
+    ))
 
-    relu_net = ReLUNetwork(**params)
-    train(relu_net)
 
-    print("")
-    print("ReLU")
-    print_estimates(relu_net)
+    # print("")
+    # print("")
+    # print("")
+    # print("One-off")
+    # tanh_net = TanhNetwork(**params)
+    # train(tanh_net)
+    # print_estimates(tanh_net)
+    #
+    # relu_net = ReLUNetwork(**params)
+    # train(relu_net)
+    #
+    # print("")
+    # print("ReLU")
+    # print_estimates(relu_net)
 
 
 if __name__ == '__main__':
