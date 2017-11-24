@@ -71,6 +71,7 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
             obs,
             deterministic=False,
             return_log_prob=False,
+            return_expected_log_prob=False,
     ):
         """
         :param input:
@@ -91,6 +92,7 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
             log_std = self.log_std
 
         log_prob = None
+        expected_log_prob = None
         if deterministic:
             action = torch.tanh(mean)
         else:
@@ -107,7 +109,7 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
             else:
                 action = tanh_normal.sample()
 
-        return action, mean, log_std, log_prob
+        return action, mean, log_std, log_prob, expected_log_prob
 
 
 class MakeDeterministic(Policy):

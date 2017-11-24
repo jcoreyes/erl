@@ -10,10 +10,11 @@ from railrl.envs.multigoal import MultiGoalEnv
 from railrl.envs.wrappers import normalize_box
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.plotter import QFPolicyPlotter
+from railrl.sac.expected_sac import ExpectedSAC
 from railrl.sac.policies import TanhGaussianPolicy
 from railrl.sac.sac import SoftActorCritic
+from railrl.sac.value_functions import ExpectableQF
 from railrl.torch.networks import FlattenMlp
-import torch
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 
 
@@ -27,11 +28,15 @@ def experiment(variant):
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
 
+    # qf = ExpectableQF(
+    #     obs_dim=obs_dim,
+    #     action_dim=action_dim,
+    #     hidden_size=100,
+    # )
     qf = FlattenMlp(
         hidden_sizes=[100],
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_activation=torch.tanh,
     )
     vf = FlattenMlp(
         hidden_sizes=[100],
@@ -52,7 +57,7 @@ def experiment(variant):
         default_action=[np.nan, np.nan],
         n_samples=100
     )
-    algorithm = SoftActorCritic(
+    algorithm = ExpectedSAC(
         env=env,
         policy=policy,
         qf=qf,
