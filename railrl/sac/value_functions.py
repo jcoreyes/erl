@@ -35,12 +35,23 @@ class ExpectableQF(PyTorchModule):
     def forward(self, obs, action, action_stds=None):
         h_obs = torch.tanh(self.obs_fc(obs))
         if action_stds is not None:
-            variance = action_stds**2 @ (self.action_fc.weight**2).transpose(0, 1)
-            # variance = torch.sum(self.action_fc.weight**2, dim=1).unsqueeze(0)
-            # variance = variance + torch.sum(
-            #     action_stds * action_stds,
-            #     dim=1,
-            #     ).unsqueeze(0)
+            """
+            action_fc_weight has the same variance for every row in the batch
+            action_stds has difference variances for everything
+            Let
+                A = action dimension size
+                H = hidden size
+                B = batch size
+            Then
+                action_fc.weight is  H x A
+                action_stds is B x A
+            and so variance is
+                B X H
+            where the summing happens across the action dimension, as needed.
+            """
+            weight_vars = self.action_fc.weight**2  # H x A
+            action_vars = action_stds**2  # B x A
+            variance = action_vars @ weight_vars.transpose(0, 1)  # B x H
             conv_factor_inv = torch.sqrt(1 + np.pi / 2 * variance)
             h_action = torch.tanh(self.action_fc(action) / conv_factor_inv)
         else:
