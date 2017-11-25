@@ -11,87 +11,43 @@ class SimpleReplayBuffer(ReplayBuffer):
         self._action_dim = action_dim
         self._max_replay_buffer_size = max_replay_buffer_size
         self._observations = np.zeros((max_replay_buffer_size, observation_dim))
+        # It's a bit memory inefficient to save the observations twice,
+        # but it makes the code *much* easier since you no longer have to
+        # worry about termination conditions.
+        self._next_obs = np.zeros((max_replay_buffer_size, observation_dim))
         self._actions = np.zeros((max_replay_buffer_size, action_dim))
         self._rewards = np.zeros(max_replay_buffer_size)
         # self._terminals[i] = a terminal was received at time i
         self._terminals = np.zeros(max_replay_buffer_size, dtype='uint8')
-        # self._final_state[i] = state i was the final state in a rollout,
-        # so it should never be sampled since it has no correspond next state
-        # In other words, we're saving the s_{t+1} after sampling a tuple of
-        # (s_t, a_t, r_t, s_{t+1}) and the episode terminated (either because
-        # terminal=True or for some other reason, e.g. a time limit)
-        self._final_state = np.zeros(max_replay_buffer_size, dtype='uint8')
-        self._bottom = 0
         self._top = 0
         self._size = 0
-        self._valid_transition_indices = []
 
-    def _add_sample(self, observation, action, reward, terminal,
-                    final_state, **kwargs):
+    def add_sample(self, observation, action, reward, terminal,
+                   next_observation, **kwargs):
         self._observations[self._top] = observation
         self._actions[self._top] = action
         self._rewards[self._top] = reward
         self._terminals[self._top] = terminal
-        self._final_state[self._top] = final_state
-        self.advance()
+        self._next_obs[self._top] = next_observation
+        self._advance()
 
-    def add_sample(self, observation, action, reward, terminal, **kwargs):
-        self._add_sample(
-            observation,
-            action,
-            reward,
-            terminal,
-            False,
-            **kwargs
-        )
+    def terminate_episode(self):
+        pass
 
-    def terminate_episode(self, terminal_observation, terminal, **kwargs):
-        self._add_sample(
-            observation=terminal_observation,
-            action=None,
-            reward=0,
-            terminal=terminal,
-            final_state=True,
-            **kwargs
-        )
-
-    def advance(self):
-        if self._size > 0:
-            previous_top = (self._top - 1) % self._size
-            if (previous_top not in self._valid_transition_indices and
-                    not self._final_state[previous_top]):
-                self._valid_transition_indices.append(previous_top)
-        # Current self._top is NOT a valid transition index since the next time
-        # step is either garbage or from another episode
-        if self._top in self._valid_transition_indices:
-            self._valid_transition_indices.remove(self._top)
-
+    def _advance(self):
         self._top = (self._top + 1) % self._max_replay_buffer_size
-        if self._size >= self._max_replay_buffer_size:
-            self._bottom = (self._bottom + 1) % self._max_replay_buffer_size
-        else:
+        if self._size < self._max_replay_buffer_size:
             self._size += 1
 
     def random_batch(self, batch_size):
-        # This is *much* faster than np.random.choice, because np.random.choice
-        # converts the inputted array into a np.array internally. But
-        # self._valid_transition_indices may be huge!
-        length = len(self._valid_transition_indices)
-        indices = np.array([
-            self._valid_transition_indices[i]
-            for i in np.random.randint(0, length, batch_size)
-        ])
-        next_indices = (indices + 1) % self._size
+        indices = np.random.randint(0, self._size, batch_size)
         return dict(
             observations=self._observations[indices],
             actions=self._actions[indices],
             rewards=self._rewards[indices],
             terminals=self._terminals[indices],
-            next_observations=self._observations[next_indices],
+            next_observations=self._next_obs[indices],
         )
 
     def num_steps_can_sample(self):
-        return len(self._valid_transition_indices)
-
-    def num_steps_saved(self):
         return self._size

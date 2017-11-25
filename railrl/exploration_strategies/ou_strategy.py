@@ -3,7 +3,6 @@ import numpy.random as nr
 
 from railrl.exploration_strategies.base import RawExplorationStrategy
 from rllab.core.serializable import Serializable
-from rllab.spaces.box import Box
 
 
 class OUStrategy(RawExplorationStrategy, Serializable):
@@ -53,10 +52,6 @@ class OUStrategy(RawExplorationStrategy, Serializable):
         self.state = x + dx
         return self.state
 
-    def get_action(self, t, observation, policy, **kwargs):
-        action, agent_info = policy.get_action(observation)
-        return self.get_action_from_raw_action(action, **kwargs), agent_info
-
     def get_action_from_raw_action(self, action, t=0, **kwargs):
         ou_state = self.evolve_state()
         self.sigma = (
@@ -66,3 +61,9 @@ class OUStrategy(RawExplorationStrategy, Serializable):
         )
         return np.clip(action + ou_state, self.low, self.high)
 
+    def get_actions_from_raw_actions(self, actions, t=0, **kwargs):
+        noise = (
+            self.state + self.theta * (self.mu - self.state)
+            + self.sigma * nr.randn(*actions.shape)
+        )
+        return np.clip(actions + noise, self.low, self.high)

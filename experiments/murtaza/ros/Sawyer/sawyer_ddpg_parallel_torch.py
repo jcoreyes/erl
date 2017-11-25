@@ -1,4 +1,7 @@
 import sys
+
+import ray
+
 from railrl.envs.remote import RemoteRolloutEnv
 from railrl.envs.ros.sawyer_env import SawyerEnv
 from railrl.envs.wrappers import convert_gym_space
@@ -15,6 +18,7 @@ import random
 
 
 def example(variant):
+    ray.init()
     env_class = variant['env_class']
     env_params = variant['env_params']
     env = env_class(**env_params)
@@ -83,9 +87,9 @@ if __name__ == "__main__":
     else:
         run_experiment(
             example,
-            exp_prefix="ddpg-parallel-sawyer-fixed-end-effector-10-seeds",
+            exp_prefix="ddpg-parallel-sawyer-varying-end-effector",
             seed=random.randint(0, 666),
-            mode='here',
+            mode='local',
             variant={
                 'version': 'Original',
                 'max_path_length': max_path_length,
@@ -99,11 +103,11 @@ if __name__ == "__main__":
                     'safety_box': True,
                     'loss': 'huber',
                     'huber_delta': 10,
-                    'safety_force_magnitude': 5,
-                    'temp': 1,
+                    'safety_force_magnitude': 6,
+                    'temp': 15,
                     'remove_action': False,
-                    'experiment': experiments[2],
-                    'reward_magnitude': 10,
+                    'experiment': experiments[3],
+                    'reward_magnitude': 1,
                     'use_safety_checks':False,
                 },
                 'es_params': {
@@ -112,11 +116,11 @@ if __name__ == "__main__":
                 },
                 'algo_params': dict(
                     batch_size=64,
-                    num_epochs=30,
+                    num_epochs=50,
                     num_updates_per_env_step=1,
-                    num_steps_per_epoch=500,
+                    num_steps_per_epoch=1000,
                     max_path_length=max_path_length,
-                    num_steps_per_eval=500,
+                    num_steps_per_eval=1000,
                 ),
             },
             use_gpu=True,

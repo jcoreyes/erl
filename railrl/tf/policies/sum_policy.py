@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from railrl.core.tf_util import weight_variable
+from railrl.tf.core.tf_util import weight_variable
 from railrl.tf.policies.nn_policy import NNPolicy
 
 

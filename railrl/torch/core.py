@@ -1,4 +1,5 @@
 import abc
+import numpy as np
 from collections import OrderedDict
 
 from torch import nn as nn
@@ -79,3 +80,34 @@ class PyTorchModule(nn.Module, Serializable, metaclass=abc.ABCMeta):
         for param in self.parameters():
             if len(param.size()) > 1:
                 yield param
+
+    def eval_np(self, *args, **kwargs):
+        """
+        Eval this module with a numpy interface
+
+        Same as a call to __call__ except all Variable input/outputs are
+        replaced with numpy equivalents.
+
+        Assumes the output is either a single object or a tuple of objects.
+        """
+        torch_args = tuple(torch_ify(x) for x in args)
+        torch_kwargs = {k: torch_ify(v) for k, v in kwargs.items()}
+        outputs = self.__call__(*torch_args, **torch_kwargs)
+        if isinstance(outputs, tuple):
+            return tuple(np_ify(x) for x in outputs)
+        else:
+            return np_ify(outputs)
+
+
+def torch_ify(np_array_or_other):
+    if isinstance(np_array_or_other, np.ndarray):
+        return ptu.np_to_var(np_array_or_other)
+    else:
+        return np_array_or_other
+
+
+def np_ify(tensor_or_other):
+    if isinstance(tensor_or_other, ptu.TorchVariable):
+        return ptu.get_numpy(tensor_or_other)
+    else:
+        return tensor_or_other

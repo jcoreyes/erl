@@ -97,7 +97,10 @@ class NormalizedBoxEnv(ProxyEnv, Serializable):
         return "Normalized: %s" % self._wrapped_env
 
     def log_diagnostics(self, paths, **kwargs):
-        return self._wrapped_env.log_diagnostics(paths, **kwargs)
+        if hasattr(self._wrapped_env, "log_diagnostics"):
+            return self._wrapped_env.log_diagnostics(paths, **kwargs)
+        else:
+            return None
 
     def __getattr__(self, attrname):
         return getattr(self._wrapped_env, attrname)

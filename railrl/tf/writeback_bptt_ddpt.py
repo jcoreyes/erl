@@ -4,7 +4,7 @@
 import tensorflow as tf
 
 from railrl.tf.bptt_ddpg import BpttDDPG
-from railrl.core import tf_util
+from railrl.tf.core import tf_util
 
 
 class WritebackBpttDDPG(BpttDDPG):

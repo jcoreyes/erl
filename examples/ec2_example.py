@@ -11,6 +11,8 @@ import pytz
 
 
 def example(variant):
+    import torch
+    logger.log(torch.__version__)
     date_format = '%m/%d/%Y %H:%M:%S %Z'
     date = datetime.now(tz=pytz.utc)
     logger.log("start")

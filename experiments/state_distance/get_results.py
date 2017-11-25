@@ -24,13 +24,13 @@ from railrl.envs.wrappers import convert_gym_space, normalize_box
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import ConstantSchedule
-from railrl.networks.state_distance import (
-    FFUniversalPolicy,
-    VectorizedGoalStructuredUniversalQfunction)
 from railrl.policies.state_distance import \
     UnconstrainedOcWithGoalConditionedModel, UnconstrainedOcWithImplicitModel
 from railrl.state_distance.exploration import \
     UniversalPolicyWrappedWithExplorationStrategy
+from railrl.state_distance.networks import (
+    FFUniversalPolicy,
+    VectorizedGoalStructuredUniversalQfunction)
 from railrl.torch.modules import HuberLoss
 
 

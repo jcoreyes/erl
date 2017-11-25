@@ -10,12 +10,12 @@ import railrl.torch.pytorch_util as ptu
 from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.networks.state_distance import (
+from railrl.state_distance.exploration import \
+    UniversalPolicyWrappedWithExplorationStrategy
+from railrl.state_distance.networks import (
     FlatUniversalQfunction,
     GoalConditionedDeltaModel, VectorizedGoalStructuredUniversalQfunction,
     GoalStructuredUniversalQfunction)
-from railrl.state_distance.exploration import \
-    UniversalPolicyWrappedWithExplorationStrategy
 from railrl.state_distance.state_distance_q_learning import (
     StateDistanceQLearning,
     HorizonFedStateDistanceQLearning)
@@ -134,6 +134,5 @@ if __name__ == '__main__':
         variant=variant,
         exp_id=0,
         use_gpu=use_gpu,
-        snapshot_mode="gap",
-        snapshot_gap=10000,
+        snapshot_mode="last",
     )

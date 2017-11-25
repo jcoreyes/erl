@@ -5,7 +5,7 @@ from cached_property import cached_property
 
 from railrl.envs.wrappers import normalize_tf
 from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.misc.rllab_util import split_paths
+from railrl.samplers.util import split_paths
 from rllab.core.serializable import Serializable
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.envs.proxy_env import ProxyEnv

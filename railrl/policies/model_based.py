@@ -1,9 +1,8 @@
 import numpy as np
 import torch
-from torch import nn
 from scipy import optimize
+from torch import nn
 
-from railrl.networks.state_distance import StructuredUniversalQfunction
 from railrl.policies.state_distance import (
     UniversalPolicy,
     SampleBasedUniversalPolicy,

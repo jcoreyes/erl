@@ -39,7 +39,7 @@ from gym.envs.mujoco import ReacherEnv, mujoco_env
 
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.misc.rllab_util import get_stat_in_dict
+from railrl.samplers.util import get_stat_in_paths
 from rllab.misc import logger
 import torch
 import railrl.torch.pytorch_util as ptu
@@ -155,7 +155,7 @@ class MultitaskReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle, MultitaskEnv,
         super().log_diagnostics(paths)
         statistics = OrderedDict()
 
-        xy_distance_to_goal = get_stat_in_dict(
+        xy_distance_to_goal = get_stat_in_paths(
             paths, 'env_infos', 'distance'
         )
         statistics.update(create_stats_ordered_dict(
@@ -167,7 +167,7 @@ class MultitaskReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle, MultitaskEnv,
             always_show_all_stats=True,
         ))
 
-        full_state_go_goal_distance = get_stat_in_dict(
+        full_state_go_goal_distance = get_stat_in_paths(
             paths, 'env_infos', 'full_state_to_goal_distance'
         )
         statistics.update(create_stats_ordered_dict(

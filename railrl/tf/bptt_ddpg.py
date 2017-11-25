@@ -3,18 +3,15 @@
 """
 from collections import OrderedDict
 
-import tensorflow as tf
-from typing import Iterable
 import numpy as np
-
-from railrl.tf.ddpg import DDPG
+import tensorflow as tf
 from railrl.core import tf_util
-from railrl.core.rnn.rnn import OutputStateRnn
+from typing import Iterable
+
 from railrl.data_management.updatable_subtraj_replay_buffer import (
     UpdatableSubtrajReplayBuffer
 )
 from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.policies.memory.rnn_cell_policy import RnnCellPolicy
 from railrl.pythonplusplus import (
     map_recursive,
     filter_recursive,
@@ -23,6 +20,9 @@ from railrl.pythonplusplus import (
     batch,
 )
 from railrl.qfunctions.nn_qfunction import NNQFunction
+from railrl.tf.core.rnn.rnn import OutputStateRnn
+from railrl.tf.ddpg import DDPG
+from railrl.tf.policies.memory.rnn_cell_policy import RnnCellPolicy
 
 TARGET_PREFIX = "target_"
 

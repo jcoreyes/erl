@@ -7,8 +7,6 @@ import numpy as np
 import tensorflow as tf
 from hyperopt import hp
 
-from railrl.tf.bptt_ddpg import BpttDDPG
-from railrl.tf.ddpg import TargetUpdateMode
 from railrl.data_management.ocm_subtraj_replay_buffer import (
     OcmSubtrajReplayBuffer
 )
@@ -29,7 +27,9 @@ from railrl.misc.hyperparameter import (
     LinearFloatParam,
 )
 from railrl.misc.hypopt import optimize_and_save
-from railrl.policies.memory.lstm_memory_policy import (
+from railrl.tf.bptt_ddpg import BpttDDPG
+from railrl.tf.ddpg import TargetUpdateMode
+from railrl.tf.policies.memory.lstm_memory_policy import (
     SeparateLstmLinearCell,
 )
 

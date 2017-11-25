@@ -3,7 +3,7 @@ from gym import utils
 from gym.envs.mujoco import mujoco_env
 from gym import spaces
 
-from railrl.misc.rllab_util import get_stat_in_dict
+from railrl.samplers.util import get_stat_in_paths
 from rllab.misc import logger
 import itertools
 
@@ -56,8 +56,8 @@ class DiscreteSwimmerEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         return self._get_obs()
 
     def log_diagnostics(self, paths):
-        reward_fwd = get_stat_in_dict(paths, 'env_infos', 'reward_fwd')
-        reward_ctrl = get_stat_in_dict(paths, 'env_infos', 'reward_ctrl')
+        reward_fwd = get_stat_in_paths(paths, 'env_infos', 'reward_fwd')
+        reward_ctrl = get_stat_in_paths(paths, 'env_infos', 'reward_ctrl')
 
         logger.record_tabular('AvgRewardDist', np.mean(reward_fwd))
         logger.record_tabular('AvgRewardCtrl', np.mean(reward_ctrl))

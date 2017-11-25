@@ -17,7 +17,7 @@ def run_linear_ocm_exp(variant):
         ContinuousMemoryAugmented
     )
     from railrl.envs.memory.one_char_memory import OneCharMemoryEndOnly
-    from railrl.policies.memory.linear_ocm_policy import LinearOcmPolicy
+    from railrl.tf.policies.memory.linear_ocm_policy import LinearOcmPolicy
     from railrl.launchers.launcher_util import (
         set_seed,
     )

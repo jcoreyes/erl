@@ -18,11 +18,11 @@ experiments=[
 
 env = SawyerEnv('right', experiment=experiments[0], safety_force_magnitude=5, temp=15, safety_box=True, use_safety_checks=False)
 
-env.reset()
-for i in range(100000):
-    joint_to_values = dict(zip(env.arm_joint_names, np.zeros(7)))
-    env.arm.set_joint_torques(joint_to_values)
-    env.rate.sleep()
+# env.reset()
+# for i in range(100000):
+#     joint_to_values = dict(zip(env.arm_joint_names, np.zeros(7)))
+#     env.arm.set_joint_torques(joint_to_values)
+#     env.rate.sleep()
 # env.arm.move_to_neutral()
 # ja = env._joint_angles()
 # # ja =np.array([-2.13281250e-03, -1.18177441e+00, -2.75390625e-03, 2.17755176e+00,
@@ -84,3 +84,7 @@ print(pose)
 # init_state = rs.state().enabled
 # import ipdb; ipdb.set_trace(    )
 # rs.state()
+
+#back left: [-0.04304189 -0.43462352  0.16761519]
+
+#front right: [ 0.84045825  0.38408276  0.8880568 ]

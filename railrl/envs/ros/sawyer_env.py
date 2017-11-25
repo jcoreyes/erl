@@ -92,17 +92,21 @@ TORQUE_MAX = 3.5
 TORQUE_MAX_TRAIN = 5
 MAX_TORQUES = 0.5 * np.array([8, 7, 6, 5, 4, 3, 2])
 
-box_lows = np.array([
-    0.1228008448954529,
-    -0.31815782,
-    0.2284391863426093,
-])
+# box_lows = np.array([
+#     0.1228008448954529,
+#     -0.31815782,
+#     0.2284391863426093,
+# ])
+#
+# box_highs = np.array([
+#     0.7175958839273338,
+#     0.3064466563902636,
+#     1.3,
+# ])
 
-box_highs = np.array([
-    0.7175958839273338,
-    0.3064466563902636,
-    1.3,
-])
+box_lows = np.array([-0.04304189, -0.30462352, 0.16761519])
+
+box_highs = np.array([ 0.84045825,  0.30408276, 0.8880568 ])
 
 joint_names = [
     '_l2',
@@ -378,8 +382,8 @@ class SawyerEnv(Env, Serializable):
         self._rs = ii.RobotEnable(CHECK_VERSION)
         self.update_pose_and_jacobian_dict()
         self.in_reset = True
-        self.amplify = 0.5 * np.array([8, 7, 6, 5, 4, 3, 2])
-
+        # self.amplify = 0.5 * np.array([8, 7, 6, 5, 4, 3, 2])
+        self.amplify=5*np.ones(7)
     @safe
     def _act(self, action):
         if self.safety_box:
@@ -704,7 +708,7 @@ class SawyerEnv(Env, Serializable):
 
     def _randomize_desired_end_effector_pose(self):
         if self.end_effector_experiment_position:
-            self.desired = np.random.rand(1, 3)[0] * 2 - 1
+            self.desired = np.random.uniform(box_lows, box_highs, size=(1, 3))[0]
         else:
             self.desired = np.random.rand(1, 7)[0] * 2 - 1
 
@@ -828,6 +832,9 @@ class SawyerEnv(Env, Serializable):
                 orientations = []
                 desired_orientations = []
             last_n_distances = []
+            final_counter = 0
+            final_positions = []
+            final_desired_positions = []
             for obsSet in obsSets:
                 for observation in obsSet:
                     if self.use_angle_parameterization:
@@ -857,6 +864,11 @@ class SawyerEnv(Env, Serializable):
                         orientations.append(observation[24:28])
                         desired_orientations.append(observation[28:32])
 
+                if self.end_effector_experiment_position:
+                    final_counter += len(obsSet)
+                    final_positions.append(obsSet[-1][21:24])
+                    final_desired_positions.append(obsSet[-1][24:27])
+
             statistics.update(self._statistics_from_observations(
                 distances,
                 stat_prefix,
@@ -876,6 +888,15 @@ class SawyerEnv(Env, Serializable):
                     stat_prefix,
                     'Distance from Desired End Effector Orientation'
                 ))
+
+            final_positions = np.array(final_positions)
+            final_desired_positions = np.array(final_desired_positions)
+            final_position_distances = linalg.norm(final_positions - final_desired_positions, axis=1)
+            statistics.update(self._statistics_from_observations(
+                final_position_distances,
+                stat_prefix,
+                'Final Distance from Desired End Effector Position'
+            ))
 
         if self.joint_angle_experiment:
             angle_differences, distances_outside_box = self._joint_angle_exp_info(paths)

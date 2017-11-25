@@ -2,8 +2,8 @@ import abc
 
 import tensorflow as tf
 
-from railrl.core.neuralnet import NeuralNetwork
 from railrl.misc.rllab_util import get_action_dim, get_observation_dim
+from railrl.tf.core.neuralnet import NeuralNetwork
 from rllab.misc.overrides import overrides
 
 

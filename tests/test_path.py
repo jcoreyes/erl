@@ -1,13 +1,13 @@
 import unittest
 import numpy as np
 
-from railrl.data_management.path import Path
+from railrl.data_management.path_builder import PathBuilder
 from railrl.testing.np_test_case import NPTestCase
 
 class TestPath(NPTestCase):
 
     def test_add_and_get_all(self):
-        path = Path()
+        path = PathBuilder()
         path.add_all(
             action=np.array([1, 2, 3]),
             obs=-np.array([1, 2, 3]),
@@ -33,7 +33,7 @@ class TestPath(NPTestCase):
         )
 
     def test_path_length(self):
-        path = Path()
+        path = PathBuilder()
         for _ in range(10):
             path.add_all(
                 action=np.array([1, 2, 3]),

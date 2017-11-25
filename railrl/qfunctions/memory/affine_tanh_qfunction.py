@@ -1,7 +1,7 @@
 import tensorflow as tf
 
-from railrl.core.tf_util import linear
 from railrl.qfunctions.nn_qfunction import NNQFunction
+from railrl.tf.core.tf_util import linear
 
 
 class AffineTanHQFunction(NNQFunction):
