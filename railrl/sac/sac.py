@@ -149,36 +149,42 @@ class SoftActorCritic(TorchRLAlgorithm):
         """
         Save some statistics for eval
         """
-        self.eval_statistics = OrderedDict()
-        self.eval_statistics['QF Loss'] = np.mean(ptu.get_numpy(qf_loss))
-        self.eval_statistics['VF Loss'] = np.mean(ptu.get_numpy(vf_loss))
-        self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
-            policy_loss
-        ))
-        self.eval_statistics.update(create_stats_ordered_dict(
-            'Q Predictions',
-            ptu.get_numpy(q_pred),
-        ))
-        self.eval_statistics.update(create_stats_ordered_dict(
-            'V Predictions',
-            ptu.get_numpy(v_pred),
-        ))
-        self.eval_statistics.update(create_stats_ordered_dict(
-            'Log Pis',
-            ptu.get_numpy(log_pi),
-        ))
-        self.eval_statistics.update(create_stats_ordered_dict(
-            'Policy mu',
-            ptu.get_numpy(policy_mean),
-        ))
-        self.eval_statistics.update(create_stats_ordered_dict(
-            'Policy log std',
-            ptu.get_numpy(policy_log_std),
-        ))
+        if self.eval_statistics is None:
+            """
+            Eval should set this to None.
+            This way, these statistics are only computed for one batch.
+            """
+            self.eval_statistics = OrderedDict()
+            self.eval_statistics['QF Loss'] = np.mean(ptu.get_numpy(qf_loss))
+            self.eval_statistics['VF Loss'] = np.mean(ptu.get_numpy(vf_loss))
+            self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
+                policy_loss
+            ))
+            self.eval_statistics.update(create_stats_ordered_dict(
+                'Q Predictions',
+                ptu.get_numpy(q_pred),
+            ))
+            self.eval_statistics.update(create_stats_ordered_dict(
+                'V Predictions',
+                ptu.get_numpy(v_pred),
+            ))
+            self.eval_statistics.update(create_stats_ordered_dict(
+                'Log Pis',
+                ptu.get_numpy(log_pi),
+            ))
+            self.eval_statistics.update(create_stats_ordered_dict(
+                'Policy mu',
+                ptu.get_numpy(policy_mean),
+            ))
+            self.eval_statistics.update(create_stats_ordered_dict(
+                'Policy log std',
+                ptu.get_numpy(policy_log_std),
+            ))
 
     def evaluate(self, epoch):
         statistics = OrderedDict()
         statistics.update(self.eval_statistics)
+        self.eval_statistics = None
         test_paths = self.eval_sampler.obtain_samples()
         statistics.update(eval_util.get_generic_path_information(
             test_paths, self.discount, stat_prefix="Test",

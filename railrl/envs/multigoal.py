@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from cached_property import cached_property
 
 from rllab.core.serializable import Serializable
 from rllab.spaces.box import Box
@@ -54,7 +55,7 @@ class MultiGoalEnv(Env, Serializable):
         self.observation = np.clip(unclipped_observation, o_lb, o_ub)
         return self.observation
 
-    @property
+    @cached_property
     def observation_space(self):
         return Box(
             low=np.array((self.xlim[0], self.ylim[0])),
@@ -62,7 +63,7 @@ class MultiGoalEnv(Env, Serializable):
             shape=None
         )
 
-    @property
+    @cached_property
     def action_space(self):
         return Box(
             low=-self.vel_bound,
