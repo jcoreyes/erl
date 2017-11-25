@@ -1,5 +1,4 @@
-"""
-Run PyTorch Soft Actor Critic on Multigoal Env.
+""" Run PyTorch Soft Actor Critic on Multigoal Env.
 """
 import random
 
@@ -10,10 +9,11 @@ from railrl.envs.multigoal import MultiGoalEnv
 from railrl.envs.wrappers import normalize_box
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.plotter import QFPolicyPlotter
+from railrl.sac.expected_sac import ExpectedSAC
 from railrl.sac.policies import TanhGaussianPolicy
 from railrl.sac.sac import SoftActorCritic
+from railrl.sac.value_functions import ExpectableQF
 from railrl.torch.networks import FlattenMlp
-import torch
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 
 
@@ -27,11 +27,15 @@ def experiment(variant):
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
 
+    # qf = ExpectableQF(
+        # obs_dim=obs_dim,
+        # action_dim=action_dim,
+        # hidden_size=100,
+    # )
     qf = FlattenMlp(
         hidden_sizes=[100],
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_activation=torch.tanh,
     )
     vf = FlattenMlp(
         hidden_sizes=[100],
@@ -43,16 +47,17 @@ def experiment(variant):
         obs_dim=obs_dim,
         action_dim=action_dim,
     )
-    plotter = QFPolicyPlotter(
-        qf=qf,
-        policy=policy,
-        obs_lst=np.array([[-2.5, 0.0],
-                          [0.0, 0.0],
-                          [2.5, 2.5]]),
-        default_action=[np.nan, np.nan],
-        n_samples=100
-    )
-    algorithm = SoftActorCritic(
+    # TODO(vitchyr): just creating the plotter crashes EC2
+    # plotter = QFPolicyPlotter(
+        # qf=qf,
+        # policy=policy,
+        # obs_lst=np.array([[-2.5, 0.0],
+                          # [0.0, 0.0],
+                          # [2.5, 2.5]]),
+        # default_action=[np.nan, np.nan],
+        # n_samples=100
+    # )
+    algorithm = ExpectedSAC(
         env=env,
         policy=policy,
         qf=qf,
@@ -70,7 +75,7 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
-            num_epochs=10,
+            num_epochs=100,
             num_steps_per_epoch=1000,
             num_steps_per_eval=300,
             batch_size=64,
@@ -78,16 +83,18 @@ if __name__ == "__main__":
             reward_scale=0.3,
             discount=0.99,
             soft_target_tau=0.001,
+            expected_qf_estim_strategy='sample',
+            expected_log_pi_estim_strategy='sample',
         ),
+        version="original-normal-qf",
     )
-    for _ in range(1):
+    for _ in range(5):
         seed = random.randint(0, 999999)
         run_experiment(
             experiment,
             seed=seed,
             variant=variant,
-            exp_prefix="dev-sac-multigoal",
-            # exp_prefix="dev-profile",
-            mode='local',
+            exp_prefix="sac-multigoal-sweep",
+            mode='ec2',
             use_gpu=False,
         )

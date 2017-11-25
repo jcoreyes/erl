@@ -99,7 +99,7 @@ class SoftActorCritic(TorchRLAlgorithm):
         # Make sure policy accounts for squashing functions like tanh correctly!
         new_actions, policy_mean, policy_log_std, log_pi = self.policy(
             obs, return_log_prob=True
-        )
+        )[:4]
 
         """
         QF Loss

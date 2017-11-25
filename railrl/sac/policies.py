@@ -71,12 +71,19 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
             obs,
             deterministic=False,
             return_log_prob=False,
+            return_expected_log_prob=False,
+            return_log_prob_of_mean=False,
     ):
         """
-        :param input:
-        :param deterministic: If true, do not sample
-        :param return_log_prob: If true, return a sample and its log probability
-        :return: A sample from the Gaussian
+        :param obs: Observation
+        :param deterministic: If True, do not sample
+        :param return_log_prob: If True, return a sample and its log probability
+        :param return_expected_log_prob: If True, return the true expected log
+        prob. Will not need to be differentiated through, so this can be a
+        number.
+        :param return_log_prob_of_mean: If True, return the true expected log
+        prob. Will not need to be differentiated through, so this can be a
+        number.
         """
         h = obs
         for i, fc in enumerate(self.fcs):
@@ -91,6 +98,8 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
             log_std = self.log_std
 
         log_prob = None
+        expected_log_prob = None
+        mean_action_log_prob = None
         if deterministic:
             action = torch.tanh(mean)
         else:
@@ -107,7 +116,24 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
             else:
                 action = tanh_normal.sample()
 
-        return action, mean, log_std, log_prob
+        if return_expected_log_prob:
+            expected_log_prob = - (
+                log_std + 0.5 + np.log(2 * np.pi) / 2
+            )
+            # shoot, idk how to compute the expected log prob for the tanh term
+            # TODO(vitchyr): fix
+            expected_log_prob = expected_log_prob.sum(dim=1, keepdim=True)
+        if return_log_prob_of_mean:
+            tanh_normal = TanhNormal(mean, std)
+            mean_action_log_prob = tanh_normal.log_prob(
+                torch.tanh(mean),
+                pre_tanh_value=mean,
+            )
+            mean_action_log_prob = mean_action_log_prob.sum(dim=1, keepdim=True)
+        return (
+            action, mean, log_std, log_prob, expected_log_prob, std,
+            mean_action_log_prob
+        )
 
 
 class MakeDeterministic(Policy):
