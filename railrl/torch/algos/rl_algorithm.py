@@ -1,6 +1,7 @@
 import abc
 import pickle
 import time
+import gtimer as gt
 
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.path import Path
@@ -80,6 +81,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self._n_env_steps_total = 0
         self._n_train_steps_total = 0
         self._n_rollouts_total = 0
+        self._do_train_time = 0
         self._epoch_start_time = None
         self._algo_start_time = None
         self._old_table_keys = None
@@ -99,7 +101,8 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             logger.save_itr_params(-1, params)
         self.training_mode(False)
         self._n_env_steps_total = start_epoch * self.num_env_steps_per_epoch
-        self._algo_start_time = time.time()
+        gt.reset()
+        gt.set_def_unique(False)
         if self.collection_mode == 'online':
             self.train_online(start_epoch=start_epoch)
         elif self.collection_mode == 'online-parallel':
@@ -114,7 +117,10 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
     def train_online(self, start_epoch=0):
         self._current_path = Path()
         observation = self._start_new_rollout()
-        for epoch in range(start_epoch, self.num_epochs):
+        for epoch in gt.timed_for(
+                range(start_epoch, self.num_epochs),
+                save_itrs=True,
+        ):
             self._start_epoch(epoch)
             for _ in range(self.num_env_steps_per_epoch):
                 action, agent_info = self._get_action_and_info(
@@ -151,9 +157,12 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 else:
                     observation = next_ob
 
+                gt.stamp('sample')
                 self._try_to_train()
+                gt.stamp('train')
 
             self._try_to_eval(epoch)
+            gt.stamp('eval')
             self._end_epoch()
 
     def train_parallel(self, start_epoch=0):
@@ -216,11 +225,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             self.get_extra_data_to_save(epoch),
         )
         if self._can_evaluate():
-            # Assuming rest of epoch was spent on training
-            train_duration = time.time() - self._epoch_start_time
-            eval_start_time = time.time()
             self.evaluate(epoch)
-            eval_duration = time.time() - eval_start_time
 
             params = self.get_epoch_snapshot(epoch)
             logger.save_itr_params(epoch, params)
@@ -231,15 +236,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 )
             self._old_table_keys = table_keys
 
-            logger.record_tabular('Train Time (s)', train_duration)
-            logger.record_tabular('Eval Time (s)', eval_duration)
-            logger.record_tabular('Epoch Time (s)',
-                time.time() - self._epoch_start_time
-            )
-            logger.record_tabular(
-                'Total Train Time (s)',
-                time.time() - self._algo_start_time
-            )
             logger.record_tabular(
                 "Number of train steps total",
                 self._n_train_steps_total,
@@ -252,6 +248,20 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 "Number of rollouts total",
                 self._n_rollouts_total,
             )
+
+            times_itrs = gt.get_times().stamps.itrs
+            train_time = times_itrs['train'][-1]
+            sample_time = times_itrs['sample'][-1]
+            eval_time = times_itrs['eval'][-1] if epoch > 0 else 0
+            epoch_time = train_time + sample_time + eval_time
+            total_time = gt.get_times().total
+
+            logger.record_tabular('Train Time (s)', train_time)
+            logger.record_tabular('(Previous) Eval Time (s)', eval_time)
+            logger.record_tabular('Sample Time (s)', sample_time)
+            logger.record_tabular('Epoch Time (s)', epoch_time)
+            logger.record_tabular('Total Train Time (s)', total_time)
+
             logger.record_tabular("Epoch", epoch)
             logger.dump_tabular(with_prefix=False, with_timestamp=False)
         else:
@@ -305,6 +315,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
     def _start_epoch(self, epoch):
         self._epoch_start_time = time.time()
         self._exploration_paths = []
+        self._do_train_time = 0
         logger.push_prefix('Iteration #%d | ' % epoch)
 
     def _end_epoch(self):
