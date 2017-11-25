@@ -5,6 +5,7 @@ import gtimer as gt
 
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.path_builder import PathBuilder
+from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.remote import RemoteRolloutEnv
 from railrl.envs.wrappers import convert_gym_space
 from railrl.misc.rllab_util import (
@@ -39,6 +40,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             normalize_env=True,
             ratio=20,
             replay_buffer=None,
+            fraction_paths_in_train=0.8,
     ):
         assert collection_mode in ['online', 'online-parallel', 'offline']
         self.training_env = pickle.loads(pickle.dumps(env))
@@ -71,10 +73,25 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.obs_space = convert_gym_space(env.observation_space)
         self.env = env
         if replay_buffer is None:
-            self.replay_buffer = EnvReplayBuffer(
-                self.replay_buffer_size,
-                self.env,
-            )
+            if fraction_paths_in_train != 1.:
+                self.replay_buffer = EnvReplayBuffer(
+                    self.replay_buffer_size,
+                    self.env,
+                )
+            else:
+                self.replay_buffer = SplitReplayBuffer(
+                    EnvReplayBuffer(
+                        replay_buffer_size,
+                        env,
+                        flatten=True,
+                    ),
+                    EnvReplayBuffer(
+                        replay_buffer_size,
+                        env,
+                        flatten=True,
+                    ),
+                    fraction_paths_in_train=fraction_paths_in_train,
+                )
         else:
             self.replay_buffer = replay_buffer
 
@@ -92,8 +109,13 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         if self.collection_mode == 'online-parallel':
             # TODO(murtaza): What happens to the eval env?
             # see `eval_sampler` definition above.
-            self.training_env = RemoteRolloutEnv(env=env, policy=eval_policy, exploration_policy=exploration_policy,
-                                                 max_path_length=self.max_path_length, normalize_env=self.normalize_env)
+            self.training_env = RemoteRolloutEnv(
+                env=env,
+                policy=eval_policy,
+                exploration_policy=exploration_policy,
+                max_path_length=self.max_path_length,
+                normalize_env=self.normalize_env,
+            )
 
     def train(self, start_epoch=0):
         if start_epoch == 0:
