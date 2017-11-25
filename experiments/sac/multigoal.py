@@ -55,8 +55,8 @@ def experiment(variant):
         policy=policy,
         qf=qf,
         vf=vf,
-        plotter=plotter,
-        render_eval_paths=True,
+        # plotter=plotter,
+        # render_eval_paths=True,
         **variant['algo_params']
     )
     if ptu.gpu_enabled():
@@ -68,7 +68,7 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
-            num_epochs=1000,
+            num_epochs=10,
             num_steps_per_epoch=1000,
             num_steps_per_eval=300,
             batch_size=64,
@@ -85,6 +85,7 @@ if __name__ == "__main__":
             seed=seed,
             variant=variant,
             exp_prefix="dev-sac-multigoal",
+            # exp_prefix="dev-profile",
             mode='local',
-            use_gpu=True,
+            use_gpu=False,
         )
