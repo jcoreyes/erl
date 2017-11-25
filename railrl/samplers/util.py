@@ -4,6 +4,15 @@ import numpy as np
 def rollout(env, agent, max_path_length=np.inf, animated=False):
     """
     Like rllab's rollout, but do not flatten actions/observations.
+
+    The following value for the following keys will be a 2D array, with the
+    first dimension corresponding to the time dimension.
+     - observations
+     - actions
+     - rewards
+     - next_observations
+     - terminals
+
     :param env:
     :param agent:
     :param max_path_length:
@@ -37,16 +46,25 @@ def rollout(env, agent, max_path_length=np.inf, animated=False):
         if animated:
             env.render()
 
-    # For discrete actions
     actions = np.array(actions)
     if len(actions.shape) == 1:
         actions = np.expand_dims(actions, 1)
+    observations = np.array(observations)
+    if len(observations.shape) == 1:
+        observations = np.expand_dims(observations, 1)
+        next_o = np.expand_dims(next_o, 1)
+    next_observations = np.vstack(
+        (
+            observations[1:, :],
+            np.expand_dims(next_o, 0)
+        )
+    )
     return dict(
-        observations=np.array(observations),
+        observations=observations,
         actions=actions,
-        rewards=np.array(rewards),
-        terminals=np.array(terminals),
-        agent_infos=np.array(agent_infos),
-        env_infos=np.array(env_infos),
-        final_observation=next_o,
+        rewards=np.array(rewards).reshape(-1, 1),
+        next_observations=next_observations,
+        terminals=np.array(terminals).reshape(-1, 1),
+        agent_infos=agent_infos,
+        env_infos=env_infos,
     )

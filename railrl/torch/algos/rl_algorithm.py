@@ -4,7 +4,7 @@ import time
 import gtimer as gt
 
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
-from railrl.data_management.path import Path
+from railrl.data_management.path_builder import PathBuilder
 from railrl.envs.remote import RemoteRolloutEnv
 from railrl.envs.wrappers import convert_gym_space
 from railrl.misc.rllab_util import (
@@ -85,7 +85,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self._epoch_start_time = None
         self._algo_start_time = None
         self._old_table_keys = None
-        self._current_path = Path()
+        self._current_path_builder = PathBuilder()
         self._exploration_paths = []
         self.parallel_sim_ratio = ratio
         self.sim_throttle = sim_throttle
@@ -115,7 +115,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             ))
 
     def train_online(self, start_epoch=0):
-        self._current_path = Path()
+        self._current_path_builder = PathBuilder()
         observation = self._start_new_rollout()
         for epoch in gt.timed_for(
                 range(start_epoch, self.num_epochs),
@@ -137,23 +137,19 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                     observation,
                     action,
                     reward,
+                    next_ob,
                     terminal,
                     agent_info=agent_info,
                     env_info=env_info,
                 )
-                if terminal or len(self._current_path) >= self.max_path_length:
-                    self._handle_rollout_ending(
-                        next_ob,
-                        terminal,
-                        agent_info=agent_info,
-                        env_info=env_info,
-                    )
+                if terminal or len(self._current_path_builder) >= self.max_path_length:
+                    self._handle_rollout_ending()
                     observation = self._start_new_rollout()
-                    if len(self._current_path) > 0:
+                    if len(self._current_path_builder) > 0:
                         self._exploration_paths.append(
-                            self._current_path.get_all_stacked()
+                            self._current_path_builder.get_all_stacked()
                         )
-                        self._current_path = Path()
+                        self._current_path_builder = PathBuilder()
                 else:
                     observation = next_ob
 
@@ -336,46 +332,39 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         :return:
         """
         for (
-            reward,
-            terminal,
+            ob,
             action,
-            obs,
+            reward,
+            next_ob,
+            terminal,
             agent_info,
             env_info
-        ) in zip(
-            path["rewards"].reshape(-1, 1),
-            path["terminals"].reshape(-1, 1),
-            path["actions"],
+        ) in enumerate(zip(
             path["observations"],
+            path["actions"],
+            path["rewards"],
+            path["next_observations"],
+            path["terminals"],
             path["agent_infos"],
             path["env_infos"],
-        ):
+        )):
             self._handle_step(
-                obs,
+                ob,
                 action,
                 reward,
+                next_ob,
                 terminal,
                 agent_info=agent_info,
                 env_info=env_info,
             )
-        self.replay_buffer.terminate_episode(
-            path["final_observation"],
-            path["terminals"][-1],
-            agent_info=path["agent_infos"][-1],
-            env_info=path["env_infos"][-1],
-        )
-        self._handle_rollout_ending(
-            path["final_observation"],
-            path["terminals"][-1],
-            agent_info=path["agent_infos"][-1],
-            env_info=path["env_infos"][-1],
-        )
+        self._handle_rollout_ending()
 
     def _handle_step(
             self,
             observation,
             action,
             reward,
+            next_observation,
             terminal,
             agent_info,
             env_info,
@@ -384,44 +373,30 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         Implement anything that needs to happen after every step
         :return:
         """
-        self._current_path.add_all(
-            observations=self.obs_space.flatten(observation),
+        self._current_path_builder.add_sample(
+            observations=observation,
             rewards=reward,
             terminals=terminal,
+            next_observations=next_observation,
             actions=self.action_space.flatten(action),
             agent_infos=agent_info,
             env_infos=env_info,
         )
-
         self.replay_buffer.add_sample(
-            observation,
-            action,
-            reward,
-            terminal,
+            observation=observation,
+            action=action,
+            reward=reward,
+            terminal=terminal,
+            next_observation=next_observation,
             agent_info=agent_info,
             env_info=env_info,
         )
 
-    def _handle_rollout_ending(
-            self,
-            final_obs,
-            terminal,
-            agent_info,
-            env_info,
-    ):
+    def _handle_rollout_ending(self):
         """
         Implement anything that needs to happen after every rollout.
         """
-        self._current_path.add_all(
-            final_observation=final_obs,
-            increment_path_length=False,
-        )
-        self.replay_buffer.terminate_episode(
-            final_obs,
-            terminal,
-            agent_info=agent_info,
-            env_info=env_info,
-        )
+        self.replay_buffer.terminate_episode()
         self._n_rollouts_total += 1
 
     def get_epoch_snapshot(self, epoch):

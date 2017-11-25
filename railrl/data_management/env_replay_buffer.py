@@ -14,43 +14,38 @@ class EnvReplayBuffer(SimpleReplayBuffer):
         """
         :param max_replay_buffer_size:
         :param env:
-        :param flatten: Flatten action, obs, and next_obs when returning samples
+        :param flatten: Return flatten action, obs, and next_obs when
+        returning samples.
         """
-        self._obs_space = convert_gym_space(env.observation_space)
+        self._ob_space = convert_gym_space(env.observation_space)
         self._action_space = convert_gym_space(env.action_space)
         super().__init__(
             max_replay_buffer_size=max_replay_buffer_size,
-            observation_dim=self._obs_space.flat_dim,
+            observation_dim=self._ob_space.flat_dim,
             action_dim=self._action_space.flat_dim,
         )
         self._env = env
         self.flatten = flatten
 
-    @overrides
-    def _add_sample(self, observation, action, reward, terminal, final_state,
-                    **kwargs):
+    def add_sample(self, observation, action, reward, terminal,
+                   next_observation, **kwargs):
         """
 
-        :param observation: Unflattened observation. If None, will assume to
-        be all zeros.
-        :param action: Unflattened actions. If None, will assume to be all
-        zeros.
-        :param reward: int
+        :param observation: Unflattened observation.
+        :param action: Unflattened actions.
+        :param reward: number
+        :param observation: Unflattened next observation.
         :param terminal: Boolean
-        :param final_state: Boolean
-        :return: None
         """
-        if action is None:
-            flat_action = np.zeros(self._action_space.flat_dim)
-        else:
-            flat_action = self._action_space.flatten(action)
-        flat_obs = self._obs_space.flatten(observation)
-        super()._add_sample(
-            observation=flat_obs,
+        flat_action = self._action_space.flatten(action)
+        flat_ob = self._ob_space.flatten(observation)
+        flat_next_ob = self._ob_space.flatten(next_observation)
+        super().add_sample(
+            observation=flat_ob,
             action=flat_action,
             reward=reward,
+            next_observation=flat_next_ob,
             terminal=terminal,
-            final_state=final_state,
         )
 
     def random_batch(self, batch_size):
@@ -64,11 +59,11 @@ class EnvReplayBuffer(SimpleReplayBuffer):
         batch['actions'] = np.array(unflat_actions)
 
         obs = batch['observations']
-        unflat_obs = [self._obs_space.unflatten(o) for o in obs]
+        unflat_obs = [self._ob_space.unflatten(o) for o in obs]
         batch['observations'] = np.array(unflat_obs)
 
         next_obs = batch['next_observations']
-        unflat_next_obs = [self._obs_space.unflatten(o) for o in next_obs]
+        unflat_next_obs = [self._ob_space.unflatten(o) for o in next_obs]
         batch['next_observations'] = np.array(unflat_next_obs)
 
         return batch
