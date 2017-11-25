@@ -494,26 +494,29 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             observation,
             action,
             reward,
+            next_observation,
             terminal,
             agent_info,
             env_info,
     ):
-        self._current_path.add_all(
-            observations=self.obs_space.flatten(observation),
+        self._current_path_builder.add_all(
+            observations=observation,
+            actions=action,
             rewards=reward,
+            next_observations=next_observation,
             terminals=terminal,
-            actions=self.action_space.flatten(action),
             agent_infos=agent_info,
             env_infos=env_info,
             goal_states=self.goal_state,
             taus=self._rollout_discount,
         )
 
-        self.replay_buffer.add_all(
-            observation,
-            action,
-            reward,
-            terminal,
+        self.replay_buffer.add_sample(
+            observation=observation,
+            action=action,
+            reward=reward,
+            terminal=terminal,
+            next_observation=next_observation,
             agent_info=agent_info,
             env_info=env_info,
             goal_state=self.goal_state,
@@ -525,27 +528,8 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
                 self._rollout_discount = self.discount
             self.exploration_policy.set_discount(self._rollout_discount)
 
-    def _handle_rollout_ending(
-            self,
-            final_obs,
-            terminal,
-            agent_info,
-            env_info,
-    ):
-        """
-        Implement anything that needs to happen after every rollout.
-        """
-        self._current_path.add_all(
-            final_observation=final_obs,
-            increment_path_length=False,
-        )
-        self.replay_buffer.terminate_episode(
-            final_obs,
-            terminal,
-            agent_info=agent_info,
-            env_info=env_info,
-            goal_state=self.goal_state,
-        )
+    def _handle_rollout_ending(self):
+        self.replay_buffer.terminate_episode()
 
     def _modify_batch_for_training(self, batch):
         obs = batch['observations']
