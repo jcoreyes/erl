@@ -75,15 +75,17 @@ if __name__ == "__main__":
         ),
         net_size=300,
     )
-    for _ in range(5):
+    for _ in range(3):
         seed = random.randint(0, 999999)
         run_experiment(
             experiment,
             seed=seed,
             variant=variant,
-            exp_prefix="sac-half-cheetah-check",
+            exp_prefix="sac-half-cheetah-check-gpu-correct-instance",
             mode='ec2',
             # exp_prefix="dev-sac-half-cheetah",
             # mode='local',
-            # use_gpu=True,
+            instance_type='g2.2xlarge',
+            use_gpu=True,
+            spot_price=0.5,
         )

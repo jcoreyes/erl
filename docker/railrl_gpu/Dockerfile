@@ -51,6 +51,7 @@ RUN mkdir /root/code
 ADD railrl-env.yml /root/code/environment.yml
 RUN conda env create -f /root/code/environment.yml
 
+RUN echo "source activate railrl-env" >> /root/.bashrc
 ENV BASH_ENV /root/.bashrc
 WORKDIR /root/code
 

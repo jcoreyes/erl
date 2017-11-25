@@ -183,18 +183,24 @@ def run_experiment(
     """
     Get the mode
     """
+    if use_gpu:
+        docker_image = config.GPU_DOODAD_DOCKER_IMAGE
+    else:
+        docker_image = config.DOODAD_DOCKER_IMAGE
     mode_str_to_doodad_mode = {
         'local': doodad.mode.Local(),
         'local_docker': doodad.mode.LocalDocker(
-            image=config.DOODAD_DOCKER_IMAGE,
+            image=docker_image,
+            gpu=use_gpu,
         ),
         'ec2': doodad.mode.EC2AutoconfigDocker(
-            image=config.DOODAD_DOCKER_IMAGE,
+            image=docker_image,
             region=region,
             instance_type=instance_type,
             spot_price=spot_price,
             s3_log_prefix=exp_prefix,
             s3_log_name="{}-id{}-s{}".format(exp_prefix, exp_id, seed),
+            gpu=use_gpu,
         ),
     }
 
