@@ -68,3 +68,52 @@ def rollout(env, agent, max_path_length=np.inf, animated=False):
         agent_infos=agent_infos,
         env_infos=env_infos,
     )
+
+
+def split_paths(paths):
+    """
+    Split paths from rllab's rollout function into rewards, terminals, obs
+    actions, and next_obs
+    terminals
+    :param paths:
+    :return: Tuple. Every element will have shape batch_size X DIM, including
+    the rewards and terminal flags.
+    """
+    rewards = [path["rewards"].reshape(-1, 1) for path in paths]
+    terminals = [path["terminals"].reshape(-1, 1) for path in paths]
+    actions = [path["actions"] for path in paths]
+    obs = [path["observations"] for path in paths]
+    next_obs = []
+    for path in paths:
+        next_obs_i = path["observations"][1:, :]
+        next_obs_i = np.vstack((next_obs_i, path["final_observation"]))
+        next_obs.append(next_obs_i)
+    rewards = np.vstack(rewards)
+    terminals = np.vstack(terminals)
+    obs = np.vstack(obs)
+    actions = np.vstack(actions)
+    next_obs = np.vstack(next_obs)
+    assert len(rewards.shape) == 2
+    assert len(terminals.shape) == 2
+    assert len(obs.shape) == 2
+    assert len(actions.shape) == 2
+    assert len(next_obs.shape) == 2
+    return rewards, terminals, obs, actions, next_obs
+
+
+def split_paths_to_dict(paths):
+    rewards, terminals, obs, actions, next_obs = split_paths(paths)
+    return dict(
+        rewards=rewards,
+        terminals=terminals,
+        observations=obs,
+        actions=actions,
+        next_observations=next_obs,
+    )
+
+
+def get_stat_in_paths(paths, dict_name, scalar_name):
+    return np.vstack([
+        [info[scalar_name] for info in path[dict_name]]
+        for path in paths
+    ])

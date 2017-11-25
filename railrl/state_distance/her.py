@@ -7,7 +7,7 @@ from torch.nn import functional as F
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
-from railrl.misc.rllab_util import split_paths_to_dict
+from railrl.samplers.util import split_paths_to_dict
 from railrl.policies.state_distance import UniversalPolicy
 from railrl.state_distance.state_distance_q_learning import (
     MultigoalSimplePathSampler

@@ -10,10 +10,9 @@ from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc import rllab_util
-from railrl.misc.rllab_util import split_paths_to_dict
 from railrl.misc.tensorboard_logger import TensorboardLogger
 from railrl.policies.state_distance import UniversalPolicy
-from railrl.samplers.util import rollout
+from railrl.samplers.util import rollout, split_paths_to_dict
 from railrl.state_distance.exploration import UniversalExplorationPolicy
 from railrl.state_distance.networks import DuelingStructuredUniversalQfunction
 from railrl.torch.algos.util import np_to_pytorch_batch

@@ -8,7 +8,7 @@ from railrl.core import tf_util
 from typing import List
 
 from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.misc.rllab_util import split_paths
+from railrl.samplers.util import split_paths
 from railrl.tf.core.neuralnet import NeuralNetwork
 from railrl.tf.online_algorithm import OnlineAlgorithm
 from rllab.misc.overrides import overrides

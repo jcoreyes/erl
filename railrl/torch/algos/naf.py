@@ -8,7 +8,8 @@ from torch.autograd import Variable
 from torch.nn import functional as F
 
 from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.misc.rllab_util import get_average_returns, split_paths_to_dict
+from railrl.misc.rllab_util import get_average_returns
+from railrl.samplers.util import split_paths_to_dict
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.algos.util import np_to_pytorch_batch
 from railrl.torch.core import PyTorchModule

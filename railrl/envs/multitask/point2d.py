@@ -6,7 +6,7 @@ import torch
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.envs.pygame.water_maze import WaterMaze
 from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.misc.rllab_util import get_stat_in_dict
+from railrl.samplers.util import get_stat_in_paths
 from railrl.torch.core import PyTorchModule
 from rllab.core.serializable import Serializable
 from rllab.misc import logger
@@ -73,7 +73,7 @@ class MultitaskPoint2DEnv(WaterMaze, MultitaskEnv, Serializable):
         return Box(low, high)
 
     def log_diagnostics(self, paths, **kwargs):
-        distance_to_target = get_stat_in_dict(
+        distance_to_target = get_stat_in_paths(
             paths, 'env_infos', 'distance_to_target'
         )
         actions = np.vstack([path['actions'] for path in paths])

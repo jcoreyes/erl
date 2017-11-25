@@ -6,7 +6,7 @@ from gym.envs.mujoco import HalfCheetahEnv
 
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.misc.rllab_util import get_stat_in_dict
+from railrl.samplers.util import get_stat_in_paths
 from rllab.misc import logger
 
 MAX_SPEED = 10
@@ -102,13 +102,13 @@ class GoalXVelHalfCheetah(HalfCheetahEnv, MultitaskEnv):
     def log_diagnostics(self, paths):
         super().log_diagnostics(paths)
         MultitaskEnv.log_diagnostics(self, paths)
-        xvels = get_stat_in_dict(
+        xvels = get_stat_in_paths(
             paths, 'env_infos', 'xvel'
         )
-        desired_xvels = get_stat_in_dict(
+        desired_xvels = get_stat_in_paths(
             paths, 'env_infos', 'desired_xvel'
         )
-        xvel_errors = get_stat_in_dict(
+        xvel_errors = get_stat_in_paths(
             paths, 'env_infos', 'xvel_error'
         )
 
