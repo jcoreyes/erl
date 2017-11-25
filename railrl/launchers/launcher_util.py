@@ -191,6 +191,7 @@ def run_experiment(
         'local': doodad.mode.Local(),
         'local_docker': doodad.mode.LocalDocker(
             image=docker_image,
+            gpu=use_gpu,
         ),
         'ec2': doodad.mode.EC2AutoconfigDocker(
             image=docker_image,
@@ -199,6 +200,7 @@ def run_experiment(
             spot_price=spot_price,
             s3_log_prefix=exp_prefix,
             s3_log_name="{}-id{}-s{}".format(exp_prefix, exp_id, seed),
+            gpu=use_gpu,
         ),
     }
 
