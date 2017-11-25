@@ -22,9 +22,8 @@ from rllab.misc import logger
 
 class DDPG(TorchRLAlgorithm):
     """
-    Online learning algorithm.
+    Deep Deterministic Policy Gradient
     """
-
     def __init__(
             self,
             env,
@@ -40,8 +39,6 @@ class DDPG(TorchRLAlgorithm):
             use_soft_update=False,
             qf_criterion=None,
             residual_gradient_weight=0,
-            optimize_target_policy=None,
-            target_policy_learning_rate=None,
             epoch_discount_schedule=None,
 
             plotter=None,
@@ -66,11 +63,6 @@ class DDPG(TorchRLAlgorithm):
         :param residual_gradient_weight: c, float between 0 and 1. The gradient
         used for training the Q function is then
             (1-c) * normal td gradient + c * residual gradient
-        :param optimize_target_policy: If False, the target policy is
-        updated as in the original DDPG paper. Otherwise, the target policy
-        is optimizes the target QF.
-        :param target_policy_learning_rate: If None, use the policy_learning
-        rate. This parameter is ignored if `optimize_target_policy` is False.
         :param epoch_discount_schedule: A schedule for the discount factor
         that varies with the epoch.
         :param kwargs:
@@ -83,8 +75,6 @@ class DDPG(TorchRLAlgorithm):
         )
         if qf_criterion is None:
             qf_criterion = nn.MSELoss()
-        if target_policy_learning_rate is None:
-            target_policy_learning_rate = policy_learning_rate
         self.qf = qf
         self.policy = policy
         self.policy_learning_rate = policy_learning_rate
@@ -95,8 +85,6 @@ class DDPG(TorchRLAlgorithm):
         self.use_soft_update = use_soft_update
         self.residual_gradient_weight = residual_gradient_weight
         self.qf_criterion = qf_criterion
-        self.optimize_target_policy = optimize_target_policy
-        self.target_policy_learning_rate = target_policy_learning_rate
         if epoch_discount_schedule is None:
             epoch_discount_schedule = ConstantSchedule(self.discount)
         self.epoch_discount_schedule = epoch_discount_schedule
@@ -111,13 +99,6 @@ class DDPG(TorchRLAlgorithm):
         )
         self.policy_optimizer = optim.Adam(self.policy.parameters(),
                                            lr=self.policy_learning_rate)
-        if self.optimize_target_policy:
-            self.target_policy_optimizer = optim.Adam(
-                self.target_policy.parameters(),
-                lr=self.target_policy_learning_rate,
-            )
-        else:
-            self.target_policy_optimizer = None
 
     def _start_epoch(self, epoch):
         super()._start_epoch(epoch)
@@ -137,26 +118,16 @@ class DDPG(TorchRLAlgorithm):
         qf_loss.backward()
         self.qf_optimizer.step()
 
-        if self.optimize_target_policy:
-            self.target_policy_optimizer.zero_grad()
-            target_policy_loss = train_dict['Target Policy Loss']
-            target_policy_loss.backward()
-            self.target_policy_optimizer.step()
-
         self._update_target_networks()
 
     def _update_target_networks(self):
         if self.use_soft_update:
-            if not self.optimize_target_policy:
-                ptu.soft_update(self.target_policy, self.policy,
-                                self.tau)
+            ptu.soft_update(self.target_policy, self.policy, self.tau)
             ptu.soft_update(self.target_qf, self.qf, self.tau)
         else:
             if self._n_env_steps_total % self.target_hard_update_period == 0:
                 ptu.copy_model_params_from_to(self.qf, self.target_qf)
-                if not self.optimize_target_policy:
-                    ptu.copy_model_params_from_to(self.policy,
-                                                  self.target_policy)
+                ptu.copy_model_params_from_to(self.policy, self.target_policy)
 
     def get_train_dict(self, batch):
         rewards = batch['rewards']
@@ -218,15 +189,6 @@ class DDPG(TorchRLAlgorithm):
         else:
             qf_loss = raw_qf_loss
 
-        if self.optimize_target_policy:
-            target_policy_actions = self.target_policy(obs)
-            target_q_output = self.target_qf(obs, target_policy_actions)
-            target_policy_loss = - target_q_output.mean()
-        else:
-            # Always include the target policy loss so that different
-            # experiments are easily comparable.
-            target_policy_loss = ptu.FloatTensor([0])
-
         return OrderedDict([
             ('Policy Actions', policy_actions),
             ('Policy Loss', policy_loss),
@@ -236,7 +198,6 @@ class DDPG(TorchRLAlgorithm):
             ('Y predictions', y_pred),
             ('Unregularized QF Loss', raw_qf_loss),
             ('QF Loss', qf_loss),
-            ('Target Policy Loss', target_policy_loss),
         ])
 
     def evaluate(self, epoch):
