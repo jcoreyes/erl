@@ -26,6 +26,7 @@ dependencies:
     - pytorch
     - torchvision
     - scikit-image
+    - magma-cuda80
     - pip:
         - git+git://github.com/pytorch/pytorch.git@v0.3.0
         # Tensorflow 1.0, GPU only
