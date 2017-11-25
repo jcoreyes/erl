@@ -13,8 +13,6 @@ from railrl.misc.plotter import QFPolicyPlotter
 from railrl.sac.policies import TanhGaussianPolicy
 from railrl.sac.sac import SoftActorCritic
 from railrl.torch.networks import FlattenMlp
-import torch
-from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 
 
 def experiment(variant):
@@ -28,18 +26,17 @@ def experiment(variant):
     action_dim = int(np.prod(env.action_space.shape))
 
     qf = FlattenMlp(
-        hidden_sizes=[100],
+        hidden_sizes=[100, 100],
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_activation=torch.tanh,
     )
     vf = FlattenMlp(
-        hidden_sizes=[100],
+        hidden_sizes=[100, 100],
         input_size=obs_dim,
         output_size=1,
     )
     policy = TanhGaussianPolicy(
-        hidden_sizes=[100],
+        hidden_sizes=[100, 100],
         obs_dim=obs_dim,
         action_dim=action_dim,
     )
