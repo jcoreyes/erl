@@ -56,9 +56,10 @@ RUN mkdir /root/code
 ADD railrl-env.yml /root/code/environment.yml
 RUN conda env create -f /root/code/environment.yml
 
-ENV PYTHONPATH /root/code/rllab:/root/code/rllab/railrl:$PYTHONPATH
-ENV PATH /opt/conda/envs/railrl-env/bin:$PATH
-RUN echo "source activate railrl-env" >> /root/.bashrc
+# This doesn't seem to work always. Not sure why.
+# I'll just add railrl-rl env to the path manually and leave this here in case
+# someone wants to fix this later
+#RUN echo "source activate railrl-env" >> /root/.bashrc
 ENV BASH_ENV /root/.bashrc
 WORKDIR /root/code
 
