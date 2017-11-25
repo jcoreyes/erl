@@ -63,7 +63,7 @@ if __name__ == "__main__":
             num_epochs=1000,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
-            batch_size=32,
+            batch_size=64,
             max_path_length=1000,
             discount=0.99,
 
@@ -79,10 +79,8 @@ if __name__ == "__main__":
             experiment,
             seed=seed,
             variant=variant,
-            # exp_prefix="sac-half-cheetah-with-action-hack",
-            # mode='ec2',
-            # use_gpu=False,
-            exp_prefix="dev-sac-half-cheetah",
-            mode='local',
-            use_gpu=True,
+            exp_prefix="sac-half-cheetah-time-check",
+            mode='ec2',
+            # exp_prefix="dev-sac-half-cheetah",
+            # mode='local',
         )
