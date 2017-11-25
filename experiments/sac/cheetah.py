@@ -30,17 +30,17 @@ def experiment(variant):
     action_dim = int(np.prod(env.action_space.shape))
 
     qf = FlattenMlp(
-        hidden_sizes=[100, 100],
+        hidden_sizes=[300, 300],
         input_size=obs_dim + action_dim,
         output_size=1,
     )
     vf = FlattenMlp(
-        hidden_sizes=[100, 100],
+        hidden_sizes=[300, 300],
         input_size=obs_dim,
         output_size=1,
     )
     policy = TanhGaussianPolicy(
-        hidden_sizes=[100, 100],
+        hidden_sizes=[300, 300],
         obs_dim=obs_dim,
         action_dim=action_dim,
     )
@@ -63,26 +63,27 @@ if __name__ == "__main__":
             num_epochs=1000,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
-            batch_size=32,
-            max_path_length=1000,
+            batch_size=128,
+            max_path_length=999,
             discount=0.99,
 
-            soft_target_tau=0.01,
+            soft_target_tau=0.001,
             policy_lr=3E-4,
             qf_lr=3E-4,
             vf_lr=3E-4,
         ),
+        verison="bigger network",
     )
-    for _ in range(1):
+    for _ in range(5):
         seed = random.randint(0, 999999)
         run_experiment(
             experiment,
             seed=seed,
             variant=variant,
-            # exp_prefix="sac-half-cheetah-with-action-hack",
-            # mode='ec2',
-            # use_gpu=False,
-            exp_prefix="dev-sac-half-cheetah",
-            mode='local',
-            use_gpu=True,
+            exp_prefix="sac-half-cheetah-new-hps-bigger-nets",
+            mode='ec2',
+            use_gpu=False,
+            # exp_prefix="dev-sac-half-cheetah",
+            # mode='local',
+            # use_gpu=True,
         )
