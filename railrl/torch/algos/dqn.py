@@ -100,12 +100,13 @@ class DQN(TorchRLAlgorithm):
         """
         Save some statistics for eval
         """
-        self.eval_statistics = OrderedDict()
-        self.eval_statistics['QF Loss'] = np.mean(ptu.get_numpy(qf_loss))
-        self.eval_statistics.update(create_stats_ordered_dict(
-            'Y Predictions',
-            ptu.get_numpy(y_pred),
-        ))
+        if self.eval_statistics is None:
+            self.eval_statistics = OrderedDict()
+            self.eval_statistics['QF Loss'] = np.mean(ptu.get_numpy(qf_loss))
+            self.eval_statistics.update(create_stats_ordered_dict(
+                'Y Predictions',
+                ptu.get_numpy(y_pred),
+            ))
 
     def _update_target_network(self):
         if self.use_hard_updates:
@@ -117,6 +118,7 @@ class DQN(TorchRLAlgorithm):
     def evaluate(self, epoch):
         statistics = OrderedDict()
         statistics.update(self.eval_statistics)
+        self.eval_statistics = None
         test_paths = self.eval_sampler.obtain_samples()
         statistics.update(eval_util.get_generic_path_information(
             test_paths, self.discount, stat_prefix="Test",
