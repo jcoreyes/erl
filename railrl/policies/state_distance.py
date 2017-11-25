@@ -18,19 +18,23 @@ class UniversalPolicy(Policy, metaclass=abc.ABCMeta):
     def __init__(self):
         self._goal_np = None
         self._goal_expanded_torch = None
+        self._goal_expanded_np = None
         self._discount_np = None
         self._discount_expanded_torch = None
+        self._discount_expanded_np = None
 
     def set_goal(self, goal_np):
         self._goal_np = goal_np
+        self._goal_expanded_np = goal_np[None]
         self._goal_expanded_torch = ptu.np_to_var(
             np.expand_dims(goal_np, 0)
         )
 
     def set_discount(self, discount):
         self._discount_np = discount
+        self._discount_expanded_np = np.array([[discount]])
         self._discount_expanded_torch = ptu.np_to_var(
-            np.array([[discount]])
+            self._discount_expanded_np
         )
 
 
