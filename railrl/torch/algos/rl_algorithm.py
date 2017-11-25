@@ -73,7 +73,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.obs_space = convert_gym_space(env.observation_space)
         self.env = env
         if replay_buffer is None:
-            if fraction_paths_in_train != 1.:
+            if fraction_paths_in_train == 1.:
                 self.replay_buffer = EnvReplayBuffer(
                     self.replay_buffer_size,
                     self.env,
