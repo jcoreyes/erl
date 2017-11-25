@@ -38,7 +38,6 @@ class DDPG(TorchRLAlgorithm):
             target_hard_update_period=1000,
             tau=1e-2,
             use_soft_update=False,
-            num_updates_per_env_step=1,
             qf_criterion=None,
             residual_gradient_weight=0,
             optimize_target_policy=None,
@@ -62,8 +61,6 @@ class DDPG(TorchRLAlgorithm):
         :param target_hard_update_period:
         :param tau:
         :param use_soft_update:
-        :param num_updates_per_env_step: Number of gradient steps per
-        environment step.
         :param qf_criterion: Loss function to use for the q function. Should
         be a function that takes in two inputs (y_predicted, y_target).
         :param residual_gradient_weight: c, float between 0 and 1. The gradient
@@ -96,7 +93,6 @@ class DDPG(TorchRLAlgorithm):
         self.target_hard_update_period = target_hard_update_period
         self.tau = tau
         self.use_soft_update = use_soft_update
-        self.num_updates_per_env_step = num_updates_per_env_step
         self.residual_gradient_weight = residual_gradient_weight
         self.qf_criterion = qf_criterion
         self.optimize_target_policy = optimize_target_policy
@@ -128,37 +124,39 @@ class DDPG(TorchRLAlgorithm):
         self.discount = self.epoch_discount_schedule.get_value(epoch)
 
     def _do_training(self):
-        for i in range(self.num_updates_per_env_step):
-            batch = self.get_batch(training=True)
-            train_dict = self.get_train_dict(batch)
+        batch = self.get_batch(training=True)
+        train_dict = self.get_train_dict(batch)
 
-            self.policy_optimizer.zero_grad()
-            policy_loss = train_dict['Policy Loss']
-            policy_loss.backward()
-            self.policy_optimizer.step()
+        self.policy_optimizer.zero_grad()
+        policy_loss = train_dict['Policy Loss']
+        policy_loss.backward()
+        self.policy_optimizer.step()
 
-            self.qf_optimizer.zero_grad()
-            qf_loss = train_dict['QF Loss']
-            qf_loss.backward()
-            self.qf_optimizer.step()
+        self.qf_optimizer.zero_grad()
+        qf_loss = train_dict['QF Loss']
+        qf_loss.backward()
+        self.qf_optimizer.step()
 
-            if self.optimize_target_policy:
-                self.target_policy_optimizer.zero_grad()
-                target_policy_loss = train_dict['Target Policy Loss']
-                target_policy_loss.backward()
-                self.target_policy_optimizer.step()
+        if self.optimize_target_policy:
+            self.target_policy_optimizer.zero_grad()
+            target_policy_loss = train_dict['Target Policy Loss']
+            target_policy_loss.backward()
+            self.target_policy_optimizer.step()
 
-            if self.use_soft_update:
+        self._update_target_networks()
+
+    def _update_target_networks(self):
+        if self.use_soft_update:
+            if not self.optimize_target_policy:
+                ptu.soft_update(self.target_policy, self.policy,
+                                self.tau)
+            ptu.soft_update(self.target_qf, self.qf, self.tau)
+        else:
+            if self._n_env_steps_total % self.target_hard_update_period == 0:
+                ptu.copy_model_params_from_to(self.qf, self.target_qf)
                 if not self.optimize_target_policy:
-                    ptu.soft_update(self.target_policy, self.policy,
-                                    self.tau)
-                ptu.soft_update(self.target_qf, self.qf, self.tau)
-            else:
-                if self._n_env_steps_total % self.target_hard_update_period == 0:
-                    ptu.copy_model_params_from_to(self.qf, self.target_qf)
-                    if not self.optimize_target_policy:
-                        ptu.copy_model_params_from_to(self.policy,
-                                                      self.target_policy)
+                    ptu.copy_model_params_from_to(self.policy,
+                                                  self.target_policy)
 
     def get_train_dict(self, batch):
         rewards = batch['rewards']
