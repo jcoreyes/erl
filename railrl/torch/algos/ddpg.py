@@ -266,16 +266,7 @@ class DDPG(TorchRLAlgorithm):
             self.plotter.draw()
 
     def offline_evaluate(self, epoch):
-        logger.log("Collecting samples for evaluation")
         statistics = OrderedDict()
-        # train_batch = self.get_batch(training=True)
-        # validation_batch = self.get_batch(training=False)
-        #
-        # if not isinstance(self.epoch_discount_schedule, ConstantSchedule):
-        #     statistics['Discount Factor'] = self.discount
-        #
-        # statistics.update(self._statistics_from_batch(train_batch, "Train"))
-
         statistics['Epoch'] = epoch
 
         for key, value in statistics.items():
