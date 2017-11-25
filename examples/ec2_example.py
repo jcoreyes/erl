@@ -17,7 +17,6 @@ def example(variant):
     date = datetime.now(tz=pytz.utc)
     logger.log("start")
     logger.log('Current date & time is: {}'.format(date.strftime(date_format)))
-    import ipdb; ipdb.set_trace()
 
 
     date = date.astimezone(timezone('US/Pacific'))
@@ -35,12 +34,15 @@ if __name__ == "__main__":
     date = datetime.now(tz=pytz.utc)
     logger.log("start")
     variant = dict(
-        num_seconds=10,
+        num_seconds=10000,
         launch_time=str(date.strftime(date_format)),
     )
     run_experiment(
         example,
-        exp_prefix="ec2-check-time-to-start",
-        mode='local_docker',
+        # exp_prefix="ec2-check-time-to-start-gpu",
+        exp_prefix="ec2-long",
+        mode='ec2',
         variant=variant,
+        use_gpu=False,
+        spot_price=0.5,
     )
