@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from railrl.misc.rllab_util import split_paths
+from railrl.samplers.util import split_paths
 from railrl.testing.testing_utils import are_np_arrays_equal
 
 

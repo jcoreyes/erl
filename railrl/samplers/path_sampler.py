@@ -49,7 +49,7 @@ class MultitaskPathSampler(object):
             path_length += 1
             reward = raw_reward
 
-            self.replay_buffer.add_sample(
+            self.replay_buffer.add_all(
                 obs,
                 action,
                 reward,

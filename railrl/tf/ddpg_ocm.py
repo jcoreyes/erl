@@ -7,7 +7,7 @@ import numpy as np
 
 from railrl.tf.ddpg import DDPG
 from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.misc.rllab_util import split_paths
+from railrl.samplers.util import split_paths
 from rllab.misc import logger
 from rllab.misc import special
 from rllab.misc.overrides import overrides

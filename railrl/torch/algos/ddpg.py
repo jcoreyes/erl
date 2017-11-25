@@ -5,6 +5,7 @@ import torch
 import torch.optim as optim
 from torch import nn as nn
 
+import railrl.samplers.util
 import railrl.torch.pytorch_util as ptu
 from railrl.misc import rllab_util
 from railrl.misc.data_processing import create_stats_ordered_dict
@@ -331,7 +332,7 @@ class DDPG(TorchRLAlgorithm):
 
     @staticmethod
     def paths_to_batch(paths):
-        np_batch = rllab_util.split_paths_to_dict(paths)
+        np_batch = railrl.samplers.util.split_paths_to_dict(paths)
         return np_to_pytorch_batch(np_batch)
 
     def _statistics_from_batch(self, batch, stat_prefix):
