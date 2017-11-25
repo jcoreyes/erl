@@ -373,7 +373,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         Implement anything that needs to happen after every step
         :return:
         """
-        self._current_path_builder.add_sample(
+        self._current_path_builder.add_all(
             observations=observation,
             rewards=reward,
             terminals=terminal,

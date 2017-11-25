@@ -183,7 +183,7 @@ class HER(DDPG):
             env_info,
     ):
         if num_paths_total % self.save_exploration_path_period == 0:
-            self._current_path.add_sample(
+            self._current_path.add_all(
                 observations=self.obs_space.flatten(observation),
                 rewards=reward,
                 terminals=terminal,
@@ -194,7 +194,7 @@ class HER(DDPG):
                                               # current goal state
             )
 
-        self.replay_buffer.add_sample(
+        self.replay_buffer.add_all(
             observation,
             action,
             reward,
@@ -212,7 +212,7 @@ class HER(DDPG):
             agent_info,
             env_info,
     ):
-        self._current_path.add_sample(
+        self._current_path.add_all(
             final_observation=final_obs,
             increment_path_length=False,
         )

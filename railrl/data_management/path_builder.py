@@ -26,14 +26,17 @@ class PathBuilder(dict):
     # output: [1, 4]
     path['actions']
     # output: [2, 5]
+    ```
 
+    Note that the key should be "actions" and not "action" since the
+    resulting dictionary will have those keys.
     """
 
     def __init__(self):
         super().__init__()
         self._path_length = 0
 
-    def add_sample(self, **key_to_value):
+    def add_all(self, **key_to_value):
         for k, v in key_to_value.items():
             if k not in self:
                 self[k] = [v]

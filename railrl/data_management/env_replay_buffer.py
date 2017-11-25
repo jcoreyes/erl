@@ -34,7 +34,7 @@ class EnvReplayBuffer(SimpleReplayBuffer):
         :param observation: Unflattened observation.
         :param action: Unflattened actions.
         :param reward: number
-        :param observation: Unflattened next observation.
+        :param next_observation: Unflattened next observation.
         :param terminal: Boolean
         """
         flat_action = self._action_space.flatten(action)

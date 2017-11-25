@@ -8,11 +8,11 @@ class TestPath(NPTestCase):
 
     def test_add_and_get_all(self):
         path = PathBuilder()
-        path.add_sample(
+        path.add_all(
             action=np.array([1, 2, 3]),
             obs=-np.array([1, 2, 3]),
         )
-        path.add_sample(
+        path.add_all(
             action=np.array([10, 2, 3]),
             obs=-np.array([10, 2, 3]),
         )
@@ -35,7 +35,7 @@ class TestPath(NPTestCase):
     def test_path_length(self):
         path = PathBuilder()
         for _ in range(10):
-            path.add_sample(
+            path.add_all(
                 action=np.array([1, 2, 3]),
                 obs=-np.array([1, 2, 3]),
             )

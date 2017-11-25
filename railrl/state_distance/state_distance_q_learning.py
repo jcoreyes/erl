@@ -499,7 +499,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             agent_info,
             env_info,
     ):
-        self._current_path.add_sample(
+        self._current_path.add_all(
             observations=self.obs_space.flatten(observation),
             rewards=reward,
             terminals=terminal,
@@ -510,7 +510,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             taus=self._rollout_discount,
         )
 
-        self.replay_buffer.add_sample(
+        self.replay_buffer.add_all(
             observation,
             action,
             reward,
@@ -536,7 +536,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
         """
         Implement anything that needs to happen after every rollout.
         """
-        self._current_path.add_sample(
+        self._current_path.add_all(
             final_observation=final_obs,
             increment_path_length=False,
         )

@@ -52,7 +52,7 @@ def rollout(env, agent, max_path_length=np.inf, animated=False):
     observations = np.array(observations)
     if len(observations.shape) == 1:
         observations = np.expand_dims(observations, 1)
-        next_o = np.expand_dims(next_o, 1)
+        next_o = np.array([next_o])
     next_observations = np.vstack(
         (
             observations[1:, :],
