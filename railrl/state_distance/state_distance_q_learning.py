@@ -16,7 +16,7 @@ from railrl.samplers.util import rollout, split_paths_to_dict
 from railrl.state_distance.exploration import UniversalExplorationPolicy
 from railrl.state_distance.networks import DuelingStructuredUniversalQfunction
 from railrl.torch.algos.util import np_to_pytorch_batch
-from railrl.torch.ddpg import DDPG
+from railrl.torch.algos.ddpg import DDPG
 from railrl.torch.eval_util import (
     get_difference_statistics,
     get_generic_path_information,
