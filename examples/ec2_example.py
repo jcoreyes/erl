@@ -17,6 +17,8 @@ def example(variant):
     date = datetime.now(tz=pytz.utc)
     logger.log("start")
     logger.log('Current date & time is: {}'.format(date.strftime(date_format)))
+    import ipdb; ipdb.set_trace()
+
 
     date = date.astimezone(timezone('US/Pacific'))
     logger.log('Local date & time is: {}'.format(date.strftime(date_format)))
@@ -39,6 +41,6 @@ if __name__ == "__main__":
     run_experiment(
         example,
         exp_prefix="ec2-check-time-to-start",
-        mode='ec2',
+        mode='local_docker',
         variant=variant,
     )
