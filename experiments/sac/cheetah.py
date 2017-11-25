@@ -73,7 +73,7 @@ if __name__ == "__main__":
             qf_lr=3E-4,
             vf_lr=3E-4,
         ),
-        net_size=100,
+        net_size=300,
     )
     for _ in range(1):
         seed = random.randint(0, 999999)
@@ -81,9 +81,9 @@ if __name__ == "__main__":
             experiment,
             seed=seed,
             variant=variant,
-            # exp_prefix="sac-half-cheetah-time-check",
-            # mode='ec2',
-            exp_prefix="dev-sac-half-cheetah",
-            mode='local',
-            use_gpu=True,
+            exp_prefix="sac-half-cheetah-check",
+            mode='ec2',
+            # exp_prefix="dev-sac-half-cheetah",
+            # mode='local',
+            # use_gpu=True,
         )
