@@ -83,11 +83,7 @@ def split_paths(paths):
     terminals = [path["terminals"].reshape(-1, 1) for path in paths]
     actions = [path["actions"] for path in paths]
     obs = [path["observations"] for path in paths]
-    next_obs = []
-    for path in paths:
-        next_obs_i = path["observations"][1:, :]
-        next_obs_i = np.vstack((next_obs_i, path["final_observation"]))
-        next_obs.append(next_obs_i)
+    next_obs = [path["next_observations"] for path in paths]
     rewards = np.vstack(rewards)
     terminals = np.vstack(terminals)
     obs = np.vstack(obs)
