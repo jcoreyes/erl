@@ -41,9 +41,10 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             normalize_env=True,
             ratio=20,
             replay_buffer=None,
-            fraction_paths_in_train=0.8,
+            fraction_paths_in_train=1.,
     ):
         assert collection_mode in ['online', 'online-parallel', 'offline']
+        assert 0. <= fraction_paths_in_train <= 1.
         self.training_env = pickle.loads(pickle.dumps(env))
         self.normalize_env = normalize_env
         self.exploration_policy = exploration_policy
@@ -96,6 +97,10 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 )
         else:
             self.replay_buffer = replay_buffer
+        self.replay_buffer_is_split = isinstance(
+            self.replay_buffer,
+            SplitReplayBuffer
+        )
 
         self._n_env_steps_total = 0
         self._n_train_steps_total = 0
