@@ -215,6 +215,8 @@ def run_experiment(
             gpu=use_gpu,
         ),
     }
+    if use_gpu:
+        mode_str_to_doodad_mode['ec2'].image_id = config.GPU_AWS_IMAGE_ID
 
     """
     Get the mounts
