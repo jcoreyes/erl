@@ -25,6 +25,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             num_epochs=100,
             num_steps_per_epoch=10000,
             num_steps_per_eval=1000,
+            num_updates_per_env_step=1,
             batch_size=1024,
             max_path_length=1000,
             discount=0.99,
@@ -49,6 +50,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.num_epochs = num_epochs
         self.num_env_steps_per_epoch = num_steps_per_epoch
         self.num_steps_per_eval = num_steps_per_eval
+        self.num_updates_per_env_step = num_updates_per_env_step
         self.batch_size = batch_size
         self.max_path_length = max_path_length
         self.discount = discount
@@ -234,8 +236,9 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
     def _try_to_train(self):
         if self._can_train():
             self.training_mode(True)
-            self._n_train_steps_total += 1
-            self._do_training()
+            for i in range(self.num_updates_per_env_step):
+                self._do_training()
+                self._n_train_steps_total += 1
             self.training_mode(False)
 
     def _try_to_eval(self, epoch):

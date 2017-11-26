@@ -68,8 +68,8 @@ def run_experiment(
         # Settings for EC2 only
         sync_interval=180,
         region='us-west-1',
-        instance_type='c4.large',
-        spot_price=0.03,
+        instance_type=None,
+        spot_price=None,
 ):
     """
     Usage:
@@ -181,12 +181,24 @@ def run_experiment(
         ec2_okayed = True
 
     """
-    Get the mode
+    GPU vs normal configs
     """
     if use_gpu:
         docker_image = config.GPU_DOODAD_DOCKER_IMAGE
+        if instance_type is None:
+            instance_type = config.GPU_INSTANCE_TYPE
+        if spot_price is None:
+            spot_price = config.GPU_SPOT_PRICE
     else:
         docker_image = config.DOODAD_DOCKER_IMAGE
+        if instance_type is None:
+            instance_type = config.INSTANCE_TYPE
+        if spot_price is None:
+            spot_price = config.SPOT_PRICE
+
+    """
+    Get the mode
+    """
     mode_str_to_doodad_mode = {
         'local': doodad.mode.Local(),
         'local_docker': doodad.mode.LocalDocker(
@@ -203,6 +215,8 @@ def run_experiment(
             gpu=use_gpu,
         ),
     }
+    if use_gpu:
+        mode_str_to_doodad_mode['ec2'].image_id = config.GPU_AWS_IMAGE_ID
 
     """
     Get the mounts
