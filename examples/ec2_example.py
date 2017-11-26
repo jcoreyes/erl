@@ -17,7 +17,6 @@ def example(variant):
     date = datetime.now(tz=pytz.utc)
     logger.log("start")
     logger.log('Current date & time is: {}'.format(date.strftime(date_format)))
-    import ipdb; ipdb.set_trace()
     x = torch.randn(3)
     print(x.cuda())
 
@@ -41,10 +40,9 @@ if __name__ == "__main__":
     )
     run_experiment(
         example,
-        exp_prefix="ec2-ami-dc4e75bc-gpu-short-2",
+        # exp_prefix="ec2-ami-dc4e75bc-gpu-short-2",
+        exp_prefix="ec2-ami-874378e7-gpu-short-3",
         mode='ec2',
         variant=variant,
         use_gpu=True,
-        spot_price=0.5,
-        instance_type='g2.2xlarge',
     )
