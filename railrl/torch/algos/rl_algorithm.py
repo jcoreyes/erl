@@ -80,6 +80,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 self.replay_buffer = EnvReplayBuffer(
                     self.replay_buffer_size,
                     self.env,
+                    flatten=True,
                 )
             else:
                 self.replay_buffer = SplitReplayBuffer(
