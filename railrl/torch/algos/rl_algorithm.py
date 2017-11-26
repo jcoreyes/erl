@@ -2,6 +2,7 @@ import abc
 import pickle
 import time
 import gtimer as gt
+import numpy as np
 
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.path_builder import PathBuilder
@@ -70,6 +71,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 max_samples=self.num_steps_per_eval + self.max_path_length,
                 max_path_length=self.max_path_length,
             )
+        self.eval_policy = eval_policy
         self.eval_sampler = eval_sampler
 
         self.action_space = convert_gym_space(env.action_space)
@@ -163,6 +165,8 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 )
                 self._n_env_steps_total += 1
                 reward = raw_reward * self.scale_reward
+                terminal = np.array([terminal])
+                reward = np.array([reward])
                 self._handle_step(
                     observation,
                     action,
@@ -175,11 +179,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 if terminal or len(self._current_path_builder) >= self.max_path_length:
                     self._handle_rollout_ending()
                     observation = self._start_new_rollout()
-                    if len(self._current_path_builder) > 0:
-                        self._exploration_paths.append(
-                            self._current_path_builder.get_all_stacked()
-                        )
-                        self._current_path_builder = PathBuilder()
                 else:
                     observation = next_ob
 
@@ -429,6 +428,11 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         """
         self.replay_buffer.terminate_episode()
         self._n_rollouts_total += 1
+        if len(self._current_path_builder) > 0:
+            self._exploration_paths.append(
+                self._current_path_builder.get_all_stacked()
+            )
+            self._current_path_builder = PathBuilder()
 
     def get_epoch_snapshot(self, epoch):
         if self.render:
