@@ -12,7 +12,7 @@ from rllab.spaces import Box
 
 class MultitaskEnv(object, metaclass=abc.ABCMeta):
     """
-    An environment with a task that can be specified with a goal state.
+    An environment with a task that can be specified with a goal
     """
 
     def __init__(self):
@@ -23,48 +23,30 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def goal_dim(self) -> int:
         """
-        :return: int, dimension of goal state
+        :return: int, dimension of goal vector
         """
         pass
 
     @abc.abstractmethod
-    def sample_goal_states(self, batch_size):
+    def sample_goals(self, batch_size):
         pass
 
     @abc.abstractmethod
-    def convert_obs_to_goal_states(self, obs):
+    def convert_obs_to_goals(self, obs):
         """
         Convert a raw environment observation into a goal state (if possible).
         """
-        pass
-
-    @abc.abstractmethod
-    def sample_dimensions_irrelevant_to_oc(self, goal, obs, batch_size):
-        """
-        Create the OC goal state a bunch of time, but replace irrelevant goal
-        dimensions with sampled values.
-
-        :param goal: np.ndarray, shape GOAL_DIM
-        :param batch_size:
-        :return: ndarray, shape `batch_size` x GOAL_DIM
-        """
-        pass
-
-    @abc.abstractmethod
-    def oc_reward_on_goals(
-            self, predicted_goal_states, goal_states, current_states
-    ):
         pass
 
     """
     Functions you probably don't need to override.
     """
     def oc_reward(
-            self, predicted_states, goal_states, current_states
+            self, predicted_states, goals, current_states
     ):
         return self.oc_reward_on_goals(
-            self.convert_obs_to_goal_states(predicted_states),
-            goal_states,
+            self.convert_obs_to_goals(predicted_states),
+            goals,
             current_states
         )
 
@@ -74,7 +56,7 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         do rollouts.
         :return:
         """
-        goal_state = self.sample_goal_states(1)[0]
+        goal_state = self.sample_goals(1)[0]
         return self.modify_goal_state_for_rollout(goal_state)
 
     def convert_ob_to_goal_state(self, obs):
@@ -84,11 +66,11 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         This observation should NOT include the goal state.
         """
         if isinstance(obs, np.ndarray):
-            return self.convert_obs_to_goal_states(
+            return self.convert_obs_to_goals(
                 np.expand_dims(obs, 0)
             )[0]
         else:
-            return self.convert_obs_to_goal_states_pytorch(
+            return self.convert_obs_to_goals_pytorch(
                 obs.unsqueeze(0)
             )[0]
 
@@ -98,19 +80,19 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
     def set_goal(self, goal):
         self.multitask_goal = goal
 
-    def compute_rewards(self, obs, action, next_obs, goal_states):
+    def compute_rewards(self, obs, action, next_obs, goals):
         return - np.linalg.norm(
-            self.convert_obs_to_goal_states(next_obs) - goal_states,
+            self.convert_obs_to_goals(next_obs) - goals,
             axis=1,
             keepdims=True,
             ord=1,
         )
 
-    def convert_obs_to_goal_states_pytorch(self, obs):
+    def convert_obs_to_goals_pytorch(self, obs):
         """
         PyTorch version of `convert_obs_to_goal_state`.
         """
-        return self.convert_obs_to_goal_states(obs)
+        return self.convert_obs_to_goals(obs)
 
     def modify_goal_state_for_rollout(self, goal_state):
         """
@@ -126,12 +108,12 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         statistics = OrderedDict()
 
         observations = np.vstack([path['observations'] for path in paths])
-        goal_states = np.vstack([path['goal_states'] for path in paths])
+        goals = np.vstack([path['goals'] for path in paths])
         actions = np.vstack([path['actions'] for path in paths])
         final_differences = []
         for path in paths:
             reached = self.convert_ob_to_goal_state(path['observations'][-1])
-            goal = path['goal_states'][-1]
+            goal = path['goals'][-1]
             final_differences.append(reached - goal)
         for order in [1, 2]:
             final_distances = np.linalg.norm(
@@ -140,7 +122,7 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
                 ord=order,
             )
             goal_distances = np.linalg.norm(
-                self.convert_obs_to_goal_states(observations) - goal_states,
+                self.convert_obs_to_goals(observations) - goals,
                 axis=1,
                 ord=order,
             )
@@ -158,7 +140,7 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
             observations[:-1, ...],
             actions[:-1, ...],
             observations[1:, ...],
-            goal_states[:-1, ...],
+            goals[:-1, ...],
         )
         statistics.update(create_stats_ordered_dict(
             'Multitask Env Rewards', rewards,
@@ -191,6 +173,21 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
     def sample_states(self, batch_size):
         pass
 
+    def sample_dimensions_irrelevant_to_oc(self, goal, obs, batch_size):
+        """
+        Create the OC goal state a bunch of time, but replace irrelevant goal
+        dimensions with sampled values.
+
+        :param goal: np.ndarray, shape GOAL_DIM
+        :param batch_size:
+        :return: ndarray, shape `batch_size` x GOAL_DIM
+        """
+        pass
+
+    def oc_reward_on_goals(
+            self, predicted_goals, goals, current_states
+    ):
+        pass
 
 
 class MultitaskToFlatEnv(ProxyEnv, Serializable):
