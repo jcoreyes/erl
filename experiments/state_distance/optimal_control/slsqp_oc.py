@@ -10,8 +10,7 @@ from railrl.policies.state_distance import (
     ArgmaxQFPolicy,
     PseudoModelBasedPolicy,
     StateOnlySdqBasedSqpOcPolicy)
-from railrl.state_distance.state_distance_q_learning import \
-    multitask_rollout
+from state_distance.rollout_util import multitask_rollout
 from rllab.misc import logger
 
 

@@ -14,9 +14,7 @@ from railrl.policies.model_based import (
     SQPModelBasedPolicy,
 )
 from railrl.state_distance.networks import ModelExtractor
-from railrl.state_distance.state_distance_q_learning import (
-    multitask_rollout
-)
+from state_distance.rollout_util import multitask_rollout
 from rllab.misc import logger
 
 

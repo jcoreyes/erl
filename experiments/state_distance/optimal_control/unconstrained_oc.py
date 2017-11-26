@@ -11,8 +11,7 @@ from railrl.policies.state_distance import (
     UnconstrainedOcWithImplicitModel)
 from railrl.state_distance.networks import \
     VectorizedGoalStructuredUniversalQfunction
-from railrl.state_distance.state_distance_q_learning import \
-    multitask_rollout
+from state_distance.rollout_util import multitask_rollout
 from rllab.misc import logger
 
 
