@@ -17,6 +17,9 @@ class MountainCar(MountainCarEnv, MultitaskEnv, Serializable):
             size=(batch_size, 1),
         )
 
+    def sample_goal_for_rollout(self):
+        return np.array([0.5])
+
     @property
     def goal_dim(self) -> int:
         return 1
