@@ -16,9 +16,11 @@ class SimpleReplayBuffer(ReplayBuffer):
         # worry about termination conditions.
         self._next_obs = np.zeros((max_replay_buffer_size, observation_dim))
         self._actions = np.zeros((max_replay_buffer_size, action_dim))
-        self._rewards = np.zeros(max_replay_buffer_size)
+        # Make everything a 2D np array to make it easier for other code to
+        # reason about the shape of the data
+        self._rewards = np.zeros((max_replay_buffer_size, 1))
         # self._terminals[i] = a terminal was received at time i
-        self._terminals = np.zeros(max_replay_buffer_size, dtype='uint8')
+        self._terminals = np.zeros((max_replay_buffer_size, 1), dtype='uint8')
         self._top = 0
         self._size = 0
 
