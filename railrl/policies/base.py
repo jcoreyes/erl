@@ -14,15 +14,6 @@ class Policy(object, metaclass=abc.ABCMeta):
         """
         pass
 
-    @abc.abstractmethod
-    def get_actions(self, observations):
-        """
-
-        :param observations:
-        :return: actions
-        """
-        pass
-
     def reset(self):
         pass
 
