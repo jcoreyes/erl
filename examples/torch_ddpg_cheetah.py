@@ -52,7 +52,7 @@ if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
             num_epochs=100,
-            num_steps_per_epoch=10000,
+            num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             use_soft_update=True,
             tau=1e-2,
@@ -62,15 +62,13 @@ if __name__ == "__main__":
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
         ),
-        version="PyTorch - bigger networks",
     )
-    for _ in range(5):
-        seed = random.randint(0, 999999)
-        run_experiment(
-            example,
-            exp_prefix="ddpg-half-cheetah-pytorch-clean-gpu",
-            seed=seed,
-            mode='ec2',
-            variant=variant,
-            use_gpu=True,
-        )
+    seed = random.randint(0, 999999)
+    run_experiment(
+        example,
+        exp_prefix="ddpg-half-cheetah-pytorch",
+        seed=seed,
+        mode='local',
+        variant=variant,
+        use_gpu=True,
+    )
