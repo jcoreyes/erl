@@ -1,7 +1,7 @@
 import numpy as np
 
-from policies.state_distance import UniversalPolicy
-from samplers.util import rollout
+from railrl.policies.state_distance import UniversalPolicy
+from railrl.samplers.util import rollout
 
 
 class MultigoalSimplePathSampler(object):
