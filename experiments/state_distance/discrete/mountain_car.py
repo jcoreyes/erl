@@ -4,6 +4,7 @@ import numpy as np
 
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
+from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.envs.multitask.mountain_car_env import MountainCar
 from railrl.launchers.launcher_util import run_experiment
 from railrl.state_distance.discrete_tdm import DiscreteTDM
@@ -18,6 +19,10 @@ def experiment(variant):
         input_size=int(np.prod(env.observation_space.shape)),
         output_size=env.action_space.n,
     )
+    HerReplayBuffer(
+        env=env,
+        **variant['her_replay_buffer_params']
+    ),
     algorithm = DiscreteTDM(
         env,
         qf=qf,
@@ -33,15 +38,20 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
-            num_epochs=500,
-            num_steps_per_epoch=1000,
-            num_steps_per_eval=1000,
-            batch_size=128,
-            max_path_length=1000,
-            discount=0.99,
-            epsilon=0.2,
-            tau=0.001,
-            hard_update_period=1000,
+            base_kwargs=dict(
+                num_epochs=500,
+                num_steps_per_epoch=1000,
+                num_steps_per_eval=1000,
+                batch_size=128,
+                max_path_length=1000,
+                discount=0.99,
+            ),
+            tdm_kwargs=dict(),
+            dqn_kwargs=dict(
+                epsilon=0.2,
+                tau=0.001,
+                hard_update_period=1000,
+            ),
         ),
     )
     search_space = {
