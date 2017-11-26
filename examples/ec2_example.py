@@ -18,7 +18,7 @@ def example(variant):
     logger.log("start")
     logger.log('Current date & time is: {}'.format(date.strftime(date_format)))
     x = torch.randn(3)
-    print(x.cuda())
+    logger.log(str(x.cuda()))
 
     date = date.astimezone(timezone('US/Pacific'))
     logger.log('Local date & time is: {}'.format(date.strftime(date_format)))
@@ -35,13 +35,13 @@ if __name__ == "__main__":
     date = datetime.now(tz=pytz.utc)
     logger.log("start")
     variant = dict(
-        num_seconds=10,
+        num_seconds=10000,
         launch_time=str(date.strftime(date_format)),
     )
     run_experiment(
         example,
-        # exp_prefix="ec2-ami-dc4e75bc-gpu-short-2",
-        exp_prefix="ec2-ami-874378e7-gpu-short-3",
+        # exp_prefix="ec2-ami-dc4e75bc-gpu-short-3",
+        exp_prefix="ec2-ami-874378e7-gpu-longer-4",
         mode='ec2',
         variant=variant,
         use_gpu=True,
