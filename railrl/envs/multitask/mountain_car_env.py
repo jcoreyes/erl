@@ -22,4 +22,4 @@ class MountainCar(MountainCarEnv, MultitaskEnv, Serializable):
         return 1
 
     def convert_obs_to_goals(self, obs):
-        return obs[0:1, :]
+        return obs[:, 0:1]
