@@ -57,7 +57,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         obs = batch['observations']
         actions = batch['actions']
         next_obs = batch['next_observations']
-        goals = self.sample_goals_for_training()
+        goals = self._sample_goals_for_training()
         rewards = self.compute_rewards_np(
             obs,
             actions,
@@ -91,7 +91,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         else:
             return self.replay_buffer
 
-    def sample_goals_for_training(self):
+    def _sample_goals_for_training(self):
         if self.sample_train_goals_from == 'environment':
             return self.env.sample_goals(self.batch_size)
         elif self.sample_train_goals_from == 'replay_buffer':
@@ -104,7 +104,8 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             raise Exception("Invalid `sample_goals_from`: {}".format(
                 self.sample_train_goals_from
             ))
-    def sample_goal_for_rollout(self):
+
+    def _sample_goal_for_rollout(self):
         if self.sample_rollout_goals_from == 'environment':
             return self.env.sample_goal_for_rollout()
         elif self.sample_rollout_goals_from == 'replay_buffer':
@@ -117,12 +118,15 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
                 self.sample_rollout_goals_from
             ))
 
+    def _sample_max_tau_for_rollout(self):
+        return np.random.randint(0, self.max_tau)
+
     def offline_evaluate(self, epoch):
         raise NotImplementedError()
 
     def _start_new_rollout(self):
         self.exploration_policy.reset()
-        self.goal = self.sample_goal_for_rollout()
+        self.goal = self._sample_goal_for_rollout()
         # self.training_env.set_goal(self.goal_state)
         # self.exploration_policy.set_goal(self.goal_state)
         # self.exploration_policy.set_discount(self.discount)
