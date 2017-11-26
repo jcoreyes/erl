@@ -8,15 +8,15 @@ from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.envs.multitask.mountain_car_env import MountainCar
 from railrl.launchers.launcher_util import run_experiment
 from railrl.state_distance.discrete_tdm import DiscreteTDM
-from railrl.torch.networks import Mlp
+from railrl.torch.networks import Mlp, FlattenMlp
 
 
 def experiment(variant):
     env = MountainCar()
 
-    qf = Mlp(
+    qf = FlattenMlp(
         hidden_sizes=[32, 32],
-        input_size=int(np.prod(env.observation_space.shape)),
+        input_size=int(np.prod(env.observation_space.shape)) + env.goal_dim + 1,
         output_size=env.action_space.n,
     )
     replay_buffer = HerReplayBuffer(

@@ -43,8 +43,8 @@ class MultigoalSimplePathSampler(object):
                 decrement_discount=self.cycle_taus_for_rollout,
                 cycle_tau=self.cycle_taus_for_rollout,
             )
-            path_length = len(path['observations'])
-            path['goal_states'] = expand_goal(goal, path_length)
+            path_length = len(path['terminals'])
+            path['goals'] = expand_goal(goal, path_length)
             paths.append(path)
         return paths
 
@@ -89,7 +89,7 @@ def multitask_rollout(
         )
     goal_expanded = np.expand_dims(goal, axis=0)
     # goal_expanded.shape == 1 x goal_dim
-    path['goal_states'] = goal_expanded.repeat(len(path['observations']), 0)
+    path['goals'] = goal_expanded.repeat(len(path['terminals']), 0)
     # goal_states.shape == path_length x goal_dim
     return path
 

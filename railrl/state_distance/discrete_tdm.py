@@ -1,3 +1,7 @@
+from railrl.exploration_strategies.base import \
+    PolicyWrappedWithExplorationStrategy
+from railrl.policies.argmax import ArgmaxDiscretePolicy
+from railrl.state_distance.exploration import MakeUniversal
 from railrl.state_distance.rollout_util import MultigoalSimplePathSampler
 from railrl.state_distance.tdm import TemporalDifferenceModel
 from railrl.torch.algos.dqn import DQN
@@ -14,8 +18,16 @@ class DiscreteTDM(TemporalDifferenceModel, DQN):
             replay_buffer=None,
     ):
         super().__init__(env, qf, **tdm_kwargs)
+        # self.policy = MakeUniversal(ArgmaxDiscretePolicy(qf))
+        # exploration_policy = PolicyWrappedWithExplorationStrategy(
+        #     exploration_strategy=exploration_strategy,
+        #     policy=self.policy,
+        # )
         DQN.__init__(self, env, qf, replay_buffer=replay_buffer, **dqn_kwargs,
                      **base_kwargs)
+        self.policy = MakeUniversal(self.policy)
+        self.eval_policy = MakeUniversal(self.eval_policy)
+        self.exploration_policy = MakeUniversal(self.exploration_policy)
         self.eval_sampler = MultigoalSimplePathSampler(
             env=env,
             policy=self.eval_policy,

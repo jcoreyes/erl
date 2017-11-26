@@ -74,6 +74,20 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         )
         batch['num_steps_left'] = num_steps_left
 
+        """
+        Update the observations
+        """
+        batch['observations'] = np.hstack((
+            batch['observations'],
+            batch['goals'],
+            batch['num_steps_left'],
+        ))
+        batch['next_observations'] = np.hstack((
+            batch['next_observations'],
+            batch['goals'],
+            batch['num_steps_left'],
+        ))
+
         return np_to_pytorch_batch(batch)
 
     def compute_rewards_np(self, obs, actions, next_obs, goals):
@@ -127,9 +141,9 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
     def _start_new_rollout(self):
         self.exploration_policy.reset()
         self.goal = self._sample_goal_for_rollout()
-        # self.training_env.set_goal(self.goal_state)
-        # self.exploration_policy.set_goal(self.goal_state)
-        # self.exploration_policy.set_discount(self.discount)
+        self.training_env.set_goal(self.goal)
+        self.exploration_policy.set_goal(self.goal)
+        self.exploration_policy.set_discount(self.discount)
         return self.training_env.reset()
 
     def _handle_step(
