@@ -19,13 +19,14 @@ def experiment(variant):
         input_size=int(np.prod(env.observation_space.shape)),
         output_size=env.action_space.n,
     )
-    HerReplayBuffer(
+    replay_buffer = HerReplayBuffer(
         env=env,
         **variant['her_replay_buffer_params']
-    ),
+    )
     algorithm = DiscreteTDM(
         env,
         qf=qf,
+        replay_buffer=replay_buffer,
         **variant['algo_params']
     )
     if ptu.gpu_enabled():
@@ -53,9 +54,13 @@ if __name__ == "__main__":
                 hard_update_period=1000,
             ),
         ),
+        her_replay_buffer_params=dict(
+            max_size=int(1E6),
+            num_goals_to_sample=4,
+        ),
     )
     search_space = {
-        'algo_params.use_hard_updates': [True, False],
+        'algo_params.dqn_kwargs.use_hard_updates': [True, False],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
