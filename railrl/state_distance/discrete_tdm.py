@@ -1,7 +1,7 @@
 import numpy as np
 from railrl.misc.ml_util import ConstantSchedule
 from railrl.torch.algos.dqn import DQN
-from torch.algos.util import np_to_pytorch_batch
+from railrl.torch.algos.util import np_to_pytorch_batch
 
 
 class DiscreteTDM(DQN):
@@ -26,7 +26,7 @@ class DiscreteTDM(DQN):
         super().__init__(env, qf, **kwargs)
 
         if epoch_max_tau_schedule is None:
-            epoch_max_tau_schedule = ConstantSchedule(self.max_tau)
+            epoch_max_tau_schedule = ConstantSchedule(max_tau)
 
         self.max_tau = max_tau
         self.epoch_max_tau_schedule = epoch_max_tau_schedule
@@ -77,15 +77,18 @@ class DiscreteTDM(DQN):
             goals,
         )
 
+    @property
+    def train_buffer(self):
+        if self.replay_buffer_is_split:
+            return self.replay_buffer.get_replay_buffer(trainig=True)
+        else:
+            return self.replay_buffer
+
     def sample_goals_for_training(self):
         if self.sample_train_goals_from == 'environment':
             return self.env.sample_goals(self.batch_size)
         elif self.sample_train_goals_from == 'replay_buffer':
-            replay_buffer = self.replay_buffer.get_replay_buffer(training=True)
-            if replay_buffer.num_steps_can_sample() == 0:
-                # If there's nothing in the replay...just give all zeros
-                return np.zeros((self.batch_size, self.env.goal_dim))
-            batch = replay_buffer.random_batch(self.batch_size)
+            batch = self.train_buffer.random_batch(self.batch_size)
             obs = batch['observations']
             return self.env.convert_obs_to_goals(obs)
         elif self.sample_train_goals_from == 'her':
