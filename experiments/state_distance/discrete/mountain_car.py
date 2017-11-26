@@ -5,7 +5,7 @@ import numpy as np
 
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
-from envs.multitask.mountain_car_env import MountainCar
+from railrl.envs.multitask.mountain_car_env import MountainCar
 from railrl.launchers.launcher_util import run_experiment
 from railrl.state_distance.discrete_tdm import DiscreteTDM
 from railrl.torch.networks import Mlp

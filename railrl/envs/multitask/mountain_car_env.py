@@ -1,7 +1,7 @@
 import numpy as np
 from gym.envs.classic_control import MountainCarEnv
 
-from envs.multitask.multitask_env import MultitaskEnv
+from railrl.envs.multitask.multitask_env import MultitaskEnv
 
 
 class MountainCar(MountainCarEnv, MultitaskEnv):
