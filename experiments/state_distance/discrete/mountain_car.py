@@ -1,6 +1,5 @@
 import random
 
-import gym
 import numpy as np
 
 import railrl.misc.hyperparameter as hyp
@@ -30,6 +29,7 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
+    n_seeds = 1
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
@@ -51,7 +51,7 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        for i in range(3):
+        for i in range(n_seeds):
             seed = random.randint(0, 10000)
             run_experiment(
                 experiment,
