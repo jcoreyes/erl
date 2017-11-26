@@ -19,7 +19,6 @@ class HerReplayBuffer(EnvReplayBuffer):
             env,
             num_goals_to_sample=8,
             fraction_goals_are_rollout_goals=None,
-            goal_sample_strategy='store',
     ):
         """
 
@@ -28,22 +27,11 @@ class HerReplayBuffer(EnvReplayBuffer):
         :param action_dim:
         :param num_goals_to_sample:
         :param fraction_goals_are_rollout_goals:
-        :param goal_sample_strategy:
-            'store': Just sample `num_goals_to_sample` when you save the
-            tuple as in HER
-            'online': Sample on the fly with every batch
         """
         super().__init__(max_size, env)
-        self._current_episode_start_index = 0
-        # Sample any value in this list
-        self._index_to_sampled_goals_idxs = (
-            [None] * max_size
-        )
-        # Do NOT sample self._index_to_goals_interval[i][1].
-        # It's exclusive, like how range(3, 10) does not return 10.
-        self._index_to_goals_interval = (
-            [None] * max_size
-        )
+        # Let j be any index in self._idx_to_future_obs_idx[i]
+        # Then self._next_obs[j] is a valid next observation for observation i
+        self._idx_to_future_obs_idx = [None] * max_size
         self.num_goals_to_sample = num_goals_to_sample
         self._goals = np.zeros((max_size, self._env.goal_dim))
         if fraction_goals_are_rollout_goals is None:
@@ -53,94 +41,75 @@ class HerReplayBuffer(EnvReplayBuffer):
         self.fraction_goals_are_rollout_goals = (
             fraction_goals_are_rollout_goals
         )
-        self.goal_sample_strategy = goal_sample_strategy
-        self._last_top_index = -1
-        # Completely ignore trajectories that wrap the replay buffer
-        self._wrapped_buffer = False
-        self._min_valid_idx = 0
-        self._max_valid_idx = 0
-        # TODO(vitchyr): make this trajectory centric so that wrapping isn't
-        # an issue
 
-    def add_sample(self, observation, action, reward, terminal,
-                    next_observation, goal=None, **kwargs):
-        assert goal is not None
-        self._goals[self._top] = goal
-        super().add_sample(observation, action, reward, terminal, next_observation)
+    def add_path(self, path):
+        obs = path["observations"]
+        actions = path["actions"]
+        rewards = path["rewards"]
+        next_obs = path["next_observations"]
+        terminals = path["terminals"]
+        goals = path["goals"]
+        path_len = len(obs)
 
-    def _advance(self):
-        # In theory not necessary since they won't be sampled... but you
-        # just to be safe
-        self._index_to_goals_interval[self._top] = None
-        self._index_to_sampled_goals_idxs[self._top] = None
+        if self._top + path_len >= self._max_replay_buffer_size:
+            num_pre_wrap_steps = self._max_replay_buffer_size - self._top
+            pre_wrap_buffer_slice = slice(
+                self._top, self._top + num_pre_wrap_steps
+            )
+            pre_wrap_path_slice = slice(0, num_pre_wrap_steps)
 
-        self._last_top_index = self._top
-
-        if self._top + 1 < self._max_replay_buffer_size:
-            self._top += 1
-        else:
-            self._top = 0
-            self._wrapped_buffer = True
-            self._max_valid_idx = self._current_episode_start_index - 1
-
-        if self._size < self._max_replay_buffer_size:
-            self._size += 1
-
-    def terminate_episode(self):
-        # Completely ignore trajectories that wrap the replay buffer
-        if not self._wrapped_buffer:
-            self._max_valid_idx = max(self._last_top_index, self._max_valid_idx)
-            self._add_goals_to_last_trajectory()
-        else:
-            self._min_valid_idx = self._top
-        self._current_episode_start_index = self._top
-        self._wrapped_buffer = False
-
-    def _add_goals_to_last_trajectory(self):
-        """
-        Preconditions: the last trajectory did not wrap the replay buffer.
-        Therefore, the indices of the last trajectory are
-        [self._current_episode_start_index, self._last_top_index]
-        """
-        for i in range(self._current_episode_start_index,
-                       self._last_top_index + 1):
-            self._index_to_goals_interval[i] = (i+1, self._last_top_index+1)
-            potential_goal_indices = list(range(i+1, self._last_top_index+1))
-            if len(potential_goal_indices) <= self.num_goals_to_sample:
-                self._index_to_sampled_goals_idxs[i] = (
-                    potential_goal_indices
+            num_post_wrap_steps = path_len - num_pre_wrap_steps
+            post_wrap_buffer_slice = slice(0, num_post_wrap_steps)
+            post_wrap_path_slice = slice(num_pre_wrap_steps, path_len)
+            for buffer_slice, path_slice in [
+                (pre_wrap_buffer_slice, pre_wrap_path_slice),
+                (post_wrap_buffer_slice, post_wrap_path_slice),
+            ]:
+                self._observations[buffer_slice] = obs[path_slice]
+                self._actions[buffer_slice] = actions[path_slice]
+                self._rewards[buffer_slice] = rewards[path_slice]
+                self._next_obs[buffer_slice] = next_obs[path_slice]
+                self._terminals[buffer_slice] = terminals[path_slice]
+                self._goals[buffer_slice] = goals[path_slice]
+            # Pointers from before the wrap
+            for i in range(self._top, self._max_replay_buffer_size):
+                self._idx_to_future_obs_idx[i] = np.hstack((
+                    # Pre-wrap indices
+                    np.arange(i, self._max_replay_buffer_size),
+                    # Post-wrap indices
+                    np.arange(0, num_post_wrap_steps)
+                ))
+            # Pointers after the wrap
+            for i in range(0, num_post_wrap_steps):
+                self._idx_to_future_obs_idx[i] = np.arange(
+                    i,
+                    num_post_wrap_steps,
                 )
-            else:
-                self._index_to_sampled_goals_idxs[i] = np.random.choice(
-                    potential_goal_indices,
-                    size=self.num_goals_to_sample,
-                    replace=False,
-                )
-
-            if i == self._last_top_index:
-                self._index_to_goals_interval[i] = None
-                self._index_to_sampled_goals_idxs[i] = None
+        else:
+            slc = slice(self._top, self._top + path_len)
+            self._observations[slc] = obs
+            self._actions[slc] = actions
+            self._rewards[slc] = rewards
+            self._next_obs[slc] = next_obs
+            self._terminals[slc] = terminals
+            self._goals[slc] = goals
+            for i in range(self._top, self._top + path_len):
+                self._idx_to_future_obs_idx[i] = np.arange(i, i + path_len)
+        self._top = (self._top + path_len) % self._max_replay_buffer_size
+        self._size = min(self._size + path_len, self._max_replay_buffer_size)
 
     def random_batch(self, batch_size):
-        indices = np.random.randint(
-            self._min_valid_idx, self._max_valid_idx, batch_size
-        )
-        next_indices = (indices + 1) % self._size
-        if self.goal_sample_strategy == 'store':
-            goal_indices = [
-                # This is generally faster than random.choice.
-                # random.choice is only fast if you give it a np array.
-                self._index_to_sampled_goals_idxs[np.random.randint(0, i)]
-                for i in indices
-            ]
-        else:
-            goal_indices = [
-                np.random.randint(*self._index_to_goals_interval[i])
-                for i in indices
-            ]
-        goals = self._env.convert_obs_to_goals(
-            self._observations[goal_indices]
-        )
+        indices = np.random.randint(0, self._size, batch_size)
+        next_obs_idxs = []
+        for i in indices:
+            possible_next_obs = self._idx_to_future_obs_idx[i]
+            # This is generally faster than random.choice. Makes you wonder what
+            # random.choice is doing
+            next_obs_idxs.append(
+                possible_next_obs[np.random.randint(0, len(possible_next_obs))]
+            )
+        next_obs_idxs = np.array(next_obs_idxs)
+        goals = self._env.convert_obs_to_goals(self._next_obs[next_obs_idxs])
         num_goals_are_from_rollout = int(
             batch_size * self.fraction_goals_are_rollout_goals
         )
@@ -153,7 +122,7 @@ class HerReplayBuffer(EnvReplayBuffer):
             actions=self._actions[indices],
             rewards=self._rewards[indices],
             terminals=self._terminals[indices],
-            next_observations=self._observations[next_indices],
+            next_observations=self._next_obs[indices],
             goals=goals,
         )
 
