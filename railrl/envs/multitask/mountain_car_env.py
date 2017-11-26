@@ -2,9 +2,14 @@ import numpy as np
 from gym.envs.classic_control import MountainCarEnv
 
 from railrl.envs.multitask.multitask_env import MultitaskEnv
+from rllab.core.serializable import Serializable
 
 
-class MountainCar(MountainCarEnv, MultitaskEnv):
+class MountainCar(MountainCarEnv, MultitaskEnv, Serializable):
+    def __init__(self):
+        Serializable.quick_init(self, locals())
+        super().__init__()
+
     def sample_goals(self, batch_size):
         return np.random.uniform(
             low=-1.2,
