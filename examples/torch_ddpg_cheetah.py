@@ -64,12 +64,13 @@ if __name__ == "__main__":
         ),
         version="PyTorch - bigger networks",
     )
-    seed = random.randint(0, 999999)
-    run_experiment(
-        example,
-        exp_prefix="ddpg-half-cheetah-pytorch",
-        seed=seed,
-        mode='local',
-        variant=variant,
-        use_gpu=True,
-    )
+    for _ in range(5):
+        seed = random.randint(0, 999999)
+        run_experiment(
+            example,
+            exp_prefix="ddpg-half-cheetah-pytorch-clean-gpu",
+            seed=seed,
+            mode='ec2',
+            variant=variant,
+            use_gpu=True,
+        )
