@@ -24,7 +24,7 @@ def main():
     max_tau = max_tau_ncol * max_tau_nrow
     taus = list(range(0, max_tau))
     sample_size = 1000
-    goal_state = env.sample_goal_state_for_rollout()
+    goal_state = env.sample_goal_for_rollout()
     goal_states = expand_np_to_var(goal_state, sample_size)
 
     """

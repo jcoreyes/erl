@@ -31,7 +31,7 @@ def visualize_error_vs_tau(qf, policy, env, horizon):
 
     tau_max = 10
 
-    goal_state = env.sample_goal_state_for_rollout()
+    goal_state = env.sample_goal_for_rollout()
     policy.set_goal(goal_state)
 
     actual_states = []
@@ -93,7 +93,7 @@ def visualize_accumulated_error(qf, policy, env, horizon):
 
     predicted_states = []
     actual_states = []
-    goal_state = env.sample_goal_state_for_rollout()
+    goal_state = env.sample_goal_for_rollout()
     policy.set_goal(goal_state)
     policy.set_discount(0)
 

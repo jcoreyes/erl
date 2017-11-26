@@ -32,6 +32,7 @@ class DiscreteTDM(DQN):
         self.epoch_max_tau_schedule = epoch_max_tau_schedule
         self.sample_train_goals_from = sample_train_goals_from
         self.sample_rollout_goals_from = sample_rollout_goals_from
+        self.goal = None
 
     def _start_epoch(self, epoch):
         self.max_tau = self.epoch_max_tau_schedule.get_value(epoch)
@@ -97,6 +98,66 @@ class DiscreteTDM(DQN):
             raise Exception("Invalid `sample_goals_from`: {}".format(
                 self.sample_train_goals_from
             ))
+    def sample_goal_for_rollout(self):
+        if self.sample_rollout_goals_from == 'environment':
+            return self.env.sample_goal_for_rollout()
+        elif self.sample_rollout_goals_from == 'replay_buffer':
+            batch = self.train_buffer.random_batch(1)
+            obs = batch['observations']
+            goal_state = self.env.convert_obs_to_goal_states(obs)[0]
+            return self.env.modify_goal_for_rollout(goal_state)
+        else:
+            raise Exception("Invalid `sample_goals_from`: {}".format(
+                self.sample_rollout_goals_from
+            ))
 
     def offline_evaluate(self, epoch):
         raise NotImplementedError()
+
+    def _start_new_rollout(self):
+        self.exploration_policy.reset()
+        self.goal = self.sample_goal_for_rollout()
+        # self.training_env.set_goal(self.goal_state)
+        # self.exploration_policy.set_goal(self.goal_state)
+        # self.exploration_policy.set_discount(self.discount)
+        return self.training_env.reset()
+
+    def _handle_step(
+            self,
+            observation,
+            action,
+            reward,
+            next_observation,
+            terminal,
+            agent_info,
+            env_info,
+    ):
+        self._current_path_builder.add_all(
+            observations=observation,
+            actions=action,
+            rewards=reward,
+            next_observations=next_observation,
+            terminals=terminal,
+            agent_infos=agent_info,
+            env_infos=env_info,
+            goals=self.goal,
+            # taus=self._rollout_discount,
+        )
+
+        self.replay_buffer.add_sample(
+            observation=observation,
+            action=action,
+            reward=reward,
+            terminal=terminal,
+            next_observation=next_observation,
+            agent_info=agent_info,
+            env_info=env_info,
+            goal=self.goal,
+        )
+        #
+        # if self.cycle_taus_for_rollout:
+        #     self._rollout_discount -= 1
+        #     if self._rollout_discount < 0:
+        #         self._rollout_discount = self.discount
+        #     self.exploration_policy.set_discount(self._rollout_discount)
+

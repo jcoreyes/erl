@@ -58,7 +58,7 @@ if __name__ == "__main__":
     while True:
         paths = []
         for _ in range(args.nrolls):
-            goal = env.sample_goal_state_for_rollout()
+            goal = env.sample_goal_for_rollout()
             print("goal", goal)
             if args.verbose:
                 env.print_goal_state_info(goal)

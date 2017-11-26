@@ -50,14 +50,14 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
             current_states
         )
 
-    def sample_goal_state_for_rollout(self):
+    def sample_goal_for_rollout(self):
         """
         These goal states are fed to a policy when the policy wants to actually
         do rollouts.
         :return:
         """
-        goal_state = self.sample_goals(1)[0]
-        return self.modify_goal_state_for_rollout(goal_state)
+        goal = self.sample_goals(1)[0]
+        return self.modify_goal_for_rollout(goal)
 
     def convert_ob_to_goal_state(self, obs):
         """
@@ -94,7 +94,7 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         """
         return self.convert_obs_to_goals(obs)
 
-    def modify_goal_state_for_rollout(self, goal_state):
+    def modify_goal_for_rollout(self, goal_state):
         """
         Modify a goal state so that it's appropriate for doing a rollout.
 

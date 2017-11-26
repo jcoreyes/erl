@@ -60,7 +60,7 @@ class HER(DDPG):
         self.terminate_when_goal_reached = terminate_when_goal_reached
 
     def _sample_goal_state_for_rollout(self):
-        return self.env.sample_goal_state_for_rollout()
+        return self.env.sample_goal_for_rollout()
 
     def _sample_discount_for_rollout(self):
         return 0  # Her does not vary the discount.

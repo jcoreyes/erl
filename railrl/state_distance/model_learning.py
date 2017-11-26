@@ -99,7 +99,7 @@ class ModelLearning(object):
         num_batches_total = 0
         for epoch in range(self.num_epochs):
             num_steps_this_epoch = 0
-            goal = self.env.sample_goal_state_for_rollout()
+            goal = self.env.sample_goal_for_rollout()
             while num_steps_this_epoch < self.min_num_steps_per_epoch:
                 path = multitask_rollout(
                     self.env,
@@ -193,7 +193,7 @@ class ModelLearning(object):
         # Eval using policy
         paths = []
         for _ in range(self.num_rollouts_for_eval):
-            goal = self.env.sample_goal_state_for_rollout()
+            goal = self.env.sample_goal_for_rollout()
             self.env.set_goal(goal)
             self.eval_policy.set_goal(goal)
             path = rollout(

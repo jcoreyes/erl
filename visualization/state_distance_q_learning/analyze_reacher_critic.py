@@ -120,7 +120,7 @@ def main():
         )
         goal_states = [start_state]
         goal_states += [
-            env.sample_goal_state_for_rollout()
+            env.sample_goal_for_rollout()
             for _ in range(5)
         ]
         for goal_state in goal_states:

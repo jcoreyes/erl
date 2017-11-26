@@ -164,7 +164,7 @@ class Reacher7DofFullGoalState(Reacher7DofMultitaskEnv):
     """
     The goal state is the full state: joint angles and velocities.
     """
-    def modify_goal_state_for_rollout(self, goal_state):
+    def modify_goal_for_rollout(self, goal_state):
         # set desired velocity to zero
         goal_state[-7:] = 0
         return goal_state
@@ -279,7 +279,7 @@ class Reacher7DofGoalStateEverything(Reacher7DofMultitaskEnv):
     def convert_obs_to_goal_states(self, obs):
         return obs
 
-    def modify_goal_state_for_rollout(self, goal_state):
+    def modify_goal_for_rollout(self, goal_state):
         goal_state[7:14] = 0  # set desired velocity to zero
         return goal_state
 
