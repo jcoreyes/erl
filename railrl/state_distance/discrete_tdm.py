@@ -1,5 +1,7 @@
+import numpy as np
 from railrl.misc.ml_util import ConstantSchedule
-from railrl.torch.dqn import DQN
+from railrl.torch.algos.dqn import DQN
+from torch.algos.util import np_to_pytorch_batch
 
 
 class DiscreteTDM(DQN):
@@ -9,6 +11,8 @@ class DiscreteTDM(DQN):
             qf,
             max_tau=10,
             epoch_max_tau_schedule=None,
+            sample_train_goals_from='replay_buffer',
+            sample_rollout_goals_from='environment',
             **kwargs
     ):
         """
@@ -19,20 +23,77 @@ class DiscreteTDM(DQN):
         horizon tau.
         :param kwargs:
         """
-        super().__init__(env, qf, learning_rate=1e-3, use_hard_updates=False,
-                         hard_update_period=1000, tau=0.001, epsilon=0.1,
-                         **kwargs)
-        self.max_tau = max_tau
+        super().__init__(env, qf, **kwargs)
+
         if epoch_max_tau_schedule is None:
             epoch_max_tau_schedule = ConstantSchedule(self.max_tau)
+
+        self.max_tau = max_tau
         self.epoch_max_tau_schedule = epoch_max_tau_schedule
+        self.sample_train_goals_from = sample_train_goals_from
+        self.sample_rollout_goals_from = sample_rollout_goals_from
 
     def _start_epoch(self, epoch):
         self.max_tau = self.epoch_max_tau_schedule.get_value(epoch)
         super()._start_epoch(epoch)
 
     def get_batch(self, training=True):
-        batch = super().get_batch(training=training)
+        if self.replay_buffer_is_split:
+            replay_buffer = self.replay_buffer.get_replay_buffer(training)
+        else:
+            replay_buffer = self.replay_buffer
+        batch = replay_buffer.random_batch(self.batch_size)
+
+        """
+        Update the goal states/rewards
+        """
+        obs = batch['observations']
+        actions = batch['actions']
+        next_obs = batch['next_observations']
+        goals = self.sample_goals_for_training()
+        rewards = self.compute_rewards_np(
+            obs,
+            actions,
+            next_obs,
+            goals,
+        )
+        batch['rewards'] = rewards
+
+        """
+        Update the tau
+        """
+        num_steps_left = np.random.randint(
+            0, self.max_tau + 1, (self.batch_size, 1)
+        )
+        batch['num_steps_left'] = num_steps_left
+
+        return np_to_pytorch_batch(batch)
+
+    def compute_rewards_np(self, obs, actions, next_obs, goals):
+        return self.env.compute_rewards(
+            obs,
+            actions,
+            next_obs,
+            goals,
+        )
+
+    def sample_goals_for_training(self):
+        if self.sample_train_goals_from == 'environment':
+            return self.env.sample_goals(self.batch_size)
+        elif self.sample_train_goals_from == 'replay_buffer':
+            replay_buffer = self.replay_buffer.get_replay_buffer(training=True)
+            if replay_buffer.num_steps_can_sample() == 0:
+                # If there's nothing in the replay...just give all zeros
+                return np.zeros((self.batch_size, self.env.goal_dim))
+            batch = replay_buffer.random_batch(self.batch_size)
+            obs = batch['observations']
+            return self.env.convert_obs_to_goals(obs)
+        elif self.sample_train_goals_from == 'her':
+            raise Exception("Take samples from replay buffer.")
+        else:
+            raise Exception("Invalid `sample_goals_from`: {}".format(
+                self.sample_train_goals_from
+            ))
 
     def offline_evaluate(self, epoch):
         raise NotImplementedError()
