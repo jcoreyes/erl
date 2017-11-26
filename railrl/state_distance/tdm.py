@@ -3,6 +3,8 @@ New implementation of state distance q learning.
 """
 import abc
 import numpy as np
+
+from railrl.data_management.path_builder import PathBuilder
 from railrl.misc.ml_util import ConstantSchedule
 from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
 from railrl.torch.algos.util import np_to_pytorch_batch
@@ -148,19 +150,27 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             # taus=self._rollout_discount,
         )
 
-        self.replay_buffer.add_sample(
-            observation=observation,
-            action=action,
-            reward=reward,
-            terminal=terminal,
-            next_observation=next_observation,
-            agent_info=agent_info,
-            env_info=env_info,
-            goal=self.goal,
-        )
+        # self.replay_buffer.add_sample(
+        #     observation=observation,
+        #     action=action,
+        #     reward=reward,
+        #     terminal=terminal,
+        #     next_observation=next_observation,
+        #     agent_info=agent_info,
+        #     env_info=env_info,
+        #     goal=self.goal,
+        # )
         #
         # if self.cycle_taus_for_rollout:
         #     self._rollout_discount -= 1
         #     if self._rollout_discount < 0:
         #         self._rollout_discount = self.discount
         #     self.exploration_policy.set_discount(self._rollout_discount)
+
+    def _handle_rollout_ending(self):
+        self._n_rollouts_total += 1
+        if len(self._current_path_builder) > 0:
+            path = self._current_path_builder.get_all_stacked()
+            self.replay_buffer.add_path(path)
+            self._exploration_paths.append(path)
+            self._current_path_builder = PathBuilder()
