@@ -87,7 +87,7 @@ class Reacher7DofXyzGoalState(Reacher7DofMultitaskEnv):
     """
     The goal state is just the XYZ location of the end effector.
     """
-    def sample_goal_states(self, batch_size):
+    def sample_goals(self, batch_size):
         # Number taken from running a random policy and seeing what XYZ values
         # are reached
         return np.hstack((
@@ -104,7 +104,7 @@ class Reacher7DofXyzGoalState(Reacher7DofMultitaskEnv):
     def goal_dim(self):
         return 3
 
-    def convert_obs_to_goal_states(self, obs):
+    def convert_obs_to_goals(self, obs):
         return obs[:, -3:]
 
     @staticmethod
