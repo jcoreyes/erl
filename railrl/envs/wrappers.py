@@ -1,10 +1,8 @@
 import numpy as np
-from gym.spaces.discrete import Discrete as GymDiscrete
-from gym.spaces.box import Box as GymBox
+import gym.spaces
 from rllab.core.serializable import Serializable
 from rllab.envs.proxy_env import ProxyEnv
 from sandbox.rocky.tf.spaces import Box as TfBox
-from sandbox.rocky.tf.spaces import Discrete as TfDiscrete
 from rllab.spaces.box import Box
 from rllab.spaces.discrete import Discrete
 from rllab.spaces.product import Product

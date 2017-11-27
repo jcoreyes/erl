@@ -1,7 +1,6 @@
 import numpy as np
 from railrl.data_management.simple_replay_buffer import SimpleReplayBuffer
 from railrl.envs.wrappers import convert_gym_space
-from rllab.misc.overrides import overrides
 
 
 class EnvReplayBuffer(SimpleReplayBuffer):

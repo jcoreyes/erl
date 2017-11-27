@@ -1,7 +1,7 @@
 import argparse
 import random
 
-from railrl.tf.state_distance.vectorized_sdql import (
+from railrl.state_distance.vectorized_sdql import (
     VectorizedTauSdql,
     VectorizedDeltaTauSdql,
 )
