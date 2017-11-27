@@ -3,7 +3,8 @@ import argparse
 import joblib
 
 import railrl.torch.pytorch_util as ptu
-from state_distance.rollout_util import multitask_rollout
+from railrl.torch.eval_util import get_generic_path_information
+from railrl.state_distance.rollout_util import multitask_rollout
 from rllab.misc import logger
 
 if __name__ == "__main__":
@@ -60,8 +61,6 @@ if __name__ == "__main__":
         for _ in range(args.nrolls):
             goal = env.sample_goal_for_rollout()
             print("goal", goal)
-            if args.verbose:
-                env.print_goal_state_info(goal)
             path = multitask_rollout(
                 env,
                 policy,
@@ -74,4 +73,6 @@ if __name__ == "__main__":
             )
             paths.append(path)
         env.log_diagnostics(paths)
+        for key, value in get_generic_path_information(paths).items():
+            logger.record_tabular(key, value)
         logger.dump_tabular()
