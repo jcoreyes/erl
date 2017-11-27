@@ -19,11 +19,12 @@ import railrl.misc.hyperparameter as hyp
 
 
 def experiment(variant):
-    env = normalize_box(MultiGoalEnv(
-        actuation_cost_coeff=10,
-        distance_cost_coeff=1,
-        goal_reward=10,
-    ))
+    # env = normalize_box(MultiGoalEnv(
+    #     actuation_cost_coeff=10,
+    #     distance_cost_coeff=1,
+    #     goal_reward=10,
+    # ))
+    env = normalize_box(HalfCheetahEnv())
 
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
@@ -116,7 +117,7 @@ if __name__ == "__main__":
                 exp_id=exp_id,
                 seed=seed,
                 variant=variant,
-                exp_prefix="expected-sac-cheetah-sweep",
+                exp_prefix="expected-sac-cheetah-sweep-2",
                 mode='ec2',
                 use_gpu=False,
                 # exp_prefix="dev-expected-sac-cheetah-sweep",
