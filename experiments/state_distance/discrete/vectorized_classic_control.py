@@ -82,8 +82,8 @@ if __name__ == "__main__":
     search_space = {
         'algo_params.dqn_kwargs.use_hard_updates': [True, False],
         'env_class': [
-            # CartPoleAngleOnly,
-            CartPole,
+            CartPoleAngleOnly,
+            # CartPole,
             # MountainCar,
         ]
     }

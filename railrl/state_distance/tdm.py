@@ -13,25 +13,17 @@ from railrl.torch.algos.util import np_to_pytorch_batch
 class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
     def __init__(
             self,
-            env,
-            qf,
             max_tau=10,
             epoch_max_tau_schedule=None,
             sample_train_goals_from='replay_buffer',
             sample_rollout_goals_from='environment',
             vectorized=True,
-            **kwargs
     ):
         """
 
-        :param env:
-        :param qf:
         :param epoch_max_tau_schedule: A schedule for the maximum planning
         horizon tau.
-        :param kwargs:
         """
-        super().__init__(env, qf, **kwargs)
-
         if epoch_max_tau_schedule is None:
             epoch_max_tau_schedule = ConstantSchedule(max_tau)
 

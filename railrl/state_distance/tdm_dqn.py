@@ -22,7 +22,7 @@ class TdmDqn(TemporalDifferenceModel, DQN):
             policy=None,
             replay_buffer=None,
     ):
-        super().__init__(env, qf, **tdm_kwargs)
+        super().__init__(**tdm_kwargs)
         DQN.__init__(self, env, qf, replay_buffer=replay_buffer,
                      policy=policy,
                      **dqn_kwargs,
