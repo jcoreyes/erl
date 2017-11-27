@@ -54,6 +54,12 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         """
         Update the goal states/rewards
         """
+        num_steps_left = np.random.randint(
+            0, self.max_tau + 1, (self.batch_size, 1)
+        )
+        terminals = 1 - (1 - batch['terminals']) * (num_steps_left != 0)
+        batch['terminals'] = terminals
+
         obs = batch['observations']
         actions = batch['actions']
         next_obs = batch['next_observations']
@@ -64,15 +70,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             next_obs,
             goals,
         )
-        batch['rewards'] = rewards
-
-        """
-        Update the tau
-        """
-        num_steps_left = np.random.randint(
-            0, self.max_tau + 1, (self.batch_size, 1)
-        )
-        batch['num_steps_left'] = num_steps_left
+        batch['rewards'] = rewards * (1 - terminals)
 
         """
         Update the observations
@@ -80,12 +78,12 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         batch['observations'] = np.hstack((
             batch['observations'],
             batch['goals'],
-            batch['num_steps_left'],
+            num_steps_left,
         ))
         batch['next_observations'] = np.hstack((
             batch['next_observations'],
             batch['goals'],
-            batch['num_steps_left'],
+            num_steps_left - 1,
         ))
 
         return np_to_pytorch_batch(batch)
