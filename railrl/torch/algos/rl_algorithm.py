@@ -405,10 +405,10 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         """
         self._current_path_builder.add_all(
             observations=observation,
+            actions=action,
             rewards=reward,
-            terminals=terminal,
             next_observations=next_observation,
-            actions=self.action_space.flatten(action),
+            terminals=terminal,
             agent_infos=agent_info,
             env_infos=env_info,
         )
