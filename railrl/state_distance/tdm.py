@@ -56,7 +56,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         """
         num_steps_left = np.random.randint(
             0, self.max_tau + 1, (self.batch_size, 1)
-        )
+        ) / self.max_tau
         terminals = 1 - (1 - batch['terminals']) * (num_steps_left != 0)
         batch['terminals'] = terminals
 
@@ -165,23 +165,6 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             goals=self.goal,
             # taus=self._rollout_discount,
         )
-
-        # self.replay_buffer.add_sample(
-        #     observation=observation,
-        #     action=action,
-        #     reward=reward,
-        #     terminal=terminal,
-        #     next_observation=next_observation,
-        #     agent_info=agent_info,
-        #     env_info=env_info,
-        #     goal=self.goal,
-        # )
-        #
-        # if self.cycle_taus_for_rollout:
-        #     self._rollout_discount -= 1
-        #     if self._rollout_discount < 0:
-        #         self._rollout_discount = self.discount
-        #     self.exploration_policy.set_discount(self._rollout_discount)
 
     def _handle_rollout_ending(self):
         self._n_rollouts_total += 1
