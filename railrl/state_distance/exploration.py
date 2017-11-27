@@ -42,3 +42,6 @@ class MakeUniversal(UniversalExplorationPolicy):
     def get_action(self, observation):
         new_obs = np.hstack((observation, self._goal_np, self._discount_np))
         return self.policy.get_action(new_obs)
+
+    def train(self, mode):
+        self.policy.train(mode)
