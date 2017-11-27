@@ -18,10 +18,10 @@ def experiment(variant):
     env = variant['env_class']()
 
     qf = VectorizedDiscreteQFunction(
-        hidden_sizes=[32, 32],
         observation_dim=int(np.prod(env.observation_space.low.shape)),
         action_dim=env.action_space.n,
         goal_dim=env.goal_dim,
+        **variant['qf_params']
     )
     policy = ArgmaxDiscreteTdmPolicy(qf)
     replay_buffer = HerReplayBuffer(
@@ -66,6 +66,9 @@ if __name__ == "__main__":
             max_size=int(1E6),
             num_goals_to_sample=4,
         ),
+        qf_params=dict(
+            hidden_sizes=[300, 300],
+        ),
         env_class=MountainCar,
         # version="fix-max-tau",
         version="sample",
@@ -73,9 +76,9 @@ if __name__ == "__main__":
     search_space = {
         'algo_params.dqn_kwargs.use_hard_updates': [True, False],
         'env_class': [
+            # CartPoleAngleOnly,
             CartPole,
-            CartPoleAngleOnly,
-            MountainCar,
+            # MountainCar,
         ]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -86,7 +89,9 @@ if __name__ == "__main__":
             seed = random.randint(0, 10000)
             run_experiment(
                 experiment,
-                exp_prefix="dev-vectorized-discrete-tdm-classic-control",
+                # exp_prefix="dev-vectorized-discrete-tdm-classic-control",
+                # exp_prefix="vectorized-discrete-tdm-cartpole-weight-angle-only",
+                exp_prefix="vectorized-discrete-tdm-cartpole-no-hack",
                 seed=seed,
                 variant=variant,
                 exp_id=exp_id,
