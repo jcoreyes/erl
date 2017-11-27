@@ -56,7 +56,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         """
         num_steps_left = np.random.randint(
             0, self.max_tau + 1, (self.batch_size, 1)
-        ) / self.max_tau
+        )
         terminals = 1 - (1 - batch['terminals']) * (num_steps_left != 0)
         batch['terminals'] = terminals
 
