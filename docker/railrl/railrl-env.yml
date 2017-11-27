@@ -1,4 +1,4 @@
-name: rllab-vitchyr
+name: railrl-env
 channels:
     - defaults
     - https://conda.anaconda.org/kne
@@ -27,6 +27,7 @@ dependencies:
     - torchvision
     - scikit-image
     - pip:
+        - git+git://github.com/pytorch/pytorch.git@v0.3.0
         # Tensorflow 1.0, GPU only
         - https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-1.0.1-cp35-cp35m-linux_x86_64.whl
         - Pillow
@@ -62,6 +63,8 @@ dependencies:
         - dominate
         - gitpython
         - ray
+        - snakeviz
+        - gtimer
 # Can't get this to work, but you should install this if you want to run
 # fanova analysis
 #        - pyrfr

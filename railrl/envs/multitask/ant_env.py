@@ -6,7 +6,7 @@ import torch
 from railrl.envs.mujoco.ant import LowGearAntEnv
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.misc.rllab_util import get_stat_in_dict
+from railrl.samplers.util import get_stat_in_paths
 from rllab.misc import logger
 
 MAX_SPEED = 1
@@ -71,13 +71,13 @@ class GoalXYVelAnt(LowGearAntEnv, MultitaskEnv):
     def log_diagnostics(self, paths):
         super().log_diagnostics(paths)
         MultitaskEnv.log_diagnostics(self, paths)
-        xvels = get_stat_in_dict(
+        xvels = get_stat_in_paths(
             paths, 'env_infos', 'xvel'
         )
-        desired_xvels = get_stat_in_dict(
+        desired_xvels = get_stat_in_paths(
             paths, 'env_infos', 'desired_xvel'
         )
-        vel_errors = get_stat_in_dict(
+        vel_errors = get_stat_in_paths(
             paths, 'env_infos', 'vel_error'
         )
 

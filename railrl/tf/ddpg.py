@@ -10,9 +10,9 @@ from typing import List
 
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.rllab_util import (
-    split_paths,
     split_flat_product_space_into_components_n,
 )
+from railrl.samplers.util import split_paths
 from railrl.pythonplusplus import filter_recursive
 from railrl.qfunctions.nn_qfunction import NNQFunction
 from railrl.tf.core.neuralnet import NeuralNetwork

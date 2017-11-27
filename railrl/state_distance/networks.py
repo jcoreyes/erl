@@ -702,15 +702,17 @@ class FFUniversalPolicy(PyTorchModule, UniversalPolicy):
         return F.tanh(self.last_fc(h))
 
     def get_action(self, obs_np):
-        obs = ptu.np_to_var(
-            np.expand_dims(obs_np, 0)
-        )
-        action = self.__call__(
-            obs,
-            self._goal_expanded_torch,
-            self._discount_expanded_torch,
-        )
-        action = action.squeeze(0)
-        return ptu.get_numpy(action), {}
+        action = self.eval_np(
+            obs_np[None],
+            self._goal_expanded_np,
+            self._discount_expanded_np,
+        )[0, :]
+        return action, {}
 
-
+    def get_actions(self, observations):
+        batch_size = observations.shape[0]
+        return self.eval_np(
+            observations,
+            np.repeat(self._goal_expanded_np, batch_size, 0),
+            np.repeat(self._discount_expanded_np, batch_size, 0),
+        )

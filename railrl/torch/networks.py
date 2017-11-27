@@ -3,12 +3,14 @@ General networks for pytorch.
 
 Algorithm-specific networks should go else-where.
 """
+import torch
 from torch import nn as nn
 from torch.nn import functional as F
 
 from railrl.pythonplusplus import identity
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.core import PyTorchModule
+from railrl.torch.modules import SelfOuterProductLinear
 
 
 class Mlp(PyTorchModule):
@@ -26,6 +28,8 @@ class Mlp(PyTorchModule):
         self.save_init_params(locals())
         super().__init__()
 
+        self.input_size = input_size
+        self.output_size = output_size
         self.hidden_activation = hidden_activation
         self.output_activation = output_activation
         self.fcs = []
@@ -45,6 +49,17 @@ class Mlp(PyTorchModule):
 
     def forward(self, input):
         h = input
+        for i, fc in enumerate(self.fcs):
+            h = self.hidden_activation(fc(h))
+        return self.output_activation(self.last_fc(h))
+
+
+class FlattenMlp(Mlp):
+    """
+    Flatten inputs along dimension 1 and then pass through MLP.
+    """
+    def forward(self, *inputs):
+        h = torch.cat(inputs, dim=1)
         for i, fc in enumerate(self.fcs):
             h = self.hidden_activation(fc(h))
         return self.output_activation(self.last_fc(h))

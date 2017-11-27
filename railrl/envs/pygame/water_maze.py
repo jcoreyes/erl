@@ -6,7 +6,7 @@ from pygame import Color
 
 from railrl.envs.pygame.pygame_viewer import PygameViewer
 from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.misc.rllab_util import split_paths
+from railrl.samplers.util import split_paths
 from rllab.core.serializable import Serializable
 from rllab.misc import logger
 from rllab.spaces import Box
