@@ -90,7 +90,7 @@ def get_generic_path_information(paths, discount, stat_prefix,
         statistics.update(create_stats_ordered_dict(
             'DiscountedReturns', discounted_returns, stat_prefix=stat_prefix
         ))
-    actions = np.vstack([path["actions"] for path in paths])
+    actions = np.hstack([path["actions"] for path in paths])
     statistics.update(create_stats_ordered_dict(
         'Actions', actions, stat_prefix=stat_prefix
     ))
