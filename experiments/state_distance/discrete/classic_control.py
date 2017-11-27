@@ -5,7 +5,7 @@ import numpy as np
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.envs.multitask.cartpole_env import CartPole
+from railrl.envs.multitask.cartpole_env import CartPole, CartPoleAngleOnly
 from railrl.envs.multitask.mountain_car_env import MountainCar
 from railrl.launchers.launcher_util import run_experiment
 from railrl.state_distance.discrete_tdm import DiscreteTDM
@@ -36,7 +36,7 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
-    n_seeds = 1
+    n_seeds = 2
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
@@ -60,12 +60,15 @@ if __name__ == "__main__":
             num_goals_to_sample=4,
         ),
         env_class=MountainCar,
+        # version="fix-max-tau",
+        version="sample",
     )
     search_space = {
         'algo_params.dqn_kwargs.use_hard_updates': [True, False],
         'env_class': [
-            # MountainCar,
-            CartPole,
+            MountainCar,
+            # CartPole,
+            # CartPoleAngleOnly,
         ]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -76,12 +79,14 @@ if __name__ == "__main__":
             seed = random.randint(0, 10000)
             run_experiment(
                 experiment,
-                exp_prefix="dev-discrete-tdm-classic-control",
+                # exp_prefix="dev-discrete-tdm-classic-control",
+                # exp_prefix="cartpole-angle-only-goal-2",
+                exp_prefix="tdm-mountain-car-longer",
                 seed=seed,
                 variant=variant,
                 exp_id=exp_id,
-                # mode='ec2',
+                mode='ec2',
                 # use_gpu=False,
-                mode='local',
-                use_gpu=True,
+                # mode='local',
+                # use_gpu=True,
             )
