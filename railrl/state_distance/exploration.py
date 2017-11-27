@@ -5,6 +5,7 @@ from railrl.exploration_strategies.base import (
 )
 from railrl.policies.base import ExplorationPolicy, Policy
 from railrl.policies.state_distance import UniversalPolicy
+from railrl.torch.core import PyTorchModule
 from rllab.exploration_strategies.base import ExplorationStrategy
 
 
@@ -34,8 +35,9 @@ class UniversalPolicyWrappedWithExplorationStrategy(
         self.policy.set_discount(discount)
 
 
-class MakeUniversal(UniversalExplorationPolicy):
+class MakeUniversal(PyTorchModule, UniversalExplorationPolicy):
     def __init__(self, policy):
+        self.save_init_params(locals())
         super().__init__()
         self.policy = policy
 
@@ -43,5 +45,5 @@ class MakeUniversal(UniversalExplorationPolicy):
         new_obs = np.hstack((observation, self._goal_np, self._discount_np))
         return self.policy.get_action(new_obs)
 
-    def train(self, mode):
-        self.policy.train(mode)
+    def forward(self, *args, **kwargs):
+        return self.policy(*args, **kwargs)
