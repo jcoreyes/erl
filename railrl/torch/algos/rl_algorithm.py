@@ -369,7 +369,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             terminal,
             agent_info,
             env_info
-        ) in enumerate(zip(
+        ) in zip(
             path["observations"],
             path["actions"],
             path["rewards"],
@@ -377,7 +377,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             path["terminals"],
             path["agent_infos"],
             path["env_infos"],
-        )):
+        ):
             self._handle_step(
                 ob,
                 action,
