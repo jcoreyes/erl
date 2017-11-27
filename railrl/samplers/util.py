@@ -37,9 +37,13 @@ def rollout(env, agent, max_path_length=np.inf, animated=False):
         if animated:
             env.render()
 
+    # For discrete actions
+    actions = np.array(actions)
+    if len(actions.shape) == 1:
+        actions = np.expand_dims(actions, 1)
     return dict(
         observations=np.array(observations),
-        actions=np.array(actions),
+        actions=actions,
         rewards=np.array(rewards),
         terminals=np.array(terminals),
         agent_infos=np.array(agent_infos),

@@ -1,18 +1,15 @@
 import random
 
-from railrl.algos.state_distance.state_distance_q_learning import (
-    StateDistanceQLearning
-)
-from railrl.envs.env_utils import gym_env
 from railrl.envs.multitask.reacher_env import XyMultitaskReacherEnv
-from railrl.envs.wrappers import convert_to_tf_env, normalize, convert_gym_space
+from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.policies.torch import FeedForwardPolicy
 from railrl.policies.simple import ZeroPolicy
+from railrl.policies.torch import FeedForwardPolicy
 from railrl.qfunctions.torch import FeedForwardQFunction
-
-from gym.envs.mujoco.reacher import ReacherEnv
+from railrl.state_distance.state_distance_q_learning import (
+    StateDistanceQLearning
+)
 
 
 def experiment(variant):

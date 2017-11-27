@@ -1,9 +1,10 @@
 import unittest
+
 import numpy as np
 
-from railrl.algos.state_distance.state_distance_q_learning import \
-    multitask_rollout
 from railrl.policies.state_distance import UniversalPolicy
+from railrl.state_distance.state_distance_q_learning import \
+    multitask_rollout
 from railrl.testing.stub_classes import StubEnv
 
 

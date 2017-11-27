@@ -1,28 +1,29 @@
 import argparse
-
 import sys
-from torch.nn import functional as F
-import railrl.torch.pytorch_util as ptu
-from railrl.algos.state_distance.state_distance_q_learning import (
-    StateDistanceQLearning,
-    HorizonFedStateDistanceQLearning)
-from railrl.algos.state_distance.vectorized_sdql import VectorizedDeltaTauSdql, \
+import random
+from railrl.tf.state_distance.vectorized_sdql import VectorizedDeltaTauSdql, \
     VectorizedTauSdql
+from torch.nn import functional as F
+
+import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.multitask.sawyer_env import MultiTaskSawyerEnv
 from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import run_experiment, continue_experiment, resume_torch_algorithm
-from railrl.networks.state_distance import (
+from railrl.launchers.launcher_util import run_experiment
+from railrl.state_distance.exploration import \
+    UniversalPolicyWrappedWithExplorationStrategy
+from railrl.state_distance.networks import (
     FFUniversalPolicy,
     FlatUniversalQfunction,
     GoalConditionedDeltaModel, VectorizedGoalStructuredUniversalQfunction,
     GoalStructuredUniversalQfunction)
+from railrl.state_distance.state_distance_q_learning import (
+    StateDistanceQLearning,
+    HorizonFedStateDistanceQLearning)
 from railrl.torch.modules import HuberLoss
-from railrl.torch.state_distance.exploration import \
-    UniversalPolicyWrappedWithExplorationStrategy
-import random
+
 
 def experiment(variant):
     env = MultiTaskSawyerEnv(**variant['env_params'])

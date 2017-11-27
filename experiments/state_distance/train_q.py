@@ -6,31 +6,20 @@ from hyperopt import hp
 from torch import nn as nn
 from torch.nn import functional as F
 
-from railrl.envs.multitask.pusher2d import HandCylinderXYPusher2DEnv
-from railrl.pythonplusplus import identity
-
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
-from railrl.algos.state_distance.state_distance_q_learning import (
-    StateDistanceQLearning,
-    HorizonFedStateDistanceQLearning)
-from railrl.algos.state_distance.util import get_replay_buffer
 from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
+from railrl.envs.multitask.pusher import (
+    JointOnlyPusherEnv,
+)
+from railrl.envs.multitask.pusher2d import HandCylinderXYPusher2DEnv
 from railrl.envs.multitask.reacher_7dof import (
-    Reacher7DofXyzGoalState,
     Reacher7DofFullGoalState,
-    Reacher7DofCosSinFullGoalState,
 )
 from railrl.envs.multitask.reacher_env import (
     GoalStateSimpleStateReacherEnv,
-    XyMultitaskSimpleStateReacherEnv,
-)
-from railrl.envs.multitask.pusher import (
-    ArmEEInStatePusherEnv,
-    JointOnlyPusherEnv,
 )
 from railrl.envs.wrappers import convert_gym_space, normalize_box
-from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import (
     create_log_dir,
@@ -38,20 +27,17 @@ from railrl.launchers.launcher_util import (
 )
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.hypopt import optimize_and_save
-from railrl.misc.ml_util import RampUpSchedule, IntRampUpSchedule, \
-    ConstantSchedule
-from railrl.networks.state_distance import (
-    FFUniversalPolicy,
-    UniversalQfunction,
-    FlatUniversalQfunction,
-    StructuredUniversalQfunction,
-    GoalStructuredUniversalQfunction,
-    DuelingStructuredUniversalQfunction,
-)
+from railrl.misc.ml_util import ConstantSchedule
 from railrl.policies.state_distance import TerminalRewardSampleOCPolicy
-from railrl.torch.modules import HuberLoss
-from railrl.torch.state_distance.exploration import \
+from railrl.state_distance.exploration import \
     UniversalPolicyWrappedWithExplorationStrategy
+from railrl.state_distance.networks import (
+    FFUniversalPolicy,
+    GoalStructuredUniversalQfunction,
+)
+from railrl.state_distance.state_distance_q_learning import (
+    HorizonFedStateDistanceQLearning)
+from railrl.torch.modules import HuberLoss
 
 
 def experiment(variant):

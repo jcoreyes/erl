@@ -8,14 +8,15 @@ python ../visualize_implicit_model_error.py path/to/params.pkl
 ```
 """
 import argparse
-import numpy as np
-import joblib
-import matplotlib.pyplot as plt
-from matplotlib import colors
-import matplotlib.cm as cm
 
-from railrl.networks.state_distance import NumpyModelExtractor
+import joblib
+import matplotlib.cm as cm
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib import colors
+
 from railrl.policies.simple import UniformRandomPolicy
+from railrl.state_distance.networks import NumpyModelExtractor
 
 
 def visualize_policy_error(qf, env, horizon):

@@ -8,7 +8,7 @@ from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.qfunctions.torch import FeedForwardQFunction
-from railrl.torch.ddpg import DDPG
+from railrl.torch.algos.ddpg import DDPG
 import railrl.torch.pytorch_util as ptu
 
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv

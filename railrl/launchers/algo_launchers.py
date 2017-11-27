@@ -14,10 +14,9 @@ from railrl.envs.memory.continuous_memory_augmented import \
     ContinuousMemoryAugmented
 from railrl.envs.memory.one_char_memory import OneCharMemory, \
     OneCharMemoryEndOnly, OneCharMemoryOutputRewardMag
-
 from railrl.exploration_strategies.action_aware_memory_strategy import \
     ActionAwareMemoryStrategy
-from railrl.policies.memory.action_aware_memory_policy import \
+from railrl.tf.policies.memory.action_aware_memory_policy import \
     ActionAwareMemoryPolicy
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.envs.mujoco.ant_env import AntEnv
@@ -38,8 +37,8 @@ def mem_ddpg_launcher(variant):
         - policy_params
     :return:
     """
-    from railrl.algos.ddpg import DDPG
-    from railrl.algos.ddpg_ocm import DdpgOcm
+    from railrl.tf.ddpg import DDPG
+    from railrl.tf.ddpg_ocm import DdpgOcm
     from railrl.policies.memory.softmax_memory_policy import SoftmaxMemoryPolicy
     from railrl.qfunctions.memory.memory_qfunction import MlpMemoryQFunction
     from railrl.core.tf_util import BatchNormConfig
@@ -99,8 +98,8 @@ def my_ddpg_launcher(variant):
         - policy_params
     :return:
     """
-    from railrl.algos.ddpg import DDPG
-    from railrl.policies.tensorflow.nn_policy import FeedForwardPolicy
+    from railrl.tf.ddpg import DDPG
+    from railrl.tf.policies.nn_policy import FeedForwardPolicy
     from railrl.qfunctions.nn_qfunction import FeedForwardCritic
     from rllab.exploration_strategies.ou_strategy import OUStrategy
     from railrl.core.tf_util import BatchNormConfig
@@ -145,8 +144,8 @@ def quadratic_ddpg_launcher(variant):
         - policy_params
     :return:
     """
-    from railrl.algos.ddpg import DDPG as MyDDPG
-    from railrl.policies.tensorflow.nn_policy import FeedForwardPolicy
+    from railrl.tf.ddpg import DDPG as MyDDPG
+    from railrl.tf.policies.nn_policy import FeedForwardPolicy
     from rllab.exploration_strategies.ou_strategy import OUStrategy
     from railrl.qfunctions.quadratic_naf_qfunction import QuadraticNAF
     from railrl.core.tf_util import BatchNormConfig
@@ -185,9 +184,9 @@ def oat_qddpg_launcher(variant):
     """
     Quadratic optimal action target DDPG
     """
-    from railrl.algos.optimal_action_target_ddpg import \
+    from railrl.tf.optimal_action_target_ddpg import \
         OptimalActionTargetDDPG as OAT
-    from railrl.policies.tensorflow.nn_policy import FeedForwardPolicy
+    from railrl.tf.policies.nn_policy import FeedForwardPolicy
     from railrl.qfunctions.quadratic_naf_qfunction import QuadraticNAF
     from rllab.exploration_strategies.ou_strategy import OUStrategy
     from railrl.core.tf_util import BatchNormConfig
@@ -223,7 +222,7 @@ def oat_qddpg_launcher(variant):
 
 
 def naf_launcher(variant):
-    from railrl.algos.naf import NAF
+    from railrl.tf.naf import NAF
     from railrl.qfunctions.quadratic_naf_qfunction import QuadraticNAF
     from rllab.exploration_strategies.ou_strategy import OUStrategy
     from railrl.core.tf_util import BatchNormConfig
@@ -396,7 +395,7 @@ def rllab_ddpg_launcher(variant):
 
 
 def random_action_launcher(variant):
-    from railrl.algos.noop_algo import NoOpAlgo
+    from railrl.tf.noop_algo import NoOpAlgo
     from rllab.exploration_strategies.ou_strategy import OUStrategy
     from rllab.policies.uniform_control_policy import UniformControlPolicy
     env_settings = get_env_settings(**variant['env_params'])
@@ -413,8 +412,8 @@ def random_action_launcher(variant):
 
 
 def bptt_ddpg_launcher(variant):
-    from railrl.algos.oracle_bptt_ddpg import OracleBpttDdpg
-    from railrl.algos.meta_bptt_ddpg import MetaBpttDdpg
+    from railrl.tf.oracle_bptt_ddpg import OracleBpttDdpg
+    from railrl.tf.meta_bptt_ddpg import MetaBpttDdpg
     from railrl.qfunctions.memory.oracle_unroll_qfunction import (
         OracleUnrollQFunction
     )
@@ -430,8 +429,8 @@ def bptt_ddpg_launcher(variant):
         HintMlpMemoryQFunction
     )
     from os.path import exists
-    import railrl.core.neuralnet
-    railrl.core.neuralnet.dropout_ph = tf.placeholder(tf.float32, name="dropout_keep_prob")
+    import railrl.tf.core.neuralnet
+    railrl.tf.core.neuralnet.dropout_ph = tf.placeholder(tf.float32, name="dropout_keep_prob")
 
     """
     Set up experiment variants.

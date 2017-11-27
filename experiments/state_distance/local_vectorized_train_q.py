@@ -1,65 +1,33 @@
 import argparse
-from torch.nn import functional as F
 
-
-import railrl.torch.pytorch_util as ptu
-from railrl.algos.state_distance.state_distance_q_learning import \
-    HorizonFedStateDistanceQLearning
-from railrl.algos.state_distance.vectorized_sdql import (
+from railrl.tf.state_distance.vectorized_sdql import (
     VectorizedTauSdql,
     VectorizedDeltaTauSdql,
 )
+from torch.nn import functional as F
+
+import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
-from railrl.envs.multitask.pusher2d import (
-    HandCylinderXYPusher2DEnv,
-    CylinderXYPusher2DEnv,
-    FullStatePusher2DEnv,
-    HandXYPusher2DEnv, FixedHandXYPusher2DEnv,
-    # FullStatePusher2DEnv_move_hand_to_target_position_oc_reward_on_goals,
-    # FullStatePusher2DEnv_move_hand_to_cylinder_oc_reward_on_goals,
-    # HandCylinderXYPusher2DEnv_move_hand_to_cylinder,
-    # FullStatePusher2DEnv_move_joints_to_target_joint,
-    # HandXYPusher2DEnv_oc_reward_on_goals, HandXYPusher2DEnv_oc_reward)
-    NoShapeHandCylinderXYPusher2DEnv)
-from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
-from railrl.envs.multitask.reacher_7dof import (
-    Reacher7DofXyzGoalState,
-    Reacher7DofFullGoalState,
-    Reacher7DofAngleGoalState,
-    Reacher7DofGoalStateEverything, Reacher7DofFullGoalState_oc_reward,
-    Reacher7DofGoalStateEverything_oc_reward)
-from railrl.envs.multitask.reacher_env import (
-    GoalStateSimpleStateReacherEnv,
-    GoalXYStateXYAndCosSinReacher2D, GoalCosSinStateXYAndCosSinReacher2D)
-from railrl.envs.multitask.pusher import (
-    ArmEEInStatePusherEnv,
-    JointOnlyPusherEnv,
-)
-
 from railrl.envs.wrappers import convert_gym_space, normalize_box
-from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import (
-    create_log_dir,
-    create_run_experiment_multiple_seeds,
     setup_logger,
 )
-from railrl.launchers.launcher_util import run_experiment
-from railrl.misc.hypopt import optimize_and_save
-from railrl.misc.ml_util import RampUpSchedule, IntRampUpSchedule, \
-    ConstantSchedule
-from railrl.networks.state_distance import (
+from railrl.misc.ml_util import ConstantSchedule
+from railrl.policies.state_distance import \
+    UnconstrainedOcWithGoalConditionedModel, UnconstrainedOcWithImplicitModel
+from railrl.state_distance.exploration import \
+    UniversalPolicyWrappedWithExplorationStrategy
+from railrl.state_distance.networks import (
     FFUniversalPolicy,
     VectorizedGoalStructuredUniversalQfunction,
     GoalStructuredUniversalQfunction, GoalConditionedDeltaModel,
     TauBinaryGoalConditionedDeltaModel)
-from railrl.policies.state_distance import TerminalRewardSampleOCPolicy, \
-    UnconstrainedOcWithGoalConditionedModel, UnconstrainedOcWithImplicitModel
+from railrl.state_distance.state_distance_q_learning import \
+    HorizonFedStateDistanceQLearning
 from railrl.torch.modules import HuberLoss
-from railrl.torch.state_distance.exploration import \
-    UniversalPolicyWrappedWithExplorationStrategy
 
 
 def experiment(variant):

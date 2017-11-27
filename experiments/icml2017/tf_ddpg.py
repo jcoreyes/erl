@@ -9,12 +9,12 @@ from railrl.launchers.launcher_util import (
 
 
 def run_linear_ocm_exp(variant):
-    from railrl.algos.ddpg import DDPG
+    from railrl.tf.ddpg import DDPG
     from railrl.launchers.launcher_util import (
         set_seed,
     )
     from railrl.exploration_strategies.ou_strategy import OUStrategy
-    from railrl.policies.tensorflow.nn_policy import FeedForwardPolicy
+    from railrl.tf.policies.nn_policy import FeedForwardPolicy
     from railrl.qfunctions.nn_qfunction import FeedForwardCritic
 
     """

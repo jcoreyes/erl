@@ -3,12 +3,12 @@ Run DDPG on many environments
 """
 import random
 
-from railrl.algos.ddpg import DDPG
 from railrl.launchers.launcher_util import (
     run_experiment,
 )
-from railrl.policies.tensorflow.nn_policy import FeedForwardPolicy
 from railrl.qfunctions.nn_qfunction import FeedForwardCritic
+from railrl.tf.ddpg import DDPG
+from railrl.tf.policies.nn_policy import FeedForwardPolicy
 from rllab.envs.mujoco.ant_env import AntEnv
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 from rllab.envs.mujoco.hopper_env import HopperEnv

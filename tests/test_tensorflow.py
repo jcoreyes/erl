@@ -3,8 +3,8 @@ import unittest
 import numpy as np
 import tensorflow as tf
 
-from railrl.core import tf_util
 from railrl.testing.tf_test_case import TFTestCase
+from railrl.tf.core import tf_util
 
 
 def create_network(in_size):
@@ -542,7 +542,7 @@ class TestTensorFlowRnns(TFTestCase):
 
     def test_added_noise_gradient_correct(self):
         """
-        Check that gradients w.r.t. params that affect the output are correctly 
+        Check that gradients w.r.t. params that affect the output are correctly
         calculated via the reparameterization trick.
         """
         batch_size = 5
@@ -575,7 +575,7 @@ class TestTensorFlowRnns(TFTestCase):
 
     def test_added_noise_gradient_correct_over_time(self):
         """
-        Check that gradients w.r.t. params that affect the state are correctly 
+        Check that gradients w.r.t. params that affect the state are correctly
         calculated via the reparameterization trick.
         """
         class _TimesOneAddOneOverTimeNoiseRnn(tf.contrib.rnn.RNNCell):

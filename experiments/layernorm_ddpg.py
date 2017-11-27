@@ -15,7 +15,7 @@ def main():
     sweeper = hp.RandomHyperparameterSweeper([
         hp.LogFloatParam("qf_learning_rate", 1e-5, 1e-1),
         hp.LogFloatParam("policy_learning_rate", 1e-5, 1e-1),
-        hp.LogFloatParam("scale_reward", 10.0, 0.001),
+        hp.LogFloatParam("reward_scale", 10.0, 0.001),
         hp.LogFloatParam("discount", 0.5, 0.99),
     ])
     for seed in range(num_hyperparameters):

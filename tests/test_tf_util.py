@@ -3,8 +3,8 @@ import unittest
 import numpy as np
 import tensorflow as tf
 
-from railrl.core import tf_util
 from railrl.testing.tf_test_case import TFTestCase
+from railrl.tf.core import tf_util
 
 
 class TestUtil(TFTestCase):
