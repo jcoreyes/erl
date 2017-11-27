@@ -11,7 +11,7 @@ from railrl.state_distance.tdm import TemporalDifferenceModel
 from railrl.torch.algos.dqn import DQN
 
 
-class DiscreteTDM(TemporalDifferenceModel, DQN):
+class TdmDqn(TemporalDifferenceModel, DQN):
     def __init__(
             self,
             env,

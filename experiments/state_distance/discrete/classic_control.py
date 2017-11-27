@@ -8,7 +8,7 @@ from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.envs.multitask.cartpole_env import CartPole, CartPoleAngleOnly
 from railrl.envs.multitask.mountain_car_env import MountainCar
 from railrl.launchers.launcher_util import run_experiment
-from railrl.state_distance.discrete_tdm import DiscreteTDM
+from railrl.state_distance.tdm_dqn import TdmDqn
 from railrl.torch.networks import FlattenMlp
 
 
@@ -24,7 +24,7 @@ def experiment(variant):
         env=env,
         **variant['her_replay_buffer_params']
     )
-    algorithm = DiscreteTDM(
+    algorithm = TdmDqn(
         env,
         qf=qf,
         replay_buffer=replay_buffer,
