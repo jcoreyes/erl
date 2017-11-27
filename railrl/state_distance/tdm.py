@@ -131,7 +131,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             ))
 
     def _sample_max_tau_for_rollout(self):
-        return np.random.randint(0, self.max_tau)
+        return np.random.randint(0, self.max_tau + 1)
 
     def offline_evaluate(self, epoch):
         raise NotImplementedError()
