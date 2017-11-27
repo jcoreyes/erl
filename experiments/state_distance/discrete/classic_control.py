@@ -5,14 +5,15 @@ import numpy as np
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
+from railrl.envs.multitask.cartpole_env import CartPole
 from railrl.envs.multitask.mountain_car_env import MountainCar
 from railrl.launchers.launcher_util import run_experiment
 from railrl.state_distance.discrete_tdm import DiscreteTDM
-from railrl.torch.networks import Mlp, FlattenMlp
+from railrl.torch.networks import FlattenMlp
 
 
 def experiment(variant):
-    env = MountainCar()
+    env = variant['env_class']()
 
     qf = FlattenMlp(
         hidden_sizes=[32, 32],
@@ -44,7 +45,7 @@ if __name__ == "__main__":
                 num_steps_per_epoch=1000,
                 num_steps_per_eval=1000,
                 batch_size=128,
-                max_path_length=1000,
+                max_path_length=200,
                 discount=0.99,
             ),
             tdm_kwargs=dict(),
@@ -58,9 +59,14 @@ if __name__ == "__main__":
             max_size=int(1E6),
             num_goals_to_sample=4,
         ),
+        env_class=MountainCar,
     )
     search_space = {
         'algo_params.dqn_kwargs.use_hard_updates': [True, False],
+        'env_class': [
+            # MountainCar,
+            CartPole,
+        ]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -70,7 +76,7 @@ if __name__ == "__main__":
             seed = random.randint(0, 10000)
             run_experiment(
                 experiment,
-                exp_prefix="discrete-tdm-mountain-car",
+                exp_prefix="dev-discrete-tdm-classic-control",
                 seed=seed,
                 variant=variant,
                 exp_id=exp_id,
