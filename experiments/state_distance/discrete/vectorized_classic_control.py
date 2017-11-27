@@ -23,7 +23,10 @@ def experiment(variant):
         goal_dim=env.goal_dim,
         **variant['qf_params']
     )
-    policy = ArgmaxDiscreteTdmPolicy(qf)
+    policy = ArgmaxDiscreteTdmPolicy(
+        qf,
+        **variant['policy_params']
+    )
     replay_buffer = HerReplayBuffer(
         env=env,
         **variant['her_replay_buffer_params']
@@ -69,6 +72,9 @@ if __name__ == "__main__":
         qf_params=dict(
             hidden_sizes=[300, 300],
         ),
+        policy_params=dict(
+            goal_dim_weights=[0,0,1,1],
+        ),
         env_class=MountainCar,
         # version="fix-max-tau",
         version="sample",
@@ -91,7 +97,8 @@ if __name__ == "__main__":
                 experiment,
                 # exp_prefix="dev-vectorized-discrete-tdm-classic-control",
                 # exp_prefix="vectorized-discrete-tdm-cartpole-weight-angle-only",
-                exp_prefix="vectorized-discrete-tdm-cartpole-no-hack",
+                # exp_prefix="vectorized-discrete-tdm-cartpole-no-hack",
+                exp_prefix="vectorized-discrete-tdm-cartpole-goal_dim_weights",
                 seed=seed,
                 variant=variant,
                 exp_id=exp_id,

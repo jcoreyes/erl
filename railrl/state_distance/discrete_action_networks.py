@@ -42,16 +42,21 @@ class VectorizedDiscreteQFunction(Mlp):
 
 
 class ArgmaxDiscreteTdmPolicy(PyTorchModule, SerializablePolicy):
-    def __init__(self, qf):
+    def __init__(self, qf, goal_dim_weights=None):
         self.save_init_params(locals())
         super().__init__()
         self.qf = qf
+        if goal_dim_weights is not None:
+            goal_dim_weights = np.expand_dims(np.array(goal_dim_weights), 0)
+        self.goal_dim_weights = goal_dim_weights
 
     def get_action(self, obs):
         obs = np.expand_dims(obs, axis=0)
         obs = ptu.np_to_var(obs, requires_grad=False).float()
         q_values = self.qf(obs).squeeze(0)
         # Take the action that has the best sum across all weights
-        q_values = q_values.sum(dim=1)
         q_values_np = ptu.get_numpy(q_values)
+        if self.goal_dim_weights is not None:
+            q_values_np = q_values_np * self.goal_dim_weights
+        q_values_np = q_values_np.sum(axis=1)
         return q_values_np.argmax(), {}
