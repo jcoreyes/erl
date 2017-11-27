@@ -19,6 +19,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             epoch_max_tau_schedule=None,
             sample_train_goals_from='replay_buffer',
             sample_rollout_goals_from='environment',
+            vectorized=True,
             **kwargs
     ):
         """
@@ -38,6 +39,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         self.epoch_max_tau_schedule = epoch_max_tau_schedule
         self.sample_train_goals_from = sample_train_goals_from
         self.sample_rollout_goals_from = sample_rollout_goals_from
+        self.vectorized = vectorized
         self.goal = None
 
     def _start_epoch(self, epoch):
@@ -89,12 +91,16 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         return np_to_pytorch_batch(batch)
 
     def compute_rewards_np(self, obs, actions, next_obs, goals):
-        return self.env.compute_rewards(
-            obs,
-            actions,
-            next_obs,
-            goals,
-        )
+        if self.vectorized:
+            diff = self.env.convert_obs_to_goals(next_obs) - goals
+            return -np.abs(diff)
+        else:
+            return self.env.compute_rewards(
+                obs,
+                actions,
+                next_obs,
+                goals,
+            )
 
     @property
     def train_buffer(self):

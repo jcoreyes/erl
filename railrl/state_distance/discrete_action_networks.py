@@ -50,7 +50,8 @@ class ArgmaxDiscreteTdmPolicy(PyTorchModule, SerializablePolicy):
     def get_action(self, obs):
         obs = np.expand_dims(obs, axis=0)
         obs = ptu.np_to_var(obs, requires_grad=False).float()
-        import ipdb; ipdb.set_trace()
         q_values = self.qf(obs).squeeze(0)
+        # Take the action that has the best sum across all weights
+        q_values = q_values.sum(dim=1)
         q_values_np = ptu.get_numpy(q_values)
         return q_values_np.argmax(), {}

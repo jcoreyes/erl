@@ -22,6 +22,7 @@ class DQN(TorchRLAlgorithm):
             self,
             env,
             qf,
+            policy=None,
             learning_rate=1e-3,
             use_hard_updates=False,
             hard_update_period=1000,
@@ -46,7 +47,7 @@ class DQN(TorchRLAlgorithm):
             action_space=env.action_space,
             prob_random_action=epsilon,
         )
-        self.policy = ArgmaxDiscretePolicy(qf)
+        self.policy = policy or ArgmaxDiscretePolicy(qf)
         exploration_policy = PolicyWrappedWithExplorationStrategy(
             exploration_strategy=exploration_strategy,
             policy=self.policy,
