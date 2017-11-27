@@ -105,6 +105,8 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         return goal_state
 
     def log_diagnostics(self, paths):
+        if 'goals' not in paths[0]:
+            return
         statistics = OrderedDict()
 
         observations = np.vstack([path['observations'] for path in paths])
