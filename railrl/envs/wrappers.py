@@ -1,8 +1,10 @@
 import numpy as np
-import gym.spaces
+from gym.spaces.discrete import Discrete as GymDiscrete
+from gym.spaces.box import Box as GymBox
 from rllab.core.serializable import Serializable
 from rllab.envs.proxy_env import ProxyEnv
 from sandbox.rocky.tf.spaces import Box as TfBox
+from sandbox.rocky.tf.spaces import Discrete as TfDiscrete
 from rllab.spaces.box import Box
 from rllab.spaces.discrete import Discrete
 from rllab.spaces.product import Product
@@ -115,8 +117,12 @@ class ConvertEnv(ProxyEnv, Serializable):
 
     @property
     def action_space(self):
-        return TfBox(super().action_space.low,
-                   super().action_space.high)
+        if isinstance(super().action_space, Box):
+            return TfBox(super().action_space.low,
+                         super().action_space.high)
+        else:
+            # Hack for now
+            return Discrete(super().action_space.n)
 
     @property
     def observation_space(self):
@@ -146,8 +152,8 @@ convert_to_tf_env = ConvertEnv
 class NormalizeAndConvertEnv(NormalizedBoxEnv, ConvertEnv):
     @property
     def action_space(self):
-        return TfBox(super().action_space.low,
-                     super().action_space.high)
+        # Apparently this is how you call a super's property
+        return ConvertEnv.action_space.fget(self)
 
     @property
     def observation_space(self):
