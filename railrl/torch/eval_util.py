@@ -69,7 +69,7 @@ def get_difference_statistics(
     return differences
 
 
-def get_generic_path_information(paths, discount, stat_prefix,
+def get_generic_path_information(paths, discount=0.99, stat_prefix='',
                                  include_discounted_returns=False):
     """
     Get an OrderedDict with a bunch of statistic names and values.
@@ -90,7 +90,11 @@ def get_generic_path_information(paths, discount, stat_prefix,
         statistics.update(create_stats_ordered_dict(
             'DiscountedReturns', discounted_returns, stat_prefix=stat_prefix
         ))
-    actions = np.hstack([path["actions"] for path in paths])
+    actions = [path["actions"] for path in paths]
+    if len(actions[0].shape) == 1:
+        actions = np.hstack([path["actions"] for path in paths])
+    else:
+        actions = np.vstack([path["actions"] for path in paths])
     statistics.update(create_stats_ordered_dict(
         'Actions', actions, stat_prefix=stat_prefix
     ))
