@@ -27,7 +27,7 @@ if __name__ == '__main__':
     # exp_prefix = "dev"
     # version = "Dev"
 
-    # run_mode = 'grid'
+    run_mode = 'grid'
     use_gpu = True
     if mode != "local":
         use_gpu = False

@@ -36,7 +36,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             collection_mode='online',
             sim_throttle=False,
             normalize_env=True,
-            ratio=20,
+            env_train_ratio=20,
             replay_buffer=None,
     ):
         assert collection_mode in ['online', 'online-parallel', 'offline']
@@ -83,7 +83,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self._old_table_keys = None
         self._current_path = Path()
         self._exploration_paths = []
-        self.parallel_sim_ratio = ratio
+        self.parallel_sim_ratio = env_train_ratio
         self.start_time = time.time()
         self.sim_throttle = sim_throttle
         if self.collection_mode == 'online-parallel':

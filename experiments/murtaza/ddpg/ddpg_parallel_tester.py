@@ -10,7 +10,7 @@ from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.torch import pytorch_util as ptu
 import sys
-
+import railrl.misc.hyperparameter as hyp
 from rllab.envs.normalized_env import normalize
 
 
@@ -75,12 +75,41 @@ if __name__ == "__main__":
     if exp_dir:
         continue_experiment(exp_dir, resume_function=resume_torch_algorithm)
     else:
-        run_experiment(
-            example,
-            exp_prefix="ddpg-cheetah-parallel-TEST",
-            seed=random.randint(0, 666),
-            mode='local',
-            variant={
+        # run_experiment(
+        #     example,
+        #     exp_prefix="ddpg-cheetah-parallel-TEST",
+        #     seed=random.randint(0, 666),
+        #     mode='local',
+        #     variant={
+        #         'version': 'Original',
+        #         'max_path_length': max_path_length,
+        #         'use_gpu': True,
+        #         'es_class': OUStrategy,
+        #         'env_class': HalfCheetahEnv,
+        #         'policy_class': FeedForwardPolicy,
+        #         'normalize_env': False,
+        #         'env_params': dict(),
+        #         'es_params':{
+        #             'max_sigma': .25,
+        #             'min_sigma': .25,
+        #         },
+        #         'algo_params':dict(
+        #             num_epochs=100,
+        #             num_steps_per_epoch=10000,
+        #             num_steps_per_eval=100,
+        #             use_soft_update=True,
+        #             tau=1e-2,
+        #             batch_size=128,
+        #             max_path_length=1000,
+        #             discount=0.99,
+        #             qf_learning_rate=1e-3,
+        #             policy_learning_rate=1e-4,
+        #             collection_mode='online-parallel',
+        #         ),
+        #     },
+        #     use_gpu=True,
+        # )
+        variant = {
                 'version': 'Original',
                 'max_path_length': max_path_length,
                 'use_gpu': True,
@@ -105,7 +134,21 @@ if __name__ == "__main__":
                     qf_learning_rate=1e-3,
                     policy_learning_rate=1e-4,
                     collection_mode='online-parallel',
+                    env_train_ratio=10,
                 ),
-            },
-            use_gpu=True,
+            }
+        search_space = {
+            'algo_params.env_train_ratio':[10, 20, 30, 40, 50]
+        }
+        sweeper = hyp.DeterministicHyperparameterSweeper(
+            search_space, default_parameters=variant,
         )
+        for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+            run_experiment(
+                example,
+                exp_prefix="ddpg-cheetah-cheetah-relative-ratios",
+                seed=random.randint(0, 666),
+                mode='ec2',
+                variant=variant,
+                exp_id=exp_id,
+            )
