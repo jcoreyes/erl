@@ -218,7 +218,7 @@ class GoalStateSimpleStateReacherEnv(MultitaskReacherEnv):
             np.expand_dims(goal, 0)
         )[0]
 
-    def sample_goal_states(self, batch_size):
+    def sample_goals(self, batch_size):
         theta = self.np_random.uniform(
             low=-math.pi,
             high=math.pi,
@@ -237,7 +237,7 @@ class GoalStateSimpleStateReacherEnv(MultitaskReacherEnv):
         goal_state[4:6] = 0
         return goal_state
 
-    def convert_obs_to_goal_states(self, obs):
+    def convert_obs_to_goals(self, obs):
         return obs
 
     @property
