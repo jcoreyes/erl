@@ -64,7 +64,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             next_obs,
             goals,
         )
-        batch['rewards'] = rewards * (1 - terminals)
+        batch['rewards'] = rewards * terminals
 
         """
         Update the observations
