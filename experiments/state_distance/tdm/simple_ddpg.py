@@ -72,7 +72,7 @@ if __name__ == "__main__":
                 num_steps_per_eval=1000,
                 batch_size=128,
                 max_path_length=200,
-                discount=0.99,
+                discount=1,
             ),
             tdm_kwargs=dict(
                 vectorized=True,
