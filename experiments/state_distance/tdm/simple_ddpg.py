@@ -12,8 +12,8 @@ from railrl.exploration_strategies.base import \
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
+from railrl.state_distance.flat_networks import StructuredQF
 from railrl.state_distance.tdm_ddpg import TdmDdpg
-from railrl.torch.networks import FlattenMlp
 
 
 def experiment(variant):
@@ -21,9 +21,12 @@ def experiment(variant):
 
     obs_dim = int(np.prod(env.observation_space.low.shape))
     action_dim = int(np.prod(env.action_space.low.shape))
-    qf = FlattenMlp(
-        input_size=obs_dim + action_dim + env.goal_dim + 1,
-        output_size=1,
+    vectorized = variant['algo_params']['tdm_kwargs']['vectorized']
+    qf = StructuredQF(
+        observation_dim=obs_dim,
+        action_dim=action_dim,
+        goal_dim=env.goal_dim,
+        output_size=env.goal_dim if vectorized else 1,
         **variant['qf_params']
     )
     policy = FeedForwardPolicy(
@@ -59,7 +62,7 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
-    n_seeds = 2
+    n_seeds = 1
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
@@ -72,8 +75,7 @@ if __name__ == "__main__":
                 discount=0.99,
             ),
             tdm_kwargs=dict(
-                # vectorized=True,
-                vectorized=False,
+                vectorized=True,
             ),
             ddpg_kwargs=dict(
                 tau=0.001,
