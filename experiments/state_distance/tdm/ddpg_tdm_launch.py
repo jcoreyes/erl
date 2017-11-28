@@ -79,7 +79,7 @@ if __name__ == "__main__":
                 vectorized=True,
             ),
             ddpg_kwargs=dict(
-                tau=0.01,
+                tau=0.001,
             ),
         ),
         her_replay_buffer_params=dict(
