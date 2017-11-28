@@ -100,7 +100,7 @@ def experiment(variant):
                 env=env,
                 **variant['her_replay_buffer_params']
             ),
-            fraction_paths_in_train=0.8,
+            fraction_paths_in_train=.5,
         )
     else:
         replay_buffer = None
@@ -204,11 +204,11 @@ if __name__ == '__main__':
         algo_params=dict(
             num_epochs=num_epochs,
             num_steps_per_epoch=100,
-            num_steps_per_eval=1000,
-            num_updates_per_env_step=25,
+            num_steps_per_eval=100,
+            num_updates_per_env_step=1,
             use_soft_update=True,
             tau=0.001,
-            batch_size=64,
+            batch_size=1,
             discount=max_tau,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
@@ -217,7 +217,7 @@ if __name__ == '__main__':
             qf_weight_decay=0.,
             max_path_length=max_path_length,
             replay_buffer_size=replay_buffer_size,
-            prob_goal_state_is_next_state=0,
+            prob_goal_is_next_state=0,
             termination_threshold=0,
             render=args.render,
             save_replay_buffer=True,
@@ -233,7 +233,7 @@ if __name__ == '__main__':
         her_replay_buffer_params=dict(
             max_size=replay_buffer_size,
             num_goals_to_sample=4,
-            goal_sample_strategy='store',
+            # goal_sample_strategy='store',
         ),
         raw_explore_policy='oc',
         oc_policy_params=dict(
@@ -355,7 +355,7 @@ if __name__ == '__main__':
             #     10,
             # ],
             # 'her_replay_buffer_params'
-            # '.fraction_goal_states_are_rollout_goal_states': [
+            # '.fraction_goals_are_rollout_goals': [
             #     None,
             #     0,
             #     0.5,

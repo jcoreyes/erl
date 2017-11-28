@@ -41,6 +41,10 @@ class HerReplayBuffer(EnvReplayBuffer):
         # Then self._next_obs[j] is a valid next observation for observation i
         self._idx_to_future_obs_idx = [None] * max_size
 
+    def add_sample(self, observation, action, reward, terminal,
+                   next_observation, **kwargs):
+        raise NotImplementedError("Only use add_path")
+
     def add_path(self, path):
         obs = path["observations"]
         actions = path["actions"]
