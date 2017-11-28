@@ -109,6 +109,16 @@ def split_paths_to_dict(paths):
 
 
 def get_stat_in_paths(paths, dict_name, scalar_name):
+    if len(paths) == 0:
+        return np.array([[]])
+
+    if type(paths[0][dict_name]) == dict:
+        # Support rllab interface
+        return np.vstack([
+            path[dict_name][scalar_name]
+            for path in paths
+        ])
+
     return np.vstack([
         [info[scalar_name] for info in path[dict_name]]
         for path in paths
