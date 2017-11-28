@@ -146,13 +146,28 @@ def rollout_decrement_tau(env, agent, init_tau, max_path_length=np.inf,
             env.render()
             # input("Press Enter to continue...")
 
+    actions = np.array(actions)
+    if len(actions.shape) == 1:
+        actions = np.expand_dims(actions, 1)
+    observations = np.array(observations)
+    if len(observations.shape) == 1:
+        observations = np.expand_dims(observations, 1)
+        next_o = np.array([next_o])
+    next_observations = np.vstack(
+        (
+            observations[1:, :],
+            np.expand_dims(next_o, 0)
+        )
+    )
+
     return dict(
-        observations=np.array(observations),
-        actions=np.array(actions),
-        rewards=np.array(rewards),
-        terminals=np.array(terminals),
+        observations=observations,
+        actions=actions,
+        rewards=np.array(rewards).reshape(-1, 1),
+        next_observations=next_observations,
+        terminals=np.array(terminals).reshape(-1, 1),
         agent_infos=np.array(agent_infos),
         env_infos=np.array(env_infos),
-        final_observation=next_o,
+        # final_observation=next_o,
         taus=np.array(taus),
     )

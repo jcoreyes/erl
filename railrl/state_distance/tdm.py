@@ -8,6 +8,8 @@ from railrl.data_management.path_builder import PathBuilder
 from railrl.misc.ml_util import ConstantSchedule
 from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
 from railrl.torch.algos.util import np_to_pytorch_batch
+from railrl.state_distance.exploration import MakeUniversal
+from railrl.state_distance.rollout_util import MultigoalSimplePathSampler
 
 
 class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
@@ -18,6 +20,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             sample_train_goals_from='replay_buffer',
             sample_rollout_goals_from='environment',
             vectorized=True,
+            cycle_taus_for_rollout=False,
     ):
         """
 
@@ -32,7 +35,21 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         self.sample_train_goals_from = sample_train_goals_from
         self.sample_rollout_goals_from = sample_rollout_goals_from
         self.vectorized = vectorized
+        self.cycle_taus_for_rollout = cycle_taus_for_rollout
         self.goal = None
+
+        self.policy = MakeUniversal(self.policy)
+        self.eval_policy = MakeUniversal(self.eval_policy)
+        self.exploration_policy = MakeUniversal(self.exploration_policy)
+        self.eval_sampler = MultigoalSimplePathSampler(
+            env=self.env,
+            policy=self.eval_policy,
+            max_samples=self.num_steps_per_eval,
+            max_path_length=self.max_path_length,
+            discount_sampling_function=self._sample_max_tau_for_rollout,
+            goal_sampling_function=self._sample_goal_for_rollout,
+            cycle_taus_for_rollout=self.cycle_taus_for_rollout,
+        )
 
     def _start_epoch(self, epoch):
         self.max_tau = self.epoch_max_tau_schedule.get_value(epoch)
