@@ -78,7 +78,7 @@ if __name__ == "__main__":
                 vectorized=True,
             ),
             ddpg_kwargs=dict(
-                tau=0.001,
+                tau=0.01,
             ),
         ),
         her_replay_buffer_params=dict(
@@ -86,11 +86,11 @@ if __name__ == "__main__":
             num_goals_to_sample=4,
         ),
         qf_params=dict(
-            hidden_sizes=[100, 100],
+            hidden_sizes=[300, 300],
         ),
         policy_params=dict(
-            fc1_size=100,
-            fc2_size=100,
+            fc1_size=300,
+            fc2_size=300,
         ),
     )
     search_space = {
