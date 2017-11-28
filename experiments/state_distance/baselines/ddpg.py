@@ -14,7 +14,7 @@ from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.qfunctions.torch import FeedForwardQFunction
-from railrl.torch.ddpg import DDPG
+from railrl.torch.algos.ddpg import DDPG
 import railrl.misc.hyperparameter as hyp
 
 from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
@@ -24,7 +24,7 @@ from railrl.envs.multitask.pusher import (
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofFullGoalState,
     Reacher7DofMultitaskEnv, Reacher7DofGoalStateEverything,
-    Reacher7DofXyzGoalState)
+    Reacher7DofXyzGoalState, Reacher7DofAngleGoalState)
 from railrl.envs.multitask.pusher2d import HandCylinderXYPusher2DEnv, \
     MultitaskPusher2DEnv
 from railrl.envs.multitask.reacher_env import (
@@ -78,7 +78,7 @@ if __name__ == "__main__":
 
     n_seeds = 5
     mode = "ec2"
-    exp_prefix = "ddpg-half-cheetah"
+    exp_prefix = "ddpg-reacher-7dof-angles-only"
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -121,18 +121,19 @@ if __name__ == "__main__":
             # Reacher7DofXyzGoalState,
             # HandCylinderXYPusher2DEnv,
             # Pusher2DEnv,
-            HalfCheetah,
+            # HalfCheetah,
+            Reacher7DofAngleGoalState,
             # Reacher7Dof,
             # RandomGoalPusher2DEnv,
             # MultitaskPusher2DEnv,
             # Reacher7DofMultitaskEnv,
         ],
-        'algo_params.num_updates_per_env_step': [
-            1, 5,
-        ],
-        'algo_params.tau': [
-            1e-2, 1e-3,
-        ],
+        # 'algo_params.num_updates_per_env_step': [
+        #     1, 5,
+        # ],
+        # 'algo_params.tau': [
+        #     1e-2, 1e-3,
+        # ],
         'algo_params.reward_scale': [
             10, 1, 0.1,
         ],
