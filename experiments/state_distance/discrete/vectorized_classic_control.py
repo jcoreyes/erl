@@ -44,7 +44,7 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
-    n_seeds = 5
+    n_seeds = 3
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
@@ -73,19 +73,26 @@ if __name__ == "__main__":
             hidden_sizes=[300, 300],
         ),
         policy_params=dict(
-            goal_dim_weights=[0,0,1,0],
+            goal_dim_weights=[0, 0, 1, 0],
         ),
         env_class=MountainCar,
         # version="fix-max-tau",
         version="sample",
     )
     search_space = {
-        'algo_params.dqn_kwargs.use_hard_updates': [True, False],
+        'algo_params.dqn_kwargs.use_hard_updates': [True],
         'env_class': [
             # CartPoleAngleOnly,
             CartPole,
             # MountainCar,
-        ]
+        ],
+        'policy_param.goal_dim_weights': [
+            [1, 1, 1, 1],
+            [.1, .1, 1, .1],
+            [0, 1, 1, 0],
+            [1, 0, 1, 0],
+            [0, 0, 1, 0],
+        ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -98,7 +105,7 @@ if __name__ == "__main__":
                 # exp_prefix="dev-vectorized-discrete-tdm-classic-control",
                 # exp_prefix="vectorized-discrete-tdm-cartpole-weight-angle-only",
                 # exp_prefix="vectorized-discrete-tdm-cartpole-no-hack",
-                exp_prefix="tdm-dqn-cartpole-2",
+                exp_prefix="tdm-dqn-cartpole-goal-weight-sweep",
                 seed=seed,
                 variant=variant,
                 exp_id=exp_id,
