@@ -163,7 +163,7 @@ if __name__ == '__main__':
 
     # n_seeds = 1
     # mode = "ec2"
-    # exp_prefix = "tdm-pusher3d"
+    exp_prefix = "tdm-reacher-6dof-xyz-test"
     # run_mode = 'grid'
     # snapshot_mode = "gap_and_last"
 
