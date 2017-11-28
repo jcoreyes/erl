@@ -251,8 +251,8 @@ if __name__ == '__main__':
         ),
         epoch_discount_schedule_class=IntRampUpSchedule,
         epoch_discount_schedule_params=dict(
-            min_value=0,
-            max_value=20,
+            min_value=10,
+            max_value=10,
             ramp_duration=num_epochs,
         ),
         algo_class=algo_class,
@@ -327,13 +327,13 @@ if __name__ == '__main__':
                 # MultitaskPusher2DEnv,
                 # CylinderXYPusher2DEnv,
             # ],
-            'epoch_discount_schedule_params.max_value': [
-                1,
-                5,
-                10,
-                15,
-                20,
-            ],
+            # 'epoch_discount_schedule_params.max_value': [
+            #     1,
+            #     5,
+            #     10,
+            #     15,
+            #     20,
+            # ],
             # 'algo_params.use_soft_update': [
             #     True,
             # ],
@@ -346,9 +346,9 @@ if __name__ == '__main__':
             #     False,
             #     True,
             # ],
-            'algo_params.tau': [
-                1e-1, 1e-2, 1e-3, 1e-4
-            ],
+            # 'algo_params.tau': [
+            #     1e-1, 1e-2, 1e-3, 1e-4
+            # ],
             # 'algo_params.sl_grad_weight': [
             #     0.01,
             #     0.1,
