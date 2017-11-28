@@ -9,6 +9,7 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.sac.policies import TanhGaussianPolicy
 from railrl.sac.sac import SoftActorCritic
 from railrl.torch.networks import FlattenMlp
+import railrl.misc.hyperparameter as hyp
 
 
 def experiment(variant):
@@ -63,14 +64,23 @@ if __name__ == "__main__":
         ),
         net_size=300,
     )
-    for _ in range(5):
-        seed = random.randint(0, 999999)
-        run_experiment(
-            experiment,
-            seed=seed,
-            variant=variant,
-            exp_prefix="sac-reacher-7dof-angles-only",
-            mode='ec2',
-            # exp_prefix="dev-sac-half-cheetah",
-            # mode='local',
-        )
+    search_space = {
+        'algo_params.reward_scale': [
+            100, 10, 1, 0.1, 0.01
+        ],
+    }
+    sweeper = hyp.DeterministicHyperparameterSweeper(
+        search_space, default_parameters=variant,
+    )
+    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+        for _ in range(3):
+            seed = random.randint(0, 999999)
+            run_experiment(
+                experiment,
+                seed=seed,
+                variant=variant,
+                exp_prefix="sac-reacher-7dof-angles-only-sweep-reward-scale",
+                mode='ec2',
+                # exp_prefix="dev-sac-half-cheetah",
+                # mode='local',
+            )
