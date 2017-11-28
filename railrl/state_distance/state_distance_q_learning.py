@@ -212,54 +212,6 @@ class StateDistanceQLearning(DDPG):
     def _sample_discount_for_rollout(self):
         return self._sample_discount(1)[0, 0]
 
-    def evaluate(self, epoch):
-        """
-        Perform evaluation for this algorithm.
-
-        :param epoch: The epoch number.
-        """
-        logger.log("Collecting samples for evaluation")
-        statistics = OrderedDict()
-        train_batch = self.get_batch(training=True)
-        validation_batch = self.get_batch(training=False)
-        test_paths = self.eval_sampler.obtain_samples()
-
-        statistics.update(self._statistics_from_batch(train_batch, "Train"))
-        statistics.update(
-            self._statistics_from_batch(validation_batch, "Validation")
-        )
-        statistics.update(self._statistics_from_paths(test_paths, "Test"))
-        statistics.update(
-            get_difference_statistics(
-                statistics,
-                [
-                    'QF Loss Mean',
-                    'Policy Loss Mean',
-                ],
-            )
-        )
-        statistics.update(get_generic_path_information(
-            self._exploration_paths, self.discount, stat_prefix="Exploration",
-        ))
-        statistics.update(self._statistics_from_paths(self._exploration_paths,
-                                                      "Exploration"))
-
-        statistics['Discount Factor'] = self.discount
-
-        average_returns = rllab_util.get_average_returns(test_paths)
-        statistics['AverageReturn'] = average_returns
-        statistics['Total Wallclock Time (s)'] = time.time() - self.start_time
-        statistics['Epoch'] = epoch
-
-        for key, value in statistics.items():
-            logger.record_tabular(key, value)
-
-        logger.set_key_prefix('test ')
-        self.log_diagnostics(test_paths)
-        logger.set_key_prefix('expl ')
-        self.log_diagnostics(self._exploration_paths)
-        logger.set_key_prefix('')
-
     def offline_evaluate(self, epoch):
         statistics = OrderedDict()
         train_batch = self.get_batch(training=True)
@@ -547,7 +499,8 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             batch['rewards'] = batch['rewards'] * batch['terminals']
         return batch
 
-    def get_train_dict(self, batch):
+    def _do_training(self):
+        batch = self.get_batch(training=True)
         batch = self._modify_batch_for_training(batch)
         rewards = batch['rewards']
         obs = batch['observations']
@@ -611,77 +564,25 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
                 qf_loss = raw_qf_loss
 
         """
-        Target Policy operations if needed
+        Update networks
         """
-        if self.optimize_target_policy:
-            target_policy_actions = self.target_policy(
-                obs,
-                goals,
-                num_steps_left,
-            )
-            target_q_output = self.target_qf(
-                obs,
-                target_policy_actions,
-                goals,
-                num_steps_left,
-            )
-            target_policy_loss = - target_q_output.mean()
-        else:
-            # Always include the target policy loss so that different
-            # experiments are easily comparable.
-            target_policy_loss = ptu.FloatTensor([0])
+        self.policy_optimizer.zero_grad()
+        policy_loss.backward()
+        self.policy_optimizer.step()
 
-        """
-        Do some SL supervision
-        """
-        for _ in range(self.num_sl_batches_per_rl_batch):
-            batch = self.replay_buffer.random_batch_for_sl(
-                self.batch_size,
-                self.discount,
-            )
-            batch = np_to_pytorch_batch(batch)
-            obs = batch['observations']
-            actions = batch['actions']
-            states_after_tau_steps = batch['states_after_tau_steps']
-            goals = self.env.convert_obs_to_goals_pytorch(
-                states_after_tau_steps
-            )
-            num_steps_left = batch['taus']
-            y_pred = self.qf(obs, actions, goals, num_steps_left)
+        self.qf_optimizer.zero_grad()
+        qf_loss.backward()
+        self.qf_optimizer.step()
 
-            y_target = ptu.Variable(
-                torch.zeros(y_pred.size()),
-                requires_grad=False,
-            )
-            sl_qf_loss = self.qf_criterion(y_pred, y_target)
-            qf_loss = qf_loss + sl_qf_loss * self.sl_grad_weight
+        self._update_target_networks()
 
-            next_obs_goal = self.env.convert_obs_to_goals_pytorch(
-                batch['next_observations']
-            )
-
-            sl_actions = self.policy(
-                obs,
-                next_obs_goal,
-                num_steps_left * 0,
-            )
-            sl_policy_loss = torch.norm(
-                    sl_actions - actions,
-                    dim=1,
-                    p=2
-            ).mean()
-            policy_loss = policy_loss + sl_policy_loss * self.sl_grad_weight
-
-        return OrderedDict([
-            ('Policy Actions', policy_actions),
-            ('Policy Loss', policy_loss),
-            ('QF Outputs', q_output),
-            ('Bellman Errors', bellman_errors),
-            ('Y targets', y_target),
-            ('Y predictions', y_pred),
-            ('Unregularized QF Loss', raw_qf_loss),
-            ('QF Loss', qf_loss),
-            ('Target Policy Loss', target_policy_loss),
-        ])
-
-
+        if self.eval_statistics is None:
+            """
+            Eval should set this to None.
+            This way, these statistics are only computed for one batch.
+            """
+            self.eval_statistics = OrderedDict()
+            self.eval_statistics['QF Loss'] = np.mean(ptu.get_numpy(qf_loss))
+            self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
+                policy_loss
+            ))

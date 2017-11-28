@@ -1,6 +1,7 @@
 import argparse
 import random
 
+from railrl.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState
 from railrl.state_distance.vectorized_sdql import (
     VectorizedTauSdql,
     VectorizedDeltaTauSdql,
@@ -180,9 +181,9 @@ if __name__ == '__main__':
 
     # env_class = Reacher7DofAngleGoalState
     # env_class = GoalCosSinStateXYAndCosSinReacher2D
-    # env_class = Reacher7DofXyzGoalState
+    env_class = Reacher7DofXyzGoalState
     # env_class = JointOnlyPusherEnv
-    env_class = GoalStateSimpleStateReacherEnv
+    # env_class = GoalStateSimpleStateReacherEnv
     # env_class = GoalXYStateXYAndCosSinReacher2D
     # env_class = Reacher7DofFullGoalState
     # env_class = Reacher7DofGoalStateEverything
@@ -203,9 +204,9 @@ if __name__ == '__main__':
         version=version,
         algo_params=dict(
             num_epochs=num_epochs,
-            num_steps_per_epoch=100,
-            num_steps_per_eval=100,
-            num_updates_per_env_step=1,
+            num_steps_per_epoch=1000,
+            num_steps_per_eval=1000,
+            num_updates_per_env_step=25,
             use_soft_update=True,
             tau=0.001,
             batch_size=1,
@@ -228,14 +229,14 @@ if __name__ == '__main__':
             # cycle_taus_for_rollout=False,
             # num_sl_batches_per_rl_batch=1,
         ),
-        eval_with_oc_policy=True,
-        # eval_with_oc_policy=False,
+        # eval_with_oc_policy=True,
+        eval_with_oc_policy=False,
         her_replay_buffer_params=dict(
             max_size=replay_buffer_size,
             num_goals_to_sample=4,
             # goal_sample_strategy='store',
         ),
-        raw_explore_policy='oc',
+        raw_explore_policy='ddpg',
         oc_policy_params=dict(
             sample_size=10000,
         ),
