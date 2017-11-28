@@ -5,9 +5,8 @@ import numpy as np
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState, \
-    Reacher7DofAngleGoalState
-from railrl.envs.multitask.reacher_env import GoalStateSimpleStateReacherEnv
+from railrl.envs.multitask.reacher_7dof import Reacher7DofAngleGoalState
+from railrl.envs.wrappers import normalize_box
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
@@ -18,7 +17,7 @@ from railrl.state_distance.tdm_ddpg import TdmDdpg
 
 
 def experiment(variant):
-    env = variant['env_class']()
+    env = normalize_box(variant['env_class']())
 
     obs_dim = int(np.prod(env.observation_space.low.shape))
     action_dim = int(np.prod(env.action_space.low.shape))
@@ -111,7 +110,7 @@ if __name__ == "__main__":
                 seed=seed,
                 variant=variant,
                 exp_id=exp_id,
-                exp_prefix="tdm-ddpg-reacher-7dof-angles",
+                exp_prefix="tdm-ddpg-reacher-7dof-angles-normalized",
                 mode='ec2',
                 use_gpu=False,
                 # exp_prefix="dev-tdm-ddpg",
