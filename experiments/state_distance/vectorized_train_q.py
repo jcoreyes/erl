@@ -1,7 +1,8 @@
 import argparse
 import random
 
-from railrl.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState
+from railrl.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState, \
+    Reacher7DofAngleGoalState
 from railrl.state_distance.vectorized_sdql import (
     VectorizedTauSdql,
     VectorizedDeltaTauSdql,
@@ -161,13 +162,13 @@ if __name__ == '__main__':
     run_mode = "none"
     snapshot_mode = "last"
 
-    # n_seeds = 1
-    # mode = "ec2"
-    exp_prefix = "tdm-reacher-6dof-xyz-test"
+    n_seeds = 5
+    mode = "ec2"
+    exp_prefix = "tdm-reacher-7dof-angles"
     # run_mode = 'grid'
     # snapshot_mode = "gap_and_last"
 
-    version = "na"
+    version = "no-goal-at-end-structured-qf"
     num_configurations = 50  # for random mode
     snapshot_gap = 50
     use_gpu = True
@@ -179,9 +180,9 @@ if __name__ == '__main__':
     # algo_class = VectorizedDeltaTauSdql
     qf_class = algo_class_to_qf_class[algo_class]
 
-    # env_class = Reacher7DofAngleGoalState
+    env_class = Reacher7DofAngleGoalState
     # env_class = GoalCosSinStateXYAndCosSinReacher2D
-    env_class = Reacher7DofXyzGoalState
+    # env_class = Reacher7DofXyzGoalState
     # env_class = JointOnlyPusherEnv
     # env_class = GoalStateSimpleStateReacherEnv
     # env_class = GoalXYStateXYAndCosSinReacher2D
