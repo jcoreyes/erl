@@ -5,7 +5,8 @@ import numpy as np
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState
+from railrl.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState, \
+    Reacher7DofAngleGoalState
 from railrl.envs.multitask.reacher_env import GoalStateSimpleStateReacherEnv
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
@@ -57,7 +58,7 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
-    n_seeds = 1
+    n_seeds = 5
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
@@ -65,8 +66,9 @@ if __name__ == "__main__":
                 num_epochs=500,
                 num_steps_per_epoch=1000,
                 num_steps_per_eval=1000,
+                num_updates_per_env_step=10,
                 batch_size=128,
-                max_path_length=200,
+                max_path_length=100,
                 discount=1,
             ),
             tdm_kwargs=dict(
@@ -92,8 +94,7 @@ if __name__ == "__main__":
     )
     search_space = {
         'env_class': [
-            Reacher7DofXyzGoalState,
-            # GoalStateSimpleStateReacherEnv,
+            Reacher7DofAngleGoalState,
         ]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -104,12 +105,13 @@ if __name__ == "__main__":
             seed = random.randint(0, 10000)
             run_experiment(
                 experiment,
-                exp_prefix="dev-simple-tdm-ddpg",
                 seed=seed,
                 variant=variant,
                 exp_id=exp_id,
-                # mode='ec2',
-                # use_gpu=False,
-                mode='local',
-                use_gpu=True,
+                exp_prefix="sac-ddpg-reacher-7dof-angles",
+                mode='ec2',
+                use_gpu=False,
+                # exp_prefix="dev-tdm-sac",
+                # mode='local',
+                # use_gpu=True,
             )

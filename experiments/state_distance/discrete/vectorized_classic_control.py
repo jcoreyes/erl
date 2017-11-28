@@ -44,7 +44,7 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
-    n_seeds = 2
+    n_seeds = 5
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
@@ -73,7 +73,7 @@ if __name__ == "__main__":
             hidden_sizes=[300, 300],
         ),
         policy_params=dict(
-            goal_dim_weights=[0,0,1,1],
+            goal_dim_weights=[0,0,1,0],
         ),
         env_class=MountainCar,
         # version="fix-max-tau",
@@ -82,8 +82,8 @@ if __name__ == "__main__":
     search_space = {
         'algo_params.dqn_kwargs.use_hard_updates': [True, False],
         'env_class': [
-            CartPoleAngleOnly,
-            # CartPole,
+            # CartPoleAngleOnly,
+            CartPole,
             # MountainCar,
         ]
     }
@@ -98,12 +98,12 @@ if __name__ == "__main__":
                 # exp_prefix="dev-vectorized-discrete-tdm-classic-control",
                 # exp_prefix="vectorized-discrete-tdm-cartpole-weight-angle-only",
                 # exp_prefix="vectorized-discrete-tdm-cartpole-no-hack",
-                exp_prefix="vectorized-discrete-tdm-cartpole-goal_dim_weights",
+                exp_prefix="tdm-dqn-cartpole-2",
                 seed=seed,
                 variant=variant,
                 exp_id=exp_id,
-                # mode='ec2',
-                # use_gpu=False,
-                mode='local',
-                use_gpu=True,
+                mode='ec2',
+                use_gpu=False,
+                # mode='local',
+                # use_gpu=True,
             )
