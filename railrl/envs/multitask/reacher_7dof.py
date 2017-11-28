@@ -134,17 +134,27 @@ class Reacher7DofAngleGoalState(Reacher7DofMultitaskEnv):
     """
     The goal state is joint angles
     """
-    def sample_goal_states(self, batch_size):
+    def sample_goals(self, batch_size):
         # Number taken from running a random policy and seeing what XYZ values
         # are reached
-        states = super().sample_states(batch_size)
-        return states[:, :7]
+        return np.hstack((
+            # From the xml
+            self.np_random.uniform(low=-2.28, high=1.71, size=(batch_size, 1)),
+            self.np_random.uniform(low=-0.52, high=1.39, size=(batch_size, 1)),
+            self.np_random.uniform(low=-1.4, high=1.7, size=(batch_size, 1)),
+            self.np_random.uniform(low=-2.32, high=0, size=(batch_size, 1)),
+            self.np_random.uniform(low=-1.5, high=1.5, size=(batch_size, 1)),
+            self.np_random.uniform(low=-1.094, high=0, size=(batch_size, 1)),
+            self.np_random.uniform(low=-1.5, high=1.5, size=(batch_size, 1)),
+        ))
+        # states = super().sample_states(batch_size)
+        # return states[:, :7]
 
     @property
     def goal_dim(self):
         return 7
 
-    def convert_obs_to_goal_states(self, obs):
+    def convert_obs_to_goals(self, obs):
         return obs[:, :7]
 
     def set_goal(self, goal):
