@@ -59,7 +59,7 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         goal = self.sample_goals(1)[0]
         return self.modify_goal_for_rollout(goal)
 
-    def convert_ob_to_goal_state(self, obs):
+    def convert_ob_to_goal(self, obs):
         """
         Convert a raw environment observation into a goal state (if possible).
 
@@ -114,7 +114,7 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         actions = np.vstack([path['actions'] for path in paths])
         final_differences = []
         for path in paths:
-            reached = self.convert_ob_to_goal_state(path['observations'][-1])
+            reached = self.convert_ob_to_goal(path['observations'][-1])
             goal = path['goals'][-1]
             final_differences.append(reached - goal)
         for order in [1, 2]:

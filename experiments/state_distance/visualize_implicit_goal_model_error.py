@@ -51,10 +51,10 @@ def visualize_error_vs_tau(qf, policy, env, horizon):
     errors = np.abs(final_state - predicted_final_states)
     distance_errors = np.abs(
         np.abs(
-            env.convert_ob_to_goal_state(final_state)
+            env.convert_ob_to_goal(final_state)
             - goal_state
         ) - np.abs(
-            env.convert_obs_to_goal_states(predicted_final_states) - goal_state
+            env.convert_obs_to_goals(predicted_final_states) - goal_state
         )
     )
     num_state_dims = env.observation_space.low.size

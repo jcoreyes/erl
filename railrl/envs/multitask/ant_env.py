@@ -25,7 +25,7 @@ class GoalXYVelAnt(LowGearAntEnv, MultitaskEnv):
     def goal_dim(self) -> int:
         return 2
 
-    def sample_goal_states(self, batch_size):
+    def sample_goals(self, batch_size):
         return np.random.uniform(-MAX_SPEED, MAX_SPEED, (batch_size, 2))
 
     def sample_irrelevant_goal_dimensions(self, goal, batch_size):
@@ -46,7 +46,7 @@ class GoalXYVelAnt(LowGearAntEnv, MultitaskEnv):
             self.get_body_comvel("torso")
         ])
 
-    def convert_obs_to_goal_states(self, obs):
+    def convert_obs_to_goals(self, obs):
         return obs[:, -3:-1]
 
     def set_goal(self, goal):
@@ -102,7 +102,7 @@ class GoalXYVelAnt(LowGearAntEnv, MultitaskEnv):
 
     def oc_reward(self, states, goals, current_states):
         return self.oc_reward_on_goals(
-            self.convert_obs_to_goal_states(states),
+            self.convert_obs_to_goals(states),
             goals,
             current_states,
         )

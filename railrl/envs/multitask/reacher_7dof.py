@@ -194,7 +194,7 @@ class Reacher7DofFullGoalState(Reacher7DofMultitaskEnv):
             self.np_random.uniform(low=-1, high=1, size=(batch_size, 7)),
         ))
 
-    def sample_goal_states(self, batch_size):
+    def sample_goals(self, batch_size):
         return self.sample_states(batch_size)
 
     def sample_irrelevant_goal_dimensions(self, goal, batch_size):
@@ -287,7 +287,7 @@ class Reacher7DofGoalStateEverything(Reacher7DofMultitaskEnv):
         super().set_goal(goal)
         self._desired_xyz = goal[14:17]
 
-    def convert_obs_to_goal_states(self, obs):
+    def convert_obs_to_goals(self, obs):
         return obs
 
     def modify_goal_for_rollout(self, goal_state):
@@ -373,7 +373,7 @@ class Reacher7DofGoalStateEverything(Reacher7DofMultitaskEnv):
             ee_pos,
         ))
 
-    def sample_goal_states(self, batch_size):
+    def sample_goals(self, batch_size):
         return self.sample_states(batch_size)
 
     @staticmethod

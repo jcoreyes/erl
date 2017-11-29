@@ -151,7 +151,7 @@ def main(dataset_path, only_load_buffer=False, pause_at_end=False):
 
     batch_size = 100
     batch = train_replay_buffer.random_batch(batch_size)
-    sampled_goal_states = env.sample_goal_states(batch_size)
+    sampled_goal_states = env.sample_goals(batch_size)
     computed_rewards = env.compute_rewards(
         batch['observations'],
         batch['actions'],

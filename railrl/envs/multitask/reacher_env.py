@@ -1,18 +1,18 @@
 """
 Extensions to the base ReacherEnv. Basically, these classes add the following
 functions:
-    - sample_goal_states
+    - sample_goals
     - compute_rewards
 Typical usage:
 
 ```
     batch = get_batch(batch_size)
-    goal_states = env.sample_goal_states(batch_size)
+    goals = env.sample_goals(batch_size)
     new_rewards = env.compute_rewards(
         batch['observations'],
         batch['actions'],
         batch['next_observations'],
-        goal_states,
+        goals,
     )
     # Update batch to use new rewards and maybe add goal states
 ```
@@ -20,9 +20,9 @@ Typical usage:
 One example of how I do the last step is I do:
 
 ```
-    batch['observations'] = np.hstack((batch['observations'], goal_states))
+    batch['observations'] = np.hstack((batch['observations'], goals))
     batch['next_observations'] = np.hstack((
-        batch['next_observations'], goal_states
+        batch['next_observations'], goals
     ))
     batch['rewards'] = new_rewards
 ```
@@ -114,7 +114,7 @@ class MultitaskReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle, MultitaskEnv,
         ob = self._get_obs()
         done = False
         full_state_to_goal_distance = np.linalg.norm(
-            self.convert_ob_to_goal_state(self._get_obs())
+            self.convert_ob_to_goal(self._get_obs())
             - self.multitask_goal
         )
         return ob, reward, done, dict(
@@ -232,10 +232,10 @@ class GoalStateSimpleStateReacherEnv(MultitaskReacherEnv):
         ])
         return obs
 
-    def modify_goal_for_rollout(self, goal_state):
+    def modify_goal_for_rollout(self, goal):
         # set desired velocity to zero
-        goal_state[4:6] = 0
-        return goal_state
+        goal[4:6] = 0
+        return goal
 
     def convert_obs_to_goals(self, obs):
         return obs
@@ -243,17 +243,6 @@ class GoalStateSimpleStateReacherEnv(MultitaskReacherEnv):
     @property
     def goal_dim(self):
         return 6
-
-    @staticmethod
-    def print_goal_state_info(goal):
-        c1 = goal[0:1]
-        c2 = goal[1:2]
-        s1 = goal[2:3]
-        s2 = goal[3:4]
-        print("Goal = ", goal)
-        print("angle 1 (degrees) = ", np.arctan2(s1, c1) / math.pi * 180)
-        print("angle 2 (degrees) = ", np.arctan2(s2, c2) / math.pi * 180)
-
 
     def sample_dimensions_irrelevant_to_oc(self, goal, obs, batch_size):
         """
@@ -280,10 +269,10 @@ class GoalStateSimpleStateReacherEnv(MultitaskReacherEnv):
 
     @staticmethod
     def oc_reward_on_goals(
-            predicted_states, goal_states, current_states
+            predicted_states, goals, current_states
     ):
         return - torch.norm(
-            predicted_states - goal_states,
+            predicted_states - goals,
             dim=1,
             p=2,
             keepdim=True,
@@ -291,7 +280,7 @@ class GoalStateSimpleStateReacherEnv(MultitaskReacherEnv):
 
 
 class GoalXYStateXYAndCosSinReacher2D(MultitaskReacherEnv):
-    def sample_goal_states(self, batch_size):
+    def sample_goals(self, batch_size):
         theta = self.np_random.uniform(
             low=-math.pi,
             high=math.pi,
@@ -313,7 +302,7 @@ class GoalXYStateXYAndCosSinReacher2D(MultitaskReacherEnv):
         ])
         return obs
 
-    def convert_obs_to_goal_states(self, obs):
+    def convert_obs_to_goals(self, obs):
         return obs[:, 4:6]
 
     def set_goal(self, goal):
@@ -326,7 +315,7 @@ class GoalXYStateXYAndCosSinReacher2D(MultitaskReacherEnv):
 
 
 class GoalCosSinStateXYAndCosSinReacher2D(MultitaskReacherEnv):
-    def sample_goal_states(self, batch_size):
+    def sample_goals(self, batch_size):
         theta = self.np_random.uniform(
             low=-math.pi,
             high=math.pi,
@@ -347,7 +336,7 @@ class GoalCosSinStateXYAndCosSinReacher2D(MultitaskReacherEnv):
         ])
         return obs
 
-    def convert_obs_to_goal_states(self, obs):
+    def convert_obs_to_goals(self, obs):
         return obs[:, :4]
 
     def set_goal(self, goal):

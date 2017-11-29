@@ -53,7 +53,7 @@ class MultitaskPoint2DEnv(WaterMaze, MultitaskEnv, Serializable):
             size=(batch_size, 2)
         )
 
-    def sample_goal_states(self, batch_size):
+    def sample_goals(self, batch_size):
         return self.sample_states(batch_size)
 
     def _reset(self):
