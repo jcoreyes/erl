@@ -8,7 +8,7 @@ from rllab.core.serializable import Serializable
 
 
 class DiscreteReacher2D(GoalXYStateXYAndCosSinReacher2D, Serializable):
-    def __init__(self, num_bins=3):
+    def __init__(self, num_bins=5):
         Serializable.quick_init(self, locals())
         super().__init__()
         self.num_bins = num_bins
@@ -19,7 +19,6 @@ class DiscreteReacher2D(GoalXYStateXYAndCosSinReacher2D, Serializable):
 
             )
         self.idx_to_continuous_action = list(itertools.product(*joint_ranges))
-        import ipdb; ipdb.set_trace()
         self.action_space = spaces.Discrete(len(self.idx_to_continuous_action))
 
     def _step(self, a):
