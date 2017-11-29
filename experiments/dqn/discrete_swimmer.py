@@ -14,9 +14,9 @@ def experiment(variant):
     env = DiscreteSwimmerEnv(**variant['env_params'])
 
     qf = Mlp(
-        hidden_sizes=[32, 32],
         input_size=int(np.prod(env.observation_space.shape)),
         output_size=env.action_space.n,
+        **variant['qf_kwargs']
     )
     algorithm = DQN(
         env,
@@ -34,7 +34,7 @@ if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
             num_epochs=100,
-            num_steps_per_epoch=10000,
+            num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             batch_size=128,
             max_path_length=200,
@@ -42,13 +42,18 @@ if __name__ == "__main__":
             epsilon=0.5,
             tau=0.001,
         ),
+        env_params=dict(
+        ),
+        qf_kwargs=dict(
+            hidden_sizes=[32, 32],
+        )
     )
     search_space = {
-        'env_params.num_bins': [3, 5, 10],
-        'env_params.reward_position': [False, True],
-        'algo_params.tau': [0.01, 0.001],
-        'algo_params.reward_scale': [0.1, 1, 10],
-        'algo_params.epsilon': [0.1, 0.5],
+        # 'env_params.num_bins': [3, 5, 10],
+        # 'env_params.reward_position': [False, True],
+        # 'algo_params.tau': [0.01, 0.001],
+        # 'algo_params.reward_scale': [0.1, 1, 10],
+        # 'algo_params.epsilon': [0.1, 0.5],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -58,9 +63,12 @@ if __name__ == "__main__":
             seed = random.randint(0, 10000)
             run_experiment(
                 experiment,
-                exp_prefix="dqn-swimmer-sweep",
                 seed=seed,
-                mode='ec2',
+                # exp_prefix="dqn-swimmer-sweep",
+                # mode='ec2',
+                # use_gpu=False,
+                exp_prefix="dev-dqn-swimmer",
+                mode='local',
+                use_gpu=True,
                 variant=variant,
-                use_gpu=False,
             )
