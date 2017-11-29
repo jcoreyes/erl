@@ -14,6 +14,7 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.state_distance.flat_networks import StructuredQF
 from railrl.state_distance.tdm_ddpg import TdmDdpg
+from railrl.torch.modules import HuberLoss
 
 
 def experiment(variant):
@@ -48,6 +49,11 @@ def experiment(variant):
         env=env,
         **variant['her_replay_buffer_params']
     )
+    qf_criterion = variant['qf_criterion_class'](
+        **variant['qf_criterion_params']
+    )
+    algo_params = variant['algo_params']
+    algo_params['ddpg_kwargs']['qf_criterion'] = qf_criterion
     algorithm = TdmDdpg(
         env,
         qf=qf,
@@ -62,24 +68,28 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
-    n_seeds = 5
+    n_seeds = 3
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
             base_kwargs=dict(
-                num_epochs=500,
+                num_epochs=50,
                 num_steps_per_epoch=1000,
                 num_steps_per_eval=1000,
-                num_updates_per_env_step=10,
-                batch_size=128,
+                num_updates_per_env_step=25,
+                batch_size=64,
                 max_path_length=100,
                 discount=1,
             ),
             tdm_kwargs=dict(
+                sample_rollout_goals_from='environment',
+                sample_train_goals_from='her',
                 vectorized=True,
             ),
             ddpg_kwargs=dict(
                 tau=0.001,
+                qf_learning_rate=1e-3,
+                policy_learning_rate=1e-4,
             ),
         ),
         her_replay_buffer_params=dict(
@@ -93,6 +103,8 @@ if __name__ == "__main__":
             fc1_size=300,
             fc2_size=300,
         ),
+        qf_criterion_class=HuberLoss,
+        qf_criterion_params=dict(),
     )
     search_space = {
         'env_class': [
@@ -110,7 +122,7 @@ if __name__ == "__main__":
                 seed=seed,
                 variant=variant,
                 exp_id=exp_id,
-                exp_prefix="tdm-ddpg-reacher-7dof-angles-normalized",
+                exp_prefix="tdm-ddpg-reacher-7dof-angles-same-hps-as-sdql-2",
                 mode='ec2',
                 use_gpu=False,
                 # exp_prefix="dev-tdm-ddpg",

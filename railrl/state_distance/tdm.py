@@ -74,7 +74,10 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         obs = batch['observations']
         actions = batch['actions']
         next_obs = batch['next_observations']
-        goals = self._sample_goals_for_training()
+        if self.sample_train_goals_from == 'her':
+            goals = batch['goals']
+        else:
+            goals = self._sample_goals_for_training()
         rewards = self.compute_rewards_np(
             obs,
             actions,
