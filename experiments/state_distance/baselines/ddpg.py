@@ -85,12 +85,12 @@ if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
             render=args.render,
-            num_epochs=1000,
-            num_steps_per_epoch=1000,
-            num_steps_per_eval=1000,
+            num_epochs=100,
+            num_steps_per_epoch=10000,
+            num_steps_per_eval=10000,
             use_soft_update=True,
             tau=1e-2,
-            batch_size=64,
+            batch_size=128,
             max_path_length=100,
             discount=0.99,
             qf_learning_rate=1e-3,
@@ -153,6 +153,6 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 use_gpu=False,
-                snapshot_mode="gap_and_last",
-                snapshot_gap=50,
+                # snapshot_mode="gap_and_last",
+                # snapshot_gap=50,
             )
