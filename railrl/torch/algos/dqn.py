@@ -28,6 +28,7 @@ class DQN(TorchRLAlgorithm):
             hard_update_period=1000,
             tau=0.001,
             epsilon=0.1,
+            qf_criterion=None,
             **kwargs
     ):
         """
@@ -65,7 +66,7 @@ class DQN(TorchRLAlgorithm):
             self.qf.parameters(),
             lr=self.learning_rate,
         )
-        self.qf_criterion = nn.MSELoss()
+        self.qf_criterion = qf_criterion or nn.MSELoss()
 
         self.eval_statistics = None
 
@@ -138,12 +139,14 @@ class DQN(TorchRLAlgorithm):
 
     def get_epoch_snapshot(self, epoch):
         self.training_env.render(close=True)
-        return dict(
+        data_to_save = dict(
             epoch=epoch,
             exploration_policy=self.exploration_policy,
             policy=self.policy,
-            env=self.training_env,
         )
+        if self.save_environment:
+            data_to_save['env'] = self.training_env
+        return data_to_save
 
     @property
     def networks(self):
