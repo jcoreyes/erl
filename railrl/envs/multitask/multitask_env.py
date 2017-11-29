@@ -230,6 +230,7 @@ class MultitaskToFlatEnv(ProxyEnv, Serializable):
 
     def reset(self):
         ob = super().reset()
+        self._wrapped_env.set_goal(self._wrapped_env.sample_goal_for_rollout())
         ob = np.hstack((ob, self._wrapped_env.multitask_goal))
         return ob
 

@@ -3,6 +3,7 @@ import random
 import numpy as np
 
 import railrl.torch.pytorch_util as ptu
+from railrl.envs.multitask.multitask_env import multitask_to_flat_env
 from railrl.envs.multitask.reacher_7dof import Reacher7DofAngleGoalState
 from railrl.envs.wrappers import normalize_box
 from railrl.launchers.launcher_util import run_experiment
@@ -14,6 +15,7 @@ import railrl.misc.hyperparameter as hyp
 
 def experiment(variant):
     env = normalize_box(Reacher7DofAngleGoalState())
+    env = multitask_to_flat_env(env)
 
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
@@ -79,7 +81,8 @@ if __name__ == "__main__":
                 experiment,
                 seed=seed,
                 variant=variant,
-                exp_prefix="sac-reacher-7dof-angles-only-sweep-reward-scale",
+                exp_prefix="sac-reacher-7dof-angles-only-sweep-reward-scale"
+                           "-multitask",
                 mode='ec2',
                 # exp_prefix="dev-sac-half-cheetah",
                 # mode='local',

@@ -38,6 +38,7 @@ def experiment(variant):
         env,
         **variant['normalize_params']
     )
+    env = multitask_to_flat_env(env)
     # env = multitask_to_flat_env(env)
     es = OUStrategy(
         action_space=env.action_space,
@@ -78,7 +79,7 @@ if __name__ == "__main__":
 
     n_seeds = 5
     mode = "ec2"
-    exp_prefix = "ddpg-reacher-7dof-angles-only"
+    exp_prefix = "ddpg-reacher-7dof-angles-only-multitask"
 
     # noinspection PyTypeChecker
     variant = dict(
