@@ -10,15 +10,16 @@ from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.samplers.util import get_stat_in_paths
 import railrl.torch.pytorch_util as ptu
+from rllab.core.serializable import Serializable
 from rllab.misc import logger
 
 
 class Reacher7DofMultitaskEnv(
-    MultitaskEnv, mujoco_env.MujocoEnv, utils.EzPickle
+    MultitaskEnv, mujoco_env.MujocoEnv, Serializable
 ):
     def __init__(self):
+        Serializable.quick_init(self, locals())
         MultitaskEnv.__init__(self)
-        utils.EzPickle.__init__(self)
         mujoco_env.MujocoEnv.__init__(
             self,
             get_asset_xml('reacher_7dof.xml'),
