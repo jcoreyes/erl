@@ -31,9 +31,9 @@ def experiment(variant):
         )
     else:
         qf = FlattenMlp(
-            hidden_sizes=[32, 32],
             input_size=int(np.prod(env.observation_space.shape)) + env.goal_dim + 1,
             output_size=env.action_space.n,
+            **variant['qf_params']
         )
         policy = ArgmaxDiscretePolicy(qf)
     replay_buffer = HerReplayBuffer(
@@ -58,15 +58,18 @@ if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
             base_kwargs=dict(
-                num_epochs=500,
-                num_steps_per_epoch=1000,
+                num_epochs=100,
+                num_steps_per_epoch=200,
                 num_steps_per_eval=1000,
+                num_updates_per_env_step=25,
                 batch_size=128,
                 max_path_length=200,
                 discount=0.99,
             ),
             tdm_kwargs=dict(
-                vectorized=False,
+                sample_rollout_goals_from='environment',
+                sample_train_goals_from='her',
+                vectorized=True,
             ),
             dqn_kwargs=dict(
                 epsilon=0.2,
@@ -97,10 +100,10 @@ if __name__ == "__main__":
         ],
         'policy_param.goal_dim_weights': [
             [1, 1, 1, 1],
-            [.1, .1, 1, .1],
-            [0, 1, 1, 0],
-            [1, 0, 1, 0],
-            [0, 0, 1, 0],
+            # [.1, .1, 1, .1],
+            # [0, 1, 1, 0],
+            # [1, 0, 1, 0],
+            # [0, 0, 1, 0],
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -114,10 +117,10 @@ if __name__ == "__main__":
                 seed=seed,
                 variant=variant,
                 exp_id=exp_id,
-                # exp_prefix="dqn-tdm-cartpole-goal-weight-sweep",
+                exp_prefix="dqn-tdm-cartpole-goal-weight-hp-update",
                 # mode='ec2',
                 # use_gpu=False,
-                exp_prefix="dev-dqn-tdm-classic-control",
+                # exp_prefix="dev-dqn-tdm-classic-control",
                 mode='local',
                 use_gpu=True,
             )
