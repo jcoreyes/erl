@@ -17,9 +17,9 @@ from rllab.misc import logger
 class Reacher7DofMultitaskEnv(
     MultitaskEnv, mujoco_env.MujocoEnv, Serializable
 ):
-    def __init__(self):
+    def __init__(self, distance_metric_order=None):
         Serializable.quick_init(self, locals())
-        MultitaskEnv.__init__(self)
+        MultitaskEnv.__init__(self, distance_metric_order=distance_metric_order)
         mujoco_env.MujocoEnv.__init__(
             self,
             get_asset_xml('reacher_7dof.xml'),
