@@ -59,10 +59,10 @@ if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
             base_kwargs=dict(
-                num_epochs=100,
+                num_epochs=50,
                 num_steps_per_epoch=1000,
                 num_steps_per_eval=1000,
-                num_updates_per_env_step=25,
+                num_updates_per_env_step=5,
                 batch_size=128,
                 max_path_length=200,
                 discount=0.99,
@@ -95,10 +95,17 @@ if __name__ == "__main__":
     search_space = {
         'algo_params.tdm_kwargs.sample_rollout_goals_from': [
             'fixed',
-            'environment',
+            # 'environment',
+        ],
+        'algo_params.tdm_kwargs.cycle_taus_for_rollout': [
+            True,
+            False,
         ],
         'env_class': [
             DiscreteReacher2D,
+            MountainCar,
+            CartPole,
+            CartPoleAngleOnly,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -112,8 +119,9 @@ if __name__ == "__main__":
                 seed=seed,
                 variant=variant,
                 exp_id=exp_id,
-                # exp_prefix="dqn-tdm-reacher",
-                # mode='ec2',
+                exp_prefix="dqn-tdm-fixed-goals-various-tasks-check-cycle-tau"
+                           "-short",
+                mode='ec2',
                 # exp_prefix="dev-dqn-tdm-launch",
                 # mode='local',
                 # use_gpu=True,
