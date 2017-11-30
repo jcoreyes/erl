@@ -24,9 +24,26 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
     ):
         """
 
+        :param max_tau: Maximum tau (planning horizon) to train with.
         :param epoch_max_tau_schedule: A schedule for the maximum planning
         horizon tau.
+        :param sample_train_goals_from: Sampling strategy for goals used in
+        training. Can be one of the following strings:
+            - environment: Sample from the environment
+            - replay_buffer: Sample from the replay_buffer
+            - her: Sample from a HER-based replay_buffer
+        :param sample_rollout_goals_from: Sampling strategy for goals used
+        during rollout. Can be one of the following strings:
+            - environment: Sample from the environment
+            - replay_buffer: Sample from the replay_buffer
+            - fixed: Do no resample the goal. Just use the one in the
+            environment.
+        :param vectorized: Train the QF in vectorized form?
+        :param cycle_taus_for_rollout: Decrement the tau passed into the
+        policy during rollout?
         """
+        assert sample_train_goals_from in ['environment', 'replay_buffer', 'her']
+        assert sample_rollout_goals_from in ['environment', 'replay_buffer', 'fixed']
         if epoch_max_tau_schedule is None:
             epoch_max_tau_schedule = ConstantSchedule(max_tau)
 
@@ -143,6 +160,8 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             obs = batch['observations']
             goal_state = self.env.convert_obs_to_goals(obs)[0]
             return self.env.modify_goal_for_rollout(goal_state)
+        elif self.sample_rollout_goals_from == 'fixed':
+            return self.env.multitask_goal
         else:
             raise Exception("Invalid `sample_goals_from`: {}".format(
                 self.sample_rollout_goals_from
@@ -159,6 +178,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         self.goal = self._sample_goal_for_rollout()
         self.training_env.set_goal(self.goal)
         self.exploration_policy.set_goal(self.goal)
+        # TODO(vitchyr): rename this to set_tau
         self.exploration_policy.set_discount(self.discount)
         return self.training_env.reset()
 
@@ -183,6 +203,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             goals=self.goal,
             # taus=self._rollout_discount,
         )
+        # TODO(vitchyr): add cycle
 
     def _handle_rollout_ending(self):
         self._n_rollouts_total += 1
