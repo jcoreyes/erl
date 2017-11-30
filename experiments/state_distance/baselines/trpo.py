@@ -1,7 +1,6 @@
 import random
 
-from gym.envs.mujoco import PusherEnv
-
+from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
 from railrl.envs.multitask.reacher_7dof import Reacher7DofAngleGoalState
 from railrl.envs.wrappers import normalize_and_convert_to_tf_env
 from railrl.launchers.launcher_util import run_experiment
@@ -12,12 +11,14 @@ from sandbox.rocky.tf.optimizers.conjugate_gradient_optimizer import (
     ConjugateGradientOptimizer,
     FiniteDifferenceHvp,
 )
+import railrl.misc.hyperparameter as hyp
 
 
 def experiment(variant):
-    # env = PusherEnv()
-    env = Reacher7DofAngleGoalState()
+    env = variant['env_class']()
     env = normalize_and_convert_to_tf_env(env)
+    if variant['multitask']:
+        env = MultitaskToFlatEnv(env)
 
     policy = GaussianMLPPolicy(
         name="policy",
@@ -65,16 +66,24 @@ if __name__ == "__main__":
             base_eps=1e-5,
         ),
         version="TRPO",
+        multitask=False,
     )
-    for _ in range(n_seeds):
-        seed = random.randint(0, 999999)
-        run_experiment(
-            experiment,
-            exp_prefix=exp_prefix,
-            seed=seed,
-            mode=mode,
-            variant=variant,
-            use_gpu=False,
-            snapshot_mode='gap',
-            snapshot_gap=5,
-        )
+    search_space = {
+    }
+    sweeper = hyp.DeterministicHyperparameterSweeper(
+        search_space, default_parameters=variant,
+    )
+    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+        for _ in range(n_seeds):
+            seed = random.randint(0, 999999)
+            run_experiment(
+                experiment,
+                exp_id=exp_id,
+                exp_prefix=exp_prefix,
+                seed=seed,
+                mode=mode,
+                variant=variant,
+                use_gpu=False,
+                snapshot_mode='gap',
+                snapshot_gap=5,
+            )
