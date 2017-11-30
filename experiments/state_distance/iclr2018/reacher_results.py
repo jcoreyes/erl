@@ -10,7 +10,7 @@ ddpg_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-25-ddpg" \
             "-reacher-pusher-baseline/"
 ddpg_criteria = {
     'algo_params.num_updates_per_env_step': 1,
-    'algo_params.scale_reward': 1,
+    'algo_params.reward_scale': 1,
     'algo_params.tau': 0.001,
     'env_class.$class': "railrl.envs.multitask.her_reacher_7dof_env.Reacher7Dof"
 }
@@ -56,7 +56,7 @@ our_criteria = {
 her_dense_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-27-her-baseline-shaped-rewards-no-clipping-300-300-right-discount-and-tau/"
 her_dense_criteria = {
     'algo_params.num_updates_per_env_step': 1,
-    'algo_params.scale_reward': 1,
+    'algo_params.reward_scale': 1,
     'env_class.$class':
         "railrl.envs.multitask.reacher_7dof.Reacher7DofXyzGoalState"
 }

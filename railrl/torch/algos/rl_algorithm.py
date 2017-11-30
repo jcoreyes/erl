@@ -87,7 +87,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.max_path_length = max_path_length
         self.discount = discount
         self.replay_buffer_size = replay_buffer_size
-        self.scale_reward = reward_scale
+        self.reward_scale = reward_scale
         self.render = render
         self.collection_mode = collection_mode
         self.save_replay_buffer = save_replay_buffer
@@ -195,7 +195,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                     self.training_env.step(action)
                 )
                 self._n_env_steps_total += 1
-                reward = raw_reward * self.scale_reward
+                reward = raw_reward * self.reward_scale
                 terminal = np.array([terminal])
                 reward = np.array([reward])
                 self._handle_step(
@@ -242,7 +242,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 )
 
             if path is not None:
-                path['rewards'] = path['rewards'] * self.scale_reward
+                path['rewards'] = path['rewards'] * self.reward_scale
                 path_length = len(path['observations'])
                 self._n_env_steps_total += path_length
                 n_steps_current_epoch += path_length
