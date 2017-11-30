@@ -2,14 +2,16 @@
 New implementation of state distance q learning.
 """
 import abc
+
 import numpy as np
 
 from railrl.data_management.path_builder import PathBuilder
 from railrl.misc.ml_util import ConstantSchedule
-from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
-from railrl.torch.algos.util import np_to_pytorch_batch
 from railrl.state_distance.exploration import MakeUniversal
 from railrl.state_distance.rollout_util import MultigoalSimplePathSampler
+from railrl.state_distance.util import merge_into_flat_obs
+from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
+from railrl.torch.algos.util import np_to_pytorch_batch
 
 
 class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
@@ -42,8 +44,10 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         :param cycle_taus_for_rollout: Decrement the tau passed into the
         policy during rollout?
         """
-        assert sample_train_goals_from in ['environment', 'replay_buffer', 'her']
-        assert sample_rollout_goals_from in ['environment', 'replay_buffer', 'fixed']
+        assert sample_train_goals_from in ['environment', 'replay_buffer',
+                                           'her']
+        assert sample_rollout_goals_from in ['environment', 'replay_buffer',
+                                             'fixed']
         if epoch_max_tau_schedule is None:
             epoch_max_tau_schedule = ConstantSchedule(max_tau)
 
@@ -178,8 +182,8 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         self.goal = self._sample_goal_for_rollout()
         self.training_env.set_goal(self.goal)
         self.exploration_policy.set_goal(self.goal)
-        # TODO(vitchyr): add cycle and use actual tau
-        self.exploration_policy.set_tau(self.discount)
+        self._rollout_discount = self.max_tau
+        self.exploration_policy.set_tau(self._rollout_discount)
         return self.training_env.reset()
 
     def _handle_step(
@@ -202,7 +206,11 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             env_infos=env_info,
             goals=self.goal,
         )
-        # TODO(vitchyr): add cycle
+        if self.cycle_taus_for_rollout:
+            self._rollout_discount -= 1
+            if self._rollout_discount < 0:
+                self._rollout_discount = self.max_tau
+            self.exploration_policy.set_tau(self._rollout_discount)
 
     def _handle_rollout_ending(self):
         self._n_rollouts_total += 1
