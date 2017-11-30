@@ -1,5 +1,7 @@
 import pickle
 
+import numpy as np
+
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.wrappers import convert_gym_space
@@ -48,3 +50,9 @@ def get_replay_buffer(variant, save_replay_buffer=False):
         dataset_path = variant['dataset_path']
         with open(dataset_path, 'rb') as handle:
             return pickle.load(handle)
+
+
+def merge_into_flat_obs(obs, goals, num_steps_left):
+    # Have a separate function so that if other code needs to merge obs,
+    # goals, and whatnot, it does it in the same way.
+    return np.hstack((obs, goals, num_steps_left))

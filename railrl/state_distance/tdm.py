@@ -110,16 +110,16 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         """
         Update the observations
         """
-        batch['observations'] = np.hstack((
-            batch['observations'],
-            batch['goals'],
-            num_steps_left,
-        ))
-        batch['next_observations'] = np.hstack((
-            batch['next_observations'],
-            batch['goals'],
-            num_steps_left - 1,
-        ))
+        batch['observations'] = merge_into_flat_obs(
+            obs=batch['observations'],
+            goals=batch['goals'],
+            num_steps_left=num_steps_left,
+        )
+        batch['next_observations'] = merge_into_flat_obs(
+            obs=batch['next_observations'],
+            goals=batch['goals'],
+            num_steps_left=num_steps_left-1,
+        )
 
         return np_to_pytorch_batch(batch)
 

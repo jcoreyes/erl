@@ -3,8 +3,9 @@ import numpy as np
 from railrl.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
 )
-from railrl.policies.base import ExplorationPolicy, Policy
+from railrl.policies.base import ExplorationPolicy
 from railrl.policies.state_distance import UniversalPolicy
+from railrl.state_distance.util import merge_into_flat_obs
 from railrl.torch.core import PyTorchModule
 from rllab.exploration_strategies.base import ExplorationStrategy
 
@@ -42,7 +43,11 @@ class MakeUniversal(PyTorchModule, UniversalExplorationPolicy):
         self.policy = policy
 
     def get_action(self, observation):
-        new_obs = np.hstack((observation, self._goal_np, self._tau_np))
+        new_obs = merge_into_flat_obs(
+            obs=observation,
+            goals=self._goal_np,
+            num_steps_left=self._tau_np,
+        )
         return self.policy.get_action(new_obs)
 
     def forward(self, *args, **kwargs):
