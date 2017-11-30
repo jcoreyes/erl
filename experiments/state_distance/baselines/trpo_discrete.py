@@ -1,17 +1,12 @@
 import random
 
 import railrl.misc.hyperparameter as hyp
-from railrl.envs.multitask.cartpole_env import CartPole, CartPoleAngleOnly
 from railrl.envs.multitask.discrete_reacher_2d import DiscreteReacher2D
-from railrl.envs.multitask.mountain_car_env import MountainCar
 from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
-from railrl.envs.wrappers import normalize_and_convert_to_rllab_env, \
-    ConvertEnvToRllab
+from railrl.envs.wrappers import ConvertEnvToRllab
 from railrl.launchers.launcher_util import run_experiment
 from rllab.algos.trpo import TRPO
 from rllab.baselines.linear_feature_baseline import LinearFeatureBaseline
-from rllab.envs.gym_env import convert_gym_space
-from rllab.envs.normalized_env import normalize
 from rllab.policies.categorical_mlp_policy import CategoricalMLPPolicy
 
 
@@ -23,8 +18,7 @@ def experiment(variant):
 
     policy = CategoricalMLPPolicy(
         env_spec=env.spec,
-        # The neural network policy should have two hidden layers, each with 32 hidden units.
-        hidden_sizes=(32, 32)
+        **variant['policy_kwargs'],
     )
 
     baseline = LinearFeatureBaseline(env_spec=env.spec)
@@ -46,9 +40,9 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-trpo-baseline"
 
-    # n_seeds = 3
-    # mode = "ec2"
-    # exp_prefix = "classic-env-trpo-baseline"
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "trpo-reacher-discerete-baseline"
 
     num_steps_per_iteration = 100000
     H = 200  # For CartPole and MountainVar, the max length is 200
@@ -65,6 +59,9 @@ if __name__ == "__main__":
         ),
         optimizer_params=dict(
             base_eps=1e-5,
+        ),
+        policy_kwargs=dict(
+            hidden_sizes=(100, 100),
         ),
         multitask=False,
     )
