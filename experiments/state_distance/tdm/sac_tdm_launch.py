@@ -57,12 +57,12 @@ if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
             base_kwargs=dict(
-                num_epochs=50,
+                num_epochs=25,
                 num_steps_per_epoch=1000,
                 num_steps_per_eval=1000,
-                num_updates_per_env_step=5,
+                num_updates_per_env_step=25,
                 batch_size=128,
-                max_path_length=200,
+                max_path_length=100,
                 discount=1,
             ),
             tdm_kwargs=dict(
@@ -72,6 +72,9 @@ if __name__ == "__main__":
             ),
             sac_kwargs=dict(
                 soft_target_tau=0.01,
+                policy_lr=3E-4,
+                qf_lr=3E-4,
+                vf_lr=3E-4,
             ),
         ),
         her_replay_buffer_params=dict(
@@ -92,8 +95,7 @@ if __name__ == "__main__":
         'env_class': [
             Reacher7DofAngleGoalState,
         ],
-        'algo_params.sac_kwargs.reward_scale': [
-            0.01,
+        'algo_params.base_kwargs.reward_scale': [
             0.1,
             1,
             10,
@@ -120,7 +122,8 @@ if __name__ == "__main__":
                 seed=seed,
                 variant=variant,
                 exp_id=exp_id,
-                exp_prefix="sac-tdm-reacher-7dof-angles-new-hps",
+                exp_prefix="sac-tdm-reacher-7dof-angles-sweep-reward-scale"
+                           "-fixed",
                 mode='ec2',
                 # exp_prefix="dev-tdm-sac",
                 # mode='local',
