@@ -15,9 +15,10 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
     An environment with a task that can be specified with a goal
     """
 
-    def __init__(self):
+    def __init__(self, distance_metric_order=1):
         self.multitask_goal = np.zeros(self.goal_dim)
         self.goal_dim_weights = np.ones(self.goal_dim)
+        self.distance_metric_order = distance_metric_order
 
     @property
     @abc.abstractmethod
@@ -85,7 +86,7 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
             self.convert_obs_to_goals(next_obs) - goals,
             axis=1,
             keepdims=True,
-            ord=1,
+            ord=self.distance_metric_order,
         )
 
     def convert_obs_to_goals_pytorch(self, obs):
@@ -110,6 +111,7 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         statistics = OrderedDict()
 
         observations = np.vstack([path['observations'] for path in paths])
+        next_observations = np.vstack([path['next_observations'] for path in paths])
         goals = np.vstack([path['goals'] for path in paths])
         actions = np.vstack([path['actions'] for path in paths])
         final_differences = []
@@ -139,10 +141,10 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
                 always_show_all_stats=True,
             ))
         rewards = self.compute_rewards(
-            observations[:-1, ...],
-            actions[:-1, ...],
-            observations[1:, ...],
-            goals[:-1, ...],
+            observations,
+            actions,
+            next_observations,
+            goals,
         )
         statistics.update(create_stats_ordered_dict(
             'Multitask Env Rewards', rewards,
