@@ -69,23 +69,24 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
-    n_seeds = 3
+    n_seeds = 1
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
             base_kwargs=dict(
-                num_epochs=50,
+                num_epochs=25,
                 num_steps_per_epoch=1000,
                 num_steps_per_eval=1000,
-                num_updates_per_env_step=10,
+                num_updates_per_env_step=25,
                 batch_size=64,
-                max_path_length=200,
+                max_path_length=100,
                 discount=1,
             ),
             tdm_kwargs=dict(
                 sample_rollout_goals_from='environment',
                 sample_train_goals_from='her',
                 vectorized=True,
+                max_tau=10,
             ),
             ddpg_kwargs=dict(
                 tau=0.001,
@@ -94,15 +95,15 @@ if __name__ == "__main__":
             ),
         ),
         her_replay_buffer_params=dict(
-            max_size=int(1E6),
+            max_size=int(2E5),
             num_goals_to_sample=4,
         ),
         qf_params=dict(
-            hidden_sizes=[100, 100],
+            hidden_sizes=[300, 300],
         ),
         policy_params=dict(
-            fc1_size=100,
-            fc2_size=100,
+            fc1_size=300,
+            fc2_size=300,
         ),
         qf_criterion_class=HuberLoss,
         qf_criterion_params=dict(),
@@ -136,7 +137,7 @@ if __name__ == "__main__":
                 seed=seed,
                 variant=variant,
                 exp_id=exp_id,
-                exp_prefix="tdm-ddpg-reacher7dof-angles-sweep",
+                exp_prefix="tdm-ddpg-reacher7dof-angles-sweep-path-length-100",
                 mode='ec2',
                 # exp_prefix="dev-tdm-ddpg",
                 # mode='local',
