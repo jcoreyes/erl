@@ -1,9 +1,11 @@
 import abc
+import numpy as np
 from railrl.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
 )
-from railrl.policies.base import ExplorationPolicy
+from railrl.policies.base import ExplorationPolicy, Policy
 from railrl.policies.state_distance import UniversalPolicy
+from railrl.torch.core import PyTorchModule
 from rllab.exploration_strategies.base import ExplorationStrategy
 
 
@@ -31,3 +33,17 @@ class UniversalPolicyWrappedWithExplorationStrategy(
 
     def set_discount(self, discount):
         self.policy.set_discount(discount)
+
+
+class MakeUniversal(PyTorchModule, UniversalExplorationPolicy):
+    def __init__(self, policy):
+        self.save_init_params(locals())
+        super().__init__()
+        self.policy = policy
+
+    def get_action(self, observation):
+        new_obs = np.hstack((observation, self._goal_np, self._discount_np))
+        return self.policy.get_action(new_obs)
+
+    def forward(self, *args, **kwargs):
+        return self.policy(*args, **kwargs)

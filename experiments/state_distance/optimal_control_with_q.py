@@ -118,7 +118,7 @@ if __name__ == "__main__":
         tau = init_tau
         policy.set_discount(tau)
         for _ in range(args.num_rollouts):
-            goal = env.sample_goal_state_for_rollout()
+            goal = env.sample_goal_for_rollout()
             if args.verbose:
                 env.print_goal_state_info(goal)
             env.set_goal(goal)

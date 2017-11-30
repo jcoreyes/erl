@@ -2,6 +2,7 @@ import abc
 import pickle
 import time
 import gtimer as gt
+import numpy as np
 
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.path_builder import PathBuilder
@@ -22,6 +23,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             self,
             env,
             exploration_policy: ExplorationPolicy,
+            training_env=None,
             num_epochs=100,
             num_steps_per_epoch=10000,
             num_steps_per_eval=1000,
@@ -34,17 +36,47 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             render=False,
             save_replay_buffer=False,
             save_algorithm=False,
+            save_environment=True,
             eval_sampler=None,
             eval_policy=None,
             collection_mode='online',
             sim_throttle=False,
             normalize_env=True,
-            ratio=20,
+            parallel_step_to_train_ratio=20,
             replay_buffer=None,
-            fraction_paths_in_train=0.8,
+            fraction_paths_in_train=1.,
     ):
+        """
+        Base class for RL Algorithms
+        :param env: Environment used to evaluate.
+        :param exploration_policy: Policy used to explore
+        :param training_env: Environment used by the algorithm. By default, a
+        copy of `env` will be made.
+        :param num_epochs:
+        :param num_steps_per_epoch:
+        :param num_steps_per_eval:
+        :param num_updates_per_env_step:
+        :param batch_size:
+        :param max_path_length:
+        :param discount:
+        :param replay_buffer_size:
+        :param reward_scale:
+        :param render:
+        :param save_replay_buffer:
+        :param save_algorithm:
+        :param save_environment:
+        :param eval_sampler:
+        :param eval_policy: Policy to evaluate with.
+        :param collection_mode:
+        :param sim_throttle:
+        :param normalize_env:
+        :param parallel_step_to_train_ratio:
+        :param replay_buffer:
+        :param fraction_paths_in_train:
+        """
         assert collection_mode in ['online', 'online-parallel', 'offline']
-        self.training_env = pickle.loads(pickle.dumps(env))
+        assert 0. <= fraction_paths_in_train <= 1.
+        self.training_env = training_env or pickle.loads(pickle.dumps(env))
         self.normalize_env = normalize_env
         self.exploration_policy = exploration_policy
         self.num_epochs = num_epochs
@@ -60,6 +92,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.collection_mode = collection_mode
         self.save_replay_buffer = save_replay_buffer
         self.save_algorithm = save_algorithm
+        self.save_environment = save_environment
         if eval_sampler is None:
             if eval_policy is None:
                 eval_policy = exploration_policy
@@ -69,6 +102,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 max_samples=self.num_steps_per_eval + self.max_path_length,
                 max_path_length=self.max_path_length,
             )
+        self.eval_policy = eval_policy
         self.eval_sampler = eval_sampler
 
         self.action_space = convert_gym_space(env.action_space)
@@ -79,6 +113,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 self.replay_buffer = EnvReplayBuffer(
                     self.replay_buffer_size,
                     self.env,
+                    flatten=True,
                 )
             else:
                 self.replay_buffer = SplitReplayBuffer(
@@ -96,6 +131,10 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 )
         else:
             self.replay_buffer = replay_buffer
+        self.replay_buffer_is_split = isinstance(
+            self.replay_buffer,
+            SplitReplayBuffer
+        )
 
         self._n_env_steps_total = 0
         self._n_train_steps_total = 0
@@ -106,7 +145,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self._old_table_keys = None
         self._current_path_builder = PathBuilder()
         self._exploration_paths = []
-        self.parallel_sim_ratio = ratio
+        self.parallel_step_to_train_ratio = parallel_step_to_train_ratio
         self.sim_throttle = sim_throttle
         if self.collection_mode == 'online-parallel':
             # TODO(murtaza): What happens to the eval env?
@@ -157,6 +196,8 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 )
                 self._n_env_steps_total += 1
                 reward = raw_reward * self.scale_reward
+                terminal = np.array([terminal])
+                reward = np.array([reward])
                 self._handle_step(
                     observation,
                     action,
@@ -169,11 +210,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 if terminal or len(self._current_path_builder) >= self.max_path_length:
                     self._handle_rollout_ending()
                     observation = self._start_new_rollout()
-                    if len(self._current_path_builder) > 0:
-                        self._exploration_paths.append(
-                            self._current_path_builder.get_all_stacked()
-                        )
-                        self._current_path_builder = PathBuilder()
                 else:
                     observation = next_ob
 
@@ -192,7 +228,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self._start_epoch(epoch)
         while self._n_env_steps_total <= self.num_epochs * self.num_env_steps_per_epoch:
             if self.sim_throttle:
-                if epoch == 0 or self._n_env_steps_total//(self._n_train_steps_total+1) < self.parallel_sim_ratio:
+                if epoch == 0 or self._n_env_steps_total//(self._n_train_steps_total+1) < self.parallel_step_to_train_ratio:
                     path = self.training_env.rollout(
                         self.exploration_policy,
                         use_exploration_strategy=True,
@@ -364,7 +400,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             terminal,
             agent_info,
             env_info
-        ) in enumerate(zip(
+        ) in zip(
             path["observations"],
             path["actions"],
             path["rewards"],
@@ -372,7 +408,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             path["terminals"],
             path["agent_infos"],
             path["env_infos"],
-        )):
+        ):
             self._handle_step(
                 ob,
                 action,
@@ -400,10 +436,10 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         """
         self._current_path_builder.add_all(
             observations=observation,
+            actions=action,
             rewards=reward,
-            terminals=terminal,
             next_observations=next_observation,
-            actions=self.action_space.flatten(action),
+            terminals=terminal,
             agent_infos=agent_info,
             env_infos=env_info,
         )
@@ -423,15 +459,22 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         """
         self.replay_buffer.terminate_episode()
         self._n_rollouts_total += 1
+        if len(self._current_path_builder) > 0:
+            self._exploration_paths.append(
+                self._current_path_builder.get_all_stacked()
+            )
+            self._current_path_builder = PathBuilder()
 
     def get_epoch_snapshot(self, epoch):
         if self.render:
             self.training_env.render(close=True)
-        return dict(
+        data_to_save = dict(
             epoch=epoch,
             exploration_policy=self.exploration_policy,
-            env=self.training_env,
         )
+        if self.save_environment:
+            data_to_save['env'] = self.training_env
+        return data_to_save
 
     def get_extra_data_to_save(self, epoch):
         """
@@ -444,8 +487,9 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             self.training_env.render(close=True)
         data_to_save = dict(
             epoch=epoch,
-            env=self.training_env,
         )
+        if self.save_environment:
+            data_to_save['env'] = self.training_env
         if self.save_replay_buffer:
             data_to_save['replay_buffer'] = self.replay_buffer
         if self.save_algorithm:

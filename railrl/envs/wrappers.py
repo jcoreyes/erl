@@ -3,6 +3,7 @@ import gym.spaces
 from rllab.core.serializable import Serializable
 from rllab.envs.proxy_env import ProxyEnv
 from sandbox.rocky.tf.spaces import Box as TfBox
+from sandbox.rocky.tf.spaces import Discrete as TfDiscrete
 from rllab.spaces.box import Box
 from rllab.spaces.discrete import Discrete
 from rllab.spaces.product import Product
@@ -108,15 +109,22 @@ class NormalizedBoxEnv(ProxyEnv, Serializable):
 normalize_box = NormalizedBoxEnv
 
 
-class ConvertEnv(ProxyEnv, Serializable):
+class ConvertEnvToTf(ProxyEnv, Serializable):
     def __init__(self, env):
         Serializable.quick_init(self, locals())
         ProxyEnv.__init__(self, env)
 
     @property
     def action_space(self):
-        return TfBox(super().action_space.low,
-                   super().action_space.high)
+        action_space = self._wrapped_env.action_space
+        if isinstance(action_space, TfBox) or isinstance(action_space,
+                                                         TfDiscrete):
+            return action_space
+        if isinstance(action_space, Box) or isinstance(action_space, gym.spaces.Box):
+            return TfBox(action_space.low, action_space.high)
+        elif isinstance(action_space, Discrete) or isinstance(action_space, gym.spaces.Discrete):
+            return TfDiscrete(action_space.n)
+        raise TypeError()
 
     @property
     def observation_space(self):
@@ -140,14 +148,14 @@ class ConvertEnv(ProxyEnv, Serializable):
             self.wrapped_env.terminate()
 
 
-convert_to_tf_env = ConvertEnv
+convert_to_tf_env = ConvertEnvToTf
 
 
-class NormalizeAndConvertEnv(NormalizedBoxEnv, ConvertEnv):
+class NormalizeAndConvertEnv(NormalizedBoxEnv, ConvertEnvToTf):
     @property
     def action_space(self):
-        return TfBox(super().action_space.low,
-                     super().action_space.high)
+        # Apparently this is how you call a super's property
+        return ConvertEnvToTf.action_space.fget(self)
 
     @property
     def observation_space(self):
@@ -157,7 +165,7 @@ class NormalizeAndConvertEnv(NormalizedBoxEnv, ConvertEnv):
     def __str__(self):
         return "TfNormalizedAndConverted: %s" % self._wrapped_env
 
-normalize_and_convert_to_tf_env = ConvertEnv
+normalize_and_convert_to_tf_env = NormalizeAndConvertEnv
 
 
 def convert_gym_space(space):

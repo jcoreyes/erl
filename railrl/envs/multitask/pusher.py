@@ -97,7 +97,7 @@ class HandPuckXYZPusher3DEnv(MultitaskPusherEnv):
     def sample_irrelevant_goal_dimensions(self, goal, batch_size):
         raise NotImplementedError()
 
-    def convert_obs_to_goal_states(self, obs):
+    def convert_obs_to_goals(self, obs):
         return obs[:, -6:]
 
     def goal_state_to_cylinder_xy(self, goal_state):
@@ -111,7 +111,7 @@ class HandPuckXYZPusher3DEnv(MultitaskPusherEnv):
             self.get_body_com("object"),
         ])
 
-    def sample_goal_states(self, batch_size):
+    def sample_goals(self, batch_size):
         return self.np_random.uniform(
             np.array([-0.75, -1.25, -0.2, -0.3, -0.2, -0.275]),
             np.array([0.75, 0.25, 0.6, 0, 0.2, -0.275]),

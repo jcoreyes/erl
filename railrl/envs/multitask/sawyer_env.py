@@ -148,7 +148,7 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
         self.remove_action = remove_action
         self.arm_name = arm_name
         self.safe_reset_length = safe_reset_length
-        
+
         if self.task == 'reaching':
             self.end_effector_experiment_position = True
             self.fixed_end_effector = True
@@ -249,7 +249,7 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
         else:
             return 7
 
-    def sample_goal_states(self, batch_size):
+    def sample_goals(self, batch_size):
         if self.task == 'reaching':
             return np.random.uniform(box_lows, box_highs, size=(batch_size, 3))[0]
         else:
@@ -265,9 +265,9 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
         return np.random.uniform(JOINT_VALUE_LOW['torque'], JOINT_VALUE_HIGH['torque'], (batch_size, 7))[0]
 
     def sample_states(self, batch_size):
-        return np.hstack((np.zeros(batch_size, 21), self.sample_goal_states(batch_size)))
+        return np.hstack((np.zeros(batch_size, 21), self.sample_goals(batch_size)))
 
-    def convert_obs_to_goal_states(self, obs):
+    def convert_obs_to_goals(self, obs):
         if self.task == 'reaching':
             return obs[:, 21:24]
         else:

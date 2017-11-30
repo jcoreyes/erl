@@ -15,14 +15,16 @@ from railrl.sac.sac import SoftActorCritic
 from railrl.sac.value_functions import ExpectableQF
 from railrl.torch.networks import FlattenMlp
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
+import railrl.misc.hyperparameter as hyp
 
 
 def experiment(variant):
-    env = normalize_box(MultiGoalEnv(
-        actuation_cost_coeff=10,
-        distance_cost_coeff=1,
-        goal_reward=10,
-    ))
+    # env = normalize_box(MultiGoalEnv(
+    #     actuation_cost_coeff=10,
+    #     distance_cost_coeff=1,
+    #     goal_reward=10,
+    # ))
+    env = normalize_box(HalfCheetahEnv())
 
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
@@ -32,18 +34,19 @@ def experiment(variant):
         # action_dim=action_dim,
         # hidden_size=100,
     # )
+    net_size = variant['net_size']
     qf = FlattenMlp(
-        hidden_sizes=[100],
+        hidden_sizes=[net_size, net_size],
         input_size=obs_dim + action_dim,
         output_size=1,
     )
     vf = FlattenMlp(
-        hidden_sizes=[100],
+        hidden_sizes=[net_size, net_size],
         input_size=obs_dim,
         output_size=1,
     )
     policy = TanhGaussianPolicy(
-        hidden_sizes=[100],
+        hidden_sizes=[net_size, net_size],
         obs_dim=obs_dim,
         action_dim=action_dim,
     )
@@ -75,26 +78,48 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
-            num_epochs=100,
+            num_epochs=1000,
             num_steps_per_epoch=1000,
-            num_steps_per_eval=300,
-            batch_size=64,
-            max_path_length=30,
-            reward_scale=0.3,
+            num_steps_per_eval=1000,
+            batch_size=128,
+            max_path_length=999,
             discount=0.99,
+
             soft_target_tau=0.001,
+            policy_lr=3E-4,
+            qf_lr=3E-4,
+            vf_lr=3E-4,
+
             expected_qf_estim_strategy='sample',
             expected_log_pi_estim_strategy='sample',
         ),
+        net_size=300,
         version="original-normal-qf",
     )
-    for _ in range(5):
-        seed = random.randint(0, 999999)
-        run_experiment(
-            experiment,
-            seed=seed,
-            variant=variant,
-            exp_prefix="sac-multigoal-sweep",
-            mode='ec2',
-            use_gpu=False,
-        )
+    search_space = {
+        'algo_params.expected_qf_estim_strategy': [
+            'mean_action',
+            'sample',
+        ],
+        'algo_params.expected_log_pi_estim_strategy': [
+            'mean_action',
+            'sample',
+        ],
+    }
+    sweeper = hyp.DeterministicHyperparameterSweeper(
+        search_space, default_parameters=variant,
+    )
+    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+        for _ in range(3):
+            seed = random.randint(0, 999999)
+            run_experiment(
+                experiment,
+                exp_id=exp_id,
+                seed=seed,
+                variant=variant,
+                exp_prefix="expected-sac-cheetah-sweep-2",
+                mode='ec2',
+                use_gpu=False,
+                # exp_prefix="dev-expected-sac-cheetah-sweep",
+                # mode='local',
+            )

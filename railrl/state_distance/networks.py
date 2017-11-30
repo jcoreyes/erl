@@ -667,7 +667,7 @@ class FFUniversalPolicy(PyTorchModule, UniversalPolicy):
             self,
             obs_dim,
             action_dim,
-            goal_state_dim,
+            goal_dim,
             fc1_size,
             fc2_size,
             init_w=3e-3,
@@ -676,6 +676,7 @@ class FFUniversalPolicy(PyTorchModule, UniversalPolicy):
     ):
         self.save_init_params(locals())
         super().__init__()
+        UniversalPolicy.__init__(self)
 
         self.obs_dim = obs_dim
         self.action_dim = action_dim
@@ -683,7 +684,7 @@ class FFUniversalPolicy(PyTorchModule, UniversalPolicy):
         self.fc2_size = fc2_size
         self.hidden_init = hidden_init
 
-        self.fc1 = nn.Linear(obs_dim + goal_state_dim + 1, fc1_size)
+        self.fc1 = nn.Linear(obs_dim + goal_dim + 1, fc1_size)
         self.fc2 = nn.Linear(fc1_size, fc2_size)
         self.last_fc = nn.Linear(fc2_size, action_dim)
 
@@ -695,8 +696,8 @@ class FFUniversalPolicy(PyTorchModule, UniversalPolicy):
         self.last_fc.weight.data.uniform_(-init_w, init_w)
         self.last_fc.bias.data.uniform_(-init_w, init_w)
 
-    def forward(self, obs, goal_state, discount):
-        h = torch.cat((obs, goal_state, discount), dim=1)
+    def forward(self, obs, goal, discount):
+        h = torch.cat((obs, goal, discount), dim=1)
         h = F.relu(self.fc1(h))
         h = F.relu(self.fc2(h))
         return F.tanh(self.last_fc(h))
