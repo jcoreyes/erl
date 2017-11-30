@@ -40,6 +40,7 @@ class MakeUniversal(PyTorchModule, UniversalExplorationPolicy):
     def __init__(self, policy):
         self.save_init_params(locals())
         super().__init__()
+        UniversalExplorationPolicy.__init__(self)
         self.policy = policy
 
     def get_action(self, observation):

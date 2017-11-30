@@ -9,6 +9,8 @@ class CartPole(CartPoleEnv, MultitaskEnv, Serializable):
     def __init__(self):
         Serializable.quick_init(self, locals())
         super().__init__()
+        MultitaskEnv.__init__(self)
+        self.multitask_goal = np.zeros(4)
 
     def sample_goals(self, batch_size):
         return np.random.uniform(
@@ -32,6 +34,8 @@ class CartPoleAngleOnly(CartPoleEnv, MultitaskEnv, Serializable):
     def __init__(self):
         Serializable.quick_init(self, locals())
         super().__init__()
+        MultitaskEnv.__init__(self)
+        self.multitask_goal = np.zeros(1)
 
     def sample_goals(self, batch_size):
         return np.random.uniform(
