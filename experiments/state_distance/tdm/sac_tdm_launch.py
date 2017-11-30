@@ -120,7 +120,7 @@ if __name__ == "__main__":
                 seed=seed,
                 variant=variant,
                 exp_id=exp_id,
-                exp_prefix="sac-ddpg-reacher-7dof-angles-new-hps",
+                exp_prefix="sac-tdm-reacher-7dof-angles-new-hps",
                 mode='ec2',
                 # exp_prefix="dev-tdm-sac",
                 # mode='local',
