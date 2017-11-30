@@ -18,14 +18,15 @@ def experiment(variant):
 
     obs_dim = int(np.prod(env.observation_space.low.shape))
     action_dim = int(np.prod(env.action_space.low.shape))
+    vectorized = variant['algo_params']['tdm_kwargs']['vectorized']
     qf = FlattenMlp(
         input_size=obs_dim + action_dim + env.goal_dim + 1,
-        output_size=1,
+        output_size=env.goal_dim if vectorized else 1,
         **variant['qf_params']
     )
     vf = FlattenMlp(
         input_size=obs_dim + env.goal_dim + 1,
-        output_size=1,
+        output_size=env.goal_dim if vectorized else 1,
         **variant['vf_params']
     )
     policy = TanhGaussianPolicy(
@@ -51,21 +52,23 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
-    n_seeds = 5
+    n_seeds = 1
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
             base_kwargs=dict(
-                num_epochs=500,
+                num_epochs=50,
                 num_steps_per_epoch=1000,
                 num_steps_per_eval=1000,
-                num_updates_per_env_step=10,
+                num_updates_per_env_step=5,
                 batch_size=128,
-                max_path_length=100,
+                max_path_length=200,
                 discount=1,
             ),
             tdm_kwargs=dict(
-                vectorized=False,
+                sample_rollout_goals_from='environment',
+                sample_train_goals_from='her',
+                vectorized=True,
             ),
             sac_kwargs=dict(
                 soft_target_tau=0.01,
@@ -76,19 +79,35 @@ if __name__ == "__main__":
             num_goals_to_sample=4,
         ),
         qf_params=dict(
-            hidden_sizes=[300, 300],
+            hidden_sizes=[100, 100],
         ),
         vf_params=dict(
-            hidden_sizes=[300, 300],
+            hidden_sizes=[100, 100],
         ),
         policy_params=dict(
-            hidden_sizes=[300, 300],
+            hidden_sizes=[100, 100],
         ),
     )
     search_space = {
         'env_class': [
             Reacher7DofAngleGoalState,
-        ]
+        ],
+        'algo_params.sac_kwargs.reward_scale': [
+            0.01,
+            0.1,
+            1,
+            10,
+            100,
+            1000,
+        ],
+        'algo_params.tdm_kwargs.vectorized': [
+            True,
+            False,
+        ],
+        'algo_params.tdm_kwargs.cycle_taus_for_rollout': [
+            True,
+            False,
+        ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -101,9 +120,8 @@ if __name__ == "__main__":
                 seed=seed,
                 variant=variant,
                 exp_id=exp_id,
-                exp_prefix="sac-ddpg-reacher-7dof-angles-normalized",
+                exp_prefix="sac-ddpg-reacher-7dof-angles-new-hps",
                 mode='ec2',
-                use_gpu=False,
                 # exp_prefix="dev-tdm-sac",
                 # mode='local',
                 # use_gpu=True,
