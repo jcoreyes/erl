@@ -1,6 +1,7 @@
 import random
 
 import numpy as np
+from torch import nn as nn
 
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
@@ -18,7 +19,7 @@ from railrl.torch.modules import HuberLoss
 
 
 def experiment(variant):
-    env = normalize_box(variant['env_class']())
+    env = normalize_box(variant['env_class'](**variant['env_kwargs']))
 
     obs_dim = int(np.prod(env.observation_space.low.shape))
     action_dim = int(np.prod(env.action_space.low.shape))
@@ -76,9 +77,9 @@ if __name__ == "__main__":
                 num_epochs=50,
                 num_steps_per_epoch=1000,
                 num_steps_per_eval=1000,
-                num_updates_per_env_step=25,
+                num_updates_per_env_step=10,
                 batch_size=64,
-                max_path_length=100,
+                max_path_length=200,
                 discount=1,
             ),
             tdm_kwargs=dict(
@@ -97,11 +98,11 @@ if __name__ == "__main__":
             num_goals_to_sample=4,
         ),
         qf_params=dict(
-            hidden_sizes=[300, 300],
+            hidden_sizes=[100, 100],
         ),
         policy_params=dict(
-            fc1_size=300,
-            fc2_size=300,
+            fc1_size=100,
+            fc2_size=100,
         ),
         qf_criterion_class=HuberLoss,
         qf_criterion_params=dict(),
@@ -109,7 +110,20 @@ if __name__ == "__main__":
     search_space = {
         'env_class': [
             Reacher7DofAngleGoalState,
-        ]
+        ],
+        'algo_params.tdm_kwargs.vectorized': [
+            True,
+            False,
+        ],
+        'algo_params.tdm_kwargs.cycle_taus_for_rollout': [
+            True,
+            False,
+        ],
+        'env_kwargs.distance_metric_order': [1, 2],
+        'qf_criterion_class': [
+            nn.MSELoss,
+            HuberLoss,
+        ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -122,9 +136,8 @@ if __name__ == "__main__":
                 seed=seed,
                 variant=variant,
                 exp_id=exp_id,
-                exp_prefix="tdm-ddpg-reacher-7dof-angles-same-hps-as-sdql-2",
+                exp_prefix="tdm-ddpg-reacher7dof-angles-sweep",
                 mode='ec2',
-                use_gpu=False,
                 # exp_prefix="dev-tdm-ddpg",
                 # mode='local',
                 # use_gpu=True,
