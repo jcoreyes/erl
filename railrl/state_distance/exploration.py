@@ -31,8 +31,8 @@ class UniversalPolicyWrappedWithExplorationStrategy(
     def set_goal(self, goal_np):
         self.policy.set_goal(goal_np)
 
-    def set_discount(self, discount):
-        self.policy.set_discount(discount)
+    def set_tau(self, tau):
+        self.policy.set_tau(tau)
 
 
 class MakeUniversal(PyTorchModule, UniversalExplorationPolicy):
@@ -42,7 +42,7 @@ class MakeUniversal(PyTorchModule, UniversalExplorationPolicy):
         self.policy = policy
 
     def get_action(self, observation):
-        new_obs = np.hstack((observation, self._goal_np, self._discount_np))
+        new_obs = np.hstack((observation, self._goal_np, self._tau_np))
         return self.policy.get_action(new_obs)
 
     def forward(self, *args, **kwargs):

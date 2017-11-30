@@ -69,7 +69,7 @@ def multitask_rollout(
 ):
     env.set_goal(goal)
     agent.set_goal(goal)
-    agent.set_discount(discount)
+    agent.set_tau(discount)
     if decrement_discount:
         assert max_path_length >= discount
         path = rollout_decrement_tau(
@@ -124,7 +124,7 @@ def rollout_decrement_tau(env, agent, init_tau, max_path_length=np.inf,
     while path_length < max_path_length:
         a, agent_info = agent.get_action(o)
         next_o, r, d, env_info = env.step(a)
-        agent.set_discount(tau)
+        agent.set_tau(tau)
         observations.append(o)
         rewards.append(r)
         terminals.append(d)

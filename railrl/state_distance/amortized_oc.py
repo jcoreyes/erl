@@ -30,7 +30,7 @@ class AmortizedPolicy(PyTorchModule, UniversalPolicy):
         action = self.goal_reaching_policy(
             obs,
             goal,
-            self._discount_expanded_torch,
+            self._tau_expanded_torch,
         )
         action = action.squeeze(0)
         return ptu.get_numpy(action), {}

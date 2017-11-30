@@ -178,8 +178,8 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         self.goal = self._sample_goal_for_rollout()
         self.training_env.set_goal(self.goal)
         self.exploration_policy.set_goal(self.goal)
-        # TODO(vitchyr): rename this to set_tau
-        self.exploration_policy.set_discount(self.discount)
+        # TODO(vitchyr): add cycle and use actual tau
+        self.exploration_policy.set_tau(self.discount)
         return self.training_env.reset()
 
     def _handle_step(
@@ -201,7 +201,6 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             agent_infos=agent_info,
             env_infos=env_info,
             goals=self.goal,
-            # taus=self._rollout_discount,
         )
         # TODO(vitchyr): add cycle
 
