@@ -1,12 +1,8 @@
 import random
-
 import numpy as np
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
-
-import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
-from railrl.envs.multitask.reacher_7dof import Reacher7DofAngleGoalState
-from railrl.envs.wrappers import normalize_box
+from railrl.envs.multitask.sawyer_env import MultiTaskSawyerEnv
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
@@ -18,8 +14,7 @@ from railrl.torch.modules import HuberLoss
 
 
 def experiment(variant):
-    env = normalize_box(variant['env_class']())
-
+    env = MultiTaskSawyerEnv(**variant['env_params'])
     obs_dim = int(np.prod(env.observation_space.low.shape))
     action_dim = int(np.prod(env.action_space.low.shape))
     vectorized = variant['algo_params']['tdm_kwargs']['vectorized']
@@ -66,6 +61,14 @@ def experiment(variant):
         algorithm.cuda()
     algorithm.train()
 
+experiments=[
+    'joint_angle|fixed_angle',
+    'joint_angle|varying_angle',
+    'end_effector_position|fixed_ee',
+    'end_effector_position|varying_ee',
+    'end_effector_position_orientation|fixed_ee',
+    'end_effector_position_orientation|varying_ee'
+]
 
 if __name__ == "__main__":
     n_seeds = 3
@@ -73,10 +76,10 @@ if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
             base_kwargs=dict(
-                num_epochs=50,
+                num_epochs=60,
                 num_steps_per_epoch=1000,
                 num_steps_per_eval=1000,
-                num_updates_per_env_step=25,
+                num_updates_per_env_step=3,
                 batch_size=64,
                 max_path_length=100,
                 discount=1,
@@ -92,10 +95,29 @@ if __name__ == "__main__":
                 policy_learning_rate=1e-4,
             ),
         ),
+        sampler_es_class=OUStrategy,
+        sampler_es_params=dict(
+            theta=0.1,
+            max_sigma=0.1,
+            min_sigma=0.1,
+        ),
         her_replay_buffer_params=dict(
-            max_size=int(1E6),
+            max_size=200000,
             num_goals_to_sample=4,
         ),
+        env_params={
+            'arm_name': 'right',
+            'safety_box': True,
+            'loss': 'huber',
+            'huber_delta': 10,
+            'safety_force_magnitude': 7,
+            'temp': 15,
+            'remove_action': False,
+            'experiment': experiments[4],
+            'reward_magnitude': 10,
+            'use_safety_checks': False,
+            'task': 'lego',
+        },
         qf_params=dict(
             hidden_sizes=[300, 300],
         ),
@@ -106,26 +128,13 @@ if __name__ == "__main__":
         qf_criterion_class=HuberLoss,
         qf_criterion_params=dict(),
     )
-    search_space = {
-        'env_class': [
-            Reacher7DofAngleGoalState,
-        ]
-    }
-    sweeper = hyp.DeterministicHyperparameterSweeper(
-        search_space, default_parameters=variant,
+    run_experiment(
+        experiment,
+        seed=random.randint(0, 666),
+        exp_prefix="sdql-sawyer-lego-block-stacking-TEST",
+        mode="local",
+        variant=variant,
+        exp_id=0,
+        use_gpu=True,
+        snapshot_mode="last",
     )
-    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        for i in range(n_seeds):
-            seed = random.randint(0, 10000)
-            run_experiment(
-                experiment,
-                seed=seed,
-                variant=variant,
-                exp_id=exp_id,
-                exp_prefix="tdm-ddpg-reacher-7dof-angles-same-hps-as-sdql-2",
-                mode='local',
-                use_gpu=False,
-                # exp_prefix="dev-tdm-ddpg",
-                # mode='local',
-                # use_gpu=True,
-            )

@@ -43,7 +43,8 @@ env = SawyerEnv('right', experiment=experiments[0], safety_force_magnitude=5, te
 # print(env.is_in_box(env.arm.endpoint_pose))
 # # while True:
 pose = env.arm.endpoint_pose()['position']
-pose = np.array([pose.x, pose.y, pose.z])
+orientation = env.arm.endpoint_pose()['orientation']
+pose = np.array([pose.x, pose.y, pose.z, orientation.x, orientation.y, orientation.z, orientation.w])
 print(pose)
 # env.update_pose_and_jacobian_dict()
 # env.check_joints_in_box(env.pose_jacobian_dict)

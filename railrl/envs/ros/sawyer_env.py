@@ -537,7 +537,7 @@ class SawyerEnv(Env, Serializable):
             self._rs.enable()
         self.nan_check(action)
         actual_commanded_action = self._act(action)
-
+        print(self.desired)
         observation = self._get_observation()
 
         if self.joint_angle_experiment:
