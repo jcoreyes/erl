@@ -16,7 +16,8 @@ import railrl.misc.hyperparameter as hyp
 
 
 def experiment(variant):
-    env = normalize_box(Reacher7DofAngleGoalState())
+    env = variant['env_class']()
+    env = normalize_box(env)
     if variant['multitask']:
         env = MultitaskToFlatEnv(env)
 
@@ -81,7 +82,7 @@ if __name__ == "__main__":
             vf_lr=3E-4,
         ),
         net_size=300,
-        version="SAC",
+        version="SAC-actually-cheetah",
         algorithm="SAC",
     )
     search_space = {
