@@ -11,11 +11,13 @@ from rllab.misc import logger
 
 MAX_SPEED = 10
 
+
 class GoalXVelHalfCheetah(HalfCheetahEnv, MultitaskEnv):
     def __init__(self):
         self.target_x_vel = np.random.uniform(-MAX_SPEED, MAX_SPEED)
         super().__init__()
         MultitaskEnv.__init__(self)
+        self.set_goal(np.array([5]))
 
     def sample_actions(self, batch_size):
         return np.random.uniform(-0.5, -0.5, (batch_size, 6))
