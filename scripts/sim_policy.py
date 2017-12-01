@@ -14,6 +14,8 @@ def simulate_policy(args):
     data = joblib.load(args.file)
     if 'policy' in data:
         policy = data['policy']
+    elif 'exploration_policy' in data:
+        policy = data['exploration_policy']
     elif 'naf_policy' in data:
         policy = data['naf_policy']
     elif 'optimizable_qfunction' in data:
