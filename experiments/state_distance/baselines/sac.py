@@ -3,8 +3,9 @@ import random
 import numpy as np
 
 import railrl.torch.pytorch_util as ptu
-from railrl.envs.multitask.multitask_env import multitask_to_flat_env
-from railrl.envs.multitask.reacher_7dof import Reacher7DofAngleGoalState
+from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
+from railrl.envs.multitask.reacher_7dof import Reacher7DofAngleGoalState, \
+    Reacher7DofGoalStateEverything
 from railrl.envs.wrappers import normalize_box
 from railrl.launchers.launcher_util import run_experiment
 from railrl.sac.policies import TanhGaussianPolicy
@@ -15,7 +16,8 @@ import railrl.misc.hyperparameter as hyp
 
 def experiment(variant):
     env = normalize_box(Reacher7DofAngleGoalState())
-    env = multitask_to_flat_env(env)
+    if variant['multitask']:
+        env = MultitaskToFlatEnv(env)
 
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
@@ -49,14 +51,27 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
+    n_seeds = 1
+    mode = "local"
+    exp_prefix = "dev-state-distance-sac-baseline"
+
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "baselines-reacher-goal-state-everything"
+
+    num_epochs = 100
+    num_steps_per_epoch = 10000
+    num_steps_per_eval = 10000
+    max_path_length = 200
+
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
-            num_epochs=100,
-            num_steps_per_epoch=10000,
-            num_steps_per_eval=10000,
+            num_epochs=num_epochs,
+            num_steps_per_epoch=num_steps_per_epoch,
+            num_steps_per_eval=num_steps_per_eval,
+            max_path_length=max_path_length,
             batch_size=128,
-            max_path_length=100,
             discount=0.99,
 
             soft_target_tau=0.001,
@@ -65,25 +80,30 @@ if __name__ == "__main__":
             vf_lr=3E-4,
         ),
         net_size=300,
+        version="SAC",
+        algorithm="SAC",
     )
     search_space = {
+        'env_class': [
+            Reacher7DofGoalStateEverything,
+        ],
+        'multitask': [False, True],
         'algo_params.reward_scale': [
-            100, 10, 1, 0.1, 0.01
+            1000, 100, 10, 1, 0.1,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        for _ in range(3):
+        for _ in range(n_seeds):
             seed = random.randint(0, 999999)
             run_experiment(
                 experiment,
                 seed=seed,
                 variant=variant,
-                exp_prefix="sac-reacher-7dof-angles-only-sweep-reward-scale"
-                           "-multitask",
-                mode='ec2',
+                exp_prefix=exp_prefix,
+                mode=mode,
                 # exp_prefix="dev-sac-half-cheetah",
                 # mode='local',
             )

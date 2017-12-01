@@ -1,12 +1,9 @@
-import argparse
 import random
 
-from railrl.envs.env_utils import gym_env
-from railrl.envs.mujoco.pusher2d import RandomGoalPusher2DEnv
-from railrl.envs.multitask.her_half_cheetah import HalfCheetah
-from railrl.envs.multitask.her_pusher_env import Pusher2DEnv
-from railrl.envs.multitask.her_reacher_7dof_env import Reacher7Dof
-from railrl.envs.multitask.multitask_env import multitask_to_flat_env
+import railrl.misc.hyperparameter as hyp
+from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
+from railrl.envs.multitask.reacher_7dof import (
+    Reacher7DofGoalStateEverything)
 from railrl.envs.wrappers import normalize_box
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
@@ -15,21 +12,6 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.qfunctions.torch import FeedForwardQFunction
 from railrl.torch.algos.ddpg import DDPG
-import railrl.misc.hyperparameter as hyp
-
-from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
-from railrl.envs.multitask.pusher import (
-    JointOnlyPusherEnv,
-)
-from railrl.envs.multitask.reacher_7dof import (
-    Reacher7DofFullGoalState,
-    Reacher7DofMultitaskEnv, Reacher7DofGoalStateEverything,
-    Reacher7DofXyzGoalState, Reacher7DofAngleGoalState)
-from railrl.envs.multitask.pusher2d import HandCylinderXYPusher2DEnv, \
-    MultitaskPusher2DEnv
-from railrl.envs.multitask.reacher_env import (
-    GoalStateSimpleStateReacherEnv,
-)
 
 
 def experiment(variant):
@@ -38,8 +20,8 @@ def experiment(variant):
         env,
         **variant['normalize_params']
     )
-    env = multitask_to_flat_env(env)
-    # env = multitask_to_flat_env(env)
+    if variant['multitask']:
+        env = MultitaskToFlatEnv(env)
     es = OUStrategy(
         action_space=env.action_space,
         **variant['ou_params']
@@ -69,35 +51,34 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--render', action='store_true')
-    args = parser.parse_args()
-
     n_seeds = 1
     mode = "local"
     exp_prefix = "dev-state-distance-ddpg-baseline"
 
     n_seeds = 5
     mode = "ec2"
-    exp_prefix = "ddpg-reacher-7dof-angles-only-multitask"
+    exp_prefix = "baselines-reacher-goal-state-everything"
+
+    num_epochs = 100
+    num_steps_per_epoch = 10000
+    num_steps_per_eval = 10000
+    max_path_length = 200
 
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
-            render=args.render,
-            num_epochs=100,
-            num_steps_per_epoch=10000,
-            num_steps_per_eval=10000,
+            num_epochs=num_epochs,
+            num_steps_per_epoch=num_steps_per_epoch,
+            num_steps_per_eval=num_steps_per_eval,
+            max_path_length=max_path_length,
             use_soft_update=True,
             tau=1e-2,
             batch_size=128,
-            max_path_length=100,
             discount=0.99,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
             num_updates_per_env_step=1,
         ),
-        version="DDPG",
         normalize_params=dict(
             obs_mean=None,
             obs_std=None,
@@ -115,26 +96,14 @@ if __name__ == "__main__":
             observation_hidden_size=300,
             embedded_hidden_size=300,
         ),
+        version="DDPG",
+        algorithm="DDPG",
     )
     search_space = {
         'env_class': [
-            # GoalStateSimpleStateReacherEnv,
-            # Reacher7DofXyzGoalState,
-            # HandCylinderXYPusher2DEnv,
-            # Pusher2DEnv,
-            # HalfCheetah,
-            Reacher7DofAngleGoalState,
-            # Reacher7Dof,
-            # RandomGoalPusher2DEnv,
-            # MultitaskPusher2DEnv,
-            # Reacher7DofMultitaskEnv,
+            Reacher7DofGoalStateEverything,
         ],
-        # 'algo_params.num_updates_per_env_step': [
-        #     1, 5,
-        # ],
-        # 'algo_params.tau': [
-        #     1e-2, 1e-3,
-        # ],
+        'multitask': [False, True],
         'algo_params.reward_scale': [
             10, 1, 0.1,
         ],
@@ -153,6 +122,4 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 use_gpu=False,
-                # snapshot_mode="gap_and_last",
-                # snapshot_gap=50,
             )
