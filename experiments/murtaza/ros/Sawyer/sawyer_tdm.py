@@ -76,7 +76,7 @@ if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
             base_kwargs=dict(
-                num_epochs=60,
+                num_epochs=100,
                 num_steps_per_epoch=1000,
                 num_steps_per_eval=1000,
                 num_updates_per_env_step=3,
@@ -98,8 +98,8 @@ if __name__ == "__main__":
         sampler_es_class=OUStrategy,
         sampler_es_params=dict(
             theta=0.1,
-            max_sigma=0.1,
-            min_sigma=0.1,
+            max_sigma=0.25,
+            min_sigma=0.25,
         ),
         her_replay_buffer_params=dict(
             max_size=200000,
@@ -131,7 +131,7 @@ if __name__ == "__main__":
     run_experiment(
         experiment,
         seed=random.randint(0, 666),
-        exp_prefix="sdql-sawyer-lego-block-stacking-TEST",
+        exp_prefix="sdql-sawyer-lego-block-stacking-lorentz",
         mode="local",
         variant=variant,
         exp_id=0,

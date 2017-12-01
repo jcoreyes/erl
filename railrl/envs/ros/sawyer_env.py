@@ -1,7 +1,7 @@
 import math
 import time
 from collections import OrderedDict
-
+import tf
 import intera_interface as ii
 import numpy as np
 import rospy
@@ -384,6 +384,7 @@ class SawyerEnv(Env, Serializable):
         self.in_reset = True
         # self.amplify = 0.5 * np.array([8, 7, 6, 5, 4, 3, 2])
         self.amplify=5*np.ones(7)
+        self.loss_param = {'delta':0.001, 'c':0.0025}
     @safe
     def _act(self, action):
         if self.safety_box:
@@ -501,6 +502,23 @@ class SawyerEnv(Env, Serializable):
                 pos.z
             ])
 
+    def _Lorentz_reward(self, differences_pos, differences_angle, action):
+        l2_dist = sum(np.array([2.5, 2.5, 0]) * (differences_pos) ** 2)
+        pos_cost = 0.1 * np.log(self.loss_param['c'] * l2_dist + self.loss_param['delta'])
+
+        euler_angle = self.compute_euler(differences_angle)
+        euler_alpha = np.abs(euler_angle[0])
+        euler_beta = np.abs(euler_angle[1])
+        angle_cost = ((np.pi - euler_alpha) ** 2 + euler_beta ** 2)
+
+        action_cost = sum(action ** 2)
+        reward = -action_cost - pos_cost - angle_cost
+        return reward
+
+    def compute_euler(self, differences_angle):
+        # change to use sine to compute the loss
+        return tf.transformations.euler_from_quaternion(differences_angle)
+
     def _MSE_reward(self, differences):
         reward = -np.mean(differences**2)
         return reward
@@ -530,24 +548,30 @@ class SawyerEnv(Env, Serializable):
             differences = np.sqrt(cos_diffs ** 2 + sin_diffs ** 2)
         return differences
 
-    def step(self, action):
+    def step(self, action, task='reaching'):
         if self._rs.state().stopped:
             print('VIBRATION')
             print(self.in_reset)
             self._rs.enable()
         self.nan_check(action)
         actual_commanded_action = self._act(action)
-        print(self.desired)
         observation = self._get_observation()
-
-        if self.joint_angle_experiment:
-            current = self._joint_angles()
-            differences = self.compute_angle_difference(current, self.desired)
-            reward = self.reward_function(differences)
-
-        elif self.end_effector_experiment_position or self.end_effector_experiment_total:
+        if task == 'lego':
             current = self._end_effector_pose()
-            reward = -1*np.linalg.norm(self.desired-current) * self.reward_magnitude
+            pos_diff = self.desired[:3] - current[:3]
+            angle_diff = self.compute_angle_difference(self.desired[3:7], current[3:7])
+            reward = self._Lorentz_reward(pos_diff, angle_diff, action)
+        else:
+            if self.joint_angle_experiment:
+                current = self._joint_angles()
+                differences = self.compute_angle_difference(current, self.desired)
+                reward = self.reward_function(differences)
+
+            elif self.end_effector_experiment_position or self.end_effector_experiment_total:
+                current = self._end_effector_pose()
+                # reward = -1*np.linalg.norm(self.desired-current) * self.reward_magnitude
+                differences = self.desired-current
+                reward = self.reward_function(differences)
 
         if self.use_safety_checks:
             out_of_box = self.safety_box_check()
@@ -694,8 +718,8 @@ class SawyerEnv(Env, Serializable):
 
         if not self.fixed_angle and self.joint_angle_experiment:
             self._randomize_desired_angles()
-        elif not self.fixed_end_effector and self.end_effector_experiment_position \
-                or self.end_effector_experiment_total:
+        elif not self.fixed_end_effector and not self.end_effector_experiment_position and not self.end_effector_experiment_total:
+            print('hello')
             self._randomize_desired_end_effector_pose()
 
         self.safe_move_to_neutral()

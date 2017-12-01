@@ -223,15 +223,14 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
                 END_EFFECTOR_VALUE_HIGH['position'],
                 END_EFFECTOR_VALUE_HIGH['angle'],
             ))
-            self.desired = np.array([ 0.55163955,-0.12448617,0.1503626,0.67082435,0.74052252,-0.03219646,-0.02417586])
+            self.desired = np.array([ 0.55163955,-0.12448617,0.103626,0.67082435,0.74052252,-0.03219646,-0.02417586])
 
-        
+
         self._observation_space = Box(lows, highs)
         self._rs = ii.RobotEnable(CHECK_VERSION)
         self.update_pose_and_jacobian_dict()
         self.in_reset = True
         self.amplify = 0.5 * np.array([8, 7, 6, 5, 4, 3, 2])
-
     def set_goal(self, goal):
         self.desired = goal
 
@@ -265,6 +264,9 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
             return obs[:, 21:24]
         else:
             return obs[:, 21:28]
+
+    def step(self, action):
+        return super().step(action, self.task)
 
     def _get_observation(self):
         angles = self._get_joint_values['angle']()
@@ -308,23 +310,22 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
                 last_orientations.append(obsSet[-1][24:28])
                 last_desired_orientations.append(goal_states[last_counter-1][3:7])
 
-        if self.task == 'reaching':
-            positions = np.array(positions)
-            position_distances = linalg.norm(positions - desired_positions, axis=1)
-            statistics.update(self._statistics_from_observations(
-                position_distances,
-                stat_prefix,
-                'Distance from Desired End Effector Position'
-            ))
+        positions = np.array(positions)
+        position_distances = linalg.norm(positions - desired_positions, axis=1)
+        statistics.update(self._statistics_from_observations(
+            position_distances,
+            stat_prefix,
+            'Distance from Desired End Effector Position'
+        ))
 
-            last_positions = np.array(last_positions)
-            last_desired_positions = np.array(last_desired_positions)
-            last_position_distances = linalg.norm(last_positions - last_desired_positions, axis=1)
-            statistics.update(self._statistics_from_observations(
-               last_position_distances,
-               stat_prefix,
-                'Final Distance from Desired End Effector Position'
-            ))
+        last_positions = np.array(last_positions)
+        last_desired_positions = np.array(last_desired_positions)
+        last_position_distances = linalg.norm(last_positions - last_desired_positions, axis=1)
+        statistics.update(self._statistics_from_observations(
+           last_position_distances,
+           stat_prefix,
+            'Final Distance from Desired End Effector Position'
+        ))
 
         if self.task == 'lego':
             orientations = np.array(orientations)
@@ -342,7 +343,7 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
             statistics.update(self._statistics_from_observations(
                 last_orientations_distances,
                 stat_prefix,
-                'Final Orientation from Desired End Effector Position'
+                'Final Distance from Desired End Effector Orientation'
             ))
 
         for key, value in statistics.items():
