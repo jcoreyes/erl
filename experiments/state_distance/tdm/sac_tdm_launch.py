@@ -57,13 +57,13 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-sac-tdm-launch"
 
-    # n_seeds = 5
-    # mode = "ec2"
-    # exp_prefix = "tdm-launch-goal-states-everything"
+    n_seeds = 1
+    mode = "ec2"
+    exp_prefix = "tdm-launch-goal-states-everything"
 
     num_epochs = 100
-    num_steps_per_epoch = 200
-    num_steps_per_eval = 200
+    num_steps_per_epoch = 10000
+    num_steps_per_eval = 10000
     max_path_length = 200
     # noinspection PyTypeChecker
     variant = dict(
@@ -73,7 +73,7 @@ if __name__ == "__main__":
                 num_steps_per_epoch=num_steps_per_epoch,
                 num_steps_per_eval=num_steps_per_eval,
                 max_path_length=max_path_length,
-                num_updates_per_env_step=25,
+                num_updates_per_env_step=1,
                 batch_size=128,
                 discount=1,
             ),
@@ -81,6 +81,8 @@ if __name__ == "__main__":
                 sample_rollout_goals_from='environment',
                 sample_train_goals_from='her',
                 vectorized=True,
+                cycle_taus_for_rollout=True,
+                max_tau=10,
             ),
             sac_kwargs=dict(
                 soft_target_tau=0.01,
@@ -90,7 +92,7 @@ if __name__ == "__main__":
             ),
         ),
         her_replay_buffer_params=dict(
-            max_size=int(1E6),
+            max_size=int(2E5),
             num_goals_to_sample=4,
         ),
         qf_params=dict(
@@ -110,20 +112,17 @@ if __name__ == "__main__":
             Reacher7DofGoalStateEverything,
         ],
         'algo_params.base_kwargs.reward_scale': [
-            0.1,
             1,
             10,
             100,
             1000,
+            10000,
         ],
         'algo_params.tdm_kwargs.vectorized': [
             True,
             False,
         ],
-        'algo_params.tdm_kwargs.cycle_taus_for_rollout': [
-            True,
-            False,
-        ],
+        'algo_params.tdm_kwargs.sample_rollout_goals_from': ['fixed', 'her'],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

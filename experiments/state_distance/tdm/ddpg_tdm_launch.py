@@ -20,7 +20,7 @@ from railrl.torch.modules import HuberLoss
 
 
 def experiment(variant):
-    env = normalize_box(variant['env_class'](**variant['env_kwargs']))
+    env = normalize_box(variant['env_class']())
 
     obs_dim = int(np.prod(env.observation_space.low.shape))
     action_dim = int(np.prod(env.action_space.low.shape))
@@ -74,13 +74,13 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-ddpg-tdm-launch"
 
-    # n_seeds = 5
-    # mode = "ec2"
-    # exp_prefix = "tdm-launch-goal-states-everything"
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "tdm-launch-goal-states-everything"
 
     num_epochs = 100
-    num_steps_per_epoch = 200
-    num_steps_per_eval = 200
+    num_steps_per_epoch = 10000
+    num_steps_per_eval = 10000
     max_path_length = 200
 
     # noinspection PyTypeChecker
@@ -91,7 +91,7 @@ if __name__ == "__main__":
                 num_steps_per_epoch=num_steps_per_epoch,
                 num_steps_per_eval=num_steps_per_eval,
                 max_path_length=max_path_length,
-                num_updates_per_env_step=25,
+                num_updates_per_env_step=1,
                 batch_size=64,
                 discount=1,
             ),
@@ -99,6 +99,7 @@ if __name__ == "__main__":
                 sample_rollout_goals_from='environment',
                 sample_train_goals_from='her',
                 vectorized=True,
+                cycle_taus_for_rollout=True,
                 max_tau=10,
             ),
             ddpg_kwargs=dict(
@@ -131,15 +132,7 @@ if __name__ == "__main__":
             True,
             False,
         ],
-        'algo_params.tdm_kwargs.cycle_taus_for_rollout': [
-            True,
-            False,
-        ],
-        'env_kwargs.distance_metric_order': [1, 2],
-        'qf_criterion_class': [
-            nn.MSELoss,
-            HuberLoss,
-        ],
+        'algo_params.tdm_kwargs.sample_rollout_goals_from': ['fixed', 'her'],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
