@@ -3,6 +3,7 @@ import random
 import numpy as np
 
 import railrl.torch.pytorch_util as ptu
+from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
 from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
 from railrl.envs.multitask.reacher_7dof import Reacher7DofAngleGoalState, \
     Reacher7DofGoalStateEverything
@@ -57,12 +58,12 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "baselines-reacher-goal-state-everything"
+    exp_prefix = "tdm-half-cheetah-x-vel"
 
     num_epochs = 100
-    num_steps_per_epoch = 10000
-    num_steps_per_eval = 10000
-    max_path_length = 200
+    num_steps_per_epoch = 50000
+    num_steps_per_eval = 50000
+    max_path_length = 500
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -85,7 +86,7 @@ if __name__ == "__main__":
     )
     search_space = {
         'env_class': [
-            Reacher7DofGoalStateEverything,
+            GoalXVelHalfCheetah,
         ],
         'multitask': [False, True],
         'algo_params.reward_scale': [

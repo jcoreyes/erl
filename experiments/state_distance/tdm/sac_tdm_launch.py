@@ -57,15 +57,15 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-sac-tdm-launch"
 
-    n_seeds = 1
+    n_seeds = 2
     mode = "ec2"
-    # exp_prefix = "tdm-half-cheetah-x-vel"
-    exp_prefix = "tdm-launch-goal-states-everything"
+    exp_prefix = "tdm-half-cheetah-x-vel"
 
     num_epochs = 100
-    num_steps_per_epoch = 10000
-    num_steps_per_eval = 10000
-    max_path_length = 200
+    num_steps_per_epoch = 50000
+    num_steps_per_eval = 50000
+    max_path_length = 500
+
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
@@ -110,8 +110,7 @@ if __name__ == "__main__":
     )
     search_space = {
         'env_class': [
-            # GoalXVelHalfCheetah,
-            Reacher7DofGoalStateEverything,
+            GoalXVelHalfCheetah,
         ],
         'algo_params.base_kwargs.reward_scale': [
             1,
@@ -125,8 +124,9 @@ if __name__ == "__main__":
             False,
         ],
         'algo_params.tdm_kwargs.sample_rollout_goals_from': [
-            # 'fixed',
-                                                             'environment'],
+            'fixed',
+            'environment',
+        ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
