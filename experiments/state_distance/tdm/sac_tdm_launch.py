@@ -5,7 +5,8 @@ import numpy as np
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.envs.multitask.reacher_7dof import Reacher7DofAngleGoalState
+from railrl.envs.multitask.reacher_7dof import Reacher7DofAngleGoalState, \
+    Reacher7DofGoalStateEverything
 from railrl.envs.wrappers import normalize_box
 from railrl.launchers.launcher_util import run_experiment
 from railrl.sac.policies import TanhGaussianPolicy
@@ -53,16 +54,27 @@ def experiment(variant):
 
 if __name__ == "__main__":
     n_seeds = 1
+    mode = "local"
+    exp_prefix = "dev-sac-tdm-launch"
+
+    # n_seeds = 5
+    # mode = "ec2"
+    # exp_prefix = "tdm-launch-goal-states-everything"
+
+    num_epochs = 100
+    num_steps_per_epoch = 200
+    num_steps_per_eval = 200
+    max_path_length = 200
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
             base_kwargs=dict(
-                num_epochs=25,
-                num_steps_per_epoch=1000,
-                num_steps_per_eval=1000,
+                num_epochs=num_epochs,
+                num_steps_per_epoch=num_steps_per_epoch,
+                num_steps_per_eval=num_steps_per_eval,
+                max_path_length=max_path_length,
                 num_updates_per_env_step=25,
                 batch_size=128,
-                max_path_length=100,
                 discount=1,
             ),
             tdm_kwargs=dict(
@@ -90,10 +102,12 @@ if __name__ == "__main__":
         policy_params=dict(
             hidden_sizes=[100, 100],
         ),
+        version="SAC-TDM",
+        algorithm="SAC-TDM",
     )
     search_space = {
         'env_class': [
-            Reacher7DofAngleGoalState,
+            Reacher7DofGoalStateEverything,
         ],
         'algo_params.base_kwargs.reward_scale': [
             0.1,
@@ -122,10 +136,6 @@ if __name__ == "__main__":
                 seed=seed,
                 variant=variant,
                 exp_id=exp_id,
-                exp_prefix="sac-tdm-reacher-7dof-angles-sweep-reward-scale"
-                           "-fixed",
-                mode='ec2',
-                # exp_prefix="dev-tdm-sac",
-                # mode='local',
-                # use_gpu=True,
+                exp_prefix=exp_prefix,
+                mode=mode,
             )

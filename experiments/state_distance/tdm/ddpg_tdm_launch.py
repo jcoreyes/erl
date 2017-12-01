@@ -6,7 +6,8 @@ from torch import nn as nn
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.envs.multitask.reacher_7dof import Reacher7DofAngleGoalState
+from railrl.envs.multitask.reacher_7dof import Reacher7DofAngleGoalState, \
+    Reacher7DofGoalStateEverything
 from railrl.envs.wrappers import normalize_box
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
@@ -70,16 +71,28 @@ def experiment(variant):
 
 if __name__ == "__main__":
     n_seeds = 1
+    mode = "local"
+    exp_prefix = "dev-ddpg-tdm-launch"
+
+    # n_seeds = 5
+    # mode = "ec2"
+    # exp_prefix = "tdm-launch-goal-states-everything"
+
+    num_epochs = 100
+    num_steps_per_epoch = 200
+    num_steps_per_eval = 200
+    max_path_length = 200
+
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
             base_kwargs=dict(
-                num_epochs=25,
-                num_steps_per_epoch=1000,
-                num_steps_per_eval=1000,
+                num_epochs=num_epochs,
+                num_steps_per_epoch=num_steps_per_epoch,
+                num_steps_per_eval=num_steps_per_eval,
+                max_path_length=max_path_length,
                 num_updates_per_env_step=25,
                 batch_size=64,
-                max_path_length=100,
                 discount=1,
             ),
             tdm_kwargs=dict(
@@ -107,10 +120,12 @@ if __name__ == "__main__":
         ),
         qf_criterion_class=HuberLoss,
         qf_criterion_params=dict(),
+        version="DDPG-TDM",
+        algorithm="DDPG-TDM",
     )
     search_space = {
         'env_class': [
-            Reacher7DofAngleGoalState,
+            Reacher7DofGoalStateEverything,
         ],
         'algo_params.tdm_kwargs.vectorized': [
             True,
@@ -137,9 +152,6 @@ if __name__ == "__main__":
                 seed=seed,
                 variant=variant,
                 exp_id=exp_id,
-                exp_prefix="tdm-ddpg-reacher7dof-angles-sweep-path-length-100",
-                mode='ec2',
-                # exp_prefix="dev-tdm-ddpg",
-                # mode='local',
-                # use_gpu=True,
+                exp_prefix=exp_prefix,
+                mode=mode,
             )
