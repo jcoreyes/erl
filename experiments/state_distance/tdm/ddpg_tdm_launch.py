@@ -1,13 +1,12 @@
 import random
 
 import numpy as np
-from torch import nn as nn
 
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.envs.multitask.reacher_7dof import Reacher7DofAngleGoalState, \
-    Reacher7DofGoalStateEverything
+from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
+from railrl.envs.multitask.reacher_7dof import Reacher7DofGoalStateEverything
 from railrl.envs.wrappers import normalize_box
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
@@ -76,6 +75,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = "ec2"
+    # exp_prefix = "tdm-half-cheetah-x-vel"
     exp_prefix = "tdm-launch-goal-states-everything"
 
     num_epochs = 100
@@ -121,24 +121,32 @@ if __name__ == "__main__":
         ),
         qf_criterion_class=HuberLoss,
         qf_criterion_params=dict(),
-        version="DDPG-TDM",
+        version="DDPG-TDM-2",
         algorithm="DDPG-TDM",
     )
     search_space = {
         'env_class': [
+            # GoalXVelHalfCheetah,
             Reacher7DofGoalStateEverything,
         ],
         'algo_params.tdm_kwargs.vectorized': [
             True,
             False,
         ],
-        'algo_params.tdm_kwargs.sample_rollout_goals_from': ['fixed', 'her'],
+        'algo_params.tdm_kwargs.sample_rollout_goals_from': [
+            # 'fixed',
+                                                             'environment'],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):
+            variant['multitask'] = (
+                variant['algo_params']['tdm_kwargs'][
+                    'sample_rollout_goals_from'
+                ] != 'fixed'
+            )
             seed = random.randint(0, 10000)
             run_experiment(
                 experiment,

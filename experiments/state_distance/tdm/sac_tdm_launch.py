@@ -5,8 +5,8 @@ import numpy as np
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.envs.multitask.reacher_7dof import Reacher7DofAngleGoalState, \
-    Reacher7DofGoalStateEverything
+from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
+from railrl.envs.multitask.reacher_7dof import Reacher7DofGoalStateEverything
 from railrl.envs.wrappers import normalize_box
 from railrl.launchers.launcher_util import run_experiment
 from railrl.sac.policies import TanhGaussianPolicy
@@ -59,6 +59,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
+    # exp_prefix = "tdm-half-cheetah-x-vel"
     exp_prefix = "tdm-launch-goal-states-everything"
 
     num_epochs = 100
@@ -104,11 +105,12 @@ if __name__ == "__main__":
         policy_params=dict(
             hidden_sizes=[100, 100],
         ),
-        version="SAC-TDM",
+        version="SAC-TDM-2",
         algorithm="SAC-TDM",
     )
     search_space = {
         'env_class': [
+            # GoalXVelHalfCheetah,
             Reacher7DofGoalStateEverything,
         ],
         'algo_params.base_kwargs.reward_scale': [
@@ -122,13 +124,20 @@ if __name__ == "__main__":
             True,
             False,
         ],
-        'algo_params.tdm_kwargs.sample_rollout_goals_from': ['fixed', 'her'],
+        'algo_params.tdm_kwargs.sample_rollout_goals_from': [
+            # 'fixed',
+                                                             'environment'],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):
+            variant['multitask'] = (
+                variant['algo_params']['tdm_kwargs'][
+                    'sample_rollout_goals_from'
+                ] != 'fixed'
+            )
             seed = random.randint(0, 10000)
             run_experiment(
                 experiment,
