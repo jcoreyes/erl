@@ -84,7 +84,7 @@ if __name__ == "__main__":
                     batch_size=64,
                     max_path_length=100,
                     discount=1,
-                    collection_mode='online'
+                    collection_mode='online-parallel'
                 ),
                 tdm_kwargs=dict(
                     sample_rollout_goals_from='environment',

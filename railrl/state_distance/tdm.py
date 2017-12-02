@@ -5,11 +5,12 @@ import abc
 import numpy as np
 
 from railrl.data_management.path_builder import PathBuilder
+from railrl.envs.remote import RemoteRolloutEnv
 from railrl.misc.ml_util import ConstantSchedule
 from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
 from railrl.torch.algos.util import np_to_pytorch_batch
 from railrl.state_distance.exploration import MakeUniversal
-from railrl.state_distance.rollout_util import MultigoalSimplePathSampler
+from railrl.state_distance.rollout_util import MultigoalSimplePathSampler, multitask_rollout
 
 
 class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
@@ -50,6 +51,15 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             goal_sampling_function=self._sample_goal_for_rollout,
             cycle_taus_for_rollout=self.cycle_taus_for_rollout,
         )
+        if self.collection_mode == 'online-parallel':
+            self.training_env = RemoteRolloutEnv(
+                env=self.env,
+                policy=self.eval_policy,
+                exploration_policy=self.exploration_policy,
+                max_path_length=self.max_path_length,
+                normalize_env=self.normalize_env,
+                input_rollout=multitask_rollout,
+            )
 
     def _start_epoch(self, epoch):
         self.max_tau = self.epoch_max_tau_schedule.get_value(epoch)

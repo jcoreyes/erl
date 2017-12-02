@@ -42,6 +42,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             collection_mode='online',
             sim_throttle=False,
             normalize_env=True,
+            env_train_ratio=20,
             parallel_step_to_train_ratio=20,
             replay_buffer=None,
             fraction_paths_in_train=1.,
@@ -147,16 +148,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self._exploration_paths = []
         self.parallel_step_to_train_ratio = parallel_step_to_train_ratio
         self.sim_throttle = sim_throttle
-        if self.collection_mode == 'online-parallel':
-            # TODO(murtaza): What happens to the eval env?
-            # see `eval_sampler` definition above.
-            self.training_env = RemoteRolloutEnv(
-                env=env,
-                policy=eval_policy,
-                exploration_policy=exploration_policy,
-                max_path_length=self.max_path_length,
-                normalize_env=self.normalize_env,
-            )
+
 
     def train(self, start_epoch=0):
         if start_epoch == 0:
@@ -233,14 +225,11 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                         self.exploration_policy,
                         use_exploration_strategy=True,
                     )
-                else:
-                    path = None
             else:
                 path = self.training_env.rollout(
                     self.exploration_policy,
                     use_exploration_strategy=True,
                 )
-
             if path is not None:
                 path['rewards'] = path['rewards'] * self.scale_reward
                 path_length = len(path['observations'])
@@ -249,11 +238,14 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 self._handle_path(path)
                 if len(path) > 0:
                     self._exploration_paths.append(path)
-            self._try_to_train()
 
+            gt.stamp('sample')
+            self._try_to_train()
+            gt.stamp('train')
             # Check if epoch is over
             if n_steps_current_epoch >= self.num_env_steps_per_epoch:
                 self._try_to_eval(epoch)
+                gt.stamp('eval')
                 self._end_epoch()
                 epoch += 1
                 n_steps_current_epoch = 0

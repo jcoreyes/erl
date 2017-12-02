@@ -85,7 +85,7 @@ MAX_TORQUES = 0.5 * np.array([8, 7, 6, 5, 4, 3, 2])
 
 box_lows = np.array([-0.04304189, -0.43462352, 0.2161519])
 
-box_highs = np.array([ 0.84045825,  0.38408276, 0.8880568 ])
+box_highs = np.array([ 0.84045825,  0.38408276, 1.8880568 ])
 
 joint_names = [
     '_l2',

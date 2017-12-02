@@ -109,7 +109,7 @@ MAX_TORQUES = 0.5 * np.array([8, 7, 6, 5, 4, 3, 2])
 
 box_lows = np.array([-0.04304189, -0.43462352, 0.2161519])
 
-box_highs = np.array([ 0.84045825,  0.38408276, 0.8880568 ])
+box_highs = np.array([ 0.84045825,  0.38408276, 1.8880568 ])
 
 joint_names = [
     '_l2',
@@ -519,8 +519,7 @@ class SawyerEnv(Env, Serializable):
         # euler_beta = np.abs(euler_angle[1])
         # angle_cost = ((np.pi - euler_alpha) ** 2 + euler_beta ** 2)
         angle_cost = np.linalg.norm(differences_angle)
-        action_cost = sum(action ** 2)
-        reward = -action_cost - pos_cost - angle_cost
+        reward = - pos_cost - angle_cost
         return reward
 
     def _Lorentz_reward_batch(self, differences_pos, differences_angle, action):
@@ -532,8 +531,7 @@ class SawyerEnv(Env, Serializable):
         # euler_beta = np.abs(euler_angle[1])
         # angle_cost = ((np.pi - euler_alpha) ** 2 + euler_beta ** 2)
         angle_cost = np.linalg.norm(differences_angle, axis=1)
-        action_cost = np.sum(np.square(action), axis=1)
-        reward = -action_cost - pos_cost - angle_cost
+        reward = - pos_cost - angle_cost
         return reward
     # def compute_euler(self, differences_angle):
     #     # change to use sine to compute the loss
