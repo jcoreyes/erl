@@ -8,6 +8,7 @@ from gym.spaces import Box, Discrete
 
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from rllab.core.serializable import Serializable
+from rllab.misc import logger
 
 
 class Simple1D(MultitaskEnv, Env, Serializable):
@@ -69,7 +70,7 @@ class DiscreteSimple1D(Simple1D):
         return super()._step(continuous_action)
 
 
-GRID_SIZE = 50
+GRID_SIZE = 20
 ACTION_LIMITS = (-1, 1)
 
 
@@ -78,10 +79,8 @@ class Simple1DTdmPlotter(object):
         self._tdm = tdm
         self.max_tau = max_tau
 
-        n_plots = len(location_lst)
-
-        x_size = 5 * n_plots
-        y_size = 5
+        x_size = 5 * len(goal_lst)
+        y_size = 5 * len(location_lst)
 
         fig = plt.figure(figsize=(x_size, y_size))
         self._ax_lst = []
@@ -114,6 +113,7 @@ class Simple1DTdmPlotter(object):
         self._plot_level_curves()
 
         plt.draw()
+        plt.savefig(logger.get_snapshot_dir() + "/tdm_vis.png")
         plt.pause(0.001)
 
     def _plot_level_curves(self):
@@ -136,9 +136,8 @@ class Simple1DTdmPlotter(object):
             repeated_obs = np.repeat(np.array([[obs]]), N, axis=0)
             repeated_goals = np.repeat(np.array([[goal]]), N, axis=0)
             qs = self._tdm.eval_np(repeated_obs, actions, repeated_goals, taus)
-            qs = qs.reshape(action_grid.shape)
-
-            cs = ax.contour(action_grid, tau_grid, qs)
+            q_grid = qs.reshape(action_grid.shape)
+            cs = ax.contour(action_grid, tau_grid, q_grid)
             self._line_objects += cs.collections
             self._line_objects += ax.clabel(
                 cs, inline=1, fontsize=10, fmt='%.2f'

@@ -58,8 +58,8 @@ def experiment(variant):
     algo_params['ddpg_kwargs']['qf_criterion'] = qf_criterion
     plotter = Simple1DTdmPlotter(
         tdm=qf,
-        location_lst=np.array([-0.5, 0, 0.5]),
-        goal_lst=np.array([-0.5, 0, 0.5]),
+        location_lst=np.array([-1, 0, 0.5]),
+        goal_lst=np.array([-1, 0, 0.5]),
         max_tau=algo_params['tdm_kwargs']['max_tau'],
     )
     algo_params['ddpg_kwargs']['plotter'] = plotter
@@ -79,15 +79,15 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = "local"
-    exp_prefix = "dev-simple-1d-continuous"
+    exp_prefix = "simple-1d-continuous"
 
     # n_seeds = 3
     # mode = "ec2"
     # exp_prefix = "tdm-half-cheetah-x-vel"
 
     num_epochs = 100
-    num_steps_per_epoch = 100
-    num_steps_per_eval = 100
+    num_steps_per_epoch = 1000
+    num_steps_per_eval = 1000
     max_path_length = 30
 
     # noinspection PyTypeChecker
@@ -107,7 +107,7 @@ if __name__ == "__main__":
                 sample_train_goals_from='her',
                 vectorized=True,
                 cycle_taus_for_rollout=True,
-                max_tau=10,
+                max_tau=1,
             ),
             ddpg_kwargs=dict(
                 tau=0.01,
@@ -116,15 +116,15 @@ if __name__ == "__main__":
             ),
         ),
         her_replay_buffer_params=dict(
-            max_size=int(2E5),
+            max_size=int(5E4),
             num_goals_to_sample=4,
         ),
         qf_params=dict(
-            hidden_sizes=[16, 16],
+            hidden_sizes=[100, 100],
         ),
         policy_params=dict(
-            fc1_size=16,
-            fc2_size=16,
+            fc1_size=100,
+            fc2_size=100,
         ),
         qf_criterion_class=HuberLoss,
         qf_criterion_params=dict(),
