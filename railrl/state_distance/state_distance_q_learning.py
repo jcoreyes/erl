@@ -3,25 +3,27 @@ import time
 from collections import OrderedDict
 
 import numpy as np
-import torch
 
 import railrl.torch.pytorch_util as ptu
+import torch
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
+from railrl.data_management.path_builder import PathBuilder
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc import rllab_util
 from railrl.misc.tensorboard_logger import TensorboardLogger
 from railrl.policies.state_distance import UniversalPolicy
-from railrl.samplers.util import rollout, split_paths_to_dict
+from railrl.samplers.util import split_paths_to_dict
 from railrl.state_distance.exploration import UniversalExplorationPolicy
 from railrl.state_distance.networks import DuelingStructuredUniversalQfunction
-from railrl.torch.algos.util import np_to_pytorch_batch
 from railrl.torch.algos.ddpg import DDPG
+from railrl.torch.algos.util import np_to_pytorch_batch
 from railrl.torch.eval_util import (
     get_difference_statistics,
     get_generic_path_information,
 )
 from rllab.misc import logger
+from railrl.state_distance.rollout_util import MultigoalSimplePathSampler
 
 
 class StateDistanceQLearning(DDPG):
@@ -39,7 +41,7 @@ class StateDistanceQLearning(DDPG):
             max_path_length=1000,
             discount=0.99,
             num_steps_per_tensorboard_update=None,
-            prob_goal_state_is_next_state=0,
+            prob_goal_is_next_state=0,
             termination_threshold=0,
             eval_sampler=None,
             goal_dim_weights=None,
@@ -53,7 +55,7 @@ class StateDistanceQLearning(DDPG):
             max_samples=num_steps_per_eval,
             max_path_length=max_path_length,
             discount_sampling_function=self._sample_discount_for_rollout,
-            goal_sampling_function=self.sample_goal_state_for_rollout,
+            goal_sampling_function=self.sample_goal_for_rollout,
             cycle_taus_for_rollout=False,
         )
         if sample_train_goals_from == 'her':
@@ -83,10 +85,10 @@ class StateDistanceQLearning(DDPG):
         self.sample_train_goals_from = sample_train_goals_from
         self.sample_rollout_goals_from = sample_rollout_goals_from
         self.num_steps_per_tensorboard_update = num_steps_per_tensorboard_update
-        self.prob_goal_state_is_next_state = prob_goal_state_is_next_state
+        self.prob_goal_is_next_state = prob_goal_is_next_state
         self.termination_threshold = termination_threshold
 
-        self.goal_state = None
+        self.goal = None
         if self.num_steps_per_tensorboard_update is not None:
             self.tb_logger = TensorboardLogger(logger.get_snapshot_dir())
         self.start_time = time.time()
@@ -122,9 +124,9 @@ class StateDistanceQLearning(DDPG):
 
     def _start_new_rollout(self):
         self.exploration_policy.reset()
-        self.goal_state = self.sample_goal_state_for_rollout()
-        self.training_env.set_goal(self.goal_state)
-        self.exploration_policy.set_goal(self.goal_state)
+        self.goal = self.sample_goal_for_rollout()
+        self.training_env.set_goal(self.goal)
+        self.exploration_policy.set_goal(self.goal)
         self.exploration_policy.set_discount(self.discount)
         return self.training_env.reset()
 
@@ -136,42 +138,43 @@ class StateDistanceQLearning(DDPG):
         )
         batch = replay_buffer.random_batch(batch_size)
         if self.sample_train_goals_from != 'her':
-            goal_states = self.sample_goal_states_for_training(batch_size)
-            if self.prob_goal_state_is_next_state > 0:
-                num_next_states_as_goal_states = int(
-                    self.prob_goal_state_is_next_state * batch_size
+            goals = self.sample_goals_for_training(batch_size)
+            if self.prob_goal_is_next_state > 0:
+                num_next_states_as_goals = int(
+                    self.prob_goal_is_next_state * batch_size
                 )
-                goal_states[:num_next_states_as_goal_states] = (
-                    batch['next_observations'][:num_next_states_as_goal_states]
+                goals[:num_next_states_as_goals] = (
+                    batch['next_observations'][:num_next_states_as_goals]
                 )
-            batch['goal_states'] = goal_states
+            batch['goals'] = goals
         if self.termination_threshold > 0:
             batch['terminals'] = np.linalg.norm(
-                self.env.convert_obs_to_goal_states(
+                self.env.convert_obs_to_goals(
                     batch['next_observations']
-                ) - batch['goal_states'],
+                ) - batch['goals'],
                 axis=1,
             ) <= self.termination_threshold
         batch['rewards'] = self.compute_rewards(
             batch['observations'],
             batch['actions'],
             batch['next_observations'],
-            batch['goal_states'],
+            batch['goals'],
         )
         torch_batch = np_to_pytorch_batch(batch)
+        import ipdb; ipdb.set_trace()
         return torch_batch
 
-    def compute_rewards(self, obs, actions, next_obs, goal_states):
+    def compute_rewards(self, obs, actions, next_obs, goals):
         return self.env.compute_rewards(
             obs,
             actions,
             next_obs,
-            goal_states,
+            goals,
         )
 
-    def sample_goal_states_for_training(self, batch_size):
+    def sample_goals_for_training(self, batch_size):
         if self.sample_train_goals_from == 'environment':
-            return self.env.sample_goal_states(batch_size)
+            return self.env.sample_goals(batch_size)
         elif self.sample_train_goals_from == 'replay_buffer':
             replay_buffer = self.replay_buffer.get_replay_buffer(training=True)
             if replay_buffer.num_steps_can_sample() == 0:
@@ -179,7 +182,7 @@ class StateDistanceQLearning(DDPG):
                 return np.zeros((batch_size, self.env.goal_dim))
             batch = replay_buffer.random_batch(batch_size)
             obs = batch['observations']
-            return self.env.convert_obs_to_goal_states(obs)
+            return self.env.convert_obs_to_goals(obs)
         elif self.sample_train_goals_from == 'her':
             raise Exception("Take samples from replay buffer.")
         else:
@@ -187,9 +190,9 @@ class StateDistanceQLearning(DDPG):
                 self.sample_train_goals_from
             ))
 
-    def sample_goal_state_for_rollout(self):
+    def sample_goal_for_rollout(self):
         if self.sample_rollout_goals_from == 'environment':
-            return self.env.sample_goal_state_for_rollout()
+            return self.env.sample_goal_for_rollout()
         elif self.sample_rollout_goals_from == 'replay_buffer':
             replay_buffer = self.replay_buffer.get_replay_buffer(training=True)
             if replay_buffer.num_steps_can_sample() == 0:
@@ -197,8 +200,8 @@ class StateDistanceQLearning(DDPG):
                 return np.zeros(self.env.goal_dim)
             batch = replay_buffer.random_batch(1)
             obs = batch['observations']
-            goal_state = self.env.convert_obs_to_goal_states(obs)[0]
-            return self.env.modify_goal_state_for_rollout(goal_state)
+            goal = self.env.convert_obs_to_goals(obs)[0]
+            return self.env.modify_goal_for_rollout(goal)
         else:
             raise Exception("Invalid `sample_goals_from`: {}".format(
                 self.sample_rollout_goals_from
@@ -209,54 +212,6 @@ class StateDistanceQLearning(DDPG):
 
     def _sample_discount_for_rollout(self):
         return self._sample_discount(1)[0, 0]
-
-    def evaluate(self, epoch):
-        """
-        Perform evaluation for this algorithm.
-
-        :param epoch: The epoch number.
-        """
-        logger.log("Collecting samples for evaluation")
-        statistics = OrderedDict()
-        train_batch = self.get_batch(training=True)
-        validation_batch = self.get_batch(training=False)
-        test_paths = self.eval_sampler.obtain_samples()
-
-        statistics.update(self._statistics_from_batch(train_batch, "Train"))
-        statistics.update(
-            self._statistics_from_batch(validation_batch, "Validation")
-        )
-        statistics.update(self._statistics_from_paths(test_paths, "Test"))
-        statistics.update(
-            get_difference_statistics(
-                statistics,
-                [
-                    'QF Loss Mean',
-                    'Policy Loss Mean',
-                ],
-            )
-        )
-        statistics.update(get_generic_path_information(
-            self._exploration_paths, self.discount, stat_prefix="Exploration",
-        ))
-        statistics.update(self._statistics_from_paths(self._exploration_paths,
-                                                      "Exploration"))
-
-        statistics['Discount Factor'] = self.discount
-
-        average_returns = rllab_util.get_average_returns(test_paths)
-        statistics['AverageReturn'] = average_returns
-        statistics['Total Wallclock Time (s)'] = time.time() - self.start_time
-        statistics['Epoch'] = epoch
-
-        for key, value in statistics.items():
-            logger.record_tabular(key, value)
-
-        logger.set_key_prefix('test ')
-        self.log_diagnostics(test_paths)
-        logger.set_key_prefix('expl ')
-        self.log_diagnostics(self._exploration_paths)
-        logger.set_key_prefix('')
 
     def offline_evaluate(self, epoch):
         statistics = OrderedDict()
@@ -291,7 +246,7 @@ class StateDistanceQLearning(DDPG):
         obs = batch['observations']
         actions = batch['actions']
         next_obs = batch['next_observations']
-        goal_states = batch['goal_states']
+        goals = batch['goals']
 
         batch_size = obs.size()[0]
         discount_np = self._sample_discount(batch_size)
@@ -300,25 +255,25 @@ class StateDistanceQLearning(DDPG):
         """
         Policy operations.
         """
-        policy_actions = self.policy(obs, goal_states, discount)
-        q_output = self.qf(obs, policy_actions, goal_states, discount)
+        policy_actions = self.policy(obs, goals, discount)
+        q_output = self.qf(obs, policy_actions, goals, discount)
         policy_loss = - q_output.mean()
 
         """
         Critic operations.
         """
-        next_actions = self.target_policy(next_obs, goal_states, discount)
+        next_actions = self.target_policy(next_obs, goals, discount)
         target_q_values = self.target_qf(
             next_obs,
             next_actions,
-            goal_states,
+            goals,
             discount,
         )
         y_target = rewards + (1. - terminals) * discount * target_q_values
 
         # noinspection PyUnresolvedReferences
         y_target = y_target.detach()
-        y_pred = self.qf(obs, actions, goal_states, discount)
+        y_pred = self.qf(obs, actions, goals, discount)
         bellman_errors = (y_pred - y_target) ** 2
         raw_qf_loss = self.qf_criterion(y_pred, y_target)
 
@@ -337,13 +292,13 @@ class StateDistanceQLearning(DDPG):
         if self.optimize_target_policy:
             target_policy_actions = self.target_policy(
                 obs,
-                goal_states,
+                goals,
                 discount,
             )
             target_q_output = self.target_qf(
                 obs,
                 target_policy_actions,
-                goal_states,
+                goals,
                 discount,
             )
             target_policy_loss = - target_q_output.mean()
@@ -376,13 +331,13 @@ class StateDistanceQLearning(DDPG):
 
     def paths_to_batch(self, paths):
         np_batch = split_paths_to_dict(paths)
-        goal_states = [path["goal_states"] for path in paths]
-        np_batch['goal_states'] = np.vstack(goal_states)
+        goals = [path["goals"] for path in paths]
+        np_batch['goals'] = np.vstack(goals)
         np_batch['rewards'] = self.compute_rewards(
             np_batch['observations'],
             np_batch['actions'],
             np_batch['next_observations'],
-            np_batch['goal_states'],
+            np_batch['goals'],
         )
         return np_to_pytorch_batch(np_batch)
 
@@ -438,7 +393,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             max_samples=num_steps_per_eval,
             max_path_length=max_path_length,
             discount_sampling_function=self._sample_discount_for_rollout,
-            goal_sampling_function=self.sample_goal_state_for_rollout,
+            goal_sampling_function=self.sample_goal_for_rollout,
             cycle_taus_for_rollout=cycle_taus_for_rollout,
         )
         assert 1 >= fraction_of_taus_set_to_zero >= 0
@@ -507,21 +462,9 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             terminals=terminal,
             agent_infos=agent_info,
             env_infos=env_info,
-            goal_states=self.goal_state,
-            taus=self._rollout_discount,
+            goals=self.goal,
+            # taus=self._rollout_discount,
         )
-
-        self.replay_buffer.add_sample(
-            observation=observation,
-            action=action,
-            reward=reward,
-            terminal=terminal,
-            next_observation=next_observation,
-            agent_info=agent_info,
-            env_info=env_info,
-            goal_state=self.goal_state,
-        )
-
         if self.cycle_taus_for_rollout:
             self._rollout_discount -= 1
             if self._rollout_discount < 0:
@@ -529,7 +472,12 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             self.exploration_policy.set_discount(self._rollout_discount)
 
     def _handle_rollout_ending(self):
-        self.replay_buffer.terminate_episode()
+        self._n_rollouts_total += 1
+        if len(self._current_path_builder) > 0:
+            path = self._current_path_builder.get_all_stacked()
+            self.replay_buffer.add_path(path)
+            self._exploration_paths.append(path)
+            self._current_path_builder = PathBuilder()
 
     def _modify_batch_for_training(self, batch):
         obs = batch['observations']
@@ -552,21 +500,22 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             batch['rewards'] = batch['rewards'] * batch['terminals']
         return batch
 
-    def get_train_dict(self, batch):
+    def _do_training(self):
+        batch = self.get_batch(training=True)
         batch = self._modify_batch_for_training(batch)
         rewards = batch['rewards']
         obs = batch['observations']
         actions = batch['actions']
         next_obs = batch['next_observations']
-        goal_states = batch['goal_states']
+        goals = batch['goals']
         terminals = batch['terminals']
         num_steps_left = batch['num_steps_left']
 
         """
         Policy operations.
         """
-        policy_actions = self.policy(obs, goal_states, num_steps_left)
-        q_output = self.qf(obs, policy_actions, goal_states, num_steps_left)
+        policy_actions = self.policy(obs, goals, num_steps_left)
+        q_output = self.qf(obs, policy_actions, goals, num_steps_left)
         policy_loss = - q_output.mean()
 
         """
@@ -581,13 +530,13 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
         else:
             next_actions = self.target_policy(
                 next_obs,
-                goal_states,
+                goals,
                 num_steps_left - 1,
                 )
             target_q_values = self.target_qf(
                 next_obs,
                 next_actions,
-                goal_states,
+                goals,
                 num_steps_left - 1,  # Important! Else QF will (probably) blow up
             )
             if self.clamp_q_target_values:
@@ -602,7 +551,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
 
             # noinspection PyUnresolvedReferences
             y_target = y_target.detach()
-            y_pred = self.qf(obs, actions, goal_states, num_steps_left)
+            y_pred = self.qf(obs, actions, goals, num_steps_left)
             bellman_errors = (y_pred - y_target) ** 2
             raw_qf_loss = self.qf_criterion(y_pred, y_target)
 
@@ -616,229 +565,25 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
                 qf_loss = raw_qf_loss
 
         """
-        Target Policy operations if needed
+        Update networks
         """
-        if self.optimize_target_policy:
-            target_policy_actions = self.target_policy(
-                obs,
-                goal_states,
-                num_steps_left,
-            )
-            target_q_output = self.target_qf(
-                obs,
-                target_policy_actions,
-                goal_states,
-                num_steps_left,
-            )
-            target_policy_loss = - target_q_output.mean()
-        else:
-            # Always include the target policy loss so that different
-            # experiments are easily comparable.
-            target_policy_loss = ptu.FloatTensor([0])
+        self.policy_optimizer.zero_grad()
+        policy_loss.backward()
+        self.policy_optimizer.step()
 
-        """
-        Do some SL supervision
-        """
-        for _ in range(self.num_sl_batches_per_rl_batch):
-            batch = self.replay_buffer.random_batch_for_sl(
-                self.batch_size,
-                self.discount,
-            )
-            batch = np_to_pytorch_batch(batch)
-            obs = batch['observations']
-            actions = batch['actions']
-            states_after_tau_steps = batch['states_after_tau_steps']
-            goal_states = self.env.convert_obs_to_goal_states_pytorch(
-                states_after_tau_steps
-            )
-            num_steps_left = batch['taus']
-            y_pred = self.qf(obs, actions, goal_states, num_steps_left)
+        self.qf_optimizer.zero_grad()
+        qf_loss.backward()
+        self.qf_optimizer.step()
 
-            y_target = ptu.Variable(
-                torch.zeros(y_pred.size()),
-                requires_grad=False,
-            )
-            sl_qf_loss = self.qf_criterion(y_pred, y_target)
-            qf_loss = qf_loss + sl_qf_loss * self.sl_grad_weight
+        self._update_target_networks()
 
-            next_obs_goal_state = self.env.convert_obs_to_goal_states_pytorch(
-                batch['next_observations']
-            )
-
-            sl_actions = self.policy(
-                obs,
-                next_obs_goal_state,
-                num_steps_left * 0,
-            )
-            sl_policy_loss = torch.norm(
-                    sl_actions - actions,
-                    dim=1,
-                    p=2
-            ).mean()
-            policy_loss = policy_loss + sl_policy_loss * self.sl_grad_weight
-
-        return OrderedDict([
-            ('Policy Actions', policy_actions),
-            ('Policy Loss', policy_loss),
-            ('QF Outputs', q_output),
-            ('Bellman Errors', bellman_errors),
-            ('Y targets', y_target),
-            ('Y predictions', y_pred),
-            ('Unregularized QF Loss', raw_qf_loss),
-            ('QF Loss', qf_loss),
-            ('Target Policy Loss', target_policy_loss),
-        ])
-
-
-class MultigoalSimplePathSampler(object):
-    def __init__(
-            self,
-            env,
-            policy,
-            max_samples,
-            max_path_length,
-            discount_sampling_function,
-            goal_sampling_function,
-            cycle_taus_for_rollout=True,
-    ):
-        self.env = env
-        self.policy = policy
-        self.max_samples = max_samples
-        self.max_path_length = max_path_length
-        self.discount_sampling_function = discount_sampling_function
-        self.goal_sampling_function = goal_sampling_function
-        self.cycle_taus_for_rollout = cycle_taus_for_rollout
-
-    def start_worker(self):
-        pass
-
-    def shutdown_worker(self):
-        pass
-
-    def obtain_samples(self):
-        paths = []
-        for i in range(self.max_samples // self.max_path_length):
-            discount = self.discount_sampling_function()
-            goal = self.goal_sampling_function()
-            path = multitask_rollout(
-                self.env,
-                self.policy,
-                goal,
-                discount,
-                max_path_length=self.max_path_length,
-                decrement_discount=self.cycle_taus_for_rollout,
-                cycle_tau=self.cycle_taus_for_rollout,
-            )
-            path_length = len(path['observations'])
-            path['goal_states'] = expand_goal(goal, path_length)
-            paths.append(path)
-        return paths
-
-
-def expand_goal(goal, path_length):
-    return np.repeat(
-        np.expand_dims(goal, 0),
-        path_length,
-        0,
-    )
-
-
-def multitask_rollout(
-        env,
-        agent: UniversalPolicy,
-        goal,
-        discount,
-        max_path_length=np.inf,
-        animated=False,
-        decrement_discount=False,
-        cycle_tau=False,
-):
-    env.set_goal(goal)
-    agent.set_goal(goal)
-    agent.set_discount(discount)
-    if decrement_discount:
-        assert max_path_length >= discount
-        path = rollout_decrement_tau(
-            env,
-            agent,
-            discount,
-            max_path_length=max_path_length,
-            animated=animated,
-            cycle_tau=cycle_tau,
-        )
-    else:
-        path = rollout(
-            env,
-            agent,
-            max_path_length=max_path_length,
-            animated=animated,
-        )
-    goal_expanded = np.expand_dims(goal, axis=0)
-    # goal_expanded.shape == 1 x goal_dim
-    path['goal_states'] = goal_expanded.repeat(len(path['observations']), 0)
-    # goal_states.shape == path_length x goal_dim
-    return path
-
-
-def rollout_decrement_tau(env, agent, init_tau, max_path_length=np.inf,
-                          animated=False, cycle_tau=False):
-    """
-    Decrement tau by one at each time step. If tau < 0, keep it at zero or
-    reset it to the init tau.
-
-    :param env:
-    :param agent:
-    :param max_path_length:
-    :param animated:
-    :param cycle_tau: If False, just keep tau equal to zero once it reaches
-    zero. Otherwise cycle it.
-    :return:
-    """
-    observations = []
-    actions = []
-    rewards = []
-    terminals = []
-    agent_infos = []
-    env_infos = []
-    taus = []
-    o = env.reset()
-    next_o = None
-    path_length = 0
-    tau = init_tau
-    if animated:
-        env.render()
-    while path_length < max_path_length:
-        a, agent_info = agent.get_action(o)
-        next_o, r, d, env_info = env.step(a)
-        agent.set_discount(tau)
-        observations.append(o)
-        rewards.append(r)
-        terminals.append(d)
-        actions.append(a)
-        agent_infos.append(agent_info)
-        env_infos.append(env_info)
-        taus.append(tau)
-        path_length += 1
-        tau -= 1
-        if tau < 0:
-            if cycle_tau:
-                tau = init_tau
-            else:
-                tau = 0
-        if d:
-            break
-        o = next_o
-        if animated:
-            env.render()
-            # input("Press Enter to continue...")
-
-    return dict(
-        observations=np.array(observations),
-        actions=np.array(actions),
-        rewards=np.array(rewards),
-        terminals=np.array(terminals),
-        agent_infos=np.array(agent_infos),
-        env_infos=np.array(env_infos),
-        final_observation=next_o,
-        taus=np.array(taus),
-    )
+        if self.eval_statistics is None:
+            """
+            Eval should set this to None.
+            This way, these statistics are only computed for one batch.
+            """
+            self.eval_statistics = OrderedDict()
+            self.eval_statistics['QF Loss'] = np.mean(ptu.get_numpy(qf_loss))
+            self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
+                policy_loss
+            ))

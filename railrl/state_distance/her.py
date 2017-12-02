@@ -9,9 +9,7 @@ from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.samplers.util import split_paths_to_dict
 from railrl.policies.state_distance import UniversalPolicy
-from railrl.state_distance.state_distance_q_learning import (
-    MultigoalSimplePathSampler
-)
+from state_distance.rollout_util import MultigoalSimplePathSampler
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.algos.util import np_to_pytorch_batch
 from railrl.torch.ddpg import DDPG
@@ -62,7 +60,7 @@ class HER(DDPG):
         self.terminate_when_goal_reached = terminate_when_goal_reached
 
     def _sample_goal_state_for_rollout(self):
-        return self.env.sample_goal_state_for_rollout()
+        return self.env.sample_goal_for_rollout()
 
     def _sample_discount_for_rollout(self):
         return 0  # Her does not vary the discount.

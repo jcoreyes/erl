@@ -1,8 +1,4 @@
 import sys
-
-import ray
-
-from railrl.envs.remote import RemoteRolloutEnv
 from railrl.envs.ros.sawyer_env import SawyerEnv
 from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.ou_strategy import OUStrategy
@@ -11,14 +7,14 @@ from railrl.launchers.launcher_util import resume_torch_algorithm
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.qfunctions.torch import FeedForwardQFunction
-from railrl.torch.algos.parallel_ddpg import ParallelDDPG
 from railrl.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
 from railrl.torch import pytorch_util as ptu
 import random
 
+from railrl.torch.algos.ddpg import DDPG
+
 
 def example(variant):
-    ray.init()
     env_class = variant['env_class']
     env_params = variant['env_params']
     env = env_class(**env_params)
@@ -49,15 +45,8 @@ def example(variant):
         exploration_strategy=es,
         policy=policy,
     )
-    remote_env = RemoteRolloutEnv(
+    algorithm = DDPG(
         env,
-        policy,
-        exploration_policy,
-        variant['max_path_length'],
-        variant['normalize_env'],
-    )
-    algorithm = ParallelDDPG(
-        remote_env,
         qf=qf,
         policy=policy,
         exploration_policy=exploration_policy,
@@ -121,6 +110,7 @@ if __name__ == "__main__":
                     num_steps_per_epoch=1000,
                     max_path_length=max_path_length,
                     num_steps_per_eval=1000,
+                    collection_mode='online-parallel',
                 ),
             },
             use_gpu=True,

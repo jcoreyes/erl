@@ -10,15 +10,16 @@ from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.samplers.util import get_stat_in_paths
 import railrl.torch.pytorch_util as ptu
+from rllab.core.serializable import Serializable
 from rllab.misc import logger
 
 
 class Reacher7DofMultitaskEnv(
-    MultitaskEnv, mujoco_env.MujocoEnv, utils.EzPickle
+    MultitaskEnv, mujoco_env.MujocoEnv, Serializable
 ):
     def __init__(self):
+        Serializable.quick_init(self, locals())
         MultitaskEnv.__init__(self)
-        utils.EzPickle.__init__(self)
         mujoco_env.MujocoEnv.__init__(
             self,
             get_asset_xml('reacher_7dof.xml'),
@@ -87,7 +88,7 @@ class Reacher7DofXyzGoalState(Reacher7DofMultitaskEnv):
     """
     The goal state is just the XYZ location of the end effector.
     """
-    def sample_goal_states(self, batch_size):
+    def sample_goals(self, batch_size):
         # Number taken from running a random policy and seeing what XYZ values
         # are reached
         return np.hstack((
@@ -104,7 +105,7 @@ class Reacher7DofXyzGoalState(Reacher7DofMultitaskEnv):
     def goal_dim(self):
         return 3
 
-    def convert_obs_to_goal_states(self, obs):
+    def convert_obs_to_goals(self, obs):
         return obs[:, -3:]
 
     @staticmethod
@@ -134,17 +135,27 @@ class Reacher7DofAngleGoalState(Reacher7DofMultitaskEnv):
     """
     The goal state is joint angles
     """
-    def sample_goal_states(self, batch_size):
+    def sample_goals(self, batch_size):
         # Number taken from running a random policy and seeing what XYZ values
         # are reached
-        states = super().sample_states(batch_size)
-        return states[:, :7]
+        return np.hstack((
+            # From the xml
+            self.np_random.uniform(low=-2.28, high=1.71, size=(batch_size, 1)),
+            self.np_random.uniform(low=-0.52, high=1.39, size=(batch_size, 1)),
+            self.np_random.uniform(low=-1.4, high=1.7, size=(batch_size, 1)),
+            self.np_random.uniform(low=-2.32, high=0, size=(batch_size, 1)),
+            self.np_random.uniform(low=-1.5, high=1.5, size=(batch_size, 1)),
+            self.np_random.uniform(low=-1.094, high=0, size=(batch_size, 1)),
+            self.np_random.uniform(low=-1.5, high=1.5, size=(batch_size, 1)),
+        ))
+        # states = super().sample_states(batch_size)
+        # return states[:, :7]
 
     @property
     def goal_dim(self):
         return 7
 
-    def convert_obs_to_goal_states(self, obs):
+    def convert_obs_to_goals(self, obs):
         return obs[:, :7]
 
     def set_goal(self, goal):
@@ -164,7 +175,7 @@ class Reacher7DofFullGoalState(Reacher7DofMultitaskEnv):
     """
     The goal state is the full state: joint angles and velocities.
     """
-    def modify_goal_state_for_rollout(self, goal_state):
+    def modify_goal_for_rollout(self, goal_state):
         # set desired velocity to zero
         goal_state[-7:] = 0
         return goal_state
@@ -183,7 +194,7 @@ class Reacher7DofFullGoalState(Reacher7DofMultitaskEnv):
             self.np_random.uniform(low=-1, high=1, size=(batch_size, 7)),
         ))
 
-    def sample_goal_states(self, batch_size):
+    def sample_goals(self, batch_size):
         return self.sample_states(batch_size)
 
     def sample_irrelevant_goal_dimensions(self, goal, batch_size):
@@ -276,10 +287,10 @@ class Reacher7DofGoalStateEverything(Reacher7DofMultitaskEnv):
         super().set_goal(goal)
         self._desired_xyz = goal[14:17]
 
-    def convert_obs_to_goal_states(self, obs):
+    def convert_obs_to_goals(self, obs):
         return obs
 
-    def modify_goal_state_for_rollout(self, goal_state):
+    def modify_goal_for_rollout(self, goal_state):
         goal_state[7:14] = 0  # set desired velocity to zero
         return goal_state
 
@@ -362,7 +373,7 @@ class Reacher7DofGoalStateEverything(Reacher7DofMultitaskEnv):
             ee_pos,
         ))
 
-    def sample_goal_states(self, batch_size):
+    def sample_goals(self, batch_size):
         return self.sample_states(batch_size)
 
     @staticmethod

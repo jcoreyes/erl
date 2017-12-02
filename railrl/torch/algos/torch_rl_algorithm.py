@@ -9,12 +9,11 @@ from railrl.torch.algos.rl_algorithm import RLAlgorithm
 
 class TorchRLAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
     def get_batch(self, training=True):
-        replay_buffer = self.replay_buffer.get_replay_buffer(training)
-        sample_size = min(
-            replay_buffer.num_steps_can_sample(),
-            self.batch_size
-        )
-        batch = replay_buffer.random_batch(sample_size)
+        if self.replay_buffer_is_split:
+            replay_buffer = self.replay_buffer.get_replay_buffer(training)
+        else:
+            replay_buffer = self.replay_buffer
+        batch = replay_buffer.random_batch(self.batch_size)
         return np_to_pytorch_batch(batch)
 
     @property

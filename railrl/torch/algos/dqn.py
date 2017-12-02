@@ -22,11 +22,13 @@ class DQN(TorchRLAlgorithm):
             self,
             env,
             qf,
+            policy=None,
             learning_rate=1e-3,
             use_hard_updates=False,
             hard_update_period=1000,
             tau=0.001,
             epsilon=0.1,
+            qf_criterion=None,
             **kwargs
     ):
         """
@@ -46,7 +48,7 @@ class DQN(TorchRLAlgorithm):
             action_space=env.action_space,
             prob_random_action=epsilon,
         )
-        self.policy = ArgmaxDiscretePolicy(qf)
+        self.policy = policy or ArgmaxDiscretePolicy(qf)
         exploration_policy = PolicyWrappedWithExplorationStrategy(
             exploration_strategy=exploration_strategy,
             policy=self.policy,
@@ -64,7 +66,7 @@ class DQN(TorchRLAlgorithm):
             self.qf.parameters(),
             lr=self.learning_rate,
         )
-        self.qf_criterion = nn.MSELoss()
+        self.qf_criterion = qf_criterion or nn.MSELoss()
 
         self.eval_statistics = None
 
@@ -123,6 +125,9 @@ class DQN(TorchRLAlgorithm):
         statistics.update(eval_util.get_generic_path_information(
             test_paths, self.discount, stat_prefix="Test",
         ))
+        statistics.update(eval_util.get_generic_path_information(
+            self._exploration_paths, self.discount, stat_prefix="Exploration",
+        ))
         if hasattr(self.env, "log_diagnostics"):
             self.env.log_diagnostics(test_paths)
 
@@ -134,12 +139,14 @@ class DQN(TorchRLAlgorithm):
 
     def get_epoch_snapshot(self, epoch):
         self.training_env.render(close=True)
-        return dict(
+        data_to_save = dict(
             epoch=epoch,
             exploration_policy=self.exploration_policy,
             policy=self.policy,
-            env=self.training_env,
         )
+        if self.save_environment:
+            data_to_save['env'] = self.training_env
+        return data_to_save
 
     @property
     def networks(self):

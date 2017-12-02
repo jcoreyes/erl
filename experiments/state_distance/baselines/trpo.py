@@ -2,6 +2,7 @@ import random
 
 from gym.envs.mujoco import PusherEnv
 
+from railrl.envs.multitask.reacher_7dof import Reacher7DofAngleGoalState
 from railrl.envs.wrappers import normalize_and_convert_to_tf_env
 from railrl.launchers.launcher_util import run_experiment
 from sandbox.rocky.tf.algos.trpo import TRPO
@@ -14,7 +15,8 @@ from sandbox.rocky.tf.optimizers.conjugate_gradient_optimizer import (
 
 
 def experiment(variant):
-    env = PusherEnv()
+    # env = PusherEnv()
+    env = Reacher7DofAngleGoalState()
     env = normalize_and_convert_to_tf_env(env)
 
     policy = GaussianMLPPolicy(
@@ -40,12 +42,12 @@ def experiment(variant):
 
 if __name__ == "__main__":
     n_seeds = 1
-    mode = "here"
-    exp_prefix = "pusher-env-trpo-baseline"
+    mode = "local"
+    exp_prefix = "dev-trpo-baseline"
 
-    # n_seeds = 3
-    # mode = "ec2"
-    # exp_prefix = "pusher-env-trpo-baseline"
+    n_seeds = 5
+    mode = "ec2"
+    exp_prefix = "trpo-reacher-7dof-angles-only-2"
 
     num_steps_per_iteration = 100000
     H = 1000

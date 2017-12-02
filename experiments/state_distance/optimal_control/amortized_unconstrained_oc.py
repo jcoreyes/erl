@@ -85,7 +85,7 @@ def experiment(variant):
         # )
         # goal_expanded = np.expand_dims(goal, axis=0)
         # path['goal_states'] = goal_expanded.repeat(len(path['observations']), 0)
-        goal = env.sample_goal_state_for_rollout()
+        goal = env.sample_goal_for_rollout()
         path = multitask_rollout(
             env,
             policy,

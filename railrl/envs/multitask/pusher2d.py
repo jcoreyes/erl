@@ -33,7 +33,7 @@ class FullStatePusher2DEnv(MultitaskPusher2DEnv):
         super().__init__(goal=goal)
         self.goal_dim_weights = np.array([.1, .1, .1, .1, .1, .1, 1, 1, 1, 1])
 
-    def sample_goal_states(self, batch_size):
+    def sample_goals(self, batch_size):
         # Joint angle and xy position won't be consistent, but oh well!
         return np.random.uniform(
             np.array([-2.5, -2.3213, -2.3213, -1, -1, -1, -1, -1, -1, -1]),
@@ -45,7 +45,7 @@ class FullStatePusher2DEnv(MultitaskPusher2DEnv):
     def goal_dim(self):
         return 10
 
-    def convert_obs_to_goal_states(self, obs):
+    def convert_obs_to_goals(self, obs):
         return obs
 
     def set_goal(self, goal):
@@ -151,7 +151,7 @@ class HandCylinderXYPusher2DEnv(MultitaskPusher2DEnv):
         super().__init__(goal=goal)
         self.goal_dim_weights = np.array([1, 1, 1, 1])
 
-    def sample_goal_states(self, batch_size):
+    def sample_goals(self, batch_size):
         return np.random.uniform(
             np.array([-1, -1, -1., -1]),
             np.array([0, 1, 0, 1]),
@@ -162,7 +162,7 @@ class HandCylinderXYPusher2DEnv(MultitaskPusher2DEnv):
     def goal_dim(self):
         return 4
 
-    def convert_obs_to_goal_states(self, obs):
+    def convert_obs_to_goals(self, obs):
         return obs[:, -4:]
 
     def set_goal(self, goal):
@@ -327,7 +327,7 @@ class HandXYPusher2DEnv(MultitaskPusher2DEnv):
     """
     Only care about the hand position! This is really just for debugging.
     """
-    def sample_goal_states(self, batch_size):
+    def sample_goals(self, batch_size):
         return np.random.uniform(
             np.array([-1, -1]),
             np.array([0, 1]),
@@ -338,7 +338,7 @@ class HandXYPusher2DEnv(MultitaskPusher2DEnv):
     def goal_dim(self):
         return 2
 
-    def convert_obs_to_goal_states(self, obs):
+    def convert_obs_to_goals(self, obs):
         return obs[:, -4:-2]
 
     def set_goal(self, goal):
@@ -401,7 +401,7 @@ class FixedHandXYPusher2DEnv(HandXYPusher2DEnv):
 
 
 class CylinderXYPusher2DEnv(MultitaskPusher2DEnv):
-    def sample_goal_states(self, batch_size):
+    def sample_goals(self, batch_size):
         return np.random.uniform(
             np.array([-1, -1]),
             np.array([0, 1]),
@@ -412,7 +412,7 @@ class CylinderXYPusher2DEnv(MultitaskPusher2DEnv):
     def goal_dim(self):
         return 2
 
-    def convert_obs_to_goal_states(self, obs):
+    def convert_obs_to_goals(self, obs):
         return obs[:, -2:]
 
     def set_goal(self, goal):

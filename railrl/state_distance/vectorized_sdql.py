@@ -11,16 +11,16 @@ from railrl.torch.algos.util import np_to_pytorch_batch
 
 
 class VectorizedSdql(StateDistanceQLearning):
-    def compute_rewards(self, obs, actions, next_obs, goal_states):
+    def compute_rewards(self, obs, actions, next_obs, goals):
         return -np.abs(
-            self.env.convert_obs_to_goal_states_pytorch(next_obs)
-            - goal_states
+            self.env.convert_obs_to_goals_pytorch(next_obs)
+            - goals
         )
 
 
 class VectorizedTauSdql(HorizonFedStateDistanceQLearning):
-    def compute_rewards(self, obs, actions, next_obs, goal_states):
-        diff = self.env.convert_obs_to_goal_states(next_obs) - goal_states
+    def compute_rewards(self, obs, actions, next_obs, goals):
+        diff = self.env.convert_obs_to_goals(next_obs) - goals
         weighted_diff = self.env.goal_dim_weights * diff
         return -np.abs(weighted_diff)
 
@@ -42,12 +42,12 @@ class VectorizedDeltaTauSdql(HorizonFedStateDistanceQLearning):
         self.goal_chooser = goal_chooser
         self.sparse_rewards_learn_diff = sparse_rewards_learn_diff
 
-    def compute_rewards(self, obs, actions, next_obs, goal_states):
+    def compute_rewards(self, obs, actions, next_obs, goals):
         if self.sparse_reward:
             if self.sparse_rewards_learn_diff:
-                return self.env.convert_obs_to_goal_states(
+                return self.env.convert_obs_to_goals(
                     next_obs
-                ) - goal_states
+                ) - goals
             else:
                 return next_obs
         else:
@@ -59,31 +59,31 @@ class VectorizedDeltaTauSdql(HorizonFedStateDistanceQLearning):
         obs = batch['observations']
         actions = batch['actions']
         next_obs = batch['next_observations']
-        goal_states = batch['goal_states']
+        goals = batch['goals']
         terminals = batch['terminals']
         num_steps_left = batch['num_steps_left']
 
         """
         Policy operations.
         """
-        policy_actions = self.policy(obs, goal_states, num_steps_left)
+        policy_actions = self.policy(obs, goals, num_steps_left)
         # qf isn't really a qf anymore. It's a goal-conditioned (delta) model
-        q_output = self.qf(obs, policy_actions, goal_states, num_steps_left)
+        q_output = self.qf(obs, policy_actions, goals, num_steps_left)
         if self.sparse_reward:
             if self.sparse_rewards_learn_diff:
                 predicted_distance_to_goal = q_output
             else:
                 predicted_state = q_output
-                predicted_goal = self.env.convert_obs_to_goal_states_pytorch(
+                predicted_goal = self.env.convert_obs_to_goals_pytorch(
                     predicted_state
                 )
-                predicted_distance_to_goal = predicted_goal - goal_states
+                predicted_distance_to_goal = predicted_goal - goals
         else:
             predicted_state = q_output + obs
-            predicted_goal = self.env.convert_obs_to_goal_states_pytorch(
+            predicted_goal = self.env.convert_obs_to_goals_pytorch(
                 predicted_state
             )
-            predicted_distance_to_goal = predicted_goal - goal_states
+            predicted_distance_to_goal = predicted_goal - goals
         policy_loss = (predicted_distance_to_goal**2).mean()
 
         """
@@ -98,20 +98,20 @@ class VectorizedDeltaTauSdql(HorizonFedStateDistanceQLearning):
         else:
             next_actions = self.target_policy(
                 next_obs,
-                goal_states,
+                goals,
                 num_steps_left - 1,
             )
             target_q_values = self.target_qf(
                 next_obs,
                 next_actions,
-                goal_states,
+                goals,
                 num_steps_left - 1,  # Important! Else QF will (probably) blow up
             )
             y_target = rewards + (1. - terminals) * target_q_values
 
             # noinspection PyUnresolvedReferences
             y_target = y_target.detach()
-            y_pred = self.qf(obs, actions, goal_states, num_steps_left)
+            y_pred = self.qf(obs, actions, goals, num_steps_left)
             bellman_errors = (y_pred - y_target) ** 2
             raw_qf_loss = self.qf_criterion(y_pred, y_target)
 
@@ -149,11 +149,11 @@ class VectorizedDeltaTauSdql(HorizonFedStateDistanceQLearning):
             obs = batch['observations']
             actions = batch['actions']
             states_after_tau_steps = batch['states_after_tau_steps']
-            goal_states = self.env.convert_obs_to_goal_states_pytorch(
+            goals = self.env.convert_obs_to_goals_pytorch(
                 states_after_tau_steps
             )
             num_steps_left = batch['taus']
-            y_pred = self.qf(obs, actions, goal_states, num_steps_left)
+            y_pred = self.qf(obs, actions, goals, num_steps_left)
 
             y_target = states_after_tau_steps - obs
             sl_loss = self.qf_criterion(y_pred, y_target)

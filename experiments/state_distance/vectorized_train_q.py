@@ -1,7 +1,9 @@
 import argparse
 import random
 
-from railrl.tf.state_distance.vectorized_sdql import (
+from railrl.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState, \
+    Reacher7DofAngleGoalState
+from railrl.state_distance.vectorized_sdql import (
     VectorizedTauSdql,
     VectorizedDeltaTauSdql,
 )
@@ -100,7 +102,7 @@ def experiment(variant):
                 env=env,
                 **variant['her_replay_buffer_params']
             ),
-            fraction_paths_in_train=0.8,
+            fraction_paths_in_train=.5,
         )
     else:
         replay_buffer = None
@@ -160,13 +162,13 @@ if __name__ == '__main__':
     run_mode = "none"
     snapshot_mode = "last"
 
-    # n_seeds = 1
-    # mode = "ec2"
-    # exp_prefix = "tdm-pusher3d"
+    n_seeds = 5
+    mode = "ec2"
+    exp_prefix = "tdm-reacher-7dof-angles"
     # run_mode = 'grid'
     # snapshot_mode = "gap_and_last"
 
-    version = "na"
+    version = "no-goal-at-end-structured-qf"
     num_configurations = 50  # for random mode
     snapshot_gap = 50
     use_gpu = True
@@ -178,11 +180,11 @@ if __name__ == '__main__':
     # algo_class = VectorizedDeltaTauSdql
     qf_class = algo_class_to_qf_class[algo_class]
 
-    # env_class = Reacher7DofAngleGoalState
+    env_class = Reacher7DofAngleGoalState
     # env_class = GoalCosSinStateXYAndCosSinReacher2D
     # env_class = Reacher7DofXyzGoalState
     # env_class = JointOnlyPusherEnv
-    env_class = GoalStateSimpleStateReacherEnv
+    # env_class = GoalStateSimpleStateReacherEnv
     # env_class = GoalXYStateXYAndCosSinReacher2D
     # env_class = Reacher7DofFullGoalState
     # env_class = Reacher7DofGoalStateEverything
@@ -203,7 +205,7 @@ if __name__ == '__main__':
         version=version,
         algo_params=dict(
             num_epochs=num_epochs,
-            num_steps_per_epoch=100,
+            num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             num_updates_per_env_step=25,
             use_soft_update=True,
@@ -217,7 +219,7 @@ if __name__ == '__main__':
             qf_weight_decay=0.,
             max_path_length=max_path_length,
             replay_buffer_size=replay_buffer_size,
-            prob_goal_state_is_next_state=0,
+            prob_goal_is_next_state=0,
             termination_threshold=0,
             render=args.render,
             save_replay_buffer=True,
@@ -228,14 +230,14 @@ if __name__ == '__main__':
             # cycle_taus_for_rollout=False,
             # num_sl_batches_per_rl_batch=1,
         ),
-        eval_with_oc_policy=True,
-        # eval_with_oc_policy=False,
+        # eval_with_oc_policy=True,
+        eval_with_oc_policy=False,
         her_replay_buffer_params=dict(
             max_size=replay_buffer_size,
             num_goals_to_sample=4,
-            goal_sample_strategy='store',
+            # goal_sample_strategy='store',
         ),
-        raw_explore_policy='oc',
+        raw_explore_policy='ddpg',
         oc_policy_params=dict(
             sample_size=10000,
         ),
@@ -250,8 +252,8 @@ if __name__ == '__main__':
         ),
         epoch_discount_schedule_class=IntRampUpSchedule,
         epoch_discount_schedule_params=dict(
-            min_value=0,
-            max_value=20,
+            min_value=10,
+            max_value=10,
             ramp_duration=num_epochs,
         ),
         algo_class=algo_class,
@@ -326,13 +328,13 @@ if __name__ == '__main__':
                 # MultitaskPusher2DEnv,
                 # CylinderXYPusher2DEnv,
             # ],
-            'epoch_discount_schedule_params.max_value': [
-                1,
-                5,
-                10,
-                15,
-                20,
-            ],
+            # 'epoch_discount_schedule_params.max_value': [
+            #     1,
+            #     5,
+            #     10,
+            #     15,
+            #     20,
+            # ],
             # 'algo_params.use_soft_update': [
             #     True,
             # ],
@@ -345,9 +347,9 @@ if __name__ == '__main__':
             #     False,
             #     True,
             # ],
-            'algo_params.tau': [
-                1e-1, 1e-2, 1e-3, 1e-4
-            ],
+            # 'algo_params.tau': [
+            #     1e-1, 1e-2, 1e-3, 1e-4
+            # ],
             # 'algo_params.sl_grad_weight': [
             #     0.01,
             #     0.1,
@@ -355,7 +357,7 @@ if __name__ == '__main__':
             #     10,
             # ],
             # 'her_replay_buffer_params'
-            # '.fraction_goal_states_are_rollout_goal_states': [
+            # '.fraction_goals_are_rollout_goals': [
             #     None,
             #     0,
             #     0.5,

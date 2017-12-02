@@ -228,12 +228,6 @@ class DDPG(TorchRLAlgorithm):
         statistics.update(eval_util.get_generic_path_information(
             self._exploration_paths, self.discount, stat_prefix="Exploration",
         ))
-        if hasattr(self.env, "log_diagnostics"):
-            logger.set_key_prefix('test ')
-            self.env.log_diagnostics(test_paths)
-            logger.set_key_prefix('expl ')
-            self.env.log_diagnostics(self._exploration_paths)
-            logger.set_key_prefix('')
 
         if isinstance(self.epoch_discount_schedule, StatConditionalSchedule):
             table_dict = rllab_util.get_logger_table_dict()
@@ -248,6 +242,15 @@ class DDPG(TorchRLAlgorithm):
 
         average_returns = rllab_util.get_average_returns(test_paths)
         statistics['AverageReturn'] = average_returns
+
+        if hasattr(self.env, "log_diagnostics"):
+            logger.set_key_prefix('test ')
+            self.env.log_diagnostics(test_paths)
+            logger.set_key_prefix('expl ')
+            self.env.log_diagnostics(self._exploration_paths)
+            logger.set_key_prefix('')
+
+
         for key, value in statistics.items():
             logger.record_tabular(key, value)
 
@@ -256,6 +259,8 @@ class DDPG(TorchRLAlgorithm):
 
         if self.plotter:
             self.plotter.draw()
+
+
 
     def offline_evaluate(self, epoch):
         statistics = OrderedDict()
