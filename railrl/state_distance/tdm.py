@@ -104,8 +104,11 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
 
     def compute_rewards_np(self, obs, actions, next_obs, goals):
         if self.vectorized:
-            diff = self.env.convert_obs_to_goals(next_obs) - goals
-            return -np.abs(diff)
+            if hasattr(self.env, 'compute_rewards_vectorized'):
+                self.env.compute_rewards_vectorized(obs, actions, next_obs, goals)
+            else:
+                diff = self.env.convert_obs_to_goals(next_obs) - goals
+                return -np.abs(diff) * self.reward_scale
         else:
             return self.env.compute_rewards(
                 obs,

@@ -1,3 +1,4 @@
+from railrl.envs.multitask.sawyer_env import MultiTaskSawyerEnv
 from railrl.envs.ros.sawyer_env import SawyerEnv
 import numpy as np
 import intera_interface
@@ -16,8 +17,7 @@ experiments=[
     'end_effector_position_orientation|varying_ee'
 ]
 
-env = SawyerEnv('right', experiment=experiments[0], safety_force_magnitude=5, temp=15, safety_box=True, use_safety_checks=False)
-
+env = SawyerEnv('right', experiment=experiments[4], loss='huber', safety_force_magnitude=5, temp=15, safety_box=True, use_safety_checks=False)
 # env.reset()
 # for i in range(100000):
 #     joint_to_values = dict(zip(env.arm_joint_names, np.zeros(7)))
@@ -44,8 +44,15 @@ env = SawyerEnv('right', experiment=experiments[0], safety_force_magnitude=5, te
 # # while True:
 pose = env.arm.endpoint_pose()['position']
 orientation = env.arm.endpoint_pose()['orientation']
+while True:
+    print(env.rewards(np.zeros(7)))
+    # env.rewards(np.zeros(7))
 pose = np.array([pose.x, pose.y, pose.z, orientation.x, orientation.y, orientation.z, orientation.w])
-print(pose)
+# pose = np.array([pose.x, pose.y, pose.z])
+print('[', end='')
+for thing in pose:
+    print(str(thing), end=', ')
+print(']')
 # env.update_pose_and_jacobian_dict()
 # env.check_joints_in_box(env.pose_jacobian_dict)
 # print(env.pose_jacobian_dict)
