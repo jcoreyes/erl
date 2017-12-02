@@ -58,8 +58,8 @@ def experiment(variant):
     algo_params['ddpg_kwargs']['qf_criterion'] = qf_criterion
     plotter = Simple1DTdmPlotter(
         tdm=qf,
-        location_lst=np.array([-1, 0, 0.5]),
-        goal_lst=np.array([-1, 0, 0.5]),
+        location_lst=np.array([-0.5, 0, 0.5]),
+        goal_lst=np.array([-0.5, 0, 0.5]),
         max_tau=algo_params['tdm_kwargs']['max_tau'],
     )
     algo_params['ddpg_kwargs']['plotter'] = plotter
