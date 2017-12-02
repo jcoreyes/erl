@@ -4,7 +4,7 @@ import numpy as np
 
 from railrl.envs.mujoco.mujoco_env import MujocoEnv
 from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.misc.rllab_util import split_paths
+from railrl.samplers.util import split_paths
 from rllab.envs.env_spec import EnvSpec
 from rllab.misc import logger
 from sandbox.rocky.tf.spaces.box import Box

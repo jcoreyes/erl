@@ -6,10 +6,10 @@ class Policy(object, metaclass=abc.ABCMeta):
     General policy interface.
     """
     @abc.abstractmethod
-    def get_action(self, obs):
+    def get_action(self, observation):
         """
 
-        :param obs:
+        :param observation:
         :return: action, debug_dictionary
         """
         pass

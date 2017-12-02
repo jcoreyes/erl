@@ -47,12 +47,6 @@ class SplitReplayBuffer(ReplayBuffer):
         else:
             return self.validation_replay_buffer
 
-    def num_steps_saved(self):
-        return (
-            self.train_replay_buffer.num_steps_saved()
-            + self.validation_replay_buffer.num_steps_saved()
-        )
-
     def random_batch(self, batch_size):
         return self.replay_buffer.random_batch(batch_size)
 

@@ -57,7 +57,7 @@ class ParallelDDPG(DDPG):
                     path["agent_infos"],
                     path["env_infos"],
                 ):
-                    self.replay_buffer.add_sample(
+                    self.replay_buffer.add_all(
                         obs,
                         action,
                         reward,

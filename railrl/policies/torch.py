@@ -329,12 +329,12 @@ class FeedForwardPolicy(PyTorchModule):
         h = F.relu(self.fc2(h))
         return F.tanh(self.last_fc(h))
 
-    def get_action(self, obs):
-        obs = np.expand_dims(obs, axis=0)
-        obs = Variable(ptu.from_numpy(obs).float(), requires_grad=False)
-        action = self.__call__(obs)
-        action = action.squeeze(0)
-        return ptu.get_numpy(action), {}
+    def get_action(self, obs_np):
+        actions = self.get_actions(obs_np[None])
+        return actions[0, :], {}
+
+    def get_actions(self, obs):
+        return self.eval_np(obs)
 
 
 class RecurrentPolicy(PyTorchModule):

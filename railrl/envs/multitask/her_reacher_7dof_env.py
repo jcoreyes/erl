@@ -6,7 +6,7 @@ from gym.envs.mujoco import mujoco_env
 
 from railrl.envs.env_utils import get_asset_xml
 from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.misc.rllab_util import get_stat_in_dict
+from railrl.samplers.util import get_stat_in_paths
 from rllab.misc import logger as rllab_logger
 
 
@@ -95,7 +95,7 @@ class Reacher7Dof(
     def log_diagnostics(self, paths, logger=None):
         statistics = OrderedDict()
 
-        euclidean_distances = get_stat_in_dict(
+        euclidean_distances = get_stat_in_paths(
             paths, 'env_infos', 'distance'
         )
         statistics.update(create_stats_ordered_dict(

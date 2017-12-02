@@ -5,7 +5,7 @@ import numpy as np
 
 from railrl.envs.mujoco.mujoco_env import MujocoEnv
 from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.misc.rllab_util import get_stat_in_dict
+from railrl.samplers.util import get_stat_in_paths
 from rllab.misc import logger
 
 
@@ -96,13 +96,13 @@ class Pusher2DEnv(MujocoEnv, metaclass=abc.ABCMeta):
         ])
 
     def log_diagnostics(self, paths):
-        final_hand_to_object_dist = get_stat_in_dict(
+        final_hand_to_object_dist = get_stat_in_paths(
             paths, 'env_infos', 'hand_to_object_distance'
         )[:, -1]
-        final_object_to_goal_dist = get_stat_in_dict(
+        final_object_to_goal_dist = get_stat_in_paths(
             paths, 'env_infos', 'object_to_goal_distance'
         )[:, -1]
-        final_hand_to_hand_goal_dist = get_stat_in_dict(
+        final_hand_to_hand_goal_dist = get_stat_in_paths(
             paths, 'env_infos', 'hand_to_hand_goal_distance'
         )[:, -1]
 

@@ -52,7 +52,7 @@ if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
             num_epochs=100,
-            num_steps_per_epoch=10000,
+            num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             use_soft_update=True,
             tau=1e-2,
@@ -62,7 +62,6 @@ if __name__ == "__main__":
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
         ),
-        version="PyTorch - bigger networks",
     )
     seed = random.randint(0, 999999)
     run_experiment(

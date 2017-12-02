@@ -63,6 +63,8 @@ dependencies:
         - dominate
         - gitpython
         - ray
+        - snakeviz
+        - gtimer
 # Can't get this to work, but you should install this if you want to run
 # fanova analysis
 #        - pyrfr

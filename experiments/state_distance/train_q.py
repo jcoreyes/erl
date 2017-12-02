@@ -1,4 +1,5 @@
 import argparse
+import torch
 import random
 
 import numpy as np
@@ -15,7 +16,7 @@ from railrl.envs.multitask.pusher import (
 from railrl.envs.multitask.pusher2d import HandCylinderXYPusher2DEnv
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofFullGoalState,
-)
+    Reacher7DofGoalStateEverything)
 from railrl.envs.multitask.reacher_env import (
     GoalStateSimpleStateReacherEnv,
 )
@@ -145,8 +146,7 @@ if __name__ == '__main__':
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
             # sample_goals_from='environment',
-            sample_goals_from='replay_buffer',
-            sample_discount=True,
+            sample_train_goals_from='replay_buffer',
             qf_weight_decay=0.,
             max_path_length=max_path_length,
             replay_buffer_size=200000,
@@ -164,7 +164,7 @@ if __name__ == '__main__':
         # qf_class=DuelingStructuredUniversalQfunction,
         qf_params=dict(
             hidden_sizes=[300, 300],
-            hidden_activation=F.softplus,
+            # hidden_activation=F.softplus,
             # output_activation=F.softplus,
             # output_multiplier=-1,
         ),
@@ -181,7 +181,8 @@ if __name__ == '__main__':
             # ramp_duration=50,
         ),
         algo_class=HorizonFedStateDistanceQLearning,
-        env_class=Reacher7DofFullGoalState,
+        # env_class=Reacher7DofFullGoalState,
+        env_class=Reacher7DofGoalStateEverything,
         # env_class=ArmEEInStatePusherEnv,
         # env_class=JointOnlyPusherEnv,
         # env_class=GoalStateSimpleStateReacherEnv,

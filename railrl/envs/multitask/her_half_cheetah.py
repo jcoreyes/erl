@@ -4,7 +4,7 @@ import numpy as np
 from gym.envs.mujoco import HalfCheetahEnv
 
 from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.misc.rllab_util import get_stat_in_dict
+from railrl.samplers.util import get_stat_in_paths
 from rllab.misc import logger as rllab_logger
 
 
@@ -66,13 +66,13 @@ class HalfCheetah(HalfCheetahEnv):
         return np.hstack((ob, self.target_x_vel))
 
     def log_diagnostics(self, paths, logger=None):
-        xvels = get_stat_in_dict(
+        xvels = get_stat_in_paths(
             paths, 'env_infos', 'xvel'
         )
-        desired_xvels = get_stat_in_dict(
+        desired_xvels = get_stat_in_paths(
             paths, 'env_infos', 'desired_xvel'
         )
-        xvel_errors = get_stat_in_dict(
+        xvel_errors = get_stat_in_paths(
             paths, 'env_infos', 'xvel_error'
         )
 
