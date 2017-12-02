@@ -1,9 +1,9 @@
 import ray
 
 from railrl.envs.base import RolloutEnv
+from railrl.envs.wrappers import normalize_box
 from railrl.samplers.util import rollout
 from rllab.core.serializable import Serializable
-from rllab.envs.normalized_env import normalize
 from rllab.envs.proxy_env import ProxyEnv
 
 
@@ -23,7 +23,8 @@ class RayEnv(object):
     ):
         self._env = env
         if normalize_env:
-            self._env = normalize(self._env)
+            # TODO: support more than just box envs
+            self._env = normalize_box(self._env)
         self._policy = policy
         self._exploration_policy = exploration_policy
         self._max_path_length = max_path_length
@@ -81,6 +82,10 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
     The main issue is that the caller then has to call `ray` directly, which is
     breaks some abstractions around ray. Plus, then things like
     `ray_env.action_space` wouldn't work
+
+    It's the responsibly of the caller to call ray.init() at some point before
+    initializing an instance of this class. (Okay, this breaks the
+    abstraction, but I can't think of a much cleaner alternative for now.)
     """
     def __init__(
             self,
@@ -93,10 +98,6 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
     ):
         Serializable.quick_init(self, locals())
         super().__init__(env)
-        # set_serialization_mode_to_pickle(type(env))
-        # set_serialization_mode_to_pickle(type(policy))
-        # set_serialization_mode_to_pickle(type(exploration_policy))
-        ray.init()
         ray.register_custom_serializer(type(env), use_pickle=True)
         ray.register_custom_serializer(type(policy), use_pickle=True)
         ray.register_custom_serializer(type(exploration_policy), use_pickle=True)
@@ -112,7 +113,7 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
 
     def rollout(self, policy, use_exploration_strategy):
         if self._rollout_promise is None:
-            policy_params = policy.get_param_values_np()
+            policy_params = policy.get_param_values()
             self._rollout_promise = self._ray_env.rollout.remote(
                 policy_params,
                 use_exploration_strategy,

@@ -53,3 +53,15 @@ class MakeUniversal(PyTorchModule, UniversalExplorationPolicy):
 
     def forward(self, *args, **kwargs):
         return self.policy(*args, **kwargs)
+
+    def get_param_values(self):
+        return self.policy.get_param_values()
+
+    def set_param_values(self, param_values):
+        self.policy.set_param_values(param_values)
+
+    def get_param_values_np(self):
+        return self.policy.get_param_values_np()
+
+    def set_param_values_np(self, param_values):
+        return self.policy.set_param_values_np(param_values)

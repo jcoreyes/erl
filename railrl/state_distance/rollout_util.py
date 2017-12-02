@@ -87,10 +87,7 @@ def multitask_rollout(
             max_path_length=max_path_length,
             animated=animated,
         )
-    goal_expanded = np.expand_dims(goal, axis=0)
-    # goal_expanded.shape == 1 x goal_dim
-    path['goals'] = goal_expanded.repeat(len(path['terminals']), 0)
-    # goal_states.shape == path_length x goal_dim
+    path['goals'] = expand_goal(goal, len(path['terminals']))
     return path
 
 

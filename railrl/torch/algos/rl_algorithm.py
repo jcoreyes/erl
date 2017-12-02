@@ -3,6 +3,7 @@ import pickle
 import time
 import gtimer as gt
 import numpy as np
+import ray
 
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.path_builder import PathBuilder
@@ -148,8 +149,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.parallel_step_to_train_ratio = parallel_step_to_train_ratio
         self.sim_throttle = sim_throttle
         if self.collection_mode == 'online-parallel':
-            # TODO(murtaza): What happens to the eval env?
-            # see `eval_sampler` definition above.
+            ray.init()
             self.training_env = RemoteRolloutEnv(
                 env=env,
                 policy=eval_policy,
@@ -222,6 +222,10 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             self._end_epoch()
 
     def train_parallel(self, start_epoch=0):
+        assert (
+            isinstance(self.training_env, RemoteRolloutEnv),
+            "Did the sub-class accidentally override the RemoteRolloutEnv?"
+        )
         self.training_mode(False)
         n_steps_current_epoch = 0
         epoch = start_epoch

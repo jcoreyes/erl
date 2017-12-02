@@ -462,7 +462,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             agent_infos=agent_info,
             env_infos=env_info,
             goals=self.goal,
-            # taus=self._rollout_discount,
+            # taus=self._rollout_tau,
         )
         if self.cycle_taus_for_rollout:
             self._rollout_discount -= 1
