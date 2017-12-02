@@ -57,7 +57,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         self.sample_rollout_goals_from = sample_rollout_goals_from
         self.vectorized = vectorized
         self.cycle_taus_for_rollout = cycle_taus_for_rollout
-        self.goal = None
+        self._current_path_goal = None
 
         self.policy = MakeUniversal(self.policy)
         self.eval_policy = MakeUniversal(self.eval_policy)
@@ -179,9 +179,9 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
 
     def _start_new_rollout(self):
         self.exploration_policy.reset()
-        self.goal = self._sample_goal_for_rollout()
-        self.training_env.set_goal(self.goal)
-        self.exploration_policy.set_goal(self.goal)
+        self._current_path_goal = self._sample_goal_for_rollout()
+        self.training_env.set_goal(self._current_path_goal)
+        self.exploration_policy.set_goal(self._current_path_goal)
         self._rollout_discount = self.max_tau
         self.exploration_policy.set_tau(self._rollout_discount)
         return self.training_env.reset()
@@ -204,7 +204,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             terminals=terminal,
             agent_infos=agent_info,
             env_infos=env_info,
-            goals=self.goal,
+            goals=self._current_path_goal,
         )
         if self.cycle_taus_for_rollout:
             self._rollout_discount -= 1

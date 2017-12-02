@@ -36,13 +36,12 @@ if __name__ == "__main__":
     date = datetime.now(tz=pytz.utc)
     logger.log("start")
     variant = dict(
-        num_seconds=1000,
+        num_seconds=10,
         launch_time=str(date.strftime(date_format)),
     )
     run_experiment(
         example,
-        exp_prefix="ec2-2-check-gpu",
+        exp_prefix="ec2-check",
         mode='ec2',
         variant=variant,
-        use_gpu=True,
     )

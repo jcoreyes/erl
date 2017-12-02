@@ -1,12 +1,12 @@
 import random
 
 import numpy as np
-from torch import nn as nn
 
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.envs.multitask.reacher_7dof import Reacher7DofAngleGoalState
+from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
+from railrl.envs.multitask.reacher_7dof import Reacher7DofGoalStateEverything
 from railrl.envs.wrappers import normalize_box
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
@@ -19,7 +19,7 @@ from railrl.torch.modules import HuberLoss
 
 
 def experiment(variant):
-    env = normalize_box(variant['env_class'](**variant['env_kwargs']))
+    env = normalize_box(variant['env_class']())
 
     obs_dim = int(np.prod(env.observation_space.low.shape))
     action_dim = int(np.prod(env.action_space.low.shape))
@@ -70,22 +70,35 @@ def experiment(variant):
 
 if __name__ == "__main__":
     n_seeds = 1
+    mode = "local"
+    exp_prefix = "dev-ddpg-tdm-launch"
+
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "tdm-half-cheetah-x-vel"
+
+    num_epochs = 100
+    num_steps_per_epoch = 50000
+    num_steps_per_eval = 50000
+    max_path_length = 500
+
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
             base_kwargs=dict(
-                num_epochs=25,
-                num_steps_per_epoch=1000,
-                num_steps_per_eval=1000,
-                num_updates_per_env_step=25,
+                num_epochs=num_epochs,
+                num_steps_per_epoch=num_steps_per_epoch,
+                num_steps_per_eval=num_steps_per_eval,
+                max_path_length=max_path_length,
+                num_updates_per_env_step=1,
                 batch_size=64,
-                max_path_length=100,
                 discount=1,
             ),
             tdm_kwargs=dict(
                 sample_rollout_goals_from='environment',
                 sample_train_goals_from='her',
                 vectorized=True,
+                cycle_taus_for_rollout=True,
                 max_tau=10,
             ),
             ddpg_kwargs=dict(
@@ -107,23 +120,20 @@ if __name__ == "__main__":
         ),
         qf_criterion_class=HuberLoss,
         qf_criterion_params=dict(),
+        version="DDPG-TDM-2",
+        algorithm="DDPG-TDM",
     )
     search_space = {
         'env_class': [
-            Reacher7DofAngleGoalState,
+            GoalXVelHalfCheetah,
         ],
         'algo_params.tdm_kwargs.vectorized': [
             True,
             False,
         ],
-        'algo_params.tdm_kwargs.cycle_taus_for_rollout': [
-            True,
-            False,
-        ],
-        'env_kwargs.distance_metric_order': [1, 2],
-        'qf_criterion_class': [
-            nn.MSELoss,
-            HuberLoss,
+        'algo_params.tdm_kwargs.sample_rollout_goals_from': [
+            'fixed',
+            'environment',
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -131,15 +141,17 @@ if __name__ == "__main__":
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):
+            variant['multitask'] = (
+                variant['algo_params']['tdm_kwargs'][
+                    'sample_rollout_goals_from'
+                ] != 'fixed'
+            )
             seed = random.randint(0, 10000)
             run_experiment(
                 experiment,
                 seed=seed,
                 variant=variant,
                 exp_id=exp_id,
-                exp_prefix="tdm-ddpg-reacher7dof-angles-sweep-path-length-100",
-                mode='ec2',
-                # exp_prefix="dev-tdm-ddpg",
-                # mode='local',
-                # use_gpu=True,
+                exp_prefix=exp_prefix,
+                mode=mode,
             )
