@@ -7,6 +7,7 @@ from gym import Env
 from gym.spaces import Box, Discrete
 
 from railrl.envs.multitask.multitask_env import MultitaskEnv
+from railrl.state_distance.util import merge_into_flat_obs
 from rllab.core.serializable import Serializable
 from rllab.misc import logger
 
@@ -135,7 +136,12 @@ class Simple1DTdmPlotter(object):
         ):
             repeated_obs = np.repeat(np.array([[obs]]), N, axis=0)
             repeated_goals = np.repeat(np.array([[goal]]), N, axis=0)
-            qs = self._tdm.eval_np(repeated_obs, actions, repeated_goals, taus)
+            new_obs = merge_into_flat_obs(
+                obs=repeated_obs,
+                goals=repeated_goals,
+                num_steps_left=taus,
+            )
+            qs = self._tdm.eval_np(new_obs, actions)
             q_grid = qs.reshape(action_grid.shape)
             cs = ax.contour(action_grid, tau_grid, q_grid)
             self._line_objects += cs.collections
