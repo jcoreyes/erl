@@ -1,7 +1,6 @@
 import ray
 
 from railrl.envs.base import RolloutEnv
-from railrl.misc.ray_util import set_serialization_mode_to_pickle
 from railrl.samplers.util import rollout
 from rllab.core.serializable import Serializable
 from rllab.envs.normalized_env import normalize
@@ -20,6 +19,7 @@ class RayEnv(object):
             exploration_policy,
             max_path_length,
             normalize_env,
+            rollout_function,
     ):
         self._env = env
         if normalize_env:
@@ -27,6 +27,7 @@ class RayEnv(object):
         self._policy = policy
         self._exploration_policy = exploration_policy
         self._max_path_length = max_path_length
+        self.rollout_function = rollout_function
 
     def rollout(self, policy_params, use_exploration_strategy):
         self._policy.set_param_values_np(policy_params)
@@ -34,7 +35,7 @@ class RayEnv(object):
             policy = self._exploration_policy
         else:
             policy = self._policy
-        return rollout(self._env, policy, self._max_path_length)
+        return self.rollout_function(self._env, policy, self._max_path_length)
 
 
 class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
@@ -88,6 +89,7 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
             exploration_policy,
             max_path_length,
             normalize_env,
+            rollout_function=rollout,
     ):
         Serializable.quick_init(self, locals())
         super().__init__(env)
@@ -104,6 +106,7 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
             exploration_policy,
             max_path_length,
             normalize_env,
+            rollout_function,
         )
         self._rollout_promise = None
 
