@@ -16,7 +16,7 @@ class Simple1D(MultitaskEnv, Env, Serializable):
     def __init__(self, distance_metric_order=1):
         Serializable.quick_init(self, locals())
         super().__init__(distance_metric_order=distance_metric_order)
-        self._state = 0
+        self._state = np.zeros(1)
         self.action_space = Box(-1, 1, shape=(1,))
         self.observation_space = Box(-10, 10, shape=(1,))
 
@@ -31,13 +31,14 @@ class Simple1D(MultitaskEnv, Env, Serializable):
         return np.random.uniform(-10, 10, (batch_size, 1))
 
     def _reset(self):
-        self._state = 0
+        self._state = np.zeros(1)
+        return self._state
 
     def _step(self, action):
         self._state += action
         self._state = np.clip(self._state, -10, 10)
         observation = self._state
-        reward = -np.abs(self._state - self.multitask_goal)
+        reward = -float(np.abs(self._state - self.multitask_goal))
         done = False
         info = {}
         return observation, reward, done, info
@@ -68,30 +69,40 @@ class DiscreteSimple1D(Simple1D):
         return super()._step(continuous_action)
 
 
-class Simple1DTDMPlotter(object):
-    def __init__(self, tdm, policy, obs_lst, default_action, n_samples):
+GRID_SIZE = 50
+ACTION_LIMITS = (-1, 1)
+
+
+class Simple1DTdmPlotter(object):
+    def __init__(self, tdm, location_lst, goal_lst, max_tau):
         self._tdm = tdm
-        self._policy = policy
-        self._obs_lst = obs_lst
-        self._default_action = default_action
-        self._n_samples = n_samples
+        self.max_tau = max_tau
 
-        self._var_inds = np.where(np.isnan(default_action))[0]
-        assert len(self._var_inds) == 2
-
-        n_plots = len(obs_lst)
+        n_plots = len(location_lst)
 
         x_size = 5 * n_plots
         y_size = 5
 
         fig = plt.figure(figsize=(x_size, y_size))
         self._ax_lst = []
-        for i in range(n_plots):
-            ax = fig.add_subplot(100 + n_plots * 10 + i + 1)
-            ax.set_xlim((-1, 1))
-            ax.set_ylim((-1, 1))
-            ax.grid(True)
-            self._ax_lst.append(ax)
+        i = 1
+        self._location_lst = []
+        self._goal_lst = []
+        for row, goal in enumerate(goal_lst):
+            for col, location in enumerate(location_lst):
+                ax = fig.add_subplot(len(location_lst), len(goal_lst), i)
+                i += 1
+                ax.set_xlim(ACTION_LIMITS)
+                ax.set_ylim((0, self.max_tau))
+                ax.grid(True)
+                ax.set_xlabel("Action")
+                ax.set_ylabel("Tau")
+                ax.set_title("X = {}, Goal = {}".format(
+                    float(location), float(goal)
+                ))
+                self._ax_lst.append(ax)
+                self._goal_lst.append(goal)
+                self._location_lst.append(location)
 
         self._line_objects = list()
 
@@ -101,42 +112,34 @@ class Simple1DTDMPlotter(object):
         self._line_objects = list()
 
         self._plot_level_curves()
-        self._plot_action_samples()
 
         plt.draw()
         plt.pause(0.001)
 
     def _plot_level_curves(self):
         # Create mesh grid.
-        xs = np.linspace(-1, 1, 50)
-        ys = np.linspace(-1, 1, 50)
-        xgrid, ygrid = np.meshgrid(xs, ys)
-        N = len(xs)*len(ys)
+        actions_sampled = np.linspace(
+            ACTION_LIMITS[0], ACTION_LIMITS[1], GRID_SIZE
+        )
+        taus_sampled = np.linspace(0, self.max_tau, GRID_SIZE)
+        # action = x axis
+        action_grid, tau_grid = np.meshgrid(actions_sampled, taus_sampled)
+        N = len(actions_sampled)*len(taus_sampled)
 
-        # Copy default values along the first axis and replace nans with
-        # the mesh grid points.
-        actions = np.tile(self._default_action, (N, 1))
-        actions[:, self._var_inds[0]] = xgrid.ravel()
-        actions[:, self._var_inds[1]] = ygrid.ravel()
+        actions = action_grid.ravel()
+        taus = tau_grid.ravel()
+        actions = np.expand_dims(actions, 1)
+        taus = np.expand_dims(taus, 1)
+        for ax, obs, goal in zip(
+                self._ax_lst, self._location_lst, self._goal_lst
+        ):
+            repeated_obs = np.repeat(np.array([[obs]]), N, axis=0)
+            repeated_goals = np.repeat(np.array([[goal]]), N, axis=0)
+            qs = self._tdm.eval_np(repeated_obs, actions, repeated_goals, taus)
+            qs = qs.reshape(action_grid.shape)
 
-        for ax, obs in zip(self._ax_lst, self._obs_lst):
-            repeated_obs = np.repeat(
-                obs[None],
-                actions.shape[0],
-                axis=0,
-            )
-            qs = self._qf.eval_np(repeated_obs, actions)
-            qs = qs.reshape(xgrid.shape)
-
-            cs = ax.contour(xgrid, ygrid, qs, 20)
+            cs = ax.contour(action_grid, tau_grid, qs)
             self._line_objects += cs.collections
             self._line_objects += ax.clabel(
-                cs, inline=1, fontsize=10, fmt='%.2f')
-
-    def _plot_action_samples(self):
-        for ax, obs in zip(self._ax_lst, self._obs_lst):
-            actions = self._policy.get_actions(
-                np.ones((self._n_samples, 1)) * obs[None, :])
-
-            x, y = actions[:, 0], actions[:, 1]
-            self._line_objects += ax.plot(x, y, 'b*')
+                cs, inline=1, fontsize=10, fmt='%.2f'
+            )
