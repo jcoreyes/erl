@@ -73,14 +73,14 @@ class DiscreteSimple1D(Simple1D):
         return super()._step(continuous_action)
 
 
-GRID_SIZE = 20
 ACTION_LIMITS = (-1, 1)
 
 
 class Simple1DTdmPlotter(object):
-    def __init__(self, tdm, location_lst, goal_lst, max_tau):
+    def __init__(self, tdm, location_lst, goal_lst, max_tau, grid_size=20):
         self._tdm = tdm
-        self.max_tau = max_tau
+        self.max_tau_evaluated = max_tau + 1
+        self.grid_size = grid_size
 
         x_size = 5 * len(goal_lst)
         y_size = 5 * len(location_lst)
@@ -96,7 +96,7 @@ class Simple1DTdmPlotter(object):
                 ax = self.fig.add_subplot(len(location_lst), len(goal_lst), i)
                 i += 1
                 ax.set_xlim(ACTION_LIMITS)
-                ax.set_ylim((0, self.max_tau))
+                ax.set_ylim((0, self.max_tau_evaluated))
                 ax.grid(True)
                 ax.set_xlabel("Action")
                 ax.set_ylabel("Tau")
@@ -124,9 +124,15 @@ class Simple1DTdmPlotter(object):
     def _plot_level_curves(self):
         # Create mesh grid.
         actions_sampled = np.linspace(
-            ACTION_LIMITS[0], ACTION_LIMITS[1], GRID_SIZE
+            ACTION_LIMITS[0], ACTION_LIMITS[1], self.grid_size
         )
-        taus_sampled = np.linspace(0, self.max_tau, GRID_SIZE)
+        taus_sampled = np.linspace(
+            0, self.max_tau_evaluated, 2*self.max_tau_evaluated
+        )
+        # Make it so that when rounded, the last value will be max_tau
+        # This really only matters when (e.g.) the the taus are converted to
+        # one-hot vectors
+        taus_sampled = np.clip(taus_sampled, 0, self.max_tau_evaluated - 1e-6)
         # action = x axis
         action_grid, tau_grid = np.meshgrid(actions_sampled, taus_sampled)
         N = len(actions_sampled)*len(taus_sampled)

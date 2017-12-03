@@ -10,7 +10,7 @@ from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.state_distance.flat_networks import StructuredQF
+from railrl.state_distance.flat_networks import StructuredQF, OneHotTauQF
 from railrl.state_distance.tdm_ddpg import TdmDdpg
 from railrl.torch.modules import HuberLoss
 from railrl.torch.networks import MlpPolicy
@@ -22,7 +22,14 @@ def experiment(variant):
     obs_dim = int(np.prod(env.observation_space.low.shape))
     action_dim = int(np.prod(env.action_space.low.shape))
     vectorized = variant['algo_params']['tdm_kwargs']['vectorized']
-    qf = StructuredQF(
+    # qf = StructuredQF(
+    #     observation_dim=obs_dim,
+    #     action_dim=action_dim,
+    #     goal_dim=env.goal_dim,
+    #     output_size=env.goal_dim if vectorized else 1,
+    #     **variant['qf_params']
+    # )
+    qf = OneHotTauQF(
         observation_dim=obs_dim,
         action_dim=action_dim,
         goal_dim=env.goal_dim,
@@ -60,9 +67,12 @@ def experiment(variant):
     algo_params['ddpg_kwargs']['qf_criterion'] = qf_criterion
     plotter = Simple1DTdmPlotter(
         tdm=qf,
+        # location_lst=np.array([-10, 0, 10]),
+        # goal_lst=np.array([-10, 0, 5]),
         location_lst=np.array([-5, 0, 5]),
         goal_lst=np.array([-5, 0, 5]),
         max_tau=algo_params['tdm_kwargs']['max_tau'],
+        grid_size=10,
     )
     algo_params['ddpg_kwargs']['plotter'] = plotter
     algorithm = TdmDdpg(
@@ -89,6 +99,7 @@ if __name__ == "__main__":
     max_path_length = 30
 
     # noinspection PyTypeChecker
+    max_tau = 5
     variant = dict(
         algo_params=dict(
             base_kwargs=dict(
@@ -99,13 +110,14 @@ if __name__ == "__main__":
                 num_updates_per_env_step=1,
                 batch_size=64,
                 discount=1,
+                save_replay_buffer=True,
             ),
             tdm_kwargs=dict(
                 sample_rollout_goals_from='environment',
                 sample_train_goals_from='her',
                 vectorized=True,
                 cycle_taus_for_rollout=True,
-                max_tau=1,
+                max_tau=max_tau,
             ),
             ddpg_kwargs=dict(
                 tau=0.01,
@@ -119,6 +131,7 @@ if __name__ == "__main__":
         ),
         qf_params=dict(
             hidden_sizes=[100, 100],
+            max_tau=max_tau,
         ),
         policy_params=dict(
             hidden_sizes=[100, 100],
