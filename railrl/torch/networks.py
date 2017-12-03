@@ -7,6 +7,7 @@ import torch
 from torch import nn as nn
 from torch.nn import functional as F
 
+from railrl.policies.base import Policy
 from railrl.pythonplusplus import identity
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.core import PyTorchModule
@@ -101,3 +102,15 @@ class OuterProductFF(PyTorchModule):
         h = F.relu(self.sop1(h))
         h = F.relu(self.sop2(h))
         return self.output_activation(self.last_fc(h))
+
+
+class MlpPolicy(Mlp, Policy):
+    """
+    A simpler interface for creating policies.
+    """
+    def get_action(self, obs_np):
+        actions = self.get_actions(obs_np[None])
+        return actions[0, :], {}
+
+    def get_actions(self, obs):
+        return self.eval_np(obs)
