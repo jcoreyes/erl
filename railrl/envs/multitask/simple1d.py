@@ -37,7 +37,8 @@ class Simple1D(MultitaskEnv, Env, Serializable):
         return self._state
 
     def _step(self, action):
-        self._state += action
+        # Do not do += since that will use the same memory
+        self._state = self._state + action
         self._state = np.clip(self._state, -10, 10)
         observation = self._state
         reward = -float(np.abs(self._state - self.multitask_goal))
