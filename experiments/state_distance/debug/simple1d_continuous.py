@@ -5,22 +5,19 @@ import numpy as np
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
-from railrl.envs.multitask.reacher_7dof import Reacher7DofGoalStateEverything
 from railrl.envs.multitask.simple1d import Simple1D, Simple1DTdmPlotter
-from railrl.envs.wrappers import normalize_box
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.policies.torch import FeedForwardPolicy
 from railrl.state_distance.flat_networks import StructuredQF
 from railrl.state_distance.tdm_ddpg import TdmDdpg
 from railrl.torch.modules import HuberLoss
+from railrl.torch.networks import MlpPolicy
 
 
 def experiment(variant):
-    env = normalize_box(variant['env_class']())
+    env = variant['env_class']()
 
     obs_dim = int(np.prod(env.observation_space.low.shape))
     action_dim = int(np.prod(env.action_space.low.shape))
@@ -32,9 +29,14 @@ def experiment(variant):
         output_size=env.goal_dim if vectorized else 1,
         **variant['qf_params']
     )
-    policy = FeedForwardPolicy(
-        obs_dim=obs_dim + env.goal_dim + 1,
-        action_dim=action_dim,
+    # qf = FlattenMlp(
+    #     input_size=obs_dim+action_dim+env.goal_dim+1,
+    #     output_size=env.goal_dim if vectorized else 1,
+    #     **variant['qf_params']
+    # )
+    policy = MlpPolicy(
+        input_size=obs_dim + env.goal_dim + 1,
+        output_size=action_dim,
         **variant['policy_params']
     )
     es = OUStrategy(
@@ -58,8 +60,8 @@ def experiment(variant):
     algo_params['ddpg_kwargs']['qf_criterion'] = qf_criterion
     plotter = Simple1DTdmPlotter(
         tdm=qf,
-        location_lst=np.array([-0.5, 0, 0.5]),
-        goal_lst=np.array([-0.5, 0, 0.5]),
+        location_lst=np.array([-5, 0, 5]),
+        goal_lst=np.array([-5, 0, 5]),
         max_tau=algo_params['tdm_kwargs']['max_tau'],
     )
     algo_params['ddpg_kwargs']['plotter'] = plotter
@@ -80,10 +82,6 @@ if __name__ == "__main__":
     n_seeds = 1
     mode = "local"
     exp_prefix = "simple-1d-continuous"
-
-    # n_seeds = 3
-    # mode = "ec2"
-    # exp_prefix = "tdm-half-cheetah-x-vel"
 
     num_epochs = 100
     num_steps_per_epoch = 1000
@@ -123,8 +121,7 @@ if __name__ == "__main__":
             hidden_sizes=[100, 100],
         ),
         policy_params=dict(
-            fc1_size=100,
-            fc2_size=100,
+            hidden_sizes=[100, 100],
         ),
         qf_criterion_class=HuberLoss,
         qf_criterion_params=dict(),
