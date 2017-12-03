@@ -116,7 +116,7 @@ if __name__ == "__main__":
     while True:
         paths = []
         tau = init_tau
-        policy.set_discount(tau)
+        policy.set_tau(tau)
         for _ in range(args.num_rollouts):
             goal = env.sample_goal_for_rollout()
             if args.verbose:
@@ -141,6 +141,6 @@ if __name__ == "__main__":
                     tau = init_tau
                 else:
                     tau = 0
-            policy.set_discount(tau)
+            policy.set_tau(tau)
         env.log_diagnostics(paths)
         logger.dump_tabular()

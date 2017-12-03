@@ -19,9 +19,9 @@ class UniversalPolicy(Policy, metaclass=abc.ABCMeta):
         self._goal_np = None
         self._goal_expanded_torch = None
         self._goal_expanded_np = None
-        self._discount_np = None
-        self._discount_expanded_torch = None
-        self._discount_expanded_np = None
+        self._tau_np = None
+        self._tau_expanded_torch = None
+        self._tau_expanded_np = None
 
     def set_goal(self, goal_np):
         self._goal_np = goal_np
@@ -30,11 +30,11 @@ class UniversalPolicy(Policy, metaclass=abc.ABCMeta):
             np.expand_dims(goal_np, 0)
         )
 
-    def set_discount(self, discount):
-        self._discount_np = discount
-        self._discount_expanded_np = np.array([[discount]])
-        self._discount_expanded_torch = ptu.np_to_var(
-            self._discount_expanded_np
+    def set_tau(self, tau):
+        self._tau_np = tau
+        self._tau_expanded_np = np.array([[tau]])
+        self._tau_expanded_torch = ptu.np_to_var(
+            self._tau_expanded_np
         )
 
 
@@ -50,7 +50,7 @@ class SampleBasedUniversalPolicy(
         self.action_high = self.env.action_space.high
         self._goal_batch = None
         self._goal_batch_np = None
-        self._discount_batch = None
+        self._tau_batch = None
 
     def set_goal(self, goal_np):
         super().set_goal(goal_np)
@@ -61,9 +61,9 @@ class SampleBasedUniversalPolicy(
             axis=0
         )
 
-    def set_discount(self, discount):
-        super().set_discount(discount)
-        self._discount_batch = self.expand_np_to_var(np.array([discount]))
+    def set_tau(self, tau):
+        super().set_tau(tau)
+        self._tau_batch = self.expand_np_to_var(np.array([tau]))
 
     def expand_np_to_var(self, array):
         array_expanded = np.repeat(
@@ -134,14 +134,14 @@ class SamplePolicyPartialOptimizer(SampleBasedUniversalPolicy, nn.Module):
         actions = self.argmax_q(
             obs_pytorch,
             goals,
-            self._discount_batch,
+            self._tau_batch,
         )
 
         q_values = ptu.get_numpy(self.qf(
             obs_pytorch,
             actions,
             goals,
-            self.expand_np_to_var(np.array([self._discount_np])),
+            self.expand_np_to_var(np.array([self._tau_np])),
         ))
         max_i = np.argmax(q_values)
         # return sampled_actions[max_i], {}
@@ -197,9 +197,9 @@ class SoftOcOneStepRewardPolicy(SampleBasedUniversalPolicy, nn.Module):
         reward = self.reward(None, None, sampled_goal_states)
         constraint_reward = self.qf(
             obs,
-            self.policy(obs, sampled_goal_states, self._discount_batch),
+            self.policy(obs, sampled_goal_states, self._tau_batch),
             self.env.convert_obs_to_goal_states_pytorch(sampled_goal_states),
-            self._discount_batch,
+            self._tau_batch,
         )
         if constraint_reward.size()[1] > 1:
             constraint_reward = constraint_reward.sum(dim=1, keepdim=True)
@@ -220,7 +220,7 @@ class SoftOcOneStepRewardPolicy(SampleBasedUniversalPolicy, nn.Module):
             self.policy(
                 ptu.np_to_var(np.expand_dims(state_np, 0)),
                 ptu.np_to_var(np.expand_dims(goal_state_np, 0)),
-                self._discount_expanded_torch,
+                self._tau_expanded_torch,
             ).squeeze(0)
         )
 
@@ -325,7 +325,7 @@ class ArgmaxQFPolicy(SampleBasedUniversalPolicy, nn.Module):
             obs,
             actions,
             self._goal_batch,
-            self._discount_batch,
+            self._tau_batch,
         )
         for _ in range(self.num_gradient_steps):
             loss = losses.mean()
@@ -336,7 +336,7 @@ class ArgmaxQFPolicy(SampleBasedUniversalPolicy, nn.Module):
                 obs,
                 actions,
                 self._goal_batch,
-                self._discount_batch,
+                self._tau_batch,
             )
         losses_np = ptu.get_numpy(losses)
         best_action_i = np.argmin(losses_np)
@@ -378,7 +378,7 @@ class PseudoModelBasedPolicy(SampleBasedUniversalPolicy, nn.Module):
                     states,
                     actions,
                     next_states,
-                    self._discount_batch,
+                    self._tau_batch,
                 )
                 loss = losses.mean()
                 optimizer.zero_grad()
@@ -430,7 +430,7 @@ class PseudoModelBasedPolicy(SampleBasedUniversalPolicy, nn.Module):
                 state,
                 action,
                 next_state,
-                self._discount_expanded_torch
+                self._tau_expanded_torch
             )
             loss.backward()
             loss_np = ptu.get_numpy(loss)
@@ -542,10 +542,10 @@ class StateOnlySdqBasedSqpOcPolicy(UniversalPolicy, nn.Module):
         for i in range(self.planning_horizon):
             next_state = all_next_states[i:i+1, :]
             action = self.policy(
-                state, next_state, self._discount_expanded_torch
+                state, next_state, self._tau_expanded_torch
             )
             loss += self.qf(
-                state, action, next_state, self._discount_expanded_torch
+                state, action, next_state, self._tau_expanded_torch
             )
             state = next_state
         if return_grad:
@@ -596,7 +596,7 @@ class StateOnlySdqBasedSqpOcPolicy(UniversalPolicy, nn.Module):
             self.policy(
                 ptu.np_to_var(np.expand_dims(state_np, 0)),
                 ptu.np_to_var(np.expand_dims(goal_state_np, 0)),
-                self._discount_expanded_torch,
+                self._tau_expanded_torch,
             ).squeeze(0)
         )
 
@@ -639,20 +639,17 @@ class UnconstrainedOcWithGoalConditionedModel(SampleBasedUniversalPolicy, nn.Mod
         actions = self.argmax_q(
             obs_pytorch,
             sampled_goal_state,
-            self._discount_batch,
+            self._tau_batch,
         )
         final_state_predicted = self.model(
             obs_pytorch,
             actions,
             sampled_goal_state,
-            self._discount_batch,
+            self._tau_batch,
         ) + obs_pytorch
         rewards = self.rewards_np(obs_pytorch, final_state_predicted)
         max_i = np.argmax(rewards)
         return ptu.get_numpy(actions[max_i]), {}
-        # self.argmax_q.set_goal(self._goal_np)
-        # self.argmax_q.set_discount(self._discount_np)
-        # return self.argmax_q.get_action(obs)
 
 
 class UnconstrainedOcWithImplicitModel(SampleBasedUniversalPolicy, nn.Module):
@@ -689,7 +686,7 @@ class UnconstrainedOcWithImplicitModel(SampleBasedUniversalPolicy, nn.Module):
         actions = self.argmax_q(
             obs_pytorch,
             sampled_goal_state,
-            self._discount_batch,
+            self._tau_batch,
         )
         # actions = self.env.sample_actions(self.sample_size)
         # actions = ptu.np_to_var(actions)
@@ -698,7 +695,7 @@ class UnconstrainedOcWithImplicitModel(SampleBasedUniversalPolicy, nn.Module):
             obs_pytorch,
             actions,
             sampled_goal_state,
-            self._discount_batch,
+            self._tau_batch,
             only_return_next_state=True,
         )
         rewards = self.rewards_np(

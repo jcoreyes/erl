@@ -3,6 +3,7 @@ import pickle
 import time
 import gtimer as gt
 import numpy as np
+import ray
 
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.path_builder import PathBuilder
@@ -88,7 +89,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.max_path_length = max_path_length
         self.discount = discount
         self.replay_buffer_size = replay_buffer_size
-        self.scale_reward = reward_scale
+        self.reward_scale = reward_scale
         self.render = render
         self.collection_mode = collection_mode
         self.save_replay_buffer = save_replay_buffer
@@ -148,7 +149,15 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self._exploration_paths = []
         self.parallel_step_to_train_ratio = parallel_step_to_train_ratio
         self.sim_throttle = sim_throttle
-
+        if self.collection_mode == 'online-parallel':
+            ray.init()
+            self.training_env = RemoteRolloutEnv(
+                env=env,
+                policy=eval_policy,
+                exploration_policy=exploration_policy,
+                max_path_length=self.max_path_length,
+                normalize_env=self.normalize_env,
+            )
 
     def train(self, start_epoch=0):
         if start_epoch == 0:
@@ -187,7 +196,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                     self.training_env.step(action)
                 )
                 self._n_env_steps_total += 1
-                reward = raw_reward * self.scale_reward
+                reward = raw_reward * self.reward_scale
                 terminal = np.array([terminal])
                 reward = np.array([reward])
                 self._handle_step(
@@ -214,6 +223,10 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             self._end_epoch()
 
     def train_parallel(self, start_epoch=0):
+        assert (
+            isinstance(self.training_env, RemoteRolloutEnv),
+            "Did the sub-class accidentally override the RemoteRolloutEnv?"
+        )
         self.training_mode(False)
         n_steps_current_epoch = 0
         epoch = start_epoch
@@ -231,7 +244,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                     use_exploration_strategy=True,
                 )
             if path is not None:
-                path['rewards'] = path['rewards'] * self.scale_reward
+                path['rewards'] = path['rewards'] * self.reward_scale
                 path_length = len(path['observations'])
                 self._n_env_steps_total += path_length
                 n_steps_current_epoch += path_length

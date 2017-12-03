@@ -6,6 +6,7 @@ import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.envs.multitask.cartpole_env import CartPole, CartPoleAngleOnly
+from railrl.envs.multitask.discrete_reacher_2d import DiscreteReacher2D
 from railrl.envs.multitask.mountain_car_env import MountainCar
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.argmax import ArgmaxDiscretePolicy
@@ -58,10 +59,10 @@ if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
             base_kwargs=dict(
-                num_epochs=100,
-                num_steps_per_epoch=200,
+                num_epochs=50,
+                num_steps_per_epoch=1000,
                 num_steps_per_eval=1000,
-                num_updates_per_env_step=25,
+                num_updates_per_env_step=5,
                 batch_size=128,
                 max_path_length=200,
                 discount=0.99,
@@ -85,25 +86,26 @@ if __name__ == "__main__":
             hidden_sizes=[300, 300],
         ),
         policy_params=dict(
-            goal_dim_weights=[0, 0, 1, 0],
+            goal_dim_weights=None
         ),
         env_class=MountainCar,
         # version="fix-max-tau",
         version="sample",
     )
     search_space = {
-        'algo_params.dqn_kwargs.use_hard_updates': [True],
-        'env_class': [
-            # CartPoleAngleOnly,
-            CartPole,
-            # MountainCar,
+        'algo_params.tdm_kwargs.sample_rollout_goals_from': [
+            'fixed',
+            # 'environment',
         ],
-        'policy_param.goal_dim_weights': [
-            [1, 1, 1, 1],
-            # [.1, .1, 1, .1],
-            # [0, 1, 1, 0],
-            # [1, 0, 1, 0],
-            # [0, 0, 1, 0],
+        'algo_params.tdm_kwargs.cycle_taus_for_rollout': [
+            True,
+            False,
+        ],
+        'env_class': [
+            DiscreteReacher2D,
+            MountainCar,
+            CartPole,
+            CartPoleAngleOnly,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -117,10 +119,10 @@ if __name__ == "__main__":
                 seed=seed,
                 variant=variant,
                 exp_id=exp_id,
-                exp_prefix="dqn-tdm-cartpole-goal-weight-hp-update",
-                # mode='ec2',
-                # use_gpu=False,
-                # exp_prefix="dev-dqn-tdm-classic-control",
-                mode='local',
-                use_gpu=True,
+                exp_prefix="dqn-tdm-fixed-goals-various-tasks-check-cycle-tau"
+                           "-short",
+                mode='ec2',
+                # exp_prefix="dev-dqn-tdm-launch",
+                # mode='local',
+                # use_gpu=True,
             )

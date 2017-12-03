@@ -199,6 +199,14 @@ def run_experiment(
     """
     Get the mode
     """
+    if use_gpu:
+        image_id = config.GPU_AWS_IMAGE_ID
+    else:
+        image_id = None
+    if hasattr(config, "AWS_S3_PATH"):
+        aws_s3_path = config.AWS_S3_PATH
+    else:
+        aws_s3_path = None
     mode_str_to_doodad_mode = {
         'local': doodad.mode.Local(),
         'local_docker': doodad.mode.LocalDocker(
@@ -207,16 +215,16 @@ def run_experiment(
         ),
         'ec2': doodad.mode.EC2AutoconfigDocker(
             image=docker_image,
+            image_id=image_id,
             region=region,
             instance_type=instance_type,
             spot_price=spot_price,
             s3_log_prefix=exp_prefix,
             s3_log_name="{}-id{}-s{}".format(exp_prefix, exp_id, seed),
             gpu=use_gpu,
+            aws_s3_path=aws_s3_path,
         ),
     }
-    if use_gpu:
-        mode_str_to_doodad_mode['ec2'].image_id = config.GPU_AWS_IMAGE_ID
 
     """
     Get the mounts

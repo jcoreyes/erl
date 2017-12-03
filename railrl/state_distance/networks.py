@@ -706,7 +706,7 @@ class FFUniversalPolicy(PyTorchModule, UniversalPolicy):
         action = self.eval_np(
             obs_np[None],
             self._goal_expanded_np,
-            self._discount_expanded_np,
+            self._tau_expanded_np,
         )[0, :]
         return action, {}
 
@@ -715,5 +715,5 @@ class FFUniversalPolicy(PyTorchModule, UniversalPolicy):
         return self.eval_np(
             observations,
             np.repeat(self._goal_expanded_np, batch_size, 0),
-            np.repeat(self._discount_expanded_np, batch_size, 0),
+            np.repeat(self._tau_expanded_np, batch_size, 0),
         )

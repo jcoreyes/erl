@@ -2,15 +2,18 @@
 New implementation of state distance q learning.
 """
 import abc
+
 import numpy as np
 
 from railrl.data_management.path_builder import PathBuilder
 from railrl.envs.remote import RemoteRolloutEnv
 from railrl.misc.ml_util import ConstantSchedule
+from railrl.state_distance.exploration import MakeUniversal
+from railrl.state_distance.rollout_util import MultigoalSimplePathSampler, \
+    multitask_rollout
+from railrl.state_distance.util import merge_into_flat_obs
 from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
 from railrl.torch.algos.util import np_to_pytorch_batch
-from railrl.state_distance.exploration import MakeUniversal
-from railrl.state_distance.rollout_util import MultigoalSimplePathSampler, multitask_rollout
 
 
 class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
@@ -25,9 +28,28 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
     ):
         """
 
+        :param max_tau: Maximum tau (planning horizon) to train with.
         :param epoch_max_tau_schedule: A schedule for the maximum planning
         horizon tau.
+        :param sample_train_goals_from: Sampling strategy for goals used in
+        training. Can be one of the following strings:
+            - environment: Sample from the environment
+            - replay_buffer: Sample from the replay_buffer
+            - her: Sample from a HER-based replay_buffer
+        :param sample_rollout_goals_from: Sampling strategy for goals used
+        during rollout. Can be one of the following strings:
+            - environment: Sample from the environment
+            - replay_buffer: Sample from the replay_buffer
+            - fixed: Do no resample the goal. Just use the one in the
+            environment.
+        :param vectorized: Train the QF in vectorized form?
+        :param cycle_taus_for_rollout: Decrement the tau passed into the
+        policy during rollout?
         """
+        assert sample_train_goals_from in ['environment', 'replay_buffer',
+                                           'her']
+        assert sample_rollout_goals_from in ['environment', 'replay_buffer',
+                                             'fixed']
         if epoch_max_tau_schedule is None:
             epoch_max_tau_schedule = ConstantSchedule(max_tau)
 
@@ -37,7 +59,8 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         self.sample_rollout_goals_from = sample_rollout_goals_from
         self.vectorized = vectorized
         self.cycle_taus_for_rollout = cycle_taus_for_rollout
-        self.goal = None
+        self._current_path_goal = None
+        self._rollout_tau = self.max_tau
 
         self.policy = MakeUniversal(self.policy)
         self.eval_policy = MakeUniversal(self.eval_policy)
@@ -52,14 +75,28 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             cycle_taus_for_rollout=self.cycle_taus_for_rollout,
         )
         if self.collection_mode == 'online-parallel':
+            # TODO(murtaza): What happens to the eval env?
+            # see `eval_sampler` definition above.
             self.training_env = RemoteRolloutEnv(
                 env=self.env,
                 policy=self.eval_policy,
                 exploration_policy=self.exploration_policy,
                 max_path_length=self.max_path_length,
                 normalize_env=self.normalize_env,
-                input_rollout=multitask_rollout,
+                rollout_function=self.rollout,
             )
+
+    def rollout(self, env, policy, max_path_length):
+        goal = env.sample_goal_for_rollout()
+        return multitask_rollout(
+            env,
+            agent=policy,
+            goal=goal,
+            discount=self.max_tau,
+            max_path_length=max_path_length,
+            decrement_discount=self.cycle_taus_for_rollout,
+            cycle_tau=self.cycle_taus_for_rollout,
+        )
 
     def _start_epoch(self, epoch):
         self.max_tau = self.epoch_max_tau_schedule.get_value(epoch)
@@ -99,33 +136,30 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         """
         Update the observations
         """
-        batch['observations'] = np.hstack((
-            batch['observations'],
-            batch['goals'],
-            num_steps_left,
-        ))
-        batch['next_observations'] = np.hstack((
-            batch['next_observations'],
-            batch['goals'],
-            num_steps_left - 1,
-        ))
+        batch['observations'] = merge_into_flat_obs(
+            obs=batch['observations'],
+            goals=batch['goals'],
+            num_steps_left=num_steps_left,
+        )
+        batch['next_observations'] = merge_into_flat_obs(
+            obs=batch['next_observations'],
+            goals=batch['goals'],
+            num_steps_left=num_steps_left-1,
+        )
 
         return np_to_pytorch_batch(batch)
 
     def compute_rewards_np(self, obs, actions, next_obs, goals):
         if self.vectorized:
-            if hasattr(self.env, 'compute_rewards_vectorized'):
-                self.env.compute_rewards_vectorized(obs, actions, next_obs, goals)
-            else:
-                diff = self.env.convert_obs_to_goals(next_obs) - goals
-                return -np.abs(diff) * self.reward_scale
+            diff = self.env.convert_obs_to_goals(next_obs) - goals
+            return -np.abs(diff) * self.reward_scale
         else:
             return self.env.compute_rewards(
                 obs,
                 actions,
                 next_obs,
                 goals,
-            )
+            ) * self.reward_scale
 
     @property
     def train_buffer(self):
@@ -156,6 +190,8 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             obs = batch['observations']
             goal_state = self.env.convert_obs_to_goals(obs)[0]
             return self.env.modify_goal_for_rollout(goal_state)
+        elif self.sample_rollout_goals_from == 'fixed':
+            return self.env.multitask_goal
         else:
             raise Exception("Invalid `sample_goals_from`: {}".format(
                 self.sample_rollout_goals_from
@@ -169,10 +205,11 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
 
     def _start_new_rollout(self):
         self.exploration_policy.reset()
-        self.goal = self._sample_goal_for_rollout()
-        self.training_env.set_goal(self.goal)
-        self.exploration_policy.set_goal(self.goal)
-        self.exploration_policy.set_discount(self.discount)
+        self._current_path_goal = self._sample_goal_for_rollout()
+        self.training_env.set_goal(self._current_path_goal)
+        self.exploration_policy.set_goal(self._current_path_goal)
+        self._rollout_tau = self.max_tau
+        self.exploration_policy.set_tau(self._rollout_tau)
         return self.training_env.reset()
 
     def _handle_step(
@@ -193,9 +230,13 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             terminals=terminal,
             agent_infos=agent_info,
             env_infos=env_info,
-            goals=self.goal,
-            # taus=self._rollout_discount,
+            goals=self._current_path_goal,
         )
+        if self.cycle_taus_for_rollout:
+            self._rollout_tau -= 1
+            if self._rollout_tau < 0:
+                self._rollout_tau = self.max_tau
+            self.exploration_policy.set_tau(self._rollout_tau)
 
     def _handle_rollout_ending(self):
         self._n_rollouts_total += 1
@@ -204,3 +245,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             self.replay_buffer.add_path(path)
             self._exploration_paths.append(path)
             self._current_path_builder = PathBuilder()
+
+    def _handle_path(self, path):
+        self._n_rollouts_total += 1
+        self.replay_buffer.add_path(path)

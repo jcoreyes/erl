@@ -84,7 +84,7 @@ class TestMultitaskRollout(unittest.TestCase):
 
 
 class StubUniversalPolicy(UniversalPolicy):
-    def set_discount(self, discount):
+    def set_tau(self, tau):
         pass
 
     def set_goal(self, goal_np):

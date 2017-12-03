@@ -9,6 +9,7 @@ import joblib
 import argparse
 import pickle
 
+from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.envs.multitask.reacher_env import (
     GoalStateSimpleStateReacherEnv,
 )
@@ -34,9 +35,9 @@ def main(dataset_path, only_load_buffer=False, pause_at_end=False):
             env = data['env']
         else:
             # Hack for now...
-            env = replay_buffer.train_replay_buffer._env
+            env = replay_buffer._env
 
-    train_replay_buffer = replay_buffer.train_replay_buffer
+    train_replay_buffer = replay_buffer
     size = train_replay_buffer._size
     obs = train_replay_buffer._observations[:size, :]
     obs_delta = obs[1:size, :] - obs[:size-1, :]
@@ -46,7 +47,6 @@ def main(dataset_path, only_load_buffer=False, pause_at_end=False):
 
     obs_dim = obs.shape[-1]
     action_dim = actions.shape[-1]
-    import ipdb; ipdb.set_trace()
     """
     Print general statistics
     """
@@ -104,7 +104,11 @@ def main(dataset_path, only_load_buffer=False, pause_at_end=False):
     """
     Plot s_{t+1} - s_t
     """
-    if obs_dim > 8:
+    size = train_replay_buffer._size
+    if obs_dim == 1:
+        fig = plt.figure()
+        ax_iter = chain([plt.gca()])
+    elif obs_dim > 8:
         fig, axes = plt.subplots((obs_dim+1)//2, 2)
         ax_iter = chain(*axes)
     else:
@@ -112,8 +116,9 @@ def main(dataset_path, only_load_buffer=False, pause_at_end=False):
         ax_iter = chain(axes)
     for i in range(obs_dim):
         ax = next(ax_iter)
-        diff = obs[:-1, i] - obs[1:, i]
-        diff = diff[train_replay_buffer._final_state[:train_replay_buffer._size-1] == 0]
+        diff = train_replay_buffer._observations[:size,
+               i] - train_replay_buffer._next_obs[:size, i]
+
         ax.hist(diff, bins=100)
         ax.set_title("Next obs - obs, dim #{}".format(i+1))
     plt.show()
@@ -121,10 +126,14 @@ def main(dataset_path, only_load_buffer=False, pause_at_end=False):
     """
     Plot actions
     """
-    fig, axes = plt.subplots(action_dim)
+    if obs_dim == 1:
+        fig = plt.figure()
+        axes = [plt.gca()]
+    else:
+        fig, axes = plt.subplots(action_dim)
     for i in range(action_dim):
         ax = axes[i]
-        x = actions[:train_replay_buffer._size, i]
+        x = actions[:size, i]
         ax.hist(x, bins=100)
         ax.set_title("actions, dim #{}".format(i+1))
     plt.show()
@@ -132,7 +141,10 @@ def main(dataset_path, only_load_buffer=False, pause_at_end=False):
     """
     Plot observations
     """
-    if obs_dim > 8:
+    if obs_dim == 1:
+        fig = plt.figure()
+        ax_iter = chain([plt.gca()])
+    elif obs_dim > 8:
         fig, axes = plt.subplots((obs_dim+1)//2, 2)
         ax_iter = chain(*axes)
     else:
@@ -140,7 +152,7 @@ def main(dataset_path, only_load_buffer=False, pause_at_end=False):
         ax_iter = chain(axes)
     for i in range(obs_dim):
         ax = next(ax_iter)
-        x = obs[:train_replay_buffer._size, i]
+        x = obs[:size, i]
         ax.hist(x, bins=100)
         ax.set_title("observations, dim #{}".format(i+1))
     plt.show()
@@ -162,6 +174,29 @@ def main(dataset_path, only_load_buffer=False, pause_at_end=False):
     ax.hist(computed_rewards, bins=100)
     ax.set_title("computed rewards")
     plt.show()
+
+
+    """
+    If there's goal states, plot them
+    """
+    if isinstance(train_replay_buffer, HerReplayBuffer):
+        goal_dim = env.goal_dim
+        goals = train_replay_buffer._goals[:size, :]
+        if goal_dim == 1:
+            fig = plt.figure()
+            ax_iter = chain([plt.gca()])
+        elif goal_dim > 8:
+            fig, axes = plt.subplots((goal_dim+1)//2, 2)
+            ax_iter = chain(*axes)
+        else:
+            fig, axes = plt.subplots(goal_dim)
+            ax_iter = chain(axes)
+        for i in range(obs_dim):
+            ax = next(ax_iter)
+            x = goals[:, i]
+            ax.hist(x, bins=100)
+            ax.set_title("ogals, dim #{}".format(i+1))
+        plt.show()
 
     if isinstance(env, GoalStateSimpleStateReacherEnv):
         differences = batch['next_observations'] - sampled_goal_states

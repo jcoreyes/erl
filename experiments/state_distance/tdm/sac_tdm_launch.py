@@ -5,7 +5,8 @@ import numpy as np
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.envs.multitask.reacher_7dof import Reacher7DofAngleGoalState
+from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
+from railrl.envs.multitask.reacher_7dof import Reacher7DofGoalStateEverything
 from railrl.envs.wrappers import normalize_box
 from railrl.launchers.launcher_util import run_experiment
 from railrl.sac.policies import TanhGaussianPolicy
@@ -18,14 +19,15 @@ def experiment(variant):
 
     obs_dim = int(np.prod(env.observation_space.low.shape))
     action_dim = int(np.prod(env.action_space.low.shape))
+    vectorized = variant['algo_params']['tdm_kwargs']['vectorized']
     qf = FlattenMlp(
         input_size=obs_dim + action_dim + env.goal_dim + 1,
-        output_size=1,
+        output_size=env.goal_dim if vectorized else 1,
         **variant['qf_params']
     )
     vf = FlattenMlp(
         input_size=obs_dim + env.goal_dim + 1,
-        output_size=1,
+        output_size=env.goal_dim if vectorized else 1,
         **variant['vf_params']
     )
     policy = TanhGaussianPolicy(
@@ -51,60 +53,97 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
-    n_seeds = 5
+    n_seeds = 1
+    mode = "local"
+    exp_prefix = "dev-sac-tdm-launch"
+
+    n_seeds = 2
+    mode = "ec2"
+    exp_prefix = "tdm-half-cheetah-x-vel"
+
+    num_epochs = 100
+    num_steps_per_epoch = 50000
+    num_steps_per_eval = 50000
+    max_path_length = 500
+
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
             base_kwargs=dict(
-                num_epochs=500,
-                num_steps_per_epoch=1000,
-                num_steps_per_eval=1000,
-                num_updates_per_env_step=10,
+                num_epochs=num_epochs,
+                num_steps_per_epoch=num_steps_per_epoch,
+                num_steps_per_eval=num_steps_per_eval,
+                max_path_length=max_path_length,
+                num_updates_per_env_step=1,
                 batch_size=128,
-                max_path_length=100,
                 discount=1,
             ),
             tdm_kwargs=dict(
-                vectorized=False,
+                sample_rollout_goals_from='environment',
+                sample_train_goals_from='her',
+                vectorized=True,
+                cycle_taus_for_rollout=True,
+                max_tau=10,
             ),
             sac_kwargs=dict(
                 soft_target_tau=0.01,
+                policy_lr=3E-4,
+                qf_lr=3E-4,
+                vf_lr=3E-4,
             ),
         ),
         her_replay_buffer_params=dict(
-            max_size=int(1E6),
+            max_size=int(2E5),
             num_goals_to_sample=4,
         ),
         qf_params=dict(
-            hidden_sizes=[300, 300],
+            hidden_sizes=[100, 100],
         ),
         vf_params=dict(
-            hidden_sizes=[300, 300],
+            hidden_sizes=[100, 100],
         ),
         policy_params=dict(
-            hidden_sizes=[300, 300],
+            hidden_sizes=[100, 100],
         ),
+        version="SAC-TDM-2",
+        algorithm="SAC-TDM",
     )
     search_space = {
         'env_class': [
-            Reacher7DofAngleGoalState,
-        ]
+            GoalXVelHalfCheetah,
+        ],
+        'algo_params.base_kwargs.reward_scale': [
+            1,
+            10,
+            100,
+            1000,
+            10000,
+        ],
+        'algo_params.tdm_kwargs.vectorized': [
+            True,
+            False,
+        ],
+        'algo_params.tdm_kwargs.sample_rollout_goals_from': [
+            'fixed',
+            'environment',
+        ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):
+            variant['multitask'] = (
+                variant['algo_params']['tdm_kwargs'][
+                    'sample_rollout_goals_from'
+                ] != 'fixed'
+            )
             seed = random.randint(0, 10000)
             run_experiment(
                 experiment,
                 seed=seed,
                 variant=variant,
                 exp_id=exp_id,
-                exp_prefix="sac-ddpg-reacher-7dof-angles-normalized",
-                mode='ec2',
-                use_gpu=False,
-                # exp_prefix="dev-tdm-sac",
-                # mode='local',
-                # use_gpu=True,
+                exp_prefix=exp_prefix,
+                mode=mode,
             )

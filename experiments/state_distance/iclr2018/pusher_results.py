@@ -8,7 +8,7 @@ her_data = np.load(her_path)
 ddpg_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-25-ddpg-pusher-again-baseline-with-reward-bonus/"
 ddpg_criteria = {
     'algo_params.num_updates_per_env_step': 5,
-    'algo_params.scale_reward': 1,
+    'algo_params.reward_scale': 1,
     'algo_params.tau': 0.01,
 }
 # DDPG policy: /home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-25-ddpg-pusher-again-baseline-with-reward-bonus/10-25-ddpg-pusher-again-baseline-with-reward-bonus-id0-s362488/
@@ -24,7 +24,7 @@ our_criteria = {
 her_dense_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-27-her-baseline-shaped-rewards-no-clipping-300-300-right-discount-and-tau/"
 her_dense_criteria = {
     'algo_params.num_updates_per_env_step': 1,
-    'algo_params.scale_reward': 1,
+    'algo_params.reward_scale': 1,
     'env_class.$class':
         "railrl.envs.multitask.pusher2d.CylinderXYPusher2DEnv"
 }

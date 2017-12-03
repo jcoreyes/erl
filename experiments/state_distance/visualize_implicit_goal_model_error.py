@@ -38,7 +38,7 @@ def visualize_error_vs_tau(qf, policy, env, horizon):
     predicted_final_states = []
     taus = np.array(range(tau_max-1, -1, -1))
     for tau in taus:
-        policy.set_discount(tau)
+        policy.set_tau(tau)
         actual_states.append(actual_state.copy())
         action, _ = policy.get_action(actual_state)
         predicted_final_states.append(
@@ -95,7 +95,7 @@ def visualize_accumulated_error(qf, policy, env, horizon):
     actual_states = []
     goal_state = env.sample_goal_for_rollout()
     policy.set_goal(goal_state)
-    policy.set_discount(0)
+    policy.set_tau(0)
 
     predicted_state = actual_state
     for _ in range(horizon):

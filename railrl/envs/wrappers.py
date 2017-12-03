@@ -1,5 +1,7 @@
 import numpy as np
 import gym.spaces
+from cached_property import cached_property
+
 from rllab.core.serializable import Serializable
 from rllab.envs.proxy_env import ProxyEnv
 from sandbox.rocky.tf.spaces import Box as TfBox
@@ -151,7 +153,7 @@ class ConvertEnvToTf(ProxyEnv, Serializable):
 convert_to_tf_env = ConvertEnvToTf
 
 
-class NormalizeAndConvertEnv(NormalizedBoxEnv, ConvertEnvToTf):
+class NormalizeAndConvertToTfEnv(NormalizedBoxEnv, ConvertEnvToTf):
     @property
     def action_space(self):
         # Apparently this is how you call a super's property
@@ -165,7 +167,47 @@ class NormalizeAndConvertEnv(NormalizedBoxEnv, ConvertEnvToTf):
     def __str__(self):
         return "TfNormalizedAndConverted: %s" % self._wrapped_env
 
-normalize_and_convert_to_tf_env = NormalizeAndConvertEnv
+normalize_and_convert_to_tf_env = NormalizeAndConvertToTfEnv
+
+
+class ConvertEnvToRllab(ProxyEnv, Serializable):
+    """
+    rllab sometimes requires the action/observation space to be a specific type
+    """
+    def __init__(self, env):
+        Serializable.quick_init(self, locals())
+        ProxyEnv.__init__(self, env)
+
+    @cached_property
+    def action_space(self):
+        action_space = self._wrapped_env.action_space
+        if isinstance(action_space, Box) or isinstance(action_space, Discrete):
+            return action_space
+        if isinstance(action_space, TfBox) or isinstance(action_space, gym.spaces.Box):
+            return Box(action_space.low, action_space.high)
+        elif isinstance(action_space, TfDiscrete) or isinstance(action_space, gym.spaces.Discrete):
+            return Discrete(action_space.n)
+        raise TypeError()
+
+    @cached_property
+    def observation_space(self):
+        return Box(super().observation_space.low, super().observation_space.high)
+
+    def __str__(self):
+        return "RllabConverted: %s" % self._wrapped_env
+
+    def get_param_values(self):
+        if hasattr(self.wrapped_env, "get_param_values"):
+            return self.wrapped_env.get_param_values()
+        return None
+
+    def log_diagnostics(self, paths, *args, **kwargs):
+        if hasattr(self.wrapped_env, "log_diagnostics"):
+            self.wrapped_env.log_diagnostics(paths, *args, **kwargs)
+
+    def terminate(self):
+        if hasattr(self.wrapped_env, "terminate"):
+            self.wrapped_env.terminate()
 
 
 def convert_gym_space(space):
