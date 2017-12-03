@@ -19,11 +19,11 @@ VectorField = namedtuple("VectorField",
 def make_heat_map(eval_func, x_bounds, y_bounds, *, resolution=10, info=None):
     """
     :param eval_func: eval_func(x, y) -> value
-    :param x_bounds: 
-    :param y_bounds: 
-    :param resolution: 
+    :param x_bounds:
+    :param y_bounds:
+    :param resolution:
     :param info: A dictionary to save inside the vector field
-    :return: 
+    :return:
     """
     if info is None:
         info = {}
@@ -41,11 +41,11 @@ def make_vector_field(eval_func, x_bounds, y_bounds, *, resolution=10,
                       info=None):
     """
     :param eval_func: eval_func(x, y) -> value, dx, dy
-    :param x_bounds: 
-    :param y_bounds: 
-    :param resolution: 
+    :param x_bounds:
+    :param y_bounds:
+    :param resolution:
     :param info: A dictionary to save inside the vector field
-    :return: 
+    :return:
     """
     if info is None:
         info = {}
@@ -71,7 +71,7 @@ def make_vector_field(eval_func, x_bounds, y_bounds, *, resolution=10,
     )
 
 
-def plot_heatmap(fig, ax, heatmap):
+def plot_heatmap(fig, ax, heatmap, legend_axis=None):
     p, x, y, _ = heatmap
     im = ax.imshow(
         np.swapaxes(p, 0, 1),  # imshow uses first axis as y-axis
@@ -81,10 +81,11 @@ def plot_heatmap(fig, ax, heatmap):
         aspect='auto',
         origin='bottom',  # <-- Important! By default top left is (0, 0)
     )
-    divider = make_axes_locatable(ax)
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    fig.colorbar(im, cax=cax, orientation='vertical')
-    return im
+    if legend_axis is None:
+        divider = make_axes_locatable(ax)
+        legend_axis = divider.append_axes('right', size='5%', pad=0.05)
+    fig.colorbar(im, cax=legend_axis, orientation='vertical')
+    return im, legend_axis
 
 
 def plot_vector_field(fig, ax, vector_field, skip_rate=1):

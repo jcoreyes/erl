@@ -8,6 +8,7 @@ from gym.spaces import Box, Discrete
 
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.state_distance.util import merge_into_flat_obs
+from railrl.misc.visualization_util import plot_heatmap, HeatMap
 from rllab.core.serializable import Serializable
 from rllab.misc import logger
 
@@ -84,14 +85,15 @@ class Simple1DTdmPlotter(object):
         x_size = 5 * len(goal_lst)
         y_size = 5 * len(location_lst)
 
-        fig = plt.figure(figsize=(x_size, y_size))
+        self.fig = plt.figure(figsize=(x_size, y_size))
         self._ax_lst = []
+        self._img_lst = []
         i = 1
         self._location_lst = []
         self._goal_lst = []
         for row, goal in enumerate(goal_lst):
             for col, location in enumerate(location_lst):
-                ax = fig.add_subplot(len(location_lst), len(goal_lst), i)
+                ax = self.fig.add_subplot(len(location_lst), len(goal_lst), i)
                 i += 1
                 ax.set_xlim(ACTION_LIMITS)
                 ax.set_ylim((0, self.max_tau))
@@ -101,6 +103,7 @@ class Simple1DTdmPlotter(object):
                 ax.set_title("X = {}, Goal = {}".format(
                     float(location), float(goal)
                 ))
+                self._img_lst.append(None)
                 self._ax_lst.append(ax)
                 self._goal_lst.append(goal)
                 self._location_lst.append(location)
@@ -132,9 +135,9 @@ class Simple1DTdmPlotter(object):
         taus = tau_grid.ravel()
         actions = np.expand_dims(actions, 1)
         taus = np.expand_dims(taus, 1)
-        for ax, obs, goal in zip(
+        for i, (ax, obs, goal) in enumerate(zip(
                 self._ax_lst, self._location_lst, self._goal_lst
-        ):
+        )):
             repeated_obs = np.repeat(np.array([[obs]]), N, axis=0)
             repeated_goals = np.repeat(np.array([[goal]]), N, axis=0)
             new_obs = merge_into_flat_obs(
@@ -144,8 +147,14 @@ class Simple1DTdmPlotter(object):
             )
             qs = self._tdm.eval_np(new_obs, actions)
             q_grid = qs.reshape(action_grid.shape)
-            cs = ax.contour(action_grid, tau_grid, q_grid)
-            self._line_objects += cs.collections
-            self._line_objects += ax.clabel(
-                cs, inline=1, fontsize=10, fmt='%.2f'
-            )
+            img = self._img_lst[i]
+            if img is None:
+                hm = HeatMap(
+                    q_grid,
+                    actions_sampled,
+                    taus_sampled,
+                    {},
+                )
+                img, side_axis = plot_heatmap(self.fig, ax, hm)
+                self._img_lst[i] = img
+            img.set_data(q_grid)
