@@ -229,9 +229,8 @@ class DDPG(TorchRLAlgorithm):
             self._exploration_paths, self.discount, stat_prefix="Exploration",
         ))
         if hasattr(self.env, "log_diagnostics"):
-            logger.set_key_prefix('test ')
             self.env.log_diagnostics(test_paths)
-            logger.set_key_prefix('expl ')
+            logger.set_key_prefix('Exploration ')
             self.env.log_diagnostics(self._exploration_paths)
             logger.set_key_prefix('')
 
