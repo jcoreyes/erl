@@ -1,10 +1,10 @@
 import random
 
 import railrl.misc.hyperparameter as hyp
-from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
 from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
 from railrl.envs.multitask.reacher_7dof import (
-    Reacher7DofGoalStateEverything)
+    Reacher7DofXyzGoalState,
+)
 from railrl.envs.wrappers import normalize_box
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
@@ -56,14 +56,14 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-state-distance-ddpg-baseline"
 
-    n_seeds = 5
+    n_seeds = 2
     mode = "ec2"
-    exp_prefix = "tdm-half-cheetah-x-vel"
+    exp_prefix = "tdm-reacher7dof-xyz"
 
     num_epochs = 100
-    num_steps_per_epoch = 50000
-    num_steps_per_eval = 50000
-    max_path_length = 500
+    num_steps_per_epoch = 10000
+    num_steps_per_eval = 10000
+    max_path_length = 200
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -102,11 +102,14 @@ if __name__ == "__main__":
     )
     search_space = {
         'env_class': [
-            GoalXVelHalfCheetah,
+            Reacher7DofXyzGoalState,
         ],
         'multitask': [False, True],
         'algo_params.reward_scale': [
             10, 1, 0.1,
+        ],
+        'algo_params.tau': [
+            1e-2, 1e-3,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

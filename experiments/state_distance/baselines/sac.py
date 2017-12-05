@@ -3,10 +3,11 @@ import random
 import numpy as np
 
 import railrl.torch.pytorch_util as ptu
-from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
+# from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
 from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
-from railrl.envs.multitask.reacher_7dof import Reacher7DofAngleGoalState, \
-    Reacher7DofGoalStateEverything
+from railrl.envs.multitask.reacher_7dof import (
+    Reacher7DofXyzGoalState,
+)
 from railrl.envs.wrappers import normalize_box
 from railrl.launchers.launcher_util import run_experiment
 from railrl.sac.policies import TanhGaussianPolicy
@@ -57,14 +58,14 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-state-distance-sac-baseline"
 
-    n_seeds = 3
+    n_seeds = 2
     mode = "ec2"
-    exp_prefix = "tdm-half-cheetah-x-vel"
+    exp_prefix = "tdm-reacher7dof-xyz"
 
     num_epochs = 100
-    num_steps_per_epoch = 50000
-    num_steps_per_eval = 50000
-    max_path_length = 500
+    num_steps_per_epoch = 10000
+    num_steps_per_eval = 10000
+    max_path_length = 200
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -87,7 +88,7 @@ if __name__ == "__main__":
     )
     search_space = {
         'env_class': [
-            GoalXVelHalfCheetah,
+            Reacher7DofXyzGoalState,
         ],
         'multitask': [False, True],
         'algo_params.reward_scale': [

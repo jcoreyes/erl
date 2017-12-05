@@ -1,8 +1,11 @@
 import random
 
-from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
+# from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
 from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
-from railrl.envs.multitask.reacher_7dof import Reacher7DofGoalStateEverything
+from railrl.envs.multitask.reacher_7dof import (
+    # Reacher7DofGoalStateEverything,
+    Reacher7DofXyzGoalState,
+)
 from railrl.envs.wrappers import normalize_and_convert_to_tf_env
 from railrl.launchers.launcher_util import run_experiment
 from sandbox.rocky.tf.algos.trpo import TRPO
@@ -24,7 +27,7 @@ def experiment(variant):
     policy = GaussianMLPPolicy(
         name="policy",
         env_spec=env.spec,
-        **variant['policy_params'],
+        **variant['policy_params']
     )
 
     baseline = LinearFeatureBaseline(env_spec=env.spec)
@@ -50,12 +53,12 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "tdm-half-cheetah-x-vel"
+    exp_prefix = "tdm-reacher7dof-xyz"
 
-    num_epochs = 1000
-    num_steps_per_epoch = 50000
-    num_steps_per_eval = 50000
-    max_path_length = 500
+    num_epochs = 100
+    num_steps_per_epoch = 100000
+    num_steps_per_eval = 10000
+    max_path_length = 200
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -78,7 +81,8 @@ if __name__ == "__main__":
     )
     search_space = {
         'env_class': [
-            GoalXVelHalfCheetah,
+            # GoalXVelHalfCheetah,
+            Reacher7DofXyzGoalState,
         ],
         'multitask': [False, True],
     }
