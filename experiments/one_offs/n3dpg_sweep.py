@@ -13,6 +13,7 @@ import railrl.misc.hyperparameter as hyp
 from rllab.envs.mujoco.ant_env import AntEnv
 
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
+from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.envs.mujoco.hopper_env import HopperEnv
 from rllab.envs.mujoco.inverted_double_pendulum_env import \
     InvertedDoublePendulumEnv
@@ -29,7 +30,7 @@ def example(variant):
     obs_dim = int(np.prod(env.observation_space.low.shape))
     action_dim = int(np.prod(env.action_space.low.shape))
     qf = FlattenMlp(
-        input_size=obs_dim+action_dim+env.goal_dim,
+        input_size=obs_dim+action_dim,
         output_size=1,
         **variant['vf_params']
     )
@@ -64,12 +65,12 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
-            num_epochs=99,
-            num_steps_per_epoch=10000,
+            num_epochs=101,
+            num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             use_soft_update=True,
             tau=1e-2,
-            batch_size=128,
+            batch_size=64,
             max_path_length=1000,
             discount=0.99,
             qf_learning_rate=1e-3,
@@ -92,15 +93,16 @@ if __name__ == "__main__":
     )
     search_space = {
         'env_class': [
+            CartpoleEnv,
             SwimmerEnv,
             HalfCheetahEnv,
             AntEnv,
             HopperEnv,
             InvertedDoublePendulumEnv,
         ],
-        'algo_params.reward_scale': [
-            10, 1, 0.1,
-        ],
+        # 'algo_params.reward_scale': [
+            # 10, 1, 0.1,
+        # ],
         'algo_params.tau': [
             1, 1e-2, 1e-3,
         ],
@@ -113,7 +115,8 @@ if __name__ == "__main__":
             run_experiment(
                 example,
                 exp_prefix="n3dpg-many-env-sweep",
-                # mode='ec2',
+                mode='ec2',
+                exp_id=exp_id,
                 variant=variant,
                 use_gpu=False,
             )
