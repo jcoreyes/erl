@@ -229,11 +229,11 @@ class DDPG(TorchRLAlgorithm):
             self._exploration_paths, self.discount, stat_prefix="Exploration",
         ))
         if hasattr(self.env, "log_diagnostics"):
-            logger.set_key_prefix('test ')
+            # logger.set_key_prefix('test ')
             self.env.log_diagnostics(test_paths)
-            logger.set_key_prefix('expl ')
-            self.env.log_diagnostics(self._exploration_paths)
-            logger.set_key_prefix('')
+            # logger.set_key_prefix('expl ')
+            # self.env.log_diagnostics(self._exploration_paths)
+            # logger.set_key_prefix('')
 
         if isinstance(self.epoch_discount_schedule, StatConditionalSchedule):
             table_dict = rllab_util.get_logger_table_dict()
