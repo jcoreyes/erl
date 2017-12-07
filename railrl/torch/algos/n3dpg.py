@@ -38,6 +38,10 @@ class N3DPG(TorchRLAlgorithm):
             vf_criterion=None,
             epoch_discount_schedule=None,
 
+            target_hard_update_period=1000,
+            tau=1e-2,
+            use_soft_update=False,
+
             plotter=None,
             render_eval_paths=False,
 
@@ -64,10 +68,16 @@ class N3DPG(TorchRLAlgorithm):
         self.vf_criterion = vf_criterion
         if epoch_discount_schedule is None:
             epoch_discount_schedule = ConstantSchedule(self.discount)
+
+        self.target_hard_update_period = target_hard_update_period
+        self.tau = tau
+        self.use_soft_update = use_soft_update
+
         self.epoch_discount_schedule = epoch_discount_schedule
         self.plotter = plotter
         self.render_eval_paths = render_eval_paths
 
+        self.target_vf = self.vf.copy()
         self.qf_optimizer = optim.Adam(
             self.qf.parameters(),
             lr=self.qf_learning_rate,
@@ -104,7 +114,7 @@ class N3DPG(TorchRLAlgorithm):
         """
         Qf operations.
         """
-        target_q_values = self.vf(next_obs)
+        target_q_values = self.target_vf(next_obs)
         q_target = rewards + (1. - terminals) * self.discount * target_q_values
         q_target = q_target.detach()
         q_pred = self.qf(obs, actions)
@@ -133,6 +143,8 @@ class N3DPG(TorchRLAlgorithm):
         self.vf_optimizer.zero_grad()
         vf_loss.backward()
         self.vf_optimizer.step()
+
+        self._update_target_networks()
 
         if self.eval_statistics is None:
             """
@@ -168,6 +180,13 @@ class N3DPG(TorchRLAlgorithm):
                 'Policy Action',
                 ptu.get_numpy(policy_actions),
             ))
+
+    def _update_target_networks(self):
+        if self.use_soft_update:
+            ptu.soft_update(self.target_vf, self.vf, self.tau)
+        else:
+            if self._n_env_steps_total % self.target_hard_update_period == 0:
+                ptu.copy_model_params_from_to(self.vf, self.target_vf)
 
     def evaluate(self, epoch):
         statistics = OrderedDict()
