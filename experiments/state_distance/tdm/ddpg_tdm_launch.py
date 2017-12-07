@@ -6,6 +6,7 @@ import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
 # from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
+from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
 from railrl.envs.multitask.reacher_7dof import (
     # Reacher7DofGoalStateEverything,
     Reacher7DofXyzGoalState,
@@ -78,7 +79,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "tdm-reacher7dof-xyz"
+    exp_prefix = "tdm-ddpg-residual-gradient"
 
     num_epochs = 100
     num_steps_per_epoch = 10000
@@ -128,21 +129,21 @@ if __name__ == "__main__":
     )
     search_space = {
         'env_class': [
-            # GoalXVelHalfCheetah,
+            GoalXVelHalfCheetah,
             Reacher7DofXyzGoalState,
         ],
-        'algo_params.tdm_kwargs.vectorized': [
-            True,
-            False,
-        ],
-        'algo_params.tdm_kwargs.sample_rollout_goals_from': [
-            'fixed',
-            'environment',
-        ],
+        # 'algo_params.tdm_kwargs.sample_rollout_goals_from': [
+        #     'fixed',
+        #     'environment',
+        # ],
         'algo_params.base_kwargs.num_updates_per_env_step': [
             1,
-            10,
-            25,
+            5,
+        ],
+        'algo_params.ddpg_kwargs.residual_gradient_weight': [
+            0,
+            0.5,
+            1,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
