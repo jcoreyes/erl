@@ -66,7 +66,7 @@ if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
             num_epochs=101,
-            num_steps_per_epoch=1000,
+            num_steps_per_epoch=10000,
             num_steps_per_eval=1000,
             use_soft_update=True,
             tau=1e-2,
@@ -88,7 +88,7 @@ if __name__ == "__main__":
         ),
         algorithm="N3DPG",
         version="N3DPG",
-        normalize=False,
+        normalize=True,
         env_class=HalfCheetahEnv,
     )
     search_space = {
@@ -114,7 +114,7 @@ if __name__ == "__main__":
         for _ in range(3):
             run_experiment(
                 example,
-                exp_prefix="n3dpg-many-env-sweep",
+                exp_prefix="n3dpg-many-env-sweep-10k-per-step",
                 mode='ec2',
                 exp_id=exp_id,
                 variant=variant,
