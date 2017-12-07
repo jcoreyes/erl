@@ -129,8 +129,8 @@ if __name__ == "__main__":
     )
     search_space = {
         'env_class': [
-            GoalXVelHalfCheetah,
             Reacher7DofXyzGoalState,
+            GoalXVelHalfCheetah,
         ],
         # 'algo_params.tdm_kwargs.sample_rollout_goals_from': [
         #     'fixed',
