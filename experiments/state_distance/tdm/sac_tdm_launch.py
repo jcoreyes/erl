@@ -5,8 +5,11 @@ import numpy as np
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
-from railrl.envs.multitask.reacher_7dof import Reacher7DofGoalStateEverything
+# from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
+from railrl.envs.multitask.reacher_7dof import (
+    # Reacher7DofGoalStateEverything,
+    Reacher7DofXyzGoalState,
+)
 from railrl.envs.wrappers import normalize_box
 from railrl.launchers.launcher_util import run_experiment
 from railrl.sac.policies import TanhGaussianPolicy
@@ -57,14 +60,14 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-sac-tdm-launch"
 
-    n_seeds = 2
+    n_seeds = 1
     mode = "ec2"
-    exp_prefix = "tdm-half-cheetah-x-vel"
+    exp_prefix = "tdm-reacher7dof-xyz"
 
     num_epochs = 100
-    num_steps_per_epoch = 50000
-    num_steps_per_eval = 50000
-    max_path_length = 500
+    num_steps_per_epoch = 10000
+    num_steps_per_eval = 10000
+    max_path_length = 200
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -74,7 +77,7 @@ if __name__ == "__main__":
                 num_steps_per_epoch=num_steps_per_epoch,
                 num_steps_per_eval=num_steps_per_eval,
                 max_path_length=max_path_length,
-                num_updates_per_env_step=1,
+                num_updates_per_env_step=25,
                 batch_size=128,
                 discount=1,
             ),
@@ -93,24 +96,25 @@ if __name__ == "__main__":
             ),
         ),
         her_replay_buffer_params=dict(
-            max_size=int(2E5),
+            max_size=int(1E6),
             num_goals_to_sample=4,
         ),
         qf_params=dict(
-            hidden_sizes=[100, 100],
+            hidden_sizes=[300, 300],
         ),
         vf_params=dict(
-            hidden_sizes=[100, 100],
+            hidden_sizes=[300, 300],
         ),
         policy_params=dict(
-            hidden_sizes=[100, 100],
+            hidden_sizes=[300, 300],
         ),
-        version="SAC-TDM-2",
+        version="SAC-TDM",
         algorithm="SAC-TDM",
     )
     search_space = {
         'env_class': [
-            GoalXVelHalfCheetah,
+            # GoalXVelHalfCheetah,
+            Reacher7DofXyzGoalState,
         ],
         'algo_params.base_kwargs.reward_scale': [
             1,
@@ -126,6 +130,11 @@ if __name__ == "__main__":
         'algo_params.tdm_kwargs.sample_rollout_goals_from': [
             'fixed',
             'environment',
+        ],
+        'algo_params.base_kwargs.num_updates_per_env_step': [
+            1,
+            10,
+            25,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

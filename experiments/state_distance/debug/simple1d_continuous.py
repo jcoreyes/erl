@@ -69,8 +69,8 @@ def experiment(variant):
         tdm=qf,
         # location_lst=np.array([-10, 0, 10]),
         # goal_lst=np.array([-10, 0, 5]),
-        location_lst=np.array([-5, 0, 5]),
-        goal_lst=np.array([-5, 0, 5]),
+        location_lst=np.array([-1, 0, 1]),
+        goal_lst=np.array([-1, 0, 1]),
         max_tau=algo_params['tdm_kwargs']['max_tau'],
         grid_size=10,
     )
@@ -120,7 +120,8 @@ if __name__ == "__main__":
                 max_tau=max_tau,
             ),
             ddpg_kwargs=dict(
-                tau=0.01,
+                # tau=0.01,
+                tau=1,
                 qf_learning_rate=1e-3,
                 policy_learning_rate=1e-4,
             ),
