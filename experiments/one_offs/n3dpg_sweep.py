@@ -78,13 +78,13 @@ if __name__ == "__main__":
             policy_learning_rate=1e-4,
         ),
         qf_params=dict(
-            hidden_sizes=[100, 100],
+            hidden_sizes=[300, 300],
         ),
         vf_params=dict(
-            hidden_sizes=[100, 100],
+            hidden_sizes=[300, 300],
         ),
         policy_params=dict(
-            hidden_sizes=[100, 100],
+            hidden_sizes=[300, 300],
         ),
         algorithm="N3DPG",
         version="N3DPG",
@@ -111,10 +111,10 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        for _ in range(3):
+        for _ in range(1):
             run_experiment(
                 example,
-                exp_prefix="n3dpg-many-env-sweep-10k-per-step-bounded",
+                exp_prefix="n3dpg-many-env-sweep-huber-qf-bigger-net",
                 mode='ec2',
                 exp_id=exp_id,
                 variant=variant,
