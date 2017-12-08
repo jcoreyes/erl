@@ -1,0 +1,174 @@
+import random
+
+import numpy as np
+
+import railrl.misc.hyperparameter as hyp
+import railrl.torch.pytorch_util as ptu
+from railrl.data_management.her_replay_buffer import HerReplayBuffer
+# from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
+from railrl.envs.multitask.cartpole_env import CartPoleAngleOnly
+from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
+from railrl.envs.multitask.reacher_7dof import (
+    # Reacher7DofGoalStateEverything,
+    Reacher7DofXyzGoalState,
+)
+from railrl.envs.wrappers import normalize_box
+from railrl.exploration_strategies.base import \
+    PolicyWrappedWithExplorationStrategy
+from railrl.exploration_strategies.ou_strategy import OUStrategy
+from railrl.launchers.launcher_util import run_experiment
+from railrl.policies.torch import FeedForwardPolicy
+from railrl.state_distance.flat_networks import StructuredQF
+from railrl.state_distance.gcm_ddpg import GcmDdpg
+from railrl.state_distance.gcm_ddpg import TdmDdpg
+from railrl.torch.modules import HuberLoss
+from railrl.torch.networks import FlattenMlp
+from railrl.torch.networks import TanhMlpPolicy
+
+
+def experiment(variant):
+    env = normalize_box(variant['env_class']())
+
+    obs_dim = int(np.prod(env.observation_space.low.shape))
+    action_dim = int(np.prod(env.action_space.low.shape))
+    vectorized = variant['algo_kwargs']['gcm_kwargs']['vectorized']
+    gcm = FlattenMlp(
+        input_size=env.goal_dim + obs_dim + action_dim + 1,
+        output_size=env.goal_dim if vectorized else 1,
+        **variant['gcm_kwargs']
+    )
+    policy = TanhMlpPolicy(
+        input_size=obs_dim + env.goal_dim + 1,
+        output_size=action_dim,
+        **variant['policy_kwargs']
+    )
+    es = OUStrategy(
+        action_space=env.action_space,
+        theta=0.1,
+        max_sigma=0.1,
+        min_sigma=0.1,
+    )
+    exploration_policy = PolicyWrappedWithExplorationStrategy(
+        exploration_strategy=es,
+        policy=policy,
+    )
+    replay_buffer = HerReplayBuffer(
+        env=env,
+        **variant['her_replay_buffer_kwargs']
+    )
+    gcm_criterion = variant['gcm_criterion_class'](
+        **variant['gcm_criterion_kwargs']
+    )
+    algo_kwargs = variant['algo_kwargs']
+    algo_kwargs['base_kwargs']['replay_buffer'] = replay_buffer
+    algorithm = GcmDdpg(
+        env,
+        gcm=gcm,
+        policy=policy,
+        exploration_policy=exploration_policy,
+        gcm_criterion=gcm_criterion,
+        **algo_kwargs
+    )
+    if ptu.gpu_enabled():
+        algorithm.cuda()
+    algorithm.train()
+
+
+if __name__ == "__main__":
+    n_seeds = 1
+    mode = "local"
+    exp_prefix = "dev-ddpg-gcm-launch"
+
+    # n_seeds = 3
+    # mode = "ec2"
+    # exp_prefix = "gcm-half-cheetah"
+
+    num_epochs = 100
+    num_steps_per_epoch = 50000
+    num_steps_per_eval = 10000
+    max_path_length = 1000
+
+    # noinspection PyTypeChecker
+    variant = dict(
+        algo_kwargs=dict(
+            base_kwargs=dict(
+                num_epochs=num_epochs,
+                num_steps_per_epoch=num_steps_per_epoch,
+                num_steps_per_eval=num_steps_per_eval,
+                max_path_length=max_path_length,
+                num_updates_per_env_step=1,
+                batch_size=64,
+                discount=1,
+            ),
+            gcm_kwargs=dict(
+                sample_rollout_goals_from='environment',
+                sample_train_goals_from='her',
+                vectorized=True,
+                cycle_taus_for_rollout=True,
+                max_tau=10,
+            ),
+            ddpg_kwargs=dict(
+                tau=0.001,
+                gcm_learning_rate=1e-3,
+                policy_learning_rate=1e-4,
+            ),
+        ),
+        her_replay_buffer_kwargs=dict(
+            max_size=int(1E6),
+            num_goals_to_sample=4,
+        ),
+        gcm_kwargs=dict(
+            hidden_sizes=[300, 300],
+        ),
+        policy_kwargs=dict(
+            fc1_size=300,
+            fc2_size=300,
+        ),
+        gcm_criterion_class=HuberLoss,
+        gcm_criterion_kwargs=dict(),
+        version="DDPG-GCM",
+        algorithm="DDPG-GCM",
+    )
+    search_space = {
+        'env_class': [
+            CartPoleAngleOnly,
+            # Reacher7DofXyzGoalState,
+            # GoalXVelHalfCheetah,
+        ],
+        'algo_kwargs.gcm_kwargs.sample_rollout_goals_from': [
+            'fixed',
+            'environment',
+        ],
+        'algo_kwargs.gcm_kwargs.max_tau': [
+            10,
+            20,
+            30,
+        ],
+        'algo_kwargs.ddpg_kwargs.tau': [
+            1e-2,
+            1e-3,
+        ],
+        # 'algo_kwargs.base_kwargs.num_updates_per_env_step': [
+        # 1,
+        # 5,
+        # ],
+    }
+    sweeper = hyp.DeterministicHyperparameterSweeper(
+        search_space, default_parameters=variant,
+    )
+    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+        for i in range(n_seeds):
+            variant['multitask'] = (
+                variant['algo_kwargs']['gcm_kwargs'][
+                    'sample_rollout_goals_from'
+                ] != 'fixed'
+            )
+            seed = random.randint(0, 10000)
+            run_experiment(
+                experiment,
+                seed=seed,
+                variant=variant,
+                exp_id=exp_id,
+                exp_prefix=exp_prefix,
+                mode=mode,
+            )

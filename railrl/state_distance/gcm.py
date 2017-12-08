@@ -114,19 +114,24 @@ class GoalConditionedModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         batch['terminals'] = terminals
 
         obs = batch['observations']
-        actions = batch['actions']
         next_obs = batch['next_observations']
         if self.sample_train_goals_from == 'her':
             goals = batch['goals']
         else:
             goals = self._sample_goals_for_training()
-        rewards = self.compute_rewards_np(
-            obs,
-            actions,
-            next_obs,
-            goals,
+        one_step_state_difference = (
+            self.env.convert_obs_to_goals(next_obs)
+            - self.env.convert_obs_to_goals(obs)
         )
-        batch['rewards'] = rewards * terminals
+        goal_state_difference = (
+            goals
+            - self.env.convert_obs_to_goals(obs)
+        )
+        state_differences = (
+            one_step_state_difference * (1-terminals) +
+            goal_state_difference * terminals
+        )
+        batch['state_differences'] = state_differences
 
         """
         Update the observations
@@ -143,12 +148,6 @@ class GoalConditionedModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         )
 
         return np_to_pytorch_batch(batch)
-
-    def compute_rewards_np(self, obs, actions, next_obs, goals):
-        return (
-            self.env.convert_obs_to_goals(next_obs)
-            - self.env.convert_obs_to_goals(obs)
-        )
 
     @property
     def train_buffer(self):
