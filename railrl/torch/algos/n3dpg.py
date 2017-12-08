@@ -54,7 +54,7 @@ class N3DPG(TorchRLAlgorithm):
             **kwargs
         )
         if qf_criterion is None:
-            qf_criterion = nn.MSELoss()
+            qf_criterion = HuberLoss()
         if vf_criterion is None:
             vf_criterion = HuberLoss()
         self.qf = qf
@@ -122,7 +122,7 @@ class N3DPG(TorchRLAlgorithm):
         qf_loss = self.qf_criterion(q_pred, q_target)
 
         """
-        Qf operations.
+        Vf operations.
         """
         v_target = self.qf(next_obs, self.policy(next_obs)).detach()
         v_pred = self.vf(next_obs)
@@ -153,6 +153,7 @@ class N3DPG(TorchRLAlgorithm):
             """
             self.eval_statistics = OrderedDict()
             self.eval_statistics['QF Loss'] = np.mean(ptu.get_numpy(qf_loss))
+            self.eval_statistics['VF Loss'] = np.mean(ptu.get_numpy(vf_loss))
             self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
                 policy_loss
             ))
@@ -232,19 +233,6 @@ class N3DPG(TorchRLAlgorithm):
             qf=self.qf,
             vf=self.vf,
             batch_size=self.batch_size,
-        )
-
-    def get_extra_data_to_save(self, epoch):
-        """
-        Save things that shouldn't be saved every snapshot but rather
-        overwritten every time.
-        :param epoch:
-        :return:
-        """
-        return dict(
-            epoch=epoch,
-            replay_buffer=self.replay_buffer,
-            algorithm=self,
         )
 
     @property

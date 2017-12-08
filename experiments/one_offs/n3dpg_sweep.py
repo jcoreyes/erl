@@ -19,7 +19,7 @@ from rllab.envs.mujoco.inverted_double_pendulum_env import \
     InvertedDoublePendulumEnv
 from rllab.envs.mujoco.swimmer_env import SwimmerEnv
 from railrl.torch.algos.n3dpg import N3DPG
-from railrl.torch.networks import FlattenMlp, MlpPolicy
+from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 
 
 def example(variant):
@@ -39,7 +39,7 @@ def example(variant):
         output_size=1,
         **variant['vf_params']
     )
-    policy = MlpPolicy(
+    policy = TanhMlpPolicy(
         input_size=obs_dim,
         output_size=action_dim,
         **variant['policy_params']
@@ -66,7 +66,7 @@ if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
             num_epochs=101,
-            num_steps_per_epoch=1000,
+            num_steps_per_epoch=10000,
             num_steps_per_eval=1000,
             use_soft_update=True,
             tau=1e-2,
@@ -78,17 +78,17 @@ if __name__ == "__main__":
             policy_learning_rate=1e-4,
         ),
         qf_params=dict(
-            hidden_sizes=[100, 100],
+            hidden_sizes=[300, 300],
         ),
         vf_params=dict(
-            hidden_sizes=[100, 100],
+            hidden_sizes=[300, 300],
         ),
         policy_params=dict(
-            hidden_sizes=[100, 100],
+            hidden_sizes=[300, 300],
         ),
         algorithm="N3DPG",
         version="N3DPG",
-        normalize=False,
+        normalize=True,
         env_class=HalfCheetahEnv,
     )
     search_space = {
@@ -100,9 +100,9 @@ if __name__ == "__main__":
             HopperEnv,
             InvertedDoublePendulumEnv,
         ],
-        # 'algo_params.reward_scale': [
-            # 10, 1, 0.1,
-        # ],
+        'algo_params.reward_scale': [
+            10, 1, 0.1,
+        ],
         'algo_params.tau': [
             1, 1e-2, 1e-3,
         ],
@@ -111,10 +111,10 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        for _ in range(3):
+        for _ in range(1):
             run_experiment(
                 example,
-                exp_prefix="n3dpg-many-env-sweep",
+                exp_prefix="n3dpg-many-env-sweep-huber-qf-bigger-net",
                 mode='ec2',
                 exp_id=exp_id,
                 variant=variant,
