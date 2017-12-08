@@ -107,6 +107,7 @@ class Simple1DTdmPlotter(object):
                 self._ax_lst.append(ax)
                 self._goal_lst.append(goal)
                 self._location_lst.append(location)
+        self.fig.subplots_adjust(hspace=0.5, wspace=0.5)
 
         self._line_objects = list()
 
