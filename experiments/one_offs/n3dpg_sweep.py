@@ -114,8 +114,8 @@ if __name__ == "__main__":
         for _ in range(3):
             run_experiment(
                 example,
-                # exp_prefix="n3dpg-many-env-sweep-10k-per-step",
-                # mode='ec2',
+                exp_prefix="n3dpg-many-env-sweep-10k-per-step-bounded",
+                mode='ec2',
                 exp_id=exp_id,
                 variant=variant,
                 use_gpu=False,

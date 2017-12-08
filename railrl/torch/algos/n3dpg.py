@@ -122,7 +122,7 @@ class N3DPG(TorchRLAlgorithm):
         qf_loss = self.qf_criterion(q_pred, q_target)
 
         """
-        Qf operations.
+        Vf operations.
         """
         v_target = self.qf(next_obs, self.policy(next_obs)).detach()
         v_pred = self.vf(next_obs)
