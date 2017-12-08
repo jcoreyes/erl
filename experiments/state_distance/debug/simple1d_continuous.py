@@ -13,7 +13,7 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.state_distance.flat_networks import StructuredQF, OneHotTauQF
 from railrl.state_distance.tdm_ddpg import TdmDdpg
 from railrl.torch.modules import HuberLoss
-from railrl.torch.networks import MlpPolicy, FlattenMlp
+from railrl.torch.networks import TanhMlpPolicy, FlattenMlp
 
 
 def experiment(variant):
@@ -46,7 +46,7 @@ def experiment(variant):
         )
     else:
         raise TypeError("Invalid qf type: {}".format(variant['qf_type']))
-    policy = MlpPolicy(
+    policy = TanhMlpPolicy(
         input_size=obs_dim + env.goal_dim + 1,
         output_size=action_dim,
         **variant['policy_params']

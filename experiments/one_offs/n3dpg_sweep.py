@@ -19,7 +19,7 @@ from rllab.envs.mujoco.inverted_double_pendulum_env import \
     InvertedDoublePendulumEnv
 from rllab.envs.mujoco.swimmer_env import SwimmerEnv
 from railrl.torch.algos.n3dpg import N3DPG
-from railrl.torch.networks import FlattenMlp, MlpPolicy
+from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 
 
 def example(variant):
@@ -39,7 +39,7 @@ def example(variant):
         output_size=1,
         **variant['vf_params']
     )
-    policy = MlpPolicy(
+    policy = TanhMlpPolicy(
         input_size=obs_dim,
         output_size=action_dim,
         **variant['policy_params']
@@ -100,9 +100,9 @@ if __name__ == "__main__":
             HopperEnv,
             InvertedDoublePendulumEnv,
         ],
-        # 'algo_params.reward_scale': [
-            # 10, 1, 0.1,
-        # ],
+        'algo_params.reward_scale': [
+            10, 1, 0.1,
+        ],
         'algo_params.tau': [
             1, 1e-2, 1e-3,
         ],
@@ -114,8 +114,8 @@ if __name__ == "__main__":
         for _ in range(3):
             run_experiment(
                 example,
-                exp_prefix="n3dpg-many-env-sweep-10k-per-step",
-                mode='ec2',
+                # exp_prefix="n3dpg-many-env-sweep-10k-per-step",
+                # mode='ec2',
                 exp_id=exp_id,
                 variant=variant,
                 use_gpu=False,
