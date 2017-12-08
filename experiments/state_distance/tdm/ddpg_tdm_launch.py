@@ -79,12 +79,12 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "tdm-ddpg-residual-gradient"
+    exp_prefix = "tdm-half-cheetah"
 
     num_epochs = 100
-    num_steps_per_epoch = 10000
+    num_steps_per_epoch = 50000
     num_steps_per_eval = 10000
-    max_path_length = 200
+    max_path_length = 1000
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -129,22 +129,26 @@ if __name__ == "__main__":
     )
     search_space = {
         'env_class': [
-            Reacher7DofXyzGoalState,
+            # Reacher7DofXyzGoalState,
             GoalXVelHalfCheetah,
         ],
-        # 'algo_params.tdm_kwargs.sample_rollout_goals_from': [
-        #     'fixed',
-        #     'environment',
+        'algo_params.tdm_kwargs.sample_rollout_goals_from': [
+            'fixed',
+            'environment',
+        ],
+        'algo_params.tdm_kwargs.max_tau': [
+            10,
+            20,
+            30,
+        ],
+        'algo_params.ddpg_kwargs.tau': [
+            1e-2,
+            1e-3,
+        ],
+        # 'algo_params.base_kwargs.num_updates_per_env_step': [
+            # 1,
+            # 5,
         # ],
-        'algo_params.base_kwargs.num_updates_per_env_step': [
-            1,
-            5,
-        ],
-        'algo_params.ddpg_kwargs.residual_gradient_weight': [
-            0,
-            0.5,
-            1,
-        ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
