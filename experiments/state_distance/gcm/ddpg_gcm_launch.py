@@ -72,9 +72,9 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-ddpg-gcm-launch"
 
-    # n_seeds = 3
-    # mode = "ec2"
-    # exp_prefix = "gcm-ddpg"
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "gcm-ddpg-reacher7dof-xyz"
 
     num_epochs = 100
     num_steps_per_epoch = 1000
@@ -108,10 +108,10 @@ if __name__ == "__main__":
             num_goals_to_sample=4,
         ),
         gcm_kwargs=dict(
-            hidden_sizes=[300, 300],
+            hidden_sizes=[100, 100],
         ),
         policy_kwargs=dict(
-            hidden_sizes=[300, 300],
+            hidden_sizes=[100, 100],
         ),
         gcm_criterion_class=HuberLoss,
         gcm_criterion_kwargs=dict(),
