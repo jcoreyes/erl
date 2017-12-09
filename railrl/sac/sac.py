@@ -181,26 +181,6 @@ class SoftActorCritic(TorchRLAlgorithm):
                 ptu.get_numpy(policy_log_std),
             ))
 
-    def evaluate(self, epoch):
-        statistics = OrderedDict()
-        statistics.update(self.eval_statistics)
-        self.eval_statistics = None
-        test_paths = self.eval_sampler.obtain_samples()
-        statistics.update(eval_util.get_generic_path_information(
-            test_paths, self.discount, stat_prefix="Test",
-        ))
-        if hasattr(self.env, "log_diagnostics"):
-            self.env.log_diagnostics(test_paths)
-
-        for key, value in statistics.items():
-            logger.record_tabular(key, value)
-
-        if self.render_eval_paths:
-            self.env.render_paths(test_paths)
-
-        if self.plotter:
-            self.plotter.draw()
-
     @property
     def networks(self):
         return [
