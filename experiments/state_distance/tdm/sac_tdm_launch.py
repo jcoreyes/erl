@@ -62,12 +62,12 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "tdm-half-cheetah"
+    exp_prefix = "tdm-half-cheetah-short-path-length"
 
     num_epochs = 100
-    num_steps_per_epoch = 50000
-    num_steps_per_eval = 10000
-    max_path_length = 1000
+    num_steps_per_epoch = 1000
+    num_steps_per_eval = 1000
+    max_path_length = 100
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -128,18 +128,18 @@ if __name__ == "__main__":
             # False,
         ],
         'algo_params.tdm_kwargs.sample_rollout_goals_from': [
-            # 'fixed',
+            'fixed',
             'environment',
         ],
         'algo_params.tdm_kwargs.max_tau': [
+            5,
             10,
             20,
-            30,
         ],
-        'algo_params.base_kwargs.num_updates_per_env_step': [
-            1,
-            3,
-        ],
+        # 'algo_params.base_kwargs.num_updates_per_env_step': [
+            # 1,
+            # 3,
+        # ],
         'algo_params.sac_kwargs.soft_target_tau': [
             1e-2,
             1e-3,
