@@ -68,10 +68,11 @@ class GcmDdpg(GoalConditionedModel):
         Policy operations.
         """
         policy_actions = self.policy(obs)
-        future_goals_predicted = (
-            self.env.convert_obs_to_goals(obs) + self.gcm(obs, policy_actions)
-        )
-        policy_loss = ((future_goals_predicted-goals)**2).sum(dim=1).mean()
+        # future_goals_predicted = (
+            # self.env.convert_obs_to_goals(obs) + self.gcm(obs, policy_actions)
+        # )
+        # policy_loss = ((future_goals_predicted-goals)**2).sum(dim=1).mean()
+        policy_loss = self.gcm(obs, policy_actions).sum(dim=1).mean()
 
         """
         GCM operations.

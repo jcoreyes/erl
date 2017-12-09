@@ -74,7 +74,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "gcm-ddpg-reacher7dof-xyz-correct-2"
+    exp_prefix = "gcm-ddpg-reacher7dof-xyz-sum-of-distances"
 
     num_epochs = 100
     num_steps_per_epoch = 1000

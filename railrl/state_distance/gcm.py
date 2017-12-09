@@ -119,9 +119,10 @@ class GoalConditionedModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             goals = batch['goals']
         else:
             goals = self._sample_goals_for_training()
-        goal_differences = (
+        goal_differences = np.abs(
             self.env.convert_obs_to_goals(next_obs)
-            - self.env.convert_obs_to_goals(obs)
+            # - self.env.convert_obs_to_goals(obs)
+            - goals
         )
         batch['goal_differences'] = goal_differences * self.reward_scale
         batch['goals'] = goals
