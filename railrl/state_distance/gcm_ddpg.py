@@ -122,8 +122,8 @@ class GcmDdpg(GoalConditionedModel):
 
     def _update_target_networks(self):
         if self.use_soft_update:
-            ptu.soft_update(self.target_policy, self.policy, self.tau)
-            ptu.soft_update(self.target_gcm, self.target_gcm, self.tau)
+            ptu.soft_update_from_to(self.policy, self.target_policy, self.tau)
+            ptu.soft_update_from_to(self.gcm, self.target_gcm, self.tau)
         else:
             if self._n_env_steps_total % self.target_hard_update_period == 0:
                 ptu.copy_model_params_from_to(self.gcm, self.target_gcm)

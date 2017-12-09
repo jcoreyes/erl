@@ -214,4 +214,4 @@ class SoftActorCritic(TorchRLAlgorithm):
         raise NotImplementedError()
 
     def _update_target_network(self):
-        ptu.soft_update(self.target_vf, self.vf, self.soft_target_tau)
+        ptu.soft_update_from_to(self.vf, self.target_vf, self.soft_target_tau)

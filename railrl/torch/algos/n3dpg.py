@@ -184,7 +184,7 @@ class N3DPG(TorchRLAlgorithm):
 
     def _update_target_networks(self):
         if self.use_soft_update:
-            ptu.soft_update(self.target_vf, self.vf, self.tau)
+            ptu.soft_update_from_to(self.vf, self.target_vf, self.tau)
         else:
             if self._n_env_steps_total % self.target_hard_update_period == 0:
                 ptu.copy_model_params_from_to(self.vf, self.target_vf)
