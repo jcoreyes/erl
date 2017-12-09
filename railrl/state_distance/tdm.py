@@ -25,6 +25,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             sample_rollout_goals_from='environment',
             vectorized=True,
             cycle_taus_for_rollout=False,
+            dense_rewards=False,
     ):
         """
 
@@ -45,6 +46,8 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         :param vectorized: Train the QF in vectorized form?
         :param cycle_taus_for_rollout: Decrement the tau passed into the
         policy during rollout?
+        :param dense_rewards: If True, do not use the indicator function to
+        zero out the reward at time steps when tau isn't zero.
         """
         assert sample_train_goals_from in ['environment', 'replay_buffer',
                                            'her']
@@ -53,12 +56,17 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         if epoch_max_tau_schedule is None:
             epoch_max_tau_schedule = ConstantSchedule(max_tau)
 
+        if dense_rewards:
+            assert self.discount < 1
+            assert max_tau == 0
+
         self.max_tau = max_tau
         self.epoch_max_tau_schedule = epoch_max_tau_schedule
         self.sample_train_goals_from = sample_train_goals_from
         self.sample_rollout_goals_from = sample_rollout_goals_from
         self.vectorized = vectorized
         self.cycle_taus_for_rollout = cycle_taus_for_rollout
+        self.dense_rewards = dense_rewards
         self._current_path_goal = None
         self._rollout_tau = self.max_tau
 
@@ -113,9 +121,12 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         """
         Update the goal states/rewards
         """
-        num_steps_left = np.random.randint(
-            0, self.max_tau + 1, (self.batch_size, 1)
-        )
+        if self.dense_rewards:
+            num_steps_left = np.zeros((self.batch_size, 1))
+        else:
+            num_steps_left = np.random.randint(
+                0, self.max_tau + 1, (self.batch_size, 1)
+            )
         terminals = 1 - (1 - batch['terminals']) * (num_steps_left != 0)
         batch['terminals'] = terminals
 
@@ -132,7 +143,10 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             next_obs,
             goals,
         )
-        batch['rewards'] = rewards * terminals
+        if self.dense_rewards:
+            batch['rewards'] = rewards
+        else:
+            batch['rewards'] = rewards * terminals
 
         """
         Update the observations

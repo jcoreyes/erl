@@ -62,9 +62,9 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "tdm-half-cheetah-short-path-length"
+    exp_prefix = "tdm-half-cheetah-dense-rewards"
 
-    num_epochs = 100
+    num_epochs = 500
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
     max_path_length = 100
@@ -79,7 +79,7 @@ if __name__ == "__main__":
                 max_path_length=max_path_length,
                 num_updates_per_env_step=25,
                 batch_size=128,
-                discount=1,
+                discount=0.98,
             ),
             tdm_kwargs=dict(
                 sample_rollout_goals_from='environment',
@@ -128,21 +128,20 @@ if __name__ == "__main__":
             # False,
         ],
         'algo_params.tdm_kwargs.sample_rollout_goals_from': [
-            'fixed',
             'environment',
         ],
         'algo_params.tdm_kwargs.max_tau': [
-            5,
-            10,
-            20,
+            0,
         ],
-        # 'algo_params.base_kwargs.num_updates_per_env_step': [
-            # 1,
-            # 3,
-        # ],
         'algo_params.sac_kwargs.soft_target_tau': [
             1e-2,
             1e-3,
+        ],
+        'algo_params.base_kwargs.discount': [
+            0.98,
+        ],
+        'algo_params.tdm_kwargs.dense_rewards': [
+            True,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
