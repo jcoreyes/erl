@@ -8,6 +8,7 @@ import railrl.torch.pytorch_util as ptu
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.state_distance.gcm import GoalConditionedModel
 from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
+from railrl.torch.algos.util import np_to_pytorch_batch
 
 
 class GcmDdpg(GoalConditionedModel):
@@ -15,10 +16,10 @@ class GcmDdpg(GoalConditionedModel):
             self,
             env,
             gcm,
+            policy,
             exploration_policy,
             gcm_kwargs,
             base_kwargs,
-            policy=None,
 
             gcm_criterion=None,
             policy_learning_rate=1e-4,
@@ -27,6 +28,13 @@ class GcmDdpg(GoalConditionedModel):
             tau=1e-2,
             use_soft_update=False,
     ):
+        TorchRLAlgorithm.__init__(
+            self,
+            env,
+            exploration_policy=exploration_policy,
+            eval_policy=policy,
+            **base_kwargs
+        )
         if gcm_criterion is None:
             gcm_criterion = nn.MSELoss()
         self.gcm = gcm
@@ -47,13 +55,6 @@ class GcmDdpg(GoalConditionedModel):
         self.policy_optimizer = optim.Adam(self.policy.parameters(),
                                            lr=self.policy_learning_rate)
         super().__init__(**gcm_kwargs)
-        TorchRLAlgorithm.__init__(
-            self,
-            env,
-            exploration_policy=exploration_policy,
-            eval_policy=policy,
-            **base_kwargs
-        )
 
     def _do_training(self):
         batch = self.get_batch(training=True)
@@ -128,3 +129,12 @@ class GcmDdpg(GoalConditionedModel):
             if self._n_env_steps_total % self.target_hard_update_period == 0:
                 ptu.copy_model_params_from_to(self.gcm, self.target_gcm)
                 ptu.copy_model_params_from_to(self.policy, self.target_policy)
+
+    @property
+    def networks(self):
+        return [
+            self.gcm,
+            self.policy,
+            self.target_gcm,
+            self.target_policy,
+        ]
