@@ -127,10 +127,19 @@ if __name__ == "__main__":
             'environment',
         ],
         'algo_kwargs.gcm_kwargs.max_tau': [
+            0,
+            1,
+            5,
             10,
         ],
         'algo_kwargs.tau': [
             1e-2,
+        ],
+        'algo_kwargs.gcm_learning_rate': [
+            1e-3, 1e-4,
+        ],
+        'algo_kwargs.policy_learning_rate': [
+            1e-3, 1e-4,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

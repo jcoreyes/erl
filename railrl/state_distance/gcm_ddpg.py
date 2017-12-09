@@ -58,7 +58,7 @@ class GcmDdpg(GoalConditionedModel):
 
     def _do_training(self):
         batch = self.get_batch(training=True)
-        rewards = batch['rewards']
+        state_differences = batch['state_differences']
         terminals = batch['terminals']
         obs = batch['observations']
         actions = batch['actions']
@@ -74,7 +74,6 @@ class GcmDdpg(GoalConditionedModel):
         """
         GCM operations.
         """
-
         next_actions = self.target_policy(next_obs)
         # speed up computation by not backpropping these gradients
         next_actions.detach()
@@ -82,7 +81,7 @@ class GcmDdpg(GoalConditionedModel):
             next_obs,
             next_actions,
         )
-        gcm_target = rewards + (1. - terminals) * target_difference
+        gcm_target = state_differences + (1. - terminals) * target_difference
         gcm_target = gcm_target.detach()
         gcm_pred = self.gcm(obs, actions)
         bellman_errors = (gcm_pred - gcm_target) ** 2
