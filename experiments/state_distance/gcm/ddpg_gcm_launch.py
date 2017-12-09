@@ -74,9 +74,9 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "gcm-ddpg-reacher7dof-xyz-sum-of-distances"
+    exp_prefix = "gcm-ddpg-half-cheetah-sum-of-distances"
 
-    num_epochs = 100
+    num_epochs = 500
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
     max_path_length = 200
@@ -89,8 +89,8 @@ if __name__ == "__main__":
                 num_steps_per_epoch=num_steps_per_epoch,
                 num_steps_per_eval=num_steps_per_eval,
                 max_path_length=max_path_length,
-                num_updates_per_env_step=1,
-                batch_size=64,
+                num_updates_per_env_step=25,
+                batch_size=128,
                 discount=1,
             ),
             gcm_kwargs=dict(
@@ -120,8 +120,8 @@ if __name__ == "__main__":
     )
     search_space = {
         'env_class': [
-            Reacher7DofXyzGoalState,
-            # GoalXVelHalfCheetah,
+            # Reacher7DofXyzGoalState,
+            GoalXVelHalfCheetah,
         ],
         'algo_kwargs.gcm_kwargs.sample_rollout_goals_from': [
             'environment',
