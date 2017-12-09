@@ -8,7 +8,6 @@ import railrl.torch.pytorch_util as ptu
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.state_distance.gcm import GoalConditionedModel
 from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
-from railrl.torch.algos.util import np_to_pytorch_batch
 
 
 class GcmDdpg(GoalConditionedModel):
@@ -58,18 +57,21 @@ class GcmDdpg(GoalConditionedModel):
 
     def _do_training(self):
         batch = self.get_batch(training=True)
-        state_differences = batch['state_differences']
         terminals = batch['terminals']
         obs = batch['observations']
         actions = batch['actions']
         next_obs = batch['next_observations']
+        goal_differences = batch['goal_differences']
+        goals = batch['goals']
 
         """
         Policy operations.
         """
         policy_actions = self.policy(obs)
-        differences = self.gcm(obs, policy_actions)
-        policy_loss = - differences.abs().mean()
+        future_goals_predicted = (
+            self.env.convert_obs_to_goals(obs) + self.gcm(obs, policy_actions)
+        )
+        policy_loss = - ((future_goals_predicted-goals)**2).sum(dim=1).mean()
 
         """
         GCM operations.
@@ -81,7 +83,7 @@ class GcmDdpg(GoalConditionedModel):
             next_obs,
             next_actions,
         )
-        gcm_target = state_differences + (1. - terminals) * target_difference
+        gcm_target = goal_differences + (1. - terminals) * target_difference
         gcm_target = gcm_target.detach()
         gcm_pred = self.gcm(obs, actions)
         bellman_errors = (gcm_pred - gcm_target) ** 2

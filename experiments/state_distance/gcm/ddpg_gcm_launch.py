@@ -74,7 +74,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "gcm-ddpg-reacher7dof-xyz"
+    exp_prefix = "gcm-ddpg-reacher7dof-xyz-correct"
 
     num_epochs = 100
     num_steps_per_epoch = 1000
@@ -128,18 +128,24 @@ if __name__ == "__main__":
         ],
         'algo_kwargs.gcm_kwargs.max_tau': [
             0,
-            1,
             5,
             10,
+            20,
         ],
         'algo_kwargs.tau': [
             1e-2,
+            1e-3,
         ],
-        'algo_kwargs.gcm_learning_rate': [
-            1e-3, 1e-4,
-        ],
-        'algo_kwargs.policy_learning_rate': [
-            1e-3, 1e-4,
+        # 'algo_kwargs.gcm_learning_rate': [
+            # 1e-3, 1e-4,
+        # ],
+        # 'algo_kwargs.policy_learning_rate': [
+            # 1e-3, 1e-4,
+        # ],
+        'algo_kwargs.base_kwargs.reward_scale': [
+            0.1,
+            1,
+            10,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

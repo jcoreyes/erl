@@ -119,19 +119,12 @@ class GoalConditionedModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             goals = batch['goals']
         else:
             goals = self._sample_goals_for_training()
-        one_step_state_difference = (
+        goal_differences = (
             self.env.convert_obs_to_goals(next_obs)
             - self.env.convert_obs_to_goals(obs)
         )
-        goal_state_difference = (
-            goals
-            - self.env.convert_obs_to_goals(obs)
-        )
-        state_differences = (
-            one_step_state_difference * (1-terminals) +
-            goal_state_difference * terminals
-        )
-        batch['state_differences'] = state_differences
+        batch['goal_differences'] = goal_differences * self.reward_scale
+        batch['goals'] = goals
 
         """
         Update the observations
