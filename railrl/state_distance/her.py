@@ -9,14 +9,21 @@ from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.samplers.util import split_paths_to_dict
 from railrl.policies.state_distance import UniversalPolicy
-from state_distance.rollout_util import MultigoalSimplePathSampler
+from railrl.state_distance.rollout_util import MultigoalSimplePathSampler
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.algos.util import np_to_pytorch_batch
-from railrl.torch.ddpg import DDPG
+from railrl.torch.algos.ddpg import DDPG
 from railrl.torch.networks import Mlp
 
 
 class HER(DDPG):
+    """
+    Questions:
+    1. Is episode over when the state is reached?
+    2. Do you give time to the state?
+    3. Do you mean that you use the target policy for eval?
+    4. Why do you use obs and not next_obs when computing the reward?
+    """
     def __init__(
             self,
             env,
@@ -67,8 +74,8 @@ class HER(DDPG):
 
     def get_batch(self, training=True):
         batch = super().get_batch(training=training)
-        # The original HER paper says to use obs - goal state, but that doesn't
-        # really make sense
+        # The original HER paper says to use obs - goal state (rather than
+        # next obs), but that doesn't really make sense
         # diff = torch.abs(
         #     self.env.convert_obs_to_goal_states(batch['next_observations'])
         #     - self.env.convert_obs_to_goal_states(batch['goal_states'])
@@ -114,7 +121,7 @@ class HER(DDPG):
         )
         y_target = rewards + (1. - terminals) * self.discount * target_q_values
         y_target = y_target.detach()
-        # y_target = torch.clamp(y_target, -1./(1-self.discount), 0)
+        y_target = torch.clamp(y_target, -1./(1-self.discount), 0)
         y_pred = self.qf(obs, actions, goals)
         bellman_errors = (y_pred - y_target)**2
         qf_loss = self.qf_criterion(y_pred, y_target)
@@ -230,6 +237,7 @@ class HerQFunction(Mlp):
             action_dim,
             goal_dim,
             hidden_sizes,
+            env,
             **kwargs
     ):
         self.save_init_params(locals())
@@ -239,9 +247,11 @@ class HerQFunction(Mlp):
             input_size=observation_dim + goal_dim + action_dim,
             **kwargs
         )
+        self.env = env
 
-    def forward(self, obs, action, goal_state, _ignored_discount=None):
-        h = torch.cat((obs, action, goal_state), dim=1)
+    def forward(self, obs, action, goals, _ignored_discount=None):
+        goal_deltas = self.env.convert_obs_to_goals(obs) - goals
+        h = torch.cat((obs, action, goal_deltas), dim=1)
         for i, fc in enumerate(self.fcs):
             h = self.hidden_activation(fc(h))
         return self.output_activation(self.last_fc(h))
@@ -254,6 +264,7 @@ class HerPolicy(Mlp, UniversalPolicy):
             action_dim,
             goal_dim,
             hidden_sizes,
+            env,
             **kwargs
     ):
         self.save_init_params(locals())
@@ -263,9 +274,11 @@ class HerPolicy(Mlp, UniversalPolicy):
             input_size=observation_dim + goal_dim,
             **kwargs
         )
+        self.env = env
 
-    def forward(self, obs, goal_state, _ignored_discount=None):
-        h = torch.cat((obs, goal_state), dim=1)
+    def forward(self, obs, goals, _ignored_discount=None):
+        goal_deltas = self.env.convert_obs_to_goals(obs) - goals
+        h = torch.cat((obs, goal_deltas), dim=1)
         for i, fc in enumerate(self.fcs):
             h = self.hidden_activation(fc(h))
         return F.tanh(self.last_fc(h))

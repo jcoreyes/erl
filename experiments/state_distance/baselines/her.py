@@ -1,6 +1,8 @@
 import argparse
 import random
 
+from railrl.exploration_strategies.gaussian_and_epislon import \
+    GaussianAndEpislonStrategy
 from railrl.state_distance.her import HER, HerQFunction, HerPolicy
 from torch.nn import functional as F
 
@@ -84,13 +86,12 @@ if __name__ == '__main__':
 
     n_seeds = 1
     mode = "local"
-    exp_prefix = "murtaza-edits-baseline-her"
+    exp_prefix = "dev-her-baseline"
     run_mode = "none"
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "her-baseline-shaped-rewards-no-clipping-300-300-right" \
-                 "-discount-and-tau"
+    exp_prefix = "her-baseline"
     run_mode = 'grid'
 
     version = "na"
@@ -100,7 +101,7 @@ if __name__ == '__main__':
     if mode != "local":
         use_gpu = False
 
-    max_path_length = 100
+    max_path_length = 50
     # noinspection PyTypeChecker
     variant = dict(
         version=version,
@@ -111,10 +112,10 @@ if __name__ == '__main__':
             num_updates_per_env_step=1,
             use_soft_update=True,
             tau=0.001,
-            batch_size=64,
-            discount=5,
+            batch_size=4096,
+            discount=0.98,
             qf_learning_rate=1e-3,
-            policy_learning_rate=1e-4,
+            policy_learning_rate=1e-1,
             qf_weight_decay=0.,
             max_path_length=max_path_length,
             render=args.render,
@@ -122,26 +123,26 @@ if __name__ == '__main__':
         ),
         qf_class=HerQFunction,
         qf_params=dict(
-            hidden_sizes=[300, 300],
-            hidden_activation=F.softplus,
+            hidden_sizes=[64, 64, 64],
+            hidden_activation=F.relu,
         ),
         policy_class=HerPolicy,
         policy_params=dict(
-            hidden_sizes=[300, 300],
+            hidden_sizes=[64, 64, 64],
             hidden_activation=F.relu,
         ),
         replay_buffer_params=dict(
-            max_size=200000,
+            max_size=int(1e6),
             num_goals_to_sample=4,
             goal_sample_strategy='store',
         ),
         env_params=dict(),
         normalize_params=dict(),
-        es_class=OUStrategy,
+        es_class=GaussianAndEpislonStrategy,
         es_params=dict(
-            theta=0.1,
-            max_sigma=0.02,
-            min_sigma=0.02,
+            max_sigma=0.1,
+            min_sigma=0.1,
+            epsilon=0.2,
         ),
         qf_criterion_class=HuberLoss,
         # qf_criterion_class=nn.MSELoss,
