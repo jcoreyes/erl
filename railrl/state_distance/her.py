@@ -81,7 +81,7 @@ class HER(DDPG):
         batch = super().get_batch(training=training)
         diff = torch.abs(
             self.env.convert_obs_to_goals(batch['next_observations'])
-            - self.env.convert_obs_to_goals(batch['goals'])
+            - batch['goals']
         )
         diff_sum = diff.sum(dim=1, keepdim=True)
         goal_not_reached = (diff_sum >= self.epsilon).float()
