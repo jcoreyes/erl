@@ -127,10 +127,3 @@ class TanhMlpPolicy(MlpPolicy):
     def __init__(self, *args, **kwargs):
         self.save_init_params(locals())
         super().__init__(*args, output_activation=torch.tanh, **kwargs)
-
-    def get_action(self, obs_np):
-        actions = self.get_actions(obs_np[None])
-        return actions[0, :], {}
-
-    def get_actions(self, obs):
-        return self.eval_np(obs)
