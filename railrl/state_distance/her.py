@@ -8,26 +8,27 @@ from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.data_management.path_builder import PathBuilder
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.policies.state_distance import UniversalPolicy
-from railrl.samplers.util import split_paths_to_dict
 from railrl.state_distance.rollout_util import MultigoalSimplePathSampler
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.algos.ddpg import DDPG
-from railrl.torch.algos.util import np_to_pytorch_batch
 from railrl.torch.networks import Mlp
 
 
 class HER(DDPG):
     """
     Questions:
-    1. Is episode over when the state is reached?
-    2. Do you give time to the state?
-    3. Do you mean that you use the target policy for eval?
-    4. Why do you use obs and not next_obs when computing the reward?
-    5. "we add the square of the their preactivations to the actor’s cost
-    function" is there a weight?
-    6. Does the replay buffer size (10^6) mean 10^6 unique states or
+    - Is episode over when the state is reached?
+    - Do you give time to the state?
+    - Do you mean that you use the target policy for eval?
+    - "we add the square of the their preactivations to the actor’s cost
+        function" is there a weight?
+    - Does the replay buffer size (10^6) mean 10^6 unique states or
     "state + goal states" (since they save new goal states into the replay
     buffer)?
+
+    Known differences:
+     - Mujoco skip_frame and dt are different
+     - I do not scale inputs
     """
     def __init__(
             self,
@@ -78,8 +79,6 @@ class HER(DDPG):
 
     def get_batch(self, training=True):
         batch = super().get_batch(training=training)
-        # The original HER paper says to use obs - goal state (rather than
-        # next obs), but that doesn't really make sense
         diff = torch.abs(
             self.env.convert_obs_to_goals(batch['next_observations'])
             - self.env.convert_obs_to_goals(batch['goals'])
@@ -120,8 +119,6 @@ class HER(DDPG):
         Critic operations.
         """
         next_actions = self.target_policy(next_obs, goals)
-        # speed up computation by not backpropping these gradients
-        next_actions.detach()
         target_q_values = self.target_qf(
             next_obs,
             next_actions,
