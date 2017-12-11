@@ -5,45 +5,52 @@ import numpy as np
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
-# from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
-from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
-from railrl.envs.multitask.reacher_7dof import (
-    # Reacher7DofGoalStateEverything,
-    Reacher7DofXyzGoalState,
-)
-from railrl.envs.wrappers import normalize_box
+from railrl.envs.multitask.simple1d import Simple1D, Simple1DTdmPlotter
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.policies.torch import FeedForwardPolicy
-from railrl.state_distance.flat_networks import StructuredQF
-from railrl.state_distance.tdm_ddpg import TdmDdpg
+from railrl.state_distance.flat_networks import StructuredQF, OneHotTauQF
+from railrl.state_distance.tdm_n3dpg import TdmN3dpg
 from railrl.torch.modules import HuberLoss
-from railrl.torch.networks import TanhMlpPolicy
+from railrl.torch.networks import MlpPolicy, FlattenMlp
 
 
 def experiment(variant):
-    env = normalize_box(variant['env_class']())
+    env = variant['env_class']()
 
     obs_dim = int(np.prod(env.observation_space.low.shape))
     action_dim = int(np.prod(env.action_space.low.shape))
-    vectorized = variant['algo_kwargs']['tdm_kwargs']['vectorized']
-    qf = StructuredQF(
+    vectorized = variant['algo_params']['tdm_kwargs']['vectorized']
+    # qf = StructuredQF(
+    #     observation_dim=obs_dim,
+    #     action_dim=action_dim,
+    #     goal_dim=env.goal_dim,
+    #     output_size=env.goal_dim if vectorized else 1,
+    #     **variant['qf_params']
+    # )
+    qf = OneHotTauQF(
         observation_dim=obs_dim,
         action_dim=action_dim,
         goal_dim=env.goal_dim,
         output_size=env.goal_dim if vectorized else 1,
-        **variant['qf_kwargs']
+        **variant['qf_params']
     )
-    policy = TanhMlpPolicy(
+    vf = FlattenMlp(
+        input_size=obs_dim+env.goal_dim+1,
+        output_size=env.goal_dim if vectorized else 1,
+        **variant['vf_params']
+    )
+    policy = MlpPolicy(
         input_size=obs_dim + env.goal_dim + 1,
         output_size=action_dim,
-        **variant['policy_kwargs']
+        **variant['policy_params']
     )
     es = OUStrategy(
         action_space=env.action_space,
-        **variant['es_kwargs']
+        theta=0.1,
+        max_sigma=0.1,
+        min_sigma=0.1,
     )
     exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
@@ -51,20 +58,31 @@ def experiment(variant):
     )
     replay_buffer = HerReplayBuffer(
         env=env,
-        **variant['her_replay_buffer_kwargs']
+        **variant['her_replay_buffer_params']
     )
     qf_criterion = variant['qf_criterion_class'](
-        **variant['qf_criterion_kwargs']
+        **variant['qf_criterion_params']
     )
-    algo_kwargs = variant['algo_kwargs']
-    algo_kwargs['ddpg_kwargs']['qf_criterion'] = qf_criterion
-    algorithm = TdmDdpg(
+    algo_params = variant['algo_params']
+    algo_params['n3dpg_kwargs']['qf_criterion'] = qf_criterion
+    plotter = Simple1DTdmPlotter(
+        tdm=qf,
+        # location_lst=np.array([-10, 0, 10]),
+        # goal_lst=np.array([-10, 0, 5]),
+        location_lst=np.array([-5, 0, 5]),
+        goal_lst=np.array([-5, 0, 5]),
+        max_tau=algo_params['tdm_kwargs']['max_tau'],
+        grid_size=10,
+    )
+    algo_params['n3dpg_kwargs']['plotter'] = plotter
+    algorithm = TdmN3dpg(
         env,
         qf=qf,
+        vf=vf,
         replay_buffer=replay_buffer,
         policy=policy,
         exploration_policy=exploration_policy,
-        **variant['algo_kwargs']
+        **algo_params
     )
     if ptu.gpu_enabled():
         algorithm.cuda()
@@ -74,81 +92,68 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = "local"
-    exp_prefix = "dev-ddpg-tdm-launch"
-
-    n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "tdm-half-cheetah-reproduce-attempt-1"
+    exp_prefix = "simple-1d-continuous"
 
     num_epochs = 100
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
-    max_path_length = 100
+    max_path_length = 30
 
     # noinspection PyTypeChecker
+    max_tau = 5
     variant = dict(
-        algo_kwargs=dict(
+        algo_params=dict(
             base_kwargs=dict(
                 num_epochs=num_epochs,
                 num_steps_per_epoch=num_steps_per_epoch,
                 num_steps_per_eval=num_steps_per_eval,
                 max_path_length=max_path_length,
-                num_updates_per_env_step=25,
+                num_updates_per_env_step=1,
                 batch_size=64,
                 discount=1,
+                save_replay_buffer=True,
             ),
             tdm_kwargs=dict(
                 sample_rollout_goals_from='environment',
                 sample_train_goals_from='her',
                 vectorized=True,
                 cycle_taus_for_rollout=True,
-                max_tau=10,
+                max_tau=max_tau,
             ),
-            ddpg_kwargs=dict(
-                tau=0.001,
+            n3dpg_kwargs=dict(
                 qf_learning_rate=1e-3,
+                vf_learning_rate=1e-3,
                 policy_learning_rate=1e-4,
             ),
         ),
-        her_replay_buffer_kwargs=dict(
-            max_size=int(2E5),
+        her_replay_buffer_params=dict(
+            max_size=int(5E4),
             num_goals_to_sample=4,
         ),
-        qf_kwargs=dict(
-            hidden_sizes=[300, 300],
+        qf_params=dict(
+            hidden_sizes=[100, 100],
+            max_tau=max_tau,
         ),
-        policy_kwargs=dict(
-            hidden_sizes=[300, 300],
+        vf_params=dict(
+            hidden_sizes=[100, 100],
         ),
-        es_kwargs=dict(
-            theta=0.1,
-            max_sigma=0.1,
-            min_sigma=0.1,
+        policy_params=dict(
+            hidden_sizes=[100, 100],
         ),
         qf_criterion_class=HuberLoss,
-        qf_criterion_kwargs=dict(),
+        qf_criterion_params=dict(),
         version="DDPG-TDM",
         algorithm="DDPG-TDM",
     )
     search_space = {
         'env_class': [
-            # Reacher7DofXyzGoalState,
-            GoalXVelHalfCheetah,
+            Simple1D,
         ],
-        'algo_kwargs.tdm_kwargs.sample_rollout_goals_from': [
+        'algo_params.tdm_kwargs.vectorized': [
+            False,
+        ],
+        'algo_params.tdm_kwargs.sample_rollout_goals_from': [
             'environment',
-        ],
-        'algo_kwargs.tdm_kwargs.max_tau': [
-            10,
-            25,
-        ],
-        'algo_kwargs.base_kwargs.reward_scale': [
-            1,
-            10,
-        ],
-        'algo_kwargs.ddpg_kwargs.tau': [
-            0.001,
-            0.01,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -156,11 +161,6 @@ if __name__ == "__main__":
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):
-            variant['multitask'] = (
-                variant['algo_kwargs']['tdm_kwargs'][
-                    'sample_rollout_goals_from'
-                ] != 'fixed'
-            )
             seed = random.randint(0, 10000)
             run_experiment(
                 experiment,

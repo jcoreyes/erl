@@ -1,6 +1,3 @@
-"""
-New implementation of state distance q learning.
-"""
 import abc
 
 import numpy as np
@@ -16,19 +13,16 @@ from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
 from railrl.torch.algos.util import np_to_pytorch_batch
 
 
-class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
+class GoalConditionedModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
     def __init__(
             self,
             max_tau=10,
             epoch_max_tau_schedule=None,
             sample_train_goals_from='replay_buffer',
             sample_rollout_goals_from='environment',
-            vectorized=True,
             cycle_taus_for_rollout=False,
-            dense_rewards=False,
     ):
         """
-
         :param max_tau: Maximum tau (planning horizon) to train with.
         :param epoch_max_tau_schedule: A schedule for the maximum planning
         horizon tau.
@@ -46,8 +40,6 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         :param vectorized: Train the QF in vectorized form?
         :param cycle_taus_for_rollout: Decrement the tau passed into the
         policy during rollout?
-        :param dense_rewards: If True, do not use the indicator function to
-        zero out the reward at time steps when tau isn't zero.
         """
         assert sample_train_goals_from in ['environment', 'replay_buffer',
                                            'her']
@@ -56,19 +48,11 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         if epoch_max_tau_schedule is None:
             epoch_max_tau_schedule = ConstantSchedule(max_tau)
 
-        if dense_rewards:
-            assert self.discount < 1
-            assert max_tau == 0
-        else:
-            assert self.discount == 1
-
         self.max_tau = max_tau
         self.epoch_max_tau_schedule = epoch_max_tau_schedule
         self.sample_train_goals_from = sample_train_goals_from
         self.sample_rollout_goals_from = sample_rollout_goals_from
-        self.vectorized = vectorized
         self.cycle_taus_for_rollout = cycle_taus_for_rollout
-        self.dense_rewards = dense_rewards
         self._current_path_goal = None
         self._rollout_tau = self.max_tau
 
@@ -123,32 +107,25 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         """
         Update the goal states/rewards
         """
-        if self.dense_rewards:
-            num_steps_left = np.zeros((self.batch_size, 1))
-        else:
-            num_steps_left = np.random.randint(
-                0, self.max_tau + 1, (self.batch_size, 1)
-            )
+        num_steps_left = np.random.randint(
+            0, self.max_tau + 1, (self.batch_size, 1)
+        )
         terminals = 1 - (1 - batch['terminals']) * (num_steps_left != 0)
         batch['terminals'] = terminals
 
         obs = batch['observations']
-        actions = batch['actions']
         next_obs = batch['next_observations']
         if self.sample_train_goals_from == 'her':
             goals = batch['goals']
         else:
             goals = self._sample_goals_for_training()
-        rewards = self.compute_rewards_np(
-            obs,
-            actions,
-            next_obs,
-            goals,
+        goal_differences = np.abs(
+            self.env.convert_obs_to_goals(next_obs)
+            # - self.env.convert_obs_to_goals(obs)
+            - goals
         )
-        if self.dense_rewards:
-            batch['rewards'] = rewards
-        else:
-            batch['rewards'] = rewards * terminals
+        batch['goal_differences'] = goal_differences * self.reward_scale
+        batch['goals'] = goals
 
         """
         Update the observations
@@ -165,18 +142,6 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         )
 
         return np_to_pytorch_batch(batch)
-
-    def compute_rewards_np(self, obs, actions, next_obs, goals):
-        if self.vectorized:
-            diff = self.env.convert_obs_to_goals(next_obs) - goals
-            return -np.abs(diff) * self.reward_scale
-        else:
-            return self.env.compute_rewards(
-                obs,
-                actions,
-                next_obs,
-                goals,
-            ) * self.reward_scale
 
     @property
     def train_buffer(self):
@@ -205,8 +170,8 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         elif self.sample_rollout_goals_from == 'replay_buffer':
             batch = self.train_buffer.random_batch(1)
             obs = batch['observations']
-            goal = self.env.convert_obs_to_goals(obs)[0]
-            return self.env.modify_goal_for_rollout(goal)
+            goal_state = self.env.convert_obs_to_goals(obs)[0]
+            return self.env.modify_goal_for_rollout(goal_state)
         elif self.sample_rollout_goals_from == 'fixed':
             return self.env.multitask_goal
         else:
@@ -215,7 +180,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             ))
 
     def _sample_max_tau_for_rollout(self):
-        return self.max_tau
+        return np.random.randint(0, self.max_tau + 1)
 
     def offline_evaluate(self, epoch):
         raise NotImplementedError()

@@ -13,7 +13,7 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.state_distance.flat_networks import StructuredQF, OneHotTauQF
 from railrl.state_distance.tdm_ddpg import TdmDdpg
 from railrl.torch.modules import HuberLoss
-from railrl.torch.networks import MlpPolicy
+from railrl.torch.networks import TanhMlpPolicy, FlattenMlp
 
 
 def experiment(variant):
@@ -22,26 +22,31 @@ def experiment(variant):
     obs_dim = int(np.prod(env.observation_space.low.shape))
     action_dim = int(np.prod(env.action_space.low.shape))
     vectorized = variant['algo_params']['tdm_kwargs']['vectorized']
-    # qf = StructuredQF(
-    #     observation_dim=obs_dim,
-    #     action_dim=action_dim,
-    #     goal_dim=env.goal_dim,
-    #     output_size=env.goal_dim if vectorized else 1,
-    #     **variant['qf_params']
-    # )
-    qf = OneHotTauQF(
-        observation_dim=obs_dim,
-        action_dim=action_dim,
-        goal_dim=env.goal_dim,
-        output_size=env.goal_dim if vectorized else 1,
-        **variant['qf_params']
-    )
-    # qf = FlattenMlp(
-    #     input_size=obs_dim+action_dim+env.goal_dim+1,
-    #     output_size=env.goal_dim if vectorized else 1,
-    #     **variant['qf_params']
-    # )
-    policy = MlpPolicy(
+    if variant['qf_type'] == 'onehot':
+        qf = OneHotTauQF(
+            observation_dim=obs_dim,
+            action_dim=action_dim,
+            goal_dim=env.goal_dim,
+            output_size=env.goal_dim if vectorized else 1,
+            **variant['qf_params']
+        )
+    elif variant['qf_type'] == 'structured':
+        qf = StructuredQF(
+            observation_dim=obs_dim,
+            action_dim=action_dim,
+            goal_dim=env.goal_dim,
+            output_size=env.goal_dim if vectorized else 1,
+            **variant['qf_params']
+        )
+    elif variant['qf_type'] == 'flat':
+        qf = FlattenMlp(
+            input_size=obs_dim+action_dim+env.goal_dim+1,
+            output_size=env.goal_dim if vectorized else 1,
+            **variant['qf_params']
+        )
+    else:
+        raise TypeError("Invalid qf type: {}".format(variant['qf_type']))
+    policy = TanhMlpPolicy(
         input_size=obs_dim + env.goal_dim + 1,
         output_size=action_dim,
         **variant['policy_params']
@@ -120,9 +125,11 @@ if __name__ == "__main__":
                 max_tau=max_tau,
             ),
             ddpg_kwargs=dict(
-                tau=0.01,
+                # tau=0.01,
+                tau=1,
                 qf_learning_rate=1e-3,
                 policy_learning_rate=1e-4,
+                residual_gradient_weight=1,
             ),
         ),
         her_replay_buffer_params=dict(
@@ -131,7 +138,7 @@ if __name__ == "__main__":
         ),
         qf_params=dict(
             hidden_sizes=[100, 100],
-            max_tau=max_tau,
+            # max_tau=max_tau,
         ),
         policy_params=dict(
             hidden_sizes=[100, 100],
@@ -140,6 +147,7 @@ if __name__ == "__main__":
         qf_criterion_params=dict(),
         version="DDPG-TDM",
         algorithm="DDPG-TDM",
+        qf_type='flat',
     )
     search_space = {
         'env_class': [

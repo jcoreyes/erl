@@ -4,9 +4,6 @@ Script for launch the paper results.
 import argparse
 import random
 
-from railrl.tf.state_distance.vectorized_sdql import (
-    VectorizedTauSdql,
-)
 from torch.nn import functional as F
 
 import railrl.misc.hyperparameter as hyp
@@ -31,6 +28,7 @@ from railrl.state_distance.exploration import \
 from railrl.state_distance.networks import (
     FFUniversalPolicy,
     VectorizedGoalStructuredUniversalQfunction)
+from railrl.state_distance.vectorized_sdql import VectorizedTauSdql
 from railrl.torch.modules import HuberLoss
 
 
@@ -143,9 +141,9 @@ env_class_to_goal_dim_weights = {
         (0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 5, 5, 1, 1),
     ],
     GoalXVelHalfCheetah: [
-        (.1,),
+        # (.1,),
         (1,),
-        (10,),
+        # (10,),
     ]
 }
 
@@ -165,7 +163,7 @@ if __name__ == '__main__':
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "replicate-pusher-results-refactor"
+    exp_prefix = "reproduce-cheetah-results-new-code"
     run_mode = 'grid'
     # snapshot_mode = "gap_and_last"
 
@@ -184,7 +182,7 @@ if __name__ == '__main__':
     variant = dict(
         version=version,
         algo_params=dict(
-            num_epochs=101,
+            num_epochs=201,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             num_updates_per_env_step=25,
@@ -200,12 +198,12 @@ if __name__ == '__main__':
             qf_weight_decay=0.,
             max_path_length=max_path_length,
             replay_buffer_size=replay_buffer_size,
-            prob_goal_state_is_next_state=0,
+            # prob_goal_state_is_next_state=0,
             termination_threshold=0,
             render=args.render,
-            save_replay_buffer=True,
+            save_replay_buffer=False,
             cycle_taus_for_rollout=True,
-            sl_grad_weight=1,
+            sl_grad_weight=0,
             num_sl_batches_per_rl_batch=0,
             sparse_reward=True,
         ),
@@ -213,7 +211,6 @@ if __name__ == '__main__':
         her_replay_buffer_params=dict(
             max_size=replay_buffer_size,
             num_goals_to_sample=4,
-            goal_sample_strategy='store',
         ),
         raw_explore_policy='oc',
         oc_policy_params=dict(
@@ -221,7 +218,6 @@ if __name__ == '__main__':
         ),
         qf_params=dict(
             hidden_sizes=[300, 300],
-            hidden_activation=F.softplus,
         ),
         policy_params=dict(
             fc1_size=300,
@@ -252,20 +248,20 @@ if __name__ == '__main__':
     if run_mode == 'grid':
         for env_class in [
             # Reacher7DofGoalStateEverything,
-            HandCylinderXYPusher2DEnv,
+            # HandCylinderXYPusher2DEnv,
             # FullStatePusher2DEnv,
-            # GoalXVelHalfCheetah,
+            GoalXVelHalfCheetah,
         ]:
             search_space = {
-                # 'algo_params.goal_dim_weights': env_class_to_goal_dim_weights[env_class],
+                'algo_params.goal_dim_weights': env_class_to_goal_dim_weights[env_class],
                 'env_class': [env_class],
                 'epoch_discount_schedule_params.value': [
-                    5,
+                    # 5,
                     10,
-                    15,
+                    # 15,
                 ],
                 'algo_params.num_updates_per_env_step': [
-                    25, 5
+                    25,
                 ],
                 # 'algo_params.tau': [
                 #     0.1,

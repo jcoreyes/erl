@@ -1,6 +1,10 @@
 import argparse
 import random
 
+from torch import nn
+
+from railrl.exploration_strategies.gaussian_and_epislon import \
+    GaussianAndEpislonStrategy
 from railrl.state_distance.her import HER, HerQFunction, HerPolicy
 from torch.nn import functional as F
 
@@ -27,18 +31,13 @@ def experiment(variant):
         **variant['normalize_params']
     )
 
-    observation_space = convert_gym_space(env.observation_space)
     action_space = convert_gym_space(env.action_space)
     qf = variant['qf_class'](
-        int(observation_space.flat_dim),
-        int(action_space.flat_dim),
-        env.goal_dim,
+        env,
         **variant['qf_params']
     )
     policy = variant['policy_class'](
-        int(observation_space.flat_dim),
-        int(action_space.flat_dim),
-        env.goal_dim,
+        env,
         **variant['policy_params']
     )
     qf_criterion = variant['qf_criterion_class'](
@@ -52,16 +51,9 @@ def experiment(variant):
         exploration_strategy=es,
         policy=policy,
     )
-    replay_buffer = SplitReplayBuffer(
-        HerReplayBuffer(
-            env=env,
-            **variant['replay_buffer_params'],
-        ),
-        HerReplayBuffer(
-            env=env,
-            **variant['replay_buffer_params'],
-        ),
-        fraction_paths_in_train=0.8,
+    replay_buffer = HerReplayBuffer(
+        env=env,
+        **variant['replay_buffer_params'],
     )
     algo = HER(
         env,
@@ -84,14 +76,11 @@ if __name__ == '__main__':
 
     n_seeds = 1
     mode = "local"
-    exp_prefix = "murtaza-edits-baseline-her"
-    run_mode = "none"
+    exp_prefix = "dev-her-baseline"
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "her-baseline-shaped-rewards-no-clipping-300-300-right" \
-                 "-discount-and-tau"
-    run_mode = 'grid'
+    exp_prefix = "her-baseline-sweep-cheetah"
 
     version = "na"
     snapshot_mode = "last"
@@ -100,21 +89,22 @@ if __name__ == '__main__':
     if mode != "local":
         use_gpu = False
 
-    max_path_length = 100
+    max_path_length = 50
     # noinspection PyTypeChecker
     variant = dict(
         version=version,
         algo_params=dict(
-            num_epochs=10,
-            num_steps_per_epoch=1000,
-            num_steps_per_eval=1000,
-            num_updates_per_env_step=1,
+            num_epochs=200*50,  # One epoch here = one cycle in HER paper
+            # num_epochs=200,
+            num_steps_per_epoch=16 * max_path_length,
+            num_steps_per_eval=16 * max_path_length,
+            num_updates_per_epoch=40,
             use_soft_update=True,
-            tau=0.001,
-            batch_size=64,
-            discount=5,
+            tau=0.05,
+            batch_size=128,
+            discount=0.98,
             qf_learning_rate=1e-3,
-            policy_learning_rate=1e-4,
+            policy_learning_rate=1e-3,
             qf_weight_decay=0.,
             max_path_length=max_path_length,
             render=args.render,
@@ -122,74 +112,62 @@ if __name__ == '__main__':
         ),
         qf_class=HerQFunction,
         qf_params=dict(
-            hidden_sizes=[300, 300],
-            hidden_activation=F.softplus,
+            hidden_sizes=[64, 64, 64],
+            hidden_activation=F.relu,
         ),
         policy_class=HerPolicy,
         policy_params=dict(
-            hidden_sizes=[300, 300],
+            hidden_sizes=[64, 64, 64],
             hidden_activation=F.relu,
         ),
         replay_buffer_params=dict(
-            max_size=200000,
+            max_size=int(1e6),
             num_goals_to_sample=4,
-            goal_sample_strategy='store',
         ),
         env_params=dict(),
         normalize_params=dict(),
-        es_class=OUStrategy,
+        es_class=GaussianAndEpislonStrategy,
         es_params=dict(
-            theta=0.1,
-            max_sigma=0.02,
-            min_sigma=0.02,
+            max_sigma=0.1,
+            min_sigma=0.1,
+            epsilon=0.2,
         ),
-        qf_criterion_class=HuberLoss,
-        # qf_criterion_class=nn.MSELoss,
+        # qf_criterion_class=HuberLoss,
+        qf_criterion_class=nn.MSELoss,
         qf_criterion_params=dict(
             # delta=1,
         ),
         exp_prefix=exp_prefix,
     )
-    if run_mode == 'grid':
-        search_space = {
-            # 'replay_buffer_params.goal_sample_strategy': [
-            #     'online',
-            #     'store',
-            # ],
-            'env_class': [
-                CylinderXYPusher2DEnv,
-                GoalXVelHalfCheetah,
-                Reacher7DofXyzGoalState,
-            ],
-            'algo_params.num_updates_per_env_step': [
-                1, 5, 25
-            ],
-            # 'algo_params.tau': [
-            #     1e-2, 1e-3,
-            # ],
-            'algo_params.reward_scale': [
-                10, 1, 0.1,
-            ],
-        }
-        sweeper = hyp.DeterministicHyperparameterSweeper(
-            search_space, default_parameters=variant,
-        )
-        for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-            for i in range(n_seeds):
-                seed = random.randint(0, 10000)
-                run_experiment(
-                    experiment,
-                    exp_prefix=exp_prefix,
-                    seed=seed,
-                    mode=mode,
-                    variant=variant,
-                    exp_id=0,
-                    use_gpu=use_gpu,
-                    snapshot_mode=snapshot_mode,
-                    snapshot_gap=snapshot_gap,
-                )
-    else:
-        for _ in range(n_seeds):
+    search_space = {
+        # 'replay_buffer_params.goal_sample_strategy': [
+        #     'online',
+        #     'store',
+        # ],
+        'env_class': [
+            # Reacher7DofXyzGoalState,
+            # CylinderXYPusher2DEnv,
+            GoalXVelHalfCheetah,
+        ],
+        'algo_params.terminate_when_goal_reached': [
+            True, False,
+        ],
+        'qf_criterion_class': [
+            nn.MSELoss,
+            HuberLoss,
+        ],
+        'algo_params.batch_size': [
+            128, 4096
+        ],
+        'algo_params.reward_scale': [
+            10, 1,
+        ],
+    }
+    sweeper = hyp.DeterministicHyperparameterSweeper(
+        search_space, default_parameters=variant,
+    )
+    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+        for i in range(n_seeds):
             seed = random.randint(0, 10000)
             run_experiment(
                 experiment,

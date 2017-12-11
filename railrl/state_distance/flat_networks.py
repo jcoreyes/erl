@@ -1,6 +1,12 @@
+"""
+Basic, flat networks.
+
+This is basically as re-write of the networks.py file but for tdm.py rather
+than sdql.py
+"""
 import torch
 
-from railrl.state_distance.util import split_tau
+from railrl.state_distance.util import split_tau, extract_goals
 from railrl.torch.networks import Mlp
 import railrl.torch.pytorch_util as ptu
 
@@ -32,12 +38,15 @@ class StructuredQF(Mlp):
             output_size=output_size,
             **kwargs
         )
+        self.observation_dim = observation_dim
+        self.goal_dim = goal_dim
 
     def forward(self, *inputs):
         h = torch.cat(inputs, dim=1)
+        goals = extract_goals(h, self.observation_dim, self.goal_dim)
         for i, fc in enumerate(self.fcs):
             h = self.hidden_activation(fc(h))
-        return - torch.abs(self.last_fc(h))
+        return - torch.abs(self.last_fc(h) - goals)
 
 
 class OneHotTauQF(Mlp):
