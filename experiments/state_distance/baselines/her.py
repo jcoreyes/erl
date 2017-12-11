@@ -1,6 +1,8 @@
 import argparse
 import random
 
+from torch import nn
+
 from railrl.exploration_strategies.gaussian_and_epislon import \
     GaussianAndEpislonStrategy
 from railrl.state_distance.her import HER, HerQFunction, HerPolicy
@@ -75,12 +77,10 @@ if __name__ == '__main__':
     n_seeds = 1
     mode = "local"
     exp_prefix = "dev-her-baseline"
-    run_mode = "none"
 
-    # n_seeds = 3
-    # mode = "ec2"
-    # exp_prefix = "her-baseline"
-    # run_mode = 'grid'
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "her-baseline-sweep"
 
     version = "na"
     snapshot_mode = "last"
@@ -94,7 +94,8 @@ if __name__ == '__main__':
     variant = dict(
         version=version,
         algo_params=dict(
-            num_epochs=200*50,  # One epoch here = one cycle in HER paper
+            # num_epochs=200*50,  # One epoch here = one cycle in HER paper
+            num_epochs=200,
             num_steps_per_epoch=16 * max_path_length,
             num_steps_per_eval=16 * max_path_length,
             num_updates_per_epoch=40,
@@ -131,8 +132,8 @@ if __name__ == '__main__':
             min_sigma=0.1,
             epsilon=0.2,
         ),
-        qf_criterion_class=HuberLoss,
-        # qf_criterion_class=nn.MSELoss,
+        # qf_criterion_class=HuberLoss,
+        qf_criterion_class=nn.MSELoss,
         qf_criterion_params=dict(
             # delta=1,
         ),
@@ -148,15 +149,19 @@ if __name__ == '__main__':
             # CylinderXYPusher2DEnv,
             # GoalXVelHalfCheetah,
         ],
-        # 'algo_params.num_updates_per_env_step': [
-        #     1, 5, 25
-        # ],
+        'algo_params.terminate_when_goal_reached': [
+            True, False,
+        ],
+        'qf_criterion_class': [
+            nn.MSELoss,
+            HuberLoss,
+        ],
         # 'algo_params.tau': [
         #     1e-2, 1e-3,
         # ],
-        # 'algo_params.reward_scale': [
-        #     10, 1, 0.1,
-        # ],
+        'algo_params.reward_scale': [
+            10, 1, 0.1,
+        ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
