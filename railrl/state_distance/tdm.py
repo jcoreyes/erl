@@ -189,8 +189,8 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         elif self.sample_rollout_goals_from == 'replay_buffer':
             batch = self.train_buffer.random_batch(1)
             obs = batch['observations']
-            goal_state = self.env.convert_obs_to_goals(obs)[0]
-            return self.env.modify_goal_for_rollout(goal_state)
+            goal = self.env.convert_obs_to_goals(obs)[0]
+            return self.env.modify_goal_for_rollout(goal)
         elif self.sample_rollout_goals_from == 'fixed':
             return self.env.multitask_goal
         else:
