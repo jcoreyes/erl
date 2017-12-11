@@ -29,7 +29,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             num_steps_per_epoch=10000,
             num_steps_per_eval=1000,
             num_updates_per_env_step=1,
-            num_updates_per_epoch=1,
+            num_updates_per_epoch=None,
             batch_size=1024,
             max_path_length=1000,
             discount=0.99,
@@ -57,7 +57,8 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         :param num_epochs:
         :param num_steps_per_epoch:
         :param num_steps_per_eval:
-        :param num_updates_per_env_step:
+        :param num_updates_per_env_step: Used by online training mode.
+        :param num_updates_per_epoch: Used by batch training mode.
         :param batch_size:
         :param max_path_length:
         :param discount:
@@ -79,13 +80,18 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         assert collection_mode in ['online', 'online-parallel', 'offline',
                                    'batch']
         assert 0. <= fraction_paths_in_train <= 1.
+        if collection_mode == 'batch':
+            assert num_updates_per_epoch is not None
         self.training_env = training_env or pickle.loads(pickle.dumps(env))
         self.normalize_env = normalize_env
         self.exploration_policy = exploration_policy
         self.num_epochs = num_epochs
         self.num_env_steps_per_epoch = num_steps_per_epoch
         self.num_steps_per_eval = num_steps_per_eval
-        self.num_updates_per_env_step = num_updates_per_env_step
+        if collection_mode == 'online' or collection_mode == 'online-parallel':
+            self.num_updates_per_train_call = num_updates_per_env_step
+        else:
+            self.num_updates_per_train_call = num_updates_per_epoch
         self.batch_size = batch_size
         self.max_path_length = max_path_length
         self.discount = discount
@@ -324,7 +330,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
     def _try_to_train(self):
         if self._can_train():
             self.training_mode(True)
-            for i in range(self.num_updates_per_env_step):
+            for i in range(self.num_updates_per_train_call):
                 self._do_training()
                 self._n_train_steps_total += 1
             self.training_mode(False)
