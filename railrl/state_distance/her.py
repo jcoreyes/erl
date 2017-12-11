@@ -4,15 +4,15 @@ import numpy as np
 import torch
 from torch.nn import functional as F
 
-import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.data_management.split_buffer import SplitReplayBuffer
-from railrl.samplers.util import split_paths_to_dict
+from railrl.data_management.path_builder import PathBuilder
+from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.policies.state_distance import UniversalPolicy
+from railrl.samplers.util import split_paths_to_dict
 from railrl.state_distance.rollout_util import MultigoalSimplePathSampler
 from railrl.torch import pytorch_util as ptu
-from railrl.torch.algos.util import np_to_pytorch_batch
 from railrl.torch.algos.ddpg import DDPG
+from railrl.torch.algos.util import np_to_pytorch_batch
 from railrl.torch.networks import Mlp
 
 
@@ -23,6 +23,11 @@ class HER(DDPG):
     2. Do you give time to the state?
     3. Do you mean that you use the target policy for eval?
     4. Why do you use obs and not next_obs when computing the reward?
+    5. "we add the square of the their preactivations to the actor’s cost
+    function" is there a weight?
+    6. Does the replay buffer size (10^6) mean 10^6 unique states or
+    "state + goal states" (since they save new goal states into the replay
+    buffer)?
     """
     def __init__(
             self,
@@ -36,22 +41,11 @@ class HER(DDPG):
             num_steps_per_eval=1000,
             max_path_length=1000,
             terminate_when_goal_reached=False,
+            pre_activation_weight=1.,
             **kwargs
     ):
-        assert isinstance(replay_buffer, SplitReplayBuffer)
-        assert isinstance(replay_buffer.train_replay_buffer, HerReplayBuffer)
-        assert isinstance(replay_buffer.validation_replay_buffer,
-                          HerReplayBuffer)
+        assert isinstance(replay_buffer, HerReplayBuffer)
         assert eval_sampler is None
-        eval_sampler = MultigoalSimplePathSampler(
-            env=env,
-            policy=policy,
-            max_samples=num_steps_per_eval,
-            max_path_length=max_path_length,
-            discount_sampling_function=self._sample_discount_for_rollout,
-            goal_sampling_function=self._sample_goal_state_for_rollout,
-            cycle_taus_for_rollout=False,
-        )
         super().__init__(
             env, qf, policy, exploration_policy,
             replay_buffer=replay_buffer,
@@ -60,13 +54,23 @@ class HER(DDPG):
             max_path_length=max_path_length,
             **kwargs
         )
+        self.eval_sampler = MultigoalSimplePathSampler(
+            env=env,
+            policy=self.target_policy,
+            max_samples=num_steps_per_eval,
+            max_path_length=max_path_length,
+            discount_sampling_function=self._sample_discount_for_rollout,
+            goal_sampling_function=self._sample_goal_for_rollout,
+            cycle_taus_for_rollout=False,
+        )
         self.epsilon = epsilon
         assert self.qf_weight_decay == 0
-        assert not self.optimize_target_policy
         assert self.residual_gradient_weight == 0
         self.terminate_when_goal_reached = terminate_when_goal_reached
+        self.pre_activation_weight = pre_activation_weight
+        self._current_path_goal = None
 
-    def _sample_goal_state_for_rollout(self):
+    def _sample_goal_for_rollout(self):
         return self.env.sample_goal_for_rollout()
 
     def _sample_discount_for_rollout(self):
@@ -76,37 +80,41 @@ class HER(DDPG):
         batch = super().get_batch(training=training)
         # The original HER paper says to use obs - goal state (rather than
         # next obs), but that doesn't really make sense
-        # diff = torch.abs(
-        #     self.env.convert_obs_to_goal_states(batch['next_observations'])
-        #     - self.env.convert_obs_to_goal_states(batch['goal_states'])
-        # )
-        # diff_sum = diff.sum(dim=1, keepdim=True)
-        # goal_not_reached = (diff_sum >= self.epsilon).float()
-        # batch['rewards'] = - goal_not_reached
-        # if self.terminate_when_goal_reached:
-        #     batch['terminals'] = 1 - (1 - batch['terminals']) * goal_not_reached
-        batch['rewards'] = self.env.compute_her_reward_pytorch(
-            batch['observations'],
-            batch['actions'],
-            batch['next_observations'],
-            batch['goal_states'],
+        diff = torch.abs(
+            self.env.convert_obs_to_goals(batch['next_observations'])
+            - self.env.convert_obs_to_goals(batch['goals'])
         )
+        diff_sum = diff.sum(dim=1, keepdim=True)
+        goal_not_reached = (diff_sum >= self.epsilon).float()
+        batch['rewards'] = - goal_not_reached
+        if self.terminate_when_goal_reached:
+            batch['terminals'] = 1 - (1 - batch['terminals']) * goal_not_reached
         return batch
 
-    def get_train_dict(self, batch):
+    def _do_training(self):
+        batch = self.get_batch(training=True)
         rewards = batch['rewards']
         terminals = batch['terminals']
         obs = batch['observations']
         actions = batch['actions']
         next_obs = batch['next_observations']
-        goals = batch['goal_states']
+        goals = batch['goals']
 
         """
         Policy operations.
         """
-        policy_actions = self.policy(obs, goals)
+        policy_actions, preactivations = self.policy(
+            obs, goals, return_preactivations=True,
+        )
+        pre_activation_policy_loss = self.pre_activation_weight * (
+            (preactivations**2).sum(dim=1).mean()
+        )
         q_output = self.qf(obs, policy_actions, goals)
-        policy_loss = - q_output.mean()
+        raw_policy_loss = - q_output.mean()
+        policy_loss = (
+            raw_policy_loss
+            + self.pre_activation_weight * pre_activation_policy_loss
+        )
 
         """
         Critic operations.
@@ -119,128 +127,112 @@ class HER(DDPG):
             next_actions,
             goals,
         )
-        y_target = rewards + (1. - terminals) * self.discount * target_q_values
-        y_target = y_target.detach()
-        y_target = torch.clamp(y_target, -1./(1-self.discount), 0)
-        y_pred = self.qf(obs, actions, goals)
-        bellman_errors = (y_pred - y_target)**2
-        qf_loss = self.qf_criterion(y_pred, y_target)
+        q_target = rewards + (1. - terminals) * self.discount * target_q_values
+        q_target = q_target.detach()
+        q_target = torch.clamp(q_target, -1./(1-self.discount), 0)
+        q_pred = self.qf(obs, actions, goals)
+        bellman_errors = (q_pred - q_target)**2
+        qf_loss = self.qf_criterion(q_pred, q_target)
 
-        return OrderedDict([
-            ('Policy Actions', policy_actions),
-            ('Policy Loss', policy_loss),
-            ('QF Outputs', q_output),
-            ('Bellman Errors', bellman_errors),
-            ('Y targets', y_target),
-            ('Y predictions', y_pred),
-            ('Unregularized QF Loss', qf_loss),
-            ('QF Loss', qf_loss),
-            ('Target Policy Loss', ptu.FloatTensor([0])),       # For DDPG
-            ('Target Policy Loss Mean', ptu.FloatTensor([0])),  # For DDPG
-        ])
-
-    @staticmethod
-    def paths_to_batch(paths):
         """
-        Converts
-        [
-            {
-                'rewards': [1, 2],
-                'goal_states': [3, 4],
-                ...
-            },
-            {
-                'rewards': [5, 6],
-                'goal_states': [7, 8],
-                ...
-            },
-        ]
-        into
-        {
-            'rewards': [1, 2, 5, 6],
-            'goal_states': [3, 4, 7, 8],
-            ...
-        },
-
-        :param paths:
-        :return:
+        Update Networks
         """
-        np_batch = split_paths_to_dict(paths)
-        goal_states = [path["goal_states"] for path in paths]
-        np_batch['goal_states'] = np.vstack(goal_states)
-        return np_to_pytorch_batch(np_batch)
+
+        self.policy_optimizer.zero_grad()
+        policy_loss.backward()
+        self.policy_optimizer.step()
+
+        self.qf_optimizer.zero_grad()
+        qf_loss.backward()
+        self.qf_optimizer.step()
+
+        self._update_target_networks()
+
+        if self.eval_statistics is None:
+            """
+            Eval should set this to None.
+            This way, these statistics are only computed for one batch.
+            """
+            self.eval_statistics = OrderedDict()
+            self.eval_statistics['QF Loss'] = np.mean(ptu.get_numpy(qf_loss))
+            self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
+                policy_loss
+            ))
+            self.eval_statistics['Raw Policy Loss'] = np.mean(ptu.get_numpy(
+                raw_policy_loss
+            ))
+            self.eval_statistics['Pre-activation Policy Loss'] = np.mean(
+                ptu.get_numpy(pre_activation_policy_loss)
+            )
+            self.eval_statistics.update(create_stats_ordered_dict(
+                'Q Predictions',
+                ptu.get_numpy(q_pred),
+            ))
+            self.eval_statistics.update(create_stats_ordered_dict(
+                'Q Targets',
+                ptu.get_numpy(q_target),
+            ))
+            self.eval_statistics.update(create_stats_ordered_dict(
+                'Bellman Errors',
+                ptu.get_numpy(bellman_errors),
+            ))
+            self.eval_statistics.update(create_stats_ordered_dict(
+                'Policy Action',
+                ptu.get_numpy(policy_actions),
+            ))
 
     def _start_new_rollout(self):
         self.exploration_policy.reset()
-        self.goal_state = self._sample_goal_state_for_rollout()
-        self.training_env.set_goal(self.goal_state)
-        self.exploration_policy.set_goal(self.goal_state)
+        self._current_path_goal = self._sample_goal_for_rollout()
+        self.training_env.set_goal(self._current_path_goal)
+        self.exploration_policy.set_goal(self._current_path_goal)
         return self.training_env.reset()
 
     def _handle_step(
             self,
-            num_paths_total,
             observation,
             action,
             reward,
+            next_observation,
             terminal,
             agent_info,
             env_info,
     ):
-        if num_paths_total % self.save_exploration_path_period == 0:
-            self._current_path.add_all(
-                observations=self.obs_space.flatten(observation),
-                rewards=reward,
-                terminals=terminal,
-                actions=self.action_space.flatten(action),
-                agent_infos=agent_info,
-                env_infos=env_info,
-                goal_states=self.goal_state,  # <- this is where we save the
-                                              # current goal state
-            )
-
-        self.replay_buffer.add_all(
-            observation,
-            action,
-            reward,
-            terminal,
-            agent_info=agent_info,
-            env_info=env_info,
-            goal_state=self.goal_state,
+        self._current_path_builder.add_all(
+            observations=observation,
+            actions=action,
+            rewards=reward,
+            next_observations=next_observation,
+            terminals=terminal,
+            agent_infos=agent_info,
+            env_infos=env_info,
+            goals=self._current_path_goal,
         )
 
-    def _handle_rollout_ending(
-            self,
-            n_steps_total,
-            final_obs,
-            terminal,
-            agent_info,
-            env_info,
-    ):
-        self._current_path.add_all(
-            final_observation=final_obs,
-            increment_path_length=False,
-        )
-        self.replay_buffer.terminate_episode(
-            final_obs,
-            terminal,
-            agent_info=agent_info,
-            env_info=env_info,
-            goal_state=self.goal_state,
-        )
+    def _handle_rollout_ending(self):
+        self._n_rollouts_total += 1
+        if len(self._current_path_builder) > 0:
+            path = self._current_path_builder.get_all_stacked()
+            self.replay_buffer.add_path(path)
+            self._exploration_paths.append(path)
+            self._current_path_builder = PathBuilder()
+
+    def _handle_path(self, path):
+        self._n_rollouts_total += 1
+        self.replay_buffer.add_path(path)
 
 
 class HerQFunction(Mlp):
     def __init__(
             self,
-            observation_dim,
-            action_dim,
-            goal_dim,
-            hidden_sizes,
             env,
+            hidden_sizes,
             **kwargs
     ):
         self.save_init_params(locals())
+        observation_dim = int(np.prod(env.observation_space.low.shape))
+        action_dim = int(np.prod(env.action_space.low.shape))
+        goal_dim = env.goal_dim
         super().__init__(
             hidden_sizes,
             output_size=1,
@@ -260,14 +252,14 @@ class HerQFunction(Mlp):
 class HerPolicy(Mlp, UniversalPolicy):
     def __init__(
             self,
-            observation_dim,
-            action_dim,
-            goal_dim,
-            hidden_sizes,
             env,
+            hidden_sizes,
             **kwargs
     ):
         self.save_init_params(locals())
+        observation_dim = int(np.prod(env.observation_space.low.shape))
+        action_dim = int(np.prod(env.action_space.low.shape))
+        goal_dim = env.goal_dim
         super().__init__(
             hidden_sizes,
             output_size=action_dim,
@@ -276,12 +268,16 @@ class HerPolicy(Mlp, UniversalPolicy):
         )
         self.env = env
 
-    def forward(self, obs, goals, _ignored_discount=None):
+    def forward(self, obs, goals, return_preactivations=False):
         goal_deltas = self.env.convert_obs_to_goals(obs) - goals
         h = torch.cat((obs, goal_deltas), dim=1)
         for i, fc in enumerate(self.fcs):
             h = self.hidden_activation(fc(h))
-        return F.tanh(self.last_fc(h))
+        if return_preactivations:
+            preactivations = self.last_fc(h)
+            return F.tanh(preactivations), preactivations
+        else:
+            return F.tanh(self.last_fc(h))
 
     def get_action(self, obs_np):
         obs = ptu.np_to_var(

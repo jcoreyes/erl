@@ -29,18 +29,13 @@ def experiment(variant):
         **variant['normalize_params']
     )
 
-    observation_space = convert_gym_space(env.observation_space)
     action_space = convert_gym_space(env.action_space)
     qf = variant['qf_class'](
-        int(observation_space.flat_dim),
-        int(action_space.flat_dim),
-        env.goal_dim,
+        env,
         **variant['qf_params']
     )
     policy = variant['policy_class'](
-        int(observation_space.flat_dim),
-        int(action_space.flat_dim),
-        env.goal_dim,
+        env,
         **variant['policy_params']
     )
     qf_criterion = variant['qf_criterion_class'](
@@ -54,16 +49,9 @@ def experiment(variant):
         exploration_strategy=es,
         policy=policy,
     )
-    replay_buffer = SplitReplayBuffer(
-        HerReplayBuffer(
-            env=env,
-            **variant['replay_buffer_params'],
-        ),
-        HerReplayBuffer(
-            env=env,
-            **variant['replay_buffer_params'],
-        ),
-        fraction_paths_in_train=0.8,
+    replay_buffer = HerReplayBuffer(
+        env=env,
+        **variant['replay_buffer_params'],
     )
     algo = HER(
         env,
@@ -89,10 +77,10 @@ if __name__ == '__main__':
     exp_prefix = "dev-her-baseline"
     run_mode = "none"
 
-    n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "her-baseline"
-    run_mode = 'grid'
+    # n_seeds = 3
+    # mode = "ec2"
+    # exp_prefix = "her-baseline"
+    # run_mode = 'grid'
 
     version = "na"
     snapshot_mode = "last"
@@ -106,16 +94,16 @@ if __name__ == '__main__':
     variant = dict(
         version=version,
         algo_params=dict(
-            num_epochs=10,
-            num_steps_per_epoch=1000,
-            num_steps_per_eval=1000,
-            num_updates_per_env_step=1,
+            num_epochs=200*50,  # One epoch here = one cycle in HER paper
+            num_steps_per_epoch=16 * max_path_length,
+            num_steps_per_eval=16 * max_path_length,
+            num_updates_per_epoch=40,
             use_soft_update=True,
-            tau=0.001,
-            batch_size=4096,
+            tau=0.05,
+            batch_size=128,
             discount=0.98,
             qf_learning_rate=1e-3,
-            policy_learning_rate=1e-1,
+            policy_learning_rate=1e-3,
             qf_weight_decay=0.,
             max_path_length=max_path_length,
             render=args.render,
@@ -134,7 +122,6 @@ if __name__ == '__main__':
         replay_buffer_params=dict(
             max_size=int(1e6),
             num_goals_to_sample=4,
-            goal_sample_strategy='store',
         ),
         env_params=dict(),
         normalize_params=dict(),
@@ -151,46 +138,31 @@ if __name__ == '__main__':
         ),
         exp_prefix=exp_prefix,
     )
-    if run_mode == 'grid':
-        search_space = {
-            # 'replay_buffer_params.goal_sample_strategy': [
-            #     'online',
-            #     'store',
-            # ],
-            'env_class': [
-                CylinderXYPusher2DEnv,
-                GoalXVelHalfCheetah,
-                Reacher7DofXyzGoalState,
-            ],
-            'algo_params.num_updates_per_env_step': [
-                1, 5, 25
-            ],
-            # 'algo_params.tau': [
-            #     1e-2, 1e-3,
-            # ],
-            'algo_params.reward_scale': [
-                10, 1, 0.1,
-            ],
-        }
-        sweeper = hyp.DeterministicHyperparameterSweeper(
-            search_space, default_parameters=variant,
-        )
-        for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-            for i in range(n_seeds):
-                seed = random.randint(0, 10000)
-                run_experiment(
-                    experiment,
-                    exp_prefix=exp_prefix,
-                    seed=seed,
-                    mode=mode,
-                    variant=variant,
-                    exp_id=0,
-                    use_gpu=use_gpu,
-                    snapshot_mode=snapshot_mode,
-                    snapshot_gap=snapshot_gap,
-                )
-    else:
-        for _ in range(n_seeds):
+    search_space = {
+        # 'replay_buffer_params.goal_sample_strategy': [
+        #     'online',
+        #     'store',
+        # ],
+        'env_class': [
+            Reacher7DofXyzGoalState,
+            # CylinderXYPusher2DEnv,
+            # GoalXVelHalfCheetah,
+        ],
+        # 'algo_params.num_updates_per_env_step': [
+        #     1, 5, 25
+        # ],
+        # 'algo_params.tau': [
+        #     1e-2, 1e-3,
+        # ],
+        # 'algo_params.reward_scale': [
+        #     10, 1, 0.1,
+        # ],
+    }
+    sweeper = hyp.DeterministicHyperparameterSweeper(
+        search_space, default_parameters=variant,
+    )
+    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+        for i in range(n_seeds):
             seed = random.randint(0, 10000)
             run_experiment(
                 experiment,
