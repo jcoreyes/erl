@@ -59,6 +59,8 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         if dense_rewards:
             assert self.discount < 1
             assert max_tau == 0
+        else:
+            assert self.discount == 1
 
         self.max_tau = max_tau
         self.epoch_max_tau_schedule = epoch_max_tau_schedule
