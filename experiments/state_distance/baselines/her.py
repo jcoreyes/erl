@@ -80,7 +80,7 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "her-baseline-sweep"
+    exp_prefix = "her-baseline-sweep-cheetah"
 
     version = "na"
     snapshot_mode = "last"
@@ -94,8 +94,8 @@ if __name__ == '__main__':
     variant = dict(
         version=version,
         algo_params=dict(
-            # num_epochs=200*50,  # One epoch here = one cycle in HER paper
-            num_epochs=200,
+            num_epochs=200*50,  # One epoch here = one cycle in HER paper
+            # num_epochs=200,
             num_steps_per_epoch=16 * max_path_length,
             num_steps_per_eval=16 * max_path_length,
             num_updates_per_epoch=40,
@@ -145,9 +145,9 @@ if __name__ == '__main__':
         #     'store',
         # ],
         'env_class': [
-            Reacher7DofXyzGoalState,
+            # Reacher7DofXyzGoalState,
             # CylinderXYPusher2DEnv,
-            # GoalXVelHalfCheetah,
+            GoalXVelHalfCheetah,
         ],
         'algo_params.terminate_when_goal_reached': [
             True, False,
@@ -156,11 +156,11 @@ if __name__ == '__main__':
             nn.MSELoss,
             HuberLoss,
         ],
-        # 'algo_params.tau': [
-        #     1e-2, 1e-3,
-        # ],
+        'algo_params.batch_size': [
+            128, 4096
+        ],
         'algo_params.reward_scale': [
-            10, 1, 0.1,
+            10, 1,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
