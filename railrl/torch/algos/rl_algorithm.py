@@ -276,8 +276,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             self._end_epoch()
 
     def train_parallel(self, start_epoch=0):
-        assert (
-            isinstance(self.training_env, RemoteRolloutEnv),
+        assert isinstance(self.training_env, RemoteRolloutEnv), (
             "Did the sub-class accidentally override the RemoteRolloutEnv?"
         )
         self.training_mode(False)
