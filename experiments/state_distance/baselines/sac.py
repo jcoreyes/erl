@@ -8,6 +8,7 @@ from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState,
 )
+from railrl.envs.multitask.walker2d_env import Walker2DTargetXPos
 from railrl.envs.wrappers import normalize_box
 from railrl.launchers.launcher_util import run_experiment
 from railrl.sac.policies import TanhGaussianPolicy
@@ -58,12 +59,12 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-state-distance-sac-baseline"
 
-    n_seeds = 3
+    n_seeds = 1
     mode = "ec2"
-    exp_prefix = "tdm-half-cheetah-short-epoch-nupo-sweep"
+    exp_prefix = "sac-walker"
 
     num_epochs = 100
-    num_steps_per_epoch = 1000
+    num_steps_per_epoch = 100000
     num_steps_per_eval = 10000
     max_path_length = 100
 
@@ -82,26 +83,31 @@ if __name__ == "__main__":
             qf_lr=3E-4,
             vf_lr=3E-4,
         ),
+        env_kwargs=dict(
+            max_distance=10,
+        ),
         net_size=300,
         version="SAC",
         algorithm="SAC",
     )
     search_space = {
-        'env_class': [
+        'env_class': {
             # Reacher7DofXyzGoalState,
-            GoalXVelHalfCheetah,
-        ],
+            # GoalXVelHalfCheetah,
+            Walker2DTargetXPos,
+        },
         'multitask': [False, True],
         'algo_params.reward_scale': [
-            100, 10, 1,
+            1000, 100, 10, 1,
         ],
         'algo_params.replay_buffer_size': [
-            int(1e6), int(1e7),
+            int(1e6), int(1e7)
         ],
         'algo_params.num_updates_per_env_step': [
             1,
-            5,
-            25,
+        ],
+        'env_kwargs.max_distance': [
+            1, 10
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
