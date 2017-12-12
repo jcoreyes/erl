@@ -60,13 +60,13 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-sac-tdm-launch"
 
-    n_seeds = 1
+    n_seeds = 3
     mode = "ec2"
-    exp_prefix = "tdm-half-cheetah-dense-rewards"
+    exp_prefix = "tdm-half-cheetah-short-epoch-nupo-sweep"
 
-    num_epochs = 500
+    num_epochs = 100
     num_steps_per_epoch = 1000
-    num_steps_per_eval = 1000
+    num_steps_per_eval = 10000
     max_path_length = 100
 
     # noinspection PyTypeChecker
@@ -79,7 +79,7 @@ if __name__ == "__main__":
                 max_path_length=max_path_length,
                 num_updates_per_env_step=25,
                 batch_size=128,
-                discount=0.98,
+                discount=1,
             ),
             tdm_kwargs=dict(
                 sample_rollout_goals_from='environment',
@@ -125,23 +125,15 @@ if __name__ == "__main__":
         ],
         'algo_params.tdm_kwargs.vectorized': [
             True,
-            # False,
         ],
         'algo_params.tdm_kwargs.sample_rollout_goals_from': [
             'environment',
         ],
         'algo_params.tdm_kwargs.max_tau': [
-            0,
+            10,
         ],
-        'algo_params.sac_kwargs.soft_target_tau': [
-            1e-2,
-            1e-3,
-        ],
-        'algo_params.base_kwargs.discount': [
-            0.98,
-        ],
-        'algo_params.tdm_kwargs.dense_rewards': [
-            True,
+        'algo_kwargs.base_kwargs.num_updates_per_env_step': [
+            1, 5, 25
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

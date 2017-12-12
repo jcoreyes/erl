@@ -59,10 +59,10 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "tdm-half-cheetah"
+    exp_prefix = "tdm-half-cheetah-short-epoch-nupo-sweep"
 
     num_epochs = 100
-    num_steps_per_epoch = 50000
+    num_steps_per_epoch = 1000
     num_steps_per_eval = 10000
     max_path_length = 100
 
@@ -106,15 +106,14 @@ if __name__ == "__main__":
             # Reacher7DofXyzGoalState,
             GoalXVelHalfCheetah,
         ],
-        'multitask': [False, True],
+        'multitask': [True],
         'algo_params.reward_scale': [
-            10, 1,
-        ],
-        'algo_params.tau': [
-            1e-2, 1e-3,
+            .1, 1, 10, 100,
         ],
         'algo_params.num_updates_per_env_step': [
             1,
+            5,
+            25,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
