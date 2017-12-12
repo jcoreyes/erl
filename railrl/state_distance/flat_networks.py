@@ -43,10 +43,9 @@ class StructuredQF(Mlp):
 
     def forward(self, *inputs):
         h = torch.cat(inputs, dim=1)
-        goals = extract_goals(h, self.observation_dim, self.goal_dim)
         for i, fc in enumerate(self.fcs):
             h = self.hidden_activation(fc(h))
-        return - torch.abs(self.last_fc(h) - goals)
+        return - torch.abs(self.last_fc(h))
 
 
 class OneHotTauQF(Mlp):
