@@ -3,7 +3,7 @@ import random
 import numpy as np
 
 import railrl.torch.pytorch_util as ptu
-# from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
+from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
 from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState,
@@ -58,14 +58,14 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-state-distance-sac-baseline"
 
-    n_seeds = 2
+    n_seeds = 3
     mode = "ec2"
-    exp_prefix = "tdm-reacher7dof-xyz"
+    exp_prefix = "tdm-half-cheetah"
 
     num_epochs = 100
-    num_steps_per_epoch = 10000
+    num_steps_per_epoch = 50000
     num_steps_per_eval = 10000
-    max_path_length = 200
+    max_path_length = 100
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -83,16 +83,20 @@ if __name__ == "__main__":
             vf_lr=3E-4,
         ),
         net_size=300,
-        version="SAC-actually-cheetah",
+        version="SAC",
         algorithm="SAC",
     )
     search_space = {
         'env_class': [
-            Reacher7DofXyzGoalState,
+            # Reacher7DofXyzGoalState,
+            GoalXVelHalfCheetah,
         ],
         'multitask': [False, True],
         'algo_params.reward_scale': [
             1000, 100, 10, 1, 0.1,
+        ],
+        'algo_params.num_updates_per_env_step': [
+            1,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
