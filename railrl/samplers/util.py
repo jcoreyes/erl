@@ -119,7 +119,7 @@ def get_stat_in_paths(paths, dict_name, scalar_name):
             for path in paths
         ])
 
-    return np.vstack([
+    return [
         [info[scalar_name] for info in path[dict_name]]
         for path in paths
-    ])
+    ]
