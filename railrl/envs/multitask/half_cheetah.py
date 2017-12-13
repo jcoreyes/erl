@@ -127,7 +127,7 @@ class GoalXVelHalfCheetah(HalfCheetahEnv, MultitaskEnv):
             ))
             statistics.update(create_stats_ordered_dict(
                 'Final {}'.format(name),
-                stat[:, -1],
+                [s[-1] for s in stat],
                 always_show_all_stats=True,
             ))
         for key, value in statistics.items():
