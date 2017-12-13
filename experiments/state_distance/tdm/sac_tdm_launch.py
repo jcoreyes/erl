@@ -108,7 +108,7 @@ if __name__ == "__main__":
         policy_params=dict(
             hidden_sizes=[300, 300],
         ),
-        version="SAC-TDM",
+        version="SAC-TDM-correctly-set-nupo",
         algorithm="SAC-TDM",
     )
     search_space = {
@@ -132,8 +132,8 @@ if __name__ == "__main__":
         'algo_params.tdm_kwargs.max_tau': [
             10,
         ],
-        'algo_kwargs.base_kwargs.num_updates_per_env_step': [
-            1, 5, 25
+        'algo_params.base_kwargs.num_updates_per_env_step': [
+            1, 5
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
