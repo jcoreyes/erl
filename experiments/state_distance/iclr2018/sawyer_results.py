@@ -7,15 +7,18 @@ import numpy as np
 #             "/ddpg-new"
 # tdm_path = "/home/vitchyr/git/rllab-rail/railrl/data/papers/iclr2018/sawyer" \
 #            "/tdm-new/"
-ddpg_path = "/home/vitchyr/git/rllab-rail/railrl/data/papers/iclr2018/sawyer_new/ddpg/"
-tdm_path = "/home/vitchyr/git/rllab-rail/railrl/data/papers/iclr2018/sawyer_new/tdm/"
+ddpg_path = "/mnt/data-backup-12-02-2017/papers/iclr2018/sawyer_new/ddpg/"
+tdm_path = "/mnt/data-backup-12-02-2017/papers/iclr2018/sawyer_new/tdm/"
 
 ddpg_csvs = get_all_csv(ddpg_path)
 # naf_csvs = get_all_csv(naf_path)
 tdm_csvs = get_all_csv(tdm_path)
 
+
 MAX_ITERS = 100
 plt.figure()
+prop_cycle = plt.rcParams['axes.prop_cycle']
+colors = prop_cycle.by_key()['color']
 for trials, name, key in [
     (ddpg_csvs, 'DDPG',
      'Test_Final_Distance_from_Desired_End_Effector_Position_Mean'),
@@ -42,7 +45,10 @@ for trials, name, key in [
     std = np.std(costs, axis=0)
     epochs = np.arange(0, len(costs[0]))
     plt.fill_between(epochs, mean - std, mean + std, alpha=0.1)
-    plt.plot(epochs, mean, label=name)
+    if name == 'TDM':
+        plt.plot(epochs, mean, label=name, color=colors[2])
+    else:
+        plt.plot(epochs, mean, label=name, color=colors[0])
     # plt.plot(epochs, costs[0, :], label=name)
     # plt.plot(epochs, costs[1, :], label=name)
     # plt.plot(epochs, costs[2, :], label=name)
