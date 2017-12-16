@@ -64,9 +64,9 @@ if __name__ == "__main__":
     exp_prefix = "sac-walker"
 
     num_epochs = 100
-    num_steps_per_epoch = 100000
-    num_steps_per_eval = 10000
-    max_path_length = 100
+    num_steps_per_epoch = 50000
+    num_steps_per_eval = 1000
+    max_path_length = 50
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -101,13 +101,13 @@ if __name__ == "__main__":
             1000, 100, 10, 1,
         ],
         'algo_params.replay_buffer_size': [
-            int(1e6), int(1e7)
+            int(1e6),
         ],
         'algo_params.num_updates_per_env_step': [
             1,
         ],
         'env_kwargs.max_distance': [
-            1, 10
+            1, 10, 100
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

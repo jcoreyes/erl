@@ -67,6 +67,7 @@ class Walker2DTargetXPos(MultitaskWalker2D):
         info_dict['xpos'] = xpos
         info_dict['desired_xpos'] = xpos_error
         info_dict['xpos_error'] = xpos_error
+        done = False
         return ob, reward, done, info_dict
 
     def log_diagnostics(self, paths):
