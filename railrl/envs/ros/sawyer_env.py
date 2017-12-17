@@ -107,7 +107,7 @@ MAX_TORQUES = 0.5 * np.array([8, 7, 6, 5, 4, 3, 2])
 #
 # box_highs = np.array([ 0.84045825,  0.30408276, 0.8880568 ])
 
-box_lows = np.array([-0.04304189, -0.43462352, 0.2161519])
+box_lows = np.array([-0.04304189, -0.43462352, 0.27961519])
 
 box_highs = np.array([ 0.84045825,  0.38408276, 1.8880568 ])
 
@@ -379,8 +379,8 @@ class SawyerEnv(Env, Serializable):
                 #     des['orientation'].w,
                 # ])
                 self.desired = np.array(
-                    [0.597899910309, -0.0281659331741, 0.218253713708, 0.99830325679, 0.0560075682727, 0.00919898540125,
-                     0.0130053237465])
+                    [0.598038329445, -0.110192662364, 0.273337957845, 0.999390065723, 0.0329420607071, 0.00603632837369,
+                     -0.00989342758435])
             else:
                 self._randomize_desired_end_effector_pose()
 
@@ -548,6 +548,9 @@ class SawyerEnv(Env, Serializable):
         else:
             reward = -1 * self.huber_delta * (a - 1 / 2 * self.huber_delta) * self.reward_magnitude
         return reward
+
+    def _Norm_reward(self, differences):
+        return np.linalg.norm(differences)
 
     def _Huber_reward_batch(self, differences):
         a = np.abs(np.mean(differences, axis=1))

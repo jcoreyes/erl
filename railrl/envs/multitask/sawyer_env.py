@@ -83,7 +83,7 @@ TORQUE_MAX = 3.5
 TORQUE_MAX_TRAIN = 5
 MAX_TORQUES = 0.5 * np.array([8, 7, 6, 5, 4, 3, 2])
 
-box_lows = np.array([-0.04304189, -0.43462352, 0.2161519])
+box_lows = np.array([-0.04304189, -0.43462352, 0.27961519])
 
 box_highs = np.array([ 0.84045825,  0.38408276, 1.8880568 ])
 
@@ -118,7 +118,7 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
             huber_delta=10,
             safety_force_magnitude=2,
             temp=1.05,
-            safe_reset_length=200,
+            safe_reset_length=100,
             reward_magnitude=1,
             use_safety_checks=True,
             use_angle_wrapping=False,
@@ -161,7 +161,9 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
         elif loss == 'huber':
             self.reward_function = self._Huber_reward
         elif loss == 'lorentz':
-            self.reward_magnitude = self._Lorentz_reward
+            self.reward_function = self._Lorentz_reward
+        elif loss == 'norm':
+            self.reward_function = self._Norm_reward
 
         self.huber_delta = huber_delta
         self.safety_force_magnitude = safety_force_magnitude
@@ -226,8 +228,8 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
                 END_EFFECTOR_VALUE_HIGH['angle'],
             ))
             self.desired = np.array(
-                [0.597899910309, -0.0281659331741, 0.218253713708, 0.99830325679, 0.0560075682727, 0.00919898540125,
-                 0.0130053237465])
+                [0.598038329445, -0.110192662364, 0.273337957845, 0.999390065723, 0.0329420607071, 0.00603632837369,
+                 -0.00989342758435])
 
 
         self._observation_space = Box(lows, highs)
@@ -273,13 +275,13 @@ class MultiTaskSawyerEnv(SawyerEnv, MultitaskEnv):
 
     def compute_rewards(self, obs, action, next_obs, goals):
         current = obs[:, 21:28]
-        # if self.reward_function == self._Huber_reward:
-        #     differences = goals[:, :7] - current[:, :7]
-        #     rewards = self._Huber_reward_batch(differences)
-        # else:
-        pos_diff = goals[:, :3] - current[:, :3]
-        angle_diff = self.compute_angle_difference(goals[:, 3:7], current[:, 3:7])
-        rewards = self._Lorentz_reward_batch(pos_diff, angle_diff, action)
+        if self.reward_function == self._Norm_reward:
+            diff = goals[:, :7] - current
+            rewards = np.linalg.norm(diff, axis=1)
+        else:
+            pos_diff = goals[:, :3] - current[:, :3]
+            angle_diff = self.compute_angle_difference(goals[:, 3:7], current[:, 3:7])
+            rewards = self._Lorentz_reward_batch(pos_diff, angle_diff, action)
         rewards = np.reshape(rewards, (obs.shape[0], 1))
         return rewards
 

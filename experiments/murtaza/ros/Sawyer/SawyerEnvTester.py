@@ -24,7 +24,8 @@ env = SawyerEnv('right', experiment=experiments[4], loss='huber', safety_force_m
 #     env.arm.set_joint_torques(joint_to_values)
 #     env.rate.sleep()
 # env.arm.move_to_neutral()
-# ja = env._joint_angles()
+ja = env.arm.joint_angles()
+print(ja)
 # # ja =np.array([-2.13281250e-03, -1.18177441e+00, -2.75390625e-03, 2.17755176e+00,
 # #          2.20019531e-03, 5.67653320e-01, 3.31843457e+00])
 # # ja = env._wrap_angles(ja)
@@ -44,8 +45,8 @@ env = SawyerEnv('right', experiment=experiments[4], loss='huber', safety_force_m
 # # while True:
 pose = env.arm.endpoint_pose()['position']
 orientation = env.arm.endpoint_pose()['orientation']
-while True:
-    print(env.rewards(np.zeros(7)))
+# while True:
+#     print(env.rewards(np.zeros(7)))
     # env.rewards(np.zeros(7))
 pose = np.array([pose.x, pose.y, pose.z, orientation.x, orientation.y, orientation.z, orientation.w])
 # pose = np.array([pose.x, pose.y, pose.z])
