@@ -9,6 +9,8 @@ class MountainCar(MountainCarEnv, MultitaskEnv, Serializable):
     def __init__(self):
         Serializable.quick_init(self, locals())
         super().__init__()
+        MultitaskEnv.__init__(self)
+        self.multitask_goal = np.array([0.5])
 
     def sample_goals(self, batch_size):
         return np.random.uniform(

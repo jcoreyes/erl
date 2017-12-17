@@ -3,6 +3,7 @@ import pickle
 import time
 import gtimer as gt
 import numpy as np
+import ray
 
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.path_builder import PathBuilder
@@ -88,7 +89,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.max_path_length = max_path_length
         self.discount = discount
         self.replay_buffer_size = replay_buffer_size
-        self.scale_reward = reward_scale
+        self.reward_scale = reward_scale
         self.render = render
         self.collection_mode = collection_mode
         self.save_replay_buffer = save_replay_buffer
@@ -146,15 +147,10 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self._old_table_keys = None
         self._current_path_builder = PathBuilder()
         self._exploration_paths = []
-<<<<<<< HEAD
-        self.parallel_sim_ratio = env_train_ratio
-=======
         self.parallel_step_to_train_ratio = parallel_step_to_train_ratio
->>>>>>> 6d820d6eeb42041d9e0cf25e3ab94a25d5eb75ce
         self.sim_throttle = sim_throttle
         if self.collection_mode == 'online-parallel':
-            # TODO(murtaza): What happens to the eval env?
-            # see `eval_sampler` definition above.
+            ray.init()
             self.training_env = RemoteRolloutEnv(
                 env=env,
                 policy=eval_policy,
@@ -200,7 +196,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                     self.training_env.step(action)
                 )
                 self._n_env_steps_total += 1
-                reward = raw_reward * self.scale_reward
+                reward = raw_reward * self.reward_scale
                 terminal = np.array([terminal])
                 reward = np.array([reward])
                 self._handle_step(
@@ -227,53 +223,41 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             self._end_epoch()
 
     def train_parallel(self, start_epoch=0):
+        assert (
+            isinstance(self.training_env, RemoteRolloutEnv),
+            "Did the sub-class accidentally override the RemoteRolloutEnv?"
+        )
         self.training_mode(False)
         n_steps_current_epoch = 0
         epoch = start_epoch
         self._start_epoch(epoch)
-<<<<<<< HEAD
-        with gt.timed_loop('named_loop') as loop:
-            while self._n_env_steps_total <= self.num_epochs * self.num_env_steps_per_epoch:
-                next(loop)
-                if self.sim_throttle:
-                    if epoch == 0 or self._n_env_steps_total//(self._n_train_steps_total+1) < self.parallel_sim_ratio:
-                        path = self.training_env.rollout(
-                            self.exploration_policy,
-                            use_exploration_strategy=True,
-                        )
-                    else:
-                        path = None
-                else:
-=======
         while self._n_env_steps_total <= self.num_epochs * self.num_env_steps_per_epoch:
             if self.sim_throttle:
                 if epoch == 0 or self._n_env_steps_total//(self._n_train_steps_total+1) < self.parallel_step_to_train_ratio:
->>>>>>> 6d820d6eeb42041d9e0cf25e3ab94a25d5eb75ce
                     path = self.training_env.rollout(
                         self.exploration_policy,
                         use_exploration_strategy=True,
                     )
-
-                if path is not None:
-                    path['rewards'] = path['rewards'] * self.scale_reward
-                    path_length = len(path['observations'])
-                    self._n_env_steps_total += path_length
-                    n_steps_current_epoch += path_length
-                    self._handle_path(path)
-                    if len(path) > 0:
-                        self._exploration_paths.append(path)
-
-                gt.stamp('sample')
-                self._try_to_train()
-                gt.stamp('train')
-                # Check if epoch is over
-                if n_steps_current_epoch >= self.num_env_steps_per_epoch:
-                    self._try_to_eval(epoch)
-                    gt.stamp('eval')
-                    self._end_epoch()
-                    epoch += 1
-                    n_steps_current_epoch = 0
-                    self._start_epoch(epoch)
+            if path is not None:
+                path['rewards'] = path['rewards'] * self.reward_scale
+                path_length = len(path['observations'])
+                self._n_env_steps_total += path_length
+                n_steps_current_epoch += path_length
+                self._handle_path(path)
+                if len(path) > 0:
+                    self._exploration_paths.append(path)
+            self._try_to_train()
+            gt.stamp('sample')
+            self._try_to_train()
+            gt.stamp('train')
+            # Check if epoch is over
+            if n_steps_current_epoch >= self.num_env_steps_per_epoch:
+                self._try_to_eval(epoch)
+                gt.stamp('eval')
+                self._end_epoch()
+                epoch += 1
+                n_steps_current_epoch = 0
+                self._start_epoch(epoch)
 
     def train_offline(self, start_epoch=0):
         self.training_mode(False)

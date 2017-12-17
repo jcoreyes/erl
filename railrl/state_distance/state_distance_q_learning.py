@@ -127,7 +127,7 @@ class StateDistanceQLearning(DDPG):
         self.goal = self.sample_goal_for_rollout()
         self.training_env.set_goal(self.goal)
         self.exploration_policy.set_goal(self.goal)
-        self.exploration_policy.set_discount(self.discount)
+        self.exploration_policy.set_tau(self.discount)
         return self.training_env.reset()
 
     def get_batch(self, training=True):
@@ -441,7 +441,7 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
         if not self.cycle_taus_for_rollout:
             return super()._start_new_rollout()
 
-        self.exploration_policy.set_discount(self._rollout_discount)
+        self.exploration_policy.set_tau(self._rollout_discount)
         return super()._start_new_rollout()
 
     def _handle_step(
@@ -463,13 +463,13 @@ class HorizonFedStateDistanceQLearning(StateDistanceQLearning):
             agent_infos=agent_info,
             env_infos=env_info,
             goals=self.goal,
-            # taus=self._rollout_discount,
+            # taus=self._rollout_tau,
         )
         if self.cycle_taus_for_rollout:
             self._rollout_discount -= 1
             if self._rollout_discount < 0:
                 self._rollout_discount = self.discount
-            self.exploration_policy.set_discount(self._rollout_discount)
+            self.exploration_policy.set_tau(self._rollout_discount)
 
     def _handle_rollout_ending(self):
         self._n_rollouts_total += 1

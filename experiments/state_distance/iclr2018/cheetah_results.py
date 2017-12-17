@@ -10,7 +10,7 @@ her_data = np.load(her_path)
 ddpg_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-26-ddpg-half-cheetah/"
 ddpg_criteria = {
     'algo_params.num_updates_per_env_step': 5,
-    'algo_params.scale_reward': 1,
+    'algo_params.reward_scale': 1,
     'algo_params.tau': 0.001,
 }
 # DDPG policy: /home/vitchyr/git/rllab-rail/railrl/experiments/state_distance/iclr2018/cheetah_results.py
@@ -26,7 +26,7 @@ our_criteria = {
 her_dense_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-27-her-baseline-shaped-rewards-no-clipping-300-300-right-discount-and-tau/"
 her_dense_criteria = {
     'algo_params.num_updates_per_env_step': 5,
-    'algo_params.scale_reward': 10,
+    'algo_params.reward_scale': 10,
     'env_class.$class':
         "railrl.envs.multitask.half_cheetah.GoalXVelHalfCheetah"
 }

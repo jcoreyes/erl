@@ -44,7 +44,7 @@ if __name__ == "__main__":
     num_samples = 1000
     policy = SamplePolicyPartialOptimizer(qf, env, num_samples)
 
-    policy.set_discount(discount)
+    policy.set_tau(discount)
     while True:
         paths = []
         for _ in range(args.num_rollouts):

@@ -18,7 +18,11 @@ class DiscreteReacher2D(GoalXYStateXYAndCosSinReacher2D, Serializable):
                 np.linspace(low, high, num_bins)
 
             )
-        self.idx_to_continuous_action = list(itertools.product(*joint_ranges))
+        self.idx_to_continuous_action = itertools.product(*joint_ranges)
+        self.idx_to_continuous_action = list(map(
+            lambda lst: np.array(lst),
+            self.idx_to_continuous_action,
+        ))
         self.action_space = spaces.Discrete(len(self.idx_to_continuous_action))
 
     def _step(self, a):

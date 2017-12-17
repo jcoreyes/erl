@@ -1,13 +1,13 @@
 import random
 
 import numpy as np
-from railrl.data_management.her_replay_buffer import HerReplayBuffer
 
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
 from railrl.envs.multitask.reacher_7dof import Reacher7DofGoalStateEverything
+from railrl.envs.multitask.simple1d import Simple1D, Simple1DTdmPlotter
 from railrl.envs.wrappers import normalize_box
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
@@ -56,13 +56,20 @@ def experiment(variant):
     )
     algo_params = variant['algo_params']
     algo_params['ddpg_kwargs']['qf_criterion'] = qf_criterion
+    plotter = Simple1DTdmPlotter(
+        tdm=qf,
+        location_lst=np.array([-0.5, 0, 0.5]),
+        goal_lst=np.array([-0.5, 0, 0.5]),
+        max_tau=algo_params['tdm_kwargs']['max_tau'],
+    )
+    algo_params['ddpg_kwargs']['plotter'] = plotter
     algorithm = TdmDdpg(
         env,
         qf=qf,
         replay_buffer=replay_buffer,
         policy=policy,
         exploration_policy=exploration_policy,
-        **variant['algo_params']
+        **algo_params
     )
     if ptu.gpu_enabled():
         algorithm.cuda()
@@ -72,16 +79,16 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = "local"
-    exp_prefix = "dev-ddpg-tdm-launch"
+    exp_prefix = "simple-1d-continuous"
 
-    n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "tdm-half-cheetah-x-vel"
+    # n_seeds = 3
+    # mode = "ec2"
+    # exp_prefix = "tdm-half-cheetah-x-vel"
 
     num_epochs = 100
-    num_steps_per_epoch = 50000
-    num_steps_per_eval = 50000
-    max_path_length = 500
+    num_steps_per_epoch = 1000
+    num_steps_per_eval = 1000
+    max_path_length = 30
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -100,40 +107,38 @@ if __name__ == "__main__":
                 sample_train_goals_from='her',
                 vectorized=True,
                 cycle_taus_for_rollout=True,
-                max_tau=10,
+                max_tau=1,
             ),
             ddpg_kwargs=dict(
-                tau=0.001,
+                tau=0.01,
                 qf_learning_rate=1e-3,
                 policy_learning_rate=1e-4,
             ),
         ),
         her_replay_buffer_params=dict(
-            max_size=int(2E5),
+            max_size=int(5E4),
             num_goals_to_sample=4,
         ),
         qf_params=dict(
-            hidden_sizes=[300, 300],
+            hidden_sizes=[100, 100],
         ),
         policy_params=dict(
-            fc1_size=300,
-            fc2_size=300,
+            fc1_size=100,
+            fc2_size=100,
         ),
         qf_criterion_class=HuberLoss,
         qf_criterion_params=dict(),
-        version="DDPG-TDM-2",
+        version="DDPG-TDM",
         algorithm="DDPG-TDM",
     )
     search_space = {
         'env_class': [
-            GoalXVelHalfCheetah,
+            Simple1D,
         ],
         'algo_params.tdm_kwargs.vectorized': [
-            True,
             False,
         ],
         'algo_params.tdm_kwargs.sample_rollout_goals_from': [
-            'fixed',
             'environment',
         ],
     }
@@ -142,11 +147,6 @@ if __name__ == "__main__":
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):
-            variant['multitask'] = (
-                variant['algo_params']['tdm_kwargs'][
-                    'sample_rollout_goals_from'
-                ] != 'fixed'
-            )
             seed = random.randint(0, 10000)
             run_experiment(
                 experiment,
