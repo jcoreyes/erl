@@ -29,7 +29,6 @@ class RayEnv(object):
         self._exploration_policy = exploration_policy
         self._max_path_length = max_path_length
         self.rollout_function = rollout_function
-
     def rollout(self, policy_params, use_exploration_strategy):
         self._policy.set_param_values_np(policy_params)
         if use_exploration_strategy:
@@ -110,7 +109,6 @@ class RemoteRolloutEnv(ProxyEnv, RolloutEnv, Serializable):
             rollout_function,
         )
         self._rollout_promise = None
-
     def rollout(self, policy, use_exploration_strategy):
         if self._rollout_promise is None:
             policy_params = policy.get_param_values()

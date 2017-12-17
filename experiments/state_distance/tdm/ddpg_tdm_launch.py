@@ -75,7 +75,7 @@ if __name__ == "__main__":
     exp_prefix = "dev-ddpg-tdm-launch"
 
     n_seeds = 3
-    mode = "ec2"
+    mode = "local"
     exp_prefix = "tdm-half-cheetah-x-vel"
 
     num_epochs = 100
@@ -94,6 +94,7 @@ if __name__ == "__main__":
                 num_updates_per_env_step=1,
                 batch_size=64,
                 discount=1,
+                collection_mode='online-parallel'
             ),
             tdm_kwargs=dict(
                 sample_rollout_goals_from='environment',

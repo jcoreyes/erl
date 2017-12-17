@@ -77,7 +77,6 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         if self.collection_mode == 'online-parallel':
             # TODO(murtaza): What happens to the eval env?
             # see `eval_sampler` definition above.
-
             self.training_env = RemoteRolloutEnv(
                 env=self.env,
                 policy=self.eval_policy,

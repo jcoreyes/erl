@@ -238,6 +238,11 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                         self.exploration_policy,
                         use_exploration_strategy=True,
                     )
+            else:
+                path = self.training_env.rollout(
+                    self.exploration_policy,
+                    use_exploration_strategy=True,
+                )
             if path is not None:
                 path['rewards'] = path['rewards'] * self.reward_scale
                 path_length = len(path['observations'])
@@ -306,18 +311,19 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 self._n_rollouts_total,
             )
 
-            # times_itrs = gt.get_times().stamps.itrs
-            # train_time = times_itrs['train'][-1]
-            # sample_time = times_itrs['sample'][-1]
-            # eval_time = times_itrs['eval'][-1] if epoch > 0 else 0
-            # epoch_time = train_time + sample_time + eval_time
-            # total_time = gt.get_times().total
-            #
-            # logger.record_tabular('Train Time (s)', train_time)
-            # logger.record_tabular('(Previous) Eval Time (s)', eval_time)
-            # logger.record_tabular('Sample Time (s)', sample_time)
-            # logger.record_tabular('Epoch Time (s)', epoch_time)
-            # logger.record_tabular('Total Train Time (s)', total_time)
+            if self.collection_mode == 'online':
+                times_itrs = gt.get_times().stamps.itrs
+                train_time = times_itrs['train'][-1]
+                sample_time = times_itrs['sample'][-1]
+                eval_time = times_itrs['eval'][-1] if epoch > 0 else 0
+                epoch_time = train_time + sample_time + eval_time
+                total_time = gt.get_times().total
+
+                logger.record_tabular('Train Time (s)', train_time)
+                logger.record_tabular('(Previous) Eval Time (s)', eval_time)
+                logger.record_tabular('Sample Time (s)', sample_time)
+                logger.record_tabular('Epoch Time (s)', epoch_time)
+                logger.record_tabular('Total Train Time (s)', total_time)
 
             logger.record_tabular("Epoch", epoch)
             logger.dump_tabular(with_prefix=False, with_timestamp=False)
