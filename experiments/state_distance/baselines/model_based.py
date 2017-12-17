@@ -1,11 +1,12 @@
 import argparse
 import random
 
-from railrl.tf.state_distance.model_learning import ModelLearning
+from railrl.state_distance.model_learning import ModelLearning
 from torch.nn import functional as F
 
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
+from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
 from railrl.envs.multitask.pusher2d import HandCylinderXYPusher2DEnv
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofGoalStateEverything,
@@ -15,7 +16,7 @@ from railrl.envs.wrappers import convert_gym_space, normalize_box
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.model_based import MultistepModelBasedPolicy
-from railrl.tf.predictors import Mlp
+from railrl.torch.networks import Mlp
 
 
 def experiment(variant):
@@ -67,9 +68,9 @@ if __name__ == '__main__':
     run_mode = "none"
 
     n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "mb-baseline-sweep-many-take1"
-    run_mode = 'grid'
+    # mode = "ec2"
+    # exp_prefix = "mb-baseline-sweep-many-take1"
+    # run_mode = 'grid'
 
     num_configurations = 1  # for random mode
     snapshot_mode = "last"
@@ -81,14 +82,17 @@ if __name__ == '__main__':
     dataset_path = args.replay_path
 
     # noinspection PyTypeChecker
-    max_path_length = 300
-    replay_buffer_size = 100000
+    exp_prefix = "tdm-half-cheetah-short-epoch-nupo-sweep"
+
+    num_epochs = 100
     num_steps_per_epoch = 1000
+    max_path_length = 100
     nupo = 5
+    replay_buffer_size= int(1e6)
     variant = dict(
         dataset_path=str(dataset_path),
         algo_params=dict(
-            num_epochs=100,
+            num_epochs=num_epochs,
             num_batches_per_epoch=num_steps_per_epoch * nupo,
             min_num_steps_per_epoch=num_steps_per_epoch,
             batch_size=64,
@@ -105,14 +109,15 @@ if __name__ == '__main__':
         ),
         model_learns_deltas=True,
         model_params=dict(
-            hidden_activation=F.softplus,
+            # hidden_activation=F.softplus,
             hidden_sizes=[300, 300],
         ),
         # env_class=Reacher7DofFullGoalState,
         # env_class=PusherEnv,
         # env_class=XyMultitaskSimpleStateReacherEnv,
         # env_class=MultitaskPoint2DEnv,
-        env_class=HandCylinderXYPusher2DEnv,
+        # env_class=HandCylinderXYPusher2DEnv,
+        env_class=GoalXVelHalfCheetah,
         env_params=dict(
             # add_noop_action=False,
         ),
@@ -137,23 +142,27 @@ if __name__ == '__main__':
             #     [100, 100],
             #     [500, 500],
             # ],
-            # 'algo_params.num_batches_per_epoch': [1000, 10000],
+            'algo_params.num_batches_per_epoch': [
+                num_steps_per_epoch,
+                num_steps_per_epoch * 5,
+                num_steps_per_epoch * 25,
+            ],
             # 'algo_params.weight_decay': [0, 1e-4, 1e-3, 1e-2],
             # 'normalize_params.obs_std': [
             # None,
             # [0.7, 0.3, 0.7, 0.3, 25, 5],
             # ],
             'policy_params.planning_horizon': [
-                1, 2, 5, 10,
+                1, 5, 10, 15
             ],
             'policy_params.action_penalty': [
                 0, 0.01, 0.1,
             ],
-            'env_class': [
-                GoalStateSimpleStateReacherEnv,
-                Reacher7DofGoalStateEverything,
-                HandCylinderXYPusher2DEnv,
-            ],
+            # 'env_class': [
+            #     GoalStateSimpleStateReacherEnv,
+            #     Reacher7DofGoalStateEverything,
+            #     HandCylinderXYPusher2DEnv,
+            # ],
         }
         sweeper = hyp.DeterministicHyperparameterSweeper(
             search_space, default_parameters=variant,

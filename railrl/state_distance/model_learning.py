@@ -12,7 +12,7 @@ from torch import optim as optim
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.samplers.util import rollout
-from state_distance.rollout_util import multitask_rollout
+from railrl.state_distance.rollout_util import multitask_rollout
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.algos.util import np_to_pytorch_batch
 from railrl.torch.eval_util import get_statistics_from_pytorch_dict, \
