@@ -6,7 +6,8 @@ import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
 # from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
-from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
+from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
+    GoalXPosHalfCheetah
 from railrl.envs.multitask.reacher_7dof import (
     # Reacher7DofGoalStateEverything,
     Reacher7DofXyzGoalState,
@@ -76,14 +77,14 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-ddpg-tdm-launch"
 
-    n_seeds = 3
+    n_seeds = 2
     mode = "ec2"
-    exp_prefix = "tdm-half-cheetah-short-epoch-nupo-sweep"
+    exp_prefix = "tdm-half-cheetah-xpos"
 
     num_epochs = 100
-    num_steps_per_epoch = 1000
-    num_steps_per_eval = 10000
-    max_path_length = 100
+    num_steps_per_epoch = 10000
+    num_steps_per_eval = 1000
+    max_path_length = 50
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -133,7 +134,8 @@ if __name__ == "__main__":
     search_space = {
         'env_class': [
             # Reacher7DofXyzGoalState,
-            GoalXVelHalfCheetah,
+            # GoalXVelHalfCheetah,
+            GoalXPosHalfCheetah,
         ],
         'algo_kwargs.tdm_kwargs.sample_rollout_goals_from': [
             # 'fixed',
@@ -146,7 +148,7 @@ if __name__ == "__main__":
             .1, 1, 10, 100, 1000
         ],
         'algo_kwargs.base_kwargs.num_updates_per_env_step': [
-            1, 5, 25
+            1,
         ],
         'algo_kwargs.ddpg_kwargs.tau': [
             0.001,

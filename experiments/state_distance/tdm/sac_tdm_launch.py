@@ -5,7 +5,8 @@ import numpy as np
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
+from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
+    GoalXPosHalfCheetah
 from railrl.envs.multitask.reacher_7dof import (
     # Reacher7DofGoalStateEverything,
     Reacher7DofXyzGoalState,
@@ -62,12 +63,12 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "tdm-half-cheetah-short-epoch-nupo-sweep"
+    exp_prefix = "tdm-half-cheetah-xpos"
 
     num_epochs = 100
-    num_steps_per_epoch = 1000
-    num_steps_per_eval = 10000
-    max_path_length = 100
+    num_steps_per_epoch = 10000
+    num_steps_per_eval = 1000
+    max_path_length = 50
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -108,20 +109,20 @@ if __name__ == "__main__":
         policy_params=dict(
             hidden_sizes=[300, 300],
         ),
-        version="SAC-TDM-correctly-set-nupo",
+        version="SAC-TDM-correctly",
         algorithm="SAC-TDM",
     )
     search_space = {
         'env_class': [
-            GoalXVelHalfCheetah,
+            # GoalXVelHalfCheetah,
             # Reacher7DofXyzGoalState,
+            GoalXPosHalfCheetah,
         ],
         'algo_params.base_kwargs.reward_scale': [
             1,
             10,
             100,
             1000,
-            10000,
         ],
         'algo_params.tdm_kwargs.vectorized': [
             True,
@@ -133,7 +134,7 @@ if __name__ == "__main__":
             10,
         ],
         'algo_params.base_kwargs.num_updates_per_env_step': [
-            1, 5
+            1,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
