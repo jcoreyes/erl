@@ -8,6 +8,7 @@ from railrl.data_management.her_replay_buffer import HerReplayBuffer
 # from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
     GoalXPosHalfCheetah
+from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
 from railrl.envs.multitask.reacher_7dof import (
     # Reacher7DofGoalStateEverything,
     Reacher7DofXyzGoalState,
@@ -29,7 +30,7 @@ def experiment(variant):
 
     obs_dim = int(np.prod(env.observation_space.low.shape))
     action_dim = int(np.prod(env.action_space.low.shape))
-    vectorized = variant['algo_kwargs']['tdm_kwargs']['vectorized']
+    vectorized = variant['ddpg_tdm_kwargs']['tdm_kwargs']['vectorized']
     qf = StructuredQF(
         observation_dim=obs_dim,
         action_dim=action_dim,
@@ -57,15 +58,15 @@ def experiment(variant):
     qf_criterion = variant['qf_criterion_class'](
         **variant['qf_criterion_kwargs']
     )
-    algo_kwargs = variant['algo_kwargs']
-    algo_kwargs['ddpg_kwargs']['qf_criterion'] = qf_criterion
+    ddpg_tdm_kwargs = variant['ddpg_tdm_kwargs']
+    ddpg_tdm_kwargs['ddpg_kwargs']['qf_criterion'] = qf_criterion
     algorithm = TdmDdpg(
         env,
         qf=qf,
         replay_buffer=replay_buffer,
         policy=policy,
         exploration_policy=exploration_policy,
-        **variant['algo_kwargs']
+        **variant['ddpg_tdm_kwargs']
     )
     if ptu.gpu_enabled():
         algorithm.cuda()
@@ -79,7 +80,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = "ec2"
-    exp_prefix = "tdm-half-cheetah-xpos"
+    exp_prefix = "tdm-pusher3d"
 
     num_epochs = 100
     num_steps_per_epoch = 10000
@@ -88,7 +89,7 @@ if __name__ == "__main__":
 
     # noinspection PyTypeChecker
     variant = dict(
-        algo_kwargs=dict(
+        ddpg_tdm_kwargs=dict(
             base_kwargs=dict(
                 num_epochs=num_epochs,
                 num_steps_per_epoch=num_steps_per_epoch,
@@ -128,29 +129,30 @@ if __name__ == "__main__":
         ),
         qf_criterion_class=HuberLoss,
         qf_criterion_kwargs=dict(),
-        version="DDPG-TDM-no-print",
+        version="DDPG-TDM",
         algorithm="DDPG-TDM",
     )
     search_space = {
         'env_class': [
             # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
-            GoalXPosHalfCheetah,
+            # GoalXPosHalfCheetah,
+            MultitaskPusher3DEnv,
         ],
-        'algo_kwargs.tdm_kwargs.sample_rollout_goals_from': [
+        'ddpg_tdm_kwargs.tdm_kwargs.sample_rollout_goals_from': [
             'fixed',
-            # 'environment',
+            'environment',
         ],
-        'algo_kwargs.tdm_kwargs.max_tau': [
-            10,
+        'ddpg_tdm_kwargs.tdm_kwargs.max_tau': [
+            5, 25, 49
         ],
-        'algo_kwargs.base_kwargs.reward_scale': [
+        'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
             .1, 1, 10, 100, 1000
         ],
-        'algo_kwargs.base_kwargs.num_updates_per_env_step': [
+        'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
             1,
         ],
-        'algo_kwargs.ddpg_kwargs.tau': [
+        'ddpg_tdm_kwargs.ddpg_kwargs.tau': [
             0.001,
         ],
     }
@@ -160,16 +162,16 @@ if __name__ == "__main__":
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):
             variant['multitask'] = (
-                variant['algo_kwargs']['tdm_kwargs'][
+                variant['ddpg_tdm_kwargs']['tdm_kwargs'][
                     'sample_rollout_goals_from'
                 ] != 'fixed'
             )
             seed = random.randint(0, 10000)
             run_experiment(
                 experiment,
+                mode=mode,
+                exp_prefix=exp_prefix,
                 seed=seed,
                 variant=variant,
                 exp_id=exp_id,
-                exp_prefix=exp_prefix,
-                mode=mode,
             )

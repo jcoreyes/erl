@@ -193,6 +193,24 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
     ):
         pass
 
+    def cost_fn(self, states, actions, next_states):
+        """
+        This is added for Abhishek's model-based code.
+        """
+        input_is_flat = len(next_states.shape) == 1
+        if input_is_flat:
+            next_states = np.expand_dims(next_states, 0)
+        actual = self.convert_obs_to_goals(next_states)
+        desired = self.multitask_goal * np.ones_like(actual)
+        costs = np.linalg.norm(
+            actual - desired,
+            axis=1,
+            ord=1,
+        )
+        if input_is_flat:
+            costs = costs[0]
+        return costs
+
 
 class MultitaskToFlatEnv(ProxyEnv, Serializable):
     def __init__(

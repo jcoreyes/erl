@@ -8,7 +8,7 @@ from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.samplers.util import get_stat_in_paths
 from rllab.core.serializable import Serializable
-from rllab.misc import logger
+from rllab.misc import logger as rllab_logger
 
 MAX_SPEED = 6
 
@@ -209,7 +209,7 @@ class GoalXPosHalfCheetah(HalfCheetahEnv, MultitaskEnv, Serializable):
     def convert_obs_to_goals(self, obs):
         return obs[:, 17:18]
 
-    def log_diagnostics(self, paths):
+    def log_diagnostics(self, paths, logger=rllab_logger):
         distances_to_goal = get_stat_in_paths(
             paths, 'env_infos', 'distance_to_goal'
         )
@@ -248,22 +248,3 @@ class GoalXPosHalfCheetah(HalfCheetahEnv, MultitaskEnv, Serializable):
 
     def __setstate__(self, state):
         return Serializable.__setstate__(self, state)
-
-    @staticmethod
-    def cost_fn(states, actions, next_states):
-        """
-        This is added for Abhishek's model-based code.
-        """
-        input_is_flat = len(next_states.shape) == 1
-        if input_is_flat:
-            next_states = np.expand_dims(next_states, 0)
-        actual_xpos = next_states[:, 17:18]
-        desired_xpos = GOAL_X_POSITIONS[0] * np.ones_like(actual_xpos)
-        costs = np.linalg.norm(
-            desired_xpos - actual_xpos,
-            axis=1,
-            ord=1,
-        )
-        if input_is_flat:
-            costs = costs[0]
-        return costs

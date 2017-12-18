@@ -4,6 +4,7 @@ import railrl.misc.hyperparameter as hyp
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
     GoalXPosHalfCheetah
 from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
+from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState,
 )
@@ -60,7 +61,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = "ec2"
-    exp_prefix = "tdm-half-cheetah-xpos"
+    exp_prefix = "tdm-pusher3d"
 
     num_epochs = 100
     num_steps_per_epoch = 10000
@@ -106,7 +107,8 @@ if __name__ == "__main__":
         'env_class': [
             # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
-            GoalXPosHalfCheetah,
+            # GoalXPosHalfCheetah,
+            MultitaskPusher3DEnv,
         ],
         'multitask': [True, False],
         'algo_params.reward_scale': [
@@ -126,10 +128,9 @@ if __name__ == "__main__":
             seed = random.randint(0, 999999)
             run_experiment(
                 experiment,
-                exp_prefix=exp_prefix,
-                exp_id=exp_id,
-                seed=seed,
                 mode=mode,
+                exp_prefix=exp_prefix,
+                seed=seed,
                 variant=variant,
-                use_gpu=False,
+                exp_id=exp_id,
             )
