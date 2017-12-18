@@ -128,7 +128,7 @@ if __name__ == "__main__":
         ),
         qf_criterion_class=HuberLoss,
         qf_criterion_kwargs=dict(),
-        version="DDPG-TDM",
+        version="DDPG-TDM-no-print",
         algorithm="DDPG-TDM",
     )
     search_space = {
@@ -138,8 +138,8 @@ if __name__ == "__main__":
             GoalXPosHalfCheetah,
         ],
         'algo_kwargs.tdm_kwargs.sample_rollout_goals_from': [
-            # 'fixed',
-            'environment',
+            'fixed',
+            # 'environment',
         ],
         'algo_kwargs.tdm_kwargs.max_tau': [
             10,

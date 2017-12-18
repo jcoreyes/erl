@@ -109,7 +109,7 @@ if __name__ == "__main__":
         policy_params=dict(
             hidden_sizes=[300, 300],
         ),
-        version="SAC-TDM-correctly",
+        version="SAC-TDM-no-print",
         algorithm="SAC-TDM",
     )
     search_space = {
@@ -128,7 +128,8 @@ if __name__ == "__main__":
             True,
         ],
         'algo_params.tdm_kwargs.sample_rollout_goals_from': [
-            'environment',
+            'fixed',
+            # 'environment',
         ],
         'algo_params.tdm_kwargs.max_tau': [
             10,
