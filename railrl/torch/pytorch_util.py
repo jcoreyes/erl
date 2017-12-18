@@ -229,3 +229,17 @@ def get_numpy(tensor):
 
 def np_to_var(np_array, **kwargs):
     return Variable(from_numpy(np_array), **kwargs)
+
+
+def zeros(*sizes, out=None):
+    tensor = torch.zeros(*sizes, out=out)
+    if _use_gpu:
+        tensor = tensor.cuda()
+    return tensor
+
+
+def ones(*sizes, out=None):
+    tensor = torch.ones(*sizes, out=out)
+    if _use_gpu:
+        tensor = tensor.cuda()
+    return tensor

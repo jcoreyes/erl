@@ -11,6 +11,7 @@ from railrl.policies.state_distance import UniversalPolicy
 from railrl.state_distance.rollout_util import MultigoalSimplePathSampler
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.algos.ddpg import DDPG
+from railrl.torch.data_management.normalizer import TorchNormalizer
 from railrl.torch.networks import Mlp
 
 
@@ -225,6 +226,8 @@ class HerQFunction(Mlp):
     def __init__(
             self,
             env,
+            obs_normalizer: TorchNormalizer,
+            goal_normalizer: TorchNormalizer,
             hidden_sizes,
             **kwargs
     ):
@@ -239,8 +242,13 @@ class HerQFunction(Mlp):
             **kwargs
         )
         self.env = env
+        self.obs_normalizer = obs_normalizer
+        self.goal_normalizer = goal_normalizer
 
     def forward(self, obs, action, goals, _ignored_discount=None):
+        obs = self.obs_normalizer.normalize(obs)
+        goals = self.goal_normalizer.normalize(goals)
+
         goal_deltas = self.env.convert_obs_to_goals(obs) - goals
         h = torch.cat((obs, action, goal_deltas), dim=1)
         for i, fc in enumerate(self.fcs):
@@ -252,6 +260,8 @@ class HerPolicy(Mlp, UniversalPolicy):
     def __init__(
             self,
             env,
+            obs_normalizer,
+            goal_normalizer,
             hidden_sizes,
             **kwargs
     ):
@@ -266,8 +276,13 @@ class HerPolicy(Mlp, UniversalPolicy):
             **kwargs
         )
         self.env = env
+        self.obs_normalizer = obs_normalizer
+        self.goal_normalizer = goal_normalizer
 
     def forward(self, obs, goals, return_preactivations=False):
+        obs = self.obs_normalizer.normalize(obs)
+        goals = self.goal_normalizer.normalize(goals)
+
         goal_deltas = self.env.convert_obs_to_goals(obs) - goals
         h = torch.cat((obs, goal_deltas), dim=1)
         for i, fc in enumerate(self.fcs):

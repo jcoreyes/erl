@@ -20,24 +20,34 @@ from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.state_distance.exploration import \
     UniversalPolicyWrappedWithExplorationStrategy
+from railrl.torch.data_management.normalizer import TorchNormalizer
 from railrl.torch.modules import HuberLoss
 
 
 def experiment(variant):
     env_class = variant['env_class']
     env = env_class(**variant['env_params'])
-    env = normalize_box(
-        env,
-        **variant['normalize_params']
-    )
+    env = normalize_box(env)
 
     action_space = convert_gym_space(env.action_space)
+    obs_space = convert_gym_space(env.observation_space)
+    obs_normalizer = TorchNormalizer(
+        obs_space.flat_dim, **variant['normalizers_params']
+    )
+    goal_normalizer = TorchNormalizer(
+        env.goal_dim, **variant['normalizers_params']
+    )
+
     qf = variant['qf_class'](
         env,
+        obs_normalizer=obs_normalizer,
+        goal_normalizer=goal_normalizer,
         **variant['qf_params']
     )
     policy = variant['policy_class'](
         env,
+        obs_normalizer=obs_normalizer,
+        goal_normalizer=goal_normalizer,
         **variant['policy_params']
     )
     qf_criterion = variant['qf_criterion_class'](
@@ -78,9 +88,9 @@ if __name__ == '__main__':
     mode = "local"
     exp_prefix = "dev-her-baseline"
 
-    n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "her-baseline-sweep-cheetah"
+    # n_seeds = 3
+    # mode = "ec2"
+    # exp_prefix = "her-baseline-sweep-cheetah"
 
     version = "na"
     snapshot_mode = "last"
@@ -125,7 +135,10 @@ if __name__ == '__main__':
             num_goals_to_sample=4,
         ),
         env_params=dict(),
-        normalize_params=dict(),
+        normalizers_params=dict(
+            eps=1e-1,
+            default_clip_range=5,
+        ),
         es_class=GaussianAndEpislonStrategy,
         es_params=dict(
             max_sigma=0.1,
@@ -145,9 +158,9 @@ if __name__ == '__main__':
         #     'store',
         # ],
         'env_class': [
-            # Reacher7DofXyzGoalState,
+            Reacher7DofXyzGoalState,
             # CylinderXYPusher2DEnv,
-            GoalXVelHalfCheetah,
+            # GoalXVelHalfCheetah,
         ],
         'algo_params.terminate_when_goal_reached': [
             True, False,
