@@ -12,6 +12,7 @@ from rllab.misc import logger
 
 MAX_SPEED = 6
 
+
 class GoalXVelHalfCheetah(HalfCheetahEnv, MultitaskEnv):
     def __init__(self):
         self.target_x_vel = np.random.uniform(-MAX_SPEED, MAX_SPEED)
@@ -247,3 +248,22 @@ class GoalXPosHalfCheetah(HalfCheetahEnv, MultitaskEnv, Serializable):
 
     def __setstate__(self, state):
         return Serializable.__setstate__(self, state)
+
+    @staticmethod
+    def cost_fn(states, actions, next_states):
+        """
+        This is added for Abhishek's model-based code.
+        """
+        input_is_flat = len(next_states.shape) == 1
+        if input_is_flat:
+            next_states = np.expand_dims(next_states, 0)
+        actual_xpos = next_states[:, 17:18]
+        desired_xpos = GOAL_X_POSITIONS[0] * np.ones_like(actual_xpos)
+        costs = np.linalg.norm(
+            desired_xpos - actual_xpos,
+            axis=1,
+            ord=1,
+        )
+        if input_is_flat:
+            costs = costs[0]
+        return costs

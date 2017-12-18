@@ -4,6 +4,7 @@ import numpy as np
 import tensorflow as tf
 
 import railrl.misc.hyperparameter as hyp
+from railrl.envs.multitask.half_cheetah import GoalXPosHalfCheetah
 from railrl.envs.multitask.her_half_cheetah import HalfCheetah, \
     half_cheetah_cost_fn
 from railrl.envs.multitask.her_pusher_env import Pusher2DEnv, \
@@ -38,6 +39,9 @@ def experiment(variant):
             raise NotImplementedError
     else:
         env = env_name_or_class()
+        from railrl.envs.wrappers import normalize_box
+        from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
+        env = normalize_box(env)
         if env_name_or_class == Pusher2DEnv:
             cost_fn = pusher2d_cost_fn
         elif env_name_or_class == Reacher7Dof:
@@ -45,7 +49,12 @@ def experiment(variant):
         elif env_name_or_class == HalfCheetah:
             cost_fn = half_cheetah_cost_fn
         else:
-            raise NotImplementedError
+            if variant['multitask']:
+                raise NotImplementedError
+            else:
+                cost_fn = env_name_or_class.cost_fn
+        # else:
+        #     raise NotImplementedError
 
     train_dagger(
         env=env,
@@ -82,18 +91,15 @@ if __name__ == '__main__':
     n_seeds = 1
     mode = "local"
     exp_prefix = "dev-abhishek-mb"
-    run_mode = "none"
-    snapshot_mode = "last"
 
-    n_seeds = 5
+    n_seeds = 3
     mode = "ec2"
-    exp_prefix = "abhishek-mb-cheetah-max-vel5"
-    snapshot_mode = "gap_and_last"
-    snapshot_gap = 20
+    exp_prefix = "tdm-half-cheetah-xpos"
 
-    num_epochs = 101
-    num_steps_per_epoch = 1000
-    max_path_length = 100
+    num_epochs = 100
+    num_steps_per_epoch = 10001
+    max_path_length = 50
+
     variant = dict(
         # env='HalfCheetah-v1',
         env_name_or_class='HalfCheetah-v1',
@@ -113,12 +119,10 @@ if __name__ == '__main__':
             activation=tf.nn.relu,
             output_activation=None,
         ),
+        multitask=True,
+        version="Model-Based - Abhishek",
+        algorithm="Model-Based",
     )
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--replay_path', type=str,
-                        help='path to the snapshot file')
-    parser.add_argument('--render', action='store_true')
-    args = parser.parse_args()
 
     use_gpu = True
     if mode != "local":
@@ -128,8 +132,10 @@ if __name__ == '__main__':
         'env_name_or_class': [
             # Pusher2DEnv,
             # Reacher7Dof,
-            HalfCheetah,
+            # HalfCheetah,
+            GoalXPosHalfCheetah,
         ],
+        'multitask': [True, False],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -145,6 +151,4 @@ if __name__ == '__main__':
                 variant=variant,
                 exp_id=0,
                 use_gpu=use_gpu,
-                snapshot_mode=snapshot_mode,
-                snapshot_gap=snapshot_gap,
             )
