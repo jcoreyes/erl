@@ -91,9 +91,9 @@ if __name__ == '__main__':
     mode = "local"
     exp_prefix = "dev-abhishek-mb"
 
-    n_seeds = 2
+    n_seeds = 3
     mode = "ec2"
-    exp_prefix = "tdm-pusher3d"
+    exp_prefix = "tdm-half-cheetah-xpos"
 
     num_epochs = 100
     num_steps_per_epoch = 10000
@@ -132,8 +132,8 @@ if __name__ == '__main__':
             # Pusher2DEnv,
             # Reacher7Dof,
             # HalfCheetah,
-            # GoalXPosHalfCheetah,
-            MultitaskPusher3DEnv,
+            GoalXPosHalfCheetah,
+            # MultitaskPusher3DEnv,
         ],
         'multitask': [False],
     }
