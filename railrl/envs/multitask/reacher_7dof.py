@@ -77,7 +77,7 @@ class Reacher7DofMultitaskEnv(
         ))
         statistics.update(create_stats_ordered_dict(
             'Final Euclidean distance to goal',
-            euclidean_distances[:, -1],
+            [d[-1] for d in euclidean_distances],
             always_show_all_stats=True,
         ))
         for key, value in statistics.items():
