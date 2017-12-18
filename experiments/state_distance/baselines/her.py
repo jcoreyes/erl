@@ -3,6 +3,7 @@ import random
 
 from torch import nn
 
+from railrl.data_management.normalizer import IdentityNormalizer
 from railrl.exploration_strategies.gaussian_and_epislon import \
     GaussianAndEpislonStrategy
 from railrl.state_distance.her import HER, HerQFunction, HerPolicy
@@ -27,14 +28,14 @@ from railrl.torch.modules import HuberLoss
 def experiment(variant):
     env_class = variant['env_class']
     env = env_class(**variant['env_params'])
-    env = normalize_box(env)
+    # env = normalize_box(env)
 
     action_space = convert_gym_space(env.action_space)
     obs_space = convert_gym_space(env.observation_space)
-    obs_normalizer = TorchNormalizer(
+    obs_normalizer = variant['normalizer_class'](
         obs_space.flat_dim, **variant['normalizers_params']
     )
-    goal_normalizer = TorchNormalizer(
+    goal_normalizer = variant['normalizer_class'](
         env.goal_dim, **variant['normalizers_params']
     )
 
@@ -70,6 +71,8 @@ def experiment(variant):
         qf,
         policy,
         exploration_policy,
+        obs_normalizer=obs_normalizer,
+        goal_normalizer=goal_normalizer,
         qf_criterion=qf_criterion,
         replay_buffer=replay_buffer,
         **variant['algo_params']
@@ -88,26 +91,22 @@ if __name__ == '__main__':
     mode = "local"
     exp_prefix = "dev-her-baseline"
 
-    # n_seeds = 3
-    # mode = "ec2"
-    # exp_prefix = "her-baseline-sweep-cheetah"
-
-    version = "na"
-    snapshot_mode = "last"
-    snapshot_gap = 10
-    use_gpu = True
-    if mode != "local":
-        use_gpu = False
+    n_seeds = 2
+    mode = "ec2"
+    exp_prefix = "her-reacher-sweep-normalize"
 
     max_path_length = 50
+    num_epochs = 100
+    num_steps_per_epoch = 16 * max_path_length
+    num_steps_per_eval = 16 * max_path_length
+
     # noinspection PyTypeChecker
     variant = dict(
-        version=version,
         algo_params=dict(
-            num_epochs=200*50,  # One epoch here = one cycle in HER paper
-            # num_epochs=200,
-            num_steps_per_epoch=16 * max_path_length,
-            num_steps_per_eval=16 * max_path_length,
+            # num_epochs=200*50,  # One epoch here = one cycle in HER paper
+            num_epochs=num_epochs,
+            num_steps_per_epoch=num_steps_per_epoch,
+            num_steps_per_eval=num_steps_per_eval,
             num_updates_per_epoch=40,
             use_soft_update=True,
             tau=0.05,
@@ -119,6 +118,7 @@ if __name__ == '__main__':
             max_path_length=max_path_length,
             render=args.render,
             terminate_when_goal_reached=False,
+            collection_mode='batch',
         ),
         qf_class=HerQFunction,
         qf_params=dict(
@@ -139,6 +139,7 @@ if __name__ == '__main__':
             eps=1e-1,
             default_clip_range=5,
         ),
+        normalizer_class=TorchNormalizer,
         es_class=GaussianAndEpislonStrategy,
         es_params=dict(
             max_sigma=0.1,
@@ -151,6 +152,8 @@ if __name__ == '__main__':
             # delta=1,
         ),
         exp_prefix=exp_prefix,
+        version="HER - Sparse",
+        algorithm="HER - DDPG",
     )
     search_space = {
         # 'replay_buffer_params.goal_sample_strategy': [
@@ -165,15 +168,22 @@ if __name__ == '__main__':
         'algo_params.terminate_when_goal_reached': [
             True, False,
         ],
+        'algo_params.num_updates_per_epoch': [
+            40, 400,
+        ],
+        'normalizer_class': [
+            IdentityNormalizer,
+            TorchNormalizer,
+        ],
         'qf_criterion_class': [
             nn.MSELoss,
-            HuberLoss,
+            # HuberLoss,
         ],
         'algo_params.batch_size': [
-            128, 4096
+            128,
         ],
         'algo_params.reward_scale': [
-            10, 1,
+            100, 10, 1,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -184,12 +194,9 @@ if __name__ == '__main__':
             seed = random.randint(0, 10000)
             run_experiment(
                 experiment,
+                mode=mode,
                 exp_prefix=exp_prefix,
                 seed=seed,
-                mode=mode,
                 variant=variant,
-                exp_id=0,
-                use_gpu=use_gpu,
-                snapshot_mode=snapshot_mode,
-                snapshot_gap=snapshot_gap,
+                exp_id=exp_id,
             )

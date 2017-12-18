@@ -40,6 +40,8 @@ class HER(DDPG):
             policy,
             exploration_policy,
             replay_buffer,
+            obs_normalizer: TorchNormalizer=None,
+            goal_normalizer: TorchNormalizer=None,
             eval_sampler=None,
             epsilon=1e-4,
             num_steps_per_eval=1000,
@@ -58,6 +60,8 @@ class HER(DDPG):
             max_path_length=max_path_length,
             **kwargs
         )
+        self.obs_normalizer = obs_normalizer
+        self.goal_normalizer = goal_normalizer
         self.eval_sampler = MultigoalSimplePathSampler(
             env=env,
             policy=self.target_policy,
@@ -208,6 +212,12 @@ class HER(DDPG):
             env_infos=env_info,
             goals=self._current_path_goal,
         )
+        if self.obs_normalizer:
+            self.obs_normalizer.update(observation)
+        if self.goal_normalizer:
+            self.goal_normalizer.update(
+                self.env.convert_ob_to_goal(observation)
+            )
 
     def _handle_rollout_ending(self):
         self._n_rollouts_total += 1

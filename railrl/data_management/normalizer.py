@@ -17,6 +17,8 @@ class Normalizer(object):
         self.synchronized = True
 
     def update(self, v):
+        if v.ndim == 1:
+            v = np.expand_dims(v, 0)
         assert v.ndim == 2
         assert v.shape[1] == self.size
         self.sum += v.sum(axis=0)
@@ -45,9 +47,6 @@ class Normalizer(object):
         return mean + v * std
 
     def synchronize(self):
-        self.sum[...] = np.mean(self.sum)
-        self.sumsq[...] = np.mean(self.sumsq)
-        self.count[...] = np.mean(self.count)
         self.mean[...] = self.sum / self.count[0]
         self.std[...] = np.sqrt(
             np.maximum(
@@ -56,3 +55,17 @@ class Normalizer(object):
             )
         )
         self.synchronized = True
+
+
+class IdentityNormalizer(object):
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def update(self, v):
+        pass
+
+    def normalize(self, v, clip_range=None):
+        return v
+
+    def denormalize(self, v):
+        return v
