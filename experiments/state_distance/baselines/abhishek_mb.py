@@ -11,6 +11,7 @@ from railrl.envs.multitask.her_pusher_env import Pusher2DEnv, \
     pusher2d_cost_fn
 from railrl.envs.multitask.her_reacher_7dof_env import Reacher7Dof, \
     reacher7dof_cost_fn
+from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
 from railrl.launchers.launcher_util import run_experiment
 
 
@@ -52,9 +53,7 @@ def experiment(variant):
             if variant['multitask']:
                 raise NotImplementedError
             else:
-                cost_fn = env_name_or_class.cost_fn
-        # else:
-        #     raise NotImplementedError
+                cost_fn = env.cost_fn
 
     train_dagger(
         env=env,
@@ -92,12 +91,12 @@ if __name__ == '__main__':
     mode = "local"
     exp_prefix = "dev-abhishek-mb"
 
-    n_seeds = 3
+    n_seeds = 2
     mode = "ec2"
-    exp_prefix = "tdm-half-cheetah-xpos"
+    exp_prefix = "tdm-pusher3d"
 
     num_epochs = 100
-    num_steps_per_epoch = 10001
+    num_steps_per_epoch = 10000
     max_path_length = 50
 
     variant = dict(
@@ -133,9 +132,10 @@ if __name__ == '__main__':
             # Pusher2DEnv,
             # Reacher7Dof,
             # HalfCheetah,
-            GoalXPosHalfCheetah,
+            # GoalXPosHalfCheetah,
+            MultitaskPusher3DEnv,
         ],
-        'multitask': [True, False],
+        'multitask': [False],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -145,10 +145,9 @@ if __name__ == '__main__':
             seed = random.randint(0, 999999)
             run_experiment(
                 experiment,
+                mode=mode,
                 exp_prefix=exp_prefix,
                 seed=seed,
-                mode=mode,
                 variant=variant,
-                exp_id=0,
-                use_gpu=use_gpu,
+                exp_id=exp_id,
             )
