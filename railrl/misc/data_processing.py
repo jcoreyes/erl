@@ -92,8 +92,13 @@ class Experiment(object):
                 if matches_dict(criteria, trial.variant, ignore_missing_keys)]
 
 
-def create_stats_ordered_dict(name, data, stat_prefix=None,
-                              always_show_all_stats=False):
+def create_stats_ordered_dict(
+        name,
+        data,
+        stat_prefix=None,
+        always_show_all_stats=False,
+        exclude_max_min=False,
+):
     if stat_prefix is not None:
         name = "{} {}".format(stat_prefix, name)
     if isinstance(data, Number):
@@ -116,12 +121,14 @@ def create_stats_ordered_dict(name, data, stat_prefix=None,
             and not always_show_all_stats):
         return OrderedDict({name: float(data)})
 
-    return OrderedDict([
+    stats = OrderedDict([
         (name + ' Mean', np.mean(data)),
         (name + ' Std', np.std(data)),
-        (name + ' Max', np.max(data)),
-        (name + ' Min', np.min(data)),
     ])
+    if not exclude_max_min:
+        stats[name + ' Max'] = np.max(data)
+        stats[name + ' Min'] = np.min(data)
+    return stats
 
 
 def get_dirs(root):

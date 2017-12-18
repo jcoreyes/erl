@@ -1,7 +1,8 @@
 import random
 
 # from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
-from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
+from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
+    GoalXPosHalfCheetah
 from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
 from railrl.envs.multitask.reacher_7dof import (
     # Reacher7DofGoalStateEverything,
@@ -54,12 +55,12 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "tdm-half-cheetah"
+    exp_prefix = "tdm-half-cheetah-xpos"
 
-    num_epochs = 100
-    num_steps_per_epoch = 50000
-    num_steps_per_eval = 10000
-    max_path_length = 100
+    num_epochs = 1000
+    num_steps_per_epoch = 10000
+    num_steps_per_eval = 1000
+    max_path_length = 50
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -67,7 +68,7 @@ if __name__ == "__main__":
             batch_size=num_steps_per_epoch,
             max_path_length=max_path_length,
             n_itr=num_epochs,
-            discount=1.,
+            discount=.99,
             step_size=0.01,
         ),
         optimizer_params=dict(
@@ -82,12 +83,13 @@ if __name__ == "__main__":
     )
     search_space = {
         'env_class': [
-            GoalXVelHalfCheetah,
+            # GoalXVelHalfCheetah,
+            GoalXPosHalfCheetah,
             # Reacher7DofXyzGoalState,
         ],
-        'multitask': [False, True],
-        'optimizer_params.base_eps': [
-            1e-5, 1e-8
+        'multitask': [True, False],
+        'trpo_params.step_size': [
+            0.01, 0.1, 0.001
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

@@ -7,10 +7,10 @@ from gym.envs.mujoco import HalfCheetahEnv
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.samplers.util import get_stat_in_paths
+from rllab.core.serializable import Serializable
 from rllab.misc import logger
 
 MAX_SPEED = 6
-
 
 class GoalXVelHalfCheetah(HalfCheetahEnv, MultitaskEnv):
     def __init__(self):
@@ -159,3 +159,91 @@ class GoalXVelHalfCheetah(HalfCheetahEnv, MultitaskEnv):
             keepdim=True,
         )
         return - costs
+
+
+# At a score of 5000, the cheetah is moving at "5 meters per dt" but dt = 0.05s,
+# so it's really 100 m/s.
+# For a horizon of 50, that's 2.5 seconds.
+# So 5 m/s * 2.5s = 12.5 meters
+GOAL_X_POSITIONS = [12.5, -12.5]
+
+
+class GoalXPosHalfCheetah(HalfCheetahEnv, MultitaskEnv, Serializable):
+    def __init__(self, goal_x_positions=GOAL_X_POSITIONS):
+        Serializable.quick_init(self, locals())
+        MultitaskEnv.__init__(self)
+        super().__init__()
+        self.goal_x_positions = np.array(goal_x_positions)
+        self.set_goal(self.goal_x_positions[0])
+
+    def _get_obs(self):
+        return np.concatenate([
+            self.model.data.qpos.flat[1:],
+            self.model.data.qvel.flat,
+            self.get_body_com("torso").flat,
+        ])
+
+    def _step(self, action):
+        ob, reward, done, info_dict = super()._step(action)
+        xposafter = self.model.data.qpos[0, 0]
+        reward_ctrl = info_dict['reward_ctrl']
+        distance_to_goal = float(np.abs(xposafter - self.multitask_goal))
+        reward_run = -distance_to_goal
+        reward = float(reward_ctrl + reward_run)
+        return ob, reward, done, dict(
+            reward_run=reward_run,
+            reward_ctrl=reward_ctrl,
+            goal_position=self.multitask_goal,
+            distance_to_goal=distance_to_goal,
+            position=xposafter,
+        )
+
+    @property
+    def goal_dim(self) -> int:
+        return 1
+
+    def sample_goals(self, batch_size):
+        return np.random.choice(self.goal_x_positions, (batch_size, 1))
+
+    def convert_obs_to_goals(self, obs):
+        return obs[:, -3:-2]
+
+    def log_diagnostics(self, paths):
+        distances_to_goal = get_stat_in_paths(
+            paths, 'env_infos', 'distance_to_goal'
+        )
+        goal_positions = get_stat_in_paths(
+            paths, 'env_infos', 'goal_position'
+        )
+        positions = get_stat_in_paths(
+            paths, 'env_infos', 'position'
+        )
+        statistics = OrderedDict()
+        for stat, name in [
+            (distances_to_goal, 'Distances to goal'),
+            (goal_positions, 'Goal Position'),
+            (positions, 'Position'),
+            ([p[-1] for p in positions], 'Final Position'),
+        ]:
+            statistics.update(create_stats_ordered_dict(
+                '{}'.format(name),
+                stat,
+                always_show_all_stats=True,
+                exclude_max_min=True,
+            ))
+        for stat, name in [
+            (distances_to_goal, 'Distances to goal'),
+        ]:
+            statistics.update(create_stats_ordered_dict(
+                'Final {}'.format(name),
+                [s[-1] for s in stat],
+                always_show_all_stats=True,
+            ))
+        for key, value in statistics.items():
+            logger.record_tabular(key, value)
+
+    def __getstate__(self):
+        return Serializable.__getstate__(self)
+
+    def __setstate__(self, state):
+        return Serializable.__setstate__(self, state)
