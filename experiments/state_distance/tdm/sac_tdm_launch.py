@@ -61,7 +61,7 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-sac-tdm-launch"
 
-    n_seeds = 3
+    n_seeds = 1
     mode = "ec2"
     exp_prefix = "tdm-half-cheetah-xpos"
 
@@ -109,7 +109,7 @@ if __name__ == "__main__":
         policy_params=dict(
             hidden_sizes=[300, 300],
         ),
-        version="SAC-TDM-no-print",
+        version="SAC-TDM",
         algorithm="SAC-TDM",
     )
     search_space = {
@@ -123,6 +123,7 @@ if __name__ == "__main__":
             10,
             100,
             1000,
+            10000,
         ],
         'algo_params.tdm_kwargs.vectorized': [
             True,
@@ -132,7 +133,7 @@ if __name__ == "__main__":
             # 'environment',
         ],
         'algo_params.tdm_kwargs.max_tau': [
-            10,
+            5, 25, 49
         ],
         'algo_params.base_kwargs.num_updates_per_env_step': [
             1,
