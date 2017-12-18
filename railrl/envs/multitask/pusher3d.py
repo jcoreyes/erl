@@ -6,7 +6,7 @@ import numpy as np
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.samplers.util import get_stat_in_paths
-from rllab.misc import logger
+from rllab.misc import logger as rllab_logger
 
 
 class MultitaskPusher3DEnv(MujocoEnv, MultitaskEnv):
@@ -91,7 +91,7 @@ class MultitaskPusher3DEnv(MujocoEnv, MultitaskEnv):
     def goal_dim(self) -> int:
         return 2
 
-    def log_diagnostics(self, paths):
+    def log_diagnostics(self, paths, logger=rllab_logger):
         statistics = OrderedDict()
         for name_in_env_infos, name_to_log in [
             ('obj_to_arm_dist', 'Distance to arm'),
