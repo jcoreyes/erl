@@ -3,7 +3,8 @@ import random
 import numpy as np
 
 import railrl.torch.pytorch_util as ptu
-from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
+from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
+    GoalXPosHalfCheetah
 from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState,
@@ -61,10 +62,10 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "sac-walker"
+    exp_prefix = "tdm-half-cheetah-xpos"
 
     num_epochs = 100
-    num_steps_per_epoch = 50000
+    num_steps_per_epoch = 10000
     num_steps_per_eval = 1000
     max_path_length = 50
 
@@ -83,9 +84,6 @@ if __name__ == "__main__":
             qf_lr=3E-4,
             vf_lr=3E-4,
         ),
-        env_kwargs=dict(
-            max_distance=10,
-        ),
         net_size=300,
         version="SAC",
         algorithm="SAC",
@@ -94,7 +92,8 @@ if __name__ == "__main__":
         'env_class': {
             # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
-            Walker2DTargetXPos,
+            # Walker2DTargetXPos,
+            GoalXPosHalfCheetah,
         },
         'multitask': [False, True],
         'algo_params.reward_scale': [
@@ -105,9 +104,6 @@ if __name__ == "__main__":
         ],
         'algo_params.num_updates_per_env_step': [
             1,
-        ],
-        'env_kwargs.max_distance': [
-            1, 10, 100
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
