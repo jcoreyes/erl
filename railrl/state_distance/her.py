@@ -17,14 +17,16 @@ from railrl.torch.networks import Mlp
 class HER(DDPG):
     """
     Questions:
-    - Is episode over when the state is reached?
-    - Do you give time to the state?
-    - Do you mean that you use the target policy for eval?
+    - Is episode over when the state is reached? Not in their code.
+    - Do you give time to the state? Can't tell
+    - Do you mean that you use the target policy for eval? Yes
     - "we add the square of the their preactivations to the actor’s cost
         function" is there a weight?
+        The code actually penalized the policy actions and not the
+        preactivations (see line 261 of ddpg.py)
     - Does the replay buffer size (10^6) mean 10^6 unique states or
     "state + goal states" (since they save new goal states into the replay
-    buffer)?
+    buffer)? state + goal states
 
     Known differences:
      - Mujoco skip_frame and dt are different
