@@ -206,7 +206,7 @@ class GoalXPosHalfCheetah(HalfCheetahEnv, MultitaskEnv, Serializable):
         return np.random.choice(self.goal_x_positions, (batch_size, 1))
 
     def convert_obs_to_goals(self, obs):
-        return obs[:, -3:-2]
+        return obs[:, 17:18]
 
     def log_diagnostics(self, paths):
         distances_to_goal = get_stat_in_paths(
