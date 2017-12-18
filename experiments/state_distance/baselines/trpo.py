@@ -4,6 +4,7 @@ import random
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
     GoalXPosHalfCheetah
 from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
+from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
 from railrl.envs.multitask.reacher_7dof import (
     # Reacher7DofGoalStateEverything,
     Reacher7DofXyzGoalState,
@@ -55,7 +56,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "tdm-half-cheetah-xpos"
+    exp_prefix = "tdm-pusher3d"
 
     num_epochs = 1000
     num_steps_per_epoch = 10000
@@ -84,12 +85,13 @@ if __name__ == "__main__":
     search_space = {
         'env_class': [
             # GoalXVelHalfCheetah,
-            GoalXPosHalfCheetah,
+            # GoalXPosHalfCheetah,
             # Reacher7DofXyzGoalState,
+            MultitaskPusher3DEnv
         ],
-        'multitask': [True, False],
+        'multitask': [False, True],
         'trpo_params.step_size': [
-            0.01, 0.1, 0.001
+            10, 1, 0.1, 0.01, 0.001,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

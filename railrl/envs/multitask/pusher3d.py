@@ -1,7 +1,12 @@
+from collections import OrderedDict
+
 from railrl.envs.mujoco.mujoco_env import MujocoEnv
 import numpy as np
 
 from railrl.envs.multitask.multitask_env import MultitaskEnv
+from railrl.misc.data_processing import create_stats_ordered_dict
+from railrl.samplers.util import get_stat_in_paths
+from rllab.misc import logger
 
 
 class MultitaskPusher3DEnv(MujocoEnv, MultitaskEnv):
@@ -28,9 +33,9 @@ class MultitaskPusher3DEnv(MujocoEnv, MultitaskEnv):
         obj_to_goal = obj_to_goal[:2]
         obj_to_arm_dist = np.linalg.norm(obj_to_arm)
         obj_to_goal_dist = np.linalg.norm(obj_to_goal)
-        control_dist = np.linalg.norm(a)
+        control_magnitude = np.linalg.norm(a)
 
-        forward_reward_vec = [obj_to_goal_dist, obj_to_arm_dist, control_dist]
+        forward_reward_vec = [obj_to_goal_dist, obj_to_arm_dist, control_magnitude]
         reward_coefs = (0.5, 0.375, 0.125)
         reward = -sum(
             [coef * r for (coef, r) in zip(reward_coefs, forward_reward_vec)]
@@ -43,7 +48,7 @@ class MultitaskPusher3DEnv(MujocoEnv, MultitaskEnv):
         return ob, reward, done, dict(
             obj_to_arm_dist=obj_to_arm_dist,
             obj_to_goal_dist=obj_to_goal_dist,
-            control_dist=control_dist,
+            control_magnitude=control_magnitude,
         )
 
     def _get_obs(self):
@@ -85,3 +90,31 @@ class MultitaskPusher3DEnv(MujocoEnv, MultitaskEnv):
     @property
     def goal_dim(self) -> int:
         return 2
+
+    def log_diagnostics(self, paths):
+        statistics = OrderedDict()
+        for name_in_env_infos, name_to_log in [
+            ('obj_to_arm_dist', 'Distance to arm'),
+            ('obj_to_goal_dist', 'Distance to goal'),
+            ('control_magnitude', 'Control Magnitude'),
+        ]:
+            stat = get_stat_in_paths(paths, 'env_infos', name_in_env_infos)
+            statistics.update(create_stats_ordered_dict(
+                name_to_log,
+                stat,
+                always_show_all_stats=True,
+                exclude_max_min=True,
+            ))
+        for name_in_env_infos, name_to_log in [
+            ('obj_to_arm_dist', 'Distance to arm'),
+            ('obj_to_goal_dist', 'Distance to goal'),
+        ]:
+            stat = get_stat_in_paths(paths, 'env_infos', name_in_env_infos)
+            statistics.update(create_stats_ordered_dict(
+                'Final {}'.format(name_to_log),
+                [s[-1] for s in stat],
+                always_show_all_stats=True,
+                exclude_max_min=True,
+            ))
+        for key, value in statistics.items():
+            logger.record_tabular(key, value)
