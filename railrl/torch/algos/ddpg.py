@@ -11,7 +11,6 @@ from railrl.misc.ml_util import (
     StatConditionalSchedule,
     ConstantSchedule,
 )
-from railrl.torch import eval_util
 from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
 from rllab.misc import logger
 from torch import nn as nn
@@ -38,6 +37,7 @@ class DDPG(TorchRLAlgorithm):
             qf_criterion=None,
             residual_gradient_weight=0,
             epoch_discount_schedule=None,
+            eval_with_target_policy=False,
 
             plotter=None,
             render_eval_paths=False,
@@ -65,10 +65,15 @@ class DDPG(TorchRLAlgorithm):
         that varies with the epoch.
         :param kwargs:
         """
+        self.target_policy = policy.copy()
+        if eval_with_target_policy:
+            eval_policy = self.target_policy
+        else:
+            eval_policy = policy
         super().__init__(
             env,
             exploration_policy,
-            eval_policy=policy,
+            eval_policy=eval_policy,
             **kwargs
         )
         if qf_criterion is None:
@@ -90,7 +95,6 @@ class DDPG(TorchRLAlgorithm):
         self.render_eval_paths = render_eval_paths
 
         self.target_qf = self.qf.copy()
-        self.target_policy = self.policy.copy()
         self.qf_optimizer = optim.Adam(
             self.qf.parameters(),
             lr=self.qf_learning_rate,
@@ -245,6 +249,7 @@ class DDPG(TorchRLAlgorithm):
             epoch=epoch,
             qf=self.qf,
             policy=self.policy,
+            target_policy=self.target_policy,
             exploration_policy=self.exploration_policy,
             batch_size=self.batch_size,
         )

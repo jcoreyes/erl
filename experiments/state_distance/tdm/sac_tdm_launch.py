@@ -8,6 +8,7 @@ from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
     GoalXPosHalfCheetah
 from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
+from railrl.envs.multitask.walker2d_env import Walker2DTargetXPos
 from railrl.envs.multitask.reacher_7dof import (
     # Reacher7DofGoalStateEverything,
     Reacher7DofXyzGoalState,
@@ -62,9 +63,9 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-sac-tdm-launch"
 
-    n_seeds = 1
+    n_seeds = 2
     mode = "ec2"
-    exp_prefix = "tdm-pusher3d"
+    exp_prefix = "tdm-sweep-many-things-walker-pusher-cheetah"
 
     num_epochs = 100
     num_steps_per_epoch = 10000
@@ -117,7 +118,8 @@ if __name__ == "__main__":
         'env_class': [
             # GoalXVelHalfCheetah,
             # Reacher7DofXyzGoalState,
-            # GoalXPosHalfCheetah,
+            GoalXPosHalfCheetah,
+            Walker2DTargetXPos,
             MultitaskPusher3DEnv,
         ],
         'sac_tdm_kwargs.base_kwargs.reward_scale': [
@@ -130,12 +132,16 @@ if __name__ == "__main__":
         'sac_tdm_kwargs.tdm_kwargs.vectorized': [
             True,
         ],
+        'sac_tdm_kwargs.sac_kwargs.soft_target_tau': [
+            0.01,
+            0.001,
+        ],
         'sac_tdm_kwargs.tdm_kwargs.sample_rollout_goals_from': [
-            'fixed',
+            # 'fixed',
             'environment',
         ],
         'sac_tdm_kwargs.tdm_kwargs.max_tau': [
-            5, 25, 49
+            10, 25,
         ],
         'sac_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
             1,

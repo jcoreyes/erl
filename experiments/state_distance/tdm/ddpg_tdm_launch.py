@@ -1,6 +1,7 @@
 import random
 
 import numpy as np
+import torch.nn as nn
 
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
@@ -9,6 +10,7 @@ from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
     GoalXPosHalfCheetah
 from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
+from railrl.envs.multitask.walker2d_env import Walker2DTargetXPos
 from railrl.envs.multitask.reacher_7dof import (
     # Reacher7DofGoalStateEverything,
     Reacher7DofXyzGoalState,
@@ -80,11 +82,11 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = "ec2"
-    exp_prefix = "tdm-pusher3d"
+    exp_prefix = "tdm-sweep-many-things-walker-pusher-cheetah"
 
     num_epochs = 100
     num_steps_per_epoch = 10000
-    num_steps_per_eval = 1000
+    num_steps_per_eval = 100
     max_path_length = 50
 
     # noinspection PyTypeChecker
@@ -136,24 +138,34 @@ if __name__ == "__main__":
         'env_class': [
             # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
-            # GoalXPosHalfCheetah,
+            GoalXPosHalfCheetah,
+            Walker2DTargetXPos,
             MultitaskPusher3DEnv,
         ],
+        'qf_criterion_class': [
+            nn.MSELoss,
+            HuberLoss,
+        ],
         'ddpg_tdm_kwargs.tdm_kwargs.sample_rollout_goals_from': [
-            'fixed',
+            # 'fixed',
             'environment',
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.max_tau': [
-            5, 25, 49
+            10, 25
         ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
-            .1, 1, 10, 100, 1000
+            .01, 1, 100,
         ],
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
             1,
         ],
         'ddpg_tdm_kwargs.ddpg_kwargs.tau': [
             0.001,
+            0.01,
+        ],
+        'ddpg_tdm_kwargs.ddpg_kwargs.eval_with_target_policy': [
+            True,
+            False,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
