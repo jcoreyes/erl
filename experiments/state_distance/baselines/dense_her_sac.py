@@ -63,9 +63,9 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-sac-tdm-launch"
 
-    # n_seeds = 2
-    # mode = "ec2"
-    # exp_prefix = "tdm-dense-cheetah"
+    n_seeds = 2
+    mode = "ec2"
+    exp_prefix = "tdm-dense-cheetah"
 
     num_epochs = 100
     num_steps_per_epoch = 10000
@@ -82,7 +82,7 @@ if __name__ == "__main__":
                 max_path_length=max_path_length,
                 num_updates_per_env_step=25,
                 batch_size=128,
-                discount=1,
+                discount=0.98,
             ),
             tdm_kwargs=dict(
                 sample_rollout_goals_from='environment',
@@ -90,6 +90,7 @@ if __name__ == "__main__":
                 vectorized=True,
                 cycle_taus_for_rollout=True,
                 max_tau=10,
+                dense_rewards=True,
             ),
             sac_kwargs=dict(
                 soft_target_tau=0.01,
@@ -111,8 +112,8 @@ if __name__ == "__main__":
         policy_params=dict(
             hidden_sizes=[300, 300],
         ),
-        version="SAC-TDM",
-        algorithm="SAC-TDM",
+        version="SAC-HER-Dense",
+        algorithm="SAC-HER-Dense",
     )
     search_space = {
         'env_class': [
@@ -131,6 +132,12 @@ if __name__ == "__main__":
         ],
         'sac_tdm_kwargs.tdm_kwargs.vectorized': [
             True,
+        ],
+        'sac_tdm_kwargs.tdm_kwargs.dense_rewards': [
+            True,
+        ],
+        'sac_tdm_kwargs.base_kwargs.discount': [
+            0.98, 0.95
         ],
         'sac_tdm_kwargs.sac_kwargs.soft_target_tau': [
             0.01,
@@ -153,9 +160,9 @@ if __name__ == "__main__":
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):
             variant['multitask'] = (
-                variant['sac_tdm_kwargs']['tdm_kwargs'][
-                    'sample_rollout_goals_from'
-                ] != 'fixed'
+                    variant['sac_tdm_kwargs']['tdm_kwargs'][
+                        'sample_rollout_goals_from'
+                    ] != 'fixed'
             )
             seed = random.randint(0, 10000)
             run_experiment(
