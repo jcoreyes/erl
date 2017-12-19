@@ -248,7 +248,8 @@ class DDPG(TorchRLAlgorithm):
         data_to_save = dict(
             epoch=epoch,
             qf=self.qf,
-            policy=self.policy,
+            policy=self.eval_policy,
+            trained_policy=self.policy,
             target_policy=self.target_policy,
             exploration_policy=self.exploration_policy,
             batch_size=self.batch_size,

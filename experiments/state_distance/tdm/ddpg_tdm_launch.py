@@ -82,7 +82,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = "ec2"
-    exp_prefix = "tdm-sweep-many-things-walker-pusher-cheetah"
+    exp_prefix = "tdm-dense-cheetah"
 
     num_epochs = 100
     num_steps_per_epoch = 10000
@@ -137,24 +137,30 @@ if __name__ == "__main__":
     search_space = {
         'env_class': [
             # Reacher7DofXyzGoalState,
-            # GoalXVelHalfCheetah,
-            GoalXPosHalfCheetah,
-            Walker2DTargetXPos,
-            MultitaskPusher3DEnv,
+            GoalXVelHalfCheetah,
+            # GoalXPosHalfCheetah,
+            # Walker2DTargetXPos,
+            # MultitaskPusher3DEnv,
         ],
         'qf_criterion_class': [
             nn.MSELoss,
-            HuberLoss,
+            # HuberLoss,
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.sample_rollout_goals_from': [
             # 'fixed',
             'environment',
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.max_tau': [
-            10, 25
+            0
+        ],
+        'ddpg_tdm_kwargs.tdm_kwargs.dense_rewards': [
+            True,
         ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
-            .01, 1, 100,
+            0.1, 1, 10, 100, 1000
+        ],
+        'ddpg_tdm_kwargs.base_kwargs.discount': [
+            0.98, 0.95
         ],
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
             1,
@@ -164,7 +170,7 @@ if __name__ == "__main__":
             0.01,
         ],
         'ddpg_tdm_kwargs.ddpg_kwargs.eval_with_target_policy': [
-            True,
+            # True,
             False,
         ],
     }

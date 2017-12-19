@@ -102,7 +102,7 @@ class GoalXVelHalfCheetah(HalfCheetahEnv, MultitaskEnv):
         #
         # return np.random.uniform(lows, highs, batch_size)
 
-    def log_diagnostics(self, paths):
+    def log_diagnostics(self, paths, logger=rllab_logger):
         super().log_diagnostics(paths)
         MultitaskEnv.log_diagnostics(self, paths)
         xvels = get_stat_in_paths(

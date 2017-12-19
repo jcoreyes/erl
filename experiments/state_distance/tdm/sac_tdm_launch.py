@@ -65,7 +65,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = "ec2"
-    exp_prefix = "tdm-sweep-many-things-walker-pusher-cheetah"
+    exp_prefix = "tdm-dense-cheetah"
 
     num_epochs = 100
     num_steps_per_epoch = 10000
@@ -116,11 +116,11 @@ if __name__ == "__main__":
     )
     search_space = {
         'env_class': [
-            # GoalXVelHalfCheetah,
+            GoalXVelHalfCheetah,
             # Reacher7DofXyzGoalState,
-            GoalXPosHalfCheetah,
-            Walker2DTargetXPos,
-            MultitaskPusher3DEnv,
+            # GoalXPosHalfCheetah,
+            # Walker2DTargetXPos,
+            # MultitaskPusher3DEnv,
         ],
         'sac_tdm_kwargs.base_kwargs.reward_scale': [
             1,
@@ -132,6 +132,12 @@ if __name__ == "__main__":
         'sac_tdm_kwargs.tdm_kwargs.vectorized': [
             True,
         ],
+        'sac_tdm_kwargs.tdm_kwargs.dense_rewards': [
+            True,
+        ],
+        'sac_tdm_kwargs.base_kwargs.discount': [
+            0.98, 0.95
+        ],
         'sac_tdm_kwargs.sac_kwargs.soft_target_tau': [
             0.01,
             0.001,
@@ -141,7 +147,7 @@ if __name__ == "__main__":
             'environment',
         ],
         'sac_tdm_kwargs.tdm_kwargs.max_tau': [
-            10, 25,
+            0,
         ],
         'sac_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
             1,
