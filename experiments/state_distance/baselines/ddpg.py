@@ -61,7 +61,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = "ec2"
-    exp_prefix = "tdm-pusher3d"
+    exp_prefix = "tdm-dense-cheetah"
 
     num_epochs = 100
     num_steps_per_epoch = 10000
@@ -106,9 +106,9 @@ if __name__ == "__main__":
     search_space = {
         'env_class': [
             # Reacher7DofXyzGoalState,
-            # GoalXVelHalfCheetah,
+            GoalXVelHalfCheetah,
             # GoalXPosHalfCheetah,
-            MultitaskPusher3DEnv,
+            # MultitaskPusher3DEnv,
         ],
         'multitask': [True, False],
         'algo_params.reward_scale': [

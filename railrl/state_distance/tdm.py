@@ -129,8 +129,6 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             num_steps_left = np.random.randint(
                 0, self.max_tau + 1, (self.batch_size, 1)
             )
-        terminals = 1 - (1 - batch['terminals']) * (num_steps_left != 0)
-        batch['terminals'] = terminals
 
         obs = batch['observations']
         actions = batch['actions']
@@ -148,7 +146,9 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         if self.dense_rewards:
             batch['rewards'] = rewards
         else:
+            terminals = 1 - (1 - batch['terminals']) * (num_steps_left != 0)
             batch['rewards'] = rewards * terminals
+            batch['terminals'] = terminals
 
         """
         Update the observations
