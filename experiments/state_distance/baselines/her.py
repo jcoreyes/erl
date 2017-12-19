@@ -93,10 +93,10 @@ if __name__ == '__main__':
 
     n_seeds = 2
     mode = "ec2"
-    exp_prefix = "her-reacher-sweep-normalize"
+    exp_prefix = "her-reacher-sweep-layernorm"
 
     max_path_length = 50
-    num_epochs = 100
+    num_epochs = 200
     num_steps_per_epoch = 16 * max_path_length
     num_steps_per_eval = 16 * max_path_length
 
@@ -122,13 +122,23 @@ if __name__ == '__main__':
         ),
         qf_class=HerQFunction,
         qf_params=dict(
-            hidden_sizes=[64, 64, 64],
+            hidden_sizes=[300, 300],
             hidden_activation=F.relu,
+            layer_norm=True,
+            layer_norm_kwargs=dict(
+                scale=True,
+                center=True,
+            ),
         ),
         policy_class=HerPolicy,
         policy_params=dict(
-            hidden_sizes=[64, 64, 64],
+            hidden_sizes=[300, 300],
             hidden_activation=F.relu,
+            layer_norm=True,
+            layer_norm_kwargs=dict(
+                scale=True,
+                center=True,
+            ),
         ),
         replay_buffer_params=dict(
             max_size=int(1e6),
@@ -166,10 +176,10 @@ if __name__ == '__main__':
             # GoalXVelHalfCheetah,
         ],
         'algo_params.terminate_when_goal_reached': [
-            True, False,
+            True,
         ],
         'algo_params.num_updates_per_epoch': [
-            40, 400,
+            400,
         ],
         'normalizer_class': [
             IdentityNormalizer,
@@ -183,7 +193,7 @@ if __name__ == '__main__':
             128,
         ],
         'algo_params.reward_scale': [
-            100, 10, 1,
+            1,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

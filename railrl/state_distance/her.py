@@ -262,7 +262,10 @@ class HerQFunction(Mlp):
         goal_deltas = self.env.convert_obs_to_goals(obs) - goals
         h = torch.cat((obs, action, goal_deltas), dim=1)
         for i, fc in enumerate(self.fcs):
-            h = self.hidden_activation(fc(h))
+            h = fc(h)
+            if self.layer_norm and i < len(self.fcs) - 1:
+                h = self.layer_norms[i](h)
+            h = self.hidden_activation(h)
         return self.output_activation(self.last_fc(h))
 
 
@@ -296,7 +299,10 @@ class HerPolicy(Mlp, UniversalPolicy):
         goal_deltas = self.env.convert_obs_to_goals(obs) - goals
         h = torch.cat((obs, goal_deltas), dim=1)
         for i, fc in enumerate(self.fcs):
-            h = self.hidden_activation(fc(h))
+            h = fc(h)
+            if self.layer_norm and i < len(self.fcs) - 1:
+                h = self.layer_norms[i](h)
+            h = self.hidden_activation(h)
         if return_preactivations:
             preactivations = self.last_fc(h)
             return F.tanh(preactivations), preactivations
