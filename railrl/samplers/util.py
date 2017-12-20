@@ -114,10 +114,7 @@ def get_stat_in_paths(paths, dict_name, scalar_name):
 
     if type(paths[0][dict_name]) == dict:
         # Support rllab interface
-        return np.vstack([
-            path[dict_name][scalar_name]
-            for path in paths
-        ])
+        return [path[dict_name][scalar_name] for path in paths]
 
     return [
         [info[scalar_name] for info in path[dict_name]]
