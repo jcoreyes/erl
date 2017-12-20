@@ -1,6 +1,8 @@
 import torch
+import railrl.torch.pytorch_util as ptu
+from railrl.state_distance.util import split_tau
 from railrl.torch.networks import Mlp
-
+import numpy as np
 
 class StructuredQF(Mlp):
     """
@@ -73,18 +75,74 @@ class OneHotTauQF(Mlp):
         h = torch.cat((obs, action), dim=1)
 
         batch_size = h.size()[0]
-        y_onehot = ptu.FloatTensor(batch_size, self.max_tau + 1)
-        y_onehot.zero_()
+        y_binary = ptu.FloatTensor(batch_size, self.max_tau + 1)
+        y_binary.zero_()
         t = taus.data.long()
         t = torch.clamp(t, min=0)
-        y_onehot.scatter_(1, t, 1)
+        y_binary.scatter_(1, t, 1)
 
         h = torch.cat((
             obs,
-            ptu.Variable(y_onehot),
+            ptu.Variable(y_binary),
             action
         ), dim=1)
 
         for i, fc in enumerate(self.fcs):
             h = self.hidden_activation(fc(h))
         return - torch.abs(self.last_fc(h))
+
+class BinaryStringTauQF(Mlp):
+    """
+    Parameterize QF as
+
+    Q(s, a, s_g, tau) = - |f(s, a, s_g, tau)|
+
+    element-wise, and represent tau as a binary string vector.
+
+    WARNING: this is only valid for when the reward is the negative abs value
+    along each dimension.
+    """
+    def __init__(
+            self,
+            observation_dim,
+            action_dim,
+            goal_dim,
+            output_size,
+            max_tau,
+            hidden_sizes,
+            **kwargs
+    ):
+        self.save_init_params(locals())
+        self.max_tau = np.unpackbits(np.array(max_tau, dtype=np.uint8))
+        super().__init__(
+            hidden_sizes=hidden_sizes,
+            input_size=observation_dim + action_dim + goal_dim + len(self.max_tau),
+            output_size=output_size,
+            **kwargs
+        )
+
+    def forward(self, flat_obs, action):
+        obs, taus = split_tau(flat_obs)
+        h = torch.cat((obs, action), dim=1)
+
+        batch_size = h.size()[0]
+        y_binary = make_binary_tensor(taus, len(self.max_tau), batch_size)
+
+        h = torch.cat((
+            obs,
+            ptu.Variable(y_binary),
+            action
+        ), dim=1)
+
+        for i, fc in enumerate(self.fcs):
+            h = self.hidden_activation(fc(h))
+        return - torch.abs(self.last_fc(h))
+
+def make_binary_tensor(tensor, max_len, batch_size):
+    binary = ptu.FloatTensor(batch_size, max_len)
+    for i in range(batch_size):
+        bin = np.unpackbits(np.array(tensor[i], dtype=np.uint8))
+        bin = np.hstack((np.zeros(max_len - len(bin)), bin))
+        bin = torch.from_numpy(bin)
+        binary[i:] = bin
+    return binary
