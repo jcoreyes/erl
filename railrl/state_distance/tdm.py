@@ -27,6 +27,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             cycle_taus_for_rollout=False,
             dense_rewards=False,
             finite_horizon=True,
+            tau_sample_strategy='uniform',
     ):
         """
 
@@ -36,8 +37,9 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         :param sample_train_goals_from: Sampling strategy for goals used in
         training. Can be one of the following strings:
             - environment: Sample from the environment
-            - replay_buffer: Sample from the replay_buffer
+            - replay_buffer: Sample from anywhere in the replay_buffer
             - her: Sample from a HER-based replay_buffer
+            - no_resampling: Use the goals used in the rollout
         :param sample_rollout_goals_from: Sampling strategy for goals used
         during rollout. Can be one of the following strings:
             - environment: Sample from the environment
@@ -50,12 +52,18 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         :param dense_rewards: If True, always give rewards. Otherwise,
         only give rewards when the episode terminates.
         :param finite_horizon: If True, use a finite horizon formulation:
-        give the time as input to the Q-function and terminate
+        give the time as input to the Q-function and terminate.
+        :param tau_sample_strategy: Sampling strategy for taus used
+        during training. Can be one of the following strings:
+            - no_resampling: Do not resample the tau. Use the one from rollout.
+            - uniform: Sample from [0, max_tau]
+            - all_valid: Always use all 0 to max_tau values
         """
         assert sample_train_goals_from in ['environment', 'replay_buffer',
-                                           'her']
+                                           'her', 'no_resampling']
         assert sample_rollout_goals_from in ['environment', 'replay_buffer',
                                              'fixed']
+        assert tau_sample_strategy in ['no_resampling', 'uniform', 'all_valid']
         if epoch_max_tau_schedule is None:
             epoch_max_tau_schedule = ConstantSchedule(max_tau)
 
@@ -67,6 +75,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         self.cycle_taus_for_rollout = cycle_taus_for_rollout
         self.dense_rewards = dense_rewards
         self.finite_horizon = finite_horizon
+        self.tau_sample_strategy = tau_sample_strategy
         self._current_path_goal = None
         self._rollout_tau = self.max_tau
 
@@ -121,26 +130,13 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         """
         Update the goal states/rewards
         """
-        if self.finite_horizon:
-            num_steps_left = np.random.randint(
-                0, self.max_tau + 1, (self.batch_size, 1)
-            )
-        else:
-            num_steps_left = np.zeros((self.batch_size, 1))
-
+        num_steps_left = self._sample_taus_for_training(batch)
         obs = batch['observations']
         actions = batch['actions']
         next_obs = batch['next_observations']
-        if self.sample_train_goals_from == 'her':
-            goals = batch['goals']
-        else:
-            goals = self._sample_goals_for_training()
-        rewards = self.compute_rewards_np(
-            obs,
-            actions,
-            next_obs,
-            goals,
-        )
+        goals = self._sample_goals_for_training(batch)
+        rewards = self.compute_rewards_np(obs, actions, next_obs, goals)
+
         if self.finite_horizon:
             terminals = 1 - (1 - batch['terminals']) * (num_steps_left != 0)
             batch['terminals'] = terminals
@@ -155,19 +151,19 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         """
         batch['observations'] = merge_into_flat_obs(
             obs=batch['observations'],
-            goals=batch['goals'],
+            goals=goals,
             num_steps_left=num_steps_left,
         )
         if self.finite_horizon:
             batch['next_observations'] = merge_into_flat_obs(
                 obs=batch['next_observations'],
-                goals=batch['goals'],
+                goals=goals,
                 num_steps_left=num_steps_left-1,
             )
         else:
             batch['next_observations'] = merge_into_flat_obs(
                 obs=batch['next_observations'],
-                goals=batch['goals'],
+                goals=goals,
                 num_steps_left=num_steps_left,
             )
 
@@ -192,17 +188,37 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         else:
             return self.replay_buffer
 
-    def _sample_goals_for_training(self):
-        if self.sample_train_goals_from == 'environment':
+    def _sample_taus_for_training(self, batch):
+        if self.finite_horizon:
+            if self.tau_sample_strategy == 'uniform':
+                num_steps_left = np.random.randint(
+                    0, self.max_tau + 1, (self.batch_size, 1)
+                )
+            elif self.tau_sample_strategy == 'no_resampling':
+                num_steps_left = batch['num_steps_left']
+            elif self.tau_sample_strategy == 'all':
+                raise NotImplementedError()
+            else:
+                raise TypeError("Invalid tau_sample_strategy: {}".format(
+                    self.tau_sample_strategy
+                ))
+        else:
+            num_steps_left = np.zeros((self.batch_size, 1))
+        return num_steps_left
+
+    def _sample_goals_for_training(self, batch):
+        if self.sample_train_goals_from == 'her':
+            return batch['resampled_goals']
+        elif self.sample_train_goals_from == 'no_resampling':
+            return batch['goals_used_for_rollout']
+        elif self.sample_train_goals_from == 'environment':
             return self.env.sample_goals(self.batch_size)
         elif self.sample_train_goals_from == 'replay_buffer':
             batch = self.train_buffer.random_batch(self.batch_size)
             obs = batch['observations']
             return self.env.convert_obs_to_goals(obs)
-        elif self.sample_train_goals_from == 'her':
-            raise Exception("Take samples from replay buffer.")
         else:
-            raise Exception("Invalid `sample_goals_from`: {}".format(
+            raise Exception("Invalid `sample_train_goals_from`: {}".format(
                 self.sample_train_goals_from
             ))
 
@@ -254,6 +270,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             terminals=terminal,
             agent_infos=agent_info,
             env_infos=env_info,
+            num_steps_left=np.array([self._rollout_tau]),
             goals=self._current_path_goal,
         )
         if self.cycle_taus_for_rollout:

@@ -128,7 +128,7 @@ def rollout_decrement_tau(env, agent, init_tau, max_path_length=np.inf,
         actions.append(a)
         agent_infos.append(agent_info)
         env_infos.append(env_info)
-        taus.append(tau)
+        taus.append(np.array([tau]))
         path_length += 1
         tau -= 1
         if tau < 0:
@@ -166,5 +166,5 @@ def rollout_decrement_tau(env, agent, init_tau, max_path_length=np.inf,
         agent_infos=np.array(agent_infos),
         env_infos=np.array(env_infos),
         # final_observation=next_o,
-        taus=np.array(taus),
+        num_steps_left=np.array(taus),
     )

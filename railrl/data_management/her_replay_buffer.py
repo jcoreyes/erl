@@ -29,6 +29,7 @@ class HerReplayBuffer(EnvReplayBuffer):
         super().__init__(max_size, env)
         self.num_goals_to_sample = num_goals_to_sample
         self._goals = np.zeros((max_size, self._env.goal_dim))
+        self._num_steps_left = np.zeros((max_size, 1))
         if fraction_goals_are_rollout_goals is None:
             fraction_goals_are_rollout_goals = (
                 1. / num_goals_to_sample
@@ -52,6 +53,7 @@ class HerReplayBuffer(EnvReplayBuffer):
         next_obs = path["next_observations"]
         terminals = path["terminals"]
         goals = path["goals"]
+        num_steps_left = path["num_steps_left"]
         path_len = len(rewards)
 
         actions = self._action_space.flatten_n(actions)
@@ -79,6 +81,7 @@ class HerReplayBuffer(EnvReplayBuffer):
                 self._next_obs[buffer_slice] = next_obs[path_slice]
                 self._terminals[buffer_slice] = terminals[path_slice]
                 self._goals[buffer_slice] = goals[path_slice]
+                self._num_steps_left[buffer_slice] = num_steps_left[path_slice]
             # Pointers from before the wrap
             for i in range(self._top, self._max_replay_buffer_size):
                 self._idx_to_future_obs_idx[i] = np.hstack((
@@ -101,6 +104,7 @@ class HerReplayBuffer(EnvReplayBuffer):
             self._next_obs[slc] = next_obs
             self._terminals[slc] = terminals
             self._goals[slc] = goals
+            self._num_steps_left[slc] = num_steps_left
             for i in range(self._top, self._top + path_len):
                 self._idx_to_future_obs_idx[i] = np.arange(
                     i, self._top + path_len
@@ -119,12 +123,14 @@ class HerReplayBuffer(EnvReplayBuffer):
                 possible_next_obs[np.random.randint(0, len(possible_next_obs))]
             )
         next_obs_idxs = np.array(next_obs_idxs)
-        goals = self._env.convert_obs_to_goals(self._next_obs[next_obs_idxs])
+        resampled_goals = self._env.convert_obs_to_goals(
+            self._next_obs[next_obs_idxs]
+        )
         num_goals_are_from_rollout = int(
             batch_size * self.fraction_goals_are_rollout_goals
         )
         if num_goals_are_from_rollout > 0:
-            goals[:num_goals_are_from_rollout] = self._goals[
+            resampled_goals[:num_goals_are_from_rollout] = self._goals[
                 indices[:num_goals_are_from_rollout]
             ]
         return dict(
@@ -133,7 +139,9 @@ class HerReplayBuffer(EnvReplayBuffer):
             rewards=self._rewards[indices],
             terminals=self._terminals[indices],
             next_observations=self._next_obs[indices],
-            goals=goals,
+            goals_used_for_rollout=self._goals[indices],
+            resampled_goals=resampled_goals,
+            num_steps_left=self._num_steps_left[indices],
         )
 
     def random_batch_for_sl(self, batch_size, max_tau):
