@@ -117,8 +117,13 @@ def create_stats_ordered_dict(
             ordered_dict.update(sub_dict)
         return ordered_dict
 
-    if isinstance(data, list) and isinstance(data[0], np.ndarray):
-        data = np.concatenate(data)
+    if isinstance(data, list):
+        try:
+            iter(data[0])
+        except TypeError:
+            pass
+        else:
+            data = np.concatenate(data)
 
     if (isinstance(data, np.ndarray) and data.size == 1
             and not always_show_all_stats):
