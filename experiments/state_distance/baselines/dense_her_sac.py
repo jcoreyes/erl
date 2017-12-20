@@ -65,9 +65,9 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = "ec2"
-    exp_prefix = "tdm-dense-cheetah"
+    exp_prefix = "tdm-dense-cheetah-xpos"
 
-    num_epochs = 100
+    num_epochs = 200
     num_steps_per_epoch = 10000
     num_steps_per_eval = 1000
     max_path_length = 50
@@ -117,9 +117,9 @@ if __name__ == "__main__":
     )
     search_space = {
         'env_class': [
-            GoalXVelHalfCheetah,
+            # GoalXVelHalfCheetah,
             # Reacher7DofXyzGoalState,
-            # GoalXPosHalfCheetah,
+            GoalXPosHalfCheetah,
             # Walker2DTargetXPos,
             # MultitaskPusher3DEnv,
         ],
