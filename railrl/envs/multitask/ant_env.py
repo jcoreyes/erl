@@ -117,6 +117,13 @@ class GoalXYPosAnt(LowGearAntEnv, MultitaskEnv, Serializable):
             (batch_size, 2),
         )
 
+    def set_goal(self, goal):
+        super().set_goal(goal)
+        site_pos = self.model.site_pos.copy()
+        site_pos[0, 0:2] = goal
+        site_pos[0, 2] = 0.5
+        self.model.site_pos = site_pos
+
     def convert_obs_to_goals(self, obs):
         return obs[:, 27:29]
 
