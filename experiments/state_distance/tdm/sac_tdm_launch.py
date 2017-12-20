@@ -63,9 +63,9 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-sac-tdm-launch"
 
-    # n_seeds = 2
-    # mode = "ec2"
-    # exp_prefix = "tdm-dense-cheetah"
+    n_seeds = 2
+    mode = "ec2"
+    exp_prefix = "tdm-cheetah-xpos-sweep-dense-finite"
 
     num_epochs = 100
     num_steps_per_epoch = 10000
@@ -116,9 +116,9 @@ if __name__ == "__main__":
     )
     search_space = {
         'env_class': [
-            GoalXVelHalfCheetah,
+            # GoalXVelHalfCheetah,
             # Reacher7DofXyzGoalState,
-            # GoalXPosHalfCheetah,
+            GoalXPosHalfCheetah,
             # Walker2DTargetXPos,
             # MultitaskPusher3DEnv,
         ],
@@ -132,19 +132,28 @@ if __name__ == "__main__":
         'sac_tdm_kwargs.tdm_kwargs.vectorized': [
             True,
         ],
-        'sac_tdm_kwargs.sac_kwargs.soft_target_tau': [
-            0.01,
-            0.001,
-        ],
+        # 'sac_tdm_kwargs.sac_kwargs.soft_target_tau': [
+        #     0.01,
+        #     0.001,
+        # ],
         'sac_tdm_kwargs.tdm_kwargs.sample_rollout_goals_from': [
             # 'fixed',
             'environment',
         ],
+        'sac_tdm_kwargs.tdm_kwargs.dense_rewards': [
+            True, False
+        ],
+        'sac_tdm_kwargs.tdm_kwargs.finite_horizon': [
+            True, False
+        ],
         'sac_tdm_kwargs.tdm_kwargs.max_tau': [
-            0,
+            49, 15,
         ],
         'sac_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
             1,
+        ],
+        'sac_tdm_kwargs.base_kwargs.discount': [
+            1, 0.98
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

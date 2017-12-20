@@ -80,13 +80,13 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-ddpg-tdm-launch"
 
-    # n_seeds = 2
-    # mode = "ec2"
-    # exp_prefix = "tdm-dense-cheetah"
+    n_seeds = 2
+    mode = "ec2"
+    exp_prefix = "tdm-cheetah-xpos-sweep-dense-finite"
 
     num_epochs = 100
     num_steps_per_epoch = 10000
-    num_steps_per_eval = 100
+    num_steps_per_eval = 1000
     max_path_length = 50
 
     # noinspection PyTypeChecker
@@ -137,8 +137,8 @@ if __name__ == "__main__":
     search_space = {
         'env_class': [
             # Reacher7DofXyzGoalState,
-            GoalXVelHalfCheetah,
-            # GoalXPosHalfCheetah,
+            # GoalXVelHalfCheetah,
+            GoalXPosHalfCheetah,
             # Walker2DTargetXPos,
             # MultitaskPusher3DEnv,
         ],
@@ -150,17 +150,31 @@ if __name__ == "__main__":
             # 'fixed',
             'environment',
         ],
+        'es_kwargs': [
+            dict(theta=0.1, max_sigma=0.1, min_sigma=0.1),
+            dict(theta=0.1, max_sigma=0.01, min_sigma=0.01),
+            # dict(theta=0.1, max_sigma=0.2, min_sigma=0.2),
+        ],
         'ddpg_tdm_kwargs.tdm_kwargs.max_tau': [
-            0
+            49, 15,
+        ],
+        'ddpg_tdm_kwargs.tdm_kwargs.dense_rewards': [
+            True, False
+        ],
+        'ddpg_tdm_kwargs.tdm_kwargs.finite_horizon': [
+            True, False
         ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
-            0.1, 1, 10, 100, 1000
+            0.01, 1, 100,
         ],
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
             1,
         ],
+        'ddpg_tdm_kwargs.base_kwargs.discount': [
+            1, 0.98
+        ],
         'ddpg_tdm_kwargs.ddpg_kwargs.tau': [
-            0.001,
+            # 0.001,
             0.01,
         ],
         'ddpg_tdm_kwargs.ddpg_kwargs.eval_with_target_policy': [
