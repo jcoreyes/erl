@@ -1,6 +1,7 @@
 import random
 
 # from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
+from railrl.envs.multitask.ant_env import GoalXYPosAnt
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
     GoalXPosHalfCheetah
 from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
@@ -56,7 +57,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "tdm-pusher3d"
+    exp_prefix = "tdm-ant"
 
     num_epochs = 1000
     num_steps_per_epoch = 10000
@@ -87,9 +88,10 @@ if __name__ == "__main__":
             # GoalXVelHalfCheetah,
             # GoalXPosHalfCheetah,
             # Reacher7DofXyzGoalState,
-            MultitaskPusher3DEnv
+            # MultitaskPusher3DEnv,
+            GoalXYPosAnt,
         ],
-        'multitask': [False, True],
+        'multitask': [True, False],
         'trpo_params.step_size': [
             10, 1, 0.1, 0.01, 0.001,
         ],
