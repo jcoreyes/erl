@@ -6,6 +6,7 @@ import torch.nn as nn
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
+from railrl.envs.multitask.ant_env import GoalXYPosAnt
 # from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
     GoalXPosHalfCheetah
@@ -82,11 +83,11 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = "ec2"
-    exp_prefix = "tdm-dense-cheetah-xpos"
+    exp_prefix = "tdm-ant"
 
     num_epochs = 200
     num_steps_per_epoch = 10000
-    num_steps_per_eval = 100
+    num_steps_per_eval = 1000
     max_path_length = 50
 
     # noinspection PyTypeChecker
@@ -132,14 +133,15 @@ if __name__ == "__main__":
         ),
         qf_criterion_class=HuberLoss,
         qf_criterion_kwargs=dict(),
-        version="DDPG-HER-Dense",
-        algorithm="DDPG-HER-Dense",
+        version="HER-Dense DDPG",
+        algorithm="HER-Dense DDPG",
     )
     search_space = {
         'env_class': [
             # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
-            GoalXPosHalfCheetah,
+            # GoalXPosHalfCheetah,
+            GoalXYPosAnt,
             # Walker2DTargetXPos,
             # MultitaskPusher3DEnv,
         ],
@@ -147,12 +149,12 @@ if __name__ == "__main__":
             nn.MSELoss,
             # HuberLoss,
         ],
-        'es_kwargs': [
-            dict(theta=0.1, max_sigma=0.1, min_sigma=0.1),
-            dict(theta=0.01, max_sigma=0.1, min_sigma=0.1),
-            dict(theta=0.1, max_sigma=0.05, min_sigma=0.05),
-            dict(theta=0.1, max_sigma=0.2, min_sigma=0.2),
-        ],
+        # 'es_kwargs': [
+            # dict(theta=0.1, max_sigma=0.1, min_sigma=0.1),
+            # dict(theta=0.01, max_sigma=0.1, min_sigma=0.1),
+            # dict(theta=0.1, max_sigma=0.05, min_sigma=0.05),
+            # dict(theta=0.1, max_sigma=0.2, min_sigma=0.2),
+        # ],
         'ddpg_tdm_kwargs.tdm_kwargs.sample_rollout_goals_from': [
             # 'fixed',
             'environment',
@@ -163,19 +165,22 @@ if __name__ == "__main__":
         'ddpg_tdm_kwargs.tdm_kwargs.dense_rewards': [
             True,
         ],
-        # 'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
-        #     0.1, 1, 10, 100, 1000
-        # ],
+        'ddpg_tdm_kwargs.tdm_kwargs.finite_horizon': [
+            False,
+        ],
+        'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
+            0.01, 1, 100,
+        ],
         'ddpg_tdm_kwargs.base_kwargs.discount': [
             0.98, 0.95
         ],
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
             1,
         ],
-        'ddpg_tdm_kwargs.ddpg_kwargs.tau': [
-            0.001,
-            0.01,
-        ],
+        # 'ddpg_tdm_kwargs.ddpg_kwargs.tau': [
+            # 0.001,
+            # 0.01,
+        # ],
         'ddpg_tdm_kwargs.ddpg_kwargs.eval_with_target_policy': [
             # True,
             False,

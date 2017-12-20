@@ -3,6 +3,7 @@ import random
 import numpy as np
 
 import railrl.torch.pytorch_util as ptu
+from railrl.envs.multitask.ant_env import GoalXYPosAnt
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
     GoalXPosHalfCheetah
 from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
@@ -61,9 +62,9 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-state-distance-sac-baseline"
 
-    n_seeds = 1
+    n_seeds = 2
     mode = "ec2"
-    exp_prefix = "tdm-dense-cheetah"
+    exp_prefix = "tdm-ant"
 
     num_epochs = 100
     num_steps_per_epoch = 10000
@@ -92,14 +93,15 @@ if __name__ == "__main__":
     search_space = {
         'env_class': {
             # Reacher7DofXyzGoalState,
-            GoalXVelHalfCheetah,
+            # GoalXVelHalfCheetah,
+            GoalXYPosAnt,
             # Walker2DTargetXPos,
             # GoalXPosHalfCheetah,
             # MultitaskPusher3DEnv,
         },
-        'multitask': [False, True],
+        'multitask': [True],
         'algo_params.reward_scale': [
-            1000, 100, 10, 1,
+            10000, 1000, 100, 10, 1,
         ],
         'algo_params.replay_buffer_size': [
             int(1e6),

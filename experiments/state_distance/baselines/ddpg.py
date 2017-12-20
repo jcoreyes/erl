@@ -1,6 +1,7 @@
 import random
 
 import railrl.misc.hyperparameter as hyp
+from railrl.envs.multitask.ant_env import GoalXYPosAnt
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
     GoalXPosHalfCheetah
 from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
@@ -61,7 +62,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = "ec2"
-    exp_prefix = "tdm-dense-cheetah"
+    exp_prefix = "tdm-ant"
 
     num_epochs = 100
     num_steps_per_epoch = 10000
@@ -106,11 +107,12 @@ if __name__ == "__main__":
     search_space = {
         'env_class': [
             # Reacher7DofXyzGoalState,
-            GoalXVelHalfCheetah,
+            # GoalXVelHalfCheetah,
+            GoalXYPosAnt,
             # GoalXPosHalfCheetah,
             # MultitaskPusher3DEnv,
         ],
-        'multitask': [True, False],
+        'multitask': [True],
         'algo_params.reward_scale': [
             .1, 1, 10, 100,
         ],

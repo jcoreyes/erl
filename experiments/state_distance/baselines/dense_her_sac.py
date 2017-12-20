@@ -5,6 +5,7 @@ import numpy as np
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
+from railrl.envs.multitask.ant_env import GoalXYPosAnt
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
     GoalXPosHalfCheetah
 from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
@@ -65,9 +66,9 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = "ec2"
-    exp_prefix = "tdm-dense-cheetah-xpos"
+    exp_prefix = "tdm-ant"
 
-    num_epochs = 200
+    num_epochs = 100
     num_steps_per_epoch = 10000
     num_steps_per_eval = 1000
     max_path_length = 50
@@ -112,14 +113,15 @@ if __name__ == "__main__":
         policy_params=dict(
             hidden_sizes=[300, 300],
         ),
-        version="SAC-HER-Dense",
-        algorithm="SAC-HER-Dense",
+        version="HER-Dense SAC",
+        algorithm="HER-Dense SAC",
     )
     search_space = {
         'env_class': [
             # GoalXVelHalfCheetah,
             # Reacher7DofXyzGoalState,
-            GoalXPosHalfCheetah,
+            # GoalXPosHalfCheetah,
+            GoalXYPosAnt,
             # Walker2DTargetXPos,
             # MultitaskPusher3DEnv,
         ],
@@ -136,13 +138,16 @@ if __name__ == "__main__":
         'sac_tdm_kwargs.tdm_kwargs.dense_rewards': [
             True,
         ],
+        'sac_tdm_kwargs.tdm_kwargs.finite_horizon': [
+            False,
+        ],
         'sac_tdm_kwargs.base_kwargs.discount': [
             0.98, 0.95
         ],
-        'sac_tdm_kwargs.sac_kwargs.soft_target_tau': [
-            0.01,
-            0.001,
-        ],
+        # 'sac_tdm_kwargs.sac_kwargs.soft_target_tau': [
+            # 0.01,
+            # 0.001,
+        # ],
         'sac_tdm_kwargs.tdm_kwargs.sample_rollout_goals_from': [
             # 'fixed',
             'environment',

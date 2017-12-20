@@ -5,6 +5,7 @@ import numpy as np
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
+from railrl.envs.multitask.ant_env import GoalXYPosAnt
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
     GoalXPosHalfCheetah
 from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
@@ -65,7 +66,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = "ec2"
-    exp_prefix = "tdm-cheetah-xpos-sweep-dense-finite"
+    exp_prefix = "tdm-ant"
 
     num_epochs = 100
     num_steps_per_epoch = 10000
@@ -118,7 +119,8 @@ if __name__ == "__main__":
         'env_class': [
             # GoalXVelHalfCheetah,
             # Reacher7DofXyzGoalState,
-            GoalXPosHalfCheetah,
+            # GoalXPosHalfCheetah,
+            GoalXYPosAnt,
             # Walker2DTargetXPos,
             # MultitaskPusher3DEnv,
         ],
@@ -141,10 +143,10 @@ if __name__ == "__main__":
             'environment',
         ],
         'sac_tdm_kwargs.tdm_kwargs.dense_rewards': [
-            True, False
+            False,
         ],
         'sac_tdm_kwargs.tdm_kwargs.finite_horizon': [
-            True, False
+            True,
         ],
         'sac_tdm_kwargs.tdm_kwargs.max_tau': [
             49, 15,
@@ -153,7 +155,7 @@ if __name__ == "__main__":
             1,
         ],
         'sac_tdm_kwargs.base_kwargs.discount': [
-            1, 0.98
+            1,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

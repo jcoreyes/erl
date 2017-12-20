@@ -6,6 +6,7 @@ import torch.nn as nn
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
+from railrl.envs.multitask.ant_env import GoalXYPosAnt
 # from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
     GoalXPosHalfCheetah
@@ -82,7 +83,7 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = "ec2"
-    exp_prefix = "tdm-cheetah-xpos-sweep-dense-finite"
+    exp_prefix = "tdm-ant"
 
     num_epochs = 100
     num_steps_per_epoch = 10000
@@ -138,7 +139,8 @@ if __name__ == "__main__":
         'env_class': [
             # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
-            GoalXPosHalfCheetah,
+            # GoalXPosHalfCheetah,
+            GoalXYPosAnt,
             # Walker2DTargetXPos,
             # MultitaskPusher3DEnv,
         ],
@@ -159,10 +161,10 @@ if __name__ == "__main__":
             49, 15,
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.dense_rewards': [
-            True, False
+            False
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.finite_horizon': [
-            True, False
+            True,
         ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
             0.01, 1, 100,
@@ -171,7 +173,7 @@ if __name__ == "__main__":
             1,
         ],
         'ddpg_tdm_kwargs.base_kwargs.discount': [
-            1, 0.98
+            1,
         ],
         'ddpg_tdm_kwargs.ddpg_kwargs.tau': [
             # 0.001,
