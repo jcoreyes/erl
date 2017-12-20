@@ -92,6 +92,9 @@ class MultitaskPusher3DEnv(MujocoEnv, MultitaskEnv):
         return 2
 
     def log_diagnostics(self, paths, logger=rllab_logger):
+        super().log_diagnostics(paths)
+        MultitaskEnv.log_diagnostics(self, paths)
+
         statistics = OrderedDict()
         for name_in_env_infos, name_to_log in [
             ('obj_to_arm_dist', 'Distance to arm'),
