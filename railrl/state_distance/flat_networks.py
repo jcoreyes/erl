@@ -153,3 +153,167 @@ def make_binary_tensor(tensor, max_len, batch_size):
         bin = torch.from_numpy(bin)
         binary[i:] = bin
     return binary
+
+class TauVectorQF(Mlp):
+    """
+    Parameterize QF as
+
+    Q(s, a, s_g, tau) = - |f(s, a, s_g, tau)|
+
+    element-wise, and represent tau as a binary string vector.
+
+    WARNING: this is only valid for when the reward is the negative abs value
+    along each dimension.
+    """
+    def __init__(
+            self,
+            observation_dim,
+            goal_dim,
+            output_size,
+            max_tau,
+            hidden_sizes,
+            action_dim=0,
+            **kwargs
+    ):
+        self.save_init_params(locals())
+        self.max_tau = max_tau
+        super().__init__(
+            hidden_sizes=hidden_sizes,
+            input_size=observation_dim + action_dim + goal_dim + self.max_tau,
+            output_size=output_size,
+            **kwargs
+        )
+
+    def forward(self, flat_obs, action=None):
+        obs, taus = split_tau(flat_obs)
+        h = torch.cat((obs, action), dim=1)
+
+        batch_size = h.size()[0]
+        tau_vector = torch.from_numpy(self.tau*np.ones(self.max_tau))
+
+        if action is not None:
+            h = torch.cat((
+                obs,
+                ptu.Variable(tau_vector),
+                action
+            ), dim=1)
+        else:
+            h = torch.cat((
+                obs,
+                ptu.Variable(tau_vector),
+
+            ), dim=1)
+
+        for i, fc in enumerate(self.fcs):
+            h = self.hidden_activation(fc(h))
+        return - torch.abs(self.last_fc(h))
+
+class TauVectorQF(Mlp):
+    """
+    Parameterize QF as
+
+    Q(s, a, s_g, tau) = - |f(s, a, s_g, tau)|
+
+    element-wise, and represent tau as a binary string vector.
+
+    WARNING: this is only valid for when the reward is the negative abs value
+    along each dimension.
+    """
+    def __init__(
+            self,
+            observation_dim,
+            goal_dim,
+            output_size,
+            max_tau,
+            hidden_sizes,
+            tau_vector_len,
+            action_dim=0,
+            **kwargs
+    ):
+        self.save_init_params(locals())
+        self.tau_vector_len = tau_vector_len
+        super().__init__(
+            hidden_sizes=hidden_sizes,
+            input_size=observation_dim + action_dim + goal_dim + tau_vector_len,
+            output_size=output_size,
+            **kwargs
+        )
+
+    def forward(self, flat_obs, action=None):
+        obs, taus = split_tau(flat_obs)
+        h = torch.cat((obs, action), dim=1)
+
+        batch_size = h.size()[0]
+        tau_vector = torch.from_numpy(self.tau*np.ones(self.tau_vector_len))
+
+        if action is not None:
+            h = torch.cat((
+                obs,
+                ptu.Variable(tau_vector),
+                action
+            ), dim=1)
+        else:
+            h = torch.cat((
+                obs,
+                ptu.Variable(tau_vector),
+
+            ), dim=1)
+
+        for i, fc in enumerate(self.fcs):
+            h = self.hidden_activation(fc(h))
+        return - torch.abs(self.last_fc(h))
+
+class TauVectorSeparateFirstLayerQF(Mlp):
+    """
+    Parameterize QF as
+
+    Q(s, a, s_g, tau) = - |f(s, a, s_g, tau)|
+
+    element-wise, and represent tau as a binary string vector.
+
+    WARNING: this is only valid for when the reward is the negative abs value
+    along each dimension.
+    """
+    def __init__(
+            self,
+            observation_dim,
+            goal_dim,
+            output_size,
+            max_tau,
+            hidden_sizes,
+            tau_vector_len,
+            action_dim=0,
+            **kwargs
+    ):
+        self.save_init_params(locals())
+        self.tau_vector_len = tau_vector_len
+        super().__init__(
+            hidden_sizes=hidden_sizes,
+            input_size=observation_dim + action_dim + goal_dim + tau_vector_len,
+            output_size=output_size,
+            **kwargs
+        )
+
+    def forward(self, flat_obs, action=None):
+        obs, taus = split_tau(flat_obs)
+        h = torch.cat((obs, action), dim=1)
+
+        batch_size = h.size()[0]
+        tau_vector = torch.from_numpy(self.tau*np.ones(self.tau_vector_len))
+
+        if action is not None:
+            h = torch.cat((
+                obs,
+                ptu.Variable(tau_vector),
+                action
+            ), dim=1)
+        else:
+            h = torch.cat((
+                obs,
+                ptu.Variable(tau_vector),
+
+            ), dim=1)
+
+        for i, fc in enumerate(self.fcs):
+            h = self.hidden_activation(fc(h))
+        return - torch.abs(self.last_fc(h))
