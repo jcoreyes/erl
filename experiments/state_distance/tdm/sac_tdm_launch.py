@@ -66,10 +66,10 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "tdm-sac-ant-dense-finite-relabel-nupo-sweep"
+    exp_prefix = "her-sac-ant-sweep"
 
     num_epochs = 100
-    num_steps_per_epoch = 1000
+    num_steps_per_epoch = 10000
     num_steps_per_eval = 1000
     max_path_length = 50
 
@@ -125,27 +125,39 @@ if __name__ == "__main__":
             # MultitaskPusher3DEnv,
         ],
         'sac_tdm_kwargs.base_kwargs.reward_scale': [
-            # 1,
+            1,
             10,
             100,
             1000,
-            # 10000,
+            10000,
         ],
         'sac_tdm_kwargs.tdm_kwargs.vectorized': [
+            False,
             True,
+        ],
+        'sac_tdm_kwargs.tdm_kwargs.terminate_when_goal_reached': [
+            True,
+            False,
         ],
         'sac_tdm_kwargs.tdm_kwargs.sample_rollout_goals_from': [
             # 'fixed',
             'environment',
         ],
         'relabel': [
-            False, True,
+            # False,
+            True,
         ],
         'sac_tdm_kwargs.tdm_kwargs.dense_rewards': [
-            False, True,
+            # False,
+            True,
         ],
         'sac_tdm_kwargs.tdm_kwargs.finite_horizon': [
-            False, True,
+            False,
+            True,
+        ],
+        'sac_tdm_kwargs.tdm_kwargs.reward_type': [
+            'sparse',
+            # 'distance',
         ],
         'sac_tdm_kwargs.tdm_kwargs.max_tau': [
             49,
@@ -153,11 +165,11 @@ if __name__ == "__main__":
         ],
         'sac_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
             1,
-            5,
-            10,
-            15,
-            20,
-            25,
+            # 5,
+            # 10,
+            # 15,
+            # 20,
+            # 25,
         ],
         'sac_tdm_kwargs.base_kwargs.discount': [
             1,

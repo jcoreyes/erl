@@ -28,6 +28,9 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             dense_rewards=False,
             finite_horizon=True,
             tau_sample_strategy='uniform',
+            reward_type='distance',
+            goal_reached_epsilon=1e-3,
+            terminate_when_goal_reached=False,
     ):
         """
 
@@ -58,14 +61,28 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             - no_resampling: Do not resample the tau. Use the one from rollout.
             - uniform: Sample from [0, max_tau]
             - all_valid: Always use all 0 to max_tau values
+        :param reward_type: One of the following:
+            - 'distance': Reward is -|s_t - s_g|
+            - 'sparse': Reward is -1{||s_t - s_g||_2 > epsilon}
+        :param goal_reached_epsilon: Epsilon used to determine if the goal
+        has been reached. Used by `sparse` version of `reward_type` and when
+        `terminate_whe_goal_reached` is True.
+        :param terminate_when_goal_reached: Do you terminate when you have
+        reached the goal?
         """
         assert sample_train_goals_from in ['environment', 'replay_buffer',
                                            'her', 'no_resampling']
         assert sample_rollout_goals_from in ['environment', 'replay_buffer',
                                              'fixed']
         assert tau_sample_strategy in ['no_resampling', 'uniform', 'all_valid']
+        assert reward_type in ['distance', 'sparse']
         if epoch_max_tau_schedule is None:
             epoch_max_tau_schedule = ConstantSchedule(max_tau)
+
+        if not finite_horizon:
+            max_tau = 0
+            epoch_max_tau_schedule = ConstantSchedule(max_tau)
+            cycle_taus_for_rollout = False
 
         self.max_tau = max_tau
         self.epoch_max_tau_schedule = epoch_max_tau_schedule
@@ -76,6 +93,9 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         self.dense_rewards = dense_rewards
         self.finite_horizon = finite_horizon
         self.tau_sample_strategy = tau_sample_strategy
+        self.reward_type = reward_type
+        self.sparse_reward_epsilon = goal_reached_epsilon
+        self.terminate_when_goal_reached = terminate_when_goal_reached
         self._current_path_goal = None
         self._rollout_tau = self.max_tau
 
@@ -87,7 +107,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             policy=self.eval_policy,
             max_samples=self.num_steps_per_eval,
             max_path_length=self.max_path_length,
-            discount_sampling_function=self._sample_max_tau_for_rollout,
+            tau_sampling_function=self._sample_max_tau_for_rollout,
             goal_sampling_function=self._sample_goal_for_rollout,
             cycle_taus_for_rollout=self.cycle_taus_for_rollout,
         )
@@ -103,18 +123,6 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
                 normalize_env=self.normalize_env,
                 rollout_function=self.rollout,
             )
-
-    def rollout(self, env, policy, max_path_length):
-        goal = env.sample_goal_for_rollout()
-        return multitask_rollout(
-            env,
-            agent=policy,
-            goal=goal,
-            discount=self.max_tau,
-            max_path_length=max_path_length,
-            decrement_discount=self.cycle_taus_for_rollout,
-            cycle_tau=self.cycle_taus_for_rollout,
-        )
 
     def _start_epoch(self, epoch):
         self.max_tau = self.epoch_max_tau_schedule.get_value(epoch)
@@ -139,6 +147,14 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
 
         if self.finite_horizon:
             terminals = 1 - (1 - batch['terminals']) * (num_steps_left != 0)
+            batch['terminals'] = terminals
+        if self.terminate_when_goal_reached:
+            diff = self.env.convert_obs_to_goals(next_obs) - goals
+            goal_not_reached = (
+                np.linalg.norm(diff, axis=1, keepdims=True)
+                > self.sparse_reward_epsilon
+            )
+            terminals = 1 - (1 - batch['terminals']) * goal_not_reached
             batch['terminals'] = terminals
 
         if self.dense_rewards:
@@ -170,16 +186,28 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         return np_to_pytorch_batch(batch)
 
     def compute_rewards_np(self, obs, actions, next_obs, goals):
-        if self.vectorized:
+        if self.reward_type == 'sparse':
             diff = self.env.convert_obs_to_goals(next_obs) - goals
-            return -np.abs(diff) * self.reward_scale
+            if self.vectorized:
+                return -self.reward_scale * (diff > self.sparse_reward_epsilon)
+            else:
+                return -self.reward_scale * (
+                    np.linalg.norm(diff, axis=1, keepdims=True)
+                    > self.sparse_reward_epsilon
+                )
+        elif self.reward_type == 'distance':
+            if self.vectorized:
+                diff = self.env.convert_obs_to_goals(next_obs) - goals
+                return -np.abs(diff) * self.reward_scale
+            else:
+                return self.env.compute_rewards(
+                    obs,
+                    actions,
+                    next_obs,
+                    goals,
+                ) * self.reward_scale
         else:
-            return self.env.compute_rewards(
-                obs,
-                actions,
-                next_obs,
-                goals,
-            ) * self.reward_scale
+            raise TypeError("Invalid reward type: {}".format(self.reward_type))
 
     @property
     def train_buffer(self):
@@ -238,7 +266,10 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             ))
 
     def _sample_max_tau_for_rollout(self):
-        return self.max_tau
+        if self.finite_horizon:
+            return self.max_tau
+        else:
+            return 0
 
     def offline_evaluate(self, epoch):
         raise NotImplementedError()
