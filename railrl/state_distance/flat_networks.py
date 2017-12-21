@@ -1,7 +1,7 @@
 import torch
 import railrl.torch.pytorch_util as ptu
 from railrl.state_distance.util import split_tau
-from railrl.torch.networks import Mlp
+from railrl.torch.networks import Mlp, SeparateFirstLayerMlp
 import numpy as np
 
 class StructuredQF(Mlp):
@@ -263,7 +263,7 @@ class TauVectorQF(Mlp):
             h = self.hidden_activation(fc(h))
         return - torch.abs(self.last_fc(h))
 
-class TauVectorSeparateFirstLayerQF(Mlp):
+class TauVectorSeparateFirstLayerQF(SeparateFirstLayerMlp):
     """
     Parameterize QF as
 
@@ -289,31 +289,20 @@ class TauVectorSeparateFirstLayerQF(Mlp):
         self.tau_vector_len = tau_vector_len
         super().__init__(
             hidden_sizes=hidden_sizes,
-            input_size=observation_dim + action_dim + goal_dim + tau_vector_len,
+            first_input_size=observation_dim + action_dim + goal_dim,
+            second_input_size=tau_vector_len,
             output_size=output_size,
             **kwargs
         )
 
     def forward(self, flat_obs, action=None):
         obs, taus = split_tau(flat_obs)
-        h = torch.cat((obs, action), dim=1)
+        if action is not None:
+            h = torch.cat((obs, action), dim=1)
+        else:
+            h = obs
 
         batch_size = h.size()[0]
-        tau_vector = torch.from_numpy(self.tau*np.ones(self.tau_vector_len))
+        tau_vector = torch.from_numpy(self.tau*np.ones((batch_size, self.tau_vector_len)))
 
-        if action is not None:
-            h = torch.cat((
-                obs,
-                ptu.Variable(tau_vector),
-                action
-            ), dim=1)
-        else:
-            h = torch.cat((
-                obs,
-                ptu.Variable(tau_vector),
-
-            ), dim=1)
-
-        for i, fc in enumerate(self.fcs):
-            h = self.hidden_activation(fc(h))
-        return - torch.abs(self.last_fc(h))
+        return - torch.abs(super().forward(h, tau_vector))
