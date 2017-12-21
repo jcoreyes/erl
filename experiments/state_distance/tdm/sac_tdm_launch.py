@@ -150,10 +150,10 @@ if __name__ == "__main__":
             False, True
         ],
         'sac_tdm_kwargs.tdm_kwargs.dense_rewards': [
-            True, False,
+            True,
         ],
         'sac_tdm_kwargs.tdm_kwargs.finite_horizon': [
-            True, False,
+            False,
         ],
         'sac_tdm_kwargs.tdm_kwargs.max_tau': [
             49,
@@ -163,7 +163,7 @@ if __name__ == "__main__":
             1,
         ],
         'sac_tdm_kwargs.base_kwargs.discount': [
-            1,
+            0.95, 0.99,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -172,8 +172,9 @@ if __name__ == "__main__":
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         dense = variant['sac_tdm_kwargs']['tdm_kwargs']['dense_rewards']
         finite = variant['sac_tdm_kwargs']['tdm_kwargs']['finite_horizon']
+        discount = variant['sac_tdm_kwargs']['base_kwargs']['discount']
         relabel = variant['relabel']
-        if dense and not finite:  # This setting makes no sense
+        if not dense and not finite:  # This setting makes no sense
             continue
         variant['multitask'] = (
                 variant['sac_tdm_kwargs']['tdm_kwargs'][
@@ -192,6 +193,7 @@ if __name__ == "__main__":
             "dense={}".format(dense),
             "finite={}".format(finite),
             "relabel={}".format(relabel),
+            "discount={}".format(discount),
         ])
         for i in range(n_seeds):
             seed = random.randint(0, 10000)
