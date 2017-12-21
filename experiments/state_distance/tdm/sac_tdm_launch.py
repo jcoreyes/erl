@@ -66,10 +66,10 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "tdm-sac-ant-dense-finite-relabel-sweep"
+    exp_prefix = "tdm-sac-ant-dense-finite-relabel-nupo-sweep"
 
     num_epochs = 100
-    num_steps_per_epoch = 10000
+    num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
     max_path_length = 50
 
@@ -125,11 +125,11 @@ if __name__ == "__main__":
             # MultitaskPusher3DEnv,
         ],
         'sac_tdm_kwargs.base_kwargs.reward_scale': [
-            1,
+            # 1,
             10,
             100,
             1000,
-            10000,
+            # 10000,
         ],
         'sac_tdm_kwargs.tdm_kwargs.vectorized': [
             True,
@@ -153,9 +153,14 @@ if __name__ == "__main__":
         ],
         'sac_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
             1,
+            5,
+            10,
+            15,
+            20,
+            25,
         ],
         'sac_tdm_kwargs.base_kwargs.discount': [
-            0.95, 1,
+            1,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -168,7 +173,7 @@ if __name__ == "__main__":
         relabel = variant['relabel']
         if not finite:
             variant['sac_tdm_kwargs']['base_kwargs']['discount'] = min(
-                0.99, discount
+                0.98, discount
             )
         if not dense and not finite:  # This setting makes no sense
             continue
