@@ -5,12 +5,13 @@ import numpy as np
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
-from railrl.envs.multitask.reacher_7dof import Reacher7DofGoalStateEverything
+from railrl.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState
 from railrl.envs.wrappers import normalize_box
 from railrl.launchers.launcher_util import run_experiment
 from railrl.sac.policies import TanhGaussianPolicy
 from railrl.state_distance.tdm_sac import TdmSac
+from railrl.state_distance.tdm_ddpg import TdmDdpg
+from railrl.state_distance.flat_networks import *
 from railrl.torch.networks import FlattenMlp
 
 
@@ -20,15 +21,19 @@ def experiment(variant):
     obs_dim = int(np.prod(env.observation_space.low.shape))
     action_dim = int(np.prod(env.action_space.low.shape))
     vectorized = variant['algo_params']['tdm_kwargs']['vectorized']
-    qf = FlattenMlp(
-        input_size=obs_dim + action_dim + env.goal_dim + 1,
+    qf_class = variant['qf_class']
+    qf = qf_class(
+        observation_dim=obs_dim,
+        action_dim=action_dim,
+        goal_dim =env.goal_dim,
         output_size=env.goal_dim if vectorized else 1,
         **variant['qf_params']
     )
-    vf = FlattenMlp(
-        input_size=obs_dim + env.goal_dim + 1,
+    vf = qf_class(
+        observation_dim=obs_dim,
+        goal_dim=env.goal_dim,
         output_size=env.goal_dim if vectorized else 1,
-        **variant['vf_params']
+        **variant['qf_params']
     )
     policy = TanhGaussianPolicy(
         obs_dim=obs_dim + env.goal_dim + 1,
@@ -55,17 +60,13 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = "local"
-    exp_prefix = "dev-sac-tdm-launch"
-
-    n_seeds = 2
-    mode = "ec2"
-    exp_prefix = "tdm-half-cheetah-x-vel"
+    exp_prefix = "tdm_binary_tau_reach7DoF-SAC"
 
     num_epochs = 100
     num_steps_per_epoch = 50000
     num_steps_per_eval = 50000
     max_path_length = 500
-
+    max_tau = 15
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
@@ -97,9 +98,11 @@ if __name__ == "__main__":
             num_goals_to_sample=4,
         ),
         qf_params=dict(
+            max_tau=max_tau,
             hidden_sizes=[100, 100],
         ),
         vf_params=dict(
+            max_tau=max_tau,
             hidden_sizes=[100, 100],
         ),
         policy_params=dict(
@@ -107,10 +110,11 @@ if __name__ == "__main__":
         ),
         version="SAC-TDM-2",
         algorithm="SAC-TDM",
+        qf_class=BinaryStringTauQF,
     )
     search_space = {
         'env_class': [
-            GoalXVelHalfCheetah,
+            Reacher7DofXyzGoalState,
         ],
         'algo_params.base_kwargs.reward_scale': [
             1,

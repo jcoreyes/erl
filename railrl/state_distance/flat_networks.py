@@ -105,11 +105,11 @@ class BinaryStringTauQF(Mlp):
     def __init__(
             self,
             observation_dim,
-            action_dim,
             goal_dim,
             output_size,
             max_tau,
             hidden_sizes,
+            action_dim=0,
             **kwargs
     ):
         self.save_init_params(locals())
@@ -121,18 +121,25 @@ class BinaryStringTauQF(Mlp):
             **kwargs
         )
 
-    def forward(self, flat_obs, action):
+    def forward(self, flat_obs, action=None):
         obs, taus = split_tau(flat_obs)
         h = torch.cat((obs, action), dim=1)
 
         batch_size = h.size()[0]
         y_binary = make_binary_tensor(taus, len(self.max_tau), batch_size)
 
-        h = torch.cat((
-            obs,
-            ptu.Variable(y_binary),
-            action
-        ), dim=1)
+        if action is not None:
+            h = torch.cat((
+                obs,
+                ptu.Variable(y_binary),
+                action
+            ), dim=1)
+        else:
+            h = torch.cat((
+                obs,
+                ptu.Variable(y_binary),
+
+            ), dim=1)
 
         for i, fc in enumerate(self.fcs):
             h = self.hidden_activation(fc(h))

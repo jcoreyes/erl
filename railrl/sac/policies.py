@@ -135,7 +135,6 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
             mean_action_log_prob
         )
 
-
 class MakeDeterministic(Policy):
     def __init__(self, stochastic_policy):
         self.stochastic_policy = stochastic_policy
