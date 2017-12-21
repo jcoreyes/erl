@@ -66,10 +66,10 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "tdm-sac-reacher-dense-finite-relabel-sweep"
+    exp_prefix = "tdm-sac-ant-dense-finite-relabel-sweep"
 
     num_epochs = 100
-    num_steps_per_epoch = 1000
+    num_steps_per_epoch = 10000
     num_steps_per_eval = 1000
     max_path_length = 50
 
@@ -118,9 +118,9 @@ if __name__ == "__main__":
     search_space = {
         'env_class': [
             # GoalXVelHalfCheetah,
-            Reacher7DofXyzGoalState,
+            # Reacher7DofXyzGoalState,
             # GoalXPosHalfCheetah,
-            # GoalXYPosAnt,
+            GoalXYPosAnt,
             # Walker2DTargetXPos,
             # MultitaskPusher3DEnv,
         ],
@@ -134,26 +134,18 @@ if __name__ == "__main__":
         'sac_tdm_kwargs.tdm_kwargs.vectorized': [
             True,
         ],
-        # 'sac_tdm_kwargs.sac_kwargs.soft_target_tau': [
-        #     0.01,
-        #     0.001,
-        # ],
         'sac_tdm_kwargs.tdm_kwargs.sample_rollout_goals_from': [
             # 'fixed',
             'environment',
         ],
-        # 'sac_tdm_kwargs.tdm_kwargs.sample_train_goals_from': [
-        #     'her',
-        #     'no_resampling',
-        # ],
         'relabel': [
-            False, True
+            False, True,
         ],
         'sac_tdm_kwargs.tdm_kwargs.dense_rewards': [
-            True,
+            False, True,
         ],
         'sac_tdm_kwargs.tdm_kwargs.finite_horizon': [
-            False,
+            False, True,
         ],
         'sac_tdm_kwargs.tdm_kwargs.max_tau': [
             49,
@@ -163,7 +155,7 @@ if __name__ == "__main__":
             1,
         ],
         'sac_tdm_kwargs.base_kwargs.discount': [
-            0.95, 0.99,
+            0.95, 1,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -174,6 +166,10 @@ if __name__ == "__main__":
         finite = variant['sac_tdm_kwargs']['tdm_kwargs']['finite_horizon']
         discount = variant['sac_tdm_kwargs']['base_kwargs']['discount']
         relabel = variant['relabel']
+        if not finite:
+            variant['sac_tdm_kwargs']['base_kwargs']['discount'] = min(
+                0.99, discount
+            )
         if not dense and not finite:  # This setting makes no sense
             continue
         variant['multitask'] = (
@@ -193,7 +189,6 @@ if __name__ == "__main__":
             "dense={}".format(dense),
             "finite={}".format(finite),
             "relabel={}".format(relabel),
-            "discount={}".format(discount),
         ])
         for i in range(n_seeds):
             seed = random.randint(0, 10000)
