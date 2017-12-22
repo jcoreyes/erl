@@ -17,7 +17,9 @@ Trial = namedtuple("Trial", ["data", "variant"])
 def matches_dict(criteria_dict, test_dict, ignore_missing_keys=False):
     for k, v in criteria_dict.items():
         if k not in test_dict:
-            if not ignore_missing_keys:
+            if ignore_missing_keys:
+                return False
+            else:
                 raise KeyError("Key '{}' not in dictionary".format(k))
         else:
             if test_dict[k] != v:
@@ -82,8 +84,9 @@ class Experiment(object):
             (Z, {'a': True, ...})
         ]
         ```
-        :param ignore_missing_keys: If a trial does not have a key that
-        criteria provides, ignore it. Otherwise, raise an error.
+        :param ignore_missing_keys: If True, ignore a trial if it does not
+        have the key provided.
+        If False, raise an error.
         :return:
         """
         if criteria is None:
