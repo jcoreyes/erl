@@ -66,10 +66,10 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "tdm-her-sac-ant-sweep"
+    exp_prefix = "tdm-sweep-pusher-tau-sampling-and-more"
 
-    num_epochs = 100
-    num_steps_per_epoch = 10000
+    num_epochs = 1000
+    num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
     max_path_length = 50
 
@@ -82,7 +82,7 @@ if __name__ == "__main__":
                 num_steps_per_eval=num_steps_per_eval,
                 max_path_length=max_path_length,
                 num_updates_per_env_step=25,
-                batch_size=128,
+                batch_size=64,
                 discount=1,
             ),
             tdm_kwargs=dict(
@@ -119,24 +119,23 @@ if __name__ == "__main__":
         'env_class': [
             # GoalXVelHalfCheetah,
             # Reacher7DofXyzGoalState,
-            # GoalXPosHalfCheetah,
-            GoalXYPosAnt,
+            # GoalXYPosAnt,
             # Walker2DTargetXPos,
-            # MultitaskPusher3DEnv,
+            MultitaskPusher3DEnv,
         ],
         'sac_tdm_kwargs.base_kwargs.reward_scale': [
-            1,
+            3.2,
             10,
+            32,
             100,
-            1000,
-            10000,
+            320,
         ],
         'sac_tdm_kwargs.tdm_kwargs.vectorized': [
-            False,
+            # False,
             True,
         ],
         'sac_tdm_kwargs.tdm_kwargs.terminate_when_goal_reached': [
-            True,
+            # True,
             False,
         ],
         'sac_tdm_kwargs.tdm_kwargs.sample_rollout_goals_from': [
@@ -144,7 +143,7 @@ if __name__ == "__main__":
             'environment',
         ],
         'relabel': [
-            False,
+            # False,
             True,
         ],
         'sac_tdm_kwargs.tdm_kwargs.dense_rewards': [
@@ -156,20 +155,25 @@ if __name__ == "__main__":
             True,
         ],
         'sac_tdm_kwargs.tdm_kwargs.reward_type': [
-            'sparse',
+            # 'sparse',
             'distance',
         ],
         'sac_tdm_kwargs.tdm_kwargs.max_tau': [
             49,
             # 15,
         ],
+        'sac_tdm_kwargs.tdm_kwargs.tau_sample_strategy': [
+            'all_valid',
+            'uniform',
+            # 'no_resampling',
+        ],
         'sac_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
             1,
             # 5,
-            # 10,
+            10,
             # 15,
             # 20,
-            # 25,
+            25,
         ],
         'sac_tdm_kwargs.base_kwargs.discount': [
             1,
@@ -194,14 +198,14 @@ if __name__ == "__main__":
                     'sample_rollout_goals_from'
                 ] != 'fixed'
         )
-        if relabel:
-            variant['sac_tdm_kwargs']['tdm_kwargs']['sample_train_goals_from'] = 'her'
-            variant['sac_tdm_kwargs']['tdm_kwargs'][
-                'tau_sample_strategy'] = 'uniform'
-        else:
-            variant['sac_tdm_kwargs']['tdm_kwargs']['sample_train_goals_from'] = 'no_resampling'
-            variant['sac_tdm_kwargs']['tdm_kwargs'][
-                'tau_sample_strategy'] = 'no_resampling'
+        # if relabel:
+        #     variant['sac_tdm_kwargs']['tdm_kwargs']['sample_train_goals_from'] = 'her'
+        #     variant['sac_tdm_kwargs']['tdm_kwargs'][
+        #         'tau_sample_strategy'] = 'uniform'
+        # else:
+        #     variant['sac_tdm_kwargs']['tdm_kwargs']['sample_train_goals_from'] = 'no_resampling'
+        #     variant['sac_tdm_kwargs']['tdm_kwargs'][
+        #         'tau_sample_strategy'] = 'no_resampling'
         variant['version'] = ", ".join([
             "dense={}".format(dense),
             "finite={}".format(finite),

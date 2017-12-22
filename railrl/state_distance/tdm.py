@@ -144,41 +144,49 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         next_obs = batch['next_observations']
         goals = self._sample_goals_for_training(batch)
         rewards = self.compute_rewards_np(obs, actions, next_obs, goals)
+        terminals = batch['terminals']
+
+        if self.tau_sample_strategy == 'all_valid':
+            obs = np.repeat(obs, self.max_tau + 1, 0)
+            actions = np.repeat(actions, self.max_tau + 1, 0)
+            next_obs = np.repeat(next_obs, self.max_tau + 1, 0)
+            goals = np.repeat(goals, self.max_tau + 1, 0)
+            rewards = np.repeat(rewards, self.max_tau + 1, 0)
+            terminals = np.repeat(terminals, self.max_tau + 1, 0)
 
         if self.finite_horizon:
-            terminals = 1 - (1 - batch['terminals']) * (num_steps_left != 0)
-            batch['terminals'] = terminals
+            terminals = 1 - (1 - terminals) * (num_steps_left != 0)
         if self.terminate_when_goal_reached:
             diff = self.env.convert_obs_to_goals(next_obs) - goals
             goal_not_reached = (
                 np.linalg.norm(diff, axis=1, keepdims=True)
                 > self.sparse_reward_epsilon
             )
-            terminals = 1 - (1 - batch['terminals']) * goal_not_reached
-            batch['terminals'] = terminals
+            terminals = 1 - (1 - terminals) * goal_not_reached
 
-        if self.dense_rewards:
-            batch['rewards'] = rewards
-        else:
-            batch['rewards'] = rewards * batch['terminals']
+        if not self.dense_rewards:
+            rewards = rewards * terminals
 
         """
-        Update the observations
+        Update the batch
         """
+        batch['rewards'] = rewards
+        batch['terminals'] = terminals
+        batch['actions'] = actions
         batch['observations'] = merge_into_flat_obs(
-            obs=batch['observations'],
+            obs=obs,
             goals=goals,
             num_steps_left=num_steps_left,
         )
         if self.finite_horizon:
             batch['next_observations'] = merge_into_flat_obs(
-                obs=batch['next_observations'],
+                obs=next_obs,
                 goals=goals,
                 num_steps_left=num_steps_left-1,
             )
         else:
             batch['next_observations'] = merge_into_flat_obs(
-                obs=batch['next_observations'],
+                obs=next_obs,
                 goals=goals,
                 num_steps_left=num_steps_left,
             )
@@ -224,8 +232,12 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
                 )
             elif self.tau_sample_strategy == 'no_resampling':
                 num_steps_left = batch['num_steps_left']
-            elif self.tau_sample_strategy == 'all':
-                raise NotImplementedError()
+            elif self.tau_sample_strategy == 'all_valid':
+                num_steps_left = np.tile(
+                    np.arange(0, self.max_tau+1),
+                    self.batch_size
+                )
+                num_steps_left = np.expand_dims(num_steps_left, 1)
             else:
                 raise TypeError("Invalid tau_sample_strategy: {}".format(
                     self.tau_sample_strategy
