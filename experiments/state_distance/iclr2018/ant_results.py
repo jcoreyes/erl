@@ -64,17 +64,35 @@ def main():
 
     MAX_ITERS = 100
 
-
     plt.figure()
     for trials, name, key in [
         (ddpg_trials, 'DDPG', 'Final Distance to goal Mean'),
-        (ddpg_tdm_trials, 'DDPG-TDM', 'Final Distance to goal Mean'),
-        (ddpg_her_distance_trials, 'DDPG-HER-Distance', 'Final Distance to goal Mean'),
+        (
+             ddpg_tdm_trials,
+             'DDPG-HER: Sparse, Distance (TDMs)',
+             'Final Distance to goal Mean',
+        ),
+        (
+            ddpg_her_distance_trials,
+            'DDPG-HER: Dense, Distance',
+            'Final Distance to goal Mean',
+        ),
         (sac_trials, 'SAC', 'Final Distance to goal Mean'),
-        (sac_tdm_trials, 'SAC-TDM', 'Final Distance to goal Mean'),
-        (sac_her_andrychowicz_trials, 'SAC-HER-Andrychowicz', 'Final Distance to goal Mean'),
-        (sac_her_distance_trials, 'SAC-HER-Distance', 'Final Distance to goal Mean'),
-        # (trpo_trials, 'TRPO', 'Final Distance to goal Mean'),
+        (
+             sac_tdm_trials,
+             'SAC-HER: Sparse, Distance (TDMs)',
+             'Final Distance to goal Mean',
+        ),
+        (
+            sac_her_andrychowicz_trials,
+            'SAC-HER: Dense, Indicator (Andrychowicz)',
+            'Final Distance to goal Mean',
+        ),
+        (
+            sac_her_distance_trials,
+            'SAC-HER: Dense, Distance',
+            'Final Distance to goal Mean',
+        ),
     ]:
         key = key.replace(" ", "_")
         all_values = []
@@ -99,8 +117,7 @@ def main():
         plt.fill_between(epochs, mean - std, mean + std, alpha=0.1)
         plt.plot(epochs, mean, label=name)
 
-    # plt.xscale('log')
-    plt.xlabel("Environment Samples (x10000)")
+    plt.xlabel("Environment Samples (x10,000)")
     plt.ylabel("Final Euclidean Distance to Goal Position")
     plt.legend()
     plt.savefig('results/iclr2018/ant.jpg')
