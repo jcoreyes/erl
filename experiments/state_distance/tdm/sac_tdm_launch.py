@@ -156,8 +156,8 @@ if __name__ == "__main__":
             True,
         ],
         'sac_tdm_kwargs.tdm_kwargs.reward_type': [
-            'sparse',
-            # 'distance',
+            # 'sparse',
+            'distance',
         ],
         'sac_tdm_kwargs.tdm_kwargs.max_tau': [
             49,
