@@ -66,7 +66,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "her-sac-ant-sweep"
+    exp_prefix = "tdm-her-sac-ant-sweep"
 
     num_epochs = 100
     num_steps_per_epoch = 10000
@@ -144,11 +144,11 @@ if __name__ == "__main__":
             'environment',
         ],
         'relabel': [
-            # False,
+            False,
             True,
         ],
         'sac_tdm_kwargs.tdm_kwargs.dense_rewards': [
-            # False,
+            False,
             True,
         ],
         'sac_tdm_kwargs.tdm_kwargs.finite_horizon': [
@@ -156,12 +156,12 @@ if __name__ == "__main__":
             True,
         ],
         'sac_tdm_kwargs.tdm_kwargs.reward_type': [
-            # 'sparse',
+            'sparse',
             'distance',
         ],
         'sac_tdm_kwargs.tdm_kwargs.max_tau': [
             49,
-            15,
+            # 15,
         ],
         'sac_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
             1,
@@ -185,7 +185,7 @@ if __name__ == "__main__":
         relabel = variant['relabel']
         if not finite:
             variant['sac_tdm_kwargs']['base_kwargs']['discount'] = min(
-                0.98, discount
+                0.95, discount
             )
         if not dense and not finite:  # This setting makes no sense
             continue
