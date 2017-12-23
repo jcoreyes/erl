@@ -106,8 +106,6 @@ if __name__ == "__main__":
         policy_params=dict(
             hidden_sizes=[100, 100],
         ),
-        version="SAC-TDM-2",
-        algorithm="SAC-TDM",
         qf_class=BinaryStringTauQF,
     )
     search_space = {
@@ -135,11 +133,7 @@ if __name__ == "__main__":
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):
-            variant['multitask'] = (
-                variant['algo_params']['tdm_kwargs'][
-                    'sample_rollout_goals_from'
-                ] != 'fixed'
-            )
+            import ipdb; ipdb.set_trace()
             seed = random.randint(0, 10000)
             run_experiment(
                 experiment,
