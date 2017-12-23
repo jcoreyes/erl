@@ -4,6 +4,8 @@ import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.dagger.controller import MPCController
 from railrl.dagger.dagger import Dagger
+from railrl.envs.multitask.ant_env import GoalXYPosAnt
+from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState)
 from railrl.envs.wrappers import convert_gym_space, normalize_box
@@ -52,16 +54,11 @@ if __name__ == "__main__":
     # mode = "ec2"
     # exp_prefix = "dagger"
 
-    # dagger_iters = 10
-    # dynamics_iters = 60
-    # num_paths_random = 10
-    # num_paths_dagger = 10
-    dagger_iters = 10
+    dagger_iters = 100
     dynamics_iters = 1
-    num_paths_random = 1
     num_paths_dagger = 1
 
-    max_path_length = 100
+    max_path_length = 50
     num_epochs = dagger_iters
     num_steps_per_epoch = num_paths_dagger * max_path_length
     num_steps_per_eval = num_paths_dagger * max_path_length
@@ -96,9 +93,9 @@ if __name__ == "__main__":
     )
     search_space = {
         'env_class': [
-            Reacher7DofXyzGoalState,
+            # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
-            # GoalXYPosAnt,
+            GoalXYPosAnt,
             # CylinderXYPusher2DEnv,
             # GoalXPosHalfCheetah,
             # MultitaskPusher3DEnv,

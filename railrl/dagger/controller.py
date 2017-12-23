@@ -21,6 +21,9 @@ class MPCController(PyTorchModule, ExplorationPolicy):
         self.cost_fn = cost_fn
         self.num_simulated_paths = num_simulated_paths
         self.mpc_horizon = mpc_horizon
+        self.action_low = self.env.action_space.low
+        self.action_high = self.env.action_space.high
+        self.action_dim = self.env.action_space.low.shape[0]
 
     def forward(self, *input):
         raise NotImplementedError()
@@ -33,8 +36,15 @@ class MPCController(PyTorchModule, ExplorationPolicy):
         )
         return ptu.np_to_var(array_expanded, requires_grad=False)
 
+    def sample_actions(self):
+        return np.random.uniform(
+            self.action_low,
+            self.action_high,
+            (self.num_simulated_paths, self.action_dim)
+        )
+
     def get_action(self, obs):
-        sampled_actions = self.env.sample_actions(self.num_simulated_paths)
+        sampled_actions = self.sample_actions()
         first_sampled_actions = sampled_actions.copy()
         actions = ptu.np_to_var(sampled_actions)
         next_obs = self.expand_np_to_var(obs)
@@ -42,9 +52,7 @@ class MPCController(PyTorchModule, ExplorationPolicy):
         for i in range(self.mpc_horizon):
             curr_obs = next_obs
             if i > 0:
-                sampled_actions = self.env.sample_actions(
-                    self.num_simulated_paths
-                )
+                sampled_actions = self.sample_actions()
                 actions = ptu.np_to_var(sampled_actions)
             next_obs = curr_obs + self.dynamics_model(curr_obs, actions)
             costs = costs + self.cost_fn(
