@@ -18,6 +18,7 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.qfunctions.torch import FeedForwardQFunction
 from railrl.torch.algos.ddpg import DDPG
+from railrl.torch.networks import TanhMlpPolicy, FlattenMlp
 
 
 def experiment(variant):
@@ -32,15 +33,17 @@ def experiment(variant):
         action_space=env.action_space,
         **variant['ou_params']
     )
-    qf = FeedForwardQFunction(
-        int(env.observation_space.flat_dim),
-        int(env.action_space.flat_dim),
+    obs_dim = int(env.observation_space.flat_dim)
+    action_dim = int(env.action_space.flat_dim)
+    qf = FlattenMlp(
+        input_size=obs_dim+action_dim,
+        output_size=1,
         **variant['qf_params']
     )
-    policy = FeedForwardPolicy(
-        int(env.observation_space.flat_dim),
-        int(env.action_space.flat_dim),
-        **variant['policy_params']
+    policy = TanhMlpPolicy(
+        input_size=obs_dim,
+        output_size=action_dim,
+        **variant['policy_kwargs']
     )
     exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,

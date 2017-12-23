@@ -38,6 +38,7 @@ class DDPG(TorchRLAlgorithm):
             residual_gradient_weight=0,
             epoch_discount_schedule=None,
             eval_with_target_policy=False,
+            policy_pre_activation_weight=0.,
 
             plotter=None,
             render_eval_paths=False,
@@ -87,6 +88,7 @@ class DDPG(TorchRLAlgorithm):
         self.tau = tau
         self.use_soft_update = use_soft_update
         self.residual_gradient_weight = residual_gradient_weight
+        self.policy_pre_activation_weight = policy_pre_activation_weight
         self.qf_criterion = qf_criterion
         if epoch_discount_schedule is None:
             epoch_discount_schedule = ConstantSchedule(self.discount)
@@ -118,9 +120,18 @@ class DDPG(TorchRLAlgorithm):
         """
         Policy operations.
         """
-        policy_actions = self.policy(obs)
+        policy_actions, pre_tanh_value = self.policy(
+            obs, return_preactivations=True,
+        )
+        pre_activation_policy_loss = (
+            (pre_tanh_value**2).sum(dim=1).mean()
+        )
         q_output = self.qf(obs, policy_actions)
-        policy_loss = - q_output.mean()
+        raw_policy_loss = - q_output.mean()
+        policy_loss = (
+            raw_policy_loss +
+            pre_activation_policy_loss * self.policy_pre_activation_weight
+        )
 
         """
         Critic operations.
@@ -192,6 +203,13 @@ class DDPG(TorchRLAlgorithm):
             self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
                 policy_loss
             ))
+            self.eval_statistics['Raw Policy Loss'] = np.mean(ptu.get_numpy(
+                raw_policy_loss
+            ))
+            self.eval_statistics['Preactivation Policy Loss'] = (
+                self.eval_statistics['Policy Loss'] -
+                self.eval_statistics['Raw Policy Loss']
+            )
             self.eval_statistics.update(create_stats_ordered_dict(
                 'Q Predictions',
                 ptu.get_numpy(q_pred),
