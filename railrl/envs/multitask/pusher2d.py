@@ -422,6 +422,7 @@ class CylinderXYPusher2DEnv(MultitaskPusher2DEnv):
         qpos = self.model.data.qpos.flat.copy()
         qvel = self.model.data.qvel.flat.copy()
         qpos[-4:-2] = self._target_cylinder_position
+        qpos[-2:] = 0
         self.set_state(qpos, qvel)
 
     def compute_her_reward_pytorch(

@@ -10,6 +10,7 @@ from railrl.envs.multitask.ant_env import GoalXYPosAnt
 # from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
     GoalXPosHalfCheetah
+from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
 from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
 from railrl.envs.multitask.walker2d_env import Walker2DTargetXPos
 from railrl.envs.multitask.reacher_7dof import (
@@ -83,12 +84,12 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = "ec2"
-    exp_prefix = "tdm-ant"
+    exp_prefix = "pusher-sweep"
 
     num_epochs = 100
     num_steps_per_epoch = 10000
     num_steps_per_eval = 1000
-    max_path_length = 50
+    max_path_length = 100
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -140,13 +141,14 @@ if __name__ == "__main__":
             # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
             # GoalXPosHalfCheetah,
-            GoalXYPosAnt,
+            # GoalXYPosAnt,
+            CylinderXYPusher2DEnv,
             # Walker2DTargetXPos,
             # MultitaskPusher3DEnv,
         ],
         'qf_criterion_class': [
             nn.MSELoss,
-            # HuberLoss,
+            HuberLoss,
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.sample_rollout_goals_from': [
             # 'fixed',
@@ -154,11 +156,11 @@ if __name__ == "__main__":
         ],
         'es_kwargs': [
             dict(theta=0.1, max_sigma=0.1, min_sigma=0.1),
-            dict(theta=0.1, max_sigma=0.01, min_sigma=0.01),
+            # dict(theta=0.1, max_sigma=0.01, min_sigma=0.01),
             # dict(theta=0.1, max_sigma=0.2, min_sigma=0.2),
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.max_tau': [
-            49, 15,
+            99, 49, 15,
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.dense_rewards': [
             False
@@ -170,14 +172,14 @@ if __name__ == "__main__":
             0.01, 1, 100,
         ],
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
-            1,
+            1, 10, 25
         ],
         'ddpg_tdm_kwargs.base_kwargs.discount': [
             1,
         ],
         'ddpg_tdm_kwargs.ddpg_kwargs.tau': [
-            # 0.001,
-            0.01,
+            0.001,
+            # 0.01,
         ],
         'ddpg_tdm_kwargs.ddpg_kwargs.eval_with_target_policy': [
             # True,
