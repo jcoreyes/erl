@@ -15,11 +15,7 @@ class Dagger(TorchRLAlgorithm):
             model,
             mpc_controller,
             learning_rate=1e-3,
-            dagger_iters=10,  # num epochs
-            dynamics_iters=60,  # num updates per epoch
-            batch_size=512,
             num_paths_random=10,  # for normalizing input
-            num_paths_dagger=10,  # num steps per epoch
             **kwargs
     ):
         super().__init__(
@@ -30,9 +26,6 @@ class Dagger(TorchRLAlgorithm):
         assert self.collection_mode == 'batch'
         self.model = model
         self.learning_rate = learning_rate
-        self.dagger_iters = dagger_iters
-        self.dynamics_iters = dynamics_iters
-        self.batch_size = batch_size
         self.num_paths_random = num_paths_random
         self.optimizer = optim.Adam(
             self.model.parameters(),
@@ -40,6 +33,8 @@ class Dagger(TorchRLAlgorithm):
         )
 
     def _do_training(self):
+        # TODO: loop through entire training set each training call
+        # TODO: normalize input at beginning
         batch = self.get_batch()
         obs = batch['observations']
         actions = batch['actions']
@@ -65,3 +60,9 @@ class Dagger(TorchRLAlgorithm):
                 'Predicted Obs Deltas',
                 ptu.get_numpy(next_obs_delta_pred),
             ))
+
+    @property
+    def networks(self):
+        return [
+            self.model
+        ]

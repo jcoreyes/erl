@@ -22,11 +22,12 @@ def experiment(variant):
     observation_space = convert_gym_space(env.observation_space)
     action_space = convert_gym_space(env.action_space)
     model = FlattenMlp(
-        int(observation_space.flat_dim) + int(action_space.flat_dim),
-        int(observation_space.flat_dim),
+        input_size=int(observation_space.flat_dim) + int(action_space.flat_dim),
+        output_size=int(observation_space.flat_dim),
         **variant['model_kwargs']
     )
     mpc_controller = MPCController(
+        env,
         model,
         env.cost_fn,
         **variant['mpc_controller_kwargs']
@@ -51,16 +52,20 @@ if __name__ == "__main__":
     # mode = "ec2"
     # exp_prefix = "dagger"
 
+    # dagger_iters = 10
+    # dynamics_iters = 60
+    # num_paths_random = 10
+    # num_paths_dagger = 10
     dagger_iters = 10
-    dynamics_iters = 60
-    num_paths_random = 10
-    num_paths_dagger = 10
+    dynamics_iters = 1
+    num_paths_random = 1
+    num_paths_dagger = 1
 
     max_path_length = 100
     num_epochs = dagger_iters
     num_steps_per_epoch = num_paths_dagger * max_path_length
     num_steps_per_eval = num_paths_dagger * max_path_length
-    num_updater_per_epoch = dynamics_iters
+    num_updates_per_epoch = dynamics_iters
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -69,6 +74,7 @@ if __name__ == "__main__":
             num_epochs=num_epochs,
             num_steps_per_epoch=num_steps_per_epoch,
             num_steps_per_eval=num_steps_per_eval,
+            num_updates_per_epoch=num_updates_per_epoch,
             max_path_length=max_path_length,
             learning_rate=1e-3,
             num_updates_per_env_step=1,
@@ -79,7 +85,7 @@ if __name__ == "__main__":
             obs_std=None,
         ),
         mpc_controller_kwargs=dict(
-            num_simulated_paths=10000,
+            num_simulated_paths=512,
             mpc_horizon=15,
         ),
         model_kwargs=dict(
