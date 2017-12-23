@@ -6,7 +6,7 @@ import numpy as np
 from railrl.misc.data_processing import create_stats_ordered_dict
 from rllab.core.serializable import Serializable
 from rllab.envs.proxy_env import ProxyEnv
-from rllab.misc import logger
+from rllab.misc import logger as rllab_logger
 from rllab.spaces import Box
 
 
@@ -105,7 +105,7 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         """
         return goal_state
 
-    def log_diagnostics(self, paths):
+    def log_diagnostics(self, paths, logger=rllab_logger):
         if 'goals' not in paths[0]:
             return
         statistics = OrderedDict()

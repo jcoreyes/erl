@@ -139,7 +139,7 @@ class GoalXPosHalfCheetah(HalfCheetahEnv, MultitaskEnv, Serializable):
         )
         statistics = OrderedDict()
         for stat, name in [
-            (distances_to_goal, 'Distances to goal'),
+            (distances_to_goal, 'Distance to goal'),
             (goal_positions, 'Goal Position'),
             (positions, 'Position'),
             ([p[-1] for p in positions], 'Final Position'),
@@ -151,7 +151,7 @@ class GoalXPosHalfCheetah(HalfCheetahEnv, MultitaskEnv, Serializable):
                 exclude_max_min=True,
             ))
         for stat, name in [
-            (distances_to_goal, 'Distances to goal'),
+            (distances_to_goal, 'Distance to goal'),
         ]:
             statistics.update(create_stats_ordered_dict(
                 'Final {}'.format(name),

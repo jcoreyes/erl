@@ -4,13 +4,17 @@ import numpy as np
 import tensorflow as tf
 
 import railrl.misc.hyperparameter as hyp
-from railrl.envs.multitask.half_cheetah import GoalXPosHalfCheetah
+from railrl.envs.multitask.ant_env import GoalXYPosAnt
+from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
 from railrl.envs.multitask.her_half_cheetah import HalfCheetah, \
     half_cheetah_cost_fn
 from railrl.envs.multitask.her_pusher_env import Pusher2DEnv, \
     pusher2d_cost_fn
 from railrl.envs.multitask.her_reacher_7dof_env import Reacher7Dof, \
     reacher7dof_cost_fn
+from railrl.envs.multitask.reacher_7dof import (
+    Reacher7DofXyzGoalState,
+)
 from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
 from railrl.launchers.launcher_util import run_experiment
 
@@ -41,7 +45,6 @@ def experiment(variant):
     else:
         env = env_name_or_class()
         from railrl.envs.wrappers import normalize_box
-        from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
         env = normalize_box(env)
         if env_name_or_class == Pusher2DEnv:
             cost_fn = pusher2d_cost_fn
@@ -93,11 +96,11 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "tdm-half-cheetah-xpos"
+    exp_prefix = "model-based-baseline"
 
-    num_epochs = 100
-    num_steps_per_epoch = 10000
-    max_path_length = 50
+    num_epochs = 1000
+    num_steps_per_epoch = 1000
+    max_path_length = 100
 
     variant = dict(
         # env='HalfCheetah-v1',
@@ -129,11 +132,10 @@ if __name__ == '__main__':
 
     search_space = {
         'env_name_or_class': [
-            # Pusher2DEnv,
-            # Reacher7Dof,
-            # HalfCheetah,
-            GoalXPosHalfCheetah,
+            # Reacher7DofXyzGoalState,
             # MultitaskPusher3DEnv,
+            # GoalXYPosAnt,
+            CylinderXYPusher2DEnv,
         ],
         'multitask': [False],
     }

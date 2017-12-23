@@ -23,9 +23,9 @@ class MultitaskPusher2DEnv(Pusher2DEnv, MultitaskEnv, metaclass=abc.ABCMeta):
     def sample_states(self, batch_size):
         raise NotImplementedError()
 
-    def log_diagnostics(self, paths):
-        super().log_diagnostics(paths)
-        MultitaskEnv.log_diagnostics(self, paths)
+    def log_diagnostics(self, paths, **kwargs):
+        super().log_diagnostics(paths, **kwargs)
+        MultitaskEnv.log_diagnostics(self, paths, **kwargs)
 
 
 class FullStatePusher2DEnv(MultitaskPusher2DEnv):
