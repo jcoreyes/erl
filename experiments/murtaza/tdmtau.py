@@ -1,19 +1,17 @@
 import random
 
-import numpy as np
+from railrl.data_management.her_replay_buffer import HerReplayBuffer
+
 
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
-from railrl.data_management.her_replay_buffer import HerReplayBuffer
+
 from railrl.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState
 from railrl.envs.wrappers import normalize_box
 from railrl.launchers.launcher_util import run_experiment
 from railrl.sac.policies import TanhGaussianPolicy
 from railrl.state_distance.tdm_sac import TdmSac
-from railrl.state_distance.tdm_ddpg import TdmDdpg
 from railrl.state_distance.flat_networks import *
-from railrl.torch.networks import FlattenMlp
-
 
 def experiment(variant):
     env = normalize_box(variant['env_class']())
