@@ -254,4 +254,7 @@ class MultitaskToFlatEnv(ProxyEnv, Serializable):
         ob = np.hstack((ob, self._wrapped_env.multitask_goal))
         return ob
 
+    def cost_fn(self, states, actions, next_states):
+        return self._wrapped_env.cost_fn(states, actions, next_states)
+
 multitask_to_flat_env = MultitaskToFlatEnv

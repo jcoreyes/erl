@@ -5,7 +5,11 @@ import railrl.torch.pytorch_util as ptu
 from railrl.dagger.controller import MPCController
 from railrl.dagger.dagger import Dagger
 from railrl.envs.multitask.ant_env import GoalXYPosAnt
+from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
+    GoalXPosHalfCheetah
+from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
 from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
+from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState)
 from railrl.envs.wrappers import convert_gym_space, normalize_box
@@ -16,6 +20,8 @@ from railrl.torch.networks import FlattenMlp
 def experiment(variant):
     env_class = variant['env_class']
     env = env_class()
+    if variant['multitask']:
+        env = MultitaskToFlatEnv(env)
     env = normalize_box(
         env,
         **variant['normalize_kwargs']
@@ -50,13 +56,13 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-dagger"
 
-    # n_seeds = 3
-    # mode = "ec2"
-    # exp_prefix = "dagger"
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "dagger"
 
     dagger_iters = 100
-    dynamics_iters = 1
-    num_paths_dagger = 1
+    dynamics_iters = 60
+    num_paths_dagger = 20
 
     max_path_length = 50
     num_epochs = dagger_iters
@@ -95,11 +101,12 @@ if __name__ == "__main__":
         'env_class': [
             # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
-            GoalXYPosAnt,
-            # CylinderXYPusher2DEnv,
+            # GoalXYPosAnt,
             # GoalXPosHalfCheetah,
-            # MultitaskPusher3DEnv,
+            # CylinderXYPusher2DEnv,
+            MultitaskPusher3DEnv,
         ],
+        'multitask': [True, False],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
