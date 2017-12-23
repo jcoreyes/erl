@@ -84,10 +84,10 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = "ec2"
-    exp_prefix = "pusher-sweep"
+    exp_prefix = "pusher-sweep-2"
 
-    num_epochs = 100
-    num_steps_per_epoch = 10000
+    num_epochs = 1000
+    num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
     max_path_length = 100
 

@@ -8,6 +8,7 @@ from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.envs.multitask.ant_env import GoalXYPosAnt
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
     GoalXPosHalfCheetah
+from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
 from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
 from railrl.envs.multitask.walker2d_env import Walker2DTargetXPos
 from railrl.envs.multitask.reacher_7dof import (
@@ -66,12 +67,12 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "tdm-sweep-pusher-tau-sampling-and-more"
+    exp_prefix = "pusher-sweep-2"
 
     num_epochs = 1000
-    num_steps_per_epoch = 1000
-    num_steps_per_eval = 1000
-    max_path_length = 50
+    num_steps_per_epoch = 100
+    num_steps_per_eval = 100
+    max_path_length = 100
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -82,7 +83,7 @@ if __name__ == "__main__":
                 num_steps_per_eval=num_steps_per_eval,
                 max_path_length=max_path_length,
                 num_updates_per_env_step=25,
-                batch_size=64,
+                batch_size=128,
                 discount=1,
             ),
             tdm_kwargs=dict(
@@ -121,14 +122,15 @@ if __name__ == "__main__":
             # Reacher7DofXyzGoalState,
             # GoalXYPosAnt,
             # Walker2DTargetXPos,
-            MultitaskPusher3DEnv,
+            # MultitaskPusher3DEnv,
+            CylinderXYPusher2DEnv,
         ],
         'sac_tdm_kwargs.base_kwargs.reward_scale': [
-            3.2,
+            1,
             10,
-            32,
             100,
-            320,
+            1000,
+            10000,
         ],
         'sac_tdm_kwargs.tdm_kwargs.vectorized': [
             # False,
@@ -151,7 +153,7 @@ if __name__ == "__main__":
             True,
         ],
         'sac_tdm_kwargs.tdm_kwargs.finite_horizon': [
-            False,
+            # False,
             True,
         ],
         'sac_tdm_kwargs.tdm_kwargs.reward_type': [
@@ -159,20 +161,18 @@ if __name__ == "__main__":
             'distance',
         ],
         'sac_tdm_kwargs.tdm_kwargs.max_tau': [
+            99,
             49,
-            # 15,
+            15,
         ],
         'sac_tdm_kwargs.tdm_kwargs.tau_sample_strategy': [
-            'all_valid',
+            # 'all_valid',
             'uniform',
             # 'no_resampling',
         ],
         'sac_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
             1,
-            # 5,
             10,
-            # 15,
-            # 20,
             25,
         ],
         'sac_tdm_kwargs.base_kwargs.discount': [
