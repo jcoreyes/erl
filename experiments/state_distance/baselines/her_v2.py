@@ -82,9 +82,9 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-ddpg-tdm-launch"
 
-    # n_seeds = 2
-    # mode = "ec2"
-    # exp_prefix = "her-andrychowicz-try-hard"
+    n_seeds = 1
+    mode = "ec2"
+    exp_prefix = "her-andrychowicz-try-hard-2"
 
     num_epochs = 1000
     num_steps_per_epoch = 100
@@ -142,10 +142,10 @@ if __name__ == "__main__":
     search_space = {
         'env_class': [
             # GoalXVelHalfCheetah,
-            GoalXPosHalfCheetah,
-            GoalXYPosAnt,
+            # GoalXPosHalfCheetah,
+            # GoalXYPosAnt,
             CylinderXYPusher2DEnv,
-            Reacher7DofXyzGoalState,
+            # Reacher7DofXyzGoalState,
             # MultitaskPusher3DEnv,
             # Walker2DTargetXPos,
         ],
@@ -156,7 +156,7 @@ if __name__ == "__main__":
             'environment',
         ],
         'her_replay_buffer_kwargs.num_goals_to_sample': [
-            1, 4, 10,
+            4,
         ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
             0.01, 1, 100,
@@ -165,18 +165,16 @@ if __name__ == "__main__":
             1, 10, 25
         ],
         'ddpg_tdm_kwargs.base_kwargs.discount': [
-            0.98, 0.95,
+            0.98,
         ],
         'ddpg_tdm_kwargs.ddpg_kwargs.tau': [
-            0.001,
             0.01,
             0.05,
         ],
         'ddpg_tdm_kwargs.ddpg_kwargs.policy_pre_activation_weight': [
-            0.,
-            0.1,
             1,
-            10,
+            0.,
+            100,
         ],
         'ddpg_tdm_kwargs.ddpg_kwargs.eval_with_target_policy': [
             True,
