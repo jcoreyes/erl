@@ -65,11 +65,11 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-dagger"
 
-    # n_seeds = 3
-    # mode = "ec2"
-    # exp_prefix = "dagger"
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "model-based-reacher-multitask-fixed"
 
-    dagger_iters = 10
+    dagger_iters = 100
     dynamics_iters = 60
     num_paths_dagger = 20
 
