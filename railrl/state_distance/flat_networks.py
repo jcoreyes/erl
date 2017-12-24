@@ -54,11 +54,11 @@ class OneHotTauQF(Mlp):
     def __init__(
             self,
             observation_dim,
-            action_dim,
             goal_dim,
             output_size,
             max_tau,
             hidden_sizes,
+            action_dim=0,
             **kwargs
     ):
         self.save_init_params(locals())
@@ -70,22 +70,29 @@ class OneHotTauQF(Mlp):
         )
         self.max_tau = max_tau
 
-    def forward(self, flat_obs, action):
+    def forward(self, flat_obs, action=None):
         obs, taus = split_tau(flat_obs)
-        h = torch.cat((obs, action), dim=1)
-
+        if action is not None:
+            h = torch.cat((obs, action), dim=1)
+        else:
+            h = obs
         batch_size = h.size()[0]
         y_binary = ptu.FloatTensor(batch_size, self.max_tau + 1)
         y_binary.zero_()
         t = taus.data.long()
         t = torch.clamp(t, min=0)
         y_binary.scatter_(1, t, 1)
-
-        h = torch.cat((
-            obs,
-            ptu.Variable(y_binary),
-            action
-        ), dim=1)
+        if action is not None:
+            h = torch.cat((
+                obs,
+                ptu.Variable(y_binary),
+                action
+            ), dim=1)
+        else:
+            h = torch.cat((
+                obs,
+                ptu.Variable(y_binary),
+            ), dim=1)
 
         for i, fc in enumerate(self.fcs):
             h = self.hidden_activation(fc(h))
@@ -174,14 +181,16 @@ class TauVectorQF(Mlp):
             output_size,
             max_tau,
             hidden_sizes,
+            tau_vector_len=0,
             action_dim=0,
             **kwargs
     ):
         self.save_init_params(locals())
-        self.max_tau = max_tau
+        if tau_vector_len == 0:
+            self.tau_vector_len = max_tau
         super().__init__(
             hidden_sizes=hidden_sizes,
-            input_size=observation_dim + action_dim + goal_dim + self.max_tau,
+            input_size=observation_dim + action_dim + goal_dim + self.tau_vector_len,
             output_size=output_size,
             **kwargs
         )
@@ -191,7 +200,7 @@ class TauVectorQF(Mlp):
         h = torch.cat((obs, action), dim=1)
 
         batch_size = h.size()[0]
-        tau_vector = torch.from_numpy(self.tau*np.ones((batch_size, self.max_tau)))
+        tau_vector = torch.from_numpy(np.ones((batch_size, self.tau_vector_len)) + taus)
 
         if action is not None:
             h = torch.cat((
@@ -228,12 +237,13 @@ class TauVectorSeparateFirstLayerQF(SeparateFirstLayerMlp):
             output_size,
             max_tau,
             hidden_sizes,
-            tau_vector_len,
+            tau_vector_len=0,
             action_dim=0,
             **kwargs
     ):
         self.save_init_params(locals())
-        self.tau_vector_len = tau_vector_len
+        if tau_vector_len == 0:
+            self.tau_vector_len = max_tau
         super().__init__(
             hidden_sizes=hidden_sizes,
             first_input_size=observation_dim + action_dim + goal_dim,
@@ -250,6 +260,5 @@ class TauVectorSeparateFirstLayerQF(SeparateFirstLayerMlp):
             h = obs
 
         batch_size = h.size()[0]
-        tau_vector = torch.from_numpy(self.tau*np.ones((batch_size, self.tau_vector_len)))
-
+        tau_vector = torch.from_numpy(np.ones((batch_size, self.tau_vector_len)) + taus)
         return - torch.abs(super().forward(h, tau_vector))

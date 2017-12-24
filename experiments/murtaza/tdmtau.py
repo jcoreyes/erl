@@ -70,7 +70,7 @@ if __name__ == "__main__":
     max_tau = 15
     # noinspection PyTypeChecker
     versions = [
-        (OneHotTauQF, OneHotTauQF, OneHotTauTanhGaussianPolicy, 'one_hot_tau'),
+        # (OneHotTauQF, OneHotTauQF, OneHotTauTanhGaussianPolicy, 'one_hot_tau'),
         (BinaryStringTauQF, BinaryStringTauQF, BinaryTauTanhGaussianPolicy, 'binary_string_tau'),
         (TauVectorQF, TauVectorQF, TauVectorSeparateFirstLayerQF, 'tau_vector')
     ]
@@ -146,7 +146,7 @@ if __name__ == "__main__":
         exp = version[3]
         for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
             variant['qf_class']=qf_class
-            variant['vf_claas']=vf_class
+            variant['vf_class']=vf_class
             variant['policy_class']=policy_class
             for i in range(n_seeds):
                 seed = random.randint(0, 10000)
