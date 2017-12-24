@@ -197,11 +197,12 @@ class TauVectorQF(Mlp):
 
     def forward(self, flat_obs, action=None):
         obs, taus = split_tau(flat_obs)
-        h = torch.cat((obs, action), dim=1)
-
+        if action is not None:
+            h = torch.cat((obs, action), dim=1)
+        else:
+            h = obs
         batch_size = h.size()[0]
-        tau_vector = torch.from_numpy(np.ones((batch_size, self.tau_vector_len)) + taus)
-
+        tau_vector = torch.zeros((batch_size, self.tau_vector_len)) + taus.data
         if action is not None:
             h = torch.cat((
                 obs,
@@ -260,5 +261,5 @@ class TauVectorSeparateFirstLayerQF(SeparateFirstLayerMlp):
             h = obs
 
         batch_size = h.size()[0]
-        tau_vector = torch.from_numpy(np.ones((batch_size, self.tau_vector_len)) + taus)
+        tau_vector = torch.zeros((batch_size, self.tau_vector_len)) + taus.data
         return - torch.abs(super().forward(h, tau_vector))

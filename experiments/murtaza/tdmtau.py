@@ -71,8 +71,8 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     versions = [
         # (OneHotTauQF, OneHotTauQF, OneHotTauTanhGaussianPolicy, 'one_hot_tau'),
-        (BinaryStringTauQF, BinaryStringTauQF, BinaryTauTanhGaussianPolicy, 'binary_string_tau'),
-        (TauVectorQF, TauVectorQF, TauVectorSeparateFirstLayerQF, 'tau_vector')
+        # (BinaryStringTauQF, BinaryStringTauQF, BinaryTauTanhGaussianPolicy, 'binary_string_tau'),
+        (TauVectorQF, TauVectorQF, TauVectorTanhGaussianPolicy, 'tau_vector')
     ]
     variant = dict(
         algo_params=dict(

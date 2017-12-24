@@ -270,11 +270,10 @@ class TauVectorTanhGaussianPolicy(TanhGaussianPolicy):
         obs, taus = split_tau(obs)
         h=obs
         batch_size = h.size()[0]
-        tau_vector = torch.from_numpy(np.ones((batch_size, self.tau_vector_len)) + taus)
+        tau_vector = torch.zeros((batch_size, self.tau_vector_len)) + taus.data
         h = torch.cat((
                 obs,
                 ptu.Variable(tau_vector),
-
             ), dim=1)
 
         return super().forward(
