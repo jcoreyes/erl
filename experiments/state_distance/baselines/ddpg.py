@@ -66,12 +66,12 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "pusher-sweep-2"
+    exp_prefix = "ddpg-nupo-sweep-ant"
 
     num_epochs = 1000
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
-    max_path_length = 100
+    max_path_length = 50
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -81,9 +81,9 @@ if __name__ == "__main__":
             num_steps_per_eval=num_steps_per_eval,
             max_path_length=max_path_length,
             use_soft_update=True,
-            tau=1e-2,
+            tau=1e-3,
             batch_size=128,
-            discount=0.99,
+            discount=0.98,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
             num_updates_per_env_step=1,
@@ -112,18 +112,21 @@ if __name__ == "__main__":
         'env_class': [
             # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
-            # GoalXYPosAnt,
-            CylinderXYPusher2DEnv,
+            GoalXYPosAnt,
+            # CylinderXYPusher2DEnv,
             # GoalXPosHalfCheetah,
             # MultitaskPusher3DEnv,
         ],
         'multitask': [True],
         'algo_params.reward_scale': [
-            .1, 1, 10, 100,
+            .01, 1, 100, 10000
         ],
         'algo_params.num_updates_per_env_step': [
             1,
+            5,
             10,
+            15,
+            20,
             25,
         ],
     }
