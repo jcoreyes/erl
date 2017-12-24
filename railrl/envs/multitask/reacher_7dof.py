@@ -35,9 +35,9 @@ class Reacher7DofMultitaskEnv(
         qpos = self.init_qpos
         qvel = self.init_qvel + self.np_random.uniform(low=-0.005,
                                                        high=0.005, size=self.model.nv)
-        qpos[-7:-4] = self._desired_xyz
         qvel[-7:] = 0
         self.set_state(qpos, qvel)
+        self.set_goal_xyz(self._desired_xyz)
         return self._get_obs()
 
     def sample_actions(self, batch_size):
@@ -57,13 +57,23 @@ class Reacher7DofMultitaskEnv(
 
     def _step(self, a):
         distance = np.linalg.norm(
-            self.get_body_com("tips_arm") - self.get_body_com("goal")
+            self.get_body_com("tips_arm") - self.multitask_goal
         )
         reward = - distance
         self.do_simulation(a, self.frame_skip)
         ob = self._get_obs()
         done = False
-        return ob, reward, done, dict(distance=distance)
+        return ob, reward, done, dict(
+            distance=distance,
+            multitask_goal=self.multitask_goal,
+        )
+
+    def set_goal_xyz(self, xyz_pos):
+        current_qpos = self.model.data.qpos.flat
+        current_qvel = self.model.data.qvel.flat.copy()
+        new_qpos = current_qpos.copy()
+        new_qpos[-7:-4] = xyz_pos
+        self.set_state(new_qpos, current_qvel)
 
     def log_diagnostics(self, paths, logger=rllab_logger):
         super().log_diagnostics(paths)
@@ -100,6 +110,7 @@ class Reacher7DofXyzGoalState(Reacher7DofMultitaskEnv):
     def set_goal(self, goal):
         super().set_goal(goal)
         self._desired_xyz = goal
+        self.set_goal_xyz(goal)
 
     @property
     def goal_dim(self):
