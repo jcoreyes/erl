@@ -7,7 +7,8 @@ from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
 from railrl.torch.algos.util import np_to_pytorch_batch
-from railrl.torch.data_management.normalizer import TorchNormalizer
+from railrl.torch.data_management.normalizer import TorchNormalizer, \
+    TorchFixedNormalizer
 
 
 class Dagger(TorchRLAlgorithm):
@@ -16,6 +17,9 @@ class Dagger(TorchRLAlgorithm):
             env,
             model,
             mpc_controller,
+            obs_normalizer: TorchFixedNormalizer=None,
+            action_normalizer: TorchFixedNormalizer=None,
+            num_paths_for_normalization=0,
             learning_rate=1e-3,
             **kwargs
     ):
@@ -27,11 +31,15 @@ class Dagger(TorchRLAlgorithm):
         )
         assert self.collection_mode == 'batch'
         self.model = model
+        self.mpc_controller = mpc_controller
         self.learning_rate = learning_rate
         self.optimizer = optim.Adam(
             self.model.parameters(),
             lr=self.learning_rate,
         )
+        self.obs_normalizer = obs_normalizer
+        self.action_normalizer = action_normalizer
+        self.num_paths_for_normalization = num_paths_for_normalization
 
     def get_all_data(self):
         all_obs = self.replay_buffer._observations[:self.replay_buffer._top]
@@ -84,18 +92,24 @@ class Dagger(TorchRLAlgorithm):
             ))
 
     def pretrain(self):
+        if (
+            self.num_paths_for_normalization == 0
+            or (self.obs_normalizer is None and self.action_normalizer is None)
+        ):
+            return
+
         pretrain_paths = []
-        while len(pretrain_paths) < self.num_random_paths:
+        while len(pretrain_paths) < self.num_paths_for_normalization:
             pretrain_paths += self.eval_sampler.obtain_samples()
-        ob_mean, ob_std, delta_mean, delta_std, ac_mean, ac_std = (
+        ob_mean, ob_std, ac_mean, ac_std = (
             compute_normalization(pretrain_paths)
         )
-        delta_normalizer = TorchNormalizer(
-            len(delta_mean), delta_mean, delta_std,
-        )
-        action_normalizer = TorchNormalizer(
-            len(delta_mean), delta_mean, delta_std,
-        )
+        if self.obs_normalizer is not None:
+            self.obs_normalizer.set_mean(ob_mean)
+            self.obs_normalizer.set_std(ob_std)
+        if self.action_normalizer is not None:
+            self.action_normalizer.set_mean(ac_mean)
+            self.action_normalizer.set_std(ac_std)
 
     def _can_train(self):
         return (
@@ -112,16 +126,18 @@ class Dagger(TorchRLAlgorithm):
             self.model
         ]
 
+    def get_epoch_snapshot(self, epoch):
+        snapshot = super().get_epoch_snapshot(epoch)
+        snapshot['model'] = self.model
+        snapshot['mpc_controller'] = self.mpc_controller
+        return snapshot
+
 
 def compute_normalization(paths):
     obs = np.vstack([path["observations"] for path in paths])
-    next_obs = np.vstack([path["next_observations"] for path in paths])
-    deltas = next_obs - obs
-    actions = np.vstack([path["actions"] for path in paths])
     ob_mean = np.mean(obs, axis=0)
     ob_std = np.std(obs, axis=0)
-    delta_mean = np.mean(deltas, axis=0)
-    delta_std = np.std(deltas, axis=0)
+    actions = np.vstack([path["actions"] for path in paths])
     ac_mean = np.mean(actions, axis=0)
     ac_std = np.std(actions, axis=0)
-    return ob_mean, ob_std, delta_mean, delta_std, ac_mean, ac_std
+    return ob_mean, ob_std, ac_mean, ac_std

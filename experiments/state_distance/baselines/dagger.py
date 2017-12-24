@@ -1,9 +1,11 @@
 import random
+import numpy as np
 
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.dagger.controller import MPCController
 from railrl.dagger.dagger import Dagger
+from railrl.dagger.model import DynamicsModel
 from railrl.envs.multitask.ant_env import GoalXYPosAnt
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
     GoalXPosHalfCheetah
@@ -14,6 +16,7 @@ from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState)
 from railrl.envs.wrappers import convert_gym_space, normalize_box
 from railrl.launchers.launcher_util import run_experiment
+from railrl.torch.data_management.normalizer import TorchFixedNormalizer
 from railrl.torch.networks import FlattenMlp
 
 
@@ -27,11 +30,15 @@ def experiment(variant):
         **variant['normalize_kwargs']
     )
 
-    observation_space = convert_gym_space(env.observation_space)
-    action_space = convert_gym_space(env.action_space)
-    model = FlattenMlp(
-        input_size=int(observation_space.flat_dim) + int(action_space.flat_dim),
-        output_size=int(observation_space.flat_dim),
+    observation_dim = int(np.prod(env.observation_space.low.shape))
+    action_dim = int(np.prod(env.action_space.low.shape))
+    obs_normalizer = TorchFixedNormalizer(observation_dim)
+    action_normalizer = TorchFixedNormalizer(action_dim)
+    model = DynamicsModel(
+        observation_dim=observation_dim,
+        action_dim=action_dim,
+        obs_normalizer=obs_normalizer,
+        action_normalizer=action_normalizer,
         **variant['model_kwargs']
     )
     mpc_controller = MPCController(
@@ -44,6 +51,8 @@ def experiment(variant):
         env,
         model,
         mpc_controller,
+        obs_normalizer=obs_normalizer,
+        action_normalizer=action_normalizer,
         **variant['dagger_kwargs']
     )
     if ptu.gpu_enabled():
@@ -82,6 +91,7 @@ if __name__ == "__main__":
             learning_rate=1e-3,
             num_updates_per_env_step=1,
             batch_size=512,
+            num_paths_for_normalization=20,
         ),
         normalize_kwargs=dict(
             obs_mean=None,
