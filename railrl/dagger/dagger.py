@@ -9,8 +9,7 @@ from railrl.samplers.util import rollout
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
 from railrl.torch.algos.util import np_to_pytorch_batch
-from railrl.torch.data_management.normalizer import TorchNormalizer, \
-    TorchFixedNormalizer
+from railrl.torch.data_management.normalizer import TorchFixedNormalizer
 
 
 class Dagger(TorchRLAlgorithm):
@@ -25,7 +24,6 @@ class Dagger(TorchRLAlgorithm):
             learning_rate=1e-3,
             **kwargs
     ):
-        # TODO: normalize input at beginning (maybe)
         super().__init__(
             env,
             mpc_controller,
