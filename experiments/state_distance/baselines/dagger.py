@@ -56,11 +56,11 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-dagger"
 
-    n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "dagger"
+    # n_seeds = 3
+    # mode = "ec2"
+    # exp_prefix = "dagger"
 
-    dagger_iters = 100
+    dagger_iters = 10
     dynamics_iters = 60
     num_paths_dagger = 20
 
@@ -99,12 +99,12 @@ if __name__ == "__main__":
     )
     search_space = {
         'env_class': [
-            # Reacher7DofXyzGoalState,
+            Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
             # GoalXYPosAnt,
             # GoalXPosHalfCheetah,
             # CylinderXYPusher2DEnv,
-            MultitaskPusher3DEnv,
+            # MultitaskPusher3DEnv,
         ],
         'multitask': [True, False],
     }

@@ -187,6 +187,12 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 self.collection_mode
             ))
 
+    def pretrain(self):
+        """
+        Do anything before the main training phase.
+        """
+        pass
+
     def train_online(self, start_epoch=0):
         self._current_path_builder = PathBuilder()
         observation = self._start_new_rollout()

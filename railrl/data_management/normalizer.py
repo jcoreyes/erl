@@ -5,15 +5,22 @@ import numpy as np
 
 
 class Normalizer(object):
-    def __init__(self, size, eps=1e-2, default_clip_range=np.inf):
+    def __init__(
+            self,
+            size,
+            eps=1e-2,
+            default_clip_range=np.inf,
+            mean=0,
+            std=1,
+    ):
         self.size = size
         self.eps = eps
         self.default_clip_range = default_clip_range
         self.sum = np.zeros(self.size, np.float32)
         self.sumsq = np.zeros(self.size, np.float32)
         self.count = np.ones(1, np.float32)
-        self.mean = np.zeros(self.size, np.float32)
-        self.std = np.ones(self.size, np.float32)
+        self.mean = mean + np.zeros(self.size, np.float32)
+        self.std = std + np.ones(self.size, np.float32)
         self.synchronized = True
 
     def update(self, v):

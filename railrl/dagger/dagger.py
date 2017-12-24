@@ -1,4 +1,5 @@
 from collections import OrderedDict
+import numpy as np
 
 from torch import optim as optim
 
@@ -6,6 +7,7 @@ from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
 from railrl.torch.algos.util import np_to_pytorch_batch
+from railrl.torch.data_management.normalizer import TorchNormalizer
 
 
 class Dagger(TorchRLAlgorithm):
@@ -81,6 +83,20 @@ class Dagger(TorchRLAlgorithm):
                 ptu.get_numpy(next_obs_delta_pred),
             ))
 
+    def pretrain(self):
+        pretrain_paths = []
+        while len(pretrain_paths) < self.num_random_paths:
+            pretrain_paths += self.eval_sampler.obtain_samples()
+        ob_mean, ob_std, delta_mean, delta_std, ac_mean, ac_std = (
+            compute_normalization(pretrain_paths)
+        )
+        delta_normalizer = TorchNormalizer(
+            len(delta_mean), delta_mean, delta_std,
+        )
+        action_normalizer = TorchNormalizer(
+            len(delta_mean), delta_mean, delta_std,
+        )
+
     def _can_train(self):
         return (
             super()._can_train() and
@@ -95,3 +111,17 @@ class Dagger(TorchRLAlgorithm):
         return [
             self.model
         ]
+
+
+def compute_normalization(paths):
+    obs = np.vstack([path["observations"] for path in paths])
+    next_obs = np.vstack([path["next_observations"] for path in paths])
+    deltas = next_obs - obs
+    actions = np.vstack([path["actions"] for path in paths])
+    ob_mean = np.mean(obs, axis=0)
+    ob_std = np.std(obs, axis=0)
+    delta_mean = np.mean(deltas, axis=0)
+    delta_std = np.std(deltas, axis=0)
+    ac_mean = np.mean(actions, axis=0)
+    ac_std = np.std(actions, axis=0)
+    return ob_mean, ob_std, delta_mean, delta_std, ac_mean, ac_std
