@@ -148,6 +148,7 @@ class GoalXYPosAnt(LowGearAntEnv, MultitaskEnv, Serializable):
             np.linalg.norm(self.multitask_goal)
         )
         info_dict['pos_error'] = pos_error
+        info_dict['multitask_goal'] = self.multitask_goal
         return ob, reward, done, info_dict
 
     def sample_states(self, batch_size):
