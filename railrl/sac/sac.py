@@ -43,6 +43,7 @@ class SoftActorCritic(TorchRLAlgorithm):
             qf_lr=1e-3,
             vf_lr=1e-3,
             policy_reg_weight=1e-3,
+            policy_pre_activation_weight=0.,
 
             soft_target_tau=1e-2,
             plotter=None,
@@ -65,6 +66,7 @@ class SoftActorCritic(TorchRLAlgorithm):
         self.vf = vf
         self.soft_target_tau = soft_target_tau
         self.policy_reg_weight = policy_reg_weight
+        self.policy_pre_activation_weight = policy_pre_activation_weight
         self.plotter = plotter
         self.render_eval_paths = render_eval_paths
 
@@ -97,9 +99,8 @@ class SoftActorCritic(TorchRLAlgorithm):
         q_pred = self.qf(obs, actions)
         v_pred = self.vf(obs)
         # Make sure policy accounts for squashing functions like tanh correctly!
-        new_actions, policy_mean, policy_log_std, log_pi = self.policy(
-            obs, return_log_prob=True
-        )[:4]
+        policy_outputs = self.policy(obs, return_log_prob=True)
+        new_actions, policy_mean, policy_log_std, log_pi = policy_outputs[:4]
 
         """
         QF Loss
@@ -127,7 +128,11 @@ class SoftActorCritic(TorchRLAlgorithm):
             (policy_mean**2).mean()
             + (policy_log_std**2).mean()
         )
-        policy_loss = policy_loss + policy_reg_loss
+        pre_tanh_value = policy_outputs[-1]
+        pre_activation_policy_loss = self.policy_pre_activation_weight * (
+            (pre_tanh_value**2).sum(dim=1).mean()
+        )
+        policy_loss = policy_loss + policy_reg_loss + pre_activation_policy_loss
 
         """
         Update networks

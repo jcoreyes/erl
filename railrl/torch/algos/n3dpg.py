@@ -189,38 +189,6 @@ class N3DPG(TorchRLAlgorithm):
             if self._n_env_steps_total % self.target_hard_update_period == 0:
                 ptu.copy_model_params_from_to(self.vf, self.target_vf)
 
-    def evaluate(self, epoch):
-        statistics = OrderedDict()
-        statistics.update(self.eval_statistics)
-        self.eval_statistics = None
-
-        logger.log("Collecting samples for evaluation")
-        test_paths = self.eval_sampler.obtain_samples()
-
-        statistics.update(eval_util.get_generic_path_information(
-            test_paths, self.discount, stat_prefix="Test",
-        ))
-        statistics.update(eval_util.get_generic_path_information(
-            self._exploration_paths, self.discount, stat_prefix="Exploration",
-        ))
-        if hasattr(self.env, "log_diagnostics"):
-            logger.set_key_prefix('test ')
-            self.env.log_diagnostics(test_paths)
-            logger.set_key_prefix('expl ')
-            self.env.log_diagnostics(self._exploration_paths)
-            logger.set_key_prefix('')
-
-        average_returns = rllab_util.get_average_returns(test_paths)
-        statistics['AverageReturn'] = average_returns
-        for key, value in statistics.items():
-            logger.record_tabular(key, value)
-
-        if self.render_eval_paths:
-            self.env.render_paths(test_paths)
-
-        if self.plotter:
-            self.plotter.draw()
-
     def offline_evaluate(self, epoch):
         raise NotImplementedError()
 

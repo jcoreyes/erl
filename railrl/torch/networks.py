@@ -142,3 +142,14 @@ class TanhMlpPolicy(MlpPolicy):
     def __init__(self, *args, **kwargs):
         self.save_init_params(locals())
         super().__init__(*args, output_activation=torch.tanh, **kwargs)
+
+    def forward(self, input, return_preactivations=False):
+        h = input
+        for i, fc in enumerate(self.fcs):
+            h = self.hidden_activation(fc(h))
+        preactivations = self.last_fc(h)
+        actions = self.output_activation(preactivations)
+        if return_preactivations:
+            return actions, preactivations
+        else:
+            return actions

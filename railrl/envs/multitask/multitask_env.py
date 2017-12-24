@@ -6,7 +6,7 @@ import numpy as np
 from railrl.misc.data_processing import create_stats_ordered_dict
 from rllab.core.serializable import Serializable
 from rllab.envs.proxy_env import ProxyEnv
-from rllab.misc import logger
+from rllab.misc import logger as rllab_logger
 from rllab.spaces import Box
 
 
@@ -105,7 +105,7 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         """
         return goal_state
 
-    def log_diagnostics(self, paths):
+    def log_diagnostics(self, paths, logger=rllab_logger):
         if 'goals' not in paths[0]:
             return
         statistics = OrderedDict()
@@ -253,5 +253,8 @@ class MultitaskToFlatEnv(ProxyEnv, Serializable):
         self._wrapped_env.set_goal(self._wrapped_env.sample_goal_for_rollout())
         ob = np.hstack((ob, self._wrapped_env.multitask_goal))
         return ob
+
+    def cost_fn(self, states, actions, next_states):
+        return self._wrapped_env.cost_fn(states, actions, next_states)
 
 multitask_to_flat_env = MultitaskToFlatEnv

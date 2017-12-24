@@ -1,9 +1,11 @@
 import random
 
 import railrl.misc.hyperparameter as hyp
+from railrl.envs.multitask.ant_env import GoalXYPosAnt
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
     GoalXPosHalfCheetah
 from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
+from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
 from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState,
@@ -16,6 +18,7 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.qfunctions.torch import FeedForwardQFunction
 from railrl.torch.algos.ddpg import DDPG
+from railrl.torch.networks import TanhMlpPolicy, FlattenMlp
 
 
 def experiment(variant):
@@ -30,15 +33,17 @@ def experiment(variant):
         action_space=env.action_space,
         **variant['ou_params']
     )
-    qf = FeedForwardQFunction(
-        int(env.observation_space.flat_dim),
-        int(env.action_space.flat_dim),
+    obs_dim = int(env.observation_space.flat_dim)
+    action_dim = int(env.action_space.flat_dim)
+    qf = FlattenMlp(
+        input_size=obs_dim+action_dim,
+        output_size=1,
         **variant['qf_params']
     )
-    policy = FeedForwardPolicy(
-        int(env.observation_space.flat_dim),
-        int(env.action_space.flat_dim),
-        **variant['policy_params']
+    policy = TanhMlpPolicy(
+        input_size=obs_dim,
+        output_size=action_dim,
+        **variant['policy_kwargs']
     )
     exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
@@ -59,14 +64,14 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-state-distance-ddpg-baseline"
 
-    n_seeds = 2
+    n_seeds = 3
     mode = "ec2"
-    exp_prefix = "tdm-pusher3d"
+    exp_prefix = "pusher-sweep-2"
 
-    num_epochs = 100
-    num_steps_per_epoch = 10000
+    num_epochs = 1000
+    num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
-    max_path_length = 50
+    max_path_length = 100
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -107,17 +112,19 @@ if __name__ == "__main__":
         'env_class': [
             # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
+            # GoalXYPosAnt,
+            CylinderXYPusher2DEnv,
             # GoalXPosHalfCheetah,
-            MultitaskPusher3DEnv,
+            # MultitaskPusher3DEnv,
         ],
-        'multitask': [True, False],
+        'multitask': [True],
         'algo_params.reward_scale': [
             .1, 1, 10, 100,
         ],
         'algo_params.num_updates_per_env_step': [
             1,
-            # 5,
-            # 25,
+            10,
+            25,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

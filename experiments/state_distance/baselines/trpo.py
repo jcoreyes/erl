@@ -1,9 +1,11 @@
 import random
 
 # from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
+from railrl.envs.multitask.ant_env import GoalXYPosAnt
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
     GoalXPosHalfCheetah
 from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
+from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
 from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
 from railrl.envs.multitask.reacher_7dof import (
     # Reacher7DofGoalStateEverything,
@@ -56,12 +58,12 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "tdm-pusher3d"
+    exp_prefix = "pusher-sweep-2"
 
-    num_epochs = 1000
-    num_steps_per_epoch = 10000
+    num_epochs = 10000
+    num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
-    max_path_length = 50
+    max_path_length = 100
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -87,11 +89,13 @@ if __name__ == "__main__":
             # GoalXVelHalfCheetah,
             # GoalXPosHalfCheetah,
             # Reacher7DofXyzGoalState,
-            MultitaskPusher3DEnv
+            # MultitaskPusher3DEnv,
+            # GoalXYPosAnt,
+            CylinderXYPusher2DEnv,
         ],
-        'multitask': [False, True],
+        'multitask': [True],
         'trpo_params.step_size': [
-            10, 1, 0.1, 0.01, 0.001,
+            10, 1, 0.1, 0.01, 0.001, 0.0001,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

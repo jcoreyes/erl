@@ -579,14 +579,15 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         """
         pass
 
-    @abc.abstractmethod
+    # Don't make this abstract so that every class doesn't have to implement
+    # this.
     def offline_evaluate(self, epoch):
         """
         Evaluate without collecting new data.
         :param epoch:
         :return:
         """
-        pass
+        raise NotImplementedError()
 
     @abc.abstractmethod
     def _do_training(self):

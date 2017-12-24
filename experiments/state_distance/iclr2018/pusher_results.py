@@ -2,43 +2,40 @@ from railrl.misc.data_processing import Experiment
 import matplotlib.pyplot as plt
 import numpy as np
 
-her_path = "/home/vitchyr/git/rllab-rail/railrl/data/papers/iclr2018/pusher2d/her-pusher/pusher_curve.npy"
-her_data = np.load(her_path)
+her_exp = Experiment(
+    "/home/vitchyr/git/railrl/data/doodads3/12-22-her-andrychowicz-try-hard-2/"
+)
+her_andry_trials = her_exp.get_trials({
+    'env_class.$class': "railrl.envs.multitask.pusher2d.CylinderXYPusher2DEnv",
+    'ddpg_tdm_kwargs.ddpg_kwargs.tau': 0.05,
+    'ddpg_tdm_kwargs.ddpg_kwargs.policy_pre_activation_weight': 0.0,
+    'ddpg_tdm_kwargs.base_kwargs.reward_scale': 100,
+    'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': 10,
+})
 
-ddpg_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-25-ddpg-pusher-again-baseline-with-reward-bonus/"
+ddpg_path = "/mnt/data-backup-12-02-2017/doodads3/10-25-ddpg-pusher-again-baseline-with-reward-bonus/"
 ddpg_criteria = {
     'algo_params.num_updates_per_env_step': 5,
-    'algo_params.reward_scale': 1,
+    'algo_params.scale_reward': 1,
     'algo_params.tau': 0.01,
 }
-# DDPG policy: /home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-25-ddpg-pusher-again-baseline-with-reward-bonus/10-25-ddpg-pusher-again-baseline-with-reward-bonus-id0-s362488/
-mb_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-25-abhishek-mb-baseline-pusher-again-shaped/"
+mb_path = "/mnt/data-backup-12-02-2017/doodads3/10-25-abhishek-mb-baseline-pusher-again-shaped/"
 mb_criteria = None
-our_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/11-02-get-results-handxyxy-small-sweep"
+our_path = "/mnt/data-backup-12-02-2017/doodads3/11-02-get-results-handxyxy-small-sweep"
 our_criteria = {
     'algo_params.num_updates_per_env_step': 5,
     'epoch_discount_schedule_params.value': 5,
     'algo_params.tau': 0.001,
 }
 
-her_dense_path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-27-her-baseline-shaped-rewards-no-clipping-300-300-right-discount-and-tau/"
-her_dense_criteria = {
-    'algo_params.num_updates_per_env_step': 1,
-    'algo_params.reward_scale': 1,
-    'env_class.$class':
-        "railrl.envs.multitask.pusher2d.CylinderXYPusher2DEnv"
-}
-
 ddpg_exp = Experiment(ddpg_path)
 mb_exp = Experiment(mb_path)
 our_exp = Experiment(our_path)
-her_dense_exp = Experiment(her_dense_path)
 
 ddpg_trials = ddpg_exp.get_trials(ddpg_criteria)
 mb_trials = mb_exp.get_trials(mb_criteria)
 our_trials = our_exp.get_trials(our_criteria)
-her_dense_trials = her_dense_exp.get_trials(her_dense_criteria)
-MAX_ITERS = 100
+MAX_ITERS = 1000
 
 base_key = 'Final_Euclidean_distance_to_goal_Mean'
 plt.figure()
@@ -46,8 +43,9 @@ for trials, name, key in [
     (ddpg_trials, 'DDPG', base_key),
     (mb_trials, 'Model Based', base_key),
     (our_trials, 'TDM', 'test_'+base_key),
-    (her_dense_trials, 'HER - Dense', 'test_'+base_key),
+    (her_andry_trials, 'HER', "Final Distance object to goal Mean"),
 ]:
+    key = key.replace(" ", "_")
     all_values = []
     min_len = np.inf
     for trial in trials:
@@ -66,20 +64,9 @@ for trials, name, key in [
     plt.plot(epochs, mean, label=name)
 
 
-# Stop at 200 epochs
-her_data = her_data[:, :50]
-her_mean = np.mean(her_data, axis=0)
-her_std = np.mean(her_data, axis=0)
-epochs = 2 * np.arange(0, len(her_mean))
-# plt.fill_between(epochs, her_mean - her_std, her_mean + her_std, alpha=0.1)
-# plt.plot(epochs, her_mean, label="HER - Sparse")
-# for run in her_data:
-#     plt.plot(epochs, run, label="HER - Sparse")
 
-# plt.xscale('log')
 plt.xlabel("Environment Samples (x1000)")
 plt.ylabel("Final Distance to Goal")
-# plt.title(r"Pusher: Distance to Goal vs Environment Samples")
 plt.legend()
 plt.savefig('results/iclr2018/pusher.jpg')
 plt.show()

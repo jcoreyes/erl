@@ -11,7 +11,6 @@ from railrl.misc.ml_util import (
     StatConditionalSchedule,
     ConstantSchedule,
 )
-from railrl.torch import eval_util
 from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
 from rllab.misc import logger
 from torch import nn as nn
@@ -38,6 +37,8 @@ class DDPG(TorchRLAlgorithm):
             qf_criterion=None,
             residual_gradient_weight=0,
             epoch_discount_schedule=None,
+            eval_with_target_policy=False,
+            policy_pre_activation_weight=0.,
 
             plotter=None,
             render_eval_paths=False,
@@ -65,10 +66,15 @@ class DDPG(TorchRLAlgorithm):
         that varies with the epoch.
         :param kwargs:
         """
+        self.target_policy = policy.copy()
+        if eval_with_target_policy:
+            eval_policy = self.target_policy
+        else:
+            eval_policy = policy
         super().__init__(
             env,
             exploration_policy,
-            eval_policy=policy,
+            eval_policy=eval_policy,
             **kwargs
         )
         if qf_criterion is None:
@@ -82,6 +88,7 @@ class DDPG(TorchRLAlgorithm):
         self.tau = tau
         self.use_soft_update = use_soft_update
         self.residual_gradient_weight = residual_gradient_weight
+        self.policy_pre_activation_weight = policy_pre_activation_weight
         self.qf_criterion = qf_criterion
         if epoch_discount_schedule is None:
             epoch_discount_schedule = ConstantSchedule(self.discount)
@@ -90,7 +97,6 @@ class DDPG(TorchRLAlgorithm):
         self.render_eval_paths = render_eval_paths
 
         self.target_qf = self.qf.copy()
-        self.target_policy = self.policy.copy()
         self.qf_optimizer = optim.Adam(
             self.qf.parameters(),
             lr=self.qf_learning_rate,
@@ -114,9 +120,18 @@ class DDPG(TorchRLAlgorithm):
         """
         Policy operations.
         """
-        policy_actions = self.policy(obs)
+        policy_actions, pre_tanh_value = self.policy(
+            obs, return_preactivations=True,
+        )
+        pre_activation_policy_loss = (
+            (pre_tanh_value**2).sum(dim=1).mean()
+        )
         q_output = self.qf(obs, policy_actions)
-        policy_loss = - q_output.mean()
+        raw_policy_loss = - q_output.mean()
+        policy_loss = (
+            raw_policy_loss +
+            pre_activation_policy_loss * self.policy_pre_activation_weight
+        )
 
         """
         Critic operations.
@@ -131,6 +146,8 @@ class DDPG(TorchRLAlgorithm):
         )
         q_target = rewards + (1. - terminals) * self.discount * target_q_values
         q_target = q_target.detach()
+        if self.reward_type == 'indicator':
+            q_target = torch.clamp(q_target, -self.reward_scale/(1-self.discount), 0)
         q_pred = self.qf(obs, actions)
         bellman_errors = (q_pred - q_target) ** 2
         raw_qf_loss = self.qf_criterion(q_pred, q_target)
@@ -188,6 +205,13 @@ class DDPG(TorchRLAlgorithm):
             self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
                 policy_loss
             ))
+            self.eval_statistics['Raw Policy Loss'] = np.mean(ptu.get_numpy(
+                raw_policy_loss
+            ))
+            self.eval_statistics['Preactivation Policy Loss'] = (
+                self.eval_statistics['Policy Loss'] -
+                self.eval_statistics['Raw Policy Loss']
+            )
             self.eval_statistics.update(create_stats_ordered_dict(
                 'Q Predictions',
                 ptu.get_numpy(q_pred),
@@ -244,7 +268,9 @@ class DDPG(TorchRLAlgorithm):
         data_to_save = dict(
             epoch=epoch,
             qf=self.qf,
-            policy=self.policy,
+            policy=self.eval_policy,
+            trained_policy=self.policy,
+            target_policy=self.target_policy,
             exploration_policy=self.exploration_policy,
             batch_size=self.batch_size,
         )

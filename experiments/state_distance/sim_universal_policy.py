@@ -62,11 +62,11 @@ if __name__ == "__main__":
                 env,
                 policy,
                 goal,
-                discount=max_tau,
+                tau=max_tau,
                 max_path_length=args.H,
                 animated=not args.hide,
                 cycle_tau=args.cycle or not args.ndc,
-                decrement_discount=args.dt or not args.ndc,
+                decrement_tau=args.dt or not args.ndc,
             )
             paths.append(path)
         env.log_diagnostics(paths)

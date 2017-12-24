@@ -14,11 +14,10 @@ from railrl.pythonplusplus import nested_dict_to_dot_map_dict
 Trial = namedtuple("Trial", ["data", "variant"])
 
 
-def matches_dict(criteria_dict, test_dict, ignore_missing_keys=False):
+def matches_dict(criteria_dict, test_dict):
     for k, v in criteria_dict.items():
         if k not in test_dict:
-            if not ignore_missing_keys:
-                raise KeyError("Key '{}' not in dictionary".format(k))
+            return False
         else:
             if test_dict[k] != v:
                 return False
@@ -64,7 +63,7 @@ class Experiment(object):
         assert len(self.trials) > 0, "Nothing loaded."
         self.label = 'AverageReturn'
 
-    def get_trials(self, criteria=None, ignore_missing_keys=False):
+    def get_trials(self, criteria=None):
         """
         Return a list of Trials that match a criteria.
         :param criteria: A dictionary from key to value that must be matches
@@ -82,14 +81,13 @@ class Experiment(object):
             (Z, {'a': True, ...})
         ]
         ```
-        :param ignore_missing_keys: If a trial does not have a key that
-        criteria provides, ignore it. Otherwise, raise an error.
+        If a trial does not have the key, the trial is filtered out.
         :return:
         """
         if criteria is None:
             criteria = {}
         return [trial for trial in self.trials
-                if matches_dict(criteria, trial.variant, ignore_missing_keys)]
+                if matches_dict(criteria, trial.variant)]
 
 
 def create_stats_ordered_dict(
@@ -116,6 +114,14 @@ def create_stats_ordered_dict(
             )
             ordered_dict.update(sub_dict)
         return ordered_dict
+
+    if isinstance(data, list):
+        try:
+            iter(data[0])
+        except TypeError:
+            pass
+        else:
+            data = np.concatenate(data)
 
     if (isinstance(data, np.ndarray) and data.size == 1
             and not always_show_all_stats):

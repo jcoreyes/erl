@@ -8,7 +8,6 @@ from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.envs.multitask.ant_env import GoalXYPosAnt
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
     GoalXPosHalfCheetah
-from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
 from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
 from railrl.envs.multitask.walker2d_env import Walker2DTargetXPos
 from railrl.envs.multitask.reacher_7dof import (
@@ -65,14 +64,14 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-sac-tdm-launch"
 
-    n_seeds = 1
+    n_seeds = 2
     mode = "ec2"
-    exp_prefix = "pusher-sweep-2"
+    exp_prefix = "tdm-ant"
 
-    num_epochs = 1000
-    num_steps_per_epoch = 100
-    num_steps_per_eval = 100
-    max_path_length = 100
+    num_epochs = 100
+    num_steps_per_epoch = 10000
+    num_steps_per_eval = 1000
+    max_path_length = 50
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -84,7 +83,7 @@ if __name__ == "__main__":
                 max_path_length=max_path_length,
                 num_updates_per_env_step=25,
                 batch_size=128,
-                discount=1,
+                discount=0.98,
             ),
             tdm_kwargs=dict(
                 sample_rollout_goals_from='environment',
@@ -92,6 +91,7 @@ if __name__ == "__main__":
                 vectorized=True,
                 cycle_taus_for_rollout=True,
                 max_tau=10,
+                dense_rewards=True,
             ),
             sac_kwargs=dict(
                 soft_target_tau=0.01,
@@ -113,17 +113,17 @@ if __name__ == "__main__":
         policy_params=dict(
             hidden_sizes=[300, 300],
         ),
-        version="SAC-TDM",
-        algorithm="SAC-TDM",
+        version="HER-Dense SAC",
+        algorithm="HER-Dense SAC",
     )
     search_space = {
         'env_class': [
             # GoalXVelHalfCheetah,
             # Reacher7DofXyzGoalState,
-            # GoalXYPosAnt,
+            # GoalXPosHalfCheetah,
+            GoalXYPosAnt,
             # Walker2DTargetXPos,
             # MultitaskPusher3DEnv,
-            CylinderXYPusher2DEnv,
         ],
         'sac_tdm_kwargs.base_kwargs.reward_scale': [
             1,
@@ -133,49 +133,29 @@ if __name__ == "__main__":
             10000,
         ],
         'sac_tdm_kwargs.tdm_kwargs.vectorized': [
-            # False,
             True,
         ],
-        'sac_tdm_kwargs.tdm_kwargs.terminate_when_goal_reached': [
-            # True,
+        'sac_tdm_kwargs.tdm_kwargs.dense_rewards': [
+            True,
+        ],
+        'sac_tdm_kwargs.tdm_kwargs.finite_horizon': [
             False,
         ],
+        'sac_tdm_kwargs.base_kwargs.discount': [
+            0.98, 0.95
+        ],
+        # 'sac_tdm_kwargs.sac_kwargs.soft_target_tau': [
+            # 0.01,
+            # 0.001,
+        # ],
         'sac_tdm_kwargs.tdm_kwargs.sample_rollout_goals_from': [
             # 'fixed',
             'environment',
         ],
-        'relabel': [
-            # False,
-            True,
-        ],
-        'sac_tdm_kwargs.tdm_kwargs.dense_rewards': [
-            False,
-            True,
-        ],
-        'sac_tdm_kwargs.tdm_kwargs.finite_horizon': [
-            # False,
-            True,
-        ],
-        'sac_tdm_kwargs.tdm_kwargs.reward_type': [
-            # 'sparse',
-            'distance',
-        ],
         'sac_tdm_kwargs.tdm_kwargs.max_tau': [
-            99,
-            49,
-            15,
-        ],
-        'sac_tdm_kwargs.tdm_kwargs.tau_sample_strategy': [
-            # 'all_valid',
-            'uniform',
-            # 'no_resampling',
+            0,
         ],
         'sac_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
-            1,
-            10,
-            25,
-        ],
-        'sac_tdm_kwargs.base_kwargs.discount': [
             1,
         ],
     }
@@ -183,35 +163,12 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        dense = variant['sac_tdm_kwargs']['tdm_kwargs']['dense_rewards']
-        finite = variant['sac_tdm_kwargs']['tdm_kwargs']['finite_horizon']
-        discount = variant['sac_tdm_kwargs']['base_kwargs']['discount']
-        relabel = variant['relabel']
-        if not finite:
-            variant['sac_tdm_kwargs']['base_kwargs']['discount'] = min(
-                0.95, discount
-            )
-        if not dense and not finite:  # This setting makes no sense
-            continue
-        variant['multitask'] = (
-                variant['sac_tdm_kwargs']['tdm_kwargs'][
-                    'sample_rollout_goals_from'
-                ] != 'fixed'
-        )
-        # if relabel:
-        #     variant['sac_tdm_kwargs']['tdm_kwargs']['sample_train_goals_from'] = 'her'
-        #     variant['sac_tdm_kwargs']['tdm_kwargs'][
-        #         'tau_sample_strategy'] = 'uniform'
-        # else:
-        #     variant['sac_tdm_kwargs']['tdm_kwargs']['sample_train_goals_from'] = 'no_resampling'
-        #     variant['sac_tdm_kwargs']['tdm_kwargs'][
-        #         'tau_sample_strategy'] = 'no_resampling'
-        variant['version'] = ", ".join([
-            "dense={}".format(dense),
-            "finite={}".format(finite),
-            "relabel={}".format(relabel),
-        ])
         for i in range(n_seeds):
+            variant['multitask'] = (
+                    variant['sac_tdm_kwargs']['tdm_kwargs'][
+                        'sample_rollout_goals_from'
+                    ] != 'fixed'
+            )
             seed = random.randint(0, 10000)
             run_experiment(
                 experiment,

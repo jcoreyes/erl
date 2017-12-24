@@ -82,14 +82,14 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-ddpg-tdm-launch"
 
-    n_seeds = 3
+    n_seeds = 1
     mode = "ec2"
-    exp_prefix = "ddpg-sparse-sweep-4"
+    exp_prefix = "her-andrychowicz-try-hard-2"
 
     num_epochs = 1000
-    num_steps_per_epoch = 1000
+    num_steps_per_epoch = 100
     num_steps_per_eval = 1000
-    max_path_length = 50
+    max_path_length = 100
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -100,15 +100,18 @@ if __name__ == "__main__":
                 num_steps_per_eval=num_steps_per_eval,
                 max_path_length=max_path_length,
                 num_updates_per_env_step=25,
-                batch_size=128,
+                batch_size=256,
                 discount=1,
             ),
             tdm_kwargs=dict(
                 sample_rollout_goals_from='environment',
                 sample_train_goals_from='her',
-                vectorized=True,
+                vectorized=False,
                 cycle_taus_for_rollout=True,
                 max_tau=10,
+                finite_horizon=False,
+                dense_rewards=True,
+                reward_type='indicator',
             ),
             ddpg_kwargs=dict(
                 tau=0.001,
@@ -117,7 +120,7 @@ if __name__ == "__main__":
             ),
         ),
         her_replay_buffer_kwargs=dict(
-            max_size=int(2E5),
+            max_size=int(1E6),
             num_goals_to_sample=4,
         ),
         qf_kwargs=dict(
@@ -133,49 +136,27 @@ if __name__ == "__main__":
         ),
         qf_criterion_class=HuberLoss,
         qf_criterion_kwargs=dict(),
-        version="DDPG-TDM",
-        algorithm="DDPG-TDM",
+        version="HER-Andrychowicz",
+        algorithm="HER-Andrychowicz",
     )
     search_space = {
         'env_class': [
-            Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
-            GoalXPosHalfCheetah,
-            GoalXYPosAnt,
-            # CylinderXYPusher2DEnv,
+            # GoalXPosHalfCheetah,
+            # GoalXYPosAnt,
+            CylinderXYPusher2DEnv,
+            # Reacher7DofXyzGoalState,
+            # MultitaskPusher3DEnv,
             # Walker2DTargetXPos,
-            MultitaskPusher3DEnv,
         ],
         'qf_criterion_class': [
             nn.MSELoss,
-            # HuberLoss,
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.sample_rollout_goals_from': [
-            # 'fixed',
             'environment',
         ],
-        'es_kwargs': [
-            dict(theta=0.1, max_sigma=0.1, min_sigma=0.1),
-            # dict(theta=0.1, max_sigma=0.01, min_sigma=0.01),
-            # dict(theta=0.1, max_sigma=0.2, min_sigma=0.2),
-        ],
-        'ddpg_tdm_kwargs.tdm_kwargs.max_tau': [
-            0,
-        ],
-        'ddpg_tdm_kwargs.tdm_kwargs.dense_rewards': [
-            True
-        ],
-        'ddpg_tdm_kwargs.tdm_kwargs.finite_horizon': [
-            False,
-        ],
-        'ddpg_tdm_kwargs.tdm_kwargs.sample_train_goals_from': [
-            'no_resampling',
-        ],
-        'ddpg_tdm_kwargs.tdm_kwargs.tau_sample_strategy': [
-            'no_resampling',
-        ],
-        'ddpg_tdm_kwargs.tdm_kwargs.reward_type': [
-            "indicator",
+        'her_replay_buffer_kwargs.num_goals_to_sample': [
+            4,
         ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
             0.01, 1, 100,
@@ -184,14 +165,19 @@ if __name__ == "__main__":
             1, 10, 25
         ],
         'ddpg_tdm_kwargs.base_kwargs.discount': [
-            0.95,
+            0.98,
         ],
         'ddpg_tdm_kwargs.ddpg_kwargs.tau': [
-            0.001,
-            # 0.01,
+            0.01,
+            0.05,
+        ],
+        'ddpg_tdm_kwargs.ddpg_kwargs.policy_pre_activation_weight': [
+            1,
+            0.,
+            100,
         ],
         'ddpg_tdm_kwargs.ddpg_kwargs.eval_with_target_policy': [
-            False,
+            True,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -200,9 +186,9 @@ if __name__ == "__main__":
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):
             variant['multitask'] = (
-                variant['ddpg_tdm_kwargs']['tdm_kwargs'][
-                    'sample_rollout_goals_from'
-                ] != 'fixed'
+                    variant['ddpg_tdm_kwargs']['tdm_kwargs'][
+                        'sample_rollout_goals_from'
+                    ] != 'fixed'
             )
             seed = random.randint(0, 10000)
             run_experiment(
