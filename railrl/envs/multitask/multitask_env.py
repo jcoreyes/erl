@@ -197,9 +197,6 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         """
         This is added for Abhishek's model-based code.
         """
-        input_is_flat = len(next_states.shape) == 1
-        if input_is_flat:
-            next_states = np.expand_dims(next_states, 0)
         actual = self.convert_obs_to_goals(next_states)
         desired = self.multitask_goal * np.ones_like(actual)
         costs = np.linalg.norm(
@@ -207,8 +204,6 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
             axis=1,
             ord=1,
         )
-        if input_is_flat:
-            costs = costs[0]
         return costs
 
 
@@ -249,8 +244,8 @@ class MultitaskToFlatEnv(ProxyEnv, Serializable):
         return ob, reward, done, info_dict
 
     def reset(self):
-        ob = super().reset()
         self._wrapped_env.set_goal(self._wrapped_env.sample_goal_for_rollout())
+        ob = super().reset()
         ob = np.hstack((ob, self._wrapped_env.multitask_goal))
         return ob
 
