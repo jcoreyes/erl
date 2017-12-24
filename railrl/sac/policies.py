@@ -3,9 +3,10 @@ import torch
 from torch import nn as nn
 
 from railrl.policies.base import ExplorationPolicy, Policy
+from railrl.state_distance.util import split_tau
 from railrl.torch.distributions import TanhNormal
 from railrl.torch.networks import Mlp
-
+import railrl.torch.pytorch_util as ptu
 LOG_SIG_MAX = 2
 LOG_SIG_MIN = -20
 
@@ -133,6 +134,133 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
         return (
             action, mean, log_std, log_prob, expected_log_prob, std,
             mean_action_log_prob
+        )
+
+class OneHotTauTanhGaussianPolicy(TanhGaussianPolicy):
+    def __init__(
+            self,
+            hidden_sizes,
+            obs_dim,
+            action_dim,
+            goal_dim,
+            max_tau,
+            std=None,
+            init_w=1e-3,
+            **kwargs
+    ):
+        self.max_tau = max_tau
+        self.save_init_params(locals())
+        super().__init__(
+            hidden_sizes,
+            input_size=obs_dim+max_tau+goal_dim+1,
+            output_size=action_dim,
+            init_w=init_w,
+            **kwargs
+        )
+        self.log_std = None
+        self.std = std
+        if std is None:
+            last_hidden_size = obs_dim
+            if len(hidden_sizes) > 0:
+                last_hidden_size = hidden_sizes[-1]
+            self.last_fc_log_std = nn.Linear(last_hidden_size, action_dim)
+            self.last_fc_log_std.weight.data.uniform_(-init_w, init_w)
+            self.last_fc_log_std.bias.data.uniform_(-init_w, init_w)
+        else:
+            self.log_std = np.log(std)
+            assert LOG_SIG_MIN <= self.log_std <= LOG_SIG_MAX
+
+    def forward(
+            self,
+            obs,
+            deterministic=False,
+            return_log_prob=False,
+            return_expected_log_prob=False,
+            return_log_prob_of_mean=False,
+    ):
+        obs, taus = split_tau(obs)
+        h = obs
+        batch_size = h.size()[0]
+        y_binary = ptu.FloatTensor(batch_size, self.max_tau + 1)
+        y_binary.zero_()
+        t = taus.data.long()
+        t = torch.clamp(t, min=0)
+        y_binary.scatter_(1, t, 1)
+
+        h = torch.cat((
+            obs,
+            ptu.Variable(y_binary),
+        ), dim=1)
+
+        return super().forward(
+            obs=h,
+            deterministic=deterministic,
+            return_log_prob=return_log_prob,
+            return_expected_log_prob=return_expected_log_prob,
+            return_log_prob_of_mean=return_log_prob_of_mean,
+        )
+class BinaryTauTanhGaussianPolicy(TanhGaussianPolicy):
+    def __init__(
+            self,
+            hidden_sizes,
+            obs_dim,
+            action_dim,
+            goal_dim,
+            max_tau,
+            std=None,
+            init_w=1e-3,
+            **kwargs
+    ):
+        self.max_tau = np.unpackbits(np.array(max_tau, dtype=np.uint8))
+        self.save_init_params(locals())
+        super().__init__(
+            hidden_sizes,
+            input_size=obs_dim + goal_dim+ len(max_tau)+1,
+            output_size=action_dim,
+            init_w=init_w,
+            **kwargs
+        )
+        self.log_std = None
+        self.std = std
+        if std is None:
+            last_hidden_size = obs_dim
+            if len(hidden_sizes) > 0:
+                last_hidden_size = hidden_sizes[-1]
+            self.last_fc_log_std = nn.Linear(last_hidden_size, action_dim)
+            self.last_fc_log_std.weight.data.uniform_(-init_w, init_w)
+            self.last_fc_log_std.bias.data.uniform_(-init_w, init_w)
+        else:
+            self.log_std = np.log(std)
+            assert LOG_SIG_MIN <= self.log_std <= LOG_SIG_MAX
+
+    def forward(
+            self,
+            obs,
+            deterministic=False,
+            return_log_prob=False,
+            return_expected_log_prob=False,
+            return_log_prob_of_mean=False,
+    ):
+        obs, taus = split_tau(obs)
+        h = obs
+        batch_size = h.size()[0]
+        tau_vector = torch.from_numpy(self.tau*np.ones((batch_size, self.max_tau)))
+        tau_vector.zero_()
+        t = taus.data.long()
+        t = torch.clamp(t, min=0)
+        tau_vector.scatter_(1, t, 1)
+
+        h = torch.cat((
+            obs,
+            ptu.Variable(tau_vector),
+        ), dim=1)
+
+        return super().forward(
+            obs=h,
+            deterministic=deterministic,
+            return_log_prob=return_log_prob,
+            return_expected_log_prob=return_expected_log_prob,
+            return_log_prob_of_mean=return_log_prob_of_mean,
         )
 
 class MakeDeterministic(Policy):

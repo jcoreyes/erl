@@ -9,7 +9,7 @@ import railrl.torch.pytorch_util as ptu
 from railrl.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState
 from railrl.envs.wrappers import normalize_box
 from railrl.launchers.launcher_util import run_experiment
-from railrl.sac.policies import TanhGaussianPolicy
+from railrl.sac.policies import *
 from railrl.state_distance.tdm_sac import TdmSac
 from railrl.state_distance.flat_networks import *
 
@@ -20,6 +20,8 @@ def experiment(variant):
     action_dim = int(np.prod(env.action_space.low.shape))
     vectorized = variant['algo_params']['tdm_kwargs']['vectorized']
     qf_class = variant['qf_class']
+    vf_class = variant['vf_class']
+    policy_class = variant['policy_class']
     qf = qf_class(
         observation_dim=obs_dim,
         action_dim=action_dim,
@@ -27,15 +29,16 @@ def experiment(variant):
         output_size=env.goal_dim if vectorized else 1,
         **variant['qf_params']
     )
-    vf = qf_class(
+    vf = vf_class(
         observation_dim=obs_dim,
         goal_dim=env.goal_dim,
         output_size=env.goal_dim if vectorized else 1,
         **variant['qf_params']
     )
-    policy = TanhGaussianPolicy(
-        obs_dim=obs_dim + env.goal_dim + 1,
+    policy = policy_class(
+        obs_dim=obs_dim,
         action_dim=action_dim,
+        goal_dim=env.goal_dim,
         **variant['policy_params']
     )
     replay_buffer = HerReplayBuffer(
@@ -58,7 +61,7 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = "local"
-    exp_prefix = "tdm_binary_tau_reach7DoF-SAC"
+    exp_prefix = "tdm_reach7DoF-SAC"
 
     num_epochs = 100
     num_steps_per_epoch = 50000
@@ -66,6 +69,11 @@ if __name__ == "__main__":
     max_path_length = 500
     max_tau = 15
     # noinspection PyTypeChecker
+    versions = [
+        (OneHotTauQF, OneHotTauQF, OneHotTauTanhGaussianPolicy, 'one_hot_tau'),
+        (BinaryStringTauQF, BinaryStringTauQF, BinaryTauTanhGaussianPolicy, 'binary_string_tau'),
+        (TauVectorQF, TauVectorQF, TauVectorSeparateFirstLayerQF, 'tau_vector')
+    ]
     variant = dict(
         algo_params=dict(
             base_kwargs=dict(
@@ -104,9 +112,9 @@ if __name__ == "__main__":
             hidden_sizes=[100, 100],
         ),
         policy_params=dict(
+            max_tau=max_tau,
             hidden_sizes=[100, 100],
         ),
-        qf_class=BinaryStringTauQF,
     )
     search_space = {
         'env_class': [
@@ -131,15 +139,22 @@ if __name__ == "__main__":
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        for i in range(n_seeds):
-            import ipdb; ipdb.set_trace()
-            seed = random.randint(0, 10000)
-            run_experiment(
-                experiment,
-                seed=seed,
-                variant=variant,
-                exp_id=exp_id,
-                exp_prefix=exp_prefix,
-                mode=mode,
-            )
+    for version in versions:
+        qf_class = version[0]
+        vf_class=version[1]
+        policy_class=version[2]
+        exp = version[3]
+        for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+            variant['qf_class']=qf_class
+            variant['vf_claas']=vf_class
+            variant['policy_class']=policy_class
+            for i in range(n_seeds):
+                seed = random.randint(0, 10000)
+                run_experiment(
+                    experiment,
+                    seed=seed,
+                    variant=variant,
+                    exp_id=exp_id,
+                    exp_prefix=exp_prefix+exp,
+                    mode=mode,
+                )

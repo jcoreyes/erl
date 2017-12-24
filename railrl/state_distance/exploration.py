@@ -52,6 +52,7 @@ class MakeUniversal(PyTorchModule, UniversalExplorationPolicy):
         return self.policy.get_action(new_obs)
 
     def forward(self, *args, **kwargs):
+        import ipdb; ipdb.set_trace()
         return self.policy(*args, **kwargs)
 
     def get_param_values(self):
