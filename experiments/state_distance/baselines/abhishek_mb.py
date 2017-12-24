@@ -16,6 +16,7 @@ from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState,
 )
 from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
+from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
 from railrl.launchers.launcher_util import run_experiment
 
 
@@ -54,9 +55,8 @@ def experiment(variant):
             cost_fn = half_cheetah_cost_fn
         else:
             if variant['multitask']:
-                raise NotImplementedError
-            else:
-                cost_fn = env.cost_fn
+                env = MultitaskToFlatEnv(env)
+            cost_fn = env.cost_fn
 
     train_dagger(
         env=env,
@@ -94,14 +94,13 @@ if __name__ == '__main__':
     mode = "local"
     exp_prefix = "dev-abhishek-mb"
 
-    # n_seeds = 3
-    # mode = "ec2"
-    # exp_prefix = "model-based-baseline"
-    exp_prefix = "abhishek-mb-reacher"
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "model-based-baseline-multitask"
 
-    num_epochs = 10
+    num_epochs = 1000
     num_steps_per_epoch = 1000
-    max_path_length = 100
+    max_path_length = 50
 
     variant = dict(
         # env='HalfCheetah-v1',
@@ -135,16 +134,27 @@ if __name__ == '__main__':
         'env_name_or_class': [
             Reacher7DofXyzGoalState,
             # MultitaskPusher3DEnv,
-            # GoalXYPosAnt,
-            # CylinderXYPusher2DEnv,
+            GoalXYPosAnt,
+            CylinderXYPusher2DEnv,
         ],
-        'multitask': [False],
+        'multitask': [True],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    for i in range(n_seeds):
-        for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+        if variant['env_name_or_class'] == CylinderXYPusher2DEnv:
+            max_path_length = 100
+            variant['dagger_params']['num_paths_random'] = (
+                num_steps_per_epoch // max_path_length
+            )
+            variant['dagger_params']['num_paths_dagger'] = (
+                num_steps_per_epoch // max_path_length
+            )
+            variant['dagger_params']['env_horizon'] = (
+                max_path_length
+            )
+        for i in range(n_seeds):
             seed = random.randint(0, 999999)
             run_experiment(
                 experiment,
