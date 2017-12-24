@@ -197,6 +197,8 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         """
         This is added for Abhishek's model-based code.
         """
+        if len(next_states.shape) == 1:
+            next_states = np.expand_dims(next_states, 0)
         actual = self.convert_obs_to_goals(next_states)
         desired = self.multitask_goal * np.ones_like(actual)
         costs = np.linalg.norm(
