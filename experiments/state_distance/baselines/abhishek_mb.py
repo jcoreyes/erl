@@ -94,11 +94,12 @@ if __name__ == '__main__':
     mode = "local"
     exp_prefix = "dev-abhishek-mb"
 
-    n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "model-based-baseline"
+    # n_seeds = 3
+    # mode = "ec2"
+    # exp_prefix = "model-based-baseline"
+    exp_prefix = "abhishek-mb-reacher"
 
-    num_epochs = 1000
+    num_epochs = 10
     num_steps_per_epoch = 1000
     max_path_length = 100
 
@@ -132,10 +133,10 @@ if __name__ == '__main__':
 
     search_space = {
         'env_name_or_class': [
-            # Reacher7DofXyzGoalState,
+            Reacher7DofXyzGoalState,
             # MultitaskPusher3DEnv,
             # GoalXYPosAnt,
-            CylinderXYPusher2DEnv,
+            # CylinderXYPusher2DEnv,
         ],
         'multitask': [False],
     }
