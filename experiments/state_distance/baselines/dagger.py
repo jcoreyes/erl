@@ -117,6 +117,7 @@ if __name__ == "__main__":
             # MultitaskPusher3DEnv,
         ],
         'multitask': [True, False],
+        'dagger_kwargs.num_paths_for_normalization': [20, 0],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
