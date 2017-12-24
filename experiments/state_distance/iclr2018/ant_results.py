@@ -9,11 +9,14 @@ def main():
     ant_12_21_tdm_her_exp = Experiment(
         "/home/vitchyr/git/railrl/data/doodads3/12-21-tdm-her-sac-ant-sweep/"
     )
+    ant_12_20_exp = Experiment(
+        "/home/vitchyr/git/railrl/data/doodads3/12-20-tdm-ant/"
+    )
     ant_12_19_exp = Experiment(
         "/home/vitchyr/git/railrl/data/doodads3/12-19-tdm-ant/"
     )
-    ant_12_20_exp = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/12-20-tdm-ant/"
+    ant_her_12_22_exp = Experiment(
+        "/home/vitchyr/git/railrl/data/doodads3/12-22-her-andrychowicz-try-hard-2/"
     )
 
     sac_her_andrychowicz_trials = ant_12_21_her_exp.get_trials({
@@ -51,6 +54,13 @@ def main():
         'algorithm': 'DDPG',
         'algo_params.reward_scale': 10,
     })
+    ddpg_her_andrychowicz_trials = ant_her_12_22_exp.get_trials({
+        'env_class.$class': 'railrl.envs.multitask.ant_env.GoalXYPosAnt',
+        'ddpg_tdm_kwargs.base_kwargs.reward_scale': 100,
+        'ddpg_tdm_kwargs.ddpg_kwargs.policy_pre_activation_weight': 1,
+        'ddpg_tdm_kwargs.ddpg_kwargs.tau': 0.05,
+        'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': 10,
+    })
     ddpg_tdm_trials = ant_12_20_exp.get_trials({
         'algorithm': 'DDPG-TDM',
         'ddpg_tdm_kwargs.tdm_kwargs.max_tau': 49,
@@ -72,27 +82,32 @@ def main():
              'DDPG-HER: Sparse, Distance (TDMs)',
              'Final Distance to goal Mean',
         ),
+        # (
+        #     ddpg_her_distance_trials,
+        #     'DDPG-HER: Dense, Distance',
+        #     'Final Distance to goal Mean',
+        # ),
         (
-            ddpg_her_distance_trials,
-            'DDPG-HER: Dense, Distance',
+            ddpg_her_andrychowicz_trials,
+            'DDPG-HER: Dense, Indicator (Andrychowicz)',
             'Final Distance to goal Mean',
         ),
-        (sac_trials, 'SAC', 'Final Distance to goal Mean'),
-        (
-             sac_tdm_trials,
-             'SAC-HER: Sparse, Distance (TDMs)',
-             'Final Distance to goal Mean',
-        ),
-        (
-            sac_her_andrychowicz_trials,
-            'SAC-HER: Dense, Indicator (Andrychowicz)',
-            'Final Distance to goal Mean',
-        ),
-        (
-            sac_her_distance_trials,
-            'SAC-HER: Dense, Distance',
-            'Final Distance to goal Mean',
-        ),
+        # (sac_trials, 'SAC', 'Final Distance to goal Mean'),
+        # (
+        #      sac_tdm_trials,
+        #      'SAC-HER: Sparse, Distance (TDMs)',
+        #      'Final Distance to goal Mean',
+        # ),
+        # (
+        #     sac_her_andrychowicz_trials,
+        #     'SAC-HER: Dense, Indicator (Andrychowicz)',
+        #     'Final Distance to goal Mean',
+        # ),
+        # (
+        #     sac_her_distance_trials,
+        #     'SAC-HER: Dense, Distance',
+        #     'Final Distance to goal Mean',
+        # ),
     ]:
         key = key.replace(" ", "_")
         all_values = []
@@ -104,6 +119,12 @@ def main():
                 import ipdb; ipdb.set_trace()
             min_len = min(min_len, len(values_ts))
             all_values.append(values_ts)
+        if name == 'DDPG-HER: Dense, Indicator (Andrychowicz)':
+            all_values = [
+                average_every_n_elements(values, 10)
+                # np.mean(values.reshape(-1, 10), axis=1)
+                for values in all_values
+            ]
         costs = np.vstack([
             values[:min_len]
             for values in all_values
@@ -122,6 +143,19 @@ def main():
     plt.legend()
     plt.savefig('results/iclr2018/ant.jpg')
     plt.show()
+
+
+def average_every_n_elements(arr, n):
+    return np.nanmean(
+        np.pad(
+            arr.astype(float),
+            (0, n - arr.size % n),
+            mode='constant',
+            constant_values=np.NaN,
+        ).reshape(-1, n),
+        axis=1
+    )
+
 
 if __name__ == '__main__':
     main()
