@@ -11,6 +11,7 @@ from railrl.envs.multitask.reacher_7dof import (
     # Reacher7DofGoalStateEverything,
     Reacher7DofXyzGoalState,
 )
+from railrl.envs.multitask.walker2d_env import Walker2DTargetXPos
 from railrl.envs.wrappers import normalize_and_convert_to_tf_env
 from railrl.launchers.launcher_util import run_experiment
 from sandbox.rocky.tf.algos.trpo import TRPO
@@ -24,7 +25,7 @@ import railrl.misc.hyperparameter as hyp
 
 
 def experiment(variant):
-    env = variant['env_class']()
+    env = variant['env_class'](**variant['env_kwargs'])
     if variant['multitask']:
         env = MultitaskToFlatEnv(env)
     env = normalize_and_convert_to_tf_env(env)
@@ -56,12 +57,12 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-state-distance-trpo-baseline"
 
-    n_seeds = 3
+    n_seeds = 2
     mode = "ec2"
-    exp_prefix = "pusher-sweep-2"
+    exp_prefix = "trpo-walker-position"
 
-    num_epochs = 10000
-    num_steps_per_epoch = 1000
+    num_epochs = 1000
+    num_steps_per_epoch = 10000
     num_steps_per_eval = 1000
     max_path_length = 100
 
@@ -91,11 +92,16 @@ if __name__ == "__main__":
             # Reacher7DofXyzGoalState,
             # MultitaskPusher3DEnv,
             # GoalXYPosAnt,
-            CylinderXYPusher2DEnv,
+            # CylinderXYPusher2DEnv,
+            Walker2DTargetXPos,
         ],
-        'multitask': [True],
+        'env_kwargs': [
+            dict(max_distance=1),
+            dict(max_distance=10),
+        ],
+        'multitask': [True, False],
         'trpo_params.step_size': [
-            10, 1, 0.1, 0.01, 0.001, 0.0001,
+            1, 0.1, 0.01, 0.001, 0.0001,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

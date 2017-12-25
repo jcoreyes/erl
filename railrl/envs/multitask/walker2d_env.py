@@ -31,6 +31,16 @@ class MultitaskWalker2D(
         logger.record_tabular('MinForwardProgress', np.min(progs))
         logger.record_tabular('StdForwardProgress', np.std(progs))
 
+    def _get_obs(self):
+        qpos = self.model.data.qpos
+        qvel = self.model.data.qvel
+        obs = np.concatenate([
+            qpos[1:].flatten(),
+            np.clip(qvel, -10, 10).flatten(),
+            self.get_body_com("torso")
+        ])
+        return obs
+
     def __setstate__(self, state):
         Serializable.__setstate__(self, state)
 
@@ -39,21 +49,18 @@ class MultitaskWalker2D(
 
 
 class Walker2DTargetXPos(MultitaskWalker2D):
-    def __init__(self, max_distance=10):
+    def __init__(self, max_distance=1):
         Serializable.quick_init(self, locals())
         super().__init__()
         self.set_goal(np.array([max_distance]))
+        self.goal_x_positions = np.array([max_distance, -max_distance])
         self.max_distance = max_distance
 
     def sample_goals(self, batch_size):
-        return np.random.uniform(
-            -self.max_distance,
-            self.max_distance,
-            (batch_size, 1),
-        )
+        return np.random.choice(self.goal_x_positions, (batch_size, 1))
 
     def convert_obs_to_goals(self, obs):
-        return obs[:, -3:-2]
+        return obs[:, 17:18]
 
     @property
     def goal_dim(self) -> int:
@@ -61,7 +68,7 @@ class Walker2DTargetXPos(MultitaskWalker2D):
 
     def _step(self, action):
         ob, _, done, info_dict = super()._step(action)
-        xpos = ob[-3]
+        xpos = ob[17]
         xpos_error = np.linalg.norm(xpos - self.multitask_goal)
         reward = - xpos_error
         info_dict['xpos'] = xpos
