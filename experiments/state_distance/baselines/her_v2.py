@@ -84,7 +84,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "her-andrychowicz-cheetah-xvel-rebutal"
+    exp_prefix = "her-andrychowicz-cheetah-xpos-rebutal"
 
     num_epochs = 1000
     num_steps_per_epoch = 1000
@@ -141,9 +141,9 @@ if __name__ == "__main__":
     )
     search_space = {
         'env_class': [
-            GoalXVelHalfCheetah,
+            # GoalXVelHalfCheetah,
             # GoalXPosHalfCheetah,
-            # GoalXYPosAnt,
+            GoalXYPosAnt,
             # CylinderXYPusher2DEnv,
             # Reacher7DofXyzGoalState,
             # MultitaskPusher3DEnv,
