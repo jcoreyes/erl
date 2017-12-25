@@ -91,19 +91,19 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
 
     def convert_obs_to_goals_pytorch(self, obs):
         """
-        PyTorch version of `convert_obs_to_goal_state`.
+        PyTorch version of `convert_obs_to_goals`.
         """
         return self.convert_obs_to_goals(obs)
 
-    def modify_goal_for_rollout(self, goal_state):
+    def modify_goal_for_rollout(self, goal):
         """
         Modify a goal state so that it's appropriate for doing a rollout.
 
         Common use case: zero out the goal velocities.
-        :param goal_state:
+        :param goal:
         :return:
         """
-        return goal_state
+        return goal
 
     def log_diagnostics(self, paths, logger=rllab_logger):
         if 'goals' not in paths[0]:
@@ -223,6 +223,7 @@ class MultitaskToFlatEnv(ProxyEnv, Serializable):
         # Or else serialization gets delegated to the wrapped_env. Serialize
         # this env separately from the wrapped_env.
         self._serializable_initialized = False
+        self._wrapped_obs_dim = int(np.prod(env.observation_space.low.shape))
         Serializable.quick_init(self, locals())
         ProxyEnv.__init__(self, env)
 
@@ -252,6 +253,16 @@ class MultitaskToFlatEnv(ProxyEnv, Serializable):
         return ob
 
     def cost_fn(self, states, actions, next_states):
-        return self._wrapped_env.cost_fn(states, actions, next_states)
+        if len(next_states.shape) == 1:
+            states = states[None]
+            actions = actions[None]
+            next_states = next_states[None]
+        unwrapped_states = states[:, :self._wrapped_obs_dim]
+        unwrapped_next_states = next_states[:, :self._wrapped_obs_dim]
+        return self._wrapped_env.cost_fn(
+            unwrapped_states,
+            actions,
+            unwrapped_next_states,
+        )
 
 multitask_to_flat_env = MultitaskToFlatEnv
