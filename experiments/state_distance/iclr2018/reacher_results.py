@@ -31,6 +31,13 @@ our_criteria = {
     'eval_with_oc_policy': False,
     'algo_params.num_updates_per_env_step': 25,
 }
+ddpg_indicator_trials = Experiment(
+    "/home/vitchyr/git/railrl/data/doodads3/12-23-ddpg-sparse-sweep-4/"
+).get_trials({
+    'env_class.$class':
+        "railrl.envs.multitask.reacher_7dof.Reacher7DofXyzGoalState",
+    'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': 1,
+})
 
 our_exp = Experiment(our_path)
 our_trials = our_exp.get_trials(our_criteria)
@@ -51,6 +58,7 @@ for trials, name, key in [
     (mb_trials, 'Model Based', base_key),
     (our_trials, 'TDM', 'test_'+base_key),
     (her_andry_trials, 'HER', base_key),
+    (ddpg_indicator_trials, 'DDPG-Sparse', base_key),
 ]:
     all_values = []
     min_len = np.inf

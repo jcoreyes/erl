@@ -67,6 +67,12 @@ def main():
     ddpg_tdm_trials = ant_tdm_exp.get_trials({
         'exp_id': '12',
     })
+    ddpg_indicator_trials = Experiment(
+        "/home/vitchyr/git/railrl/data/doodads3/12-23-ddpg-sparse-sweep-4/"
+    ).get_trials({
+        'env_class.$class': 'railrl.envs.multitask.ant_env.GoalXYPosAnt',
+        'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': 1,
+    })
 
     MAX_ITERS = 200
 
@@ -83,27 +89,7 @@ def main():
              'TDMs',
              'Final Distance to goal Mean',
         ),
-        # (
-        #     ddpg_her_distance_trials,
-        #     'DDPG-HER: Dense, Distance',
-        #     'Final Distance to goal Mean',
-        # ),
-        # (sac_trials, 'SAC', 'Final Distance to goal Mean'),
-        # (
-        #      sac_tdm_trials,
-        #      'SAC-HER: Sparse, Distance (TDMs)',
-        #      'Final Distance to goal Mean',
-        # ),
-        # (
-        #     sac_her_andrychowicz_trials,
-        #     'SAC-HER: Dense, Indicator (Andrychowicz)',
-        #     'Final Distance to goal Mean',
-        # ),
-        # (
-        #     sac_her_distance_trials,
-        #     'SAC-HER: Dense, Distance',
-        #     'Final Distance to goal Mean',
-        # ),
+        (ddpg_indicator_trials, 'DDPG-Sparse', 'Final Distance to goal Mean'),
     ]:
         key = key.replace(" ", "_")
         all_values = []

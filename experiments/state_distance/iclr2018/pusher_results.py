@@ -26,6 +26,12 @@ our_criteria = {
     'epoch_discount_schedule_params.value': 5,
     'algo_params.tau': 0.001,
 }
+ddpg_indicator_trials = Experiment(
+    "/home/vitchyr/git/railrl/data/doodads3/12-23-ddpg-sparse-sweep-4/"
+).get_trials({
+    'env_class.$class': 'railrl.envs.multitask.pusher2d.CylinderXYPusher2DEnv',
+    'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': 1,
+})
 
 ddpg_exp = Experiment(ddpg_path)
 mb_exp = Experiment(mb_path)
@@ -43,6 +49,7 @@ for trials, name, key in [
     (mb_trials, 'Model Based', base_key),
     (our_trials, 'TDM', 'test_'+base_key),
     (her_andry_trials, 'HER', "Final Distance object to goal Mean"),
+    (ddpg_indicator_trials, 'DDPG-Sparse', base_key),
 ]:
     key = key.replace(" ", "_")
     all_values = []

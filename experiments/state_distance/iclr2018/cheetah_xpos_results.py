@@ -34,9 +34,9 @@ her_andry_trials = Experiment(
 MAX_ITERS = 150
 plt.figure()
 for trials, name, key in [
-    (mb_trials, 'Model Based', 'Final_xvel_errors_Mean'),
-    (ddpg_trials, 'DDPG', 'Final_xvel_errors_Mean'),
-    (tdm_trials, 'TDM', 'Final_xvel_errors_Mean'),
+    (mb_trials, 'Model Based', 'Final_xpos_errors_Mean'),
+    (ddpg_trials, 'DDPG', 'Final_xpos_errors_Mean'),
+    (tdm_trials, 'TDM', 'Final_xpos_errors_Mean'),
 ]:
     all_values = []
     min_len = np.inf
