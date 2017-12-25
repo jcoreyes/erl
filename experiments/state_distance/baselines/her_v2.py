@@ -84,9 +84,9 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "her-andrychowicz-ant-rebutal"
+    exp_prefix = "her-andrychowicz-reacher-rebutal"
 
-    num_epochs = 1000
+    num_epochs = 100
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
     max_path_length = 50
@@ -143,9 +143,9 @@ if __name__ == "__main__":
         'env_class': [
             # GoalXVelHalfCheetah,
             # GoalXPosHalfCheetah,
-            GoalXYPosAnt,
+            # GoalXYPosAnt,
             # CylinderXYPusher2DEnv,
-            # Reacher7DofXyzGoalState,
+            Reacher7DofXyzGoalState,
             # MultitaskPusher3DEnv,
             # Walker2DTargetXPos,
         ],
@@ -172,8 +172,8 @@ if __name__ == "__main__":
         ],
         'ddpg_tdm_kwargs.ddpg_kwargs.policy_pre_activation_weight': [
             0.,
-            100,
-            10000,
+            0.01,
+            1,
         ],
         'ddpg_tdm_kwargs.ddpg_kwargs.eval_with_target_policy': [
             True,
