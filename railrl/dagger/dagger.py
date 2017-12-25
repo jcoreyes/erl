@@ -4,7 +4,7 @@ import numpy as np
 from torch import optim as optim
 
 from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.policies.simple import UniformRandomPolicy
+from railrl.policies.simple import RandomPolicy
 from railrl.samplers.util import rollout
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
@@ -100,7 +100,7 @@ class Dagger(TorchRLAlgorithm):
             return
 
         pretrain_paths = []
-        random_policy = UniformRandomPolicy(self.env.action_space)
+        random_policy = RandomPolicy(self.env.action_space)
         while len(pretrain_paths) < self.num_paths_for_normalization:
             path = rollout(self.env, random_policy, self.max_path_length)
             pretrain_paths.append(path)
