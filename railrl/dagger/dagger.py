@@ -20,6 +20,7 @@ class Dagger(TorchRLAlgorithm):
             mpc_controller,
             obs_normalizer: TorchFixedNormalizer=None,
             action_normalizer: TorchFixedNormalizer=None,
+            delta_normalizer: TorchFixedNormalizer=None,
             num_paths_for_normalization=0,
             learning_rate=1e-3,
             **kwargs
@@ -39,6 +40,7 @@ class Dagger(TorchRLAlgorithm):
         )
         self.obs_normalizer = obs_normalizer
         self.action_normalizer = action_normalizer
+        self.delta_normalizer = delta_normalizer
         self.num_paths_for_normalization = num_paths_for_normalization
 
     def _do_training(self):
@@ -60,10 +62,14 @@ class Dagger(TorchRLAlgorithm):
             actions = ptu.np_to_var(actions, requires_grad=False)
             next_obs = ptu.np_to_var(next_obs, requires_grad=False)
 
-            next_obs_delta_pred = self.model(obs, actions)
-            next_obs_delta = next_obs - obs
-            errors = (next_obs_delta_pred - next_obs_delta) ** 2
-            loss = errors.mean()
+            ob_deltas_pred = self.model(obs, actions)
+            ob_deltas = next_obs - obs
+            normalized_errors = (
+                self.delta_normalizer.normalize(ob_deltas_pred)
+                - self.delta_normalizer.normalize(ob_deltas)
+            )
+            squared_errors = normalized_errors**2
+            loss = squared_errors.mean()
 
             self.optimizer.zero_grad()
             loss.backward()
@@ -79,11 +85,11 @@ class Dagger(TorchRLAlgorithm):
             ))
             self.eval_statistics.update(create_stats_ordered_dict(
                 'Obs Deltas',
-                ptu.get_numpy(next_obs_delta),
+                ptu.get_numpy(ob_deltas),
             ))
             self.eval_statistics.update(create_stats_ordered_dict(
                 'Predicted Obs Deltas',
-                ptu.get_numpy(next_obs_delta_pred),
+                ptu.get_numpy(ob_deltas_pred),
             ))
 
     def pretrain(self):
@@ -98,12 +104,15 @@ class Dagger(TorchRLAlgorithm):
         while len(pretrain_paths) < self.num_paths_for_normalization:
             path = rollout(self.env, random_policy, self.max_path_length)
             pretrain_paths.append(path)
-        ob_mean, ob_std, ac_mean, ac_std = (
+        ob_mean, ob_std, delta_mean, delta_std, ac_mean, ac_std = (
             compute_normalization(pretrain_paths)
         )
         if self.obs_normalizer is not None:
             self.obs_normalizer.set_mean(ob_mean)
             self.obs_normalizer.set_std(ob_std)
+        if self.delta_normalizer is not None:
+            self.delta_normalizer.set_mean(delta_mean)
+            self.delta_normalizer.set_std(delta_std)
         if self.action_normalizer is not None:
             self.action_normalizer.set_mean(ac_mean)
             self.action_normalizer.set_std(ac_std)
@@ -126,9 +135,13 @@ class Dagger(TorchRLAlgorithm):
 
 def compute_normalization(paths):
     obs = np.vstack([path["observations"] for path in paths])
+    next_obs = np.vstack([path["next_observations"] for path in paths])
+    deltas = next_obs - obs
     ob_mean = np.mean(obs, axis=0)
     ob_std = np.std(obs, axis=0)
+    delta_mean = np.mean(deltas, axis=0)
+    delta_std = np.std(deltas, axis=0)
     actions = np.vstack([path["actions"] for path in paths])
     ac_mean = np.mean(actions, axis=0)
     ac_std = np.std(actions, axis=0)
-    return ob_mean, ob_std, ac_mean, ac_std
+    return ob_mean, ob_std, delta_mean, delta_std, ac_mean, ac_std

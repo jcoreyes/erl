@@ -45,6 +45,15 @@ class TorchFixedNormalizer(FixedNormalizer):
             std = std.unsqueeze(0)
         return torch.clamp((v - mean) / std, -clip_range, clip_range)
 
+    def normalize_scale(self, v):
+        """
+        Only normalize the scale. Do not subtract the mean.
+        """
+        std = ptu.np_to_var(self.std, requires_grad=False)
+        if v.dim() == 2:
+            std = std.unsqueeze(0)
+        return v / std
+
     def denormalize(self, v):
         mean = ptu.np_to_var(self.mean, requires_grad=False)
         std = ptu.np_to_var(self.std, requires_grad=False)
@@ -55,7 +64,7 @@ class TorchFixedNormalizer(FixedNormalizer):
 
     def denormalize_scale(self, v):
         """
-        Only denormalize the scale. Do not subtract the mean.
+        Only denormalize the scale. Do not add the mean.
         """
         std = ptu.np_to_var(self.std, requires_grad=False)
         if v.dim() == 2:

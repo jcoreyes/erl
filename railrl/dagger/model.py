@@ -9,6 +9,7 @@ class DynamicsModel(FlattenMlp):
             action_dim,
             obs_normalizer: TorchFixedNormalizer=None,
             action_normalizer: TorchFixedNormalizer=None,
+            delta_normalizer: TorchFixedNormalizer=None,
             **kwargs
     ):
         self.save_init_params(locals())
@@ -19,11 +20,16 @@ class DynamicsModel(FlattenMlp):
         )
         self.obs_normalizer = obs_normalizer
         self.action_normalizer = action_normalizer
+        self.delta_normalizer = delta_normalizer
 
     def forward(self, observations, actions):
-        if self.obs_normalizer is not None:
+        if self.obs_normalizer:
             observations = self.obs_normalizer.normalize(observations)
-        if self.action_normalizer is not None:
+        if self.action_normalizer:
             actions = self.action_normalizer.normalize(actions)
         obs_delta_predicted = super().forward(observations, actions)
-        return self.obs_normalizer.denormalize_scale(obs_delta_predicted)
+        if self.delta_normalizer:
+            obs_delta_predicted = self.delta_normalizer.denormalize(
+                obs_delta_predicted
+            )
+        return obs_delta_predicted

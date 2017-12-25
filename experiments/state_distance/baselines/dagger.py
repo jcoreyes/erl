@@ -34,11 +34,13 @@ def experiment(variant):
     action_dim = int(np.prod(env.action_space.low.shape))
     obs_normalizer = TorchFixedNormalizer(observation_dim)
     action_normalizer = TorchFixedNormalizer(action_dim)
+    delta_normalizer = TorchFixedNormalizer(observation_dim)
     model = DynamicsModel(
         observation_dim=observation_dim,
         action_dim=action_dim,
         obs_normalizer=obs_normalizer,
         action_normalizer=action_normalizer,
+        delta_normalizer=delta_normalizer,
         **variant['model_kwargs']
     )
     mpc_controller = MPCController(
@@ -53,6 +55,7 @@ def experiment(variant):
         mpc_controller,
         obs_normalizer=obs_normalizer,
         action_normalizer=action_normalizer,
+        delta_normalizer=delta_normalizer,
         **variant['dagger_kwargs']
     )
     if ptu.gpu_enabled():
