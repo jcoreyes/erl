@@ -25,8 +25,7 @@ def experiment(variant):
     env_class = variant['env_class']
     env = env_class()
     if variant['multitask']:
-        # env = MultitaskEnvToSilentMultitaskEnv(env)
-        env = MultitaskToFlatEnv(env)
+        env = MultitaskEnvToSilentMultitaskEnv(env)
     env = normalize_box(
         env,
         **variant['normalize_kwargs']
@@ -72,9 +71,9 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "dagger-normalize-deltas-separately"
+    exp_prefix = "dagger-mb-ant-cheetah-pos-and-vel"
 
-    dagger_iters = 100
+    dagger_iters = 1000
     dynamics_iters = 60
     num_paths_dagger = 20
 
@@ -114,10 +113,10 @@ if __name__ == "__main__":
     )
     search_space = {
         'env_class': [
-            Reacher7DofXyzGoalState,
-            # GoalXVelHalfCheetah,
-            # GoalXYPosAnt,
-            # GoalXPosHalfCheetah,
+            # Reacher7DofXyzGoalState,
+            GoalXVelHalfCheetah,
+            GoalXYPosAnt,
+            GoalXPosHalfCheetah,
             # CylinderXYPusher2DEnv,
             # MultitaskPusher3DEnv,
         ],
