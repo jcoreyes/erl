@@ -2,15 +2,14 @@ from railrl.misc.data_processing import Experiment
 import matplotlib.pyplot as plt
 import numpy as np
 
+from railrl.misc.visualization_util import sliding_mean
+
 her_exp = Experiment(
     "/home/vitchyr/git/railrl/data/doodads3/12-22-her-andrychowicz-try-hard-2/"
 )
 her_andry_trials = her_exp.get_trials({
-    'env_class.$class': "railrl.envs.multitask.pusher2d.CylinderXYPusher2DEnv",
-    'ddpg_tdm_kwargs.ddpg_kwargs.tau': 0.05,
-    'ddpg_tdm_kwargs.ddpg_kwargs.policy_pre_activation_weight': 0.0,
-    'ddpg_tdm_kwargs.base_kwargs.reward_scale': 100,
-    'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': 10,
+    'env_class.$class': 'railrl.envs.multitask.pusher2d.CylinderXYPusher2DEnv',
+    'exp_id': '22',
 })
 
 ddpg_path = "/mnt/data-backup-12-02-2017/doodads3/10-25-ddpg-pusher-again-baseline-with-reward-bonus/"
@@ -57,6 +56,8 @@ for trials, name, key in [
         for values in all_values
     ])
     costs = costs[:, :min(costs.shape[1], MAX_ITERS)]
+    if name == 'HER':
+        costs = sliding_mean(costs, 20)
     mean = np.mean(costs, axis=0)
     std = np.std(costs, axis=0)
     epochs = np.arange(0, len(costs[0]))

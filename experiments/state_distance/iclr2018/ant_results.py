@@ -9,18 +9,9 @@ def main():
     # ant_12_21_tdm_her_exp = Experiment(
     #     "/home/vitchyr/git/railrl/data/doodads3/12-21-tdm-her-sac-ant-sweep/"
     # )
-    ant_12_20_exp = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/12-20-tdm-ant/"
-    )
-    ant_12_19_exp = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/12-19-tdm-ant/"
-    )
-    ant_her_final_exp = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/12-23-her-andrychowicz-ant-rebutal/"
-    )
-    ant_tdm_exp = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/12-24-ddpg-nupo-sweep-ant/"
-    )
+    # ant_12_20_exp = Experiment(
+    #     "/home/vitchyr/git/railrl/data/doodads3/12-20-tdm-ant/"
+    # )
     # sac_her_andrychowicz_trials = ant_12_21_her_exp.get_trials({
     #     'sac_tdm_kwargs.tdm_kwargs.finite_horizon': False,
     #     'sac_tdm_kwargs.tdm_kwargs.reward_type': 'sparse',
@@ -57,19 +48,27 @@ def main():
     #     'ddpg_tdm_kwargs.base_kwargs.discount': 0.95,
     # })
 
+    ant_ddpg_exp = Experiment(
+        "/home/vitchyr/git/railrl/data/doodads3/12-23-ddpg-nupo-sweep-ant/"
+    )
+    ant_her_final_exp = Experiment(
+        "/home/vitchyr/git/railrl/data/doodads3/12-23-her-andrychowicz-ant-rebutal/"
+    )
+    ant_tdm_exp = Experiment(
+        "/home/vitchyr/git/railrl/data/doodads3/12-24-ddpg-nupo-sweep-ant/"
+    )
 
-    ddpg_trials = ant_12_19_exp.get_trials({
-        'algorithm': 'DDPG',
-        'algo_params.reward_scale': 10,
+    ddpg_trials = ant_ddpg_exp.get_trials({
+        'exp_id': '19',
     })
     ddpg_her_andrychowicz_trials = ant_her_final_exp.get_trials({
-        'exp_id': '11',
+        'exp_id': '20',
     })
     ddpg_tdm_trials = ant_tdm_exp.get_trials({
         'exp_id': '12',
     })
 
-    MAX_ITERS = 100
+    MAX_ITERS = 200
 
     plt.figure()
     for trials, name, key in [

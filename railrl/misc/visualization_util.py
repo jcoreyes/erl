@@ -119,3 +119,24 @@ def save_image(fig=None, fname=None):
     img = scipy.misc.imread(fname)
     fname.close()
     return img
+
+
+def sliding_mean(data_array, window=5):
+    """
+    Smooth data with a sliding mean
+    :param data_array:
+    :param window:
+    :return:
+    """
+    data_array = np.array(data_array)
+    new_list = []
+    for i in range(len(data_array)):
+        indices = list(range(max(i - window + 1, 0),
+                             min(i + window + 1, len(data_array))))
+        avg = 0
+        for j in indices:
+            avg += data_array[j]
+        avg /= float(len(indices))
+        new_list.append(avg)
+
+    return np.array(new_list)

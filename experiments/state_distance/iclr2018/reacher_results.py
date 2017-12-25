@@ -11,6 +11,7 @@ her_andry_trials = her_exp.get_trials({
         "railrl.envs.multitask.reacher_7dof.Reacher7DofXyzGoalState",
     'ddpg_tdm_kwargs.base_kwargs.reward_scale': 100,
     'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': 1,
+    'ddpg_tdm_kwargs.ddpg_kwargs.tau': 0.05,
 })
 
 ddpg_path = "/mnt/data-backup-12-02-2017/doodads3/10-25-ddpg" \
@@ -41,7 +42,7 @@ mb_exp = Experiment(mb_path)
 ddpg_trials = ddpg_exp.get_trials(ddpg_criteria)
 mb_trials = mb_exp.get_trials(mb_criteria)
 
-MAX_ITERS = 100
+MAX_ITERS = 1000
 
 base_key = 'Final_Euclidean_distance_to_goal_Mean'
 plt.figure()
