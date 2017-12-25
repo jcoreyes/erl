@@ -96,9 +96,9 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "model-based-baseline-multitask"
+    exp_prefix = "model-based-reacher-multitask-fixed-2"
 
-    num_epochs = 1000
+    num_epochs = 100
     num_steps_per_epoch = 1000
     max_path_length = 50
 
@@ -120,6 +120,7 @@ if __name__ == '__main__':
             size=300,
             activation=tf.nn.relu,
             output_activation=None,
+            normalize=True,
         ),
         multitask=True,
         version="Model-Based - Abhishek",
@@ -134,10 +135,11 @@ if __name__ == '__main__':
         'env_name_or_class': [
             Reacher7DofXyzGoalState,
             # MultitaskPusher3DEnv,
-            GoalXYPosAnt,
-            CylinderXYPusher2DEnv,
+            # GoalXYPosAnt,
+            # CylinderXYPusher2DEnv,
         ],
         'multitask': [True],
+        'dagger_params.normalize': [True, False],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

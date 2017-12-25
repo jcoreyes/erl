@@ -2,7 +2,7 @@ import torch
 import railrl.torch.pytorch_util as ptu
 import numpy as np
 
-from railrl.data_management.normalizer import Normalizer
+from railrl.data_management.normalizer import Normalizer, FixedNormalizer
 
 
 class TorchNormalizer(Normalizer):
@@ -31,3 +31,33 @@ class TorchNormalizer(Normalizer):
             mean = mean.unsqueeze(0)
             std = std.unsqueeze(0)
         return mean + v * std
+
+
+class TorchFixedNormalizer(FixedNormalizer):
+    def normalize(self, v, clip_range=None):
+        if clip_range is None:
+            clip_range = self.default_clip_range
+        mean = ptu.np_to_var(self.mean, requires_grad=False)
+        std = ptu.np_to_var(self.std, requires_grad=False)
+        if v.dim() == 2:
+            # Unsqueeze along the batch use automatic broadcasting
+            mean = mean.unsqueeze(0)
+            std = std.unsqueeze(0)
+        return torch.clamp((v - mean) / std, -clip_range, clip_range)
+
+    def denormalize(self, v):
+        mean = ptu.np_to_var(self.mean, requires_grad=False)
+        std = ptu.np_to_var(self.std, requires_grad=False)
+        if v.dim() == 2:
+            mean = mean.unsqueeze(0)
+            std = std.unsqueeze(0)
+        return mean + v * std
+
+    def denormalize_scale(self, v):
+        """
+        Only denormalize the scale. Do not subtract the mean.
+        """
+        std = ptu.np_to_var(self.std, requires_grad=False)
+        if v.dim() == 2:
+            std = std.unsqueeze(0)
+        return v * std

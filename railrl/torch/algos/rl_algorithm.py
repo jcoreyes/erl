@@ -167,6 +167,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             )
 
     def train(self, start_epoch=0):
+        self.pretrain()
         if start_epoch == 0:
             params = self.get_epoch_snapshot(-1)
             logger.save_itr_params(-1, params)
@@ -186,6 +187,12 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             raise TypeError("Invalid collection_mode: {}".format(
                 self.collection_mode
             ))
+
+    def pretrain(self):
+        """
+        Do anything before the main training phase.
+        """
+        pass
 
     def train_online(self, start_epoch=0):
         self._current_path_builder = PathBuilder()
