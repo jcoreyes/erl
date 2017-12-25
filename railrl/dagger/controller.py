@@ -14,6 +14,7 @@ class MPCController(PyTorchModule, ExplorationPolicy):
             num_simulated_paths=10000,
             mpc_horizon=15,
     ):
+        assert mpc_horizon >= 1
         self.quick_init(locals())
         super().__init__()
         self.env = env
@@ -48,17 +49,16 @@ class MPCController(PyTorchModule, ExplorationPolicy):
         first_sampled_actions = sampled_actions.copy()
         actions = ptu.np_to_var(sampled_actions)
         next_obs = self.expand_np_to_var(obs)
-        costs = np.zeros(self.num_simulated_paths)
         for i in range(self.mpc_horizon):
             curr_obs = next_obs
             if i > 0:
                 sampled_actions = self.sample_actions()
                 actions = ptu.np_to_var(sampled_actions)
             next_obs = curr_obs + self.dynamics_model(curr_obs, actions)
-            costs = costs + self.cost_fn(
-                ptu.get_numpy(curr_obs),
-                ptu.get_numpy(actions),
-                ptu.get_numpy(next_obs),
-            )
-        min_i = np.argmin(costs)
+        final_cost = self.cost_fn(
+            ptu.get_numpy(curr_obs),
+            ptu.get_numpy(actions),
+            ptu.get_numpy(next_obs),
+        )
+        min_i = np.argmin(final_cost)
         return first_sampled_actions[min_i], {}
