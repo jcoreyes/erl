@@ -80,11 +80,11 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = "local"
-    exp_prefix = "dev-ddpg-tdm-launch"
+    exp_prefix = "dev-her"
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "her-andrychowicz-pusher-rebutal"
+    exp_prefix = "her-andrychowicz-cheetah-xvel-rebutal"
 
     num_epochs = 1000
     num_steps_per_epoch = 1000
@@ -141,10 +141,10 @@ if __name__ == "__main__":
     )
     search_space = {
         'env_class': [
-            # GoalXVelHalfCheetah,
+            GoalXVelHalfCheetah,
             # GoalXPosHalfCheetah,
             # GoalXYPosAnt,
-            CylinderXYPusher2DEnv,
+            # CylinderXYPusher2DEnv,
             # Reacher7DofXyzGoalState,
             # MultitaskPusher3DEnv,
             # Walker2DTargetXPos,
