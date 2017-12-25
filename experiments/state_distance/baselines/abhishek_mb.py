@@ -96,7 +96,7 @@ if __name__ == '__main__':
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "model-based-reacher-multitask-fixed"
+    exp_prefix = "model-based-reacher-multitask-fixed-2"
 
     num_epochs = 100
     num_steps_per_epoch = 1000
@@ -138,8 +138,8 @@ if __name__ == '__main__':
             # GoalXYPosAnt,
             # CylinderXYPusher2DEnv,
         ],
-        'multitask': [True, False],
-        'dagger_params.normalize': [False, True],
+        'multitask': [True],
+        'dagger_params.normalize': [True, False],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

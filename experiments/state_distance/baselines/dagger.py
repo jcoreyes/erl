@@ -67,7 +67,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "model-based-reacher-multitask-fixed"
+    exp_prefix = "model-based-reacher-multitask-fixed-2"
 
     dagger_iters = 100
     dynamics_iters = 60
