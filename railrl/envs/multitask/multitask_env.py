@@ -12,7 +12,33 @@ from rllab.spaces import Box
 
 class MultitaskEnv(object, metaclass=abc.ABCMeta):
     """
-    An environment with a task that can be specified with a goal
+    An environment with a task that can be specified with a goal.
+    Two big things:
+    1. The goal should *not* be part of the state.
+    2. Calls to reset() should *not* change the goal
+
+    To change the goal, you need to explicitly call
+    ```
+    goal = env.sample_goal_for_rollout()
+    env.set_goal(goal)
+    env.reset()  # optional, but probably for the best
+    ```
+
+    If you want to append the goal to the state, do this:
+    ```
+    env = MyMultitaskEnv()
+    env = MultitaskToFlatEnv(env)
+    ```
+    The above code will also make the goal change at every time step.
+    See MultitaskToFlatEnv for more detail.
+
+    If you want to change the goal at every call to reset(), but you do not
+    want the goal to be appended to the state, do this:
+    ```
+    env = MyMultitaskEnv()
+    env = MultitaskEnvToSilentMultitaskEnv(env)
+    ```
+    See `MultitaskEnvToSilentMultitaskEnv` for more detail.
     """
 
     def __init__(self, distance_metric_order=1):
@@ -210,6 +236,10 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
 
 
 class MultitaskToFlatEnv(ProxyEnv, Serializable):
+    """
+    This environment tasks a multitask environment and appends the goal to
+    the state.
+    """
     def __init__(
             self,
             env: MultitaskEnv,
@@ -265,4 +295,19 @@ class MultitaskToFlatEnv(ProxyEnv, Serializable):
             unwrapped_next_states,
         )
 
-multitask_to_flat_env = MultitaskToFlatEnv
+
+class MultitaskEnvToSilentMultitaskEnv(ProxyEnv, Serializable):
+    """
+    Normally, reset() on a multitask env doesn't change the goal.
+    Now, reset will silently change the goal.
+    """
+    def reset(self):
+        self._wrapped_env.set_goal(self._wrapped_env.sample_goal_for_rollout())
+        return super().reset()
+
+    def cost_fn(self, states, actions, next_states):
+        return self._wrapped_env.cost_fn(
+            states,
+            actions,
+            next_states,
+        )
