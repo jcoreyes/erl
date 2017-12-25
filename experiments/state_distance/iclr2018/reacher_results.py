@@ -72,6 +72,7 @@ for trials, name, key in [
     plt.plot(epochs, mean, label=name)
 
 
+plt.xscale('log')
 plt.xlabel("Environment Steps (x1000)")
 plt.ylabel("Final Distance to Goal")
 plt.legend()

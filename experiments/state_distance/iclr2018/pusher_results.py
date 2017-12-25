@@ -66,6 +66,7 @@ for trials, name, key in [
 
 
 
+plt.xscale('log')
 plt.xlabel("Environment Samples (x1000)")
 plt.ylabel("Final Distance to Goal")
 plt.legend()
