@@ -9,7 +9,8 @@ from railrl.dagger.model import DynamicsModel
 from railrl.envs.multitask.ant_env import GoalXYPosAnt
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
     GoalXPosHalfCheetah
-from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
+from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv, \
+    MultitaskEnvToSilentMultitaskEnv
 from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
 from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
 from railrl.envs.multitask.reacher_7dof import (
@@ -24,6 +25,7 @@ def experiment(variant):
     env_class = variant['env_class']
     env = env_class()
     if variant['multitask']:
+        # env = MultitaskEnvToSilentMultitaskEnv(env)
         env = MultitaskToFlatEnv(env)
     env = normalize_box(
         env,
@@ -70,7 +72,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "model-based-reacher-multitask-fixed-2"
+    exp_prefix = "dagger-normalize-deltas-separately"
 
     dagger_iters = 100
     dynamics_iters = 60

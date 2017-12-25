@@ -8,7 +8,7 @@ class Normalizer(object):
     def __init__(
             self,
             size,
-            eps=1e-2,
+            eps=1e-8,
             default_clip_range=np.inf,
             mean=0,
             std=1,
@@ -85,16 +85,21 @@ class FixedNormalizer(object):
             default_clip_range=np.inf,
             mean=0,
             std=1,
+            eps=1e-8,
     ):
+        assert std > 0
+        std = max(std, eps)
         self.size = size
         self.default_clip_range = default_clip_range
         self.mean = mean + np.zeros(self.size, np.float32)
         self.std = std + np.zeros(self.size, np.float32)
+        self.eps = eps
 
     def set_mean(self, mean):
         self.mean = mean + np.zeros(self.size, np.float32)
 
     def set_std(self, std):
+        std = max(std, self.eps)
         self.std = std + np.zeros(self.size, np.float32)
 
     def normalize(self, v, clip_range=None):
