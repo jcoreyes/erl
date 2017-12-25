@@ -18,17 +18,14 @@ tdm_trials = Experiment(
     'algorithm': 'DDPG-TDM',
 })
 ddpg_indicator_trials = Experiment(
-    ""
+    "/home/vitchyr/git/railrl/data/doodads3/12-24-ddpg-sparse-no-relabel-cheetah-xvel/"
 ).get_trials({
-
+    'exp_id': '1',
 })
-her_exp = Experiment(
-    ""
-)
 her_andry_trials = Experiment(
-    ""
+    "/home/vitchyr/git/railrl/data/doodads3/12-24-her-andrychowicz-cheetah-xvel-rebutal/"
 ).get_trials({
-
+    'exp_id': '6',
 })
 
 MAX_ITERS = 150
@@ -37,7 +34,12 @@ for trials, name, key in [
     (mb_trials, 'Model Based', 'Final_xvel_errors_Mean'),
     (ddpg_trials, 'DDPG', 'Final_xvel_errors_Mean'),
     (tdm_trials, 'TDM', 'Final_xvel_errors_Mean'),
+    (ddpg_indicator_trials, 'DDPG-Sparse', 'Final_xvel_errors_Mean'),
+    (her_andry_trials, 'HER', 'Final_xvel_errors_Mean'),
 ]:
+    if len(trials) == 0:
+        print(name)
+        import ipdb; ipdb.set_trace()
     all_values = []
     min_len = np.inf
     for trial in trials:
@@ -63,7 +65,7 @@ for trials, name, key in [
 
 # plt.xscale('log')
 plt.xlabel("Environment Samples (x1000)")
-plt.ylabel("Velocity Error")
+plt.ylabel("Final Velocity Error")
 # plt.title(r"Half Cheetah: Velocity Error vs Environment Samples")
 plt.legend()
 plt.savefig('results/iclr2018/cheetah.jpg')
