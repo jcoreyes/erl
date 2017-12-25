@@ -61,7 +61,7 @@ def main():
     ddpg_trials = ant_ddpg_exp.get_trials({
         'exp_id': '19',
     })
-    ddpg_her_andrychowicz_trials = ant_her_final_exp.get_trials({
+    her_andrychowicz_trials = ant_her_final_exp.get_trials({
         'exp_id': '20',
     })
     ddpg_tdm_trials = ant_tdm_exp.get_trials({
@@ -73,13 +73,18 @@ def main():
         'env_class.$class': 'railrl.envs.multitask.ant_env.GoalXYPosAnt',
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': 1,
     })
+    mb_trials = Experiment(
+        "/home/vitchyr/git/railrl/data/doodads3/12-24-dagger-mb-ant-cheetah-pos-and-vel/"
+    ).get_trials({
+        'exp_id': '1',
+    })
 
-    MAX_ITERS = 200
+    MAX_ITERS = 10001
 
     plt.figure()
     for trials, name, key in [
         (
-                ddpg_her_andrychowicz_trials,
+                her_andrychowicz_trials,
                 'HER',
                 'Final Distance to goal Mean',
         ),
@@ -90,6 +95,7 @@ def main():
              'Final Distance to goal Mean',
         ),
         (ddpg_indicator_trials, 'DDPG-Sparse', 'Final Distance to goal Mean'),
+        (mb_trials, 'Model-Based', 'Final Distance to goal Mean'),
     ]:
         key = key.replace(" ", "_")
         all_values = []
