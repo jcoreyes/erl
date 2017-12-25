@@ -84,7 +84,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "ddpg-nupo-sweep-ant"
+    exp_prefix = "ddpg-sparse-no-relabel-cheetah-xvel"
 
     num_epochs = 1000
     num_steps_per_epoch = 1000
@@ -117,7 +117,7 @@ if __name__ == "__main__":
             ),
         ),
         her_replay_buffer_kwargs=dict(
-            max_size=int(2E5),
+            max_size=int(1E6),
             num_goals_to_sample=4,
         ),
         qf_kwargs=dict(
@@ -139,9 +139,9 @@ if __name__ == "__main__":
     search_space = {
         'env_class': [
             # Reacher7DofXyzGoalState,
-            # GoalXVelHalfCheetah,
+            GoalXVelHalfCheetah,
             # GoalXPosHalfCheetah,
-            GoalXYPosAnt,
+            # GoalXYPosAnt,
             # CylinderXYPusher2DEnv,
             # Walker2DTargetXPos,
             # MultitaskPusher3DEnv,
@@ -163,28 +163,30 @@ if __name__ == "__main__":
             49,
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.dense_rewards': [
-            False,
-        ],
-        'ddpg_tdm_kwargs.tdm_kwargs.finite_horizon': [
+            # False,
             True,
         ],
-        # 'ddpg_tdm_kwargs.tdm_kwargs.sample_train_goals_from': [
-            # 'no_resampling',
-        # ],
-        # 'ddpg_tdm_kwargs.tdm_kwargs.tau_sample_strategy': [
-            # 'no_resampling',
-        # ],
-        # 'ddpg_tdm_kwargs.tdm_kwargs.reward_type': [
-            # "indicator",
-        # ],
+        'ddpg_tdm_kwargs.tdm_kwargs.finite_horizon': [
+            # True,
+            False,
+        ],
+        'ddpg_tdm_kwargs.tdm_kwargs.sample_train_goals_from': [
+            'no_resampling',
+        ],
+        'ddpg_tdm_kwargs.tdm_kwargs.tau_sample_strategy': [
+            'no_resampling',
+        ],
+        'ddpg_tdm_kwargs.tdm_kwargs.reward_type': [
+            "indicator",
+        ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
             0.01, 1, 100, 10000,
         ],
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
-            1, 5, 10, 15, 20, 25
+            1, 10, 25
         ],
         'ddpg_tdm_kwargs.base_kwargs.discount': [
-            1,
+            0.98,
         ],
         'ddpg_tdm_kwargs.ddpg_kwargs.tau': [
             0.001,
