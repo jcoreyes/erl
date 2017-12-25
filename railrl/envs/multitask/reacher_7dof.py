@@ -109,4 +109,4 @@ class Reacher7DofXyzGoalState(Reacher7DofMultitaskEnv):
         return 3
 
     def convert_obs_to_goals(self, obs):
-        return obs[:, -3:]
+        return obs[:, 14:17]
