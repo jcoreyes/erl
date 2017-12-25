@@ -41,29 +41,24 @@ class Dagger(TorchRLAlgorithm):
         self.action_normalizer = action_normalizer
         self.num_paths_for_normalization = num_paths_for_normalization
 
-    def get_all_data(self):
+    def _do_training(self):
         all_obs = self.replay_buffer._observations[:self.replay_buffer._top]
         all_actions = self.replay_buffer._actions[:self.replay_buffer._top]
         all_next_obs = self.replay_buffer._next_obs[:self.replay_buffer._top]
-        return np_to_pytorch_batch(dict(
-            all_obs=all_obs,
-            all_actions=all_actions,
-            all_next_obs=all_next_obs,
-        ))
-
-    def _do_training(self):
-        batch = self.get_all_data()
-        all_obs = batch['all_obs']
-        all_actions = batch['all_actions']
-        all_next_obs = batch['all_next_obs']
 
         losses = []
         num_batches = len(all_obs) // self.batch_size
+        idx = np.asarray(range(len(all_obs)))
+        np.random.shuffle(idx)
         for bn in range(num_batches):
-            slc = slice(bn*self.batch_size, (bn+1)*self.batch_size)
-            obs = all_obs[slc, :]
-            actions = all_actions[slc, :]
-            next_obs = all_next_obs[slc, :]
+            idxs = idx[bn*self.batch_size: (bn+1)*self.batch_size]
+            obs = all_obs[idxs]
+            actions = all_actions[idxs]
+            next_obs = all_next_obs[idxs]
+
+            obs = ptu.np_to_var(obs, requires_grad=False)
+            actions = ptu.np_to_var(actions, requires_grad=False)
+            next_obs = ptu.np_to_var(next_obs, requires_grad=False)
 
             next_obs_delta_pred = self.model(obs, actions)
             next_obs_delta = next_obs - obs
@@ -112,12 +107,6 @@ class Dagger(TorchRLAlgorithm):
         if self.action_normalizer is not None:
             self.action_normalizer.set_mean(ac_mean)
             self.action_normalizer.set_std(ac_std)
-
-    def _can_train(self):
-        return (
-            super()._can_train() and
-            self.replay_buffer.num_steps_can_sample() // self.batch_size > 1
-        )
 
     def _can_evaluate(self):
         return self.eval_statistics is not None
