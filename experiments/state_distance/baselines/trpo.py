@@ -59,12 +59,12 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = "ec2"
-    exp_prefix = "trpo-pusher-3d"
+    exp_prefix = "trpo-ant-far"
 
     num_epochs = 1000
     num_steps_per_epoch = 10000
     num_steps_per_eval = 10000
-    max_path_length = 250
+    max_path_length = 1000
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -90,15 +90,15 @@ if __name__ == "__main__":
             # GoalXVelHalfCheetah,
             # GoalXPosHalfCheetah,
             # Reacher7DofXyzGoalState,
-            # GoalXYPosAnt,
+            GoalXYPosAnt,
             # CylinderXYPusher2DEnv,
-            MultitaskPusher3DEnv,
+            # MultitaskPusher3DEnv,
             # Walker2DTargetXPos,
         ],
         'env_kwargs': [
-            dict(),
+            # dict(),
             # dict(max_distance=10),
-            # dict(max_distance=100),
+            dict(max_distance=100),
         ],
         'multitask': [True],
         'trpo_params.step_size': [

@@ -71,7 +71,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "mb-dagger-walker-position-long-take2"
+    exp_prefix = "mb-dagger-ant-far"
 
     num_epochs = 100
     num_steps_per_epoch = 10000
@@ -110,18 +110,18 @@ if __name__ == "__main__":
         'env_class': [
             # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
-            # GoalXYPosAnt,
+            GoalXYPosAnt,
             # GoalXPosHalfCheetah,
             # CylinderXYPusher2DEnv,
             # MultitaskPusher3DEnv,
-            Walker2DTargetXPos,
+            # Walker2DTargetXPos,
         ],
         'multitask': [True],
         'dagger_kwargs.num_paths_for_normalization': [20],
         'dagger_kwargs.collection_mode': ['online'],
         'env_kwargs': [
             # dict(),
-            dict(max_distance=10),
+            # dict(max_distance=10),
             dict(max_distance=100),
         ],
         'dagger_kwargs.batch_size': [128],

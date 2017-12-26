@@ -65,7 +65,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "ddpg-walker-position-long-take2"
+    exp_prefix = "ddpg-ant-far"
 
     num_epochs = 100
     num_steps_per_epoch = 10000
@@ -109,16 +109,16 @@ if __name__ == "__main__":
         'env_class': [
             # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
-            # GoalXYPosAnt,
+            GoalXYPosAnt,
             # CylinderXYPusher2DEnv,
             # GoalXPosHalfCheetah,
             # MultitaskPusher3DEnv,
-            Walker2DTargetXPos,
+            # Walker2DTargetXPos,
         ],
         'multitask': [True],
         'env_kwargs': [
             # dict(),
-            dict(max_distance=10),
+            # dict(max_distance=10),
             dict(max_distance=100),
         ],
         'algo_kwargs.reward_scale': [
