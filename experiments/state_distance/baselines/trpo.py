@@ -57,14 +57,14 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-state-distance-trpo-baseline"
 
-    n_seeds = 2
+    n_seeds = 3
     mode = "ec2"
-    exp_prefix = "trpo-ant-far"
+    exp_prefix = "ant-check-delta-goal-works"
 
     num_epochs = 1000
     num_steps_per_epoch = 10000
     num_steps_per_eval = 10000
-    max_path_length = 1000
+    max_path_length = 50
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -96,13 +96,13 @@ if __name__ == "__main__":
             # Walker2DTargetXPos,
         ],
         'env_kwargs': [
-            # dict(),
+            dict(),
             # dict(max_distance=10),
-            dict(max_distance=100),
+            # dict(max_distance=100),
         ],
         'multitask': [True],
         'trpo_params.step_size': [
-            10, 1, 0.1, 0.01, 0.001,
+            0.1, 0.01,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

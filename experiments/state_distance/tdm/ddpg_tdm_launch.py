@@ -78,14 +78,14 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-ddpg-tdm-launch"
 
-    # n_seeds = 3
-    # mode = "ec2"
-    # exp_prefix = "pusher3d-nupo-sweep"
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "ant-check-delta-goal-works"
 
     num_epochs = 100
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
-    max_path_length = 250
+    max_path_length = 50
     # num_epochs = 100
     # num_steps_per_epoch = 100
     # num_steps_per_eval = 100
@@ -141,10 +141,10 @@ if __name__ == "__main__":
             # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
             # GoalXPosHalfCheetah,
-            # GoalXYPosAnt,
+            GoalXYPosAnt,
             # CylinderXYPusher2DEnv,
             # Walker2DTargetXPos,
-            MultitaskPusher3DEnv,
+            # MultitaskPusher3DEnv,
         ],
         'env_kwargs': [
             dict(),
@@ -179,10 +179,10 @@ if __name__ == "__main__":
             # "indicator",
         # ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
-            1000, 10000, 100000,
+            100,
         ],
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
-            1, 5, 10, 20
+            1,
         ],
         'ddpg_tdm_kwargs.base_kwargs.discount': [
             1,
