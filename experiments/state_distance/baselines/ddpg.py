@@ -10,13 +10,12 @@ from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState,
 )
+from railrl.envs.multitask.walker2d_env import Walker2DTargetXPos
 from railrl.envs.wrappers import normalize_box
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.policies.torch import FeedForwardPolicy
-from railrl.qfunctions.torch import FeedForwardQFunction
 from railrl.torch.algos.ddpg import DDPG
 from railrl.torch.networks import TanhMlpPolicy, FlattenMlp
 
@@ -25,20 +24,20 @@ def experiment(variant):
     env = variant['env_class']()
     env = normalize_box(
         env,
-        **variant['normalize_params']
+        **variant['normalize_kwargs']
     )
     if variant['multitask']:
         env = MultitaskToFlatEnv(env)
     es = OUStrategy(
         action_space=env.action_space,
-        **variant['ou_params']
+        **variant['ou_kwargs']
     )
     obs_dim = int(env.observation_space.flat_dim)
     action_dim = int(env.action_space.flat_dim)
     qf = FlattenMlp(
         input_size=obs_dim+action_dim,
         output_size=1,
-        **variant['qf_params']
+        **variant['qf_kwargs']
     )
     policy = TanhMlpPolicy(
         input_size=obs_dim,
@@ -54,7 +53,7 @@ def experiment(variant):
         qf,
         policy,
         exploration_policy,
-        **variant['algo_params']
+        **variant['algo_kwargs']
     )
     algorithm.train()
 
@@ -66,16 +65,16 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "ddpg-nupo-sweep-ant"
+    exp_prefix = "ddpg-pusher-3d"
 
-    num_epochs = 1000
-    num_steps_per_epoch = 1000
-    num_steps_per_eval = 1000
-    max_path_length = 50
+    num_epochs = 100
+    num_steps_per_epoch = 10000
+    num_steps_per_eval = 10000
+    max_path_length = 250
 
     # noinspection PyTypeChecker
     variant = dict(
-        algo_params=dict(
+        algo_kwargs=dict(
             num_epochs=num_epochs,
             num_steps_per_epoch=num_steps_per_epoch,
             num_steps_per_eval=num_steps_per_eval,
@@ -88,22 +87,20 @@ if __name__ == "__main__":
             policy_learning_rate=1e-4,
             num_updates_per_env_step=1,
         ),
-        normalize_params=dict(
+        normalize_kwargs=dict(
             obs_mean=None,
             obs_std=None,
         ),
-        ou_params=dict(
+        ou_kwargs=dict(
             theta=0.1,
             max_sigma=0.1,
             min_sigma=0.1,
         ),
-        policy_params=dict(
-            fc1_size=300,
-            fc2_size=300,
+        policy_kwargs=dict(
+            hidden_sizes=[300, 300],
         ),
-        qf_params=dict(
-            observation_hidden_size=300,
-            embedded_hidden_size=300,
+        qf_kwargs=dict(
+            hidden_sizes=[300, 300],
         ),
         version="DDPG",
         algorithm="DDPG",
@@ -112,21 +109,19 @@ if __name__ == "__main__":
         'env_class': [
             # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
-            GoalXYPosAnt,
+            # GoalXYPosAnt,
+            # Walker2DTargetXPos,
             # CylinderXYPusher2DEnv,
             # GoalXPosHalfCheetah,
-            # MultitaskPusher3DEnv,
+            MultitaskPusher3DEnv,
         ],
         'multitask': [True],
-        'algo_params.reward_scale': [
-            .01, 1, 100, 10000
+        'algo_kwargs.reward_scale': [
+            .01, 1, 100, 10000, int(1e6)
         ],
-        'algo_params.num_updates_per_env_step': [
+        'algo_kwargs.num_updates_per_env_step': [
             1,
-            5,
             10,
-            15,
-            20,
             25,
         ],
     }

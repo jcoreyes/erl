@@ -146,7 +146,8 @@ class DDPG(TorchRLAlgorithm):
         )
         q_target = rewards + (1. - terminals) * self.discount * target_q_values
         q_target = q_target.detach()
-        if self.reward_type == 'indicator':
+        # Hack for ICLR rebuttal
+        if hasattr(self, 'reward_type') and self.reward_type == 'indicator':
             q_target = torch.clamp(q_target, -self.reward_scale/(1-self.discount), 0)
         q_pred = self.qf(obs, actions)
         bellman_errors = (q_pred - q_target) ** 2

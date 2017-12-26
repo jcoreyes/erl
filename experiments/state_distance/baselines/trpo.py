@@ -59,12 +59,12 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = "ec2"
-    exp_prefix = "trpo-walker-position"
+    exp_prefix = "trpo-pusher-3d"
 
     num_epochs = 1000
     num_steps_per_epoch = 10000
-    num_steps_per_eval = 1000
-    max_path_length = 100
+    num_steps_per_eval = 10000
+    max_path_length = 250
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -90,18 +90,19 @@ if __name__ == "__main__":
             # GoalXVelHalfCheetah,
             # GoalXPosHalfCheetah,
             # Reacher7DofXyzGoalState,
-            # MultitaskPusher3DEnv,
             # GoalXYPosAnt,
             # CylinderXYPusher2DEnv,
-            Walker2DTargetXPos,
+            MultitaskPusher3DEnv,
+            # Walker2DTargetXPos,
         ],
         'env_kwargs': [
-            dict(max_distance=1),
-            dict(max_distance=10),
+            dict(),
+            # dict(max_distance=10),
+            # dict(max_distance=100),
         ],
-        'multitask': [True, False],
+        'multitask': [True],
         'trpo_params.step_size': [
-            1, 0.1, 0.01, 0.001, 0.0001,
+            10, 1, 0.1, 0.01, 0.001,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
