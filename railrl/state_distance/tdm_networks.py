@@ -1,13 +1,12 @@
 """
-Basic, flat networks.
-
 This is basically as re-write of the networks.py file but for tdm.py rather
 than sdql.py
 """
 import torch
 
-from railrl.state_distance.util import split_tau, extract_goals
-from railrl.torch.networks import Mlp
+import numpy as np
+from railrl.state_distance.util import split_tau, extract_goals, split_flat_obs
+from railrl.torch.networks import Mlp, TanhMlpPolicy, FlattenMlp
 import railrl.torch.pytorch_util as ptu
 
 
@@ -15,7 +14,7 @@ class StructuredQF(Mlp):
     """
     Parameterize QF as
 
-    Q(s, a, s_g, tau) = - |f(s, a, s_g, tau)|
+    Q(s, a, s_g, tau) = - |f(s, a, s_g, tau) - s_g|
 
     element-wise
 
@@ -98,3 +97,78 @@ class OneHotTauQF(Mlp):
         for i, fc in enumerate(self.fcs):
             h = self.hidden_activation(fc(h))
         return - torch.abs(self.last_fc(h))
+
+
+class InternalGcmQf(FlattenMlp):
+    """
+    Parameterize QF as
+
+    Q(s, a, g, tau) = - |g - f(s, a, s_g, tau)}|
+
+    element-wise
+
+    Also, rather than giving `g`, give `g - goalify(s)` as input.
+
+    WARNING: this is only valid for when the reward is the negative abs value
+    along each dimension.
+    """
+    def __init__(
+            self,
+            env,
+            hidden_sizes,
+            **kwargs
+    ):
+        self.save_init_params(locals())
+        self.observation_dim = env.observation_space.low.size
+        self.action_dim = env.action_space.low.size
+        self.goal_dim = env.goal_dim
+        super().__init__(
+            hidden_sizes=hidden_sizes,
+            input_size=(
+                self.observation_dim + self.action_dim + self.goal_dim + 1
+            ),
+            output_size=self.goal_dim,
+            **kwargs
+        )
+        self.env = env
+
+    def forward(self, flat_obs, actions):
+        obs, goals, taus = split_flat_obs(
+            flat_obs, self.observation_dim, self.goal_dim
+        )
+        diffs = goals - self.env.convert_obs_to_goals(obs)
+        new_flat_obs = torch.cat((obs, diffs, taus), dim=1)
+        predictions = super().forward(new_flat_obs, actions)
+        return - torch.abs(goals - predictions)
+
+
+class TdmPolicy(TanhMlpPolicy):
+    """
+    Rather than giving `g`, give `g - goalify(s)` as input.
+    """
+    def __init__(
+            self,
+            env,
+            **kwargs
+    ):
+        self.save_init_params(locals())
+        self.observation_dim = env.observation_space.low.size
+        self.action_dim = env.action_space.low.size
+        self.goal_dim = env.goal_dim
+        super().__init__(
+            input_size=self.observation_dim + self.goal_dim + 1,
+            output_size=self.action_dim,
+            **kwargs
+        )
+        self.env = env
+
+    def forward(self, flat_obs, return_preactivations=False):
+        obs, goals, taus = split_flat_obs(
+            flat_obs, self.observation_dim, self.goal_dim
+        )
+        diffs = goals - self.env.convert_obs_to_goals(obs)
+        new_flat_obs = torch.cat((obs, diffs, taus), dim=1)
+        return super().forward(
+            new_flat_obs,
+            return_preactivations=return_preactivations,
+        )
