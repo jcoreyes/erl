@@ -39,9 +39,9 @@ plt.figure()
 base_key = 'Final_Distances_to_goal_Mean'
 key2 = 'Final_Distance_to_goal_Mean'
 for trials, name, key in [
+    (tdm_trials, 'TDM', base_key),
     (mb_trials, 'Model Based', key2),
     (ddpg_trials, 'DDPG', base_key),
-    (tdm_trials, 'TDM', base_key),
     (her_andry_trials, 'HER', base_key),
     (ddpg_indicator_trials, 'DDPG-Sparse', base_key),
 ]:

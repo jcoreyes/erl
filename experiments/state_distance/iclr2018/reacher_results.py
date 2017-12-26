@@ -49,9 +49,9 @@ MAX_ITERS = 1000
 base_key = 'Final_Euclidean_distance_to_goal_Mean'
 plt.figure()
 for trials, name, key in [
-    (ddpg_trials, 'DDPG', base_key),
     (mb_trials, 'Model Based', base_key),
     (our_trials, 'TDM', 'test_'+base_key),
+    (ddpg_trials, 'DDPG', base_key),
     (her_andry_trials, 'HER', base_key),
     (ddpg_indicator_trials, 'DDPG-Sparse', base_key),
 ]:

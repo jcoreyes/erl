@@ -38,11 +38,11 @@ def main():
     plt.figure()
     base_key = 'Final Distance to goal Mean'
     for trials, name, key in [
-        (her_andrychowicz_trials, 'HER', base_key),
-        (ddpg_trials, 'DDPG', base_key),
         (ddpg_tdm_trials, 'TDMs', base_key),
-        (ddpg_indicator_trials, 'DDPG-Sparse', base_key),
         (mb_trials, 'Model-Based', base_key),
+        (ddpg_trials, 'DDPG', base_key),
+        (her_andrychowicz_trials, 'HER', base_key),
+        (ddpg_indicator_trials, 'DDPG-Sparse', base_key),
     ]:
         key = key.replace(" ", "_")
         all_values = []

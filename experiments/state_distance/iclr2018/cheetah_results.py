@@ -34,11 +34,11 @@ her_andry_trials = Experiment(
 MAX_ITERS = 150
 plt.figure()
 for trials, name, key in [
+    (tdm_trials, 'TDM', 'Final_xvel_errors_Mean'),
     (mb_trials, 'Model Based', 'Final_xvel_errors_Mean'),
     (ddpg_trials, 'DDPG', 'Final_xvel_errors_Mean'),
-    (tdm_trials, 'TDM', 'Final_xvel_errors_Mean'),
-    (ddpg_indicator_trials, 'DDPG-Sparse', 'Final_xvel_errors_Mean'),
     (her_andry_trials, 'HER', 'Final_xvel_errors_Mean'),
+    (ddpg_indicator_trials, 'DDPG-Sparse', 'Final_xvel_errors_Mean'),
 ]:
     if len(trials) == 0:
         print(name)
