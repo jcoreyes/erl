@@ -14,7 +14,7 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.argmax import ArgmaxDiscretePolicy
 from railrl.state_distance.discrete_action_networks import \
     VectorizedDiscreteQFunction, ArgmaxDiscreteTdmPolicy
-from railrl.state_distance.flat_networks import StructuredQF, OneHotTauQF
+from railrl.state_distance.tdm_networks import StructuredQF, OneHotTauQF
 from railrl.state_distance.tdm_ddpg import TdmDdpg
 from railrl.torch.modules import HuberLoss
 from railrl.torch.networks import MlpPolicy, FlattenMlp
