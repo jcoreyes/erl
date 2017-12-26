@@ -84,7 +84,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "tdm-ddpg-pusher3d"
+    exp_prefix = "pusher3d-nupo-sweep"
 
     num_epochs = 100
     num_steps_per_epoch = 10000
@@ -183,10 +183,10 @@ if __name__ == "__main__":
             # "indicator",
         # ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
-            0.01, 1, 100, 10000,
+            1000, 10000, 100000,
         ],
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
-            1,
+            1, 5, 10, 20
         ],
         'ddpg_tdm_kwargs.base_kwargs.discount': [
             1,
