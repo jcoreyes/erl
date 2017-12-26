@@ -30,7 +30,7 @@ from railrl.torch.networks import TanhMlpPolicy
 
 
 def experiment(variant):
-    env = normalize_box(variant['env_class']())
+    env = normalize_box(variant['env_class'](**variant['env_kwargs']))
 
     obs_dim = int(np.prod(env.observation_space.low.shape))
     action_dim = int(np.prod(env.action_space.low.shape))
@@ -84,12 +84,16 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "ddpg-sparse-no-relabel-cheetah-xvel"
+    exp_prefix = "tdm-ddpg-pusher3d"
 
-    num_epochs = 1000
-    num_steps_per_epoch = 1000
-    num_steps_per_eval = 1000
-    max_path_length = 50
+    num_epochs = 100
+    num_steps_per_epoch = 10000
+    num_steps_per_eval = 10000
+    max_path_length = 250
+    # num_epochs = 100
+    # num_steps_per_epoch = 100
+    # num_steps_per_eval = 100
+    # max_path_length = 100
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -139,58 +143,56 @@ if __name__ == "__main__":
     search_space = {
         'env_class': [
             # Reacher7DofXyzGoalState,
-            GoalXVelHalfCheetah,
+            # GoalXVelHalfCheetah,
             # GoalXPosHalfCheetah,
             # GoalXYPosAnt,
             # CylinderXYPusher2DEnv,
             # Walker2DTargetXPos,
-            # MultitaskPusher3DEnv,
+            MultitaskPusher3DEnv,
+        ],
+        'env_kwargs': [
+            dict(),
+            # dict(max_distance=10),
+            # dict(max_distance=100),
         ],
         'qf_criterion_class': [
             nn.MSELoss,
-            # HuberLoss,
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.sample_rollout_goals_from': [
-            # 'fixed',
             'environment',
         ],
         'es_kwargs': [
             dict(theta=0.1, max_sigma=0.1, min_sigma=0.1),
-            # dict(theta=0.1, max_sigma=0.01, min_sigma=0.01),
-            # dict(theta=0.1, max_sigma=0.2, min_sigma=0.2),
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.max_tau': [
             49,
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.dense_rewards': [
-            # False,
-            True,
-        ],
-        'ddpg_tdm_kwargs.tdm_kwargs.finite_horizon': [
-            # True,
             False,
         ],
-        'ddpg_tdm_kwargs.tdm_kwargs.sample_train_goals_from': [
-            'no_resampling',
+        'ddpg_tdm_kwargs.tdm_kwargs.finite_horizon': [
+            True,
         ],
-        'ddpg_tdm_kwargs.tdm_kwargs.tau_sample_strategy': [
-            'no_resampling',
-        ],
-        'ddpg_tdm_kwargs.tdm_kwargs.reward_type': [
-            "indicator",
-        ],
+        # 'ddpg_tdm_kwargs.tdm_kwargs.sample_train_goals_from': [
+            # 'no_resampling',
+        # ],
+        # 'ddpg_tdm_kwargs.tdm_kwargs.tau_sample_strategy': [
+            # 'no_resampling',
+        # ],
+        # 'ddpg_tdm_kwargs.tdm_kwargs.reward_type': [
+            # "indicator",
+        # ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
             0.01, 1, 100, 10000,
         ],
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
-            1, 10, 25
+            1,
         ],
         'ddpg_tdm_kwargs.base_kwargs.discount': [
-            0.98,
+            1,
         ],
         'ddpg_tdm_kwargs.ddpg_kwargs.tau': [
             0.001,
-            # 0.01,
         ],
         'ddpg_tdm_kwargs.ddpg_kwargs.eval_with_target_policy': [
             False,
