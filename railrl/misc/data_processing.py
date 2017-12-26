@@ -179,7 +179,11 @@ def get_data_and_variants(base_dir, verbose=False):
         if num_lines < 2:
             continue
         data = np.genfromtxt(
-            data_file_name, delimiter=delimiter, dtype=None, names=True
+            data_file_name,
+            delimiter=delimiter,
+            dtype=None,
+            names=True,
+            # dtype=str,
         )
         data_and_variants.append((data, variant))
     return data_and_variants

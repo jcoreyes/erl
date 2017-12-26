@@ -3,15 +3,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-her_exp = Experiment(
-    "/home/vitchyr/git/railrl/data/doodads3/12-22-her-andrychowicz-try-hard-2/"
-)
-her_andry_trials = her_exp.get_trials({
-    'env_class.$class':
-        "railrl.envs.multitask.reacher_7dof.Reacher7DofXyzGoalState",
-    'ddpg_tdm_kwargs.base_kwargs.reward_scale': 100,
-    'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': 1,
-    'ddpg_tdm_kwargs.ddpg_kwargs.tau': 0.05,
+her_andry_trials = Experiment(
+    '/home/vitchyr/git/railrl/data/doodads3/12-24-her-andrychowicz-reacher-rebutal/'
+).get_trials({
+    'exp_id': '7',
 })
 
 ddpg_path = "/mnt/data-backup-12-02-2017/doodads3/10-25-ddpg" \

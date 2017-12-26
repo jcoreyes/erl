@@ -3,8 +3,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 mb_trials = Experiment(
-    "/home/vitchyr/git/railrl/data/doodads3/12-13-abhishek-mb-cheetah-max-vel5/"
-).get_trials()
+    # "/home/vitchyr/git/railrl/data/doodads3/12-13-abhishek-mb-cheetah-max-vel5/"
+    "/home/vitchyr/git/railrl/data/doodads3/12-24-dagger-mb-ant-cheetah-pos-and-vel/"
+).get_trials({
+    'exp_id': '0',
+})
 ddpg_trials = Experiment(
     "/home/vitchyr/git/railrl/data/doodads3/12-12-tdm-half-cheetah-short-epoch-nupo-sweep/"
 ).get_trials({
