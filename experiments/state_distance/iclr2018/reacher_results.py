@@ -44,7 +44,7 @@ mb_exp = Experiment(mb_path)
 ddpg_trials = ddpg_exp.get_trials(ddpg_criteria)
 mb_trials = mb_exp.get_trials(mb_criteria)
 
-MAX_ITERS = 1000
+MAX_ITERS = 100
 
 base_key = 'Final_Euclidean_distance_to_goal_Mean'
 plt.figure()
@@ -75,7 +75,7 @@ for trials, name, key in [
     plt.plot(epochs, mean, label=name)
 
 
-plt.xscale('log')
+# plt.xscale('log')
 plt.xlabel("Environment Steps (x1000)")
 plt.ylabel("Final Distance to Goal")
 plt.legend()
