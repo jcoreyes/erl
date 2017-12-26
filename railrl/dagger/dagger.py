@@ -8,7 +8,6 @@ from railrl.policies.simple import RandomPolicy
 from railrl.samplers.util import rollout
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
-from railrl.torch.algos.util import np_to_pytorch_batch
 from railrl.torch.data_management.normalizer import TorchFixedNormalizer
 
 
@@ -30,7 +29,6 @@ class Dagger(TorchRLAlgorithm):
             mpc_controller,
             **kwargs
         )
-        assert self.collection_mode == 'batch'
         self.model = model
         self.mpc_controller = mpc_controller
         self.learning_rate = learning_rate
@@ -44,29 +42,20 @@ class Dagger(TorchRLAlgorithm):
         self.num_paths_for_normalization = num_paths_for_normalization
 
     def _do_training(self):
-        all_obs = self.replay_buffer._observations[:self.replay_buffer._top]
-        all_actions = self.replay_buffer._actions[:self.replay_buffer._top]
-        all_next_obs = self.replay_buffer._next_obs[:self.replay_buffer._top]
-
         losses = []
-        num_batches = len(all_obs) // self.batch_size
-        idx = np.asarray(range(len(all_obs)))
-        np.random.shuffle(idx)
-        for bn in range(num_batches):
-            idxs = idx[bn*self.batch_size: (bn+1)*self.batch_size]
-            obs = all_obs[idxs]
-            actions = all_actions[idxs]
-            next_obs = all_next_obs[idxs]
-
-            obs = ptu.np_to_var(obs, requires_grad=False)
-            actions = ptu.np_to_var(actions, requires_grad=False)
-            next_obs = ptu.np_to_var(next_obs, requires_grad=False)
-
+        if self.collection_mode == 'online':
+            """
+            For online model, we'll do the normal training scheme.
+            """
+            batch = self.get_batch()
+            obs = batch['observations']
+            actions = batch['actions']
+            next_obs = batch['next_observations']
             ob_deltas_pred = self.model(obs, actions)
             ob_deltas = next_obs - obs
             normalized_errors = (
-                self.delta_normalizer.normalize(ob_deltas_pred)
-                - self.delta_normalizer.normalize(ob_deltas)
+                    self.delta_normalizer.normalize(ob_deltas_pred)
+                    - self.delta_normalizer.normalize(ob_deltas)
             )
             squared_errors = normalized_errors**2
             loss = squared_errors.mean()
@@ -76,12 +65,48 @@ class Dagger(TorchRLAlgorithm):
             self.optimizer.step()
             losses.append(ptu.get_numpy(loss))
 
+        elif self.collection_mode == 'batch':
+            """
+            Batch mode we'll assume you want to do epoch-style training
+            """
+            all_obs = self.replay_buffer._observations[:self.replay_buffer._top]
+            all_actions = self.replay_buffer._actions[:self.replay_buffer._top]
+            all_next_obs = self.replay_buffer._next_obs[:self.replay_buffer._top]
+
+            num_batches = len(all_obs) // self.batch_size
+            idx = np.asarray(range(len(all_obs)))
+            np.random.shuffle(idx)
+            for bn in range(num_batches):
+                idxs = idx[bn*self.batch_size: (bn+1)*self.batch_size]
+                obs = all_obs[idxs]
+                actions = all_actions[idxs]
+                next_obs = all_next_obs[idxs]
+
+                obs = ptu.np_to_var(obs, requires_grad=False)
+                actions = ptu.np_to_var(actions, requires_grad=False)
+                next_obs = ptu.np_to_var(next_obs, requires_grad=False)
+
+                ob_deltas_pred = self.model(obs, actions)
+                ob_deltas = next_obs - obs
+                normalized_errors = (
+                    self.delta_normalizer.normalize(ob_deltas_pred)
+                    - self.delta_normalizer.normalize(ob_deltas)
+                )
+                squared_errors = normalized_errors**2
+                loss = squared_errors.mean()
+
+                self.optimizer.zero_grad()
+                loss.backward()
+                self.optimizer.step()
+                losses.append(ptu.get_numpy(loss))
+
         if self.eval_statistics is None:
             self.eval_statistics = OrderedDict()
             self.eval_statistics.update(create_stats_ordered_dict(
                 'Model Loss',
                 losses,
                 always_show_all_stats=True,
+                exclude_max_min=True,
             ))
             self.eval_statistics.update(create_stats_ordered_dict(
                 'Obs Deltas',

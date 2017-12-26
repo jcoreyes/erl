@@ -15,6 +15,7 @@ from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
 from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState)
+from railrl.envs.multitask.walker2d_env import Walker2DTargetXPos
 from railrl.envs.wrappers import convert_gym_space, normalize_box
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.data_management.normalizer import TorchFixedNormalizer
@@ -22,8 +23,7 @@ from railrl.torch.networks import FlattenMlp
 
 
 def experiment(variant):
-    env_class = variant['env_class']
-    env = env_class()
+    env = variant['env_class'](**variant['env_kwargs'])
     if variant['multitask']:
         env = MultitaskEnvToSilentMultitaskEnv(env)
     env = normalize_box(
@@ -71,17 +71,12 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "dagger-mb-ant-cheetah-pos-and-vel"
+    exp_prefix = "mb-dagger-walker-position-long-take2"
 
-    dagger_iters = 1000
-    dynamics_iters = 60
-    num_paths_dagger = 20
-
-    max_path_length = 50
-    num_epochs = dagger_iters
-    num_steps_per_epoch = num_paths_dagger * max_path_length
-    num_steps_per_eval = num_paths_dagger * max_path_length
-    num_updates_per_epoch = dynamics_iters
+    num_epochs = 100
+    num_steps_per_epoch = 10000
+    num_steps_per_eval = 10000
+    max_path_length = 1000
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -90,7 +85,7 @@ if __name__ == "__main__":
             num_epochs=num_epochs,
             num_steps_per_epoch=num_steps_per_epoch,
             num_steps_per_eval=num_steps_per_eval,
-            num_updates_per_epoch=num_updates_per_epoch,
+            num_updates_per_epoch=10,
             max_path_length=max_path_length,
             learning_rate=1e-3,
             num_updates_per_env_step=1,
@@ -108,20 +103,32 @@ if __name__ == "__main__":
         model_kwargs=dict(
             hidden_sizes=[300, 300],
         ),
-        version="Dagger",
-        algorithm="Dagger",
+        version="Model-Based-Dagger",
+        algorithm="Model-Based-Dagger",
     )
     search_space = {
         'env_class': [
             # Reacher7DofXyzGoalState,
-            GoalXVelHalfCheetah,
-            GoalXYPosAnt,
-            GoalXPosHalfCheetah,
+            # GoalXVelHalfCheetah,
+            # GoalXYPosAnt,
+            # GoalXPosHalfCheetah,
             # CylinderXYPusher2DEnv,
             # MultitaskPusher3DEnv,
+            Walker2DTargetXPos,
         ],
-        'multitask': [True, False],
+        'multitask': [True],
         'dagger_kwargs.num_paths_for_normalization': [20],
+        'dagger_kwargs.collection_mode': ['online'],
+        'env_kwargs': [
+            # dict(),
+            dict(max_distance=10),
+            dict(max_distance=100),
+        ],
+        'dagger_kwargs.batch_size': [128],
+        'mpc_controller_kwargs.mpc_horizon': [5, 15, 50],
+        'dagger_kwargs.num_updates_per_env_step': [
+            1,
+        ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

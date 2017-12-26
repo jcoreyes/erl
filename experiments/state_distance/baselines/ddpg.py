@@ -21,7 +21,7 @@ from railrl.torch.networks import TanhMlpPolicy, FlattenMlp
 
 
 def experiment(variant):
-    env = variant['env_class']()
+    env = variant['env_class'](**variant['env_kwargs'])
     env = normalize_box(
         env,
         **variant['normalize_kwargs']
@@ -65,12 +65,12 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "ddpg-pusher-3d"
+    exp_prefix = "ddpg-walker-position-long-take2"
 
     num_epochs = 100
     num_steps_per_epoch = 10000
     num_steps_per_eval = 10000
-    max_path_length = 250
+    max_path_length = 1000
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -110,19 +110,22 @@ if __name__ == "__main__":
             # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
             # GoalXYPosAnt,
-            # Walker2DTargetXPos,
             # CylinderXYPusher2DEnv,
             # GoalXPosHalfCheetah,
-            MultitaskPusher3DEnv,
+            # MultitaskPusher3DEnv,
+            Walker2DTargetXPos,
         ],
         'multitask': [True],
+        'env_kwargs': [
+            # dict(),
+            dict(max_distance=10),
+            dict(max_distance=100),
+        ],
         'algo_kwargs.reward_scale': [
             .01, 1, 100, 10000, int(1e6)
         ],
         'algo_kwargs.num_updates_per_env_step': [
             1,
-            10,
-            25,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
