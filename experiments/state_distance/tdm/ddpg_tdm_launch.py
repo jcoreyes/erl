@@ -84,12 +84,12 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "pusher-reward-scale-tau-uniform-or-truncated-geo-sweep-2"
+    exp_prefix = "reacher-sweep-tau-sampling-strat"
 
     num_epochs = 100
-    num_steps_per_epoch = 10000
-    num_steps_per_eval = 10000
-    max_path_length = 250
+    num_steps_per_epoch = 1000
+    num_steps_per_eval = 1000
+    max_path_length = 50
     # num_epochs = 100
     # num_steps_per_epoch = 100
     # num_steps_per_eval = 100
@@ -143,10 +143,10 @@ if __name__ == "__main__":
     )
     search_space = {
         'env_class': [
-            # Reacher7DofXyzGoalState,
+            Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
             # GoalXPosHalfCheetah,
-            GoalXYPosAnt,
+            # GoalXYPosAnt,
             # CylinderXYPusher2DEnv,
             # Walker2DTargetXPos,
             # MultitaskPusher3DEnv,
@@ -169,7 +169,7 @@ if __name__ == "__main__":
             dict(theta=0.1, max_sigma=0.1, min_sigma=0.1),
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.max_tau': [
-            249,
+            49,
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.dense_rewards': [
             False,
@@ -178,17 +178,21 @@ if __name__ == "__main__":
             True,
         ],
         # 'ddpg_tdm_kwargs.tdm_kwargs.sample_train_goals_from': [
-            # 'no_resampling',
+        # 'no_resampling',
         # ],
         'ddpg_tdm_kwargs.tdm_kwargs.tau_sample_strategy': [
-            'truncated_geometric',
+            # 'truncated_geometric',
             'uniform',
+            'no_resampling',
         ],
+        # 'ddpg_tdm_kwargs.tdm_kwargs.truncated_geom_factor': [
+        #     1, 2, 3, 4
+        # ],
         # 'ddpg_tdm_kwargs.tdm_kwargs.reward_type': [
-            # "indicator",
+        # "indicator",
         # ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
-            0.1, 1, 10, 100, 1000, 10000
+            0.01, 1, 100, 10000, 1000000
         ],
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
             1,
@@ -197,7 +201,7 @@ if __name__ == "__main__":
             1,
         ],
         'ddpg_tdm_kwargs.base_kwargs.batch_size': [
-            1024,
+            128,
         ],
         'ddpg_tdm_kwargs.ddpg_kwargs.tau': [
             0.001,
@@ -210,23 +214,23 @@ if __name__ == "__main__":
             # 'c4.xlarge',
             # 'c4.2xlarge',
             # 'c5.large',
-            # 'c5.xlarge',
+            'c5.xlarge',
             # 'c5.2xlarge',
             # 'c4.4xlarge',
             # 'c4.8xlarge',
-            'g2.2xlarge',
+            # 'g2.2xlarge',
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        for i in range(n_seeds):
-            variant['multitask'] = (
+        variant['multitask'] = (
                 variant['ddpg_tdm_kwargs']['tdm_kwargs'][
                     'sample_rollout_goals_from'
                 ] != 'fixed'
-            )
+        )
+        for i in range(n_seeds):
             seed = random.randint(0, 10000)
             instance_type = variant['instance_type']
             run_experiment(
@@ -236,7 +240,7 @@ if __name__ == "__main__":
                 seed=seed,
                 variant=variant,
                 exp_id=exp_id,
-                region='us-west-1',
+                region='us-east-1',
                 instance_type=instance_type,
                 use_gpu=variant['instance_type'][0] == 'g',
             )

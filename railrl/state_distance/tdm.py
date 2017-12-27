@@ -32,6 +32,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             reward_type='distance',
             goal_reached_epsilon=1e-3,
             terminate_when_goal_reached=False,
+            truncated_geom_factor=2.,
     ):
         """
 
@@ -106,6 +107,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         self.terminate_when_goal_reached = terminate_when_goal_reached
         self._current_path_goal = None
         self._rollout_tau = self.max_tau
+        self.truncated_geom_factor = float(truncated_geom_factor)
 
         self.policy = MakeUniversal(self.policy)
         self.eval_policy = MakeUniversal(self.eval_policy)
@@ -240,7 +242,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
                 )
             elif self.tau_sample_strategy == 'truncated_geometric':
                 num_steps_left = truncated_geometric(
-                    p=2./self.max_tau,
+                    p=self.truncated_geom_factor/self.max_tau,
                     truncate_threshold=self.max_tau,
                     size=(self.batch_size, 1),
                     new_value=0
