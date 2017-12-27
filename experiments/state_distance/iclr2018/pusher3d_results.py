@@ -25,7 +25,7 @@ def main():
         'exp_id': '1',
     })
 
-    MAX_ITERS = 10001
+    MAX_ITERS = 100
 
     plt.figure()
     base_key = 'Final Distance to goal Mean'
