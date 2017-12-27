@@ -169,7 +169,7 @@ if __name__ == "__main__":
             dict(theta=0.1, max_sigma=0.1, min_sigma=0.1),
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.max_tau': [
-            49,
+            249,
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.dense_rewards': [
             False,
