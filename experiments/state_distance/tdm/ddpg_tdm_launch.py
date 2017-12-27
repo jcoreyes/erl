@@ -84,16 +84,16 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "ant-batch-size-structure-max-distance-sweep"
+    exp_prefix = "tdm-ddpg--ant-batch-size-structure-max-distance-sweep"
 
-    num_epochs = 100
+    num_epochs = 200
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
     max_path_length = 50
     # num_epochs = 100
     # num_steps_per_epoch = 100
     # num_steps_per_eval = 100
-    # max_path_length = 100
+    # max_path_length = 50
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -126,6 +126,7 @@ if __name__ == "__main__":
         ),
         qf_kwargs=dict(
             hidden_sizes=[300, 300],
+            internal_gcm=True,
         ),
         policy_kwargs=dict(
             hidden_sizes=[300, 300],

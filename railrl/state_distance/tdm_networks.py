@@ -6,7 +6,7 @@ than sdql.py
 """
 import torch
 
-from railrl.state_distance.util import split_tau, extract_goals
+from railrl.state_distance.util import split_tau, extract_goals, split_flat_obs
 from railrl.torch.networks import Mlp
 import railrl.torch.pytorch_util as ptu
 
@@ -29,6 +29,7 @@ class StructuredQF(Mlp):
             goal_dim,
             output_size,
             hidden_sizes,
+            internal_gcm=True,
             **kwargs
     ):
         self.save_init_params(locals())
@@ -40,11 +41,17 @@ class StructuredQF(Mlp):
         )
         self.observation_dim = observation_dim
         self.goal_dim = goal_dim
+        self.internal_gcm = internal_gcm
 
-    def forward(self, *inputs):
-        h = torch.cat(inputs, dim=1)
+    def forward(self, flat_obs, actions):
+        h = torch.cat((flat_obs, actions), dim=1)
         for i, fc in enumerate(self.fcs):
             h = self.hidden_activation(fc(h))
+        if self.internal_gcm:
+            _, goals, _ = split_flat_obs(
+                flat_obs, self.observation_dim, self.goal_dim
+            )
+            return - torch.abs(goals - self.last_fc(h))
         return - torch.abs(self.last_fc(h))
 
 
