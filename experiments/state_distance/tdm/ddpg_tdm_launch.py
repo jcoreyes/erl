@@ -82,14 +82,14 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-ddpg-tdm-launch"
 
-    n_seeds = 3
+    n_seeds = 1
     mode = "ec2"
-    exp_prefix = "pusher3d-nupo-sweep"
+    exp_prefix = "ec2-time-test"
 
-    num_epochs = 100
-    num_steps_per_epoch = 10000
-    num_steps_per_eval = 10000
-    max_path_length = 250
+    num_epochs = 5
+    num_steps_per_epoch = 1000
+    num_steps_per_eval = 1000
+    max_path_length = 50
     # num_epochs = 100
     # num_steps_per_epoch = 100
     # num_steps_per_eval = 100
@@ -137,7 +137,8 @@ if __name__ == "__main__":
         ),
         qf_criterion_class=HuberLoss,
         qf_criterion_kwargs=dict(),
-        version="DDPG-TDM",
+        # version="DDPG-TDM",
+        version="c4-xlarge",
         algorithm="DDPG-TDM",
     )
     search_space = {
@@ -191,6 +192,9 @@ if __name__ == "__main__":
         'ddpg_tdm_kwargs.base_kwargs.discount': [
             1,
         ],
+        'ddpg_tdm_kwargs.base_kwargs.batch_size': [
+            32, 64, 128, 256, 512, 1024,
+        ],
         'ddpg_tdm_kwargs.ddpg_kwargs.tau': [
             0.001,
         ],
@@ -216,4 +220,7 @@ if __name__ == "__main__":
                 seed=seed,
                 variant=variant,
                 exp_id=exp_id,
+                region='us-west-1',
+                instance_type='c4.xlarge',
+                # use_gpu=True,
             )
