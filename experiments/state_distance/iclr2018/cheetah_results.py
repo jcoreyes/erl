@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 mb_trials = Experiment(
-    # "/home/vitchyr/git/railrl/data/doodads3/12-13-abhishek-mb-cheetah-max-vel5/"
     "/home/vitchyr/git/railrl/data/doodads3/12-24-dagger-mb-ant-cheetah-pos-and-vel/"
 ).get_trials({
     'exp_id': '0',
@@ -23,7 +22,7 @@ tdm_trials = Experiment(
 ddpg_indicator_trials = Experiment(
     "/home/vitchyr/git/railrl/data/doodads3/12-24-ddpg-sparse-no-relabel-cheetah-xvel/"
 ).get_trials({
-    'exp_id': '1',
+    'exp_id': '7',
 })
 her_andry_trials = Experiment(
     "/home/vitchyr/git/railrl/data/doodads3/12-24-her-andrychowicz-cheetah-xvel-rebutal/"

@@ -2,20 +2,20 @@ from railrl.misc.data_processing import Experiment
 import matplotlib.pyplot as plt
 import numpy as np
 
-ddpg_trials = Experiment(
-    "/home/vitchyr/git/railrl/data/doodads3/12-17-tdm-half-cheetah-xpos/"
-).get_trials({
-    'algorithm': 'DDPG',
-    'multitask': True,
-    'exp_id': '0',
-})
-tdm_trials = Experiment(
-    "/home/vitchyr/git/railrl/data/doodads3/12-17-tdm-half-cheetah-xpos/"
-).get_trials({
-    'algorithm': 'DDPG-TDM',
-    'multitask': True,
-    'exp_id': '3',
-})
+# ddpg_trials = Experiment(
+#     "/home/vitchyr/git/railrl/data/doodads3/12-17-tdm-half-cheetah-xpos/"
+# ).get_trials({
+#     'algorithm': 'DDPG',
+#     'multitask': True,
+#     'exp_id': '0',
+# })
+# tdm_trials = Experiment(
+#     "/home/vitchyr/git/railrl/data/doodads3/12-17-tdm-half-cheetah-xpos/"
+# ).get_trials({
+#     'algorithm': 'DDPG-TDM',
+#     'multitask': True,
+#     'exp_id': '3',
+# })
 mb_trials = Experiment(
     "/home/vitchyr/git/railrl/data/doodads3/12-24-dagger-mb-ant-cheetah-pos-and-vel/"
 ).get_trials({
@@ -31,17 +31,16 @@ ddpg_indicator_trials = Experiment(
 her_andry_trials = Experiment(
     "/home/vitchyr/git/railrl/data/doodads3/12-24-her-andrychowicz-cheetah-xpos-rebutal/"
 ).get_trials({
-    'exp_id': '5',
+    'exp_id': '20',
 })
 
 MAX_ITERS = 10000
 plt.figure()
-base_key = 'Final_Distances_to_goal_Mean'
-key2 = 'Final_Distance_to_goal_Mean'
+base_key = 'Final_Distance_to_goal_Mean'
 for trials, name, key in [
-    (tdm_trials, 'TDM', base_key),
-    (mb_trials, 'Model Based', key2),
-    (ddpg_trials, 'DDPG', base_key),
+    # (tdm_trials, 'TDM', base_key),
+    (mb_trials, 'Model Based', base_key),
+    # (ddpg_trials, 'DDPG', base_key),
     (her_andry_trials, 'HER', base_key),
     (ddpg_indicator_trials, 'DDPG-Sparse', base_key),
 ]:

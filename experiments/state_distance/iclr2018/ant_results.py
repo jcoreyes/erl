@@ -3,22 +3,19 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 def main():
-    ant_her_final_exp = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/12-23-her-andrychowicz-ant-rebutal/"
-    )
-    ant_tdm_exp = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/12-24-ddpg-nupo-sweep-ant/"
-    )
-
     ddpg_trials = Experiment(
         "/home/vitchyr/git/railrl/data/doodads3/12-23-ddpg-nupo-sweep-ant/"
     ).get_trials({
         'exp_id': '19',
     })
-    her_andrychowicz_trials = ant_her_final_exp.get_trials({
-        'exp_id': '10',
+    her_andrychowicz_trials = Experiment(
+        "/home/vitchyr/git/railrl/data/doodads3/12-23-her-andrychowicz-ant-rebutal/"
+    ).get_trials({
+        'exp_id': '14',
     })
-    ddpg_tdm_trials = ant_tdm_exp.get_trials({
+    ddpg_tdm_trials = Experiment(
+        "/home/vitchyr/git/railrl/data/doodads3/12-24-ddpg-nupo-sweep-ant/"
+    ).get_trials({
         'exp_id': '12',
     })
     ddpg_indicator_trials = Experiment(
