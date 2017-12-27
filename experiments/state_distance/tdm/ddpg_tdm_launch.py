@@ -84,12 +84,12 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "timeit-c5-vs-c4"
+    exp_prefix = "pusher-reward-scale-tau-uniform-or-truncated-geo-sweep"
 
-    num_epochs = 5
-    num_steps_per_epoch = 1000
-    num_steps_per_eval = 1000
-    max_path_length = 50
+    num_epochs = 100
+    num_steps_per_epoch = 10000
+    num_steps_per_eval = 10000
+    max_path_length = 250
     # num_epochs = 100
     # num_steps_per_epoch = 100
     # num_steps_per_eval = 100
@@ -169,7 +169,7 @@ if __name__ == "__main__":
             dict(theta=0.1, max_sigma=0.1, min_sigma=0.1),
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.max_tau': [
-            49,
+            249,
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.dense_rewards': [
             False,
@@ -180,14 +180,15 @@ if __name__ == "__main__":
         # 'ddpg_tdm_kwargs.tdm_kwargs.sample_train_goals_from': [
             # 'no_resampling',
         # ],
-        # 'ddpg_tdm_kwargs.tdm_kwargs.tau_sample_strategy': [
-            # 'no_resampling',
-        # ],
+        'ddpg_tdm_kwargs.tdm_kwargs.tau_sample_strategy': [
+            'truncated_geometric',
+            'uniform',
+        ],
         # 'ddpg_tdm_kwargs.tdm_kwargs.reward_type': [
             # "indicator",
         # ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
-            10,
+            0.1, 1, 10, 100, 1000, 10000
         ],
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
             1,
@@ -196,7 +197,7 @@ if __name__ == "__main__":
             1,
         ],
         'ddpg_tdm_kwargs.base_kwargs.batch_size': [
-            128, 256, 512, 1024, 2048, 4096,
+            1024,
         ],
         'ddpg_tdm_kwargs.ddpg_kwargs.tau': [
             0.001,
@@ -205,17 +206,16 @@ if __name__ == "__main__":
             False,
         ],
         'instance_type': [
-            'c4.large',
-            'c4.xlarge',
-            'c4.2xlarge',
+            # 'c4.large',
+            # 'c4.xlarge',
+            # 'c4.2xlarge',
             'c5.large',
-            'c5.xlarge',
-            'c5.2xlarge',
+            # 'c5.xlarge',
+            # 'c5.2xlarge',
             # 'c4.4xlarge',
             # 'c4.8xlarge',
-            # 'g2.2xlarge',
+            'g2.2xlarge',
         ],
-        'add_one': [True, False],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -228,11 +228,6 @@ if __name__ == "__main__":
                 ] != 'fixed'
             )
             seed = random.randint(0, 10000)
-            bs = variant['ddpg_tdm_kwargs']['base_kwargs']['batch_size']
-            variant['original_batch_size'] = bs
-            if variant['add_one']:
-                bs += 1
-            variant['ddpg_tdm_kwargs']['base_kwargs']['batch_size'] = bs
             instance_type = variant['instance_type']
             run_experiment(
                 experiment,
