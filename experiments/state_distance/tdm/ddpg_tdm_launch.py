@@ -23,7 +23,7 @@ from railrl.exploration_strategies.base import \
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
-from railrl.state_distance.flat_networks import StructuredQF
+from railrl.state_distance.tdm_networks import StructuredQF
 from railrl.state_distance.tdm_ddpg import TdmDdpg
 from railrl.torch.modules import HuberLoss
 from railrl.torch.networks import TanhMlpPolicy
@@ -84,7 +84,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "ec2-time-test"
+    exp_prefix = "ec2-time-test-larger-batch-sizes"
 
     num_epochs = 5
     num_steps_per_epoch = 1000
@@ -138,7 +138,7 @@ if __name__ == "__main__":
         qf_criterion_class=HuberLoss,
         qf_criterion_kwargs=dict(),
         # version="DDPG-TDM",
-        version="c4-xlarge",
+        version="c4-large",
         algorithm="DDPG-TDM",
     )
     search_space = {
@@ -146,10 +146,10 @@ if __name__ == "__main__":
             # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
             # GoalXPosHalfCheetah,
-            # GoalXYPosAnt,
+            GoalXYPosAnt,
             # CylinderXYPusher2DEnv,
             # Walker2DTargetXPos,
-            MultitaskPusher3DEnv,
+            # MultitaskPusher3DEnv,
         ],
         'env_kwargs': [
             dict(),
@@ -184,16 +184,16 @@ if __name__ == "__main__":
             # "indicator",
         # ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
-            1000, 10000, 100000,
+            10000,
         ],
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
-            1, 5, 10, 20
+            1,
         ],
         'ddpg_tdm_kwargs.base_kwargs.discount': [
             1,
         ],
         'ddpg_tdm_kwargs.base_kwargs.batch_size': [
-            32, 64, 128, 256, 512, 1024,
+            128, 512, 1024, 2048, 4096
         ],
         'ddpg_tdm_kwargs.ddpg_kwargs.tau': [
             0.001,
@@ -201,6 +201,14 @@ if __name__ == "__main__":
         'ddpg_tdm_kwargs.ddpg_kwargs.eval_with_target_policy': [
             False,
         ],
+        'instance_type': [
+            'c4.large',
+            'c4.xlarge',
+            'c4.2xlarge',
+            'c4.4xlarge',
+            'c4.8xlarge',
+            'g2.2xlarge',
+        ]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -221,6 +229,6 @@ if __name__ == "__main__":
                 variant=variant,
                 exp_id=exp_id,
                 region='us-west-1',
-                instance_type='c4.xlarge',
-                # use_gpu=True,
+                instance_type=variant['instance_type'],
+                use_gpu=variant['instance_type'][0] == 'g',
             )
