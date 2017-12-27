@@ -67,7 +67,7 @@ def run_experiment(
         local_input_dir_to_mount_point_dict=None,  # TODO(vitchyr): test this
         # Settings for EC2 only
         sync_interval=180,
-        region='us-west-1',
+        region='us-east-1',
         instance_type=None,
         spot_price=None,
 ):
