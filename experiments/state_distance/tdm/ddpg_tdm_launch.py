@@ -78,11 +78,11 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-ddpg-tdm-launch"
 
-    n_seeds = 1
+    n_seeds = 2
     mode = "ec2"
-    exp_prefix = "ant-batch-size-structure-max-distance-sweep"
+    exp_prefix = "ant-delta-check-tdm-ddpg"
 
-    num_epochs = 100
+    num_epochs = 1000
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
     max_path_length = 50
@@ -133,8 +133,7 @@ if __name__ == "__main__":
         ),
         qf_criterion_class=HuberLoss,
         qf_criterion_kwargs=dict(),
-        # version="DDPG-TDM",
-        version="c4-xlarge",
+        version="DDPG-TDM",
         algorithm="DDPG-TDM",
     )
     search_space = {
@@ -148,11 +147,12 @@ if __name__ == "__main__":
             # MultitaskPusher3DEnv,
         ],
         'env_kwargs': [
-            dict(max_distance=2),
-            dict(max_distance=4),
-            dict(max_distance=6),
-            dict(max_distance=8),
-            dict(max_distance=10),
+            dict(),
+            # dict(max_distance=2),
+            # dict(max_distance=4),
+            # dict(max_distance=6),
+            # dict(max_distance=8),
+            # dict(max_distance=10),
         ],
         'qf_criterion_class': [
             nn.MSELoss,
@@ -191,7 +191,7 @@ if __name__ == "__main__":
             1,
         ],
         'ddpg_tdm_kwargs.base_kwargs.batch_size': [
-            128, 1024, 4096
+            128,
         ],
         'ddpg_tdm_kwargs.ddpg_kwargs.tau': [
             0.001,
@@ -200,12 +200,12 @@ if __name__ == "__main__":
             False,
         ],
         'instance_type': [
-            # 'c4.large',
+            'c4.large',
             # 'c4.xlarge',
             # 'c4.2xlarge',
             # 'c4.4xlarge',
             # 'c4.8xlarge',
-            'g2.2xlarge',
+            # 'g2.2xlarge',
         ]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
