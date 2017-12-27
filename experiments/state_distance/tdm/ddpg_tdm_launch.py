@@ -84,7 +84,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "ant-increase-distance"
+    exp_prefix = "ant-batch-size-structure-max-distance-sweep"
 
     num_epochs = 100
     num_steps_per_epoch = 1000
@@ -194,7 +194,7 @@ if __name__ == "__main__":
             1,
         ],
         'ddpg_tdm_kwargs.base_kwargs.batch_size': [
-            128,# 1024, 4096
+            128, 1024, 4096
         ],
         'ddpg_tdm_kwargs.ddpg_kwargs.tau': [
             0.001,
