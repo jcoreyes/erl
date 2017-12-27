@@ -209,7 +209,7 @@ if __name__ == "__main__":
             # 'c4.large',
             # 'c4.xlarge',
             # 'c4.2xlarge',
-            'c5.large',
+            # 'c5.large',
             # 'c5.xlarge',
             # 'c5.2xlarge',
             # 'c4.4xlarge',
@@ -236,7 +236,7 @@ if __name__ == "__main__":
                 seed=seed,
                 variant=variant,
                 exp_id=exp_id,
-                region='us-east-1',
+                region='us-west-1',
                 instance_type=instance_type,
                 use_gpu=variant['instance_type'][0] == 'g',
             )
