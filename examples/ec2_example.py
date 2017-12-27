@@ -41,10 +41,10 @@ if __name__ == "__main__":
     )
     run_experiment(
         example,
-        exp_prefix="ec2-c5-large-us-east-default-region-is-west",
+        exp_prefix="ec2-check-us-west-non-gpu",
         # exp_prefix="check-instance-id-save",
         mode='ec2',
         variant=variant,
-        region='us-east-1',
-        instance_type='c5.large',
+        region='us-west-1',
+        instance_type='t1.micro',
     )
