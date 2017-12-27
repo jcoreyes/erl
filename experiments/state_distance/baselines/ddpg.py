@@ -63,14 +63,14 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-state-distance-ddpg-baseline"
 
-    n_seeds = 3
+    n_seeds = 1
     mode = "ec2"
-    exp_prefix = "pusher3d-nupo-sweep"
+    exp_prefix = "ant-increase-distance"
 
     num_epochs = 100
-    num_steps_per_epoch = 10000
-    num_steps_per_eval = 10000
-    max_path_length = 250
+    num_steps_per_epoch = 1000
+    num_steps_per_eval = 1000
+    max_path_length = 50
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -109,23 +109,26 @@ if __name__ == "__main__":
         'env_class': [
             # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
-            # GoalXYPosAnt,
+            GoalXYPosAnt,
             # CylinderXYPusher2DEnv,
             # GoalXPosHalfCheetah,
-            MultitaskPusher3DEnv,
+            # MultitaskPusher3DEnv,
             # Walker2DTargetXPos,
         ],
         'multitask': [True],
         'env_kwargs': [
-            dict(),
-            # dict(max_distance=10),
-            # dict(max_distance=100),
+            # dict(),
+            dict(max_distance=2),
+            dict(max_distance=4),
+            dict(max_distance=6),
+            dict(max_distance=8),
+            dict(max_distance=10),
         ],
         'algo_kwargs.reward_scale': [
-            .1, 1, 10,
+            1000, 10000, 100000
         ],
         'algo_kwargs.num_updates_per_env_step': [
-            1, 5, 10, 20,
+            1,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

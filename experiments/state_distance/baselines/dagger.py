@@ -69,14 +69,14 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-dagger"
 
-    n_seeds = 3
+    n_seeds = 1
     mode = "ec2"
-    exp_prefix = "mb-dagger-ant-far"
+    exp_prefix = "ant-increase-distance"
 
     num_epochs = 100
-    num_steps_per_epoch = 10000
-    num_steps_per_eval = 10000
-    max_path_length = 1000
+    num_steps_per_epoch = 1000
+    num_steps_per_eval = 1000
+    max_path_length = 50
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -121,11 +121,14 @@ if __name__ == "__main__":
         'dagger_kwargs.collection_mode': ['online'],
         'env_kwargs': [
             # dict(),
-            # dict(max_distance=10),
-            dict(max_distance=100),
+            dict(max_distance=2),
+            dict(max_distance=4),
+            dict(max_distance=6),
+            dict(max_distance=8),
+            dict(max_distance=10),
         ],
         'dagger_kwargs.batch_size': [128],
-        'mpc_controller_kwargs.mpc_horizon': [5, 15, 50],
+        'mpc_controller_kwargs.mpc_horizon': [15, 50],
         'dagger_kwargs.num_updates_per_env_step': [
             1,
         ],
