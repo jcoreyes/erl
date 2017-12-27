@@ -90,10 +90,6 @@ if __name__ == "__main__":
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
     max_path_length = 50
-    # num_epochs = 100
-    # num_steps_per_epoch = 100
-    # num_steps_per_eval = 100
-    # max_path_length = 50
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -169,7 +165,7 @@ if __name__ == "__main__":
             dict(theta=0.1, max_sigma=0.1, min_sigma=0.1),
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.max_tau': [
-            249,
+            49,
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.dense_rewards': [
             False,
@@ -181,16 +177,13 @@ if __name__ == "__main__":
         # 'no_resampling',
         # ],
         'ddpg_tdm_kwargs.tdm_kwargs.tau_sample_strategy': [
-            # 'truncated_geometric',
-            'uniform',
-            'no_resampling',
+            'truncated_geometric',
+            # 'uniform',
+            # 'no_resampling',
         ],
-        # 'ddpg_tdm_kwargs.tdm_kwargs.truncated_geom_factor': [
-        #     1, 2, 3, 4
-        # ],
-        # 'ddpg_tdm_kwargs.tdm_kwargs.reward_type': [
-        # "indicator",
-        # ],
+        'ddpg_tdm_kwargs.tdm_kwargs.truncated_geom_factor': [
+            1, 2, 3, 4
+        ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
             0.01, 1, 100, 10000, 1000000
         ],
@@ -210,15 +203,7 @@ if __name__ == "__main__":
             False,
         ],
         'instance_type': [
-            # 'c4.large',
-            # 'c4.xlarge',
-            # 'c4.2xlarge',
-            # 'c5.large',
-            'c5.xlarge',
-            # 'c5.2xlarge',
-            # 'c4.4xlarge',
-            # 'c4.8xlarge',
-            # 'g2.2xlarge',
+            'c5.large',
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
