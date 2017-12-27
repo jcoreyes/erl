@@ -84,9 +84,9 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "ec2-time-test-larger-batch-sizes"
+    exp_prefix = "ant-increase-distance"
 
-    num_epochs = 5
+    num_epochs = 100
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
     max_path_length = 50
@@ -137,8 +137,7 @@ if __name__ == "__main__":
         ),
         qf_criterion_class=HuberLoss,
         qf_criterion_kwargs=dict(),
-        # version="DDPG-TDM",
-        version="c4-large",
+        version="DDPG-TDM",
         algorithm="DDPG-TDM",
     )
     search_space = {
@@ -152,9 +151,11 @@ if __name__ == "__main__":
             # MultitaskPusher3DEnv,
         ],
         'env_kwargs': [
-            dict(),
-            # dict(max_distance=10),
-            # dict(max_distance=100),
+            dict(max_distance=2),
+            dict(max_distance=4),
+            dict(max_distance=6),
+            dict(max_distance=8),
+            dict(max_distance=10),
         ],
         'qf_criterion_class': [
             nn.MSELoss,
@@ -184,7 +185,7 @@ if __name__ == "__main__":
             # "indicator",
         # ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
-            10000,
+            10, 100, 1000
         ],
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
             1,
@@ -193,7 +194,7 @@ if __name__ == "__main__":
             1,
         ],
         'ddpg_tdm_kwargs.base_kwargs.batch_size': [
-            128, 512, 1024, 2048, 4096
+            128,# 1024, 4096
         ],
         'ddpg_tdm_kwargs.ddpg_kwargs.tau': [
             0.001,
@@ -202,11 +203,11 @@ if __name__ == "__main__":
             False,
         ],
         'instance_type': [
-            'c4.large',
-            'c4.xlarge',
-            'c4.2xlarge',
-            'c4.4xlarge',
-            'c4.8xlarge',
+            # 'c4.large',
+            # 'c4.xlarge',
+            # 'c4.2xlarge',
+            # 'c4.4xlarge',
+            # 'c4.8xlarge',
             'g2.2xlarge',
         ]
     }
