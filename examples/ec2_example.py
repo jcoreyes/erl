@@ -36,12 +36,13 @@ if __name__ == "__main__":
     date = datetime.now(tz=pytz.utc)
     logger.log("start")
     variant = dict(
-        num_seconds=100000,
+        num_seconds=10,
         launch_time=str(date.strftime(date_format)),
     )
     run_experiment(
         example,
-        exp_prefix="ec2-c5-large-test",
+        exp_prefix="ec2-c5-large-us-east-default-region-is-west",
+        # exp_prefix="check-instance-id-save",
         mode='ec2',
         variant=variant,
         region='us-east-1',
