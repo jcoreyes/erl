@@ -38,8 +38,8 @@ if __name__ == "__main__":
     else:
         policy = data['exploration_policy']
     policy.train(False)
-    # if args.pause:
-    #     import ipdb; ipdb.set_trace()
+    if args.pause:
+        import ipdb; ipdb.set_trace()
 
     if args.gpu:
         ptu.set_gpu_mode(True)
@@ -51,7 +51,6 @@ if __name__ == "__main__":
     else:
         max_tau = args.mtau
 
-    import ipdb; ipdb.set_trace()
     while True:
         paths = []
         for _ in range(args.nrolls):
