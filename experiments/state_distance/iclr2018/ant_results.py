@@ -15,12 +15,13 @@ def main():
             'exp_id': '14',
         },
     ).get_trials()
-    # With smaller batch size
+    # Ant results with batch size of 128
     # ddpg_tdm_trials = Experiment(
     #     "/home/vitchyr/git/railrl/data/doodads3/12-24-ddpg-nupo-sweep-ant/"
     # ).get_trials({
     #     'exp_id': '12',
     # })
+    # Accidentally called this pusher, but it's really ant
     tdm_trials = Experiment(
         "/home/vitchyr/git/railrl/data/doodads3/12-27-pusher-reward-scale-tau-uniform-or-truncated-geo-sweep-2/",
         criteria={

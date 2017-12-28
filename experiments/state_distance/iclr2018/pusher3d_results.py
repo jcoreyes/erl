@@ -5,11 +5,9 @@ import numpy as np
 
 def main():
     tdm_trials = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/12-27-pusher-reward-scale-tau-uniform-or-truncated-geo-sweep-2/",
+        "/home/vitchyr/git/railrl/data/doodads3/12-25-tdm-ddpg-pusher3d/",
         criteria={
-            'ddpg_tdm_kwargs.base_kwargs.reward_scale': 100,
-            'ddpg_tdm_kwargs.tdm_kwargs.tau_sample_strategy':
-                'truncated_geometric',
+             'exp_id': '3',
         }
     ).get_trials()
     trpo_trials = Experiment(
