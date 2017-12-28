@@ -23,7 +23,8 @@ from railrl.exploration_strategies.base import \
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
-from railrl.state_distance.tdm_networks import StructuredQF
+from railrl.state_distance.tdm_networks import StructuredQF, TdmPolicy, \
+    InternalGcmQf
 from railrl.state_distance.tdm_ddpg import TdmDdpg
 from railrl.torch.modules import HuberLoss
 from railrl.torch.networks import TanhMlpPolicy
@@ -32,19 +33,14 @@ from railrl.torch.networks import TanhMlpPolicy
 def experiment(variant):
     env = normalize_box(variant['env_class'](**variant['env_kwargs']))
 
-    obs_dim = int(np.prod(env.observation_space.low.shape))
-    action_dim = int(np.prod(env.action_space.low.shape))
     vectorized = variant['ddpg_tdm_kwargs']['tdm_kwargs']['vectorized']
-    qf = StructuredQF(
-        observation_dim=obs_dim,
-        action_dim=action_dim,
-        goal_dim=env.goal_dim,
-        output_size=env.goal_dim if vectorized else 1,
+    assert vectorized
+    qf = InternalGcmQf(
+        env=env,
         **variant['qf_kwargs']
     )
-    policy = TanhMlpPolicy(
-        input_size=obs_dim + env.goal_dim + 1,
-        output_size=action_dim,
+    policy = TdmPolicy(
+        env=env,
         **variant['policy_kwargs']
     )
     es = OUStrategy(
@@ -82,7 +78,7 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-ddpg-tdm-launch"
 
-    n_seeds = 1
+    n_seeds = 2
     mode = "ec2"
     exp_prefix = "pusher3d-sweep-nupo-and-batch-size"
 
