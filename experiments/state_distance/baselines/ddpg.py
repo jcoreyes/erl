@@ -1,41 +1,48 @@
 import random
 
 import railrl.misc.hyperparameter as hyp
-from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
+from railrl.envs.multitask.ant_env import GoalXYPosAnt
+from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
+    GoalXPosHalfCheetah
 from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
+from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
+from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
 from railrl.envs.multitask.reacher_7dof import (
-    Reacher7DofGoalStateEverything)
+    Reacher7DofXyzGoalState,
+)
+from railrl.envs.multitask.walker2d_env import Walker2DTargetXPos
 from railrl.envs.wrappers import normalize_box
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.policies.torch import FeedForwardPolicy
-from railrl.qfunctions.torch import FeedForwardQFunction
 from railrl.torch.algos.ddpg import DDPG
+from railrl.torch.networks import TanhMlpPolicy, FlattenMlp
 
 
 def experiment(variant):
-    env = variant['env_class']()
+    env = variant['env_class'](**variant['env_kwargs'])
     env = normalize_box(
         env,
-        **variant['normalize_params']
+        **variant['normalize_kwargs']
     )
     if variant['multitask']:
         env = MultitaskToFlatEnv(env)
     es = OUStrategy(
         action_space=env.action_space,
-        **variant['ou_params']
+        **variant['ou_kwargs']
     )
-    qf = FeedForwardQFunction(
-        int(env.observation_space.flat_dim),
-        int(env.action_space.flat_dim),
-        **variant['qf_params']
+    obs_dim = int(env.observation_space.flat_dim)
+    action_dim = int(env.action_space.flat_dim)
+    qf = FlattenMlp(
+        input_size=obs_dim+action_dim,
+        output_size=1,
+        **variant['qf_kwargs']
     )
-    policy = FeedForwardPolicy(
-        int(env.observation_space.flat_dim),
-        int(env.action_space.flat_dim),
-        **variant['policy_params']
+    policy = TanhMlpPolicy(
+        input_size=obs_dim,
+        output_size=action_dim,
+        **variant['policy_kwargs']
     )
     exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
@@ -46,7 +53,7 @@ def experiment(variant):
         qf,
         policy,
         exploration_policy,
-        **variant['algo_params']
+        **variant['algo_kwargs']
     )
     algorithm.train()
 
@@ -56,57 +63,72 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-state-distance-ddpg-baseline"
 
-    n_seeds = 5
+    n_seeds = 1
     mode = "ec2"
-    exp_prefix = "tdm-half-cheetah-x-vel"
+    exp_prefix = "ant-increase-distance"
 
     num_epochs = 100
-    num_steps_per_epoch = 50000
-    num_steps_per_eval = 50000
-    max_path_length = 500
+    num_steps_per_epoch = 1000
+    num_steps_per_eval = 1000
+    max_path_length = 50
 
     # noinspection PyTypeChecker
     variant = dict(
-        algo_params=dict(
+        algo_kwargs=dict(
             num_epochs=num_epochs,
             num_steps_per_epoch=num_steps_per_epoch,
             num_steps_per_eval=num_steps_per_eval,
             max_path_length=max_path_length,
             use_soft_update=True,
-            tau=1e-2,
+            tau=1e-3,
             batch_size=128,
-            discount=0.99,
+            discount=0.98,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
             num_updates_per_env_step=1,
         ),
-        normalize_params=dict(
+        normalize_kwargs=dict(
             obs_mean=None,
             obs_std=None,
         ),
-        ou_params=dict(
+        ou_kwargs=dict(
             theta=0.1,
             max_sigma=0.1,
             min_sigma=0.1,
         ),
-        policy_params=dict(
-            fc1_size=300,
-            fc2_size=300,
+        policy_kwargs=dict(
+            hidden_sizes=[300, 300],
         ),
-        qf_params=dict(
-            observation_hidden_size=300,
-            embedded_hidden_size=300,
+        qf_kwargs=dict(
+            hidden_sizes=[300, 300],
         ),
         version="DDPG",
         algorithm="DDPG",
     )
     search_space = {
         'env_class': [
-            GoalXVelHalfCheetah,
+            # Reacher7DofXyzGoalState,
+            # GoalXVelHalfCheetah,
+            GoalXYPosAnt,
+            # CylinderXYPusher2DEnv,
+            # GoalXPosHalfCheetah,
+            # MultitaskPusher3DEnv,
+            # Walker2DTargetXPos,
         ],
-        'multitask': [False, True],
-        'algo_params.reward_scale': [
-            10, 1, 0.1,
+        'multitask': [True],
+        'env_kwargs': [
+            # dict(),
+            dict(max_distance=2),
+            dict(max_distance=4),
+            dict(max_distance=6),
+            dict(max_distance=8),
+            dict(max_distance=10),
+        ],
+        'algo_kwargs.reward_scale': [
+            1000, 10000, 100000
+        ],
+        'algo_kwargs.num_updates_per_env_step': [
+            1,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -117,10 +139,9 @@ if __name__ == "__main__":
             seed = random.randint(0, 999999)
             run_experiment(
                 experiment,
-                exp_prefix=exp_prefix,
-                exp_id=i,
-                seed=seed,
                 mode=mode,
+                exp_prefix=exp_prefix,
+                seed=seed,
                 variant=variant,
-                use_gpu=False,
+                exp_id=exp_id,
             )

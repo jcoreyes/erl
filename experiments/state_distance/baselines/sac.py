@@ -3,10 +3,16 @@ import random
 import numpy as np
 
 import railrl.torch.pytorch_util as ptu
-from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
+from railrl.envs.multitask.ant_env import GoalXYPosAnt
+from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
+    GoalXPosHalfCheetah
 from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
-from railrl.envs.multitask.reacher_7dof import Reacher7DofAngleGoalState, \
-    Reacher7DofGoalStateEverything
+from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
+from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
+from railrl.envs.multitask.reacher_7dof import (
+    Reacher7DofXyzGoalState,
+)
+from railrl.envs.multitask.walker2d_env import Walker2DTargetXPos
 from railrl.envs.wrappers import normalize_box
 from railrl.launchers.launcher_util import run_experiment
 from railrl.sac.policies import TanhGaussianPolicy
@@ -59,12 +65,12 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "tdm-half-cheetah-x-vel"
+    exp_prefix = "pusher-sweep-2"
 
-    num_epochs = 100
-    num_steps_per_epoch = 50000
-    num_steps_per_eval = 50000
-    max_path_length = 500
+    num_epochs = 1000
+    num_steps_per_epoch = 1000
+    num_steps_per_eval = 1000
+    max_path_length = 100
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -82,16 +88,28 @@ if __name__ == "__main__":
             vf_lr=3E-4,
         ),
         net_size=300,
-        version="SAC-actually-cheetah",
+        version="SAC",
         algorithm="SAC",
     )
     search_space = {
-        'env_class': [
-            GoalXVelHalfCheetah,
-        ],
-        'multitask': [False, True],
+        'env_class': {
+            # Reacher7DofXyzGoalState,
+            # GoalXVelHalfCheetah,
+            CylinderXYPusher2DEnv,
+            # GoalXYPosAnt,
+            # Walker2DTargetXPos,
+            # GoalXPosHalfCheetah,
+            # MultitaskPusher3DEnv,
+        },
+        'multitask': [True],
         'algo_params.reward_scale': [
-            1000, 100, 10, 1, 0.1,
+            10000, 1000, 100, 10, 1,
+        ],
+        'algo_params.replay_buffer_size': [
+            int(1e6),
+        ],
+        'algo_params.num_updates_per_env_step': [
+            1,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -102,10 +120,9 @@ if __name__ == "__main__":
             seed = random.randint(0, 999999)
             run_experiment(
                 experiment,
+                mode=mode,
+                exp_prefix=exp_prefix,
                 seed=seed,
                 variant=variant,
-                exp_prefix=exp_prefix,
-                mode=mode,
-                # exp_prefix="dev-sac-half-cheetah",
-                # mode='local',
+                exp_id=exp_id,
             )

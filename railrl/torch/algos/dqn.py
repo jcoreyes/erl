@@ -115,7 +115,7 @@ class DQN(TorchRLAlgorithm):
             if self._n_train_steps_total % self.hard_update_period == 0:
                 ptu.copy_model_params_from_to(self.qf, self.target_qf)
         else:
-            ptu.soft_update(self.target_qf, self.qf, self.tau)
+            ptu.soft_update_from_to(self.qf, self.target_qf, self.tau)
 
     def evaluate(self, epoch):
         statistics = OrderedDict()

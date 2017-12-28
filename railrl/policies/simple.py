@@ -15,7 +15,7 @@ class ZeroPolicy(SerializablePolicy):
         return np.zeros(self.action_dim), {}
 
 
-class UniformRandomPolicy(SerializablePolicy):
+class RandomPolicy(SerializablePolicy):
     """
     Policy that always outputs zero.
     """
@@ -24,8 +24,4 @@ class UniformRandomPolicy(SerializablePolicy):
         self.action_space = action_space
 
     def get_action(self, obs):
-        return np.random.uniform(
-            self.action_space.low,
-            self.action_space.high,
-            self.action_space.shape,
-        ), {}
+        return self.action_space.sample(), {}

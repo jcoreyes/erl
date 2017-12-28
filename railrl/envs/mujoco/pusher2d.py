@@ -6,7 +6,7 @@ import numpy as np
 from railrl.envs.mujoco.mujoco_env import MujocoEnv
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.samplers.util import get_stat_in_paths
-from rllab.misc import logger
+from rllab.misc import logger as rllab_logger
 
 
 class Pusher2DEnv(MujocoEnv, metaclass=abc.ABCMeta):
@@ -95,33 +95,27 @@ class Pusher2DEnv(MujocoEnv, metaclass=abc.ABCMeta):
             self.get_body_com("object")[:2],
         ])
 
-    def log_diagnostics(self, paths):
-        final_hand_to_object_dist = get_stat_in_paths(
-            paths, 'env_infos', 'hand_to_object_distance'
-        )[:, -1]
-        final_object_to_goal_dist = get_stat_in_paths(
-            paths, 'env_infos', 'object_to_goal_distance'
-        )[:, -1]
-        final_hand_to_hand_goal_dist = get_stat_in_paths(
-            paths, 'env_infos', 'hand_to_hand_goal_distance'
-        )[:, -1]
-
+    def log_diagnostics(self, paths, logger=rllab_logger):
         statistics = OrderedDict()
-        statistics.update(create_stats_ordered_dict(
-            'Final Euclidean distance to goal',
-            final_object_to_goal_dist,
-            always_show_all_stats=True,
-        ))
-        statistics.update(create_stats_ordered_dict(
-            'Final Euclidean distance hand to object',
-            final_hand_to_object_dist,
-            always_show_all_stats=True,
-        ))
-        statistics.update(create_stats_ordered_dict(
-            'Final Euclidean distance hand to hand goal',
-            final_hand_to_hand_goal_dist,
-            always_show_all_stats=True,
-        ))
+        for stat_name_in_paths, stat_name_to_print in [
+            ('hand_to_object_distance', 'Distance hand to object'),
+            ('object_to_goal_distance', 'Distance object to goal'),
+            ('hand_to_hand_goal_distance', 'Distance hand to hand goal'),
+        ]:
+            stats = get_stat_in_paths(paths, 'env_infos', stat_name_in_paths)
+            statistics.update(create_stats_ordered_dict(
+                stat_name_to_print,
+                stats,
+                always_show_all_stats=True,
+                exclude_max_min=True,
+            ))
+            final_stats = [s[-1] for s in stats]
+            statistics.update(create_stats_ordered_dict(
+                "Final " + stat_name_to_print,
+                final_stats,
+                always_show_all_stats=True,
+                exclude_max_min=True,
+            ))
         for key, value in statistics.items():
             logger.record_tabular(key, value)
 

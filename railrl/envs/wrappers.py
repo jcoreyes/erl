@@ -20,7 +20,7 @@ class NormalizedBoxEnv(ProxyEnv, Serializable):
     def __init__(
             self,
             env,
-            scale_reward=1.,
+            reward_scale=1.,
             obs_mean=None,
             obs_std=None,
     ):
@@ -45,7 +45,7 @@ class NormalizedBoxEnv(ProxyEnv, Serializable):
                 obs_std = np.ones_like(env.observation_space.low)
             else:
                 obs_std = np.array(obs_std)
-        self._scale_reward = scale_reward
+        self._reward_scale = reward_scale
         self._obs_mean = obs_mean
         self._obs_std = obs_std
 
@@ -64,14 +64,14 @@ class NormalizedBoxEnv(ProxyEnv, Serializable):
         # Add these explicitly in case they were modified
         d["_obs_mean"] = self._obs_mean
         d["_obs_std"] = self._obs_std
-        d["_scale_reward"] = self._scale_reward
+        d["_reward_scale"] = self._reward_scale
         return d
 
     def __setstate__(self, d):
         Serializable.__setstate__(self, d)
         self._obs_mean = d["_obs_mean"]
         self._obs_std = d["_obs_std"]
-        self._scale_reward = d["_scale_reward"]
+        self._reward_scale = d["_reward_scale"]
 
     @property
     def action_space(self):
@@ -93,8 +93,7 @@ class NormalizedBoxEnv(ProxyEnv, Serializable):
         next_obs, reward, done, info = wrapped_step
         if self._should_normalize:
             next_obs = self._apply_normalize_obs(next_obs)
-        reward *= self._scale_reward
-        return next_obs, reward * self._scale_reward, done, info
+        return next_obs, reward * self._reward_scale, done, info
 
     def __str__(self):
         return "Normalized: %s" % self._wrapped_env

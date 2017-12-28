@@ -6,13 +6,39 @@ import numpy as np
 from railrl.misc.data_processing import create_stats_ordered_dict
 from rllab.core.serializable import Serializable
 from rllab.envs.proxy_env import ProxyEnv
-from rllab.misc import logger
+from rllab.misc import logger as rllab_logger
 from rllab.spaces import Box
 
 
 class MultitaskEnv(object, metaclass=abc.ABCMeta):
     """
-    An environment with a task that can be specified with a goal
+    An environment with a task that can be specified with a goal.
+    Two big things:
+    1. The goal should *not* be part of the state.
+    2. Calls to reset() should *not* change the goal
+
+    To change the goal, you need to explicitly call
+    ```
+    goal = env.sample_goal_for_rollout()
+    env.set_goal(goal)
+    env.reset()  # optional, but probably for the best
+    ```
+
+    If you want to append the goal to the state, do this:
+    ```
+    env = MyMultitaskEnv()
+    env = MultitaskToFlatEnv(env)
+    ```
+    The above code will also make the goal change at every time step.
+    See MultitaskToFlatEnv for more detail.
+
+    If you want to change the goal at every call to reset(), but you do not
+    want the goal to be appended to the state, do this:
+    ```
+    env = MyMultitaskEnv()
+    env = MultitaskEnvToSilentMultitaskEnv(env)
+    ```
+    See `MultitaskEnvToSilentMultitaskEnv` for more detail.
     """
 
     def __init__(self, distance_metric_order=1):
@@ -91,21 +117,21 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
 
     def convert_obs_to_goals_pytorch(self, obs):
         """
-        PyTorch version of `convert_obs_to_goal_state`.
+        PyTorch version of `convert_obs_to_goals`.
         """
         return self.convert_obs_to_goals(obs)
 
-    def modify_goal_for_rollout(self, goal_state):
+    def modify_goal_for_rollout(self, goal):
         """
         Modify a goal state so that it's appropriate for doing a rollout.
 
         Common use case: zero out the goal velocities.
-        :param goal_state:
+        :param goal:
         :return:
         """
-        return goal_state
+        return goal
 
-    def log_diagnostics(self, paths):
+    def log_diagnostics(self, paths, logger=rllab_logger):
         if 'goals' not in paths[0]:
             return
         statistics = OrderedDict()
@@ -193,8 +219,27 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
     ):
         pass
 
+    def cost_fn(self, states, actions, next_states):
+        """
+        This is added for Abhishek's model-based code.
+        """
+        if len(next_states.shape) == 1:
+            next_states = np.expand_dims(next_states, 0)
+        actual = self.convert_obs_to_goals(next_states)
+        desired = self.multitask_goal * np.ones_like(actual)
+        costs = np.linalg.norm(
+            actual - desired,
+            axis=1,
+            ord=1,
+        )
+        return costs
+
 
 class MultitaskToFlatEnv(ProxyEnv, Serializable):
+    """
+    This environment tasks a multitask environment and appends the goal to
+    the state.
+    """
     def __init__(
             self,
             env: MultitaskEnv,
@@ -208,6 +253,7 @@ class MultitaskToFlatEnv(ProxyEnv, Serializable):
         # Or else serialization gets delegated to the wrapped_env. Serialize
         # this env separately from the wrapped_env.
         self._serializable_initialized = False
+        self._wrapped_obs_dim = int(np.prod(env.observation_space.low.shape))
         Serializable.quick_init(self, locals())
         ProxyEnv.__init__(self, env)
 
@@ -231,9 +277,37 @@ class MultitaskToFlatEnv(ProxyEnv, Serializable):
         return ob, reward, done, info_dict
 
     def reset(self):
-        ob = super().reset()
         self._wrapped_env.set_goal(self._wrapped_env.sample_goal_for_rollout())
+        ob = super().reset()
         ob = np.hstack((ob, self._wrapped_env.multitask_goal))
         return ob
 
-multitask_to_flat_env = MultitaskToFlatEnv
+    def cost_fn(self, states, actions, next_states):
+        if len(next_states.shape) == 1:
+            states = states[None]
+            actions = actions[None]
+            next_states = next_states[None]
+        unwrapped_states = states[:, :self._wrapped_obs_dim]
+        unwrapped_next_states = next_states[:, :self._wrapped_obs_dim]
+        return self._wrapped_env.cost_fn(
+            unwrapped_states,
+            actions,
+            unwrapped_next_states,
+        )
+
+
+class MultitaskEnvToSilentMultitaskEnv(ProxyEnv, Serializable):
+    """
+    Normally, reset() on a multitask env doesn't change the goal.
+    Now, reset will silently change the goal.
+    """
+    def reset(self):
+        self._wrapped_env.set_goal(self._wrapped_env.sample_goal_for_rollout())
+        return super().reset()
+
+    def cost_fn(self, states, actions, next_states):
+        return self._wrapped_env.cost_fn(
+            states,
+            actions,
+            next_states,
+        )

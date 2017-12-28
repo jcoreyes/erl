@@ -11,7 +11,7 @@ class MultigoalSimplePathSampler(object):
             policy,
             max_samples,
             max_path_length,
-            discount_sampling_function,
+            tau_sampling_function,
             goal_sampling_function,
             cycle_taus_for_rollout=True,
     ):
@@ -19,7 +19,7 @@ class MultigoalSimplePathSampler(object):
         self.policy = policy
         self.max_samples = max_samples
         self.max_path_length = max_path_length
-        self.discount_sampling_function = discount_sampling_function
+        self.tau_sampling_function = tau_sampling_function
         self.goal_sampling_function = goal_sampling_function
         self.cycle_taus_for_rollout = cycle_taus_for_rollout
 
@@ -32,15 +32,15 @@ class MultigoalSimplePathSampler(object):
     def obtain_samples(self):
         paths = []
         for i in range(self.max_samples // self.max_path_length):
-            discount = self.discount_sampling_function()
+            tau = self.tau_sampling_function()
             goal = self.goal_sampling_function()
             path = multitask_rollout(
                 self.env,
                 self.policy,
                 goal,
-                discount,
+                tau,
                 max_path_length=self.max_path_length,
-                decrement_discount=self.cycle_taus_for_rollout,
+                decrement_tau=self.cycle_taus_for_rollout,
                 cycle_tau=self.cycle_taus_for_rollout,
             )
             path_length = len(path['terminals'])
@@ -61,21 +61,21 @@ def multitask_rollout(
         env,
         agent: UniversalPolicy,
         goal,
-        discount,
+        tau,
         max_path_length=np.inf,
         animated=False,
-        decrement_discount=False,
+        decrement_tau=False,
         cycle_tau=False,
 ):
     env.set_goal(goal)
     agent.set_goal(goal)
-    agent.set_tau(discount)
-    if decrement_discount:
-        assert max_path_length >= discount
+    agent.set_tau(tau)
+    if decrement_tau:
+        assert max_path_length > tau, "Tau should at most be max_path_length-1"
         path = rollout_decrement_tau(
             env,
             agent,
-            discount,
+            tau,
             max_path_length=max_path_length,
             animated=animated,
             cycle_tau=cycle_tau,
@@ -128,7 +128,7 @@ def rollout_decrement_tau(env, agent, init_tau, max_path_length=np.inf,
         actions.append(a)
         agent_infos.append(agent_info)
         env_infos.append(env_info)
-        taus.append(tau)
+        taus.append(np.array([tau]))
         path_length += 1
         tau -= 1
         if tau < 0:
@@ -166,5 +166,5 @@ def rollout_decrement_tau(env, agent, init_tau, max_path_length=np.inf,
         agent_infos=np.array(agent_infos),
         env_infos=np.array(env_infos),
         # final_observation=next_o,
-        taus=np.array(taus),
+        num_steps_left=np.array(taus),
     )

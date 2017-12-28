@@ -13,6 +13,10 @@ LOCAL_LOG_DIR = '/home/user/git/path/to/save/data/'
 RUN_DOODAD_EXPERIMENT_SCRIPT_PATH = (
     '/home/user/path/to/railrl/scripts/run_experiment_from_doodad.py'
 )
+# If not set, default will be chosen by doodad
+# AWS_S3_PATH = 's3://bucket/directory
+
+AWS_S3_PATH = 's3://2-12-2017.railrl.vitchyr.rail.bucket/doodad/logs-12-01-2017'
 
 # You probably don't need to change things below
 # Specifically, the docker image is looked up on dockerhub.com.

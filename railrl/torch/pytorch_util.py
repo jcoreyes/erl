@@ -5,7 +5,7 @@ from torch.autograd import Variable as TorchVariable
 from torch.nn import functional as F
 
 
-def soft_update(target, source, tau):
+def soft_update_from_to(source, target, tau):
     for target_param, param in zip(target.parameters(), source.parameters()):
         target_param.data.copy_(
             target_param.data * (1.0 - tau) + param.data * tau
@@ -229,3 +229,17 @@ def get_numpy(tensor):
 
 def np_to_var(np_array, **kwargs):
     return Variable(from_numpy(np_array), **kwargs)
+
+
+def zeros(*sizes, out=None):
+    tensor = torch.zeros(*sizes, out=out)
+    if _use_gpu:
+        tensor = tensor.cuda()
+    return tensor
+
+
+def ones(*sizes, out=None):
+    tensor = torch.ones(*sizes, out=out)
+    if _use_gpu:
+        tensor = tensor.cuda()
+    return tensor
