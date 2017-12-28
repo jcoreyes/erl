@@ -14,7 +14,7 @@ from collections import defaultdict
 import matplotlib.pyplot as plt
 import numpy as np
 
-from railrl.misc.data_processing import get_data_and_variants, \
+from railrl.misc.data_processing import get_trials, \
     get_unique_param_to_values
 from railrl.pythonplusplus import is_numeric
 
@@ -35,9 +35,9 @@ def main():
     """
     Load data
     """
-    data_and_variant = get_data_and_variants(args.expdir)
+    trials = get_trials(args.expdir)
 
-    data = data_and_variant[0][0]
+    data = trials[0][0]
     if y_label not in data.dtype.names:
         print("Invalid ylabel. Valid ylabels:")
         for name in sorted(data.dtype.names):
@@ -47,7 +47,7 @@ def main():
     """
     Get the unique parameters
     """
-    _, all_variants = zip(*data_and_variant)
+    _, all_variants = zip(*trials)
     unique_param_to_values = get_unique_param_to_values(all_variants)
     unique_numeric_param_to_values = {
         k: unique_param_to_values[k]
@@ -67,7 +67,7 @@ def main():
         axes = [axes]
     for i, x_label in enumerate(unique_numeric_param_to_values):
         x_value_to_y_values = defaultdict(list)
-        for data, variant in data_and_variant:
+        for data, variant in trials:
             if len(data[y_label]) > 0:
                 print("WARNING. data is missing this label: {}".format(y_label))
                 x_value_to_y_values[variant[x_label]].append(data[y_label][-1])

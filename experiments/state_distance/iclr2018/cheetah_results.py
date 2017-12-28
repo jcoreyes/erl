@@ -3,34 +3,39 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 mb_trials = Experiment(
-    "/home/vitchyr/git/railrl/data/doodads3/12-24-dagger-mb-ant-cheetah-pos-and-vel/"
-).get_trials({
-    'exp_id': '0',
-})
+    "/home/vitchyr/git/railrl/data/doodads3/12-24-dagger-mb-ant-cheetah-pos-and-vel/",
+    criteria={
+        'exp_id': '0',
+    },
+).get_trials()
 ddpg_trials = Experiment(
-    "/home/vitchyr/git/railrl/data/doodads3/12-12-tdm-half-cheetah-short-epoch-nupo-sweep/"
-).get_trials({
-    'exp_id': '5',
-    'algorithm': 'DDPG',
-})
+    "/home/vitchyr/git/railrl/data/doodads3/12-12-tdm-half-cheetah-short-epoch-nupo-sweep/",
+    criteria={
+        'exp_id': '5',
+        'algorithm': 'DDPG',
+    },
+).get_trials()
 tdm_trials = Experiment(
-    "/home/vitchyr/git/railrl/data/doodads3/12-12-tdm-half-cheetah-short-epoch-nupo-sweep/"
-).get_trials({
-    'exp_id': '8',
-    'algorithm': 'DDPG-TDM',
-})
+    "/home/vitchyr/git/railrl/data/doodads3/12-12-tdm-half-cheetah-short-epoch-nupo-sweep/",
+    criteria={
+        'exp_id': '8',
+        'algorithm': 'DDPG-TDM',
+    }
+).get_trials()
 ddpg_indicator_trials = Experiment(
-    "/home/vitchyr/git/railrl/data/doodads3/12-24-ddpg-sparse-no-relabel-cheetah-xvel/"
-).get_trials({
-    'exp_id': '7',
-})
+    "/home/vitchyr/git/railrl/data/doodads3/12-24-ddpg-sparse-no-relabel-cheetah-xvel/",
+    criteria={
+        'exp_id': '7',
+    }
+).get_trials()
 her_andry_trials = Experiment(
-    "/home/vitchyr/git/railrl/data/doodads3/12-24-her-andrychowicz-cheetah-xvel-rebutal/"
-).get_trials({
-    'exp_id': '6',
-})
+    "/home/vitchyr/git/railrl/data/doodads3/12-24-her-andrychowicz-cheetah-xvel-rebutal/",
+    criteria={
+        'exp_id': '6',
+    }
+).get_trials()
 
-MAX_ITERS = 150
+MAX_ITERS = 100
 plt.figure()
 for trials, name, key in [
     (tdm_trials, 'TDM', 'Final_xvel_errors_Mean'),
@@ -41,14 +46,18 @@ for trials, name, key in [
 ]:
     if len(trials) == 0:
         print(name)
-        import ipdb; ipdb.set_trace()
+        import ipdb;
+
+        ipdb.set_trace()
     all_values = []
     min_len = np.inf
     for trial in trials:
         try:
             values_ts = trial.data[key]
         except:
-            import ipdb; ipdb.set_trace()
+            import ipdb;
+
+            ipdb.set_trace()
         min_len = min(min_len, len(values_ts))
         all_values.append(values_ts)
     costs = np.vstack([
@@ -64,11 +73,10 @@ for trials, name, key in [
     plt.fill_between(epochs, mean - std, mean + std, alpha=0.1)
     plt.plot(epochs, mean, label=name)
 
-
 # plt.xscale('log')
 plt.xlabel("Environment Samples (x1000)")
 plt.ylabel("Final Velocity Error")
 # plt.title(r"Half Cheetah: Velocity Error vs Environment Samples")
-plt.legend()
+plt.legend(loc='upper right')
 plt.savefig('results/iclr2018/cheetah.jpg')
 plt.show()
