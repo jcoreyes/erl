@@ -221,6 +221,8 @@ def run_experiment(
         docker_image = config.GPU_DOODAD_DOCKER_IMAGE
         if instance_type is None:
             instance_type = config.GPU_INSTANCE_TYPE
+        else:
+            assert instance_type[0] == 'g'
         if spot_price is None:
             spot_price = config.GPU_SPOT_PRICE
     else:
