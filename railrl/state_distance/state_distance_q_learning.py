@@ -161,6 +161,7 @@ class StateDistanceQLearning(DDPG):
             batch['goals'],
         )
         torch_batch = np_to_pytorch_batch(batch)
+        import ipdb; ipdb.set_trace()
         return torch_batch
 
     def compute_rewards(self, obs, actions, next_obs, goals):

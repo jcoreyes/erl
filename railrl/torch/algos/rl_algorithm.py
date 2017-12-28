@@ -44,6 +44,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             collection_mode='online',
             sim_throttle=False,
             normalize_env=True,
+            env_train_ratio=20,
             parallel_step_to_train_ratio=20,
             replay_buffer=None,
             fraction_paths_in_train=1.,
@@ -297,14 +298,11 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                         self.exploration_policy,
                         use_exploration_strategy=True,
                     )
-                else:
-                    path = None
             else:
                 path = self.training_env.rollout(
                     self.exploration_policy,
                     use_exploration_strategy=True,
                 )
-
             if path is not None:
                 path['rewards'] = path['rewards'] * self.reward_scale
                 path_length = len(path['observations'])
@@ -314,10 +312,13 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 if len(path) > 0:
                     self._exploration_paths.append(path)
             self._try_to_train()
-
+            gt.stamp('sample')
+            self._try_to_train()
+            gt.stamp('train')
             # Check if epoch is over
             if n_steps_current_epoch >= self.num_env_steps_per_epoch:
                 self._try_to_eval(epoch)
+                gt.stamp('eval')
                 self._end_epoch()
                 epoch += 1
                 n_steps_current_epoch = 0
@@ -370,18 +371,19 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 self._n_rollouts_total,
             )
 
-            times_itrs = gt.get_times().stamps.itrs
-            train_time = times_itrs['train'][-1]
-            sample_time = times_itrs['sample'][-1]
-            eval_time = times_itrs['eval'][-1] if epoch > 0 else 0
-            epoch_time = train_time + sample_time + eval_time
-            total_time = gt.get_times().total
+            if self.collection_mode != 'online-parallel':
+                times_itrs = gt.get_times().stamps.itrs
+                train_time = times_itrs['train'][-1]
+                sample_time = times_itrs['sample'][-1]
+                eval_time = times_itrs['eval'][-1] if epoch > 0 else 0
+                epoch_time = train_time + sample_time + eval_time
+                total_time = gt.get_times().total
 
-            logger.record_tabular('Train Time (s)', train_time)
-            logger.record_tabular('(Previous) Eval Time (s)', eval_time)
-            logger.record_tabular('Sample Time (s)', sample_time)
-            logger.record_tabular('Epoch Time (s)', epoch_time)
-            logger.record_tabular('Total Train Time (s)', total_time)
+                logger.record_tabular('Train Time (s)', train_time)
+                logger.record_tabular('(Previous) Eval Time (s)', eval_time)
+                logger.record_tabular('Sample Time (s)', sample_time)
+                logger.record_tabular('Epoch Time (s)', epoch_time)
+                logger.record_tabular('Total Train Time (s)', total_time)
 
             logger.record_tabular("Epoch", epoch)
             logger.dump_tabular(with_prefix=False, with_timestamp=False)

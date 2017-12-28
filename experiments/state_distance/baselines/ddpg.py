@@ -65,9 +65,9 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "ant-increase-distance"
+    exp_prefix = "ant-far-distance-longer"
 
-    num_epochs = 100
+    num_epochs = 1000
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
     max_path_length = 50
@@ -125,10 +125,13 @@ if __name__ == "__main__":
             dict(max_distance=10),
         ],
         'algo_kwargs.reward_scale': [
-            1000, 10000, 100000
+            1, 100, 10000, int(1e6),
         ],
         'algo_kwargs.num_updates_per_env_step': [
             1,
+        ],
+        'algo_kwargs.batch_size': [
+            128,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

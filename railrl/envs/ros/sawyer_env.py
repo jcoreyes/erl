@@ -1,7 +1,6 @@
 import math
 import time
 from collections import OrderedDict
-
 import intera_interface as ii
 import numpy as np
 import rospy
@@ -104,9 +103,13 @@ MAX_TORQUES = 0.5 * np.array([8, 7, 6, 5, 4, 3, 2])
 #     1.3,
 # ])
 
-box_lows = np.array([-0.04304189, -0.30462352, 0.16761519])
+# box_lows = np.array([-0.04304189, -0.30462352, 0.16761519])
+#
+# box_highs = np.array([ 0.84045825,  0.30408276, 0.8880568 ])
 
-box_highs = np.array([ 0.84045825,  0.30408276, 0.8880568 ])
+box_lows = np.array([-0.04304189, -0.43462352, 0.27961519])
+
+box_highs = np.array([ 0.84045825,  0.38408276, 1.8880568 ])
 
 joint_names = [
     '_l2',
@@ -363,18 +366,21 @@ class SawyerEnv(Env, Serializable):
             ))
 
             if self.fixed_end_effector:
-                des = {
-                    'position': Point(x=0.44562573898386176, y=-0.055317682301721766, z=0.4950886597008108),
-                    'orientation': Quaternion(x=-0.5417504106748736, y=0.46162598289085305, z=0.35800013141940035, w=0.6043540769758675)}
-                self.desired = np.array([
-                    des['position'].x,
-                    des['position'].y,
-                    des['position'].z,
-                    des['orientation'].x,
-                    des['orientation'].y,
-                    des['orientation'].z,
-                    des['orientation'].w,
-                ])
+                # des = {
+                #     'position': Point(x=0.44562573898386176, y=-0.055317682301721766, z=0.4950886597008108),
+                #     'orientation': Quaternion(x=-0.5417504106748736, y=0.46162598289085305, z=0.35800013141940035, w=0.6043540769758675)}
+                # self.desired = np.array([
+                #     des['position'].x,
+                #     des['position'].y,
+                #     des['position'].z,
+                #     des['orientation'].x,
+                #     des['orientation'].y,
+                #     des['orientation'].z,
+                #     des['orientation'].w,
+                # ])
+                self.desired = np.array(
+                    [0.598038329445, -0.110192662364, 0.273337957845, 0.999390065723, 0.0329420607071, 0.00603632837369,
+                     -0.00989342758435])
             else:
                 self._randomize_desired_end_effector_pose()
 
@@ -384,6 +390,9 @@ class SawyerEnv(Env, Serializable):
         self.in_reset = True
         # self.amplify = 0.5 * np.array([8, 7, 6, 5, 4, 3, 2])
         self.amplify=5*np.ones(7)
+        self.loss_param = {'delta':0.001, 'c':0.0025}
+
+
     @safe
     def _act(self, action):
         if self.safety_box:
@@ -501,16 +510,53 @@ class SawyerEnv(Env, Serializable):
                 pos.z
             ])
 
+    def _Lorentz_reward(self, differences_pos, differences_angle, action):
+        l2_dist = sum(np.array([2.5, 2.5, 0]) * (differences_pos) ** 2)
+        pos_cost = 0.1 * np.log(self.loss_param['c'] * l2_dist + self.loss_param['delta'])
+
+        # euler_angle = self.compute_euler(differences_angle)
+        # euler_alpha = np.abs(euler_angle[0])
+        # euler_beta = np.abs(euler_angle[1])
+        # angle_cost = ((np.pi - euler_alpha) ** 2 + euler_beta ** 2)
+        angle_cost = np.linalg.norm(differences_angle)
+        reward = - pos_cost - angle_cost
+        return reward
+
+    def _Lorentz_reward_batch(self, differences_pos, differences_angle, action):
+        matx = np.zeros_like(differences_pos) + np.array([2.5, 2.5, 0])
+        l2_dist = np.sum(np.square(differences_pos)* matx, axis=1)
+        pos_cost = 0.1 * np.log(self.loss_param['c'] * l2_dist + self.loss_param['delta'])
+        # euler_angle = self.compute_euler(differences_angle)
+        # euler_alpha = np.abs(euler_angle[0])
+        # euler_beta = np.abs(euler_angle[1])
+        # angle_cost = ((np.pi - euler_alpha) ** 2 + euler_beta ** 2)
+        angle_cost = np.linalg.norm(differences_angle, axis=1)
+        reward = - pos_cost - angle_cost
+        return reward
+    # def compute_euler(self, differences_angle):
+    #     # change to use sine to compute the loss
+    #     return tf.transformations.euler_from_quaternion(differences_angle)
+
     def _MSE_reward(self, differences):
         reward = -np.mean(differences**2)
         return reward
 
     def _Huber_reward(self, differences):
-        a = np.mean(differences)
+        a = np.abs(np.mean(differences))
         if a <= self.huber_delta:
             reward = -1 / 2 * a ** 2 * self.reward_magnitude
         else:
             reward = -1 * self.huber_delta * (a - 1 / 2 * self.huber_delta) * self.reward_magnitude
+        return reward
+
+    def _Norm_reward(self, differences):
+        return np.linalg.norm(differences)
+
+    def _Huber_reward_batch(self, differences):
+        a = np.abs(np.mean(differences, axis=1))
+        reward1 = -1 / 2 * np.square(a) * self.reward_magnitude
+        reward2 = -1 * self.huber_delta * (a - 1 / 2 * self.huber_delta) * self.reward_magnitude
+        reward = np.where(a<=self.huber_delta, reward1, reward2)
         return reward
 
     def compute_angle_difference(self, angles1, angles2):
@@ -518,7 +564,7 @@ class SawyerEnv(Env, Serializable):
             self._wrap_angles(angles1)
             self._wrap_angles(angles2)
             deltas = np.abs(angles1 - angles2)
-            differences = np.array([min(2*np.pi-delta, delta) for delta in deltas])
+            differences = np.minimum(2 * np.pi - deltas, deltas)
         elif self.use_angle_parameterization:
             #angles1 and 2 are already parameterized
             cosines1 = angles1[:7]
@@ -530,24 +576,15 @@ class SawyerEnv(Env, Serializable):
             differences = np.sqrt(cos_diffs ** 2 + sin_diffs ** 2)
         return differences
 
-    def step(self, action):
+    def step(self, action, task='reaching'):
         if self._rs.state().stopped:
             print('VIBRATION')
             print(self.in_reset)
             self._rs.enable()
         self.nan_check(action)
         actual_commanded_action = self._act(action)
-
         observation = self._get_observation()
-
-        if self.joint_angle_experiment:
-            current = self._joint_angles()
-            differences = self.compute_angle_difference(current, self.desired)
-            reward = self.reward_function(differences)
-
-        elif self.end_effector_experiment_position or self.end_effector_experiment_total:
-            current = self._end_effector_pose()
-            reward = -1*np.linalg.norm(self.desired-current) * self.reward_magnitude
+        reward = self.rewards(action, task)
 
         if self.use_safety_checks:
             out_of_box = self.safety_box_check()
@@ -559,6 +596,25 @@ class SawyerEnv(Env, Serializable):
             done = False
         info = {}
         return observation, reward, done, info
+
+    def rewards(self, action, task='reaching'):
+        if task == 'lego':
+            current = self._end_effector_pose()
+            pos_diff = self.desired[:3] - current[:3]
+            angle_diff = self.compute_angle_difference(self.desired[3:7], current[3:7])
+            reward = self._Lorentz_reward(pos_diff, angle_diff, action)
+        else:
+            if self.joint_angle_experiment:
+                current = self._joint_angles()
+                differences = self.compute_angle_difference(current, self.desired)
+                reward = self.reward_function(differences)
+
+            elif self.end_effector_experiment_position or self.end_effector_experiment_total:
+                current = self._end_effector_pose()
+                # reward = -1*np.linalg.norm(self.desired-current) * self.reward_magnitude
+                differences = self.desired-current
+                reward = self.reward_function(differences)
+        return reward
 
     def safety_box_check(self):
         self.update_pose_and_jacobian_dict()
@@ -694,8 +750,7 @@ class SawyerEnv(Env, Serializable):
 
         if not self.fixed_angle and self.joint_angle_experiment:
             self._randomize_desired_angles()
-        elif not self.fixed_end_effector and self.end_effector_experiment_position \
-                or self.end_effector_experiment_total:
+        elif not self.fixed_end_effector and not self.end_effector_experiment_position and not self.end_effector_experiment_total:
             self._randomize_desired_end_effector_pose()
 
         self.safe_move_to_neutral()

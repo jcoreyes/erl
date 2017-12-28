@@ -7,6 +7,7 @@ import numpy as np
 
 from railrl.data_management.path_builder import PathBuilder
 from railrl.envs.remote import RemoteRolloutEnv
+from railrl.misc.np_util import truncated_geometric
 from railrl.misc.ml_util import ConstantSchedule
 from railrl.state_distance.exploration import MakeUniversal
 from railrl.state_distance.rollout_util import MultigoalSimplePathSampler, \
@@ -31,6 +32,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             reward_type='distance',
             goal_reached_epsilon=1e-3,
             terminate_when_goal_reached=False,
+            truncated_geom_factor=2.,
     ):
         """
 
@@ -59,7 +61,9 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         :param tau_sample_strategy: Sampling strategy for taus used
         during training. Can be one of the following strings:
             - no_resampling: Do not resample the tau. Use the one from rollout.
-            - uniform: Sample from [0, max_tau]
+            - uniform: Sample uniformly from [0, max_tau]
+            - truncated_geometric: Sample from a truncated geometric
+            distribution, truncated at max_tau.
             - all_valid: Always use all 0 to max_tau values
         :param reward_type: One of the following:
             - 'distance': Reward is -|s_t - s_g|
@@ -74,7 +78,12 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
                                            'her', 'no_resampling']
         assert sample_rollout_goals_from in ['environment', 'replay_buffer',
                                              'fixed']
-        assert tau_sample_strategy in ['no_resampling', 'uniform', 'all_valid']
+        assert tau_sample_strategy in [
+            'no_resampling',
+            'uniform',
+            'truncated_geometric',
+            'all_valid',
+        ]
         assert reward_type in ['distance', 'indicator']
         if epoch_max_tau_schedule is None:
             epoch_max_tau_schedule = ConstantSchedule(max_tau)
@@ -98,6 +107,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         self.terminate_when_goal_reached = terminate_when_goal_reached
         self._current_path_goal = None
         self._rollout_tau = self.max_tau
+        self.truncated_geom_factor = float(truncated_geom_factor)
 
         self.policy = MakeUniversal(self.policy)
         self.eval_policy = MakeUniversal(self.eval_policy)
@@ -114,7 +124,6 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         if self.collection_mode == 'online-parallel':
             # TODO(murtaza): What happens to the eval env?
             # see `eval_sampler` definition above.
-
             self.training_env = RemoteRolloutEnv(
                 env=self.env,
                 policy=self.eval_policy,
@@ -229,6 +238,13 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             if self.tau_sample_strategy == 'uniform':
                 num_steps_left = np.random.randint(
                     0, self.max_tau + 1, (self.batch_size, 1)
+                )
+            elif self.tau_sample_strategy == 'truncated_geometric':
+                num_steps_left = truncated_geometric(
+                    p=self.truncated_geom_factor/self.max_tau,
+                    truncate_threshold=self.max_tau,
+                    size=(self.batch_size, 1),
+                    new_value=0
                 )
             elif self.tau_sample_strategy == 'no_resampling':
                 num_steps_left = batch['num_steps_left']

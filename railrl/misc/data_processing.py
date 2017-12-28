@@ -28,7 +28,7 @@ class Experiment(object):
     """
     Represents an experiment, which consists of many Trials.
     """
-    def __init__(self, base_dir):
+    def __init__(self, base_dir, criteria=None):
         """
         :param base_dir: A path. Directory structure should be something like:
         ```
@@ -56,10 +56,11 @@ class Experiment(object):
 
         The important thing is that `variant.json` and `progress.csv` are
         in the same sub-directory for each Trial.
+        :param criteria: A dictionary of allowable values for the given keys.
         """
-        self.trials = []
-        for data, variant in get_data_and_variants(base_dir):
-            self.trials.append(Trial(data, variant))
+        if criteria is None:
+            criteria = {}
+        self.trials = get_trials(base_dir, criteria=criteria)
         assert len(self.trials) > 0, "Nothing loaded."
         self.label = 'AverageReturn'
 
@@ -147,20 +148,35 @@ def get_dirs(root):
             yield os.path.join(root, directory)
 
 
-def get_data_and_variants(base_dir, verbose=False):
+def get_trials(base_dir, verbose=False, criteria=None, ):
     """
     Get a list of (data, variant) tuples, loaded from
         - process.csv
         - variant.json
     files under this directory.
     :param base_dir: root directory
+    :param criteria: dictionary of keys and values. Only load experiemnts
+    that match this criteria.
     :return: List of tuples. Each tuple has:
         1. Progress data (nd.array)
         2. Variant dictionary
     """
-    data_and_variants = []
+    if criteria is None:
+        criteria = {}
+
+    trials = []
     delimiter = ','
     for dir_name in get_dirs(base_dir):
+        variant_file_name = osp.join(dir_name, 'variant.json')
+        if not os.path.exists(variant_file_name):
+            continue
+
+        with open(variant_file_name) as variant_file:
+            variant = json.load(variant_file)
+        variant = nested_dict_to_dot_map_dict(variant)
+        if not matches_dict(criteria, variant):
+            continue
+
         data_file_name = osp.join(dir_name, 'progress.csv')
         # Hack for iclr 2018 deadline
         if not os.path.exists(data_file_name) or os.stat(
@@ -171,10 +187,6 @@ def get_data_and_variants(base_dir, verbose=False):
             delimiter = '\t'
         if verbose:
             print("Reading {}".format(data_file_name))
-        variant_file_name = osp.join(dir_name, 'variant.json')
-        with open(variant_file_name) as variant_file:
-            variant = json.load(variant_file)
-        variant = nested_dict_to_dot_map_dict(variant)
         num_lines = sum(1 for _ in open(data_file_name))
         if num_lines < 2:
             continue
@@ -183,10 +195,9 @@ def get_data_and_variants(base_dir, verbose=False):
             delimiter=delimiter,
             dtype=None,
             names=True,
-            # dtype=str,
         )
-        data_and_variants.append((data, variant))
-    return data_and_variants
+        trials.append(Trial(data, variant))
+    return trials
 
 
 def get_all_csv(base_dir, verbose=False):

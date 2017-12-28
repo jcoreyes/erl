@@ -5,27 +5,31 @@ import numpy as np
 
 def main():
     tdm_trials = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/12-25-tdm-ddpg-pusher3d/"
-    ).get_trials({
-        'exp_id': '3',
-    })
+        "/home/vitchyr/git/railrl/data/doodads3/12-25-tdm-ddpg-pusher3d/",
+        criteria={
+             'exp_id': '3',
+        }
+    ).get_trials()
     trpo_trials = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/12-25-trpo-pusher-3d/"
-    ).get_trials({
-        'exp_id': '2',
-    })
+        "/home/vitchyr/git/railrl/data/doodads3/12-25-trpo-pusher-3d/",
+        criteria={
+            'exp_id': '2',
+        }
+    ).get_trials()
     mb_trials = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/12-25-mb-dagger-pusher-3d-take2/"
-    ).get_trials({
-        'exp_id': '1',
-    })
+        "/home/vitchyr/git/railrl/data/doodads3/12-25-mb-dagger-pusher-3d-take2/",
+        criteria={
+            'exp_id': '1',
+        }
+    ).get_trials()
     ddpg_trials = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/12-25-ddpg-pusher-3d-take2/"
-    ).get_trials({
-        'exp_id': '1',
-    })
+        "/home/vitchyr/git/railrl/data/doodads3/12-25-ddpg-pusher-3d-take2/",
+        criteria={
+            'exp_id': '1',
+        }
+    ).get_trials()
 
-    MAX_ITERS = 10001
+    MAX_ITERS = 100
 
     plt.figure()
     base_key = 'Final Distance to goal Mean'

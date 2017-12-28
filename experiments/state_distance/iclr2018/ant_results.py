@@ -3,42 +3,55 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 def main():
-    ant_her_final_exp = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/12-23-her-andrychowicz-ant-rebutal/"
-    )
-    ant_tdm_exp = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/12-24-ddpg-nupo-sweep-ant/"
-    )
-
     ddpg_trials = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/12-23-ddpg-nupo-sweep-ant/"
-    ).get_trials({
-        'exp_id': '19',
-    })
-    her_andrychowicz_trials = ant_her_final_exp.get_trials({
-        'exp_id': '10',
-    })
-    ddpg_tdm_trials = ant_tdm_exp.get_trials({
-        'exp_id': '12',
-    })
+        "/home/vitchyr/git/railrl/data/doodads3/12-23-ddpg-nupo-sweep-ant/",
+        criteria={
+            'exp_id': '19',
+        },
+    ).get_trials()
+    her_andrychowicz_trials = Experiment(
+        "/home/vitchyr/git/railrl/data/doodads3/12-23-her-andrychowicz-ant-rebutal/",
+        criteria={
+            'exp_id': '14',
+        },
+    ).get_trials()
+    # Ant results with batch size of 128
+    tdm_trials = Experiment(
+        "/home/vitchyr/git/railrl/data/doodads3/12-24-ddpg-nupo-sweep-ant/",
+        criteria={
+            'exp_id': '12',
+        }
+    ).get_trials()
+    # Accidentally called this pusher, but it's really ant
+    # Here, x-axis is 10k steps.
+    # tdm_trials = Experiment(
+    #     "/home/vitchyr/git/railrl/data/doodads3/12-27-pusher-reward-scale-tau-uniform-or-truncated-geo-sweep-2/",
+    #     criteria={
+    #         'ddpg_tdm_kwargs.base_kwargs.reward_scale': 100,
+    #         'ddpg_tdm_kwargs.tdm_kwargs.tau_sample_strategy':
+    #             'truncated_geometric',
+    #     }
+    # ).get_trials()
     ddpg_indicator_trials = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/12-23-ddpg-sparse-sweep-4/"
-    ).get_trials({
-        'env_class.$class': 'railrl.envs.multitask.ant_env.GoalXYPosAnt',
-        'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': 1,
-    })
+        "/home/vitchyr/git/railrl/data/doodads3/12-23-ddpg-sparse-sweep-4/",
+        criteria={
+            'env_class.$class': 'railrl.envs.multitask.ant_env.GoalXYPosAnt',
+            'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': 1,
+        },
+    ).get_trials()
     mb_trials = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/12-24-dagger-mb-ant-cheetah-pos-and-vel/"
-    ).get_trials({
-        'exp_id': '1',
-    })
+        "/home/vitchyr/git/railrl/data/doodads3/12-24-dagger-mb-ant-cheetah-pos-and-vel/",
+        criteria={
+            'exp_id': '1',
+        },
+    ).get_trials()
 
     MAX_ITERS = 10001
 
     plt.figure()
     base_key = 'Final Distance to goal Mean'
     for trials, name, key in [
-        (ddpg_tdm_trials, 'TDMs', base_key),
+        (tdm_trials, 'TDM', base_key),
         (mb_trials, 'Model-Based', base_key),
         (ddpg_trials, 'DDPG', base_key),
         (her_andrychowicz_trials, 'HER', base_key),
@@ -58,8 +71,6 @@ def main():
             for values in all_values
         ])
         costs = costs[:, :min(costs.shape[1], MAX_ITERS)]
-        # if name != 'TDM':
-        # costs = smooth(costs)
         mean = np.mean(costs, axis=0)
         std = np.std(costs, axis=0)
         epochs = np.arange(0, len(costs[0]))

@@ -67,7 +67,7 @@ def run_experiment(
         local_input_dir_to_mount_point_dict=None,  # TODO(vitchyr): test this
         # Settings for EC2 only
         sync_interval=180,
-        region='us-west-1',
+        region='us-east-1',
         instance_type=None,
         spot_price=None,
 ):
@@ -166,6 +166,7 @@ def run_experiment(
     variant['seed'] = str(seed)
     variant['exp_id'] = str(exp_id)
     variant['unique_id'] = str(unique_id)
+    variant['exp_prefix'] = str(exp_prefix)
 
     try:
         import git
@@ -220,6 +221,8 @@ def run_experiment(
         docker_image = config.GPU_DOODAD_DOCKER_IMAGE
         if instance_type is None:
             instance_type = config.GPU_INSTANCE_TYPE
+        else:
+            assert instance_type[0] == 'g'
         if spot_price is None:
             spot_price = config.GPU_SPOT_PRICE
     else:
@@ -232,8 +235,11 @@ def run_experiment(
     """
     Get the mode
     """
+    availability_zone = None
     if use_gpu:
-        image_id = config.GPU_AWS_IMAGE_ID
+        image_id = config.REGION_TO_GPU_AWS_IMAGE_ID[region]
+        if region == 'us-east-1':
+            availability_zone = 'us-east-1b'
     else:
         image_id = None
     if hasattr(config, "AWS_S3_PATH"):
@@ -256,6 +262,12 @@ def run_experiment(
             s3_log_name="{}-id{}-s{}".format(exp_prefix, exp_id, seed),
             gpu=use_gpu,
             aws_s3_path=aws_s3_path,
+            extra_ec2_instance_kwargs=dict(
+                Placement=dict(
+                    AvailabilityZone=availability_zone,
+                ),
+            ),
+            # availability_zone=availability_zone,
         ),
     }
 
@@ -301,6 +313,7 @@ def run_experiment(
             'method_call': method_call,
             'output_dir': snapshot_dir_for_script,
             'run_experiment_kwargs': run_experiment_kwargs,
+            'mode': mode,
         },
         use_cloudpickle=True,
         target_mount=target_mount,

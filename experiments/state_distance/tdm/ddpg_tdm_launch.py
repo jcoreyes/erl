@@ -80,16 +80,12 @@ if __name__ == "__main__":
 
     n_seeds = 2
     mode = "ec2"
-    exp_prefix = "ant-delta-check-tdm-ddpg"
+    exp_prefix = "pusher3d-sweep-nupo-and-batch-size"
 
-    num_epochs = 1000
-    num_steps_per_epoch = 1000
-    num_steps_per_eval = 1000
-    max_path_length = 50
-    # num_epochs = 100
-    # num_steps_per_epoch = 100
-    # num_steps_per_eval = 100
-    # max_path_length = 100
+    num_epochs = 100
+    num_steps_per_epoch = 10000
+    num_steps_per_eval = 10000
+    max_path_length = 250
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -102,6 +98,7 @@ if __name__ == "__main__":
                 num_updates_per_env_step=25,
                 batch_size=128,
                 discount=1,
+                collection_mode='online',
             ),
             tdm_kwargs=dict(
                 sample_rollout_goals_from='environment',
@@ -122,6 +119,7 @@ if __name__ == "__main__":
         ),
         qf_kwargs=dict(
             hidden_sizes=[300, 300],
+            internal_gcm=True,
         ),
         policy_kwargs=dict(
             hidden_sizes=[300, 300],
@@ -141,10 +139,10 @@ if __name__ == "__main__":
             # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
             # GoalXPosHalfCheetah,
-            GoalXYPosAnt,
+            # GoalXYPosAnt,
             # CylinderXYPusher2DEnv,
             # Walker2DTargetXPos,
-            # MultitaskPusher3DEnv,
+            MultitaskPusher3DEnv,
         ],
         'env_kwargs': [
             dict(),
@@ -164,7 +162,7 @@ if __name__ == "__main__":
             dict(theta=0.1, max_sigma=0.1, min_sigma=0.1),
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.max_tau': [
-            49,
+            249,
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.dense_rewards': [
             False,
@@ -173,25 +171,27 @@ if __name__ == "__main__":
             True,
         ],
         # 'ddpg_tdm_kwargs.tdm_kwargs.sample_train_goals_from': [
+        # 'no_resampling',
+        # ],
+        'ddpg_tdm_kwargs.tdm_kwargs.tau_sample_strategy': [
+            'truncated_geometric',
+            # 'uniform',
             # 'no_resampling',
-        # ],
-        # 'ddpg_tdm_kwargs.tdm_kwargs.tau_sample_strategy': [
-            # 'no_resampling',
-        # ],
-        # 'ddpg_tdm_kwargs.tdm_kwargs.reward_type': [
-            # "indicator",
-        # ],
+        ],
+        'ddpg_tdm_kwargs.tdm_kwargs.truncated_geom_factor': [
+            1,
+        ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
-            10, 100, 1000
+            1, 100, 10000,
         ],
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
-            1,
+            1, 5, 10
         ],
         'ddpg_tdm_kwargs.base_kwargs.discount': [
             1,
         ],
         'ddpg_tdm_kwargs.base_kwargs.batch_size': [
-            128,
+            128, 1024
         ],
         'ddpg_tdm_kwargs.ddpg_kwargs.tau': [
             0.001,
@@ -200,25 +200,22 @@ if __name__ == "__main__":
             False,
         ],
         'instance_type': [
-            'c4.large',
-            # 'c4.xlarge',
-            # 'c4.2xlarge',
-            # 'c4.4xlarge',
-            # 'c4.8xlarge',
-            # 'g2.2xlarge',
-        ]
+            # 'c5.large',
+            'g2.2xlarge',
+        ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        for i in range(n_seeds):
-            variant['multitask'] = (
+        variant['multitask'] = (
                 variant['ddpg_tdm_kwargs']['tdm_kwargs'][
                     'sample_rollout_goals_from'
                 ] != 'fixed'
-            )
+        )
+        for i in range(n_seeds):
             seed = random.randint(0, 10000)
+            instance_type = variant['instance_type']
             run_experiment(
                 experiment,
                 mode=mode,
@@ -227,6 +224,6 @@ if __name__ == "__main__":
                 variant=variant,
                 exp_id=exp_id,
                 region='us-west-1',
-                instance_type=variant['instance_type'],
+                instance_type=instance_type,
                 use_gpu=variant['instance_type'][0] == 'g',
             )
