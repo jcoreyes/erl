@@ -371,7 +371,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 self._n_rollouts_total,
             )
 
-            if self.collection_mode == 'online':
+            if self.collection_mode != 'online-parallel':
                 times_itrs = gt.get_times().stamps.itrs
                 train_time = times_itrs['train'][-1]
                 sample_time = times_itrs['sample'][-1]
