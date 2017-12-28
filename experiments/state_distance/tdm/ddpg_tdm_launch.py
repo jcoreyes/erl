@@ -84,12 +84,12 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "ant-far-distance-longer"
+    exp_prefix = "pusher3d-sweep-nupo-and-batch-size"
 
-    num_epochs = 1000
-    num_steps_per_epoch = 1000
-    num_steps_per_eval = 1000
-    max_path_length = 50
+    num_epochs = 100
+    num_steps_per_epoch = 10000
+    num_steps_per_eval = 10000
+    max_path_length = 250
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -143,18 +143,18 @@ if __name__ == "__main__":
             # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
             # GoalXPosHalfCheetah,
-            GoalXYPosAnt,
+            # GoalXYPosAnt,
             # CylinderXYPusher2DEnv,
             # Walker2DTargetXPos,
-            # MultitaskPusher3DEnv,
+            MultitaskPusher3DEnv,
         ],
         'env_kwargs': [
-            # dict(),
-            dict(max_distance=2),
-            dict(max_distance=4),
-            dict(max_distance=6),
-            dict(max_distance=8),
-            dict(max_distance=10),
+            dict(),
+            # dict(max_distance=2),
+            # dict(max_distance=4),
+            # dict(max_distance=6),
+            # dict(max_distance=8),
+            # dict(max_distance=10),
         ],
         'qf_criterion_class': [
             nn.MSELoss,
@@ -166,7 +166,7 @@ if __name__ == "__main__":
             dict(theta=0.1, max_sigma=0.1, min_sigma=0.1),
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.max_tau': [
-            49,
+            249,
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.dense_rewards': [
             False,
@@ -186,16 +186,16 @@ if __name__ == "__main__":
             1,
         ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
-            1, 100, 10000, int(1e6),
+            1, 100, 10000,
         ],
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
-            1,
+            1, 5, 10
         ],
         'ddpg_tdm_kwargs.base_kwargs.discount': [
             1,
         ],
         'ddpg_tdm_kwargs.base_kwargs.batch_size': [
-            128,
+            128, 1024
         ],
         'ddpg_tdm_kwargs.ddpg_kwargs.tau': [
             0.001,
@@ -204,8 +204,8 @@ if __name__ == "__main__":
             False,
         ],
         'instance_type': [
-            'c5.large',
-            # 'g2.2xlarge',
+            # 'c5.large',
+            'g2.2xlarge',
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -227,7 +227,7 @@ if __name__ == "__main__":
                 seed=seed,
                 variant=variant,
                 exp_id=exp_id,
-                region='us-east-1',
+                region='us-west-1',
                 instance_type=instance_type,
                 use_gpu=variant['instance_type'][0] == 'g',
             )
