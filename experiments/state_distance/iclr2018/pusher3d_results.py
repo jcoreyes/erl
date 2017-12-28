@@ -5,25 +5,31 @@ import numpy as np
 
 def main():
     tdm_trials = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/12-25-tdm-ddpg-pusher3d/"
-    ).get_trials({
-        'exp_id': '3',
-    })
+        "/home/vitchyr/git/railrl/data/doodads3/12-27-pusher-reward-scale-tau-uniform-or-truncated-geo-sweep-2/",
+        criteria={
+            'ddpg_tdm_kwargs.base_kwargs.reward_scale': 100,
+            'ddpg_tdm_kwargs.tdm_kwargs.tau_sample_strategy':
+                'truncated_geometric',
+        }
+    ).get_trials()
     trpo_trials = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/12-25-trpo-pusher-3d/"
-    ).get_trials({
-        'exp_id': '2',
-    })
+        "/home/vitchyr/git/railrl/data/doodads3/12-25-trpo-pusher-3d/",
+        criteria={
+            'exp_id': '2',
+        }
+    ).get_trials()
     mb_trials = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/12-25-mb-dagger-pusher-3d-take2/"
-    ).get_trials({
-        'exp_id': '1',
-    })
+        "/home/vitchyr/git/railrl/data/doodads3/12-25-mb-dagger-pusher-3d-take2/",
+        criteria={
+            'exp_id': '1',
+        }
+    ).get_trials()
     ddpg_trials = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/12-25-ddpg-pusher-3d-take2/"
-    ).get_trials({
-        'exp_id': '1',
-    })
+        "/home/vitchyr/git/railrl/data/doodads3/12-25-ddpg-pusher-3d-take2/",
+        criteria={
+            'exp_id': '1',
+        }
+    ).get_trials()
 
     MAX_ITERS = 100
 
