@@ -234,7 +234,7 @@ def run_experiment(
     Get the mode
     """
     if use_gpu:
-        image_id = config.GPU_AWS_IMAGE_ID
+        image_id = config.REGION_TO_GPU_AWS_IMAGE_ID[region]
     else:
         image_id = None
     if hasattr(config, "AWS_S3_PATH"):
