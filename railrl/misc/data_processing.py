@@ -92,7 +92,8 @@ class Experiment(object):
                 if matches_dict(criteria, trial.variant, ignore_missing_keys)]
 
 
-def create_stats_ordered_dict(name, data, stat_prefix=None):
+def create_stats_ordered_dict(name, data, stat_prefix=None,
+                              always_show_all_stats=False):
     if stat_prefix is not None:
         name = "{} {}".format(stat_prefix, name)
     if isinstance(data, Number):
@@ -111,7 +112,8 @@ def create_stats_ordered_dict(name, data, stat_prefix=None):
             ordered_dict.update(sub_dict)
         return ordered_dict
 
-    if isinstance(data, np.ndarray) and data.size == 1:
+    if (isinstance(data, np.ndarray) and data.size == 1
+            and not always_show_all_stats):
         return OrderedDict({name: float(data)})
 
     return OrderedDict([
@@ -126,12 +128,13 @@ def get_dirs(root):
     """
     Get a list of all the directories under this directory.
     """
+    yield root
     for root, directories, filenames in os.walk(root):
         for directory in directories:
             yield os.path.join(root, directory)
 
 
-def get_data_and_variants(base_dir):
+def get_data_and_variants(base_dir, verbose=False):
     """
     Get a list of (data, variant) tuples, loaded from
         - process.csv
@@ -143,11 +146,18 @@ def get_data_and_variants(base_dir):
         2. Variant dictionary
     """
     data_and_variants = []
+    delimiter = ','
     for dir_name in get_dirs(base_dir):
         data_file_name = osp.join(dir_name, 'progress.csv')
-        if not os.path.exists(data_file_name):
-            continue
-        print("Reading {}".format(data_file_name))
+        # Hack for iclr 2018 deadline
+        if not os.path.exists(data_file_name) or os.stat(
+                data_file_name).st_size == 0:
+            data_file_name = osp.join(dir_name, 'log.txt')
+            if not os.path.exists(data_file_name):
+                continue
+            delimiter = '\t'
+        if verbose:
+            print("Reading {}".format(data_file_name))
         variant_file_name = osp.join(dir_name, 'variant.json')
         with open(variant_file_name) as variant_file:
             variant = json.load(variant_file)
@@ -156,10 +166,29 @@ def get_data_and_variants(base_dir):
         if num_lines < 2:
             continue
         data = np.genfromtxt(
-            data_file_name, delimiter=',', dtype=None, names=True
+            data_file_name, delimiter=delimiter, dtype=None, names=True
         )
         data_and_variants.append((data, variant))
     return data_and_variants
+
+
+def get_all_csv(base_dir, verbose=False):
+    """
+    Get a list of all csv data under a directory.
+    :param base_dir: root directory
+    """
+    data = []
+    delimiter = ','
+    for dir_name in get_dirs(base_dir):
+        for data_file_name in os.listdir(dir_name):
+            if data_file_name.endswith(".csv"):
+                full_path = os.path.join(dir_name, data_file_name)
+                if verbose:
+                    print("Reading {}".format(full_path))
+                data.append(np.genfromtxt(
+                    full_path, delimiter=delimiter, dtype=None, names=True
+                ))
+    return data
 
 
 def get_unique_param_to_values(all_variants):

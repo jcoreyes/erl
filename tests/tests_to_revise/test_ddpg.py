@@ -2,12 +2,12 @@ import unittest
 
 import numpy as np
 import tensorflow as tf
-from railrl.testing.railrl_test_case import RailRLTestCase
 
-from railrl.algos.ddpg import DDPG
-from railrl.policies.sum_policy import SumPolicy
 from railrl.qfunctions.sum_qfunction import SumCritic
+from railrl.testing.railrl_test_case import RailRLTestCase
 from railrl.testing.testing_utils import are_np_array_iterables_equal
+from railrl.tf.ddpg import DDPG
+from railrl.tf.policies.sum_policy import SumPolicy
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.exploration_strategies.ou_strategy import OUStrategy
 from sandbox.rocky.tf.envs.base import TfEnv

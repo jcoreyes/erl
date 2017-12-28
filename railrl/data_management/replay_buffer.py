@@ -7,30 +7,18 @@ class ReplayBuffer(object, metaclass=abc.ABCMeta):
     """
 
     @abc.abstractmethod
-    def add_sample(self, observation, action, reward, terminal, **kwargs):
+    def add_sample(self, observation, action, reward, next_observation,
+                   terminal, **kwargs):
         """
-        Add a (state, observation, reward, terminal) tuple.
-
-        :param observation:
-        :param action:
-        :param reward:
-        :param terminal:
-        :return:
+        Add a transition tuple.
         """
         pass
 
     @abc.abstractmethod
-    def terminate_episode(self, terminal_observation, terminal, **kwargs):
+    def terminate_episode(self):
         """
-        Terminate the episode. The only reason this is needed in addition to
-        add_sample is that sometimes you may want to terminate an episode
-        prematurely, but without wanting it to look like a terminal state to
-        the learning algorithm. For example, you might want to reset your
-        environment every T time steps, but it's not like the T'th state is
-        really a terminal state.
-
-        :param terminal_observation: The last observation seen.
-        :param terminal: Did the environment actually terminate by itself?
+        Let the replay buffer know that the episode has terminated in case some
+        special book-keeping has to happen.
         :return:
         """
         pass
@@ -39,5 +27,54 @@ class ReplayBuffer(object, metaclass=abc.ABCMeta):
     def num_steps_can_sample(self, **kwargs):
         """
         :return: # of unique items that can be sampled.
+        """
+        pass
+
+    def add_path(self, path):
+        """
+        Add a path to the replay buffer.
+
+        This default implementation naively goes through every step, but you
+        may want to optimize this.
+
+        NOTE: You should NOT call "terminate_episode" after calling add_path.
+        It's assumed that this function handles the episode termination.
+
+        :param path: Dict like one outputted by railrl.samplers.util.rollout
+        """
+        for i, (
+                obs,
+                action,
+                reward,
+                next_obs,
+                terminal,
+                agent_info,
+                env_info
+        ) in enumerate(zip(
+            path["observations"],
+            path["actions"],
+            path["rewards"],
+            path["next_observations"],
+            path["terminals"],
+            path["agent_infos"],
+            path["env_infos"],
+        )):
+            self.add_sample(
+                obs,
+                action,
+                reward,
+                next_obs,
+                terminal,
+                agent_info=agent_info,
+                env_info=env_info,
+            )
+        self.terminate_episode()
+
+    @abc.abstractmethod
+    def random_batch(self, batch_size):
+        """
+        Return a batch of size `batch_size`.
+        :param batch_size:
+        :return:
         """
         pass

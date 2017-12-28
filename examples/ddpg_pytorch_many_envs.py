@@ -76,7 +76,7 @@ if __name__ == "__main__":
                 example,
                 exp_prefix="ddpg-benchmarks-envs-pytorch",
                 seed=seed,
-                mode='here',
+                mode='local',
                 variant=variant,
                 use_gpu=True,
             )

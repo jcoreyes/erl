@@ -26,23 +26,34 @@ def get_fanova_info(
         ylabel='AverageReturn',
 ):
     data_and_variants = get_data_and_variants(base_dir)
-    data, variants_list = zip(*data_and_variants)
+    experiment_data_list, variants_list = zip(*data_and_variants)
     ylabel = ylabel.replace(' ', '_')
     ylabel = ylabel.replace('-', '')
-    if ylabel not in data[0].dtype.names:
+    if ylabel not in experiment_data_list[0].dtype.names:
         print("Possible ylabels:")
-        for name in data[0].dtype.names:
+        for name in experiment_data_list[0].dtype.names:
             print(" - {}".format(name))
         raise ValueError("Invalid ylabel: {}".format(ylabel))
-    good_indices = [i for i, exp in enumerate(data)
-                    if exp[ylabel].size > 1]
-    if len(good_indices) != len(data):
+    indices_of_experiments_with_data = [
+        i for i, exp in enumerate(experiment_data_list) if exp[ylabel].size >= 1
+    ]
+    if len(indices_of_experiments_with_data) != len(experiment_data_list):
         print("WARNING: Skipping some experiments. Probably because they only "
               "have one data point.")
-    data = [d for i, d in enumerate(data) if i in good_indices]
-    variants_list = [v for i, v in enumerate(variants_list)
-                     if i in good_indices]
-    Y = np.array([exp[ylabel][-1] for exp in data])
+    valid_experiment_data_list = [
+        d for i, d in enumerate(experiment_data_list)
+        if i in indices_of_experiments_with_data
+    ]
+    variants_list = [
+        v for i, v in enumerate(variants_list)
+        if i in indices_of_experiments_with_data
+    ]
+    Y = np.array([
+        exp[ylabel][-1]
+            if exp[ylabel].size > 1
+            else np.array(float(exp[ylabel]), dtype=np.double)
+        for exp in valid_experiment_data_list
+    ])
     filtered_variants_list = remove_keys_with_nonunique_values(
         variants_list, params_to_ignore=params_to_ignore
     )

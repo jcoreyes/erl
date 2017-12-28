@@ -5,7 +5,7 @@ from torch.autograd import Variable as TorchVariable
 from torch.nn import functional as F
 
 
-def soft_update_from_to(target, source, tau):
+def soft_update(target, source, tau):
     for target_param, param in zip(target.parameters(), source.parameters()):
         target_param.data.copy_(
             target_param.data * (1.0 - tau) + param.data * tau
@@ -205,18 +205,18 @@ def FloatTensor(*args, **kwargs):
         return torch.FloatTensor(*args, **kwargs)
 
 
-def Variable(*args, **kwargs):
-    var = TorchVariable(*args, **kwargs)
-    if _use_gpu:
-        var = var.cuda()
-    return var
+def Variable(tensor, **kwargs):
+    if _use_gpu and not tensor.is_cuda:
+        return TorchVariable(tensor.cuda(), **kwargs)
+    else:
+        return TorchVariable(tensor, **kwargs)
 
 
 def from_numpy(*args, **kwargs):
     if _use_gpu:
-        return torch.from_numpy(*args, **kwargs).cuda()
+        return torch.from_numpy(*args, **kwargs).float().cuda()
     else:
-        return torch.from_numpy(*args, **kwargs)
+        return torch.from_numpy(*args, **kwargs).float()
 
 
 def get_numpy(tensor):
@@ -225,3 +225,7 @@ def get_numpy(tensor):
     if _use_gpu:
         return tensor.cpu().numpy()
     return tensor.numpy()
+
+
+def np_to_var(np_array, **kwargs):
+    return Variable(from_numpy(np_array), **kwargs)

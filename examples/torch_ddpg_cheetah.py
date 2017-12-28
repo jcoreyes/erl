@@ -2,12 +2,13 @@
 Run PyTorch DDPG on HalfCheetah.
 """
 import random
-
+from railrl.exploration_strategies.base import \
+    PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.qfunctions.torch import FeedForwardQFunction
-from railrl.torch.ddpg import DDPG
+from railrl.torch.algos.ddpg import DDPG
 import railrl.torch.pytorch_util as ptu
 
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
@@ -30,11 +31,15 @@ def example(variant):
         400,
         300,
     )
+    exploration_policy = PolicyWrappedWithExplorationStrategy(
+        exploration_strategy=es,
+        policy=policy,
+    )
     algorithm = DDPG(
         env,
-        exploration_strategy=es,
         qf=qf,
         policy=policy,
+        exploration_policy=exploration_policy,
         **variant['algo_params']
     )
     if ptu.gpu_enabled():
@@ -47,7 +52,7 @@ if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
             num_epochs=100,
-            num_steps_per_epoch=10000,
+            num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             use_soft_update=True,
             tau=1e-2,
@@ -57,14 +62,13 @@ if __name__ == "__main__":
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
         ),
-        version="PyTorch - bigger networks",
     )
     seed = random.randint(0, 999999)
     run_experiment(
         example,
         exp_prefix="ddpg-half-cheetah-pytorch",
         seed=seed,
-        mode='here',
+        mode='local',
         variant=variant,
         use_gpu=True,
     )

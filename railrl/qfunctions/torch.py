@@ -1,14 +1,11 @@
-import numpy as np
 import torch
 from torch import nn as nn
-from torch.nn import functional as F
-from torch.nn import init
 from torch.autograd import Variable
+from torch.nn import functional as F
 
 from railrl.pythonplusplus import identity
-from railrl.torch.core import PyTorchModule
 from railrl.torch import pytorch_util as ptu
-
+from railrl.torch.core import PyTorchModule
 from railrl.torch.rnn import BNLSTMCell, LSTM
 
 
@@ -32,10 +29,10 @@ class FeedForwardQFunction(PyTorchModule):
         self.observation_hidden_size = observation_hidden_size
         self.embedded_hidden_size = embedded_hidden_size
         self.hidden_init = hidden_init
-
         self.obs_fc = nn.Linear(obs_dim, observation_hidden_size)
         self.embedded_fc = nn.Linear(observation_hidden_size + action_dim,
-                                     embedded_hidden_size)
+                                 embedded_hidden_size)
+
         self.last_fc = nn.Linear(embedded_hidden_size, 1)
         self.output_activation = output_activation
 
@@ -61,6 +58,79 @@ class FeedForwardQFunction(PyTorchModule):
         h = F.relu(self.embedded_fc(h))
         return self.output_activation(self.last_fc(h))
 
+class FeedForwardDuelingQFunction(PyTorchModule):
+    def __init__(
+            self,
+            obs_dim,
+            action_dim,
+            observation_hidden_size,
+            embedded_hidden_size,
+            init_w=3e-3,
+            output_activation=identity,
+            hidden_init=ptu.fanin_init,
+            batchnorm_obs=False,
+    ):
+        self.save_init_params(locals())
+        super().__init__()
+
+        self.obs_dim = obs_dim
+        self.action_dim = action_dim
+        self.observation_hidden_size = observation_hidden_size
+        self.embedded_hidden_size = embedded_hidden_size
+        self.hidden_init = hidden_init
+        self.obs_fc = nn.Linear(obs_dim, observation_hidden_size)
+
+        self.value_embedded_fc = nn.Linear(observation_hidden_size, embedded_hidden_size)
+        self.advantage_embedded_fc = nn.Linear(observation_hidden_size + action_dim, embedded_hidden_size)
+        # self.advantage_avg = np.zeros(embedded_hidden_size)
+        self.advantage_last_fc = nn.Linear(embedded_hidden_size, 1)
+        self.value_last_fc = nn.Linear(embedded_hidden_size, 1)
+
+        self.output_activation = output_activation
+        self.init_weights(init_w)
+        self.batchnorm_obs = batchnorm_obs
+        if self.batchnorm_obs:
+            self.bn_obs = nn.BatchNorm1d(obs_dim)
+
+    def init_weights(self, init_w):
+        self.hidden_init(self.obs_fc.weight)
+        self.obs_fc.bias.data.fill_(0)
+
+        self.hidden_init(self.value_embedded_fc.weight)
+        self.hidden_init(self.advantage_embedded_fc.weight)
+        self.value_embedded_fc.bias.data.fill_(0)
+        self.advantage_embedded_fc.bias.data.fill_(0)
+
+        self.advantage_last_fc.weight.data.uniform_(-init_w, init_w)
+        self.value_last_fc.weight.data.uniform_(-init_w, init_w)
+
+        self.advantage_last_fc.bias.data.uniform_(-init_w, init_w)
+        self.value_last_fc.bias.data.uniform_(-init_w, init_w)
+
+    def forward(self, obs, action):
+        if self.batchnorm_obs:
+            obs = self.bn_obs(obs)
+        h = obs
+        h = F.relu(self.obs_fc(h))
+
+        val_input = h
+        advantage_input = torch.cat((h, action), dim=1)
+
+        value = F.relu(self.value_embedded_fc(val_input))
+        value = self.output_activation(self.value_last_fc(value))
+
+        advantage = F.relu(self.advantage_embedded_fc(advantage_input))
+        advantage = self.output_activation(self.advantage_last_fc(advantage))
+
+        # a_average = self._compute_running_average(advantage)
+        q = value + advantage
+        return q
+
+    def _compute_running_average(self, update):
+        avg = self.advantage_avg
+        if self.training:
+            self.advantage_avg = .9 * self.advantage_avg + .1 * update
+        return avg
 
 class MemoryQFunction(PyTorchModule):
     def __init__(

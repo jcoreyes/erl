@@ -8,7 +8,7 @@ from railrl.launchers.launcher_util import (
 
 
 def run_linear_ocm_exp(variant):
-    from railrl.algos.ddpg_ocm import DdpgOcm
+    from railrl.tf.ddpg_ocm import DdpgOcm
     from railrl.qfunctions.memory.mlp_memory_qfunction import MlpMemoryQFunction
     from railrl.exploration_strategies.noop import NoopStrategy
     from railrl.exploration_strategies.onehot_sampler import OneHotSampler
@@ -17,7 +17,7 @@ def run_linear_ocm_exp(variant):
         ContinuousMemoryAugmented
     )
     from railrl.envs.memory.one_char_memory import OneCharMemoryEndOnly
-    from railrl.policies.memory.linear_ocm_policy import LinearOcmPolicy
+    from railrl.tf.policies.memory.linear_ocm_policy import LinearOcmPolicy
     from railrl.launchers.launcher_util import (
         set_seed,
     )

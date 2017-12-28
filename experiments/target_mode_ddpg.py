@@ -1,11 +1,11 @@
 """
 Test different target update modes.
 """
-from railrl.launchers.launcher_util import run_experiment, get_env_settings
-from railrl.policies.nn_policy import FeedForwardPolicy
+from railrl.launchers.algo_launchers import get_env_settings
+from railrl.launchers.launcher_util import run_experiment
 from railrl.qfunctions.nn_qfunction import FeedForwardCritic
-from railrl.algos.ddpg import DDPG, TargetUpdateMode
-
+from railrl.tf.ddpg import DDPG, TargetUpdateMode
+from railrl.tf.policies.nn_policy import FeedForwardPolicy
 from rllab.exploration_strategies.ou_strategy import OUStrategy
 
 

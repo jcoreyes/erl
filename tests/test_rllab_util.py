@@ -2,12 +2,13 @@ import unittest
 
 import numpy as np
 
-from railrl.misc.rllab_util import split_paths
+from railrl.samplers.util import split_paths
 from railrl.testing.testing_utils import are_np_arrays_equal
 
 
 def create_path(offset):
     return dict(
+        terminals=np.array([False, False, True]),
         rewards=np.array([-1, 0, 1]) + offset,
         actions=np.array([[5], [7], [9]]) + offset,
         observations=np.array([[2], [4], [8]]) + offset,

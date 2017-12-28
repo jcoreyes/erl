@@ -1,13 +1,13 @@
-import torch
 import numpy as np
+import torch
 from torch import nn as nn
 from torch.autograd import Variable
 from torch.nn import functional as F
 from torch.nn import init
 
-from railrl.torch.rnn import BNLSTMCell, LSTM, LSTMCell
-from railrl.torch.core import PyTorchModule
 from railrl.torch import pytorch_util as ptu
+from railrl.torch.core import PyTorchModule
+from railrl.torch.rnn import LSTMCell
 
 
 class FlattenLSTMCell(nn.Module):
@@ -297,8 +297,7 @@ class FeedForwardPolicy(PyTorchModule):
             action_dim,
             fc1_size,
             fc2_size,
-            # init_w=1e-3,
-            init_w=1e-1,
+            init_w=1e-3,
             hidden_init=ptu.fanin_init,
     ):
         self.save_init_params(locals())
@@ -330,12 +329,12 @@ class FeedForwardPolicy(PyTorchModule):
         h = F.relu(self.fc2(h))
         return F.tanh(self.last_fc(h))
 
-    def get_action(self, obs):
-        obs = np.expand_dims(obs, axis=0)
-        obs = Variable(ptu.from_numpy(obs).float(), requires_grad=False)
-        action = self.__call__(obs)
-        action = action.squeeze(0)
-        return ptu.get_numpy(action), {}
+    def get_action(self, obs_np):
+        actions = self.get_actions(obs_np[None])
+        return actions[0, :], {}
+
+    def get_actions(self, obs):
+        return self.eval_np(obs)
 
 
 class RecurrentPolicy(PyTorchModule):

@@ -3,20 +3,18 @@ Run DDPG on many environments
 """
 import random
 
-from railrl.algos.ddpg import DDPG
 from railrl.launchers.launcher_util import (
     run_experiment,
-    get_standard_env_ids,
-    get_env_settings,
 )
-from railrl.policies.nn_policy import FeedForwardPolicy
 from railrl.qfunctions.nn_qfunction import FeedForwardCritic
+from railrl.tf.ddpg import DDPG
+from railrl.tf.policies.nn_policy import FeedForwardPolicy
 from rllab.envs.mujoco.ant_env import AntEnv
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 from rllab.envs.mujoco.hopper_env import HopperEnv
 from rllab.envs.mujoco.swimmer_env import SwimmerEnv
-from rllab.exploration_strategies.ou_strategy import OUStrategy
 from rllab.envs.normalized_env import normalize
+from rllab.exploration_strategies.ou_strategy import OUStrategy
 
 
 def example(variant):
@@ -57,7 +55,7 @@ if __name__ == "__main__":
                 example,
                 exp_prefix="tf-ddpg-benchmark",
                 seed=seed,
-                mode='here',
+                mode='local',
                 variant={
                     'env_class': env_class,
                     'version': str(env_class),

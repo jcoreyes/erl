@@ -6,7 +6,7 @@ from pygame import Color
 
 from railrl.envs.pygame.pygame_viewer import PygameViewer
 from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.misc.rllab_util import split_paths
+from railrl.samplers.util import split_paths
 from rllab.core.serializable import Serializable
 from rllab.misc import logger
 from rllab.spaces import Box
@@ -54,6 +54,9 @@ class WaterMaze(Serializable, Env):
     def _step(self, velocities):
         self._t += 1
         velocities = np.clip(velocities, a_min=-1, a_max=1)
+        distance_to_target = np.linalg.norm(
+            self._target_position - self._position
+        )
         self._position += velocities
         self._position = np.clip(
             self._position,
@@ -67,6 +70,7 @@ class WaterMaze(Serializable, Env):
         info = {
             'radius': self.TARGET_RADIUS,
             'target_position': self._target_position,
+            'distance_to_target': distance_to_target,
         }
         return observation, reward, done, info
 

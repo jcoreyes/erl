@@ -4,7 +4,7 @@ sys.path.append(".")
 
 from rllab.misc.ext import is_iterable, set_seed
 from rllab.misc.instrument import concretize
-from rllab import config
+from railrl.launchers import config
 import rllab.misc.logger as logger
 import argparse
 import os.path as osp
@@ -21,7 +21,7 @@ import logging
 
 
 def run_experiment(argv):
-    default_log_dir = config.LOG_DIR
+    default_log_dir = config.LOCAL_LOG_DIR
     now = datetime.datetime.now(dateutil.tz.tzlocal())
 
     # avoid name clashes when running distributed jobs
@@ -67,6 +67,9 @@ def run_experiment(argv):
     parser.add_argument('--use_cloudpickle', type=ast.literal_eval, default=False)
     parser.add_argument('--code_diff', type=str, help='A string of the code diff to save.')
     parser.add_argument('--commit_hash', type=str, help='A string of the commit hash')
+    parser.add_argument('--script_name',
+                        type=str,
+                        help='Name of the launched script')
 
     args = parser.parse_args(argv[1:])
 
@@ -111,6 +114,9 @@ def run_experiment(argv):
     logger.set_log_tabular_only(args.log_tabular_only)
     logger.push_prefix("[%s] " % args.exp_name)
 
+    """
+    Save information for code reproducibility.
+    """
     if args.code_diff is not None:
         code_diff_str = cloudpickle.loads(base64.b64decode(args.code_diff))
         with open(osp.join(log_dir, "code.diff"), "w") as f:
@@ -118,6 +124,9 @@ def run_experiment(argv):
     if args.commit_hash is not None:
         with open(osp.join(log_dir, "commit_hash.txt"), "w") as f:
             f.write(args.commit_hash)
+    if args.script_name is not None:
+        with open(osp.join(log_dir, "script_name.txt"), "w") as f:
+            f.write(args.script_name)
 
     if args.resume_from is not None:
         data = joblib.load(args.resume_from)

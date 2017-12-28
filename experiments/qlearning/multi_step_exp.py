@@ -11,11 +11,9 @@ from railrl.launchers.launcher_util import run_experiment
 import railrl.misc.hyperparameter as hyp
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.qfunctions.torch import FeedForwardQFunction
-from railrl.torch.easy_v_ql import EasyVQFunction, EasyVQLearning
-from railrl.torch.multi_step_ql import MultiStepDdpg
+from railrl.torch.algos.multi_step_ql import MultiStepDdpg
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
-from rllab.envs.mujoco.hopper_env import HopperEnv
 from rllab.envs.normalized_env import normalize
 
 from hyperopt import hp

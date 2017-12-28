@@ -12,8 +12,8 @@ from railrl.launchers.algo_launchers import (
     my_ddpg_launcher,
     naf_launcher,
     random_action_launcher,
-)
-from railrl.launchers.launcher_util import get_env_settings, run_experiment
+    get_env_settings)
+from railrl.launchers.launcher_util import run_experiment
 from railrl.misc import hyperparameter as hp
 
 BATCH_SIZE = 32
@@ -75,7 +75,7 @@ def get_launch_settings_list_from_args(args):
             sweeper = hp.RandomHyperparameterSweeper([
                 hp.LogFloatParam("qf_learning_rate", 1e-5, 1e-2),
                 hp.LogFloatParam("policy_learning_rate", 1e-6, 1e-3),
-                hp.LogFloatParam("scale_reward", 10.0, 0.001),
+                hp.LogFloatParam("reward_scale", 10.0, 0.001),
                 hp.LogFloatParam("soft_target_tau", 1e-5, 1e-2),
             ])
             algo_params = get_ddpg_params()
@@ -101,7 +101,7 @@ def get_launch_settings_list_from_args(args):
         elif algo_name == 'naf':
             sweeper = hp.RandomHyperparameterSweeper([
                 hp.LogFloatParam("qf_learning_rate", 1e-5, 1e-2),
-                hp.LogFloatParam("scale_reward", 10.0, 0.001),
+                hp.LogFloatParam("reward_scale", 10.0, 0.001),
                 hp.LogFloatParam("soft_target_tau", 1e-6, 1e-1),
                 hp.LogFloatParam("qf_weight_decay", 1e-7, 1e-1),
             ])

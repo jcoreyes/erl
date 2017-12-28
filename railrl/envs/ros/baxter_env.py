@@ -1,16 +1,16 @@
-import rospy
-from rllab.core.serializable import Serializable
-from rllab.spaces.box import Box
-import baxter_interface as bi
+from collections import OrderedDict
+
 import numpy as np
-from rllab.envs.base import Env
-from rllab.misc import logger
+import rospy
 from numpy import linalg
 from robot_info.srv import *
+
+import baxter_interface as bi
 from railrl.misc.data_processing import create_stats_ordered_dict
-from collections import OrderedDict
-import ipdb
-from experiments.murtaza.ros.joint_space_impedance import PDController
+from rllab.core.serializable import Serializable
+from rllab.envs.base import Env
+from rllab.misc import logger
+from rllab.spaces.box import Box
 
 NUM_JOINTS = 7
 
@@ -42,8 +42,8 @@ JOINT_ANGLES_LOW = np.array([
 JOINT_VEL_HIGH = 2*np.ones(7)
 JOINT_VEL_LOW = -2*np.ones(7)
 
-JOINT_TORQUE_HIGH = 10*np.ones(7)
-JOINT_TORQUE_LOW = -10*np.ones(7)
+JOINT_TORQUE_HIGH = 1*np.ones(7)
+JOINT_TORQUE_LOW = -1*np.ones(7)
 
 JOINT_VALUE_HIGH = {
     'position': JOINT_ANGLES_HIGH,
@@ -57,15 +57,27 @@ JOINT_VALUE_LOW = {
 }
 
 #not sure what the min/max angle and pos are supposed to be
-END_EFFECTOR_POS_LOW = [
+RIGHT_END_EFFECTOR_POS_LOW = [
     0.3404830862298487,
     -1.2633121086809487,
     -0.5698485041484043
 ]
 
-END_EFFECTOR_POS_HIGH = [
-    1.1163239572333106,
+RIGHT_END_EFFECTOR_POS_HIGH = [
+    1.4042843059147565,
     0.003933425621414761,
+    0.795699462010194
+]
+
+LEFT_END_EFFECTOR_POS_LOW = [
+    0.3404830862298487,
+    -1.2633121086809487,
+    -0.5698485041484043
+]
+
+LEFT_END_EFFECTOR_POS_HIGH = [
+    1.360514343667115,
+    0.4383921665010369,
     0.795699462010194
 ]
 
@@ -73,13 +85,25 @@ END_EFFECTOR_ANGLE_LOW = -1*np.ones(4)
 END_EFFECTOR_ANGLE_HIGH = np.ones(4)
 
 END_EFFECTOR_VALUE_LOW = {
-    'position': END_EFFECTOR_POS_LOW,
-    'angle': END_EFFECTOR_ANGLE_LOW,
+    'right': {
+        'position': RIGHT_END_EFFECTOR_POS_LOW,
+        'angle': END_EFFECTOR_ANGLE_LOW,
+        },
+    'left': {
+        'position': LEFT_END_EFFECTOR_POS_LOW,
+        'angle': END_EFFECTOR_ANGLE_LOW,
+    }
 }
 
 END_EFFECTOR_VALUE_HIGH = {
-    'position': END_EFFECTOR_POS_HIGH,
-    'angle': END_EFFECTOR_ANGLE_HIGH,
+    'right': {
+        'position': RIGHT_END_EFFECTOR_POS_HIGH,
+        'angle': END_EFFECTOR_ANGLE_HIGH,
+        },
+    'left': {
+        'position': LEFT_END_EFFECTOR_POS_HIGH,
+        'angle': END_EFFECTOR_ANGLE_HIGH,
+    }
 }
 
 right_safety_box_lows = [
@@ -107,14 +131,10 @@ left_safety_box_highs = [
 ]
 
 joint_names = [
-    # '_upper_shoulder',
-    # '_lower_shoulder',
-    # '_upper_elbow',
     '_lower_elbow',
     '_upper_forearm',
     '_lower_forearm',
     '_wrist',
-    '_gripper',
 ]
 
 experiments=[
@@ -151,20 +171,19 @@ class BaxterEnv(Env, Serializable):
             temp=1.05,
             gpu=True,
             safe_reset_length=30,
+            include_torque_penalty=False,
+            reward_magnitude=1,
     ):
-
         Serializable.quick_init(self, locals())
         rospy.init_node('baxter_env', anonymous=True)
         self.rate = rospy.Rate(update_hz)
-
+        self.terminate_experiment = False
         #defaults:
         self.joint_angle_experiment = False
         self.fixed_angle = False
         self.end_effector_experiment_position = False
         self.end_effector_experiment_total = False
         self.fixed_end_effector = False
-        self.safety_box = False
-
 
         if experiment == experiments[0]:
             self.joint_angle_experiment=True
@@ -187,6 +206,8 @@ class BaxterEnv(Env, Serializable):
         self.arm_name = arm_name
         self.gpu = gpu
         self.safe_reset_length = safe_reset_length
+        self.include_torque_penalty = include_torque_penalty
+        self.reward_magnitude = reward_magnitude
 
         if loss == 'MSE':
             self.reward_function = self._MSE_reward
@@ -199,8 +220,6 @@ class BaxterEnv(Env, Serializable):
 
         self.arm = bi.Limb(self.arm_name)
         self.arm_joint_names = self.arm.joint_names()
-
-        self.PDController = PDController(robot="baxter", limb_name=self.arm_name)
 
         #create a dictionary whose values are functions that set the appropriate values
         action_mode_dict = {
@@ -231,7 +250,7 @@ class BaxterEnv(Env, Serializable):
                 JOINT_VALUE_LOW['position'],
                 JOINT_VALUE_LOW['velocity'],
                 JOINT_VALUE_LOW['torque'],
-                END_EFFECTOR_VALUE_LOW['position'],
+                END_EFFECTOR_VALUE_LOW[self.arm_name]['position'],
                 JOINT_VALUE_LOW['position'],
             ))
 
@@ -239,17 +258,12 @@ class BaxterEnv(Env, Serializable):
                 JOINT_VALUE_HIGH['position'],
                 JOINT_VALUE_HIGH['velocity'],
                 JOINT_VALUE_HIGH['torque'],
-                END_EFFECTOR_VALUE_HIGH['position'],
+                END_EFFECTOR_VALUE_HIGH[self.arm_name]['position'],
                 JOINT_VALUE_HIGH['position'],
             ))
 
             if self.fixed_angle:
                 self.desired = np.zeros(NUM_JOINTS)
-                # angles = {'right_s0': -0.0049903943346150115, 'right_e0': 0.007773590752427673, 'right_w2': 0.0083526057004919, 'right_w0': 0.008741701187912732, 'right_s1': -0.5451848158718935, 'right_w1': 1.2560255299115681, 'right_e1': 0.7475769104563383}
-                # # angles = [0.0, -0.55, 0.0, 0.75, 0.0, 1.26, 0.0]
-                # angles = np.array(
-                #     [angles['right_s0'], angles['right_s1'], angles['right_e0'], angles['right_e1'], angles['right_w0'],
-                #      angles['right_w1'], angles['right_w2']])
             else:
                 self._randomize_desired_angles()
 
@@ -258,25 +272,23 @@ class BaxterEnv(Env, Serializable):
                 JOINT_VALUE_LOW['position'],
                 JOINT_VALUE_LOW['velocity'],
                 JOINT_VALUE_LOW['torque'],
-                END_EFFECTOR_VALUE_LOW['position'],
-                END_EFFECTOR_VALUE_LOW['position'],
+                END_EFFECTOR_VALUE_LOW[self.arm_name]['position'],
+                END_EFFECTOR_VALUE_LOW[self.arm_name]['position'],
             ))
 
             highs = np.hstack((
                 JOINT_VALUE_HIGH['position'],
                 JOINT_VALUE_HIGH['velocity'],
                 JOINT_VALUE_HIGH['torque'],
-                END_EFFECTOR_VALUE_HIGH['position'],
-                END_EFFECTOR_VALUE_HIGH['position'],
+                END_EFFECTOR_VALUE_HIGH[self.arm_name]['position'],
+                END_EFFECTOR_VALUE_HIGH[self.arm_name]['position'],
             ))
 
             if self.fixed_end_effector:
-                self.desired = np.array([
-                    1.1349147779210946,
-                    -0.7649915111535125,
-                    0.5545338667382815
-                ])
-
+                if self.arm_name == 'right':
+                    self.desired = [1.2042843059147565, -0.5996823547145944, 0.4512758791000766]
+                elif self.arm_name == 'left':
+                    self.desired = [1.260514343667115, 0.2383921665010369, 0.3387014480798653]
             else:
                 self._randomize_desired_end_effector_pose()
 
@@ -285,20 +297,20 @@ class BaxterEnv(Env, Serializable):
                 JOINT_VALUE_LOW['position'],
                 JOINT_VALUE_LOW['velocity'],
                 JOINT_VALUE_LOW['torque'],
-                END_EFFECTOR_VALUE_LOW['position'],
-                END_EFFECTOR_VALUE_LOW['angle'],
-                END_EFFECTOR_VALUE_LOW['position'],
-                END_EFFECTOR_VALUE_LOW['angle'],
+                END_EFFECTOR_VALUE_LOW[self.arm_name]['position'],
+                END_EFFECTOR_VALUE_LOW[self.arm_name]['angle'],
+                END_EFFECTOR_VALUE_LOW[self.arm_name]['position'],
+                END_EFFECTOR_VALUE_LOW[self.arm_name]['angle'],
             ))
 
             highs = np.hstack((
                 JOINT_VALUE_HIGH['position'],
                 JOINT_VALUE_HIGH['velocity'],
                 JOINT_VALUE_HIGH['torque'],
-                END_EFFECTOR_VALUE_HIGH['position'],
-                END_EFFECTOR_VALUE_HIGH['angle'],
-                END_EFFECTOR_VALUE_HIGH['position'],
-                END_EFFECTOR_VALUE_HIGH['angle'],
+                END_EFFECTOR_VALUE_HIGH[self.arm_name]['position'],
+                END_EFFECTOR_VALUE_HIGH[self.arm_name]['angle'],
+                END_EFFECTOR_VALUE_HIGH[self.arm_name]['position'],
+                END_EFFECTOR_VALUE_HIGH[self.arm_name]['angle'],
             ))
 
             if self.fixed_end_effector:
@@ -330,7 +342,6 @@ class BaxterEnv(Env, Serializable):
                     action = torques
                 else:
                     action = action + torques
-
         joint_to_values = dict(zip(self.arm_joint_names, action))
         self._set_joint_values(joint_to_values)
         self.rate.sleep()
@@ -374,9 +385,9 @@ class BaxterEnv(Env, Serializable):
     def _Huber_reward(self, differences):
         a = np.mean(differences)
         if a <= self.huber_delta:
-            reward = -1 / 2 * a ** 2
+            reward = -1 / 2 * a ** 2 * self.reward_magnitude
         else:
-            reward = -1 * self.huber_delta * (a - 1 / 2 * self.huber_delta)
+            reward = -1 * self.huber_delta * (a - 1 / 2 * self.huber_delta) * self.reward_magnitude
         return reward
 
     def compute_angle_difference(self, angles1, angles2):
@@ -394,6 +405,13 @@ class BaxterEnv(Env, Serializable):
         """
         :param huber_deltas: a change joint angles
         """
+        import math
+        for act in action:
+            if math.isnan(act):
+                import ipdb;
+                ipdb.set_trace()
+                print(act)
+                action = np.zeros(7)
         self._act(action)
         observation = self._get_observation()
         if self.joint_angle_experiment:
@@ -404,6 +422,9 @@ class BaxterEnv(Env, Serializable):
             differences = np.abs(current - self.desired)
         reward_function = self.reward_function
         reward = reward_function(differences)
+        if self.include_torque_penalty:
+            self.penalty_lambda = 1
+            reward -= self.penalty_lambda * np.linalg.norm(action)
         done = False
         info = {}
         return observation, reward, done, info
@@ -419,11 +440,6 @@ class BaxterEnv(Env, Serializable):
         temp = np.hstack((temp, self.desired))
         return temp
 
-    def safe_move_to_neutral(self):
-        for _ in range(self.safe_reset_length):
-            torques = self.PDController._update_forces()
-            self._act(torques)
-
     def reset(self):
         """
         Resets the state of the environment, returning an initial observation.
@@ -437,7 +453,6 @@ class BaxterEnv(Env, Serializable):
                 or self.end_effector_experiment_total and not self.fixed_end_effector:
             self._randomize_desired_end_effector_pose()
 
-        # self.safe_move_to_neutral()
         self.arm.move_to_neutral()
         return self._get_observation()
 
@@ -594,7 +609,6 @@ class BaxterEnv(Env, Serializable):
         pass
 
     def log_diagnostics(self, paths):
-        pass
         statistics = OrderedDict()
         stat_prefix = 'Test'
         if self.end_effector_experiment_total or self.end_effector_experiment_position:

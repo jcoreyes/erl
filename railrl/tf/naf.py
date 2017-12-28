@@ -1,0 +1,187 @@
+"""
+:author: Vitchyr Pong
+"""
+from collections import OrderedDict
+
+import tensorflow as tf
+from railrl.core import tf_util
+from typing import List
+
+from railrl.misc.data_processing import create_stats_ordered_dict
+from railrl.samplers.util import split_paths
+from railrl.tf.core.neuralnet import NeuralNetwork
+from railrl.tf.online_algorithm import OnlineAlgorithm
+from rllab.misc.overrides import overrides
+
+TARGET_PREFIX = "target_vf_of_"
+
+
+class NAF(OnlineAlgorithm):
+    """
+    Continuous Q-learning with Normalized Advantage Function
+    """
+
+    def __init__(
+            self,
+            env,
+            exploration_strategy,
+            naf_qfunction,
+            qf_learning_rate=1e-3,
+            qf_weight_decay=0.,
+            **kwargs
+    ):
+        """
+        :param env: Environment
+        :param exploration_strategy: ExplorationStrategy
+        :param naf_qfunction: A NAFQFunction
+        :param qf_learning_rate: Learning rate of the qf
+        :param qf_weight_decay: How much to decay the weights for Q
+        :return:
+        """
+        self.qf = naf_qfunction
+        self.qf_learning_rate = qf_learning_rate
+        self.qf_weight_decay = qf_weight_decay
+
+        super().__init__(
+            env,
+            policy=None,  # TODO(vpong): why did I do this again?
+            exploration_strategy=exploration_strategy,
+            **kwargs)
+
+        with self.sess.as_default():
+            self._init_tensorflow_ops()
+
+
+    @overrides
+    def _init_tensorflow_ops(self):
+        self.sess.run(tf.global_variables_initializer())
+        self.next_obs_placeholder = tf.placeholder(
+            tf.float32,
+            shape=[None, self.observation_dim],
+            name='next_obs')
+        self.target_vf = self.qf.value_function.get_copy(
+            name_or_scope=TARGET_PREFIX +
+                          self.qf.value_function.scope_name,
+            observation_input=self.next_obs_placeholder,
+        )
+        self.qf.sess = self.sess
+        self.policy = self.qf.implicit_policy
+        self.target_vf.sess = self.sess
+        with tf.name_scope("qf_ops"):
+            self._init_qf_ops()
+        with tf.name_scope("target_ops"):
+            self._init_target_ops()
+        self.sess.run(tf.global_variables_initializer())
+
+    def _init_qf_ops(self):
+        self.ys = (
+            self.rewards_n1 +
+            (1. - self.terminals_n1)
+            * self.discount
+            * self.target_vf.output
+        )
+        self.qf_loss = tf_util.mse(self.ys, self.qf.output)
+        self.Q_weights_norm = tf.reduce_sum(
+            tf.stack(
+                [tf.nn.l2_loss(v)
+                 for v in
+                 self.qf.get_params_internal(regularizable=True)]
+            ),
+            name='weights_norm',
+        )
+        self.qf_total_loss = (
+            self.qf_loss + self.qf_weight_decay * self.Q_weights_norm)
+        self.train_qf_op = tf.train.AdamOptimizer(
+            self.qf_learning_rate).minimize(
+            self.qf_total_loss,
+            var_list=self.qf.get_params_internal())
+
+    def _init_target_ops(self):
+        vf_vars = self.qf.value_function.get_params_internal()
+        target_vf_vars = self.target_vf.get_params_internal()
+        assert len(vf_vars) == len(target_vf_vars)
+
+        self.update_target_vf_op = [
+            tf.assign(target, (self.tau * src + (1 - self.tau) * target))
+            for target, src in zip(target_vf_vars, vf_vars)]
+
+    @overrides
+    def _init_training(self):
+        self.target_vf.set_param_values(
+            self.qf.value_function.get_param_values())
+
+    @overrides
+    def _get_training_ops(
+            self,
+            epoch=None,
+            n_steps_total=None,
+            n_steps_current_epoch=None,
+    ):
+        ops = [
+            self.train_qf_op,
+            self.update_target_vf_op,
+        ]
+        if self._batch_norm:
+            ops += self.qf.batch_norm_update_stats_op
+        return ops
+
+    @overrides
+    @property
+    def _networks(self) -> List[NeuralNetwork]:
+        return [self.policy, self.qf, self.target_vf]
+
+    @overrides
+    def _update_feed_dict(self, rewards, terminals, obs, actions, next_obs):
+        return {
+            self.rewards_placeholder: rewards,
+            self.terminals_placeholder: terminals,
+            self.qf.observation_input: obs,
+            self.qf.action_input: actions,
+            self.next_obs_placeholder: next_obs,
+        }
+
+    @overrides
+    def _statistics_from_paths(self, paths) -> OrderedDict:
+        feed_dict = self._update_feed_dict_from_path(paths)
+
+        # Compute statistics
+        (
+            qf_loss,
+            policy_output,
+            qf_output,
+            target_vf_output,
+            ys,
+        ) = self.sess.run(
+            [
+                self.qf_loss,
+                self.policy.output,
+                self.qf.output,
+                self.target_vf.output,
+                self.ys,
+            ],
+            feed_dict=feed_dict)
+
+        # Log statistics
+        statistics = OrderedDict([
+            ('QfLoss', qf_loss),
+        ])
+        statistics.update(create_stats_ordered_dict('Ys', ys))
+        statistics.update(create_stats_ordered_dict('PolicyOutput',
+                                                    policy_output))
+        statistics.update(create_stats_ordered_dict('QfOutput', qf_output))
+        statistics.update(create_stats_ordered_dict('TargetVfOutput',
+                                                    target_vf_output))
+        return statistics
+
+    def _update_feed_dict_from_path(self, paths):
+        rewards, terminals, obs, actions, next_obs = split_paths(paths)
+        return self._update_feed_dict(rewards, terminals, obs, actions,
+                                      next_obs)
+
+    def get_epoch_snapshot(self, epoch):
+        return dict(
+            env=self.training_env,
+            epoch=epoch,
+            optimizable_qfunction=self.qf,
+            es=self.exploration_strategy,
+        )

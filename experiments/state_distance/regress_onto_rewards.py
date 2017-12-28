@@ -1,24 +1,16 @@
 import argparse
-import pickle
 import random
 
 import numpy as np
 from hyperopt import hp
+from railrl.tf.state_distance.supervised_learning import SupervisedLearning
+from railrl.tf.state_distance.util import get_replay_buffer
 
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
-from railrl.algos.state_distance.state_distance_q_learning import (
-    StateDistanceQLearning,
-)
-from railrl.algos.state_distance.supervised_learning import SupervisedLearning
-from railrl.algos.state_distance.util import get_replay_buffer
-from railrl.data_management.env_replay_buffer import EnvReplayBuffer
-from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.multitask.reacher_env import (
-    GoalStateSimpleStateReacherEnv,
-    XyMultitaskSimpleStateReacherEnv)
+    GoalStateSimpleStateReacherEnv)
 from railrl.envs.wrappers import convert_gym_space
-from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
 from railrl.launchers.launcher_util import (
     create_log_dir,
     create_run_experiment_multiple_seeds,
@@ -26,9 +18,7 @@ from railrl.launchers.launcher_util import (
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.hypopt import optimize_and_save
 from railrl.misc.ml_util import RampUpSchedule
-from railrl.networks.state_distance import UniversalQfunction
-from railrl.policies.zero_policy import ZeroPolicy
-from railrl.samplers.path_sampler import MultitaskPathSampler
+from railrl.state_distance.networks import UniversalQfunction
 
 
 def experiment(variant):

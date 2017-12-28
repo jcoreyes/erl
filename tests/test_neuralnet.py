@@ -2,14 +2,14 @@ import unittest
 
 import numpy as np
 import tensorflow as tf
-
-import railrl
-from railrl.core.neuralnet import NeuralNetwork
 from railrl.core.tf_util import BatchNormConfig
 from railrl.predictors.mlp import Mlp
-from railrl.predictors.perceptron import Perceptron
+
+import railrl
 from railrl.testing.testing_utils import is_binomial_trial_likely
 from railrl.testing.tf_test_case import TFTestCase
+from railrl.tf.core.neuralnet import NeuralNetwork
+from railrl.tf.predictors.perceptron import Perceptron
 from rllab.misc.overrides import overrides
 
 
@@ -323,7 +323,7 @@ class TestNeuralNetwork(TFTestCase):
         b_name = "b"
         b_initializer = tf.constant_initializer(value=np.array([0]))
         input_layer = tf.placeholder(tf.float32, shape=(None, in_size))
-        railrl.core.neuralnet.dropout_ph = tf.placeholder(tf.float32, name="dropout_keep_prob")
+        railrl.tf.core.neuralnet.dropout_ph = tf.placeholder(tf.float32, name="dropout_keep_prob")
 
         perceptron = Perceptron(
             "perceptron",
@@ -345,7 +345,7 @@ class TestNeuralNetwork(TFTestCase):
             perceptron.output,
             {
                 input_layer: input_values,
-                railrl.core.neuralnet.dropout_ph: 0.5,
+                railrl.tf.core.neuralnet.dropout_ph: 0.5,
             }
         )
         perceptron.switch_to_eval_mode()
@@ -353,7 +353,7 @@ class TestNeuralNetwork(TFTestCase):
             perceptron.output,
             {
                 input_layer: input_values,
-                railrl.core.neuralnet.dropout_ph: 1.,
+                railrl.tf.core.neuralnet.dropout_ph: 1.,
             }
         )
         """
