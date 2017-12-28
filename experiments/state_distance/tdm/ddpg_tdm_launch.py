@@ -84,9 +84,9 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "reacher-sweep-tau-sampling-strat"
+    exp_prefix = "ant-sweep-tau-sampling-strat"
 
-    num_epochs = 100
+    num_epochs = 200
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
     max_path_length = 50
@@ -139,10 +139,10 @@ if __name__ == "__main__":
     )
     search_space = {
         'env_class': [
-            Reacher7DofXyzGoalState,
+            # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
             # GoalXPosHalfCheetah,
-            # GoalXYPosAnt,
+            GoalXYPosAnt,
             # CylinderXYPusher2DEnv,
             # Walker2DTargetXPos,
             # MultitaskPusher3DEnv,
@@ -182,10 +182,10 @@ if __name__ == "__main__":
             # 'no_resampling',
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.truncated_geom_factor': [
-            1, 2, 3, 4
+            1, 2, 4, 8
         ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
-            0.01, 1, 100, 10000, 1000000
+            1, 100, 10000,
         ],
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
             1,
