@@ -1,7 +1,14 @@
 import torch
+from torch import nn as nn
+from torch.autograd import Variable
+from torch.nn import functional as F
+
 import railrl.torch.pytorch_util as ptu
+from railrl.pythonplusplus import identity
 from railrl.state_distance.util import split_tau
-from railrl.torch.networks import Mlp, SeparateFirstLayerMlp
+from railrl.torch import pytorch_util as ptu
+from railrl.torch.core import PyTorchModule
+from railrl.torch.networks import Mlp
 import numpy as np
 
 class StructuredQF(Mlp):
@@ -18,10 +25,11 @@ class StructuredQF(Mlp):
     def __init__(
             self,
             observation_dim,
-            action_dim,
             goal_dim,
             output_size,
             hidden_sizes,
+            action_dim=0,
+            max_tau=None,
             **kwargs
     ):
         # Keeping it as a separate argument to have same interface
@@ -134,7 +142,7 @@ class BinaryStringTauQF(Mlp):
             h = torch.cat((obs, action), dim=1)
         else:
             h = obs
-        batch_size = h.size()[0]
+        batch_size = taus.size()[0]
         y_binary = make_binary_tensor(taus, len(self.max_tau), batch_size)
 
         if action is not None:
@@ -155,14 +163,12 @@ class BinaryStringTauQF(Mlp):
         return - torch.abs(self.last_fc(h))
 
 def make_binary_tensor(tensor, max_len, batch_size):
-    binary = ptu.FloatTensor(batch_size, max_len)
-    for i in range(batch_size):
-        bin = np.unpackbits(np.array(tensor[i], dtype=np.uint8))
-        bin = np.hstack((np.zeros(max_len - len(bin)), bin))
-        bin = torch.from_numpy(bin)
-        binary[i,:] = bin
+    t = tensor.data.numpy().astype(int).reshape(batch_size)
+    binary = (((t[:,None] & (1 << np.arange(max_len)))) > 0).astype(int)
+    binary = torch.from_numpy(binary)
+    binary  = binary.float()
+    binary = binary.view(batch_size, max_len)
     return binary
-
 class TauVectorQF(Mlp):
     """
     Parameterize QF as
@@ -220,6 +226,60 @@ class TauVectorQF(Mlp):
             h = self.hidden_activation(fc(h))
         return - torch.abs(self.last_fc(h))
 
+
+class SeparateFirstLayerMlp(PyTorchModule):
+    def __init__(
+            self,
+            first_input_size,
+            second_input_size,
+            hidden_sizes,
+            output_size,
+            init_w=3e-3,
+            first_layer_activation=F.relu,
+            first_layer_init=ptu.fanin_init,
+            hidden_activation=F.relu,
+            output_activation=identity,
+            hidden_init=ptu.fanin_init,
+            b_init_value=0.1,
+    ):
+        self.save_init_params(locals())
+        super().__init__()
+
+        self.output_size = output_size
+        self.hidden_activation = hidden_activation
+        self.output_activation = output_activation
+        self.fcs = []
+
+        self.first_input = nn.Linear(first_input_size, first_input_size)
+        hidden_init(self.first_input.weight)
+        self.first_input.bias.data.fill_(b_init_value)
+
+        self.second_input = nn.Linear(second_input_size, second_input_size)
+        hidden_init(self.second_input.weight)
+        self.second_input.bias.data.fill_(b_init_value)
+
+        in_size = first_input_size+second_input_size
+        for i, next_size in enumerate(hidden_sizes):
+            fc = nn.Linear(in_size, next_size)
+            in_size = next_size
+            hidden_init(fc.weight)
+            fc.bias.data.fill_(b_init_value)
+            self.__setattr__("fc{}".format(i), fc)
+            self.fcs.append(fc)
+
+        self.last_fc = nn.Linear(in_size, output_size)
+        self.last_fc.weight.data.uniform_(-init_w, init_w)
+        self.last_fc.bias.data.uniform_(-init_w, init_w)
+
+    def forward(self, first_input, second_input):
+        h1 = self.hidden_activation(self.first_input(first_input))
+        h2 = self.hidden_activation(self.second_input(second_input))
+        h = torch.cat((h1, h2), dim=1)
+        for i, fc in enumerate(self.fcs):
+            h = self.hidden_activation(fc(h))
+        return self.output_activation(self.last_fc(h))
+
+
 class TauVectorSeparateFirstLayerQF(SeparateFirstLayerMlp):
     """
     Parameterize QF as
@@ -245,10 +305,11 @@ class TauVectorSeparateFirstLayerQF(SeparateFirstLayerMlp):
         self.save_init_params(locals())
         if tau_vector_len == 0:
             self.tau_vector_len = max_tau
+
         super().__init__(
             hidden_sizes=hidden_sizes,
             first_input_size=observation_dim + action_dim + goal_dim,
-            second_input_size=tau_vector_len,
+            second_input_size=self.tau_vector_len,
             output_size=output_size,
             **kwargs
         )
@@ -261,5 +322,5 @@ class TauVectorSeparateFirstLayerQF(SeparateFirstLayerMlp):
             h = obs
 
         batch_size = h.size()[0]
-        tau_vector = torch.zeros((batch_size, self.tau_vector_len)) + taus.data
+        tau_vector = Variable(torch.zeros((batch_size, self.tau_vector_len)) + taus.data)
         return - torch.abs(super().forward(h, tau_vector))

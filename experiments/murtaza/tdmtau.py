@@ -60,19 +60,22 @@ def experiment(variant):
 
 if __name__ == "__main__":
     n_seeds = 1
-    mode = "local"
+    mode = "ec2"
     exp_prefix = "tdm_reach7DoF-SAC"
 
     num_epochs = 100
-    num_steps_per_epoch = 50000
-    num_steps_per_eval = 50000
-    max_path_length = 500
-    max_tau = 15
+    num_steps_per_epoch = 1000
+    num_steps_per_eval = 1000
+    max_path_length = 100
+    max_tau = max_path_length-1
     # noinspection PyTypeChecker
     versions = [
-        # (OneHotTauQF, OneHotTauQF, OneHotTauTanhGaussianPolicy, 'one_hot_tau'),
-        # (BinaryStringTauQF, BinaryStringTauQF, BinaryTauTanhGaussianPolicy, 'binary_string_tau'),
-        (TauVectorQF, TauVectorQF, TauVectorTanhGaussianPolicy, 'tau_vector')
+        (StructuredQF, StructuredQF, StandardTanhGaussianPolicy, '_standard'),
+        (OneHotTauQF, OneHotTauQF, OneHotTauTanhGaussianPolicy, '_one_hot_tau'),
+        (BinaryStringTauQF, BinaryStringTauQF, BinaryTauTanhGaussianPolicy, '_binary_string_tau'),
+        (TauVectorQF, TauVectorQF, TauVectorTanhGaussianPolicy, '_tau_vector'),
+        (TauVectorSeparateFirstLayerQF, TauVectorSeparateFirstLayerQF, TauVectorSeparateFirstLayerTanhGaussianPolicy,
+         '_separate_first_layer')
     ]
     variant = dict(
         algo_params=dict(
@@ -121,18 +124,13 @@ if __name__ == "__main__":
             Reacher7DofXyzGoalState,
         ],
         'algo_params.base_kwargs.reward_scale': [
-            1,
-            10,
             100,
             1000,
-            10000,
         ],
         'algo_params.tdm_kwargs.vectorized': [
             True,
-            False,
         ],
         'algo_params.tdm_kwargs.sample_rollout_goals_from': [
-            'fixed',
             'environment',
         ],
     }

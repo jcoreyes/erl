@@ -1,9 +1,10 @@
 import numpy as np
 import torch
 from torch import nn as nn
+from torch.autograd import Variable
 
 from railrl.policies.base import ExplorationPolicy, Policy
-from railrl.state_distance.flat_networks import make_binary_tensor
+from railrl.state_distance.flat_networks import make_binary_tensor, SeparateFirstLayerMlp
 from railrl.state_distance.util import split_tau
 from railrl.torch.distributions import TanhNormal
 from railrl.torch.networks import Mlp
@@ -136,7 +137,27 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
             action, mean, log_std, log_prob, expected_log_prob, std,
             mean_action_log_prob
         )
-
+class StandardTanhGaussianPolicy(TanhGaussianPolicy):
+    def __init__(
+            self,
+            hidden_sizes,
+            obs_dim,
+            action_dim,
+            goal_dim,
+            std=None,
+            init_w=1e-3,
+            max_tau=None,
+            **kwargs
+    ):
+        self.save_init_params(locals())
+        super().__init__(
+            hidden_sizes=hidden_sizes,
+            obs_dim=obs_dim+goal_dim + 1,
+            action_dim=action_dim,
+            std=std,
+            init_w=init_w,
+            **kwargs
+        )
 class OneHotTauTanhGaussianPolicy(TanhGaussianPolicy):
     def __init__(
             self,
@@ -219,9 +240,8 @@ class BinaryTauTanhGaussianPolicy(TanhGaussianPolicy):
     ):
         obs, taus = split_tau(obs)
         h = obs
-        batch_size = h.size()[0]
+        batch_size = taus.size()[0]
         y_binary = make_binary_tensor(taus, len(self.max_tau), batch_size)
-
         h = torch.cat((
             obs,
             ptu.Variable(y_binary),
@@ -282,6 +302,125 @@ class TauVectorTanhGaussianPolicy(TanhGaussianPolicy):
             return_log_prob=return_log_prob,
             return_expected_log_prob=return_expected_log_prob,
             return_log_prob_of_mean=return_log_prob_of_mean,
+        )
+
+class TauVectorSeparateFirstLayerTanhGaussianPolicy(SeparateFirstLayerMlp, ExplorationPolicy):
+
+    def __init__(
+            self,
+            hidden_sizes,
+            obs_dim,
+            action_dim,
+            goal_dim,
+            max_tau,
+            tau_vector_len=0,
+            std=None,
+            init_w=1e-3,
+            **kwargs
+    ):
+        self.save_init_params(locals())
+        if tau_vector_len == 0:
+            self.tau_vector_len = max_tau
+        super().__init__(
+            hidden_sizes=hidden_sizes,
+            first_input_size=obs_dim + goal_dim,
+            second_input_size=self.tau_vector_len,
+            output_size=action_dim,
+            **kwargs
+        )
+        self.log_std = None
+        self.std = std
+        if std is None:
+            last_hidden_size = obs_dim
+            if len(hidden_sizes) > 0:
+                last_hidden_size = hidden_sizes[-1]
+            self.last_fc_log_std = nn.Linear(last_hidden_size, action_dim)
+            self.last_fc_log_std.weight.data.uniform_(-init_w, init_w)
+            self.last_fc_log_std.bias.data.uniform_(-init_w, init_w)
+        else:
+            self.log_std = np.log(std)
+            assert LOG_SIG_MIN <= self.log_std <= LOG_SIG_MAX
+
+    def get_action(self, obs_np, deterministic=False):
+        actions = self.get_actions(obs_np[None], deterministic=deterministic)
+        return actions[0, :], {}
+
+    def get_actions(self, obs_np, deterministic=False):
+        return self.eval_np(obs_np, deterministic=deterministic)[0]
+
+    def forward(
+            self,
+            obs,
+            deterministic=False,
+            return_log_prob=False,
+            return_expected_log_prob=False,
+            return_log_prob_of_mean=False,
+    ):
+        """
+        :param obs: Observation
+        :param deterministic: If True, do not sample
+        :param return_log_prob: If True, return a sample and its log probability
+        :param return_expected_log_prob: If True, return the true expected log
+        prob. Will not need to be differentiated through, so this can be a
+        number.
+        :param return_log_prob_of_mean: If True, return the true expected log
+        prob. Will not need to be differentiated through, so this can be a
+        number.
+        """
+        obs, taus = split_tau(obs)
+        batch_size = obs.size()[0]
+        tau_vector = Variable(torch.zeros((batch_size, self.tau_vector_len)) + taus.data)
+        h=obs
+        h1 = self.hidden_activation(self.first_input(h))
+        h2 = self.hidden_activation(self.second_input(tau_vector))
+        h = torch.cat((h1, h2), dim=1)
+        for i, fc in enumerate(self.fcs):
+            h = self.hidden_activation(fc(h))
+        mean = self.last_fc(h)
+        if self.std is None:
+            log_std = self.last_fc_log_std(h)
+            log_std = torch.clamp(log_std, LOG_SIG_MIN, LOG_SIG_MAX)
+            std = torch.exp(log_std)
+        else:
+            std = self.std
+            log_std = self.log_std
+
+        log_prob = None
+        expected_log_prob = None
+        mean_action_log_prob = None
+        if deterministic:
+            action = torch.tanh(mean)
+        else:
+            tanh_normal = TanhNormal(mean, std)
+            if return_log_prob:
+                action, pre_tanh_value = tanh_normal.sample(
+                    return_pretanh_value=True
+                )
+                log_prob = tanh_normal.log_prob(
+                    action,
+                    pre_tanh_value=pre_tanh_value
+                )
+                log_prob = log_prob.sum(dim=1, keepdim=True)
+            else:
+                action = tanh_normal.sample()
+
+        if return_expected_log_prob:
+            expected_log_prob = - (
+                log_std + 0.5 + np.log(2 * np.pi) / 2
+            )
+            # shoot, idk how to compute the expected log prob for the tanh term
+            # TODO(vitchyr): fix
+            expected_log_prob = expected_log_prob.sum(dim=1, keepdim=True)
+        if return_log_prob_of_mean:
+            tanh_normal = TanhNormal(mean, std)
+            mean_action_log_prob = tanh_normal.log_prob(
+                torch.tanh(mean),
+                pre_tanh_value=mean,
+            )
+            mean_action_log_prob = mean_action_log_prob.sum(dim=1, keepdim=True)
+        return (
+            action, mean, log_std, log_prob, expected_log_prob, std,
+            mean_action_log_prob
         )
 
 class MakeDeterministic(Policy):
