@@ -16,8 +16,8 @@ if __name__ == "__main__":
     parser.add_argument('--nrolls', type=int, default=1,
                         help='Number of rollout per eval')
     parser.add_argument('--verbose', action='store_true')
-    parser.add_argument('--discount', type=float,
-                        help='Discount Factor')
+    parser.add_argument('--mtau', type=float,
+                        help='Max tau value')
     parser.add_argument('--grid', action='store_true')
     parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--load', action='store_true')
@@ -33,28 +33,24 @@ if __name__ == "__main__":
     env = data['env']
     num_samples = 1000
     resolution = 10
-    policy = data['policy']
+    if 'policy' in data:
+        policy = data['policy']
+    else:
+        policy = data['exploration_policy']
     policy.train(False)
-    # if args.pause:
-    #     import ipdb; ipdb.set_trace()
+    if args.pause:
+        import ipdb; ipdb.set_trace()
 
     if args.gpu:
         ptu.set_gpu_mode(True)
         policy.cuda()
 
-    if 'discount' in data:
-        discount = data['discount']
-        if args.discount is not None:
-            print("WARNING: you are overriding the saved discount factor.")
-            discount = args.discount
+    if args.mtau is None:
+        print("Defaulting max tau to 10.")
+        max_tau = 10
     else:
-        if args.discount is None:
-            print("Default discount to 0.")
-            discount = 10
-        else:
-            discount = args.discount
+        max_tau = args.mtau
 
-    import ipdb; ipdb.set_trace()
     while True:
         paths = []
         for _ in range(args.nrolls):
@@ -64,11 +60,11 @@ if __name__ == "__main__":
                 env,
                 policy,
                 goal,
-                discount=discount,
+                tau=max_tau,
                 max_path_length=args.H,
                 animated=not args.hide,
                 cycle_tau=args.cycle or not args.ndc,
-                decrement_discount=args.dt or not args.ndc,
+                decrement_tau=args.dt or not args.ndc,
             )
             paths.append(path)
         env.log_diagnostics(paths)

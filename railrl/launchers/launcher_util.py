@@ -67,7 +67,7 @@ def run_experiment(
         local_input_dir_to_mount_point_dict=None,  # TODO(vitchyr): test this
         # Settings for EC2 only
         sync_interval=180,
-        region='us-west-1',
+        region='us-east-1',
         instance_type=None,
         spot_price=None,
 ):
@@ -94,7 +94,11 @@ def run_experiment(
     `config.LOCAL_LOG_DIR/`
 
     :param method_call: a function that takes in a dictionary as argument
-    :param mode: 'local', 'local_docker', or 'ec2'
+    :param mode: A string:
+     - 'local'
+     - 'local_docker'
+     - 'ec2'
+     - 'here_no_doodad': Run without doodad call
     :param exp_prefix: name of experiment
     :param seed: Seed for this specific trial.
     :param variant: Dictionary
@@ -162,6 +166,35 @@ def run_experiment(
     variant['seed'] = str(seed)
     variant['exp_id'] = str(exp_id)
     variant['unique_id'] = str(unique_id)
+
+    try:
+        import git
+        repo = git.Repo(os.getcwd())
+        git_info = GitInfo(
+            code_diff=repo.git.diff(None),
+            commit_hash=repo.head.commit.hexsha,
+            branch_name=repo.active_branch.name,
+        )
+    except ImportError:
+        git_info = None
+    run_experiment_kwargs = dict(
+        exp_prefix=exp_prefix,
+        variant=variant,
+        exp_id=exp_id,
+        seed=seed,
+        use_gpu=use_gpu,
+        snapshot_mode=snapshot_mode,
+        snapshot_gap=snapshot_gap,
+        git_info=git_info,
+        script_name=main.__file__,
+        n_parallel=n_parallel,
+    )
+    if mode == 'here_no_doodad':
+        run_experiment_kwargs['base_log_dir'] = base_log_dir
+        return run_experiment_here(
+            method_call,
+            **run_experiment_kwargs
+        )
 
     """
     Safety Checks
@@ -253,32 +286,13 @@ def run_experiment(
         base_log_dir_for_script = config.OUTPUT_DIR_FOR_DOODAD_TARGET
         # The snapshot dir will be automatically created
         snapshot_dir_for_script = None
+    elif mode == 'here_no_doodad':
+        base_log_dir_for_script = base_log_dir
+        # The snapshot dir will be automatically created
+        snapshot_dir_for_script = None
     else:
         raise NotImplementedError("Mode not supported: {}".format(mode))
-
-    try:
-        import git
-        repo = git.Repo(os.getcwd())
-        git_info = GitInfo(
-            code_diff=repo.git.diff(None),
-            commit_hash=repo.head.commit.hexsha,
-            branch_name=repo.active_branch.name,
-        )
-    except ImportError:
-        git_info = None
-    run_experiment_kwargs = dict(
-        exp_prefix=exp_prefix,
-        variant=variant,
-        exp_id=exp_id,
-        seed=seed,
-        use_gpu=use_gpu,
-        snapshot_mode=snapshot_mode,
-        snapshot_gap=snapshot_gap,
-        git_info=git_info,
-        script_name=main.__file__,
-        n_parallel=n_parallel,
-        base_log_dir=base_log_dir_for_script,
-    )
+    run_experiment_kwargs['base_log_dir'] = base_log_dir_for_script
     target_mount = doodad.launch_python(
         target=config.RUN_DOODAD_EXPERIMENT_SCRIPT_PATH,
         mode=mode_str_to_doodad_mode[mode],
@@ -287,6 +301,7 @@ def run_experiment(
             'method_call': method_call,
             'output_dir': snapshot_dir_for_script,
             'run_experiment_kwargs': run_experiment_kwargs,
+            'mode': mode,
         },
         use_cloudpickle=True,
         target_mount=target_mount,

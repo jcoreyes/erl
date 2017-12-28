@@ -7,10 +7,11 @@ import torch
 from torch import nn as nn
 from torch.nn import functional as F
 
+from railrl.policies.base import Policy
 from railrl.pythonplusplus import identity
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.core import PyTorchModule
-from railrl.torch.modules import SelfOuterProductLinear
+from railrl.torch.modules import SelfOuterProductLinear, LayerNorm
 
 
 class Mlp(PyTorchModule):
@@ -24,15 +25,22 @@ class Mlp(PyTorchModule):
             output_activation=identity,
             hidden_init=ptu.fanin_init,
             b_init_value=0.1,
+            layer_norm=False,
+            layer_norm_kwargs=None,
     ):
         self.save_init_params(locals())
         super().__init__()
+
+        if layer_norm_kwargs is None:
+            layer_norm_kwargs = dict()
 
         self.input_size = input_size
         self.output_size = output_size
         self.hidden_activation = hidden_activation
         self.output_activation = output_activation
+        self.layer_norm = layer_norm
         self.fcs = []
+        self.layer_norms = []
         in_size = input_size
 
         for i, next_size in enumerate(hidden_sizes):
@@ -43,6 +51,11 @@ class Mlp(PyTorchModule):
             self.__setattr__("fc{}".format(i), fc)
             self.fcs.append(fc)
 
+            if self.layer_norm:
+                ln = LayerNorm(next_size)
+                self.__setattr__("layer_norm{}".format(i), ln)
+                self.layer_norms.append(ln)
+
         self.last_fc = nn.Linear(in_size, output_size)
         self.last_fc.weight.data.uniform_(-init_w, init_w)
         self.last_fc.bias.data.uniform_(-init_w, init_w)
@@ -50,7 +63,10 @@ class Mlp(PyTorchModule):
     def forward(self, input):
         h = input
         for i, fc in enumerate(self.fcs):
-            h = self.hidden_activation(fc(h))
+            h = fc(h)
+            if self.layer_norm and i < len(self.fcs) - 1:
+                h = self.layer_norms[i](h)
+            h = self.hidden_activation(h)
         return self.output_activation(self.last_fc(h))
 
 
@@ -102,4 +118,37 @@ class OuterProductFF(PyTorchModule):
         h = F.relu(self.sop2(h))
         return self.output_activation(self.last_fc(h))
 
+class MlpPolicy(Mlp, Policy):
+    """
+    A simpler interface for creating policies.
+    """
+    def __init__(self, *args, **kwargs):
+        self.save_init_params(locals())
+        super().__init__(*args, **kwargs)
 
+    def get_action(self, obs_np):
+        actions = self.get_actions(obs_np[None])
+        return actions[0, :], {}
+
+    def get_actions(self, obs):
+        return self.eval_np(obs)
+
+
+class TanhMlpPolicy(MlpPolicy):
+    """
+    A simpler interface for creating policies.
+    """
+    def __init__(self, *args, **kwargs):
+        self.save_init_params(locals())
+        super().__init__(*args, output_activation=torch.tanh, **kwargs)
+
+    def forward(self, input, return_preactivations=False):
+        h = input
+        for i, fc in enumerate(self.fcs):
+            h = self.hidden_activation(fc(h))
+        preactivations = self.last_fc(h)
+        actions = self.output_activation(preactivations)
+        if return_preactivations:
+            return actions, preactivations
+        else:
+            return actions

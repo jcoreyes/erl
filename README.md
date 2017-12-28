@@ -1,69 +1,90 @@
-# rail-rl
-Reinforcement learning algorithms implemented for the RAIL lab at UC Berkeley.
-So far, DDPG is implemented and NAF is a work in progress.
+# railrl
+Reinforcement learning framework.
+Some implemented algorithms:
+ - DDPG
+ - Soft Actor Critic
+ - (Double) DQN
+ - NAF (haven't tested in a while)
+
+The tensorflow branch is basically dead. I just use the stuff in `railrl.torch`.
+
+Last updated: 12/11/2017.
 
 ## Installation
-This library requires rllab to be installed. See [rllab's installation docs](https://rllab.readthedocs.io/en/latest/user/installation.html).
+This library requires rllab to be installed.
+See [rllab's installation docs](https://rllab.readthedocs.io/en/latest/user/installation.html).
 
-One important difference: use my anaconda environment instead of rllab's conda environment. It can be installed and used with
+One important difference: use my anaconda environment instead of rllab's conda
+environment. It can be installed and used with
 ```
-$ conda env create -f docker/rllab-vitchyr/rllab-vitchyr-env.yml
-$ source activate rllab-vitchyr
-(railrl) $ # Ready to run example.py
-```
-
-## Usage
-You can use the `main.py` script to launch different experiments:
-
-```
-(railrl) $ python main.py --env=cheetah --algo=ddpg --name=my_amazing_experiment
+$ conda env create -f docker/railrl/railrl-env.yml
+$ source activate railrl-env
+(railrl-env) $ # Ready to run examples/ddpg_cheetah_no_doodad.py
 ```
 
-`example.py` gives a minimal example of how to write a script that launches experiments.
+Copy `railrl/launchers/config_template.py` to `railrl/launchers/config.py`
+and edit the file as needed.
+Update `LOCAL_LOG_DIR`.
 
-## Creating your own policy/critic
-To create a policy, you need to create a class that subclasses ``NNPolicy`` and implements
+### (Optional) Install doodad
+I recommend installing [doodad](https://github.com/justinjfu/doodad) to
+launch jobs. Some of its nice features include:
+ - Easily switch between running code locally, on a remote compute with
+ Docker, on EC2 with Docker
+ - Easily add your dependencies that can't be installed via pip (e.g. you
+ borrowed someone's code)
 
-```
-def _create_network_internal(self, observation_input=None):
-```
+If you do install `doodad`, I wrote a wrapper for it. Check out
+`examples/torch_ddpg_cheetah.py`.
 
-and similarly for creating your own critic.
+If you install doodad, also modify `CODE_DIRS_TO_MOUNT` in `config.py` to
+include:
+- Path to rllab directory
+- Path to railrl directory
+- Path to other code you want to juse
 
-See `policies/nn_policy.py` and `qfunctions/nn_qfunction.py` for examples.
+You'll probably also need to update the other variables besides the docker
+images/instance stuff.
 
-There are calls to `_process_layer` and `_add_network_and_get_output`.
-If you plan on not using batch_norm (I recommend NOT using batch norm),
-then you can ignore this.
 
 ## Visualizing a policy and seeing results
 During training, the results will be saved to a file called under
 ```
-PROJECT_PATH/data/local/<default>/<foldername>
+PROJECT_PATH/data/local/<exp_prefix>/<foldername>
 ```
- -  `PROJECT_PATH` is the directory set by `rllab.config.PROJECT_PATH`. By default the project path is your rllab directory.
- - For example.py `<default>` is `ddpg-half-cheetah`, and can be changed by passing an argument to `exp_prefix` when calling `run_experiment_lite`.
-    - If you're using `main.py`, you can pass a `--name=foo` (e.g.) to set the `<default>` folder name to `foo`.
+ -  `PROJECT_PATH` is the directory set by `railrl.launchers.config.AWS_S3_PATH`
+ - `<exp_prefix>` is given either to `run_experiment`.
  - `<foldername>` is auto-generated and based off of what `<default>` is.
  - inside this folder, you should see a file called `params.pkl`. To visualize a policy, run
 
 ```
-(railrl) $ python sim_policy PROJECT_PATH/data/local/<default>/<foldername>/params.pkl
+(railrl) $ python scripts/sim_policy
+PROJECT_PATH/data/local/<default>/<foldername>/params.pkl
 ```
 
-## Comments
-BatchNorm is implemented and tested, but it seems to hurt DDPG.
-I suspect that there may be a bug with it, so use it with caution.
+You can also visualize the results using `rllab`'s `viskit, described at
+the bottom of [this page](http://rllab.readthedocs.io/en/latest/user/cluster.html)
 
-## FAQs
-_I'm getting issues about a session being None. (e.g. "None has not method called run")._
+tl;dr run
 
-This might happen if you run in stub mode and are unserializing a network.
-This error is because the un-serialization code expects a default Tensorflow Session to exist.
-Fix this by creating a default graph:
-```python
-with tf.Session().as_default():
-    # the rest of your code
+```bash
+python rllab/viskit/frontend.py PROJECT_PATH/data/local/<exp_prefix>/
 ```
 
+## Structure of library
+For the most part, each (mini-)project has its own module, like `sac`,
+`state_distance`, and `distributional`.
+This isn't always the case. There's still some refactoring left to be done,
+like how there's `policies/torch.py`, when that could should probably be in
+`torch`.
 
+Anyway, most of the sub-modules inside of railrl are hopefully self-explanatory.
+Short notes/description of modules whose use may not be obvious
+
+- data_management: code related to handling raw data (mostly just replay
+buffers)
+- misc: Random assortment of useful tools. Worth checking here if you're
+looking for some generic tool.
+- optimizers: literally optimizers (no torch or tf here!)
+- qfunctions: deprecated
+- tf: general tensorflow code (deprecated)

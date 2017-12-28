@@ -1,9 +1,9 @@
 """
-Run PyTorch DDPG on HalfCheetah.
+Example of running PyTorch implementation of DDPG on HalfCheetah.
 """
-import random
-from railrl.exploration_strategies.base import \
+from railrl.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
+)
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment, setup_logger
 from railrl.policies.torch import FeedForwardPolicy
@@ -63,7 +63,7 @@ if __name__ == "__main__":
             policy_learning_rate=1e-4,
         ),
     )
-    setup_logger('test')
+    setup_logger('name-of-experiment', variant=variant)
     experiment(variant)
     # Or if you have doodad installed:
     # run_experiment(

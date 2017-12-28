@@ -2,7 +2,7 @@ from fanova import fANOVA
 import numpy as np
 from collections import defaultdict, namedtuple
 
-from railrl.misc.data_processing import get_data_and_variants
+from railrl.misc.data_processing import get_trials
 import ConfigSpace
 from ConfigSpace.hyperparameters import (
     UniformFloatHyperparameter,
@@ -25,7 +25,7 @@ def get_fanova_info(
         params_to_ignore=('seed', 'exp_id', 'unique_id', 'exp_name'),
         ylabel='AverageReturn',
 ):
-    data_and_variants = get_data_and_variants(base_dir)
+    data_and_variants = get_trials(base_dir)
     experiment_data_list, variants_list = zip(*data_and_variants)
     ylabel = ylabel.replace(' ', '_')
     ylabel = ylabel.replace('-', '')

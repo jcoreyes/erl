@@ -4,12 +4,19 @@ import numpy as np
 import tensorflow as tf
 
 import railrl.misc.hyperparameter as hyp
+from railrl.envs.multitask.ant_env import GoalXYPosAnt
+from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
 from railrl.envs.multitask.her_half_cheetah import HalfCheetah, \
     half_cheetah_cost_fn
 from railrl.envs.multitask.her_pusher_env import Pusher2DEnv, \
     pusher2d_cost_fn
 from railrl.envs.multitask.her_reacher_7dof_env import Reacher7Dof, \
     reacher7dof_cost_fn
+from railrl.envs.multitask.reacher_7dof import (
+    Reacher7DofXyzGoalState,
+)
+from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
+from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
 from railrl.launchers.launcher_util import run_experiment
 
 
@@ -38,6 +45,8 @@ def experiment(variant):
             raise NotImplementedError
     else:
         env = env_name_or_class()
+        from railrl.envs.wrappers import normalize_box
+        env = normalize_box(env)
         if env_name_or_class == Pusher2DEnv:
             cost_fn = pusher2d_cost_fn
         elif env_name_or_class == Reacher7Dof:
@@ -45,7 +54,9 @@ def experiment(variant):
         elif env_name_or_class == HalfCheetah:
             cost_fn = half_cheetah_cost_fn
         else:
-            raise NotImplementedError
+            if variant['multitask']:
+                env = MultitaskToFlatEnv(env)
+            cost_fn = env.cost_fn
 
     train_dagger(
         env=env,
@@ -82,22 +93,15 @@ if __name__ == '__main__':
     n_seeds = 1
     mode = "local"
     exp_prefix = "dev-abhishek-mb"
-    run_mode = "none"
-    snapshot_mode = "last"
 
-    # n_seeds = 5
-    # mode = "ec2"
-    # exp_prefix = "abhishek-mb-cheetah-target-reset"
-    # snapshot_mode = "gap_and_last"
-    snapshot_gap = 10
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "model-based-reacher-multitask-fixed-2"
 
-    # Data collection
-    # num_steps_per_epoch = 1000
-    # max_path_length = 1000
-    # num_epochs = 1000
-    num_steps_per_epoch = 100
+    num_epochs = 100
+    num_steps_per_epoch = 1000
     max_path_length = 50
-    num_epochs = 10
+
     variant = dict(
         # env='HalfCheetah-v1',
         env_name_or_class='HalfCheetah-v1',
@@ -116,13 +120,12 @@ if __name__ == '__main__':
             size=300,
             activation=tf.nn.relu,
             output_activation=None,
+            normalize=True,
         ),
+        multitask=True,
+        version="Model-Based - Abhishek",
+        algorithm="Model-Based",
     )
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--replay_path', type=str,
-                        help='path to the snapshot file')
-    parser.add_argument('--render', action='store_true')
-    args = parser.parse_args()
 
     use_gpu = True
     if mode != "local":
@@ -130,25 +133,36 @@ if __name__ == '__main__':
 
     search_space = {
         'env_name_or_class': [
-            # Pusher2DEnv,
-            # Reacher7Dof,
-            HalfCheetah,
+            Reacher7DofXyzGoalState,
+            # MultitaskPusher3DEnv,
+            # GoalXYPosAnt,
+            # CylinderXYPusher2DEnv,
         ],
+        'multitask': [True],
+        'dagger_params.normalize': [True, False],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    for i in range(n_seeds):
-        for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+        if variant['env_name_or_class'] == CylinderXYPusher2DEnv:
+            max_path_length = 100
+            variant['dagger_params']['num_paths_random'] = (
+                num_steps_per_epoch // max_path_length
+            )
+            variant['dagger_params']['num_paths_dagger'] = (
+                num_steps_per_epoch // max_path_length
+            )
+            variant['dagger_params']['env_horizon'] = (
+                max_path_length
+            )
+        for i in range(n_seeds):
             seed = random.randint(0, 999999)
             run_experiment(
                 experiment,
+                mode=mode,
                 exp_prefix=exp_prefix,
                 seed=seed,
-                mode=mode,
                 variant=variant,
-                exp_id=0,
-                use_gpu=use_gpu,
-                snapshot_mode=snapshot_mode,
-                snapshot_gap=snapshot_gap,
+                exp_id=exp_id,
             )

@@ -16,10 +16,11 @@ class LowGearAntEnv(MujocoEnv):
         )
 
     def _step(self, a):
-        xposbefore = self.get_body_com("torso")[0]
+        torso_xyz_before = self.get_body_com("torso")
         self.do_simulation(a, self.frame_skip)
-        xposafter = self.get_body_com("torso")[0]
-        forward_reward = (xposafter - xposbefore)/self.dt
+        torso_xyz_after = self.get_body_com("torso")
+        torso_velocity = torso_xyz_after - torso_xyz_before
+        forward_reward = torso_velocity[0]/self.dt
         ctrl_cost = .5 * np.square(a).sum()
         contact_cost = 0.5 * 1e-3 * np.sum(
             np.square(np.clip(self.model.data.cfrc_ext, -1, 1)))
@@ -34,13 +35,14 @@ class LowGearAntEnv(MujocoEnv):
             reward_forward=forward_reward,
             reward_ctrl=-ctrl_cost,
             reward_contact=-contact_cost,
-            reward_survive=survive_reward)
+            reward_survive=survive_reward,
+            torso_velocity=torso_velocity,
+        )
 
     def _get_obs(self):
         return np.concatenate([
             self.model.data.qpos.flat[2:],
             self.model.data.qvel.flat,
-            np.clip(self.model.data.cfrc_ext, -1, 1).flat,
         ])
 
     def reset_model(self):

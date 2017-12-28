@@ -103,6 +103,7 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
         log_prob = None
         expected_log_prob = None
         mean_action_log_prob = None
+        pre_tanh_value = None
         if deterministic:
             action = torch.tanh(mean)
         else:
@@ -135,7 +136,7 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
             mean_action_log_prob = mean_action_log_prob.sum(dim=1, keepdim=True)
         return (
             action, mean, log_std, log_prob, expected_log_prob, std,
-            mean_action_log_prob
+            mean_action_log_prob, pre_tanh_value
         )
 class StandardTanhGaussianPolicy(TanhGaussianPolicy):
     def __init__(

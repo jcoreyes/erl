@@ -5,7 +5,7 @@ from railrl.misc.data_processing import Experiment
 import matplotlib.pyplot as plt
 import numpy as np
 
-path = "/home/vitchyr/git/rllab-rail/railrl/data/doodads3/10-21-sdql-compare-vectorized-delta-normal-big-sweep/"
+path = "/mnt/data-backup-12-02-2017/doodads3/10-21-sdql-compare-vectorized-delta-normal-big-sweep/"
 exp = Experiment(path)
 base_criteria = {
     'env_class.$class':
