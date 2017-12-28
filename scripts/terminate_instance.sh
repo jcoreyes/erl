@@ -10,9 +10,11 @@ do
         ubuntu@$ip:/tmp/doodad-output/variant.json /tmp/variant.json\
         > /dev/null
     # This kills all instance where the version is equal to "DDPG-TDM"
-    version=$(cat /tmp/variant.json | jq '.version')
-    echo $version
-    if [ $version == '"DDPG-TDM"' ]; then
+    value=$(cat /tmp/variant.json | jq '.algo_kwargs.num_updates_per_env_step')
+    echo $value
+    if [ $value -eq 20 ]; then
         aws ec2 terminate-instances --instance-ids $instanceid
+    else
+        echo OKAY
     fi
-done < tmp.csv
+done < $1
