@@ -41,8 +41,7 @@ if __name__ == "__main__":
     )
     run_experiment(
         example,
-        exp_prefix="ec2-check-us-west-non-gpu",
-        # exp_prefix="check-instance-id-save",
+        exp_prefix="ec2-example",
         mode='ec2',
         variant=variant,
         region='us-west-1',
