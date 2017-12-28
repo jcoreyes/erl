@@ -4,38 +4,51 @@ import numpy as np
 
 def main():
     ddpg_trials = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/12-23-ddpg-nupo-sweep-ant/"
-    ).get_trials({
-        'exp_id': '19',
-    })
+        "/home/vitchyr/git/railrl/data/doodads3/12-23-ddpg-nupo-sweep-ant/",
+        criteria={
+            'exp_id': '19',
+        },
+    ).get_trials()
     her_andrychowicz_trials = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/12-23-her-andrychowicz-ant-rebutal/"
-    ).get_trials({
-        'exp_id': '14',
-    })
-    ddpg_tdm_trials = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/12-24-ddpg-nupo-sweep-ant/"
-    ).get_trials({
-        'exp_id': '12',
-    })
+        "/home/vitchyr/git/railrl/data/doodads3/12-23-her-andrychowicz-ant-rebutal/",
+        criteria={
+            'exp_id': '14',
+        },
+    ).get_trials()
+    # With smaller batch size
+    # ddpg_tdm_trials = Experiment(
+    #     "/home/vitchyr/git/railrl/data/doodads3/12-24-ddpg-nupo-sweep-ant/"
+    # ).get_trials({
+    #     'exp_id': '12',
+    # })
+    tdm_trials = Experiment(
+        "/home/vitchyr/git/railrl/data/doodads3/12-27-pusher-reward-scale-tau-uniform-or-truncated-geo-sweep-2/",
+        criteria={
+            'ddpg_tdm_kwargs.base_kwargs.reward_scale': 100,
+            'ddpg_tdm_kwargs.tdm_kwargs.tau_sample_strategy':
+                'truncated_geometric',
+        }
+    ).get_trials()
     ddpg_indicator_trials = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/12-23-ddpg-sparse-sweep-4/"
-    ).get_trials({
-        'env_class.$class': 'railrl.envs.multitask.ant_env.GoalXYPosAnt',
-        'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': 1,
-    })
+        "/home/vitchyr/git/railrl/data/doodads3/12-23-ddpg-sparse-sweep-4/",
+        criteria={
+            'env_class.$class': 'railrl.envs.multitask.ant_env.GoalXYPosAnt',
+            'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': 1,
+        },
+    ).get_trials()
     mb_trials = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/12-24-dagger-mb-ant-cheetah-pos-and-vel/"
-    ).get_trials({
-        'exp_id': '1',
-    })
+        "/home/vitchyr/git/railrl/data/doodads3/12-24-dagger-mb-ant-cheetah-pos-and-vel/",
+        criteria={
+            'exp_id': '1',
+        },
+    ).get_trials()
 
     MAX_ITERS = 10001
 
     plt.figure()
     base_key = 'Final Distance to goal Mean'
     for trials, name, key in [
-        (ddpg_tdm_trials, 'TDMs', base_key),
+        (tdm_trials, 'TDMs', base_key),
         (mb_trials, 'Model-Based', base_key),
         (ddpg_trials, 'DDPG', base_key),
         (her_andrychowicz_trials, 'HER', base_key),
