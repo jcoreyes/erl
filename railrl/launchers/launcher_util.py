@@ -166,6 +166,7 @@ def run_experiment(
     variant['seed'] = str(seed)
     variant['exp_id'] = str(exp_id)
     variant['unique_id'] = str(unique_id)
+    variant['exp_prefix'] = str(exp_prefix)
 
     try:
         import git
