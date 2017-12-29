@@ -105,7 +105,6 @@ class OneHotTauQF(Mlp):
             h = self.hidden_activation(fc(h))
         return - torch.abs(self.last_fc(h))
 
-
 class InternalGcmQf(FlattenMlp):
     """
     Parameterize QF as
@@ -123,18 +122,72 @@ class InternalGcmQf(FlattenMlp):
             self,
             env,
             hidden_sizes,
-            learn_distance_delta=False,
             **kwargs
     ):
         self.save_init_params(locals())
         self.observation_dim = env.observation_space.low.size
         self.action_dim = env.action_space.low.size
         self.goal_dim = env.goal_dim
-        self.learn_distance_delta = learn_distance_delta
         super().__init__(
             hidden_sizes=hidden_sizes,
             input_size=(
                 self.observation_dim + self.action_dim + self.goal_dim + 1
+            ),
+            output_size=self.goal_dim,
+            **kwargs
+        )
+        self.env = env
+
+    def forward(self, flat_obs, actions):
+        obs, goals, taus = split_flat_obs(
+            flat_obs, self.observation_dim, self.goal_dim
+        )
+        diffs = goals - self.env.convert_obs_to_goals(obs)
+        new_flat_obs = torch.cat((obs, diffs, taus), dim=1)
+        predictions = super().forward(new_flat_obs, actions)
+        return - torch.abs(goals - predictions)
+
+
+class TdmQf(FlattenMlp):
+    def __init__(
+            self,
+            env,
+            hidden_sizes,
+            structure='abs_difference',
+            **kwargs
+    ):
+        """
+
+        :param env:
+        :param hidden_sizes:
+        :param learn_distance_delta:
+        :param structure: String defining output structure of network:
+            - 'abs_difference': Q = -|g - f(inputs)|
+            - 'abs': Q = -|f(inputs)|
+            - 'abs_distance_difference': Q = -|f(inputs) + current_distance|
+            - 'distance_difference': Q = f(inputs) + current_distance
+            - 'difference': Q = f(inputs) - g
+            - 'none': Q = f(inputs)
+
+        :param kwargs:
+        """
+        assert structure in [
+            'abs_difference',
+            'abs',
+            'abs_distance_difference',
+            'distance_difference',
+            'difference',
+            'none',
+        ]
+        self.save_init_params(locals())
+        self.observation_dim = env.observation_space.low.size
+        self.action_dim = env.action_space.low.size
+        self.goal_dim = env.goal_dim
+        self.structure = structure
+        super().__init__(
+            hidden_sizes=hidden_sizes,
+            input_size=(
+                    self.observation_dim + self.action_dim + self.goal_dim + 1
             ),
             output_size=self.goal_dim,
             **kwargs
@@ -152,9 +205,20 @@ class InternalGcmQf(FlattenMlp):
         predictions = super().forward(new_flat_obs, actions)
         if return_internal_prediction:
             return predictions
-        if self.learn_distance_delta:
+        if self.structure == 'abs_difference':
+            return - torch.abs(goals - predictions)
+        elif self.structure == 'abs':
+            return - torch.abs(predictions)
+        elif self.structure == 'abs_distance_difference':
             return - torch.abs(predictions + current_distance)
-        return - torch.abs(goals - predictions)
+        elif self.structure == 'distance_difference':
+            return predictions + current_distance
+        elif self.structure == 'difference':
+            return predictions - goals
+        elif self.structure == 'none':
+            return predictions
+        else:
+            raise TypeError("Invalid structure: {}".format(self.structure))
 
 
 class TdmPolicy(TanhMlpPolicy):

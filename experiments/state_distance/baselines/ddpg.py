@@ -118,14 +118,14 @@ if __name__ == "__main__":
         'multitask': [True],
         'env_kwargs': [
             # dict(),
-            dict(max_distance=2),
+            # dict(max_distance=2),
             dict(max_distance=4),
             dict(max_distance=6),
-            dict(max_distance=8),
-            dict(max_distance=10),
+            # dict(max_distance=8),
+            # dict(max_distance=10),
         ],
         'algo_kwargs.reward_scale': [
-            1, 100, 10000, int(1e6),
+            0.01, 1, 100, 10000
         ],
         'algo_kwargs.num_updates_per_env_step': [
             1,

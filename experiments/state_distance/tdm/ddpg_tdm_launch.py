@@ -24,7 +24,7 @@ from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.state_distance.tdm_networks import StructuredQF, TdmPolicy, \
-    InternalGcmQf
+    InternalGcmQf, TdmQf
 from railrl.state_distance.tdm_ddpg import TdmDdpg
 from railrl.torch.modules import HuberLoss
 from railrl.torch.networks import TanhMlpPolicy
@@ -35,7 +35,7 @@ def experiment(variant):
 
     vectorized = variant['ddpg_tdm_kwargs']['tdm_kwargs']['vectorized']
     assert vectorized
-    qf = InternalGcmQf(
+    qf = TdmQf(
         env=env,
         **variant['qf_kwargs']
     )
@@ -78,14 +78,15 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-ddpg-tdm-launch"
 
-    n_seeds = 2
-    mode = "ec2"
-    exp_prefix = "pusher3d-sweep-nupo-and-batch-size"
+    # n_seeds = 2
+    # mode = "ec2"
+    # exp_prefix = "ant-architecture-sweep-nupo"
+    exp_prefix = "dev-ddpg-tdm-launch-2"
 
-    num_epochs = 100
-    num_steps_per_epoch = 10000
-    num_steps_per_eval = 10000
-    max_path_length = 250
+    num_epochs = 1
+    num_steps_per_epoch = 100
+    num_steps_per_eval = 100
+    max_path_length = 50
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -119,7 +120,6 @@ if __name__ == "__main__":
         ),
         qf_kwargs=dict(
             hidden_sizes=[300, 300],
-            internal_gcm=True,
         ),
         policy_kwargs=dict(
             hidden_sizes=[300, 300],
@@ -139,16 +139,16 @@ if __name__ == "__main__":
             # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
             # GoalXPosHalfCheetah,
-            # GoalXYPosAnt,
+            GoalXYPosAnt,
             # CylinderXYPusher2DEnv,
             # Walker2DTargetXPos,
-            MultitaskPusher3DEnv,
+            # MultitaskPusher3DEnv,
         ],
         'env_kwargs': [
             dict(),
             # dict(max_distance=2),
-            # dict(max_distance=4),
-            # dict(max_distance=6),
+            dict(max_distance=4),
+            dict(max_distance=6),
             # dict(max_distance=8),
             # dict(max_distance=10),
         ],
@@ -162,7 +162,7 @@ if __name__ == "__main__":
             dict(theta=0.1, max_sigma=0.1, min_sigma=0.1),
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.max_tau': [
-            249,
+            max_path_length-1,
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.dense_rewards': [
             False,
@@ -181,17 +181,25 @@ if __name__ == "__main__":
         'ddpg_tdm_kwargs.tdm_kwargs.truncated_geom_factor': [
             1,
         ],
+        'qf_kwargs.structure': [
+            'abs_difference',
+            'abs',
+            'abs_distance_difference',
+            'distance_difference',
+            'difference',
+            'none',
+        ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
-            1, 100, 10000,
+            1,# 10, 100,
         ],
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
-            1, 5, 10
+            1,# 5, 10, 20
         ],
         'ddpg_tdm_kwargs.base_kwargs.discount': [
             1,
         ],
         'ddpg_tdm_kwargs.base_kwargs.batch_size': [
-            128, 1024
+            128,
         ],
         'ddpg_tdm_kwargs.ddpg_kwargs.tau': [
             0.001,
@@ -200,8 +208,8 @@ if __name__ == "__main__":
             False,
         ],
         'instance_type': [
-            # 'c5.large',
-            'g2.2xlarge',
+            'c5.large',
+            # 'g2.2xlarge',
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
