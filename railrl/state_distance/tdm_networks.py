@@ -152,73 +152,126 @@ class TdmQf(FlattenMlp):
     def __init__(
             self,
             env,
-            hidden_sizes,
-            structure='abs_difference',
+            vectorized,
+            norm_order,
+            structure='norm_difference',
             **kwargs
     ):
         """
 
         :param env:
         :param hidden_sizes:
-        :param learn_distance_delta:
+        :param vectorized: Boolean. Vectorized or not?
+        :param norm_order: int, 1 or 2. What L norm to use.
         :param structure: String defining output structure of network:
-            - 'abs_difference': Q = -|g - f(inputs)|
-            - 'abs': Q = -|f(inputs)|
-            - 'abs_distance_difference': Q = -|f(inputs) + current_distance|
+            - 'norm_difference': Q = -||g - f(inputs)||
+            - 'norm': Q = -||f(inputs)||
+            - 'norm_distance_difference': Q = -||f(inputs) + current_distance||
             - 'distance_difference': Q = f(inputs) + current_distance
-            - 'difference': Q = f(inputs) - g
+            - 'difference': Q = f(inputs) - g  (vectorized only)
             - 'none': Q = f(inputs)
 
         :param kwargs:
         """
         assert structure in [
-            'abs_difference',
-            'abs',
-            'abs_distance_difference',
+            'norm_difference',
+            'norm',
+            'norm_distance_difference',
             'distance_difference',
             'difference',
             'none',
         ]
+        if structure == 'difference':
+            assert vectorized, "difference only makes sense for vectorized"
         self.save_init_params(locals())
         self.observation_dim = env.observation_space.low.size
         self.action_dim = env.action_space.low.size
         self.goal_dim = env.goal_dim
-        self.structure = structure
         super().__init__(
-            hidden_sizes=hidden_sizes,
             input_size=(
                     self.observation_dim + self.action_dim + self.goal_dim + 1
             ),
-            output_size=self.goal_dim,
+            output_size=self.goal_dim if vectorized else 1,
             **kwargs
         )
         self.env = env
+        self.vectorized = vectorized
+        self.norm_order = norm_order
+        self.structure = structure
 
     def forward(self, flat_obs, actions, return_internal_prediction=False):
         obs, goals, taus = split_flat_obs(
             flat_obs, self.observation_dim, self.goal_dim
         )
-        current_features = self.env.convert_obs_to_goals(obs)
-        current_distance = torch.abs(goals - current_features)
         diffs = goals - self.env.convert_obs_to_goals(obs)
         new_flat_obs = torch.cat((obs, diffs, taus), dim=1)
-        predictions = super().forward(new_flat_obs, actions)
-        if return_internal_prediction:
-            return predictions
-        if self.structure == 'abs_difference':
-            return - torch.abs(goals - predictions)
-        elif self.structure == 'abs':
-            return - torch.abs(predictions)
-        elif self.structure == 'abs_distance_difference':
-            return - torch.abs(predictions + current_distance)
-        elif self.structure == 'distance_difference':
-            return predictions + current_distance
-        elif self.structure == 'difference':
-            return predictions - goals
-        elif self.structure == 'none':
-            return predictions
+        if self.vectorized:
+            predictions = super().forward(new_flat_obs, actions)
+            if return_internal_prediction:
+                return predictions
+            if self.structure == 'norm_difference':
+                return - torch.abs(goals - predictions)
+            elif self.structure == 'norm':
+                return - torch.abs(predictions)
+            elif self.structure == 'norm_distance_difference':
+                current_features = self.env.convert_obs_to_goals(obs)
+                current_distance = torch.abs(goals - current_features)
+                return - torch.abs(predictions + current_distance)
+            elif self.structure == 'distance_difference':
+                current_features = self.env.convert_obs_to_goals(obs)
+                current_distance = torch.abs(goals - current_features)
+                return predictions + current_distance
+            elif self.structure == 'difference':
+                return predictions - goals
+            elif self.structure == 'none':
+                return predictions
+            else:
+                raise TypeError("Invalid structure: {}".format(self.structure))
         else:
-            raise TypeError("Invalid structure: {}".format(self.structure))
+            predictions = super().forward(new_flat_obs, actions)
+            if return_internal_prediction:
+                return predictions
+            if self.structure == 'norm_difference':
+                return - torch.norm(
+                    goals - predictions,
+                    p=self.norm_order,
+                    dim=1,
+                    keepdim=True,
+                )
+            elif self.structure == 'norm':
+                return - torch.norm(
+                    predictions,
+                    p=self.norm_order,
+                    dim=1,
+                    keepdim=True,
+                )
+            elif self.structure == 'norm_distance_difference':
+                current_features = self.env.convert_obs_to_goals(obs)
+                current_distance = torch.norm(
+                    goals - current_features,
+                    p=self.norm_order,
+                    dim=1,
+                    keepdim=True,
+                )
+                return - torch.abs(predictions + current_distance)
+            elif self.structure == 'distance_difference':
+                current_features = self.env.convert_obs_to_goals(obs)
+                current_distance = torch.norm(
+                    goals - current_features,
+                    p=self.norm_order,
+                    dim=1,
+                    keepdim=True,
+                )
+                return predictions + current_distance
+            elif self.structure == 'none':
+                return predictions
+            else:
+                raise TypeError(
+                    "For vectorized={0}, invalid structure: {1}".format(
+                        self.vectorized,
+                        self.structure,
+                    )
+                )
 
 
 class TdmPolicy(TanhMlpPolicy):

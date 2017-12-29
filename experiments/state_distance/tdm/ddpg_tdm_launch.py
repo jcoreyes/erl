@@ -31,12 +31,17 @@ from railrl.torch.networks import TanhMlpPolicy
 
 
 def experiment(variant):
-    env = normalize_box(variant['env_class'](**variant['env_kwargs']))
+    vectorized = variant['vectorized']
+    norm_order = variant['norm_order']
 
-    vectorized = variant['ddpg_tdm_kwargs']['tdm_kwargs']['vectorized']
-    assert vectorized
+    variant['ddpg_tdm_kwargs']['tdm_kwargs']['vectorized'] = vectorized
+    variant['ddpg_tdm_kwargs']['tdm_kwargs']['norm_order'] = norm_order
+    variant['env_kwargs']['norm_order'] = norm_order
+    env = normalize_box(variant['env_class'](**variant['env_kwargs']))
     qf = TdmQf(
         env=env,
+        vectorized=vectorized,
+        norm_order=norm_order,
         **variant['qf_kwargs']
     )
     policy = TdmPolicy(
@@ -80,7 +85,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "why-are-pusher3d-ddpg-results-not-equivalent"
+    exp_prefix = "find-pusher3d-mismatch"
 
     num_epochs = 1000
     num_steps_per_epoch = 1000
@@ -147,7 +152,9 @@ if __name__ == "__main__":
             dict(
                 reward_coefs=(1, 0, 0),
             ),
-            dict(),
+            dict(
+                reward_coefs=(0.5, 0.375, 0.125),
+            ),
             # dict(max_distance=2),
             # dict(max_distance=4),
             # dict(max_distance=6),
@@ -187,9 +194,9 @@ if __name__ == "__main__":
         #     1,
         # ],
         'qf_kwargs.structure': [
-            'abs_difference',
-            # 'abs',
-            # 'abs_distance_difference',
+            # 'norm_difference',
+            # 'norm',
+            # 'norm_distance_difference',
             # 'distance_difference',
             # 'difference',
             'none',
@@ -212,6 +219,8 @@ if __name__ == "__main__":
         'ddpg_tdm_kwargs.ddpg_kwargs.eval_with_target_policy': [
             False,
         ],
+        'vectorized': [False],
+        'norm_order': [1, 2],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -225,7 +234,12 @@ if __name__ == "__main__":
         dense = variant['ddpg_tdm_kwargs']['tdm_kwargs']['dense_rewards']
         finite = variant['ddpg_tdm_kwargs']['tdm_kwargs']['finite_horizon']
         relabel = variant['relabel']
-        if not dense and not finite:  # This setting makes no sense
+        vectorized = variant['vectorized']
+        norm_order = variant['norm_order']
+        # some settings just don't make sense
+        if vectorized and norm_order != 1:
+            continue
+        if not dense and not finite:
             continue
         if not finite:
             # For infinite case, max_tau doesn't matter, so just only run for

@@ -33,6 +33,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             goal_reached_epsilon=1e-3,
             terminate_when_goal_reached=False,
             truncated_geom_factor=2.,
+            norm_order=1,
     ):
         """
 
@@ -74,6 +75,8 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         `terminate_whe_goal_reached` is True.
         :param terminate_when_goal_reached: Do you terminate when you have
         reached the goal?
+        :param norm_order: If vectorized=False, do you use L1, L2,
+        etc. for distance?
         """
         assert sample_train_goals_from in ['environment', 'replay_buffer',
                                            'her', 'no_resampling']
@@ -106,6 +109,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         self.reward_type = reward_type
         self.goal_reached_epsilon = goal_reached_epsilon
         self.terminate_when_goal_reached = terminate_when_goal_reached
+        self.norm_order = norm_order
         self._current_path_goal = None
         self._rollout_tau = self.max_tau
         self.truncated_geom_factor = float(truncated_geom_factor)
@@ -214,15 +218,15 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
                     > self.goal_reached_epsilon
                 )
         elif self.reward_type == 'distance':
+            diff = self.env.convert_obs_to_goals(next_obs) - goals
             if self.vectorized:
-                diff = self.env.convert_obs_to_goals(next_obs) - goals
                 return -np.abs(diff) * self.reward_scale
             else:
-                return self.env.compute_rewards(
-                    obs,
-                    actions,
-                    next_obs,
-                    goals,
+                return -np.linalg.norm(
+                    diff,
+                    ord=self.norm_order,
+                    axis=1,
+                    keepdims=True,
                 ) * self.reward_scale
         elif self.reward_type == 'env':
             return batch['rewards']
