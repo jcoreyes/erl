@@ -167,6 +167,7 @@ def run_experiment(
     variant['exp_id'] = str(exp_id)
     variant['unique_id'] = str(unique_id)
     variant['exp_prefix'] = str(exp_prefix)
+    variant['instance_type'] = str(instance_type)
 
     try:
         import git
@@ -243,7 +244,7 @@ def run_experiment(
                 Placement=dict(
                     AvailabilityZone='us-east-1b',
                 ),
-            ),
+            )
     else:
         image_id = None
     if hasattr(config, "AWS_S3_PATH"):
