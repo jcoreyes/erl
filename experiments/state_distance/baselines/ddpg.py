@@ -65,7 +65,7 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "why-are-pusher3d-ddpg-results-not-equivalent"
+    exp_prefix = "find-pusher3d-mismatch-2"
 
     num_epochs = 1000
     num_steps_per_epoch = 1000
@@ -116,15 +116,13 @@ if __name__ == "__main__":
             # Walker2DTargetXPos,
         ],
         'multitask': [True],
-        'env_kwargs': [
-            dict(
-                reward_coefs=(1, 0, 0),
-            ),
-            # dict(max_distance=2),
-            # dict(max_distance=4),
-            # dict(max_distance=6),
-            # dict(max_distance=8),
-            # dict(max_distance=10),
+        'env_kwargs.reward_coefs': [
+            (1, 0, 0),
+            (0.5, 0.375, 0.125),
+        ],
+        'env_kwargs.norm_order': [
+            1,
+            2,
         ],
         'algo_kwargs.reward_scale': [
             0.1, 1, 10
