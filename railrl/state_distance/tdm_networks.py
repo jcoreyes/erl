@@ -123,12 +123,14 @@ class InternalGcmQf(FlattenMlp):
             self,
             env,
             hidden_sizes,
+            learn_distance_delta=False,
             **kwargs
     ):
         self.save_init_params(locals())
         self.observation_dim = env.observation_space.low.size
         self.action_dim = env.action_space.low.size
         self.goal_dim = env.goal_dim
+        self.learn_distance_delta = learn_distance_delta
         super().__init__(
             hidden_sizes=hidden_sizes,
             input_size=(
@@ -143,11 +145,15 @@ class InternalGcmQf(FlattenMlp):
         obs, goals, taus = split_flat_obs(
             flat_obs, self.observation_dim, self.goal_dim
         )
+        current_features = self.env.convert_obs_to_goals(obs)
+        current_distance = torch.abs(goals - current_features)
         diffs = goals - self.env.convert_obs_to_goals(obs)
         new_flat_obs = torch.cat((obs, diffs, taus), dim=1)
         predictions = super().forward(new_flat_obs, actions)
         if return_internal_prediction:
             return predictions
+        if self.learn_distance_delta:
+            return - torch.abs(predictions + current_distance)
         return - torch.abs(goals - predictions)
 
 
