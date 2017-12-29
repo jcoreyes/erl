@@ -1,17 +1,17 @@
 import random
 
-from railrl.data_management.her_replay_buffer import HerReplayBuffer
-
-
 import railrl.misc.hyperparameter as hyp
-import railrl.torch.pytorch_util as ptu
-
+from railrl.data_management.her_replay_buffer import HerReplayBuffer
+from railrl.envs.multitask.ant_env import GoalXYVelAnt, GoalXYPosAnt
 from railrl.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState
 from railrl.envs.wrappers import normalize_box
 from railrl.launchers.launcher_util import run_experiment
 from railrl.sac.policies import *
+from railrl.state_distance.tdm_networks import *
+from railrl.state_distance.tdm_networks import OneHotTauQF, BinaryStringTauQF, TauVectorQF, \
+    TauVectorSeparateFirstLayerQF
 from railrl.state_distance.tdm_sac import TdmSac
-from railrl.state_distance.flat_networks import *
+
 
 def experiment(variant):
     env = normalize_box(variant['env_class']())
@@ -61,7 +61,7 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "tdm_reach7DoF-SAC"
+    exp_prefix = "tdm-ant-SAC"
 
     num_epochs = 100
     num_steps_per_epoch = 1000
@@ -121,7 +121,8 @@ if __name__ == "__main__":
     )
     search_space = {
         'env_class': [
-            Reacher7DofXyzGoalState,
+            GoalXYVelAnt,
+            GoalXYPosAnt,
         ],
         'algo_params.base_kwargs.reward_scale': [
             100,

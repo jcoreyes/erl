@@ -4,7 +4,7 @@ from torch import nn as nn
 from torch.autograd import Variable
 
 from railrl.policies.base import ExplorationPolicy, Policy
-from railrl.state_distance.flat_networks import make_binary_tensor, SeparateFirstLayerMlp
+from railrl.state_distance.tdm_networks import make_binary_tensor, SeparateFirstLayerMlp
 from railrl.state_distance.util import split_tau
 from railrl.torch.distributions import TanhNormal
 from railrl.torch.networks import Mlp
