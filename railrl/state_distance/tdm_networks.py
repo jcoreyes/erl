@@ -139,13 +139,15 @@ class InternalGcmQf(FlattenMlp):
         )
         self.env = env
 
-    def forward(self, flat_obs, actions):
+    def forward(self, flat_obs, actions, return_internal_prediction=False):
         obs, goals, taus = split_flat_obs(
             flat_obs, self.observation_dim, self.goal_dim
         )
         diffs = goals - self.env.convert_obs_to_goals(obs)
         new_flat_obs = torch.cat((obs, diffs, taus), dim=1)
         predictions = super().forward(new_flat_obs, actions)
+        if return_internal_prediction:
+            return predictions
         return - torch.abs(goals - predictions)
 
 
