@@ -6,7 +6,7 @@ def main():
     ddpg_trials = Experiment(
         "/home/vitchyr/git/railrl/data/doodads3/12-23-ddpg-nupo-sweep-ant/",
         criteria={
-            'exp_id': '19',
+            'exp_id': '16',
         },
     ).get_trials()
     her_andrychowicz_trials = Experiment(
@@ -19,7 +19,7 @@ def main():
     tdm_trials = Experiment(
         "/home/vitchyr/git/railrl/data/doodads3/12-24-ddpg-nupo-sweep-ant/",
         criteria={
-            'exp_id': '12',
+            'exp_id': '16',
         }
     ).get_trials()
     # Accidentally called this pusher, but it's really ant
@@ -46,7 +46,8 @@ def main():
         },
     ).get_trials()
 
-    MAX_ITERS = 10001
+    # MAX_ITERS = 10001
+    MAX_ITERS = 200
 
     plt.figure()
     base_key = 'Final Distance to goal Mean'
@@ -81,7 +82,7 @@ def main():
     plt.ylabel("Final Euclidean Distance to Goal Position")
     plt.legend()
     plt.savefig('results/iclr2018/ant.jpg')
-    plt.show()
+    # plt.show()
 
 
 def average_every_n_elements(arr, n):
