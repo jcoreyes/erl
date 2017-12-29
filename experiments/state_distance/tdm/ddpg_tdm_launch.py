@@ -78,14 +78,13 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-ddpg-tdm-launch"
 
-    # n_seeds = 2
-    # mode = "ec2"
-    # exp_prefix = "ant-architecture-sweep-nupo"
-    exp_prefix = "dev-ddpg-tdm-launch-2"
+    n_seeds = 1
+    mode = "ec2"
+    exp_prefix = "reacher-reproduce-results"
 
-    num_epochs = 1
-    num_steps_per_epoch = 100
-    num_steps_per_eval = 100
+    num_epochs = 10
+    num_steps_per_epoch = 1000
+    num_steps_per_eval = 1000
     max_path_length = 50
 
     # noinspection PyTypeChecker
@@ -136,10 +135,10 @@ if __name__ == "__main__":
     )
     search_space = {
         'env_class': [
-            # Reacher7DofXyzGoalState,
+            Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
             # GoalXPosHalfCheetah,
-            GoalXYPosAnt,
+            # GoalXYPosAnt,
             # CylinderXYPusher2DEnv,
             # Walker2DTargetXPos,
             # MultitaskPusher3DEnv,
@@ -147,8 +146,8 @@ if __name__ == "__main__":
         'env_kwargs': [
             dict(),
             # dict(max_distance=2),
-            dict(max_distance=4),
-            dict(max_distance=6),
+            # dict(max_distance=4),
+            # dict(max_distance=6),
             # dict(max_distance=8),
             # dict(max_distance=10),
         ],
@@ -162,38 +161,37 @@ if __name__ == "__main__":
             dict(theta=0.1, max_sigma=0.1, min_sigma=0.1),
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.max_tau': [
-            max_path_length-1,
+            max_path_length-1,# 15, 5
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.dense_rewards': [
-            False,
+            False, True
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.finite_horizon': [
-            True,
+            True, False
         ],
-        # 'ddpg_tdm_kwargs.tdm_kwargs.sample_train_goals_from': [
-        # 'no_resampling',
         # ],
         'ddpg_tdm_kwargs.tdm_kwargs.tau_sample_strategy': [
-            'truncated_geometric',
-            # 'uniform',
-            # 'no_resampling',
+            'uniform',
         ],
-        'ddpg_tdm_kwargs.tdm_kwargs.truncated_geom_factor': [
-            1,
+        'relabel': [
+            True, False,
         ],
+        # 'ddpg_tdm_kwargs.tdm_kwargs.truncated_geom_factor': [
+        #     1,
+        # ],
         'qf_kwargs.structure': [
             'abs_difference',
-            'abs',
-            'abs_distance_difference',
-            'distance_difference',
-            'difference',
-            'none',
+            # 'abs',
+            # 'abs_distance_difference',
+            # 'distance_difference',
+            # 'difference',
+            # 'none',
         ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
-            1,# 10, 100,
+            0.1,# 1, 10, 100, 1000
         ],
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
-            1,# 5, 10, 20
+            1,
         ],
         'ddpg_tdm_kwargs.base_kwargs.discount': [
             1,
@@ -221,6 +219,22 @@ if __name__ == "__main__":
                     'sample_rollout_goals_from'
                 ] != 'fixed'
         )
+        dense = variant['ddpg_tdm_kwargs']['tdm_kwargs']['dense_rewards']
+        finite = variant['ddpg_tdm_kwargs']['tdm_kwargs']['finite_horizon']
+        relabel = variant['relabel']
+        if not dense and not finite:  # This setting makes no sense
+            continue
+        if not finite:
+            discount = variant['ddpg_tdm_kwargs']['base_kwargs']['discount']
+            variant['ddpg_tdm_kwargs']['base_kwargs']['discount'] = min(
+                0.98, discount
+            )
+        if relabel:
+            variant['ddpg_tdm_kwargs']['tdm_kwargs']['sample_train_goals_from'] = 'her'
+            variant['ddpg_tdm_kwargs']['tdm_kwargs']['tau_sample_strategy'] = 'uniform'
+        else:
+            variant['ddpg_tdm_kwargs']['tdm_kwargs']['sample_train_goals_from'] = 'no_resampling'
+            variant['ddpg_tdm_kwargs']['tdm_kwargs']['tau_sample_strategy'] = 'no_resampling'
         for i in range(n_seeds):
             seed = random.randint(0, 10000)
             instance_type = variant['instance_type']
@@ -231,7 +245,7 @@ if __name__ == "__main__":
                 seed=seed,
                 variant=variant,
                 exp_id=exp_id,
-                region='us-west-1',
+                region='us-east-1',
                 instance_type=instance_type,
                 use_gpu=variant['instance_type'][0] == 'g',
             )

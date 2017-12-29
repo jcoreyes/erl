@@ -63,9 +63,9 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-state-distance-ddpg-baseline"
 
-    n_seeds = 1
+    n_seeds = 3
     mode = "ec2"
-    exp_prefix = "ant-far-distance-longer"
+    exp_prefix = "ddpg-ant-far-distance-nupo-sweep"
 
     num_epochs = 1000
     num_steps_per_epoch = 1000
@@ -125,10 +125,10 @@ if __name__ == "__main__":
             # dict(max_distance=10),
         ],
         'algo_kwargs.reward_scale': [
-            0.01, 1, 100, 10000
+            100, 10000
         ],
         'algo_kwargs.num_updates_per_env_step': [
-            1,
+            1, 5, 10, 20
         ],
         'algo_kwargs.batch_size': [
             128,
