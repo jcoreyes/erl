@@ -68,6 +68,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         :param reward_type: One of the following:
             - 'distance': Reward is -|s_t - s_g|
             - 'indicator': Reward is -1{||s_t - s_g||_2 > epsilon}
+            - 'env': Use the environment reward
         :param goal_reached_epsilon: Epsilon used to determine if the goal
         has been reached. Used by `indicator` version of `reward_type` and when
         `terminate_whe_goal_reached` is True.
@@ -84,7 +85,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             'truncated_geometric',
             'all_valid',
         ]
-        assert reward_type in ['distance', 'indicator']
+        assert reward_type in ['distance', 'indicator', 'env']
         if epoch_max_tau_schedule is None:
             epoch_max_tau_schedule = ConstantSchedule(max_tau)
 
@@ -152,7 +153,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         actions = batch['actions']
         next_obs = batch['next_observations']
         goals = self._sample_goals_for_training(batch)
-        rewards = self.compute_rewards_np(obs, actions, next_obs, goals)
+        rewards = self._compute_rewards_np(batch, obs, actions, next_obs, goals)
         terminals = batch['terminals']
 
         if self.tau_sample_strategy == 'all_valid':
@@ -202,7 +203,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
 
         return np_to_pytorch_batch(batch)
 
-    def compute_rewards_np(self, obs, actions, next_obs, goals):
+    def _compute_rewards_np(self, batch, obs, actions, next_obs, goals):
         if self.reward_type == 'indicator':
             diff = self.env.convert_obs_to_goals(next_obs) - goals
             if self.vectorized:
@@ -223,6 +224,8 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
                     next_obs,
                     goals,
                 ) * self.reward_scale
+        elif self.reward_type == 'env':
+            return batch['rewards']
         else:
             raise TypeError("Invalid reward type: {}".format(self.reward_type))
 

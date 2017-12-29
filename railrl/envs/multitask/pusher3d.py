@@ -15,8 +15,9 @@ class MultitaskPusher3DEnv(MujocoEnv, MultitaskEnv):
     goal_low = [-0.4, -0.4]
     goal_high = [0.4, 0.0]
 
-    def __init__(self):
+    def __init__(self, reward_coefs=(0.5, 0.375, 0.125)):
         self.init_serialization(locals())
+        self.reward_coefs = reward_coefs
         MultitaskEnv.__init__(self)
         MujocoEnv.__init__(
             self,
@@ -36,9 +37,8 @@ class MultitaskPusher3DEnv(MujocoEnv, MultitaskEnv):
         control_magnitude = np.linalg.norm(a)
 
         forward_reward_vec = [obj_to_goal_dist, obj_to_arm_dist, control_magnitude]
-        reward_coefs = (0.5, 0.375, 0.125)
         reward = -sum(
-            [coef * r for (coef, r) in zip(reward_coefs, forward_reward_vec)]
+            [coef * r for (coef, r) in zip(self.reward_coefs, forward_reward_vec)]
         )
 
         self.do_simulation(a, self.frame_skip)

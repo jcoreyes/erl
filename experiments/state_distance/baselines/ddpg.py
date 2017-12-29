@@ -65,12 +65,12 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "ddpg-ant-far-distance-nupo-sweep"
+    exp_prefix = "why-are-pusher3d-ddpg-results-not-equivalent"
 
     num_epochs = 1000
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
-    max_path_length = 50
+    max_path_length = 250
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -102,33 +102,35 @@ if __name__ == "__main__":
         qf_kwargs=dict(
             hidden_sizes=[300, 300],
         ),
-        version="DDPG",
+        version="DDPG-no-shaping",
         algorithm="DDPG",
     )
     search_space = {
         'env_class': [
             # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
-            GoalXYPosAnt,
+            # GoalXYPosAnt,
             # CylinderXYPusher2DEnv,
             # GoalXPosHalfCheetah,
-            # MultitaskPusher3DEnv,
+            MultitaskPusher3DEnv,
             # Walker2DTargetXPos,
         ],
         'multitask': [True],
         'env_kwargs': [
-            # dict(),
+            dict(
+                reward_coefs=(1, 0, 0),
+            ),
             # dict(max_distance=2),
-            dict(max_distance=4),
-            dict(max_distance=6),
+            # dict(max_distance=4),
+            # dict(max_distance=6),
             # dict(max_distance=8),
             # dict(max_distance=10),
         ],
         'algo_kwargs.reward_scale': [
-            100, 10000
+            0.1, 1, 10
         ],
         'algo_kwargs.num_updates_per_env_step': [
-            1, 5, 10, 20
+            1,
         ],
         'algo_kwargs.batch_size': [
             128,
