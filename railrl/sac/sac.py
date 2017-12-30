@@ -43,6 +43,7 @@ class SoftActorCritic(TorchRLAlgorithm):
             qf_lr=1e-3,
             vf_lr=1e-3,
             policy_reg_weight=1e-3,
+            policy_pre_activation_weight=0.,
 
             soft_target_tau=1e-2,
             plotter=None,
@@ -65,6 +66,7 @@ class SoftActorCritic(TorchRLAlgorithm):
         self.vf = vf
         self.soft_target_tau = soft_target_tau
         self.policy_reg_weight = policy_reg_weight
+        self.policy_pre_activation_weight = policy_pre_activation_weight
         self.plotter = plotter
         self.render_eval_paths = render_eval_paths
 
@@ -97,9 +99,8 @@ class SoftActorCritic(TorchRLAlgorithm):
         q_pred = self.qf(obs, actions)
         v_pred = self.vf(obs)
         # Make sure policy accounts for squashing functions like tanh correctly!
-        new_actions, policy_mean, policy_log_std, log_pi = self.policy(
-            obs, return_log_prob=True
-        )[:4]
+        policy_outputs = self.policy(obs, return_log_prob=True)
+        new_actions, policy_mean, policy_log_std, log_pi = policy_outputs[:4]
 
         """
         QF Loss
@@ -127,7 +128,11 @@ class SoftActorCritic(TorchRLAlgorithm):
             (policy_mean**2).mean()
             + (policy_log_std**2).mean()
         )
-        policy_loss = policy_loss + policy_reg_loss
+        pre_tanh_value = policy_outputs[-1]
+        pre_activation_policy_loss = self.policy_pre_activation_weight * (
+                (pre_tanh_value**2).sum(dim=1).mean()
+            )
+        policy_loss = policy_loss + policy_reg_loss + pre_activation_policy_loss
 
         """
         Update networks
@@ -181,26 +186,6 @@ class SoftActorCritic(TorchRLAlgorithm):
                 ptu.get_numpy(policy_log_std),
             ))
 
-    def evaluate(self, epoch):
-        statistics = OrderedDict()
-        statistics.update(self.eval_statistics)
-        self.eval_statistics = None
-        test_paths = self.eval_sampler.obtain_samples()
-        statistics.update(eval_util.get_generic_path_information(
-            test_paths, self.discount, stat_prefix="Test",
-        ))
-        if hasattr(self.env, "log_diagnostics"):
-            self.env.log_diagnostics(test_paths)
-
-        for key, value in statistics.items():
-            logger.record_tabular(key, value)
-
-        if self.render_eval_paths:
-            self.env.render_paths(test_paths)
-
-        if self.plotter:
-            self.plotter.draw()
-
     @property
     def networks(self):
         return [
@@ -214,4 +199,4 @@ class SoftActorCritic(TorchRLAlgorithm):
         raise NotImplementedError()
 
     def _update_target_network(self):
-        ptu.soft_update(self.target_vf, self.vf, self.soft_target_tau)
+        ptu.soft_update_from_to(self.vf, self.target_vf, self.soft_target_tau)

@@ -23,9 +23,9 @@ class MultitaskPusher2DEnv(Pusher2DEnv, MultitaskEnv, metaclass=abc.ABCMeta):
     def sample_states(self, batch_size):
         raise NotImplementedError()
 
-    def log_diagnostics(self, paths):
-        super().log_diagnostics(paths)
-        MultitaskEnv.log_diagnostics(self, paths)
+    def log_diagnostics(self, paths, **kwargs):
+        super().log_diagnostics(paths, **kwargs)
+        MultitaskEnv.log_diagnostics(self, paths, **kwargs)
 
 
 class FullStatePusher2DEnv(MultitaskPusher2DEnv):
@@ -422,6 +422,7 @@ class CylinderXYPusher2DEnv(MultitaskPusher2DEnv):
         qpos = self.model.data.qpos.flat.copy()
         qvel = self.model.data.qvel.flat.copy()
         qpos[-4:-2] = self._target_cylinder_position
+        qpos[-2:] = 0
         self.set_state(qpos, qvel)
 
     def compute_her_reward_pytorch(

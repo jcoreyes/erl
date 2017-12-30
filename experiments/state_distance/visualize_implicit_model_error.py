@@ -15,13 +15,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import colors
 
-from railrl.policies.simple import UniformRandomPolicy
+from railrl.policies.simple import RandomPolicy
 from railrl.state_distance.networks import NumpyModelExtractor
 
 
 def visualize_policy_error(qf, env, horizon):
     model = NumpyModelExtractor(qf)
-    policy = UniformRandomPolicy(env.action_space)
+    policy = RandomPolicy(env.action_space)
     actual_state = env.reset()
 
     predicted_states = []

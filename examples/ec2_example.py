@@ -41,7 +41,8 @@ if __name__ == "__main__":
     )
     run_experiment(
         example,
-        exp_prefix="ec2-check",
+        exp_prefix="ec2-gpu-default-test-2",
         mode='ec2',
         variant=variant,
+        use_gpu=True,
     )

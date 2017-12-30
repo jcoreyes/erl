@@ -11,7 +11,6 @@ from railrl.misc.ml_util import (
     StatConditionalSchedule,
     ConstantSchedule,
 )
-from railrl.torch import eval_util
 from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
 from rllab.misc import logger
 from torch import nn as nn
@@ -38,6 +37,8 @@ class DDPG(TorchRLAlgorithm):
             qf_criterion=None,
             residual_gradient_weight=0,
             epoch_discount_schedule=None,
+            eval_with_target_policy=False,
+            policy_pre_activation_weight=0.,
 
             plotter=None,
             render_eval_paths=False,
@@ -65,10 +66,15 @@ class DDPG(TorchRLAlgorithm):
         that varies with the epoch.
         :param kwargs:
         """
+        self.target_policy = policy.copy()
+        if eval_with_target_policy:
+            eval_policy = self.target_policy
+        else:
+            eval_policy = policy
         super().__init__(
             env,
             exploration_policy,
-            eval_policy=policy,
+            eval_policy=eval_policy,
             **kwargs
         )
         if qf_criterion is None:
@@ -82,6 +88,7 @@ class DDPG(TorchRLAlgorithm):
         self.tau = tau
         self.use_soft_update = use_soft_update
         self.residual_gradient_weight = residual_gradient_weight
+        self.policy_pre_activation_weight = policy_pre_activation_weight
         self.qf_criterion = qf_criterion
         if epoch_discount_schedule is None:
             epoch_discount_schedule = ConstantSchedule(self.discount)
@@ -90,7 +97,6 @@ class DDPG(TorchRLAlgorithm):
         self.render_eval_paths = render_eval_paths
 
         self.target_qf = self.qf.copy()
-        self.target_policy = self.policy.copy()
         self.qf_optimizer = optim.Adam(
             self.qf.parameters(),
             lr=self.qf_learning_rate,
@@ -114,9 +120,18 @@ class DDPG(TorchRLAlgorithm):
         """
         Policy operations.
         """
-        policy_actions = self.policy(obs)
+        policy_actions, pre_tanh_value = self.policy(
+            obs, return_preactivations=True,
+        )
+        pre_activation_policy_loss = (
+            (pre_tanh_value**2).sum(dim=1).mean()
+        )
         q_output = self.qf(obs, policy_actions)
-        policy_loss = - q_output.mean()
+        raw_policy_loss = - q_output.mean()
+        policy_loss = (
+            raw_policy_loss +
+            pre_activation_policy_loss * self.policy_pre_activation_weight
+        )
 
         """
         Critic operations.
@@ -131,6 +146,9 @@ class DDPG(TorchRLAlgorithm):
         )
         q_target = rewards + (1. - terminals) * self.discount * target_q_values
         q_target = q_target.detach()
+        # Hack for ICLR rebuttal
+        if hasattr(self, 'reward_type') and self.reward_type == 'indicator':
+            q_target = torch.clamp(q_target, -self.reward_scale/(1-self.discount), 0)
         q_pred = self.qf(obs, actions)
         bellman_errors = (q_pred - q_target) ** 2
         raw_qf_loss = self.qf_criterion(q_pred, q_target)
@@ -188,6 +206,13 @@ class DDPG(TorchRLAlgorithm):
             self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
                 policy_loss
             ))
+            self.eval_statistics['Raw Policy Loss'] = np.mean(ptu.get_numpy(
+                raw_policy_loss
+            ))
+            self.eval_statistics['Preactivation Policy Loss'] = (
+                self.eval_statistics['Policy Loss'] -
+                self.eval_statistics['Raw Policy Loss']
+            )
             self.eval_statistics.update(create_stats_ordered_dict(
                 'Q Predictions',
                 ptu.get_numpy(q_pred),
@@ -207,8 +232,8 @@ class DDPG(TorchRLAlgorithm):
 
     def _update_target_networks(self):
         if self.use_soft_update:
-            ptu.soft_update(self.target_policy, self.policy, self.tau)
-            ptu.soft_update(self.target_qf, self.qf, self.tau)
+            ptu.soft_update_from_to(self.policy, self.target_policy, self.tau)
+            ptu.soft_update_from_to(self.qf, self.target_qf, self.tau)
         else:
             if self._n_env_steps_total % self.target_hard_update_period == 0:
                 ptu.copy_model_params_from_to(self.qf, self.target_qf)
@@ -216,19 +241,6 @@ class DDPG(TorchRLAlgorithm):
 
     def evaluate(self, epoch):
         statistics = OrderedDict()
-        statistics.update(self.eval_statistics)
-        self.eval_statistics = None
-
-        logger.log("Collecting samples for evaluation")
-        test_paths = self.eval_sampler.obtain_samples()
-
-        statistics.update(eval_util.get_generic_path_information(
-            test_paths, self.discount, stat_prefix="Test",
-        ))
-        statistics.update(eval_util.get_generic_path_information(
-            self._exploration_paths, self.discount, stat_prefix="Exploration",
-        ))
-
         if isinstance(self.epoch_discount_schedule, StatConditionalSchedule):
             table_dict = rllab_util.get_logger_table_dict()
             # rllab converts things to strings for some reason
@@ -240,27 +252,9 @@ class DDPG(TorchRLAlgorithm):
         if not isinstance(self.epoch_discount_schedule, ConstantSchedule):
             statistics['Discount Factor'] = self.discount
 
-        average_returns = rllab_util.get_average_returns(test_paths)
-        statistics['AverageReturn'] = average_returns
-
-        if hasattr(self.env, "log_diagnostics"):
-            logger.set_key_prefix('test ')
-            self.env.log_diagnostics(test_paths)
-            logger.set_key_prefix('expl ')
-            self.env.log_diagnostics(self._exploration_paths)
-            logger.set_key_prefix('')
-
-
         for key, value in statistics.items():
             logger.record_tabular(key, value)
-
-        if self.render_eval_paths:
-            self.env.render_paths(test_paths)
-
-        if self.plotter:
-            self.plotter.draw()
-
-
+        super().evaluate(epoch)
 
     def offline_evaluate(self, epoch):
         statistics = OrderedDict()
@@ -270,27 +264,20 @@ class DDPG(TorchRLAlgorithm):
             logger.record_tabular(key, value)
 
     def get_epoch_snapshot(self, epoch):
-        return dict(
+        if self.render:
+            self.training_env.render(close=True)
+        data_to_save = dict(
             epoch=epoch,
-            policy=self.policy,
-            env=self.training_env,
-            exploration_policy=self.exploration_policy,
             qf=self.qf,
+            policy=self.eval_policy,
+            trained_policy=self.policy,
+            target_policy=self.target_policy,
+            exploration_policy=self.exploration_policy,
             batch_size=self.batch_size,
         )
-
-    def get_extra_data_to_save(self, epoch):
-        """
-        Save things that shouldn't be saved every snapshot but rather
-        overwritten every time.
-        :param epoch:
-        :return:
-        """
-        return dict(
-            epoch=epoch,
-            replay_buffer=self.replay_buffer,
-            algorithm=self,
-        )
+        if self.save_environment:
+            data_to_save['env'] = self.training_env
+        return data_to_save
 
     @property
     def networks(self):

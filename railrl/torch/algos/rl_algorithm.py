@@ -29,6 +29,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             num_steps_per_epoch=10000,
             num_steps_per_eval=1000,
             num_updates_per_env_step=1,
+            num_updates_per_epoch=None,
             batch_size=1024,
             max_path_length=1000,
             discount=0.99,
@@ -57,7 +58,8 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         :param num_epochs:
         :param num_steps_per_epoch:
         :param num_steps_per_eval:
-        :param num_updates_per_env_step:
+        :param num_updates_per_env_step: Used by online training mode.
+        :param num_updates_per_epoch: Used by batch training mode.
         :param batch_size:
         :param max_path_length:
         :param discount:
@@ -76,15 +78,21 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         :param replay_buffer:
         :param fraction_paths_in_train:
         """
-        assert collection_mode in ['online', 'online-parallel', 'offline']
+        assert collection_mode in ['online', 'online-parallel', 'offline',
+                                   'batch']
         assert 0. <= fraction_paths_in_train <= 1.
+        if collection_mode == 'batch':
+            assert num_updates_per_epoch is not None
         self.training_env = training_env or pickle.loads(pickle.dumps(env))
         self.normalize_env = normalize_env
         self.exploration_policy = exploration_policy
         self.num_epochs = num_epochs
         self.num_env_steps_per_epoch = num_steps_per_epoch
         self.num_steps_per_eval = num_steps_per_eval
-        self.num_updates_per_env_step = num_updates_per_env_step
+        if collection_mode == 'online' or collection_mode == 'online-parallel':
+            self.num_updates_per_train_call = num_updates_per_env_step
+        else:
+            self.num_updates_per_train_call = num_updates_per_epoch
         self.batch_size = batch_size
         self.max_path_length = max_path_length
         self.discount = discount
@@ -160,6 +168,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             )
 
     def train(self, start_epoch=0):
+        self.pretrain()
         if start_epoch == 0:
             params = self.get_epoch_snapshot(-1)
             logger.save_itr_params(-1, params)
@@ -171,12 +180,20 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             self.train_online(start_epoch=start_epoch)
         elif self.collection_mode == 'online-parallel':
             self.train_parallel(start_epoch=start_epoch)
+        elif self.collection_mode == 'batch':
+            self.train_batch(start_epoch=start_epoch)
         elif self.collection_mode == 'offline':
             self.train_offline(start_epoch=start_epoch)
         else:
             raise TypeError("Invalid collection_mode: {}".format(
                 self.collection_mode
             ))
+
+    def pretrain(self):
+        """
+        Do anything before the main training phase.
+        """
+        pass
 
     def train_online(self, start_epoch=0):
         self._current_path_builder = PathBuilder()
@@ -222,9 +239,52 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             gt.stamp('eval')
             self._end_epoch()
 
+    def train_batch(self, start_epoch):
+        self._current_path_builder = PathBuilder()
+        observation = self._start_new_rollout()
+        for epoch in gt.timed_for(
+                range(start_epoch, self.num_epochs),
+                save_itrs=True,
+        ):
+            self._start_epoch(epoch)
+            for _ in range(self.num_env_steps_per_epoch):
+                action, agent_info = self._get_action_and_info(
+                    observation,
+                )
+                if self.render:
+                    self.training_env.render()
+                next_ob, raw_reward, terminal, env_info = (
+                    self.training_env.step(action)
+                )
+                self._n_env_steps_total += 1
+                reward = raw_reward * self.reward_scale
+                terminal = np.array([terminal])
+                reward = np.array([reward])
+                self._handle_step(
+                    observation,
+                    action,
+                    reward,
+                    next_ob,
+                    terminal,
+                    agent_info=agent_info,
+                    env_info=env_info,
+                )
+                if terminal or len(self._current_path_builder) >= self.max_path_length:
+                    self._handle_rollout_ending()
+                    observation = self._start_new_rollout()
+                else:
+                    observation = next_ob
+
+            gt.stamp('sample')
+            self._try_to_train()
+            gt.stamp('train')
+
+            self._try_to_eval(epoch)
+            gt.stamp('eval')
+            self._end_epoch()
+
     def train_parallel(self, start_epoch=0):
-        assert (
-            isinstance(self.training_env, RemoteRolloutEnv),
+        assert isinstance(self.training_env, RemoteRolloutEnv), (
             "Did the sub-class accidentally override the RemoteRolloutEnv?"
         )
         self.training_mode(False)
@@ -277,7 +337,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
     def _try_to_train(self):
         if self._can_train():
             self.training_mode(True)
-            for i in range(self.num_updates_per_env_step):
+            for i in range(self.num_updates_per_train_call):
                 self._do_training()
                 self._n_train_steps_total += 1
             self.training_mode(False)
@@ -311,7 +371,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 self._n_rollouts_total,
             )
 
-            if self.collection_mode == 'online':
+            if self.collection_mode != 'online-parallel':
                 times_itrs = gt.get_times().stamps.itrs
                 train_time = times_itrs['train'][-1]
                 sample_time = times_itrs['sample'][-1]
@@ -528,14 +588,15 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         """
         pass
 
-    @abc.abstractmethod
+    # Don't make this abstract so that every class doesn't have to implement
+    # this.
     def offline_evaluate(self, epoch):
         """
         Evaluate without collecting new data.
         :param epoch:
         :return:
         """
-        pass
+        raise NotImplementedError()
 
     @abc.abstractmethod
     def _do_training(self):

@@ -134,3 +134,29 @@ def batch_discounted_cumsum(values, discount):
     return scipy.signal.lfilter(
         [1], [1, float(-discount)], values.T[::-1], axis=0,
     )[::-1].T
+
+
+def truncated_geometric(p, truncate_threshold, size, new_value=None):
+    """
+    Sample from geometric, but truncated values to `truncated_threshold`.
+
+    All values greater than `truncated_threshold` will be set to `new_value`.
+    If `new_value` is None, then they will be assigned random integers from 0 to
+    `truncate_threshold`.
+
+    :param p: probability parameter for geometric distribution
+    :param truncate_threshold: Cut-off
+    :param size: size of sample
+    :param new_value:
+    :return:
+    """
+    samples = np.random.geometric(p, size)
+    samples_too_large = samples > truncate_threshold
+    num_bad = sum(samples_too_large)
+    if new_value is None:
+        samples[samples > truncate_threshold] = (
+            np.random.randint(0, truncate_threshold, num_bad)
+        )
+    else:
+        samples[samples > truncate_threshold] = new_value
+    return samples

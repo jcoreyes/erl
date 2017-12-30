@@ -1,8 +1,17 @@
 import random
 
-from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
+# from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
+from railrl.envs.multitask.ant_env import GoalXYPosAnt
+from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
+    GoalXPosHalfCheetah
 from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
-from railrl.envs.multitask.reacher_7dof import Reacher7DofGoalStateEverything
+from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
+from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
+from railrl.envs.multitask.reacher_7dof import (
+    # Reacher7DofGoalStateEverything,
+    Reacher7DofXyzGoalState,
+)
+from railrl.envs.multitask.walker2d_env import Walker2DTargetXPos
 from railrl.envs.wrappers import normalize_and_convert_to_tf_env
 from railrl.launchers.launcher_util import run_experiment
 from sandbox.rocky.tf.algos.trpo import TRPO
@@ -16,7 +25,7 @@ import railrl.misc.hyperparameter as hyp
 
 
 def experiment(variant):
-    env = variant['env_class']()
+    env = variant['env_class'](**variant['env_kwargs'])
     if variant['multitask']:
         env = MultitaskToFlatEnv(env)
     env = normalize_and_convert_to_tf_env(env)
@@ -24,7 +33,7 @@ def experiment(variant):
     policy = GaussianMLPPolicy(
         name="policy",
         env_spec=env.spec,
-        **variant['policy_params'],
+        **variant['policy_params']
     )
 
     baseline = LinearFeatureBaseline(env_spec=env.spec)
@@ -48,14 +57,14 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-state-distance-trpo-baseline"
 
-    n_seeds = 3
+    n_seeds = 1
     mode = "ec2"
-    exp_prefix = "tdm-half-cheetah-x-vel"
+    exp_prefix = "ant-increase-distance"
 
-    num_epochs = 1000
-    num_steps_per_epoch = 50000
-    num_steps_per_eval = 50000
-    max_path_length = 500
+    num_epochs = 100
+    num_steps_per_epoch = 10000
+    num_steps_per_eval = 10000
+    max_path_length = 50
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -63,7 +72,7 @@ if __name__ == "__main__":
             batch_size=num_steps_per_epoch,
             max_path_length=max_path_length,
             n_itr=num_epochs,
-            discount=1.,
+            discount=.99,
             step_size=0.01,
         ),
         optimizer_params=dict(
@@ -78,9 +87,26 @@ if __name__ == "__main__":
     )
     search_space = {
         'env_class': [
-            GoalXVelHalfCheetah,
+            # GoalXVelHalfCheetah,
+            # GoalXPosHalfCheetah,
+            # Reacher7DofXyzGoalState,
+            GoalXYPosAnt,
+            # CylinderXYPusher2DEnv,
+            # MultitaskPusher3DEnv,
+            # Walker2DTargetXPos,
         ],
-        'multitask': [False, True],
+        'env_kwargs': [
+            # dict(),
+            dict(max_distance=2),
+            dict(max_distance=4),
+            dict(max_distance=6),
+            dict(max_distance=8),
+            dict(max_distance=10),
+        ],
+        'multitask': [True],
+        'trpo_params.step_size': [
+            0.1, 0.01, 0.001,
+        ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -95,5 +121,4 @@ if __name__ == "__main__":
                 seed=seed,
                 mode=mode,
                 variant=variant,
-                use_gpu=False,
             )

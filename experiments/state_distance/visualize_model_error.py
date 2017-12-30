@@ -14,7 +14,7 @@ from matplotlib import colors
 import matplotlib.cm as cm
 
 
-from railrl.policies.simple import UniformRandomPolicy
+from railrl.policies.simple import RandomPolicy
 import railrl.torch.pytorch_util as ptu
 
 
@@ -26,7 +26,7 @@ def get_np_prediction(model, state, action):
 
 
 def visualize_policy_error(model, env, horizon):
-    policy = UniformRandomPolicy(env.action_space)
+    policy = RandomPolicy(env.action_space)
     actual_state = env.reset()
 
     predicted_states = []

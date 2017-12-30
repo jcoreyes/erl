@@ -38,7 +38,7 @@ def half_cheetah_cost_fn(states, actions, next_states):
 
 class HalfCheetah(HalfCheetahEnv):
     def __init__(self):
-        self.target_x_vel = np.random.uniform(-10, 10)
+        self.target_x_vel = np.random.uniform(-5, 5)
         self.obs_to_goal = obs_to_goal
         self.goal_idx = slice(17, 18)
         super().__init__()
@@ -89,7 +89,7 @@ class HalfCheetah(HalfCheetahEnv):
             ))
             statistics.update(create_stats_ordered_dict(
                 'Final {}'.format(name),
-                stat[:, -1],
+                [s[-1] for s in stat],
                 always_show_all_stats=True,
             ))
         for key, value in statistics.items():

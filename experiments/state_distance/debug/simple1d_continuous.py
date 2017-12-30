@@ -5,36 +5,50 @@ import numpy as np
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
-from railrl.envs.multitask.reacher_7dof import Reacher7DofGoalStateEverything
 from railrl.envs.multitask.simple1d import Simple1D, Simple1DTdmPlotter
-from railrl.envs.wrappers import normalize_box
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.policies.torch import FeedForwardPolicy
-from railrl.state_distance.flat_networks import StructuredQF
+from railrl.state_distance.tdm_networks import StructuredQF, OneHotTauQF
 from railrl.state_distance.tdm_ddpg import TdmDdpg
 from railrl.torch.modules import HuberLoss
+from railrl.torch.networks import TanhMlpPolicy, FlattenMlp
 
 
 def experiment(variant):
-    env = normalize_box(variant['env_class']())
+    env = variant['env_class']()
 
     obs_dim = int(np.prod(env.observation_space.low.shape))
     action_dim = int(np.prod(env.action_space.low.shape))
     vectorized = variant['algo_params']['tdm_kwargs']['vectorized']
-    qf = StructuredQF(
-        observation_dim=obs_dim,
-        action_dim=action_dim,
-        goal_dim=env.goal_dim,
-        output_size=env.goal_dim if vectorized else 1,
-        **variant['qf_params']
-    )
-    policy = FeedForwardPolicy(
-        obs_dim=obs_dim + env.goal_dim + 1,
-        action_dim=action_dim,
+    if variant['qf_type'] == 'onehot':
+        qf = OneHotTauQF(
+            observation_dim=obs_dim,
+            action_dim=action_dim,
+            goal_dim=env.goal_dim,
+            output_size=env.goal_dim if vectorized else 1,
+            **variant['qf_params']
+        )
+    elif variant['qf_type'] == 'structured':
+        qf = StructuredQF(
+            observation_dim=obs_dim,
+            action_dim=action_dim,
+            goal_dim=env.goal_dim,
+            output_size=env.goal_dim if vectorized else 1,
+            **variant['qf_params']
+        )
+    elif variant['qf_type'] == 'flat':
+        qf = FlattenMlp(
+            input_size=obs_dim+action_dim+env.goal_dim+1,
+            output_size=env.goal_dim if vectorized else 1,
+            **variant['qf_params']
+        )
+    else:
+        raise TypeError("Invalid qf type: {}".format(variant['qf_type']))
+    policy = TanhMlpPolicy(
+        input_size=obs_dim + env.goal_dim + 1,
+        output_size=action_dim,
         **variant['policy_params']
     )
     es = OUStrategy(
@@ -58,9 +72,12 @@ def experiment(variant):
     algo_params['ddpg_kwargs']['qf_criterion'] = qf_criterion
     plotter = Simple1DTdmPlotter(
         tdm=qf,
-        location_lst=np.array([-0.5, 0, 0.5]),
-        goal_lst=np.array([-0.5, 0, 0.5]),
+        # location_lst=np.array([-10, 0, 10]),
+        # goal_lst=np.array([-10, 0, 5]),
+        location_lst=np.array([-5, 0, 5]),
+        goal_lst=np.array([-5, 0, 5]),
         max_tau=algo_params['tdm_kwargs']['max_tau'],
+        grid_size=10,
     )
     algo_params['ddpg_kwargs']['plotter'] = plotter
     algorithm = TdmDdpg(
@@ -81,16 +98,13 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "simple-1d-continuous"
 
-    # n_seeds = 3
-    # mode = "ec2"
-    # exp_prefix = "tdm-half-cheetah-x-vel"
-
     num_epochs = 100
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
     max_path_length = 30
 
     # noinspection PyTypeChecker
+    max_tau = 5
     variant = dict(
         algo_params=dict(
             base_kwargs=dict(
@@ -101,18 +115,21 @@ if __name__ == "__main__":
                 num_updates_per_env_step=1,
                 batch_size=64,
                 discount=1,
+                save_replay_buffer=True,
             ),
             tdm_kwargs=dict(
                 sample_rollout_goals_from='environment',
                 sample_train_goals_from='her',
                 vectorized=True,
                 cycle_taus_for_rollout=True,
-                max_tau=1,
+                max_tau=max_tau,
             ),
             ddpg_kwargs=dict(
-                tau=0.01,
+                # tau=0.01,
+                tau=1,
                 qf_learning_rate=1e-3,
                 policy_learning_rate=1e-4,
+                residual_gradient_weight=1,
             ),
         ),
         her_replay_buffer_params=dict(
@@ -121,15 +138,16 @@ if __name__ == "__main__":
         ),
         qf_params=dict(
             hidden_sizes=[100, 100],
+            # max_tau=max_tau,
         ),
         policy_params=dict(
-            fc1_size=100,
-            fc2_size=100,
+            hidden_sizes=[100, 100],
         ),
         qf_criterion_class=HuberLoss,
         qf_criterion_params=dict(),
         version="DDPG-TDM",
         algorithm="DDPG-TDM",
+        qf_type='flat',
     )
     search_space = {
         'env_class': [
