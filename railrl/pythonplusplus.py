@@ -57,6 +57,8 @@ def dot_map_dict_to_nested_dict(dot_map_dict):
     for key, item in dot_map_dict.items():
         split_keys = key.split('.')
         if len(split_keys) == 1:
+            if key in tree:
+                raise ValueError("Duplicate key: {}".format(key))
             tree[key] = item
         else:
             t = tree
@@ -69,6 +71,8 @@ def dot_map_dict_to_nested_dict(dot_map_dict):
                         key
                     )
                 )
+            if last_key in t:
+                raise ValueError("Duplicate key: {}".format(last_key))
             t[last_key] = item
     return tree
 
