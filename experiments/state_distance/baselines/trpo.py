@@ -10,7 +10,7 @@ from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
 from railrl.envs.multitask.reacher_7dof import (
     # Reacher7DofGoalStateEverything,
     Reacher7DofXyzGoalState,
-)
+    Reacher7DofXyzPosAndVelGoalState)
 from railrl.envs.multitask.walker2d_env import Walker2DTargetXPos
 from railrl.envs.wrappers import normalize_and_convert_to_tf_env
 from railrl.launchers.launcher_util import run_experiment
@@ -59,9 +59,9 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "ant-target-xy-pos-and-vel"
+    exp_prefix = "reacher-target-pos-and-vel-done-when-hit"
 
-    num_epochs = 1000
+    num_epochs = 100
     num_steps_per_epoch = 10000
     num_steps_per_eval = 10000
     max_path_length = 100
@@ -91,19 +91,20 @@ if __name__ == "__main__":
             # GoalXPosHalfCheetah,
             # Reacher7DofXyzGoalState,
             # GoalXYPosAnt,
-            GoalXYPosAndVelAnt,
+            # GoalXYPosAndVelAnt,
+            Reacher7DofXyzPosAndVelGoalState,
             # CylinderXYPusher2DEnv,
             # MultitaskPusher3DEnv,
             # Walker2DTargetXPos,
         ],
-        'env_kwargs.max_distance': [
-            1,
+        'env_kwargs.max_speed': [
+            0.03,
         ],
         'env_kwargs.speed_weight': [
             0.99, 0.9, 0.5
         ],
-        'env_kwargs.use_low_gear_ratio': [
-            True, False,
+        'env_kwargs.done_threshold': [
+            0.1, 0.05, 0.01
         ],
         'multitask': [True],
         'algo_kwargs.step_size': [

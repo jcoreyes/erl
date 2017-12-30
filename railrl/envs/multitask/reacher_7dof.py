@@ -113,10 +113,20 @@ class Reacher7DofXyzGoalState(Reacher7DofMultitaskEnv):
 
 
 class Reacher7DofXyzPosAndVelGoalState(Reacher7DofMultitaskEnv):
-    def __init__(self, speed_weight=0.9, **kwargs):
+    def __init__(
+            self,
+            speed_weight=0.9,
+            done_threshold=0.05,
+            max_speed=0.03,
+            **kwargs
+    ):
         Serializable.quick_init(self, locals())
         self.speed_weight = speed_weight
+        self.done_threshold = done_threshold
+        self.max_speed = max_speed
+        self.initializing = True
         super().__init__(**kwargs)
+        self.initializing = False
     """
     The goal state is just the XYZ location and velocity of the end effector.
     """
@@ -124,8 +134,22 @@ class Reacher7DofXyzPosAndVelGoalState(Reacher7DofMultitaskEnv):
         # Number taken from running a random policy and seeing what XYZ values
         # are reached
         return np.random.uniform(
-            np.array(-0.75, -1.25, -0.2, -0.03, -0.03, -0.03),
-            np.array(0.75, 0.25, 0.6, 0.03, 0.03, 0.03),
+            np.array([
+                -0.75,
+                -1.25,
+                -0.2,
+                -self.max_speed,
+                -self.max_speed,
+                -self.max_speed],
+            ),
+            np.array([
+                0.75,
+                0.25,
+                0.6,
+                self.max_speed,
+                self.max_speed,
+                self.max_speed],
+            ),
             (batch_size, 6)
         )
 
@@ -179,6 +203,9 @@ class Reacher7DofXyzPosAndVelGoalState(Reacher7DofMultitaskEnv):
         weighted_vel_error = vel_error * self.speed_weight
         weighted_pos_error = pos_error * (1 - self.speed_weight)
         reward = - (weighted_pos_error + weighted_vel_error)
+        if np.abs(reward) < self.done_threshold and not self.initializing:
+            done = True
+        print(reward)
         return ob, reward, done, dict(
             goal=self.multitask_goal,
             vel_error=vel_error,

@@ -116,11 +116,14 @@ class GoalXYPosAndVelAnt(AntEnv, MultitaskEnv, Serializable):
             max_distance=1,
             use_low_gear_ratio=True,
             speed_weight=0.9,
+            done_threshold=0.005,
     ):
         Serializable.quick_init(self, locals())
         self.max_distance = max_distance
         self.max_speed = max_speed
         self.speed_weight = speed_weight
+        self.done_threshold = done_threshold
+        self.initializing = True
         assert 0 <= self.speed_weight <= 1
         MultitaskEnv.__init__(self)
         super().__init__(use_low_gear_ratio=use_low_gear_ratio)
@@ -130,6 +133,7 @@ class GoalXYPosAndVelAnt(AntEnv, MultitaskEnv, Serializable):
             self.max_speed,
             self.max_speed,
         ]))
+        self.initializing = False
 
     @property
     def goal_dim(self) -> int:
@@ -175,12 +179,7 @@ class GoalXYPosAndVelAnt(AntEnv, MultitaskEnv, Serializable):
         torso_xyz_after = self.get_body_com("torso")
         torso_velocity = torso_xyz_after - torso_xyz_before
 
-        # Idk what this is, but it's in the default ant, so I'll leave it in.
-        state = self.state_vector()
-        notdone = (
-                np.isfinite(state).all() and state[2] >= 0.2 and state[2] <= 1.0
-        )
-        done = not notdone
+        done = False
 
         ob = np.hstack((
             self.model.data.qpos.flat[2:],
@@ -195,6 +194,8 @@ class GoalXYPosAndVelAnt(AntEnv, MultitaskEnv, Serializable):
         weighted_vel_error = vel_error * self.speed_weight
         weighted_pos_error = pos_error * (1 - self.speed_weight)
         reward = - (weighted_pos_error + weighted_vel_error)
+        if np.abs(reward) < self.done_threshold and not self.initializing:
+            done = True
         info_dict = dict(
             goal=self.multitask_goal,
             vel_error=vel_error,
