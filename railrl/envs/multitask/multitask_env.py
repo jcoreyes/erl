@@ -273,7 +273,7 @@ def extract_list_of_goals(paths):
         return [path['goals'] for path in paths]
 
     if 'env_infos' in paths[0]:
-        env_infos = paths[0]
+        env_infos = paths[0]['env_infos']
         if isinstance(env_infos, dict):  # rllab style paths
             return [path['env_infos']['goal'] for path in paths]
         elif 'goal' in env_infos[0]:

@@ -83,9 +83,9 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-ddpg-tdm-launch"
 
-    n_seeds = 1
-    mode = "ec2"
-    exp_prefix = "find-pusher3d-mismatch"
+    # n_seeds = 1
+    # mode = "ec2"
+    # exp_prefix = "pusher3d-fixed-sweep-differences"
 
     num_epochs = 1000
     num_steps_per_epoch = 1000
@@ -152,9 +152,9 @@ if __name__ == "__main__":
             dict(
                 reward_coefs=(1, 0, 0),
             ),
-            dict(
-                reward_coefs=(0.5, 0.375, 0.125),
-            ),
+            # dict(
+            #     reward_coefs=(0.5, 0.375, 0.125),
+            # ),
             # dict(max_distance=2),
             # dict(max_distance=4),
             # dict(max_distance=6),
@@ -172,23 +172,23 @@ if __name__ == "__main__":
             dict(theta=0.1, max_sigma=0.1, min_sigma=0.1),
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.max_tau': [
-            max_path_length-1,
+            max_path_length-1, 49, 15
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.dense_rewards': [
-            True
+            False, True,
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.finite_horizon': [
-            False
+            True, False,
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.tau_sample_strategy': [
             'uniform',
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.reward_type': [
-            # 'distance',
-            'env',
+            'distance',
+            # 'env',
         ],
         'relabel': [
-            False,
+            True, False,
         ],
         # 'ddpg_tdm_kwargs.tdm_kwargs.truncated_geom_factor': [
         #     1,
@@ -202,7 +202,7 @@ if __name__ == "__main__":
             'none',
         ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
-            0.1, 1, 10, 100
+            0.1, 1, 100, 10000,
         ],
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
             1,
@@ -219,8 +219,8 @@ if __name__ == "__main__":
         'ddpg_tdm_kwargs.ddpg_kwargs.eval_with_target_policy': [
             False,
         ],
-        'vectorized': [False],
-        'norm_order': [1, 2],
+        'vectorized': [True, False],
+        'norm_order': [2],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

@@ -57,9 +57,9 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-state-distance-trpo-baseline"
 
-    n_seeds = 1
-    mode = "ec2"
-    exp_prefix = "reacher-target-pos-and-vel-done-when-hit"
+    # n_seeds = 1
+    # mode = "ec2"
+    # exp_prefix = "reacher-target-pos-and-vel-done-when-hit"
 
     num_epochs = 100
     num_steps_per_epoch = 10000

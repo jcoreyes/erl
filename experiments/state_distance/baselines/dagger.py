@@ -69,14 +69,14 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-dagger"
 
-    # n_seeds = 1
+    # n_seeds = 3
     # mode = "ec2"
-    # exp_prefix = "normal-gear-ratio-ant-d6"
+    # exp_prefix = "mb-dagger-pusher3d-fixed"
 
     num_epochs = 1000
-    num_steps_per_epoch = 1000
-    num_steps_per_eval = 1000
-    max_path_length = 100
+    num_steps_per_epoch = 10
+    num_steps_per_eval = 10
+    max_path_length = 10
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -103,36 +103,36 @@ if __name__ == "__main__":
         model_kwargs=dict(
             hidden_sizes=[300, 300],
         ),
-        version="Model-Based-Dagger-online-training",
+        env_kwargs=dict(),
+        version="Model-Based-Dagger",
         algorithm="Model-Based-Dagger",
     )
     search_space = {
         'env_class': [
             # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
-            GoalXYPosAnt,
+            # GoalXYPosAnt,
             # GoalXPosHalfCheetah,
             # CylinderXYPusher2DEnv,
-            # MultitaskPusher3DEnv,
+            MultitaskPusher3DEnv,
             # Walker2DTargetXPos,
         ],
         'multitask': [True],
-        'algo_kwargs.num_paths_for_normalization': [20],
-        'algo_kwargs.collection_mode': ['online'],
-        'env_kwargs.max_distance': [
-            6,
-        ],
-        'env_kwargs.use_low_gear_ratio': [
-            False,
-        ],
-        'algo_kwargs.batch_size': [128],
+        'algo_kwargs.num_paths_for_normalization': [21],
+        # 'env_kwargs.max_distance': [
+        #     6,
+        # ],
+        # 'env_kwargs.use_low_gear_ratio': [
+        #     False,
+        # ],
+        'algo_kwargs.batch_size': [2],
         'mpc_controller_kwargs.mpc_horizon': [15],
         'algo_kwargs.num_updates_per_env_step': [
             1,
         ],
-        'algo_kwargs.max_path_length': [
-            50, 100
-        ],
+        # 'algo_kwargs.max_path_length': [
+        #     50, 100
+        # ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
