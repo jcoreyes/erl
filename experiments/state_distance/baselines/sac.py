@@ -22,8 +22,7 @@ import railrl.misc.hyperparameter as hyp
 
 
 def experiment(variant):
-    env = variant['env_class']()
-    env = normalize_box(env)
+    env = normalize_box(variant['env_class'](**variant['env_kwargs']))
     if variant['multitask']:
         env = MultitaskToFlatEnv(env)
 
@@ -63,9 +62,9 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-state-distance-sac-baseline"
 
-    n_seeds = 3
+    n_seeds = 1
     mode = "ec2"
-    exp_prefix = "pusher-sweep-2"
+    exp_prefix = "sac-ant-far"
 
     num_epochs = 1000
     num_steps_per_epoch = 1000
@@ -95,8 +94,8 @@ if __name__ == "__main__":
         'env_class': {
             # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
-            CylinderXYPusher2DEnv,
-            # GoalXYPosAnt,
+            # CylinderXYPusher2DEnv,
+            GoalXYPosAnt,
             # Walker2DTargetXPos,
             # GoalXPosHalfCheetah,
             # MultitaskPusher3DEnv,
@@ -108,8 +107,15 @@ if __name__ == "__main__":
         'algo_params.replay_buffer_size': [
             int(1e6),
         ],
-        'algo_params.num_updates_per_env_step': [
-            1,
+        'algo_params.max_path_length': [
+            50, 100,
+        ],
+        'env_kwargs': [
+            dict(max_distance=2),
+            dict(max_distance=4),
+            dict(max_distance=6),
+            dict(max_distance=8),
+            dict(max_distance=10),
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

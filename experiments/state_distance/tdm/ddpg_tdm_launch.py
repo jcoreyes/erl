@@ -23,28 +23,29 @@ from railrl.exploration_strategies.base import \
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
-from railrl.state_distance.tdm_networks import StructuredQF
+from railrl.state_distance.tdm_networks import StructuredQF, TdmPolicy, \
+    InternalGcmQf, TdmQf
 from railrl.state_distance.tdm_ddpg import TdmDdpg
 from railrl.torch.modules import HuberLoss
 from railrl.torch.networks import TanhMlpPolicy
 
 
 def experiment(variant):
-    env = normalize_box(variant['env_class'](**variant['env_kwargs']))
+    vectorized = variant['vectorized']
+    norm_order = variant['norm_order']
 
-    obs_dim = int(np.prod(env.observation_space.low.shape))
-    action_dim = int(np.prod(env.action_space.low.shape))
-    vectorized = variant['ddpg_tdm_kwargs']['tdm_kwargs']['vectorized']
-    qf = StructuredQF(
-        observation_dim=obs_dim,
-        action_dim=action_dim,
-        goal_dim=env.goal_dim,
-        output_size=env.goal_dim if vectorized else 1,
+    variant['ddpg_tdm_kwargs']['tdm_kwargs']['vectorized'] = vectorized
+    variant['ddpg_tdm_kwargs']['tdm_kwargs']['norm_order'] = norm_order
+    variant['env_kwargs']['norm_order'] = norm_order
+    env = normalize_box(variant['env_class'](**variant['env_kwargs']))
+    qf = TdmQf(
+        env=env,
+        vectorized=vectorized,
+        norm_order=norm_order,
         **variant['qf_kwargs']
     )
-    policy = TanhMlpPolicy(
-        input_size=obs_dim + env.goal_dim + 1,
-        output_size=action_dim,
+    policy = TdmPolicy(
+        env=env,
         **variant['policy_kwargs']
     )
     es = OUStrategy(
@@ -84,12 +85,12 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "ant-sweep-tau-sampling-strat"
+    exp_prefix = "find-pusher3d-mismatch"
 
-    num_epochs = 200
+    num_epochs = 1000
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
-    max_path_length = 50
+    max_path_length = 250
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -102,7 +103,7 @@ if __name__ == "__main__":
                 num_updates_per_env_step=25,
                 batch_size=128,
                 discount=1,
-                collection_mode='online-parallel'
+                collection_mode='online',
             ),
             tdm_kwargs=dict(
                 sample_rollout_goals_from='environment',
@@ -123,7 +124,6 @@ if __name__ == "__main__":
         ),
         qf_kwargs=dict(
             hidden_sizes=[300, 300],
-            internal_gcm=True,
         ),
         policy_kwargs=dict(
             hidden_sizes=[300, 300],
@@ -143,13 +143,18 @@ if __name__ == "__main__":
             # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
             # GoalXPosHalfCheetah,
-            GoalXYPosAnt,
+            # GoalXYPosAnt,
             # CylinderXYPusher2DEnv,
             # Walker2DTargetXPos,
-            # MultitaskPusher3DEnv,
+            MultitaskPusher3DEnv,
         ],
         'env_kwargs': [
-            dict(),
+            dict(
+                reward_coefs=(1, 0, 0),
+            ),
+            dict(
+                reward_coefs=(0.5, 0.375, 0.125),
+            ),
             # dict(max_distance=2),
             # dict(max_distance=4),
             # dict(max_distance=6),
@@ -157,6 +162,7 @@ if __name__ == "__main__":
             # dict(max_distance=10),
         ],
         'qf_criterion_class': [
+            # HuberLoss,
             nn.MSELoss,
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.sample_rollout_goals_from': [
@@ -166,33 +172,43 @@ if __name__ == "__main__":
             dict(theta=0.1, max_sigma=0.1, min_sigma=0.1),
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.max_tau': [
-            49,
+            max_path_length-1,
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.dense_rewards': [
-            False,
+            True
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.finite_horizon': [
-            True,
+            False
         ],
-        # 'ddpg_tdm_kwargs.tdm_kwargs.sample_train_goals_from': [
-        # 'no_resampling',
-        # ],
         'ddpg_tdm_kwargs.tdm_kwargs.tau_sample_strategy': [
-            'truncated_geometric',
-            # 'uniform',
-            # 'no_resampling',
+            'uniform',
         ],
-        'ddpg_tdm_kwargs.tdm_kwargs.truncated_geom_factor': [
-            1, 2, 4, 8
+        'ddpg_tdm_kwargs.tdm_kwargs.reward_type': [
+            # 'distance',
+            'env',
+        ],
+        'relabel': [
+            False,
+        ],
+        # 'ddpg_tdm_kwargs.tdm_kwargs.truncated_geom_factor': [
+        #     1,
+        # ],
+        'qf_kwargs.structure': [
+            # 'norm_difference',
+            # 'norm',
+            # 'norm_distance_difference',
+            # 'distance_difference',
+            # 'difference',
+            'none',
         ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
-            1, 100, 10000,
+            0.1, 1, 10, 100
         ],
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
             1,
         ],
         'ddpg_tdm_kwargs.base_kwargs.discount': [
-            1,
+            0.98,
         ],
         'ddpg_tdm_kwargs.base_kwargs.batch_size': [
             128,
@@ -203,9 +219,8 @@ if __name__ == "__main__":
         'ddpg_tdm_kwargs.ddpg_kwargs.eval_with_target_policy': [
             False,
         ],
-        'instance_type': [
-            'c5.large',
-        ],
+        'vectorized': [False],
+        'norm_order': [1, 2],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -216,17 +231,42 @@ if __name__ == "__main__":
                     'sample_rollout_goals_from'
                 ] != 'fixed'
         )
+        dense = variant['ddpg_tdm_kwargs']['tdm_kwargs']['dense_rewards']
+        finite = variant['ddpg_tdm_kwargs']['tdm_kwargs']['finite_horizon']
+        relabel = variant['relabel']
+        vectorized = variant['vectorized']
+        norm_order = variant['norm_order']
+        # some settings just don't make sense
+        if vectorized and norm_order != 1:
+            continue
+        if not dense and not finite:
+            continue
+        if not finite:
+            # For infinite case, max_tau doesn't matter, so just only run for
+            # one setting of max tau
+            if variant['ddpg_tdm_kwargs']['tdm_kwargs']['max_tau'] != (
+                max_path_length - 1
+            ):
+                continue
+            discount = variant['ddpg_tdm_kwargs']['base_kwargs']['discount']
+            variant['ddpg_tdm_kwargs']['base_kwargs']['discount'] = min(
+                0.98, discount
+            )
+        if relabel:
+            variant['ddpg_tdm_kwargs']['tdm_kwargs']['sample_train_goals_from'] = 'her'
+            variant['ddpg_tdm_kwargs']['tdm_kwargs']['tau_sample_strategy'] = 'uniform'
+        else:
+            variant['ddpg_tdm_kwargs']['tdm_kwargs']['sample_train_goals_from'] = 'no_resampling'
+            variant['ddpg_tdm_kwargs']['tdm_kwargs']['tau_sample_strategy'] = 'no_resampling'
+        use_gpu = (
+            variant['ddpg_tdm_kwargs']['base_kwargs']['batch_size'] == 1024
+        )
         for i in range(n_seeds):
-            seed = random.randint(0, 10000)
-            instance_type = variant['instance_type']
             run_experiment(
                 experiment,
                 mode=mode,
                 exp_prefix=exp_prefix,
-                seed=seed,
                 variant=variant,
                 exp_id=exp_id,
-                region='us-east-1',
-                instance_type=instance_type,
-                use_gpu=variant['instance_type'][0] == 'g',
+                use_gpu=use_gpu,
             )

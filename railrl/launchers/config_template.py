@@ -27,7 +27,11 @@ SPOT_PRICE = 0.03
 GPU_DOODAD_DOCKER_IMAGE = 'vitchyr/railrl-vitchyr-gpu'
 GPU_INSTANCE_TYPE = 'g2.2xlarge'
 GPU_SPOT_PRICE = 0.5
-GPU_AWS_IMAGE_ID = "ami-874378e7"
+# These AMI images have the docker images already installed.
+REGION_TO_GPU_AWS_IMAGE_ID = {
+    'us-west-1': "ami-874378e7",
+    'us-east-1': "ami-0ef1b374",
+}
 
 # This really shouldn't matter and in theory could be whatever
 OUTPUT_DIR_FOR_DOODAD_TARGET = '/tmp/doodad-output/'

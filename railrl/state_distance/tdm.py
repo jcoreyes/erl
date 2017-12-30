@@ -33,6 +33,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             goal_reached_epsilon=1e-3,
             terminate_when_goal_reached=False,
             truncated_geom_factor=2.,
+            norm_order=1,
     ):
         """
 
@@ -68,11 +69,14 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         :param reward_type: One of the following:
             - 'distance': Reward is -|s_t - s_g|
             - 'indicator': Reward is -1{||s_t - s_g||_2 > epsilon}
+            - 'env': Use the environment reward
         :param goal_reached_epsilon: Epsilon used to determine if the goal
         has been reached. Used by `indicator` version of `reward_type` and when
         `terminate_whe_goal_reached` is True.
         :param terminate_when_goal_reached: Do you terminate when you have
         reached the goal?
+        :param norm_order: If vectorized=False, do you use L1, L2,
+        etc. for distance?
         """
         assert sample_train_goals_from in ['environment', 'replay_buffer',
                                            'her', 'no_resampling']
@@ -84,7 +88,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             'truncated_geometric',
             'all_valid',
         ]
-        assert reward_type in ['distance', 'indicator']
+        assert reward_type in ['distance', 'indicator', 'env']
         if epoch_max_tau_schedule is None:
             epoch_max_tau_schedule = ConstantSchedule(max_tau)
 
@@ -105,6 +109,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         self.reward_type = reward_type
         self.goal_reached_epsilon = goal_reached_epsilon
         self.terminate_when_goal_reached = terminate_when_goal_reached
+        self.norm_order = norm_order
         self._current_path_goal = None
         self._rollout_tau = self.max_tau
         self.truncated_geom_factor = float(truncated_geom_factor)
@@ -152,7 +157,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         actions = batch['actions']
         next_obs = batch['next_observations']
         goals = self._sample_goals_for_training(batch)
-        rewards = self.compute_rewards_np(obs, actions, next_obs, goals)
+        rewards = self._compute_rewards_np(batch, obs, actions, next_obs, goals)
         terminals = batch['terminals']
 
         if self.tau_sample_strategy == 'all_valid':
@@ -202,7 +207,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
 
         return np_to_pytorch_batch(batch)
 
-    def compute_rewards_np(self, obs, actions, next_obs, goals):
+    def _compute_rewards_np(self, batch, obs, actions, next_obs, goals):
         if self.reward_type == 'indicator':
             diff = self.env.convert_obs_to_goals(next_obs) - goals
             if self.vectorized:
@@ -213,16 +218,18 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
                     > self.goal_reached_epsilon
                 )
         elif self.reward_type == 'distance':
+            diff = self.env.convert_obs_to_goals(next_obs) - goals
             if self.vectorized:
-                diff = self.env.convert_obs_to_goals(next_obs) - goals
                 return -np.abs(diff) * self.reward_scale
             else:
-                return self.env.compute_rewards(
-                    obs,
-                    actions,
-                    next_obs,
-                    goals,
+                return -np.linalg.norm(
+                    diff,
+                    ord=self.norm_order,
+                    axis=1,
+                    keepdims=True,
                 ) * self.reward_scale
+        elif self.reward_type == 'env':
+            return batch['rewards']
         else:
             raise TypeError("Invalid reward type: {}".format(self.reward_type))
 

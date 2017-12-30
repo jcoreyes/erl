@@ -243,6 +243,7 @@ class MultitaskToFlatEnv(ProxyEnv, Serializable):
     def __init__(
             self,
             env: MultitaskEnv,
+            give_goal_difference=False,
     ):
         # self._wrapped_env needs to be called first because
         # Serializable.quick_init calls getattr, on this class. And the
@@ -253,7 +254,8 @@ class MultitaskToFlatEnv(ProxyEnv, Serializable):
         # Or else serialization gets delegated to the wrapped_env. Serialize
         # this env separately from the wrapped_env.
         self._serializable_initialized = False
-        self._wrapped_obs_dim = int(np.prod(env.observation_space.low.shape))
+        self._wrapped_obs_dim = env.observation_space.low.size
+        self.give_goal_difference = give_goal_difference
         Serializable.quick_init(self, locals())
         ProxyEnv.__init__(self, env)
 
@@ -273,14 +275,24 @@ class MultitaskToFlatEnv(ProxyEnv, Serializable):
 
     def step(self, action):
         ob, reward, done, info_dict = self._wrapped_env.step(action)
-        ob = np.hstack((ob, self._wrapped_env.multitask_goal))
-        return ob, reward, done, info_dict
+        new_ob = self._add_goal_to_observation(ob)
+        return new_ob, reward, done, info_dict
 
     def reset(self):
         self._wrapped_env.set_goal(self._wrapped_env.sample_goal_for_rollout())
         ob = super().reset()
-        ob = np.hstack((ob, self._wrapped_env.multitask_goal))
-        return ob
+        new_ob = self._add_goal_to_observation(ob)
+        return new_ob
+
+    def _add_goal_to_observation(self, ob):
+        if self.give_goal_difference:
+            goal_difference = (
+                self._wrapped_env.multitask_goal
+                - self._wrapped_env.convert_ob_to_goal(ob)
+            )
+            return np.hstack((ob, goal_difference))
+        else:
+            return np.hstack((ob, self._wrapped_env.multitask_goal))
 
     def cost_fn(self, states, actions, next_states):
         if len(next_states.shape) == 1:

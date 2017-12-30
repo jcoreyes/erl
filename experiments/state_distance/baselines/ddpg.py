@@ -63,14 +63,14 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-state-distance-ddpg-baseline"
 
-    n_seeds = 1
+    n_seeds = 3
     mode = "ec2"
-    exp_prefix = "ant-increase-distance"
+    exp_prefix = "find-pusher3d-mismatch-2"
 
-    num_epochs = 100
+    num_epochs = 1000
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
-    max_path_length = 50
+    max_path_length = 250
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -102,33 +102,36 @@ if __name__ == "__main__":
         qf_kwargs=dict(
             hidden_sizes=[300, 300],
         ),
-        version="DDPG",
+        version="DDPG-no-shaping",
         algorithm="DDPG",
     )
     search_space = {
         'env_class': [
             # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
-            GoalXYPosAnt,
+            # GoalXYPosAnt,
             # CylinderXYPusher2DEnv,
             # GoalXPosHalfCheetah,
-            # MultitaskPusher3DEnv,
+            MultitaskPusher3DEnv,
             # Walker2DTargetXPos,
         ],
         'multitask': [True],
-        'env_kwargs': [
-            # dict(),
-            dict(max_distance=2),
-            dict(max_distance=4),
-            dict(max_distance=6),
-            dict(max_distance=8),
-            dict(max_distance=10),
+        'env_kwargs.reward_coefs': [
+            (1, 0, 0),
+            (0.5, 0.375, 0.125),
+        ],
+        'env_kwargs.norm_order': [
+            1,
+            2,
         ],
         'algo_kwargs.reward_scale': [
-            1000, 10000, 100000
+            0.1, 1, 10
         ],
         'algo_kwargs.num_updates_per_env_step': [
             1,
+        ],
+        'algo_kwargs.batch_size': [
+            128,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
