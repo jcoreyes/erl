@@ -132,19 +132,20 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         return goal
 
     def log_diagnostics(self, paths, logger=rllab_logger):
-        if 'goals' not in paths[0]:
+        list_of_goals = extract_list_of_goals(paths)
+        if list_of_goals is None:
             return
+        final_differences = []
+        for path, goals in zip(paths, list_of_goals):
+            reached = self.convert_ob_to_goal(path['observations'][-1])
+            final_differences.append(reached - goals[-1])
+
         statistics = OrderedDict()
 
+        goals = np.vstack(list_of_goals)
         observations = np.vstack([path['observations'] for path in paths])
         next_observations = np.vstack([path['next_observations'] for path in paths])
-        goals = np.vstack([path['goals'] for path in paths])
         actions = np.vstack([path['actions'] for path in paths])
-        final_differences = []
-        for path in paths:
-            reached = self.convert_ob_to_goal(path['observations'][-1])
-            goal = path['goals'][-1]
-            final_differences.append(reached - goal)
         for order in [1, 2]:
             final_distances = np.linalg.norm(
                 np.array(final_differences),
@@ -152,7 +153,7 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
                 ord=order,
             )
             goal_distances = np.linalg.norm(
-                self.convert_obs_to_goals(observations) - goals,
+                self.convert_obs_to_goals(observations) - np.vstack(goals),
                 axis=1,
                 ord=order,
             )
@@ -233,6 +234,29 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
             ord=1,
         )
         return costs
+
+
+def extract_list_of_goals(paths):
+    """
+    Return list of goals. Each element in list is an array of goals and
+    correspond to the goal from different paths.
+
+    Returns None if it's not possible to extract goals from the paths.
+    :param paths:
+    :return:
+    """
+    if len(paths) == 0:
+        return None
+
+    if 'goals' in paths[0]:
+        return [path['goals'] for path in paths]
+
+    if 'env_infos' in paths[0] and 'goal' in paths[0]['env_infos'][0]:
+        return [
+            [info['goal'] for info in path['env_infos']]
+            for path in paths
+        ]
+    return None
 
 
 class MultitaskToFlatEnv(ProxyEnv, Serializable):
