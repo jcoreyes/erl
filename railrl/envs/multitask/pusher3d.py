@@ -65,7 +65,8 @@ class MultitaskPusher3DEnv(MujocoEnv, MultitaskEnv):
         qpos = self.init_qpos
         qpos[:] = 0
         qpos[-4:-2] += self.np_random.uniform(-0.05, 0.05, 2)
-        qpos[-2:] = self.multitask_goal
+        # qpos represents the OFFSET and not the absolute position
+        qpos[-2:] = self.multitask_goal - self.GOAL_ZERO_POS[:2]
         qvel = self.init_qvel + self.np_random.uniform(
             low=-0.005, high=0.005, size=self.model.nv)
         qvel[-4:] = 0
@@ -79,7 +80,7 @@ class MultitaskPusher3DEnv(MujocoEnv, MultitaskEnv):
             self.goal_low,
             self.goal_high,
             (batch_size, self.goal_dim)
-        )
+        ) + self.GOAL_ZERO_POS[:2]
 
     def convert_obs_to_goals(self, obs):
         return obs[:, 8:10]
