@@ -115,7 +115,7 @@ class GoalXYPosAndVelAnt(AntEnv, MultitaskEnv, Serializable):
             max_speed=0.05,
             max_distance=1,
             use_low_gear_ratio=True,
-            speed_weight=0.5,
+            speed_weight=0.9,
     ):
         Serializable.quick_init(self, locals())
         self.max_distance = max_distance
@@ -188,14 +188,10 @@ class GoalXYPosAndVelAnt(AntEnv, MultitaskEnv, Serializable):
             self.get_body_com("torso"),
             torso_velocity,
         ))
-        current_features = self.convert_ob_to_goal(ob)
 
-        pos_error = np.linalg.norm(
-            current_features[:2] - self.multitask_goal[:2]
-        )
-        vel_error = np.linalg.norm(
-            current_features[2:] - self.multitask_goal[2:]
-        )
+        error = self.convert_ob_to_goal(ob) - self.multitask_goal
+        pos_error = np.linalg.norm(error[:3])
+        vel_error = np.linalg.norm(error[3:])
         weighted_vel_error = vel_error * self.speed_weight
         weighted_pos_error = pos_error * (1 - self.speed_weight)
         reward = - (weighted_pos_error + weighted_vel_error)

@@ -110,3 +110,79 @@ class Reacher7DofXyzGoalState(Reacher7DofMultitaskEnv):
 
     def convert_obs_to_goals(self, obs):
         return obs[:, 14:17]
+
+
+class Reacher7DofXyzPosAndVelGoalState(Reacher7DofMultitaskEnv):
+    def __init__(self, speed_weight=0.9, **kwargs):
+        Serializable.quick_init(self, locals())
+        self.speed_weight = speed_weight
+        super().__init__(**kwargs)
+    """
+    The goal state is just the XYZ location and velocity of the end effector.
+    """
+    def sample_goals(self, batch_size):
+        # Number taken from running a random policy and seeing what XYZ values
+        # are reached
+        return np.random.uniform(
+            np.array(-0.75, -1.25, -0.2, -0.03, -0.03, -0.03),
+            np.array(0.75, 0.25, 0.6, 0.03, 0.03, 0.03),
+            (batch_size, 6)
+        )
+
+    def set_goal(self, goal):
+        super().set_goal(goal)
+        self._desired_xyz = goal
+        self._set_goal_xyz(goal)
+
+    @property
+    def goal_dim(self):
+        return 6
+
+    def convert_obs_to_goals(self, obs):
+        return obs[:, 14:20]
+
+    def reset_model(self):
+        qpos = self.init_qpos
+        qvel = self.init_qvel + self.np_random.uniform(
+            low=-0.005, high=0.005, size=self.model.nv
+        )
+        qvel[-7:] = 0
+        self.set_state(qpos, qvel)
+        self._set_goal_xyz(self._desired_xyz)
+        return np.concatenate([
+            self.model.data.qpos.flat[:7],
+            self.model.data.qvel.flat[:7],
+            self.get_body_com("tips_arm"),
+            np.zeros(3),
+        ])
+
+    def _get_obs(self):
+        raise NotImplementedError()
+
+    def _step(self, action):
+        old_xyz = self.get_body_com("tips_arm")
+        self.do_simulation(action, self.frame_skip)
+        new_xyz = self.get_body_com("tips_arm")
+        xyz_vel = new_xyz - old_xyz
+        ob = np.concatenate([
+            self.model.data.qpos.flat[:7],
+            self.model.data.qvel.flat[:7],
+            self.get_body_com("tips_arm"),
+            xyz_vel,
+        ])
+        done = False
+
+        # Compute rewards
+        error = self.convert_ob_to_goal(ob) - self.multitask_goal
+        pos_error = np.linalg.norm(error[:3])
+        vel_error = np.linalg.norm(error[3:])
+        weighted_vel_error = vel_error * self.speed_weight
+        weighted_pos_error = pos_error * (1 - self.speed_weight)
+        reward = - (weighted_pos_error + weighted_vel_error)
+        return ob, reward, done, dict(
+            goal=self.multitask_goal,
+            vel_error=vel_error,
+            pos_error=pos_error,
+            weighted_vel_error=weighted_vel_error,
+            weighted_pos_error=weighted_pos_error,
+        )

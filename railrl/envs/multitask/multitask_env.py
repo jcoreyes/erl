@@ -105,13 +105,18 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
                 obs.unsqueeze(0)
             )[0]
 
+    def compute_reward(self, ob, action, next_ob, goal):
+        return self.compute_rewards(
+            ob[None], action[None], next_ob[None], goal[None]
+        )
+
     """
     Check out these default functions below! You may want to override them.
     """
     def set_goal(self, goal):
         self.multitask_goal = goal
 
-    def compute_rewards(self, obs, action, next_obs, goals):
+    def compute_rewards(self, obs, actions, next_obs, goals):
         return - np.linalg.norm(
             self.convert_obs_to_goals(next_obs) - goals,
             axis=1,
