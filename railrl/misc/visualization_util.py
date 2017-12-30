@@ -140,3 +140,24 @@ def sliding_mean(data_array, window=5):
         new_list.append(avg)
 
     return np.array(new_list)
+
+
+def average_every_n_elements(arr, n):
+    """
+    Compress the array by a factor of n.
+    output[i] = average of input[n*i] to input[n*(i+1)]
+    :param arr:
+    :param n:
+    :return:
+    """
+    return np.nanmean(
+        np.pad(
+            arr.astype(float),
+            (0, n - arr.size % n),
+            mode='constant',
+            constant_values=np.NaN,
+        ).reshape(-1, n),
+        axis=1
+    )
+
+
