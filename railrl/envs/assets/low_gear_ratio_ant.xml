@@ -1,4 +1,4 @@
-<!-- Same a gym ant but with gear ratio of 30 -->
+<!-- Same a gym ant but with gear ratio of 30 and sites -->
 <mujoco model="ant">
     <compiler angle="degree" coordinate="local" inertiafromgeom="true"/>
     <option integrator="RK4" timestep="0.01"/>

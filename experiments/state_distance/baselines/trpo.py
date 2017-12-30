@@ -39,7 +39,7 @@ def experiment(variant):
     baseline = LinearFeatureBaseline(env_spec=env.spec)
 
     optimizer_params = variant['optimizer_params']
-    trpo_params = variant['trpo_params']
+    algo_kwargs = variant['algo_kwargs']
     algo = TRPO(
         env=env,
         policy=policy,
@@ -47,7 +47,7 @@ def experiment(variant):
         optimizer=ConjugateGradientOptimizer(hvp_approach=FiniteDifferenceHvp(
             **optimizer_params
         )),
-        **trpo_params
+        **algo_kwargs
     )
     algo.train()
 
@@ -59,16 +59,16 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "ant-increase-distance"
+    exp_prefix = "normal-gear-ratio-ant-d6"
 
-    num_epochs = 100
+    num_epochs = 1000
     num_steps_per_epoch = 10000
     num_steps_per_eval = 10000
-    max_path_length = 50
+    max_path_length = 100
 
     # noinspection PyTypeChecker
     variant = dict(
-        trpo_params=dict(
+        algo_kwargs=dict(
             batch_size=num_steps_per_epoch,
             max_path_length=max_path_length,
             n_itr=num_epochs,
@@ -95,17 +95,18 @@ if __name__ == "__main__":
             # MultitaskPusher3DEnv,
             # Walker2DTargetXPos,
         ],
-        'env_kwargs': [
-            # dict(),
-            dict(max_distance=2),
-            dict(max_distance=4),
-            dict(max_distance=6),
-            dict(max_distance=8),
-            dict(max_distance=10),
+        'env_kwargs.max_distance': [
+            6,
+        ],
+        'env_kwargs.use_low_gear_ratio': [
+            False,
         ],
         'multitask': [True],
-        'trpo_params.step_size': [
-            0.1, 0.01, 0.001,
+        'algo_kwargs.step_size': [
+            1, 0.01, 0.0001,
+        ],
+        'algo_kwargs.max_path_length': [
+            50, 100
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

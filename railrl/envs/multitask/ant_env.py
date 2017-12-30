@@ -1,9 +1,8 @@
 from collections import OrderedDict
 
 import numpy as np
-import torch
 
-from railrl.envs.mujoco.ant import LowGearAntEnv
+from railrl.envs.mujoco.ant import AntEnv
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.samplers.util import get_stat_in_paths
@@ -13,7 +12,7 @@ from rllab.misc import logger as rllab_logger
 MAX_SPEED = 1
 
 
-class GoalXYVelAnt(LowGearAntEnv, MultitaskEnv, Serializable):
+class GoalXYVelAnt(AntEnv, MultitaskEnv, Serializable):
     # WIP
     def __init__(self):
         self.target_xy_vel = np.random.uniform(-MAX_SPEED, MAX_SPEED, 2)
@@ -98,12 +97,12 @@ class GoalXYVelAnt(LowGearAntEnv, MultitaskEnv, Serializable):
         return Serializable.__setstate__(self, state)
 
 
-class GoalXYPosAnt(LowGearAntEnv, MultitaskEnv, Serializable):
-    def __init__(self, max_distance=2):
+class GoalXYPosAnt(AntEnv, MultitaskEnv, Serializable):
+    def __init__(self, max_distance=2, use_low_gear_ratio=True):
         Serializable.quick_init(self, locals())
         self.max_distance = max_distance
         MultitaskEnv.__init__(self)
-        super().__init__()
+        super().__init__(use_low_gear_ratio=use_low_gear_ratio)
         self.set_goal(np.array([self.max_distance, self.max_distance]))
 
     @property

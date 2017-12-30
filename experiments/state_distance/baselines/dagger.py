@@ -57,7 +57,7 @@ def experiment(variant):
         obs_normalizer=obs_normalizer,
         action_normalizer=action_normalizer,
         delta_normalizer=delta_normalizer,
-        **variant['dagger_kwargs']
+        **variant['algo_kwargs']
     )
     if ptu.gpu_enabled():
         algo.cuda()
@@ -71,17 +71,17 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "ant-increase-distance"
+    exp_prefix = "normal-gear-ratio-ant-d6"
 
-    num_epochs = 100
+    num_epochs = 1000
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
-    max_path_length = 50
+    max_path_length = 100
 
     # noinspection PyTypeChecker
     variant = dict(
-        dagger_kwargs=dict(
-            collection_mode='batch',
+        algo_kwargs=dict(
+            collection_mode='online',
             num_epochs=num_epochs,
             num_steps_per_epoch=num_steps_per_epoch,
             num_steps_per_eval=num_steps_per_eval,
@@ -103,7 +103,7 @@ if __name__ == "__main__":
         model_kwargs=dict(
             hidden_sizes=[300, 300],
         ),
-        version="Model-Based-Dagger",
+        version="Model-Based-Dagger-online-training",
         algorithm="Model-Based-Dagger",
     )
     search_space = {
@@ -117,20 +117,21 @@ if __name__ == "__main__":
             # Walker2DTargetXPos,
         ],
         'multitask': [True],
-        'dagger_kwargs.num_paths_for_normalization': [20],
-        'dagger_kwargs.collection_mode': ['online'],
-        'env_kwargs': [
-            # dict(),
-            dict(max_distance=2),
-            dict(max_distance=4),
-            dict(max_distance=6),
-            dict(max_distance=8),
-            dict(max_distance=10),
+        'algo_kwargs.num_paths_for_normalization': [20],
+        'algo_kwargs.collection_mode': ['online'],
+        'env_kwargs.max_distance': [
+            6,
         ],
-        'dagger_kwargs.batch_size': [128],
-        'mpc_controller_kwargs.mpc_horizon': [15, 50],
-        'dagger_kwargs.num_updates_per_env_step': [
+        'env_kwargs.use_low_gear_ratio': [
+            False,
+        ],
+        'algo_kwargs.batch_size': [128],
+        'mpc_controller_kwargs.mpc_horizon': [15],
+        'algo_kwargs.num_updates_per_env_step': [
             1,
+        ],
+        'algo_kwargs.max_path_length': [
+            50, 100
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

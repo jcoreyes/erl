@@ -1,7 +1,6 @@
 from collections import OrderedDict
 
 import numpy as np
-import torch
 from gym.envs.mujoco import HalfCheetahEnv
 
 from railrl.envs.multitask.multitask_env import MultitaskEnv
@@ -86,12 +85,18 @@ GOAL_X_POSITIONS = [12.5, -12.5]
 
 
 class GoalXPosHalfCheetah(HalfCheetahEnv, MultitaskEnv, Serializable):
-    def __init__(self, goal_x_positions=GOAL_X_POSITIONS):
+    """
+    At a score of 5000, the cheetah is moving at "5 meters per dt" but dt=0.05s,
+    so it's really 100 m/s. For a horizon of 100, that's 5 seconds.
+
+    So 5 m/s * 5s = 25 meters
+    """
+    def __init__(self, max_distance=25):
         Serializable.quick_init(self, locals())
         MultitaskEnv.__init__(self)
         super().__init__()
-        self.goal_x_positions = np.array(goal_x_positions)
-        self.set_goal(self.goal_x_positions[0])
+        self.max_distance = max_distance
+        self.set_goal(np.array([self.max_distance]))
 
     def _get_obs(self):
         return np.concatenate([
@@ -106,7 +111,7 @@ class GoalXPosHalfCheetah(HalfCheetahEnv, MultitaskEnv, Serializable):
         reward_ctrl = info_dict['reward_ctrl']
         distance_to_goal = float(np.abs(xposafter - self.multitask_goal))
         reward_run = -distance_to_goal
-        reward = float(reward_ctrl + reward_run)
+        reward = reward_run
         return ob, reward, done, dict(
             reward_run=reward_run,
             reward_ctrl=reward_ctrl,
@@ -120,7 +125,11 @@ class GoalXPosHalfCheetah(HalfCheetahEnv, MultitaskEnv, Serializable):
         return 1
 
     def sample_goals(self, batch_size):
-        return np.random.choice(self.goal_x_positions, (batch_size, 1))
+        return np.random.uniform(
+            -self.max_distance,
+            self.max_distance,
+            (batch_size, 1),
+        )
 
     def convert_obs_to_goals(self, obs):
         return obs[:, 17:18]

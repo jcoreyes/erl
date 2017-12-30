@@ -6,11 +6,15 @@ import numpy as np
 from railrl.envs.mujoco.mujoco_env import MujocoEnv
 
 
-class LowGearAntEnv(MujocoEnv):
-    def __init__(self):
+class AntEnv(MujocoEnv):
+    def __init__(self, use_low_gear_ratio=True):
         self.init_serialization(locals())
+        if use_low_gear_ratio:
+            xml_path = 'low_gear_ratio_ant.xml'
+        else:
+            xml_path = 'normal_gear_ratio_ant.xml'
         super().__init__(
-            'low_gear_ant.xml',
+            xml_path,
             frame_skip=5,
             automatically_set_obs_and_action_space=True,
         )

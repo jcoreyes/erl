@@ -63,14 +63,14 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-state-distance-ddpg-baseline"
 
-    n_seeds = 3
+    n_seeds = 1
     mode = "ec2"
-    exp_prefix = "find-pusher3d-mismatch-2"
+    exp_prefix = "normal-gear-ratio-ant-d6"
 
     num_epochs = 1000
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
-    max_path_length = 250
+    max_path_length = 100
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -109,23 +109,32 @@ if __name__ == "__main__":
         'env_class': [
             # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
-            # GoalXYPosAnt,
+            GoalXYPosAnt,
             # CylinderXYPusher2DEnv,
             # GoalXPosHalfCheetah,
-            MultitaskPusher3DEnv,
+            # MultitaskPusher3DEnv,
             # Walker2DTargetXPos,
         ],
         'multitask': [True],
-        'env_kwargs.reward_coefs': [
-            (1, 0, 0),
-            (0.5, 0.375, 0.125),
+        # 'env_kwargs.reward_coefs': [
+        #     (1, 0, 0),
+        #     (0.5, 0.375, 0.125),
+        # ],
+        # 'env_kwargs.norm_order': [
+        #     1,
+        #     2,
+        # ],
+        'env_kwargs.max_distance': [
+            6,
         ],
-        'env_kwargs.norm_order': [
-            1,
-            2,
+        'env_kwargs.use_low_gear_ratio': [
+            False,
         ],
         'algo_kwargs.reward_scale': [
-            0.1, 1, 10
+            1, 10, 100, 1000, 10000
+        ],
+        'algo_kwargs.max_path_length': [
+            50, 100
         ],
         'algo_kwargs.num_updates_per_env_step': [
             1,
