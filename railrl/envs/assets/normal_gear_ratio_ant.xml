@@ -72,13 +72,13 @@
   <site name="origin" rgba="1 0 0 0.5" pos="0. 0. 0." size="0.1" />
 </worldbody>
 <actuator>
-  <motor ctrllimited="true" ctrlrange="-1.0 1.0" joint="hip_4"/>
-  <motor ctrllimited="true" ctrlrange="-1.0 1.0" joint="ankle_4"/>
-  <motor ctrllimited="true" ctrlrange="-1.0 1.0" joint="hip_1"/>
-  <motor ctrllimited="true" ctrlrange="-1.0 1.0" joint="ankle_1"/>
-  <motor ctrllimited="true" ctrlrange="-1.0 1.0" joint="hip_2"/>
-  <motor ctrllimited="true" ctrlrange="-1.0 1.0" joint="ankle_2"/>
-  <motor ctrllimited="true" ctrlrange="-1.0 1.0" joint="hip_3"/>
-  <motor ctrllimited="true" ctrlrange="-1.0 1.0" joint="ankle_3"/>
+  <motor ctrllimited="true" ctrlrange="-1.0 1.0" joint="hip_4" gear="120"/>
+  <motor ctrllimited="true" ctrlrange="-1.0 1.0" joint="ankle_4" gear="120"/>
+  <motor ctrllimited="true" ctrlrange="-1.0 1.0" joint="hip_1" gear="120"/>
+  <motor ctrllimited="true" ctrlrange="-1.0 1.0" joint="ankle_1" gear="120"/>
+  <motor ctrllimited="true" ctrlrange="-1.0 1.0" joint="hip_2" gear="120"/>
+  <motor ctrllimited="true" ctrlrange="-1.0 1.0" joint="ankle_2" gear="120"/>
+  <motor ctrllimited="true" ctrlrange="-1.0 1.0" joint="hip_3" gear="120"/>
+  <motor ctrllimited="true" ctrlrange="-1.0 1.0" joint="ankle_3" gear="120"/>
 </actuator>
 </mujoco>
