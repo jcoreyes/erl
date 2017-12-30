@@ -2,6 +2,8 @@ from railrl.misc.data_processing import Experiment
 import matplotlib.pyplot as plt
 import numpy as np
 
+from railrl.misc.visualization_util import sliding_mean
+
 mb_trials = Experiment(
     "/home/vitchyr/git/railrl/data/doodads3/12-30-cheetah-xpos-increase-distance/",
     criteria={
@@ -36,6 +38,7 @@ for trials, name, key in [
         except:
             import ipdb; ipdb.set_trace()
         min_len = min(min_len, len(values_ts))
+        values_ts = sliding_mean(values_ts, window=10)
         all_values.append(values_ts)
     costs = np.vstack([
         values[:min_len]
