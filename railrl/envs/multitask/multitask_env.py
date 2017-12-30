@@ -11,7 +11,7 @@ from rllab.spaces import Box
 
 
 def is_rllab_style_paths(paths):
-    return "next_obervations" not in paths[0]
+    return "next_observations" not in paths[0]
 
 
 class MultitaskEnv(object, metaclass=abc.ABCMeta):
