@@ -32,10 +32,11 @@ class StructuredQF(Mlp):
     def __init__(
             self,
             observation_dim,
-            action_dim,
             goal_dim,
             output_size,
             hidden_sizes,
+            max_tau=None,
+            action_dim=0,
             internal_gcm=True,
             **kwargs
     ):
@@ -50,8 +51,11 @@ class StructuredQF(Mlp):
         self.goal_dim = goal_dim
         self.internal_gcm = internal_gcm
 
-    def forward(self, flat_obs, actions):
-        h = torch.cat((flat_obs, actions), dim=1)
+    def forward(self, flat_obs, actions=None):
+        if actions is not None:
+            h = torch.cat((flat_obs, actions), dim=1)
+        else:
+            h = flat_obs
         for i, fc in enumerate(self.fcs):
             h = self.hidden_activation(fc(h))
         if self.internal_gcm:

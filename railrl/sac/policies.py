@@ -136,8 +136,9 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
             mean_action_log_prob = mean_action_log_prob.sum(dim=1, keepdim=True)
         return (
             action, mean, log_std, log_prob, expected_log_prob, std,
-            mean_action_log_prob, pre_tanh_value
+            mean_action_log_prob, pre_tanh_value,
         )
+
 class StandardTanhGaussianPolicy(TanhGaussianPolicy):
     def __init__(
             self,
@@ -159,6 +160,7 @@ class StandardTanhGaussianPolicy(TanhGaussianPolicy):
             init_w=init_w,
             **kwargs
         )
+
 class OneHotTauTanhGaussianPolicy(TanhGaussianPolicy):
     def __init__(
             self,
@@ -240,7 +242,6 @@ class BinaryTauTanhGaussianPolicy(TanhGaussianPolicy):
             return_log_prob_of_mean=False,
     ):
         obs, taus = split_tau(obs)
-        h = obs
         batch_size = taus.size()[0]
         y_binary = make_binary_tensor(taus, len(self.max_tau), batch_size)
         h = torch.cat((
@@ -389,6 +390,7 @@ class TauVectorSeparateFirstLayerTanhGaussianPolicy(SeparateFirstLayerMlp, Explo
         log_prob = None
         expected_log_prob = None
         mean_action_log_prob = None
+        pre_tanh_value = None
         if deterministic:
             action = torch.tanh(mean)
         else:
@@ -421,7 +423,7 @@ class TauVectorSeparateFirstLayerTanhGaussianPolicy(SeparateFirstLayerMlp, Explo
             mean_action_log_prob = mean_action_log_prob.sum(dim=1, keepdim=True)
         return (
             action, mean, log_std, log_prob, expected_log_prob, std,
-            mean_action_log_prob
+            mean_action_log_prob, pre_tanh_value,
         )
 
 class MakeDeterministic(Policy):

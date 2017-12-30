@@ -4,13 +4,15 @@ import railrl.misc.hyperparameter as hyp
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.envs.multitask.ant_env import GoalXYVelAnt, GoalXYPosAnt
 from railrl.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState
-from railrl.envs.wrappers import normalize_box
+from railrl.envs.wrappers import normalize_box, convert_gym_space
+from railrl.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
+from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.sac.policies import *
 from railrl.state_distance.tdm_networks import *
 from railrl.state_distance.tdm_networks import OneHotTauQF, BinaryStringTauQF, TauVectorQF, \
     TauVectorSeparateFirstLayerQF
-from railrl.state_distance.tdm_sac import TdmSac
+from railrl.state_distance.tdm_ddpg import TdmDdpg
 
 
 def experiment(variant):
@@ -20,18 +22,17 @@ def experiment(variant):
     action_dim = int(np.prod(env.action_space.low.shape))
     vectorized = variant['algo_params']['tdm_kwargs']['vectorized']
     qf_class = variant['qf_class']
-    vf_class = variant['vf_class']
     policy_class = variant['policy_class']
+    es_class = variant['es_class']
+    es_params = dict(
+        action_space=convert_gym_space(env.action_space),
+        **variant['es_params']
+    )
+    es = es_class(**es_params)
     qf = qf_class(
         observation_dim=obs_dim,
         action_dim=action_dim,
         goal_dim =env.goal_dim,
-        output_size=env.goal_dim if vectorized else 1,
-        **variant['qf_params']
-    )
-    vf = vf_class(
-        observation_dim=obs_dim,
-        goal_dim=env.goal_dim,
         output_size=env.goal_dim if vectorized else 1,
         **variant['qf_params']
     )
@@ -45,11 +46,15 @@ def experiment(variant):
         env=env,
         **variant['her_replay_buffer_params']
     )
-    algorithm = TdmSac(
+    exploration_policy = PolicyWrappedWithExplorationStrategy(
+        exploration_strategy=es,
+        policy=policy,
+    )
+    algorithm = TdmDdpg(
         env=env,
         policy=policy,
         qf=qf,
-        vf=vf,
+        exploration_policy=exploration_policy,
         replay_buffer=replay_buffer,
         **variant['algo_params']
     )
@@ -60,8 +65,8 @@ def experiment(variant):
 
 if __name__ == "__main__":
     n_seeds = 1
-    mode = "ec2"
-    exp_prefix = "tdm-ant-SAC"
+    mode = "local_docker"
+    exp_prefix = "tdm-reacher_7dof-SAC"
 
     num_epochs = 100
     num_steps_per_epoch = 1000
@@ -70,10 +75,10 @@ if __name__ == "__main__":
     max_tau = max_path_length-1
     # noinspection PyTypeChecker
     versions = [
-        (StructuredQF, StructuredQF, StandardTanhGaussianPolicy, '_standard'),
-        (OneHotTauQF, OneHotTauQF, OneHotTauTanhGaussianPolicy, '_one_hot_tau'),
-        (BinaryStringTauQF, BinaryStringTauQF, BinaryTauTanhGaussianPolicy, '_binary_string_tau'),
-        (TauVectorQF, TauVectorQF, TauVectorTanhGaussianPolicy, '_tau_vector'),
+        # (StructuredQF, StructuredQF, StandardTanhGaussianPolicy, '_standard'),
+        # (OneHotTauQF, OneHotTauQF, OneHotTauTanhGaussianPolicy, '_one_hot_tau'),
+        # (BinaryStringTauQF, BinaryStringTauQF, BinaryTauTanhGaussianPolicy, '_binary_string_tau'),
+        # (TauVectorQF, TauVectorQF, TauVectorTanhGaussianPolicy, '_tau_vector'),
         (TauVectorSeparateFirstLayerQF, TauVectorSeparateFirstLayerQF, TauVectorSeparateFirstLayerTanhGaussianPolicy,
          '_separate_first_layer')
     ]
@@ -95,11 +100,10 @@ if __name__ == "__main__":
                 cycle_taus_for_rollout=True,
                 max_tau=10,
             ),
-            sac_kwargs=dict(
-                soft_target_tau=0.01,
-                policy_lr=3E-4,
-                qf_lr=3E-4,
-                vf_lr=3E-4,
+            ddpg_kwargs=dict(
+                tau=0.001,
+                qf_learning_rate=1e-3,
+                policy_learning_rate=1e-4,
             ),
         ),
         her_replay_buffer_params=dict(
@@ -118,15 +122,22 @@ if __name__ == "__main__":
             max_tau=max_tau,
             hidden_sizes=[100, 100],
         ),
+        es_params=dict(
+            min_sigma=0.25,
+            max_sigma=0.25,
+        ),
+        es_class=OUStrategy,
     )
     search_space = {
         'env_class': [
-            GoalXYVelAnt,
-            GoalXYPosAnt,
+            Reacher7DofXyzGoalState,
         ],
         'algo_params.base_kwargs.reward_scale': [
+            1,
+            10,
             100,
             1000,
+            10000,
         ],
         'algo_params.tdm_kwargs.vectorized': [
             True,
@@ -134,6 +145,14 @@ if __name__ == "__main__":
         'algo_params.tdm_kwargs.sample_rollout_goals_from': [
             'environment',
         ],
+        'algo_params.base_kwargs.num_updates_per_env_step':[
+            1,
+            5,
+            10,
+            15,
+            20,
+            25,
+        ]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
