@@ -36,7 +36,7 @@ def experiment(variant):
 
     variant['ddpg_tdm_kwargs']['tdm_kwargs']['vectorized'] = vectorized
     variant['ddpg_tdm_kwargs']['tdm_kwargs']['norm_order'] = norm_order
-    variant['env_kwargs']['norm_order'] = norm_order
+    # variant['env_kwargs']['norm_order'] = norm_order
     env = normalize_box(variant['env_class'](**variant['env_kwargs']))
     qf = TdmQf(
         env=env,
@@ -83,14 +83,14 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-ddpg-tdm-launch"
 
-    # n_seeds = 1
-    # mode = "ec2"
-    # exp_prefix = "pusher3d-fixed-sweep-differences"
+    n_seeds = 1
+    mode = "ec2"
+    exp_prefix = "cheetah-xpos-increase-distance"
 
-    num_epochs = 1000
+    num_epochs = 500
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
-    max_path_length = 250
+    max_path_length = 100
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -135,23 +135,23 @@ if __name__ == "__main__":
         ),
         qf_criterion_class=HuberLoss,
         qf_criterion_kwargs=dict(),
-        version="DDPG-TDM",
+        version="DDPG-TDM-no-crash",
         algorithm="DDPG-TDM",
     )
     search_space = {
         'env_class': [
             # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
-            # GoalXPosHalfCheetah,
+            GoalXPosHalfCheetah,
             # GoalXYPosAnt,
             # CylinderXYPusher2DEnv,
             # Walker2DTargetXPos,
-            MultitaskPusher3DEnv,
+            # MultitaskPusher3DEnv,
         ],
         'env_kwargs': [
-            dict(
-                reward_coefs=(1, 0, 0),
-            ),
+            # dict(
+                # reward_coefs=(1, 0, 0),
+            # ),
             # dict(
             #     reward_coefs=(0.5, 0.375, 0.125),
             # ),
@@ -159,7 +159,9 @@ if __name__ == "__main__":
             # dict(max_distance=4),
             # dict(max_distance=6),
             # dict(max_distance=8),
-            # dict(max_distance=10),
+            dict(max_distance=20),
+            dict(max_distance=30),
+            dict(max_distance=40),
         ],
         'qf_criterion_class': [
             # HuberLoss,
@@ -185,7 +187,6 @@ if __name__ == "__main__":
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.reward_type': [
             'distance',
-            # 'env',
         ],
         'relabel': [
             True, False,
@@ -194,21 +195,21 @@ if __name__ == "__main__":
         #     1,
         # ],
         'qf_kwargs.structure': [
-            # 'norm_difference',
+            'norm_difference',
             # 'norm',
             # 'norm_distance_difference',
             # 'distance_difference',
             # 'difference',
-            'none',
+            # 'none',
         ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
-            0.1, 1, 100, 10000,
+            0.01, 1, 100, 10000,
         ],
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
             1,
         ],
         'ddpg_tdm_kwargs.base_kwargs.discount': [
-            0.98,
+            1,
         ],
         'ddpg_tdm_kwargs.base_kwargs.batch_size': [
             128,
@@ -219,8 +220,8 @@ if __name__ == "__main__":
         'ddpg_tdm_kwargs.ddpg_kwargs.eval_with_target_policy': [
             False,
         ],
-        'vectorized': [True, False],
-        'norm_order': [2],
+        'vectorized': [True],
+        'norm_order': [1],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

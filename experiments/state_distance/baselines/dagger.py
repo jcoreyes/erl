@@ -69,14 +69,14 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-dagger"
 
-    # n_seeds = 3
-    # mode = "ec2"
-    # exp_prefix = "mb-dagger-pusher3d-fixed"
+    n_seeds = 3
+    mode = "ec2"
+    exp_prefix = "mb-dagger-pusher3d-fixed-2"
 
-    num_epochs = 1000
-    num_steps_per_epoch = 10
-    num_steps_per_eval = 10
-    max_path_length = 10
+    num_epochs = 500
+    num_steps_per_epoch = 1000
+    num_steps_per_eval = 1000
+    max_path_length = 100
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -118,18 +118,23 @@ if __name__ == "__main__":
             # Walker2DTargetXPos,
         ],
         'multitask': [True],
-        'algo_kwargs.num_paths_for_normalization': [21],
+        'algo_kwargs.num_paths_for_normalization': [20],
         # 'env_kwargs.max_distance': [
         #     6,
         # ],
         # 'env_kwargs.use_low_gear_ratio': [
         #     False,
         # ],
-        'algo_kwargs.batch_size': [2],
+        'algo_kwargs.batch_size': [128],
         'mpc_controller_kwargs.mpc_horizon': [15],
         'algo_kwargs.num_updates_per_env_step': [
             1,
         ],
+        # 'env_kwargs.max_distance': [
+            # 20,
+            # 30,
+            # 40,
+        # ],
         # 'algo_kwargs.max_path_length': [
         #     50, 100
         # ],

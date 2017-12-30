@@ -63,13 +63,13 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-state-distance-ddpg-baseline"
 
-    # n_seeds = 1
-    # mode = "ec2"
-    # exp_prefix = "ant-target-xy-pos-and-vel"
+    n_seeds = 1
+    mode = "ec2"
+    exp_prefix = "cheetah-xpos-increase-distance"
 
-    num_epochs = 1000
-    num_steps_per_epoch = 100
-    num_steps_per_eval = 100
+    num_epochs = 500
+    num_steps_per_epoch = 1000
+    num_steps_per_eval = 1000
     max_path_length = 100
 
     # noinspection PyTypeChecker
@@ -110,9 +110,9 @@ if __name__ == "__main__":
             # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
             # GoalXYPosAnt,
-            GoalXYPosAndVelAnt,
+            # GoalXYPosAndVelAnt,
             # CylinderXYPusher2DEnv,
-            # GoalXPosHalfCheetah,
+            GoalXPosHalfCheetah,
             # MultitaskPusher3DEnv,
             # Walker2DTargetXPos,
         ],
@@ -126,16 +126,18 @@ if __name__ == "__main__":
         #     2,
         # ],
         'env_kwargs.max_distance': [
-            1,
+            20,
+            30,
+            40,
         ],
-        'env_kwargs.speed_weight': [
-            0.9,
-        ],
-        'env_kwargs.use_low_gear_ratio': [
-            True, False,
-        ],
+        # 'env_kwargs.speed_weight': [
+            # 0.9,
+        # ],
+        # 'env_kwargs.use_low_gear_ratio': [
+            # True, False,
+        # ],
         'algo_kwargs.reward_scale': [
-            1, 10, 100, 1000, 10000
+           0.01, 0.1, 1, 10, 100,
         ],
         'algo_kwargs.max_path_length': [
             100
