@@ -34,6 +34,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             terminate_when_goal_reached=False,
             truncated_geom_factor=2.,
             norm_order=1,
+            goal_weights=None,
     ):
         """
 
@@ -77,6 +78,8 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         reached the goal?
         :param norm_order: If vectorized=False, do you use L1, L2,
         etc. for distance?
+        :param goal_weights: None or the weights for the different goal
+        dimensions. These weights are used to compute the distances to the goal.
         """
         assert sample_train_goals_from in ['environment', 'replay_buffer',
                                            'her', 'no_resampling']
@@ -113,6 +116,11 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         self._current_path_goal = None
         self._rollout_tau = self.max_tau
         self.truncated_geom_factor = float(truncated_geom_factor)
+        self.goal_weights = goal_weights
+        if self.goal_weights is not None:
+            # In case they were passed in as (e.g.) tuples or list
+            self.goal_weights = np.array(self.goal_weights)
+            assert self.goal_weights.size == self.env.goal_dim
 
         self.policy = MakeUniversal(self.policy)
         self.eval_policy = MakeUniversal(self.eval_policy)
@@ -219,6 +227,8 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
                 )
         elif self.reward_type == 'distance':
             diff = self.env.convert_obs_to_goals(next_obs) - goals
+            if self.goal_weights is not None:
+                diff = diff * self.goal_weights
             if self.vectorized:
                 return -np.abs(diff) * self.reward_scale
             else:

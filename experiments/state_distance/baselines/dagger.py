@@ -69,9 +69,9 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-dagger"
 
-    n_seeds = 1
-    mode = "ec2"
-    exp_prefix = "normal-gear-ratio-ant-d6"
+    # n_seeds = 1
+    # mode = "ec2"
+    # exp_prefix = "normal-gear-ratio-ant-d6"
 
     num_epochs = 1000
     num_steps_per_epoch = 1000

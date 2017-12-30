@@ -1,7 +1,7 @@
 import random
 
 # from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
-from railrl.envs.multitask.ant_env import GoalXYPosAnt
+from railrl.envs.multitask.ant_env import GoalXYPosAnt, GoalXYPosAndVelAnt
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
     GoalXPosHalfCheetah
 from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
@@ -59,7 +59,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "normal-gear-ratio-ant-d6"
+    exp_prefix = "ant-target-xy-pos-and-vel"
 
     num_epochs = 1000
     num_steps_per_epoch = 10000
@@ -90,23 +90,27 @@ if __name__ == "__main__":
             # GoalXVelHalfCheetah,
             # GoalXPosHalfCheetah,
             # Reacher7DofXyzGoalState,
-            GoalXYPosAnt,
+            # GoalXYPosAnt,
+            GoalXYPosAndVelAnt,
             # CylinderXYPusher2DEnv,
             # MultitaskPusher3DEnv,
             # Walker2DTargetXPos,
         ],
         'env_kwargs.max_distance': [
-            6,
+            1,
+        ],
+        'env_kwargs.speed_weight': [
+            0.99, 0.9, 0.5
         ],
         'env_kwargs.use_low_gear_ratio': [
-            False,
+            True, False,
         ],
         'multitask': [True],
         'algo_kwargs.step_size': [
-            1, 0.01, 0.0001,
+            100, 1, 0.01, 0.0001,
         ],
         'algo_kwargs.max_path_length': [
-            50, 100
+            100
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

@@ -110,10 +110,18 @@ class GoalXYPosAnt(AntEnv, MultitaskEnv, Serializable):
 
 
 class GoalXYPosAndVelAnt(AntEnv, MultitaskEnv, Serializable):
-    def __init__(self, max_speed=0.05, max_distance=2, use_low_gear_ratio=True):
+    def __init__(
+            self,
+            max_speed=0.05,
+            max_distance=1,
+            use_low_gear_ratio=True,
+            speed_weight=0.5,
+    ):
         Serializable.quick_init(self, locals())
         self.max_distance = max_distance
         self.max_speed = max_speed
+        self.speed_weight = speed_weight
+        assert 0 <= self.speed_weight <= 1
         MultitaskEnv.__init__(self)
         super().__init__(use_low_gear_ratio=use_low_gear_ratio)
         self.set_goal(np.array([
@@ -188,11 +196,15 @@ class GoalXYPosAndVelAnt(AntEnv, MultitaskEnv, Serializable):
         vel_error = np.linalg.norm(
             current_features[2:] - self.multitask_goal[2:]
         )
-        reward = - vel_error - pos_error
+        weighted_vel_error = vel_error * self.speed_weight
+        weighted_pos_error = pos_error * (1 - self.speed_weight)
+        reward = - (weighted_pos_error + weighted_vel_error)
         info_dict = dict(
             goal=self.multitask_goal,
             vel_error=vel_error,
             pos_error=pos_error,
+            weighted_vel_error=weighted_vel_error,
+            weighted_pos_error=weighted_pos_error,
         )
         return ob, reward, done, info_dict
 
@@ -213,28 +225,26 @@ class GoalXYPosAndVelAnt(AntEnv, MultitaskEnv, Serializable):
     def log_diagnostics(self, paths, logger=rllab_logger):
         super().log_diagnostics(paths)
         MultitaskEnv.log_diagnostics(self, paths)
-        vel_errors = get_stat_in_paths(
-            paths, 'env_infos', 'vel_error'
-        )
-        pos_errors = get_stat_in_paths(
-            paths, 'env_infos', 'pos_error'
-        )
 
         statistics = OrderedDict()
-        for stat, name in [
-            (pos_errors, 'pos errors'),
-            (vel_errors, 'vel errors'),
+        for stat_name in [
+            'pos_error',
+            'vel_error',
+            'weighted_pos_error',
+            'weighted_vel_error',
         ]:
+            stat = get_stat_in_paths(paths, 'env_infos', stat_name)
             statistics.update(create_stats_ordered_dict(
-                '{}'.format(name),
+                '{}'.format(stat_name),
                 stat,
                 always_show_all_stats=True,
             ))
             statistics.update(create_stats_ordered_dict(
-                'Final {}'.format(name),
+                'Final {}'.format(stat_name),
                 [s[-1] for s in stat],
                 always_show_all_stats=True,
             ))
+
         for key, value in statistics.items():
             logger.record_tabular(key, value)
 

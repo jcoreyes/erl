@@ -1,7 +1,7 @@
 import random
 
 import railrl.misc.hyperparameter as hyp
-from railrl.envs.multitask.ant_env import GoalXYPosAnt
+from railrl.envs.multitask.ant_env import GoalXYPosAnt, GoalXYPosAndVelAnt
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
     GoalXPosHalfCheetah
 from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
@@ -63,13 +63,13 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-state-distance-ddpg-baseline"
 
-    n_seeds = 1
-    mode = "ec2"
-    exp_prefix = "normal-gear-ratio-ant-d6"
+    # n_seeds = 1
+    # mode = "ec2"
+    # exp_prefix = "ant-target-xy-pos-and-vel"
 
     num_epochs = 1000
-    num_steps_per_epoch = 1000
-    num_steps_per_eval = 1000
+    num_steps_per_epoch = 100
+    num_steps_per_eval = 100
     max_path_length = 100
 
     # noinspection PyTypeChecker
@@ -109,7 +109,8 @@ if __name__ == "__main__":
         'env_class': [
             # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
-            GoalXYPosAnt,
+            # GoalXYPosAnt,
+            GoalXYPosAndVelAnt,
             # CylinderXYPusher2DEnv,
             # GoalXPosHalfCheetah,
             # MultitaskPusher3DEnv,
@@ -125,16 +126,19 @@ if __name__ == "__main__":
         #     2,
         # ],
         'env_kwargs.max_distance': [
-            6,
+            1,
+        ],
+        'env_kwargs.speed_weight': [
+            0.9,
         ],
         'env_kwargs.use_low_gear_ratio': [
-            False,
+            True, False,
         ],
         'algo_kwargs.reward_scale': [
             1, 10, 100, 1000, 10000
         ],
         'algo_kwargs.max_path_length': [
-            50, 100
+            100
         ],
         'algo_kwargs.num_updates_per_env_step': [
             1,

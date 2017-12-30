@@ -10,6 +10,10 @@ from rllab.misc import logger as rllab_logger
 from rllab.spaces import Box
 
 
+def is_rllab_style_paths(paths):
+    return "next_obervations" not in paths[0]
+
+
 class MultitaskEnv(object, metaclass=abc.ABCMeta):
     """
     An environment with a task that can be specified with a goal.
@@ -142,10 +146,22 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
 
         statistics = OrderedDict()
 
-        goals = np.vstack(list_of_goals)
-        observations = np.vstack([path['observations'] for path in paths])
-        next_observations = np.vstack([path['next_observations'] for path in paths])
-        actions = np.vstack([path['actions'] for path in paths])
+        if is_rllab_style_paths(paths):
+            observations = np.vstack([
+                path["observations"][:-1] for path in paths
+            ])
+            next_observations = np.vstack([
+                path["observations"][1:] for path in paths
+            ])
+            actions = np.vstack([
+                path["actions"][:-1] for path in paths
+            ])
+            goals = np.vstack([goals[:-1] for goals in list_of_goals])
+        else:
+            goals = np.vstack(list_of_goals)
+            observations = np.vstack([path['observations'] for path in paths])
+            next_observations = np.vstack([path['next_observations'] for path in paths])
+            actions = np.vstack([path['actions'] for path in paths])
         for order in [1, 2]:
             final_distances = np.linalg.norm(
                 np.array(final_differences),
@@ -251,11 +267,15 @@ def extract_list_of_goals(paths):
     if 'goals' in paths[0]:
         return [path['goals'] for path in paths]
 
-    if 'env_infos' in paths[0] and 'goal' in paths[0]['env_infos'][0]:
-        return [
-            [info['goal'] for info in path['env_infos']]
-            for path in paths
-        ]
+    if 'env_infos' in paths[0]:
+        env_infos = paths[0]
+        if isinstance(env_infos, dict):  # rllab style paths
+            return [path['env_infos']['goal'] for path in paths]
+        elif 'goal' in env_infos[0]:
+            return [
+                [info['goal'] for info in path['env_infos']]
+                for path in paths
+            ]
     return None
 
 
