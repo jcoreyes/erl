@@ -83,14 +83,14 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-ddpg-tdm-launch"
 
-    n_seeds = 1
+    n_seeds = 3
     mode = "ec2"
-    exp_prefix = "cheetah-xpos-increase-distance"
+    exp_prefix = "ant-max-distance-6-h50"
 
-    num_epochs = 500
+    num_epochs = 300
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
-    max_path_length = 100
+    max_path_length = 50
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -142,8 +142,8 @@ if __name__ == "__main__":
         'env_class': [
             # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
-            GoalXPosHalfCheetah,
-            # GoalXYPosAnt,
+            # GoalXPosHalfCheetah,
+            GoalXYPosAnt,
             # CylinderXYPusher2DEnv,
             # Walker2DTargetXPos,
             # MultitaskPusher3DEnv,
@@ -157,11 +157,11 @@ if __name__ == "__main__":
             # ),
             # dict(max_distance=2),
             # dict(max_distance=4),
-            # dict(max_distance=6),
+            dict(max_distance=6),
             # dict(max_distance=8),
-            dict(max_distance=20),
-            dict(max_distance=30),
-            dict(max_distance=40),
+            # dict(max_distance=20),
+            # dict(max_distance=30),
+            # dict(max_distance=40),
         ],
         'qf_criterion_class': [
             # HuberLoss,
@@ -174,13 +174,13 @@ if __name__ == "__main__":
             dict(theta=0.1, max_sigma=0.1, min_sigma=0.1),
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.max_tau': [
-            max_path_length-1, 49, 15
+            max_path_length-1, 15
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.dense_rewards': [
-            False, True,
+            False,
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.finite_horizon': [
-            True, False,
+            True,
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.tau_sample_strategy': [
             'uniform',
@@ -189,7 +189,7 @@ if __name__ == "__main__":
             'distance',
         ],
         'relabel': [
-            True, False,
+            True,
         ],
         # 'ddpg_tdm_kwargs.tdm_kwargs.truncated_geom_factor': [
         #     1,
@@ -203,19 +203,16 @@ if __name__ == "__main__":
             # 'none',
         ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
-            0.01, 1, 100, 10000,
+            1, 100, 10000, 1000000
         ],
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
-            1,
+            1, 2, 5, 10
         ],
         'ddpg_tdm_kwargs.base_kwargs.discount': [
             1,
         ],
         'ddpg_tdm_kwargs.base_kwargs.batch_size': [
             128,
-        ],
-        'ddpg_tdm_kwargs.ddpg_kwargs.tau': [
-            0.001,
         ],
         'ddpg_tdm_kwargs.ddpg_kwargs.eval_with_target_policy': [
             False,

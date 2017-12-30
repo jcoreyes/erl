@@ -63,14 +63,14 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-state-distance-ddpg-baseline"
 
-    n_seeds = 1
+    n_seeds = 3
     mode = "ec2"
-    exp_prefix = "cheetah-xpos-increase-distance"
+    exp_prefix = "ant-max-distance-6-h50"
 
-    num_epochs = 500
+    num_epochs = 300
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
-    max_path_length = 100
+    max_path_length = 50
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -109,10 +109,10 @@ if __name__ == "__main__":
         'env_class': [
             # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
-            # GoalXYPosAnt,
+            GoalXYPosAnt,
             # GoalXYPosAndVelAnt,
             # CylinderXYPusher2DEnv,
-            GoalXPosHalfCheetah,
+            # GoalXPosHalfCheetah,
             # MultitaskPusher3DEnv,
             # Walker2DTargetXPos,
         ],
@@ -126,9 +126,7 @@ if __name__ == "__main__":
         #     2,
         # ],
         'env_kwargs.max_distance': [
-            20,
-            30,
-            40,
+            6,
         ],
         # 'env_kwargs.speed_weight': [
             # 0.9,
@@ -137,13 +135,10 @@ if __name__ == "__main__":
             # True, False,
         # ],
         'algo_kwargs.reward_scale': [
-           0.01, 0.1, 1, 10, 100,
-        ],
-        'algo_kwargs.max_path_length': [
-            100
+           1, 100, 10000, 1000000
         ],
         'algo_kwargs.num_updates_per_env_step': [
-            1,
+            1, 2, 5, 10
         ],
         'algo_kwargs.batch_size': [
             128,

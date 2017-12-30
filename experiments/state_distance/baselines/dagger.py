@@ -71,12 +71,12 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "mb-dagger-pusher3d-fixed-2"
+    exp_prefix = "ant-max-distance-6-h50"
 
-    num_epochs = 500
+    num_epochs = 300
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
-    max_path_length = 100
+    max_path_length = 50
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -111,24 +111,24 @@ if __name__ == "__main__":
         'env_class': [
             # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
-            # GoalXYPosAnt,
+            GoalXYPosAnt,
             # GoalXPosHalfCheetah,
             # CylinderXYPusher2DEnv,
-            MultitaskPusher3DEnv,
+            # MultitaskPusher3DEnv,
             # Walker2DTargetXPos,
         ],
         'multitask': [True],
         'algo_kwargs.num_paths_for_normalization': [20],
-        # 'env_kwargs.max_distance': [
-        #     6,
-        # ],
+        'env_kwargs.max_distance': [
+            6,
+        ],
         # 'env_kwargs.use_low_gear_ratio': [
         #     False,
         # ],
         'algo_kwargs.batch_size': [128],
         'mpc_controller_kwargs.mpc_horizon': [15],
         'algo_kwargs.num_updates_per_env_step': [
-            1,
+            1, 2, 5, 10
         ],
         # 'env_kwargs.max_distance': [
             # 20,

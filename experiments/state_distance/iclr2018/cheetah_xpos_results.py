@@ -2,47 +2,28 @@ from railrl.misc.data_processing import Experiment
 import matplotlib.pyplot as plt
 import numpy as np
 
-# ddpg_trials = Experiment(
-#     "/home/vitchyr/git/railrl/data/doodads3/12-17-tdm-half-cheetah-xpos/"
-# ).get_trials({
-#     'algorithm': 'DDPG',
-#     'multitask': True,
-#     'exp_id': '0',
-# })
-# tdm_trials = Experiment(
-#     "/home/vitchyr/git/railrl/data/doodads3/12-17-tdm-half-cheetah-xpos/"
-# ).get_trials({
-#     'algorithm': 'DDPG-TDM',
-#     'multitask': True,
-#     'exp_id': '3',
-# })
 mb_trials = Experiment(
-    "/home/vitchyr/git/railrl/data/doodads3/12-24-dagger-mb-ant-cheetah-pos-and-vel/"
-).get_trials({
-    'exp_id': '2'
-})
-ddpg_indicator_trials = Experiment(
-    "/home/vitchyr/git/railrl/data/doodads3/12-23-ddpg-sparse-sweep-4/"
-).get_trials({
-    'env_class.$class':
-        'railrl.envs.multitask.half_cheetah.GoalXPosHalfCheetah',
-    'exp_id': '13',
-})
-her_andry_trials = Experiment(
-    "/home/vitchyr/git/railrl/data/doodads3/12-24-her-andrychowicz-cheetah-xpos-rebutal/"
-).get_trials({
-    'exp_id': '20',
-})
+    "/home/vitchyr/git/railrl/data/doodads3/12-30-cheetah-xpos-increase-distance/",
+    criteria={
+        'algorithm': 'Model-Based-Dagger',
+        'env_kwargs.max_distance': 40,
+    },
+).get_trials()
+ddpg_trials = Experiment(
+    "/home/vitchyr/git/railrl/data/doodads3/12-30-cheetah-xpos-increase-distance/",
+    criteria={
+        'algorithm': 'DDPG',
+        'env_kwargs.max_distance': 40,
+        'exp_id': '10',
+    },
+).get_trials()
 
 MAX_ITERS = 10000
 plt.figure()
 base_key = 'Final_Distance_to_goal_Mean'
 for trials, name, key in [
-    # (tdm_trials, 'TDM', base_key),
     (mb_trials, 'Model Based', base_key),
-    # (ddpg_trials, 'DDPG', base_key),
-    (her_andry_trials, 'HER', base_key),
-    (ddpg_indicator_trials, 'DDPG-Sparse', base_key),
+    (ddpg_trials, 'DDPG', base_key),
 ]:
     all_values = []
     min_len = np.inf

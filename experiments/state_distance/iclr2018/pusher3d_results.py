@@ -4,40 +4,24 @@ import numpy as np
 
 
 def main():
-    tdm_trials = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/12-25-tdm-ddpg-pusher3d/",
+    ddpg_trials = Experiment(
+        "/home/vitchyr/git/railrl/data/doodads3/12-29-find-pusher3d-mismatch-2",
         criteria={
-             'exp_id': '3',
-        }
-    ).get_trials()
-    trpo_trials = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/12-25-trpo-pusher-3d/",
-        criteria={
-            'exp_id': '2',
+            'env_kwargs.reward_coefs': [1, 0, 0],
+            'exp_id': '1',
         }
     ).get_trials()
     mb_trials = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/12-25-mb-dagger-pusher-3d-take2/",
-        criteria={
-            'exp_id': '1',
-        }
-    ).get_trials()
-    ddpg_trials = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/12-25-ddpg-pusher-3d-take2/",
-        criteria={
-            'exp_id': '1',
-        }
+        "/home/vitchyr/git/railrl/data/doodads3/12-30-mb-dagger-pusher3d-fixed-2/",
     ).get_trials()
 
-    MAX_ITERS = 100
+    MAX_ITERS = 10000
 
     plt.figure()
     base_key = 'Final Distance to goal Mean'
     for trials, name, key in [
-        (tdm_trials, 'TDMs', base_key),
-        (mb_trials, 'Model-Based', base_key),
         (ddpg_trials, 'DDPG', base_key),
-        (trpo_trials, 'TRPO', base_key),
+        (mb_trials, 'Model-Based', base_key),
     ]:
         key = key.replace(" ", "_")
         all_values = []
@@ -59,7 +43,7 @@ def main():
         plt.fill_between(epochs, mean - std, mean + std, alpha=0.1)
         plt.plot(epochs, mean, label=name)
 
-    plt.xlabel("Environment Samples (x10,000)")
+    plt.xlabel("Environment Samples (x1,000)")
     plt.ylabel("Final Euclidean Distance to Goal Position")
     plt.legend()
     plt.savefig('results/iclr2018/pusher3d.jpg')
