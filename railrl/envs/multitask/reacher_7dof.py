@@ -155,8 +155,7 @@ class Reacher7DofXyzPosAndVelGoalState(Reacher7DofMultitaskEnv):
 
     def set_goal(self, goal):
         super().set_goal(goal)
-        self._desired_xyz = goal
-        self._set_goal_xyz(goal)
+        self._set_goal_xyz(goal[0:3])
 
     @property
     def goal_dim(self):
@@ -172,7 +171,7 @@ class Reacher7DofXyzPosAndVelGoalState(Reacher7DofMultitaskEnv):
         )
         qvel[-7:] = 0
         self.set_state(qpos, qvel)
-        self._set_goal_xyz(self._desired_xyz)
+        self._set_goal_xyz(self.multitask_goal[0:3])
         return np.concatenate([
             self.model.data.qpos.flat[:7],
             self.model.data.qvel.flat[:7],
@@ -205,11 +204,36 @@ class Reacher7DofXyzPosAndVelGoalState(Reacher7DofMultitaskEnv):
         reward = - (weighted_pos_error + weighted_vel_error)
         if np.abs(reward) < self.done_threshold and not self.initializing:
             done = True
-        print(reward)
         return ob, reward, done, dict(
             goal=self.multitask_goal,
             vel_error=vel_error,
             pos_error=pos_error,
+            distance=pos_error,
             weighted_vel_error=weighted_vel_error,
             weighted_pos_error=weighted_pos_error,
         )
+
+    def log_diagnostics(self, paths, logger=rllab_logger):
+        super().log_diagnostics(paths)
+
+        statistics = OrderedDict()
+        for stat_name in [
+            'pos_error',
+            'vel_error',
+            'weighted_pos_error',
+            'weighted_vel_error',
+        ]:
+            stat = get_stat_in_paths(paths, 'env_infos', stat_name)
+            statistics.update(create_stats_ordered_dict(
+                '{}'.format(stat_name),
+                stat,
+                always_show_all_stats=True,
+            ))
+            statistics.update(create_stats_ordered_dict(
+                'Final {}'.format(stat_name),
+                [s[-1] for s in stat],
+                always_show_all_stats=True,
+            ))
+
+        for key, value in statistics.items():
+            logger.record_tabular(key, value)
