@@ -72,9 +72,9 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "hopper-xpos"
+    exp_prefix = "find-mb-secret-sauce-toggle-normalization-obs-action"
 
-    num_epochs = 1000
+    num_epochs = 100
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
     max_path_length = 50
@@ -111,15 +111,15 @@ if __name__ == "__main__":
     search_space = {
         'multitask': [True],
         'env_class': [
-            # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
-            # GoalXYPosAnt,
-            GoalXPosHopper,
+            Reacher7DofXyzGoalState,
+            GoalXYPosAnt,
+            GoalXPosHalfCheetah,
+            MultitaskPusher3DEnv,
+            # GoalXPosHopper,
             # Reacher7DofXyzPosAndVelGoalState,
             # GoalXYPosAndVelAnt,
             # CylinderXYPusher2DEnv,
-            # GoalXPosHalfCheetah,
-            # MultitaskPusher3DEnv,
             # Walker2DTargetXPos,
         ],
         # 'env_kwargs.reward_coefs': [
@@ -139,13 +139,13 @@ if __name__ == "__main__":
         # 'env_kwargs.done_threshold': [
         #     0.005,
         # ],
-        'env_kwargs.max_distance': [
-            0.5,
-            2,
-            5,
-        ],
+        # 'env_kwargs.max_distance': [
+        #     0.5,
+        #     2,
+        #     5,
+        # ],
         'algo_kwargs.max_path_length': [
-            50, 100, 250
+            100,
         ],
         'algo_kwargs.num_updates_per_env_step': [
             1,
