@@ -9,12 +9,16 @@ from railrl.data_management.path_builder import PathBuilder
 from railrl.envs.remote import RemoteRolloutEnv
 from railrl.misc.np_util import truncated_geometric
 from railrl.misc.ml_util import ConstantSchedule
+from railrl.policies.base import SerializablePolicy
+from railrl.policies.state_distance import UniversalPolicy
 from railrl.state_distance.exploration import MakeUniversal
 from railrl.state_distance.rollout_util import MultigoalSimplePathSampler, \
     multitask_rollout
+from railrl.state_distance.tdm_networks import TdmNormalizer
 from railrl.state_distance.util import merge_into_flat_obs
 from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
 from railrl.torch.algos.util import np_to_pytorch_batch
+from railrl.torch.data_management.normalizer import TorchFixedNormalizer
 
 
 class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
@@ -35,6 +39,8 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             truncated_geom_factor=2.,
             norm_order=1,
             goal_weights=None,
+            tdm_normalizer: TdmNormalizer=None,
+            num_paths_for_normalization=0,
     ):
         """
 
@@ -121,6 +127,8 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             # In case they were passed in as (e.g.) tuples or list
             self.goal_weights = np.array(self.goal_weights)
             assert self.goal_weights.size == self.env.goal_dim
+        self.tdm_normalizer = tdm_normalizer
+        self.num_paths_for_normalization = num_paths_for_normalization
 
         self.policy = MakeUniversal(self.policy)
         self.eval_policy = MakeUniversal(self.eval_policy)
@@ -226,22 +234,27 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
                     > self.goal_reached_epsilon
                 )
         elif self.reward_type == 'distance':
-            diff = self.env.convert_obs_to_goals(next_obs) - goals
+            distances = self._compute_distances(next_obs, goals)
             if self.goal_weights is not None:
-                diff = diff * self.goal_weights
-            if self.vectorized:
-                return -np.abs(diff) * self.reward_scale
-            else:
-                return -np.linalg.norm(
-                    diff,
-                    ord=self.norm_order,
-                    axis=1,
-                    keepdims=True,
-                ) * self.reward_scale
+                distances = distances * self.goal_weights
+            return distances
         elif self.reward_type == 'env':
             return batch['rewards']
         else:
             raise TypeError("Invalid reward type: {}".format(self.reward_type))
+
+    def _compute_distances(self, next_obs, goals):
+        diff = self.env.convert_obs_to_goals(next_obs) - goals
+        if self.vectorized:
+            raw_distances = -np.abs(diff)
+        else:
+            raw_distances = -np.linalg.norm(
+                diff,
+                ord=self.norm_order,
+                axis=1,
+                keepdims=True,
+            )
+        return raw_distances * self.reward_scale
 
     @property
     def train_buffer(self):
@@ -366,3 +379,58 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
     def _handle_path(self, path):
         self._n_rollouts_total += 1
         self.replay_buffer.add_path(path)
+
+    def pretrain(self):
+        if self.num_paths_for_normalization == 0:
+            return
+
+        paths = []
+        random_policy = RandomUniveralPolicy(self.env.action_space)
+        while len(paths) < self.num_paths_for_normalization:
+            goal = self._sample_goal_for_rollout()
+            path = multitask_rollout(
+                self.training_env,
+                random_policy,
+                goal=goal,
+                tau=0,
+                max_path_length=self.max_path_length,
+            )
+            paths.append(path)
+
+        obs = np.vstack([path["observations"] for path in paths])
+        next_obs = np.vstack([path["next_observations"] for path in paths])
+        actions = np.vstack([path["actions"] for path in paths])
+        goals = np.vstack([path["goals"] for path in paths])
+        distances = self._compute_distances(next_obs, goals)
+
+        ob_mean = np.mean(obs, axis=0)
+        ob_std = np.std(obs, axis=0)
+        ac_mean = np.mean(actions, axis=0)
+        ac_std = np.std(actions, axis=0)
+        goal_mean = np.mean(goals, axis=0)
+        goal_std = np.std(goals, axis=0)
+        distance_mean = np.mean(distances, axis=0)
+        distance_std = np.std(distances, axis=0)
+
+        if self.tdm_normalizer is not None:
+            self.tdm_normalizer.obs_normalizer.set_mean(ob_mean)
+            self.tdm_normalizer.obs_normalizer.set_std(ob_std)
+            self.tdm_normalizer.action_normalizer.set_mean(ac_mean)
+            self.tdm_normalizer.action_normalizer.set_std(ac_std)
+            self.tdm_normalizer.goal_normalizer.set_mean(goal_mean)
+            self.tdm_normalizer.goal_normalizer.set_std(goal_std)
+            self.tdm_normalizer.distance_normalizer.set_mean(distance_mean)
+            self.tdm_normalizer.distance_normalizer.set_std(distance_std)
+
+
+class RandomUniveralPolicy(UniversalPolicy, SerializablePolicy):
+    """
+    Policy that always outputs zero.
+    """
+
+    def __init__(self, action_space):
+        super().__init__()
+        self.action_space = action_space
+
+    def get_action(self, obs):
+        return self.action_space.sample(), {}

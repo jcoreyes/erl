@@ -24,8 +24,9 @@ from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
 from railrl.state_distance.tdm_networks import StructuredQF, TdmPolicy, \
-    InternalGcmQf, TdmQf
+    InternalGcmQf, TdmQf, TdmNormalizer
 from railrl.state_distance.tdm_ddpg import TdmDdpg
+from railrl.torch.data_management.normalizer import TorchFixedNormalizer
 from railrl.torch.modules import HuberLoss
 from railrl.torch.networks import TanhMlpPolicy
 
@@ -38,14 +39,34 @@ def experiment(variant):
     variant['ddpg_tdm_kwargs']['tdm_kwargs']['norm_order'] = norm_order
     # variant['env_kwargs']['norm_order'] = norm_order
     env = normalize_box(variant['env_class'](**variant['env_kwargs']))
+    observation_dim = int(np.prod(env.observation_space.low.shape))
+    action_dim = int(np.prod(env.action_space.low.shape))
+    obs_normalizer = TorchFixedNormalizer(observation_dim)
+    goal_normalizer = TorchFixedNormalizer(env.goal_dim)
+    action_normalizer = TorchFixedNormalizer(action_dim)
+    distance_normalizer = TorchFixedNormalizer(
+        env.goal_dim if vectorized else 1
+    )
+    max_tau = variant['ddpg_tdm_kwargs']['tdm_kwargs']['max_tau']
+    tdm_normalizer = TdmNormalizer(
+        env,
+        obs_normalizer=obs_normalizer,
+        goal_normalizer=goal_normalizer,
+        action_normalizer=action_normalizer,
+        distance_normalizer=distance_normalizer,
+        max_tau=max_tau,
+        **variant['tdm_normalizer_kwargs']
+    )
     qf = TdmQf(
         env=env,
         vectorized=vectorized,
         norm_order=norm_order,
+        tdm_normalizer=tdm_normalizer,
         **variant['qf_kwargs']
     )
     policy = TdmPolicy(
         env=env,
+        tdm_normalizer=tdm_normalizer,
         **variant['policy_kwargs']
     )
     es = OUStrategy(
@@ -65,6 +86,7 @@ def experiment(variant):
     )
     ddpg_tdm_kwargs = variant['ddpg_tdm_kwargs']
     ddpg_tdm_kwargs['ddpg_kwargs']['qf_criterion'] = qf_criterion
+    ddpg_tdm_kwargs['tdm_kwargs']['tdm_normalizer'] = tdm_normalizer
     algorithm = TdmDdpg(
         env,
         qf=qf,
@@ -83,14 +105,14 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-ddpg-tdm-launch"
 
-    n_seeds = 2
+    n_seeds = 1
     mode = "ec2"
-    exp_prefix = "ddpg-tdm-ant-easy-sweep-various-variants-2"
+    exp_prefix = "ddpg-tdm-toggle-normalization"
 
     num_epochs = 250
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
-    max_path_length = 50
+    max_path_length = 100
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -137,31 +159,42 @@ if __name__ == "__main__":
         qf_criterion_kwargs=dict(),
         version="DDPG-TDM",
         algorithm="DDPG-TDM",
+        tdm_normalizer_kwargs=dict(
+            normalize_tau=False,
+            log_tau=False,
+        ),
+        env_kwargs=dict(),
     )
     search_space = {
         'env_class': [
-            # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
-            # GoalXPosHalfCheetah,
+            GoalXPosHalfCheetah,
             GoalXYPosAnt,
+            MultitaskPusher3DEnv,
+            Reacher7DofXyzGoalState,
             # CylinderXYPusher2DEnv,
             # Walker2DTargetXPos,
-            # MultitaskPusher3DEnv,
         ],
-        'env_kwargs': [
+        # 'env_kwargs': [
             # dict(
                 # reward_coefs=(1, 0, 0),
             # ),
             # dict(
             #     reward_coefs=(0.5, 0.375, 0.125),
             # ),
-            dict(max_distance=2),
+            # dict(max_distance=2),
             # dict(max_distance=4),
             # dict(max_distance=6),
             # dict(max_distance=8),
             # dict(max_distance=20),
             # dict(max_distance=30),
             # dict(max_distance=40),
+        # ],
+        'tdm_normalizer_kwargs.log_tau': [
+            True, False,
+        ],
+        'tdm_normalizer_kwargs.normalize_tau': [
+            True, False,
         ],
         'qf_criterion_class': [
             # HuberLoss,
@@ -170,11 +203,14 @@ if __name__ == "__main__":
         'ddpg_tdm_kwargs.tdm_kwargs.sample_rollout_goals_from': [
             'environment',
         ],
+        'ddpg_tdm_kwargs.tdm_kwargs.num_paths_for_normalization': [
+            20, 0
+        ],
         'es_kwargs': [
             dict(theta=0.1, max_sigma=0.1, min_sigma=0.1),
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.max_tau': [
-            max_path_length-1, 25
+            max_path_length-1, 49, 15
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.dense_rewards': [
             False,
@@ -186,24 +222,21 @@ if __name__ == "__main__":
             True,
         ],
         'her_replay_buffer_kwargs.resampling_strategy': [
-            'truncated_geometric',
-            # 'uniform',
+            # 'truncated_geometric',
+            'uniform',
         ],
         'her_replay_buffer_kwargs.num_goals_to_sample': [
-            8,
             4,
         ],
         'her_replay_buffer_kwargs.truncated_geom_factor': [
             1,
-            0.5
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.tau_sample_strategy': [
-            # 'uniform',
-            'truncated_geometric',
+            'uniform',
+            # 'truncated_geometric',
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.truncated_geom_factor': [
             1,
-            0.5
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.reward_type': [
             'distance',
@@ -217,10 +250,10 @@ if __name__ == "__main__":
             # 'none',
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.terminate_when_goal_reached': [
-            True, False
+            True,
         ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
-            100,
+            1, 100, 10000
         ],
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
             1,
@@ -251,11 +284,6 @@ if __name__ == "__main__":
         relabel = variant['relabel']
         vectorized = variant['vectorized']
         norm_order = variant['norm_order']
-        if (
-            variant['ddpg_tdm_kwargs']['tdm_kwargs']['truncated_geom_factor'] == 1
-            and variant['her_replay_buffer_kwargs']['truncated_geom_factor'] == 1
-        ):
-            continue  # already swept this
 
         # some settings just don't make sense
         if vectorized and norm_order != 1:

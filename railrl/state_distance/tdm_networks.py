@@ -6,6 +6,7 @@ import torch
 
 import numpy as np
 from railrl.state_distance.util import split_tau, extract_goals, split_flat_obs
+from railrl.torch.data_management.normalizer import TorchFixedNormalizer
 from railrl.torch.networks import Mlp, TanhMlpPolicy, FlattenMlp
 import railrl.torch.pytorch_util as ptu
 
@@ -148,6 +149,64 @@ class InternalGcmQf(FlattenMlp):
         return - torch.abs(goals - predictions)
 
 
+class TdmNormalizer(object):
+    def __init__(
+            self,
+            env,
+            obs_normalizer: TorchFixedNormalizer=None,
+            goal_normalizer: TorchFixedNormalizer=None,
+            action_normalizer: TorchFixedNormalizer=None,
+            distance_normalizer: TorchFixedNormalizer=None,
+            normalize_tau=False,
+            max_tau=0,
+            log_tau=False,
+    ):
+        self.observation_dim = env.observation_space.low.size
+        self.action_dim = env.action_space.low.size
+        self.goal_dim = env.goal_dim
+        self.obs_normalizer = obs_normalizer
+        self.goal_normalizer = goal_normalizer
+        self.action_normalizer = action_normalizer
+        self.distance_normalizer = distance_normalizer
+        self.log_tau = log_tau
+        self.normalize_tau = normalize_tau
+        self.max_tau = max_tau
+
+        # Assuming that the taus are sampled uniformly from [0, max_tau]
+        if self.log_tau:
+            # If max_tau = 1, then
+            # mean = \int_2^3 log(x) dx ~ 0.9095...
+            # std = sqrt{  \int_2^3 (log(x) - mean)^2 dx    } ~ 0.165...
+            # Thanks wolfram!
+            self.tau_mean = self.max_tau * 0.90954250488443855
+            self.tau_std = self.max_tau * 0.11656876357329767
+        else:
+            self.tau_mean = self.max_tau / 2
+            self.tau_std = self.max_tau / np.sqrt(12)
+
+    def normalize_flat_obs(self, flat_obs):
+        obs, goals, taus = split_flat_obs(
+            flat_obs, self.observation_dim, self.goal_dim
+        )
+        obs = self.obs_normalizer.normalize(obs)
+        goals = self.goal_normalizer.normalize(goals)
+
+        if self.log_tau:
+            # minimum tau is -1 (although the output should be ignored for
+            # the `tau == -1` case.
+            taus = torch.log(taus + 2)
+        if self.normalize_tau:
+            taus = (taus - self.tau_mean) / self.tau_std
+
+        return torch.cat((obs, goals, taus), dim=1)
+
+    def copy_stats(self, other):
+        self.obs_normalizer.copy_stats(other.obs_normalizer)
+        self.goal_normalizer.copy_stats(other.goal_normalizer)
+        self.action_normalizer.copy_stats(other.action_normalizer)
+        self.distance_normalizer.copy_stats(other.distance_normalizer)
+
+
 class TdmQf(FlattenMlp):
     def __init__(
             self,
@@ -155,6 +214,7 @@ class TdmQf(FlattenMlp):
             vectorized,
             norm_order,
             structure='norm_difference',
+            tdm_normalizer: TdmNormalizer=None,
             **kwargs
     ):
         """
@@ -198,48 +258,49 @@ class TdmQf(FlattenMlp):
         self.vectorized = vectorized
         self.norm_order = norm_order
         self.structure = structure
+        self.tdm_normalizer = tdm_normalizer
 
     def forward(self, flat_obs, actions, return_internal_prediction=False):
+        if self.tdm_normalizer is not None:
+            actions = self.tdm_normalizer.action_normalizer.normalize(actions)
+            flat_obs = self.tdm_normalizer.normalize_flat_obs(flat_obs)
+
+        predictions = super().forward(flat_obs, actions)
+        if return_internal_prediction:
+            return predictions
+
         obs, goals, taus = split_flat_obs(
             flat_obs, self.observation_dim, self.goal_dim
         )
-        diffs = goals - self.env.convert_obs_to_goals(obs)
-        new_flat_obs = torch.cat((obs, diffs, taus), dim=1)
         if self.vectorized:
-            predictions = super().forward(new_flat_obs, actions)
-            if return_internal_prediction:
-                return predictions
             if self.structure == 'norm_difference':
-                return - torch.abs(goals - predictions)
+                output = - torch.abs(goals - predictions)
             elif self.structure == 'norm':
-                return - torch.abs(predictions)
+                output = - torch.abs(predictions)
             elif self.structure == 'norm_distance_difference':
                 current_features = self.env.convert_obs_to_goals(obs)
                 current_distance = torch.abs(goals - current_features)
-                return - torch.abs(predictions + current_distance)
+                output = - torch.abs(predictions + current_distance)
             elif self.structure == 'distance_difference':
                 current_features = self.env.convert_obs_to_goals(obs)
                 current_distance = torch.abs(goals - current_features)
-                return predictions + current_distance
+                output = predictions + current_distance
             elif self.structure == 'difference':
-                return predictions - goals
+                output = predictions - goals
             elif self.structure == 'none':
-                return predictions
+                output = predictions
             else:
                 raise TypeError("Invalid structure: {}".format(self.structure))
         else:
-            predictions = super().forward(new_flat_obs, actions)
-            if return_internal_prediction:
-                return predictions
             if self.structure == 'norm_difference':
-                return - torch.norm(
+                output = - torch.norm(
                     goals - predictions,
                     p=self.norm_order,
                     dim=1,
                     keepdim=True,
                 )
             elif self.structure == 'norm':
-                return - torch.norm(
+                output = - torch.norm(
                     predictions,
                     p=self.norm_order,
                     dim=1,
@@ -253,7 +314,7 @@ class TdmQf(FlattenMlp):
                     dim=1,
                     keepdim=True,
                 )
-                return - torch.abs(predictions + current_distance)
+                output = - torch.abs(predictions + current_distance)
             elif self.structure == 'distance_difference':
                 current_features = self.env.convert_obs_to_goals(obs)
                 current_distance = torch.norm(
@@ -262,9 +323,9 @@ class TdmQf(FlattenMlp):
                     dim=1,
                     keepdim=True,
                 )
-                return predictions + current_distance
+                output = predictions + current_distance
             elif self.structure == 'none':
-                return predictions
+                output = predictions
             else:
                 raise TypeError(
                     "For vectorized={0}, invalid structure: {1}".format(
@@ -272,6 +333,9 @@ class TdmQf(FlattenMlp):
                         self.structure,
                     )
                 )
+        if self.tdm_normalizer is not None:
+            output = self.tdm_normalizer.distance_normalizer.denormalize(output)
+        return output
 
 
 class TdmPolicy(TanhMlpPolicy):
@@ -281,6 +345,7 @@ class TdmPolicy(TanhMlpPolicy):
     def __init__(
             self,
             env,
+            tdm_normalizer: TdmNormalizer=None,
             **kwargs
     ):
         self.save_init_params(locals())
@@ -293,14 +358,12 @@ class TdmPolicy(TanhMlpPolicy):
             **kwargs
         )
         self.env = env
+        self.tdm_normalizer = tdm_normalizer
 
     def forward(self, flat_obs, return_preactivations=False):
-        obs, goals, taus = split_flat_obs(
-            flat_obs, self.observation_dim, self.goal_dim
-        )
-        diffs = goals - self.env.convert_obs_to_goals(obs)
-        new_flat_obs = torch.cat((obs, diffs, taus), dim=1)
+        if self.tdm_normalizer is not None:
+            flat_obs = self.tdm_normalizer.normalize_flat_obs(flat_obs)
         return super().forward(
-            new_flat_obs,
+            flat_obs,
             return_preactivations=return_preactivations,
         )
