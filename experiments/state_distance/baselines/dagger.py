@@ -9,6 +9,7 @@ from railrl.dagger.model import DynamicsModel
 from railrl.envs.multitask.ant_env import GoalXYPosAnt, GoalXYPosAndVelAnt
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
     GoalXPosHalfCheetah
+from railrl.envs.multitask.hopper_env import GoalXPosHopper
 from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv, \
     MultitaskEnvToSilentMultitaskEnv
 from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
@@ -71,7 +72,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "ant-xpos-fixed-high-gear-ratio"
+    exp_prefix = "hopper-xpos"
 
     num_epochs = 1000
     num_steps_per_epoch = 1000
@@ -112,7 +113,8 @@ if __name__ == "__main__":
         'env_class': [
             # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
-            GoalXYPosAnt,
+            # GoalXYPosAnt,
+            GoalXPosHopper,
             # Reacher7DofXyzPosAndVelGoalState,
             # GoalXYPosAndVelAnt,
             # CylinderXYPusher2DEnv,
@@ -138,16 +140,12 @@ if __name__ == "__main__":
         #     0.005,
         # ],
         'env_kwargs.max_distance': [
+            0.5,
             2,
-            6,
-            10,
-            14,
-        ],
-        'env_kwargs.use_low_gear_ratio': [
-            False,
+            5,
         ],
         'algo_kwargs.max_path_length': [
-            50, 100
+            50, 100, 250
         ],
         'algo_kwargs.num_updates_per_env_step': [
             1,

@@ -4,6 +4,7 @@ import railrl.misc.hyperparameter as hyp
 from railrl.envs.multitask.ant_env import GoalXYPosAnt, GoalXYPosAndVelAnt
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
     GoalXPosHalfCheetah
+from railrl.envs.multitask.hopper_env import GoalXPosHopper
 from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
 from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
 from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
@@ -65,7 +66,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "ant-xpos-fixed-high-gear-ratio"
+    exp_prefix = "hopper-xpos"
 
     num_epochs = 1000
     num_steps_per_epoch = 1000
@@ -110,8 +111,9 @@ if __name__ == "__main__":
         'env_class': [
             # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
-            GoalXYPosAnt,
+            # GoalXYPosAnt,
             # Reacher7DofXyzPosAndVelGoalState,
+            GoalXPosHopper,
             # GoalXYPosAndVelAnt,
             # CylinderXYPusher2DEnv,
             # GoalXPosHalfCheetah,
@@ -136,16 +138,15 @@ if __name__ == "__main__":
         #     0.005,
         # ],
         'env_kwargs.max_distance': [
+            0.5,
             2,
-            6,
-            10,
-            14,
+            5,
         ],
-        'env_kwargs.use_low_gear_ratio': [
-            False,
-        ],
+        # 'env_kwargs.use_low_gear_ratio': [
+        #     False,
+        # ],
         'algo_kwargs.max_path_length': [
-            50, 100
+            50, 100, 250
         ],
         'algo_kwargs.num_updates_per_env_step': [
             1,
