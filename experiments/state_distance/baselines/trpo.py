@@ -62,8 +62,8 @@ if __name__ == "__main__":
     # exp_prefix = "reacher-target-pos-and-vel-done-when-hit"
 
     num_epochs = 100
-    num_steps_per_epoch = 10000
-    num_steps_per_eval = 10000
+    num_steps_per_epoch = 1000
+    num_steps_per_eval = 1000
     max_path_length = 100
 
     # noinspection PyTypeChecker
@@ -101,10 +101,10 @@ if __name__ == "__main__":
             0.03,
         ],
         'env_kwargs.speed_weight': [
-            0.99, 0.9, 0.5
+            0.99,
         ],
         'env_kwargs.done_threshold': [
-            0.1, 0.05, 0.01
+            0.01,
         ],
         'multitask': [True],
         'algo_kwargs.step_size': [

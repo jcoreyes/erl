@@ -83,14 +83,14 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-ddpg-tdm-launch"
 
-    n_seeds = 3
+    n_seeds = 1
     mode = "ec2"
-    exp_prefix = "ant-max-distance-6-h50"
+    exp_prefix = "ddpg-tdm-cheetah-xpos-fixed-2"
 
-    num_epochs = 300
+    num_epochs = 1000
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
-    max_path_length = 50
+    max_path_length = 100
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -135,15 +135,15 @@ if __name__ == "__main__":
         ),
         qf_criterion_class=HuberLoss,
         qf_criterion_kwargs=dict(),
-        version="DDPG-TDM-no-crash",
+        version="DDPG-TDM",
         algorithm="DDPG-TDM",
     )
     search_space = {
         'env_class': [
             # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
-            # GoalXPosHalfCheetah,
-            GoalXYPosAnt,
+            GoalXPosHalfCheetah,
+            # GoalXYPosAnt,
             # CylinderXYPusher2DEnv,
             # Walker2DTargetXPos,
             # MultitaskPusher3DEnv,
@@ -174,22 +174,22 @@ if __name__ == "__main__":
             dict(theta=0.1, max_sigma=0.1, min_sigma=0.1),
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.max_tau': [
-            max_path_length-1, 15
+            max_path_length-1, 25, 15
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.dense_rewards': [
-            False,
+            False, True,
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.finite_horizon': [
-            True,
+            True, False,
+        ],
+        'relabel': [
+            False, True,
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.tau_sample_strategy': [
             'uniform',
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.reward_type': [
             'distance',
-        ],
-        'relabel': [
-            True,
         ],
         # 'ddpg_tdm_kwargs.tdm_kwargs.truncated_geom_factor': [
         #     1,
@@ -206,7 +206,7 @@ if __name__ == "__main__":
             1, 100, 10000, 1000000
         ],
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
-            1, 2, 5, 10
+            1,
         ],
         'ddpg_tdm_kwargs.base_kwargs.discount': [
             1,

@@ -6,7 +6,7 @@ import railrl.torch.pytorch_util as ptu
 from railrl.dagger.controller import MPCController
 from railrl.dagger.dagger import Dagger
 from railrl.dagger.model import DynamicsModel
-from railrl.envs.multitask.ant_env import GoalXYPosAnt
+from railrl.envs.multitask.ant_env import GoalXYPosAnt, GoalXYPosAndVelAnt
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
     GoalXPosHalfCheetah
 from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv, \
@@ -14,7 +14,7 @@ from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv, \
 from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
 from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
 from railrl.envs.multitask.reacher_7dof import (
-    Reacher7DofXyzGoalState)
+    Reacher7DofXyzGoalState, Reacher7DofXyzPosAndVelGoalState)
 from railrl.envs.multitask.walker2d_env import Walker2DTargetXPos
 from railrl.envs.wrappers import convert_gym_space, normalize_box
 from railrl.launchers.launcher_util import run_experiment
@@ -69,11 +69,11 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-dagger"
 
-    n_seeds = 3
+    n_seeds = 1
     mode = "ec2"
-    exp_prefix = "ant-max-distance-6-h50"
+    exp_prefix = "ant-xpos-fixed-high-gear-ratio"
 
-    num_epochs = 300
+    num_epochs = 1000
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
     max_path_length = 50
@@ -89,7 +89,7 @@ if __name__ == "__main__":
             max_path_length=max_path_length,
             learning_rate=1e-3,
             num_updates_per_env_step=1,
-            batch_size=512,
+            batch_size=128,
             num_paths_for_normalization=20,
         ),
         normalize_kwargs=dict(
@@ -108,36 +108,52 @@ if __name__ == "__main__":
         algorithm="Model-Based-Dagger",
     )
     search_space = {
+        'multitask': [True],
         'env_class': [
             # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
             GoalXYPosAnt,
-            # GoalXPosHalfCheetah,
+            # Reacher7DofXyzPosAndVelGoalState,
+            # GoalXYPosAndVelAnt,
             # CylinderXYPusher2DEnv,
+            # GoalXPosHalfCheetah,
             # MultitaskPusher3DEnv,
             # Walker2DTargetXPos,
         ],
-        'multitask': [True],
-        'algo_kwargs.num_paths_for_normalization': [20],
+        # 'env_kwargs.reward_coefs': [
+        #     (1, 0, 0),
+        #     (0.5, 0.375, 0.125),
+        # ],
+        # 'env_kwargs.norm_order': [
+        #     1,
+        #     2,
+        # ],
+        # 'env_kwargs.max_speed': [
+        #     0.05,
+        # ],
+        # 'env_kwargs.speed_weight': [
+        #     0.99, 0.95, 0.9
+        # ],
+        # 'env_kwargs.done_threshold': [
+        #     0.005,
+        # ],
         'env_kwargs.max_distance': [
+            2,
             6,
+            10,
+            14,
         ],
-        # 'env_kwargs.use_low_gear_ratio': [
-        #     False,
-        # ],
-        'algo_kwargs.batch_size': [128],
-        'mpc_controller_kwargs.mpc_horizon': [15],
+        'env_kwargs.use_low_gear_ratio': [
+            False,
+        ],
+        'algo_kwargs.max_path_length': [
+            50, 100
+        ],
         'algo_kwargs.num_updates_per_env_step': [
-            1, 2, 5, 10
+            1,
         ],
-        # 'env_kwargs.max_distance': [
-            # 20,
-            # 30,
-            # 40,
-        # ],
-        # 'algo_kwargs.max_path_length': [
-        #     50, 100
-        # ],
+        'algo_kwargs.num_paths_for_normalization': [20],
+        'mpc_controller_kwargs.mpc_horizon': [15],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
