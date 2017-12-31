@@ -107,17 +107,17 @@ class GoalXPosHalfCheetah(HalfCheetahEnv, MultitaskEnv, Serializable):
 
     def _step(self, action):
         ob, reward, done, info_dict = super()._step(action)
-        xposafter = self.model.data.qpos[0, 0]
-        reward_ctrl = info_dict['reward_ctrl']
-        distance_to_goal = float(np.abs(xposafter - self.multitask_goal))
+        x_pos = self.convert_ob_to_goal(ob)
+        distance_to_goal = np.linalg.norm(x_pos - self.multitask_goal)
         reward_run = -distance_to_goal
         reward = reward_run
         return ob, reward, done, dict(
             reward_run=reward_run,
-            reward_ctrl=reward_ctrl,
+            reward_ctrl=info_dict['reward_ctrl'],
             goal_position=self.multitask_goal,
+            goal=self.multitask_goal,
             distance_to_goal=distance_to_goal,
-            position=xposafter,
+            position=x_pos,
         )
 
     @property
@@ -150,8 +150,6 @@ class GoalXPosHalfCheetah(HalfCheetahEnv, MultitaskEnv, Serializable):
         for stat, name in [
             (distances_to_goal, 'Distance to goal'),
             (goal_positions, 'Goal Position'),
-            (positions, 'Position'),
-            ([p[-1] for p in positions], 'Final Position'),
         ]:
             statistics.update(create_stats_ordered_dict(
                 '{}'.format(name),
@@ -161,6 +159,8 @@ class GoalXPosHalfCheetah(HalfCheetahEnv, MultitaskEnv, Serializable):
             ))
         for stat, name in [
             (distances_to_goal, 'Distance to goal'),
+            (positions, 'Position'),
+            ([p[-1] for p in positions], 'Final Position'),
         ]:
             statistics.update(create_stats_ordered_dict(
                 'Final {}'.format(name),
