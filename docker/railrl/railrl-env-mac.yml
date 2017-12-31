@@ -26,9 +26,9 @@ dependencies:
     - pytorch
     - torchvision
     - scikit-image
-    - tensorflow
     - pip:
         - git+git://github.com/pytorch/pytorch.git@v0.3.0
+        - https://storage.googleapis.com/tensorflow/mac/cpu/tensorflow-1.4.0-py3-none-any.whl
         - Pillow
         - atari-py
         - pyprind
