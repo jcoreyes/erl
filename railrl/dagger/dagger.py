@@ -53,11 +53,14 @@ class Dagger(TorchRLAlgorithm):
             next_obs = batch['next_observations']
             ob_deltas_pred = self.model(obs, actions)
             ob_deltas = next_obs - obs
-            normalized_errors = (
-                    self.delta_normalizer.normalize(ob_deltas_pred)
-                    - self.delta_normalizer.normalize(ob_deltas)
-            )
-            squared_errors = normalized_errors**2
+            if self.delta_normalizer:
+                normalized_errors = (
+                        self.delta_normalizer.normalize(ob_deltas_pred)
+                        - self.delta_normalizer.normalize(ob_deltas)
+                )
+                squared_errors = normalized_errors**2
+            else:
+                squared_errors = (ob_deltas_pred - ob_deltas)**2
             loss = squared_errors.mean()
 
             self.optimizer.zero_grad()
@@ -88,17 +91,24 @@ class Dagger(TorchRLAlgorithm):
 
                 ob_deltas_pred = self.model(obs, actions)
                 ob_deltas = next_obs - obs
-                normalized_errors = (
-                    self.delta_normalizer.normalize(ob_deltas_pred)
-                    - self.delta_normalizer.normalize(ob_deltas)
-                )
-                squared_errors = normalized_errors**2
+                if self.delta_normalizer:
+                    normalized_errors = (
+                            self.delta_normalizer.normalize(ob_deltas_pred)
+                            - self.delta_normalizer.normalize(ob_deltas)
+                    )
+                    squared_errors = normalized_errors**2
+                else:
+                    squared_errors = (ob_deltas_pred - ob_deltas)**2
                 loss = squared_errors.mean()
 
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
                 losses.append(ptu.get_numpy(loss))
+        else:
+            raise Exception("Collection mode not supported: {}".format(
+                self.collection_mode
+            ))
 
         if self.eval_statistics is None:
             self.eval_statistics = OrderedDict()
