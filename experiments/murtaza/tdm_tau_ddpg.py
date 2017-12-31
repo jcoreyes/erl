@@ -65,8 +65,8 @@ def experiment(variant):
 
 if __name__ == "__main__":
     n_seeds = 1
-    mode = "local_docker"
-    exp_prefix = "tdm-reacher_7dof-SAC"
+    mode = "ec2"
+    exp_prefix = "tdm-AntXYPos-ddpg"
 
     num_epochs = 100
     num_steps_per_epoch = 1000
@@ -75,11 +75,11 @@ if __name__ == "__main__":
     max_tau = max_path_length-1
     # noinspection PyTypeChecker
     versions = [
-        # (StructuredQF, StructuredQF, StandardTanhGaussianPolicy, '_standard'),
-        # (OneHotTauQF, OneHotTauQF, OneHotTauTanhGaussianPolicy, '_one_hot_tau'),
-        # (BinaryStringTauQF, BinaryStringTauQF, BinaryTauTanhGaussianPolicy, '_binary_string_tau'),
-        # (TauVectorQF, TauVectorQF, TauVectorTanhGaussianPolicy, '_tau_vector'),
-        (TauVectorSeparateFirstLayerQF, TauVectorSeparateFirstLayerQF, TauVectorSeparateFirstLayerTanhGaussianPolicy,
+        (StructuredQF, StructuredQF, StandardTdmPolicy, '_standard'),
+        (OneHotTauQF, OneHotTauQF, OneHotTauTdmPolicy, '_one_hot_tau'),
+        (BinaryStringTauQF, BinaryStringTauQF, BinaryTauTdmPolicy, '_binary_string_tau'),
+        (TauVectorQF, TauVectorQF, TauVectorTdmPolicy, '_tau_vector'),
+        (TauVectorSeparateFirstLayerQF, TauVectorSeparateFirstLayerQF, TauVectorSeparateFirstLayerTdmPolicy,
          '_separate_first_layer')
     ]
     variant = dict(
@@ -130,7 +130,7 @@ if __name__ == "__main__":
     )
     search_space = {
         'env_class': [
-            Reacher7DofXyzGoalState,
+            GoalXYPosAnt,
         ],
         'algo_params.base_kwargs.reward_scale': [
             1,

@@ -8,17 +8,15 @@ from torch import nn as nn
 from torch.autograd import Variable
 from torch.nn import functional as F
 
-<<<<<<< HEAD
 from railrl.pythonplusplus import identity
 from railrl.state_distance.util import split_tau, extract_goals, split_flat_obs
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.core import PyTorchModule
+from railrl.torch.data_management.normalizer import TorchFixedNormalizer
 from railrl.torch.networks import Mlp
-=======
 import numpy as np
 from railrl.state_distance.util import split_tau, extract_goals, split_flat_obs
 from railrl.torch.networks import Mlp, TanhMlpPolicy, FlattenMlp
->>>>>>> dev
 import railrl.torch.pytorch_util as ptu
 
 
@@ -100,10 +98,10 @@ class OneHotTauQF(Mlp):
         )
         self.max_tau = max_tau
 
-    def forward(self, flat_obs, action=None):
+    def forward(self, flat_obs, actions=None):
         obs, taus = split_tau(flat_obs)
-        if action is not None:
-            h = torch.cat((obs, action), dim=1)
+        if actions is not None:
+            h = torch.cat((obs, actions), dim=1)
         else:
             h = obs
         batch_size = h.size()[0]
@@ -112,11 +110,11 @@ class OneHotTauQF(Mlp):
         t = taus.data.long()
         t = torch.clamp(t, min=0)
         y_binary.scatter_(1, t, 1)
-        if action is not None:
+        if actions is not None:
             h = torch.cat((
                 obs,
                 ptu.Variable(y_binary),
-                action
+                actions
             ), dim=1)
         else:
             h = torch.cat((
@@ -159,20 +157,20 @@ class BinaryStringTauQF(Mlp):
             **kwargs
         )
 
-    def forward(self, flat_obs, action=None):
+    def forward(self, flat_obs, actions=None):
         obs, taus = split_tau(flat_obs)
-        if action is not None:
-            h = torch.cat((obs, action), dim=1)
+        if actions is not None:
+            h = torch.cat((obs, actions), dim=1)
         else:
             h = obs
         batch_size = taus.size()[0]
         y_binary = make_binary_tensor(taus, len(self.max_tau), batch_size)
 
-        if action is not None:
+        if actions is not None:
             h = torch.cat((
                 obs,
                 ptu.Variable(y_binary),
-                action
+                actions
             ), dim=1)
         else:
             h = torch.cat((
@@ -227,19 +225,19 @@ class TauVectorQF(Mlp):
             **kwargs
         )
 
-    def forward(self, flat_obs, action=None):
+    def forward(self, flat_obs, actions=None):
         obs, taus = split_tau(flat_obs)
-        if action is not None:
+        if actions is not None:
             h = torch.cat((obs, action), dim=1)
         else:
             h = obs
         batch_size = h.size()[0]
         tau_vector = torch.zeros((batch_size, self.tau_vector_len)) + taus.data
-        if action is not None:
+        if actions is not None:
             h = torch.cat((
                 obs,
                 ptu.Variable(tau_vector),
-                action
+                actions
             ), dim=1)
         else:
             h = torch.cat((
@@ -330,10 +328,10 @@ class TauVectorSeparateFirstLayerQF(SeparateFirstLayerMlp):
             **kwargs
         )
 
-    def forward(self, flat_obs, action=None):
+    def forward(self, flat_obs, actions=None):
         obs, taus = split_tau(flat_obs)
-        if action is not None:
-            h = torch.cat((obs, action), dim=1)
+        if actions is not None:
+            h = torch.cat((obs, actions), dim=1)
         else:
             h = obs
 
@@ -539,3 +537,256 @@ class TdmPolicy(TanhMlpPolicy):
             new_flat_obs,
             return_preactivations=return_preactivations,
         )
+
+class StandardTdmPolicy(TanhMlpPolicy):
+    def __init__(
+            self,
+            hidden_sizes,
+            obs_dim,
+            action_dim,
+            goal_dim,
+            init_w=1e-3,
+            max_tau=None,
+            **kwargs
+    ):
+        self.save_init_params(locals())
+        super().__init__(
+            hidden_sizes=hidden_sizes,
+            input_size=obs_dim+goal_dim + 1,
+            output_size=action_dim,
+            init_w=init_w,
+            **kwargs
+        )
+
+class OneHotTauTdmPolicy(TanhMlpPolicy):
+    def __init__(
+            self,
+            hidden_sizes,
+            obs_dim,
+            action_dim,
+            goal_dim,
+            max_tau,
+            init_w=1e-3,
+            **kwargs
+    ):
+        self.max_tau = max_tau
+        self.save_init_params(locals())
+        super().__init__(
+            hidden_sizes=hidden_sizes,
+            input_size=obs_dim+max_tau+goal_dim+1,
+            output_size=action_dim,
+            init_w=init_w,
+            **kwargs
+        )
+
+    def forward(
+            self,
+            flat_obs,
+            return_preactivations=False
+    ):
+        obs, taus = split_tau(flat_obs)
+        h = obs
+        batch_size = h.size()[0]
+        y_binary = ptu.FloatTensor(batch_size, self.max_tau + 1)
+        y_binary.zero_()
+        t = taus.data.long()
+        t = torch.clamp(t, min=0)
+        y_binary.scatter_(1, t, 1)
+
+        h = torch.cat((
+            obs,
+            ptu.Variable(y_binary),
+        ), dim=1)
+
+        return super().forward(
+            h,
+            return_preactivations=return_preactivations,
+        )
+
+class BinaryTauTdmPolicy(TanhMlpPolicy):
+    def __init__(
+            self,
+            hidden_sizes,
+            obs_dim,
+            action_dim,
+            goal_dim,
+            max_tau,
+            init_w=1e-3,
+            **kwargs
+    ):
+        self.max_tau = np.unpackbits(np.array(max_tau, dtype=np.uint8))
+        self.save_init_params(locals())
+        super().__init__(
+            hidden_sizes=hidden_sizes,
+            input_size=obs_dim + goal_dim+ len(self.max_tau),
+            output_size=action_dim,
+            init_w=init_w,
+            **kwargs
+        )
+    def forward(
+            self,
+            flat_obs,
+            return_preactivations=False,
+    ):
+        obs, taus = split_tau(flat_obs)
+        batch_size = taus.size()[0]
+        y_binary = make_binary_tensor(taus, len(self.max_tau), batch_size)
+        h = torch.cat((
+            obs,
+            ptu.Variable(y_binary),
+        ), dim=1)
+
+        return super().forward(
+            h,
+            return_preactivations=return_preactivations
+        )
+
+class TauVectorTdmPolicy(TanhMlpPolicy):
+    def __init__(
+            self,
+            hidden_sizes,
+            obs_dim,
+            action_dim,
+            goal_dim,
+            max_tau,
+            tau_vector_len=0,
+            init_w=1e-3,
+            **kwargs
+    ):
+        if tau_vector_len == 0:
+            self.tau_vector_len = max_tau
+        self.save_init_params(locals())
+        super().__init__(
+            hidden_sizes=hidden_sizes,
+            input_size=obs_dim + goal_dim + self.tau_vector_len,
+            output_size=action_dim,
+            init_w=init_w,
+            **kwargs
+        )
+
+    def forward(
+            self,
+            flat_obs,
+            return_preactivations=False,
+        ):
+        obs, taus = split_tau(flat_obs)
+        h=obs
+        batch_size = h.size()[0]
+        tau_vector = torch.zeros((batch_size, self.tau_vector_len)) + taus.data
+        h = torch.cat((
+                obs,
+                ptu.Variable(tau_vector),
+            ), dim=1)
+
+        return super().forward(
+            h,
+            return_preactivations=return_preactivations
+        )
+
+class TauVectorSeparateFirstLayerTdmPolicy(SeparateFirstLayerMlp):
+
+    def __init__(
+            self,
+            hidden_sizes,
+            obs_dim,
+            action_dim,
+            goal_dim,
+            max_tau,
+            tau_vector_len=0,
+            init_w=1e-3,
+            **kwargs
+    ):
+        self.save_init_params(locals())
+        if tau_vector_len == 0:
+            self.tau_vector_len = max_tau
+        super().__init__(
+            hidden_sizes=hidden_sizes,
+            first_input_size=obs_dim + goal_dim,
+            second_input_size=self.tau_vector_len,
+            output_size=action_dim,
+            **kwargs
+        )
+
+    def forward(
+            self,
+            flat_obs,
+            return_preactivations=False,
+    ):
+        """
+        :param obs: Observation
+        :param deterministic: If True, do not sample
+        :param return_log_prob: If True, return a sample and its log probability
+        :param return_expected_log_prob: If True, return the true expected log
+        prob. Will not need to be differentiated through, so this can be a
+        number.
+        :param return_log_prob_of_mean: If True, return the true expected log
+        prob. Will not need to be differentiated through, so this can be a
+        number.
+        """
+        obs, taus = split_tau(flat_obs)
+        batch_size = obs.size()[0]
+        tau_vector = Variable(torch.zeros((batch_size, self.tau_vector_len)) + taus.data)
+        h = obs
+        h1 = self.hidden_activation(self.first_input(h))
+        h2 = self.hidden_activation(self.second_input(tau_vector))
+        h = torch.cat((h1, h2), dim=1)
+        for i, fc in enumerate(self.fcs):
+            h = self.hidden_activation(fc(h))
+        preactivations = self.last_fc(h)
+        actions = self.output_activation(preactivations)
+        if return_preactivations:
+            return actions, preactivations
+        else:
+            return actions
+
+    def get_action(self, obs_np):
+        actions = self.get_actions(obs_np[None])
+        return actions[0, :], {}
+
+    def get_actions(self, obs):
+        return self.eval_np(obs)
+
+class MakeNormalizedTDMQF(PyTorchModule):
+    def __init__(self,
+                 qf,
+                 obs_normalizer: TorchFixedNormalizer = None,
+                 action_normalizer: TorchFixedNormalizer = None,
+            ):
+        self.save_init_params(locals())
+        super().__init__()
+        self.obs_normalizer = obs_normalizer
+        self.action_normalizer = action_normalizer
+        self.qf = qf
+
+    def forward(self, flat_obs, actions=None, **kwargs):
+        observations, taus = split_tau(flat_obs)
+        if self.obs_normalizer:
+            observations = self.obs_normalizer.normalize(observations)
+        if self.action_normalizer and actions is not None:
+            actions = self.action_normalizer.normalize(actions)
+        flat_obs = torch.cat((
+            observations,
+            taus
+        ))
+        return self.qf.forward(flat_obs, actions=actions, **kwargs)
+
+class MakeNormalizedTDMPolicy(PyTorchModule):
+    def __init__(self,
+                 qf,
+                 obs_normalizer: TorchFixedNormalizer = None,
+                 action_normalizer: TorchFixedNormalizer = None,
+            ):
+        self.save_init_params(locals())
+        super().__init__()
+        self.obs_normalizer = obs_normalizer
+        self.qf = qf
+
+    def forward(self, flat_obs, **kwargs):
+        observations, taus = split_tau(flat_obs)
+        if self.obs_normalizer:
+            observations = self.obs_normalizer.normalize(observations)
+        flat_obs = torch.cat((
+            observations,
+            taus
+        ))
+        return self.qf.forward(flat_obs, **kwargs)

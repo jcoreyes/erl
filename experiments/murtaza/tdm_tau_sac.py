@@ -7,7 +7,6 @@ from railrl.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState
 from railrl.envs.wrappers import normalize_box
 from railrl.launchers.launcher_util import run_experiment
 from railrl.sac.policies import *
-from railrl.state_distance.tdm_networks import *
 from railrl.state_distance.tdm_networks import OneHotTauQF, BinaryStringTauQF, TauVectorQF, \
     TauVectorSeparateFirstLayerQF
 from railrl.state_distance.tdm_sac import TdmSac
@@ -60,7 +59,7 @@ def experiment(variant):
 
 if __name__ == "__main__":
     n_seeds = 1
-    mode = "ec2"
+    mode = "local_docker"
     exp_prefix = "tdm-reacher_7dof-SAC"
 
     num_epochs = 100
