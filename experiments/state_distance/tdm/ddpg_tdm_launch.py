@@ -83,14 +83,14 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-ddpg-tdm-launch"
 
-    n_seeds = 1
+    n_seeds = 2
     mode = "ec2"
-    exp_prefix = "ddpg-tdm-cheetah-xpos-fixed-2"
+    exp_prefix = "ddpg-tdm-ant-easy-sweep-various-variants-2"
 
-    num_epochs = 1000
+    num_epochs = 250
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
-    max_path_length = 100
+    max_path_length = 50
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -142,8 +142,8 @@ if __name__ == "__main__":
         'env_class': [
             # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
-            GoalXPosHalfCheetah,
-            # GoalXYPosAnt,
+            # GoalXPosHalfCheetah,
+            GoalXYPosAnt,
             # CylinderXYPusher2DEnv,
             # Walker2DTargetXPos,
             # MultitaskPusher3DEnv,
@@ -155,9 +155,9 @@ if __name__ == "__main__":
             # dict(
             #     reward_coefs=(0.5, 0.375, 0.125),
             # ),
-            # dict(max_distance=2),
+            dict(max_distance=2),
             # dict(max_distance=4),
-            dict(max_distance=6),
+            # dict(max_distance=6),
             # dict(max_distance=8),
             # dict(max_distance=20),
             # dict(max_distance=30),
@@ -174,26 +174,40 @@ if __name__ == "__main__":
             dict(theta=0.1, max_sigma=0.1, min_sigma=0.1),
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.max_tau': [
-            max_path_length-1, 25, 15
+            max_path_length-1, 25
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.dense_rewards': [
-            False, True,
+            False,
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.finite_horizon': [
-            True, False,
+            True,
         ],
         'relabel': [
-            False, True,
+            True,
+        ],
+        'her_replay_buffer_kwargs.resampling_strategy': [
+            'truncated_geometric',
+            # 'uniform',
+        ],
+        'her_replay_buffer_kwargs.num_goals_to_sample': [
+            8,
+            4,
+        ],
+        'her_replay_buffer_kwargs.truncated_geom_factor': [
+            1,
+            0.5
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.tau_sample_strategy': [
-            'uniform',
+            # 'uniform',
+            'truncated_geometric',
+        ],
+        'ddpg_tdm_kwargs.tdm_kwargs.truncated_geom_factor': [
+            1,
+            0.5
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.reward_type': [
             'distance',
         ],
-        # 'ddpg_tdm_kwargs.tdm_kwargs.truncated_geom_factor': [
-        #     1,
-        # ],
         'qf_kwargs.structure': [
             'norm_difference',
             # 'norm',
@@ -202,8 +216,11 @@ if __name__ == "__main__":
             # 'difference',
             # 'none',
         ],
+        'ddpg_tdm_kwargs.tdm_kwargs.terminate_when_goal_reached': [
+            True, False
+        ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
-            1, 100, 10000, 1000000
+            100,
         ],
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
             1,
@@ -234,6 +251,12 @@ if __name__ == "__main__":
         relabel = variant['relabel']
         vectorized = variant['vectorized']
         norm_order = variant['norm_order']
+        if (
+            variant['ddpg_tdm_kwargs']['tdm_kwargs']['truncated_geom_factor'] == 1
+            and variant['her_replay_buffer_kwargs']['truncated_geom_factor'] == 1
+        ):
+            continue  # already swept this
+
         # some settings just don't make sense
         if vectorized and norm_order != 1:
             continue
@@ -250,10 +273,7 @@ if __name__ == "__main__":
             variant['ddpg_tdm_kwargs']['base_kwargs']['discount'] = min(
                 0.98, discount
             )
-        if relabel:
-            variant['ddpg_tdm_kwargs']['tdm_kwargs']['sample_train_goals_from'] = 'her'
-            variant['ddpg_tdm_kwargs']['tdm_kwargs']['tau_sample_strategy'] = 'uniform'
-        else:
+        if not relabel:
             variant['ddpg_tdm_kwargs']['tdm_kwargs']['sample_train_goals_from'] = 'no_resampling'
             variant['ddpg_tdm_kwargs']['tdm_kwargs']['tau_sample_strategy'] = 'no_resampling'
         use_gpu = (

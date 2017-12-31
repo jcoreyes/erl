@@ -1,6 +1,7 @@
 import numpy as np
 
 from railrl.data_management.env_replay_buffer import EnvReplayBuffer
+from railrl.misc.np_util import truncated_geometric
 
 
 class HerReplayBuffer(EnvReplayBuffer):
@@ -17,6 +18,8 @@ class HerReplayBuffer(EnvReplayBuffer):
             env,
             num_goals_to_sample=8,
             fraction_goals_are_rollout_goals=None,
+            resampling_strategy='uniform',
+            truncated_geom_factor=1.,
     ):
         """
 
@@ -25,7 +28,15 @@ class HerReplayBuffer(EnvReplayBuffer):
         :param action_dim:
         :param num_goals_to_sample:
         :param fraction_goals_are_rollout_goals:
+        :param resampling_strategy: How to resample states from the rest of
+        the trajectory?
+        - 'uniform': Sample them uniformly
+        - 'truncated_geometric': Used a truncated geometric distribution
         """
+        assert resampling_strategy in [
+            'uniform',
+            'truncated_geometric',
+        ]
         super().__init__(max_size, env)
         self.num_goals_to_sample = num_goals_to_sample
         self._goals = np.zeros((max_size, self._env.goal_dim))
@@ -37,6 +48,8 @@ class HerReplayBuffer(EnvReplayBuffer):
         self.fraction_goals_are_rollout_goals = (
             fraction_goals_are_rollout_goals
         )
+        self.truncated_geom_factor = float(truncated_geom_factor)
+        self.resampling_strategy = resampling_strategy
 
         # Let j be any index in self._idx_to_future_obs_idx[i]
         # Then self._next_obs[j] is a valid next observation for observation i
@@ -116,12 +129,27 @@ class HerReplayBuffer(EnvReplayBuffer):
         indices = np.random.randint(0, self._size, batch_size)
         next_obs_idxs = []
         for i in indices:
-            possible_next_obs = self._idx_to_future_obs_idx[i]
+            possible_next_obs_idxs = self._idx_to_future_obs_idx[i]
             # This is generally faster than random.choice. Makes you wonder what
             # random.choice is doing
-            next_obs_idxs.append(
-                possible_next_obs[np.random.randint(0, len(possible_next_obs))]
-            )
+            num_options = len(possible_next_obs_idxs)
+            if num_options == 1:
+                next_obs_i = 0
+            else:
+                if self.resampling_strategy == 'uniform':
+                    next_obs_i = int(np.random.randint(0, num_options))
+                elif self.resampling_strategy == 'truncated_geometric':
+                    next_obs_i = int(truncated_geometric(
+                        p=self.truncated_geom_factor/num_options,
+                        truncate_threshold=num_options-1,
+                        size=1,
+                        new_value=0
+                    ))
+                else:
+                    raise ValueError("Invalid resampling strategy: {}".format(
+                        self.resampling_strategy
+                    ))
+            next_obs_idxs.append(possible_next_obs_idxs[next_obs_i])
         next_obs_idxs = np.array(next_obs_idxs)
         resampled_goals = self._env.convert_obs_to_goals(
             self._next_obs[next_obs_idxs]
@@ -143,6 +171,7 @@ class HerReplayBuffer(EnvReplayBuffer):
             resampled_goals=resampled_goals,
             num_steps_left=self._num_steps_left[indices],
         )
+
 
     def random_batch_for_sl(self, batch_size, max_tau):
         raise NotImplementedError()
