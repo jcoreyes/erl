@@ -105,11 +105,11 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-ddpg-tdm-launch"
 
-    # n_seeds = 1
-    # mode = "ec2"
-    # exp_prefix = "ddpg-tdm-toggle-normalization-fixed-reward-scale"
+    n_seeds = 1
+    mode = "ec2"
+    exp_prefix = "ddpg-tdm-toggle-normalization-fixed-reward-scale-and-dist-norm"
 
-    num_epochs = 100
+    num_epochs = 250
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
     max_path_length = 100
@@ -167,10 +167,10 @@ if __name__ == "__main__":
     )
     search_space = {
         'env_class': [
-            # GoalXVelHalfCheetah,
-            # GoalXPosHalfCheetah,
-            # GoalXYPosAnt,
-            # MultitaskPusher3DEnv,
+            GoalXVelHalfCheetah,
+            GoalXPosHalfCheetah,
+            GoalXYPosAnt,
+            MultitaskPusher3DEnv,
             Reacher7DofXyzGoalState,
             # CylinderXYPusher2DEnv,
             # Walker2DTargetXPos,
@@ -191,7 +191,7 @@ if __name__ == "__main__":
             # dict(max_distance=40),
         # ],
         'tdm_normalizer_kwargs.log_tau': [
-            False,
+            True, False,
         ],
         'tdm_normalizer_kwargs.normalize_tau': [
             True, False,
@@ -204,7 +204,7 @@ if __name__ == "__main__":
             'environment',
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.num_paths_for_normalization': [
-            20, 0
+            20, 0,
         ],
         'es_kwargs': [
             dict(theta=0.1, max_sigma=0.1, min_sigma=0.1),
