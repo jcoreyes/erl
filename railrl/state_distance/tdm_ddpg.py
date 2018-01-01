@@ -77,8 +77,10 @@ class TdmDdpg(TemporalDifferenceModel, DDPG):
             q_target = torch.clamp(q_target, -self.reward_scale/(1-self.discount), 0)
         q_pred = self.qf(obs, actions)
         if self.reward_type == 'distance' and self.tdm_normalizer:
-            q_pred = self.tdm_normalizer.distance_normalizer.normalize(q_pred)
-            q_target = self.tdm_normalizer.distance_normalizer.normalize(
+            q_pred = self.tdm_normalizer.distance_normalizer.normalize_scale(
+                q_pred
+            )
+            q_target = self.tdm_normalizer.distance_normalizer.normalize_scale(
                 q_target
             )
         bellman_errors = (q_pred - q_target) ** 2

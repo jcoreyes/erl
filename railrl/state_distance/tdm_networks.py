@@ -334,7 +334,9 @@ class TdmQf(FlattenMlp):
                     )
                 )
         if self.tdm_normalizer is not None:
-            output = self.tdm_normalizer.distance_normalizer.denormalize(output)
+            output = self.tdm_normalizer.distance_normalizer.denormalize_scale(
+                output
+            )
         return output
 
 
