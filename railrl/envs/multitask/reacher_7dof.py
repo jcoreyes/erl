@@ -18,6 +18,7 @@ class Reacher7DofMultitaskEnv(
     MultitaskEnv, mujoco_env.MujocoEnv, Serializable
 ):
     def __init__(self, distance_metric_order=None):
+        self._desired_xyz = np.zeros(3)
         Serializable.quick_init(self, locals())
         MultitaskEnv.__init__(self, distance_metric_order=distance_metric_order)
         mujoco_env.MujocoEnv.__init__(
@@ -25,7 +26,6 @@ class Reacher7DofMultitaskEnv(
             get_asset_xml('reacher_7dof.xml'),
             5,
         )
-        self._desired_xyz = np.zeros(3)
 
     def viewer_setup(self):
         self.viewer.cam.trackbodyid = -1
@@ -49,7 +49,7 @@ class Reacher7DofMultitaskEnv(
 
     def _step(self, a):
         distance = np.linalg.norm(
-            self.get_body_com("tips_arm") - self.multitask_goal
+            self.get_body_com("tips_arm") - self._desired_xyz
         )
         reward = - distance
         self.do_simulation(a, self.frame_skip)
@@ -58,6 +58,8 @@ class Reacher7DofMultitaskEnv(
         return ob, reward, done, dict(
             distance=distance,
             multitask_goal=self.multitask_goal,
+            desired_xyz=self._desired_xyz,
+            goal=self.multitask_goal,
         )
 
     def _set_goal_xyz(self, xyz_pos):
@@ -65,6 +67,7 @@ class Reacher7DofMultitaskEnv(
         current_qvel = self.model.data.qvel.flat.copy()
         new_qpos = current_qpos.copy()
         new_qpos[-7:-4] = xyz_pos
+        self._desired_xyz = xyz_pos
         self.set_state(new_qpos, current_qvel)
 
     def log_diagnostics(self, paths, logger=rllab_logger):
@@ -101,7 +104,6 @@ class Reacher7DofXyzGoalState(Reacher7DofMultitaskEnv):
 
     def set_goal(self, goal):
         super().set_goal(goal)
-        self._desired_xyz = goal
         self._set_goal_xyz(goal)
 
     @property
@@ -209,6 +211,7 @@ class Reacher7DofXyzPosAndVelGoalState(Reacher7DofMultitaskEnv):
             vel_error=vel_error,
             pos_error=pos_error,
             distance=pos_error,
+            desired_xyz=self._desired_xyz,
             weighted_vel_error=weighted_vel_error,
             weighted_pos_error=weighted_pos_error,
         )
@@ -237,3 +240,40 @@ class Reacher7DofXyzPosAndVelGoalState(Reacher7DofMultitaskEnv):
 
         for key, value in statistics.items():
             logger.record_tabular(key, value)
+
+
+class Reacher7DofFullGoal(Reacher7DofMultitaskEnv):
+
+    @property
+    def goal_dim(self) -> int:
+        return 17
+
+    def sample_goals(self, batch_size):
+        raise NotImplementedError()
+
+    def convert_obs_to_goals(self, obs):
+        return obs
+
+    def set_goal(self, goal):
+        super().set_goal(goal)
+        self._set_goal_xyz(goal[14:17])
+
+    def sample_goal_for_rollout(self):
+        angles = np.random.uniform(
+            np.array([-2.28, -0.52, -1.4, -2.32, -1.5, -1.094, -1.5]),
+            np.array([1.71, 1.39, 1.7, 0,   1.5, 0,   1.5, ]),
+        )
+
+        saved_qpos = self.init_qpos.copy()
+        saved_qvel = self.init_qvel.copy()
+        qpos_tmp = saved_qpos.copy()
+        qpos_tmp[:7] = angles
+        self.set_state(qpos_tmp, saved_qvel)
+        ee_pos = self.get_body_com("tips_arm")
+        self.set_state(saved_qpos, saved_qvel)
+        velocities = np.zeros(7)
+        return np.hstack((
+            angles,
+            velocities,
+            ee_pos,
+        ))
