@@ -41,6 +41,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             goal_weights=None,
             tdm_normalizer: TdmNormalizer=None,
             num_paths_for_normalization=0,
+            normalize_distance=False,
     ):
         """
 
@@ -129,6 +130,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             assert self.goal_weights.size == self.env.goal_dim
         self.tdm_normalizer = tdm_normalizer
         self.num_paths_for_normalization = num_paths_for_normalization
+        self.normalize_distance = normalize_distance
 
         self.policy = MakeUniversal(self.policy)
         self.eval_policy = MakeUniversal(self.eval_policy)
@@ -173,7 +175,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         actions = batch['actions']
         next_obs = batch['next_observations']
         goals = self._sample_goals_for_training(batch)
-        rewards = self._compute_rewards_np(batch, obs, actions, next_obs, goals)
+        rewards = self._compute_scaled_rewards_np(batch, obs, actions, next_obs, goals)
         terminals = batch['terminals']
 
         if self.tau_sample_strategy == 'all_valid':
@@ -223,7 +225,12 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
 
         return np_to_pytorch_batch(batch)
 
-    def _compute_rewards_np(self, batch, obs, actions, next_obs, goals):
+    def _compute_scaled_rewards_np(self, batch, obs, actions, next_obs, goals):
+        """
+        Rewards should be already multiplied by the reward scale and/or other
+        factors. In other words, the rewards returned here should be
+        immediately ready for any down-stream learner to consume.
+        """
         if self.reward_type == 'indicator':
             diff = self.env.convert_obs_to_goals(next_obs) - goals
             if self.vectorized:
@@ -234,27 +241,27 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
                     > self.goal_reached_epsilon
                 )
         elif self.reward_type == 'distance':
-            distances = self._compute_distances(next_obs, goals)
+            neg_distances = self._compute_raw_neg_distances(next_obs, goals)
             if self.goal_weights is not None:
-                distances = distances * self.goal_weights
-            return distances
+                neg_distances = neg_distances * self.goal_weights
+            return neg_distances * self.reward_scale
         elif self.reward_type == 'env':
             return batch['rewards']
         else:
             raise TypeError("Invalid reward type: {}".format(self.reward_type))
 
-    def _compute_distances(self, next_obs, goals):
+    def _compute_raw_neg_distances(self, next_obs, goals):
         diff = self.env.convert_obs_to_goals(next_obs) - goals
         if self.vectorized:
-            raw_distances = -np.abs(diff)
+            raw_neg_distances = -np.abs(diff)
         else:
-            raw_distances = -np.linalg.norm(
+            raw_neg_distances = -np.linalg.norm(
                 diff,
                 ord=self.norm_order,
                 axis=1,
                 keepdims=True,
             )
-        return raw_distances * self.reward_scale
+        return raw_neg_distances
 
     @property
     def train_buffer(self):
@@ -397,11 +404,16 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             )
             paths.append(path)
 
+        goals = np.vstack([
+            self._sample_goal_for_rollout()
+            for _ in range(
+                self.num_paths_for_normalization * self.max_path_length
+            )
+        ])
         obs = np.vstack([path["observations"] for path in paths])
         next_obs = np.vstack([path["next_observations"] for path in paths])
         actions = np.vstack([path["actions"] for path in paths])
-        goals = np.vstack([path["goals"] for path in paths])
-        distances = self._compute_distances(next_obs, goals)
+        neg_distances = self._compute_raw_neg_distances(next_obs, goals)
 
         ob_mean = np.mean(obs, axis=0)
         ob_std = np.std(obs, axis=0)
@@ -409,8 +421,8 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         ac_std = np.std(actions, axis=0)
         goal_mean = np.mean(goals, axis=0)
         goal_std = np.std(goals, axis=0)
-        distance_mean = np.mean(distances, axis=0)
-        distance_std = np.std(distances, axis=0)
+        distance_mean = np.mean(neg_distances, axis=0)
+        distance_std = np.std(neg_distances, axis=0)
 
         if self.tdm_normalizer is not None:
             self.tdm_normalizer.obs_normalizer.set_mean(ob_mean)
@@ -419,8 +431,9 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             self.tdm_normalizer.action_normalizer.set_std(ac_std)
             self.tdm_normalizer.goal_normalizer.set_mean(goal_mean)
             self.tdm_normalizer.goal_normalizer.set_std(goal_std)
-            self.tdm_normalizer.distance_normalizer.set_mean(distance_mean)
-            self.tdm_normalizer.distance_normalizer.set_std(distance_std)
+            if self.normalize_distance:
+                self.tdm_normalizer.distance_normalizer.set_mean(distance_mean)
+                self.tdm_normalizer.distance_normalizer.set_std(distance_std)
 
 
 class RandomUniveralPolicy(UniversalPolicy, SerializablePolicy):
