@@ -316,13 +316,13 @@ class DDPG(TorchRLAlgorithm):
         if self.obs_normalizer is not None:
             self.obs_normalizer.set_mean(ob_mean)
             self.obs_normalizer.set_std(ob_std)
-            self.target_qf.obs_normalizer.copy_stats(self.obs_normalizer)
-            self.target_policy.obs_normalizer.copy_stats(self.obs_normalizer)
+            self.target_qf.obs_normalizer = self.obs_normalizer
+            self.target_policy.obs_normalizer = self.obs_normalizer
         if self.action_normalizer is not None:
             self.action_normalizer.set_mean(ac_mean)
             self.action_normalizer.set_std(ac_std)
-            self.target_qf.action_normalizer.copy_stats(self.action_normalizer)
-            self.target_policy.action_normalizer.copy_stats(self.action_normalizer)
+            self.target_qf.action_normalizer = self.action_normalizer
+            self.target_policy.action_normalizer = self.action_normalizer
 
 def compute_normalization(paths):
     obs = np.vstack([path["observations"] for path in paths])
