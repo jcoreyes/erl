@@ -70,14 +70,14 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-dagger"
 
-    n_seeds = 1
+    n_seeds = 3
     mode = "ec2"
-    exp_prefix = "find-mb-secret-sauce-toggle-normalization-obs-action"
+    exp_prefix = "final-cheetah-xpos"
 
-    num_epochs = 100
+    num_epochs = 250
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
-    max_path_length = 50
+    max_path_length = 100
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -112,15 +112,18 @@ if __name__ == "__main__":
         'multitask': [True],
         'env_class': [
             # GoalXVelHalfCheetah,
-            Reacher7DofXyzGoalState,
-            GoalXYPosAnt,
+            # Reacher7DofXyzGoalState,
+            # GoalXYPosAnt,
             GoalXPosHalfCheetah,
-            MultitaskPusher3DEnv,
+            # MultitaskPusher3DEnv,
             # GoalXPosHopper,
             # Reacher7DofXyzPosAndVelGoalState,
             # GoalXYPosAndVelAnt,
             # CylinderXYPusher2DEnv,
             # Walker2DTargetXPos,
+        ],
+        'env_kwargs': [
+            dict(max_distance=30),
         ],
         # 'env_kwargs.reward_coefs': [
         #     (1, 0, 0),
@@ -148,7 +151,7 @@ if __name__ == "__main__":
             100,
         ],
         'algo_kwargs.num_updates_per_env_step': [
-            1,
+            1, 2, 5, 10
         ],
         'algo_kwargs.num_paths_for_normalization': [20],
         'mpc_controller_kwargs.mpc_horizon': [15],

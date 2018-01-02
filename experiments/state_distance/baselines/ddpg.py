@@ -18,7 +18,8 @@ from railrl.exploration_strategies.base import \
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.algos.ddpg import DDPG
-from railrl.torch.networks import TanhMlpPolicy, FlattenMlp
+from railrl.torch.data_management.normalizer import TorchFixedNormalizer
+from railrl.torch.networks import TanhMlpPolicy, FlattenMlp, MlpQf
 
 
 def experiment(variant):
@@ -35,14 +36,19 @@ def experiment(variant):
     )
     obs_dim = int(env.observation_space.flat_dim)
     action_dim = int(env.action_space.flat_dim)
-    qf = FlattenMlp(
+    obs_normalizer = TorchFixedNormalizer(obs_dim)
+    action_normalizer = TorchFixedNormalizer(action_dim)
+    qf = MlpQf(
         input_size=obs_dim+action_dim,
         output_size=1,
+        obs_normalizer=obs_normalizer,
+        action_normalizer=action_normalizer,
         **variant['qf_kwargs']
     )
     policy = TanhMlpPolicy(
         input_size=obs_dim,
         output_size=action_dim,
+        obs_normalizer=obs_normalizer,
         **variant['policy_kwargs']
     )
     exploration_policy = PolicyWrappedWithExplorationStrategy(
@@ -54,6 +60,8 @@ def experiment(variant):
         qf,
         policy,
         exploration_policy,
+        obs_normalizer=obs_normalizer,
+        action_normalizer=action_normalizer,
         **variant['algo_kwargs']
     )
     algorithm.train()
@@ -64,14 +72,14 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-state-distance-ddpg-baseline"
 
-    n_seeds = 1
+    n_seeds = 3
     mode = "ec2"
-    exp_prefix = "hopper-xpos"
+    exp_prefix = "final-cheetah-xpos"
 
-    num_epochs = 1000
+    num_epochs = 250
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
-    max_path_length = 50
+    max_path_length = 100
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -113,8 +121,9 @@ if __name__ == "__main__":
             # GoalXVelHalfCheetah,
             # GoalXYPosAnt,
             # Reacher7DofXyzPosAndVelGoalState,
-            GoalXPosHopper,
+            # GoalXPosHopper,
             # GoalXYPosAndVelAnt,
+            GoalXPosHalfCheetah,
             # CylinderXYPusher2DEnv,
             # GoalXPosHalfCheetah,
             # MultitaskPusher3DEnv,
@@ -138,21 +147,22 @@ if __name__ == "__main__":
         #     0.005,
         # ],
         'env_kwargs.max_distance': [
-            0.5,
-            2,
-            5,
+            30,
         ],
         # 'env_kwargs.use_low_gear_ratio': [
         #     False,
         # ],
+        'algo_kwargs.num_paths_for_normalization': [
+            20, 0
+        ],
         'algo_kwargs.max_path_length': [
-            50, 100, 250
+            100,
         ],
         'algo_kwargs.num_updates_per_env_step': [
-            1,
+            1, 2, 5, 10
         ],
         'algo_kwargs.reward_scale': [
-            1, 100, 10000, 1000000
+            0.001, 0.01, 0.1, 1,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

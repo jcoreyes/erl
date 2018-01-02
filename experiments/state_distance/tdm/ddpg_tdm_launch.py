@@ -107,7 +107,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "ddpg-tdm-toggle-normalization-fixed-reward-scale-and-dist-norm"
+    exp_prefix = "final-cheetah-xpos"
 
     num_epochs = 250
     num_steps_per_epoch = 1000
@@ -167,34 +167,22 @@ if __name__ == "__main__":
     )
     search_space = {
         'env_class': [
-            GoalXVelHalfCheetah,
+            # GoalXVelHalfCheetah,
             GoalXPosHalfCheetah,
-            GoalXYPosAnt,
-            MultitaskPusher3DEnv,
-            Reacher7DofXyzGoalState,
+            # GoalXYPosAnt,
+            # MultitaskPusher3DEnv,
+            # Reacher7DofXyzGoalState,
             # CylinderXYPusher2DEnv,
             # Walker2DTargetXPos,
         ],
-        # 'env_kwargs': [
-            # dict(
-                # reward_coefs=(1, 0, 0),
-            # ),
-            # dict(
-            #     reward_coefs=(0.5, 0.375, 0.125),
-            # ),
-            # dict(max_distance=2),
-            # dict(max_distance=4),
-            # dict(max_distance=6),
-            # dict(max_distance=8),
-            # dict(max_distance=20),
-            # dict(max_distance=30),
-            # dict(max_distance=40),
-        # ],
+        'env_kwargs': [
+            dict(max_distance=30),
+        ],
         'tdm_normalizer_kwargs.log_tau': [
-            True, False,
+            False,
         ],
         'tdm_normalizer_kwargs.normalize_tau': [
-            True, False,
+            False,
         ],
         'qf_criterion_class': [
             # HuberLoss,
@@ -204,13 +192,13 @@ if __name__ == "__main__":
             'environment',
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.num_paths_for_normalization': [
-            20, 0,
+            20,
         ],
         'es_kwargs': [
             dict(theta=0.1, max_sigma=0.1, min_sigma=0.1),
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.max_tau': [
-            max_path_length-1, 49, 15
+            25, 15, 5
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.dense_rewards': [
             False,
@@ -253,13 +241,13 @@ if __name__ == "__main__":
             True,
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.normalize_distance': [
-            True, False
+            False
         ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
-            0.01, 1, 100, 10000, 1000000
+            10, 100, 1000
         ],
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
-            1,
+            1, 2, 5, 10
         ],
         'ddpg_tdm_kwargs.base_kwargs.discount': [
             1,
