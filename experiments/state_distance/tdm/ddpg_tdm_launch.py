@@ -12,6 +12,7 @@ from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
     GoalXPosHalfCheetah
 from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
 from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
+from railrl.envs.multitask.pusher3d_gym import GoalXYGymPusherEnv
 from railrl.envs.multitask.walker2d_env import Walker2DTargetXPos
 from railrl.envs.multitask.reacher_7dof import (
     # Reacher7DofGoalStateEverything,
@@ -103,13 +104,14 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = "local"
+    mode = "local_docker"
     exp_prefix = "dev-ddpg-tdm-launch"
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "final-cheetah-xpos"
+    exp_prefix = "pre-final-pusher-gym"
 
-    num_epochs = 250
+    num_epochs = 1000
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
     max_path_length = 100
@@ -168,16 +170,17 @@ if __name__ == "__main__":
     search_space = {
         'env_class': [
             # GoalXVelHalfCheetah,
-            GoalXPosHalfCheetah,
+            # GoalXPosHalfCheetah,
             # GoalXYPosAnt,
             # MultitaskPusher3DEnv,
             # Reacher7DofXyzGoalState,
             # CylinderXYPusher2DEnv,
             # Walker2DTargetXPos,
+            GoalXYGymPusherEnv,
         ],
-        'env_kwargs': [
-            dict(max_distance=30),
-        ],
+        # 'env_kwargs': [
+        #     dict(max_distance=30),
+        # ],
         'tdm_normalizer_kwargs.log_tau': [
             False,
         ],
@@ -198,7 +201,7 @@ if __name__ == "__main__":
             dict(theta=0.1, max_sigma=0.1, min_sigma=0.1),
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.max_tau': [
-            25, 15, 5
+            15,
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.dense_rewards': [
             False,
@@ -244,10 +247,10 @@ if __name__ == "__main__":
             False
         ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
-            10, 100, 1000
+            0.01, 1, 100, 10000
         ],
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
-            1, 2, 5, 10
+            1,
         ],
         'ddpg_tdm_kwargs.base_kwargs.discount': [
             1,

@@ -14,6 +14,7 @@ from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv, \
     MultitaskEnvToSilentMultitaskEnv
 from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
 from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
+from railrl.envs.multitask.pusher3d_gym import GoalXYGymPusherEnv
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState, Reacher7DofXyzPosAndVelGoalState)
 from railrl.envs.multitask.walker2d_env import Walker2DTargetXPos
@@ -68,13 +69,14 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = "local"
+    mode = "local_docker"
     exp_prefix = "dev-dagger"
 
-    n_seeds = 3
+    n_seeds = 1
     mode = "ec2"
-    exp_prefix = "final-cheetah-xpos"
+    exp_prefix = "pre-final-pusher-gym"
 
-    num_epochs = 250
+    num_epochs = 1000
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
     max_path_length = 100
@@ -114,7 +116,8 @@ if __name__ == "__main__":
             # GoalXVelHalfCheetah,
             # Reacher7DofXyzGoalState,
             # GoalXYPosAnt,
-            GoalXPosHalfCheetah,
+            # GoalXPosHalfCheetah,
+            GoalXYGymPusherEnv,
             # MultitaskPusher3DEnv,
             # GoalXPosHopper,
             # Reacher7DofXyzPosAndVelGoalState,
@@ -122,9 +125,9 @@ if __name__ == "__main__":
             # CylinderXYPusher2DEnv,
             # Walker2DTargetXPos,
         ],
-        'env_kwargs': [
-            dict(max_distance=30),
-        ],
+        # 'env_kwargs': [
+        #     dict(max_distance=30),
+        # ],
         # 'env_kwargs.reward_coefs': [
         #     (1, 0, 0),
         #     (0.5, 0.375, 0.125),
@@ -147,11 +150,11 @@ if __name__ == "__main__":
         #     2,
         #     5,
         # ],
-        'algo_kwargs.max_path_length': [
-            100,
-        ],
+        # 'algo_kwargs.max_path_length': [
+        #     max_path_length,
+        # ],
         'algo_kwargs.num_updates_per_env_step': [
-            1, 2, 5, 10
+            1,
         ],
         'algo_kwargs.num_paths_for_normalization': [20],
         'mpc_controller_kwargs.mpc_horizon': [15],

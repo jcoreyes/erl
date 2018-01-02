@@ -8,6 +8,7 @@ from railrl.envs.multitask.hopper_env import GoalXPosHopper
 from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
 from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
 from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
+from railrl.envs.multitask.pusher3d_gym import GoalXYGymPusherEnv
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState,
     Reacher7DofXyzPosAndVelGoalState)
@@ -70,13 +71,14 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = "local"
+    mode = "local_docker"
     exp_prefix = "dev-state-distance-ddpg-baseline"
 
-    n_seeds = 3
+    n_seeds = 1
     mode = "ec2"
-    exp_prefix = "final-cheetah-xpos"
+    exp_prefix = "pre-final-pusher-gym"
 
-    num_epochs = 250
+    num_epochs = 1000
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
     max_path_length = 100
@@ -113,6 +115,7 @@ if __name__ == "__main__":
         ),
         version="DDPG-no-shaping",
         algorithm="DDPG",
+        env_kwargs=dict(),
     )
     search_space = {
         'multitask': [True],
@@ -123,7 +126,8 @@ if __name__ == "__main__":
             # Reacher7DofXyzPosAndVelGoalState,
             # GoalXPosHopper,
             # GoalXYPosAndVelAnt,
-            GoalXPosHalfCheetah,
+            # GoalXPosHalfCheetah,
+            GoalXYGymPusherEnv,
             # CylinderXYPusher2DEnv,
             # GoalXPosHalfCheetah,
             # MultitaskPusher3DEnv,
@@ -146,20 +150,20 @@ if __name__ == "__main__":
         # 'env_kwargs.done_threshold': [
         #     0.005,
         # ],
-        'env_kwargs.max_distance': [
-            30,
-        ],
+        # 'env_kwargs.max_distance': [
+        #     30,
+        # ],
         # 'env_kwargs.use_low_gear_ratio': [
         #     False,
         # ],
         'algo_kwargs.num_paths_for_normalization': [
-            20, 0
+            20,
         ],
-        'algo_kwargs.max_path_length': [
-            100,
-        ],
+        # 'algo_kwargs.max_path_length': [
+        #     max_path_length,
+        # ],
         'algo_kwargs.num_updates_per_env_step': [
-            1, 2, 5, 10
+            1,
         ],
         'algo_kwargs.reward_scale': [
             0.001, 0.01, 0.1, 1,
