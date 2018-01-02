@@ -12,6 +12,7 @@ from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
     GoalXPosHalfCheetah
 from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
 from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
+from railrl.envs.multitask.pusher3d_gym import GoalXYGymPusherEnv
 from railrl.envs.multitask.walker2d_env import Walker2DTargetXPos
 from railrl.envs.multitask.reacher_7dof import (
     # Reacher7DofGoalStateEverything,
@@ -23,28 +24,47 @@ from railrl.exploration_strategies.base import \
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.torch import FeedForwardPolicy
-from railrl.state_distance.tdm_networks import StructuredQF
+from railrl.state_distance.tdm_networks import TdmQf, TdmPolicy, TdmNormalizer
 from railrl.state_distance.tdm_ddpg import TdmDdpg
 from railrl.torch.modules import HuberLoss
-from railrl.torch.networks import TanhMlpPolicy
+from railrl.torch.data_management.normalizer import TorchFixedNormalizer
 
 
 def experiment(variant):
-    env = normalize_box(variant['env_class']())
+    env = normalize_box(variant['env_class'](**variant['env_kwargs']))
 
-    obs_dim = int(np.prod(env.observation_space.low.shape))
-    action_dim = int(np.prod(env.action_space.low.shape))
     vectorized = variant['ddpg_tdm_kwargs']['tdm_kwargs']['vectorized']
-    qf = StructuredQF(
-        observation_dim=obs_dim,
-        action_dim=action_dim,
-        goal_dim=env.goal_dim,
-        output_size=env.goal_dim if vectorized else 1,
+    norm_order = variant['norm_order']
+    assert not vectorized
+    env = normalize_box(variant['env_class'](**variant['env_kwargs']))
+    observation_dim = int(np.prod(env.observation_space.low.shape))
+    action_dim = int(np.prod(env.action_space.low.shape))
+    obs_normalizer = TorchFixedNormalizer(observation_dim)
+    goal_normalizer = TorchFixedNormalizer(env.goal_dim)
+    action_normalizer = TorchFixedNormalizer(action_dim)
+    distance_normalizer = TorchFixedNormalizer(
+        env.goal_dim if vectorized else 1
+    )
+    max_tau = variant['ddpg_tdm_kwargs']['tdm_kwargs']['max_tau']
+    tdm_normalizer = TdmNormalizer(
+        env,
+        obs_normalizer=obs_normalizer,
+        goal_normalizer=goal_normalizer,
+        action_normalizer=action_normalizer,
+        distance_normalizer=distance_normalizer,
+        max_tau=max_tau,
+        **variant['tdm_normalizer_kwargs']
+    )
+    qf = TdmQf(
+        env=env,
+        vectorized=vectorized,
+        norm_order=norm_order,
+        tdm_normalizer=tdm_normalizer,
         **variant['qf_kwargs']
     )
-    policy = TanhMlpPolicy(
-        input_size=obs_dim + env.goal_dim + 1,
-        output_size=action_dim,
+    policy = TdmPolicy(
+        env=env,
+        tdm_normalizer=tdm_normalizer,
         **variant['policy_kwargs']
     )
     es = OUStrategy(
@@ -80,16 +100,17 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = "local"
+    mode = "local_docker"
     exp_prefix = "dev-her"
 
-    n_seeds = 3
+    n_seeds = 1
     mode = "ec2"
-    exp_prefix = "her-andrychowicz-cheetah-xpos-rebutal"
+    exp_prefix = "pre-final-pusher-gym"
 
     num_epochs = 1000
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
-    max_path_length = 50
+    max_path_length = 100
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -107,8 +128,8 @@ if __name__ == "__main__":
                 sample_rollout_goals_from='environment',
                 sample_train_goals_from='her',
                 vectorized=False,
-                cycle_taus_for_rollout=True,
-                max_tau=10,
+                cycle_taus_for_rollout=False,
+                max_tau=0,
                 finite_horizon=False,
                 dense_rewards=True,
                 reward_type='indicator',
@@ -125,6 +146,7 @@ if __name__ == "__main__":
         ),
         qf_kwargs=dict(
             hidden_sizes=[300, 300],
+            structure='none',
         ),
         policy_kwargs=dict(
             hidden_sizes=[300, 300],
@@ -136,14 +158,20 @@ if __name__ == "__main__":
         ),
         qf_criterion_class=HuberLoss,
         qf_criterion_kwargs=dict(),
-        version="HER-Andrychowicz",
+        version="DDPG-Sparse",
         algorithm="HER-Andrychowicz",
+        env_kwargs=dict(),
+        tdm_normalizer_kwargs=dict(
+            normalize_tau=False,
+            log_tau=False,
+        ),
     )
     search_space = {
         'env_class': [
             # GoalXVelHalfCheetah,
             # GoalXPosHalfCheetah,
-            GoalXYPosAnt,
+            # GoalXYPosAnt,
+            GoalXYGymPusherEnv,
             # CylinderXYPusher2DEnv,
             # Reacher7DofXyzGoalState,
             # MultitaskPusher3DEnv,
@@ -159,10 +187,10 @@ if __name__ == "__main__":
             4,
         ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
-            10, 100, 1000
+            0.01, 1, 100, 10000
         ],
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
-            1, 10, 25
+            1,
         ],
         'ddpg_tdm_kwargs.base_kwargs.discount': [
             0.98,
@@ -173,16 +201,30 @@ if __name__ == "__main__":
         'ddpg_tdm_kwargs.ddpg_kwargs.policy_pre_activation_weight': [
             0.,
             0.01,
-            1,
+            # 1,
         ],
         'ddpg_tdm_kwargs.ddpg_kwargs.eval_with_target_policy': [
             True,
+        ],
+        'ddpg_tdm_kwargs.tdm_kwargs.num_paths_for_normalization': [
+            20, 0
+        ],
+        'norm_order': [1],
+        'relabel': [
+            False,
+            # True,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+        relabel = variant['relabel']
+        if not relabel:
+            variant['ddpg_tdm_kwargs']['tdm_kwargs']['sample_train_goals_from'] = 'no_resampling'
+            variant['ddpg_tdm_kwargs']['tdm_kwargs']['tau_sample_strategy'] = 'no_resampling'
+            variant['version'] = "DDPG-Sparse"
+            variant['algorithm'] = "DDPG-Sparse"
         for i in range(n_seeds):
             variant['multitask'] = (
                     variant['ddpg_tdm_kwargs']['tdm_kwargs'][
