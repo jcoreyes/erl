@@ -10,7 +10,7 @@ from rllab.core.serializable import Serializable
 from rllab.misc import logger as rllab_logger
 
 
-class GoalXYPusherEnv(PusherEnv, MultitaskEnv, Serializable):
+class GoalXYGymPusherEnv(PusherEnv, MultitaskEnv, Serializable):
     def __init__(self):
         Serializable.quick_init(self, locals())
         MultitaskEnv.__init__(self)
