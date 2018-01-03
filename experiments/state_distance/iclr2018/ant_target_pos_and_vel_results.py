@@ -22,9 +22,6 @@ def main():
             'algorithm': 'Model-Based-Dagger',
         }
     ).get_trials()
-    tmp = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/12-30-ant-pos-vel/",
-    )
     ddpg_trials = Experiment(
         "/home/vitchyr/git/railrl/data/doodads3/12-30-ant-pos-vel/",
         criteria={

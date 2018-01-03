@@ -76,9 +76,9 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "try-hopper-again"
+    exp_prefix = "ddpg-ant-pos-and-vel-weight-0p99"
 
-    num_epochs = 1000
+    num_epochs = 500
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
     max_path_length = 100
@@ -124,8 +124,8 @@ if __name__ == "__main__":
             # GoalXVelHalfCheetah,
             # GoalXYPosAnt,
             # Reacher7DofXyzPosAndVelGoalState,
-            GoalXPosHopper,
-            # GoalXYPosAndVelAnt,
+            # GoalXPosHopper,
+            GoalXYPosAndVelAnt,
             # GoalXPosHalfCheetah,
             # GoalXYGymPusherEnv,
             # CylinderXYPusher2DEnv,
@@ -144,19 +144,19 @@ if __name__ == "__main__":
         # 'env_kwargs.max_speed': [
         #     0.05,
         # ],
-        # 'env_kwargs.speed_weight': [
-        #     0.99, 0.95, 0.9
-        # ],
-        # 'env_kwargs.done_threshold': [
-        #     0.005,
-        # ],
-        'env_kwargs.max_distance': [
-            0.5, 2
+        'env_kwargs.speed_weight': [
+            0.99,
         ],
-        'env_kwargs.action_penalty': [
-            1e-3, 0,
+        'env_kwargs.done_threshold': [
+            0.005, 0.001, 0.0005
         ],
-        'out_kwargs.theta': [0, 0.1],
+        # 'env_kwargs.max_distance': [
+        #     0.5, 2
+        # ],
+        # 'env_kwargs.action_penalty': [
+        #     1e-3, 0,
+        # ],
+        # 'out_kwargs.theta': [0, 0.1],
         # 'env_kwargs.min_distance': [
         #     3,
         # ],
@@ -175,9 +175,9 @@ if __name__ == "__main__":
         'algo_kwargs.reward_scale': [
             0.01, 1, 100, 10000
         ],
-        'algo_kwargs.tau': [
-            0.01, 0.001,
-        ],
+        # 'algo_kwargs.tau': [
+        #     0.01, 0.001,
+        # ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

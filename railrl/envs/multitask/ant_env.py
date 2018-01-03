@@ -254,6 +254,20 @@ class GoalXYPosAndVelAnt(AntEnv, MultitaskEnv, Serializable):
                 [s[-1] for s in stat],
                 always_show_all_stats=True,
             ))
+        weighted_error = (
+            get_stat_in_paths(paths, 'env_infos', 'weighted_pos_error')
+            + get_stat_in_paths(paths, 'env_infos', 'weighted_vel_error')
+        )
+        statistics.update(create_stats_ordered_dict(
+            "Weighted Error",
+            weighted_error,
+            always_show_all_stats=True,
+        ))
+        statistics.update(create_stats_ordered_dict(
+            "Final Weighted Error",
+            [s[-1] for s in weighted_error],
+            always_show_all_stats=True,
+        ))
 
         for key, value in statistics.items():
             logger.record_tabular(key, value)
