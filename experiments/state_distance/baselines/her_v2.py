@@ -100,14 +100,14 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-her"
 
-    n_seeds = 1
+    n_seeds = 3
     mode = "ec2"
-    exp_prefix = "ant-pos-and-vel-her-and-sparse-ddpg"
+    exp_prefix = "final-ant-max-distance-6"
 
     num_epochs = 1000
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
-    max_path_length = 100
+    max_path_length = 50
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -118,7 +118,7 @@ if __name__ == "__main__":
                 num_steps_per_eval=num_steps_per_eval,
                 max_path_length=max_path_length,
                 num_updates_per_env_step=25,
-                batch_size=256,
+                batch_size=128,
                 discount=1,
             ),
             tdm_kwargs=dict(
@@ -167,20 +167,23 @@ if __name__ == "__main__":
         'env_class': [
             # GoalXVelHalfCheetah,
             # GoalXPosHalfCheetah,
-            # GoalXYPosAnt,
+            GoalXYPosAnt,
             # GoalXYGymPusherEnv,
             # CylinderXYPusher2DEnv,
             # Reacher7DofXyzGoalState,
             # MultitaskPusher3DEnv,
             # Walker2DTargetXPos,
-            GoalXYPosAndVelAnt,
+            # GoalXYPosAndVelAnt,
         ],
-        'env_kwargs.speed_weight': [
-            None,
-        ],
-        'env_kwargs.goal_dim_weights': [
-            (0.01, 0.01, 0.99, 0.99),
-            (0.1, 0.1, 0.9, 0.9),
+        # 'env_kwargs.speed_weight': [
+        #     None,
+        # ],
+        # 'env_kwargs.goal_dim_weights': [
+        #     (0.01, 0.01, 0.99, 0.99),
+        #     (0.1, 0.1, 0.9, 0.9),
+        # ],
+        'env_kwargs.max_distance': [
+            6,
         ],
         'qf_criterion_class': [
             nn.MSELoss,
@@ -195,7 +198,7 @@ if __name__ == "__main__":
             0.01, 1, 100, 10000
         ],
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
-            1,
+            1, 5, 10,
         ],
         'ddpg_tdm_kwargs.base_kwargs.discount': [
             0.98,
@@ -204,15 +207,13 @@ if __name__ == "__main__":
             0.05,
         ],
         'ddpg_tdm_kwargs.ddpg_kwargs.policy_pre_activation_weight': [
-            0.,
             0.01,
-            1,
         ],
         'ddpg_tdm_kwargs.ddpg_kwargs.eval_with_target_policy': [
             True,
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.num_paths_for_normalization': [
-            20, 0
+            0
         ],
         'norm_order': [1],
         'relabel': [

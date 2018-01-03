@@ -74,14 +74,14 @@ if __name__ == "__main__":
     mode = "local_docker"
     exp_prefix = "dev-state-distance-ddpg-baseline"
 
-    n_seeds = 1
+    n_seeds = 3
     mode = "ec2"
-    exp_prefix = "ddpg-ant-pos-and-vel-weight-0p99"
+    exp_prefix = "final-ant-max-distance-6"
 
-    num_epochs = 500
+    num_epochs = 1000
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
-    max_path_length = 100
+    max_path_length = 50
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -144,15 +144,15 @@ if __name__ == "__main__":
         # 'env_kwargs.max_speed': [
         #     0.05,
         # ],
-        'env_kwargs.speed_weight': [
-            0.99,
-        ],
-        'env_kwargs.done_threshold': [
-            0.005, 0.001, 0.0005
-        ],
-        # 'env_kwargs.max_distance': [
-        #     0.5, 2
+        # 'env_kwargs.speed_weight': [
+        #     0.99,
         # ],
+        # 'env_kwargs.done_threshold': [
+        #     0.005, 0.001, 0.0005
+        # ],
+        'env_kwargs.max_distance': [
+            6,
+        ],
         # 'env_kwargs.action_penalty': [
         #     1e-3, 0,
         # ],
@@ -164,16 +164,16 @@ if __name__ == "__main__":
         #     False,
         # ],
         'algo_kwargs.num_paths_for_normalization': [
-            20, 0,
+            0,
         ],
         # 'algo_kwargs.max_path_length': [
         #     max_path_length,
         # ],
         'algo_kwargs.num_updates_per_env_step': [
-            1,
+            1, 5, 10,
         ],
         'algo_kwargs.reward_scale': [
-            0.01, 1, 100, 10000
+            0.01, 1, 100,
         ],
         # 'algo_kwargs.tau': [
         #     0.01, 0.001,

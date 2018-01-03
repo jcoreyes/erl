@@ -106,14 +106,14 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-ddpg-tdm-launch-2"
 
-    n_seeds = 1
+    n_seeds = 3
     mode = "ec2"
-    exp_prefix = "ddpg-tdm-cheetah-nupo-sweep"
+    exp_prefix = "final-ant-max-distance-6"
 
-    num_epochs = 250
+    num_epochs = 1000
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
-    max_path_length = 100
+    max_path_length = 50
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -169,8 +169,8 @@ if __name__ == "__main__":
     search_space = {
         'env_class': [
             # GoalXVelHalfCheetah,
-            GoalXPosHalfCheetah,
-            # GoalXYPosAnt,
+            # GoalXPosHalfCheetah,
+            GoalXYPosAnt,
             # Reacher7DofXyzPosAndVelGoalState,
             # GoalXYPosAndVelAnt,
             # MultitaskPusher3DEnv,
@@ -180,7 +180,7 @@ if __name__ == "__main__":
             # GoalXYGymPusherEnv,
         ],
         'env_kwargs.max_distance': [
-            30,
+            6,
         ],
         # 'env_kwargs.min_distance': [
         #     3,
@@ -199,7 +199,7 @@ if __name__ == "__main__":
             'environment',
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.num_paths_for_normalization': [
-            20, 0
+            0
         ],
         'es_kwargs': [
             dict(theta=0.1, max_sigma=0.1, min_sigma=0.1),
@@ -214,7 +214,7 @@ if __name__ == "__main__":
             True,
         ],
         'relabel': [
-            True, False
+            True,
         ],
         'her_replay_buffer_kwargs.resampling_strategy': [
             # 'truncated_geometric',
@@ -245,7 +245,7 @@ if __name__ == "__main__":
             # 'none',
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.terminate_when_goal_reached': [
-            True, False
+            False
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.normalize_distance': [
             False
@@ -262,10 +262,10 @@ if __name__ == "__main__":
         #     (0.5, 0.5, 0.5, 0.5),
         # ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
-            0.01, 1, 10,
+            10, 100, 1000
         ],
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
-            1, 5, 10, 20, 30
+            1, 5, 10,
         ],
         'ddpg_tdm_kwargs.base_kwargs.discount': [
             1,

@@ -9,18 +9,22 @@ def main():
     tdm_trials = Experiment(
         "/home/vitchyr/git/railrl/data/doodads3/12-28-ant-architecture-sweep-nupo-2/",
         criteria={
-            'exp_id': '94',
+            'exp_id': '94',   # nupo 10
+            # 'exp_id': '104',   # nupo 1
         }
     ).get_trials()
-    # mb_trials = Experiment(
-    #     "",
-    #     criteria={
-    #     }
-    # ).get_trials()
+    mb_trials = Experiment(
+        "/home/vitchyr/git/railrl/data/doodads3/12-30-ant-max-distance-6-h50",
+        criteria={
+            'exp_id': '1',
+            'algorithm': 'Model-Based-Dagger',
+        }
+    ).get_trials()
     ddpg_trials = Experiment(
         "/home/vitchyr/git/railrl/data/doodads3/12-28-ddpg-ant-far-distance-nupo-sweep/",
         criteria={
-            'exp_id': '13',
+            # 'exp_id': '13',  # nupo = 5
+            'exp_id': '12',  # nupo = 1  (learns slower, but better final perf)
         }
     ).get_trials()
 
@@ -31,6 +35,7 @@ def main():
     for trials, name, key in [
         (tdm_trials, 'TDMs', base_key),
         (ddpg_trials, 'DDPG', base_key),
+        (mb_trials, 'Model-Based', base_key),
     ]:
         key = key.replace(" ", "_")
         all_values = []
