@@ -130,8 +130,8 @@ class SoftActorCritic(TorchRLAlgorithm):
         )
         pre_tanh_value = policy_outputs[-1]
         pre_activation_policy_loss = self.policy_pre_activation_weight * (
-            (pre_tanh_value**2).sum(dim=1).mean()
-        )
+                (pre_tanh_value**2).sum(dim=1).mean()
+            )
         policy_loss = policy_loss + policy_reg_loss + pre_activation_policy_loss
 
         """

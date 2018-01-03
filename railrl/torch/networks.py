@@ -119,7 +119,6 @@ class OuterProductFF(PyTorchModule):
         h = F.relu(self.sop2(h))
         return self.output_activation(self.last_fc(h))
 
-
 class MlpQf(FlattenMlp):
     def __init__(
         self,
