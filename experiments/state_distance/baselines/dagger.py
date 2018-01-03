@@ -19,6 +19,9 @@ from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState, Reacher7DofXyzPosAndVelGoalState)
 from railrl.envs.multitask.walker2d_env import Walker2DTargetXPos
 from railrl.envs.wrappers import convert_gym_space, normalize_box
+from railrl.exploration_strategies.base import \
+    PolicyWrappedWithExplorationStrategy
+from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.data_management.normalizer import TorchFixedNormalizer
 from railrl.torch.networks import FlattenMlp
@@ -52,10 +55,19 @@ def experiment(variant):
         env.cost_fn,
         **variant['mpc_controller_kwargs']
     )
+    es = OUStrategy(
+        action_space=env.action_space,
+        **variant['ou_kwargs']
+    )
+    exploration_policy = PolicyWrappedWithExplorationStrategy(
+        exploration_strategy=es,
+        policy=mpc_controller,
+    )
     algo = Dagger(
         env,
         model,
         mpc_controller,
+        exploration_policy=exploration_policy,
         obs_normalizer=obs_normalizer,
         action_normalizer=action_normalizer,
         delta_normalizer=delta_normalizer,
@@ -69,13 +81,14 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = "local"
+    mode = "local_docker"
     exp_prefix = "dev-dagger-2"
 
-    n_seeds = 1
+    n_seeds = 3
     mode = "ec2"
-    exp_prefix = "ant-pos-and-vel-target"
+    exp_prefix = "mb-pusher-with-exploration"
 
-    num_epochs = 500
+    num_epochs = 1000
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
     max_path_length = 100
@@ -105,6 +118,11 @@ if __name__ == "__main__":
         model_kwargs=dict(
             hidden_sizes=[300, 300],
         ),
+        ou_kwargs=dict(
+            theta=0.1,
+            max_sigma=0.1,
+            min_sigma=0.1,
+        ),
         env_kwargs=dict(),
         version="Model-Based-Dagger",
         algorithm="Model-Based-Dagger",
@@ -116,11 +134,11 @@ if __name__ == "__main__":
             # Reacher7DofXyzGoalState,
             # GoalXYPosAnt,
             # GoalXPosHalfCheetah,
-            # GoalXYGymPusherEnv,
+            GoalXYGymPusherEnv,
             # MultitaskPusher3DEnv,
             # GoalXPosHopper,
             # Reacher7DofXyzPosAndVelGoalState,
-            GoalXYPosAndVelAnt,
+            # GoalXYPosAndVelAnt,
             # CylinderXYPusher2DEnv,
             # Walker2DTargetXPos,
         ],
@@ -141,17 +159,17 @@ if __name__ == "__main__":
         # 'env_kwargs.max_speed': [
         #     0.05,
         # ],
-        'env_kwargs.speed_weight': [
-            None,
-        ],
-        'env_kwargs.goal_dim_weights': [
-            # (0.01, 0.01, 0.01, 0.99, 0.99, 0.99),
-            # (0.1, 0.1, 0.1, 0.9, 0.9, 0.9),
-            # (0.5, 0.5, 0.5, 0.5, 0.5, 0.5),
-            (0.01, 0.01, 0.99, 0.99),
-            (0.1, 0.1, 0.9, 0.9),
-            (0.5, 0.5, 0.5, 0.5),
-        ],
+        # 'env_kwargs.speed_weight': [
+        #     None,
+        # ],
+        # 'env_kwargs.goal_dim_weights': [
+        #     # (0.01, 0.01, 0.01, 0.99, 0.99, 0.99),
+        #     # (0.1, 0.1, 0.1, 0.9, 0.9, 0.9),
+        #     # (0.5, 0.5, 0.5, 0.5, 0.5, 0.5),
+        #     (0.01, 0.01, 0.99, 0.99),
+        #     (0.1, 0.1, 0.9, 0.9),
+        #     (0.5, 0.5, 0.5, 0.5),
+        # ],
         # 'env_kwargs.done_threshold': [
         #     0.005,
         # ],
@@ -162,7 +180,7 @@ if __name__ == "__main__":
             1,
         ],
         'algo_kwargs.num_paths_for_normalization': [20],
-        'mpc_controller_kwargs.mpc_horizon': [15],
+        'mpc_controller_kwargs.mpc_horizon': [15, 30],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
