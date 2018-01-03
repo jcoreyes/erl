@@ -9,18 +9,29 @@ from rllab.misc import logger
 
 
 class PusherEnv(GymPusherEnv):
+    def __init__(self):
+        self.goal_cylinder_relative_x = 0
+        self.goal_cylinder_relative_y = 0
+        super().__init__()
+
     def reset_model(self):
         qpos = self.init_qpos
+        goal_xy = np.array([
+            self.goal_cylinder_relative_x,
+            self.goal_cylinder_relative_y,
+        ])
 
         while True:
             self.cylinder_pos = np.concatenate([
                 self.np_random.uniform(low=-0.3, high=0, size=1),
                 self.np_random.uniform(low=-0.2, high=0.2, size=1)])
-            if np.linalg.norm(self.cylinder_pos - self.goal_cylinder_xy) > 0.17:
+            if np.linalg.norm(self.cylinder_pos - goal_xy) > 0.17:
                 break
 
         qpos[-4:-2] = self.cylinder_pos
-        qpos[-2:] = self.goal_cylinder_xy
+        # y-axis comes first in the xml
+        qpos[-2] = self.goal_cylinder_relative_y
+        qpos[-1] = self.goal_cylinder_relative_x
         qvel = self.init_qvel + self.np_random.uniform(low=-0.005,
                                                        high=0.005,
                                                        size=self.model.nv)
@@ -62,6 +73,7 @@ class PusherEnv(GymPusherEnv):
         for key, value in statistics.items():
             logger.record_tabular(key, value)
 
-    @property
-    def goal_cylinder_xy(self):
-        return np.array([0, 0])
+    def _set_goal_xy(self, xy):
+        # Based on XML
+        self.goal_cylinder_relative_x = xy[0] - 0.45
+        self.goal_cylinder_relative_y = xy[1] + 0.05

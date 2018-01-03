@@ -117,3 +117,7 @@ class FixedNormalizer(object):
             mean = mean.reshape(1, -1)
             std = std.reshape(1, -1)
         return mean + v * std
+
+    def copy_stats(self, other):
+        self.set_mean(other.mean)
+        self.set_std(other.std)

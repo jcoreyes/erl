@@ -14,6 +14,7 @@ from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv, \
     MultitaskEnvToSilentMultitaskEnv
 from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
 from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
+from railrl.envs.multitask.pusher3d_gym import GoalXYGymPusherEnv
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState, Reacher7DofXyzPosAndVelGoalState)
 from railrl.envs.multitask.walker2d_env import Walker2DTargetXPos
@@ -68,16 +69,17 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = "local"
+    mode = "local_docker"
     exp_prefix = "dev-dagger"
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "find-mb-secret-sauce-toggle-normalization-obs-action"
+    exp_prefix = "ant-distance-3-to-5"
 
-    num_epochs = 100
+    num_epochs = 500
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
-    max_path_length = 50
+    max_path_length = 100
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -112,15 +114,22 @@ if __name__ == "__main__":
         'multitask': [True],
         'env_class': [
             # GoalXVelHalfCheetah,
-            Reacher7DofXyzGoalState,
+            # Reacher7DofXyzGoalState,
             GoalXYPosAnt,
-            GoalXPosHalfCheetah,
-            MultitaskPusher3DEnv,
+            # GoalXPosHalfCheetah,
+            # GoalXYGymPusherEnv,
+            # MultitaskPusher3DEnv,
             # GoalXPosHopper,
             # Reacher7DofXyzPosAndVelGoalState,
             # GoalXYPosAndVelAnt,
             # CylinderXYPusher2DEnv,
             # Walker2DTargetXPos,
+        ],
+        'env_kwargs.max_distance': [
+            5,
+        ],
+        'env_kwargs.min_distance': [
+            3,
         ],
         # 'env_kwargs.reward_coefs': [
         #     (1, 0, 0),
@@ -139,18 +148,13 @@ if __name__ == "__main__":
         # 'env_kwargs.done_threshold': [
         #     0.005,
         # ],
-        # 'env_kwargs.max_distance': [
-        #     0.5,
-        #     2,
-        #     5,
+        # 'algo_kwargs.max_path_length': [
+        #     max_path_length,
         # ],
-        'algo_kwargs.max_path_length': [
-            100,
-        ],
         'algo_kwargs.num_updates_per_env_step': [
             1,
         ],
-        'algo_kwargs.num_paths_for_normalization': [20],
+        'algo_kwargs.num_paths_for_normalization': [20, 0],
         'mpc_controller_kwargs.mpc_horizon': [15],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

@@ -11,6 +11,7 @@ from railrl.policies.base import Policy
 from railrl.pythonplusplus import identity
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.core import PyTorchModule
+from railrl.torch.data_management.normalizer import TorchFixedNormalizer
 from railrl.torch.modules import SelfOuterProductLinear, LayerNorm
 
 
@@ -119,13 +120,45 @@ class OuterProductFF(PyTorchModule):
         return self.output_activation(self.last_fc(h))
 
 
+class MlpQf(FlattenMlp):
+    def __init__(
+        self,
+        *args,
+        obs_normalizer: TorchFixedNormalizer=None,
+        action_normalizer: TorchFixedNormalizer=None,
+        **kwargs
+    ):
+        self.save_init_params(locals())
+        super().__init__(*args, **kwargs)
+        self.obs_normalizer = obs_normalizer
+        self.action_normalizer = action_normalizer
+
+    def forward(self, obs, actions):
+        if self.obs_normalizer:
+            obs = self.obs_normalizer.normalize(obs)
+        if self.action_normalizer:
+            actions = self.action_normalizer.normalize(actions)
+        return super().forward(obs, actions)
+
+
 class MlpPolicy(Mlp, Policy):
     """
     A simpler interface for creating policies.
     """
-    def __init__(self, *args, **kwargs):
+    def __init__(
+            self,
+            *args,
+            obs_normalizer: TorchFixedNormalizer=None,
+            **kwargs
+    ):
         self.save_init_params(locals())
         super().__init__(*args, **kwargs)
+        self.obs_normalizer = obs_normalizer
+
+    def forward(self, obs):
+        if self.obs_normalizer:
+            obs = self.obs_normalizer.normalize(obs)
+        return super().forward(obs)
 
     def get_action(self, obs_np):
         actions = self.get_actions(obs_np[None])

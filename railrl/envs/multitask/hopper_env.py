@@ -11,7 +11,8 @@ from rllab.misc import logger as rllab_logger
 
 
 class GoalXPosHopper(HopperEnv, MultitaskEnv, Serializable):
-    def __init__(self, max_distance=5):
+    def __init__(self, max_distance=5, action_penalty=0):
+        self.action_penalty = action_penalty
         Serializable.quick_init(self, locals())
         MultitaskEnv.__init__(self)
         super().__init__()
@@ -30,6 +31,7 @@ class GoalXPosHopper(HopperEnv, MultitaskEnv, Serializable):
         x_pos = self.convert_ob_to_goal(ob)
         distance_to_goal = np.linalg.norm(x_pos - self.multitask_goal)
         reward = -distance_to_goal
+        reward -= self.action_penalty * np.square(action).sum()
         return ob, reward, done, dict(
             goal=self.multitask_goal,
             distance_to_goal=distance_to_goal,

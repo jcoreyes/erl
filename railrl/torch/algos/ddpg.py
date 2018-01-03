@@ -11,7 +11,10 @@ from railrl.misc.ml_util import (
     StatConditionalSchedule,
     ConstantSchedule,
 )
+from railrl.policies.simple import RandomPolicy
+from railrl.samplers.util import rollout
 from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
+from railrl.torch.data_management.normalizer import TorchFixedNormalizer
 from rllab.misc import logger
 from torch import nn as nn
 
@@ -42,6 +45,10 @@ class DDPG(TorchRLAlgorithm):
 
             plotter=None,
             render_eval_paths=False,
+
+            obs_normalizer: TorchFixedNormalizer=None,
+            action_normalizer: TorchFixedNormalizer=None,
+            num_paths_for_normalization=0,
 
             **kwargs
     ):
@@ -95,6 +102,9 @@ class DDPG(TorchRLAlgorithm):
         self.epoch_discount_schedule = epoch_discount_schedule
         self.plotter = plotter
         self.render_eval_paths = render_eval_paths
+        self.obs_normalizer = obs_normalizer
+        self.action_normalizer = action_normalizer
+        self.num_paths_for_normalization = num_paths_for_normalization
 
         self.target_qf = self.qf.copy()
         self.qf_optimizer = optim.Adam(
@@ -287,3 +297,39 @@ class DDPG(TorchRLAlgorithm):
             self.target_policy,
             self.target_qf,
         ]
+
+    def pretrain(self):
+        if (
+            self.num_paths_for_normalization == 0
+            or (self.obs_normalizer is None and self.action_normalizer is None)
+        ):
+            return
+
+        pretrain_paths = []
+        random_policy = RandomPolicy(self.env.action_space)
+        while len(pretrain_paths) < self.num_paths_for_normalization:
+            path = rollout(self.env, random_policy, self.max_path_length)
+            pretrain_paths.append(path)
+        ob_mean, ob_std, ac_mean, ac_std = (
+            compute_normalization(pretrain_paths)
+        )
+        if self.obs_normalizer is not None:
+            self.obs_normalizer.set_mean(ob_mean)
+            self.obs_normalizer.set_std(ob_std)
+            self.target_qf.obs_normalizer = self.obs_normalizer
+            self.target_policy.obs_normalizer = self.obs_normalizer
+        if self.action_normalizer is not None:
+            self.action_normalizer.set_mean(ac_mean)
+            self.action_normalizer.set_std(ac_std)
+            self.target_qf.action_normalizer = self.action_normalizer
+            self.target_policy.action_normalizer = self.action_normalizer
+
+def compute_normalization(paths):
+    obs = np.vstack([path["observations"] for path in paths])
+    next_obs = np.vstack([path["next_observations"] for path in paths])
+    ob_mean = np.mean(obs, axis=0)
+    ob_std = np.std(obs, axis=0)
+    actions = np.vstack([path["actions"] for path in paths])
+    ac_mean = np.mean(actions, axis=0)
+    ac_std = np.std(actions, axis=0)
+    return ob_mean, ob_std, ac_mean, ac_std

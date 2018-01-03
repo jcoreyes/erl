@@ -6,6 +6,7 @@ import railrl.torch.pytorch_util as ptu
 from railrl.envs.multitask.ant_env import GoalXYPosAnt
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
     GoalXPosHalfCheetah
+from railrl.envs.multitask.hopper_env import GoalXPosHopper
 from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
 from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
 from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
@@ -64,7 +65,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "sac-ant-far"
+    exp_prefix = "try-hopper-again"
 
     num_epochs = 1000
     num_steps_per_epoch = 1000
@@ -95,27 +96,24 @@ if __name__ == "__main__":
             # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
             # CylinderXYPusher2DEnv,
-            GoalXYPosAnt,
+            # GoalXYPosAnt,
+            GoalXPosHopper,
             # Walker2DTargetXPos,
             # GoalXPosHalfCheetah,
             # MultitaskPusher3DEnv,
         },
+        'env_kwargs.max_distance': [
+            0.5, 2
+        ],
+        'env_kwargs.action_penalty': [
+            1e-3, 0,
+        ],
         'multitask': [True],
         'algo_params.reward_scale': [
             10000, 1000, 100, 10, 1,
         ],
         'algo_params.replay_buffer_size': [
             int(1e6),
-        ],
-        'algo_params.max_path_length': [
-            50, 100,
-        ],
-        'env_kwargs': [
-            dict(max_distance=2),
-            dict(max_distance=4),
-            dict(max_distance=6),
-            dict(max_distance=8),
-            dict(max_distance=10),
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

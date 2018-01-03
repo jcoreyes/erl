@@ -8,6 +8,7 @@ from railrl.envs.multitask.hopper_env import GoalXPosHopper
 from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
 from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
 from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
+from railrl.envs.multitask.pusher3d_gym import GoalXYGymPusherEnv
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState,
     Reacher7DofXyzPosAndVelGoalState)
@@ -18,7 +19,8 @@ from railrl.exploration_strategies.base import \
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.algos.ddpg import DDPG
-from railrl.torch.networks import TanhMlpPolicy, FlattenMlp
+from railrl.torch.data_management.normalizer import TorchFixedNormalizer
+from railrl.torch.networks import TanhMlpPolicy, FlattenMlp, MlpQf
 
 
 def experiment(variant):
@@ -35,14 +37,19 @@ def experiment(variant):
     )
     obs_dim = int(env.observation_space.flat_dim)
     action_dim = int(env.action_space.flat_dim)
-    qf = FlattenMlp(
+    obs_normalizer = TorchFixedNormalizer(obs_dim)
+    action_normalizer = TorchFixedNormalizer(action_dim)
+    qf = MlpQf(
         input_size=obs_dim+action_dim,
         output_size=1,
+        obs_normalizer=obs_normalizer,
+        action_normalizer=action_normalizer,
         **variant['qf_kwargs']
     )
     policy = TanhMlpPolicy(
         input_size=obs_dim,
         output_size=action_dim,
+        obs_normalizer=obs_normalizer,
         **variant['policy_kwargs']
     )
     exploration_policy = PolicyWrappedWithExplorationStrategy(
@@ -54,6 +61,8 @@ def experiment(variant):
         qf,
         policy,
         exploration_policy,
+        obs_normalizer=obs_normalizer,
+        action_normalizer=action_normalizer,
         **variant['algo_kwargs']
     )
     algorithm.train()
@@ -62,16 +71,17 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = "local"
+    mode = "local_docker"
     exp_prefix = "dev-state-distance-ddpg-baseline"
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "hopper-xpos"
+    exp_prefix = "try-hopper-again"
 
     num_epochs = 1000
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
-    max_path_length = 50
+    max_path_length = 100
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -105,6 +115,7 @@ if __name__ == "__main__":
         ),
         version="DDPG-no-shaping",
         algorithm="DDPG",
+        env_kwargs=dict(),
     )
     search_space = {
         'multitask': [True],
@@ -115,6 +126,8 @@ if __name__ == "__main__":
             # Reacher7DofXyzPosAndVelGoalState,
             GoalXPosHopper,
             # GoalXYPosAndVelAnt,
+            # GoalXPosHalfCheetah,
+            # GoalXYGymPusherEnv,
             # CylinderXYPusher2DEnv,
             # GoalXPosHalfCheetah,
             # MultitaskPusher3DEnv,
@@ -138,21 +151,32 @@ if __name__ == "__main__":
         #     0.005,
         # ],
         'env_kwargs.max_distance': [
-            0.5,
-            2,
-            5,
+            0.5, 2
         ],
+        'env_kwargs.action_penalty': [
+            1e-3, 0,
+        ],
+        'out_kwargs.theta': [0, 0.1],
+        # 'env_kwargs.min_distance': [
+        #     3,
+        # ],
         # 'env_kwargs.use_low_gear_ratio': [
         #     False,
         # ],
-        'algo_kwargs.max_path_length': [
-            50, 100, 250
+        'algo_kwargs.num_paths_for_normalization': [
+            20, 0,
         ],
+        # 'algo_kwargs.max_path_length': [
+        #     max_path_length,
+        # ],
         'algo_kwargs.num_updates_per_env_step': [
             1,
         ],
         'algo_kwargs.reward_scale': [
-            1, 100, 10000, 1000000
+            0.01, 1, 100, 10000
+        ],
+        'algo_kwargs.tau': [
+            0.01, 0.001,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
