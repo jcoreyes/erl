@@ -74,9 +74,9 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "pre-final-pusher-gym"
+    exp_prefix = "ant-distance-3-to-5"
 
-    num_epochs = 1000
+    num_epochs = 500
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
     max_path_length = 100
@@ -115,9 +115,9 @@ if __name__ == "__main__":
         'env_class': [
             # GoalXVelHalfCheetah,
             # Reacher7DofXyzGoalState,
-            # GoalXYPosAnt,
+            GoalXYPosAnt,
             # GoalXPosHalfCheetah,
-            GoalXYGymPusherEnv,
+            # GoalXYGymPusherEnv,
             # MultitaskPusher3DEnv,
             # GoalXPosHopper,
             # Reacher7DofXyzPosAndVelGoalState,
@@ -125,9 +125,12 @@ if __name__ == "__main__":
             # CylinderXYPusher2DEnv,
             # Walker2DTargetXPos,
         ],
-        # 'env_kwargs': [
-        #     dict(max_distance=30),
-        # ],
+        'env_kwargs.max_distance': [
+            5,
+        ],
+        'env_kwargs.min_distance': [
+            3,
+        ],
         # 'env_kwargs.reward_coefs': [
         #     (1, 0, 0),
         #     (0.5, 0.375, 0.125),
@@ -145,18 +148,13 @@ if __name__ == "__main__":
         # 'env_kwargs.done_threshold': [
         #     0.005,
         # ],
-        # 'env_kwargs.max_distance': [
-        #     0.5,
-        #     2,
-        #     5,
-        # ],
         # 'algo_kwargs.max_path_length': [
         #     max_path_length,
         # ],
         'algo_kwargs.num_updates_per_env_step': [
             1,
         ],
-        'algo_kwargs.num_paths_for_normalization': [20],
+        'algo_kwargs.num_paths_for_normalization': [20, 0],
         'mpc_controller_kwargs.mpc_horizon': [15],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

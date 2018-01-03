@@ -104,14 +104,14 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = "local"
-    mode = "local_docker"
+    # mode = "local_docker"
     exp_prefix = "dev-ddpg-tdm-launch"
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "pre-final-pusher-gym"
+    exp_prefix = "ant-distance-3-to-5"
 
-    num_epochs = 1000
+    num_epochs = 500
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
     max_path_length = 100
@@ -171,16 +171,19 @@ if __name__ == "__main__":
         'env_class': [
             # GoalXVelHalfCheetah,
             # GoalXPosHalfCheetah,
-            # GoalXYPosAnt,
+            GoalXYPosAnt,
             # MultitaskPusher3DEnv,
             # Reacher7DofXyzGoalState,
             # CylinderXYPusher2DEnv,
             # Walker2DTargetXPos,
-            GoalXYGymPusherEnv,
+            # GoalXYGymPusherEnv,
         ],
-        # 'env_kwargs': [
-        #     dict(max_distance=30),
-        # ],
+        'env_kwargs.max_distance': [
+            5,
+        ],
+        'env_kwargs.min_distance': [
+            3,
+        ],
         'tdm_normalizer_kwargs.log_tau': [
             False,
         ],
@@ -195,13 +198,13 @@ if __name__ == "__main__":
             'environment',
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.num_paths_for_normalization': [
-            20,
+            20, 0
         ],
         'es_kwargs': [
             dict(theta=0.1, max_sigma=0.1, min_sigma=0.1),
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.max_tau': [
-            15,
+            25, 99
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.dense_rewards': [
             False,
@@ -241,13 +244,13 @@ if __name__ == "__main__":
             # 'none',
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.terminate_when_goal_reached': [
-            True,
+            True, False
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.normalize_distance': [
             False
         ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
-            0.01, 1, 100, 10000
+            1, 100, 1000, 10000, 1000000
         ],
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
             1,
@@ -277,6 +280,7 @@ if __name__ == "__main__":
         finite = variant['ddpg_tdm_kwargs']['tdm_kwargs']['finite_horizon']
         relabel = variant['relabel']
         vectorized = variant['vectorized']
+        variant['ddpg_tdm_kwargs']['tdm_kwargs']['vectorized'] = vectorized
         norm_order = variant['norm_order']
 
         # some settings just don't make sense

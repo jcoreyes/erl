@@ -76,7 +76,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "pre-final-pusher-gym"
+    exp_prefix = "try-hopper-again"
 
     num_epochs = 1000
     num_steps_per_epoch = 1000
@@ -124,10 +124,10 @@ if __name__ == "__main__":
             # GoalXVelHalfCheetah,
             # GoalXYPosAnt,
             # Reacher7DofXyzPosAndVelGoalState,
-            # GoalXPosHopper,
+            GoalXPosHopper,
             # GoalXYPosAndVelAnt,
             # GoalXPosHalfCheetah,
-            GoalXYGymPusherEnv,
+            # GoalXYGymPusherEnv,
             # CylinderXYPusher2DEnv,
             # GoalXPosHalfCheetah,
             # MultitaskPusher3DEnv,
@@ -150,14 +150,21 @@ if __name__ == "__main__":
         # 'env_kwargs.done_threshold': [
         #     0.005,
         # ],
-        # 'env_kwargs.max_distance': [
-        #     30,
+        'env_kwargs.max_distance': [
+            0.5, 2
+        ],
+        'env_kwargs.action_penalty': [
+            1e-3, 0,
+        ],
+        'out_kwargs.theta': [0, 0.1],
+        # 'env_kwargs.min_distance': [
+        #     3,
         # ],
         # 'env_kwargs.use_low_gear_ratio': [
         #     False,
         # ],
         'algo_kwargs.num_paths_for_normalization': [
-            20,
+            20, 0,
         ],
         # 'algo_kwargs.max_path_length': [
         #     max_path_length,
@@ -166,7 +173,10 @@ if __name__ == "__main__":
             1,
         ],
         'algo_kwargs.reward_scale': [
-            0.001, 0.01, 0.1, 1,
+            0.01, 1, 100, 10000
+        ],
+        'algo_kwargs.tau': [
+            0.01, 0.001,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
