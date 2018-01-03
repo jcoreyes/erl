@@ -108,9 +108,9 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "ant-pos-and-vel-target"
+    exp_prefix = "ddpg-tdm-cheetah-nupo-sweep"
 
-    num_epochs = 500
+    num_epochs = 250
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
     max_path_length = 100
@@ -169,19 +169,19 @@ if __name__ == "__main__":
     search_space = {
         'env_class': [
             # GoalXVelHalfCheetah,
-            # GoalXPosHalfCheetah,
+            GoalXPosHalfCheetah,
             # GoalXYPosAnt,
             # Reacher7DofXyzPosAndVelGoalState,
-            GoalXYPosAndVelAnt,
+            # GoalXYPosAndVelAnt,
             # MultitaskPusher3DEnv,
             # Reacher7DofXyzGoalState,
             # CylinderXYPusher2DEnv,
             # Walker2DTargetXPos,
             # GoalXYGymPusherEnv,
         ],
-        # 'env_kwargs.max_distance': [
-        #     5,
-        # ],
+        'env_kwargs.max_distance': [
+            30,
+        ],
         # 'env_kwargs.min_distance': [
         #     3,
         # ],
@@ -199,13 +199,13 @@ if __name__ == "__main__":
             'environment',
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.num_paths_for_normalization': [
-            20,
+            20, 0
         ],
         'es_kwargs': [
             dict(theta=0.1, max_sigma=0.1, min_sigma=0.1),
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.max_tau': [
-            15, 25, 99
+            49,
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.dense_rewards': [
             False,
@@ -214,7 +214,7 @@ if __name__ == "__main__":
             True,
         ],
         'relabel': [
-            True,
+            True, False
         ],
         'her_replay_buffer_kwargs.resampling_strategy': [
             # 'truncated_geometric',
@@ -245,27 +245,27 @@ if __name__ == "__main__":
             # 'none',
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.terminate_when_goal_reached': [
-            True,
+            True, False
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.normalize_distance': [
             False
         ],
-        'env_kwargs.speed_weight': [
-            None,
-        ],
-        'env_kwargs.goal_dim_weights': [
-            # (0.01, 0.01, 0.01, 0.99, 0.99, 0.99),
-            # (0.1, 0.1, 0.1, 0.9, 0.9, 0.9),
-            # (0.5, 0.5, 0.5, 0.5, 0.5, 0.5),
-            (0.01, 0.01, 0.99, 0.99),
-            (0.1, 0.1, 0.9, 0.9),
-            (0.5, 0.5, 0.5, 0.5),
-        ],
+        # 'env_kwargs.speed_weight': [
+        #     None,
+        # ],
+        # 'env_kwargs.goal_dim_weights': [
+        #     # (0.01, 0.01, 0.01, 0.99, 0.99, 0.99),
+        #     # (0.1, 0.1, 0.1, 0.9, 0.9, 0.9),
+        #     # (0.5, 0.5, 0.5, 0.5, 0.5, 0.5),
+        #     (0.01, 0.01, 0.99, 0.99),
+        #     (0.1, 0.1, 0.9, 0.9),
+        #     (0.5, 0.5, 0.5, 0.5),
+        # ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
-            1, 100, 1000, 10000, 1000000
+            0.01, 1, 10,
         ],
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
-            1,
+            1, 5, 10, 20, 30
         ],
         'ddpg_tdm_kwargs.base_kwargs.discount': [
             1,
