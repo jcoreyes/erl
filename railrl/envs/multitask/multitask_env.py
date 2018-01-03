@@ -45,9 +45,12 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
     See `MultitaskEnvToSilentMultitaskEnv` for more detail.
     """
 
-    def __init__(self, distance_metric_order=1):
+    def __init__(self, distance_metric_order=1, goal_dim_weights=None):
         self.multitask_goal = np.zeros(self.goal_dim)
-        self.goal_dim_weights = np.ones(self.goal_dim)
+        if goal_dim_weights is None:
+            self.goal_dim_weights = np.ones(self.goal_dim)
+        else:
+            self.goal_dim_weights = np.array(goal_dim_weights)
         self.distance_metric_order = distance_metric_order
 
     @property
@@ -255,8 +258,10 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
             next_states = np.expand_dims(next_states, 0)
         actual = self.convert_obs_to_goals(next_states)
         desired = self.multitask_goal * np.ones_like(actual)
+        diff = actual - desired
+        diff *= self.goal_dim_weights
         costs = np.linalg.norm(
-            actual - desired,
+            diff,
             axis=1,
             ord=1,
         )

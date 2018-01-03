@@ -244,6 +244,8 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             neg_distances = self._compute_raw_neg_distances(next_obs, goals)
             if self.goal_weights is not None:
                 neg_distances = neg_distances * self.goal_weights
+            else:
+                neg_distances = neg_distances * self.env.goal_dim_weights
             return neg_distances * self.reward_scale
         elif self.reward_type == 'env':
             return batch['rewards']
@@ -404,23 +406,24 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             )
             paths.append(path)
 
-        goals = np.vstack([
-            self._sample_goal_for_rollout()
-            for _ in range(
-                self.num_paths_for_normalization * self.max_path_length
-            )
-        ])
         obs = np.vstack([path["observations"] for path in paths])
         next_obs = np.vstack([path["next_observations"] for path in paths])
         actions = np.vstack([path["actions"] for path in paths])
+        goals = np.vstack([path["goals"] for path in paths])
         neg_distances = self._compute_raw_neg_distances(next_obs, goals)
 
         ob_mean = np.mean(obs, axis=0)
         ob_std = np.std(obs, axis=0)
         ac_mean = np.mean(actions, axis=0)
         ac_std = np.std(actions, axis=0)
-        goal_mean = np.mean(goals, axis=0)
-        goal_std = np.std(goals, axis=0)
+        new_goals = np.vstack([
+            self._sample_goal_for_rollout()
+            for _ in range(
+                self.num_paths_for_normalization * self.max_path_length
+            )
+        ])
+        goal_mean = np.mean(new_goals, axis=0)
+        goal_std = np.std(new_goals, axis=0)
         distance_mean = np.mean(neg_distances, axis=0)
         distance_std = np.std(neg_distances, axis=0)
 

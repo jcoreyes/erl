@@ -17,10 +17,14 @@ from rllab.misc import logger as rllab_logger
 class Reacher7DofMultitaskEnv(
     MultitaskEnv, mujoco_env.MujocoEnv, Serializable
 ):
-    def __init__(self, distance_metric_order=None):
+    def __init__(self, distance_metric_order=None, goal_dim_weights=None):
         self._desired_xyz = np.zeros(3)
         Serializable.quick_init(self, locals())
-        MultitaskEnv.__init__(self, distance_metric_order=distance_metric_order)
+        MultitaskEnv.__init__(
+            self,
+            distance_metric_order=distance_metric_order,
+            goal_dim_weights=goal_dim_weights,
+        )
         mujoco_env.MujocoEnv.__init__(
             self,
             get_asset_xml('reacher_7dof.xml'),
@@ -123,12 +127,21 @@ class Reacher7DofXyzPosAndVelGoalState(Reacher7DofMultitaskEnv):
             **kwargs
     ):
         Serializable.quick_init(self, locals())
-        self.speed_weight = speed_weight
+        # TODO: fix this hack
+        if speed_weight is None:
+            self.speed_weight = 0.9  # just for init to work
         self.done_threshold = done_threshold
         self.max_speed = max_speed
         self.initializing = True
         super().__init__(**kwargs)
         self.initializing = False
+        if speed_weight is None:
+            assert (
+                self.goal_dim_weights[0] == self.goal_dim_weights[1] == self.goal_dim_weights[2]
+            ) and (
+                self.goal_dim_weights[3] == self.goal_dim_weights[4] == self.goal_dim_weights[5]
+            )
+            self.speed_weight = self.goal_dim_weights[3]
     """
     The goal state is just the XYZ location and velocity of the end effector.
     """

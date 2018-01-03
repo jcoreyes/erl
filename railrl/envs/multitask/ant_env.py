@@ -119,6 +119,7 @@ class GoalXYPosAndVelAnt(AntEnv, MultitaskEnv, Serializable):
             use_low_gear_ratio=True,
             speed_weight=0.9,
             done_threshold=0.005,
+            goal_dim_weights=None,
     ):
         Serializable.quick_init(self, locals())
         self.max_distance = max_distance
@@ -126,8 +127,10 @@ class GoalXYPosAndVelAnt(AntEnv, MultitaskEnv, Serializable):
         self.speed_weight = speed_weight
         self.done_threshold = done_threshold
         self.initializing = True
-        assert 0 <= self.speed_weight <= 1
-        MultitaskEnv.__init__(self)
+        # TODO: fix this hack
+        if speed_weight is None:
+            self.speed_weight = 0.9  # just for init to work
+        MultitaskEnv.__init__(self, goal_dim_weights=goal_dim_weights)
         super().__init__(use_low_gear_ratio=use_low_gear_ratio)
         self.set_goal(np.array([
             self.max_distance,
@@ -136,6 +139,14 @@ class GoalXYPosAndVelAnt(AntEnv, MultitaskEnv, Serializable):
             self.max_speed,
         ]))
         self.initializing = False
+        if speed_weight is None:
+            assert (
+                           self.goal_dim_weights[0] == self.goal_dim_weights[1]
+                   ) and (
+                           self.goal_dim_weights[2] == self.goal_dim_weights[3]
+                   )
+            self.speed_weight = self.goal_dim_weights[2]
+        assert 0 <= self.speed_weight <= 1
 
     @property
     def goal_dim(self) -> int:
