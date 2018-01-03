@@ -243,7 +243,13 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
 
     def cost_fn(self, states, actions, next_states):
         """
-        This is added for Abhishek's model-based code.
+        This is added for model-based code. This is COST not reward.
+        So lower is better.
+
+        :param states:  (BATCH_SIZE x state_dim) numpy array
+        :param actions:  (BATCH_SIZE x action_dim) numpy array
+        :param next_states:  (BATCH_SIZE x state_dim) numpy array
+        :return: (BATCH_SIZE, ) numpy array
         """
         if len(next_states.shape) == 1:
             next_states = np.expand_dims(next_states, 0)

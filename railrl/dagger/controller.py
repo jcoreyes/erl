@@ -2,7 +2,6 @@ import numpy as np
 from railrl.policies.base import ExplorationPolicy
 from railrl.torch.core import PyTorchModule
 import railrl.torch.pytorch_util as ptu
-import time
 
 
 class MPCController(PyTorchModule, ExplorationPolicy):
@@ -14,6 +13,21 @@ class MPCController(PyTorchModule, ExplorationPolicy):
             num_simulated_paths=10000,
             mpc_horizon=15,
     ):
+        """
+        :param env:
+        :param dynamics_model: Dynamics model. See dagger/model.py
+        :param cost_fn:  Function of the form:
+
+        ```
+        def cost_fn(self, states, actions, next_states):
+            :param states:  (BATCH_SIZE x state_dim) numpy array
+            :param actions:  (BATCH_SIZE x action_dim) numpy array
+            :param next_states:  (BATCH_SIZE x state_dim) numpy array
+            :return: (BATCH_SIZE, ) numpy array
+        ```
+        :param num_simulated_paths: How many rollouts to do internally.
+        :param mpc_horizon: How long to plan for.
+        """
         assert mpc_horizon >= 1
         self.quick_init(locals())
         super().__init__()
