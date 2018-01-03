@@ -11,9 +11,10 @@ from rllab.misc import logger as rllab_logger
 
 
 class GoalXYPosAnt(AntEnv, MultitaskEnv, Serializable):
-    def __init__(self, max_distance=2, use_low_gear_ratio=True):
+    def __init__(self, min_distance=0, max_distance=2, use_low_gear_ratio=True):
         Serializable.quick_init(self, locals())
         self.max_distance = max_distance
+        self.min_distance = min_distance
         MultitaskEnv.__init__(self)
         super().__init__(use_low_gear_ratio=use_low_gear_ratio)
         self.set_goal(np.array([self.max_distance, self.max_distance]))
@@ -23,11 +24,13 @@ class GoalXYPosAnt(AntEnv, MultitaskEnv, Serializable):
         return 2
 
     def sample_goals(self, batch_size):
-        return np.random.uniform(
-            -self.max_distance,
-            self.max_distance,
-            (batch_size, 2),
-        )
+        raise NotImplementedError()
+
+    def sample_goal_for_rollout(self):
+        goal = np.random.uniform(-self.max_distance, self.max_distance, 2)
+        while np.linalg.norm(goal) < self.min_distance:
+            goal = np.random.uniform(-self.max_distance, self.max_distance, 2)
+        return goal
 
     def set_goal(self, goal):
         super().set_goal(goal)
@@ -97,7 +100,6 @@ class GoalXYPosAnt(AntEnv, MultitaskEnv, Serializable):
                 'Final {}'.format(name_to_log),
                 [s[-1] for s in stat],
                 always_show_all_stats=True,
-                exclude_max_min=True,
             ))
         for key, value in statistics.items():
             logger.record_tabular(key, value)
