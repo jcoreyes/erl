@@ -86,9 +86,9 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "final-gym-pusher3d"
+    exp_prefix = "final-ant-pos-and-vel"
 
-    num_epochs = 1000
+    num_epochs = 500
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
     max_path_length = 100
@@ -133,11 +133,11 @@ if __name__ == "__main__":
             # Reacher7DofXyzGoalState,
             # GoalXYPosAnt,
             # GoalXPosHalfCheetah,
-            GoalXYGymPusherEnv,
+            # GoalXYGymPusherEnv,
             # MultitaskPusher3DEnv,
             # GoalXPosHopper,
             # Reacher7DofXyzPosAndVelGoalState,
-            # GoalXYPosAndVelAnt,
+            GoalXYPosAndVelAnt,
             # CylinderXYPusher2DEnv,
             # Walker2DTargetXPos,
         ],
@@ -158,17 +158,12 @@ if __name__ == "__main__":
         # 'env_kwargs.max_speed': [
         #     0.05,
         # ],
-        # 'env_kwargs.speed_weight': [
-        #     None,
-        # ],
-        # 'env_kwargs.goal_dim_weights': [
-        #     # (0.01, 0.01, 0.01, 0.99, 0.99, 0.99),
-        #     # (0.1, 0.1, 0.1, 0.9, 0.9, 0.9),
-        #     # (0.5, 0.5, 0.5, 0.5, 0.5, 0.5),
-        #     (0.01, 0.01, 0.99, 0.99),
-        #     (0.1, 0.1, 0.9, 0.9),
-        #     (0.5, 0.5, 0.5, 0.5),
-        # ],
+        'env_kwargs.speed_weight': [
+            None,
+        ],
+        'env_kwargs.goal_dim_weights': [
+            (0.1, 0.1, 0.9, 0.9),
+        ],
         # 'env_kwargs.done_threshold': [
         #     0.005,
         # ],

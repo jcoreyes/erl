@@ -76,9 +76,9 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "final-gym-pusher3d"
+    exp_prefix = "final-ant-pos-and-vel"
 
-    num_epochs = 1000
+    num_epochs = 500
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
     max_path_length = 100
@@ -125,9 +125,9 @@ if __name__ == "__main__":
             # GoalXYPosAnt,
             # Reacher7DofXyzPosAndVelGoalState,
             # GoalXPosHopper,
-            # GoalXYPosAndVelAnt,
+            GoalXYPosAndVelAnt,
             # GoalXPosHalfCheetah,
-            GoalXYGymPusherEnv,
+            # GoalXYGymPusherEnv,
             # CylinderXYPusher2DEnv,
             # GoalXPosHalfCheetah,
             # MultitaskPusher3DEnv,
@@ -144,9 +144,12 @@ if __name__ == "__main__":
         # 'env_kwargs.max_speed': [
         #     0.05,
         # ],
-        # 'env_kwargs.speed_weight': [
-        #     0.99,
-        # ],
+        'env_kwargs.speed_weight': [
+            None,
+        ],
+        'env_kwargs.goal_dim_weights': [
+            (0.1, 0.1, 0.9, 0.9),
+        ],
         # 'env_kwargs.done_threshold': [
         #     0.005, 0.001, 0.0005
         # ],
@@ -164,7 +167,7 @@ if __name__ == "__main__":
         #     False,
         # ],
         'algo_kwargs.num_paths_for_normalization': [
-            0,
+            20, 0
         ],
         # 'algo_kwargs.max_path_length': [
         #     max_path_length,
@@ -173,7 +176,7 @@ if __name__ == "__main__":
             1, 5, 10,
         ],
         'algo_kwargs.reward_scale': [
-            1, 10, 100,
+            10000,
         ],
         # 'algo_kwargs.tau': [
         #     0.01, 0.001,

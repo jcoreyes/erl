@@ -109,9 +109,9 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "final-gym-pusher3d"
+    exp_prefix = "final-ant-pos-and-vel"
 
-    num_epochs = 1000
+    num_epochs = 500
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
     max_path_length = 100
@@ -173,12 +173,12 @@ if __name__ == "__main__":
             # GoalXPosHalfCheetah,
             # GoalXYPosAnt,
             # Reacher7DofXyzPosAndVelGoalState,
-            # GoalXYPosAndVelAnt,
+            GoalXYPosAndVelAnt,
             # MultitaskPusher3DEnv,
             # Reacher7DofXyzGoalState,
             # CylinderXYPusher2DEnv,
             # Walker2DTargetXPos,
-            GoalXYGymPusherEnv,
+            # GoalXYGymPusherEnv,
         ],
         # 'env_kwargs.max_distance': [
         #     6,
@@ -186,6 +186,12 @@ if __name__ == "__main__":
         # 'env_kwargs.min_distance': [
         #     3,
         # ],
+        'env_kwargs.speed_weight': [
+            None,
+        ],
+        'env_kwargs.goal_dim_weights': [
+            (0.1, 0.1, 0.9, 0.9),
+        ],
         'tdm_normalizer_kwargs.log_tau': [
             False,
         ],
@@ -200,7 +206,7 @@ if __name__ == "__main__":
             'environment',
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.num_paths_for_normalization': [
-            0
+            20
         ],
         'es_kwargs': [
             dict(theta=0.1, max_sigma=0.1, min_sigma=0.1),
@@ -251,19 +257,8 @@ if __name__ == "__main__":
         'ddpg_tdm_kwargs.tdm_kwargs.normalize_distance': [
             False
         ],
-        # 'env_kwargs.speed_weight': [
-        #     None,
-        # ],
-        # 'env_kwargs.goal_dim_weights': [
-        #     # (0.01, 0.01, 0.01, 0.99, 0.99, 0.99),
-        #     # (0.1, 0.1, 0.1, 0.9, 0.9, 0.9),
-        #     # (0.5, 0.5, 0.5, 0.5, 0.5, 0.5),
-        #     (0.01, 0.01, 0.99, 0.99),
-        #     (0.1, 0.1, 0.9, 0.9),
-        #     (0.5, 0.5, 0.5, 0.5),
-        # ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
-            10, 100, 1000
+            100, 1000, 10000
         ],
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
             1, 5, 10,
