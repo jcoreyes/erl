@@ -98,16 +98,17 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = "local"
+    mode = "local_docker"
     exp_prefix = "dev-her"
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "final-ant-max-distance-6"
+    exp_prefix = "final-gym-pusher3d"
 
     num_epochs = 1000
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
-    max_path_length = 50
+    max_path_length = 100
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -167,8 +168,8 @@ if __name__ == "__main__":
         'env_class': [
             # GoalXVelHalfCheetah,
             # GoalXPosHalfCheetah,
-            GoalXYPosAnt,
-            # GoalXYGymPusherEnv,
+            # GoalXYPosAnt,
+            GoalXYGymPusherEnv,
             # CylinderXYPusher2DEnv,
             # Reacher7DofXyzGoalState,
             # MultitaskPusher3DEnv,
@@ -182,9 +183,9 @@ if __name__ == "__main__":
         #     (0.01, 0.01, 0.99, 0.99),
         #     (0.1, 0.1, 0.9, 0.9),
         # ],
-        'env_kwargs.max_distance': [
-            6,
-        ],
+        # 'env_kwargs.max_distance': [
+        #     6,
+        # ],
         'qf_criterion_class': [
             nn.MSELoss,
         ],
@@ -195,7 +196,7 @@ if __name__ == "__main__":
             4,
         ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
-            0.01, 1, 100, 10000
+            100,
         ],
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
             1, 5, 10,
@@ -207,7 +208,7 @@ if __name__ == "__main__":
             0.05,
         ],
         'ddpg_tdm_kwargs.ddpg_kwargs.policy_pre_activation_weight': [
-            0.01,
+            0.01, 0.1
         ],
         'ddpg_tdm_kwargs.ddpg_kwargs.eval_with_target_policy': [
             True,

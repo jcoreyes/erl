@@ -30,21 +30,41 @@ def main():
             'algorithm': 'DDPG',
         }
     ).get_trials()
+    her_trials = Experiment(
+        "/home/vitchyr/git/railrl/data/doodads3/01-03-ant-pos-and-vel-her-and-sparse-ddpg/",
+        criteria={
+            # 'exp_id': '27',  # weight 0.99
+            'exp_id': '37',  # weight 0.9
+        },
+    ).get_trials()
+    ddpg_sparse_trials = Experiment(
+        "/home/vitchyr/git/railrl/data/doodads3/01-03-ant-pos-and-vel-her-and-sparse-ddpg/",
+        criteria={
+            # 'exp_id': '56',  # weight 0.99
+            'exp_id': '90',  # weight 0.9
+        },
+    ).get_trials()
 
     MAX_ITERS = 1000000
 
     plt.figure()
-    key1 = 'Final_weighted_vel_error_Mean'
-    key2 = 'Final_weighted_pos_error_Mean'
+    vel_key = 'Final_weighted_vel_error_Mean'
+    pos_key = 'Final_weighted_pos_error_Mean'
+    speed_weight = 0.9
     for trials, name in [
         (tdm_trials, 'TDMs'),
         (ddpg_trials, 'DDPG'),
         (mb_trials, 'Model-Based'),
+        (her_trials, 'HER'),
+        (ddpg_sparse_trials, 'DDPG-Sparse'),
     ]:
         all_values = []
         for trial in trials:
             try:
-                values_ts = trial.data[key1] + trial.data[key2]
+                values_ts = (
+                    speed_weight * trial.data[vel_key]
+                    + (1 - speed_weight) * trial.data[pos_key]
+                )
                 values_ts = sliding_mean(values_ts, window=10)
             except:
                 import ipdb; ipdb.set_trace()

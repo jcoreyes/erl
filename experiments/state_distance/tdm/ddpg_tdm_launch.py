@@ -104,16 +104,17 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = "local"
+    mode = "local_docker"
     exp_prefix = "dev-ddpg-tdm-launch-2"
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "final-ant-max-distance-6"
+    exp_prefix = "final-gym-pusher3d"
 
     num_epochs = 1000
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
-    max_path_length = 50
+    max_path_length = 100
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -170,18 +171,18 @@ if __name__ == "__main__":
         'env_class': [
             # GoalXVelHalfCheetah,
             # GoalXPosHalfCheetah,
-            GoalXYPosAnt,
+            # GoalXYPosAnt,
             # Reacher7DofXyzPosAndVelGoalState,
             # GoalXYPosAndVelAnt,
             # MultitaskPusher3DEnv,
             # Reacher7DofXyzGoalState,
             # CylinderXYPusher2DEnv,
             # Walker2DTargetXPos,
-            # GoalXYGymPusherEnv,
+            GoalXYGymPusherEnv,
         ],
-        'env_kwargs.max_distance': [
-            6,
-        ],
+        # 'env_kwargs.max_distance': [
+        #     6,
+        # ],
         # 'env_kwargs.min_distance': [
         #     3,
         # ],
@@ -205,7 +206,7 @@ if __name__ == "__main__":
             dict(theta=0.1, max_sigma=0.1, min_sigma=0.1),
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.max_tau': [
-            49,
+            15, 33
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.dense_rewards': [
             False,

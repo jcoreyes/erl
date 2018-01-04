@@ -86,12 +86,12 @@ if __name__ == "__main__":
 
     n_seeds = 3
     mode = "ec2"
-    exp_prefix = "final-ant-max-distance-6"
+    exp_prefix = "final-gym-pusher3d"
 
     num_epochs = 1000
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
-    max_path_length = 50
+    max_path_length = 100
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -131,9 +131,9 @@ if __name__ == "__main__":
         'env_class': [
             # GoalXVelHalfCheetah,
             # Reacher7DofXyzGoalState,
-            GoalXYPosAnt,
+            # GoalXYPosAnt,
             # GoalXPosHalfCheetah,
-            # GoalXYGymPusherEnv,
+            GoalXYGymPusherEnv,
             # MultitaskPusher3DEnv,
             # GoalXPosHopper,
             # Reacher7DofXyzPosAndVelGoalState,
@@ -141,9 +141,9 @@ if __name__ == "__main__":
             # CylinderXYPusher2DEnv,
             # Walker2DTargetXPos,
         ],
-        'env_kwargs.max_distance': [
-            6,
-        ],
+        # 'env_kwargs.max_distance': [
+        #     6,
+        # ],
         # 'env_kwargs.min_distance': [
         #     3,
         # ],
@@ -176,7 +176,7 @@ if __name__ == "__main__":
         #     max_path_length,
         # ],
         'algo_kwargs.num_updates_per_env_step': [
-            1, 5, 10,
+            1, 5, 10
         ],
         'algo_kwargs.num_paths_for_normalization': [20],
         'ou_kawrgs.max_sigma': [0.1, 0],
