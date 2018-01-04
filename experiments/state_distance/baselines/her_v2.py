@@ -194,7 +194,7 @@ if __name__ == "__main__":
             1, 10, 100,
         ],
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
-            1,
+            5, 10
         ],
         'ddpg_tdm_kwargs.base_kwargs.discount': [
             0.98,

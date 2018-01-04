@@ -107,11 +107,11 @@ if __name__ == "__main__":
     mode = "local_docker"
     exp_prefix = "dev-ddpg-tdm-launch-2"
 
-    n_seeds = 3
+    n_seeds = 1
     mode = "ec2"
-    exp_prefix = "final-ant-pos-and-vel"
+    exp_prefix = "pusher-gym-find-difference"
 
-    num_epochs = 500
+    num_epochs = 100
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
     max_path_length = 100
@@ -173,12 +173,12 @@ if __name__ == "__main__":
             # GoalXPosHalfCheetah,
             # GoalXYPosAnt,
             # Reacher7DofXyzPosAndVelGoalState,
-            GoalXYPosAndVelAnt,
+            # GoalXYPosAndVelAnt,
             # MultitaskPusher3DEnv,
             # Reacher7DofXyzGoalState,
             # CylinderXYPusher2DEnv,
             # Walker2DTargetXPos,
-            # GoalXYGymPusherEnv,
+            GoalXYGymPusherEnv,
         ],
         # 'env_kwargs.max_distance': [
         #     6,
@@ -186,12 +186,12 @@ if __name__ == "__main__":
         # 'env_kwargs.min_distance': [
         #     3,
         # ],
-        'env_kwargs.speed_weight': [
-            None,
-        ],
-        'env_kwargs.goal_dim_weights': [
-            (0.1, 0.1, 0.9, 0.9),
-        ],
+        # 'env_kwargs.speed_weight': [
+        #     None,
+        # ],
+        # 'env_kwargs.goal_dim_weights': [
+        #     (0.1, 0.1, 0.9, 0.9),
+        # ],
         'tdm_normalizer_kwargs.log_tau': [
             False,
         ],
@@ -212,16 +212,16 @@ if __name__ == "__main__":
             dict(theta=0.1, max_sigma=0.1, min_sigma=0.1),
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.max_tau': [
-            15, 33
+            32, 99
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.dense_rewards': [
-            False,
+            False, True,
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.finite_horizon': [
-            True,
+            True, False,
         ],
         'relabel': [
-            True,
+            True, False,
         ],
         'her_replay_buffer_kwargs.resampling_strategy': [
             # 'truncated_geometric',
@@ -258,7 +258,7 @@ if __name__ == "__main__":
             False
         ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
-            100, 1000, 10000
+            100, 10000, 1000000
         ],
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
             1, 5, 10,
