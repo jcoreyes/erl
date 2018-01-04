@@ -23,9 +23,7 @@ def main():
 
     MAX_ITERS = 100
 
-    # https://stackoverflow.com/questions/6963035/pyplot-axes-labels-for-subplots
     fig = plt.figure()
-    # shared_ax = fig.add_subplot(111)  # The big subplot
     ax1 = fig.add_subplot(211)
     ax2 = fig.add_subplot(212)
     plot_key = 'Final Distance to goal Mean'.replace(' ', '_')
@@ -63,6 +61,8 @@ def main():
         ax.set_xlabel("Environment Samples (x1,000)")
         ax.set_ylabel("Final Distance to Goal Position")
     plt.legend()
+    print(fig.get_size_inches())
+    fig.set_size_inches(6.4*1, 4.8*2)
     plt.savefig(
         'results/iclr2018/ant-nupo-sweep.jpg',
         transparent=True, bbox_inches='tight', pad_inches=0,
