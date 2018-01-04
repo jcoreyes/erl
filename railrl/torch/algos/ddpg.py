@@ -298,31 +298,29 @@ class DDPG(TorchRLAlgorithm):
             self.target_qf,
         ]
 
-    def pretrain(self):
-        if (
-            self.num_paths_for_normalization == 0
-            or (self.obs_normalizer is None and self.action_normalizer is None)
-        ):
-            return
+    def check_normalization(self):
+        return self.num_paths_for_normalization == 0 and self.normalize_network_input
 
+    def get_pretrain_paths(self):
         pretrain_paths = []
         random_policy = RandomPolicy(self.env.action_space)
         while len(pretrain_paths) < self.num_paths_for_normalization:
             path = rollout(self.env, random_policy, self.max_path_length)
             pretrain_paths.append(path)
+        return pretrain_paths
+
+    def set_normalizers(self, pretrain_paths):
         ob_mean, ob_std, ac_mean, ac_std = (
             compute_normalization(pretrain_paths)
         )
-        if self.obs_normalizer is not None:
-            self.obs_normalizer.set_mean(ob_mean)
-            self.obs_normalizer.set_std(ob_std)
-            self.target_qf.obs_normalizer = self.obs_normalizer
-            self.target_policy.obs_normalizer = self.obs_normalizer
-        if self.action_normalizer is not None:
-            self.action_normalizer.set_mean(ac_mean)
-            self.action_normalizer.set_std(ac_std)
-            self.target_qf.action_normalizer = self.action_normalizer
-            self.target_policy.action_normalizer = self.action_normalizer
+        for network in self.networks:
+            if hasattr(network, 'obs_normalizer') and network.obs_normalizer is not None:
+                network.obs_normalizer.set_mean(ob_mean)
+                network.obs_normalizer.set_std(ob_std)
+            if hasattr(network, 'action_normalizer') and network.action_normalizer is not None:
+                network.action_normalizer.set_mean(ob_mean)
+                network.action_normalizer.set_std(ob_std)
+
 
 def compute_normalization(paths):
     obs = np.vstack([path["observations"] for path in paths])

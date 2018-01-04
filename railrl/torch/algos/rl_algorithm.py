@@ -48,6 +48,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             parallel_step_to_train_ratio=20,
             replay_buffer=None,
             fraction_paths_in_train=1.,
+            normalize_network_input=False
     ):
         """
         Base class for RL Algorithms
@@ -89,6 +90,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.num_epochs = num_epochs
         self.num_env_steps_per_epoch = num_steps_per_epoch
         self.num_steps_per_eval = num_steps_per_eval
+        self.normalize_network_input = normalize_network_input
         if collection_mode == 'online' or collection_mode == 'online-parallel':
             self.num_updates_per_train_call = num_updates_per_env_step
         else:
@@ -193,7 +195,20 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         """
         Do anything before the main training phase.
         """
-        pass
+        if self.check_normalization():
+            return
+
+        pretrain_paths = self.get_pretrain_paths()
+        self.set_normalizers(pretrain_paths)
+
+    def check_normalization(self):
+        return True
+
+    def get_pretrain_paths(self):
+        raise NotImplementedError()
+
+    def set_normalizers(self, pretrain_paths):
+        raise NotImplementedError()
 
     def train_online(self, start_epoch=0):
         self._current_path_builder = PathBuilder()

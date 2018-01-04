@@ -160,6 +160,20 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         self.max_tau = self.epoch_max_tau_schedule.get_value(epoch)
         super()._start_epoch(epoch)
 
+    def set_normalizers(self, pretrain_paths):
+        tau_mean, tau_std = self.compute_normalization(pretrain_paths)
+        for network in self.networks:
+            if hasattr(network, 'tau_normalizer') and network.tau_normalizer is not None:
+                network.tau_normalizer.set_mean(tau_mean)
+                network.tau_normalizer.set_std(tau_std)
+        super().set_normalizers(pretrain_paths)
+
+    def compute_normalization(self, paths):
+        taus = np.vstack([path["taus"] for path in paths]) #TODO: double check this is correct
+        tau_mean = np.mean(taus, axis=0)
+        tau_std = np.std(taus, axis=0)
+        return tau_mean, tau_std
+
     def get_batch(self, training=True):
         if self.replay_buffer_is_split:
             replay_buffer = self.replay_buffer.get_replay_buffer(training)
