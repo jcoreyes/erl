@@ -23,14 +23,18 @@ def main():
 
     MAX_ITERS = 100
 
-    fig = plt.figure()
-    ax1 = fig.add_subplot(211)
-    ax2 = fig.add_subplot(212)
+    # ax1 = fig.add_subplot(211)
+    # ax2 = fig.add_subplot(212)
     plot_key = 'Final Distance to goal Mean'.replace(' ', '_')
-    for ax, exp, name in [
-        (ax1, relabel_exp, 'Relabel'),
-        (ax2, no_relabel_exp, 'No Relabel'),
+    # for ax, exp, name in [
+    #     (ax1, relabel_exp, 'Relabel'),
+    #     (ax2, no_relabel_exp, 'No Relabel'),
+    # ]:
+    for exp, name in [
+        (relabel_exp, 'Relabel'),
+        (no_relabel_exp, 'No Relabel'),
     ]:
+        fig = plt.figure()
         for nupo in [1, 5, 10, 20, 30]:
             trials = exp.get_trials({
                 'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': nupo
@@ -52,22 +56,24 @@ def main():
             mean = np.mean(costs, axis=0)
             std = np.std(costs, axis=0)
             epochs = np.arange(0, len(costs[0]))
-            ax.fill_between(epochs, mean - std, mean + std, alpha=0.1)
-            ax.plot(epochs, mean, label="{} updates per observation".format(
+            plt.fill_between(epochs, mean - std, mean + std, alpha=0.1)
+            plt.plot(epochs, mean, label="{} updates per step".format(
                 nupo
             ))
-        ax.set_title(name)
+        # plt.title(name)
 
-        ax.set_xlabel("Environment Samples (x1,000)")
-        ax.set_ylabel("Final Distance to Goal Position")
-    plt.legend()
-    print(fig.get_size_inches())
-    fig.set_size_inches(6.4*1, 4.8*2)
-    plt.savefig(
-        'results/iclr2018/ant-nupo-sweep.jpg',
-        transparent=True, bbox_inches='tight', pad_inches=0,
-    )
-    plt.show()
+        plt.xlabel("Environment Samples (x1,000)")
+        plt.ylabel("Final Distance to Goal Position")
+        plt.legend()
+        # print(fig.get_size_inches())
+        # fig.set_size_inches(6.4*1, 4.8*2)
+        plt.savefig(
+            'results/iclr2018/ant-nupo-sweep-{}.jpg'.format(
+                name.lower().replace(' ', '-')
+            ),
+            # transparent=True, bbox_inches='tight', pad_inches=0,
+        )
+        plt.show()
 
 
 if __name__ == '__main__':

@@ -1,70 +1,62 @@
-from railrl.misc.data_processing import Experiment
 import matplotlib.pyplot as plt
 import numpy as np
 
+from railrl.misc.data_processing import get_trials
 from railrl.misc.visualization_util import sliding_mean
 
 
 def main():
-    tdm_trials = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/01-02-ant-pos-and-vel-target/",
+    tdm_trials = get_trials(
+        "/home/vitchyr/git/railrl/data/doodads3/01-03-final-ant-pos-and-vel/",
         criteria={
-            # 'exp_id': '33',  # weight 0.99
-            'exp_id': '22',  # weight 0.9
             'algorithm': 'DDPG-TDM',
+            'exp_id': '17',
         }
-    ).get_trials()
-    mb_trials = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/01-02-ant-pos-and-vel-target/",
+    )
+    ddpg_trials = get_trials(
+        "/home/vitchyr/git/railrl/data/doodads3/01-03-final-ant-pos-and-vel/",
         criteria={
-            # 'exp_id': '0',  #weight 0.99
-            'exp_id': '1',  #weight 0.9
-            'algorithm': 'Model-Based-Dagger',
-        }
-    ).get_trials()
-    ddpg_trials = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/12-30-ant-pos-vel/",
-        criteria={
-            # 'exp_id': '6',  # weight 0.99
-            'exp_id': '8',  # weight 0.9
             'algorithm': 'DDPG',
+            'exp_id': '5',
         }
-    ).get_trials()
-    her_trials = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/01-03-ant-pos-and-vel-her-and-sparse-ddpg/",
+    )
+    ddpg_sparse_trials = get_trials(
+        "/home/vitchyr/git/railrl/data/doodads3/01-03-final-ant-pos-and-vel/",
         criteria={
-            # 'exp_id': '27',  # weight 0.99
-            'exp_id': '37',  # weight 0.9
-        },
-    ).get_trials()
-    ddpg_sparse_trials = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/01-03-ant-pos-and-vel-her-and-sparse-ddpg/",
+            'algorithm': 'DDPG-Sparse',
+            'exp_id': '22',
+        }
+    )
+    her_trials = get_trials(
+        "/home/vitchyr/git/railrl/data/doodads3/01-03-final-ant-pos-and-vel/",
         criteria={
-            # 'exp_id': '56',  # weight 0.99
-            'exp_id': '90',  # weight 0.9
-        },
-    ).get_trials()
+            'algorithm': 'HER-Andrychowicz',
+            'exp_id': '26',
+        }
+    )
+    mb_trials = get_trials(
+        "/home/vitchyr/git/railrl/data/doodads3/01-03-final-ant-pos-and-vel/",
+        criteria={
+            'algorithm': 'Model-Based-Dagger',
+            'exp_id': '4',
+        }
+    )
 
     MAX_ITERS = 1000000
 
     plt.figure()
-    vel_key = 'Final_weighted_vel_error_Mean'
-    pos_key = 'Final_weighted_pos_error_Mean'
-    speed_weight = 0.9
+    key = 'Final_Weighted_Error_Mean'
     for trials, name in [
-        (tdm_trials, 'TDMs'),
-        (ddpg_trials, 'DDPG'),
+        (tdm_trials, 'TDM'),
         (mb_trials, 'Model-Based'),
+        (ddpg_trials, 'DDPG'),
         (her_trials, 'HER'),
         (ddpg_sparse_trials, 'DDPG-Sparse'),
     ]:
         all_values = []
         for trial in trials:
             try:
-                values_ts = (
-                    speed_weight * trial.data[vel_key]
-                    + (1 - speed_weight) * trial.data[pos_key]
-                )
+                values_ts = trial.data[key]
                 values_ts = sliding_mean(values_ts, window=10)
             except:
                 import ipdb; ipdb.set_trace()

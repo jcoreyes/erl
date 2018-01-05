@@ -1,4 +1,4 @@
-from railrl.misc.data_processing import Experiment
+from railrl.misc.data_processing import get_trials
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -6,41 +6,41 @@ from railrl.misc.visualization_util import sliding_mean
 
 
 def main():
-    tdm_trials = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/01-02-final-pusher-gym/",
+    tdm_trials = get_trials(
+        "/home/vitchyr/git/railrl/data/doodads3/01-03-final-gym-pusher3d/",
         criteria={
-            'exp_id': '9',
+            'exp_id': '16',
             'algorithm': 'DDPG-TDM',
         }
-    ).get_trials()
-    mb_trials = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/01-02-final-pusher-gym/",
+    )
+    mb_trials = get_trials(
+        "/home/vitchyr/git/railrl/data/doodads3/01-03-final-gym-pusher3d/",
         criteria={
             'exp_id': '2',
             'algorithm': 'Model-Based-Dagger',
         }
-    ).get_trials()
-    ddpg_trials = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/01-02-pre-final-pusher-gym/",
+    )
+    ddpg_trials = get_trials(
+        "/home/vitchyr/git/railrl/data/doodads3/01-03-final-gym-pusher3d/",
         criteria={
-            'exp_id': '3',
+            'exp_id': '7',
             'algorithm': 'DDPG',
         }
-    ).get_trials()
-    her_trials = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/01-02-pre-final-pusher-gym/",
+    )
+    her_trials = get_trials(
+        "/home/vitchyr/git/railrl/data/doodads3/01-03-final-gym-pusher3d/",
         criteria={
-            'exp_id': '13',
+            'exp_id': '10',
             'algorithm': 'HER-Andrychowicz',
         }
-    ).get_trials()
-    ddpg_sparse_trials = Experiment(
-        "/home/vitchyr/git/railrl/data/doodads3/01-02-pre-final-pusher-gym/",
+    )
+    ddpg_sparse_trials = get_trials(
+        "/home/vitchyr/git/railrl/data/doodads3/01-03-final-gym-pusher3d/",
         criteria={
-            'exp_id': '5',
+            'exp_id': '8',
             'algorithm': 'DDPG-Sparse',
         }
-    ).get_trials()
+    )
 
     MAX_ITERS = 1000000
 

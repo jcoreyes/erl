@@ -76,9 +76,9 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "ddpg-sweep-ant-max-d-6-sweep-discount-and-scale"
+    exp_prefix = "ddpg-ant-max-d-6-post-sweep"
 
-    num_epochs = 200
+    num_epochs = 1000
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
     max_path_length = 50
@@ -173,7 +173,7 @@ if __name__ == "__main__":
         #     max_path_length,
         # ],
         'algo_kwargs.num_updates_per_env_step': [
-            1,
+            1, 5, 10
         ],
         # 'algo_kwargs.policy_pre_activation_weight': [
         #     1.,
@@ -182,14 +182,14 @@ if __name__ == "__main__":
         #     0.1,
         # ],
         'algo_kwargs.reward_scale': [
-            0.01, 0.1, 1, 10, 100, 1000, 10000,
+            10, 100, 1000, 10000
         ],
         'algo_kwargs.discount': [
-            0.8, 0.95, 0.98,
+            0.98,
         ],
-        # 'algo_kwargs.tau': [
-        #     0.05, 0.01, 0.001,
-        # ],
+        'algo_kwargs.tau': [
+            0.01, 0.001,
+        ],
         # 'algo_kwargs.eval_with_target_policy': [
         #     True, False
         # ],
