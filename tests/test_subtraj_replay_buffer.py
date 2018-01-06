@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 
 from railrl.data_management.subtraj_replay_buffer import SubtrajReplayBuffer
-from railrl.testing.tf_test_case import TFTestCase
+from railrl.testing.np_test_case import NPTestCase
 from railrl.testing.stub_classes import StubEnv
 
 
@@ -16,7 +16,7 @@ def create_buffer(subtraj_length):
     )
 
 
-class TestSubtrajReplayBuffer(TFTestCase):
+class TestSubtrajReplayBuffer(NPTestCase):
     def test_size_add_none(self):
         subtraj_length = 2
         buff = create_buffer(subtraj_length)

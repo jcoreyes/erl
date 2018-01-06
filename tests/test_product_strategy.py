@@ -1,11 +1,11 @@
 import unittest
 
 from railrl.exploration_strategies.product_strategy import ProductStrategy
-from railrl.testing.tf_test_case import TFTestCase
-from railrl.utils.testing import AddEs, StubPolicy
+from railrl.testing.np_test_case import NPTestCase
+from railrl.testing.stub_classes import AddEs, StubPolicy
 
 
-class TestProductStrategy(TFTestCase):
+class TestProductStrategy(NPTestCase):
     def test_product_strategy_from_policy(self):
         es1 = AddEs(1)
         es2 = AddEs(2)

@@ -1,14 +1,15 @@
 import unittest
 
 import numpy as np
-from railrl.testing.tf_test_case import TFTestCase
+
+from railrl.testing.np_test_case import NPTestCase
 
 from railrl.exploration_strategies.onehot_sampler import OneHotSampler
 from railrl.testing.testing_utils import is_binomial_trial_likely
-from railrl.utils.testing import StubPolicy
+from railrl.testing.stub_classes import StubPolicy
 
 
-class TestOneHotSampler(TFTestCase):
+class TestOneHotSampler(NPTestCase):
     def test_deterministic_onehot_sampled_correct(self):
         policy = StubPolicy(np.array([1.0, 0., 0.]))
         sampler = OneHotSampler()
