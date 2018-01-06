@@ -290,53 +290,6 @@ class MemoryPolicy(PyTorchModule):
         return torch.squeeze(actions, dim=1), torch.squeeze(writes, dim=1)
 
 
-class FeedForwardPolicy(PyTorchModule):
-    def __init__(
-            self,
-            obs_dim,
-            action_dim,
-            fc1_size,
-            fc2_size,
-            init_w=1e-3,
-            hidden_init=ptu.fanin_init,
-    ):
-        self.save_init_params(locals())
-        super().__init__()
-
-        self.obs_dim = obs_dim
-        self.action_dim = action_dim
-        self.fc1_size = fc1_size
-        self.fc2_size = fc2_size
-        self.hidden_init = hidden_init
-
-        self.fc1 = nn.Linear(obs_dim, fc1_size)
-        self.fc2 = nn.Linear(fc1_size, fc2_size)
-        self.last_fc = nn.Linear(fc2_size, action_dim)
-
-        self.init_weights(init_w)
-
-    def init_weights(self, init_w):
-        self.hidden_init(self.fc1.weight)
-        self.fc1.bias.data.fill_(0)
-        self.hidden_init(self.fc2.weight)
-        self.fc2.bias.data.fill_(0)
-
-        self.last_fc.weight.data.uniform_(-init_w, init_w)
-        self.last_fc.bias.data.uniform_(-init_w, init_w)
-
-    def forward(self, obs):
-        h = F.relu(self.fc1(obs))
-        h = F.relu(self.fc2(h))
-        return F.tanh(self.last_fc(h))
-
-    def get_action(self, obs_np):
-        actions = self.get_actions(obs_np[None])
-        return actions[0, :], {}
-
-    def get_actions(self, obs):
-        return self.eval_np(obs)
-
-
 class RecurrentPolicy(PyTorchModule):
     def __init__(
             self,

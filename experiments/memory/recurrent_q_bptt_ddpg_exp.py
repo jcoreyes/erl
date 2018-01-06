@@ -6,8 +6,8 @@ from railrl.envs.mujoco.water_maze import WaterMazeMemory
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.exploration_strategies.product_strategy import ProductStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.policies.torch import MemoryPolicy
-from railrl.qfunctions.torch import RecurrentMemoryQFunction
+from railrl.memory_states.policies import MemoryPolicy
+from railrl.memory_states.qfunctions import RecurrentMemoryQFunction
 from railrl.torch.bptt_ddpg_rq import BpttDdpgRecurrentQ
 
 

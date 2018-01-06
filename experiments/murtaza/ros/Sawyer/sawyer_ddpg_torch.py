@@ -5,8 +5,7 @@ from railrl.exploration_strategies.base import PolicyWrappedWithExplorationStrat
 from railrl.launchers.launcher_util import run_experiment
 from railrl.launchers.launcher_util import continue_experiment
 from railrl.launchers.launcher_util import resume_torch_algorithm
-from railrl.policies.torch import FeedForwardPolicy
-from railrl.qfunctions.torch import FeedForwardQFunction
+from railrl.torch.networks import FeedForwardQFunction, FeedForwardPolicy
 from railrl.torch.ddpg import DDPG
 from railrl.envs.ros.sawyer_env import SawyerEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy

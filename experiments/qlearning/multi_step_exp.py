@@ -9,8 +9,7 @@ from railrl.envs.time_limited_env import TimeLimitedEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 import railrl.misc.hyperparameter as hyp
-from railrl.policies.torch import FeedForwardPolicy
-from railrl.qfunctions.torch import FeedForwardQFunction
+from railrl.torch.networks import FeedForwardQFunction, FeedForwardPolicy
 from railrl.torch.algos.multi_step_ql import MultiStepDdpg
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv

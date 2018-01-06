@@ -7,8 +7,7 @@ from railrl.envs.mujoco.pusher3dof import PusherEnv3DOF, get_snapshots_and_goal
 from railrl.envs.mujoco.pusher_avoider_3dof import PusherAvoiderEnv3DOF
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.policies.torch import FeedForwardPolicy
-from railrl.qfunctions.torch import FeedForwardQFunction
+from railrl.torch.networks import FeedForwardQFunction, FeedForwardPolicy
 from railrl.torch.algos.combine_ddpg_qfs import DdpgQfCombiner
 from railrl.torch.ddpg import DDPG
 import railrl.misc.hyperparameter as hyp

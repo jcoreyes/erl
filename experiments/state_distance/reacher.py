@@ -5,8 +5,7 @@ from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.simple import ZeroPolicy
-from railrl.policies.torch import FeedForwardPolicy
-from railrl.qfunctions.torch import FeedForwardQFunction
+from railrl.torch.networks import FeedForwardQFunction, FeedForwardPolicy
 from railrl.state_distance.state_distance_q_learning import (
     StateDistanceQLearning
 )

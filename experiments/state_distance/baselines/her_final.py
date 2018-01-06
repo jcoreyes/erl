@@ -2,8 +2,7 @@ import argparse
 
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
-from railrl.policies.torch import FeedForwardPolicy
-from railrl.qfunctions.torch import FeedForwardQFunction
+from railrl.torch.networks import FeedForwardQFunction, FeedForwardPolicy
 from railrl.torch.ddpg import DDPG
 
 

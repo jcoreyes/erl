@@ -6,8 +6,7 @@ from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import continue_experiment
 from railrl.launchers.launcher_util import resume_torch_algorithm
 from railrl.launchers.launcher_util import run_experiment
-from railrl.policies.torch import FeedForwardPolicy
-from railrl.qfunctions.torch import FeedForwardQFunction
+from railrl.torch.networks import FeedForwardQFunction, FeedForwardPolicy
 from railrl.torch.algos.parallel_ddpg import ParallelDDPG
 from railrl.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
 from railrl.torch import pytorch_util as ptu

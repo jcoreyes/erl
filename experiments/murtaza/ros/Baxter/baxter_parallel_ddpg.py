@@ -1,8 +1,7 @@
 from railrl.envs.remote import RemoteRolloutEnv
 from railrl.envs.wrappers import convert_gym_space
 from railrl.launchers.launcher_util import run_experiment
-from railrl.policies.torch import FeedForwardPolicy
-from railrl.qfunctions.torch import FeedForwardQFunction
+from railrl.torch.networks import FeedForwardQFunction, FeedForwardPolicy
 from railrl.torch.algos.parallel_ddpg import ParallelDDPG
 from railrl.envs.ros.baxter_env import BaxterEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy

@@ -7,8 +7,7 @@ from railrl.envs.env_utils import gym_env
 from railrl.envs.time_limited_env import TimeLimitedEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.policies.torch import FeedForwardPolicy
-from railrl.qfunctions.torch import FeedForwardQFunction
+from railrl.torch.networks import FeedForwardQFunction, FeedForwardPolicy
 from railrl.torch.ddpg import DDPG
 from railrl.torch.easy_v_ql import EasyVQFunction
 from rllab.envs.box2d.cartpole_env import CartpoleEnv

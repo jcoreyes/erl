@@ -8,7 +8,7 @@ from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.policies.torch import FeedForwardPolicy
+from railrl.torch.networks import FeedForwardPolicy
 from railrl.state_distance.tdm_networks import StructuredQF
 from railrl.state_distance.tdm_ddpg import TdmDdpg
 from railrl.torch.modules import HuberLoss
