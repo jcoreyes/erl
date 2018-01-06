@@ -2,7 +2,7 @@ import numpy as np
 
 from railrl.policies.base import SerializablePolicy, Policy
 from railrl.torch.naf import NafPolicy
-from rllab.core.serializable import Serializable
+from railrl.core.serializable import Serializable
 
 
 class CombinedNafPolicy(SerializablePolicy, Serializable):

@@ -4,7 +4,7 @@ from collections import OrderedDict
 import numpy as np
 
 from railrl.misc.data_processing import create_stats_ordered_dict
-from rllab.core.serializable import Serializable
+from railrl.core.serializable import Serializable
 from rllab.envs.proxy_env import ProxyEnv
 from railrl.core import logger as default_logger
 from rllab.spaces import Box

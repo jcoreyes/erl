@@ -10,7 +10,7 @@ import numpy as np
 import intera_interface as ii
 import rospy
 
-from rllab.core.serializable import Serializable
+from railrl.core.serializable import Serializable
 from railrl.core import logger
 from rllab.spaces import Box
 

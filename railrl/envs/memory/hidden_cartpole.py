@@ -3,10 +3,9 @@ from collections import OrderedDict
 import numpy as np
 from cached_property import cached_property
 
-from railrl.envs.wrappers import normalize_tf
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.samplers.util import split_paths
-from rllab.core.serializable import Serializable
+from railrl.core.serializable import Serializable
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.envs.proxy_env import ProxyEnv
 from railrl.core import logger
@@ -69,28 +68,3 @@ class HiddenCartpoleEnv(CartpoleEnv, Serializable):
 
     def is_current_done(self):
         return False
-
-
-class NormalizedHiddenCartpoleEnv(ProxyEnv):
-    def __init__(self, *args, **kwargs):
-        Serializable.quick_init(self, locals())
-        env = HiddenCartpoleEnv(*args, **kwargs)
-        env = normalize_tf(env)
-        super().__init__(env)
-
-    @staticmethod
-    def get_extra_info_dict_from_batch(batch):
-        return dict()
-
-    @staticmethod
-    def get_flattened_extra_info_dict_from_subsequence_batch(batch):
-        return dict()
-
-    @staticmethod
-    def get_last_extra_info_dict_from_subsequence_batch(batch):
-        return dict()
-
-    def log_diagnostics(self, paths, **kwargs):
-        return self._wrapped_env.log_diagnostics(paths, **kwargs)
-
-

@@ -8,7 +8,7 @@ import numpy as np
 import baxter_interface as bi
 import rospy
 
-from rllab.core.serializable import Serializable
+from railrl.core.serializable import Serializable
 from railrl.core import logger
 from rllab.spaces import Box
 

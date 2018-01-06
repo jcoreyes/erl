@@ -1,7 +1,7 @@
 import numpy as np
 
 from railrl.misc.rllab_util import split_flat_product_space_into_components_n
-from rllab.core.serializable import Serializable
+from railrl.core.serializable import Serializable
 from rllab.envs.base import Env
 from rllab.envs.proxy_env import ProxyEnv
 from rllab.spaces.product import Product

@@ -1,5 +1,5 @@
 from railrl.exploration_strategies.base import RawExplorationStrategy
-from rllab.core.serializable import Serializable
+from railrl.core.serializable import Serializable
 import numpy as np
 
 

@@ -6,14 +6,14 @@ import numpy as np
 from gym.envs.mujoco import mujoco_env
 
 from railrl.envs.env_utils import get_asset_xml
-from rllab.core.serializable import Serializable
+from railrl.core.serializable import Serializable
 from rllab.envs.base import Env
 
 
 class MujocoEnv(mujoco_env.MujocoEnv, Serializable, Env):
     """
     My own wrapper around MujocoEnv.
-    
+
     The caller needs to declare
     """
     def __init__(

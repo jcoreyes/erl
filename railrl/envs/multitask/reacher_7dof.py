@@ -10,7 +10,7 @@ from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.samplers.util import get_stat_in_paths
 import railrl.torch.pytorch_util as ptu
-from rllab.core.serializable import Serializable
+from railrl.core.serializable import Serializable
 from railrl.core import logger as default_logger
 
 

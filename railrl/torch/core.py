@@ -5,7 +5,7 @@ from collections import OrderedDict
 from torch import nn as nn
 
 from railrl.torch import pytorch_util as ptu
-from rllab.core.serializable import Serializable
+from railrl.core.serializable import Serializable
 
 
 class PyTorchModule(nn.Module, Serializable, metaclass=abc.ABCMeta):

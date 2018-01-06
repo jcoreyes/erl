@@ -9,7 +9,7 @@ from railrl.core import logger
 from gym.envs.mujoco import Walker2dEnv
 
 from railrl.envs.multitask.multitask_env import MultitaskEnv
-from rllab.core.serializable import Serializable
+from railrl.core.serializable import Serializable
 
 
 class MultitaskWalker2D(

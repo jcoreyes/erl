@@ -9,7 +9,7 @@ from gym.spaces import Box, Discrete
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.state_distance.util import merge_into_flat_obs
 from railrl.misc.visualization_util import plot_heatmap, HeatMap
-from rllab.core.serializable import Serializable
+from railrl.core.serializable import Serializable
 from railrl.core import logger
 
 

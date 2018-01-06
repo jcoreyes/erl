@@ -1,6 +1,6 @@
 import random
 from railrl.exploration_strategies.base import RawExplorationStrategy
-from rllab.core.serializable import Serializable
+from railrl.core.serializable import Serializable
 from rllab.spaces.box import Box
 import numpy as np
 

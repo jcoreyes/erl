@@ -3,7 +3,7 @@ import ray
 from railrl.envs.base import RolloutEnv
 from railrl.envs.wrappers import normalize_box
 from railrl.samplers.util import rollout
-from rllab.core.serializable import Serializable
+from railrl.core.serializable import Serializable
 from rllab.envs.proxy_env import ProxyEnv
 
 
