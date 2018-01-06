@@ -81,7 +81,6 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = "local"
-    mode = "local_docker"
     exp_prefix = "dev-dagger-2"
 
     n_seeds = 3
