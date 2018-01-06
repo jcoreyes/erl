@@ -3,7 +3,7 @@ import random
 
 from railrl.envs.multitask.point2d import MultitaskPoint2DEnv, PerfectPoint2DQF
 from railrl.launchers.launcher_util import run_experiment
-from railrl.policies.state_distance import (
+from railrl.state_distance.policies import (
     ArgmaxQFPolicy,
     PseudoModelBasedPolicy,
     ConstrainedOptimizationOCPolicy,

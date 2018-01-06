@@ -16,7 +16,7 @@ from railrl.launchers.launcher_util import (
     setup_logger,
 )
 from railrl.misc.ml_util import ConstantSchedule
-from railrl.policies.state_distance import \
+from railrl.state_distance.policies import \
     UnconstrainedOcWithGoalConditionedModel, UnconstrainedOcWithImplicitModel
 from railrl.state_distance.exploration import \
     UniversalPolicyWrappedWithExplorationStrategy

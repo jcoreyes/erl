@@ -7,7 +7,7 @@ from torch import nn as nn
 from torch import optim
 from torch.nn import functional as F
 
-from railrl.policies.state_distance import UniversalPolicy
+from railrl.state_distance.policies import UniversalPolicy
 from railrl.pythonplusplus import identity
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.networks import Mlp

@@ -1,10 +1,9 @@
 import abc
-import numpy as np
 from railrl.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
 )
 from railrl.policies.base import ExplorationPolicy
-from railrl.policies.state_distance import UniversalPolicy
+from railrl.state_distance.policies import UniversalPolicy
 from railrl.state_distance.util import merge_into_flat_obs
 from railrl.torch.core import PyTorchModule
 from rllab.exploration_strategies.base import ExplorationStrategy

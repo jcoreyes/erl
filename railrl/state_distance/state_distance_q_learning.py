@@ -10,9 +10,8 @@ from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.data_management.path_builder import PathBuilder
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.multitask.multitask_env import MultitaskEnv
-from railrl.misc import rllab_util
 from railrl.misc.tensorboard_logger import TensorboardLogger
-from railrl.policies.state_distance import UniversalPolicy
+from railrl.state_distance.policies import UniversalPolicy
 from railrl.samplers.util import split_paths_to_dict
 from railrl.state_distance.exploration import UniversalExplorationPolicy
 from railrl.state_distance.networks import DuelingStructuredUniversalQfunction
@@ -20,7 +19,6 @@ from railrl.torch.algos.ddpg import DDPG
 from railrl.torch.algos.util import np_to_pytorch_batch
 from railrl.torch.eval_util import (
     get_difference_statistics,
-    get_generic_path_information,
 )
 from rllab.misc import logger
 from railrl.state_distance.rollout_util import MultigoalSimplePathSampler

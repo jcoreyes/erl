@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from railrl.policies.state_distance import UniversalPolicy
+from railrl.state_distance.policies import UniversalPolicy
 from railrl.state_distance.rollout_util import multitask_rollout
 from railrl.testing.stub_classes import StubEnv
 

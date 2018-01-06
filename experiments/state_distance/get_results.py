@@ -4,8 +4,6 @@ Script for launch the paper results.
 import argparse
 import random
 
-from torch.nn import functional as F
-
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
@@ -21,7 +19,7 @@ from railrl.envs.wrappers import convert_gym_space, normalize_box
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import ConstantSchedule
-from railrl.policies.state_distance import \
+from railrl.state_distance.policies import \
     UnconstrainedOcWithGoalConditionedModel, UnconstrainedOcWithImplicitModel
 from railrl.state_distance.exploration import \
     UniversalPolicyWrappedWithExplorationStrategy

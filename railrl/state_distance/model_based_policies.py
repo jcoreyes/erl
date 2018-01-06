@@ -3,7 +3,7 @@ import torch
 from scipy import optimize
 from torch import nn
 
-from railrl.policies.state_distance import (
+from railrl.state_distance.policies import (
     UniversalPolicy,
     SampleBasedUniversalPolicy,
 )

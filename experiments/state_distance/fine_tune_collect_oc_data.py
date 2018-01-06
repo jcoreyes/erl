@@ -11,7 +11,7 @@ import railrl.torch.pytorch_util as ptu
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import ConstantSchedule
-from railrl.policies.state_distance import SoftOcOneStepRewardPolicy
+from railrl.state_distance.policies import SoftOcOneStepRewardPolicy
 from railrl.state_distance.state_distance_q_learning import (
     HorizonFedStateDistanceQLearning)
 from railrl.torch.modules import HuberLoss

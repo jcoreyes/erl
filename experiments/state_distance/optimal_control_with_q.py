@@ -11,7 +11,7 @@ import argparse
 import joblib
 import numpy as np
 
-from railrl.policies.state_distance import (
+from railrl.state_distance.policies import (
     SoftOcOneStepRewardPolicy,
     TerminalRewardSampleOCPolicy,
     ArgmaxQFPolicy,

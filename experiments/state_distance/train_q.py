@@ -1,11 +1,9 @@
 import argparse
-import torch
 import random
 
 import numpy as np
 from hyperopt import hp
 from torch import nn as nn
-from torch.nn import functional as F
 
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
@@ -29,7 +27,7 @@ from railrl.launchers.launcher_util import (
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.hypopt import optimize_and_save
 from railrl.misc.ml_util import ConstantSchedule
-from railrl.policies.state_distance import TerminalRewardSampleOCPolicy
+from railrl.state_distance.policies import TerminalRewardSampleOCPolicy
 from railrl.state_distance.exploration import \
     UniversalPolicyWrappedWithExplorationStrategy
 from railrl.state_distance.networks import (

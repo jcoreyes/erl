@@ -10,7 +10,7 @@ import joblib
 import railrl.misc.hyperparameter as hyp
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.rllab_util import get_logger_table_dict
-from railrl.policies.state_distance import (
+from railrl.state_distance.policies import (
     SoftOcOneStepRewardPolicy,
     ArgmaxQFPolicy,
     StateOnlySdqBasedSqpOcPolicy,

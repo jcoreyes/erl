@@ -1,8 +1,7 @@
 import argparse
 import random
 
-from railrl.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState, \
-    Reacher7DofAngleGoalState
+from railrl.envs.multitask.reacher_7dof import Reacher7DofAngleGoalState
 from railrl.state_distance.vectorized_sdql import (
     VectorizedTauSdql,
     VectorizedDeltaTauSdql,
@@ -13,14 +12,12 @@ import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.data_management.split_buffer import SplitReplayBuffer
-from railrl.envs.multitask.reacher_env import (
-    GoalStateSimpleStateReacherEnv)
 from railrl.envs.wrappers import convert_gym_space, normalize_box
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import IntRampUpSchedule, \
     ConstantSchedule
-from railrl.policies.state_distance import \
+from railrl.state_distance.policies import \
     UnconstrainedOcWithGoalConditionedModel, UnconstrainedOcWithImplicitModel
 from railrl.state_distance.exploration import \
     UniversalPolicyWrappedWithExplorationStrategy
