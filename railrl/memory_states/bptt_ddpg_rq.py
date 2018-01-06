@@ -2,7 +2,7 @@ from collections import OrderedDict
 
 import torch
 
-from railrl.torch.bptt_ddpg import BpttDdpg
+from railrl.memory_states.bptt_ddpg import BpttDdpg
 
 
 class BpttDdpgRecurrentQ(BpttDdpg):
