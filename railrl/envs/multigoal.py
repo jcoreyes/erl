@@ -5,7 +5,7 @@ from cached_property import cached_property
 from rllab.core.serializable import Serializable
 from rllab.spaces.box import Box
 from rllab.envs.base import Env
-from rllab.misc import logger
+from railrl.core import logger
 
 
 class MultiGoalEnv(Env, Serializable):

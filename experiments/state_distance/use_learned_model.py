@@ -15,7 +15,7 @@ from railrl.state_distance.model_based_policies import (
 )
 from railrl.state_distance.networks import ModelExtractor
 from state_distance.rollout_util import multitask_rollout
-from rllab.misc import logger
+from railrl.core import logger
 
 
 def experiment(variant):

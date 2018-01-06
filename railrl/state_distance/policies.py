@@ -11,7 +11,7 @@ from torch import optim
 
 from railrl.policies.base import ExplorationPolicy, Policy
 from railrl.torch import pytorch_util as ptu
-from rllab.misc import logger
+from railrl.core import logger
 
 
 class UniversalPolicy(Policy, metaclass=abc.ABCMeta):

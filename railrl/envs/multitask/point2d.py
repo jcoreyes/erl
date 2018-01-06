@@ -9,7 +9,7 @@ from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.samplers.util import get_stat_in_paths
 from railrl.torch.core import PyTorchModule
 from rllab.core.serializable import Serializable
-from rllab.misc import logger
+from railrl.core import logger
 from rllab.spaces import Box
 
 

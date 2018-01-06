@@ -19,6 +19,7 @@ Covariance
  - regularize the log towards zero
 """
 from collections import OrderedDict
+
 import numpy as np
 import torch.optim as optim
 from torch import nn as nn
@@ -26,9 +27,7 @@ from torch import nn as nn
 import railrl.torch.pytorch_util as ptu
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.sac.policies import MakeDeterministic
-from railrl.torch import eval_util
 from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
-from rllab.misc import logger
 
 
 class SoftActorCritic(TorchRLAlgorithm):

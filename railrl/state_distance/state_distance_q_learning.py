@@ -20,7 +20,7 @@ from railrl.torch.algos.util import np_to_pytorch_batch
 from railrl.torch.eval_util import (
     get_difference_statistics,
 )
-from rllab.misc import logger
+from railrl.core import logger
 from railrl.state_distance.rollout_util import MultigoalSimplePathSampler
 
 

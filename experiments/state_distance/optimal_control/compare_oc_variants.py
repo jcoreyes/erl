@@ -17,7 +17,7 @@ from railrl.state_distance.policies import (
     SamplePolicyPartialOptimizer,
 )
 from state_distance.rollout_util import multitask_rollout
-from rllab.misc import logger
+from railrl.core import logger
 
 
 def get_class_params_to_try(policy_class):

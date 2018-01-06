@@ -12,7 +12,7 @@ from railrl.samplers.in_place import InPlacePathSampler
 from railrl.torch.algos.util import np_to_pytorch_batch
 from railrl.torch.eval_util import get_generic_path_information
 from rllab.algos.base import RLAlgorithm
-from rllab.misc import logger
+from railrl.core import logger
 
 
 class DdpgQfCombiner(RLAlgorithm):

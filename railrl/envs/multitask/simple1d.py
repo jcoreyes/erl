@@ -10,7 +10,7 @@ from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.state_distance.util import merge_into_flat_obs
 from railrl.misc.visualization_util import plot_heatmap, HeatMap
 from rllab.core.serializable import Serializable
-from rllab.misc import logger
+from railrl.core import logger
 
 
 class Simple1D(MultitaskEnv, Env, Serializable):

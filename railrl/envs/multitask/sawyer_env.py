@@ -11,7 +11,7 @@ import intera_interface as ii
 import rospy
 
 from rllab.core.serializable import Serializable
-from rllab.misc import logger
+from railrl.core import logger
 from rllab.spaces import Box
 
 NUM_JOINTS = 7

@@ -8,7 +8,7 @@ from railrl.state_distance.policies import (
     SampleBasedUniversalPolicy,
 )
 from railrl.torch import pytorch_util as ptu
-from rllab.misc import logger
+from railrl.core import logger
 
 
 class MultistepModelBasedPolicy(SampleBasedUniversalPolicy, nn.Module):

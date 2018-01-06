@@ -3,7 +3,7 @@ import joblib
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.composition import AveragerPolicy, CombinedNafPolicy
 from railrl.samplers.util import rollout
-from rllab.misc import logger
+from railrl.core import logger
 
 column_to_path = dict(
     left=(

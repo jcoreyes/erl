@@ -27,7 +27,7 @@ def experiment(variant):
         swimmer_cost_fn
     from hopper_env import HopperEnvNew
     from main_solution import train_dagger
-    from rllab.misc import logger
+    from railrl.core import logger
     from swimmer_env import SwimmerEnvNew
     env_name_or_class = variant['env_name_or_class']
 

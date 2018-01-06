@@ -5,7 +5,8 @@ from railrl.torch.pytorch_util import set_gpu_mode
 import argparse
 import joblib
 import uuid
-from rllab.misc import logger
+from railrl.core import logger
+
 
 filename = str(uuid.uuid4())
 

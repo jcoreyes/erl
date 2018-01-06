@@ -14,7 +14,7 @@ from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.policies.argmax import ArgmaxDiscretePolicy
 from railrl.torch import eval_util
 from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
-from rllab.misc import logger
+from railrl.core import logger
 
 
 class DQN(TorchRLAlgorithm):

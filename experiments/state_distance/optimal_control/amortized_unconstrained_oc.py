@@ -18,7 +18,7 @@ from railrl.envs.multitask.reacher_7dof import (
 from railrl.launchers.launcher_util import run_experiment
 from railrl.state_distance.amortized_oc import \
     train_amortized_goal_chooser, AmortizedPolicy, UniversalGoalChooser
-from rllab.misc import logger
+from railrl.core import logger
 
 
 def experiment(variant):

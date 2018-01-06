@@ -16,7 +16,7 @@ from railrl.misc.rllab_util import (
 )
 from railrl.policies.base import ExplorationPolicy
 from railrl.samplers.in_place import InPlacePathSampler
-from rllab.misc import logger
+from railrl.core import logger
 
 
 class RLAlgorithm(metaclass=abc.ABCMeta):

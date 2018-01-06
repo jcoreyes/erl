@@ -1,12 +1,11 @@
-import numpy as np
 import sys
+
 import gym
 import gym.spaces
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 
-from rllab.misc import logger
-
+from railrl.core import logger
 from railrl.envs.gridcraft.grid_spec import *
 from railrl.envs.gridcraft.utils import one_hot_to_flat, flat_to_one_hot
 

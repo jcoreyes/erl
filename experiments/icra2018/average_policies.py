@@ -6,7 +6,7 @@ from railrl.envs.mujoco.pusher3dof import PusherEnv3DOF, get_snapshots_and_goal
 from railrl.policies.base import Policy
 from railrl.samplers.util import rollout
 from rllab.envs.normalized_env import normalize
-from rllab.misc import logger
+from railrl.core import logger
 
 
 class AveragerPolicy(Policy):

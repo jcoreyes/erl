@@ -7,7 +7,7 @@ import torch
 from railrl.envs.mujoco.pusher import PusherEnv
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc.data_processing import create_stats_ordered_dict
-from rllab.misc import logger
+from railrl.core import logger
 
 
 class MultitaskPusherEnv(PusherEnv, MultitaskEnv, metaclass=abc.ABCMeta):

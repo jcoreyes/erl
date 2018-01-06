@@ -15,8 +15,8 @@ from railrl.torch.algos.util import np_to_pytorch_batch
 from railrl.torch.core import PyTorchModule
 from railrl.torch.eval_util import get_statistics_from_pytorch_dict, \
     get_difference_statistics
-from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
-from rllab.misc import logger
+from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
+from railrl.core import logger
 
 
 # noinspection PyCallingNonCallable

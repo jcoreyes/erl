@@ -14,7 +14,8 @@ from railrl.misc.rllab_util import get_average_returns
 from railrl.pythonplusplus import batch, ConditionTimer
 from railrl.core.rl_algorithm import RLAlgorithm
 from railrl.torch import pytorch_util as ptu
-from rllab.misc import logger, special
+from rllab.misc import special
+from railrl.core import logger
 
 
 # noinspection PyCallingNonCallable

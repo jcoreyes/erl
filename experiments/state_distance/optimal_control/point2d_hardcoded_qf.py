@@ -9,7 +9,7 @@ from railrl.state_distance.policies import (
     ConstrainedOptimizationOCPolicy,
 )
 from state_distance.rollout_util import multitask_rollout
-from rllab.misc import logger
+from railrl.core import logger
 
 
 def experiment(variant):

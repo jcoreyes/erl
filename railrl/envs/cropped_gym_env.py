@@ -12,7 +12,7 @@ import os
 from rllab.envs.base import Env, Step
 from rllab.core.serializable import Serializable
 from rllab.spaces.box import Box
-from rllab.misc import logger
+from railrl.core import logger
 import logging
 
 class CroppedGymEnv(GymEnv):

@@ -6,7 +6,7 @@ import numpy as np
 from railrl.misc.data_processing import create_stats_ordered_dict
 from rllab.core.serializable import Serializable
 from rllab.envs.proxy_env import ProxyEnv
-from rllab.misc import logger as rllab_logger
+from railrl.core import logger as default_logger
 from rllab.spaces import Box
 
 
@@ -143,7 +143,7 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         """
         return goal
 
-    def log_diagnostics(self, paths, logger=rllab_logger):
+    def log_diagnostics(self, paths, logger=default_logger):
         list_of_goals = extract_list_of_goals(paths)
         if list_of_goals is None:
             return

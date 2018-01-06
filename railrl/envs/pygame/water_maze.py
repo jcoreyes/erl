@@ -8,7 +8,7 @@ from railrl.envs.pygame.pygame_viewer import PygameViewer
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.samplers.util import split_paths
 from rllab.core.serializable import Serializable
-from rllab.misc import logger
+from railrl.core import logger
 from rllab.spaces import Box
 
 

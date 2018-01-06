@@ -7,7 +7,7 @@ from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.samplers.util import get_stat_in_paths
 from rllab.core.serializable import Serializable
-from rllab.misc import logger as rllab_logger
+from railrl.core import logger as default_logger
 
 
 class GoalXYPosAnt(AntEnv, MultitaskEnv, Serializable):
@@ -69,7 +69,7 @@ class GoalXYPosAnt(AntEnv, MultitaskEnv, Serializable):
     def sample_states(self, batch_size):
         raise NotImplementedError()
 
-    def log_diagnostics(self, paths, logger=rllab_logger):
+    def log_diagnostics(self, paths, logger=default_logger):
         super().log_diagnostics(paths)
         MultitaskEnv.log_diagnostics(self, paths)
 
@@ -232,7 +232,7 @@ class GoalXYPosAndVelAnt(AntEnv, MultitaskEnv, Serializable):
     def sample_states(self, batch_size):
         raise NotImplementedError()
 
-    def log_diagnostics(self, paths, logger=rllab_logger):
+    def log_diagnostics(self, paths, logger=default_logger):
         super().log_diagnostics(paths)
         MultitaskEnv.log_diagnostics(self, paths)
 

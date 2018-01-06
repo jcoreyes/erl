@@ -6,7 +6,7 @@ import numpy as np
 from railrl.state_distance.policies import SamplePolicyPartialOptimizer
 from railrl.samplers.util import rollout
 from railrl.torch.pytorch_util import set_gpu_mode
-from rllab.misc import logger
+from railrl.core import logger
 
 if __name__ == "__main__":
 

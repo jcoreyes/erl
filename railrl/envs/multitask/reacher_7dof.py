@@ -11,7 +11,7 @@ from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.samplers.util import get_stat_in_paths
 import railrl.torch.pytorch_util as ptu
 from rllab.core.serializable import Serializable
-from rllab.misc import logger as rllab_logger
+from railrl.core import logger as default_logger
 
 
 class Reacher7DofMultitaskEnv(
@@ -74,7 +74,7 @@ class Reacher7DofMultitaskEnv(
         self._desired_xyz = xyz_pos
         self.set_state(new_qpos, current_qvel)
 
-    def log_diagnostics(self, paths, logger=rllab_logger):
+    def log_diagnostics(self, paths, logger=default_logger):
         super().log_diagnostics(paths)
         statistics = OrderedDict()
 
@@ -229,7 +229,7 @@ class Reacher7DofXyzPosAndVelGoalState(Reacher7DofMultitaskEnv):
             weighted_pos_error=weighted_pos_error,
         )
 
-    def log_diagnostics(self, paths, logger=rllab_logger):
+    def log_diagnostics(self, paths, logger=default_logger):
         super().log_diagnostics(paths)
 
         statistics = OrderedDict()

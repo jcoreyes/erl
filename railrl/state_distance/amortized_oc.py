@@ -7,7 +7,7 @@ from railrl.state_distance.policies import UniversalPolicy
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.networks import Mlp
 from railrl.torch.core import PyTorchModule
-from rllab.misc import logger
+from railrl.core import logger
 
 
 class AmortizedPolicy(PyTorchModule, UniversalPolicy):

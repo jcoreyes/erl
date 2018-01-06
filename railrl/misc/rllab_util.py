@@ -6,7 +6,7 @@ import os.path as osp
 import joblib
 import numpy as np
 
-from rllab.misc import logger
+from railrl.core import logger
 from rllab.spaces.product import Product
 
 

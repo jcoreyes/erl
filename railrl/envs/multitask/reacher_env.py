@@ -40,7 +40,7 @@ from gym.envs.mujoco import ReacherEnv, mujoco_env
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.samplers.util import get_stat_in_paths
-from rllab.misc import logger
+from railrl.core import logger
 import torch
 import railrl.torch.pytorch_util as ptu
 
