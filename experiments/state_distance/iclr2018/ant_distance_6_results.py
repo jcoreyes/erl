@@ -14,7 +14,6 @@ def main():
         }
     )
     ddpg_trials = get_trials(
-        # "/home/vitchyr/git/railrl/data/doodads3/01-03-final-ant-max-distance-6/",
         "/home/vitchyr/git/railrl/data/doodads3/01-04-ddpg-ant-max-d-6-post-sweep/",
         criteria={
             'algorithm': 'DDPG',
@@ -50,10 +49,10 @@ def main():
     # key = 'Multitask Final L2 distance to goal Mean'
     for trials, name in [
         (tdm_trials, 'TDM'),
-        (mb_trials, 'Model-Based'),
         (ddpg_trials, 'DDPG'),
         (her_trials, 'HER'),
         (ddpg_sparse_trials, 'DDPG-Sparse'),
+        (mb_trials, 'Model-Based'),
     ]:
         key = key.replace(" ", "_")
         all_values = []
@@ -86,7 +85,7 @@ def main():
         plt.plot(epochs, mean, label=name)
 
     plt.xlabel("Environment Samples (x1,000)")
-    plt.ylabel("Final Euclidean Distance to Goal Position")
+    plt.ylabel("Final Distance to Goal Position")
     plt.legend()
     plt.savefig('results/iclr2018/ant-max-distance-6.jpg')
     plt.show()

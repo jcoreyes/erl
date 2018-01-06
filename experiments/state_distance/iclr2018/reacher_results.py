@@ -48,10 +48,10 @@ base_key = 'Final_Euclidean_distance_to_goal_Mean'
 plt.figure()
 for trials, name, key in [
     (tdm_trials, 'TDM', 'test_' + base_key),
-    (mb_trials, 'Model Based', base_key),
     (ddpg_trials, 'DDPG', base_key),
     (her_andry_trials, 'HER', base_key),
     (ddpg_indicator_trials, 'DDPG-Sparse', base_key),
+    (mb_trials, 'Model Based', base_key),
 ]:
     all_values = []
     min_len = np.inf
@@ -71,7 +71,7 @@ for trials, name, key in [
     plt.plot(epochs, mean, label=name)
 
 plt.xlabel("Environment Steps (x1000)")
-plt.ylabel("Final Distance to Goal")
+plt.ylabel("Final Distance to Goal Position")
 plt.legend()
 plt.savefig('results/iclr2018/reacher.jpg')
 plt.show()

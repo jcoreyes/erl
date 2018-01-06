@@ -20,12 +20,12 @@ plt.figure()
 prop_cycle = plt.rcParams['axes.prop_cycle']
 colors = prop_cycle.by_key()['color']
 for trials, name, key in [
+    (tdm_csvs, 'TDM',
+     'Test_Final_Distance_from_Desired_End_Effector_Position_Mean'),
     (ddpg_csvs, 'DDPG',
      'Test_Final_Distance_from_Desired_End_Effector_Position_Mean'),
     # (naf_csvs, 'NAF',
     #  'Test_Last_N_Step_Distance_from_Desired_End_Effector_Position_Mean'),
-    (tdm_csvs, 'TDM',
-     'Test_Final_Distance_from_Desired_End_Effector_Position_Mean'),
 ]:
     all_values = []
     min_len = np.inf
@@ -46,9 +46,9 @@ for trials, name, key in [
     epochs = np.arange(0, len(costs[0]))
     plt.fill_between(epochs, mean - std, mean + std, alpha=0.1)
     if name == 'TDM':
-        plt.plot(epochs, mean, label=name, color=colors[2])
+        plt.plot(epochs, mean, label=name)#, color=colors[0])
     else:
-        plt.plot(epochs, mean, label=name, color=colors[0])
+        plt.plot(epochs, mean, label=name)#, color=colors[1])
     # plt.plot(epochs, costs[0, :], label=name)
     # plt.plot(epochs, costs[1, :], label=name)
     # plt.plot(epochs, costs[2, :], label=name)
