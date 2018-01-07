@@ -136,12 +136,12 @@ class TdmDdpg(TemporalDifferenceModel, DDPG):
     def evaluate(self, epoch):
         DDPG.evaluate(self, epoch)
 
-    def pretrain(self):
-        super().pretrain()
-        if self.qf.tdm_normalizer is not None:
-            self.target_qf.tdm_normalizer.copy_stats(
-                self.qf.tdm_normalizer
-            )
-            self.target_policy.tdm_normalizer.copy_stats(
-                self.qf.tdm_normalizer
-            )
+    # def pretrain(self):
+    #     super().pretrain()
+    #     if self.qf.tdm_normalizer is not None:
+    #         self.target_qf.tdm_normalizer.copy_stats(
+    #             self.qf.tdm_normalizer
+    #         )
+    #         self.target_policy.tdm_normalizer.copy_stats(
+    #             self.qf.tdm_normalizer
+    #         )

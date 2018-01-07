@@ -2,7 +2,8 @@ import random
 
 import railrl.misc.hyperparameter as hyp
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.envs.multitask.ant_env import GoalXYVelAnt, GoalXYPosAnt
+from railrl.envs.multitask.ant_env import GoalXYPosAnt
+from railrl.envs.multitask.pusher2d import MultitaskPusher2DEnv
 from railrl.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState
 from railrl.envs.wrappers import normalize_box, convert_gym_space
 from railrl.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
@@ -24,23 +25,39 @@ def experiment(variant):
     qf_class = variant['qf_class']
     policy_class = variant['policy_class']
     es_class = variant['es_class']
+    obs_normalizer = TorchFixedNormalizer(obs_dim)
+    goal_normalizer = TorchFixedNormalizer(env.goal_dim)
+    action_normalizer = TorchFixedNormalizer(action_dim)
+    tau_normalizer = TorchFixedNormalizer(1)
+
     es_params = dict(
         action_space=convert_gym_space(env.action_space),
         **variant['es_params']
     )
     es = es_class(**es_params)
-    qf = qf_class(
+    qf = MakeNormalizedTDMQF(qf_class(
         observation_dim=obs_dim,
         action_dim=action_dim,
         goal_dim =env.goal_dim,
         output_size=env.goal_dim if vectorized else 1,
         **variant['qf_params']
+        ),
+        env,
+        obs_normalizer=obs_normalizer,
+        goal_normalizer=goal_normalizer,
+        action_normalizer=action_normalizer,
+        tau_normalizer=tau_normalizer,
     )
-    policy = policy_class(
-        obs_dim=obs_dim,
-        action_dim=action_dim,
-        goal_dim=env.goal_dim,
-        **variant['policy_params']
+    policy = MakeNormalizedTDMPolicy(policy_class(
+            obs_dim=obs_dim,
+            action_dim=action_dim,
+            goal_dim=env.goal_dim,
+            **variant['policy_params']
+        ),
+        env,
+        obs_normalizer=obs_normalizer,
+        goal_normalizer=goal_normalizer,
+        tau_normalizer=tau_normalizer,
     )
     replay_buffer = HerReplayBuffer(
         env=env,
@@ -66,7 +83,7 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "tdm-AntXYPos-ddpg"
+    exp_prefix = "tdm_ddpg_normalized"
 
     num_epochs = 100
     num_steps_per_epoch = 1000
@@ -131,13 +148,12 @@ if __name__ == "__main__":
     search_space = {
         'env_class': [
             GoalXYPosAnt,
+            # MultitaskPusher2DEnv,
         ],
         'algo_params.base_kwargs.reward_scale': [
             1,
-            10,
             100,
             1000,
-            10000,
         ],
         'algo_params.tdm_kwargs.vectorized': [
             True,
@@ -147,11 +163,8 @@ if __name__ == "__main__":
         ],
         'algo_params.base_kwargs.num_updates_per_env_step':[
             1,
-            5,
             10,
-            15,
             20,
-            25,
         ]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -166,6 +179,11 @@ if __name__ == "__main__":
             variant['qf_class']=qf_class
             variant['vf_class']=vf_class
             variant['policy_class']=policy_class
+            experiment_prefix = exp_prefix
+            if variant['env_class']==GoalXYPosAnt:
+                experiment_prefix += '_AntXYPos'
+            elif variant['env_class'] == MultitaskPusher2DEnv:
+                experiment_prefix += '_Pusher2D'
             for i in range(n_seeds):
                 seed = random.randint(0, 10000)
                 run_experiment(
@@ -173,6 +191,6 @@ if __name__ == "__main__":
                     seed=seed,
                     variant=variant,
                     exp_id=exp_id,
-                    exp_prefix=exp_prefix+exp,
+                    exp_prefix=experiment_prefix+exp,
                     mode=mode,
                 )

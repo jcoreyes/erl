@@ -9,12 +9,12 @@ from railrl.data_management.path_builder import PathBuilder
 from railrl.envs.remote import RemoteRolloutEnv
 from railrl.misc.np_util import truncated_geometric
 from railrl.misc.ml_util import ConstantSchedule
-from railrl.policies.base import SerializablePolicy
+from railrl.policies.base import SerializablePolicy, Policy
 from railrl.policies.state_distance import UniversalPolicy
 from railrl.state_distance.exploration import MakeUniversal
 from railrl.state_distance.rollout_util import MultigoalSimplePathSampler, \
     multitask_rollout
-from railrl.state_distance.tdm_networks import TdmNormalizer
+from railrl.state_distance.tdm_networks import TdmNormalizer, MakeNormalizedTDMPolicy
 from railrl.state_distance.util import merge_into_flat_obs
 from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
 from railrl.torch.algos.util import np_to_pytorch_batch
@@ -161,18 +161,43 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         super()._start_epoch(epoch)
 
     def set_normalizers(self, pretrain_paths):
-        tau_mean, tau_std = self.compute_normalization(pretrain_paths)
+        tau_mean, tau_std, goals_mean, goals_std = self.compute_normalization(pretrain_paths)
         for network in self.networks:
             if hasattr(network, 'tau_normalizer') and network.tau_normalizer is not None:
                 network.tau_normalizer.set_mean(tau_mean)
                 network.tau_normalizer.set_std(tau_std)
+                network.goal_normalizer.set_mean(goals_mean)
+                network.goal_normalizer.set_std(goals_std)
         super().set_normalizers(pretrain_paths)
 
     def compute_normalization(self, paths):
+        goals = np.vstack([
+            self._sample_goal_for_rollout()
+            for _ in range(
+                self.num_paths_for_normalization * self.max_path_length
+            )
+        ])
+        goals_mean = np.mean(goals, axis=0)
+        goals_std = np.mean(goals, axis=0)
         taus = np.vstack([path["taus"] for path in paths]) #TODO: double check this is correct
         tau_mean = np.mean(taus, axis=0)
         tau_std = np.std(taus, axis=0)
-        return tau_mean, tau_std
+        return tau_mean, tau_std, goals_mean, goals_std
+
+    def get_pretrain_paths(self):
+        paths = []
+        random_policy = RandomUniveralPolicy(self.env.action_space)
+        while len(paths) < self.num_paths_for_normalization:
+            goal = self._sample_goal_for_rollout()
+            path = multitask_rollout(
+                self.training_env,
+                random_policy,
+                goal=goal,
+                tau=0,
+                max_path_length=self.max_path_length,
+            )
+            paths.append(path)
+        return paths
 
     def get_batch(self, training=True):
         if self.replay_buffer_is_split:
@@ -401,53 +426,53 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         self._n_rollouts_total += 1
         self.replay_buffer.add_path(path)
 
-    def pretrain(self):
-        if self.num_paths_for_normalization == 0:
-            return
-
-        paths = []
-        random_policy = RandomUniveralPolicy(self.env.action_space)
-        while len(paths) < self.num_paths_for_normalization:
-            goal = self._sample_goal_for_rollout()
-            path = multitask_rollout(
-                self.training_env,
-                random_policy,
-                goal=goal,
-                tau=0,
-                max_path_length=self.max_path_length,
-            )
-            paths.append(path)
-
-        goals = np.vstack([
-            self._sample_goal_for_rollout()
-            for _ in range(
-                self.num_paths_for_normalization * self.max_path_length
-            )
-        ])
-        obs = np.vstack([path["observations"] for path in paths])
-        next_obs = np.vstack([path["next_observations"] for path in paths])
-        actions = np.vstack([path["actions"] for path in paths])
-        neg_distances = self._compute_raw_neg_distances(next_obs, goals)
-
-        ob_mean = np.mean(obs, axis=0)
-        ob_std = np.std(obs, axis=0)
-        ac_mean = np.mean(actions, axis=0)
-        ac_std = np.std(actions, axis=0)
-        goal_mean = np.mean(goals, axis=0)
-        goal_std = np.std(goals, axis=0)
-        distance_mean = np.mean(neg_distances, axis=0)
-        distance_std = np.std(neg_distances, axis=0)
-
-        if self.tdm_normalizer is not None:
-            self.tdm_normalizer.obs_normalizer.set_mean(ob_mean)
-            self.tdm_normalizer.obs_normalizer.set_std(ob_std)
-            self.tdm_normalizer.action_normalizer.set_mean(ac_mean)
-            self.tdm_normalizer.action_normalizer.set_std(ac_std)
-            self.tdm_normalizer.goal_normalizer.set_mean(goal_mean)
-            self.tdm_normalizer.goal_normalizer.set_std(goal_std)
-            if self.normalize_distance:
-                self.tdm_normalizer.distance_normalizer.set_mean(distance_mean)
-                self.tdm_normalizer.distance_normalizer.set_std(distance_std)
+    # def pretrain(self):
+    #     if self.num_paths_for_normalization == 0:
+    #         return
+    #
+    #     paths = []
+    #     random_policy = RandomUniveralPolicy(self.env.action_space)
+    #     while len(paths) < self.num_paths_for_normalization:
+    #         goal = self._sample_goal_for_rollout()
+    #         path = multitask_rollout(
+    #             self.training_env,
+    #             random_policy,
+    #             goal=goal,
+    #             tau=0,
+    #             max_path_length=self.max_path_length,
+    #         )
+    #         paths.append(path)
+    #
+    #     goals = np.vstack([
+    #         self._sample_goal_for_rollout()
+    #         for _ in range(
+    #             self.num_paths_for_normalization * self.max_path_length
+    #         )
+    #     ])
+    #     obs = np.vstack([path["observations"] for path in paths])
+    #     next_obs = np.vstack([path["next_observations"] for path in paths])
+    #     actions = np.vstack([path["actions"] for path in paths])
+    #     neg_distances = self._compute_raw_neg_distances(next_obs, goals)
+    #
+    #     ob_mean = np.mean(obs, axis=0)
+    #     ob_std = np.std(obs, axis=0)
+    #     ac_mean = np.mean(actions, axis=0)
+    #     ac_std = np.std(actions, axis=0)
+    #     goal_mean = np.mean(goals, axis=0)
+    #     goal_std = np.std(goals, axis=0)
+    #     distance_mean = np.mean(neg_distances, axis=0)
+    #     distance_std = np.std(neg_distances, axis=0)
+    #
+    #     if self.tdm_normalizer is not None:
+    #         self.tdm_normalizer.obs_normalizer.set_mean(ob_mean)
+    #         self.tdm_normalizer.obs_normalizer.set_std(ob_std)
+    #         self.tdm_normalizer.action_normalizer.set_mean(ac_mean)
+    #         self.tdm_normalizer.action_normalizer.set_std(ac_std)
+    #         self.tdm_normalizer.goal_normalizer.set_mean(goal_mean)
+    #         self.tdm_normalizer.goal_normalizer.set_std(goal_std)
+    #         if self.normalize_distance:
+    #             self.tdm_normalizer.distance_normalizer.set_mean(distance_mean)
+    #             self.tdm_normalizer.distance_normalizer.set_std(distance_std)
 
 
 class RandomUniveralPolicy(UniversalPolicy, SerializablePolicy):
