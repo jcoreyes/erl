@@ -11,6 +11,7 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 from torch import nn as nn
+import torch.nn.functional as F
 
 
 def gaussian_data(batch_size):
@@ -35,16 +36,6 @@ def flower_data(batch_size):
     X = np.transpose(np.reshape((x1, x2), (2, batch_size)))
     X = np.asarray(X, dtype='float32')
     return X
-
-
-def swirl_data(batch_size, swirl_rate=1.):
-    T = 10
-    t = np.random.uniform(size=batch_size, low=0, high=T)
-    x = t * np.cos(t * swirl_rate) / T
-    y = t * np.sin(t * swirl_rate) / T
-    data = np.array([x, y]).T
-    noise = np.random.randn(batch_size, 2) / (T * 2)
-    return data + noise
 
 
 def np_to_var(np_array):
@@ -88,6 +79,7 @@ class Decoder(nn.Sequential):
         distribution = Normal(means, log_stds.exp())
         return distribution.sample()
 
+
 BS = 16
 N_BATCHES = 10000
 N_VIS = 1000
@@ -102,11 +94,15 @@ def train(data_gen):
         nn.Linear(10, 2),
     )
     decoder = Decoder(
-        nn.Linear(1, 10),
+        nn.Linear(1, 32),
         nn.ReLU(),
-        nn.Linear(10, 10),
+        nn.Linear(32, 32),
         nn.ReLU(),
-        nn.Linear(10, 4),
+        nn.Linear(32, 32),
+        nn.ReLU(),
+        nn.Linear(32, 32),
+        nn.ReLU(),
+        nn.Linear(32, 4),
     )
     encoder_opt = Adam(encoder.parameters())
     decoder_opt = Adam(decoder.parameters())
@@ -143,8 +139,9 @@ def train(data_gen):
         log_probs.append(reconstruction_log_prob.mean().data.numpy())
 
     # Visualize
-    vis_samples = data_gen(N_VIS)
-    latents = encoder.encode(np_to_var(vis_samples))
+    vis_samples_np = data_gen(N_VIS)
+    vis_samples = np_to_var(vis_samples_np)
+    latents = encoder.encode(vis_samples)
     reconstructed_samples = decoder.decode(latents).data.numpy()
     generated_samples = decoder.decode(
         Variable(torch.randn(*latents.shape))
@@ -161,18 +158,17 @@ def train(data_gen):
     plt.title("Log Probs")
 
     plt.subplot(2, 3, 4)
-    plt.plot(reconstructed_samples[:, 0], reconstructed_samples[:, 1], '.')
-    plt.title("Reconstruction")
-    plt.subplot(2, 3, 5)
     plt.plot(generated_samples[:, 0], generated_samples[:, 1], '.')
     plt.title("Generated Samples")
+    plt.subplot(2, 3, 5)
+    plt.plot(reconstructed_samples[:, 0], reconstructed_samples[:, 1], '.')
+    plt.title("Reconstruction")
     plt.subplot(2, 3, 6)
-    plt.plot(vis_samples[:, 0], vis_samples[:, 1], '.')
+    plt.plot(vis_samples_np[:, 0], vis_samples_np[:, 1], '.')
     plt.title("Original Samples")
-    plt.legend(["Original", "Perfect Reconstruction"])
     plt.show()
+
 
 if __name__ == '__main__':
     # train(gaussian_data)
     train(flower_data)
-    # train(swirl_data)
