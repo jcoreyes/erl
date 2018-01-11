@@ -69,47 +69,34 @@ class Decoder(nn.Sequential):
         distribution = Normal(means, log_stds.exp())
         return distribution.sample()
 
-class SeLU(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.alpha = 1.6732632423543772848170429916717
-        self.scale = 1.0507009873554804934193349852946
-
-    def forward(self, x):
-        return self.scale * (
-                F.relu(x) + self.alpha * (F.elu(-1 * F.relu(-1 * x)))
-        )
-        # temp1 = self.scale * F.relu(x)
-        # temp2 = self.scale * self.alpha * (F.elu(-1 * F.relu(-1 * x)))
-        # return temp1 + temp2
-
 BS = 16
 N_BATCHES = 10000
 N_VIS = 1000
+HIDDEN_SIZE = 32
 
 
 def train(data_gen):
     encoder = Encoder(
-        nn.Linear(2, 10),
+        nn.Linear(1, HIDDEN_SIZE),
         nn.ReLU(),
-        nn.Linear(10, 10),
+        nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE),
         nn.ReLU(),
-        nn.Linear(10, 2),
+        nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE),
+        nn.ReLU(),
+        nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE),
+        nn.ReLU(),
+        nn.Linear(HIDDEN_SIZE, 2),
     )
     decoder = Decoder(
-        nn.Linear(1, 32),
+        nn.Linear(1, HIDDEN_SIZE),
         nn.ReLU(),
-        # SeLU(),
-        nn.Linear(32, 32),
+        nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE),
         nn.ReLU(),
-        # SeLU(),
-        nn.Linear(32, 32),
+        nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE),
         nn.ReLU(),
-        # SeLU(),
-        nn.Linear(32, 32),
+        nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE),
         nn.ReLU(),
-        # SeLU(),
-        nn.Linear(32, 4),
+        nn.Linear(HIDDEN_SIZE, 4),
     )
     # decoder = Decoder(
     #     nn.Linear(1, 10),
