@@ -135,18 +135,23 @@ class DDPG(TorchRLAlgorithm):
         """
         Policy operations.
         """
-        policy_actions, pre_tanh_value = self.policy(
-            obs, return_preactivations=True,
-        )
-        pre_activation_policy_loss = (
-            (pre_tanh_value**2).sum(dim=1).mean()
-        )
-        q_output = self.qf(obs, policy_actions)
-        raw_policy_loss = - q_output.mean()
-        policy_loss = (
-            raw_policy_loss +
-            pre_activation_policy_loss * self.policy_pre_activation_weight
-        )
+        if self.policy_pre_activation_weight > 0:
+            policy_actions, pre_tanh_value = self.policy(
+                obs, return_preactivations=True,
+            )
+            pre_activation_policy_loss = (
+                (pre_tanh_value**2).sum(dim=1).mean()
+            )
+            q_output = self.qf(obs, policy_actions)
+            raw_policy_loss = - q_output.mean()
+            policy_loss = (
+                raw_policy_loss +
+                pre_activation_policy_loss * self.policy_pre_activation_weight
+            )
+        else:
+            policy_actions = self.policy(obs)
+            q_output = self.qf(obs, policy_actions)
+            raw_policy_loss = policy_loss = - q_output.mean()
 
         """
         Critic operations.

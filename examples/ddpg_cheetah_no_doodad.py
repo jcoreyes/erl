@@ -6,7 +6,8 @@ from railrl.exploration_strategies.base import (
 )
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment, setup_logger
-from railrl.torch.networks import FeedForwardQFunction, FeedForwardPolicy
+from railrl.torch.networks import FeedForwardQFunction, FeedForwardPolicy, \
+    MlpPolicy, FlattenMlp
 from railrl.torch.algos.ddpg import DDPG
 import railrl.torch.pytorch_util as ptu
 
@@ -18,17 +19,17 @@ def experiment(variant):
     env = HalfCheetahEnv()
     env = normalize(env)
     es = OUStrategy(action_space=env.action_space)
-    qf = FeedForwardQFunction(
-        int(env.observation_space.flat_dim),
-        int(env.action_space.flat_dim),
-        400,
-        300,
+    qf = FlattenMlp(
+        input_size=(
+            int(env.observation_space.flat_dim) + int(env.action_space.flat_dim)
+        ),
+        output_size=1,
+        hidden_sizes=[400, 300],
     )
-    policy = FeedForwardPolicy(
-        int(env.observation_space.flat_dim),
-        int(env.action_space.flat_dim),
-        400,
-        300,
+    policy = MlpPolicy(
+        input_size=int(env.observation_space.flat_dim),
+        output_size=int(env.action_space.flat_dim),
+        hidden_sizes=[400, 300],
     )
     exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
