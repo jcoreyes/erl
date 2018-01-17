@@ -9,7 +9,7 @@ from torch.nn import init
 
 from railrl.torch.core import PyTorchModule
 from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.misc.rllab_util import get_average_returns
+from railrl.torch.eval_util import get_average_returns
 from railrl.torch.ddpg import DDPG
 from railrl.torch.rl_algorithm import RLAlgorithm
 import railrl.torch.pytorch_util as ptu

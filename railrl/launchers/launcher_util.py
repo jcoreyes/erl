@@ -1,4 +1,3 @@
-import base64
 import json
 import os
 import os.path as osp
@@ -10,7 +9,6 @@ import uuid
 from collections import namedtuple
 
 import __main__ as main
-import cloudpickle
 import datetime
 import dateutil.tz
 import joblib
@@ -18,11 +16,10 @@ import numpy as np
 import tensorflow as tf
 
 import railrl.pythonplusplus as ppp
-from railrl.launchers import config
-from railrl.torch.pytorch_util import set_gpu_mode
 from railrl.core import logger
-from rllab.misc.instrument import run_experiment_lite, query_yes_no
-
+from railrl.launchers import config
+from railrl.misc.command_line import query_yes_no
+from railrl.torch.pytorch_util import set_gpu_mode
 
 GitInfo = namedtuple('GitInfo', ['code_diff', 'commit_hash', 'branch_name'])
 
@@ -62,7 +59,6 @@ def run_experiment(
         use_gpu=False,
         snapshot_mode='last',
         snapshot_gap=1,
-        n_parallel=0,
         base_log_dir=None,
         local_input_dir_to_mount_point_dict=None,  # TODO(vitchyr): test this
         # Settings for EC2 only
@@ -109,7 +105,6 @@ def run_experiment(
     :param use_gpu:
     :param snapshot_mode: See rllab.logger
     :param snapshot_gap: See rllab.logger
-    :param n_parallel:
     :param base_log_dir: Will over
     :param sync_interval: How often to sync s3 data (in seconds).
     :param local_input_dir_to_mount_point_dict: Dictionary for doodad.
@@ -121,23 +116,8 @@ def run_experiment(
         import doodad.mount as mount
         from doodad.utils import REPO_DIR
     except ImportError:
-        return run_experiment_old(
-            method_call,
-            exp_prefix=exp_prefix,
-            seed=seed,
-            variant=variant,
-            time_it=True,
-            mode=mode,
-            exp_id=exp_id,
-            unique_id=unique_id,
-            prepend_date_to_exp_prefix=prepend_date_to_exp_prefix,
-            use_gpu=use_gpu,
-            snapshot_mode=snapshot_mode,
-            snapshot_gap=snapshot_gap,
-            n_parallel=n_parallel,
-            base_log_dir=base_log_dir,
-            periodic_sync_interval=sync_interval,
-        )
+        print("Doodad not set up! Running experiment here.")
+        mode = 'here_no_doodad'
     global ec2_okayed
     global gpu_ec2_okayed
     global target_mount
@@ -189,7 +169,6 @@ def run_experiment(
         snapshot_gap=snapshot_gap,
         git_info=git_info,
         script_name=main.__file__,
-        n_parallel=n_parallel,
     )
     if mode == 'here_no_doodad':
         run_experiment_kwargs['base_log_dir'] = base_log_dir
@@ -368,147 +347,6 @@ def create_mounts(
     return mounts
 
 
-
-def run_experiment_old(
-        task,
-        exp_prefix='default',
-        seed=None,
-        variant=None,
-        time_it=True,
-        save_profile=False,
-        profile_file='time_log.prof',
-        mode='here',
-        exp_id=0,
-        unique_id=None,
-        prepend_date_to_exp_prefix=True,
-        use_gpu=False,
-        snapshot_mode='last',
-        snapshot_gap=1,
-        n_parallel=0,
-        base_log_dir=None,
-        **run_experiment_lite_kwargs
-):
-    """
-    Run a task via the rllab interface, i.e. serialize it and then run it via
-    the run_experiment_lite script.
-
-    This will soon be deprecated.
-
-    :param task:
-    :param exp_prefix:
-    :param seed:
-    :param variant:
-    :param time_it: Add a "time" command to the python command?
-    :param save_profile: Create a cProfile log?
-    :param profile_file: Where to save the cProfile log.
-    :param mode: 'here' will run the code in line, without any serialization
-    Other options include 'local', 'local_docker', and 'ec2'. See
-    run_experiment_lite documentation to learn what those modes do.
-    :param exp_id: Experiment ID. Should be unique across all
-    experiments. Note that one experiment may correspond to multiple seeds.
-    :param unique_id: Unique ID should be unique across all runs--even different
-    seeds!
-    :param prepend_date_to_exp_prefix: If True, prefix "month-day_" to
-    exp_prefix
-    :param run_experiment_lite_kwargs: kwargs to be passed to
-    `run_experiment_lite`
-    :return:
-    """
-    if seed is None:
-        seed = random.randint(0, 100000)
-    if variant is None:
-        variant = {}
-    if unique_id is None:
-        unique_id = str(uuid.uuid4())
-    if prepend_date_to_exp_prefix:
-        exp_prefix = time.strftime("%m-%d") + "_" + exp_prefix
-    variant['seed'] = str(seed)
-    variant['exp_id'] = str(exp_id)
-    variant['unique_id'] = str(unique_id)
-    command_words = []
-    if time_it:
-        command_words.append('time')
-    command_words.append('python')
-    if save_profile:
-        command_words += ['-m cProfile -o', profile_file]
-    try:
-        import git
-        repo = git.Repo(os.getcwd())
-        git_info = GitInfo(
-            code_diff=repo.git.diff(None),
-            commit_hash=repo.head.commit.hexsha,
-            branch_name=repo.active_branch.name,
-        )
-        diff_string, commit_hash, _ = git_info
-        code_diff = (
-            base64.b64encode(cloudpickle.dumps(diff_string)).decode("utf-8")
-        )
-    except ImportError:
-        git_info = None
-        code_diff = ''
-        commit_hash = ''
-    script_name = "tmp"
-
-    if mode == 'here':
-        log_dir = create_log_dir(exp_prefix, exp_id, seed,
-                                           base_log_dir)
-        data = dict(
-            log_dir=log_dir,
-            mode=mode,
-            variant=variant,
-            exp_id=exp_id,
-            exp_prefix=exp_prefix,
-            seed=seed,
-            use_gpu=use_gpu,
-            snapshot_mode=snapshot_mode,
-            snapshot_gap=snapshot_gap,
-            git_info=git_info,
-            n_parallel=n_parallel,
-            base_log_dir=base_log_dir,
-            script_name=script_name,
-        )
-        save_experiment_data(data, log_dir)
-    if mode == 'here':
-        run_experiment_here(
-            task,
-            exp_prefix=exp_prefix,
-            variant=variant,
-            exp_id=exp_id,
-            seed=seed,
-            use_gpu=use_gpu,
-            snapshot_mode=snapshot_mode,
-            snapshot_gap=snapshot_gap,
-            git_info=git_info,
-            script_name=script_name,
-            n_parallel=n_parallel,
-            base_log_dir=base_log_dir,
-        )
-    else:
-        if mode == "ec2" and use_gpu:
-            if not query_yes_no(
-                    "EC2 is more expensive with GPUs. Confirm?"
-            ):
-                sys.exit(1)
-        run_experiment_lite(
-            task,
-            snapshot_mode=snapshot_mode,
-            snapshot_gap=snapshot_gap,
-            exp_prefix=exp_prefix,
-            variant=variant,
-            seed=seed,
-            use_cloudpickle=True,
-            python_command=' '.join(command_words),
-            mode=mode,
-            use_gpu=use_gpu,
-            script="railrl/scripts/run_experiment_lite.py",
-            code_diff=code_diff,
-            commit_hash=commit_hash,
-            script_name=script_name,
-            n_parallel=n_parallel,
-            **run_experiment_lite_kwargs
-        )
-
-
 def save_experiment_data(dictionary, log_dir):
     with open(log_dir + '/experiment.pkl', 'wb') as handle:
         pickle.dump(dictionary, handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -542,7 +380,6 @@ def continue_experiment(load_experiment_dir, resume_function):
         snapshot_gap = data['snapshot_gap']
         diff_string = data['diff_string']
         commit_hash = data['commit_hash']
-        n_parallel = data['n_parallel']
         base_log_dir = data['base_log_dir']
         log_dir = data['log_dir']
         exp_name = data['exp_name']
@@ -558,7 +395,6 @@ def continue_experiment(load_experiment_dir, resume_function):
                 snapshot_gap=snapshot_gap,
                 code_diff=diff_string,
                 commit_hash=commit_hash,
-                n_parallel=n_parallel,
                 base_log_dir=base_log_dir,
                 log_dir=log_dir,
             )
@@ -579,6 +415,7 @@ def continue_experiment_simple(load_experiment_dir, resume_function):
         **run_experiment_here_kwargs
     )
 
+
 def resume_torch_algorithm_simple(variant):
     from railrl.torch import pytorch_util as ptu
     load_file = variant.get('params_file', None)
@@ -597,7 +434,6 @@ def run_experiment_here(
         exp_id=0,
         seed=0,
         use_gpu=True,
-        n_parallel=0,
         # Logger params:
         exp_prefix="default",
         snapshot_mode='last',
@@ -645,10 +481,6 @@ def run_experiment_here(
         script_name=script_name,
     )
 
-    if n_parallel > 0:
-        from rllab.sampler import parallel_sampler
-        parallel_sampler.initialize(n_parallel=n_parallel)
-        parallel_sampler.set_seed(seed)
     set_seed(seed)
     set_gpu_mode(use_gpu)
 
@@ -657,7 +489,6 @@ def run_experiment_here(
         exp_id=exp_id,
         seed=seed,
         use_gpu=use_gpu,
-        n_parallel=n_parallel,
         exp_prefix=exp_prefix,
         snapshot_mode=snapshot_mode,
         snapshot_gap=snapshot_gap,

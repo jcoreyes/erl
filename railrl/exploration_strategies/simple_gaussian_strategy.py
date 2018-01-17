@@ -1,6 +1,5 @@
 from railrl.exploration_strategies.base import RawExplorationStrategy
 from railrl.core.serializable import Serializable
-from rllab.spaces.box import Box
 import numpy as np
 
 
@@ -9,12 +8,11 @@ class SimpleGaussianStrategy(RawExplorationStrategy, Serializable):
     This strategy adds a constant Gaussian noise to the action taken by the
     deterministic policy.
 
-    This is different from rllab's GaussianStrategy class in that the sigma
-    does not decay over time.
+    This is different from GaussianStrategy in that the sigma does not decay
+    over time.
     """
 
     def __init__(self, action_space, sigma=1.0):
-        assert isinstance(action_space, Box)
         assert len(action_space.shape) == 1
         Serializable.quick_init(self, locals())
         super().__init__()

@@ -250,44 +250,6 @@ def save_itr_params(itr, params):
             raise NotImplementedError
 
 
-def stub_to_json(stub_sth):
-    from rllab.misc import instrument
-    if isinstance(stub_sth, instrument.StubObject):
-        assert len(stub_sth.args) == 0
-        data = dict()
-        for k, v in stub_sth.kwargs.items():
-            data[k] = stub_to_json(v)
-        data["_name"] = stub_sth.proxy_class.__module__ + "." + stub_sth.proxy_class.__name__
-        return data
-    elif isinstance(stub_sth, instrument.StubAttr):
-        return dict(
-            obj=stub_to_json(stub_sth.obj),
-            attr=stub_to_json(stub_sth.attr_name)
-        )
-    elif isinstance(stub_sth, instrument.StubMethodCall):
-        return dict(
-            obj=stub_to_json(stub_sth.obj),
-            method_name=stub_to_json(stub_sth.method_name),
-            args=stub_to_json(stub_sth.args),
-            kwargs=stub_to_json(stub_sth.kwargs),
-        )
-    elif isinstance(stub_sth, instrument.BinaryOp):
-        return "binary_op"
-    elif isinstance(stub_sth, instrument.StubClass):
-        return stub_sth.proxy_class.__module__ + "." + stub_sth.proxy_class.__name__
-    elif isinstance(stub_sth, dict):
-        return {stub_to_json(k): stub_to_json(v) for k, v in stub_sth.items()}
-    elif isinstance(stub_sth, (list, tuple)):
-        return list(map(stub_to_json, stub_sth))
-    elif type(stub_sth) == type(lambda: None):
-        if stub_sth.__module__ is not None:
-            return stub_sth.__module__ + "." + stub_sth.__name__
-        return stub_sth.__name__
-    elif "theano" in str(type(stub_sth)):
-        return repr(stub_sth)
-    return stub_sth
-
-
 class MyEncoder(json.JSONEncoder):
     def default(self, o):
         if isinstance(o, type):
@@ -297,33 +259,10 @@ class MyEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, o)
 
 
-def log_parameters_lite(log_file, args):
-    log_params = {}
-    for param_name, param_value in args.__dict__.items():
-        log_params[param_name] = param_value
-    if args.args_data is not None:
-        stub_method = pickle.loads(base64.b64decode(args.args_data))
-        method_args = stub_method.kwargs
-        log_params["json_args"] = dict()
-        for k, v in list(method_args.items()):
-            log_params["json_args"][k] = stub_to_json(v)
-        kwargs = stub_method.obj.kwargs
-        for k in ["baseline", "env", "policy"]:
-            if k in kwargs:
-                log_params["json_args"][k] = stub_to_json(kwargs.pop(k))
-        log_params["json_args"]["algo"] = stub_to_json(stub_method.obj)
-    mkdir_p(os.path.dirname(log_file))
-    with open(log_file, "w") as f:
-        json.dump(log_params, f, indent=2, sort_keys=True, cls=MyEncoder)
-
-
 def log_variant(log_file, variant_data):
     mkdir_p(os.path.dirname(log_file))
-    if hasattr(variant_data, "dump"):
-        variant_data = variant_data.dump()
-    variant_json = stub_to_json(variant_data)
     with open(log_file, "w") as f:
-        json.dump(variant_json, f, indent=2, sort_keys=True, cls=MyEncoder)
+        json.dump(variant_data, f, indent=2, sort_keys=True, cls=MyEncoder)
 
 
 def record_tabular_misc_stat(key, values, placement='back'):

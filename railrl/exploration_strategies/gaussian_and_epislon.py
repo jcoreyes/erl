@@ -1,7 +1,6 @@
 import random
 from railrl.exploration_strategies.base import RawExplorationStrategy
 from railrl.core.serializable import Serializable
-from rllab.spaces.box import Box
 import numpy as np
 
 
@@ -13,7 +12,6 @@ class GaussianAndEpislonStrategy(RawExplorationStrategy, Serializable):
     """
     def __init__(self, action_space, epsilon, max_sigma=1.0, min_sigma=0.1,
                  decay_period=1000000):
-        assert isinstance(action_space, Box)
         assert len(action_space.shape) == 1
         Serializable.quick_init(self, locals())
         self._max_sigma = max_sigma

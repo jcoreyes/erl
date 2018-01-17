@@ -102,7 +102,7 @@ def run_experiment(argv):
         variant_data = None
 
     if not args.use_cloudpickle:
-        logger.log_parameters_lite(params_log_file, args)
+        raise NotImplementedError("Not supporting non-cloud-pickle")
 
     logger.add_text_output(text_log_file)
     logger.add_tabular_output(tabular_log_file)

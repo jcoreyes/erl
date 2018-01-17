@@ -7,37 +7,6 @@ import joblib
 import numpy as np
 
 from railrl.core import logger
-from rllab.spaces.product import Product
-
-
-def get_action_dim(**kwargs):
-    env_spec = kwargs.get('env_spec', None)
-    action_dim = kwargs.get('action_dim', None)
-    assert env_spec or action_dim
-    if action_dim:
-        return action_dim
-
-    if isinstance(env_spec.action_space, Product):
-        return tuple(
-            c.flat_dim for c in env_spec.action_space.components
-        )
-    else:
-        return env_spec.action_space.flat_dim
-
-
-def get_observation_dim(**kwargs):
-    env_spec = kwargs.get('env_spec', None)
-    observation_dim = kwargs.get('observation_dim', None)
-    assert env_spec or observation_dim
-    if observation_dim:
-        return observation_dim
-
-    if isinstance(env_spec.observation_space, Product):
-        return tuple(
-            c.flat_dim for c in env_spec.observation_space.components
-        )
-    else:
-        return env_spec.observation_space.flat_dim
 
 
 def split_flat_product_space_into_components_n(product_space, xs):
@@ -50,11 +19,6 @@ def split_flat_product_space_into_components_n(product_space, xs):
     """
     dims = [c.flat_dim for c in product_space.components]
     return np.split(xs, np.cumsum(dims)[:-1], axis=-1)
-
-
-def get_average_returns(paths):
-    returns = [sum(path["rewards"]) for path in paths]
-    return np.mean(returns)
 
 
 """

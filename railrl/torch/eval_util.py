@@ -91,3 +91,8 @@ def get_generic_path_information(paths, discount=0.99, stat_prefix=''):
     statistics['Num Paths'] = len(paths)
 
     return statistics
+
+
+def get_average_returns(paths):
+    returns = [sum(path["rewards"]) for path in paths]
+    return np.mean(returns)

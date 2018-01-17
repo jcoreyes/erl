@@ -8,13 +8,12 @@ from torch.autograd import Variable
 from torch.nn import functional as F
 
 from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.misc.rllab_util import get_average_returns
 from railrl.samplers.util import split_paths_to_dict
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.algos.util import np_to_pytorch_batch
 from railrl.torch.core import PyTorchModule
 from railrl.torch.eval_util import get_statistics_from_pytorch_dict, \
-    get_difference_statistics
+    get_difference_statistics, get_average_returns
 from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
 from railrl.core import logger
 

@@ -1,5 +1,7 @@
-from railrl.exploration_strategies.base import RawExplorationStrategy
-from rllab.exploration_strategies.base import ExplorationStrategy
+from railrl.exploration_strategies.base import (
+    ExplorationStrategy,
+    RawExplorationStrategy,
+)
 
 
 class ActionAwareMemoryStrategy(ExplorationStrategy):
