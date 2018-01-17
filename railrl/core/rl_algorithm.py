@@ -10,10 +10,6 @@ from railrl.data_management.path_builder import PathBuilder
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.remote import RemoteRolloutEnv
 from railrl.envs.wrappers import convert_gym_space
-from railrl.misc.rllab_util import (
-    get_table_key_set,
-    save_extra_data_to_snapshot_dir,
-)
 from railrl.policies.base import ExplorationPolicy
 from railrl.samplers.in_place import InPlacePathSampler
 from railrl.core import logger
@@ -343,15 +339,13 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             self.training_mode(False)
 
     def _try_to_eval(self, epoch):
-        save_extra_data_to_snapshot_dir(
-            self.get_extra_data_to_save(epoch),
-        )
+        logger.save_extra_data(self.get_extra_data_to_save(epoch))
         if self._can_evaluate():
             self.evaluate(epoch)
 
             params = self.get_epoch_snapshot(epoch)
             logger.save_itr_params(epoch, params)
-            table_keys = get_table_key_set(logger)
+            table_keys = logger.get_table_key_set()
             if self._old_table_keys is not None:
                 assert table_keys == self._old_table_keys, (
                     "Table keys cannot change from iteration to iteration."
@@ -395,7 +389,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.offline_evaluate(epoch)
         params = self.get_epoch_snapshot(epoch)
         logger.save_itr_params(epoch, params)
-        table_keys = get_table_key_set(logger)
+        table_keys = logger.get_table_key_set()
         if self._old_table_keys is not None:
             assert table_keys == self._old_table_keys, (
                 "Table keys cannot change from iteration to iteration."

@@ -5,7 +5,6 @@ import torch.optim as optim
 
 import railrl.torch.pytorch_util as ptu
 import torch
-from railrl.misc import rllab_util
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.ml_util import (
     StatConditionalSchedule,
@@ -263,7 +262,7 @@ class DDPG(TorchRLAlgorithm):
     def evaluate(self, epoch):
         statistics = OrderedDict()
         if isinstance(self.epoch_discount_schedule, StatConditionalSchedule):
-            table_dict = rllab_util.get_logger_table_dict()
+            table_dict = logger.get_table_dict()
             # rllab converts things to strings for some reason
             value = float(
                 table_dict[self.epoch_discount_schedule.statistic_name]

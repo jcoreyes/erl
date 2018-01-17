@@ -30,6 +30,7 @@ def mkdir_p(path):
         else:
             raise
 
+
 _prefixes = []
 _prefix_str = ''
 
@@ -108,12 +109,15 @@ def set_snapshot_mode(mode):
     global _snapshot_mode
     _snapshot_mode = mode
 
+
 def get_snapshot_gap():
     return _snapshot_gap
+
 
 def set_snapshot_gap(gap):
     global _snapshot_gap
     _snapshot_gap = gap
+
 
 def set_log_tabular_only(log_tabular_only):
     global _log_tabular_only
@@ -155,6 +159,24 @@ def pop_tabular_prefix():
     del _tabular_prefixes[-1]
     global _tabular_prefix_str
     _tabular_prefix_str = ''.join(_tabular_prefixes)
+
+
+def save_extra_data(data):
+    """
+    Data saved here will always override the last entry
+
+    :param data: Something pickle'able.
+    """
+    file_name = osp.join(_snapshot_dir, 'extra_data.pkl')
+    joblib.dump(data, file_name, compress=3)
+
+
+def get_table_dict():
+    return dict(_tabular)
+
+
+def get_table_key_set():
+    return set(key for key, value in _tabular)
 
 
 @contextmanager
@@ -210,7 +232,8 @@ def dump_tabular(*args, **kwargs):
         # Also write to the csv files
         # This assumes that the keys in each iteration won't change!
         for tabular_fd in list(_tabular_fds.values()):
-            writer = csv.DictWriter(tabular_fd, fieldnames=list(tabular_dict.keys()))
+            writer = csv.DictWriter(tabular_fd,
+                                    fieldnames=list(tabular_dict.keys()))
             if wh or (wh is None and tabular_fd not in _tabular_header_written):
                 writer.writeheader()
                 _tabular_header_written.add(tabular_fd)
@@ -255,7 +278,8 @@ class MyEncoder(json.JSONEncoder):
         if isinstance(o, type):
             return {'$class': o.__module__ + "." + o.__name__}
         elif isinstance(o, Enum):
-            return {'$enum': o.__module__ + "." + o.__class__.__name__ + '.' + o.name}
+            return {
+                '$enum': o.__module__ + "." + o.__class__.__name__ + '.' + o.name}
         return json.JSONEncoder.default(self, o)
 
 

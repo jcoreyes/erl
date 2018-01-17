@@ -3,7 +3,6 @@ from collections import OrderedDict
 from typing import Iterable
 
 import railrl.torch.eval_util
-from railrl.misc import rllab_util
 from railrl.torch import eval_util
 from railrl.core.rl_algorithm import RLAlgorithm
 from railrl.torch.algos.util import np_to_pytorch_batch

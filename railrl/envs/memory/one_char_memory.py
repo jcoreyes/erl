@@ -4,14 +4,12 @@ from random import randint, choice
 
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.np_util import np_print_options, softmax
-from railrl.misc.rllab_util import split_flat_product_space_into_components_n
 from collections import OrderedDict
 from railrl.pythonplusplus import clip_magnitude
 from rllab.envs.base import Env
 from rllab.misc import special
 from rllab.misc.overrides import overrides
 from rllab.spaces.box import Box
-from rllab.spaces.discrete import Discrete
 from railrl.core import logger
 from railrl.envs.supervised_learning_env import RecurrentSupervisedLearningEnv
 from cached_property import cached_property
