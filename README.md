@@ -1,18 +1,21 @@
+README last updated on: 01/17/2018
+
 # railrl
 Reinforcement learning framework.
 Some implemented algorithms:
- - DDPG
- - Soft Actor Critic
- - (Double) DQN
- - NAF (haven't tested in a while)
+ - [DDPG](examples/ddpg.py)
+ - [Soft Actor Critic](examples/sac.py)
+ - [(Double) DQN](examples/dqn_and_double_dqn.py)
+ - [HER](examples/her.py)
+ - [MPC with Neural Network Model](examples/model_based_dagger.py)
+ - [NAF](examples/naf.py) (I haven't tested this implementation much)
 
-The tensorflow branch is basically dead. I just use the stuff in `railrl.torch`.
-
-Last updated: 12/11/2017.
+To get started, checkout the example scripts, linked above.
 
 ## Installation
 This library requires rllab to be installed.
 See [rllab's installation docs](https://rllab.readthedocs.io/en/latest/user/installation.html).
+(I'm hoping to eventually remove this dependency.)
 
 One important difference: use my anaconda environment instead of rllab's conda
 environment. It can be installed and used with
