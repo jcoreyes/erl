@@ -4,10 +4,6 @@ Based on rllab's logger.
 https://github.com/rll/rllab
 """
 from enum import Enum
-
-from rllab.misc.tabulate import tabulate
-from rllab.misc.console import mkdir_p, colorize
-from rllab.misc.autoargs import get_all_parameters
 from contextlib import contextmanager
 import numpy as np
 import os
@@ -20,6 +16,19 @@ import joblib
 import json
 import pickle
 import base64
+import errno
+
+from railrl.core.tabulate import tabulate
+
+
+def mkdir_p(path):
+    try:
+        os.makedirs(path)
+    except OSError as exc:  # Python >2.5
+        if exc.errno == errno.EEXIST and os.path.isdir(path):
+            pass
+        else:
+            raise
 
 _prefixes = []
 _prefix_str = ''
@@ -115,7 +124,7 @@ def get_log_tabular_only():
     return _log_tabular_only
 
 
-def log(s, with_prefix=True, with_timestamp=True, color=None):
+def log(s, with_prefix=True, with_timestamp=True):
     out = s
     if with_prefix:
         out = _prefix_str + out
@@ -123,8 +132,6 @@ def log(s, with_prefix=True, with_timestamp=True, color=None):
         now = datetime.datetime.now(dateutil.tz.tzlocal())
         timestamp = now.strftime('%Y-%m-%d %H:%M:%S.%f %Z')
         out = "%s | %s" % (timestamp, out)
-    if color is not None:
-        out = colorize(out, color)
     if not _log_tabular_only:
         # Also log to stdout
         print(out)
@@ -241,25 +248,6 @@ def save_itr_params(itr, params):
             pass
         else:
             raise NotImplementedError
-
-
-def log_parameters(log_file, args, classes):
-    log_params = {}
-    for param_name, param_value in args.__dict__.items():
-        if any([param_name.startswith(x) for x in list(classes.keys())]):
-            continue
-        log_params[param_name] = param_value
-    for name, cls in classes.items():
-        if isinstance(cls, type):
-            params = get_all_parameters(cls, args)
-            params["_name"] = getattr(args, name)
-            log_params[name] = params
-        else:
-            log_params[name] = getattr(cls, "__kwargs", dict())
-            log_params[name]["_name"] = cls.__module__ + "." + cls.__class__.__name__
-    mkdir_p(os.path.dirname(log_file))
-    with open(log_file, "w") as f:
-        json.dump(log_params, f, indent=2, sort_keys=True)
 
 
 def stub_to_json(stub_sth):
