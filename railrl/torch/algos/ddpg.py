@@ -299,7 +299,7 @@ class DDPG(TorchRLAlgorithm):
         ]
 
     def check_normalization(self):
-        return self.num_paths_for_normalization == 0
+        return self.num_paths_for_normalization == 0 and not self.normalize_network_input
 
     def get_pretrain_paths(self):
         pretrain_paths = []

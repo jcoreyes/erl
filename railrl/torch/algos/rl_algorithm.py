@@ -48,7 +48,8 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             parallel_step_to_train_ratio=20,
             replay_buffer=None,
             fraction_paths_in_train=1.,
-            normalize_network_input=False
+            normalize_network_input=False,
+            num_paths_for_normalization=0,
     ):
         """
         Base class for RL Algorithms
@@ -91,6 +92,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.num_env_steps_per_epoch = num_steps_per_epoch
         self.num_steps_per_eval = num_steps_per_eval
         self.normalize_network_input = normalize_network_input
+        self.num_paths_for_normalization = num_paths_for_normalization
         if collection_mode == 'online' or collection_mode == 'online-parallel':
             self.num_updates_per_train_call = num_updates_per_env_step
         else:

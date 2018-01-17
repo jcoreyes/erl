@@ -40,7 +40,6 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             norm_order=1,
             goal_weights=None,
             tdm_normalizer: TdmNormalizer=None,
-            num_paths_for_normalization=0,
             normalize_distance=False,
     ):
         """
@@ -129,7 +128,6 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             self.goal_weights = np.array(self.goal_weights)
             assert self.goal_weights.size == self.env.goal_dim
         self.tdm_normalizer = tdm_normalizer
-        self.num_paths_for_normalization = num_paths_for_normalization
         self.normalize_distance = normalize_distance
 
         self.policy = MakeUniversal(self.policy)
@@ -179,7 +177,8 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         ])
         goals_mean = np.mean(goals, axis=0)
         goals_std = np.mean(goals, axis=0)
-        taus = np.vstack([path["taus"] for path in paths]) #TODO: double check this is correct
+        import ipdb; ipdb.set_trace()
+        taus = np.vstack([path["taus"] for path in paths])
         tau_mean = np.mean(taus, axis=0)
         tau_std = np.std(taus, axis=0)
         return tau_mean, tau_std, goals_mean, goals_std
