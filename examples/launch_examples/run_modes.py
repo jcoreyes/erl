@@ -1,3 +1,6 @@
+"""
+Example of different ways to sweep hyperparameters.
+"""
 import random
 import numpy as np
 from hyperopt import hp

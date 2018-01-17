@@ -67,7 +67,7 @@ class HER(DDPG):
             policy=self.target_policy,
             max_samples=num_steps_per_eval,
             max_path_length=max_path_length,
-            discount_sampling_function=self._sample_discount_for_rollout,
+            tau_sampling_function=self._sample_tau_for_rollout,
             goal_sampling_function=self._sample_goal_for_rollout,
             cycle_taus_for_rollout=False,
         )
@@ -81,8 +81,8 @@ class HER(DDPG):
     def _sample_goal_for_rollout(self):
         return self.env.sample_goal_for_rollout()
 
-    def _sample_discount_for_rollout(self):
-        return 0  # Her does not vary the discount.
+    def _sample_tau_for_rollout(self):
+        return 0  # Her does not vary tau.
 
     def get_batch(self, training=True):
         batch = super().get_batch(training=training)
@@ -210,6 +210,7 @@ class HER(DDPG):
             terminals=terminal,
             agent_infos=agent_info,
             env_infos=env_info,
+            num_steps_left=np.array([0]),
             goals=self._current_path_goal,
         )
         if self.obs_normalizer:

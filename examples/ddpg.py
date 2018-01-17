@@ -65,12 +65,3 @@ if __name__ == "__main__":
     )
     setup_logger('name-of-experiment', variant=variant)
     experiment(variant)
-    # Or if you have doodad installed:
-    # run_experiment(
-    #     experiment,
-    #     exp_prefix="ddpg-half-cheetah-pytorch",
-    #     mode='local',
-    #     variant=variant,
-    #     use_gpu=True,
-    # )
-    # Or you can use rllab interface
