@@ -1,34 +1,32 @@
 """
 Example of running PyTorch implementation of DDPG on HalfCheetah.
 """
+import gym
+
+from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
 )
 from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import run_experiment, setup_logger
-from railrl.torch.networks import FeedForwardQFunction, FeedForwardPolicy, \
-    MlpPolicy, FlattenMlp
+from railrl.launchers.launcher_util import setup_logger
+from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 from railrl.torch.algos.ddpg import DDPG
 import railrl.torch.pytorch_util as ptu
 
-from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
-from rllab.envs.normalized_env import normalize
-
 
 def experiment(variant):
-    env = HalfCheetahEnv()
-    env = normalize(env)
+    env = NormalizedBoxEnv(gym.make('HalfCheetah-v1'))
     es = OUStrategy(action_space=env.action_space)
+    obs_dim = env.observation_space.low.size
+    action_dim = env.action_space.low.size
     qf = FlattenMlp(
-        input_size=(
-            int(env.observation_space.flat_dim) + int(env.action_space.flat_dim)
-        ),
+        input_size=obs_dim + action_dim,
         output_size=1,
         hidden_sizes=[400, 300],
     )
-    policy = MlpPolicy(
-        input_size=int(env.observation_space.flat_dim),
-        output_size=int(env.action_space.flat_dim),
+    policy = TanhMlpPolicy(
+        input_size=obs_dim,
+        output_size=action_dim,
         hidden_sizes=[400, 300],
     )
     exploration_policy = PolicyWrappedWithExplorationStrategy(

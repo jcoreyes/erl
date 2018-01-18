@@ -1,7 +1,5 @@
-import numpy as np
 from railrl.data_management.simple_replay_buffer import SimpleReplayBuffer
 from railrl.envs.env_utils import get_dim
-from railrl.envs.wrappers import convert_gym_space
 
 
 class EnvReplayBuffer(SimpleReplayBuffer):
