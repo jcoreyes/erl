@@ -3,7 +3,7 @@ Prototype new ideas for DDPG.
 """
 import random
 
-from railrl.envs.wrappers import normalize_box
+from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
@@ -22,7 +22,7 @@ from rllab.envs.mujoco.swimmer_env import SwimmerEnv
 
 def example(variant):
     env = variant['env_class'](**variant['env_params'])
-    env = normalize_box(env)
+    env = NormalizedBoxEnv(env)
     es = OUStrategy(action_space=env.action_space)
     qf = FeedForwardQFunction(
         int(env.observation_space.flat_dim),

@@ -14,7 +14,7 @@ from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState,
     Reacher7DofXyzPosAndVelGoalState)
 from railrl.envs.multitask.walker2d_env import Walker2DTargetXPos
-from railrl.envs.wrappers import normalize_box
+from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
@@ -26,7 +26,7 @@ from railrl.torch.networks import TanhMlpPolicy, FlattenMlp, MlpQf
 
 def experiment(variant):
     env = variant['env_class'](**variant['env_kwargs'])
-    env = normalize_box(
+    env = NormalizedBoxEnv(
         env,
         **variant['normalize_kwargs']
     )

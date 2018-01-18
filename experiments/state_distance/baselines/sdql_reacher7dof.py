@@ -7,7 +7,7 @@ from torch.nn import functional as F
 
 import railrl.torch.pytorch_util as ptu
 from railrl.envs.multitask.reacher_7dof import Reacher7DofFullGoalState
-from railrl.envs.wrappers import convert_gym_space, normalize_box
+from railrl.envs.wrappers import convert_gym_space, NormalizedBoxEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import ConstantSchedule
@@ -25,7 +25,7 @@ from railrl.torch.modules import HuberLoss
 
 def experiment(variant):
     env = Reacher7DofFullGoalState()
-    env = normalize_box(
+    env = NormalizedBoxEnv(
         env,
         obs_mean=None,
         obs_std=None,

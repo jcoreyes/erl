@@ -3,7 +3,7 @@ import numpy as np
 
 import railrl.torch.pytorch_util as ptu
 from railrl.envs.multigoal import MultiGoalEnv
-from railrl.envs.wrappers import normalize_box
+from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
@@ -14,7 +14,7 @@ from railrl.torch.algos.ddpg import DDPG
 
 
 def experiment(variant):
-    env = normalize_box(MultiGoalEnv(
+    env = NormalizedBoxEnv(MultiGoalEnv(
         actuation_cost_coeff=10,
         distance_cost_coeff=1,
         goal_reward=10,

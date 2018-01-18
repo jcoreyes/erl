@@ -8,7 +8,7 @@ from railrl.torch.ddpg import DDPG
 
 def experiment(variant):
     env = variant['env_class']()
-    env = normalize_box(
+    env = NormalizedBoxEnv(
         env,
         **variant['normalize_params']
     )
@@ -102,7 +102,7 @@ from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
 from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
 from railrl.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState
-from railrl.envs.wrappers import convert_gym_space, normalize_box
+from railrl.envs.wrappers import convert_gym_space, NormalizedBoxEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.state_distance.her import HerQFunction, HerPolicy
@@ -114,7 +114,7 @@ from railrl.state_distance.exploration import \
 def experiment(variant):
     env_class = variant['env_class']
     env = env_class(**variant['env_params'])
-    env = normalize_box(
+    env = NormalizedBoxEnv(
         env,
         **variant['normalize_params']
     )

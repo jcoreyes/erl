@@ -18,7 +18,7 @@ from railrl.envs.multitask.pusher3d_gym import GoalXYGymPusherEnv
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState, Reacher7DofXyzPosAndVelGoalState)
 from railrl.envs.multitask.walker2d_env import Walker2DTargetXPos
-from railrl.envs.wrappers import convert_gym_space, normalize_box
+from railrl.envs.wrappers import convert_gym_space, NormalizedBoxEnv
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
@@ -31,7 +31,7 @@ def experiment(variant):
     env = variant['env_class'](**variant['env_kwargs'])
     if variant['multitask']:
         env = MultitaskEnvToSilentMultitaskEnv(env)
-    env = normalize_box(
+    env = NormalizedBoxEnv(
         env,
         **variant['normalize_kwargs']
     )

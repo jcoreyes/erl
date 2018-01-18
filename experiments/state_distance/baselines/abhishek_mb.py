@@ -45,8 +45,8 @@ def experiment(variant):
             raise NotImplementedError
     else:
         env = env_name_or_class()
-        from railrl.envs.wrappers import normalize_box
-        env = normalize_box(env)
+        from railrl.envs.wrappers import NormalizedBoxEnv
+        env = NormalizedBoxEnv(env)
         if env_name_or_class == Pusher2DEnv:
             cost_fn = pusher2d_cost_fn
         elif env_name_or_class == Reacher7Dof:

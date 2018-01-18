@@ -22,7 +22,7 @@ from railrl.envs.multitask.reacher_env import (
 from railrl.envs.multitask.pusher import (
     JointOnlyPusherEnv,
 )
-from railrl.envs.wrappers import convert_gym_space, normalize_box
+from railrl.envs.wrappers import convert_gym_space, NormalizedBoxEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import (
     create_log_dir,
@@ -44,7 +44,7 @@ from railrl.torch.state_distance.exploration import \
 def experiment(variant):
     env_class = variant['env_class']
     env = env_class(**variant['env_params'])
-    env = normalize_box(
+    env = NormalizedBoxEnv(
         env,
         **variant['normalize_params']
     )

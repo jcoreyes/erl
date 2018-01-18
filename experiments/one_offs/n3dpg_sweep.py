@@ -3,7 +3,7 @@ Run PyTorch DDPG on HalfCheetah.
 """
 import numpy as np
 
-from railrl.envs.wrappers import normalize_box
+from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
@@ -25,7 +25,7 @@ from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 def example(variant):
     env = variant['env_class']()
     if variant['normalize']:
-        env = normalize_box(env)
+        env = NormalizedBoxEnv(env)
     es = OUStrategy(action_space=env.action_space)
     obs_dim = int(np.prod(env.observation_space.low.shape))
     action_dim = int(np.prod(env.action_space.low.shape))

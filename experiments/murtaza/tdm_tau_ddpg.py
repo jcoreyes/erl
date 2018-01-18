@@ -4,7 +4,7 @@ import railrl.misc.hyperparameter as hyp
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.envs.multitask.ant_env import GoalXYVelAnt, GoalXYPosAnt
 from railrl.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState
-from railrl.envs.wrappers import normalize_box, convert_gym_space
+from railrl.envs.wrappers import NormalizedBoxEnv, convert_gym_space
 from railrl.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
@@ -16,7 +16,7 @@ from railrl.state_distance.tdm_ddpg import TdmDdpg
 
 
 def experiment(variant):
-    env = normalize_box(variant['env_class']())
+    env = NormalizedBoxEnv(variant['env_class']())
 
     obs_dim = int(np.prod(env.observation_space.low.shape))
     action_dim = int(np.prod(env.action_space.low.shape))

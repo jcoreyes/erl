@@ -14,7 +14,7 @@ from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState,
 )
 from railrl.envs.multitask.walker2d_env import Walker2DTargetXPos
-from railrl.envs.wrappers import normalize_box
+from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.sac.policies import TanhGaussianPolicy
 from railrl.sac.sac import SoftActorCritic
@@ -23,7 +23,7 @@ import railrl.misc.hyperparameter as hyp
 
 
 def experiment(variant):
-    env = normalize_box(variant['env_class'](**variant['env_kwargs']))
+    env = NormalizedBoxEnv(variant['env_class'](**variant['env_kwargs']))
     if variant['multitask']:
         env = MultitaskToFlatEnv(env)
 

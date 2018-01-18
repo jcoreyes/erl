@@ -5,7 +5,7 @@ import numpy as np
 
 from railrl.envs.multitask.discrete_reacher_2d import DiscreteReacher2D
 from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
-from railrl.envs.wrappers import normalize_box
+from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.torch.algos.double_dqn import DoubleDQN
 
 import railrl.misc.hyperparameter as hyp

@@ -12,7 +12,7 @@ from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState,
 )
-from railrl.envs.wrappers import normalize_box
+from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
@@ -26,7 +26,7 @@ from railrl.torch.modules import HuberLoss
 def experiment(variant):
     vectorized = variant['ddpg_tdm_kwargs']['tdm_kwargs']['vectorized']
     assert not vectorized
-    env = normalize_box(Reacher7DofXyzGoalState())
+    env = NormalizedBoxEnv(Reacher7DofXyzGoalState())
     observation_dim = int(np.prod(env.observation_space.low.shape))
     action_dim = int(np.prod(env.action_space.low.shape))
     obs_normalizer = TorchFixedNormalizer(observation_dim)

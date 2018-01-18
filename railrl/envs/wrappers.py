@@ -1,14 +1,49 @@
 import numpy as np
 import gym.spaces
 from cached_property import cached_property
+from gym import Env
+from gym.spaces import Box
 
 from railrl.core.serializable import Serializable
-from rllab.envs.proxy_env import ProxyEnv
-from sandbox.rocky.tf.spaces import Box as TfBox
-from sandbox.rocky.tf.spaces import Discrete as TfDiscrete
-from rllab.spaces.box import Box
-from rllab.spaces.discrete import Discrete
-from rllab.spaces.product import Product
+
+
+class ProxyEnv(Serializable):
+    def __init__(self, wrapped_env):
+        Serializable.quick_init(self, locals())
+        self._wrapped_env = wrapped_env
+
+    @property
+    def wrapped_env(self):
+        return self._wrapped_env
+
+    def reset(self, **kwargs):
+        return self._wrapped_env.reset(**kwargs)
+
+    @property
+    def action_space(self):
+        return self._wrapped_env.action_space
+
+    @property
+    def observation_space(self):
+        return self._wrapped_env.observation_space
+
+    def step(self, action):
+        return self._wrapped_env.step(action)
+
+    def render(self, *args, **kwargs):
+        return self._wrapped_env.render(*args, **kwargs)
+
+    def log_diagnostics(self, paths, *args, **kwargs):
+        if hasattr(self._wrapped_env, 'log_diagnostics'):
+            self._wrapped_env.log_diagnostics(paths, *args, **kwargs)
+
+    @property
+    def horizon(self):
+        return self._wrapped_env.horizon
+
+    def terminate(self):
+        if hasattr(self.wrapped_env, "terminate"):
+            self.wrapped_env.terminate()
 
 
 class NormalizedBoxEnv(ProxyEnv, Serializable):
@@ -107,66 +142,27 @@ class NormalizedBoxEnv(ProxyEnv, Serializable):
     def __getattr__(self, attrname):
         return getattr(self._wrapped_env, attrname)
 
-normalize_box = NormalizedBoxEnv
+
+def convert_gym_space(space):
+    from rllab.spaces.discrete import Discrete
+    from rllab.spaces.product import Product
+    from rllab.spaces.box import Box as RllabBox
+    if isinstance(space, gym.spaces.Box):
+        return RllabBox(low=space.low, high=space.high)
+    elif isinstance(space, gym.spaces.Discrete):
+        return Discrete(n=space.n)
+    elif isinstance(space, gym.spaces.Tuple):
+        return Product([convert_gym_space(x) for x in space.spaces])
+    elif (isinstance(space, RllabBox) or isinstance(space, Discrete)
+          or isinstance(space, Product)):
+        return space
+    else:
+        raise NotImplementedError
 
 
-class ConvertEnvToTf(ProxyEnv, Serializable):
-    def __init__(self, env):
-        Serializable.quick_init(self, locals())
-        ProxyEnv.__init__(self, env)
-
-    @property
-    def action_space(self):
-        action_space = self._wrapped_env.action_space
-        if isinstance(action_space, TfBox) or isinstance(action_space,
-                                                         TfDiscrete):
-            return action_space
-        if isinstance(action_space, Box) or isinstance(action_space, gym.spaces.Box):
-            return TfBox(action_space.low, action_space.high)
-        elif isinstance(action_space, Discrete) or isinstance(action_space, gym.spaces.Discrete):
-            return TfDiscrete(action_space.n)
-        raise TypeError()
-
-    @property
-    def observation_space(self):
-        return TfBox(super().observation_space.low,
-                     super().observation_space.high)
-
-    def __str__(self):
-        return "TfConverted: %s" % self._wrapped_env
-
-    def get_param_values(self):
-        if hasattr(self.wrapped_env, "get_param_values"):
-            return self.wrapped_env.get_param_values()
-        return None
-
-    def log_diagnostics(self, paths, *args, **kwargs):
-        if hasattr(self.wrapped_env, "log_diagnostics"):
-            self.wrapped_env.log_diagnostics(paths, *args, **kwargs)
-
-    def terminate(self):
-        if hasattr(self.wrapped_env, "terminate"):
-            self.wrapped_env.terminate()
-
-
-convert_to_tf_env = ConvertEnvToTf
-
-
-class NormalizeAndConvertToTfEnv(NormalizedBoxEnv, ConvertEnvToTf):
-    @property
-    def action_space(self):
-        # Apparently this is how you call a super's property
-        return ConvertEnvToTf.action_space.fget(self)
-
-    @property
-    def observation_space(self):
-        return TfBox(super().observation_space.low,
-                     super().observation_space.high)
-
-    def __str__(self):
-        return "TfNormalizedAndConverted: %s" % self._wrapped_env
-
-normalize_and_convert_to_tf_env = NormalizeAndConvertToTfEnv
+"""
+Some wrapper codes for rllab.
+"""
 
 
 class ConvertEnvToRllab(ProxyEnv, Serializable):
@@ -179,18 +175,11 @@ class ConvertEnvToRllab(ProxyEnv, Serializable):
 
     @cached_property
     def action_space(self):
-        action_space = self._wrapped_env.action_space
-        if isinstance(action_space, Box) or isinstance(action_space, Discrete):
-            return action_space
-        if isinstance(action_space, TfBox) or isinstance(action_space, gym.spaces.Box):
-            return Box(action_space.low, action_space.high)
-        elif isinstance(action_space, TfDiscrete) or isinstance(action_space, gym.spaces.Discrete):
-            return Discrete(action_space.n)
-        raise TypeError()
+        return convert_space_to_tf_space(self._wrapped_env.action_space)
 
     @cached_property
     def observation_space(self):
-        return Box(super().observation_space.low, super().observation_space.high)
+        return convert_space_to_tf_space(self._wrapped_env.observation_space)
 
     def __str__(self):
         return "RllabConverted: %s" % self._wrapped_env
@@ -200,24 +189,68 @@ class ConvertEnvToRllab(ProxyEnv, Serializable):
             return self.wrapped_env.get_param_values()
         return None
 
-    def log_diagnostics(self, paths, *args, **kwargs):
-        if hasattr(self.wrapped_env, "log_diagnostics"):
-            self.wrapped_env.log_diagnostics(paths, *args, **kwargs)
+    @cached_property
+    def spec(self):
+        from rllab.envs.env_spec import EnvSpec
+        return EnvSpec(
+            observation_space=self.observation_space,
+            action_space=self.action_space,
+        )
 
-    def terminate(self):
-        if hasattr(self.wrapped_env, "terminate"):
-            self.wrapped_env.terminate()
 
-
-def convert_gym_space(space):
-    if isinstance(space, gym.spaces.Box):
-        return Box(low=space.low, high=space.high)
-    elif isinstance(space, gym.spaces.Discrete):
-        return Discrete(n=space.n)
-    elif isinstance(space, gym.spaces.Tuple):
-        return Product([convert_gym_space(x) for x in space.spaces])
-    elif (isinstance(space, Box) or isinstance(space, Discrete)
-          or isinstance(space, Product)):
+def convert_space_to_rllab_space(space):
+    from sandbox.rocky.tf.spaces import Box as TfBox
+    from sandbox.rocky.tf.spaces import Discrete as TfDiscrete
+    from rllab.spaces.discrete import Discrete as RllabDiscrete
+    from rllab.spaces.box import Box as RllabBox
+    if isinstance(space, RllabBox) or isinstance(space, RllabDiscrete):
         return space
-    else:
-        raise NotImplementedError
+    if isinstance(space, TfBox) or isinstance(space, gym.spaces.Box):
+        return RllabBox(space.low, space.high)
+    elif isinstance(space, TfDiscrete) or isinstance(space, gym.spaces.Discrete):
+        return RllabDiscrete(space.n)
+    raise TypeError()
+
+
+class ConvertEnvToTf(ProxyEnv, Serializable):
+    def __init__(self, env):
+        Serializable.quick_init(self, locals())
+        ProxyEnv.__init__(self, env)
+
+    @cached_property
+    def action_space(self):
+        return convert_space_to_tf_space(self._wrapped_env.action_space)
+
+    @cached_property
+    def observation_space(self):
+        return convert_space_to_tf_space(self._wrapped_env.observation_space)
+
+    def __str__(self):
+        return "TfConverted: %s" % self._wrapped_env
+
+    def get_param_values(self):
+        if hasattr(self.wrapped_env, "get_param_values"):
+            return self.wrapped_env.get_param_values()
+        return None
+
+    @cached_property
+    def spec(self):
+        from rllab.envs.env_spec import EnvSpec
+        return EnvSpec(
+            observation_space=self.observation_space,
+            action_space=self.action_space,
+        )
+
+
+def convert_space_to_tf_space(space):
+    from sandbox.rocky.tf.spaces import Box as TfBox
+    from sandbox.rocky.tf.spaces import Discrete as TfDiscrete
+    from rllab.spaces.discrete import Discrete as RllabDiscrete
+    from rllab.spaces.box import Box as RllabBox
+    if isinstance(space, TfBox) or isinstance(space, TfDiscrete):
+        return space
+    if isinstance(space, RllabBox) or isinstance(space, gym.spaces.Box):
+        return TfBox(space.low, space.high)
+    elif isinstance(space, RllabDiscrete) or isinstance(space, gym.spaces.Discrete):
+        return TfDiscrete(space.n)
+    raise TypeError()

@@ -19,7 +19,7 @@ from rllab.envs.mujoco.inverted_double_pendulum_env import (
 )
 from railrl.envs.mujoco.pusher2d import Pusher2DEnv
 from railrl.envs.multitask.reacher_env import GoalStateSimpleStateReacherEnv
-from railrl.envs.wrappers import convert_gym_space, normalize_box
+from railrl.envs.wrappers import convert_gym_space, NormalizedBoxEnv
 from railrl.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
 )
@@ -27,7 +27,7 @@ from railrl.exploration_strategies.base import (
 
 def example(variant):
     env = variant['env_class']()
-    env = normalize_box(env)
+    env = NormalizedBoxEnv(env)
     observation_space = convert_gym_space(env.observation_space)
     action_space = convert_gym_space(env.action_space)
     es = OUStrategy(action_space=action_space)

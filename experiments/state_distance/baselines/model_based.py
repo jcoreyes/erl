@@ -6,7 +6,7 @@ from railrl.state_distance.model_learning import ModelLearning
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
-from railrl.envs.wrappers import convert_gym_space, normalize_box
+from railrl.envs.wrappers import convert_gym_space, NormalizedBoxEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.state_distance.model_based_policies import MultistepModelBasedPolicy
@@ -16,7 +16,7 @@ from railrl.torch.networks import Mlp
 def experiment(variant):
     env_class = variant['env_class']
     env = env_class(**variant['env_params'])
-    env = normalize_box(
+    env = NormalizedBoxEnv(
         env,
         **variant['normalize_params']
     )

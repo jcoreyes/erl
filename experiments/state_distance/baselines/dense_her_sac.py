@@ -14,7 +14,7 @@ from railrl.envs.multitask.reacher_7dof import (
     # Reacher7DofGoalStateEverything,
     Reacher7DofXyzGoalState,
 )
-from railrl.envs.wrappers import normalize_box
+from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.sac.policies import TanhGaussianPolicy
 from railrl.state_distance.tdm_sac import TdmSac
@@ -22,7 +22,7 @@ from railrl.torch.networks import FlattenMlp
 
 
 def experiment(variant):
-    env = normalize_box(variant['env_class']())
+    env = NormalizedBoxEnv(variant['env_class']())
 
     obs_dim = int(np.prod(env.observation_space.low.shape))
     action_dim = int(np.prod(env.action_space.low.shape))

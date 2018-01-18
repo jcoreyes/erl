@@ -6,7 +6,7 @@ import random
 import gym
 import numpy as np
 
-from railrl.envs.wrappers import normalize_box
+from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.torch.algos.double_dqn import DoubleDQN
 
 import railrl.misc.hyperparameter as hyp

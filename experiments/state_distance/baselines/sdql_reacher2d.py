@@ -8,7 +8,7 @@ from torch.nn import functional as F
 
 import railrl.torch.pytorch_util as ptu
 from railrl.envs.multitask.reacher_env import GoalStateSimpleStateReacherEnv
-from railrl.envs.wrappers import convert_gym_space, normalize_box
+from railrl.envs.wrappers import convert_gym_space, NormalizedBoxEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.state_distance.exploration import \
@@ -24,7 +24,7 @@ from railrl.torch.modules import HuberLoss
 
 def experiment(variant):
     env = GoalStateSimpleStateReacherEnv()
-    env = normalize_box(
+    env = NormalizedBoxEnv(
         env,
         obs_mean=None,
         obs_std=[0.7, 0.7, 0.7, 0.6, 40, 5],

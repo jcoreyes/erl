@@ -130,6 +130,8 @@ class Reacher7DofXyzPosAndVelGoalState(Reacher7DofMultitaskEnv):
         # TODO: fix this hack
         if speed_weight is None:
             self.speed_weight = 0.9  # just for init to work
+        else:
+            self.speed_weight = speed_weight
         self.done_threshold = done_threshold
         self.max_speed = max_speed
         self.initializing = True

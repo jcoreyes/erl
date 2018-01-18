@@ -18,7 +18,7 @@ from railrl.envs.multitask.reacher_7dof import (
     # Reacher7DofGoalStateEverything,
     Reacher7DofXyzGoalState,
     Reacher7DofXyzPosAndVelGoalState)
-from railrl.envs.wrappers import normalize_box
+from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
@@ -38,7 +38,7 @@ def experiment(variant):
     variant['ddpg_tdm_kwargs']['tdm_kwargs']['vectorized'] = vectorized
     variant['ddpg_tdm_kwargs']['tdm_kwargs']['norm_order'] = norm_order
     # variant['env_kwargs']['norm_order'] = norm_order
-    env = normalize_box(variant['env_class'](**variant['env_kwargs']))
+    env = NormalizedBoxEnv(variant['env_class'](**variant['env_kwargs']))
     observation_dim = int(np.prod(env.observation_space.low.shape))
     action_dim = int(np.prod(env.action_space.low.shape))
     obs_normalizer = TorchFixedNormalizer(observation_dim)
