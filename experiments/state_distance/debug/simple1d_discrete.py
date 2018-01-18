@@ -5,19 +5,17 @@ import numpy as np
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.envs.multitask.simple1d import Simple1D, Simple1DTdmPlotter, \
-    Simple1DTdmDiscretePlotter
+from railrl.envs.multitask.simple1d import Simple1D, Simple1DTdmDiscretePlotter
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.argmax import ArgmaxDiscretePolicy
-from railrl.state_distance.discrete_action_networks import \
+from railrl.state_distance.old.discrete_action_networks import \
     VectorizedDiscreteQFunction, ArgmaxDiscreteTdmPolicy
-from railrl.state_distance.tdm_networks import StructuredQF, OneHotTauQF
 from railrl.state_distance.tdm_ddpg import TdmDdpg
 from railrl.torch.modules import HuberLoss
-from railrl.torch.networks import MlpPolicy, FlattenMlp
+from railrl.torch.networks import FlattenMlp
 
 
 def experiment(variant):

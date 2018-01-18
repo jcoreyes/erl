@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import colors
 
-from railrl.state_distance.networks import NumpyGoalConditionedModelExtractor, \
+from railrl.state_distance.old.networks import NumpyGoalConditionedModelExtractor, \
     GoalConditionedDeltaModel, NumpyGoalConditionedDeltaModelExtractor, \
     TauBinaryGoalConditionedDeltaModel
 

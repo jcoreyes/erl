@@ -13,7 +13,7 @@ from railrl.envs.multitask.reacher_env import (
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.state_distance.model_based_policies import MultistepModelBasedPolicy
+from railrl.state_distance.old.model_based_policies import MultistepModelBasedPolicy
 from railrl.tf.predictors import Mlp
 
 

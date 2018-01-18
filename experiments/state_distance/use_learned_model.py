@@ -9,11 +9,11 @@ import joblib
 
 import railrl.torch.pytorch_util as ptu
 from railrl.launchers.launcher_util import run_experiment
-from railrl.state_distance.model_based_policies import (
+from railrl.state_distance.old.model_based_policies import (
     MultistepModelBasedPolicy,
     SQPModelBasedPolicy,
 )
-from railrl.state_distance.networks import ModelExtractor
+from railrl.state_distance.old.networks import ModelExtractor
 from state_distance.rollout_util import multitask_rollout
 from railrl.core import logger
 

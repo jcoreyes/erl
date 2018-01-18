@@ -10,7 +10,7 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.ml_util import ConstantSchedule
 from railrl.state_distance.exploration import \
     UniversalPolicyWrappedWithExplorationStrategy
-from railrl.state_distance.networks import (
+from railrl.state_distance.old.networks import (
     FFUniversalPolicy,
     FlatUniversalQfunction,
 )
