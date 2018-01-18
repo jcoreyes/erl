@@ -8,7 +8,7 @@ from torch.nn import functional as F
 
 import railrl.torch.pytorch_util as ptu
 from railrl.envs.multitask.reacher_env import GoalStateSimpleStateReacherEnv
-from railrl.envs.wrappers import convert_gym_space, NormalizedBoxEnv
+from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.state_distance.exploration import \
@@ -30,8 +30,8 @@ def experiment(variant):
         obs_std=[0.7, 0.7, 0.7, 0.6, 40, 5],
     )
 
-    observation_space = convert_gym_space(env.observation_space)
-    action_space = convert_gym_space(env.action_space)
+    observation_space = env.observation_space
+    action_space = env.action_space
     qf = variant['qf_class'](
         int(observation_space.flat_dim),
         int(action_space.flat_dim),

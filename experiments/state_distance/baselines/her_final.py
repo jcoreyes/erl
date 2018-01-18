@@ -102,7 +102,7 @@ from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
 from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
 from railrl.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState
-from railrl.envs.wrappers import convert_gym_space, NormalizedBoxEnv
+from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.state_distance.her import HerQFunction, HerPolicy
@@ -119,8 +119,8 @@ def experiment(variant):
         **variant['normalize_params']
     )
 
-    observation_space = convert_gym_space(env.observation_space)
-    action_space = convert_gym_space(env.action_space)
+    observation_space = env.observation_space
+    action_space = env.action_space
     qf = variant['qf_class'](
         int(observation_space.flat_dim),
         int(action_space.flat_dim),

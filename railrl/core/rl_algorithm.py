@@ -9,7 +9,6 @@ from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.path_builder import PathBuilder
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.remote import RemoteRolloutEnv
-from railrl.envs.wrappers import convert_gym_space
 from railrl.policies.base import ExplorationPolicy
 from railrl.samplers.in_place import InPlacePathSampler
 from railrl.core import logger
@@ -40,7 +39,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             collection_mode='online',
             sim_throttle=False,
             normalize_env=True,
-            env_train_ratio=20,
             parallel_step_to_train_ratio=20,
             replay_buffer=None,
             fraction_paths_in_train=1.,
@@ -111,27 +109,24 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.eval_policy = eval_policy
         self.eval_sampler = eval_sampler
 
-        self.action_space = convert_gym_space(env.action_space)
-        self.obs_space = convert_gym_space(env.observation_space)
+        self.action_space = env.action_space
+        self.obs_space = env.observation_space
         self.env = env
         if replay_buffer is None:
             if fraction_paths_in_train == 1.:
                 self.replay_buffer = EnvReplayBuffer(
                     self.replay_buffer_size,
                     self.env,
-                    flatten=True,
                 )
             else:
                 self.replay_buffer = SplitReplayBuffer(
                     EnvReplayBuffer(
                         replay_buffer_size,
                         env,
-                        flatten=True,
                     ),
                     EnvReplayBuffer(
                         replay_buffer_size,
                         env,
-                        flatten=True,
                     ),
                     fraction_paths_in_train=fraction_paths_in_train,
                 )

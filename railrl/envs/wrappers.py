@@ -129,23 +129,6 @@ class NormalizedBoxEnv(ProxyEnv, Serializable):
         return getattr(self._wrapped_env, attrname)
 
 
-def convert_gym_space(space):
-    from rllab.spaces.discrete import Discrete
-    from rllab.spaces.product import Product
-    from rllab.spaces.box import Box as RllabBox
-    if isinstance(space, gym.spaces.Box):
-        return RllabBox(low=space.low, high=space.high)
-    elif isinstance(space, gym.spaces.Discrete):
-        return Discrete(n=space.n)
-    elif isinstance(space, gym.spaces.Tuple):
-        return Product([convert_gym_space(x) for x in space.spaces])
-    elif (isinstance(space, RllabBox) or isinstance(space, Discrete)
-          or isinstance(space, Product)):
-        return space
-    else:
-        raise NotImplementedError
-
-
 """
 Some wrapper codes for rllab.
 """

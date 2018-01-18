@@ -4,7 +4,7 @@ import railrl.misc.hyperparameter as hyp
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.envs.multitask.ant_env import GoalXYVelAnt, GoalXYPosAnt
 from railrl.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState
-from railrl.envs.wrappers import NormalizedBoxEnv, convert_gym_space
+from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
@@ -25,7 +25,7 @@ def experiment(variant):
     policy_class = variant['policy_class']
     es_class = variant['es_class']
     es_params = dict(
-        action_space=convert_gym_space(env.action_space),
+        action_space=env.action_space,
         **variant['es_params']
     )
     es = es_class(**es_params)
