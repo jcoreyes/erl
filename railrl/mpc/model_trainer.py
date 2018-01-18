@@ -11,7 +11,7 @@ from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
 from railrl.torch.data_management.normalizer import TorchFixedNormalizer
 
 
-class Dagger(TorchRLAlgorithm):
+class ModelTrainer(TorchRLAlgorithm):
     def __init__(
             self,
             env,

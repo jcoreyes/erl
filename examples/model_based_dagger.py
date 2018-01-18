@@ -1,9 +1,9 @@
 import numpy as np
 
 import railrl.torch.pytorch_util as ptu
-from railrl.dagger.controller import MPCController
-from railrl.dagger.dagger import Dagger
-from railrl.dagger.model import DynamicsModel
+from railrl.mpc.controller import MPCController
+from railrl.mpc.model_trainer import ModelTrainer
+from railrl.mpc.model import DynamicsModel
 from railrl.envs.multitask.ant_env import GoalXYPosAnt
 from railrl.envs.multitask.multitask_env import MultitaskEnvToSilentMultitaskEnv
 from railrl.launchers.launcher_util import setup_logger
@@ -38,7 +38,7 @@ def experiment(variant):
         env.cost_fn,
         **variant['mpc_controller_kwargs']
     )
-    algo = Dagger(
+    algo = ModelTrainer(
         env,
         model,
         mpc_controller,

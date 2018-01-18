@@ -3,9 +3,9 @@ import numpy as np
 
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
-from railrl.dagger.controller import MPCController
-from railrl.dagger.dagger import Dagger
-from railrl.dagger.model import DynamicsModel
+from railrl.mpc.controller import MPCController
+from railrl.mpc.model_trainer import ModelTrainer
+from railrl.mpc.model import DynamicsModel
 from railrl.envs.multitask.ant_env import GoalXYPosAnt, GoalXYPosAndVelAnt
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
     GoalXPosHalfCheetah
@@ -63,7 +63,7 @@ def experiment(variant):
         exploration_strategy=es,
         policy=mpc_controller,
     )
-    algo = Dagger(
+    algo = ModelTrainer(
         env,
         model,
         mpc_controller,
