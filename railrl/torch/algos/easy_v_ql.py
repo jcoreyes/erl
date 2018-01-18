@@ -6,7 +6,7 @@ from torch import nn as nn
 from torch.nn import init
 
 from railrl.torch.core import PyTorchModule
-from railrl.misc.data_processing import create_stats_ordered_dict
+from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.torch.ddpg import DDPG
 import railrl.torch.pytorch_util as ptu
 import railrl.torch.modules as M

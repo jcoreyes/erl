@@ -3,7 +3,7 @@ from collections import OrderedDict
 import numpy as np
 
 import railrl.torch.pytorch_util as ptu
-from railrl.misc.data_processing import create_stats_ordered_dict
+from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.sac.sac import SoftActorCritic
 
 EXACT = 'exact'

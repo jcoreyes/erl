@@ -2,11 +2,12 @@ import abc
 from collections import OrderedDict
 from typing import Iterable
 
-import railrl.core.eval_util
+import railrl.misc.eval_util
 from railrl.core.rl_algorithm import RLAlgorithm
 from railrl.torch.algos.util import np_to_pytorch_batch
 from railrl.torch.core import PyTorchModule
-from railrl.core import logger, eval_util
+from railrl.core import logger
+from railrl.misc import eval_util
 
 
 class TorchRLAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
@@ -46,15 +47,15 @@ class TorchRLAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         test_paths = self.eval_sampler.obtain_samples()
 
         statistics.update(eval_util.get_generic_path_information(
-            test_paths, self.discount, stat_prefix="Test",
+            test_paths, stat_prefix="Test",
         ))
         statistics.update(eval_util.get_generic_path_information(
-            self._exploration_paths, self.discount, stat_prefix="Exploration",
+            self._exploration_paths, stat_prefix="Exploration",
         ))
         if hasattr(self.env, "log_diagnostics"):
             self.env.log_diagnostics(test_paths)
 
-        average_returns = railrl.core.eval_util.get_average_returns(test_paths)
+        average_returns = railrl.misc.eval_util.get_average_returns(test_paths)
         statistics['AverageReturn'] = average_returns
         for key, value in statistics.items():
             logger.record_tabular(key, value)

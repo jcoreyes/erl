@@ -6,7 +6,7 @@ from gym.spaces import Box
 
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.envs.pygame.water_maze import WaterMaze
-from railrl.misc.data_processing import create_stats_ordered_dict
+from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.samplers.util import get_stat_in_paths
 from railrl.torch.core import PyTorchModule
 from railrl.core.serializable import Serializable

@@ -9,12 +9,12 @@ from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.data_management.updatable_subtraj_replay_buffer import (
     UpdatableSubtrajReplayBuffer
 )
-from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.core.eval_util import get_average_returns
+from railrl.misc.eval_util import get_average_returns, create_stats_ordered_dict
 from railrl.pythonplusplus import batch, ConditionTimer
 from railrl.core.rl_algorithm import RLAlgorithm
 from railrl.torch import pytorch_util as ptu
-from railrl.core import logger, eval_util
+from railrl.core import logger
+from railrl.misc import eval_util
 
 
 # noinspection PyCallingNonCallable
@@ -449,7 +449,7 @@ class BpttDdpg(RLAlgorithm):
             subtraj_batch, stat_prefix=stat_prefix
         )
         statistics.update(eval_util.get_generic_path_information(
-            paths, self.discount, stat_prefix="Test",
+            paths, stat_prefix="Test",
         ))
         env_actions = np.vstack([path["actions"][:self.action_dim] for path in
                                  paths])

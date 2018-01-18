@@ -7,14 +7,13 @@ from torch import nn as nn
 from torch.autograd import Variable
 from torch.nn import functional as F
 
-from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.samplers.util import split_paths_to_dict
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.algos.util import np_to_pytorch_batch
 from railrl.torch.core import PyTorchModule
-from railrl.core.eval_util import (
-    get_difference_statistics, get_average_returns
-)
+from railrl.misc.eval_util import (
+    get_difference_statistics, get_average_returns,
+    create_stats_ordered_dict)
 from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
 from railrl.core import logger
 

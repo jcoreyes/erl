@@ -3,7 +3,7 @@ import numpy as np
 
 from torch import optim as optim
 
-from railrl.misc.data_processing import create_stats_ordered_dict
+from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.policies.simple import RandomPolicy
 from railrl.samplers.util import rollout
 from railrl.torch import pytorch_util as ptu

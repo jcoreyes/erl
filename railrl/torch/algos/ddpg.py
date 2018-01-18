@@ -5,7 +5,7 @@ import torch.optim as optim
 
 import railrl.torch.pytorch_util as ptu
 import torch
-from railrl.misc.data_processing import create_stats_ordered_dict
+from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.misc.ml_util import (
     StatConditionalSchedule,
     ConstantSchedule,

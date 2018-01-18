@@ -5,12 +5,11 @@ import numpy as np
 import torch.optim as optim
 
 import railrl.torch.pytorch_util as ptu
-from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.samplers.util import split_paths
 from railrl.samplers.in_place import InPlacePathSampler
 from railrl.torch.algos.util import np_to_pytorch_batch
-from railrl.core.eval_util import get_generic_path_information, \
-    get_average_returns
+from railrl.misc.eval_util import get_generic_path_information, \
+    get_average_returns, create_stats_ordered_dict
 from railrl.core import logger
 
 
@@ -132,7 +131,7 @@ class DdpgQfCombiner(object):
         logger.log("Collecting samples for evaluation")
         test_paths = self._sample_eval_paths()
         statistics.update(get_generic_path_information(
-            test_paths, self.discount, stat_prefix="Test",
+            test_paths, stat_prefix="Test",
         ))
         statistics.update(self._statistics_from_paths(test_paths, "Test"))
         average_returns = get_average_returns(test_paths)

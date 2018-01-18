@@ -10,10 +10,9 @@ from railrl.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
 )
 from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
-from railrl.misc.data_processing import create_stats_ordered_dict
+from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.policies.argmax import ArgmaxDiscretePolicy
 from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
-from railrl.core import logger, eval_util
 
 
 class DQN(TorchRLAlgorithm):
@@ -115,23 +114,6 @@ class DQN(TorchRLAlgorithm):
                 ptu.copy_model_params_from_to(self.qf, self.target_qf)
         else:
             ptu.soft_update_from_to(self.qf, self.target_qf, self.tau)
-
-    def evaluate(self, epoch):
-        statistics = OrderedDict()
-        statistics.update(self.eval_statistics)
-        self.eval_statistics = None
-        test_paths = self.eval_sampler.obtain_samples()
-        statistics.update(eval_util.get_generic_path_information(
-            test_paths, self.discount, stat_prefix="Test",
-        ))
-        statistics.update(eval_util.get_generic_path_information(
-            self._exploration_paths, self.discount, stat_prefix="Exploration",
-        ))
-        if hasattr(self.env, "log_diagnostics"):
-            self.env.log_diagnostics(test_paths)
-
-        for key, value in statistics.items():
-            logger.record_tabular(key, value)
 
     def offline_evaluate(self, epoch):
         raise NotImplementedError()

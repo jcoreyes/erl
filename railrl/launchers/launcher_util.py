@@ -18,7 +18,6 @@ import tensorflow as tf
 import railrl.pythonplusplus as ppp
 from railrl.core import logger
 from railrl.launchers import config
-from railrl.misc.command_line import query_yes_no
 from railrl.torch.pytorch_util import set_gpu_mode
 
 GitInfo = namedtuple('GitInfo', ['code_diff', 'commit_hash', 'branch_name'])
@@ -672,3 +671,36 @@ def create_run_experiment_multiple_seeds(n_seeds, experiment, **kwargs):
         return np.mean(scores)
 
     return run_experiment_with_multiple_seeds
+
+
+def query_yes_no(question, default="yes"):
+    """Ask a yes/no question via raw_input() and return their answer.
+
+    "question" is a string that is presented to the user.
+    "default" is the presumed answer if the user just hits <Enter>.
+        It must be "yes" (the default), "no" or None (meaning
+        an answer is required of the user).
+
+    The "answer" return value is True for "yes" or False for "no".
+    """
+    valid = {"yes": True, "y": True, "ye": True,
+             "no": False, "n": False}
+    if default is None:
+        prompt = " [y/n] "
+    elif default == "yes":
+        prompt = " [Y/n] "
+    elif default == "no":
+        prompt = " [y/N] "
+    else:
+        raise ValueError("invalid default answer: '%s'" % default)
+
+    while True:
+        sys.stdout.write(question + prompt)
+        choice = input().lower()
+        if default is not None and choice == '':
+            return valid[default]
+        elif choice in valid:
+            return valid[choice]
+        else:
+            sys.stdout.write("Please respond with 'yes' or 'no' "
+                             "(or 'y' or 'n').\n")

@@ -5,7 +5,7 @@ import numpy as np
 from gym.spaces import Box
 
 from railrl.envs.wrappers import ProxyEnv
-from railrl.misc.data_processing import create_stats_ordered_dict
+from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.core.serializable import Serializable
 from railrl.core import logger as default_logger
 

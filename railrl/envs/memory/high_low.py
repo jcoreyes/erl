@@ -6,7 +6,7 @@ import numpy as np
 from gym.spaces import Box
 
 from railrl.envs.supervised_learning_env import RecurrentSupervisedLearningEnv
-from railrl.misc.data_processing import create_stats_ordered_dict
+from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.misc.np_util import np_print_options
 from railrl.pythonplusplus import clip_magnitude
 from railrl.core import logger

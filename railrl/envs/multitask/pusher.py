@@ -6,7 +6,7 @@ import torch
 
 from railrl.envs.mujoco.pusher import PusherEnv
 from railrl.envs.multitask.multitask_env import MultitaskEnv
-from railrl.misc.data_processing import create_stats_ordered_dict
+from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.core import logger
 
 

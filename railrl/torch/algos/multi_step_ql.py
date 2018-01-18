@@ -6,7 +6,7 @@ import numpy as np
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.data_management.subtraj_replay_buffer import SubtrajReplayBuffer
-from railrl.misc.data_processing import create_stats_ordered_dict
+from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.torch.ddpg import DDPG
 from railrl.misc import np_util
 

@@ -4,7 +4,7 @@ import numpy as np
 import torch
 
 import railrl.torch.pytorch_util as ptu
-from railrl.misc.data_processing import create_stats_ordered_dict
+from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.torch.algos.dqn import DQN
 
 

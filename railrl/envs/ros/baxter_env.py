@@ -6,7 +6,7 @@ from numpy import linalg
 from robot_info.srv import *
 
 import baxter_interface as bi
-from railrl.misc.data_processing import create_stats_ordered_dict
+from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.core.serializable import Serializable
 from rllab.envs.base import Env
 from railrl.core import logger

@@ -2,7 +2,7 @@ import numpy as np
 from sklearn.metrics import log_loss
 from random import randint, choice
 
-from railrl.misc.data_processing import create_stats_ordered_dict
+from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.misc.np_util import np_print_options, softmax
 from collections import OrderedDict
 from railrl.pythonplusplus import clip_magnitude
