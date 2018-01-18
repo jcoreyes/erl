@@ -7,7 +7,7 @@ from railrl.distributional.distributional_ddpg import DistributionalDDPG, \
     FeedForwardZFunction
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.policies.torch import FeedForwardPolicy
+from railrl.torch.networks import FeedForwardPolicy
 import railrl.torch.pytorch_util as ptu
 
 from rllab.envs.mujoco.ant_env import AntEnv

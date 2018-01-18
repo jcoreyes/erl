@@ -4,10 +4,10 @@ from typing import Iterable
 
 from railrl.misc import rllab_util
 from railrl.torch import eval_util
-from railrl.torch.algos.rl_algorithm import RLAlgorithm
+from railrl.core.rl_algorithm import RLAlgorithm
 from railrl.torch.algos.util import np_to_pytorch_batch
 from railrl.torch.core import PyTorchModule
-from rllab.misc import logger
+from railrl.core import logger
 
 
 class TorchRLAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):

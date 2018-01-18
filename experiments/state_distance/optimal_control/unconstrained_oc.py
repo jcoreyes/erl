@@ -6,13 +6,13 @@ import joblib
 
 import railrl.torch.pytorch_util as ptu
 from railrl.launchers.launcher_util import run_experiment
-from railrl.policies.state_distance import (
+from railrl.state_distance.policies import (
     UnconstrainedOcWithGoalConditionedModel,
     UnconstrainedOcWithImplicitModel)
 from railrl.state_distance.networks import \
     VectorizedGoalStructuredUniversalQfunction
 from state_distance.rollout_util import multitask_rollout
-from rllab.misc import logger
+from railrl.core import logger
 
 
 def experiment(variant):

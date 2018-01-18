@@ -4,14 +4,10 @@ import numpy as np
 import torch.optim as optim
 
 import railrl.torch.pytorch_util as ptu
-from railrl.misc import rllab_util
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.ml_util import ConstantSchedule
-from railrl.torch import eval_util
 from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
 from railrl.torch.modules import HuberLoss
-from rllab.misc import logger
-from torch import nn as nn
 
 
 class N3DPG(TorchRLAlgorithm):

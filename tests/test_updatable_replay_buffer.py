@@ -8,14 +8,14 @@ from railrl.envs.memory.continuous_memory_augmented import (
 from railrl.data_management.updatable_subtraj_replay_buffer import (
     UpdatableSubtrajReplayBuffer
 )
-from railrl.testing.tf_test_case import TFTestCase
+from railrl.testing.np_test_case import NPTestCase
 from railrl.testing.stub_classes import StubEnv
 
 
 def rand(dim=1):
     return np.random.rand(1, dim)
 
-class TestSubtrajReplayBuffer(TFTestCase):
+class TestSubtrajReplayBuffer(NPTestCase):
     def test_size_add_none(self):
         env = StubMemoryEnv()
         buff = UpdatableSubtrajReplayBuffer(
@@ -316,6 +316,7 @@ class TestSubtrajReplayBuffer(TFTestCase):
 class StubMemoryEnv(ContinuousMemoryAugmented):
     def __init__(self, num_memory_states=1):
         super().__init__(StubEnv(), num_memory_states=num_memory_states)
+
 
 if __name__ == '__main__':
     unittest.main()

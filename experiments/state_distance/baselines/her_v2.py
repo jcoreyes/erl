@@ -6,7 +6,7 @@ import torch.nn as nn
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.envs.multitask.ant_env import GoalXYPosAnt
+from railrl.envs.multitask.ant_env import GoalXYPosAnt, GoalXYPosAndVelAnt
 # from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
     GoalXPosHalfCheetah
@@ -23,7 +23,7 @@ from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.policies.torch import FeedForwardPolicy
+from railrl.torch.networks import FeedForwardPolicy
 from railrl.state_distance.tdm_networks import TdmQf, TdmPolicy, TdmNormalizer
 from railrl.state_distance.tdm_ddpg import TdmDdpg
 from railrl.torch.modules import HuberLoss
@@ -31,8 +31,6 @@ from railrl.torch.data_management.normalizer import TorchFixedNormalizer
 
 
 def experiment(variant):
-    env = normalize_box(variant['env_class'](**variant['env_kwargs']))
-
     vectorized = variant['ddpg_tdm_kwargs']['tdm_kwargs']['vectorized']
     norm_order = variant['norm_order']
     assert not vectorized
@@ -100,14 +98,13 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = "local"
-    mode = "local_docker"
     exp_prefix = "dev-her"
 
-    n_seeds = 1
+    n_seeds = 3
     mode = "ec2"
-    exp_prefix = "pre-final-pusher-gym"
+    exp_prefix = "final-ant-pos-and-vel"
 
-    num_epochs = 1000
+    num_epochs = 500
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
     max_path_length = 100
@@ -158,7 +155,7 @@ if __name__ == "__main__":
         ),
         qf_criterion_class=HuberLoss,
         qf_criterion_kwargs=dict(),
-        version="DDPG-Sparse",
+        version="HER-Andrychowicz",
         algorithm="HER-Andrychowicz",
         env_kwargs=dict(),
         tdm_normalizer_kwargs=dict(
@@ -171,11 +168,18 @@ if __name__ == "__main__":
             # GoalXVelHalfCheetah,
             # GoalXPosHalfCheetah,
             # GoalXYPosAnt,
-            GoalXYGymPusherEnv,
+            # GoalXYGymPusherEnv,
             # CylinderXYPusher2DEnv,
             # Reacher7DofXyzGoalState,
             # MultitaskPusher3DEnv,
             # Walker2DTargetXPos,
+            GoalXYPosAndVelAnt,
+        ],
+        'env_kwargs.speed_weight': [
+            None,
+        ],
+        'env_kwargs.goal_dim_weights': [
+            (0.1, 0.1, 0.9, 0.9),
         ],
         'qf_criterion_class': [
             nn.MSELoss,
@@ -187,10 +191,10 @@ if __name__ == "__main__":
             4,
         ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
-            0.01, 1, 100, 10000
+            1, 10, 100,
         ],
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
-            1,
+            5, 10
         ],
         'ddpg_tdm_kwargs.base_kwargs.discount': [
             0.98,
@@ -201,7 +205,6 @@ if __name__ == "__main__":
         'ddpg_tdm_kwargs.ddpg_kwargs.policy_pre_activation_weight': [
             0.,
             0.01,
-            # 1,
         ],
         'ddpg_tdm_kwargs.ddpg_kwargs.eval_with_target_policy': [
             True,
@@ -212,7 +215,7 @@ if __name__ == "__main__":
         'norm_order': [1],
         'relabel': [
             False,
-            # True,
+            True,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(

@@ -3,7 +3,7 @@ import pickle
 
 import numpy as np
 
-from rllab.misc import logger
+from railrl.core import logger
 
 
 class MultitaskPathSampler(object):

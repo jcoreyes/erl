@@ -22,11 +22,15 @@ class Dagger(TorchRLAlgorithm):
             delta_normalizer: TorchFixedNormalizer=None,
             num_paths_for_normalization=0,
             learning_rate=1e-3,
+            exploration_policy=None,
             **kwargs
     ):
+        if exploration_policy is None:
+            exploration_policy = mpc_controller
         super().__init__(
             env,
-            mpc_controller,
+            exploration_policy=exploration_policy,
+            eval_policy=mpc_controller,
             **kwargs
         )
         self.model = model

@@ -1,5 +1,4 @@
 from rllab.envs.gym_env import GymEnv, NoVideoSchedule, CappedCubicVideoSchedule, convert_gym_space
-from rllab.core.serializable import Serializable
 from sandbox.rocky.tf.spaces.box import Box
 import cv2
 import numpy as np
@@ -10,9 +9,9 @@ import gym.spaces
 from gym.monitoring import monitor_manager
 import os
 from rllab.envs.base import Env, Step
-from rllab.core.serializable import Serializable
+from railrl.core.serializable import Serializable
 from rllab.spaces.box import Box
-from rllab.misc import logger
+from railrl.core import logger
 import logging
 
 class CroppedGymEnv(GymEnv):

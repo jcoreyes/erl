@@ -12,6 +12,7 @@ def create_path(offset):
         rewards=np.array([-1, 0, 1]) + offset,
         actions=np.array([[5], [7], [9]]) + offset,
         observations=np.array([[2], [4], [8]]) + offset,
+        next_observations=np.array([[4], [5], [9]]) + offset,
     )
 
 
@@ -19,7 +20,8 @@ class TestRllabUtil(unittest.TestCase):
     def assertNpEqual(self, np_arr1, np_arr2):
         self.assertTrue(
             are_np_arrays_equal(np_arr1, np_arr2),
-            "Numpy arrays not equal")
+            "Numpy arrays not equal"
+        )
 
     def test_split_paths(self):
         paths = [create_path(0), create_path(1)]
@@ -35,8 +37,8 @@ class TestRllabUtil(unittest.TestCase):
             [6], [8], [10],
         ])
         expected_next_obs = np.array([
-            [4], [8], [0],
-            [5], [9], [0],
+            [4], [5], [9],
+            [5], [6], [10],
         ])
         self.assertNpEqual(rewards, expected_rewards)
         self.assertNpEqual(terminals, expected_terminals)

@@ -12,7 +12,7 @@ from rllab.misc import special
 from rllab.misc.overrides import overrides
 from rllab.spaces.box import Box
 from rllab.spaces.discrete import Discrete
-from rllab.misc import logger
+from railrl.core import logger
 from railrl.envs.supervised_learning_env import RecurrentSupervisedLearningEnv
 from cached_property import cached_property
 import tensorflow as tf

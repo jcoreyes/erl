@@ -5,7 +5,7 @@ import joblib
 import railrl.torch.pytorch_util as ptu
 from railrl.torch.eval_util import get_generic_path_information
 from railrl.state_distance.rollout_util import multitask_rollout
-from rllab.misc import logger
+from railrl.core import logger
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
@@ -55,7 +55,6 @@ if __name__ == "__main__":
         paths = []
         for _ in range(args.nrolls):
             goal = env.sample_goal_for_rollout()
-            goal[0] = -10
             print("goal", goal)
             path = multitask_rollout(
                 env,

@@ -5,7 +5,7 @@ import railrl.misc.hyperparameter as hyp
 def experiment(variant):
     import gym
     from baselines import deepq
-    from rllab.misc import logger
+    from railrl.core import logger
 
     def callback(lcl, glb):
         # only stop training after number of time steps have been reached

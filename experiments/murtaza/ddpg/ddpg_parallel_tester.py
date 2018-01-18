@@ -3,8 +3,7 @@ import random
 from railrl.envs.wrappers import convert_gym_space
 from railrl.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
 from railrl.launchers.launcher_util import resume_torch_algorithm, continue_experiment, run_experiment
-from railrl.policies.torch import FeedForwardPolicy
-from railrl.qfunctions.torch import FeedForwardQFunction
+from railrl.torch.networks import FeedForwardQFunction, FeedForwardPolicy
 from railrl.torch.algos.ddpg import DDPG
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy

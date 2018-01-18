@@ -1,7 +1,4 @@
-"""
-TODO: rerun with full state env
-"""
-from railrl.misc.data_processing import Experiment
+from railrl.misc.data_processing import Experiment, get_trials
 import matplotlib.pyplot as plt
 import numpy as np
 

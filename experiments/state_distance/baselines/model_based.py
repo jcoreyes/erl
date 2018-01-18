@@ -2,20 +2,14 @@ import argparse
 import random
 
 from railrl.state_distance.model_learning import ModelLearning
-from torch.nn import functional as F
 
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
-from railrl.envs.multitask.pusher2d import HandCylinderXYPusher2DEnv
-from railrl.envs.multitask.reacher_7dof import (
-    Reacher7DofGoalStateEverything,
-)
-from railrl.envs.multitask.reacher_env import GoalStateSimpleStateReacherEnv
 from railrl.envs.wrappers import convert_gym_space, normalize_box
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.policies.model_based import MultistepModelBasedPolicy
+from railrl.state_distance.model_based_policies import MultistepModelBasedPolicy
 from railrl.torch.networks import Mlp
 
 

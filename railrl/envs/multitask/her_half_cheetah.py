@@ -5,7 +5,7 @@ from gym.envs.mujoco import HalfCheetahEnv
 
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.samplers.util import get_stat_in_paths
-from rllab.misc import logger as rllab_logger
+from railrl.core import logger as default_logger
 
 
 def obs_to_goal(obs):
@@ -65,7 +65,7 @@ class HalfCheetah(HalfCheetahEnv):
         self.target_x_vel = np.random.uniform(-10, 10)
         return np.hstack((ob, self.target_x_vel))
 
-    def log_diagnostics(self, paths, logger=None):
+    def log_diagnostics(self, paths, logger=default_logger):
         xvels = get_stat_in_paths(
             paths, 'env_infos', 'xvel'
         )
@@ -93,7 +93,4 @@ class HalfCheetah(HalfCheetahEnv):
                 always_show_all_stats=True,
             ))
         for key, value in statistics.items():
-            if logger is None:
-                rllab_logger.record_tabular(key, value)
-            else:
-                logger.log_tabular(key, value)
+            logger.log_tabular(key, value)

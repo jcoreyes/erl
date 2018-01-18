@@ -4,7 +4,7 @@ import numpy as np
 from gym import spaces
 
 from railrl.envs.multitask.reacher_env import GoalXYStateXYAndCosSinReacher2D
-from rllab.core.serializable import Serializable
+from railrl.core.serializable import Serializable
 
 
 class DiscreteReacher2D(GoalXYStateXYAndCosSinReacher2D, Serializable):

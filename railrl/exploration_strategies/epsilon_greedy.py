@@ -3,7 +3,7 @@ import random
 from gym.spaces import Discrete
 
 from railrl.exploration_strategies.base import RawExplorationStrategy
-from rllab.core.serializable import Serializable
+from railrl.core.serializable import Serializable
 
 
 class EpsilonGreedy(RawExplorationStrategy, Serializable):

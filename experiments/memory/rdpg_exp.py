@@ -6,8 +6,8 @@ import random
 from railrl.envs.memory.high_low import HighLow
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.policies.torch import RecurrentPolicy
-from railrl.qfunctions.torch import RecurrentQFunction
+from railrl.memory_states.policies import RecurrentPolicy
+from railrl.memory_states.qfunctions import RecurrentQFunction
 from railrl.torch.rdpg import Rdpg
 
 

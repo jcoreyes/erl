@@ -1,4 +1,5 @@
 import random
+import numpy as np
 
 import railrl.misc.hyperparameter as hyp
 from railrl.envs.multitask.ant_env import GoalXYPosAnt, GoalXYPosAndVelAnt
@@ -71,17 +72,16 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = "local"
-    mode = "local_docker"
-    exp_prefix = "dev-state-distance-ddpg-baseline"
+    exp_prefix = "dev-state-distance-ddpg-baseline-3"
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "try-hopper-again"
+    exp_prefix = "ddpg-ant-max-d-6-post-sweep"
 
     num_epochs = 1000
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
-    max_path_length = 100
+    max_path_length = 50
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -122,9 +122,9 @@ if __name__ == "__main__":
         'env_class': [
             # Reacher7DofXyzGoalState,
             # GoalXVelHalfCheetah,
-            # GoalXYPosAnt,
+            GoalXYPosAnt,
             # Reacher7DofXyzPosAndVelGoalState,
-            GoalXPosHopper,
+            # GoalXPosHopper,
             # GoalXYPosAndVelAnt,
             # GoalXPosHalfCheetah,
             # GoalXYGymPusherEnv,
@@ -145,18 +145,21 @@ if __name__ == "__main__":
         #     0.05,
         # ],
         # 'env_kwargs.speed_weight': [
-        #     0.99, 0.95, 0.9
+        #     None,
+        # ],
+        # 'env_kwargs.goal_dim_weights': [
+        #     (0.1, 0.1, 0.9, 0.9),
         # ],
         # 'env_kwargs.done_threshold': [
-        #     0.005,
+        #     0.005, 0.001, 0.0005
         # ],
         'env_kwargs.max_distance': [
-            0.5, 2
+            6,
         ],
-        'env_kwargs.action_penalty': [
-            1e-3, 0,
-        ],
-        'out_kwargs.theta': [0, 0.1],
+        # 'env_kwargs.action_penalty': [
+        #     1e-3, 0,
+        # ],
+        # 'ou_kwargs.theta': [0, 0.1],
         # 'env_kwargs.min_distance': [
         #     3,
         # ],
@@ -164,20 +167,35 @@ if __name__ == "__main__":
         #     False,
         # ],
         'algo_kwargs.num_paths_for_normalization': [
-            20, 0,
+            0
         ],
         # 'algo_kwargs.max_path_length': [
         #     max_path_length,
         # ],
         'algo_kwargs.num_updates_per_env_step': [
-            1,
+            1, 5, 10
         ],
+        # 'algo_kwargs.policy_pre_activation_weight': [
+        #     1.,
+        #     0.01,
+        #     0.,
+        #     0.1,
+        # ],
         'algo_kwargs.reward_scale': [
-            0.01, 1, 100, 10000
+            10, 100, 1000, 10000
+        ],
+        'algo_kwargs.discount': [
+            0.98,
         ],
         'algo_kwargs.tau': [
             0.01, 0.001,
         ],
+        # 'algo_kwargs.eval_with_target_policy': [
+        #     True, False
+        # ],
+        # 'algo_kwargs.max_q_value': [
+        #     0, np.inf,
+        # ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

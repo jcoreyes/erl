@@ -12,9 +12,9 @@ from robot_info.srv import *
 
 from experiments.murtaza.ros.Sawyer.joint_space_impedance import PDController
 from railrl.misc.data_processing import create_stats_ordered_dict
-from rllab.core.serializable import Serializable
+from railrl.core.serializable import Serializable
 from rllab.envs.base import Env
-from rllab.misc import logger
+from railrl.core import logger
 from rllab.spaces.box import Box
 
 NUM_JOINTS = 7

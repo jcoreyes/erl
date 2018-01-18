@@ -7,7 +7,7 @@ from gym.envs.mujoco import mujoco_env
 from railrl.envs.env_utils import get_asset_xml
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.samplers.util import get_stat_in_paths
-from rllab.misc import logger as rllab_logger
+from railrl.core import logger as default_logger
 
 
 def obs_to_goal(obs):
@@ -92,7 +92,7 @@ class Reacher7Dof(
             self.get_body_com("goal"),
         ])
 
-    def log_diagnostics(self, paths, logger=None):
+    def log_diagnostics(self, paths, logger=default_logger):
         statistics = OrderedDict()
 
         euclidean_distances = get_stat_in_paths(
@@ -107,7 +107,4 @@ class Reacher7Dof(
             always_show_all_stats=True,
         ))
         for key, value in statistics.items():
-            if logger is None:
-                rllab_logger.record_tabular(key, value)
-            else:
-                logger.log_tabular(key, value)
+            logger.log_tabular(key, value)

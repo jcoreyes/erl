@@ -5,7 +5,7 @@ sys.path.append(".")
 from rllab.misc.ext import is_iterable, set_seed
 from rllab.misc.instrument import concretize
 from railrl.launchers import config
-import rllab.misc.logger as logger
+from railrl.core import logger
 import argparse
 import os.path as osp
 import datetime

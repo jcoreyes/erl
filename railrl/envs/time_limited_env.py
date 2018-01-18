@@ -1,6 +1,6 @@
 import numpy as np
 from rllab.envs.proxy_env import ProxyEnv
-from rllab.core.serializable import Serializable
+from railrl.core.serializable import Serializable
 from rllab.spaces.box import Box
 
 

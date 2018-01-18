@@ -4,7 +4,7 @@ from gym.envs.mujoco import mujoco_env
 from gym import spaces
 
 from railrl.samplers.util import get_stat_in_paths
-from rllab.misc import logger
+from railrl.core import logger
 import itertools
 
 

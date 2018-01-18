@@ -5,7 +5,7 @@ from gym import spaces
 
 from railrl.envs.multitask.reacher_7dof import Reacher7DofMultitaskEnv, \
     Reacher7DofAngleGoalState
-from rllab.core.serializable import Serializable
+from railrl.core.serializable import Serializable
 
 
 class DiscreteReacher7DofAngleGoal(Reacher7DofAngleGoalState, Serializable):

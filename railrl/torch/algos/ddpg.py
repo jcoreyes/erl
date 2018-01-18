@@ -15,7 +15,7 @@ from railrl.policies.simple import RandomPolicy
 from railrl.samplers.util import rollout
 from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
 from railrl.torch.data_management.normalizer import TorchFixedNormalizer
-from rllab.misc import logger
+from railrl.core import logger
 from torch import nn as nn
 
 
@@ -49,6 +49,9 @@ class DDPG(TorchRLAlgorithm):
             obs_normalizer: TorchFixedNormalizer=None,
             action_normalizer: TorchFixedNormalizer=None,
             num_paths_for_normalization=0,
+
+            min_q_value=-np.inf,
+            max_q_value=np.inf,
 
             **kwargs
     ):
@@ -105,6 +108,8 @@ class DDPG(TorchRLAlgorithm):
         self.obs_normalizer = obs_normalizer
         self.action_normalizer = action_normalizer
         self.num_paths_for_normalization = num_paths_for_normalization
+        self.min_q_value = min_q_value
+        self.max_q_value = max_q_value
 
         self.target_qf = self.qf.copy()
         self.qf_optimizer = optim.Adam(
@@ -156,6 +161,7 @@ class DDPG(TorchRLAlgorithm):
         )
         q_target = rewards + (1. - terminals) * self.discount * target_q_values
         q_target = q_target.detach()
+        q_target = torch.clamp(q_target, self.min_q_value, self.max_q_value)
         # Hack for ICLR rebuttal
         if hasattr(self, 'reward_type') and self.reward_type == 'indicator':
             q_target = torch.clamp(q_target, -self.reward_scale/(1-self.discount), 0)

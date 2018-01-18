@@ -2,7 +2,7 @@ import numpy as np
 import gym.spaces
 from cached_property import cached_property
 
-from rllab.core.serializable import Serializable
+from railrl.core.serializable import Serializable
 from rllab.envs.proxy_env import ProxyEnv
 from sandbox.rocky.tf.spaces import Box as TfBox
 from sandbox.rocky.tf.spaces import Discrete as TfDiscrete

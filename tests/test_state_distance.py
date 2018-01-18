@@ -2,8 +2,8 @@ import unittest
 
 import numpy as np
 
-from railrl.policies.state_distance import UniversalPolicy
-from state_distance.rollout_util import multitask_rollout
+from railrl.state_distance.policies import UniversalPolicy
+from railrl.state_distance.rollout_util import multitask_rollout
 from railrl.testing.stub_classes import StubEnv
 
 
@@ -20,12 +20,12 @@ class TestMultitaskRollout(unittest.TestCase):
             discount,
             max_path_length=100,
             animated=False,
-            decrement_discount=False,
+            decrement_tau=False,
         )
         self.assertTrue(np.all(path['terminals'] == False))
         self.assertTrue(len(path['terminals']) == 100)
 
-    def test_decrement_discount(self):
+    def test_decrement_tau(self):
         env = StubMultitaskEnv()
         policy = StubUniversalPolicy()
         goal = None
@@ -37,7 +37,7 @@ class TestMultitaskRollout(unittest.TestCase):
             tau,
             max_path_length=tau,
             animated=False,
-            decrement_discount=True,
+            decrement_tau=True,
         )
         self.assertTrue(np.all(path['terminals'] == False))
         self.assertTrue(len(path['terminals']) == tau)
@@ -54,11 +54,11 @@ class TestMultitaskRollout(unittest.TestCase):
             tau,
             max_path_length=10,
             animated=False,
-            decrement_discount=True,
+            decrement_tau=True,
             cycle_tau=True,
         )
         self.assertEqual(
-            list(path['taus']),
+            list(path['num_steps_left']),
             [5, 4, 3, 2, 1, 0, 5, 4, 3, 2]
         )
 
@@ -74,11 +74,11 @@ class TestMultitaskRollout(unittest.TestCase):
             tau,
             max_path_length=10,
             animated=False,
-            decrement_discount=True,
+            decrement_tau=True,
             cycle_tau=False,
         )
         self.assertEqual(
-            list(path['taus']),
+            list(path['num_steps_left']),
             [5, 4, 3, 2, 1, 0, 0, 0, 0, 0]
         )
 

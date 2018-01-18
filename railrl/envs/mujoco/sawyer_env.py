@@ -1,6 +1,6 @@
 import numpy as np
 from rllab.spaces.box import Box
-from rllab.misc import logger
+from railrl.core import logger
 from railrl.envs.mujoco.mujoco_env import MujocoEnv
 import mujoco_py
 import ipdb

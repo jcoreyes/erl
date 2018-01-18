@@ -11,7 +11,7 @@ import argparse
 import joblib
 import numpy as np
 
-from railrl.policies.state_distance import (
+from railrl.state_distance.policies import (
     SoftOcOneStepRewardPolicy,
     TerminalRewardSampleOCPolicy,
     ArgmaxQFPolicy,
@@ -19,7 +19,7 @@ from railrl.policies.state_distance import (
     SamplePolicyPartialOptimizer)
 from railrl.samplers.util import rollout
 from railrl.torch.pytorch_util import set_gpu_mode
-from rllab.misc import logger
+from railrl.core import logger
 
 def experiment(variant):
     pass

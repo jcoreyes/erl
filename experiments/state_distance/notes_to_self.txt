@@ -1,0 +1,6 @@
+The main files I'm using are:
+ - experiments/state_distance/tdm/ddpg_tdm_launch.py
+ - experiments/state_distance/baselines/trpo.py
+ - experiments/state_distance/baselines/her_v2.py  # both HER and DDPG-Sparse
+ - experiments/state_distance/baselines/dagger.py
+ - experiments/state_distance/baselines/ddpg.py

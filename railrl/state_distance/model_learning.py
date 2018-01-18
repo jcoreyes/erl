@@ -17,7 +17,7 @@ from railrl.torch import pytorch_util as ptu
 from railrl.torch.algos.util import np_to_pytorch_batch
 from railrl.torch.eval_util import get_statistics_from_pytorch_dict, \
     get_difference_statistics
-from rllab.misc import logger
+from railrl.core import logger
 
 
 class ModelLearning(object):

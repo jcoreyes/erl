@@ -2,36 +2,20 @@
 Try the PyTorch version of BPTT DDPG on HighLow env.
 """
 import random
-import numpy as np
 
-from railrl.envs.memory.continuous_memory_augmented import (
-    ContinuousMemoryAugmented
-)
-from railrl.envs.memory.high_low import HighLow
 from railrl.envs.pygame.water_maze import (
-    WaterMaze,
-    WaterMazeHard,
-    WaterMazeEasy,
     WaterMazeMemory,
-    WaterMaze1D,
-    WaterMazeEasy1D,
-    WaterMazeMemory1D,
 )
-from railrl.exploration_strategies.noop import NoopStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import (
     run_experiment,
 )
 import railrl.misc.hyperparameter as hyp
 from railrl.launchers.memory_bptt_launchers import bptt_ddpg_launcher
-from railrl.policies.torch import MemoryPolicy, RWACell
 from railrl.pythonplusplus import identity
-from railrl.qfunctions.torch import MemoryQFunction, RecurrentMemoryQFunction
+from railrl.memory_states.qfunctions import MemoryQFunction
 from railrl.torch.rnn import LSTMCell, BNLSTMCell, GRUCell
-from railrl.torch.bptt_ddpg_rq import BpttDdpgRecurrentQ
 
-import torch
-from torch.nn import init
 from torch.nn import functional as F
 import railrl.torch.pytorch_util as ptu
 

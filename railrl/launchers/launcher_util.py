@@ -20,7 +20,7 @@ import tensorflow as tf
 import railrl.pythonplusplus as ppp
 from railrl.launchers import config
 from railrl.torch.pytorch_util import set_gpu_mode
-from rllab.misc import logger
+from railrl.core import logger
 from rllab.misc.instrument import run_experiment_lite, query_yes_no
 
 

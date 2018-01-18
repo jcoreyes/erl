@@ -9,8 +9,8 @@ from railrl.data_management.path_builder import PathBuilder
 from railrl.envs.remote import RemoteRolloutEnv
 from railrl.misc.np_util import truncated_geometric
 from railrl.misc.ml_util import ConstantSchedule
-from railrl.policies.base import SerializablePolicy, Policy
-from railrl.policies.state_distance import UniversalPolicy
+from railrl.policies.base import SerializablePolicy
+from railrl.state_distance.policies import UniversalPolicy
 from railrl.state_distance.exploration import MakeUniversal
 from railrl.state_distance.rollout_util import MultigoalSimplePathSampler, \
     multitask_rollout
@@ -18,7 +18,6 @@ from railrl.state_distance.tdm_networks import TdmNormalizer, MakeNormalizedTDMP
 from railrl.state_distance.util import merge_into_flat_obs
 from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
 from railrl.torch.algos.util import np_to_pytorch_batch
-from railrl.torch.data_management.normalizer import TorchFixedNormalizer
 
 
 class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
@@ -282,6 +281,8 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             neg_distances = self._compute_raw_neg_distances(next_obs, goals)
             if self.goal_weights is not None:
                 neg_distances = neg_distances * self.goal_weights
+            else:
+                neg_distances = neg_distances * self.env.goal_dim_weights
             return neg_distances * self.reward_scale
         elif self.reward_type == 'env':
             return batch['rewards']
@@ -425,6 +426,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         self._n_rollouts_total += 1
         self.replay_buffer.add_path(path)
 
+<<<<<<< HEAD
     # def pretrain(self):
     #     if self.num_paths_for_normalization == 0:
     #         return
@@ -472,6 +474,56 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
     #         if self.normalize_distance:
     #             self.tdm_normalizer.distance_normalizer.set_mean(distance_mean)
     #             self.tdm_normalizer.distance_normalizer.set_std(distance_std)
+=======
+    def pretrain(self):
+        if self.num_paths_for_normalization == 0:
+            return
+
+        paths = []
+        random_policy = RandomUniveralPolicy(self.env.action_space)
+        while len(paths) < self.num_paths_for_normalization:
+            goal = self._sample_goal_for_rollout()
+            path = multitask_rollout(
+                self.training_env,
+                random_policy,
+                goal=goal,
+                tau=0,
+                max_path_length=self.max_path_length,
+            )
+            paths.append(path)
+
+        obs = np.vstack([path["observations"] for path in paths])
+        next_obs = np.vstack([path["next_observations"] for path in paths])
+        actions = np.vstack([path["actions"] for path in paths])
+        goals = np.vstack([path["goals"] for path in paths])
+        neg_distances = self._compute_raw_neg_distances(next_obs, goals)
+
+        ob_mean = np.mean(obs, axis=0)
+        ob_std = np.std(obs, axis=0)
+        ac_mean = np.mean(actions, axis=0)
+        ac_std = np.std(actions, axis=0)
+        new_goals = np.vstack([
+            self._sample_goal_for_rollout()
+            for _ in range(
+                self.num_paths_for_normalization * self.max_path_length
+            )
+        ])
+        goal_mean = np.mean(new_goals, axis=0)
+        goal_std = np.std(new_goals, axis=0)
+        distance_mean = np.mean(neg_distances, axis=0)
+        distance_std = np.std(neg_distances, axis=0)
+
+        if self.tdm_normalizer is not None:
+            self.tdm_normalizer.obs_normalizer.set_mean(ob_mean)
+            self.tdm_normalizer.obs_normalizer.set_std(ob_std)
+            self.tdm_normalizer.action_normalizer.set_mean(ac_mean)
+            self.tdm_normalizer.action_normalizer.set_std(ac_std)
+            self.tdm_normalizer.goal_normalizer.set_mean(goal_mean)
+            self.tdm_normalizer.goal_normalizer.set_std(goal_std)
+            if self.normalize_distance:
+                self.tdm_normalizer.distance_normalizer.set_mean(distance_mean)
+                self.tdm_normalizer.distance_normalizer.set_std(distance_std)
+>>>>>>> dev
 
 
 class RandomUniveralPolicy(UniversalPolicy, SerializablePolicy):

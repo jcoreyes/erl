@@ -6,7 +6,7 @@ import numpy as np
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.samplers.util import get_stat_in_paths
-from rllab.misc import logger as rllab_logger
+from railrl.core import logger as default_logger
 
 
 class MultitaskPusher3DEnv(MujocoEnv, MultitaskEnv):
@@ -93,7 +93,7 @@ class MultitaskPusher3DEnv(MujocoEnv, MultitaskEnv):
     def goal_dim(self) -> int:
         return 2
 
-    def log_diagnostics(self, paths, logger=rllab_logger):
+    def log_diagnostics(self, paths, logger=default_logger):
         super().log_diagnostics(paths)
         MultitaskEnv.log_diagnostics(self, paths)
 

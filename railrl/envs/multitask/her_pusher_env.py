@@ -7,7 +7,7 @@ from gym.envs.mujoco import mujoco_env
 from railrl.envs.env_utils import get_asset_xml
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.samplers.util import get_stat_in_paths
-from rllab.misc import logger as rllab_logger
+from railrl.core import logger as default_logger
 
 
 def obs_to_goal(obs):
@@ -138,7 +138,7 @@ class Pusher2DEnv(
             self._target_cylinder_position,
         ])
 
-    def log_diagnostics(self, paths, logger=None):
+    def log_diagnostics(self, paths, logger=default_logger):
         final_hand_to_object_dist = get_stat_in_paths(
             paths, 'env_infos', 'hand_to_object_distance'
         )[:, -1]
@@ -166,8 +166,5 @@ class Pusher2DEnv(
             always_show_all_stats=True,
         ))
         for key, value in statistics.items():
-            if logger is None:
-                rllab_logger.record_tabular(key, value)
-            else:
-                logger.log_tabular(key, value)
+            logger.log_tabular(key, value)
 

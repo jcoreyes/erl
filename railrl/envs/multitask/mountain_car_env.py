@@ -2,7 +2,7 @@ import numpy as np
 from gym.envs.classic_control import MountainCarEnv
 
 from railrl.envs.multitask.multitask_env import MultitaskEnv
-from rllab.core.serializable import Serializable
+from railrl.core.serializable import Serializable
 
 
 class MountainCar(MountainCarEnv, MultitaskEnv, Serializable):

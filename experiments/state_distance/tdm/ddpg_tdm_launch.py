@@ -6,7 +6,7 @@ import torch.nn as nn
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.envs.multitask.ant_env import GoalXYPosAnt
+from railrl.envs.multitask.ant_env import GoalXYPosAnt, GoalXYPosAndVelAnt
 # from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
     GoalXPosHalfCheetah
@@ -17,19 +17,18 @@ from railrl.envs.multitask.walker2d_env import Walker2DTargetXPos
 from railrl.envs.multitask.reacher_7dof import (
     # Reacher7DofGoalStateEverything,
     Reacher7DofXyzGoalState,
-)
+    Reacher7DofXyzPosAndVelGoalState)
 from railrl.envs.wrappers import normalize_box
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.policies.torch import FeedForwardPolicy
 from railrl.state_distance.tdm_networks import StructuredQF, TdmPolicy, \
     InternalGcmQf, TdmQf, TdmNormalizer
 from railrl.state_distance.tdm_ddpg import TdmDdpg
 from railrl.torch.data_management.normalizer import TorchFixedNormalizer
 from railrl.torch.modules import HuberLoss
-from railrl.torch.networks import TanhMlpPolicy
+from railrl.torch.networks import TanhMlpPolicy, FeedForwardPolicy
 
 
 def experiment(variant):
@@ -104,14 +103,13 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = "local"
-    # mode = "local_docker"
-    exp_prefix = "dev-ddpg-tdm-launch"
+    exp_prefix = "dev-ddpg-tdm-launch-2"
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "ant-distance-3-to-5"
+    exp_prefix = "pusher-gym-find-difference"
 
-    num_epochs = 500
+    num_epochs = 100
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
     max_path_length = 100
@@ -171,19 +169,27 @@ if __name__ == "__main__":
         'env_class': [
             # GoalXVelHalfCheetah,
             # GoalXPosHalfCheetah,
-            GoalXYPosAnt,
+            # GoalXYPosAnt,
+            # Reacher7DofXyzPosAndVelGoalState,
+            # GoalXYPosAndVelAnt,
             # MultitaskPusher3DEnv,
             # Reacher7DofXyzGoalState,
             # CylinderXYPusher2DEnv,
             # Walker2DTargetXPos,
-            # GoalXYGymPusherEnv,
+            GoalXYGymPusherEnv,
         ],
-        'env_kwargs.max_distance': [
-            5,
-        ],
-        'env_kwargs.min_distance': [
-            3,
-        ],
+        # 'env_kwargs.max_distance': [
+        #     6,
+        # ],
+        # 'env_kwargs.min_distance': [
+        #     3,
+        # ],
+        # 'env_kwargs.speed_weight': [
+        #     None,
+        # ],
+        # 'env_kwargs.goal_dim_weights': [
+        #     (0.1, 0.1, 0.9, 0.9),
+        # ],
         'tdm_normalizer_kwargs.log_tau': [
             False,
         ],
@@ -198,22 +204,22 @@ if __name__ == "__main__":
             'environment',
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.num_paths_for_normalization': [
-            20, 0
+            20
         ],
         'es_kwargs': [
             dict(theta=0.1, max_sigma=0.1, min_sigma=0.1),
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.max_tau': [
-            25, 99
+            32, 99
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.dense_rewards': [
-            False,
+            False, True,
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.finite_horizon': [
-            True,
+            True, False,
         ],
         'relabel': [
-            True,
+            True, False,
         ],
         'her_replay_buffer_kwargs.resampling_strategy': [
             # 'truncated_geometric',
@@ -244,16 +250,16 @@ if __name__ == "__main__":
             # 'none',
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.terminate_when_goal_reached': [
-            True, False
+            False
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.normalize_distance': [
             False
         ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
-            1, 100, 1000, 10000, 1000000
+            100, 10000, 1000000
         ],
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
-            1,
+            1, 5, 10,
         ],
         'ddpg_tdm_kwargs.base_kwargs.discount': [
             1,

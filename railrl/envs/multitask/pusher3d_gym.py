@@ -6,8 +6,8 @@ from railrl.envs.mujoco.pusher import PusherEnv
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.samplers.util import get_stat_in_paths
-from rllab.core.serializable import Serializable
-from rllab.misc import logger as rllab_logger
+from railrl.core.serializable import Serializable
+from railrl.core import logger as default_logger
 
 
 class GoalXYGymPusherEnv(PusherEnv, MultitaskEnv, Serializable):
@@ -69,7 +69,7 @@ class GoalXYGymPusherEnv(PusherEnv, MultitaskEnv, Serializable):
     def convert_obs_to_goals(self, obs):
         return obs[:, 17:19]
 
-    def log_diagnostics(self, paths, logger=rllab_logger):
+    def log_diagnostics(self, paths, logger=default_logger):
         super().log_diagnostics(paths)
         MultitaskEnv.log_diagnostics(self, paths)
 

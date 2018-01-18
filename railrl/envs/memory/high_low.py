@@ -9,7 +9,7 @@ from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.np_util import np_print_options
 from railrl.pythonplusplus import clip_magnitude
 from rllab.envs.base import Env
-from rllab.misc import logger
+from railrl.core import logger
 from rllab.spaces.box import Box
 
 

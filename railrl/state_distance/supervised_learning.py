@@ -6,7 +6,7 @@ from torch import optim as optim
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.algos.util import np_to_pytorch_batch
-from rllab.misc import logger
+from railrl.core import logger
 
 
 def create_batch_iterator(num_unique_batches, batch_dict):

@@ -14,7 +14,7 @@ from railrl.launchers.launcher_util import (
 )
 from railrl.launchers.memory_bptt_launchers import bptt_ddpg_launcher
 from railrl.pythonplusplus import identity
-from railrl.qfunctions.torch import MemoryQFunction
+from railrl.memory_states.qfunctions import MemoryQFunction
 from railrl.torch.rnn import GRUCell
 
 if __name__ == '__main__':

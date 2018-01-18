@@ -5,11 +5,11 @@ import numpy as np
 
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.samplers.util import get_stat_in_paths
-from rllab.misc import logger
+from railrl.core import logger
 from gym.envs.mujoco import Walker2dEnv
 
 from railrl.envs.multitask.multitask_env import MultitaskEnv
-from rllab.core.serializable import Serializable
+from railrl.core.serializable import Serializable
 
 
 class MultitaskWalker2D(
