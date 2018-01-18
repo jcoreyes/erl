@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 import joblib
 
-from railrl.torch.eval_util import get_generic_path_information
+from railrl.core.eval_util import get_generic_path_information
 from railrl.state_distance.rollout_util import multitask_rollout
 from railrl.core import logger
 

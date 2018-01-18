@@ -12,8 +12,9 @@ from railrl.samplers.util import split_paths_to_dict
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.algos.util import np_to_pytorch_batch
 from railrl.torch.core import PyTorchModule
-from railrl.torch.eval_util import get_statistics_from_pytorch_dict, \
+from railrl.core.eval_util import (
     get_difference_statistics, get_average_returns
+)
 from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
 from railrl.core import logger
 
@@ -266,3 +267,63 @@ class NafPolicy(PyTorchModule):
         action = action.squeeze(0)
         P = P.squeeze(0)
         return ptu.get_numpy(action), ptu.get_numpy(P)
+
+
+def get_statistics_from_pytorch_dict(
+        pytorch_dict,
+        mean_stat_names,
+        full_stat_names,
+        stat_prefix,
+):
+    """
+    :param pytorch_dict: Dictionary, from string to pytorch Tensor
+    :param mean_stat_names: List of strings. Add the mean of these
+    Tensors to the output
+    :param full_stat_names: List of strings. Add all statistics of these
+    Tensors to the output
+    :param stat_prefix: Prefix to all statistics in outputted dict.
+    :return: OrderedDict of statistics
+    """
+    statistics = OrderedDict()
+    for name in mean_stat_names:
+        tensor = pytorch_dict[name]
+        statistics_name = "{} {} Mean".format(stat_prefix, name)
+        statistics[statistics_name] = np.mean(ptu.get_numpy(tensor))
+
+    for name in full_stat_names:
+        tensor = pytorch_dict[name]
+        data = ptu.get_numpy(tensor)
+        statistics.update(create_stats_ordered_dict(
+            '{} {}'.format(stat_prefix, name),
+            data,
+        ))
+    return statistics
+
+
+def get_difference_statistics(
+        statistics,
+        stat_names,
+        include_validation_train_gap=True,
+        include_test_validation_gap=True,
+):
+    assert include_validation_train_gap or include_test_validation_gap
+    difference_pairs = []
+    if include_validation_train_gap:
+        difference_pairs.append(('Validation', 'Train'))
+    if include_test_validation_gap:
+        difference_pairs.append(('Test', 'Validation'))
+    differences = OrderedDict()
+    for prefix_1, prefix_2 in difference_pairs:
+        for stat_name in stat_names:
+            diff_name = "{0}: {1} - {2}".format(
+                stat_name,
+                prefix_1,
+                prefix_2,
+            )
+            differences[diff_name] = (
+                    statistics["{0} {1}".format(prefix_1, stat_name)]
+                    - statistics["{0} {1}".format(prefix_2, stat_name)]
+            )
+    return differences
+
+

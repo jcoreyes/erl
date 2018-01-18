@@ -1,17 +1,13 @@
 from collections import OrderedDict
 
 import numpy as np
-import torch.optim as optim
 import torch
 from torch import nn as nn
-from torch.autograd import Variable
 from torch.nn import init
 
 from railrl.torch.core import PyTorchModule
 from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.torch.eval_util import get_average_returns
 from railrl.torch.ddpg import DDPG
-from railrl.torch.rl_algorithm import RLAlgorithm
 import railrl.torch.pytorch_util as ptu
 import railrl.torch.modules as M
 

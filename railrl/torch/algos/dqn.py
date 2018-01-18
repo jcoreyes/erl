@@ -12,9 +12,8 @@ from railrl.exploration_strategies.base import (
 from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.policies.argmax import ArgmaxDiscretePolicy
-from railrl.torch import eval_util
 from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
-from railrl.core import logger
+from railrl.core import logger, eval_util
 
 
 class DQN(TorchRLAlgorithm):

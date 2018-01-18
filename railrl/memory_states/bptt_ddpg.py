@@ -10,11 +10,11 @@ from railrl.data_management.updatable_subtraj_replay_buffer import (
     UpdatableSubtrajReplayBuffer
 )
 from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.torch.eval_util import get_average_returns
+from railrl.core.eval_util import get_average_returns
 from railrl.pythonplusplus import batch, ConditionTimer
 from railrl.core.rl_algorithm import RLAlgorithm
-from railrl.torch import pytorch_util as ptu, eval_util
-from railrl.core import logger
+from railrl.torch import pytorch_util as ptu
+from railrl.core import logger, eval_util
 
 
 # noinspection PyCallingNonCallable
