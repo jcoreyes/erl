@@ -2,6 +2,7 @@ from collections import OrderedDict
 
 import numpy as np
 import torch
+from gym.spaces import Box
 
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.envs.pygame.water_maze import WaterMaze
@@ -10,7 +11,6 @@ from railrl.samplers.util import get_stat_in_paths
 from railrl.torch.core import PyTorchModule
 from railrl.core.serializable import Serializable
 from railrl.core import logger
-from rllab.spaces import Box
 
 
 class MultitaskPoint2DEnv(WaterMaze, MultitaskEnv, Serializable):

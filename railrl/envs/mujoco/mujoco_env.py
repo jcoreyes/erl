@@ -7,10 +7,9 @@ from gym.envs.mujoco import mujoco_env
 
 from railrl.envs.env_utils import get_asset_xml
 from railrl.core.serializable import Serializable
-from rllab.envs.base import Env
 
 
-class MujocoEnv(mujoco_env.MujocoEnv, Serializable, Env):
+class MujocoEnv(mujoco_env.MujocoEnv, Serializable):
     """
     My own wrapper around MujocoEnv.
 

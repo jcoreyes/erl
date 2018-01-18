@@ -7,10 +7,12 @@ from gym.spaces import Box
 from railrl.core.serializable import Serializable
 
 
-class ProxyEnv(Serializable):
+class ProxyEnv(Serializable, Env):
     def __init__(self, wrapped_env):
         Serializable.quick_init(self, locals())
         self._wrapped_env = wrapped_env
+        self.action_space = self._wrapped_env.action_space
+        self.observation_space = self._wrapped_env.observation_space
 
     @property
     def wrapped_env(self):
@@ -18,14 +20,6 @@ class ProxyEnv(Serializable):
 
     def reset(self, **kwargs):
         return self._wrapped_env.reset(**kwargs)
-
-    @property
-    def action_space(self):
-        return self._wrapped_env.action_space
-
-    @property
-    def observation_space(self):
-        return self._wrapped_env.observation_space
 
     def step(self, action):
         return self._wrapped_env.step(action)
@@ -83,6 +77,8 @@ class NormalizedBoxEnv(ProxyEnv, Serializable):
         self._reward_scale = reward_scale
         self._obs_mean = obs_mean
         self._obs_std = obs_std
+        ub = np.ones(self._wrapped_env.action_space.shape)
+        self.action_space = Box(-1 * ub, ub)
 
     def estimate_obs_stats(self, obs_batch, override_values=False):
         if self._obs_mean is not None and not override_values:
@@ -107,16 +103,6 @@ class NormalizedBoxEnv(ProxyEnv, Serializable):
         self._obs_mean = d["_obs_mean"]
         self._obs_std = d["_obs_std"]
         self._reward_scale = d["_reward_scale"]
-
-    @property
-    def action_space(self):
-        ub = np.ones(self._wrapped_env.action_space.shape)
-        return Box(-1 * ub, ub)
-
-    @property
-    def observation_space(self):
-        return Box(super().observation_space.low,
-                   super().observation_space.high)
 
     def step(self, action):
         lb = self._wrapped_env.action_space.low
@@ -172,14 +158,17 @@ class ConvertEnvToRllab(ProxyEnv, Serializable):
     def __init__(self, env):
         Serializable.quick_init(self, locals())
         ProxyEnv.__init__(self, env)
-
-    @cached_property
-    def action_space(self):
-        return convert_space_to_tf_space(self._wrapped_env.action_space)
-
-    @cached_property
-    def observation_space(self):
-        return convert_space_to_tf_space(self._wrapped_env.observation_space)
+        self.action_space = convert_space_to_rllab_space(
+            self._wrapped_env.action_space
+        )
+        self.observation_space = convert_space_to_rllab_space(
+            self._wrapped_env.observation_space
+        )
+        from rllab.envs.env_spec import EnvSpec
+        self.spec = EnvSpec(
+            observation_space=self.observation_space,
+            action_space=self.action_space,
+        )
 
     def __str__(self):
         return "RllabConverted: %s" % self._wrapped_env
@@ -188,14 +177,6 @@ class ConvertEnvToRllab(ProxyEnv, Serializable):
         if hasattr(self.wrapped_env, "get_param_values"):
             return self.wrapped_env.get_param_values()
         return None
-
-    @cached_property
-    def spec(self):
-        from rllab.envs.env_spec import EnvSpec
-        return EnvSpec(
-            observation_space=self.observation_space,
-            action_space=self.action_space,
-        )
 
 
 def convert_space_to_rllab_space(space):
@@ -216,14 +197,17 @@ class ConvertEnvToTf(ProxyEnv, Serializable):
     def __init__(self, env):
         Serializable.quick_init(self, locals())
         ProxyEnv.__init__(self, env)
-
-    @cached_property
-    def action_space(self):
-        return convert_space_to_tf_space(self._wrapped_env.action_space)
-
-    @cached_property
-    def observation_space(self):
-        return convert_space_to_tf_space(self._wrapped_env.observation_space)
+        self.action_space = convert_space_to_tf_space(
+            self._wrapped_env.action_space
+        )
+        self.observation_space = convert_space_to_tf_space(
+            self._wrapped_env.observation_space
+        )
+        from rllab.envs.env_spec import EnvSpec
+        self.spec = EnvSpec(
+            observation_space=self.observation_space,
+            action_space=self.action_space,
+        )
 
     def __str__(self):
         return "TfConverted: %s" % self._wrapped_env
@@ -232,14 +216,6 @@ class ConvertEnvToTf(ProxyEnv, Serializable):
         if hasattr(self.wrapped_env, "get_param_values"):
             return self.wrapped_env.get_param_values()
         return None
-
-    @cached_property
-    def spec(self):
-        from rllab.envs.env_spec import EnvSpec
-        return EnvSpec(
-            observation_space=self.observation_space,
-            action_space=self.action_space,
-        )
 
 
 def convert_space_to_tf_space(space):

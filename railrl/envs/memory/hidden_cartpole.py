@@ -7,7 +7,6 @@ from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.samplers.util import split_paths
 from railrl.core.serializable import Serializable
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
-from rllab.envs.proxy_env import ProxyEnv
 from railrl.core import logger
 from sandbox.rocky.tf.spaces import Box
 

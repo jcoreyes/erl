@@ -5,7 +5,6 @@ import numpy as np
 from railrl.envs.mujoco.mujoco_env import MujocoEnv
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.samplers.util import split_paths
-from rllab.envs.env_spec import EnvSpec
 from railrl.core import logger
 from sandbox.rocky.tf.spaces.box import Box
 
@@ -53,10 +52,6 @@ class WaterMaze(MujocoEnv):
 
         self.action_space = Box(np.array([-1, -1]), np.array([1, 1]))
         self.observation_space = self._create_observation_space()
-        self.spec = EnvSpec(
-            self.observation_space,
-            self.action_space,
-        )
         self.reset_model()
 
     @property

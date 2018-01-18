@@ -1,10 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from cached_property import cached_property
+from gym import Env
+from gym.spaces import Box
 
 from railrl.core.serializable import Serializable
-from rllab.spaces.box import Box
-from rllab.envs.base import Env
 from railrl.core import logger
 
 
@@ -16,6 +16,7 @@ class MultiGoalEnv(Env, Serializable):
     State: position.
     Action: velocity.
     """
+
     def __init__(self, goal_reward=10, actuation_cost_coeff=30,
                  distance_cost_coeff=1):
         super().__init__()
@@ -48,28 +49,23 @@ class MultiGoalEnv(Env, Serializable):
         self.fixed_plots = None
         self.dynamic_plots = []
 
-    def reset(self):
-        unclipped_observation = self.init_mu + self.init_sigma * \
-            np.random.normal(size=self.dynamics.s_dim)
-        o_lb, o_ub = self.observation_space.bounds
-        self.observation = np.clip(unclipped_observation, o_lb, o_ub)
-        return self.observation
-
-    @cached_property
-    def observation_space(self):
-        return Box(
+        self.observation_space = Box(
             low=np.array((self.xlim[0], self.ylim[0])),
             high=np.array((self.xlim[1], self.ylim[1])),
             shape=None
         )
-
-    @cached_property
-    def action_space(self):
-        return Box(
+        self.action_space = Box(
             low=-self.vel_bound,
             high=self.vel_bound,
             shape=(self.dynamics.a_dim,)
         )
+
+    def reset(self):
+        unclipped_observation = self.init_mu + self.init_sigma * \
+                                np.random.normal(size=self.dynamics.s_dim)
+        o_lb, o_ub = self.observation_space.bounds
+        self.observation = np.clip(unclipped_observation, o_lb, o_ub)
+        return self.observation
 
     def get_current_obs(self):
         return np.copy(self.observation)
@@ -191,11 +187,13 @@ class MultiGoalEnv(Env, Serializable):
     def horizon(self):
         return None
 
+
 class PointDynamics(object):
     """
     State: position.
     Action: velocity.
     """
+
     def __init__(self, dim, sigma):
         self.dim = dim
         self.sigma = sigma
@@ -205,7 +203,7 @@ class PointDynamics(object):
     def forward(self, state, action):
         mu_next = state + action
         state_next = mu_next + self.sigma * \
-            np.random.normal(size=self.s_dim)
+                     np.random.normal(size=self.s_dim)
         return state_next
 
 

@@ -1,6 +1,6 @@
-from rllab.envs.base import Env
-from rllab.spaces import Box
-from rllab.envs.base import Step
+from gym import Env
+from gym.spaces import Box
+
 import numpy as np
 
 
@@ -24,7 +24,7 @@ class PointEnv(Env):
         reward = - (x ** 2 + y ** 2) ** 0.5
         done = abs(x) < 0.01 and abs(y) < 0.01
         next_observation = np.copy(self._state)
-        return Step(observation=next_observation, reward=reward, done=done)
+        return next_observation, reward, done
 
-    def render(self):
+    def render(self, **kwargs):
         print('current state:', self._state)

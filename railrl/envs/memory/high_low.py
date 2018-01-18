@@ -3,21 +3,20 @@ from random import randint
 
 import tensorflow as tf
 import numpy as np
+from gym.spaces import Box
 
 from railrl.envs.supervised_learning_env import RecurrentSupervisedLearningEnv
 from railrl.misc.data_processing import create_stats_ordered_dict
 from railrl.misc.np_util import np_print_options
 from railrl.pythonplusplus import clip_magnitude
-from rllab.envs.base import Env
 from railrl.core import logger
-from rllab.spaces.box import Box
 
 
 def _generate_sign():
     return 2*randint(0, 1) - 1
 
 
-class HighLow(Env, RecurrentSupervisedLearningEnv):
+class HighLow(RecurrentSupervisedLearningEnv):
     def __init__(self, horizon, give_time):
         assert horizon > 0
         self._horizon = horizon
