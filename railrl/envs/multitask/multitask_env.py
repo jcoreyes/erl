@@ -381,3 +381,12 @@ class MultitaskEnvToSilentMultitaskEnv(ProxyEnv, Serializable):
             actions,
             next_states,
         )
+
+    def sample_goal_for_rollout(self):
+        return self._wrapped_env.sample_goal_for_rollout()
+
+    def sample_goals(self, batch_size):
+        return self._wrapped_env.sample_goals(batch_size)
+
+    def sample_states(self, batch_size):
+        return self._wrapped_env.sample_states(batch_size)

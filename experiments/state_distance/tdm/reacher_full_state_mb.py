@@ -5,25 +5,21 @@ import numpy as np
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.envs.multitask.ant_env import GoalXYPosAnt
-from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
-    GoalXPosHalfCheetah
-from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
-from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
-from railrl.envs.multitask.walker2d_env import Walker2DTargetXPos
 from railrl.envs.multitask.reacher_7dof import (
-    # Reacher7DofGoalStateEverything,
+    # Reacher7DofFullGoal,
     Reacher7DofXyzGoalState,
 )
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.sac.policies import TanhGaussianPolicy
+from railrl.state_distance.probabilistic_tdm.mpc_controller import \
+    ImplicitMPCController
 from railrl.state_distance.tdm_sac import TdmSac
 from railrl.torch.networks import FlattenMlp
 
 
 def experiment(variant):
-    env = NormalizedBoxEnv(variant['env_class']())
+    env = NormalizedBoxEnv(Reacher7DofFullGoal())
 
     obs_dim = int(np.prod(env.observation_space.low.shape))
     action_dim = int(np.prod(env.action_space.low.shape))
@@ -42,6 +38,15 @@ def experiment(variant):
         obs_dim=obs_dim + env.goal_dim + 1,
         action_dim=action_dim,
         **variant['policy_params']
+    )
+    mpc_controller = ImplicitMPCController(
+        env,
+        qf,
+        policy,
+    )
+    variant['sac_tdm_kwargs']['base_kwargs']['eval_policy'] = mpc_controller
+    variant['sac_tdm_kwargs']['base_kwargs']['exploration_policy'] = (
+        mpc_controller
     )
     replay_buffer = HerReplayBuffer(
         env=env,
@@ -63,11 +68,11 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = "local"
-    exp_prefix = "dev-sac-tdm-launch"
+    exp_prefix = "dev-reacher-implicit-mb"
 
-    n_seeds = 1
-    mode = "ec2"
-    exp_prefix = "sac-tdm-reacher"
+    # n_seeds = 1
+    # mode = "ec2"
+    # exp_prefix = "sac-tdm-reacher"
 
     num_epochs = 100
     num_steps_per_epoch = 1000
@@ -118,12 +123,8 @@ if __name__ == "__main__":
     )
     search_space = {
         'env_class': [
-            # GoalXVelHalfCheetah,
+            # Reacher7DofFullGoal,
             Reacher7DofXyzGoalState,
-            # GoalXYPosAnt,
-            # Walker2DTargetXPos,
-            # MultitaskPusher3DEnv,
-            # CylinderXYPusher2DEnv,
         ],
         'sac_tdm_kwargs.base_kwargs.reward_scale': [
             1,

@@ -258,13 +258,12 @@ class Reacher7DofXyzPosAndVelGoalState(Reacher7DofMultitaskEnv):
 
 
 class Reacher7DofFullGoal(Reacher7DofMultitaskEnv):
-
     @property
     def goal_dim(self) -> int:
         return 17
 
     def sample_goals(self, batch_size):
-        raise NotImplementedError()
+        return self.sample_states(batch_size)
 
     def convert_obs_to_goals(self, obs):
         return obs
@@ -273,22 +272,42 @@ class Reacher7DofFullGoal(Reacher7DofMultitaskEnv):
         super().set_goal(goal)
         self._set_goal_xyz(goal[14:17])
 
-    def sample_goal_for_rollout(self):
-        angles = np.random.uniform(
-            np.array([-2.28, -0.52, -1.4, -2.32, -1.5, -1.094, -1.5]),
-            np.array([1.71, 1.39, 1.7, 0,   1.5, 0,   1.5, ]),
+    def sample_states(self, batch_size):
+        random_pos = np.random.uniform(
+            [-2.28, -0.52, -1.4, -2.32, -1.5, -1.094, -1.5],
+            [1.71, 1.39, 1.7, 0, 1.5, 0, 1.5, ],
+            (batch_size, 7)
         )
-
-        saved_qpos = self.init_qpos.copy()
-        saved_qvel = self.init_qvel.copy()
-        qpos_tmp = saved_qpos.copy()
-        qpos_tmp[:7] = angles
-        self.set_state(qpos_tmp, saved_qvel)
-        ee_pos = self.get_body_com("tips_arm")
-        self.set_state(saved_qpos, saved_qvel)
-        velocities = np.zeros(7)
+        random_vel = np.random.uniform(-3, 3, (batch_size, 7))
+        random_xyz = np.random.uniform(
+            np.array([-0.75, -1.25, -0.2]),
+            np.array([0.75, 0.25, 0.6]),
+            (batch_size, 3)
+        )
         return np.hstack((
-            angles,
-            velocities,
-            ee_pos,
+            random_pos,
+            random_vel,
+            random_xyz,
         ))
+
+    def cost_fn(self, states, actions, next_states):
+        """
+        This is added for model-based code. This is COST not reward.
+        So lower is better.
+
+        :param states:  (BATCH_SIZE x state_dim) numpy array
+        :param actions:  (BATCH_SIZE x action_dim) numpy array
+        :param next_states:  (BATCH_SIZE x state_dim) numpy array
+        :return: (BATCH_SIZE, ) numpy array
+        """
+        if len(next_states.shape) == 1:
+            next_states = np.expand_dims(next_states, 0)
+        xyz_pos = next_states[:, 14:17]
+        desired_xyz_pos = self.multitask_goal[14:17] * np.ones_like(xyz_pos)
+        diff = xyz_pos - desired_xyz_pos
+        costs = np.linalg.norm(
+            diff,
+            axis=1,
+            ord=1,
+        )
+        return costs

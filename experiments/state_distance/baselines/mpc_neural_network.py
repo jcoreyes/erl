@@ -16,9 +16,10 @@ from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
 from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
 from railrl.envs.multitask.pusher3d_gym import GoalXYGymPusherEnv
 from railrl.envs.multitask.reacher_7dof import (
-    Reacher7DofXyzGoalState, Reacher7DofXyzPosAndVelGoalState)
+    Reacher7DofFullGoal
+)
 from railrl.envs.multitask.walker2d_env import Walker2DTargetXPos
-from railrl.envs.wrappers import convert_gym_space, NormalizedBoxEnv
+from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
@@ -83,11 +84,11 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-dagger-2"
 
-    n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "final-ant-pos-and-vel"
+    # n_seeds = 3
+    # mode = "ec2"
+    # exp_prefix = "reacher-model-based"
 
-    num_epochs = 500
+    num_epochs = 100
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
     max_path_length = 100
@@ -128,6 +129,7 @@ if __name__ == "__main__":
     search_space = {
         'multitask': [True],
         'env_class': [
+            Reacher7DofFullGoal,
             # GoalXVelHalfCheetah,
             # Reacher7DofXyzGoalState,
             # GoalXYPosAnt,
@@ -136,7 +138,8 @@ if __name__ == "__main__":
             # MultitaskPusher3DEnv,
             # GoalXPosHopper,
             # Reacher7DofXyzPosAndVelGoalState,
-            GoalXYPosAndVelAnt,
+            # GoalXYPosAndVelAnt,
+            # GoalXYPosAndVelAnt,
             # CylinderXYPusher2DEnv,
             # Walker2DTargetXPos,
         ],
@@ -157,12 +160,12 @@ if __name__ == "__main__":
         # 'env_kwargs.max_speed': [
         #     0.05,
         # ],
-        'env_kwargs.speed_weight': [
-            None,
-        ],
-        'env_kwargs.goal_dim_weights': [
-            (0.1, 0.1, 0.9, 0.9),
-        ],
+        # 'env_kwargs.speed_weight': [
+        #     None,
+        # ],
+        # 'env_kwargs.goal_dim_weights': [
+        #     (0.1, 0.1, 0.9, 0.9),
+        # ],
         # 'env_kwargs.done_threshold': [
         #     0.005,
         # ],
@@ -170,11 +173,11 @@ if __name__ == "__main__":
         #     max_path_length,
         # ],
         'algo_kwargs.num_updates_per_env_step': [
-            1, 5, 10
+            1,
         ],
         'algo_kwargs.num_paths_for_normalization': [20],
-        'ou_kawrgs.max_sigma': [0.1, 0],
-        'mpc_controller_kwargs.mpc_horizon': [15],
+        'ou_kawrgs.max_sigma': [0.1],
+        'mpc_controller_kwargs.mpc_horizon': [1, 15],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -189,4 +192,5 @@ if __name__ == "__main__":
                 seed=seed,
                 variant=variant,
                 exp_id=exp_id,
+                use_gpu=True,
             )
