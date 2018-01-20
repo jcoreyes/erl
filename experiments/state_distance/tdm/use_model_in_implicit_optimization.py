@@ -19,8 +19,8 @@ class ModelToTdm(PyTorchModule):
         self.model = model
 
     def forward(self, obs, action, goal, taus):
-        out = -(goal - self.model(obs, action))**2
-        return torch.norm(out, dim=1).unsqueeze(1)
+        out = (goal - obs - self.model(obs, action))**2
+        return -torch.norm(out, dim=1).unsqueeze(1)
 
 
 if __name__ == "__main__":
@@ -43,6 +43,7 @@ if __name__ == "__main__":
     parser.add_argument('--ndc', help='not (decrement and cycle tau)',
                         action='store_true')
     parser.add_argument('--justsim', action='store_true')
+    parser.add_argument('--npath', type=int, default=100)
     args = parser.parse_args()
     if args.pause:
         import ipdb; ipdb.set_trace()
@@ -57,7 +58,7 @@ if __name__ == "__main__":
         trained_mpc_controller = data['exploration_policy'].policy
     trained_mpc_controller.env = env
     trained_mpc_controller.cost_fn = env.cost_fn
-    trained_mpc_controller.num_simulated_paths = 5
+    trained_mpc_controller.num_simulated_paths = args.npath
     trained_mpc_controller.horizon = 1
     if args.justsim:
         while True:
@@ -76,7 +77,7 @@ if __name__ == "__main__":
         tdm = ModelToTdm(model)
 
         for weight in [100]:
-            for num_simulated_paths in [100]:
+            for num_simulated_paths in [args.npath]:
                 print("")
                 print("weight", weight)
                 print("num_simulated_paths", num_simulated_paths)

@@ -2,7 +2,7 @@ from railrl.policies.base import ExplorationPolicy
 from railrl.torch.core import PyTorchModule
 import numpy as np
 import railrl.torch.pytorch_util as ptu
-from torch.optim import Adam
+from torch import optim
 
 
 class ImplicitMPCController(PyTorchModule, ExplorationPolicy):
@@ -40,13 +40,13 @@ class ImplicitMPCController(PyTorchModule, ExplorationPolicy):
     def forward(self, *input):
         raise NotImplementedError()
 
-    def expand_np_to_var(self, array):
+    def expand_np_to_var(self, array, requires_grad=False):
         array_expanded = np.repeat(
             np.expand_dims(array, 0),
             self.num_simulated_paths,
             axis=0
         )
-        return ptu.np_to_var(array_expanded, requires_grad=False)
+        return ptu.np_to_var(array_expanded, requires_grad=requires_grad)
 
     def expand_np(self, array):
         return np.repeat(
@@ -65,23 +65,37 @@ class ImplicitMPCController(PyTorchModule, ExplorationPolicy):
             (self.num_simulated_paths, self.action_dim)
         )
 
-    def get_feasible_actions_and_goal_states(self, obs):
-        obs = self.expand_np_to_var(obs)
-        goal_states = ptu.np_to_var(self.sample_goals(), requires_grad=True)
-        actions = ptu.np_to_var(self.sample_actions(), requires_grad=True)
+    def get_feasible_actions_and_goal_states(self, single_obs):
+        obs = self.expand_np_to_var(single_obs)
+        actions = ptu.np_to_var(self.sample_actions())
         taus = self.expand_np_to_var(np.array([0]))
-        optimizer = Adam([goal_states, actions])
-        for _ in range(10):
-            # actions = self.policy(obs, goal_states, taus)
-            cost = - self.tdm(obs, actions, goal_states, taus).mean()
+        next_states = obs + self.tdm.model(obs, actions)
+        goal_states = ptu.np_to_var(
+                          ptu.get_numpy(next_states).copy(), requires_grad=True)
+        # goal_states = ptu.np_to_var(self.sample_goals(), requires_grad=True)
+        goal_states = self.expand_np_to_var(single_obs.copy(),
+                                            requires_grad=True)
+        # optimizer = optim.Adam([goal_states], lr=1e-1)
+        optimizer = optim.RMSprop([goal_states], lr=1e-1)
+        # optimizer = optim.SGD([goal_states], lr=1e-1)
+        # lambda1 = lambda epoch: 0.1 / (epoch / 10 + 1)
+        # scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda1)
+        print("--")
+        for _ in range(100):
+            distance = - self.tdm(obs, actions, goal_states, taus).mean()
             optimizer.zero_grad()
-            cost.backward()
+            distance.backward()
             optimizer.step()
+            # scheduler.step()
+
+            # error = (next_states - goal_states)**2
+            # print("error", ptu.get_numpy(error.mean()))
+            print("distance", ptu.get_numpy(distance))
         return ptu.get_numpy(actions), ptu.get_numpy(goal_states)
 
     def get_action(self, obs):
         actions, goal_states = self.get_feasible_actions_and_goal_states(obs)
-        # obs = self.expand_np(obs)
+        obs = self.expand_np(obs)
         # taus = self.expand_np_to_var(np.array([0]))
         # goal_states = self.sample_goals()
         # if self.policy is None:
