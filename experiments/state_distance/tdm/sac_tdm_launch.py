@@ -14,7 +14,7 @@ from railrl.envs.multitask.walker2d_env import Walker2DTargetXPos
 from railrl.envs.multitask.reacher_7dof import (
     # Reacher7DofGoalStateEverything,
     Reacher7DofXyzGoalState,
-)
+    Reacher7DofFullGoal)
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.sac.policies import TanhGaussianPolicy
@@ -67,7 +67,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "sac-tdm-reacher"
+    exp_prefix = "reacher-full-sac-tdm"
 
     num_epochs = 100
     num_steps_per_epoch = 1000
@@ -119,7 +119,8 @@ if __name__ == "__main__":
     search_space = {
         'env_class': [
             # GoalXVelHalfCheetah,
-            Reacher7DofXyzGoalState,
+            # Reacher7DofXyzGoalState,
+            Reacher7DofFullGoal,
             # GoalXYPosAnt,
             # Walker2DTargetXPos,
             # MultitaskPusher3DEnv,
@@ -142,27 +143,24 @@ if __name__ == "__main__":
         ],
         'sac_tdm_kwargs.tdm_kwargs.sample_rollout_goals_from': [
             # 'fixed',
-            'environment',
+            # 'environment',
+            'replay_buffer',
         ],
         'relabel': [
-            False,
-            # True,
+            True,
         ],
         'sac_tdm_kwargs.tdm_kwargs.dense_rewards': [
             False,
-            True,
         ],
         'sac_tdm_kwargs.tdm_kwargs.finite_horizon': [
-            False,
             True,
         ],
         'sac_tdm_kwargs.tdm_kwargs.reward_type': [
-            # 'sparse',
             'distance',
         ],
         'sac_tdm_kwargs.tdm_kwargs.max_tau': [
             10,
-            99,
+            # 99,
             # 49,
             # 15,
         ],

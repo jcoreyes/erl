@@ -320,6 +320,8 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         if self.sample_rollout_goals_from == 'environment':
             return self.env.sample_goal_for_rollout()
         elif self.sample_rollout_goals_from == 'replay_buffer':
+            if self.train_buffer.num_steps_can_sample() == 0:
+                return np.zeros(self.env.goal_dim)
             batch = self.train_buffer.random_batch(1)
             obs = batch['observations']
             goal = self.env.convert_obs_to_goals(obs)[0]
