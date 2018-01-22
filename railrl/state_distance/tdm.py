@@ -240,19 +240,19 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
                     > self.goal_reached_epsilon
                 )
         elif self.reward_type == 'distance':
-            neg_distances = self._compute_raw_neg_distances(next_obs, goals)
-            if self.goal_weights is not None:
-                neg_distances = neg_distances * self.goal_weights
-            else:
-                neg_distances = neg_distances * self.env.goal_dim_weights
+            neg_distances = self._compute_unscaled_neg_distances(next_obs, goals)
             return neg_distances * self.reward_scale
         elif self.reward_type == 'env':
             return batch['rewards']
         else:
             raise TypeError("Invalid reward type: {}".format(self.reward_type))
 
-    def _compute_raw_neg_distances(self, next_obs, goals):
+    def _compute_unscaled_neg_distances(self, next_obs, goals):
         diff = self.env.convert_obs_to_goals(next_obs) - goals
+        if self.goal_weights is not None:
+            diff = diff * self.goal_weights
+        else:
+            diff = diff * self.env.goal_dim_weights
         if self.vectorized:
             raw_neg_distances = -np.abs(diff)
         else:
@@ -411,7 +411,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         next_obs = np.vstack([path["next_observations"] for path in paths])
         actions = np.vstack([path["actions"] for path in paths])
         goals = np.vstack([path["goals"] for path in paths])
-        neg_distances = self._compute_raw_neg_distances(next_obs, goals)
+        neg_distances = self._compute_unscaled_neg_distances(next_obs, goals)
 
         ob_mean = np.mean(obs, axis=0)
         ob_std = np.std(obs, axis=0)

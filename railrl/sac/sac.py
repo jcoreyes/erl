@@ -199,3 +199,11 @@ class SoftActorCritic(TorchRLAlgorithm):
 
     def _update_target_network(self):
         ptu.soft_update_from_to(self.vf, self.target_vf, self.soft_target_tau)
+
+    def get_epoch_snapshot(self, epoch):
+        snapshot = super().get_epoch_snapshot(epoch)
+        snapshot['qf'] = self.qf
+        snapshot['policy'] = self.policy
+        snapshot['vf'] = self.vf
+        snapshot['target_vf'] = self.target_vf
+        return snapshot
