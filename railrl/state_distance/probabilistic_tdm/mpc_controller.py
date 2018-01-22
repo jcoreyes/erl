@@ -67,36 +67,23 @@ class ImplicitMPCController(PyTorchModule, ExplorationPolicy):
 
     def get_feasible_actions_and_goal_states(self, single_obs):
         obs = self.expand_np_to_var(single_obs)
-        actions = ptu.np_to_var(self.sample_actions())
+        actions = ptu.np_to_var(self.sample_actions(), requires_grad=True)
         taus = self.expand_np_to_var(np.array([0]))
-        next_states = obs + self.tdm.model(obs, actions)
-        goal_states = ptu.np_to_var(
-                          ptu.get_numpy(next_states).copy(), requires_grad=True)
-        # goal_states = ptu.np_to_var(self.sample_goals(), requires_grad=True)
         goal_states = self.expand_np_to_var(single_obs.copy(),
                                             requires_grad=True)
-        # optimizer = optim.Adam([goal_states], lr=1e-1)
         optimizer = optim.RMSprop([goal_states], lr=1e-1)
-        # optimizer = optim.SGD([goal_states], lr=1e-1)
-        # lambda1 = lambda epoch: 0.1 / (epoch / 10 + 1)
-        # scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda1)
-        print("--")
-        for _ in range(100):
+        for _ in range(20):
             distance = - self.tdm(obs, actions, goal_states, taus).mean()
             optimizer.zero_grad()
             distance.backward()
             optimizer.step()
-            # scheduler.step()
-
-            # error = (next_states - goal_states)**2
-            # print("error", ptu.get_numpy(error.mean()))
-            print("distance", ptu.get_numpy(distance))
         return ptu.get_numpy(actions), ptu.get_numpy(goal_states)
 
-    def get_action(self, obs):
-        actions, goal_states = self.get_feasible_actions_and_goal_states(obs)
-        obs = self.expand_np(obs)
-        # taus = self.expand_np_to_var(np.array([0]))
+    def get_action(self, ob):
+        obs = self.expand_np(ob)
+        actions, goal_states = self.get_feasible_actions_and_goal_states(
+            ob
+        )
         # goal_states = self.sample_goals()
         # if self.policy is None:
         #     actions = self.sample_actions()
@@ -108,11 +95,13 @@ class ImplicitMPCController(PyTorchModule, ExplorationPolicy):
         #     ))
         env_cost = self.env.cost_fn(obs, actions, goal_states)
         env_cost = np.expand_dims(env_cost, 1)
-        # feasibility_cost = (
-        #     self.tdm.eval_np(obs, actions, goal_states, taus)
-        # )
-        feasibility_cost = 0
+        taus = self.expand_np_to_var(np.array([0]))
+        feasibility_cost = - (
+            self.tdm.eval_np(obs, actions, goal_states, taus)
+        )
+        # import ipdb; ipdb.set_trace()
+        # print("feasibility_cost", feasibility_cost.mean())
+        # print("env_Cost", env_cost.mean())
         costs = env_cost + feasibility_cost * self.feasibility_weight
         min_i = np.argmin(costs)
-        print("acted")
         return actions[min_i, :], {}
