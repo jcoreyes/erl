@@ -7,6 +7,8 @@ from torch import optim
 import railrl.torch.pytorch_util as ptu
 from railrl.policies.simple import RandomPolicy
 from railrl.samplers.util import rollout
+from railrl.state_distance.util import merge_into_flat_obs
+from railrl.torch.core import PyTorchModule
 
 TDM_PATH = '/home/vitchyr/git/railrl/data/local/01-22-dev-sac-tdm-launch/01' \
            '-22-dev-sac-tdm-launch_2018_01_22_13_31_47_0000--s-3096/params.pkl'
@@ -15,6 +17,17 @@ MODEL_PATH = '/home/vitchyr/git/railrl/data/local/01-19-reacher-model-based' \
 
 
 K = 100
+
+class ImplicitModel(PyTorchModule):
+    def __init__(self, qf, vf):
+        self.quick_init(locals())
+        super().__init__()
+        self.qf = qf
+        self.vf = vf
+
+    def forward(self, obs, goals, taus, actions):
+        flat_obs = merge_into_flat_obs(obs, goals, taus)
+        return self.qf(flat_obs, actions) - self.vf(flat_obs)
 
 
 def expand_np_to_var(array, requires_grad=False):
@@ -29,13 +42,13 @@ def expand_np_to_var(array, requires_grad=False):
 def get_feasible_goal_states(tdm, ob, action):
     obs = expand_np_to_var(ob)
     actions = expand_np_to_var(action)
-    taus = expand_np_to_var(np.array([0]))
+    taus = expand_np_to_var(np.array([1]))
     goal_states = expand_np_to_var(ob.copy(), requires_grad=True)
-    goal_states.data = goal_states.data + torch.randn(goal_states.shape)
+    goal_states.data = goal_states.data #+ torch.randn(goal_states.shape)
     optimizer = optim.RMSprop([goal_states], lr=1e-1)
     print("--")
-    for _ in range(100):
-        distances = - tdm(obs, actions, goal_states, taus)
+    for _ in range(5):
+        distances = - tdm(obs, goal_states, taus, actions)
         distance = distances.mean()
         print(ptu.get_numpy(distance.mean())[0])
         optimizer.zero_grad()
@@ -43,8 +56,9 @@ def get_feasible_goal_states(tdm, ob, action):
         optimizer.step()
 
     goal_states_np = ptu.get_numpy(goal_states)
-    distances_np = ptu.get_numpy(distances)
-    min_i = np.argmin(distances_np.sum(axis=1))
+    # distances_np = ptu.get_numpy(distances)
+    # min_i = np.argmin(distances_np.sum(axis=1))
+    min_i = 0
     return goal_states_np[min_i, :]
 
 
@@ -52,7 +66,9 @@ def main():
     model_data = joblib.load(MODEL_PATH)
     model = model_data['model']
     env = model_data['env']
-    tdm = joblib.load(TDM_PATH)['qf']
+    qf = joblib.load(TDM_PATH)['qf']
+    vf = joblib.load(TDM_PATH)['vf']
+    tdm = ImplicitModel(qf, vf)
     random_policy = RandomPolicy(env.action_space)
     path = rollout(env, random_policy, max_path_length=100)
 

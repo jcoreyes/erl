@@ -2,17 +2,29 @@ import argparse
 
 import joblib
 
-import torch
-import numpy as np
 from railrl.core import logger
 from railrl.samplers.util import rollout
 from railrl.state_distance.probabilistic_tdm.mpc_controller import \
     ImplicitMPCController
 from railrl.state_distance.rollout_util import multitask_rollout
+from railrl.state_distance.util import merge_into_flat_obs
 from railrl.torch.core import PyTorchModule
 
-PATH = '/home/vitchyr/git/railrl/data/doodads3/01-21-reacher-full-sac-tdm/01' \
-       '-21-reacher-full-sac-tdm-id4-s9639/params.pkl'
+PATH = '/home/vitchyr/git/railrl/data/local/01-22-dev-sac-tdm-launch/01-22-dev-sac-tdm-launch_2018_01_22_13_31_47_0000--s-3096/params.pkl'
+
+
+class ImplicitModel(PyTorchModule):
+    def __init__(self, qf, vf):
+        self.quick_init(locals())
+        super().__init__()
+        self.qf = qf
+        self.vf = vf
+
+    def forward(self, obs, goals, taus, actions):
+        import ipdb; ipdb.set_trace()
+        flat_obs = merge_into_flat_obs(obs, goals, taus)
+        return self.qf(flat_obs, actions) - self.vf(flat_obs)
+
 
 if __name__ == "__main__":
 
@@ -41,7 +53,9 @@ if __name__ == "__main__":
 
     data = joblib.load(args.file)
     env = data['env']
-    tdm = data['qf']
+    qf = data['qf']
+    vf = data['vf']
+    implicit_model = ImplicitModel(qf, vf)
     num_samples = 1000
     resolution = 10
     if 'policy' in data:
@@ -54,15 +68,16 @@ if __name__ == "__main__":
     original_policy.horizon = 1
     if args.justsim:
         while True:
-            goal = np.array(
-                [-0.20871628403863521, -0.0026045399886658986,
-                 1.5508042141054157, -1.4642474683183448, 0.078682316483737469,
-                 -0.49380223494132874, -1.4292323965597007,
-                 0.098066894378607036, -0.26046187123103803, 1.526653353350421,
-                 3.0780086804131308, -0.53339687898388422, -2.579676257728218,
-                 -4.9314019794438844, 0.38974402757384086, -1.1045324518922441,
-                 0.010756958159845592]
-            )
+            # goal = np.array(
+            #     [-0.20871628403863521, -0.0026045399886658986,
+            #      1.5508042141054157, -1.4642474683183448, 0.078682316483737469,
+            #      -0.49380223494132874, -1.4292323965597007,
+            #      0.098066894378607036, -0.26046187123103803, 1.526653353350421,
+            #      3.0780086804131308, -0.53339687898388422, -2.579676257728218,
+            #      -4.9314019794438844, 0.38974402757384086, -1.1045324518922441,
+            #      0.010756958159845592]
+            # )
+            # goal = np.array([ 0.00934609, -0.06385207,  1.1130754 , -1.791122  ,  1.07486696, -0.44234793, -1.30457667, -0.28577358,  0.45736275, -2.42824523, -2.32354267, -2.23998136, -0.82785123, -0.53785655,  0.39529478, -0.97393436,  0.15426666])
             # goal = np.array([
             #     -0.29421230153709033, 0.038686863527214843, 1.6602570424019201,
             #      0.0059356156399937325, -0.0064939457331620459,
@@ -72,22 +87,28 @@ if __name__ == "__main__":
             #      0.020834381975244821, 0.81598804213626219,
             #      -0.93234483757944919, -0.037532679060846452
             # ])
-            env.set_goal(goal)
+            # env.set_goal(goal)
             # path = rollout(
             #     env,
             #     original_policy,
             #     max_path_length=args.H,
             #     animated=not args.hide,
             # )
+            # goal = np.array([1.4952445864440109, 0.058365245652776926,
+            #                  1.3854542196239863, -0.64643021271356582, 0.25729402753586905, -1.0559116816553138, -1.2942449012062724, 0.84327192781565719, -0.18665817808605106, 0.28887389778176836, -4.1567137920511996, -0.25677653709657877, 1.2789295463658288, 0.47291580030348057, 0.34130661157042974, 0.13003414588968379, -0.009319281912785882])
+            # goal = np.array([1.6958471372903317, 0.2122816058111654,
+            #                  0.29760944600589051, -0.016908392188567031, -0.58501650189613841, -0.018928029822669078, -1.2091424324357098, 0.16575094693524303, 0.32991058173255483, 2.8226738796936663, -0.57674228567507868, 1.5591211986667852, 0.53321884401877584, -3.8082528691546091, -0.11086735631355096, 0.29765427337121497, -0.16364599916575717])
+            goal = env.sample_goal_for_rollout()
+            goal[7:14] = 0
             path = multitask_rollout(
                 env,
                 original_policy,
                 # env.multitask_goal,
                 goal,
-                tau=0,
+                tau=10,
                 max_path_length=args.H,
                 animated=not args.hide,
-                cycle_tau=False,
+                cycle_tau=True,
                 decrement_tau=False,
             )
             if hasattr(env, "log_diagnostics"):
@@ -101,7 +122,7 @@ if __name__ == "__main__":
                 print("num_simulated_paths", num_simulated_paths)
                 policy = ImplicitMPCController(
                     env,
-                    tdm,
+                    implicit_model,
                     original_policy,
                     num_simulated_paths=num_simulated_paths,
                     feasibility_weight=weight,
@@ -109,6 +130,9 @@ if __name__ == "__main__":
                 policy.train(False)
                 paths = []
                 for _ in range(5):
+                    goal = env.sample_goal_for_rollout()
+                    env.set_goal(goal)
+                    goal[7:14] = 0
                     paths.append(rollout(
                         env,
                         policy,

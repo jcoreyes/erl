@@ -18,7 +18,7 @@ class ModelToTdm(PyTorchModule):
         super().__init__()
         self.model = model
 
-    def forward(self, obs, action, goal, taus):
+    def forward(self, obs, goal, taus, action):
         out = (goal - obs - self.model(obs, action))**2
         return -torch.norm(out, dim=1).unsqueeze(1)
 
@@ -76,7 +76,7 @@ if __name__ == "__main__":
         model = data['model']
         tdm = ModelToTdm(model)
 
-        for weight in [100]:
+        for weight in [1000]:
             for num_simulated_paths in [args.npath]:
                 print("")
                 print("weight", weight)
