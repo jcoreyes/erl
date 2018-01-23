@@ -65,9 +65,9 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-sac-tdm-launch"
 
-    n_seeds = 1
-    mode = "ec2"
-    exp_prefix = "reacher-full-sac-tdm"
+    # n_seeds = 1
+    # mode = "ec2"
+    # exp_prefix = "reacher-full-sac-tdm-save-replay-buffer"
 
     num_epochs = 100
     num_steps_per_epoch = 1000
@@ -85,6 +85,7 @@ if __name__ == "__main__":
                 num_updates_per_env_step=25,
                 batch_size=128,
                 discount=1,
+                save_replay_buffer=True,
             ),
             tdm_kwargs=dict(
                 sample_rollout_goals_from='environment',
@@ -114,7 +115,7 @@ if __name__ == "__main__":
             hidden_sizes=[300, 300],
         ),
         version="SAC-TDM",
-        algorithm="SAC-TDM-no-relabel-actually",
+        algorithm="SAC-TDM",
     )
     search_space = {
         'env_class': [
@@ -127,11 +128,9 @@ if __name__ == "__main__":
             # CylinderXYPusher2DEnv,
         ],
         'sac_tdm_kwargs.base_kwargs.reward_scale': [
-            1,
-            10,
+            # 30,
             100,
-            1000,
-            10000,
+            # 300,
         ],
         'sac_tdm_kwargs.tdm_kwargs.vectorized': [
             # False,
