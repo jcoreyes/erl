@@ -41,7 +41,8 @@ class SoftActorCritic(TorchRLAlgorithm):
             policy_lr=1e-3,
             qf_lr=1e-3,
             vf_lr=1e-3,
-            policy_reg_weight=1e-3,
+            policy_mean_reg_weight=1e-3,
+            policy_std_reg_weight=1e-3,
             policy_pre_activation_weight=0.,
             optimizer_class=optim.Adam,
 
@@ -65,7 +66,8 @@ class SoftActorCritic(TorchRLAlgorithm):
         self.qf = qf
         self.vf = vf
         self.soft_target_tau = soft_target_tau
-        self.policy_reg_weight = policy_reg_weight
+        self.policy_mean_reg_weight = policy_mean_reg_weight
+        self.policy_std_reg_weight = policy_std_reg_weight
         self.policy_pre_activation_weight = policy_pre_activation_weight
         self.plotter = plotter
         self.render_eval_paths = render_eval_paths
@@ -124,15 +126,14 @@ class SoftActorCritic(TorchRLAlgorithm):
         policy_loss = (
             log_pi * (log_pi - log_policy_target).detach()
         ).mean()
-        policy_reg_loss = self.policy_reg_weight * (
-            (policy_mean**2).mean()
-            + (policy_log_std**2).mean()
-        )
+        mean_reg_loss = self.policy_mean_reg_weight * (policy_mean**2).mean()
+        std_reg_loss = self.policy_std_reg_weight * (policy_log_std**2).mean()
         pre_tanh_value = policy_outputs[-1]
-        pre_activation_policy_loss = self.policy_pre_activation_weight * (
-                (pre_tanh_value**2).sum(dim=1).mean()
-            )
-        policy_loss = policy_loss + policy_reg_loss + pre_activation_policy_loss
+        pre_activation_reg_loss = self.policy_pre_activation_weight * (
+            (pre_tanh_value**2).sum(dim=1).mean()
+        )
+        policy_reg_loss = mean_reg_loss + std_reg_loss + pre_activation_reg_loss
+        policy_loss = policy_loss + policy_reg_loss
 
         """
         Update networks

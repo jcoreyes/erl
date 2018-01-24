@@ -72,18 +72,22 @@ if __name__ == "__main__":
             HalfCheetahEnv,
         ],
         'algo_kwargs.reward_scale': [
-            10000, 100, 1, 0.01,
+            10, 1, 0.1
         ],
         'algo_kwargs.optimizer_class': [
-            optim.RMSprop,
             optim.Adam,
-            optim.Adagrad,
         ],
         'algo_kwargs.soft_target_tau': [
             1e-3,
         ],
         'algo_kwargs.num_updates_per_env_step': [
-            1, 5,
+            1,
+        ],
+        'algo_kwargs.policy_mean_reg_weight': [
+            0, 1e-3
+        ],
+        'algo_kwargs.policy_std_reg_weight': [
+            0, 1e-3
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -93,8 +97,8 @@ if __name__ == "__main__":
         for _ in range(1):
             run_experiment(
                 experiment,
-                # exp_prefix="sac-cheetah-sweep-2",
-                # mode='ec2',
+                exp_prefix="sac-cheetah-sweep-regularization",
+                mode='ec2',
                 exp_id=exp_id,
                 variant=variant,
                 use_gpu=False,
