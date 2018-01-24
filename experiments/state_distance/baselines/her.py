@@ -189,7 +189,7 @@ if __name__ == "__main__":
         'ddpg_tdm_kwargs.ddpg_kwargs.eval_with_target_policy': [
             True,
         ],
-        'ddpg_tdm_kwargs.tdm_kwargs.num_paths_for_normalization': [
+        'ddpg_tdm_kwargs.tdm_kwargs.num_pretrain_paths': [
             20, 0
         ],
         'relabel': [

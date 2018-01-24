@@ -166,7 +166,7 @@ if __name__ == "__main__":
         # 'env_kwargs.use_low_gear_ratio': [
         #     False,
         # ],
-        'algo_kwargs.num_paths_for_normalization': [
+        'algo_kwargs.num_pretrain_paths': [
             0
         ],
         # 'algo_kwargs.max_path_length': [

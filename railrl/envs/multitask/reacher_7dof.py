@@ -270,7 +270,21 @@ class Reacher7DofFullGoal(Reacher7DofMultitaskEnv):
 
     def set_goal(self, goal):
         super().set_goal(goal)
-        self._set_goal_xyz(goal[14:17])
+        self._set_goal_xyz_automatically(goal)
+        # self._set_goal_xyz(goal[14:17])
+
+    def _set_goal_xyz_automatically(self, goal):
+        current_qpos = self.model.data.qpos.flat.copy()
+        current_qvel = self.model.data.qvel.flat.copy()
+
+        new_qpos = current_qpos.copy()
+        new_qpos[:7] = goal[:7]
+        self.set_state(new_qpos, current_qvel)
+        goal_xyz = self.get_body_com("tips_arm").copy()
+        self.set_state(current_qpos, current_qvel)
+
+        self._set_goal_xyz(goal_xyz)
+        self.multitask_goal[14:17] = goal_xyz
 
     def sample_states(self, batch_size):
         random_pos = np.random.uniform(
@@ -302,9 +316,14 @@ class Reacher7DofFullGoal(Reacher7DofMultitaskEnv):
         """
         if len(next_states.shape) == 1:
             next_states = np.expand_dims(next_states, 0)
-        xyz_pos = next_states[:, 14:17]
-        desired_xyz_pos = self.multitask_goal[14:17] * np.ones_like(xyz_pos)
-        diff = xyz_pos - desired_xyz_pos
+        # xyz_pos = next_states[:, 14:17]
+        # desired_xyz_pos = self.multitask_goal[14:17] * np.ones_like(xyz_pos)
+        # diff = xyz_pos - desired_xyz_pos
+        next_joint_angles = next_states[:, :7]
+        desired_joint_angles = (
+            self.multitask_goal[:7] * np.ones_like(next_joint_angles)
+        )
+        diff = next_joint_angles - desired_joint_angles
         costs = np.linalg.norm(
             diff,
             axis=1,

@@ -88,11 +88,13 @@ class ImplicitMPCController(PyTorchModule, ExplorationPolicy):
         taus = self.expand_np_to_var(np.array([10]))
         goal_states = self.expand_np_to_var(single_obs.copy(),
                                             requires_grad=True)
-        goal_states.data = goal_states.data + torch.randn(goal_states.shape)
+        goal_states.data = (
+            goal_states.data + torch.randn(goal_states.shape) * 0.05
+        )
 
-        optimizer = optim.RMSprop([goal_states], lr=1e-1)
+        optimizer = optim.RMSprop([goal_states], lr=1e-2)
         print("--")
-        for _ in range(20):
+        for _ in range(0):
             new_obs = torch.cat(
                 (
                     obs,
@@ -101,14 +103,15 @@ class ImplicitMPCController(PyTorchModule, ExplorationPolicy):
                 ),
                 dim=1,
             )
-            actions = self.policy(new_obs, deterministic=True)[0]
+            # actions = self.policy(new_obs, deterministic=True)[0]
+            actions = self.policy(new_obs)
             distance = -(self.tdm(obs, goal_states, taus, actions)).mean()
             print(ptu.get_numpy(distance.mean())[0])
             optimizer.zero_grad()
             distance.backward()
             optimizer.step()
         # Sanity check: give the correct goal state:
-        # goal_states = self.expand_np_to_var(self.env.multitask_goal)
+        goal_states = self.expand_np_to_var(self.env.multitask_goal)
         new_obs = torch.cat(
             (
                 obs,
@@ -117,12 +120,13 @@ class ImplicitMPCController(PyTorchModule, ExplorationPolicy):
             ),
             dim=1,
         )
-        actions = self.policy(new_obs, deterministic=True)[0]
+        actions = self.policy(new_obs)
         return ptu.get_numpy(goal_states), ptu.get_numpy(actions)
 
     def get_action(self, ob):
         obs = self.expand_np(ob)
-        if self.policy is None:
+        # if self.policy is None:
+        if True:
             actions, goal_states = self.get_feasible_actions_and_goal_states(
                 ob
             )
@@ -130,20 +134,11 @@ class ImplicitMPCController(PyTorchModule, ExplorationPolicy):
             goal_states, actions = (
                 self.get_feasible_goal_states_and_tdm_actions(ob)
             )
-        # goal_states = self.sample_goals()
-        # if self.policy is None:
-        #     actions = self.sample_actions()
-        # else:
-        #     actions = ptu.get_numpy(self.policy(
-        #         ptu.np_to_var(obs),
-        #         goal_states,
-        #         taus,
-        #     ))
         env_cost = self.env.cost_fn(obs, actions, goal_states)
         env_cost = np.expand_dims(env_cost, 1)
         taus = self.expand_np_to_var(np.array([0]))
         feasibility_cost = - (
-            self.tdm.eval_np(obs, actions, goal_states, taus)
+            self.tdm.eval_np(obs, goal_states, taus, actions)
         )
         if len(feasibility_cost.shape) > 1:
             feasibility_cost = feasibility_cost.sum(axis=1)[:, None]

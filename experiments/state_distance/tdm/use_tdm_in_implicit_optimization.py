@@ -11,6 +11,8 @@ from railrl.state_distance.util import merge_into_flat_obs
 from railrl.torch.core import PyTorchModule
 
 PATH = '/home/vitchyr/git/railrl/data/local/01-22-dev-sac-tdm-launch/01-22-dev-sac-tdm-launch_2018_01_22_13_31_47_0000--s-3096/params.pkl'
+PATH = '/home/vitchyr/git/railrl/data/doodads3/01-23-reacher-full-ddpg' \
+       '-tdm-mtau-0/01-23-reacher-full-ddpg-tdm-mtau-0-id1-s49343/params.pkl'
 
 
 class ImplicitModel(PyTorchModule):
@@ -21,9 +23,11 @@ class ImplicitModel(PyTorchModule):
         self.vf = vf
 
     def forward(self, obs, goals, taus, actions):
-        import ipdb; ipdb.set_trace()
         flat_obs = merge_into_flat_obs(obs, goals, taus)
-        return self.qf(flat_obs, actions) - self.vf(flat_obs)
+        if self.vf is None:
+            return self.qf(flat_obs, actions)
+        else:
+            return self.qf(flat_obs, actions) - self.vf(flat_obs)
 
 
 if __name__ == "__main__":
@@ -54,7 +58,11 @@ if __name__ == "__main__":
     data = joblib.load(args.file)
     env = data['env']
     qf = data['qf']
-    vf = data['vf']
+    if 'vf' in data:
+        vf = data['vf']
+    else:
+        vf = None
+    tdm = ImplicitModel(qf, vf)
     implicit_model = ImplicitModel(qf, vf)
     num_samples = 1000
     resolution = 10
@@ -115,7 +123,7 @@ if __name__ == "__main__":
                 env.log_diagnostics([path])
             logger.dump_tabular()
     else:
-        for weight in [0.01]:
+        for weight in [1]:
             for num_simulated_paths in [args.npath]:
                 print("")
                 print("weight", weight)
@@ -132,7 +140,6 @@ if __name__ == "__main__":
                 for _ in range(5):
                     goal = env.sample_goal_for_rollout()
                     env.set_goal(goal)
-                    goal[7:14] = 0
                     paths.append(rollout(
                         env,
                         policy,

@@ -175,7 +175,7 @@ if __name__ == "__main__":
         'algo_kwargs.num_updates_per_env_step': [
             1,
         ],
-        'algo_kwargs.num_paths_for_normalization': [20],
+        'algo_kwargs.num_pretrain_paths': [20],
         'ou_kawrgs.max_sigma': [0.1],
         'mpc_controller_kwargs.mpc_horizon': [1, 15],
     }

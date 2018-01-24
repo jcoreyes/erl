@@ -76,7 +76,7 @@ if __name__ == "__main__":
         model = data['model']
         tdm = ModelToTdm(model)
 
-        for weight in [1000]:
+        for weight in [100]:
             for num_simulated_paths in [args.npath]:
                 print("")
                 print("weight", weight)
