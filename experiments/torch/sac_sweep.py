@@ -39,7 +39,7 @@ def experiment(variant):
         policy=policy,
         qf=qf,
         vf=vf,
-        **variant['algo_params']
+        **variant['algo_kwargs']
     )
     if ptu.gpu_enabled():
         algorithm.cuda()
@@ -49,7 +49,7 @@ def experiment(variant):
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
-        algo_params=dict(
+        algo_kwargs=dict(
             num_epochs=1001,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
@@ -93,8 +93,8 @@ if __name__ == "__main__":
         for _ in range(1):
             run_experiment(
                 experiment,
-                exp_prefix="sac-cheetah-sweep",
-                mode='ec2',
+                # exp_prefix="sac-cheetah-sweep-2",
+                # mode='ec2',
                 exp_id=exp_id,
                 variant=variant,
                 use_gpu=False,

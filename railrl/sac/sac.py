@@ -43,6 +43,7 @@ class SoftActorCritic(TorchRLAlgorithm):
             vf_lr=1e-3,
             policy_reg_weight=1e-3,
             policy_pre_activation_weight=0.,
+            optimizer_class=optim.Adam,
 
             soft_target_tau=1e-2,
             plotter=None,
@@ -74,15 +75,15 @@ class SoftActorCritic(TorchRLAlgorithm):
         self.vf_criterion = nn.MSELoss()
         self.eval_statistics = None
 
-        self.policy_optimizer = optim.Adam(
+        self.policy_optimizer = optimizer_class(
             self.policy.parameters(),
             lr=policy_lr,
         )
-        self.qf_optimizer = optim.Adam(
+        self.qf_optimizer = optimizer_class(
             self.qf.parameters(),
             lr=qf_lr,
         )
-        self.vf_optimizer = optim.Adam(
+        self.vf_optimizer = optimizer_class(
             self.vf.parameters(),
             lr=vf_lr,
         )
