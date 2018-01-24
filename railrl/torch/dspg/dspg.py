@@ -43,7 +43,6 @@ class DeepStochasticPolicyGradient(TorchRLAlgorithm):
             tau=1e-2,
             use_soft_update=False,
             sample_std=0.1,
-            policy_loss_multiplier=1,
 
             **kwargs
     ):
@@ -71,7 +70,6 @@ class DeepStochasticPolicyGradient(TorchRLAlgorithm):
         self.tau = tau
         self.use_soft_update = use_soft_update
         self.sample_std = sample_std
-        self.policy_loss_multiplier = policy_loss_multiplier
 
         self.target_vf = self.vf.copy()
         self.qf_optimizer = optimizer_class(
@@ -106,10 +104,9 @@ class DeepStochasticPolicyGradient(TorchRLAlgorithm):
         sampled_actions = sampled_actions.detach()
         deviations = (policy_actions - sampled_actions)**2
         avg_deviations = deviations.mean(dim=1, keepdim=True)
-        policy_loss = - (
+        policy_loss = (
                 avg_deviations
                 * (self.qf(obs, sampled_actions) - self.target_vf(obs))
-                * self.policy_loss_multiplier
         ).mean()
 
         """

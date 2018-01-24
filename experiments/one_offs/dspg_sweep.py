@@ -11,7 +11,6 @@ from railrl.launchers.launcher_util import run_experiment
 import railrl.torch.pytorch_util as ptu
 import railrl.misc.hyperparameter as hyp
 from railrl.torch.dspg.dspg import DeepStochasticPolicyGradient
-from railrl.torch.modules import HuberLoss
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 
 
@@ -107,9 +106,6 @@ if __name__ == "__main__":
         ],
         'algo_kwargs.sample_std': [
             0.01, 0.1, 1
-        ],
-        'algo_kwargs.policy_loss_multiplier': [
-            1, -1
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
