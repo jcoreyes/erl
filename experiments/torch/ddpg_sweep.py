@@ -9,48 +9,32 @@ from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 import railrl.torch.pytorch_util as ptu
 import railrl.misc.hyperparameter as hyp
-# from rllab.envs.mujoco.ant_env import AntEnv
-#
-# from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
-# from rllab.envs.box2d.cartpole_env import CartpoleEnv
-# from rllab.envs.mujoco.hopper_env import HopperEnv
-# from rllab.envs.mujoco.inverted_double_pendulum_env import \
-#     InvertedDoublePendulumEnv
-# from rllab.envs.mujoco.swimmer_env import SwimmerEnv
-from railrl.torch.algos.n3dpg import N3DPG
+from railrl.torch.algos.ddpg import DDPG
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 
 
-def example(variant):
-    env = variant['env_class']()
-    if variant['normalize']:
-        env = NormalizedBoxEnv(env)
+def experiment(variant):
+    env = NormalizedBoxEnv(variant['env_class']())
     es = OUStrategy(action_space=env.action_space)
-    obs_dim = int(np.prod(env.observation_space.low.shape))
-    action_dim = int(np.prod(env.action_space.low.shape))
+    obs_dim = env.observation_space.low.size
+    action_dim = env.action_space.low.size
     qf = FlattenMlp(
-        input_size=obs_dim+action_dim,
+        input_size=obs_dim + action_dim,
         output_size=1,
-        **variant['vf_params']
-    )
-    vf = FlattenMlp(
-        input_size=obs_dim,
-        output_size=1,
-        **variant['vf_params']
+        hidden_sizes=[400, 300],
     )
     policy = TanhMlpPolicy(
         input_size=obs_dim,
         output_size=action_dim,
-        **variant['policy_params']
+        hidden_sizes=[400, 300],
     )
     exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
         policy=policy,
     )
-    algorithm = N3DPG(
+    algorithm = DDPG(
         env,
         qf=qf,
-        vf=vf,
         policy=policy,
         exploration_policy=exploration_policy,
         **variant['algo_kwargs']
@@ -73,7 +57,6 @@ if __name__ == "__main__":
             max_path_length=1000,
             discount=0.99,
             qf_learning_rate=1e-3,
-            vf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
         ),
         qf_params=dict(
@@ -85,8 +68,8 @@ if __name__ == "__main__":
         policy_params=dict(
             hidden_sizes=[300, 300],
         ),
-        algorithm="N3DPG",
-        version="N3DPG",
+        algorithm="DDPG",
+        version="DDPG",
         normalize=True,
         env_class=HalfCheetahEnv,
     )
@@ -120,8 +103,8 @@ if __name__ == "__main__":
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(1):
             run_experiment(
-                example,
-                exp_prefix="n3dpg-cheetah-sweep",
+                experiment,
+                exp_prefix="ddpg-cheetah-sweep-2",
                 mode='ec2',
                 exp_id=exp_id,
                 variant=variant,
