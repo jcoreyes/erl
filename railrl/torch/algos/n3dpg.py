@@ -33,6 +33,7 @@ class N3DPG(TorchRLAlgorithm):
             vf_learning_rate=1e-3,
             vf_criterion=None,
             epoch_discount_schedule=None,
+            optimizer_class=optim.Adam,
 
             target_hard_update_period=1000,
             tau=1e-2,
@@ -74,15 +75,15 @@ class N3DPG(TorchRLAlgorithm):
         self.render_eval_paths = render_eval_paths
 
         self.target_vf = self.vf.copy()
-        self.qf_optimizer = optim.Adam(
+        self.qf_optimizer = optimizer_class(
             self.qf.parameters(),
             lr=self.qf_learning_rate,
         )
-        self.vf_optimizer = optim.Adam(
+        self.vf_optimizer = optimizer_class(
             self.vf.parameters(),
             lr=self.vf_learning_rate,
         )
-        self.policy_optimizer = optim.Adam(
+        self.policy_optimizer = optimizer_class(
             self.policy.parameters(),
             lr=self.policy_learning_rate,
         )
@@ -120,8 +121,8 @@ class N3DPG(TorchRLAlgorithm):
         """
         Vf operations.
         """
-        v_target = self.qf(next_obs, self.policy(next_obs)).detach()
-        v_pred = self.vf(next_obs)
+        v_target = self.qf(obs, self.policy(obs)).detach()
+        v_pred = self.vf(obs)
         vf_loss = self.vf_criterion(v_pred, v_target)
 
         """
@@ -189,15 +190,13 @@ class N3DPG(TorchRLAlgorithm):
         raise NotImplementedError()
 
     def get_epoch_snapshot(self, epoch):
-        return dict(
-            epoch=epoch,
-            policy=self.policy,
-            env=self.training_env,
-            exploration_policy=self.exploration_policy,
-            qf=self.qf,
-            vf=self.vf,
-            batch_size=self.batch_size,
-        )
+        snapshot = super().get_epoch_snapshot(epoch)
+        snapshot['policy'] = self.policy
+        snapshot['qf'] = self.qf
+        snapshot['vf'] = self.vf
+        snapshot['target_vf'] = self.target_vf
+        snapshot['exploration_policy'] = self.exploration_policy
+        snapshot['batch_size'] = self.batch_size
 
     @property
     def networks(self):

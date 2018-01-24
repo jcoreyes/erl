@@ -41,6 +41,7 @@ class DDPG(TorchRLAlgorithm):
             epoch_discount_schedule=None,
             eval_with_target_policy=False,
             policy_pre_activation_weight=0.,
+            optimizer_class=optim.Adam,
 
             plotter=None,
             render_eval_paths=False,
@@ -111,12 +112,14 @@ class DDPG(TorchRLAlgorithm):
         self.max_q_value = max_q_value
 
         self.target_qf = self.qf.copy()
-        self.qf_optimizer = optim.Adam(
+        self.qf_optimizer = optimizer_class(
             self.qf.parameters(),
             lr=self.qf_learning_rate,
         )
-        self.policy_optimizer = optim.Adam(self.policy.parameters(),
-                                           lr=self.policy_learning_rate)
+        self.policy_optimizer = optimizer_class(
+            self.policy.parameters(),
+            lr=self.policy_learning_rate,
+        )
         self.eval_statistics = None
 
     def _start_epoch(self, epoch):
