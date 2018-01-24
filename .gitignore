@@ -14,3 +14,5 @@ examples/tmp.yml
 *.ipynb
 *.prof
 railrl/launchers/config.py
+experiments/murtaza/colinestuff/mesh/
+experiments/murtaza/colinestuff/textures/
