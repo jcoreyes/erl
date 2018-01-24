@@ -1,6 +1,6 @@
-import numpy as np
 import torch.optim as optim
-from gym.envs.mujoco import HalfCheetahEnv
+from gym.envs.mujoco import HalfCheetahEnv, InvertedPendulumEnv, \
+    InvertedDoublePendulumEnv, SwimmerEnv
 
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import \
@@ -21,12 +21,12 @@ def experiment(variant):
     qf = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
-        hidden_sizes=[400, 300],
+        **variant['qf_kwargs']
     )
     policy = TanhMlpPolicy(
         input_size=obs_dim,
         output_size=action_dim,
-        hidden_sizes=[400, 300],
+        **variant['policy_kwargs']
     )
     exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
@@ -48,7 +48,7 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=1001,
+            num_epochs=301,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             use_soft_update=True,
@@ -59,13 +59,10 @@ if __name__ == "__main__":
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
         ),
-        qf_params=dict(
+        qf_kwargs=dict(
             hidden_sizes=[300, 300],
         ),
-        vf_params=dict(
-            hidden_sizes=[300, 300],
-        ),
-        policy_params=dict(
+        policy_kwargs=dict(
             hidden_sizes=[300, 300],
         ),
         algorithm="DDPG",
@@ -75,36 +72,44 @@ if __name__ == "__main__":
     )
     search_space = {
         'env_class': [
-            # CartpoleEnv,
-            # SwimmerEnv,
+            InvertedPendulumEnv,
+            InvertedDoublePendulumEnv,
             HalfCheetahEnv,
+            SwimmerEnv,
             # AntEnv,
             # HopperEnv,
             # InvertedDoublePendulumEnv,
         ],
         'algo_kwargs.reward_scale': [
-            10000, 100, 1, 0.01,
+            1,
+        ],
+        'algo_kwargs.policy_pre_activation_weight': [
+            0,
         ],
         'algo_kwargs.optimizer_class': [
-            optim.RMSprop,
             optim.Adam,
-            optim.Adagrad,
         ],
         'algo_kwargs.tau': [
             1e-2,
         ],
         'algo_kwargs.num_updates_per_env_step': [
-            1, 5,
+            1,
+        ],
+        'qf_kwargs.layer_norm': [
+            True, False
+        ],
+        'policy_kwargs.layer_norm': [
+            True, False
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        for _ in range(1):
+        for _ in range(3):
             run_experiment(
                 experiment,
-                exp_prefix="ddpg-cheetah-sweep-2",
+                exp_prefix="ddpg-sweep-layer-norm",
                 mode='ec2',
                 exp_id=exp_id,
                 variant=variant,
