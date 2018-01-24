@@ -107,7 +107,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "reacher-full-ddpg-tdm"
+    exp_prefix = "reacher-full-ddpg-tdm-mtau-0"
 
     num_epochs = 100
     num_steps_per_epoch = 1000
@@ -202,16 +202,17 @@ if __name__ == "__main__":
             nn.MSELoss,
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.sample_rollout_goals_from': [
-            'environment',
+            # 'environment',
+            'pretrain_paths',
         ],
-        'ddpg_tdm_kwargs.tdm_kwargs.num_paths_for_normalization': [
+        'ddpg_tdm_kwargs.tdm_kwargs.num_pretrain_paths': [
             20
         ],
         'es_kwargs': [
             dict(theta=0.1, max_sigma=0.1, min_sigma=0.1),
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.max_tau': [
-            10,
+            0,
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.dense_rewards': [
             False,

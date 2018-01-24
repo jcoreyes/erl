@@ -158,7 +158,7 @@ if __name__ == "__main__":
             'distance',
         ],
         'sac_tdm_kwargs.tdm_kwargs.max_tau': [
-            10,
+            0,
             # 99,
             # 49,
             # 15,
