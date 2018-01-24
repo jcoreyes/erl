@@ -3,20 +3,13 @@ import torch.optim as optim
 from gym.envs.mujoco import HalfCheetahEnv
 
 from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.exploration_strategies.base import \
+from railrl.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
+)
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 import railrl.torch.pytorch_util as ptu
 import railrl.misc.hyperparameter as hyp
-# from rllab.envs.mujoco.ant_env import AntEnv
-#
-# from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
-# from rllab.envs.box2d.cartpole_env import CartpoleEnv
-# from rllab.envs.mujoco.hopper_env import HopperEnv
-# from rllab.envs.mujoco.inverted_double_pendulum_env import \
-#     InvertedDoublePendulumEnv
-# from rllab.envs.mujoco.swimmer_env import SwimmerEnv
 from railrl.torch.algos.n3dpg import N3DPG
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 
@@ -105,7 +98,7 @@ if __name__ == "__main__":
         'algo_kwargs.optimizer_class': [
             optim.RMSprop,
             optim.Adam,
-            optim.Adagrad,
+            optim.SGD,
         ],
         'algo_kwargs.tau': [
             1e-2,
@@ -121,7 +114,7 @@ if __name__ == "__main__":
         for _ in range(1):
             run_experiment(
                 example,
-                exp_prefix="n3dpg-cheetah-sweep",
+                exp_prefix="n3dpg-cheetah-sweep-huber-2",
                 mode='ec2',
                 exp_id=exp_id,
                 variant=variant,
