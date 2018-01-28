@@ -11,7 +11,7 @@ from railrl.envs.multitask.reacher_7dof import (
 )
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
-from railrl.sac.policies import TanhGaussianPolicy
+from railrl.torch.sac.policies import TanhGaussianPolicy
 from railrl.state_distance.probabilistic_tdm.mpc_controller import \
     ImplicitMPCController
 from railrl.state_distance.tdm_sac import TdmSac

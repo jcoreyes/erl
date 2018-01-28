@@ -10,7 +10,7 @@ from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.plotter import QFPolicyPlotter
 from railrl.torch.networks import FeedForwardQFunction, FeedForwardPolicy
-from railrl.torch.algos.ddpg import DDPG
+from railrl.torch.ddpg.ddpg import DDPG
 
 
 def experiment(variant):

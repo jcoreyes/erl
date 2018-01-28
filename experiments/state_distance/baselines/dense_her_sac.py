@@ -6,17 +6,9 @@ import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.envs.multitask.ant_env import GoalXYPosAnt
-from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
-    GoalXPosHalfCheetah
-from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
-from railrl.envs.multitask.walker2d_env import Walker2DTargetXPos
-from railrl.envs.multitask.reacher_7dof import (
-    # Reacher7DofGoalStateEverything,
-    Reacher7DofXyzGoalState,
-)
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
-from railrl.sac.policies import TanhGaussianPolicy
+from railrl.torch.sac.policies import TanhGaussianPolicy
 from railrl.state_distance.tdm_sac import TdmSac
 from railrl.torch.networks import FlattenMlp
 

@@ -1,8 +1,7 @@
 import gym
 import numpy as np
 import torch.optim as optim
-from gym.envs.mujoco import HalfCheetahEnv, SwimmerEnv, \
-    InvertedDoublePendulumEnv, InvertedPendulumEnv, AntEnv, HopperEnv, \
+from gym.envs.mujoco import HalfCheetahEnv, AntEnv, HopperEnv, \
     Walker2dEnv
 
 from railrl.envs.wrappers import NormalizedBoxEnv
@@ -13,7 +12,7 @@ from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 import railrl.torch.pytorch_util as ptu
 import railrl.misc.hyperparameter as hyp
-from railrl.torch.dspg.dspg import DeepStochasticPolicyGradient
+from railrl.torch.ddpg.dspg import DeepStochasticPolicyGradient
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 
 

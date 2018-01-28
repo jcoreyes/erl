@@ -1,4 +1,4 @@
-from railrl.sac.policies import *
+from railrl.torch.sac.policies import *
 
 class OneHotTauTanhGaussianPolicy(TanhGaussianPolicy):
     def __init__(

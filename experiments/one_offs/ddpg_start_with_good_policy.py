@@ -9,7 +9,7 @@ from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 import railrl.torch.pytorch_util as ptu
 import railrl.misc.hyperparameter as hyp
-from railrl.torch.algos.ddpg import DDPG
+from railrl.torch.ddpg.ddpg import DDPG
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 
 GOOD_DDPG_POLICY_PATH = '/home/vitchyr/git/railrl/data/doodads3/01-23-ddpg' \

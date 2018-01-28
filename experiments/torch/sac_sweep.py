@@ -1,4 +1,3 @@
-import gym
 import numpy as np
 import torch.optim as optim
 from gym.envs.mujoco import HalfCheetahEnv
@@ -7,8 +6,8 @@ import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
-from railrl.sac.policies import TanhGaussianPolicy
-from railrl.sac.sac import SoftActorCritic
+from railrl.torch.sac.policies import TanhGaussianPolicy
+from railrl.torch.sac.sac import SoftActorCritic
 from railrl.torch.networks import FlattenMlp
 
 

@@ -10,7 +10,7 @@ from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 import railrl.torch.pytorch_util as ptu
 import railrl.misc.hyperparameter as hyp
-from railrl.torch.algos.n3dpg import N3DPG
+from railrl.torch.ddpg.n3dpg import N3DPG
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 
 

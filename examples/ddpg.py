@@ -10,7 +10,7 @@ from railrl.exploration_strategies.base import (
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import setup_logger
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
-from railrl.torch.algos.ddpg import DDPG
+from railrl.torch.ddpg.ddpg import DDPG
 import railrl.torch.pytorch_util as ptu
 
 

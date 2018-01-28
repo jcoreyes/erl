@@ -1,11 +1,10 @@
 import random
 import numpy as np
 
-import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.envs.mujoco.discrete_reacher import DiscreteReacherEnv
-from railrl.launchers.launcher_util import resume_torch_algorithm, continue_experiment, run_experiment
-from railrl.torch.algos.dqn import DQN
+from railrl.launchers.launcher_util import run_experiment
+from railrl.torch.dqn.dqn import DQN
 from railrl.torch.networks import Mlp
 
 

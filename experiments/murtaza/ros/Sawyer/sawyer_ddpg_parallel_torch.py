@@ -10,7 +10,7 @@ from railrl.exploration_strategies.base import PolicyWrappedWithExplorationStrat
 from railrl.torch import pytorch_util as ptu
 import random
 
-from railrl.torch.algos.ddpg import DDPG
+from railrl.torch.ddpg.ddpg import DDPG
 
 
 def example(variant):

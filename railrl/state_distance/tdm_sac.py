@@ -1,4 +1,4 @@
-from railrl.sac.sac import SoftActorCritic
+from railrl.torch.sac.sac import SoftActorCritic
 from railrl.state_distance.tdm import TemporalDifferenceModel
 
 

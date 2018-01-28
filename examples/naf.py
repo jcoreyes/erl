@@ -9,7 +9,7 @@ from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import setup_logger
-from railrl.torch.algos.naf import NafPolicy, NAF
+from railrl.torch.naf.naf import NafPolicy, NAF
 
 
 def experiment(variant):

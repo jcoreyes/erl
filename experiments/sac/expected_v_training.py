@@ -5,14 +5,10 @@ import random
 import numpy as np
 
 import railrl.torch.pytorch_util as ptu
-from railrl.envs.multigoal import MultiGoalEnv
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
-from railrl.misc.plotter import QFPolicyPlotter
-from railrl.sac.expected_sac import ExpectedSAC
-from railrl.sac.policies import TanhGaussianPolicy
-from railrl.sac.sac import SoftActorCritic
-from railrl.sac.value_functions import ExpectableQF
+from railrl.torch.sac.expected_sac import ExpectedSAC
+from railrl.torch.sac.policies import TanhGaussianPolicy
 from railrl.torch.networks import FlattenMlp
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 import railrl.misc.hyperparameter as hyp

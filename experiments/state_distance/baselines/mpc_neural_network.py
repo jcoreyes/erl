@@ -3,29 +3,19 @@ import numpy as np
 
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
-from railrl.mpc.controller import MPCController
-from railrl.mpc.model_trainer import ModelTrainer
-from railrl.mpc.model import DynamicsModel
-from railrl.envs.multitask.ant_env import GoalXYPosAnt, GoalXYPosAndVelAnt
-from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
-    GoalXPosHalfCheetah
-from railrl.envs.multitask.hopper_env import GoalXPosHopper
-from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv, \
-    MultitaskEnvToSilentMultitaskEnv
-from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
-from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
-from railrl.envs.multitask.pusher3d_gym import GoalXYGymPusherEnv
+from railrl.torch.mpc import MPCController
+from railrl.torch.mpc import ModelTrainer
+from railrl.torch.mpc import DynamicsModel
+from railrl.envs.multitask.multitask_env import MultitaskEnvToSilentMultitaskEnv
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofFullGoal
 )
-from railrl.envs.multitask.walker2d_env import Walker2DTargetXPos
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.data_management.normalizer import TorchFixedNormalizer
-from railrl.torch.networks import FlattenMlp
 
 
 def experiment(variant):

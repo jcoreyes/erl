@@ -26,7 +26,7 @@ from torch import nn as nn
 
 import railrl.torch.pytorch_util as ptu
 from railrl.misc.eval_util import create_stats_ordered_dict
-from railrl.sac.policies import MakeDeterministic
+from railrl.torch.sac.policies import MakeDeterministic
 from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
 
 

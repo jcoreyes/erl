@@ -1,5 +1,5 @@
 from railrl.state_distance.tdm import TemporalDifferenceModel
-from railrl.torch.algos.n3dpg import N3DPG
+from railrl.torch.ddpg.n3dpg import N3DPG
 
 
 class TdmN3dpg(TemporalDifferenceModel, N3DPG):

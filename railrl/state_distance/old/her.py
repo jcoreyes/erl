@@ -10,7 +10,7 @@ from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.state_distance.policies import UniversalPolicy
 from railrl.state_distance.rollout_util import MultigoalSimplePathSampler
 from railrl.torch import pytorch_util as ptu
-from railrl.torch.algos.ddpg import DDPG
+from railrl.torch.ddpg.ddpg import DDPG
 from railrl.torch.data_management.normalizer import TorchNormalizer
 from railrl.torch.networks import Mlp
 
