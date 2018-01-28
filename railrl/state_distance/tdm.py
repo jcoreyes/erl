@@ -16,8 +16,8 @@ from railrl.state_distance.rollout_util import MultigoalSimplePathSampler, \
     multitask_rollout
 from railrl.state_distance.tdm_networks import TdmNormalizer
 from railrl.state_distance.util import merge_into_flat_obs
-from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
-from railrl.torch.algos.util import np_to_pytorch_batch
+from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
+from railrl.torch.core import np_to_pytorch_batch
 
 
 class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):

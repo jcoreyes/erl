@@ -5,7 +5,7 @@ from torch import optim as optim
 
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.torch import pytorch_util as ptu
-from railrl.torch.algos.util import np_to_pytorch_batch
+from railrl.torch.core import np_to_pytorch_batch
 from railrl.core import logger
 
 

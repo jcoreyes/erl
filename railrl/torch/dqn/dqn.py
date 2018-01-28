@@ -12,7 +12,7 @@ from railrl.exploration_strategies.base import (
 from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.policies.argmax import ArgmaxDiscretePolicy
-from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
+from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
 
 
 class DQN(TorchRLAlgorithm):

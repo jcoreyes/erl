@@ -10,9 +10,7 @@ from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 import railrl.misc.hyperparameter as hyp
 from railrl.torch.networks import FeedForwardQFunction, FeedForwardPolicy
-from railrl.torch.algos.multi_step_ql import MultiStepDdpg
-from rllab.envs.box2d.cartpole_env import CartpoleEnv
-from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
+from railrl.torch.ddpg.multi_step_ql import MultiStepDdpg
 from rllab.envs.normalized_env import normalize
 
 from hyperopt import hp

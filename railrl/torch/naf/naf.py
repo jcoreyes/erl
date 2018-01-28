@@ -11,7 +11,7 @@ from railrl.misc.eval_util import (
     create_stats_ordered_dict,
 )
 from railrl.torch import pytorch_util as ptu
-from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
+from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
 from railrl.torch.core import PyTorchModule
 
 

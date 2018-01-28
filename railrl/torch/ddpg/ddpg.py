@@ -12,7 +12,7 @@ from railrl.misc.ml_util import (
 )
 from railrl.policies.simple import RandomPolicy
 from railrl.samplers.util import rollout
-from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
+from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
 from railrl.torch.data_management.normalizer import TorchFixedNormalizer
 from railrl.core import logger
 from torch import nn as nn
