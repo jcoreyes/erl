@@ -2,7 +2,8 @@ import gym
 import numpy as np
 import torch.optim as optim
 from gym.envs.mujoco import HalfCheetahEnv, SwimmerEnv, \
-    InvertedDoublePendulumEnv, InvertedPendulumEnv
+    InvertedDoublePendulumEnv, InvertedPendulumEnv, AntEnv, HopperEnv, \
+    Walker2dEnv
 
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import (
@@ -24,7 +25,10 @@ def example(variant):
         env = env_class()
     if variant['normalize']:
         env = NormalizedBoxEnv(env)
-    es = OUStrategy(action_space=env.action_space)
+    es = OUStrategy(
+        action_space=env.action_space,
+        **variant['es_kwargs']
+    )
     obs_dim = int(np.prod(env.observation_space.low.shape))
     action_dim = int(np.prod(env.action_space.low.shape))
     qf = FlattenMlp(
@@ -64,8 +68,8 @@ if __name__ == "__main__":
     variant = dict(
         algo_kwargs=dict(
             num_epochs=500,
-            num_steps_per_epoch=1000,
-            num_steps_per_eval=1000,
+            num_steps_per_epoch=10000,
+            num_steps_per_eval=10000,
             use_soft_update=True,
             tau=1e-2,
             batch_size=128,
@@ -84,6 +88,10 @@ if __name__ == "__main__":
         policy_params=dict(
             hidden_sizes=[300, 300],
         ),
+        es_kwargs=dict(
+            min_sigma=None,  # Constant sigma
+            theta=1,
+        ),
         algorithm="DSPG",
         version="DSPG",
         normalize=True,
@@ -93,13 +101,15 @@ if __name__ == "__main__":
         'env_class': [
             # InvertedPendulumEnv,
             # InvertedDoublePendulumEnv,
-            HalfCheetahEnv,
+            # HalfCheetahEnv,
             # SwimmerEnv,
             # HopperEnv,
-            # AntEnv,
+            AntEnv,
+            HopperEnv,
+            Walker2dEnv,
         ],
         'algo_kwargs.reward_scale': [
-            100, 10, 1, 0.1, 0.01,
+            10000, 100, 1, 0.01
         ],
         'algo_kwargs.optimizer_class': [
             optim.Adam,
@@ -111,7 +121,10 @@ if __name__ == "__main__":
             1,
         ],
         'algo_kwargs.sample_std': [
-            1, 3, 10
+            1,
+        ],
+        'es_kwargs.max_sigma': [
+            0.01, 0.1, 0.5
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -121,7 +134,7 @@ if __name__ == "__main__":
         for _ in range(1):
             run_experiment(
                 example,
-                exp_prefix="dspg-sweep-on-cheetah",
+                exp_prefix="dspg-sweep-hard-tasks",
                 mode='ec2',
                 exp_id=exp_id,
                 variant=variant,

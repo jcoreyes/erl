@@ -1,6 +1,13 @@
 import torch.optim as optim
-from gym.envs.mujoco import HalfCheetahEnv, InvertedPendulumEnv, \
-    InvertedDoublePendulumEnv, SwimmerEnv
+from gym.envs.mujoco import (
+    HalfCheetahEnv,
+    InvertedPendulumEnv,
+    InvertedDoublePendulumEnv,
+    SwimmerEnv,
+    AntEnv,
+    HopperEnv,
+    Walker2dEnv,
+)
 
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import \
@@ -15,7 +22,10 @@ from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 
 def experiment(variant):
     env = NormalizedBoxEnv(variant['env_class']())
-    es = OUStrategy(action_space=env.action_space)
+    es = OUStrategy(
+        action_space=env.action_space,
+        **variant['es_kwargs']
+    )
     obs_dim = env.observation_space.low.size
     action_dim = env.action_space.low.size
     qf = FlattenMlp(
@@ -48,12 +58,12 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=301,
-            num_steps_per_epoch=1000,
-            num_steps_per_eval=1000,
+            num_epochs=1001,
+            num_steps_per_epoch=10000,
+            num_steps_per_eval=10000,
             use_soft_update=True,
             tau=1e-2,
-            batch_size=64,
+            batch_size=128,
             max_path_length=1000,
             discount=0.99,
             qf_learning_rate=1e-3,
@@ -65,6 +75,9 @@ if __name__ == "__main__":
         policy_kwargs=dict(
             hidden_sizes=[300, 300],
         ),
+        es_kwargs=dict(
+            min_sigma=None,  # Constant sigma
+        ),
         algorithm="DDPG",
         version="DDPG",
         normalize=True,
@@ -72,16 +85,17 @@ if __name__ == "__main__":
     )
     search_space = {
         'env_class': [
-            InvertedPendulumEnv,
-            InvertedDoublePendulumEnv,
-            HalfCheetahEnv,
-            SwimmerEnv,
-            # AntEnv,
-            # HopperEnv,
+            # InvertedPendulumEnv,
+            # InvertedDoublePendulumEnv,
+            # HalfCheetahEnv,
+            # SwimmerEnv,
+            AntEnv,
+            HopperEnv,
+            Walker2dEnv,
             # InvertedDoublePendulumEnv,
         ],
         'algo_kwargs.reward_scale': [
-            1,
+            0.1, 1, 10
         ],
         'algo_kwargs.policy_pre_activation_weight': [
             0,
@@ -96,20 +110,26 @@ if __name__ == "__main__":
             1,
         ],
         'qf_kwargs.layer_norm': [
-            True, False
+            True,
         ],
         'policy_kwargs.layer_norm': [
-            True, False
+            True,
+        ],
+        'es_kwargs.theta': [
+            1, 0.3
+        ],
+        'es_kwargs.max_sigma': [
+            0.1, 0.5
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        for _ in range(3):
+        for _ in range(2):
             run_experiment(
                 experiment,
-                exp_prefix="ddpg-sweep-layer-norm",
+                exp_prefix="ddpg-sweep-harder-tasks",
                 mode='ec2',
                 exp_id=exp_id,
                 variant=variant,
