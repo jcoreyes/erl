@@ -1,46 +1,49 @@
 from collections import OrderedDict
 
 import numpy as np
+import torch
 import torch.optim as optim
 
 import railrl.torch.pytorch_util as ptu
-import torch
+from railrl.data_management.env_replay_buffer import VPGEnvReplayBuffer
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.misc.ml_util import (
     StatConditionalSchedule,
     ConstantSchedule,
 )
-from railrl.policies.simple import RandomPolicy
-from railrl.samplers.util import rollout
 from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
 from railrl.core import logger
-from torch import nn as nn
+from railrl.torch.algos.util import np_to_pytorch_batch
 
 
-class VPG:
+class VPG(TorchRLAlgorithm):
     """
-    Vanilla Policy Gradient IN PROGRESS
+    Vanilla Policy Gradient
     """
 
     def __init__(
             self,
             env,
-            qf,
             policy,
-            num_samples_per_train_step,
             policy_learning_rate=1e-4,
             epoch_discount_schedule=None,
             plotter=None,
             render_eval_paths=False,
+            replay_buffer_class=VPGEnvReplayBuffer,
             **kwargs
     ):
-        #for vpg - what do I do about not having an exploration policy
         eval_policy = policy
         super().__init__(
             env,
             policy,
             eval_policy=eval_policy,
+            collection_mode='batch',
             **kwargs
+        )
+        self.replay_buffer = replay_buffer_class(
+            self.replay_buffer_size,
+            env,
+            self.discount,
         )
         self.policy = policy
         self.policy_learning_rate = policy_learning_rate
@@ -58,36 +61,27 @@ class VPG:
         self.discount = self.epoch_discount_schedule.get_value(epoch)
 
     def get_batch(self, training=True):
-        pass
+        '''
+        Should return everything in the replay buffer and empty it out
+        :param training:
+        :return:
+        '''
+        batch = self.replay_buffer.get_training_data()
+        return np_to_pytorch_batch(batch)
 
     def _do_training(self):
         batch = self.get_batch(training=True)
-        rewards = batch['rewards']
-        terminals = batch['terminals']
         obs = batch['observations']
         actions = batch['actions']
-        next_obs = batch['next_observations']
-
+        returns = batch['returns']
         """
         Policy operations.
         """
-        if self.policy_pre_activation_weight > 0:
-            policy_actions, pre_tanh_value = self.policy(
-                obs, return_preactivations=True,
-            )
-            pre_activation_policy_loss = (
-                (pre_tanh_value**2).sum(dim=1).mean()
-            )
-            q_output = self.qf(obs, policy_actions)
-            raw_policy_loss = - q_output.mean()
-            policy_loss = (
-                raw_policy_loss +
-                pre_activation_policy_loss * self.policy_pre_activation_weight
-            )
-        else:
-            policy_actions = self.policy(obs)
-            q_output = self.qf(obs, policy_actions)
-            raw_policy_loss = policy_loss = - q_output.mean()
+        _, _, _, log_probs, _, _,_, _ = self.policy.forward(obs, return_log_prob=True)
+        #ISSUE: don't get pathwise rewards here - only a giant list of rewards, how to figure out one trajectory from the next
+        #need to multiply log_probs matrix with returns matrix (pointwise multiply) then
+        log_probs_times_returns = np.multiply(log_probs, returns)
+        policy_loss = -1*torch.mean(log_probs_times_returns)
 
         """
         Update Networks
@@ -106,16 +100,12 @@ class VPG:
             self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
                 policy_loss
             ))
-            self.eval_statistics['Raw Policy Loss'] = np.mean(ptu.get_numpy(
-                raw_policy_loss
-            ))
-            self.eval_statistics.update(create_stats_ordered_dict(
-                'Policy Action',
-                ptu.get_numpy(policy_actions),
-            ))
 
-    def train_online(self, start_epoch=0):
+    def _can_train(self):
+        return True
 
+    def _can_evaluate(self):
+        return True
 
     def evaluate(self, epoch):
         statistics = OrderedDict()

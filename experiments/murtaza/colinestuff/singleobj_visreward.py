@@ -8,6 +8,7 @@ import mujoco_py
 from mujoco_py.mjlib import mjlib
 import sys
 sys.path.append('/home/coline/objectattention')
+
 #sys.path.append('/home/coline/visual_features/sim_push/gps/python/gps/algorithm/policy_opt/')
 #from tf_model_example import get_mlp_layers
 import numpy as np
@@ -20,35 +21,34 @@ AGENT_MUJOCO= {
 
 class SingleObjVisRewardEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def __init__(self):
-        print("starting init")
-        utils.EzPickle.__init__(self)
-        self.last_box = np.zeros(4)
-        self.gripperbox = np.zeros(4)
-        self._viewer_bot = mujoco_py.MjViewer(visible=True, init_width=AGENT_MUJOCO['image_width'],
-                                              init_height=AGENT_MUJOCO['image_height'])
-        self._viewer_bot.start()
-        self.suffix = 0
-        from Featurizer import BBProposer, AlexNetFeaturizer
-        self.proposer = BBProposer()
-        self.featurizer = AlexNetFeaturizer()
-        # self.query = np.load("mugfeats.npy")*10
-        #self.query = np.load("/home/coline/rllab/topdown_mug.npy")*50
-        self.query = np.load("/home/coline/sac_master/softqlearning-private/visreward_mug_feats.npy")*50
-        self.gripper_feats = np.load("/home/coline/sac_master/softqlearning-private/visreward_gripper_feats.npy")*50
-
-        # self.cam_pos = np.array([0.435, -0.185, -0.15, 0.75, -55., 90.])    # 7DOF camera
-        self.cam_pos = np.array([0.45, -0.05, -0.323, 0.95, -90., 90.])
-        self.im_w = AGENT_MUJOCO['image_width']
-        self.im_h = AGENT_MUJOCO['image_height']
-        self.max_boxes = 10
-        self.target_pos= np.array([-0.16743428, -0.15542921,  0.0403198 ,  0.04634899])
-        print("parent class")
-        mujoco_env.MujocoEnv.__init__(self, 'visreward_world.xml', 5, init_viewer=True)
-        # mujoco_env.MujocoEnv.__init__(self, '/home/larry/dev/data-collect/examples/textured.xml', 5)
-        self.init_body_pos = copy.deepcopy(self.model.body_pos)
-
-        print("done init")
-
+        # print("starting init")
+        # utils.EzPickle.__init__(self)
+        # self.last_box = np.zeros(4)
+        # self.gripperbox = np.zeros(4)
+        # self._viewer_bot = mujoco_py.MjViewer(visible=True, init_width=AGENT_MUJOCO['image_width'],
+        #                                       init_height=AGENT_MUJOCO['image_height'])
+        # self._viewer_bot.start()
+        # self.suffix = 0
+        # from Featurizer import BBProposer, AlexNetFeaturizer
+        # self.proposer = BBProposer()
+        # self.featurizer = AlexNetFeaturizer()
+        # # self.query = np.load("mugfeats.npy")*10
+        # #self.query = np.load("/home/coline/rllab/topdown_mug.npy")*50
+        # self.query = np.load("/home/murtaza/Documents/rllab/railrl/experiments/murtaza/colinestuff/visreward_mug_feats.npy")*50
+        # self.gripper_feats = np.load("/home/murtaza/Documents/rllab/railrl/experiments/murtaza/colinestuff/visreward_gripper_feats.npy")*50
+        #
+        # # self.cam_pos = np.array([0.435, -0.185, -0.15, 0.75, -55., 90.])    # 7DOF camera
+        # self.cam_pos = np.array([0.45, -0.05, -0.323, 0.95, -90., 90.])
+        # self.im_w = AGENT_MUJOCO['image_width']
+        # self.im_h = AGENT_MUJOCO['image_height']
+        # self.max_boxes = 10
+        # self.target_pos= np.array([-0.16743428, -0.15542921,  0.0403198 ,  0.04634899])
+        # print("parent class")
+        # mujoco_env.MujocoEnv.__init__(self, 'visreward_world.xml', 5, init_viewer=True)
+        # # mujoco_env.MujocoEnv.__init__(self, '/home/larry/dev/data-collect/examples/textured.xml', 5)
+        # self.init_body_pos = copy.deepcopy(self.model.body_pos)
+        #
+        # print("done init"
     def _step(self, a):
         #vec_1 = self.get_body_com("object")-self.get_body_com("tips_arm")
         #vec_2 = self.get_body_com("object")-self.get_body_com("goal")
