@@ -50,6 +50,9 @@ def visualize_policy_error(model, env, horizon):
     dims = list(range(num_state_dims))
     norm = colors.Normalize(vmin=0, vmax=num_state_dims)
     mapper = cm.ScalarMappable(norm=norm, cmap=cm.hsv)
+
+    # Plot the predicted and actual values
+    plt.subplot(2, 1, 1)
     for dim in dims:
         plt.plot(
             times,
@@ -67,6 +70,20 @@ def visualize_policy_error(model, env, horizon):
         )
     plt.xlabel("Time Steps")
     plt.ylabel("Observation Value")
+    plt.legend(loc='best')
+
+    # Plot the predicted and actual value errors
+    plt.subplot(2, 1, 2)
+    for dim in dims:
+        plt.plot(
+            times,
+            np.abs(predicted_states[:, dim] - actual_states[:, dim]),
+            '-',
+            label='Dim {}'.format(dim),
+            color=mapper.to_rgba(dim),
+        )
+    plt.xlabel("Time Steps")
+    plt.ylabel("|Predicted - Actual| - Absolute Error")
     plt.legend(loc='best')
     plt.show()
 
