@@ -79,8 +79,8 @@ if __name__ == "__main__":
     # exp_prefix = "reacher-full-mpcnn-H1"
 
     num_epochs = 100
-    num_steps_per_epoch = 1000
-    num_steps_per_eval = 1000
+    num_steps_per_epoch = 100
+    num_steps_per_eval = 100
     max_path_length = 100
 
     # noinspection PyTypeChecker
@@ -167,7 +167,7 @@ if __name__ == "__main__":
         'algo_kwargs.num_updates_per_env_step': [
             1,
         ],
-        'mpc_controller_kwargs.mpc_horizon': [1],
+        'mpc_controller_kwargs.mpc_horizon': [5],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

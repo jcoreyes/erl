@@ -3,8 +3,7 @@ from collections import OrderedDict
 import numpy as np
 from gym.envs.mujoco import HalfCheetahEnv
 
-from railrl.misc.eval_util import create_stats_ordered_dict
-from railrl.samplers.util import get_stat_in_paths
+from railrl.misc.eval_util import create_stats_ordered_dict, get_stat_in_paths
 from railrl.core import logger as default_logger
 
 

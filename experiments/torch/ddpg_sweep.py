@@ -6,6 +6,7 @@ from gym.envs.mujoco import (
     Walker2dEnv,
 )
 
+from railrl.envs.pygame.point2d import Point2DEnv
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
@@ -56,8 +57,8 @@ if __name__ == "__main__":
     variant = dict(
         algo_kwargs=dict(
             num_epochs=1001,
-            num_steps_per_epoch=10000,
-            num_steps_per_eval=10000,
+            num_steps_per_epoch=1000,
+            num_steps_per_eval=1000,
             use_soft_update=True,
             tau=1e-2,
             batch_size=128,
@@ -86,13 +87,14 @@ if __name__ == "__main__":
             # InvertedDoublePendulumEnv,
             # HalfCheetahEnv,
             # SwimmerEnv,
-            AntEnv,
-            HopperEnv,
-            Walker2dEnv,
+            # AntEnv,
+            # HopperEnv,
+            # Walker2dEnv,
+            Point2DEnv,
             # InvertedDoublePendulumEnv,
         ],
         'algo_kwargs.reward_scale': [
-            0.1, 1, 10
+            1,
         ],
         'algo_kwargs.policy_pre_activation_weight': [
             0,
@@ -113,10 +115,10 @@ if __name__ == "__main__":
             True,
         ],
         'es_kwargs.theta': [
-            1, 0.3
+            1,
         ],
         'es_kwargs.max_sigma': [
-            0.1, 0.5
+            0.1,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -126,8 +128,9 @@ if __name__ == "__main__":
         for _ in range(2):
             run_experiment(
                 experiment,
-                exp_prefix="ddpg-sweep-harder-tasks",
-                mode='ec2',
+                exp_prefix="dev-ddpg-sweep",
+                # exp_prefix="ddpg-sweep-harder-tasks",
+                # mode='ec2',
                 exp_id=exp_id,
                 variant=variant,
                 use_gpu=False,

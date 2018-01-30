@@ -8,8 +8,8 @@ from pygame import Color
 from railrl.core import logger as default_logger
 from railrl.core.serializable import Serializable
 from railrl.envs.pygame.pygame_viewer import PygameViewer
-from railrl.misc.eval_util import create_stats_ordered_dict, get_path_lengths
-from railrl.samplers.util import get_stat_in_paths
+from railrl.misc.eval_util import create_stats_ordered_dict, get_path_lengths, \
+    get_stat_in_paths
 
 
 class Point2DEnv(Serializable, Env):
@@ -56,8 +56,9 @@ class Point2DEnv(Serializable, Env):
         on_platform = self.is_on_platform()
 
         reward = float(on_platform)
-        reward -= distance_to_target
-        reward -= np.linalg.norm(velocities) * self.action_l2norm_penalty
+        distance_reward = -distance_to_target
+        action_reward = -np.linalg.norm(velocities) * self.action_l2norm_penalty
+        reward += distance_reward + action_reward
         done = on_platform
         info = {
             'radius': self.TARGET_RADIUS,
@@ -65,6 +66,8 @@ class Point2DEnv(Serializable, Env):
             'distance_to_target': distance_to_target,
             'velocity': velocities,
             'speed': np.linalg.norm(velocities),
+            'distance_reward': distance_reward,
+            'action_reward': action_reward,
         }
         return observation, reward, done, info
 
@@ -97,6 +100,8 @@ class Point2DEnv(Serializable, Env):
         for name_in_env_infos, name_to_log in [
             ('distance_to_target', 'Distance to Target'),
             ('speed', 'Speed'),
+            ('distance_reward', 'Distance Reward'),
+            ('action_reward', 'Action Reward'),
         ]:
             stat = get_stat_in_paths(paths, 'env_infos', name_in_env_infos)
             statistics.update(create_stats_ordered_dict(
