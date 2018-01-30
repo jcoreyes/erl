@@ -2,6 +2,7 @@ import numpy as np
 
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
+from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
 from railrl.torch.mpc.controller import MPCController
 from railrl.torch.mpc.model_trainer import ModelTrainer
 from railrl.torch.mpc.dynamics_model import DynamicsModel
@@ -75,7 +76,7 @@ if __name__ == "__main__":
 
     # n_seeds = 3
     # mode = "ec2"
-    exp_prefix = "reacher-full-mpcnn-H1"
+    # exp_prefix = "reacher-full-mpcnn-H1"
 
     num_epochs = 100
     num_steps_per_epoch = 1000
@@ -119,7 +120,8 @@ if __name__ == "__main__":
     search_space = {
         'multitask': [True],
         'env_class': [
-            Reacher7DofFullGoal,
+            # Reacher7DofFullGoal,
+            MultitaskPoint2DEnv,
             # GoalXVelHalfCheetah,
             # Reacher7DofXyzGoalState,
             # GoalXYPosAnt,
