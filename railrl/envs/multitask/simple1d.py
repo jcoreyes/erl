@@ -162,7 +162,7 @@ class Simple1DTdmPlotter(object):
                     taus_sampled,
                     {},
                 )
-                img, side_axis = plot_heatmap(self.fig, ax, hm)
+                img, side_axis = plot_heatmap(hm, self.fig, ax)
                 self._img_lst[i] = img
             img.set_data(q_grid)
 
@@ -252,6 +252,6 @@ class Simple1DTdmDiscretePlotter(object):
                     taus_sampled,
                     {},
                 )
-                img, side_axis = plot_heatmap(self.fig, ax, hm)
+                img, side_axis = plot_heatmap(hm, self.fig, ax)
                 self._img_lst[i] = img
             img.set_data(q_grid)

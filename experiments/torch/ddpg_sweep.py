@@ -56,7 +56,7 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=1001,
+            num_epochs=10,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             use_soft_update=True,
@@ -66,6 +66,9 @@ if __name__ == "__main__":
             discount=0.99,
             qf_learning_rate=1e-3,
             policy_learning_rate=1e-4,
+
+            save_replay_buffer=True,
+            replay_buffer_size=15000,
         ),
         qf_kwargs=dict(
             hidden_sizes=[300, 300],
@@ -125,11 +128,11 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        for _ in range(2):
+        for _ in range(1):
             run_experiment(
                 experiment,
-                exp_prefix="dev-ddpg-sweep",
-                # exp_prefix="ddpg-sweep-harder-tasks",
+                # exp_prefix="dev-ddpg-sweep",
+                exp_prefix="ddpg-point2d-short",
                 # mode='ec2',
                 exp_id=exp_id,
                 variant=variant,

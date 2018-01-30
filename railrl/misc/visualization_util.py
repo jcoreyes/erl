@@ -71,7 +71,11 @@ def make_vector_field(eval_func, x_bounds, y_bounds, *, resolution=10,
     )
 
 
-def plot_heatmap(fig, ax, heatmap, legend_axis=None):
+def plot_heatmap(heatmap, fig=None, ax=None, legend_axis=None):
+    if fig is None:
+        fig = plt.gcf()
+    if ax is None:
+        ax = plt.gca()
     p, x, y, _ = heatmap
     im = ax.imshow(
         np.swapaxes(p, 0, 1),  # imshow uses first axis as y-axis

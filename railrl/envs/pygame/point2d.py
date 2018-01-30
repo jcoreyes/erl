@@ -10,6 +10,7 @@ from railrl.core.serializable import Serializable
 from railrl.envs.pygame.pygame_viewer import PygameViewer
 from railrl.misc.eval_util import create_stats_ordered_dict, get_path_lengths, \
     get_stat_in_paths
+import railrl.misc.visualization_util as vu
 
 
 class Point2DEnv(Serializable, Env):
@@ -142,3 +143,45 @@ class Point2DEnv(Serializable, Env):
 
         self.drawer.render()
         self.drawer.tick(self.render_dt_msec)
+
+
+def plot_observations_and_actions(observations, actions):
+    import matplotlib.pyplot as plt
+
+    x_pos = observations[:, 0]
+    y_pos = observations[:, 1]
+    H, xedges, yedges = np.histogram2d(x_pos, y_pos)
+    heatmap = vu.HeatMap(H, xedges, yedges, {})
+    plt.subplot(2, 1, 1)
+    plt.title("Observation Distribution")
+    plt.xlabel("0-Dimenion")
+    plt.ylabel("1-Dimenion")
+    vu.plot_heatmap(heatmap)
+
+    x_actions = actions[:, 0]
+    y_actions = actions[:, 1]
+    H, xedges, yedges = np.histogram2d(x_actions, y_actions)
+    heatmap = vu.HeatMap(H, xedges, yedges, {})
+    plt.subplot(2, 1, 2)
+    plt.title("Action Distribution")
+    plt.xlabel("0-Dimenion")
+    plt.ylabel("1-Dimenion")
+    vu.plot_heatmap(heatmap)
+
+    plt.show()
+
+
+if __name__ == "__main__":
+    import argparse
+    import joblib
+    parser = argparse.ArgumentParser()
+    parser.add_argument('file', type=str, help='path to the snapshot file')
+    parser.add_argument('--H', type=int, default=30, help='Horizon for eval')
+    args = parser.parse_args()
+
+    data = joblib.load(args.file)
+    replay_buffer = data['replay_buffer']
+    max_i = replay_buffer._top - 1
+    observations = replay_buffer._observations[:max_i, :]
+    actions = replay_buffer._actions[:max_i, :]
+    plot_observations_and_actions(observations, actions)

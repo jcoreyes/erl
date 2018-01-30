@@ -50,12 +50,15 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=1001,
+            num_epochs=10,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             batch_size=128,
-            max_path_length=999,
+            max_path_length=1000,
             discount=0.99,
+
+            save_replay_buffer=True,
+            replay_buffer_size=15000,
 
             soft_target_tau=0.001,
             policy_lr=3E-4,
@@ -98,7 +101,8 @@ if __name__ == "__main__":
         for _ in range(1):
             run_experiment(
                 experiment,
-                # exp_prefix="sac-cheetah-sweep-regularization",
+                # exp_prefix="dev-sac-sweep",
+                exp_prefix="sac-point2d-short",
                 # mode='ec2',
                 exp_id=exp_id,
                 variant=variant,
