@@ -48,7 +48,6 @@ def simulate_policy(args):
             )
             if hasattr(env, "log_diagnostics"):
                 env.log_diagnostics([path])
-            policy.log_diagnostics([path])
             logger.dump_tabular()
         # Hack for now. Not sure why rollout assumes that close is an
         # keyword argument
