@@ -20,6 +20,17 @@ class MultitaskPoint2DEnv(Point2DEnv, MultitaskEnv):
         super().set_goal(goal)
         self._target_position = goal
 
+    def reset(self):
+        self._target_position = self.multitask_goal
+        self._position = np.random.uniform(
+            size=2, low=-self.BOUNDARY_DIST, high=self.BOUNDARY_DIST
+        )
+        while self.is_on_platform():
+            self._position = np.random.uniform(
+                size=2, low=-self.BOUNDARY_DIST, high=self.BOUNDARY_DIST
+            )
+        return self._get_observation()
+
     @property
     def goal_dim(self) -> int:
         return 2
@@ -32,7 +43,7 @@ class MultitaskPoint2DEnv(Point2DEnv, MultitaskEnv):
         )
 
     def convert_obs_to_goals(self, obs):
-        return obs[:, 2:]
+        return obs[:, :2]
 
 
 class PerfectPoint2DQF(PyTorchModule):

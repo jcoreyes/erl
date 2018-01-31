@@ -118,22 +118,28 @@ if __name__ == "__main__":
             True,
         ],
         'es_kwargs.theta': [
-            1,
+            1, 0.3
         ],
         'es_kwargs.max_sigma': [
-            0.1,
+            1, 0.3
+        ],
+        'es_kwargs.min_sigma': [
+            None, 0.1,
+        ],
+        'es_kwargs.decay_period': [
+            10000,
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        for _ in range(1):
+        for _ in range(3):
             run_experiment(
                 experiment,
                 # exp_prefix="dev-ddpg-sweep",
-                exp_prefix="ddpg-point2d-short",
-                # mode='ec2',
+                exp_prefix="ddpg-point2d-exploration-sweep",
+                mode='ec2',
                 exp_id=exp_id,
                 variant=variant,
                 use_gpu=False,
