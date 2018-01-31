@@ -214,18 +214,41 @@ class SlsqpCMC(UniversalPolicy, nn.Module):
         """
         return x[:self.action_dim], x[self.action_dim:]
 
-    def cost_function(self, x):
+    def _cost_function(self, x, order):
+        # TODO(vitchyr): stop hardcoding this
+        # goal_slice = slice(0, 7)
+        # goal_slice = slice(14, 17)
+        goal_slice = slice(0, 2)
+
+        x = ptu.np_to_var(x, requires_grad=True)
         action, next_state = self.split(x)
-        return self.env.cost_fn(None, action, next_state)
+        next_features_predicted = next_state[goal_slice]
+        desired_features = ptu.np_to_var(
+            self.env.multitask_goal[goal_slice]
+            * np.ones(next_features_predicted.shape)
+        )
+        diff = next_features_predicted - desired_features
+        loss = (diff**2).sum()
+        if order == 0:
+            return ptu.get_numpy(loss)[0]
+        elif order == 1:
+            loss.squeeze(0).backward()
+            return ptu.get_numpy(x.grad)
+
+    def cost_function(self, x):
+        return self._cost_function(x, order=0)
+        # action, next_state = self.split(x)
+        # return self.env.cost_fn(None, action, next_state)
 
     def cost_jacobian(self, x):
-        jacobian = np.zeros_like(x)
-        _, next_state = self.split(x)
-        # TODO(vitchyr): stop hardcoding this
-        jacobian[2:4] = (
-            2 * (self.env.convert_ob_to_goal(next_state) - self.env.multitask_goal)
-        )
-        return jacobian
+        return self._cost_function(x, order=1)
+        # jacobian = np.zeros_like(x)
+        # _, next_state = self.split(x)
+        # full_gradient = (
+        #         2 * (self.env.convert_ob_to_goal(next_state) - self.env.multitask_goal)
+        # )
+        # jacobian[7:14] = full_gradient[:7]
+        # return jacobian
 
     def _constraint_fctn(self, x, state, order):
         state = ptu.np_to_var(state)
