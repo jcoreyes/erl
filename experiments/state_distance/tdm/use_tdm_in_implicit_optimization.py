@@ -4,8 +4,8 @@ import joblib
 
 from railrl.core import logger
 from railrl.samplers.util import rollout
-from railrl.state_distance.probabilistic_tdm.mpc_controller import \
-    ImplicitMPCController
+from railrl.torch.mpc.collocation import \
+    CollocationMpcController
 from railrl.state_distance.rollout_util import multitask_rollout
 from railrl.state_distance.util import merge_into_flat_obs
 from railrl.torch.core import PyTorchModule
@@ -128,7 +128,7 @@ if __name__ == "__main__":
                 print("")
                 print("weight", weight)
                 print("num_simulated_paths", num_simulated_paths)
-                policy = ImplicitMPCController(
+                policy = CollocationMpcController(
                     env,
                     implicit_model,
                     original_policy,

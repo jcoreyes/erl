@@ -1,13 +1,16 @@
-from railrl.policies.base import ExplorationPolicy
-from railrl.state_distance.util import merge_into_flat_obs
-from railrl.torch.core import PyTorchModule
 import numpy as np
-import railrl.torch.pytorch_util as ptu
-from torch import optim
 import torch
+from scipy import optimize
+from torch import optim, nn as nn
+
+from railrl.core import logger
+from railrl.policies.base import ExplorationPolicy
+from railrl.state_distance.policies import UniversalPolicy
+from railrl.torch import pytorch_util as ptu
+from railrl.torch.core import PyTorchModule
 
 
-class ImplicitMPCController(PyTorchModule, ExplorationPolicy):
+class CollocationMpcController(PyTorchModule, ExplorationPolicy):
     def __init__(
             self,
             env,
@@ -150,3 +153,123 @@ class ImplicitMPCController(PyTorchModule, ExplorationPolicy):
         costs = env_cost + feasibility_cost * self.feasibility_weight
         min_i = np.argmin(costs)
         return actions[min_i, :], {}
+
+
+class SlsqpCMC(UniversalPolicy, nn.Module):
+    """
+    CMC = Collocation MPC Controller
+
+    Implement
+
+        pi(s_1, g) = pi_{distance}(s_1, s_2)
+
+    where pi_{distance} is the SDQL policy and
+
+        s_2 = argmin_{s_2} min_{s_{3:T+1}} ||s_{T+1} - g||_2^2
+        subject to C(s_i, pi_{distance}(s_i, s_{i+1}), s_{i+1}) = 0
+
+    for i = 1, ..., T, where C is an implicit model.
+
+    using SLSQP
+    """
+    def __init__(
+            self,
+            implicit_model,
+            env,
+            solver_params=None,
+            planning_horizon=1,
+    ):
+        super().__init__()
+        nn.Module.__init__(self)
+        self.implicit_model = implicit_model
+        self.env = env
+        self.action_dim = self.env.action_space.low.size
+        self.obs_dim = self.env.observation_space.low.size
+        self.solver_params = solver_params
+        self.planning_horizon = planning_horizon
+
+        self.last_solution = None
+        self.lower_bounds = np.hstack((
+            self.env.action_space.low,
+            self.env.observation_space.low
+        ))
+        self.upper_bounds = np.hstack((
+            self.env.action_space.high,
+            self.env.observation_space.high
+        ))
+        # TODO(vitchyr): figure out what to do if the state bounds are infinity
+        # self.lower_bounds = - np.ones_like(self.lower_bounds)
+        # self.upper_bounds = np.ones_like(self.upper_bounds)
+        self.bounds = list(zip(self.lower_bounds, self.upper_bounds))
+        self.constraints = {
+            'type': 'eq',
+            'fun': self.constraint_fctn,
+            'jac': self.constraint_jacobian,
+        }
+
+    def split(self, x):
+        """
+        split into action, next_state
+        """
+        return x[:self.action_dim], x[self.action_dim:]
+
+    def cost_function(self, x):
+        action, next_state = self.split(x)
+        return self.env.cost_fn(None, action, next_state)
+
+    def cost_jacobian(self, x):
+        jacobian = np.zeros_like(x)
+        _, next_state = self.split(x)
+        # TODO(vitchyr): stop hardcoding this
+        jacobian[2:4] = (
+            2 * (self.env.convert_ob_to_goal(next_state) - self.env.multitask_goal)
+        )
+        return jacobian
+
+    def _constraint_fctn(self, x, state, return_grad):
+        state = ptu.np_to_var(state)
+        x = ptu.np_to_var(x, requires_grad=return_grad)
+        action, next_state = self.split(x)
+        action = action[None]
+        next_state = next_state[None]
+
+        state = state.unsqueeze(0)
+        loss = self.implicit_model(state, action, next_state)
+        if return_grad:
+            loss.squeeze(0).backward()
+            return ptu.get_numpy(x.grad)
+        else:
+            return ptu.get_numpy(loss.squeeze(0))[0]
+
+    def constraint_fctn(self, x, state=None):
+        return self._constraint_fctn(x, state, False)
+
+    def constraint_jacobian(self, x, state=None):
+        return self._constraint_fctn(x, state, True)
+
+    def reset(self):
+        self.last_solution = None
+
+    def get_action(self, obs):
+        if self.last_solution is None:
+            self.last_solution = np.hstack((
+                np.zeros(self.action_dim),
+                np.tile(obs, self.planning_horizon),
+            ))
+        self.constraints['args'] = (obs, )
+        result = optimize.minimize(
+            self.cost_function,
+            self.last_solution,
+            jac=self.cost_jacobian,
+            constraints=self.constraints,
+            method='SLSQP',
+            options=self.solver_params,
+            bounds=self.bounds,
+        )
+        if not result.success:
+            print("WARNING: SLSQP Did not succeed. Message is:")
+            print(result.message)
+
+        action, _ = self.split(result.x)
+        self.last_solution = result.x
+        return action, {}
