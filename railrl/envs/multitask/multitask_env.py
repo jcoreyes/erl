@@ -77,19 +77,19 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         goal = self.sample_goals(1)[0]
         return self.modify_goal_for_rollout(goal)
 
-    def convert_ob_to_goal(self, obs):
+    def convert_ob_to_goal(self, ob):
         """
         Convert a raw environment observation into a goal (if possible).
 
         This observation should NOT include the goal.
         """
-        if isinstance(obs, np.ndarray):
+        if isinstance(ob, np.ndarray):
             return self.convert_obs_to_goals(
-                np.expand_dims(obs, 0)
+                np.expand_dims(ob, 0)
             )[0]
         else:
             return self.convert_obs_to_goals_pytorch(
-                obs.unsqueeze(0)
+                ob.unsqueeze(0)
             )[0]
 
     def compute_reward(self, ob, action, next_ob, goal):
@@ -207,12 +207,7 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         desired = self.multitask_goal * np.ones_like(actual)
         diff = actual - desired
         diff *= self.goal_dim_weights
-        costs = np.linalg.norm(
-            diff,
-            axis=1,
-            ord=1,
-        )
-        return costs
+        return np.inner(diff, diff)
 
 
 def _is_rllab_style_paths(paths):
@@ -341,3 +336,10 @@ class MultitaskEnvToSilentMultitaskEnv(ProxyEnv, Serializable):
 
     def sample_states(self, batch_size):
         return self._wrapped_env.sample_states(batch_size)
+
+    def convert_ob_to_goal(self, ob):
+        return self._wrapped_env.convert_ob_to_goal(ob)
+
+    @property
+    def multitask_goal(self):
+        return self._wrapped_env.multitask_goal
