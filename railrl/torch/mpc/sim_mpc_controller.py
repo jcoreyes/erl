@@ -1,43 +1,28 @@
-from railrl.envs.remote import RemoteRolloutEnv
-from railrl.samplers.util import rollout
-from railrl.torch.core import PyTorchModule
-from railrl.torch.pytorch_util import set_gpu_mode
-import argparse
-import joblib
-import uuid
-from railrl.core import logger
+"""
+A special script made for running MPC controller.
 
+The way that the MPC controller saves its cost function makes it so that when
+the controller is de-serialized, it doesn't work.
+"""
+import argparse
+import uuid
+
+import joblib
+
+from railrl.core import logger
+from railrl.samplers.util import rollout
 
 filename = str(uuid.uuid4())
 
 
 def simulate_policy(args):
     data = joblib.load(args.file)
-    if 'policy' in data:
-        policy = data['policy']
-    elif 'exploration_policy' in data:
-        policy = data['exploration_policy']
-    elif 'naf_policy' in data:
-        policy = data['naf_policy']
-    elif 'optimizable_qfunction' in data:
-        qf = data['optimizable_qfunction']
-        policy = qf.implicit_policy
-    else:
-        raise Exception("No policy found in loaded dict. Keys: {}".format(
-            data.keys()
-        ))
-
+    policy = data['mpc_controller']
     env = data['env']
-    if isinstance(env, RemoteRolloutEnv):
-        env = env._wrapped_env
     print("Policy loaded")
-    if args.gpu:
-        set_gpu_mode(True)
-        policy.cuda()
     if args.pause:
         import ipdb; ipdb.set_trace()
-    if isinstance(policy, PyTorchModule):
-        policy.train(False)
+    policy.cost_fn = env.cost_fn
     while True:
         path = rollout(
             env,
@@ -48,7 +33,6 @@ def simulate_policy(args):
         if hasattr(env, "log_diagnostics"):
             env.log_diagnostics([path])
         logger.dump_tabular()
-
 
 if __name__ == "__main__":
 
