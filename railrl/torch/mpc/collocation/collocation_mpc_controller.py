@@ -3,7 +3,6 @@ import torch
 from scipy import optimize
 from torch import optim, nn as nn
 
-from railrl.core import logger
 from railrl.policies.base import ExplorationPolicy
 from railrl.state_distance.policies import UniversalPolicy
 from railrl.torch import pytorch_util as ptu
@@ -178,6 +177,7 @@ class SlsqpCMC(UniversalPolicy, nn.Module):
             env,
             solver_params=None,
             planning_horizon=1,
+            use_implicit_model_gradient=False,
     ):
         super().__init__()
         nn.Module.__init__(self)
@@ -186,6 +186,7 @@ class SlsqpCMC(UniversalPolicy, nn.Module):
         self.action_dim = self.env.action_space.low.size
         self.obs_dim = self.env.observation_space.low.size
         self.solver_params = solver_params
+        self.use_implicit_model_gradient = use_implicit_model_gradient
         self.planning_horizon = planning_horizon
 
         self.last_solution = None
@@ -226,26 +227,38 @@ class SlsqpCMC(UniversalPolicy, nn.Module):
         )
         return jacobian
 
-    def _constraint_fctn(self, x, state, return_grad):
+    def _constraint_fctn(self, x, state, order):
         state = ptu.np_to_var(state)
-        x = ptu.np_to_var(x, requires_grad=return_grad)
+        x = ptu.np_to_var(x, requires_grad=order > 0)
         action, next_state = self.split(x)
         action = action[None]
         next_state = next_state[None]
 
         state = state.unsqueeze(0)
         loss = self.implicit_model(state, action, next_state)
-        if return_grad:
+        if order == 0:
+            return ptu.get_numpy(loss.squeeze(0))[0]
+        elif order == 1:
             loss.squeeze(0).backward()
             return ptu.get_numpy(x.grad)
         else:
-            return ptu.get_numpy(loss.squeeze(0))[0]
+            grad_params = torch.autograd.grad(loss, x, create_graph=True)[0]
+            grad_norm = torch.dot(grad_params, grad_params)
+            grad_norm.backward()
+            return ptu.get_numpy(x.grad)
 
     def constraint_fctn(self, x, state=None):
-        return self._constraint_fctn(x, state, False)
+        if self.use_implicit_model_gradient:
+            grad = self._constraint_fctn(x, state, 1)
+            return np.inner(grad, grad)
+        else:
+            return self._constraint_fctn(x, state, 0)
 
     def constraint_jacobian(self, x, state=None):
-        return self._constraint_fctn(x, state, True)
+        if self.use_implicit_model_gradient:
+            return self._constraint_fctn(x, state, 2)
+        else:
+            return self._constraint_fctn(x, state, 1)
 
     def reset(self):
         self.last_solution = None

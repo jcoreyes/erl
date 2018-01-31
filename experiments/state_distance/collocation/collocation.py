@@ -3,10 +3,10 @@ import joblib
 
 from railrl.samplers.util import rollout
 from railrl.torch.mpc.collocation.collocation_mpc_controller import SlsqpCMC
-from railrl.torch.mpc.collocation.model_to_implicit_model import ModelToImplicitModel
+from railrl.torch.mpc.collocation.model_to_implicit_model import \
+    ModelToImplicitModel
 
 PATH = '/home/vitchyr/git/railrl/data/local/01-30-dev-mpc-neural-networks/01-30-dev-mpc-neural-networks_2018_01_30_11_28_28_0000--s-24549/params.pkl'
-
 
 if __name__ == "__main__":
 
@@ -33,11 +33,16 @@ if __name__ == "__main__":
     env = data['env']
     model = data['model']
 
-    implicit_model = ModelToImplicitModel(model)
+    implicit_model = ModelToImplicitModel(model, bias=-2)
     solver_params = {
-        'ftol': 1e-3,
+        'ftol': 1e-2,
     }
-    policy = SlsqpCMC(implicit_model, env, solver_params=solver_params)
+    policy = SlsqpCMC(
+        implicit_model,
+        env,
+        use_implicit_model_gradient=True,
+        solver_params=solver_params
+    )
     while True:
         paths = [rollout(
             env,
