@@ -323,9 +323,4 @@ class Reacher7DofFullGoal(Reacher7DofMultitaskEnv):
             self.multitask_goal[:7] * np.ones_like(next_joint_angles)
         )
         diff = next_joint_angles - desired_joint_angles
-        costs = np.linalg.norm(
-            diff,
-            axis=1,
-            ord=1,
-        )
-        return costs
+        return np.inner(diff, diff)
