@@ -7,6 +7,7 @@ python ../visualize_model_error.py path/to/params.pkl
 ```
 """
 import argparse
+import math
 import numpy as np
 import joblib
 import matplotlib.pyplot as plt
@@ -85,6 +86,39 @@ def visualize_policy_error(model, env, horizon):
     plt.xlabel("Time Steps")
     plt.ylabel("|Predicted - Actual| - Absolute Error")
     plt.legend(loc='best')
+    plt.show()
+
+    nrows = 5
+    ncols = math.ceil(num_state_dims / nrows)
+    fig = plt.figure()
+    for dim in dims:
+        ax = fig.add_subplot(nrows, ncols, dim+1)
+        ax.plot(
+            times,
+            predicted_states[:, dim],
+            '--',
+            label='Predicted, Dim {}'.format(dim),
+        )
+        ax.plot(
+            times,
+            actual_states[:, dim],
+            '-',
+            label='Actual, Dim {}'.format(dim),
+        )
+        ax.set_ylabel("Observation Value")
+        ax.set_xlabel("Time Steps")
+        ax.set_title("Dim {}".format(dim))
+        ax_error = ax.twinx()
+        ax_error.plot(
+            times,
+            np.abs(predicted_states[:, dim] - actual_states[:, dim]),
+            '.',
+            label='Error, Dim {}'.format(dim),
+            color='r',
+        )
+        ax_error.set_ylabel("Error", color='r')
+        ax_error.tick_params('y', colors='r')
+        ax.legend(loc='best')
     plt.show()
 
 
