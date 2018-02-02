@@ -8,6 +8,11 @@ from railrl.state_distance.policies import UniversalPolicy
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.core import PyTorchModule
 
+# TODO(vitchyr): stop hardcoding this
+GOAL_SLICE = slice(0, 7)
+# GOAL_SLICE = slice(14, 17)
+# GOAL_SLICE = slice(0, 2)
+
 
 class CollocationMpcController(PyTorchModule, ExplorationPolicy):
     def __init__(
@@ -225,17 +230,12 @@ class SlsqpCMC(UniversalPolicy, nn.Module):
         return actions_and_obs
 
     def _cost_function(self, x, order):
-        # TODO(vitchyr): stop hardcoding this
-        goal_slice = slice(0, 7)
-        # goal_slice = slice(14, 17)
-        # goal_slice = slice(0, 2)
-
         x = ptu.np_to_var(x, requires_grad=True)
         loss = 0
         for action, next_state in self.split(x):
-            next_features_predicted = next_state[goal_slice]
+            next_features_predicted = next_state[GOAL_SLICE]
             desired_features = ptu.np_to_var(
-                self.env.multitask_goal[goal_slice]
+                self.env.multitask_goal[GOAL_SLICE]
                 * np.ones(next_features_predicted.shape)
             )
             diff = next_features_predicted - desired_features
@@ -322,4 +322,139 @@ class SlsqpCMC(UniversalPolicy, nn.Module):
 
         action, _ = self.split(result.x)[0]
         self.last_solution = result.x
+        return action, {}
+
+
+class GradientCMC(UniversalPolicy, nn.Module):
+    """
+    CMC = Collocation MPC Controller
+
+    Implement
+
+        pi(s_1, g) = pi_{distance}(s_1, s_2)
+
+    where pi_{distance} is the SDQL policy and
+
+        s_2 = argmin_{s_2} min_{s_{3:T+1}} ||s_{T+1} - g||_2^2
+        subject to C(s_i, pi_{distance}(s_i, s_{i+1}), s_{i+1}) = 0
+
+    for i = 1, ..., T, where C is an implicit model.
+
+    using gradient descent.
+
+    Each element of "x" through the code represents the vector
+    [a_1, s_1, a_2, s_2, ..., a_T, s_T]
+    """
+    def __init__(
+            self,
+            implicit_model,
+            env,
+            lagrange_multiplier=1,
+            num_particles=1,
+            num_grad_steps=10,
+            planning_horizon=1,
+    ):
+        super().__init__()
+        nn.Module.__init__(self)
+        self.implicit_model = implicit_model
+        self.env = env
+        self.action_low = self.env.action_space.low
+        self.action_high = self.env.action_space.high
+        self.action_dim = self.env.action_space.low.size
+        self.obs_dim = self.env.observation_space.low.size
+        self.ao_dim = self.action_dim + self.obs_dim
+        self.lagrange_multiplier = lagrange_multiplier
+        self.planning_horizon = planning_horizon
+        self.num_particles = num_particles
+        self.num_grad_steps = num_grad_steps
+        self.last_solution = None
+
+    def split(self, x):
+        """
+        split into action, next_state
+        """
+        actions_and_obs = []
+        for h in range(self.planning_horizon):
+            start_h = h * self.ao_dim
+            actions_and_obs.append((
+                x[:, start_h:start_h+self.action_dim],
+                x[:, start_h+self.action_dim:start_h+self.ao_dim],
+            ))
+        return actions_and_obs
+
+    def cost_function(self, x):
+        """
+        :param x: a PyTorch Variable.
+        :return:
+        """
+        loss = 0
+        for action, next_state in self.split(x):
+            next_features_predicted = next_state[:, GOAL_SLICE]
+            desired_features = ptu.np_to_var(
+                self.env.multitask_goal[GOAL_SLICE][None]
+                * np.ones(next_features_predicted.shape)
+            )
+            diff = next_features_predicted - desired_features
+            loss += (diff**2).sum(dim=1, keepdim=True)
+        return loss
+
+    def _expand_np_to_var(self, array, requires_grad=False):
+        array_expanded = np.repeat(
+            np.expand_dims(array, 0),
+            self.num_particles,
+            axis=0
+        )
+        return ptu.np_to_var(array_expanded, requires_grad=requires_grad)
+
+    def constraint_fctn(self, x, state):
+        """
+        :param x: a PyTorch Variable.
+        :param state: a PyTorch Variable.
+        :return:
+        """
+        loss = 0
+        for action, next_state in self.split(x):
+            action = action
+            next_state = next_state
+
+            loss -= self.implicit_model(state, action, next_state)
+            state = next_state
+        return loss
+
+    def sample_actions(self):
+        return np.random.uniform(
+            self.action_low,
+            self.action_high,
+            (self.num_particles, self.action_dim)
+        )
+
+    def get_action(self, ob):
+        if self.last_solution is None:
+            init_solution = []
+            for _ in range(self.planning_horizon):
+                init_solution.append(self.sample_actions())
+                init_solution.append(
+                    np.repeat(ob[None], self.num_particles, axis=0)
+                )
+
+            self.last_solution = np.hstack(init_solution)
+
+        ob = self._expand_np_to_var(ob)
+        x = ptu.np_to_var(self.last_solution, requires_grad=True)
+
+        optimizer = optim.Adam([x], lr=1e-1)
+        loss = 0
+        for i in range(10):
+            loss += (
+                self.cost_function(x)
+                + self.lagrange_multiplier * self.constraint_fctn(x, ob)
+            )
+            optimizer.zero_grad()
+            loss.sum().backward(retain_graph=True)
+            optimizer.step()
+
+        self.last_solution = ptu.get_numpy(x)
+        loss_np = ptu.get_numpy(loss).sum(axis=1)
+        min_i = np.argmin(loss_np)
+        action = self.last_solution[min_i, :self.action_dim]
         return action, {}

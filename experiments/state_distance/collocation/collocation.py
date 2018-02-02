@@ -2,12 +2,13 @@ import argparse
 import joblib
 
 from railrl.samplers.util import rollout
-from railrl.torch.mpc.collocation.collocation_mpc_controller import SlsqpCMC
+from railrl.torch.mpc.collocation.collocation_mpc_controller import SlsqpCMC, \
+    GradientCMC
 from railrl.torch.mpc.collocation.model_to_implicit_model import \
     ModelToImplicitModel
 
 # 2D point mass
-PATH = '/home/vitchyr/git/railrl/data/local/01-30-dev-mpc-neural-networks/01-30-dev-mpc-neural-networks_2018_01_30_11_28_28_0000--s-24549/params.pkl'
+# PATH = '/home/vitchyr/git/railrl/data/local/01-30-dev-mpc-neural-networks/01-30-dev-mpc-neural-networks_2018_01_30_11_28_28_0000--s-24549/params.pkl'
 # Reacher 7dof
 PATH = '/home/vitchyr/git/railrl/data/local/01-27-reacher-full-mpcnn-H1/01-27-reacher-full-mpcnn-H1_2018_01_27_17_59_04_0000--s-96642/params.pkl'
 
@@ -45,12 +46,18 @@ if __name__ == "__main__":
         'ftol': 1e-3,
         'maxiter': 100,
     }
-    policy = SlsqpCMC(
+    # policy = SlsqpCMC(
+    #     implicit_model,
+    #     env,
+    #     solver_params=solver_params,
+    #     planning_horizon=2,
+    # )
+    policy = GradientCMC(
         implicit_model,
         env,
-        # use_implicit_model_gradient=True,
-        solver_params=solver_params,
-        planning_horizon=2,
+        planning_horizon=1,
+        lagrange_multiplier=10,
+        num_particles=100,
     )
     while True:
         paths = [rollout(
