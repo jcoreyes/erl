@@ -185,6 +185,7 @@ class SlsqpCMC(UniversalPolicy, nn.Module):
         self.env = env
         self.action_dim = self.env.action_space.low.size
         self.obs_dim = self.env.observation_space.low.size
+        self.ao_dim = self.action_dim + self.obs_dim
         self.solver_params = solver_params
         self.use_implicit_model_gradient = use_implicit_model_gradient
         self.planning_horizon = planning_horizon
@@ -198,6 +199,8 @@ class SlsqpCMC(UniversalPolicy, nn.Module):
             self.env.action_space.high,
             self.env.observation_space.high
         ))
+        self.lower_bounds = np.tile(self.lower_bounds, self.planning_horizon)
+        self.upper_bounds = np.tile(self.upper_bounds, self.planning_horizon)
         # TODO(vitchyr): figure out what to do if the state bounds are infinity
         # self.lower_bounds = - np.ones_like(self.lower_bounds)
         # self.upper_bounds = np.ones_like(self.upper_bounds)
@@ -212,23 +215,31 @@ class SlsqpCMC(UniversalPolicy, nn.Module):
         """
         split into action, next_state
         """
-        return x[:self.action_dim], x[self.action_dim:]
+        actions_and_obs = []
+        for h in range(self.planning_horizon):
+            start_h = h * self.ao_dim
+            actions_and_obs.append((
+                x[start_h:start_h+self.action_dim],
+                x[start_h+self.action_dim:start_h+self.ao_dim],
+            ))
+        return actions_and_obs
 
     def _cost_function(self, x, order):
         # TODO(vitchyr): stop hardcoding this
-        # goal_slice = slice(0, 7)
+        goal_slice = slice(0, 7)
         # goal_slice = slice(14, 17)
-        goal_slice = slice(0, 2)
+        # goal_slice = slice(0, 2)
 
         x = ptu.np_to_var(x, requires_grad=True)
-        action, next_state = self.split(x)
-        next_features_predicted = next_state[goal_slice]
-        desired_features = ptu.np_to_var(
-            self.env.multitask_goal[goal_slice]
-            * np.ones(next_features_predicted.shape)
-        )
-        diff = next_features_predicted - desired_features
-        loss = (diff**2).sum()
+        loss = 0
+        for action, next_state in self.split(x):
+            next_features_predicted = next_state[goal_slice]
+            desired_features = ptu.np_to_var(
+                self.env.multitask_goal[goal_slice]
+                * np.ones(next_features_predicted.shape)
+            )
+            diff = next_features_predicted - desired_features
+            loss += (diff**2).sum()
         if order == 0:
             return ptu.get_numpy(loss)[0]
         elif order == 1:
@@ -252,13 +263,15 @@ class SlsqpCMC(UniversalPolicy, nn.Module):
 
     def _constraint_fctn(self, x, state, order):
         state = ptu.np_to_var(state)
-        x = ptu.np_to_var(x, requires_grad=order > 0)
-        action, next_state = self.split(x)
-        action = action[None]
-        next_state = next_state[None]
-
         state = state.unsqueeze(0)
-        loss = self.implicit_model(state, action, next_state)
+        x = ptu.np_to_var(x, requires_grad=order > 0)
+        loss = 0
+        for action, next_state in self.split(x):
+            action = action[None]
+            next_state = next_state[None]
+
+            loss += self.implicit_model(state, action, next_state)
+            state = next_state
         if order == 0:
             return ptu.get_numpy(loss.squeeze(0))[0]
         elif order == 1:
@@ -288,10 +301,11 @@ class SlsqpCMC(UniversalPolicy, nn.Module):
 
     def get_action(self, obs):
         if self.last_solution is None:
-            self.last_solution = np.hstack((
+            init_solution = np.hstack((
                 np.zeros(self.action_dim),
-                np.tile(obs, self.planning_horizon),
+                obs,
             ))
+            self.last_solution = np.tile(init_solution, self.planning_horizon)
         self.constraints['args'] = (obs, )
         result = optimize.minimize(
             self.cost_function,
@@ -306,6 +320,6 @@ class SlsqpCMC(UniversalPolicy, nn.Module):
             print("WARNING: SLSQP Did not succeed. Message is:")
             print(result.message)
 
-        action, _ = self.split(result.x)
+        action, _ = self.split(result.x)[0]
         self.last_solution = result.x
         return action, {}

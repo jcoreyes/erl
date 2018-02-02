@@ -49,7 +49,8 @@ if __name__ == "__main__":
         implicit_model,
         env,
         # use_implicit_model_gradient=True,
-        solver_params=solver_params
+        solver_params=solver_params,
+        planning_horizon=2,
     )
     while True:
         paths = [rollout(
