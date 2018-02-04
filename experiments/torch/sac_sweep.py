@@ -4,6 +4,9 @@ from gym.envs.mujoco import HalfCheetahEnv
 
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
+from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
+from railrl.envs.multitask.reacher_7dof import Reacher7DofFullGoal, \
+    Reacher7DofXyzGoalState
 from railrl.envs.pygame.point2d import Point2DEnv
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
@@ -13,7 +16,10 @@ from railrl.torch.networks import FlattenMlp
 
 
 def experiment(variant):
-    env = NormalizedBoxEnv(variant['env_class']())
+    env = variant['env_class']()
+    if variant['multitask']:
+        env = MultitaskToFlatEnv(env)
+    env = NormalizedBoxEnv(env)
 
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
@@ -50,14 +56,14 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=10,
+            num_epochs=100,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             batch_size=128,
             max_path_length=1000,
             discount=0.99,
 
-            save_replay_buffer=True,
+            save_replay_buffer=False,
             replay_buffer_size=15000,
 
             soft_target_tau=0.001,
@@ -73,10 +79,15 @@ if __name__ == "__main__":
     search_space = {
         'env_class': [
             # HalfCheetahEnv,
-            Point2DEnv,
+            # Point2DEnv,
+            Reacher7DofXyzGoalState,
+            Reacher7DofFullGoal,
         ],
         'algo_kwargs.reward_scale': [
-            1,
+            1, 10, 100, 1000
+        ],
+        'algo_kwargs.discount': [
+            0.95,
         ],
         'algo_kwargs.optimizer_class': [
             optim.Adam,
@@ -93,6 +104,9 @@ if __name__ == "__main__":
         'algo_kwargs.policy_std_reg_weight': [
             1e-3
         ],
+        'multitask': [
+            True
+        ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -102,8 +116,8 @@ if __name__ == "__main__":
             run_experiment(
                 experiment,
                 # exp_prefix="dev-sac-sweep",
-                exp_prefix="sac-point2d-short",
-                # mode='ec2',
+                exp_prefix="sac-reacher-sweep",
+                mode='ec2',
                 exp_id=exp_id,
                 variant=variant,
                 use_gpu=False,

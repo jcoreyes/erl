@@ -5,6 +5,7 @@ import numpy as np
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
+from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
 from railrl.envs.multitask.reacher_7dof import (
     # Reacher7DofGoalStateEverything,
     Reacher7DofFullGoal)
@@ -58,9 +59,9 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-sac-tdm-launch"
 
-    # n_seeds = 1
-    # mode = "ec2"
-    # exp_prefix = "reacher-full-sac-tdm-save-replay-buffer"
+    n_seeds = 1
+    mode = "ec2"
+    exp_prefix = "reacher7dof-sac-mtau-1-or-10"
 
     num_epochs = 100
     num_steps_per_epoch = 1000
@@ -78,7 +79,7 @@ if __name__ == "__main__":
                 num_updates_per_env_step=25,
                 batch_size=128,
                 discount=1,
-                save_replay_buffer=True,
+                save_replay_buffer=False,
             ),
             tdm_kwargs=dict(
                 sample_rollout_goals_from='environment',
@@ -115,15 +116,17 @@ if __name__ == "__main__":
             # GoalXVelHalfCheetah,
             # Reacher7DofXyzGoalState,
             Reacher7DofFullGoal,
+            # MultitaskPoint2DEnv,
             # GoalXYPosAnt,
             # Walker2DTargetXPos,
             # MultitaskPusher3DEnv,
             # CylinderXYPusher2DEnv,
         ],
         'sac_tdm_kwargs.base_kwargs.reward_scale': [
-            # 30,
+            1,
+            10,
             100,
-            # 300,
+            1000,
         ],
         'sac_tdm_kwargs.tdm_kwargs.vectorized': [
             # False,
@@ -151,7 +154,8 @@ if __name__ == "__main__":
             'distance',
         ],
         'sac_tdm_kwargs.tdm_kwargs.max_tau': [
-            0,
+            1,
+            10,
             # 99,
             # 49,
             # 15,
