@@ -122,9 +122,10 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
 
         if return_entropy:
             entropy = log_std + 0.5 + np.log(2 * np.pi) / 2
-            # Because tanh is invertible, the entropy of a Gaussian and the
-            # entropy of the tanh of a Gaussian is the same.
+            # I'm not sure how to compute the (differential) entropy for a
+            # tanh(Gaussian)
             entropy = entropy.sum(dim=1, keepdim=True)
+            raise NotImplementedError()
         if return_log_prob_of_mean:
             tanh_normal = TanhNormal(mean, std)
             mean_action_log_prob = tanh_normal.log_prob(
