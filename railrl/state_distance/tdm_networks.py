@@ -777,17 +777,6 @@ class TauVectorSeparateFirstLayerTdmPolicy(SeparateFirstLayerMlp):
             flat_obs,
             return_preactivations=False,
     ):
-        """
-        :param obs: Observation
-        :param deterministic: If True, do not sample
-        :param return_log_prob: If True, return a sample and its log probability
-        :param return_expected_log_prob: If True, return the true expected log
-        prob. Will not need to be differentiated through, so this can be a
-        number.
-        :param return_log_prob_of_mean: If True, return the true expected log
-        prob. Will not need to be differentiated through, so this can be a
-        number.
-        """
         obs, taus = split_tau(flat_obs)
         batch_size = obs.size()[0]
         tau_vector = Variable(torch.zeros((batch_size, self.tau_vector_len)) + taus.data)
