@@ -1,7 +1,6 @@
 import numpy as np
 
 from railrl.state_distance.policies import UniversalPolicy
-from railrl.samplers.util import rollout
 
 
 class MultigoalSimplePathSampler(object):
@@ -44,12 +43,12 @@ class MultigoalSimplePathSampler(object):
                 cycle_tau=self.cycle_taus_for_rollout,
             )
             path_length = len(path['terminals'])
-            path['goals'] = expand_goal(goal, path_length)
+            path['goals'] = _expand_goal(goal, path_length)
             paths.append(path)
         return paths
 
 
-def expand_goal(goal, path_length):
+def _expand_goal(goal, path_length):
     return np.repeat(
         np.expand_dims(goal, 0),
         path_length,
@@ -61,50 +60,16 @@ def multitask_rollout(
         env,
         agent: UniversalPolicy,
         goal,
-        tau,
+        init_tau,
         max_path_length=np.inf,
         animated=False,
         decrement_tau=False,
         cycle_tau=False,
+        get_action_kwargs=None,
 ):
-    env.set_goal(goal)
-    agent.set_goal(goal)
-    agent.set_tau(tau)
-    if decrement_tau:
-        assert max_path_length > tau, "Tau should at most be max_path_length-1"
-        path = rollout_decrement_tau(
-            env,
-            agent,
-            tau,
-            max_path_length=max_path_length,
-            animated=animated,
-            cycle_tau=cycle_tau,
-        )
-    else:
-        path = rollout(
-            env,
-            agent,
-            max_path_length=max_path_length,
-            animated=animated,
-        )
-    path['goals'] = expand_goal(goal, len(path['terminals']))
-    return path
 
-
-def rollout_decrement_tau(env, agent, init_tau, max_path_length=np.inf,
-                          animated=False, cycle_tau=False):
-    """
-    Decrement tau by one at each time step. If tau < 0, keep it at zero or
-    reset it to the init tau.
-
-    :param env:
-    :param agent:
-    :param max_path_length:
-    :param animated:
-    :param cycle_tau: If False, just keep tau equal to zero once it reaches
-    zero. Otherwise cycle it.
-    :return:
-    """
+    if get_action_kwargs is None:
+        get_action_kwargs = {}
     observations = []
     actions = []
     rewards = []
@@ -112,14 +77,19 @@ def rollout_decrement_tau(env, agent, init_tau, max_path_length=np.inf,
     agent_infos = []
     env_infos = []
     taus = []
+
     o = env.reset()
     next_o = None
     path_length = 0
-    tau = init_tau
     if animated:
         env.render()
+
+    tau = init_tau
+    env.set_goal(goal)
+    agent.set_goal(goal)
+    agent.set_tau(tau)
     while path_length < max_path_length:
-        a, agent_info = agent.get_action(o)
+        a, agent_info = agent.get_action(o, **get_action_kwargs)
         next_o, r, d, env_info = env.step(a)
         agent.set_tau(tau)
         observations.append(o)
@@ -130,7 +100,8 @@ def rollout_decrement_tau(env, agent, init_tau, max_path_length=np.inf,
         env_infos.append(env_info)
         taus.append(np.array([tau]))
         path_length += 1
-        tau -= 1
+        if decrement_tau:
+            tau -= 1
         if tau < 0:
             if cycle_tau:
                 tau = init_tau
@@ -141,7 +112,6 @@ def rollout_decrement_tau(env, agent, init_tau, max_path_length=np.inf,
         o = next_o
         if animated:
             env.render()
-            # input("Press Enter to continue...")
 
     actions = np.array(actions)
     if len(actions.shape) == 1:
@@ -165,6 +135,6 @@ def rollout_decrement_tau(env, agent, init_tau, max_path_length=np.inf,
         terminals=np.array(terminals).reshape(-1, 1),
         agent_infos=np.array(agent_infos),
         env_infos=np.array(env_infos),
-        # final_observation=next_o,
         num_steps_left=np.array(taus),
+        goals=_expand_goal(goal, len(terminals))
     )

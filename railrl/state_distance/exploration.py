@@ -42,13 +42,13 @@ class MakeUniversal(PyTorchModule, UniversalExplorationPolicy):
         UniversalExplorationPolicy.__init__(self)
         self.policy = policy
 
-    def get_action(self, observation):
+    def get_action(self, observation, *args, **kwargs):
         new_obs = merge_into_flat_obs(
             obs=observation,
             goals=self._goal_np,
             num_steps_left=self._tau_np,
         )
-        return self.policy.get_action(new_obs)
+        return self.policy.get_action(new_obs, *args, **kwargs)
 
     def forward(self, *args, **kwargs):
         return self.policy(*args, **kwargs)

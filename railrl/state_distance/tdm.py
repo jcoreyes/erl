@@ -416,7 +416,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
                 self.training_env,
                 random_policy,
                 goal=goal,
-                tau=0,
+                init_tau=0,
                 max_path_length=self.max_path_length,
             )
             paths.append(path)

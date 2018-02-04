@@ -113,7 +113,7 @@ if __name__ == "__main__":
                 original_policy,
                 # env.multitask_goal,
                 goal,
-                tau=10,
+                init_tau=10,
                 max_path_length=args.H,
                 animated=not args.hide,
                 cycle_tau=True,
