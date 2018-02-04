@@ -3,12 +3,13 @@ import joblib
 
 from railrl.samplers.util import rollout
 from railrl.torch.mpc.collocation.collocation_mpc_controller import SlsqpCMC, \
-    GradientCMC
+    GradientCMC, StateGCMC
 from railrl.torch.mpc.collocation.model_to_implicit_model import \
     ModelToImplicitModel
+from railrl.core import logger
 
 # 2D point mass
-# PATH = '/home/vitchyr/git/railrl/data/local/01-30-dev-mpc-neural-networks/01-30-dev-mpc-neural-networks_2018_01_30_11_28_28_0000--s-24549/params.pkl'
+PATH = '/home/vitchyr/git/railrl/data/local/01-30-dev-mpc-neural-networks/01-30-dev-mpc-neural-networks_2018_01_30_11_28_28_0000--s-24549/params.pkl'
 # Reacher 7dof
 PATH = '/home/vitchyr/git/railrl/data/local/01-27-reacher-full-mpcnn-H1/01-27-reacher-full-mpcnn-H1_2018_01_27_17_59_04_0000--s-96642/params.pkl'
 
@@ -46,19 +47,31 @@ if __name__ == "__main__":
         'ftol': 1e-3,
         'maxiter': 100,
     }
-    # policy = SlsqpCMC(
-    #     implicit_model,
-    #     env,
-    #     solver_params=solver_params,
-    #     planning_horizon=2,
-    # )
+    policy = SlsqpCMC(
+        implicit_model,
+        env,
+        solver_params=solver_params,
+        planning_horizon=1,
+    )
     policy = GradientCMC(
         implicit_model,
         env,
         planning_horizon=1,
         lagrange_multiplier=10,
-        num_particles=100,
+        num_grad_steps=100,
+        num_particles=128,
+        warm_start=False,
     )
+    # policy = StateGCMC(
+    #     implicit_model,
+    #     env,
+    #     planning_horizon=1,
+    #     lagrange_multiplier=10,
+    #     num_grad_steps=100,
+    #     num_particles=128,
+    #     warm_start=True,
+    # )
+
     while True:
         paths = [rollout(
             env,
@@ -66,5 +79,5 @@ if __name__ == "__main__":
             max_path_length=args.H,
             animated=not args.hide,
         )]
-        if hasattr(env, "log_diagnostics"):
-            env.log_diagnostics(paths)
+        env.log_diagnostics(paths)
+        logger.dump_tabular()

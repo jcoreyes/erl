@@ -352,6 +352,8 @@ class GradientCMC(UniversalPolicy, nn.Module):
             lagrange_multiplier=1,
             num_particles=1,
             num_grad_steps=10,
+            learning_rate=1e-1,
+            warm_start=False,
             planning_horizon=1,
     ):
         super().__init__()
@@ -367,6 +369,8 @@ class GradientCMC(UniversalPolicy, nn.Module):
         self.planning_horizon = planning_horizon
         self.num_particles = num_particles
         self.num_grad_steps = num_grad_steps
+        self.learning_rate = learning_rate
+        self.warm_start = warm_start
         self.last_solution = None
 
     def split(self, x):
@@ -382,13 +386,23 @@ class GradientCMC(UniversalPolicy, nn.Module):
             ))
         return actions_and_obs
 
-    def cost_function(self, x):
+    def _expand_np_to_var(self, array, requires_grad=False):
+        array_expanded = np.repeat(
+            np.expand_dims(array, 0),
+            self.num_particles,
+            axis=0
+        )
+        return ptu.np_to_var(array_expanded, requires_grad=requires_grad)
+
+    def cost_function(self, state, actions, next_states):
         """
         :param x: a PyTorch Variable.
         :return:
         """
         loss = 0
-        for action, next_state in self.split(x):
+        for i in range(self.planning_horizon):
+            slc = slice(i*self.obs_dim, (i+1)*self.obs_dim)
+            next_state = next_states[:, slc]
             next_features_predicted = next_state[:, GOAL_SLICE]
             desired_features = ptu.np_to_var(
                 self.env.multitask_goal[GOAL_SLICE][None]
@@ -398,24 +412,16 @@ class GradientCMC(UniversalPolicy, nn.Module):
             loss += (diff**2).sum(dim=1, keepdim=True)
         return loss
 
-    def _expand_np_to_var(self, array, requires_grad=False):
-        array_expanded = np.repeat(
-            np.expand_dims(array, 0),
-            self.num_particles,
-            axis=0
-        )
-        return ptu.np_to_var(array_expanded, requires_grad=requires_grad)
-
-    def constraint_fctn(self, x, state):
+    def constraint_fctn(self, state, actions, next_states):
         """
         :param x: a PyTorch Variable.
         :param state: a PyTorch Variable.
         :return:
         """
         loss = 0
-        for action, next_state in self.split(x):
-            action = action
-            next_state = next_state
+        for i in range(self.planning_horizon):
+            next_state = next_states[:, i*self.obs_dim:(i+1)*self.obs_dim]
+            action = actions[:, i*self.action_dim:(i+1)*self.action_dim]
 
             loss -= self.implicit_model(state, action, next_state)
             state = next_state
@@ -429,10 +435,11 @@ class GradientCMC(UniversalPolicy, nn.Module):
         )
 
     def get_action(self, ob):
-        if self.last_solution is None:
+        if self.last_solution is None or not self.warm_start:
             init_solution = []
             for _ in range(self.planning_horizon):
                 init_solution.append(self.sample_actions())
+            for _ in range(self.planning_horizon):
                 init_solution.append(
                     np.repeat(ob[None], self.num_particles, axis=0)
                 )
@@ -442,19 +449,64 @@ class GradientCMC(UniversalPolicy, nn.Module):
         ob = self._expand_np_to_var(ob)
         x = ptu.np_to_var(self.last_solution, requires_grad=True)
 
-        optimizer = optim.Adam([x], lr=1e-1)
-        loss = 0
-        for i in range(10):
-            loss += (
-                self.cost_function(x)
-                + self.lagrange_multiplier * self.constraint_fctn(x, ob)
+        optimizer = optim.Adam([x], lr=self.learning_rate)
+        for i in range(self.num_grad_steps):
+            actions = x[:, :self.action_dim * self.planning_horizon]
+            actions = torch.clamp(actions, -1, 1)
+            next_states = x[:, self.action_dim * self.planning_horizon:]
+            loss = (
+                self.cost_function(ob, actions, next_states)
+                + self.lagrange_multiplier *
+                    self.constraint_fctn(ob, actions, next_states)
             )
             optimizer.zero_grad()
-            loss.sum().backward(retain_graph=True)
+            loss.sum().backward()
             optimizer.step()
 
         self.last_solution = ptu.get_numpy(x)
         loss_np = ptu.get_numpy(loss).sum(axis=1)
         min_i = np.argmin(loss_np)
         action = self.last_solution[min_i, :self.action_dim]
+        action = np.clip(action, -1, 1)
+        return action, {}
+
+
+class StateGCMC(GradientCMC):
+    """
+    Use gradient-based optimization for choosing the next state, but using
+    stochastic optimization for choosing the action.
+    """
+    def get_action(self, ob):
+        if self.last_solution is None or not self.warm_start:
+            init_solution = []
+            for _ in range(self.planning_horizon):
+                init_solution.append(
+                    np.repeat(ob[None], self.num_particles, axis=0)
+                )
+
+            self.last_solution = np.hstack(init_solution)
+
+        ob = self._expand_np_to_var(ob)
+        actions_np = np.hstack(
+            [self.sample_actions() for _ in range(self.planning_horizon)]
+        )
+        actions = ptu.np_to_var(actions_np)
+        next_states = ptu.np_to_var(self.last_solution, requires_grad=True)
+
+        optimizer = optim.Adam([next_states], lr=self.learning_rate)
+        for i in range(self.num_grad_steps):
+            constraint_loss = self.constraint_fctn(ob, actions, next_states)
+            optimizer.zero_grad()
+            constraint_loss.sum().backward()
+            optimizer.step()
+
+        final_loss = (
+            self.cost_function(ob, actions, next_states)
+            + self.lagrange_multiplier *
+            self.constraint_fctn(ob, actions, next_states)
+        )
+        self.last_solution = ptu.get_numpy(next_states)
+        final_loss_np = ptu.get_numpy(final_loss).sum(axis=1)
+        min_i = np.argmin(final_loss_np)
+        action = actions_np[min_i]
         return action, {}
