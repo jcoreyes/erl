@@ -1,5 +1,6 @@
 import numpy as np
 from torch import optim
+import torch
 
 from railrl.policies.base import ExplorationPolicy
 from railrl.torch.core import PyTorchModule
@@ -83,6 +84,7 @@ class MPCController(PyTorchModule, ExplorationPolicy):
         return first_sampled_actions[min_i], {}
 
 
+# TODO(vitchyr): stop hardcoding this
 # GOAL_SLICE = slice(0, 2)
 GOAL_SLICE = slice(0, 7)
 
@@ -99,6 +101,7 @@ class GradientBasedMPCController(PyTorchModule, ExplorationPolicy):
             mpc_horizon=15,
             learning_rate=1e-1,
             num_grad_steps=10,
+            warm_start=False,
     ):
         """
         Optimization is done by a shooting method.
@@ -125,6 +128,7 @@ class GradientBasedMPCController(PyTorchModule, ExplorationPolicy):
         self.last_actions_np = None
         self.learning_rate = learning_rate
         self.num_grad_steps = num_grad_steps
+        self.warm_start = warm_start
 
     def forward(self, *input):
         raise NotImplementedError()
@@ -149,6 +153,7 @@ class GradientBasedMPCController(PyTorchModule, ExplorationPolicy):
             actions = (
                 all_actions[:, i * self.action_dim:(i + 1) * self.action_dim]
             )
+            actions = torch.clamp(actions, -1, 1)
             next_states = states + self.dynamics_model(states, actions)
             next_features_predicted = next_states[:, GOAL_SLICE]
             desired_features = ptu.np_to_var(
@@ -160,8 +165,7 @@ class GradientBasedMPCController(PyTorchModule, ExplorationPolicy):
         return loss
 
     def get_action(self, obs):
-        # if self.last_actions_np is None:
-        if True:
+        if self.last_actions_np is None or not self.warm_start:
             init_actions = np.hstack([
                 self.env.action_space.sample()
                 for _ in range(self.mpc_horizon)
@@ -171,9 +175,7 @@ class GradientBasedMPCController(PyTorchModule, ExplorationPolicy):
         all_actions = ptu.np_to_var(init_actions[None], requires_grad=True)
         obs = ptu.np_to_var(obs[None])
         optimizer = optim.Adam([all_actions], lr=self.learning_rate)
-        print("--")
         for i in range(self.num_grad_steps):
-            print(ptu.get_numpy(all_actions)[0, :self.action_dim])
             loss = self.cost_function(obs, all_actions)
             optimizer.zero_grad()
             loss.sum().backward()

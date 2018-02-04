@@ -49,8 +49,8 @@ def rollout(env, agent, orig_policy, max_path_length=np.inf, animated=False):
     while path_length < max_path_length:
         a, agent_info = agent.get_action(o)
         next_o, r, d, env_info = env.step(a)
-        print("gradient", a)
-        print("orig", orig_policy.get_action(o)[0])
+        # print("gradient", a)
+        # print("orig", orig_policy.get_action(o)[0])
         observations.append(o)
         rewards.append(r)
         terminals.append(d)
@@ -99,9 +99,10 @@ def simulate_policy(args):
     policy = GradientBasedMPCController(
         env,
         model,
-        mpc_horizon=10,
-        num_grad_steps=100,
+        mpc_horizon=1,
+        num_grad_steps=10,
         learning_rate=1e-1,
+        warm_start=False,
     )
     while True:
         path = rollout(
