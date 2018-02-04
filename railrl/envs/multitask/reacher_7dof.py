@@ -270,7 +270,10 @@ class Reacher7DofFullGoal(Reacher7DofMultitaskEnv):
     def set_goal(self, goal):
         super().set_goal(goal)
         self._set_goal_xyz_automatically(goal)
-        # self._set_goal_xyz(goal[14:17])
+
+    def modify_goal_for_rollout(self, goal):
+        goal[7:14] = 0
+        return goal
 
     def _set_goal_xyz_automatically(self, goal):
         current_qpos = self.model.data.qpos.flat.copy()
