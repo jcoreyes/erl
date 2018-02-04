@@ -207,7 +207,7 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         desired = self.multitask_goal * np.ones_like(actual)
         diff = actual - desired
         diff *= self.goal_dim_weights
-        return np.inner(diff, diff)
+        return (diff**2).sum(1)
 
 
 def _is_rllab_style_paths(paths):
@@ -287,6 +287,16 @@ class MultitaskToFlatEnv(ProxyEnv, Serializable):
         ob = super().reset()
         new_ob = self._add_goal_to_observation(ob)
         return new_ob
+
+    def log_diagnostics(self, paths, logger=default_logger):
+        for path in paths:
+            path['observations'] = (
+                path['observations'][:, :-self._wrapped_env.goal_dim]
+            )
+            path['next_observations'] = (
+                path['next_observations'][:, :-self._wrapped_env.goal_dim]
+            )
+        return self._wrapped_env.log_diagnostics(paths, logger=default_logger)
 
     def _add_goal_to_observation(self, ob):
         if self.give_goal_difference:
