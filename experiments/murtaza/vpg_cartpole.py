@@ -30,14 +30,14 @@ def example(variant):
 
 if __name__ == "__main__":
     # noinspection PyTypeChecker
-    num_steps_per_epoch = 100
+    num_steps_per_epoch = 1000
     max_path_length = 100
     variant = dict(
         algo_params=dict(
-            num_epochs=2,
-            num_steps_per_eval=100,
-            num_steps_per_epoch=10,
-            max_path_length=100,
+            num_epochs=100,
+            num_steps_per_eval=1000,
+            num_steps_per_epoch=num_steps_per_epoch,
+            max_path_length=max_path_length,
             num_updates_per_epoch=1,
             batch_size=num_steps_per_epoch*max_path_length,
             replay_buffer=VPGEnvReplayBuffer,

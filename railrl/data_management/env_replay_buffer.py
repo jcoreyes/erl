@@ -29,28 +29,38 @@ class VPGEnvReplayBuffer(EnvReplayBuffer):
             discount_factor,
     ):
         super().__init__(max_replay_buffer_size, env)
-        self.current_return = 0
         self._returns = np.zeros((max_replay_buffer_size, 1))
+        self.current_trajectory_rewards = np.zeros((max_replay_buffer_size, 1))
         self._max_replay_buffer_size = max_replay_buffer_size
         self.discount_factor = discount_factor
+        self._bottom = 0
 
     def terminate_episode(self):
-        self.current_return = 0
+        returns = []
+        return_so_far = 0
+        for t in range(len(self._rewards[self._bottom:self._top]) - 1, -1, -1):
+            return_so_far = self._rewards[t][0] + self.discount_factor * return_so_far
+            returns.append(return_so_far)
+
+        returns = returns[::-1]
+        returns = np.reshape(np.array(returns),(len(returns), 1))
+        self._returns[self._bottom:self._top] = returns
+        self._bottom = self._top
 
     def add_sample(self, observation, action, reward, terminal,
                    next_observation, **kwargs):
-        self.current_return = self.current_return*self.discount_factor + reward
-        self._returns[self._top] = self.current_return
+        if self._top == self._max_replay_buffer_size:
+            raise EnvironmentError('Replay Buffer Overflow, please reduce the number of samples added!')
         super().add_sample(observation, action, reward, terminal, next_observation, **kwargs)
 
     def get_training_data(self):
         batch= dict(
-            observations=self._observations,
-            actions=self._actions,
-            rewards=self._rewards,
-            terminals=self._terminals,
-            next_observations=self._next_obs,
-            returns = self._returns,
+            observations=self._observations[0:self._top],
+            actions=self._actions[0:self._top],
+            rewards=self._rewards[0:self._top],
+            terminals=self._terminals[0:self._top],
+            next_observations=self._next_obs[0:self._top],
+            returns = self._returns[0:self._top],
         )
         return batch
 
@@ -63,3 +73,4 @@ class VPGEnvReplayBuffer(EnvReplayBuffer):
         self._returns = np.zeros(self._returns.shape)
         self._size = 0
         self._top = 0
+        self._bottom = 0

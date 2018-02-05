@@ -342,6 +342,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             logger.save_itr_params(epoch, params)
             table_keys = logger.get_table_key_set()
             if self._old_table_keys is not None:
+                wrong = [key for key in self._old_table_keys if key not in table_keys] # for debugging
                 assert table_keys == self._old_table_keys, (
                     "Table keys cannot change from iteration to iteration."
                 )

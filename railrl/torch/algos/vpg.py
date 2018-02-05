@@ -4,16 +4,17 @@ import numpy as np
 import torch
 import torch.optim as optim
 
+import railrl
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.env_replay_buffer import VPGEnvReplayBuffer
-from railrl.misc.eval_util import create_stats_ordered_dict
+from railrl.misc import eval_util
 from railrl.misc.ml_util import (
-    StatConditionalSchedule,
     ConstantSchedule,
 )
 from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
 from railrl.core import logger
 from railrl.torch.algos.util import np_to_pytorch_batch
+from railrl.torch.distributions import TanhNormal
 
 
 class VPG(TorchRLAlgorithm):
@@ -59,6 +60,7 @@ class VPG(TorchRLAlgorithm):
     def _start_epoch(self, epoch):
         super()._start_epoch(epoch)
         self.discount = self.epoch_discount_schedule.get_value(epoch)
+        self.replay_buffer.empty_buffer()
 
     def get_batch(self, training=True):
         '''
@@ -77,11 +79,11 @@ class VPG(TorchRLAlgorithm):
         """
         Policy operations.
         """
-        _, _, _, log_probs, _, _,_, _ = self.policy.forward(obs, return_log_prob=True)
-        #ISSUE: don't get pathwise rewards here - only a giant list of rewards, how to figure out one trajectory from the next
-        #need to multiply log_probs matrix with returns matrix (pointwise multiply) then
+
+        _, means, _, _, _, stds,_, _ = self.policy.forward(obs,)
+        log_probs = TanhNormal(means, stds).log_prob(actions)
         log_probs_times_returns = np.multiply(log_probs, returns)
-        policy_loss = -1*torch.mean(log_probs_times_returns)
+        policy_loss = -1*np.mean(log_probs_times_returns)
 
         """
         Update Networks
@@ -109,19 +111,29 @@ class VPG(TorchRLAlgorithm):
 
     def evaluate(self, epoch):
         statistics = OrderedDict()
-        if isinstance(self.epoch_discount_schedule, StatConditionalSchedule):
-            table_dict = logger.get_table_dict()
-            value = float(
-                table_dict[self.epoch_discount_schedule.statistic_name]
-            )
-            self.epoch_discount_schedule.update(value)
+        statistics.update(self.eval_statistics)
+        self.eval_statistics = None
 
-        if not isinstance(self.epoch_discount_schedule, ConstantSchedule):
-            statistics['Discount Factor'] = self.discount
+        logger.log("Collecting samples for evaluation")
+        test_paths = self.eval_sampler.obtain_samples()
 
+        statistics.update(eval_util.get_generic_path_information(
+            test_paths, stat_prefix="Test",
+        ))
+        if hasattr(self.env, "log_diagnostics"):
+            self.env.log_diagnostics(test_paths)
+
+        average_returns = railrl.misc.eval_util.get_average_returns(test_paths)
+        statistics['AverageReturn'] = average_returns
         for key, value in statistics.items():
             logger.record_tabular(key, value)
-        super().evaluate(epoch)
+
+        if self.render_eval_paths:
+            self.env.render_paths(test_paths)
+
+        if self.plotter:
+            self.plotter.draw()
+
 
     def offline_evaluate(self, epoch):
         statistics = OrderedDict()

@@ -12,8 +12,9 @@ import sys
 sys.path.append('/home/murtaza/Documents/objectattention/')
 from singleobj_visreward import SingleObjVisRewardEnv
 
+env = SingleObjVisRewardEnv()
+
 def experiment(variant):
-    env = SingleObjVisRewardEnv()
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
 
@@ -49,19 +50,19 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
-            num_epochs=1000,
+            num_epochs=100,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
-            batch_size=128,
-            max_path_length=999,
+            batch_size=64,
+            max_path_length=100,
             discount=0.99,
-
+            reward_scale=3,
             soft_target_tau=0.001,
             policy_lr=3E-4,
             qf_lr=3E-4,
             vf_lr=3E-4,
         ),
-        net_size=300,
+        net_size=100,
     )
     seed = random.randint(0, 10000)
     exp_prefix = 'singleobj_visreward_SAC'
