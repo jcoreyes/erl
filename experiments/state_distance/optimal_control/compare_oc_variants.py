@@ -91,7 +91,7 @@ def experiment(variant):
         )
         paths.append(path)
     env.log_diagnostics(paths)
-    results = get_logger_table_dict()
+    results = logger.get_table_dict()
     logger.dump_tabular()
     return results[stat_name]
 

@@ -7,7 +7,7 @@ from gym.envs.mujoco import mujoco_env
 
 from railrl.envs.env_utils import get_asset_xml
 from railrl.envs.multitask.multitask_env import MultitaskEnv
-from railrl.misc.data_processing import create_stats_ordered_dict
+from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.samplers.util import get_stat_in_paths
 import railrl.torch.pytorch_util as ptu
 from railrl.core.serializable import Serializable
@@ -130,6 +130,8 @@ class Reacher7DofXyzPosAndVelGoalState(Reacher7DofMultitaskEnv):
         # TODO: fix this hack
         if speed_weight is None:
             self.speed_weight = 0.9  # just for init to work
+        else:
+            self.speed_weight = speed_weight
         self.done_threshold = done_threshold
         self.max_speed = max_speed
         self.initializing = True
@@ -256,37 +258,75 @@ class Reacher7DofXyzPosAndVelGoalState(Reacher7DofMultitaskEnv):
 
 
 class Reacher7DofFullGoal(Reacher7DofMultitaskEnv):
-
     @property
     def goal_dim(self) -> int:
         return 17
 
     def sample_goals(self, batch_size):
-        raise NotImplementedError()
+        return self.sample_states(batch_size)
 
     def convert_obs_to_goals(self, obs):
         return obs
 
     def set_goal(self, goal):
         super().set_goal(goal)
-        self._set_goal_xyz(goal[14:17])
+        self._set_goal_xyz_automatically(goal)
+        # self._set_goal_xyz(goal[14:17])
 
-    def sample_goal_for_rollout(self):
-        angles = np.random.uniform(
-            np.array([-2.28, -0.52, -1.4, -2.32, -1.5, -1.094, -1.5]),
-            np.array([1.71, 1.39, 1.7, 0,   1.5, 0,   1.5, ]),
+    def _set_goal_xyz_automatically(self, goal):
+        current_qpos = self.model.data.qpos.flat.copy()
+        current_qvel = self.model.data.qvel.flat.copy()
+
+        new_qpos = current_qpos.copy()
+        new_qpos[:7] = goal[:7]
+        self.set_state(new_qpos, current_qvel)
+        goal_xyz = self.get_body_com("tips_arm").copy()
+        self.set_state(current_qpos, current_qvel)
+
+        self._set_goal_xyz(goal_xyz)
+        self.multitask_goal[14:17] = goal_xyz
+
+    def sample_states(self, batch_size):
+        random_pos = np.random.uniform(
+            [-2.28, -0.52, -1.4, -2.32, -1.5, -1.094, -1.5],
+            [1.71, 1.39, 1.7, 0, 1.5, 0, 1.5, ],
+            (batch_size, 7)
         )
-
-        saved_qpos = self.init_qpos.copy()
-        saved_qvel = self.init_qvel.copy()
-        qpos_tmp = saved_qpos.copy()
-        qpos_tmp[:7] = angles
-        self.set_state(qpos_tmp, saved_qvel)
-        ee_pos = self.get_body_com("tips_arm")
-        self.set_state(saved_qpos, saved_qvel)
-        velocities = np.zeros(7)
+        random_vel = np.random.uniform(-3, 3, (batch_size, 7))
+        random_xyz = np.random.uniform(
+            np.array([-0.75, -1.25, -0.2]),
+            np.array([0.75, 0.25, 0.6]),
+            (batch_size, 3)
+        )
         return np.hstack((
-            angles,
-            velocities,
-            ee_pos,
+            random_pos,
+            random_vel,
+            random_xyz,
         ))
+
+    def cost_fn(self, states, actions, next_states):
+        """
+        This is added for model-based code. This is COST not reward.
+        So lower is better.
+
+        :param states:  (BATCH_SIZE x state_dim) numpy array
+        :param actions:  (BATCH_SIZE x action_dim) numpy array
+        :param next_states:  (BATCH_SIZE x state_dim) numpy array
+        :return: (BATCH_SIZE, ) numpy array
+        """
+        if len(next_states.shape) == 1:
+            next_states = np.expand_dims(next_states, 0)
+        # xyz_pos = next_states[:, 14:17]
+        # desired_xyz_pos = self.multitask_goal[14:17] * np.ones_like(xyz_pos)
+        # diff = xyz_pos - desired_xyz_pos
+        next_joint_angles = next_states[:, :7]
+        desired_joint_angles = (
+            self.multitask_goal[:7] * np.ones_like(next_joint_angles)
+        )
+        diff = next_joint_angles - desired_joint_angles
+        costs = np.linalg.norm(
+            diff,
+            axis=1,
+            ord=1,
+        )
+        return costs

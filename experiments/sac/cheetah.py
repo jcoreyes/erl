@@ -7,14 +7,11 @@ import numpy as np
 import gym
 
 import railrl.torch.pytorch_util as ptu
-from railrl.envs.wrappers import normalize_box
+from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
-from railrl.sac.policies import TanhGaussianPolicy
-from railrl.sac.sac import SoftActorCritic
+from railrl.torch.sac.policies import TanhGaussianPolicy
+from railrl.torch.sac.sac import SoftActorCritic
 from railrl.torch.networks import FlattenMlp
-from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
-from rllab.envs.normalized_env import normalize
-from rllab.envs.gym_env import GymEnv
 
 
 def experiment(variant):
@@ -24,7 +21,7 @@ def experiment(variant):
     #     record_video=False,
     #     record_log=False,
     # ))
-    env = normalize_box(gym.make('HalfCheetah-v1'))
+    env = NormalizedBoxEnv(gym.make('HalfCheetah-v1'))
 
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))

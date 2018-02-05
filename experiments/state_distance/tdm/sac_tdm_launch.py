@@ -5,25 +5,18 @@ import numpy as np
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.envs.multitask.ant_env import GoalXYPosAnt
-from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
-    GoalXPosHalfCheetah
-from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
-from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
-from railrl.envs.multitask.walker2d_env import Walker2DTargetXPos
 from railrl.envs.multitask.reacher_7dof import (
     # Reacher7DofGoalStateEverything,
-    Reacher7DofXyzGoalState,
-)
-from railrl.envs.wrappers import normalize_box
+    Reacher7DofFullGoal)
+from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
-from railrl.sac.policies import TanhGaussianPolicy
+from railrl.torch.sac.policies import TanhGaussianPolicy
 from railrl.state_distance.tdm_sac import TdmSac
 from railrl.torch.networks import FlattenMlp
 
 
 def experiment(variant):
-    env = normalize_box(variant['env_class']())
+    env = NormalizedBoxEnv(variant['env_class']())
 
     obs_dim = int(np.prod(env.observation_space.low.shape))
     action_dim = int(np.prod(env.action_space.low.shape))
@@ -65,13 +58,13 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-sac-tdm-launch"
 
-    n_seeds = 1
-    mode = "ec2"
-    exp_prefix = "pusher-sweep-2"
+    # n_seeds = 1
+    # mode = "ec2"
+    # exp_prefix = "reacher-full-sac-tdm-save-replay-buffer"
 
-    num_epochs = 1000
-    num_steps_per_epoch = 100
-    num_steps_per_eval = 100
+    num_epochs = 100
+    num_steps_per_epoch = 1000
+    num_steps_per_eval = 1000
     max_path_length = 100
 
     # noinspection PyTypeChecker
@@ -85,6 +78,7 @@ if __name__ == "__main__":
                 num_updates_per_env_step=25,
                 batch_size=128,
                 discount=1,
+                save_replay_buffer=True,
             ),
             tdm_kwargs=dict(
                 sample_rollout_goals_from='environment',
@@ -120,50 +114,47 @@ if __name__ == "__main__":
         'env_class': [
             # GoalXVelHalfCheetah,
             # Reacher7DofXyzGoalState,
+            Reacher7DofFullGoal,
             # GoalXYPosAnt,
             # Walker2DTargetXPos,
             # MultitaskPusher3DEnv,
-            CylinderXYPusher2DEnv,
+            # CylinderXYPusher2DEnv,
         ],
         'sac_tdm_kwargs.base_kwargs.reward_scale': [
-            1,
-            10,
+            # 30,
             100,
-            1000,
-            10000,
+            # 300,
         ],
         'sac_tdm_kwargs.tdm_kwargs.vectorized': [
             # False,
             True,
         ],
         'sac_tdm_kwargs.tdm_kwargs.terminate_when_goal_reached': [
-            # True,
-            False,
+            True,
+            # False,
         ],
         'sac_tdm_kwargs.tdm_kwargs.sample_rollout_goals_from': [
             # 'fixed',
-            'environment',
+            # 'environment',
+            'replay_buffer',
         ],
         'relabel': [
-            # False,
             True,
         ],
         'sac_tdm_kwargs.tdm_kwargs.dense_rewards': [
             False,
-            True,
         ],
         'sac_tdm_kwargs.tdm_kwargs.finite_horizon': [
-            # False,
             True,
         ],
         'sac_tdm_kwargs.tdm_kwargs.reward_type': [
-            # 'sparse',
             'distance',
         ],
         'sac_tdm_kwargs.tdm_kwargs.max_tau': [
-            99,
-            49,
-            15,
+            0,
+            # 99,
+            # 49,
+            # 15,
         ],
         'sac_tdm_kwargs.tdm_kwargs.tau_sample_strategy': [
             # 'all_valid',
@@ -172,8 +163,8 @@ if __name__ == "__main__":
         ],
         'sac_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
             1,
-            10,
-            25,
+            # 10,
+            # 25,
         ],
         'sac_tdm_kwargs.base_kwargs.discount': [
             1,
@@ -198,19 +189,14 @@ if __name__ == "__main__":
                     'sample_rollout_goals_from'
                 ] != 'fixed'
         )
-        # if relabel:
-        #     variant['sac_tdm_kwargs']['tdm_kwargs']['sample_train_goals_from'] = 'her'
-        #     variant['sac_tdm_kwargs']['tdm_kwargs'][
-        #         'tau_sample_strategy'] = 'uniform'
-        # else:
-        #     variant['sac_tdm_kwargs']['tdm_kwargs']['sample_train_goals_from'] = 'no_resampling'
-        #     variant['sac_tdm_kwargs']['tdm_kwargs'][
-        #         'tau_sample_strategy'] = 'no_resampling'
-        variant['version'] = ", ".join([
-            "dense={}".format(dense),
-            "finite={}".format(finite),
-            "relabel={}".format(relabel),
-        ])
+        if relabel:
+            variant['sac_tdm_kwargs']['tdm_kwargs']['sample_train_goals_from'] = 'her'
+            variant['sac_tdm_kwargs']['tdm_kwargs'][
+                'tau_sample_strategy'] = 'uniform'
+        else:
+            variant['sac_tdm_kwargs']['tdm_kwargs']['sample_train_goals_from'] = 'no_resampling'
+            variant['sac_tdm_kwargs']['tdm_kwargs'][
+                'tau_sample_strategy'] = 'no_resampling'
         for i in range(n_seeds):
             seed = random.randint(0, 10000)
             run_experiment(

@@ -2,18 +2,17 @@ import random
 
 import railrl.misc.hyperparameter as hyp
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.envs.multitask.ant_env import GoalXYVelAnt, GoalXYPosAnt
 from railrl.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState
-from railrl.envs.wrappers import normalize_box
+from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
-from railrl.sac.policies import *
+from railrl.torch.sac.policies import *
 from railrl.state_distance.tdm_networks import OneHotTauQF, BinaryStringTauQF, TauVectorQF, \
     TauVectorSeparateFirstLayerQF
 from railrl.state_distance.tdm_sac import TdmSac
 
 
 def experiment(variant):
-    env = normalize_box(variant['env_class']())
+    env = NormalizedBoxEnv(variant['env_class']())
 
     obs_dim = int(np.prod(env.observation_space.low.shape))
     action_dim = int(np.prod(env.action_space.low.shape))

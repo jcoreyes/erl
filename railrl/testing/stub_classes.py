@@ -1,11 +1,10 @@
 import numpy as np
+from gym.spaces import Box
 
 from railrl.exploration_strategies.base import RawExplorationStrategy
-from rllab.envs.base import Env
-from rllab.spaces.box import Box
 
 
-class StubEnv(Env):
+class StubEnv(object):
     def __init__(self):
         low = np.array([0.])
         high = np.array([1.])

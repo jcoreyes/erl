@@ -2,12 +2,12 @@ import abc
 from collections import OrderedDict
 
 import numpy as np
+from gym.spaces import Box
 
-from railrl.misc.data_processing import create_stats_ordered_dict
+from railrl.envs.wrappers import ProxyEnv
+from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.core.serializable import Serializable
-from rllab.envs.proxy_env import ProxyEnv
 from railrl.core import logger as default_logger
-from rllab.spaces import Box
 
 
 def is_rllab_style_paths(paths):
@@ -319,19 +319,17 @@ class MultitaskToFlatEnv(ProxyEnv, Serializable):
         Serializable.quick_init(self, locals())
         ProxyEnv.__init__(self, env)
 
-    @property
-    def observation_space(self):
-        wrapped_low = super().observation_space.low
+        wrapped_low = self.observation_space.low
         low = np.hstack((
             wrapped_low,
             min(wrapped_low) * np.ones(self._wrapped_env.goal_dim)
         ))
-        wrapped_high = super().observation_space.low
+        wrapped_high = self.observation_space.low
         high = np.hstack((
             wrapped_high,
             max(wrapped_high) * np.ones(self._wrapped_env.goal_dim)
         ))
-        return Box(low, high)
+        self.observation_space = Box(low, high)
 
     def step(self, action):
         ob, reward, done, info_dict = self._wrapped_env.step(action)
@@ -383,3 +381,12 @@ class MultitaskEnvToSilentMultitaskEnv(ProxyEnv, Serializable):
             actions,
             next_states,
         )
+
+    def sample_goal_for_rollout(self):
+        return self._wrapped_env.sample_goal_for_rollout()
+
+    def sample_goals(self, batch_size):
+        return self._wrapped_env.sample_goals(batch_size)
+
+    def sample_states(self, batch_size):
+        return self._wrapped_env.sample_states(batch_size)

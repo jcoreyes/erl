@@ -16,7 +16,7 @@ import numpy as np
 from matplotlib import colors
 
 from railrl.policies.simple import RandomPolicy
-from railrl.state_distance.networks import NumpyModelExtractor
+from railrl.state_distance.old.networks import NumpyModelExtractor
 
 
 def visualize_policy_error(qf, env, horizon):

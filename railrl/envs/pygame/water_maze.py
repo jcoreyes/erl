@@ -2,14 +2,14 @@ from collections import OrderedDict, deque
 
 import numpy as np
 from gym import Env
+from gym.spaces import Box
 from pygame import Color
 
 from railrl.envs.pygame.pygame_viewer import PygameViewer
-from railrl.misc.data_processing import create_stats_ordered_dict
+from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.samplers.util import split_paths
 from railrl.core.serializable import Serializable
 from railrl.core import logger
-from rllab.spaces import Box
 
 
 class WaterMaze(Serializable, Env):

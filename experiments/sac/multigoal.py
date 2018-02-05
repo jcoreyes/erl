@@ -7,16 +7,16 @@ import numpy as np
 
 import railrl.torch.pytorch_util as ptu
 from railrl.envs.multigoal import MultiGoalEnv
-from railrl.envs.wrappers import normalize_box
+from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.plotter import QFPolicyPlotter
-from railrl.sac.policies import TanhGaussianPolicy
-from railrl.sac.sac import SoftActorCritic
+from railrl.torch.sac.policies import TanhGaussianPolicy
+from railrl.torch.sac.sac import SoftActorCritic
 from railrl.torch.networks import FlattenMlp
 
 
 def experiment(variant):
-    env = normalize_box(MultiGoalEnv(
+    env = NormalizedBoxEnv(MultiGoalEnv(
         actuation_cost_coeff=10,
         distance_cost_coeff=1,
         goal_reward=10,

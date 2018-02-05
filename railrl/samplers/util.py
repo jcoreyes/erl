@@ -3,8 +3,6 @@ import numpy as np
 
 def rollout(env, agent, max_path_length=np.inf, animated=False):
     """
-    Like rllab's rollout, but do not flatten actions/observations.
-
     The following value for the following keys will be a 2D array, with the
     first dimension corresponding to the time dimension.
      - observations
@@ -12,6 +10,11 @@ def rollout(env, agent, max_path_length=np.inf, animated=False):
      - rewards
      - next_observations
      - terminals
+
+    The next two elements will be lists of dictionaries, with the index into
+    the list being the index into the time
+     - agent_infos
+     - env_infos
 
     :param env:
     :param agent:
@@ -72,10 +75,9 @@ def rollout(env, agent, max_path_length=np.inf, animated=False):
 
 def split_paths(paths):
     """
-    Split paths from rllab's rollout function into rewards, terminals, obs
-    actions, and next_obs
-    terminals
-    :param paths:
+    Stack multiples obs/actions/etc. from different paths
+    :param paths: List of paths, where one path is something returned from
+    the rollout functino above.
     :return: Tuple. Every element will have shape batch_size X DIM, including
     the rewards and terminal flags.
     """

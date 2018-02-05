@@ -1,12 +1,23 @@
 import numpy as np
 
-from railrl.misc.rllab_util import split_flat_product_space_into_components_n
 from railrl.core.serializable import Serializable
 from rllab.envs.base import Env
 from rllab.envs.proxy_env import ProxyEnv
 from rllab.spaces.product import Product
 from rllab.spaces.box import Box
 from cached_property import cached_property
+
+
+def split_flat_product_space_into_components_n(product_space, xs):
+    """
+    Split up a flattened block into its components
+
+    :param product_space: ProductSpace instance
+    :param xs: N x flat_dim
+    :return: list of (N x component_dim)
+    """
+    dims = [c.flat_dim for c in product_space.components]
+    return np.split(xs, np.cumsum(dims)[:-1], axis=-1)
 
 
 class ContinuousMemoryAugmented(ProxyEnv):

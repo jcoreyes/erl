@@ -3,7 +3,7 @@ Prototype new ideas on cartpole.
 """
 import random
 
-from railrl.envs.wrappers import normalize_box
+from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
@@ -18,7 +18,7 @@ from rllab.envs.box2d.cartpole_env import CartpoleEnv
 
 def example(variant):
     env = CartpoleEnv()
-    env = normalize_box(env)
+    env = NormalizedBoxEnv(env)
     es = OUStrategy(action_space=env.action_space)
     qf = FeedForwardQFunction(
         int(env.observation_space.flat_dim),

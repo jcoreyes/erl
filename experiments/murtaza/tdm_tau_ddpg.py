@@ -12,7 +12,6 @@ from railrl.envs.wrappers import normalize_box, convert_gym_space
 from railrl.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.sac.policies import *
 from railrl.state_distance.tdm_networks import *
 from railrl.state_distance.tdm_networks import OneHotTauQF, BinaryStringTauQF, TauVectorQF, \
     TauVectorSeparateFirstLayerQF
@@ -20,7 +19,7 @@ from railrl.state_distance.tdm_ddpg import TdmDdpg
 
 
 def experiment(variant):
-    env = normalize_box(variant['env_class']())
+    env = NormalizedBoxEnv(variant['env_class']())
 
     obs_dim = int(np.prod(env.observation_space.low.shape))
     action_dim = int(np.prod(env.action_space.low.shape))
@@ -34,7 +33,7 @@ def experiment(variant):
     tau_normalizer = TorchFixedNormalizer(1)
 
     es_params = dict(
-        action_space=convert_gym_space(env.action_space),
+        action_space=env.action_space,
         **variant['es_params']
     )
     es = es_class(**es_params)

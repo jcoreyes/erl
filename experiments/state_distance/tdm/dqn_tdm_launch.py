@@ -11,7 +11,7 @@ from railrl.envs.multitask.mountain_car_env import MountainCar
 from railrl.launchers.launcher_util import run_experiment
 from railrl.policies.argmax import ArgmaxDiscretePolicy
 from railrl.state_distance.tdm_dqn import TdmDqn
-from railrl.state_distance.discrete_action_networks import \
+from railrl.state_distance.old.discrete_action_networks import \
     VectorizedDiscreteQFunction, ArgmaxDiscreteTdmPolicy
 from railrl.torch.networks import FlattenMlp
 

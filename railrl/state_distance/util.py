@@ -2,13 +2,17 @@
 Have a separate function so that if other code needs to merge/unmerge obs,
 goals, and whatnot, they do it in the same way.
 """
+import torch
 import numpy as np
 
 
 def merge_into_flat_obs(obs, goals, num_steps_left):
     # Have a separate function so that if other code needs to merge obs,
     # goals, and whatnot, it does it in the same way.
-    return np.hstack((obs, goals, num_steps_left))
+    if isinstance(obs, np.ndarray):
+        return np.hstack((obs, goals, num_steps_left))
+    else:
+        return torch.cat((obs, goals, num_steps_left), dim=1)
 
 def extract_goals(flat_obs, ob_dim, goal_dim):
     return flat_obs[:, ob_dim:ob_dim+goal_dim]

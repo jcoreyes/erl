@@ -9,7 +9,7 @@ from railrl.launchers.launcher_util import run_experiment
 from railrl.state_distance.policies import (
     UnconstrainedOcWithGoalConditionedModel,
     UnconstrainedOcWithImplicitModel)
-from railrl.state_distance.networks import \
+from railrl.state_distance.old.networks import \
     VectorizedGoalStructuredUniversalQfunction
 from state_distance.rollout_util import multitask_rollout
 from railrl.core import logger

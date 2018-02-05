@@ -1,15 +1,16 @@
 import random
 
-from railrl.envs.wrappers import convert_gym_space
-from railrl.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
-from railrl.launchers.launcher_util import resume_torch_algorithm, continue_experiment, run_experiment
+from railrl.envs.env_utils import get_dim
+from railrl.exploration_strategies.base import \
+    PolicyWrappedWithExplorationStrategy
+from railrl.launchers.launcher_util import resume_torch_algorithm, \
+    continue_experiment, run_experiment
 from railrl.torch.networks import FeedForwardQFunction, FeedForwardPolicy
-from railrl.torch.algos.ddpg import DDPG
+from railrl.torch.ddpg.ddpg import DDPG
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.torch import pytorch_util as ptu
 import sys
-import railrl.misc.hyperparameter as hyp
 from rllab.envs.normalized_env import normalize
 
 
@@ -18,11 +19,9 @@ def example(variant):
     env_params = variant['env_params']
     env = env_class(**env_params)
     normalize(env)
-    obs_space = convert_gym_space(env.observation_space)
-    action_space = convert_gym_space(env.action_space)
     es_class = variant['es_class']
     es_params = dict(
-        action_space=action_space,
+        action_space=env.action_space,
         **variant['es_params']
     )
     use_gpu = variant['use_gpu']
@@ -35,8 +34,8 @@ def example(variant):
     )
     policy_class = variant['policy_class']
     policy_params = dict(
-        obs_dim=int(obs_space.flat_dim),
-        action_dim=int(action_space.flat_dim),
+        obs_dim=get_dim(env.observation_space),
+        action_dim=get_dim(env.action_space),
         fc1_size=100,
         fc2_size=100,
     )
@@ -56,7 +55,8 @@ def example(variant):
         algorithm.cuda()
     algorithm.train()
 
-experiments=[
+
+experiments = [
     'joint_angle|fixed_angle',
     'joint_angle|varying_angle',
     'end_effector_position|fixed_ee',
@@ -88,11 +88,11 @@ if __name__ == "__main__":
                 'policy_class': FeedForwardPolicy,
                 'normalize_env': False,
                 'env_params': dict(),
-                'es_params':{
+                'es_params': {
                     'max_sigma': .25,
                     'min_sigma': .25,
                 },
-                'algo_params':dict(
+                'algo_params': dict(
                     num_epochs=100,
                     num_steps_per_epoch=10000,
                     num_steps_per_eval=100,

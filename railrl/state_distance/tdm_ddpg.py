@@ -4,10 +4,9 @@ import numpy as np
 import torch
 
 import railrl.torch.pytorch_util as ptu
-from railrl.misc.data_processing import create_stats_ordered_dict
-from railrl.state_distance.exploration import MakeUniversal
+from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.state_distance.tdm import TemporalDifferenceModel
-from railrl.torch.algos.ddpg import DDPG
+from railrl.torch.ddpg.ddpg import DDPG
 
 
 class TdmDdpg(TemporalDifferenceModel, DDPG):

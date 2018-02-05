@@ -16,7 +16,7 @@ from railrl.envs.multitask.reacher_7dof import (
     DESIRED_JOINT_CONFIG,
     reach_parameterized_joint_config)
 from railrl.launchers.launcher_util import run_experiment
-from railrl.state_distance.amortized_oc import \
+from railrl.state_distance.old.amortized_oc import \
     train_amortized_goal_chooser, AmortizedPolicy, UniversalGoalChooser
 from railrl.core import logger
 

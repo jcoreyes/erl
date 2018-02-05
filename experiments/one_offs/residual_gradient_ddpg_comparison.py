@@ -3,6 +3,7 @@ Run PyTorch DDPG on HalfCheetah.
 """
 import random
 
+from railrl.envs.env_utils import get_dim
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.networks import FeedForwardQFunction, FeedForwardPolicy
@@ -19,7 +20,7 @@ from rllab.envs.mujoco.inverted_double_pendulum_env import (
 )
 from railrl.envs.mujoco.pusher2d import Pusher2DEnv
 from railrl.envs.multitask.reacher_env import GoalStateSimpleStateReacherEnv
-from railrl.envs.wrappers import convert_gym_space, normalize_box
+from railrl.envs.wrappers import convert_gym_space, NormalizedBoxEnv
 from railrl.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
 )
@@ -27,18 +28,18 @@ from railrl.exploration_strategies.base import (
 
 def example(variant):
     env = variant['env_class']()
-    env = normalize_box(env)
-    observation_space = convert_gym_space(env.observation_space)
-    action_space = convert_gym_space(env.action_space)
-    es = OUStrategy(action_space=action_space)
+    env = NormalizedBoxEnv(env)
+    obs_dim = get_dim(env.observation_space)
+    action_dim = get_dim(env.action_space)
+    es = OUStrategy(action_space=env.action_space)
     qf = FeedForwardQFunction(
-        int(observation_space.flat_dim),
-        int(action_space.flat_dim),
+        obs_dim,
+        action_dim,
         **variant['qf_params']
     )
     policy = FeedForwardPolicy(
-        int(observation_space.flat_dim),
-        int(action_space.flat_dim),
+        obs_dim,
+        action_dim,
         400,
         300,
     )

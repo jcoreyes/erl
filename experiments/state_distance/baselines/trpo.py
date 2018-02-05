@@ -12,7 +12,9 @@ from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState,
     Reacher7DofXyzPosAndVelGoalState)
 from railrl.envs.multitask.walker2d_env import Walker2DTargetXPos
-from railrl.envs.wrappers import normalize_and_convert_to_tf_env
+from railrl.envs.wrappers import (
+    ConvertEnvToTf, NormalizedBoxEnv
+)
 from railrl.launchers.launcher_util import run_experiment
 from sandbox.rocky.tf.algos.trpo import TRPO
 from rllab.baselines.linear_feature_baseline import LinearFeatureBaseline
@@ -28,7 +30,8 @@ def experiment(variant):
     env = variant['env_class'](**variant['env_kwargs'])
     if variant['multitask']:
         env = MultitaskToFlatEnv(env)
-    env = normalize_and_convert_to_tf_env(env)
+    env = NormalizedBoxEnv(env)
+    env = ConvertEnvToTf(env)
 
     policy = GaussianMLPPolicy(
         name="policy",
@@ -81,6 +84,7 @@ if __name__ == "__main__":
         policy_params=dict(
             hidden_sizes=(300, 300),
         ),
+        env_kwargs=dict(),
         multitask=False,
         version="TRPO",
         algorithm="TRPO",
@@ -97,15 +101,15 @@ if __name__ == "__main__":
             # MultitaskPusher3DEnv,
             # Walker2DTargetXPos,
         ],
-        'env_kwargs.max_speed': [
-            0.03,
-        ],
-        'env_kwargs.speed_weight': [
-            0.99,
-        ],
-        'env_kwargs.done_threshold': [
-            0.01,
-        ],
+        # 'env_kwargs.max_speed': [
+        #     0.03,
+        # ],
+        # 'env_kwargs.speed_weight': [
+        #     0.99,
+        # ],
+        # 'env_kwargs.done_threshold': [
+        #     0.01,
+        # ],
         'multitask': [True],
         'algo_kwargs.step_size': [
             100, 1, 0.01, 0.0001,

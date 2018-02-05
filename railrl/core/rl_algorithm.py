@@ -9,11 +9,6 @@ from railrl.data_management.env_replay_buffer import EnvReplayBuffer
 from railrl.data_management.path_builder import PathBuilder
 from railrl.data_management.split_buffer import SplitReplayBuffer
 from railrl.envs.remote import RemoteRolloutEnv
-from railrl.envs.wrappers import convert_gym_space
-from railrl.misc.rllab_util import (
-    get_table_key_set,
-    save_extra_data_to_snapshot_dir,
-)
 from railrl.policies.base import ExplorationPolicy
 from railrl.samplers.in_place import InPlacePathSampler
 from railrl.core import logger
@@ -44,7 +39,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             collection_mode='online',
             sim_throttle=False,
             normalize_env=True,
-            env_train_ratio=20,
             parallel_step_to_train_ratio=20,
             replay_buffer=None,
             fraction_paths_in_train=1.,
@@ -119,27 +113,24 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.eval_policy = eval_policy
         self.eval_sampler = eval_sampler
 
-        self.action_space = convert_gym_space(env.action_space)
-        self.obs_space = convert_gym_space(env.observation_space)
+        self.action_space = env.action_space
+        self.obs_space = env.observation_space
         self.env = env
         if replay_buffer is None:
             if fraction_paths_in_train == 1.:
                 self.replay_buffer = EnvReplayBuffer(
                     self.replay_buffer_size,
                     self.env,
-                    flatten=True,
                 )
             else:
                 self.replay_buffer = SplitReplayBuffer(
                     EnvReplayBuffer(
                         replay_buffer_size,
                         env,
-                        flatten=True,
                     ),
                     EnvReplayBuffer(
                         replay_buffer_size,
                         env,
-                        flatten=True,
                     ),
                     fraction_paths_in_train=fraction_paths_in_train,
                 )
@@ -360,16 +351,15 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             self.training_mode(False)
 
     def _try_to_eval(self, epoch):
-        save_extra_data_to_snapshot_dir(
-            self.get_extra_data_to_save(epoch),
-        )
+        logger.save_extra_data(self.get_extra_data_to_save(epoch))
         if self._can_evaluate():
             self.evaluate(epoch)
 
             params = self.get_epoch_snapshot(epoch)
             logger.save_itr_params(epoch, params)
-            table_keys = get_table_key_set(logger)
+            table_keys = logger.get_table_key_set()
             if self._old_table_keys is not None:
+                wrong = [key for key in self._old_table_keys if key not in table_keys] # for debugging
                 assert table_keys == self._old_table_keys, (
                     "Table keys cannot change from iteration to iteration."
                 )
@@ -412,7 +402,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.offline_evaluate(epoch)
         params = self.get_epoch_snapshot(epoch)
         logger.save_itr_params(epoch, params)
-        table_keys = get_table_key_set(logger)
+        table_keys = logger.get_table_key_set()
         if self._old_table_keys is not None:
             assert table_keys == self._old_table_keys, (
                 "Table keys cannot change from iteration to iteration."

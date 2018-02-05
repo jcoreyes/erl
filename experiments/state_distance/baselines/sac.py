@@ -3,27 +3,18 @@ import random
 import numpy as np
 
 import railrl.torch.pytorch_util as ptu
-from railrl.envs.multitask.ant_env import GoalXYPosAnt
-from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
-    GoalXPosHalfCheetah
 from railrl.envs.multitask.hopper_env import GoalXPosHopper
 from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
-from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
-from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
-from railrl.envs.multitask.reacher_7dof import (
-    Reacher7DofXyzGoalState,
-)
-from railrl.envs.multitask.walker2d_env import Walker2DTargetXPos
-from railrl.envs.wrappers import normalize_box
+from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
-from railrl.sac.policies import TanhGaussianPolicy
-from railrl.sac.sac import SoftActorCritic
+from railrl.torch.sac.policies import TanhGaussianPolicy
+from railrl.torch.sac.sac import SoftActorCritic
 from railrl.torch.networks import FlattenMlp
 import railrl.misc.hyperparameter as hyp
 
 
 def experiment(variant):
-    env = normalize_box(variant['env_class'](**variant['env_kwargs']))
+    env = NormalizedBoxEnv(variant['env_class'](**variant['env_kwargs']))
     if variant['multitask']:
         env = MultitaskToFlatEnv(env)
 

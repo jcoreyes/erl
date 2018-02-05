@@ -16,8 +16,8 @@ from railrl.state_distance.rollout_util import MultigoalSimplePathSampler, \
     multitask_rollout
 from railrl.state_distance.tdm_networks import TdmNormalizer, MakeNormalizedTDMPolicy
 from railrl.state_distance.util import merge_into_flat_obs
-from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
-from railrl.torch.algos.util import np_to_pytorch_batch
+from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
+from railrl.torch.core import np_to_pytorch_batch
 
 
 class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
@@ -39,6 +39,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             norm_order=1,
             goal_weights=None,
             tdm_normalizer: TdmNormalizer=None,
+            num_pretrain_paths=0,
             normalize_distance=False,
     ):
         """
@@ -56,8 +57,10 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         during rollout. Can be one of the following strings:
             - environment: Sample from the environment
             - replay_buffer: Sample from the replay_buffer
-            - fixed: Do no resample the goal. Just use the one in the
+            - fixed: Do not resample the goal. Just use the one in the
             environment.
+            - pretrain_paths: Resample goals from paths collected with a
+            random policy.
         :param vectorized: Train the QF in vectorized form?
         :param cycle_taus_for_rollout: Decrement the tau passed into the
         policy during rollout?
@@ -88,8 +91,12 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         """
         assert sample_train_goals_from in ['environment', 'replay_buffer',
                                            'her', 'no_resampling']
-        assert sample_rollout_goals_from in ['environment', 'replay_buffer',
-                                             'fixed']
+        assert sample_rollout_goals_from in [
+            'environment',
+            'replay_buffer',
+            'fixed',
+            'pretrain_paths',
+        ]
         assert tau_sample_strategy in [
             'no_resampling',
             'uniform',
@@ -127,6 +134,10 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             self.goal_weights = np.array(self.goal_weights)
             assert self.goal_weights.size == self.env.goal_dim
         self.tdm_normalizer = tdm_normalizer
+<<<<<<< HEAD
+=======
+        self.num_pretrain_paths = num_pretrain_paths
+>>>>>>> dev
         self.normalize_distance = normalize_distance
 
         self.policy = MakeUniversal(self.policy)
@@ -141,6 +152,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             goal_sampling_function=self._sample_goal_for_rollout,
             cycle_taus_for_rollout=self.cycle_taus_for_rollout,
         )
+        self.pretrain_obs = None
         if self.collection_mode == 'online-parallel':
             # TODO(murtaza): What happens to the eval env?
             # see `eval_sampler` definition above.
@@ -278,19 +290,19 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
                     > self.goal_reached_epsilon
                 )
         elif self.reward_type == 'distance':
-            neg_distances = self._compute_raw_neg_distances(next_obs, goals)
-            if self.goal_weights is not None:
-                neg_distances = neg_distances * self.goal_weights
-            else:
-                neg_distances = neg_distances * self.env.goal_dim_weights
+            neg_distances = self._compute_unscaled_neg_distances(next_obs, goals)
             return neg_distances * self.reward_scale
         elif self.reward_type == 'env':
             return batch['rewards']
         else:
             raise TypeError("Invalid reward type: {}".format(self.reward_type))
 
-    def _compute_raw_neg_distances(self, next_obs, goals):
+    def _compute_unscaled_neg_distances(self, next_obs, goals):
         diff = self.env.convert_obs_to_goals(next_obs) - goals
+        if self.goal_weights is not None:
+            diff = diff * self.goal_weights
+        else:
+            diff = diff * self.env.goal_dim_weights
         if self.vectorized:
             raw_neg_distances = -np.abs(diff)
         else:
@@ -358,12 +370,18 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         if self.sample_rollout_goals_from == 'environment':
             return self.env.sample_goal_for_rollout()
         elif self.sample_rollout_goals_from == 'replay_buffer':
+            if self.train_buffer.num_steps_can_sample() == 0:
+                return np.zeros(self.env.goal_dim)
             batch = self.train_buffer.random_batch(1)
             obs = batch['observations']
             goal = self.env.convert_obs_to_goals(obs)[0]
             return self.env.modify_goal_for_rollout(goal)
         elif self.sample_rollout_goals_from == 'fixed':
             return self.env.multitask_goal
+        elif self.sample_rollout_goals_from == 'pretrain_paths':
+            random_i = np.random.randint(0, len(self.pretrain_obs))
+            ob = self.pretrain_obs[random_i]
+            return self.env.convert_ob_to_goal(ob)
         else:
             raise Exception("Invalid `sample_goals_from`: {}".format(
                 self.sample_rollout_goals_from
@@ -476,13 +494,16 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
     #             self.tdm_normalizer.distance_normalizer.set_std(distance_std)
 =======
     def pretrain(self):
-        if self.num_paths_for_normalization == 0:
+        if (
+                self.num_pretrain_paths == 0 and
+                self.sample_rollout_goals_from != 'pretrain_paths'
+        ):
             return
 
         paths = []
         random_policy = RandomUniveralPolicy(self.env.action_space)
-        while len(paths) < self.num_paths_for_normalization:
-            goal = self._sample_goal_for_rollout()
+        for _ in range(self.num_pretrain_paths):
+            goal = np.zeros(self.env.goal_dim)
             path = multitask_rollout(
                 self.training_env,
                 random_policy,
@@ -493,10 +514,13 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             paths.append(path)
 
         obs = np.vstack([path["observations"] for path in paths])
+        self.pretrain_obs = obs
+        if self.num_pretrain_paths == 0:
+            return
         next_obs = np.vstack([path["next_observations"] for path in paths])
         actions = np.vstack([path["actions"] for path in paths])
         goals = np.vstack([path["goals"] for path in paths])
-        neg_distances = self._compute_raw_neg_distances(next_obs, goals)
+        neg_distances = self._compute_unscaled_neg_distances(next_obs, goals)
 
         ob_mean = np.mean(obs, axis=0)
         ob_std = np.std(obs, axis=0)
@@ -505,7 +529,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         new_goals = np.vstack([
             self._sample_goal_for_rollout()
             for _ in range(
-                self.num_paths_for_normalization * self.max_path_length
+                self.num_pretrain_paths * self.max_path_length
             )
         ])
         goal_mean = np.mean(new_goals, axis=0)

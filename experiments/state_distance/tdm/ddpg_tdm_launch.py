@@ -17,8 +17,8 @@ from railrl.envs.multitask.walker2d_env import Walker2DTargetXPos
 from railrl.envs.multitask.reacher_7dof import (
     # Reacher7DofGoalStateEverything,
     Reacher7DofXyzGoalState,
-    Reacher7DofXyzPosAndVelGoalState)
-from railrl.envs.wrappers import normalize_box
+    Reacher7DofXyzPosAndVelGoalState, Reacher7DofFullGoal)
+from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
@@ -38,7 +38,7 @@ def experiment(variant):
     variant['ddpg_tdm_kwargs']['tdm_kwargs']['vectorized'] = vectorized
     variant['ddpg_tdm_kwargs']['tdm_kwargs']['norm_order'] = norm_order
     # variant['env_kwargs']['norm_order'] = norm_order
-    env = normalize_box(variant['env_class'](**variant['env_kwargs']))
+    env = NormalizedBoxEnv(variant['env_class'](**variant['env_kwargs']))
     observation_dim = int(np.prod(env.observation_space.low.shape))
     action_dim = int(np.prod(env.action_space.low.shape))
     obs_normalizer = TorchFixedNormalizer(observation_dim)
@@ -107,7 +107,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "pusher-gym-find-difference"
+    exp_prefix = "reacher-full-ddpg-tdm-mtau-0"
 
     num_epochs = 100
     num_steps_per_epoch = 1000
@@ -176,7 +176,8 @@ if __name__ == "__main__":
             # Reacher7DofXyzGoalState,
             # CylinderXYPusher2DEnv,
             # Walker2DTargetXPos,
-            GoalXYGymPusherEnv,
+            # GoalXYGymPusherEnv,
+            Reacher7DofFullGoal,
         ],
         # 'env_kwargs.max_distance': [
         #     6,
@@ -201,25 +202,26 @@ if __name__ == "__main__":
             nn.MSELoss,
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.sample_rollout_goals_from': [
-            'environment',
+            # 'environment',
+            'pretrain_paths',
         ],
-        'ddpg_tdm_kwargs.tdm_kwargs.num_paths_for_normalization': [
+        'ddpg_tdm_kwargs.tdm_kwargs.num_pretrain_paths': [
             20
         ],
         'es_kwargs': [
             dict(theta=0.1, max_sigma=0.1, min_sigma=0.1),
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.max_tau': [
-            32, 99
+            0,
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.dense_rewards': [
-            False, True,
+            False,
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.finite_horizon': [
-            True, False,
+            True,
         ],
         'relabel': [
-            True, False,
+            True,
         ],
         'her_replay_buffer_kwargs.resampling_strategy': [
             # 'truncated_geometric',
@@ -256,10 +258,10 @@ if __name__ == "__main__":
             False
         ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
-            100, 10000, 1000000
+            0.01, 1, 100, 10000
         ],
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
-            1, 5, 10,
+            1,
         ],
         'ddpg_tdm_kwargs.base_kwargs.discount': [
             1,

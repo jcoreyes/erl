@@ -1,30 +1,26 @@
+README last updated on: 01/24/2018
+
 # railrl
 Reinforcement learning framework.
 Some implemented algorithms:
- - DDPG
- - Soft Actor Critic
- - (Double) DQN
- - NAF (haven't tested in a while)
+ - [Deep Deterministic Policy Gradient (DDPG)](examples/ddpg.py)
+ - [Soft Actor Critic](examples/sac.py)
+ - [(Double) Deep Q-Network (DQN)](examples/dqn_and_double_dqn.py)
+ - [Hindsight Experience Replay (HER)](examples/her.py)
+ - [MPC with Neural Network Model](examples/model_based_dagger.py)
+ - [Normalized Advantage Function (NAF)](examples/naf.py)
+    - WARNING: I haven't tested this NAF implementation much, so it may not match the paper's performance. I'm pretty confident about the other two implementations though.
 
-The tensorflow branch is basically dead. I just use the stuff in `railrl.torch`.
-
-Last updated: 12/11/2017.
+To get started, checkout the example scripts, linked above.
 
 ## Installation
-This library requires rllab to be installed.
-See [rllab's installation docs](https://rllab.readthedocs.io/en/latest/user/installation.html).
-
-One important difference: use my anaconda environment instead of rllab's conda
-environment. It can be installed and used with
+Install and use the included ananconda environment
 ```
 $ conda env create -f docker/railrl/railrl-env.yml
 $ source activate railrl-env
 (railrl-env) $ # Ready to run examples/ddpg_cheetah_no_doodad.py
 ```
-
-Copy `railrl/launchers/config_template.py` to `railrl/launchers/config.py`
-and edit the file as needed.
-Update `LOCAL_LOG_DIR`.
+Or if you want you can use the docker image included.
 
 ### (Optional) Install doodad
 I recommend installing [doodad](https://github.com/justinjfu/doodad) to
@@ -50,41 +46,27 @@ images/instance stuff.
 ## Visualizing a policy and seeing results
 During training, the results will be saved to a file called under
 ```
-PROJECT_PATH/data/local/<exp_prefix>/<foldername>
+LOCAL_LOG_DIR/<exp_prefix>/<foldername>
 ```
- -  `PROJECT_PATH` is the directory set by `railrl.launchers.config.AWS_S3_PATH`
- - `<exp_prefix>` is given either to `run_experiment`.
- - `<foldername>` is auto-generated and based off of what `<default>` is.
+ - `LOCAL_LOG_DIR` is the directory set by `railrl.launchers.config.LOCAL_LOG_DIR`
+ - `<exp_prefix>` is given either to `setup_logger`.
+ - `<foldername>` is auto-generated and based off of `exp_prefix`.
  - inside this folder, you should see a file called `params.pkl`. To visualize a policy, run
 
 ```
-(railrl) $ python scripts/sim_policy
-PROJECT_PATH/data/local/<default>/<foldername>/params.pkl
+(railrl) $ python scripts/sim_policy LOCAL_LOG_DIR/<exp_prefix>/<foldername>/params.pkl
 ```
 
-You can also visualize the results using `rllab`'s `viskit, described at
+If you have rllab installed, you can also visualize the results
+using `rllab`'s viskit, described at
 the bottom of [this page](http://rllab.readthedocs.io/en/latest/user/cluster.html)
 
 tl;dr run
 
 ```bash
-python rllab/viskit/frontend.py PROJECT_PATH/data/local/<exp_prefix>/
+python rllab/viskit/frontend.py LOCAL_LOG_DIR/<exp_prefix>/
 ```
 
-## Structure of library
-For the most part, each (mini-)project has its own module, like `sac`,
-`state_distance`, and `distributional`.
-This isn't always the case. There's still some refactoring left to be done,
-like how there's `policies/torch.py`, when that could should probably be in
-`torch`.
-
-Anyway, most of the sub-modules inside of railrl are hopefully self-explanatory.
-Short notes/description of modules whose use may not be obvious
-
-- data_management: code related to handling raw data (mostly just replay
-buffers)
-- misc: Random assortment of useful tools. Worth checking here if you're
-looking for some generic tool.
-- optimizers: literally optimizers (no torch or tf here!)
-- qfunctions: deprecated
-- tf: general tensorflow code (deprecated)
+## Credit
+A lot of the coding infrastructure is based on [rllab](https://github.com/rll/rllab).
+Also, the serialization and logger code are basically a carbon copy.

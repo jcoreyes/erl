@@ -10,17 +10,17 @@ import railrl.torch.pytorch_util as ptu
 from railrl.envs.multitask.reacher_env import (
     GoalStateSimpleStateReacherEnv,
 )
-from railrl.envs.wrappers import convert_gym_space, normalize_box
+from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.state_distance.model_based_policies import MultistepModelBasedPolicy
+from railrl.state_distance.old.model_based_policies import MultistepModelBasedPolicy
 from railrl.tf.predictors import Mlp
 
 
 def experiment(variant):
     env_class = variant['env_class']
     env = env_class(**variant['env_params'])
-    env = normalize_box(
+    env = NormalizedBoxEnv(
         env,
         **variant['normalize_params']
     )
@@ -30,8 +30,8 @@ def experiment(variant):
         replay_buffer = get_replay_buffer(variant)
     model_learns_deltas = variant['model_learns_deltas']
 
-    observation_space = convert_gym_space(env.observation_space)
-    action_space = convert_gym_space(env.action_space)
+    observation_space = env.observation_space
+    action_space = env.action_space
     model = Mlp(
         int(observation_space.flat_dim) + int(action_space.flat_dim),
         int(observation_space.flat_dim),

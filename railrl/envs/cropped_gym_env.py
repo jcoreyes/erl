@@ -14,6 +14,7 @@ from rllab.spaces.box import Box
 from railrl.core import logger
 import logging
 
+
 class CroppedGymEnv(GymEnv):
     def __init__(self, env_name, record_video=True, video_schedule=None, log_dir=None, record_log=True,
                  force_reset=False, screen_width=84, screen_height=84):

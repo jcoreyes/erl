@@ -1,10 +1,9 @@
 import ray
 
 from railrl.envs.base import RolloutEnv
-from railrl.envs.wrappers import normalize_box
+from railrl.envs.wrappers import NormalizedBoxEnv, ProxyEnv
 from railrl.samplers.util import rollout
 from railrl.core.serializable import Serializable
-from rllab.envs.proxy_env import ProxyEnv
 
 
 @ray.remote
@@ -24,11 +23,12 @@ class RayEnv(object):
         self._env = env
         if normalize_env:
             # TODO: support more than just box envs
-            self._env = normalize_box(self._env)
+            self._env = NormalizedBoxEnv(self._env)
         self._policy = policy
         self._exploration_policy = exploration_policy
         self._max_path_length = max_path_length
         self.rollout_function = rollout_function
+
     def rollout(self, policy_params, use_exploration_strategy):
         self._policy.set_param_values_np(policy_params)
         if use_exploration_strategy:

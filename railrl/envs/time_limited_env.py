@@ -1,7 +1,8 @@
 import numpy as np
-from rllab.envs.proxy_env import ProxyEnv
+from gym.spaces import Box
+
 from railrl.core.serializable import Serializable
-from rllab.spaces.box import Box
+from railrl.envs.wrappers import ProxyEnv
 
 
 class TimeLimitedEnv(ProxyEnv, Serializable):

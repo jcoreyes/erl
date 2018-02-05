@@ -1,12 +1,12 @@
 import abc
 from railrl.exploration_strategies.base import (
-    PolicyWrappedWithExplorationStrategy
+    PolicyWrappedWithExplorationStrategy,
+    ExplorationStrategy,
 )
 from railrl.policies.base import ExplorationPolicy
 from railrl.state_distance.policies import UniversalPolicy
 from railrl.state_distance.util import merge_into_flat_obs
 from railrl.torch.core import PyTorchModule
-from rllab.exploration_strategies.base import ExplorationStrategy
 
 
 class UniversalExplorationPolicy(

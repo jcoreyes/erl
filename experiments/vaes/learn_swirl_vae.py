@@ -6,13 +6,13 @@ and/or because the learning signal is pretty weak when both the encoder and
 decoder change quickly. However, I tried also alternating between the two,
 and that didn't seem to help.
 """
-from torch.autograd import Variable
 from torch.distributions import Normal
 from torch.optim import Adam
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
 from torch import nn as nn
+import railrl.torch.pytorch_util as ptu
 
 SWIRL_RATE = 1
 T = 10
@@ -36,10 +36,6 @@ def swirl_t_to_data(t):
     x = t * np.cos(t * SWIRL_RATE) / T
     y = t * np.sin(t * SWIRL_RATE) / T
     return np.array([x, y]).T
-
-
-def np_to_var(np_array):
-    return Variable(torch.from_numpy(np_array).float())
 
 
 def kl_to_prior(means, log_stds, stds):
@@ -66,7 +62,7 @@ class Encoder(nn.Sequential):
             output[:, 0:1], output[:, 1:2]
         )
         stds = log_stds.exp()
-        epsilon = Variable(torch.randn(*means.size()))
+        epsilon = ptu.Variable(torch.randn(*means.size()))
         latents = epsilon * stds + means
         latents = latents
         return latents, means, log_stds, stds
@@ -92,8 +88,8 @@ def pretrain_encoder(encoder, opt):
     losses = []
     for _ in range(1000):
         x_np, y_np = swirl_data(BS)
-        x = np_to_var(x_np)
-        y = np_to_var(y_np)
+        x = ptu.np_to_var(x_np)
+        y = ptu.np_to_var(y_np)
         y_hat = encoder.encode(x)
         loss = ((y_hat - y) ** 2).mean()
         opt.zero_grad()
@@ -104,7 +100,7 @@ def pretrain_encoder(encoder, opt):
 
     if VERBOSE:
         x_np, y_np = swirl_data(N_VIS)
-        x = np_to_var(x_np)
+        x = ptu.np_to_var(x_np)
         y_hat = encoder.encode(x)
         y_hat_np = y_hat.data.numpy()
         x_hat_np = t_to_xy(y_hat_np[:, 0])
@@ -123,7 +119,7 @@ def pretrain_encoder(encoder, opt):
 
 def train_encoder(encoder, decoder, encoder_opt):
     batch, true_latents = swirl_data(BS)
-    batch = np_to_var(batch)
+    batch = ptu.np_to_var(batch)
 
     latents, means, log_stds, stds = encoder.get_encoding_and_suff_stats(
         batch
@@ -141,7 +137,7 @@ def train_encoder(encoder, decoder, encoder_opt):
     # loss = - elbo.mean()
     loss = - reconstruction_log_prob.mean()
     # This is the second place where we cheat:
-    latent_loss = ((np_to_var(true_latents) - latents) ** 2).mean()
+    latent_loss = ((ptu.np_to_var(true_latents) - latents) ** 2).mean()
     loss = loss# + latent_loss
     encoder_opt.zero_grad()
     loss.backward()
@@ -151,7 +147,7 @@ def train_encoder(encoder, decoder, encoder_opt):
 
 def train_decoder(encoder, decoder, decoder_opt):
     batch, true_latents = swirl_data(BS)
-    batch = np_to_var(batch)
+    batch = ptu.np_to_var(batch)
 
     latents = encoder.encode(batch)
     decoder_output = decoder(latents)
@@ -167,7 +163,7 @@ def train_decoder(encoder, decoder, decoder_opt):
     return loss
 
 
-def train_alternating():
+def train_alternating(*_):
     encoder = Encoder(
         nn.Linear(2, HIDDEN_SIZE),
         nn.ReLU(),
@@ -195,7 +191,7 @@ def train_alternating():
 
     encoder_losses = []
     decoder_losses = []
-    for _ in range(10):
+    for _ in range(100):
         for _ in range(N_BATCHES):
             encoder_losses.append(
                 train_encoder(encoder, decoder, encoder_opt).data.numpy()
@@ -207,12 +203,12 @@ def train_alternating():
 
     # Visualize
     vis_samples_np, true_latents_np = swirl_data(N_VIS)
-    vis_samples = np_to_var(vis_samples_np)
+    vis_samples = ptu.np_to_var(vis_samples_np)
     true_xy_mean_np = t_to_xy(true_latents_np)
     latents = encoder.encode(vis_samples)
     reconstructed_samples = decoder.decode(latents).data.numpy()
     generated_samples = decoder.decode(
-        Variable(torch.randn(*latents.shape))
+        ptu.Variable(torch.randn(*latents.shape))
     ).data.numpy()
 
     plt.subplot(2, 2, 1)
@@ -274,7 +270,7 @@ def train():
     log_probs = []
     for _ in range(N_BATCHES):
         batch, true_latents = swirl_data(BS)
-        batch = np_to_var(batch)
+        batch = ptu.np_to_var(batch)
 
         latents, means, log_stds, stds = encoder.get_encoding_and_suff_stats(
             batch
@@ -293,7 +289,7 @@ def train():
         elbo = - kl + reconstruction_log_prob
         loss = - elbo.mean()
         # This is the second place where we cheat:
-        latent_loss = ((np_to_var(true_latents) - latents) ** 2).mean()
+        latent_loss = ((ptu.np_to_var(true_latents) - latents) ** 2).mean()
         loss = loss + latent_loss
         decoder_opt.zero_grad()
         encoder_opt.zero_grad()
@@ -307,12 +303,12 @@ def train():
 
     # Visualize
     vis_samples_np, true_latents_np = swirl_data(N_VIS)
-    vis_samples = np_to_var(vis_samples_np)
+    vis_samples = ptu.np_to_var(vis_samples_np)
     true_xy_mean_np = t_to_xy(true_latents_np)
     latents = encoder.encode(vis_samples)
     reconstructed_samples = decoder.decode(latents).data.numpy()
     generated_samples = decoder.decode(
-        Variable(torch.randn(*latents.shape))
+        ptu.Variable(torch.randn(*latents.shape))
     ).data.numpy()
 
     plt.subplot(2, 3, 1)

@@ -1,4 +1,3 @@
-from rllab.misc import tensor_utils
 import numpy as np
 
 
@@ -58,6 +57,4 @@ def stack_list(lst):
     if isinstance(lst[0], dict):
         return lst
     else:
-        return tensor_utils.stack_tensor_list(lst)
-
-
+        return np.array(lst)

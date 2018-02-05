@@ -1,18 +1,16 @@
 """
 Run DQN on grid world.
 """
-import random
 
 import gym
 import numpy as np
 
-from railrl.envs.wrappers import normalize_box
-from railrl.torch.algos.double_dqn import DoubleDQN
+from railrl.torch.dqn.double_dqn import DoubleDQN
 
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.algos.dqn import DQN
+from railrl.torch.dqn.dqn import DQN
 from railrl.torch.networks import Mlp
 from torch import nn as nn
 from railrl.torch.modules import HuberLoss
