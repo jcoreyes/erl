@@ -12,7 +12,7 @@ from railrl.misc.ml_util import (
 )
 from railrl.policies.simple import RandomPolicy
 from railrl.samplers.util import rollout
-from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
+from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
 from railrl.torch.data_management.normalizer import TorchFixedNormalizer
 from railrl.core import logger
 from torch import nn as nn
@@ -41,12 +41,13 @@ class DDPG(TorchRLAlgorithm):
             epoch_discount_schedule=None,
             eval_with_target_policy=False,
             policy_pre_activation_weight=0.,
+            optimizer_class=optim.Adam,
 
             plotter=None,
             render_eval_paths=False,
 
-            obs_normalizer: TorchFixedNormalizer=None,
-            action_normalizer: TorchFixedNormalizer=None,
+            obs_normalizer: TorchFixedNormalizer = None,
+            action_normalizer: TorchFixedNormalizer = None,
             num_paths_for_normalization=0,
 
             min_q_value=-np.inf,
@@ -111,12 +112,14 @@ class DDPG(TorchRLAlgorithm):
         self.max_q_value = max_q_value
 
         self.target_qf = self.qf.copy()
-        self.qf_optimizer = optim.Adam(
+        self.qf_optimizer = optimizer_class(
             self.qf.parameters(),
             lr=self.qf_learning_rate,
         )
-        self.policy_optimizer = optim.Adam(self.policy.parameters(),
-                                           lr=self.policy_learning_rate)
+        self.policy_optimizer = optimizer_class(
+            self.policy.parameters(),
+            lr=self.policy_learning_rate,
+        )
         self.eval_statistics = None
 
     def _start_epoch(self, epoch):
@@ -139,13 +142,13 @@ class DDPG(TorchRLAlgorithm):
                 obs, return_preactivations=True,
             )
             pre_activation_policy_loss = (
-                (pre_tanh_value**2).sum(dim=1).mean()
+                (pre_tanh_value ** 2).sum(dim=1).mean()
             )
             q_output = self.qf(obs, policy_actions)
             raw_policy_loss = - q_output.mean()
             policy_loss = (
-                raw_policy_loss +
-                pre_activation_policy_loss * self.policy_pre_activation_weight
+                    raw_policy_loss +
+                    pre_activation_policy_loss * self.policy_pre_activation_weight
             )
         else:
             policy_actions = self.policy(obs)
@@ -168,7 +171,8 @@ class DDPG(TorchRLAlgorithm):
         q_target = torch.clamp(q_target, self.min_q_value, self.max_q_value)
         # Hack for ICLR rebuttal
         if hasattr(self, 'reward_type') and self.reward_type == 'indicator':
-            q_target = torch.clamp(q_target, -self.reward_scale/(1-self.discount), 0)
+            q_target = torch.clamp(q_target,
+                                   -self.reward_scale / (1 - self.discount), 0)
         q_pred = self.qf(obs, actions)
         bellman_errors = (q_pred - q_target) ** 2
         raw_qf_loss = self.qf_criterion(q_pred, q_target)
@@ -189,8 +193,8 @@ class DDPG(TorchRLAlgorithm):
             # noinspection PyUnresolvedReferences
             residual_qf_loss = residual_bellman_errors.mean()
             raw_qf_loss = (
-                self.residual_gradient_weight * residual_qf_loss
-                + (1 - self.residual_gradient_weight) * raw_qf_loss
+                    self.residual_gradient_weight * residual_qf_loss
+                    + (1 - self.residual_gradient_weight) * raw_qf_loss
             )
 
         if self.qf_weight_decay > 0:
@@ -230,8 +234,8 @@ class DDPG(TorchRLAlgorithm):
                 raw_policy_loss
             ))
             self.eval_statistics['Preactivation Policy Loss'] = (
-                self.eval_statistics['Policy Loss'] -
-                self.eval_statistics['Raw Policy Loss']
+                    self.eval_statistics['Policy Loss'] -
+                    self.eval_statistics['Raw Policy Loss']
             )
             self.eval_statistics.update(create_stats_ordered_dict(
                 'Q Predictions',
@@ -284,20 +288,15 @@ class DDPG(TorchRLAlgorithm):
             logger.record_tabular(key, value)
 
     def get_epoch_snapshot(self, epoch):
-        if self.render:
-            self.training_env.render(close=True)
-        data_to_save = dict(
-            epoch=epoch,
+        snapshot = super().get_epoch_snapshot(epoch)
+        snapshot.update(
             qf=self.qf,
             policy=self.eval_policy,
             trained_policy=self.policy,
             target_policy=self.target_policy,
             exploration_policy=self.exploration_policy,
-            batch_size=self.batch_size,
         )
-        if self.save_environment:
-            data_to_save['env'] = self.training_env
-        return data_to_save
+        return snapshot
 
     @property
     def networks(self):
@@ -310,8 +309,9 @@ class DDPG(TorchRLAlgorithm):
 
     def pretrain(self):
         if (
-            self.num_paths_for_normalization == 0
-            or (self.obs_normalizer is None and self.action_normalizer is None)
+                self.num_paths_for_normalization == 0
+                or (
+                self.obs_normalizer is None and self.action_normalizer is None)
         ):
             return
 
@@ -334,9 +334,9 @@ class DDPG(TorchRLAlgorithm):
             self.target_qf.action_normalizer = self.action_normalizer
             self.target_policy.action_normalizer = self.action_normalizer
 
+
 def compute_normalization(paths):
     obs = np.vstack([path["observations"] for path in paths])
-    next_obs = np.vstack([path["next_observations"] for path in paths])
     ob_mean = np.mean(obs, axis=0)
     ob_std = np.std(obs, axis=0)
     actions = np.vstack([path["actions"] for path in paths])

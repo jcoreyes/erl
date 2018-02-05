@@ -1,20 +1,15 @@
-import random
-
-import gym
 import numpy as np
 
 from railrl.envs.multitask.discrete_reacher_2d import DiscreteReacher2D
 from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
-from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.torch.algos.double_dqn import DoubleDQN
+from railrl.torch.dqn.double_dqn import DoubleDQN
 
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.algos.dqn import DQN
+from railrl.torch.dqn.dqn import DQN
 from railrl.torch.networks import Mlp
 from torch import nn as nn
-from railrl.torch.modules import HuberLoss
 
 
 def experiment(variant):

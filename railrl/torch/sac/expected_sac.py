@@ -4,7 +4,7 @@ import numpy as np
 
 import railrl.torch.pytorch_util as ptu
 from railrl.misc.eval_util import create_stats_ordered_dict
-from railrl.sac.sac import SoftActorCritic
+from railrl.torch.sac.sac import SoftActorCritic
 
 EXACT = 'exact'
 MEAN_ACTION = 'mean_action'

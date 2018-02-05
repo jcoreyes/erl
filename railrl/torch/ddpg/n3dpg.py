@@ -2,12 +2,11 @@ from collections import OrderedDict
 
 import numpy as np
 import torch.optim as optim
+import torch.nn as nn
 
 import railrl.torch.pytorch_util as ptu
 from railrl.misc.eval_util import create_stats_ordered_dict
-from railrl.misc.ml_util import ConstantSchedule
-from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
-from railrl.torch.modules import HuberLoss
+from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
 
 
 class N3DPG(TorchRLAlgorithm):
@@ -32,14 +31,11 @@ class N3DPG(TorchRLAlgorithm):
             qf_criterion=None,
             vf_learning_rate=1e-3,
             vf_criterion=None,
-            epoch_discount_schedule=None,
+            optimizer_class=optim.Adam,
 
             target_hard_update_period=1000,
             tau=1e-2,
             use_soft_update=False,
-
-            plotter=None,
-            render_eval_paths=False,
 
             **kwargs
     ):
@@ -50,9 +46,9 @@ class N3DPG(TorchRLAlgorithm):
             **kwargs
         )
         if qf_criterion is None:
-            qf_criterion = HuberLoss()
+            qf_criterion = nn.MSELoss()
         if vf_criterion is None:
-            vf_criterion = HuberLoss()
+            vf_criterion = nn.MSELoss()
         self.qf = qf
         self.vf = vf
         self.policy = policy
@@ -62,35 +58,25 @@ class N3DPG(TorchRLAlgorithm):
         self.qf_criterion = qf_criterion
         self.vf_learning_rate = vf_learning_rate
         self.vf_criterion = vf_criterion
-        if epoch_discount_schedule is None:
-            epoch_discount_schedule = ConstantSchedule(self.discount)
 
         self.target_hard_update_period = target_hard_update_period
         self.tau = tau
         self.use_soft_update = use_soft_update
 
-        self.epoch_discount_schedule = epoch_discount_schedule
-        self.plotter = plotter
-        self.render_eval_paths = render_eval_paths
-
         self.target_vf = self.vf.copy()
-        self.qf_optimizer = optim.Adam(
+        self.qf_optimizer = optimizer_class(
             self.qf.parameters(),
             lr=self.qf_learning_rate,
         )
-        self.vf_optimizer = optim.Adam(
+        self.vf_optimizer = optimizer_class(
             self.vf.parameters(),
             lr=self.vf_learning_rate,
         )
-        self.policy_optimizer = optim.Adam(
+        self.policy_optimizer = optimizer_class(
             self.policy.parameters(),
             lr=self.policy_learning_rate,
         )
         self.eval_statistics = None
-
-    def _start_epoch(self, epoch):
-        super()._start_epoch(epoch)
-        self.discount = self.epoch_discount_schedule.get_value(epoch)
 
     def _do_training(self):
         batch = self.get_batch(training=True)
@@ -120,8 +106,8 @@ class N3DPG(TorchRLAlgorithm):
         """
         Vf operations.
         """
-        v_target = self.qf(next_obs, self.policy(next_obs)).detach()
-        v_pred = self.vf(next_obs)
+        v_target = self.qf(obs, self.policy(obs)).detach()
+        v_pred = self.vf(obs)
         vf_loss = self.vf_criterion(v_pred, v_target)
 
         """
@@ -189,15 +175,14 @@ class N3DPG(TorchRLAlgorithm):
         raise NotImplementedError()
 
     def get_epoch_snapshot(self, epoch):
-        return dict(
-            epoch=epoch,
-            policy=self.policy,
-            env=self.training_env,
-            exploration_policy=self.exploration_policy,
-            qf=self.qf,
-            vf=self.vf,
-            batch_size=self.batch_size,
-        )
+        snapshot = super().get_epoch_snapshot(epoch)
+        snapshot['policy'] = self.policy
+        snapshot['qf'] = self.qf
+        snapshot['vf'] = self.vf
+        snapshot['target_vf'] = self.target_vf
+        snapshot['exploration_policy'] = self.exploration_policy
+        snapshot['batch_size'] = self.batch_size
+        return snapshot
 
     @property
     def networks(self):
@@ -205,4 +190,5 @@ class N3DPG(TorchRLAlgorithm):
             self.policy,
             self.qf,
             self.vf,
+            self.target_vf,
         ]

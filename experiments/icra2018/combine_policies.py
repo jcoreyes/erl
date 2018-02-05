@@ -4,12 +4,9 @@ import joblib
 import numpy as np
 
 from railrl.envs.mujoco.pusher3dof import PusherEnv3DOF, get_snapshots_and_goal
-from railrl.envs.mujoco.pusher_avoider_3dof import PusherAvoiderEnv3DOF
-from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.networks import FeedForwardQFunction, FeedForwardPolicy
-from railrl.torch.algos.combine_ddpg_qfs import DdpgQfCombiner
-from railrl.torch.ddpg import DDPG
+from railrl.torch.networks import FeedForwardPolicy
+from railrl.torch.ddpg.combine_ddpg_qfs import DdpgQfCombiner
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 

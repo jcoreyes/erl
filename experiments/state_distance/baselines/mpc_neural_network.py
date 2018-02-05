@@ -3,28 +3,19 @@ import numpy as np
 
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
-from railrl.mpc.controller import MPCController
-from railrl.mpc.model_trainer import ModelTrainer
-from railrl.mpc.model import DynamicsModel
-from railrl.envs.multitask.ant_env import GoalXYPosAnt, GoalXYPosAndVelAnt
-from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
-    GoalXPosHalfCheetah
-from railrl.envs.multitask.hopper_env import GoalXPosHopper
-from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv, \
-    MultitaskEnvToSilentMultitaskEnv
-from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
-from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
-from railrl.envs.multitask.pusher3d_gym import GoalXYGymPusherEnv
+from railrl.torch.mpc import MPCController
+from railrl.torch.mpc import ModelTrainer
+from railrl.torch.mpc import DynamicsModel
+from railrl.envs.multitask.multitask_env import MultitaskEnvToSilentMultitaskEnv
 from railrl.envs.multitask.reacher_7dof import (
-    Reacher7DofXyzGoalState, Reacher7DofXyzPosAndVelGoalState)
-from railrl.envs.multitask.walker2d_env import Walker2DTargetXPos
-from railrl.envs.wrappers import convert_gym_space, NormalizedBoxEnv
+    Reacher7DofFullGoal
+)
+from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.data_management.normalizer import TorchFixedNormalizer
-from railrl.torch.networks import FlattenMlp
 
 
 def experiment(variant):
@@ -83,11 +74,11 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-dagger-2"
 
-    n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "final-ant-pos-and-vel"
+    # n_seeds = 3
+    # mode = "ec2"
+    # exp_prefix = "reacher-model-based"
 
-    num_epochs = 500
+    num_epochs = 100
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
     max_path_length = 100
@@ -128,6 +119,7 @@ if __name__ == "__main__":
     search_space = {
         'multitask': [True],
         'env_class': [
+            Reacher7DofFullGoal,
             # GoalXVelHalfCheetah,
             # Reacher7DofXyzGoalState,
             # GoalXYPosAnt,
@@ -136,7 +128,8 @@ if __name__ == "__main__":
             # MultitaskPusher3DEnv,
             # GoalXPosHopper,
             # Reacher7DofXyzPosAndVelGoalState,
-            GoalXYPosAndVelAnt,
+            # GoalXYPosAndVelAnt,
+            # GoalXYPosAndVelAnt,
             # CylinderXYPusher2DEnv,
             # Walker2DTargetXPos,
         ],
@@ -157,12 +150,12 @@ if __name__ == "__main__":
         # 'env_kwargs.max_speed': [
         #     0.05,
         # ],
-        'env_kwargs.speed_weight': [
-            None,
-        ],
-        'env_kwargs.goal_dim_weights': [
-            (0.1, 0.1, 0.9, 0.9),
-        ],
+        # 'env_kwargs.speed_weight': [
+        #     None,
+        # ],
+        # 'env_kwargs.goal_dim_weights': [
+        #     (0.1, 0.1, 0.9, 0.9),
+        # ],
         # 'env_kwargs.done_threshold': [
         #     0.005,
         # ],
@@ -170,11 +163,11 @@ if __name__ == "__main__":
         #     max_path_length,
         # ],
         'algo_kwargs.num_updates_per_env_step': [
-            1, 5, 10
+            1,
         ],
-        'algo_kwargs.num_paths_for_normalization': [20],
-        'ou_kawrgs.max_sigma': [0.1, 0],
-        'mpc_controller_kwargs.mpc_horizon': [15],
+        'algo_kwargs.num_pretrain_paths': [20],
+        'ou_kawrgs.max_sigma': [0.1],
+        'mpc_controller_kwargs.mpc_horizon': [1, 15],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -189,4 +182,5 @@ if __name__ == "__main__":
                 seed=seed,
                 variant=variant,
                 exp_id=exp_id,
+                use_gpu=True,
             )

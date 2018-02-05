@@ -61,104 +61,71 @@ class Mlp(PyTorchModule):
         self.last_fc.weight.data.uniform_(-init_w, init_w)
         self.last_fc.bias.data.uniform_(-init_w, init_w)
 
-    def forward(self, input):
+    def forward(self, input, return_preactivations=False):
         h = input
         for i, fc in enumerate(self.fcs):
             h = fc(h)
             if self.layer_norm and i < len(self.fcs) - 1:
                 h = self.layer_norms[i](h)
             h = self.hidden_activation(h)
-        return self.output_activation(self.last_fc(h))
+        preactivation = self.last_fc(h)
+        output = self.output_activation(preactivation)
+        if return_preactivations:
+            return output, preactivation
+        else:
+            return output
 
 
 class FlattenMlp(Mlp):
     """
     Flatten inputs along dimension 1 and then pass through MLP.
     """
-    def forward(self, *inputs):
-        h = torch.cat(inputs, dim=1)
-        for i, fc in enumerate(self.fcs):
-            h = self.hidden_activation(fc(h))
-        return self.output_activation(self.last_fc(h))
 
-
-class OuterProductFF(PyTorchModule):
-    """
-    An interesting idea that I had where you first take the outer product of
-    all inputs, flatten it, and then pass it through a linear layer. I
-    haven't really tested this, but I'll leave it here to tempt myself later...
-    """
-    def __init__(
-            self,
-            input_dim,
-            output_dim,
-            hidden1_size,
-            hidden2_size,
-            init_w=3e-3,
-            output_activation=identity,
-            hidden_init=ptu.fanin_init,
-    ):
-        self.save_init_params(locals())
-        super().__init__()
-
-        self.sop1 = SelfOuterProductLinear(input_dim, hidden1_size)
-        self.sop2 = SelfOuterProductLinear(hidden1_size, hidden2_size)
-        self.last_fc = nn.Linear(hidden2_size, output_dim)
-        self.output_activation = output_activation
-
-        hidden_init(self.sop1.fc.weight)
-        self.sop1.fc.bias.data.fill_(0)
-        hidden_init(self.sop2.fc.weight)
-        self.sop2.fc.bias.data.fill_(0)
-        self.last_fc.weight.data.uniform_(-init_w, init_w)
-        self.last_fc.bias.data.uniform_(-init_w, init_w)
-
-    def forward(self, *inputs):
-        h = torch.cat(inputs, dim=1)
-        h = F.relu(self.sop1(h))
-        h = F.relu(self.sop2(h))
-        return self.output_activation(self.last_fc(h))
+    def forward(self, *inputs, **kwargs):
+        flat_inputs = torch.cat(inputs, dim=1)
+        return super().forward(flat_inputs, **kwargs)
 
 
 class MlpQf(FlattenMlp):
     def __init__(
-        self,
-        *args,
-        obs_normalizer: TorchFixedNormalizer=None,
-        action_normalizer: TorchFixedNormalizer=None,
-        **kwargs
+            self,
+            *args,
+            obs_normalizer: TorchFixedNormalizer = None,
+            action_normalizer: TorchFixedNormalizer = None,
+            **kwargs
     ):
         self.save_init_params(locals())
         super().__init__(*args, **kwargs)
         self.obs_normalizer = obs_normalizer
         self.action_normalizer = action_normalizer
 
-    def forward(self, obs, actions):
+    def forward(self, obs, actions, **kwargs):
         if self.obs_normalizer:
             obs = self.obs_normalizer.normalize(obs)
         if self.action_normalizer:
             actions = self.action_normalizer.normalize(actions)
-        return super().forward(obs, actions)
+        return super().forward(obs, actions, **kwargs)
 
 
 class MlpPolicy(Mlp, Policy):
     """
     A simpler interface for creating policies.
     """
+
     def __init__(
             self,
             *args,
-            obs_normalizer: TorchFixedNormalizer=None,
+            obs_normalizer: TorchFixedNormalizer = None,
             **kwargs
     ):
         self.save_init_params(locals())
         super().__init__(*args, **kwargs)
         self.obs_normalizer = obs_normalizer
 
-    def forward(self, obs):
+    def forward(self, obs, **kwargs):
         if self.obs_normalizer:
             obs = self.obs_normalizer.normalize(obs)
-        return super().forward(obs)
+        return super().forward(obs, **kwargs)
 
     def get_action(self, obs_np):
         actions = self.get_actions(obs_np[None])
@@ -170,22 +137,11 @@ class MlpPolicy(Mlp, Policy):
 
 class TanhMlpPolicy(MlpPolicy):
     """
-    A simpler interface for creating policies.
+    A helper class since most policies have a tanh output activation.
     """
     def __init__(self, *args, **kwargs):
         self.save_init_params(locals())
         super().__init__(*args, output_activation=torch.tanh, **kwargs)
-
-    def forward(self, input, return_preactivations=False):
-        h = input
-        for i, fc in enumerate(self.fcs):
-            h = self.hidden_activation(fc(h))
-        preactivations = self.last_fc(h)
-        actions = self.output_activation(preactivations)
-        if return_preactivations:
-            return actions, preactivations
-        else:
-            return actions
 
 
 class FeedForwardQFunction(PyTorchModule):
@@ -200,6 +156,7 @@ class FeedForwardQFunction(PyTorchModule):
             hidden_init=ptu.fanin_init,
             batchnorm_obs=False,
     ):
+        print("WARNING: This class will soon be deprecated.")
         self.save_init_params(locals())
         super().__init__()
 
@@ -210,7 +167,7 @@ class FeedForwardQFunction(PyTorchModule):
         self.hidden_init = hidden_init
         self.obs_fc = nn.Linear(obs_dim, observation_hidden_size)
         self.embedded_fc = nn.Linear(observation_hidden_size + action_dim,
-                                 embedded_hidden_size)
+                                     embedded_hidden_size)
 
         self.last_fc = nn.Linear(embedded_hidden_size, 1)
         self.output_activation = output_activation
@@ -248,6 +205,7 @@ class FeedForwardPolicy(PyTorchModule):
             init_w=1e-3,
             hidden_init=ptu.fanin_init,
     ):
+        print("WARNING: This class will soon be deprecated.")
         self.save_init_params(locals())
         super().__init__()
 
@@ -283,3 +241,47 @@ class FeedForwardPolicy(PyTorchModule):
 
     def get_actions(self, obs):
         return self.eval_np(obs)
+
+
+"""
+Random Networks Below
+"""
+
+
+class OuterProductFF(PyTorchModule):
+    """
+    An interesting idea that I had where you first take the outer product of
+    all inputs, flatten it, and then pass it through a linear layer. I
+    haven't really tested this, but I'll leave it here to tempt myself later...
+    """
+
+    def __init__(
+            self,
+            input_dim,
+            output_dim,
+            hidden1_size,
+            hidden2_size,
+            init_w=3e-3,
+            output_activation=identity,
+            hidden_init=ptu.fanin_init,
+    ):
+        self.save_init_params(locals())
+        super().__init__()
+
+        self.sop1 = SelfOuterProductLinear(input_dim, hidden1_size)
+        self.sop2 = SelfOuterProductLinear(hidden1_size, hidden2_size)
+        self.last_fc = nn.Linear(hidden2_size, output_dim)
+        self.output_activation = output_activation
+
+        hidden_init(self.sop1.fc.weight)
+        self.sop1.fc.bias.data.fill_(0)
+        hidden_init(self.sop2.fc.weight)
+        self.sop2.fc.bias.data.fill_(0)
+        self.last_fc.weight.data.uniform_(-init_w, init_w)
+        self.last_fc.bias.data.uniform_(-init_w, init_w)
+
+    def forward(self, *inputs):
+        h = torch.cat(inputs, dim=1)
+        h = F.relu(self.sop1(h))
+        h = F.relu(self.sop2(h))
+        return self.output_activation(self.last_fc(h))

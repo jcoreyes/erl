@@ -1,24 +1,24 @@
 """
 Example of running NAF on HalfCheetah.
 """
+import gym
 
 import railrl.torch.pytorch_util as ptu
+from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import setup_logger
-from railrl.torch.algos.naf import NafPolicy, NAF
-from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
-from rllab.envs.normalized_env import normalize
+from railrl.torch.naf.naf import NafPolicy, NAF
 
 
 def experiment(variant):
-    env = normalize(HalfCheetahEnv())
+    env = NormalizedBoxEnv(gym.make('InvertedPendulum-v1'))
     es = OUStrategy(action_space=env.action_space)
     policy = NafPolicy(
-        int(env.observation_space.flat_dim),
-        int(env.action_space.flat_dim),
-        100,
+        env.observation_space.low.size,
+        env.action_space.low.size,
+        300,
     )
     exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
@@ -39,9 +39,9 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
-            num_epochs=100,
-            num_steps_per_epoch=10000,
-            num_steps_per_eval=10000,
+            num_epochs=1000,
+            num_steps_per_epoch=1000,
+            num_steps_per_eval=1000,
             use_soft_update=True,
             tau=1e-2,
             batch_size=128,

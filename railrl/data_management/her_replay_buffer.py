@@ -39,7 +39,7 @@ class HerReplayBuffer(EnvReplayBuffer):
         ]
         super().__init__(max_size, env)
         self.num_goals_to_sample = num_goals_to_sample
-        self._goals = np.zeros((max_size, self._env.goal_dim))
+        self._goals = np.zeros((max_size, self.env.goal_dim))
         self._num_steps_left = np.zeros((max_size, 1))
         if fraction_goals_are_rollout_goals is None:
             fraction_goals_are_rollout_goals = (
@@ -69,9 +69,9 @@ class HerReplayBuffer(EnvReplayBuffer):
         num_steps_left = path["num_steps_left"]
         path_len = len(rewards)
 
-        actions = self._action_space.flatten_n(actions)
-        obs = self._ob_space.flatten_n(obs)
-        next_obs = self._ob_space.flatten_n(next_obs)
+        actions = flatten_n(actions)
+        obs = flatten_n(obs)
+        next_obs = flatten_n(next_obs)
 
         if self._top + path_len >= self._max_replay_buffer_size:
             num_pre_wrap_steps = self._max_replay_buffer_size - self._top
@@ -151,7 +151,7 @@ class HerReplayBuffer(EnvReplayBuffer):
                     ))
             next_obs_idxs.append(possible_next_obs_idxs[next_obs_i])
         next_obs_idxs = np.array(next_obs_idxs)
-        resampled_goals = self._env.convert_obs_to_goals(
+        resampled_goals = self.env.convert_obs_to_goals(
             self._next_obs[next_obs_idxs]
         )
         num_goals_are_from_rollout = int(
@@ -206,3 +206,8 @@ class HerReplayBuffer(EnvReplayBuffer):
             obs_after_tau_steps=obs_after_tau_steps,
             taus=np.expand_dims(taus, 1),
         )
+
+
+def flatten_n(xs):
+    xs = np.asarray(xs)
+    return xs.reshape((xs.shape[0], -1))

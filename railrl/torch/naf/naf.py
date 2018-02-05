@@ -7,15 +7,12 @@ from torch import nn as nn
 from torch.autograd import Variable
 from torch.nn import functional as F
 
-from railrl.samplers.util import split_paths_to_dict
-from railrl.torch import pytorch_util as ptu
-from railrl.torch.algos.util import np_to_pytorch_batch
-from railrl.torch.core import PyTorchModule
 from railrl.misc.eval_util import (
-    get_difference_statistics, get_average_returns,
-    create_stats_ordered_dict)
-from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
-from railrl.core import logger
+    create_stats_ordered_dict,
+)
+from railrl.torch import pytorch_util as ptu
+from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
+from railrl.torch.core import PyTorchModule
 
 
 # noinspection PyCallingNonCallable
@@ -55,10 +52,19 @@ class NAF(TorchRLAlgorithm):
         batch = self.get_batch()
 
         """
-        Optimize Critic.
+        Optimize Critic/Actor.
         """
-        train_dict = self.get_train_dict(batch)
-        policy_loss = train_dict['Policy Loss']
+        rewards = batch['rewards']
+        terminals = batch['terminals']
+        obs = batch['observations']
+        actions = batch['actions']
+        next_obs = batch['next_observations']
+
+        _, _, v_pred = self.target_policy(next_obs, None)
+        y_target = rewards + (1. - terminals) * self.discount * v_pred
+        y_target = y_target.detach()
+        mu, y_pred, v = self.policy(obs, actions)
+        policy_loss = self.policy_criterion(y_pred, y_target)
 
         self.policy_optimizer.zero_grad()
         policy_loss.backward()
@@ -73,90 +79,41 @@ class NAF(TorchRLAlgorithm):
             if self._n_train_steps_total% self.target_hard_update_period == 0:
                 ptu.copy_model_params_from_to(self.policy, self.target_policy)
 
-    def get_train_dict(self, batch):
-        rewards = batch['rewards']
-        terminals = batch['terminals']
-        obs = batch['observations']
-        actions = batch['actions']
-        next_obs = batch['next_observations']
-
-        _, _, v_pred = self.target_policy(next_obs, None)
-        y_target = rewards + (1. - terminals) * self.discount * v_pred
-        # noinspection PyUnresolvedReferences
-        y_target = y_target.detach()
-        mu, y_pred, v = self.policy(obs, actions)
-        policy_loss = self.policy_criterion(y_pred, y_target)
-
-        return OrderedDict([
-            ('Policy v', v),
-            ('Policy mu', mu),
-            ('Policy Loss', policy_loss),
-            ('Y targets', y_target),
-            ('Y predictions', y_pred),
-        ])
-
-    def evaluate(self, epoch):
-        """
-        Perform evaluation for this algorithm.
-
-        :param epoch: The epoch number.
-        """
-        logger.log("Collecting samples for evaluation")
-        train_batch = self.get_batch(training=True)
-        validation_batch = self.get_batch(training=False)
-        test_paths = self.eval_sampler.obtain_samples()
-
-        statistics = OrderedDict()
-        statistics.update(
-            self._statistics_from_paths(self._exploration_paths, "Exploration")
-        )
-        statistics.update(self._statistics_from_paths(test_paths, "Test"))
-        statistics.update(self._statistics_from_batch(train_batch, "Train"))
-        statistics.update(
-            self._statistics_from_batch(validation_batch, "Validation")
-        )
-        statistics.update(
-            get_difference_statistics(statistics, ['Policy Loss Mean'])
-        )
-        statistics['AverageReturn'] = get_average_returns(test_paths)
-        statistics['Epoch'] = epoch
-
-        for key, value in statistics.items():
-            logger.record_tabular(key, value)
-
-        self.env.log_diagnostics(test_paths)
-
-    def _statistics_from_paths(self, paths, stat_prefix):
-        np_batch = split_paths_to_dict(paths)
-        batch = np_to_pytorch_batch(np_batch)
-        statistics = self._statistics_from_batch(batch, stat_prefix)
-        statistics.update(create_stats_ordered_dict(
-            'Num Paths', len(paths), stat_prefix=stat_prefix
-        ))
-        return statistics
-
-    def _statistics_from_batch(self, batch, stat_prefix):
-        statistics = get_statistics_from_pytorch_dict(
-            self.get_train_dict(batch),
-            ['Policy Loss'],
-            ['Policy v', 'Policy mu', 'Y targets', 'Y predictions'],
-            stat_prefix
-        )
-        statistics.update(create_stats_ordered_dict(
-            "{} Env Actions".format(stat_prefix),
-            ptu.get_numpy(batch['actions'])
-        ))
-
-        return statistics
+        if self.eval_statistics is None:
+            """
+            Eval should set this to None.
+            This way, these statistics are only computed for one batch.
+            """
+            self.eval_statistics = OrderedDict()
+            self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
+                policy_loss
+            ))
+            self.eval_statistics.update(create_stats_ordered_dict(
+                'Policy v',
+                ptu.get_numpy(v),
+            ))
+            self.eval_statistics.update(create_stats_ordered_dict(
+                'Policy mu',
+                ptu.get_numpy(mu),
+            ))
+            self.eval_statistics.update(create_stats_ordered_dict(
+                'Y targets',
+                ptu.get_numpy(y_target),
+            ))
+            self.eval_statistics.update(create_stats_ordered_dict(
+                'Y predictions',
+                ptu.get_numpy(y_pred),
+            ))
 
     def get_epoch_snapshot(self, epoch):
-        return dict(
-            epoch=epoch,
-            env=self.training_env,
-            policy=self.policy,
-            replay_buffer=self.replay_buffer,
-            algorithm=self,
+        snapshot = super().get_epoch_snapshot(epoch)
+        snapshot.update(
+            policy=self.eval_policy,
+            trained_policy=self.policy,
+            target_policy=self.target_policy,
+            exploration_policy=self.exploration_policy,
         )
+        return snapshot
 
     @property
     def networks(self):
@@ -266,63 +223,3 @@ class NafPolicy(PyTorchModule):
         action = action.squeeze(0)
         P = P.squeeze(0)
         return ptu.get_numpy(action), ptu.get_numpy(P)
-
-
-def get_statistics_from_pytorch_dict(
-        pytorch_dict,
-        mean_stat_names,
-        full_stat_names,
-        stat_prefix,
-):
-    """
-    :param pytorch_dict: Dictionary, from string to pytorch Tensor
-    :param mean_stat_names: List of strings. Add the mean of these
-    Tensors to the output
-    :param full_stat_names: List of strings. Add all statistics of these
-    Tensors to the output
-    :param stat_prefix: Prefix to all statistics in outputted dict.
-    :return: OrderedDict of statistics
-    """
-    statistics = OrderedDict()
-    for name in mean_stat_names:
-        tensor = pytorch_dict[name]
-        statistics_name = "{} {} Mean".format(stat_prefix, name)
-        statistics[statistics_name] = np.mean(ptu.get_numpy(tensor))
-
-    for name in full_stat_names:
-        tensor = pytorch_dict[name]
-        data = ptu.get_numpy(tensor)
-        statistics.update(create_stats_ordered_dict(
-            '{} {}'.format(stat_prefix, name),
-            data,
-        ))
-    return statistics
-
-
-def get_difference_statistics(
-        statistics,
-        stat_names,
-        include_validation_train_gap=True,
-        include_test_validation_gap=True,
-):
-    assert include_validation_train_gap or include_test_validation_gap
-    difference_pairs = []
-    if include_validation_train_gap:
-        difference_pairs.append(('Validation', 'Train'))
-    if include_test_validation_gap:
-        difference_pairs.append(('Test', 'Validation'))
-    differences = OrderedDict()
-    for prefix_1, prefix_2 in difference_pairs:
-        for stat_name in stat_names:
-            diff_name = "{0}: {1} - {2}".format(
-                stat_name,
-                prefix_1,
-                prefix_2,
-            )
-            differences[diff_name] = (
-                    statistics["{0} {1}".format(prefix_1, stat_name)]
-                    - statistics["{0} {1}".format(prefix_2, stat_name)]
-            )
-    return differences
-
-

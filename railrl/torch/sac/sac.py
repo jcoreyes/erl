@@ -26,8 +26,8 @@ from torch import nn as nn
 
 import railrl.torch.pytorch_util as ptu
 from railrl.misc.eval_util import create_stats_ordered_dict
-from railrl.sac.policies import MakeDeterministic
-from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
+from railrl.torch.sac.policies import MakeDeterministic
+from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
 
 
 class SoftActorCritic(TorchRLAlgorithm):
@@ -41,8 +41,10 @@ class SoftActorCritic(TorchRLAlgorithm):
             policy_lr=1e-3,
             qf_lr=1e-3,
             vf_lr=1e-3,
-            policy_reg_weight=1e-3,
+            policy_mean_reg_weight=1e-3,
+            policy_std_reg_weight=1e-3,
             policy_pre_activation_weight=0.,
+            optimizer_class=optim.Adam,
 
             soft_target_tau=1e-2,
             plotter=None,
@@ -64,7 +66,8 @@ class SoftActorCritic(TorchRLAlgorithm):
         self.qf = qf
         self.vf = vf
         self.soft_target_tau = soft_target_tau
-        self.policy_reg_weight = policy_reg_weight
+        self.policy_mean_reg_weight = policy_mean_reg_weight
+        self.policy_std_reg_weight = policy_std_reg_weight
         self.policy_pre_activation_weight = policy_pre_activation_weight
         self.plotter = plotter
         self.render_eval_paths = render_eval_paths
@@ -74,15 +77,15 @@ class SoftActorCritic(TorchRLAlgorithm):
         self.vf_criterion = nn.MSELoss()
         self.eval_statistics = None
 
-        self.policy_optimizer = optim.Adam(
+        self.policy_optimizer = optimizer_class(
             self.policy.parameters(),
             lr=policy_lr,
         )
-        self.qf_optimizer = optim.Adam(
+        self.qf_optimizer = optimizer_class(
             self.qf.parameters(),
             lr=qf_lr,
         )
-        self.vf_optimizer = optim.Adam(
+        self.vf_optimizer = optimizer_class(
             self.vf.parameters(),
             lr=vf_lr,
         )
@@ -123,15 +126,14 @@ class SoftActorCritic(TorchRLAlgorithm):
         policy_loss = (
             log_pi * (log_pi - log_policy_target).detach()
         ).mean()
-        policy_reg_loss = self.policy_reg_weight * (
-            (policy_mean**2).mean()
-            + (policy_log_std**2).mean()
-        )
+        mean_reg_loss = self.policy_mean_reg_weight * (policy_mean**2).mean()
+        std_reg_loss = self.policy_std_reg_weight * (policy_log_std**2).mean()
         pre_tanh_value = policy_outputs[-1]
-        pre_activation_policy_loss = self.policy_pre_activation_weight * (
-                (pre_tanh_value**2).sum(dim=1).mean()
-            )
-        policy_loss = policy_loss + policy_reg_loss + pre_activation_policy_loss
+        pre_activation_reg_loss = self.policy_pre_activation_weight * (
+            (pre_tanh_value**2).sum(dim=1).mean()
+        )
+        policy_reg_loss = mean_reg_loss + std_reg_loss + pre_activation_reg_loss
+        policy_loss = policy_loss + policy_reg_loss
 
         """
         Update networks
@@ -199,3 +201,11 @@ class SoftActorCritic(TorchRLAlgorithm):
 
     def _update_target_network(self):
         ptu.soft_update_from_to(self.vf, self.target_vf, self.soft_target_tau)
+
+    def get_epoch_snapshot(self, epoch):
+        snapshot = super().get_epoch_snapshot(epoch)
+        snapshot['qf'] = self.qf
+        snapshot['policy'] = self.policy
+        snapshot['vf'] = self.vf
+        snapshot['target_vf'] = self.target_vf
+        return snapshot

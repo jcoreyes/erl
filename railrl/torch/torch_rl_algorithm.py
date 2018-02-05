@@ -4,8 +4,7 @@ from typing import Iterable
 
 import railrl.misc.eval_util
 from railrl.core.rl_algorithm import RLAlgorithm
-from railrl.torch.algos.util import np_to_pytorch_batch
-from railrl.torch.core import PyTorchModule
+from railrl.torch.core import PyTorchModule, np_to_pytorch_batch
 from railrl.core import logger
 from railrl.misc import eval_util
 

@@ -7,43 +7,30 @@ from itertools import chain
 import joblib
 
 import argparse
-import pickle
 
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.envs.multitask.reacher_env import (
-    GoalStateSimpleStateReacherEnv,
-)
 import matplotlib.pyplot as plt
 
 
-def main(dataset_path, only_load_buffer=False, pause_at_end=False):
+def main(dataset_path, pause=False):
     """
     :param dataset_path: Path to serialized data.
-    :param only_load_buffer: If True, then the path is to a pickle'd version
-    of a replay buffer. If False, then the path is to joblib'd version of a
-    epoch snapshot.
     :return:
     """
-    if only_load_buffer:
-        # env = XyMultitaskSimpleStateReacherEnv()
-        with open(dataset_path, 'rb') as handle:
-            replay_buffer = pickle.load(handle)
-    else:
-        data = joblib.load(dataset_path)
-        replay_buffer = data['replay_buffer']
-        if 'env' in data:
-            env = data['env']
-        else:
-            # Hack for now...
-            env = replay_buffer._env
+    data = joblib.load(dataset_path)
+    replay_buffer = data['replay_buffer']
+    env = data['env']
 
     train_replay_buffer = replay_buffer
     size = train_replay_buffer._size
     obs = train_replay_buffer._observations[:size, :]
-    obs_delta = obs[1:size, :] - obs[:size-1, :]
+    obs_delta = obs[1:size, :] - obs[:size - 1, :]
     actions = train_replay_buffer._actions[:size]
     # Actions corresponding to final_state=True are nans
     actions = actions[~np.isnan(actions).any(axis=1)]
+
+    if pause:
+        import ipdb; ipdb.set_trace()
 
     obs_dim = obs.shape[-1]
     action_dim = actions.shape[-1]
@@ -109,7 +96,7 @@ def main(dataset_path, only_load_buffer=False, pause_at_end=False):
         fig = plt.figure()
         ax_iter = chain([plt.gca()])
     elif obs_dim > 8:
-        fig, axes = plt.subplots((obs_dim+1)//2, 2)
+        fig, axes = plt.subplots((obs_dim + 1) // 2, 2)
         ax_iter = chain(*axes)
     else:
         fig, axes = plt.subplots(obs_dim)
@@ -120,7 +107,7 @@ def main(dataset_path, only_load_buffer=False, pause_at_end=False):
                i] - train_replay_buffer._next_obs[:size, i]
 
         ax.hist(diff, bins=100)
-        ax.set_title("Next obs - obs, dim #{}".format(i+1))
+        ax.set_title("Next obs - obs, dim #{}".format(i + 1))
     plt.show()
 
     """
@@ -135,7 +122,7 @@ def main(dataset_path, only_load_buffer=False, pause_at_end=False):
         ax = axes[i]
         x = actions[:size, i]
         ax.hist(x, bins=100)
-        ax.set_title("actions, dim #{}".format(i+1))
+        ax.set_title("actions, dim #{}".format(i + 1))
     plt.show()
 
     """
@@ -145,7 +132,7 @@ def main(dataset_path, only_load_buffer=False, pause_at_end=False):
         fig = plt.figure()
         ax_iter = chain([plt.gca()])
     elif obs_dim > 8:
-        fig, axes = plt.subplots((obs_dim+1)//2, 2)
+        fig, axes = plt.subplots((obs_dim + 1) // 2, 2)
         ax_iter = chain(*axes)
     else:
         fig, axes = plt.subplots(obs_dim)
@@ -154,7 +141,7 @@ def main(dataset_path, only_load_buffer=False, pause_at_end=False):
         ax = next(ax_iter)
         x = obs[:size, i]
         ax.hist(x, bins=100)
-        ax.set_title("observations, dim #{}".format(i+1))
+        ax.set_title("observations, dim #{}".format(i + 1))
     plt.show()
 
     """
@@ -175,7 +162,6 @@ def main(dataset_path, only_load_buffer=False, pause_at_end=False):
     ax.set_title("computed rewards")
     plt.show()
 
-
     """
     If there's goal states, plot them
     """
@@ -186,7 +172,7 @@ def main(dataset_path, only_load_buffer=False, pause_at_end=False):
             fig = plt.figure()
             ax_iter = chain([plt.gca()])
         elif goal_dim > 8:
-            fig, axes = plt.subplots((goal_dim+1)//2, 2)
+            fig, axes = plt.subplots((goal_dim + 1) // 2, 2)
             ax_iter = chain(*axes)
         else:
             fig, axes = plt.subplots(goal_dim)
@@ -195,30 +181,20 @@ def main(dataset_path, only_load_buffer=False, pause_at_end=False):
             ax = next(ax_iter)
             x = goals[:, i]
             ax.hist(x, bins=100)
-            ax.set_title("ogals, dim #{}".format(i+1))
+            ax.set_title("ogals, dim #{}".format(i + 1))
         plt.show()
 
-    if isinstance(env, GoalStateSimpleStateReacherEnv):
-        differences = batch['next_observations'] - sampled_goal_states
-        obs_dim = differences.shape[-1]
-        fig, axes = plt.subplots(obs_dim)
-        for i in range(obs_dim):
-            ax = axes[i]
-            x = differences[:, i]
-            ax.hist(x)
-            ax.set_title("next_obs - goal state, dim #{}".format(i+1))
-        plt.show()
-    if pause_at_end:
+    if pause:
         import ipdb; ipdb.set_trace()
     pass
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('replay_pkl_path', type=str,
                         help='path to the snapshot file')
-    parser.add_argument('--buffer', action='store_true')
     parser.add_argument('--pause', action='store_true')
     args = parser.parse_args()
 
     dataset_path = args.replay_pkl_path
-    main(dataset_path, args.buffer, args.pause)
+    main(dataset_path, args.pause)

@@ -10,8 +10,8 @@ from railrl.envs.multigoal import MultiGoalEnv
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.plotter import QFPolicyPlotter
-from railrl.sac.policies import TanhGaussianPolicy
-from railrl.sac.sac import SoftActorCritic
+from railrl.torch.sac.policies import TanhGaussianPolicy
+from railrl.torch.sac.sac import SoftActorCritic
 from railrl.torch.networks import FlattenMlp
 
 

@@ -7,7 +7,7 @@ import torch.optim as optim
 import railrl.torch.pytorch_util as ptu
 from railrl.samplers.util import split_paths
 from railrl.samplers.in_place import InPlacePathSampler
-from railrl.torch.algos.util import np_to_pytorch_batch
+from railrl.torch.core import np_to_pytorch_batch
 from railrl.misc.eval_util import get_generic_path_information, \
     get_average_returns, create_stats_ordered_dict
 from railrl.core import logger

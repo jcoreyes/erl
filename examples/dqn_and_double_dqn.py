@@ -8,8 +8,7 @@ from torch import nn as nn
 
 import railrl.torch.pytorch_util as ptu
 from railrl.launchers.launcher_util import setup_logger
-from railrl.torch.algos.double_dqn import DoubleDQN
-from railrl.torch.algos.dqn import DQN
+from railrl.torch.dqn.dqn import DQN
 from railrl.torch.networks import Mlp
 
 

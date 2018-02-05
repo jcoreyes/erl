@@ -1,9 +1,9 @@
 import numpy as np
 
 import railrl.torch.pytorch_util as ptu
-from railrl.mpc.controller import MPCController
-from railrl.mpc.model_trainer import ModelTrainer
-from railrl.mpc.model import DynamicsModel
+from railrl.torch.mpc import MPCController
+from railrl.torch.mpc import ModelTrainer
+from railrl.torch.mpc import DynamicsModel
 from railrl.envs.multitask.ant_env import GoalXYPosAnt
 from railrl.envs.multitask.multitask_env import MultitaskEnvToSilentMultitaskEnv
 from railrl.launchers.launcher_util import setup_logger
