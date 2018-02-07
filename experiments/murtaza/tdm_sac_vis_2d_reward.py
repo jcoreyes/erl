@@ -62,10 +62,10 @@ def experiment(variant):
 if __name__ == "__main__":
     # noinspection PyTypeChecker
 
-    num_epochs = 1000
+    num_epochs = 200
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
-    batch_size = 128
+    batch_size = 512
     max_path_length = 100
     max_tau = max_path_length-1
 
@@ -76,8 +76,8 @@ if __name__ == "__main__":
                 num_steps_per_epoch=num_steps_per_epoch,
                 num_steps_per_eval=num_steps_per_eval,
                 max_path_length=max_path_length,
-                num_updates_per_env_step=1,
-                batch_size=128,
+                num_updates_per_env_step=10,
+                batch_size=batch_size,
                 discount=1,
             ),
             tdm_kwargs=dict(
@@ -88,10 +88,11 @@ if __name__ == "__main__":
                 max_tau=10,
             ),
             sac_kwargs=dict(
-                soft_target_tau=0.01,
+                soft_target_tau=0,
                 policy_lr=3E-4,
                 qf_lr=3E-4,
                 vf_lr=3E-4,
+                qf_target_update_interval=5,
             ),
         ),
         her_replay_buffer_params = dict(
@@ -111,7 +112,26 @@ if __name__ == "__main__":
             hidden_sizes=[100, 100],
         ),
     )
-    exp_prefix = 'singleobj_visreward_SAC'
+    search_space = {
+        'algo_params.reward_scale': [
+            10,
+            100,
+            # 1000,
+            # 10000,
+        ],
+        'algo_params.num_updates_per_env_step': [
+            10,
+            # 15,
+            20,
+            # 25,
+        ],
+        'algo_params.batch_size': [
+            512,
+            1024,
+        ]
+
+    }
+    exp_prefix = 'TEST'
     mode='local'
     run_experiment(
         experiment,

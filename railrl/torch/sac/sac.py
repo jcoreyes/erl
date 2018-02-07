@@ -50,6 +50,7 @@ class SoftActorCritic(TorchRLAlgorithm):
             plotter=None,
             render_eval_paths=False,
             eval_deterministic=True,
+            qf_target_update_interval=0,
             **kwargs
     ):
         if eval_deterministic:
@@ -89,6 +90,8 @@ class SoftActorCritic(TorchRLAlgorithm):
             self.vf.parameters(),
             lr=vf_lr,
         )
+        self.iteration = 0
+        self.qf_target_update_interval = qf_target_update_interval
 
     def _do_training(self):
         batch = self.get_batch(training=True)
@@ -199,9 +202,12 @@ class SoftActorCritic(TorchRLAlgorithm):
     def offline_evaluate(self, epoch):
         raise NotImplementedError()
 
+    # def _update_target_network(self):
+    #     ptu.soft_update_from_to(self.vf, self.target_vf, self.soft_target_tau)
     def _update_target_network(self):
-        ptu.soft_update_from_to(self.vf, self.target_vf, self.soft_target_tau)
-
+        if self.iteration % self.qf_target_update_interval==0:
+            ptu.soft_update_from_to(self.vf, self.target_vf, self.soft_target_tau)
+        self.iteration += 1
     def get_epoch_snapshot(self, epoch):
         snapshot = super().get_epoch_snapshot(epoch)
         snapshot['qf'] = self.qf

@@ -4,16 +4,22 @@ import gym
 import numpy as np
 
 import railrl.torch.pytorch_util as ptu
+from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
-from railrl.sac.policies import TanhGaussianPolicy
-from railrl.sac.sac import SoftActorCritic
 from railrl.torch.networks import FlattenMlp
 import sys
+
+from railrl.torch.sac.policies import TanhGaussianPolicy
+from railrl.torch.sac.sac import SoftActorCritic
+from rllab.envs.gym_env import GymEnv
+
 sys.path.append('/home/murtaza/Documents/objectattention/')
 from singleobj_visreward import SingleObjVisRewardEnv
+from rllab.envs.normalized_env import normalize
 
-env = SingleObjVisRewardEnv()
-
+import railrl.misc.hyperparameter as hyp
+env = NormalizedBoxEnv(SingleObjVisRewardEnv())
+# import ipdb; ipdb.set_trace()
 def experiment(variant):
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
@@ -50,28 +56,61 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
-            num_epochs=100,
+            num_epochs=200,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
-            batch_size=64,
             max_path_length=100,
             discount=0.99,
-            reward_scale=3,
-            soft_target_tau=0.001,
+            soft_target_tau=0,
+            qf_target_update_interval=5,
             policy_lr=3E-4,
             qf_lr=3E-4,
             vf_lr=3E-4,
         ),
         net_size=100,
     )
-    seed = random.randint(0, 10000)
-    exp_prefix = 'singleobj_visreward_SAC'
-    mode='local'
-    run_experiment(
-        experiment,
-        seed=seed,
-        variant=variant,
-        exp_prefix=exp_prefix,
-        mode=mode,
+    # seed = random.randint(0, 10000)
+    # exp_prefix = 'sac_visreward'
+    # mode='local'
+    # run_experiment(
+    #     experiment,
+    #     seed=seed,
+    #     variant=variant,
+    #     exp_prefix=exp_prefix,
+    #     mode=mode,
+    # )
+    search_space = {
+        'algo_params.reward_scale': [
+            10,
+            100,
+            # 1000,
+            # 10000,
+        ],
+        'algo_params.num_updates_per_env_step': [
+            10,
+            # 15,
+            20,
+            # 25,
+        ],
+        'algo_params.batch_size': [
+            512,
+            1024,
+        ]
+
+    }
+    sweeper = hyp.DeterministicHyperparameterSweeper(
+        search_space, default_parameters=variant,
     )
+    n_seeds=1
+    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+        for i in range(n_seeds):
+            seed = random.randint(0, 10000)
+            run_experiment(
+                experiment,
+                seed=seed,
+                variant=variant,
+                exp_id=exp_id,
+                exp_prefix='TEST',
+                mode='local',
+            )
 
