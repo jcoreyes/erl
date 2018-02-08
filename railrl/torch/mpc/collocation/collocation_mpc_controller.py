@@ -8,11 +8,6 @@ from railrl.state_distance.policies import UniversalPolicy
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.core import PyTorchModule
 
-# TODO(vitchyr): stop hardcoding this
-# GOAL_SLICE = slice(0, 7)
-# GOAL_SLICE = slice(14, 17)
-GOAL_SLICE = slice(0, 2)
-
 
 class CollocationMpcController(PyTorchModule, ExplorationPolicy):
     def __init__(
@@ -180,6 +175,7 @@ class SlsqpCMC(UniversalPolicy, nn.Module):
             self,
             implicit_model,
             env,
+            goal_slice,
             solver_params=None,
             planning_horizon=1,
             use_implicit_model_gradient=False,
@@ -188,6 +184,7 @@ class SlsqpCMC(UniversalPolicy, nn.Module):
         nn.Module.__init__(self)
         self.implicit_model = implicit_model
         self.env = env
+        self.goal_slice = goal_slice
         self.action_dim = self.env.action_space.low.size
         self.obs_dim = self.env.observation_space.low.size
         self.ao_dim = self.action_dim + self.obs_dim
@@ -233,9 +230,9 @@ class SlsqpCMC(UniversalPolicy, nn.Module):
         x = ptu.np_to_var(x, requires_grad=True)
         loss = 0
         for action, next_state in self.split(x):
-            next_features_predicted = next_state[GOAL_SLICE]
+            next_features_predicted = next_state[self.goal_slice]
             desired_features = ptu.np_to_var(
-                self.env.multitask_goal[GOAL_SLICE]
+                self.env.multitask_goal[self.goal_slice]
                 * np.ones(next_features_predicted.shape)
             )
             diff = next_features_predicted - desired_features
@@ -349,6 +346,7 @@ class GradientCMC(UniversalPolicy, nn.Module):
             self,
             implicit_model,
             env,
+            goal_slice,
             lagrange_multiplier=1,
             num_particles=1,
             num_grad_steps=10,
@@ -360,6 +358,7 @@ class GradientCMC(UniversalPolicy, nn.Module):
         nn.Module.__init__(self)
         self.implicit_model = implicit_model
         self.env = env
+        self.goal_slice = goal_slice
         self.action_low = self.env.action_space.low
         self.action_high = self.env.action_space.high
         self.action_dim = self.env.action_space.low.size
@@ -403,9 +402,9 @@ class GradientCMC(UniversalPolicy, nn.Module):
         for i in range(self.planning_horizon):
             slc = slice(i*self.obs_dim, (i+1)*self.obs_dim)
             next_state = next_states[:, slc]
-            next_features_predicted = next_state[:, GOAL_SLICE]
+            next_features_predicted = next_state[:, self.goal_slice]
             desired_features = ptu.np_to_var(
-                self.env.multitask_goal[GOAL_SLICE][None]
+                self.env.multitask_goal[self.goal_slice][None]
                 * np.ones(next_features_predicted.shape)
             )
             diff = next_features_predicted - desired_features
@@ -450,6 +449,7 @@ class GradientCMC(UniversalPolicy, nn.Module):
         x = ptu.np_to_var(self.last_solution, requires_grad=True)
 
         optimizer = optim.Adam([x], lr=self.learning_rate)
+        loss = None
         for i in range(self.num_grad_steps):
             actions = x[:, :self.action_dim * self.planning_horizon]
             actions = torch.clamp(actions, -1, 1)
@@ -462,8 +462,20 @@ class GradientCMC(UniversalPolicy, nn.Module):
             optimizer.zero_grad()
             loss.sum().backward()
             optimizer.step()
+            x[:, :self.action_dim * self.planning_horizon].data = torch.clamp(
+                x[:, :self.action_dim * self.planning_horizon].data, -1, 1
+            )
 
         self.last_solution = ptu.get_numpy(x)
+        if loss is None:
+            actions = x[:, :self.action_dim * self.planning_horizon]
+            actions = torch.clamp(actions, -1, 1)
+            next_states = x[:, self.action_dim * self.planning_horizon:]
+            loss = (
+                    self.cost_function(ob, actions, next_states)
+                    + self.lagrange_multiplier *
+                    self.constraint_fctn(ob, actions, next_states)
+            )
         loss_np = ptu.get_numpy(loss).sum(axis=1)
         min_i = np.argmin(loss_np)
         action = self.last_solution[min_i, :self.action_dim]
