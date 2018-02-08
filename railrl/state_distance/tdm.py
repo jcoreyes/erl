@@ -211,6 +211,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         batch['rewards'] = rewards
         batch['terminals'] = terminals
         batch['actions'] = actions
+        batch['num_steps_left'] = num_steps_left
         batch['observations'] = merge_into_flat_obs(
             obs=obs,
             goals=goals,
