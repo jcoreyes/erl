@@ -350,6 +350,9 @@ class MultitaskEnvToSilentMultitaskEnv(ProxyEnv, Serializable):
     def convert_ob_to_goal(self, ob):
         return self._wrapped_env.convert_ob_to_goal(ob)
 
+    def convert_obs_to_goals(self, obs):
+        return self._wrapped_env.convert_obs_to_goals(obs)
+
     @property
     def multitask_goal(self):
         return self._wrapped_env.multitask_goal

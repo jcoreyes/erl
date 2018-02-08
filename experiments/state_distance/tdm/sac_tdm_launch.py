@@ -59,12 +59,12 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-sac-tdm-launch"
 
-    n_seeds = 1
-    mode = "ec2"
-    exp_prefix = "reacher7dof-sac-mtau-1-or-10"
+    # n_seeds = 1
+    # mode = "ec2"
+    exp_prefix = "point2d-sac-mtau-1-or-10"
 
     num_epochs = 100
-    num_steps_per_epoch = 1000
+    num_steps_per_epoch = 100
     num_steps_per_eval = 1000
     max_path_length = 100
 
@@ -115,8 +115,8 @@ if __name__ == "__main__":
         'env_class': [
             # GoalXVelHalfCheetah,
             # Reacher7DofXyzGoalState,
-            Reacher7DofFullGoal,
-            # MultitaskPoint2DEnv,
+            # Reacher7DofFullGoal,
+            MultitaskPoint2DEnv,
             # GoalXYPosAnt,
             # Walker2DTargetXPos,
             # MultitaskPusher3DEnv,
@@ -124,9 +124,9 @@ if __name__ == "__main__":
         ],
         'sac_tdm_kwargs.base_kwargs.reward_scale': [
             1,
-            10,
-            100,
-            1000,
+            # 10,
+            # 100,
+            # 1000,
         ],
         'sac_tdm_kwargs.tdm_kwargs.vectorized': [
             # False,

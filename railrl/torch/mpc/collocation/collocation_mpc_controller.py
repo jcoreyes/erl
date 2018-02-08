@@ -9,9 +9,9 @@ from railrl.torch import pytorch_util as ptu
 from railrl.torch.core import PyTorchModule
 
 # TODO(vitchyr): stop hardcoding this
-GOAL_SLICE = slice(0, 7)
+# GOAL_SLICE = slice(0, 7)
 # GOAL_SLICE = slice(14, 17)
-# GOAL_SLICE = slice(0, 2)
+GOAL_SLICE = slice(0, 2)
 
 
 class CollocationMpcController(PyTorchModule, ExplorationPolicy):
