@@ -3,7 +3,7 @@ import joblib
 
 from railrl.samplers.util import rollout
 from railrl.torch.mpc.collocation.collocation_mpc_controller import SlsqpCMC, \
-    GradientCMC, StateGCMC
+    GradientCMC, StateGCMC, LBfgsBCMC
 from railrl.torch.mpc.collocation.model_to_implicit_model import \
     ModelToImplicitModel
 from railrl.core import logger
@@ -45,16 +45,25 @@ if __name__ == "__main__":
         model,
         # bias=-2
     )
-    solver_params = {
-        'ftol': 1e-3,
-        'maxiter': 100,
-    }
     policy = SlsqpCMC(
         implicit_model,
         env,
         GOAL_SLICE,
-        solver_params=solver_params,
+        solver_params={
+            'ftol': 1e-3,
+            'maxiter': 100,
+        },
         planning_horizon=1,
+    )
+    policy = LBfgsBCMC(
+        implicit_model,
+        env,
+        GOAL_SLICE,
+        lagrange_multipler=10,
+        planning_horizon=1,
+        solver_params={
+            'factr': 1e9,
+        },
     )
     # policy = GradientCMC(
     #     implicit_model,
@@ -67,16 +76,16 @@ if __name__ == "__main__":
     #     num_particles=128,
     #     warm_start=False,  # doesn't seem to help. maybe hurts
     # )
-    policy = StateGCMC(
-        implicit_model,
-        env,
-        GOAL_SLICE,
-        planning_horizon=1,
-        lagrange_multiplier=1000,
-        num_grad_steps=100,
-        num_particles=128,
-        warm_start=False,
-    )
+    # policy = StateGCMC(
+    #     implicit_model,
+    #     env,
+    #     GOAL_SLICE,
+    #     planning_horizon=1,
+    #     lagrange_multiplier=1000,
+    #     num_grad_steps=100,
+    #     num_particles=128,
+    #     warm_start=False,
+    # )
 
     while True:
         paths = [rollout(

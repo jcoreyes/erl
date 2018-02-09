@@ -9,7 +9,7 @@ from railrl.samplers.util import rollout
 from railrl.state_distance.util import merge_into_flat_obs
 from railrl.torch.core import PyTorchModule
 from railrl.torch.mpc.collocation.collocation_mpc_controller import SlsqpCMC, \
-    GradientCMC, StateGCMC
+    GradientCMC, StateGCMC, LBfgsBCMC
 import railrl.torch.pytorch_util as ptu
 from railrl.core import logger
 
@@ -20,8 +20,8 @@ PATH = '/home/vitchyr/git/railrl/data/doodads3/02-07-reacher7dof-sac-mtau-1-or-1
 
 GOAL_SLICE = slice(0, 7)
 # point2d - TDM
-# PATH = '/home/vitchyr/git/railrl/data/local/02-01-dev-sac-tdm-launch/02-01-dev-sac-tdm-launch_2018_02_01_16_40_53_0000--s-2210/params.pkl'
-# GOAL_SLICE = slice(0, 2)
+PATH = '/home/vitchyr/git/railrl/data/local/02-01-dev-sac-tdm-launch/02-01-dev-sac-tdm-launch_2018_02_01_16_40_53_0000--s-2210/params.pkl'
+GOAL_SLICE = slice(0, 2)
 
 
 class TdmToImplicitModel(PyTorchModule):
@@ -94,6 +94,13 @@ if __name__ == "__main__":
         num_grad_steps=100,
         num_particles=128,
         warm_start=False,
+    )
+    policy = LBfgsBCMC(
+        implicit_model,
+        env,
+        GOAL_SLICE,
+        lagrange_multipler=10,
+        planning_horizon=1,
     )
     # policy = StateGCMC(
     #     implicit_model,

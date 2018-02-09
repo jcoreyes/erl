@@ -522,3 +522,127 @@ class StateGCMC(GradientCMC):
         min_i = np.argmin(final_loss_np)
         action = actions_np[min_i]
         return action, {}
+
+
+class LBfgsBCMC(UniversalPolicy):
+    def __init__(
+            self,
+            implicit_model,
+            env,
+            goal_slice,
+            planning_horizon=1,
+            lagrange_multipler=1,
+            use_implicit_model_gradient=False,
+            warm_start=False,
+            solver_params=None,
+    ):
+        super().__init__()
+        if solver_params is None:
+            solver_params = {}
+        self.implicit_model = implicit_model
+        self.env = env
+        self.goal_slice = goal_slice
+        self.action_dim = self.env.action_space.low.size
+        self.obs_dim = self.env.observation_space.low.size
+        self.ao_dim = self.action_dim + self.obs_dim
+        self.use_implicit_model_gradient = use_implicit_model_gradient
+        self.planning_horizon = planning_horizon
+        self.lagrange_multipler = lagrange_multipler
+        self.warm_start = warm_start
+        self.solver_params = solver_params
+
+        self.last_solution = None
+        self.lower_bounds = np.hstack((
+            self.env.action_space.low,
+            self.env.observation_space.low
+        ))
+        self.upper_bounds = np.hstack((
+            self.env.action_space.high,
+            self.env.observation_space.high
+        ))
+        self.lower_bounds = np.tile(self.lower_bounds, self.planning_horizon)
+        self.upper_bounds = np.tile(self.upper_bounds, self.planning_horizon)
+        # TODO(vitchyr): figure out what to do if the state bounds are infinity
+        self.bounds = list(zip(self.lower_bounds, self.upper_bounds))
+
+    def split(self, x):
+        """
+        split into action, next_state
+        """
+        actions_and_obs = []
+        for h in range(self.planning_horizon):
+            start_h = h * self.ao_dim
+            actions_and_obs.append((
+                x[start_h:start_h+self.action_dim],
+                x[start_h+self.action_dim:start_h+self.ao_dim],
+            ))
+        return actions_and_obs
+
+    def _env_cost_function(self, x):
+        loss = 0
+        for action, next_state in self.split(x):
+            next_features_predicted = next_state[self.goal_slice]
+            desired_features = ptu.np_to_var(
+                self.env.multitask_goal[self.goal_slice]
+                * np.ones(next_features_predicted.shape)
+            )
+            diff = next_features_predicted - desired_features
+            loss += (diff**2).sum()
+        return loss
+
+    def _feasibility_cost_function(self, x, state):
+        state = ptu.np_to_var(state)
+        state = state.unsqueeze(0)
+        loss = 0
+        for action, next_state in self.split(x):
+            action = action[None]
+            next_state = next_state[None]
+
+            loss -= self.implicit_model(state, action, next_state)
+            state = next_state
+        return loss
+
+    def _cost_function(self, x, observation, order):
+        x = ptu.np_to_var(x, requires_grad=True)
+        loss = (
+            self.lagrange_multipler
+            * self._feasibility_cost_function(x, observation)
+            + self._env_cost_function(x)
+        )
+        if order == 0:
+            return ptu.get_numpy(loss)[0]
+        elif order == 1:
+            loss.squeeze(0).backward()
+            return ptu.get_numpy(x.grad)
+
+    def cost_function(self, x, observation):
+        return self._cost_function(x, observation, order=0).astype(np.float64)
+
+    def cost_jacobian(self, x, observation):
+        return self._cost_function(x, observation, order=1).astype(np.float64)
+
+    def reset(self):
+        self.last_solution = None
+
+    def get_action(self, obs):
+        if self.last_solution is None or not self.warm_start:
+            init_solution = np.hstack((
+                np.zeros(self.action_dim),
+                obs,
+            ))
+            self.last_solution = np.tile(init_solution, self.planning_horizon)
+        x, f, d = optimize.fmin_l_bfgs_b(
+            self.cost_function,
+            self.last_solution,
+            fprime=self.cost_jacobian,
+            args=(obs,),
+            bounds=self.bounds,
+            **self.solver_params
+        )
+        if d['warnflag'] != 0:
+            print("WARNING: L-BFGS-B Did not succeed. Warning level:")
+            print(d['warnflag'])
+
+        action, _ = self.split(x)[0]
+        self.last_solution = x
+        return action, {}
