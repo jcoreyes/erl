@@ -1,6 +1,7 @@
 import random
 
 import numpy as np
+from torch.nn import functional as F
 
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
@@ -8,7 +9,7 @@ from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
 from railrl.envs.multitask.reacher_7dof import (
     # Reacher7DofGoalStateEverything,
-    Reacher7DofFullGoal)
+    Reacher7DofFullGoal, Reacher7DofXyzGoalState)
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.sac.policies import TanhGaussianPolicy
@@ -61,7 +62,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "reacher7dof-sac-mtau-1-or-10-terminal-bonus"
+    exp_prefix = "reacher7dof-sac-squared-distance-sweep-qf-activation-2"
 
     num_epochs = 100
     num_steps_per_epoch = 1000
@@ -84,7 +85,8 @@ if __name__ == "__main__":
             tdm_kwargs=dict(
                 sample_rollout_goals_from='environment',
                 sample_train_goals_from='her',
-                vectorized=True,
+                vectorized=False,
+                norm_order=2,
                 cycle_taus_for_rollout=True,
                 max_tau=10,
             ),
@@ -114,7 +116,7 @@ if __name__ == "__main__":
     search_space = {
         'env_class': [
             # GoalXVelHalfCheetah,
-            # Reacher7DofXyzGoalState,
+            Reacher7DofXyzGoalState,
             Reacher7DofFullGoal,
             # MultitaskPoint2DEnv,
             # GoalXYPosAnt,
@@ -124,9 +126,11 @@ if __name__ == "__main__":
         ],
         'sac_tdm_kwargs.base_kwargs.reward_scale': [
             1,
-            10,
             100,
-            1000,
+            10000,
+        ],
+        'qf_params.hidden_activation': [
+            F.selu,
         ],
         'sac_tdm_kwargs.tdm_kwargs.vectorized': [
             # False,
@@ -154,8 +158,9 @@ if __name__ == "__main__":
             'distance',
         ],
         'sac_tdm_kwargs.tdm_kwargs.max_tau': [
-            10,
+            0,
             1,
+            10,
             # 99,
             # 49,
             # 15,
