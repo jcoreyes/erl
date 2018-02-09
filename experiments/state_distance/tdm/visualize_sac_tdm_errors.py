@@ -45,8 +45,7 @@ def main(args):
         v_vals.append(v_val)
         a_vals.append(q_val - v_val)
         distances.append(np.abs(
-            env.convert_ob_to_goal(next_state)
-            - env.convert_ob_to_goal(goal)
+            env.convert_ob_to_goal(next_state) - goal
         ))
         sample_log_probs = []
         next_flat_ob = merge_into_flat_obs(next_state, goal, np.array([0]))
@@ -80,7 +79,8 @@ if __name__ == "__main__":
         '--file',
         type=str,
         # 2d point-mass
-        default='/home/vitchyr/git/railrl/data/local/02-01-dev-sac-tdm-launch/02-01-dev-sac-tdm-launch_2018_02_01_16_40_53_0000--s-2210/params.pkl',
+        # default='/home/vitchyr/git/railrl/data/local/02-01-dev-sac-tdm-launch/02-01-dev-sac-tdm-launch_2018_02_01_16_40_53_0000--s-2210/params.pkl',
+        default='/home/vitchyr/git/railrl/data/doodads3/02-08-reacher7dof-3d-sac-mtau-0-1-or-10-terminal-bonus/02-08-reacher7dof-3d-sac-mtau-0-1-or-10-terminal-bonus-id6-s7904/params.pkl',
         help='path to the snapshot file',
     )
     parser.add_argument('--H', type=int, default=30, help='Horizon for eval')

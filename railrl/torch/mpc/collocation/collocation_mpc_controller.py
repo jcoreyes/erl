@@ -176,6 +176,7 @@ class SlsqpCMC(UniversalPolicy, nn.Module):
             implicit_model,
             env,
             goal_slice,
+            multitask_goal_slice,
             solver_params=None,
             planning_horizon=1,
             use_implicit_model_gradient=False,
@@ -185,6 +186,7 @@ class SlsqpCMC(UniversalPolicy, nn.Module):
         self.implicit_model = implicit_model
         self.env = env
         self.goal_slice = goal_slice
+        self.multitask_goal_slice = multitask_goal_slice
         self.action_dim = self.env.action_space.low.size
         self.obs_dim = self.env.observation_space.low.size
         self.ao_dim = self.action_dim + self.obs_dim
@@ -232,7 +234,7 @@ class SlsqpCMC(UniversalPolicy, nn.Module):
         for action, next_state in self.split(x):
             next_features_predicted = next_state[self.goal_slice]
             desired_features = ptu.np_to_var(
-                self.env.multitask_goal[self.goal_slice]
+                self.env.multitask_goal[self.multitask_goal_slice]
                 * np.ones(next_features_predicted.shape)
             )
             diff = next_features_predicted - desired_features
@@ -347,6 +349,7 @@ class GradientCMC(UniversalPolicy, nn.Module):
             implicit_model,
             env,
             goal_slice,
+            multitask_goal_slice,
             lagrange_multiplier=1,
             num_particles=1,
             num_grad_steps=10,
@@ -359,6 +362,7 @@ class GradientCMC(UniversalPolicy, nn.Module):
         self.implicit_model = implicit_model
         self.env = env
         self.goal_slice = goal_slice
+        self.multitask_goal_slice = multitask_goal_slice
         self.action_low = self.env.action_space.low
         self.action_high = self.env.action_space.high
         self.action_dim = self.env.action_space.low.size
@@ -404,7 +408,7 @@ class GradientCMC(UniversalPolicy, nn.Module):
             next_state = next_states[:, slc]
             next_features_predicted = next_state[:, self.goal_slice]
             desired_features = ptu.np_to_var(
-                self.env.multitask_goal[self.goal_slice][None]
+                self.env.multitask_goal[self.multitask_goal_slice][None]
                 * np.ones(next_features_predicted.shape)
             )
             diff = next_features_predicted - desired_features
@@ -530,6 +534,7 @@ class LBfgsBCMC(UniversalPolicy):
             implicit_model,
             env,
             goal_slice,
+            multitask_goal_slice,
             planning_horizon=1,
             lagrange_multipler=1,
             use_implicit_model_gradient=False,
@@ -542,6 +547,7 @@ class LBfgsBCMC(UniversalPolicy):
         self.implicit_model = implicit_model
         self.env = env
         self.goal_slice = goal_slice
+        self.multitask_goal_slice = multitask_goal_slice
         self.action_dim = self.env.action_space.low.size
         self.obs_dim = self.env.observation_space.low.size
         self.ao_dim = self.action_dim + self.obs_dim
@@ -583,7 +589,7 @@ class LBfgsBCMC(UniversalPolicy):
         for action, next_state in self.split(x):
             next_features_predicted = next_state[self.goal_slice]
             desired_features = ptu.np_to_var(
-                self.env.multitask_goal[self.goal_slice]
+                self.env.multitask_goal[self.multitask_goal_slice]
                 * np.ones(next_features_predicted.shape)
             )
             diff = next_features_predicted - desired_features

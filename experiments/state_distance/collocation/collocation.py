@@ -14,6 +14,7 @@ GOAL_SLICE = slice(0, 2)
 # Reacher 7dof
 PATH = '/home/vitchyr/git/railrl/data/local/01-27-reacher-full-mpcnn-H1/01-27-reacher-full-mpcnn-H1_2018_01_27_17_59_04_0000--s-96642/params.pkl'
 GOAL_SLICE = slice(0, 7)
+MULTITASK_GOAL_SLICE = GOAL_SLICE
 
 
 if __name__ == "__main__":
@@ -54,6 +55,7 @@ if __name__ == "__main__":
             implicit_model,
             env,
             GOAL_SLICE,
+            MULTITASK_GOAL_SLICE,
             solver_params={
                 'ftol': 1e-3,
                 'maxiter': 100,
@@ -65,6 +67,7 @@ if __name__ == "__main__":
             implicit_model,
             env,
             GOAL_SLICE,
+            MULTITASK_GOAL_SLICE,
             planning_horizon=1,
             # For reacher, 0.1, 1, and 10 all work
             lagrange_multiplier=0.1,
@@ -77,6 +80,7 @@ if __name__ == "__main__":
             implicit_model,
             env,
             GOAL_SLICE,
+            MULTITASK_GOAL_SLICE,
             planning_horizon=1,
             lagrange_multiplier=1000,
             num_grad_steps=100,
@@ -88,6 +92,7 @@ if __name__ == "__main__":
             implicit_model,
             env,
             GOAL_SLICE,
+            MULTITASK_GOAL_SLICE,
             lagrange_multipler=10,
             planning_horizon=1,
             solver_params={

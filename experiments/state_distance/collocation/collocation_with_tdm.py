@@ -13,15 +13,24 @@ from railrl.torch.mpc.collocation.collocation_mpc_controller import SlsqpCMC, \
 import railrl.torch.pytorch_util as ptu
 from railrl.core import logger
 
-# Reacher7dof - TDM
-# PATH = '/home/vitchyr/git/railrl/data/doodads3/01-23-reacher-full-ddpg' \
-#        '-tdm-mtau-0/01-23-reacher-full-ddpg-tdm-mtau-0-id1-s49343/params.pkl'
+# Reacher7DofFullGoal - TDM
 PATH = '/home/vitchyr/git/railrl/data/doodads3/02-07-reacher7dof-sac-mtau-1-or-10-terminal-bonus/02-07-reacher7dof-sac-mtau-1-or-10-terminal-bonus-id4-s9821/params.pkl'
-
 GOAL_SLICE = slice(0, 7)
+
 # point2d - TDM
-PATH = 'data/local/02-08-dev-sac-tdm-launch/02-08-dev-sac-tdm-launch_2018_02_08_22_50_27_0000--s-5908/params.pkl'
-GOAL_SLICE = slice(0, 2)
+# PATH = 'data/local/02-08-dev-sac-tdm-launch/02-08-dev-sac-tdm-launch_2018_02_08_22_50_27_0000--s-5908/params.pkl'
+# GOAL_SLICE = slice(0, 2)
+
+MULTITASK_GOAL_SLICE = GOAL_SLICE
+
+# Reacher7DofXyzGoalState
+# tau max = 1
+# PATH = '/home/vitchyr/git/railrl/data/doodads3/02-08-reacher7dof-3d-sac-mtau-0-1-or-10-terminal-bonus/02-08-reacher7dof-3d-sac-mtau-0-1-or-10-terminal-bonus-id7-s327/params.pkl'
+# tau max = 0
+PATH = '/home/vitchyr/git/railrl/data/doodads3/02-08-reacher7dof-3d-sac-mtau-0-1-or-10-terminal-bonus/02-08-reacher7dof-3d-sac-mtau-0-1-or-10-terminal-bonus-id6-s7904/params.pkl'
+GOAL_SLICE = slice(14, 17)
+MULTITASK_GOAL_SLICE = slice(0, 3)
+
 
 
 class TdmToImplicitModel(PyTorchModule):
@@ -76,7 +85,7 @@ if __name__ == "__main__":
         qf,
         tau=0,
     )
-    lagrange_multiplier = 10 / reward_scale
+    lagrange_multiplier = 100 / reward_scale
     optimizer = args.opt
     print("Optimizer choice: ", optimizer)
     if optimizer == 'slsqp':
@@ -84,6 +93,7 @@ if __name__ == "__main__":
             implicit_model,
             env,
             goal_slice=GOAL_SLICE,
+            multitask_goal_slice=MULTITASK_GOAL_SLICE,
             # use_implicit_model_gradient=True,
             solver_params={
                 'ftol': 1e-2,
@@ -95,6 +105,7 @@ if __name__ == "__main__":
             implicit_model,
             env,
             goal_slice=GOAL_SLICE,
+            multitask_goal_slice=MULTITASK_GOAL_SLICE,
             planning_horizon=1,
             lagrange_multiplier=lagrange_multiplier,
             num_grad_steps=100,
@@ -105,7 +116,8 @@ if __name__ == "__main__":
         policy = StateGCMC(
             implicit_model,
             env,
-            GOAL_SLICE,
+            goal_slice=GOAL_SLICE,
+            multitask_goal_slice=MULTITASK_GOAL_SLICE,
             planning_horizon=1,
             lagrange_multiplier=lagrange_multiplier,
             num_grad_steps=100,
@@ -116,7 +128,8 @@ if __name__ == "__main__":
         policy = LBfgsBCMC(
             implicit_model,
             env,
-            GOAL_SLICE,
+            goal_slice=GOAL_SLICE,
+            multitask_goal_slice=MULTITASK_GOAL_SLICE,
             lagrange_multipler=lagrange_multiplier,
             planning_horizon=1,
             solver_params={
