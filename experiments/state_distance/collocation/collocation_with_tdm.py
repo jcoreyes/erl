@@ -1,10 +1,10 @@
 import argparse
+import json
+from pathlib import Path
+
 import joblib
 import numpy as np
 
-from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv, \
-    MultitaskEnvToSilentMultitaskEnv
-from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.samplers.util import rollout
 from railrl.state_distance.util import merge_into_flat_obs
 from railrl.torch.core import PyTorchModule
@@ -20,7 +20,7 @@ PATH = '/home/vitchyr/git/railrl/data/doodads3/02-07-reacher7dof-sac-mtau-1-or-1
 
 GOAL_SLICE = slice(0, 7)
 # point2d - TDM
-PATH = '/home/vitchyr/git/railrl/data/local/02-01-dev-sac-tdm-launch/02-01-dev-sac-tdm-launch_2018_02_01_16_40_53_0000--s-2210/params.pkl'
+PATH = 'data/local/02-08-dev-sac-tdm-launch/02-08-dev-sac-tdm-launch_2018_02_08_22_50_27_0000--s-5908/params.pkl'
 GOAL_SLICE = slice(0, 2)
 
 
@@ -58,61 +58,73 @@ if __name__ == "__main__":
     parser.add_argument('--pause', action='store_true')
     parser.add_argument('--justsim', action='store_true')
     parser.add_argument('--npath', type=int, default=100)
+    parser.add_argument('--opt', type=str, default='lbfgs')
     args = parser.parse_args()
     if args.pause:
         import ipdb; ipdb.set_trace()
 
+    variant_path = Path(args.file).parents[0] / 'variant.json'
+    variant = json.load(variant_path.open())
+    reward_scale = variant['sac_tdm_kwargs']['base_kwargs']['reward_scale']
+
     data = joblib.load(args.file)
     env = data['env']
-    # env = MultitaskToFlatEnv(env.wrapped_env)
-    # env = MultitaskEnvToSilentMultitaskEnv(env.wrapped_env)
-    # env = NormalizedBoxEnv(MultitaskEnvToSilentMultitaskEnv(env.wrapped_env))
     qf = data['qf']
 
     implicit_model = TdmToImplicitModel(
         env,
         qf,
-        tau=1,
+        tau=0,
     )
-    solver_params = {
-        'ftol': 1e-2,
-        'maxiter': 100,
-    }
-    policy = SlsqpCMC(
-        implicit_model,
-        env,
-        goal_slice=GOAL_SLICE,
-        # use_implicit_model_gradient=True,
-        solver_params=solver_params
-    )
-    policy = GradientCMC(
-        implicit_model,
-        env,
-        goal_slice=GOAL_SLICE,
-        planning_horizon=1,
-        lagrange_multiplier=10,
-        num_grad_steps=100,
-        num_particles=128,
-        warm_start=False,
-    )
-    policy = LBfgsBCMC(
-        implicit_model,
-        env,
-        GOAL_SLICE,
-        lagrange_multipler=10,
-        planning_horizon=1,
-    )
-    # policy = StateGCMC(
-    #     implicit_model,
-    #     env,
-    #     GOAL_SLICE,
-    #     planning_horizon=1,
-    #     lagrange_multiplier=1000,
-    #     num_grad_steps=100,
-    #     num_particles=128,
-    #     warm_start=False,
-    # )
+    lagrange_multiplier = 10 / reward_scale
+    optimizer = args.opt
+    print("Optimizer choice: ", optimizer)
+    if optimizer == 'slsqp':
+        policy = SlsqpCMC(
+            implicit_model,
+            env,
+            goal_slice=GOAL_SLICE,
+            # use_implicit_model_gradient=True,
+            solver_params={
+                'ftol': 1e-2,
+                'maxiter': 100,
+            },
+        )
+    elif optimizer == 'gradient':
+        policy = GradientCMC(
+            implicit_model,
+            env,
+            goal_slice=GOAL_SLICE,
+            planning_horizon=1,
+            lagrange_multiplier=lagrange_multiplier,
+            num_grad_steps=100,
+            num_particles=128,
+            warm_start=False,
+        )
+    elif optimizer == 'state':
+        policy = StateGCMC(
+            implicit_model,
+            env,
+            GOAL_SLICE,
+            planning_horizon=1,
+            lagrange_multiplier=lagrange_multiplier,
+            num_grad_steps=100,
+            num_particles=128,
+            warm_start=False,
+        )
+    elif optimizer == 'lbfgs':
+        policy = LBfgsBCMC(
+            implicit_model,
+            env,
+            GOAL_SLICE,
+            lagrange_multipler=lagrange_multiplier,
+            planning_horizon=1,
+            solver_params={
+                'factr': 1e9,
+            },
+        )
     while True:
+        env.set_goal(env.sample_goal_for_rollout())
         paths = [rollout(
             env,
             policy,

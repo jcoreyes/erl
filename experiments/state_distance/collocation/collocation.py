@@ -33,6 +33,7 @@ if __name__ == "__main__":
     parser.add_argument('--pause', action='store_true')
     parser.add_argument('--justsim', action='store_true')
     parser.add_argument('--npath', type=int, default=100)
+    parser.add_argument('--opt', type=str, default='lbfgs')
     args = parser.parse_args()
     if args.pause:
         import ipdb; ipdb.set_trace()
@@ -44,48 +45,55 @@ if __name__ == "__main__":
     implicit_model = ModelToImplicitModel(
         model,
         # bias=-2
+        order=2,  # Note: lbfgs doesn't work if the order is 1
     )
-    policy = SlsqpCMC(
-        implicit_model,
-        env,
-        GOAL_SLICE,
-        solver_params={
-            'ftol': 1e-3,
-            'maxiter': 100,
-        },
-        planning_horizon=1,
-    )
-    policy = LBfgsBCMC(
-        implicit_model,
-        env,
-        GOAL_SLICE,
-        lagrange_multipler=10,
-        planning_horizon=1,
-        solver_params={
-            'factr': 1e9,
-        },
-    )
-    # policy = GradientCMC(
-    #     implicit_model,
-    #     env,
-    #     GOAL_SLICE,
-    #     planning_horizon=1,
-    #     # For reacher, 0.1, 1, and 10 all work
-    #     lagrange_multiplier=0.1,
-    #     num_grad_steps=100,
-    #     num_particles=128,
-    #     warm_start=False,  # doesn't seem to help. maybe hurts
-    # )
-    # policy = StateGCMC(
-    #     implicit_model,
-    #     env,
-    #     GOAL_SLICE,
-    #     planning_horizon=1,
-    #     lagrange_multiplier=1000,
-    #     num_grad_steps=100,
-    #     num_particles=128,
-    #     warm_start=False,
-    # )
+    optimizer = args.opt
+    print("Optimizer choice: ", optimizer)
+    if optimizer == 'slsqp':
+        policy = SlsqpCMC(
+            implicit_model,
+            env,
+            GOAL_SLICE,
+            solver_params={
+                'ftol': 1e-3,
+                'maxiter': 100,
+            },
+            planning_horizon=1,
+        )
+    elif optimizer == 'gradient':
+        policy = GradientCMC(
+            implicit_model,
+            env,
+            GOAL_SLICE,
+            planning_horizon=1,
+            # For reacher, 0.1, 1, and 10 all work
+            lagrange_multiplier=0.1,
+            num_grad_steps=100,
+            num_particles=128,
+            warm_start=False,  # doesn't seem to help. maybe hurts
+        )
+    elif optimizer == 'state':
+        policy = StateGCMC(
+            implicit_model,
+            env,
+            GOAL_SLICE,
+            planning_horizon=1,
+            lagrange_multiplier=1000,
+            num_grad_steps=100,
+            num_particles=128,
+            warm_start=False,
+        )
+    elif optimizer == 'lbfgs':
+        policy = LBfgsBCMC(
+            implicit_model,
+            env,
+            GOAL_SLICE,
+            lagrange_multipler=10,
+            planning_horizon=1,
+            solver_params={
+                'factr': 1e9,
+            },
+        )
 
     while True:
         paths = [rollout(
