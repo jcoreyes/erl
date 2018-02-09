@@ -62,7 +62,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "reacher7dof-sac-squared-distance-sweep-qf-activation-2"
+    exp_prefix = "reacher7dof-3d-sac-squared-distance-sweep-qf-activation"
 
     num_epochs = 100
     num_steps_per_epoch = 1000
@@ -126,11 +126,13 @@ if __name__ == "__main__":
         ],
         'sac_tdm_kwargs.base_kwargs.reward_scale': [
             1,
+            10,
             100,
+            1000,
             10000,
         ],
         'qf_params.hidden_activation': [
-            F.selu,
+            F.tanh, F.selu,
         ],
         'sac_tdm_kwargs.tdm_kwargs.vectorized': [
             # False,

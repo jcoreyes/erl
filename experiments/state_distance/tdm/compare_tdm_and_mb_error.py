@@ -1,7 +1,10 @@
+import json
+
 import joblib
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+from pathlib import Path
 from torch import optim
 
 import railrl.torch.pytorch_util as ptu
@@ -18,6 +21,9 @@ TDM_PATH = '/home/vitchyr/git/railrl/data/doodads3/01-23-reacher-full-ddpg' \
            '-tdm-mtau-0/01-23-reacher-full-ddpg-tdm-mtau-0-id1-s49343/params.pkl'
 MODEL_PATH = '/home/vitchyr/git/railrl/data/local/01-19-reacher-model-based' \
              '/01-19-reacher-model-based_2018_01_19_15_54_27_0000--s-983077/params.pkl'
+
+TDM_PATH = '/home/vitchyr/git/railrl/data/doodads3/02-08-reacher7dof-sac-squared-distance-sweep-qf-activation-2/02-08-reacher7dof-sac-squared-distance-sweep-qf-activation-2-id1-s5793/params.pkl'
+MODEL_PATH = '/home/vitchyr/git/railrl/data/local/01-27-reacher-full-mpcnn-H1/01-27-reacher-full-mpcnn-H1_2018_01_27_17_59_04_0000--s-96642/params.pkl'
 
 
 K = 100
@@ -46,52 +52,51 @@ def expand_np_to_var(array, requires_grad=False):
     return ptu.np_to_var(array_expanded, requires_grad=requires_grad)
 
 
-def get_feasible_goal_states(tdm, ob, action):
+def get_feasible_goal(env, tdm, ob, action):
     obs = expand_np_to_var(ob)
     actions = expand_np_to_var(action)
     taus = expand_np_to_var(np.array([0]))
-    goal_states = expand_np_to_var(ob.copy(), requires_grad=True)
-    goal_states.data = goal_states.data #+ torch.randn(goal_states.shape)
-    optimizer = optim.RMSprop([goal_states], lr=1e-2)
+    goals = expand_np_to_var(
+        env.convert_ob_to_goal(ob), requires_grad=True
+    )
+    goals.data = goals.data + torch.randn(goals.shape)
+    optimizer = optim.RMSprop([goals], lr=1e-2)
     print("--")
-    for _ in range(100):
-        distances = - tdm(obs, goal_states, taus, actions)
+    for _ in range(1000):
+        distances = - tdm(obs, goals, taus, actions)
         distance = distances.mean()
         print(ptu.get_numpy(distance.mean())[0])
         optimizer.zero_grad()
         distance.backward()
         optimizer.step()
 
-    goal_states_np = ptu.get_numpy(goal_states)
-    # distances_np = ptu.get_numpy(distances)
-    # min_i = np.argmin(distances_np.sum(axis=1))
+    goals = ptu.get_numpy(goals)
     min_i = 0
     if isinstance(tdm.qf, TdmQf):
         return tdm.qf.eval_np(
             np.hstack((
                 ob,
-                goal_states_np[min_i, :],
+                goals[min_i, :],
                 np.zeros(1)
             ))[None],
             action[None],
             return_internal_prediction=True,
         )
-    return goal_states_np[min_i, :]
+    return goals[min_i, :]
 
 
 def main():
     model_data = joblib.load(MODEL_PATH)
     model = model_data['model']
-    env = model_data['env']
     tdm_data = joblib.load(TDM_PATH)
+    env = tdm_data['env']
     qf = tdm_data['qf']
-    if 'vf' in tdm_data:
-        vf = tdm_data['vf']
-    else:
-        vf = None
-    tdm = ImplicitModel(qf, vf)
+    variant_path = Path(TDM_PATH).parents[0] / 'variant.json'
+    variant = json.load(variant_path.open())
+    reward_scale = variant['sac_tdm_kwargs']['base_kwargs']['reward_scale']
+    tdm = ImplicitModel(qf, None)
     random_policy = RandomPolicy(env.action_space)
-    H = 50
+    H = 10
     path = rollout(env, random_policy, max_path_length=H)
 
     model_distance_preds = []
@@ -103,23 +108,17 @@ def main():
     ):
         obs = ob[None]
         actions = action[None]
-        next_obs = next_ob[None]
-        model_next_ob_pred = ob + model.eval_np(obs, actions)
+        next_feature = env.convert_ob_to_goal(next_ob)
+        model_next_ob_pred = ob + model.eval_np(obs, actions)[0]
         model_distance_pred = np.abs(
-            model_next_ob_pred - next_obs
-        )[0]
+            env.convert_ob_to_goal(model_next_ob_pred) -
+            next_feature
+        )
 
-        tdm_next_ob_pred = get_feasible_goal_states(tdm, ob, action)
+        tdm_next_feature_pred = get_feasible_goal(env, tdm, ob, action)
         tdm_distance_pred = np.abs(
-            tdm_next_ob_pred - next_obs
-        )[0]
-        # model_distance_pred = np.abs(
-        #     (model_next_ob_pred - next_obs)[0]
-        # )
-        # tdm_distance_pred = -(
-        #     tdm.eval_np(obs, actions, next_obs, np.zeros((1, 1)))
-        # )[0]
-
+            tdm_next_feature_pred - next_feature
+        )
 
         model_distance_preds.append(model_distance_pred)
         tdm_distance_preds.append(tdm_distance_pred)
@@ -154,19 +153,25 @@ def main():
             model_distances[:, i],
             label=str(i),
         )
+    plt.xlabel("Time")
+    plt.ylabel("Absolute Error")
+    plt.title("Model")
     plt.legend()
 
     plt.subplot(2, 1, 2)
-    for i in range(tdm_distances[0].size):
+    for i in range(num_dim):
         plt.plot(
             ts,
             tdm_distances[:, i],
             label=str(i),
         )
+    plt.xlabel("Time")
+    plt.ylabel("Absolute Error")
+    plt.title("TDM")
     plt.legend()
     plt.show()
 
-    goal = path['observations'][H//2].copy()
+    goal = env.convert_ob_to_goal(path['observations'][H//2].copy())
     path = rollout(env, random_policy, max_path_length=H)
 
     model_distance_preds = []
@@ -176,20 +181,18 @@ def main():
             path['actions'],
             path['next_observations'],
     ):
-        obs = ob[None]
-        actions = action[None]
-        next_obs = next_ob[None]
-        model_next_ob_pred = ob + model.eval_np(obs, actions)
-        model_distance_pred = np.abs(
-            model_next_ob_pred - goal
-        )[0]
+        model_next_ob_pred = ob + model.eval_np(ob[None], action[None])[0]
+        model_distance_pred = np.linalg.norm(
+            env.convert_ob_to_goal(model_next_ob_pred)
+            - goal
+        )
 
         tdm_distance_pred = tdm.eval_np(
             ob[None],
             goal[None],
             np.zeros((1, 1)),
             action[None],
-        )
+        )[0] / reward_scale
 
         model_distance_preds.append(model_distance_pred)
         tdm_distance_preds.append(tdm_distance_pred)

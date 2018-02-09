@@ -11,9 +11,11 @@ from railrl.core import logger
 # 2D point mass
 PATH = '/home/vitchyr/git/railrl/data/local/01-30-dev-mpc-neural-networks/01-30-dev-mpc-neural-networks_2018_01_30_11_28_28_0000--s-24549/params.pkl'
 GOAL_SLICE = slice(0, 2)
+
 # Reacher 7dof
 PATH = '/home/vitchyr/git/railrl/data/local/01-27-reacher-full-mpcnn-H1/01-27-reacher-full-mpcnn-H1_2018_01_27_17_59_04_0000--s-96642/params.pkl'
 GOAL_SLICE = slice(0, 7)
+GOAL_SLICE = slice(14, 17)
 MULTITASK_GOAL_SLICE = GOAL_SLICE
 
 
@@ -49,6 +51,7 @@ if __name__ == "__main__":
         order=2,  # Note: lbfgs doesn't work if the order is 1
     )
     optimizer = args.opt
+    planning_horizon = 2
     print("Optimizer choice: ", optimizer)
     if optimizer == 'slsqp':
         policy = SlsqpCMC(
@@ -60,7 +63,7 @@ if __name__ == "__main__":
                 'ftol': 1e-3,
                 'maxiter': 100,
             },
-            planning_horizon=1,
+            planning_horizon=planning_horizon,
         )
     elif optimizer == 'gradient':
         policy = GradientCMC(
@@ -68,7 +71,7 @@ if __name__ == "__main__":
             env,
             GOAL_SLICE,
             MULTITASK_GOAL_SLICE,
-            planning_horizon=1,
+            planning_horizon=planning_horizon,
             # For reacher, 0.1, 1, and 10 all work
             lagrange_multiplier=0.1,
             num_grad_steps=100,
@@ -81,7 +84,7 @@ if __name__ == "__main__":
             env,
             GOAL_SLICE,
             MULTITASK_GOAL_SLICE,
-            planning_horizon=1,
+            planning_horizon=planning_horizon,
             lagrange_multiplier=1000,
             num_grad_steps=100,
             num_particles=128,
@@ -94,7 +97,7 @@ if __name__ == "__main__":
             GOAL_SLICE,
             MULTITASK_GOAL_SLICE,
             lagrange_multipler=10,
-            planning_horizon=1,
+            planning_horizon=planning_horizon,
             solver_params={
                 'factr': 1e9,
             },

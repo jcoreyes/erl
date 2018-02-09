@@ -32,7 +32,6 @@ GOAL_SLICE = slice(14, 17)
 MULTITASK_GOAL_SLICE = slice(0, 3)
 
 
-
 class TdmToImplicitModel(PyTorchModule):
     def __init__(self, env, qf, tau):
         self.quick_init(locals())
@@ -86,6 +85,7 @@ if __name__ == "__main__":
         tau=0,
     )
     lagrange_multiplier = 100 / reward_scale
+    planning_horizon = 1
     optimizer = args.opt
     print("Optimizer choice: ", optimizer)
     if optimizer == 'slsqp':
@@ -94,6 +94,7 @@ if __name__ == "__main__":
             env,
             goal_slice=GOAL_SLICE,
             multitask_goal_slice=MULTITASK_GOAL_SLICE,
+            planning_horizon=planning_horizon,
             # use_implicit_model_gradient=True,
             solver_params={
                 'ftol': 1e-2,
@@ -106,7 +107,7 @@ if __name__ == "__main__":
             env,
             goal_slice=GOAL_SLICE,
             multitask_goal_slice=MULTITASK_GOAL_SLICE,
-            planning_horizon=1,
+            planning_horizon=planning_horizon,
             lagrange_multiplier=lagrange_multiplier,
             num_grad_steps=100,
             num_particles=128,
@@ -118,7 +119,7 @@ if __name__ == "__main__":
             env,
             goal_slice=GOAL_SLICE,
             multitask_goal_slice=MULTITASK_GOAL_SLICE,
-            planning_horizon=1,
+            planning_horizon=planning_horizon,
             lagrange_multiplier=lagrange_multiplier,
             num_grad_steps=100,
             num_particles=128,
@@ -131,7 +132,7 @@ if __name__ == "__main__":
             goal_slice=GOAL_SLICE,
             multitask_goal_slice=MULTITASK_GOAL_SLICE,
             lagrange_multipler=lagrange_multiplier,
-            planning_horizon=1,
+            planning_horizon=planning_horizon,
             solver_params={
                 'factr': 1e9,
             },

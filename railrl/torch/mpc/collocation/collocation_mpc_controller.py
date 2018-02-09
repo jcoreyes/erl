@@ -645,9 +645,12 @@ class LBfgsBCMC(UniversalPolicy):
             bounds=self.bounds,
             **self.solver_params
         )
-        if d['warnflag'] != 0:
-            print("WARNING: L-BFGS-B Did not succeed. Warning level:")
-            print(d['warnflag'])
+        warnflag = d['warnflag']
+        if warnflag != 0:
+            if warnflag == 1:
+                print("too many function evaluations or too many iterations")
+            else:
+                print(d['task'])
 
         action, _ = self.split(x)[0]
         self.last_solution = x

@@ -67,11 +67,12 @@ def main(args):
     plt.plot(v_vals, label='v values')
     plt.plot(a_vals, label='a values')
     plt.plot(-distances, label='negative distances')
-    plt.plot(log_probs, label='log_probs')
-    plt.plot(target_vf_outputs, label='target qf')
+    # plt.plot(log_probs, label='log_probs')
+    # plt.plot(target_vf_outputs, label='target qf')
     plt.legend()
     plt.show()
 
+PATH = '/home/vitchyr/git/railrl/data/doodads3/02-08-reacher7dof-sac-squared-distance-sweep-qf-activation-2/02-08-reacher7dof-sac-squared-distance-sweep-qf-activation-2-id1-s5793/params.pkl'
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -80,7 +81,7 @@ if __name__ == "__main__":
         type=str,
         # 2d point-mass
         # default='/home/vitchyr/git/railrl/data/local/02-01-dev-sac-tdm-launch/02-01-dev-sac-tdm-launch_2018_02_01_16_40_53_0000--s-2210/params.pkl',
-        default='/home/vitchyr/git/railrl/data/doodads3/02-08-reacher7dof-3d-sac-mtau-0-1-or-10-terminal-bonus/02-08-reacher7dof-3d-sac-mtau-0-1-or-10-terminal-bonus-id6-s7904/params.pkl',
+        default=PATH,
         help='path to the snapshot file',
     )
     parser.add_argument('--H', type=int, default=30, help='Horizon for eval')
