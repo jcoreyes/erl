@@ -19,6 +19,7 @@ class TdmSac(TemporalDifferenceModel, SoftActorCritic):
             base_kwargs,
             policy=None,
             replay_buffer=None,
+            give_terminal_reward=False,
     ):
         SoftActorCritic.__init__(
             self,
@@ -42,6 +43,7 @@ class TdmSac(TemporalDifferenceModel, SoftActorCritic):
                     -np.log(1./action_space_diff[dim])
             )
         self.terminal_bonus = float(terminal_reward)
+        self.give_terminal_reward = give_terminal_reward
 
     def _do_training(self):
         batch = self.get_batch(training=True)
@@ -54,7 +56,7 @@ class TdmSac(TemporalDifferenceModel, SoftActorCritic):
 
         q_pred = self.qf(obs, actions)
         v_pred = self.vf(obs)
-        # Make sure policy accounts for squashing functions like tanh correctly!
+        # Check policy accounts for squashing functions like tanh correctly!
         policy_outputs = self.policy(obs, return_log_prob=True)
         new_actions, policy_mean, policy_log_std, log_pi = policy_outputs[:4]
 
@@ -62,11 +64,10 @@ class TdmSac(TemporalDifferenceModel, SoftActorCritic):
         QF Loss
         """
         target_v_values = self.target_vf(next_obs)
-        terminal_rewards = self.terminal_bonus * num_steps_left
-        q_target = (
-                rewards + (1. - terminals) * self.discount * target_v_values
-                + terminals * terminal_rewards
-        )
+        q_target = rewards + (1. - terminals) * self.discount * target_v_values
+        if self.give_terminal_reward:
+            terminal_rewards = self.terminal_bonus * num_steps_left
+            q_target = q_target + terminals * terminal_rewards
         qf_loss = self.qf_criterion(q_pred, q_target.detach())
 
         """
