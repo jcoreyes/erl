@@ -15,7 +15,7 @@ GOAL_SLICE = slice(0, 2)
 # Reacher 7dof
 PATH = '/home/vitchyr/git/railrl/data/local/01-27-reacher-full-mpcnn-H1/01-27-reacher-full-mpcnn-H1_2018_01_27_17_59_04_0000--s-96642/params.pkl'
 GOAL_SLICE = slice(0, 7)
-GOAL_SLICE = slice(14, 17)
+# GOAL_SLICE = slice(14, 17)
 MULTITASK_GOAL_SLICE = GOAL_SLICE
 
 
@@ -51,7 +51,7 @@ if __name__ == "__main__":
         order=2,  # Note: lbfgs doesn't work if the order is 1
     )
     optimizer = args.opt
-    planning_horizon = 2
+    planning_horizon = 10
     print("Optimizer choice: ", optimizer)
     if optimizer == 'slsqp':
         policy = SlsqpCMC(
@@ -99,16 +99,17 @@ if __name__ == "__main__":
             lagrange_multipler=10,
             planning_horizon=planning_horizon,
             solver_params={
-                'factr': 1e9,
+                'factr': 1e12,
             },
         )
 
+    paths = []
     while True:
-        paths = [rollout(
+        paths.append(rollout(
             env,
             policy,
             max_path_length=args.H,
             animated=not args.hide,
-        )]
+        ))
         env.log_diagnostics(paths)
         logger.dump_tabular()
