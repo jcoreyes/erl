@@ -62,7 +62,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "reacher7dof-3d-sac-squared-distance-sweep-qf-activation"
+    exp_prefix = "reacher7dof-full-state-softplus-mtau0"
 
     num_epochs = 100
     num_steps_per_epoch = 1000
@@ -116,7 +116,7 @@ if __name__ == "__main__":
     search_space = {
         'env_class': [
             # GoalXVelHalfCheetah,
-            Reacher7DofXyzGoalState,
+            # Reacher7DofXyzGoalState,
             Reacher7DofFullGoal,
             # MultitaskPoint2DEnv,
             # GoalXYPosAnt,
@@ -132,7 +132,7 @@ if __name__ == "__main__":
             10000,
         ],
         'qf_params.hidden_activation': [
-            F.tanh, F.selu,
+            ptu.softplus,
         ],
         'sac_tdm_kwargs.tdm_kwargs.vectorized': [
             # False,
@@ -161,8 +161,8 @@ if __name__ == "__main__":
         ],
         'sac_tdm_kwargs.tdm_kwargs.max_tau': [
             0,
-            1,
-            10,
+            # 1,
+            # 10,
             # 99,
             # 49,
             # 15,

@@ -1,6 +1,5 @@
 import torch
 import numpy as np
-from torch import nn as nn
 from torch.autograd import Variable as TorchVariable
 from torch.nn import functional as F
 
@@ -58,6 +57,13 @@ def selu(
     return scale * (
         F.relu(x) + alpha * (F.elu(-1 * F.relu(-1 * x)))
     )
+
+
+def softplus(x):
+    """
+    PyTorch's softplus isn't (easily) serializable.
+    """
+    return F.softplus(x)
 
 
 def alpha_dropout(
