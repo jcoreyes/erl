@@ -65,7 +65,6 @@ class Reacher7DofMultitaskEnv(
         ])
 
     def _step(self, a):
-        import ipdb; ipdb.set_trace()
         distance = np.linalg.norm(
             self.get_body_com("tips_arm") - self._desired_xyz
         )

@@ -27,7 +27,7 @@ MULTITASK_GOAL_SLICE = GOAL_SLICE
 # tau max = 1
 # PATH = '/home/vitchyr/git/railrl/data/doodads3/02-08-reacher7dof-3d-sac-mtau-0-1-or-10-terminal-bonus/02-08-reacher7dof-3d-sac-mtau-0-1-or-10-terminal-bonus-id7-s327/params.pkl'
 # tau max = 0
-PATH = '/home/vitchyr/git/railrl/data/doodads3/02-08-reacher7dof-3d-sac-mtau-0-1-or-10-terminal-bonus/02-08-reacher7dof-3d-sac-mtau-0-1-or-10-terminal-bonus-id6-s7904/params.pkl'
+# PATH = '/home/vitchyr/git/railrl/data/doodads3/02-08-reacher7dof-sac-squared-distance-sweep-qf-activation-2/02-08-reacher7dof-sac-squared-distance-sweep-qf-activation-2-id1-s5793/params.pkl'
 GOAL_SLICE = slice(14, 17)
 MULTITASK_GOAL_SLICE = slice(0, 3)
 
@@ -137,13 +137,14 @@ if __name__ == "__main__":
                 'factr': 1e9,
             },
         )
+    paths = []
     while True:
         env.set_goal(env.sample_goal_for_rollout())
-        paths = [rollout(
+        paths.append(rollout(
             env,
             policy,
             max_path_length=args.H,
             animated=not args.hide,
-        )]
+        ))
         env.log_diagnostics(paths)
         logger.dump_tabular()
