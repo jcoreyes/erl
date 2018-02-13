@@ -4,6 +4,7 @@ import torch
 import numpy as np
 from gym import utils
 from gym.envs.mujoco import mujoco_env
+from gym.spaces import Box
 
 from railrl.envs.env_utils import get_asset_xml
 from railrl.envs.multitask.multitask_env import MultitaskEnv
@@ -29,6 +30,19 @@ class Reacher7DofMultitaskEnv(
             get_asset_xml('reacher_7dof.xml'),
             5,
         )
+        self.observation_space = Box(
+            np.array([
+                -2.28, -0.52, -1.4, -2.32, -1.5, -1.094, -1.5,  # joint
+                -3, -3, -3, -3, -3, -3, -3, # velocity
+                -0.75, -1.25, -0.2,  # EE xyz
+
+            ]),
+            np.array([
+                1.71, 1.39, 1.7, 0, 1.5, 0, 1.5,  # joints
+                3, 3, 3, 3, 3, 3, 3,  # velocity
+                0.75, 0.25, 0.6,  # EE xyz
+            ])
+        )
 
     def viewer_setup(self):
         self.viewer.cam.trackbodyid = -1
@@ -51,6 +65,7 @@ class Reacher7DofMultitaskEnv(
         ])
 
     def _step(self, a):
+        import ipdb; ipdb.set_trace()
         distance = np.linalg.norm(
             self.get_body_com("tips_arm") - self._desired_xyz
         )
@@ -90,6 +105,17 @@ class Reacher7DofMultitaskEnv(
         ))
         for key, value in statistics.items():
             logger.record_tabular(key, value)
+
+    def joints_to_full_state(self, joints):
+        current_qpos = self.model.data.qpos.flat.copy()
+        current_qvel = self.model.data.qvel.flat.copy()
+
+        new_qpos = current_qpos.copy()
+        new_qpos[:7] = joints
+        self.set_state(new_qpos, current_qvel)
+        full_state = self._get_obs().copy()
+        self.set_state(current_qpos, current_qvel)
+        return full_state
 
 
 class Reacher7DofXyzGoalState(Reacher7DofMultitaskEnv):

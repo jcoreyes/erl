@@ -356,3 +356,6 @@ class MultitaskEnvToSilentMultitaskEnv(ProxyEnv, Serializable):
     @property
     def multitask_goal(self):
         return self._wrapped_env.multitask_goal
+
+    def joints_to_full_state(self, *args, **kwargs):
+        return self._wrapped_env.joints_to_full_state(*args, **kwargs)
