@@ -50,12 +50,15 @@ class SoftActorCritic(TorchRLAlgorithm):
             plotter=None,
             render_eval_paths=False,
             eval_deterministic=True,
+
+            eval_policy=None,
             **kwargs
     ):
-        if eval_deterministic:
-            eval_policy = MakeDeterministic(policy)
-        else:
-            eval_policy = policy
+        if eval_policy is None:
+            if eval_deterministic:
+                eval_policy = MakeDeterministic(policy)
+            else:
+                eval_policy = policy
         super().__init__(
             env=env,
             exploration_policy=policy,
