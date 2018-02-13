@@ -37,6 +37,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             terminate_when_goal_reached=False,
             truncated_geom_factor=2.,
             norm_order=1,
+            square_distance=False,
             goal_weights=None,
             tdm_normalizer: TdmNormalizer=None,
             num_pretrain_paths=0,
@@ -125,6 +126,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         self.goal_reached_epsilon = goal_reached_epsilon
         self.terminate_when_goal_reached = terminate_when_goal_reached
         self.norm_order = norm_order
+        self.square_distance = square_distance
         self._current_path_goal = None
         self._rollout_tau = self.max_tau
         self.truncated_geom_factor = float(truncated_geom_factor)
@@ -262,14 +264,20 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         else:
             diff = diff * self.env.goal_dim_weights
         if self.vectorized:
-            raw_neg_distances = -np.abs(diff)
+            if self.square_distance:
+                raw_neg_distances = - diff**2
+            else:
+                raw_neg_distances = -np.abs(diff)
         else:
-            raw_neg_distances = -np.linalg.norm(
-                diff,
-                ord=self.norm_order,
-                axis=1,
-                keepdims=True,
-            )
+            if self.square_distance:
+                raw_neg_distances = -(diff**2).sum(1, keepdims=True)
+            else:
+                raw_neg_distances = -np.linalg.norm(
+                    diff,
+                    ord=self.norm_order,
+                    axis=1,
+                    keepdims=True,
+                )
         return raw_neg_distances
 
     @property
