@@ -12,6 +12,8 @@ from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofFullGoal, Reacher7DofXyzGoalState)
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
+from railrl.state_distance.tdm_networks import TdmQf, DebugQf, DebugQfToModel
+from railrl.torch.mpc.controller import MPCController, DebugQfToMPCController
 from railrl.torch.sac.policies import TanhGaussianPolicy
 from railrl.state_distance.tdm_sac import TdmSac
 from railrl.torch.networks import FlattenMlp
@@ -23,11 +25,23 @@ def experiment(variant):
     obs_dim = int(np.prod(env.observation_space.low.shape))
     action_dim = int(np.prod(env.action_space.low.shape))
     vectorized = variant['sac_tdm_kwargs']['tdm_kwargs']['vectorized']
-    qf = FlattenMlp(
-        input_size=obs_dim + action_dim + env.goal_dim + 1,
-        output_size=env.goal_dim if vectorized else 1,
+    # qf = FlattenMlp(
+    #     input_size=obs_dim + action_dim + env.goal_dim + 1,
+    #     output_size=env.goal_dim if vectorized else 1,
+    #     **variant['qf_params']
+    # )
+    qf = DebugQf(
+        env,
+        vectorized=vectorized,
         **variant['qf_params']
     )
+    mpc_controller = DebugQfToMPCController(
+        env,
+        qf,
+        num_simulated_paths=512,
+        mpc_horizon=5,
+    )
+    variant['sac_tdm_kwargs']['base_kwargs']['eval_policy'] = mpc_controller
     vf = FlattenMlp(
         input_size=obs_dim + env.goal_dim + 1,
         output_size=env.goal_dim if vectorized else 1,
@@ -60,12 +74,12 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-sac-tdm-launch"
 
-    n_seeds = 1
-    mode = "ec2"
-    exp_prefix = "reacher7dof-full-state-softplus-mtau0"
+    # n_seeds = 1
+    # mode = "ec2"
+    # exp_prefix = "reacher7dof-full-state-softplus-mtau0"
 
     num_epochs = 100
-    num_steps_per_epoch = 1000
+    num_steps_per_epoch = 100
     num_steps_per_eval = 1000
     max_path_length = 100
 
@@ -89,6 +103,7 @@ if __name__ == "__main__":
                 norm_order=2,
                 cycle_taus_for_rollout=True,
                 max_tau=10,
+                square_distance=True,
             ),
             sac_kwargs=dict(
                 soft_target_tau=0.01,
@@ -126,10 +141,10 @@ if __name__ == "__main__":
         ],
         'sac_tdm_kwargs.base_kwargs.reward_scale': [
             1,
-            10,
-            100,
-            1000,
-            10000,
+            # 10,
+            # 100,
+            # 1000,
+            # 10000,
         ],
         'qf_params.hidden_activation': [
             ptu.softplus,

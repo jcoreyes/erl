@@ -81,7 +81,7 @@ if __name__ == "__main__":
     # exp_prefix = "reacher-full-mpcnn-save-replay-buffer"
 
     num_epochs = 30
-    num_steps_per_epoch = 1000
+    num_steps_per_epoch = 100
     num_steps_per_eval = 100
     max_path_length = 100
 
@@ -107,7 +107,7 @@ if __name__ == "__main__":
         ),
         mpc_controller_kwargs=dict(
             num_simulated_paths=512,
-            mpc_horizon=15,
+            mpc_horizon=5,
         ),
         model_kwargs=dict(
             hidden_sizes=[300, 300],
@@ -125,19 +125,6 @@ if __name__ == "__main__":
         'multitask': [True],
         'env_class': [
             Reacher7DofFullGoal,
-            # MultitaskPoint2DEnv,
-            # GoalXVelHalfCheetah,
-            # Reacher7DofXyzGoalState,
-            # GoalXYPosAnt,
-            # GoalXPosHalfCheetah,
-            # GoalXYGymPusherEnv,
-            # MultitaskPusher3DEnv,
-            # GoalXPosHopper,
-            # Reacher7DofXyzPosAndVelGoalState,
-            # GoalXYPosAndVelAnt,
-            # GoalXYPosAndVelAnt,
-            # CylinderXYPusher2DEnv,
-            # Walker2DTargetXPos,
         ],
         'algo_kwargs.num_updates_per_env_step': [
             1,
@@ -145,7 +132,6 @@ if __name__ == "__main__":
         'algo_kwargs.vectorized': [
             True,
         ],
-        'mpc_controller_kwargs.mpc_horizon': [5],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

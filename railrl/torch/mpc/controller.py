@@ -3,6 +3,9 @@ from torch import optim
 import torch
 
 from railrl.policies.base import ExplorationPolicy
+from railrl.state_distance.policies import UniversalPolicy, \
+    SampleBasedUniversalPolicy
+from railrl.state_distance.util import merge_into_flat_obs, split_flat_obs
 from railrl.torch.core import PyTorchModule
 import railrl.torch.pytorch_util as ptu
 
@@ -81,6 +84,91 @@ class MPCController(PyTorchModule, ExplorationPolicy):
                 ptu.get_numpy(next_obs),
             )
         min_i = np.argmin(costs)
+        return first_sampled_actions[min_i], {}
+
+
+class DebugQfToMPCController(PyTorchModule, ExplorationPolicy):
+    def __init__(
+            self,
+            env,
+            debug_qf,
+            num_simulated_paths=10000,
+            mpc_horizon=15,
+    ):
+        """
+        Optimization is done by a shooting method.
+
+        :param env:
+        :param dynamics_model: Dynamics model. See dagger/model.py
+        :param cost_fn:  Function of the form:
+
+        ```
+        def cost_fn(self, states, actions, next_states):
+            :param states:  (BATCH_SIZE x state_dim) numpy array
+            :param actions:  (BATCH_SIZE x action_dim) numpy array
+            :param next_states:  (BATCH_SIZE x state_dim) numpy array
+            :return: (BATCH_SIZE, ) numpy array
+        ```
+        :param num_simulated_paths: How many rollouts to do internally.
+        :param mpc_horizon: How long to plan for.
+        """
+        assert mpc_horizon >= 1
+        self.quick_init(locals())
+        super().__init__()
+        self.env = env
+        self.debug_qf = debug_qf
+        self.num_simulated_paths = num_simulated_paths
+        self.mpc_horizon = mpc_horizon
+        self.action_low = self.env.action_space.low
+        self.action_high = self.env.action_space.high
+        self.action_dim = self.env.action_space.low.shape[0]
+
+    def expand_np_to_var(self, array):
+        array_expanded = np.repeat(
+            np.expand_dims(array, 0),
+            self.num_simulated_paths,
+            axis=0
+        )
+        return ptu.np_to_var(array_expanded, requires_grad=False)
+
+    def sample_actions(self):
+        return np.random.uniform(
+            self.action_low,
+            self.action_high,
+            (self.num_simulated_paths, self.action_dim)
+        )
+
+    def get_action(self, obs):
+        obs, goals, taus = split_flat_obs(
+            obs[None],
+            self.env.observation_space.low.size,
+            self.env.goal_dim
+        )
+        sampled_actions = self.sample_actions()
+        first_sampled_actions = sampled_actions.copy()
+        actions = ptu.np_to_var(sampled_actions)
+        next_obs = self.expand_np_to_var(obs[0])
+        goals = self.expand_np_to_var(goals[0])
+        taus = self.expand_np_to_var(taus[0])
+        costs = 0
+        for i in range(self.mpc_horizon):
+            curr_obs = next_obs
+            if i > 0:
+                sampled_actions = self.sample_actions()
+                actions = ptu.np_to_var(sampled_actions)
+            flat_obs = merge_into_flat_obs(
+                curr_obs,
+                goals,
+                taus,
+            )
+            obs_delta = self.debug_qf(
+                flat_obs, actions, return_internal_prediction=True
+            )
+            next_obs = curr_obs + obs_delta
+            next_features = self.env.convert_obs_to_goals(next_obs)
+            costs += (next_features[:, :7] - goals[:, :7])**2
+        costs_np = ptu.get_numpy(costs).sum(1)
+        min_i = np.argmin(costs_np)
         return first_sampled_actions[min_i], {}
 
 

@@ -9,7 +9,7 @@ from torch.autograd import Variable
 from torch.nn import functional as F
 
 from railrl.pythonplusplus import identity
-from railrl.state_distance.util import split_tau, extract_goals, split_flat_obs
+from railrl.state_distance.util import split_tau, extract_goals, split_flat_obs, merge_into_flat_obs
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.core import PyTorchModule
 from railrl.torch.data_management.normalizer import TorchFixedNormalizer
@@ -571,6 +571,62 @@ class TdmQf(FlattenMlp):
                 output
             )
         return output
+
+
+class DebugQf(FlattenMlp):
+    def __init__(
+            self,
+            env,
+            vectorized,
+            **kwargs
+    ):
+        self.save_init_params(locals())
+        self.observation_dim = env.observation_space.low.size
+        self.action_dim = env.action_space.low.size
+        self.goal_dim = env.goal_dim
+        super().__init__(
+            input_size=(
+                    self.observation_dim + self.action_dim
+            ),
+            output_size=self.goal_dim,
+            **kwargs
+        )
+        self.env = env
+        self.vectorized = vectorized
+        self.tdm_normalizer = None
+
+    def forward(self, flat_obs, actions, return_internal_prediction=False):
+        if self.tdm_normalizer is not None:
+            actions = self.tdm_normalizer.action_normalizer.normalize(actions)
+            flat_obs = self.tdm_normalizer.normalize_flat_obs(flat_obs)
+
+        obs, goals, _ = split_flat_obs(
+            flat_obs, self.observation_dim, self.goal_dim
+        )
+        deltas = super().forward(obs, actions)
+        if return_internal_prediction:
+            return deltas
+        features = self.env.convert_obs_to_goals(obs)
+        next_features_predicted = deltas + features
+        diff = next_features_predicted - goals
+        if self.vectorized:
+            output = -diff**2
+        else:
+            raise NotImplementedError
+            output = -(diff**2).sum(1, keepdim=True)
+        return output
+
+
+class DebugQfToModel(nn.Module):
+    def __init__(self, debug_qf):
+        super().__init__()
+        self.debug_qf = debug_qf
+
+    def forward(self, states, actions):
+        fake_flat_obs = merge_into_flat_obs(states, states, states)
+        obs_delta = self.debug_qf(
+            fake_flat_obs, actions, return_internal_prediction=True
+        )
 
 
 class TdmPolicy(TanhMlpPolicy):

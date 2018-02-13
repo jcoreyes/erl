@@ -76,10 +76,10 @@ if __name__ == "__main__":
 
     # n_seeds = 3
     # mode = "ec2"
-    # exp_prefix = "reacher-full-mpcnn-H1"
+    exp_prefix = "reacher-full-mpcnn-save-replay-buffer"
 
-    num_epochs = 100
-    num_steps_per_epoch = 100
+    num_epochs = 30
+    num_steps_per_epoch = 1000
     num_steps_per_eval = 100
     max_path_length = 100
 
@@ -96,6 +96,8 @@ if __name__ == "__main__":
             num_updates_per_env_step=1,
             batch_size=128,
             num_paths_for_normalization=20,
+            save_replay_buffer=True,
+            replay_buffer_size=30000,
         ),
         normalize_kwargs=dict(
             obs_mean=None,
@@ -120,8 +122,8 @@ if __name__ == "__main__":
     search_space = {
         'multitask': [True],
         'env_class': [
-            # Reacher7DofFullGoal,
-            MultitaskPoint2DEnv,
+            Reacher7DofFullGoal,
+            # MultitaskPoint2DEnv,
             # GoalXVelHalfCheetah,
             # Reacher7DofXyzGoalState,
             # GoalXYPosAnt,
