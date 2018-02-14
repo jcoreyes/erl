@@ -578,6 +578,7 @@ class DebugQf(FlattenMlp):
             self,
             env,
             vectorized,
+            predict_delta=True,
             **kwargs
     ):
         self.save_init_params(locals())
@@ -593,6 +594,7 @@ class DebugQf(FlattenMlp):
         )
         self.env = env
         self.vectorized = vectorized
+        self.predict_delta = predict_delta
         self.tdm_normalizer = None
 
     def forward(self, flat_obs, actions, return_internal_prediction=False):
@@ -606,13 +608,15 @@ class DebugQf(FlattenMlp):
         deltas = super().forward(obs, actions)
         if return_internal_prediction:
             return deltas
-        features = self.env.convert_obs_to_goals(obs)
-        next_features_predicted = deltas + features
+        if self.predict_delta:
+            features = self.env.convert_obs_to_goals(obs)
+            next_features_predicted = deltas + features
+        else:
+            next_features_predicted = deltas
         diff = next_features_predicted - goals
         if self.vectorized:
             output = -diff**2
         else:
-            raise NotImplementedError
             output = -(diff**2).sum(1, keepdim=True)
         return output
 

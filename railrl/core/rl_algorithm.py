@@ -526,6 +526,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         data_to_save = dict(
             epoch=epoch,
             exploration_policy=self.exploration_policy,
+            eval_policy=self.eval_policy,
         )
         if self.save_environment:
             data_to_save['env'] = self.training_env

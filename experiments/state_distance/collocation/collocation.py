@@ -14,8 +14,8 @@ GOAL_SLICE = slice(0, 2)
 
 # Reacher 7dof
 PATH = '/home/vitchyr/git/railrl/data/local/01-27-reacher-full-mpcnn-H1/01-27-reacher-full-mpcnn-H1_2018_01_27_17_59_04_0000--s-96642/params.pkl'
-# GOAL_SLICE = slice(0, 7)
-GOAL_SLICE = slice(14, 17)
+GOAL_SLICE = slice(0, 7)
+# GOAL_SLICE = slice(14, 17)
 MULTITASK_GOAL_SLICE = GOAL_SLICE
 
 

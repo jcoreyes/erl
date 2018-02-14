@@ -28,8 +28,8 @@ MULTITASK_GOAL_SLICE = GOAL_SLICE
 # PATH = '/home/vitchyr/git/railrl/data/doodads3/02-08-reacher7dof-3d-sac-mtau-0-1-or-10-terminal-bonus/02-08-reacher7dof-3d-sac-mtau-0-1-or-10-terminal-bonus-id7-s327/params.pkl'
 # tau max = 0
 # PATH = '/home/vitchyr/git/railrl/data/doodads3/02-08-reacher7dof-sac-squared-distance-sweep-qf-activation-2/02-08-reacher7dof-sac-squared-distance-sweep-qf-activation-2-id1-s5793/params.pkl'
-GOAL_SLICE = slice(14, 17)
-MULTITASK_GOAL_SLICE = slice(0, 3)
+# GOAL_SLICE = slice(14, 17)
+# MULTITASK_GOAL_SLICE = slice(0, 3)
 
 
 class TdmToImplicitModel(PyTorchModule):
@@ -84,8 +84,9 @@ if __name__ == "__main__":
         qf,
         tau=0,
     )
-    lagrange_multiplier = 100 / reward_scale
-    planning_horizon = 1
+    # lagrange_multiplier = 100 / reward_scale
+    lagrange_multiplier = 10
+    planning_horizon = 3
     optimizer = args.opt
     print("Optimizer choice: ", optimizer)
     if optimizer == 'slsqp':

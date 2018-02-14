@@ -74,13 +74,13 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-sac-tdm-launch"
 
-    # n_seeds = 1
-    # mode = "ec2"
-    # exp_prefix = "reacher7dof-full-state-softplus-mtau0"
+    n_seeds = 2
+    mode = "ec2"
+    exp_prefix = "reacher7dof-full-eval-with-oc-sweep-mtau"
 
     num_epochs = 100
     num_steps_per_epoch = 100
-    num_steps_per_eval = 1000
+    num_steps_per_eval = 100
     max_path_length = 100
 
     # noinspection PyTypeChecker
@@ -149,6 +149,10 @@ if __name__ == "__main__":
         'qf_params.hidden_activation': [
             ptu.softplus,
         ],
+        'qf_params.predict_delta': [
+            True,
+            # False,
+        ],
         'sac_tdm_kwargs.tdm_kwargs.vectorized': [
             # False,
             True,
@@ -176,9 +180,9 @@ if __name__ == "__main__":
         ],
         'sac_tdm_kwargs.tdm_kwargs.max_tau': [
             0,
-            # 1,
-            # 10,
-            # 99,
+            1,
+            10,
+            99,
             # 49,
             # 15,
         ],
