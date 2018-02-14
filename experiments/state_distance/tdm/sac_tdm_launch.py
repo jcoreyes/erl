@@ -80,9 +80,9 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-sac-tdm-launch"
 
-    # n_seeds = 1
-    # mode = "ec2"
-    # exp_prefix = "reacher7dof-full-state-refactor"
+    n_seeds = 1
+    mode = "ec2"
+    exp_prefix = "reacher7dof-xyz-refactor"
 
     num_epochs = 100
     num_steps_per_epoch = 1000
@@ -143,8 +143,8 @@ if __name__ == "__main__":
     search_space = {
         'env_class': [
             # GoalXVelHalfCheetah,
-            # Reacher7DofXyzGoalState,
-            Reacher7DofFullGoal,
+            Reacher7DofXyzGoalState,
+            # Reacher7DofFullGoal,
             # MultitaskPoint2DEnv,
             # GoalXYPosAnt,
             # Walker2DTargetXPos,
@@ -162,7 +162,11 @@ if __name__ == "__main__":
             ptu.softplus,
         ],
         'sac_tdm_kwargs.tdm_kwargs.vectorized': [
-            # False,
+            False,
+            True,
+        ],
+        'sac_tdm_kwargs.give_terminal_reward': [
+            False,
             True,
         ],
         'sac_tdm_kwargs.tdm_kwargs.terminate_when_goal_reached': [
