@@ -420,7 +420,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         paths = []
         random_policy = RandomUniveralPolicy(self.env.action_space)
         for _ in range(self.num_pretrain_paths):
-            goal = np.zeros(self.env.goal_dim)
+            goal = self.env.sample_goal_for_rollout()
             path = multitask_rollout(
                 self.training_env,
                 random_policy,
