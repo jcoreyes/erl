@@ -3,7 +3,7 @@ import torch
 from torch import nn as nn
 from torch.autograd import Variable
 
-from railrl.policies.base import ExplorationPolicy, Policy
+from railrl.policies.base import ExplorationPolicy, Policy, SerializablePolicy
 from railrl.state_distance.tdm_networks import make_binary_tensor, SeparateFirstLayerMlp
 from railrl.state_distance.util import split_tau
 from railrl.torch.distributions import TanhNormal
@@ -423,7 +423,7 @@ class TauVectorSeparateFirstLayerTanhGaussianPolicy(SeparateFirstLayerMlp, Explo
             mean_action_log_prob, pre_tanh_value,
         )
 
-class MakeDeterministic(Policy):
+class MakeDeterministic(SerializablePolicy):
     def __init__(self, stochastic_policy):
         self.stochastic_policy = stochastic_policy
 

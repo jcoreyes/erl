@@ -52,6 +52,7 @@ class SoftActorCritic(TorchRLAlgorithm):
             eval_deterministic=True,
 
             eval_policy=None,
+            exploration_policy=None,
             **kwargs
     ):
         if eval_policy is None:
@@ -61,7 +62,7 @@ class SoftActorCritic(TorchRLAlgorithm):
                 eval_policy = policy
         super().__init__(
             env=env,
-            exploration_policy=policy,
+            exploration_policy=exploration_policy or policy,
             eval_policy=eval_policy,
             **kwargs
         )

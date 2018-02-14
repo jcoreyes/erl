@@ -13,6 +13,8 @@ from railrl.envs.multitask.reacher_7dof import (
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.state_distance.tdm_networks import TdmQf, DebugQf, DebugQfToModel
+from railrl.torch.mpc.collocation.collocation_mpc_controller import LBfgsBCMC, \
+    TdmToImplicitModel, TdmLBfgsBCMC
 from railrl.torch.mpc.controller import MPCController, DebugQfToMPCController
 from railrl.torch.sac.policies import TanhGaussianPolicy
 from railrl.state_distance.tdm_sac import TdmSac
@@ -35,13 +37,47 @@ def experiment(variant):
         vectorized=vectorized,
         **variant['qf_params']
     )
-    mpc_controller = DebugQfToMPCController(
+    debug_mpc_controller = DebugQfToMPCController(
         env,
         qf,
         num_simulated_paths=512,
         mpc_horizon=5,
     )
-    variant['sac_tdm_kwargs']['base_kwargs']['eval_policy'] = mpc_controller
+    # #nofsgiven
+    implicit_model = TdmToImplicitModel(
+        env,
+        qf,
+        tau=0,
+    )
+    lbfgs_mpc_controller = TdmLBfgsBCMC(
+        implicit_model,
+        env,
+        goal_slice=slice(0, 7),
+        multitask_goal_slice=slice(0, 7),
+        lagrange_multipler=10,
+        planning_horizon=3,
+        solver_params={
+            'factr': 1e9,
+        },
+    )
+    explore_with = variant['explore_with']
+    if explore_with == 'DebugQfToMPCController':
+        variant['sac_tdm_kwargs']['base_kwargs']['exploration_policy'] = (
+            debug_mpc_controller
+        )
+    elif explore_with =='TdmLBfgsBCMC':
+        variant['sac_tdm_kwargs']['base_kwargs']['exploration_policy'] = (
+            lbfgs_mpc_controller
+        )
+    eval_with = variant['eval_with']
+    if eval_with == 'DebugQfToMPCController':
+        variant['sac_tdm_kwargs']['base_kwargs']['eval_policy'] = (
+            debug_mpc_controller
+        )
+    elif eval_with =='TdmLBfgsBCMC':
+        variant['sac_tdm_kwargs']['base_kwargs']['eval_policy'] = (
+            lbfgs_mpc_controller
+        )
     vf = FlattenMlp(
         input_size=obs_dim + env.goal_dim + 1,
         output_size=env.goal_dim if vectorized else 1,
@@ -74,11 +110,11 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-sac-tdm-launch"
 
-    n_seeds = 2
+    n_seeds = 3
     mode = "ec2"
-    exp_prefix = "reacher7dof-full-eval-with-oc-sweep-mtau"
+    exp_prefix = "local-reacher7dof-full-sweep-eval-with-lbfgs-save"
 
-    num_epochs = 100
+    num_epochs = 50
     num_steps_per_epoch = 100
     num_steps_per_eval = 100
     max_path_length = 100
@@ -180,9 +216,9 @@ if __name__ == "__main__":
         ],
         'sac_tdm_kwargs.tdm_kwargs.max_tau': [
             0,
-            1,
-            10,
-            99,
+            # 1,
+            # 10,
+            # 99,
             # 49,
             # 15,
         ],
@@ -198,6 +234,16 @@ if __name__ == "__main__":
         ],
         'sac_tdm_kwargs.base_kwargs.discount': [
             1,
+        ],
+        'eval_with': [
+            # 'DebugQfToMPCController',
+            'TdmLBfgsBCMC',
+            # 'TanhGaussianPolicy',
+        ],
+        'explore_with': [
+            # 'DebugQfToMPCController',
+            'TdmLBfgsBCMC',
+            'TanhGaussianPolicy',
         ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -228,12 +274,12 @@ if __name__ == "__main__":
             variant['sac_tdm_kwargs']['tdm_kwargs'][
                 'tau_sample_strategy'] = 'no_resampling'
         for i in range(n_seeds):
-            seed = random.randint(0, 10000)
             run_experiment(
                 experiment,
                 mode=mode,
                 exp_prefix=exp_prefix,
-                seed=seed,
                 variant=variant,
                 exp_id=exp_id,
+                snapshot_mode='gap',
+                snapshot_gap=5,
             )
