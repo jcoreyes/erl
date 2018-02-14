@@ -16,7 +16,7 @@ from railrl.core import logger
 
 class UniversalPolicy(metaclass=abc.ABCMeta):
     @abc.abstractmethod
-    def get_action(self, observation, goal, tau):
+    def get_action(self, observation, goal, tau, **kwargs):
         pass
 
     def reset(self):

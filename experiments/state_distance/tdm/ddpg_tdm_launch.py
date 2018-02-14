@@ -10,6 +10,7 @@ from railrl.envs.multitask.ant_env import GoalXYPosAnt, GoalXYPosAndVelAnt
 # from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
     GoalXPosHalfCheetah
+from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
 from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
 from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
 from railrl.envs.multitask.pusher3d_gym import GoalXYGymPusherEnv
@@ -107,12 +108,12 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-ddpg-tdm-launch-2"
 
-    n_seeds = 1
-    mode = "ec2"
-    exp_prefix = "reacher-full-ddpg-tdm-mtau-0"
+    # n_seeds = 1
+    # mode = "ec2"
+    # exp_prefix = "reacher-full-ddpg-tdm-mtau-0"
 
     num_epochs = 100
-    num_steps_per_epoch = 1000
+    num_steps_per_epoch = 100
     num_steps_per_eval = 1000
     max_path_length = 100
 
@@ -179,7 +180,8 @@ if __name__ == "__main__":
             # CylinderXYPusher2DEnv,
             # Walker2DTargetXPos,
             # GoalXYGymPusherEnv,
-            Reacher7DofFullGoal,
+            # Reacher7DofFullGoal,
+            MultitaskPoint2DEnv,
         ],
         # 'env_kwargs.max_distance': [
         #     6,
@@ -214,7 +216,7 @@ if __name__ == "__main__":
             dict(theta=0.1, max_sigma=0.1, min_sigma=0.1),
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.max_tau': [
-            0,
+            10,
         ],
         'ddpg_tdm_kwargs.tdm_kwargs.dense_rewards': [
             False,
@@ -260,7 +262,8 @@ if __name__ == "__main__":
             False
         ],
         'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
-            0.01, 1, 100, 10000
+            # 0.01, 1, 100, 10000
+            1,
         ],
         'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
             1,

@@ -82,10 +82,10 @@ if __name__ == "__main__":
 
     # n_seeds = 1
     # mode = "ec2"
-    # exp_prefix = "reacher7dof-full-state-softplus-mtau0"
+    # exp_prefix = "reacher7dof-full-state-refactor"
 
     num_epochs = 100
-    num_steps_per_epoch = 100
+    num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
     max_path_length = 100
 
@@ -116,6 +116,7 @@ if __name__ == "__main__":
                 qf_lr=3E-4,
                 vf_lr=3E-4,
             ),
+            give_terminal_reward=False,
         ),
         her_replay_buffer_kwargs=dict(
             max_size=int(1E6),
@@ -151,11 +152,11 @@ if __name__ == "__main__":
             # CylinderXYPusher2DEnv,
         ],
         'sac_tdm_kwargs.base_kwargs.reward_scale': [
-            # 1,
-            # 10,
+            1,
+            10,
             100,
-            # 1000,
-            # 10000,
+            1000,
+            10000,
         ],
         'qf_kwargs.hidden_activation': [
             ptu.softplus,
@@ -187,8 +188,8 @@ if __name__ == "__main__":
         ],
         'sac_tdm_kwargs.tdm_kwargs.max_tau': [
             0,
-            # 1,
-            # 10,
+            1,
+            10,
             # 99,
             # 49,
             # 15,

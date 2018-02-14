@@ -258,12 +258,19 @@ class TdmPolicy(TanhMlpPolicy):
                 )
             )
 
+        flat_input = torch.cat((observations, goals, num_steps_left), dim=1)
         return super().forward(
-            observations,
-            goals,
-            num_steps_left,
+            flat_input,
             return_preactivations=return_preactivations,
         )
+
+    def get_action(self, ob_np, goal_np, tau_np):
+        actions = self.eval_np(
+            ob_np[None],
+            goal_np[None],
+            tau_np[None],
+        )
+        return actions[0, :], {}
 
 
 class TdmVf(FlattenMlp):

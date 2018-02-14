@@ -162,7 +162,7 @@ class MultitaskReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle, MultitaskEnv,
         ))
         statistics.update(create_stats_ordered_dict(
             'Final Euclidean distance to desired XY',
-            xy_distance_to_goal[:, -1],
+            [distances[-1] for distances in xy_distance_to_goal],
             always_show_all_stats=True,
         ))
 
@@ -171,7 +171,7 @@ class MultitaskReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle, MultitaskEnv,
         )
         statistics.update(create_stats_ordered_dict(
             'Final state to goal state distance',
-            full_state_go_goal_distance[:, -1],
+            [distances[-1] for distances in full_state_go_goal_distance],
             always_show_all_stats=True,
         ))
         for key, value in statistics.items():

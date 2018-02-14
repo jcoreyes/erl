@@ -67,8 +67,8 @@ if __name__ == "__main__":
             path = multitask_rollout(
                 env,
                 policy,
-                goal,
                 init_tau=max_tau,
+                goal=goal,
                 max_path_length=args.H,
                 animated=not args.hide,
                 cycle_tau=args.cycle or not args.ndc,

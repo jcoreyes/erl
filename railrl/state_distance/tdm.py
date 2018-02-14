@@ -180,7 +180,9 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         actions = batch['actions']
         next_obs = batch['next_observations']
         goals = self._sample_goals_for_training(batch)
-        rewards = self._compute_scaled_rewards_np(batch, obs, actions, next_obs, goals)
+        rewards = self._compute_scaled_rewards_np(
+            batch, obs, actions, next_obs, goals
+        )
         terminals = batch['terminals']
 
         if self.tau_sample_strategy == 'all_valid':
@@ -212,6 +214,8 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         batch['actions'] = actions
         batch['num_steps_left'] = num_steps_left
         batch['goals'] = goals
+        batch['observations'] = obs
+        batch['next_observations'] = next_obs
 
         return np_to_pytorch_batch(batch)
 
@@ -466,5 +470,5 @@ class RandomUniveralPolicy(UniversalPolicy, SerializablePolicy):
         super().__init__()
         self.action_space = action_space
 
-    def get_action(self, obs):
+    def get_action(self, *args, **kwargs):
         return self.action_space.sample(), {}

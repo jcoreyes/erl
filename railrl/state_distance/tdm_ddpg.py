@@ -43,17 +43,24 @@ class TdmDdpg(TemporalDifferenceModel, DDPG):
         obs = batch['observations']
         actions = batch['actions']
         next_obs = batch['next_observations']
+        goals = batch['goals']
+        num_steps_left = batch['num_steps_left']
 
         """
         Policy operations.
         """
         policy_actions, pre_tanh_value = self.policy(
-            obs, return_preactivations=True,
+            obs, goals, num_steps_left, return_preactivations=True,
         )
         pre_activation_policy_loss = (
             (pre_tanh_value**2).sum(dim=1).mean()
         )
-        q_output = self.qf(obs, policy_actions)
+        q_output = self.qf(
+            observations=obs,
+            actions=policy_actions,
+            num_steps_left=num_steps_left,
+            goals=goals,
+        )
         raw_policy_loss = - q_output.mean()
         policy_loss = (
                 raw_policy_loss +
@@ -63,18 +70,33 @@ class TdmDdpg(TemporalDifferenceModel, DDPG):
         """
         Critic operations.
         """
-        next_actions = self.target_policy(next_obs)
+        next_actions = self.target_policy(
+            observations=next_obs,
+            goals=goals,
+            num_steps_left=num_steps_left-1,
+        )
         # speed up computation by not backpropping these gradients
         next_actions.detach()
         target_q_values = self.target_qf(
-            next_obs,
-            next_actions,
+            observations=next_obs,
+            actions=next_actions,
+            goals=goals,
+            num_steps_left=num_steps_left-1,
         )
         q_target = rewards + (1. - terminals) * self.discount * target_q_values
         q_target = q_target.detach()
         if self.reward_type == 'indicator':
-            q_target = torch.clamp(q_target, -self.reward_scale/(1-self.discount), 0)
-        q_pred = self.qf(obs, actions)
+            q_target = torch.clamp(
+                q_target,
+                -self.reward_scale/(1-self.discount),
+                0
+            )
+        q_pred = self.qf(
+            observations=obs,
+            actions=actions,
+            goals=goals,
+            num_steps_left=num_steps_left,
+        )
         if self.reward_type == 'distance' and self.tdm_normalizer:
             q_pred = self.tdm_normalizer.distance_normalizer.normalize_scale(
                 q_pred
