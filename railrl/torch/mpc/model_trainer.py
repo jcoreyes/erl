@@ -47,32 +47,7 @@ class ModelTrainer(TorchRLAlgorithm):
 
     def _do_training(self):
         losses = []
-        if self.collection_mode == 'online':
-            """
-            For online model, we'll do the normal training scheme.
-            """
-            batch = self.get_batch()
-            obs = batch['observations']
-            actions = batch['actions']
-            next_obs = batch['next_observations']
-            ob_deltas_pred = self.model(obs, actions)
-            ob_deltas = next_obs - obs
-            if self.delta_normalizer:
-                normalized_errors = (
-                        self.delta_normalizer.normalize(ob_deltas_pred)
-                        - self.delta_normalizer.normalize(ob_deltas)
-                )
-                squared_errors = normalized_errors**2
-            else:
-                squared_errors = (ob_deltas_pred - ob_deltas)**2
-            loss = squared_errors.mean()
-
-            self.optimizer.zero_grad()
-            loss.backward()
-            self.optimizer.step()
-            losses.append(ptu.get_numpy(loss))
-
-        elif self.collection_mode == 'batch':
+        if self.collection_mode == 'batch':
             """
             Batch mode we'll assume you want to do epoch-style training
             """
@@ -110,9 +85,26 @@ class ModelTrainer(TorchRLAlgorithm):
                 self.optimizer.step()
                 losses.append(ptu.get_numpy(loss))
         else:
-            raise Exception("Collection mode not supported: {}".format(
-                self.collection_mode
-            ))
+            batch = self.get_batch()
+            obs = batch['observations']
+            actions = batch['actions']
+            next_obs = batch['next_observations']
+            ob_deltas_pred = self.model(obs, actions)
+            ob_deltas = next_obs - obs
+            if self.delta_normalizer:
+                normalized_errors = (
+                        self.delta_normalizer.normalize(ob_deltas_pred)
+                        - self.delta_normalizer.normalize(ob_deltas)
+                )
+                squared_errors = normalized_errors**2
+            else:
+                squared_errors = (ob_deltas_pred - ob_deltas)**2
+            loss = squared_errors.mean()
+
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+            losses.append(ptu.get_numpy(loss))
 
         if self.eval_statistics is None:
             self.eval_statistics = OrderedDict()
@@ -170,6 +162,9 @@ class ModelTrainer(TorchRLAlgorithm):
         snapshot['model'] = self.model
         snapshot['mpc_controller'] = self.mpc_controller
         return snapshot
+
+    def offline_evaluate(self, epoch):
+        return self.evaluate(epoch)
 
 
 def compute_normalization(paths):

@@ -1,44 +1,57 @@
 import random
 
 import numpy as np
+from torch.nn import functional as F
 
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
+from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
 from railrl.envs.multitask.reacher_7dof import (
     # Reacher7DofGoalStateEverything,
-    Reacher7DofFullGoal)
+    Reacher7DofFullGoal, Reacher7DofXyzGoalState)
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
+from railrl.state_distance.tdm_networks import TdmNormalizer, TdmQf, \
+    StochasticTdmPolicy, TdmVf
+from railrl.torch.data_management.normalizer import TorchFixedNormalizer
 from railrl.torch.sac.policies import TanhGaussianPolicy
 from railrl.state_distance.tdm_sac import TdmSac
 from railrl.torch.networks import FlattenMlp
 
 
 def experiment(variant):
-    env = NormalizedBoxEnv(variant['env_class']())
-
-    obs_dim = int(np.prod(env.observation_space.low.shape))
-    action_dim = int(np.prod(env.action_space.low.shape))
     vectorized = variant['sac_tdm_kwargs']['tdm_kwargs']['vectorized']
-    qf = FlattenMlp(
-        input_size=obs_dim + action_dim + env.goal_dim + 1,
-        output_size=env.goal_dim if vectorized else 1,
-        **variant['qf_params']
+    env = NormalizedBoxEnv(variant['env_class'](**variant['env_kwargs']))
+    observation_dim = int(np.prod(env.observation_space.low.shape))
+    action_dim = int(np.prod(env.action_space.low.shape))
+    max_tau = variant['sac_tdm_kwargs']['tdm_kwargs']['max_tau']
+    tdm_normalizer = TdmNormalizer(
+        env,
+        vectorized,
+        max_tau=max_tau,
+        **variant['tdm_normalizer_kwargs']
     )
-    vf = FlattenMlp(
-        input_size=obs_dim + env.goal_dim + 1,
-        output_size=env.goal_dim if vectorized else 1,
-        **variant['vf_params']
+    qf = TdmQf(
+        env=env,
+        vectorized=vectorized,
+        tdm_normalizer=tdm_normalizer,
+        **variant['qf_kwargs']
     )
-    policy = TanhGaussianPolicy(
-        obs_dim=obs_dim + env.goal_dim + 1,
-        action_dim=action_dim,
-        **variant['policy_params']
+    vf = TdmVf(
+        env=env,
+        vectorized=vectorized,
+        tdm_normalizer=tdm_normalizer,
+        **variant['vf_kwargs']
+    )
+    policy = StochasticTdmPolicy(
+        env=env,
+        tdm_normalizer=tdm_normalizer,
+        **variant['policy_kwargs']
     )
     replay_buffer = HerReplayBuffer(
         env=env,
-        **variant['her_replay_buffer_params']
+        **variant['her_replay_buffer_kwargs']
     )
     algorithm = TdmSac(
         env=env,
@@ -60,7 +73,7 @@ if __name__ == "__main__":
 
     # n_seeds = 1
     # mode = "ec2"
-    # exp_prefix = "reacher-full-sac-tdm-save-replay-buffer"
+    # exp_prefix = "reacher7dof-xyz-refactor"
 
     num_epochs = 100
     num_steps_per_epoch = 1000
@@ -78,12 +91,13 @@ if __name__ == "__main__":
                 num_updates_per_env_step=25,
                 batch_size=128,
                 discount=1,
-                save_replay_buffer=True,
+                save_replay_buffer=False,
             ),
             tdm_kwargs=dict(
                 sample_rollout_goals_from='environment',
                 sample_train_goals_from='her',
-                vectorized=True,
+                vectorized=False,
+                norm_order=2,
                 cycle_taus_for_rollout=True,
                 max_tau=10,
             ),
@@ -93,40 +107,57 @@ if __name__ == "__main__":
                 qf_lr=3E-4,
                 vf_lr=3E-4,
             ),
+            give_terminal_reward=False,
         ),
-        her_replay_buffer_params=dict(
+        her_replay_buffer_kwargs=dict(
             max_size=int(1E6),
             num_goals_to_sample=4,
         ),
-        qf_params=dict(
+        qf_kwargs=dict(
+            hidden_sizes=[300, 300],
+            norm_order=2,
+        ),
+        vf_kwargs=dict(
             hidden_sizes=[300, 300],
         ),
-        vf_params=dict(
+        policy_kwargs=dict(
             hidden_sizes=[300, 300],
         ),
-        policy_params=dict(
-            hidden_sizes=[300, 300],
+        tdm_normalizer_kwargs=dict(
+            normalize_tau=False,
+            log_tau=False,
         ),
+        env_kwargs=dict(),
         version="SAC-TDM",
         algorithm="SAC-TDM",
     )
     search_space = {
         'env_class': [
             # GoalXVelHalfCheetah,
-            # Reacher7DofXyzGoalState,
-            Reacher7DofFullGoal,
+            Reacher7DofXyzGoalState,
+            # Reacher7DofFullGoal,
+            # MultitaskPoint2DEnv,
             # GoalXYPosAnt,
             # Walker2DTargetXPos,
             # MultitaskPusher3DEnv,
             # CylinderXYPusher2DEnv,
         ],
         'sac_tdm_kwargs.base_kwargs.reward_scale': [
-            # 30,
+            1,
+            10,
             100,
-            # 300,
+            1000,
+            10000,
+        ],
+        'qf_kwargs.hidden_activation': [
+            ptu.softplus,
         ],
         'sac_tdm_kwargs.tdm_kwargs.vectorized': [
-            # False,
+            False,
+            True,
+        ],
+        'sac_tdm_kwargs.give_terminal_reward': [
+            False,
             True,
         ],
         'sac_tdm_kwargs.tdm_kwargs.terminate_when_goal_reached': [
@@ -152,6 +183,8 @@ if __name__ == "__main__":
         ],
         'sac_tdm_kwargs.tdm_kwargs.max_tau': [
             0,
+            1,
+            10,
             # 99,
             # 49,
             # 15,

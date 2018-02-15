@@ -12,9 +12,11 @@ from railrl.envs.wrappers import normalize_box, convert_gym_space
 from railrl.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
+from railrl.state_distance.experimental_tdm_networks import StructuredQF, \
+    OneHotTauQF, BinaryStringTauQF, TauVectorQF, TauVectorSeparateFirstLayerQF, \
+    StandardTdmPolicy, OneHotTauTdmPolicy, BinaryTauTdmPolicy, \
+    TauVectorTdmPolicy, TauVectorSeparateFirstLayerTdmPolicy
 from railrl.state_distance.tdm_networks import *
-from railrl.state_distance.tdm_networks import OneHotTauQF, BinaryStringTauQF, TauVectorQF, \
-    TauVectorSeparateFirstLayerQF
 from railrl.state_distance.tdm_ddpg import TdmDdpg
 
 

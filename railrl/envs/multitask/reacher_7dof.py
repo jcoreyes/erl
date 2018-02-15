@@ -4,11 +4,11 @@ import torch
 import numpy as np
 from gym import utils
 from gym.envs.mujoco import mujoco_env
+from gym.spaces import Box
 
 from railrl.envs.env_utils import get_asset_xml
 from railrl.envs.multitask.multitask_env import MultitaskEnv
-from railrl.misc.eval_util import create_stats_ordered_dict
-from railrl.samplers.util import get_stat_in_paths
+from railrl.misc.eval_util import create_stats_ordered_dict, get_stat_in_paths
 import railrl.torch.pytorch_util as ptu
 from railrl.core.serializable import Serializable
 from railrl.core import logger as default_logger
@@ -29,6 +29,19 @@ class Reacher7DofMultitaskEnv(
             self,
             get_asset_xml('reacher_7dof.xml'),
             5,
+        )
+        self.observation_space = Box(
+            np.array([
+                -2.28, -0.52, -1.4, -2.32, -1.5, -1.094, -1.5,  # joint
+                -3, -3, -3, -3, -3, -3, -3, # velocity
+                -0.75, -1.25, -0.2,  # EE xyz
+
+            ]),
+            np.array([
+                1.71, 1.39, 1.7, 0, 1.5, 0, 1.5,  # joints
+                3, 3, 3, 3, 3, 3, 3,  # velocity
+                0.75, 0.25, 0.6,  # EE xyz
+            ])
         )
 
     def viewer_setup(self):
@@ -91,6 +104,17 @@ class Reacher7DofMultitaskEnv(
         ))
         for key, value in statistics.items():
             logger.record_tabular(key, value)
+
+    def joints_to_full_state(self, joints):
+        current_qpos = self.model.data.qpos.flat.copy()
+        current_qvel = self.model.data.qvel.flat.copy()
+
+        new_qpos = current_qpos.copy()
+        new_qpos[:7] = joints
+        self.set_state(new_qpos, current_qvel)
+        full_state = self._get_obs().copy()
+        self.set_state(current_qpos, current_qvel)
+        return full_state
 
 
 class Reacher7DofXyzGoalState(Reacher7DofMultitaskEnv):
@@ -271,7 +295,10 @@ class Reacher7DofFullGoal(Reacher7DofMultitaskEnv):
     def set_goal(self, goal):
         super().set_goal(goal)
         self._set_goal_xyz_automatically(goal)
-        # self._set_goal_xyz(goal[14:17])
+
+    def modify_goal_for_rollout(self, goal):
+        goal[7:14] = 0
+        return goal
 
     def _set_goal_xyz_automatically(self, goal):
         current_qpos = self.model.data.qpos.flat.copy()
@@ -324,9 +351,4 @@ class Reacher7DofFullGoal(Reacher7DofMultitaskEnv):
             self.multitask_goal[:7] * np.ones_like(next_joint_angles)
         )
         diff = next_joint_angles - desired_joint_angles
-        costs = np.linalg.norm(
-            diff,
-            axis=1,
-            ord=1,
-        )
-        return costs
+        return (diff**2).sum(1, keepdims=True)

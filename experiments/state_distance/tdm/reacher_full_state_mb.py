@@ -12,8 +12,8 @@ from railrl.envs.multitask.reacher_7dof import (
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.sac.policies import TanhGaussianPolicy
-from railrl.state_distance.probabilistic_tdm.mpc_controller import \
-    ImplicitMPCController
+from railrl.torch.mpc.collocation import \
+    CollocationMpcController
 from railrl.state_distance.tdm_sac import TdmSac
 from railrl.torch.networks import FlattenMlp
 
@@ -39,7 +39,7 @@ def experiment(variant):
         action_dim=action_dim,
         **variant['policy_params']
     )
-    mpc_controller = ImplicitMPCController(
+    mpc_controller = CollocationMpcController(
         env,
         qf,
         policy,

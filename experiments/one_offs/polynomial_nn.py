@@ -310,7 +310,7 @@ def main():
             resolution=resolution,
         )
 
-        vu.plot_heatmap(fig, ax, heatmap)
+        vu.plot_heatmap(heatmap, fig, ax)
         ax.set_xlabel("State")
         ax.set_ylabel("Action")
         ax.set_title(title)

@@ -47,7 +47,7 @@ def create_figure(
             ax = axes
         else:
             ax = axes[i]
-        vu.plot_heatmap(fig, ax, heatmap)
+        vu.plot_heatmap(heatmap, fig, ax)
         ax.set_xlabel("X-action")
         ax.set_ylabel("Y-action")
         ax.set_title(title)

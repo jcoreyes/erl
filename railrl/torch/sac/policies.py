@@ -4,7 +4,8 @@ from torch import nn as nn
 from torch.autograd import Variable
 
 from railrl.policies.base import ExplorationPolicy, Policy
-from railrl.state_distance.tdm_networks import make_binary_tensor, SeparateFirstLayerMlp
+from railrl.state_distance.experimental_tdm_networks import \
+    SeparateFirstLayerMlp, make_binary_tensor
 from railrl.state_distance.util import split_tau
 from railrl.torch.distributions import TanhNormal
 from railrl.torch.networks import Mlp
@@ -74,14 +75,14 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
             obs,
             deterministic=False,
             return_log_prob=False,
-            return_expected_log_prob=False,
+            return_entropy=False,
             return_log_prob_of_mean=False,
     ):
         """
         :param obs: Observation
         :param deterministic: If True, do not sample
         :param return_log_prob: If True, return a sample and its log probability
-        :param return_expected_log_prob: If True, return the true expected log
+        :param return_entropy: If True, return the true expected log
         prob. Will not need to be differentiated through, so this can be a
         number.
         :param return_log_prob_of_mean: If True, return the true expected log
@@ -101,7 +102,7 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
             log_std = self.log_std
 
         log_prob = None
-        expected_log_prob = None
+        entropy = None
         mean_action_log_prob = None
         pre_tanh_value = None
         if deterministic:
@@ -120,13 +121,12 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
             else:
                 action = tanh_normal.sample()
 
-        if return_expected_log_prob:
-            expected_log_prob = - (
-                log_std + 0.5 + np.log(2 * np.pi) / 2
-            )
-            # shoot, idk how to compute the expected log prob for the tanh term
-            # TODO(vitchyr): fix
-            expected_log_prob = expected_log_prob.sum(dim=1, keepdim=True)
+        if return_entropy:
+            entropy = log_std + 0.5 + np.log(2 * np.pi) / 2
+            # I'm not sure how to compute the (differential) entropy for a
+            # tanh(Gaussian)
+            entropy = entropy.sum(dim=1, keepdim=True)
+            raise NotImplementedError()
         if return_log_prob_of_mean:
             tanh_normal = TanhNormal(mean, std)
             mean_action_log_prob = tanh_normal.log_prob(
@@ -135,7 +135,7 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
             )
             mean_action_log_prob = mean_action_log_prob.sum(dim=1, keepdim=True)
         return (
-            action, mean, log_std, log_prob, expected_log_prob, std,
+            action, mean, log_std, log_prob, entropy, std,
             mean_action_log_prob, pre_tanh_value,
         )
 
@@ -188,7 +188,7 @@ class OneHotTauTanhGaussianPolicy(TanhGaussianPolicy):
             obs,
             deterministic=False,
             return_log_prob=False,
-            return_expected_log_prob=False,
+            return_entropy=False,
             return_log_prob_of_mean=False,
     ):
         obs, taus = split_tau(obs)
@@ -209,7 +209,7 @@ class OneHotTauTanhGaussianPolicy(TanhGaussianPolicy):
             obs=h,
             deterministic=deterministic,
             return_log_prob=return_log_prob,
-            return_expected_log_prob=return_expected_log_prob,
+            return_entropy=return_entropy,
             return_log_prob_of_mean=return_log_prob_of_mean,
         )
 class BinaryTauTanhGaussianPolicy(TanhGaussianPolicy):
@@ -238,7 +238,7 @@ class BinaryTauTanhGaussianPolicy(TanhGaussianPolicy):
             obs,
             deterministic=False,
             return_log_prob=False,
-            return_expected_log_prob=False,
+            return_entropy=False,
             return_log_prob_of_mean=False,
     ):
         obs, taus = split_tau(obs)
@@ -253,7 +253,7 @@ class BinaryTauTanhGaussianPolicy(TanhGaussianPolicy):
             obs=h,
             deterministic=deterministic,
             return_log_prob=return_log_prob,
-            return_expected_log_prob=return_expected_log_prob,
+            return_entropy=return_entropy,
             return_log_prob_of_mean=return_log_prob_of_mean,
         )
 
@@ -286,7 +286,7 @@ class TauVectorTanhGaussianPolicy(TanhGaussianPolicy):
             obs,
             deterministic=False,
             return_log_prob=False,
-            return_expected_log_prob=False,
+            return_entropy=False,
             return_log_prob_of_mean=False
         ):
         obs, taus = split_tau(obs)
@@ -302,7 +302,7 @@ class TauVectorTanhGaussianPolicy(TanhGaussianPolicy):
             obs=h,
             deterministic=deterministic,
             return_log_prob=return_log_prob,
-            return_expected_log_prob=return_expected_log_prob,
+            return_entropy=return_entropy,
             return_log_prob_of_mean=return_log_prob_of_mean,
         )
 
@@ -355,14 +355,14 @@ class TauVectorSeparateFirstLayerTanhGaussianPolicy(SeparateFirstLayerMlp, Explo
             obs,
             deterministic=False,
             return_log_prob=False,
-            return_expected_log_prob=False,
+            return_entropy=False,
             return_log_prob_of_mean=False,
     ):
         """
         :param obs: Observation
         :param deterministic: If True, do not sample
         :param return_log_prob: If True, return a sample and its log probability
-        :param return_expected_log_prob: If True, return the true expected log
+        :param return_entropy: If True, return the true expected log
         prob. Will not need to be differentiated through, so this can be a
         number.
         :param return_log_prob_of_mean: If True, return the true expected log
@@ -388,7 +388,7 @@ class TauVectorSeparateFirstLayerTanhGaussianPolicy(SeparateFirstLayerMlp, Explo
             log_std = self.log_std
 
         log_prob = None
-        expected_log_prob = None
+        entropy = None
         mean_action_log_prob = None
         pre_tanh_value = None
         if deterministic:
@@ -407,13 +407,11 @@ class TauVectorSeparateFirstLayerTanhGaussianPolicy(SeparateFirstLayerMlp, Explo
             else:
                 action = tanh_normal.sample()
 
-        if return_expected_log_prob:
-            expected_log_prob = - (
-                log_std + 0.5 + np.log(2 * np.pi) / 2
-            )
-            # shoot, idk how to compute the expected log prob for the tanh term
-            # TODO(vitchyr): fix
-            expected_log_prob = expected_log_prob.sum(dim=1, keepdim=True)
+        if return_entropy:
+            entropy = log_std + 0.5 + np.log(2 * np.pi) / 2
+            # Because tanh is invertible, the entropy of a Gaussian and the
+            # entropy of the tanh of a Gaussian is the same.
+            entropy = entropy.sum(dim=1, keepdim=True)
         if return_log_prob_of_mean:
             tanh_normal = TanhNormal(mean, std)
             mean_action_log_prob = tanh_normal.log_prob(
@@ -422,18 +420,16 @@ class TauVectorSeparateFirstLayerTanhGaussianPolicy(SeparateFirstLayerMlp, Explo
             )
             mean_action_log_prob = mean_action_log_prob.sum(dim=1, keepdim=True)
         return (
-            action, mean, log_std, log_prob, expected_log_prob, std,
+            action, mean, log_std, log_prob, entropy, std,
             mean_action_log_prob, pre_tanh_value,
         )
+
 
 class MakeDeterministic(Policy):
     def __init__(self, stochastic_policy):
         self.stochastic_policy = stochastic_policy
 
-    def get_action(self, observation):
-        return self.stochastic_policy.get_action(observation,
-                                                 deterministic=True)
-
-    def get_actions(self, observations):
-        return self.stochastic_policy.get_actions(observations,
-                                                  deterministic=True)
+    def get_action(self, *args, **kwargs):
+        return self.stochastic_policy.get_action(
+            *args, deterministic=True, **kwargs
+        )

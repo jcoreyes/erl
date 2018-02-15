@@ -54,7 +54,7 @@ def create_figure(
         """
         for j, (title, heatmap) in enumerate(names_and_heatmaps):
             ax = axes[j][i]
-            vu.plot_heatmap(fig, ax, heatmap)
+            vu.plot_heatmap(heatmap, fig, ax)
             ax.vlines([min_pos, max_pos], *ax.get_ylim())
             ax.set_xlabel("Position")
             ax.set_ylabel("Velocity")
@@ -110,11 +110,11 @@ def create_optimal_qf(target_pos, state_bounds, action_bounds, discount_factor,
                       *, resolution=10):
     """
     Do Q-learning to find the optimal Q-values
-    :param target_pos: 
-    :param state_bounds: 
-    :param action_bounds: 
-    :param resolution: 
-    :return: 
+    :param target_pos:
+    :param state_bounds:
+    :param action_bounds:
+    :param resolution:
+    :return:
     """
     def get_reward(state):
         return int(target_pos - WaterMaze.TARGET_RADIUS

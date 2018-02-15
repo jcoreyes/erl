@@ -31,7 +31,9 @@ def main():
     Try varying the state
     """
     if args.plotv:
-        states = env.sample_states(sample_size)
+        states = np.vstack([
+            env.reset() for _ in range(sample_size)
+        ])
         states = ptu.np_to_var(states)
 
         value_means = []
@@ -66,7 +68,9 @@ def main():
 
     q_value_maxs = []
     all_q_values = []
-    actions = ptu.np_to_var(env.sample_actions(sample_size))
+    actions = ptu.np_to_var(np.vstack([
+        env.action_space.sample() for _ in range(sample_size)
+    ]))
     for tau in taus:
         expanded_tau = expand_np_to_var(tau, sample_size)
         q_values = ptu.get_numpy(qf(states, actions, goal_states, expanded_tau))

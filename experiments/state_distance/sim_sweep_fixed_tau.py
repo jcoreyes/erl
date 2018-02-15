@@ -49,7 +49,7 @@ def plot_performance(policy, env, nrolls):
                             env,
                             policy,
                             goal,
-                            tau=max_tau,
+                            init_tau=max_tau,
                             max_path_length=100 if horizon_fixed else max_tau + 1,
                             animated=False,
                             cycle_tau=True,
