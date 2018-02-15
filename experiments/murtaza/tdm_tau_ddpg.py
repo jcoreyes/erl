@@ -3,7 +3,12 @@ import random
 import railrl.misc.hyperparameter as hyp
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.envs.multitask.ant_env import GoalXYPosAnt
-from railrl.envs.wrappers import NormalizedBoxEnv
+from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
+from railrl.envs.multitask.her_half_cheetah import HalfCheetah
+from railrl.envs.multitask.pusher2d import MultitaskPusher2DEnv
+from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
+from railrl.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState
+from railrl.envs.wrappers import normalize_box, convert_gym_space
 from railrl.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
@@ -22,24 +27,53 @@ def experiment(variant):
     qf_class = variant['qf_class']
     policy_class = variant['policy_class']
     es_class = variant['es_class']
+    obs_normalizer = TorchFixedNormalizer(obs_dim)
+    goal_normalizer = TorchFixedNormalizer(env.goal_dim)
+    action_normalizer = TorchFixedNormalizer(action_dim)
+    tau_normalizer = TorchFixedNormalizer(1)
+
     es_params = dict(
         action_space=env.action_space,
         **variant['es_params']
     )
     es = es_class(**es_params)
+    # qf = MakeNormalizedTDMQF(qf_class(
+    #     observation_dim=obs_dim,
+    #     action_dim=action_dim,
+    #     goal_dim =env.goal_dim,
+    #     output_size=env.goal_dim if vectorized else 1,
+    #     **variant['qf_params']
+    #     ),
+    #     env,
+    #     obs_normalizer=obs_normalizer,
+    #     goal_normalizer=goal_normalizer,
+    #     action_normalizer=action_normalizer,
+    #     tau_normalizer=tau_normalizer,
+    # )
+    # policy = MakeNormalizedTDMPolicy(policy_class(
+    #         obs_dim=obs_dim,
+    #         action_dim=action_dim,
+    #         goal_dim=env.goal_dim,
+    #         **variant['policy_params']
+    #     ),
+    #     env,
+    #     obs_normalizer=obs_normalizer,
+    #     goal_normalizer=goal_normalizer,
+    #     tau_normalizer=tau_normalizer,
+    # )
     qf = qf_class(
         observation_dim=obs_dim,
         action_dim=action_dim,
         goal_dim =env.goal_dim,
         output_size=env.goal_dim if vectorized else 1,
         **variant['qf_params']
-    )
+        )
     policy = policy_class(
-        obs_dim=obs_dim,
-        action_dim=action_dim,
-        goal_dim=env.goal_dim,
-        **variant['policy_params']
-    )
+            obs_dim=obs_dim,
+            action_dim=action_dim,
+            goal_dim=env.goal_dim,
+            **variant['policy_params']
+        )
     replay_buffer = HerReplayBuffer(
         env=env,
         **variant['her_replay_buffer_params']
@@ -64,7 +98,7 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "tdm-AntXYPos-ddpg"
+    exp_prefix = "ddpg"
 
     num_epochs = 100
     num_steps_per_epoch = 1000
@@ -76,9 +110,6 @@ if __name__ == "__main__":
         (StructuredQF, StructuredQF, StandardTdmPolicy, '_standard'),
         (OneHotTauQF, OneHotTauQF, OneHotTauTdmPolicy, '_one_hot_tau'),
         (BinaryStringTauQF, BinaryStringTauQF, BinaryTauTdmPolicy, '_binary_string_tau'),
-        (TauVectorQF, TauVectorQF, TauVectorTdmPolicy, '_tau_vector'),
-        (TauVectorSeparateFirstLayerQF, TauVectorSeparateFirstLayerQF, TauVectorSeparateFirstLayerTdmPolicy,
-         '_separate_first_layer')
     ]
     variant = dict(
         algo_params=dict(
@@ -90,6 +121,7 @@ if __name__ == "__main__":
                 num_updates_per_env_step=1,
                 batch_size=128,
                 discount=1,
+                normalize_network_input=False,
             ),
             tdm_kwargs=dict(
                 sample_rollout_goals_from='environment',
@@ -128,7 +160,8 @@ if __name__ == "__main__":
     )
     search_space = {
         'env_class': [
-            GoalXYPosAnt,
+            MultitaskPusher3DEnv,
+            # GoalXVelHalfCheetah,
         ],
         'algo_params.base_kwargs.reward_scale': [
             1,
@@ -144,9 +177,9 @@ if __name__ == "__main__":
             'environment',
         ],
         'algo_params.base_kwargs.num_updates_per_env_step':[
-            1,
-            5,
-            10,
+            # 1,
+            # 5,
+            # 10,
             15,
             20,
             25,
@@ -164,6 +197,11 @@ if __name__ == "__main__":
             variant['qf_class']=qf_class
             variant['vf_class']=vf_class
             variant['policy_class']=policy_class
+            experiment_prefix = exp_prefix
+            if variant['env_class']==GoalXVelHalfCheetah:
+                experiment_prefix += '_HalfCheetah'
+            elif variant['env_class'] == MultitaskPusher3DEnv:
+                experiment_prefix += '_Pusher3D'
             for i in range(n_seeds):
                 seed = random.randint(0, 10000)
                 run_experiment(
@@ -171,6 +209,6 @@ if __name__ == "__main__":
                     seed=seed,
                     variant=variant,
                     exp_id=exp_id,
-                    exp_prefix=exp_prefix+exp,
+                    exp_prefix=experiment_prefix+exp,
                     mode=mode,
                 )

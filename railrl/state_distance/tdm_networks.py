@@ -8,6 +8,7 @@ from torch import nn as nn
 from torch.autograd import Variable
 from torch.nn import functional as F
 
+from railrl.policies.base import Policy
 from railrl.pythonplusplus import identity
 from railrl.state_distance.util import split_tau, extract_goals, split_flat_obs
 from railrl.torch import pytorch_util as ptu
@@ -68,6 +69,8 @@ class StructuredQF(Mlp):
             return - torch.abs(goals - self.last_fc(h))
         return - torch.abs(self.last_fc(h))
 
+    def normalize_tau(self, taus, tau_normalizer):
+        return tau_normalizer.normalize(taus)
 
 class OneHotTauQF(Mlp):
     """
@@ -127,6 +130,8 @@ class OneHotTauQF(Mlp):
             h = self.hidden_activation(fc(h))
         return - torch.abs(self.last_fc(h))
 
+    def normalize_tau(self, taus, tau_normalizer):
+        return taus
 
 class BinaryStringTauQF(Mlp):
     """
@@ -184,6 +189,8 @@ class BinaryStringTauQF(Mlp):
             h = self.hidden_activation(fc(h))
         return - torch.abs(self.last_fc(h))
 
+    def normalize_tau(self, taus, tau_normalizer):
+        return taus
 
 def make_binary_tensor(tensor, max_len, batch_size):
     t = tensor.data.numpy().astype(int).reshape(batch_size)
@@ -251,6 +258,8 @@ class TauVectorQF(Mlp):
             h = self.hidden_activation(fc(h))
         return - torch.abs(self.last_fc(h))
 
+    def normalize_tau(self, taus, tau_normalizer):
+        return tau_normalizer.normalize(taus)
 
 class SeparateFirstLayerMlp(PyTorchModule):
     def __init__(
@@ -339,6 +348,10 @@ class TauVectorSeparateFirstLayerQF(SeparateFirstLayerMlp):
         batch_size = h.size()[0]
         tau_vector = Variable(torch.zeros((batch_size, self.tau_vector_len)) + taus.data)
         return - torch.abs(super().forward(h, tau_vector))
+
+    def normalize_tau(self, taus, tau_normalizer):
+        return tau_normalizer.normalize(taus)
+
 class InternalGcmQf(FlattenMlp):
     """
     Parameterize QF as
@@ -622,6 +635,8 @@ class StandardTdmPolicy(TanhMlpPolicy):
             init_w=init_w,
             **kwargs
         )
+    def normalize_tau(self, taus, tau_normalizer):
+        return tau_normalizer.normalize(taus)
 
 class OneHotTauTdmPolicy(TanhMlpPolicy):
     def __init__(
@@ -667,6 +682,8 @@ class OneHotTauTdmPolicy(TanhMlpPolicy):
             h,
             return_preactivations=return_preactivations,
         )
+    def normalize_tau(self, taus, tau_normalizer):
+        return taus
 
 class BinaryTauTdmPolicy(TanhMlpPolicy):
     def __init__(
@@ -705,6 +722,8 @@ class BinaryTauTdmPolicy(TanhMlpPolicy):
             h,
             return_preactivations=return_preactivations
         )
+    def normalize_tau(self, taus, tau_normalizer):
+        return taus
 
 class TauVectorTdmPolicy(TanhMlpPolicy):
     def __init__(
@@ -748,7 +767,10 @@ class TauVectorTdmPolicy(TanhMlpPolicy):
             return_preactivations=return_preactivations
         )
 
-class TauVectorSeparateFirstLayerTdmPolicy(SeparateFirstLayerMlp):
+    def normalize_tau(self, taus, tau_normalizer):
+        return tau_normalizer.normalize(taus)
+
+class TauVectorSeparateFirstLayerTdmPolicy(SeparateFirstLayerMlp, Policy):
 
     def __init__(
             self,
@@ -804,6 +826,9 @@ class TauVectorSeparateFirstLayerTdmPolicy(SeparateFirstLayerMlp):
         else:
             return actions
 
+    def normalize_tau(self, taus, tau_normalizer):
+        return tau_normalizer.normalize(taus)
+
     def get_action(self, obs_np):
         actions = self.get_actions(obs_np[None])
         return actions[0, :], {}
@@ -814,44 +839,74 @@ class TauVectorSeparateFirstLayerTdmPolicy(SeparateFirstLayerMlp):
 class MakeNormalizedTDMQF(PyTorchModule):
     def __init__(self,
                  qf,
+                 env,
                  obs_normalizer: TorchFixedNormalizer = None,
                  action_normalizer: TorchFixedNormalizer = None,
+                 tau_normalizer:TorchFixedNormalizer=None,
+                 goal_normalizer:TorchFixedNormalizer=None,
             ):
         self.save_init_params(locals())
         super().__init__()
         self.obs_normalizer = obs_normalizer
         self.action_normalizer = action_normalizer
+        self.tau_normalizer = tau_normalizer
+        self.goal_normalizer = goal_normalizer
         self.qf = qf
+        self.goal_dim = env.goal_dim
+        self.observation_dim = env.observation_space.low.size
 
     def forward(self, flat_obs, actions=None, **kwargs):
-        observations, taus = split_tau(flat_obs)
+        observations, goals, taus = split_flat_obs(
+            flat_obs, self.observation_dim, self.goal_dim
+        )
         if self.obs_normalizer:
             observations = self.obs_normalizer.normalize(observations)
         if self.action_normalizer and actions is not None:
             actions = self.action_normalizer.normalize(actions)
+        if self.tau_normalizer:
+            taus = self.qf.normalize_tau(taus, self.tau_normlizer)
+        if self.goal_normalizer:
+            goals = self.goal_normalizer.normalize(goals)
         flat_obs = torch.cat((
             observations,
+            goals,
             taus
-        ))
+        ), dim=1)
         return self.qf.forward(flat_obs, actions=actions, **kwargs)
 
 class MakeNormalizedTDMPolicy(PyTorchModule):
     def __init__(self,
-                 qf,
+                 policy,
+                 env,
                  obs_normalizer: TorchFixedNormalizer = None,
-                 action_normalizer: TorchFixedNormalizer = None,
+                 tau_normalizer: TorchFixedNormalizer = None,
+                 goal_normalizer: TorchFixedNormalizer = None
             ):
         self.save_init_params(locals())
         super().__init__()
         self.obs_normalizer = obs_normalizer
-        self.qf = qf
+        self.tau_normalizer = tau_normalizer
+        self.goal_normalizer = goal_normalizer
+        self.policy = policy
+        self.goal_dim = env.goal_dim
+        self.observation_dim = env.observation_space.low.size
 
     def forward(self, flat_obs, **kwargs):
-        observations, taus = split_tau(flat_obs)
+        observations, goals, taus = split_flat_obs(
+            flat_obs, self.observation_dim, self.goal_dim
+        )
         if self.obs_normalizer:
             observations = self.obs_normalizer.normalize(observations)
+        if self.tau_normalizer:
+            taus = self.policy.normalize_tau(taus, self.tau_normlizer)
+        if self.goal_normalizer:
+            goals = self.goal_normalizer.normalize(goals)
         flat_obs = torch.cat((
             observations,
+            goals,
             taus
-        ))
-        return self.qf.forward(flat_obs, **kwargs)
+        ), dim=1)
+        return self.policy.forward(flat_obs, **kwargs)
+
+    def get_action(self, obs):
+        return self.policy.get_action(obs)

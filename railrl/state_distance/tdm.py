@@ -14,7 +14,7 @@ from railrl.state_distance.policies import UniversalPolicy
 from railrl.state_distance.exploration import MakeUniversal
 from railrl.state_distance.rollout_util import MultigoalSimplePathSampler, \
     multitask_rollout
-from railrl.state_distance.tdm_networks import TdmNormalizer
+from railrl.state_distance.tdm_networks import TdmNormalizer, MakeNormalizedTDMPolicy
 from railrl.state_distance.util import merge_into_flat_obs
 from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
 from railrl.torch.core import np_to_pytorch_batch
@@ -166,12 +166,48 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         self.max_tau = self.epoch_max_tau_schedule.get_value(epoch)
         super()._start_epoch(epoch)
 
-    def get_batch(self, training=True):
-        if self.replay_buffer_is_split:
-            replay_buffer = self.replay_buffer.get_replay_buffer(training)
-        else:
-            replay_buffer = self.replay_buffer
-        batch = replay_buffer.random_batch(self.batch_size)
+    def set_normalizers(self, pretrain_paths):
+        tau_mean, tau_std, goals_mean, goals_std = self.compute_normalization(pretrain_paths)
+        for network in self.networks:
+            if hasattr(network, 'tau_normalizer') and network.tau_normalizer is not None:
+                network.tau_normalizer.set_mean(tau_mean)
+                network.tau_normalizer.set_std(tau_std)
+                network.goal_normalizer.set_mean(goals_mean)
+                network.goal_normalizer.set_std(goals_std)
+        super().set_normalizers(pretrain_paths)
+
+    def compute_normalization(self, paths):
+        goals = np.vstack([
+            self._sample_goal_for_rollout()
+            for _ in range(
+                self.num_paths_for_normalization * self.max_path_length
+            )
+        ])
+        goals_mean = np.mean(goals, axis=0)
+        goals_std = np.mean(goals, axis=0)
+        import ipdb; ipdb.set_trace()
+        taus = np.vstack([path["taus"] for path in paths])
+        tau_mean = np.mean(taus, axis=0)
+        tau_std = np.std(taus, axis=0)
+        return tau_mean, tau_std, goals_mean, goals_std
+
+    def get_pretrain_paths(self):
+        paths = []
+        random_policy = RandomUniveralPolicy(self.env.action_space)
+        while len(paths) < self.num_paths_for_normalization:
+            goal = self._sample_goal_for_rollout()
+            path = multitask_rollout(
+                self.training_env,
+                random_policy,
+                goal=goal,
+                tau=0,
+                max_path_length=self.max_path_length,
+            )
+            paths.append(path)
+        return paths
+
+    def get_batch(self):
+        batch = self.replay_buffer.random_batch(self.batch_size)
 
         """
         Update the goal states/rewards

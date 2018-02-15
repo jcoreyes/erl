@@ -37,7 +37,7 @@ class TdmDdpg(TemporalDifferenceModel, DDPG):
         assert self.residual_gradient_weight == 0
 
     def _do_training(self):
-        batch = self.get_batch(training=True)
+        batch = self.get_batch()
         rewards = batch['rewards']
         terminals = batch['terminals']
         obs = batch['observations']
