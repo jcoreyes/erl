@@ -11,11 +11,9 @@ from railrl.misc.np_util import truncated_geometric
 from railrl.misc.ml_util import ConstantSchedule
 from railrl.policies.base import SerializablePolicy
 from railrl.state_distance.policies import UniversalPolicy
-from railrl.state_distance.exploration import MakeUniversal
 from railrl.state_distance.rollout_util import MultigoalSimplePathSampler, \
     multitask_rollout
 from railrl.state_distance.tdm_networks import TdmNormalizer
-from railrl.state_distance.util import merge_into_flat_obs
 from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
 from railrl.torch.core import np_to_pytorch_batch
 
@@ -128,7 +126,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         self.norm_order = norm_order
         self.square_distance = square_distance
         self._current_path_goal = None
-        self._rollout_tau = self.max_tau
+        self._rollout_tau = np.array([self.max_tau])
         self.truncated_geom_factor = float(truncated_geom_factor)
         self.goal_weights = goal_weights
         if self.goal_weights is not None:
@@ -139,9 +137,6 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         self.num_pretrain_paths = num_pretrain_paths
         self.normalize_distance = normalize_distance
 
-        self.policy = MakeUniversal(self.policy)
-        self.eval_policy = MakeUniversal(self.eval_policy)
-        self.exploration_policy = MakeUniversal(self.exploration_policy)
         self.eval_sampler = MultigoalSimplePathSampler(
             env=self.env,
             policy=self.eval_policy,
@@ -168,12 +163,8 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         self.max_tau = self.epoch_max_tau_schedule.get_value(epoch)
         super()._start_epoch(epoch)
 
-    def get_batch(self, training=True):
-        if self.replay_buffer_is_split:
-            replay_buffer = self.replay_buffer.get_replay_buffer(training)
-        else:
-            replay_buffer = self.replay_buffer
-        batch = replay_buffer.random_batch(self.batch_size)
+    def get_batch(self):
+        batch = self.replay_buffer.random_batch(self.batch_size)
 
         """
         Update the goal states/rewards
@@ -183,7 +174,9 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         actions = batch['actions']
         next_obs = batch['next_observations']
         goals = self._sample_goals_for_training(batch)
-        rewards = self._compute_scaled_rewards_np(batch, obs, actions, next_obs, goals)
+        rewards = self._compute_scaled_rewards_np(
+            batch, obs, actions, next_obs, goals
+        )
         terminals = batch['terminals']
 
         if self.tau_sample_strategy == 'all_valid':
@@ -214,23 +207,9 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         batch['terminals'] = terminals
         batch['actions'] = actions
         batch['num_steps_left'] = num_steps_left
-        batch['observations'] = merge_into_flat_obs(
-            obs=obs,
-            goals=goals,
-            num_steps_left=num_steps_left,
-        )
-        if self.finite_horizon:
-            batch['next_observations'] = merge_into_flat_obs(
-                obs=next_obs,
-                goals=goals,
-                num_steps_left=num_steps_left-1,
-            )
-        else:
-            batch['next_observations'] = merge_into_flat_obs(
-                obs=next_obs,
-                goals=goals,
-                num_steps_left=num_steps_left,
-            )
+        batch['goals'] = goals
+        batch['observations'] = obs
+        batch['next_observations'] = next_obs
 
         return np_to_pytorch_batch(batch)
 
@@ -280,13 +259,6 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
                 )
         return raw_neg_distances
 
-    @property
-    def train_buffer(self):
-        if self.replay_buffer_is_split:
-            return self.replay_buffer.get_replay_buffer(trainig=True)
-        else:
-            return self.replay_buffer
-
     def _sample_taus_for_training(self, batch):
         if self.finite_horizon:
             if self.tau_sample_strategy == 'uniform':
@@ -324,7 +296,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         elif self.sample_train_goals_from == 'environment':
             return self.env.sample_goals(self.batch_size)
         elif self.sample_train_goals_from == 'replay_buffer':
-            batch = self.train_buffer.random_batch(self.batch_size)
+            batch = self.replay_buffer.random_batch(self.batch_size)
             obs = batch['observations']
             return self.env.convert_obs_to_goals(obs)
         else:
@@ -336,9 +308,9 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         if self.sample_rollout_goals_from == 'environment':
             return self.env.sample_goal_for_rollout()
         elif self.sample_rollout_goals_from == 'replay_buffer':
-            if self.train_buffer.num_steps_can_sample() == 0:
+            if self.replay_buffer.num_steps_can_sample() == 0:
                 return np.zeros(self.env.goal_dim)
-            batch = self.train_buffer.random_batch(1)
+            batch = self.replay_buffer.random_batch(1)
             obs = batch['observations']
             goal = self.env.convert_obs_to_goals(obs)[0]
             return self.env.modify_goal_for_rollout(goal)
@@ -366,9 +338,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         self.exploration_policy.reset()
         self._current_path_goal = self._sample_goal_for_rollout()
         self.training_env.set_goal(self._current_path_goal)
-        self.exploration_policy.set_goal(self._current_path_goal)
-        self._rollout_tau = self.max_tau
-        self.exploration_policy.set_tau(self._rollout_tau)
+        self._rollout_tau = np.array([self.max_tau])
         return self.training_env.reset()
 
     def _handle_step(
@@ -389,14 +359,26 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             terminals=terminal,
             agent_infos=agent_info,
             env_infos=env_info,
-            num_steps_left=np.array([self._rollout_tau]),
+            num_steps_left=self._rollout_tau,
             goals=self._current_path_goal,
         )
         if self.cycle_taus_for_rollout:
             self._rollout_tau -= 1
-            if self._rollout_tau < 0:
-                self._rollout_tau = self.max_tau
-            self.exploration_policy.set_tau(self._rollout_tau)
+            if self._rollout_tau[0] < 0:
+                self._rollout_tau = np.array([self.max_tau])
+
+    def _get_action_and_info(self, observation):
+        """
+        Get an action to take in the environment.
+        :param observation:
+        :return:
+        """
+        self.exploration_policy.set_num_steps_total(self._n_env_steps_total)
+        return self.exploration_policy.get_action(
+            observation,
+            self._current_path_goal,
+            self._rollout_tau,
+        )
 
     def _handle_rollout_ending(self):
         self._n_rollouts_total += 1
@@ -420,7 +402,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         paths = []
         random_policy = RandomUniveralPolicy(self.env.action_space)
         for _ in range(self.num_pretrain_paths):
-            goal = np.zeros(self.env.goal_dim)
+            goal = self.env.sample_goal_for_rollout()
             path = multitask_rollout(
                 self.training_env,
                 random_policy,
@@ -475,5 +457,5 @@ class RandomUniveralPolicy(UniversalPolicy, SerializablePolicy):
         super().__init__()
         self.action_space = action_space
 
-    def get_action(self, obs):
+    def get_action(self, *args, **kwargs):
         return self.action_space.sample(), {}

@@ -10,7 +10,8 @@ from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.state_distance.tdm_networks import StructuredQF, OneHotTauQF
+from railrl.state_distance.experimental_tdm_networks import StructuredQF, \
+    OneHotTauQF
 from railrl.state_distance.tdm_n3dpg import TdmN3dpg
 from railrl.torch.modules import HuberLoss
 from railrl.torch.networks import MlpPolicy, FlattenMlp

@@ -49,7 +49,7 @@ class ExpectedSAC(SoftActorCritic):
         self.expected_log_pi_estim_strategy = expected_log_pi_estim_strategy
 
     def _do_training(self):
-        batch = self.get_batch(training=True)
+        batch = self.get_batch()
         rewards = batch['rewards']
         terminals = batch['terminals']
         obs = batch['observations']

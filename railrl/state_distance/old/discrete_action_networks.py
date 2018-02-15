@@ -31,8 +31,8 @@ class VectorizedDiscreteQFunction(Mlp):
         self.goal_dim = goal_dim
         self.action_dim = action_dim
 
-    def forward(self, *inputs):
-        h = torch.cat(inputs, dim=1)
+    def forward(self, observations, goals, num_steps_left):
+        h = torch.cat((observations, goals, num_steps_left), dim=1)
         batch_size = h.size()[0]
         for i, fc in enumerate(self.fcs):
             h = self.hidden_activation(fc(h))
@@ -50,12 +50,16 @@ class ArgmaxDiscreteTdmPolicy(PyTorchModule, SerializablePolicy):
             goal_dim_weights = np.expand_dims(np.array(goal_dim_weights), 0)
         self.goal_dim_weights = goal_dim_weights
 
-    def get_action(self, obs):
-        obs = np.expand_dims(obs, axis=0)
-        obs = ptu.np_to_var(obs, requires_grad=False).float()
-        q_values = self.qf(obs).squeeze(0)
+    def get_action(self, ob, goal, num_steps_left):
+        # obs = np.expand_dims(obs, axis=0)
+        # obs = ptu.np_to_var(obs, requires_grad=False).float()
+        # q_values = self.qf(obs).squeeze(0)
         # Take the action that has the best sum across all weights
-        q_values_np = ptu.get_numpy(q_values)
+        q_values_np = self.qf.eval_np(
+            ob[None],
+            goal[None],
+            num_steps_left[None],
+        )
         if self.goal_dim_weights is not None:
             q_values_np = q_values_np * self.goal_dim_weights
         q_values_np = q_values_np.sum(axis=1)

@@ -41,7 +41,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             normalize_env=True,
             parallel_step_to_train_ratio=20,
             replay_buffer=None,
-            fraction_paths_in_train=1.,
     ):
         """
         Base class for RL Algorithms
@@ -70,11 +69,9 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         :param normalize_env:
         :param parallel_step_to_train_ratio:
         :param replay_buffer:
-        :param fraction_paths_in_train:
         """
         assert collection_mode in ['online', 'online-parallel', 'offline',
                                    'batch']
-        assert 0. <= fraction_paths_in_train <= 1.
         if collection_mode == 'batch':
             assert num_updates_per_epoch is not None
         self.training_env = training_env or pickle.loads(pickle.dumps(env))
@@ -113,29 +110,12 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.obs_space = env.observation_space
         self.env = env
         if replay_buffer is None:
-            if fraction_paths_in_train == 1.:
-                self.replay_buffer = EnvReplayBuffer(
-                    self.replay_buffer_size,
-                    self.env,
-                )
-            else:
-                self.replay_buffer = SplitReplayBuffer(
-                    EnvReplayBuffer(
-                        replay_buffer_size,
-                        env,
-                    ),
-                    EnvReplayBuffer(
-                        replay_buffer_size,
-                        env,
-                    ),
-                    fraction_paths_in_train=fraction_paths_in_train,
-                )
+            self.replay_buffer = EnvReplayBuffer(
+                self.replay_buffer_size,
+                self.env,
+            )
         else:
             self.replay_buffer = replay_buffer
-        self.replay_buffer_is_split = isinstance(
-            self.replay_buffer,
-            SplitReplayBuffer
-        )
 
         self._n_env_steps_total = 0
         self._n_train_steps_total = 0
@@ -181,9 +161,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             ))
 
     def pretrain(self):
-        """
-        Do anything before the main training phase.
-        """
         pass
 
     def train_online(self, start_epoch=0):

@@ -9,7 +9,7 @@ from railrl.envs.multitask.cartpole_env import CartPole, CartPoleAngleOnly
 from railrl.envs.multitask.discrete_reacher_2d import DiscreteReacher2D
 from railrl.envs.multitask.mountain_car_env import MountainCar
 from railrl.launchers.launcher_util import run_experiment
-from railrl.policies.argmax import ArgmaxDiscretePolicy
+from railrl.torch.dqn.policy import ArgmaxDiscretePolicy
 from railrl.state_distance.tdm_dqn import TdmDqn
 from railrl.state_distance.old.discrete_action_networks import \
     VectorizedDiscreteQFunction, ArgmaxDiscreteTdmPolicy
@@ -26,17 +26,16 @@ def experiment(variant):
             goal_dim=env.goal_dim,
             **variant['qf_params']
         )
-        policy = ArgmaxDiscreteTdmPolicy(
-            qf,
-            **variant['policy_params']
-        )
     else:
         qf = FlattenMlp(
-            input_size=int(np.prod(env.observation_space.shape)) + env.goal_dim + 1,
+            input_size=env.observation_space.low.size + env.goal_dim + 1,
             output_size=env.action_space.n,
             **variant['qf_params']
         )
-        policy = ArgmaxDiscretePolicy(qf)
+    policy = ArgmaxDiscreteTdmPolicy(
+        qf,
+        **variant['policy_params']
+    )
     replay_buffer = HerReplayBuffer(
         env=env,
         **variant['her_replay_buffer_params']
@@ -54,7 +53,7 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
-    n_seeds = 3
+    n_seeds = 1
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
@@ -62,7 +61,7 @@ if __name__ == "__main__":
                 num_epochs=50,
                 num_steps_per_epoch=1000,
                 num_steps_per_eval=1000,
-                num_updates_per_env_step=5,
+                num_updates_per_env_step=1,
                 batch_size=128,
                 max_path_length=200,
                 discount=0.99,
@@ -119,10 +118,10 @@ if __name__ == "__main__":
                 seed=seed,
                 variant=variant,
                 exp_id=exp_id,
-                exp_prefix="dqn-tdm-fixed-goals-various-tasks-check-cycle-tau"
-                           "-short",
-                mode='ec2',
-                # exp_prefix="dev-dqn-tdm-launch",
-                # mode='local',
+                # exp_prefix="dqn-tdm-fixed-goals-various-tasks-check-cycle-tau"
+                #            "-short",
+                # mode='ec2',
+                exp_prefix="dev-dqn-tdm-launch",
+                mode='local',
                 # use_gpu=True,
             )

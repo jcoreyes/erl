@@ -31,7 +31,7 @@ class TdmSac(TemporalDifferenceModel, SoftActorCritic):
             **sac_kwargs,
             **base_kwargs
         )
-        super().__init__(**tdm_kwargs)
+        TemporalDifferenceModel.__init__(self, **tdm_kwargs)
         action_space_diff = (
             self.env.action_space.high - self.env.action_space.low
         )
@@ -46,24 +46,43 @@ class TdmSac(TemporalDifferenceModel, SoftActorCritic):
         self.give_terminal_reward = give_terminal_reward
 
     def _do_training(self):
-        batch = self.get_batch(training=True)
+        batch = self.get_batch()
         rewards = batch['rewards']
         terminals = batch['terminals']
         obs = batch['observations']
         actions = batch['actions']
         next_obs = batch['next_observations']
+        goals = batch['goals']
         num_steps_left = batch['num_steps_left']
 
-        q_pred = self.qf(obs, actions)
-        v_pred = self.vf(obs)
+        q_pred = self.qf(
+            observations=obs,
+            actions=actions,
+            goals=goals,
+            num_steps_left=num_steps_left,
+        )
+        v_pred = self.vf(
+            observations=obs,
+            goals=goals,
+            num_steps_left=num_steps_left,
+        )
         # Check policy accounts for squashing functions like tanh correctly!
-        policy_outputs = self.policy(obs, return_log_prob=True)
+        policy_outputs = self.policy(
+            observations=obs,
+            goals=goals,
+            num_steps_left=num_steps_left,
+            return_log_prob=True,
+        )
         new_actions, policy_mean, policy_log_std, log_pi = policy_outputs[:4]
 
         """
         QF Loss
         """
-        target_v_values = self.target_vf(next_obs)
+        target_v_values = self.target_vf(
+            next_obs,
+            goals=goals,
+            num_steps_left=num_steps_left-1,
+        )
         q_target = rewards + (1. - terminals) * self.discount * target_v_values
         if self.give_terminal_reward:
             terminal_rewards = self.terminal_bonus * num_steps_left
@@ -73,7 +92,12 @@ class TdmSac(TemporalDifferenceModel, SoftActorCritic):
         """
         VF Loss
         """
-        q_new_actions = self.qf(obs, new_actions)
+        q_new_actions = self.qf(
+            observations=obs,
+            actions=new_actions,
+            goals=goals,
+            num_steps_left=num_steps_left,
+        )
         v_target = q_new_actions - log_pi
         vf_loss = self.vf_criterion(v_pred, v_target.detach())
 

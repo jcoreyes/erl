@@ -1,96 +1,50 @@
-import random
-
-import numpy as np
-from torch.nn import functional as F
-
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
 from railrl.envs.multitask.reacher_7dof import (
-    # Reacher7DofGoalStateEverything,
-    Reacher7DofFullGoal, Reacher7DofXyzGoalState)
+    Reacher7DofXyzGoalState
+)
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
-from railrl.state_distance.tdm_networks import TdmQf, DebugQf, DebugQfToModel
-from railrl.torch.mpc.collocation.collocation_mpc_controller import LBfgsBCMC, \
-    TdmToImplicitModel, TdmLBfgsBCMC
-from railrl.torch.mpc.controller import MPCController, DebugQfToMPCController
-from railrl.torch.sac.policies import TanhGaussianPolicy
+from railrl.state_distance.tdm_networks import (
+    TdmNormalizer,
+    TdmQf,
+    StochasticTdmPolicy,
+    TdmVf,
+)
 from railrl.state_distance.tdm_sac import TdmSac
-from railrl.torch.networks import FlattenMlp
 
 
 def experiment(variant):
-    env = NormalizedBoxEnv(variant['env_class']())
-
-    obs_dim = int(np.prod(env.observation_space.low.shape))
-    action_dim = int(np.prod(env.action_space.low.shape))
     vectorized = variant['sac_tdm_kwargs']['tdm_kwargs']['vectorized']
-    # qf = FlattenMlp(
-    #     input_size=obs_dim + action_dim + env.goal_dim + 1,
-    #     output_size=env.goal_dim if vectorized else 1,
-    #     **variant['qf_params']
-    # )
-    qf = DebugQf(
+    env = NormalizedBoxEnv(variant['env_class'](**variant['env_kwargs']))
+    max_tau = variant['sac_tdm_kwargs']['tdm_kwargs']['max_tau']
+    tdm_normalizer = TdmNormalizer(
         env,
+        vectorized,
+        max_tau=max_tau,
+        **variant['tdm_normalizer_kwargs']
+    )
+    qf = TdmQf(
+        env=env,
         vectorized=vectorized,
-        **variant['qf_params']
+        tdm_normalizer=tdm_normalizer,
+        **variant['qf_kwargs']
     )
-    debug_mpc_controller = DebugQfToMPCController(
-        env,
-        qf,
-        num_simulated_paths=512,
-        mpc_horizon=5,
+    vf = TdmVf(
+        env=env,
+        vectorized=vectorized,
+        tdm_normalizer=tdm_normalizer,
+        **variant['vf_kwargs']
     )
-    # #nofsgiven
-    implicit_model = TdmToImplicitModel(
-        env,
-        qf,
-        tau=0,
-    )
-    lbfgs_mpc_controller = TdmLBfgsBCMC(
-        implicit_model,
-        env,
-        goal_slice=slice(0, 7),
-        multitask_goal_slice=slice(0, 7),
-        lagrange_multipler=10,
-        planning_horizon=3,
-        solver_params={
-            'factr': 1e9,
-        },
-    )
-    explore_with = variant['explore_with']
-    if explore_with == 'DebugQfToMPCController':
-        variant['sac_tdm_kwargs']['base_kwargs']['exploration_policy'] = (
-            debug_mpc_controller
-        )
-    elif explore_with =='TdmLBfgsBCMC':
-        variant['sac_tdm_kwargs']['base_kwargs']['exploration_policy'] = (
-            lbfgs_mpc_controller
-        )
-    eval_with = variant['eval_with']
-    if eval_with == 'DebugQfToMPCController':
-        variant['sac_tdm_kwargs']['base_kwargs']['eval_policy'] = (
-            debug_mpc_controller
-        )
-    elif eval_with =='TdmLBfgsBCMC':
-        variant['sac_tdm_kwargs']['base_kwargs']['eval_policy'] = (
-            lbfgs_mpc_controller
-        )
-    vf = FlattenMlp(
-        input_size=obs_dim + env.goal_dim + 1,
-        output_size=env.goal_dim if vectorized else 1,
-        **variant['vf_params']
-    )
-    policy = TanhGaussianPolicy(
-        obs_dim=obs_dim + env.goal_dim + 1,
-        action_dim=action_dim,
-        **variant['policy_params']
+    policy = StochasticTdmPolicy(
+        env=env,
+        tdm_normalizer=tdm_normalizer,
+        **variant['policy_kwargs']
     )
     replay_buffer = HerReplayBuffer(
         env=env,
-        **variant['her_replay_buffer_params']
+        **variant['her_replay_buffer_kwargs']
     )
     algorithm = TdmSac(
         env=env,
@@ -110,9 +64,9 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-sac-tdm-launch"
 
-    n_seeds = 3
-    mode = "ec2"
-    exp_prefix = "local-reacher7dof-full-sweep-eval-with-lbfgs-save"
+    # n_seeds = 1
+    # mode = "ec2"
+    # exp_prefix = "reacher7dof-xyz-refactor"
 
     num_epochs = 50
     num_steps_per_epoch = 100
@@ -147,28 +101,35 @@ if __name__ == "__main__":
                 qf_lr=3E-4,
                 vf_lr=3E-4,
             ),
+            give_terminal_reward=False,
         ),
-        her_replay_buffer_params=dict(
+        her_replay_buffer_kwargs=dict(
             max_size=int(1E6),
             num_goals_to_sample=4,
         ),
-        qf_params=dict(
+        qf_kwargs=dict(
+            hidden_sizes=[300, 300],
+            norm_order=2,
+        ),
+        vf_kwargs=dict(
             hidden_sizes=[300, 300],
         ),
-        vf_params=dict(
+        policy_kwargs=dict(
             hidden_sizes=[300, 300],
         ),
-        policy_params=dict(
-            hidden_sizes=[300, 300],
+        tdm_normalizer_kwargs=dict(
+            normalize_tau=False,
+            log_tau=False,
         ),
+        env_kwargs=dict(),
         version="SAC-TDM",
         algorithm="SAC-TDM",
     )
     search_space = {
         'env_class': [
             # GoalXVelHalfCheetah,
-            # Reacher7DofXyzGoalState,
-            Reacher7DofFullGoal,
+            Reacher7DofXyzGoalState,
+            # Reacher7DofFullGoal,
             # MultitaskPoint2DEnv,
             # GoalXYPosAnt,
             # Walker2DTargetXPos,
@@ -182,7 +143,7 @@ if __name__ == "__main__":
             # 1000,
             # 10000,
         ],
-        'qf_params.hidden_activation': [
+        'qf_kwargs.hidden_activation': [
             ptu.softplus,
         ],
         'qf_params.predict_delta': [
@@ -190,7 +151,11 @@ if __name__ == "__main__":
             # False,
         ],
         'sac_tdm_kwargs.tdm_kwargs.vectorized': [
-            # False,
+            False,
+            True,
+        ],
+        'sac_tdm_kwargs.give_terminal_reward': [
+            False,
             True,
         ],
         'sac_tdm_kwargs.tdm_kwargs.terminate_when_goal_reached': [
@@ -216,8 +181,8 @@ if __name__ == "__main__":
         ],
         'sac_tdm_kwargs.tdm_kwargs.max_tau': [
             0,
-            # 1,
-            # 10,
+            1,
+            10,
             # 99,
             # 49,
             # 15,

@@ -127,7 +127,7 @@ class DDPG(TorchRLAlgorithm):
         self.discount = self.epoch_discount_schedule.get_value(epoch)
 
     def _do_training(self):
-        batch = self.get_batch(training=True)
+        batch = self.get_batch()
         rewards = batch['rewards']
         terminals = batch['terminals']
         obs = batch['observations']
@@ -320,6 +320,7 @@ class DDPG(TorchRLAlgorithm):
         while len(pretrain_paths) < self.num_paths_for_normalization:
             path = rollout(self.env, random_policy, self.max_path_length)
             pretrain_paths.append(path)
+
         ob_mean, ob_std, ac_mean, ac_std = (
             compute_normalization(pretrain_paths)
         )
