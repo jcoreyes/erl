@@ -5,6 +5,10 @@ from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
+from railrl.state_distance.experimental_policies import \
+    StandardTanhGaussianPolicy, OneHotTauTanhGaussianPolicy, \
+    BinaryTauTanhGaussianPolicy, TauVectorTanhGaussianPolicy, \
+    TauVectorSeparateFirstLayerTanhGaussianPolicy
 from railrl.torch.sac.policies import *
 from railrl.state_distance.experimental_tdm_networks import OneHotTauQF, \
     BinaryStringTauQF, TauVectorQF, TauVectorSeparateFirstLayerQF
