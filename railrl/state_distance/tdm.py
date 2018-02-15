@@ -163,12 +163,8 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         self.max_tau = self.epoch_max_tau_schedule.get_value(epoch)
         super()._start_epoch(epoch)
 
-    def get_batch(self, training=True):
-        if self.replay_buffer_is_split:
-            replay_buffer = self.replay_buffer.get_replay_buffer(training)
-        else:
-            replay_buffer = self.replay_buffer
-        batch = replay_buffer.random_batch(self.batch_size)
+    def get_batch(self):
+        batch = self.replay_buffer.random_batch(self.batch_size)
 
         """
         Update the goal states/rewards
@@ -263,13 +259,6 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
                 )
         return raw_neg_distances
 
-    @property
-    def train_buffer(self):
-        if self.replay_buffer_is_split:
-            return self.replay_buffer.get_replay_buffer(trainig=True)
-        else:
-            return self.replay_buffer
-
     def _sample_taus_for_training(self, batch):
         if self.finite_horizon:
             if self.tau_sample_strategy == 'uniform':
@@ -307,7 +296,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         elif self.sample_train_goals_from == 'environment':
             return self.env.sample_goals(self.batch_size)
         elif self.sample_train_goals_from == 'replay_buffer':
-            batch = self.train_buffer.random_batch(self.batch_size)
+            batch = self.replay_buffer.random_batch(self.batch_size)
             obs = batch['observations']
             return self.env.convert_obs_to_goals(obs)
         else:
@@ -319,9 +308,9 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         if self.sample_rollout_goals_from == 'environment':
             return self.env.sample_goal_for_rollout()
         elif self.sample_rollout_goals_from == 'replay_buffer':
-            if self.train_buffer.num_steps_can_sample() == 0:
+            if self.replay_buffer.num_steps_can_sample() == 0:
                 return np.zeros(self.env.goal_dim)
-            batch = self.train_buffer.random_batch(1)
+            batch = self.replay_buffer.random_batch(1)
             obs = batch['observations']
             goal = self.env.convert_obs_to_goals(obs)[0]
             return self.env.modify_goal_for_rollout(goal)
