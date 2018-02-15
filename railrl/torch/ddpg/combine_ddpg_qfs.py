@@ -81,7 +81,7 @@ class DdpgQfCombiner(object):
         self.qf1.cuda()
         self.qf2.cuda()
 
-    def get_batch(self)
+    def get_batch(self):
         sample_size = self.batch_size // 2
         batch1 = self.replay_buffer1().random_batch(sample_size)
         batch2 = self.replay_buffer2().random_batch(sample_size)
