@@ -10,7 +10,7 @@ from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.policies.argmax import ArgmaxDiscretePolicy
+from railrl.torch.dqn.policy import ArgmaxDiscretePolicy
 from railrl.state_distance.old.discrete_action_networks import \
     VectorizedDiscreteQFunction, ArgmaxDiscreteTdmPolicy
 from railrl.state_distance.tdm_ddpg import TdmDdpg
