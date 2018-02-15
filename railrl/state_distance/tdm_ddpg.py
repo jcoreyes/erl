@@ -37,7 +37,7 @@ class TdmDdpg(TemporalDifferenceModel, DDPG):
         assert self.residual_gradient_weight == 0
 
     def _do_training(self):
-        batch = self.get_batch(training=True)
+        batch = self.get_batch()
         rewards = batch['rewards']
         terminals = batch['terminals']
         obs = batch['observations']
@@ -135,12 +135,12 @@ class TdmDdpg(TemporalDifferenceModel, DDPG):
     def evaluate(self, epoch):
         DDPG.evaluate(self, epoch)
 
-    # def pretrain(self):
-    #     super().pretrain()
-    #     if self.qf.tdm_normalizer is not None:
-    #         self.target_qf.tdm_normalizer.copy_stats(
-    #             self.qf.tdm_normalizer
-    #         )
-    #         self.target_policy.tdm_normalizer.copy_stats(
-    #             self.qf.tdm_normalizer
-    #         )
+    def pretrain(self):
+        super().pretrain()
+        if self.qf.tdm_normalizer is not None:
+            self.target_qf.tdm_normalizer.copy_stats(
+                self.qf.tdm_normalizer
+            )
+            self.target_policy.tdm_normalizer.copy_stats(
+                self.qf.tdm_normalizer
+            )

@@ -29,7 +29,7 @@ class TdmDqn(TemporalDifferenceModel, DQN):
     def _do_training(self):
         if not self.vectorized:
             return DQN._do_training(self)
-        batch = self.get_batch(training=True)
+        batch = self.get_batch()
         rewards = batch['rewards']
         terminals = batch['terminals']
         obs = batch['observations']

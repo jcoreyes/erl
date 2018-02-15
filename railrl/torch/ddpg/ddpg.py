@@ -127,7 +127,7 @@ class DDPG(TorchRLAlgorithm):
         self.discount = self.epoch_discount_schedule.get_value(epoch)
 
     def _do_training(self):
-        batch = self.get_batch(training=True)
+        batch = self.get_batch()
         rewards = batch['rewards']
         terminals = batch['terminals']
         obs = batch['observations']
@@ -315,26 +315,25 @@ class DDPG(TorchRLAlgorithm):
         ):
             return
 
-    def get_pretrain_paths(self):
         pretrain_paths = []
         random_policy = RandomPolicy(self.env.action_space)
         while len(pretrain_paths) < self.num_paths_for_normalization:
             path = rollout(self.env, random_policy, self.max_path_length)
             pretrain_paths.append(path)
-        return pretrain_paths
 
-    def set_normalizers(self, pretrain_paths):
         ob_mean, ob_std, ac_mean, ac_std = (
             compute_normalization(pretrain_paths)
         )
-        for network in self.networks:
-            if hasattr(network, 'obs_normalizer') and network.obs_normalizer is not None:
-                network.obs_normalizer.set_mean(ob_mean)
-                network.obs_normalizer.set_std(ob_std)
-            if hasattr(network, 'action_normalizer') and network.action_normalizer is not None:
-                network.action_normalizer.set_mean(ob_mean)
-                network.action_normalizer.set_std(ob_std)
-
+        if self.obs_normalizer is not None:
+            self.obs_normalizer.set_mean(ob_mean)
+            self.obs_normalizer.set_std(ob_std)
+            self.target_qf.obs_normalizer = self.obs_normalizer
+            self.target_policy.obs_normalizer = self.obs_normalizer
+        if self.action_normalizer is not None:
+            self.action_normalizer.set_mean(ac_mean)
+            self.action_normalizer.set_std(ac_std)
+            self.target_qf.action_normalizer = self.action_normalizer
+            self.target_policy.action_normalizer = self.action_normalizer
 
 
 def compute_normalization(paths):

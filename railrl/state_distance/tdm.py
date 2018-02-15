@@ -134,10 +134,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             self.goal_weights = np.array(self.goal_weights)
             assert self.goal_weights.size == self.env.goal_dim
         self.tdm_normalizer = tdm_normalizer
-<<<<<<< HEAD
-=======
         self.num_pretrain_paths = num_pretrain_paths
->>>>>>> dev
         self.normalize_distance = normalize_distance
 
         self.policy = MakeUniversal(self.policy)
@@ -209,12 +206,8 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             paths.append(path)
         return paths
 
-    def get_batch(self, training=True):
-        if self.replay_buffer_is_split:
-            replay_buffer = self.replay_buffer.get_replay_buffer(training)
-        else:
-            replay_buffer = self.replay_buffer
-        batch = replay_buffer.random_batch(self.batch_size)
+    def get_batch(self):
+        batch = self.replay_buffer.random_batch(self.batch_size)
 
         """
         Update the goal states/rewards
@@ -444,55 +437,6 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         self._n_rollouts_total += 1
         self.replay_buffer.add_path(path)
 
-<<<<<<< HEAD
-    # def pretrain(self):
-    #     if self.num_paths_for_normalization == 0:
-    #         return
-    #
-    #     paths = []
-    #     random_policy = RandomUniveralPolicy(self.env.action_space)
-    #     while len(paths) < self.num_paths_for_normalization:
-    #         goal = self._sample_goal_for_rollout()
-    #         path = multitask_rollout(
-    #             self.training_env,
-    #             random_policy,
-    #             goal=goal,
-    #             tau=0,
-    #             max_path_length=self.max_path_length,
-    #         )
-    #         paths.append(path)
-    #
-    #     goals = np.vstack([
-    #         self._sample_goal_for_rollout()
-    #         for _ in range(
-    #             self.num_paths_for_normalization * self.max_path_length
-    #         )
-    #     ])
-    #     obs = np.vstack([path["observations"] for path in paths])
-    #     next_obs = np.vstack([path["next_observations"] for path in paths])
-    #     actions = np.vstack([path["actions"] for path in paths])
-    #     neg_distances = self._compute_raw_neg_distances(next_obs, goals)
-    #
-    #     ob_mean = np.mean(obs, axis=0)
-    #     ob_std = np.std(obs, axis=0)
-    #     ac_mean = np.mean(actions, axis=0)
-    #     ac_std = np.std(actions, axis=0)
-    #     goal_mean = np.mean(goals, axis=0)
-    #     goal_std = np.std(goals, axis=0)
-    #     distance_mean = np.mean(neg_distances, axis=0)
-    #     distance_std = np.std(neg_distances, axis=0)
-    #
-    #     if self.tdm_normalizer is not None:
-    #         self.tdm_normalizer.obs_normalizer.set_mean(ob_mean)
-    #         self.tdm_normalizer.obs_normalizer.set_std(ob_std)
-    #         self.tdm_normalizer.action_normalizer.set_mean(ac_mean)
-    #         self.tdm_normalizer.action_normalizer.set_std(ac_std)
-    #         self.tdm_normalizer.goal_normalizer.set_mean(goal_mean)
-    #         self.tdm_normalizer.goal_normalizer.set_std(goal_std)
-    #         if self.normalize_distance:
-    #             self.tdm_normalizer.distance_normalizer.set_mean(distance_mean)
-    #             self.tdm_normalizer.distance_normalizer.set_std(distance_std)
-=======
     def pretrain(self):
         if (
                 self.num_pretrain_paths == 0 and
@@ -547,7 +491,6 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             if self.normalize_distance:
                 self.tdm_normalizer.distance_normalizer.set_mean(distance_mean)
                 self.tdm_normalizer.distance_normalizer.set_std(distance_std)
->>>>>>> dev
 
 
 class RandomUniveralPolicy(UniversalPolicy, SerializablePolicy):

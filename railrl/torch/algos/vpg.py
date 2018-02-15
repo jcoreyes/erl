@@ -59,10 +59,9 @@ class VPG(TorchRLAlgorithm):
 
     def _start_epoch(self, epoch):
         super()._start_epoch(epoch)
-        self.discount = self.epoch_discount_schedule.get_value(epoch)
         self.replay_buffer.empty_buffer()
 
-    def get_batch(self, training=True):
+    def get_batch(self):
         '''
         Should return everything in the replay buffer and empty it out
         :param training:
@@ -72,7 +71,7 @@ class VPG(TorchRLAlgorithm):
         return np_to_pytorch_batch(batch)
 
     def _do_training(self):
-        batch = self.get_batch(training=True)
+        batch = self.get_batch()
         obs = batch['observations']
         actions = batch['actions']
         returns = batch['returns']
