@@ -22,6 +22,12 @@ class UniversalPolicy(metaclass=abc.ABCMeta):
     def reset(self):
         pass
 
+    def get_param_values(self):
+        return None
+
+    def set_param_values(self, param_values):
+        return
+
 
 class SampleBasedUniversalPolicy(
     UniversalPolicy, ExplorationPolicy, metaclass=abc.ABCMeta

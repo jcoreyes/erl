@@ -622,3 +622,58 @@ def make_binary_tensor(tensor, max_len, batch_size):
     binary  = binary.float()
     binary = binary.view(batch_size, max_len)
     return binary
+
+
+class DebugQf(FlattenMlp):
+    def __init__(
+            self,
+            env,
+            vectorized,
+            predict_delta=True,
+            **kwargs
+    ):
+        self.save_init_params(locals())
+        self.observation_dim = env.observation_space.low.size
+        self.action_dim = env.action_space.low.size
+        self.goal_dim = env.goal_dim
+        super().__init__(
+            input_size=(
+                    self.observation_dim + self.action_dim
+            ),
+            output_size=self.goal_dim,
+            **kwargs
+        )
+        self.env = env
+        self.vectorized = vectorized
+        self.predict_delta = predict_delta
+        self.tdm_normalizer = None
+
+    def forward(
+            self,
+            observations,
+            actions,
+            goals,
+            num_steps_left,
+            return_internal_prediction=False,
+    ):
+        if self.tdm_normalizer is not None:
+            observations, _, goals, num_steps_left = (
+                self.tdm_normalizer.normalize_all(
+                    observations, None, goals, num_steps_left
+                )
+            )
+
+        deltas = super().forward(observations, actions)
+        if return_internal_prediction:
+            return deltas
+        if self.predict_delta:
+            features = self.env.convert_obs_to_goals(observations)
+            next_features_predicted = deltas + features
+        else:
+            next_features_predicted = deltas
+        diff = next_features_predicted - goals
+        if self.vectorized:
+            output = -diff**2
+        else:
+            output = -(diff**2).sum(1, keepdim=True)
+        return output

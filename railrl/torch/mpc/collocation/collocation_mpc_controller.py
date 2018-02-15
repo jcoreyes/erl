@@ -3,9 +3,7 @@ import torch
 from scipy import optimize
 from torch import optim, nn as nn
 
-from railrl.policies.base import ExplorationPolicy
 from railrl.state_distance.policies import UniversalPolicy
-from railrl.state_distance.util import split_flat_obs, merge_into_flat_obs
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.core import PyTorchModule
 
@@ -513,11 +511,11 @@ class TdmLBfgsBCMC(UniversalPolicy):
             planning_horizon=1,
             lagrange_multipler=1,
             warm_start=False,
-            solver_params=None,
+            solver_kwargs=None,
     ):
         super().__init__()
-        if solver_params is None:
-            solver_params = {}
+        if solver_kwargs is None:
+            solver_kwargs = {}
         self.implicit_model = implicit_model
         self.env = env
         self.goal_slice = goal_slice
@@ -528,7 +526,7 @@ class TdmLBfgsBCMC(UniversalPolicy):
         self.planning_horizon = planning_horizon
         self.lagrange_multipler = lagrange_multipler
         self.warm_start = warm_start
-        self.solver_params = solver_params
+        self.solver_kwargs = solver_kwargs
 
         self.last_solution = None
         self.lower_bounds = np.hstack((
@@ -577,7 +575,7 @@ class TdmLBfgsBCMC(UniversalPolicy):
             state = next_state
         return loss
 
-    def _cost_function(self, x, observation, goal, order):
+    def cost_function(self, x, observation, goal):
         x = ptu.np_to_var(x, requires_grad=True)
         goal = ptu.np_to_var(goal)
         loss = (
@@ -585,30 +583,15 @@ class TdmLBfgsBCMC(UniversalPolicy):
                 * self._feasibility_cost_function(x, observation)
                 + self._env_cost_function(x, goal)
         )
-        if order == 0:
-            return ptu.get_numpy(loss)[0]
-        elif order == 1:
-            loss.squeeze(0).backward()
-            return ptu.get_numpy(x.grad)
-
-    def cost_function(self, x, observation, goal):
-        return self._cost_function(x, observation, goal, order=0).astype(np.float64)
-
-    def cost_jacobian(self, x, observation, goal):
-        return self._cost_function(x, observation, goal, order=1).astype(np.float64)
+        loss_np = ptu.get_numpy(loss)[0].astype(np.float64)
+        loss.squeeze(0).backward()
+        gradient_np = ptu.get_numpy(x.grad).astype(np.float64)
+        return loss_np, gradient_np
 
     def reset(self):
         self.last_solution = None
 
-    def get_action(self, flat_ob):
-        obs, goals, taus = split_flat_obs(
-            flat_ob[None],
-            self.env.observation_space.low.size,
-            self.env.goal_dim
-        )
-        ob = obs[0]
-        goal = goals[0]
-        tau = taus[0]
+    def get_action(self, ob, goal, num_steps_left):
         if self.last_solution is None or not self.warm_start:
             init_solution = np.hstack((
                 np.zeros(self.action_dim),
@@ -618,10 +601,9 @@ class TdmLBfgsBCMC(UniversalPolicy):
         x, f, d = optimize.fmin_l_bfgs_b(
             self.cost_function,
             self.last_solution,
-            fprime=self.cost_jacobian,
             args=(ob, goal),
             bounds=self.bounds,
-            **self.solver_params
+            **self.solver_kwargs
         )
         warnflag = d['warnflag']
         if warnflag != 0:
@@ -631,149 +613,6 @@ class TdmLBfgsBCMC(UniversalPolicy):
                 print(d['task'])
 
         action, _ = self.split(x)[0]
-        self.last_solution = x
-        return action, {}
-
-    def get_param_values(self):
-        return None
-
-    def set_param_values(self, param_values):
-        return
-
-
-class Reacher7DofLBfgsBCMC(UniversalPolicy):
-    def __init__(
-            self,
-            implicit_model,
-            env,
-            goal_slice,
-            multitask_goal_slice,
-            planning_horizon=1,
-            lagrange_multipler=1,
-            warm_start=False,
-            solver_params=None,
-    ):
-        super().__init__()
-        if solver_params is None:
-            solver_params = {}
-        self.implicit_model = implicit_model
-        self.env = env
-        self.goal_slice = goal_slice
-        self.multitask_goal_slice = multitask_goal_slice
-        self.action_dim = self.env.action_space.low.size
-        self.obs_dim = self.env.observation_space.low.size
-        self.planning_horizon = planning_horizon
-        self.lagrange_multipler = lagrange_multipler
-        self.warm_start = warm_start
-        self.solver_params = solver_params
-
-        self.last_solution = None
-        self.lower_bounds = np.hstack((
-            self.env.action_space.low,
-            self.env.observation_space.low[:7]
-        ))
-        self.upper_bounds = np.hstack((
-            self.env.action_space.high,
-            self.env.observation_space.high[:7]
-        ))
-        self.lower_bounds = np.tile(self.lower_bounds, self.planning_horizon)
-        self.upper_bounds = np.tile(self.upper_bounds, self.planning_horizon)
-        # TODO(vitchyr): figure out what to do if the state bounds are infinity
-        self.bounds = list(zip(self.lower_bounds, self.upper_bounds))
-
-    def _joints_to_full_state(self, joints):
-        return self.env.joints_to_full_state(joints)[7:]
-
-    def split_into_action_and_joint_list(self, x):
-        """
-        split into action, next_state
-        """
-        actions = []
-        obs = []
-        for h in range(self.planning_horizon):
-            start_h = h * (self.action_dim + 7)
-            actions.append(x[start_h:start_h+self.action_dim])
-            obs.append(
-                x[start_h+self.action_dim:start_h+(self.action_dim + 7)]
-            )
-        return actions, obs
-
-    def _env_cost_function(self, actions, states):
-        loss = 0
-        for action, next_state in zip(actions, states):
-            next_features_predicted = next_state[self.goal_slice]
-            desired_features = ptu.np_to_var(
-                self.env.multitask_goal[self.multitask_goal_slice]
-                * np.ones(next_features_predicted.shape)
-            )
-            diff = next_features_predicted - desired_features
-            loss += (diff**2).sum()
-        return loss
-
-    def _feasibility_cost_function(self, actions, states, state):
-        state = ptu.np_to_var(state)
-        state = state.unsqueeze(0)
-        loss = 0
-        for action, next_state in zip(actions, states):
-            action = action[None]
-            next_state = next_state[None]
-
-            loss -= self.implicit_model(state, action, next_state)
-            state = next_state
-        return loss
-
-    def cost_function(self, x, observation):
-        x = ptu.np_to_var(x, requires_grad=True)
-        actions_list, joints_list = self.split_into_action_and_joint_list(x)
-        rest_of_state_list = [
-            ptu.np_to_var(
-                self._joints_to_full_state(ptu.get_numpy(joints))
-            )
-            for joints in joints_list
-        ]
-        states_list = [
-            torch.cat((joints, rest_of_states))
-            for joints, rest_of_states in zip(joints_list, rest_of_state_list)
-        ]
-        loss = (
-                self.lagrange_multipler
-                * self._feasibility_cost_function(
-                    actions_list, states_list, observation
-               )
-                + self._env_cost_function(actions_list, states_list)
-        )
-        loss_np = ptu.get_numpy(loss)[0]
-        loss.squeeze(0).backward()
-        gradient_np = ptu.get_numpy(x.grad)
-        return loss_np, gradient_np
-
-    def reset(self):
-        self.last_solution = None
-
-    def get_action(self, obs):
-        if self.last_solution is None or not self.warm_start:
-            init_solution = np.hstack((
-                np.zeros(self.action_dim),
-                obs[:7],
-            ))
-            self.last_solution = np.tile(init_solution, self.planning_horizon)
-        x, f, d = optimize.fmin_l_bfgs_b(
-            self.cost_function,
-            self.last_solution,
-            # fprime=self.cost_jacobian,
-            args=(obs,),
-            bounds=self.bounds,
-            **self.solver_params
-        )
-        warnflag = d['warnflag']
-        if warnflag != 0:
-            if warnflag == 1:
-                print("too many function evaluations or too many iterations")
-            else:
-                print(d['task'])
-
-        actions_list, _ = self.split_into_action_and_joint_list(x)
-        action = actions_list[0]
         self.last_solution = x
         return action, {}
 
@@ -791,5 +630,9 @@ class TdmToImplicitModel(PyTorchModule):
             self.tau * np.ones((states.shape[0], 1))
         )
         goals = self.env.convert_obs_to_goals(next_states)
-        flat_obs = merge_into_flat_obs(states, goals, taus)
-        return self.qf(flat_obs, actions).sum(1)
+        return self.qf(
+            observations=states,
+            actions=actions,
+            goals=goals,
+            num_steps_left=taus,
+        ).sum(1)
