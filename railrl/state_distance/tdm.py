@@ -11,11 +11,9 @@ from railrl.misc.np_util import truncated_geometric
 from railrl.misc.ml_util import ConstantSchedule
 from railrl.policies.base import SerializablePolicy
 from railrl.state_distance.policies import UniversalPolicy
-from railrl.state_distance.exploration import MakeUniversal
 from railrl.state_distance.rollout_util import MultigoalSimplePathSampler, \
     multitask_rollout
 from railrl.state_distance.tdm_networks import TdmNormalizer
-from railrl.state_distance.util import merge_into_flat_obs
 from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
 from railrl.torch.core import np_to_pytorch_batch
 
