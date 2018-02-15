@@ -40,23 +40,12 @@ def experiment(variant):
 
     variant['ddpg_tdm_kwargs']['tdm_kwargs']['vectorized'] = vectorized
     variant['ddpg_tdm_kwargs']['tdm_kwargs']['norm_order'] = norm_order
-    # variant['env_kwargs']['norm_order'] = norm_order
+
     env = NormalizedBoxEnv(variant['env_class'](**variant['env_kwargs']))
-    observation_dim = int(np.prod(env.observation_space.low.shape))
-    action_dim = int(np.prod(env.action_space.low.shape))
-    obs_normalizer = TorchFixedNormalizer(observation_dim)
-    goal_normalizer = TorchFixedNormalizer(env.goal_dim)
-    action_normalizer = TorchFixedNormalizer(action_dim)
-    distance_normalizer = TorchFixedNormalizer(
-        env.goal_dim if vectorized else 1
-    )
     max_tau = variant['ddpg_tdm_kwargs']['tdm_kwargs']['max_tau']
     tdm_normalizer = TdmNormalizer(
         env,
-        obs_normalizer=obs_normalizer,
-        goal_normalizer=goal_normalizer,
-        action_normalizer=action_normalizer,
-        distance_normalizer=distance_normalizer,
+        vectorized,
         max_tau=max_tau,
         **variant['tdm_normalizer_kwargs']
     )
@@ -113,7 +102,7 @@ if __name__ == "__main__":
     # exp_prefix = "reacher-full-ddpg-tdm-mtau-0"
 
     num_epochs = 100
-    num_steps_per_epoch = 100
+    num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
     max_path_length = 100
 

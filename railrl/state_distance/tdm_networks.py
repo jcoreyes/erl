@@ -16,21 +16,22 @@ class TdmNormalizer(object):
     def __init__(
             self,
             env,
-            obs_normalizer: TorchFixedNormalizer=None,
-            goal_normalizer: TorchFixedNormalizer=None,
-            action_normalizer: TorchFixedNormalizer=None,
-            distance_normalizer: TorchFixedNormalizer=None,
+            vectorized,
             normalize_tau=False,
             max_tau=0,
             log_tau=False,
     ):
+        if normalize_tau:
+            assert max_tau > 0, "Max tau must be larger than 0 if normalizing"
         self.observation_dim = env.observation_space.low.size
         self.action_dim = env.action_space.low.size
         self.goal_dim = env.goal_dim
-        self.obs_normalizer = obs_normalizer
-        self.goal_normalizer = goal_normalizer
-        self.action_normalizer = action_normalizer
-        self.distance_normalizer = distance_normalizer
+        self.obs_normalizer = TorchFixedNormalizer(self.observation_dim)
+        self.goal_normalizer = TorchFixedNormalizer(env.goal_dim)
+        self.action_normalizer = TorchFixedNormalizer(self.action_dim)
+        self.distance_normalizer = TorchFixedNormalizer(
+            env.goal_dim if vectorized else 1
+        )
         self.log_tau = log_tau
         self.normalize_tau = normalize_tau
         self.max_tau = max_tau

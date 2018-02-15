@@ -25,19 +25,10 @@ def experiment(variant):
     env = NormalizedBoxEnv(variant['env_class'](**variant['env_kwargs']))
     observation_dim = int(np.prod(env.observation_space.low.shape))
     action_dim = int(np.prod(env.action_space.low.shape))
-    obs_normalizer = TorchFixedNormalizer(observation_dim)
-    goal_normalizer = TorchFixedNormalizer(env.goal_dim)
-    action_normalizer = TorchFixedNormalizer(action_dim)
-    distance_normalizer = TorchFixedNormalizer(
-        env.goal_dim if vectorized else 1
-    )
     max_tau = variant['sac_tdm_kwargs']['tdm_kwargs']['max_tau']
     tdm_normalizer = TdmNormalizer(
         env,
-        obs_normalizer=obs_normalizer,
-        goal_normalizer=goal_normalizer,
-        action_normalizer=action_normalizer,
-        distance_normalizer=distance_normalizer,
+        vectorized,
         max_tau=max_tau,
         **variant['tdm_normalizer_kwargs']
     )
@@ -80,9 +71,9 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-sac-tdm-launch"
 
-    n_seeds = 1
-    mode = "ec2"
-    exp_prefix = "reacher7dof-xyz-refactor"
+    # n_seeds = 1
+    # mode = "ec2"
+    # exp_prefix = "reacher7dof-xyz-refactor"
 
     num_epochs = 100
     num_steps_per_epoch = 1000
