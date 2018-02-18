@@ -68,7 +68,7 @@ if __name__ == "__main__":
     batch_size = 512
     max_path_length = 100
     max_tau = max_path_length-1
-
+    use_gpu = True
     variant = dict(
         algo_params = dict(
             base_kwargs=dict(
@@ -116,8 +116,6 @@ if __name__ == "__main__":
         'algo_params.reward_scale': [
             10,
             100,
-            # 1000,
-            # 10000,
         ],
         'algo_params.num_updates_per_env_step': [
             10,

@@ -13,13 +13,13 @@ from railrl.torch.sac.policies import TanhGaussianPolicy
 from railrl.torch.sac.sac import SoftActorCritic
 from rllab.envs.gym_env import GymEnv
 
-sys.path.append('/home/murtaza/Documents/objectattention/')
 from singleobj_visreward import SingleObjVisRewardEnv
 from rllab.envs.normalized_env import normalize
-
 import railrl.misc.hyperparameter as hyp
-env = NormalizedBoxEnv(SingleObjVisRewardEnv())
-# import ipdb; ipdb.set_trace()
+
+env = SingleObjVisRewardEnv()
+
+
 def experiment(variant):
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
@@ -54,6 +54,7 @@ def experiment(variant):
 
 if __name__ == "__main__":
     # noinspection PyTypeChecker
+    use_gpu=True
     variant = dict(
         algo_params=dict(
             num_epochs=200,
@@ -62,7 +63,7 @@ if __name__ == "__main__":
             max_path_length=100,
             discount=0.99,
             soft_target_tau=0,
-            qf_target_update_interval=5,
+            target_hard_update_period=5,
             policy_lr=3E-4,
             qf_lr=3E-4,
             vf_lr=3E-4,
@@ -82,19 +83,19 @@ if __name__ == "__main__":
     search_space = {
         'algo_params.reward_scale': [
             10,
-            100,
+            # 100,
             # 1000,
             # 10000,
         ],
         'algo_params.num_updates_per_env_step': [
             10,
             # 15,
-            20,
+            # 20,
             # 25,
         ],
         'algo_params.batch_size': [
             512,
-            1024,
+            # 1024,
         ]
 
     }
@@ -111,6 +112,7 @@ if __name__ == "__main__":
                 variant=variant,
                 exp_id=exp_id,
                 exp_prefix='TEST',
-                mode='local',
+                mode='local_docker',
+                use_gpu=use_gpu,
             )
 
