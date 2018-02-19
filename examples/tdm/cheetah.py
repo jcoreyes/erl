@@ -71,7 +71,7 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = "ec2"
-    exp_prefix = "tdm-example-cheetah-spoke-sweep"
+    exp_prefix = "tdm-example-cheetah"
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -80,14 +80,15 @@ if __name__ == "__main__":
                 num_epochs=500,
                 num_steps_per_epoch=100,
                 num_steps_per_eval=1000,
-                max_path_length=100,
+                max_path_length=99,
                 num_updates_per_env_step=25,
                 batch_size=128,
                 discount=1,
+                reward_scale=100,
             ),
             tdm_kwargs=dict(
                 max_tau=10,
-                num_pretrain_paths=0,
+                num_pretrain_paths=20,
             ),
             ddpg_kwargs=dict(
                 tau=0.001,
@@ -112,35 +113,10 @@ if __name__ == "__main__":
         qf_criterion_class=HuberLoss,
         algorithm="DDPG-TDM",
     )
-    search_space = {
-        # 'qf_criterion_class': [
-        #     nn.MSELoss,
-        #     HuberLoss,
-        # ],
-        # 'ddpg_tdm_kwargs.tdm_kwargs.num_pretrain_paths': [
-        #     0,
-        #     20,
-        # ],
-        # 'es_kwargs': [
-        #     dict(theta=1, max_sigma=0.1, min_sigma=0.1),
-        #     dict(theta=0.1, max_sigma=0.1, min_sigma=0.1),
-        # ],
-        'ddpg_tdm_kwargs.base_kwargs.max_path_length': [
-            100, 99
-        ],
-        'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
-            0.01, 1, 100,
-        ],
-    }
-    sweeper = hyp.DeterministicHyperparameterSweeper(
-        search_space, default_parameters=variant,
-    )
-    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        for i in range(n_seeds):
-            run_experiment(
-                experiment,
-                mode=mode,
-                exp_prefix=exp_prefix,
-                variant=variant,
-                exp_id=exp_id,
-            )
+    for i in range(n_seeds):
+        run_experiment(
+            experiment,
+            mode=mode,
+            exp_prefix=exp_prefix,
+            variant=variant,
+        )

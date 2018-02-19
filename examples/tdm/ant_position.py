@@ -79,9 +79,10 @@ if __name__ == "__main__":
                 num_steps_per_epoch=1000,
                 num_steps_per_eval=1000,
                 max_path_length=50,
-                num_updates_per_env_step=25,
+                num_updates_per_env_step=5,
                 batch_size=128,
                 discount=1,
+                reward_scale=10,
             ),
             tdm_kwargs=dict(
                 max_tau=49,
@@ -110,23 +111,10 @@ if __name__ == "__main__":
         qf_criterion_class=HuberLoss,
         algorithm="DDPG-TDM",
     )
-    search_space = {
-        'ddpg_tdm_kwargs.base_kwargs.reward_scale': [
-            10, 100, 1000
-        ],
-        'ddpg_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
-            5, 25
-        ],
-    }
-    sweeper = hyp.DeterministicHyperparameterSweeper(
-        search_space, default_parameters=variant,
-    )
-    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        for i in range(n_seeds):
-            run_experiment(
-                experiment,
-                mode=mode,
-                exp_prefix=exp_prefix,
-                variant=variant,
-                exp_id=exp_id,
-            )
+    for i in range(n_seeds):
+        run_experiment(
+            experiment,
+            mode=mode,
+            exp_prefix=exp_prefix,
+            variant=variant,
+        )
