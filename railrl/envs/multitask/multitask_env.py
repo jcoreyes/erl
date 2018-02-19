@@ -133,7 +133,7 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
             return
         final_differences = []
         for path, goals in zip(paths, list_of_goals):
-            reached = self.convert_ob_to_goal(path['observations'][-1])
+            reached = self.convert_ob_to_goal(path['next_observations'][-1])
             final_differences.append(reached - goals[-1])
 
         statistics = OrderedDict()
