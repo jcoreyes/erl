@@ -16,12 +16,8 @@ class TorchRLAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         self.render_eval_paths = render_eval_paths
         self.plotter = plotter
 
-    def get_batch(self, training=True):
-        if self.replay_buffer_is_split:
-            replay_buffer = self.replay_buffer.get_replay_buffer(training)
-        else:
-            replay_buffer = self.replay_buffer
-        batch = replay_buffer.random_batch(self.batch_size)
+    def get_batch(self):
+        batch = self.replay_buffer.random_batch(self.batch_size)
         return np_to_pytorch_batch(batch)
 
     @property
@@ -48,9 +44,10 @@ class TorchRLAlgorithm(RLAlgorithm, metaclass=abc.ABCMeta):
         statistics.update(eval_util.get_generic_path_information(
             test_paths, stat_prefix="Test",
         ))
-        statistics.update(eval_util.get_generic_path_information(
-            self._exploration_paths, stat_prefix="Exploration",
-        ))
+        if len(self._exploration_paths) > 0:
+            statistics.update(eval_util.get_generic_path_information(
+                self._exploration_paths, stat_prefix="Exploration",
+            ))
         if hasattr(self.env, "log_diagnostics"):
             self.env.log_diagnostics(test_paths)
 

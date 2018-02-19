@@ -14,28 +14,19 @@ from railrl.torch import pytorch_util as ptu
 from railrl.core import logger
 
 
-class UniversalPolicy(Policy, metaclass=abc.ABCMeta):
-    def __init__(self):
-        self._goal_np = None
-        self._goal_expanded_torch = None
-        self._goal_expanded_np = None
-        self._tau_np = None
-        self._tau_expanded_torch = None
-        self._tau_expanded_np = None
+class UniversalPolicy(metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    def get_action(self, observation, goal, tau, **kwargs):
+        pass
 
-    def set_goal(self, goal_np):
-        self._goal_np = goal_np
-        self._goal_expanded_np = goal_np[None]
-        self._goal_expanded_torch = ptu.np_to_var(
-            np.expand_dims(goal_np, 0)
-        )
+    def reset(self):
+        pass
 
-    def set_tau(self, tau):
-        self._tau_np = tau
-        self._tau_expanded_np = np.array([[tau]])
-        self._tau_expanded_torch = ptu.np_to_var(
-            self._tau_expanded_np
-        )
+    def get_param_values(self):
+        return None
+
+    def set_param_values(self, param_values):
+        return
 
 
 class SampleBasedUniversalPolicy(

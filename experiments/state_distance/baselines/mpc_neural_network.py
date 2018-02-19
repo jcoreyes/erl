@@ -1,11 +1,11 @@
-import random
 import numpy as np
 
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
-from railrl.torch.mpc import MPCController
-from railrl.torch.mpc import ModelTrainer
-from railrl.torch.mpc import DynamicsModel
+from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
+from railrl.torch.mpc.controller import MPCController
+from railrl.torch.mpc.model_trainer import ModelTrainer
+from railrl.torch.mpc.dynamics_model import DynamicsModel
 from railrl.envs.multitask.multitask_env import MultitaskEnvToSilentMultitaskEnv
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofFullGoal
@@ -72,15 +72,15 @@ def experiment(variant):
 if __name__ == "__main__":
     n_seeds = 1
     mode = "local"
-    exp_prefix = "dev-dagger-2"
+    exp_prefix = "dev-mpc-neural-networks"
 
     # n_seeds = 3
     # mode = "ec2"
-    # exp_prefix = "reacher-model-based"
+    exp_prefix = "reacher-full-mpcnn-save-replay-buffer"
 
-    num_epochs = 100
+    num_epochs = 30
     num_steps_per_epoch = 1000
-    num_steps_per_eval = 1000
+    num_steps_per_eval = 100
     max_path_length = 100
 
     # noinspection PyTypeChecker
@@ -96,6 +96,8 @@ if __name__ == "__main__":
             num_updates_per_env_step=1,
             batch_size=128,
             num_paths_for_normalization=20,
+            save_replay_buffer=True,
+            replay_buffer_size=30000,
         ),
         normalize_kwargs=dict(
             obs_mean=None,
@@ -109,8 +111,9 @@ if __name__ == "__main__":
             hidden_sizes=[300, 300],
         ),
         ou_kwargs=dict(
-            theta=0.1,
+            theta=1,
             max_sigma=0.1,
+            min_sigma=0.1,
         ),
         env_kwargs=dict(),
         version="Model-Based-Dagger",
@@ -120,6 +123,7 @@ if __name__ == "__main__":
         'multitask': [True],
         'env_class': [
             Reacher7DofFullGoal,
+            # MultitaskPoint2DEnv,
             # GoalXVelHalfCheetah,
             # Reacher7DofXyzGoalState,
             # GoalXYPosAnt,
@@ -165,21 +169,17 @@ if __name__ == "__main__":
         'algo_kwargs.num_updates_per_env_step': [
             1,
         ],
-        'algo_kwargs.num_pretrain_paths': [20],
-        'ou_kawrgs.max_sigma': [0.1],
-        'mpc_controller_kwargs.mpc_horizon': [1, 15],
+        'mpc_controller_kwargs.mpc_horizon': [5],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):
-            seed = random.randint(0, 999999)
             run_experiment(
                 experiment,
                 mode=mode,
                 exp_prefix=exp_prefix,
-                seed=seed,
                 variant=variant,
                 exp_id=exp_id,
                 use_gpu=True,

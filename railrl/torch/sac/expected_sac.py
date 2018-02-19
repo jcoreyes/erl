@@ -49,7 +49,7 @@ class ExpectedSAC(SoftActorCritic):
         self.expected_log_pi_estim_strategy = expected_log_pi_estim_strategy
 
     def _do_training(self):
-        batch = self.get_batch(training=True)
+        batch = self.get_batch()
         rewards = batch['rewards']
         terminals = batch['terminals']
         obs = batch['observations']
@@ -60,18 +60,19 @@ class ExpectedSAC(SoftActorCritic):
         v_pred = self.vf(obs)
         # Make sure policy accounts for squashing functions like tanh correctly!
         (
-            new_actions, policy_mean, policy_log_std, log_pi, expected_log_pi,
+            new_actions, policy_mean, policy_log_std, log_pi, entropy,
             policy_stds, log_pi_mean
         ) = self.policy(
             obs,
             return_log_prob=True,
-            return_expected_log_prob=(
+            return_entropy=(
                 self.expected_log_pi_estim_strategy == EXACT
             ),
             return_log_prob_of_mean=(
                 self.expected_log_pi_estim_strategy == MEAN_ACTION
             ),
         )
+        expected_log_pi = - entropy
 
         """
         QF Loss

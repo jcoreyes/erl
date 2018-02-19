@@ -38,8 +38,7 @@ from gym import utils
 from gym.envs.mujoco import ReacherEnv, mujoco_env
 
 from railrl.envs.multitask.multitask_env import MultitaskEnv
-from railrl.misc.eval_util import create_stats_ordered_dict
-from railrl.samplers.util import get_stat_in_paths
+from railrl.misc.eval_util import create_stats_ordered_dict, get_stat_in_paths
 from railrl.core import logger
 import torch
 import railrl.torch.pytorch_util as ptu
@@ -163,7 +162,7 @@ class MultitaskReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle, MultitaskEnv,
         ))
         statistics.update(create_stats_ordered_dict(
             'Final Euclidean distance to desired XY',
-            xy_distance_to_goal[:, -1],
+            [distances[-1] for distances in xy_distance_to_goal],
             always_show_all_stats=True,
         ))
 
@@ -172,7 +171,7 @@ class MultitaskReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle, MultitaskEnv,
         )
         statistics.update(create_stats_ordered_dict(
             'Final state to goal state distance',
-            full_state_go_goal_distance[:, -1],
+            [distances[-1] for distances in full_state_go_goal_distance],
             always_show_all_stats=True,
         ))
         for key, value in statistics.items():

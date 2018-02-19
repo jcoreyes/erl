@@ -41,9 +41,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             normalize_env=True,
             parallel_step_to_train_ratio=20,
             replay_buffer=None,
-            fraction_paths_in_train=1.,
-            normalize_network_input=False,
-            num_paths_for_normalization=0,
     ):
         """
         Base class for RL Algorithms
@@ -72,11 +69,9 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         :param normalize_env:
         :param parallel_step_to_train_ratio:
         :param replay_buffer:
-        :param fraction_paths_in_train:
         """
         assert collection_mode in ['online', 'online-parallel', 'offline',
                                    'batch']
-        assert 0. <= fraction_paths_in_train <= 1.
         if collection_mode == 'batch':
             assert num_updates_per_epoch is not None
         self.training_env = training_env or pickle.loads(pickle.dumps(env))
@@ -85,8 +80,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.num_epochs = num_epochs
         self.num_env_steps_per_epoch = num_steps_per_epoch
         self.num_steps_per_eval = num_steps_per_eval
-        self.normalize_network_input = normalize_network_input
-        self.num_paths_for_normalization = num_paths_for_normalization
         if collection_mode == 'online' or collection_mode == 'online-parallel':
             self.num_updates_per_train_call = num_updates_per_env_step
         else:
@@ -117,29 +110,12 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.obs_space = env.observation_space
         self.env = env
         if replay_buffer is None:
-            if fraction_paths_in_train == 1.:
-                self.replay_buffer = EnvReplayBuffer(
-                    self.replay_buffer_size,
-                    self.env,
-                )
-            else:
-                self.replay_buffer = SplitReplayBuffer(
-                    EnvReplayBuffer(
-                        replay_buffer_size,
-                        env,
-                    ),
-                    EnvReplayBuffer(
-                        replay_buffer_size,
-                        env,
-                    ),
-                    fraction_paths_in_train=fraction_paths_in_train,
-                )
+            self.replay_buffer = EnvReplayBuffer(
+                self.replay_buffer_size,
+                self.env,
+            )
         else:
             self.replay_buffer = replay_buffer
-        self.replay_buffer_is_split = isinstance(
-            self.replay_buffer,
-            SplitReplayBuffer
-        )
 
         self._n_env_steps_total = 0
         self._n_train_steps_total = 0
@@ -185,23 +161,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             ))
 
     def pretrain(self):
-        """
-        Do anything before the main training phase.
-        """
-        if self.check_normalization():
-            return
-
-        pretrain_paths = self.get_pretrain_paths()
-        self.set_normalizers(pretrain_paths)
-
-    def check_normalization(self):
-        return True
-
-    def get_pretrain_paths(self):
-        raise NotImplementedError()
-
-    def set_normalizers(self, pretrain_paths):
-        raise NotImplementedError()
+        pass
 
     def train_online(self, start_epoch=0):
         self._current_path_builder = PathBuilder()
@@ -359,7 +319,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             logger.save_itr_params(epoch, params)
             table_keys = logger.get_table_key_set()
             if self._old_table_keys is not None:
-                wrong = [key for key in self._old_table_keys if key not in table_keys] # for debugging
                 assert table_keys == self._old_table_keys, (
                     "Table keys cannot change from iteration to iteration."
                 )
@@ -544,6 +503,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         data_to_save = dict(
             epoch=epoch,
             exploration_policy=self.exploration_policy,
+            eval_policy=self.eval_policy,
         )
         if self.save_environment:
             data_to_save['env'] = self.training_env

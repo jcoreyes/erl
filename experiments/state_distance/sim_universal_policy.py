@@ -1,6 +1,8 @@
 import argparse
+import json
 
 import joblib
+from pathlib import Path
 
 import railrl.torch.pytorch_util as ptu
 from railrl.misc.eval_util import get_generic_path_information
@@ -30,6 +32,18 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     data = joblib.load(args.file)
+    if args.mtau is None:
+        variant_path = Path(args.file).parents[0] / 'variant.json'
+        variant = json.load(variant_path.open())
+        try:
+            max_tau = variant['sac_tdm_kwargs']['tdm_kwargs']['max_tau']
+            print("Max tau read from variant: {}".format(max_tau))
+        except KeyError:
+            print("Defaulting max tau to 10.")
+            max_tau = 10
+    else:
+        max_tau = args.mtau
+
     env = data['env']
     num_samples = 1000
     resolution = 10
@@ -45,12 +59,6 @@ if __name__ == "__main__":
         ptu.set_gpu_mode(True)
         policy.cuda()
 
-    if args.mtau is None:
-        print("Defaulting max tau to 10.")
-        max_tau = 10
-    else:
-        max_tau = args.mtau
-
     while True:
         paths = []
         for _ in range(args.nrolls):
@@ -59,12 +67,13 @@ if __name__ == "__main__":
             path = multitask_rollout(
                 env,
                 policy,
-                goal,
-                tau=max_tau,
+                init_tau=max_tau,
+                goal=goal,
                 max_path_length=args.H,
                 animated=not args.hide,
                 cycle_tau=args.cycle or not args.ndc,
                 decrement_tau=args.dt or not args.ndc,
+                get_action_kwargs={'deterministic': True},
             )
             paths.append(path)
         env.log_diagnostics(paths)

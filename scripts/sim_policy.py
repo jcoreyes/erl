@@ -39,23 +39,16 @@ def simulate_policy(args):
     if isinstance(policy, PyTorchModule):
         policy.train(False)
     while True:
-        try:
-            path = rollout(
-                env,
-                policy,
-                max_path_length=args.H,
-                animated=True,
-            )
-            if hasattr(env, "log_diagnostics"):
-                env.log_diagnostics([path])
-            policy.log_diagnostics([path])
-            logger.dump_tabular()
-        # Hack for now. Not sure why rollout assumes that close is an
-        # keyword argument
-        except TypeError as e:
-            if (str(e) != "render() got an unexpected keyword "
-                          "argument 'close'"):
-                raise e
+        path = rollout(
+            env,
+            policy,
+            max_path_length=args.H,
+            animated=True,
+        )
+        if hasattr(env, "log_diagnostics"):
+            env.log_diagnostics([path])
+        logger.dump_tabular()
+
 
 if __name__ == "__main__":
 
@@ -71,8 +64,3 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     simulate_policy(args)
-
-    # TODO(vitchyr): maybe add this check back in with a try-except statement
-    # import tensorflow as tf
-    # with tf.Session() as sess:
-    #     simulate_policy(args)

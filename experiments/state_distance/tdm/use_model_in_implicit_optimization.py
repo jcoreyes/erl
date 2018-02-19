@@ -1,16 +1,12 @@
 import argparse
-
 import joblib
-
 import torch
+
 from railrl.core import logger
 from railrl.samplers.util import rollout
-from railrl.state_distance.probabilistic_tdm.mpc_controller import \
-    ImplicitMPCController
 from railrl.torch.core import PyTorchModule
 
-PATH = '/home/vitchyr/git/railrl/data/local/01-19-reacher-model-based/01-19' \
-       '-reacher-model-based_2018_01_19_15_54_27_0000--s-983077/params.pkl'
+PATH = '/home/vitchyr/git/railrl/data/local/01-27-reacher-full-mpcnn-H1/01-27-reacher-full-mpcnn-H1_2018_01_27_17_59_04_0000--s-96642/params.pkl'
 
 
 class ModelToTdm(PyTorchModule):
@@ -19,7 +15,7 @@ class ModelToTdm(PyTorchModule):
         self.model = model
 
     def forward(self, obs, goal, taus, action):
-        out = (goal - obs - self.model(obs, action))**2
+        out = (goal - obs - self.model(obs, action)) ** 2
         return -torch.norm(out, dim=1).unsqueeze(1)
 
 
@@ -81,13 +77,15 @@ if __name__ == "__main__":
                 print("")
                 print("weight", weight)
                 print("num_simulated_paths", num_simulated_paths)
-                policy = ImplicitMPCController(
-                    env,
-                    tdm,
-                    None,
-                    num_simulated_paths=num_simulated_paths,
-                    feasibility_weight=weight,
-                )
+                # policy = ImplicitMPCController(
+                #     env,
+                #     tdm,
+                #     None,
+                #     num_simulated_paths=num_simulated_paths,
+                #     feasibility_weight=weight,
+                # )
+                # policy = trained_mpc_controller
+                policy = SqpOcPolicy(tdm, env)
                 policy.train(False)
                 paths = []
                 for _ in range(5):
@@ -99,6 +97,7 @@ if __name__ == "__main__":
                     ))
                 if hasattr(env, "log_diagnostics"):
                     env.log_diagnostics(paths)
-                final_distance = logger.get_table_dict()['Final Euclidean distance to goal Mean']
+                final_distance = logger.get_table_dict()[
+                    'Final Euclidean distance to goal Mean']
                 print("final distance", final_distance)
                 # logger.dump_tabular()

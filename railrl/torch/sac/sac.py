@@ -51,15 +51,18 @@ class SoftActorCritic(TorchRLAlgorithm):
             render_eval_paths=False,
             eval_deterministic=True,
             target_hard_update_period=1,
+            eval_policy=None,
+            exploration_policy=None,
             **kwargs
     ):
-        if eval_deterministic:
-            eval_policy = MakeDeterministic(policy)
-        else:
-            eval_policy = policy
+        if eval_policy is None:
+            if eval_deterministic:
+                eval_policy = MakeDeterministic(policy)
+            else:
+                eval_policy = policy
         super().__init__(
             env=env,
-            exploration_policy=policy,
+            exploration_policy=exploration_policy or policy,
             eval_policy=eval_policy,
             **kwargs
         )
@@ -93,7 +96,7 @@ class SoftActorCritic(TorchRLAlgorithm):
         self.target_hard_update_period = target_hard_update_period
 
     def _do_training(self):
-        batch = self.get_batch(training=True)
+        batch = self.get_batch()
         rewards = batch['rewards']
         terminals = batch['terminals']
         obs = batch['observations']

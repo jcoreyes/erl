@@ -10,16 +10,9 @@ from railrl.core.serializable import Serializable
 from railrl.core import logger as default_logger
 
 
-def is_rllab_style_paths(paths):
-    return "next_observations" not in paths[0]
-
-
 class MultitaskEnv(object, metaclass=abc.ABCMeta):
     """
     An environment with a task that can be specified with a goal.
-    Two big things:
-    1. The goal should *not* be part of the state.
-    2. Calls to reset() should *not* change the goal
 
     To change the goal, you need to explicitly call
     ```
@@ -33,7 +26,7 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
     env = MyMultitaskEnv()
     env = MultitaskToFlatEnv(env)
     ```
-    The above code will also make the goal change at every time step.
+    The above code will also make the goal change at every reset.
     See MultitaskToFlatEnv for more detail.
 
     If you want to change the goal at every call to reset(), but you do not
@@ -68,44 +61,35 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def convert_obs_to_goals(self, obs):
         """
-        Convert a raw environment observation into a goal state (if possible).
+        Convert a raw environment observation into a goal (if possible).
         """
         pass
 
     """
-    Functions you probably don't need to override.
+    Helper functions you probably don't need to override.
     """
-    def oc_reward(
-            self, predicted_states, goals, current_states
-    ):
-        return self.oc_reward_on_goals(
-            self.convert_obs_to_goals(predicted_states),
-            goals,
-            current_states
-        )
-
     def sample_goal_for_rollout(self):
         """
-        These goal states are fed to a policy when the policy wants to actually
+        These goals are fed to a policy when the policy wants to actually
         do rollouts.
         :return:
         """
         goal = self.sample_goals(1)[0]
         return self.modify_goal_for_rollout(goal)
 
-    def convert_ob_to_goal(self, obs):
+    def convert_ob_to_goal(self, ob):
         """
-        Convert a raw environment observation into a goal state (if possible).
+        Convert a raw environment observation into a goal (if possible).
 
-        This observation should NOT include the goal state.
+        This observation should NOT include the goal.
         """
-        if isinstance(obs, np.ndarray):
+        if isinstance(ob, np.ndarray):
             return self.convert_obs_to_goals(
-                np.expand_dims(obs, 0)
+                np.expand_dims(ob, 0)
             )[0]
         else:
             return self.convert_obs_to_goals_pytorch(
-                obs.unsqueeze(0)
+                ob.unsqueeze(0)
             )[0]
 
     def compute_reward(self, ob, action, next_ob, goal):
@@ -135,7 +119,7 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
 
     def modify_goal_for_rollout(self, goal):
         """
-        Modify a goal state so that it's appropriate for doing a rollout.
+        Modify a goal so that it's appropriate for doing a rollout.
 
         Common use case: zero out the goal velocities.
         :param goal:
@@ -144,7 +128,7 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         return goal
 
     def log_diagnostics(self, paths, logger=default_logger):
-        list_of_goals = extract_list_of_goals(paths)
+        list_of_goals = _extract_list_of_goals(paths)
         if list_of_goals is None:
             return
         final_differences = []
@@ -154,7 +138,7 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
 
         statistics = OrderedDict()
 
-        if is_rllab_style_paths(paths):
+        if _is_rllab_style_paths(paths):
             observations = np.vstack([
                 path["observations"][:-1] for path in paths
             ])
@@ -207,43 +191,6 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
     Optional functions to implement, since most of my code doesn't use these
     any more.
     """
-    def sample_irrelevant_goal_dimensions(self, goal, batch_size):
-        """
-        Copy the goal a bunch of time, but replace irrelevant goal dimensions
-        with sampled values.
-
-        For example, if you care about the position but not about the velocity,
-        copy the velocity `batch_size` number of times, and then sample a bunch
-        of velocity values.
-
-        :param goal: np.ndarray, shape GOAL_DIM
-        :param batch_size:
-        :return: ndarray, shape SAMPLE_SIZE x GOAL_DIM
-        """
-        pass
-
-    def sample_actions(self, batch_size):
-        pass
-
-    def sample_states(self, batch_size):
-        pass
-
-    def sample_dimensions_irrelevant_to_oc(self, goal, obs, batch_size):
-        """
-        Create the OC goal state a bunch of time, but replace irrelevant goal
-        dimensions with sampled values.
-
-        :param goal: np.ndarray, shape GOAL_DIM
-        :param batch_size:
-        :return: ndarray, shape `batch_size` x GOAL_DIM
-        """
-        pass
-
-    def oc_reward_on_goals(
-            self, predicted_goals, goals, current_states
-    ):
-        pass
-
     def cost_fn(self, states, actions, next_states):
         """
         This is added for model-based code. This is COST not reward.
@@ -260,15 +207,14 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
         desired = self.multitask_goal * np.ones_like(actual)
         diff = actual - desired
         diff *= self.goal_dim_weights
-        costs = np.linalg.norm(
-            diff,
-            axis=1,
-            ord=1,
-        )
-        return costs
+        return (diff**2).sum(1)
 
 
-def extract_list_of_goals(paths):
+def _is_rllab_style_paths(paths):
+    return "next_observations" not in paths[0]
+
+
+def _extract_list_of_goals(paths):
     """
     Return list of goals. Each element in list is an array of goals and
     correspond to the goal from different paths.
@@ -342,6 +288,16 @@ class MultitaskToFlatEnv(ProxyEnv, Serializable):
         new_ob = self._add_goal_to_observation(ob)
         return new_ob
 
+    def log_diagnostics(self, paths, logger=default_logger):
+        for path in paths:
+            path['observations'] = (
+                path['observations'][:, :-self._wrapped_env.goal_dim]
+            )
+            path['next_observations'] = (
+                path['next_observations'][:, :-self._wrapped_env.goal_dim]
+            )
+        return self._wrapped_env.log_diagnostics(paths, logger=default_logger)
+
     def _add_goal_to_observation(self, ob):
         if self.give_goal_difference:
             goal_difference = (
@@ -390,3 +346,16 @@ class MultitaskEnvToSilentMultitaskEnv(ProxyEnv, Serializable):
 
     def sample_states(self, batch_size):
         return self._wrapped_env.sample_states(batch_size)
+
+    def convert_ob_to_goal(self, ob):
+        return self._wrapped_env.convert_ob_to_goal(ob)
+
+    def convert_obs_to_goals(self, obs):
+        return self._wrapped_env.convert_obs_to_goals(obs)
+
+    @property
+    def multitask_goal(self):
+        return self._wrapped_env.multitask_goal
+
+    def joints_to_full_state(self, *args, **kwargs):
+        return self._wrapped_env.joints_to_full_state(*args, **kwargs)

@@ -1,20 +1,14 @@
 from collections import OrderedDict
 
 import numpy as np
-import torch
 import torch.optim as optim
 
-import railrl
 import railrl.torch.pytorch_util as ptu
-from railrl.data_management.env_replay_buffer import VPGEnvReplayBuffer
-from railrl.misc import eval_util
-from railrl.misc.ml_util import (
-    ConstantSchedule,
-)
-from railrl.torch.algos.torch_rl_algorithm import TorchRLAlgorithm
 from railrl.core import logger
-from railrl.torch.algos.util import np_to_pytorch_batch
+from railrl.data_management.env_replay_buffer import VPGEnvReplayBuffer
+from railrl.torch.core import np_to_pytorch_batch
 from railrl.torch.distributions import TanhNormal
+from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
 
 
 class VPG(TorchRLAlgorithm):
@@ -27,9 +21,6 @@ class VPG(TorchRLAlgorithm):
             env,
             policy,
             policy_learning_rate=1e-4,
-            epoch_discount_schedule=None,
-            plotter=None,
-            render_eval_paths=False,
             replay_buffer_class=VPGEnvReplayBuffer,
             **kwargs
     ):
@@ -48,31 +39,20 @@ class VPG(TorchRLAlgorithm):
         )
         self.policy = policy
         self.policy_learning_rate = policy_learning_rate
-        if epoch_discount_schedule is None:
-            epoch_discount_schedule = ConstantSchedule(self.discount)
-        self.epoch_discount_schedule = epoch_discount_schedule
-        self.plotter = plotter
-        self.render_eval_paths = render_eval_paths
         self.policy_optimizer = optim.Adam(self.policy.parameters(),
                                            lr=self.policy_learning_rate)
         self.eval_statistics = None
 
     def _start_epoch(self, epoch):
         super()._start_epoch(epoch)
-        self.discount = self.epoch_discount_schedule.get_value(epoch)
         self.replay_buffer.empty_buffer()
 
-    def get_batch(self, training=True):
-        '''
-        Should return everything in the replay buffer and empty it out
-        :param training:
-        :return:
-        '''
+    def get_batch(self):
         batch = self.replay_buffer.get_training_data()
         return np_to_pytorch_batch(batch)
 
     def _do_training(self):
-        batch = self.get_batch(training=True)
+        batch = self.get_batch()
         obs = batch['observations']
         actions = batch['actions']
         returns = batch['returns']
@@ -108,32 +88,6 @@ class VPG(TorchRLAlgorithm):
 
     def _can_evaluate(self):
         return True
-
-    def evaluate(self, epoch):
-        statistics = OrderedDict()
-        statistics.update(self.eval_statistics)
-        self.eval_statistics = None
-
-        logger.log("Collecting samples for evaluation")
-        test_paths = self.eval_sampler.obtain_samples()
-
-        statistics.update(eval_util.get_generic_path_information(
-            test_paths, stat_prefix="Test",
-        ))
-        if hasattr(self.env, "log_diagnostics"):
-            self.env.log_diagnostics(test_paths)
-
-        average_returns = railrl.misc.eval_util.get_average_returns(test_paths)
-        statistics['AverageReturn'] = average_returns
-        for key, value in statistics.items():
-            logger.record_tabular(key, value)
-
-        if self.render_eval_paths:
-            self.env.render_paths(test_paths)
-
-        if self.plotter:
-            self.plotter.draw()
-
 
     def offline_evaluate(self, epoch):
         statistics = OrderedDict()

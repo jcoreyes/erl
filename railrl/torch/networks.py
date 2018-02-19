@@ -59,7 +59,7 @@ class Mlp(PyTorchModule):
 
         self.last_fc = nn.Linear(in_size, output_size)
         self.last_fc.weight.data.uniform_(-init_w, init_w)
-        self.last_fc.bias.data.uniform_(-init_w, init_w)
+        self.last_fc.bias.data.fill_(0)
 
     def forward(self, input, return_preactivations=False):
         h = input

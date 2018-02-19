@@ -81,14 +81,10 @@ class DdpgQfCombiner(object):
         self.qf1.cuda()
         self.qf2.cuda()
 
-    def get_batch(self, training=True):
+    def get_batch(self):
         sample_size = self.batch_size // 2
-        batch1 = self.replay_buffer1.get_replay_buffer(
-            training
-        ).random_batch(sample_size)
-        batch2 = self.replay_buffer2.get_replay_buffer(
-            training
-        ).random_batch(sample_size)
+        batch1 = self.replay_buffer1().random_batch(sample_size)
+        batch2 = self.replay_buffer2().random_batch(sample_size)
         new_batch = {}
         for k, v in batch1.items():
             new_batch[k] = np.concatenate(
@@ -121,12 +117,8 @@ class DdpgQfCombiner(object):
         """
         statistics = OrderedDict()
 
-        train_batch = self.get_batch(training=True)
+        train_batch = self.get_batch()
         statistics.update(self._statistics_from_batch(train_batch, "Train"))
-        validation_batch = self.get_batch(training=False)
-        statistics.update(
-            self._statistics_from_batch(validation_batch, "Validation")
-        )
 
         logger.log("Collecting samples for evaluation")
         test_paths = self._sample_eval_paths()

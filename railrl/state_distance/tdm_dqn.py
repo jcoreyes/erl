@@ -29,25 +29,34 @@ class TdmDqn(TemporalDifferenceModel, DQN):
     def _do_training(self):
         if not self.vectorized:
             return DQN._do_training(self)
-        batch = self.get_batch(training=True)
+        batch = self.get_batch()
         rewards = batch['rewards']
         terminals = batch['terminals']
         obs = batch['observations']
         actions = batch['actions']
         next_obs = batch['next_observations']
+        goals = batch['goals']
+        num_steps_left = batch['num_steps_left']
 
         """
         Compute loss
         """
 
-        target_q_values = self.target_qf(next_obs).detach().max(
+        target_q_values = self.target_qf(
+            next_obs,
+            goals,
+            num_steps_left-1,
+        ).detach().max(
             1, keepdim=False
         )[0]
         y_target = rewards + (1. - terminals) * self.discount * target_q_values
         y_target = y_target.detach()
         # actions is a one-hot vector
-        y_pred = torch.sum(self.qf(obs) * actions.unsqueeze(2), dim=1,
-                           keepdim=False)
+        y_pred = torch.sum(
+            self.qf(obs, goals, num_steps_left) * actions.unsqueeze(2),
+            dim=1,
+            keepdim=False
+        )
         qf_loss = self.qf_criterion(y_pred, y_target)
 
         """
