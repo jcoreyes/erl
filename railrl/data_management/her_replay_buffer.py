@@ -16,7 +16,7 @@ class HerReplayBuffer(EnvReplayBuffer):
             self,
             max_size,
             env,
-            num_goals_to_sample=8,
+            num_goals_to_sample=4,
             fraction_goals_are_rollout_goals=None,
             resampling_strategy='uniform',
             truncated_geom_factor=1.,
