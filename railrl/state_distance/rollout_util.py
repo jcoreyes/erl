@@ -82,7 +82,7 @@ def multitask_rollout(
         actions.append(a)
         agent_infos.append(agent_info)
         env_infos.append(env_info)
-        taus.append(tau)
+        taus.append(tau.copy())
         path_length += 1
         if decrement_tau:
             tau -= 1
