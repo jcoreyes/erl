@@ -32,6 +32,29 @@ class Point2dUWall(Serializable, Env):
     INNER_WALL_MAX_DIST = 1
     BALL_RADIUS = 0.25
     INIT_MAX_DISTANCE = INNER_WALL_MAX_DIST - BALL_RADIUS
+    WALLS = [
+        # Right wall
+        VerticalWall(
+            BALL_RADIUS,
+            INNER_WALL_MAX_DIST,
+            INNER_WALL_MAX_DIST,
+            -INNER_WALL_MAX_DIST
+        ),
+        # Left wall
+        VerticalWall(
+            BALL_RADIUS,
+            -INNER_WALL_MAX_DIST,
+            INNER_WALL_MAX_DIST,
+            -INNER_WALL_MAX_DIST
+        ),
+        # Bottom wall
+        HorizontalWall(
+            BALL_RADIUS,
+            INNER_WALL_MAX_DIST,
+            INNER_WALL_MAX_DIST,
+            -INNER_WALL_MAX_DIST
+        )
+    ]
 
     def __init__(
             self,
@@ -56,29 +79,6 @@ class Point2dUWall(Serializable, Env):
 
         self.drawer = None
         self.render_dt_msec = render_dt_msec
-        self._walls = [
-            # Right wall
-            VerticalWall(
-                self.BALL_RADIUS,
-                self.INNER_WALL_MAX_DIST,
-                self.INNER_WALL_MAX_DIST,
-                -self.INNER_WALL_MAX_DIST
-            ),
-            # Left wall
-            VerticalWall(
-                self.BALL_RADIUS,
-                -self.INNER_WALL_MAX_DIST,
-                self.INNER_WALL_MAX_DIST,
-                -self.INNER_WALL_MAX_DIST
-            ),
-            # Bottom wall
-            HorizontalWall(
-                self.BALL_RADIUS,
-                self.INNER_WALL_MAX_DIST,
-                self.INNER_WALL_MAX_DIST,
-                -self.INNER_WALL_MAX_DIST
-            )
-        ]
 
     def _step(self, velocities):
         velocities = np.clip(velocities, a_min=-1, a_max=1)
@@ -86,7 +86,7 @@ class Point2dUWall(Serializable, Env):
             self._target_position - self._position
         )
         new_position = self._position + velocities
-        for wall in self._walls:
+        for wall in self.WALLS:
             if wall.collides_with(self._position, new_position):
                 new_position = wall.handle_collision(
                     self._position, new_position
@@ -175,7 +175,7 @@ class Point2dUWall(Serializable, Env):
         )
 
         # draw the walls
-        for wall in self._walls:
+        for wall in self.WALLS:
             self.drawer.draw_segment(
                 wall.endpoint1,
                 wall.endpoint2,
@@ -184,3 +184,88 @@ class Point2dUWall(Serializable, Env):
 
         self.drawer.render()
         self.drawer.tick(self.render_dt_msec)
+
+    @staticmethod
+    def true_model(state, action):
+        velocities = np.clip(action, a_min=-1, a_max=1)
+        position = state
+        new_position = position + velocities
+        for wall in Point2dUWall.WALLS:
+            if wall.collides_with(position, new_position):
+                new_position = wall.handle_collision(
+                    position, new_position
+                )
+        return np.clip(
+            new_position,
+            a_min=-Point2dUWall.OUTER_WALL_MAX_DIST,
+            a_max=Point2dUWall.OUTER_WALL_MAX_DIST,
+        )
+
+
+    @staticmethod
+    def true_states(state, actions):
+        real_states = [state]
+        for action in actions:
+            next_state = Point2dUWall.true_model(state, action)
+            real_states.append(next_state)
+            state = next_state
+        return real_states
+
+
+    @staticmethod
+    def plot_trajectory(ax, states, actions, goal=None):
+        x = states[:, 0]
+        y = -states[:, 1]
+
+        actions_x = actions[:, 0]
+        actions_y = -actions[:, 1]
+
+        ax.quiver(x[:-1], y[:-1], x[1:] - x[:-1], y[1:] - y[:-1],
+                  scale_units='xy', angles='xy', scale=1, width=0.005)
+        ax.quiver(x[:-1], y[:-1], actions_x, actions_y, scale_units='xy',
+                  angles='xy', scale=1, color='r',
+                  width=0.0035, )
+
+        ax.plot(
+            [
+                -Point2dUWall.INNER_WALL_MAX_DIST,
+                -Point2dUWall.INNER_WALL_MAX_DIST
+            ],
+            [
+                Point2dUWall.INNER_WALL_MAX_DIST,
+                -Point2dUWall.INNER_WALL_MAX_DIST
+            ],
+            color='k', linestyle='-',
+        )
+        ax.plot(
+            [
+                -Point2dUWall.INNER_WALL_MAX_DIST,
+                 Point2dUWall.INNER_WALL_MAX_DIST
+            ],
+            [
+                -Point2dUWall.INNER_WALL_MAX_DIST,
+                -Point2dUWall.INNER_WALL_MAX_DIST
+            ],
+            color='k', linestyle='-'
+        )
+        ax.plot(
+            [
+                Point2dUWall.INNER_WALL_MAX_DIST,
+                Point2dUWall.INNER_WALL_MAX_DIST
+            ],
+            [
+                Point2dUWall.INNER_WALL_MAX_DIST,
+                -Point2dUWall.INNER_WALL_MAX_DIST
+            ], color='k', linestyle='-'
+        )
+
+        if goal is not None:
+            ax.plot(goal[0], -goal[1], marker='*', color='g', markersize=15)
+        ax.set_ylim(
+            -Point2dUWall.OUTER_WALL_MAX_DIST,
+            Point2dUWall.OUTER_WALL_MAX_DIST
+        )
+        ax.set_xlim(
+            -Point2dUWall.OUTER_WALL_MAX_DIST,
+            Point2dUWall.OUTER_WALL_MAX_DIST
+        )
