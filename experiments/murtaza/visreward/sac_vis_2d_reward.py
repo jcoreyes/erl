@@ -1,20 +1,15 @@
 import random
 
-import gym
 import numpy as np
 
 import railrl.torch.pytorch_util as ptu
-from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.networks import FlattenMlp
-import sys
 
 from railrl.torch.sac.policies import TanhGaussianPolicy
 from railrl.torch.sac.sac import SoftActorCritic
-from rllab.envs.gym_env import GymEnv
 
 from singleobj_visreward import SingleObjVisRewardEnv
-from rllab.envs.normalized_env import normalize
 import railrl.misc.hyperparameter as hyp
 
 env = SingleObjVisRewardEnv()
@@ -83,19 +78,19 @@ if __name__ == "__main__":
     search_space = {
         'algo_params.reward_scale': [
             10,
-            # 100,
+            100,
             # 1000,
             # 10000,
         ],
         'algo_params.num_updates_per_env_step': [
             10,
-            # 15,
+            15,
             # 20,
             # 25,
         ],
         'algo_params.batch_size': [
             512,
-            # 1024,
+            1024,
         ]
 
     }
@@ -112,7 +107,7 @@ if __name__ == "__main__":
                 variant=variant,
                 exp_id=exp_id,
                 exp_prefix='TEST',
-                mode='local_docker',
+                mode='local',
                 use_gpu=use_gpu,
             )
 

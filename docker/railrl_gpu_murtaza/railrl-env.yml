@@ -40,7 +40,7 @@ dependencies:
         - nose2
         - pyzmq
         - msgpack-python
-        - mujoco_py==0.5.7
+        - mujoco_py==1.5
         - cached_property
         - line_profiler
         - Cython
