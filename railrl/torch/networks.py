@@ -25,7 +25,7 @@ class Mlp(PyTorchModule):
             hidden_activation=F.relu,
             output_activation=identity,
             hidden_init=ptu.fanin_init,
-            b_init_value=0.1,
+            b_init_value=0.,
             layer_norm=False,
             layer_norm_kwargs=None,
     ):

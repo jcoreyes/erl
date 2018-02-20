@@ -23,15 +23,19 @@ def simulate_policy(args):
     if args.pause:
         import ipdb; ipdb.set_trace()
     policy.cost_fn = env.cost_fn
+    policy.env = env
+    if args.T:
+        policy.mpc_horizon = args.T
+    paths = []
     while True:
-        path = rollout(
+        paths.append(rollout(
             env,
             policy,
             max_path_length=args.H,
             animated=True,
-        )
+        ))
         if hasattr(env, "log_diagnostics"):
-            env.log_diagnostics([path])
+            env.log_diagnostics(paths)
         logger.dump_tabular()
 
 if __name__ == "__main__":
@@ -41,6 +45,8 @@ if __name__ == "__main__":
                         help='path to the snapshot file')
     parser.add_argument('--H', type=int, default=300,
                         help='Max length of rollout')
+    parser.add_argument('--T', type=int,
+                        help='Planning horizon')
     parser.add_argument('--speedup', type=float, default=10,
                         help='Speedup')
     parser.add_argument('--gpu', action='store_true')
