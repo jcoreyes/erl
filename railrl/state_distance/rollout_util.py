@@ -64,6 +64,7 @@ def multitask_rollout(
     taus = []
 
     o = env.reset()
+    agent.reset()
     path_length = 0
     if animated:
         env.render()
