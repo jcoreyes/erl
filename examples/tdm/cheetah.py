@@ -69,11 +69,6 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-ddpg-tdm-launch"
 
-    n_seeds = 1
-    mode = "ec2"
-    exp_prefix = "tdm-example-cheetah"
-
-    # noinspection PyTypeChecker
     variant = dict(
         ddpg_tdm_kwargs=dict(
             base_kwargs=dict(

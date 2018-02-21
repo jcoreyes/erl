@@ -68,11 +68,6 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-tdm-example-7dof-reacher"
 
-    n_seeds = 1
-    mode = "ec2"
-    exp_prefix = "tdm-example-7dof-reacher-3"
-
-    # noinspection PyTypeChecker
     variant = dict(
         ddpg_tdm_kwargs=dict(
             base_kwargs=dict(

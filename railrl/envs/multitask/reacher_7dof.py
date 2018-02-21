@@ -1,17 +1,14 @@
 from collections import OrderedDict
 
-import torch
 import numpy as np
-from gym import utils
 from gym.envs.mujoco import mujoco_env
 from gym.spaces import Box
 
+from railrl.core import logger as default_logger
+from railrl.core.serializable import Serializable
 from railrl.envs.env_utils import get_asset_xml
 from railrl.envs.multitask.multitask_env import MultitaskEnv
 from railrl.misc.eval_util import create_stats_ordered_dict, get_stat_in_paths
-import railrl.torch.pytorch_util as ptu
-from railrl.core.serializable import Serializable
-from railrl.core import logger as default_logger
 
 
 class Reacher7DofMultitaskEnv(
@@ -59,12 +56,12 @@ class Reacher7DofMultitaskEnv(
 
     def _get_obs(self):
         return np.concatenate([
-            self.model.data.qpos.flat[:7],
-            self.model.data.qvel.flat[:7],
+            self.sim.data.qpos.flat[:7],
+            self.sim.data.qvel.flat[:7],
             self.get_body_com("tips_arm"),
         ])
 
-    def _step(self, a):
+    def step(self, a):
         distance = np.linalg.norm(
             self.get_body_com("tips_arm") - self._desired_xyz
         )
@@ -80,8 +77,8 @@ class Reacher7DofMultitaskEnv(
         )
 
     def _set_goal_xyz(self, xyz_pos):
-        current_qpos = self.model.data.qpos.flat
-        current_qvel = self.model.data.qvel.flat.copy()
+        current_qpos = self.sim.data.qpos.flat
+        current_qvel = self.sim.data.qvel.flat.copy()
         new_qpos = current_qpos.copy()
         new_qpos[-7:-4] = xyz_pos
         self._desired_xyz = xyz_pos
@@ -106,8 +103,8 @@ class Reacher7DofMultitaskEnv(
             logger.record_tabular(key, value)
 
     def joints_to_full_state(self, joints):
-        current_qpos = self.model.data.qpos.flat.copy()
-        current_qvel = self.model.data.qvel.flat.copy()
+        current_qpos = self.sim.data.qpos.flat.copy()
+        current_qvel = self.sim.data.qvel.flat.copy()
 
         new_qpos = current_qpos.copy()
         new_qpos[:7] = joints
@@ -214,8 +211,8 @@ class Reacher7DofXyzPosAndVelGoalState(Reacher7DofMultitaskEnv):
         self.set_state(qpos, qvel)
         self._set_goal_xyz(self.multitask_goal[0:3])
         return np.concatenate([
-            self.model.data.qpos.flat[:7],
-            self.model.data.qvel.flat[:7],
+            self.sim.data.qpos.flat[:7],
+            self.sim.data.qvel.flat[:7],
             self.get_body_com("tips_arm"),
             np.zeros(3),
         ])
@@ -223,14 +220,14 @@ class Reacher7DofXyzPosAndVelGoalState(Reacher7DofMultitaskEnv):
     def _get_obs(self):
         raise NotImplementedError()
 
-    def _step(self, action):
+    def step(self, action):
         old_xyz = self.get_body_com("tips_arm")
         self.do_simulation(action, self.frame_skip)
         new_xyz = self.get_body_com("tips_arm")
         xyz_vel = new_xyz - old_xyz
         ob = np.concatenate([
-            self.model.data.qpos.flat[:7],
-            self.model.data.qvel.flat[:7],
+            self.sim.data.qpos.flat[:7],
+            self.sim.data.qvel.flat[:7],
             self.get_body_com("tips_arm"),
             xyz_vel,
         ])
@@ -301,8 +298,8 @@ class Reacher7DofFullGoal(Reacher7DofMultitaskEnv):
         return goal
 
     def _set_goal_xyz_automatically(self, goal):
-        current_qpos = self.model.data.qpos.flat.copy()
-        current_qvel = self.model.data.qvel.flat.copy()
+        current_qpos = self.sim.data.qpos.flat.copy()
+        current_qvel = self.sim.data.qvel.flat.copy()
 
         new_qpos = current_qpos.copy()
         new_qpos[:7] = goal[:7]
