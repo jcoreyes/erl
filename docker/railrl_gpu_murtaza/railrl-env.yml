@@ -1,4 +1,4 @@
-name: railrl-env
+name: mujoco_upgrade
 channels:
     - defaults
     - https://conda.anaconda.org/kne
@@ -48,12 +48,10 @@ dependencies:
         - git+https://github.com/neocxi/Lasagne.git@484866cf8b38d878e92d521be445968531646bb8#egg=Lasagne
         - git+https://github.com/plotly/plotly.py.git@2594076e29584ede2d09f2aa40a8a195b3f3fc66#egg=plotly
         - awscli
-        - git+https://github.com/openai/gym.git
         - pyglet
         - git+https://github.com/neocxi/prettytensor.git
         - jupyter
         - progressbar2
-#        - chainer==1.15.0
         - cloudpickle==0.2.2
         - rospkg
         - lasagne
@@ -67,7 +65,3 @@ dependencies:
         - snakeviz
         - gtimer
         - easydict
-# Can't get this to work, but you should install this if you want to run
-# fanova analysis
-#        - pyrfr
-#        - git+https://github.com/automl/fanova.git

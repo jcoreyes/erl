@@ -52,7 +52,6 @@ class NormalizedBoxEnv(ProxyEnv, Serializable):
             reward_scale=1.,
             obs_mean=None,
             obs_std=None,
-            dtype=np.float32,
     ):
         # self._wrapped_env needs to be called first because
         # Serializable.quick_init calls getattr, on this class. And the
@@ -79,7 +78,7 @@ class NormalizedBoxEnv(ProxyEnv, Serializable):
         self._obs_mean = obs_mean
         self._obs_std = obs_std
         ub = np.ones(self._wrapped_env.action_space.shape)
-        self.action_space = Box(-1 * ub, ub, dtype=dtype)
+        self.action_space = Box(-1 * ub, ub)
 
     def estimate_obs_stats(self, obs_batch, override_values=False):
         if self._obs_mean is not None and not override_values:
