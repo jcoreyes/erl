@@ -5,13 +5,12 @@ from pathlib import Path
 import joblib
 import numpy as np
 
+import railrl.torch.pytorch_util as ptu
+from railrl.core import logger
 from railrl.samplers.util import rollout
-from railrl.state_distance.util import merge_into_flat_obs
 from railrl.torch.core import PyTorchModule
 from railrl.torch.mpc.collocation.collocation_mpc_controller import SlsqpCMC, \
     GradientCMC, StateGCMC, LBfgsBCMC
-import railrl.torch.pytorch_util as ptu
-from railrl.core import logger
 
 # Reacher7DofFullGoal - TDM
 PATH = '/home/vitchyr/git/railrl/data/doodads3/02-07-reacher7dof-sac-mtau-1-or-10-terminal-bonus/02-07-reacher7dof-sac-mtau-1-or-10-terminal-bonus-id4-s9821/params.pkl'
@@ -45,8 +44,12 @@ class TdmToImplicitModel(PyTorchModule):
             self.tau * np.ones((states.shape[0], 1))
         )
         goals = self.env.convert_obs_to_goals(next_states)
-        flat_obs = merge_into_flat_obs(states, goals, taus)
-        return self.qf(flat_obs, actions).sum(1)
+        return self.qf(
+            observations=states,
+            actions=actions,
+            goals=goals,
+            num_steps_left=taus,
+        ).sum(1)
 
 
 if __name__ == "__main__":

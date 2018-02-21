@@ -1,11 +1,10 @@
 import argparse
-import numpy as np
-import joblib
 import json
-import matplotlib.pyplot as plt
 from pathlib import Path
 
-from railrl.state_distance.util import merge_into_flat_obs
+import joblib
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 def main(args):
@@ -22,8 +21,7 @@ def main(args):
     vf = data['vf']
     policy = data['policy']
     goal = env.convert_ob_to_goal(env.reset())
-    policy.set_goal(goal)
-    policy.set_tau(0)
+    tau = np.array([[0]])
     state = env.reset()
 
     states = []
@@ -36,11 +34,10 @@ def main(args):
 
     for _ in range(horizon):
         states.append(state.copy())
-        action, _ = policy.get_action(state)
+        action, _ = policy.get_action(state, goal, tau[0])
         next_state, *_ = env.step(action)
-        flat_ob = merge_into_flat_obs(state, goal, np.array([0]))
-        q_val = qf.eval_np(flat_ob[None], action[None])[0]
-        v_val = vf.eval_np(flat_ob[None])[0]
+        q_val = qf.eval_np(state[None], action[None], goal[None], tau)[0]
+        v_val = vf.eval_np(state[None], goal[None], tau)[0]
         q_vals.append(q_val)
         v_vals.append(v_val)
         a_vals.append(q_val - v_val)
@@ -48,10 +45,9 @@ def main(args):
             env.convert_ob_to_goal(next_state) - goal
         ))
         sample_log_probs = []
-        next_flat_ob = merge_into_flat_obs(next_state, goal, np.array([0]))
         for _ in range(10):
             sample_log_probs.append(
-                policy.eval_np(next_flat_ob[None], return_log_prob=True)[3]
+                policy.eval_np(next_state[None], goal[None], tau, return_log_prob=True)[3]
             )
         log_probs.append(np.mean(sample_log_probs))
 
