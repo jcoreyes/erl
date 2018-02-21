@@ -5,6 +5,7 @@ from railrl.envs.multitask.ant_env import GoalXYPosAnt, GoalXYPosAndVelAnt
 from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
     GoalXPosHalfCheetah
 from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
+from railrl.envs.multitask.point2d_uwall import MultitaskPoint2dUWall
 from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
 from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
 from railrl.envs.multitask.reacher_7dof import (
@@ -65,7 +66,7 @@ if __name__ == "__main__":
     # exp_prefix = "reacher-target-pos-and-vel-done-when-hit"
 
     num_epochs = 100
-    num_steps_per_epoch = 1000
+    num_steps_per_epoch = 10000
     num_steps_per_eval = 1000
     max_path_length = 100
 
@@ -96,10 +97,11 @@ if __name__ == "__main__":
             # Reacher7DofXyzGoalState,
             # GoalXYPosAnt,
             # GoalXYPosAndVelAnt,
-            Reacher7DofXyzPosAndVelGoalState,
+            # Reacher7DofXyzPosAndVelGoalState,
             # CylinderXYPusher2DEnv,
             # MultitaskPusher3DEnv,
             # Walker2DTargetXPos,
+            MultitaskPoint2dUWall,
         ],
         # 'env_kwargs.max_speed': [
         #     0.03,
@@ -111,9 +113,9 @@ if __name__ == "__main__":
         #     0.01,
         # ],
         'multitask': [True],
-        'algo_kwargs.step_size': [
-            100, 1, 0.01, 0.0001,
-        ],
+        # 'algo_kwargs.step_size': [
+        #     100, 1, 0.01, 0.0001,
+        # ],
         'algo_kwargs.max_path_length': [
             100
         ],
@@ -123,12 +125,10 @@ if __name__ == "__main__":
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
-            seed = random.randint(0, 999999)
             run_experiment(
                 experiment,
                 exp_id=exp_id,
                 exp_prefix=exp_prefix,
-                seed=seed,
                 mode=mode,
                 variant=variant,
             )
