@@ -81,7 +81,6 @@ class TdmQf(FlattenMlp):
             self,
             env,
             vectorized,
-            norm_order,
             structure='norm_difference',
             tdm_normalizer: TdmNormalizer=None,
             learn_offset=False,
@@ -92,7 +91,6 @@ class TdmQf(FlattenMlp):
         :param env:
         :param hidden_sizes:
         :param vectorized: Boolean. Vectorized or not?
-        :param norm_order: int, 1 or 2. What L norm to use.
         :param structure: String defining output structure of network:
             - 'norm_difference': Q = -||g - f(inputs)||
             - 'squared_difference': Q = -(g - f(inputs))^2
@@ -118,7 +116,6 @@ class TdmQf(FlattenMlp):
         )
         self.env = env
         self.vectorized = vectorized
-        self.norm_order = norm_order
         self.structure = structure
         self.tdm_normalizer = tdm_normalizer
         self.learn_offset = learn_offset
@@ -137,6 +134,7 @@ class TdmQf(FlattenMlp):
             actions,
             goals,
             num_steps_left,
+            return_predictions=False
     ):
         if self.tdm_normalizer is not None:
             observations, actions, goals, num_steps_left = (
@@ -148,6 +146,8 @@ class TdmQf(FlattenMlp):
         predictions = super().forward(
             observations, actions, goals, num_steps_left
         )
+        if return_predictions:
+            return predictions
 
         if self.structure == 'norm_difference':
             output = - torch.abs(goals - predictions)

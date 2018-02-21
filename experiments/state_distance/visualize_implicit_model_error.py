@@ -16,11 +16,78 @@ import numpy as np
 from matplotlib import colors
 
 from railrl.policies.simple import RandomPolicy
-from railrl.state_distance.old.networks import NumpyModelExtractor
+import railrl.torch.pytorch_util as ptu
+from torch import optim
 
 
-def visualize_policy_error(qf, env, horizon):
-    model = NumpyModelExtractor(qf)
+class NumpyModelExtractor(object):
+    def __init__(
+            self,
+            qf,
+            cheat,
+            num_steps_left=0.,
+            sample_size=100,
+            learning_rate=1e-1,
+            num_gradient_steps=100,
+    ):
+        super().__init__()
+        self.qf = qf
+        self.cheat = cheat
+        self.num_steps_left = num_steps_left
+        self.sample_size = sample_size
+        self.learning_rate = learning_rate
+        self.num_optimization_steps = num_gradient_steps
+
+    def expand_to_sample_size(self, torch_array):
+        return torch_array.repeat(self.sample_size, 1)
+
+    def expand_np_to_var(self, array):
+        array_expanded = np.repeat(
+            np.expand_dims(array, 0),
+            self.sample_size,
+            axis=0
+        )
+        return ptu.np_to_var(array_expanded, requires_grad=False)
+
+    def next_state(self, state, action):
+        if self.cheat:
+            next_states = self.qf.eval_np(
+                observations=state[None],
+                actions=action[None],
+                goals=state[None],
+                num_steps_left=np.array([[0]]),
+                return_predictions=True,
+            )
+            return next_states[0]
+        num_steps_left = ptu.np_to_var(
+            self.num_steps_left * np.ones((self.sample_size, 1))
+        )
+        obs_dim = state.shape[0]
+        states = self.expand_np_to_var(state)
+        actions = self.expand_np_to_var(action)
+        next_states_np = np.zeros((self.sample_size, obs_dim))
+        next_states = ptu.np_to_var(next_states_np, requires_grad=True)
+        optimizer = optim.Adam([next_states], self.learning_rate)
+
+        for _ in range(self.num_optimization_steps):
+            # import ipdb; ipdb.set_trace()
+            losses = -self.qf(
+                observations=states,
+                actions=actions,
+                goals=next_states,
+                num_steps_left=num_steps_left,
+            )
+            loss = losses.mean()
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+        losses_np = ptu.get_numpy(losses)
+        best_action_i = np.argmin(losses_np)
+        return ptu.get_numpy(next_states[best_action_i, :])
+
+
+def visualize_policy_error(qf, env, horizon, cheat):
+    model = NumpyModelExtractor(qf, args.cheat)
     policy = RandomPolicy(env.action_space)
     actual_state = env.reset()
 
@@ -69,9 +136,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('file', type=str, help='path to the snapshot file')
     parser.add_argument('--H', type=int, default=30, help='Horizon for eval')
+    parser.add_argument('--cheat', action='store_true')
     args = parser.parse_args()
 
     data = joblib.load(args.file)
     qf = data['qf']
     env = data['env']
-    visualize_policy_error(qf, env, args.H)
+    visualize_policy_error(qf, env, args.H, args.cheat)
