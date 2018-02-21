@@ -1,8 +1,6 @@
 """
 Run PyTorch DDPG on HalfCheetah.
 """
-
-from railrl.envs.wrappers import NormalizedBoxEnv
 import random
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
@@ -12,12 +10,13 @@ from railrl.torch.networks import FeedForwardQFunction, FeedForwardPolicy
 from railrl.torch.ddpg.ddpg import DDPG
 import railrl.torch.pytorch_util as ptu
 
-from gym.envs.mujoco import HalfCheetahEnv
+from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
+from rllab.envs.normalized_env import normalize
 
 
 def example(variant):
     env = HalfCheetahEnv()
-    env = NormalizedBoxEnv(env)
+    env = normalize(env)
     es = OUStrategy(action_space=env.action_space)
     qf = FeedForwardQFunction(
         int(env.observation_space.flat_dim),

@@ -12,10 +12,10 @@ from railrl.launchers.launcher_util import setup_logger
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 from railrl.torch.ddpg.ddpg import DDPG
 import railrl.torch.pytorch_util as ptu
-
+from gym.envs.mujoco.reacher import ReacherEnv
 
 def experiment(variant):
-    env = NormalizedBoxEnv(gym.make('HalfCheetah-v2'))
+    env = NormalizedBoxEnv(ReacherEnv())
     es = OUStrategy(action_space=env.action_space)
     obs_dim = env.observation_space.low.size
     action_dim = env.action_space.low.size
