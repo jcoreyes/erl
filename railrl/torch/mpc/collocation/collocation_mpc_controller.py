@@ -381,6 +381,8 @@ class StateGCMC(GradientCMC):
         action = actions_np[min_i, :self.action_dim]
         return action, {}
 
+import matplotlib.pyplot as plt
+
 
 class LBfgsBCMC(UniversalPolicy):
     def __init__(
@@ -422,6 +424,7 @@ class LBfgsBCMC(UniversalPolicy):
         self.upper_bounds = np.tile(self.upper_bounds, self.planning_horizon)
         # TODO(vitchyr): figure out what to do if the state bounds are infinity
         self.bounds = list(zip(self.lower_bounds, self.upper_bounds))
+        fig, (self.ax1, self.ax2) = plt.subplots(1, 2)
 
     def split(self, x):
         """
@@ -445,7 +448,8 @@ class LBfgsBCMC(UniversalPolicy):
                 * np.ones(next_features_predicted.shape)
             )
             diff = next_features_predicted - desired_features
-            loss += (diff**2).sum()
+            # loss = loss + (diff**2).sum()
+            loss = (diff**2).sum()  # Just use loss at last time step
         return loss
 
     def _feasibility_cost_function(self, x, state):
@@ -482,6 +486,20 @@ class LBfgsBCMC(UniversalPolicy):
                 obs,
             ))
             self.last_solution = np.tile(init_solution, self.planning_horizon)
+            solution = []
+            for i in range(self.planning_horizon):
+                solution.append(self.env.action_space.sample())
+                progress = (i + 1.) / self.planning_horizon
+                avg = (
+                  progress * self.env.multitask_goal
+                  + (1-progress) * obs
+                )
+                solution.append(avg)
+            # self.last_solution = np.hstack([
+            #     [self.env.action_space.sample(), obs]
+            #     for _ in range(self.planning_horizon)
+            # ])
+            self.last_solution = np.hstack(solution)
         x, f, d = optimize.fmin_l_bfgs_b(
             self.cost_function,
             self.last_solution,
@@ -496,7 +514,35 @@ class LBfgsBCMC(UniversalPolicy):
             else:
                 print(d['task'])
 
-        action, _ = self.split(x)[0]
+        actions_and_obs = self.split(x)
+
+        # For Point2d u-shaped wall
+        # best_action_seq = np.array([a for a, o in actions_and_obs])
+        # best_obs_seq = np.array([obs] + [o for a, o in actions_and_obs])
+        # real_obs_seq = self.env.wrapped_env.wrapped_env.true_states(
+        #     obs, best_action_seq
+        # )
+        # print("best_action_seq",best_action_seq)
+        # self.ax1.clear()
+        # self.env.wrapped_env.wrapped_env.plot_trajectory(
+        #     self.ax1,
+        #     np.array(best_obs_seq),
+        #     np.array(best_action_seq),
+        #     goal=self.env.wrapped_env.wrapped_env._target_position,
+        # )
+        # self.ax1.set_title("imagined")
+        # self.ax2.clear()
+        # self.env.wrapped_env.wrapped_env.plot_trajectory(
+        #     self.ax2,
+        #     np.array(real_obs_seq),
+        #     np.array(best_action_seq),
+        #     goal=self.env.wrapped_env.wrapped_env._target_position,
+        # )
+        # self.ax2.set_title("real")
+        # plt.draw()
+        # plt.pause(0.001)
+
+        action = actions_and_obs[0][0]
         self.last_solution = x
         return action, {}
 

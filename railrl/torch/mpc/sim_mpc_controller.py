@@ -39,6 +39,10 @@ def simulate_policy(args):
         logger.dump_tabular()
 
 if __name__ == "__main__":
+    # For Point2d u-shaped wall
+    # import matplotlib.pyplot as plt
+    # plt.show()
+    # plt.ion()
 
     parser = argparse.ArgumentParser()
     parser.add_argument('file', type=str,
