@@ -13,7 +13,9 @@ filename = str(uuid.uuid4())
 
 def simulate_policy(args):
     data = joblib.load(args.file)
-    if 'policy' in data:
+    if 'eval_policy' in data:
+        policy = data['eval_policy']
+    elif 'policy' in data:
         policy = data['policy']
     elif 'exploration_policy' in data:
         policy = data['exploration_policy']
@@ -38,15 +40,16 @@ def simulate_policy(args):
         import ipdb; ipdb.set_trace()
     if isinstance(policy, PyTorchModule):
         policy.train(False)
+    paths = []
     while True:
-        path = rollout(
+        paths.append(rollout(
             env,
             policy,
             max_path_length=args.H,
-            animated=True,
-        )
+            animated=not args.hide,
+        ))
         if hasattr(env, "log_diagnostics"):
-            env.log_diagnostics([path])
+            env.log_diagnostics(paths)
         logger.dump_tabular()
 
 
@@ -61,6 +64,7 @@ if __name__ == "__main__":
                         help='Speedup')
     parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--pause', action='store_true')
+    parser.add_argument('--hide', action='store_true')
     args = parser.parse_args()
 
     simulate_policy(args)
