@@ -214,6 +214,7 @@ class Point2dUWall(Serializable, Env):
 
     @staticmethod
     def plot_trajectory(ax, states, actions, goal=None):
+        assert len(states) == len(actions) + 1
         x = states[:, 0]
         y = -states[:, 1]
 
