@@ -1,6 +1,8 @@
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
+from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
+from railrl.envs.multitask.point2d_uwall import MultitaskPoint2dUWall
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState
 )
@@ -66,12 +68,12 @@ if __name__ == "__main__":
 
     # n_seeds = 1
     # mode = "ec2"
-    # exp_prefix = "reacher7dof-xyz-refactor"
+    exp_prefix = "point-2d-uwall-sweep-mtau-and-learn-offset"
 
-    num_epochs = 50
-    num_steps_per_epoch = 100
-    num_steps_per_eval = 100
-    max_path_length = 100
+    num_epochs = 100
+    num_steps_per_epoch = 1000
+    num_steps_per_eval = 500
+    max_path_length = 50
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -128,9 +130,10 @@ if __name__ == "__main__":
     search_space = {
         'env_class': [
             # GoalXVelHalfCheetah,
-            Reacher7DofXyzGoalState,
+            # Reacher7DofXyzGoalState,
             # Reacher7DofFullGoal,
             # MultitaskPoint2DEnv,
+            MultitaskPoint2dUWall,
             # GoalXYPosAnt,
             # Walker2DTargetXPos,
             # MultitaskPusher3DEnv,
@@ -146,17 +149,21 @@ if __name__ == "__main__":
         'qf_kwargs.hidden_activation': [
             ptu.softplus,
         ],
+        'qf_kwargs.learn_offset': [
+            True,
+            False,
+        ],
         'qf_params.predict_delta': [
             True,
             # False,
         ],
         'sac_tdm_kwargs.tdm_kwargs.vectorized': [
-            False,
+            # False,
             True,
         ],
         'sac_tdm_kwargs.give_terminal_reward': [
             False,
-            True,
+            # True,
         ],
         'sac_tdm_kwargs.tdm_kwargs.terminate_when_goal_reached': [
             True,
@@ -164,33 +171,18 @@ if __name__ == "__main__":
         ],
         'sac_tdm_kwargs.tdm_kwargs.sample_rollout_goals_from': [
             # 'fixed',
-            # 'environment',
-            'replay_buffer',
-        ],
-        'relabel': [
-            True,
-        ],
-        'sac_tdm_kwargs.tdm_kwargs.dense_rewards': [
-            False,
-        ],
-        'sac_tdm_kwargs.tdm_kwargs.finite_horizon': [
-            True,
-        ],
-        'sac_tdm_kwargs.tdm_kwargs.reward_type': [
-            'distance',
+            'environment',
+            # 'replay_buffer',
         ],
         'sac_tdm_kwargs.tdm_kwargs.max_tau': [
             0,
-            1,
             10,
+            max_path_length-1,
+            # 1,
+            # 10,
             # 99,
             # 49,
             # 15,
-        ],
-        'sac_tdm_kwargs.tdm_kwargs.tau_sample_strategy': [
-            # 'all_valid',
-            'uniform',
-            # 'no_resampling',
         ],
         'sac_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
             1,
@@ -200,44 +192,11 @@ if __name__ == "__main__":
         'sac_tdm_kwargs.base_kwargs.discount': [
             1,
         ],
-        'eval_with': [
-            # 'DebugQfToMPCController',
-            'TdmLBfgsBCMC',
-            # 'TanhGaussianPolicy',
-        ],
-        'explore_with': [
-            # 'DebugQfToMPCController',
-            'TdmLBfgsBCMC',
-            'TanhGaussianPolicy',
-        ],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        dense = variant['sac_tdm_kwargs']['tdm_kwargs']['dense_rewards']
-        finite = variant['sac_tdm_kwargs']['tdm_kwargs']['finite_horizon']
-        discount = variant['sac_tdm_kwargs']['base_kwargs']['discount']
-        relabel = variant['relabel']
-        if not finite:
-            variant['sac_tdm_kwargs']['base_kwargs']['discount'] = min(
-                0.95, discount
-            )
-        if not dense and not finite:  # This setting makes no sense
-            continue
-        variant['multitask'] = (
-                variant['sac_tdm_kwargs']['tdm_kwargs'][
-                    'sample_rollout_goals_from'
-                ] != 'fixed'
-        )
-        if relabel:
-            variant['sac_tdm_kwargs']['tdm_kwargs']['sample_train_goals_from'] = 'her'
-            variant['sac_tdm_kwargs']['tdm_kwargs'][
-                'tau_sample_strategy'] = 'uniform'
-        else:
-            variant['sac_tdm_kwargs']['tdm_kwargs']['sample_train_goals_from'] = 'no_resampling'
-            variant['sac_tdm_kwargs']['tdm_kwargs'][
-                'tau_sample_strategy'] = 'no_resampling'
         for i in range(n_seeds):
             run_experiment(
                 experiment,
@@ -245,6 +204,4 @@ if __name__ == "__main__":
                 exp_prefix=exp_prefix,
                 variant=variant,
                 exp_id=exp_id,
-                snapshot_mode='gap',
-                snapshot_gap=5,
             )
