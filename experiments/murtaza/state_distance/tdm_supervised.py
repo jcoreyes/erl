@@ -3,7 +3,7 @@ Example of running PyTorch implementation of DDPG on HalfCheetah.
 """
 import gym
 
-from railrl.envs.multitask.reacher_env import MultitaskReacherEnv
+from railrl.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
@@ -12,11 +12,10 @@ from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import setup_logger
 from railrl.state_distance.tdm_supervised import TdmSupervised
 import railrl.torch.pytorch_util as ptu
-from gym.envs.mujoco.reacher import ReacherEnv
 from railrl.state_distance.tdm_networks import TdmPolicy
 
 def experiment(variant):
-    env = NormalizedBoxEnv(MultitaskReacherEnv())
+    env = NormalizedBoxEnv(Reacher7DofXyzGoalState())
     es = OUStrategy(action_space=env.action_space)
     policy = TdmPolicy(
         env=env,
