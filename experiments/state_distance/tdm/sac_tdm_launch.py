@@ -4,8 +4,8 @@ from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
 from railrl.envs.multitask.point2d_uwall import MultitaskPoint2dUWall
 from railrl.envs.multitask.reacher_7dof import (
-    Reacher7DofXyzGoalState
-)
+    Reacher7DofXyzGoalState,
+    Reacher7DofFullGoal)
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.state_distance.tdm_networks import (
@@ -66,9 +66,9 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-sac-tdm-launch"
 
-    # n_seeds = 1
-    # mode = "ec2"
-    exp_prefix = "point-2d-uwall-sweep-mtau-and-learn-offset"
+    n_seeds = 1
+    mode = "ec2"
+    exp_prefix = "reacher7dof-sac-tdm-sweep"
 
     num_epochs = 100
     num_steps_per_epoch = 1000
@@ -131,9 +131,9 @@ if __name__ == "__main__":
         'env_class': [
             # GoalXVelHalfCheetah,
             # Reacher7DofXyzGoalState,
-            # Reacher7DofFullGoal,
+            Reacher7DofFullGoal,
             # MultitaskPoint2DEnv,
-            MultitaskPoint2dUWall,
+            # MultitaskPoint2dUWall,
             # GoalXYPosAnt,
             # Walker2DTargetXPos,
             # MultitaskPusher3DEnv,
@@ -141,9 +141,9 @@ if __name__ == "__main__":
         ],
         'sac_tdm_kwargs.base_kwargs.reward_scale': [
             1,
-            # 10,
-            # 100,
-            # 1000,
+            10,
+            100,
+            1000,
             # 10000,
         ],
         'qf_kwargs.hidden_activation': [
@@ -177,7 +177,7 @@ if __name__ == "__main__":
         'sac_tdm_kwargs.tdm_kwargs.max_tau': [
             0,
             10,
-            max_path_length-1,
+            # max_path_length-1,
             # 1,
             # 10,
             # 99,
