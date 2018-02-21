@@ -84,7 +84,8 @@ class TdmQf(FlattenMlp):
             norm_order,
             structure='norm_difference',
             tdm_normalizer: TdmNormalizer=None,
-            **kwargs
+            learn_offset=False,
+            **flatten_mlp_kwargs
     ):
         """
 
@@ -94,24 +95,16 @@ class TdmQf(FlattenMlp):
         :param norm_order: int, 1 or 2. What L norm to use.
         :param structure: String defining output structure of network:
             - 'norm_difference': Q = -||g - f(inputs)||
-            - 'norm': Q = -||f(inputs)||
-            - 'norm_distance_difference': Q = -||f(inputs) + current_distance||
-            - 'distance_difference': Q = f(inputs) + current_distance
-            - 'difference': Q = f(inputs) - g  (vectorized only)
+            - 'squared_difference': Q = -(g - f(inputs))^2
             - 'none': Q = f(inputs)
 
         :param kwargs:
         """
         assert structure in [
             'norm_difference',
-            'norm',
-            'norm_distance_difference',
-            'distance_difference',
-            'difference',
+            'squared_difference',
             'none',
         ]
-        if structure == 'difference':
-            assert vectorized, "difference only makes sense for vectorized"
         self.save_init_params(locals())
         self.observation_dim = env.observation_space.low.size
         self.action_dim = env.action_space.low.size
@@ -121,13 +114,22 @@ class TdmQf(FlattenMlp):
                     self.observation_dim + self.action_dim + self.goal_dim + 1
             ),
             output_size=self.goal_dim if vectorized else 1,
-            **kwargs
+            **flatten_mlp_kwargs
         )
         self.env = env
         self.vectorized = vectorized
         self.norm_order = norm_order
         self.structure = structure
         self.tdm_normalizer = tdm_normalizer
+        self.learn_offset = learn_offset
+        if learn_offset:
+            self.offset_network = FlattenMlp(
+                input_size=(
+                    self.observation_dim + self.goal_dim + 1
+                ),
+                output_size=self.goal_dim if vectorized else 1,
+                **flatten_mlp_kwargs
+            )
 
     def forward(
             self,
@@ -135,7 +137,6 @@ class TdmQf(FlattenMlp):
             actions,
             goals,
             num_steps_left,
-            return_internal_prediction=False,
     ):
         if self.tdm_normalizer is not None:
             observations, actions, goals, num_steps_left = (
@@ -147,70 +148,22 @@ class TdmQf(FlattenMlp):
         predictions = super().forward(
             observations, actions, goals, num_steps_left
         )
-        if return_internal_prediction:
-            return predictions
 
-        if self.vectorized:
-            if self.structure == 'norm_difference':
-                output = - torch.abs(goals - predictions)
-            elif self.structure == 'norm':
-                output = - torch.abs(predictions)
-            elif self.structure == 'norm_distance_difference':
-                current_features = self.env.convert_obs_to_goals(observations)
-                current_distance = torch.abs(goals - current_features)
-                output = - torch.abs(predictions + current_distance)
-            elif self.structure == 'distance_difference':
-                current_features = self.env.convert_obs_to_goals(observations)
-                current_distance = torch.abs(goals - current_features)
-                output = predictions + current_distance
-            elif self.structure == 'difference':
-                output = predictions - goals
-            elif self.structure == 'none':
-                output = predictions
-            else:
-                raise TypeError("Invalid structure: {}".format(self.structure))
+        if self.structure == 'norm_difference':
+            output = - torch.abs(goals - predictions)
+        elif self.structure == 'squared_difference':
+            output = - (goals - predictions)**2
+        elif self.structure == 'none':
+            output = predictions
         else:
-            if self.structure == 'norm_difference':
-                output = - torch.norm(
-                    goals - predictions,
-                    p=self.norm_order,
-                    dim=1,
-                    keepdim=True,
-                )
-            elif self.structure == 'norm':
-                output = - torch.norm(
-                    predictions,
-                    p=self.norm_order,
-                    dim=1,
-                    keepdim=True,
-                )
-            elif self.structure == 'norm_distance_difference':
-                current_features = self.env.convert_obs_to_goals(observations)
-                current_distance = torch.norm(
-                    goals - current_features,
-                    p=self.norm_order,
-                    dim=1,
-                    keepdim=True,
-                )
-                output = - torch.abs(predictions + current_distance)
-            elif self.structure == 'distance_difference':
-                current_features = self.env.convert_obs_to_goals(observations)
-                current_distance = torch.norm(
-                    goals - current_features,
-                    p=self.norm_order,
-                    dim=1,
-                    keepdim=True,
-                )
-                output = predictions + current_distance
-            elif self.structure == 'none':
-                output = predictions
-            else:
-                raise TypeError(
-                    "For vectorized={0}, invalid structure: {1}".format(
-                        self.vectorized,
-                        self.structure,
-                    )
-                )
+            raise TypeError("Invalid structure: {}".format(self.structure))
+        if not self.vectorized:
+            output = torch.sum(output, dim=1, keepdim=True)
+
+        if self.learn_offset:
+            offset = self.offset_network(observations, goals, num_steps_left)
+            output = output + offset
+
         if self.tdm_normalizer is not None:
             output = self.tdm_normalizer.distance_normalizer.denormalize_scale(
                 output

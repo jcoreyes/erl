@@ -8,6 +8,7 @@ from railrl.state_distance.policies import UniversalPolicy, \
 from railrl.state_distance.util import merge_into_flat_obs, split_flat_obs
 from railrl.torch.core import PyTorchModule
 import railrl.torch.pytorch_util as ptu
+import matplotlib.pyplot as plt
 
 
 class MPCController(PyTorchModule, ExplorationPolicy):
@@ -47,6 +48,7 @@ class MPCController(PyTorchModule, ExplorationPolicy):
         self.action_low = self.env.action_space.low
         self.action_high = self.env.action_space.high
         self.action_dim = self.env.action_space.low.shape[0]
+        fig, (self.ax1, self.ax2) = plt.subplots(1, 2)
 
     def forward(self, *input):
         raise NotImplementedError()
@@ -69,21 +71,59 @@ class MPCController(PyTorchModule, ExplorationPolicy):
     def get_action(self, obs):
         sampled_actions = self.sample_actions()
         first_sampled_actions = sampled_actions.copy()
+        all_actions_np = [first_sampled_actions]
         actions = ptu.np_to_var(sampled_actions)
         next_obs = self.expand_np_to_var(obs)
+        all_obs_torch = [next_obs]
         costs = 0
+        all_costs = []
         for i in range(self.mpc_horizon):
             curr_obs = next_obs
             if i > 0:
                 sampled_actions = self.sample_actions()
+                all_actions_np.append(sampled_actions)
                 actions = ptu.np_to_var(sampled_actions)
             next_obs = curr_obs + self.dynamics_model(curr_obs, actions)
-            costs = costs + self.cost_fn(
+            all_obs_torch.append(next_obs)
+            new_costs = self.cost_fn(
                 ptu.get_numpy(curr_obs),
                 ptu.get_numpy(actions),
                 ptu.get_numpy(next_obs),
             )
-        min_i = np.argmin(costs)
+            costs = costs + new_costs
+            all_costs.append(new_costs)
+
+        # Reward sum of costs or just last time step?
+        # min_i = np.argmin(costs)
+        min_costs = np.array(all_costs).min(0)
+        min_i = np.argmin(min_costs)
+
+        # For Point2d u-shaped wall
+        # best_action_seq = [action_t[min_i, :] for action_t in all_actions_np]
+        # best_obs_seq = [
+        #     ptu.get_numpy(ob_t[min_i, :]) for ob_t in all_obs_torch
+        # ]
+        #
+        # real_obs_seq = self.env.wrapped_env.wrapped_env.true_states(obs, best_action_seq)
+        # self.ax1.clear()
+        # self.env.wrapped_env.wrapped_env.plot_trajectory(
+        #     self.ax1,
+        #     np.array(best_obs_seq),
+        #     np.array(best_action_seq),
+        #     goal=self.env.wrapped_env.wrapped_env._target_position,
+        # )
+        # self.ax1.set_title("imagined")
+        # self.ax2.clear()
+        # self.env.wrapped_env.wrapped_env.plot_trajectory(
+        #     self.ax2,
+        #     np.array(real_obs_seq),
+        #     np.array(best_action_seq),
+        #     goal=self.env.wrapped_env.wrapped_env._target_position,
+        # )
+        # self.ax2.set_title("real")
+        # plt.draw()
+        # plt.pause(0.001)
+
         return first_sampled_actions[min_i], {}
 
 

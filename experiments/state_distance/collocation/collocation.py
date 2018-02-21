@@ -18,6 +18,11 @@ GOAL_SLICE = slice(0, 7)
 # GOAL_SLICE = slice(14, 17)
 MULTITASK_GOAL_SLICE = GOAL_SLICE
 
+# 2D point w/ U-wall
+PATH = '/home/vitchyr/git/railrl/data/local/02-19-dev-mpc-neural-networks/02-19-dev-mpc-neural-networks_2018_02_19_22_21_24_0000--s-99698/params.pkl'
+GOAL_SLICE = slice(0, 2)
+MULTITASK_GOAL_SLICE = GOAL_SLICE
+
 
 if __name__ == "__main__":
 
@@ -27,6 +32,8 @@ if __name__ == "__main__":
                         help='path to the snapshot file')
     parser.add_argument('--H', type=int, default=100,
                         help='Max length of rollout')
+    parser.add_argument('--T', type=int, default=3,
+                        help='Planning Horizon')
     parser.add_argument('--nrolls', type=int, default=1,
                         help='Number of rollout per eval')
     parser.add_argument('--verbose', action='store_true')
@@ -38,12 +45,18 @@ if __name__ == "__main__":
     parser.add_argument('--npath', type=int, default=100)
     parser.add_argument('--opt', type=str, default='lbfgs')
     args = parser.parse_args()
-    if args.pause:
-        import ipdb; ipdb.set_trace()
+
+    # For Point2d u-shaped wall
+    # import matplotlib.pyplot as plt
+    # plt.show()
+    # plt.ion()
 
     data = joblib.load(args.file)
     env = data['env']
     model = data['model']
+
+    if args.pause:
+        import ipdb; ipdb.set_trace()
 
     implicit_model = ModelToImplicitModel(
         model,
@@ -51,7 +64,7 @@ if __name__ == "__main__":
         order=2,  # Note: lbfgs doesn't work if the order is 1
     )
     optimizer = args.opt
-    planning_horizon = 3
+    planning_horizon = args.T
     print("Optimizer choice: ", optimizer)
     if optimizer == 'slsqp':
         policy = SlsqpCMC(
@@ -96,10 +109,13 @@ if __name__ == "__main__":
             env,
             GOAL_SLICE,
             MULTITASK_GOAL_SLICE,
-            lagrange_multipler=10,
+            lagrange_multipler=100,
+            # warm_start=True,
+            # lagrange_multipler=1,
             planning_horizon=planning_horizon,
             solver_params={
                 'factr': 1e9,
+                # 'factr': 1e12,
             },
         )
 

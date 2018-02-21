@@ -88,7 +88,7 @@ def visualize_policy_error(model, env, horizon):
     plt.legend(loc='best')
     plt.show()
 
-    nrows = 5
+    nrows = min(5, num_state_dims)
     ncols = math.ceil(num_state_dims / nrows)
     fig = plt.figure()
     for dim in dims:

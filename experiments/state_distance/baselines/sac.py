@@ -5,6 +5,7 @@ import numpy as np
 import railrl.torch.pytorch_util as ptu
 from railrl.envs.multitask.hopper_env import GoalXPosHopper
 from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
+from railrl.envs.multitask.point2d_uwall import MultitaskPoint2dUWall
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.sac.policies import TanhGaussianPolicy
@@ -54,11 +55,11 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-state-distance-sac-baseline"
 
-    n_seeds = 1
-    mode = "ec2"
-    exp_prefix = "try-hopper-again"
+    # n_seeds = 1
+    # mode = "ec2"
+    # exp_prefix = "try-hopper-again"
 
-    num_epochs = 1000
+    num_epochs = 100
     num_steps_per_epoch = 1000
     num_steps_per_eval = 1000
     max_path_length = 100
@@ -78,6 +79,7 @@ if __name__ == "__main__":
             qf_lr=3E-4,
             vf_lr=3E-4,
         ),
+        env_kwargs=dict(),
         net_size=300,
         version="SAC",
         algorithm="SAC",
@@ -88,20 +90,21 @@ if __name__ == "__main__":
             # GoalXVelHalfCheetah,
             # CylinderXYPusher2DEnv,
             # GoalXYPosAnt,
-            GoalXPosHopper,
+            # GoalXPosHopper,
+            MultitaskPoint2dUWall,
             # Walker2DTargetXPos,
             # GoalXPosHalfCheetah,
             # MultitaskPusher3DEnv,
         },
-        'env_kwargs.max_distance': [
-            0.5, 2
-        ],
-        'env_kwargs.action_penalty': [
-            1e-3, 0,
-        ],
+        # 'env_kwargs.max_distance': [
+        #     0.5, 2
+        # ],
+        # 'env_kwargs.action_penalty': [
+        #     1e-3, 0,
+        # ],
         'multitask': [True],
         'algo_params.reward_scale': [
-            10000, 1000, 100, 10, 1,
+            100,
         ],
         'algo_params.replay_buffer_size': [
             int(1e6),

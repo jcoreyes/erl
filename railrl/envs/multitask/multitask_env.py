@@ -133,7 +133,7 @@ class MultitaskEnv(object, metaclass=abc.ABCMeta):
             return
         final_differences = []
         for path, goals in zip(paths, list_of_goals):
-            reached = self.convert_ob_to_goal(path['observations'][-1])
+            reached = self.convert_ob_to_goal(path['next_observations'][-1])
             final_differences.append(reached - goals[-1])
 
         statistics = OrderedDict()
@@ -293,9 +293,10 @@ class MultitaskToFlatEnv(ProxyEnv, Serializable):
             path['observations'] = (
                 path['observations'][:, :-self._wrapped_env.goal_dim]
             )
-            path['next_observations'] = (
-                path['next_observations'][:, :-self._wrapped_env.goal_dim]
-            )
+            if 'next_observations' in path:
+                path['next_observations'] = (
+                    path['next_observations'][:, :-self._wrapped_env.goal_dim]
+                )
         return self._wrapped_env.log_diagnostics(paths, logger=default_logger)
 
     def _add_goal_to_observation(self, ob):
