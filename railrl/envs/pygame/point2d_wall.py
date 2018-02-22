@@ -4,25 +4,26 @@ import numpy as np
 from gym import Env
 from gym.spaces import Box
 from pygame import Color
+import matplotlib.pyplot as plt
 
 from railrl.core import logger as default_logger
 from railrl.core.serializable import Serializable
 from railrl.envs.pygame.pygame_viewer import PygameViewer
-from railrl.envs.pygame.walls import VerticalWall, HorizontalWall
+from railrl.envs.pygame.walls import HorizontalWall
 from railrl.misc.eval_util import create_stats_ordered_dict, get_path_lengths, \
     get_stat_in_paths
 
 
-class Point2dUWall(Serializable, Env):
+class Point2dWall(Serializable, Env):
     """
     A little 2D point whose life goal is to reach a target...but there's this
-    darn U-shaped wall that punishes short-sighted behavior.
+    wall in the way
      _________
     |         |
     |         |
-    |  | o |  |   o = start
-    |  |   |  |   x = goal
-    |  |___|  |
+    |    o    |   o = start
+    |         |   x = goal
+    |   ___   |
     |         |
     |    x    |
     |_________|
@@ -33,21 +34,6 @@ class Point2dUWall(Serializable, Env):
     BALL_RADIUS = 0.25
     INIT_MAX_DISTANCE = INNER_WALL_MAX_DIST - BALL_RADIUS
     WALLS = [
-        # Right wall
-        VerticalWall(
-            BALL_RADIUS,
-            INNER_WALL_MAX_DIST,
-            INNER_WALL_MAX_DIST,
-            -INNER_WALL_MAX_DIST
-        ),
-        # Left wall
-        VerticalWall(
-            BALL_RADIUS,
-            -INNER_WALL_MAX_DIST,
-            INNER_WALL_MAX_DIST,
-            -INNER_WALL_MAX_DIST
-        ),
-        # Bottom wall
         HorizontalWall(
             BALL_RADIUS,
             INNER_WALL_MAX_DIST,
@@ -121,9 +107,7 @@ class Point2dUWall(Serializable, Env):
         return dist <= self.TARGET_RADIUS + self.BALL_RADIUS
 
     def reset(self):
-        self._position = np.random.uniform(
-            size=2, low=-self.INIT_MAX_DISTANCE, high=self.INIT_MAX_DISTANCE
-        )
+        self._position = np.zeros(2)
         return self._get_observation()
 
     def _get_observation(self):
@@ -190,15 +174,15 @@ class Point2dUWall(Serializable, Env):
         velocities = np.clip(action, a_min=-1, a_max=1)
         position = state
         new_position = position + velocities
-        for wall in Point2dUWall.WALLS:
+        for wall in Point2dWall.WALLS:
             if wall.collides_with(position, new_position):
                 new_position = wall.handle_collision(
                     position, new_position
                 )
         return np.clip(
             new_position,
-            a_min=-Point2dUWall.OUTER_WALL_MAX_DIST,
-            a_max=Point2dUWall.OUTER_WALL_MAX_DIST,
+            a_min=-Point2dWall.OUTER_WALL_MAX_DIST,
+            a_max=Point2dWall.OUTER_WALL_MAX_DIST,
         )
 
 
@@ -206,7 +190,7 @@ class Point2dUWall(Serializable, Env):
     def true_states(state, actions):
         real_states = [state]
         for action in actions:
-            next_state = Point2dUWall.true_model(state, action)
+            next_state = Point2dWall.true_model(state, action)
             real_states.append(next_state)
             state = next_state
         return real_states
@@ -236,78 +220,57 @@ class Point2dUWall(Serializable, Env):
 
         ax.plot(
             [
-                -Point2dUWall.INNER_WALL_MAX_DIST,
-                -Point2dUWall.INNER_WALL_MAX_DIST
+                Point2dWall.INNER_WALL_MAX_DIST,
+                -Point2dWall.INNER_WALL_MAX_DIST
             ],
             [
-                Point2dUWall.INNER_WALL_MAX_DIST,
-                -Point2dUWall.INNER_WALL_MAX_DIST
-            ],
-            color='k', linestyle='-',
-        )
-        ax.plot(
-            [
-                -Point2dUWall.INNER_WALL_MAX_DIST,
-                 Point2dUWall.INNER_WALL_MAX_DIST
-            ],
-            [
-                -Point2dUWall.INNER_WALL_MAX_DIST,
-                -Point2dUWall.INNER_WALL_MAX_DIST
-            ],
-            color='k', linestyle='-'
-        )
-        ax.plot(
-            [
-                Point2dUWall.INNER_WALL_MAX_DIST,
-                Point2dUWall.INNER_WALL_MAX_DIST
-            ],
-            [
-                Point2dUWall.INNER_WALL_MAX_DIST,
-                -Point2dUWall.INNER_WALL_MAX_DIST
+                -Point2dWall.INNER_WALL_MAX_DIST,
+                -Point2dWall.INNER_WALL_MAX_DIST
             ], color='k', linestyle='-'
         )
+
         # Outer Walls
         ax.plot(
             [
-                -Point2dUWall.OUTER_WALL_MAX_DIST,
-                -Point2dUWall.OUTER_WALL_MAX_DIST,
+                -Point2dWall.OUTER_WALL_MAX_DIST,
+                -Point2dWall.OUTER_WALL_MAX_DIST,
             ],
             [
-                Point2dUWall.OUTER_WALL_MAX_DIST,
-                -Point2dUWall.OUTER_WALL_MAX_DIST,
-            ],
-            color='k', linestyle='-',
-        )
-        ax.plot(
-            [
-                Point2dUWall.OUTER_WALL_MAX_DIST,
-                -Point2dUWall.OUTER_WALL_MAX_DIST,
-            ],
-            [
-                Point2dUWall.OUTER_WALL_MAX_DIST,
-                Point2dUWall.OUTER_WALL_MAX_DIST,
+                Point2dWall.OUTER_WALL_MAX_DIST,
+                -Point2dWall.OUTER_WALL_MAX_DIST,
             ],
             color='k', linestyle='-',
         )
         ax.plot(
             [
-                Point2dUWall.OUTER_WALL_MAX_DIST,
-                Point2dUWall.OUTER_WALL_MAX_DIST,
+                Point2dWall.OUTER_WALL_MAX_DIST,
+                -Point2dWall.OUTER_WALL_MAX_DIST,
             ],
             [
-                Point2dUWall.OUTER_WALL_MAX_DIST,
-                -Point2dUWall.OUTER_WALL_MAX_DIST,
+                Point2dWall.OUTER_WALL_MAX_DIST,
+                Point2dWall.OUTER_WALL_MAX_DIST,
             ],
             color='k', linestyle='-',
         )
         ax.plot(
             [
-                Point2dUWall.OUTER_WALL_MAX_DIST,
-                -Point2dUWall.OUTER_WALL_MAX_DIST,
+                Point2dWall.OUTER_WALL_MAX_DIST,
+                Point2dWall.OUTER_WALL_MAX_DIST,
             ],
             [
-                -Point2dUWall.OUTER_WALL_MAX_DIST,
-                -Point2dUWall.OUTER_WALL_MAX_DIST,
+                Point2dWall.OUTER_WALL_MAX_DIST,
+                -Point2dWall.OUTER_WALL_MAX_DIST,
+            ],
+            color='k', linestyle='-',
+        )
+        ax.plot(
+            [
+                Point2dWall.OUTER_WALL_MAX_DIST,
+                -Point2dWall.OUTER_WALL_MAX_DIST,
+            ],
+            [
+                -Point2dWall.OUTER_WALL_MAX_DIST,
+                -Point2dWall.OUTER_WALL_MAX_DIST,
             ],
             color='k', linestyle='-',
         )
@@ -315,10 +278,10 @@ class Point2dUWall(Serializable, Env):
         if goal is not None:
             ax.plot(goal[0], -goal[1], marker='*', color='g', markersize=15)
         ax.set_ylim(
-            -Point2dUWall.OUTER_WALL_MAX_DIST-1,
-            Point2dUWall.OUTER_WALL_MAX_DIST+1
+            -Point2dWall.OUTER_WALL_MAX_DIST-1,
+            Point2dWall.OUTER_WALL_MAX_DIST+1
         )
         ax.set_xlim(
-            -Point2dUWall.OUTER_WALL_MAX_DIST-1,
-            Point2dUWall.OUTER_WALL_MAX_DIST+1
+            -Point2dWall.OUTER_WALL_MAX_DIST-1,
+            Point2dWall.OUTER_WALL_MAX_DIST+1
         )
