@@ -82,9 +82,6 @@ class Point2dUWall(Serializable, Env):
 
     def _step(self, velocities):
         velocities = np.clip(velocities, a_min=-1, a_max=1)
-        distance_to_target = np.linalg.norm(
-            self._target_position - self._position
-        )
         new_position = self._position + velocities
         for wall in self.WALLS:
             if wall.collides_with(self._position, new_position):
@@ -100,6 +97,9 @@ class Point2dUWall(Serializable, Env):
         observation = self._get_observation()
         on_platform = self.is_on_platform()
 
+        distance_to_target = np.linalg.norm(
+            self._target_position - self._position
+        )
         reward = float(on_platform)
         distance_reward = -distance_to_target
         action_reward = -np.linalg.norm(velocities) * self.action_l2norm_penalty

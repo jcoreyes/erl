@@ -35,8 +35,8 @@ class Point2DEnv(Serializable, Env):
 
         self.action_space = Box(np.array([-1, -1]), np.array([1, 1]))
         self.observation_space = Box(
-            -self.BOUNDARY_DIST * np.ones(4),
-            self.BOUNDARY_DIST * np.ones(4),
+            -self.BOUNDARY_DIST * np.ones(self.BOUNDARY_DIST),
+            self.BOUNDARY_DIST * np.ones(self.BOUNDARY_DIST),
         )
 
         self.drawer = None
@@ -44,14 +44,15 @@ class Point2DEnv(Serializable, Env):
 
     def _step(self, velocities):
         velocities = np.clip(velocities, a_min=-1, a_max=1)
-        distance_to_target = np.linalg.norm(
-            self._target_position - self._position
-        )
-        self._position += velocities
+        # Avoid += to avoid aliasing bugs
+        self._position = self._position + velocities
         self._position = np.clip(
             self._position,
             a_min=-self.BOUNDARY_DIST,
             a_max=self.BOUNDARY_DIST,
+        )
+        distance_to_target = np.linalg.norm(
+            self._target_position - self._position
         )
         observation = self._get_observation()
         on_platform = self.is_on_platform()
@@ -143,6 +144,98 @@ class Point2DEnv(Serializable, Env):
 
         self.drawer.render()
         self.drawer.tick(self.render_dt_msec)
+
+    @staticmethod
+    def true_model(state, action):
+        velocities = np.clip(action, a_min=-1, a_max=1)
+        position = state
+        new_position = position + velocities
+        return np.clip(
+            new_position,
+            a_min=-Point2DEnv.BOUNDARY_DIST,
+            a_max=Point2DEnv.BOUNDARY_DIST,
+        )
+
+
+    @staticmethod
+    def true_states(state, actions):
+        real_states = [state]
+        for action in actions:
+            next_state = Point2DEnv.true_model(state, action)
+            real_states.append(next_state)
+            state = next_state
+        return real_states
+
+
+    @staticmethod
+    def plot_trajectory(ax, states, actions, goal=None):
+        assert len(states) == len(actions) + 1
+        x = states[:, 0]
+        y = -states[:, 1]
+
+        actions_x = actions[:, 0]
+        actions_y = -actions[:, 1]
+
+        ax.quiver(x[:-1], y[:-1], x[1:] - x[:-1], y[1:] - y[:-1],
+                  scale_units='xy', angles='xy', scale=1, width=0.005)
+        ax.quiver(x[:-1], y[:-1], actions_x, actions_y, scale_units='xy',
+                  angles='xy', scale=1, color='r',
+                  width=0.0035, )
+        ax.plot(
+            [
+                -Point2DEnv.BOUNDARY_DIST,
+                -Point2DEnv.BOUNDARY_DIST,
+            ],
+            [
+                Point2DEnv.BOUNDARY_DIST,
+                -Point2DEnv.BOUNDARY_DIST,
+            ],
+            color='k', linestyle='-',
+        )
+        ax.plot(
+            [
+                Point2DEnv.BOUNDARY_DIST,
+                -Point2DEnv.BOUNDARY_DIST,
+            ],
+            [
+                Point2DEnv.BOUNDARY_DIST,
+                Point2DEnv.BOUNDARY_DIST,
+            ],
+            color='k', linestyle='-',
+        )
+        ax.plot(
+            [
+                Point2DEnv.BOUNDARY_DIST,
+                Point2DEnv.BOUNDARY_DIST,
+            ],
+            [
+                Point2DEnv.BOUNDARY_DIST,
+                -Point2DEnv.BOUNDARY_DIST,
+            ],
+            color='k', linestyle='-',
+        )
+        ax.plot(
+            [
+                Point2DEnv.BOUNDARY_DIST,
+                -Point2DEnv.BOUNDARY_DIST,
+            ],
+            [
+                -Point2DEnv.BOUNDARY_DIST,
+                -Point2DEnv.BOUNDARY_DIST,
+            ],
+            color='k', linestyle='-',
+        )
+
+        if goal is not None:
+            ax.plot(goal[0], -goal[1], marker='*', color='g', markersize=15)
+        ax.set_ylim(
+            -Point2DEnv.BOUNDARY_DIST-1,
+            Point2DEnv.BOUNDARY_DIST+1,
+        )
+        ax.set_xlim(
+            -Point2DEnv.BOUNDARY_DIST-1,
+            Point2DEnv.BOUNDARY_DIST+1,
+        )
 
 
 def plot_observations_and_actions(observations, actions):
