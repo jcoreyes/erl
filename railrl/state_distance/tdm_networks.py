@@ -103,6 +103,7 @@ class TdmQf(FlattenMlp):
             'squared_difference',
             'none',
         ]
+        assert structure == 'squared_difference', "Did you stop doing collocation?"
         self.save_init_params(locals())
         self.observation_dim = env.observation_space.low.size
         self.action_dim = env.action_space.low.size
@@ -122,7 +123,7 @@ class TdmQf(FlattenMlp):
         if learn_offset:
             self.offset_network = FlattenMlp(
                 input_size=(
-                    self.observation_dim + self.goal_dim + 1
+                    self.observation_dim + self.action_dim + self.goal_dim + 1
                 ),
                 output_size=self.goal_dim if vectorized else 1,
                 **flatten_mlp_kwargs
@@ -161,7 +162,9 @@ class TdmQf(FlattenMlp):
             output = torch.sum(output, dim=1, keepdim=True)
 
         if self.learn_offset:
-            offset = self.offset_network(observations, goals, num_steps_left)
+            offset = self.offset_network(
+                observations, actions, goals, num_steps_left
+            )
             output = output + offset
 
         if self.tdm_normalizer is not None:
