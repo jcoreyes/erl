@@ -1,6 +1,8 @@
+from torch.nn.functional import tanh
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
+from railrl.envs.multitask.ant_env import GoalXYPosAnt
 from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
 from railrl.envs.multitask.point2d_uwall import MultitaskPoint2dUWall
 from railrl.envs.multitask.reacher_7dof import (
@@ -19,6 +21,7 @@ from railrl.state_distance.tdm_sac import TdmSac
 
 def experiment(variant):
     vectorized = variant['sac_tdm_kwargs']['tdm_kwargs']['vectorized']
+    # env = NormalizedBoxEnv(variant['env_class'](**variant['env_kwargs']))
     env = NormalizedBoxEnv(variant['env_class'](**variant['env_kwargs']))
     max_tau = variant['sac_tdm_kwargs']['tdm_kwargs']['max_tau']
     tdm_normalizer = TdmNormalizer(
@@ -66,14 +69,14 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-sac-tdm-launch"
 
-    n_seeds = 1
-    mode = "ec2"
-    exp_prefix = "reacher7dof-sac-tdm-sweep"
+    # n_seeds = 1
+    # mode = "ec2"
+    exp_prefix = "2d-point-sac-tdm-offset-mtau-5"
 
     num_epochs = 100
-    num_steps_per_epoch = 1000
-    num_steps_per_eval = 500
-    max_path_length = 50
+    num_steps_per_epoch = 100
+    num_steps_per_eval = 100
+    max_path_length = 25
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -84,14 +87,14 @@ if __name__ == "__main__":
                 num_steps_per_eval=num_steps_per_eval,
                 max_path_length=max_path_length,
                 num_updates_per_env_step=25,
-                batch_size=128,
+                batch_size=1024,
                 discount=1,
                 save_replay_buffer=False,
             ),
             tdm_kwargs=dict(
                 sample_rollout_goals_from='environment',
                 sample_train_goals_from='her',
-                vectorized=False,
+                vectorized=True,
                 norm_order=2,
                 cycle_taus_for_rollout=True,
                 max_tau=10,
@@ -111,7 +114,10 @@ if __name__ == "__main__":
         ),
         qf_kwargs=dict(
             hidden_sizes=[300, 300],
-            norm_order=2,
+            structure='squared_difference',
+            # structure='norm_difference',
+            # structure='none',
+            # learn_offset=True,
         ),
         vf_kwargs=dict(
             hidden_sizes=[300, 300],
@@ -131,31 +137,27 @@ if __name__ == "__main__":
         'env_class': [
             # GoalXVelHalfCheetah,
             # Reacher7DofXyzGoalState,
-            Reacher7DofFullGoal,
-            # MultitaskPoint2DEnv,
+            # Reacher7DofFullGoal,
+            MultitaskPoint2DEnv,
             # MultitaskPoint2dUWall,
             # GoalXYPosAnt,
             # Walker2DTargetXPos,
             # MultitaskPusher3DEnv,
             # CylinderXYPusher2DEnv,
         ],
+        # 'env_kwargs': [
+        #     dict(max_distance=6),
+        # ],
         'sac_tdm_kwargs.base_kwargs.reward_scale': [
             1,
-            10,
-            100,
-            1000,
+            # 10,
+            # 100,
+            # 1000,
             # 10000,
         ],
         'qf_kwargs.hidden_activation': [
-            ptu.softplus,
-        ],
-        'qf_kwargs.learn_offset': [
-            True,
-            False,
-        ],
-        'qf_params.predict_delta': [
-            True,
-            # False,
+            # ptu.softplus,
+            tanh
         ],
         'sac_tdm_kwargs.tdm_kwargs.vectorized': [
             # False,
@@ -175,8 +177,8 @@ if __name__ == "__main__":
             # 'replay_buffer',
         ],
         'sac_tdm_kwargs.tdm_kwargs.max_tau': [
-            0,
-            10,
+            # 0,
+            5,
             # max_path_length-1,
             # 1,
             # 10,
@@ -186,6 +188,7 @@ if __name__ == "__main__":
         ],
         'sac_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
             1,
+            # 5,
             # 10,
             # 25,
         ],
@@ -204,4 +207,5 @@ if __name__ == "__main__":
                 exp_prefix=exp_prefix,
                 variant=variant,
                 exp_id=exp_id,
+                use_gpu=True,
             )

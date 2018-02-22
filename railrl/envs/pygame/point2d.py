@@ -11,6 +11,8 @@ from railrl.envs.pygame.pygame_viewer import PygameViewer
 from railrl.misc.eval_util import create_stats_ordered_dict, get_path_lengths, \
     get_stat_in_paths
 import railrl.misc.visualization_util as vu
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 
 
 class Point2DEnv(Serializable, Env):
@@ -117,6 +119,10 @@ class Point2DEnv(Serializable, Env):
         for key, value in statistics.items():
             logger.record_tabular(key, value)
 
+    def set_position(self, pos):
+        self._position[0] = pos[0]
+        self._position[1] = pos[1]
+
     def render(self, mode='human', close=False):
         if close:
             self.drawer = None
@@ -172,6 +178,13 @@ class Point2DEnv(Serializable, Env):
         assert len(states) == len(actions) + 1
         x = states[:, 0]
         y = -states[:, 1]
+        num_states = len(states)
+        plasma_cm = plt.get_cmap('plasma')
+        for i, state in enumerate(states):
+            color = plasma_cm(float(i) / num_states)
+            ax.plot(state[0], -state[1],
+                    marker='o', color=color, markersize=10,
+            )
 
         actions_x = actions[:, 0]
         actions_y = -actions[:, 1]

@@ -103,7 +103,6 @@ class TdmQf(FlattenMlp):
             'squared_difference',
             'none',
         ]
-        assert structure == 'squared_difference', "Did you stop doing collocation?"
         self.save_init_params(locals())
         self.observation_dim = env.observation_space.low.size
         self.action_dim = env.action_space.low.size

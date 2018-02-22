@@ -83,7 +83,7 @@ def debug(env, obs, agent_info):
     plt.pause(0.001)
 
 
-def rollout(env, agent, max_path_length=np.inf, animated=False):
+def rollout(env, agent, max_path_length=np.inf, animated=False, tick=False):
     observations = []
     actions = []
     rewards = []
@@ -112,6 +112,8 @@ def rollout(env, agent, max_path_length=np.inf, animated=False):
         o = next_o
         if animated:
             env.render()
+        if tick:
+            import ipdb; ipdb.set_trace()
 
     actions = np.array(actions)
     if len(actions.shape) == 1:
@@ -147,10 +149,11 @@ if __name__ == "__main__":
     parser.add_argument('--nrolls', type=int, default=1,
                         help='Number of rollout per eval')
     parser.add_argument('--verbose', action='store_true')
-    parser.add_argument('--mtau', type=float,
-                        help='Max tau value')
+    parser.add_argument('--lm', type=float, default=1,
+                        help='Lagrange Multiplier (before division by reward scale)')
     parser.add_argument('--hide', action='store_true')
     parser.add_argument('--pause', action='store_true')
+    parser.add_argument('--tick', action='store_true')
     parser.add_argument('--justsim', action='store_true')
     parser.add_argument('--npath', type=int, default=100)
     parser.add_argument('--tau', type=int, default=0)
@@ -173,11 +176,11 @@ if __name__ == "__main__":
         tau=args.tau,
     )
     # implicit_model = TrueModelToImplicitModel(env)
-    lagrange_multiplier = 100000 / reward_scale
+    lagrange_multiplier = args.lm / reward_scale
     # lagrange_multiplier = 10
     planning_horizon = 3
     goal_slice = env.ob_to_goal_slice
-    multitask_goal_slice = slice(0, -1)
+    multitask_goal_slice = slice(None)
     optimizer = args.opt
     print("Optimizer choice: ", optimizer)
     print("lagrange multiplier: ", lagrange_multiplier)
@@ -253,6 +256,7 @@ if __name__ == "__main__":
             policy,
             max_path_length=args.H,
             animated=not args.hide,
+            tick=args.tick,
         ))
         env.log_diagnostics(paths)
         logger.dump_tabular()

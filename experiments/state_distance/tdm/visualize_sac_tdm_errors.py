@@ -13,6 +13,9 @@ def main(args):
     variant_path = Path(args.file).parents[0] / 'variant.json'
     variant = json.load(variant_path.open())
     reward_scale = variant['sac_tdm_kwargs']['base_kwargs']['reward_scale']
+    square_distance = variant['sac_tdm_kwargs']['tdm_kwargs'].get(
+        'square_distance', False
+    )
     if args.pause:
         import ipdb; ipdb.set_trace()
     horizon = args.H
@@ -41,9 +44,12 @@ def main(args):
         q_vals.append(q_val)
         v_vals.append(v_val)
         a_vals.append(q_val - v_val)
-        distances.append(np.abs(
-            env.convert_ob_to_goal(next_state) - goal
-        ))
+        next_feature = env.convert_ob_to_goal(next_state)
+        if square_distance:
+            distance = (next_feature - goal)**2
+        else:
+            distance = np.abs(next_feature - goal)
+        distances.append(distance)
         sample_log_probs = []
         for _ in range(10):
             sample_log_probs.append(
@@ -68,16 +74,14 @@ def main(args):
     plt.legend()
     plt.show()
 
-PATH = '/home/vitchyr/git/railrl/data/doodads3/02-08-reacher7dof-sac-squared-distance-sweep-qf-activation-2/02-08-reacher7dof-sac-squared-distance-sweep-qf-activation-2-id1-s5793/params.pkl'
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '--file',
+        'file',
         type=str,
         # 2d point-mass
         # default='/home/vitchyr/git/railrl/data/local/02-01-dev-sac-tdm-launch/02-01-dev-sac-tdm-launch_2018_02_01_16_40_53_0000--s-2210/params.pkl',
-        default=PATH,
         help='path to the snapshot file',
     )
     parser.add_argument('--H', type=int, default=30, help='Horizon for eval')

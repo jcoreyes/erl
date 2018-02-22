@@ -55,7 +55,7 @@ class NumpyModelExtractor(object):
                 observations=state[None],
                 actions=action[None],
                 goals=state[None],
-                num_steps_left=np.array([[0]]),
+                num_steps_left=np.array([[self.num_steps_left]]),
                 return_predictions=True,
             )
             return next_states[0]
@@ -70,7 +70,6 @@ class NumpyModelExtractor(object):
         optimizer = optim.Adam([next_states], self.learning_rate)
 
         for _ in range(self.num_optimization_steps):
-            # import ipdb; ipdb.set_trace()
             losses = -self.qf(
                 observations=states,
                 actions=actions,
@@ -86,8 +85,8 @@ class NumpyModelExtractor(object):
         return ptu.get_numpy(next_states[best_action_i, :])
 
 
-def visualize_policy_error(qf, env, horizon, cheat):
-    model = NumpyModelExtractor(qf, args.cheat)
+def visualize_policy_error(qf, env, args):
+    model = NumpyModelExtractor(qf, args.cheat, num_steps_left=args.tau)
     policy = RandomPolicy(env.action_space)
     actual_state = env.reset()
 
@@ -95,7 +94,7 @@ def visualize_policy_error(qf, env, horizon, cheat):
     actual_states = []
 
     predicted_state = actual_state
-    for _ in range(horizon):
+    for _ in range(args.H):
         predicted_states.append(predicted_state.copy())
         actual_states.append(actual_state.copy())
 
@@ -105,7 +104,7 @@ def visualize_policy_error(qf, env, horizon, cheat):
 
     predicted_states = np.array(predicted_states)
     actual_states = np.array(actual_states)
-    times = np.arange(horizon)
+    times = np.arange(args.H)
 
     num_state_dims = env.observation_space.low.size
     dims = list(range(num_state_dims))
@@ -136,10 +135,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('file', type=str, help='path to the snapshot file')
     parser.add_argument('--H', type=int, default=30, help='Horizon for eval')
+    parser.add_argument('--tau', type=int, default=0)
     parser.add_argument('--cheat', action='store_true')
     args = parser.parse_args()
+
+    if args.cheat and args.tau != 0:
+        print("This setting doesn't make much sense. Are you sure?")
 
     data = joblib.load(args.file)
     qf = data['qf']
     env = data['env']
-    visualize_policy_error(qf, env, args.H, args.cheat)
+    visualize_policy_error(qf, env, args)
