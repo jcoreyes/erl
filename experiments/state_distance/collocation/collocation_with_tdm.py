@@ -1,5 +1,6 @@
 import argparse
 import json
+import matplotlib.pyplot as plt
 from pathlib import Path
 
 import joblib
@@ -7,28 +8,14 @@ import numpy as np
 
 import railrl.torch.pytorch_util as ptu
 from railrl.core import logger
-from railrl.samplers.util import rollout
 from railrl.torch.core import PyTorchModule
-from railrl.torch.mpc.collocation.collocation_mpc_controller import SlsqpCMC, \
-    GradientCMC, StateGCMC, LBfgsBCMC
-
-# Reacher7DofFullGoal - TDM
-PATH = '/home/vitchyr/git/railrl/data/doodads3/02-07-reacher7dof-sac-mtau-1-or-10-terminal-bonus/02-07-reacher7dof-sac-mtau-1-or-10-terminal-bonus-id4-s9821/params.pkl'
-GOAL_SLICE = slice(0, 7)
-
-# point2d - TDM
-# PATH = 'data/local/02-08-dev-sac-tdm-launch/02-08-dev-sac-tdm-launch_2018_02_08_22_50_27_0000--s-5908/params.pkl'
-# GOAL_SLICE = slice(0, 2)
-
-MULTITASK_GOAL_SLICE = GOAL_SLICE
-
-# Reacher7DofXyzGoalState
-# tau max = 1
-# PATH = '/home/vitchyr/git/railrl/data/doodads3/02-08-reacher7dof-3d-sac-mtau-0-1-or-10-terminal-bonus/02-08-reacher7dof-3d-sac-mtau-0-1-or-10-terminal-bonus-id7-s327/params.pkl'
-# tau max = 0
-# PATH = '/home/vitchyr/git/railrl/data/doodads3/02-08-reacher7dof-sac-squared-distance-sweep-qf-activation-2/02-08-reacher7dof-sac-squared-distance-sweep-qf-activation-2-id1-s5793/params.pkl'
-# GOAL_SLICE = slice(14, 17)
-# MULTITASK_GOAL_SLICE = slice(0, 3)
+from railrl.torch.mpc.collocation.collocation_mpc_controller import (
+    SlsqpCMC,
+    GradientCMC,
+    StateGCMC,
+    LBfgsBCMC,
+    BfgsBCMC,
+)
 
 
 class TdmToImplicitModel(PyTorchModule):
@@ -52,11 +39,108 @@ class TdmToImplicitModel(PyTorchModule):
         ).sum(1)
 
 
+class TrueModelToImplicitModel(PyTorchModule):
+    def __init__(self, env):
+        self.quick_init(locals())
+        super().__init__()
+        self.env = env
+
+    def forward(self, states, actions, next_states):
+        state = ptu.get_numpy(states[0])
+        action = ptu.get_numpy(actions[0])
+        next_state = ptu.get_numpy(next_states[0])
+
+        true_next_state = self.env.true_model(state, action)
+        return -((next_state - true_next_state)**2).sum()
+
+
+fig, (ax1, ax2) = plt.subplots(1, 2)
+
+
+def debug(env, obs, agent_info):
+    best_obs_seq = agent_info['best_obs_seq']
+    best_action_seq = agent_info['best_action_seq']
+    real_obs_seq = env.wrapped_env.true_states(
+        obs, best_action_seq
+    )
+    ax1.clear()
+    env.wrapped_env.plot_trajectory(
+        ax1,
+        np.array(best_obs_seq),
+        np.array(best_action_seq),
+        goal=env.wrapped_env._target_position,
+    )
+    ax1.set_title("imagined")
+    ax2.clear()
+    env.wrapped_env.plot_trajectory(
+        ax2,
+        np.array(real_obs_seq),
+        np.array(best_action_seq),
+        goal=env.wrapped_env._target_position,
+    )
+    ax2.set_title("real")
+    plt.draw()
+    plt.pause(0.001)
+
+
+def rollout(env, agent, max_path_length=np.inf, animated=False):
+    observations = []
+    actions = []
+    rewards = []
+    terminals = []
+    agent_infos = []
+    env_infos = []
+    o = env.reset()
+    agent.reset()
+    next_o = None
+    path_length = 0
+    if animated:
+        env.render()
+    while path_length < max_path_length:
+        a, agent_info = agent.get_action(o)
+        debug(env, o, agent_info)
+        next_o, r, d, env_info = env.step(a)
+        observations.append(o)
+        rewards.append(r)
+        terminals.append(d)
+        actions.append(a)
+        agent_infos.append(agent_info)
+        env_infos.append(env_info)
+        path_length += 1
+        if d:
+            break
+        o = next_o
+        if animated:
+            env.render()
+
+    actions = np.array(actions)
+    if len(actions.shape) == 1:
+        actions = np.expand_dims(actions, 1)
+    observations = np.array(observations)
+    if len(observations.shape) == 1:
+        observations = np.expand_dims(observations, 1)
+        next_o = np.array([next_o])
+    next_observations = np.vstack(
+        (
+            observations[1:, :],
+            np.expand_dims(next_o, 0)
+        )
+    )
+    return dict(
+        observations=observations,
+        actions=actions,
+        rewards=np.array(rewards).reshape(-1, 1),
+        next_observations=next_observations,
+        terminals=np.array(terminals).reshape(-1, 1),
+        agent_infos=agent_infos,
+        env_infos=env_infos,
+    )
+
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--file', type=str,
-                        default=PATH,
+    parser.add_argument('file', type=str,
                         help='path to the snapshot file')
     parser.add_argument('--H', type=int, default=100,
                         help='Max length of rollout')
@@ -69,6 +153,7 @@ if __name__ == "__main__":
     parser.add_argument('--pause', action='store_true')
     parser.add_argument('--justsim', action='store_true')
     parser.add_argument('--npath', type=int, default=100)
+    parser.add_argument('--tau', type=int, default=0)
     parser.add_argument('--opt', type=str, default='lbfgs')
     args = parser.parse_args()
     if args.pause:
@@ -85,19 +170,25 @@ if __name__ == "__main__":
     implicit_model = TdmToImplicitModel(
         env,
         qf,
-        tau=0,
+        tau=args.tau,
     )
-    # lagrange_multiplier = 100 / reward_scale
-    lagrange_multiplier = 10
+    # implicit_model = TrueModelToImplicitModel(env)
+    lagrange_multiplier = 100000 / reward_scale
+    # lagrange_multiplier = 10
     planning_horizon = 3
+    goal_slice = env.ob_to_goal_slice
+    multitask_goal_slice = slice(0, -1)
     optimizer = args.opt
     print("Optimizer choice: ", optimizer)
+    print("lagrange multiplier: ", lagrange_multiplier)
+    print("goal slice: ", goal_slice)
+    print("multitask goal slice: ", multitask_goal_slice)
     if optimizer == 'slsqp':
         policy = SlsqpCMC(
             implicit_model,
             env,
-            goal_slice=GOAL_SLICE,
-            multitask_goal_slice=MULTITASK_GOAL_SLICE,
+            goal_slice=goal_slice,
+            multitask_goal_slice=multitask_goal_slice,
             planning_horizon=planning_horizon,
             # use_implicit_model_gradient=True,
             solver_params={
@@ -109,8 +200,8 @@ if __name__ == "__main__":
         policy = GradientCMC(
             implicit_model,
             env,
-            goal_slice=GOAL_SLICE,
-            multitask_goal_slice=MULTITASK_GOAL_SLICE,
+            goal_slice=goal_slice,
+            multitask_goal_slice=multitask_goal_slice,
             planning_horizon=planning_horizon,
             lagrange_multiplier=lagrange_multiplier,
             num_grad_steps=100,
@@ -121,8 +212,8 @@ if __name__ == "__main__":
         policy = StateGCMC(
             implicit_model,
             env,
-            goal_slice=GOAL_SLICE,
-            multitask_goal_slice=MULTITASK_GOAL_SLICE,
+            goal_slice=goal_slice,
+            multitask_goal_slice=multitask_goal_slice,
             planning_horizon=planning_horizon,
             lagrange_multiplier=lagrange_multiplier,
             num_grad_steps=100,
@@ -133,14 +224,27 @@ if __name__ == "__main__":
         policy = LBfgsBCMC(
             implicit_model,
             env,
-            goal_slice=GOAL_SLICE,
-            multitask_goal_slice=MULTITASK_GOAL_SLICE,
+            goal_slice=goal_slice,
+            multitask_goal_slice=multitask_goal_slice,
             lagrange_multipler=lagrange_multiplier,
             planning_horizon=planning_horizon,
+            # finite_difference=True,
             solver_params={
                 'factr': 1e9,
             },
         )
+    elif optimizer == 'bfgs':
+        policy = BfgsBCMC(
+            implicit_model,
+            env,
+            goal_slice=goal_slice,
+            multitask_goal_slice=multitask_goal_slice,
+            lagrange_multipler=lagrange_multiplier,
+            planning_horizon=planning_horizon,
+            # solver_params={},
+        )
+    else:
+        raise ValueError("Unknown optimizer type: {}".format(optimizer))
     paths = []
     while True:
         env.set_goal(env.sample_goal_for_rollout())
