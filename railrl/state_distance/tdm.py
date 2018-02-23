@@ -164,7 +164,6 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
 
     def get_batch(self):
         batch = self.replay_buffer.random_batch(self.batch_size)
-
         """
         Update the goal states/rewards
         """
@@ -288,7 +287,6 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         return num_steps_left
 
     def _sample_goals_for_training(self, batch):
-        import ipdb; ipdb.set_trace()
         if self.sample_train_goals_from == 'her':
             return batch['resampled_goals']
         elif self.sample_train_goals_from == 'no_resampling':

@@ -67,7 +67,7 @@ if __name__ == "__main__":
     exp_prefix = "dev-sac-tdm-launch"
 
     n_seeds = 1
-    mode = "ec2"
+    mode = "local_docker"
     exp_prefix = "reacher7dof-sac-tdm-sweep"
 
     num_epochs = 100

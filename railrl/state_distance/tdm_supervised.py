@@ -7,10 +7,10 @@ import railrl.torch.pytorch_util as ptu
 from railrl.core import logger
 from railrl.misc.eval_util import create_stats_ordered_dict
 from railrl.state_distance.tdm import TemporalDifferenceModel
-from railrl.torch.ddpg.ddpg import DDPG
 import torch.optim as optim
 import torch.nn as nn
 
+from railrl.torch.modules import HuberLoss
 from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
 
 
@@ -25,7 +25,8 @@ class TdmSupervised(TemporalDifferenceModel, TorchRLAlgorithm):
             loss_fn=None,
             policy_learning_rate=1e-4,
             optimizer_class=optim.Adam,
-            policy_criterion=nn.MSELoss,
+            policy_criterion='MSE',
+            replay_buffer=None,
     ):
         TorchRLAlgorithm.__init__(
             self,
@@ -41,8 +42,13 @@ class TdmSupervised(TemporalDifferenceModel, TorchRLAlgorithm):
             self.policy.parameters(),
             lr=self.policy_learning_rate,
         )
-        self.policy_criterion = policy_criterion()
+        if policy_criterion=='MSE':
+            self.policy_criterion = nn.MSELoss
+        elif policy_criterion=='Huber':
+            self.policy_criterion = HuberLoss
         self.eval_policy = self.policy
+        self.replay_buffer = replay_buffer
+
     @property
     def networks(self):
         return [
@@ -63,7 +69,7 @@ class TdmSupervised(TemporalDifferenceModel, TorchRLAlgorithm):
             obs, goals, num_steps_left, return_preactivations=True,
         )
         #policy loss!
-        policy_loss = -1 * self.policy.criterion(policy_actions, actions)
+        policy_loss = self.policy_criterion(policy_actions, actions)
         """
         Update Networks
         """
