@@ -11,7 +11,10 @@ from railrl.torch.ddpg.ddpg import DDPG
 import torch.optim as optim
 import torch.nn as nn
 
-class TdmSupervised(TemporalDifferenceModel):
+from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
+
+
+class TdmSupervised(TemporalDifferenceModel, TorchRLAlgorithm):
     def __init__(
             self,
             env,
@@ -19,15 +22,19 @@ class TdmSupervised(TemporalDifferenceModel):
             tdm_kwargs,
             base_kwargs,
             policy=None,
-            replay_buffer=None,
             loss_fn=None,
             policy_learning_rate=1e-4,
             optimizer_class=optim.Adam,
             policy_criterion=nn.MSELoss,
     ):
+        TorchRLAlgorithm.__init__(
+            self,
+            env,
+            exploration_policy,
+            **base_kwargs
+        )
         super().__init__(**tdm_kwargs)
         self.policy = policy
-        self.replay_buffer = replay_buffer
         self.loss_fn=loss_fn
         self.policy_learning_rate = policy_learning_rate
         self.policy_optimizer = optimizer_class(
@@ -36,7 +43,6 @@ class TdmSupervised(TemporalDifferenceModel):
         )
         self.policy_criterion = policy_criterion()
         self.eval_policy = self.policy
-
     @property
     def networks(self):
         return [

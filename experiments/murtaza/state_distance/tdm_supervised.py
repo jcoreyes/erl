@@ -29,7 +29,7 @@ def experiment(variant):
         env,
         policy=policy,
         exploration_policy=exploration_policy,
-        **variant['algo_params']
+        **variant['supervised_tdm_kwargs']
     )
     if ptu.gpu_enabled():
         algorithm.cuda()
@@ -39,18 +39,23 @@ def experiment(variant):
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
-        algo_params=dict(
-            num_epochs=100,
-            num_steps_per_epoch=1000,
-            num_steps_per_eval=1000,
-            batch_size=128,
-            max_path_length=1000,
-            discount=0.99,
-            policy_learning_rate=1e-4,
-        ),
         policy_kwargs=dict(
             hidden_sizes=[300, 300],
         ),
+        supervised_tdm_kwargs=dict(
+            base_kwargs=dict(
+                num_epochs=100,
+                num_steps_per_epoch=1000,
+                num_steps_per_eval=1000,
+                max_path_length=99,
+                num_updates_per_env_step=1,
+                batch_size=128,
+                discount=0.99,
+            ),
+            tdm_kwargs=dict(
+                max_tau=10,
+            ),
+        )
     )
     setup_logger('TEST', variant=variant)
     experiment(variant)

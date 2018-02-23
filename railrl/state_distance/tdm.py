@@ -288,6 +288,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         return num_steps_left
 
     def _sample_goals_for_training(self, batch):
+        import ipdb; ipdb.set_trace()
         if self.sample_train_goals_from == 'her':
             return batch['resampled_goals']
         elif self.sample_train_goals_from == 'no_resampling':
@@ -383,6 +384,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         self._n_rollouts_total += 1
         if len(self._current_path_builder) > 0:
             path = self._current_path_builder.get_all_stacked()
+            self.replay_buffer.add_path(path)
             self.replay_buffer.add_path(path)
             self._exploration_paths.append(path)
             self._current_path_builder = PathBuilder()
