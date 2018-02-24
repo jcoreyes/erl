@@ -5,6 +5,7 @@ from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.envs.multitask.ant_env import GoalXYPosAnt
 from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
 from railrl.envs.multitask.point2d_uwall import MultitaskPoint2dUWall
+from railrl.envs.multitask.point2d_wall import MultitaskPoint2dWall
 from railrl.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState,
     Reacher7DofFullGoal)
@@ -71,7 +72,7 @@ if __name__ == "__main__":
 
     # n_seeds = 1
     # mode = "ec2"
-    exp_prefix = "2d-point-sac-tdm-offset-mtau-5"
+    exp_prefix = "2d-point-wall-sac-tdm"
 
     num_epochs = 100
     num_steps_per_epoch = 100
@@ -92,7 +93,7 @@ if __name__ == "__main__":
                 save_replay_buffer=False,
             ),
             tdm_kwargs=dict(
-                sample_rollout_goals_from='environment',
+                sample_rollout_goals_from='fixed',
                 sample_train_goals_from='her',
                 vectorized=True,
                 norm_order=2,
@@ -117,7 +118,7 @@ if __name__ == "__main__":
             structure='squared_difference',
             # structure='norm_difference',
             # structure='none',
-            # learn_offset=True,
+            learn_offset=True,
         ),
         vf_kwargs=dict(
             hidden_sizes=[300, 300],
@@ -138,7 +139,8 @@ if __name__ == "__main__":
             # GoalXVelHalfCheetah,
             # Reacher7DofXyzGoalState,
             # Reacher7DofFullGoal,
-            MultitaskPoint2DEnv,
+            # MultitaskPoint2DEnv,
+            MultitaskPoint2dWall,
             # MultitaskPoint2dUWall,
             # GoalXYPosAnt,
             # Walker2DTargetXPos,
