@@ -9,6 +9,7 @@ from railrl.torch.sac.sac import SoftActorCritic
 from railrl.state_distance.tdm import TemporalDifferenceModel
 import railrl.torch.pytorch_util as ptu
 import torch.nn as nn
+import torch
 
 class TdmSac(TemporalDifferenceModel, SoftActorCritic):
     def __init__(
@@ -92,7 +93,6 @@ class TdmSac(TemporalDifferenceModel, SoftActorCritic):
         if self.give_terminal_reward:
             terminal_rewards = self.terminal_bonus * num_steps_left
             q_target = q_target + terminals * terminal_rewards
-        import ipdb; ipdb.set_trace()
         qf_loss = self.qf_criterion(q_pred, q_target.detach())
 
         """
@@ -124,7 +124,7 @@ class TdmSac(TemporalDifferenceModel, SoftActorCritic):
         policy_reg_loss = mean_reg_loss + std_reg_loss + pre_activation_reg_loss
         _, means, _, _, _, stds, _, _ = policy_outputs
         log_probs = TanhNormal(means, stds).log_prob(actions)
-        policy_supervised_loss = -1 *log_probs
+        policy_supervised_loss = torch.mean(-1 *log_probs)
         policy_loss = policy_loss + policy_reg_loss + self.supervised_weight * policy_supervised_loss
 
         """

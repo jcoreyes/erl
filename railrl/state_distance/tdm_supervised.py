@@ -43,9 +43,9 @@ class TdmSupervised(TemporalDifferenceModel, TorchRLAlgorithm):
             lr=self.policy_learning_rate,
         )
         if policy_criterion=='MSE':
-            self.policy_criterion = nn.MSELoss
+            self.policy_criterion = nn.MSELoss()
         elif policy_criterion=='Huber':
-            self.policy_criterion = HuberLoss
+            self.policy_criterion = HuberLoss()
         self.eval_policy = self.policy
         self.replay_buffer = replay_buffer
 

@@ -63,13 +63,14 @@ if __name__ == "__main__":
         ),
         algo_params=dict(
             base_kwargs=dict(
-                num_epochs=500,
-                num_steps_per_epoch=1000,
+                num_epochs=100,
+                num_steps_per_epoch=100,
                 num_steps_per_eval=1000,
-                max_path_length=99,
+                max_path_length=100,
                 num_updates_per_env_step=1,
                 batch_size=128,
-                discount=0.99,
+                discount=1,
+                reward_scale=100,
                 replay_buffer_size=1000000,
             ),
             tdm_kwargs=dict(
@@ -90,26 +91,16 @@ if __name__ == "__main__":
             10,
             100,
         ],
-        'algo_params.base_kwargs.num_updates_per_env_step': [
-            1,
-            10,
-            20,
-        ],
         'algo_params.tdm_kwargs.max_tau': [
             10,
             15,
             20,
         ],
         'algo_params.supervised_weight':[
-            .1,
             .2,
-            .3,
             .4,
-            .5,
             .6,
-            .7,
             .8,
-            .9
         ]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -122,5 +113,5 @@ if __name__ == "__main__":
             variant=variant,
             exp_id=exp_id,
             exp_prefix='tdm_supervised_rl_combo_hyper_parameter_sweep',
-            mode='local_docker',
+            mode='ec2',
         )

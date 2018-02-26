@@ -1,8 +1,3 @@
-"""
-Example of running PyTorch implementation of DDPG on HalfCheetah.
-"""
-import gym
-
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState
 from railrl.envs.wrappers import NormalizedBoxEnv
@@ -10,7 +5,6 @@ from railrl.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
 )
 from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import setup_logger
 from railrl.state_distance.tdm_supervised import TdmSupervised
 import railrl.torch.pytorch_util as ptu
 from railrl.state_distance.tdm_networks import TdmPolicy
@@ -67,20 +61,20 @@ if __name__ == "__main__":
         ),
     )
     search_space = {
-        # 'algo_params.base_kwargs.reward_scale': [
-        #     1,
-        #     10,
-        #     100,
-        #     1000,
-        #     10000,
-        # ],
-        # 'algo_params.tdm_kwargs.max_tau': [
-        #     10,
-        #     15,
-        #     20,
-        # ],
+        'algo_params.base_kwargs.reward_scale': [
+            1,
+            10,
+            100,
+            1000,
+            10000,
+        ],
+        'algo_params.tdm_kwargs.max_tau': [
+            10,
+            15,
+            20,
+        ],
         'algo_params.policy_criterion':[
-            # 'MSE',
+            'MSE',
             'Huber',
         ]
     }
@@ -94,5 +88,5 @@ if __name__ == "__main__":
             variant=variant,
             exp_id=exp_id,
             exp_prefix='tdm_supervised_hyper_parameter_sweep',
-            mode='local_docker',
+            mode='ec2',
         )
