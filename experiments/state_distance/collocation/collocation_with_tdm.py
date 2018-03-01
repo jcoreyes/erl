@@ -15,7 +15,7 @@ from railrl.torch.mpc.collocation.collocation_mpc_controller import (
     StateGCMC,
     LBfgsBCMC,
     BfgsBCMC,
-)
+    LBfgsBStateOnlyCMC)
 
 
 class TdmToImplicitModel(PyTorchModule):
@@ -37,6 +37,26 @@ class TdmToImplicitModel(PyTorchModule):
             goals=goals,
             num_steps_left=taus,
         ).sum(1)
+
+
+class TdmPolicyToTimeInvariantGoalReachingPolicy(PyTorchModule):
+    def __init__(self, tdm_policy, env, num_steps_left):
+        self.quick_init(locals())
+        super().__init__()
+        self.tdm_policy = tdm_policy
+        self.env = env
+        self.num_steps_left = num_steps_left
+
+    def forward(self, states, next_states):
+        num_steps_left = ptu.np_to_var(
+            self.num_steps_left * np.ones((states.shape[0], 1))
+        )
+        goals = self.env.convert_obs_to_goals(next_states)
+        return self.tdm_policy(
+            observations=states,
+            goals=goals,
+            num_steps_left=num_steps_left,
+        )[0]
 
 
 class TrueModelToImplicitModel(PyTorchModule):
@@ -146,6 +166,8 @@ if __name__ == "__main__":
                         help='path to the snapshot file')
     parser.add_argument('--H', type=int, default=100,
                         help='Max length of rollout')
+    parser.add_argument('--ph', type=int, default=3,
+                        help='planning horizon')
     parser.add_argument('--nrolls', type=int, default=1,
                         help='Number of rollout per eval')
     parser.add_argument('--verbose', action='store_true')
@@ -178,7 +200,7 @@ if __name__ == "__main__":
     # implicit_model = TrueModelToImplicitModel(env)
     lagrange_multiplier = args.lm / reward_scale
     # lagrange_multiplier = 10
-    planning_horizon = 3
+    planning_horizon = args.ph
     goal_slice = env.ob_to_goal_slice
     multitask_goal_slice = slice(None)
     optimizer = args.opt
@@ -227,6 +249,25 @@ if __name__ == "__main__":
         policy = LBfgsBCMC(
             implicit_model,
             env,
+            goal_slice=goal_slice,
+            multitask_goal_slice=multitask_goal_slice,
+            lagrange_multipler=lagrange_multiplier,
+            planning_horizon=planning_horizon,
+            # finite_difference=True,
+            solver_params={
+                'factr': 1e9,
+            },
+        )
+    elif optimizer == 'slbfgs':
+        universal_policy = TdmPolicyToTimeInvariantGoalReachingPolicy(
+            tdm_policy=data['policy'],
+            env=env,
+            num_steps_left=args.tau,
+        )
+        policy = LBfgsBStateOnlyCMC(
+            implicit_model,
+            env,
+            universal_policy,
             goal_slice=goal_slice,
             multitask_goal_slice=multitask_goal_slice,
             lagrange_multipler=lagrange_multiplier,
