@@ -4,6 +4,7 @@ Example of running PyTorch implementation of DDPG on HalfCheetah.
 import gym
 
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
+from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
 from railrl.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.state_distance.tdm_sac import TdmSac
@@ -14,7 +15,8 @@ from railrl.launchers.launcher_util import run_experiment
 import numpy as np
 
 def experiment(variant):
-    env = NormalizedBoxEnv(Reacher7DofXyzGoalState())
+    # env = NormalizedBoxEnv(Reacher7DofXyzGoalState())
+    env = NormalizedBoxEnv(MultitaskPoint2DEnv())
     vectorized=True
     policy = StochasticTdmPolicy(
         env=env,
@@ -40,6 +42,7 @@ def experiment(variant):
         variant['algo_params']['sac_kwargs'],
         variant['algo_params']['tdm_kwargs'],
         variant['algo_params']['base_kwargs'],
+        supervised_weight=variant['algo_params']['supervised_weight'],
         policy=policy,
         replay_buffer=replay_buffer,
     )
@@ -72,6 +75,7 @@ if __name__ == "__main__":
                 discount=1,
                 reward_scale=100,
                 replay_buffer_size=1000000,
+                render=True,
             ),
             tdm_kwargs=dict(
                 max_tau=10,
@@ -82,25 +86,25 @@ if __name__ == "__main__":
                 qf_lr=3E-4,
                 vf_lr=3E-4,
             ),
-            supervised_weight=.5,
         ),
     )
     search_space = {
         'algo_params.base_kwargs.reward_scale': [
             1,
-            10,
-            100,
+            # 10,
+            # 100,
         ],
         'algo_params.tdm_kwargs.max_tau': [
-            10,
-            15,
-            20,
+            1,
+            # 15,
+            # 20,
         ],
         'algo_params.supervised_weight':[
+             # 0,
             .2,
-            .4,
-            .6,
-            .8,
+            # .4,
+            # .6,
+            # .8,
         ]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -112,6 +116,7 @@ if __name__ == "__main__":
             seed=np.random.randint(1, 10004),
             variant=variant,
             exp_id=exp_id,
-            exp_prefix='tdm_supervised_rl_combo_hyper_parameter_sweep',
-            mode='ec2',
+            # exp_prefix='tdm_rl_supervised_combo',
+            exp_prefix='tdm_rl_supervised_combo',
+            mode='local',
         )

@@ -124,8 +124,8 @@ class TdmSac(TemporalDifferenceModel, SoftActorCritic):
         policy_reg_loss = mean_reg_loss + std_reg_loss + pre_activation_reg_loss
         _, means, _, _, _, stds, _, _ = policy_outputs
         log_probs = TanhNormal(means, stds).log_prob(actions)
-        policy_supervised_loss = torch.mean(-1 *log_probs)
-        policy_loss = policy_loss + policy_reg_loss + self.supervised_weight * policy_supervised_loss
+        policy_supervised_loss = -1*torch.sum(log_probs) * self.supervised_weight
+        policy_loss = policy_loss + policy_reg_loss + policy_supervised_loss
 
         """
         Update networks
@@ -158,6 +158,10 @@ class TdmSac(TemporalDifferenceModel, SoftActorCritic):
             self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
                 policy_loss
             ))
+            if self.supervised_weight != 0:
+                self.eval_statistics['Supervised Policy Loss'] = np.mean(ptu.get_numpy(
+                    policy_supervised_loss
+                ))
             self.eval_statistics.update(create_stats_ordered_dict(
                 'Q Predictions',
                 ptu.get_numpy(q_pred),
