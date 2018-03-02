@@ -1,4 +1,5 @@
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
+from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
 from railrl.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import (
@@ -13,7 +14,7 @@ from railrl.launchers.launcher_util import run_experiment
 import numpy as np
 
 def experiment(variant):
-    env = NormalizedBoxEnv(Reacher7DofXyzGoalState())
+    env = NormalizedBoxEnv(MultitaskPoint2DEnv())
     es = OUStrategy(action_space=env.action_space)
     policy = TdmPolicy(
         env=env,
@@ -46,7 +47,7 @@ if __name__ == "__main__":
         algo_params=dict(
             base_kwargs=dict(
                 num_epochs=100,
-                num_steps_per_epoch=100,
+                num_steps_per_epoch=1000,
                 num_steps_per_eval=1000,
                 max_path_length=100,
                 num_updates_per_env_step=1,
@@ -54,6 +55,7 @@ if __name__ == "__main__":
                 discount=1,
                 reward_scale=100,
                 replay_buffer_size=1000000,
+                render=True,
             ),
             tdm_kwargs=dict(
                 max_tau=10,
@@ -63,19 +65,20 @@ if __name__ == "__main__":
     search_space = {
         'algo_params.base_kwargs.reward_scale': [
             1,
-            10,
-            100,
-            1000,
-            10000,
+            # 10,
+            # 100,
+            # 1000,
+            # 10000,
         ],
         'algo_params.tdm_kwargs.max_tau': [
-            10,
-            15,
-            20,
+            1,
+            # 10,
+            # 15,
+            # 20,
         ],
         'algo_params.policy_criterion':[
             'MSE',
-            'Huber',
+            # 'Huber',
         ]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -87,6 +90,6 @@ if __name__ == "__main__":
             seed=np.random.randint(1, 10004),
             variant=variant,
             exp_id=exp_id,
-            exp_prefix='tdm_supervised_hyper_parameter_sweep',
-            mode='ec2',
+            exp_prefix='tdm_supervised_point2d',
+            mode='local',
         )

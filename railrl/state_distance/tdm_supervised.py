@@ -23,7 +23,7 @@ class TdmSupervised(TemporalDifferenceModel, TorchRLAlgorithm):
             base_kwargs,
             policy=None,
             loss_fn=None,
-            policy_learning_rate=1e-4,
+            policy_learning_rate=1e-3,
             optimizer_class=optim.Adam,
             policy_criterion='MSE',
             replay_buffer=None,
@@ -65,11 +65,10 @@ class TdmSupervised(TemporalDifferenceModel, TorchRLAlgorithm):
         """
         Policy operations.
         """
-        policy_actions, pre_tanh_value = self.policy(
-            obs, goals, num_steps_left, return_preactivations=True,
+        policy_actions = self.policy(
+            obs, goals, num_steps_left, return_preactivations=False,
         )
-        #policy loss!
-        policy_loss = self.policy_criterion(policy_actions, actions)
+        policy_loss = self.policy_criterion(actions, policy_actions)
         """
         Update Networks
         """

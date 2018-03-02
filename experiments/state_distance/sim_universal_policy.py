@@ -73,7 +73,6 @@ if __name__ == "__main__":
                 animated=not args.hide,
                 cycle_tau=args.cycle or not args.ndc,
                 decrement_tau=args.dt or not args.ndc,
-                get_action_kwargs={'deterministic': True},
             )
             paths.append(path)
         env.log_diagnostics(paths)
