@@ -415,6 +415,8 @@ class LBfgsBCMC(UniversalPolicy):
         self.only_use_terminal_env_loss = only_use_terminal_env_loss
 
         self.last_solution = None
+        self.desired_features_torch = None
+        self.totals = []
         self.lower_bounds = np.hstack((
             self.env.action_space.low,
             self.env.observation_space.low
@@ -425,58 +427,60 @@ class LBfgsBCMC(UniversalPolicy):
         ))
         self.lower_bounds = np.tile(self.lower_bounds, self.planning_horizon)
         self.upper_bounds = np.tile(self.upper_bounds, self.planning_horizon)
-        # TODO(vitchyr): figure out what to do if the state bounds are infinity
         self.bounds = list(zip(self.lower_bounds, self.upper_bounds))
         self.forward = 0
         self.backward = 0
 
-    def split(self, x):
+    def batchify(self, x, current_ob):
         """
-        split into action, next_state
+        Convert
+            [a1, s2, a2, s3, a3, s4]
+        into
+            [s1, s2, s3], [a1, a2, a3], [s2, s3, s4]
         """
-        actions_and_obs = []
+        obs = []
+        actions = []
+        next_obs = []
+        ob = current_ob
         for h in range(self.planning_horizon):
             start_h = h * self.ao_dim
-            actions_and_obs.append((
-                x[start_h:start_h+self.action_dim],
-                x[start_h+self.action_dim:start_h+self.ao_dim],
-            ))
-        return actions_and_obs
+            next_ob = x[start_h+self.action_dim:start_h+self.ao_dim]
+            obs.append(ob)
+            actions.append(x[start_h:start_h+self.action_dim])
+            next_obs.append(next_ob)
+            ob = next_ob
+        return (
+            torch.stack(obs),
+            torch.stack(actions),
+            torch.stack(next_obs),
+        )
 
-    def _env_cost_function(self, x):
-        loss = 0
-        for action, next_state in self.split(x):
-            next_features_predicted = next_state[self.goal_slice]
-            desired_features = ptu.np_to_var(
-                self.env.multitask_goal[self.multitask_goal_slice]
-                * np.ones(next_features_predicted.shape)
+    def _env_cost_function(self, x, current_ob):
+        _, _, next_obs = self.batchify(x, current_ob)
+        next_features_predicted = next_obs[:, self.goal_slice]
+        if self.only_use_terminal_env_loss:
+            diff = (
+                next_features_predicted[-1] - self.desired_features_torch[-1]
             )
-            diff = next_features_predicted - desired_features
-            if self.only_use_terminal_env_loss:
-                loss = (diff**2).sum()
-            else:
-                loss = loss + (diff**2).sum()
+            loss = (diff**2).sum()
+        else:
+            diff = next_features_predicted - self.desired_features_torch
+            loss = (diff**2).sum()
         return loss
 
-    def _feasibility_cost_function(self, x, state):
-        state = ptu.np_to_var(state)
-        state = state.unsqueeze(0)
-        loss = 0
-        for action, next_state in self.split(x):
-            action = action[None]
-            next_state = next_state[None]
-
-            loss -= self.implicit_model(state, action, next_state)
-            state = next_state
+    def _feasibility_cost_function(self, x, current_ob):
+        obs, actions, next_obs = self.batchify(x, current_ob)
+        loss = -self.implicit_model(obs, actions, next_obs).sum()
         return loss
 
-    def cost_function(self, x, observation):
+    def cost_function(self, x, current_ob):
         self.forward -= time.time()
         x = ptu.np_to_var(x, requires_grad=True)
+        current_ob = ptu.np_to_var(current_ob)
         loss = (
                 self.lagrange_multipler
-                * self._feasibility_cost_function(x, observation)
-                + self._env_cost_function(x)
+                * self._feasibility_cost_function(x, current_ob)
+                + self._env_cost_function(x, current_ob)
         )
         loss_np = ptu.get_numpy(loss)[0].astype(np.float64)
         if self.finite_difference:
@@ -491,28 +495,34 @@ class LBfgsBCMC(UniversalPolicy):
     def reset(self):
         self.last_solution = None
 
-    def get_action(self, obs):
+    def get_action(self, current_ob):
         if self.last_solution is None or not self.warm_start:
             solution = []
             for i in range(self.planning_horizon):
                 solution.append(self.env.action_space.sample())
-                solution.append(obs)
+                solution.append(current_ob)
             self.last_solution = np.hstack(solution)
+        goal = self.env.multitask_goal[self.multitask_goal_slice]
+        self.desired_features_torch = ptu.np_to_var(
+            goal[None].repeat(self.planning_horizon, 0)
+        )
         self.forward = self.backward = 0
         start = time.time()
         x, f, d = optimize.fmin_l_bfgs_b(
             self.cost_function,
             self.last_solution,
-            args=(obs,),
+            args=(current_ob,),
             bounds=self.bounds,
             approx_grad=self.finite_difference,
             **self.solver_params
         )
         total = time.time() - start
+        self.totals.append(total)
         print("total forward: {}".format(self.forward))
         print("total backward: {}".format(self.backward))
         print("total: {}".format(total))
         print("extra: {}".format(total - self.forward - self.backward))
+        print("total mean: {}".format(np.mean(self.totals)))
         warnflag = d['warnflag']
         if warnflag != 0:
             if warnflag == 1:
@@ -520,20 +530,25 @@ class LBfgsBCMC(UniversalPolicy):
             else:
                 print(d['task'])
 
-        actions_and_obs = self.split(x)
-
         x_torch = ptu.np_to_var(x, requires_grad=True)
-        feas_loss = self._feasibility_cost_function(x_torch, obs)
-        env_cos = self._env_cost_function(x_torch)
+        current_ob_torch = ptu.np_to_var(current_ob)
+        feas_loss = self._feasibility_cost_function(
+            x_torch, current_ob_torch
+        )
+        env_cos = self._env_cost_function(x_torch, current_ob_torch)
+
         print("feasibility loss", ptu.get_numpy(feas_loss)[0])
         print("weighted feasibility loss",
               self.lagrange_multipler * ptu.get_numpy(feas_loss)[0])
         print("env loss", ptu.get_numpy(env_cos)[0])
 
-        best_action_seq = np.array([a for a, o in actions_and_obs])
-        best_obs_seq = np.array([obs] + [o for a, o in actions_and_obs])
+        _, actions, next_obs = self.batchify(x_torch, current_ob_torch)
+        best_action_seq = np.array([ptu.get_numpy(a) for a in actions])
+        best_obs_seq = np.array(
+            [current_ob] + [ptu.get_numpy(o) for o in next_obs]
+        )
 
-        action = actions_and_obs[0][0]
+        action = best_action_seq[0]
         self.last_solution = x
         return action, dict(
             best_action_seq=best_action_seq,

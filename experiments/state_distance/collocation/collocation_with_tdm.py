@@ -118,7 +118,7 @@ def rollout(env, agent, max_path_length=np.inf, animated=False, tick=False):
         env.render()
     while path_length < max_path_length:
         a, agent_info = agent.get_action(o)
-        debug(env, o, agent_info)
+        # debug(env, o, agent_info)
         next_o, r, d, env_info = env.step(a)
         observations.append(o)
         rewards.append(r)
@@ -191,6 +191,8 @@ if __name__ == "__main__":
     data = joblib.load(args.file)
     env = data['env']
     qf = data['qf']
+    # ptu.set_gpu_mode(True)
+    # qf.cuda()
 
     implicit_model = TdmToImplicitModel(
         env,
@@ -254,8 +256,10 @@ if __name__ == "__main__":
             lagrange_multipler=lagrange_multiplier,
             planning_horizon=planning_horizon,
             # finite_difference=True,
+            # only_use_terminal_env_loss=True,
+            # warm_start=True,
             solver_params={
-                'factr': 1e9,
+                'factr': 1e12,
             },
         )
     elif optimizer == 'slbfgs':
