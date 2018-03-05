@@ -70,14 +70,14 @@ if __name__ == "__main__":
     mode = "local"
     exp_prefix = "dev-sac-tdm-launch"
 
-    # n_seeds = 1
-    # mode = "ec2"
-    exp_prefix = "2d-point-wall-sac-tdm"
+    n_seeds = 1
+    mode = "ec2"
+    exp_prefix = "sac-tdm-ant-goalxy-sweep"
 
-    num_epochs = 100
-    num_steps_per_epoch = 100
-    num_steps_per_eval = 100
-    max_path_length = 25
+    num_epochs = 1000
+    num_steps_per_epoch = 1000
+    num_steps_per_eval = 1000
+    max_path_length = 50
 
     # noinspection PyTypeChecker
     variant = dict(
@@ -88,7 +88,7 @@ if __name__ == "__main__":
                 num_steps_per_eval=num_steps_per_eval,
                 max_path_length=max_path_length,
                 num_updates_per_env_step=25,
-                batch_size=1024,
+                batch_size=128,
                 discount=1,
                 save_replay_buffer=False,
             ),
@@ -140,9 +140,9 @@ if __name__ == "__main__":
             # Reacher7DofXyzGoalState,
             # Reacher7DofFullGoal,
             # MultitaskPoint2DEnv,
-            MultitaskPoint2dWall,
+            # MultitaskPoint2dWall,
             # MultitaskPoint2dUWall,
-            # GoalXYPosAnt,
+            GoalXYPosAnt,
             # Walker2DTargetXPos,
             # MultitaskPusher3DEnv,
             # CylinderXYPusher2DEnv,
@@ -152,26 +152,26 @@ if __name__ == "__main__":
         # ],
         'sac_tdm_kwargs.base_kwargs.reward_scale': [
             1,
-            # 10,
-            # 100,
-            # 1000,
-            # 10000,
+            10,
+            100,
+            1000,
+            10000,
         ],
         'qf_kwargs.hidden_activation': [
-            # ptu.softplus,
-            tanh
+            ptu.softplus,
+            # tanh
         ],
         'sac_tdm_kwargs.tdm_kwargs.vectorized': [
             # False,
             True,
         ],
-        'sac_tdm_kwargs.give_terminal_reward': [
-            False,
-            # True,
-        ],
+        # 'sac_tdm_kwargs.give_terminal_reward': [
+        #     False,
+        #     True,
+        # ],
         'sac_tdm_kwargs.tdm_kwargs.terminate_when_goal_reached': [
-            True,
-            # False,
+            # True,
+            False,
         ],
         'sac_tdm_kwargs.tdm_kwargs.sample_rollout_goals_from': [
             # 'fixed',
@@ -179,9 +179,9 @@ if __name__ == "__main__":
             # 'replay_buffer',
         ],
         'sac_tdm_kwargs.tdm_kwargs.max_tau': [
-            # 0,
-            5,
-            # max_path_length-1,
+            # 10,
+            25,
+            max_path_length-1,
             # 1,
             # 10,
             # 99,
@@ -190,7 +190,7 @@ if __name__ == "__main__":
         ],
         'sac_tdm_kwargs.base_kwargs.num_updates_per_env_step': [
             1,
-            # 5,
+            5,
             # 10,
             # 25,
         ],
@@ -202,6 +202,11 @@ if __name__ == "__main__":
         search_space, default_parameters=variant,
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+        if (
+            not variant['sac_tdm_kwargs']['tdm_kwargs']['terminate_when_goal_reached']
+            and variant['sac_tdm_kwargs']['give_terminal_reward']
+        ):
+            continue
         for i in range(n_seeds):
             run_experiment(
                 experiment,
@@ -209,5 +214,4 @@ if __name__ == "__main__":
                 exp_prefix=exp_prefix,
                 variant=variant,
                 exp_id=exp_id,
-                use_gpu=True,
             )
