@@ -53,8 +53,8 @@ if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
             num_epochs=1,
-            num_steps_per_epoch=1000,
-            num_steps_per_eval=1000,
+            num_steps_per_epoch=100,
+            num_steps_per_eval=100,
             max_path_length=100,
             discount=0.99,
             soft_target_tau=0,
@@ -78,19 +78,20 @@ if __name__ == "__main__":
     search_space = {
         'algo_params.reward_scale': [
             10,
-            100,
+            # 100,
             # 1000,
             # 10000,
         ],
         'algo_params.num_updates_per_env_step': [
             10,
-            15,
+            # 15,
             # 20,
             # 25,
         ],
         'algo_params.batch_size': [
+            # 64,
             512,
-            1024,
+            # 1024,
         ]
 
     }
