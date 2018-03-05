@@ -69,7 +69,7 @@ if __name__ == "__main__":
         'algo_params.reward_scale': [
             # 10,
             # 100,
-            1000,
+            # 1000,
             10000,
         ],
         'algo_params.num_updates_per_env_step': [

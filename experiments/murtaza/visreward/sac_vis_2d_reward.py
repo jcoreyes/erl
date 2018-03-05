@@ -53,8 +53,8 @@ if __name__ == "__main__":
     variant = dict(
         algo_params=dict(
             num_epochs=1,
-            num_steps_per_epoch=100,
-            num_steps_per_eval=100,
+            num_steps_per_epoch=1000,
+            num_steps_per_eval=1000,
             max_path_length=100,
             discount=0.99,
             soft_target_tau=0,
@@ -108,7 +108,7 @@ if __name__ == "__main__":
                 variant=variant,
                 exp_id=exp_id,
                 exp_prefix='TEST',
-                mode='local',
+                mode='here_no_doodad',
                 use_gpu=use_gpu,
             )
 

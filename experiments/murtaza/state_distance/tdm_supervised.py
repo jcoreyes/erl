@@ -14,7 +14,7 @@ from railrl.launchers.launcher_util import run_experiment
 import numpy as np
 
 def experiment(variant):
-    env = NormalizedBoxEnv(Reacher7DofXyzGoalState())
+    env = NormalizedBoxEnv(Reacher7DofXyzGoalState()) #try full state reacher
     es = OUStrategy(action_space=env.action_space)
     policy = TdmPolicy(
         env=env,
