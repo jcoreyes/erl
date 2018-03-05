@@ -52,7 +52,7 @@ if __name__ == "__main__":
     use_gpu=True
     variant = dict(
         algo_params=dict(
-            num_epochs=200,
+            num_epochs=1,
             num_steps_per_epoch=1000,
             num_steps_per_eval=1000,
             max_path_length=100,
