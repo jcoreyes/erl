@@ -45,7 +45,12 @@ class TanhNormal(Distribution):
         )
 
     def sample(self, return_pretanh_value=False):
-        z = self.normal.sample()
+        """
+        Gradients will and should *not* pass through this operation.
+
+        See https://github.com/pytorch/pytorch/issues/4620 for discussion.
+        """
+        z = self.normal.sample().detach()
         if return_pretanh_value:
             return torch.tanh(z), z
         else:
