@@ -14,7 +14,7 @@ from railrl.launchers.launcher_util import run_experiment
 import numpy as np
 
 def experiment(variant):
-    env = NormalizedBoxEnv(MultitaskPoint2DEnv())
+    env = NormalizedBoxEnv(Reacher7DofXyzGoalState())
     es = OUStrategy(action_space=env.action_space)
     policy = TdmPolicy(
         env=env,
@@ -71,7 +71,7 @@ if __name__ == "__main__":
             # 10000,
         ],
         'algo_params.tdm_kwargs.max_tau': [
-            1,
+            0,
             # 10,
             # 15,
             # 20,
@@ -90,6 +90,6 @@ if __name__ == "__main__":
             seed=np.random.randint(1, 10004),
             variant=variant,
             exp_id=exp_id,
-            exp_prefix='tdm_supervised_point2d',
+            exp_prefix='test',
             mode='local',
         )

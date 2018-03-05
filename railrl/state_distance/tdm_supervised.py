@@ -59,16 +59,17 @@ class TdmSupervised(TemporalDifferenceModel, TorchRLAlgorithm):
         batch = self.get_batch()
         obs = batch['observations']
         actions = batch['actions']
-        goals = batch['goals']
         num_steps_left = batch['num_steps_left']
+        next_obs = batch['next_observations']
 
         """
         Policy operations.
         """
+        # import ipdb; ipdb.set_trace()
         policy_actions = self.policy(
-            obs, goals, num_steps_left, return_preactivations=False,
+            obs, self.env.convert_obs_to_goals(next_obs), num_steps_left, return_preactivations=False,
         )
-        policy_loss = self.policy_criterion(actions, policy_actions)
+        policy_loss = self.policy_criterion(policy_actions, actions)
         """
         Update Networks
         """

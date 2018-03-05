@@ -122,7 +122,12 @@ class TdmSac(TemporalDifferenceModel, SoftActorCritic):
             (pre_tanh_value**2).sum(dim=1).mean()
         )
         policy_reg_loss = mean_reg_loss + std_reg_loss + pre_activation_reg_loss
-        _, means, _, _, _, stds, _, _ = policy_outputs
+        _, means, _, _, _, stds, _, _ = self.policy(
+            observations=obs,
+            goals=self.env.convert_obs_to_goal_state(next_obs),
+            num_steps_left=num_steps_left,
+            return_log_prob=True,
+        )
         log_probs = TanhNormal(means, stds).log_prob(actions)
         policy_supervised_loss = -1*torch.sum(log_probs) * self.supervised_weight
         policy_loss = policy_loss + policy_reg_loss + policy_supervised_loss
