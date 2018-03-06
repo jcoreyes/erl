@@ -4,7 +4,9 @@ from gym.envs.mujoco import (
     HopperEnv,
     Walker2dEnv,
 )
+from gym.envs.mujoco import InvertedDoublePendulumEnv
 
+from railrl.envs.pygame.point2d import Point2DEnv
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
@@ -13,42 +15,33 @@ from railrl.launchers.launcher_util import run_experiment
 import railrl.torch.pytorch_util as ptu
 import railrl.misc.hyperparameter as hyp
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
+from railrl.torch.sac.policies import TanhGaussianPolicy
+from railrl.torch.sac.twin_sac import TwinSAC
 from railrl.torch.td3.td3 import TD3
 
 
 def experiment(variant):
     env = NormalizedBoxEnv(variant['env_class']())
-    es = GaussianStrategy(
-        action_space=env.action_space,
-        **variant['es_kwargs']
-    )
     obs_dim = env.observation_space.low.size
     action_dim = env.action_space.low.size
-    qf1 = FlattenMlp(
+    qf = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
-    qf2 = FlattenMlp(
-        input_size=obs_dim + action_dim,
-        output_size=1,
-        **variant['qf_kwargs']
-    )
-    policy = TanhMlpPolicy(
-        input_size=obs_dim,
-        output_size=action_dim,
+    vf1 = FlattenMlp(input_size=obs_dim, output_size=1, **variant['vf_kwargs'])
+    vf2 = FlattenMlp(input_size=obs_dim, output_size=1, **variant['vf_kwargs'])
+    policy = TanhGaussianPolicy(
+        obs_dim=obs_dim,
+        action_dim=action_dim,
         **variant['policy_kwargs']
     )
-    exploration_policy = PolicyWrappedWithExplorationStrategy(
-        exploration_strategy=es,
-        policy=policy,
-    )
-    algorithm = TD3(
+    algorithm = TwinSAC(
         env,
-        qf1=qf1,
-        qf2=qf2,
         policy=policy,
-        exploration_policy=exploration_policy,
+        qf=qf,
+        vf1=vf1,
+        vf2=vf2,
         **variant['algo_kwargs']
     )
     if ptu.gpu_enabled():
@@ -76,6 +69,9 @@ if __name__ == "__main__":
         qf_kwargs=dict(
             hidden_sizes=[400, 300],
         ),
+        vf_kwargs=dict(
+            hidden_sizes=[400, 300],
+        ),
         policy_kwargs=dict(
             hidden_sizes=[400, 300],
         ),
@@ -83,8 +79,8 @@ if __name__ == "__main__":
             max_sigma=0.1,
             min_sigma=0.1,  # Constant sigma
         ),
-        algorithm="TD3",
-        version="TD3",
+        algorithm="Twin-SAC",
+        version="Twin-SAC",
         env_class=HalfCheetahEnv,
     )
     search_space = {
@@ -93,8 +89,10 @@ if __name__ == "__main__":
             AntEnv,
             HopperEnv,
             Walker2dEnv,
+            # Point2DEnv,
+            # InvertedDoublePendulumEnv,
         ],
-        'algo_kwargs.reward_scale': [0.1, 10, 100],
+        'algo_kwargs.reward_scale': [0.01, 1, 100, 10000],
         'algo_kwargs.num_updates_per_env_step': [1, 5],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -108,8 +106,8 @@ if __name__ == "__main__":
         for _ in range(1):
             run_experiment(
                 experiment,
-                # exp_prefix="dev-td3-sweep",
-                exp_prefix="td3-reward-and-nupo-sweep-1",
+                # exp_prefix="dev-twin-sace-sweep",
+                exp_prefix="twin-sac-sweep-2",
                 mode='ec2',
                 exp_id=exp_id,
                 variant=variant,
