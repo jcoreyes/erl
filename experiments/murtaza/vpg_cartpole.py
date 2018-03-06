@@ -6,7 +6,7 @@ import random
 from railrl.data_management.env_replay_buffer import VPGEnvReplayBuffer
 from railrl.exploration_strategies.ou_strategy import OUStrategy
 from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.algos.vpg import VPG
+from railrl.torch.vpg.vpg import VPG
 
 from railrl.sac.policies import TanhGaussianPolicy
 from rllab.envs.normalized_env import normalize
