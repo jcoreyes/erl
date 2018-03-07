@@ -67,22 +67,22 @@ if __name__ == "__main__":
     )
     search_space = {
         'algo_params.reward_scale': [
-            # 10,
-            # 100,
-            # 1000,
-            10000,
+            10,
+            100,
+            1000,
+            # 10000,
         ],
         'algo_params.num_updates_per_env_step': [
-            # 10,
-            # 15,
+            10,
+            15,
             # 20,
-            25,
+            # 25,
         ],
         'algo_params.batch_size': [
             # 64,
-            # 128,
+            128,
             # 512,
-            1024,
+            # 1024,
         ]
 
     }
@@ -98,8 +98,8 @@ if __name__ == "__main__":
                 seed=seed,
                 variant=variant,
                 exp_id=exp_id,
-                exp_prefix='test',
-                mode='local',
+                exp_prefix='arm_pusher_reset_mug',
+                mode='ec2',
                 use_gpu=use_gpu,
             )
 
