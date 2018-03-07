@@ -58,7 +58,7 @@ if __name__ == "__main__":
             num_steps_per_eval=10000,
             max_path_length=1000,
             min_num_steps_before_training=10000,
-            batch_size=100,
+            batch_size=128,
             discount=0.99,
 
             save_replay_buffer=False,
@@ -84,13 +84,13 @@ if __name__ == "__main__":
     )
     search_space = {
         'env_class': [
-            # HalfCheetahEnv,
+            HalfCheetahEnv,
             AntEnv,
             HopperEnv,
             Walker2dEnv,
         ],
-        'algo_kwargs.reward_scale': [1],
-        'algo_kwargs.num_updates_per_env_step': [1, 5],
+        'algo_kwargs.reward_scale': [0.1, 1, 10],
+        # 'algo_kwargs.num_updates_per_env_step': [1, 5],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
@@ -100,7 +100,7 @@ if __name__ == "__main__":
             run_experiment(
                 experiment,
                 # exp_prefix="dev-sac-sweep",
-                exp_prefix="sac-sweep-wait-10k",
+                exp_prefix="sac-td3-sweep-reward-scale-ahhw",
                 mode='ec2',
                 exp_id=exp_id,
                 variant=variant,

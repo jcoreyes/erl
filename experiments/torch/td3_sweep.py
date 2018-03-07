@@ -3,6 +3,7 @@ from gym.envs.mujoco import (
     AntEnv,
     HopperEnv,
     Walker2dEnv,
+    # HumanoidEnv,
 )
 
 from railrl.envs.wrappers import NormalizedBoxEnv
@@ -14,6 +15,7 @@ import railrl.torch.pytorch_util as ptu
 import railrl.misc.hyperparameter as hyp
 from railrl.torch.networks import FlattenMlp, TanhMlpPolicy
 from railrl.torch.td3.td3 import TD3
+from rllab.envs.mujoco.humanoid_env import HumanoidEnv
 
 
 def experiment(variant):
@@ -60,16 +62,12 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=200,
+            num_epochs=1000,
             num_steps_per_epoch=5000,
             num_steps_per_eval=10000,
             max_path_length=1000,
             min_num_steps_before_training=10000,
-            # num_epochs=200,
-            # num_steps_per_epoch=500,
-            # num_steps_per_eval=1000,
-            # max_path_length=100,
-            batch_size=100,
+            batch_size=128,
             discount=0.99,
 
             replay_buffer_size=int(1E6),
@@ -91,23 +89,24 @@ if __name__ == "__main__":
     search_space = {
         'env_class': [
             # HalfCheetahEnv,
-            AntEnv,
-            HopperEnv,
-            Walker2dEnv,
+            # AntEnv,
+            # HopperEnv,
+            # Walker2dEnv,
+            HumanoidEnv,
         ],
-        'algo_kwargs.reward_scale': [1],
-        'algo_kwargs.num_updates_per_env_step': [1, 5],
+        'algo_kwargs.reward_scale': [0.1, 1, 10],
+        # 'algo_kwargs.num_updates_per_env_step': [1, 5],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        for _ in range(2):
+        for _ in range(3):
             run_experiment(
                 experiment,
-                # exp_prefix="dev-td3-sweep",
-                exp_prefix="td3-nupo-sweep-10k-wait",
-                mode='ec2',
+                exp_prefix="dev-td3-sweep",
+                # exp_prefix="td3-rllab-humanoid",
+                # mode='ec2',
                 exp_id=exp_id,
                 variant=variant,
                 use_gpu=False,
