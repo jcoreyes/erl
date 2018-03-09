@@ -37,8 +37,8 @@ class Point2DEnv(Serializable, Env):
 
         self.action_space = Box(np.array([-1, -1]), np.array([1, 1]))
         self.observation_space = Box(
-            -self.BOUNDARY_DIST * np.ones(self.BOUNDARY_DIST),
-            self.BOUNDARY_DIST * np.ones(self.BOUNDARY_DIST),
+            -self.BOUNDARY_DIST * np.ones(4),
+            self.BOUNDARY_DIST * np.ones(4),
         )
 
         self.drawer = None

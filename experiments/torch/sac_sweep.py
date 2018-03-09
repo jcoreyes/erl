@@ -1,13 +1,13 @@
 import numpy as np
-import torch.optim as optim
-from gym.envs.mujoco import HalfCheetahEnv
+from gym.envs.mujoco import (
+    HalfCheetahEnv,
+    AntEnv,
+    HopperEnv,
+    Walker2dEnv,
+)
 
 import railrl.misc.hyperparameter as hyp
 import railrl.torch.pytorch_util as ptu
-from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
-from railrl.envs.multitask.reacher_7dof import Reacher7DofFullGoal, \
-    Reacher7DofXyzGoalState
-from railrl.envs.pygame.point2d import Point2DEnv
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.launchers.launcher_util import run_experiment
 from railrl.torch.sac.policies import TanhGaussianPolicy
@@ -17,28 +17,25 @@ from railrl.torch.networks import FlattenMlp
 
 def experiment(variant):
     env = variant['env_class']()
-    if variant['multitask']:
-        env = MultitaskToFlatEnv(env)
     env = NormalizedBoxEnv(env)
 
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
 
-    net_size = variant['net_size']
     qf = FlattenMlp(
-        hidden_sizes=[net_size, net_size],
         input_size=obs_dim + action_dim,
         output_size=1,
+        **variant['qf_kwargs']
     )
     vf = FlattenMlp(
-        hidden_sizes=[net_size, net_size],
         input_size=obs_dim,
         output_size=1,
+        **variant['vf_kwargs']
     )
     policy = TanhGaussianPolicy(
-        hidden_sizes=[net_size, net_size],
         obs_dim=obs_dim,
         action_dim=action_dim,
+        **variant['policy_kwargs']
     )
     algorithm = SoftActorCritic(
         env=env,
@@ -56,67 +53,54 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=100,
-            num_steps_per_epoch=1000,
-            num_steps_per_eval=1000,
-            batch_size=128,
+            num_epochs=200,
+            num_steps_per_epoch=5000,
+            num_steps_per_eval=10000,
             max_path_length=1000,
+            min_num_steps_before_training=10000,
+            batch_size=128,
             discount=0.99,
 
             save_replay_buffer=False,
-            replay_buffer_size=15000,
+            replay_buffer_size=int(1E6),
 
             soft_target_tau=0.001,
             policy_lr=3E-4,
             qf_lr=3E-4,
             vf_lr=3E-4,
         ),
-        net_size=300,
+        qf_kwargs=dict(
+            hidden_sizes=[400, 300],
+        ),
+        vf_kwargs=dict(
+            hidden_sizes=[400, 300],
+        ),
+        policy_kwargs=dict(
+            hidden_sizes=[400, 300],
+        ),
         algorithm='SAC',
         version='SAC',
         env_class=HalfCheetahEnv,
     )
     search_space = {
         'env_class': [
-            # HalfCheetahEnv,
-            # Point2DEnv,
-            Reacher7DofXyzGoalState,
-            Reacher7DofFullGoal,
+            HalfCheetahEnv,
+            AntEnv,
+            HopperEnv,
+            Walker2dEnv,
         ],
-        'algo_kwargs.reward_scale': [
-            1, 10, 100, 1000
-        ],
-        'algo_kwargs.discount': [
-            0.95,
-        ],
-        'algo_kwargs.optimizer_class': [
-            optim.Adam,
-        ],
-        'algo_kwargs.soft_target_tau': [
-            1e-3,
-        ],
-        'algo_kwargs.num_updates_per_env_step': [
-            1,
-        ],
-        'algo_kwargs.policy_mean_reg_weight': [
-            1e-3
-        ],
-        'algo_kwargs.policy_std_reg_weight': [
-            1e-3
-        ],
-        'multitask': [
-            True
-        ],
+        'algo_kwargs.reward_scale': [0.1, 1, 10],
+        # 'algo_kwargs.num_updates_per_env_step': [1, 5],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        for _ in range(1):
+        for _ in range(2):
             run_experiment(
                 experiment,
                 # exp_prefix="dev-sac-sweep",
-                exp_prefix="sac-reacher-sweep",
+                exp_prefix="sac-td3-sweep-reward-scale-ahhw",
                 mode='ec2',
                 exp_id=exp_id,
                 variant=variant,
