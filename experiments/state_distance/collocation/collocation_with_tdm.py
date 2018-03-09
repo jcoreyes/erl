@@ -14,7 +14,9 @@ from railrl.torch.mpc.collocation.collocation_mpc_controller import (
     GradientCMC,
     StateGCMC,
     LBfgsBCMC,
-    LBfgsBStateOnlyCMC, TdmToImplicitModel)
+    LBfgsBStateOnlyCMC,
+    TdmToImplicitModel,
+)
 
 
 class TdmPolicyToTimeInvariantGoalReachingPolicy(PyTorchModule):
@@ -169,6 +171,8 @@ if __name__ == "__main__":
     data = joblib.load(args.file)
     env = data['env']
     qf = data['qf']
+    vf = data['vf']
+    policy = data['policy']
     # ptu.set_gpu_mode(True)
     # qf.cuda()
 
@@ -233,24 +237,18 @@ if __name__ == "__main__":
             multitask_goal_slice=multitask_goal_slice,
             lagrange_multipler=lagrange_multiplier,
             planning_horizon=planning_horizon,
-            replan_every_time_step=False,
-            # finite_difference=True,
-            # only_use_terminal_env_loss=True,
+            replan_every_time_step=True,
+            only_use_terminal_env_loss=False,
             # warm_start=True,
             solver_kwargs={
                 'factr': 1e12,
             },
         )
     elif optimizer == 'slbfgs':
-        universal_policy = TdmPolicyToTimeInvariantGoalReachingPolicy(
-            tdm_policy=data['policy'],
-            env=env,
-            num_steps_left=args.tau,
-        )
         policy = LBfgsBStateOnlyCMC(
-            implicit_model,
+            vf,
+            policy,
             env,
-            universal_policy,
             goal_slice=goal_slice,
             multitask_goal_slice=multitask_goal_slice,
             lagrange_multipler=lagrange_multiplier,
@@ -259,16 +257,6 @@ if __name__ == "__main__":
             solver_kwargs={
                 'factr': 1e9,
             },
-        )
-    elif optimizer == 'bfgs':
-        policy = BfgsBCMC(
-            implicit_model,
-            env,
-            goal_slice=goal_slice,
-            multitask_goal_slice=multitask_goal_slice,
-            lagrange_multipler=lagrange_multiplier,
-            planning_horizon=planning_horizon,
-            # solver_kwargs={},
         )
     else:
         raise ValueError("Unknown optimizer type: {}".format(optimizer))
