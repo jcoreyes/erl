@@ -14,29 +14,7 @@ from railrl.torch.mpc.collocation.collocation_mpc_controller import (
     GradientCMC,
     StateGCMC,
     LBfgsBCMC,
-    BfgsBCMC,
-    LBfgsBStateOnlyCMC)
-
-
-class TdmToImplicitModel(PyTorchModule):
-    def __init__(self, env, qf, tau):
-        self.quick_init(locals())
-        super().__init__()
-        self.env = env
-        self.qf = qf
-        self.tau = tau
-
-    def forward(self, states, actions, next_states):
-        taus = ptu.np_to_var(
-            self.tau * np.ones((states.shape[0], 1))
-        )
-        goals = self.env.convert_obs_to_goals(next_states)
-        return self.qf(
-            observations=states,
-            actions=actions,
-            goals=goals,
-            num_steps_left=taus,
-        ).sum(1)
+    LBfgsBStateOnlyCMC, TdmToImplicitModel)
 
 
 class TdmPolicyToTimeInvariantGoalReachingPolicy(PyTorchModule):
@@ -118,7 +96,7 @@ def rollout(env, agent, max_path_length=np.inf, animated=False, tick=False):
         env.render()
     while path_length < max_path_length:
         a, agent_info = agent.get_action(o)
-        # debug(env, o, agent_info)
+        debug(env, o, agent_info)
         next_o, r, d, env_info = env.step(a)
         observations.append(o)
         rewards.append(r)
@@ -218,7 +196,7 @@ if __name__ == "__main__":
             multitask_goal_slice=multitask_goal_slice,
             planning_horizon=planning_horizon,
             # use_implicit_model_gradient=True,
-            solver_params={
+            solver_kwargs={
                 'ftol': 1e-2,
                 'maxiter': 100,
             },
@@ -255,10 +233,11 @@ if __name__ == "__main__":
             multitask_goal_slice=multitask_goal_slice,
             lagrange_multipler=lagrange_multiplier,
             planning_horizon=planning_horizon,
+            replan_every_time_step=False,
             # finite_difference=True,
             # only_use_terminal_env_loss=True,
             # warm_start=True,
-            solver_params={
+            solver_kwargs={
                 'factr': 1e12,
             },
         )
@@ -277,7 +256,7 @@ if __name__ == "__main__":
             lagrange_multipler=lagrange_multiplier,
             planning_horizon=planning_horizon,
             # finite_difference=True,
-            solver_params={
+            solver_kwargs={
                 'factr': 1e9,
             },
         )
@@ -289,7 +268,7 @@ if __name__ == "__main__":
             multitask_goal_slice=multitask_goal_slice,
             lagrange_multipler=lagrange_multiplier,
             planning_horizon=planning_horizon,
-            # solver_params={},
+            # solver_kwargs={},
         )
     else:
         raise ValueError("Unknown optimizer type: {}".format(optimizer))
