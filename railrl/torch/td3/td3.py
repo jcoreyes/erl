@@ -22,6 +22,7 @@ class TD3(TorchRLAlgorithm):
             qf2,
             policy,
             exploration_policy,
+            eval_policy=None,
 
             target_policy_noise=0.2,
             target_policy_noise_clip=0.5,
@@ -39,7 +40,7 @@ class TD3(TorchRLAlgorithm):
         super().__init__(
             env,
             exploration_policy,
-            eval_policy=policy,
+            eval_policy=eval_policy or policy,
             **kwargs
         )
         if qf_criterion is None:

@@ -166,13 +166,17 @@ if __name__ == "__main__":
 
     variant_path = Path(args.file).parents[0] / 'variant.json'
     variant = json.load(variant_path.open())
-    reward_scale = variant['sac_tdm_kwargs']['base_kwargs']['reward_scale']
+    if 'sac_tdm_kwargs' in variant:
+        reward_scale = variant['sac_tdm_kwargs']['base_kwargs']['reward_scale']
+    else:
+        reward_scale = variant['td3_tdm_kwargs']['base_kwargs']['reward_scale']
 
     data = joblib.load(args.file)
     env = data['env']
     qf = data['qf']
     vf = data['vf']
     policy = data['policy']
+
     # ptu.set_gpu_mode(True)
     # qf.cuda()
 
@@ -238,7 +242,7 @@ if __name__ == "__main__":
             lagrange_multipler=lagrange_multiplier,
             planning_horizon=planning_horizon,
             replan_every_time_step=True,
-            only_use_terminal_env_loss=False,
+            only_use_terminal_env_loss=True,
             # warm_start=True,
             solver_kwargs={
                 'factr': 1e12,
@@ -247,15 +251,16 @@ if __name__ == "__main__":
     elif optimizer == 'slbfgs':
         policy = LBfgsBStateOnlyCMC(
             vf,
-            policy,
+            data['trained_policy'],
             env,
             goal_slice=goal_slice,
             multitask_goal_slice=multitask_goal_slice,
             lagrange_multipler=lagrange_multiplier,
             planning_horizon=planning_horizon,
-            # finite_difference=True,
+            replan_every_time_step=True,
+            only_use_terminal_env_loss=True,
             solver_kwargs={
-                'factr': 1e9,
+                'factr': 1e12,
             },
         )
     else:

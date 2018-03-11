@@ -513,7 +513,8 @@ class LBfgsBCMC(UniversalPolicy):
                 or self.t_in_plan == self.planning_horizon
                 or self.last_solution is None
         ):
-            full_solution = self.replan(current_ob)
+            goal = self.env.multitask_goal[self.multitask_goal_slice]
+            full_solution = self.replan(current_ob, goal)
 
             x_torch = ptu.np_to_var(full_solution, requires_grad=True)
             current_ob_torch = ptu.np_to_var(current_ob)
@@ -544,14 +545,13 @@ class LBfgsBCMC(UniversalPolicy):
 
         return action, agent_info
 
-    def replan(self, current_ob):
+    def replan(self, current_ob, goal):
         if self.last_solution is None or not self.warm_start:
             solution = []
             for i in range(self.planning_horizon):
                 solution.append(self.env.action_space.sample())
                 solution.append(current_ob)
             self.last_solution = np.hstack(solution)
-        goal = self.env.multitask_goal[self.multitask_goal_slice]
         self.desired_features_torch = ptu.np_to_var(
             goal[None].repeat(self.planning_horizon, 0)
         )
@@ -613,32 +613,6 @@ class TdmLBfgsBCMC(LBfgsBCMC):
         self.t_in_plan += 1
 
         return action, agent_info
-
-    def replan(self, current_ob, goal):
-        if self.last_solution is None or not self.warm_start:
-            solution = []
-            for i in range(self.planning_horizon):
-                solution.append(self.env.action_space.sample())
-                solution.append(current_ob)
-            self.last_solution = np.hstack(solution)
-        self.desired_features_torch = ptu.np_to_var(
-            goal[None].repeat(self.planning_horizon, 0)
-        )
-        self.forward = self.backward = 0
-        x, f, d = optimize.fmin_l_bfgs_b(
-            self.cost_function,
-            self.last_solution,
-            args=(current_ob,),
-            bounds=self.bounds,
-            **self.solver_kwargs
-        )
-        warnflag = d['warnflag']
-        if warnflag != 0:
-            if warnflag == 1:
-                print("too many function evaluations or too many iterations")
-            else:
-                print(d['task'])
-        return x
 
 
 class TdmToImplicitModel(PyTorchModule):
@@ -794,7 +768,8 @@ class LBfgsBStateOnlyCMC(UniversalPolicy):
                 or self.t_in_plan == self.planning_horizon
                 or self.last_solution is None
         ):
-            full_solution = self.replan(current_ob)
+            goal = self.env.multitask_goal[self.multitask_goal_slice]
+            full_solution = self.replan(current_ob, goal)
 
             x_torch = ptu.np_to_var(full_solution, requires_grad=True)
             current_ob_torch = ptu.np_to_var(current_ob)
@@ -812,7 +787,7 @@ class LBfgsBStateOnlyCMC(UniversalPolicy):
                 observations=obs,
                 goals=next_obs,
                 num_steps_left=self.num_steps_left_pytorch,
-            )[0]
+            )
             self.best_action_seq = np.array([ptu.get_numpy(a) for a in actions])
             self.best_obs_seq = np.array(
                 [current_ob] + [ptu.get_numpy(o) for o in next_obs]
@@ -828,15 +803,15 @@ class LBfgsBStateOnlyCMC(UniversalPolicy):
         action = self.best_action_seq[self.t_in_plan]
         self.t_in_plan += 1
 
+        print("action", action)
         return action, agent_info
 
-    def replan(self, current_ob):
+    def replan(self, current_ob, goal):
         if self.last_solution is None or not self.warm_start:
             solution = []
             for i in range(self.planning_horizon):
                 solution.append(current_ob)
             self.last_solution = np.hstack(solution)
-        goal = self.env.multitask_goal[self.multitask_goal_slice]
         self.desired_features_torch = ptu.np_to_var(
             goal[None].repeat(self.planning_horizon, 0)
         )
@@ -863,3 +838,39 @@ class LBfgsBStateOnlyCMC(UniversalPolicy):
             else:
                 print(d['task'])
         return x
+
+
+class TdmLBfgsBStateOnlyCMC(LBfgsBStateOnlyCMC):
+    def get_action(self, current_ob, goal, num_steps_left):
+        if (
+                self.replan_every_time_step
+                or self.t_in_plan == self.planning_horizon
+                or self.last_solution is None
+        ):
+            full_solution = self.replan(current_ob, goal)
+
+            x_torch = ptu.np_to_var(full_solution, requires_grad=True)
+            current_ob_torch = ptu.np_to_var(current_ob)
+
+            obs, next_obs = self.batchify(x_torch, current_ob_torch)
+            actions = self.tdm_policy(
+                observations=obs,
+                goals=next_obs,
+                num_steps_left=self.num_steps_left_pytorch,
+            )[0]
+            self.best_action_seq = np.array([ptu.get_numpy(a) for a in actions])
+            self.best_obs_seq = np.array(
+                [current_ob] + [ptu.get_numpy(o) for o in next_obs]
+            )
+
+            self.last_solution = full_solution
+            self.t_in_plan = 0
+
+        agent_info = dict(
+            best_action_seq=self.best_action_seq[self.t_in_plan:],
+            best_obs_seq=self.best_obs_seq[self.t_in_plan:],
+        )
+        action = self.best_action_seq[self.t_in_plan]
+        self.t_in_plan += 1
+
+        return action, agent_info
