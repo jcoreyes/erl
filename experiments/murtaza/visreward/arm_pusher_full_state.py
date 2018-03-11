@@ -49,7 +49,7 @@ def experiment(variant):
 
 if __name__ == "__main__":
     # noinspection PyTypeChecker
-    use_gpu=False
+    use_gpu=True
     variant = dict(
         algo_params=dict(
             num_epochs=150,
@@ -98,8 +98,8 @@ if __name__ == "__main__":
                 seed=seed,
                 variant=variant,
                 exp_id=exp_id,
-                exp_prefix='arm_pusher_reset_mug',
-                mode='ec2',
+                exp_prefix='test',
+                mode='local',
                 use_gpu=use_gpu,
             )
 

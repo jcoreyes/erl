@@ -10,6 +10,7 @@ from railrl.state_distance.tdm import TemporalDifferenceModel
 import torch.optim as optim
 import torch.nn as nn
 
+from railrl.torch.core import np_to_pytorch_batch
 from railrl.torch.modules import HuberLoss
 from railrl.torch.torch_rl_algorithm import TorchRLAlgorithm
 
@@ -54,6 +55,56 @@ class TdmSupervised(TemporalDifferenceModel, TorchRLAlgorithm):
         return [
             self.policy,
         ]
+
+    def get_batch(self):
+        batch = self.replay_buffer.random_batch_random_tau(self.batch_size, self.max_tau)
+        """
+        Update the goal states/rewards
+        """
+        num_steps_left = self._sample_taus_for_training(batch)
+        obs = batch['observations']
+        actions = batch['actions']
+        next_obs = batch['next_observations']
+        goals = batch['training_goals']
+        rewards = self._compute_scaled_rewards_np(
+            batch, obs, actions, next_obs, goals
+        )
+        terminals = batch['terminals']
+
+        #not too sure what this code does
+        if self.tau_sample_strategy == 'all_valid':
+            obs = np.repeat(obs, self.max_tau + 1, 0)
+            actions = np.repeat(actions, self.max_tau + 1, 0)
+            next_obs = np.repeat(next_obs, self.max_tau + 1, 0)
+            goals = np.repeat(goals, self.max_tau + 1, 0)
+            rewards = np.repeat(rewards, self.max_tau + 1, 0)
+            terminals = np.repeat(terminals, self.max_tau + 1, 0)
+
+        if self.finite_horizon:
+            terminals = 1 - (1 - terminals) * (num_steps_left != 0)
+        if self.terminate_when_goal_reached:
+            diff = self.env.convert_obs_to_goals(next_obs) - goals
+            goal_not_reached = (
+                    np.linalg.norm(diff, axis=1, keepdims=True)
+                    > self.goal_reached_epsilon
+            )
+            terminals = 1 - (1 - terminals) * goal_not_reached
+
+        if not self.dense_rewards:
+            rewards = rewards * terminals
+
+        """
+        Update the batch
+        """
+        batch['rewards'] = rewards
+        batch['terminals'] = terminals
+        batch['actions'] = actions
+        batch['num_steps_left'] = num_steps_left
+        batch['goals'] = goals
+        batch['observations'] = obs
+        batch['next_observations'] = next_obs
+
+        return np_to_pytorch_batch(batch)
 
     def _do_training(self):
         batch = self.get_batch()

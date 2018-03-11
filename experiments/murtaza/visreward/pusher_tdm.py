@@ -9,13 +9,12 @@ from railrl.torch.networks import FlattenMlp
 from railrl.torch.sac.policies import TanhGaussianPolicy
 from railrl.torch.sac.sac import SoftActorCritic
 
-from singleobj_visreward import SingleObjVisRewardEnv
 import railrl.misc.hyperparameter as hyp
-
-env = SingleObjVisRewardEnv()
+from railrl.envs.multitask.pusher import MultitaskPusherEnv
 
 
 def experiment(variant):
+    env = MultitaskPusherEnv()
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
 
@@ -54,7 +53,7 @@ if __name__ == "__main__":
         algo_params=dict(
             num_epochs=150,
             num_steps_per_epoch=1000,
-            num_steps_per_eval=200,
+            num_steps_per_eval=1000,
             max_path_length=100,
             discount=0.99,
             soft_target_tau=0,
@@ -62,19 +61,10 @@ if __name__ == "__main__":
             policy_lr=3E-4,
             qf_lr=3E-4,
             vf_lr=3E-4,
+            render=True,
         ),
         net_size=100,
     )
-    # seed = random.randint(0, 10000)
-    # exp_prefix = 'sac_visreward'
-    # mode='local'
-    # run_experiment(
-    #     experiment,
-    #     seed=seed,
-    #     variant=variant,
-    #     exp_prefix=exp_prefix,
-    #     mode=mode,
-    # )
     search_space = {
         'algo_params.reward_scale': [
             10,
@@ -84,13 +74,14 @@ if __name__ == "__main__":
         ],
         'algo_params.num_updates_per_env_step': [
             10,
-            # 15,
+            15,
             # 20,
             # 25,
         ],
         'algo_params.batch_size': [
             # 64,
-            512,
+            128,
+            # 512,
             # 1024,
         ]
 
@@ -98,7 +89,7 @@ if __name__ == "__main__":
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    n_seeds=3
+    n_seeds=1
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for i in range(n_seeds):
             seed = random.randint(0, 10000)
@@ -107,7 +98,7 @@ if __name__ == "__main__":
                 seed=seed,
                 variant=variant,
                 exp_id=exp_id,
-                exp_prefix='2d_visreward_SAC',
+                exp_prefix='test',
                 mode='local',
                 use_gpu=use_gpu,
             )

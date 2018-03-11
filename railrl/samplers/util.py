@@ -29,6 +29,7 @@ def rollout(env, agent, max_path_length=np.inf, animated=False):
     agent_infos = []
     env_infos = []
     o = env.reset()
+    agent.reset()
     next_o = None
     path_length = 0
     if animated:

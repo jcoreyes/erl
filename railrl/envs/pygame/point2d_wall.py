@@ -4,24 +4,43 @@ import numpy as np
 from gym import Env
 from gym.spaces import Box
 from pygame import Color
+import matplotlib.pyplot as plt
 
 from railrl.core import logger as default_logger
 from railrl.core.serializable import Serializable
 from railrl.envs.pygame.pygame_viewer import PygameViewer
+from railrl.envs.pygame.walls import HorizontalWall
 from railrl.misc.eval_util import create_stats_ordered_dict, get_path_lengths, \
     get_stat_in_paths
-import railrl.misc.visualization_util as vu
-import matplotlib.pyplot as plt
-import matplotlib.cm as cm
 
 
-class Point2DEnv(Serializable, Env):
+class Point2dWall(Serializable, Env):
     """
-    A little 2D point whose life goal is to reach a target.
+    A little 2D point whose life goal is to reach a target...but there's this
+    wall in the way
+     _________
+    |         |
+    |         |
+    |    o    |   o = start
+    |         |   x = goal
+    |   ___   |
+    |         |
+    |    x    |
+    |_________|
     """
     TARGET_RADIUS = 0.5
-    BOUNDARY_DIST = 5
+    OUTER_WALL_MAX_DIST = 4
+    INNER_WALL_MAX_DIST = 1
     BALL_RADIUS = 0.25
+    INIT_MAX_DISTANCE = INNER_WALL_MAX_DIST - BALL_RADIUS
+    WALLS = [
+        HorizontalWall(
+            BALL_RADIUS,
+            INNER_WALL_MAX_DIST,
+            INNER_WALL_MAX_DIST,
+            -INNER_WALL_MAX_DIST
+        )
+    ]
 
     def __init__(
             self,
@@ -29,16 +48,19 @@ class Point2DEnv(Serializable, Env):
             action_l2norm_penalty=0,
     ):
         Serializable.quick_init(self, locals())
-        self.MAX_TARGET_DISTANCE = self.BOUNDARY_DIST - self.TARGET_RADIUS
 
         self.action_l2norm_penalty = action_l2norm_penalty
-        self._target_position = None
+        self._target_position = np.array([
+            0,
+            # (self.OUTER_WALL_MAX_DIST + self.INNER_WALL_MAX_DIST) / 2
+            self.OUTER_WALL_MAX_DIST,
+        ])
         self._position = None
 
         self.action_space = Box(np.array([-1, -1]), np.array([1, 1]))
         self.observation_space = Box(
-            -self.BOUNDARY_DIST * np.ones(4),
-            self.BOUNDARY_DIST * np.ones(4),
+            -self.OUTER_WALL_MAX_DIST * np.ones(2),
+            self.OUTER_WALL_MAX_DIST * np.ones(2),
         )
 
         self.drawer = None
@@ -46,19 +68,24 @@ class Point2DEnv(Serializable, Env):
 
     def _step(self, velocities):
         velocities = np.clip(velocities, a_min=-1, a_max=1)
-        # Avoid += to avoid aliasing bugs
-        self._position = self._position + velocities
+        new_position = self._position + velocities
+        for wall in self.WALLS:
+            if wall.collides_with(self._position, new_position):
+                new_position = wall.handle_collision(
+                    self._position, new_position
+                )
+        self._position = new_position
         self._position = np.clip(
             self._position,
-            a_min=-self.BOUNDARY_DIST,
-            a_max=self.BOUNDARY_DIST,
-        )
-        distance_to_target = np.linalg.norm(
-            self._target_position - self._position
+            a_min=-self.OUTER_WALL_MAX_DIST,
+            a_max=self.OUTER_WALL_MAX_DIST,
         )
         observation = self._get_observation()
         on_platform = self.is_on_platform()
 
+        distance_to_target = np.linalg.norm(
+            self._target_position - self._position
+        )
         reward = float(on_platform)
         distance_reward = -distance_to_target
         action_reward = -np.linalg.norm(velocities) * self.action_l2norm_penalty
@@ -77,27 +104,14 @@ class Point2DEnv(Serializable, Env):
 
     def is_on_platform(self):
         dist = np.linalg.norm(self._position - self._target_position)
-        return dist <= self.TARGET_RADIUS
+        return dist <= self.TARGET_RADIUS + self.BALL_RADIUS
 
     def reset(self):
-        self._target_position = np.random.uniform(
-            size=2, low=-self.MAX_TARGET_DISTANCE, high=self.MAX_TARGET_DISTANCE
-        )
-        self._position = np.random.uniform(
-            size=2, low=-self.BOUNDARY_DIST, high=self.BOUNDARY_DIST
-        )
-        while self.is_on_platform():
-            self._target_position = np.random.uniform(
-                size=2, low=-self.MAX_TARGET_DISTANCE,
-                high=self.MAX_TARGET_DISTANCE
-            )
-            self._position = np.random.uniform(
-                size=2, low=-self.BOUNDARY_DIST, high=self.BOUNDARY_DIST
-            )
+        self._position = np.zeros(2)
         return self._get_observation()
 
     def _get_observation(self):
-        return np.hstack((self._position, self._target_position))
+        return np.hstack(self._position)
 
     def log_diagnostics(self, paths, logger=default_logger):
         statistics = OrderedDict()
@@ -119,10 +133,6 @@ class Point2DEnv(Serializable, Env):
         for key, value in statistics.items():
             logger.record_tabular(key, value)
 
-    def set_position(self, pos):
-        self._position[0] = pos[0]
-        self._position[1] = pos[1]
-
     def render(self, mode='human', close=False):
         if close:
             self.drawer = None
@@ -132,8 +142,8 @@ class Point2DEnv(Serializable, Env):
             self.drawer = PygameViewer(
                 500,
                 500,
-                x_bounds=(-self.BOUNDARY_DIST, self.BOUNDARY_DIST),
-                y_bounds=(-self.BOUNDARY_DIST, self.BOUNDARY_DIST),
+                x_bounds=(-self.OUTER_WALL_MAX_DIST, self.OUTER_WALL_MAX_DIST),
+                y_bounds=(-self.OUTER_WALL_MAX_DIST, self.OUTER_WALL_MAX_DIST),
             )
 
         self.drawer.fill(Color('white'))
@@ -148,6 +158,14 @@ class Point2DEnv(Serializable, Env):
             Color('blue'),
         )
 
+        # draw the walls
+        for wall in self.WALLS:
+            self.drawer.draw_segment(
+                wall.endpoint1,
+                wall.endpoint2,
+                Color('black'),
+            )
+
         self.drawer.render()
         self.drawer.tick(self.render_dt_msec)
 
@@ -156,10 +174,15 @@ class Point2DEnv(Serializable, Env):
         velocities = np.clip(action, a_min=-1, a_max=1)
         position = state
         new_position = position + velocities
+        for wall in Point2dWall.WALLS:
+            if wall.collides_with(position, new_position):
+                new_position = wall.handle_collision(
+                    position, new_position
+                )
         return np.clip(
             new_position,
-            a_min=-Point2DEnv.BOUNDARY_DIST,
-            a_max=Point2DEnv.BOUNDARY_DIST,
+            a_min=-Point2dWall.OUTER_WALL_MAX_DIST,
+            a_max=Point2dWall.OUTER_WALL_MAX_DIST,
         )
 
 
@@ -167,7 +190,7 @@ class Point2DEnv(Serializable, Env):
     def true_states(state, actions):
         real_states = [state]
         for action in actions:
-            next_state = Point2DEnv.true_model(state, action)
+            next_state = Point2dWall.true_model(state, action)
             real_states.append(next_state)
             state = next_state
         return real_states
@@ -184,7 +207,7 @@ class Point2DEnv(Serializable, Env):
             color = plasma_cm(float(i) / num_states)
             ax.plot(state[0], -state[1],
                     marker='o', color=color, markersize=10,
-            )
+                    )
 
         actions_x = actions[:, 0]
         actions_y = -actions[:, 1]
@@ -194,47 +217,60 @@ class Point2DEnv(Serializable, Env):
         ax.quiver(x[:-1], y[:-1], actions_x, actions_y, scale_units='xy',
                   angles='xy', scale=1, color='r',
                   width=0.0035, )
+
         ax.plot(
             [
-                -Point2DEnv.BOUNDARY_DIST,
-                -Point2DEnv.BOUNDARY_DIST,
+                Point2dWall.INNER_WALL_MAX_DIST,
+                -Point2dWall.INNER_WALL_MAX_DIST
             ],
             [
-                Point2DEnv.BOUNDARY_DIST,
-                -Point2DEnv.BOUNDARY_DIST,
+                -Point2dWall.INNER_WALL_MAX_DIST,
+                -Point2dWall.INNER_WALL_MAX_DIST
+            ], color='k', linestyle='-'
+        )
+
+        # Outer Walls
+        ax.plot(
+            [
+                -Point2dWall.OUTER_WALL_MAX_DIST,
+                -Point2dWall.OUTER_WALL_MAX_DIST,
+            ],
+            [
+                Point2dWall.OUTER_WALL_MAX_DIST,
+                -Point2dWall.OUTER_WALL_MAX_DIST,
             ],
             color='k', linestyle='-',
         )
         ax.plot(
             [
-                Point2DEnv.BOUNDARY_DIST,
-                -Point2DEnv.BOUNDARY_DIST,
+                Point2dWall.OUTER_WALL_MAX_DIST,
+                -Point2dWall.OUTER_WALL_MAX_DIST,
             ],
             [
-                Point2DEnv.BOUNDARY_DIST,
-                Point2DEnv.BOUNDARY_DIST,
-            ],
-            color='k', linestyle='-',
-        )
-        ax.plot(
-            [
-                Point2DEnv.BOUNDARY_DIST,
-                Point2DEnv.BOUNDARY_DIST,
-            ],
-            [
-                Point2DEnv.BOUNDARY_DIST,
-                -Point2DEnv.BOUNDARY_DIST,
+                Point2dWall.OUTER_WALL_MAX_DIST,
+                Point2dWall.OUTER_WALL_MAX_DIST,
             ],
             color='k', linestyle='-',
         )
         ax.plot(
             [
-                Point2DEnv.BOUNDARY_DIST,
-                -Point2DEnv.BOUNDARY_DIST,
+                Point2dWall.OUTER_WALL_MAX_DIST,
+                Point2dWall.OUTER_WALL_MAX_DIST,
             ],
             [
-                -Point2DEnv.BOUNDARY_DIST,
-                -Point2DEnv.BOUNDARY_DIST,
+                Point2dWall.OUTER_WALL_MAX_DIST,
+                -Point2dWall.OUTER_WALL_MAX_DIST,
+            ],
+            color='k', linestyle='-',
+        )
+        ax.plot(
+            [
+                Point2dWall.OUTER_WALL_MAX_DIST,
+                -Point2dWall.OUTER_WALL_MAX_DIST,
+            ],
+            [
+                -Point2dWall.OUTER_WALL_MAX_DIST,
+                -Point2dWall.OUTER_WALL_MAX_DIST,
             ],
             color='k', linestyle='-',
         )
@@ -242,52 +278,10 @@ class Point2DEnv(Serializable, Env):
         if goal is not None:
             ax.plot(goal[0], -goal[1], marker='*', color='g', markersize=15)
         ax.set_ylim(
-            -Point2DEnv.BOUNDARY_DIST-1,
-            Point2DEnv.BOUNDARY_DIST+1,
+            -Point2dWall.OUTER_WALL_MAX_DIST-1,
+            Point2dWall.OUTER_WALL_MAX_DIST+1
         )
         ax.set_xlim(
-            -Point2DEnv.BOUNDARY_DIST-1,
-            Point2DEnv.BOUNDARY_DIST+1,
+            -Point2dWall.OUTER_WALL_MAX_DIST-1,
+            Point2dWall.OUTER_WALL_MAX_DIST+1
         )
-
-
-def plot_observations_and_actions(observations, actions):
-    import matplotlib.pyplot as plt
-
-    x_pos = observations[:, 0]
-    y_pos = observations[:, 1]
-    H, xedges, yedges = np.histogram2d(x_pos, y_pos)
-    heatmap = vu.HeatMap(H, xedges, yedges, {})
-    plt.subplot(2, 1, 1)
-    plt.title("Observation Distribution")
-    plt.xlabel("0-Dimenion")
-    plt.ylabel("1-Dimenion")
-    vu.plot_heatmap(heatmap)
-
-    x_actions = actions[:, 0]
-    y_actions = actions[:, 1]
-    H, xedges, yedges = np.histogram2d(x_actions, y_actions)
-    heatmap = vu.HeatMap(H, xedges, yedges, {})
-    plt.subplot(2, 1, 2)
-    plt.title("Action Distribution")
-    plt.xlabel("0-Dimenion")
-    plt.ylabel("1-Dimenion")
-    vu.plot_heatmap(heatmap)
-
-    plt.show()
-
-
-if __name__ == "__main__":
-    import argparse
-    import joblib
-    parser = argparse.ArgumentParser()
-    parser.add_argument('file', type=str, help='path to the snapshot file')
-    parser.add_argument('--H', type=int, default=30, help='Horizon for eval')
-    args = parser.parse_args()
-
-    data = joblib.load(args.file)
-    replay_buffer = data['replay_buffer']
-    max_i = replay_buffer._top - 1
-    observations = replay_buffer._observations[:max_i, :]
-    actions = replay_buffer._actions[:max_i, :]
-    plot_observations_and_actions(observations, actions)

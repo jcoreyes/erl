@@ -6,13 +6,10 @@ import numpy as np
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
 from railrl.launchers.launcher_util import run_experiment
-from railrl.sac.policies import TanhGaussianPolicy
-from railrl.sac.sac import SoftActorCritic
-from railrl.torch.networks import FlattenMlp
+from railrl.state_distance.tdm_networks import TdmQf, TdmPolicy, TdmVf
 from railrl.state_distance.tdm_sac import TdmSac
-import sys
-sys.path.append('/home/murtaza/Documents/objectattention/')
 from singleobj_visreward import SingleObjVisRewardEnv
+import railrl.misc.hyperparameter as hyp
 
 env = SingleObjVisRewardEnv()
 
@@ -76,7 +73,6 @@ if __name__ == "__main__":
                 num_steps_per_epoch=num_steps_per_epoch,
                 num_steps_per_eval=num_steps_per_eval,
                 max_path_length=max_path_length,
-                num_updates_per_env_step=10,
                 batch_size=batch_size,
                 discount=1,
             ),
@@ -92,7 +88,7 @@ if __name__ == "__main__":
                 policy_lr=3E-4,
                 qf_lr=3E-4,
                 vf_lr=3E-4,
-                qf_target_update_interval=5,
+                target_hard_update_period=5,
             ),
         ),
         her_replay_buffer_params = dict(
@@ -111,32 +107,47 @@ if __name__ == "__main__":
             max_tau=max_tau,
             hidden_sizes=[100, 100],
         ),
+        qf_class=TdmQf,
+        policy_class=TdmPolicy,
+        vf_class=TdmVf,
     )
     search_space = {
         'algo_params.reward_scale': [
             10,
-            100,
+            # 100,
+            # 1000,
+            # 10000,
         ],
         'algo_params.num_updates_per_env_step': [
             10,
             # 15,
-            20,
+            # 20,
             # 25,
         ],
         'algo_params.batch_size': [
+            # 64,
             512,
-            1024,
+            # 1024,
         ]
 
     }
-    exp_prefix = 'TEST'
-    mode='local'
-    run_experiment(
-        experiment,
-        seed = random.randint(0, 10000),
-
-        variant=variant,
-        exp_prefix=exp_prefix,
-        mode=mode,
+    sweeper = hyp.DeterministicHyperparameterSweeper(
+        search_space, default_parameters=variant,
     )
+    n_seeds = 3
+    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+        for i in range(n_seeds):
+            seed = random.randint(0, 10000)
+            run_experiment(
+                experiment,
+                seed=seed,
+                variant=variant,
+                exp_id=exp_id,
+                exp_prefix='test',
+                mode='local',
+                use_gpu=use_gpu,
+            )
+
+
+
 

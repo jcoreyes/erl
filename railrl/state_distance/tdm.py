@@ -36,7 +36,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             norm_order=1,
             square_distance=False,
             goal_weights=None,
-            tdm_normalizer: TdmNormalizer=None,
+            tdm_normalizer: TdmNormalizer = None,
             num_pretrain_paths=0,
             normalize_distance=False,
     ):
@@ -190,8 +190,8 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
         if self.terminate_when_goal_reached:
             diff = self.env.convert_obs_to_goals(next_obs) - goals
             goal_not_reached = (
-                np.linalg.norm(diff, axis=1, keepdims=True)
-                > self.goal_reached_epsilon
+                    np.linalg.norm(diff, axis=1, keepdims=True)
+                    > self.goal_reached_epsilon
             )
             terminals = 1 - (1 - terminals) * goal_not_reached
 
@@ -223,11 +223,12 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
                 return -self.reward_scale * (diff > self.goal_reached_epsilon)
             else:
                 return -self.reward_scale * (
-                    np.linalg.norm(diff, axis=1, keepdims=True)
-                    > self.goal_reached_epsilon
+                        np.linalg.norm(diff, axis=1, keepdims=True)
+                        > self.goal_reached_epsilon
                 )
         elif self.reward_type == 'distance':
-            neg_distances = self._compute_unscaled_neg_distances(next_obs, goals)
+            neg_distances = self._compute_unscaled_neg_distances(next_obs,
+                                                                 goals)
             return neg_distances * self.reward_scale
         elif self.reward_type == 'env':
             return batch['rewards']
@@ -242,12 +243,12 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
             diff = diff * self.env.goal_dim_weights
         if self.vectorized:
             if self.square_distance:
-                raw_neg_distances = - diff**2
+                raw_neg_distances = - diff ** 2
             else:
                 raw_neg_distances = -np.abs(diff)
         else:
             if self.square_distance:
-                raw_neg_distances = -(diff**2).sum(1, keepdims=True)
+                raw_neg_distances = -(diff ** 2).sum(1, keepdims=True)
             else:
                 raw_neg_distances = -np.linalg.norm(
                     diff,
@@ -265,7 +266,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
                 )
             elif self.tau_sample_strategy == 'truncated_geometric':
                 num_steps_left = truncated_geometric(
-                    p=self.truncated_geom_factor/self.max_tau,
+                    p=self.truncated_geom_factor / self.max_tau,
                     truncate_threshold=self.max_tau,
                     size=(self.batch_size, 1),
                     new_value=0
@@ -274,7 +275,7 @@ class TemporalDifferenceModel(TorchRLAlgorithm, metaclass=abc.ABCMeta):
                 num_steps_left = batch['num_steps_left']
             elif self.tau_sample_strategy == 'all_valid':
                 num_steps_left = np.tile(
-                    np.arange(0, self.max_tau+1),
+                    np.arange(0, self.max_tau + 1),
                     self.batch_size
                 )
                 num_steps_left = np.expand_dims(num_steps_left, 1)

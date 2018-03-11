@@ -1,6 +1,9 @@
 from railrl.data_management.her_replay_buffer import HerReplayBuffer
+# from railrl.data_management.tau_replay_buffer import TauReplayBuffer
+from railrl.data_management.tau_replay_buffer import TauReplayBuffer
 from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
-from railrl.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState
+from railrl.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState, Reacher7DofMultitaskEnv, Reacher7DofFullGoal
+from railrl.envs.multitask.reacher_env import MultitaskReacherEnv
 from railrl.envs.wrappers import NormalizedBoxEnv
 from railrl.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
@@ -14,14 +17,15 @@ from railrl.launchers.launcher_util import run_experiment
 import numpy as np
 
 def experiment(variant):
-    env = NormalizedBoxEnv(Reacher7DofXyzGoalState()) #try full state reacher
+    env = NormalizedBoxEnv(Reacher7DofFullGoal()) #try full state reacher
+    # env = Reacher7DofMultitaskEnv()
     es = OUStrategy(action_space=env.action_space)
     policy = TdmPolicy(
         env=env,
         **variant['policy_kwargs']
     )
     replay_buffer_size = variant['algo_params']['base_kwargs']['replay_buffer_size']
-    replay_buffer = HerReplayBuffer(replay_buffer_size, env)
+    replay_buffer = TauReplayBuffer(replay_buffer_size, env)
     exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
         policy=policy,
@@ -55,30 +59,35 @@ if __name__ == "__main__":
                 discount=1,
                 reward_scale=100,
                 replay_buffer_size=1000000,
-                render=True,
+                render=False,
             ),
             tdm_kwargs=dict(
                 max_tau=10,
+                norm_order=1,
+                square_distance=False,
             ),
         ),
     )
     search_space = {
         'algo_params.base_kwargs.reward_scale': [
             1,
-            # 10,
-            # 100,
-            # 1000,
+            10,
+            100,
+            1000,
             # 10000,
         ],
         'algo_params.tdm_kwargs.max_tau': [
-            0,
+            # 0,
+            5,
+            7,
+            10,
             # 10,
             # 15,
             # 20,
         ],
         'algo_params.policy_criterion':[
             'MSE',
-            # 'Huber',
+            'Huber',
         ]
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
@@ -90,6 +99,6 @@ if __name__ == "__main__":
             seed=np.random.randint(1, 10004),
             variant=variant,
             exp_id=exp_id,
-            exp_prefix='test',
+            exp_prefix='reacher_full_state_supervised',
             mode='local',
         )

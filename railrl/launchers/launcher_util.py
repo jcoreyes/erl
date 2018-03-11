@@ -16,7 +16,7 @@ import numpy as np
 import tensorflow as tf
 
 import railrl.pythonplusplus as ppp
-from railrl.core import logger
+from railrl.core import logger as default_logger
 from railrl.launchers import config
 from railrl.torch.pytorch_util import set_gpu_mode
 
@@ -27,8 +27,6 @@ ec2_okayed = False
 gpu_ec2_okayed = False
 
 try:
-    import doodad
-    import doodad.mode
     import doodad.mount as mount
     from doodad.utils import REPO_DIR
     CODE_MOUNTS = [
@@ -65,6 +63,7 @@ def run_experiment(
         region='us-east-1',
         instance_type=None,
         spot_price=None,
+        logger=default_logger,
 ):
     """
     Usage:
@@ -112,8 +111,6 @@ def run_experiment(
     try:
         import doodad
         import doodad.mode
-        import doodad.mount as mount
-        from doodad.utils import REPO_DIR
     except ImportError:
         print("Doodad not set up! Running experiment here.")
         mode = 'here_no_doodad'
@@ -168,6 +165,7 @@ def run_experiment(
         snapshot_gap=snapshot_gap,
         git_info=git_info,
         script_name=main.__file__,
+        logger=logger,
     )
     if mode == 'here_no_doodad':
         run_experiment_kwargs['base_log_dir'] = base_log_dir
@@ -381,7 +379,6 @@ def continue_experiment(load_experiment_dir, resume_function):
         commit_hash = data['commit_hash']
         base_log_dir = data['base_log_dir']
         log_dir = data['log_dir']
-        exp_name = data['exp_name']
         if mode == 'local':
             run_experiment_here(
                 resume_function,
@@ -441,6 +438,7 @@ def run_experiment_here(
         script_name=None,
         base_log_dir=None,
         log_dir=None,
+        logger=default_logger,
 ):
     """
     Run an experiment locally without any serialization.
@@ -465,7 +463,7 @@ def run_experiment_here(
     if seed is None and 'seed' not in variant:
         seed = random.randint(0, 100000)
         variant['seed'] = str(seed)
-    reset_execution_environment()
+    reset_execution_environment(logger=logger)
 
     actual_log_dir = setup_logger(
         exp_prefix=exp_prefix,
@@ -478,6 +476,7 @@ def run_experiment_here(
         log_dir=log_dir,
         git_info=git_info,
         script_name=script_name,
+        logger=logger,
     )
 
     set_seed(seed)
@@ -551,6 +550,7 @@ def setup_logger(
         log_dir=None,
         git_info=None,
         script_name=None,
+        logger=default_logger,
 ):
     """
     Set up logger to have some reasonable default settings.
@@ -636,7 +636,7 @@ def set_seed(seed):
     tf.set_random_seed(seed)
 
 
-def reset_execution_environment():
+def reset_execution_environment(logger=default_logger):
     """
     Call this between calls to separate experiments.
     :return:

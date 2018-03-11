@@ -82,9 +82,6 @@ class Point2dUWall(Serializable, Env):
 
     def _step(self, velocities):
         velocities = np.clip(velocities, a_min=-1, a_max=1)
-        distance_to_target = np.linalg.norm(
-            self._target_position - self._position
-        )
         new_position = self._position + velocities
         for wall in self.WALLS:
             if wall.collides_with(self._position, new_position):
@@ -100,6 +97,9 @@ class Point2dUWall(Serializable, Env):
         observation = self._get_observation()
         on_platform = self.is_on_platform()
 
+        distance_to_target = np.linalg.norm(
+            self._target_position - self._position
+        )
         reward = float(on_platform)
         distance_reward = -distance_to_target
         action_reward = -np.linalg.norm(velocities) * self.action_l2norm_penalty
@@ -217,6 +217,13 @@ class Point2dUWall(Serializable, Env):
         assert len(states) == len(actions) + 1
         x = states[:, 0]
         y = -states[:, 1]
+        num_states = len(states)
+        plasma_cm = plt.get_cmap('plasma')
+        for i, state in enumerate(states):
+            color = plasma_cm(float(i) / num_states)
+            ax.plot(state[0], -state[1],
+                    marker='o', color=color, markersize=10,
+                    )
 
         actions_x = actions[:, 0]
         actions_y = -actions[:, 1]
@@ -259,14 +266,59 @@ class Point2dUWall(Serializable, Env):
                 -Point2dUWall.INNER_WALL_MAX_DIST
             ], color='k', linestyle='-'
         )
+        # Outer Walls
+        ax.plot(
+            [
+                -Point2dUWall.OUTER_WALL_MAX_DIST,
+                -Point2dUWall.OUTER_WALL_MAX_DIST,
+            ],
+            [
+                Point2dUWall.OUTER_WALL_MAX_DIST,
+                -Point2dUWall.OUTER_WALL_MAX_DIST,
+            ],
+            color='k', linestyle='-',
+        )
+        ax.plot(
+            [
+                Point2dUWall.OUTER_WALL_MAX_DIST,
+                -Point2dUWall.OUTER_WALL_MAX_DIST,
+            ],
+            [
+                Point2dUWall.OUTER_WALL_MAX_DIST,
+                Point2dUWall.OUTER_WALL_MAX_DIST,
+            ],
+            color='k', linestyle='-',
+        )
+        ax.plot(
+            [
+                Point2dUWall.OUTER_WALL_MAX_DIST,
+                Point2dUWall.OUTER_WALL_MAX_DIST,
+            ],
+            [
+                Point2dUWall.OUTER_WALL_MAX_DIST,
+                -Point2dUWall.OUTER_WALL_MAX_DIST,
+            ],
+            color='k', linestyle='-',
+        )
+        ax.plot(
+            [
+                Point2dUWall.OUTER_WALL_MAX_DIST,
+                -Point2dUWall.OUTER_WALL_MAX_DIST,
+            ],
+            [
+                -Point2dUWall.OUTER_WALL_MAX_DIST,
+                -Point2dUWall.OUTER_WALL_MAX_DIST,
+            ],
+            color='k', linestyle='-',
+        )
 
         if goal is not None:
             ax.plot(goal[0], -goal[1], marker='*', color='g', markersize=15)
         ax.set_ylim(
-            -Point2dUWall.OUTER_WALL_MAX_DIST,
-            Point2dUWall.OUTER_WALL_MAX_DIST
+            -Point2dUWall.OUTER_WALL_MAX_DIST-1,
+            Point2dUWall.OUTER_WALL_MAX_DIST+1
         )
         ax.set_xlim(
-            -Point2dUWall.OUTER_WALL_MAX_DIST,
-            Point2dUWall.OUTER_WALL_MAX_DIST
+            -Point2dUWall.OUTER_WALL_MAX_DIST-1,
+            Point2dUWall.OUTER_WALL_MAX_DIST+1
         )
