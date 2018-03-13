@@ -40,10 +40,16 @@ class MultigoalSimplePathSampler(object):
         return paths
 
 import matplotlib.pyplot as plt
-fig, (ax1, ax2) = plt.subplots(1, 2)
+ax1 = None
+ax2 = None
 
 
 def debug(env, obs, agent_info):
+    global ax1
+    global ax2
+    if ax1 is None:
+        _, (ax1, ax2) = plt.subplots(1, 2)
+
     best_obs_seq = agent_info['best_obs_seq']
     best_action_seq = agent_info['best_action_seq']
     real_obs_seq = env.wrapped_env.true_states(
@@ -80,7 +86,6 @@ def multitask_rollout(
         cycle_tau=False,
         get_action_kwargs=None,
 ):
-
     if get_action_kwargs is None:
         get_action_kwargs = {}
     observations = []
@@ -105,7 +110,8 @@ def multitask_rollout(
     while path_length < max_path_length:
         a, agent_info = agent.get_action(o, goal, tau, **get_action_kwargs)
         # TODO: remove this after debugging
-        debug(env, o, agent_info)
+        # if len(agent_info) > 0:
+        #     debug(env, o, agent_info)
         next_o, r, d, env_info = env.step(a)
         next_observations.append(next_o)
         observations.append(o)

@@ -75,6 +75,7 @@ def experiment(variant):
         env,
         goal_slice=goal_slice,
         multitask_goal_slice=goal_slice,
+        tdm_policy=policy,
         **variant['mpc_controller_kwargs']
     )
     state_only_mpc_controller = TdmLBfgsBStateOnlyCMC(
@@ -129,7 +130,7 @@ if __name__ == "__main__":
 
     # n_seeds = 3
     # mode = "ec2"
-    # exp_prefix = "real-td3-tdm"
+    exp_prefix = "real-td3-tdm-lbfgs-dynamic-lm"
 
     num_epochs = 50
     num_steps_per_epoch = 100
@@ -144,10 +145,12 @@ if __name__ == "__main__":
                 num_steps_per_epoch=num_steps_per_epoch,
                 num_steps_per_eval=num_steps_per_eval,
                 max_path_length=max_path_length,
+                min_num_steps_before_training=128,
                 num_updates_per_env_step=1,
                 batch_size=128,
                 discount=1,
                 save_replay_buffer=False,
+                render=True,
             ),
             tdm_kwargs=dict(
                 sample_rollout_goals_from='environment',
@@ -187,6 +190,8 @@ if __name__ == "__main__":
             lagrange_multipler=10,
             planning_horizon=3,
             replan_every_time_step=True,
+            only_use_terminal_env_loss=True,
+            dynamic_lm=True,
             solver_kwargs={
                 'factr': 1e12,
             },
@@ -201,7 +206,7 @@ if __name__ == "__main__":
             },
         ),
         es_kwargs=dict(
-            max_sigma=0.1,
+            max_sigma=0.5,
         ),
         env_kwargs=dict(),
         version="TD3-TDM",

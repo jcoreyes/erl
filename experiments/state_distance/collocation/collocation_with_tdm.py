@@ -237,13 +237,14 @@ if __name__ == "__main__":
         policy = LBfgsBCMC(
             implicit_model,
             env,
+            tdm_policy=data['trained_policy'],
             goal_slice=goal_slice,
             multitask_goal_slice=multitask_goal_slice,
             lagrange_multipler=lagrange_multiplier,
             planning_horizon=planning_horizon,
             replan_every_time_step=True,
             only_use_terminal_env_loss=True,
-            # warm_start=True,
+            # only_use_terminal_env_loss=False,
             solver_kwargs={
                 'factr': 1e12,
             },
@@ -258,9 +259,9 @@ if __name__ == "__main__":
             lagrange_multipler=lagrange_multiplier,
             planning_horizon=planning_horizon,
             replan_every_time_step=True,
-            only_use_terminal_env_loss=True,
+            only_use_terminal_env_loss=False,
             solver_kwargs={
-                'factr': 1e12,
+                'factr': 1e10,
             },
         )
     else:

@@ -4,9 +4,11 @@ import torch
 from scipy import optimize
 from torch import optim, nn as nn
 
+from railrl.misc.eval_util import get_stat_in_paths, create_stats_ordered_dict
 from railrl.state_distance.policies import UniversalPolicy
 from railrl.torch import pytorch_util as ptu
 from railrl.torch.core import PyTorchModule
+import railrl.core.logger as default_logger
 
 
 class SlsqpCMC(UniversalPolicy, nn.Module):
@@ -407,6 +409,8 @@ class LBfgsBCMC(UniversalPolicy):
             solver_kwargs=None,
             only_use_terminal_env_loss=False,
             replan_every_time_step=True,
+            tdm_policy=None,
+            dynamic_lm=False,
     ):
         super().__init__()
         if solver_kwargs is None:
@@ -425,6 +429,11 @@ class LBfgsBCMC(UniversalPolicy):
         self.only_use_terminal_env_loss = only_use_terminal_env_loss
         self.replan_every_time_step = replan_every_time_step
         self.t_in_plan = 0
+        self.tdm_policy = tdm_policy
+        self.dynamic_lm = dynamic_lm
+        self.min_lm = 0.1
+        self.max_lm = 1000
+        self.error_threshold = 0.5
 
         self.last_solution = None
         self.best_action_seq = None
@@ -513,19 +522,16 @@ class LBfgsBCMC(UniversalPolicy):
                 or self.t_in_plan == self.planning_horizon
                 or self.last_solution is None
         ):
+            if self.dynamic_lm and self.best_obs_seq is not None:
+                error = np.linalg.norm(
+                    current_ob - self.best_obs_seq[self.t_in_plan + 1]
+                )
+                self.update_lagrange_multiplier(error)
             goal = self.env.multitask_goal[self.multitask_goal_slice]
             full_solution = self.replan(current_ob, goal)
 
             x_torch = ptu.np_to_var(full_solution, requires_grad=True)
             current_ob_torch = ptu.np_to_var(current_ob)
-            # feas_loss = self._feasibility_cost_function(
-            #     x_torch, current_ob_torch
-            # )
-            # env_cos = self._env_cost_function(x_torch, current_ob_torch)
-            # print("feasibility loss", ptu.get_numpy(feas_loss)[0])
-            # print("weighted feasibility loss",
-            #       self.lagrange_multipler * ptu.get_numpy(feas_loss)[0])
-            # print("env loss", ptu.get_numpy(env_cos)[0])
 
             _, actions, next_obs = self.batchify(x_torch, current_ob_torch)
             self.best_action_seq = np.array([ptu.get_numpy(a) for a in actions])
@@ -536,12 +542,21 @@ class LBfgsBCMC(UniversalPolicy):
             self.last_solution = full_solution
             self.t_in_plan = 0
 
+        tdm_actions = self.tdm_policy.eval_np(
+            self.best_obs_seq[:-1],
+            self.best_obs_seq[1:],
+            np.zeros((self.planning_horizon, 1))
+        )
         agent_info = dict(
             best_action_seq=self.best_action_seq[self.t_in_plan:],
+            # best_action_seq=tdm_actions,
             best_obs_seq=self.best_obs_seq[self.t_in_plan:],
         )
         action = self.best_action_seq[self.t_in_plan]
+        # action = tdm_actions[self.t_in_plan]
         self.t_in_plan += 1
+        # print("action", action)
+        # print("tdm_action", tdm_actions[0])
 
         return action, agent_info
 
@@ -566,11 +581,6 @@ class LBfgsBCMC(UniversalPolicy):
         )
         total = time.time() - start
         self.totals.append(total)
-        # print("total forward: {}".format(self.forward))
-        # print("total backward: {}".format(self.backward))
-        # print("total: {}".format(total))
-        # print("extra: {}".format(total - self.forward - self.backward))
-        # print("total mean: {}".format(np.mean(self.totals)))
         warnflag = d['warnflag']
         if warnflag != 0:
             if warnflag == 1:
@@ -578,6 +588,14 @@ class LBfgsBCMC(UniversalPolicy):
             else:
                 print(d['task'])
         return x
+
+    def update_lagrange_multiplier(self, error):
+        if error > self.error_threshold:
+            self.lagrange_multipler *= 2
+        else:
+            self.lagrange_multipler *= 0.5
+        self.lagrange_multipler = min(self.lagrange_multipler, self.max_lm)
+        self.lagrange_multipler = max(self.lagrange_multipler, self.min_lm)
 
 
 class TdmLBfgsBCMC(LBfgsBCMC):
@@ -592,6 +610,11 @@ class TdmLBfgsBCMC(LBfgsBCMC):
                 or self.t_in_plan == self.planning_horizon
                 or self.last_solution is None
         ):
+            if self.dynamic_lm and self.best_obs_seq is not None:
+                error = np.linalg.norm(
+                    current_ob - self.best_obs_seq[self.t_in_plan + 1]
+                )
+                self.update_lagrange_multiplier(error)
             full_solution = self.replan(current_ob, goal)
 
             x_torch = ptu.np_to_var(full_solution, requires_grad=True)
@@ -608,11 +631,20 @@ class TdmLBfgsBCMC(LBfgsBCMC):
         agent_info = dict(
             best_action_seq=self.best_action_seq[self.t_in_plan:],
             best_obs_seq=self.best_obs_seq[self.t_in_plan:],
+            lagrange_multiplier=self.lagrange_multipler,
         )
         action = self.best_action_seq[self.t_in_plan]
         self.t_in_plan += 1
 
         return action, agent_info
+
+    def log_diagnostics(self, paths, logger=default_logger):
+        lms = get_stat_in_paths(paths, 'agent_infos', 'lagrange_multiplier')
+        for key, value in create_stats_ordered_dict(
+            "TDM LBFGS Lagrange Multiplier",
+            lms,
+        ).items():
+            logger.record_tabular(key, value)
 
 
 class TdmToImplicitModel(PyTorchModule):
@@ -668,6 +700,7 @@ class LBfgsBStateOnlyCMC(UniversalPolicy):
             solver_kwargs=None,
             only_use_terminal_env_loss=False,
             replan_every_time_step=True,
+            dynamic_lm=True,
     ):
         super().__init__()
         if solver_kwargs is None:
@@ -685,6 +718,10 @@ class LBfgsBStateOnlyCMC(UniversalPolicy):
         self.only_use_terminal_env_loss = only_use_terminal_env_loss
         self.replan_every_time_step = replan_every_time_step
         self.t_in_plan = 0
+        self.dynamic_lm = dynamic_lm
+        self.min_lm = 0.1
+        self.max_lm = 1000
+        self.error_threshold = 0.5
 
         self.num_steps_left_pytorch = ptu.np_to_var(
             np.arange(0, self.planning_horizon).reshape(
@@ -761,6 +798,8 @@ class LBfgsBStateOnlyCMC(UniversalPolicy):
 
     def reset(self):
         self.last_solution = None
+        self.best_obs_seq = None
+        self.best_action_seq = None
 
     def get_action(self, current_ob):
         if (
@@ -768,6 +807,12 @@ class LBfgsBStateOnlyCMC(UniversalPolicy):
                 or self.t_in_plan == self.planning_horizon
                 or self.last_solution is None
         ):
+            if self.dynamic_lm and self.best_obs_seq is not None:
+                error = np.linalg.norm(
+                    current_ob - self.best_obs_seq[self.t_in_plan + 1]
+                )
+                self.update_lagrange_multiplier(error)
+
             goal = self.env.multitask_goal[self.multitask_goal_slice]
             full_solution = self.replan(current_ob, goal)
 
@@ -803,7 +848,6 @@ class LBfgsBStateOnlyCMC(UniversalPolicy):
         action = self.best_action_seq[self.t_in_plan]
         self.t_in_plan += 1
 
-        print("action", action)
         return action, agent_info
 
     def replan(self, current_ob, goal):
@@ -839,6 +883,14 @@ class LBfgsBStateOnlyCMC(UniversalPolicy):
                 print(d['task'])
         return x
 
+    def update_lagrange_multiplier(self, error):
+        if error > self.error_threshold:
+            self.lagrange_multipler *= 2
+        else:
+            self.lagrange_multipler *= 0.5
+        self.lagrange_multipler = min(self.lagrange_multipler, self.max_lm)
+        self.lagrange_multipler = max(self.lagrange_multipler, self.min_lm)
+
 
 class TdmLBfgsBStateOnlyCMC(LBfgsBStateOnlyCMC):
     def get_action(self, current_ob, goal, num_steps_left):
@@ -847,6 +899,12 @@ class TdmLBfgsBStateOnlyCMC(LBfgsBStateOnlyCMC):
                 or self.t_in_plan == self.planning_horizon
                 or self.last_solution is None
         ):
+            if self.dynamic_lm and self.best_obs_seq is not None:
+                error = np.linalg.norm(
+                    current_ob - self.best_obs_seq[self.t_in_plan + 1]
+                )
+                self.update_lagrange_multiplier(error)
+
             full_solution = self.replan(current_ob, goal)
 
             x_torch = ptu.np_to_var(full_solution, requires_grad=True)
@@ -857,8 +915,8 @@ class TdmLBfgsBStateOnlyCMC(LBfgsBStateOnlyCMC):
                 observations=obs,
                 goals=next_obs,
                 num_steps_left=self.num_steps_left_pytorch,
-            )[0]
-            self.best_action_seq = np.array([ptu.get_numpy(a) for a in actions])
+            )
+            self.best_action_seq = ptu.get_numpy(actions)
             self.best_obs_seq = np.array(
                 [current_ob] + [ptu.get_numpy(o) for o in next_obs]
             )
