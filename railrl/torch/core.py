@@ -30,9 +30,10 @@ class PyTorchModule(nn.Module, Serializable, metaclass=abc.ABCMeta):
             torch_dict[key] = ptu.from_numpy(tensor)
         self.load_state_dict(torch_dict)
 
-    def copy(self):
+    def copy(self, copy_parameters=True):
         copy = Serializable.clone(self)
-        ptu.copy_model_params_from_to(self, copy)
+        if copy_parameters:
+            ptu.copy_model_params_from_to(self, copy)
         return copy
 
     def save_init_params(self, locals):
