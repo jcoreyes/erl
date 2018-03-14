@@ -47,16 +47,60 @@ if __name__ == "__main__":
     def beta_eval(a1, a2):
         actions = np.array([[a1, a2]])
         return beta_q.eval_np(
-            observations=np.array([[-4, 4]]),
+            observations=np.array([[
+                0, 0
+            ]]),
             actions=actions,
-            goals=np.array([[-3, 4]]),
+            goals=np.array([[
+                0, 4
+            ]]),
             num_steps_left=num_steps_left
         )[0, 0]
+
+    def create_goal_eval(a1, a2):
+        def goal_eval(x1, x2):
+            actions = np.array([[a1, a2]])
+            return beta_q.eval_np(
+                observations=np.array([[
+                    0, 0
+                ]]),
+                actions=actions,
+                goals=np.array([[
+                    x1, x2
+                ]]),
+                num_steps_left=num_steps_left
+            )[0, 0]
+        return goal_eval
 
     print("obs:", obs)
     print("true action:", actions)
     print("next obs:", next_obs)
+
     heatmap = make_heat_map(beta_eval, [-1, 1], [-1, 1])
     plot_heatmap(heatmap)
-    plt.show()
 
+    plt.figure()
+    right_action_eval = create_goal_eval(1, 0)
+    heatmap = make_heat_map(right_action_eval, [-2, 2], [-2, 2], resolution=50)
+    plot_heatmap(heatmap)
+    plt.title("right")
+
+    plt.figure()
+    left_action_eval = create_goal_eval(-1, 0)
+    heatmap = make_heat_map(right_action_eval, [-2, 2], [-2, 2], resolution=50)
+    plot_heatmap(heatmap)
+    plt.title("left")
+
+    plt.figure()
+    left_action_eval = create_goal_eval(0, 1)
+    heatmap = make_heat_map(right_action_eval, [-2, 2], [-2, 2], resolution=50)
+    plot_heatmap(heatmap)
+    plt.title("down")
+
+    plt.figure()
+    left_action_eval = create_goal_eval(0, -1)
+    heatmap = make_heat_map(right_action_eval, [-2, 2], [-2, 2], resolution=50)
+    plot_heatmap(heatmap)
+    plt.title("up")
+
+    plt.show()

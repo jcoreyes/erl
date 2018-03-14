@@ -51,16 +51,23 @@ def experiment(variant):
 
 
 if __name__ == "__main__":
+    n_seeds = 1
+    exp_prefix = "dev-beta-learning"
+
+    # n_seeds = 3
+    # exp_prefix = "beta-learning-uwall-toggle-per"
+
     variant = dict(
         algo_kwargs=dict(
             num_epochs=100,
-            num_steps_per_epoch=100,
+            num_steps_per_epoch=500,
             num_steps_per_eval=100,
             max_path_length=50,
             batch_size=100,
-            discount=0.8,
-            prioritized_replay=True,
+            discount=0.,
+            # prioritized_replay=True,
             # render=True,
+            # render_during_eval=True,
         ),
         replay_buffer_kwargs=dict(
             max_size=int(1E4),
@@ -74,21 +81,19 @@ if __name__ == "__main__":
         )
     )
     search_space = {
-        'per': [True, False],
+        # 'algo_kwargs.prioritized_replay': [True, False],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
-    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        for i in range(2):
+    for i in range(n_seeds):
+        for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
             run_experiment(
                 experiment,
                 mode='local',
-                exp_prefix='beta-learning-point2d-wall-test-per-2',
+                exp_prefix=exp_prefix,
                 variant=variant,
                 exp_id=exp_id,
-                # snapshot_mode='gap',
-                # snapshot_gap=5,
             )
 #
 # setup_logger(
