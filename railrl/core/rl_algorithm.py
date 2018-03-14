@@ -41,6 +41,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
 
             # I/O parameters
             render=False,
+            render_during_eval=False,
             save_replay_buffer=False,
             save_algorithm=False,
             save_environment=True,
@@ -98,6 +99,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.replay_buffer_size = replay_buffer_size
         self.reward_scale = reward_scale
         self.render = render
+        self.render_during_eval = render_during_eval
         self.collection_mode = collection_mode
         self.save_replay_buffer = save_replay_buffer
         self.save_algorithm = save_algorithm
@@ -113,6 +115,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
                 policy=eval_policy,
                 max_samples=self.num_steps_per_eval + self.max_path_length,
                 max_path_length=self.max_path_length,
+                render=render_during_eval,
             )
         self.eval_policy = eval_policy
         self.eval_sampler = eval_sampler

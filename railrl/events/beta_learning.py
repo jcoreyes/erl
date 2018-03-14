@@ -40,6 +40,7 @@ class BetaLearning(TorchRLAlgorithm):
             tau_sampling_function=lambda: 0,
             goal_sampling_function=self.env.sample_goal_for_rollout,
             cycle_taus_for_rollout=False,
+            render=self.render_during_eval
         )
         self.goal_reached_epsilon = goal_reached_epsilon
         self.beta_q = beta_q

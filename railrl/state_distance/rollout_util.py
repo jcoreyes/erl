@@ -13,6 +13,7 @@ class MultigoalSimplePathSampler(object):
             tau_sampling_function,
             goal_sampling_function,
             cycle_taus_for_rollout=True,
+            render=False,
     ):
         self.env = env
         self.policy = policy
@@ -21,6 +22,7 @@ class MultigoalSimplePathSampler(object):
         self.tau_sampling_function = tau_sampling_function
         self.goal_sampling_function = goal_sampling_function
         self.cycle_taus_for_rollout = cycle_taus_for_rollout
+        self.render = render
 
     def obtain_samples(self):
         paths = []
@@ -35,6 +37,7 @@ class MultigoalSimplePathSampler(object):
                 max_path_length=self.max_path_length,
                 decrement_tau=self.cycle_taus_for_rollout,
                 cycle_tau=self.cycle_taus_for_rollout,
+                animated=self.render,
             )
             paths.append(path)
         return paths
