@@ -37,8 +37,8 @@ class Point2dWall(Serializable, Env):
         HorizontalWall(
             BALL_RADIUS,
             INNER_WALL_MAX_DIST,
+            -INNER_WALL_MAX_DIST,
             INNER_WALL_MAX_DIST,
-            -INNER_WALL_MAX_DIST
         )
     ]
 
@@ -70,10 +70,9 @@ class Point2dWall(Serializable, Env):
         velocities = np.clip(velocities, a_min=-1, a_max=1)
         new_position = self._position + velocities
         for wall in self.WALLS:
-            if wall.collides_with(self._position, new_position):
-                new_position = wall.handle_collision(
-                    self._position, new_position
-                )
+            new_position = wall.handle_collision(
+                self._position, new_position
+            )
         self._position = new_position
         self._position = np.clip(
             self._position,
@@ -175,10 +174,9 @@ class Point2dWall(Serializable, Env):
         position = state
         new_position = position + velocities
         for wall in Point2dWall.WALLS:
-            if wall.collides_with(position, new_position):
-                new_position = wall.handle_collision(
-                    position, new_position
-                )
+            new_position = wall.handle_collision(
+                position, new_position
+            )
         return np.clip(
             new_position,
             a_min=-Point2dWall.OUTER_WALL_MAX_DIST,
@@ -217,6 +215,19 @@ class Point2dWall(Serializable, Env):
         ax.quiver(x[:-1], y[:-1], actions_x, actions_y, scale_units='xy',
                   angles='xy', scale=1, color='r',
                   width=0.0035, )
+
+        for wall in Point2dWall.WALLS:
+            for seg in wall.segments:
+                ax.plot(
+                    [
+                        seg.x0,
+                        seg.x1,
+                    ],
+                    [
+                        -seg.y0,
+                        -seg.y1,
+                    ], color='k', linestyle='--'
+                )
 
         ax.plot(
             [
