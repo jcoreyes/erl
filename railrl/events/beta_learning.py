@@ -3,6 +3,7 @@ from collections import OrderedDict
 import railrl.torch.pytorch_util as ptu
 from railrl.data_management.path_builder import PathBuilder
 from railrl.misc.eval_util import create_stats_ordered_dict
+from railrl.misc.ml_util import ConstantSchedule
 from railrl.state_distance.rollout_util import MultigoalSimplePathSampler
 from railrl.torch.core import np_to_pytorch_batch
 
@@ -21,11 +22,13 @@ class BetaLearning(TorchRLAlgorithm):
             policy,
             goal_reached_epsilon=1e-3,
             learning_rate=1e-3,
+            prioritized_replay=False,
 
             policy_and_target_update_period=2,
             target_policy_noise=0.2,
             target_policy_noise_clip=0.5,
             soft_target_tau=0.005,
+            per_beta_schedule=None,
             **kwargs
     ):
         super().__init__(env, exploration_policy, **kwargs)
@@ -45,10 +48,14 @@ class BetaLearning(TorchRLAlgorithm):
         self.target_beta_q2 = self.beta_q2.copy()
         self.policy = policy
         self.target_policy = policy
+        self.prioritized_replay = prioritized_replay
         self.policy_and_target_update_period = policy_and_target_update_period
         self.target_policy_noise = target_policy_noise
         self.target_policy_noise_clip = target_policy_noise_clip
         self.soft_target_tau = soft_target_tau
+        if per_beta_schedule is None:
+            per_beta_schedule = ConstantSchedule(1.0)
+        self.per_beta_schedule = per_beta_schedule
 
         self.beta_q_optimizer = Adam(
             self.beta_q.parameters(), lr=learning_rate
@@ -66,30 +73,30 @@ class BetaLearning(TorchRLAlgorithm):
         self._rollout_tau = np.array([0])
         self._current_path_goal = None
 
-    def get_batch(self):
-        batch = self.replay_buffer.random_batch(self.batch_size)
-        next_obs = batch['next_observations']
-        goals = batch['resampled_goals']
-        terminals = batch['terminals']
-        events = self.detect_event(next_obs, goals)
-        batch['events'] = events
-        batch['terminals'] = 1 - (1 - terminals) * (1 - events)
-
-        return np_to_pytorch_batch(batch)
-
     def _do_training(self):
-        batch = self.get_batch()
+        np_batch = self.replay_buffer.random_batch(
+            self.batch_size,
+            beta=self.per_beta_schedule.get_value(
+                self._n_train_steps_total,
+            ),
+        )
+        next_obs = np_batch['next_observations']
+        goals = np_batch['goals']
+        terminals = np_batch['terminals']
+        indices = np_batch['indices']
+        events = self.detect_event(next_obs, goals)
+        np_batch['events'] = events
+        np_batch['terminals'] = 1 - (1 - terminals) * (1 - events)
+        batch = np_to_pytorch_batch(np_batch)
+
         terminals = batch['terminals']
         obs = batch['observations']
         actions = batch['actions']
         next_obs = batch['next_observations']
         num_steps_left = batch['num_steps_left']
-        goals = batch['resampled_goals']
+        goals = batch['goals']
         events = batch['events']
 
-        # target = event + (1-event) * self.discount * self.beta_v(
-        #     next_obs, goals
-        # )
         next_actions = self.target_policy(
             observations=next_obs,
             goals=goals,
@@ -118,13 +125,18 @@ class BetaLearning(TorchRLAlgorithm):
             num_steps_left=num_steps_left,  #TODO: decrement
         )
         next_beta = torch.min(next_beta_1, next_beta_2)
-        target = (
+        targets = (
             terminals * events
             + (1 - terminals) * self.discount * next_beta
         ).detach()
 
         predictions = self.beta_q(obs, actions, goals, num_steps_left)
-        beta_q_loss = self.criterion(predictions, target)
+        if self.prioritized_replay:
+            weights = ptu.from_numpy(np_batch['is_weights']).float()
+            self.criterion.weight = weights
+            priorities = ptu.get_numpy(torch.abs(predictions - targets))
+            self.replay_buffer.update_priorities(indices, priorities)
+        beta_q_loss = self.criterion(predictions, targets)
         self.beta_q_optimizer.zero_grad()
         beta_q_loss.backward()
         self.beta_q_optimizer.step()
@@ -162,7 +174,7 @@ class BetaLearning(TorchRLAlgorithm):
             ))
             self.eval_statistics.update(create_stats_ordered_dict(
                 'Beta Q Targets',
-                ptu.get_numpy(target),
+                ptu.get_numpy(targets),
             ))
             self.eval_statistics.update(create_stats_ordered_dict(
                 'Beta Q Predictions',
@@ -172,6 +184,16 @@ class BetaLearning(TorchRLAlgorithm):
                 'Beta Q1 - Q2',
                 ptu.get_numpy(next_beta_1 - next_beta_2),
             ))
+            real_goal = np.array([0., 4.])
+            is_real_goal = (np_batch['goals'] == real_goal).all(axis=1)
+            goal_is_corner = (np.abs(np_batch['goals']) == 4).all(axis=1)
+            self.eval_statistics['Event Prob'] = np_batch['events'].mean()
+            self.eval_statistics['Training Goal is Real Goal Prob'] = (
+                is_real_goal.mean()
+            )
+            self.eval_statistics['Training Goal is Corner'] = (
+                goal_is_corner.mean()
+            )
 
     def detect_event(self, next_obs, goals):
         diff = self.env.convert_obs_to_goals(next_obs) - goals
@@ -236,6 +258,11 @@ class BetaLearning(TorchRLAlgorithm):
     def _start_new_rollout(self):
         self.exploration_policy.reset()
         self._current_path_goal = self.env.sample_goal_for_rollout()
+        # self._current_path_goal = (
+        #     self._current_path_goal + np.random.normal(
+        #         size=self._current_path_goal.shape
+        #     )
+        # )
         self.training_env.set_goal(self._current_path_goal)
         return self.training_env.reset()
 
@@ -251,4 +278,3 @@ class BetaLearning(TorchRLAlgorithm):
             self._current_path_goal,
             self._rollout_tau,
         )
-

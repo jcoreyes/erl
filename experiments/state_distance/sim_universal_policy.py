@@ -39,8 +39,8 @@ if __name__ == "__main__":
             max_tau = variant['sac_tdm_kwargs']['tdm_kwargs']['max_tau']
             print("Max tau read from variant: {}".format(max_tau))
         except KeyError:
-            print("Defaulting max tau to 10.")
-            max_tau = 10
+            print("Defaulting max tau to 0.")
+            max_tau = 0
     else:
         max_tau = args.mtau
 

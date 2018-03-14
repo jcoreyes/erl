@@ -47,9 +47,9 @@ if __name__ == "__main__":
     def beta_eval(a1, a2):
         actions = np.array([[a1, a2]])
         return beta_q.eval_np(
-            observations=np.array([[0, 0]]),
+            observations=np.array([[-4, 4]]),
             actions=actions,
-            goals=np.array([[0, 0]]),
+            goals=np.array([[-3, 4]]),
             num_steps_left=num_steps_left
         )[0, 0]
 
@@ -59,6 +59,4 @@ if __name__ == "__main__":
     heatmap = make_heat_map(beta_eval, [-1, 1], [-1, 1])
     plot_heatmap(heatmap)
     plt.show()
-    import ipdb; ipdb.set_trace()
-    pass
 

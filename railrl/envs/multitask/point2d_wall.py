@@ -13,6 +13,11 @@ class MultitaskPoint2dWall(Point2dWall, MultitaskEnv, Serializable):
         self.ob_to_goal_slice = slice(0, 2)
 
     def set_goal(self, goal):
+        goal = np.clip(
+            goal,
+            a_min=-self.OUTER_WALL_MAX_DIST,
+            a_max=self.OUTER_WALL_MAX_DIST,
+        )
         super().set_goal(goal)
         self._target_position = goal
 

@@ -17,7 +17,7 @@ from railrl.launchers.launcher_util import (
 )
 from railrl.launchers.launcher_util import run_experiment
 from railrl.misc.hypopt import optimize_and_save
-from railrl.misc.ml_util import RampUpSchedule
+from railrl.misc.ml_util import LinearSchedule
 from railrl.state_distance.old.networks import UniversalQfunction
 
 
@@ -84,7 +84,7 @@ if __name__ == '__main__':
         qf_params=dict(
             hidden_sizes=[400, 300],
         ),
-        epoch_discount_schedule_class=RampUpSchedule,
+        epoch_discount_schedule_class=LinearSchedule,
         epoch_discount_schedule_params=dict(
             min_value=0.,
             max_value=0.,
