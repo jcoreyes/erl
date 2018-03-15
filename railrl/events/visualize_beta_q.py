@@ -77,43 +77,74 @@ if __name__ == "__main__":
 
     obs = (4, 4)
     goal = (3, 4)
+    plt.title("pos {}. goal {}".format(obs, goal))
     heatmap = make_heat_map(create_beta_eval(obs, goal),
                             [-1, 1], [-1, 1], resolution=50)
     plot_heatmap(heatmap)
-    plt.title("pos {}. goal {}".format(obs, goal))
 
-    plt.figure()
     obs = (0, 0)
     goal = (1, 0)
+    plt.figure()
+    plt.title("pos {}. goal {}".format(obs, goal))
     heatmap = make_heat_map(create_beta_eval(obs, goal),
                             [-1, 1], [-1, 1], resolution=50)
     plot_heatmap(heatmap)
+
+    obs = (0, 0.75)
+    goal = (0, 1.75)
+    plt.figure()
     plt.title("pos {}. goal {}".format(obs, goal))
+    heatmap = make_heat_map(create_beta_eval(obs, goal),
+                            [-1, 1], [-1, 1], resolution=50)
+    plot_heatmap(heatmap)
+
+    if True:
+        pos = (0, 0.75)
+
+        action = (0, 1)
+        plt.figure()
+        plt.title("pos = {}. action = {}".format(pos, action))
+        action_eval = create_goal_eval(action, pos)
+        heatmap = make_heat_map(action_eval, [-4, 4], [-4, 4], resolution=50)
+        plot_heatmap(heatmap)
+
+        pos = (0, 1.75)
+        action = (0, 1)
+        plt.figure()
+        plt.title("pos = {}. action = {}".format(pos, action))
+        action_eval = create_goal_eval(action, pos)
+        heatmap = make_heat_map(action_eval, [-4, 4], [-4, 4], resolution=50)
+        plot_heatmap(heatmap)
 
     if False:
         pos = (4, 4)
-        plt.figure()
-        right_action_eval = create_goal_eval((1, 0), pos)
-        heatmap = make_heat_map(right_action_eval, [-4, 4], [-4, 4], resolution=50)
-        plot_heatmap(heatmap)
-        plt.title("+1, 0")
 
+        action = (1, 0)
         plt.figure()
-        left_action_eval = create_goal_eval((-1, 0), pos)
-        heatmap = make_heat_map(left_action_eval, [-4, 4], [-4, 4], resolution=50)
+        plt.title("pos = {}. action = {}".format(pos, action))
+        action_eval = create_goal_eval(action, pos)
+        heatmap = make_heat_map(action_eval, [-4, 4], [-4, 4], resolution=50)
         plot_heatmap(heatmap)
-        plt.title("-1, 0")
 
+        action = (-1, 0)
         plt.figure()
-        down_action_eval = create_goal_eval((0, 1), pos)
-        heatmap = make_heat_map(down_action_eval, [-4, 4], [-4, 4], resolution=50)
+        plt.title("pos = {}. action = {}".format(pos, action))
+        action_eval = create_goal_eval(action, pos)
+        heatmap = make_heat_map(action_eval, [-4, 4], [-4, 4], resolution=50)
         plot_heatmap(heatmap)
-        plt.title("0, +1")
 
+        action = (0, 1)
         plt.figure()
-        up_action_eval = create_goal_eval((0, -1), pos)
-        heatmap = make_heat_map(up_action_eval, [-4, 4], [-4, 4], resolution=50)
+        plt.title("pos = {}. action = {}".format(pos, action))
+        action_eval = create_goal_eval(action, pos)
+        heatmap = make_heat_map(action_eval, [-4, 4], [-4, 4], resolution=50)
         plot_heatmap(heatmap)
-        plt.title("0, -1")
+
+        action = (0, -1)
+        plt.figure()
+        plt.title("pos = {}. action = {}".format(pos, action))
+        action_eval = create_goal_eval(action, pos)
+        heatmap = make_heat_map(action_eval, [-4, 4], [-4, 4], resolution=50)
+        plot_heatmap(heatmap)
 
     plt.show()
