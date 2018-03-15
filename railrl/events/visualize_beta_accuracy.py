@@ -11,17 +11,14 @@ from railrl.state_distance.rollout_util import multitask_rollout
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--file', type=str,
+    parser.add_argument('file', type=str,
                         help='path to the snapshot file')
     parser.add_argument('--pause', action='store_true')
     args = parser.parse_args()
     if args.pause:
         import ipdb; ipdb.set_trace()
 
-    file = (
-        '/home/vitchyr/git/railrl/data/local/name-of-beta-learning-experiment/name-of-beta-learning-experiment_2018_03_12_17_45_52_0000--s-0/params.pkl'
-        or args.file
-    )
+    file = args.file
     data = joblib.load(file)
     beta_q = data['beta_q']
     env = data['env']
@@ -44,25 +41,27 @@ if __name__ == "__main__":
     actions = path_actions[0:1]
     beta_values = []
 
-    def beta_eval(a1, a2):
-        actions = np.array([[a1, a2]])
-        return beta_q.eval_np(
-            observations=np.array([[
-                0, 0
-            ]]),
-            actions=actions,
-            goals=np.array([[
-                0, 4
-            ]]),
-            num_steps_left=num_steps_left
-        )[0, 0]
-
-    def create_goal_eval(a1, a2):
-        def goal_eval(x1, x2):
+    def create_beta_eval(obs, goal):
+        def beta_eval(a1, a2):
             actions = np.array([[a1, a2]])
             return beta_q.eval_np(
                 observations=np.array([[
-                    0, 0
+                    *obs
+                ]]),
+                actions=actions,
+                goals=np.array([[
+                    *goal
+                ]]),
+                num_steps_left=num_steps_left
+            )[0, 0]
+        return beta_eval
+
+    def create_goal_eval(action, pos):
+        def goal_eval(x1, x2):
+            actions = np.array([[*action]])
+            return beta_q.eval_np(
+                observations=np.array([[
+                    *pos
                 ]]),
                 actions=actions,
                 goals=np.array([[
@@ -76,31 +75,45 @@ if __name__ == "__main__":
     print("true action:", actions)
     print("next obs:", next_obs)
 
-    heatmap = make_heat_map(beta_eval, [-1, 1], [-1, 1])
+    obs = (4, 4)
+    goal = (3, 4)
+    heatmap = make_heat_map(create_beta_eval(obs, goal),
+                            [-1, 1], [-1, 1], resolution=50)
     plot_heatmap(heatmap)
+    plt.title("pos {}. goal {}".format(obs, goal))
 
     plt.figure()
-    right_action_eval = create_goal_eval(1, 0)
-    heatmap = make_heat_map(right_action_eval, [-2, 2], [-2, 2], resolution=50)
+    obs = (0, 0)
+    goal = (1, 0)
+    heatmap = make_heat_map(create_beta_eval(obs, goal),
+                            [-1, 1], [-1, 1], resolution=50)
     plot_heatmap(heatmap)
-    plt.title("right")
+    plt.title("pos {}. goal {}".format(obs, goal))
 
-    plt.figure()
-    left_action_eval = create_goal_eval(-1, 0)
-    heatmap = make_heat_map(right_action_eval, [-2, 2], [-2, 2], resolution=50)
-    plot_heatmap(heatmap)
-    plt.title("left")
+    if False:
+        pos = (4, 4)
+        plt.figure()
+        right_action_eval = create_goal_eval((1, 0), pos)
+        heatmap = make_heat_map(right_action_eval, [-4, 4], [-4, 4], resolution=50)
+        plot_heatmap(heatmap)
+        plt.title("+1, 0")
 
-    plt.figure()
-    left_action_eval = create_goal_eval(0, 1)
-    heatmap = make_heat_map(right_action_eval, [-2, 2], [-2, 2], resolution=50)
-    plot_heatmap(heatmap)
-    plt.title("down")
+        plt.figure()
+        left_action_eval = create_goal_eval((-1, 0), pos)
+        heatmap = make_heat_map(left_action_eval, [-4, 4], [-4, 4], resolution=50)
+        plot_heatmap(heatmap)
+        plt.title("-1, 0")
 
-    plt.figure()
-    left_action_eval = create_goal_eval(0, -1)
-    heatmap = make_heat_map(right_action_eval, [-2, 2], [-2, 2], resolution=50)
-    plot_heatmap(heatmap)
-    plt.title("up")
+        plt.figure()
+        down_action_eval = create_goal_eval((0, 1), pos)
+        heatmap = make_heat_map(down_action_eval, [-4, 4], [-4, 4], resolution=50)
+        plot_heatmap(heatmap)
+        plt.title("0, +1")
+
+        plt.figure()
+        up_action_eval = create_goal_eval((0, -1), pos)
+        heatmap = make_heat_map(up_action_eval, [-4, 4], [-4, 4], resolution=50)
+        plot_heatmap(heatmap)
+        plt.title("0, -1")
 
     plt.show()
