@@ -62,7 +62,7 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=1000,
+            num_epochs=200,
             num_steps_per_epoch=5000,
             num_steps_per_eval=10000,
             max_path_length=1000,
@@ -88,25 +88,24 @@ if __name__ == "__main__":
     )
     search_space = {
         'env_class': [
-            # HalfCheetahEnv,
-            # AntEnv,
-            # HopperEnv,
-            # Walker2dEnv,
-            HumanoidEnv,
+            HalfCheetahEnv,
+            AntEnv,
+            HopperEnv,
+            Walker2dEnv,
+            # HumanoidEnv,
         ],
-        'algo_kwargs.reward_scale': [0.1, 1, 10],
-        # 'algo_kwargs.num_updates_per_env_step': [1, 5],
+        'algo_kwargs.discount': [0.0, 0.5, 0.9, 0.95],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        for _ in range(3):
+        for _ in range(2):
             run_experiment(
                 experiment,
-                exp_prefix="dev-td3-sweep",
-                # exp_prefix="td3-rllab-humanoid",
-                # mode='ec2',
+                # exp_prefix="dev-td3-sweep",
+                exp_prefix="td3-discount-factor-sweep",
+                mode='ec2',
                 exp_id=exp_id,
                 variant=variant,
                 use_gpu=False,
