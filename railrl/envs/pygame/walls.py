@@ -61,16 +61,16 @@ class Wall(object, metaclass=abc.ABCMeta):
             end_point[1],
         )
         if (self.top_segment.intersects_with(trajectory_segment) and
-                start_point[1] >= self.max_y):
+                end_point[1] <= start_point[1] >= self.max_y):
             end_point[1] = self.max_y
         if (self.bottom_segment.intersects_with(trajectory_segment) and
-                start_point[1] <= self.min_y):
+                end_point[1] >= start_point[1] <= self.min_y):
             end_point[1] = self.min_y
         if (self.right_segment.intersects_with(trajectory_segment) and
-                start_point[0] >= self.max_x):
+                end_point[1] <= start_point[0] >= self.max_x):
             end_point[0] = self.max_x
         if (self.left_segment.intersects_with(trajectory_segment) and
-                start_point[0] <= self.min_x):
+                end_point[1] >= start_point[0] <= self.min_x):
             end_point[0] = self.min_x
         return end_point
 
