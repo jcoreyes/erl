@@ -5,7 +5,8 @@ from railrl.data_management.her_replay_buffer import HerReplayBuffer, \
 from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
 from railrl.envs.multitask.point2d_wall import MultitaskPoint2dWall
 from railrl.events.beta_learning import BetaLearning
-from railrl.events.networks import BetaQ, TanhFlattenMlpPolicy
+from railrl.events.controllers import BetaLbfgsController, BetaMultigoalLbfgs
+from railrl.events.networks import BetaQ, TanhFlattenMlpPolicy, BetaV
 from railrl.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
@@ -25,13 +26,37 @@ def experiment(variant):
         False,
         hidden_sizes=[32, 32],
     )
+    beta_v = BetaV(
+        env,
+        False,
+        hidden_sizes=[32, 32],
+    )
     policy = TanhFlattenMlpPolicy(
         env,
         hidden_sizes=[32, 32],
     )
+    goal_slice = env.ob_to_goal_slice
+    multitask_goal_slice = slice(None)
+    controller = BetaMultigoalLbfgs(
+        beta_q,
+        beta_v,
+        env,
+        goal_slice=goal_slice,
+        max_cost=128,
+        learned_policy=policy,
+        multitask_goal_slice=multitask_goal_slice,
+        planning_horizon=3,
+        replan_every_time_step=True,
+        only_use_terminal_env_loss=False,
+        use_learned_policy=False,
+        solver_kwargs={
+            'factr': 1e12,
+        },
+    )
     exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=es,
         policy=policy,
+        # policy=controller,
     )
     replay_buffer = SimplePrioritizedHerReplayBuffer(
         env=env,
@@ -41,6 +66,7 @@ def experiment(variant):
         env,
         exploration_policy=exploration_policy,
         beta_q=beta_q,
+        beta_v=beta_v,
         policy=policy,
         replay_buffer=replay_buffer,
         **variant['algo_kwargs']
@@ -60,21 +86,22 @@ if __name__ == "__main__":
     variant = dict(
         algo_kwargs=dict(
             num_epochs=100,
-            num_steps_per_epoch=500,
-            num_steps_per_eval=100,
-            max_path_length=50,
+            num_steps_per_epoch=100,
+            num_steps_per_eval=50,
+            max_path_length=25,
             batch_size=100,
-            discount=0.,
-            # prioritized_replay=True,
-            # render=True,
-            # render_during_eval=True,
+            discount=0.8,
+            prioritized_replay=False,
+            render=False,
+            render_during_eval=False,
         ),
         replay_buffer_kwargs=dict(
             max_size=int(1E4),
-            num_goals_to_sample=2,
-            fraction_goals_are_rollout_goals=0.5,
-            resampling_strategy='truncated_geometric',
-            truncated_geom_factor=0.5,
+            num_goals_to_sample=4,
+            max_time_to_next_goal=5,
+            # fraction_goals_are_rollout_goals=0.5,
+            # resampling_strategy='truncated_geometric',
+            # truncated_geom_factor=0.5,
         ),
         es_kwargs=dict(
             max_sigma=0.5,

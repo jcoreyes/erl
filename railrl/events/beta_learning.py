@@ -19,6 +19,7 @@ class BetaLearning(TorchRLAlgorithm):
             env,
             exploration_policy,
             beta_q,
+            beta_v,
             policy,
             goal_reached_epsilon=1e-3,
             learning_rate=1e-3,
@@ -44,6 +45,7 @@ class BetaLearning(TorchRLAlgorithm):
         )
         self.goal_reached_epsilon = goal_reached_epsilon
         self.beta_q = beta_q
+        self.beta_v = beta_v
         self.beta_q2 = beta_q.copy(copy_parameters=False)
         self.target_beta_q = self.beta_q.copy()
         self.target_beta_q2 = self.beta_q2.copy()
@@ -62,13 +64,17 @@ class BetaLearning(TorchRLAlgorithm):
             self.beta_q.parameters(), lr=learning_rate
         )
         self.beta_q2_optimizer = Adam(
-            self.beta_q.parameters(), lr=learning_rate
+            self.beta_q2.parameters(), lr=learning_rate
+        )
+        self.beta_v_optimizer = Adam(
+            self.beta_v.parameters(), lr=learning_rate
         )
         self.policy_optimizer = Adam(
             self.policy.parameters(),
             lr=learning_rate,
         )
-        self.criterion = nn.BCELoss()
+        self.q_criterion = nn.BCELoss()
+        self.v_criterion = nn.BCELoss()
 
         # For the multitask env
         self._rollout_tau = np.array([0])
@@ -125,7 +131,9 @@ class BetaLearning(TorchRLAlgorithm):
             goals=goals,
             num_steps_left=num_steps_left,  #TODO: decrement
         )
-        next_beta = torch.min(next_beta_1, next_beta_2)
+        # TODO: maybe add twin back in
+        # next_beta = torch.min(next_beta_1, next_beta_2)
+        next_beta = next_beta_1
         targets = (
             terminals * events
             + (1 - terminals) * self.discount * next_beta
@@ -134,13 +142,21 @@ class BetaLearning(TorchRLAlgorithm):
         predictions = self.beta_q(obs, actions, goals, num_steps_left)
         if self.prioritized_replay:
             weights = ptu.from_numpy(np_batch['is_weights']).float()
-            self.criterion.weight = weights
+            self.q_criterion.weight = weights
             priorities = ptu.get_numpy(torch.abs(predictions - targets))
             self.replay_buffer.update_priorities(indices, priorities)
-        beta_q_loss = self.criterion(predictions, targets)
+        beta_q_loss = self.q_criterion(predictions, targets)
+
+        predictions2 = self.beta_q2(obs, actions, goals, num_steps_left)
+        beta_q2_loss = self.q_criterion(predictions2, targets)
+
         self.beta_q_optimizer.zero_grad()
         beta_q_loss.backward()
         self.beta_q_optimizer.step()
+
+        self.beta_q2_optimizer.zero_grad()
+        beta_q2_loss.backward()
+        self.beta_q2_optimizer.step()
 
         policy_actions = self.policy(obs, goals, num_steps_left)
         q_output = self.beta_q(
@@ -208,6 +224,7 @@ class BetaLearning(TorchRLAlgorithm):
         snapshot = super().get_epoch_snapshot(epoch)
         snapshot.update(
             beta_q=self.beta_q,
+            beta_v=self.beta_v,
             policy=self.policy,
             exploration_policy=self.exploration_policy,
         )
@@ -219,6 +236,7 @@ class BetaLearning(TorchRLAlgorithm):
             self.policy,
             self.beta_q,
             self.beta_q2,
+            self.beta_v,
             self.target_policy,
             self.target_beta_q,
             self.target_beta_q2,

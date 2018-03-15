@@ -126,6 +126,7 @@ if __name__ == "__main__":
     data = joblib.load(args.file)
     env = data['env']
     beta = data['beta_q']
+    # beta_v = data['beta_v']
     lagrange_multiplier = args.lm / reward_scale
     planning_horizon = args.ph
     goal_slice = env.ob_to_goal_slice
@@ -137,6 +138,7 @@ if __name__ == "__main__":
     print("multitask goal slice: ", multitask_goal_slice)
     policy = BetaLbfgsController(
         beta,
+        beta,
         env,
         goal_slice=goal_slice,
         max_cost=128,
@@ -145,10 +147,9 @@ if __name__ == "__main__":
         planning_horizon=planning_horizon,
         replan_every_time_step=True,
         only_use_terminal_env_loss=False,
-        use_learned_policy=True,
+        use_learned_policy=False,
         solver_kwargs={
-            'factr': 1e12,
-            # 'factr': 1e9,
+            'factr': 1e9,
         },
     )
     paths = []
