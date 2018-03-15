@@ -266,6 +266,8 @@ class BetaLearning(TorchRLAlgorithm):
             agent_info,
             env_info,
     ):
+        # TODO: maybe hide this goals stuff behind a flag?
+        actual_goal = self.exploration_policy.policy.current_goal
         self._current_path_builder.add_all(
             observations=observation,
             actions=action,
@@ -275,7 +277,7 @@ class BetaLearning(TorchRLAlgorithm):
             agent_infos=agent_info,
             env_infos=env_info,
             num_steps_left=self._rollout_tau,
-            goals=self._current_path_goal,
+            goals=actual_goal,
         )
 
     def _handle_rollout_ending(self):
