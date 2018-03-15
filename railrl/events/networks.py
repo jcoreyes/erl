@@ -18,6 +18,7 @@ class BetaQ(FlattenMlp):
                     self.observation_dim + self.action_dim + self.goal_dim + 1
             ),
             output_size=self.goal_dim if vectorized else 1,
+            hidden_activation=torch.tanh,
             output_activation=torch.sigmoid,
             **flatten_mlp_kwargs
         )
@@ -48,6 +49,7 @@ class BetaV(FlattenMlp):
                     self.observation_dim + self.goal_dim + 1
             ),
             output_size=self.goal_dim if vectorized else 1,
+            hidden_activation=torch.tanh,
             output_activation=torch.sigmoid,
             **flatten_mlp_kwargs
         )

@@ -26,6 +26,11 @@ def experiment(variant):
         False,
         hidden_sizes=[32, 32],
     )
+    beta_q2 = BetaQ(
+        env,
+        False,
+        hidden_sizes=[32, 32],
+    )
     beta_v = BetaV(
         env,
         False,
@@ -66,6 +71,7 @@ def experiment(variant):
         env,
         exploration_policy=exploration_policy,
         beta_q=beta_q,
+        beta_q2=beta_q2,
         beta_v=beta_v,
         policy=policy,
         replay_buffer=replay_buffer,
@@ -86,7 +92,7 @@ if __name__ == "__main__":
     variant = dict(
         algo_kwargs=dict(
             num_epochs=100,
-            num_steps_per_epoch=100,
+            num_steps_per_epoch=500,
             num_steps_per_eval=50,
             max_path_length=25,
             batch_size=100,

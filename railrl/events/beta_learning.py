@@ -19,6 +19,7 @@ class BetaLearning(TorchRLAlgorithm):
             env,
             exploration_policy,
             beta_q,
+            beta_q2,
             beta_v,
             policy,
             goal_reached_epsilon=1e-3,
@@ -46,7 +47,7 @@ class BetaLearning(TorchRLAlgorithm):
         self.goal_reached_epsilon = goal_reached_epsilon
         self.beta_q = beta_q
         self.beta_v = beta_v
-        self.beta_q2 = beta_q.copy(copy_parameters=False)
+        self.beta_q2 = beta_q2
         self.target_beta_q = self.beta_q.copy()
         self.target_beta_q2 = self.beta_q2.copy()
         self.policy = policy
@@ -158,6 +159,14 @@ class BetaLearning(TorchRLAlgorithm):
         beta_q2_loss.backward()
         self.beta_q2_optimizer.step()
 
+        beta_v_loss = self.v_criterion(
+            self.beta_v(next_obs, goals, num_steps_left),  #TODO: decrement
+            targets
+        )
+        self.beta_v_optimizer.zero_grad()
+        beta_v_loss.backward()
+        self.beta_v_optimizer.step()
+
         policy_actions = self.policy(obs, goals, num_steps_left)
         q_output = self.beta_q(
             observations=obs,
@@ -188,6 +197,9 @@ class BetaLearning(TorchRLAlgorithm):
             ))
             self.eval_statistics['Beta Q Loss'] = np.mean(ptu.get_numpy(
                 beta_q_loss
+            ))
+            self.eval_statistics['Beta V Loss'] = np.mean(ptu.get_numpy(
+                beta_v_loss
             ))
             self.eval_statistics.update(create_stats_ordered_dict(
                 'Beta Q Targets',
