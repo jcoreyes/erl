@@ -335,6 +335,19 @@ class PrioritizedHerReplayBuffer(HerReplayBuffer):
 
 
 class SimplePrioritizedHerReplayBuffer(PrioritizedHerReplayBuffer):
+    def __init__(
+            self,
+            max_size,
+            env,
+            max_time_to_next_goal=None,
+            **kwargs
+    ):
+        super().__init__(max_size, env, **kwargs)
+        if max_time_to_next_goal is not None:
+            assert max_time_to_next_goal >= self.num_goals_to_sample
+        self.max_time_to_next_goal = max_time_to_next_goal
+
+
     def add_sample(self, observation, action, reward, terminal,
                    next_observation, goal, num_steps_left, **kwargs):
         self._observations[self._top] = observation
@@ -389,7 +402,11 @@ class SimplePrioritizedHerReplayBuffer(PrioritizedHerReplayBuffer):
             self.add_sample(observation, action, reward, terminal,
                             next_observation, goal, num_steps_left)
             num_goals_to_sample = min(self.num_goals_to_sample, path_len-i)
-            goal_idxs = np.random.randint(i, path_len, num_goals_to_sample)
+            if self.max_time_to_next_goal is None:
+                max_i = path_len
+            else:
+                max_i = min(i + self.max_time_to_next_goal, path_len)
+            goal_idxs = np.random.randint(i, max_i, num_goals_to_sample)
             for goal_i in goal_idxs:
                 # TODO: maybe update num_steps_left
                 self.add_sample(observation, action, reward, terminal,

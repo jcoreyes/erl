@@ -55,23 +55,23 @@ def debug(env, obs, agent_info):
 
     best_obs_seq = agent_info['best_obs_seq']
     best_action_seq = agent_info['best_action_seq']
-    real_obs_seq = env.wrapped_env.true_states(
+    real_obs_seq = env.true_states(
         obs, best_action_seq
     )
     ax1.clear()
-    env.wrapped_env.plot_trajectory(
+    env.plot_trajectory(
         ax1,
         np.array(best_obs_seq),
         np.array(best_action_seq),
-        goal=env.wrapped_env._target_position,
+        goal=env._target_position,
     )
     ax1.set_title("imagined")
     ax2.clear()
-    env.wrapped_env.plot_trajectory(
+    env.plot_trajectory(
         ax2,
         np.array(real_obs_seq),
         np.array(best_action_seq),
-        goal=env.wrapped_env._target_position,
+        goal=env._target_position,
     )
     ax2.set_title("real")
     plt.draw()
@@ -113,8 +113,8 @@ def multitask_rollout(
     while path_length < max_path_length:
         a, agent_info = agent.get_action(o, goal, tau, **get_action_kwargs)
         # TODO: remove this after debugging
-        # if len(agent_info) > 0:
-        #     debug(env, o, agent_info)
+        if len(agent_info) > 0:
+            debug(env, o, agent_info)
         next_o, r, d, env_info = env.step(a)
         next_observations.append(next_o)
         observations.append(o)
