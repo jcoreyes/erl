@@ -46,9 +46,8 @@ class SoftActorCritic(TorchRLAlgorithm):
             policy_pre_activation_weight=0.,
             optimizer_class=optim.Adam,
 
+            train_policy_with_reparameterization=False,
             soft_target_tau=1e-2,
-            plotter=None,
-            render_eval_paths=False,
             eval_deterministic=True,
 
             eval_policy=None,
@@ -73,8 +72,9 @@ class SoftActorCritic(TorchRLAlgorithm):
         self.policy_mean_reg_weight = policy_mean_reg_weight
         self.policy_std_reg_weight = policy_std_reg_weight
         self.policy_pre_activation_weight = policy_pre_activation_weight
-        self.plotter = plotter
-        self.render_eval_paths = render_eval_paths
+        self.train_policy_with_reparameterization = (
+            train_policy_with_reparameterization
+        )
 
         self.target_vf = vf.copy()
         self.qf_criterion = nn.MSELoss()
@@ -125,11 +125,13 @@ class SoftActorCritic(TorchRLAlgorithm):
         """
         Policy Loss
         """
-        # paper says to do + but apparently that's a typo. Do Q - V.
-        log_policy_target = q_new_actions - v_pred
-        policy_loss = (
-            log_pi * (log_pi - log_policy_target).detach()
-        ).mean()
+        if self.train_policy_with_reparameterization:
+            policy_loss = (log_pi - q_new_actions).mean()
+        else:
+            log_policy_target = q_new_actions - v_pred
+            policy_loss = (
+                log_pi * (log_pi - log_policy_target).detach()
+            ).mean()
         mean_reg_loss = self.policy_mean_reg_weight * (policy_mean**2).mean()
         std_reg_loss = self.policy_std_reg_weight * (policy_log_std**2).mean()
         pre_tanh_value = policy_outputs[-1]

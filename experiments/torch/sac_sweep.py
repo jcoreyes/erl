@@ -63,6 +63,7 @@ if __name__ == "__main__":
 
             save_replay_buffer=False,
             replay_buffer_size=int(1E6),
+            train_policy_with_reparameterization=True,
 
             soft_target_tau=0.001,
             policy_lr=3E-4,
@@ -100,7 +101,7 @@ if __name__ == "__main__":
             run_experiment(
                 experiment,
                 # exp_prefix="dev-sac-sweep",
-                exp_prefix="sac-td3-sweep-reward-scale-ahhw",
+                exp_prefix="sac-sweep-try-reparameterization",
                 mode='ec2',
                 exp_id=exp_id,
                 variant=variant,
