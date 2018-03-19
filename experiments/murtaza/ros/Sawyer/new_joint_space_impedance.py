@@ -2,16 +2,11 @@ import rospy
 from std_msgs.msg import Empty
 
 import intera_interface
-import baxter_interface
 import numpy as np
 
 class PDController(object):
     """
-    Modified PD Controller for Moving to Neutral
-
-    @param robot: the name of the robot to run the pd controller
-    @param limb_name: limb on which to run the pd controller
-
+    PD Controller for Moving to Neutral
     """
     def __init__(self):
 
@@ -63,7 +58,6 @@ class PDController(object):
         as defined on the dynamic reconfigure server.
         """
 
-        # print self._springs
         self.adjust_springs()
 
         # disable cuff interaction
@@ -72,11 +66,14 @@ class PDController(object):
 
         # create our command dict
         cmd = dict()
+
         # record current angles/velocities
+
+        #TODO: REPLACE WITH CALLS TO OBSERVATION SERVER
         cur_pos = self._limb.joint_angles()
         cur_vel = self._limb.joint_velocities()
-        # calculate current forces
 
+        # calculate current forces
         for joint in list(self._des_angles.keys()):
             # spring portion
             cmd[joint] = self._springs[joint] * (self._des_angles[joint] -
@@ -85,17 +82,7 @@ class PDController(object):
             cmd[joint] -= self._damping[joint] * cur_vel[joint]
 
         if self.robot == 'sawyer':
-            cmd = np.array(
-                [cmd['right_j0'], cmd['right_j1'], cmd['right_j2'], cmd['right_j3'], cmd['right_j4'],
-                cmd['right_j5'], cmd['right_j6']])
-        else:
-            if self._limb_name == "right":
-                cmd = np.array(
-                    [cmd['right_s0'], cmd['right_s1'], cmd['right_e0'], cmd['right_e1'], cmd['right_w0'],
-                     cmd['right_w1'], cmd['right_w2']])
-            elif self._limb_name == "left":
-                cmd = np.array(
-                    [cmd['left_s0'], cmd['left_s1'], cmd['left_e0'], cmd['left_e1'], cmd['left_w0'],
-                     cmd['left_w1'], cmd['left_w2']])
+            cmd = np.array([
+                cmd[joint] for joint in self._limb_joint_names
+            ])
         return cmd
-

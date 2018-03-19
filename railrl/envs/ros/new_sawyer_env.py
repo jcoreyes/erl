@@ -145,7 +145,7 @@ class SawyerEnv(Env, Serializable):
             loss='huber',
             huber_delta=10,
             safety_force_magnitude=2,
-            temp=1.05,
+            temperature=1.05,
             safe_reset_length=150,
             reward_magnitude=1,
             use_safety_checks=True,
@@ -200,29 +200,26 @@ class SawyerEnv(Env, Serializable):
 
         self.huber_delta = huber_delta
         self.safety_force_magnitude = safety_force_magnitude
-        self.temp = temp
-
-        self.arm = ii.Limb(self.arm_name)
-        self.arm_joint_names = self.arm.joint_names()
+        self.temperature = temperature
 
         self.PDController = PDController()
 
-        #create a dictionary whose values are functions that set the appropriate values
-        action_mode_dict = {
-            'angle': self.arm.set_joint_positions,
-            'velocity': self.arm.set_joint_velocities,
-            'torque': self.arm.set_joint_torques,
-        }
-
-        #create a dictionary whose values are functions that return the appropriate values
-        observation_mode_dict = {
-            'angle': self._joint_angles,
-            'velocity': self.arm.joint_velocities,
-            'torque': self.arm.joint_efforts,
-        }
-
-        self._set_joint_values = action_mode_dict[action_mode]
-        self._get_joint_values = observation_mode_dict
+        # #create a dictionary whose values are functions that set the appropriate values
+        # action_mode_dict = {
+        #     'angle': self.arm.set_joint_positions,
+        #     'velocity': self.arm.set_joint_velocities,
+        #     'torque': self.arm.set_joint_torques,
+        # }
+        #
+        # #create a dictionary whose values are functions that return the appropriate values
+        # observation_mode_dict = {
+        #     'angle': self._joint_angles,
+        #     'velocity': self.arm.joint_velocities,
+        #     'torque': self.arm.joint_efforts,
+        # }
+        #
+        # self._set_joint_values = action_mode_dict[action_mode]
+        # self._get_joint_values = observation_mode_dict
 
         self._action_space = Box(
             JOINT_VALUE_LOW[action_mode],
@@ -360,18 +357,6 @@ class SawyerEnv(Env, Serializable):
             ))
 
             if self.fixed_end_effector:
-                # des = {
-                #     'position': Point(x=0.44562573898386176, y=-0.055317682301721766, z=0.4950886597008108),
-                #     'orientation': Quaternion(x=-0.5417504106748736, y=0.46162598289085305, z=0.35800013141940035, w=0.6043540769758675)}
-                # self.desired = np.array([
-                #     des['position'].x,
-                #     des['position'].y,
-                #     des['position'].z,
-                #     des['orientation'].x,
-                #     des['orientation'].y,
-                #     des['orientation'].z,
-                #     des['orientation'].w,
-                # ])
                 self.desired = np.array(
                     [0.598038329445, -0.110192662364, 0.273337957845, 0.999390065723, 0.0329420607071, 0.00603632837369,
                      -0.00989342758435])
@@ -379,10 +364,8 @@ class SawyerEnv(Env, Serializable):
                 self._randomize_desired_end_effector_pose()
 
         self._observation_space = Box(lows, highs)
-        self._rs = ii.RobotEnable(CHECK_VERSION)
         self.update_pose_and_jacobian_dict()
         self.in_reset = True
-        # self.amplify = 0.5 * np.array([8, 7, 6, 5, 4, 3, 2])
         self.amplify=5*np.ones(7)
         self.loss_param = {'delta':0.001, 'c':0.0025}
 
@@ -406,6 +389,8 @@ class SawyerEnv(Env, Serializable):
         if not self.in_reset:
             action = self.amplify * action
             action = np.clip(np.asarray(action),-MAX_TORQUES, MAX_TORQUES)
+
+        #TODO: REPLACE WITH CALL TO ACTION NODE
         joint_to_values = dict(zip(self.arm_joint_names, action))
         self._set_joint_values(joint_to_values)
         self.rate.sleep()
@@ -696,11 +681,14 @@ class SawyerEnv(Env, Serializable):
                 raise EnvironmentError('ERROR: NaN action attempted')
 
     def _get_observation(self):
+
+        #TODO: REPLACE WTIH CALL TO OBSERVATION NODE
         angles = self._joint_angles()
         torques_dict = self._get_joint_values['torque']()
         velocities_dict = self._get_joint_values['velocity']()
         velocities = np.array([velocities_dict[joint] for joint in self.arm_joint_names])
         torques = np.array([torques_dict[joint] for joint in self.arm_joint_names])
+
         temp = np.hstack((
             angles,
             velocities,
@@ -821,19 +809,19 @@ class SawyerEnv(Env, Serializable):
         curr_y = endpoint_pose[1]
         curr_z = endpoint_pose[2]
         if curr_x > box_highs[0]:
-            x = -1 * np.exp(np.abs(curr_x - box_highs[0]) * self.temp) * self.safety_force_magnitude
+            x = -1 * np.exp(np.abs(curr_x - box_highs[0]) * self.temperature) * self.safety_force_magnitude
         elif curr_x < box_lows[0]:
-            x = np.exp(np.abs(curr_x - box_lows[0]) * self.temp) * self.safety_force_magnitude
+            x = np.exp(np.abs(curr_x - box_lows[0]) * self.temperature) * self.safety_force_magnitude
 
         if curr_y > box_highs[1]:
-            y = -1 * np.exp(np.abs(curr_y - box_highs[1]) * self.temp) * self.safety_force_magnitude
+            y = -1 * np.exp(np.abs(curr_y - box_highs[1]) * self.temperature) * self.safety_force_magnitude
         elif curr_y < box_lows[1]:
-            y = np.exp(np.abs(curr_y - box_lows[1]) * self.temp) * self.safety_force_magnitude
+            y = np.exp(np.abs(curr_y - box_lows[1]) * self.temperature) * self.safety_force_magnitude
 
         if curr_z > box_highs[2]:
-            z = -1 * np.exp(np.abs(curr_z - box_highs[2]) * self.temp) * self.safety_force_magnitude
+            z = -1 * np.exp(np.abs(curr_z - box_highs[2]) * self.temperature) * self.safety_force_magnitude
         elif curr_z < box_lows[2]:
-            z = np.exp(np.abs(curr_z - box_highs[2]) * self.temp) * self.safety_force_magnitude
+            z = np.exp(np.abs(curr_z - box_highs[2]) * self.temperature) * self.safety_force_magnitude
         return np.array([x, y, z])
 
     def compute_distances_outside_box(self, pose):
