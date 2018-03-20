@@ -24,13 +24,17 @@ def experiment(variant):
     env = NormalizedBoxEnv(variant['env_class']())
     obs_dim = env.observation_space.low.size
     action_dim = env.action_space.low.size
-    qf = FlattenMlp(
+    qf1 = FlattenMlp(
         input_size=obs_dim + action_dim,
         output_size=1,
         **variant['qf_kwargs']
     )
-    vf1 = FlattenMlp(input_size=obs_dim, output_size=1, **variant['vf_kwargs'])
-    vf2 = FlattenMlp(input_size=obs_dim, output_size=1, **variant['vf_kwargs'])
+    qf2 = FlattenMlp(
+        input_size=obs_dim + action_dim,
+        output_size=1,
+        **variant['qf_kwargs']
+    )
+    vf = FlattenMlp(input_size=obs_dim, output_size=1, **variant['vf_kwargs'])
     policy = TanhGaussianPolicy(
         obs_dim=obs_dim,
         action_dim=action_dim,
@@ -39,9 +43,9 @@ def experiment(variant):
     algorithm = TwinSAC(
         env,
         policy=policy,
-        qf=qf,
-        vf1=vf1,
-        vf2=vf2,
+        qf1=qf1,
+        qf2=qf2,
+        vf=vf,
         **variant['algo_kwargs']
     )
     if ptu.gpu_enabled():
@@ -57,6 +61,7 @@ if __name__ == "__main__":
             num_steps_per_epoch=5000,
             num_steps_per_eval=10000,
             max_path_length=1000,
+            min_num_steps_before_training=10000,
             # num_epochs=200,
             # num_steps_per_epoch=500,
             # num_steps_per_eval=1000,
@@ -65,6 +70,9 @@ if __name__ == "__main__":
             discount=0.99,
 
             replay_buffer_size=int(1E6),
+
+            soft_target_tau=1e-3,
+            policy_and_target_update_period=1,
         ),
         qf_kwargs=dict(
             hidden_sizes=[400, 300],
@@ -80,7 +88,7 @@ if __name__ == "__main__":
             min_sigma=0.1,  # Constant sigma
         ),
         algorithm="Twin-SAC",
-        version="Twin-SAC",
+        version="Twin-SAC-on-Q-no-delay",
         env_class=HalfCheetahEnv,
     )
     search_space = {
@@ -93,21 +101,17 @@ if __name__ == "__main__":
             # InvertedDoublePendulumEnv,
         ],
         'algo_kwargs.reward_scale': [0.01, 1, 100, 10000],
-        'algo_kwargs.num_updates_per_env_step': [1, 5],
+        'algo_kwargs.num_updates_per_env_step': [1],
     }
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,
     )
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
-        if variant['env_class'] == HalfCheetahEnv:
-            variant['algo_kwargs']['min_num_steps_before_training'] = 10000
-        else:
-            variant['algo_kwargs']['min_num_steps_before_training'] = 1000
-        for _ in range(1):
+        for _ in range(2):
             run_experiment(
                 experiment,
                 # exp_prefix="dev-twin-sace-sweep",
-                exp_prefix="twin-sac-sweep-2",
+                exp_prefix="twin-sac-on-q-sweep",
                 mode='ec2',
                 exp_id=exp_id,
                 variant=variant,
